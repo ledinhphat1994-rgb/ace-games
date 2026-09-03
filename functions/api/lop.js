@@ -5,7 +5,9 @@ import { bocXuLy, json } from '../_lib/api.js';
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const db = env.DB;
 
-  const [hocSinh, thongBao, keHoach, tkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
+  const homNay = new Date().toISOString().slice(0, 10);
+
+  const [hocSinh, thongBao, keHoach, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
@@ -19,7 +21,10 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
       `SELECT id, ngay, tieu_de AS tieuDe, mo_ta AS moTa, muc_do AS mucDo, hoan_thanh AS hoanThanh
          FROM ke_hoach ORDER BY ngay`
     ).all(),
-    db.prepare('SELECT thu, tiet, mon, phong FROM thoi_khoa_bieu ORDER BY tiet, thu').all(),
+    db.prepare(
+      `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
+        WHERE ngay_bat_dau <= ?1 ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
+    ).bind(homNay).first(),
     db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh ORDER BY ngay DESC, id DESC LIMIT 60').all(),
     // Thủ quỹ: chỉ số liệu TỔNG HỢP, không bao giờ trả về ai đã đóng / ai còn thiếu.
     db.prepare(
@@ -30,6 +35,11 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     ).all(),
     db.prepare('SELECT COALESCE(SUM(so_tien), 0) AS tongChi FROM quy_chi').first(),
   ]);
+
+  const oTkb = phienBanTkb
+    ? (await db.prepare('SELECT buoi, thu, tiet, mon, phong FROM tkb_o WHERE phien_ban_id = ?1 ORDER BY buoi, tiet, thu')
+        .bind(phienBanTkb.id).all()).results
+    : [];
 
   const sl = hocSinh.results.length;
   const nam = hocSinh.results.filter((h) => h.gioiTinh === 'Nam').length;
@@ -54,7 +64,10 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     hocSinh: hocSinh.results,
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim) })),
     keHoach: keHoach.results.map((k) => ({ ...k, hoanThanh: Boolean(k.hoanThanh) })),
-    thoiKhoaBieu: tkb.results,
+    thoiKhoaBieu: {
+      phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau } : null,
+      o: oTkb,
+    },
     hinhAnh: hinhAnh.results,
     thuQuy: {
       tonQuy: tongThuQuy - tongChiQuy,

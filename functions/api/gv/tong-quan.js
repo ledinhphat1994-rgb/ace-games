@@ -15,8 +15,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1').first(),
 
     db.prepare(
-      `SELECT trang_thai AS trangThai, COUNT(*) AS n
-         FROM diem_danh WHERE ngay = ?1 GROUP BY trang_thai`
+      `SELECT buoi, trang_thai AS trangThai, COUNT(*) AS n
+         FROM diem_danh WHERE ngay = ?1 GROUP BY buoi, trang_thai`
     ).bind(homNay).all(),
 
     db.prepare(
@@ -54,11 +54,21 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     ).all(),
   ]);
 
+  // Tổng gộp mọi buổi (giữ để không phá phần đang dùng) + tách riêng theo từng buổi.
+  const tongTheoTrangThai = {};
+  const theoBuoi = {};
+  ddHomNay.results.forEach((r) => {
+    tongTheoTrangThai[r.trangThai] = (tongTheoTrangThai[r.trangThai] || 0) + r.n;
+    theoBuoi[r.buoi] = theoBuoi[r.buoi] || {};
+    theoBuoi[r.buoi][r.trangThai] = r.n;
+  });
+
   return json({
     ok: true,
     ngay: homNay,
     siSo: siSo?.n ?? 0,
-    diemDanhHomNay: Object.fromEntries(ddHomNay.results.map((r) => [r.trangThai, r.n])),
+    diemDanhHomNay: tongTheoTrangThai,
+    diemDanhHomNayTheoBuoi: theoBuoi,
     vangNhieu: vangNhieu.results,
     theoDoi: theoDoi.results,
     nhatKy: nhatKy.results,

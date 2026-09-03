@@ -118,33 +118,74 @@ function veDanhSach(ds) {
   $('#oTim').addEventListener('input', (ev) => { tim = ev.target.value; ve(); });
 }
 
-function veThoiKhoaBieu(tiet) {
-  const dau = $('#dauTkb');
-  const than = $('#thanTkb');
+const CAC_BUOI_TKB = [['sang', 'Buổi sáng'], ['chieu', 'Buổi chiều']];
+
+function veThoiKhoaBieu(thoiKhoaBieu) {
+  const phienBan = thoiKhoaBieu?.phienBan;
+  const o = thoiKhoaBieu?.o || [];
   const cacThu = [2, 3, 4, 5, 6, 7];
 
-  const hangDau = e('tr');
-  hangDau.append(e('th', null, 'Tiết'), ...cacThu.map((t) => e('th', null, t === 7 ? 'Thứ 7' : 'Thứ ' + t)));
-  datNoiDung(dau, hangDau);
+  $('#tkbApDung').textContent = phienBan
+    ? `Áp dụng từ ${ngayVN(phienBan.ngayBatDau)}`
+    : 'Chưa cập nhật thời khoá biểu.';
 
-  if (!tiet.length) {
+  if (!o.length) {
+    datNoiDung($('#tkbTabBuoi'));
+    datNoiDung($('#dauTkb'));
     const tr = e('tr');
     tr.append(Object.assign(e('td', 'trong', 'Chưa cập nhật thời khoá biểu.'), { colSpan: 7 }));
-    return datNoiDung(than, tr);
+    return datNoiDung($('#thanTkb'), tr);
   }
 
-  const soTiet = Math.max(...tiet.map((t) => t.tiet));
-  const bang = {};
-  tiet.forEach((t) => { bang[`${t.thu}-${t.tiet}`] = t.mon; });
+  const cacBuoiCo = CAC_BUOI_TKB.filter(([ma]) => o.some((x) => x.buoi === ma));
+  let buoiDangXem = cacBuoiCo[0]?.[0] || 'sang';
 
-  const hang = [];
-  for (let i = 1; i <= soTiet; i++) {
-    const tr = e('tr');
-    tr.append(Object.assign(e('td', null, 'Tiết ' + i), { style: 'font-weight:700;color:var(--chinh);white-space:nowrap' }));
-    cacThu.forEach((t) => tr.append(e('td', null, bang[`${t}-${i}`] || '—')));
-    hang.push(tr);
+  function veBang() {
+    const dau = $('#dauTkb');
+    const than = $('#thanTkb');
+
+    const hangDau = e('tr');
+    hangDau.append(e('th', null, 'Tiết'), ...cacThu.map((t) => e('th', null, t === 7 ? 'Thứ 7' : 'Thứ ' + t)));
+    datNoiDung(dau, hangDau);
+
+    const oBuoi = o.filter((x) => x.buoi === buoiDangXem);
+    if (!oBuoi.length) {
+      const tr = e('tr');
+      tr.append(Object.assign(e('td', 'trong', 'Buổi này không có tiết học.'), { colSpan: 7 }));
+      return datNoiDung(than, tr);
+    }
+
+    const soTiet = Math.max(...oBuoi.map((t) => t.tiet));
+    const bang = {};
+    oBuoi.forEach((t) => { bang[`${t.thu}-${t.tiet}`] = t.mon; });
+
+    const hang = [];
+    for (let i = 1; i <= soTiet; i++) {
+      const tr = e('tr');
+      tr.append(Object.assign(e('td', null, 'Tiết ' + i), { style: 'font-weight:700;color:var(--chinh);white-space:nowrap' }));
+      cacThu.forEach((t) => tr.append(e('td', null, bang[`${t}-${i}`] || '—')));
+      hang.push(tr);
+    }
+    datNoiDung(than, ...hang);
   }
-  datNoiDung(than, ...hang);
+
+  const hopTab = $('#tkbTabBuoi');
+  if (cacBuoiCo.length > 1) {
+    function veTab() {
+      datNoiDung(hopTab, ...cacBuoiCo.map(([ma, ten]) => {
+        const b = e('button', 'vien-loc', ten);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(buoiDangXem === ma));
+        b.addEventListener('click', () => { buoiDangXem = ma; veTab(); veBang(); });
+        return b;
+      }));
+    }
+    veTab();
+  } else {
+    datNoiDung(hopTab);
+  }
+
+  veBang();
 }
 
 function veKeHoach(ds) {
@@ -174,7 +215,7 @@ function veTomTat(d) {
   const homNayIso = new Date().toISOString().slice(0, 10);
   const thuHomNay = new Date().getDay(); // 0=CN..6=T7 -> quy đổi sang 2..7 dùng ở TKB
   const soThuTkb = thuHomNay === 0 ? null : thuHomNay + 1;
-  const soTietHomNay = soThuTkb ? d.thoiKhoaBieu.filter((t) => t.thu === soThuTkb).length : 0;
+  const soTietHomNay = soThuTkb ? (d.thoiKhoaBieu?.o || []).filter((t) => t.thu === soThuTkb).length : 0;
 
   const mucTom = [
     ['#thong-bao', '◈', 'Thông báo', tinMoi ? tinMoi.tieuDe : 'Chưa có thông báo', tinMoi ? ngayVN(tinMoi.ngay) : ''],

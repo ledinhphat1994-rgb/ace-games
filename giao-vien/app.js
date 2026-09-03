@@ -11,8 +11,8 @@ import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/
 import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
 } from './trang-hoc-tap.js';
-import { trangQuy, trangPhanQuyen, trangQuyLichSu } from './trang-quy.js';
-import { trangKeHoach, trangThoiKhoaBieu } from './trang-lich.js';
+import { trangQuy, trangPhanQuyen, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
+import { trangKeHoach, trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -33,9 +33,12 @@ const QUYEN_THEO_TUYEN = {
   'hinh-anh': 'hinh-anh',
   'quy': 'quy',
   'quy-lich-su': 'quy',
+  'quy-dinh-ky': 'quy',
   'phan-quyen': null,
   'ke-hoach': 'ke-hoach',
   'thoi-khoa-bieu': null,
+  'thoi-khoa-bieu-lich-su': null,
+  'thoi-khoa-bieu-xem': null,
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
@@ -113,6 +116,25 @@ async function trangTongQuan() {
       nut('Điểm danh ngay', '', () => { location.hash = '#/diem-danh'; })
     );
     khung.append(nhacNho);
+  } else {
+    // Lớp học cả sáng lẫn chiều: tách rõ buổi nào đã điểm danh, buổi nào chưa.
+    const theoBuoi = d.diemDanhHomNayTheoBuoi || {};
+    const cacBuoiCoDiemDanh = Object.keys(theoBuoi);
+    if (cacBuoiCoDiemDanh.length) {
+      const theBuoi = e('div', 'the');
+      theBuoi.append(e('h3', null, 'Điểm danh hôm nay theo buổi'));
+      const day2 = e('div', 'day-loc');
+      day2.style.marginTop = '8px';
+      [['sang', 'Buổi sáng'], ['chieu', 'Buổi chiều'], ['hoat_dong', 'Hoạt động']].forEach(([ma, ten]) => {
+        const tt = theoBuoi[ma];
+        if (!tt) return;
+        const soVang = (tt.vang_khong_phep || 0) + (tt.vang_phep || 0);
+        day2.append(e('span', 'nhan ' + (soVang ? 'nhan-luuy' : 'nhan-tot'),
+          `${ten}: ${tt.co_mat || 0} có mặt${soVang ? `, ${soVang} vắng` : ''}`));
+      });
+      theBuoi.append(day2);
+      khung.append(theBuoi);
+    }
   }
 
   const luoi = e('div', 'luoi luoi-2');
@@ -925,9 +947,11 @@ const TRANG = {
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
+  '/quy-dinh-ky': () => trangQuyDinhKy(KHUNG),
   '/phan-quyen': () => trangPhanQuyen(KHUNG),
   '/ke-hoach': () => trangKeHoach(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
+  '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
   '/them': trangThem,
 };
 
@@ -958,9 +982,13 @@ async function dieuHuong() {
     const hoSo = duong.match(/^\/hoc-sinh\/(\d+)$/);
     if (hoSo) return await trangHoSo(Number(hoSo[1]));
 
+    const xemTkb = duong.match(/^\/thoi-khoa-bieu-xem\/(\d+)$/);
+    if (xemTkb) return await trangThoiKhoaBieu(KHUNG, Number(xemTkb[1]));
+
     const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangTongQuan : trangThem);
     await xuLy();
   } catch (err) {
+    console.error(err);
     datNoiDung(KHUNG, khoiLoi('Không tải được trang: ' + err.message));
   }
 }

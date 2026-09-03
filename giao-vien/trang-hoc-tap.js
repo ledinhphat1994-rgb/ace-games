@@ -265,11 +265,29 @@ function vietTat(ten) {
 
 export async function trangThongKe(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/thong-ke');
+  let buoi = '';
 
+  async function ve() {
+    const d = await api('/api/gv/thong-ke' + (buoi ? '?buoi=' + buoi : ''));
+    veNoiDung(d);
+  }
+
+  function veNoiDung(d) {
   const khung = e('div');
   khung.append(tieuDeTrang('Thống kê chuyên cần',
     `Từ ${ngayVN(d.tuNgay)} đến ${ngayVN(d.denNgay)}`));
+
+  const tabBuoi = e('div', 'day-loc');
+  tabBuoi.style.marginBottom = '16px';
+  [['', 'Cả sáng lẫn chiều'], ['sang', 'Chỉ buổi sáng'], ['chieu', 'Chỉ buổi chiều'], ['hoat_dong', 'Chỉ hoạt động']]
+    .forEach(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(buoi === ma));
+      b.addEventListener('click', () => { buoi = ma; ve(); });
+      tabBuoi.append(b);
+    });
+  khung.append(tabBuoi);
 
   const t = d.tongTheoMuc;
   const tong = Object.values(t).reduce((a, b) => a + b, 0) || 1;
@@ -373,6 +391,9 @@ export async function trangThongKe(KHUNG) {
   khung.append(theBang);
 
   datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
 }
 
 /* ================= Báo cáo ================= */

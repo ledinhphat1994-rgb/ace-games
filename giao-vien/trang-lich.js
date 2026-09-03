@@ -103,75 +103,244 @@ function soanKeHoach(k, taiLai) {
   ]);
 }
 
-/* ================= Thời khoá biểu ================= */
+/* ================= Thời khoá biểu (có phiên bản, sáng + chiều) ================= */
 
 const CAC_THU = [2, 3, 4, 5, 6, 7];
 const TEN_THU = { 2: 'Thứ 2', 3: 'Thứ 3', 4: 'Thứ 4', 5: 'Thứ 5', 6: 'Thứ 6', 7: 'Thứ 7' };
+const CAC_BUOI = [['sang', 'Buổi sáng'], ['chieu', 'Buổi chiều']];
 
-export async function trangThoiKhoaBieu(KHUNG) {
+export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/thoi-khoa-bieu');
 
-  const soTiet = Math.max(5, ...d.danhSach.map((x) => x.tiet));
-  const bang = {};
-  d.danhSach.forEach((x) => { bang[`${x.thu}-${x.tiet}`] = x.mon; });
+  const d = phienBanXem
+    ? await api('/api/gv/thoi-khoa-bieu?phienBanId=' + phienBanXem)
+    : await api('/api/gv/thoi-khoa-bieu');
+
+  const chiXem = Boolean(phienBanXem);   // xem phiên bản lịch sử thì không cho sửa tại chỗ
+  let buoiDangXem = 'sang';
+
+  const bang = {};   // "buoi-thu-tiet" -> mon
+  (d.o || []).forEach((x) => { bang[`${x.buoi}-${x.thu}-${x.tiet}`] = x.mon; });
+  const soTietToiDa = Math.max(5, ...(d.o || []).map((x) => x.tiet), 0);
 
   const khung = e('div');
-  const oCacO = new Map();   // "thu-tiet" -> input element
 
-  khung.append(tieuDeTrang('Thời khoá biểu', 'Hiện trên trang lớp. Để trống ô nào thì tiết đó nghỉ.'));
-
-  const boc = e('div', 'cuon-ngang');
-  const bangHtml = e('table');
-  const dau = e('thead');
-  const hd = e('tr');
-  hd.append(e('th', 'so', 'Tiết'), ...CAC_THU.map((t) => e('th', null, TEN_THU[t])));
-  dau.append(hd);
-
-  const than = e('tbody');
-  for (let tiet = 1; tiet <= soTiet; tiet++) {
-    const tr = e('tr');
-    tr.append(e('td', 'so', tiet));
-    CAC_THU.forEach((thu) => {
-      const td = e('td');
-      const o = e('input', 'o-nhap');
-      o.style.cssText = 'min-width:110px;min-height:36px;padding:5px 8px;font-size:13.5px';
-      o.value = bang[`${thu}-${tiet}`] || '';
-      o.placeholder = '—';
-      oCacO.set(`${thu}-${tiet}`, o);
-      td.append(o);
-      tr.append(td);
-    });
-    than.append(tr);
+  if (chiXem) {
+    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
   }
-  bangHtml.append(dau, than);
-  boc.append(bangHtml);
-  khung.append(boc);
-  khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
-  const thanhLuu = e('div', 'thanh-luu');
-  thanhLuu.append(
-    e('div', 'thong-tin', 'Sửa xong bấm Lưu — áp dụng cho cả lớp.'),
-    nut('Lưu thời khoá biểu', '', async (ev) => {
-      const b = ev.currentTarget;
-      b.disabled = true;
-      b.textContent = 'Đang lưu…';
+  khung.append(tieuDeTrang(
+    chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : 'Thời khoá biểu',
+    d.phienBan
+      ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ' — đang áp dụng'}`
+      : 'Chưa có thời khoá biểu nào.',
+    ...(chiXem ? [] : [
+      nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
+      nut('+ Đổi lịch (tạo phiên bản mới)', '', () => taoPhienBanMoi(bang, soTietToiDa)),
+    ])
+  ));
+
+  // Tab chọn buổi
+  const tabBuoi = e('div', 'day-loc');
+  tabBuoi.style.marginBottom = '14px';
+
+  function veTab() {
+    datNoiDung(tabBuoi, ...CAC_BUOI.map(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(buoiDangXem === ma));
+      b.addEventListener('click', () => { buoiDangXem = ma; veTab(); veBang(); });
+      return b;
+    }));
+  }
+
+  const khungBang = e('div');
+
+  function veBang() {
+    const soTiet = Math.max(5, ...(d.o || []).filter((x) => x.buoi === buoiDangXem).map((x) => x.tiet), 0) || 5;
+    const boc = e('div', 'cuon-ngang');
+    const bangHtml = e('table');
+    const dau = e('thead');
+    const hd = e('tr');
+    hd.append(e('th', 'so', 'Tiết'), ...CAC_THU.map((t) => e('th', null, TEN_THU[t])));
+    dau.append(hd);
+
+    const than = e('tbody');
+    for (let tiet = 1; tiet <= soTiet; tiet++) {
+      const tr = e('tr');
+      tr.append(e('td', 'so', tiet));
+      CAC_THU.forEach((thu) => {
+        const mon = bang[`${buoiDangXem}-${thu}-${tiet}`] || '';
+        tr.append(e('td', null, mon || '—'));
+      });
+      than.append(tr);
+    }
+    bangHtml.append(dau, than);
+    boc.append(bangHtml);
+    datNoiDung(khungBang, boc);
+  }
+
+  veTab();
+  veBang();
+  khung.append(tabBuoi, khungBang);
+
+  if (d.phienBan?.ghiChu) {
+    khung.append(Object.assign(e('p', 'trong', 'Ghi chú: ' + d.phienBan.ghiChu), { style: 'margin-top:12px' }));
+  }
+
+  datNoiDung(KHUNG, khung);
+}
+
+function taoPhienBanMoi(bangCu, soTietCu) {
+  const oTen = oNhap('tkbTen', 'text', '', 'Ví dụ: Thời khoá biểu học kì 2');
+  const oNgay = oNhap('tkbNgay', 'date', homNay());
+  const oGhiChu = oNhap('tkbGhiChu', 'text', '', 'Lý do đổi lịch (không bắt buộc)');
+
+  const oSaoChep = e('input');
+  oSaoChep.type = 'checkbox';
+  oSaoChep.id = 'tkbSaoChep';
+  oSaoChep.checked = true;
+  const nhanSaoChep = e('label');
+  nhanSaoChep.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;margin-top:4px';
+  nhanSaoChep.append(oSaoChep, document.createTextNode('Sao chép thời khoá biểu hiện tại làm điểm bắt đầu, rồi sửa lại'));
+
+  let buoiDangSua = 'sang';
+  const oCacO = new Map();   // "buoi-thu-tiet" -> input
+
+  const hopBang = e('div');
+  const tabBuoi = e('div', 'day-loc');
+  tabBuoi.style.margin = '10px 0';
+
+  function veTabSua() {
+    datNoiDung(tabBuoi, ...CAC_BUOI.map(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(buoiDangSua === ma));
+      b.addEventListener('click', () => { buoiDangSua = ma; veTabSua(); veBangSua(); });
+      return b;
+    }));
+  }
+
+  function veBangSua() {
+    const boc = e('div', 'cuon-ngang');
+    const bangHtml = e('table');
+    const dau = e('thead');
+    const hd = e('tr');
+    hd.append(e('th', 'so', 'Tiết'), ...CAC_THU.map((t) => e('th', null, TEN_THU[t])));
+    dau.append(hd);
+
+    const than = e('tbody');
+    const soTiet = Math.max(5, soTietCu || 0);
+    for (let tiet = 1; tiet <= soTiet; tiet++) {
+      const tr = e('tr');
+      tr.append(e('td', 'so', tiet));
+      CAC_THU.forEach((thu) => {
+        const khoa = `${buoiDangSua}-${thu}-${tiet}`;
+        let o = oCacO.get(khoa);
+        if (!o) {
+          o = e('input', 'o-nhap');
+          o.style.cssText = 'min-width:100px;min-height:34px;padding:4px 7px;font-size:13px';
+          if (oSaoChep.checked) o.value = bangCu[khoa] || '';
+          oCacO.set(khoa, o);
+        }
+        const td = e('td');
+        td.append(o);
+        tr.append(td);
+      });
+      than.append(tr);
+    }
+    bangHtml.append(dau, than);
+    boc.append(bangHtml);
+    datNoiDung(hopBang, boc);
+  }
+
+  oSaoChep.addEventListener('change', () => {
+    oCacO.forEach((o, khoa) => { o.value = oSaoChep.checked ? (bangCu[khoa] || '') : ''; });
+  });
+
+  veTabSua();
+  veBangSua();
+
+  moHopThoai('Tạo phiên bản thời khoá biểu mới', [
+    truong('Tên phiên bản', oTen),
+    truong('Áp dụng từ ngày', oNgay, 'Thời khoá biểu cũ tự động kết thúc đúng một ngày trước đó — vẫn xem lại được trong Lịch sử.'),
+    nhanSaoChep,
+    tabBuoi,
+    hopBang,
+    truong('Ghi chú', oGhiChu),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu phiên bản mới', '', async (ev) => {
+      ev.currentTarget.disabled = true;
       const o = [];
       oCacO.forEach((input, khoa) => {
-        const [thu, tiet] = khoa.split('-').map(Number);
-        if (input.value.trim()) o.push({ thu, tiet, mon: input.value.trim() });
+        if (!input.value.trim()) return;
+        const [buoi, thu, tiet] = khoa.split('-');
+        o.push({ buoi, thu: Number(thu), tiet: Number(tiet), mon: input.value.trim() });
       });
       try {
-        await api('/api/gv/thoi-khoa-bieu', { method: 'POST', than: { o } });
-        nhac('Đã lưu thời khoá biểu', 'tot');
+        await api('/api/gv/thoi-khoa-bieu', {
+          method: 'POST',
+          than: { ten: oTen.value, ngayBatDau: oNgay.value, ghiChu: oGhiChu.value, o },
+        });
+        dongHopThoai();
+        nhac('Đã lưu phiên bản thời khoá biểu mới', 'tot');
+        location.hash = '#/thoi-khoa-bieu';
+        trangThoiKhoaBieu(document.getElementById('noiDung'));
       } catch (err) {
         nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
       }
-      b.disabled = false;
-      b.textContent = 'Lưu thời khoá biểu';
-    })
-  );
-  khung.append(thanhLuu);
+    }),
+  ]);
+}
+
+export async function trangThoiKhoaBieuLichSu(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
+  const d = await api('/api/gv/thoi-khoa-bieu?ds=1');
+
+  const khung = e('div');
+  khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
+  khung.append(tieuDeTrang('Lịch sử thời khoá biểu', `${d.danhSach.length} phiên bản đã lưu`));
+
+  if (!d.danhSach.length) {
+    khung.append(e('p', 'trong', 'Chưa có phiên bản nào.'));
+  } else {
+    const ds = e('div', 'ds-nhat-ky');
+    d.danhSach.forEach((pb, i) => {
+      const dangApDung = i === 0 && !pb.ngayKetThuc;
+      const m = e('div', 'muc-nhat-ky' + (dangApDung ? '' : ' da-xong'));
+      const dong = e('div', 'dong-dau');
+      dong.append(
+        e('span', 'ngay', `${ngayVN(pb.ngayBatDau)}${pb.ngayKetThuc ? ' → ' + ngayVN(pb.ngayKetThuc) : ' → hiện tại'}`)
+      );
+      if (dangApDung) dong.append(e('span', 'nhan nhan-tot', 'Đang áp dụng'));
+      const viec = e('div', 'viec');
+      viec.append(nut('Xem', 'nut-nhe nut-nho', () => {
+        location.hash = '#/thoi-khoa-bieu-xem/' + pb.id;
+      }));
+      if (!dangApDung) {
+        viec.append(nut('✕', 'nut-nhe nut-nho', () => {
+          moHopThoai('Xoá phiên bản này?', e('p', null, pb.ten), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/thoi-khoa-bieu?phienBanId=' + pb.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                trangThoiKhoaBieuLichSu(KHUNG);
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        }));
+      }
+      dong.append(viec);
+      m.append(dong, e('h3', null, pb.ten));
+      if (pb.ghiChu) m.append(e('p', null, pb.ghiChu));
+      ds.append(m);
+    });
+    khung.append(ds);
+  }
 
   datNoiDung(KHUNG, khung);
 }
