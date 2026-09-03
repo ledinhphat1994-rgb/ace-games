@@ -1,0 +1,7 @@
+# Cau hinh Cloudflare Pages cho trang lop 10A7.
+# Tai khoan duoc khoa cung trong deploy.js (bien CLOUDFLARE_ACCOUNT_ID),
+# vi cau hinh Pages khong cho khai bao account_id o day.
+
+name = "lop-10a7"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-03"

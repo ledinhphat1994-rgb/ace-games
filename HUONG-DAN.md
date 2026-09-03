@@ -19,6 +19,26 @@ Ba biến bí mật `SESSION_SECRET`, `CLASS_CODE`, `TEACHER_CODE` **đã đư�
 Đã kiểm tra thực tế: chưa nhập mã thì bị chặn (302), mã sai bị từ chối (401), cookie giả mạo bị từ chối,
 học sinh không vào được `/giao-vien` (403).
 
+### Tài khoản đã được khoá cứng cho thư mục này
+
+Máy này có nhiều tài khoản GitHub. `gh auth switch` là cài đặt **toàn máy**, không theo thư mục,
+nên nó có thể tự nhảy sang tài khoản khác. Vì vậy thư mục lớp 10A7 đã được ghim cứng:
+
+| Ghim ở đâu | Nội dung |
+|---|---|
+| `.git/config` (riêng thư mục này) | `user.email` = ledinhphat1994@gmail.com, remote có sẵn tên `ledinhphat1994-rgb@` |
+| `deploy.js` | `CLOUDFLARE_ACCOUNT_ID` của tài khoản ledinhphat1994 |
+| `kiem-tra-tai-khoan.js` | Chặn deploy nếu GitHub / Cloudflare / remote sai tài khoản |
+
+Nghĩa là: **dù máy đang đăng nhập tài khoản nào, lệnh `npm run deploy` trong thư mục này cũng chỉ
+đăng lên đúng trang lớp 10A7, hoặc dừng lại và báo lỗi.** Không bao giờ đăng nhầm sang tài khoản khác.
+
+Muốn kiểm tra bất cứ lúc nào:
+
+```bash
+npm run kiem-tra
+```
+
 ### Cách đăng lại sau khi sửa nội dung
 
 Hiện dự án deploy bằng lệnh (chưa nối Git tự động). Sau khi sửa tệp trong `data/`, chạy:

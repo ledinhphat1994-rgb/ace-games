@@ -6,8 +6,9 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "kiem-tra": "node kiem-tra-tai-khoan.js",
     "build": "node build.js",
-    "deploy": "node build.js && wrangler pages deploy dist --project-name lop-10a7 --branch main --commit-dirty=true",
+    "deploy": "node deploy.js",
     "dev": "wrangler pages dev dist"
   }
 }
