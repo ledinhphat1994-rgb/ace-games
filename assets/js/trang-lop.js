@@ -250,9 +250,42 @@ function veHinhAnh(ds) {
 }
 
 /* ---------- Khởi động ---------- */
+/* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------
+   Trang này ai đăng nhập cũng xem được (kể cả giáo viên), nhưng KHÔNG sửa được gì ở đây —
+   đây là trang xem, không phải trang sửa. Với người có quyền, thêm nút bấm là vào thẳng
+   đúng trang sửa bên khu quản lý, đỡ phải tự tìm trong menu. */
+const MUC_QUAN_LY = [
+  ['thong-bao', '#/thong-bao', 'thong-bao'],
+  ['danh-sach', '#/hoc-sinh', null],
+  ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
+  ['ke-hoach', '#/ke-hoach', 'ke-hoach'],
+  ['thu-quy', '#/quy', 'quy'],
+  ['hinh-anh', '#/hinh-anh', 'hinh-anh'],
+];
+
+function veLoiTatQuanLy(phien) {
+  if (!phien || (phien.role !== 'teacher' && phien.role !== 'phu')) return;
+
+  MUC_QUAN_LY.forEach(([idMuc, duong, quyenCan]) => {
+    const duocPhep = phien.role === 'teacher' || (quyenCan && (phien.quyen || []).includes(quyenCan));
+    if (!duocPhep) return;
+
+    const dauMuc = document.querySelector(`#${idMuc} .dau-muc`);
+    if (!dauMuc) return;
+
+    const a = e('a', 'nut nut-vien nut-nho', '⚙ Quản lý');
+    a.href = '/giao-vien/' + duong;
+    a.style.marginLeft = 'auto';
+    dauMuc.append(a);
+  });
+}
+
 (async function () {
   try {
-    const d = await api('/api/lop');
+    const [d, phien] = await Promise.all([
+      api('/api/lop'),
+      api('/api/whoami').catch(() => null),   // học sinh thường sẽ không có whoami đầy đủ quyền, không sao
+    ]);
     $('#tenLop').textContent = d.lop.ten;
     veOSo(d.lop.thongKe);
     veThongBao(d.thongBao);
@@ -262,6 +295,7 @@ function veHinhAnh(ds) {
     veHinhAnh(d.hinhAnh);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
     veTomTat(d);
+    veLoiTatQuanLy(phien);
     ganTheoDoiMuc();
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));

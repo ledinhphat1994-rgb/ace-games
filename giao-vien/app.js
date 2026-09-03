@@ -12,6 +12,7 @@ import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangPhanQuyen } from './trang-quy.js';
+import { trangKeHoach, trangThoiKhoaBieu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -32,6 +33,8 @@ const QUYEN_THEO_TUYEN = {
   'hinh-anh': 'hinh-anh',
   'quy': 'quy',
   'phan-quyen': null,
+  'ke-hoach': 'ke-hoach',
+  'thoi-khoa-bieu': null,
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
@@ -865,6 +868,8 @@ function soanThongBao(tb, taiLai) {
 const MUC_THEM = [
   ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
   ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
+  ['#/ke-hoach', '📅', 'Kế hoạch năm học', 'Thêm/sửa mốc sự kiện, lịch kiểm tra.'],
+  ['#/thoi-khoa-bieu', '▦', 'Thời khoá biểu', 'Sửa thời khoá biểu hiện trên trang lớp.'],
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
   ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
@@ -919,12 +924,14 @@ const TRANG = {
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/phan-quyen': () => trangPhanQuyen(KHUNG),
+  '/ke-hoach': () => trangKeHoach(KHUNG),
+  '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/them': trangThem,
 };
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/phan-quyen'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/phan-quyen', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

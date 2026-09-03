@@ -53,7 +53,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     },
     hocSinh: hocSinh.results,
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim) })),
-    keHoach: keHoach.results,
+    keHoach: keHoach.results.map((k) => ({ ...k, hoanThanh: Boolean(k.hoanThanh) })),
     thoiKhoaBieu: tkb.results,
     hinhAnh: hinhAnh.results,
     thuQuy: {
