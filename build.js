@@ -39,7 +39,7 @@ for (const muc of DANH_SACH_DANG) {
 
 // Kiểm tra JSON hợp lệ trước khi đăng — tránh trang trắng vì thừa/thiếu dấu phẩy.
 let loi = 0;
-for (const ten of fs.readdirSync(path.join(OUT, 'data'))) {
+for (const ten of fs.existsSync(path.join(OUT, 'data')) ? fs.readdirSync(path.join(OUT, 'data')) : []) {
   const f = path.join(OUT, 'data', ten);
   try {
     JSON.parse(fs.readFileSync(f, 'utf8'));

@@ -43,12 +43,41 @@ Muốn kiểm tra bất cứ lúc nào:
 npm run kiem-tra
 ```
 
-### Cách đăng lại sau khi sửa nội dung
+### Hai khu vực của trang
 
-Hiện dự án deploy bằng lệnh (chưa nối Git tự động). Sau khi sửa tệp trong `data/`, chạy:
+| Địa chỉ | Ai vào được | Dùng để làm gì |
+|---|---|---|
+| `/` | Học sinh (mã lớp) | Thông báo, danh sách lớp, thời khoá biểu, kế hoạch, hình ảnh |
+| `/giao-vien/` | Chỉ mã giáo viên | Tổng quan, điểm danh, hồ sơ học sinh, nhật ký lớp, soạn thông báo |
+
+### Nội dung giờ nằm trong cơ sở dữ liệu, không còn sửa tệp
+
+Từ bản nâng cấp này, thầy/cô **soạn thông báo và điểm danh ngay trên web**, không phải sửa tệp JSON
+rồi chạy lệnh nữa. Dữ liệu lưu trong **Cloudflare D1** (cơ sở dữ liệu miễn phí, 5GB).
+
+- **Điểm danh**: mở `/giao-vien/` → tab *Điểm danh* → chạm ✓ / T / P / ✗ cho từng em → *Lưu*.
+  Nút *Cả lớp có mặt* điền nhanh rồi chỉ sửa vài em vắng.
+- **Nhật ký lớp**: ghi khen thưởng, nhắc nhở, vi phạm, cần hỗ trợ — gắn với từng em hoặc cả lớp.
+- **Thông báo**: soạn trên web, bấm *Đăng*, cả lớp thấy ngay. Ghim để đẩy lên đầu.
+- **Hồ sơ học sinh**: bấm vào tên em bất kỳ để xem lịch sử điểm danh, nhật ký, và sửa chức vụ,
+  tổ, số điện thoại phụ huynh, hoàn cảnh.
+
+Chỉ còn hai thứ vẫn sửa bằng tệp: **hình ảnh** (`data/hinh-anh.json`) và giao diện.
+Sau khi sửa những thứ đó thì chạy:
 
 ```bash
 npm run deploy
+```
+
+### Cấu trúc cơ sở dữ liệu
+
+Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`, `nhat_ky`,
+`thong_bao`, `ke_hoach`, `theo_doi`, `thoi_khoa_bieu`.
+
+Xem nhanh dữ liệu bằng lệnh:
+
+```bash
+npx wrangler d1 execute lop-10a7-db --remote --command "SELECT COUNT(*) FROM diem_danh"
 ```
 
 Muốn **sửa trên GitHub là tự động đăng** (không cần chạy lệnh), làm một lần trong dashboard Cloudflare:

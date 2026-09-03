@@ -1,7 +1,13 @@
-# Cau hinh Cloudflare Pages cho trang lop 10A7.
-# Tai khoan duoc khoa cung trong deploy.js (bien CLOUDFLARE_ACCOUNT_ID),
-# vi cau hinh Pages khong cho khai bao account_id o day.
+# Cấu hình Cloudflare Pages cho trang lớp 10A7.
+# Tài khoản được khoá cứng trong deploy.js (biến CLOUDFLARE_ACCOUNT_ID),
+# vì cấu hình Pages không cho khai báo account_id ở đây.
 
 name = "lop-10a7"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-09-03"
+
+# Cơ sở dữ liệu của lớp: học sinh, điểm danh, nhật ký, thông báo.
+[[d1_databases]]
+binding = "DB"
+database_name = "lop-10a7-db"
+database_id = "a12de014-e9d2-4d6d-994f-dcb36c481432"

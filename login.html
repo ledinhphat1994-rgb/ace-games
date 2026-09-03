@@ -2,73 +2,78 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#071624">
 <title>Đăng nhập · Lớp 10A7</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="login-page">
+<body class="trang-dang-nhap">
 
-<main class="login-card">
-  <div class="badge">10A7</div>
+<main class="the-dang-nhap">
+  <div class="hieu-o">10A7</div>
   <h1>Lớp 10A7 · Năm học 2026 – 2027</h1>
-  <p class="sub">Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai</p>
+  <p class="phu">Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai</p>
 
-  <form id="loginForm" autocomplete="off">
-    <label for="code">Mã bảo mật của lớp</label>
-    <input class="field" id="code" name="code" type="password" inputmode="text"
-           placeholder="Nhập mã do giáo viên chủ nhiệm cung cấp" required autofocus>
-    <button class="btn" type="submit" id="submitBtn">Vào trang lớp</button>
+  <form id="bieuMau" autocomplete="off">
+    <label class="nhan-nhap" for="ma">Mã bảo mật của lớp</label>
+    <input class="o-nhap" id="ma" name="ma" type="password"
+           placeholder="Nhập mã do giáo viên chủ nhiệm cấp" required autofocus
+           autocapitalize="none" autocorrect="off" spellcheck="false">
+    <button class="nut" type="submit" id="nutGui">Vào trang lớp</button>
   </form>
 
-  <p class="msg err" id="msg" hidden></p>
+  <p class="loi-nhan xau" id="loiNhan" hidden></p>
 
-  <p class="login-note">
-    Trang này chỉ dành cho học sinh lớp 10A7 và giáo viên chủ nhiệm.
+  <p class="ghi-chu-dang-nhap">
+    Trang dành riêng cho học sinh lớp 10A7 và giáo viên chủ nhiệm.
     Vui lòng không chia sẻ mã bảo mật ra ngoài lớp.
-    Nếu quên mã, hãy liên hệ trực tiếp giáo viên chủ nhiệm.
+    Quên mã thì liên hệ trực tiếp giáo viên chủ nhiệm.
   </p>
 </main>
 
 <script>
-  const form = document.getElementById('loginForm');
-  const msg = document.getElementById('msg');
-  const btn = document.getElementById('submitBtn');
+  const bieuMau = document.getElementById('bieuMau');
+  const loiNhan = document.getElementById('loiNhan');
+  const nutGui = document.getElementById('nutGui');
 
-  function show(text, kind) {
-    msg.textContent = text;
-    msg.className = 'msg ' + kind;
-    msg.hidden = false;
+  function hien(chu, kieu) {
+    loiNhan.textContent = chu;
+    loiNhan.className = 'loi-nhan ' + kieu;
+    loiNhan.hidden = false;
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    msg.hidden = true;
-    btn.disabled = true;
-    btn.textContent = 'Đang kiểm tra…';
+  bieuMau.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    loiNhan.hidden = true;
+    nutGui.disabled = true;
+    nutGui.textContent = 'Đang kiểm tra…';
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: document.getElementById('code').value })
+        body: JSON.stringify({ code: document.getElementById('ma').value })
       });
-      const data = await res.json();
+      const d = await res.json();
 
-      if (data.ok) {
-        show('Xác thực thành công. Đang mở trang lớp…', 'ok');
-        const next = new URLSearchParams(location.search).get('next');
-        location.href = (next && next.startsWith('/')) ? next : '/';
+      if (d.ok) {
+        hien('Xác thực thành công. Đang mở trang…', 'tot');
+        const tiep = new URLSearchParams(location.search).get('next');
+        location.href = (tiep && tiep.startsWith('/')) ? tiep : (d.role === 'teacher' ? '/giao-vien/' : '/');
         return;
       }
-      show(data.message || 'Mã bảo mật không đúng.', 'err');
-    } catch (err) {
-      show('Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.', 'err');
+      hien(d.message || 'Mã bảo mật không đúng.', 'xau');
+    } catch {
+      hien('Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.', 'xau');
     }
 
-    btn.disabled = false;
-    btn.textContent = 'Vào trang lớp';
+    nutGui.disabled = false;
+    nutGui.textContent = 'Vào trang lớp';
   });
 </script>
 </body>

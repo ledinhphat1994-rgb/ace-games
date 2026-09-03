@@ -2,107 +2,69 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Khu vực giáo viên · Lớp 10A7</title>
+<meta name="theme-color" content="#17558f">
+<title>Quản lý lớp 10A7</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="/assets/css/quan-ly.css">
 </head>
-<body>
+<body class="ung-dung">
 
-<header class="topbar">
+<header class="thanh-tren">
   <div class="wrap">
-    <div class="brand">
-      <span class="badge">10A7</span>
-      <span>Khu vực giáo viên<small>Học sinh không mở được trang này</small></span>
+    <a class="hieu" href="#/tong-quan">
+      <span class="hieu-o">10A7</span>
+      <span class="hieu-ten">Quản lý lớp<small class="hieu-phu">Giáo viên chủ nhiệm</small></span>
+    </a>
+    <div class="thanh-phai">
+      <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối">◐</button>
+      <a class="nut-tron" href="/" title="Xem trang lớp" aria-label="Xem trang lớp">👁</a>
+      <a class="nut-tron" href="/api/logout" title="Đăng xuất" aria-label="Đăng xuất">⏻</a>
     </div>
-    <nav class="nav">
-      <a href="/">Trang lớp</a>
-      <a href="/api/logout">Thoát</a>
-    </nav>
   </div>
 </header>
 
-<main class="wrap">
+<div class="khung-ung-dung">
 
-  <div class="canh-bao" id="canhBao">
-    <strong>Dữ liệu nhạy cảm.</strong>
-    Trang này có hoàn cảnh gia đình và tình trạng vi phạm của từng em.
-    Không chiếu lên máy chiếu trước lớp, không chụp màn hình gửi nhóm.
-  </div>
+  <nav class="cot-trai" id="cotTrai">
+    <a href="#/tong-quan"><span class="bieu-tuong">▦</span> Tổng quan</a>
+    <a href="#/diem-danh"><span class="bieu-tuong">✓</span> Điểm danh</a>
+    <a href="#/hoc-sinh"><span class="bieu-tuong">☰</span> Học sinh</a>
+    <a href="#/nhat-ky"><span class="bieu-tuong">✎</span> Nhật ký lớp</a>
+    <a href="#/thong-bao"><span class="bieu-tuong">◈</span> Thông báo</a>
+    <hr>
+    <a href="/"><span class="bieu-tuong">↗</span> Xem trang lớp</a>
+  </nav>
 
-  <section>
-    <div class="sec-head">
-      <h2>Tổng quan lớp</h2>
-      <p id="nguonDuLieu"></p>
+  <main class="noi-dung" id="noiDung">
+    <div class="dang-tai"><span class="quay"></span>Đang tải…</div>
+  </main>
+</div>
+
+<nav class="tab-duoi" id="tabDuoi">
+  <a href="#/tong-quan"><span class="bieu-tuong">▦</span>Tổng quan</a>
+  <a href="#/diem-danh"><span class="bieu-tuong">✓</span>Điểm danh</a>
+  <a href="#/hoc-sinh"><span class="bieu-tuong">☰</span>Học sinh</a>
+  <a href="#/nhat-ky"><span class="bieu-tuong">✎</span>Nhật ký</a>
+  <a href="#/thong-bao"><span class="bieu-tuong">◈</span>Thông báo</a>
+</nav>
+
+<dialog class="hop-thoai" id="hopThoai">
+  <form method="dialog" id="hopThoaiForm">
+    <div class="hop-thoai-dau">
+      <h2 id="hopThoaiTieuDe">…</h2>
+      <button class="nut-tron" value="dong" style="margin-left:auto" aria-label="Đóng">✕</button>
     </div>
-    <div class="grid c3" id="tongQuan"></div>
-  </section>
+    <div class="hop-thoai-than" id="hopThoaiThan"></div>
+    <div class="hop-thoai-chan" id="hopThoaiChan"></div>
+  </form>
+</dialog>
 
-  <section>
-    <div class="sec-head">
-      <h2>Cần xử lý</h2>
-      <p>Những nhóm học sinh cần thầy/cô theo dõi tiếp.</p>
-    </div>
-    <div class="grid c2" id="canXuLy"></div>
-  </section>
-
-  <section>
-    <div class="sec-head">
-      <h2>Bảng theo dõi chi tiết</h2>
-      <p id="soDong"></p>
-    </div>
-    <div class="card">
-      <input class="field" id="timKiem" type="search" placeholder="Tìm theo họ tên…" aria-label="Tìm học sinh">
-      <div class="loc-nghe" id="boLoc"></div>
-      <div class="table-scroll" style="margin-top:14px">
-        <table>
-          <thead>
-            <tr>
-              <th class="num">STT</th>
-              <th>Họ và tên</th>
-              <th>Sách giáo khoa</th>
-              <th>Đồng phục</th>
-              <th>Lao động 3/9</th>
-              <th>Hoàn cảnh</th>
-            </tr>
-          </thead>
-          <tbody id="bangTheoDoi"><tr><td colspan="6" class="empty">Đang tải…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="sec-head"><h2>Ghi nhớ vận hành</h2></div>
-    <div class="grid c2">
-      <div class="card">
-        <h3>Cập nhật nội dung trang lớp</h3>
-        <p>Sửa tệp trong <code>data/</code> rồi chạy <code>npm run deploy</code>. Trang cập nhật sau khoảng 30 giây.</p>
-      </div>
-      <div class="card">
-        <h3>Cập nhật lại từ file Excel</h3>
-        <p>Sửa file <code>Tong_Hop_Phan_Loai_Lop_10A7.xlsx</code> rồi chạy
-           <code>python cong-cu/tao-du-lieu-tu-excel.py</code> và <code>npm run deploy</code>.</p>
-      </div>
-      <div class="card">
-        <h3>Khi mã bảo mật bị lộ</h3>
-        <p>Đổi <code>CLASS_CODE</code> trên Cloudflare. Muốn buộc mọi thiết bị đăng nhập lại thì đổi thêm
-           <code>SESSION_SECRET</code>.</p>
-      </div>
-      <div class="card">
-        <h3>Nguyên tắc dữ liệu</h3>
-        <p>Hoàn cảnh gia đình và lỗi vi phạm chỉ để ở trang này, tuyệt đối không đưa sang trang lớp.</p>
-      </div>
-    </div>
-  </section>
-
-</main>
-
-<footer class="site">
-  <div class="wrap"><span>Lớp 10A7 · Năm học 2026 – 2027</span><span><a href="/">Về trang lớp</a></span></div>
-</footer>
-
-<script src="/giao-vien/theo-doi.js"></script>
+<script type="module" src="/giao-vien/app.js"></script>
 </body>
 </html>

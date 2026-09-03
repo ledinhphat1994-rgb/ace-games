@@ -118,8 +118,8 @@ def main():
             "laoDong": ld["trangThai"] if ld else "Chưa rõ",
         })
 
-    ghi(os.path.join(GOC, "data", "hoc-sinh.json"), hoc_sinh)
-    ghi(os.path.join(GOC, "giao-vien", "data", "theo-doi.json"), {
+    ghi(os.path.join(GOC, "du-lieu-goc", "hoc-sinh.json"), hoc_sinh)
+    ghi(os.path.join(GOC, "du-lieu-goc", "theo-doi.json"), {
         "capNhat": "03/09/2026",
         "nguon": "Tong_Hop_Phan_Loai_Lop_10A7.xlsx",
         "canhBao": "Dữ liệu nhạy cảm — chỉ giáo viên chủ nhiệm xem. Không chiếu lên máy chiếu trước lớp.",

@@ -7,7 +7,11 @@ const PUBLIC_PATHS = new Set(['/login', '/login.html', '/api/login', '/api/logou
 
 function isPublic(pathname) {
   if (PUBLIC_PATHS.has(pathname)) return true;
-  return pathname.startsWith('/assets/login');
+
+  // Giao diện (CSS, JS) phải tải được ở trang đăng nhập, nếu không trang sẽ mất định dạng.
+  // Thư mục này chỉ chứa mã hiển thị, không chứa dữ liệu của lớp.
+  // Dữ liệu và mã của khu giáo viên nằm trong /giao-vien nên vẫn được bảo vệ.
+  return pathname.startsWith('/assets/');
 }
 
 export async function onRequest(context) {
@@ -31,18 +35,31 @@ export async function onRequest(context) {
     );
   }
 
+  const laApi = url.pathname.startsWith('/api/');
   const session = await verifyToken(secret, readCookie(request, COOKIE_NAME));
+
   if (!session) {
+    // Với API thì trả lỗi JSON, vì chuyển hướng sẽ làm hỏng lệnh gọi từ trang.
+    if (laApi) {
+      return new Response(JSON.stringify({ ok: false, loi: 'Phiên đăng nhập đã hết hạn.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    }
     const to = new URL('/login.html', url);
     to.searchParams.set('next', url.pathname + url.search);
     return Response.redirect(to.toString(), 302);
   }
 
-  // Khu vực /giao-vien chỉ dành cho mã của giáo viên.
-  if (url.pathname.startsWith('/giao-vien') && session.role !== 'teacher') {
-    return new Response('Khu vực này chỉ dành cho giáo viên chủ nhiệm.', {
-      status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
+  // Khu vực giáo viên: trang /giao-vien và các API /api/gv/.
+  const laKhuGiaoVien = url.pathname.startsWith('/giao-vien') || url.pathname.startsWith('/api/gv/');
+  if (laKhuGiaoVien && session.role !== 'teacher') {
+    const thongDiep = 'Khu vực này chỉ dành cho giáo viên chủ nhiệm.';
+    return laApi
+      ? new Response(JSON.stringify({ ok: false, loi: thongDiep }), {
+          status: 403, headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        })
+      : new Response(thongDiep, { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
   const res = await next();
