@@ -45,6 +45,14 @@ export function ngayDayDu(v) {
   return `${THU[d.getDay()]}, ${ngayVN(v)}`;
 }
 
+/* ---------- Tiền tệ ---------- */
+
+/** 1500000 -> "1.500.000 đ" */
+export function tienVN(so) {
+  const n = Number(so) || 0;
+  return n.toLocaleString('vi-VN') + ' đ';
+}
+
 /* ---------- Gọi API ---------- */
 
 export async function api(duongDan, tuyChon = {}) {

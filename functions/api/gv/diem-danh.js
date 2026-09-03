@@ -26,7 +26,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
   const daGhi = results.filter((r) => r.trangThai).length;
   return json({ ok: true, ngay, buoi, daGhi, tongSo: results.length, danhSach: results });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'diem-danh' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const than = await docThan(request);
@@ -56,4 +56,4 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
 
   await env.DB.batch(cauLenh);
   return json({ ok: true, daLuu: cauLenh.length });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'diem-danh' });

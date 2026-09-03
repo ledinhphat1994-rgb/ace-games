@@ -5,7 +5,7 @@
  * và phải luôn lấy bản mới nhất từ máy chủ.
  */
 
-const PHIEN_BAN = 'lop10a7-v3';
+const PHIEN_BAN = 'lop10a7-v4';
 const VO_UNG_DUNG = [
   '/giao-vien/',
   '/giao-vien/app.js',
@@ -19,7 +19,11 @@ const VO_UNG_DUNG = [
 self.addEventListener('install', (sk) => {
   sk.waitUntil(
     caches.open(PHIEN_BAN)
-      .then((kho) => kho.addAll(VO_UNG_DUNG).catch(() => { /* thiếu tệp nào cũng không chặn cài đặt */ }))
+      .then((kho) => Promise.all(VO_UNG_DUNG.map((duong) =>
+        // Tự fetch với no-store thay vì addAll(), vì addAll() có thể lấy nhầm
+        // bản cũ từ bộ nhớ đệm HTTP của trình duyệt.
+        fetch(duong, { cache: 'no-store' }).then((res) => (res.ok ? kho.put(duong, res) : null)).catch(() => {})
+      )))
       .then(() => self.skipWaiting())
   );
 });
@@ -43,8 +47,10 @@ self.addEventListener('fetch', (sk) => {
   if (url.pathname.startsWith('/api/') || url.pathname === '/login.html') return;
 
   // Giao diện: lấy từ mạng trước cho luôn mới, hỏng mạng thì dùng bản đã lưu.
+  // "cache: no-store" bắt buộc hỏi thẳng máy chủ mỗi lần, không dùng bộ nhớ đệm HTTP
+  // của trình duyệt — nếu không, sửa mã nguồn xong người dùng vẫn thấy bản cũ dù có mạng tốt.
   sk.respondWith(
-    fetch(yeuCau)
+    fetch(yeuCau, { cache: 'no-store' })
       .then((traLoi) => {
         if (traLoi.ok && traLoi.type === 'basic') {
           const ban_sao = traLoi.clone();

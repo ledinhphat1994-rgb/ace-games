@@ -5,7 +5,7 @@ import { bocXuLy, json } from '../_lib/api.js';
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const db = env.DB;
 
-  const [hocSinh, thongBao, keHoach, tkb, hinhAnh] = await Promise.all([
+  const [hocSinh, thongBao, keHoach, tkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
@@ -21,11 +21,22 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     ).all(),
     db.prepare('SELECT thu, tiet, mon, phong FROM thoi_khoa_bieu ORDER BY tiet, thu').all(),
     db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh ORDER BY ngay DESC, id DESC LIMIT 60').all(),
+    // Thủ quỹ: chỉ số liệu TỔNG HỢP, không bao giờ trả về ai đã đóng / ai còn thiếu.
+    db.prepare(
+      `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
+              COALESCE(SUM(d.so_tien), 0) AS tongDaThu
+         FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
+        GROUP BY k.id ORDER BY k.tao_luc DESC`
+    ).all(),
+    db.prepare('SELECT COALESCE(SUM(so_tien), 0) AS tongChi FROM quy_chi').first(),
   ]);
 
   const sl = hocSinh.results.length;
   const nam = hocSinh.results.filter((h) => h.gioiTinh === 'Nam').length;
   const nghe = [...new Set(hocSinh.results.map((h) => h.lopNghe).filter((x) => x && x !== 'Chưa xếp'))];
+
+  const tongThuQuy = quyKhoan.results.reduce((a, k) => a + k.tongDaThu, 0);
+  const tongChiQuy = quyChi?.tongChi || 0;
 
   return json({
     ok: true,
@@ -45,5 +56,14 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     keHoach: keHoach.results,
     thoiKhoaBieu: tkb.results,
     hinhAnh: hinhAnh.results,
+    thuQuy: {
+      tonQuy: tongThuQuy - tongChiQuy,
+      tongThu: tongThuQuy,
+      tongChi: tongChiQuy,
+      khoan: quyKhoan.results.map((k) => ({
+        id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
+        tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
+      })),
+    },
   });
 });

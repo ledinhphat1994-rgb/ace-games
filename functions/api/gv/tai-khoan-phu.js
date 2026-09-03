@@ -1,0 +1,108 @@
+// Tài khoản đặc biệt (lớp trưởng, thủ quỹ...) — CHỈ giáo viên chủ nhiệm quản lý được.
+//   GET    /api/gv/tai-khoan-phu
+//   POST   /api/gv/tai-khoan-phu   { ten, vaiTro, quyen:[...], hocSinhId }
+//   PATCH  /api/gv/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa }
+//   DELETE /api/gv/tai-khoan-phu?id=
+import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+
+// Những mục có thể trao quyền. Mỗi mục ứng với đúng một "quyenCan" đang dùng ở các API khác.
+export const CAC_QUYEN = [
+  ['quy', 'Thủ quỹ — ghi thu, ghi chi, tạo khoản thu'],
+  ['thong-bao', 'Thông báo — soạn và đăng thông báo lên trang lớp'],
+  ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
+  ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
+  ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
+];
+const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));
+
+const CHU_CAI = 'ABCDEFGHJKMNPQRTUVWXY346789';
+function sinhMa(doDai = 6) {
+  const byte = new Uint8Array(doDai);
+  crypto.getRandomValues(byte);
+  return [...byte].map((b) => CHU_CAI[b % CHU_CAI.length]).join('');
+}
+
+function locQuyen(mang) {
+  if (!Array.isArray(mang)) return '';
+  return [...new Set(mang.filter((q) => MA_QUYEN.has(q)))].join(',');
+}
+
+export const onRequestGet = bocXuLy(async ({ env }) => {
+  const { results } = await env.DB.prepare(
+    `SELECT id, ten, vai_tro AS vaiTro, ma, quyen, hoc_sinh_id AS hocSinhId, dang_hoat_dong AS dangHoatDong, tao_luc AS taoLuc
+       FROM tai_khoan_phu ORDER BY tao_luc DESC`
+  ).all();
+  return json({
+    ok: true, cacQuyen: CAC_QUYEN,
+    danhSach: results.map((r) => ({ ...r, quyen: (r.quyen || '').split(',').filter(Boolean), dangHoatDong: Boolean(r.dangHoatDong) })),
+  });
+}, { canGiaoVien: true });
+
+export const onRequestPost = bocXuLy(async ({ request, env }) => {
+  const than = await docThan(request);
+  const ten = chuoi(than.ten, 100);
+  if (!ten) return loi('Chưa nhập tên người được cấp quyền.');
+
+  const quyen = locQuyen(than.quyen);
+  if (!quyen) return loi('Chưa chọn quyền nào cho tài khoản này.');
+
+  const hocSinhId = than.hocSinhId ? Number(than.hocSinhId) : null;
+  if (hocSinhId !== null && !Number.isInteger(hocSinhId)) return loi('Mã học sinh không hợp lệ.');
+
+  // Sinh mã không trùng với mã đang có.
+  const { results: dangDung } = await env.DB.prepare('SELECT ma FROM tai_khoan_phu').all();
+  const daCo = new Set(dangDung.map((r) => r.ma));
+  let ma;
+  do { ma = sinhMa(); } while (daCo.has(ma));
+
+  const kq = await env.DB.prepare(
+    'INSERT INTO tai_khoan_phu (ten, vai_tro, ma, quyen, hoc_sinh_id) VALUES (?1, ?2, ?3, ?4, ?5)'
+  ).bind(ten, chuoi(than.vaiTro, 60), ma, quyen, hocSinhId).run();
+
+  return json({ ok: true, id: kq.meta.last_row_id, ma });
+}, { canGiaoVien: true });
+
+export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+  const than = await docThan(request);
+  const id = Number(than.id);
+  if (!Number.isInteger(id)) return loi('Thiếu mã tài khoản.');
+
+  if (than.capLaiMa) {
+    const { results: dangDung } = await env.DB.prepare('SELECT ma FROM tai_khoan_phu').all();
+    const daCo = new Set(dangDung.map((r) => r.ma));
+    let ma;
+    do { ma = sinhMa(); } while (daCo.has(ma));
+    await env.DB.prepare('UPDATE tai_khoan_phu SET ma = ?1 WHERE id = ?2').bind(ma, id).run();
+    return json({ ok: true, ma });
+  }
+
+  const dat = [];
+  const thamSo = [];
+  const them = (cot, giaTri) => { thamSo.push(giaTri); dat.push(`${cot} = ?${thamSo.length}`); };
+
+  if (than.ten !== undefined) {
+    const t = chuoi(than.ten, 100);
+    if (!t) return loi('Tên không được để trống.');
+    them('ten', t);
+  }
+  if (than.vaiTro !== undefined) them('vai_tro', chuoi(than.vaiTro, 60));
+  if (than.quyen !== undefined) {
+    const q = locQuyen(than.quyen);
+    if (!q) return loi('Phải chọn ít nhất một quyền.');
+    them('quyen', q);
+  }
+  if (than.dangHoatDong !== undefined) them('dang_hoat_dong', than.dangHoatDong ? 1 : 0);
+
+  if (!dat.length) return loi('Không có gì để cập nhật.');
+
+  thamSo.push(id);
+  await env.DB.prepare(`UPDATE tai_khoan_phu SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`).bind(...thamSo).run();
+  return json({ ok: true });
+}, { canGiaoVien: true });
+
+export const onRequestDelete = bocXuLy(async ({ request, env }) => {
+  const id = Number(new URL(request.url).searchParams.get('id'));
+  if (!Number.isInteger(id)) return loi('Thiếu mã tài khoản.');
+  await env.DB.prepare('DELETE FROM tai_khoan_phu WHERE id = ?1').bind(id).run();
+  return json({ ok: true });
+}, { canGiaoVien: true });

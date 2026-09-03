@@ -18,14 +18,26 @@ export async function layPhien(request, env) {
 }
 
 // Bọc một hàm xử lý: tự kiểm tra đăng nhập, quyền, và bắt lỗi.
-export function bocXuLy(xuLy, { canGiaoVien = false } = {}) {
+//
+// canGiaoVien: đường API này chỉ dành cho khu giáo viên (không phải học sinh).
+// quyenCan: nếu đặt, một "tài khoản đặc biệt" (role 'phu' — lớp trưởng, thủ quỹ...)
+//   được cấp đúng quyền này thì cũng thao tác được, không cần là giáo viên.
+//   Không đặt quyenCan nghĩa là mục đó CHỈ giáo viên mới được vào (dữ liệu nhạy cảm hơn).
+export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
   return async (context) => {
     const { request, env } = context;
     if (!env.DB) return loi('Chưa gắn cơ sở dữ liệu D1 vào project.', 500);
 
     const phien = await layPhien(request, env);
     if (!phien) return loi('Chưa đăng nhập.', 401);
-    if (canGiaoVien && phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm mới thao tác được.', 403);
+
+    if (canGiaoVien) {
+      const laGiaoVien = phien.role === 'teacher';
+      const laPhuDuocCap = phien.role === 'phu' && quyenCan && (phien.quyen || []).includes(quyenCan);
+      if (!laGiaoVien && !laPhuDuocCap) {
+        return loi('Bạn không có quyền thao tác ở mục này.', 403);
+      }
+    }
 
     try {
       return await xuLy({ ...context, phien });

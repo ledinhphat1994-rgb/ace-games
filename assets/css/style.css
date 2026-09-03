@@ -299,6 +299,24 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .tin h3 { margin: 6px 0 4px; }
 .tin p { white-space: pre-line; margin: 0; }
 
+/* Thẻ tóm tắt trên trang chủ — bấm vào là nhảy tới mục chi tiết */
+.the-tom-tat {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r);
+  padding: 16px; box-shadow: var(--bong-1); transition: border-color .15s, transform .1s;
+}
+.the-tom-tat:hover { border-color: var(--chinh); transform: translateY(-1px); }
+.the-tom-tat .dong-icon { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.the-tom-tat .icon {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: var(--chinh-nen); color: var(--chinh);
+  display: grid; place-items: center; font-size: 16px;
+}
+.the-tom-tat h3 { margin: 0; font-size: 15px; }
+.the-tom-tat .gia-tri { font-size: 21px; font-weight: 700; line-height: 1.2; }
+.the-tom-tat .phu { font-size: 12.5px; color: var(--chu-nhat); margin-top: 2px; }
+.the-tom-tat .mui-ten { float: right; color: var(--chu-mo); font-size: 14px; }
+
 /* ---------- 11. Thư viện ảnh ---------- */
 .thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .thu-vien figure { margin: 0; border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi); }

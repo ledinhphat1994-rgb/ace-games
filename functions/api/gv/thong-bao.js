@@ -11,7 +11,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
        FROM thong_bao ORDER BY ghim DESC, ngay DESC LIMIT 200`
   ).all();
   return json({ ok: true, danhSach: results });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const { ngay, tieuDe, noiDung, loai, ghim } = await docThan(request);
@@ -27,7 +27,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   ).bind(ngay, td, nd, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   const than = await docThan(request);
@@ -55,7 +55,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
     .bind(...thamSo).run();
 
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
@@ -63,4 +63,4 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
 
   await env.DB.prepare('DELETE FROM thong_bao WHERE id = ?1').bind(id).run();
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thong-bao' });

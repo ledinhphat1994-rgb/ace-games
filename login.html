@@ -64,7 +64,8 @@
       if (d.ok) {
         hien('Xác thực thành công. Đang mở trang…', 'tot');
         const tiep = new URLSearchParams(location.search).get('next');
-        location.href = (tiep && tiep.startsWith('/')) ? tiep : (d.role === 'teacher' ? '/giao-vien/' : '/');
+        const laKhuGiaoVien = d.role === 'teacher' || d.role === 'phu';
+        location.href = (tiep && tiep.startsWith('/')) ? tiep : (laKhuGiaoVien ? '/giao-vien/' : '/');
         return;
       }
       hien(d.message || 'Mã bảo mật không đúng.', 'xau');

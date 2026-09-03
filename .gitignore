@@ -4,3 +4,4 @@ node_modules/
 Thumbs.db
 .secrets-tam.json
 dist/
+server-*.js

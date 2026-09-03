@@ -1,5 +1,5 @@
 /* Trang lớp — học sinh xem. Toàn bộ dữ liệu lấy từ /api/lop. */
-import { $, e, datNoiDung, api, ngayVN, ngayDayDu, ganDoiGiaoDien, khoiLoi } from './chung.js';
+import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi } from './chung.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -163,6 +163,72 @@ function veKeHoach(ds) {
   }));
 }
 
+/* ---------- Tóm tắt trang chủ ---------- */
+function veTomTat(d) {
+  const hop = $('#dsTomTat');
+  const nam = d.hocSinh.filter((h) => h.gioiTinh === 'Nam').length;
+  const tinMoi = (d.thongBao || [])[0];
+  const moc = (d.keHoach || []).find((k) => !k.hoanThanh);
+  const khoanDangMo = (d.thuQuy?.khoan || []).filter((k) => k.dangMo);
+
+  const homNayIso = new Date().toISOString().slice(0, 10);
+  const thuHomNay = new Date().getDay(); // 0=CN..6=T7 -> quy đổi sang 2..7 dùng ở TKB
+  const soThuTkb = thuHomNay === 0 ? null : thuHomNay + 1;
+  const soTietHomNay = soThuTkb ? d.thoiKhoaBieu.filter((t) => t.thu === soThuTkb).length : 0;
+
+  const mucTom = [
+    ['#thong-bao', '◈', 'Thông báo', tinMoi ? tinMoi.tieuDe : 'Chưa có thông báo', tinMoi ? ngayVN(tinMoi.ngay) : ''],
+    ['#danh-sach', '☰', 'Danh sách lớp', `${d.hocSinh.length} học sinh`, `${nam} nam · ${d.hocSinh.length - nam} nữ`],
+    ['#thoi-khoa-bieu', '▦', 'Thời khoá biểu', soThuTkb ? `Hôm nay ${soTietHomNay} tiết` : 'Chủ nhật — nghỉ', 'Xem cả tuần'],
+    ['#ke-hoach', '✎', 'Kế hoạch', moc ? moc.tieuDe : 'Không có mốc sắp tới', moc ? ngayVN(moc.ngay) : ''],
+    ['#thu-quy', '💰', 'Thủ quỹ', tienVN(d.thuQuy?.tonQuy || 0), khoanDangMo.length ? `${khoanDangMo.length} khoản đang thu` : 'Chưa có khoản thu nào'],
+    ['#hinh-anh', '🖼', 'Hình ảnh', `${(d.hinhAnh || []).length} ảnh`, 'Hoạt động của lớp'],
+  ];
+
+  datNoiDung(hop, ...mucTom.map(([duong, icon, ten, giaTri, phu]) => {
+    const a = e('a', 'the-tom-tat');
+    a.href = duong;
+    const dong = e('div', 'dong-icon');
+    dong.append(e('span', 'icon', icon), e('h3', null, ten), Object.assign(e('span', 'mui-ten', '›'), { style: 'margin-left:auto' }));
+    a.append(dong, e('div', 'gia-tri', giaTri));
+    if (phu) a.append(e('div', 'phu', phu));
+    return a;
+  }));
+}
+
+/* ---------- Thủ quỹ (công khai: chỉ số liệu tổng hợp) ---------- */
+function veThuQuy(tq) {
+  const oTongQuan = $('#tqTongQuan');
+  datNoiDung(oTongQuan,
+    (() => { const o = e('div', 'o-thong-ke tot'); o.append(e('div', 'con-so', tienVN(tq.tonQuy)), e('div', 'ten', 'Tồn quỹ hiện tại')); return o; })(),
+    (() => { const o = e('div', 'o-thong-ke'); o.append(e('div', 'con-so', tienVN(tq.tongThu)), e('div', 'ten', 'Tổng đã thu')); return o; })(),
+    (() => { const o = e('div', 'o-thong-ke luuy'); o.append(e('div', 'con-so', tienVN(tq.tongChi)), e('div', 'ten', 'Tổng đã chi')); return o; })()
+  );
+
+  const hop = $('#tqKhoan');
+  if (!tq.khoan.length) {
+    return datNoiDung(hop, e('p', 'trong', 'Chưa có khoản thu nào được mở.'));
+  }
+
+  datNoiDung(hop, e('h3', null, 'Các khoản thu'), ...tq.khoan.map((k) => {
+    const dong = e('div');
+    dong.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--vien)';
+    const dau = e('div');
+    dau.style.cssText = 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap';
+    dau.append(
+      e('b', null, k.ten + (k.dangMo ? '' : ' (đã đóng)')),
+      e('span', null, `${tienVN(k.tongDaThu)} / ${tienVN(k.tongCanThu)}`)
+    );
+    dong.append(dau);
+    const thanh = e('div', 'thanh-tien-do');
+    const i = e('i', 'p-comat');
+    i.style.width = Math.min(100, k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0) + '%';
+    thanh.append(i);
+    dong.append(thanh);
+    return dong;
+  }));
+}
+
 function veHinhAnh(ds) {
   const hop = $('#thuVien');
   if (!ds || !ds.length) {
@@ -194,6 +260,8 @@ function veHinhAnh(ds) {
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veKeHoach(d.keHoach);
     veHinhAnh(d.hinhAnh);
+    veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
+    veTomTat(d);
     ganTheoDoiMuc();
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));

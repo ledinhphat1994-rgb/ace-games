@@ -33,7 +33,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   ).bind(...thamSo).all();
 
   return json({ ok: true, danhSach: results });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'nhat-ky' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const { ngay, hocSinhId, loai, noiDung } = await docThan(request);
@@ -51,7 +51,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   ).bind(ngay, id, loai, nd).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'nhat-ky' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   const { id, daXuLy } = await docThan(request);
@@ -61,7 +61,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
     .bind(daXuLy ? 1 : 0, Number(id)).run();
 
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'nhat-ky' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
@@ -69,4 +69,4 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
 
   await env.DB.prepare('DELETE FROM nhat_ky WHERE id = ?1').bind(id).run();
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'nhat-ky' });

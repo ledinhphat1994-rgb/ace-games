@@ -18,7 +18,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
 
   const tongByte = results.reduce((a, r) => a + r.coByte, 0);
   return json({ ok: true, danhSach: results, soAnh: results.length, tongByte });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (!env.ANH) return loi('Chưa gắn kho ảnh vào project.', 500);
@@ -50,7 +50,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   ).bind(khoa, chuoi(chuThich, 300), ngay || new Date().toISOString().slice(0, 10), kieu, byte.length).run();
 
   return json({ ok: true, id: kq.meta.last_row_id, khoa, coByte: byte.length });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   const { id, chuThich } = await docThan(request);
@@ -59,7 +59,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   await env.DB.prepare('UPDATE hinh_anh SET chu_thich = ?1 WHERE id = ?2')
     .bind(chuoi(chuThich, 300), Number(id)).run();
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
@@ -71,4 +71,4 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   await env.ANH.delete(anh.khoa);
   await env.DB.prepare('DELETE FROM hinh_anh WHERE id = ?1').bind(id).run();
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'hinh-anh' });

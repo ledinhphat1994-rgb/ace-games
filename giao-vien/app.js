@@ -11,10 +11,52 @@ import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/
 import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
 } from './trang-hoc-tap.js';
+import { trangQuy, trangPhanQuyen } from './trang-quy.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
 const KHUNG = $('#noiDung');
+
+// Mỗi tuyến ứng với đúng một "quyenCan" phía máy chủ (functions/api/gv/*.js).
+// null = CHỈ giáo viên chủ nhiệm (dữ liệu nhạy cảm: hồ sơ, điểm, thống kê từng em...).
+const QUYEN_THEO_TUYEN = {
+  'tong-quan': null,
+  'diem-danh': 'diem-danh',
+  'hoc-sinh': null,
+  'so-diem': null,
+  'nhat-ky': 'nhat-ky',
+  'thong-ke': null,
+  'thong-bao': 'thong-bao',
+  'bao-cao': null,
+  'ma-ca-nhan': null,
+  'hinh-anh': 'hinh-anh',
+  'quy': 'quy',
+  'phan-quyen': null,
+};
+
+// Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
+let PHIEN = { role: 'teacher', ten: '', vaiTro: '', quyen: [] };
+
+function duocVaoTuyen(duong) {
+  if (PHIEN.role === 'teacher') return true;
+  const khoa = duong.replace(/^\//, '').split('/')[0];
+  const can = QUYEN_THEO_TUYEN[khoa];
+  return can !== undefined && can !== null && PHIEN.quyen.includes(can);
+}
+
+/** Ẩn các mục trong menu (cột trái, tab dưới) mà tài khoản hiện tại không có quyền vào. */
+function locMenuTheoQuyen() {
+  if (PHIEN.role === 'teacher') return;
+  $$('.cot-trai a, .tab-duoi a').forEach((a) => {
+    const href = a.getAttribute('href') || '';
+    if (!href.startsWith('#/')) return;   // bỏ qua "Xem trang lớp", "Đăng xuất"...
+    if (href === '#/them') return;         // menu "Thêm" luôn hiện, tự lọc bên trong
+    if (!duocVaoTuyen(href.slice(1))) a.remove();
+  });
+
+  const hieuPhu = document.querySelector('.hieu-phu');
+  if (hieuPhu && PHIEN.ten) hieuPhu.textContent = `${PHIEN.vaiTro || 'Tài khoản đặc biệt'} · ${PHIEN.ten}`;
+}
 
 /* ================= Từ điển hiển thị ================= */
 
@@ -824,18 +866,30 @@ const MUC_THEM = [
   ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
   ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
+  ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
   ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân học sinh', 'Cấp và in mã để các em tự xem kết quả.'],
+  ['#/phan-quyen', '🔐', 'Phân quyền', 'Cấp mã riêng cho lớp trưởng, thủ quỹ...'],
   ['/', '↗', 'Xem trang lớp', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
 ];
 
 function trangThem() {
   const khung = e('div');
-  khung.append(tieuDeTrang('Thêm', 'Các công cụ khác của lớp'));
+  khung.append(tieuDeTrang('Thêm',
+    PHIEN.role === 'teacher' ? 'Các công cụ khác của lớp' : `${PHIEN.vaiTro || 'Tài khoản đặc biệt'} · ${PHIEN.ten}`));
+
+  const mucDuocPhep = MUC_THEM.filter(([duong]) => {
+    if (!duong.startsWith('#/')) return true;   // "Xem trang lớp", "Đăng xuất" — luôn hiện
+    return duocVaoTuyen(duong.slice(1));
+  });
+
+  if (!mucDuocPhep.length) {
+    khung.append(e('div', 'the trong', 'Tài khoản này chưa được cấp quyền làm việc nào. Liên hệ giáo viên chủ nhiệm.'));
+  }
 
   const ds = e('div', 'ds-the');
-  MUC_THEM.forEach(([duong, bieuTuong, ten, moTa]) => {
+  mucDuocPhep.forEach(([duong, bieuTuong, ten, moTa]) => {
     const a = e('a', 'the-hs');
     a.href = duong;
     a.style.textDecoration = 'none';
@@ -863,12 +917,14 @@ const TRANG = {
   '/bao-cao': () => trangBaoCao(KHUNG),
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
+  '/quy': () => trangQuy(KHUNG),
+  '/phan-quyen': () => trangPhanQuyen(KHUNG),
   '/them': trangThem,
 };
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/phan-quyen'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');
@@ -878,26 +934,43 @@ function danhDauMenu(duong) {
 }
 
 async function dieuHuong() {
-  const duong = location.hash.replace(/^#/, '') || '/tong-quan';
+  const duong = location.hash.replace(/^#/, '') || (PHIEN.role === 'teacher' ? '/tong-quan' : '/them');
   danhDauMenu(duong);
   window.scrollTo(0, 0);
+
+  if (!duocVaoTuyen(duong) && duong !== '/them') {
+    datNoiDung(KHUNG, khoiLoi(
+      'Tài khoản này không có quyền vào mục này. Vào "Thêm" để xem các việc bạn được phép làm.'
+    ));
+    return;
+  }
 
   try {
     const hoSo = duong.match(/^\/hoc-sinh\/(\d+)$/);
     if (hoSo) return await trangHoSo(Number(hoSo[1]));
 
-    const xuLy = TRANG[duong] || trangTongQuan;
+    const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangTongQuan : trangThem);
     await xuLy();
   } catch (err) {
     datNoiDung(KHUNG, khoiLoi('Không tải được trang: ' + err.message));
   }
 }
 
-addEventListener('hashchange', dieuHuong);
-dieuHuong();
+(async function khoiDong() {
+  try {
+    const d = await api('/api/whoami');
+    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [] };
+  } catch {
+    // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
+  }
 
-// Có mạng trở lại thì tự gửi những lần điểm danh còn nằm chờ trong máy.
-tuDongBoKhiCoMang((kq) => {
-  nhac(`Đã gửi ${kq.daGui} lần điểm danh lưu tạm lúc mất mạng`, 'tot');
-  if (location.hash.startsWith('#/diem-danh') || location.hash.startsWith('#/tong-quan')) dieuHuong();
-});
+  locMenuTheoQuyen();
+  addEventListener('hashchange', dieuHuong);
+  dieuHuong();
+
+  // Có mạng trở lại thì tự gửi những lần điểm danh còn nằm chờ trong máy.
+  tuDongBoKhiCoMang((kq) => {
+    nhac(`Đã gửi ${kq.daGui} lần điểm danh lưu tạm lúc mất mạng`, 'tot');
+    if (location.hash.startsWith('#/diem-danh') || location.hash.startsWith('#/tong-quan')) dieuHuong();
+  });
+})();
