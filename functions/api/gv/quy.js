@@ -1,7 +1,8 @@
 // Thủ quỹ lớp.
-//   GET  /api/gv/quy                -> tổng quan: mọi khoản thu, mọi khoản chi, tồn quỹ
-//   GET  /api/gv/quy?khoanId=1      -> chi tiết một khoản: từng em đã đóng bao nhiêu
-//   POST /api/gv/quy  { hanhDong: 'tao_khoan' | 'ghi_dong' | 'ghi_chi', ... }
+//   GET    /api/gv/quy                -> tổng quan: mọi khoản thu, mọi khoản chi, tồn quỹ
+//   GET    /api/gv/quy?khoanId=1      -> chi tiết một khoản: từng em đã đóng bao nhiêu
+//   POST   /api/gv/quy  { hanhDong: 'tao_khoan' | 'ghi_dong' | 'ghi_chi', ... }
+//   PATCH  /api/gv/quy  { banGhi: 'khoan'|'dong'|'chi', id, ... } -> sửa một bản ghi đã ghi sai
 //   DELETE /api/gv/quy?loai=khoan&id=   |   ?loai=dong&id=   |   ?loai=chi&id=
 //
 // Công thức: Tồn quỹ = Tổng tiền đã thu (quy_dong) − Tổng tiền đã chi (quy_chi).
@@ -170,6 +171,73 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   }
 
   return loi('Hành động không hợp lệ.');
+}, { canGiaoVien: true, quyenCan: QUYEN });
+
+export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
+  const than = await docThan(request);
+  const db = env.DB;
+  const id = Number(than.id);
+  if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
+
+  if (than.banGhi === 'khoan') {
+    const khoan = await db.prepare('SELECT ten FROM quy_khoan WHERE id = ?1').bind(id).first();
+    if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
+
+    const dat = []; const thamSo = [];
+    const them = (cot, giaTri) => { thamSo.push(giaTri); dat.push(`${cot} = ?${thamSo.length}`); };
+    if (than.ten !== undefined) {
+      const t = chuoi(than.ten, 200);
+      if (!t) return loi('Tên khoản thu không được để trống.');
+      them('ten', t);
+    }
+    if (than.soTienMoiEm !== undefined) {
+      if (!soTienHopLe(than.soTienMoiEm)) return loi('Mức thu mỗi em không hợp lệ.');
+      them('so_tien_moi_em', Number(than.soTienMoiEm));
+    }
+    if (than.ghiChu !== undefined) them('ghi_chu', chuoi(than.ghiChu, 500));
+    if (than.dangMo !== undefined) them('dang_mo', than.dangMo ? 1 : 0);
+    if (!dat.length) return loi('Không có gì để sửa.');
+
+    await chupCheckpoint(db, `Trước khi: sửa khoản thu "${khoan.ten}"`, phien);
+    thamSo.push(id);
+    await db.prepare(`UPDATE quy_khoan SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`).bind(...thamSo).run();
+    return json({ ok: true });
+  }
+
+  if (than.banGhi === 'dong') {
+    const dong = await db.prepare('SELECT * FROM quy_dong WHERE id = ?1').bind(id).first();
+    if (!dong) return loi('Không tìm thấy lần ghi thu này.', 404);
+
+    const soTien = than.soTien !== undefined ? Number(than.soTien) : dong.so_tien;
+    if (!soTienHopLe(soTien) || soTien <= 0) return loi('Số tiền không hợp lệ.');
+    const ngay = than.ngay !== undefined && ngayHopLe(than.ngay) ? than.ngay : dong.ngay;
+    const ghiChu = than.ghiChu !== undefined ? chuoi(than.ghiChu, 300) : dong.ghi_chu;
+
+    await chupCheckpoint(db, `Trước khi: sửa lần ghi thu #${id}`, phien);
+    await db.prepare('UPDATE quy_dong SET so_tien = ?1, ngay = ?2, ghi_chu = ?3 WHERE id = ?4')
+      .bind(soTien, ngay, ghiChu, id).run();
+    return json({ ok: true });
+  }
+
+  if (than.banGhi === 'chi') {
+    const chi = await db.prepare('SELECT * FROM quy_chi WHERE id = ?1').bind(id).first();
+    if (!chi) return loi('Không tìm thấy khoản chi này.', 404);
+
+    const noiDung = than.noiDung !== undefined ? chuoi(than.noiDung, 300) : chi.noi_dung;
+    if (!noiDung) return loi('Nội dung không được để trống.');
+    const soTien = than.soTien !== undefined ? Number(than.soTien) : chi.so_tien;
+    if (!soTienHopLe(soTien) || soTien <= 0) return loi('Số tiền không hợp lệ.');
+    const ngay = than.ngay !== undefined && ngayHopLe(than.ngay) ? than.ngay : chi.ngay;
+    const loaiChi = than.loai !== undefined ? (MA_LOAI_CHI.has(than.loai) ? than.loai : chi.loai) : chi.loai;
+    const ghiChu = than.ghiChu !== undefined ? chuoi(than.ghiChu, 300) : chi.ghi_chu;
+
+    await chupCheckpoint(db, `Trước khi: sửa khoản chi #${id}`, phien);
+    await db.prepare('UPDATE quy_chi SET noi_dung = ?1, so_tien = ?2, ngay = ?3, loai = ?4, ghi_chu = ?5 WHERE id = ?6')
+      .bind(noiDung, soTien, ngay, loaiChi, ghiChu, id).run();
+    return json({ ok: true });
+  }
+
+  return loi('Loại bản ghi (banGhi) không hợp lệ.');
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {

@@ -4,25 +4,240 @@ import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
 
-/* ================= Thủ quỹ ================= */
+/* ================= Thủ quỹ — 1 trang, mở rộng tại chỗ, sửa được mọi bản ghi ================= */
 
-export async function trangQuy(KHUNG, khoanDangXem) {
+export async function trangQuy(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
-  let khoanId = khoanDangXem || null;
+  let d = null;                 // tổng quan
+  let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
+  const chiTiet = {};           // cache: { [khoanId]: dữ liệu chi tiết }
+  const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
 
-  async function ve() {
-    if (khoanId) return veChiTietKhoan();
-    const d = await api('/api/gv/quy');
-    veTongQuan(d);
+  async function tai() {
+    d = await api('/api/gv/quy');
+    ve();
   }
 
-  function veTongQuan(d) {
+  async function taiChiTiet(id) {
+    chiTiet[id] = await api('/api/gv/quy?khoanId=' + id);
+  }
+
+  async function moKhoan(id) {
+    moRong = moRong === id ? null : id;
+    if (moRong && !chiTiet[moRong]) await taiChiTiet(moRong);
+    ve();
+  }
+
+  async function lamMoiKhoanDangMo() {
+    await Promise.all([tai(), moRong ? taiChiTiet(moRong) : Promise.resolve()]);
+    ve();
+  }
+
+  function veHangKhoan(k) {
+    const boc = e('div', 'muc-khoan');
+    const hang = e('div', 'hang-hs');
+    hang.style.cursor = 'pointer';
+    const ten = e('div', 'ten');
+    const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+    ten.append(e('b', null, k.ten), e('small', null,
+      `${tienVN(k.soTienMoiEm)}/em · đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${phanTram}%)`));
+    hang.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'), ten);
+    if (!k.dangMo) hang.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
+    hang.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
+    hang.addEventListener('click', () => moKhoan(k.id));
+    boc.append(hang);
+
+    if (moRong === k.id) {
+      const chiTietBox = e('div', 'muc-khoan-chi-tiet');
+      chiTietBox.append(chiTiet[k.id] ? veChiTietKhoan(k.id, chiTiet[k.id]) : khoiDangTai());
+      boc.append(chiTietBox);
+    }
+    return boc;
+  }
+
+  function veChiTietKhoan(khoanId, dk) {
+    const box = e('div');
+
+    const hangNut = e('div', 'day-loc');
+    hangNut.style.margin = '2px 0 14px';
+    hangNut.append(
+      nut('✎ Sửa khoản', 'nut-vien nut-nho', () => suaKhoan(dk.khoan, lamMoiKhoanDangMo)),
+      nut('🗑 Xoá khoản', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá cả khoản thu này?', e('p', null,
+          `Toàn bộ số tiền đã ghi cho từng em trong khoản "${dk.khoan.ten}" sẽ mất. Không thể hoàn tác.`), [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async () => {
+            try {
+              await api('/api/gv/quy?loai=khoan&id=' + khoanId, { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá khoản thu', 'tot');
+              delete chiTiet[khoanId];
+              moRong = null;
+              await tai();
+            } catch (err) { nhac(err.message, 'xau'); }
+          }),
+        ]);
+      })
+    );
+    box.append(hangNut);
+
+    const day = e('div', 'day-so');
+    day.append(
+      oThongKe(tienVN(dk.tongDaThu), 'Đã thu', 'tot'),
+      oThongKe(tienVN(dk.tongCanThu), 'Cần thu'),
+      oThongKe(`${dk.soEmDaDuDinh}/${dk.danhSach.length}`, 'Em đã đóng đủ', dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
+    );
+    box.append(day);
+
+    if (dk.theoTo && dk.theoTo.length > 1) {
+      const nhanNhomTo = e('div', 'the-nhan', 'Theo tổ');
+      nhanNhomTo.style.margin = '14px 0 6px';
+      box.append(nhanNhomTo);
+      const dayTo = e('div', 'day-loc');
+      dk.theoTo.forEach((t) => {
+        dayTo.append(e('span', 'nhan ' + (t.soEmDuDinh === t.soEm ? 'nhan-tot' : 'nhan-luuy'),
+          `${t.toSo ? 'Tổ ' + t.toSo : 'Chưa xếp tổ'}: ${t.soEmDuDinh}/${t.soEm} đủ`));
+      });
+      box.append(dayTo);
+    }
+
+    const dsTheoToUniq = [...new Set(dk.danhSach.map((h) => h.toSo).filter(Boolean))].sort((a, b) => a - b);
+    const nhanTung = e('div', 'the-nhan', 'Từng em');
+    nhanTung.style.margin = '16px 0 8px';
+    box.append(nhanTung);
+
+    if (dsTheoToUniq.length > 1) {
+      const oLoc = oChon('locTo' + khoanId,
+        [['', 'Tất cả các tổ'], ...dsTheoToUniq.map((t) => [String(t), 'Tổ ' + t])],
+        locToTheoKhoan[khoanId] || '');
+      oLoc.style.cssText = 'width:auto;margin-bottom:10px';
+      oLoc.addEventListener('change', () => { locToTheoKhoan[khoanId] = oLoc.value; veDsEm(); });
+      box.append(oLoc);
+    }
+
+    const hopDs = e('div', 'ds-diem-danh');
+    box.append(hopDs);
+
+    function veDsEm() {
+      const locTo = locToTheoKhoan[khoanId] || '';
+      const ds = dk.danhSach.filter((h) => !locTo || String(h.toSo) === locTo);
+      datNoiDung(hopDs, ...ds.map((h) => {
+        const hang = e('div', 'hang-hs hang-hs-doc');
+        const dong1 = e('div', 'hang-hs-dong1');
+        const ten = e('div', 'ten');
+        const phu = [h.toSo ? 'Tổ ' + h.toSo : '', h.daDuDinh ? `Đã đóng đủ ${tienVN(h.daDong)}` : `Đã đóng ${tienVN(h.daDong)} · còn thiếu ${tienVN(h.conThieu)}`]
+          .filter(Boolean).join(' · ');
+        ten.append(e('b', null, h.hoTen), e('small', null, phu));
+        dong1.append(e('div', 'stt', h.hocSinhId), ten);
+        if (h.daDuDinh) dong1.append(e('span', 'nhan nhan-tot', 'Đủ'));
+        dong1.append(nut('+ Ghi thu', 'nut-vien nut-nho', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo)));
+        hang.append(dong1);
+
+        if (h.lanDong && h.lanDong.length) {
+          const dsLan = e('div', 'ds-lan-dong');
+          h.lanDong.forEach((ld) => {
+            const dong = e('span', 'lan-dong');
+            dong.append(document.createTextNode(`${tienVN(ld.soTien)} · ${ngayVN(ld.ngay)}`));
+            const bSua = e('button', 'nut-nho-icon');
+            bSua.type = 'button'; bSua.textContent = '✎'; bSua.title = 'Sửa lần đóng này';
+            bSua.addEventListener('click', () => suaDong(ld, h.hoTen, lamMoiKhoanDangMo));
+            const bXoa = e('button', 'nut-nho-icon');
+            bXoa.type = 'button'; bXoa.textContent = '🗑'; bXoa.title = 'Xoá lần đóng này';
+            bXoa.addEventListener('click', () => {
+              moHopThoai('Xoá lần đóng này?', e('p', null, `${h.hoTen} — ${tienVN(ld.soTien)} ngày ${ngayVN(ld.ngay)}`), [
+                nut('Huỷ', 'nut-nhe', dongHopThoai),
+                nut('Xoá', 'nut-xau', async () => {
+                  try {
+                    await api('/api/gv/quy?loai=dong&id=' + ld.id, { method: 'DELETE' });
+                    dongHopThoai();
+                    nhac('Đã xoá', 'tot');
+                    await lamMoiKhoanDangMo();
+                  } catch (err) { nhac(err.message, 'xau'); }
+                }),
+              ]);
+            });
+            dong.append(bSua, bXoa);
+            dsLan.append(dong);
+          });
+          hang.append(dsLan);
+        }
+        return hang;
+      }));
+    }
+    veDsEm();
+
+    return box;
+  }
+
+  function veChi() {
+    const the = e('div', 'the');
+    const dauChi = e('div', 'tieu-de-trang');
+    dauChi.append(e('h2', null, 'Khoản chi'));
+    const phaiChi = e('div', 'phai');
+    phaiChi.append(nut('+ Ghi khoản chi', 'nut-vien nut-nho', () => ghiKhoanChi(tai)));
+    dauChi.append(phaiChi);
+    the.append(dauChi);
+
+    if (!d.chi.length) {
+      the.append(e('p', 'trong', 'Chưa có khoản chi nào.'));
+      return the;
+    }
+
+    const ds = e('div', 'ds-diem-danh');
+    d.chi.forEach((c) => {
+      const hang = e('div', 'hang-hs hang-hs-doc');
+      const dong1 = e('div', 'hang-hs-dong1');
+      const ten = e('div', 'ten');
+      ten.append(e('b', null, c.noiDung), e('small', null,
+        `${tienVN(c.soTien)} · ${ngayVN(c.ngay)} · ${(CAC_LOAI_CHI.find((x) => x[0] === c.loai) || [null, 'Khác'])[1]}`));
+      dong1.append(ten);
+      const nutHop = e('div', 'canh-phai');
+      nutHop.append(
+        nut('✎', 'nut-nhe nut-nho', () => suaChi(c, tai)),
+        nut('🗑', 'nut-nhe nut-nho', () => {
+          moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/quy?loai=chi&id=' + c.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                tai();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        })
+      );
+      dong1.append(nutHop);
+      hang.append(dong1);
+      ds.append(hang);
+    });
+    the.append(ds);
+    return the;
+  }
+
+  function veChiTheoLoai() {
+    if (!d.chiTheoLoai || !d.chiTheoLoai.length) return null;
+    const the = e('div', 'the');
+    the.style.marginTop = '14px';
+    the.append(e('h3', null, 'Chi theo loại'));
+    const ds = e('div', 'ds-diem-danh');
+    d.chiTheoLoai.forEach((x) => {
+      const hang = e('div', 'hang-hs');
+      hang.append(e('div', 'ten', e('b', null, x.ten)), e('span', 'nhan nhan-luuy', tienVN(x.soTien)));
+      ds.append(hang);
+    });
+    the.append(ds);
+    return the;
+  }
+
+  function ve() {
     const khung = e('div');
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
       nut('🛡 Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
       nut('🔁 Thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; }),
-      nut('+ Mở khoản thu mới', '', () => moKhoanMoi(ve))
+      nut('+ Mở khoản thu mới', '', () => moKhoanMoi(tai))
     ));
 
     const day = e('div', 'day-so');
@@ -43,12 +258,11 @@ export async function trangQuy(KHUNG, khoanDangXem) {
       );
       const luoi = e('div', 'luoi luoi-2');
       luoi.style.marginTop = '10px';
-
       const cachMot = e('div');
       cachMot.append(
         e('h3', null, '① Thu một lần'),
         e('p', 'trong', 'Ví dụ: quỹ lớp học kì, tiền mua đồ dùng chung, tiền quỹ đầu năm.'),
-        nut('+ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(ve))
+        nut('+ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(tai))
       );
       const cachHai = e('div');
       cachHai.append(
@@ -58,201 +272,139 @@ export async function trangQuy(KHUNG, khoanDangXem) {
       );
       luoi.append(cachMot, cachHai);
       huongDan.append(luoi);
-      huongDan.append(Object.assign(
-        (() => {
-          const a = e('a', null, '☰ Xem danh sách lớp');
-          a.href = '#/hoc-sinh';
-          return a;
-        })(),
-        { style: 'display:inline-block;margin-top:12px;font-size:13.5px' }
-      ));
+      const a = e('a', null, '☰ Xem danh sách lớp');
+      a.href = '#/hoc-sinh';
+      a.style.cssText = 'display:inline-block;margin-top:12px;font-size:13.5px';
+      huongDan.append(a);
       khung.append(huongDan);
     }
 
+    // Bố cục 2 cột trên màn hình rộng: khoản thu bên trái, khoản chi bên phải —
+    // dùng hết chiều ngang thay vì xếp chồng toàn bộ theo chiều dọc.
+    const luoiChinh = e('div', 'luoi luoi-2 luoi-quy');
+    luoiChinh.style.marginTop = '16px';
+
     const theKhoan = e('div', 'the');
-    theKhoan.style.marginTop = '16px';
     theKhoan.append(e('h3', null, 'Các khoản thu'));
     if (!d.khoan.length) {
       theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {
-      const ds = e('div', 'ds-diem-danh');
-      d.khoan.forEach((k) => {
-        const hang = e('div', 'hang-hs');
-        hang.style.cursor = 'pointer';
-        const ten = e('div', 'ten');
-        ten.append(e('b', null, k.ten), e('small', null,
-          `${tienVN(k.soTienMoiEm)}/em · đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)}`));
-        hang.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'), ten);
-        if (!k.dangMo) hang.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
-        hang.addEventListener('click', () => { khoanId = k.id; ve(); });
-        ds.append(hang);
-      });
+      const ds = e('div', 'ds-khoan');
+      d.khoan.forEach((k) => ds.append(veHangKhoan(k)));
       theKhoan.append(ds);
     }
-    khung.append(theKhoan);
+    luoiChinh.append(theKhoan);
 
-    const theChi = e('div', 'the');
-    theChi.style.marginTop = '14px';
-    const dauChi = e('div', 'tieu-de-trang');
-    dauChi.append(e('h2', null, 'Khoản chi'));
-    const phaiChi = e('div', 'phai');
-    phaiChi.append(nut('+ Ghi khoản chi', 'nut-vien nut-nho', () => ghiKhoanChi(ve)));
-    dauChi.append(phaiChi);
-    theChi.append(dauChi);
+    const cotPhai = e('div');
+    cotPhai.append(veChi());
+    const chiTheoLoai = veChiTheoLoai();
+    if (chiTheoLoai) cotPhai.append(chiTheoLoai);
+    luoiChinh.append(cotPhai);
 
-    if (!d.chi.length) {
-      theChi.append(e('p', 'trong', 'Chưa có khoản chi nào.'));
-    } else {
-      const boc = e('div', 'cuon-ngang');
-      const bang = e('table');
-      const dau = e('thead');
-      const hd = e('tr');
-      hd.append(e('th', null, 'Ngày'), e('th', null, 'Nội dung'), e('th', null, 'Số tiền'), e('th', null, ''));
-      dau.append(hd);
-      const than = e('tbody');
-      d.chi.forEach((c) => {
-        const tr = e('tr');
-        tr.append(e('td', null, ngayVN(c.ngay)), e('td', null, c.noiDung), e('td', null, tienVN(c.soTien)));
-        const tdNut = e('td');
-        tdNut.append(nut('✕', 'nut-nhe nut-nho', () => {
-          moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async () => {
-              try {
-                await api('/api/gv/quy?loai=chi&id=' + c.id, { method: 'DELETE' });
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); }
-            }),
-          ]);
-        }));
-        tr.append(tdNut);
-        than.append(tr);
-      });
-      bang.append(dau, than);
-      boc.append(bang);
-      theChi.append(boc);
-    }
-    khung.append(theChi);
-
-    if (d.chiTheoLoai && d.chiTheoLoai.length) {
-      const theLoai = e('div', 'the');
-      theLoai.style.marginTop = '14px';
-      theLoai.append(e('h3', null, 'Chi theo loại'));
-      const ds = e('div', 'ds-diem-danh');
-      d.chiTheoLoai.forEach((x) => {
-        const hang = e('div', 'hang-hs');
-        const ten = e('div', 'ten');
-        ten.append(e('b', null, x.ten));
-        hang.append(ten, e('span', 'nhan nhan-luuy', tienVN(x.soTien)));
-        ds.append(hang);
-      });
-      theLoai.append(ds);
-      khung.append(theLoai);
-    }
-
+    khung.append(luoiChinh);
     datNoiDung(KHUNG, khung);
   }
 
-  async function veChiTietKhoan() {
-    const d = await api('/api/gv/quy?khoanId=' + khoanId);
-    const khung = e('div');
-    khung.append(nut('← Tất cả các khoản', 'nut-nhe nut-nho', () => { khoanId = null; ve(); }));
-    khung.append(tieuDeTrang(d.khoan.ten,
-      `${tienVN(d.khoan.soTienMoiEm)}/em · Học kì ${d.khoan.hocKy || 1}`,
-      nut('✕ Xoá khoản này', 'nut-vien nut-nho', () => {
-        moHopThoai('Xoá cả khoản thu này?', e('p', null,
-          'Toàn bộ số tiền đã ghi cho từng em trong khoản "' + d.khoan.ten + '" sẽ mất. Không thể hoàn tác.'), [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá', 'nut-xau', async () => {
-            try {
-              await api('/api/gv/quy?loai=khoan&id=' + khoanId, { method: 'DELETE' });
-              dongHopThoai();
-              nhac('Đã xoá khoản thu', 'tot');
-              khoanId = null;
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }),
-        ]);
-      })
-    ));
+  await tai();
+}
 
-    const day = e('div', 'day-so');
-    day.append(
-      oThongKe(tienVN(d.tongDaThu), 'Đã thu', 'tot'),
-      oThongKe(tienVN(d.tongCanThu), 'Cần thu'),
-      oThongKe(`${d.soEmDaDuDinh}/${d.danhSach.length}`, 'Em đã đóng đủ', d.soEmDaDuDinh === d.danhSach.length ? 'tot' : 'luuy')
-    );
-    khung.append(day);
+function suaKhoan(khoan, taiLai) {
+  const oTen = oNhap('skTen', 'text', khoan.ten);
+  const oSoTien = oNhap('skSoTien', 'number', String(khoan.soTienMoiEm));
+  const oDangMo = oChon('skDangMo', [[1, 'Đang mở — vẫn nhận thu'], [0, 'Đã đóng — không thu nữa']], khoan.dangMo ? 1 : 0);
+  const oGc = oNhap('skGc', 'textarea', khoan.ghiChu || '', 'Ghi chú (không bắt buộc)');
 
-    // Theo tổ — để nhanh thấy tổ nào đóng đủ, tổ nào cần nhắc.
-    if (d.theoTo && d.theoTo.length > 1) {
-      const theTo = e('div', 'the');
-      theTo.style.marginTop = '16px';
-      theTo.append(e('h3', null, 'Theo tổ'));
-      const ds = e('div', 'ds-diem-danh');
-      d.theoTo.forEach((t) => {
-        const hang = e('div', 'hang-hs');
-        const ten = e('div', 'ten');
-        ten.append(e('b', null, t.toSo ? `Tổ ${t.toSo}` : 'Chưa xếp tổ'), e('small', null,
-          `${t.soEm} em · đã thu ${tienVN(t.tongDaThu)}/${tienVN(t.tongCanThu)}`));
-        hang.append(ten, e('span', 'nhan ' + (t.soEmDuDinh === t.soEm ? 'nhan-tot' : 'nhan-luuy'), `${t.soEmDuDinh}/${t.soEm} đủ`));
-        ds.append(hang);
-      });
-      theTo.append(ds);
-      khung.append(theTo);
-    }
-
-    let locTo = '';
-    const dsTheoToUniq = [...new Set(d.danhSach.map((h) => h.toSo).filter(Boolean))].sort((a, b) => a - b);
-
-    const the = e('div', 'the');
-    the.style.marginTop = '16px';
-    const dauDs = e('div', 'tieu-de-trang');
-    dauDs.append(e('h2', null, 'Từng em'));
-    the.append(dauDs);
-
-    if (dsTheoToUniq.length > 1) {
-      const locHop = e('div', 'day-loc');
-      locHop.style.marginBottom = '12px';
-      the.append(locHop);
-      function veLoc() {
-        datNoiDung(locHop, ...[['', 'Tất cả'], ...dsTheoToUniq.map((t) => [String(t), 'Tổ ' + t])].map(([v, ten]) => {
-          const b = e('button', 'vien-loc', ten);
-          b.type = 'button';
-          b.setAttribute('aria-pressed', String(locTo === v));
-          b.addEventListener('click', () => { locTo = v; veLoc(); veDs(); });
-          return b;
-        }));
+  moHopThoai('Sửa khoản thu', [
+    truong('Tên khoản thu', oTen),
+    truong('Mức thu mỗi em (đồng)', oSoTien),
+    truong('Trạng thái', oDangMo),
+    truong('Ghi chú', oGc),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      if (!oTen.value.trim()) return nhac('Tên khoản thu không được để trống', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/quy', {
+          method: 'PATCH',
+          than: { banGhi: 'khoan', id: khoan.id, ten: oTen.value, soTienMoiEm: Number(oSoTien.value), dangMo: Number(oDangMo.value) === 1, ghiChu: oGc.value },
+        });
+        dongHopThoai();
+        nhac('Đã lưu', 'tot');
+        await taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
       }
-      veLoc();
-    }
+    }),
+  ]);
+}
 
-    const hopDs = e('div', 'ds-diem-danh');
-    the.append(hopDs);
+function suaDong(dong, hoTen, taiLai) {
+  const oSoTien = oNhap('sdSoTien', 'number', String(dong.soTien));
+  const oNgay = oNhap('sdNgay', 'date', dong.ngay);
+  const oGc = oNhap('sdGc', 'text', dong.ghiChu || '', 'Ghi chú (không bắt buộc)');
 
-    function veDs() {
-      const ds = d.danhSach.filter((h) => !locTo || String(h.toSo) === locTo);
-      datNoiDung(hopDs, ...ds.map((h) => {
-        const hang = e('div', 'hang-hs');
-        const ten = e('div', 'ten');
-        const phu = [h.toSo ? 'Tổ ' + h.toSo : '', h.daDuDinh ? `Đã đóng đủ ${tienVN(h.daDong)}` : `Đã đóng ${tienVN(h.daDong)} · còn thiếu ${tienVN(h.conThieu)}`]
-          .filter(Boolean).join(' · ');
-        ten.append(e('b', null, h.hoTen), e('small', null, phu));
-        hang.append(e('div', 'stt', h.hocSinhId), ten);
-        if (h.daDuDinh) hang.append(e('span', 'nhan nhan-tot', 'Đủ'));
-        hang.append(nut('+ Ghi thu', 'nut-vien nut-nho', () => ghiKhoanDong(khoanId, h, ve)));
-        return hang;
-      }));
-    }
-    veDs();
-    khung.append(the);
+  moHopThoai(`Sửa lần đóng — ${hoTen}`, [
+    truong('Số tiền (đồng)', oSoTien),
+    truong('Ngày đóng', oNgay),
+    truong('Ghi chú', oGc),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      const soTien = Number(oSoTien.value);
+      if (!soTien || soTien <= 0) return nhac('Số tiền không hợp lệ', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/quy', {
+          method: 'PATCH',
+          than: { banGhi: 'dong', id: dong.id, soTien, ngay: oNgay.value, ghiChu: oGc.value },
+        });
+        dongHopThoai();
+        nhac('Đã lưu', 'tot');
+        await taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
 
-    datNoiDung(KHUNG, khung);
-  }
+function suaChi(chi, taiLai) {
+  const oNoiDung = oNhap('scNoiDung', 'text', chi.noiDung);
+  const oSoTien = oNhap('scSoTien', 'number', String(chi.soTien));
+  const oNgay = oNhap('scNgay', 'date', chi.ngay);
+  const oLoai = oChon('scLoai', CAC_LOAI_CHI, chi.loai || 'khac');
+  const oGc = oNhap('scGc', 'text', chi.ghiChu || '', 'Ghi chú (không bắt buộc)');
 
-  await ve();
+  moHopThoai('Sửa khoản chi', [
+    truong('Nội dung chi', oNoiDung),
+    truong('Số tiền (đồng)', oSoTien),
+    truong('Ngày chi', oNgay),
+    truong('Loại chi', oLoai),
+    truong('Ghi chú', oGc),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      if (!oNoiDung.value.trim()) return nhac('Nội dung không được để trống', 'xau');
+      const soTien = Number(oSoTien.value);
+      if (!soTien || soTien <= 0) return nhac('Số tiền không hợp lệ', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/quy', {
+          method: 'PATCH',
+          than: { banGhi: 'chi', id: chi.id, noiDung: oNoiDung.value, soTien, ngay: oNgay.value, loai: oLoai.value, ghiChu: oGc.value },
+        });
+        dongHopThoai();
+        nhac('Đã lưu', 'tot');
+        await taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
 }
 
 function moKhoanMoi(taiLai) {

@@ -187,6 +187,30 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .ds-the { display: grid; gap: 9px; grid-template-columns: 1fr; }
 @media (min-width: 760px) { .ds-the { grid-template-columns: repeat(2, 1fr); } }
 
+/* ---------- Thủ quỹ: khoản thu mở rộng tại chỗ (accordion), không chuyển trang ---------- */
+.ds-khoan { display: flex; flex-direction: column; gap: 9px; }
+.muc-khoan { background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; }
+.muc-khoan .hang-hs { border: 0; border-radius: 0; }
+.muc-khoan-mui-ten { color: var(--chu-nhat); font-size: 13px; flex: none; }
+.muc-khoan-chi-tiet {
+  padding: 14px 14px 16px; border-top: 1px solid var(--vien); background: var(--nen-chim);
+}
+.hang-hs-doc { flex-direction: column; align-items: stretch; gap: 8px; }
+.hang-hs-dong1 { display: flex; align-items: center; gap: 12px; }
+.hang-hs-dong1 .ten { min-width: 0; flex: 1; }
+.ds-lan-dong { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 42px; }
+.lan-dong {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: 7px;
+  padding: 3px 4px 3px 9px; font-size: 12.5px; color: var(--chu-nhat);
+  font-variant-numeric: tabular-nums;
+}
+.nut-nho-icon {
+  border: 0; background: transparent; cursor: pointer; color: var(--chu-nhat);
+  width: 22px; height: 22px; border-radius: 6px; font-size: 12px; display: grid; place-items: center;
+}
+.nut-nho-icon:hover { background: var(--nen-chim); color: var(--chu); }
+
 /* ---------- Hộp thoại ---------- */
 dialog.hop-thoai {
   width: min(560px, calc(100vw - 28px)); max-height: 88dvh; padding: 0;

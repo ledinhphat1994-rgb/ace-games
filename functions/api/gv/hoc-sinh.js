@@ -1,7 +1,10 @@
 // Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được.
-//   GET   /api/gv/hoc-sinh            -> cả lớp kèm hoàn cảnh, SĐT phụ huynh, thống kê vắng
-//   GET   /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký
-//   PATCH /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiPh, hoanCanh, ghiChu }
+//   GET    /api/gv/hoc-sinh            -> cả lớp kèm hoàn cảnh, SĐT phụ huynh, thống kê vắng
+//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký
+//   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
+//          -> thêm học sinh mới (nhập học/chuyển đến giữa năm), id tự tăng tiếp theo sổ lớp
+//   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
+//          -> dangHoc: false = đánh dấu đã nghỉ/chuyển trường (không xoá dữ liệu)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env }) => {
@@ -64,6 +67,29 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     ok: true,
     danhSach: results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} })),
   });
+}, { canGiaoVien: true });
+
+export const onRequestPost = bocXuLy(async ({ request, env }) => {
+  const than = await docThan(request);
+  const hoTen = chuoi(than.hoTen, 100);
+  if (!hoTen) return loi('Chưa nhập họ tên.');
+
+  const gioiTinh = chuoi(than.gioiTinh, 10);
+  const ngaySinh = /^\d{4}-\d{2}-\d{2}$/.test(than.ngaySinh) ? than.ngaySinh : null;
+  const lopNghe = chuoi(than.lopNghe, 60);
+  const toHop = chuoi(than.toHop, 20);
+  const toSo = than.toSo === '' || than.toSo == null ? null : Number(than.toSo);
+  if (toSo !== null && !Number.isInteger(toSo)) return loi('Số tổ không hợp lệ.');
+
+  const maxId = await env.DB.prepare('SELECT COALESCE(MAX(id), 0) AS n FROM hoc_sinh').first();
+  const id = (maxId?.n || 0) + 1;
+
+  await env.DB.prepare(
+    `INSERT INTO hoc_sinh (id, ho_ten, gioi_tinh, ngay_sinh, lop_nghe, to_hop, to_so, dang_hoc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)`
+  ).bind(id, hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo).run();
+
+  return json({ ok: true, id });
 }, { canGiaoVien: true });
 
 export const onRequestPatch = bocXuLy(async ({ request, env }) => {
