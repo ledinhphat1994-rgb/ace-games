@@ -14,6 +14,12 @@ function soThangCach(a, b) {
   return (B.getUTCFullYear() - A.getUTCFullYear()) * 12 + (B.getUTCMonth() - A.getUTCMonth());
 }
 
+function soNamCach(a, b) {
+  const A = new Date(a + 'T00:00:00Z');
+  const B = new Date(b + 'T00:00:00Z');
+  return B.getUTCFullYear() - A.getUTCFullYear();
+}
+
 function tenKy(dk, kySo) {
   const bd = new Date(dk.ngay_bat_dau + 'T00:00:00Z');
   const dinhDangNgan = (d) => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -22,6 +28,10 @@ function tenKy(dk, kySo) {
     const dauKy = new Date(bd); dauKy.setUTCDate(dauKy.getUTCDate() + (kySo - 1) * 7);
     const cuoiKy = new Date(dauKy); cuoiKy.setUTCDate(cuoiKy.getUTCDate() + 6);
     return `${dk.ten} — Tuần ${kySo} (${dinhDangNgan(dauKy)}–${dinhDangNgan(cuoiKy)})`;
+  }
+  if (dk.chu_ky === 'nam') {
+    const namKy = bd.getUTCFullYear() + (kySo - 1);
+    return `${dk.ten} — Năm ${namKy}`;
   }
   const dauKy = new Date(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth() + (kySo - 1), 1));
   return `${dk.ten} — Tháng ${dauKy.getUTCMonth() + 1}/${dauKy.getUTCFullYear()}`;
@@ -42,7 +52,9 @@ export async function sinhKyConThieu(db) {
 
     const soKyDaQua = dk.chu_ky === 'tuan'
       ? Math.floor(soNgay(dk.ngay_bat_dau, homNay) / 7) + 1
-      : soThangCach(dk.ngay_bat_dau, homNay) + 1;
+      : dk.chu_ky === 'nam'
+        ? soNamCach(dk.ngay_bat_dau, homNay) + 1
+        : soThangCach(dk.ngay_bat_dau, homNay) + 1;
 
     const kyToiDa = Math.min(soKyDaQua, TOI_DA_KY_TU_SINH);
 

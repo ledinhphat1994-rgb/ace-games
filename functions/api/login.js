@@ -50,13 +50,29 @@ export async function onRequestPost({ request, env }) {
   // Làm chậm nhẹ để hạn chế dò mã tự động.
   await new Promise((r) => setTimeout(r, 400));
 
+  // Mã học sinh / giáo viên: ưu tiên đọc từ D1 nếu giáo viên đã tự đặt qua web
+  // (mục "Mã đăng nhập"); nếu chưa từng đặt thì dùng biến môi trường cũ trên Cloudflare.
+  let maGiaoVien = env.TEACHER_CODE || '';
+  let maHocSinh = env.CLASS_CODE || '';
+  if (env.DB) {
+    try {
+      const { results } = await env.DB.prepare('SELECT vai_tro, ma FROM ma_dang_nhap').all();
+      results.forEach((r) => {
+        if (r.vai_tro === 'teacher') maGiaoVien = r.ma;
+        if (r.vai_tro === 'student') maHocSinh = r.ma;
+      });
+    } catch {
+      // Bảng chưa tồn tại (chưa chạy migration) — dùng biến môi trường như trước.
+    }
+  }
+
   let role = null;
   let phanBoSung = {};
   let tenHienThi = '';
 
-  if (env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+  if (maGiaoVien && safeEqual(code, maGiaoVien)) {
     role = 'teacher';
-  } else if (safeEqual(code, env.CLASS_CODE)) {
+  } else if (maHocSinh && safeEqual(code, maHocSinh)) {
     role = 'student';
   } else if (env.DB) {
     // Không khớp 2 mã cố định — thử tìm trong bảng tài khoản đặc biệt

@@ -34,11 +34,46 @@ export async function trangQuy(KHUNG, khoanDangXem) {
     );
     khung.append(day);
 
+    if (!d.khoan.length && !d.chi.length) {
+      const huongDan = e('div', 'the');
+      huongDan.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
+      huongDan.append(
+        e('h3', null, 'Bắt đầu thu quỹ cho lớp'),
+        e('p', null, `Lớp có ${d.siSo} học sinh. Chọn một trong hai cách bên dưới — có thể dùng cả hai cùng lúc.`)
+      );
+      const luoi = e('div', 'luoi luoi-2');
+      luoi.style.marginTop = '10px';
+
+      const cachMot = e('div');
+      cachMot.append(
+        e('h3', null, '① Thu một lần'),
+        e('p', 'trong', 'Ví dụ: quỹ lớp học kì, tiền mua đồ dùng chung, tiền quỹ đầu năm.'),
+        nut('+ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(ve))
+      );
+      const cachHai = e('div');
+      cachHai.append(
+        e('h3', null, '② Thu định kỳ, tự lặp lại'),
+        e('p', 'trong', 'Ví dụ: quỹ lớp 5.000đ/tuần, 20.000đ/tháng. Hệ thống tự tạo từng kỳ khi tới hạn.'),
+        nut('🔁 Tạo mẫu định kỳ', 'nut-vien nut-nho', () => { location.hash = '#/quy-dinh-ky'; })
+      );
+      luoi.append(cachMot, cachHai);
+      huongDan.append(luoi);
+      huongDan.append(Object.assign(
+        (() => {
+          const a = e('a', null, '☰ Xem danh sách lớp');
+          a.href = '#/hoc-sinh';
+          return a;
+        })(),
+        { style: 'display:inline-block;margin-top:12px;font-size:13.5px' }
+      ));
+      khung.append(huongDan);
+    }
+
     const theKhoan = e('div', 'the');
     theKhoan.style.marginTop = '16px';
     theKhoan.append(e('h3', null, 'Các khoản thu'));
     if (!d.khoan.length) {
-      theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào. Bấm "Mở khoản thu mới" ở trên để bắt đầu.'));
+      theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {
       const ds = e('div', 'ds-diem-danh');
       d.khoan.forEach((k) => {
@@ -554,7 +589,7 @@ export async function trangQuyLichSu(KHUNG) {
 
 /* ================= Thu định kỳ ================= */
 
-const CHU_KY_HIEN_THI = { tuan: 'Mỗi tuần', thang: 'Mỗi tháng' };
+const CHU_KY_HIEN_THI = { tuan: 'Mỗi tuần', thang: 'Mỗi tháng', nam: 'Mỗi năm' };
 
 export async function trangQuyDinhKy(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
@@ -624,7 +659,7 @@ export async function trangQuyDinhKy(KHUNG) {
 
 function taoDinhKy(taiLai) {
   const oTen = oNhap('dkTen', 'text', '', 'Ví dụ: Quỹ lớp');
-  const oChuKy = oChon('dkChuKy', [['tuan', 'Mỗi tuần'], ['thang', 'Mỗi tháng']], 'tuan');
+  const oChuKy = oChon('dkChuKy', [['tuan', 'Mỗi tuần'], ['thang', 'Mỗi tháng'], ['nam', 'Mỗi năm']], 'tuan');
   const oSoTien = oNhap('dkSoTien', 'number', '5000');
   const oNgay = oNhap('dkNgay', 'date', homNay());
 

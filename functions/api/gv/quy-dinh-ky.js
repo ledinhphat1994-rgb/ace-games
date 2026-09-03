@@ -25,7 +25,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
 
   const tenSach = String(ten || '').trim().slice(0, 200);
   if (!tenSach) return loi('Chưa nhập tên khoản thu định kỳ.');
-  if (!['tuan', 'thang'].includes(chuKy)) return loi('Chu kỳ phải là tuần hoặc tháng.');
+  if (!['tuan', 'thang', 'nam'].includes(chuKy)) return loi('Chu kỳ phải là tuần, tháng hoặc năm.');
   const soTien = Number(soTienMoiKy);
   if (!Number.isInteger(soTien) || soTien <= 0 || soTien > 10_000_000) return loi('Mức thu mỗi kỳ không hợp lệ.');
   if (!ngayHopLe(ngayBatDau)) return loi('Ngày bắt đầu không hợp lệ.');

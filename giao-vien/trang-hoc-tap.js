@@ -462,12 +462,22 @@ export async function trangMaCaNhan(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
   async function ve() {
-    const d = await api('/api/gv/ma-ca-nhan');
+    const [d, dangNhap] = await Promise.all([
+      api('/api/gv/ma-ca-nhan'),
+      api('/api/gv/ma-dang-nhap'),
+    ]);
     const chuaCo = d.danhSach.filter((h) => !h.ma).length;
 
     const khung = e('div');
-    khung.append(tieuDeTrang('Mã cá nhân của học sinh',
-      'Mỗi em một mã riêng để tự xem chuyên cần, điểm và nhận xét của mình.'));
+    khung.append(tieuDeTrang('Mã đăng nhập & mã cá nhân',
+      'Quản lý toàn bộ mã dùng để vào trang lớp — từ mã chung cả lớp tới mã riêng từng em.'));
+
+    khung.append(veTheMaDangNhap(dangNhap, ve));
+
+    const dauMaCaNhan = e('div', 'tieu-de-trang');
+    dauMaCaNhan.style.marginTop = '22px';
+    dauMaCaNhan.append(e('h2', null, 'Mã cá nhân của học sinh'));
+    khung.append(dauMaCaNhan);
 
     const the = e('div', 'the');
     the.append(e('p', null,
@@ -511,13 +521,16 @@ export async function trangMaCaNhan(KHUNG) {
         tdMa.append(e('span', 'trong', 'Chưa cấp'));
       }
       const tdNut = e('td');
-      tdNut.append(nut(h.ma ? 'Cấp lại' : 'Cấp mã', 'nut-nhe nut-nho', async () => {
-        try {
-          await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: h.id } });
-          nhac('Đã cấp mã mới cho ' + h.hoTen, 'tot');
-          ve();
-        } catch (err) { nhac(err.message, 'xau'); }
-      }));
+      tdNut.append(
+        nut('✎ Đặt mã', 'nut-nhe nut-nho', () => datMaTuyChinh(h, ve)),
+        nut(h.ma ? '🎲 Cấp lại' : '🎲 Ngẫu nhiên', 'nut-nhe nut-nho', async () => {
+          try {
+            await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: h.id } });
+            nhac('Đã cấp mã mới cho ' + h.hoTen, 'tot');
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); }
+        })
+      );
       tr.append(e('td', 'so', h.id), e('td', null, h.hoTen), tdMa, tdNut);
       than.append(tr);
     });
@@ -529,6 +542,90 @@ export async function trangMaCaNhan(KHUNG) {
   }
 
   await ve();
+}
+
+/* ---------- Mã đăng nhập chung: mã lớp (học sinh) và mã giáo viên ---------- */
+
+function veTheMaDangNhap(dangNhap, taiLai) {
+  const the = e('div', 'the');
+  the.style.borderColor = 'var(--chinh)';
+  the.append(
+    e('h3', null, 'Mã đăng nhập'),
+    e('p', 'trong', 'Mã cả lớp dùng để vào trang chính, và mã riêng của giáo viên chủ nhiệm. Đổi ở đây có hiệu lực ngay, không cần vào Cloudflare.')
+  );
+
+  const luoi = e('div', 'luoi luoi-2');
+  luoi.style.marginTop = '10px';
+
+  [['student', '🎓 Mã học sinh (cả lớp)', dangNhap.student], ['teacher', '👩‍🏫 Mã giáo viên chủ nhiệm', dangNhap.teacher]]
+    .forEach(([vaiTro, nhan, tt]) => {
+      const o = e('div');
+      o.style.cssText = 'background:var(--nen-chim);border-radius:var(--r-nho);padding:12px';
+      o.append(e('div', 'the-nhan', nhan));
+      const dongMa = e('div');
+      dongMa.style.cssText = 'display:flex;align-items:center;gap:8px;margin:6px 0';
+      const maChu = e('code', null, tt.ma || '—');
+      maChu.style.cssText = 'font-size:17px;font-weight:800;letter-spacing:1px';
+      dongMa.append(maChu);
+      if (!tt.daTuDat) dongMa.append(e('span', 'nhan nhan-xam', 'Mặc định'));
+      o.append(dongMa);
+      o.append(nut('✎ Đổi mã này', 'nut-vien nut-nho', () => datMaDangNhap(vaiTro, nhan, taiLai)));
+      luoi.append(o);
+    });
+
+  the.append(luoi);
+  return the;
+}
+
+function datMaDangNhap(vaiTro, nhan, taiLai) {
+  // Không ép chữ hoa ở đây — mã này giữ đúng hoa/thường thầy/cô gõ, vì đăng nhập
+  // phân biệt hoa/thường.
+  const oMa = oNhap('dnMa', 'text', '', 'Để trống để máy tự sinh mã ngẫu nhiên');
+
+  moHopThoai(`Đổi mã — ${nhan}`, [
+    truong('Mã mới (tuỳ chọn)', oMa, 'Chữ, số, dấu gạch ngang — 4 đến 32 ký tự. Phân biệt HOA/thường. Để trống thì máy tự sinh mã ngẫu nhiên dễ đọc.'),
+    Object.assign(e('p', 'trong', '⚠ Đổi xong, mọi thiết bị đang đăng nhập bằng mã cũ vẫn dùng được tới khi hết hạn phiên (7 ngày) — nhưng mã cũ sẽ không đăng nhập MỚI được nữa.'), { style: 'margin-top:10px' }),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Đổi mã', 'nut-xau', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        const kq = await api('/api/gv/ma-dang-nhap', { method: 'POST', than: { vaiTro, ma: oMa.value.trim() || undefined } });
+        dongHopThoai();
+        nhac('Mã mới: ' + kq.ma, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
+
+/* ---------- Đặt mã cá nhân tuỳ chỉnh cho một học sinh ---------- */
+
+function datMaTuyChinh(hocSinh, taiLai) {
+  const oMa = oNhap('mcnMa', 'text', hocSinh.ma || '', 'Ví dụ: MINHANH2011');
+  oMa.style.textTransform = 'uppercase';
+
+  moHopThoai(`Đặt mã cá nhân — ${hocSinh.hoTen}`, [
+    truong('Mã', oMa, 'Chữ in hoa, số, dấu gạch ngang — 3 đến 32 ký tự. Nên đặt gì đó em dễ nhớ.'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      if (!oMa.value.trim()) return nhac('Chưa nhập mã', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: oMa.value } });
+        dongHopThoai();
+        nhac('Đã đặt mã cho ' + hocSinh.hoTen, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
 }
 
 /** Mở cửa sổ in danh sách mã, cắt rời phát cho từng em. */
