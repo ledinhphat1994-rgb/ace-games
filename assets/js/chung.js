@@ -48,12 +48,27 @@ export function ngayDayDu(v) {
 /* ---------- Gọi API ---------- */
 
 export async function api(duongDan, tuyChon = {}) {
-  const res = await fetch(duongDan, {
+  let res;
+  try {
+    res = await goi(duongDan, tuyChon);
+  } catch (err) {
+    // Không nối được máy chủ (mất mạng, sóng yếu) — khác hẳn với việc máy chủ từ chối.
+    const loiMang = new Error('Không kết nối được máy chủ.');
+    loiMang.ngoaiTuyen = true;
+    throw loiMang;
+  }
+  return docTraLoi(res, duongDan);
+}
+
+function goi(duongDan, tuyChon) {
+  return fetch(duongDan, {
     headers: { 'Content-Type': 'application/json' },
     ...tuyChon,
     body: tuyChon.than ? JSON.stringify(tuyChon.than) : tuyChon.body,
   });
+}
 
+async function docTraLoi(res, duongDan) {
   if (res.status === 401) {
     location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.hash);
     throw new Error('Phiên đăng nhập đã hết hạn.');

@@ -1,0 +1,42 @@
+# Tự động đăng trang lên Cloudflare Pages mỗi khi có thay đổi được đẩy lên nhánh main.
+#
+# Cần khai báo MỘT LẦN trong repo (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   — token tạo ở dash.cloudflare.com, mẫu "Edit Cloudflare Workers"
+#   CLOUDFLARE_ACCOUNT_ID  — bfc647e65d847f61ca386b7f11c27173
+#
+# Xem hướng dẫn từng bước ở mục 10 trong HUONG-DAN.md.
+
+name: Đăng lên Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # cho phép bấm chạy tay trên GitHub
+
+jobs:
+  dang-trang:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cài thư viện
+        run: npm ci || npm install
+
+      - name: Gom tệp cần đăng vào dist/
+        run: node build.js
+
+      - name: Đăng lên Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name lop-10a7 --branch main --commit-dirty=true

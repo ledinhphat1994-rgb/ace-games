@@ -7,8 +7,9 @@ import {
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
+import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
-  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan,
+  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
 } from './trang-hoc-tap.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -216,6 +217,19 @@ async function trangDiemDanh() {
 
     khung.append(tieuDeTrang('Điểm danh', ngayDayDu(ngay)));
 
+    const cho = soChoGui();
+    if (cho) {
+      const dai = e('div', 'canh-bao');
+      dai.append(document.createTextNode(`${cho} lần điểm danh đang chờ gửi lên (lúc đó máy mất mạng). `));
+      dai.append(nut('Gửi ngay', 'nut-nho', async (ev) => {
+        ev.currentTarget.disabled = true;
+        const kq = await dongBo();
+        nhac(kq.conLai ? `Đã gửi ${kq.daGui}, còn ${kq.conLai} chờ tiếp` : 'Đã gửi hết', kq.conLai ? 'xau' : 'tot');
+        await tai();
+      }));
+      khung.append(dai);
+    }
+
     const hangChon = e('div', 'chon-ngay');
     hangChon.append(oNgay, chonBuoi,
       nut('Cả lớp có mặt', 'nut-vien nut-nho', () => {
@@ -311,6 +325,17 @@ async function trangDiemDanh() {
             nhac('Đã lưu điểm danh', 'tot');
             await tai();
           } catch (err) {
+            if (err.ngoaiTuyen) {
+              // Mất mạng: giữ lại trong máy, tự gửi khi có mạng trở lại.
+              themVaoHangDoi({
+                ngay, buoi,
+                ghiNhan: [...thayDoi].map(([hocSinhId, trangThai]) => ({ hocSinhId, trangThai })),
+              });
+              thayDoi.clear();
+              nhac('Đang mất mạng — đã lưu tạm trong máy, sẽ tự gửi khi có mạng.', 'xau');
+              ve();
+              return;
+            }
             nhac(err.message, 'xau');
             b.disabled = false;
             b.textContent = 'Lưu điểm danh';
@@ -799,6 +824,7 @@ const MUC_THEM = [
   ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
   ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
+  ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân học sinh', 'Cấp và in mã để các em tự xem kết quả.'],
   ['/', '↗', 'Xem trang lớp', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
@@ -836,12 +862,13 @@ const TRANG = {
   '/thong-ke': () => trangThongKe(KHUNG),
   '/bao-cao': () => trangBaoCao(KHUNG),
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
+  '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/them': trangThem,
 };
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');
@@ -868,3 +895,9 @@ async function dieuHuong() {
 
 addEventListener('hashchange', dieuHuong);
 dieuHuong();
+
+// Có mạng trở lại thì tự gửi những lần điểm danh còn nằm chờ trong máy.
+tuDongBoKhiCoMang((kq) => {
+  nhac(`Đã gửi ${kq.daGui} lần điểm danh lưu tạm lúc mất mạng`, 'tot');
+  if (location.hash.startsWith('#/diem-danh') || location.hash.startsWith('#/tong-quan')) dieuHuong();
+});

@@ -16,3 +16,8 @@ database_id = "a12de014-e9d2-4d6d-994f-dcb36c481432"
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
 id = "e2529ac570cb4d77a246f38953dcbc9f"
+
+# Kho ảnh hoạt động của lớp (ảnh đã được nén nhỏ ngay trên máy trước khi tải lên).
+[[kv_namespaces]]
+binding = "ANH"
+id = "e0271c489d924fd7bb6457e74417ad1f"

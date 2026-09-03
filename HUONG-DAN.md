@@ -103,6 +103,46 @@ Mở `lop-10a7.pages.dev/giao-vien/` bằng Chrome trên điện thoại → men
 Ứng dụng chạy toàn màn hình như app thật, và phần giao diện vẫn mở được khi mạng chập chờn
 (dữ liệu vẫn cần mạng, vì đó là thông tin riêng tư nên không lưu tạm trên máy).
 
+### Ảnh hoạt động
+
+**Thêm → Ảnh hoạt động**: chọn ảnh hoặc chụp thẳng bằng điện thoại. Ảnh được **thu nhỏ ngay trên máy**
+xuống cạnh dài 1600 điểm ảnh trước khi gửi đi, nên ảnh 5 MB từ điện thoại chỉ còn khoảng 200 KB —
+không tốn dữ liệu di động và không sợ hết dung lượng. Ảnh lưu trong Cloudflare KV (1 GB miễn phí,
+đủ cho khoảng 5000 tấm). Học sinh xem ảnh ở mục *Hình ảnh* trên trang lớp.
+
+### Điểm danh khi mất mạng
+
+Lớp học sóng yếu vẫn điểm danh bình thường. Bấm *Lưu* mà không có mạng thì dữ liệu **nằm chờ
+trong máy**, có dải báo màu vàng ở đầu trang. Khi máy có mạng trở lại, hệ thống **tự gửi lên**.
+Cũng có nút *Gửi ngay* để chủ động.
+
+Dữ liệu chỉ bị xoá khỏi máy **sau khi máy chủ xác nhận đã lưu**, nên không sợ mất.
+Gửi lại nhiều lần cũng ra đúng một kết quả, không nhân đôi.
+
+---
+
+## 10. Tự động đăng khi sửa mã nguồn trên GitHub
+
+Tệp `.github/workflows/dang-len-cloudflare.yml` đã sẵn sàng. Cần khai báo **một lần** hai thứ:
+
+**Bước 1 — Tạo API token** tại <https://dash.cloudflare.com/profile/api-tokens>
+→ *Create Token* → chọn mẫu **Edit Cloudflare Workers** → *Continue* → *Create Token* → sao chép chuỗi hiện ra.
+
+**Bước 2 — Dán vào GitHub**: mở <https://github.com/ledinhphat1994-rgb/lop-10a7/settings/secrets/actions>
+→ *New repository secret*, thêm hai mục:
+
+| Name | Secret |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | chuỗi vừa sao chép ở bước 1 |
+| `CLOUDFLARE_ACCOUNT_ID` | `bfc647e65d847f61ca386b7f11c27173` |
+
+Xong. Từ đó mỗi lần `git push` là trang tự đăng lại, không cần chạy `npm run deploy` nữa.
+
+> Tôi cố ý **không** tự tạo và tự dán token này. Token cho quyền sửa toàn bộ Workers của tài khoản,
+> nên chỉ thầy/cô mới nên cầm nó. Đây là ranh giới an toàn, không phải hạn chế kỹ thuật.
+
+---
+
 ### Cấu trúc cơ sở dữ liệu
 
 Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`, `nhat_ky`,

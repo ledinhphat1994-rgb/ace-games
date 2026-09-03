@@ -5,7 +5,7 @@ import { bocXuLy, json } from '../_lib/api.js';
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const db = env.DB;
 
-  const [hocSinh, thongBao, keHoach, tkb] = await Promise.all([
+  const [hocSinh, thongBao, keHoach, tkb, hinhAnh] = await Promise.all([
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
@@ -20,6 +20,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
          FROM ke_hoach ORDER BY ngay`
     ).all(),
     db.prepare('SELECT thu, tiet, mon, phong FROM thoi_khoa_bieu ORDER BY tiet, thu').all(),
+    db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh ORDER BY ngay DESC, id DESC LIMIT 60').all(),
   ]);
 
   const sl = hocSinh.results.length;
@@ -43,5 +44,6 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim) })),
     keHoach: keHoach.results,
     thoiKhoaBieu: tkb.results,
+    hinhAnh: hinhAnh.results,
   });
 });

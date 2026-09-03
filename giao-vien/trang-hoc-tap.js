@@ -551,3 +551,159 @@ function thoat(s) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
+
+/* ================= Ảnh hoạt động ================= */
+
+const RONG_TOI_DA = 1600;   // thu nhỏ cạnh dài nhất về 1600 điểm ảnh
+const CHAT_LUONG = 0.82;
+
+/** Nén ảnh ngay trên máy giáo viên: ảnh 5 MB từ điện thoại còn khoảng 200 KB. */
+async function nenAnh(tep) {
+  const anh = await createImageBitmap(tep);
+  const tiLe = Math.min(1, RONG_TOI_DA / Math.max(anh.width, anh.height));
+  const w = Math.round(anh.width * tiLe);
+  const h = Math.round(anh.height * tiLe);
+
+  const khung = document.createElement('canvas');
+  khung.width = w;
+  khung.height = h;
+  khung.getContext('2d').drawImage(anh, 0, 0, w, h);
+  anh.close();
+
+  const blob = await new Promise((giai) => khung.toBlob(giai, 'image/jpeg', CHAT_LUONG));
+  if (!blob) throw new Error('Không xử lý được ảnh này.');
+
+  const dem = new Uint8Array(await blob.arrayBuffer());
+  let chuoiNhiPhan = '';
+  const KHOI = 8192;   // chia nhỏ để không tràn ngăn xếp khi ảnh lớn
+  for (let i = 0; i < dem.length; i += KHOI) {
+    chuoiNhiPhan += String.fromCharCode(...dem.subarray(i, i + KHOI));
+  }
+  return { base64: btoa(chuoiNhiPhan), coByte: dem.length, kieu: 'image/jpeg' };
+}
+
+export async function trangHinhAnh(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  async function ve() {
+    const d = await api('/api/gv/anh');
+
+    const khung = e('div');
+    khung.append(tieuDeTrang('Ảnh hoạt động',
+      `${d.soAnh} ảnh · đã dùng ${(d.tongByte / 1048576).toFixed(1)} MB trong 1 GB miễn phí`));
+
+    // Khu chọn ảnh
+    const the = e('div', 'the');
+    const oTep = e('input');
+    oTep.type = 'file';
+    oTep.accept = 'image/*';
+    oTep.multiple = true;
+    oTep.id = 'chonAnh';
+    oTep.className = 'o-nhap';
+
+    const oChu = oNhap('chuThichAnh', 'text', '', 'Chú thích chung cho đợt ảnh này');
+    const oNgay = oNhap('ngayAnh', 'date', homNay());
+
+    the.append(
+      truong('Chọn ảnh từ máy hoặc chụp bằng điện thoại', oTep,
+        'Ảnh được thu nhỏ ngay trên máy trước khi tải lên, nên không tốn dung lượng mạng.'),
+      truong('Chú thích', oChu),
+      truong('Ngày chụp', oNgay)
+    );
+
+    const tienTrinh = e('div', 'trong');
+    tienTrinh.style.marginTop = '10px';
+
+    the.append(nut('⬆ Tải ảnh lên', '', async (ev) => {
+      const cacTep = [...oTep.files];
+      if (!cacTep.length) return nhac('Chưa chọn ảnh nào', 'xau');
+
+      const b = ev.currentTarget;
+      b.disabled = true;
+      let xong = 0;
+      let hong = 0;
+
+      for (const tep of cacTep) {
+        tienTrinh.textContent = `Đang xử lý ${xong + hong + 1}/${cacTep.length}: ${tep.name}`;
+        try {
+          const { base64, kieu } = await nenAnh(tep);
+          await api('/api/gv/anh', {
+            method: 'POST',
+            than: { kieu, duLieu: base64, chuThich: oChu.value, ngay: oNgay.value },
+          });
+          xong++;
+        } catch (err) {
+          hong++;
+          nhac(`${tep.name}: ${err.message}`, 'xau');
+        }
+      }
+
+      tienTrinh.textContent = '';
+      b.disabled = false;
+      nhac(hong ? `Đã tải ${xong} ảnh, ${hong} ảnh lỗi` : `Đã tải lên ${xong} ảnh`, hong ? 'xau' : 'tot');
+      ve();
+    }), tienTrinh);
+    khung.append(the);
+
+    // Danh sách ảnh đã có
+    if (!d.danhSach.length) {
+      khung.append(Object.assign(e('p', 'trong', 'Chưa có ảnh nào.'), { style: 'margin-top:16px' }));
+    } else {
+      const luoi = e('div', 'thu-vien');
+      luoi.style.marginTop = '18px';
+      d.danhSach.forEach((a) => {
+        const hinh = e('figure');
+        const img = e('img');
+        img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+        img.alt = a.chuThich || 'Ảnh lớp 10A7';
+        img.loading = 'lazy';
+        hinh.append(img);
+
+        const chan = e('figcaption');
+        chan.append(document.createTextNode(`${ngayVN(a.ngay)} · ${Math.round(a.coByte / 1024)} KB`));
+        if (a.chuThich) chan.append(e('div', null, a.chuThich));
+
+        const hangNut = e('div', 'day-loc');
+        hangNut.style.marginTop = '6px';
+        hangNut.append(
+          nut('✎', 'nut-nhe nut-nho', () => suaChuThich(a, ve)),
+          nut('✕', 'nut-nhe nut-nho', () => {
+            moHopThoai('Xoá ảnh này?', e('p', null, a.chuThich || ngayVN(a.ngay)), [
+              nut('Huỷ', 'nut-nhe', dongHopThoai),
+              nut('Xoá', 'nut-xau', async () => {
+                try {
+                  await api('/api/gv/anh?id=' + a.id, { method: 'DELETE' });
+                  dongHopThoai();
+                  nhac('Đã xoá ảnh', 'tot');
+                  ve();
+                } catch (err) { nhac(err.message, 'xau'); }
+              }),
+            ]);
+          })
+        );
+        chan.append(hangNut);
+        hinh.append(chan);
+        luoi.append(hinh);
+      });
+      khung.append(luoi);
+    }
+
+    datNoiDung(KHUNG, khung);
+  }
+
+  function suaChuThich(a, taiLai) {
+    const o = oNhap('suaChu', 'text', a.chuThich, 'Chú thích cho ảnh');
+    moHopThoai('Sửa chú thích', truong('Chú thích', o), [
+      nut('Huỷ', 'nut-nhe', dongHopThoai),
+      nut('Lưu', '', async () => {
+        try {
+          await api('/api/gv/anh', { method: 'PATCH', than: { id: a.id, chuThich: o.value } });
+          dongHopThoai();
+          taiLai();
+        } catch (err) { nhac(err.message, 'xau'); }
+      }),
+    ]);
+  }
+
+  await ve();
+}

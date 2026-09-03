@@ -163,25 +163,20 @@ function veKeHoach(ds) {
   }));
 }
 
-async function veHinhAnh() {
+function veHinhAnh(ds) {
   const hop = $('#thuVien');
-  let ds = [];
-  try {
-    const res = await fetch('/data/hinh-anh.json', { cache: 'no-store' });
-    if (res.ok) ds = await res.json();
-  } catch { /* chưa có ảnh cũng không sao */ }
-
-  if (!ds.length) {
+  if (!ds || !ds.length) {
     return datNoiDung(hop, e('p', 'trong',
-      'Chưa có hình ảnh. Thêm ảnh vào thư mục assets/img và khai báo trong data/hinh-anh.json.'));
+      'Chưa có hình ảnh nào. Giáo viên chủ nhiệm sẽ đăng ảnh hoạt động của lớp tại đây.'));
   }
 
   datNoiDung(hop, ...ds.map((a) => {
     const hinh = e('figure');
     const img = e('img');
-    img.src = a.anh;
+    img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
     img.alt = a.chuThich || 'Ảnh hoạt động lớp 10A7';
     img.loading = 'lazy';
+    img.decoding = 'async';
     hinh.append(img);
     if (a.chuThich) hinh.append(e('figcaption', null, a.chuThich));
     return hinh;
@@ -198,9 +193,9 @@ async function veHinhAnh() {
     veDanhSach(d.hocSinh);
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veKeHoach(d.keHoach);
+    veHinhAnh(d.hinhAnh);
     ganTheoDoiMuc();
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));
   }
-  veHinhAnh();
 })();
