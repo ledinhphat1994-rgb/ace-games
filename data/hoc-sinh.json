@@ -1,0 +1,26 @@
+[
+  {
+    "stt": 1,
+    "hoTen": "(Họ và tên học sinh)",
+    "ngaySinh": "2011-01-15",
+    "gioiTinh": "Nam",
+    "chucVu": "Lớp trưởng",
+    "ghiChu": ""
+  },
+  {
+    "stt": 2,
+    "hoTen": "(Họ và tên học sinh)",
+    "ngaySinh": "2011-03-22",
+    "gioiTinh": "Nữ",
+    "chucVu": "Lớp phó học tập",
+    "ghiChu": ""
+  },
+  {
+    "stt": 3,
+    "hoTen": "(Họ và tên học sinh)",
+    "ngaySinh": "2011-07-08",
+    "gioiTinh": "Nữ",
+    "chucVu": "",
+    "ghiChu": "Tổ 1"
+  }
+]

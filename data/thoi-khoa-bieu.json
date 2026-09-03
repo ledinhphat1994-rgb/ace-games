@@ -1,0 +1,26 @@
+{
+  "ghiChu": "Áp dụng từ ngày 08/9/2026. Buổi sáng, 5 tiết/buổi.",
+  "thu": ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"],
+  "tiet": [
+    {
+      "ten": "Tiết 1",
+      "mon": { "Thứ 2": "Chào cờ", "Thứ 3": "Toán", "Thứ 4": "Ngữ văn", "Thứ 5": "Vật lí", "Thứ 6": "Toán", "Thứ 7": "Lịch sử" }
+    },
+    {
+      "ten": "Tiết 2",
+      "mon": { "Thứ 2": "Toán", "Thứ 3": "Ngữ văn", "Thứ 4": "Tiếng Anh", "Thứ 5": "Hoá học", "Thứ 6": "Ngữ văn", "Thứ 7": "Địa lí" }
+    },
+    {
+      "ten": "Tiết 3",
+      "mon": { "Thứ 2": "Ngữ văn", "Thứ 3": "Tiếng Anh", "Thứ 4": "Toán", "Thứ 5": "Sinh học", "Thứ 6": "Tin học", "Thứ 7": "GDKT & PL" }
+    },
+    {
+      "ten": "Tiết 4",
+      "mon": { "Thứ 2": "Tiếng Anh", "Thứ 3": "Vật lí", "Thứ 4": "Lịch sử", "Thứ 5": "Ngữ văn", "Thứ 6": "Toán", "Thứ 7": "Hoạt động trải nghiệm" }
+    },
+    {
+      "ten": "Tiết 5",
+      "mon": { "Thứ 2": "Sinh hoạt lớp", "Thứ 3": "Hoá học", "Thứ 4": "Địa lí", "Thứ 5": "Tin học", "Thứ 6": "Thể dục", "Thứ 7": "—" }
+    }
+  ]
+}

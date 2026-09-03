@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Lớp 10A7 · Năm học 2026 – 2027</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
+<link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="badge">10A7</span>
+      <span>Lớp 10A7<small>GDNN – GDTX xã Định Quán</small></span>
+    </div>
+
+    <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Mở menu" aria-expanded="false">☰</button>
+
+    <nav class="nav" id="nav" hidden>
+      <a href="#thong-bao">Thông báo</a>
+      <a href="#danh-sach">Danh sách lớp</a>
+      <a href="#thoi-khoa-bieu">Thời khoá biểu</a>
+      <a href="#ke-hoach">Kế hoạch</a>
+      <a href="#hinh-anh">Hình ảnh</a>
+      <a href="#lien-he">Liên hệ</a>
+      <a href="/api/logout">Thoát</a>
+    </nav>
+
+    <button class="icon-btn" id="themeToggle" aria-label="Đổi giao diện sáng/tối">◐</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <span class="kicker">Năm học 2026 – 2027</span>
+    <h1 id="heroTitle">Lớp 10A7</h1>
+    <p id="heroSub">Trung tâm Giáo dục nghề nghiệp – Giáo dục thường xuyên xã Định Quán, tỉnh Đồng Nai.</p>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <section id="thong-bao">
+    <div class="sec-head">
+      <h2>Thông báo từ giáo viên chủ nhiệm</h2>
+      <p>Mọi thông tin mới nhất của lớp được cập nhật tại đây.</p>
+    </div>
+    <div class="card" id="newsList"><p class="empty">Đang tải…</p></div>
+  </section>
+
+  <section id="danh-sach">
+    <div class="sec-head">
+      <h2>Danh sách lớp</h2>
+      <p id="studentCount"></p>
+    </div>
+    <div class="card">
+      <input class="field" id="studentSearch" type="search" placeholder="Tìm theo họ tên hoặc chức vụ…" aria-label="Tìm học sinh">
+      <div class="table-scroll" style="margin-top:14px">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">STT</th>
+              <th>Họ và tên</th>
+              <th>Ngày sinh</th>
+              <th>Giới tính</th>
+              <th>Chức vụ / Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody id="studentBody"><tr><td colspan="5" class="empty">Đang tải…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="thoi-khoa-bieu">
+    <div class="sec-head">
+      <h2>Thời khoá biểu</h2>
+      <p id="tkbNote"></p>
+    </div>
+    <div class="card">
+      <div class="table-scroll">
+        <table class="tkb">
+          <thead id="tkbHead"></thead>
+          <tbody id="tkbBody"><tr><td class="empty">Đang tải…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="ke-hoach">
+    <div class="sec-head">
+      <h2>Kế hoạch &amp; sự kiện năm học</h2>
+      <p>Lịch kiểm tra, hoạt động ngoại khoá, các mốc quan trọng.</p>
+    </div>
+    <div class="grid c2" id="planList"><div class="card empty">Đang tải…</div></div>
+  </section>
+
+  <section id="hinh-anh">
+    <div class="sec-head">
+      <h2>Hình ảnh hoạt động</h2>
+      <p>Khoảnh khắc của tập thể lớp 10A7.</p>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <section id="lien-he">
+    <div class="sec-head"><h2>Liên hệ</h2></div>
+    <div class="grid c2" id="contactList"></div>
+  </section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span id="footLeft">Lớp 10A7 · Năm học 2026 – 2027</span>
+    <span>Trang nội bộ – vui lòng không chia sẻ mã bảo mật ra ngoài lớp. · <a href="/api/logout">Đăng xuất</a></span>
+  </div>
+</footer>
+
+<script src="/assets/js/app.js"></script>
+</body>
+</html>

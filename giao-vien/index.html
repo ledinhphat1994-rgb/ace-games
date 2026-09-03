@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Khu vực giáo viên · Lớp 10A7</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
+<link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <span class="badge">10A7</span>
+      <span>Khu vực giáo viên<small>Chỉ mở bằng mã của giáo viên chủ nhiệm</small></span>
+    </div>
+    <nav class="nav">
+      <a href="/">Về trang lớp</a>
+      <a href="/api/logout">Thoát</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="sec-head">
+      <h2>Ghi chú riêng của giáo viên chủ nhiệm</h2>
+      <p>Học sinh nhập mã lớp sẽ không mở được trang này (máy chủ trả về lỗi 403).</p>
+    </div>
+
+    <div class="grid c2">
+      <div class="card">
+        <h3>Cập nhật nội dung trang lớp</h3>
+        <p>Sửa các tệp trong thư mục <code>data/</code> trên GitHub, Cloudflare sẽ tự đăng lại sau khoảng 30 giây.</p>
+        <ul>
+          <li><code>data/thong-bao.json</code> — thông báo</li>
+          <li><code>data/hoc-sinh.json</code> — danh sách lớp</li>
+          <li><code>data/thoi-khoa-bieu.json</code> — thời khoá biểu</li>
+          <li><code>data/ke-hoach.json</code> — kế hoạch, lịch kiểm tra</li>
+          <li><code>data/hinh-anh.json</code> — hình ảnh hoạt động</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Khi mã bảo mật bị lộ</h3>
+        <p>Vào Cloudflare Pages → <em>Settings → Variables and Secrets</em>, đổi <code>CLASS_CODE</code>.
+           Nếu muốn buộc tất cả thiết bị đang đăng nhập phải nhập lại mã, đổi thêm <code>SESSION_SECRET</code>
+           rồi bấm <em>Retry deployment</em>.</p>
+      </div>
+
+      <div class="card">
+        <h3>Nhắc nhở về dữ liệu học sinh</h3>
+        <p>Không đăng số điện thoại phụ huynh, địa chỉ nhà, số căn cước hay bảng điểm chi tiết gắn với tên
+           từng em. Mã bảo mật chặn người ngoài, nhưng không ngăn được việc chụp màn hình trong lớp.</p>
+      </div>
+
+      <div class="card">
+        <h3>Việc cần làm định kì</h3>
+        <p>Đầu mỗi học kì: đổi mã lớp, rà lại danh sách học sinh, cập nhật thời khoá biểu mới
+           và dọn bớt thông báo cũ trong <code>data/thong-bao.json</code>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap"><span>Lớp 10A7 · Năm học 2026 – 2027</span><span><a href="/">Về trang lớp</a></span></div>
+</footer>
+</body>
+</html>

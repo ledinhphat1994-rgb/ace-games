@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Đăng nhập · Lớp 10A7</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
+<link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="login-page">
+
+<main class="login-card">
+  <div class="badge">10A7</div>
+  <h1>Lớp 10A7 · Năm học 2026 – 2027</h1>
+  <p class="sub">Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai</p>
+
+  <form id="loginForm" autocomplete="off">
+    <label for="code">Mã bảo mật của lớp</label>
+    <input class="field" id="code" name="code" type="password" inputmode="text"
+           placeholder="Nhập mã do giáo viên chủ nhiệm cung cấp" required autofocus>
+    <button class="btn" type="submit" id="submitBtn">Vào trang lớp</button>
+  </form>
+
+  <p class="msg err" id="msg" hidden></p>
+
+  <p class="login-note">
+    Trang này chỉ dành cho học sinh lớp 10A7 và giáo viên chủ nhiệm.
+    Vui lòng không chia sẻ mã bảo mật ra ngoài lớp.
+    Nếu quên mã, hãy liên hệ trực tiếp giáo viên chủ nhiệm.
+  </p>
+</main>
+
+<script>
+  const form = document.getElementById('loginForm');
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('submitBtn');
+
+  function show(text, kind) {
+    msg.textContent = text;
+    msg.className = 'msg ' + kind;
+    msg.hidden = false;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg.hidden = true;
+    btn.disabled = true;
+    btn.textContent = 'Đang kiểm tra…';
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: document.getElementById('code').value })
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        show('Xác thực thành công. Đang mở trang lớp…', 'ok');
+        const next = new URLSearchParams(location.search).get('next');
+        location.href = (next && next.startsWith('/')) ? next : '/';
+        return;
+      }
+      show(data.message || 'Mã bảo mật không đúng.', 'err');
+    } catch (err) {
+      show('Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.', 'err');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Vào trang lớp';
+  });
+</script>
+</body>
+</html>
