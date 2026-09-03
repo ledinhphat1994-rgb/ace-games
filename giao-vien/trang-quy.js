@@ -81,11 +81,18 @@ export async function trangQuy(KHUNG) {
     );
     box.append(hangNut);
 
-    const day = e('div', 'day-so');
+    // Dải số liệu ngang — không nhét 3 ô vào lưới .day-so vốn để dành cho đúng 4 ô,
+    // tránh làm số tiền bị ngắt dòng khi cột hẹp.
+    const soLieu = (nhan, giaTri, kieu) => {
+      const muc = e('div', 'muc');
+      muc.append(e('div', 'nhan', nhan), e('div', 'gt' + (kieu ? ' ' + kieu : ''), giaTri));
+      return muc;
+    };
+    const day = e('div', 'chuoi-so-lieu');
     day.append(
-      oThongKe(tienVN(dk.tongDaThu), 'Đã thu', 'tot'),
-      oThongKe(tienVN(dk.tongCanThu), 'Cần thu'),
-      oThongKe(`${dk.soEmDaDuDinh}/${dk.danhSach.length}`, 'Em đã đóng đủ', dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
+      soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot'),
+      soLieu('Cần thu', tienVN(dk.tongCanThu)),
+      soLieu('Em đã đóng đủ', `${dk.soEmDaDuDinh}/${dk.danhSach.length}`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
     );
     box.append(day);
 
@@ -233,9 +240,11 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
+    // Phân cấp: chính (mở khoản mới) → phụ (thu định kỳ) → ít dùng nhất (lịch sử/khôi phục,
+    // chỉ cần khi có sự cố) — không để 3 nút cạnh tranh thị giác ngang nhau.
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
-      nut('🛡 Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
+      nut('🛡 Lịch sử & khôi phục', 'nut-nhe', () => { location.hash = '#/quy-lich-su'; }),
       nut('🔁 Thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; }),
       nut('+ Mở khoản thu mới', '', () => moKhoanMoi(tai))
     ));
@@ -279,9 +288,9 @@ export async function trangQuy(KHUNG) {
       khung.append(huongDan);
     }
 
-    // Bố cục 2 cột trên màn hình rộng: khoản thu bên trái, khoản chi bên phải —
-    // dùng hết chiều ngang thay vì xếp chồng toàn bộ theo chiều dọc.
-    const luoiChinh = e('div', 'luoi luoi-2 luoi-quy');
+    // Bố cục 2 cột trên màn hình đủ rộng: khoản thu bên trái (rộng hơn — nhiều dữ liệu hơn),
+    // khoản chi bên phải; xếp dọc 1 cột khi màn hẹp thay vì ép 2 cột chật.
+    const luoiChinh = e('div', 'luoi luoi-quy');
     luoiChinh.style.marginTop = '16px';
 
     const theKhoan = e('div', 'the');

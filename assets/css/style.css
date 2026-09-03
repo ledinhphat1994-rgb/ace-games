@@ -36,7 +36,8 @@
   --r: 14px;
   --r-lon: 22px;
 
-  --rong: 1180px;
+  --rong: 1180px;         /* trang công khai (đọc nội dung) */
+  --rong-ud: 1500px;       /* app quản lý (bảng dữ liệu, cần rộng hơn) */
   --cao-thanh: 60px;
   --cao-tab: 62px;
 }

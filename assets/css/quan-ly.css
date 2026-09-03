@@ -6,12 +6,15 @@
 body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) { body.ung-dung { padding-bottom: 0; } }
 
+/* Đây là khung ứng dụng nội bộ (giáo viên), KHÔNG dùng chung --rong với trang công khai:
+   trang công khai là nội dung đọc (nên hẹp, dễ đọc), còn app này là bảng dữ liệu/thao tác
+   (nên tận dụng chiều ngang màn hình rộng). --rong-ud chỉ áp dụng ở đây. */
 .khung-ung-dung { display: block; }
 @media (min-width: 900px) {
   .khung-ung-dung {
     display: grid; grid-template-columns: 236px minmax(0, 1fr);
-    gap: 26px; max-width: var(--rong); margin: 0 auto; padding: 22px 24px 40px;
-    align-items: start;
+    gap: 26px; width: min(var(--rong-ud, 1500px), calc(100% - 48px)); margin-inline: auto;
+    padding: 22px 0 40px; align-items: start;
   }
 }
 
@@ -79,7 +82,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
   background: var(--chinh); opacity: .7;
 }
-.o-thong-ke .con-so { font-size: 27px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.o-thong-ke .con-so { font-size: 27px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .o-thong-ke .ten { font-size: 12.5px; color: var(--chu-nhat); margin-top: 3px; }
 .o-thong-ke.tot .con-so { color: var(--tot); }
 .o-thong-ke.tot::before { background: var(--tot); }
@@ -188,6 +191,29 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 @media (min-width: 760px) { .ds-the { grid-template-columns: repeat(2, 1fr); } }
 
 /* ---------- Thủ quỹ: khoản thu mở rộng tại chỗ (accordion), không chuyển trang ---------- */
+
+/* Khoản thu mang nhiều dữ liệu hơn Khoản chi (accordion + theo tổ + 37 em + lịch sử đóng),
+   nên không chia đều 50/50 — chỉ áp dụng tỉ lệ 63/37 khi đủ chỗ (laptop trở lên);
+   màn hẹp hơn thì xếp dọc 1 cột, không ép 2 cột chật. */
+.luoi-quy { grid-template-columns: 1fr; }
+@media (min-width: 980px) { .luoi-quy { grid-template-columns: 1.7fr 1fr; } }
+
+/* Dải số liệu NGANG — thay cho việc nhét số liệu vào các ô nhỏ kiểu .day-so (vốn để dành
+   đúng 4 ô KPI đầu trang). Đọc bằng khoảng cách + kiểu chữ, không cần khung/viền riêng
+   cho từng số — tránh kiểu "hộp trong hộp" và không bao giờ ngắt dòng giữa số và "đ". */
+.chuoi-so-lieu {
+  display: flex; flex-wrap: wrap; gap: 8px 34px;
+  padding: 2px 0 16px; margin-bottom: 14px; border-bottom: 1px solid var(--vien);
+}
+.chuoi-so-lieu .muc { display: flex; flex-direction: column; gap: 3px; }
+.chuoi-so-lieu .nhan { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--chu-nhat); }
+.chuoi-so-lieu .gt {
+  font-size: 21px; font-weight: 800; letter-spacing: -.01em; line-height: 1.15;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.chuoi-so-lieu .gt.tot { color: var(--tot); }
+.chuoi-so-lieu .gt.luuy { color: var(--luu-y); }
+
 .ds-khoan { display: flex; flex-direction: column; gap: 9px; }
 .muc-khoan { background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; }
 .muc-khoan .hang-hs { border: 0; border-radius: 0; }
