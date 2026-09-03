@@ -1,7 +1,35 @@
-# Hướng dẫn đưa trang lớp 10A7 lên mạng (miễn phí 100%)
+# Hướng dẫn trang lớp 10A7
 
-Trang này chạy trên **Cloudflare Pages** — miễn phí vĩnh viễn, băng thông không giới hạn,
+Trang chạy trên **Cloudflare Pages** — miễn phí vĩnh viễn, băng thông không giới hạn,
 tự động có HTTPS, CDN và chống DDoS của Cloudflare.
+
+---
+
+## 0. TRẠNG THÁI HIỆN TẠI — đã chạy thật
+
+| Mục | Giá trị |
+|---|---|
+| Địa chỉ trang | **https://lop-10a7.pages.dev** |
+| Mã cho học sinh | xem tin nhắn riêng của giáo viên (biến `CLASS_CODE`) |
+| Mã của giáo viên | xem tin nhắn riêng (biến `TEACHER_CODE`) — mở thêm `/giao-vien` |
+| Mã nguồn | https://github.com/ledinhphat1994-rgb/lop-10a7 (Private) |
+| Tài khoản Cloudflare | ledinhphat1994@gmail.com |
+
+Ba biến bí mật `SESSION_SECRET`, `CLASS_CODE`, `TEACHER_CODE` **đã được nạp lên Cloudflare**.
+Đã kiểm tra thực tế: chưa nhập mã thì bị chặn (302), mã sai bị từ chối (401), cookie giả mạo bị từ chối,
+học sinh không vào được `/giao-vien` (403).
+
+### Cách đăng lại sau khi sửa nội dung
+
+Hiện dự án deploy bằng lệnh (chưa nối Git tự động). Sau khi sửa tệp trong `data/`, chạy:
+
+```bash
+npm run deploy
+```
+
+Muốn **sửa trên GitHub là tự động đăng** (không cần chạy lệnh), làm một lần trong dashboard Cloudflare:
+**Workers & Pages → lop-10a7 → Settings → Build → Connect to Git** → chọn repo `lop-10a7`,
+production branch `main`, build command để trống, output directory `/`.
 
 ---
 
