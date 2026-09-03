@@ -25,10 +25,23 @@ async function loadJSON(path, fallback) {
   }
 }
 
-function formatDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
+function formatDate(gia_tri) {
+  if (!gia_tri) return '';
+  const s = String(gia_tri).trim();
+
+  // Đã là kiểu Việt Nam "11/07/2011" thì giữ nguyên.
+  // (Nếu đưa vào new Date() thì JavaScript hiểu theo kiểu Mỹ và ra sai tháng.)
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const [ng, th, nam] = s.split('/');
+    return `${ng.padStart(2, '0')}/${th.padStart(2, '0')}/${nam}`;
+  }
+
+  // Kiểu "2026-09-15" -> "15/09/2026"
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+  const d = new Date(s);
+  if (isNaN(d)) return s;
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
@@ -128,20 +141,43 @@ async function renderNews() {
 async function renderStudents() {
   const list = await loadJSON('/data/hoc-sinh.json', []);
   const body = $('#studentBody');
-  $('#studentCount').textContent = `Tổng số: ${list.length} học sinh`;
 
-  function draw(filter) {
-    const q = (filter || '').trim().toLowerCase();
-    const rows = list.filter((s) =>
-      !q ||
-      String(s.hoTen || '').toLowerCase().includes(q) ||
-      String(s.chucVu || '').toLowerCase().includes(q)
-    );
+  const nam = list.filter((s) => s.gioiTinh === 'Nam').length;
+  const nu = list.length - nam;
+  $('#studentCount').textContent = `Tổng số ${list.length} học sinh · ${nam} nam · ${nu} nữ`;
+
+  let ngheDangChon = '';
+  let tuKhoa = '';
+
+  // Nút lọc theo lớp nghề, dựng từ chính dữ liệu nên không phải sửa tay khi đổi.
+  const cacNghe = [...new Set(list.map((s) => s.lopNghe).filter(Boolean))].sort();
+  const boLoc = $('#ngheFilter');
+  boLoc.replaceChildren();
+
+  function veNutLoc() {
+    boLoc.replaceChildren();
+    [['', `Tất cả (${list.length})`], ...cacNghe.map((n) => [n, `${n} (${list.filter((s) => s.lopNghe === n).length})`])]
+      .forEach(([giaTri, nhan]) => {
+        const b = el('button', 'chip' + (ngheDangChon === giaTri ? ' active' : ''), nhan);
+        b.type = 'button';
+        b.addEventListener('click', () => { ngheDangChon = giaTri; veNutLoc(); draw(); });
+        boLoc.append(b);
+      });
+  }
+
+  function draw() {
+    const q = tuKhoa.trim().toLowerCase();
+    const rows = list.filter((s) => {
+      if (ngheDangChon && s.lopNghe !== ngheDangChon) return false;
+      if (!q) return true;
+      return ['hoTen', 'lopNghe', 'toHop', 'chucVu']
+        .some((k) => String(s[k] || '').toLowerCase().includes(q));
+    });
 
     body.replaceChildren();
     if (!rows.length) {
       const tr = el('tr');
-      tr.append(Object.assign(el('td', 'empty', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 5 }));
+      tr.append(Object.assign(el('td', 'empty', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 7 }));
       body.append(tr);
       return;
     }
@@ -151,9 +187,14 @@ async function renderStudents() {
       tr.append(
         el('td', 'num', s.stt ?? i + 1),
         el('td', null, s.hoTen || ''),
-        el('td', null, formatDate(s.ngaySinh) || s.ngaySinh || ''),
-        el('td', null, s.gioiTinh || '')
+        el('td', null, s.gioiTinh || ''),
+        el('td', null, formatDate(s.ngaySinh) || s.ngaySinh || '')
       );
+
+      const tdNghe = el('td');
+      if (s.lopNghe) tdNghe.append(el('span', 'tag', s.lopNghe));
+      tr.append(tdNghe, el('td', null, s.toHop || ''));
+
       const td = el('td');
       if (s.chucVu) td.append(el('span', 'tag ok', s.chucVu));
       if (s.ghiChu) td.append(document.createTextNode((s.chucVu ? ' ' : '') + s.ghiChu));
@@ -162,8 +203,9 @@ async function renderStudents() {
     });
   }
 
-  draw('');
-  $('#studentSearch').addEventListener('input', (e) => draw(e.target.value));
+  veNutLoc();
+  draw();
+  $('#studentSearch').addEventListener('input', (e) => { tuKhoa = e.target.value; draw(); });
 }
 
 /* ---------- Thời khoá biểu ---------- */

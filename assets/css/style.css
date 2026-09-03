@@ -166,6 +166,30 @@ tbody tr:hover { background: color-mix(in srgb, var(--brand) 6%, transparent); }
 td.num, th.num { text-align: center; width: 56px; }
 .tkb td:first-child { font-weight: 700; color: var(--brand); white-space: nowrap; }
 
+/* Khu vực giáo viên */
+.canh-bao {
+  margin: 22px 0 8px; padding: 14px 18px; border-radius: 12px; font-size: 14.5px;
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-soft));
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  color: var(--ink);
+}
+ul.thong-ke { list-style: none; margin: 12px 0 0; padding: 0; }
+ul.thong-ke li { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 14px; }
+ul.thong-ke li b { margin-left: auto; }
+ul.thong-ke li span:last-child { color: var(--ink-soft); font-size: 12.5px; min-width: 38px; text-align: right; }
+ul.ds-ten { margin: 12px 0 0; padding-left: 20px; font-size: 14px; }
+ul.ds-ten li { padding: 2px 0; }
+
+/* Nút lọc theo lớp nghề */
+.loc-nghe { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.chip {
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft);
+  padding: 6px 12px; border-radius: 999px; font: inherit; font-size: 13.5px;
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.chip:hover { border-color: var(--brand); color: var(--brand); }
+.chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
 /* Thư viện ảnh */
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .gallery figure { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-soft); }

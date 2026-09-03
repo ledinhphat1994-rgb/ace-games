@@ -14,59 +14,95 @@
   <div class="wrap">
     <div class="brand">
       <span class="badge">10A7</span>
-      <span>Khu vực giáo viên<small>Chỉ mở bằng mã của giáo viên chủ nhiệm</small></span>
+      <span>Khu vực giáo viên<small>Học sinh không mở được trang này</small></span>
     </div>
     <nav class="nav">
-      <a href="/">Về trang lớp</a>
+      <a href="/">Trang lớp</a>
       <a href="/api/logout">Thoát</a>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
+
+  <div class="canh-bao" id="canhBao">
+    <strong>Dữ liệu nhạy cảm.</strong>
+    Trang này có hoàn cảnh gia đình và tình trạng vi phạm của từng em.
+    Không chiếu lên máy chiếu trước lớp, không chụp màn hình gửi nhóm.
+  </div>
+
   <section>
     <div class="sec-head">
-      <h2>Ghi chú riêng của giáo viên chủ nhiệm</h2>
-      <p>Học sinh nhập mã lớp sẽ không mở được trang này (máy chủ trả về lỗi 403).</p>
+      <h2>Tổng quan lớp</h2>
+      <p id="nguonDuLieu"></p>
     </div>
+    <div class="grid c3" id="tongQuan"></div>
+  </section>
 
-    <div class="grid c2">
-      <div class="card">
-        <h3>Cập nhật nội dung trang lớp</h3>
-        <p>Sửa các tệp trong thư mục <code>data/</code> trên GitHub, Cloudflare sẽ tự đăng lại sau khoảng 30 giây.</p>
-        <ul>
-          <li><code>data/thong-bao.json</code> — thông báo</li>
-          <li><code>data/hoc-sinh.json</code> — danh sách lớp</li>
-          <li><code>data/thoi-khoa-bieu.json</code> — thời khoá biểu</li>
-          <li><code>data/ke-hoach.json</code> — kế hoạch, lịch kiểm tra</li>
-          <li><code>data/hinh-anh.json</code> — hình ảnh hoạt động</li>
-        </ul>
-      </div>
+  <section>
+    <div class="sec-head">
+      <h2>Cần xử lý</h2>
+      <p>Những nhóm học sinh cần thầy/cô theo dõi tiếp.</p>
+    </div>
+    <div class="grid c2" id="canXuLy"></div>
+  </section>
 
-      <div class="card">
-        <h3>Khi mã bảo mật bị lộ</h3>
-        <p>Vào Cloudflare Pages → <em>Settings → Variables and Secrets</em>, đổi <code>CLASS_CODE</code>.
-           Nếu muốn buộc tất cả thiết bị đang đăng nhập phải nhập lại mã, đổi thêm <code>SESSION_SECRET</code>
-           rồi bấm <em>Retry deployment</em>.</p>
-      </div>
-
-      <div class="card">
-        <h3>Nhắc nhở về dữ liệu học sinh</h3>
-        <p>Không đăng số điện thoại phụ huynh, địa chỉ nhà, số căn cước hay bảng điểm chi tiết gắn với tên
-           từng em. Mã bảo mật chặn người ngoài, nhưng không ngăn được việc chụp màn hình trong lớp.</p>
-      </div>
-
-      <div class="card">
-        <h3>Việc cần làm định kì</h3>
-        <p>Đầu mỗi học kì: đổi mã lớp, rà lại danh sách học sinh, cập nhật thời khoá biểu mới
-           và dọn bớt thông báo cũ trong <code>data/thong-bao.json</code>.</p>
+  <section>
+    <div class="sec-head">
+      <h2>Bảng theo dõi chi tiết</h2>
+      <p id="soDong"></p>
+    </div>
+    <div class="card">
+      <input class="field" id="timKiem" type="search" placeholder="Tìm theo họ tên…" aria-label="Tìm học sinh">
+      <div class="loc-nghe" id="boLoc"></div>
+      <div class="table-scroll" style="margin-top:14px">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">STT</th>
+              <th>Họ và tên</th>
+              <th>Sách giáo khoa</th>
+              <th>Đồng phục</th>
+              <th>Lao động 3/9</th>
+              <th>Hoàn cảnh</th>
+            </tr>
+          </thead>
+          <tbody id="bangTheoDoi"><tr><td colspan="6" class="empty">Đang tải…</td></tr></tbody>
+        </table>
       </div>
     </div>
   </section>
+
+  <section>
+    <div class="sec-head"><h2>Ghi nhớ vận hành</h2></div>
+    <div class="grid c2">
+      <div class="card">
+        <h3>Cập nhật nội dung trang lớp</h3>
+        <p>Sửa tệp trong <code>data/</code> rồi chạy <code>npm run deploy</code>. Trang cập nhật sau khoảng 30 giây.</p>
+      </div>
+      <div class="card">
+        <h3>Cập nhật lại từ file Excel</h3>
+        <p>Sửa file <code>Tong_Hop_Phan_Loai_Lop_10A7.xlsx</code> rồi chạy
+           <code>python cong-cu/tao-du-lieu-tu-excel.py</code> và <code>npm run deploy</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Khi mã bảo mật bị lộ</h3>
+        <p>Đổi <code>CLASS_CODE</code> trên Cloudflare. Muốn buộc mọi thiết bị đăng nhập lại thì đổi thêm
+           <code>SESSION_SECRET</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Nguyên tắc dữ liệu</h3>
+        <p>Hoàn cảnh gia đình và lỗi vi phạm chỉ để ở trang này, tuyệt đối không đưa sang trang lớp.</p>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="site">
   <div class="wrap"><span>Lớp 10A7 · Năm học 2026 – 2027</span><span><a href="/">Về trang lớp</a></span></div>
 </footer>
+
+<script src="/giao-vien/theo-doi.js"></script>
 </body>
 </html>

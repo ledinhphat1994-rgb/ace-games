@@ -4,23 +4,23 @@
   "truong": "Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai",
   "gioiThieu": "Trang thông tin nội bộ của tập thể lớp 10A7 – Trung tâm Giáo dục nghề nghiệp – Giáo dục thường xuyên xã Định Quán, tỉnh Đồng Nai. Mọi thông báo, kế hoạch và diễn biến của lớp được giáo viên chủ nhiệm cập nhật tại đây.",
   "thongKe": [
-    { "giaTri": "—", "nhan": "Sĩ số lớp" },
-    { "giaTri": "10A7", "nhan": "Tên lớp" },
-    { "giaTri": "2026–2027", "nhan": "Năm học" },
-    { "giaTri": "GDNN–GDTX", "nhan": "Định Quán, Đồng Nai" }
+    { "giaTri": "37", "nhan": "Học sinh" },
+    { "giaTri": "24 / 13", "nhan": "Nam / Nữ" },
+    { "giaTri": "5", "nhan": "Lớp nghề" },
+    { "giaTri": "A4", "nhan": "Tổ hợp môn" }
   ],
   "lienHe": [
     {
       "vaiTro": "Giáo viên chủ nhiệm",
-      "hoTen": "(Điền họ tên thầy/cô)",
+      "hoTen": "Thầy Lê Đình Phát",
       "dienThoai": "",
       "ghiChu": "Phụ huynh và học sinh liên hệ trong giờ hành chính."
     },
     {
-      "vaiTro": "Lớp trưởng",
-      "hoTen": "(Điền họ tên lớp trưởng)",
+      "vaiTro": "Ban cán sự lớp",
+      "hoTen": "(Chưa cập nhật)",
       "dienThoai": "",
-      "ghiChu": "Nhận và truyền đạt thông báo tới các tổ."
+      "ghiChu": "Điền chức vụ vào cột \"chucVu\" trong data/hoc-sinh.json để hiện ở danh sách lớp."
     }
   ]
 }

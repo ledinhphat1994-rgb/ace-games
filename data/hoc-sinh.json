@@ -1,26 +1,372 @@
 [
   {
     "stt": 1,
-    "hoTen": "(Họ và tên học sinh)",
-    "ngaySinh": "2011-01-15",
-    "gioiTinh": "Nam",
-    "chucVu": "Lớp trưởng",
+    "hoTen": "KA Bé",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "11/07/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
     "ghiChu": ""
   },
   {
     "stt": 2,
-    "hoTen": "(Họ và tên học sinh)",
-    "ngaySinh": "2011-03-22",
-    "gioiTinh": "Nữ",
-    "chucVu": "Lớp phó học tập",
+    "hoTen": "Vũ Thiện Chí",
+    "gioiTinh": "Nam",
+    "ngaySinh": "07/05/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
     "ghiChu": ""
   },
   {
     "stt": 3,
-    "hoTen": "(Họ và tên học sinh)",
-    "ngaySinh": "2011-07-08",
-    "gioiTinh": "Nữ",
+    "hoTen": "Lê Thành Đạt",
+    "gioiTinh": "Nam",
+    "ngaySinh": "19/09/2009",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
     "chucVu": "",
-    "ghiChu": "Tổ 1"
+    "ghiChu": ""
+  },
+  {
+    "stt": 4,
+    "hoTen": "Đinh Thành Đạt",
+    "gioiTinh": "Nam",
+    "ngaySinh": "05/11/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 5,
+    "hoTen": "Đinh Quốc Duy",
+    "gioiTinh": "Nam",
+    "ngaySinh": "22/01/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 6,
+    "hoTen": "K' Gió",
+    "gioiTinh": "Nam",
+    "ngaySinh": "19/04/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 7,
+    "hoTen": "Trần Hải Hà",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "02/04/2011",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 8,
+    "hoTen": "Lộc Thu Hà",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "08/08/2011",
+    "lopNghe": "KTDN",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 9,
+    "hoTen": "Huỳnh Minh Hậu",
+    "gioiTinh": "Nam",
+    "ngaySinh": "21/02/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 10,
+    "hoTen": "Thông Minh Hoàng",
+    "gioiTinh": "Nam",
+    "ngaySinh": "18/03/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 11,
+    "hoTen": "Vòng Tuấn Kiệt",
+    "gioiTinh": "Nam",
+    "ngaySinh": "04/07/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 12,
+    "hoTen": "Lê Triều Khánh Lâm",
+    "gioiTinh": "Nam",
+    "ngaySinh": "28/03/2008",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 13,
+    "hoTen": "Đặng Thị Thảo Ly",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "11/10/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 14,
+    "hoTen": "Sầm Thị Yến Nhi",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "15/03/2011",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 15,
+    "hoTen": "Lê Thị Kim Oanh",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "11/12/2011",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 16,
+    "hoTen": "Phạm Minh Phát",
+    "gioiTinh": "Nam",
+    "ngaySinh": "03/08/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 17,
+    "hoTen": "K' Phát",
+    "gioiTinh": "Nam",
+    "ngaySinh": "21/06/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 18,
+    "hoTen": "Trần Hoàng Phát",
+    "gioiTinh": "Nam",
+    "ngaySinh": "15/07/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 19,
+    "hoTen": "Huỳnh Hoàng Phi",
+    "gioiTinh": "Nam",
+    "ngaySinh": "01/01/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 20,
+    "hoTen": "Lê Kim Phụng",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "14/06/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 21,
+    "hoTen": "Nguyễn Khánh Phương",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "03/12/2011",
+    "lopNghe": "KTDN",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 22,
+    "hoTen": "Dịp Sinh Quân",
+    "gioiTinh": "Nam",
+    "ngaySinh": "22/06/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 23,
+    "hoTen": "Phồng Thanh Quang",
+    "gioiTinh": "Nam",
+    "ngaySinh": "25/11/2010",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 24,
+    "hoTen": "Nguyễn Minh Quyền",
+    "gioiTinh": "Nam",
+    "ngaySinh": "03/10/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 25,
+    "hoTen": "Nguyễn Minh Thái",
+    "gioiTinh": "Nam",
+    "ngaySinh": "07/10/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 26,
+    "hoTen": "Hoàng Văn Thắng",
+    "gioiTinh": "Nam",
+    "ngaySinh": "12/10/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 27,
+    "hoTen": "Nguyễn Đỗ Trang Thư",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "31/01/2011",
+    "lopNghe": "KTDN",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 28,
+    "hoTen": "Lê Ngọc Bảo Thy",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "12/12/2011",
+    "lopNghe": "KTDN",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 29,
+    "hoTen": "Phạm Nguyễn Anh Tú",
+    "gioiTinh": "Nam",
+    "ngaySinh": "04/01/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 30,
+    "hoTen": "Tằng Thanh Tuyền",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "24/05/2011",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 31,
+    "hoTen": "Trần Thị Ngọc Yến",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "10/07/2011",
+    "lopNghe": "Tiếng TQ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 32,
+    "hoTen": "Vũ Mai Khánh Ngọc",
+    "gioiTinh": "Nữ",
+    "ngaySinh": "08/10/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 33,
+    "hoTen": "Vũ Thanh Tùng",
+    "gioiTinh": "Nam",
+    "ngaySinh": "08/07/2011",
+    "lopNghe": "Điện CN&ĐĐ",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 34,
+    "hoTen": "Lê Hoàng Gia Kiệt",
+    "gioiTinh": "Nam",
+    "ngaySinh": "07/08/2011",
+    "lopNghe": "CNTT",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 35,
+    "hoTen": "Nim Hoàn Vũ",
+    "gioiTinh": "Nam",
+    "ngaySinh": "14/08/2009",
+    "lopNghe": "Chưa xếp",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 36,
+    "hoTen": "Lý A Nam",
+    "gioiTinh": "Nam",
+    "ngaySinh": "03/09/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
+  },
+  {
+    "stt": 37,
+    "hoTen": "Nguyễn Hữu Tài",
+    "gioiTinh": "Nam",
+    "ngaySinh": "08/02/2011",
+    "lopNghe": "Công nghệ ô tô",
+    "toHop": "A4",
+    "chucVu": "",
+    "ghiChu": ""
   }
 ]
