@@ -61,6 +61,11 @@ function locMenuTheoQuyen() {
     if (!duocVaoTuyen(href.slice(1))) a.remove();
   });
 
+  // Ẩn luôn tiêu đề nhóm nếu không còn mục nào trong nhóm đó (tài khoản đặc biệt chỉ có vài quyền).
+  $$('.cot-trai .nhom-dieu-huong').forEach((nhom) => {
+    if (!nhom.querySelector('a')) nhom.remove();
+  });
+
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu && PHIEN.ten) hieuPhu.textContent = `${PHIEN.vaiTro || 'Tài khoản đặc biệt'} · ${PHIEN.ten}`;
 }
@@ -83,6 +88,17 @@ const LOAI_NHAT_KY = {
 };
 
 const TEN_BUOI = { sang: 'Buổi sáng', chieu: 'Buổi chiều', hoat_dong: 'Hoạt động' };
+
+// Nhãn tương đối cho mốc sắp tới — chỉ để quét nhanh độ gấp, không thay ngày tuyệt đối
+// (ngày dd/mm/yyyy vẫn luôn hiện cạnh nhãn này).
+function nhanTuongDoi(ngay, homNayHienTai) {
+  const soNgay = Math.round((new Date(ngay + 'T00:00:00Z') - new Date(homNayHienTai + 'T00:00:00Z')) / 86400000);
+  if (soNgay === 0) return { chu: 'Hôm nay', lop: 'nhan-xau' };
+  if (soNgay === 1) return { chu: 'Ngày mai', lop: 'nhan-luuy' };
+  if (soNgay >= 2 && soNgay <= 7) return { chu: 'Tuần này', lop: 'nhan' };
+  if (soNgay >= 8 && soNgay <= 14) return { chu: 'Tuần sau', lop: 'nhan-xam' };
+  return null;
+}
 
 
 
@@ -182,28 +198,33 @@ async function trangTongQuan() {
   const luoi = e('div', 'luoi luoi-2');
   luoi.style.marginTop = '18px';
 
-  // --- Cần chú ý: hợp nhất chuyên cần + hạnh kiểm (vi phạm/khen 30 ngày), xếp theo điểm rủi ro ---
+  // --- Cần chú ý: 2 tín hiệu độc lập (chuyên cần / hạnh kiểm), không cộng trừ thành 1 điểm ẩn.
+  // Vắng có phép và khen KHÔNG làm giảm mức cần chú ý của em khác — mỗi dòng luôn có lý do rõ ràng.
   const theVang = e('div', 'the');
-  theVang.append(e('h3', null, 'Cần chú ý'), e('p', 'trong', 'Xếp theo vắng + vi phạm − khen, 30 ngày gần nhất.'));
+  theVang.append(e('h3', null, 'Cần chú ý'), e('p', 'trong', 'Vắng không phép, đi trễ từ 2 lần, hoặc có vi phạm — 30 ngày gần nhất.'));
   const canChuY = d.canChuY || [];
   if (!canChuY.length) {
     theVang.append(e('p', 'trong', 'Không có em nào cần chú ý. Rất tốt.'));
   } else {
     const ds = e('div', 'ds-diem-danh');
     canChuY.forEach((h) => {
-      const hang = e('div', 'hang-hs');
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, h.hoTen));
-      hang.append(e('div', 'stt', h.id), ten);
-      const nhanHop = e('div', 'canh-phai');
-      if (h.vangKhongPhep) nhanHop.append(e('span', 'nhan nhan-xau', `${h.vangKhongPhep} vắng`));
-      if (h.vangPhep) nhanHop.append(e('span', 'nhan', `${h.vangPhep} có phép`));
-      if (h.tre) nhanHop.append(e('span', 'nhan nhan-luuy', `${h.tre} trễ`));
-      if (h.soViPham) nhanHop.append(e('span', 'nhan nhan-xau', `${h.soViPham} vi phạm`));
-      if (h.soKhen) nhanHop.append(e('span', 'nhan nhan-tot', `${h.soKhen} khen`));
-      hang.append(nhanHop);
-      hang.style.cursor = 'pointer';
-      hang.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
+      const hang = e('div', 'hang-hs hang-can-chu-y');
+      const tenBam = e('button', 'ten-bam ten');
+      tenBam.type = 'button';
+      tenBam.setAttribute('aria-label', 'Xem hồ sơ: ' + h.hoTen);
+      tenBam.append(e('b', null, h.hoTen), e('small', null, h.lyDo));
+      tenBam.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
+      hang.append(e('div', 'stt', h.id), tenBam);
+      // Khen chỉ hiện như thông tin thêm, KHÔNG phải dấu hiệu làm giảm mức cần chú ý.
+      if (h.soKhen) hang.append(e('span', 'nhan nhan-xam', `${h.soKhen} khen`));
+
+      // Hành động ngay tại dòng — không bắt rời Tổng quan để xử lý (Action Proximity).
+      const hanhDong = e('div', 'hanh-dong');
+      hanhDong.append(
+        nut('Ghi nhật ký', 'nut-nhe nut-nho', () => themNhatKy(h.id, trangTongQuan), 'Ghi nhật ký cho ' + h.hoTen),
+        nut('Liên hệ PH', 'nut-nhe nut-nho', () => ghiLienHe(h, trangTongQuan), 'Liên hệ phụ huynh của ' + h.hoTen)
+      );
+      hang.append(hanhDong);
       ds.append(hang);
     });
     theVang.append(ds);
@@ -260,6 +281,8 @@ async function trangTongQuan() {
       const ten = e('div', 'ten');
       ten.append(e('b', null, k.tieuDe), e('small', null, ngayDayDu(k.ngay)));
       hang.append(ten);
+      const nhanTd = nhanTuongDoi(k.ngay, d.ngay);
+      if (nhanTd) hang.append(e('span', 'nhan ' + nhanTd.lop, nhanTd.chu));
       theKh.append(hang);
     });
   }
@@ -589,15 +612,31 @@ async function trangHocSinh() {
   ve();
 }
 
-async function trangHoSo(id) {
+const LOP_XEP_LOAI_HOC_TAP = { 'Tốt': 'nhan-tot', 'Khá': 'nhan', 'Đạt': 'nhan-luuy', 'Chưa đạt': 'nhan-xau' };
+
+const CAC_TAB_HO_SO = [
+  ['chuyen-can', 'Chuyên cần'],
+  ['hoc-tap', 'Học tập'],
+  ['hanh-kiem', 'Hạnh kiểm'],
+  ['phu-huynh', 'Phụ huynh'],
+];
+
+async function trangHoSo(id, tabMacDinh) {
   datNoiDung(KHUNG, khoiDangTai());
   const d = await api('/api/gv/hoc-sinh?id=' + encodeURIComponent(id));
   const h = d.hocSinh;
+  let tab = tabMacDinh || sessionStorage.getItem('hs-tab') || 'chuyen-can';
+  if (!CAC_TAB_HO_SO.some(([ma]) => ma === tab)) tab = 'chuyen-can';
+  let diemCache = null;   // { 1: {monHoc, hang}, 2: {...} } — nạp khi mở tab Học tập lần đầu
 
   const khung = e('div');
   const quayLai = nut('← Danh sách', 'nut-nhe nut-nho', () => { location.hash = '#/hoc-sinh'; });
   khung.append(quayLai);
-  khung.append(tieuDeTrang(h.hoTen, [h.lopNghe, 'Tổ hợp ' + (h.toHop || '—'), ngayVN(h.ngaySinh)].filter(Boolean).join(' · ')));
+  // Liên hệ PH đặt ngay ở đầu trang (không phải kéo xuống tab Phụ huynh) — đúng lúc hay cần nhất
+  // là ngay sau khi xem xong tình hình một em, kể cả trên điện thoại.
+  khung.append(tieuDeTrang(h.hoTen, [h.lopNghe, 'Tổ hợp ' + (h.toHop || '—'), ngayVN(h.ngaySinh)].filter(Boolean).join(' · '),
+    nut('📞 Liên hệ PH', 'nut-vien nut-nho', () => ghiLienHe(h, () => trangHoSo(id, 'phu-huynh')))
+  ));
 
   const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
   d.diemDanh.forEach((x) => { if (dem[x.trangThai] !== undefined) dem[x.trangThai]++; });
@@ -670,20 +709,42 @@ async function trangHoSo(id) {
   luoi.append(theTd);
   khung.append(luoi);
 
-  // Lịch sử điểm danh
-  const theLs = e('div', 'the');
-  theLs.style.marginTop = '14px';
-  theLs.append(e('h3', null, 'Lịch sử điểm danh'));
-  if (!d.diemDanh.length) {
-    theLs.append(e('p', 'trong', 'Chưa có buổi nào được điểm danh.'));
-  } else {
+  // --- 4 tab: Chuyên cần / Học tập / Hạnh kiểm / Phụ huynh — cùng dữ liệu đã có, tổ chức lại
+  // cách xem, không phải 4 trang riêng và không thêm tab Timeline. ---
+  const hopTab = e('div', 'day-loc');
+  hopTab.style.margin = '18px 0 14px';
+  khung.append(hopTab);
+  const noiDungTab = e('div');
+  khung.append(noiDungTab);
+
+  function veThanhTab() {
+    datNoiDung(hopTab, ...CAC_TAB_HO_SO.map(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tab === ma));
+      b.addEventListener('click', () => {
+        tab = ma;
+        sessionStorage.setItem('hs-tab', ma);
+        veThanhTab();
+        veNoiDungTab();
+      });
+      return b;
+    }));
+  }
+
+  function veChuyenCan() {
+    const box = e('div');
+    if (!d.diemDanh.length) {
+      box.append(e('p', 'trong', 'Chưa có buổi nào được điểm danh.'));
+      return box;
+    }
     const lich = e('div', 'lich-nho');
     d.diemDanh.slice().reverse().forEach((x) => {
       const i = e('i', x.trangThai);
       i.title = `${ngayVN(x.ngay)} — ${(DIEM_DANH[x.trangThai] || {}).ten || x.trangThai}`;
       lich.append(i);
     });
-    theLs.append(lich);
+    box.append(lich);
 
     const vang = d.diemDanh.filter((x) => x.trangThai !== 'co_mat');
     if (vang.length) {
@@ -700,49 +761,126 @@ async function trangHoSo(id) {
         if (x.lyDo) m.append(e('p', null, x.lyDo));
         ds.append(m);
       });
-      theLs.append(ds);
+      box.append(ds);
     }
+    return box;
   }
-  khung.append(theLs);
 
-  // Liên hệ phụ huynh — lịch sử gọi điện/gặp/nhắn tin, để không quên đã liên hệ chưa.
-  const theLh = e('div');
-  theLh.style.marginTop = '18px';
-  const dauLh = e('div', 'tieu-de-trang');
-  dauLh.append(e('h2', null, 'Liên hệ phụ huynh'));
-  const phaiLh = e('div', 'phai');
-  phaiLh.append(nut('+ Ghi lần liên hệ', 'nut-vien nut-nho', () => ghiLienHe(h, () => trangHoSo(id))));
-  dauLh.append(phaiLh);
-  theLh.append(dauLh);
+  // Học tập: đọc lại (không sửa) — Sổ điểm vẫn là nơi duy nhất nhập/sửa điểm.
+  // Tái dùng nguyên API /api/gv/so-diem đã có (bảng tổng hợp 37 em), lọc ra đúng 1 em ở trình
+  // duyệt — 37 dòng là dữ liệu nhỏ, không cần thêm tham số/API riêng.
+  async function veHocTap() {
+    const box = e('div');
+    box.append(khoiDangTai());
+    noiDungTab.replaceChildren(box);
 
-  const dsLh = await api('/api/gv/lien-he?hocSinhId=' + h.id);
-  if (!dsLh.danhSach.length) {
-    theLh.append(e('p', 'trong', 'Chưa có lần liên hệ nào được ghi lại.'));
-  } else {
-    const ds = e('div', 'ds-nhat-ky');
-    dsLh.danhSach.forEach((lh) => ds.append(veMucLienHe(lh, () => trangHoSo(id))));
-    theLh.append(ds);
+    if (!diemCache) {
+      const [hk1, hk2] = await Promise.all([
+        api('/api/gv/so-diem?hocKi=1'),
+        api('/api/gv/so-diem?hocKi=2'),
+      ]);
+      diemCache = {
+        1: { monHoc: hk1.monHoc, hang: hk1.danhSach.find((x) => x.id === h.id) },
+        2: { monHoc: hk2.monHoc, hang: hk2.danhSach.find((x) => x.id === h.id) },
+      };
+    }
+    if (tab !== 'hoc-tap') return;   // giáo viên đã chuyển tab khác trong lúc chờ tải
+
+    const noiDung = e('div');
+    [1, 2].forEach((hocKi) => {
+      const { monHoc, hang } = diemCache[hocKi] || {};
+      const the = e('div', 'the');
+      the.style.marginTop = hocKi === 1 ? '0' : '14px';
+      the.append(e('h3', null, `Học kì ${hocKi}`));
+
+      if (!hang || (hang.soMonCoDiem === 0 && !hang.renLuyen)) {
+        the.append(e('p', 'trong', `Chưa có điểm nào trong học kì ${hocKi}.`));
+        noiDung.append(the);
+        return;
+      }
+
+      if (hang.dtbChung !== null) {
+        const tomTat = e('div', 'day-loc');
+        tomTat.style.margin = '4px 0 10px';
+        tomTat.append(e('span', 'nhan nhan-tim', `ĐTB ${hang.dtbChung}`));
+        if (hang.xepLoai) tomTat.append(e('span', 'nhan ' + (LOP_XEP_LOAI_HOC_TAP[hang.xepLoai] || ''), hang.xepLoai));
+        if (hang.renLuyen) tomTat.append(e('span', 'nhan nhan-luuy', 'Rèn luyện: ' + hang.renLuyen));
+        the.append(tomTat);
+      }
+
+      const ds = e('div', 'ds-diem-danh');
+      monHoc.forEach((m) => {
+        const gt = hang.theoMon[m.ma];
+        if (gt === null || gt === '' || gt === undefined) return;
+        const hangMon = e('div', 'hang-hs');
+        hangMon.append(e('div', 'ten', e('b', null, m.ten)),
+          e('span', 'nhan ' + (m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'nhan-tot' : 'nhan-xau') : ''),
+            m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'Đạt' : 'Chưa đạt') : String(gt)));
+        ds.append(hangMon);
+      });
+      if (!ds.children.length) the.append(e('p', 'trong', 'Chưa có điểm môn nào được nhập.'));
+      else the.append(ds);
+      if (hang.nhanXetRenLuyen) the.append(Object.assign(e('p', null, 'Nhận xét rèn luyện: ' + hang.nhanXetRenLuyen), { style: 'margin-top:8px;font-size:13px;color:var(--chu-nhat)' }));
+      noiDung.append(the);
+    });
+
+    noiDungTab.replaceChildren(noiDung);
   }
-  khung.append(theLh);
 
-  // Nhật ký riêng
-  const theNk = e('div');
-  theNk.style.marginTop = '18px';
-  const dauNk = e('div', 'tieu-de-trang');
-  dauNk.append(e('h2', null, 'Nhật ký của em này'));
-  const phaiNk = e('div', 'phai');
-  phaiNk.append(nut('+ Thêm ghi chép', 'nut-vien nut-nho', () => themNhatKy(h.id, () => trangHoSo(id))));
-  dauNk.append(phaiNk);
-  theNk.append(dauNk);
+  function veHanhKiem() {
+    const box = e('div');
+    const dauNk = e('div', 'tieu-de-trang');
+    dauNk.append(e('h2', null, 'Nhật ký của em này'));
+    const phaiNk = e('div', 'phai');
+    phaiNk.append(nut('+ Thêm ghi chép', 'nut-vien nut-nho', () => themNhatKy(h.id, () => trangHoSo(id, 'hanh-kiem'))));
+    dauNk.append(phaiNk);
+    box.append(dauNk);
 
-  if (!d.nhatKy.length) {
-    theNk.append(e('p', 'trong', 'Chưa có ghi chép nào.'));
-  } else {
-    const ds = e('div', 'ds-nhat-ky');
-    d.nhatKy.forEach((n) => ds.append(veMucNhatKy({ ...n, hoTen: null }, () => trangHoSo(id))));
-    theNk.append(ds);
+    if (!d.nhatKy.length) {
+      box.append(e('p', 'trong', 'Chưa có ghi chép nào.'));
+    } else {
+      const ds = e('div', 'ds-nhat-ky');
+      d.nhatKy.forEach((n) => ds.append(veMucNhatKy({ ...n, hoTen: null }, () => trangHoSo(id, 'hanh-kiem'))));
+      box.append(ds);
+    }
+    return box;
   }
-  khung.append(theNk);
+
+  async function vePhuHuynh() {
+    const box = e('div');
+    box.append(khoiDangTai());
+    noiDungTab.replaceChildren(box);
+
+    const dsLh = await api('/api/gv/lien-he?hocSinhId=' + h.id);
+    if (tab !== 'phu-huynh') return;
+
+    const noiDung = e('div');
+    const dauLh = e('div', 'tieu-de-trang');
+    dauLh.append(e('h2', null, 'Liên hệ phụ huynh'));
+    const phaiLh = e('div', 'phai');
+    phaiLh.append(nut('+ Ghi lần liên hệ', 'nut-vien nut-nho', () => ghiLienHe(h, () => trangHoSo(id, 'phu-huynh'))));
+    dauLh.append(phaiLh);
+    noiDung.append(dauLh);
+
+    if (!dsLh.danhSach.length) {
+      noiDung.append(e('p', 'trong', 'Chưa có lần liên hệ nào được ghi lại.'));
+    } else {
+      const ds = e('div', 'ds-nhat-ky');
+      dsLh.danhSach.forEach((lh) => ds.append(veMucLienHe(lh, () => trangHoSo(id, 'phu-huynh'))));
+      noiDung.append(ds);
+    }
+    noiDungTab.replaceChildren(noiDung);
+  }
+
+  function veNoiDungTab() {
+    if (tab === 'chuyen-can') return noiDungTab.replaceChildren(veChuyenCan());
+    if (tab === 'hoc-tap') return veHocTap();
+    if (tab === 'hanh-kiem') return noiDungTab.replaceChildren(veHanhKiem());
+    if (tab === 'phu-huynh') return vePhuHuynh();
+  }
+
+  veThanhTab();
+  veNoiDungTab();
 
   datNoiDung(KHUNG, khung);
 }
@@ -762,7 +900,7 @@ function veMucLienHe(lh, taiLai) {
   );
   const viec = e('div', 'viec');
   viec.append(
-    nut('✎', 'nut-nhe nut-nho', () => suaLienHe(lh, taiLai)),
+    nut('✎', 'nut-nhe nut-nho', () => suaLienHe(lh, taiLai), `Sửa lần liên hệ ngày ${ngayVN(lh.ngay)}`),
     nut('✕', 'nut-nhe nut-nho', () => {
       moHopThoai('Xoá lần liên hệ này?', e('p', null, lh.noiDung), [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -775,7 +913,7 @@ function veMucLienHe(lh, taiLai) {
           } catch (err) { nhac(err.message, 'xau'); }
         }),
       ]);
-    })
+    }, `Xoá lần liên hệ ngày ${ngayVN(lh.ngay)}`)
   );
   dong.append(viec);
   m.append(dong, e('p', null, lh.noiDung));
@@ -895,6 +1033,7 @@ function veMucNhatKy(n, taiLai) {
   dong.append(e('span', 'ngay', ngayVN(n.ngay)));
 
   if (taiLai) {
+    const nguoiLienQuan = n.hoTen || 'cả lớp';
     const viec = e('div', 'viec');
     viec.append(
       nut(n.daXuLy ? '↺' : '✓', 'nut-nhe nut-nho', async () => {
@@ -902,7 +1041,7 @@ function veMucNhatKy(n, taiLai) {
           await api('/api/gv/nhat-ky', { method: 'PATCH', than: { id: n.id, daXuLy: !n.daXuLy } });
           taiLai();
         } catch (err) { nhac(err.message, 'xau'); }
-      }),
+      }, (n.daXuLy ? 'Đánh dấu chưa xử lý — ' : 'Đánh dấu đã xử lý — ') + nguoiLienQuan),
       nut('✕', 'nut-nhe nut-nho', async () => {
         moHopThoai('Xoá ghi chép?', e('p', null, n.noiDung), [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -915,7 +1054,7 @@ function veMucNhatKy(n, taiLai) {
             } catch (err) { nhac(err.message, 'xau'); }
           }),
         ]);
-      })
+      }, 'Xoá ghi chép — ' + nguoiLienQuan)
     );
     dong.append(viec);
   }
@@ -963,9 +1102,13 @@ function themNhatKy(hocSinhIdMacDinh, taiLai) {
 async function trangNhatKy() {
   datNoiDung(KHUNG, khoiDangTai());
   let loai = '';
+  let chiChuaXuLy = false;
 
   async function ve() {
-    const d = await api('/api/gv/nhat-ky' + (loai ? '?loai=' + loai : ''));
+    const q = new URLSearchParams();
+    if (loai) q.set('loai', loai);
+    if (chiChuaXuLy) q.set('daXuLy', '0');
+    const d = await api('/api/gv/nhat-ky' + (q.toString() ? '?' + q.toString() : ''));
     const khung = e('div');
 
     const dau = e('div', 'tieu-de-trang');
@@ -977,7 +1120,7 @@ async function trangNhatKy() {
     khung.append(dau);
 
     const hopLoc = e('div', 'day-loc');
-    hopLoc.style.marginBottom = '16px';
+    hopLoc.style.marginBottom = '10px';
     [['', 'Tất cả'], ...Object.entries(LOAI_NHAT_KY).map(([k, v]) => [k, v.ten])].forEach(([v, t]) => {
       const b = e('button', 'vien-loc', t);
       b.type = 'button';
@@ -987,8 +1130,18 @@ async function trangNhatKy() {
     });
     khung.append(hopLoc);
 
+    // Lọc theo trạng thái xử lý — phối hợp được với bộ lọc loại ở trên (cả hai cùng áp dụng).
+    const hopLocXl = e('div', 'day-loc');
+    hopLocXl.style.marginBottom = '16px';
+    const bChuaXl = e('button', 'vien-loc', 'Chưa xử lý');
+    bChuaXl.type = 'button';
+    bChuaXl.setAttribute('aria-pressed', String(chiChuaXuLy));
+    bChuaXl.addEventListener('click', () => { chiChuaXuLy = !chiChuaXuLy; ve(); });
+    hopLocXl.append(bChuaXl);
+    khung.append(hopLocXl);
+
     if (!d.danhSach.length) {
-      khung.append(e('p', 'trong', 'Chưa có ghi chép nào.'));
+      khung.append(e('p', 'trong', chiChuaXuLy ? 'Không còn ghi chép nào chưa xử lý.' : 'Chưa có ghi chép nào.'));
     } else {
       const ds = e('div', 'ds-nhat-ky');
       d.danhSach.forEach((n) => ds.append(veMucNhatKy(n, ve)));
@@ -1031,13 +1184,13 @@ async function trangThongBao() {
 
         const viec = e('div', 'viec');
         viec.append(
-          nut('✎', 'nut-nhe nut-nho', () => soanThongBao(t, ve)),
+          nut('✎', 'nut-nhe nut-nho', () => soanThongBao(t, ve), 'Sửa thông báo: ' + t.tieuDe),
           nut(t.hien ? '🙈' : '👁', 'nut-nhe nut-nho', async () => {
             try {
               await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: t.id, hien: !t.hien } });
               ve();
             } catch (err) { nhac(err.message, 'xau'); }
-          }),
+          }, (t.hien ? 'Ẩn thông báo: ' : 'Hiện thông báo: ') + t.tieuDe),
           nut('✕', 'nut-nhe nut-nho', () => {
             moHopThoai('Xoá thông báo?', e('p', null, t.tieuDe), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -1050,7 +1203,7 @@ async function trangThongBao() {
                 } catch (err) { nhac(err.message, 'xau'); }
               }),
             ]);
-          })
+          }, 'Xoá thông báo: ' + t.tieuDe)
         );
         dong.append(viec);
 

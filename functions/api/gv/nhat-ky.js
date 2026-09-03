@@ -1,5 +1,6 @@
 // Nhật ký lớp: khen thưởng, nhắc nhở, vi phạm, hỗ trợ.
-//   GET    /api/gv/nhat-ky?hocSinhId=&loai=&gioiHan=
+//   GET    /api/gv/nhat-ky?hocSinhId=&loai=&daXuLy=&gioiHan=
+//     daXuLy=0 -> chỉ những việc CHƯA xử lý; daXuLy=1 -> chỉ việc đã xong; bỏ trống -> tất cả
 //   POST   /api/gv/nhat-ky        { ngay, hocSinhId, loai, noiDung }
 //   PATCH  /api/gv/nhat-ky        { id, daXuLy }
 //   DELETE /api/gv/nhat-ky?id=
@@ -19,6 +20,10 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (q.get('loai') && LOAI_HOP_LE.has(q.get('loai'))) {
     thamSo.push(q.get('loai'));
     dieuKien.push(`n.loai = ?${thamSo.length}`);
+  }
+  if (q.get('daXuLy') === '0' || q.get('daXuLy') === '1') {
+    thamSo.push(q.get('daXuLy') === '1' ? 1 : 0);
+    dieuKien.push(`n.da_xu_ly = ?${thamSo.length}`);
   }
 
   const gioiHan = Math.min(Number(q.get('gioiHan')) || 100, 300);

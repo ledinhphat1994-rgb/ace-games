@@ -146,10 +146,14 @@ export async function trangQuy(KHUNG) {
             const dong = e('span', 'lan-dong');
             dong.append(document.createTextNode(`${tienVN(ld.soTien)} · ${ngayVN(ld.ngay)}`));
             const bSua = e('button', 'nut-nho-icon');
-            bSua.type = 'button'; bSua.textContent = '✎'; bSua.title = 'Sửa lần đóng này';
+            bSua.type = 'button'; bSua.textContent = '✎';
+            bSua.title = 'Sửa lần đóng này';
+            bSua.setAttribute('aria-label', `Sửa lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
             bSua.addEventListener('click', () => suaDong(ld, h.hoTen, lamMoiKhoanDangMo));
             const bXoa = e('button', 'nut-nho-icon');
-            bXoa.type = 'button'; bXoa.textContent = '🗑'; bXoa.title = 'Xoá lần đóng này';
+            bXoa.type = 'button'; bXoa.textContent = '🗑';
+            bXoa.title = 'Xoá lần đóng này';
+            bXoa.setAttribute('aria-label', `Xoá lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
             bXoa.addEventListener('click', () => {
               moHopThoai('Xoá lần đóng này?', e('p', null, `${h.hoTen} — ${tienVN(ld.soTien)} ngày ${ngayVN(ld.ngay)}`), [
                 nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -200,7 +204,7 @@ export async function trangQuy(KHUNG) {
       dong1.append(ten);
       const nutHop = e('div', 'canh-phai');
       nutHop.append(
-        nut('✎', 'nut-nhe nut-nho', () => suaChi(c, tai)),
+        nut('✎', 'nut-nhe nut-nho', () => suaChi(c, tai), 'Sửa khoản chi: ' + c.noiDung),
         nut('🗑', 'nut-nhe nut-nho', () => {
           moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -213,7 +217,7 @@ export async function trangQuy(KHUNG) {
               } catch (err) { nhac(err.message, 'xau'); }
             }),
           ]);
-        })
+        }, 'Xoá khoản chi: ' + c.noiDung)
       );
       dong1.append(nutHop);
       hang.append(dong1);

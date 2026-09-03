@@ -41,8 +41,8 @@ export async function trangKeHoach(KHUNG) {
               await api('/api/gv/ke-hoach', { method: 'PATCH', than: { id: k.id, hoanThanh: !k.hoanThanh } });
               ve();
             } catch (err) { nhac(err.message, 'xau'); }
-          }),
-          nut('✎', 'nut-nhe nut-nho', () => soanKeHoach(k, ve)),
+          }, (k.hoanThanh ? 'Đánh dấu chưa xong: ' : 'Đánh dấu hoàn thành: ') + k.tieuDe),
+          nut('✎', 'nut-nhe nut-nho', () => soanKeHoach(k, ve), 'Sửa mốc: ' + k.tieuDe),
           nut('✕', 'nut-nhe nut-nho', () => {
             moHopThoai('Xoá mốc này?', e('p', null, k.tieuDe), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -55,7 +55,7 @@ export async function trangKeHoach(KHUNG) {
                 } catch (err) { nhac(err.message, 'xau'); }
               }),
             ]);
-          })
+          }, 'Xoá mốc: ' + k.tieuDe)
         );
         dong.append(viec);
 
@@ -332,7 +332,7 @@ export async function trangThoiKhoaBieuLichSu(KHUNG) {
               } catch (err) { nhac(err.message, 'xau'); }
             }),
           ]);
-        }));
+        }, 'Xoá phiên bản: ' + pb.ten));
       }
       dong.append(viec);
       m.append(dong, e('h3', null, pb.ten));

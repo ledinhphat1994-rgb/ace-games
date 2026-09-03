@@ -784,7 +784,7 @@ export async function trangHinhAnh(KHUNG) {
         const hangNut = e('div', 'day-loc');
         hangNut.style.marginTop = '6px';
         hangNut.append(
-          nut('✎', 'nut-nhe nut-nho', () => suaChuThich(a, ve)),
+          nut('✎', 'nut-nhe nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
           nut('✕', 'nut-nhe nut-nho', () => {
             moHopThoai('Xoá ảnh này?', e('p', null, a.chuThich || ngayVN(a.ngay)), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -797,7 +797,7 @@ export async function trangHinhAnh(KHUNG) {
                 } catch (err) { nhac(err.message, 'xau'); }
               }),
             ]);
-          })
+          }, 'Xoá ảnh ' + ngayVN(a.ngay))
         );
         chan.append(hangNut);
         hinh.append(chan);

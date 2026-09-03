@@ -17,10 +17,13 @@ export function oThongKe(conSo, ten, kieu = '') {
   return o;
 }
 
-export function nut(chu, kieu, khiBam) {
+// nhan (không bắt buộc): tên cho trình đọc màn hình — bắt buộc dùng khi "chu" chỉ là
+// icon (✎ 🗑 ✓ ✕...), vì khi đó văn bản hiển thị không mô tả được hành động.
+export function nut(chu, kieu, khiBam, nhan) {
   const b = e('button', 'nut ' + (kieu || ''), chu);
   b.type = 'button';
   if (khiBam) b.addEventListener('click', khiBam);
+  if (nhan) b.setAttribute('aria-label', nhan);
   return b;
 }
 

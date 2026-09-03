@@ -19,6 +19,9 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
          FROM diem_danh WHERE ngay = ?1 GROUP BY buoi, trang_thai`
     ).bind(homNay).all(),
 
+    // Toàn bộ ứng viên có ít nhất 1 buổi không "có mặt" trong 30 ngày — KHÔNG giới hạn LIMIT ở đây,
+    // vì đây là nguồn dữ liệu để tính "Cần chú ý" (lọc/sắp xếp lại bên dưới), không phải danh sách
+    // hiển thị trực tiếp. Sĩ số lớp nhỏ (~37 em) nên không cần lo về số dòng.
     db.prepare(
       `SELECT h.id, h.ho_ten AS hoTen,
               SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vangKhongPhep,
@@ -27,8 +30,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
          FROM hoc_sinh h JOIN diem_danh d ON d.hoc_sinh_id = h.id
         WHERE d.ngay >= ?1 AND d.trang_thai <> 'co_mat'
         GROUP BY h.id
-        HAVING vangKhongPhep + vangPhep + tre > 0
-        ORDER BY vangKhongPhep DESC, vangPhep DESC LIMIT 10`
+        HAVING vangKhongPhep + vangPhep + tre > 0`
     ).bind(moc).all(),
 
     db.prepare(
@@ -73,7 +75,12 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     ).bind(moc).all(),
   ]);
 
-  // --- Cần chú ý: hợp nhất chuyên cần (vắng nhiều) + hạnh kiểm (vi phạm/khen), xếp theo điểm rủi ro ---
+  // --- Cần chú ý: 2 tín hiệu ĐỘC LẬP, không cộng trừ lẫn nhau ---
+  //   attendanceConcern: >=1 vắng KHÔNG phép, HOẶC >=2 lần trễ. Vắng CÓ phép không tính (đã được duyệt,
+  //   là việc hành chính bình thường, không phải dấu hiệu xấu).
+  //   behaviorConcern:   >=1 vi phạm. Khen KHÔNG được phép triệt tiêu vi phạm — 2 trục ngữ nghĩa khác nhau.
+  //   "score" bên dưới CHỈ dùng để sắp xếp thứ tự hiển thị, không phải nội dung giáo viên phải giải mã —
+  //   mỗi em luôn kèm "lyDo" bằng tiếng Việt giải thích rõ vì sao xuất hiện.
   const diemVpk = {};
   viPhamKhen.results.forEach((r) => { diemVpk[r.hocSinhId] = r; });
   const theoHs = {};
@@ -89,13 +96,29 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     tenThieu = results;
   }
   tenThieu.forEach((h) => { theoHs[h.id] = { id: h.id, hoTen: h.hoTen, vangKhongPhep: 0, vangPhep: 0, tre: 0, soViPham: 0, soKhen: 0 }; });
-  Object.values(theoHs).forEach((h) => {
+
+  const canChuY = Object.values(theoHs).map((h) => {
     const vpk = diemVpk[h.id];
     h.soViPham = vpk?.soViPham || 0;
     h.soKhen = vpk?.soKhen || 0;
-    h.diemRuiRo = (h.vangKhongPhep || 0) * 2 + (h.vangPhep || 0) * 1 + (h.tre || 0) * 0.5 + h.soViPham * 2 - h.soKhen * 1;
-  });
-  const canChuY = Object.values(theoHs).filter((h) => h.diemRuiRo > 0).sort((a, b) => b.diemRuiRo - a.diemRuiRo).slice(0, 8);
+
+    const attendanceConcern = h.vangKhongPhep >= 1 || h.tre >= 2;
+    const behaviorConcern = h.soViPham >= 1;
+
+    const phanLyDo = [];
+    if (h.vangKhongPhep >= 1) phanLyDo.push(`${h.vangKhongPhep} vắng không phép`);
+    if (h.tre >= 2) phanLyDo.push(`${h.tre} lần đi trễ`);
+    if (h.soViPham >= 1) phanLyDo.push(`${h.soViPham} vi phạm`);
+
+    return {
+      ...h,
+      attendanceConcern, behaviorConcern,
+      concern: attendanceConcern || behaviorConcern,
+      lyDo: phanLyDo.join(' · '),
+      // Chỉ để SẮP XẾP — vắng có phép và khen luôn có trọng số 0, không được giảm điểm của em khác.
+      diemXepHang: h.vangKhongPhep * 3 + h.tre * 1 + h.soViPham * 3,
+    };
+  }).filter((h) => h.concern).sort((a, b) => b.diemXepHang - a.diemXepHang).slice(0, 8);
 
   // Tổng gộp mọi buổi (giữ để không phá phần đang dùng) + tách riêng theo từng buổi.
   const tongTheoTrangThai = {};

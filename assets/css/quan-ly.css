@@ -41,6 +41,16 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .cot-trai .bieu-tuong { font-size: 16px; width: 20px; text-align: center; }
 .cot-trai hr { border: 0; border-top: 1px solid var(--vien); margin: 8px 4px; }
 
+/* Nhóm điều hướng — chỉ để phân nhóm thị giác (không phải accordion, không thu gọn được).
+   Heading understated: nhỏ, in hoa nhẹ, màu mờ — không cạnh tranh với các mục điều hướng. */
+.nhom-dieu-huong { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--vien); }
+.nhom-dieu-huong:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.cot-trai .nhom-nhan {
+  margin: 0; padding: 4px 12px 5px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--chu-mo);
+}
+
 /* ---------- Thanh tab dưới (điện thoại) ---------- */
 .tab-duoi {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
@@ -236,6 +246,15 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   width: 22px; height: 22px; border-radius: 6px; font-size: 12px; display: grid; place-items: center;
 }
 .nut-nho-icon:hover { background: var(--nen-chim); color: var(--chu); }
+
+/* ---------- "Cần chú ý": tên | lý do | hành động — bấm được ngay tại dòng ---------- */
+.hang-can-chu-y { flex-wrap: wrap; cursor: default; }
+.hang-can-chu-y .ten-bam {
+  background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; color: inherit;
+}
+.hang-can-chu-y .ten-bam:hover b { color: var(--chinh); text-decoration: underline; }
+.hang-can-chu-y .hanh-dong { display: flex; gap: 6px; flex: none; width: 100%; margin-top: 2px; }
+@media (min-width: 640px) { .hang-can-chu-y .hanh-dong { width: auto; margin-top: 0; margin-left: auto; } }
 
 /* ---------- Hộp thoại ---------- */
 dialog.hop-thoai {
