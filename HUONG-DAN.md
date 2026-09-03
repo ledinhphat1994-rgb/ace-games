@@ -26,12 +26,16 @@ nên nó có thể tự nhảy sang tài khoản khác. Vì vậy thư mục l�
 
 | Ghim ở đâu | Nội dung |
 |---|---|
-| `.git/config` (riêng thư mục này) | `user.email` = ledinhphat1994@gmail.com, remote có sẵn tên `ledinhphat1994-rgb@` |
+| `.git/config` (riêng thư mục này) | `user.email` = ledinhphat1994@gmail.com; remote ghi rõ `ledinhphat1994-rgb@` |
+| `.git/config` — credential helper riêng | Lấy **thẳng token của tài khoản ledinhphat1994-rgb**, không dùng "tài khoản đang active" của `gh` |
 | `deploy.js` | `CLOUDFLARE_ACCOUNT_ID` của tài khoản ledinhphat1994 |
-| `kiem-tra-tai-khoan.js` | Chặn deploy nếu GitHub / Cloudflare / remote sai tài khoản |
+| `kiem-tra-tai-khoan.js` | Xác nhận bằng cách **thử vào repo thật**, rồi mới cho deploy |
 
-Nghĩa là: **dù máy đang đăng nhập tài khoản nào, lệnh `npm run deploy` trong thư mục này cũng chỉ
-đăng lên đúng trang lớp 10A7, hoặc dừng lại và báo lỗi.** Không bao giờ đăng nhầm sang tài khoản khác.
+Nghĩa là: **dù máy đang đăng nhập tài khoản GitHub nào, `git push` và `npm run deploy` trong thư mục này
+vẫn chạy đúng vào trang lớp 10A7.** Đã kiểm chứng: cố tình để `gh` ở tài khoản `lephat94` rồi chạy
+`npm run deploy` và `git push` — cả hai vẫn thành công và commit vẫn mang tên ledinhphat1994.
+
+Không cần chạy `gh auth switch` cho project này nữa. Bao giờ cũng vậy.
 
 Muốn kiểm tra bất cứ lúc nào:
 
