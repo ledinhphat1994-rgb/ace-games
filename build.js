@@ -7,7 +7,11 @@ const ROOT = __dirname;
 const OUT = path.join(ROOT, 'dist');
 
 // Chỉ những mục có tên dưới đây mới được đăng lên.
-const DANH_SACH_DANG = ['index.html', 'login.html', 'robots.txt', 'assets', 'data', 'functions', 'giao-vien'];
+const DANH_SACH_DANG = [
+  'index.html', 'login.html', 'ca-nhan.html', 'robots.txt',
+  'manifest.webmanifest', 'sw.js',
+  'assets', 'data', 'functions', 'giao-vien',
+];
 
 // Không đăng các tệp ghi chú nội bộ nằm lẫn trong thư mục trên.
 const BO_QUA = new Set(['README.txt', '.DS_Store', 'Thumbs.db']);

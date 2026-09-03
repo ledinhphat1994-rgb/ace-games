@@ -3,7 +3,12 @@
 import { COOKIE_NAME, readCookie, verifyToken } from './_lib/auth.js';
 
 // Những đường dẫn ai cũng vào được (nếu không thì không thể hiện trang đăng nhập).
-const PUBLIC_PATHS = new Set(['/login', '/login.html', '/api/login', '/api/logout', '/favicon.ico', '/robots.txt']);
+const PUBLIC_PATHS = new Set([
+  '/login', '/login.html', '/api/login', '/api/logout',
+  '/favicon.ico', '/robots.txt',
+  // Hai tệp này chỉ mô tả cách cài ứng dụng, không chứa dữ liệu của lớp.
+  '/manifest.webmanifest', '/sw.js',
+]);
 
 function isPublic(pathname) {
   if (PUBLIC_PATHS.has(pathname)) return true;

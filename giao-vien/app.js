@@ -4,6 +4,12 @@ import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
 } from '/assets/js/chung.js';
+import {
+  tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
+} from '/assets/js/giao-dien.js';
+import {
+  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan,
+} from './trang-hoc-tap.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -28,70 +34,7 @@ const LOAI_NHAT_KY = {
 
 const TEN_BUOI = { sang: 'Buổi sáng', chieu: 'Buổi chiều', hoat_dong: 'Hoạt động' };
 
-/* ================= Mảnh giao diện dùng lại ================= */
 
-function tieuDeTrang(tieuDe, phu, ...nutPhai) {
-  const hop = e('div', 'tieu-de-trang');
-  const trai = e('div');
-  trai.append(e('h1', null, tieuDe));
-  if (phu) trai.append(e('p', null, phu));
-  hop.append(trai);
-  if (nutPhai.length) hop.append(datNoiDung(e('div', 'phai'), ...nutPhai));
-  return hop;
-}
-
-function oThongKe(conSo, ten, kieu = '') {
-  const o = e('div', 'o-thong-ke ' + kieu);
-  o.append(e('div', 'con-so', conSo), e('div', 'ten', ten));
-  return o;
-}
-
-function nut(chu, kieu, khiBam) {
-  const b = e('button', 'nut ' + (kieu || ''), chu);
-  b.type = 'button';
-  if (khiBam) b.addEventListener('click', khiBam);
-  return b;
-}
-
-function truong(nhan, oNhap) {
-  const hop = e('div');
-  const l = e('label', 'nhan-nhap', nhan);
-  l.htmlFor = oNhap.id;
-  hop.append(l, oNhap);
-  return hop;
-}
-
-function oNhap(id, kieu = 'text', giaTri = '', gyThich = '') {
-  const o = e(kieu === 'textarea' ? 'textarea' : 'input', 'o-nhap');
-  o.id = id;
-  if (kieu !== 'textarea') o.type = kieu;
-  o.value = giaTri ?? '';
-  if (gyThich) o.placeholder = gyThich;
-  return o;
-}
-
-function oChon(id, cacMuc, giaTri) {
-  const s = e('select', 'o-nhap');
-  s.id = id;
-  cacMuc.forEach(([v, t]) => {
-    const op = e('option', null, t);
-    op.value = v;
-    if (v === giaTri) op.selected = true;
-    s.append(op);
-  });
-  return s;
-}
-
-/* ---------- Hộp thoại ---------- */
-function moHopThoai(tieuDe, noiDung, cacNut) {
-  const hop = $('#hopThoai');
-  $('#hopThoaiTieuDe').textContent = tieuDe;
-  datNoiDung($('#hopThoaiThan'), ...(Array.isArray(noiDung) ? noiDung : [noiDung]));
-  datNoiDung($('#hopThoaiChan'), ...cacNut);
-  hop.showModal();
-  return hop;
-}
-const dongHopThoai = () => $('#hopThoai').close();
 
 /* ================= Trang: Tổng quan ================= */
 
@@ -850,20 +793,58 @@ function soanThongBao(tb, taiLai) {
   ]);
 }
 
+/* ================= Trang: Thêm (menu phụ trên điện thoại) ================= */
+
+const MUC_THEM = [
+  ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
+  ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
+  ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
+  ['#/ma-ca-nhan', '🔑', 'Mã cá nhân học sinh', 'Cấp và in mã để các em tự xem kết quả.'],
+  ['/', '↗', 'Xem trang lớp', 'Xem trang mà học sinh nhìn thấy.'],
+  ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
+];
+
+function trangThem() {
+  const khung = e('div');
+  khung.append(tieuDeTrang('Thêm', 'Các công cụ khác của lớp'));
+
+  const ds = e('div', 'ds-the');
+  MUC_THEM.forEach(([duong, bieuTuong, ten, moTa]) => {
+    const a = e('a', 'the-hs');
+    a.href = duong;
+    a.style.textDecoration = 'none';
+    a.append(e('div', 'chu-cai', bieuTuong));
+    const noi = e('div', 'noi');
+    noi.append(e('b', null, ten), e('small', null, moTa));
+    a.append(noi, e('div', 'canh-phai', '›'));
+    ds.append(a);
+  });
+  khung.append(ds);
+
+  datNoiDung(KHUNG, khung);
+}
+
 /* ================= Điều hướng ================= */
 
 const TRANG = {
   '/tong-quan': trangTongQuan,
   '/diem-danh': trangDiemDanh,
   '/hoc-sinh': trangHocSinh,
+  '/so-diem': () => trangSoDiem(KHUNG),
   '/nhat-ky': trangNhatKy,
   '/thong-bao': trangThongBao,
+  '/thong-ke': () => trangThongKe(KHUNG),
+  '/bao-cao': () => trangBaoCao(KHUNG),
+  '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
+  '/them': trangThem,
 };
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
-      || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh');
+      || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
+      || (trongMucThem && a.dataset.nhom === 'them');
     if (khop) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });

@@ -69,6 +69,40 @@ Sau khi sửa những thứ đó thì chạy:
 npm run deploy
 ```
 
+### Sổ điểm
+
+Vào `/giao-vien/` → **Sổ điểm** → chọn học kì → bấm tên môn để nhập điểm.
+Mỗi môn có các cột TX (thường xuyên), Giữa kì, Cuối kì. Điểm trung bình tự tính theo công thức
+Thông tư 22/2021:
+
+```
+ĐTBmhk = (tổng ĐĐGtx + 2 × ĐĐGgk + 3 × ĐĐGck) / (số ĐĐGtx + 5)
+```
+
+Xếp loại học lực (Tốt / Khá / Đạt / Chưa đạt) tự suy ra theo Điều 9 Thông tư 22.
+Cột **Rèn luyện** ở bảng tổng hợp chọn tay, lưu ngay khi chọn.
+
+> Công thức và ngưỡng xếp loại được viết đúng theo Thông tư 22, nhưng **thầy/cô nên đối chiếu lại
+> với hướng dẫn hiện hành của Sở/Trung tâm** trước khi dùng kết quả để vào học bạ.
+
+### Báo cáo
+
+**Thêm → Báo cáo**: chọn khoảng thời gian rồi tải về tệp `.csv`. Có 5 loại: danh sách lớp,
+chuyên cần, sổ điểm, sổ nhật ký, báo cáo tổng hợp. Tệp mở thẳng bằng Excel, không lỗi font tiếng Việt,
+cột ngăn bằng dấu chấm phẩy đúng chuẩn Excel bản tiếng Việt.
+
+### Mã cá nhân cho học sinh
+
+**Thêm → Mã cá nhân**: bấm *Cấp mã cho ... em chưa có*, rồi bấm *In danh sách mã* để in ra,
+cắt rời phát cho từng em. Học sinh vào trang lớp → **Kết quả của tôi** → nhập mã → chỉ thấy
+chuyên cần, điểm và nhận xét **của chính mình**.
+
+### Cài lên màn hình chính điện thoại
+
+Mở `lop-10a7.pages.dev/giao-vien/` bằng Chrome trên điện thoại → menu ⋮ → **Thêm vào màn hình chính**.
+Ứng dụng chạy toàn màn hình như app thật, và phần giao diện vẫn mở được khi mạng chập chờn
+(dữ liệu vẫn cần mạng, vì đó là thông tin riêng tư nên không lưu tạm trên máy).
+
 ### Cấu trúc cơ sở dữ liệu
 
 Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`, `nhat_ky`,

@@ -12,6 +12,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/assets/css/style.css">
 <link rel="stylesheet" href="/assets/css/quan-ly.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lớp 10A7">
+<link rel="apple-touch-icon" href="/assets/img/bieu-tuong-192.png">
 </head>
 <body class="ung-dung">
 
@@ -35,8 +39,13 @@
     <a href="#/tong-quan"><span class="bieu-tuong">▦</span> Tổng quan</a>
     <a href="#/diem-danh"><span class="bieu-tuong">✓</span> Điểm danh</a>
     <a href="#/hoc-sinh"><span class="bieu-tuong">☰</span> Học sinh</a>
+    <a href="#/so-diem"><span class="bieu-tuong">✦</span> Sổ điểm</a>
     <a href="#/nhat-ky"><span class="bieu-tuong">✎</span> Nhật ký lớp</a>
+    <hr>
+    <a href="#/thong-ke"><span class="bieu-tuong">📈</span> Thống kê</a>
     <a href="#/thong-bao"><span class="bieu-tuong">◈</span> Thông báo</a>
+    <a href="#/bao-cao"><span class="bieu-tuong">⬇</span> Báo cáo</a>
+    <a href="#/ma-ca-nhan"><span class="bieu-tuong">🔑</span> Mã cá nhân</a>
     <hr>
     <a href="/"><span class="bieu-tuong">↗</span> Xem trang lớp</a>
   </nav>
@@ -50,8 +59,8 @@
   <a href="#/tong-quan"><span class="bieu-tuong">▦</span>Tổng quan</a>
   <a href="#/diem-danh"><span class="bieu-tuong">✓</span>Điểm danh</a>
   <a href="#/hoc-sinh"><span class="bieu-tuong">☰</span>Học sinh</a>
-  <a href="#/nhat-ky"><span class="bieu-tuong">✎</span>Nhật ký</a>
-  <a href="#/thong-bao"><span class="bieu-tuong">◈</span>Thông báo</a>
+  <a href="#/so-diem"><span class="bieu-tuong">✦</span>Sổ điểm</a>
+  <a href="#/them" data-nhom="them"><span class="bieu-tuong">⋯</span>Thêm</a>
 </nav>
 
 <dialog class="hop-thoai" id="hopThoai">
@@ -66,5 +75,11 @@
 </dialog>
 
 <script type="module" src="/giao-vien/app.js"></script>
+<script>
+  // Cho phép cài lên màn hình chính và mở được khi mạng chập chờn.
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+</script>
 </body>
 </html>
