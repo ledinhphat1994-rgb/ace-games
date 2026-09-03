@@ -11,7 +11,7 @@ import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/
 import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
 } from './trang-hoc-tap.js';
-import { trangQuy, trangPhanQuyen } from './trang-quy.js';
+import { trangQuy, trangPhanQuyen, trangQuyLichSu } from './trang-quy.js';
 import { trangKeHoach, trangThoiKhoaBieu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -32,6 +32,7 @@ const QUYEN_THEO_TUYEN = {
   'ma-ca-nhan': null,
   'hinh-anh': 'hinh-anh',
   'quy': 'quy',
+  'quy-lich-su': 'quy',
   'phan-quyen': null,
   'ke-hoach': 'ke-hoach',
   'thoi-khoa-bieu': null,
@@ -923,6 +924,7 @@ const TRANG = {
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/quy': () => trangQuy(KHUNG),
+  '/quy-lich-su': () => trangQuyLichSu(KHUNG),
   '/phan-quyen': () => trangPhanQuyen(KHUNG),
   '/ke-hoach': () => trangKeHoach(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
@@ -931,7 +933,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/phan-quyen', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/phan-quyen', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

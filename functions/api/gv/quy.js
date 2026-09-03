@@ -7,6 +7,7 @@
 // Công thức: Tồn quỹ = Tổng tiền đã thu (quy_dong) − Tổng tiền đã chi (quy_chi).
 // Mỗi khoản thu có "mức thu mỗi em" để tính em nào đã đóng đủ / còn thiếu.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { chupCheckpoint } from '../../_lib/quy-checkpoint.js';
 
 const QUYEN = 'quy';
 
@@ -83,7 +84,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   });
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
   const db = env.DB;
 
@@ -92,6 +93,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     if (!ten) return loi('Chưa nhập tên khoản thu.');
     if (!soTienHopLe(than.soTienMoiEm)) return loi('Mức thu mỗi em không hợp lệ.');
 
+    await chupCheckpoint(db, `Trước khi: mở khoản thu "${ten}"`, phien);
     const kq = await db.prepare(
       'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu) VALUES (?1, ?2, ?3, ?4)'
     ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500)).run();
@@ -107,9 +109,10 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     if (!soTienHopLe(than.soTien) || Number(than.soTien) <= 0) return loi('Số tiền không hợp lệ.');
     const ngay = ngayHopLe(than.ngay) ? than.ngay : new Date().toISOString().slice(0, 10);
 
-    const khoan = await db.prepare('SELECT id FROM quy_khoan WHERE id = ?1').bind(khoanId).first();
+    const khoan = await db.prepare('SELECT id, ten FROM quy_khoan WHERE id = ?1').bind(khoanId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
+    await chupCheckpoint(db, `Trước khi: ghi thu ${than.soTien}đ cho học sinh #${hocSinhId} (${khoan.ten})`, phien);
     const kq = await db.prepare(
       'INSERT INTO quy_dong (khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu) VALUES (?1, ?2, ?3, ?4, ?5)'
     ).bind(khoanId, hocSinhId, Number(than.soTien), ngay, chuoi(than.ghiChu, 300)).run();
@@ -123,6 +126,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     if (!soTienHopLe(than.soTien) || Number(than.soTien) <= 0) return loi('Số tiền không hợp lệ.');
     const ngay = ngayHopLe(than.ngay) ? than.ngay : new Date().toISOString().slice(0, 10);
 
+    await chupCheckpoint(db, `Trước khi: ghi chi ${than.soTien}đ — "${noiDung}"`, phien);
     const kq = await db.prepare(
       'INSERT INTO quy_chi (ngay, noi_dung, so_tien, ghi_chu) VALUES (?1, ?2, ?3, ?4)'
     ).bind(ngay, noiDung, Number(than.soTien), chuoi(than.ghiChu, 300)).run();
@@ -133,7 +137,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   return loi('Hành động không hợp lệ.');
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
-export const onRequestDelete = bocXuLy(async ({ request, env }) => {
+export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai');
   const id = Number(q.get('id'));
@@ -141,6 +145,8 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
 
   const BANG = { khoan: 'quy_khoan', dong: 'quy_dong', chi: 'quy_chi' };
   if (!BANG[loai]) return loi('Loại không hợp lệ.');
+
+  await chupCheckpoint(env.DB, `Trước khi: xoá ${loai} #${id}`, phien);
 
   if (loai === 'khoan') {
     await env.DB.batch([

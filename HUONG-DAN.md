@@ -121,6 +121,48 @@ Gửi lại nhiều lần cũng ra đúng một kết quả, không nhân đôi.
 
 ---
 
+## 9b. Chống mất dữ liệu — đặc biệt là Thủ quỹ
+
+Câu hỏi thầy/cô đặt ra rất đúng: nếu ai đó chiếm được mã đăng nhập và phá dữ liệu, làm sao lấy lại?
+Có **hai lớp** bảo vệ, độc lập với nhau:
+
+### Lớp 1 — Điểm khôi phục tự động của riêng Thủ quỹ (đã bật sẵn)
+
+**Mỗi lần** ghi thu, ghi chi, mở khoản, hay xoá bất cứ gì trong Thủ quỹ, hệ thống **tự động chụp lại
+toàn bộ trạng thái quỹ ngay trước đó** — không cần thầy/cô làm gì. Vào **Thủ quỹ → 🛡 Lịch sử & khôi phục**
+để xem danh sách các điểm này (giữ 200 điểm gần nhất, đủ dùng vài tháng).
+
+Nếu phát hiện dữ liệu bị phá: chọn đúng điểm **trước lúc** sự cố xảy ra → **Khôi phục về đây** →
+toàn bộ khoản thu, khoản đã đóng, khoản chi trở về đúng như lúc đó. Bản thân việc khôi phục cũng
+tự tạo thêm một điểm mới, nên nếu lỡ chọn nhầm vẫn quay lại được — không có thao tác nào là "điểm chết".
+
+**Chỉ giáo viên chủ nhiệm khôi phục được**, kể cả tài khoản Thủ quỹ (do thầy/cô tự cấp) cũng chỉ
+**xem** được lịch sử, không tự khôi phục. Lý do: nếu chính mã Thủ quỹ bị lộ, kẻ xấu phá dữ liệu xong
+không thể tự "khôi phục" để xoá dấu vết — chỉ mã giáo viên mới làm được, và mã đó thầy/cô là người duy nhất giữ.
+
+### Lớp 2 — Cloudflare D1 Time Travel (bảo vệ toàn bộ cơ sở dữ liệu, có sẵn, miễn phí)
+
+Ngoài Thủ quỹ, **toàn bộ cơ sở dữ liệu** (điểm danh, sổ điểm, thông báo, hồ sơ học sinh...) được
+Cloudflare tự động lưu lại liên tục trong **30 ngày gần nhất**, không tốn thêm phí, không cần cấu hình.
+Đây là tính năng có sẵn của D1, độc lập hoàn toàn với mọi thứ thầy/cô hay tôi làm trong ứng dụng —
+kể cả nếu toàn bộ mã nguồn bị xoá, dữ liệu này vẫn còn.
+
+Khi cần khôi phục **toàn bộ** cơ sở dữ liệu về một thời điểm bất kỳ trong 30 ngày qua (ví dụ nghi ngờ
+tài khoản Cloudflare bị chiếm), chạy:
+
+```bash
+npx wrangler d1 time-travel restore lop-10a7-db --timestamp="2026-09-10T08:00:00Z"
+```
+
+Hoặc khôi phục về một "bookmark" cụ thể (xem danh sách bằng `wrangler d1 time-travel info lop-10a7-db`).
+Việc này cần token của tài khoản Cloudflare nên thầy/cô nhờ tôi thực hiện khi cần, hoặc tự chạy lệnh trên
+nếu đã đăng nhập `wrangler`.
+
+**Tóm gọn:** việc nhỏ (nhập nhầm một khoản thu) → tự khôi phục ngay trong Thủ quỹ, mất vài giây.
+Việc lớn (nghi ngờ bị hack toàn bộ) → khôi phục cả cơ sở dữ liệu về trước thời điểm đó, còn nguyên trong 30 ngày.
+
+---
+
 ## 10. Tự động đăng khi sửa mã nguồn trên GitHub
 
 Tệp `.github/workflows/dang-len-cloudflare.yml` đã sẵn sàng. Cần khai báo **một lần** hai thứ:

@@ -20,6 +20,7 @@ export async function trangQuy(KHUNG, khoanDangXem) {
     const khung = e('div');
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
+      nut('🛡 Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
       nut('+ Mở khoản thu mới', '', () => moKhoanMoi(ve))
     ));
 
@@ -396,4 +397,86 @@ function taoTaiKhoan(cacQuyen, taiLai) {
       }
     }),
   ]);
+}
+
+/* ================= Lịch sử & khôi phục Thủ quỹ ================= */
+
+/** D1 lưu giờ UTC — cộng 7 tiếng để hiện đúng giờ Việt Nam. */
+function taoLucVN(taoLuc) {
+  const d = new Date(taoLuc.replace(' ', 'T') + 'Z');
+  if (isNaN(d)) return taoLuc;
+  d.setHours(d.getHours() + 7);
+  const gio = String(d.getHours()).padStart(2, '0');
+  const phut = String(d.getMinutes()).padStart(2, '0');
+  return `${gio}:${phut} ${ngayVN(d.toISOString().slice(0, 10))}`;
+}
+
+export async function trangQuyLichSu(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  async function ve() {
+    const [d, phienD] = await Promise.all([
+      api('/api/gv/quy-checkpoint'),
+      api('/api/whoami').catch(() => ({ role: '' })),
+    ]);
+    const laGiaoVien = phienD.role === 'teacher';
+
+    const khung = e('div');
+    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
+    khung.append(tieuDeTrang('Lịch sử & khôi phục Thủ quỹ',
+      'Mỗi lần ghi thu, ghi chi hoặc xoá đều tự động lưu một điểm khôi phục ngay trước đó.'));
+
+    const the = e('div', 'the');
+    the.style.borderColor = 'var(--chinh)';
+    the.append(
+      e('h3', null, laGiaoVien ? 'Nếu tài khoản bị lộ hoặc dữ liệu sai' : 'Chỉ giáo viên chủ nhiệm mới khôi phục được'),
+      e('p', null, laGiaoVien
+        ? 'Chọn đúng thời điểm trước khi sự cố xảy ra, bấm "Khôi phục về đây". Toàn bộ khoản thu, khoản đã đóng và khoản chi sẽ trở về đúng như lúc đó. Bản thân việc khôi phục cũng được lưu lại một điểm mới, nên nếu chọn nhầm vẫn quay lại được.'
+        : 'Tài khoản đặc biệt (kể cả Thủ quỹ) chỉ xem được lịch sử này, không tự khôi phục được — tránh trường hợp một mã bị lộ rồi tự xoá dấu vết.')
+    );
+    khung.append(the);
+
+    if (!d.danhSach.length) {
+      khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác đầu tiên trên Thủ quỹ.'));
+    } else {
+      const ds = e('div', 'ds-nhat-ky');
+      d.danhSach.forEach((cp) => {
+        const m = e('div', 'muc-nhat-ky khac');
+        const dong = e('div', 'dong-dau');
+        dong.append(e('span', 'ngay', taoLucVN(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
+        if (laGiaoVien) {
+          const viec = e('div', 'viec');
+          viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
+            moHopThoai('Khôi phục Thủ quỹ về điểm này?', [
+              e('p', null, cp.hanhDong),
+              Object.assign(e('p', null, `Lúc: ${taoLucVN(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
+              e('p', null, 'Mọi thay đổi về khoản thu, khoản đã đóng, khoản chi sau thời điểm này sẽ mất. Chắc chắn chứ?'),
+            ], [
+              nut('Huỷ', 'nut-nhe', dongHopThoai),
+              nut('Khôi phục ngay', 'nut-xau', async (ev) => {
+                ev.currentTarget.disabled = true;
+                try {
+                  await api('/api/gv/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
+                  dongHopThoai();
+                  nhac('Đã khôi phục Thủ quỹ', 'tot');
+                  ve();
+                } catch (err) {
+                  nhac(err.message, 'xau');
+                  ev.currentTarget.disabled = false;
+                }
+              }),
+            ]);
+          }));
+          dong.append(viec);
+        }
+        m.append(dong, e('p', null, cp.hanhDong));
+        ds.append(m);
+      });
+      khung.append(ds);
+    }
+
+    datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
 }
