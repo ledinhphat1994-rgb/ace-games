@@ -17,125 +17,174 @@
 
 <header class="thanh-tren">
   <div class="wrap">
-    <a class="hieu" href="/">
+    <a class="hieu" href="#/">
       <span class="hieu-o">10A7</span>
       <span class="hieu-ten">Lớp 10A7<small class="hieu-phu">GDNN – GDTX xã Định Quán</small></span>
     </a>
 
+    <!-- Máy tính: bốn mục của trang chủ nằm ngay trên thanh. Điện thoại: ẩn, nằm trong menu. -->
+    <nav class="menu" id="menuNgang" aria-label="Các mục trong trang chủ">
+      <a href="#thong-bao">Thông báo</a>
+      <a href="#ke-hoach">Kế hoạch</a>
+      <a href="#thoi-khoa-bieu">Thời khoá biểu</a>
+      <a href="#hinh-anh">Hình ảnh</a>
+    </nav>
+
     <div class="thanh-phai">
-      <nav class="menu" id="menu">
-        <a href="#thong-bao">Thông báo</a>
-        <a href="#danh-sach">Danh sách lớp</a>
-        <a href="#thoi-khoa-bieu">Thời khoá biểu</a>
-        <a href="#ke-hoach">Kế hoạch</a>
-        <a href="#thu-quy">Thủ quỹ</a>
-        <a href="#hinh-anh">Hình ảnh</a>
-      </nav>
-      <a class="nut nut-nho" href="/ca-nhan.html" style="margin-right:4px">Kết quả của tôi</a>
       <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối">◐</button>
-      <button class="nut-tron nut-menu" id="moMenu" aria-label="Mở menu" aria-expanded="false">☰</button>
+      <button class="nut-menu" id="moMenu" aria-expanded="false" aria-controls="menuDayDu">
+        <span class="nut-menu-vach" aria-hidden="true"></span>
+        <span class="nut-menu-chu">Menu</span>
+      </button>
     </div>
   </div>
-  <nav class="menu-dt" id="menuDienThoai" hidden>
-    <a href="#thong-bao">Thông báo</a>
-    <a href="#danh-sach">Danh sách lớp</a>
-    <a href="#thoi-khoa-bieu">Thời khoá biểu</a>
-    <a href="#ke-hoach">Kế hoạch</a>
-    <a href="#thu-quy">Thủ quỹ</a>
-    <a href="#hinh-anh">Hình ảnh</a>
-    <a href="/ca-nhan.html">Kết quả của tôi</a>
-    <a href="/api/logout">Đăng xuất</a>
-  </nav>
+
+  <!-- Menu đầy đủ: mọi mục không nằm trên trang chủ đều vào đây, có tiêu đề và mô tả rõ ràng. -->
+  <div class="menu-day" id="menuDayDu" hidden>
+    <div class="wrap menu-day-trong">
+      <p class="menu-nhom" id="menuNhomTrang">Trong trang chủ</p>
+      <div class="menu-luoi" aria-labelledby="menuNhomTrang">
+        <a class="menu-muc" href="#thong-bao">
+          <span class="menu-icon">◈</span>
+          <span class="menu-chu"><b>Thông báo</b><small>Tin mới nhất từ giáo viên chủ nhiệm</small></span>
+        </a>
+        <a class="menu-muc" href="#ke-hoach">
+          <span class="menu-icon">✎</span>
+          <span class="menu-chu"><b>Kế hoạch năm học</b><small>Lịch kiểm tra, hoạt động, mốc quan trọng</small></span>
+        </a>
+        <a class="menu-muc" href="#thoi-khoa-bieu">
+          <span class="menu-icon">▦</span>
+          <span class="menu-chu"><b>Thời khoá biểu</b><small>Các tiết học theo buổi, theo thứ</small></span>
+        </a>
+        <a class="menu-muc" href="#hinh-anh">
+          <span class="menu-icon">🖼</span>
+          <span class="menu-chu"><b>Hình ảnh hoạt động</b><small>Khoảnh khắc của tập thể lớp</small></span>
+        </a>
+      </div>
+
+      <p class="menu-nhom" id="menuNhomRieng">Trang riêng</p>
+      <div class="menu-luoi" aria-labelledby="menuNhomRieng">
+        <a class="menu-muc" href="#/danh-sach">
+          <span class="menu-icon">☰</span>
+          <span class="menu-chu"><b>Danh sách lớp</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
+        </a>
+        <a class="menu-muc" href="#/thu-quy">
+          <span class="menu-icon">₫</span>
+          <span class="menu-chu"><b>Thủ quỹ lớp</b><small>Công khai tổng thu – tổng chi của lớp</small></span>
+        </a>
+        <a class="menu-muc" href="/ca-nhan.html">
+          <span class="menu-icon">★</span>
+          <span class="menu-chu"><b>Kết quả của tôi</b><small>Điểm, chuyên cần và nhận xét riêng của em</small></span>
+        </a>
+        <a class="menu-muc" id="mucQuanLy" href="/giao-vien/" hidden>
+          <span class="menu-icon">⚙</span>
+          <span class="menu-chu"><b>Khu quản lý</b><small>Dành cho giáo viên chủ nhiệm</small></span>
+        </a>
+        <a class="menu-muc menu-muc-ra" href="/api/logout">
+          <span class="menu-icon">⏻</span>
+          <span class="menu-chu"><b>Đăng xuất</b><small>Thoát khỏi trang lớp trên máy này</small></span>
+        </a>
+      </div>
+    </div>
+  </div>
 </header>
 
 <main class="wrap" id="noiDung">
 
-  <div class="mo-dau">
-    <span class="nhan-tren">Năm học 2026 – 2027</span>
-    <h1 id="tenLop">Lớp 10A7</h1>
-    <p id="gioiThieu">Trang thông tin nội bộ của tập thể lớp 10A7 – Trung tâm Giáo dục nghề nghiệp – Giáo dục thường xuyên xã Định Quán, tỉnh Đồng Nai.</p>
-    <div class="o-so" id="oSo"></div>
+  <!-- ================= TRANG CHỦ ================= -->
+  <div id="trangChu">
+
+    <div class="mo-dau">
+      <span class="nhan-tren">Năm học 2026 – 2027</span>
+      <h1 id="tenLop">Lớp 10A7</h1>
+      <p id="gioiThieu">Trang thông tin nội bộ của tập thể lớp 10A7 – Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai.</p>
+      <div class="o-so" id="oSo"></div>
+    </div>
+
+    <section id="thong-bao">
+      <div class="dau-muc">
+        <h2>Thông báo</h2>
+        <p>Tin mới nhất từ giáo viên chủ nhiệm.</p>
+      </div>
+      <div class="the" id="dsThongBao"><div class="dang-tai"><span class="quay"></span>Đang tải…</div></div>
+    </section>
+
+    <section id="ke-hoach">
+      <div class="dau-muc">
+        <h2>Kế hoạch năm học</h2>
+        <p>Lịch kiểm tra, hoạt động, các mốc quan trọng.</p>
+      </div>
+      <div class="luoi luoi-2" id="dsKeHoach"></div>
+    </section>
+
+    <section id="thoi-khoa-bieu">
+      <div class="dau-muc">
+        <h2>Thời khoá biểu</h2>
+        <p id="tkbApDung">Đang tải…</p>
+      </div>
+      <div class="the">
+        <div class="day-loc" id="tkbTabBuoi"></div>
+        <div class="cuon-ngang">
+          <table class="bang-tkb">
+            <thead id="dauTkb"></thead>
+            <tbody id="thanTkb"><tr><td class="trong">Đang tải…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="hinh-anh">
+      <div class="dau-muc">
+        <h2>Hình ảnh hoạt động</h2>
+        <p>Khoảnh khắc của tập thể 10A7.</p>
+      </div>
+      <div class="thu-vien" id="thuVien"></div>
+    </section>
+
   </div>
 
-  <section id="tom-tat" aria-label="Tóm tắt các mục">
-    <div class="luoi luoi-3" id="dsTomTat"></div>
-  </section>
-
-  <section id="thong-bao">
-    <div class="dau-muc">
-      <h2>Thông báo</h2>
-      <p>Tin mới nhất từ giáo viên chủ nhiệm.</p>
-    </div>
-    <div class="the" id="dsThongBao"><div class="dang-tai"><span class="quay"></span>Đang tải…</div></div>
-  </section>
-
-  <section id="danh-sach">
-    <div class="dau-muc">
-      <h2>Danh sách lớp</h2>
-      <p id="soLuongHs"></p>
-    </div>
-    <div class="the">
-      <input class="o-nhap" id="oTim" type="search" placeholder="Tìm theo họ tên, lớp nghề…" aria-label="Tìm học sinh">
-      <div class="day-loc" id="locNghe" style="margin-top:12px"></div>
-      <div class="cuon-ngang" style="margin-top:14px">
-        <table>
-          <thead>
-            <tr>
-              <th class="so">STT</th>
-              <th>Họ và tên</th>
-              <th>Giới tính</th>
-              <th>Ngày sinh</th>
-              <th>Lớp nghề</th>
-              <th>Tổ hợp</th>
-              <th>Chức vụ</th>
-            </tr>
-          </thead>
-          <tbody id="bangHocSinh"><tr><td colspan="7" class="trong">Đang tải…</td></tr></tbody>
-        </table>
+  <!-- ================= TRANG RIÊNG (mở từ menu) ================= -->
+  <div class="trang-phu" id="trangDanhSach" hidden>
+    <a class="quay-lai" href="#/">‹ Trang chủ</a>
+    <section id="danh-sach">
+      <div class="dau-muc">
+        <h2>Danh sách lớp</h2>
+        <p id="soLuongHs"></p>
       </div>
-    </div>
-  </section>
-
-  <section id="thoi-khoa-bieu">
-    <div class="dau-muc">
-      <h2>Thời khoá biểu</h2>
-      <p id="tkbApDung">Đang tải…</p>
-    </div>
-    <div class="the">
-      <div class="day-loc" id="tkbTabBuoi" style="margin-bottom:14px"></div>
-      <div class="cuon-ngang">
-        <table>
-          <thead id="dauTkb"></thead>
-          <tbody id="thanTkb"><tr><td class="trong">Đang tải…</td></tr></tbody>
-        </table>
+      <div class="the">
+        <input class="o-nhap" id="oTim" type="search" placeholder="Tìm theo họ tên, lớp nghề…" aria-label="Tìm học sinh">
+        <div class="day-loc" id="locNghe"></div>
+        <div class="cuon-ngang">
+          <table>
+            <thead>
+              <tr>
+                <th class="so">STT</th>
+                <th>Họ và tên</th>
+                <th>Giới tính</th>
+                <th>Ngày sinh</th>
+                <th>Lớp nghề</th>
+                <th>Tổ hợp</th>
+                <th>Chức vụ</th>
+              </tr>
+            </thead>
+            <tbody id="bangHocSinh"><tr><td colspan="7" class="trong">Đang tải…</td></tr></tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <section id="ke-hoach">
-    <div class="dau-muc">
-      <h2>Kế hoạch năm học</h2>
-      <p>Lịch kiểm tra, hoạt động, các mốc quan trọng.</p>
-    </div>
-    <div class="luoi luoi-2" id="dsKeHoach"></div>
-  </section>
-
-  <section id="thu-quy">
-    <div class="dau-muc">
-      <h2>Thủ quỹ lớp</h2>
-      <p>Công khai tổng thu – tổng chi. Số tiền từng bạn đã đóng do giáo viên chủ nhiệm quản lý riêng.</p>
-    </div>
-    <div class="day-so" id="tqTongQuan" style="margin-bottom:16px"></div>
-    <div class="the" id="tqKhoan"></div>
-  </section>
-
-  <section id="hinh-anh">
-    <div class="dau-muc">
-      <h2>Hình ảnh hoạt động</h2>
-      <p>Khoảnh khắc của tập thể 10A7.</p>
-    </div>
-    <div class="thu-vien" id="thuVien"></div>
-  </section>
+  <div class="trang-phu" id="trangThuQuy" hidden>
+    <a class="quay-lai" href="#/">‹ Trang chủ</a>
+    <section id="thu-quy">
+      <div class="dau-muc">
+        <h2>Thủ quỹ lớp</h2>
+        <p>Công khai tổng thu – tổng chi. Số tiền từng bạn đã đóng do giáo viên chủ nhiệm quản lý riêng.</p>
+      </div>
+      <div class="day-so" id="tqTongQuan"></div>
+      <div class="the" id="tqKhoan"></div>
+    </section>
+  </div>
 
 </main>
 

@@ -110,8 +110,8 @@ body {
 img { max-width: 100%; display: block; }
 a { color: var(--chinh); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .4em; font-weight: 800; letter-spacing: -.015em; }
-h1 { font-size: clamp(25px, 5vw, 36px); }
-h2 { font-size: clamp(19.5px, 3vw, 24px); }
+h1 { font-size: clamp(24px, 4.6vw, 34px); }
+h2 { font-size: clamp(19px, 3vw, 23px); }
 h3 { font-size: 16.5px; font-weight: 700; }
 p { margin: 0 0 .8em; }
 p:last-child { margin-bottom: 0; }
@@ -144,7 +144,7 @@ code {
   border-bottom: 1px solid var(--vien);
 }
 .thanh-tren > .wrap {
-  display: flex; align-items: center; gap: 12px; height: var(--cao-thanh);
+  display: flex; align-items: center; gap: 10px; height: var(--cao-thanh);
 }
 
 .hieu { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: inherit; }
@@ -155,13 +155,18 @@ code {
   font-size: 12.5px; font-weight: 800; letter-spacing: -.3px;
   box-shadow: 0 4px 12px -3px color-mix(in srgb, var(--chinh) 60%, transparent);
 }
-.hieu-ten { font-weight: 800; font-size: 15px; line-height: 1.2; white-space: nowrap; letter-spacing: -.01em; }
+/* Tên lớp phải tự cắt bằng dấu … khi hết chỗ. Không có overflow:hidden thì chữ tràn ra
+   và nằm lọt xuống dưới các nút bên phải — đúng lỗi đè chữ đã gặp trên điện thoại. */
+.hieu-ten {
+  min-width: 0; font-weight: 800; font-size: 15px; line-height: 1.2; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .hieu-phu {
   display: block; font-weight: 500; font-size: 11.5px; color: var(--chu-nhat);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.thanh-phai { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.thanh-phai { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; }
 
 .nut-tron {
   width: 36px; height: 36px; flex: none; display: grid; place-items: center;
@@ -171,6 +176,34 @@ code {
 }
 .nut-tron:hover { color: var(--chinh); border-color: var(--chinh); background: var(--chinh-nen); }
 .nut-tron:active { transform: scale(.94); }
+/* Trên thanh trên cùng, nút chỉ có biểu tượng phải đủ to để ngón tay chạm được. */
+.thanh-tren .nut-tron { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
+
+/* Nút mở menu — cửa vào của mọi mục không nằm trên trang chủ, nên để dạng viên thuốc có chữ. */
+.nut-menu {
+  display: inline-flex; align-items: center; gap: 9px; flex: none;
+  min-height: 44px; padding: 0 14px; cursor: pointer;
+  border: 1px solid var(--vien); border-radius: 12px;
+  background: var(--nen-noi); color: var(--chu);
+  font: inherit; font-size: 14px; font-weight: 700;
+  transition: background .15s, border-color .15s, color .15s, transform .1s;
+}
+.nut-menu:hover { border-color: var(--chinh); color: var(--chinh); background: var(--chinh-nen); }
+.nut-menu:active { transform: scale(.97); }
+.nut-menu[aria-expanded="true"] {
+  background: linear-gradient(135deg, var(--chinh), var(--chinh-sang));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 3px 10px -3px color-mix(in srgb, var(--chinh) 60%, transparent);
+}
+.nut-menu-vach { position: relative; display: block; width: 17px; height: 2px; border-radius: 2px; background: currentColor; }
+.nut-menu-vach::before, .nut-menu-vach::after {
+  content: ''; position: absolute; left: 0; width: 100%; height: 2px; border-radius: 2px; background: currentColor;
+}
+.nut-menu-vach::before { top: -5.5px; }
+.nut-menu-vach::after { top: 5.5px; }
+/* Máy rất hẹp thì bỏ chữ "Menu", giữ lại biểu tượng cho đỡ chật. */
+.nut-menu-chu { display: none; }
+@media (min-width: 400px) { .nut-menu-chu { display: inline; } }
 
 /* Menu ngang (máy tính) */
 .menu { display: none; gap: 3px; }
@@ -184,31 +217,61 @@ code {
   background: linear-gradient(135deg, var(--chinh), var(--chinh-sang)); color: #fff;
   box-shadow: 0 3px 10px -3px color-mix(in srgb, var(--chinh) 60%, transparent);
 }
-@media (min-width: 860px) { .menu { display: flex; } .nut-menu { display: none; } }
+@media (min-width: 860px) { .menu { display: flex; margin-left: 8px; } }
 
-/* Menu thả xuống (điện thoại) */
-.menu-dt {
-  position: absolute; top: var(--cao-thanh); left: 0; right: 0;
+/* Bảng menu đầy đủ — dùng chung cho điện thoại và máy tính.
+   Mỗi mục có tiêu đề và một dòng mô tả, để người dùng biết mình đang mở cái gì. */
+.menu-day {
+  position: absolute; top: var(--cao-thanh); left: 0; right: 0; z-index: 39;
   background: var(--nen-noi); border-bottom: 1px solid var(--vien);
-  box-shadow: var(--bong-2); padding: 8px 16px 14px;
-  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: var(--bong-2);
+  max-height: calc(100dvh - var(--cao-thanh)); overflow-y: auto;
+  animation: menu-mo .16s ease-out;
 }
-.menu-dt a {
-  padding: 11px 12px; border-radius: 10px; text-decoration: none;
-  color: var(--chu); font-weight: 600; font-size: 15px;
-  transition: background .15s;
+.menu-day[hidden] { display: none; }
+@keyframes menu-mo { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-day { animation: none; } }
+.menu-day-trong { padding: 12px 16px 22px; }
+.menu-nhom {
+  margin: 14px 4px 8px; font-size: 11.5px; font-weight: 800; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--chu-mo);
 }
-.menu-dt a:hover { background: var(--nen-chim); }
-/* Thuộc tính HTML "hidden" phải thắng — nếu không, class .menu-dt ở trên (độ ưu tiên cao hơn
-   selector thuộc tính mặc định của trình duyệt) sẽ đè display:flex lên, khiến menu luôn hiện
-   sẵn ngay cả khi đã đóng. */
-.menu-dt[hidden] { display: none; }
-@media (min-width: 860px) { .menu-dt { display: none !important; } }
+.menu-nhom:first-child { margin-top: 4px; }
+.menu-luoi { display: grid; gap: 6px; }
+@media (min-width: 700px) { .menu-luoi { grid-template-columns: repeat(2, 1fr); } }
+.menu-muc {
+  display: flex; align-items: center; gap: 12px; min-height: 60px;
+  padding: 10px 12px; border-radius: 14px; text-decoration: none; color: var(--chu);
+  border: 1px solid transparent;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.menu-muc:hover { background: var(--nen-chim); border-color: var(--vien); }
+.menu-muc:active { transform: scale(.99); }
+.menu-muc.dang-xem { background: var(--chinh-nen); border-color: color-mix(in srgb, var(--chinh) 32%, var(--vien)); }
+.menu-icon {
+  width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  background: var(--chinh-nen); color: var(--chinh); font-size: 17px;
+}
+.menu-chu { display: flex; flex-direction: column; min-width: 0; }
+.menu-chu b { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.menu-chu small { font-size: 12.5px; line-height: 1.35; color: var(--chu-nhat); }
+.menu-muc-ra .menu-icon { background: var(--xau-nen); color: var(--xau); }
+
+/* Trang riêng mở từ menu (Danh sách lớp, Thủ quỹ) */
+.quay-lai {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
+  margin: 20px 0 4px; padding: 0 16px; border-radius: 99px;
+  background: var(--nen-noi); border: 1px solid var(--vien);
+  color: var(--chu-nhat); font-size: 14px; font-weight: 700; text-decoration: none;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.quay-lai:hover { color: var(--chinh); border-color: var(--chinh); background: var(--chinh-nen); }
+.trang-phu > section { margin-top: 18px; }
 
 /* ---------- 4. Khối mở đầu ---------- */
 .mo-dau {
   position: relative; overflow: hidden;
-  margin: 18px 0 6px; padding: 28px 24px; border-radius: var(--r-lon); color: #fff;
+  margin: 18px 0 6px; padding: 26px 22px; border-radius: var(--r-lon); color: #fff;
   background:
     radial-gradient(760px 320px at 6% -50%, rgba(255, 255, 255, .24), transparent 60%),
     radial-gradient(520px 260px at 108% 8%, color-mix(in srgb, var(--chinh-2) 55%, transparent), transparent 65%),
@@ -217,7 +280,7 @@ code {
 }
 @media (min-width: 720px) { .mo-dau { padding: 38px 34px; } }
 .mo-dau h1 { margin: 10px 0 8px; color: #fff; }
-.mo-dau p { color: #d9ecfb; max-width: 60ch; margin: 0; font-size: 15px; }
+.mo-dau p { color: #d9ecfb; max-width: 60ch; margin: 0; font-size: 14.5px; }
 .nhan-tren {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px;
@@ -227,24 +290,25 @@ code {
 }
 
 .o-so {
-  display: grid; gap: 10px; margin-top: 24px;
+  display: grid; gap: 10px; margin-top: 20px;
   grid-template-columns: repeat(2, 1fr);
 }
 @media (min-width: 620px) { .o-so { grid-template-columns: repeat(4, 1fr); } }
 .o-so > div {
   background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: var(--r); padding: 12px 14px;
+  border-radius: var(--r); padding: 11px 13px;
   backdrop-filter: blur(6px);
   transition: background .15s, transform .15s;
 }
 .o-so > div:hover { background: rgba(255, 255, 255, .18); transform: translateY(-2px); }
-.o-so b { display: block; font-size: 22px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; }
+.o-so b { display: block; font-size: 21px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; }
 .o-so span { font-size: 12px; color: #d9ecfb; }
 
 /* ---------- 5. Bố cục & thẻ ---------- */
-section { margin: 38px 0; scroll-margin-top: 74px; }
+section { margin: 30px 0; scroll-margin-top: 78px; }
+@media (min-width: 720px) { section { margin: 40px 0; } }
 
-.dau-muc { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.dau-muc { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .dau-muc h2 { margin: 0; }
 .dau-muc p { margin: 0; color: var(--chu-nhat); font-size: 13.5px; }
 
@@ -278,7 +342,7 @@ section { margin: 38px 0; scroll-margin-top: 74px; }
 /* ---------- 7. Nút ---------- */
 .nut {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 10px 17px; min-height: 42px; border: 1px solid transparent; border-radius: var(--r-nho);
+  padding: 10px 17px; min-height: 44px; border: 1px solid transparent; border-radius: var(--r-nho);
   background: linear-gradient(135deg, var(--chinh), var(--chinh-sang));
   color: #fff; font: inherit; font-weight: 700; font-size: 14.5px;
   cursor: pointer; text-decoration: none; white-space: nowrap;
@@ -293,12 +357,12 @@ section { margin: 38px 0; scroll-margin-top: 74px; }
 .nut-nhe { background: transparent; color: var(--chu-nhat); box-shadow: none; }
 .nut-nhe:hover { background: var(--nen-chim); color: var(--chu); filter: none; }
 .nut-xau { background: linear-gradient(135deg, var(--xau), color-mix(in srgb, var(--xau) 75%, #ff8f6b)); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--xau) 50%, transparent); }
-.nut-nho { padding: 6px 12px; min-height: 34px; font-size: 13.5px; }
+.nut-nho { padding: 7px 13px; min-height: 38px; font-size: 13.5px; }
 .nut-rong { width: 100%; }
 
 /* ---------- 8. Biểu mẫu ---------- */
 .o-nhap, select.o-nhap, textarea.o-nhap {
-  width: 100%; padding: 10px 12px; min-height: 42px; font: inherit; font-size: 15px;
+  width: 100%; padding: 10px 12px; min-height: 44px; font: inherit; font-size: 15px;
   color: var(--chu); background: var(--nen-noi);
   border: 1.5px solid var(--vien-dam); border-radius: var(--r-nho);
   transition: border-color .15s, box-shadow .15s;
@@ -315,7 +379,7 @@ textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
 .day-loc { display: flex; flex-wrap: wrap; gap: 7px; }
 .vien-loc {
   border: 1.5px solid var(--vien-dam); background: var(--nen-noi); color: var(--chu-nhat);
-  padding: 6px 14px; min-height: 34px; border-radius: 99px;
+  padding: 7px 15px; min-height: 40px; border-radius: 99px;
   font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: border-color .15s, color .15s, background .15s;
 }
@@ -341,15 +405,28 @@ tbody tr:hover { background: var(--nen-chim); }
 tbody tr:last-child td { border-bottom: 0; }
 td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-variant-numeric: tabular-nums; }
 
+/* Thời khoá biểu trên điện thoại phải cuộn ngang; ghim cột "Tiết" lại để không mất mốc. */
+.bang-tkb th:first-child, .bang-tkb td:first-child {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--nen-noi); box-shadow: 1px 0 0 var(--vien);
+}
+.bang-tkb thead th:first-child { z-index: 2; background: var(--nen-chim); }
+.bang-tkb tbody tr:hover td:first-child { background: var(--nen-chim); }
+
+/* Khoảng cách trong thẻ có ô tìm kiếm / dãy nút lọc / bảng cuộn ngang */
+#danh-sach .day-loc, #thoi-khoa-bieu .day-loc { margin: 12px 0; }
+#danh-sach .cuon-ngang, #thoi-khoa-bieu .cuon-ngang { margin-top: 14px; }
+#tqTongQuan { margin-bottom: 16px; }
+
 /* ---------- 10. Thông báo trên trang lớp ---------- */
 .tin { border-left: 3px solid var(--vien-dam); padding: 3px 0 3px 16px; }
-.tin + .tin { margin-top: 20px; }
+.tin + .tin { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--vien); }
 .tin-ghim { border-left-color: var(--luu-y); }
 .tin-dau { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 12.5px; color: var(--chu-nhat); }
 .tin h3 { margin: 6px 0 4px; }
 .tin p { white-space: pre-line; margin: 0; }
 
-/* Thẻ tóm tắt trên trang chủ — bấm vào là nhảy tới mục chi tiết */
+/* Thẻ tóm tắt (còn dùng ở trang Kết quả của tôi) */
 .the-tom-tat {
   display: block; text-decoration: none; color: inherit; position: relative; overflow: hidden;
   background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r);
@@ -375,14 +452,18 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .the-tom-tat .mui-ten { float: right; color: var(--chu-mo); font-size: 14px; }
 
 /* ---------- 11. Thư viện ảnh ---------- */
-.thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
 .thu-vien figure {
   margin: 0; border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
   box-shadow: var(--bong-1); transition: box-shadow .18s, transform .18s;
 }
 .thu-vien figure:hover { box-shadow: var(--bong-2); transform: translateY(-2px); }
-.thu-vien img { aspect-ratio: 4 / 3; object-fit: cover; }
-.thu-vien figcaption { padding: 9px 11px; font-size: 12.5px; color: var(--chu-nhat); }
+.thu-vien img { aspect-ratio: 4 / 3; object-fit: cover; width: 100%; }
+.thu-vien figcaption {
+  padding: 9px 11px; font-size: 12.5px; color: var(--chu-nhat);
+  /* Chú thích dài không được đẩy các ô ảnh cao lệch nhau */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 /* ---------- 12. Trạng thái rỗng / đang tải ---------- */
 .trong { color: var(--chu-mo); font-size: 14px; }

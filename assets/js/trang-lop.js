@@ -1,24 +1,75 @@
-/* Trang lớp — học sinh xem. Toàn bộ dữ liệu lấy từ /api/lop. */
+/* Trang lớp — học sinh xem. Toàn bộ dữ liệu lấy từ /api/lop.
+
+   Trang chủ chỉ để năm mục: sĩ số lớp, thông báo, kế hoạch, thời khoá biểu, hình ảnh.
+   Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
+   chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
 import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi } from './chung.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
-/* ---------- Menu điện thoại ---------- */
+/* ---------- Menu ---------- */
 (function menu() {
   const nut = $('#moMenu');
-  const bang = $('#menuDienThoai');
-  nut.addEventListener('click', () => {
-    bang.hidden = !bang.hidden;
-    nut.setAttribute('aria-expanded', String(!bang.hidden));
+  const bang = $('#menuDayDu');
+  const dat = (mo) => {
+    bang.hidden = !mo;
+    nut.setAttribute('aria-expanded', String(mo));
+  };
+
+  nut.addEventListener('click', (ev) => { ev.stopPropagation(); dat(bang.hidden); });
+
+  // Chạm vào một mục là đóng menu lại, khỏi phải bấm thêm lần nữa trên điện thoại.
+  bang.addEventListener('click', (ev) => { if (ev.target.closest('a')) dat(false); });
+
+  document.addEventListener('click', (ev) => {
+    if (!bang.hidden && !bang.contains(ev.target) && !nut.contains(ev.target)) dat(false);
   });
-  bang.addEventListener('click', (ev) => {
-    if (ev.target.tagName === 'A') { bang.hidden = true; nut.setAttribute('aria-expanded', 'false'); }
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !bang.hidden) { dat(false); nut.focus(); }
   });
 })();
 
-/* ---------- Đánh dấu mục đang xem ---------- */
+/* ---------- Trang riêng mở từ menu ---------- */
+const TRANG_PHU = {
+  '#/danh-sach': '#trangDanhSach',
+  '#/thu-quy': '#trangThuQuy',
+};
+
+/* Mỏ neo hợp lệ: #thong-bao, #ke-hoach… (không phải địa chỉ trang riêng #/…) */
+function laMoNeo(hash) {
+  return /^#[a-z][\w-]*$/i.test(hash);
+}
+
+function dinhTuyen() {
+  const hash = location.hash;
+  const trangCanHien = TRANG_PHU[hash] || null;
+
+  // Ẩn hết rồi mới hiện đúng một trang — không bao giờ để hai trang cùng hiện.
+  $('#trangChu').hidden = Boolean(trangCanHien);
+  Object.values(TRANG_PHU).forEach((chon) => { $(chon).hidden = chon !== trangCanHien; });
+
+  document.querySelectorAll('.menu-muc').forEach((a) => {
+    a.classList.toggle('dang-xem', a.getAttribute('href') === hash);
+  });
+
+  if (trangCanHien) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    return;
+  }
+
+  // Về trang chủ: nếu địa chỉ là mỏ neo của một mục thì cuộn tới mục đó.
+  if (laMoNeo(hash)) {
+    const muc = document.querySelector(hash);
+    if (muc) muc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+window.addEventListener('hashchange', dinhTuyen);
+
+/* ---------- Đánh dấu mục đang xem trên thanh menu ngang ---------- */
 function ganTheoDoiMuc() {
-  const lienKet = [...document.querySelectorAll('.menu a[href^="#"]')];
+  const lienKet = [...document.querySelectorAll('.menu a[href^="#"]')]
+    .filter((a) => laMoNeo(a.getAttribute('href')));
   const muc = lienKet.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
   if (!('IntersectionObserver' in window) || !muc.length) return;
 
@@ -60,7 +111,9 @@ function veThongBao(ds) {
 function veDanhSach(ds) {
   const than = $('#bangHocSinh');
   const nam = ds.filter((h) => h.gioiTinh === 'Nam').length;
-  $('#soLuongHs').textContent = `${ds.length} học sinh · ${nam} nam · ${ds.length - nam} nữ`;
+  const tomTat = `${ds.length} học sinh · ${nam} nam · ${ds.length - nam} nữ`;
+  $('#soLuongHs').textContent = tomTat;
+  $('#menuSoHs').textContent = tomTat;
 
   const cacNghe = [...new Set(ds.map((h) => h.lopNghe).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   let nghe = '';
@@ -125,9 +178,15 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   const o = thoiKhoaBieu?.o || [];
   const cacThu = [2, 3, 4, 5, 6, 7];
 
-  $('#tkbApDung').textContent = phienBan
-    ? `Áp dụng từ ${ngayVN(phienBan.ngayBatDau)}`
-    : 'Chưa cập nhật thời khoá biểu.';
+  /* Thứ trong JS: 0 là Chủ nhật. Thời khoá biểu đánh số 2..7, nên cộng 1. */
+  const thuHomNay = new Date().getDay();
+  const soThuTkb = thuHomNay === 0 ? null : thuHomNay + 1;
+  const soTietHomNay = soThuTkb ? o.filter((t) => t.thu === soThuTkb).length : 0;
+
+  const dong = [];
+  if (o.length) dong.push(soThuTkb ? `Hôm nay có ${soTietHomNay} tiết` : 'Hôm nay Chủ nhật — nghỉ');
+  dong.push(phienBan ? `áp dụng từ ${ngayVN(phienBan.ngayBatDau)}` : 'chưa cập nhật thời khoá biểu');
+  $('#tkbApDung').textContent = dong.join(' · ');
 
   if (!o.length) {
     datNoiDung($('#tkbTabBuoi'));
@@ -171,7 +230,7 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
 
   const hopTab = $('#tkbTabBuoi');
   if (cacBuoiCo.length > 1) {
-    function veTab() {
+    const veTab = () => {
       datNoiDung(hopTab, ...cacBuoiCo.map(([ma, ten]) => {
         const b = e('button', 'vien-loc', ten);
         b.type = 'button';
@@ -179,7 +238,7 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
         b.addEventListener('click', () => { buoiDangXem = ma; veTab(); veBang(); });
         return b;
       }));
-    }
+    };
     veTab();
   } else {
     datNoiDung(hopTab);
@@ -201,39 +260,6 @@ function veKeHoach(ds) {
     the.append(dau, e('h3', null, k.tieuDe));
     if (k.moTa) the.append(e('p', null, k.moTa));
     return the;
-  }));
-}
-
-/* ---------- Tóm tắt trang chủ ---------- */
-function veTomTat(d) {
-  const hop = $('#dsTomTat');
-  const nam = d.hocSinh.filter((h) => h.gioiTinh === 'Nam').length;
-  const tinMoi = (d.thongBao || [])[0];
-  const moc = (d.keHoach || []).find((k) => !k.hoanThanh);
-  const khoanDangMo = (d.thuQuy?.khoan || []).filter((k) => k.dangMo);
-
-  const homNayIso = new Date().toISOString().slice(0, 10);
-  const thuHomNay = new Date().getDay(); // 0=CN..6=T7 -> quy đổi sang 2..7 dùng ở TKB
-  const soThuTkb = thuHomNay === 0 ? null : thuHomNay + 1;
-  const soTietHomNay = soThuTkb ? (d.thoiKhoaBieu?.o || []).filter((t) => t.thu === soThuTkb).length : 0;
-
-  const mucTom = [
-    ['#thong-bao', '◈', 'Thông báo', tinMoi ? tinMoi.tieuDe : 'Chưa có thông báo', tinMoi ? ngayVN(tinMoi.ngay) : ''],
-    ['#danh-sach', '☰', 'Danh sách lớp', `${d.hocSinh.length} học sinh`, `${nam} nam · ${d.hocSinh.length - nam} nữ`],
-    ['#thoi-khoa-bieu', '▦', 'Thời khoá biểu', soThuTkb ? `Hôm nay ${soTietHomNay} tiết` : 'Chủ nhật — nghỉ', 'Xem cả tuần'],
-    ['#ke-hoach', '✎', 'Kế hoạch', moc ? moc.tieuDe : 'Không có mốc sắp tới', moc ? ngayVN(moc.ngay) : ''],
-    ['#thu-quy', '💰', 'Thủ quỹ', tienVN(d.thuQuy?.tonQuy || 0), khoanDangMo.length ? `${khoanDangMo.length} khoản đang thu` : 'Chưa có khoản thu nào'],
-    ['#hinh-anh', '🖼', 'Hình ảnh', `${(d.hinhAnh || []).length} ảnh`, 'Hoạt động của lớp'],
-  ];
-
-  datNoiDung(hop, ...mucTom.map(([duong, icon, ten, giaTri, phu]) => {
-    const a = e('a', 'the-tom-tat');
-    a.href = duong;
-    const dong = e('div', 'dong-icon');
-    dong.append(e('span', 'icon', icon), e('h3', null, ten), Object.assign(e('span', 'mui-ten', '›'), { style: 'margin-left:auto' }));
-    a.append(dong, e('div', 'gia-tri', giaTri));
-    if (phu) a.append(e('div', 'phu', phu));
-    return a;
   }));
 }
 
@@ -290,22 +316,23 @@ function veHinhAnh(ds) {
   }));
 }
 
-/* ---------- Khởi động ---------- */
 /* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------
    Trang này ai đăng nhập cũng xem được (kể cả giáo viên), nhưng KHÔNG sửa được gì ở đây —
    đây là trang xem, không phải trang sửa. Với người có quyền, thêm nút bấm là vào thẳng
    đúng trang sửa bên khu quản lý, đỡ phải tự tìm trong menu. */
 const MUC_QUAN_LY = [
   ['thong-bao', '#/thong-bao', 'thong-bao'],
-  ['danh-sach', '#/hoc-sinh', null],
-  ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
   ['ke-hoach', '#/ke-hoach', 'ke-hoach'],
-  ['thu-quy', '#/quy', 'quy'],
+  ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
   ['hinh-anh', '#/hinh-anh', 'hinh-anh'],
+  ['danh-sach', '#/hoc-sinh', null],
+  ['thu-quy', '#/quy', 'quy'],
 ];
 
 function veLoiTatQuanLy(phien) {
   if (!phien || (phien.role !== 'teacher' && phien.role !== 'phu')) return;
+
+  $('#mucQuanLy').hidden = false;
 
   MUC_QUAN_LY.forEach(([idMuc, duong, quyenCan]) => {
     const duocPhep = phien.role === 'teacher' || (quyenCan && (phien.quyen || []).includes(quyenCan));
@@ -321,6 +348,7 @@ function veLoiTatQuanLy(phien) {
   });
 }
 
+/* ---------- Khởi động ---------- */
 (async function () {
   try {
     const [d, phien] = await Promise.all([
@@ -330,14 +358,14 @@ function veLoiTatQuanLy(phien) {
     $('#tenLop').textContent = d.lop.ten;
     veOSo(d.lop.thongKe);
     veThongBao(d.thongBao);
-    veDanhSach(d.hocSinh);
-    veThoiKhoaBieu(d.thoiKhoaBieu);
     veKeHoach(d.keHoach);
+    veThoiKhoaBieu(d.thoiKhoaBieu);
     veHinhAnh(d.hinhAnh);
+    veDanhSach(d.hocSinh);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
-    veTomTat(d);
     veLoiTatQuanLy(phien);
     ganTheoDoiMuc();
+    dinhTuyen();   // mở đúng trang theo địa chỉ, kể cả khi dán thẳng #/thu-quy vào trình duyệt
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));
   }
