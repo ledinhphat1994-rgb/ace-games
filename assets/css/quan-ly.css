@@ -208,15 +208,22 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .chu-thich i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
 /* Thanh lưu nổi ở dưới */
+/* Thanh lưu nổi: căn giữa theo đúng khung nội dung (không tràn hết viewport), và đẩy nút
+   Lưu/Bỏ về phía bên phải — đúng chỗ mắt tìm hành động xác nhận trên mọi UI quản trị. */
 .thanh-luu {
   position: fixed; left: 0; right: 0; z-index: 46;
   bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom));
   background: var(--nen-noi); border-top: 1px solid var(--vien);
   box-shadow: var(--bong-2);
   padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+  /* Đúng công thức bề rộng của .khung-ung-dung — để thanh này thẳng hàng với nội dung
+     thay vì tràn hết viewport trong khi nội dung đã có margin hai bên. */
+  width: min(var(--rong-ud, 1500px), calc(100% - 48px)); margin-inline: auto;
 }
-@media (min-width: 900px) { .thanh-luu { bottom: 0; } }
-.thanh-luu .thong-tin { font-size: 13.5px; color: var(--chu-nhat); min-width: 0; }
+@media (min-width: 900px) {
+  .thanh-luu { bottom: 0; padding-left: calc(236px + 26px + 16px); border-radius: var(--r) var(--r) 0 0; }
+}
+.thanh-luu .thong-tin { font-size: 13.5px; color: var(--chu-nhat); min-width: 0; margin-right: auto; }
 
 /* ---------- Nhật ký ---------- */
 .ds-nhat-ky { display: flex; flex-direction: column; gap: 10px; }

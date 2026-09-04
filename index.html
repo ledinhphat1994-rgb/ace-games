@@ -104,28 +104,38 @@
       <div class="o-so" id="oSo"></div>
     </div>
 
-    <section id="thong-bao">
+    <!-- Băng điểm nhấn: tự cuộn ngang, gộp thông báo đã ghim + mốc quan trọng sắp tới.
+         Ẩn hẳn (không chừa khoảng trống) khi chưa có gì đáng nổi bật. -->
+    <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
+      <div class="bang-diem-nhan-cuon" id="dnCuon"></div>
+      <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
+      <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
+    </section>
+
+    <section class="khoi-trang-chu" id="thong-bao">
       <div class="dau-muc">
-        <h2>Thông báo</h2>
+        <h2>◈ Thông báo</h2>
         <p>Tin mới nhất từ giáo viên chủ nhiệm.</p>
       </div>
-      <div class="the" id="dsThongBao"><div class="dang-tai"><span class="quay"></span>Đang tải…</div></div>
+      <div class="than-khoi" id="dsThongBao"><div class="dang-tai"><span class="quay"></span>Đang tải…</div></div>
     </section>
 
-    <section id="ke-hoach">
+    <section class="khoi-trang-chu" id="ke-hoach">
       <div class="dau-muc">
-        <h2>Kế hoạch năm học</h2>
+        <h2>✎ Kế hoạch năm học</h2>
         <p>Lịch kiểm tra, hoạt động, các mốc quan trọng.</p>
       </div>
-      <div class="luoi luoi-2" id="dsKeHoach"></div>
+      <div class="than-khoi">
+        <div class="luoi luoi-2" id="dsKeHoach"></div>
+      </div>
     </section>
 
-    <section id="thoi-khoa-bieu">
+    <section class="khoi-trang-chu" id="thoi-khoa-bieu">
       <div class="dau-muc">
-        <h2>Thời khoá biểu</h2>
+        <h2>▦ Thời khoá biểu</h2>
         <p id="tkbApDung">Đang tải…</p>
       </div>
-      <div class="the">
+      <div class="than-khoi">
         <div class="day-loc" id="tkbTabBuoi"></div>
         <div class="cuon-ngang">
           <table class="bang-tkb">
@@ -136,12 +146,14 @@
       </div>
     </section>
 
-    <section id="hinh-anh">
+    <section class="khoi-trang-chu" id="hinh-anh">
       <div class="dau-muc">
-        <h2>Hình ảnh hoạt động</h2>
+        <h2>🖼 Hình ảnh hoạt động</h2>
         <p>Khoảnh khắc của tập thể 10A7.</p>
       </div>
-      <div class="thu-vien" id="thuVien"></div>
+      <div class="than-khoi">
+        <div class="thu-vien" id="thuVien"></div>
+      </div>
     </section>
 
   </div>

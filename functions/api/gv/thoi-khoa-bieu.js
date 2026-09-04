@@ -9,6 +9,9 @@
 //   GET  /api/gv/thoi-khoa-bieu?ds=1             -> danh sách mọi phiên bản
 //   POST /api/gv/thoi-khoa-bieu  { ten, ngayBatDau, ghiChu, o:[{buoi,thu,tiet,mon}] }
 //        -> tạo phiên bản mới, tự đóng phiên bản đang áp dụng lại đúng trước ngày này
+//   PATCH /api/gv/thoi-khoa-bieu { phienBanId, o:[{buoi,thu,tiet,mon}] }
+//        -> SỬA NHANH đúng phiên bản đó tại chỗ (thay hết các ô), KHÔNG tạo phiên bản mới.
+//           Dùng khi gõ nhầm tên môn/tiết — đổi lịch thật sự vẫn nên dùng POST (tạo phiên bản mới).
 //   DELETE /api/gv/thoi-khoa-bieu?phienBanId=5   -> xoá một phiên bản (không phải bản đang áp dụng)
 import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../_lib/api.js';
 
@@ -106,6 +109,41 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (cauLenh.length) await db.batch(cauLenh);
 
   return json({ ok: true, phienBanId: phienBanMoiId, daLuu: hopLe.length });
+}, { canGiaoVien: true });
+
+export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+  const db = env.DB;
+  const { phienBanId, o } = await docThan(request);
+
+  const idSo = Number(phienBanId);
+  if (!Number.isInteger(idSo) || idSo <= 0) return loi('Thiếu mã phiên bản.');
+  if (!Array.isArray(o)) return loi('Dữ liệu ô không hợp lệ.');
+  if (o.length > 140) return loi('Quá nhiều ô trong một lần gửi.');
+
+  const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1').bind(idSo).first();
+  if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
+
+  const hopLe = [];
+  for (const x of o) {
+    const buoi = x.buoi === 'chieu' ? 'chieu' : 'sang';
+    const thu = Number(x.thu);
+    const tiet = Number(x.tiet);
+    if (!Number.isInteger(thu) || thu < 2 || thu > 7) return loi('Thứ không hợp lệ.');
+    if (!Number.isInteger(tiet) || tiet < 1 || tiet > 12) return loi('Tiết không hợp lệ.');
+    const mon = String(x.mon || '').trim().slice(0, 60);
+    if (mon) hopLe.push({ buoi, thu, tiet, mon });
+  }
+
+  const cauLenh = [db.prepare('DELETE FROM tkb_o WHERE phien_ban_id = ?1').bind(idSo)];
+  hopLe.forEach((x) => {
+    cauLenh.push(
+      db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon) VALUES (?1, ?2, ?3, ?4, ?5)')
+        .bind(idSo, x.buoi, x.thu, x.tiet, x.mon)
+    );
+  });
+  await db.batch(cauLenh);
+
+  return json({ ok: true, daLuu: hopLe.length });
 }, { canGiaoVien: true });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {

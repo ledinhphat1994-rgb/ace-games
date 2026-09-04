@@ -346,6 +346,71 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
   ]);
 }
 
+/* ---------- Băng điểm nhấn: tự cuộn ngang, gộp thông báo đã ghim + mốc quan trọng sắp tới ----------
+   Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo (ghim) và kế hoạch (mức độ cần chú ý/quan
+   trọng, chưa qua ngày) đã có sẵn. Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng. */
+function veDiemNhan(thongBao, keHoach) {
+  const khoi = $('#bangDiemNhan');
+  const cuon = $('#dnCuon');
+  const homNayStr = homNay();
+
+  const tin = (thongBao || []).filter((t) => t.ghim).map((t) => ({
+    nhan: 'Thông báo', tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#thong-bao',
+  }));
+  const ke = (keHoach || [])
+    .filter((k) => !k.hoanThanh && k.ngay >= homNayStr && (k.mucDo === 'danger' || k.mucDo === 'warn'))
+    .sort((a, b) => a.ngay.localeCompare(b.ngay))
+    .map((k) => ({ nhan: k.mucDo === 'danger' ? 'Quan trọng' : 'Sắp tới', tieuDe: k.tieuDe, phu: ngayDayDu(k.ngay), href: '#ke-hoach' }));
+
+  const cacTin = [...tin, ...ke].slice(0, 10);
+  if (!cacTin.length) { khoi.hidden = true; return; }
+  khoi.hidden = false;
+
+  datNoiDung(cuon, ...cacTin.map((t) => {
+    const a = e('a', 'dn-the');
+    a.href = t.href;
+    a.append(
+      e('span', 'dn-nhan', t.nhan),
+      e('h3', null, t.tieuDe),
+      e('p', null, t.phu)
+    );
+    return a;
+  }));
+
+  // Tự cuộn — dừng khi người dùng đưa chuột/chạm vào, và bỏ hẳn nếu máy đặt giảm chuyển động.
+  if (khoi.dataset.daGanCuon) return;   // chỉ gắn sự kiện cuộn một lần dù dữ liệu tải lại nhiều lần
+  khoi.dataset.daGanCuon = '1';
+
+  const giamChuyenDong = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let henGio = null;
+
+  function cuonMotThe(chieu) {
+    const the = cuon.querySelector('.dn-the');
+    const rong = (the ? the.offsetWidth : 300) + 14;
+    if (chieu > 0 && cuon.scrollLeft + cuon.clientWidth >= cuon.scrollWidth - 4) {
+      cuon.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      cuon.scrollBy({ left: chieu * rong, behavior: 'smooth' });
+    }
+  }
+
+  function batTuDong() {
+    if (giamChuyenDong || henGio) return;
+    henGio = setInterval(() => cuonMotThe(1), 4500);
+  }
+  function tatTuDong() {
+    if (henGio) { clearInterval(henGio); henGio = null; }
+  }
+
+  khoi.addEventListener('mouseenter', tatTuDong);
+  khoi.addEventListener('mouseleave', batTuDong);
+  khoi.addEventListener('touchstart', tatTuDong, { passive: true });
+  $('#dnTrai').addEventListener('click', () => { tatTuDong(); cuonMotThe(-1); });
+  $('#dnPhai').addEventListener('click', () => { tatTuDong(); cuonMotThe(1); });
+
+  batTuDong();
+}
+
 /* ---------- Kế hoạch năm học & quản lý trực tiếp ---------- */
 const MUC_DO_KH = [['', 'Bình thường'], ['ok', 'Tốt / lễ hội'], ['warn', 'Cần chú ý'], ['danger', 'Quan trọng']];
 
@@ -568,6 +633,7 @@ async function taiDuLieu() {
 
     $('#tenLop').textContent = d.lop.ten;
     veOSo(d.lop.thongKe);
+    veDiemNhan(d.thongBao, d.keHoach);
     veThongBao(d.thongBao, phien, taiDuLieu);
     veKeHoach(d.keHoach, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);

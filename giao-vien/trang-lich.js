@@ -118,10 +118,12 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
 
   const chiXem = Boolean(phienBanXem);   // xem phiên bản lịch sử thì không cho sửa tại chỗ
   let buoiDangXem = 'sang';
+  let dangSua = false;
 
-  const bang = {};   // "buoi-thu-tiet" -> mon
+  const bang = {};   // "buoi-thu-tiet" -> mon (dữ liệu gốc từ máy chủ)
   (d.o || []).forEach((x) => { bang[`${x.buoi}-${x.thu}-${x.tiet}`] = x.mon; });
-  const soTietToiDa = Math.max(5, ...(d.o || []).map((x) => x.tiet), 0);
+  let soTietToiDa = Math.max(5, ...(d.o || []).map((x) => x.tiet), 0);
+  const oCacO = new Map();   // "buoi-thu-tiet" -> input, dùng khi đang sửa nhanh — giữ qua đổi tab buổi
 
   const khung = e('div');
 
@@ -129,16 +131,8 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
   }
 
-  khung.append(tieuDeTrang(
-    chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : 'Thời khoá biểu',
-    d.phienBan
-      ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ' — đang áp dụng'}`
-      : 'Chưa có thời khoá biểu nào.',
-    ...(chiXem ? [] : [
-      nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
-      nut('+ Đổi lịch (tạo phiên bản mới)', '', () => taoPhienBanMoi(bang, soTietToiDa)),
-    ])
-  ));
+  const dauTrang = e('div');
+  khung.append(dauTrang);
 
   // Tab chọn buổi
   const tabBuoi = e('div', 'day-loc');
@@ -155,9 +149,52 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   }
 
   const khungBang = e('div');
+  const khungThanhLuu = e('div');
+
+  function veThanhLuu() {
+    datNoiDung(khungThanhLuu);
+    if (!dangSua) return;
+    const thanh = e('div', 'thanh-luu');
+    thanh.append(e('div', 'thong-tin', 'Đang sửa thời khoá biểu — nhớ bấm Lưu để áp dụng.'));
+    thanh.append(
+      nut('Huỷ', 'nut-nhe nut-nho', () => { dangSua = false; oCacO.clear(); veDauTrang(); veBang(); veThanhLuu(); }),
+      nut('Lưu thay đổi', '', async (ev) => {
+        ev.currentTarget.disabled = true;
+        const o = [];
+        oCacO.forEach((input, khoa) => {
+          if (!input.value.trim()) return;
+          const [buoi, thu, tiet] = khoa.split('-');
+          o.push({ buoi, thu: Number(thu), tiet: Number(tiet), mon: input.value.trim() });
+        });
+        try {
+          await api('/api/gv/thoi-khoa-bieu', { method: 'PATCH', than: { phienBanId: d.phienBan.id, o } });
+          nhac('Đã lưu thời khoá biểu', 'tot');
+          await trangThoiKhoaBieu(KHUNG, phienBanXem);
+        } catch (err) {
+          nhac(err.message, 'xau');
+          ev.currentTarget.disabled = false;
+        }
+      })
+    );
+    khungThanhLuu.append(thanh);
+  }
+
+  function veDauTrang() {
+    datNoiDung(dauTrang, tieuDeTrang(
+      chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : 'Thời khoá biểu',
+      d.phienBan
+        ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ' — đang áp dụng'}`
+        : 'Chưa có thời khoá biểu nào.',
+      ...(chiXem || !d.phienBan ? [] : dangSua ? [] : [
+        nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
+        nut('✎ Sửa nhanh', 'nut-vien nut-nho', () => { dangSua = true; veDauTrang(); veBang(); veThanhLuu(); }),
+        nut('+ Đổi lịch (tạo phiên bản mới)', '', () => taoPhienBanMoi(bang, soTietToiDa)),
+      ])
+    ));
+  }
 
   function veBang() {
-    const soTiet = Math.max(5, ...(d.o || []).filter((x) => x.buoi === buoiDangXem).map((x) => x.tiet), 0) || 5;
+    const soTietXem = dangSua ? Math.max(soTietToiDa, 5) : (Math.max(5, ...(d.o || []).filter((x) => x.buoi === buoiDangXem).map((x) => x.tiet), 0) || 5);
     const boc = e('div', 'cuon-ngang');
     const bangHtml = e('table');
     const dau = e('thead');
@@ -166,12 +203,26 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     dau.append(hd);
 
     const than = e('tbody');
-    for (let tiet = 1; tiet <= soTiet; tiet++) {
+    for (let tiet = 1; tiet <= soTietXem; tiet++) {
       const tr = e('tr');
       tr.append(e('td', 'so', tiet));
       CAC_THU.forEach((thu) => {
-        const mon = bang[`${buoiDangXem}-${thu}-${tiet}`] || '';
-        tr.append(e('td', null, mon || '—'));
+        const khoa = `${buoiDangXem}-${thu}-${tiet}`;
+        if (dangSua) {
+          let o = oCacO.get(khoa);
+          if (!o) {
+            o = e('input', 'o-nhap');
+            o.style.cssText = 'min-width:100px;min-height:34px;padding:4px 7px;font-size:13px';
+            o.value = bang[khoa] || '';
+            oCacO.set(khoa, o);
+          }
+          const td = e('td');
+          td.append(o);
+          tr.append(td);
+        } else {
+          const mon = bang[khoa] || '';
+          tr.append(e('td', null, mon || '—'));
+        }
       });
       than.append(tr);
     }
@@ -180,6 +231,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     datNoiDung(khungBang, boc);
   }
 
+  veDauTrang();
   veTab();
   veBang();
   khung.append(tabBuoi, khungBang);
@@ -187,6 +239,8 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   if (d.phienBan?.ghiChu) {
     khung.append(Object.assign(e('p', 'trong', 'Ghi chú: ' + d.phienBan.ghiChu), { style: 'margin-top:12px' }));
   }
+  khung.append(khungThanhLuu);
+  khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
   datNoiDung(KHUNG, khung);
 }
