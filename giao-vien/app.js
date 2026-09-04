@@ -617,6 +617,16 @@ async function trangDiemDanh() {
     return dem;
   }
 
+  function tinhSoPhu() {
+    const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
+    if (!duLieuPhu) return dem;
+    duLieuPhu.danhSach.forEach((h) => {
+      const tt = trangThaiHienTaiPhu(h.id, h.trangThai);
+      if (tt && dem[tt] !== undefined) dem[tt]++;
+    });
+    return dem;
+  }
+
   async function luuDiemDanhChinh(nutBam) {
     const cacId = new Set([...thayDoiChinh.keys(), ...lyDoMoiChinh.keys()]);
     const ghiNhan = [...cacId].map((hocSinhId) => {
@@ -740,6 +750,30 @@ async function trangDiemDanh() {
         taiPhu().then(ve);
         return datNoiDung(KHUNG, khoiDangTai());
       }
+      // Thanh tiến độ & thống kê — cùng kiểu với Điểm danh chính, tính riêng trên dữ liệu phụ.
+      const demPhu = tinhSoPhu();
+      const tongPhu = duLieuPhu.danhSach.length || 1;
+      const thanhPhu = e('div', 'thanh-tien-do');
+      [['co_mat', 'p-comat'], ['tre', 'p-tre'], ['vang_phep', 'p-phep'], ['vang_khong_phep', 'p-khongphep']]
+        .forEach(([k, lop]) => {
+          if (!demPhu[k]) return;
+          const i = e('i', lop);
+          i.style.width = (demPhu[k] / tongPhu * 100) + '%';
+          thanhPhu.append(i);
+        });
+      khung.append(thanhPhu);
+
+      const daGhiPhu = Object.values(demPhu).reduce((a, b) => a + b, 0);
+      const dayPhu = e('div', 'day-so');
+      dayPhu.append(
+        oThongKe(`${daGhiPhu}/${tongPhu}`, 'Đã điểm danh', 'chinh'),
+        oThongKe(String(demPhu.co_mat), 'Có mặt', 'tot'),
+        oThongKe(String(demPhu.tre), 'Đi trễ', 'luuy'),
+        oThongKe(String(demPhu.vang_phep), 'Vắng có phép', 'thu'),
+        oThongKe(String(demPhu.vang_khong_phep), 'Vắng không phép', 'xau')
+      );
+      khung.append(dayPhu);
+
       khung.append(veTabDiemDanhNhanh(duLieuPhu.danhSach, thayDoiPhu, lyDoMoiPhu, ve, luuDiemDanhPhu, trangThaiHienTaiPhu, lyDoHienTaiPhu));
     } else {
       if (!duLieuChinh) {
