@@ -1,5 +1,4 @@
-/* Thủ quỹ lớp và trang Phân quyền (tài khoản đặc biệt). */
-import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai, layThongTinVaiTro } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -717,42 +716,80 @@ export async function trangPhanQuyen(KHUNG) {
       khung.append(e('div', 'the trong', 'Chưa cấp tài khoản đặc biệt nào. Mọi việc hiện chỉ giáo viên chủ nhiệm thao tác được.'));
     } else {
       const ds = e('div', 'ds-the');
+      const ICON_QUYEN = {
+        'quy': '🪙',
+        'thong-bao': '📢',
+        'nhat-ky': '📖',
+        'diem-danh': '✅',
+        'hinh-anh': '📸',
+        'ke-hoach': '📅',
+      };
+
       d.danhSach.forEach((tk) => {
-        const the = e('div', 'the');
-        const dau2 = e('div');
-        dau2.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px';
-        const trai2 = e('div');
-        trai2.append(e('h3', null, tk.ten + (tk.vaiTro ? ' — ' + tk.vaiTro : '')));
-        if (!tk.dangHoatDong) trai2.append(e('span', 'nhan nhan-xam', 'Đã khoá'));
-        dau2.append(trai2);
+        const the = e('div', 'the the-tk-phu');
+        const info = layThongTinVaiTro(tk.vaiTro);
+
+        const dau2 = e('div', 'the-tk-dau');
+        dau2.style.cssText = 'display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap';
+
+        const khoiTrai = e('div');
+        khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
+
+        const avatar = e('div', 'the-tk-avatar');
+        avatar.style.cssText = `width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:${info.mauNen};border:1.5px solid ${info.mauVien};box-shadow:0 4px 14px -3px ${info.mauVien};flex:none;`;
+        avatar.textContent = info.bieuTuong;
+
+        const thongTin = e('div');
+        thongTin.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:3px';
+
+        const dongTen = e('div');
+        dongTen.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+        dongTen.append(
+          Object.assign(e('h3', null, tk.ten), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
+          Object.assign(e('span', 'nhan', `${info.bieuTuong} ${info.tenGoi}`), {
+            style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;`
+          })
+        );
+
+        thongTin.append(dongTen);
+        khoiTrai.append(avatar, thongTin);
+
+        const khoiPhai = e('div');
+        khoiPhai.style.cssText = 'display:flex;align-items:center;gap:8px';
+        if (!tk.dangHoatDong) {
+          khoiPhai.append(e('span', 'nhan nhan-xam', '🔒 Đã khoá'));
+        } else {
+          khoiPhai.append(e('span', 'nhan nhan-tot', '✓ Đang hoạt động'));
+        }
+
+        dau2.append(khoiTrai, khoiPhai);
         the.append(dau2);
 
         const oQuyen = e('div', 'day-loc');
-        oQuyen.style.marginTop = '8px';
+        oQuyen.style.cssText = 'margin-top:12px;gap:6px;flex-wrap:wrap;';
         tk.quyen.forEach((q) => {
           const ten = (d.cacQuyen.find((x) => x[0] === q) || [q, q])[1].split(' — ')[0];
-          oQuyen.append(e('span', 'nhan nhan-tim', ten));
+          const icon = ICON_QUYEN[q] || '⭐';
+          const chip = e('span', 'nhan nhan-tim');
+          chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:3px 10px;font-weight:600;border-radius:8px;';
+          chip.append(e('span', null, icon), document.createTextNode(ten));
+          oQuyen.append(chip);
         });
         the.append(oQuyen);
 
         const maHop = e('p');
-        maHop.style.cssText = 'margin-top:10px;font-size:15px';
+        maHop.style.cssText = 'margin-top:12px;font-size:14px;color:var(--chu-nhat);display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
         const maChu = e('code', null, tk.ma);
-        maChu.style.cssText = 'font-size:16px;font-weight:700;letter-spacing:1px';
-        maHop.append(document.createTextNode('Mã: '), maChu);
+        maChu.style.cssText = 'font-size:16px;font-weight:800;letter-spacing:1.5px;padding:3px 8px;border-radius:6px;color:var(--chinh);background:var(--nen-chim);border:1px solid var(--vien);';
+        maHop.append(document.createTextNode('Mã đăng nhập: '), maChu);
         the.append(maHop);
 
         const nutHang = e('div', 'day-loc');
-        nutHang.style.marginTop = '10px';
+        nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
         nutHang.append(
-          nut(tk.dangHoatDong ? 'Khoá lại' : 'Mở lại', 'nut-vien nut-nho', async () => {
-            try {
-              await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, dangHoatDong: !tk.dangHoatDong } });
-              nhac(tk.dangHoatDong ? 'Đã khoá tài khoản' : 'Đã mở lại tài khoản', 'tot');
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }),
-          nut('Cấp lại mã', 'nut-vien nut-nho', () => {
+          nut('✏ Sửa tài khoản', 'nut-vien nut-nho', () => suaTaiKhoan(tk, d.cacQuyen, ve)),
+          nut('✎ Đặt mã tuỳ chỉnh', 'nut-vien nut-nho', () => datMaTuyChinhTaiKhoanPhu(tk, ve)),
+          nut('🎲 Cấp lại mã', 'nut-nhe nut-nho', () => {
             moHopThoai('Cấp lại mã mới?', e('p', null,
               'Mã cũ "' + tk.ma + '" sẽ không dùng được nữa. Dùng khi nghi ngờ mã bị lộ.'), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -766,8 +803,14 @@ export async function trangPhanQuyen(KHUNG) {
               }),
             ]);
           }),
-          nut('✎ Đặt mã tuỳ chỉnh', 'nut-vien nut-nho', () => datMaTuyChinhTaiKhoanPhu(tk, ve)),
-          nut('Xoá hẳn', 'nut-nhe nut-nho', () => {
+          nut(tk.dangHoatDong ? '🔒 Khoá lại' : '🔓 Mở lại', 'nut-nhe nut-nho', async () => {
+            try {
+              await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, dangHoatDong: !tk.dangHoatDong } });
+              nhac(tk.dangHoatDong ? 'Đã khoá tài khoản' : 'Đã mở lại tài khoản', 'tot');
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); }
+          }),
+          nut('🗑 Xoá hẳn', 'nut-nhe nut-nho', () => {
             moHopThoai('Xoá hẳn tài khoản này?', e('p', null, tk.ten + ' sẽ không đăng nhập được nữa.'), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {
@@ -791,6 +834,63 @@ export async function trangPhanQuyen(KHUNG) {
   }
 
   await ve();
+}
+
+function suaTaiKhoan(tk, cacQuyen, taiLai) {
+  const oTen = oNhap('tkSuaTen', 'text', tk.ten, 'Họ tên người được cấp quyền');
+  const oVaiTro = oNhap('tkSuaVaiTro', 'text', tk.vaiTro || '', 'Ví dụ: Lớp trưởng, Thủ quỹ, Bí thư, Quản trị viên…');
+
+  const hopQuyen = e('div');
+  hopQuyen.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px';
+  const hopChon = [];
+
+  cacQuyen.forEach(([ma, moTa]) => {
+    const nhan = e('label');
+    nhan.style.cssText = 'display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:14px';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = ma;
+    cb.checked = (tk.quyen || []).includes(ma);
+    hopChon.push(cb);
+    const phanTach = moTa.split(' — ');
+    const chu = e('div');
+    chu.append(e('b', null, phanTach[0]), Object.assign(e('div', 'trong', phanTach[1] || ''), { style: 'font-size:12px' }));
+    nhan.append(cb, chu);
+    hopQuyen.append(nhan);
+  });
+
+  moHopThoai(`Sửa tài khoản — ${tk.ten}`, [
+    truong('Họ và tên', oTen, 'Tên người dùng (học sinh hoặc cán sự lớp).'),
+    truong('Vai trò hiển thị', oVaiTro, 'Hiển thị trên hệ thống (Lớp trưởng, Thủ quỹ, Bí thư, Quản trị viên...).'),
+    truong('Phân quyền thao tác', hopQuyen, 'Chọn những việc tài khoản này được phép làm.'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu thay đổi', '', async (ev) => {
+      const tenMoi = oTen.value.trim();
+      if (!tenMoi) return nhac('Tên không được để trống', 'xau');
+      const quyenMoi = hopChon.filter((c) => c.checked).map((c) => c.value);
+      if (!quyenMoi.length) return nhac('Phải chọn ít nhất một quyền', 'xau');
+
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/tai-khoan-phu', {
+          method: 'PATCH',
+          than: {
+            id: tk.id,
+            ten: tenMoi,
+            vaiTro: oVaiTro.value.trim(),
+            quyen: quyenMoi,
+          },
+        });
+        dongHopThoai();
+        nhac('Đã cập nhật tài khoản thành công', 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
 }
 
 function datMaTuyChinhTaiKhoanPhu(tk, taiLai) {

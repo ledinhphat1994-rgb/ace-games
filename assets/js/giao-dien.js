@@ -67,7 +67,43 @@ export function oChon(id, cacMuc, giaTri) {
 }
 
 export function moHopThoai(tieuDe, noiDung, cacNut) {
-  const hop = $('#hopThoai');
+  let hop = $('#hopThoai');
+  if (!hop) {
+    hop = document.createElement('dialog');
+    hop.className = 'hop-thoai';
+    hop.id = 'hopThoai';
+
+    const form = e('form');
+    form.method = 'dialog';
+    form.id = 'hopThoaiForm';
+
+    const dau = e('div', 'hop-thoai-dau');
+    const h2 = e('h2', null, '…');
+    h2.id = 'hopThoaiTieuDe';
+    const nutDong = e('button', 'nut-tron', '✕');
+    nutDong.value = 'dong';
+    nutDong.style.marginLeft = 'auto';
+    nutDong.setAttribute('aria-label', 'Đóng');
+    dau.append(h2, nutDong);
+
+    const than = e('div', 'hop-thoai-than');
+    than.id = 'hopThoaiThan';
+
+    const chan = e('div', 'hop-thoai-chan');
+    chan.id = 'hopThoaiChan';
+
+    form.append(dau, than, chan);
+    hop.append(form);
+    hop.addEventListener('click', (ev) => {
+      const rect = hop.getBoundingClientRect();
+      const inDialog = (
+        rect.top <= ev.clientY && ev.clientY <= rect.top + rect.height &&
+        rect.left <= ev.clientX && ev.clientX <= rect.left + rect.width
+      );
+      if (!inDialog) hop.close();
+    });
+    document.body.appendChild(hop);
+  }
   $('#hopThoaiTieuDe').textContent = tieuDe;
   datNoiDung($('#hopThoaiThan'), ...(Array.isArray(noiDung) ? noiDung : [noiDung]));
   datNoiDung($('#hopThoaiChan'), ...cacNut);
@@ -75,7 +111,10 @@ export function moHopThoai(tieuDe, noiDung, cacNut) {
   return hop;
 }
 
-export const dongHopThoai = () => $('#hopThoai').close();
+export const dongHopThoai = () => {
+  const hop = $('#hopThoai');
+  if (hop && hop.open) hop.close();
+};
 
 /** Nút chọn học kì, dùng ở sổ điểm và báo cáo. */
 export function chonHocKi(hienTai, khiDoi) {

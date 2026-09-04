@@ -522,6 +522,7 @@ export async function trangMaCaNhan(KHUNG) {
       }
       const tdNut = e('td');
       tdNut.append(
+        nut('✏ Đổi tên', 'nut-vien nut-nho', () => suaTenHocSinh(h, ve)),
         nut('✎ Đặt mã', 'nut-nhe nut-nho', () => datMaTuyChinh(h, ve)),
         nut(h.ma ? '🎲 Cấp lại' : '🎲 Ngẫu nhiên', 'nut-nhe nut-nho', async () => {
           try {
@@ -531,7 +532,10 @@ export async function trangMaCaNhan(KHUNG) {
           } catch (err) { nhac(err.message, 'xau'); }
         })
       );
-      tr.append(e('td', 'so', h.id), e('td', null, h.hoTen), tdMa, tdNut);
+      const tdTen = e('td');
+      tdTen.style.fontWeight = '600';
+      tdTen.append(h.hoTen);
+      tr.append(e('td', 'so', h.id), tdTen, tdMa, tdNut);
       than.append(tr);
     });
     bang.append(dau, than);
@@ -618,6 +622,30 @@ function datMaTuyChinh(hocSinh, taiLai) {
         await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: oMa.value } });
         dongHopThoai();
         nhac('Đã đặt mã cho ' + hocSinh.hoTen, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
+
+function suaTenHocSinh(hocSinh, taiLai) {
+  const oHoTen = oNhap('hsDoiTen', 'text', hocSinh.hoTen, 'Nhập họ và tên học sinh');
+
+  moHopThoai(`Đổi tên học sinh — STT ${hocSinh.id}`, [
+    truong('Họ và tên học sinh', oHoTen, 'Sửa trực tiếp họ và tên nếu bị sai sót hoặc có thay đổi.'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu tên mới', '', async (ev) => {
+      const tenMoi = oHoTen.value.trim();
+      if (!tenMoi) return nhac('Họ tên không được để trống', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi } });
+        dongHopThoai();
+        nhac(`Đã đổi tên thành: ${tenMoi}`, 'tot');
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');

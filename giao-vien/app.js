@@ -994,6 +994,7 @@ function suaLienHe(lh, taiLai) {
 }
 
 function suaHoSo(h) {
+  const oHoTen = oNhap('sHoTen', 'text', h.hoTen, 'Họ và tên học sinh');
   const oChuc = oNhap('sChuc', 'text', h.chucVu, 'Lớp trưởng, tổ trưởng…');
   const oTo = oNhap('sTo', 'number', h.toSo ?? '', 'Số tổ');
   const oSdt = oNhap('sSdt', 'tel', h.dienThoaiPh, 'Điện thoại phụ huynh');
@@ -1001,6 +1002,7 @@ function suaHoSo(h) {
   const oGc = oNhap('sGc', 'textarea', h.ghiChu, 'Ghi chú riêng');
 
   moHopThoai('Sửa hồ sơ — ' + h.hoTen, [
+    truong('Họ và tên', oHoTen, 'Sửa lại họ tên nếu có sai sót'),
     truong('Chức vụ', oChuc),
     truong('Tổ', oTo),
     truong('Điện thoại phụ huynh', oSdt),
@@ -1014,7 +1016,7 @@ function suaHoSo(h) {
         await api('/api/gv/hoc-sinh', {
           method: 'PATCH',
           than: {
-            id: h.id, chucVu: oChuc.value, toSo: oTo.value,
+            id: h.id, hoTen: oHoTen.value.trim(), chucVu: oChuc.value, toSo: oTo.value,
             dienThoaiPh: oSdt.value, hoanCanh: oHc.value, ghiChu: oGc.value,
           },
         });
