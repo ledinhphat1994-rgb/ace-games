@@ -344,9 +344,25 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh) {
   const oTiChonTatCa = e('input');
   oTiChonTatCa.type = 'checkbox';
   const nhanChonTatCa = e('label');
-  nhanChonTatCa.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:700;margin-top:14px;cursor:pointer';
+  nhanChonTatCa.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:700;margin:0;cursor:pointer';
   nhanChonTatCa.append(oTiChonTatCa, document.createTextNode(`Chọn tất cả (${danhSach.length} em)`));
-  the.append(nhanChonTatCa);
+
+  async function thucHienLuu(nutBam) {
+    const lyDo = oLyDo.value.trim();
+    if (!daChon.size) return nhac('Chưa chọn em nào.', 'xau');
+    daChon.forEach((id) => {
+      thayDoi.set(id, oTrangThai.value);
+      if (lyDo) lyDoMoi.set(id, lyDo); else lyDoMoi.delete(id);
+    });
+    await luuDiemDanh(nutBam);
+  }
+
+  // Thanh thao tác ở đầu danh sách — có nút Lưu điểm danh ngay trên đầu để không phải cuộn xuống cuối
+  const thanhThaoTacDau = e('div');
+  thanhThaoTacDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:14px;padding:10px 14px;background:var(--nen-the);border:1px solid var(--vien);border-radius:10px;';
+  const nutLuuDau = nut('💾 Lưu điểm danh', 'nut-chinh', (ev) => thucHienLuu(ev.currentTarget));
+  thanhThaoTacDau.append(nhanChonTatCa, nutLuuDau);
+  the.append(thanhThaoTacDau);
 
   const dsHocSinh = e('div', 'ds-diem-danh');
   dsHocSinh.style.cssText = 'margin-top:10px';
@@ -376,15 +392,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh) {
 
   const hangNut = e('div');
   hangNut.style.marginTop = '14px';
-  hangNut.append(nut('💾 Lưu điểm danh', '', async (ev) => {
-    const lyDo = oLyDo.value.trim();
-    if (!daChon.size) return nhac('Chưa chọn em nào.', 'xau');
-    daChon.forEach((id) => {
-      thayDoi.set(id, oTrangThai.value);
-      if (lyDo) lyDoMoi.set(id, lyDo); else lyDoMoi.delete(id);
-    });
-    await luuDiemDanh(ev.currentTarget);
-  }));
+  hangNut.append(nut('💾 Lưu điểm danh', 'nut-chinh', (ev) => thucHienLuu(ev.currentTarget)));
   the.append(hangNut);
 
   khung.append(the);
@@ -532,9 +540,8 @@ async function trangDiemDanh() {
       );
       khung.append(day);
 
-      // Thanh áp dụng nhanh cho cả lớp — dùng đúng kiểu "chip" đã dùng ở nơi khác trong app
-      // (bộ lọc tổ, chọn lý do…) thay vì gồng ép vào khuôn 4 cột hẹp như hàng học sinh, nhìn
-      // gọn và rõ nghĩa hơn hẳn.
+      // Thanh áp dụng nhanh cho cả lớp — dùng đúng kiểu "chip" đã dùng ở nơi khác trong app.
+      // Khi click vào loại điểm danh: chọn tất cả theo loại đó. Khi click lại: BỎ CHỌN TẤT CẢ.
       const theApDungNhanh = e('div', 'the');
       theApDungNhanh.style.cssText = 'padding:12px 14px;margin-bottom:12px;';
       theApDungNhanh.append(Object.assign(
@@ -543,11 +550,23 @@ async function trangDiemDanh() {
       ));
       const dayApDungNhanh = e('div', 'day-loc');
       Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+        const caLopDangChon = duLieu.danhSach.length > 0 &&
+          duLieu.danhSach.every((h) => trangThaiHienTai(h.id, h.trangThai) === ma);
+
         const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
         b.type = 'button';
-        b.title = `Đặt "${tt2.ten}" cho cả lớp`;
+        b.setAttribute('aria-pressed', String(caLopDangChon));
+        b.title = caLopDangChon
+          ? `Bỏ chọn tất cả "${tt2.ten}"`
+          : `Đặt "${tt2.ten}" cho cả lớp (bấm lại để bỏ chọn tất cả)`;
         b.addEventListener('click', () => {
-          duLieu.danhSach.forEach((h) => thayDoi.set(h.id, ma));
+          if (caLopDangChon) {
+            // Đang chọn loại này cho cả lớp -> Bấm lại BỎ CHỌN TẤT CẢ
+            duLieu.danhSach.forEach((h) => thayDoi.set(h.id, null));
+          } else {
+            // Chưa chọn hết -> Đặt loại này cho tất cả
+            duLieu.danhSach.forEach((h) => thayDoi.set(h.id, ma));
+          }
           ve();
         });
         dayApDungNhanh.append(b);
