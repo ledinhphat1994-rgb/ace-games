@@ -479,12 +479,7 @@ async function trangDiemDanh() {
     }
 
     const hangChon = e('div', 'chon-ngay');
-    hangChon.append(oNgay, chonBuoi,
-      nut('Cả lớp có mặt', 'nut-vien nut-nho', () => {
-        duLieu.danhSach.forEach((h) => thayDoi.set(h.id, 'co_mat'));
-        ve();
-      })
-    );
+    hangChon.append(oNgay, chonBuoi);
     khung.append(hangChon);
 
     // Tab con: Điểm danh theo ngày (chính thức) | Điểm danh nhanh — cùng chia sẻ ngày/buổi
@@ -503,6 +498,11 @@ async function trangDiemDanh() {
     if (tabCon === 'nhanh') {
       khung.append(veTabDiemDanhNhanh(duLieu.danhSach, thayDoi, lyDoMoi, ve, luuDiemDanh));
     } else {
+      khung.append(nut('Cả lớp có mặt', 'nut-vien nut-nho', () => {
+        duLieu.danhSach.forEach((h) => thayDoi.set(h.id, 'co_mat'));
+        ve();
+      }));
+
       // Thanh tiến độ
       const dem = tinhSo();
       const tong = duLieu.danhSach.length || 1;
