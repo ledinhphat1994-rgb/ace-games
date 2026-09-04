@@ -1292,8 +1292,10 @@ const MUC_THEM = [
 
 function trangThem() {
   const khung = e('div');
-  khung.append(tieuDeTrang('Thêm',
-    PHIEN.role === 'teacher' ? 'Các công cụ khác của lớp' : `${PHIEN.vaiTro || 'Tài khoản đặc biệt'} · ${PHIEN.ten}`));
+  const tieuDePhu = PHIEN.role === 'teacher'
+    ? 'Các công cụ khác của lớp'
+    : layNhanTaiKhoan(PHIEN);
+  khung.append(tieuDeTrang('Thêm', tieuDePhu));
 
   const mucDuocPhep = MUC_THEM.filter(([duong]) => {
     if (!duong.startsWith('#/')) return true;   // "Xem trang lớp", "Đăng xuất" — luôn hiện

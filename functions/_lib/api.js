@@ -28,8 +28,28 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
     const { request, env } = context;
     if (!env.DB) return loi('Chưa gắn cơ sở dữ liệu D1 vào project.', 500);
 
-    const phien = await layPhien(request, env);
+    let phien = await layPhien(request, env);
     if (!phien) return loi('Chưa đăng nhập.', 401);
+
+    // Với tài khoản cán sự: luôn lấy thông tin mới nhất từ cơ sở dữ liệu
+    if (phien.role === 'phu' && phien.phuId && env.DB) {
+      try {
+        const tk = await env.DB.prepare(
+          'SELECT ten, vai_tro AS vaiTro, quyen, dang_hoat_dong AS dangHoatDong FROM tai_khoan_phu WHERE id = ?1'
+        ).bind(phien.phuId).first();
+        if (tk) {
+          if (!tk.dangHoatDong) {
+            return loi('Tài khoản này đã bị khoá.', 403);
+          }
+          phien = {
+            ...phien,
+            ten: tk.ten || phien.ten,
+            vaiTro: tk.vaiTro || phien.vaiTro,
+            quyen: (tk.quyen || '').split(',').map((s) => s.trim()).filter(Boolean),
+          };
+        }
+      } catch (_e) {}
+    }
 
     if (canGiaoVien) {
       const laGiaoVien = phien.role === 'teacher';
