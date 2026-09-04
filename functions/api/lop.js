@@ -14,11 +14,11 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
          FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
     ).all(),
     db.prepare(
-      `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim
+      `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, noi_bat AS noiBat
          FROM thong_bao WHERE hien = 1 ORDER BY ghim DESC, ngay DESC LIMIT 50`
     ).all(),
     db.prepare(
-      `SELECT id, ngay, tieu_de AS tieuDe, mo_ta AS moTa, muc_do AS mucDo, hoan_thanh AS hoanThanh
+      `SELECT id, ngay, tieu_de AS tieuDe, mo_ta AS moTa, muc_do AS mucDo, hoan_thanh AS hoanThanh, noi_bat AS noiBat
          FROM ke_hoach ORDER BY ngay`
     ).all(),
     db.prepare(
@@ -64,8 +64,8 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
       ],
     },
     hocSinh: hocSinh.results,
-    thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim) })),
-    keHoach: keHoach.results.map((k) => ({ ...k, hoanThanh: Boolean(k.hoanThanh) })),
+    thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim), noiBat: Boolean(t.noiBat) })),
+    keHoach: keHoach.results.map((k) => ({ ...k, hoanThanh: Boolean(k.hoanThanh), noiBat: Boolean(k.noiBat) })),
     thoiKhoaBieu: {
       phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau } : null,
       o: oTkb,

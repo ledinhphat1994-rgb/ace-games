@@ -108,6 +108,7 @@ function veThongBao(ds, phien, lamMoi) {
 
   datNoiDung(hop, ...ds.map((t) => {
     const bai = e('article', 'tin' + (t.ghim ? ' tin-ghim' : ''));
+    bai.id = 'tin-' + t.id;
     const dau = e('div', 'tin-dau');
     dau.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
 
@@ -297,12 +298,21 @@ function soanThongBaoModal(tb, lamMoi) {
   hangGhim.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
   hangGhim.append(oGhim, document.createTextNode('Ghim lên đầu trang lớp'));
 
+  const oNoiBat = e('input');
+  oNoiBat.type = 'checkbox';
+  oNoiBat.id = 'tbNoiBat';
+  oNoiBat.checked = Boolean(tb && tb.noiBat);
+  const hangNoiBat = e('label');
+  hangNoiBat.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
+  hangNoiBat.append(oNoiBat, document.createTextNode('Hiện trong băng điểm nhấn ở trang chủ'));
+
   moHopThoai(tb ? 'Sửa thông báo' : 'Thêm thông báo mới', [
     truong('Ngày', oNgay),
     truong('Tiêu đề', oTd),
     truong('Phân loại', oLoai),
     truong('Nội dung', oNd),
     hangGhim,
+    hangNoiBat,
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut(tb ? 'Lưu thay đổi' : 'Đăng thông báo', '', async (ev) => {
@@ -311,7 +321,7 @@ function soanThongBaoModal(tb, lamMoi) {
       try {
         const than = {
           ngay: oNgay.value, tieuDe: oTd.value, noiDung: oNd.value,
-          loai: oLoai.value, ghim: oGhim.checked,
+          loai: oLoai.value, ghim: oGhim.checked, noiBat: oNoiBat.checked,
         };
         if (tb) await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: tb.id, ...than } });
         else await api('/api/gv/thong-bao', { method: 'POST', than });
@@ -346,37 +356,51 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
   ]);
 }
 
-/* ---------- Băng điểm nhấn: tự trôi ngang liên tục, gộp thông báo đã ghim + mốc quan trọng sắp tới ----------
-   Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo (ghim) và kế hoạch (mức độ cần chú ý/quan
-   trọng, chưa qua ngày) đã có sẵn. Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng.
+/* ---------- Băng điểm nhấn: tự trôi ngang liên tục, gộp các mục được đánh dấu "nổi bật" ----------
+   Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo và kế hoạch đã có sẵn, dựa vào cờ RIÊNG
+   "noiBat" (giáo viên tự tích chọn khi soạn/sửa), TÁCH BIỆT với "ghim" (đẩy lên đầu danh sách thông
+   báo) và "mucDo" (phân loại mức quan trọng của kế hoạch) — hai cờ đó không tự động đưa vào đây nữa.
+   Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng.
 
    Cách "tự trôi" khác cuộn thường: danh sách thẻ được LẶP 2 LẦN nối liền nhau, rồi dịch chuyển bằng
    transform mỗi khung hình; khi trôi hết đúng MỘT vòng (nửa tổng chiều rộng) thì cộng lại y hệt bước
    đó — mắt thường không thấy chỗ nối, nên trôi được vô tận dù chỉ có vài thẻ (khác cách cuộn cũ, chỉ
    chạy được khi nội dung dài hơn khung nhìn). Muốn tự tay xem thì kéo chuột/vuốt tay — animation tự
-   dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. */
+   dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. Bấm vào thẻ (không kéo) sẽ mở đúng
+   mục thông báo/kế hoạch đó, cuộn tới và tô sáng tạm thời để dễ nhận ra. */
 function veDiemNhan(thongBao, keHoach) {
   const khoi = $('#bangDiemNhan');
   const cuon = $('#dnCuon');
   const track = $('#dnTrack');
-  const homNayStr = homNay();
 
-  const tin = (thongBao || []).filter((t) => t.ghim).map((t) => ({
-    nhan: 'Thông báo', tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#thong-bao',
+  const tin = (thongBao || []).filter((t) => t.noiBat).map((t) => ({
+    nhan: 'Thông báo', tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#tin-' + t.id,
   }));
   const ke = (keHoach || [])
-    .filter((k) => !k.hoanThanh && k.ngay >= homNayStr && (k.mucDo === 'danger' || k.mucDo === 'warn'))
+    .filter((k) => k.noiBat)
     .sort((a, b) => a.ngay.localeCompare(b.ngay))
-    .map((k) => ({ nhan: k.mucDo === 'danger' ? 'Quan trọng' : 'Sắp tới', tieuDe: k.tieuDe, phu: ngayDayDu(k.ngay), href: '#ke-hoach' }));
+    .map((k) => ({ nhan: k.mucDo === 'danger' ? 'Quan trọng' : 'Sắp tới', tieuDe: k.tieuDe, phu: ngayDayDu(k.ngay), href: '#ke-' + k.id }));
 
   const cacTin = [...tin, ...ke].slice(0, 10);
   if (!cacTin.length) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
+  const moDich = (href) => {
+    const dich = document.querySelector(href);
+    if (!dich) return;
+    dich.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    dich.classList.add('dich-noi-bat');
+    setTimeout(() => dich.classList.remove('dich-noi-bat'), 2200);
+  };
+
   const taoThe = (t) => {
-    const a = e('a', 'dn-the');
-    a.href = t.href;
+    // KHÔNG dùng thẻ <a> — trình duyệt tự khởi động thao tác "kéo link" ngay khi vừa nhấn chuột
+    // xuống, chặn mất sự kiện pointermove nên không thể kéo-xem bằng chuột được. Dùng <button> và
+    // tự điều hướng bằng JS để vừa kéo được vừa bấm mở được, phân biệt rõ bằng cờ "daKeoThat".
+    const a = e('button', 'dn-the');
+    a.type = 'button';
     a.append(e('span', 'dn-nhan', t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
+    a.addEventListener('click', () => moDich(t.href));
     return a;
   };
   // Lặp 2 lần để trôi vòng lặp liền mạch — chỉ 1 lần thì sẽ có khoảng trống lộ ra khi dịch tới nửa sau.
@@ -421,31 +445,41 @@ function veDiemNhan(thongBao, keHoach) {
   khoi.addEventListener('mouseleave', () => { dangTamDung = false; });
 
   // Kéo bằng chuột/ngón tay để chủ động xem — dùng Pointer Events, gộp chung chuột và cảm ứng.
+  // CHỈ setPointerCapture SAU KHI đã xác nhận là kéo thật (vượt ngưỡng 4px) — bắt giữ con trỏ
+  // ngay từ pointerdown khiến trình duyệt coi luôn cuon là đích của sự kiện "click" đi kèm ngay
+  // sau đó (dù không hề rê chuột), nên bấm thẳng vào thẻ để mở mục không bao giờ hoạt động được.
   cuon.addEventListener('pointerdown', (ev) => {
     dangKeo = true; daKeoThat = false;
     xBatDauKeo = ev.clientX; offsetBatDauKeo = offset;
-    cuon.classList.add('dang-keo');
-    cuon.setPointerCapture(ev.pointerId);
   });
   cuon.addEventListener('pointermove', (ev) => {
     if (!dangKeo) return;
     const delta = ev.clientX - xBatDauKeo;
-    if (Math.abs(delta) > 4) daKeoThat = true;
+    if (!daKeoThat && Math.abs(delta) > 4) {
+      daKeoThat = true;
+      cuon.classList.add('dang-keo');
+      cuon.setPointerCapture(ev.pointerId);
+    }
+    if (!daKeoThat) return;
     offset = offsetBatDauKeo + delta;
     track.style.transform = `translateX(${offset}px)`;
+    ev.preventDefault();
   });
-  function ketThucKeo() {
+  function ketThucKeo(ev) {
     if (!dangKeo) return;
     dangKeo = false;
     cuon.classList.remove('dang-keo');
+    if (ev && cuon.hasPointerCapture(ev.pointerId)) cuon.releasePointerCapture(ev.pointerId);
     const vong = motVong();
     while (offset > 0) offset -= vong;
     while (-offset >= vong) offset += vong;
   }
   cuon.addEventListener('pointerup', ketThucKeo);
   cuon.addEventListener('pointercancel', ketThucKeo);
-  // Vừa kéo xong thì chặn đúng 1 lần click kế tiếp, tránh mở nhầm link khi người dùng chỉ định kéo xem.
-  cuon.addEventListener('click', (ev) => { if (daKeoThat) { ev.preventDefault(); daKeoThat = false; } }, true);
+  // Vừa kéo xong thì chặn đúng 1 lần click kế tiếp, tránh mở nhầm mục khi người dùng chỉ định kéo xem.
+  cuon.addEventListener('click', (ev) => {
+    if (daKeoThat) { ev.preventDefault(); ev.stopPropagation(); daKeoThat = false; }
+  }, true);
 
   $('#dnTrai').addEventListener('click', () => nhichMotThe(-1));
   $('#dnPhai').addEventListener('click', () => nhichMotThe(1));
@@ -515,12 +549,21 @@ function soanKeHoachModal(k, lamMoi) {
   hangHoanThanh.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
   hangHoanThanh.append(oHoanThanh, document.createTextNode('Đánh dấu đã hoàn thành'));
 
+  const oNoiBat = e('input');
+  oNoiBat.type = 'checkbox';
+  oNoiBat.id = 'khNoiBat';
+  oNoiBat.checked = Boolean(k && k.noiBat);
+  const hangNoiBat = e('label');
+  hangNoiBat.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
+  hangNoiBat.append(oNoiBat, document.createTextNode('Hiện trong băng điểm nhấn ở trang chủ'));
+
   moHopThoai(k ? 'Sửa mốc kế hoạch' : 'Thêm mốc kế hoạch mới', [
     truong('Ngày', oNgay),
     truong('Tiêu đề', oTieuDe),
     truong('Mức độ', oMucDo),
     truong('Mô tả', oMoTa),
     hangHoanThanh,
+    hangNoiBat,
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut(k ? 'Lưu thay đổi' : 'Thêm kế hoạch', '', async (ev) => {
@@ -533,6 +576,7 @@ function soanKeHoachModal(k, lamMoi) {
           moTa: oMoTa.value,
           mucDo: oMucDo.value,
           hoanThanh: oHoanThanh.checked,
+          noiBat: oNoiBat.checked,
         };
         if (k) await api('/api/gv/ke-hoach', { method: 'PATCH', than: { id: k.id, ...than } });
         else await api('/api/gv/ke-hoach', { method: 'POST', than });
@@ -576,6 +620,7 @@ function veKeHoach(ds, phien, lamMoi) {
 
   datNoiDung(hop, ...ds.map((k) => {
     const the = e('div', 'the');
+    the.id = 'ke-' + k.id;
     const dau = e('div');
     dau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px';
 

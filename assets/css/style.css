@@ -485,13 +485,21 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 /* ---------- Khối trang chủ: khung bao trọn tiêu đề + nội dung, để mỗi mục rõ ràng
    là MỘT khối riêng biệt thay vì tiêu đề "lơ lửng" phía trên một hộp khác. ---------- */
 .khoi-trang-chu {
-  background: var(--nen-noi); border: 1px solid var(--vien);
+  background: var(--nen-noi); border: 1px solid var(--vien-dam);
+  border-top: 3px solid var(--chinh);
   border-radius: var(--r-lon); box-shadow: var(--bong-1); overflow: hidden;
 }
 .khoi-trang-chu > .dau-muc {
   margin: 0; padding: 18px 20px; background: var(--nen-chim);
-  border-bottom: 1px solid var(--vien);
+  border-bottom: 1px solid var(--vien-dam);
 }
+
+/* ---------- Tô sáng tạm thời mục vừa được mở tới từ băng điểm nhấn (deep-link). ---------- */
+@keyframes dichNoiBat {
+  0%, 100% { box-shadow: none; }
+  15%, 70% { box-shadow: 0 0 0 3px var(--chinh); }
+}
+.dich-noi-bat { animation: dichNoiBat 2.2s ease; border-radius: var(--r-nho); }
 @media (min-width: 720px) { .khoi-trang-chu > .dau-muc { padding: 20px 26px; } }
 .khoi-trang-chu > .than-khoi { padding: 20px; }
 @media (min-width: 720px) { .khoi-trang-chu > .than-khoi { padding: 24px 26px; } }
@@ -522,6 +530,8 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
   border-radius: var(--r); padding: 14px 16px; color: #fff;
   text-decoration: none; display: block; cursor: pointer;
   transition: transform .15s, background .15s;
+  font: inherit; text-align: left; appearance: none;
+  -webkit-user-drag: none;
 }
 .dn-the:hover { background: color-mix(in srgb, #fff 22%, transparent); transform: translateY(-2px); }
 .dn-the .dn-nhan {
