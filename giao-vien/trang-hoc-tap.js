@@ -789,13 +789,13 @@ export async function trangMaCaNhan(KHUNG) {
     const khoiTkPhu = e('div');
     khoiTkPhu.style.marginTop = '10px';
     khung.append(khoiTkPhu);
-    veKhoiTaiKhoanPhu(khoiTkPhu);
+    await veKhoiTaiKhoanPhu(khoiTkPhu);
 
     /* ================= PHẦN 2 — học sinh: mã + quyền + chức vụ trong MỘT chỗ ================= */
     const dau2 = e('div', 'tieu-de-trang');
     dau2.style.marginTop = '28px';
     dau2.append(e('h2', null, '2️⃣ Học sinh'),
-      e('p', null, 'Mỗi em một mã riêng. Bấm "⚙ Quản lý" để sửa chức vụ, mã, quyền xem và quyền quản lý — giao diện bảng cố định, quản lý tập trung.'));
+      e('p', null, 'Mỗi em một mã riêng. Bấm "⚙ Quản lý" để sửa chức vụ, mã, quyền xem và quyền quản lý – giao diện bảng cố định, quản lý tập trung.'));
     khung.append(dau2);
 
     const the = e('div', 'the');
@@ -819,79 +819,142 @@ export async function trangMaCaNhan(KHUNG) {
 
     const boc = e('div', 'cuon-ngang');
     boc.style.marginTop = '16px';
-    const bang = e('table');
+    const bang = e('table', 'bang-co-dinh');
+    bang.style.cssText = 'table-layout:fixed;width:100%;min-width:860px;';
+
+    const colgroup = e('colgroup');
+    const colStt = e('col'); colStt.style.width = '56px';
+    const colTen = e('col'); colTen.style.width = '200px';
+    const colCv = e('col'); colCv.style.width = '140px';
+    const colMa = e('col'); colMa.style.width = '130px';
+    const colQuyen = e('col'); colQuyen.style.width = 'auto';
+    const colNut = e('col'); colNut.style.width = '114px';
+    colgroup.append(colStt, colTen, colCv, colMa, colQuyen, colNut);
+    bang.append(colgroup);
+
     const dau = e('thead');
     const hd = e('tr');
-    hd.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'), e('th', null, 'Chức vụ'), e('th', null, 'Mã cá nhân'), e('th', null, 'Quyền'), e('th', null, ''));
+    const thStt = e('th', 'so', 'STT'); thStt.style.width = '56px';
+    const thTen = e('th', null, 'Họ và tên'); thTen.style.width = '200px';
+    const thCv = e('th', null, 'Chức vụ'); thCv.style.width = '140px';
+    const thMa = e('th', null, 'Mã cá nhân'); thMa.style.width = '130px'; thMa.style.textAlign = 'center';
+    const thQuyen = e('th', null, 'Quyền');
+    const thNut = e('th', null, ''); thNut.style.width = '114px'; thNut.style.textAlign = 'center';
+    hd.append(thStt, thTen, thCv, thMa, thQuyen, thNut);
     dau.append(hd);
 
     const than = e('tbody');
+
+    function capNhatHangHocSinh(hMoi) {
+      const hangCu = document.getElementById(`hang-hs-${hMoi.id}`);
+      if (!hangCu) return;
+      const hangMoi = veHangHocSinh(hMoi, ve, capNhatHangHocSinh);
+      hangMoi.classList.add('hang-vua-sua');
+      hangCu.replaceWith(hangMoi);
+    }
+
     d.danhSach.forEach((h) => {
-      const tr = e('tr');
-      const tdMa = e('td');
-      if (h.ma) {
-        const ma = e('code', null, h.ma);
-        ma.style.cssText = 'font-size:15px;letter-spacing:1px;font-weight:700';
-        tdMa.append(ma);
-      } else {
-        tdMa.append(e('span', 'trong', 'Chưa cấp'));
-      }
-
-      const tdTen = e('td');
-      tdTen.style.fontWeight = '600';
-      tdTen.append(h.hoTen);
-
-      const tdChucVu = e('td');
-      if (h.chucVu) {
-        const info = layThongTinVaiTro(h.chucVu);
-        tdChucVu.append(Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu}`), {
-          style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;`
-        }));
-      } else {
-        tdChucVu.append(e('span', 'trong', '—'));
-      }
-
-      const tdQuyen = e('td');
-      if (h.ma) {
-        tdQuyen.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
-        const soAn = (h.anMuc || []).length;
-        const dsQuyen = h.quyen || [];
-        tdQuyen.append(e('span', 'nhan ' + (soAn ? 'nhan-luuy' : 'nhan-tot'),
-          soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
-        if (dsQuyen.length) {
-          const tenCacQuyen = dsQuyen.map((q) => {
-            const tim = CAC_QUYEN_QUAN_LY.find((x) => x[0] === q);
-            const icon = ICON_QUYEN[q] || '🔑';
-            return tim ? `${icon} ${tim[1].split(' — ')[0]}` : q;
-          }).join(', ');
-          const nhanQuyen = e('span', 'nhan nhan-tim', dsQuyen.length === 1 ? tenCacQuyen : `🔑 Quản lý ${dsQuyen.length} mục`);
-          nhanQuyen.title = `Các quyền quản lý: ${tenCacQuyen}`;
-          tdQuyen.append(nhanQuyen);
-        }
-        if (h.coThietBi) {
-          const nhanTb = e('span', 'nhan nhan-xam', '📱 Đã gắn máy');
-          nhanTb.title = 'Tài khoản đã liên kết với một thiết bị';
-          tdQuyen.append(nhanTb);
-        }
-      } else {
-        tdQuyen.append(e('span', 'trong', '—'));
-      }
-
-      const tdNut = e('td');
-      tdNut.append(nut('⚙ Quản lý', 'nut-vien nut-nho', () => moQuanLyHocSinh(h, ve)));
-
-      tr.append(e('td', 'so', h.id), tdTen, tdChucVu, tdMa, tdQuyen, tdNut);
-      than.append(tr);
+      than.append(veHangHocSinh(h, ve, capNhatHangHocSinh));
     });
     bang.append(dau, than);
     boc.append(bang);
     khung.append(boc);
 
+    const viTriCuon = window.scrollY;
     datNoiDung(KHUNG, khung);
+    if (viTriCuon > 0) {
+      window.scrollTo({ top: viTriCuon, behavior: 'instant' });
+    }
   }
 
   await ve();
 }
+
+function veHangHocSinh(h, taiLai, capNhatHang) {
+  const tr = e('tr');
+  tr.id = `hang-hs-${h.id}`;
+  tr.style.height = '48px';
+
+  // 1. STT
+  const tdStt = e('td', 'so', h.id);
+  tdStt.style.textAlign = 'center';
+
+  // 2. Họ và tên
+  const tdTen = e('td');
+  tdTen.style.fontWeight = '600';
+  tdTen.style.whiteSpace = 'nowrap';
+  tdTen.style.overflow = 'hidden';
+  tdTen.style.textOverflow = 'ellipsis';
+  tdTen.append(h.hoTen);
+  tdTen.title = h.hoTen;
+
+  // 3. Chức vụ
+  const tdChucVu = e('td');
+  tdChucVu.style.whiteSpace = 'nowrap';
+  tdChucVu.style.overflow = 'hidden';
+  if (h.chucVu) {
+    const info = layThongTinVaiTro(h.chucVu);
+    tdChucVu.append(Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu}`), {
+      style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;`
+    }));
+  } else {
+    tdChucVu.append(e('span', 'trong', '—'));
+  }
+
+  // 4. Mã cá nhân
+  const tdMa = e('td');
+  tdMa.style.textAlign = 'center';
+  if (h.ma) {
+    const ma = e('code', null, h.ma);
+    ma.style.cssText = 'font-size:15px;letter-spacing:1px;font-weight:700';
+    tdMa.append(ma);
+  } else {
+    tdMa.append(e('span', 'trong', 'Chưa cấp'));
+  }
+
+  // 5. Quyền
+  const tdQuyen = e('td', 'o-quyen');
+  if (h.ma) {
+    const hopQuyen = e('div', 'hop-quyen-hang');
+    const soAn = (h.anMuc || []).length;
+    const dsQuyen = h.quyen || [];
+
+    // Badge quyền xem
+    hopQuyen.append(e('span', 'nhan ' + (soAn ? 'nhan-luuy' : 'nhan-tot'),
+      soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
+
+    // Badge quyền quản lý
+    if (dsQuyen.length) {
+      const tenCacQuyen = dsQuyen.map((q) => {
+        const tim = CAC_QUYEN_QUAN_LY.find((x) => x[0] === q);
+        const icon = ICON_QUYEN[q] || '🔑';
+        return tim ? `${icon} ${tim[1].split(' — ')[0]}` : q;
+      }).join(', ');
+      const nhanQuyen = e('span', 'nhan nhan-tim', dsQuyen.length === 1 ? tenCacQuyen : `🔑 Quản lý ${dsQuyen.length} mục`);
+      nhanQuyen.title = `Các quyền quản lý: ${tenCacQuyen}`;
+      hopQuyen.append(nhanQuyen);
+    }
+
+    // Badge thiết bị
+    if (h.coThietBi) {
+      const nhanTb = e('span', 'nhan nhan-xam', '📱 Đã gắn máy');
+      nhanTb.title = 'Tài khoản đã liên kết với một thiết bị';
+      hopQuyen.append(nhanTb);
+    }
+    tdQuyen.append(hopQuyen);
+  } else {
+    tdQuyen.append(e('span', 'trong', '—'));
+  }
+
+  // 6. Nút Thao tác
+  const tdNut = e('td');
+  tdNut.style.textAlign = 'center';
+  tdNut.append(nut('⚙ Quản lý', 'nut-vien nut-nho', () => moQuanLyHocSinh(h, taiLai, capNhatHang)));
+
+  tr.append(tdStt, tdTen, tdChucVu, tdMa, tdQuyen, tdNut);
+  return tr;
+}
+
 
 /* ---------- Nhật ký đăng nhập: chỉ đọc, không có nút xoá ---------- */
 export async function trangNhatKyDangNhap(KHUNG) {
@@ -1038,7 +1101,7 @@ const CAC_CHUC_VU_GOI_Y = [
   ['📋 Tổ trưởng', 'Tổ trưởng'],
 ];
 
-function moQuanLyHocSinh(hocSinh, taiLai) {
+function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
   const oHoTen = oNhap('qlHoTen', 'text', hocSinh.hoTen, 'Họ và tên đầy đủ');
   const oChucVu = oNhap('qlChucVu', 'text', hocSinh.chucVu || '', 'Ví dụ: Lớp trưởng, Thủ quỹ, Tổ trưởng… (để trống nếu không giữ chức vụ gì)');
 
@@ -1081,16 +1144,19 @@ function moQuanLyHocSinh(hocSinh, taiLai) {
       ev.currentTarget.disabled = true;
       try {
         const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id } });
-        nhac('Đã cấp mã mới: ' + kq.ketQua[0].ma, 'tot');
-        dongHopThoai();
-        taiLai();
+        const maMoi = kq.ketQua[0].ma;
+        hocSinh.ma = maMoi;
+        oMa.value = maMoi;
+        nhac('Đã cấp mã mới: ' + maMoi, 'tot');
+        if (typeof capNhatHang === 'function') capNhatHang(hocSinh);
+        ev.currentTarget.disabled = false;
       } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
     }),
     hocSinh.coThietBi
       ? Object.assign(e('p', 'trong', '🔒 Mã này đã gắn với một thiết bị.'), { style: 'margin-top:8px' })
       : null,
     hocSinh.coThietBi
-      ? nut('📱 Đặt lại thiết bị (cho đăng nhập máy mới)', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai))
+      ? nut('📱 Đặt lại thiết bị (cho đăng nhập máy mới)', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai, capNhatHang))
       : null,
 
     Object.assign(e('h3', null, '👁 Quyền xem trên trang lớp'), { style: 'margin-top:18px' }),
@@ -1114,15 +1180,26 @@ function moQuanLyHocSinh(hocSinh, taiLai) {
         const maMoi = oMa.value.trim();
         if (maMoi && maMoi !== hocSinh.ma) {
           await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: maMoi } });
+          hocSinh.ma = maMoi;
         }
 
         const anMucMoi = oTichXem.filter(([, o]) => !o.checked).map(([ma]) => ma);
         const quyenMoi = oTichQuanLy.filter(([, o]) => o.checked).map(([ma]) => ma);
         await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, anMuc: anMucMoi, quyen: quyenMoi } });
 
+        hocSinh.hoTen = tenMoi;
+        hocSinh.chucVu = oChucVu.value.trim();
+        hocSinh.anMuc = anMucMoi;
+        hocSinh.quyen = quyenMoi;
+
         dongHopThoai();
         nhac('Đã lưu thông tin của ' + tenMoi, 'tot');
-        taiLai();
+
+        if (typeof capNhatHang === 'function') {
+          capNhatHang(hocSinh);
+        } else if (typeof taiLai === 'function') {
+          taiLai();
+        }
       } catch (err) {
         nhac(err.message, 'xau');
         ev.currentTarget.disabled = false;
@@ -1131,7 +1208,7 @@ function moQuanLyHocSinh(hocSinh, taiLai) {
   ]);
 }
 
-function datLaiThietBi(hocSinh, taiLai) {
+function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
   moHopThoai('Đặt lại thiết bị?', [
     e('p', null, `Mã của ${hocSinh.hoTen} sẽ đăng nhập được ở một máy MỚI (máy cũ không tự mất quyền, chỉ là không còn bị ràng buộc riêng máy đó nữa cho tới lần đăng nhập kế tiếp).`),
   ], [
@@ -1140,9 +1217,14 @@ function datLaiThietBi(hocSinh, taiLai) {
       ev.currentTarget.disabled = true;
       try {
         await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
+        hocSinh.coThietBi = 0;
         dongHopThoai();
         nhac('Đã đặt lại thiết bị cho ' + hocSinh.hoTen, 'tot');
-        taiLai();
+        if (typeof capNhatHang === 'function') {
+          capNhatHang(hocSinh);
+        } else if (typeof taiLai === 'function') {
+          taiLai();
+        }
       } catch (err) {
         nhac(err.message, 'xau');
         ev.currentTarget.disabled = false;
@@ -1150,6 +1232,7 @@ function datLaiThietBi(hocSinh, taiLai) {
     }),
   ]);
 }
+
 
 /** Mở cửa sổ in danh sách mã, cắt rời phát cho từng em. */
 function inDanhSachMa(danhSach) {

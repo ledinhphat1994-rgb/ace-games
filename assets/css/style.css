@@ -681,6 +681,36 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 #danh-sach .cuon-ngang, #thoi-khoa-bieu .cuon-ngang { margin-top: 14px; }
 #tqTongQuan { margin-bottom: 16px; }
 
+/* Bảng cố định tuyệt đối chống xô lệch layout / nhảy cột khi thêm hoặc bớt quyền */
+.bang-co-dinh {
+  table-layout: fixed;
+  width: 100%;
+}
+.bang-co-dinh th,
+.bang-co-dinh td {
+  vertical-align: middle;
+}
+.hop-quyen-hang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.hop-quyen-hang .nhan {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@keyframes nhayHighlightHang {
+  0% { background-color: color-mix(in srgb, var(--chinh) 25%, transparent); }
+  100% { background-color: transparent; }
+}
+.hang-vua-sua {
+  animation: nhayHighlightHang 1.4s ease-out;
+}
+
+
 /* ---------- 10. Thông báo trên trang lớp ---------- */
 /* Mỗi thông báo là 1 khối riêng có nền + viền — tách biệt rõ với thông báo kế bên,
    không chỉ dựa vào 1 gạch chia mảnh như trước. */
