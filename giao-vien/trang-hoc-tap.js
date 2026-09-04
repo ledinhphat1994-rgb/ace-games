@@ -647,9 +647,18 @@ export async function trangBaoCao(KHUNG) {
   const oHk = oChon('bcHk', [[1, 'Học kì 1'], [2, 'Học kì 2']], sessionStorage.getItem('sd-hocki') || 1);
 
   const theLoc = e('div', 'the');
-  const hangLoc = e('div', 'hang-nhap hang-nhap-2');
-  hangLoc.append(truong('Từ ngày (cho Điểm danh & Nhật ký)', oTu), truong('Đến ngày', oDen));
-  theLoc.append(hangLoc, truong('Học kì (dùng cho Sổ điểm)', oHk));
+  theLoc.style.marginBottom = '20px';
+  const hangLoc = e('div');
+  hangLoc.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;align-items:end;';
+  hangLoc.append(
+    truong('Từ ngày', oTu),
+    truong('Đến ngày', oDen),
+    truong('Học kì', oHk)
+  );
+  const chuThichLoc = e('p', 'trong');
+  chuThichLoc.style.cssText = 'font-size:12.5px;color:var(--chu-mo);margin:10px 0 0 0;line-height:1.4;';
+  chuThichLoc.textContent = '💡 Khoảng ngày áp dụng cho Điểm danh & Nhật ký; Học kỳ áp dụng cho Sổ điểm.';
+  theLoc.append(hangLoc, chuThichLoc);
   khung.append(theLoc);
 
   function taiBaoCao(ma, theoNgay, dinhDang) {
@@ -664,22 +673,21 @@ export async function trangBaoCao(KHUNG) {
 
   function taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu) {
     const the = e('div', 'the the-bao-cao');
-    the.style.display = 'flex';
-    the.style.flexDirection = 'column';
-    the.style.justifyContent = 'space-between';
-    the.style.gap = '12px';
+    the.style.cssText = 'display:flex;flex-direction:column;justify-content:space-between;height:100%;box-sizing:border-box;gap:14px;';
 
     const phanDau = e('div');
-    const dongTieuDe = e('div');
-    dongTieuDe.style.display = 'flex';
-    dongTieuDe.style.alignItems = 'center';
-    dongTieuDe.style.justifyContent = 'space-between';
-    dongTieuDe.style.marginBottom = '6px';
+    phanDau.style.cssText = 'display:flex;flex-direction:column;flex-grow:1;';
 
-    const tieuDe = e('h3', null, `${icon} ${ten}`);
-    tieuDe.style.fontSize = '16px';
-    tieuDe.style.margin = '0';
-    tieuDe.style.color = 'var(--chu)';
+    const dongTieuDe = e('div');
+    dongTieuDe.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;';
+
+    const tieuDe = e('h3');
+    tieuDe.style.cssText = 'font-size:15.5px;margin:0;color:var(--chu);font-weight:700;display:flex;align-items:center;gap:7px;';
+    const iconSpan = e('span');
+    iconSpan.style.fontSize = '18px';
+    iconSpan.textContent = icon;
+    const tenSpan = e('span', null, ten);
+    tieuDe.append(iconSpan, tenSpan);
     dongTieuDe.append(tieuDe);
 
     if (nhanPhu) {
@@ -688,25 +696,23 @@ export async function trangBaoCao(KHUNG) {
     }
 
     const doanMoTa = e('p', 'trong', moTa);
-    doanMoTa.style.fontSize = '13.5px';
-    doanMoTa.style.margin = '0';
-    doanMoTa.style.lineHeight = '1.45';
+    doanMoTa.style.cssText = 'font-size:13.5px;margin:0;line-height:1.5;color:var(--chu-nhat);min-height:42px;';
 
     phanDau.append(dongTieuDe, doanMoTa);
 
     const hangNut = e('div');
-    hangNut.style.display = 'flex';
-    hangNut.style.gap = '8px';
-    hangNut.style.flexWrap = 'wrap';
+    hangNut.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px;';
 
     const nutExcel = nut('📥 Tải Excel (.xls)', 'nut-chinh nut-nho', () => {
       taiBaoCao(ma, theoNgay, 'excel');
     });
+    nutExcel.style.cssText = 'flex:1 1 calc(50% - 4px);min-width:130px;justify-content:center;';
     nutExcel.title = 'Mở trực tiếp bằng Microsoft Excel với bảng biểu kẻ viền, có tiêu đề và chữ ký GVCN';
 
     const nutCsv = nut('📄 Tải CSV (.csv)', 'nut-vien nut-nho', () => {
       taiBaoCao(ma, theoNgay, 'csv');
     });
+    nutCsv.style.cssText = 'flex:1 1 calc(50% - 4px);min-width:120px;justify-content:center;';
     nutCsv.title = 'Tải file dữ liệu thô (.csv), có chỉ thị sep=; để Excel tự động chia cột đúng chuẩn';
 
     hangNut.append(nutExcel, nutCsv);
@@ -714,50 +720,26 @@ export async function trangBaoCao(KHUNG) {
     return the;
   }
 
-  // CÁC NHÓM BÁO CÁO ĐỒNG BỘ 100% VỚI VÙNG 1
-  const NHOM_BAO_CAO = [
-    {
-      tieuDeNhom: '🏫 Báo cáo Lớp học (Khớp mục: Điểm danh, Học sinh, Sổ điểm, Nhật ký, Thủ quỹ)',
-      danhSach: [
-        ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
-        ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
-        ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
-        ['📝', 'Báo cáo Nhật ký lớp', 'Sổ nhật ký chủ nhiệm: ghi nhận khen thưởng, nhắc nhở, vi phạm và tình trạng xử lý.', 'nhat-ky', true, 'Theo ngày'],
-        ['🪙', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
-      ],
-    },
-    {
-      tieuDeNhom: '📢 Báo cáo Trang lớp (Khớp mục: Kế hoạch, Thông báo, Thời khoá biểu)',
-      danhSach: [
-        ['📅', 'Báo cáo Kế hoạch', 'Kế hoạch hoạt động năm học, lịch trình sự kiện, mức độ ưu tiên và thời hạn hoàn thành.', 'ke-hoach', false, 'Kế hoạch năm'],
-        ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp, ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
-        ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
-      ],
-    },
-    {
-      tieuDeNhom: '📊 Báo cáo Thống kê & Tài khoản (Khớp mục: Thống kê, Mã cá nhân)',
-      danhSach: [
-        ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, kỷ luật, khen thưởng, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
-        ['🔑', 'Báo cáo Mã cá nhân & Phân quyền', 'Danh sách mã tra cứu điểm cá nhân của từng em, tài khoản ban cán sự và quyền quản trị.', 'ma-ca-nhan', false, 'Bảo mật'],
-      ],
-    },
+  // 10 BÁO CÁO ĐỒNG BỘ 10 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
+  const DANH_SACH_BAO_CAO = [
+    ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
+    ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
+    ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
+    ['📝', 'Báo cáo Nhật ký lớp', 'Sổ nhật ký chủ nhiệm: ghi nhận khen thưởng, nhắc nhở, vi phạm và tình trạng xử lý.', 'nhat-ky', true, 'Theo ngày'],
+    ['💰', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
+    ['📅', 'Báo cáo Kế hoạch', 'Kế hoạch hoạt động năm học, lịch trình sự kiện, mức độ ưu tiên và thời hạn hoàn thành.', 'ke-hoach', false, 'Kế hoạch năm'],
+    ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp, ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
+    ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
+    ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, kỷ luật, khen thưởng, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
+    ['🔑', 'Báo cáo Mã cá nhân & Phân quyền', 'Danh sách mã tra cứu điểm cá nhân của từng em, tài khoản ban cán sự và quyền quản trị.', 'ma-ca-nhan', false, 'Bảo mật'],
   ];
 
-  NHOM_BAO_CAO.forEach((nhom) => {
-    const tieuDeMuc = e('h2', null, nhom.tieuDeNhom);
-    tieuDeMuc.style.fontSize = '17px';
-    tieuDeMuc.style.fontWeight = 'bold';
-    tieuDeMuc.style.marginTop = '24px';
-    tieuDeMuc.style.marginBottom = '12px';
-    tieuDeMuc.style.color = 'var(--chinh)';
-    khung.append(tieuDeMuc);
-
-    const luoi = e('div', 'luoi luoi-2');
-    nhom.danhSach.forEach(([icon, ten, moTa, ma, theoNgay, nhanPhu]) => {
-      luoi.append(taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu));
-    });
-    khung.append(luoi);
+  const luoi = e('div', 'luoi luoi-2');
+  luoi.style.alignItems = 'stretch';
+  DANH_SACH_BAO_CAO.forEach(([icon, ten, moTa, ma, theoNgay, nhanPhu]) => {
+    luoi.append(taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu));
   });
+  khung.append(luoi);
 
   const goiY = e('div', 'the');
   goiY.style.marginTop = '24px';

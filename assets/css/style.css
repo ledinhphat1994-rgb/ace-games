@@ -859,3 +859,23 @@ body.trang-dang-nhap {
 .loi-nhan.xau { background: var(--xau-nen); color: var(--xau); }
 .loi-nhan.tot { background: var(--tot-nen); color: var(--tot); }
 .ghi-chu-dang-nhap { margin-top: 20px; font-size: 12.5px; color: var(--chu-nhat); line-height: 1.65; }
+
+/* ---------- 15. Thẻ báo cáo & xuất dữ liệu ---------- */
+.the-bao-cao {
+  border-radius: var(--r);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.the-bao-cao:hover {
+  border-color: color-mix(in srgb, var(--chinh) 40%, var(--vien));
+  box-shadow: var(--bong-2);
+  transform: translateY(-2px);
+}
+@media (max-width: 639px) {
+  .the-bao-cao {
+    padding: 14px;
+    gap: 12px;
+  }
+  .the-bao-cao h3 {
+    font-size: 15px !important;
+  }
+}

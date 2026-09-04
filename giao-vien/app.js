@@ -390,11 +390,6 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh) {
     if (oTiChonTatCa.checked) danhSach.forEach((h) => daChon.add(h.id));
   });
 
-  const hangNut = e('div');
-  hangNut.style.marginTop = '14px';
-  hangNut.append(nut('💾 Lưu điểm danh', 'nut-chinh', (ev) => thucHienLuu(ev.currentTarget)));
-  the.append(hangNut);
-
   khung.append(the);
   return khung;
 }
