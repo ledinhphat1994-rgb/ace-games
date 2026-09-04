@@ -1,9 +1,10 @@
 /* Sổ điểm, thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, chonHocKi, bieuDoCot, chuThichMau,
 } from '/assets/js/giao-dien.js';
+import { veKhoiTaiKhoanPhu } from './trang-quy.js';
 
 const MAU = {
   coMat: 'var(--tot)', tre: 'var(--luu-y)',
@@ -705,6 +706,28 @@ export async function trangMaCaNhan(KHUNG) {
 
     khung.append(veTheMaDangNhap(dangNhap, ve));
 
+    // Tài khoản được cấp quyền quản lý — hiện thẳng dạng thẻ (không giấu trong hộp thoại)
+    // để giáo viên thấy ngay ai đang có quyền gì, giống hệt tab "Phân quyền" cũ, nhưng gộp
+    // chung một chỗ với mã cá nhân thay vì tách riêng hai tab.
+    const dauQuanLy = e('div', 'tieu-de-trang');
+    dauQuanLy.style.marginTop = '22px';
+    dauQuanLy.append(e('h2', null, '🔑 Tài khoản được cấp quyền quản lý'));
+    khung.append(dauQuanLy);
+
+    const canQuanLy = d.danhSach.filter((h) => (h.quyen || []).length);
+    if (!canQuanLy.length) {
+      khung.append(e('div', 'the trong', 'Chưa cấp quyền quản lý cho em nào — bấm "🔑 Cấp quyền" ở bảng bên dưới để bắt đầu.'));
+    } else {
+      const dsQuanLy = e('div', 'ds-the');
+      canQuanLy.forEach((h) => dsQuanLy.append(veTheQuanLy(h, ve)));
+      khung.append(dsQuanLy);
+    }
+
+    const khoiTkPhu = e('div');
+    khoiTkPhu.style.marginTop = '12px';
+    khung.append(khoiTkPhu);
+    veKhoiTaiKhoanPhu(khoiTkPhu);
+
     const dauMaCaNhan = e('div', 'tieu-de-trang');
     dauMaCaNhan.style.marginTop = '22px';
     dauMaCaNhan.append(e('h2', null, 'Mã cá nhân của học sinh'));
@@ -943,6 +966,93 @@ const CAC_QUYEN_QUAN_LY = [
   ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
   ['ke-hoach', 'Kế hoạch — thêm/sửa mốc sự kiện, lịch kiểm tra'],
 ];
+const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸', 'ke-hoach': '📅' };
+
+/* ---------- Thẻ tài khoản quản lý (mã cá nhân được cấp quyen) — cùng kiểu với thẻ tài
+   khoản phụ cũ (avatar theo chức vụ, nhãn quyền, mã đăng nhập, hành động), để giáo viên
+   thấy quyền của em ngay, không phải mở popup mới biết. ---------- */
+function veTheQuanLy(h, taiLai) {
+  const the = e('div', 'the the-tk-phu');
+  const info = layThongTinVaiTro(h.chucVu || '');
+
+  const dau2 = e('div', 'the-tk-dau');
+  dau2.style.cssText = 'display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap';
+
+  const khoiTrai = e('div');
+  khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
+
+  const avatar = e('div', 'the-tk-avatar');
+  avatar.style.cssText = `width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:${info.mauNen};border:1.5px solid ${info.mauVien};box-shadow:0 4px 14px -3px ${info.mauVien};flex:none;`;
+  avatar.textContent = info.bieuTuong;
+
+  const thongTin = e('div');
+  thongTin.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:3px';
+
+  const dongTen = e('div');
+  dongTen.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+  dongTen.append(
+    Object.assign(e('h3', null, h.hoTen), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
+    Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu ? info.tenGoi : 'Chưa đặt chức vụ'}`), {
+      style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12px;padding:2px 9px;border-radius:6px;`
+    })
+  );
+  if (!h.chucVu) {
+    dongTen.append(Object.assign(e('small', 'trong', '(đặt chức vụ ở "Sửa hồ sơ" trong tab Học sinh để đổi huy hiệu)'), { style: 'font-size:11.5px' }));
+  }
+  thongTin.append(dongTen);
+  khoiTrai.append(avatar, thongTin);
+  dau2.append(khoiTrai);
+  the.append(dau2);
+
+  const oQuyen = e('div', 'day-loc');
+  oQuyen.style.cssText = 'margin-top:12px;gap:6px;flex-wrap:wrap;';
+  h.quyen.forEach((q) => {
+    const ten = (CAC_QUYEN_QUAN_LY.find((x) => x[0] === q) || [q, q])[1].split(' — ')[0];
+    const chip = e('span', 'nhan nhan-tim');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:3px 10px;font-weight:600;border-radius:8px;';
+    chip.append(e('span', null, ICON_QUYEN[q] || '⭐'), document.createTextNode(ten));
+    oQuyen.append(chip);
+  });
+  the.append(oQuyen);
+
+  const maHop = e('p');
+  maHop.style.cssText = 'margin-top:12px;font-size:14px;color:var(--chu-nhat);display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+  const maChu = e('code', null, h.ma);
+  maChu.style.cssText = 'font-size:16px;font-weight:800;letter-spacing:1.5px;padding:3px 8px;border-radius:6px;color:var(--chinh);background:var(--nen-chim);border:1px solid var(--vien);';
+  maHop.append(document.createTextNode('Mã đăng nhập: '), maChu);
+  if (h.coThietBi) maHop.append(e('span', 'nhan nhan-xam', '🔒 Đã gắn thiết bị'));
+  the.append(maHop);
+
+  const nutHang = e('div', 'day-loc');
+  nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
+  nutHang.append(
+    nut('✏ Sửa quyền', 'nut-vien nut-nho', () => datQuyen(h, taiLai)),
+    nut('🎲 Cấp lại mã', 'nut-nhe nut-nho', async () => {
+      try {
+        await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: h.id } });
+        nhac('Đã cấp mã mới cho ' + h.hoTen, 'tot');
+        taiLai();
+      } catch (err) { nhac(err.message, 'xau'); }
+    })
+  );
+  if (h.coThietBi) nutHang.append(nut('📱 Đặt lại thiết bị', 'nut-nhe nut-nho', () => datLaiThietBi(h, taiLai)));
+  nutHang.append(nut('🚫 Gỡ quyền quản lý', 'nut-nhe nut-nho', () => {
+    moHopThoai('Gỡ quyền quản lý?', e('p', null, `${h.hoTen} sẽ không đăng nhập được vào khu quản lý nữa — mã vẫn dùng để tra cứu kết quả cá nhân như bình thường.`), [
+      nut('Huỷ', 'nut-nhe', dongHopThoai),
+      nut('Gỡ quyền', 'nut-xau', async () => {
+        try {
+          await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: h.id, quyen: [] } });
+          dongHopThoai();
+          nhac('Đã gỡ quyền quản lý của ' + h.hoTen, 'tot');
+          taiLai();
+        } catch (err) { nhac(err.message, 'xau'); }
+      }),
+    ]);
+  }));
+  the.append(nutHang);
+
+  return the;
+}
 
 function taoNhomTich(danhMuc, daChon) {
   const bo = new Set(daChon);
@@ -970,7 +1080,18 @@ function datQuyen(hocSinh, taiLai) {
   });
   const oTichQuanLy = taoNhomTich(CAC_QUYEN_QUAN_LY, hocSinh.quyen || []);
 
+  const info = layThongTinVaiTro(hocSinh.chucVu || '');
+  const dongChucDanh = e('div');
+  dongChucDanh.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:14px;';
+  dongChucDanh.append(
+    Object.assign(e('span', 'nhan', `${info.bieuTuong} ${hocSinh.chucVu ? info.tenGoi : 'Chưa đặt chức vụ'}`), {
+      style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12.5px;padding:3px 10px;border-radius:6px;`
+    }),
+    Object.assign(e('small', 'trong', 'Đổi chức vụ ở "Sửa hồ sơ" trong tab Học sinh'), { style: 'font-size:12px' })
+  );
+
   const noi = [
+    dongChucDanh,
     e('h3', null, '👁 Quyền xem trên trang lớp'),
     e('p', 'trong', 'Bỏ tích mục nào thì em KHÔNG thấy mục đó nữa (mặc định xem hết).'),
     ...oTichXem.map(([, , nhanO]) => nhanO),

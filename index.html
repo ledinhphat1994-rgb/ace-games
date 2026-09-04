@@ -43,12 +43,13 @@
     </div>
   </div>
 
-  <!-- Menu đầy đủ: mọi mục không nằm trên trang chủ đều vào đây, có tiêu đề và mô tả rõ ràng. -->
+  <!-- Menu đầy đủ: MỘT danh sách phẳng mọi mục trang chủ này cho phép xem — không chia
+       nhóm "trong trang chủ"/"trang riêng" nữa, mục nào bị ẩn quyền thì gỡ hẳn khỏi đây
+       (xem apDungAnMuc trong trang-lop.js). -->
   <div class="menu-day" id="menuDayDu" hidden>
     <div class="wrap menu-day-trong">
-      <p class="menu-nhom" id="menuNhomTrang">Trong trang chủ</p>
-      <div class="menu-luoi" aria-labelledby="menuNhomTrang">
-        <a class="menu-muc" href="#thong-bao">
+      <div class="menu-luoi">
+        <a class="menu-muc" href="#thong-bao" data-muc="thong-bao">
           <span class="menu-icon">◈</span>
           <span class="menu-chu"><b>Thông báo</b><small>Tin mới nhất từ giáo viên chủ nhiệm</small></span>
         </a>
@@ -56,7 +57,7 @@
           <span class="menu-icon">✎</span>
           <span class="menu-chu"><b>Kế hoạch năm học</b><small>Lịch kiểm tra, hoạt động, mốc quan trọng</small></span>
         </a>
-        <a class="menu-muc" href="#thoi-khoa-bieu">
+        <a class="menu-muc" href="#thoi-khoa-bieu" data-muc="thoi-khoa-bieu">
           <span class="menu-icon">▦</span>
           <span class="menu-chu"><b>Thời khoá biểu</b><small>Các tiết học theo buổi, theo thứ</small></span>
         </a>
@@ -64,15 +65,11 @@
           <span class="menu-icon">🖼</span>
           <span class="menu-chu"><b>Hình ảnh hoạt động</b><small>Khoảnh khắc của tập thể lớp</small></span>
         </a>
-      </div>
-
-      <p class="menu-nhom" id="menuNhomRieng">Trang riêng</p>
-      <div class="menu-luoi" aria-labelledby="menuNhomRieng">
         <a class="menu-muc" href="#/danh-sach">
           <span class="menu-icon">☰</span>
           <span class="menu-chu"><b>Danh sách lớp</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
         </a>
-        <a class="menu-muc" href="#/thu-quy">
+        <a class="menu-muc" href="#/thu-quy" data-muc="quy">
           <span class="menu-icon">₫</span>
           <span class="menu-chu"><b>Thủ quỹ lớp</b><small>Công khai tổng thu – tổng chi của lớp</small></span>
         </a>
@@ -82,7 +79,7 @@
         </a>
         <a class="menu-muc" id="mucQuanLy" href="/giao-vien/" hidden>
           <span class="menu-icon">⚙</span>
-          <span class="menu-chu"><b>Khu quản lý</b><small>Dành cho giáo viên chủ nhiệm</small></span>
+          <span class="menu-chu"><b>Khu quản lý</b><small>Chỉnh sửa các mục em được cấp quyền</small></span>
         </a>
         <a class="menu-muc menu-muc-ra" href="/api/logout">
           <span class="menu-icon">⏻</span>

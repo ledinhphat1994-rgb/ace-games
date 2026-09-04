@@ -119,7 +119,7 @@ export async function onRequestPost({ request, env }) {
   if (!role && env.DB) {
     try {
       const ca = await env.DB.prepare(
-        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, h.ho_ten AS hoTen
+        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, h.ho_ten AS hoTen, h.chuc_vu AS chucVu
            FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
       ).bind(code).first();
@@ -155,7 +155,7 @@ export async function onRequestPost({ request, env }) {
         phanBoSung = {
           hocSinhId: ca.hocSinhId,
           ten: ca.hoTen,
-          vaiTro: 'Cán sự lớp',
+          vaiTro: ca.chucVu || 'Cán sự lớp',
           quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
         };
         await env.DB.prepare(

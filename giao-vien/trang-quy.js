@@ -696,21 +696,14 @@ function ghiKhoanChi(taiLai) {
 
 /* ================= Phân quyền (tài khoản đặc biệt) ================= */
 
-export async function trangPhanQuyen(KHUNG) {
-  datNoiDung(KHUNG, khoiDangTai());
-
+/* Dùng chung cho tab "Mã cá nhân" (giao-vien/trang-hoc-tap.js) — hiển thị các tài khoản
+   đặc biệt KHÔNG gắn với mã cá nhân của một học sinh cụ thể (vd: quản trị viên ngoài lớp).
+   Đường quyền chính bây giờ là gắn quyền quản lý thẳng vào mã cá nhân của học sinh — mục
+   này chỉ còn dùng cho trường hợp hiếm cần một tài khoản không phải học sinh. */
+export async function veKhoiTaiKhoanPhu(khung) {
   async function ve() {
     const d = await api('/api/gv/tai-khoan-phu');
-    const khung = e('div');
-
-    const dau = e('div', 'tieu-de-trang');
-    const trai = e('div');
-    trai.append(e('h1', null, 'Phân quyền'),
-      e('p', null, 'Cấp mã riêng cho lớp trưởng, thủ quỹ... chỉ được làm đúng việc được giao.'));
-    const phai = e('div', 'phai');
-    phai.append(nut('+ Cấp tài khoản mới', '', () => taoTaiKhoan(d.cacQuyen, ve)));
-    dau.append(trai, phai);
-    khung.append(dau);
+    datNoiDung(khung);
 
     if (!d.danhSach.length) {
       khung.append(e('div', 'the trong', 'Chưa cấp tài khoản đặc biệt nào. Mọi việc hiện chỉ giáo viên chủ nhiệm thao tác được.'));
@@ -840,7 +833,10 @@ export async function trangPhanQuyen(KHUNG) {
       khung.append(ds);
     }
 
-    datNoiDung(KHUNG, khung);
+    khung.append(Object.assign(
+      nut('+ Tạo tài khoản đặc biệt (không gắn học sinh)', 'nut-nhe nut-nho', () => taoTaiKhoan(d.cacQuyen, ve)),
+      { style: 'margin-top:12px' }
+    ));
   }
 
   await ve();

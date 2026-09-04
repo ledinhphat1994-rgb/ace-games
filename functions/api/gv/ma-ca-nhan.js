@@ -19,7 +19,7 @@ function locQuyen(mang) {
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, m.ma, m.an_muc AS anMuc, m.quyen, m.thiet_bi AS thietBi
+    `SELECT h.id, h.ho_ten AS hoTen, h.chuc_vu AS chucVu, m.ma, m.an_muc AS anMuc, m.quyen, m.thiet_bi AS thietBi
        FROM hoc_sinh h LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
       WHERE h.dang_hoc = 1 ORDER BY h.id`
   ).all();

@@ -12,7 +12,7 @@ import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/
 import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
-import { trangQuy, trangPhanQuyen, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
+import { trangQuy, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
 import { trangKeHoach, trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -39,7 +39,6 @@ const QUYEN_THEO_TUYEN = {
   'quy': 'quy',
   'quy-lich-su': 'quy',
   'quy-dinh-ky': 'quy',
-  'phan-quyen': null,
   'ke-hoach': 'ke-hoach',
   'thoi-khoa-bieu': null,
   'thoi-khoa-bieu-lich-su': null,
@@ -1396,8 +1395,7 @@ const MUC_THEM = [
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
   ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
-  ['#/ma-ca-nhan', '🔑', 'Mã cá nhân học sinh', 'Cấp và in mã để các em tự xem kết quả.'],
-  ['#/phan-quyen', '🔐', 'Phân quyền', 'Cấp mã riêng cho lớp trưởng, thủ quỹ...'],
+  ['#/ma-ca-nhan', '🔑', 'Mã cá nhân & phân quyền', 'Cấp mã, cấp quyền quản lý cho lớp trưởng, thủ quỹ...'],
   ['/', '↗', 'Xem trang lớp', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
 ];
@@ -1451,7 +1449,6 @@ const TRANG = {
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
   '/quy-dinh-ky': () => trangQuyDinhKy(KHUNG),
-  '/phan-quyen': () => trangPhanQuyen(KHUNG),
   '/ke-hoach': () => trangKeHoach(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
@@ -1460,7 +1457,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/phan-quyen', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

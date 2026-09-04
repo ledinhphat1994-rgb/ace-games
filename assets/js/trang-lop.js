@@ -910,9 +910,15 @@ const CHO_MUC_AN = {
 };
 
 function apDungAnMuc(anMuc) {
+  const bo = new Set(anMuc || []);
   Object.entries(CHO_MUC_AN).forEach(([muc, chonLoc]) => {
     const khoi = document.querySelector(chonLoc);
-    if (khoi) khoi.hidden = (anMuc || []).includes(muc);
+    if (khoi) khoi.hidden = bo.has(muc);
+  });
+  // Gỡ luôn khỏi menu — mục nào bị ẩn thì không còn hiện trong danh sách "Menu" nữa,
+  // không chỉ ẩn khối nội dung trên trang chủ.
+  document.querySelectorAll('.menu-muc[data-muc]').forEach((a) => {
+    a.hidden = bo.has(a.dataset.muc);
   });
 }
 
