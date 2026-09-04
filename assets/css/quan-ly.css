@@ -203,6 +203,81 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .nhom-chon button[aria-pressed="true"][data-tt="vang_phep"] { background: var(--chinh); border-color: var(--chinh); color: #fff; }
 .nhom-chon button[aria-pressed="true"][data-tt="vang_khong_phep"] { background: var(--xau); border-color: var(--xau); color: #fff; }
 
+/* Nút ghi chú lý do của từng em */
+.nhom-chon button.nut-icon-ghi-chu {
+  position: relative;
+  font-size: 14px;
+  border-color: var(--vien);
+  color: var(--chu-nhat);
+}
+.nhom-chon button.nut-icon-ghi-chu:hover {
+  border-color: var(--chinh);
+  color: var(--chinh);
+}
+.nhom-chon button.nut-icon-ghi-chu.da-co-ghi-chu {
+  border-color: var(--chinh);
+  background: color-mix(in srgb, var(--chinh) 18%, var(--nen-noi));
+  color: var(--chinh);
+}
+.nhom-chon button.nut-icon-ghi-chu.da-co-ghi-chu::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chinh);
+}
+
+/* Thẻ hiển thị lý do ngay dưới tên học sinh */
+.dong-ly-do {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--chinh) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chinh) 25%, transparent);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--chinh);
+  max-width: 100%;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.dong-ly-do:hover {
+  background: color-mix(in srgb, var(--chinh) 20%, transparent);
+  border-color: var(--chinh);
+}
+.dong-ly-do-chu {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+
+@media (max-width: 480px) {
+  .nhom-chon button {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    border-radius: 7px;
+  }
+  .hang-hs {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .hang-hs .stt {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+  .dong-ly-do-chu {
+    max-width: 130px;
+  }
+}
+
 .chu-thich { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--chu-nhat); margin-top: 12px; }
 .chu-thich span { display: inline-flex; align-items: center; gap: 5px; }
 .chu-thich i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
