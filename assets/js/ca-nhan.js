@@ -23,7 +23,7 @@ function baoLoi(chu) {
 }
 
 async function xem() {
-  const ma = oMa.value.trim().toUpperCase();
+  const ma = oMa.value.trim();
   if (!ma) return baoLoi('Em chưa nhập mã cá nhân.');
 
   loiNhan.hidden = true;
@@ -44,6 +44,18 @@ async function xem() {
 
 nutXem.addEventListener('click', xem);
 oMa.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') xem(); });
+
+// Tự điền mã nếu vào từ liên kết chia sẻ (ví dụ ?ma=... hoặc #...)
+try {
+  const maTuUrl = new URLSearchParams(location.search).get('ma')
+    || (location.hash ? decodeURIComponent(location.hash.replace(/^#/, '')) : '');
+  if (maTuUrl) {
+    oMa.value = maTuUrl;
+    xem();
+  }
+} catch {
+  // Bỏ qua nếu mã trong URL bị sai mã hoá
+}
 
 function veKetQua(d) {
   const h = d.hocSinh;
