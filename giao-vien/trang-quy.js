@@ -425,15 +425,15 @@ export async function trangQuy(KHUNG) {
       nut('➕ Mở khoản thu mới', 'nut-vien', () => moKhoanMoi(tai))
     ));
 
-    // "Khoản đang mở" CHỈ tính khoản THU còn nhận tiền — khoản CHI là từng lần chi một lần,
-    // không có trạng thái mở/đóng, nên tách hẳn 2 số riêng cho khỏi lẫn hai khái niệm khác nhau.
-    const soKhoanThuMo = d.khoan.filter((k) => k.dangMo).length;
+    // Khoản thu hầu như luôn ở trạng thái "đang mở" trong thực tế dùng (ít khi giáo viên chủ
+    // động đóng) nên tỉ lệ mở/tổng không nói lên điều gì — bỏ, chỉ đếm tổng số khoản. Trạng
+    // thái đóng/mở của TỪNG khoản vẫn thấy rõ ở nhãn trên mỗi dòng bên dưới.
     const day = e('div', 'day-so');
     day.append(
       oThongKe(tienVN(d.tonQuy), 'Tồn quỹ hiện tại', 'tot', '🏦'),
       oThongKe(tienVN(d.tongThu), 'Tổng đã thu', 'thu', '📥'),
       oThongKe(tienVN(d.tongChi), 'Tổng đã chi', 'luuy', '📤'),
-      oThongKe(`${soKhoanThuMo}/${d.khoan.length}`, 'Khoản thu đang mở / tổng số khoản thu', 'khoan', '📂'),
+      oThongKe(String(d.khoan.length), 'Số khoản thu', 'khoan', '📂'),
       oThongKe(String(d.chi.length), 'Số lần đã ghi chi', 'luuy', '🧾')
     );
     khung.append(day);

@@ -701,45 +701,48 @@ export async function trangMaCaNhan(KHUNG) {
     const chuaCo = d.danhSach.filter((h) => !h.ma).length;
 
     const khung = e('div');
-    khung.append(tieuDeTrang('Mã đăng nhập & mã cá nhân',
-      'Quản lý toàn bộ mã dùng để vào trang lớp — từ mã chung cả lớp tới mã riêng từng em.'));
+    khung.append(tieuDeTrang('Mã đăng nhập & phân quyền',
+      'Hai phần rõ ràng: mã dùng chung/tài khoản ngoài lớp (Phần 1), và mã + quyền của từng học sinh (Phần 2).'));
+
+    /* ================= PHẦN 1 — không thuộc một học sinh cụ thể ================= */
+    const dau1 = e('div', 'tieu-de-trang');
+    dau1.style.marginTop = '10px';
+    dau1.append(e('h2', null, '1️⃣ Mã đăng nhập chung & tài khoản ngoài lớp'));
+    khung.append(dau1);
 
     khung.append(veTheMaDangNhap(dangNhap, ve));
 
-    // Tài khoản được cấp quyền quản lý — hiện thẳng dạng thẻ (không giấu trong hộp thoại)
-    // để giáo viên thấy ngay ai đang có quyền gì, giống hệt tab "Phân quyền" cũ, nhưng gộp
-    // chung một chỗ với mã cá nhân thay vì tách riêng hai tab.
-    const dauQuanLy = e('div', 'tieu-de-trang');
-    dauQuanLy.style.marginTop = '22px';
-    dauQuanLy.append(e('h2', null, '🔑 Tài khoản được cấp quyền quản lý'));
-    khung.append(dauQuanLy);
+    const dauTkPhu = e('div', 'tieu-de-trang');
+    dauTkPhu.style.marginTop = '16px';
+    dauTkPhu.append(e('h3', null, 'Tài khoản khác (không phải học sinh trong lớp)'),
+      e('p', null, 'Dùng khi cần cấp quyền cho người KHÔNG có trong danh sách học sinh — ví dụ quản trị viên, người hỗ trợ ngoài lớp.'));
+    khung.append(dauTkPhu);
+    const khoiTkPhu = e('div');
+    khoiTkPhu.style.marginTop = '10px';
+    khung.append(khoiTkPhu);
+    veKhoiTaiKhoanPhu(khoiTkPhu);
+
+    /* ================= PHẦN 2 — học sinh: mã + quyền + chức vụ trong MỘT chỗ ================= */
+    const dau2 = e('div', 'tieu-de-trang');
+    dau2.style.marginTop = '28px';
+    dau2.append(e('h2', null, '2️⃣ Học sinh'),
+      e('p', null, 'Mỗi em một mã riêng. Bấm "⚙ Quản lý" để sửa chức vụ, mã, quyền xem và quyền quản lý — tất cả trong một chỗ.'));
+    khung.append(dau2);
 
     const canQuanLy = d.danhSach.filter((h) => (h.quyen || []).length);
-    if (!canQuanLy.length) {
-      khung.append(e('div', 'the trong', 'Chưa cấp quyền quản lý cho em nào — bấm "🔑 Cấp quyền" ở bảng bên dưới để bắt đầu.'));
-    } else {
+    if (canQuanLy.length) {
+      const dauCanBo = e('div', 'tieu-de-trang');
+      dauCanBo.style.marginTop = '14px';
+      dauCanBo.append(e('h3', null, '🔑 Đang có quyền quản lý'));
+      khung.append(dauCanBo);
       const dsQuanLy = e('div', 'ds-the');
       canQuanLy.forEach((h) => dsQuanLy.append(veTheQuanLy(h, ve)));
       khung.append(dsQuanLy);
     }
 
-    const khoiTkPhu = e('div');
-    khoiTkPhu.style.marginTop = '12px';
-    khung.append(khoiTkPhu);
-    veKhoiTaiKhoanPhu(khoiTkPhu);
-
-    const dauMaCaNhan = e('div', 'tieu-de-trang');
-    dauMaCaNhan.style.marginTop = '22px';
-    dauMaCaNhan.append(e('h2', null, 'Mã cá nhân của học sinh'));
-    khung.append(dauMaCaNhan);
-
     const the = e('div', 'the');
-    the.append(e('p', null,
-      'Học sinh vào trang lớp, bấm “Xem kết quả của tôi”, nhập mã này thì chỉ thấy kết quả '
-      + 'của chính mình — không thấy của bạn khác.'));
-
+    the.style.marginTop = '16px';
     const hangNut = e('div', 'day-loc');
-    hangNut.style.marginTop = '10px';
     hangNut.append(
       nut(chuaCo ? `Cấp mã cho ${chuaCo} em chưa có` : 'Mọi em đều đã có mã', '', async (ev) => {
         if (!chuaCo) return;
@@ -750,7 +753,8 @@ export async function trangMaCaNhan(KHUNG) {
           ve();
         } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
       }),
-      nut('🖨 In danh sách mã', 'nut-vien', () => inDanhSachMa(d.danhSach))
+      nut('🖨 In danh sách mã', 'nut-vien', () => inDanhSachMa(d.danhSach)),
+      nut('📜 Nhật ký đăng nhập', 'nut-vien', () => { location.hash = '#/nhat-ky-dang-nhap'; })
     );
     the.append(hangNut);
     khung.append(the);
@@ -760,7 +764,7 @@ export async function trangMaCaNhan(KHUNG) {
     const bang = e('table');
     const dau = e('thead');
     const hd = e('tr');
-    hd.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'), e('th', null, 'Mã cá nhân'), e('th', null, 'Quyền'), e('th', null, ''));
+    hd.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'), e('th', null, 'Chức vụ'), e('th', null, 'Mã cá nhân'), e('th', null, 'Quyền'), e('th', null, ''));
     dau.append(hd);
 
     const than = e('tbody');
@@ -774,46 +778,40 @@ export async function trangMaCaNhan(KHUNG) {
       } else {
         tdMa.append(e('span', 'trong', 'Chưa cấp'));
       }
-      const tdNut = e('td');
-      tdNut.append(
-        nut('✏ Đổi tên', 'nut-vien nut-nho', () => suaTenHocSinh(h, ve)),
-        nut('✎ Đặt mã', 'nut-nhe nut-nho', () => datMaTuyChinh(h, ve)),
-        nut(h.ma ? '🎲 Cấp lại' : '🎲 Ngẫu nhiên', 'nut-nhe nut-nho', async () => {
-          try {
-            await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: h.id } });
-            nhac('Đã cấp mã mới cho ' + h.hoTen, 'tot');
-            ve();
-          } catch (err) { nhac(err.message, 'xau'); }
-        })
-      );
-      if (h.coThietBi) {
-        tdNut.append(nut('📱 Đặt lại thiết bị', 'nut-nhe nut-nho', () => datLaiThietBi(h, ve)));
-      }
+
       const tdTen = e('td');
       tdTen.style.fontWeight = '600';
       tdTen.append(h.hoTen);
+
+      const tdChucVu = e('td');
+      if (h.chucVu) {
+        const info = layThongTinVaiTro(h.chucVu);
+        tdChucVu.append(Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu}`), {
+          style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;`
+        }));
+      } else {
+        tdChucVu.append(e('span', 'trong', '—'));
+      }
 
       const tdQuyen = e('td');
       if (h.ma) {
         const soAn = (h.anMuc || []).length;
         const soQuanLy = (h.quyen || []).length;
-        const nhanQuyen = soQuanLy ? `🔑 Quản lý ${soQuanLy} mục` : soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết';
-        tdQuyen.append(nut(nhanQuyen, soQuanLy ? '' : soAn ? 'nut-nhe nut-nho' : 'nut-vien nut-nho', () => datQuyen(h, ve)));
+        tdQuyen.append(e('span', 'nhan ' + (soQuanLy ? 'nhan-tim' : soAn ? 'nhan-luuy' : 'nhan-tot'),
+          soQuanLy ? `🔑 Quản lý ${soQuanLy} mục` : soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
       } else {
         tdQuyen.append(e('span', 'trong', '—'));
       }
 
-      tr.append(e('td', 'so', h.id), tdTen, tdMa, tdQuyen, tdNut);
+      const tdNut = e('td');
+      tdNut.append(nut('⚙ Quản lý', 'nut-vien nut-nho', () => moQuanLyHocSinh(h, ve)));
+
+      tr.append(e('td', 'so', h.id), tdTen, tdChucVu, tdMa, tdQuyen, tdNut);
       than.append(tr);
     });
     bang.append(dau, than);
     boc.append(bang);
     khung.append(boc);
-
-    khung.append(Object.assign(
-      nut('📜 Xem nhật ký đăng nhập', 'nut-nhe nut-nho', () => { location.hash = '#/nhat-ky-dang-nhap'; }),
-      { style: 'margin-top:14px' }
-    ));
 
     datNoiDung(KHUNG, khung);
   }
@@ -920,31 +918,6 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
   ]);
 }
 
-/* ---------- Đặt mã cá nhân tuỳ chỉnh cho một học sinh ---------- */
-
-function datMaTuyChinh(hocSinh, taiLai) {
-  const oMa = oNhap('mcnMa', 'text', hocSinh.ma || '', 'Ví dụ: MinhAnh2011');
-
-  moHopThoai(`Đặt mã cá nhân — ${hocSinh.hoTen}`, [
-    truong('Mã', oMa, 'Chữ hoa, chữ thường, số, ký tự đặc biệt — 3 đến 32 ký tự, không chứa khoảng trắng. Nên đặt gì đó em dễ nhớ.'),
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Lưu', '', async (ev) => {
-      if (!oMa.value.trim()) return nhac('Chưa nhập mã', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: oMa.value } });
-        dongHopThoai();
-        nhac('Đã đặt mã cho ' + hocSinh.hoTen, 'tot');
-        taiLai();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
-}
-
 /* ---------- Quyền theo mã cá nhân — GỘP một chỗ: quyền XEM (ẩn bớt mục trên trang lớp) và
    quyền QUẢN LÝ (soạn thông báo, thủ quỹ...) — không cần tạo tài khoản phụ riêng nữa.
    Có quyền quản lý thì mã đó dùng được ở trang đăng nhập /login.html, và bị RÀNG BUỘC
@@ -997,7 +970,7 @@ function veTheQuanLy(h, taiLai) {
     })
   );
   if (!h.chucVu) {
-    dongTen.append(Object.assign(e('small', 'trong', '(đặt chức vụ ở "Sửa hồ sơ" trong tab Học sinh để đổi huy hiệu)'), { style: 'font-size:11.5px' }));
+    dongTen.append(Object.assign(e('small', 'trong', '(bấm "✏ Sửa" bên dưới để đặt chức vụ)'), { style: 'font-size:11.5px' }));
   }
   thongTin.append(dongTen);
   khoiTrai.append(avatar, thongTin);
@@ -1026,14 +999,7 @@ function veTheQuanLy(h, taiLai) {
   const nutHang = e('div', 'day-loc');
   nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
   nutHang.append(
-    nut('✏ Sửa quyền', 'nut-vien nut-nho', () => datQuyen(h, taiLai)),
-    nut('🎲 Cấp lại mã', 'nut-nhe nut-nho', async () => {
-      try {
-        await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: h.id } });
-        nhac('Đã cấp mã mới cho ' + h.hoTen, 'tot');
-        taiLai();
-      } catch (err) { nhac(err.message, 'xau'); }
-    })
+    nut('✏ Sửa', 'nut-vien nut-nho', () => moQuanLyHocSinh(h, taiLai))
   );
   if (h.coThietBi) nutHang.append(nut('📱 Đặt lại thiết bị', 'nut-nhe nut-nho', () => datLaiThietBi(h, taiLai)));
   nutHang.append(nut('🚫 Gỡ quyền quản lý', 'nut-nhe nut-nho', () => {
@@ -1067,7 +1033,33 @@ function taoNhomTich(danhMuc, daChon) {
   });
 }
 
-function datQuyen(hocSinh, taiLai) {
+/* ---------- MỘT hộp thoại duy nhất cho một học sinh: họ tên, chức vụ, mã cá nhân, quyền
+   xem, quyền quản lý — gộp hết mọi thứ trước đây nằm rải rác ở 4-5 nút khác nhau. Bấm
+   "⚙ Quản lý" ở bảng học sinh (hoặc thẻ "Đang có quyền quản lý") là mở đúng hộp này. ---------- */
+const CAC_CHUC_VU_GOI_Y = [
+  ['👑 Lớp trưởng', 'Lớp trưởng'],
+  ['🪙 Thủ quỹ', 'Thủ quỹ'],
+  ['⚡ Bí thư', 'Bí thư'],
+  ['📋 Tổ trưởng', 'Tổ trưởng'],
+];
+
+function moQuanLyHocSinh(hocSinh, taiLai) {
+  const oHoTen = oNhap('qlHoTen', 'text', hocSinh.hoTen, 'Họ và tên đầy đủ');
+  const oChucVu = oNhap('qlChucVu', 'text', hocSinh.chucVu || '', 'Ví dụ: Lớp trưởng, Thủ quỹ, Tổ trưởng… (để trống nếu không giữ chức vụ gì)');
+
+  const dayGoiY = e('div', 'day-loc');
+  dayGoiY.style.cssText = 'margin-top:6px;gap:6px;flex-wrap:wrap;display:flex;align-items:center';
+  dayGoiY.append(Object.assign(e('span', 'trong', 'Chọn nhanh:'), { style: 'font-size:12px;color:var(--chu-nhat)' }));
+  CAC_CHUC_VU_GOI_Y.forEach(([nhan, val]) => {
+    const b = e('button', 'nut-nhe nut-nho', nhan);
+    b.type = 'button';
+    b.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:6px;cursor:pointer;';
+    b.addEventListener('click', () => { oChucVu.value = val; });
+    dayGoiY.append(b);
+  });
+
+  const oMa = oNhap('qlMa', 'text', hocSinh.ma || '', 'Để trống = giữ nguyên mã hiện tại');
+
   const anMuc = new Set(hocSinh.anMuc || []);
   const oTichXem = CAC_MUC_XEM.map(([ma, nhan]) => {
     const o = e('input');
@@ -1080,39 +1072,61 @@ function datQuyen(hocSinh, taiLai) {
   });
   const oTichQuanLy = taoNhomTich(CAC_QUYEN_QUAN_LY, hocSinh.quyen || []);
 
-  const info = layThongTinVaiTro(hocSinh.chucVu || '');
-  const dongChucDanh = e('div');
-  dongChucDanh.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:14px;';
-  dongChucDanh.append(
-    Object.assign(e('span', 'nhan', `${info.bieuTuong} ${hocSinh.chucVu ? info.tenGoi : 'Chưa đặt chức vụ'}`), {
-      style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12.5px;padding:3px 10px;border-radius:6px;`
-    }),
-    Object.assign(e('small', 'trong', 'Đổi chức vụ ở "Sửa hồ sơ" trong tab Học sinh'), { style: 'font-size:12px' })
-  );
-
   const noi = [
-    dongChucDanh,
-    e('h3', null, '👁 Quyền xem trên trang lớp'),
-    e('p', 'trong', 'Bỏ tích mục nào thì em KHÔNG thấy mục đó nữa (mặc định xem hết).'),
-    ...oTichXem.map(([, , nhanO]) => nhanO),
-    Object.assign(e('h3', null, '🔑 Quyền quản lý (đăng nhập được ở /login.html)'), { style: 'margin-top:16px' }),
-    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó. Để trống hết = chỉ xem, không quản lý gì.'),
-    ...oTichQuanLy.map(([, , nhanO]) => nhanO),
-  ];
-  if (hocSinh.coThietBi) {
-    noi.push(Object.assign(e('p', 'trong', '🔒 Mã này đã gắn với một thiết bị. Bấm "Lưu" bên dưới không đổi việc này — dùng nút "Đặt lại thiết bị" ở bảng nếu em cần đổi máy.'), { style: 'margin-top:10px' }));
-  }
+    e('h3', null, '👤 Thông tin'),
+    truong('Họ và tên', oHoTen),
+    truong('Chức vụ', oChucVu),
+    dayGoiY,
 
-  moHopThoai(`Quyền — ${hocSinh.hoTen}`, noi, [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Lưu', '', async (ev) => {
+    Object.assign(e('h3', null, '🔢 Mã cá nhân'), { style: 'margin-top:18px' }),
+    hocSinh.ma
+      ? truong('Mã (sửa để đổi mã tuỳ chỉnh)', oMa)
+      : truong('Đặt mã (bỏ trống thì bấm "Cấp mã ngẫu nhiên" bên dưới)', oMa),
+    nut('🎲 Cấp mã ngẫu nhiên mới ngay', 'nut-nhe nut-nho', async (ev) => {
       ev.currentTarget.disabled = true;
       try {
+        const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id } });
+        nhac('Đã cấp mã mới: ' + kq.ketQua[0].ma, 'tot');
+        dongHopThoai();
+        taiLai();
+      } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+    }),
+    hocSinh.coThietBi
+      ? Object.assign(e('p', 'trong', '🔒 Mã này đã gắn với một thiết bị.'), { style: 'margin-top:8px' })
+      : null,
+    hocSinh.coThietBi
+      ? nut('📱 Đặt lại thiết bị (cho đăng nhập máy mới)', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai))
+      : null,
+
+    Object.assign(e('h3', null, '👁 Quyền xem trên trang lớp'), { style: 'margin-top:18px' }),
+    e('p', 'trong', 'Bỏ tích mục nào thì em KHÔNG thấy mục đó nữa (mặc định xem hết).'),
+    ...oTichXem.map(([, , nhanO]) => nhanO),
+
+    Object.assign(e('h3', null, '🔑 Quyền quản lý (đăng nhập được ở /login.html)'), { style: 'margin-top:18px' }),
+    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó. Để trống hết = chỉ xem, không quản lý gì.'),
+    ...oTichQuanLy.map(([, , nhanO]) => nhanO),
+  ].filter(Boolean);
+
+  moHopThoai(`Quản lý — ${hocSinh.hoTen}`, noi, [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu tất cả', '', async (ev) => {
+      const tenMoi = oHoTen.value.trim();
+      if (!tenMoi) return nhac('Họ tên không được để trống', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi, chucVu: oChucVu.value.trim() } });
+
+        const maMoi = oMa.value.trim();
+        if (maMoi && maMoi !== hocSinh.ma) {
+          await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: maMoi } });
+        }
+
         const anMucMoi = oTichXem.filter(([, o]) => !o.checked).map(([ma]) => ma);
         const quyenMoi = oTichQuanLy.filter(([, o]) => o.checked).map(([ma]) => ma);
         await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, anMuc: anMucMoi, quyen: quyenMoi } });
+
         dongHopThoai();
-        nhac('Đã lưu quyền cho ' + hocSinh.hoTen, 'tot');
+        nhac('Đã lưu thông tin của ' + tenMoi, 'tot');
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
@@ -1133,30 +1147,6 @@ function datLaiThietBi(hocSinh, taiLai) {
         await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
         dongHopThoai();
         nhac('Đã đặt lại thiết bị cho ' + hocSinh.hoTen, 'tot');
-        taiLai();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
-}
-
-function suaTenHocSinh(hocSinh, taiLai) {
-  const oHoTen = oNhap('hsDoiTen', 'text', hocSinh.hoTen, 'Nhập họ và tên học sinh');
-
-  moHopThoai(`Đổi tên học sinh — STT ${hocSinh.id}`, [
-    truong('Họ và tên học sinh', oHoTen, 'Sửa trực tiếp họ và tên nếu bị sai sót hoặc có thay đổi.'),
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Lưu tên mới', '', async (ev) => {
-      const tenMoi = oHoTen.value.trim();
-      if (!tenMoi) return nhac('Họ tên không được để trống', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi } });
-        dongHopThoai();
-        nhac(`Đã đổi tên thành: ${tenMoi}`, 'tot');
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
