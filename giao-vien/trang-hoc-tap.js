@@ -633,7 +633,7 @@ async function veChuyenCan(KHUNG) {
 export async function trangBaoCao(KHUNG) {
   const khung = e('div');
   khung.append(tieuDeTrang('Báo cáo & xuất dữ liệu',
-    'Tải về tệp CSV, mở trực tiếp bằng Excel để in hoặc nộp trường.'));
+    'Tải file Excel chuyên nghiệp (.xls) có viền khung, màu sắc và chữ ký để nộp trường; hoặc file CSV (.csv) tách cột chuẩn.'));
 
   const nay = homNay();
   const truoc30 = (() => {
@@ -647,41 +647,128 @@ export async function trangBaoCao(KHUNG) {
   const oHk = oChon('bcHk', [[1, 'Học kì 1'], [2, 'Học kì 2']], sessionStorage.getItem('sd-hocki') || 1);
 
   const theLoc = e('div', 'the');
-  const hang = e('div', 'hang-nhap hang-nhap-2');
-  hang.append(truong('Từ ngày', oTu), truong('Đến ngày', oDen));
-  theLoc.append(hang, truong('Học kì (dùng cho sổ điểm)', oHk));
+  const hangLoc = e('div', 'hang-nhap hang-nhap-2');
+  hangLoc.append(truong('Từ ngày (cho Điểm danh & Nhật ký)', oTu), truong('Đến ngày', oDen));
+  theLoc.append(hangLoc, truong('Học kì (dùng cho Sổ điểm)', oHk));
   khung.append(theLoc);
 
-  const CAC_BAO_CAO = [
-    ['danh-sach', 'Danh sách lớp', 'Đầy đủ họ tên, ngày sinh, lớp nghề, chức vụ, SĐT phụ huynh.', false],
-    ['chuyen-can', 'Báo cáo chuyên cần', 'Số buổi có mặt, trễ, vắng và tỉ lệ chuyên cần từng em.', true],
-    ['so-diem', 'Sổ điểm', 'ĐTB từng môn, TB chung, xếp loại học lực và rèn luyện.', false],
-    ['nhat-ky', 'Sổ nhật ký chủ nhiệm', 'Khen thưởng, nhắc nhở, vi phạm theo khoảng thời gian.', true],
-    ['tong-hop', 'Báo cáo tổng hợp', 'Gộp chuyên cần, vi phạm, khen thưởng, sách, đồng phục.', false],
+  function taiBaoCao(ma, theoNgay, dinhDang) {
+    const p = new URLSearchParams({ loai: ma, dinhDang });
+    if (theoNgay) {
+      p.set('tuNgay', oTu.value);
+      p.set('denNgay', oDen.value);
+    }
+    if (ma === 'so-diem') p.set('hocKi', oHk.value);
+    location.href = '/api/gv/bao-cao?' + p.toString();
+  }
+
+  function taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu) {
+    const the = e('div', 'the the-bao-cao');
+    the.style.display = 'flex';
+    the.style.flexDirection = 'column';
+    the.style.justifyContent = 'space-between';
+    the.style.gap = '12px';
+
+    const phanDau = e('div');
+    const dongTieuDe = e('div');
+    dongTieuDe.style.display = 'flex';
+    dongTieuDe.style.alignItems = 'center';
+    dongTieuDe.style.justifyContent = 'space-between';
+    dongTieuDe.style.marginBottom = '6px';
+
+    const tieuDe = e('h3', null, `${icon} ${ten}`);
+    tieuDe.style.fontSize = '16px';
+    tieuDe.style.margin = '0';
+    tieuDe.style.color = 'var(--chu)';
+    dongTieuDe.append(tieuDe);
+
+    if (nhanPhu) {
+      const chip = e('span', 'nhan nhan-nho', nhanPhu);
+      dongTieuDe.append(chip);
+    }
+
+    const doanMoTa = e('p', 'trong', moTa);
+    doanMoTa.style.fontSize = '13.5px';
+    doanMoTa.style.margin = '0';
+    doanMoTa.style.lineHeight = '1.45';
+
+    phanDau.append(dongTieuDe, doanMoTa);
+
+    const hangNut = e('div');
+    hangNut.style.display = 'flex';
+    hangNut.style.gap = '8px';
+    hangNut.style.flexWrap = 'wrap';
+
+    const nutExcel = nut('📥 Tải Excel (.xls)', 'nut-chinh nut-nho', () => {
+      taiBaoCao(ma, theoNgay, 'excel');
+    });
+    nutExcel.title = 'Mở trực tiếp bằng Microsoft Excel với bảng biểu kẻ viền, có tiêu đề và chữ ký GVCN';
+
+    const nutCsv = nut('📄 Tải CSV (.csv)', 'nut-vien nut-nho', () => {
+      taiBaoCao(ma, theoNgay, 'csv');
+    });
+    nutCsv.title = 'Tải file dữ liệu thô (.csv), có chỉ thị sep=; để Excel tự động chia cột đúng chuẩn';
+
+    hangNut.append(nutExcel, nutCsv);
+    the.append(phanDau, hangNut);
+    return the;
+  }
+
+  // CÁC NHÓM BÁO CÁO ĐỒNG BỘ 100% VỚI VÙNG 1
+  const NHOM_BAO_CAO = [
+    {
+      tieuDeNhom: '🏫 Báo cáo Lớp học (Khớp mục: Điểm danh, Học sinh, Sổ điểm, Nhật ký, Thủ quỹ)',
+      danhSach: [
+        ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
+        ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
+        ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
+        ['📝', 'Báo cáo Nhật ký lớp', 'Sổ nhật ký chủ nhiệm: ghi nhận khen thưởng, nhắc nhở, vi phạm và tình trạng xử lý.', 'nhat-ky', true, 'Theo ngày'],
+        ['🪙', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
+      ],
+    },
+    {
+      tieuDeNhom: '📢 Báo cáo Trang lớp (Khớp mục: Kế hoạch, Thông báo, Thời khoá biểu)',
+      danhSach: [
+        ['📅', 'Báo cáo Kế hoạch', 'Kế hoạch hoạt động năm học, lịch trình sự kiện, mức độ ưu tiên và thời hạn hoàn thành.', 'ke-hoach', false, 'Kế hoạch năm'],
+        ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp, ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
+        ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
+      ],
+    },
+    {
+      tieuDeNhom: '📊 Báo cáo Thống kê & Tài khoản (Khớp mục: Thống kê, Mã cá nhân)',
+      danhSach: [
+        ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, kỷ luật, khen thưởng, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
+        ['🔑', 'Báo cáo Mã cá nhân & Phân quyền', 'Danh sách mã tra cứu điểm cá nhân của từng em, tài khoản ban cán sự và quyền quản trị.', 'ma-ca-nhan', false, 'Bảo mật'],
+      ],
+    },
   ];
 
-  const luoi = e('div', 'luoi luoi-2');
-  luoi.style.marginTop = '16px';
-  CAC_BAO_CAO.forEach(([ma, ten, moTa, theoNgay]) => {
-    const the = e('div', 'the');
-    the.append(e('h3', null, ten), e('p', 'trong', moTa));
-    the.append(nut('⬇ Tải về (.csv)', 'nut-vien nut-nho', () => {
-      const p = new URLSearchParams({ loai: ma });
-      if (theoNgay) { p.set('tuNgay', oTu.value); p.set('denNgay', oDen.value); }
-      if (ma === 'so-diem') p.set('hocKi', oHk.value);
-      location.href = '/api/gv/bao-cao?' + p.toString();
-    }));
-    luoi.append(the);
+  NHOM_BAO_CAO.forEach((nhom) => {
+    const tieuDeMuc = e('h2', null, nhom.tieuDeNhom);
+    tieuDeMuc.style.fontSize = '17px';
+    tieuDeMuc.style.fontWeight = 'bold';
+    tieuDeMuc.style.marginTop = '24px';
+    tieuDeMuc.style.marginBottom = '12px';
+    tieuDeMuc.style.color = 'var(--chinh)';
+    khung.append(tieuDeMuc);
+
+    const luoi = e('div', 'luoi luoi-2');
+    nhom.danhSach.forEach(([icon, ten, moTa, ma, theoNgay, nhanPhu]) => {
+      luoi.append(taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu));
+    });
+    khung.append(luoi);
   });
-  khung.append(luoi);
 
   const goiY = e('div', 'the');
-  goiY.style.marginTop = '16px';
+  goiY.style.marginTop = '24px';
+  goiY.style.borderLeft = '4px solid var(--chinh)';
   goiY.append(
-    e('h3', null, 'Mẹo khi mở bằng Excel'),
-    e('p', null, 'Tệp đã có sẵn dấu nhận diện tiếng Việt nên mở lên là đọc được ngay, không bị lỗi font. '
-      + 'Cột được ngăn bằng dấu chấm phẩy — đúng chuẩn Excel bản tiếng Việt. '
-      + 'Muốn in thì mở trong Excel rồi bấm In như bình thường.')
+    e('h3', null, '💡 Hướng dẫn & Tiêu chuẩn xuất file báo cáo'),
+    e('p', null,
+      '• Định dạng Excel (.xls): Được định dạng chuẩn mẫu văn bản giáo dục với đầy đủ Quốc hiệu, Tiêu ngữ, '
+      + 'tiêu đề trường lớp, viền khung ô rõ ràng, màu sắc trang nhã, phân chia cột chuẩn xác và có sẵn phần ký duyệt của Giáo viên chủ nhiệm để in nộp Ban Giám hiệu.\n'
+      + '• Định dạng CSV (.csv): Đã bổ sung chỉ thị phân tách cột tự động (sep=;) và bảng mã UTF-8 BOM, đảm bảo khi mở trên bất kỳ máy tính nào cũng hiển thị đúng từng cột A, B, C, D... không bị dồn cột hay lỗi font tiếng Việt.'
+    )
   );
   khung.append(goiY);
 
