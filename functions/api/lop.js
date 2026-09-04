@@ -7,18 +7,21 @@
 // dữ liệu vẫn công khai như nhau cho mọi mã lớp giống hệt trước đây.
 import { bocXuLy, json } from '../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ env, request, waitUntil }) => {
+export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) => {
   const db = env.DB;
 
   const homNay = new Date().toISOString().slice(0, 10);
   const ma = new URL(request.url).searchParams.get('ma');
+  // Đăng nhập bằng mã cá nhân thật (phiên có hocSinhId) là nguồn đáng tin cậy nhất để biết
+  // "đây là em nào" — ?ma= chỉ còn là phương án dự phòng cho trang cũ dùng localStorage.
+  const hocSinhIdPhien = phien.hocSinhId || null;
 
   // Ghi lại lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
   // số liệu tham khảo cho tab Tương tác. Ghi cả bảng tổng theo ngày (nhanh cho biểu đồ) lẫn
   // chi tiết từng lượt kèm mã (nếu có) để biết ai truy cập, lúc nào, bao nhiêu lần.
   const ghiLuot = (async () => {
-    let hocSinhId = null;
-    if (ma) {
+    let hocSinhId = hocSinhIdPhien;
+    if (!hocSinhId && ma) {
       const m = await db.prepare('SELECT hoc_sinh_id AS id FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
       hocSinhId = m?.id ?? null;
     }
@@ -64,7 +67,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil }) => {
   const nhacNen = await db.prepare('SELECT ten_bai AS tenBai FROM nhac_nen WHERE id = 1').first().catch(() => null);
 
   let anMuc = [];
-  if (ma) {
+  if (hocSinhIdPhien) {
+    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first();
+    if (m && m.anMuc) anMuc = m.anMuc.split(',');
+  } else if (ma) {
     const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
     if (m && m.anMuc) anMuc = m.anMuc.split(',');
   }

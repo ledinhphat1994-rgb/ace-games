@@ -220,7 +220,10 @@ export function layThongTinVaiTro(vaiTro = '') {
 export function layNhanTaiKhoan(phien = {}) {
   const role = phien.role || '';
   if (role === 'teacher') return '👩‍🏫 Tài khoản: Giáo viên chủ nhiệm';
-  if (role === 'student') return '🎓 Tài khoản: Học sinh thường';
+  if (role === 'student') {
+    const ten = (phien.ten || '').trim();
+    return ten ? `🎓 Tài khoản: ${ten}` : '🎓 Tài khoản: Học sinh thường';
+  }
 
   let vt = (phien.vaiTro || '').trim();
   const info = layThongTinVaiTro(vt);

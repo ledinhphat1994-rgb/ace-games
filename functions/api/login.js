@@ -42,8 +42,8 @@ function taoThietBi() {
 export async function onRequestPost({ request, env }) {
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
 
-  if (!env.SESSION_SECRET || !env.CLASS_CODE) {
-    return json({ ok: false, message: 'Máy chủ chưa được cấu hình mã lớp.' }, 500);
+  if (!env.SESSION_SECRET) {
+    return json({ ok: false, message: 'Máy chủ chưa được cấu hình.' }, 500);
   }
 
   if (await tooManyTries(env, ip)) {
@@ -63,17 +63,16 @@ export async function onRequestPost({ request, env }) {
   // Làm chậm nhẹ để hạn chế dò mã tự động.
   await new Promise((r) => setTimeout(r, 400));
 
-  // Mã học sinh / giáo viên: ưu tiên đọc từ D1 nếu giáo viên đã tự đặt qua web
-  // (mục "Mã đăng nhập"); nếu chưa từng đặt thì dùng biến môi trường cũ trên Cloudflare.
+  // Mã giáo viên: ưu tiên đọc từ D1 nếu giáo viên đã tự đặt qua web (mục "Mã đăng nhập");
+  // nếu chưa từng đặt thì dùng biến môi trường cũ trên Cloudflare. Không còn "mã học sinh
+  // cả lớp" dùng chung nữa — mỗi em đăng nhập bằng đúng mã cá nhân của mình (xem nhánh
+  // ma_ca_nhan bên dưới), để biết chính xác ai đang xem, không còn một mã lộ ra là cả lớp
+  // cùng lộ.
   let maGiaoVien = env.TEACHER_CODE || '';
-  let maHocSinh = env.CLASS_CODE || '';
   if (env.DB) {
     try {
-      const { results } = await env.DB.prepare('SELECT vai_tro, ma FROM ma_dang_nhap').all();
-      results.forEach((r) => {
-        if (r.vai_tro === 'teacher') maGiaoVien = r.ma;
-        if (r.vai_tro === 'student') maHocSinh = r.ma;
-      });
+      const dn = await env.DB.prepare("SELECT ma FROM ma_dang_nhap WHERE vai_tro = 'teacher'").first();
+      if (dn) maGiaoVien = dn.ma;
     } catch {
       // Bảng chưa tồn tại (chưa chạy migration) — dùng biến môi trường như trước.
     }
@@ -85,8 +84,6 @@ export async function onRequestPost({ request, env }) {
 
   if (maGiaoVien && safeEqual(code, maGiaoVien)) {
     role = 'teacher';
-  } else if (maHocSinh && safeEqual(code, maHocSinh)) {
-    role = 'student';
   } else if (env.DB) {
     // Không khớp 2 mã cố định — thử tìm trong bảng tài khoản đặc biệt
     // (lớp trưởng, thủ quỹ... do giáo viên tự cấp trên web).
@@ -110,10 +107,12 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Mã cá nhân ĐƯỢC CẤP quyền quản lý (giáo viên gộp phân quyền vào tab Mã cá nhân) cũng
-  // đăng nhập được ở đây, không chỉ ở trang "Xem kết quả của tôi" (chỉ tra cứu, không có
-  // quyền). Ràng buộc 1 mã = 1 thiết bị CHỈ áp dụng ở nhánh này — mã tra cứu thường không bị
-  // giới hạn máy vì không có gì để mất nếu xem từ nhiều máy.
+  // Mã cá nhân của học sinh — giờ là cách DUY NHẤT học sinh vào trang lớp (không còn mã cả
+  // lớp dùng chung). Hai trường hợp:
+  //   - Không được cấp quyền quản lý: role 'student' như trước, xem được mọi thứ công khai,
+  //     KHÔNG giới hạn thiết bị (không có gì để mất nếu xem từ nhiều máy).
+  //   - ĐƯỢC CẤP quyền quản lý: role 'phu' + quyen, RÀNG BUỘC 1 mã = 1 thiết bị + ghi nhật ký
+  //     đăng nhập, vì tài khoản này có thể sửa/xoá dữ liệu thật.
   let ketQuaThietBi = null;
   let dongCookieThietBi = null;
   if (!role && env.DB) {
@@ -124,7 +123,11 @@ export async function onRequestPost({ request, env }) {
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
       ).bind(code).first();
 
-      if (ca && ca.quyen) {
+      if (ca && !ca.quyen) {
+        role = 'student';
+        tenHienThi = ca.hoTen;
+        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen };
+      } else if (ca && ca.quyen) {
         const thietBiMay = docThietBi(request);
         if (!ca.thietBi) {
           // Lần đầu đăng nhập bằng mã này — gắn luôn vào máy đang dùng.

@@ -849,11 +849,13 @@ export async function veKhoiTaiKhoanPhu(khung) {
 }
 
 function suaTaiKhoan(tk, cacQuyen, taiLai) {
-  // Nếu vai trò đang lưu là 'admin' thì gợi ý điền sẵn 'Quản trị viên' tiếng Việt
-  const vaiTroKhoiDau = (tk.vaiTro === 'admin' || !tk.vaiTro) ? 'Quản trị viên' : tk.vaiTro;
+  // Chỉ đổi 'admin' (giá trị cũ, kỹ thuật) thành tiếng Việt — KHÔNG tự điền "Quản trị viên"
+  // khi để trống, vì nếu giáo viên chủ ý xoá trắng vai trò rồi lỡ bấm Lưu ngay, giá trị gợi ý
+  // này sẽ bị lưu đè lên đúng cái họ vừa xoá.
+  const vaiTroKhoiDau = tk.vaiTro === 'admin' ? 'Quản trị viên' : (tk.vaiTro || '');
 
   const oTen = oNhap('tkSuaTen', 'text', tk.ten, 'Ví dụ: Lê Đình Phát, Nguyễn Văn A...');
-  const oVaiTro = oNhap('tkSuaVaiTro', 'text', vaiTroKhoiDau, 'Ví dụ: Quản trị viên, Lớp trưởng, Thủ quỹ, Bí thư…');
+  const oVaiTro = oNhap('tkSuaVaiTro', 'text', vaiTroKhoiDau, 'Để trống nếu không cần vai trò cụ thể. Ví dụ: Quản trị viên, Lớp trưởng, Thủ quỹ, Bí thư…');
 
   const dayGoiY = e('div', 'day-loc');
   dayGoiY.style.cssText = 'margin-top:6px;gap:6px;flex-wrap:wrap;display:flex;align-items:center';

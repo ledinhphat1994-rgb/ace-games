@@ -795,10 +795,14 @@ export async function trangMaCaNhan(KHUNG) {
 
       const tdQuyen = e('td');
       if (h.ma) {
+        tdQuyen.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+        // Quyền XEM và quyền QUẢN LÝ là hai chuyện độc lập — một em có thể vừa bị ẩn bớt mục
+        // VỪA được cấp quyền quản lý cùng lúc, nên hiện CẢ HAI nhãn thay vì chỉ một.
         const soAn = (h.anMuc || []).length;
         const soQuanLy = (h.quyen || []).length;
-        tdQuyen.append(e('span', 'nhan ' + (soQuanLy ? 'nhan-tim' : soAn ? 'nhan-luuy' : 'nhan-tot'),
-          soQuanLy ? `🔑 Quản lý ${soQuanLy} mục` : soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
+        tdQuyen.append(e('span', 'nhan ' + (soAn ? 'nhan-luuy' : 'nhan-tot'),
+          soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
+        if (soQuanLy) tdQuyen.append(e('span', 'nhan nhan-tim', `🔑 Quản lý ${soQuanLy} mục`));
       } else {
         tdQuyen.append(e('span', 'trong', '—'));
       }
@@ -867,13 +871,13 @@ function veTheMaDangNhap(dangNhap, taiLai) {
   the.style.borderColor = 'var(--chinh)';
   the.append(
     e('h3', null, 'Mã đăng nhập'),
-    e('p', 'trong', 'Mã cả lớp dùng để vào trang chính, và mã riêng của giáo viên chủ nhiệm. Đổi ở đây có hiệu lực ngay, không cần vào Cloudflare.')
+    e('p', 'trong', 'Mã riêng của giáo viên chủ nhiệm. Học sinh không dùng mã chung nữa — mỗi em vào trang lớp bằng đúng mã cá nhân của mình (xem Phần 2 bên dưới). Đổi ở đây có hiệu lực ngay, không cần vào Cloudflare.')
   );
 
   const luoi = e('div', 'luoi luoi-2');
   luoi.style.marginTop = '10px';
 
-  [['student', '🎓 Mã học sinh (cả lớp)', dangNhap.student], ['teacher', '👩‍🏫 Mã giáo viên chủ nhiệm', dangNhap.teacher]]
+  [['teacher', '👩‍🏫 Mã giáo viên chủ nhiệm', dangNhap.teacher]]
     .forEach(([vaiTro, nhan, tt]) => {
       const o = e('div');
       o.style.cssText = 'background:var(--nen-chim);border-radius:var(--r-nho);padding:12px';
