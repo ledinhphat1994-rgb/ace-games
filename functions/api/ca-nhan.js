@@ -2,8 +2,9 @@
 // Học sinh (đã vào bằng mã lớp) nhập mã cá nhân để xem kết quả CỦA CHÍNH MÌNH.
 // Chỉ trả về dữ liệu của đúng em đó — không bao giờ trả danh sách cả lớp,
 // không trả hoàn cảnh gia đình hay số điện thoại phụ huynh.
-import { bocXuLy, json, loi, docThan, chuoi } from '../_lib/api.js';
+import { bocXuLy, json, loi, docThan } from '../_lib/api.js';
 import { gomBangDiem, xepLoaiHocTap } from '../_lib/tt22.js';
+import { chuanHoaMaTuyChinh } from '../_lib/ma.js';
 
 const TOI_DA_THU = 12;      // số lần nhập sai cho phép
 const CUA_SO = 900;         // trong 15 phút
@@ -26,7 +27,10 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   }
 
   const { ma } = await docThan(request);
-  const maSach = chuoi(ma, 20).toUpperCase();
+  // KHÔNG ép chữ hoa và KHÔNG giới hạn 20 ký tự ở đây — phải khớp đúng cách chuẩn hoá
+  // dùng lúc giáo viên ĐẶT mã (chuanHoaMaTuyChinh, tối đa 32 ký tự, giữ nguyên hoa/thường).
+  // Trước đây hai bên lệch nhau nên mã có chữ thường hoặc dài hơn 20 ký tự tra cứu không ra.
+  const maSach = chuanHoaMaTuyChinh(ma);
   if (!maSach) return loi('Chưa nhập mã cá nhân.');
 
   // Làm chậm nhẹ để hạn chế dò mã.
