@@ -1,8 +1,25 @@
 /* Thủ quỹ lớp và trang Phân quyền (tài khoản đặc biệt). */
-import { $, e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
+
+/* Helper tạo biểu tượng SVG sắc nét, chuẩn vector */
+function taoSvgIcon(pathD, w = 14, h = 14) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(w));
+  svg.setAttribute('height', String(h));
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', pathD);
+  svg.appendChild(path);
+  return svg;
+}
 
 /* ================= Thủ quỹ — 1 trang, mở rộng tại chỗ, sửa được mọi bản ghi ================= */
 
@@ -87,21 +104,27 @@ export async function trangQuy(KHUNG) {
     );
     box.append(hangNut);
 
-    // Dải số liệu THU CHI NỔI BẬT với thẻ riêng & số to rõ
+    // Dải số liệu THU CHI NỔI BẬT với thẻ riêng & số to rõ (tự thích ứng, không bao giờ bị cắt chữ)
     const phanTram = dk.tongCanThu ? Math.round((dk.tongDaThu / dk.tongCanThu) * 100) : 0;
     const conThieuKhoan = Math.max(0, (dk.tongCanThu || 0) - (dk.tongDaThu || 0));
 
-    const soLieu = (nhan, giaTri, kieu) => {
-      const muc = e('div', 'muc');
-      muc.append(e('div', 'nhan', nhan), e('div', 'gt' + (kieu ? ' ' + kieu : ''), giaTri));
-      return muc;
+    const soLieu = (nhan, giaTri, kieu, phu = null) => {
+      const the = e('div', 'the-so-lieu');
+      the.append(
+        e('div', 'nhan-so-lieu', nhan),
+        e('div', 'gt-so-lieu' + (kieu ? ' ' + kieu : ''), giaTri)
+      );
+      if (phu) {
+        the.append(e('div', 'phu-so-lieu', phu));
+      }
+      return the;
     };
     const day = e('div', 'chuoi-so-lieu');
     day.append(
-      soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot'),
-      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can'),
-      soLieu('Còn thiếu', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot'),
-      soLieu('Tiến độ', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ (${phanTram}%)`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
+      soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot', `Đạt ${phanTram}% chỉ tiêu`),
+      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.soTien)} / em`),
+      soLieu('Còn thiếu', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot', `${dk.danhSach.length - dk.soEmDaDuDinh} em chưa nộp đủ`),
+      soLieu('Tiến độ thu', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy', `Hoàn thành ${phanTram}% tổng quỹ`)
     );
     box.append(day);
 
@@ -190,44 +213,87 @@ export async function trangQuy(KHUNG) {
       datNoiDung(hopDs, ...ds.map((h) => {
         const hang = e('div', 'hang-hs hang-hs-doc');
         const dong1 = e('div', 'hang-hs-dong1');
-        const ten = e('div', 'ten');
 
-        // Đánh dấu rõ ràng ĐỦ / THIẾU / CHƯA ĐÓNG bằng huy hiệu to rõ
+        // Khối bên trái: STT + Tên học sinh + Tổ + Chi tiết đóng tiền nổi bật
+        const khoiTrai = e('div', 'hs-khoi-trai');
+        const sttEl = e('div', 'stt', h.hocSinhId);
+        const thongTin = e('div', 'hs-thong-tin');
+
+        const dongTen = e('div', 'hs-ten-to');
+        const hoTenEl = e('span', 'hs-ho-ten', h.hoTen);
+        dongTen.append(hoTenEl);
+        if (h.toSo) {
+          dongTen.append(e('span', 'hs-to-badge', `Tổ ${h.toSo}`));
+        }
+
+        const dongTien = e('div', 'hs-chi-tiet-dong');
+
+        // Huy hiệu trạng thái và chi tiết số tiền nổi bật, rõ ràng
         let nhanBadge;
-        let textPhu;
         if (h.daDuDinh) {
           hang.classList.add('quy-da-du');
           nhanBadge = e('span', 'nhan-trang-thai-quy da-du', '✓ ĐÃ ĐỦ');
-          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Đã nộp đủ ${tienVN(h.daDong)}`].filter(Boolean).join(' · ');
+          const tienDu = e('span', 'tien-nhan-muc da-du');
+          tienDu.append('Đã nộp đủ: ', e('strong', null, tienVN(h.daDong)));
+          dongTien.append(tienDu);
         } else if (h.daDong > 0) {
           hang.classList.add('quy-con-thieu');
           nhanBadge = e('span', 'nhan-trang-thai-quy con-thieu', `⚠️ THIẾU ${tienVN(h.conThieu)}`);
-          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Đã đóng ${tienVN(h.daDong)} · còn thiếu ${tienVN(h.conThieu)}`].filter(Boolean).join(' · ');
+          const tienDaDong = e('span', 'tien-nhan-muc da-dong');
+          tienDaDong.append('Đã đóng: ', e('strong', null, tienVN(h.daDong)));
+          const tienThieu = e('span', 'tien-nhan-muc con-thieu');
+          tienThieu.append('Còn thiếu: ', e('strong', null, tienVN(h.conThieu)));
+          dongTien.append(tienDaDong, e('span', 'cham-cach', '·'), tienThieu);
         } else {
           hang.classList.add('quy-chua-dong');
           nhanBadge = e('span', 'nhan-trang-thai-quy chua-dong', '✕ CHƯA ĐÓNG');
-          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Chưa nộp · Mức thu ${tienVN(h.conThieu)}`].filter(Boolean).join(' · ');
+          const tienChua = e('span', 'tien-nhan-muc chua-dong');
+          tienChua.append('Chưa nộp · Mức thu: ', e('strong', null, tienVN(h.conThieu)));
+          dongTien.append(tienChua);
         }
 
-        ten.append(e('b', null, h.hoTen), e('small', null, textPhu));
-        dong1.append(e('div', 'stt', h.hocSinhId), ten, nhanBadge);
-        dong1.append(nut('+ Ghi thu', 'nut-vien nut-nho', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo)));
+        thongTin.append(dongTen, dongTien);
+        khoiTrai.append(sttEl, thongTin);
+
+        // Khối bên phải: Huy hiệu trạng thái + Nút Ghi thu
+        const khoiPhai = e('div', 'hs-khoi-phai');
+        khoiPhai.append(
+          nhanBadge,
+          nut('+ Ghi thu', 'nut-vien nut-nho', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo))
+        );
+
+        dong1.append(khoiTrai, khoiPhai);
         hang.append(dong1);
 
+        // Lịch sử các lần đóng tiền: khung thẻ rõ ràng, icon thao tác sắc nét
         if (h.lanDong && h.lanDong.length) {
-          const dsLan = e('div', 'ds-lan-dong');
+          const khungLan = e('div', 'khung-lan-dong');
+          const tieuDeLan = e('div', 'lan-dong-tieu-de');
+          tieuDeLan.append(
+            taoSvgIcon('M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z M16 2v4 M8 2v4 M3 10h18', 13, 13),
+            document.createTextNode('Lịch sử nộp:')
+          );
+
+          const dsThe = e('div', 'ds-the-lan-dong');
           h.lanDong.forEach((ld) => {
-            const dong = e('span', 'lan-dong');
-            dong.append(document.createTextNode(`${tienVN(ld.soTien)} · ${ngayVN(ld.ngay)}`));
-            const bSua = e('button', 'nut-nho-icon');
-            bSua.type = 'button'; bSua.textContent = '✎';
+            const the = e('div', 'the-lan-dong');
+            const tienEl = e('span', 'lan-dong-tien', `+${tienVN(ld.soTien)}`);
+            const ngayEl = e('span', 'lan-dong-ngay', ngayVN(ld.ngay));
+
+            const thaoTac = e('div', 'lan-dong-thao-tac');
+
+            const bSua = e('button', 'nut-thao-tac-lan sua');
+            bSua.type = 'button';
             bSua.title = 'Sửa lần đóng này';
             bSua.setAttribute('aria-label', `Sửa lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
+            bSua.append(taoSvgIcon('M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 12, 12));
             bSua.addEventListener('click', () => suaDong(ld, h.hoTen, lamMoiKhoanDangMo));
-            const bXoa = e('button', 'nut-nho-icon');
-            bXoa.type = 'button'; bXoa.textContent = '🗑';
+
+            const bXoa = e('button', 'nut-thao-tac-lan xoa');
+            bXoa.type = 'button';
             bXoa.title = 'Xoá lần đóng này';
             bXoa.setAttribute('aria-label', `Xoá lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
+            bXoa.append(taoSvgIcon('M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6', 12, 12));
             bXoa.addEventListener('click', () => {
               moHopThoai('Xoá lần đóng này?', e('p', null, `${h.hoTen} — ${tienVN(ld.soTien)} ngày ${ngayVN(ld.ngay)}`), [
                 nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -241,10 +307,14 @@ export async function trangQuy(KHUNG) {
                 }),
               ]);
             });
-            dong.append(bSua, bXoa);
-            dsLan.append(dong);
+
+            thaoTac.append(bSua, bXoa);
+            the.append(tienEl, ngayEl, thaoTac);
+            dsThe.append(the);
           });
-          hang.append(dsLan);
+
+          khungLan.append(tieuDeLan, dsThe);
+          hang.append(khungLan);
         }
         return hang;
       }));
@@ -274,28 +344,53 @@ export async function trangQuy(KHUNG) {
     d.chi.forEach((c) => {
       const hang = e('div', 'hang-hs hang-hs-doc');
       const dong1 = e('div', 'hang-hs-dong1');
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, c.noiDung), e('small', null,
-        `${tienVN(c.soTien)} · ${ngayVN(c.ngay)} · ${(CAC_LOAI_CHI.find((x) => x[0] === c.loai) || [null, 'Khác'])[1]}`));
-      dong1.append(ten);
-      const nutHop = e('div', 'canh-phai');
-      nutHop.append(
-        nut('✎', 'nut-nhe nut-nho', () => suaChi(c, tai), 'Sửa khoản chi: ' + c.noiDung),
-        nut('🗑', 'nut-nhe nut-nho', () => {
-          moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async () => {
-              try {
-                await api('/api/gv/quy?loai=chi&id=' + c.id, { method: 'DELETE' });
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                tai();
-              } catch (err) { nhac(err.message, 'xau'); }
-            }),
-          ]);
-        }, 'Xoá khoản chi: ' + c.noiDung)
-      );
-      dong1.append(nutHop);
+
+      const khoiTrai = e('div', 'hs-khoi-trai');
+      const thongTin = e('div', 'hs-thong-tin');
+
+      const dongTen = e('div', 'hs-ten-to');
+      dongTen.append(e('span', 'hs-ho-ten', c.noiDung));
+      const loaiTen = (CAC_LOAI_CHI.find((x) => x[0] === c.loai) || [null, 'Khác'])[1];
+      dongTen.append(e('span', 'hs-to-badge', loaiTen));
+
+      const dongTien = e('div', 'hs-chi-tiet-dong');
+      const tienChi = e('span', 'tien-nhan-muc chua-dong');
+      tienChi.append('Đã chi: ', e('strong', null, '-' + tienVN(c.soTien)));
+      const ngayChi = e('span', 'lan-dong-ngay', `Ngày chi: ${ngayVN(c.ngay)}`);
+      dongTien.append(tienChi, e('span', 'cham-cach', '·'), ngayChi);
+
+      thongTin.append(dongTen, dongTien);
+      khoiTrai.append(thongTin);
+
+      const khoiPhai = e('div', 'hs-khoi-phai');
+      const bSuaChi = e('button', 'nut-thao-tac-lan sua');
+      bSuaChi.type = 'button';
+      bSuaChi.title = 'Sửa khoản chi: ' + c.noiDung;
+      bSuaChi.setAttribute('aria-label', 'Sửa khoản chi: ' + c.noiDung);
+      bSuaChi.append(taoSvgIcon('M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 13, 13));
+      bSuaChi.addEventListener('click', () => suaChi(c, tai));
+
+      const bXoaChi = e('button', 'nut-thao-tac-lan xoa');
+      bXoaChi.type = 'button';
+      bXoaChi.title = 'Xoá khoản chi: ' + c.noiDung;
+      bXoaChi.setAttribute('aria-label', 'Xoá khoản chi: ' + c.noiDung);
+      bXoaChi.append(taoSvgIcon('M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6', 13, 13));
+      bXoaChi.addEventListener('click', () => {
+        moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async () => {
+            try {
+              await api('/api/gv/quy?loai=chi&id=' + c.id, { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              tai();
+            } catch (err) { nhac(err.message, 'xau'); }
+          }),
+        ]);
+      });
+
+      khoiPhai.append(bSuaChi, bXoaChi);
+      dong1.append(khoiTrai, khoiPhai);
       hang.append(dong1);
       ds.append(hang);
     });
