@@ -400,8 +400,14 @@ async function trangDiemDanh() {
   let buoi = sessionStorage.getItem('dd-buoi') || 'sang';
   let tabCon = 'ngay';   // 'ngay' = điểm danh theo ngày/buổi (chính thức) | 'nhanh' = điểm danh nhanh
   let duLieu = null;
-  const thayDoi = new Map();   // hocSinhId -> trangThai
-  const lyDoMoi = new Map();   // hocSinhId -> lý do (chỉ dùng khi đặt qua Điểm danh nhanh)
+  const thayDoi = new Map();   // hocSinhId -> trangThai | null (null = bấm lại để BỎ CHỌN, xoá điểm danh em đó)
+  const lyDoMoi = new Map();   // hocSinhId -> lý do (chỉ dùng khi đặt qua Điểm danh phụ)
+
+  // thayDoi.has() thay vì "??" — vì "??" coi null (bỏ chọn) giống hệt chưa từng đổi, lại
+  // rơi về trạng thái cũ trên máy chủ, làm nút bỏ chọn không có tác dụng gì.
+  function trangThaiHienTai(id, trangThaiCu) {
+    return thayDoi.has(id) ? thayDoi.get(id) : trangThaiCu;
+  }
 
   async function tai() {
     duLieu = await api(`/api/gv/diem-danh?ngay=${ngay}&buoi=${buoi}`);
@@ -413,7 +419,7 @@ async function trangDiemDanh() {
   function tinhSo() {
     const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
     duLieu.danhSach.forEach((h) => {
-      const tt = thayDoi.get(h.id) ?? h.trangThai;
+      const tt = trangThaiHienTai(h.id, h.trangThai);
       if (tt && dem[tt] !== undefined) dem[tt]++;
     });
     return dem;
@@ -552,7 +558,7 @@ async function trangDiemDanh() {
       // Danh sách học sinh
       const ds = e('div', 'ds-diem-danh');
       duLieu.danhSach.forEach((h) => {
-        const tt = thayDoi.get(h.id) ?? h.trangThai;
+        const tt = trangThaiHienTai(h.id, h.trangThai);
         const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
 
         const ten = e('div', 'ten');
@@ -564,11 +570,13 @@ async function trangDiemDanh() {
           const b = e('button', null, tt2.ky);
           b.type = 'button';
           b.dataset.tt = ma;
-          b.title = tt2.ten;
+          b.title = tt2.ten + ' — bấm lại để bỏ chọn';
           b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
           b.setAttribute('aria-pressed', String(tt === ma));
           b.addEventListener('click', () => {
-            thayDoi.set(h.id, ma);
+            // Bấm lại đúng trạng thái đang chọn thì BỎ CHỌN (về "chưa ghi"), không phải
+            // bấm gì cũng luôn "đặt" — giáo viên lỡ tay bấm nhầm còn gỡ lại được ngay.
+            thayDoi.set(h.id, tt === ma ? null : ma);
             ve();
           });
           nhom.append(b);
@@ -592,8 +600,10 @@ async function trangDiemDanh() {
     }
     khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
-    // Thanh lưu
-    if (thayDoi.size) {
+    // Thanh lưu — CHỈ hiện ở tab Điểm danh chính. Tab Điểm danh phụ đã có nút lưu riêng ngay
+    // trong thẻ của nó (lưu thẳng toàn bộ thayDoi, kể cả phần lỡ đổi bên tab chính chưa lưu),
+    // nên không hiện thêm thanh này nữa — tránh 2 nút "Lưu điểm danh" cùng lúc gây rối.
+    if (thayDoi.size && tabCon !== 'nhanh') {
       const thanhLuu = e('div', 'thanh-luu');
       thanhLuu.append(e('div', 'thong-tin', `${thayDoi.size} thay đổi chưa lưu`));
       thanhLuu.append(

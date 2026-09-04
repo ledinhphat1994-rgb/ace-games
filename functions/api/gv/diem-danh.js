@@ -1,6 +1,8 @@
 // Điểm danh — chỉ giáo viên chủ nhiệm.
 //   GET  /api/gv/diem-danh?ngay=2026-09-15&buoi=sang   -> danh sách lớp kèm trạng thái đã ghi
 //   POST /api/gv/diem-danh   { ngay, buoi, ghiNhan:[{hocSinhId, trangThai, lyDo}] }
+//        trangThai = null/rỗng -> XOÁ điểm danh của em đó ngày/buổi này (bấm lại nút đang
+//        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
 
 const BUOI_HOP_LE = new Set(['sang', 'chieu', 'hoat_dong']);
@@ -41,6 +43,16 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   for (const g of ghiNhan) {
     const id = Number(g.hocSinhId);
     if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
+
+    if (!g.trangThai) {
+      // Bỏ chọn — xoá hẳn bản ghi, không phải một "trạng thái rỗng".
+      cauLenh.push(
+        env.DB.prepare('DELETE FROM diem_danh WHERE ngay = ?1 AND buoi = ?2 AND hoc_sinh_id = ?3')
+          .bind(ngay, buoi, id)
+      );
+      continue;
+    }
+
     if (!TRANG_THAI_HOP_LE.has(g.trangThai)) return loi(`Trạng thái không hợp lệ: ${g.trangThai}`);
     cauLenh.push(
       env.DB.prepare(
