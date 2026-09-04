@@ -16,7 +16,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
     db.prepare(
       `SELECT buoi, trang_thai AS trangThai, COUNT(*) AS n
-         FROM diem_danh WHERE ngay = ?1 GROUP BY buoi, trang_thai`
+         FROM diem_danh WHERE ngay = ?1 AND buoi NOT LIKE '%_phu' GROUP BY buoi, trang_thai`
     ).bind(homNay).all(),
 
     // Toàn bộ ứng viên có ít nhất 1 buổi không "có mặt" trong 30 ngày — KHÔNG giới hạn LIMIT ở đây,
@@ -28,10 +28,11 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 ELSE 0 END) AS vangPhep,
               SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 ELSE 0 END) AS tre
          FROM hoc_sinh h JOIN diem_danh d ON d.hoc_sinh_id = h.id
-        WHERE d.ngay >= ?1 AND d.trang_thai <> 'co_mat'
+        WHERE d.ngay >= ?1 AND d.trang_thai <> 'co_mat' AND d.buoi NOT LIKE '%_phu'
         GROUP BY h.id
         HAVING vangKhongPhep + vangPhep + tre > 0`
     ).bind(moc).all(),
+
 
     db.prepare(
       `SELECT muc, trang_thai AS trangThai, COUNT(*) AS n

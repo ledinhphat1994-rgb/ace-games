@@ -5,16 +5,29 @@
 //        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
 
-const BUOI_HOP_LE = new Set(['sang', 'chieu', 'hoat_dong']);
 const TRANG_THAI_HOP_LE = new Set(['co_mat', 'vang_phep', 'vang_khong_phep', 'tre']);
+
+function chuanHoaBuoi(buoi, loai) {
+  if (!buoi || typeof buoi !== 'string') return null;
+  let b = buoi.trim();
+  if (loai === 'phu' && !b.endsWith('_phu')) {
+    b = `${b}_phu`;
+  }
+  const goc = b.replace(/_phu$/, '');
+  if (!['sang', 'chieu', 'hoat_dong'].includes(goc)) return null;
+  return b;
+}
 
 export const onRequestGet = bocXuLy(async ({ request, env }) => {
   const url = new URL(request.url);
   const ngay = url.searchParams.get('ngay') || new Date().toISOString().slice(0, 10);
-  const buoi = url.searchParams.get('buoi') || 'sang';
+  const buoiGoc = url.searchParams.get('buoi') || 'sang';
+  const loai = url.searchParams.get('loai') || '';
+  const buoi = chuanHoaBuoi(buoiGoc, loai);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
-  if (!BUOI_HOP_LE.has(buoi)) return loi('Buổi không hợp lệ.');
+  if (!buoi) return loi('Buổi không hợp lệ.');
+
 
   const { results } = await env.DB.prepare(
     `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.lop_nghe AS lopNghe,
@@ -32,10 +45,12 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const than = await docThan(request);
-  const { ngay, buoi = 'sang', ghiNhan } = than;
+  const { ngay, buoi: buoiGoc = 'sang', loai = '', ghiNhan } = than;
+  const buoi = chuanHoaBuoi(buoiGoc, loai);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
-  if (!BUOI_HOP_LE.has(buoi)) return loi('Buổi không hợp lệ.');
+  if (!buoi) return loi('Buổi không hợp lệ.');
+
   if (!Array.isArray(ghiNhan) || !ghiNhan.length) return loi('Chưa có dữ liệu điểm danh.');
   if (ghiNhan.length > 200) return loi('Quá nhiều bản ghi trong một lần gửi.');
 

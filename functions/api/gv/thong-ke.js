@@ -19,9 +19,10 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     tuNgay = d.toISOString().slice(0, 10);
   }
   const buoi = BUOI_HOP_LE.has(q.get('buoi')) ? q.get('buoi') : '';
-  const dieuKienBuoi = buoi ? 'AND buoi = ?3' : '';
-  const dieuKienBuoiJoin = buoi ? 'AND d.buoi = ?3' : '';
+  const dieuKienBuoi = buoi ? 'AND buoi = ?3' : "AND buoi NOT LIKE '%_phu'";
+  const dieuKienBuoiJoin = buoi ? 'AND d.buoi = ?3' : "AND d.buoi NOT LIKE '%_phu'";
   const thamSo = buoi ? [tuNgay, denNgay, buoi] : [tuNgay, denNgay];
+
 
   const [theoNgay, theoHs, tongTheoMuc, siSo] = await Promise.all([
     db.prepare(

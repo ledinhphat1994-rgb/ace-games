@@ -133,10 +133,14 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .o-thong-ke .con-so {
   font-size: clamp(24px, 3vw, 30px); font-weight: 800; line-height: 1.15;
   letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap;
-  color: #ffffff;
+  color: var(--chu);
 }
 
 /* Biến thể màu số liệu */
+.o-thong-ke.chinh::before { background: var(--chinh); }
+.o-thong-ke.chinh .con-so { color: var(--chinh); text-shadow: 0 0 20px rgba(56, 189, 248, 0.25); }
+.o-thong-ke.chinh .o-thong-ke-icon { background: rgba(56, 189, 248, 0.18); color: var(--chinh); }
+
 .o-thong-ke.tot::before { background: #10b981; }
 .o-thong-ke.tot .con-so { color: #34d399; text-shadow: 0 0 20px rgba(52, 211, 153, 0.35); }
 .o-thong-ke.tot .o-thong-ke-icon { background: rgba(16, 185, 129, 0.18); color: #34d399; }
@@ -156,6 +160,44 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .o-thong-ke.khoan::before { background: #a855f7; }
 .o-thong-ke.khoan .con-so { color: #c084fc; text-shadow: 0 0 20px rgba(192, 132, 252, 0.35); }
 .o-thong-ke.khoan .o-thong-ke-icon { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
+
+/* Tối ưu hiển thị số liệu sắc nét, tương phản cao trên Theme Trắng (Light Theme) */
+:root[data-theme="light"] .o-thong-ke .con-so,
+:root[data-bg-theme="light"] .o-thong-ke .con-so {
+  color: var(--chu);
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.chinh .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.chinh .con-so {
+  color: #0284c7;
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.tot .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.tot .con-so {
+  color: #059669;
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.thu .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.thu .con-so {
+  color: #0284c7;
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.luuy .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.luuy .con-so {
+  color: #d97706;
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.xau .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.xau .con-so {
+  color: #dc2626;
+  text-shadow: none;
+}
+:root[data-theme="light"] .o-thong-ke.khoan .con-so,
+:root[data-bg-theme="light"] .o-thong-ke.khoan .con-so {
+  color: #7c3aed;
+  text-shadow: none;
+}
+
 
 /* ---------- Điểm danh: hàng học sinh chạm để chọn ---------- */
 .chon-ngay { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
