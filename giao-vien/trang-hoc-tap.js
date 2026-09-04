@@ -795,19 +795,8 @@ export async function trangMaCaNhan(KHUNG) {
     const dau2 = e('div', 'tieu-de-trang');
     dau2.style.marginTop = '28px';
     dau2.append(e('h2', null, '2️⃣ Học sinh'),
-      e('p', null, 'Mỗi em một mã riêng. Bấm "⚙ Quản lý" để sửa chức vụ, mã, quyền xem và quyền quản lý — tất cả trong một chỗ.'));
+      e('p', null, 'Mỗi em một mã riêng. Bấm "⚙ Quản lý" để sửa chức vụ, mã, quyền xem và quyền quản lý — giao diện bảng cố định, quản lý tập trung.'));
     khung.append(dau2);
-
-    const canQuanLy = d.danhSach.filter((h) => (h.quyen || []).length);
-    if (canQuanLy.length) {
-      const dauCanBo = e('div', 'tieu-de-trang');
-      dauCanBo.style.marginTop = '14px';
-      dauCanBo.append(e('h3', null, '🔑 Đang có quyền quản lý'));
-      khung.append(dauCanBo);
-      const dsQuanLy = e('div', 'ds-the');
-      canQuanLy.forEach((h) => dsQuanLy.append(veTheQuanLy(h, ve)));
-      khung.append(dsQuanLy);
-    }
 
     const the = e('div', 'the');
     the.style.marginTop = '16px';
@@ -864,14 +853,26 @@ export async function trangMaCaNhan(KHUNG) {
 
       const tdQuyen = e('td');
       if (h.ma) {
-        tdQuyen.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
-        // Quyền XEM và quyền QUẢN LÝ là hai chuyện độc lập — một em có thể vừa bị ẩn bớt mục
-        // VỪA được cấp quyền quản lý cùng lúc, nên hiện CẢ HAI nhãn thay vì chỉ một.
+        tdQuyen.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
         const soAn = (h.anMuc || []).length;
-        const soQuanLy = (h.quyen || []).length;
+        const dsQuyen = h.quyen || [];
         tdQuyen.append(e('span', 'nhan ' + (soAn ? 'nhan-luuy' : 'nhan-tot'),
           soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết'));
-        if (soQuanLy) tdQuyen.append(e('span', 'nhan nhan-tim', `🔑 Quản lý ${soQuanLy} mục`));
+        if (dsQuyen.length) {
+          const tenCacQuyen = dsQuyen.map((q) => {
+            const tim = CAC_QUYEN_QUAN_LY.find((x) => x[0] === q);
+            const icon = ICON_QUYEN[q] || '🔑';
+            return tim ? `${icon} ${tim[1].split(' — ')[0]}` : q;
+          }).join(', ');
+          const nhanQuyen = e('span', 'nhan nhan-tim', dsQuyen.length === 1 ? tenCacQuyen : `🔑 Quản lý ${dsQuyen.length} mục`);
+          nhanQuyen.title = `Các quyền quản lý: ${tenCacQuyen}`;
+          tdQuyen.append(nhanQuyen);
+        }
+        if (h.coThietBi) {
+          const nhanTb = e('span', 'nhan nhan-xam', '📱 Đã gắn máy');
+          nhanTb.title = 'Tài khoản đã liên kết với một thiết bị';
+          tdQuyen.append(nhanTb);
+        }
       } else {
         tdQuyen.append(e('span', 'trong', '—'));
       }
@@ -1013,85 +1014,6 @@ const CAC_QUYEN_QUAN_LY = [
   ['ke-hoach', 'Kế hoạch — thêm/sửa mốc sự kiện, lịch kiểm tra'],
 ];
 const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸', 'ke-hoach': '📅' };
-
-/* ---------- Thẻ tài khoản quản lý (mã cá nhân được cấp quyen) — cùng kiểu với thẻ tài
-   khoản phụ cũ (avatar theo chức vụ, nhãn quyền, mã đăng nhập, hành động), để giáo viên
-   thấy quyền của em ngay, không phải mở popup mới biết. ---------- */
-function veTheQuanLy(h, taiLai) {
-  const the = e('div', 'the the-tk-phu');
-  const info = layThongTinVaiTro(h.chucVu || '');
-
-  const dau2 = e('div', 'the-tk-dau');
-  dau2.style.cssText = 'display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap';
-
-  const khoiTrai = e('div');
-  khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
-
-  const avatar = e('div', 'the-tk-avatar');
-  avatar.style.cssText = `width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:${info.mauNen};border:1.5px solid ${info.mauVien};box-shadow:0 4px 14px -3px ${info.mauVien};flex:none;`;
-  avatar.textContent = info.bieuTuong;
-
-  const thongTin = e('div');
-  thongTin.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:3px';
-
-  const dongTen = e('div');
-  dongTen.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
-  dongTen.append(
-    Object.assign(e('h3', null, h.hoTen), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
-    Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu ? info.tenGoi : 'Chưa đặt chức vụ'}`), {
-      style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12px;padding:2px 9px;border-radius:6px;`
-    })
-  );
-  if (!h.chucVu) {
-    dongTen.append(Object.assign(e('small', 'trong', '(bấm "✏ Sửa" bên dưới để đặt chức vụ)'), { style: 'font-size:11.5px' }));
-  }
-  thongTin.append(dongTen);
-  khoiTrai.append(avatar, thongTin);
-  dau2.append(khoiTrai);
-  the.append(dau2);
-
-  const oQuyen = e('div', 'day-loc');
-  oQuyen.style.cssText = 'margin-top:12px;gap:6px;flex-wrap:wrap;';
-  h.quyen.forEach((q) => {
-    const ten = (CAC_QUYEN_QUAN_LY.find((x) => x[0] === q) || [q, q])[1].split(' — ')[0];
-    const chip = e('span', 'nhan nhan-tim');
-    chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:3px 10px;font-weight:600;border-radius:8px;';
-    chip.append(e('span', null, ICON_QUYEN[q] || '⭐'), document.createTextNode(ten));
-    oQuyen.append(chip);
-  });
-  the.append(oQuyen);
-
-  const maHop = e('p');
-  maHop.style.cssText = 'margin-top:12px;font-size:14px;color:var(--chu-nhat);display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-  const maChu = e('code', null, h.ma);
-  maChu.style.cssText = 'font-size:16px;font-weight:800;letter-spacing:1.5px;padding:3px 8px;border-radius:6px;color:var(--chinh);background:var(--nen-chim);border:1px solid var(--vien);';
-  maHop.append(document.createTextNode('Mã đăng nhập: '), maChu);
-  if (h.coThietBi) maHop.append(e('span', 'nhan nhan-xam', '🔒 Đã gắn thiết bị'));
-  the.append(maHop);
-
-  const nutHang = e('div', 'day-loc');
-  nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
-  nutHang.append(
-    nut('✏ Sửa', 'nut-vien nut-nho', () => moQuanLyHocSinh(h, taiLai))
-  );
-  if (h.coThietBi) nutHang.append(nut('📱 Đặt lại thiết bị', 'nut-nhe nut-nho', () => datLaiThietBi(h, taiLai)));
-  nutHang.append(nut('🚫 Gỡ quyền quản lý', 'nut-nhe nut-nho', () => {
-    moHopThoai('Gỡ quyền quản lý?', e('p', null, `${h.hoTen} sẽ không đăng nhập được vào khu quản lý nữa — mã vẫn dùng để tra cứu kết quả cá nhân như bình thường.`), [
-      nut('Huỷ', 'nut-nhe', dongHopThoai),
-      nut('Gỡ quyền', 'nut-xau', async () => {
-        try {
-          await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: h.id, quyen: [] } });
-          dongHopThoai();
-          nhac('Đã gỡ quyền quản lý của ' + h.hoTen, 'tot');
-          taiLai();
-        } catch (err) { nhac(err.message, 'xau'); }
-      }),
-    ]);
-  }));
-  the.append(nutHang);
-
-  return the;
-}
 
 function taoNhomTich(danhMuc, daChon) {
   const bo = new Set(daChon);
