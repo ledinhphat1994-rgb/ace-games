@@ -45,48 +45,135 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { color-scheme: dark; }
   :root:not([data-theme="light"]) {
-    --nen: #0a1120;
-    --nen-noi: #141d31;
-    --nen-chim: #1a2440;
-    --chu: #eef2fb;
-    --chu-nhat: #a6b4d0;
-    --chu-mo: #71809d;
-    --vien: #263151;
-    --vien-dam: #384870;
+    --nen: #070b14;
+    --nen-noi: #0f172a;
+    --nen-chim: #1e293b;
+    --chu: #f1f5f9;
+    --chu-nhat: #94a3b8;
+    --chu-mo: #64748b;
+    --vien: #1e293b;
+    --vien-dam: #334155;
 
-    --chinh: #4fa3ec;
-    --chinh-sang: #7fc6f8;
-    --chinh-nen: #142a45;
-    --chinh-2: #35cdb2;
-    --chinh-2-nen: #10322c;
+    --chinh: #38bdf8;
+    --chinh-sang: #7dd3fc;
+    --chinh-nen: rgba(56, 189, 248, 0.14);
+    --chinh-2: #2dd4bf;
+    --chinh-2-nen: rgba(45, 212, 191, 0.14);
 
-    --tot: #4bdc96;    --tot-nen: #123821;
-    --luu-y: #f0ad4d;  --luu-y-nen: #3a2c10;
-    --xau: #ff7466;    --xau-nen: #3b1712;
-    --nhan: #b79bf5;   --nhan-nen: #261c40;
+    --tot: #34d399;    --tot-nen: rgba(52, 211, 153, 0.16);
+    --luu-y: #fbbf24;  --luu-y-nen: rgba(251, 191, 36, 0.16);
+    --xau: #f87171;    --xau-nen: rgba(248, 113, 113, 0.16);
+    --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
+    --tieu-de: #ffffff;
+    --tieu-de-phu: #38bdf8;
 
-    --bong-1: 0 1px 2px rgba(0, 0, 0, .5);
-    --bong-2: 0 2px 10px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
+    --bong-1: 0 1px 3px rgba(0, 0, 0, .5);
+    --bong-2: 0 4px 14px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
     --bong-3: 0 24px 64px rgba(0, 0, 0, .60);
-    --bong-mau: 0 10px 26px -6px color-mix(in srgb, var(--chinh) 45%, transparent);
+    --bong-mau: 0 10px 26px -6px rgba(56, 189, 248, 0.45);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --nen: #0a1120; --nen-noi: #141d31; --nen-chim: #1a2440;
-  --chu: #eef2fb; --chu-nhat: #a6b4d0; --chu-mo: #71809d;
-  --vien: #263151; --vien-dam: #384870;
-  --chinh: #4fa3ec; --chinh-sang: #7fc6f8; --chinh-nen: #142a45;
-  --chinh-2: #35cdb2; --chinh-2-nen: #10322c;
-  --tot: #4bdc96;    --tot-nen: #123821;
-  --luu-y: #f0ad4d;  --luu-y-nen: #3a2c10;
-  --xau: #ff7466;    --xau-nen: #3b1712;
-  --nhan: #b79bf5;   --nhan-nen: #261c40;
-  --bong-1: 0 1px 2px rgba(0, 0, 0, .5);
-  --bong-2: 0 2px 10px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
+  --nen: #070b14; --nen-noi: #0f172a; --nen-chim: #1e293b;
+  --chu: #f1f5f9; --chu-nhat: #94a3b8; --chu-mo: #64748b;
+  --vien: #1e293b; --vien-dam: #334155;
+  --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.14);
+  --chinh-2: #2dd4bf; --chinh-2-nen: rgba(45, 212, 191, 0.14);
+  --tot: #34d399;    --tot-nen: rgba(52, 211, 153, 0.16);
+  --luu-y: #fbbf24;  --luu-y-nen: rgba(251, 191, 36, 0.16);
+  --xau: #f87171;    --xau-nen: rgba(248, 113, 113, 0.16);
+  --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
+  --tieu-de: #ffffff;
+  --tieu-de-phu: #38bdf8;
+  --bong-1: 0 1px 3px rgba(0, 0, 0, .5);
+  --bong-2: 0 4px 14px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
   --bong-3: 0 24px 64px rgba(0, 0, 0, .60);
-  --bong-mau: 0 10px 26px -6px color-mix(in srgb, var(--chinh) 45%, transparent);
+  --bong-mau: 0 10px 26px -6px rgba(56, 189, 248, 0.45);
+}
+
+/* ── 6 Chủ đề hình nền & phong cách giao diện (Theme Switcher) ── */
+/* 1. Cosmic Deep (Vũ trụ xanh sâu - Mặc định tối) */
+:root[data-bg-theme="cosmic"] {
+  color-scheme: dark;
+  --nen: #070b14; --nen-noi: #0c1424; --nen-chim: #15223c;
+  --chu: #f8fafc; --chu-nhat: #94a3b8; --chu-mo: #64748b;
+  --vien: #1e2e4f; --vien-dam: #2d4370;
+  --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.16);
+  --tieu-de: #ffffff; --tieu-de-phu: #38bdf8;
+  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.15), transparent 70%),
+                 radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.14), transparent 70%),
+                 radial-gradient(1000px 800px at 50% 100%, rgba(16, 185, 129, 0.08), transparent 70%),
+                 #070b14;
+}
+
+/* 2. Midnight Nebula (Tinh vân tím lam) */
+:root[data-bg-theme="nebula"] {
+  color-scheme: dark;
+  --nen: #0a0614; --nen-noi: #130c26; --nen-chim: #1f143d;
+  --chu: #faf5ff; --chu-nhat: #a89ec4; --chu-mo: #796c99;
+  --vien: #2d1d57; --vien-dam: #462d85;
+  --chinh: #c084fc; --chinh-sang: #e879f9; --chinh-nen: rgba(192, 132, 252, 0.18);
+  --tieu-de: #ffffff; --tieu-de-phu: #e879f9;
+  --bg-gradient: radial-gradient(1000px 600px at 15% 5%, rgba(192, 132, 252, 0.18), transparent 70%),
+                 radial-gradient(900px 700px at 85% 30%, rgba(56, 189, 248, 0.14), transparent 70%),
+                 radial-gradient(1100px 800px at 45% 95%, rgba(236, 72, 153, 0.10), transparent 70%),
+                 #0a0614;
+}
+
+/* 3. Emerald Luxury (Ngọc lục bảo quý phái) */
+:root[data-bg-theme="emerald"] {
+  color-scheme: dark;
+  --nen: #04100c; --nen-noi: #091c16; --nen-chim: #0f2d23;
+  --chu: #f0fdf4; --chu-nhat: #86a89b; --chu-mo: #55786b;
+  --vien: #153c30; --vien-dam: #1f5847;
+  --chinh: #34d399; --chinh-sang: #6ee7b7; --chinh-nen: rgba(52, 211, 153, 0.16);
+  --tieu-de: #ffffff; --tieu-de-phu: #34d399;
+  --bg-gradient: radial-gradient(1000px 600px at 10% 0%, rgba(52, 211, 153, 0.16), transparent 70%),
+                 radial-gradient(900px 700px at 90% 25%, rgba(45, 212, 191, 0.14), transparent 70%),
+                 radial-gradient(1000px 800px at 50% 100%, rgba(14, 165, 233, 0.08), transparent 70%),
+                 #04100c;
+}
+
+/* 4. Amber Aurora (Hoàng hôn hoàng kim) */
+:root[data-bg-theme="amber"] {
+  color-scheme: dark;
+  --nen: #100b06; --nen-noi: #1d140a; --nen-chim: #2d2011;
+  --chu: #fffbeb; --chu-nhat: #baa68c; --chu-mo: #85725a;
+  --vien: #3f2c17; --vien-dam: #5e4222;
+  --chinh: #f59e0b; --chinh-sang: #fbbf24; --chinh-nen: rgba(245, 158, 11, 0.16);
+  --tieu-de: #ffffff; --tieu-de-phu: #fbbf24;
+  --bg-gradient: radial-gradient(1000px 600px at 10% 5%, rgba(245, 158, 11, 0.18), transparent 70%),
+                 radial-gradient(900px 700px at 85% 25%, rgba(244, 63, 94, 0.12), transparent 70%),
+                 radial-gradient(1100px 800px at 50% 95%, rgba(217, 119, 6, 0.10), transparent 70%),
+                 #100b06;
+}
+
+/* 5. Cyber Slate (Xám than công nghệ tối giản) */
+:root[data-bg-theme="cyber"] {
+  color-scheme: dark;
+  --nen: #0b0f14; --nen-noi: #121820; --nen-chim: #1a232e;
+  --chu: #f8fafc; --chu-nhat: #94a3b8; --chu-mo: #64748b;
+  --vien: #243140; --vien-dam: #374b61;
+  --chinh: #38bdf8; --chinh-sang: #60a5fa; --chinh-nen: rgba(56, 189, 248, 0.14);
+  --tieu-de: #ffffff; --tieu-de-phu: #60a5fa;
+  --bg-gradient: radial-gradient(1000px 550px at 15% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
+                 radial-gradient(900px 600px at 85% 20%, rgba(96, 165, 250, 0.08), transparent 70%),
+                 #0b0f14;
+}
+
+/* 6. Clean Light (Sáng thanh lịch, dễ nhìn ban ngày) */
+:root[data-bg-theme="light"], :root[data-theme="light"] {
+  color-scheme: light;
+  --nen: #f1f5f9; --nen-noi: #ffffff; --nen-chim: #e2e8f0;
+  --chu: #0f172a; --chu-nhat: #475569; --chu-mo: #94a3b8;
+  --vien: #cbd5e1; --vien-dam: #94a3b8;
+  --chinh: #0284c7; --chinh-sang: #0369a1; --chinh-nen: #e0f2fe;
+  --tieu-de: #0f172a; --tieu-de-phu: #0284c7;
+  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(2, 132, 199, 0.08), transparent 70%),
+                 radial-gradient(900px 600px at 90% 20%, rgba(99, 102, 241, 0.06), transparent 70%),
+                 #f1f5f9;
 }
 
 /* ---------- 2. Nền tảng ---------- */
@@ -96,9 +183,11 @@ html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  background:
-    radial-gradient(1100px 480px at 15% -12%, color-mix(in srgb, var(--chinh) 7%, transparent), transparent 60%),
-    var(--nen);
+  background: var(--bg-gradient,
+    radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.14), transparent 70%),
+    radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.12), transparent 70%),
+    #070b14
+  );
   background-attachment: fixed;
   color: var(--chu);
   font-family: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, "Noto Sans", Arial, sans-serif;
@@ -109,10 +198,29 @@ body {
 
 img { max-width: 100%; display: block; }
 a { color: var(--chinh); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .4em; font-weight: 800; letter-spacing: -.015em; }
-h1 { font-size: clamp(24px, 4.6vw, 34px); }
-h2 { font-size: clamp(19px, 3vw, 23px); }
-h3 { font-size: 16.5px; font-weight: 700; }
+
+/* Tiêu đề nổi bật và phân biệt sắc nét với nội dung thường */
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  margin: 0 0 .4em;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--tieu-de, #ffffff);
+}
+h1 {
+  font-size: clamp(24px, 4.6vw, 34px);
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+}
+h2 {
+  font-size: clamp(19px, 3vw, 24px);
+  color: var(--tieu-de-phu, #38bdf8);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #7dd3fc;
+}
 p { margin: 0 0 .8em; }
 p:last-child { margin-bottom: 0; }
 code {

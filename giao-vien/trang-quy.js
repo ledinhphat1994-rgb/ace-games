@@ -42,7 +42,13 @@ export async function trangQuy(KHUNG) {
     ten.append(e('b', null, k.ten), e('small', null,
       `${tienVN(k.soTienMoiEm)}/em · đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${phanTram}%)`));
     hang.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'), ten);
-    if (!k.dangMo) hang.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
+    if (!k.dangMo) {
+      hang.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
+    } else if (phanTram >= 100) {
+      hang.append(e('span', 'nhan nhan-tot', '✓ Đã thu đủ'));
+    } else {
+      hang.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}%`));
+    }
     hang.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
     hang.addEventListener('click', () => moKhoan(k.id));
     boc.append(hang);
@@ -81,8 +87,10 @@ export async function trangQuy(KHUNG) {
     );
     box.append(hangNut);
 
-    // Dải số liệu ngang — không nhét 3 ô vào lưới .day-so vốn để dành cho đúng 4 ô,
-    // tránh làm số tiền bị ngắt dòng khi cột hẹp.
+    // Dải số liệu THU CHI NỔI BẬT với thẻ riêng & số to rõ
+    const phanTram = dk.tongCanThu ? Math.round((dk.tongDaThu / dk.tongCanThu) * 100) : 0;
+    const conThieuKhoan = Math.max(0, (dk.tongCanThu || 0) - (dk.tongDaThu || 0));
+
     const soLieu = (nhan, giaTri, kieu) => {
       const muc = e('div', 'muc');
       muc.append(e('div', 'nhan', nhan), e('div', 'gt' + (kieu ? ' ' + kieu : ''), giaTri));
@@ -91,10 +99,18 @@ export async function trangQuy(KHUNG) {
     const day = e('div', 'chuoi-so-lieu');
     day.append(
       soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot'),
-      soLieu('Cần thu', tienVN(dk.tongCanThu)),
-      soLieu('Em đã đóng đủ', `${dk.soEmDaDuDinh}/${dk.danhSach.length}`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
+      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can'),
+      soLieu('Còn thiếu', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot'),
+      soLieu('Tiến độ', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ (${phanTram}%)`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy')
     );
     box.append(day);
+
+    // Thanh tiến độ trực quan
+    const thanhTienDo = e('div', 'thanh-tien-do-khoan');
+    const chay = e('div', 'thanh-tien-do-khoan-chay');
+    chay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
+    thanhTienDo.append(chay);
+    box.append(thanhTienDo);
 
     if (dk.theoTo && dk.theoTo.length > 1) {
       const nhanNhomTo = e('div', 'the-nhan', 'Theo tổ');
@@ -109,10 +125,13 @@ export async function trangQuy(KHUNG) {
     }
 
     const dsTheoToUniq = [...new Set(dk.danhSach.map((h) => h.toSo).filter(Boolean))].sort((a, b) => a - b);
-    const nhanTung = e('div', 'the-nhan', 'Từng em');
+    const nhanTung = e('div', 'the-nhan', 'Từng em học sinh');
     nhanTung.style.margin = '16px 0 8px';
     box.append(nhanTung);
 
+    let boLocTrangThai = ''; // '' | 'chua_dong' | 'con_thieu' | 'da_du'
+
+    // Bộ lọc theo tổ nếu có nhiều tổ
     if (dsTheoToUniq.length > 1) {
       const oLoc = oChon('locTo' + khoanId,
         [['', 'Tất cả các tổ'], ...dsTheoToUniq.map((t) => [String(t), 'Tổ ' + t])],
@@ -122,21 +141,76 @@ export async function trangQuy(KHUNG) {
       box.append(oLoc);
     }
 
+    const hopLocTrangThai = e('div', 'loc-trang-thai-quy');
+    box.append(hopLocTrangThai);
+
     const hopDs = e('div', 'ds-diem-danh');
     box.append(hopDs);
 
+    function capNhatNutLoc() {
+      const dsGoc = dk.danhSach;
+      const soDaDu = dsGoc.filter((h) => h.daDuDinh).length;
+      const soConThieu = dsGoc.filter((h) => !h.daDuDinh && h.daDong > 0).length;
+      const soChuaDong = dsGoc.filter((h) => !h.daDuDinh && (!h.daDong || h.daDong === 0)).length;
+
+      const taoNutLoc = (id, label, so) => {
+        const b = e('button', null, `${label} (${so})`);
+        if (boLocTrangThai === id) b.classList.add('active');
+        b.addEventListener('click', () => {
+          boLocTrangThai = id;
+          capNhatNutLoc();
+          veDsEm();
+        });
+        return b;
+      };
+
+      datNoiDung(hopLocTrangThai,
+        taoNutLoc('', 'Tất cả', dsGoc.length),
+        taoNutLoc('chua_dong', '✕ Chưa đóng', soChuaDong),
+        taoNutLoc('con_thieu', '⚠️ Còn thiếu', soConThieu),
+        taoNutLoc('da_du', '✓ Đã đủ', soDaDu)
+      );
+    }
+
     function veDsEm() {
       const locTo = locToTheoKhoan[khoanId] || '';
-      const ds = dk.danhSach.filter((h) => !locTo || String(h.toSo) === locTo);
+      const ds = dk.danhSach.filter((h) => {
+        if (locTo && String(h.toSo) !== locTo) return false;
+        if (boLocTrangThai === 'da_du') return h.daDuDinh;
+        if (boLocTrangThai === 'con_thieu') return !h.daDuDinh && h.daDong > 0;
+        if (boLocTrangThai === 'chua_dong') return !h.daDuDinh && (!h.daDong || h.daDong === 0);
+        return true;
+      });
+
+      if (!ds.length) {
+        datNoiDung(hopDs, e('p', 'trong', 'Không có học sinh nào phù hợp với bộ lọc.'));
+        return;
+      }
+
       datNoiDung(hopDs, ...ds.map((h) => {
         const hang = e('div', 'hang-hs hang-hs-doc');
         const dong1 = e('div', 'hang-hs-dong1');
         const ten = e('div', 'ten');
-        const phu = [h.toSo ? 'Tổ ' + h.toSo : '', h.daDuDinh ? `Đã đóng đủ ${tienVN(h.daDong)}` : `Đã đóng ${tienVN(h.daDong)} · còn thiếu ${tienVN(h.conThieu)}`]
-          .filter(Boolean).join(' · ');
-        ten.append(e('b', null, h.hoTen), e('small', null, phu));
-        dong1.append(e('div', 'stt', h.hocSinhId), ten);
-        if (h.daDuDinh) dong1.append(e('span', 'nhan nhan-tot', 'Đủ'));
+
+        // Đánh dấu rõ ràng ĐỦ / THIẾU / CHƯA ĐÓNG bằng huy hiệu to rõ
+        let nhanBadge;
+        let textPhu;
+        if (h.daDuDinh) {
+          hang.classList.add('quy-da-du');
+          nhanBadge = e('span', 'nhan-trang-thai-quy da-du', '✓ ĐÃ ĐỦ');
+          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Đã nộp đủ ${tienVN(h.daDong)}`].filter(Boolean).join(' · ');
+        } else if (h.daDong > 0) {
+          hang.classList.add('quy-con-thieu');
+          nhanBadge = e('span', 'nhan-trang-thai-quy con-thieu', `⚠️ THIẾU ${tienVN(h.conThieu)}`);
+          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Đã đóng ${tienVN(h.daDong)} · còn thiếu ${tienVN(h.conThieu)}`].filter(Boolean).join(' · ');
+        } else {
+          hang.classList.add('quy-chua-dong');
+          nhanBadge = e('span', 'nhan-trang-thai-quy chua-dong', '✕ CHƯA ĐÓNG');
+          textPhu = [h.toSo ? 'Tổ ' + h.toSo : '', `Chưa nộp · Mức thu ${tienVN(h.conThieu)}`].filter(Boolean).join(' · ');
+        }
+
+        ten.append(e('b', null, h.hoTen), e('small', null, textPhu));
+        dong1.append(e('div', 'stt', h.hocSinhId), ten, nhanBadge);
         dong1.append(nut('+ Ghi thu', 'nut-vien nut-nho', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo)));
         hang.append(dong1);
 
@@ -175,6 +249,8 @@ export async function trangQuy(KHUNG) {
         return hang;
       }));
     }
+
+    capNhatNutLoc();
     veDsEm();
 
     return box;
@@ -183,9 +259,9 @@ export async function trangQuy(KHUNG) {
   function veChi() {
     const the = e('div', 'the');
     const dauChi = e('div', 'tieu-de-trang');
-    dauChi.append(e('h2', null, 'Khoản chi'));
+    dauChi.append(e('h2', null, '💸 Khoản chi'));
     const phaiChi = e('div', 'phai');
-    phaiChi.append(nut('+ Ghi khoản chi', 'nut-vien nut-nho', () => ghiKhoanChi(tai)));
+    phaiChi.append(nut('➕ Ghi khoản chi', 'nut-vien nut-nho', () => ghiKhoanChi(tai)));
     dauChi.append(phaiChi);
     the.append(dauChi);
 
@@ -231,7 +307,7 @@ export async function trangQuy(KHUNG) {
     if (!d.chiTheoLoai || !d.chiTheoLoai.length) return null;
     const the = e('div', 'the');
     the.style.marginTop = '14px';
-    the.append(e('h3', null, 'Chi theo loại'));
+    the.append(e('h3', null, '📊 Chi theo từng loại'));
     const ds = e('div', 'ds-diem-danh');
     d.chiTheoLoai.forEach((x) => {
       const hang = e('div', 'hang-hs');
@@ -248,17 +324,17 @@ export async function trangQuy(KHUNG) {
     // chỉ cần khi có sự cố) — không để 3 nút cạnh tranh thị giác ngang nhau.
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
-      nut('🛡 Lịch sử & khôi phục', 'nut-nhe', () => { location.hash = '#/quy-lich-su'; }),
+      nut('🛡️ Lịch sử & khôi phục', 'nut-nhe', () => { location.hash = '#/quy-lich-su'; }),
       nut('🔁 Thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; }),
-      nut('+ Mở khoản thu mới', '', () => moKhoanMoi(tai))
+      nut('➕ Mở khoản thu mới', '', () => moKhoanMoi(tai))
     ));
 
     const day = e('div', 'day-so');
     day.append(
-      oThongKe(tienVN(d.tonQuy), 'Tồn quỹ hiện tại', 'tot'),
-      oThongKe(tienVN(d.tongThu), 'Tổng đã thu'),
-      oThongKe(tienVN(d.tongChi), 'Tổng đã chi', 'luuy'),
-      oThongKe(String(d.khoan.filter((k) => k.dangMo).length), 'Khoản đang mở')
+      oThongKe(tienVN(d.tonQuy), 'Tồn quỹ hiện tại', 'tot', '🏦'),
+      oThongKe(tienVN(d.tongThu), 'Tổng đã thu', 'thu', '📥'),
+      oThongKe(tienVN(d.tongChi), 'Tổng đã chi', 'luuy', '📤'),
+      oThongKe(String(d.khoan.filter((k) => k.dangMo).length), 'Khoản đang mở', 'khoan', '📂')
     );
     khung.append(day);
 
@@ -275,7 +351,7 @@ export async function trangQuy(KHUNG) {
       cachMot.append(
         e('h3', null, '① Thu một lần'),
         e('p', 'trong', 'Ví dụ: quỹ lớp học kì, tiền mua đồ dùng chung, tiền quỹ đầu năm.'),
-        nut('+ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(tai))
+        nut('➕ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(tai))
       );
       const cachHai = e('div');
       cachHai.append(
@@ -298,7 +374,7 @@ export async function trangQuy(KHUNG) {
     luoiChinh.style.marginTop = '16px';
 
     const theKhoan = e('div', 'the');
-    theKhoan.append(e('h3', null, 'Các khoản thu'));
+    theKhoan.append(e('h3', null, '💰 Các khoản thu'));
     if (!d.khoan.length) {
       theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {

@@ -91,11 +91,74 @@ async function docTraLoi(res, duongDan) {
   return duLieu;
 }
 
-/* ---------- Giao diện sáng / tối ---------- */
+/* ---------- Giao diện sáng / tối & Chủ đề hình nền ---------- */
+
+export const DANH_SACH_THEME = [
+  {
+    id: 'cosmic',
+    ten: '🌌 Vũ trụ xanh sâu',
+    moTa: 'Nền đêm sâu thẳm, ánh lam ngọc huyền ảo (Mặc định).',
+    mau: ['#070b14', '#38bdf8', '#6366f1'],
+    dark: true,
+  },
+  {
+    id: 'nebula',
+    ten: '🔮 Tinh vân tím lam',
+    moTa: 'Ánh tím neon rực rỡ và xanh biển sâu hiện đại.',
+    mau: ['#0a0614', '#c084fc', '#e879f9'],
+    dark: true,
+  },
+  {
+    id: 'emerald',
+    ten: '🌲 Ngọc lục bảo sang',
+    moTa: 'Nền ngọc bích quý phái, dịu mắt, tăng độ tập trung.',
+    mau: ['#04100c', '#34d399', '#2dd4bf'],
+    dark: true,
+  },
+  {
+    id: 'amber',
+    ten: '🌅 Hoàng hôn hoàng kim',
+    moTa: 'Ánh vàng hổ phách ấm áp & hồng ngọc rực rỡ.',
+    mau: ['#100b06', '#f59e0b', '#f43f5e'],
+    dark: true,
+  },
+  {
+    id: 'cyber',
+    ten: '⚡ Xám than công nghệ',
+    moTa: 'Tối giản, tương phản cao, công nghệ sắc nét.',
+    mau: ['#0b0f14', '#38bdf8', '#94a3b8'],
+    dark: true,
+  },
+  {
+    id: 'light',
+    ten: '☀️ Học đường tươi sáng',
+    moTa: 'Giao diện nền sáng thanh lịch, rõ ràng, dễ nhìn ban ngày.',
+    mau: ['#f8fafc', '#0284c7', '#ffffff'],
+    dark: false,
+  },
+];
+
+export function apDungThemeBg(id) {
+  const t = DANH_SACH_THEME.find((x) => x.id === id) || DANH_SACH_THEME[0];
+  document.documentElement.setAttribute('data-bg-theme', t.id);
+  document.documentElement.setAttribute('data-theme', t.dark ? 'dark' : 'light');
+  try {
+    localStorage.setItem('c10a7-bg-theme', t.id);
+    localStorage.setItem('c10a7-giao-dien', t.dark ? 'dark' : 'light');
+  } catch {}
+}
+
+export function khoiTaoThemeBg() {
+  const luu = (() => { try { return localStorage.getItem('c10a7-bg-theme'); } catch { return null; } })();
+  if (luu) apDungThemeBg(luu);
+}
 
 export function ganDoiGiaoDien(nut) {
+  khoiTaoThemeBg();
   const luu = (() => { try { return localStorage.getItem('c10a7-giao-dien'); } catch { return null; } })();
-  if (luu) document.documentElement.setAttribute('data-theme', luu);
+  if (luu && !document.documentElement.getAttribute('data-bg-theme')) {
+    document.documentElement.setAttribute('data-theme', luu);
+  }
   if (!nut) return;
 
   nut.addEventListener('click', () => {
@@ -104,8 +167,12 @@ export function ganDoiGiaoDien(nut) {
       ? hienTai === 'dark'
       : matchMedia('(prefers-color-scheme: dark)').matches;
     const moi = dangToi ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', moi);
-    try { localStorage.setItem('c10a7-giao-dien', moi); } catch { /* bỏ qua */ }
+    if (moi === 'light') {
+      apDungThemeBg('light');
+    } else {
+      apDungThemeBg('cosmic');
+    }
+    nhac(moi === 'light' ? 'Đã chuyển sang giao diện sáng' : 'Đã chuyển sang giao diện tối', 'tot');
   });
 }
 

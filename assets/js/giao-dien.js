@@ -11,9 +11,12 @@ export function tieuDeTrang(tieuDe, phu, ...nutPhai) {
   return hop;
 }
 
-export function oThongKe(conSo, ten, kieu = '') {
+export function oThongKe(conSo, ten, kieu = '', bieuTuong = '') {
   const o = e('div', 'o-thong-ke ' + kieu);
-  o.append(e('div', 'con-so', conSo), e('div', 'ten', ten));
+  const dau = e('div', 'o-thong-ke-dau');
+  dau.append(e('span', 'ten', ten));
+  if (bieuTuong) dau.append(e('span', 'o-thong-ke-icon', bieuTuong));
+  o.append(dau, e('div', 'con-so', conSo));
   return o;
 }
 
