@@ -1,8 +1,12 @@
-/* Trang "Kết quả của tôi" — học sinh nhập mã cá nhân để xem kết quả của chính mình. */
-import { $, e, datNoiDung, api, ngayVN, ganDoiGiaoDien } from './chung.js';
+import { $, e, datNoiDung, api, ngayVN, ganDoiGiaoDien, layNhanTaiKhoan } from './chung.js';
 import { oThongKe, tieuDeTrang, nut } from './giao-dien.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
+
+api('/api/whoami').then((w) => {
+  const hieuPhu = document.querySelector('.hieu-phu');
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
+}).catch(() => {});
 
 const TEN_TRANG_THAI = {
   co_mat: ['Có mặt', 'nhan-tot'],
@@ -59,6 +63,8 @@ try {
 
 function veKetQua(d) {
   const h = d.hocSinh;
+  const hieuPhu = document.querySelector('.hieu-phu');
+  if (hieuPhu) hieuPhu.textContent = `Học sinh: ${h.hoTen}`;
   const khung = $('#khungKetQua');
   khung.hidden = false;
 

@@ -153,27 +153,130 @@ export function khoiTaoThemeBg() {
   if (luu) apDungThemeBg(luu);
 }
 
+/* ---------- Định danh tài khoản rõ ràng, chuẩn tiếng Việt ---------- */
+
+export function layNhanTaiKhoan(phien = {}) {
+  const role = phien.role || '';
+  if (role === 'teacher') return 'Tài khoản: Giáo viên chủ nhiệm';
+  if (role === 'student') return 'Tài khoản: Học sinh thường';
+
+  let vt = (phien.vaiTro || '').trim();
+  const vtLower = vt.toLowerCase();
+  if (vtLower === 'admin' || vtLower === 'quản trị' || vtLower === 'quan tri') vt = 'Quản trị viên';
+  else if (vtLower === 'thu_quy' || vtLower === 'thu quy') vt = 'Thủ quỹ';
+  else if (vtLower === 'lop_truong' || vtLower === 'lop truong') vt = 'Lớp trưởng';
+  else if (vtLower === 'bi_thu' || vtLower === 'bi thu') vt = 'Bí thư';
+  else if (vtLower === 'to_truong' || vtLower === 'to truong') vt = 'Tổ trưởng';
+  else if (vt) vt = vt.charAt(0).toUpperCase() + vt.slice(1);
+
+  const t = (phien.ten || '').trim();
+  if (vt) {
+    if (!t || t.toLowerCase() === vtLower || t.toLowerCase() === 'admin') {
+      return `Tài khoản: ${vt}`;
+    }
+    return `Tài khoản: ${vt} (${t})`;
+  }
+  if (t) return `Tài khoản: ${t}`;
+  return 'Lớp 10A7 · 2026 – 2027';
+}
+
+/* ---------- Bảng tùy chỉnh hình nền & chủ đề dùng chung cho toàn bộ trang ---------- */
+
+export function moBangThemeBg() {
+  let hop = document.getElementById('hopThoaiTheme');
+  if (!hop) {
+    hop = document.createElement('dialog');
+    hop.id = 'hopThoaiTheme';
+    hop.className = 'hop-thoai hop-thoai-theme';
+    hop.addEventListener('click', (ev) => {
+      const rect = hop.getBoundingClientRect();
+      const inDialog = (
+        rect.top <= ev.clientY && ev.clientY <= rect.top + rect.height &&
+        rect.left <= ev.clientX && ev.clientX <= rect.left + rect.width
+      );
+      if (!inDialog) hop.close();
+    });
+    document.body.appendChild(hop);
+  }
+
+  const hienTai = document.documentElement.getAttribute('data-bg-theme') || 'cosmic';
+  const luoi = e('div', 'luoi-theme-bg');
+
+  DANH_SACH_THEME.forEach((t) => {
+    const the = e('div', 'the-theme-bg' + (hienTai === t.id ? ' active' : ''));
+    the.tabIndex = 0;
+
+    const hangMau = e('div', 'the-theme-mau');
+    t.mau.forEach((m) => {
+      const cham = e('span', 'the-theme-cham');
+      cham.style.background = m;
+      hangMau.append(cham);
+    });
+
+    the.append(
+      hangMau,
+      e('div', 'the-theme-ten', t.ten),
+      e('div', 'the-theme-mo-ta', t.moTa)
+    );
+
+    the.addEventListener('click', () => {
+      apDungThemeBg(t.id);
+      hop.close();
+      nhac(`Đã chọn giao diện: ${t.ten}`, 'tot');
+    });
+
+    luoi.append(the);
+  });
+
+  const tieuDe = e('div', 'hop-thoai-dau');
+  tieuDe.append(
+    e('h3', null, '🎨 Tùy chỉnh hình nền & chủ đề'),
+    Object.assign(e('p', null, 'Chọn phong cách hiển thị và màu nền bạn yêu thích:'), { style: 'margin-top:4px;font-size:13px;color:var(--chu-nhat)' })
+  );
+
+  const than = e('div', 'hop-thoai-than');
+  than.append(luoi);
+
+  const chan = e('div', 'hop-thoai-chan');
+  const nutDong = e('button', 'nut nut-nhe', 'Đóng');
+  nutDong.type = 'button';
+  nutDong.addEventListener('click', () => hop.close());
+  chan.append(nutDong);
+
+  datNoiDung(hop, tieuDe, than, chan);
+  hop.showModal();
+}
+
 export function ganDoiGiaoDien(nut) {
   khoiTaoThemeBg();
   const luu = (() => { try { return localStorage.getItem('c10a7-giao-dien'); } catch { return null; } })();
   if (luu && !document.documentElement.getAttribute('data-bg-theme')) {
     document.documentElement.setAttribute('data-theme', luu);
   }
-  if (!nut) return;
+  if (nut && !nut.dataset.boundThemeToggle) {
+    nut.dataset.boundThemeToggle = '1';
+    nut.addEventListener('click', () => {
+      const hienTai = document.documentElement.getAttribute('data-theme');
+      const dangToi = hienTai
+        ? hienTai === 'dark'
+        : matchMedia('(prefers-color-scheme: dark)').matches;
+      const moi = dangToi ? 'light' : 'dark';
+      if (moi === 'light') {
+        apDungThemeBg('light');
+      } else {
+        const luuTheme = (() => { try { return localStorage.getItem('c10a7-bg-theme'); } catch { return null; } })();
+        apDungThemeBg(luuTheme && luuTheme !== 'light' ? luuTheme : 'cosmic');
+      }
+      nhac(moi === 'light' ? 'Đã chuyển sang giao diện sáng' : 'Đã chuyển sang giao diện tối', 'tot');
+    });
+  }
 
-  nut.addEventListener('click', () => {
-    const hienTai = document.documentElement.getAttribute('data-theme');
-    const dangToi = hienTai
-      ? hienTai === 'dark'
-      : matchMedia('(prefers-color-scheme: dark)').matches;
-    const moi = dangToi ? 'light' : 'dark';
-    if (moi === 'light') {
-      apDungThemeBg('light');
-    } else {
-      apDungThemeBg('cosmic');
-    }
-    nhac(moi === 'light' ? 'Đã chuyển sang giao diện sáng' : 'Đã chuyển sang giao diện tối', 'tot');
-  });
+  // Tự động gắn sự kiện nút mở bảng chọn theme nền nếu có trên trang
+  const nutTheme = document.getElementById('nutThemeBg');
+  if (nutTheme && !nutTheme.dataset.boundThemeBg) {
+    nutTheme.dataset.boundThemeBg = '1';
+    nutTheme.addEventListener('click', moBangThemeBg);
+  }
 }
 
 /* ---------- Thông báo nổi ---------- */

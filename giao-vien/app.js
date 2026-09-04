@@ -3,7 +3,7 @@
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
-  DANH_SACH_THEME, apDungThemeBg,
+  layNhanTaiKhoan, moBangThemeBg,
 } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
@@ -16,44 +16,6 @@ import { trangQuy, trangPhanQuyen, trangQuyLichSu, trangQuyDinhKy } from './tran
 import { trangKeHoach, trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
-
-function moBangThemeBg() {
-  const hienTai = document.documentElement.getAttribute('data-bg-theme') || 'cosmic';
-  const luoi = e('div', 'luoi-theme-bg');
-
-  DANH_SACH_THEME.forEach((t) => {
-    const the = e('div', 'the-theme-bg' + (hienTai === t.id ? ' active' : ''));
-    the.tabIndex = 0;
-
-    const hangMau = e('div', 'the-theme-mau');
-    t.mau.forEach((m) => {
-      const cham = e('span', 'the-theme-cham');
-      cham.style.background = m;
-      hangMau.append(cham);
-    });
-
-    the.append(
-      hangMau,
-      e('div', 'the-theme-ten', t.ten),
-      e('div', 'the-theme-mo-ta', t.moTa)
-    );
-
-    the.addEventListener('click', () => {
-      apDungThemeBg(t.id);
-      dongHopThoai();
-      nhac(`Đã chọn giao diện: ${t.ten}`, 'tot');
-    });
-
-    luoi.append(the);
-  });
-
-  moHopThoai('Tùy chỉnh hình nền & chủ đề', [
-    Object.assign(e('p', null, 'Chọn phong cách hiển thị và màu nền theo sở thích của thầy:'), { style: 'margin-bottom:12px;color:var(--chu-nhat)' }),
-    luoi,
-  ], [
-    nut('Đóng', 'nut-nhe', dongHopThoai),
-  ]);
-}
 
 const nutTheme = $('#nutThemeBg');
 if (nutTheme) nutTheme.addEventListener('click', moBangThemeBg);
@@ -109,7 +71,7 @@ function locMenuTheoQuyen() {
   });
 
   const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu && PHIEN.ten) hieuPhu.textContent = `${PHIEN.vaiTro || 'Tài khoản đặc biệt'} · ${PHIEN.ten}`;
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
 }
 
 /* ================= Từ điển hiển thị ================= */
@@ -1424,6 +1386,9 @@ async function dieuHuong() {
   } catch {
     // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
   }
+
+  const hieuPhu = document.querySelector('.hieu-phu');
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
 
   locMenuTheoQuyen();
   addEventListener('hashchange', dieuHuong);

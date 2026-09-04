@@ -3,9 +3,15 @@
    Trang chủ chỉ để năm mục: sĩ số lớp, thông báo, kế hoạch, thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi } from './chung.js';
+import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan } from './chung.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
+
+// Hiển thị vai trò tài khoản đăng nhập rõ ràng
+api('/api/whoami').then((w) => {
+  const hieuPhu = document.querySelector('.hieu-phu');
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
+}).catch(() => {});
 
 /* ---------- Menu ---------- */
 (function menu() {
