@@ -122,7 +122,7 @@ export async function trangQuy(KHUNG) {
     const day = e('div', 'chuoi-so-lieu');
     day.append(
       soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot', `Đạt ${phanTram}% chỉ tiêu`),
-      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.soTien)} / em`),
+      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.khoan?.soTienMoiEm)} / em`),
       soLieu('Còn thiếu', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot', `${dk.danhSach.length - dk.soEmDaDuDinh} em chưa nộp đủ`),
       soLieu('Tiến độ thu', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy', `Hoàn thành ${phanTram}% tổng quỹ`)
     );
