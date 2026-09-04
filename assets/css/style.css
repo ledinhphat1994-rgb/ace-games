@@ -280,7 +280,25 @@ code {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.thanh-phai { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; }
+.thanh-phai { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; position: relative; }
+
+/* ---------- Âm lượng nhạc nền: hộp trượt hiện khi rê chuột/chạm vào nút loa ----------
+   #nutNhac luôn là con ĐẦU TIÊN của .thanh-phai, nên căn trái theo .thanh-phai cũng chính
+   là căn theo đúng nút loa — khỏi phải đo toạ độ bằng JS. */
+.nhac-am-luong {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 45;
+  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r-nho);
+  box-shadow: var(--bong-2); padding: 10px 12px;
+  opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity .15s, transform .15s, visibility .15s;
+}
+#nutNhac:hover + .nhac-am-luong,
+#nutNhac:focus-visible + .nhac-am-luong,
+.nhac-am-luong:hover,
+.nhac-am-luong:focus-within {
+  opacity: 1; visibility: visible; transform: translateY(0);
+}
+.nhac-am-luong-truot { width: 110px; accent-color: var(--chinh); cursor: pointer; }
 
 .nut-tron {
   width: 36px; height: 36px; flex: none; display: grid; place-items: center;
@@ -575,6 +593,10 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 .nhan-luuy { background: var(--luu-y-nen); color: var(--luu-y); border-color: color-mix(in srgb, var(--luu-y) 25%, transparent); }
 .nhan-xau { background: var(--xau-nen); color: var(--xau); border-color: color-mix(in srgb, var(--xau) 25%, transparent); }
 .nhan-tim { background: var(--nhan-nen); color: var(--nhan); border-color: color-mix(in srgb, var(--nhan) 25%, transparent); }
+.nhan-noi-bat {
+  background: linear-gradient(120deg, var(--chinh) 0%, var(--chinh-sang) 100%);
+  color: #fff; border-color: transparent;
+}
 .nhan-xam { background: var(--nen-chim); color: var(--chu-nhat); border-color: var(--vien); }
 
 /* ---------- 7. Nút ---------- */
@@ -695,7 +717,7 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .the-tom-tat .mui-ten { float: right; color: var(--chu-mo); font-size: 14px; }
 
 /* ---------- 11. Thư viện ảnh ---------- */
-.thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+.thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .thu-vien figure {
   margin: 0; border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
   box-shadow: var(--bong-1); transition: box-shadow .18s, transform .18s;
@@ -707,6 +729,33 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
   /* Chú thích dài không được đẩy các ô ảnh cao lệch nhau */
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* ---------- Xem ảnh phóng to (lightbox) ---------- */
+.hop-xem-anh {
+  position: fixed; inset: 0; z-index: 200; background: rgba(6,10,18,.92);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.hop-xem-anh[hidden] { display: none; }
+.hxa-noi-dung { position: relative; width: 100%; max-width: 1100px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.hxa-khung { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; }
+.hxa-anh { max-width: 100%; max-height: 78vh; border-radius: var(--r); object-fit: contain; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.hxa-chu-thich { color: #fff; font-size: 14.5px; text-align: center; max-width: 90%; }
+.hxa-dem { color: rgba(255,255,255,.7); font-size: 12.5px; }
+.hxa-nut {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255,255,255,.12); color: #fff; font-size: 24px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; transition: background .15s;
+}
+.hxa-nut:hover { background: rgba(255,255,255,.24); }
+.hxa-truoc { left: -4px; }
+.hxa-sau { right: -4px; }
+@media (min-width: 640px) { .hxa-truoc { left: -58px; } .hxa-sau { right: -58px; } }
+.hxa-dong {
+  position: absolute; top: -44px; right: 0; width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.12); color: #fff; font-size: 18px; cursor: pointer;
+}
+.hxa-dong:hover { background: rgba(255,255,255,.24); }
 
 /* ---------- 12. Trạng thái rỗng / đang tải ---------- */
 .trong { color: var(--chu-mo); font-size: 14px; }

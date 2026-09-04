@@ -73,21 +73,46 @@ function dinhTuyen() {
 
 window.addEventListener('hashchange', dinhTuyen);
 
-/* ---------- Đánh dấu mục đang xem trên thanh menu ngang ---------- */
+/* ---------- Đánh dấu mục đang xem trên thanh menu ngang ----------
+   KHÔNG dùng IntersectionObserver với rootMargin co hẹp nữa — mục "Hình ảnh" khi
+   chưa có ảnh (hoặc bất kỳ mục nào thấp hơn vùng quan sát) không bao giờ lọt vào
+   dải đang xét, nên bấm vào tab đó vẫn cứ sáng nhầm tab kế bên. Thay bằng cách tính
+   trực tiếp theo vị trí cuộn: mục ĐANG XEM là mục thấp nhất mà đỉnh của nó đã vượt
+   qua mép dưới thanh menu — luôn đúng bất kể mục đó cao hay thấp, dài hay ngắn. */
 function ganTheoDoiMuc() {
   const lienKet = [...document.querySelectorAll('.menu a[href^="#"]')]
     .filter((a) => laMoNeo(a.getAttribute('href')));
-  const muc = lienKet.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
-  if (!('IntersectionObserver' in window) || !muc.length) return;
+  const muc = lienKet
+    .map((a) => ({ a, phanTu: document.querySelector(a.getAttribute('href')) }))
+    .filter((x) => x.phanTu);
+  if (!muc.length) return;
 
-  const doi = new IntersectionObserver((mucVao) => {
-    mucVao.forEach((m) => {
-      if (!m.isIntersecting) return;
-      lienKet.forEach((a) => a.classList.toggle('dang-xem', a.getAttribute('href') === '#' + m.target.id));
-    });
-  }, { rootMargin: '-70px 0px -68% 0px' });
+  const thanh = $('.thanh-tren');
+  let dangCho = false;
 
-  muc.forEach((m) => doi.observe(m));
+  function capNhat() {
+    dangCho = false;
+    const nguong = (thanh ? thanh.getBoundingClientRect().bottom : 0) + 4;
+    const cuoiTrang = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 2;
+
+    let hienTai = muc[0];
+    for (const x of muc) {
+      if (x.phanTu.getBoundingClientRect().top <= nguong) hienTai = x;
+    }
+    if (cuoiTrang) hienTai = muc[muc.length - 1];
+
+    lienKet.forEach((a) => a.classList.toggle('dang-xem', a === hienTai.a));
+  }
+
+  function xepLichCapNhat() {
+    if (dangCho) return;
+    dangCho = true;
+    requestAnimationFrame(capNhat);
+  }
+
+  window.addEventListener('scroll', xepLichCapNhat, { passive: true });
+  window.addEventListener('resize', xepLichCapNhat);
+  capNhat();
 }
 
 /* ---------- Vẽ từng phần ---------- */
@@ -116,6 +141,7 @@ function veThongBao(ds, phien, lamMoi) {
     thongTin.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap';
     if (t.ghim) thongTin.append(e('span', 'nhan nhan-luuy', 'Quan trọng'));
     if (t.loai) thongTin.append(e('span', 'nhan nhan-xam', t.loai));
+    if (duocPhep && t.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
     thongTin.append(e('span', null, ngayDayDu(t.ngay)));
     dau.append(thongTin);
 
@@ -502,6 +528,26 @@ function veNhacNen(nhacNen) {
   if (nut.dataset.daGan) return;   // chỉ gắn sự kiện 1 lần dù dữ liệu tải lại nhiều lần
   nut.dataset.daGan = '1';
 
+  // Hộp chỉnh âm lượng hiện khi rê chuột vào nút loa (hoặc chạm/focus trên di động) —
+  // CSS điều khiển hiện/ẩn qua ":hover"/":focus-within", xem .nhac-am-luong trong style.css.
+  let amLuongBanDau = 70;
+  try { amLuongBanDau = Number(localStorage.getItem('nhacNenAmLuong')) || 70; } catch { /* bỏ qua */ }
+  audio.volume = amLuongBanDau / 100;
+
+  const oAmLuong = e('input', 'nhac-am-luong-truot');
+  oAmLuong.type = 'range';
+  oAmLuong.min = '0';
+  oAmLuong.max = '100';
+  oAmLuong.value = String(amLuongBanDau);
+  oAmLuong.setAttribute('aria-label', 'Âm lượng nhạc nền');
+  oAmLuong.addEventListener('input', () => {
+    audio.volume = Number(oAmLuong.value) / 100;
+    try { localStorage.setItem('nhacNenAmLuong', oAmLuong.value); } catch { /* bỏ qua */ }
+  });
+  const hopAmLuong = e('div', 'nhac-am-luong');
+  hopAmLuong.append(oAmLuong);
+  nut.insertAdjacentElement('afterend', hopAmLuong);
+
   const dat = (dangPhat) => {
     nut.setAttribute('aria-pressed', String(dangPhat));
     nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');
@@ -628,6 +674,7 @@ function veKeHoach(ds, phien, lamMoi) {
     thongTin.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap';
     thongTin.append(e('span', 'nhan ' + (mau[k.mucDo] || 'nhan-xam'), ngayVN(k.ngay)));
     if (k.hoanThanh) thongTin.append(e('span', 'nhan nhan-tot', '✓ Đã xong'));
+    if (duocPhep && k.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
     dau.append(thongTin);
 
     if (duocPhep) {
@@ -679,24 +726,132 @@ function veThuQuy(tq) {
   }));
 }
 
-function veHinhAnh(ds) {
-  const hop = $('#thuVien');
-  if (!ds || !ds.length) {
-    return datNoiDung(hop, e('p', 'trong',
-      'Chưa có hình ảnh nào. Giáo viên chủ nhiệm sẽ đăng ảnh hoạt động của lớp tại đây.'));
-  }
+/* ---------- Xem ảnh phóng to (lightbox): điều hướng ảnh trước/sau, phím tắt, đóng bằng nền/Esc ---------- */
+let dsAnhDangXem = [];
+let chiSoAnhDangXem = -1;
 
-  datNoiDung(hop, ...ds.map((a) => {
-    const hinh = e('figure');
-    const img = e('img');
+function khoiHopXemAnh() {
+  let hop = $('#hopXemAnh');
+  if (hop) return hop;
+
+  hop = e('div', 'hop-xem-anh');
+  hop.id = 'hopXemAnh';
+  hop.hidden = true;
+  hop.setAttribute('role', 'dialog');
+  hop.setAttribute('aria-modal', 'true');
+  hop.setAttribute('aria-label', 'Xem ảnh phóng to');
+
+  const nutDong = e('button', 'hxa-nut hxa-dong', '✕');
+  nutDong.type = 'button';
+  nutDong.setAttribute('aria-label', 'Đóng');
+
+  const nutTruoc = e('button', 'hxa-nut hxa-truoc', '‹');
+  nutTruoc.type = 'button';
+  nutTruoc.setAttribute('aria-label', 'Ảnh trước');
+
+  const nutSau = e('button', 'hxa-nut hxa-sau', '›');
+  nutSau.type = 'button';
+  nutSau.setAttribute('aria-label', 'Ảnh sau');
+
+  const img = e('img', 'hxa-anh');
+  const chuThich = e('div', 'hxa-chu-thich');
+  const dem = e('div', 'hxa-dem');
+
+  const khungAnh = e('div', 'hxa-khung');
+  khungAnh.append(img, nutTruoc, nutSau);
+
+  const noiDung = e('div', 'hxa-noi-dung');
+  noiDung.append(khungAnh, chuThich, dem, nutDong);
+  hop.append(noiDung);
+  document.body.append(hop);
+
+  function dong() { hop.hidden = true; chiSoAnhDangXem = -1; }
+  function ve() {
+    const a = dsAnhDangXem[chiSoAnhDangXem];
+    if (!a) return dong();
     img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
     img.alt = a.chuThich || 'Ảnh hoạt động lớp 10A7';
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    hinh.append(img);
-    if (a.chuThich) hinh.append(e('figcaption', null, a.chuThich));
-    return hinh;
-  }));
+    chuThich.textContent = a.chuThich || '';
+    chuThich.hidden = !a.chuThich;
+    dem.textContent = `${chiSoAnhDangXem + 1} / ${dsAnhDangXem.length}`;
+    nutTruoc.hidden = nutSau.hidden = dsAnhDangXem.length < 2;
+  }
+  function lui(chieu) {
+    if (!dsAnhDangXem.length) return;
+    chiSoAnhDangXem = (chiSoAnhDangXem + chieu + dsAnhDangXem.length) % dsAnhDangXem.length;
+    ve();
+  }
+
+  nutDong.addEventListener('click', dong);
+  hop.addEventListener('click', (ev) => { if (ev.target === hop) dong(); });
+  nutTruoc.addEventListener('click', () => lui(-1));
+  nutSau.addEventListener('click', () => lui(1));
+  document.addEventListener('keydown', (ev) => {
+    if (hop.hidden) return;
+    if (ev.key === 'Escape') dong();
+    else if (ev.key === 'ArrowLeft') lui(-1);
+    else if (ev.key === 'ArrowRight') lui(1);
+  });
+
+  hop.moTai = (ds, chiSo) => {
+    dsAnhDangXem = ds; chiSoAnhDangXem = chiSo;
+    hop.hidden = false;
+    ve();
+  };
+  return hop;
+}
+
+function moXemAnh(ds, chiSo) {
+  khoiHopXemAnh().moTai(ds, chiSo);
+}
+
+function veHinhAnh(ds) {
+  const than = $('#hinh-anh .than-khoi');
+  const hop = $('#thuVien');
+  const dsDay = ds || [];
+
+  let oTim = $('#thuVienTim');
+  if (!oTim && than) {
+    oTim = e('input', 'o-nhap');
+    oTim.id = 'thuVienTim';
+    oTim.type = 'search';
+    oTim.placeholder = 'Tìm ảnh theo chú thích…';
+    oTim.setAttribute('aria-label', 'Tìm ảnh theo chú thích');
+    oTim.style.marginBottom = '14px';
+    than.insertBefore(oTim, hop);
+    oTim.addEventListener('input', () => veLoc());
+  }
+  if (oTim) oTim.hidden = dsDay.length < 6;
+
+  function veLoc() {
+    if (!dsDay.length) {
+      return datNoiDung(hop, e('p', 'trong',
+        'Chưa có hình ảnh nào. Giáo viên chủ nhiệm sẽ đăng ảnh hoạt động của lớp tại đây.'));
+    }
+
+    const q = (oTim?.value || '').trim().toLowerCase();
+    const dsHien = q ? dsDay.filter((a) => (a.chuThich || '').toLowerCase().includes(q)) : dsDay;
+
+    if (!dsHien.length) {
+      return datNoiDung(hop, e('p', 'trong', 'Không tìm thấy ảnh nào khớp với "' + q + '".'));
+    }
+
+    datNoiDung(hop, ...dsHien.map((a, i) => {
+      const hinh = e('figure');
+      const img = e('img');
+      img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+      img.alt = a.chuThich || 'Ảnh hoạt động lớp 10A7';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      hinh.append(img);
+      if (a.chuThich) hinh.append(e('figcaption', null, a.chuThich));
+      hinh.addEventListener('click', () => moXemAnh(dsHien, i));
+      hinh.style.cursor = 'zoom-in';
+      return hinh;
+    }));
+  }
+
+  veLoc();
 }
 
 /* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------
