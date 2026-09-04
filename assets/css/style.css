@@ -199,6 +199,10 @@ code {
   transition: background .15s;
 }
 .menu-dt a:hover { background: var(--nen-chim); }
+/* Thuộc tính HTML "hidden" phải thắng — nếu không, class .menu-dt ở trên (độ ưu tiên cao hơn
+   selector thuộc tính mặc định của trình duyệt) sẽ đè display:flex lên, khiến menu luôn hiện
+   sẵn ngay cả khi đã đóng. */
+.menu-dt[hidden] { display: none; }
 @media (min-width: 860px) { .menu-dt { display: none !important; } }
 
 /* ---------- 4. Khối mở đầu ---------- */

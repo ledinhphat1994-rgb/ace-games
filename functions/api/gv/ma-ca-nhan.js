@@ -4,36 +4,7 @@
 //   POST /api/gv/ma-ca-nhan { hocSinhId, maTuyChinh }     -> đặt ĐÚNG mã này cho một em (tuỳ ý, dễ nhớ)
 //   POST /api/gv/ma-ca-nhan { tatCa: true }               -> cấp mã ngẫu nhiên cho mọi em chưa có
 import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
-
-// Bỏ các ký tự dễ đọc nhầm: 0/O, 1/I/L, 5/S, 2/Z.
-const CHU_CAI = 'ABCDEFGHJKMNPQRTUVWXY346789';
-
-function sinhMa(doDai = 6) {
-  const byte = new Uint8Array(doDai);
-  crypto.getRandomValues(byte);
-  return [...byte].map((b) => CHU_CAI[b % CHU_CAI.length]).join('');
-}
-
-function chuanHoaMaTuyChinh(v) {
-  return String(v || '').trim().toUpperCase().replace(/\s+/g, '');
-}
-
-function maHopLe(ma) {
-  return /^[A-Z0-9\-]{3,32}$/.test(ma);
-}
-
-/** Kiểm tra một mã có đang trùng với BẤT KỲ mã nào khác trong toàn hệ thống không
- *  (mã lớp, mã giáo viên, mã tài khoản đặc biệt, mã cá nhân của em khác). */
-async function bangTrungMaKhac(db, ma, boQuaHocSinhId) {
-  const [dangNhap, phu, caNhan] = await Promise.all([
-    db.prepare('SELECT 1 FROM ma_dang_nhap WHERE ma = ?1').bind(ma).first(),
-    db.prepare('SELECT 1 FROM tai_khoan_phu WHERE ma = ?1').bind(ma).first(),
-    db.prepare('SELECT hoc_sinh_id FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first(),
-  ]);
-  if (dangNhap || phu) return true;
-  if (caNhan && caNhan.hoc_sinh_id !== boQuaHocSinhId) return true;
-  return false;
-}
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
@@ -54,8 +25,8 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
 
     const ma = chuanHoaMaTuyChinh(maTuyChinh);
-    if (!maHopLe(ma)) return loi('Mã chỉ gồm chữ in hoa, số, dấu gạch ngang, dài 3–32 ký tự.');
-    if (await bangTrungMaKhac(db, ma, id)) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
+    if (!maHopLe(ma)) return loi('Mã dài 3–32 ký tự, không chứa khoảng trắng (chấp nhận chữ hoa, chữ thường, số, ký tự đặc biệt).');
+    if (await maDaTonTai(db, ma, { hocSinhId: id })) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
 
     await db.prepare(
       `INSERT INTO ma_ca_nhan (hoc_sinh_id, ma) VALUES (?1, ?2)

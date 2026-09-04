@@ -595,6 +595,7 @@ export async function trangPhanQuyen(KHUNG) {
               }),
             ]);
           }),
+          nut('✎ Đặt mã tuỳ chỉnh', 'nut-vien nut-nho', () => datMaTuyChinhTaiKhoanPhu(tk, ve)),
           nut('Xoá hẳn', 'nut-nhe nut-nho', () => {
             moHopThoai('Xoá hẳn tài khoản này?', e('p', null, tk.ten + ' sẽ không đăng nhập được nữa.'), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -621,9 +622,33 @@ export async function trangPhanQuyen(KHUNG) {
   await ve();
 }
 
+function datMaTuyChinhTaiKhoanPhu(tk, taiLai) {
+  const oMa = oNhap('tkMaTuyChinh', 'text', tk.ma, 'Chữ hoa, chữ thường, số, ký tự đặc biệt — 3–32 ký tự');
+
+  moHopThoai(`Đặt mã tuỳ chỉnh — ${tk.ten}`, [
+    truong('Mã đăng nhập', oMa, 'Có thể đặt bất kỳ mã nào dễ nhớ, không giới hạn kiểu ký tự (trừ khoảng trắng).'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      if (!oMa.value.trim()) return nhac('Chưa nhập mã', 'xau');
+      ev.currentTarget.disabled = true;
+      try {
+        const kq = await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, maTuyChinh: oMa.value } });
+        dongHopThoai();
+        nhac('Đã đặt mã: ' + kq.ma, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
+
 function taoTaiKhoan(cacQuyen, taiLai) {
   const oTen = oNhap('tkTen', 'text', '', 'Họ tên người được cấp quyền');
   const oVaiTro = oNhap('tkVaiTro', 'text', '', 'Ví dụ: Thủ quỹ, Lớp trưởng…');
+  const oMa = oNhap('tkMa', 'text', '', 'Để trống = tự sinh mã ngẫu nhiên');
 
   const hopQuyen = e('div');
   const quyenDaChon = new Set();
@@ -646,6 +671,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
   moHopThoai('Cấp tài khoản mới', [
     truong('Họ và tên', oTen),
     truong('Vai trò (chỉ để hiển thị)', oVaiTro),
+    truong('Mã đăng nhập (không bắt buộc)', oMa),
     Object.assign(e('div', 'nhan-nhap', 'Được phép làm những việc sau'), { style: 'margin-top:6px' }),
     hopQuyen,
   ], [
@@ -657,7 +683,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
       try {
         const kq = await api('/api/gv/tai-khoan-phu', {
           method: 'POST',
-          than: { ten: oTen.value, vaiTro: oVaiTro.value, quyen: [...quyenDaChon] },
+          than: { ten: oTen.value, vaiTro: oVaiTro.value, quyen: [...quyenDaChon], ma: oMa.value || undefined },
         });
         dongHopThoai();
         nhac(`Đã cấp tài khoản. Mã: ${kq.ma}`, 'tot');

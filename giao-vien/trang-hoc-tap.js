@@ -583,7 +583,7 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
   const oMa = oNhap('dnMa', 'text', '', 'Để trống để máy tự sinh mã ngẫu nhiên');
 
   moHopThoai(`Đổi mã — ${nhan}`, [
-    truong('Mã mới (tuỳ chọn)', oMa, 'Chữ, số, dấu gạch ngang — 4 đến 32 ký tự. Phân biệt HOA/thường. Để trống thì máy tự sinh mã ngẫu nhiên dễ đọc.'),
+    truong('Mã mới (tuỳ chọn)', oMa, 'Chữ hoa, chữ thường, số, ký tự đặc biệt — 3 đến 32 ký tự, không chứa khoảng trắng. Phân biệt HOA/thường. Để trống thì máy tự sinh mã ngẫu nhiên dễ đọc.'),
     Object.assign(e('p', 'trong', '⚠ Đổi xong, mọi thiết bị đang đăng nhập bằng mã cũ vẫn dùng được tới khi hết hạn phiên (7 ngày) — nhưng mã cũ sẽ không đăng nhập MỚI được nữa.'), { style: 'margin-top:10px' }),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -605,11 +605,10 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
 /* ---------- Đặt mã cá nhân tuỳ chỉnh cho một học sinh ---------- */
 
 function datMaTuyChinh(hocSinh, taiLai) {
-  const oMa = oNhap('mcnMa', 'text', hocSinh.ma || '', 'Ví dụ: MINHANH2011');
-  oMa.style.textTransform = 'uppercase';
+  const oMa = oNhap('mcnMa', 'text', hocSinh.ma || '', 'Ví dụ: MinhAnh2011');
 
   moHopThoai(`Đặt mã cá nhân — ${hocSinh.hoTen}`, [
-    truong('Mã', oMa, 'Chữ in hoa, số, dấu gạch ngang — 3 đến 32 ký tự. Nên đặt gì đó em dễ nhớ.'),
+    truong('Mã', oMa, 'Chữ hoa, chữ thường, số, ký tự đặc biệt — 3 đến 32 ký tự, không chứa khoảng trắng. Nên đặt gì đó em dễ nhớ.'),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {

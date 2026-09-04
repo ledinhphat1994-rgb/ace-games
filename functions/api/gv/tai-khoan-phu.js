@@ -1,9 +1,12 @@
 // Tài khoản đặc biệt (lớp trưởng, thủ quỹ...) — CHỈ giáo viên chủ nhiệm quản lý được.
 //   GET    /api/gv/tai-khoan-phu
-//   POST   /api/gv/tai-khoan-phu   { ten, vaiTro, quyen:[...], hocSinhId }
-//   PATCH  /api/gv/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa }
+//   POST   /api/gv/tai-khoan-phu   { ten, vaiTro, quyen:[...], hocSinhId, ma? }
+//        Không truyền "ma" -> tự sinh ngẫu nhiên. Có truyền -> dùng đúng mã đó (tuỳ ý, dễ nhớ).
+//   PATCH  /api/gv/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa } — capLaiMa: true = mã ngẫu nhiên mới
+//   PATCH  /api/gv/tai-khoan-phu   { id, maTuyChinh } — đặt ĐÚNG mã này (tuỳ ý)
 //   DELETE /api/gv/tai-khoan-phu?id=
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
 
 // Những mục có thể trao quyền. Mỗi mục ứng với đúng một "quyenCan" đang dùng ở các API khác.
 export const CAC_QUYEN = [
@@ -15,13 +18,6 @@ export const CAC_QUYEN = [
   ['ke-hoach', 'Kế hoạch — thêm/sửa mốc sự kiện, lịch kiểm tra'],
 ];
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));
-
-const CHU_CAI = 'ABCDEFGHJKMNPQRTUVWXY346789';
-function sinhMa(doDai = 6) {
-  const byte = new Uint8Array(doDai);
-  crypto.getRandomValues(byte);
-  return [...byte].map((b) => CHU_CAI[b % CHU_CAI.length]).join('');
-}
 
 function locQuyen(mang) {
   if (!Array.isArray(mang)) return '';
@@ -50,11 +46,16 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const hocSinhId = than.hocSinhId ? Number(than.hocSinhId) : null;
   if (hocSinhId !== null && !Number.isInteger(hocSinhId)) return loi('Mã học sinh không hợp lệ.');
 
-  // Sinh mã không trùng với mã đang có.
-  const { results: dangDung } = await env.DB.prepare('SELECT ma FROM tai_khoan_phu').all();
-  const daCo = new Set(dangDung.map((r) => r.ma));
   let ma;
-  do { ma = sinhMa(); } while (daCo.has(ma));
+  if (than.ma) {
+    ma = chuanHoaMaTuyChinh(than.ma);
+    if (!maHopLe(ma)) {
+      return loi('Mã dài 3–32 ký tự, không chứa khoảng trắng (chấp nhận chữ hoa, chữ thường, số, ký tự đặc biệt).');
+    }
+    if (await maDaTonTai(env.DB, ma, {})) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
+  } else {
+    do { ma = sinhMa(); } while (await maDaTonTai(env.DB, ma, {}));
+  }
 
   const kq = await env.DB.prepare(
     'INSERT INTO tai_khoan_phu (ten, vai_tro, ma, quyen, hoc_sinh_id) VALUES (?1, ?2, ?3, ?4, ?5)'
@@ -69,10 +70,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   if (!Number.isInteger(id)) return loi('Thiếu mã tài khoản.');
 
   if (than.capLaiMa) {
-    const { results: dangDung } = await env.DB.prepare('SELECT ma FROM tai_khoan_phu').all();
-    const daCo = new Set(dangDung.map((r) => r.ma));
     let ma;
-    do { ma = sinhMa(); } while (daCo.has(ma));
+    do { ma = sinhMa(); } while (await maDaTonTai(env.DB, ma, { taiKhoanPhuId: id }));
+    await env.DB.prepare('UPDATE tai_khoan_phu SET ma = ?1 WHERE id = ?2').bind(ma, id).run();
+    return json({ ok: true, ma });
+  }
+
+  if (than.maTuyChinh) {
+    const ma = chuanHoaMaTuyChinh(than.maTuyChinh);
+    if (!maHopLe(ma)) {
+      return loi('Mã dài 3–32 ký tự, không chứa khoảng trắng (chấp nhận chữ hoa, chữ thường, số, ký tự đặc biệt).');
+    }
+    if (await maDaTonTai(env.DB, ma, { taiKhoanPhuId: id })) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
     await env.DB.prepare('UPDATE tai_khoan_phu SET ma = ?1 WHERE id = ?2').bind(ma, id).run();
     return json({ ok: true, ma });
   }
