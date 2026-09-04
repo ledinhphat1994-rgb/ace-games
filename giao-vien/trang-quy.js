@@ -1,4 +1,4 @@
-import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai, layThongTinVaiTro } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -747,11 +747,21 @@ export async function trangPhanQuyen(KHUNG) {
         dongTen.append(
           Object.assign(e('h3', null, tk.ten), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
           Object.assign(e('span', 'nhan', `${info.bieuTuong} ${info.tenGoi}`), {
-            style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;`
+            style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12px;padding:2px 9px;border-radius:6px;`
           })
         );
 
-        thongTin.append(dongTen);
+        const nhanDangNhap = layNhanTaiKhoan({ role: 'phu', vaiTro: tk.vaiTro, ten: tk.ten });
+        const dongDangNhap = e('div');
+        dongDangNhap.style.cssText = 'font-size:12.5px;color:var(--chu-nhat);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px';
+        dongDangNhap.append(
+          document.createTextNode('Hiển thị khi đăng nhập: '),
+          Object.assign(e('span', null, nhanDangNhap), {
+            style: 'color:var(--chinh);font-weight:600;'
+          })
+        );
+
+        thongTin.append(dongTen, dongDangNhap);
         khoiTrai.append(avatar, thongTin);
 
         const khoiPhai = e('div');
@@ -837,8 +847,74 @@ export async function trangPhanQuyen(KHUNG) {
 }
 
 function suaTaiKhoan(tk, cacQuyen, taiLai) {
-  const oTen = oNhap('tkSuaTen', 'text', tk.ten, 'Họ tên người được cấp quyền');
-  const oVaiTro = oNhap('tkSuaVaiTro', 'text', tk.vaiTro || '', 'Ví dụ: Lớp trưởng, Thủ quỹ, Bí thư, Quản trị viên…');
+  // Nếu vai trò đang lưu là 'admin' thì gợi ý điền sẵn 'Quản trị viên' tiếng Việt
+  const vaiTroKhoiDau = (tk.vaiTro === 'admin' || !tk.vaiTro) ? 'Quản trị viên' : tk.vaiTro;
+
+  const oTen = oNhap('tkSuaTen', 'text', tk.ten, 'Ví dụ: Lê Đình Phát, Nguyễn Văn A...');
+  const oVaiTro = oNhap('tkSuaVaiTro', 'text', vaiTroKhoiDau, 'Ví dụ: Quản trị viên, Lớp trưởng, Thủ quỹ, Bí thư…');
+
+  const dayGoiY = e('div', 'day-loc');
+  dayGoiY.style.cssText = 'margin-top:6px;gap:6px;flex-wrap:wrap;display:flex;align-items:center';
+  dayGoiY.append(Object.assign(e('span', 'trong', 'Chọn nhanh:'), { style: 'font-size:12px;color:var(--chu-nhat)' }));
+
+  const CAC_VAI_TRO = [
+    ['🛡️ Quản trị viên', 'Quản trị viên'],
+    ['👑 Lớp trưởng', 'Lớp trưởng'],
+    ['🪙 Thủ quỹ', 'Thủ quỹ'],
+    ['⚡ Bí thư', 'Bí thư'],
+    ['📋 Tổ trưởng', 'Tổ trưởng'],
+  ];
+  CAC_VAI_TRO.forEach(([nhan, val]) => {
+    const b = e('button', 'nut-nhe nut-nho', nhan);
+    b.type = 'button';
+    b.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:6px;cursor:pointer;';
+    b.addEventListener('click', () => {
+      oVaiTro.value = val;
+      capNhatXemTruoc();
+    });
+    dayGoiY.append(b);
+  });
+
+  const hopVaiTro = e('div');
+  hopVaiTro.append(oVaiTro, dayGoiY);
+
+  const hopXemTruoc = e('div');
+  hopXemTruoc.style.cssText = 'padding:10px 12px;border-radius:9px;background:var(--nen-chim);border:1px solid var(--vien);margin-top:8px;font-size:13px;display:flex;flex-direction:column;gap:5px';
+
+  function capNhatXemTruoc() {
+    const t = oTen.value.trim() || '(Chưa nhập tên)';
+    const vt = oVaiTro.value.trim() || '(Chưa đặt vai trò)';
+    const inf = layThongTinVaiTro(vt);
+    const textDangNhap = layNhanTaiKhoan({ role: 'phu', vaiTro: vt, ten: t });
+
+    datNoiDung(hopXemTruoc,
+      Object.assign(e('div', null, '👀 Vị trí hiển thị trên trang web:'), { style: 'font-weight:700;color:var(--chu);font-size:13px;' }),
+      (() => {
+        const d1 = e('div');
+        d1.append(
+          document.createTextNode('1. Trên thẻ phân quyền: '),
+          Object.assign(e('b', null, t), { style: 'color:var(--chu)' }),
+          document.createTextNode(' kèm huy hiệu '),
+          Object.assign(e('span', 'nhan', `${inf.bieuTuong} ${inf.tenGoi}`), {
+            style: `background:${inf.mauNen};border-color:${inf.mauVien};color:${inf.mauChu};font-weight:700;font-size:11.5px;padding:1px 6px;border-radius:5px;`
+          })
+        );
+        return d1;
+      })(),
+      (() => {
+        const d2 = e('div');
+        d2.append(
+          document.createTextNode('2. Góc trên trang web khi đăng nhập: '),
+          Object.assign(e('b', null, textDangNhap), { style: 'color:var(--chinh)' })
+        );
+        return d2;
+      })()
+    );
+  }
+
+  oTen.addEventListener('input', capNhatXemTruoc);
+  oVaiTro.addEventListener('input', capNhatXemTruoc);
+  capNhatXemTruoc();
 
   const hopQuyen = e('div');
   hopQuyen.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px';
@@ -861,7 +937,8 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
 
   moHopThoai(`Sửa tài khoản — ${tk.ten}`, [
     truong('Họ và tên', oTen, 'Tên người dùng (học sinh hoặc cán sự lớp).'),
-    truong('Vai trò hiển thị', oVaiTro, 'Hiển thị trên hệ thống (Lớp trưởng, Thủ quỹ, Bí thư, Quản trị viên...).'),
+    truong('Vai trò hiển thị', hopVaiTro, 'Hiển thị trên hệ thống (Quản trị viên, Lớp trưởng, Thủ quỹ, Bí thư...).'),
+    hopXemTruoc,
     truong('Phân quyền thao tác', hopQuyen, 'Chọn những việc tài khoản này được phép làm.'),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
