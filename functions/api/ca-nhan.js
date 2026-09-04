@@ -38,12 +38,17 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
 
   const hs = await db.prepare(
     `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
-            h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo
+            h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
+            m.an_muc AS anMucChuoi
        FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
       WHERE m.ma = ?1 AND h.dang_hoc = 1`
   ).bind(maSach).first();
 
   if (!hs) return loi('Mã cá nhân không đúng. Hỏi lại giáo viên chủ nhiệm.', 404);
+
+  // Giáo viên có thể ẩn riêng một vài mục với mã này — mặc định xem hết (chuỗi rỗng).
+  const anMuc = hs.anMucChuoi ? hs.anMucChuoi.split(',') : [];
+  delete hs.anMucChuoi;
 
   const [diemDanh, cacMon, diem, nhatKy, renLuyen] = await Promise.all([
     db.prepare(
@@ -85,8 +90,10 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   return json({
     ok: true,
     hocSinh: hs,
-    chuyenCan: { ...dem, tong: diemDanh.results.length, chiTiet: diemDanh.results },
-    soDiem,
+    anMuc,
+    chuyenCan: anMuc.includes('diem-danh')
+      ? null : { ...dem, tong: diemDanh.results.length, chiTiet: diemDanh.results },
+    soDiem: anMuc.includes('thong-ke') ? [] : soDiem,
     nhatKy: nhatKy.results,
   });
 });

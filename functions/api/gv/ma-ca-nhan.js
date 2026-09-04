@@ -1,18 +1,35 @@
 // Mã tra cứu cá nhân — mỗi học sinh một mã riêng để xem kết quả của chính mình.
-//   GET  /api/gv/ma-ca-nhan          -> danh sách mã (để in phát cho từng em)
-//   POST /api/gv/ma-ca-nhan { hocSinhId }                 -> cấp lại mã NGẪU NHIÊN cho một em
-//   POST /api/gv/ma-ca-nhan { hocSinhId, maTuyChinh }     -> đặt ĐÚNG mã này cho một em (tuỳ ý, dễ nhớ)
-//   POST /api/gv/ma-ca-nhan { tatCa: true }               -> cấp mã ngẫu nhiên cho mọi em chưa có
+//   GET    /api/gv/ma-ca-nhan          -> danh sách mã (để in phát cho từng em)
+//   POST   /api/gv/ma-ca-nhan { hocSinhId }                 -> cấp lại mã NGẪU NHIÊN cho một em
+//   POST   /api/gv/ma-ca-nhan { hocSinhId, maTuyChinh }     -> đặt ĐÚNG mã này cho một em (tuỳ ý, dễ nhớ)
+//   POST   /api/gv/ma-ca-nhan { tatCa: true }               -> cấp mã ngẫu nhiên cho mọi em chưa có
+//   PATCH  /api/gv/ma-ca-nhan { hocSinhId, anMuc: [...] }   -> đặt các mục ẨN riêng cho mã của em đó
 import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
-import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai, chuanHoaAnMuc } from '../../_lib/ma.js';
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, m.ma
+    `SELECT h.id, h.ho_ten AS hoTen, m.ma, m.an_muc AS anMuc
        FROM hoc_sinh h LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
       WHERE h.dang_hoc = 1 ORDER BY h.id`
   ).all();
-  return json({ ok: true, danhSach: results });
+  return json({
+    ok: true,
+    danhSach: results.map((h) => ({ ...h, anMuc: h.anMuc ? h.anMuc.split(',') : [] })),
+  });
+}, { canGiaoVien: true });
+
+export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+  const { hocSinhId, anMuc } = await docThan(request);
+  const id = Number(hocSinhId);
+  if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
+
+  const co = await env.DB.prepare('SELECT hoc_sinh_id FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(id).first();
+  if (!co) return loi('Em này chưa có mã cá nhân — cấp mã trước rồi mới đặt quyền xem.');
+
+  await env.DB.prepare('UPDATE ma_ca_nhan SET an_muc = ?1 WHERE hoc_sinh_id = ?2')
+    .bind(chuanHoaAnMuc(anMuc), id).run();
+  return json({ ok: true });
 }, { canGiaoVien: true });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {

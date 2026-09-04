@@ -1,6 +1,14 @@
 // Dùng chung cho mọi loại "mã" trong hệ thống: mã lớp/giáo viên (ma_dang_nhap),
 // mã cá nhân học sinh (ma_ca_nhan), mã tài khoản đặc biệt (tai_khoan_phu).
 
+// Các mục có thể ẨN riêng theo từng mã cá nhân — mặc định XEM HẾT, giáo viên tích để ẨN BỚT.
+export const CAC_MUC_CA_NHAN = ['quy', 'thong-bao', 'thoi-khoa-bieu', 'diem-danh', 'thong-ke'];
+
+export function chuanHoaAnMuc(ds) {
+  if (!Array.isArray(ds)) return '';
+  return [...new Set(ds.filter((m) => CAC_MUC_CA_NHAN.includes(m)))].join(',');
+}
+
 // Bỏ các ký tự dễ đọc nhầm khi SINH NGẪU NHIÊN: 0/O, 1/I/L, 5/S, 2/Z.
 const CHU_CAI = 'ABCDEFGHJKMNPQRTUVWXY346789';
 

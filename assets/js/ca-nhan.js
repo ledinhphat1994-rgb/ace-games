@@ -37,6 +37,9 @@ async function xem() {
   try {
     const d = await api('/api/ca-nhan', { method: 'POST', than: { ma } });
     $('#khungNhapMa').hidden = true;
+    // Nhớ mã trên thiết bị này để trang lớp cũng tự ẩn đúng mục theo quyền xem của em —
+    // không phải phiên đăng nhập thật, chỉ là ghi nhớ tiện dùng lại (localStorage riêng máy này).
+    try { localStorage.setItem('maCaNhan', ma); } catch { /* trình duyệt chặn thì bỏ qua */ }
     veKetQua(d);
   } catch (err) {
     baoLoi(err.message);
@@ -72,8 +75,17 @@ function veKetQua(d) {
   noi.append(tieuDeTrang(h.hoTen,
     [h.lopNghe, h.chucVu, 'Sinh ngày ' + ngayVN(h.ngaySinh)].filter(Boolean).join(' · ')));
 
+  const anMuc = d.anMuc || [];
+  const ghiChuAn = (chu) => Object.assign(
+    e('p', 'trong', '🔒 ' + chu + ' — giáo viên chủ nhiệm đã ẩn mục này với tài khoản của em.'),
+    { style: 'margin-top:14px' }
+  );
+
   /* ---------- Chuyên cần ---------- */
   const cc = d.chuyenCan;
+  if (!cc) {
+    noi.append(ghiChuAn('Chuyên cần / điểm danh'));
+  } else {
   const tiLe = cc.tong ? Math.round((cc.co_mat / cc.tong) * 100) : null;
 
   const day = e('div', 'day-so');
@@ -93,8 +105,10 @@ function veKetQua(d) {
         + 'Hãy gặp giáo viên chủ nhiệm để trao đổi sớm.'));
     noi.append(canh);
   }
+  }
 
   /* ---------- Sổ điểm ---------- */
+  if (anMuc.includes('thong-ke')) noi.append(ghiChuAn('Sổ điểm / thống kê học tập'));
   d.soDiem.forEach((hk) => {
     const coGi = hk.mon.some((m) => m.dtb !== null || m.nhanXet);
     if (!coGi) return;
@@ -173,7 +187,7 @@ function veKetQua(d) {
   }
 
   /* ---------- Lịch sử vắng ---------- */
-  const vang = cc.chiTiet.filter((x) => x.trangThai !== 'co_mat');
+  const vang = cc ? cc.chiTiet.filter((x) => x.trangThai !== 'co_mat') : [];
   if (vang.length) {
     const the = e('div', 'the');
     the.style.marginTop = '14px';

@@ -615,7 +615,7 @@ export async function trangMaCaNhan(KHUNG) {
     const bang = e('table');
     const dau = e('thead');
     const hd = e('tr');
-    hd.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'), e('th', null, 'Mã cá nhân'), e('th', null, ''));
+    hd.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'), e('th', null, 'Mã cá nhân'), e('th', null, 'Quyền xem'), e('th', null, ''));
     dau.append(hd);
 
     const than = e('tbody');
@@ -644,7 +644,20 @@ export async function trangMaCaNhan(KHUNG) {
       const tdTen = e('td');
       tdTen.style.fontWeight = '600';
       tdTen.append(h.hoTen);
-      tr.append(e('td', 'so', h.id), tdTen, tdMa, tdNut);
+
+      const tdQuyen = e('td');
+      if (h.ma) {
+        const soAn = (h.anMuc || []).length;
+        tdQuyen.append(nut(
+          soAn ? `🔒 Đã ẩn ${soAn} mục` : '👁 Xem hết',
+          soAn ? 'nut-nhe nut-nho' : 'nut-vien nut-nho',
+          () => datQuyenXem(h, ve)
+        ));
+      } else {
+        tdQuyen.append(e('span', 'trong', '—'));
+      }
+
+      tr.append(e('td', 'so', h.id), tdTen, tdMa, tdQuyen, tdNut);
       than.append(tr);
     });
     bang.append(dau, than);
@@ -731,6 +744,48 @@ function datMaTuyChinh(hocSinh, taiLai) {
         await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: oMa.value } });
         dongHopThoai();
         nhac('Đã đặt mã cho ' + hocSinh.hoTen, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
+
+/* ---------- Quyền xem theo mã cá nhân: mặc định XEM HẾT, bỏ tích để ẨN mục đó riêng với em này ---------- */
+const CAC_MUC_XEM = [
+  ['quy', 'Tiền quỹ'],
+  ['thong-bao', 'Thông báo'],
+  ['thoi-khoa-bieu', 'Thời khoá biểu'],
+  ['diem-danh', 'Điểm danh / chuyên cần'],
+  ['thong-ke', 'Sổ điểm / thống kê học tập'],
+];
+
+function datQuyenXem(hocSinh, taiLai) {
+  const anMuc = new Set(hocSinh.anMuc || []);
+  const oTich = CAC_MUC_XEM.map(([ma, nhan]) => {
+    const o = e('input');
+    o.type = 'checkbox';
+    o.checked = !anMuc.has(ma);
+    const nhanO = e('label');
+    nhanO.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;padding:6px 0';
+    nhanO.append(o, document.createTextNode(nhan));
+    return [ma, o, nhanO];
+  });
+
+  moHopThoai(`Quyền xem — ${hocSinh.hoTen}`, [
+    e('p', 'trong', 'Bỏ tích mục nào thì em học sinh này sẽ KHÔNG thấy mục đó nữa (mặc định xem hết mọi mục).'),
+    ...oTich.map(([, , nhanO]) => nhanO),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu quyền xem', '', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        const anMucMoi = oTich.filter(([, o]) => !o.checked).map(([ma]) => ma);
+        await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, anMuc: anMucMoi } });
+        dongHopThoai();
+        nhac('Đã lưu quyền xem cho ' + hocSinh.hoTen, 'tot');
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');

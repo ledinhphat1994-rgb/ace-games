@@ -747,18 +747,36 @@ function veLoiTatQuanLy(phien, lamMoi) {
 /* ---------- Khởi động & làm mới dữ liệu ---------- */
 let thongTinPhien = null;
 
+// Mục nào giáo viên đã ẩn riêng cho mã cá nhân đang dùng trên máy này (nếu có) — chỉ để ẩn
+// bớt giao diện, không phải kiểm soát truy cập thật (mã lớp vẫn xem được dữ liệu như cũ).
+const CHO_MUC_AN = {
+  quy: '#thu-quy', 'thong-bao': '#thong-bao', 'thoi-khoa-bieu': '#thoi-khoa-bieu',
+};
+
+function apDungAnMuc(anMuc) {
+  Object.entries(CHO_MUC_AN).forEach(([muc, chonLoc]) => {
+    const khoi = document.querySelector(chonLoc);
+    if (khoi) khoi.hidden = (anMuc || []).includes(muc);
+  });
+}
+
 async function taiDuLieu() {
   try {
+    let maCaNhan = '';
+    try { maCaNhan = localStorage.getItem('maCaNhan') || ''; } catch { /* bỏ qua */ }
+
     const [d, phien] = await Promise.all([
-      api('/api/lop'),
+      api('/api/lop' + (maCaNhan ? '?ma=' + encodeURIComponent(maCaNhan) : '')),
       thongTinPhien ? Promise.resolve(thongTinPhien) : api('/api/whoami').catch(() => null),
     ]);
     thongTinPhien = phien;
 
     $('#tenLop').textContent = d.lop.ten;
+    apDungAnMuc(d.anMuc);
+    const thongBaoHien = (d.anMuc || []).includes('thong-bao') ? [] : d.thongBao;
     veOSo(d.lop.thongKe);
-    veDiemNhan(d.thongBao, d.keHoach);
-    veThongBao(d.thongBao, phien, taiDuLieu);
+    veDiemNhan(thongBaoHien, d.keHoach);
+    veThongBao(thongBaoHien, phien, taiDuLieu);
     veKeHoach(d.keHoach, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHinhAnh(d.hinhAnh);

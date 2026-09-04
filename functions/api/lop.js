@@ -1,11 +1,17 @@
 // GET /api/lop — dữ liệu cho trang lớp. Học sinh đã nhập mã đều xem được.
 // KHÔNG bao giờ trả về hoàn cảnh gia đình hay điện thoại phụ huynh.
+//
+// ?ma=<mã cá nhân> (tuỳ chọn): trang lớp tự gửi kèm mã cá nhân đã lưu trên máy (nếu em đã
+// từng tra cứu) để nhận về "anMuc" — các mục giáo viên đã ẩn riêng cho em, dùng để tự ẩn bớt
+// tiền quỹ/thông báo/thời khoá biểu ở giao diện. Không phải xác thực — chỉ là gợi ý hiển thị,
+// dữ liệu vẫn công khai như nhau cho mọi mã lớp giống hệt trước đây.
 import { bocXuLy, json } from '../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ env }) => {
+export const onRequestGet = bocXuLy(async ({ env, request }) => {
   const db = env.DB;
 
   const homNay = new Date().toISOString().slice(0, 10);
+  const ma = new URL(request.url).searchParams.get('ma');
 
   const [hocSinh, thongBao, keHoach, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(
@@ -38,6 +44,12 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
 
   const nhacNen = await db.prepare('SELECT ten_bai AS tenBai FROM nhac_nen WHERE id = 1').first().catch(() => null);
 
+  let anMuc = [];
+  if (ma) {
+    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
+    if (m && m.anMuc) anMuc = m.anMuc.split(',');
+  }
+
   const oTkb = phienBanTkb
     ? (await db.prepare('SELECT buoi, thu, tiet, mon, phong FROM tkb_o WHERE phien_ban_id = ?1 ORDER BY buoi, tiet, thu')
         .bind(phienBanTkb.id).all()).results
@@ -52,6 +64,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
 
   return json({
     ok: true,
+    anMuc,
     lop: {
       ten: 'Lớp 10A7',
       namHoc: '2026 – 2027',
