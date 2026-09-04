@@ -376,6 +376,13 @@ export function ganNhacNen(nhacNen) {
   hopAmLuong.append(oAmLuong);
   nut.insertAdjacentElement('afterend', hopAmLuong);
 
+  // Căn hộp âm lượng đúng dưới nút loa — tính bằng offsetLeft thay vì trông cậy nút loa
+  // là con đầu tiên của .thanh-phai (nút "Trang chủ" nay đứng trước nó), và tính lại khi
+  // đổi cỡ màn hình vì cỡ nút icon trên thanh đầu có đổi theo khổ máy.
+  const dinhViAmLuong = () => { hopAmLuong.style.left = nut.offsetLeft + 'px'; };
+  dinhViAmLuong();
+  addEventListener('resize', dinhViAmLuong);
+
   const dat = (dangPhat) => {
     nut.setAttribute('aria-pressed', String(dangPhat));
     nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');

@@ -283,8 +283,9 @@ code {
 .thanh-phai { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; position: relative; }
 
 /* ---------- Âm lượng nhạc nền: hộp trượt hiện khi rê chuột/chạm vào nút loa ----------
-   #nutNhac luôn là con ĐẦU TIÊN của .thanh-phai, nên căn trái theo .thanh-phai cũng chính
-   là căn theo đúng nút loa — khỏi phải đo toạ độ bằng JS. */
+   left được ganNhacNen() trong chung.js gán bằng offsetLeft của #nutNhac mỗi khi gắn và
+   mỗi khi đổi cỡ màn hình, nên hộp luôn nằm đúng dưới nút loa dù nút đó đứng ở vị trí nào
+   trong .thanh-phai. left:0 dưới đây chỉ là giá trị dự phòng trước khi JS chạy. */
 .nhac-am-luong {
   position: absolute; top: calc(100% + 8px); left: 0; z-index: 45;
   background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r-nho);

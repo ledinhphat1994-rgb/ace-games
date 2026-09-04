@@ -1782,21 +1782,34 @@ const MUC_THEM = [
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
   ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân & phân quyền', 'Cấp mã, cấp quyền quản lý cho lớp trưởng, thủ quỹ...'],
-  ['/', '↗', 'Xem trang lớp', 'Xem trang mà học sinh nhìn thấy.'],
+  ['/', '🏠', 'Trang chủ', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
 ];
 
 function trangThem() {
+  const mucDuocPhep = MUC_THEM.filter(([duong]) => {
+    if (!duong.startsWith('#/')) return true;   // "Xem trang lớp", "Đăng xuất" — luôn hiện
+    return duocVaoTuyen(duong.slice(1));
+  });
+
+  // Trên màn hình rộng, cột trái đã liệt kê sẵn đúng các mục quản lý mà tài khoản này được
+  // cấp quyền (xem locMenuTheoQuyen) — lặp lại y hệt bằng thẻ ở đây là thừa. Vào thẳng mục
+  // đầu tiên được phép luôn, khỏi phải qua một trang "Thêm" chỉ để bấm tiếp. Trên điện
+  // thoại thì cột trái ẩn đi (dùng tab dưới) nên trang Thêm vẫn là lối vào duy nhất — giữ
+  // nguyên như cũ.
+  if (PHIEN.role !== 'teacher' && matchMedia('(min-width: 900px)').matches) {
+    const mucQuanLy = mucDuocPhep.filter(([duong]) => duong.startsWith('#/'));
+    if (mucQuanLy.length) {
+      location.hash = mucQuanLy[0][0].slice(1);
+      return;
+    }
+  }
+
   const khung = e('div');
   const tieuDePhu = PHIEN.role === 'teacher'
     ? 'Các công cụ khác của lớp'
     : layNhanTaiKhoan(PHIEN);
   khung.append(tieuDeTrang('Thêm', tieuDePhu));
-
-  const mucDuocPhep = MUC_THEM.filter(([duong]) => {
-    if (!duong.startsWith('#/')) return true;   // "Xem trang lớp", "Đăng xuất" — luôn hiện
-    return duocVaoTuyen(duong.slice(1));
-  });
 
   if (!mucDuocPhep.length) {
     khung.append(e('div', 'the trong', 'Tài khoản này chưa được cấp quyền làm việc nào. Liên hệ giáo viên chủ nhiệm.'));
