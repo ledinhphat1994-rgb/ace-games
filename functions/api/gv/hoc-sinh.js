@@ -79,7 +79,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const lopNghe = chuoi(than.lopNghe, 60);
   const toHop = chuoi(than.toHop, 20);
   const toSo = than.toSo === '' || than.toSo == null ? null : Number(than.toSo);
-  if (toSo !== null && !Number.isInteger(toSo)) return loi('Số tổ không hợp lệ.');
+  if (toSo !== null && (!Number.isInteger(toSo) || toSo < 1)) return loi('Số tổ phải là số nguyên dương (từ 1 trở lên).');
 
   const maxId = await env.DB.prepare('SELECT COALESCE(MAX(id), 0) AS n FROM hoc_sinh').first();
   const id = (maxId?.n || 0) + 1;
@@ -112,7 +112,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   }
   if (than.toSo !== undefined) {
     const t = than.toSo === '' || than.toSo === null ? null : Number(than.toSo);
-    if (t !== null && !Number.isInteger(t)) return loi('Số tổ không hợp lệ.');
+    if (t !== null && (!Number.isInteger(t) || t < 1)) return loi('Số tổ phải là số nguyên dương (từ 1 trở lên).');
     them('to_so', t);
   }
   if (than.dangHoc !== undefined) them('dang_hoc', than.dangHoc ? 1 : 0);

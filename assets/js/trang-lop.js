@@ -194,7 +194,7 @@ function veDanhSach(ds) {
 
     if (!hang.length) {
       const tr = e('tr');
-      tr.append(Object.assign(e('td', 'trong', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 7 }));
+      tr.append(Object.assign(e('td', 'trong', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 8 }));
       return datNoiDung(than, tr);
     }
 
@@ -212,6 +212,7 @@ function veDanhSach(ds) {
         e('td', null, ngayVN(h.ngaySinh)),
         tdNghe,
         e('td', null, h.toHop || ''),
+        e('td', null, h.toSo ? 'Tổ ' + h.toSo : ''),
         tdChuc
       );
       return tr;

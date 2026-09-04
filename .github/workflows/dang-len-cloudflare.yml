@@ -6,12 +6,17 @@
 #
 # Xem hướng dẫn từng bước ở mục 10 trong HUONG-DAN.md.
 
+# Tự động đăng trang lên Cloudflare Pages (Đã tắt kích hoạt tự động khi push để không spam email).
+# Chỉ kích hoạt thủ công khi cần qua nút 'Run workflow' trên giao diện GitHub Actions.
+# Nếu muốn bật lại tự động: cần khai báo CLOUDFLARE_API_TOKEN trong GitHub Secrets trước.
+
 name: Đăng lên Cloudflare Pages
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:      # cho phép bấm chạy tay trên GitHub
+  workflow_dispatch:      # chỉ cho phép bấm chạy tay trên GitHub khi cần
+  # Đã tắt tự động khi push để không báo lỗi về Gmail:
+  # push:
+  #   branches: [main]
 
 jobs:
   dang-trang:

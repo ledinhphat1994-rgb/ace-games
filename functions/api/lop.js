@@ -7,11 +7,19 @@
 // dữ liệu vẫn công khai như nhau cho mọi mã lớp giống hệt trước đây.
 import { bocXuLy, json } from '../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ env, request }) => {
+export const onRequestGet = bocXuLy(async ({ env, request, waitUntil }) => {
   const db = env.DB;
 
   const homNay = new Date().toISOString().slice(0, 10);
   const ma = new URL(request.url).searchParams.get('ma');
+
+  // Đếm lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
+  // số liệu tham khảo cho tab Tương tác, không phải dữ liệu bắt buộc phải chính xác tuyệt đối.
+  const demLuot = db.prepare(
+    `INSERT INTO luot_truy_cap (ngay, luot) VALUES (?1, 1)
+     ON CONFLICT(ngay) DO UPDATE SET luot = luot + 1`
+  ).bind(homNay).run().catch(() => {});
+  if (waitUntil) waitUntil(demLuot);
 
   const [hocSinh, thongBao, keHoach, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(

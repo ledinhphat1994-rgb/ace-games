@@ -576,7 +576,9 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 }
 .the-nhan { font-size: 12px; font-weight: 700; color: var(--chu-nhat); text-transform: uppercase; letter-spacing: .5px; }
 
-.luoi { display: grid; gap: 14px; }
+/* align-items: start — nếu không, lưới sẽ kéo giãn mọi thẻ bằng chiều cao thẻ cao nhất cùng
+   hàng, làm thẻ ít nội dung (như "Theo dõi đầu năm") có khoảng trống rỗng rất lớn bên dưới. */
+.luoi { display: grid; gap: 14px; align-items: start; }
 .luoi-2 { grid-template-columns: 1fr; }
 .luoi-3 { grid-template-columns: 1fr; }
 @media (min-width: 640px) { .luoi-2 { grid-template-columns: repeat(2, 1fr); } .luoi-3 { grid-template-columns: repeat(2, 1fr); } }
@@ -598,6 +600,7 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
   color: #fff; border-color: transparent;
 }
 .nhan-xam { background: var(--nen-chim); color: var(--chu-nhat); border-color: var(--vien); }
+.nhan-mo { background: transparent; color: var(--chu-mo); border-color: var(--vien); border-style: dashed; }
 
 /* ---------- 7. Nút ---------- */
 .nut {

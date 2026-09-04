@@ -312,14 +312,24 @@ async function trangTongQuan() {
 
 /* ---------- Điểm danh nhanh: đánh dấu hàng loạt cho trường hợp đặc biệt (đi bồi dưỡng,
    lao động, hoạt động ngoại khoá…) — chọn lý do có sẵn hoặc gõ riêng, tích những em liên
-   quan, áp dụng một lần thay vì bấm từng em. Vẫn phải bấm "Lưu điểm danh" như bình thường
+   quan, áp dụng một lần thay vì bấm từng em. Là một TAB CON ngay trong trang Điểm danh
+   (không phải hộp thoại nổi) để giáo viên thấy rõ đây là một cách điểm danh chính thức,
+   không phải thao tác phụ ẩn trong popup. Vẫn phải bấm "Lưu điểm danh" như bình thường
    sau khi áp dụng — không tự lưu ngay để giáo viên còn xem lại trước khi gửi. ---------- */
 const LY_DO_NHANH = ['Đi học bồi dưỡng', 'Lao động', 'Hoạt động ngoại khoá', 'Việc riêng có phép'];
 
-function moDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai) {
-  let lyDo = '';
+function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai) {
+  const khung = e('div');
+
   const oLyDo = oNhap('ddnLyDo', 'text', '', 'Ví dụ: Đi học bồi dưỡng học sinh giỏi');
   const oTrangThai = oChon('ddnTrangThai', Object.entries(DIEM_DANH).map(([ma, tt]) => [ma, tt.ten]), 'vang_phep');
+
+  const the = e('div', 'the');
+  the.append(
+    e('p', 'trong', 'Dùng cho trường hợp đặc biệt: đi bồi dưỡng, lao động, hoạt động ngoại khoá… Chọn lý do, tích các em liên quan rồi bấm Áp dụng — vẫn cần bấm "Lưu điểm danh" bên dưới sau đó.'),
+    truong('Trạng thái áp dụng', oTrangThai),
+    truong('Lý do', oLyDo, 'Chọn nhanh bên dưới hoặc gõ riêng')
+  );
 
   const hangChip = e('div', 'day-loc');
   hangChip.style.marginTop = '8px';
@@ -329,10 +339,11 @@ function moDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai) {
     chip.addEventListener('click', () => { oLyDo.value = c; oLyDo.focus(); });
     hangChip.append(chip);
   });
+  the.append(hangChip);
 
   const daChon = new Set();
   const dsHocSinh = e('div', 'ds-diem-danh');
-  dsHocSinh.style.cssText = 'max-height:280px;overflow:auto;margin-top:10px';
+  dsHocSinh.style.cssText = 'margin-top:14px';
   danhSach.forEach((h) => {
     const hang = e('label', 'hang-hs');
     hang.style.cursor = 'pointer';
@@ -344,27 +355,24 @@ function moDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai) {
     hang.append(o, ten);
     dsHocSinh.append(hang);
   });
+  the.append(truong(`Chọn học sinh (${danhSach.length} em)`, dsHocSinh));
 
-  moHopThoai('⚡ Điểm danh nhanh', [
-    e('p', 'trong', 'Dùng cho trường hợp đặc biệt: đi bồi dưỡng, lao động, hoạt động ngoại khoá… Chọn lý do, tích các em liên quan rồi bấm Áp dụng — vẫn cần bấm "Lưu điểm danh" ở trang chính sau đó.'),
-    truong('Trạng thái áp dụng', oTrangThai),
-    truong('Lý do', oLyDo, 'Chọn nhanh bên dưới hoặc gõ riêng'),
-    hangChip,
-    truong(`Chọn học sinh (${danhSach.length} em)`, dsHocSinh),
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Áp dụng', '', () => {
-      lyDo = oLyDo.value.trim();
-      if (!daChon.size) return nhac('Chưa chọn em nào.', 'xau');
-      daChon.forEach((id) => {
-        thayDoi.set(id, oTrangThai.value);
-        if (lyDo) lyDoMoi.set(id, lyDo); else lyDoMoi.delete(id);
-      });
-      dongHopThoai();
-      nhac(`Đã áp dụng cho ${daChon.size} em — nhớ bấm Lưu điểm danh.`, 'tot');
-      veLai();
-    }),
-  ]);
+  const hangNut = e('div');
+  hangNut.style.marginTop = '14px';
+  hangNut.append(nut('Áp dụng cho các em đã chọn', '', () => {
+    const lyDo = oLyDo.value.trim();
+    if (!daChon.size) return nhac('Chưa chọn em nào.', 'xau');
+    daChon.forEach((id) => {
+      thayDoi.set(id, oTrangThai.value);
+      if (lyDo) lyDoMoi.set(id, lyDo); else lyDoMoi.delete(id);
+    });
+    nhac(`Đã áp dụng cho ${daChon.size} em — nhớ bấm Lưu điểm danh.`, 'tot');
+    veLai();
+  }));
+  the.append(hangNut);
+
+  khung.append(the);
+  return khung;
 }
 
 /* ================= Trang: Điểm danh ================= */
@@ -374,6 +382,7 @@ async function trangDiemDanh() {
 
   let ngay = sessionStorage.getItem('dd-ngay') || homNay();
   let buoi = sessionStorage.getItem('dd-buoi') || 'sang';
+  let tabCon = 'ngay';   // 'ngay' = điểm danh theo ngày/buổi (chính thức) | 'nhanh' = điểm danh nhanh
   let duLieu = null;
   const thayDoi = new Map();   // hocSinhId -> trangThai
   const lyDoMoi = new Map();   // hocSinhId -> lý do (chỉ dùng khi đặt qua Điểm danh nhanh)
@@ -434,75 +443,91 @@ async function trangDiemDanh() {
       nut('Cả lớp có mặt', 'nut-vien nut-nho', () => {
         duLieu.danhSach.forEach((h) => thayDoi.set(h.id, 'co_mat'));
         ve();
-      }),
-      nut('⚡ Điểm danh nhanh', 'nut-nho', () => moDiemDanhNhanh(duLieu.danhSach, thayDoi, lyDoMoi, ve))
+      })
     );
     khung.append(hangChon);
 
-    // Thanh tiến độ
-    const dem = tinhSo();
-    const tong = duLieu.danhSach.length || 1;
-    const thanh = e('div', 'thanh-tien-do');
-    [['co_mat', 'p-comat'], ['tre', 'p-tre'], ['vang_phep', 'p-phep'], ['vang_khong_phep', 'p-khongphep']]
-      .forEach(([k, lop]) => {
-        if (!dem[k]) return;
-        const i = e('i', lop);
-        i.style.width = (dem[k] / tong * 100) + '%';
-        thanh.append(i);
-      });
-    khung.append(thanh);
-
-    const daGhi = Object.values(dem).reduce((a, b) => a + b, 0);
-    const day = e('div', 'day-so');
-    day.append(
-      oThongKe(`${daGhi}/${tong}`, 'Đã điểm danh'),
-      oThongKe(String(dem.co_mat), 'Có mặt', 'tot'),
-      oThongKe(String(dem.tre), 'Đi trễ', 'luuy'),
-      oThongKe(String(dem.vang_phep), 'Vắng có phép', 'thu'),
-      oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
-    );
-    khung.append(day);
-
-    // Danh sách học sinh
-    const ds = e('div', 'ds-diem-danh');
-    duLieu.danhSach.forEach((h) => {
-      const tt = thayDoi.get(h.id) ?? h.trangThai;
-      const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
-
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
-      hang.append(e('div', 'stt', h.id), ten);
-
-      const nhom = e('div', 'nhom-chon');
-      Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-        const b = e('button', null, tt2.ky);
-        b.type = 'button';
-        b.dataset.tt = ma;
-        b.title = tt2.ten;
-        b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
-        b.setAttribute('aria-pressed', String(tt === ma));
-        b.addEventListener('click', () => {
-          thayDoi.set(h.id, ma);
-          ve();
-        });
-        nhom.append(b);
-      });
-      hang.append(nhom);
-      ds.append(hang);
+    // Tab con: Điểm danh theo ngày (chính thức) | Điểm danh nhanh — cùng chia sẻ ngày/buổi
+    // và cùng gộp vào một lượt lưu, chỉ khác cách nhập.
+    const hopTabCon = e('div', 'day-loc');
+    hopTabCon.style.margin = '14px 0';
+    [['ngay', 'Theo ngày'], ['nhanh', '⚡ Điểm danh nhanh']].forEach(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tabCon === ma));
+      b.addEventListener('click', () => { tabCon = ma; ve(); });
+      hopTabCon.append(b);
     });
-    khung.append(ds);
+    khung.append(hopTabCon);
 
-    const chuThich = e('div', 'chu-thich');
-    [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-     ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
-      .forEach(([chu, mau]) => {
-        const s = e('span');
-        const i = e('i');
-        i.style.background = mau;
-        s.append(i, document.createTextNode(chu));
-        chuThich.append(s);
+    if (tabCon === 'nhanh') {
+      khung.append(veTabDiemDanhNhanh(duLieu.danhSach, thayDoi, lyDoMoi, ve));
+    } else {
+      // Thanh tiến độ
+      const dem = tinhSo();
+      const tong = duLieu.danhSach.length || 1;
+      const thanh = e('div', 'thanh-tien-do');
+      [['co_mat', 'p-comat'], ['tre', 'p-tre'], ['vang_phep', 'p-phep'], ['vang_khong_phep', 'p-khongphep']]
+        .forEach(([k, lop]) => {
+          if (!dem[k]) return;
+          const i = e('i', lop);
+          i.style.width = (dem[k] / tong * 100) + '%';
+          thanh.append(i);
+        });
+      khung.append(thanh);
+
+      const daGhi = Object.values(dem).reduce((a, b) => a + b, 0);
+      const day = e('div', 'day-so');
+      day.append(
+        oThongKe(`${daGhi}/${tong}`, 'Đã điểm danh'),
+        oThongKe(String(dem.co_mat), 'Có mặt', 'tot'),
+        oThongKe(String(dem.tre), 'Đi trễ', 'luuy'),
+        oThongKe(String(dem.vang_phep), 'Vắng có phép', 'thu'),
+        oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
+      );
+      khung.append(day);
+
+      // Danh sách học sinh
+      const ds = e('div', 'ds-diem-danh');
+      duLieu.danhSach.forEach((h) => {
+        const tt = thayDoi.get(h.id) ?? h.trangThai;
+        const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+
+        const ten = e('div', 'ten');
+        ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
+        hang.append(e('div', 'stt', h.id), ten);
+
+        const nhom = e('div', 'nhom-chon');
+        Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+          const b = e('button', null, tt2.ky);
+          b.type = 'button';
+          b.dataset.tt = ma;
+          b.title = tt2.ten;
+          b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
+          b.setAttribute('aria-pressed', String(tt === ma));
+          b.addEventListener('click', () => {
+            thayDoi.set(h.id, ma);
+            ve();
+          });
+          nhom.append(b);
+        });
+        hang.append(nhom);
+        ds.append(hang);
       });
-    khung.append(chuThich);
+      khung.append(ds);
+
+      const chuThich = e('div', 'chu-thich');
+      [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
+       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
+        .forEach(([chu, mau]) => {
+          const s = e('span');
+          const i = e('i');
+          i.style.background = mau;
+          s.append(i, document.createTextNode(chu));
+          chuThich.append(s);
+        });
+      khung.append(chuThich);
+    }
     khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
     // Thanh lưu
@@ -564,6 +589,8 @@ function themHocSinh(taiLai) {
   const oLopNghe = oNhap('thLopNghe', 'text', '', 'Ví dụ: CNTT, Công nghệ ô tô…');
   const oToHop = oNhap('thToHop', 'text', '', 'Ví dụ: A4');
   const oTo = oNhap('thTo', 'number', '', 'Số tổ');
+  oTo.min = '1';
+  oTo.step = '1';
 
   moHopThoai('Thêm học sinh mới', [
     truong('Họ và tên', oHoTen),
@@ -576,6 +603,7 @@ function themHocSinh(taiLai) {
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Thêm', '', async (ev) => {
       if (!oHoTen.value.trim()) return nhac('Chưa nhập họ tên', 'xau');
+      if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
       ev.currentTarget.disabled = true;
       try {
         await api('/api/gv/hoc-sinh', {
@@ -663,7 +691,7 @@ async function trangHocSinh() {
 
       const noi = e('div', 'noi');
       noi.append(e('b', null, `${h.id}. ${h.hoTen}`));
-      const phu = [h.lopNghe, h.toSo ? 'Tổ ' + h.toSo : '', h.chucVu].filter(Boolean).join(' · ');
+      const phu = [h.lopNghe, h.chucVu].filter(Boolean).join(' · ');
       noi.append(e('small', null, phu || ngayVN(h.ngaySinh)));
       khoiTrai.append(noi);
 
@@ -671,6 +699,10 @@ async function trangHocSinh() {
 
       const phai = e('div', 'canh-phai');
       phai.style.cssText = 'display:flex;align-items:center;gap:8px';
+
+      // Tổ luôn hiện thành nhãn riêng, kể cả khi chưa xếp — không còn ẩn mất trong dòng phụ
+      // như trước (mất luôn nếu chưa có chức vụ/lớp nghề, giáo viên tưởng thiếu chức năng).
+      phai.append(e('span', 'nhan ' + (h.toSo ? 'nhan-xam' : 'nhan-mo'), h.toSo ? 'Tổ ' + h.toSo : 'Chưa xếp tổ'));
 
       const nutXoa = e('button', 'nut-nhe nut-nho', '🗑 Xoá');
       nutXoa.type = 'button';
@@ -1073,6 +1105,8 @@ function suaHoSo(h) {
   const oHoTen = oNhap('sHoTen', 'text', h.hoTen, 'Họ và tên học sinh');
   const oChuc = oNhap('sChuc', 'text', h.chucVu, 'Lớp trưởng, tổ trưởng…');
   const oTo = oNhap('sTo', 'number', h.toSo ?? '', 'Số tổ');
+  oTo.min = '1';
+  oTo.step = '1';
   const oSdt = oNhap('sSdt', 'tel', h.dienThoaiPh, 'Điện thoại phụ huynh');
   const oHc = oNhap('sHc', 'text', h.hoanCanh, 'Hộ cận nghèo, GĐ khó khăn…');
   const oGc = oNhap('sGc', 'textarea', h.ghiChu, 'Ghi chú riêng');
@@ -1087,6 +1121,7 @@ function suaHoSo(h) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
+      if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
       ev.currentTarget.disabled = true;
       try {
         await api('/api/gv/hoc-sinh', {

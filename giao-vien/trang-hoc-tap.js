@@ -263,8 +263,92 @@ function vietTat(ten) {
 
 /* ================= Thống kê chuyên cần ================= */
 
+/* Thống kê là nơi TẬP TRUNG mọi số liệu tương tác của trang lớp — không chỉ chuyên cần.
+   "Chuyên cần" là tab gốc (giữ nguyên logic cũ); "Tương tác" gộp lượt truy cập trang chủ
+   và sẽ là chỗ cắm thêm chat nhóm/chat cá nhân/trò chơi nhẹ sau này — thêm số liệu mới thì
+   thêm thẻ vào veTuongTac(), không mở trang thống kê rời rạc khác. */
+const CAC_TAB_THONG_KE = [['chuyen-can', 'Chuyên cần'], ['tuong-tac', 'Tương tác']];
+
 export async function trangThongKe(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  let tab = sessionStorage.getItem('tk-tab') || 'chuyen-can';
+  if (!CAC_TAB_THONG_KE.some(([ma]) => ma === tab)) tab = 'chuyen-can';
+
+  const vo = e('div');
+  const hopTab = e('div', 'day-loc');
+  hopTab.style.margin = '0 0 16px';
+  const noiDung = e('div');
+  vo.append(hopTab, noiDung);
+  datNoiDung(KHUNG, vo);
+
+  function veThanhTab() {
+    datNoiDung(hopTab, ...CAC_TAB_THONG_KE.map(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tab === ma));
+      b.addEventListener('click', () => {
+        tab = ma;
+        sessionStorage.setItem('tk-tab', tab);
+        veThanhTab();
+        veTab();
+      });
+      return b;
+    }));
+  }
+
+  async function veTab() {
+    datNoiDung(noiDung, khoiDangTai());
+    if (tab === 'tuong-tac') await veTuongTac(noiDung);
+    else await veChuyenCan(noiDung);
+  }
+
+  veThanhTab();
+  await veTab();
+}
+
+/* ---------- Tương tác: lượt truy cập trang lớp + chỗ dành cho chat/trò chơi sau này ---------- */
+async function veTuongTac(KHUNG) {
+  const d = await api('/api/gv/tuong-tac');
+  const khung = e('div');
+  khung.append(tieuDeTrang('Tương tác', 'Lượt truy cập trang lớp và các hoạt động tương tác khác.'));
+
+  const day = e('div', 'day-so');
+  day.append(
+    oThongKe(String(d.homNay), 'Lượt truy cập hôm nay'),
+    oThongKe(String(d.theoNgay.reduce((a, r) => a + r.luot, 0)), '14 ngày gần đây'),
+    oThongKe(String(d.tong), 'Tổng từ trước đến nay')
+  );
+  khung.append(day);
+
+  const theBieuDo = e('div', 'the');
+  theBieuDo.style.marginTop = '16px';
+  theBieuDo.append(e('h3', null, 'Lượt truy cập theo ngày (14 ngày gần đây)'));
+  if (!d.theoNgay.length) {
+    theBieuDo.append(e('p', 'trong', 'Chưa có dữ liệu — số liệu sẽ xuất hiện ngay khi có học sinh mở trang lớp.'));
+  } else {
+    theBieuDo.append(bieuDoCot(d.theoNgay.map((r) => ({
+      nhan: ngayVN(r.ngay).slice(0, 5),
+      phan: [{ giaTri: r.luot, mau: 'var(--chinh)', ten: 'Lượt truy cập' }],
+    }))));
+  }
+  khung.append(theBieuDo);
+
+  const luoi = e('div', 'luoi luoi-2');
+  luoi.style.marginTop = '16px';
+  [['💬 Chat nhóm & chat cá nhân', 'Số tin nhắn, số người tham gia sẽ hiện ở đây khi tính năng chat được bật.'],
+   ['🎮 Trò chơi nhẹ', 'Lượt chơi, điểm cao sẽ hiện ở đây khi tính năng trò chơi được bật.']]
+    .forEach(([tieuDe, moTa]) => {
+      const the = e('div', 'the');
+      the.style.opacity = '.7';
+      the.append(e('h3', null, tieuDe), e('p', 'trong', moTa + ' (Sắp có)'));
+      luoi.append(the);
+    });
+  khung.append(luoi);
+
+  datNoiDung(KHUNG, khung);
+}
+
+async function veChuyenCan(KHUNG) {
   let buoi = '';
   let cheDo = 'ca_nam';
 
