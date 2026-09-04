@@ -91,7 +91,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
   // Tổng quan toàn bộ quỹ
   // Lưu ý: .first() trả thẳng một dòng (không bọc trong { results: [...] }) — khác với .all().
-  const [{ results: khoan }, { results: chi }, siSo] = await Promise.all([
+  const [{ results: khoan }, { results: chi }, siSo, { results: dongTheoEm }] = await Promise.all([
     db.prepare(
       `SELECT k.id, k.ten, k.hoc_ky AS hocKy, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
               k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo,
@@ -101,7 +101,16 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     ).all(),
     db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, ghi_chu AS ghiChu, loai FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
     db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1').first(),
+    // Số tiền từng em đã đóng theo TỪNG khoản — dùng để đếm "bao nhiêu em đã đóng đủ" ngay
+    // ở dòng tóm tắt (thu gọn), khỏi phải mở rộng khoản mới biết.
+    db.prepare(
+      `SELECT khoan_id AS khoanId, hoc_sinh_id AS hocSinhId, SUM(so_tien) AS tong
+         FROM quy_dong GROUP BY khoan_id, hoc_sinh_id`
+    ).all(),
   ]);
+
+  const emDuTheoKhoan = {};
+  dongTheoEm.forEach((r) => { emDuTheoKhoan[r.khoanId] = emDuTheoKhoan[r.khoanId] || []; emDuTheoKhoan[r.khoanId].push(r); });
 
   const tongThu = khoan.reduce((a, k) => a + k.tongDaThu, 0);
   const tongChi = chi.reduce((a, c) => a + c.soTien, 0);
@@ -111,7 +120,15 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
   return json({
     ok: true,
-    khoan: khoan.map((k) => ({ ...k, tongCanThu: k.soTienMoiEm * (siSo?.n || 0) })),
+    khoan: khoan.map((k) => {
+      const soEmDaDu = (emDuTheoKhoan[k.id] || []).filter((r) => r.tong >= k.soTienMoiEm).length;
+      return {
+        ...k,
+        tongCanThu: k.soTienMoiEm * (siSo?.n || 0),
+        soEmDaDu,
+        soEmChuaDu: (siSo?.n || 0) - soEmDaDu,
+      };
+    }),
     chi, tongThu, tongChi,
     chiTheoLoai: LOAI_CHI.map(([ma, ten]) => ({ ma, ten, soTien: chiTheoLoai[ma] || 0 })).filter((x) => x.soTien > 0),
     tonQuy: tongThu - tongChi,

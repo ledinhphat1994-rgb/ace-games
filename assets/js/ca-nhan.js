@@ -1,4 +1,4 @@
-import { $, e, datNoiDung, api, ngayVN, ganDoiGiaoDien, layNhanTaiKhoan } from './chung.js';
+import { $, e, datNoiDung, api, ngayVN, ganDoiGiaoDien, layNhanTaiKhoan, ganNhacNen } from './chung.js';
 import { oThongKe, tieuDeTrang, nut } from './giao-dien.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -7,6 +7,10 @@ api('/api/whoami').then((w) => {
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
 }).catch(() => {});
+
+// Nút loa nhạc nền — cùng hành vi với trang lớp, để chuyển qua lại giữa các trang không
+// thấy thanh đầu trang khác nhau.
+api('/api/nhac-nen-info').then((d) => ganNhacNen(d.nhac)).catch(() => {});
 
 const TEN_TRANG_THAI = {
   co_mat: ['Có mặt', 'nhan-tot'],

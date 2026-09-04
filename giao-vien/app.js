@@ -3,7 +3,7 @@
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
-  layNhanTaiKhoan, moBangThemeBg,
+  layNhanTaiKhoan, moBangThemeBg, ganNhacNen,
 } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
@@ -700,9 +700,9 @@ async function trangHocSinh() {
       const phai = e('div', 'canh-phai');
       phai.style.cssText = 'display:flex;align-items:center;gap:8px';
 
-      // Tổ luôn hiện thành nhãn riêng, kể cả khi chưa xếp — không còn ẩn mất trong dòng phụ
-      // như trước (mất luôn nếu chưa có chức vụ/lớp nghề, giáo viên tưởng thiếu chức năng).
-      phai.append(e('span', 'nhan ' + (h.toSo ? 'nhan-xam' : 'nhan-mo'), h.toSo ? 'Tổ ' + h.toSo : 'Chưa xếp tổ'));
+      // Tổ hiện thành nhãn riêng khi đã xếp — chưa xếp thì không ghi gì, đỡ rối mắt với
+      // danh sách 37 em mà phần lớn chưa chia tổ.
+      if (h.toSo) phai.append(e('span', 'nhan nhan-xam', 'Tổ ' + h.toSo));
 
       const nutXoa = e('button', 'nut-nhe nut-nho', '🗑 Xoá');
       nutXoa.type = 'button';
@@ -1507,6 +1507,10 @@ async function dieuHuong() {
   locMenuTheoQuyen();
   addEventListener('hashchange', dieuHuong);
   dieuHuong();
+
+  // Nút loa nhạc nền — cùng hành vi với trang lớp, để chuyển qua lại giữa khu quản lý và
+  // trang lớp không thấy thanh đầu trang khác nhau.
+  api('/api/nhac-nen-info').then((d) => ganNhacNen(d.nhac)).catch(() => {});
 
   // Có mạng trở lại thì tự gửi những lần điểm danh còn nằm chờ trong máy.
   tuDongBoKhiCoMang((kq) => {

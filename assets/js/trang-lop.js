@@ -3,7 +3,7 @@
    Trang chủ chỉ để năm mục: sĩ số lớp, thông báo, kế hoạch, thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan, nhac } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen } from './chung.js';
 import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -517,60 +517,6 @@ function veDiemNhan(thongBao, keHoach) {
 /* ---------- Nhạc nền: bật/tắt qua nút trên thanh đầu trang. Trình duyệt chặn tự phát có
    tiếng khi chưa có thao tác của người dùng, nên KHÔNG thể tự phát khi mở trang — phải chờ
    người dùng bấm nút. Trạng thái bật/tắt nhớ lại bằng localStorage cho lần vào sau. ---------- */
-function veNhacNen(nhacNen) {
-  const nut = $('#nutNhac');
-  if (!nhacNen) { nut.hidden = true; return; }
-  nut.hidden = false;
-  nut.title = 'Nhạc nền: ' + (nhacNen.tenBai || 'Lớp 10A7');
-
-  const audio = $('#nhacNenAudio');
-  audio.src = '/api/nhac-nen';
-
-  if (nut.dataset.daGan) return;   // chỉ gắn sự kiện 1 lần dù dữ liệu tải lại nhiều lần
-  nut.dataset.daGan = '1';
-
-  // Hộp chỉnh âm lượng hiện khi rê chuột vào nút loa (hoặc chạm/focus trên di động) —
-  // CSS điều khiển hiện/ẩn qua ":hover"/":focus-within", xem .nhac-am-luong trong style.css.
-  let amLuongBanDau = 70;
-  try { amLuongBanDau = Number(localStorage.getItem('nhacNenAmLuong')) || 70; } catch { /* bỏ qua */ }
-  audio.volume = amLuongBanDau / 100;
-
-  const oAmLuong = e('input', 'nhac-am-luong-truot');
-  oAmLuong.type = 'range';
-  oAmLuong.min = '0';
-  oAmLuong.max = '100';
-  oAmLuong.value = String(amLuongBanDau);
-  oAmLuong.setAttribute('aria-label', 'Âm lượng nhạc nền');
-  oAmLuong.addEventListener('input', () => {
-    audio.volume = Number(oAmLuong.value) / 100;
-    try { localStorage.setItem('nhacNenAmLuong', oAmLuong.value); } catch { /* bỏ qua */ }
-  });
-  const hopAmLuong = e('div', 'nhac-am-luong');
-  hopAmLuong.append(oAmLuong);
-  nut.insertAdjacentElement('afterend', hopAmLuong);
-
-  const dat = (dangPhat) => {
-    nut.setAttribute('aria-pressed', String(dangPhat));
-    nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');
-    try { localStorage.setItem('nhacNenBat', dangPhat ? '1' : '0'); } catch { /* riêng tư trình duyệt chặn cũng không sao */ }
-  };
-
-  nut.addEventListener('click', async () => {
-    if (audio.paused) {
-      try { await audio.play(); dat(true); } catch { nhac('Trình duyệt chặn phát nhạc tự động, thử bấm lại.', 'xau'); }
-    } else {
-      audio.pause();
-      dat(false);
-    }
-  });
-
-  // Từng bật ở lần trước thì thử phát lại luôn — nếu trình duyệt vẫn chặn (chưa có thao tác nào
-  // trong phiên này) thì coi như tắt, người dùng tự bấm lại.
-  let tungBat = false;
-  try { tungBat = localStorage.getItem('nhacNenBat') === '1'; } catch { /* bỏ qua */ }
-  if (tungBat) audio.play().then(() => dat(true)).catch(() => dat(false));
-}
-
 /* ---------- Kế hoạch năm học & quản lý trực tiếp ---------- */
 const MUC_DO_KH = [['', 'Bình thường'], ['ok', 'Tốt / lễ hội'], ['warn', 'Cần chú ý'], ['danger', 'Quan trọng']];
 
@@ -945,7 +891,7 @@ async function taiDuLieu() {
     veDanhSach(d.hocSinh);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
     veLoiTatQuanLy(phien, taiDuLieu);
-    veNhacNen(d.nhacNen);
+    ganNhacNen(d.nhacNen);
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));
   }

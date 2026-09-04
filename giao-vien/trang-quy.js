@@ -63,7 +63,7 @@ export async function trangQuy(KHUNG) {
     } else if (phanTram >= 100) {
       hang.append(e('span', 'nhan nhan-tot', '✓ Đã thu đủ'));
     } else {
-      hang.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}%`));
+      hang.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}% · ${k.soEmChuaDu} em chưa đủ`));
     }
     hang.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
     hang.addEventListener('click', () => moKhoan(k.id));
@@ -121,8 +121,8 @@ export async function trangQuy(KHUNG) {
     const day = e('div', 'chuoi-so-lieu');
     day.append(
       soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot', `Đạt ${phanTram}% chỉ tiêu`),
-      soLieu('Cần thu', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.khoan?.soTienMoiEm)} / em`),
-      soLieu('Còn thiếu', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot', `${dk.danhSach.length - dk.soEmDaDuDinh} em chưa nộp đủ`),
+      soLieu('Chỉ tiêu thu (tổng cả lớp)', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.khoan?.soTienMoiEm)} / em × ${dk.danhSach.length} em`),
+      soLieu('Còn thiếu (để đủ chỉ tiêu)', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot', `${dk.danhSach.length - dk.soEmDaDuDinh} em chưa nộp đủ`),
       soLieu('Tiến độ thu', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy', `Hoàn thành ${phanTram}% tổng quỹ`)
     );
     box.append(day);
@@ -405,7 +405,9 @@ export async function trangQuy(KHUNG) {
     const ds = e('div', 'ds-diem-danh');
     d.chiTheoLoai.forEach((x) => {
       const hang = e('div', 'hang-hs');
-      hang.append(e('div', 'ten', e('b', null, x.ten)), e('span', 'nhan nhan-luuy', tienVN(x.soTien)));
+      const ten = e('div', 'ten');
+      ten.append(e('b', null, x.ten));
+      hang.append(ten, e('span', 'nhan nhan-luuy', tienVN(x.soTien)));
       ds.append(hang);
     });
     the.append(ds);
@@ -423,12 +425,16 @@ export async function trangQuy(KHUNG) {
       nut('➕ Mở khoản thu mới', 'nut-vien', () => moKhoanMoi(tai))
     ));
 
+    // "Khoản đang mở" CHỈ tính khoản THU còn nhận tiền — khoản CHI là từng lần chi một lần,
+    // không có trạng thái mở/đóng, nên tách hẳn 2 số riêng cho khỏi lẫn hai khái niệm khác nhau.
+    const soKhoanThuMo = d.khoan.filter((k) => k.dangMo).length;
     const day = e('div', 'day-so');
     day.append(
       oThongKe(tienVN(d.tonQuy), 'Tồn quỹ hiện tại', 'tot', '🏦'),
       oThongKe(tienVN(d.tongThu), 'Tổng đã thu', 'thu', '📥'),
       oThongKe(tienVN(d.tongChi), 'Tổng đã chi', 'luuy', '📤'),
-      oThongKe(String(d.khoan.filter((k) => k.dangMo).length), 'Khoản đang mở', 'khoan', '📂')
+      oThongKe(`${soKhoanThuMo}/${d.khoan.length}`, 'Khoản thu đang mở / tổng số khoản thu', 'khoan', '📂'),
+      oThongKe(String(d.chi.length), 'Số lần đã ghi chi', 'luuy', '🧾')
     );
     khung.append(day);
 
