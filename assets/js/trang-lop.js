@@ -346,12 +346,19 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
   ]);
 }
 
-/* ---------- Băng điểm nhấn: tự cuộn ngang, gộp thông báo đã ghim + mốc quan trọng sắp tới ----------
+/* ---------- Băng điểm nhấn: tự trôi ngang liên tục, gộp thông báo đã ghim + mốc quan trọng sắp tới ----------
    Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo (ghim) và kế hoạch (mức độ cần chú ý/quan
-   trọng, chưa qua ngày) đã có sẵn. Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng. */
+   trọng, chưa qua ngày) đã có sẵn. Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng.
+
+   Cách "tự trôi" khác cuộn thường: danh sách thẻ được LẶP 2 LẦN nối liền nhau, rồi dịch chuyển bằng
+   transform mỗi khung hình; khi trôi hết đúng MỘT vòng (nửa tổng chiều rộng) thì cộng lại y hệt bước
+   đó — mắt thường không thấy chỗ nối, nên trôi được vô tận dù chỉ có vài thẻ (khác cách cuộn cũ, chỉ
+   chạy được khi nội dung dài hơn khung nhìn). Muốn tự tay xem thì kéo chuột/vuốt tay — animation tự
+   dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. */
 function veDiemNhan(thongBao, keHoach) {
   const khoi = $('#bangDiemNhan');
   const cuon = $('#dnCuon');
+  const track = $('#dnTrack');
   const homNayStr = homNay();
 
   const tin = (thongBao || []).filter((t) => t.ghim).map((t) => ({
@@ -366,49 +373,121 @@ function veDiemNhan(thongBao, keHoach) {
   if (!cacTin.length) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
-  datNoiDung(cuon, ...cacTin.map((t) => {
+  const taoThe = (t) => {
     const a = e('a', 'dn-the');
     a.href = t.href;
-    a.append(
-      e('span', 'dn-nhan', t.nhan),
-      e('h3', null, t.tieuDe),
-      e('p', null, t.phu)
-    );
+    a.append(e('span', 'dn-nhan', t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
     return a;
-  }));
+  };
+  // Lặp 2 lần để trôi vòng lặp liền mạch — chỉ 1 lần thì sẽ có khoảng trống lộ ra khi dịch tới nửa sau.
+  datNoiDung(track, ...cacTin.map(taoThe), ...cacTin.map(taoThe));
 
-  // Tự cuộn — dừng khi người dùng đưa chuột/chạm vào, và bỏ hẳn nếu máy đặt giảm chuyển động.
-  if (khoi.dataset.daGanCuon) return;   // chỉ gắn sự kiện cuộn một lần dù dữ liệu tải lại nhiều lần
+  if (khoi.dataset.daGanCuon) return;   // chỉ gắn sự kiện một lần dù dữ liệu tải lại nhiều lần
   khoi.dataset.daGanCuon = '1';
 
   const giamChuyenDong = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let henGio = null;
+  let offset = 0;          // px, luôn <= 0 (trôi sang trái)
+  let dangTamDung = false; // rê chuột vào / đang kéo
+  let dangKeo = false;
+  let xBatDauKeo = 0;
+  let offsetBatDauKeo = 0;
+  let daKeoThat = false;   // phân biệt "kéo" thật với "bấm" để không chặn nhầm việc bấm vào thẻ
 
-  function cuonMotThe(chieu) {
-    const the = cuon.querySelector('.dn-the');
-    const rong = (the ? the.offsetWidth : 300) + 14;
-    if (chieu > 0 && cuon.scrollLeft + cuon.clientWidth >= cuon.scrollWidth - 4) {
-      cuon.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      cuon.scrollBy({ left: chieu * rong, behavior: 'smooth' });
+  function motVong() { return track.scrollWidth / 2 || 1; }
+
+  function chay() {
+    if (!giamChuyenDong && !dangTamDung && !dangKeo) {
+      offset -= 0.6;
+      const vong = motVong();
+      if (-offset >= vong) offset += vong;
+      track.style.transform = `translateX(${offset}px)`;
     }
+    requestAnimationFrame(chay);
   }
 
-  function batTuDong() {
-    if (giamChuyenDong || henGio) return;
-    henGio = setInterval(() => cuonMotThe(1), 4500);
-  }
-  function tatTuDong() {
-    if (henGio) { clearInterval(henGio); henGio = null; }
+  function nhichMotThe(chieu) {
+    const the = track.querySelector('.dn-the');
+    const rong = (the ? the.offsetWidth : 300) + 14;
+    offset -= chieu * rong;
+    const vong = motVong();
+    if (offset > 0) offset -= vong;
+    if (-offset >= vong) offset += vong;
+    track.style.transition = 'transform .35s ease';
+    track.style.transform = `translateX(${offset}px)`;
+    setTimeout(() => { track.style.transition = ''; }, 360);
   }
 
-  khoi.addEventListener('mouseenter', tatTuDong);
-  khoi.addEventListener('mouseleave', batTuDong);
-  khoi.addEventListener('touchstart', tatTuDong, { passive: true });
-  $('#dnTrai').addEventListener('click', () => { tatTuDong(); cuonMotThe(-1); });
-  $('#dnPhai').addEventListener('click', () => { tatTuDong(); cuonMotThe(1); });
+  khoi.addEventListener('mouseenter', () => { dangTamDung = true; });
+  khoi.addEventListener('mouseleave', () => { dangTamDung = false; });
 
-  batTuDong();
+  // Kéo bằng chuột/ngón tay để chủ động xem — dùng Pointer Events, gộp chung chuột và cảm ứng.
+  cuon.addEventListener('pointerdown', (ev) => {
+    dangKeo = true; daKeoThat = false;
+    xBatDauKeo = ev.clientX; offsetBatDauKeo = offset;
+    cuon.classList.add('dang-keo');
+    cuon.setPointerCapture(ev.pointerId);
+  });
+  cuon.addEventListener('pointermove', (ev) => {
+    if (!dangKeo) return;
+    const delta = ev.clientX - xBatDauKeo;
+    if (Math.abs(delta) > 4) daKeoThat = true;
+    offset = offsetBatDauKeo + delta;
+    track.style.transform = `translateX(${offset}px)`;
+  });
+  function ketThucKeo() {
+    if (!dangKeo) return;
+    dangKeo = false;
+    cuon.classList.remove('dang-keo');
+    const vong = motVong();
+    while (offset > 0) offset -= vong;
+    while (-offset >= vong) offset += vong;
+  }
+  cuon.addEventListener('pointerup', ketThucKeo);
+  cuon.addEventListener('pointercancel', ketThucKeo);
+  // Vừa kéo xong thì chặn đúng 1 lần click kế tiếp, tránh mở nhầm link khi người dùng chỉ định kéo xem.
+  cuon.addEventListener('click', (ev) => { if (daKeoThat) { ev.preventDefault(); daKeoThat = false; } }, true);
+
+  $('#dnTrai').addEventListener('click', () => nhichMotThe(-1));
+  $('#dnPhai').addEventListener('click', () => nhichMotThe(1));
+
+  requestAnimationFrame(chay);
+}
+
+/* ---------- Nhạc nền: bật/tắt qua nút trên thanh đầu trang. Trình duyệt chặn tự phát có
+   tiếng khi chưa có thao tác của người dùng, nên KHÔNG thể tự phát khi mở trang — phải chờ
+   người dùng bấm nút. Trạng thái bật/tắt nhớ lại bằng localStorage cho lần vào sau. ---------- */
+function veNhacNen(nhacNen) {
+  const nut = $('#nutNhac');
+  if (!nhacNen) { nut.hidden = true; return; }
+  nut.hidden = false;
+  nut.title = 'Nhạc nền: ' + (nhacNen.tenBai || 'Lớp 10A7');
+
+  const audio = $('#nhacNenAudio');
+  audio.src = '/api/nhac-nen';
+
+  if (nut.dataset.daGan) return;   // chỉ gắn sự kiện 1 lần dù dữ liệu tải lại nhiều lần
+  nut.dataset.daGan = '1';
+
+  const dat = (dangPhat) => {
+    nut.setAttribute('aria-pressed', String(dangPhat));
+    nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');
+    try { localStorage.setItem('nhacNenBat', dangPhat ? '1' : '0'); } catch { /* riêng tư trình duyệt chặn cũng không sao */ }
+  };
+
+  nut.addEventListener('click', async () => {
+    if (audio.paused) {
+      try { await audio.play(); dat(true); } catch { nhac('Trình duyệt chặn phát nhạc tự động, thử bấm lại.', 'xau'); }
+    } else {
+      audio.pause();
+      dat(false);
+    }
+  });
+
+  // Từng bật ở lần trước thì thử phát lại luôn — nếu trình duyệt vẫn chặn (chưa có thao tác nào
+  // trong phiên này) thì coi như tắt, người dùng tự bấm lại.
+  let tungBat = false;
+  try { tungBat = localStorage.getItem('nhacNenBat') === '1'; } catch { /* bỏ qua */ }
+  if (tungBat) audio.play().then(() => dat(true)).catch(() => dat(false));
 }
 
 /* ---------- Kế hoạch năm học & quản lý trực tiếp ---------- */
@@ -641,6 +720,7 @@ async function taiDuLieu() {
     veDanhSach(d.hocSinh);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
     veLoiTatQuanLy(phien, taiDuLieu);
+    veNhacNen(d.nhacNen);
   } catch (err) {
     datNoiDung($('#dsThongBao'), khoiLoi('Không tải được dữ liệu lớp: ' + err.message));
   }

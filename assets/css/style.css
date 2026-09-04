@@ -290,8 +290,14 @@ code {
 }
 .nut-tron:hover { color: var(--chinh); border-color: var(--chinh); background: var(--chinh-nen); }
 .nut-tron:active { transform: scale(.94); }
+/* display:grid ở trên có độ ưu tiên cao hơn thuộc tính HTML "hidden" mặc định — cùng lỗi đã gặp
+   ở menu di động, phải khai báo lại tường minh để nút thật sự ẩn khi có "hidden". */
+.nut-tron[hidden] { display: none; }
 /* Trên thanh trên cùng, nút chỉ có biểu tượng phải đủ to để ngón tay chạm được. */
 .thanh-tren .nut-tron { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
+#nutNhac[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--chinh), var(--chinh-sang)); border-color: transparent; color: #fff;
+}
 
 /* Nút mở menu — cửa vào của mọi mục không nằm trên trang chủ, nên để dạng viên thuốc có chữ. */
 .nut-menu {
@@ -417,6 +423,9 @@ code {
 .menu-chu b { font-size: 15px; font-weight: 700; line-height: 1.3; }
 .menu-chu small { font-size: 12.5px; line-height: 1.35; color: var(--chu-nhat); }
 .menu-muc-ra .menu-icon { background: var(--xau-nen); color: var(--xau); }
+/* Cùng lỗi display:flex đè thuộc tính "hidden" đã gặp ở nơi khác — quan trọng ở đây vì mục
+   "Khu quản lý" (#mucQuanLy) PHẢI ẩn thật với học sinh, không chỉ ẩn nửa vời. */
+.menu-muc[hidden] { display: none; }
 
 /* Trang riêng mở từ menu (Danh sách lớp, Thủ quỹ) */
 .quay-lai {
@@ -496,13 +505,17 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
   box-shadow: var(--bong-mau);
 }
 @media (min-width: 720px) { .bang-diem-nhan { margin-bottom: 40px; } }
+/* Khung ngoài chỉ để CẮT (overflow hidden) — dải thẻ bên trong (.bang-diem-nhan-track) tự
+   trôi liên tục bằng transform (JS), không dùng cuộn gốc của trình duyệt nữa. Vẫn kéo được
+   bằng chuột/ngón tay (con trỏ "grab") để chủ động xem, không chỉ ngồi chờ tự chạy. */
 .bang-diem-nhan-cuon {
-  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity;
-  padding: 16px; scrollbar-width: none;
+  overflow: hidden; padding: 16px 0; cursor: grab; touch-action: pan-y;
 }
-.bang-diem-nhan-cuon::-webkit-scrollbar { display: none; }
+.bang-diem-nhan-cuon.dang-keo { cursor: grabbing; }
+.bang-diem-nhan-track { display: flex; gap: 14px; width: max-content; padding: 0 16px; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .bang-diem-nhan-cuon { cursor: default; } }
 .dn-the {
-  scroll-snap-align: start; flex: none; width: min(320px, 82vw);
+  flex: none; width: min(320px, 82vw); user-select: none;
   background: color-mix(in srgb, #fff 14%, transparent);
   backdrop-filter: blur(6px);
   border: 1px solid color-mix(in srgb, #fff 30%, transparent);

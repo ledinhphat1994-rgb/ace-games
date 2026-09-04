@@ -836,6 +836,86 @@ async function nenAnh(tep) {
   return { base64: btoa(chuoiNhiPhan), coByte: dem.length, kieu: 'image/jpeg' };
 }
 
+/** Khối quản lý nhạc nền trang chủ — chỉ một bài tại một thời điểm. */
+async function veKhoiNhacNen() {
+  const d = await api('/api/gv/nhac-nen');
+  const the = e('div', 'the');
+  the.style.marginTop = '16px';
+  the.append(e('h3', null, '♪ Nhạc nền trang chủ'));
+  the.append(e('p', 'trong',
+    'Phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
+
+  if (d.nhac) {
+    const dong = e('div');
+    dong.style.cssText = 'margin:10px 0;font-size:14px';
+    dong.append(e('b', null, d.nhac.tenBai), document.createTextNode(` · ${(d.nhac.coByte / 1_000_000).toFixed(1)} MB`));
+    the.append(dong);
+
+    const audio = e('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = '/api/nhac-nen';
+    audio.style.cssText = 'width:100%;margin-bottom:10px';
+    the.append(audio);
+
+    the.append(nut('🗑 Xoá nhạc nền', 'nut-nhe nut-nho', () => {
+      moHopThoai('Xoá nhạc nền?', e('p', null, 'Học sinh sẽ không còn nghe được nhạc nền khi mở trang lớp.'), [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá', 'nut-xau', async () => {
+          try {
+            await api('/api/gv/nhac-nen', { method: 'DELETE' });
+            dongHopThoai();
+            nhac('Đã xoá nhạc nền', 'tot');
+            trangHinhAnh(document.getElementById('noiDung'));
+          } catch (err) { nhac(err.message, 'xau'); }
+        }),
+      ]);
+    }));
+  }
+
+  const oTepNhac = e('input');
+  oTepNhac.type = 'file';
+  oTepNhac.accept = 'audio/mpeg,.mp3';
+  oTepNhac.id = 'chonNhac';
+  oTepNhac.className = 'o-nhap';
+  const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền lớp 10A7');
+
+  the.append(
+    truong(d.nhac ? 'Thay bằng bài khác (.mp3, tối đa 12 MB)' : 'Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
+    truong('Tên bài', oTenBai)
+  );
+
+  const tienTrinh = e('div', 'trong');
+  tienTrinh.style.marginTop = '8px';
+
+  the.append(nut('⬆ Tải nhạc lên', 'nut-vien nut-nho', async (ev) => {
+    const tep = oTepNhac.files[0];
+    if (!tep) return nhac('Chưa chọn file nhạc', 'xau');
+    if (!/\.mp3$/i.test(tep.name) && tep.type !== 'audio/mpeg') return nhac('Chỉ nhận file .mp3', 'xau');
+
+    const b = ev.currentTarget;
+    b.disabled = true;
+    tienTrinh.textContent = 'Đang tải lên…';
+    try {
+      const duLieu = await tep.arrayBuffer();
+      const tenBai = (oTenBai.value || tep.name.replace(/\.mp3$/i, '')).trim();
+      const res = await fetch('/api/gv/nhac-nen?tenBai=' + encodeURIComponent(tenBai), {
+        method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
+      });
+      const kq = await res.json();
+      if (!kq.ok) throw new Error(kq.loi || 'Tải lên thất bại.');
+      nhac('Đã cập nhật nhạc nền', 'tot');
+      trangHinhAnh(document.getElementById('noiDung'));
+    } catch (err) {
+      nhac(err.message, 'xau');
+      b.disabled = false;
+      tienTrinh.textContent = '';
+    }
+  }), tienTrinh);
+
+  return the;
+}
+
 export async function trangHinhAnh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
@@ -898,6 +978,8 @@ export async function trangHinhAnh(KHUNG) {
       ve();
     }), tienTrinh);
     khung.append(the);
+
+    khung.append(await veKhoiNhacNen());
 
     // Danh sách ảnh đã có
     if (!d.danhSach.length) {

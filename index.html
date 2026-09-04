@@ -31,6 +31,7 @@
     </nav>
 
     <div class="thanh-phai">
+      <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden>♪</button>
       <button class="nut-tron nut-theme-bg" id="nutThemeBg" aria-label="Tùy chỉnh hình nền & chủ đề" title="Đổi màu nền & chủ đề">
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
       </button>
@@ -107,7 +108,9 @@
     <!-- Băng điểm nhấn: tự cuộn ngang, gộp thông báo đã ghim + mốc quan trọng sắp tới.
          Ẩn hẳn (không chừa khoảng trống) khi chưa có gì đáng nổi bật. -->
     <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
-      <div class="bang-diem-nhan-cuon" id="dnCuon"></div>
+      <div class="bang-diem-nhan-cuon" id="dnCuon">
+        <div class="bang-diem-nhan-track" id="dnTrack"></div>
+      </div>
       <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
       <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
     </section>
@@ -210,6 +213,7 @@
   </div>
 </footer>
 
+<audio id="nhacNenAudio" loop preload="none"></audio>
 <script type="module" src="/assets/js/trang-lop.js"></script>
 </body>
 </html>

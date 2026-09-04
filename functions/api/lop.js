@@ -36,6 +36,8 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
     db.prepare('SELECT COALESCE(SUM(so_tien), 0) AS tongChi FROM quy_chi').first(),
   ]);
 
+  const nhacNen = await db.prepare('SELECT ten_bai AS tenBai FROM nhac_nen WHERE id = 1').first().catch(() => null);
+
   const oTkb = phienBanTkb
     ? (await db.prepare('SELECT buoi, thu, tiet, mon, phong FROM tkb_o WHERE phien_ban_id = ?1 ORDER BY buoi, tiet, thu')
         .bind(phienBanTkb.id).all()).results
@@ -69,6 +71,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
       o: oTkb,
     },
     hinhAnh: hinhAnh.results,
+    nhacNen: nhacNen ? { tenBai: nhacNen.tenBai } : null,
     thuQuy: {
       tonQuy: tongThuQuy - tongChiQuy,
       tongThu: tongThuQuy,
