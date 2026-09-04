@@ -10,7 +10,7 @@ import {
 } from '/assets/js/giao-dien.js';
 import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
-  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh,
+  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangPhanQuyen, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
 import { trangKeHoach, trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
@@ -34,6 +34,7 @@ const QUYEN_THEO_TUYEN = {
   'thong-bao': 'thong-bao',
   'bao-cao': null,
   'ma-ca-nhan': null,
+  'nhat-ky-dang-nhap': null,
   'hinh-anh': 'hinh-anh',
   'quy': 'quy',
   'quy-lich-su': 'quy',
@@ -116,7 +117,7 @@ async function trangTongQuan() {
   const daDiemDanh = Object.values(dd).reduce((a, b) => a + b, 0);
 
   const khung = e('div');
-  khung.append(tieuDeTrang('Tổng quan', ngayDayDu(d.ngay)));
+  khung.append(tieuDeTrang('Tổng quan', 'Bảng tin hằng ngày — ' + ngayDayDu(d.ngay) + ': việc cần làm, học sinh cần chú ý, không phải trang thống kê.'));
 
   const day = e('div', 'day-so');
   day.append(
@@ -1445,6 +1446,7 @@ const TRANG = {
   '/thong-ke': () => trangThongKe(KHUNG),
   '/bao-cao': () => trangBaoCao(KHUNG),
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
+  '/nhat-ky-dang-nhap': () => trangNhatKyDangNhap(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),

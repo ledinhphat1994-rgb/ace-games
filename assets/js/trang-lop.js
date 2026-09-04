@@ -323,7 +323,7 @@ function soanThongBaoModal(tb, lamMoi) {
   oGhim.checked = Boolean(tb && tb.ghim);
   const hangGhim = e('label');
   hangGhim.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  hangGhim.append(oGhim, document.createTextNode('Ghim lên đầu trang lớp'));
+  hangGhim.append(oGhim, document.createTextNode('Ghim lên đầu mục Thông báo'));
 
   const oNoiBat = e('input');
   oNoiBat.type = 'checkbox';

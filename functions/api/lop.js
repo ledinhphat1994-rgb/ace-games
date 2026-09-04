@@ -13,13 +13,24 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil }) => {
   const homNay = new Date().toISOString().slice(0, 10);
   const ma = new URL(request.url).searchParams.get('ma');
 
-  // Đếm lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
-  // số liệu tham khảo cho tab Tương tác, không phải dữ liệu bắt buộc phải chính xác tuyệt đối.
-  const demLuot = db.prepare(
-    `INSERT INTO luot_truy_cap (ngay, luot) VALUES (?1, 1)
-     ON CONFLICT(ngay) DO UPDATE SET luot = luot + 1`
-  ).bind(homNay).run().catch(() => {});
-  if (waitUntil) waitUntil(demLuot);
+  // Ghi lại lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
+  // số liệu tham khảo cho tab Tương tác. Ghi cả bảng tổng theo ngày (nhanh cho biểu đồ) lẫn
+  // chi tiết từng lượt kèm mã (nếu có) để biết ai truy cập, lúc nào, bao nhiêu lần.
+  const ghiLuot = (async () => {
+    let hocSinhId = null;
+    if (ma) {
+      const m = await db.prepare('SELECT hoc_sinh_id AS id FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
+      hocSinhId = m?.id ?? null;
+    }
+    await db.batch([
+      db.prepare(
+        `INSERT INTO luot_truy_cap (ngay, luot) VALUES (?1, 1)
+         ON CONFLICT(ngay) DO UPDATE SET luot = luot + 1`
+      ).bind(homNay),
+      db.prepare('INSERT INTO nhat_ky_truy_cap (ma, hoc_sinh_id) VALUES (?1, ?2)').bind(ma || null, hocSinhId),
+    ]);
+  })().catch(() => {});
+  if (waitUntil) waitUntil(ghiLuot);
 
   const [hocSinh, thongBao, keHoach, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(

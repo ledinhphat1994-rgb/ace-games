@@ -414,13 +414,13 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
-    // Phân cấp: chính (mở khoản mới) → phụ (thu định kỳ) → ít dùng nhất (lịch sử/khôi phục,
-    // chỉ cần khi có sự cố) — không để 3 nút cạnh tranh thị giác ngang nhau.
+    // Cả 3 đều là lối tắt ngang hàng từ đầu trang (không phải nút xác nhận trong biểu mẫu)
+    // nên dùng CHUNG một kiểu (nut-vien) — chỉ khác cỡ chữ/thứ tự theo tần suất dùng.
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
-      nut('🛡️ Lịch sử & khôi phục', 'nut-nhe', () => { location.hash = '#/quy-lich-su'; }),
+      nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
       nut('🔁 Thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; }),
-      nut('➕ Mở khoản thu mới', '', () => moKhoanMoi(tai))
+      nut('➕ Mở khoản thu mới', 'nut-vien', () => moKhoanMoi(tai))
     ));
 
     const day = e('div', 'day-so');

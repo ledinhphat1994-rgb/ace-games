@@ -5,11 +5,11 @@ const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
 const MAX_TRIES = 8;                  // số lần nhập sai tối đa
 const WINDOW = 600;                   // trong 10 phút, tính theo IP
 
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extraHeaders },
-  });
+function json(data, status = 200, extraHeaders = {}, cookiePhu = null) {
+  const h = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  Object.entries(extraHeaders).forEach(([k, v]) => h.append(k, v));
+  if (cookiePhu) h.append('Set-Cookie', cookiePhu);
+  return new Response(JSON.stringify(data), { status, headers: h });
 }
 
 // Giới hạn số lần thử nếu đã gắn KV namespace tên RATE_LIMIT (không bắt buộc).
@@ -24,6 +24,19 @@ async function tooManyTries(env, ip) {
 
 async function clearTries(env, ip) {
   if (env.RATE_LIMIT) await env.RATE_LIMIT.delete(`login:${ip}`);
+}
+
+// Đọc/tạo mã thiết bị — một chuỗi ngẫu nhiên lưu trong cookie riêng của trình duyệt này,
+// dùng để nhận ra "đây có phải đúng máy đã đăng nhập lần đầu" cho các mã ĐƯỢC CẤP QUYỀN
+// quản lý (không áp dụng cho học sinh thường). Không phải cookie phiên — sống độc lập,
+// không hết hạn theo phiên đăng nhập.
+function docThietBi(request) {
+  const raw = request.headers.get('Cookie') || '';
+  const m = raw.match(/(?:^|;\s*)thiet_bi_id=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function taoThietBi() {
+  return crypto.randomUUID();
 }
 
 export async function onRequestPost({ request, env }) {
@@ -97,6 +110,63 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
+  // Mã cá nhân ĐƯỢC CẤP quyền quản lý (giáo viên gộp phân quyền vào tab Mã cá nhân) cũng
+  // đăng nhập được ở đây, không chỉ ở trang "Xem kết quả của tôi" (chỉ tra cứu, không có
+  // quyền). Ràng buộc 1 mã = 1 thiết bị CHỈ áp dụng ở nhánh này — mã tra cứu thường không bị
+  // giới hạn máy vì không có gì để mất nếu xem từ nhiều máy.
+  let ketQuaThietBi = null;
+  let dongCookieThietBi = null;
+  if (!role && env.DB) {
+    try {
+      const ca = await env.DB.prepare(
+        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, h.ho_ten AS hoTen
+           FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
+          WHERE m.ma = ?1 AND h.dang_hoc = 1`
+      ).bind(code).first();
+
+      if (ca && ca.quyen) {
+        const thietBiMay = docThietBi(request);
+        if (!ca.thietBi) {
+          // Lần đầu đăng nhập bằng mã này — gắn luôn vào máy đang dùng.
+          const idMoi = thietBiMay || taoThietBi();
+          await env.DB.prepare('UPDATE ma_ca_nhan SET thiet_bi = ?1 WHERE hoc_sinh_id = ?2').bind(idMoi, ca.hocSinhId).run();
+          if (!thietBiMay) {
+            dongCookieThietBi = `thiet_bi_id=${idMoi}; Path=/; Max-Age=31536000; Secure; SameSite=Lax`;
+          }
+          ketQuaThietBi = 'thanh_cong';
+        } else if (thietBiMay === ca.thietBi) {
+          ketQuaThietBi = 'thanh_cong';
+        } else {
+          ketQuaThietBi = 'sai_thiet_bi';
+        }
+
+        if (ketQuaThietBi === 'sai_thiet_bi') {
+          await env.DB.prepare(
+            'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip) VALUES (?1, ?2, ?3, ?4)'
+          ).bind(code, ca.hocSinhId, ketQuaThietBi, ip).run().catch(() => {});
+          return json({
+            ok: false,
+            message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của em.',
+          }, 403);
+        }
+
+        role = 'phu';
+        tenHienThi = ca.hoTen;
+        phanBoSung = {
+          hocSinhId: ca.hocSinhId,
+          ten: ca.hoTen,
+          vaiTro: 'Cán sự lớp',
+          quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
+        };
+        await env.DB.prepare(
+          'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip) VALUES (?1, ?2, ?3, ?4)'
+        ).bind(code, ca.hocSinhId, 'thanh_cong', ip).run().catch(() => {});
+      }
+    } catch {
+      // Bảng/cột chưa tồn tại (chưa chạy migration) — coi như không khớp.
+    }
+  }
+
   if (!role) return json({ ok: false, message: 'Mã bảo mật không đúng. Vui lòng hỏi lại giáo viên chủ nhiệm.' }, 401);
 
   await clearTries(env, ip);
@@ -110,7 +180,8 @@ export async function onRequestPost({ request, env }) {
     `Max-Age=${SESSION_TTL}`,
   ].join('; ');
 
-  return json({ ok: true, role, ten: tenHienThi }, 200, { 'Set-Cookie': cookie });
+  const headers = { 'Set-Cookie': cookie };
+  return json({ ok: true, role, ten: tenHienThi }, 200, headers, dongCookieThietBi);
 }
 
 export function onRequestGet() {

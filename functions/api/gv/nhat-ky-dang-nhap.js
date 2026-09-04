@@ -1,0 +1,13 @@
+// GET /api/gv/nhat-ky-dang-nhap — nhật ký đăng nhập của các mã cá nhân ĐƯỢC CẤP quyền quản
+// lý. CHỈ ĐỌC — không có DELETE ở đây, kể cả cho giáo viên, để nhật ký luôn còn nguyên vẹn
+// mà khôi phục lại nếu một mã bị chiếm quyền và xoá phá dữ liệu.
+import { bocXuLy, json } from '../../_lib/api.js';
+
+export const onRequestGet = bocXuLy(async ({ env }) => {
+  const { results } = await env.DB.prepare(
+    `SELECT n.id, n.ma, n.ket_qua AS ketQua, n.ip, n.thoi_diem AS thoiDiem, h.ho_ten AS hoTen
+       FROM nhat_ky_dang_nhap n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
+      ORDER BY n.id DESC LIMIT 200`
+  ).all();
+  return json({ ok: true, danhSach: results });
+}, { canGiaoVien: true });

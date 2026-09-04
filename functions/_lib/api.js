@@ -31,7 +31,9 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
     let phien = await layPhien(request, env);
     if (!phien) return loi('Chưa đăng nhập.', 401);
 
-    // Với tài khoản cán sự: luôn lấy thông tin mới nhất từ cơ sở dữ liệu
+    // Với tài khoản cán sự (tài khoản phụ hoặc mã cá nhân được cấp quyền): luôn lấy quyền
+    // mới nhất từ cơ sở dữ liệu — giáo viên đổi quyền thì có hiệu lực ngay, không cần đăng
+    // nhập lại.
     if (phien.role === 'phu' && phien.phuId && env.DB) {
       try {
         const tk = await env.DB.prepare(
@@ -50,12 +52,23 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
         }
       } catch (_e) {}
     }
+    if (phien.role === 'phu' && phien.hocSinhId && env.DB) {
+      try {
+        const m = await env.DB.prepare('SELECT quyen FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(phien.hocSinhId).first();
+        phien = { ...phien, quyen: (m?.quyen || '').split(',').map((s) => s.trim()).filter(Boolean) };
+      } catch (_e) {}
+    }
 
     if (canGiaoVien) {
       const laGiaoVien = phien.role === 'teacher';
       const laPhuDuocCap = phien.role === 'phu' && quyenCan && (phien.quyen || []).includes(quyenCan);
       if (!laGiaoVien && !laPhuDuocCap) {
         return loi('Bạn không có quyền thao tác ở mục này.', 403);
+      }
+      // Tài khoản cán sự (không phải giáo viên) chỉ được thêm/sửa/cập nhật — KHÔNG được
+      // xoá, để tránh mất dữ liệu nếu tài khoản bị chiếm quyền.
+      if (!laGiaoVien && request.method === 'DELETE') {
+        return loi('Tài khoản được cấp quyền chỉ được sửa/thêm, không được xoá. Nhờ giáo viên chủ nhiệm xoá giúp.', 403);
       }
     }
 
