@@ -179,11 +179,6 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   transition: border-color .15s, box-shadow .15s;
 }
 .hang-hs.chua-ghi { border-style: dashed; }
-.hang-hs-tieu-de {
-  background: var(--nen-chim); border-color: var(--vien-dam); margin-bottom: 4px;
-}
-.hang-hs-tieu-de .stt { background: transparent; }
-.hang-hs-tieu-de .ten b { font-size: 13px; color: var(--chu-nhat); font-weight: 700; }
 .hang-hs .stt {
   width: 30px; height: 30px; flex: none; border-radius: 8px;
   background: var(--nen-chim); color: var(--chu-nhat);

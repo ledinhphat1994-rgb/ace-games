@@ -481,12 +481,16 @@ async function trangDiemDanh() {
     const hangChon = e('div', 'chon-ngay');
     hangChon.append(oNgay, chonBuoi);
     khung.append(hangChon);
+    khung.append(Object.assign(
+      e('p', 'trong', 'Ngày và buổi ở trên áp dụng chung cho cả 2 cách điểm danh bên dưới.'),
+      { style: 'margin-top:6px;font-size:12.5px' }
+    ));
 
-    // Tab con: Điểm danh theo ngày (chính thức) | Điểm danh nhanh — cùng chia sẻ ngày/buổi
-    // và cùng gộp vào một lượt lưu, chỉ khác cách nhập.
+    // Tab con: Điểm danh chính (từng em, theo ngày/buổi) | Điểm danh phụ (đánh dấu hàng loạt
+    // cho trường hợp đặc biệt) — cùng chia sẻ ngày/buổi và cùng gộp vào một lượt lưu.
     const hopTabCon = e('div', 'day-loc');
     hopTabCon.style.margin = '14px 0';
-    [['ngay', 'Theo ngày'], ['nhanh', '⚡ Điểm danh nhanh']].forEach(([ma, ten]) => {
+    [['ngay', '📋 Điểm danh chính'], ['nhanh', '⚡ Điểm danh phụ']].forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tabCon === ma));
@@ -522,27 +526,28 @@ async function trangDiemDanh() {
       );
       khung.append(day);
 
-      // Hàng tiêu đề — mỗi nút ứng với một cột trạng thái bên dưới, bấm là áp dụng trạng
-      // thái đó cho CẢ LỚP ngay (thay cho nút "Cả lớp có mặt" cũ, giờ chọn được cả 4 loại
-      // chứ không chỉ riêng "Có mặt").
-      const hangTieuDe = e('div', 'hang-hs hang-hs-tieu-de');
-      const tenTieuDe = e('div', 'ten');
-      tenTieuDe.append(e('b', null, 'Chọn cho cả lớp'));
-      hangTieuDe.append(e('div', 'stt'), tenTieuDe);
-      const nhomTieuDe = e('div', 'nhom-chon');
+      // Thanh áp dụng nhanh cho cả lớp — dùng đúng kiểu "chip" đã dùng ở nơi khác trong app
+      // (bộ lọc tổ, chọn lý do…) thay vì gồng ép vào khuôn 4 cột hẹp như hàng học sinh, nhìn
+      // gọn và rõ nghĩa hơn hẳn.
+      const theApDungNhanh = e('div', 'the');
+      theApDungNhanh.style.cssText = 'padding:12px 14px;margin-bottom:12px;';
+      theApDungNhanh.append(Object.assign(
+        e('div', null, '⚡ Áp dụng nhanh cho cả lớp'),
+        { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
+      ));
+      const dayApDungNhanh = e('div', 'day-loc');
       Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-        const b = e('button', null, tt2.ky);
+        const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
         b.type = 'button';
         b.title = `Đặt "${tt2.ten}" cho cả lớp`;
-        b.setAttribute('aria-label', `Đặt ${tt2.ten} cho cả lớp`);
         b.addEventListener('click', () => {
           duLieu.danhSach.forEach((h) => thayDoi.set(h.id, ma));
           ve();
         });
-        nhomTieuDe.append(b);
+        dayApDungNhanh.append(b);
       });
-      hangTieuDe.append(nhomTieuDe);
-      khung.append(hangTieuDe);
+      theApDungNhanh.append(dayApDungNhanh);
+      khung.append(theApDungNhanh);
 
       // Danh sách học sinh
       const ds = e('div', 'ds-diem-danh');
