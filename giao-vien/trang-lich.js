@@ -126,7 +126,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   const khung = e('div');
 
   if (chiXem) {
-    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
+    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
   }
 
   khung.append(tieuDeTrang(
@@ -300,7 +300,7 @@ export async function trangThoiKhoaBieuLichSu(KHUNG) {
   const d = await api('/api/gv/thoi-khoa-bieu?ds=1');
 
   const khung = e('div');
-  khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
+  khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
   khung.append(tieuDeTrang('Lịch sử thời khoá biểu', `${d.danhSach.length} phiên bản đã lưu`));
 
   if (!d.danhSach.length) {

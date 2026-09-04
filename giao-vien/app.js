@@ -630,7 +630,11 @@ async function trangHoSo(id, tabMacDinh) {
   let diemCache = null;   // { 1: {monHoc, hang}, 2: {...} } — nạp khi mở tab Học tập lần đầu
 
   const khung = e('div');
-  const quayLai = nut('← Danh sách', 'nut-nhe nut-nho', () => { location.hash = '#/hoc-sinh'; });
+  // Quay lại ĐÚNG chỗ vừa đến (Tổng quan, Nhật ký...), không phải luôn về Danh sách cố định
+  // — nếu không, bấm nút Back thật của trình duyệt sau đó sẽ nhảy lung tung.
+  const quayLai = nut('← Quay lại', 'nut-nhe nut-nho', () => {
+    if (history.length > 1) history.back(); else location.hash = '#/hoc-sinh';
+  });
   khung.append(quayLai);
   // Liên hệ PH đặt ngay ở đầu trang (không phải kéo xuống tab Phụ huynh) — đúng lúc hay cần nhất
   // là ngay sau khi xem xong tình hình một em, kể cả trên điện thoại.

@@ -719,7 +719,7 @@ export async function trangQuyLichSu(KHUNG) {
     const laGiaoVien = phienD.role === 'teacher';
 
     const khung = e('div');
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
+    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/quy'; }));
     khung.append(tieuDeTrang('Lịch sử & khôi phục Thủ quỹ',
       'Mỗi lần ghi thu, ghi chi hoặc xoá đều tự động lưu một điểm khôi phục ngay trước đó.'));
 
@@ -789,7 +789,7 @@ export async function trangQuyDinhKy(KHUNG) {
     const d = await api('/api/gv/quy-dinh-ky');
     const khung = e('div');
 
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
+    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/quy'; }));
     khung.append(tieuDeTrang('Thu định kỳ',
       'Ví dụ: quỹ lớp 5.000đ/tuần. Hệ thống tự tạo từng kỳ khi tới hạn, không cần tạo tay mỗi tuần.',
       nut('+ Tạo mẫu thu định kỳ', '', () => taoDinhKy(ve))
