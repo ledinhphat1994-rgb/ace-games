@@ -266,39 +266,148 @@ function vietTat(ten) {
 export async function trangThongKe(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   let buoi = '';
+  let cheDo = 'ca_nam';
+
+  function layKhoangThoiGian(kieu) {
+    const now = new Date();
+    const f = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    if (kieu === 'tuan') {
+      const day = now.getDay();
+      const diffToMon = day === 0 ? -6 : 1 - day;
+      const mon = new Date(now);
+      mon.setDate(now.getDate() + diffToMon);
+      const sun = new Date(mon);
+      sun.setDate(mon.getDate() + 6);
+      return [f(mon), f(sun)];
+    }
+    if (kieu === 'thang') {
+      const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
+      const d2 = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return [f(d1), f(d2)];
+    }
+    if (kieu === 'hk1') {
+      return ['2026-09-05', '2027-01-15'];
+    }
+    if (kieu === 'ca_nam') {
+      return ['2026-09-05', '2027-05-31'];
+    }
+    // Mặc định: 12 tuần gần nhất
+    const d2 = new Date();
+    const den = f(d2);
+    d2.setDate(d2.getDate() - 84);
+    const tu = f(d2);
+    return [tu, den];
+  }
+
+  let [tuNgay, denNgay] = layKhoangThoiGian(cheDo);
 
   async function ve() {
-    const d = await api('/api/gv/thong-ke' + (buoi ? '?buoi=' + buoi : ''));
+    const params = new URLSearchParams();
+    if (tuNgay) params.set('tuNgay', tuNgay);
+    if (denNgay) params.set('denNgay', denNgay);
+    if (buoi) params.set('buoi', buoi);
+
+    const d = await api('/api/gv/thong-ke?' + params.toString());
     veNoiDung(d);
   }
 
   function veNoiDung(d) {
-  const khung = e('div');
-  khung.append(tieuDeTrang('Thống kê chuyên cần',
-    `Từ ${ngayVN(d.tuNgay)} đến ${ngayVN(d.denNgay)}`));
+    const khung = e('div');
+    const TEN_BUOI_MAP = {
+      '': 'Cả sáng lẫn chiều',
+      'sang': 'Buổi sáng',
+      'chieu': 'Buổi chiều',
+      'hoat_dong': 'Hoạt động',
+    };
 
-  const tabBuoi = e('div', 'day-loc');
-  tabBuoi.style.marginBottom = '16px';
-  [['', 'Cả sáng lẫn chiều'], ['sang', 'Chỉ buổi sáng'], ['chieu', 'Chỉ buổi chiều'], ['hoat_dong', 'Chỉ hoạt động']]
-    .forEach(([ma, ten]) => {
+    khung.append(tieuDeTrang('Thống kê chuyên cần',
+      `Từ ${ngayVN(d.tuNgay)} đến ${ngayVN(d.denNgay)} · ${TEN_BUOI_MAP[buoi] || 'Cả ngày'}`));
+
+    // Vùng bộ lọc chuyên sâu: Thời gian & Buổi học
+    const theBoLoc = e('div', 'the');
+    theBoLoc.style.cssText = 'padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px;';
+
+    // Dòng 1: Chọn nhanh thời gian (Presets)
+    const dongNhanh = e('div');
+    dongNhanh.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+    dongNhanh.append(Object.assign(e('span', 'trong', 'Khoảng thời gian:'), { style: 'font-size:13px;font-weight:600;min-width:110px' }));
+
+    const PRESETS = [
+      ['tuan', 'Tuần này'],
+      ['thang', 'Tháng này'],
+      ['hk1', 'Học kỳ I'],
+      ['ca_nam', 'Cả năm học'],
+      ['12tuan', '12 tuần qua'],
+    ];
+    PRESETS.forEach(([kieu, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(cheDo === kieu));
+      b.addEventListener('click', () => {
+        cheDo = kieu;
+        [tuNgay, denNgay] = layKhoangThoiGian(kieu);
+        ve();
+      });
+      dongNhanh.append(b);
+    });
+    theBoLoc.append(dongNhanh);
+
+    // Dòng 2: Chọn ngày cụ thể (Custom Date Range)
+    const dongNgayTuyChon = e('div');
+    dongNgayTuyChon.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+    dongNgayTuyChon.append(Object.assign(e('span', 'trong', 'Từ ngày đến ngày:'), { style: 'font-size:13px;font-weight:600;min-width:110px' }));
+
+    const inpTu = oNhap('tkTuNgay', 'date', d.tuNgay);
+    inpTu.style.cssText = 'max-width:160px;padding:5px 10px;font-size:13px;';
+
+    const inpDen = oNhap('tkDenNgay', 'date', d.denNgay);
+    inpDen.style.cssText = 'max-width:160px;padding:5px 10px;font-size:13px;';
+
+    const nutApDung = nut('Áp dụng ngày', 'nut-chinh nut-nho', () => {
+      if (!inpTu.value || !inpDen.value) return nhac('Vui lòng chọn đủ từ ngày và đến ngày', 'xau');
+      if (inpTu.value > inpDen.value) return nhac('Từ ngày không được lớn hơn đến ngày', 'xau');
+      cheDo = 'tuy_chon';
+      tuNgay = inpTu.value;
+      denNgay = inpDen.value;
+      ve();
+    });
+
+    dongNgayTuyChon.append(inpTu, document.createTextNode('→'), inpDen, nutApDung);
+    theBoLoc.append(dongNgayTuyChon);
+
+    // Dòng 3: Chọn buổi học (Sáng / Chiều / Cả sáng chiều)
+    const dongBuoi = e('div');
+    dongBuoi.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--vien)';
+    dongBuoi.append(Object.assign(e('span', 'trong', 'Buổi học:'), { style: 'font-size:13px;font-weight:600;min-width:110px' }));
+
+    const CAC_BUOI = [
+      ['', 'Cả sáng lẫn chiều'],
+      ['sang', 'Chỉ buổi sáng'],
+      ['chieu', 'Chỉ buổi chiều'],
+      ['hoat_dong', 'Chỉ hoạt động'],
+    ];
+    CAC_BUOI.forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(buoi === ma));
       b.addEventListener('click', () => { buoi = ma; ve(); });
-      tabBuoi.append(b);
+      dongBuoi.append(b);
     });
-  khung.append(tabBuoi);
+    theBoLoc.append(dongBuoi);
 
-  const t = d.tongTheoMuc;
-  const tong = Object.values(t).reduce((a, b) => a + b, 0) || 1;
-  const day = e('div', 'day-so');
-  day.append(
-    oThongKe(Math.round(((t.co_mat || 0) / tong) * 100) + '%', 'Tỉ lệ chuyên cần', 'tot'),
-    oThongKe(String(t.vang_khong_phep || 0), 'Lượt vắng không phép', 'xau'),
-    oThongKe(String(t.vang_phep || 0), 'Lượt vắng có phép'),
-    oThongKe(String(t.tre || 0), 'Lượt đi trễ', 'luuy')
-  );
-  khung.append(day);
+    khung.append(theBoLoc);
+
+    const t = d.tongTheoMuc;
+    const tong = Object.values(t).reduce((a, b) => a + b, 0) || 1;
+    const day = e('div', 'day-so');
+    day.append(
+      oThongKe(Math.round(((t.co_mat || 0) / tong) * 100) + '%', 'Tỉ lệ chuyên cần', 'tot'),
+      oThongKe(String(t.vang_khong_phep || 0), 'Lượt vắng không phép', 'xau'),
+      oThongKe(String(t.vang_phep || 0), 'Lượt vắng có phép', 'thu'),
+      oThongKe(String(t.tre || 0), 'Lượt đi trễ', 'luuy')
+    );
+    khung.append(day);
 
   // Biểu đồ theo tuần
   const theBd = e('div', 'the');

@@ -125,3 +125,25 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 
   return json({ ok: true });
 }, { canGiaoVien: true });
+
+export const onRequestDelete = bocXuLy(async ({ request, env }) => {
+  const id = Number(new URL(request.url).searchParams.get('id'));
+  if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã học sinh.');
+
+  // Xoá học sinh và toàn bộ dữ liệu phụ thuộc
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM diem_danh WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM nhat_ky WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM theo_doi WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM lien_he_phu_huynh WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM quy_dong WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM diem WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM nhan_xet_mon WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM danh_gia_hoc_ki WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('UPDATE tai_khoan_phu SET hoc_sinh_id = NULL WHERE hoc_sinh_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM hoc_sinh WHERE id = ?1').bind(id),
+  ]);
+
+  return json({ ok: true });
+}, { canGiaoVien: true });
+

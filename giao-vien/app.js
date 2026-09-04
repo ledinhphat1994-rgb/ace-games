@@ -397,7 +397,8 @@ async function trangDiemDanh() {
     day.append(
       oThongKe(`${daGhi}/${tong}`, 'Đã điểm danh'),
       oThongKe(String(dem.co_mat), 'Có mặt', 'tot'),
-      oThongKe(String(dem.vang_phep + dem.tre), 'Trễ / có phép', 'luuy'),
+      oThongKe(String(dem.tre), 'Đi trễ', 'luuy'),
+      oThongKe(String(dem.vang_phep), 'Vắng có phép', 'thu'),
       oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
     );
     khung.append(day);
@@ -532,27 +533,34 @@ function themHocSinh(taiLai) {
   ]);
 }
 
+function xoaHocSinh(h, taiLai) {
+  moHopThoai(`Xoá học sinh — ${h.hoTen}`, [
+    e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.id}) khỏi danh sách lớp 10A7 không?`),
+    Object.assign(e('p'), {
+      textContent: '⚠️ CẢNH BÁO: Toàn bộ dữ liệu điểm danh, điểm số, nhật ký và thông tin của học sinh này sẽ bị xoá vĩnh viễn khỏi hệ thống.',
+      style: 'margin-top:8px;padding:10px;border-radius:8px;background:rgba(239, 68, 68, 0.15);border:1px solid #ef4444;color:#fca5a5;font-size:13.5px;'
+    })
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/hoc-sinh?id=' + h.id, { method: 'DELETE' });
+        dongHopThoai();
+        nhac(`Đã xoá học sinh ${h.hoTen}`, 'tot');
+        if (taiLai) taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+}
+
 async function trangHocSinh() {
   datNoiDung(KHUNG, khoiDangTai());
   const d = await api('/api/gv/hoc-sinh');
   let tim = '';
-  let loc = '';
-
-  const BO_LOC = [
-    ['', 'Tất cả'],
-    ['vang', 'Có vắng'],
-    ['hoancanh', 'Hoàn cảnh khó khăn'],
-    ['thieusach', 'Chưa đủ sách'],
-    ['chuadongphuc', 'Chưa nhận đ/phục'],
-  ];
-
-  function hopLe(h) {
-    if (loc === 'vang') return h.vangKhongPhep + h.vangPhep > 0;
-    if (loc === 'hoancanh') return Boolean(h.hoanCanh);
-    if (loc === 'thieusach') return h.theoDoi.sgk && h.theoDoi.sgk.trangThai !== 'Đủ bộ sách';
-    if (loc === 'chuadongphuc') return h.theoDoi.dong_phuc && /Chưa/.test(h.theoDoi.dong_phuc.trangThai);
-    return true;
-  }
 
   function ve() {
     const khung = e('div');
@@ -567,19 +575,9 @@ async function trangHocSinh() {
     });
     khung.append(o);
 
-    const hopLoc = e('div', 'day-loc');
-    hopLoc.style.margin = '12px 0 16px';
-    BO_LOC.forEach(([v, t]) => {
-      const b = e('button', 'vien-loc', t);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(loc === v));
-      b.addEventListener('click', () => { loc = v; ve(); });
-      hopLoc.append(b);
-    });
-    khung.append(hopLoc);
-
     const hopDs = e('div', 'ds-the');
     hopDs.id = 'dsTheHs';
+    hopDs.style.marginTop = '16px';
     khung.append(hopDs);
     datNoiDung(KHUNG, khung);
     veDanhSach();
@@ -587,29 +585,43 @@ async function trangHocSinh() {
 
   function veDanhSach() {
     const q = tim.trim().toLowerCase();
-    const ds = d.danhSach.filter((h) => hopLe(h) && (!q || h.hoTen.toLowerCase().includes(q)));
+    const ds = d.danhSach.filter((h) => !q || h.hoTen.toLowerCase().includes(q));
     const hop = $('#dsTheHs');
 
     if (!ds.length) return datNoiDung(hop, e('p', 'trong', 'Không có học sinh phù hợp.'));
 
     datNoiDung(hop, ...ds.map((h) => {
-      const b = e('button', 'the-hs');
-      b.type = 'button';
-      b.append(e('div', 'chu-cai', (h.hoTen.trim().split(/\s+/).pop() || '?')[0].toUpperCase()));
+      const the = e('div', 'the-hs');
+      the.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;';
+
+      const khoiTrai = e('div');
+      khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0;flex:1;cursor:pointer;';
+      khoiTrai.append(e('div', 'chu-cai', (h.hoTen.trim().split(/\s+/).pop() || '?')[0].toUpperCase()));
 
       const noi = e('div', 'noi');
       noi.append(e('b', null, `${h.id}. ${h.hoTen}`));
-      const phu = [h.lopNghe, h.chucVu].filter(Boolean).join(' · ');
+      const phu = [h.lopNghe, h.toSo ? 'Tổ ' + h.toSo : '', h.chucVu].filter(Boolean).join(' · ');
       noi.append(e('small', null, phu || ngayVN(h.ngaySinh)));
-      b.append(noi);
+      khoiTrai.append(noi);
+
+      khoiTrai.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
 
       const phai = e('div', 'canh-phai');
-      if (h.vangKhongPhep) phai.append(e('span', 'nhan nhan-xau', `${h.vangKhongPhep}✗`));
-      if (h.hoanCanh) phai.append(e('span', 'nhan nhan-luuy', '!'));
-      b.append(phai);
+      phai.style.cssText = 'display:flex;align-items:center;gap:8px';
 
-      b.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
-      return b;
+      const nutXoa = e('button', 'nut-nhe nut-nho', '🗑 Xoá');
+      nutXoa.type = 'button';
+      nutXoa.title = `Xoá học sinh ${h.hoTen}`;
+      nutXoa.setAttribute('aria-label', `Xoá học sinh ${h.hoTen}`);
+      nutXoa.style.cssText = 'color:#f87171;font-size:12.5px;padding:3px 9px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);';
+      nutXoa.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        xoaHocSinh(h, () => trangHocSinh());
+      });
+
+      phai.append(nutXoa);
+      the.append(khoiTrai, phai);
+      return the;
     }));
   }
 
@@ -693,7 +705,8 @@ async function trangHoSo(id, tabMacDinh) {
           } catch (err) { nhac(err.message, 'xau'); }
         }),
       ]);
-    })
+    }),
+    nut('🗑 Xoá học sinh', 'nut-xau nut-nho', () => xoaHocSinh(h, () => { location.hash = '#/hoc-sinh'; }))
   );
   theHs.append(hangNutHs);
   luoi.append(theHs);
