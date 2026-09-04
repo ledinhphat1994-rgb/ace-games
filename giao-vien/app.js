@@ -498,11 +498,6 @@ async function trangDiemDanh() {
     if (tabCon === 'nhanh') {
       khung.append(veTabDiemDanhNhanh(duLieu.danhSach, thayDoi, lyDoMoi, ve, luuDiemDanh));
     } else {
-      khung.append(nut('Cả lớp có mặt', 'nut-vien nut-nho', () => {
-        duLieu.danhSach.forEach((h) => thayDoi.set(h.id, 'co_mat'));
-        ve();
-      }));
-
       // Thanh tiến độ
       const dem = tinhSo();
       const tong = duLieu.danhSach.length || 1;
@@ -526,6 +521,28 @@ async function trangDiemDanh() {
         oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
       );
       khung.append(day);
+
+      // Hàng tiêu đề — mỗi nút ứng với một cột trạng thái bên dưới, bấm là áp dụng trạng
+      // thái đó cho CẢ LỚP ngay (thay cho nút "Cả lớp có mặt" cũ, giờ chọn được cả 4 loại
+      // chứ không chỉ riêng "Có mặt").
+      const hangTieuDe = e('div', 'hang-hs hang-hs-tieu-de');
+      const tenTieuDe = e('div', 'ten');
+      tenTieuDe.append(e('b', null, 'Chọn cho cả lớp'));
+      hangTieuDe.append(e('div', 'stt'), tenTieuDe);
+      const nhomTieuDe = e('div', 'nhom-chon');
+      Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+        const b = e('button', null, tt2.ky);
+        b.type = 'button';
+        b.title = `Đặt "${tt2.ten}" cho cả lớp`;
+        b.setAttribute('aria-label', `Đặt ${tt2.ten} cho cả lớp`);
+        b.addEventListener('click', () => {
+          duLieu.danhSach.forEach((h) => thayDoi.set(h.id, ma));
+          ve();
+        });
+        nhomTieuDe.append(b);
+      });
+      hangTieuDe.append(nhomTieuDe);
+      khung.append(hangTieuDe);
 
       // Danh sách học sinh
       const ds = e('div', 'ds-diem-danh');
