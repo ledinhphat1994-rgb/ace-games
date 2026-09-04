@@ -5,3 +5,11 @@ Thumbs.db
 .secrets-tam.json
 dist/
 server-*.js
+
+# Mã bí mật để chạy thử trên máy — không bao giờ đưa lên GitHub.
+.dev.vars
+
+# Kết quả chạy thử trình duyệt (Playwright).
+.playwright-mcp/
+playwright-report/
+test-results/

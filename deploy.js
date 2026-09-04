@@ -19,6 +19,8 @@ function buoc(mo_ta, lenh, thamSo) {
 }
 
 buoc('kiểm tra tài khoản', 'node', ['kiem-tra-tai-khoan.js']);
+// Soát JSON hỏng, JS sai cú pháp, mã bí mật lỡ viết vào mã nguồn — trước khi gom tệp.
+buoc('soát dữ liệu và mã nguồn', 'node', ['cong-cu/kiem-tra-du-lieu.js']);
 buoc('gom tệp vào dist/', 'node', ['build.js']);
 buoc('đăng lên Cloudflare', 'npx', ['wrangler', 'pages', 'deploy']);
 

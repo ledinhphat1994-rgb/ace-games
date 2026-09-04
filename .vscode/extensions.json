@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "saoudrizwan.claude-dev",
+    "dbaeumer.vscode-eslint",
+    "editorconfig.editorconfig",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "qwtel.sqlite-viewer",
+    "ms-playwright.playwright",
+    "usernamehw.errorlens"
+  ]
+}

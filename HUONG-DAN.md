@@ -356,11 +356,26 @@ Cloudflare tự động deploy lại sau ~30 giây.
 
 ## 8. Chạy thử trên máy trước khi đưa lên mạng
 
+Mã dùng thử nằm trong tệp `.dev.vars` ở thư mục dự án (tệp này không bao giờ lên GitHub).
+
 ```bash
-npx wrangler pages dev . --binding SESSION_SECRET=test-secret CLASS_CODE=10A7 TEACHER_CODE=GVCN
+npm run dev
 ```
 
-Mở `http://localhost:8788`, nhập `10A7` để kiểm tra.
+Mở `http://localhost:8788` rồi đăng nhập bằng mã trong `.dev.vars`.
+Lúc chạy thử, trang đọc bản cơ sở dữ liệu **trên máy**, nên thêm/xoá thử thoải mái,
+không ảnh hưởng gì tới dữ liệu thật của lớp.
+
+### Soát một lượt trước khi đăng
+
+```bash
+npm run kiem-tra-du-lieu
+```
+
+Lệnh này tự tìm: tệp JSON sai dấu phẩy, JS sai cú pháp, đường dẫn gõ sai,
+câu SQL xoá cả bảng, và mã bảo mật lỡ viết thẳng vào mã nguồn.
+Nếu có lỗi thì `npm run deploy` **dừng lại**, không đăng gì cả — cứ sửa rồi chạy lại.
+Muốn soát kỹ hơn cách viết mã thì thêm `npm run lint`.
 
 ---
 

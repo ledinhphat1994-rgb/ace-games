@@ -1,0 +1,28 @@
+{
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.associations": {
+    "*.webmanifest": "json",
+    ".dev.vars": "properties",
+    ".dev.vars.example": "properties"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "dist": true,
+    ".wrangler": true,
+    "package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/.wrangler/**": true
+  },
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["javascript"],
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, wrangler.toml, eslint.config.mjs, .editorconfig, .gitignore, .dev.vars*"
+  }
+}

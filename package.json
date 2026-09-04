@@ -1,5 +1,8 @@
 {
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.9.1",
+    "globals": "17.12.0",
     "wrangler": "^4.86.0"
   },
   "name": "lop-10a7",
@@ -7,8 +10,13 @@
   "version": "1.0.0",
   "scripts": {
     "kiem-tra": "node kiem-tra-tai-khoan.js",
+    "kiem-tra-du-lieu": "node cong-cu/kiem-tra-du-lieu.js",
+    "lint": "eslint .",
     "build": "node build.js",
     "deploy": "node deploy.js",
-    "dev": "wrangler pages dev dist"
+    "dev": "node build.js && wrangler pages dev --compatibility-date=2026-05-03",
+    "log": "wrangler pages deployment tail --project-name lop-10a7",
+    "d1-cuc-bo": "wrangler d1 execute lop-10a7-db --local",
+    "d1-that": "wrangler d1 execute lop-10a7-db --remote"
   }
 }
