@@ -11,7 +11,7 @@ import {
 } from '/assets/js/giao-dien.js';
 import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
-  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhatKyDangNhap,
+  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhacNen, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
@@ -37,6 +37,7 @@ const QUYEN_THEO_TUYEN = {
   'ma-ca-nhan': null,
   'nhat-ky-dang-nhap': null,
   'hinh-anh': 'hinh-anh',
+  'nhac-nen': 'nhac-nen',
   'quy': 'quy',
   'quy-lich-su': 'quy',
   'thoi-khoa-bieu': null,
@@ -1705,6 +1706,9 @@ async function trangThongBao() {
         if (mucDo) dong.append(e('span', 'nhan ' + mucDo.lop, mucDo.ten));
         if (t.ghim) dong.append(e('span', 'nhan nhan-xam', '📌 Ghim'));
         if (!t.hien) dong.append(e('span', 'nhan nhan-xam', 'Đang ẩn'));
+        if (t.hinhKhoa) dong.append(e('span', 'nhan nhan-xam', '🖼 Ảnh'));
+        if (t.nhacKhoa) dong.append(e('span', 'nhan nhan-xam', '🎵 Nhạc'));
+        if (t.videoKhoa || t.videoUrl) dong.append(e('span', 'nhan nhan-xam', '🎬 Video'));
         dong.append(e('span', 'nhan nhan-xam', t.loai || 'Chủ nhiệm'), e('span', 'ngay', ngayVN(t.ngay)));
 
         const viec = e('div', 'viec');
@@ -1757,6 +1761,7 @@ const MUC_THEM = [
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
   ['#/hinh-anh', '🖼', 'Ảnh hoạt động', 'Đăng ảnh của lớp, tự nén nhỏ trước khi tải lên.'],
+  ['#/nhac-nen', '♪', 'Nhạc nền trang chủ', 'Phát khi học sinh mở trang lớp, đổi bài hát hoặc tắt nhạc.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân & phân quyền', 'Cấp mã, cấp quyền quản lý cho lớp trưởng, thủ quỹ...'],
   ['/', '🏠', 'Trang chủ', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
@@ -1821,6 +1826,7 @@ const TRANG = {
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
   '/nhat-ky-dang-nhap': () => trangNhatKyDangNhap(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
+  '/nhac-nen': () => trangNhacNen(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
@@ -1830,7 +1836,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/nhac-nen', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

@@ -11,6 +11,10 @@ import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
 
+// Giới hạn an toàn tuyệt đối: 9,5 GB (ngưỡng miễn phí của Cloudflare R2 là 10 GB).
+// Chặn 100% việc tải thêm nếu vượt quá, bảo đảm tài khoản không bao giờ phát sinh chi phí.
+const GIOI_HAN_TOI_DA_TONG_BYTE = 9_500_000_000;
+
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
     'SELECT id, khoa, chu_thich AS chuThich, ngay, kieu, co_byte AS coByte FROM hinh_anh ORDER BY ngay DESC, id DESC'
@@ -42,8 +46,19 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     return loi(`Ảnh còn ${Math.round(byte.length / 1024)} KB, vượt mức cho phép. Hãy chọn ảnh nhỏ hơn.`);
   }
 
+  // Chốt chặn an toàn: không vượt quá 9,5 GB để không bao giờ bị tính phí
+  const tongAnh = await env.DB.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM hinh_anh').first('tong');
+  const tongNhac = await env.DB.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM nhac_nen').first('tong');
+  if ((Number(tongAnh) || 0) + (Number(tongNhac) || 0) + byte.length > GIOI_HAN_TOI_DA_TONG_BYTE) {
+    return loi('Kho lưu trữ đã đạt ngưỡng an toàn 9,5 GB (trong mức 10 GB miễn phí). Đã tự động khoá tải lên để bảo đảm 100% không phát sinh chi phí.');
+  }
+
   const khoa = 'anh-' + Date.now().toString(36) + '-' + crypto.randomUUID().slice(0, 8);
-  await env.ANH.put(khoa, byte, { metadata: { kieu } });
+  await env.ANH.put(khoa, byte, {
+    httpMetadata: { contentType: kieu },
+    customMetadata: { kieu },
+    metadata: { kieu },
+  });
 
   const kq = await env.DB.prepare(
     'INSERT INTO hinh_anh (khoa, chu_thich, ngay, kieu, co_byte) VALUES (?1, ?2, ?3, ?4, ?5)'

@@ -13,12 +13,24 @@ export async function onRequestGet({ request, env }) {
   if (!(await layPhien(request, env))) return new Response('Chưa đăng nhập.', { status: 401 });
   if (!env.ANH) return new Response('Chưa gắn kho ảnh.', { status: 500 });
 
-  const { value, metadata } = await env.ANH.getWithMetadata(khoa, { type: 'arrayBuffer' });
-  if (!value) return new Response('Không tìm thấy ảnh.', { status: 404 });
+  let value, kieuTraVe;
+  if (typeof env.ANH.getWithMetadata === 'function') {
+    const res = await env.ANH.getWithMetadata(khoa, { type: 'arrayBuffer' });
+    if (!res || !res.value) return new Response('Không tìm thấy ảnh.', { status: 404 });
+    value = res.value;
+    kieuTraVe = (res.metadata && res.metadata.kieu) || 'image/jpeg';
+  } else {
+    const obj = await env.ANH.get(khoa);
+    if (!obj) return new Response('Không tìm thấy ảnh.', { status: 404 });
+    value = obj.body;
+    kieuTraVe = (obj.httpMetadata && obj.httpMetadata.contentType)
+      || (obj.customMetadata && obj.customMetadata.kieu)
+      || 'image/jpeg';
+  }
 
   return new Response(value, {
     headers: {
-      'Content-Type': (metadata && metadata.kieu) || 'image/jpeg',
+      'Content-Type': kieuTraVe,
       // Ảnh không đổi nội dung nên cho trình duyệt giữ lại, đỡ tốn dữ liệu di động của học sinh.
       'Cache-Control': 'private, max-age=604800',
       'X-Content-Type-Options': 'nosniff',

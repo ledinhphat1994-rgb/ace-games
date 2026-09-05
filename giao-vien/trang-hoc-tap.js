@@ -1085,8 +1085,9 @@ const CAC_QUYEN_QUAN_LY = [
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
   ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
+  ['nhac-nen', 'Nhạc nền trang chủ — đổi bài nhạc phát trên trang lớp'],
 ];
-const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸' };
+const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸', 'nhac-nen': '♪' };
 
 function taoNhomTich(danhMuc, daChon) {
   const bo = new Set(daChon);
@@ -1316,84 +1317,103 @@ async function nenAnh(tep) {
   return { base64: btoa(chuoiNhiPhan), coByte: dem.length, kieu: 'image/jpeg' };
 }
 
-/** Khối quản lý nhạc nền trang chủ — chỉ một bài tại một thời điểm. */
-async function veKhoiNhacNen() {
-  const d = await api('/api/gv/nhac-nen');
-  const the = e('div', 'the');
-  the.style.marginTop = '16px';
-  the.append(e('h3', null, '♪ Nhạc nền trang chủ'));
-  the.append(e('p', 'trong',
-    'Phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
+/** Quản lý nhạc nền trang chủ — phát khi học sinh vào trang lớp. */
+export async function trangNhacNen(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
 
-  if (d.nhac) {
-    const dong = e('div');
-    dong.style.cssText = 'margin:10px 0;font-size:14px';
-    dong.append(e('b', null, d.nhac.tenBai), document.createTextNode(` · ${(d.nhac.coByte / 1_000_000).toFixed(1)} MB`));
-    the.append(dong);
+  async function ve() {
+    const d = await api('/api/gv/nhac-nen');
+    const khung = e('div');
+    const tieuDePhu = d.nhac
+      ? `Đang phát: ${d.nhac.tenBai} (${(d.nhac.coByte / 1_000_000).toFixed(1)} MB)`
+      : 'Chưa cài nhạc nền';
+    khung.append(tieuDeTrang('Nhạc nền trang chủ', tieuDePhu));
 
-    const audio = e('audio');
-    audio.controls = true;
-    audio.preload = 'none';
-    audio.src = '/api/nhac-nen';
-    audio.style.cssText = 'width:100%;margin-bottom:10px';
-    the.append(audio);
+    const the = e('div', 'the');
+    the.append(e('h3', null, '♪ Bài nhạc đang phát'));
+    the.append(e('p', 'trong',
+      'Phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
 
-    the.append(nut('🗑 Xoá nhạc nền', 'nut-nhe nut-nho', () => {
-      moHopThoai('Xoá nhạc nền?', e('p', null, 'Học sinh sẽ không còn nghe được nhạc nền khi mở trang lớp.'), [
-        nut('Huỷ', 'nut-nhe', dongHopThoai),
-        nut('Xoá', 'nut-xau', async () => {
-          try {
-            await api('/api/gv/nhac-nen', { method: 'DELETE' });
-            dongHopThoai();
-            nhac('Đã xoá nhạc nền', 'tot');
-            trangHinhAnh(document.getElementById('noiDung'));
-          } catch (err) { nhac(err.message, 'xau'); }
-        }),
-      ]);
-    }));
+    if (d.nhac) {
+      const dong = e('div');
+      dong.style.cssText = 'margin:12px 0 8px;font-size:14px';
+      dong.append(e('b', null, d.nhac.tenBai), document.createTextNode(` · ${(d.nhac.coByte / 1_000_000).toFixed(1)} MB`));
+      the.append(dong);
+
+      const audio = e('audio');
+      audio.controls = true;
+      audio.preload = 'none';
+      audio.src = '/api/nhac-nen';
+      audio.style.cssText = 'width:100%;margin-bottom:12px';
+      the.append(audio);
+
+      the.append(nut('🗑 Xoá nhạc nền', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá nhạc nền?', e('p', null, 'Học sinh sẽ không còn nghe được nhạc nền khi mở trang lớp.'), [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async () => {
+            try {
+              await api('/api/gv/nhac-nen', { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá nhạc nền', 'tot');
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); }
+          }),
+        ]);
+      }));
+    } else {
+      the.append(e('p', 'trong', 'Chưa có nhạc nền nào. Chọn một file .mp3 bên dưới để tải lên.'));
+    }
+    khung.append(the);
+
+    const theTai = e('div', 'the');
+    theTai.style.marginTop = '16px';
+    theTai.append(e('h3', null, d.nhac ? 'Thay bằng bài khác' : 'Tải bài nhạc mới'));
+
+    const oTepNhac = e('input');
+    oTepNhac.type = 'file';
+    oTepNhac.accept = 'audio/mpeg,.mp3';
+    oTepNhac.id = 'chonNhac';
+    oTepNhac.className = 'o-nhap';
+    const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền lớp 10A7');
+
+    theTai.append(
+      truong(d.nhac ? 'Chọn file .mp3 mới (tối đa 12 MB)' : 'Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
+      truong('Tên bài hát hiển thị', oTenBai)
+    );
+
+    const tienTrinh = e('div', 'trong');
+    tienTrinh.style.marginTop = '8px';
+
+    theTai.append(nut('⬆ Tải nhạc lên', '', async (ev) => {
+      const tep = oTepNhac.files[0];
+      if (!tep) return nhac('Chưa chọn file nhạc', 'xau');
+      if (!/\.mp3$/i.test(tep.name) && tep.type !== 'audio/mpeg') return nhac('Chỉ nhận file .mp3', 'xau');
+
+      const b = ev.currentTarget;
+      b.disabled = true;
+      tienTrinh.textContent = 'Đang tải lên…';
+      try {
+        const duLieu = await tep.arrayBuffer();
+        const tenBai = (oTenBai.value || tep.name.replace(/\.mp3$/i, '')).trim();
+        const res = await fetch('/api/gv/nhac-nen?tenBai=' + encodeURIComponent(tenBai), {
+          method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
+        });
+        const kq = await res.json();
+        if (!kq.ok) throw new Error(kq.loi || 'Tải lên thất bại.');
+        nhac('Đã cập nhật nhạc nền', 'tot');
+        ve();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        b.disabled = false;
+        tienTrinh.textContent = '';
+      }
+    }), tienTrinh);
+
+    khung.append(theTai);
+    datNoiDung(KHUNG, khung);
   }
 
-  const oTepNhac = e('input');
-  oTepNhac.type = 'file';
-  oTepNhac.accept = 'audio/mpeg,.mp3';
-  oTepNhac.id = 'chonNhac';
-  oTepNhac.className = 'o-nhap';
-  const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền lớp 10A7');
-
-  the.append(
-    truong(d.nhac ? 'Thay bằng bài khác (.mp3, tối đa 12 MB)' : 'Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
-    truong('Tên bài', oTenBai)
-  );
-
-  const tienTrinh = e('div', 'trong');
-  tienTrinh.style.marginTop = '8px';
-
-  the.append(nut('⬆ Tải nhạc lên', 'nut-vien nut-nho', async (ev) => {
-    const tep = oTepNhac.files[0];
-    if (!tep) return nhac('Chưa chọn file nhạc', 'xau');
-    if (!/\.mp3$/i.test(tep.name) && tep.type !== 'audio/mpeg') return nhac('Chỉ nhận file .mp3', 'xau');
-
-    const b = ev.currentTarget;
-    b.disabled = true;
-    tienTrinh.textContent = 'Đang tải lên…';
-    try {
-      const duLieu = await tep.arrayBuffer();
-      const tenBai = (oTenBai.value || tep.name.replace(/\.mp3$/i, '')).trim();
-      const res = await fetch('/api/gv/nhac-nen?tenBai=' + encodeURIComponent(tenBai), {
-        method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
-      });
-      const kq = await res.json();
-      if (!kq.ok) throw new Error(kq.loi || 'Tải lên thất bại.');
-      nhac('Đã cập nhật nhạc nền', 'tot');
-      trangHinhAnh(document.getElementById('noiDung'));
-    } catch (err) {
-      nhac(err.message, 'xau');
-      b.disabled = false;
-      tienTrinh.textContent = '';
-    }
-  }), tienTrinh);
-
-  return the;
+  await ve();
 }
 
 export async function trangHinhAnh(KHUNG) {
@@ -1403,8 +1423,9 @@ export async function trangHinhAnh(KHUNG) {
     const d = await api('/api/gv/anh');
 
     const khung = e('div');
+    const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
     khung.append(tieuDeTrang('Ảnh hoạt động',
-      `${d.soAnh} ảnh · đã dùng ${(d.tongByte / 1048576).toFixed(1)} MB trong 1 GB miễn phí`));
+      d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào'));
 
     // Khu chọn ảnh
     const the = e('div', 'the');
@@ -1458,8 +1479,6 @@ export async function trangHinhAnh(KHUNG) {
       ve();
     }), tienTrinh);
     khung.append(the);
-
-    khung.append(await veKhoiNhacNen());
 
     // Danh sách ảnh đã có
     if (!d.danhSach.length) {

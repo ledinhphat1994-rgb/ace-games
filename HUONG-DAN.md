@@ -107,8 +107,8 @@ Mở `lop-10a7.pages.dev/giao-vien/` bằng Chrome trên điện thoại → men
 
 **Thêm → Ảnh hoạt động**: chọn ảnh hoặc chụp thẳng bằng điện thoại. Ảnh được **thu nhỏ ngay trên máy**
 xuống cạnh dài 1600 điểm ảnh trước khi gửi đi, nên ảnh 5 MB từ điện thoại chỉ còn khoảng 200 KB —
-không tốn dữ liệu di động và không sợ hết dung lượng. Ảnh lưu trong Cloudflare KV (1 GB miễn phí,
-đủ cho khoảng 5000 tấm). Học sinh xem ảnh ở mục *Hình ảnh* trên trang lớp.
+không tốn dữ liệu di động và không sợ hết dung lượng. Ảnh lưu trong Cloudflare R2 (10 GB miễn phí,
+đủ cho khoảng 50.000 tấm và có chốt chặn an toàn không phát sinh chi phí). Học sinh xem ảnh ở mục *Hình ảnh* trên trang lớp.
 
 ### Điểm danh khi mất mạng
 

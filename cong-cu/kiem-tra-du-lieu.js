@@ -24,7 +24,7 @@ const tenTuongDoi = (p) => path.relative(ROOT, p).split(path.sep).join('/');
 
 function duyetThuMuc(thuMuc, ketQua = []) {
   for (const muc of fs.readdirSync(thuMuc, { withFileTypes: true })) {
-    if (BO_QUA_THU_MUC.has(muc.name)) continue;
+    if (BO_QUA_THU_MUC.has(muc.name) || muc.name.startsWith('.tmp')) continue;
     const duongDan = path.join(thuMuc, muc.name);
     if (muc.isDirectory()) duyetThuMuc(duongDan, ketQua);
     else ketQua.push(duongDan);
@@ -33,7 +33,13 @@ function duyetThuMuc(thuMuc, ketQua = []) {
 }
 
 const tatCaTep = duyetThuMuc(ROOT).filter((p) => !BO_QUA_TEP.has(tenTuongDoi(p)));
-const doc = (p) => fs.readFileSync(p, 'utf8');
+const doc = (p) => {
+  try {
+    return fs.readFileSync(p, 'utf8');
+  } catch {
+    return '';
+  }
+};
 
 // ─────────────────────────────────────────────────────────────
 // 1. JSON đọc được không (thừa/thiếu dấu phẩy là lỗi hay gặp nhất)

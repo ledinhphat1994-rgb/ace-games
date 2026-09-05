@@ -14,12 +14,25 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   ).bind(id).first();
   if (!tb || !tb.khoa) return loi('Thông báo này chưa có tệp âm thanh.', 404);
 
-  const { value } = await env.ANH.getWithMetadata(tb.khoa, { type: 'arrayBuffer' });
-  if (!value) return loi('Không tìm thấy file âm thanh.', 404);
+  let value, kieuTraVe;
+  if (typeof env.ANH.getWithMetadata === 'function') {
+    const res = await env.ANH.getWithMetadata(tb.khoa, { type: 'arrayBuffer' });
+    if (!res || !res.value) return loi('Không tìm thấy file âm thanh.', 404);
+    value = res.value;
+    kieuTraVe = tb.kieu || 'audio/mpeg';
+  } else {
+    const obj = await env.ANH.get(tb.khoa);
+    if (!obj) return loi('Không tìm thấy file âm thanh.', 404);
+    value = obj.body;
+    kieuTraVe = (obj.httpMetadata && obj.httpMetadata.contentType)
+      || (obj.customMetadata && obj.customMetadata.kieu)
+      || tb.kieu
+      || 'audio/mpeg';
+  }
 
   return new Response(value, {
     headers: {
-      'Content-Type': tb.kieu || 'audio/mpeg',
+      'Content-Type': kieuTraVe,
       'Cache-Control': 'private, max-age=604800',
       'X-Content-Type-Options': 'nosniff',
     },

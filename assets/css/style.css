@@ -732,7 +732,7 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .tin img.tin-hinh { max-width: 100%; max-height: 360px; object-fit: contain; border-radius: var(--r-nho); margin-top: 10px; display: block; }
 .tin audio.tin-nhac { width: 100%; margin-top: 10px; }
 .tin .tin-video { position: relative; width: 100%; aspect-ratio: 16 / 9; margin-top: 10px; border-radius: var(--r-nho); overflow: hidden; background: #000; }
-.tin .tin-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.tin .tin-video iframe, .tin .tin-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: contain; }
 .tin .tin-video-lien-ket { margin-top: 10px; }
 
 /* Thẻ tóm tắt (còn dùng ở trang Kết quả của tôi) */

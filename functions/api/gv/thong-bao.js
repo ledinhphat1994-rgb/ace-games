@@ -19,14 +19,14 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
     `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, hien, noi_bat AS noiBat,
             muc_do AS mucDo, hinh_khoa AS hinhKhoa, hinh_kieu AS hinhKieu, nhac_khoa AS nhacKhoa,
-            video_url AS videoUrl
+            nhac_kieu AS nhacKieu, video_url AS videoUrl, video_khoa AS videoKhoa, video_kieu AS videoKieu
        FROM thong_bao ORDER BY ghim DESC, ngay DESC LIMIT 200`
   ).all();
   return json({ ok: true, danhSach: results });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
-  const { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl } = await docThan(request);
+  const { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl, hinhKhoa, nhacKhoa } = await docThan(request);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
   const td = chuoi(tieuDe, 200);
@@ -35,12 +35,15 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (!nd) return loi('Chưa nhập nội dung.');
   if (mucDo !== undefined && !MUC_DO_HOP_LE.has(mucDo)) return loi('Mức độ không hợp lệ.');
 
+  const hk = chuoi(hinhKhoa, 1000) || null;
+  const nk = chuoi(nhacKhoa, 1000) || null;
+
   const kq = await env.DB.prepare(
-    `INSERT INTO thong_bao (ngay, tieu_de, noi_dung, loai, ghim, noi_bat, muc_do, video_url)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+    `INSERT INTO thong_bao (ngay, tieu_de, noi_dung, loai, ghim, noi_bat, muc_do, video_url, hinh_khoa, nhac_khoa)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`
   ).bind(
     ngay, td, nd, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
-    mucDo || '', chuoi(videoUrl, 500)
+    mucDo || '', chuoi(videoUrl, 500) || null, hk, nk
   ).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
@@ -53,25 +56,38 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 
   const dat = [];
   const thamSo = [];
-  const them = (cot, giaTri) => { thamSo.push(giaTri); dat.push(`${cot} = ?${thamSo.length}`); };
+  const them = (cot, tri) => {
+    thamSo.push(tri);
+    dat.push(`${cot} = ?${thamSo.length}`);
+  };
 
-  if (than.tieuDe !== undefined) them('tieu_de', chuoi(than.tieuDe, 200));
-  if (than.noiDung !== undefined) them('noi_dung', chuoi(than.noiDung, 5000));
-  if (than.loai !== undefined) them('loai', chuoi(than.loai, 50));
   if (than.ngay !== undefined) {
     if (!ngayHopLe(than.ngay)) return loi('Ngày không hợp lệ.');
     them('ngay', than.ngay);
   }
+  if (than.tieuDe !== undefined) {
+    const td = chuoi(than.tieuDe, 200);
+    if (!td) return loi('Tiêu đề không được để trống.');
+    them('tieu_de', td);
+  }
+  if (than.noiDung !== undefined) {
+    const nd = chuoi(than.noiDung, 5000);
+    if (!nd) return loi('Nội dung không được để trống.');
+    them('noi_dung', nd);
+  }
+  if (than.loai !== undefined) them('loai', chuoi(than.loai, 50) || 'Chủ nhiệm');
   if (than.ghim !== undefined) them('ghim', than.ghim ? 1 : 0);
-  if (than.hien !== undefined) them('hien', than.hien ? 1 : 0);
   if (than.noiBat !== undefined) them('noi_bat', than.noiBat ? 1 : 0);
+  if (than.hien !== undefined) them('hien', than.hien ? 1 : 0);
   if (than.mucDo !== undefined) {
     if (!MUC_DO_HOP_LE.has(than.mucDo)) return loi('Mức độ không hợp lệ.');
     them('muc_do', than.mucDo);
   }
-  if (than.videoUrl !== undefined) them('video_url', chuoi(than.videoUrl, 500));
+  if (than.videoUrl !== undefined) them('video_url', chuoi(than.videoUrl, 500) || null);
+  if (than.hinhKhoa !== undefined) them('hinh_khoa', chuoi(than.hinhKhoa, 1000) || null);
+  if (than.nhacKhoa !== undefined) them('nhac_khoa', chuoi(than.nhacKhoa, 1000) || null);
 
-  if (!dat.length) return loi('Không có gì để cập nhật.');
+  if (!dat.length) return loi('Không có thông tin cần đổi.');
 
   thamSo.push(id);
   await env.DB.prepare(`UPDATE thong_bao SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`)
@@ -84,12 +100,13 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
-  // Dọn luôn tệp ảnh/nhạc đính kèm trong KV, tránh rác lại khi xoá thông báo.
+  // Dọn luôn tệp ảnh/nhạc/video đính kèm trong kho R2, tránh rác lại khi xoá thông báo.
   if (env.ANH) {
-    const tb = await env.DB.prepare('SELECT hinh_khoa AS hinhKhoa, nhac_khoa AS nhacKhoa FROM thong_bao WHERE id = ?1').bind(id).first();
+    const tb = await env.DB.prepare('SELECT hinh_khoa AS hinhKhoa, nhac_khoa AS nhacKhoa, video_khoa AS videoKhoa FROM thong_bao WHERE id = ?1').bind(id).first();
     if (tb) {
-      if (tb.hinhKhoa) await env.ANH.delete(tb.hinhKhoa).catch(() => {});
-      if (tb.nhacKhoa) await env.ANH.delete(tb.nhacKhoa).catch(() => {});
+      if (tb.hinhKhoa && !tb.hinhKhoa.startsWith('http')) await env.ANH.delete(tb.hinhKhoa).catch(() => {});
+      if (tb.nhacKhoa && !tb.nhacKhoa.startsWith('http')) await env.ANH.delete(tb.nhacKhoa).catch(() => {});
+      if (tb.videoKhoa) await env.ANH.delete(tb.videoKhoa).catch(() => {});
     }
   }
 

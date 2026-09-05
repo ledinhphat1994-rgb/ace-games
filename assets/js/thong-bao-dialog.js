@@ -1,6 +1,5 @@
 /* Hộp thoại soạn/sửa Thông báo — DÙNG CHUNG cho khu quản lý (giao-vien/app.js) và lối tắt
-   "⚙ Quản lý" ngay trên trang lớp (trang-lop.js), để hai nơi luôn giống hệt nhau, không lệch
-   tính năng như trước (bên khu quản lý từng thiếu ô "nổi bật"). */
+   "⚙ Quản lý" ngay trên trang lớp (trang-lop.js). */
 import { e, api, homNay, nhac, nenAnhThanhBlob, MUC_DO_THONG_BAO } from './chung.js';
 import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
 
@@ -17,7 +16,7 @@ function hangTich(id, nhanChu, daChon) {
   return [o, l];
 }
 
-/** Khối "đính kèm hình ảnh": ảnh hiện có (nếu có) + tích xoá, và ô chọn ảnh mới. */
+/** Khối "đính kèm hình ảnh": hỗ trợ tải ảnh từ máy (tự nén) HOẶC dán link ảnh trực tuyến. */
 function khoiDinhKemHinh(tb) {
   const khung = e('div');
   khung.style.cssText = 'border-top:1px dashed var(--vien);padding-top:12px;margin-top:4px';
@@ -26,7 +25,9 @@ function khoiDinhKemHinh(tb) {
   let oXoa = null;
   if (tb && tb.hinhKhoa) {
     const img = e('img');
-    img.src = '/api/anh?khoa=' + encodeURIComponent(tb.hinhKhoa);
+    img.src = (tb.hinhKhoa.startsWith('http://') || tb.hinhKhoa.startsWith('https://'))
+      ? tb.hinhKhoa
+      : ('/api/anh?khoa=' + encodeURIComponent(tb.hinhKhoa));
     img.style.cssText = 'max-width:160px;max-height:120px;border-radius:8px;display:block;margin-bottom:8px;object-fit:cover';
     khung.append(img);
     const [o, l] = hangTich('tbXoaHinh', 'Xoá ảnh hiện tại', false);
@@ -39,12 +40,19 @@ function khoiDinhKemHinh(tb) {
   oTep.accept = 'image/jpeg,image/png,image/webp';
   oTep.id = 'tbTepHinh';
   oTep.className = 'o-nhap';
-  khung.append(truong(tb && tb.hinhKhoa ? 'Thay bằng ảnh khác' : 'Chọn ảnh (tự nén nhỏ)', oTep));
 
-  return { khung, oTep, oXoa };
+  const linkHienTai = (tb && tb.hinhKhoa && tb.hinhKhoa.startsWith('http')) ? tb.hinhKhoa : '';
+  const oUrlHinh = oNhap('tbUrlHinh', 'text', linkHienTai, 'Dán link ảnh từ mạng (https://...)');
+
+  khung.append(
+    truong('Cách 1: Chọn ảnh từ máy (tự nén nhỏ)', oTep),
+    truong('Cách 2: Hoặc dán link ảnh trực tuyến', oUrlHinh)
+  );
+
+  return { khung, oTep, oUrlHinh, oXoa };
 }
 
-/** Khối "đính kèm âm thanh": nghe thử file hiện có (nếu có) + tích xoá, và ô chọn file mới. */
+/** Khối "đính kèm âm thanh": hỗ trợ tải file .mp3 từ máy HOẶC dán link nhạc trực tuyến. */
 function khoiDinhKemNhac(tb) {
   const khung = e('div');
   khung.style.cssText = 'border-top:1px dashed var(--vien);padding-top:12px;margin-top:4px';
@@ -55,7 +63,9 @@ function khoiDinhKemNhac(tb) {
     const audio = e('audio');
     audio.controls = true;
     audio.preload = 'none';
-    audio.src = '/api/thong-bao-nhac?id=' + tb.id;
+    audio.src = (tb.nhacKhoa.startsWith('http://') || tb.nhacKhoa.startsWith('https://'))
+      ? tb.nhacKhoa
+      : ('/api/thong-bao-nhac?id=' + tb.id);
     audio.style.cssText = 'width:100%;margin-bottom:8px';
     khung.append(audio);
     const [o, l] = hangTich('tbXoaNhac', 'Xoá âm thanh hiện tại', false);
@@ -68,9 +78,53 @@ function khoiDinhKemNhac(tb) {
   oTep.accept = 'audio/mpeg,.mp3';
   oTep.id = 'tbTepNhac';
   oTep.className = 'o-nhap';
-  khung.append(truong(tb && tb.nhacKhoa ? 'Thay bằng file khác (.mp3, tối đa 12 MB)' : 'Chọn file .mp3 (tối đa 12 MB)', oTep));
 
-  return { khung, oTep, oXoa };
+  const linkHienTai = (tb && tb.nhacKhoa && tb.nhacKhoa.startsWith('http')) ? tb.nhacKhoa : '';
+  const oUrlNhac = oNhap('tbUrlNhac', 'text', linkHienTai, 'Dán link file nhạc trực tuyến (.mp3)');
+
+  khung.append(
+    truong('Cách 1: Chọn file .mp3 từ máy (tối đa 12 MB)', oTep),
+    truong('Cách 2: Hoặc dán link âm thanh trực tuyến', oUrlNhac)
+  );
+
+  return { khung, oTep, oUrlNhac, oXoa };
+}
+
+/** Khối "đính kèm video": hỗ trợ tải video từ máy (R2) HOẶC dán link (YouTube, Drive, TikTok, FB, .mp4). */
+function khoiDinhKemVideo(tb) {
+  const khung = e('div');
+  khung.style.cssText = 'border-top:1px dashed var(--vien);padding-top:12px;margin-top:4px';
+  khung.append(Object.assign(e('div', null, '🎬 Video đính kèm'), { style: 'font-weight:700;font-size:13.5px;margin-bottom:8px' }));
+
+  let oXoa = null;
+  if (tb && (tb.videoKhoa || tb.videoUrl)) {
+    if (tb.videoKhoa) {
+      const vid = e('video');
+      vid.controls = true;
+      vid.preload = 'metadata';
+      vid.src = '/api/thong-bao-video?id=' + tb.id;
+      vid.style.cssText = 'max-width:240px;max-height:140px;border-radius:8px;display:block;margin-bottom:8px;background:#000';
+      khung.append(vid);
+    }
+    const [o, l] = hangTich('tbXoaVideo', 'Xoá video hiện tại', false);
+    oXoa = o;
+    khung.append(l);
+  }
+
+  const oTep = e('input');
+  oTep.type = 'file';
+  oTep.accept = 'video/mp4,video/webm,video/quicktime,video/*';
+  oTep.id = 'tbTepVideo';
+  oTep.className = 'o-nhap';
+
+  const oUrlVideo = oNhap('tbVideo', 'text', tb ? (tb.videoUrl || '') : '', 'Dán link YouTube, Google Drive, TikTok, Facebook, hoặc link .mp4');
+
+  khung.append(
+    truong('Cách 1: Dán link video (YouTube, Drive, TikTok, Facebook, .mp4)', oUrlVideo, 'Hệ thống tự động nhận diện và nhúng phát video trên cả máy tính lẫn điện thoại.'),
+    truong('Cách 2: Hoặc chọn file video từ máy/điện thoại (tối đa 50 MB)', oTep, 'Tệp video tải lên sẽ được lưu an toàn trong kho Cloudflare R2.')
+  );
+
+  return { khung, oTep, oUrlVideo, oXoa };
 }
 
 export function moHopThoaiSoanThongBao(tb, lamMoi) {
@@ -79,13 +133,13 @@ export function moHopThoaiSoanThongBao(tb, lamMoi) {
   const oNd = oNhap('tbNd', 'textarea', tb ? tb.noiDung : '', 'Nội dung chi tiết…');
   const oLoai = oChon('tbLoai', LOAI_THONG_BAO, tb ? tb.loai : 'Chủ nhiệm');
   const oMucDo = oChon('tbMucDo', MUC_DO_THONG_BAO, tb ? (tb.mucDo || '') : '');
-  const oVideo = oNhap('tbVideo', 'text', tb ? (tb.videoUrl || '') : '', 'Dán link YouTube… (để trống nếu không có)');
 
   const [oGhim, hangGhim] = hangTich('tbGhim', 'Ghim lên đầu trang lớp', tb && tb.ghim);
   const [oNoiBat, hangNoiBat] = hangTich('tbNoiBat', 'Hiện trong băng điểm nhấn ở trang chủ', tb && tb.noiBat);
 
-  const { khung: khoiHinh, oTep: oTepHinh, oXoa: oXoaHinh } = khoiDinhKemHinh(tb);
-  const { khung: khoiNhac, oTep: oTepNhac, oXoa: oXoaNhac } = khoiDinhKemNhac(tb);
+  const { khung: khoiHinh, oTep: oTepHinh, oUrlHinh, oXoa: oXoaHinh } = khoiDinhKemHinh(tb);
+  const { khung: khoiNhac, oTep: oTepNhac, oUrlNhac, oXoa: oXoaNhac } = khoiDinhKemNhac(tb);
+  const { khung: khoiVideo, oTep: oTepVideo, oUrlVideo, oXoa: oXoaVideo } = khoiDinhKemVideo(tb);
 
   moHopThoai(tb ? 'Sửa thông báo' : 'Soạn thông báo', [
     truong('Ngày', oNgay),
@@ -95,7 +149,7 @@ export function moHopThoaiSoanThongBao(tb, lamMoi) {
     truong('Nội dung', oNd),
     hangGhim,
     hangNoiBat,
-    truong('Video', oVideo),
+    khoiVideo,
     khoiHinh,
     khoiNhac,
   ], [
@@ -106,18 +160,30 @@ export function moHopThoaiSoanThongBao(tb, lamMoi) {
       if (tepNhac && tepNhac.type !== 'audio/mpeg' && !/\.mp3$/i.test(tepNhac.name)) {
         return nhac('File âm thanh chỉ nhận định dạng .mp3', 'xau');
       }
+      const tepVideo = oTepVideo.files[0];
+      if (tepVideo && tepVideo.size > 50_000_000) {
+        return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link YouTube/Drive', 'xau');
+      }
 
       ev.currentTarget.disabled = true;
       try {
         const than = {
           ngay: oNgay.value, tieuDe: oTd.value, noiDung: oNd.value, loai: oLoai.value,
-          ghim: oGhim.checked, noiBat: oNoiBat.checked, mucDo: oMucDo.value, videoUrl: oVideo.value.trim(),
+          ghim: oGhim.checked, noiBat: oNoiBat.checked, mucDo: oMucDo.value,
+          videoUrl: (oXoaVideo && oXoaVideo.checked) ? '' : oUrlVideo.value.trim(),
         };
+
+        if (oXoaHinh && oXoaHinh.checked) than.hinhKhoa = null;
+        else if (oUrlHinh.value.trim()) than.hinhKhoa = oUrlHinh.value.trim();
+
+        if (oXoaNhac && oXoaNhac.checked) than.nhacKhoa = null;
+        else if (oUrlNhac.value.trim()) than.nhacKhoa = oUrlNhac.value.trim();
 
         let id = tb ? tb.id : null;
         if (tb) await api('/api/gv/thong-bao', { method: 'PATCH', than: { id, ...than } });
         else { const kq = await api('/api/gv/thong-bao', { method: 'POST', than }); id = kq.id; }
 
+        // Xử lý tệp hình ảnh
         if (oXoaHinh && oXoaHinh.checked) {
           await api(`/api/gv/thong-bao-tep?id=${id}&loai=hinh`, { method: 'DELETE' });
         } else if (oTepHinh.files[0]) {
@@ -127,12 +193,23 @@ export function moHopThoaiSoanThongBao(tb, lamMoi) {
           });
         }
 
+        // Xử lý tệp âm thanh
         if (oXoaNhac && oXoaNhac.checked) {
           await api(`/api/gv/thong-bao-tep?id=${id}&loai=nhac`, { method: 'DELETE' });
         } else if (tepNhac) {
           const duLieu = await tepNhac.arrayBuffer();
           await api(`/api/gv/thong-bao-tep?id=${id}&loai=nhac`, {
             method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
+          });
+        }
+
+        // Xử lý tệp video
+        if (oXoaVideo && oXoaVideo.checked) {
+          await api(`/api/gv/thong-bao-tep?id=${id}&loai=video`, { method: 'DELETE' });
+        } else if (tepVideo) {
+          const duLieu = await tepVideo.arrayBuffer();
+          await api(`/api/gv/thong-bao-tep?id=${id}&loai=video`, {
+            method: 'POST', headers: { 'Content-Type': tepVideo.type || 'video/mp4' }, body: duLieu,
           });
         }
 

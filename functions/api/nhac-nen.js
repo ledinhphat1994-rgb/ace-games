@@ -8,12 +8,25 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
   const nhac = await env.DB.prepare('SELECT khoa, kieu FROM nhac_nen WHERE id = 1').first();
   if (!nhac) return loi('Chưa có nhạc nền.', 404);
 
-  const { value } = await env.ANH.getWithMetadata(nhac.khoa, { type: 'arrayBuffer' });
-  if (!value) return loi('Không tìm thấy file nhạc.', 404);
+  let value, kieuTraVe;
+  if (typeof env.ANH.getWithMetadata === 'function') {
+    const res = await env.ANH.getWithMetadata(nhac.khoa, { type: 'arrayBuffer' });
+    if (!res || !res.value) return loi('Không tìm thấy file nhạc.', 404);
+    value = res.value;
+    kieuTraVe = nhac.kieu || 'audio/mpeg';
+  } else {
+    const obj = await env.ANH.get(nhac.khoa);
+    if (!obj) return loi('Không tìm thấy file nhạc.', 404);
+    value = obj.body;
+    kieuTraVe = (obj.httpMetadata && obj.httpMetadata.contentType)
+      || (obj.customMetadata && obj.customMetadata.kieu)
+      || nhac.kieu
+      || 'audio/mpeg';
+  }
 
   return new Response(value, {
     headers: {
-      'Content-Type': nhac.kieu || 'audio/mpeg',
+      'Content-Type': kieuTraVe,
       'Cache-Control': 'private, max-age=604800',
       'X-Content-Type-Options': 'nosniff',
       'Accept-Ranges': 'none',

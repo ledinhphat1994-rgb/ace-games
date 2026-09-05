@@ -133,12 +133,23 @@ function idYoutube(url) {
   return m ? m[1] : null;
 }
 
+/** Link Google Drive video -> file ID hoặc null. */
+function idGoogleDrive(url) {
+  const m = String(url || '').match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/);
+  return m ? m[1] : null;
+}
+
+/** Link video trực tiếp (.mp4, .webm, .mov, .ogg) */
+function laVideoTrucTiep(url) {
+  return /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(String(url || ''));
+}
+
 /** Hình/nhạc/video đính kèm một thông báo — trả về mảng phần tử để nối vào cuối thẻ tin. */
 function veDinhKemTin(t) {
   const ds = [];
   if (t.hinhKhoa) {
     const img = e('img', 'tin-hinh');
-    img.src = '/api/anh?khoa=' + encodeURIComponent(t.hinhKhoa);
+    img.src = /^https?:\/\//i.test(t.hinhKhoa) ? t.hinhKhoa : ('/api/anh?khoa=' + encodeURIComponent(t.hinhKhoa));
     img.alt = t.tieuDe || '';
     img.loading = 'lazy';
     ds.push(img);
@@ -147,19 +158,58 @@ function veDinhKemTin(t) {
     const audio = e('audio');
     audio.controls = true;
     audio.preload = 'none';
-    audio.src = '/api/thong-bao-nhac?id=' + t.id;
+    audio.src = /^https?:\/\//i.test(t.nhacKhoa) ? t.nhacKhoa : ('/api/thong-bao-nhac?id=' + encodeURIComponent(t.id));
     audio.className = 'tin-nhac';
     ds.push(audio);
   }
-  if (t.videoUrl) {
+  if (t.videoKhoa) {
+    const boc = e('div', 'tin-video');
+    const vid = e('video');
+    vid.controls = true;
+    vid.playsInline = true;
+    vid.preload = 'metadata';
+    vid.src = '/api/thong-bao-video?id=' + encodeURIComponent(t.id);
+    boc.append(vid);
+    ds.push(boc);
+  } else if (t.videoUrl) {
     const maYt = idYoutube(t.videoUrl);
+    const maDrive = idGoogleDrive(t.videoUrl);
     if (maYt) {
       const boc = e('div', 'tin-video');
       const khung = e('iframe');
       khung.src = 'https://www.youtube-nocookie.com/embed/' + maYt;
-      khung.title = t.tieuDe || 'Video đính kèm';
+      khung.title = t.tieuDe || 'Video YouTube';
       khung.loading = 'lazy';
-      khung.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      khung.allowFullscreen = true;
+      boc.append(khung);
+      ds.push(boc);
+    } else if (maDrive) {
+      const boc = e('div', 'tin-video');
+      const khung = e('iframe');
+      khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
+      khung.title = t.tieuDe || 'Video Google Drive';
+      khung.loading = 'lazy';
+      khung.allow = 'autoplay';
+      khung.allowFullscreen = true;
+      boc.append(khung);
+      ds.push(boc);
+    } else if (laVideoTrucTiep(t.videoUrl)) {
+      const boc = e('div', 'tin-video');
+      const vid = e('video');
+      vid.controls = true;
+      vid.playsInline = true;
+      vid.preload = 'metadata';
+      vid.src = t.videoUrl;
+      boc.append(vid);
+      ds.push(boc);
+    } else if (/facebook\.com|fb\.watch/i.test(t.videoUrl)) {
+      const boc = e('div', 'tin-video');
+      const khung = e('iframe');
+      khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(t.videoUrl) + '&show_text=0';
+      khung.title = t.tieuDe || 'Video Facebook';
+      khung.loading = 'lazy';
+      khung.allow = 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share';
       khung.allowFullscreen = true;
       boc.append(khung);
       ds.push(boc);

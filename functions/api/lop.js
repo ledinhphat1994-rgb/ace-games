@@ -44,7 +44,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     db.prepare(
       `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, noi_bat AS noiBat,
               muc_do AS mucDo, hinh_khoa AS hinhKhoa, hinh_kieu AS hinhKieu, nhac_khoa AS nhacKhoa,
-              video_url AS videoUrl
+              nhac_kieu AS nhacKieu, video_url AS videoUrl, video_khoa AS videoKhoa, video_kieu AS videoKieu
          FROM thong_bao WHERE hien = 1 ORDER BY ghim DESC, ngay DESC LIMIT 50`
     ).all(),
     db.prepare(
