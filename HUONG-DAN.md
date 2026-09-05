@@ -47,7 +47,7 @@ npm run kiem-tra
 
 | Địa chỉ | Ai vào được | Dùng để làm gì |
 |---|---|---|
-| `/` | Học sinh (mã lớp) | Thông báo, danh sách lớp, thời khoá biểu, kế hoạch, hình ảnh |
+| `/` | Học sinh (mã lớp) | Thông báo (gồm cả mốc sự kiện, mức độ quan trọng), danh sách lớp, thời khoá biểu, hình ảnh |
 | `/giao-vien/` | Chỉ mã giáo viên | Tổng quan, điểm danh, hồ sơ học sinh, nhật ký lớp, soạn thông báo |
 
 ### Nội dung giờ nằm trong cơ sở dữ liệu, không còn sửa tệp
@@ -188,7 +188,8 @@ Xong. Từ đó mỗi lần `git push` là trang tự đăng lại, không cần
 ### Cấu trúc cơ sở dữ liệu
 
 Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`, `nhat_ky`,
-`thong_bao`, `ke_hoach`, `theo_doi`, `thoi_khoa_bieu`.
+`thong_bao`, `theo_doi`, `thoi_khoa_bieu`. (`ke_hoach` không còn dùng từ bản cập nhật
+"18-thong-bao-mo-rong.sql" — chức năng đã gộp vào `thong_bao`, bảng cũ vẫn giữ nguyên dữ liệu.)
 
 Xem nhanh dữ liệu bằng lệnh:
 

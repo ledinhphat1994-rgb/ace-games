@@ -3,8 +3,9 @@
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
-  layNhanTaiKhoan, moBangThemeBg, ganNhacNen,
+  layNhanTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo,
 } from '/assets/js/chung.js';
+import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -13,7 +14,7 @@ import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
-import { trangKeHoach, trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
+import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -39,7 +40,6 @@ const QUYEN_THEO_TUYEN = {
   'quy': 'quy',
   'quy-lich-su': 'quy',
   'quy-dinh-ky': 'quy',
-  'ke-hoach': 'ke-hoach',
   'thoi-khoa-bieu': null,
   'thoi-khoa-bieu-lich-su': null,
   'thoi-khoa-bieu-xem': null,
@@ -1685,7 +1685,9 @@ async function trangThongBao() {
       d.danhSach.forEach((t) => {
         const m = e('div', 'muc-nhat-ky ' + (t.ghim ? 'nhac_nho' : 'khac') + (t.hien ? '' : ' da-xong'));
         const dong = e('div', 'dong-dau');
-        if (t.ghim) dong.append(e('span', 'nhan nhan-luuy', 'Ghim'));
+        const mucDo = nhanMucDo(t.mucDo);
+        if (mucDo) dong.append(e('span', 'nhan ' + mucDo.lop, mucDo.ten));
+        if (t.ghim) dong.append(e('span', 'nhan nhan-xam', '📌 Ghim'));
         if (!t.hien) dong.append(e('span', 'nhan nhan-xam', 'Đang ẩn'));
         dong.append(e('span', 'nhan nhan-xam', t.loai || 'Chủ nhiệm'), e('span', 'ngay', ngayVN(t.ngay)));
 
@@ -1727,48 +1729,7 @@ async function trangThongBao() {
 }
 
 function soanThongBao(tb, taiLai) {
-  const oNgay = oNhap('tbNgay', 'date', tb ? tb.ngay : homNay());
-  const oTd = oNhap('tbTd', 'text', tb ? tb.tieuDe : '', 'Ví dụ: Họp phụ huynh đầu năm');
-  const oNd = oNhap('tbNd', 'textarea', tb ? tb.noiDung : '', 'Nội dung chi tiết…');
-  const oLoai = oChon('tbLoai',
-    [['Chủ nhiệm', 'Chủ nhiệm'], ['Nhà trường', 'Nhà trường'], ['Học tập', 'Học tập'], ['Hoạt động', 'Hoạt động']],
-    tb ? tb.loai : 'Chủ nhiệm');
-
-  const oGhim = e('input');
-  oGhim.type = 'checkbox';
-  oGhim.id = 'tbGhim';
-  oGhim.checked = Boolean(tb && tb.ghim);
-  const hangGhim = e('label');
-  hangGhim.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14.5px;font-weight:600';
-  hangGhim.append(oGhim, document.createTextNode('Ghim lên đầu trang lớp'));
-
-  moHopThoai(tb ? 'Sửa thông báo' : 'Soạn thông báo', [
-    truong('Ngày', oNgay),
-    truong('Tiêu đề', oTd),
-    truong('Loại', oLoai),
-    truong('Nội dung', oNd),
-    hangGhim,
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut(tb ? 'Lưu' : 'Đăng', '', async (ev) => {
-      if (!oTd.value.trim() || !oNd.value.trim()) return nhac('Cần nhập cả tiêu đề và nội dung', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        const than = {
-          ngay: oNgay.value, tieuDe: oTd.value, noiDung: oNd.value,
-          loai: oLoai.value, ghim: oGhim.checked,
-        };
-        if (tb) await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: tb.id, ...than } });
-        else await api('/api/gv/thong-bao', { method: 'POST', than });
-        dongHopThoai();
-        nhac(tb ? 'Đã lưu' : 'Đã đăng thông báo', 'tot');
-        taiLai();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
+  moHopThoaiSoanThongBao(tb, taiLai);
 }
 
 /* ================= Trang: Thêm (menu phụ trên điện thoại) ================= */
@@ -1776,7 +1737,6 @@ function soanThongBao(tb, taiLai) {
 const MUC_THEM = [
   ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
   ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
-  ['#/ke-hoach', '📅', 'Kế hoạch năm học', 'Thêm/sửa mốc sự kiện, lịch kiểm tra.'],
   ['#/thoi-khoa-bieu', '▦', 'Thời khoá biểu', 'Sửa thời khoá biểu hiện trên trang lớp.'],
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
@@ -1848,7 +1808,6 @@ const TRANG = {
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
   '/quy-dinh-ky': () => trangQuyDinhKy(KHUNG),
-  '/ke-hoach': () => trangKeHoach(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
   '/them': trangThem,
@@ -1856,7 +1815,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/ke-hoach', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

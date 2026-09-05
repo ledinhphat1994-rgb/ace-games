@@ -35,19 +35,17 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
 
-  const [hocSinh, thongBao, keHoach, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
+  const [hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
          FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
     ).all(),
     db.prepare(
-      `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, noi_bat AS noiBat
+      `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, noi_bat AS noiBat,
+              muc_do AS mucDo, hinh_khoa AS hinhKhoa, hinh_kieu AS hinhKieu, nhac_khoa AS nhacKhoa,
+              video_url AS videoUrl
          FROM thong_bao WHERE hien = 1 ORDER BY ghim DESC, ngay DESC LIMIT 50`
-    ).all(),
-    db.prepare(
-      `SELECT id, ngay, tieu_de AS tieuDe, mo_ta AS moTa, muc_do AS mucDo, hoan_thanh AS hoanThanh, noi_bat AS noiBat
-         FROM ke_hoach ORDER BY ngay`
     ).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
@@ -103,7 +101,6 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     },
     hocSinh: hocSinh.results,
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim), noiBat: Boolean(t.noiBat) })),
-    keHoach: keHoach.results.map((k) => ({ ...k, hoanThanh: Boolean(k.hoanThanh), noiBat: Boolean(k.noiBat) })),
     thoiKhoaBieu: {
       phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau } : null,
       o: oTkb,

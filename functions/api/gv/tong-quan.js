@@ -46,9 +46,11 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
         ORDER BY n.ngay DESC, n.id DESC LIMIT 15`
     ).all(),
 
+    // "Sắp tới" lấy thẳng từ Thông báo (không còn bảng ke_hoach riêng nữa) — thông báo nào
+    // ghi ngày trong tương lai (vd: lịch kiểm tra, lễ khai giảng…) đều coi là một mốc sắp tới.
     db.prepare(
       `SELECT id, ngay, tieu_de AS tieuDe, muc_do AS mucDo
-         FROM ke_hoach WHERE ngay >= ?1 AND hoan_thanh = 0 ORDER BY ngay LIMIT 5`
+         FROM thong_bao WHERE ngay >= ?1 AND hien = 1 ORDER BY ngay LIMIT 5`
     ).bind(homNay).all(),
 
     db.prepare(

@@ -721,7 +721,6 @@ export async function veKhoiTaiKhoanPhu(khung) {
         'nhat-ky': '📖',
         'diem-danh': '✅',
         'hinh-anh': '📸',
-        'ke-hoach': '📅',
       };
 
       d.danhSach.forEach((tk) => {

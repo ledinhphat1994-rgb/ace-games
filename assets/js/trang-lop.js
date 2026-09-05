@@ -1,10 +1,12 @@
 /* Trang lớp — học sinh xem. Toàn bộ dữ liệu lấy từ /api/lop.
 
-   Trang chủ chỉ để năm mục: sĩ số lớp, thông báo, kế hoạch, thời khoá biểu, hình ảnh.
+   Trang chủ chỉ để bốn mục: sĩ số lớp, thông báo (đảm nhiệm luôn vai trò của "kế hoạch năm
+   học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen } from './chung.js';
-import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
+import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo } from './chung.js';
+import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
+import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -42,7 +44,7 @@ const TRANG_PHU = {
   '#/thu-quy': '#trangThuQuy',
 };
 
-/* Mỏ neo hợp lệ: #thong-bao, #ke-hoach… (không phải địa chỉ trang riêng #/…) */
+/* Mỏ neo hợp lệ: #thong-bao, #thoi-khoa-bieu… (không phải địa chỉ trang riêng #/…) */
 function laMoNeo(hash) {
   return /^#[a-z][\w-]*$/i.test(hash);
 }
@@ -125,6 +127,53 @@ function veOSo(thongKe) {
   }));
 }
 
+/** Link YouTube (watch/shorts/embed/youtu.be) -> mã video 11 ký tự, hoặc null nếu không nhận ra. */
+function idYoutube(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+/** Hình/nhạc/video đính kèm một thông báo — trả về mảng phần tử để nối vào cuối thẻ tin. */
+function veDinhKemTin(t) {
+  const ds = [];
+  if (t.hinhKhoa) {
+    const img = e('img', 'tin-hinh');
+    img.src = '/api/anh?khoa=' + encodeURIComponent(t.hinhKhoa);
+    img.alt = t.tieuDe || '';
+    img.loading = 'lazy';
+    ds.push(img);
+  }
+  if (t.nhacKhoa) {
+    const audio = e('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = '/api/thong-bao-nhac?id=' + t.id;
+    audio.className = 'tin-nhac';
+    ds.push(audio);
+  }
+  if (t.videoUrl) {
+    const maYt = idYoutube(t.videoUrl);
+    if (maYt) {
+      const boc = e('div', 'tin-video');
+      const khung = e('iframe');
+      khung.src = 'https://www.youtube-nocookie.com/embed/' + maYt;
+      khung.title = t.tieuDe || 'Video đính kèm';
+      khung.loading = 'lazy';
+      khung.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      khung.allowFullscreen = true;
+      boc.append(khung);
+      ds.push(boc);
+    } else {
+      const a = e('a', 'nut nut-vien nut-nho tin-video-lien-ket', '🎬 Xem video');
+      a.href = t.videoUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      ds.push(a);
+    }
+  }
+  return ds;
+}
+
 function veThongBao(ds, phien, lamMoi) {
   const hop = $('#dsThongBao');
   if (!ds.length) return datNoiDung(hop, e('p', 'trong', 'Chưa có thông báo nào.'));
@@ -139,7 +188,9 @@ function veThongBao(ds, phien, lamMoi) {
 
     const thongTin = e('div');
     thongTin.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap';
-    if (t.ghim) thongTin.append(e('span', 'nhan nhan-luuy', 'Quan trọng'));
+    const mucDo = nhanMucDo(t.mucDo);
+    if (mucDo) thongTin.append(e('span', 'nhan ' + mucDo.lop, mucDo.ten));
+    if (t.ghim) thongTin.append(e('span', 'nhan nhan-xam', '📌 Ghim'));
     if (t.loai) thongTin.append(e('span', 'nhan nhan-xam', t.loai));
     if (duocPhep && t.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
     thongTin.append(e('span', null, ngayDayDu(t.ngay)));
@@ -155,7 +206,7 @@ function veThongBao(ds, phien, lamMoi) {
       dau.append(thaoTac);
     }
 
-    bai.append(dau, e('h3', null, t.tieuDe), e('p', null, t.noiDung));
+    bai.append(dau, e('h3', null, t.tieuDe), e('p', null, t.noiDung), ...veDinhKemTin(t));
     return bai;
   }));
 }
@@ -300,67 +351,15 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   veBang();
 }
 
-/* ---------- Quản lý thông báo trực tiếp trên trang chủ ---------- */
+/* ---------- Quản lý thông báo trực tiếp trên trang chủ ----------
+   Dùng chung hộp thoại soạn/sửa với khu quản lý (xem thong-bao-dialog.js) — cùng một tính
+   năng thao tác từ hai nơi thì phải giống hệt nhau, không lệch tính năng. */
 function moHopThoaiThemThongBao(lamMoi) {
-  soanThongBaoModal(null, lamMoi);
+  moHopThoaiSoanThongBao(null, lamMoi);
 }
 
 function moHopThoaiSuaThongBao(tb, lamMoi) {
-  soanThongBaoModal(tb, lamMoi);
-}
-
-function soanThongBaoModal(tb, lamMoi) {
-  const oNgay = oNhap('tbNgay', 'date', tb ? tb.ngay : homNay());
-  const oTd = oNhap('tbTd', 'text', tb ? tb.tieuDe : '', 'Ví dụ: Họp phụ huynh đầu năm');
-  const oNd = oNhap('tbNd', 'textarea', tb ? tb.noiDung : '', 'Nội dung chi tiết…');
-  const oLoai = oChon('tbLoai',
-    [['Chủ nhiệm', 'Chủ nhiệm'], ['Nhà trường', 'Nhà trường'], ['Học tập', 'Học tập'], ['Hoạt động', 'Hoạt động']],
-    tb ? tb.loai : 'Chủ nhiệm');
-
-  const oGhim = e('input');
-  oGhim.type = 'checkbox';
-  oGhim.id = 'tbGhim';
-  oGhim.checked = Boolean(tb && tb.ghim);
-  const hangGhim = e('label');
-  hangGhim.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  hangGhim.append(oGhim, document.createTextNode('Ghim lên đầu mục Thông báo'));
-
-  const oNoiBat = e('input');
-  oNoiBat.type = 'checkbox';
-  oNoiBat.id = 'tbNoiBat';
-  oNoiBat.checked = Boolean(tb && tb.noiBat);
-  const hangNoiBat = e('label');
-  hangNoiBat.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  hangNoiBat.append(oNoiBat, document.createTextNode('Hiện trong băng điểm nhấn ở trang chủ'));
-
-  moHopThoai(tb ? 'Sửa thông báo' : 'Thêm thông báo mới', [
-    truong('Ngày', oNgay),
-    truong('Tiêu đề', oTd),
-    truong('Phân loại', oLoai),
-    truong('Nội dung', oNd),
-    hangGhim,
-    hangNoiBat,
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut(tb ? 'Lưu thay đổi' : 'Đăng thông báo', '', async (ev) => {
-      if (!oTd.value.trim() || !oNd.value.trim()) return nhac('Cần nhập cả tiêu đề và nội dung', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        const than = {
-          ngay: oNgay.value, tieuDe: oTd.value, noiDung: oNd.value,
-          loai: oLoai.value, ghim: oGhim.checked, noiBat: oNoiBat.checked,
-        };
-        if (tb) await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: tb.id, ...than } });
-        else await api('/api/gv/thong-bao', { method: 'POST', than });
-        dongHopThoai();
-        nhac(tb ? 'Đã cập nhật thông báo' : 'Đã đăng thông báo mới', 'tot');
-        if (lamMoi) await lamMoi();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
+  moHopThoaiSoanThongBao(tb, lamMoi);
 }
 
 function moHopThoaiXoaThongBao(tb, lamMoi) {
@@ -383,32 +382,31 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
   ]);
 }
 
-/* ---------- Băng điểm nhấn: tự trôi ngang liên tục, gộp các mục được đánh dấu "nổi bật" ----------
-   Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo và kế hoạch đã có sẵn, dựa vào cờ RIÊNG
-   "noiBat" (giáo viên tự tích chọn khi soạn/sửa), TÁCH BIỆT với "ghim" (đẩy lên đầu danh sách thông
-   báo) và "mucDo" (phân loại mức quan trọng của kế hoạch) — hai cờ đó không tự động đưa vào đây nữa.
-   Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng.
+/* ---------- Băng điểm nhấn: tự trôi ngang liên tục, gộp các thông báo được đánh dấu "nổi bật" ----------
+   Không thêm dữ liệu mới — chỉ chọn lọc lại từ thông báo đã có sẵn, dựa vào cờ RIÊNG "noiBat"
+   (giáo viên tự tích chọn khi soạn/sửa), TÁCH BIỆT với "ghim" (đẩy lên đầu danh sách Thông báo).
+   Nhãn và màu của mỗi thẻ lấy theo "mucDo" (mức độ quan trọng) — xem nhanMucDo() trong chung.js,
+   dùng chung với nhãn màu hiện ở danh sách Thông báo bên dưới, cho học sinh quen mắt một màu là
+   một mức. Ẩn hẳn khối này nếu không có gì đáng nổi bật, không để trống rỗng.
 
    Cách "tự trôi" khác cuộn thường: danh sách thẻ được LẶP 2 LẦN nối liền nhau, rồi dịch chuyển bằng
    transform mỗi khung hình; khi trôi hết đúng MỘT vòng (nửa tổng chiều rộng) thì cộng lại y hệt bước
    đó — mắt thường không thấy chỗ nối, nên trôi được vô tận dù chỉ có vài thẻ (khác cách cuộn cũ, chỉ
    chạy được khi nội dung dài hơn khung nhìn). Muốn tự tay xem thì kéo chuột/vuốt tay — animation tự
    dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. Bấm vào thẻ (không kéo) sẽ mở đúng
-   mục thông báo/kế hoạch đó, cuộn tới và tô sáng tạm thời để dễ nhận ra. */
-function veDiemNhan(thongBao, keHoach) {
+   mục thông báo đó, cuộn tới và tô sáng tạm thời để dễ nhận ra. */
+function veDiemNhan(thongBao) {
   const khoi = $('#bangDiemNhan');
   const cuon = $('#dnCuon');
   const track = $('#dnTrack');
 
-  const tin = (thongBao || []).filter((t) => t.noiBat).map((t) => ({
-    nhan: 'Thông báo', tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#tin-' + t.id,
-  }));
-  const ke = (keHoach || [])
-    .filter((k) => k.noiBat)
-    .sort((a, b) => a.ngay.localeCompare(b.ngay))
-    .map((k) => ({ nhan: k.mucDo === 'danger' ? 'Quan trọng' : 'Sắp tới', tieuDe: k.tieuDe, phu: ngayDayDu(k.ngay), href: '#ke-' + k.id }));
-
-  const cacTin = [...tin, ...ke].slice(0, 10);
+  const cacTin = (thongBao || []).filter((t) => t.noiBat).map((t) => {
+    const mucDo = nhanMucDo(t.mucDo);
+    return {
+      nhan: mucDo ? mucDo.ten : 'Thông báo', lop: mucDo ? mucDo.lop : '',
+      tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#tin-' + t.id,
+    };
+  }).slice(0, 10);
   if (!cacTin.length) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
@@ -426,7 +424,8 @@ function veDiemNhan(thongBao, keHoach) {
     // tự điều hướng bằng JS để vừa kéo được vừa bấm mở được, phân biệt rõ bằng cờ "daKeoThat".
     const a = e('button', 'dn-the');
     a.type = 'button';
-    a.append(e('span', 'dn-nhan', t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
+    const lopMau = t.lop ? ' dn-nhan-' + t.lop.replace('nhan-', '') : '';
+    a.append(e('span', 'dn-nhan' + lopMau, t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
     a.addEventListener('click', () => moDich(t.href));
     return a;
   };
@@ -512,132 +511,6 @@ function veDiemNhan(thongBao, keHoach) {
   $('#dnPhai').addEventListener('click', () => nhichMotThe(1));
 
   requestAnimationFrame(chay);
-}
-
-/* ---------- Nhạc nền: bật/tắt qua nút trên thanh đầu trang. Trình duyệt chặn tự phát có
-   tiếng khi chưa có thao tác của người dùng, nên KHÔNG thể tự phát khi mở trang — phải chờ
-   người dùng bấm nút. Trạng thái bật/tắt nhớ lại bằng localStorage cho lần vào sau. ---------- */
-/* ---------- Kế hoạch năm học & quản lý trực tiếp ---------- */
-const MUC_DO_KH = [['', 'Bình thường'], ['ok', 'Tốt / lễ hội'], ['warn', 'Cần chú ý'], ['danger', 'Quan trọng']];
-
-function moHopThoaiThemKeHoach(lamMoi) {
-  soanKeHoachModal(null, lamMoi);
-}
-
-function moHopThoaiSuaKeHoach(k, lamMoi) {
-  soanKeHoachModal(k, lamMoi);
-}
-
-function soanKeHoachModal(k, lamMoi) {
-  const oNgay = oNhap('khNgay', 'date', k ? k.ngay : homNay());
-  const oTieuDe = oNhap('khTieuDe', 'text', k ? k.tieuDe : '', 'Ví dụ: Khai giảng năm học mới');
-  const oMoTa = oNhap('khMoTa', 'textarea', k ? k.moTa : '', 'Mô tả chi tiết (không bắt buộc)');
-  const oMucDo = oChon('khMucDo', MUC_DO_KH, k ? (k.mucDo || '') : '');
-
-  const oHoanThanh = e('input');
-  oHoanThanh.type = 'checkbox';
-  oHoanThanh.id = 'khHoanThanh';
-  oHoanThanh.checked = Boolean(k && k.hoanThanh);
-  const hangHoanThanh = e('label');
-  hangHoanThanh.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  hangHoanThanh.append(oHoanThanh, document.createTextNode('Đánh dấu đã hoàn thành'));
-
-  const oNoiBat = e('input');
-  oNoiBat.type = 'checkbox';
-  oNoiBat.id = 'khNoiBat';
-  oNoiBat.checked = Boolean(k && k.noiBat);
-  const hangNoiBat = e('label');
-  hangNoiBat.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  hangNoiBat.append(oNoiBat, document.createTextNode('Hiện trong băng điểm nhấn ở trang chủ'));
-
-  moHopThoai(k ? 'Sửa mốc kế hoạch' : 'Thêm mốc kế hoạch mới', [
-    truong('Ngày', oNgay),
-    truong('Tiêu đề', oTieuDe),
-    truong('Mức độ', oMucDo),
-    truong('Mô tả', oMoTa),
-    hangHoanThanh,
-    hangNoiBat,
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut(k ? 'Lưu thay đổi' : 'Thêm kế hoạch', '', async (ev) => {
-      if (!oTieuDe.value.trim()) return nhac('Chưa nhập tiêu đề', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        const than = {
-          ngay: oNgay.value,
-          tieuDe: oTieuDe.value,
-          moTa: oMoTa.value,
-          mucDo: oMucDo.value,
-          hoanThanh: oHoanThanh.checked,
-          noiBat: oNoiBat.checked,
-        };
-        if (k) await api('/api/gv/ke-hoach', { method: 'PATCH', than: { id: k.id, ...than } });
-        else await api('/api/gv/ke-hoach', { method: 'POST', than });
-        dongHopThoai();
-        nhac(k ? 'Đã lưu kế hoạch' : 'Đã thêm mốc kế hoạch', 'tot');
-        if (lamMoi) await lamMoi();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
-}
-
-function moHopThoaiXoaKeHoach(k, lamMoi) {
-  moHopThoai('Xoá mốc kế hoạch', [
-    e('p', null, `Bạn có chắc muốn xoá mốc kế hoạch "${k.tieuDe}" không? Thao tác này không thể hoàn tác.`),
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Xoá kế hoạch', 'nut-xau', async (ev) => {
-      ev.currentTarget.disabled = true;
-      try {
-        await api('/api/gv/ke-hoach?id=' + k.id, { method: 'DELETE' });
-        dongHopThoai();
-        nhac('Đã xoá mốc kế hoạch', 'tot');
-        if (lamMoi) await lamMoi();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
-}
-
-function veKeHoach(ds, phien, lamMoi) {
-  const hop = $('#dsKeHoach');
-  if (!ds.length) return datNoiDung(hop, e('div', 'the trong', 'Chưa có kế hoạch nào.'));
-
-  const duocPhep = phien && (phien.role === 'teacher' || (phien.quyen || []).includes('ke-hoach'));
-  const mau = { ok: 'nhan-tot', warn: 'nhan-luuy', danger: 'nhan-xau' };
-
-  datNoiDung(hop, ...ds.map((k) => {
-    const the = e('div', 'the');
-    the.id = 'ke-' + k.id;
-    const dau = e('div');
-    dau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px';
-
-    const thongTin = e('div');
-    thongTin.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap';
-    thongTin.append(e('span', 'nhan ' + (mau[k.mucDo] || 'nhan-xam'), ngayVN(k.ngay)));
-    if (k.hoanThanh) thongTin.append(e('span', 'nhan nhan-tot', '✓ Đã xong'));
-    if (duocPhep && k.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
-    dau.append(thongTin);
-
-    if (duocPhep) {
-      const thaoTac = e('div', 'thao-tac-tin');
-      thaoTac.style.cssText = 'margin-left:auto;display:inline-flex;gap:6px';
-      thaoTac.append(
-        nut('✏ Sửa', 'nut-nhe nut-nho', () => moHopThoaiSuaKeHoach(k, lamMoi)),
-        nut('🗑 Xoá', 'nut-nhe nut-nho', () => moHopThoaiXoaKeHoach(k, lamMoi))
-      );
-      dau.append(thaoTac);
-    }
-
-    the.append(dau, e('h3', null, k.tieuDe));
-    if (k.moTa) the.append(e('p', null, k.moTa));
-    return the;
-  }));
 }
 
 /* ---------- Thủ quỹ (công khai: chỉ số liệu tổng hợp) ---------- */
@@ -803,10 +676,9 @@ function veHinhAnh(ds) {
 
 /* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------
    Trang này ai đăng nhập cũng xem được (kể cả giáo viên). Với người có quyền,
-   thêm nút thao tác trực tiếp (Thêm thông báo, Thêm kế hoạch) và lối tắt vào khu quản lý. */
+   thêm nút thao tác trực tiếp (Thêm thông báo) và lối tắt vào khu quản lý. */
 const MUC_QUAN_LY = [
   ['thong-bao', '#/thong-bao', 'thong-bao'],
-  ['ke-hoach', '#/ke-hoach', 'ke-hoach'],
   ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
   ['hinh-anh', '#/hinh-anh', 'hinh-anh'],
   ['danh-sach', '#/hoc-sinh', null],
@@ -836,8 +708,6 @@ function veLoiTatQuanLy(phien, lamMoi) {
 
     if (idMuc === 'thong-bao') {
       vungThaoTac.append(nut('+ Thêm thông báo', 'nut-chinh nut-nho', () => moHopThoaiThemThongBao(lamMoi)));
-    } else if (idMuc === 'ke-hoach') {
-      vungThaoTac.append(nut('+ Thêm kế hoạch', 'nut-chinh nut-nho', () => moHopThoaiThemKeHoach(lamMoi)));
     }
 
     const a = e('a', 'nut nut-vien nut-nho', '⚙ Quản lý');
@@ -883,9 +753,8 @@ async function taiDuLieu() {
     apDungAnMuc(d.anMuc);
     const thongBaoHien = (d.anMuc || []).includes('thong-bao') ? [] : d.thongBao;
     veOSo(d.lop.thongKe);
-    veDiemNhan(thongBaoHien, d.keHoach);
+    veDiemNhan(thongBaoHien);
     veThongBao(thongBaoHien, phien, taiDuLieu);
-    veKeHoach(d.keHoach, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHinhAnh(d.hinhAnh);
     veDanhSach(d.hocSinh);

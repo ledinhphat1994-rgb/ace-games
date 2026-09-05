@@ -45,6 +45,47 @@ export function ngayDayDu(v) {
   return `${THU[d.getDay()]}, ${ngayVN(v)}`;
 }
 
+/* ---------- Mức độ quan trọng của Thông báo ----------
+   Dùng chung cho cả khu quản lý (soạn thông báo) và trang lớp (hiển thị nhãn màu) — một
+   thông báo chọn mức nào thì nhãn và màu hiện RA GIỐNG NHAU ở mọi nơi, để học sinh quen
+   mắt màu nào là mức nào. Đây cũng là mức độ đã thay thế "mucDo" của Kế hoạch năm học cũ. */
+export const MUC_DO_THONG_BAO = [
+  ['', 'Bình thường'], ['ok', 'Tốt / lễ hội'], ['warn', 'Cần chú ý'], ['danger', 'Quan trọng'],
+];
+const NHAN_MUC_DO = {
+  ok: { ten: 'Tốt / lễ hội', lop: 'nhan-tot' },
+  warn: { ten: 'Cần chú ý', lop: 'nhan-luuy' },
+  danger: { ten: 'Quan trọng', lop: 'nhan-xau' },
+};
+/** mucDo ('', 'ok', 'warn', 'danger') -> {ten, lop} để gắn nhãn màu, hoặc null nếu bình thường. */
+export function nhanMucDo(mucDo) {
+  return NHAN_MUC_DO[mucDo] || null;
+}
+
+/* ---------- Ảnh: nén nhỏ ngay trên máy trước khi tải lên ----------
+   Dùng cho ảnh đính kèm Thông báo — tải thẳng lên bằng thân nhị phân thô (không bọc base64/
+   JSON) nên trả về Blob, khác nenAnh() riêng của "Ảnh hoạt động" (trang-hoc-tap.js) vốn trả
+   base64 vì API đó nhận JSON. */
+const RONG_ANH_TOI_DA = 1600;
+const CHAT_LUONG_ANH = 0.82;
+
+export async function nenAnhThanhBlob(tep) {
+  const anh = await createImageBitmap(tep);
+  const tiLe = Math.min(1, RONG_ANH_TOI_DA / Math.max(anh.width, anh.height));
+  const w = Math.round(anh.width * tiLe);
+  const h = Math.round(anh.height * tiLe);
+
+  const khung = document.createElement('canvas');
+  khung.width = w;
+  khung.height = h;
+  khung.getContext('2d').drawImage(anh, 0, 0, w, h);
+  anh.close();
+
+  const blob = await new Promise((giai) => khung.toBlob(giai, 'image/jpeg', CHAT_LUONG_ANH));
+  if (!blob) throw new Error('Không xử lý được ảnh này.');
+  return blob;
+}
+
 /* ---------- Tiền tệ ---------- */
 
 /** 1500000 -> "1.500.000 đ" */

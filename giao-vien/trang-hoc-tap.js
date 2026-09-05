@@ -720,15 +720,14 @@ export async function trangBaoCao(KHUNG) {
     return the;
   }
 
-  // 10 BÁO CÁO ĐỒNG BỘ 10 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
+  // 9 BÁO CÁO ĐỒNG BỘ 9 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
   const DANH_SACH_BAO_CAO = [
     ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
     ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
     ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
     ['📝', 'Báo cáo Nhật ký lớp', 'Sổ nhật ký chủ nhiệm: ghi nhận khen thưởng, nhắc nhở, vi phạm và tình trạng xử lý.', 'nhat-ky', true, 'Theo ngày'],
     ['💰', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
-    ['📅', 'Báo cáo Kế hoạch', 'Kế hoạch hoạt động năm học, lịch trình sự kiện, mức độ ưu tiên và thời hạn hoàn thành.', 'ke-hoach', false, 'Kế hoạch năm'],
-    ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp, ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
+    ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp (gồm cả mốc sự kiện, mức độ quan trọng), ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
     ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
     ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, kỷ luật, khen thưởng, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
     ['🔑', 'Báo cáo Mã cá nhân & Phân quyền', 'Danh sách mã tra cứu điểm cá nhân của từng em, tài khoản ban cán sự và quyền quản trị.', 'ma-ca-nhan', false, 'Bảo mật'],
@@ -1074,9 +1073,8 @@ const CAC_QUYEN_QUAN_LY = [
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
   ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
-  ['ke-hoach', 'Kế hoạch — thêm/sửa mốc sự kiện, lịch kiểm tra'],
 ];
-const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸', 'ke-hoach': '📅' };
+const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸' };
 
 function taoNhomTich(danhMuc, daChon) {
   const bo = new Set(daChon);

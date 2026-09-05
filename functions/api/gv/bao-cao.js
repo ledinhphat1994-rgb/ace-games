@@ -3,9 +3,9 @@
 //   dinhDang = 'excel' (.xls, bảng tính định dạng sư phạm chuẩn)
 //   dinhDang = 'csv'   (.csv, có chỉ thị sep=; và UTF-8 BOM để Excel tự động tách cột)
 //
-// 10 danh mục báo cáo đồng bộ 100% với Vùng 1:
+// 9 danh mục báo cáo đồng bộ 100% với Vùng 1:
 //   - Lớp học: diem-danh, hoc-sinh, so-diem, nhat-ky, thu-quy
-//   - Trang lớp: ke-hoach, thong-bao, thoi-khoa-bieu
+//   - Trang lớp: thong-bao (đảm nhiệm luôn vai trò của "kế hoạch năm học" cũ), thoi-khoa-bieu
 //   - Báo cáo & Tài khoản: thong-ke, ma-ca-nhan
 import { bocXuLy, loi, ngayHopLe } from '../../_lib/api.js';
 import { gomBangDiem, xepLoaiHocTap } from '../../_lib/tt22.js';
@@ -621,31 +621,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     });
   }
 
-  // 7. MỤC: KẾ HOẠCH (Khớp mục "Kế hoạch" trong Vùng 1)
-  if (loai === 'ke-hoach') {
-    const { results } = await db.prepare(
-      `SELECT id, tieu_de, noi_dung, ngay_bat_dau, ngay_ket_thuc, muc_do
-         FROM ke_hoach ORDER BY ngay_bat_dau ASC, id ASC`
-    ).all();
-
-    const MUC_DO = { quan_trong: 'Quan trọng', can_chu_y: 'Cần chú ý', binh_thuong: 'Bình thường' };
-
-    const cacHang = results.map((k, i) => [
-      { v: i + 1, kieu: 'giua' },
-      { v: ngayVN(k.ngay_bat_dau), kieu: 'giua' },
-      { v: ngayVN(k.ngay_ket_thuc) || 'Trong ngày', kieu: 'giua' },
-      { v: k.tieu_de, kieu: 'trai', dam: true },
-      { v: k.noi_dung, kieu: 'trai' },
-      { v: MUC_DO[k.muc_do] || 'Bình thường', kieu: 'giua', dam: k.muc_do === 'quan_trong' },
-    ]);
-
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Ke_hoach_10A7', {
-      tieuDe: 'BÁO CÁO KẾ HOẠCH HOẠT ĐỘNG LỚP 10A7',
-      phuDe: 'Lịch trình sự kiện và kế hoạch học tập năm học 2026-2027',
-      tieuDeCot: ['STT', 'Từ ngày', 'Đến ngày', 'Tiêu đề kế hoạch / Hoạt động', 'Nội dung chi tiết', 'Mức độ ưu tiên'],
-      cacHang,
-    });
-  }
+  // (Kế hoạch năm học đã gộp vào Thông báo — xem "mức độ quan trọng" khi soạn thông báo —
+  // nên không còn báo cáo riêng ở đây nữa; dùng báo cáo Thông báo ở trên thay thế.)
 
   // 8. MỤC: THỜI KHOÁ BIỂU (Khớp mục "Thời khoá biểu" trong Vùng 1)
   if (loai === 'thoi-khoa-bieu') {
