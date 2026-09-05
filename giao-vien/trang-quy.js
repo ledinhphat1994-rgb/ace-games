@@ -1582,21 +1582,65 @@ export async function trangQuyLichSu(KHUNG) {
     return khung;
   }
 
-  /** Tab "💰 Khoản thu" — lịch sử TỪNG LẦN ghi thu (khác Khoản thu ở trang Thủ quỹ, vốn gộp
-      theo khoản chứ không theo từng lần đóng của từng em). */
+  /** Tab "💰 Khoản thu" — liệt kê theo MỤC LỚN (từng khoản thu), bấm vào một khoản mới hiện
+      chi tiết ai đã đóng — không liệt kê phẳng từng lần đóng ngay từ đầu (khi khoản có hàng
+      chục em, danh sách phẳng dài và khó tìm đúng khoản đang cần xem). */
   async function veTabLichSuThu() {
-    const d = await api('/api/gv/quy-lich-su-thu');
-    if (!d.danhSach.length) return e('p', 'trong', 'Chưa có lần ghi thu nào.');
+    const d = await api('/api/gv/quy');
+    if (!d.khoan.length) return e('p', 'trong', 'Chưa có khoản thu nào.');
 
-    const ds = e('div', 'ds-nhat-ky');
-    d.danhSach.forEach((g) => {
-      const m = e('div', 'muc-nhat-ky khac');
-      const dong = e('div', 'dong-dau');
-      dong.append(e('span', 'ngay', ngayVN(g.ngay)), e('span', 'nhan nhan-tot', '+' + tienVN(g.soTien)));
-      m.append(dong, Object.assign(e('h3', null, `${g.hoTen} — ${g.khoanTen}`), { style: 'margin:4px 0' }));
-      if (g.ghiChu) m.append(e('p', null, g.ghiChu));
-      ds.append(m);
-    });
+    const chiTiet = {};
+    let moRongId = null;
+    const ds = e('div', 'ds-khoan');
+
+    function veChiTietAiDong(dk) {
+      const daNop = dk.danhSach.filter((h) => h.daDong > 0);
+      if (!daNop.length) return e('div', 'muc-khoan-chi-tiet trong', 'Chưa có ai đóng khoản này.');
+      const box = e('div', 'muc-khoan-chi-tiet');
+      const dsHs = e('div', 'ds-diem-danh');
+      daNop.forEach((h) => {
+        const hang = e('div', 'hang-hs');
+        hang.append(e('div', 'ten', h.hoTen), e('span', 'nhan ' + (h.daDuDinh ? 'nhan-tot' : 'nhan-luuy'), '+' + tienVN(h.daDong)));
+        dsHs.append(hang);
+      });
+      box.append(dsHs);
+      return box;
+    }
+
+    function veHang(k) {
+      const boc = e('div', 'muc-khoan');
+      const hang = e('div', 'hang-hs hang-hs-doc');
+      hang.style.cursor = 'pointer';
+      const dong1 = e('div', 'hang-hs-dong1');
+      const khoiTrai = e('div', 'hs-khoi-trai');
+      khoiTrai.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'));
+      const thongTin = e('div', 'hs-thong-tin');
+      const dongTen = e('div', 'hs-ten-to');
+      dongTen.append(e('span', 'hs-ho-ten', k.ten), e('span', 'hs-to-badge', k.dinhKyId ? 'Thu cố định' : 'Thu nhanh'));
+      thongTin.append(dongTen);
+      const pt = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+      thongTin.append(e('div', 'hs-chi-tiet-dong', `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${pt}%)`));
+      khoiTrai.append(thongTin);
+      dong1.append(khoiTrai);
+      const khoiPhai = e('div', 'hs-khoi-phai');
+      khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRongId === k.id ? '▾' : '▸'));
+      dong1.append(khoiPhai);
+      hang.append(dong1);
+      hang.addEventListener('click', async () => {
+        moRongId = moRongId === k.id ? null : k.id;
+        if (moRongId && !chiTiet[moRongId]) chiTiet[moRongId] = await api('/api/gv/quy?khoanId=' + moRongId);
+        veLai();
+      });
+      boc.append(hang);
+      if (moRongId === k.id) boc.append(chiTiet[k.id] ? veChiTietAiDong(chiTiet[k.id]) : khoiDangTai());
+      return boc;
+    }
+
+    function veLai() {
+      ds.innerHTML = '';
+      d.khoan.forEach((k) => ds.append(veHang(k)));
+    }
+    veLai();
     return ds;
   }
 

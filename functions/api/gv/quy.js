@@ -163,7 +163,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       ngayKetThuc = than.ngayKetThuc;
     }
 
-    await chupCheckpoint(db, `Trước khi: mở khoản thu "${ten}"`, phien);
+    await chupCheckpoint(db, `Trước khi: mở khoản thu "${ten}" (Thu nhanh)`, phien);
     const kq = await db.prepare(
       'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu, ngay_bat_dau, ngay_ket_thuc) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
     ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500), ngayBatDau, ngayKetThuc).run();
@@ -179,10 +179,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     if (!soTienHopLe(than.soTien) || Number(than.soTien) <= 0) return loi('Số tiền không hợp lệ.');
     const ngay = ngayHopLe(than.ngay) ? than.ngay : new Date().toISOString().slice(0, 10);
 
-    const khoan = await db.prepare('SELECT id, ten FROM quy_khoan WHERE id = ?1').bind(khoanId).first();
+    const khoan = await db.prepare('SELECT id, ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1').bind(khoanId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
+    const hocSinh = await db.prepare('SELECT ho_ten AS hoTen FROM hoc_sinh WHERE id = ?1').bind(hocSinhId).first();
+    const loaiThu = khoan.dinhKyId ? 'Thu cố định' : 'Thu nhanh';
 
-    await chupCheckpoint(db, `Trước khi: ghi thu ${than.soTien}đ cho học sinh #${hocSinhId} (${khoan.ten})`, phien);
+    await chupCheckpoint(db,
+      `Trước khi: ghi thu ${than.soTien}đ — ${hocSinh?.hoTen || 'học sinh #' + hocSinhId} nộp khoản `
+      + `"${khoan.ten}" (${loaiThu})`, phien);
     const kq = await db.prepare(
       'INSERT INTO quy_dong (khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu) VALUES (?1, ?2, ?3, ?4, ?5)'
     ).bind(khoanId, hocSinhId, Number(than.soTien), ngay, chuoi(than.ghiChu, 300)).run();
@@ -215,7 +219,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
 
   if (than.banGhi === 'khoan') {
-    const khoan = await db.prepare('SELECT ten FROM quy_khoan WHERE id = ?1').bind(id).first();
+    const khoan = await db.prepare('SELECT ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1').bind(id).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
     const dat = []; const thamSo = [];
@@ -242,14 +246,21 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     }
     if (!dat.length) return loi('Không có gì để sửa.');
 
-    await chupCheckpoint(db, `Trước khi: sửa khoản thu "${khoan.ten}"`, phien);
+    await chupCheckpoint(db,
+      `Trước khi: sửa khoản thu "${khoan.ten}" (${khoan.dinhKyId ? 'Thu cố định' : 'Thu nhanh'})`, phien);
     thamSo.push(id);
     await db.prepare(`UPDATE quy_khoan SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`).bind(...thamSo).run();
     return json({ ok: true });
   }
 
   if (than.banGhi === 'dong') {
-    const dong = await db.prepare('SELECT * FROM quy_dong WHERE id = ?1').bind(id).first();
+    const dong = await db.prepare(
+      `SELECT d.*, h.ho_ten AS hoTen, k.ten AS khoanTen, k.dinh_ky_id AS dinhKyId
+         FROM quy_dong d
+         JOIN hoc_sinh h ON h.id = d.hoc_sinh_id
+         JOIN quy_khoan k ON k.id = d.khoan_id
+        WHERE d.id = ?1`
+    ).bind(id).first();
     if (!dong) return loi('Không tìm thấy lần ghi thu này.', 404);
 
     const soTien = than.soTien !== undefined ? Number(than.soTien) : dong.so_tien;
@@ -257,7 +268,9 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     const ngay = than.ngay !== undefined && ngayHopLe(than.ngay) ? than.ngay : dong.ngay;
     const ghiChu = than.ghiChu !== undefined ? chuoi(than.ghiChu, 300) : dong.ghi_chu;
 
-    await chupCheckpoint(db, `Trước khi: sửa lần ghi thu #${id}`, phien);
+    await chupCheckpoint(db,
+      `Trước khi: sửa lần thu ${dong.so_tien}đ — ${dong.hoTen} nộp khoản "${dong.khoanTen}" `
+      + `(${dong.dinhKyId ? 'Thu cố định' : 'Thu nhanh'})`, phien);
     await db.prepare('UPDATE quy_dong SET so_tien = ?1, ngay = ?2, ghi_chu = ?3 WHERE id = ?4')
       .bind(soTien, ngay, ghiChu, id).run();
     return json({ ok: true });
@@ -275,7 +288,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     const loaiChi = than.loai !== undefined ? (MA_LOAI_CHI.has(than.loai) ? than.loai : chi.loai) : chi.loai;
     const ghiChu = than.ghiChu !== undefined ? chuoi(than.ghiChu, 300) : chi.ghi_chu;
 
-    await chupCheckpoint(db, `Trước khi: sửa khoản chi #${id}`, phien);
+    await chupCheckpoint(db, `Trước khi: sửa khoản chi ${chi.so_tien}đ — "${chi.noi_dung}"`, phien);
     await db.prepare('UPDATE quy_chi SET noi_dung = ?1, so_tien = ?2, ngay = ?3, loai = ?4, ghi_chu = ?5 WHERE id = ?6')
       .bind(noiDung, soTien, ngay, loaiChi, ghiChu, id).run();
     return json({ ok: true });
@@ -309,8 +322,23 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   }
   if (!ids.length) return json({ ok: true, daXoa: 0 });
 
-  const tenLoai = loai === 'khoan' ? 'khoản thu' : loai === 'chi' ? 'khoản chi' : loai;
-  await chupCheckpoint(env.DB, `Trước khi: xoá ${ids.length} ${tenLoai}`, phien);
+  // "dong" (một lần ghi thu) luôn xoá từng cái một (không có xoá hàng loạt) — nêu rõ ai nộp,
+  // khoản nào, kiểu gì thay vì chỉ ghi số id trần trụi, để xem lại lịch sử khôi phục hiểu ngay
+  // đang khôi phục lại đúng lần thu của ai.
+  let moTa;
+  if (loai === 'dong') {
+    const rec = await env.DB.prepare(
+      `SELECT d.so_tien AS soTien, h.ho_ten AS hoTen, k.ten AS khoanTen, k.dinh_ky_id AS dinhKyId
+         FROM quy_dong d JOIN hoc_sinh h ON h.id = d.hoc_sinh_id JOIN quy_khoan k ON k.id = d.khoan_id
+        WHERE d.id = ?1`
+    ).bind(ids[0]).first();
+    moTa = rec
+      ? `lần thu ${rec.soTien}đ — ${rec.hoTen} nộp khoản "${rec.khoanTen}" (${rec.dinhKyId ? 'Thu cố định' : 'Thu nhanh'})`
+      : 'một lần ghi thu';
+  } else {
+    moTa = `${ids.length} ${loai === 'khoan' ? 'khoản thu' : 'khoản chi'}`;
+  }
+  await chupCheckpoint(env.DB, `Trước khi: xoá ${moTa}`, phien);
 
   const cho = ids.map(() => '?').join(',');
   if (loai === 'khoan') {
