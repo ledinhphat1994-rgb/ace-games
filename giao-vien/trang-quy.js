@@ -28,6 +28,73 @@ export async function trangQuy(KHUNG) {
   let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
   const chiTiet = {};           // cache: { [khoanId]: dữ liệu chi tiết }
   const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
+  const khoanDaChon = new Set();   // id các khoản thu đang tích để xoá hàng loạt
+  const chiDaChon = new Set();     // id các khoản chi đang tích để xoá hàng loạt
+
+  /** Thanh "Đã chọn N ... — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có mục nào đang tích. */
+  function veThanhChonXoa(daChon, loai, tenSo, taiLaiFn) {
+    if (!daChon.size) return null;
+    const thanh = e('div', 'the');
+    thanh.style.cssText = 'margin-bottom:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
+    thanh.append(e('span', null, `Đã chọn ${daChon.size} ${tenSo}`));
+    const hop = e('div', 'day-loc');
+    hop.append(
+      nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
+      nut(`🗑 Xoá ${daChon.size} mục đã chọn`, 'nut-xau nut-nho', () => {
+        moHopThoai(`Xoá ${daChon.size} ${tenSo} đã chọn?`, [
+          e('p', null, loai === 'khoan'
+            ? `Toàn bộ số tiền đã ghi cho từng em trong ${daChon.size} khoản này sẽ mất theo. Không thể hoàn tác.`
+            : `${daChon.size} khoản chi đã chọn sẽ bị xoá. Không thể hoàn tác.`),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async (ev) => {
+            ev.currentTarget.disabled = true;
+            try {
+              await api(`/api/gv/quy?loai=${loai}&ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              daChon.clear();
+              if (loai === 'khoan') moRong = null;
+              await taiLaiFn();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              ev.currentTarget.disabled = false;
+            }
+          }),
+        ]);
+      })
+    );
+    thanh.append(hop);
+    return thanh;
+  }
+
+  /** Nút xoá SẠCH cả danh mục (thu hoặc chi) — chỉ hiện khi danh sách không rỗng. */
+  function nutXoaTatCa(soLuong, loai, tenSo, taiLaiFn) {
+    if (!soLuong) return null;
+    return nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+      moHopThoai(`Xoá TẤT CẢ ${tenSo}?`, [
+        e('p', null, loai === 'khoan'
+          ? `Toàn bộ ${soLuong} khoản thu VÀ toàn bộ số tiền đã ghi cho từng em trong các khoản đó sẽ mất hết. Không thể hoàn tác.`
+          : `Toàn bộ ${soLuong} khoản chi sẽ mất hết. Không thể hoàn tác.`),
+        e('p', 'trong', 'Nếu chọn nhầm, vào "🛡️ Lịch sử & khôi phục" để khôi phục lại đúng thời điểm trước khi xoá.'),
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut(`Xoá tất cả ${tenSo}`, 'nut-xau', async (ev) => {
+          ev.currentTarget.disabled = true;
+          try {
+            await api(`/api/gv/quy?loai=${loai}&tatCa=1`, { method: 'DELETE' });
+            dongHopThoai();
+            nhac(`Đã xoá tất cả ${tenSo}`, 'tot');
+            if (loai === 'khoan') { moRong = null; khoanDaChon.clear(); } else { chiDaChon.clear(); }
+            await taiLaiFn();
+          } catch (err) {
+            nhac(err.message, 'xau');
+            ev.currentTarget.disabled = false;
+          }
+        }),
+      ]);
+    });
+  }
 
   async function tai() {
     d = await api('/api/gv/quy');
@@ -60,6 +127,19 @@ export async function trangQuy(KHUNG) {
 
     const dong1 = e('div', 'hang-hs-dong1');
     const khoiTrai = e('div', 'hs-khoi-trai');
+
+    const oChonXoa = e('input');
+    oChonXoa.type = 'checkbox';
+    oChonXoa.checked = khoanDaChon.has(k.id);
+    oChonXoa.setAttribute('aria-label', 'Chọn khoản thu "' + k.ten + '" để xoá hàng loạt');
+    oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
+    oChonXoa.addEventListener('click', (ev) => ev.stopPropagation());
+    oChonXoa.addEventListener('change', () => {
+      if (oChonXoa.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id);
+      ve();
+    });
+    khoiTrai.append(oChonXoa);
+
     khoiTrai.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'));
 
     const thongTin = e('div', 'hs-thong-tin');
@@ -380,6 +460,8 @@ export async function trangQuy(KHUNG) {
     dauChi.append(e('h2', null, '💸 Khoản chi'));
     const phaiChi = e('div', 'phai');
     phaiChi.append(nut('➕ Ghi khoản chi', 'nut-vien nut-nho', () => ghiKhoanChi(tai)));
+    const nutXoaTatCaChi = nutXoaTatCa(d.chi.length, 'chi', 'khoản chi', tai);
+    if (nutXoaTatCaChi) phaiChi.append(nutXoaTatCaChi);
     dauChi.append(phaiChi);
     the.append(dauChi);
 
@@ -388,12 +470,27 @@ export async function trangQuy(KHUNG) {
       return the;
     }
 
+    const thanhChonChi = veThanhChonXoa(chiDaChon, 'chi', 'khoản chi', tai);
+    if (thanhChonChi) the.append(thanhChonChi);
+
     const ds = e('div', 'ds-diem-danh');
     d.chi.forEach((c) => {
       const hang = e('div', 'hang-hs hang-hs-doc');
       const dong1 = e('div', 'hang-hs-dong1');
 
       const khoiTrai = e('div', 'hs-khoi-trai');
+
+      const oChonXoaChi = e('input');
+      oChonXoaChi.type = 'checkbox';
+      oChonXoaChi.checked = chiDaChon.has(c.id);
+      oChonXoaChi.setAttribute('aria-label', 'Chọn khoản chi "' + c.noiDung + '" để xoá hàng loạt');
+      oChonXoaChi.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
+      oChonXoaChi.addEventListener('change', () => {
+        if (oChonXoaChi.checked) chiDaChon.add(c.id); else chiDaChon.delete(c.id);
+        ve();
+      });
+      khoiTrai.append(oChonXoaChi);
+
       const thongTin = e('div', 'hs-thong-tin');
 
       const dongTen = e('div', 'hs-ten-to');
@@ -517,11 +614,16 @@ export async function trangQuy(KHUNG) {
     dauKhoan.append(e('h2', null, '💰 Khoản thu'));
     const phaiKhoan = e('div', 'phai');
     phaiKhoan.append(nut('➕ Ghi khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(tai)));
+    const nutXoaTatCaKhoan = nutXoaTatCa(d.khoan.length, 'khoan', 'khoản thu', tai);
+    if (nutXoaTatCaKhoan) phaiKhoan.append(nutXoaTatCaKhoan);
     dauKhoan.append(phaiKhoan);
     theKhoan.append(dauKhoan);
     if (!d.khoan.length) {
       theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {
+      const thanhChonKhoan = veThanhChonXoa(khoanDaChon, 'khoan', 'khoản thu', tai);
+      if (thanhChonKhoan) theKhoan.append(thanhChonKhoan);
+
       // Chọn nhanh — chỉ hiện trên màn hẹp (xem CSS .quy-chon-nhanh), nơi danh sách xếp
       // một cột nên nhiều khoản là phải kéo dài; chọn ở đây mở thẳng đúng khoản, khỏi dò.
       if (d.khoan.length > 3) {

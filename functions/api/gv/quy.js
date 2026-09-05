@@ -279,25 +279,43 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   return loi('Loại bản ghi (banGhi) không hợp lệ.');
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
+// DELETE ?loai=&id=            -> xoá một bản ghi (như trước)
+// DELETE ?loai=&ids=1,2,3      -> xoá nhiều bản ghi đã chọn (chỉ khoan/chi)
+// DELETE ?loai=&tatCa=1        -> xoá SẠCH toàn bộ danh mục đó (chỉ khoan/chi)
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai');
-  const id = Number(q.get('id'));
-  if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
 
   const BANG = { khoan: 'quy_khoan', dong: 'quy_dong', chi: 'quy_chi' };
   if (!BANG[loai]) return loi('Loại không hợp lệ.');
 
-  await chupCheckpoint(env.DB, `Trước khi: xoá ${loai} #${id}`, phien);
+  let ids;
+  if (q.get('tatCa') === '1') {
+    if (loai !== 'khoan' && loai !== 'chi') return loi('Chỉ xoá tất cả được với khoản thu hoặc khoản chi.');
+    const { results } = await env.DB.prepare(`SELECT id FROM ${BANG[loai]}`).all();
+    ids = results.map((r) => r.id);
+  } else if (q.get('ids')) {
+    if (loai !== 'khoan' && loai !== 'chi') return loi('Chỉ xoá hàng loạt được với khoản thu hoặc khoản chi.');
+    ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  } else {
+    const id = Number(q.get('id'));
+    if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
+    ids = [id];
+  }
+  if (!ids.length) return json({ ok: true, daXoa: 0 });
 
+  const tenLoai = loai === 'khoan' ? 'khoản thu' : loai === 'chi' ? 'khoản chi' : loai;
+  await chupCheckpoint(env.DB, `Trước khi: xoá ${ids.length} ${tenLoai}`, phien);
+
+  const cho = ids.map(() => '?').join(',');
   if (loai === 'khoan') {
     await env.DB.batch([
-      env.DB.prepare('DELETE FROM quy_dong WHERE khoan_id = ?1').bind(id),
-      env.DB.prepare('DELETE FROM quy_khoan WHERE id = ?1').bind(id),
+      env.DB.prepare(`DELETE FROM quy_dong WHERE khoan_id IN (${cho})`).bind(...ids),
+      env.DB.prepare(`DELETE FROM quy_khoan WHERE id IN (${cho})`).bind(...ids),
     ]);
   } else {
-    await env.DB.prepare(`DELETE FROM ${BANG[loai]} WHERE id = ?1`).bind(id).run();
+    await env.DB.prepare(`DELETE FROM ${BANG[loai]} WHERE id IN (${cho})`).bind(...ids).run();
   }
 
-  return json({ ok: true });
+  return json({ ok: true, daXoa: ids.length });
 }, { canGiaoVien: true, quyenCan: QUYEN });
