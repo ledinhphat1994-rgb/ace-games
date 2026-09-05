@@ -689,18 +689,41 @@ function veThuQuy(tq) {
 
     const khungBoc = e('div', 'khu-khoan-thu');
 
-    // Thanh công cụ: tiêu đề + số lượng + nhóm điều khiển (dropdown chọn nhanh + ô tìm kiếm)
+    // Thanh công cụ hợp nhất: Bộ lọc viên thuốc bên trái + Nhóm điều khiển bên phải
     const thanhCongCu = e('div', 'thanh-cong-cu-khoan');
-    const tieuDeKhoan = e('div', 'tieu-de-khoan');
-    tieuDeKhoan.append(
-      e('h3', null, 'Các khoản thu lớp'),
-      e('span', 'nhan nhan-xam', `${dsKhoanGoc.length} khoản`)
-    );
-    thanhCongCu.append(tieuDeKhoan);
 
+    // 1. Bên trái: Bộ lọc dạng viên thuốc (Tất cả / Đang thu / Đã đủ / Đã đóng)
+    const dayLoc = e('div', 'day-loc');
+    const CAC_MUC_LOC = [
+      ['', `Tất cả (${dsKhoanGoc.length})`],
+      ['dang_mo', `Đang thu (${soDangMo})`],
+      ['da_du', `Đã đủ 100% (${soDaDu})`],
+    ];
+    if (soDaDong > 0) {
+      CAC_MUC_LOC.push(['da_dong', `Đã đóng (${soDaDong})`]);
+    }
+
+    function veNutLoc() {
+      datNoiDung(dayLoc, ...CAC_MUC_LOC.map(([giaTri, nhan]) => {
+        const b = e('button', 'vien-loc', nhan);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(locTrangThai === giaTri && !khoanDuocChonId));
+        b.addEventListener('click', () => {
+          khoanDuocChonId = null;
+          dropdown.value = '';
+          locTrangThai = giaTri;
+          veNutLoc();
+          veDanhSachKhoan();
+        });
+        return b;
+      }));
+    }
+    veNutLoc();
+    thanhCongCu.append(dayLoc);
+
+    // 2. Bên phải: Nhóm điều khiển (Dropdown chọn nhanh + Ô tìm kiếm)
     const nhomDieuKhien = e('div', 'nhom-dieu-khien-khoan');
 
-    // Dropdown chọn nhanh: [Kiểu thu] Tên thu
     const dropdown = e('select', 'dropdown-chon-khoan');
     dropdown.setAttribute('aria-label', 'Chọn nhanh khoản thu');
     const optMacDinh = e('option', null, `-- Chọn nhanh khoản thu (${dsKhoanGoc.length}) --`);
@@ -742,35 +765,6 @@ function veThuQuy(tq) {
     nhomDieuKhien.append(dropdown, oTim);
     thanhCongCu.append(nhomDieuKhien);
     khungBoc.append(thanhCongCu);
-
-    // Bộ lọc dạng viên thuốc (Tất cả / Đang thu / Đã đủ / Đã đóng)
-    const dayLoc = e('div', 'day-loc');
-    const CAC_MUC_LOC = [
-      ['', `Tất cả (${dsKhoanGoc.length})`],
-      ['dang_mo', `Đang thu (${soDangMo})`],
-      ['da_du', `Đã đủ 100% (${soDaDu})`],
-    ];
-    if (soDaDong > 0) {
-      CAC_MUC_LOC.push(['da_dong', `Đã đóng (${soDaDong})`]);
-    }
-
-    function veNutLoc() {
-      datNoiDung(dayLoc, ...CAC_MUC_LOC.map(([giaTri, nhan]) => {
-        const b = e('button', 'vien-loc', nhan);
-        b.type = 'button';
-        b.setAttribute('aria-pressed', String(locTrangThai === giaTri && !khoanDuocChonId));
-        b.addEventListener('click', () => {
-          khoanDuocChonId = null;
-          dropdown.value = '';
-          locTrangThai = giaTri;
-          veNutLoc();
-          veDanhSachKhoan();
-        });
-        return b;
-      }));
-    }
-    veNutLoc();
-    khungBoc.append(dayLoc);
 
     const dsTheKhoi = e('div', 'ds-the-khoan');
     khungBoc.append(dsTheKhoi);
@@ -970,17 +964,41 @@ function veThuQuy(tq) {
 
     const khungBoc = e('div', 'khu-khoan-chi');
 
+    // Thanh công cụ hợp nhất: Bộ lọc phân loại bên trái + Nhóm điều khiển bên phải
     const thanhCongCu = e('div', 'thanh-cong-cu-khoan');
-    const tieuDeChi = e('div', 'tieu-de-khoan');
-    tieuDeChi.append(
-      e('h3', null, 'Các khoản chi lớp'),
-      e('span', 'nhan nhan-xam', `${dsChiGoc.length} khoản chi`)
-    );
-    thanhCongCu.append(tieuDeChi);
 
+    // 1. Bên trái: Bộ lọc theo loại chi
+    const dayLoc = e('div', 'day-loc');
+    const cacMucLoc = [['', `Tất cả (${dsChiGoc.length})`]];
+    CAC_LOAI_CHI.forEach(([ma, ten]) => {
+      const soLuong = dsChiGoc.filter((c) => c.loai === ma).length;
+      if (soLuong > 0) {
+        cacMucLoc.push([ma, `${ten} (${soLuong})`]);
+      }
+    });
+
+    let veNutLocChi = () => {};
+    veNutLocChi = () => {
+      datNoiDung(dayLoc, ...cacMucLoc.map(([giaTri, nhan]) => {
+        const b = e('button', 'vien-loc', nhan);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(locLoaiChi === giaTri && !chiDuocChonId));
+        b.addEventListener('click', () => {
+          chiDuocChonId = null;
+          dropdownChi.value = '';
+          locLoaiChi = giaTri;
+          veNutLocChi();
+          veDanhSachChi();
+        });
+        return b;
+      }));
+    };
+    veNutLocChi();
+    thanhCongCu.append(dayLoc);
+
+    // 2. Bên phải: Nhóm điều khiển (Dropdown chọn nhanh + Ô tìm kiếm)
     const nhomDieuKhienChi = e('div', 'nhom-dieu-khien-khoan');
 
-    // Dropdown chọn nhanh khoản chi: [Kiểu chi] Tên chi · -Số tiền
     const dropdownChi = e('select', 'dropdown-chon-khoan');
     dropdownChi.setAttribute('aria-label', 'Chọn nhanh khoản chi');
     const optMacDinhChi = e('option', null, `-- Chọn nhanh khoản chi (${dsChiGoc.length}) --`);
@@ -1020,37 +1038,6 @@ function veThuQuy(tq) {
     nhomDieuKhienChi.append(dropdownChi, oTim);
     thanhCongCu.append(nhomDieuKhienChi);
     khungBoc.append(thanhCongCu);
-
-    // Bộ lọc theo loại chi
-    const dayLoc = e('div', 'day-loc');
-    const cacMucLoc = [['', `Tất cả (${dsChiGoc.length})`]];
-    CAC_LOAI_CHI.forEach(([ma, ten]) => {
-      const soLuong = dsChiGoc.filter((c) => c.loai === ma).length;
-      if (soLuong > 0) {
-        cacMucLoc.push([ma, `${ten} (${soLuong})`]);
-      }
-    });
-
-    let veNutLocChi = () => {};
-    if (cacMucLoc.length > 1) {
-      veNutLocChi = () => {
-        datNoiDung(dayLoc, ...cacMucLoc.map(([giaTri, nhan]) => {
-          const b = e('button', 'vien-loc', nhan);
-          b.type = 'button';
-          b.setAttribute('aria-pressed', String(locLoaiChi === giaTri && !chiDuocChonId));
-          b.addEventListener('click', () => {
-            chiDuocChonId = null;
-            dropdownChi.value = '';
-            locLoaiChi = giaTri;
-            veNutLocChi();
-            veDanhSachChi();
-          });
-          return b;
-        }));
-      };
-      veNutLocChi();
-      khungBoc.append(dayLoc);
-    }
 
     const dsTheKhoi = e('div', 'ds-the-khoan');
     khungBoc.append(dsTheKhoi);

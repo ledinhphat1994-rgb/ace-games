@@ -1061,32 +1061,31 @@ body.trang-dang-nhap {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
-  padding-bottom: 12px;
+  padding: 8px 0 14px 0;
+  margin-bottom: 8px;
   border-bottom: 1px solid var(--vien);
 }
-.thanh-cong-cu-khoan .tieu-de-khoan {
+.thanh-cong-cu-khoan .day-loc {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin: 0;
-}
-.thanh-cong-cu-khoan .tieu-de-khoan h3 {
-  margin: 0;
-  font-size: 18px;
 }
 .thanh-cong-cu-khoan .nhom-dieu-khien-khoan {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .thanh-cong-cu-khoan .dropdown-chon-khoan {
-  max-width: 320px;
-  min-width: 200px;
+  width: 250px;
+  max-width: 280px;
+  height: 38px;
   min-height: 38px;
-  padding: 6px 12px;
+  padding: 0 12px;
   font-size: 13.5px;
   font-weight: 600;
   border-radius: 10px;
@@ -1095,18 +1094,70 @@ body.trang-dang-nhap {
   color: var(--chu);
   cursor: pointer;
   outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   transition: border-color .18s ease, box-shadow .18s ease;
+  box-sizing: border-box;
 }
 .thanh-cong-cu-khoan .dropdown-chon-khoan:focus {
   border-color: var(--chinh);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--chinh) 25%, transparent);
 }
 .thanh-cong-cu-khoan .o-tim-khoan {
-  max-width: 220px;
+  width: 180px;
+  max-width: 200px;
+  height: 38px;
   min-height: 38px;
-  padding: 6px 12px;
+  padding: 0 12px;
   font-size: 13.5px;
   border-radius: 10px;
+  background: var(--nen-noi);
+  border: 1.5px solid var(--vien);
+  color: var(--chu);
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+  box-sizing: border-box;
+}
+.thanh-cong-cu-khoan .o-tim-khoan:focus {
+  border-color: var(--chinh);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chinh) 25%, transparent);
+}
+@media (max-width: 820px) {
+  .thanh-cong-cu-khoan {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .thanh-cong-cu-khoan .day-loc {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .thanh-cong-cu-khoan .nhom-dieu-khien-khoan {
+    width: 100%;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .thanh-cong-cu-khoan .dropdown-chon-khoan {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+  }
+  .thanh-cong-cu-khoan .o-tim-khoan {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+  }
+}
+@media (max-width: 520px) {
+  .thanh-cong-cu-khoan .nhom-dieu-khien-khoan {
+    flex-direction: column;
+  }
+  .thanh-cong-cu-khoan .dropdown-chon-khoan,
+  .thanh-cong-cu-khoan .o-tim-khoan {
+    width: 100%;
+  }
 }
 .thanh-loc-dang-chon {
   display: flex;
