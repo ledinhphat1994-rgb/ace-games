@@ -59,7 +59,7 @@ function duocVaoTuyen(duong) {
 /** Ẩn các mục trong menu (cột trái, tab dưới) mà tài khoản hiện tại không có quyền vào. */
 function locMenuTheoQuyen() {
   if (PHIEN.role === 'teacher') return;
-  $$('.cot-trai a, .tab-duoi a').forEach((a) => {
+  $$('.cot-trai a, .tab-duoi a, #menuDayDu a').forEach((a) => {
     const href = a.getAttribute('href') || '';
     if (!href.startsWith('#/')) return;   // bỏ qua "Xem trang lớp", "Đăng xuất"...
     if (href === '#/them') return;         // menu "Thêm" luôn hiện, tự lọc bên trong

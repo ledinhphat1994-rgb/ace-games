@@ -381,6 +381,28 @@ export function ganDoiGiaoDien(nut) {
     nutTheme.dataset.boundThemeBg = '1';
     nutTheme.addEventListener('click', moBangThemeBg);
   }
+
+  // Tự động gắn sự kiện nút mở menu đầy đủ nếu có trên trang
+  ganMenu();
+}
+
+/* ---------- Menu đầy đủ: dùng chung cho mọi trang có thanh đầu ---------- */
+export function ganMenu(nut = document.getElementById('moMenu'), bang = document.getElementById('menuDayDu')) {
+  if (!nut || !bang) return;
+  if (nut.dataset.boundMenu) return;
+  nut.dataset.boundMenu = '1';
+  const dat = (mo) => {
+    bang.hidden = !mo;
+    nut.setAttribute('aria-expanded', String(mo));
+  };
+  nut.addEventListener('click', (ev) => { ev.stopPropagation(); dat(bang.hidden); });
+  bang.addEventListener('click', (ev) => { if (ev.target.closest('a')) dat(false); });
+  document.addEventListener('click', (ev) => {
+    if (!bang.hidden && !bang.contains(ev.target) && !nut.contains(ev.target)) dat(false);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !bang.hidden) { dat(false); nut.focus(); }
+  });
 }
 
 /* ---------- Nhạc nền: dùng chung cho MỌI trang có thanh đầu (trang lớp, khu quản lý, trang

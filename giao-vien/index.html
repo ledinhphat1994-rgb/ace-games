@@ -26,7 +26,7 @@
       <span class="hieu-ten">Quản lý lớp<small class="hieu-phu" title="Tài khoản đăng nhập">Tài khoản: Giáo viên chủ nhiệm</small></span>
     </a>
     <div class="thanh-phai">
-      <a class="nut-tron" href="/" title="Trang chủ" aria-label="Trang chủ">
+      <a class="nut-tron nut-ve-trang-chu" href="/" title="Trang chủ" aria-label="Trang chủ">
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
       </a>
       <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden>♪</button>
@@ -34,9 +34,80 @@
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
       </button>
       <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối">◐</button>
-      <a class="nut-tron" href="/api/logout" title="Đăng xuất" aria-label="Đăng xuất">
+      <a class="nut-tron nut-dang-xuat" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');" title="Đăng xuất tài khoản" aria-label="Đăng xuất tài khoản">
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
       </a>
+      <button class="nut-menu" id="moMenu" aria-expanded="false" aria-controls="menuDayDu">
+        <span class="nut-menu-vach" aria-hidden="true"></span>
+        <span class="nut-menu-chu">Menu</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="menu-day" id="menuDayDu" hidden>
+    <div class="wrap menu-day-trong">
+      <div class="menu-luoi">
+        <a class="menu-muc" href="#/tong-quan">
+          <span class="menu-icon">📊</span>
+          <span class="menu-chu"><b>Tổng quan</b><small>Tình hình chung của lớp 10A7</small></span>
+        </a>
+        <a class="menu-muc" href="#/diem-danh">
+          <span class="menu-icon">✓</span>
+          <span class="menu-chu"><b>Điểm danh</b><small>Ghi chuyên cần hôm nay và các ngày trước</small></span>
+        </a>
+        <a class="menu-muc" href="#/hoc-sinh">
+          <span class="menu-icon">👥</span>
+          <span class="menu-chu"><b>Học sinh</b><small>Danh sách, hồ sơ và thông tin liên lạc</small></span>
+        </a>
+        <a class="menu-muc" href="#/so-diem">
+          <span class="menu-icon">📖</span>
+          <span class="menu-chu"><b>Sổ điểm</b><small>Điểm thường xuyên, giữa kỳ, cuối kỳ</small></span>
+        </a>
+        <a class="menu-muc" href="#/quy">
+          <span class="menu-icon">₫</span>
+          <span class="menu-chu"><b>Thủ quỹ</b><small>Khoản thu, khoản chi và quỹ lớp</small></span>
+        </a>
+        <a class="menu-muc" href="#/thong-bao">
+          <span class="menu-icon">◈</span>
+          <span class="menu-chu"><b>Thông báo</b><small>Đăng và quản lý thông báo cho học sinh</small></span>
+        </a>
+        <a class="menu-muc" href="#/thoi-khoa-bieu">
+          <span class="menu-icon">▦</span>
+          <span class="menu-chu"><b>Thời khoá biểu</b><small>Xem và điều chỉnh lịch học</small></span>
+        </a>
+        <a class="menu-muc" href="#/hinh-anh">
+          <span class="menu-icon">🖼</span>
+          <span class="menu-chu"><b>Thư viện Ảnh</b><small>Quản lý ảnh hoạt động của lớp</small></span>
+        </a>
+        <a class="menu-muc" href="#/thu-vien-am-thanh">
+          <span class="menu-icon">♪</span>
+          <span class="menu-chu"><b>Thư viện Âm thanh</b><small>Nhạc nền và danh sách bài hát</small></span>
+        </a>
+        <a class="menu-muc" href="#/thu-vien-video">
+          <span class="menu-icon">🎬</span>
+          <span class="menu-chu"><b>Thư viện Video</b><small>Video kỷ niệm và hoạt động</small></span>
+        </a>
+        <a class="menu-muc" href="#/nhat-ky">
+          <span class="menu-icon">📝</span>
+          <span class="menu-chu"><b>Nhật ký lớp</b><small>Ghi nhận sự việc, khen thưởng, nhắc nhở</small></span>
+        </a>
+        <a class="menu-muc" href="#/bao-cao">
+          <span class="menu-icon">📄</span>
+          <span class="menu-chu"><b>Báo cáo & Xuất file</b><small>Xuất danh sách, điểm, chuyên cần</small></span>
+        </a>
+        <a class="menu-muc" href="#/ma-ca-nhan">
+          <span class="menu-icon">🔑</span>
+          <span class="menu-chu"><b>Mã cá nhân & Phân quyền</b><small>Cấp quyền cho cán sự lớp</small></span>
+        </a>
+        <a class="menu-muc" href="/">
+          <span class="menu-icon">🏠</span>
+          <span class="menu-chu"><b>Trang chủ lớp 10A7</b><small>Xem giao diện học sinh nhìn thấy</small></span>
+        </a>
+        <a class="menu-muc menu-muc-ra" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');">
+          <span class="menu-icon">⏻</span>
+          <span class="menu-chu"><b>Đăng xuất</b><small>Thoát khỏi khu quản lý trên máy này</small></span>
+        </a>
+      </div>
     </div>
   </div>
 </header>

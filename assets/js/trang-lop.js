@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo } from './chung.js';
+import { $, e, datNoiDung, api, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo } from './chung.js';
 import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 
@@ -17,26 +17,7 @@ api('/api/whoami').then((w) => {
 }).catch(() => {});
 
 /* ---------- Menu ---------- */
-(function menu() {
-  const nut = $('#moMenu');
-  const bang = $('#menuDayDu');
-  const dat = (mo) => {
-    bang.hidden = !mo;
-    nut.setAttribute('aria-expanded', String(mo));
-  };
-
-  nut.addEventListener('click', (ev) => { ev.stopPropagation(); dat(bang.hidden); });
-
-  // Chạm vào một mục là đóng menu lại, khỏi phải bấm thêm lần nữa trên điện thoại.
-  bang.addEventListener('click', (ev) => { if (ev.target.closest('a')) dat(false); });
-
-  document.addEventListener('click', (ev) => {
-    if (!bang.hidden && !bang.contains(ev.target) && !nut.contains(ev.target)) dat(false);
-  });
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && !bang.hidden) { dat(false); nut.focus(); }
-  });
-})();
+ganMenu();
 
 /* ---------- Trang riêng mở từ menu ---------- */
 const TRANG_PHU = {

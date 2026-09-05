@@ -22,7 +22,7 @@
       <span class="hieu-ten">Kết quả của tôi<small class="hieu-phu">Lớp 10A7 · 2026 – 2027</small></span>
     </a>
     <div class="thanh-phai">
-      <a class="nut-tron" href="/" title="Trang chủ" aria-label="Trang chủ">
+      <a class="nut-tron nut-ve-trang-chu" href="/" title="Trang chủ" aria-label="Trang chủ">
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
       </a>
       <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden>♪</button>
@@ -30,6 +30,52 @@
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
       </button>
       <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối">◐</button>
+      <a class="nut-tron nut-dang-xuat" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');" title="Đăng xuất tài khoản" aria-label="Đăng xuất tài khoản">
+        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      </a>
+      <button class="nut-menu" id="moMenu" aria-expanded="false" aria-controls="menuDayDu">
+        <span class="nut-menu-vach" aria-hidden="true"></span>
+        <span class="nut-menu-chu">Menu</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="menu-day" id="menuDayDu" hidden>
+    <div class="wrap menu-day-trong">
+      <div class="menu-luoi">
+        <a class="menu-muc" href="/#thong-bao">
+          <span class="menu-icon">◈</span>
+          <span class="menu-chu"><b>Thông báo</b><small>Tin mới nhất từ giáo viên chủ nhiệm</small></span>
+        </a>
+        <a class="menu-muc" href="/#thoi-khoa-bieu">
+          <span class="menu-icon">▦</span>
+          <span class="menu-chu"><b>Thời khoá biểu</b><small>Các tiết học theo buổi, theo thứ</small></span>
+        </a>
+        <a class="menu-muc" href="/#hinh-anh">
+          <span class="menu-icon">🖼</span>
+          <span class="menu-chu"><b>Hình ảnh hoạt động</b><small>Khoảnh khắc của tập thể lớp</small></span>
+        </a>
+        <a class="menu-muc" href="/#/danh-sach">
+          <span class="menu-icon">☰</span>
+          <span class="menu-chu"><b>Danh sách lớp</b><small>Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
+        </a>
+        <a class="menu-muc" href="/#/thu-quy">
+          <span class="menu-icon">₫</span>
+          <span class="menu-chu"><b>Thủ quỹ lớp</b><small>Công khai tổng thu – tổng chi của lớp</small></span>
+        </a>
+        <a class="menu-muc dang-xem" href="/ca-nhan.html">
+          <span class="menu-icon">★</span>
+          <span class="menu-chu"><b>Kết quả của tôi</b><small>Điểm, chuyên cần và nhận xét riêng của em</small></span>
+        </a>
+        <a class="menu-muc" id="mucQuanLy" href="/giao-vien/" hidden>
+          <span class="menu-icon">⚙</span>
+          <span class="menu-chu"><b>Khu quản lý</b><small>Chỉnh sửa các mục em được cấp quyền</small></span>
+        </a>
+        <a class="menu-muc menu-muc-ra" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');">
+          <span class="menu-icon">⏻</span>
+          <span class="menu-chu"><b>Đăng xuất</b><small>Thoát khỏi trang lớp trên máy này</small></span>
+        </a>
+      </div>
     </div>
   </div>
 </header>

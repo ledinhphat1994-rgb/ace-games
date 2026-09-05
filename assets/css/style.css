@@ -327,6 +327,18 @@ code {
   background: linear-gradient(135deg, var(--chinh), var(--chinh-sang)); border-color: transparent; color: #fff;
 }
 
+/* Nút đăng xuất trên thanh đầu trang */
+.nut-dang-xuat {
+  text-decoration: none;
+  color: var(--chu-nhat);
+}
+.nut-dang-xuat:hover {
+  color: var(--xau);
+  border-color: var(--xau);
+  background: var(--xau-nen);
+  transform: scale(1.05);
+}
+
 /* Nút mở menu — cửa vào của mọi mục không nằm trên trang chủ, nên để dạng viên thuốc có chữ. */
 .nut-menu {
   display: inline-flex; align-items: center; gap: 9px; flex: none;
@@ -388,6 +400,9 @@ code {
     font-size: 13px;
     gap: 6px;
     border-radius: 9px;
+  }
+  .nut-ve-trang-chu {
+    display: none;
   }
 }
 .nut-menu-vach { position: relative; display: block; width: 17px; height: 2px; border-radius: 2px; background: currentColor; }

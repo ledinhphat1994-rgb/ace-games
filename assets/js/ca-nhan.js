@@ -6,6 +6,10 @@ ganDoiGiaoDien($('#doiGiaoDien'));
 api('/api/whoami').then((w) => {
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
+  if (w && (w.role === 'teacher' || w.role === 'phu')) {
+    const ql = document.getElementById('mucQuanLy');
+    if (ql) ql.hidden = false;
+  }
 }).catch(() => {});
 
 // Nút loa nhạc nền — cùng hành vi với trang lớp, để chuyển qua lại giữa các trang không
