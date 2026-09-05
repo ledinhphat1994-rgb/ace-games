@@ -3,9 +3,11 @@
 //   POST   /api/gv/thu-vien-am-thanh?tenBai=...    -> tải bài MP3 mới vào thư viện (thân nhị phân thô)
 //   PATCH  /api/gv/thu-vien-am-thanh { id, datNhacNen: true }  -> đặt bài này làm nhạc nền trang chủ
 //   PATCH  /api/gv/thu-vien-am-thanh { id, ten }               -> đổi tên hiển thị
-//   DELETE /api/gv/thu-vien-am-thanh?id=
+//   DELETE /api/gv/thu-vien-am-thanh?id=            -> xoá một bài
+//   DELETE /api/gv/thu-vien-am-thanh?ids=1,2,3       -> xoá nhiều bài đã chọn
+//   DELETE /api/gv/thu-vien-am-thanh?tatCa=1         -> xoá sạch cả thư viện
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
-import { themTepVaoThuVien, xoaKhoiThuVien } from '../../_lib/thu-vien.js';
+import { themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
@@ -54,7 +56,21 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 }, { canGiaoVien: true, quyenCan: 'am-thanh' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
-  const id = Number(new URL(request.url).searchParams.get('id'));
+  const q = new URL(request.url).searchParams;
+
+  if (q.get('tatCa') === '1' || q.get('ids')) {
+    let ids;
+    if (q.get('tatCa') === '1') {
+      const { results } = await env.DB.prepare('SELECT id FROM am_thanh').all();
+      ids = results.map((r) => r.id);
+    } else {
+      ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+    }
+    const { daXoa } = await xoaNhieuKhoiThuVien(env, 'am-thanh', ids);
+    return json({ ok: true, daXoa });
+  }
+
+  const id = Number(q.get('id'));
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bài hát.');
 
   const loiXoa = await xoaKhoiThuVien(env, 'am-thanh', id);

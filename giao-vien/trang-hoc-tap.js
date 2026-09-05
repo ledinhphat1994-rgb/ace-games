@@ -1310,18 +1310,39 @@ async function nenAnh(tep) {
     Đây cũng là nguồn duy nhất để đính kèm âm thanh vào Thông báo (chọn từ thư viện này). */
 export async function trangThuVienAmThanh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  const daChon = new Set();   // id các bài đang tích chọn để xoá hàng loạt
 
   async function ve() {
     const d = await api('/api/gv/thu-vien-am-thanh');
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
+
+    const nutXoaTatCa = d.danhSach.length ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+      moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
+        e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ mất hết, kể cả bài đang làm nhạc nền trang chủ.`),
+        e('p', 'trong', 'Không thể hoàn tác.'),
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá tất cả', 'nut-xau', async (ev) => {
+          ev.currentTarget.disabled = true;
+          try {
+            await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE' });
+            dongHopThoai();
+            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            daChon.clear();
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        }),
+      ]);
+    }) : null;
     khung.append(tieuDeTrang('Thư viện Âm thanh',
-      d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào'));
+      d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
+      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
     the.append(e('p', 'trong',
-      'Bài nào được đặt làm "nhạc nền trang chủ" sẽ phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
+      'Bài nào được chọn "🔊 Làm nhạc nền" sẽ phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
 
     const oTepNhac = e('input');
     oTepNhac.type = 'file';
@@ -1366,41 +1387,66 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
+    if (daChon.size) {
+      const thanh = e('div', 'the');
+      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
+      thanh.append(e('span', null, `Đã chọn ${daChon.size} bài`));
+      const hop = e('div', 'day-loc');
+      hop.append(
+        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
+        nut(`🗑 Xoá ${daChon.size} bài đã chọn`, 'nut-xau nut-nho', () => {
+          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                daChon.clear();
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+            }),
+          ]);
+        })
+      );
+      thanh.append(hop);
+      khung.append(thanh);
+    }
+
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có bài nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
-      const ds = e('div');
-      ds.style.cssText = 'margin-top:18px;display:flex;flex-direction:column;gap:12px';
+      const luoi = e('div');
+      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
       d.danhSach.forEach((bai) => {
         const muc = e('div', 'the');
-        const dau = e('div', 'tieu-de-trang');
-        const ten = e('h3', null, bai.ten || 'Bài hát chưa đặt tên');
-        dau.append(ten);
-        if (bai.dangPhat) dau.append(e('span', 'nhan nhan-tot', '♪ Đang làm nhạc nền'));
-        muc.append(dau);
-        muc.append(e('p', 'trong', `${(bai.coByte / 1_000_000).toFixed(1)} MB`));
 
-        const audio = e('audio');
-        audio.controls = true;
-        audio.preload = 'none';
-        audio.src = '/api/thu-vien-tep?loai=am-thanh&id=' + bai.id;
-        audio.style.cssText = 'width:100%;margin:8px 0';
-        muc.append(audio);
+        const dongDau = e('div');
+        dongDau.style.cssText = 'display:flex;align-items:flex-start;gap:9px';
 
-        const hangNut = e('div', 'day-loc');
-        if (!bai.dangPhat) {
-          hangNut.append(nut('▶ Đặt làm nhạc nền', 'nut-vien nut-nho', async () => {
-            try {
-              await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { id: bai.id, datNhacNen: true } });
-              nhac('Đã đặt làm nhạc nền trang chủ', 'tot');
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }));
-        }
-        hangNut.append(nut('🗑 Xoá', 'nut-nhe nut-nho', () => {
+        const oChonXoa = e('input');
+        oChonXoa.type = 'checkbox';
+        oChonXoa.checked = daChon.has(bai.id);
+        oChonXoa.setAttribute('aria-label', 'Chọn "' + bai.ten + '" để xoá hàng loạt');
+        oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
+        oChonXoa.addEventListener('change', () => {
+          if (oChonXoa.checked) daChon.add(bai.id); else daChon.delete(bai.id);
+          ve();
+        });
+        dongDau.append(oChonXoa);
+
+        const giua = e('div');
+        giua.style.cssText = 'flex:1;min-width:0';
+        giua.append(e('h3', null, bai.ten || 'Bài hát chưa đặt tên'));
+        giua.append(e('p', 'trong', `${(bai.coByte / 1_000_000).toFixed(1)} MB`));
+        dongDau.append(giua);
+
+        dongDau.append(nut('🗑', 'nut-nhe nut-nho', () => {
           moHopThoai('Xoá bài này khỏi thư viện?', e('p', null,
             bai.dangPhat
-              ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi đặt bài khác.`
+              ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi chọn bài khác.`
               : `Xoá "${bai.ten}"? Không thể hoàn tác.`), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
@@ -1408,15 +1454,45 @@ export async function trangThuVienAmThanh(KHUNG) {
                 await api('/api/gv/thu-vien-am-thanh?id=' + bai.id, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
+                daChon.delete(bai.id);
                 ve();
               } catch (err) { nhac(err.message, 'xau'); }
             }),
           ]);
-        }));
-        muc.append(hangNut);
-        ds.append(muc);
+        }, 'Xoá bài: ' + bai.ten));
+        muc.append(dongDau);
+
+        const audio = e('audio');
+        audio.controls = true;
+        audio.preload = 'none';
+        audio.src = '/api/thu-vien-tep?loai=am-thanh&id=' + bai.id;
+        audio.style.cssText = 'width:100%;margin:10px 0 8px';
+        muc.append(audio);
+
+        // Tuỳ chọn (radio) — chọn ĐÚNG MỘT bài làm nhạc nền, tách biệt hẳn với tích chọn để
+        // xoá ở trên (khác hình dạng: nút tròn so với ô vuông) cho khỏi lẫn hai việc.
+        const oChonNenNhan = e('label');
+        oChonNenNhan.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;cursor:pointer';
+        const oChonNen = e('input');
+        oChonNen.type = 'radio';
+        oChonNen.name = 'nhacNenDangChon';
+        oChonNen.checked = bai.dangPhat;
+        oChonNen.style.cssText = 'width:17px;height:17px;cursor:pointer;accent-color:var(--tot)';
+        oChonNen.addEventListener('change', async () => {
+          if (!oChonNen.checked) return;
+          try {
+            await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { id: bai.id, datNhacNen: true } });
+            nhac('Đã đặt làm nhạc nền trang chủ', 'tot');
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); }
+        });
+        oChonNenNhan.append(oChonNen, document.createTextNode(bai.dangPhat ? '🔊 Đang làm nhạc nền' : 'Làm nhạc nền'));
+        if (bai.dangPhat) oChonNenNhan.style.color = 'var(--tot)';
+        muc.append(oChonNenNhan);
+
+        luoi.append(muc);
       });
-      khung.append(ds);
+      khung.append(luoi);
     }
 
     datNoiDung(KHUNG, khung);
@@ -1430,13 +1506,34 @@ export async function trangThuVienAmThanh(KHUNG) {
     để đính kèm video-tải-lên vào Thông báo (chọn từ thư viện này). */
 export async function trangThuVienVideo(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  const daChon = new Set();   // id các video đang tích chọn để xoá hàng loạt
 
   async function ve() {
     const d = await api('/api/gv/thu-vien-video');
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
+
+    const nutXoaTatCa = d.danhSach.length ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+      moHopThoai('Xoá TOÀN BỘ thư viện Video?', [
+        e('p', null, `Toàn bộ ${d.danhSach.length} video sẽ mất hết.`),
+        e('p', 'trong', 'Không thể hoàn tác.'),
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá tất cả', 'nut-xau', async (ev) => {
+          ev.currentTarget.disabled = true;
+          try {
+            await api('/api/gv/thu-vien-video?tatCa=1', { method: 'DELETE' });
+            dongHopThoai();
+            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            daChon.clear();
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        }),
+      ]);
+    }) : null;
     khung.append(tieuDeTrang('Thư viện Video',
-      d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào'));
+      d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào',
+      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải video mới vào thư viện'));
@@ -1485,24 +1582,63 @@ export async function trangThuVienVideo(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
+    if (daChon.size) {
+      const thanh = e('div', 'the');
+      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
+      thanh.append(e('span', null, `Đã chọn ${daChon.size} video`));
+      const hop = e('div', 'day-loc');
+      hop.append(
+        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
+        nut(`🗑 Xoá ${daChon.size} video đã chọn`, 'nut-xau nut-nho', () => {
+          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                daChon.clear();
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+            }),
+          ]);
+        })
+      );
+      thanh.append(hop);
+      khung.append(thanh);
+    }
+
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có video nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
-      const ds = e('div');
-      ds.style.cssText = 'margin-top:18px;display:flex;flex-direction:column;gap:12px';
+      const luoi = e('div');
+      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
       d.danhSach.forEach((v) => {
         const muc = e('div', 'the');
-        muc.append(e('h3', null, v.ten || 'Video chưa đặt tên'));
-        muc.append(e('p', 'trong', `${(v.coByte / 1_000_000).toFixed(1)} MB`));
 
-        const vid = e('video');
-        vid.controls = true;
-        vid.preload = 'metadata';
-        vid.src = '/api/thu-vien-tep?loai=video&id=' + v.id;
-        vid.style.cssText = 'max-width:320px;max-height:200px;border-radius:8px;display:block;margin:8px 0;background:#000';
-        muc.append(vid);
+        const dongDau = e('div');
+        dongDau.style.cssText = 'display:flex;align-items:flex-start;gap:9px';
 
-        muc.append(nut('🗑 Xoá', 'nut-nhe nut-nho', () => {
+        const oChonXoa = e('input');
+        oChonXoa.type = 'checkbox';
+        oChonXoa.checked = daChon.has(v.id);
+        oChonXoa.setAttribute('aria-label', 'Chọn "' + v.ten + '" để xoá hàng loạt');
+        oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
+        oChonXoa.addEventListener('change', () => {
+          if (oChonXoa.checked) daChon.add(v.id); else daChon.delete(v.id);
+          ve();
+        });
+        dongDau.append(oChonXoa);
+
+        const giua = e('div');
+        giua.style.cssText = 'flex:1;min-width:0';
+        giua.append(e('h3', null, v.ten || 'Video chưa đặt tên'));
+        giua.append(e('p', 'trong', `${(v.coByte / 1_000_000).toFixed(1)} MB`));
+        dongDau.append(giua);
+
+        dongDau.append(nut('🗑', 'nut-nhe nut-nho', () => {
           moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Không thể hoàn tác.`), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
@@ -1510,14 +1646,24 @@ export async function trangThuVienVideo(KHUNG) {
                 await api('/api/gv/thu-vien-video?id=' + v.id, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
+                daChon.delete(v.id);
                 ve();
               } catch (err) { nhac(err.message, 'xau'); }
             }),
           ]);
-        }));
-        ds.append(muc);
+        }, 'Xoá video: ' + v.ten));
+        muc.append(dongDau);
+
+        const vid = e('video');
+        vid.controls = true;
+        vid.preload = 'metadata';
+        vid.src = '/api/thu-vien-tep?loai=video&id=' + v.id;
+        vid.style.cssText = 'width:100%;max-height:200px;border-radius:8px;display:block;margin-top:10px;background:#000';
+        muc.append(vid);
+
+        luoi.append(muc);
       });
-      khung.append(ds);
+      khung.append(luoi);
     }
 
     datNoiDung(KHUNG, khung);
@@ -1528,14 +1674,34 @@ export async function trangThuVienVideo(KHUNG) {
 
 export async function trangHinhAnh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  const daChon = new Set();   // id các ảnh đang tích chọn để xoá hàng loạt
 
   async function ve() {
     const d = await api('/api/gv/anh');
 
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
+    const nutXoaTatCa = d.soAnh ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+      moHopThoai('Xoá TOÀN BỘ thư viện Ảnh?', [
+        e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ mất hết.`),
+        e('p', 'trong', 'Không thể hoàn tác.'),
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá tất cả', 'nut-xau', async (ev) => {
+          ev.currentTarget.disabled = true;
+          try {
+            await api('/api/gv/anh?tatCa=1', { method: 'DELETE' });
+            dongHopThoai();
+            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            daChon.clear();
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        }),
+      ]);
+    }) : null;
     khung.append(tieuDeTrang('Thư viện Ảnh',
-      d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào'));
+      d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào',
+      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     // Khu chọn ảnh
     const the = e('div', 'the');
@@ -1590,6 +1756,34 @@ export async function trangHinhAnh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
+    if (daChon.size) {
+      const thanh = e('div', 'the');
+      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
+      thanh.append(e('span', null, `Đã chọn ${daChon.size} ảnh`));
+      const hop = e('div', 'day-loc');
+      hop.append(
+        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
+        nut(`🗑 Xoá ${daChon.size} ảnh đã chọn`, 'nut-xau nut-nho', () => {
+          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api(`/api/gv/anh?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                daChon.clear();
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+            }),
+          ]);
+        })
+      );
+      thanh.append(hop);
+      khung.append(thanh);
+    }
+
     // Danh sách ảnh đã có
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có ảnh nào.'), { style: 'margin-top:16px' }));
@@ -1598,11 +1792,23 @@ export async function trangHinhAnh(KHUNG) {
       luoi.style.marginTop = '18px';
       d.danhSach.forEach((a) => {
         const hinh = e('figure');
+        hinh.style.position = 'relative';
         const img = e('img');
         img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
         img.alt = a.chuThich || 'Ảnh lớp 10A7';
         img.loading = 'lazy';
         hinh.append(img);
+
+        const oChonXoa = e('input');
+        oChonXoa.type = 'checkbox';
+        oChonXoa.checked = daChon.has(a.id);
+        oChonXoa.setAttribute('aria-label', 'Chọn ảnh ' + ngayVN(a.ngay) + ' để xoá hàng loạt');
+        oChonXoa.style.cssText = 'position:absolute;top:8px;left:8px;width:20px;height:20px;cursor:pointer;accent-color:var(--xau);box-shadow:0 1px 4px rgba(0,0,0,.5)';
+        oChonXoa.addEventListener('change', () => {
+          if (oChonXoa.checked) daChon.add(a.id); else daChon.delete(a.id);
+          ve();
+        });
+        hinh.append(oChonXoa);
 
         const chan = e('figcaption');
         chan.append(document.createTextNode(`${ngayVN(a.ngay)} · ${Math.round(a.coByte / 1024)} KB`));
@@ -1620,6 +1826,7 @@ export async function trangHinhAnh(KHUNG) {
                   await api('/api/gv/anh?id=' + a.id, { method: 'DELETE' });
                   dongHopThoai();
                   nhac('Đã xoá ảnh', 'tot');
+                  daChon.delete(a.id);
                   ve();
                 } catch (err) { nhac(err.message, 'xau'); }
               }),

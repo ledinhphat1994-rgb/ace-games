@@ -2,12 +2,14 @@
 //   GET    /api/gv/anh          -> danh sách ảnh (kèm dung lượng đã dùng)
 //   POST   /api/gv/anh          { tenTep, kieu, duLieu (base64), chuThich, ngay }
 //   PATCH  /api/gv/anh          { id, chuThich }
-//   DELETE /api/gv/anh?id=
+//   DELETE /api/gv/anh?id=            -> xoá một ảnh
+//   DELETE /api/gv/anh?ids=1,2,3       -> xoá nhiều ảnh đã chọn
+//   DELETE /api/gv/anh?tatCa=1         -> xoá sạch cả thư viện
 //
 // Ảnh đã được nén nhỏ ngay trên máy giáo viên trước khi gửi lên, nên mỗi tấm
-// chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare KV, phần mô tả lưu trong D1.
+// chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare R2, phần mô tả lưu trong D1.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
-import { tongDungLuongDaDung, GIOI_HAN_TOI_DA_TONG_BYTE } from '../../_lib/thu-vien.js';
+import { tongDungLuongDaDung, GIOI_HAN_TOI_DA_TONG_BYTE, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
@@ -76,7 +78,21 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 }, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
-  const id = Number(new URL(request.url).searchParams.get('id'));
+  const q = new URL(request.url).searchParams;
+
+  if (q.get('tatCa') === '1' || q.get('ids')) {
+    let ids;
+    if (q.get('tatCa') === '1') {
+      const { results } = await env.DB.prepare('SELECT id FROM hinh_anh').all();
+      ids = results.map((r) => r.id);
+    } else {
+      ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+    }
+    const { daXoa } = await xoaNhieuKhoiThuVien(env, 'anh', ids);
+    return json({ ok: true, daXoa });
+  }
+
+  const id = Number(q.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã ảnh.');
 
   const anh = await env.DB.prepare('SELECT khoa FROM hinh_anh WHERE id = ?1').bind(id).first();

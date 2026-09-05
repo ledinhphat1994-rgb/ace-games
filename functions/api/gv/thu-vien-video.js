@@ -3,9 +3,11 @@
 //   GET    /api/gv/thu-vien-video               -> danh sách + tổng dung lượng
 //   POST   /api/gv/thu-vien-video?ten=...        -> tải video mới vào thư viện (thân nhị phân thô)
 //   PATCH  /api/gv/thu-vien-video { id, ten }    -> đổi tên hiển thị
-//   DELETE /api/gv/thu-vien-video?id=
+//   DELETE /api/gv/thu-vien-video?id=            -> xoá một video
+//   DELETE /api/gv/thu-vien-video?ids=1,2,3       -> xoá nhiều video đã chọn
+//   DELETE /api/gv/thu-vien-video?tatCa=1         -> xoá sạch cả thư viện
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
-import { themTepVaoThuVien, xoaKhoiThuVien } from '../../_lib/thu-vien.js';
+import { themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
@@ -40,7 +42,21 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 }, { canGiaoVien: true, quyenCan: 'video' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env }) => {
-  const id = Number(new URL(request.url).searchParams.get('id'));
+  const q = new URL(request.url).searchParams;
+
+  if (q.get('tatCa') === '1' || q.get('ids')) {
+    let ids;
+    if (q.get('tatCa') === '1') {
+      const { results } = await env.DB.prepare('SELECT id FROM video').all();
+      ids = results.map((r) => r.id);
+    } else {
+      ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+    }
+    const { daXoa } = await xoaNhieuKhoiThuVien(env, 'video', ids);
+    return json({ ok: true, daXoa });
+  }
+
+  const id = Number(q.get('id'));
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã video.');
 
   const loiXoa = await xoaKhoiThuVien(env, 'video', id);
