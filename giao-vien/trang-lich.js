@@ -31,7 +31,11 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   const khung = e('div');
 
   if (chiXem) {
-    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
+    // Đi thẳng bằng hash thay vì history.back() — nút này LUÔN quay về đúng một chỗ cố định
+    // (thời khoá biểu hiện tại), nên không cần dựa vào lịch sử duyệt. Dựa vào history.back()
+    // ở đây có rủi ro: nếu mục trước đó trong lịch sử là một trang KHÁC hẳn (vd trang lớp mở
+    // bằng link "⚙ Quản lý"), trình duyệt sẽ tải lại toàn trang, làm mất tiếng nhạc nền đang phát.
+    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
   }
 
   const dauTrang = e('div');

@@ -439,13 +439,13 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
-    // Cả 3 đều là lối tắt ngang hàng từ đầu trang (không phải nút xác nhận trong biểu mẫu)
-    // nên dùng CHUNG một kiểu (nut-vien) — chỉ khác cỡ chữ/thứ tự theo tần suất dùng.
+    // Chỉ còn 2 lối tắt CHUNG cho cả trang (xem lịch sử, xem các mẫu định kỳ) — nút "Thêm
+    // khoản thu" đã dời xuống ngay trong thẻ "Các khoản thu" bên dưới, đồng cấp với nút
+    // "Ghi khoản chi" trong thẻ "Khoản chi" (trước đây 2 nút này lệch cấp, nhìn không hợp lý).
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
       nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
-      nut('🔁 Thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; }),
-      nut('➕ Mở khoản thu mới', 'nut-vien', () => moKhoanMoi(tai))
+      nut('🔁 Các mẫu thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; })
     ));
 
     // Khoản thu hầu như luôn ở trạng thái "đang mở" trong thực tế dùng (ít khi giáo viên chủ
@@ -466,24 +466,9 @@ export async function trangQuy(KHUNG) {
       huongDan.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
       huongDan.append(
         e('h3', null, 'Bắt đầu thu quỹ cho lớp'),
-        e('p', null, `Lớp có ${d.siSo} học sinh. Chọn một trong hai cách bên dưới — có thể dùng cả hai cùng lúc.`)
+        e('p', null, `Lớp có ${d.siSo} học sinh. Bấm "Thêm khoản thu" bên dưới — trong hộp thoại có thể chọn thu một lần (vd: quỹ đầu năm, tiền mua đồ dùng chung) hoặc thu định kỳ tự lặp lại theo tuần/tháng/năm (vd: quỹ lớp 5.000đ/tuần).`),
+        nut('➕ Thêm khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(tai))
       );
-      const luoi = e('div', 'luoi luoi-2');
-      luoi.style.marginTop = '10px';
-      const cachMot = e('div');
-      cachMot.append(
-        e('h3', null, '① Thu một lần'),
-        e('p', 'trong', 'Ví dụ: quỹ lớp học kì, tiền mua đồ dùng chung, tiền quỹ đầu năm.'),
-        nut('➕ Mở khoản thu mới', 'nut-vien nut-nho', () => moKhoanMoi(tai))
-      );
-      const cachHai = e('div');
-      cachHai.append(
-        e('h3', null, '② Thu định kỳ, tự lặp lại'),
-        e('p', 'trong', 'Ví dụ: quỹ lớp 5.000đ/tuần, 20.000đ/tháng. Hệ thống tự tạo từng kỳ khi tới hạn.'),
-        nut('🔁 Tạo mẫu định kỳ', 'nut-vien nut-nho', () => { location.hash = '#/quy-dinh-ky'; })
-      );
-      luoi.append(cachMot, cachHai);
-      huongDan.append(luoi);
       const a = e('a', null, '☰ Xem danh sách lớp');
       a.href = '#/hoc-sinh';
       a.style.cssText = 'display:inline-block;margin-top:12px;font-size:13.5px';
@@ -497,7 +482,14 @@ export async function trangQuy(KHUNG) {
     luoiChinh.style.marginTop = '16px';
 
     const theKhoan = e('div', 'the');
-    theKhoan.append(e('h3', null, '💰 Các khoản thu'));
+    // Cùng bố cục "tiêu-de-trang" (h2 + nút ở phải) với thẻ Khoản chi bên dưới — hai nút tạo
+    // mới (Thêm khoản thu / Ghi khoản chi) giờ đồng cấp, cùng nằm trong đầu thẻ của mình.
+    const dauKhoan = e('div', 'tieu-de-trang');
+    dauKhoan.append(e('h2', null, '💰 Các khoản thu'));
+    const phaiKhoan = e('div', 'phai');
+    phaiKhoan.append(nut('➕ Thêm khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(tai)));
+    dauKhoan.append(phaiKhoan);
+    theKhoan.append(dauKhoan);
     if (!d.khoan.length) {
       theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {
@@ -640,30 +632,84 @@ function suaChi(chi, taiLai) {
   ]);
 }
 
-function moKhoanMoi(taiLai) {
+// Loại thu chọn ngay khi tạo — gộp chung "khoản thu một lần" và "mẫu thu định kỳ" (trước đây
+// là 2 nút, 2 khái niệm tách rời khiến không rõ định kỳ nghĩa là gì) vào MỘT hộp thoại duy
+// nhất: chọn định kỳ thì các trường đổi theo và có giải thích lịch sinh kỳ ngay tại chỗ.
+const LOAI_THU_KHOAN = [
+  ['mot_lan', 'Một lần'],
+  ['tuan', 'Định kỳ — mỗi tuần'],
+  ['thang', 'Định kỳ — mỗi tháng'],
+  ['nam', 'Định kỳ — mỗi năm'],
+];
+const TEN_CHU_KY = { tuan: 'tuần', thang: 'tháng', nam: 'năm' };
+
+function moKhoanMoi(taiLai, loaiMacDinh = 'mot_lan') {
+  const oLoai = oChon('qLoaiThu', LOAI_THU_KHOAN, loaiMacDinh);
   const oTen = oNhap('qTen', 'text', '', 'Ví dụ: Quỹ lớp học kì 1');
   const oSoTien = oNhap('qSoTien', 'number', '50000');
   const oHk = oChon('qHk', [[1, 'Học kì 1'], [2, 'Học kì 2']], 1);
   const oGc = oNhap('qGc', 'textarea', '', 'Ghi chú (không bắt buộc)');
+  const oNgayBd = oNhap('qNgayBd', 'date', homNay());
 
-  moHopThoai('Mở khoản thu mới', [
+  const truongLoai = truong('Loại thu', oLoai);
+  const truongHk = truong('Học kì', oHk);
+  const truongGc = truong('Ghi chú', oGc);
+  const truongNgayBd = truong('Bắt đầu từ ngày', oNgayBd);
+  const ghiChuDinhKy = e('p', 'trong');
+  ghiChuDinhKy.style.marginTop = '-8px';
+
+  function capNhatHienThi() {
+    const laDinhKy = oLoai.value !== 'mot_lan';
+    truongHk.hidden = laDinhKy;
+    truongGc.hidden = laDinhKy;
+    truongNgayBd.hidden = !laDinhKy;
+    ghiChuDinhKy.hidden = !laDinhKy;
+    if (laDinhKy) {
+      const tenCk = TEN_CHU_KY[oLoai.value];
+      oTen.placeholder = `Ví dụ: Quỹ lớp (tự thêm "— ${oLoai.value === 'tuan' ? 'Tuần 1' : oLoai.value === 'thang' ? 'Tháng 9' : 'Năm 2026'}"... vào mỗi kỳ)`;
+      ghiChuDinhKy.textContent =
+        `Định kỳ nghĩa là: hệ thống tự tạo một khoản thu mới ứng với mỗi ${tenCk}, tính từ ngày `
+        + `bắt đầu — không cần tạo tay từng ${tenCk}. Kỳ 1 xuất hiện ngay (nếu ngày bắt đầu không `
+        + `ở tương lai); các kỳ sau tự xuất hiện ngay khi bạn mở lại trang Thủ quỹ, đúng vào lúc `
+        + `đã đến hạn. Xem danh sách các mẫu định kỳ và kỳ đã sinh ở "🔁 Các mẫu thu định kỳ".`;
+    } else {
+      oTen.placeholder = 'Ví dụ: Quỹ lớp học kì 1';
+    }
+  }
+  oLoai.addEventListener('change', capNhatHienThi);
+  capNhatHienThi();
+
+  moHopThoai('Thêm khoản thu mới', [
+    truongLoai,
     truong('Tên khoản thu', oTen),
     truong('Mức thu mỗi em (đồng)', oSoTien),
-    truong('Học kì', oHk),
-    truong('Ghi chú', oGc),
+    truongHk,
+    truongNgayBd,
+    ghiChuDinhKy,
+    truongGc,
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Tạo khoản thu', '', async (ev) => {
       if (!oTen.value.trim()) return nhac('Chưa nhập tên khoản thu', 'xau');
+      const soTien = Number(oSoTien.value);
+      if (!soTien || soTien <= 0) return nhac('Mức thu không hợp lệ', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/quy', {
-          method: 'POST',
-          than: { hanhDong: 'tao_khoan', ten: oTen.value, soTienMoiEm: Number(oSoTien.value), hocKy: Number(oHk.value), ghiChu: oGc.value },
-        });
+        if (oLoai.value === 'mot_lan') {
+          await api('/api/gv/quy', {
+            method: 'POST',
+            than: { hanhDong: 'tao_khoan', ten: oTen.value, soTienMoiEm: soTien, hocKy: Number(oHk.value), ghiChu: oGc.value },
+          });
+          nhac('Đã tạo khoản thu', 'tot');
+        } else {
+          await api('/api/gv/quy-dinh-ky', {
+            method: 'POST',
+            than: { ten: oTen.value, chuKy: oLoai.value, soTienMoiKy: soTien, ngayBatDau: oNgayBd.value },
+          });
+          nhac('Đã tạo — kỳ đến hạn sẽ tự xuất hiện trong Thủ quỹ', 'tot');
+        }
         dongHopThoai();
-        nhac('Đã tạo khoản thu', 'tot');
-        taiLai();
+        await taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
         ev.currentTarget.disabled = false;
@@ -1114,7 +1160,10 @@ export async function trangQuyLichSu(KHUNG) {
     const laGiaoVien = phienD.role === 'teacher';
 
     const khung = e('div');
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/quy'; }));
+    // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
+    // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
+    // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
+    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
     khung.append(tieuDeTrang('Lịch sử & khôi phục Thủ quỹ',
       'Mỗi lần ghi thu, ghi chi hoặc xoá đều tự động lưu một điểm khôi phục ngay trước đó.'));
 
@@ -1174,8 +1223,27 @@ export async function trangQuyLichSu(KHUNG) {
 }
 
 /* ================= Thu định kỳ ================= */
+// Tạo mẫu mới giờ dùng chung hộp thoại moKhoanMoi(taiLai, 'tuan') ở trên — không còn hộp
+// thoại riêng taoDinhKy() nữa, tránh 2 nơi tạo cùng một thứ mà giao diện khác nhau.
 
 const CHU_KY_HIEN_THI = { tuan: 'Mỗi tuần', thang: 'Mỗi tháng', nam: 'Mỗi năm' };
+
+/** Ngày (ISO yyyy-mm-dd) kỳ TIẾP THEO (chưa sinh) của một mẫu định kỳ dự kiến bắt đầu — chỉ để
+    hiển thị cho giáo viên biết "định kỳ là khi nào", KHÔNG dùng để tự sinh kỳ (việc đó nằm ở
+    sinhKyConThieu() phía máy chủ, functions/_lib/quy-dinh-ky.js). */
+function ngayKyTiepTheoISO(dk) {
+  const bd = new Date(dk.ngayBatDau + 'T00:00:00Z');
+  const soKyDaQua = dk.soKyDaSinh;
+  let d;
+  if (dk.chuKy === 'tuan') {
+    d = new Date(bd); d.setUTCDate(d.getUTCDate() + soKyDaQua * 7);
+  } else if (dk.chuKy === 'nam') {
+    d = new Date(bd); d.setUTCFullYear(d.getUTCFullYear() + soKyDaQua);
+  } else {
+    d = new Date(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth() + soKyDaQua, bd.getUTCDate()));
+  }
+  return d.toISOString().slice(0, 10);
+}
 
 export async function trangQuyDinhKy(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
@@ -1184,10 +1252,13 @@ export async function trangQuyDinhKy(KHUNG) {
     const d = await api('/api/gv/quy-dinh-ky');
     const khung = e('div');
 
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/quy'; }));
+    // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
+    // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
+    // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
+    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
     khung.append(tieuDeTrang('Thu định kỳ',
       'Ví dụ: quỹ lớp 5.000đ/tuần. Hệ thống tự tạo từng kỳ khi tới hạn, không cần tạo tay mỗi tuần.',
-      nut('+ Tạo mẫu thu định kỳ', '', () => taoDinhKy(ve))
+      nut('+ Tạo mẫu thu định kỳ', '', () => moKhoanMoi(ve, 'tuan'))
     ));
 
     if (!d.danhSach.length) {
@@ -1203,6 +1274,13 @@ export async function trangQuyDinhKy(KHUNG) {
         the.append(dau);
         the.append(e('p', null,
           `${CHU_KY_HIEN_THI[dk.chuKy] || dk.chuKy} · ${tienVN(dk.soTienMoiKy)}/em · bắt đầu ${ngayVN(dk.ngayBatDau)} · đã sinh ${dk.soKyDaSinh} kỳ`));
+        // Trả lời trực tiếp "định kỳ là khi nào": cho biết luôn ngày kỳ kế tiếp dự kiến bắt đầu.
+        if (dk.dangHoatDong) {
+          the.append(Object.assign(
+            e('p', 'trong', `Kỳ ${dk.soKyDaSinh + 1} dự kiến bắt đầu: ${ngayVN(ngayKyTiepTheoISO(dk))} — tự xuất hiện trong Thủ quỹ ngay khi bạn mở lại trang vào/sau ngày này.`),
+            { style: 'margin-top:2px' }
+          ));
+        }
 
         const hangNut = e('div', 'day-loc');
         if (dk.dangHoatDong) {
@@ -1243,36 +1321,3 @@ export async function trangQuyDinhKy(KHUNG) {
   await ve();
 }
 
-function taoDinhKy(taiLai) {
-  const oTen = oNhap('dkTen', 'text', '', 'Ví dụ: Quỹ lớp');
-  const oChuKy = oChon('dkChuKy', [['tuan', 'Mỗi tuần'], ['thang', 'Mỗi tháng'], ['nam', 'Mỗi năm']], 'tuan');
-  const oSoTien = oNhap('dkSoTien', 'number', '5000');
-  const oNgay = oNhap('dkNgay', 'date', homNay());
-
-  moHopThoai('Tạo mẫu thu định kỳ', [
-    truong('Tên khoản', oTen),
-    truong('Chu kỳ', oChuKy),
-    truong('Mức thu mỗi kỳ (đồng/em)', oSoTien),
-    truong('Bắt đầu từ ngày', oNgay, 'Hệ thống tự tính kỳ 1, kỳ 2... kể từ ngày này.'),
-  ], [
-    nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Tạo', '', async (ev) => {
-      if (!oTen.value.trim()) return nhac('Chưa nhập tên khoản', 'xau');
-      const soTien = Number(oSoTien.value);
-      if (!soTien || soTien <= 0) return nhac('Mức thu không hợp lệ', 'xau');
-      ev.currentTarget.disabled = true;
-      try {
-        await api('/api/gv/quy-dinh-ky', {
-          method: 'POST',
-          than: { ten: oTen.value, chuKy: oChuKy.value, soTienMoiKy: soTien, ngayBatDau: oNgay.value },
-        });
-        dongHopThoai();
-        nhac('Đã tạo — các kỳ đến hạn sẽ tự xuất hiện trong Thủ quỹ', 'tot');
-        taiLai();
-      } catch (err) {
-        nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
-      }
-    }),
-  ]);
-}
