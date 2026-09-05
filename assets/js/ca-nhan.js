@@ -152,7 +152,10 @@ function veKetQua(d) {
         );
         const tdDtb = e('td', null, m.dtb ?? '—');
         tdDtb.style.fontWeight = '700';
-        if (typeof m.dtb === 'number' && m.dtb < 5) tdDtb.style.color = 'var(--xau)';
+        if (typeof m.dtb === 'number') {
+          if (m.dtb < 5) tdDtb.className = 'diem-kem';
+          else if (m.dtb >= 8) tdDtb.className = 'diem-gioi';
+        }
         tr.append(tdDtb);
       } else {
         const td = e('td');
@@ -202,12 +205,17 @@ function veKetQua(d) {
     the.append(e('h3', null, 'Những buổi em vắng hoặc đi trễ'));
     const ds = e('div', 'ds-diem-danh');
     vang.slice(0, 20).forEach((x) => {
-      const hang = e('div', 'hang-hs');
+      const lopSuKien = x.trangThai === 'tre' ? 'su-kien-tre'
+        : x.trangThai === 'vang_khong_phep' ? 'su-kien-khong-phep' : 'su-kien-phep';
+      const icon = x.trangThai === 'tre' ? '⏱️' : x.trangThai === 'vang_khong_phep' ? '⚠️' : '📋';
+
+      const hang = e('div', 'hang-hs hang-hs-su-kien ' + lopSuKien);
+      const iconEl = e('div', 'su-kien-icon', icon);
       const ten = e('div', 'ten');
       ten.append(e('b', null, ngayVN(x.ngay)));
       if (x.lyDo) ten.append(e('small', null, x.lyDo));
       const [tenTt, lop] = TEN_TRANG_THAI[x.trangThai] || ['—', 'nhan-xam'];
-      hang.append(ten, e('span', 'nhan ' + lop, tenTt));
+      hang.append(iconEl, ten, e('span', 'nhan ' + lop, tenTt));
       ds.append(hang);
     });
     the.append(ds);

@@ -63,6 +63,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     // Thủ quỹ: chỉ số liệu TỔNG HỢP, không bao giờ trả về ai đã đóng / ai còn thiếu.
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
+              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
               COALESCE(SUM(d.so_tien), 0) AS tongDaThu
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
         GROUP BY k.id ORDER BY k.tao_luc DESC`
@@ -121,6 +122,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       tongChi: tongChiQuy,
       khoan: quyKhoan.results.map((k) => ({
         id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
+        dinhKyId: k.dinhKyId, kySo: k.kySo, ngayBatDau: k.ngayBatDau, ngayKetThuc: k.ngayKetThuc,
         tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
       })),
     },

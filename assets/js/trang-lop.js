@@ -344,14 +344,24 @@ function veDanhSach(ds) {
       const tdChuc = e('td');
       if (h.chucVu) tdChuc.append(e('span', 'nhan nhan-tot', h.chucVu));
 
+      const tdGt = e('td');
+      if (h.gioiTinh) {
+        tdGt.append(e('span', 'nhan-gt ' + (h.gioiTinh === 'Nam' ? 'gt-nam' : 'gt-nu'), h.gioiTinh));
+      }
+
+      const tdTo = e('td');
+      if (h.toSo) {
+        tdTo.append(e('span', 'nhan-to', 'Tổ ' + h.toSo));
+      }
+
       tr.append(
         e('td', 'so', h.stt),
         e('td', null, h.hoTen),
-        e('td', null, h.gioiTinh || ''),
+        tdGt,
         e('td', null, ngayVN(h.ngaySinh)),
         tdNghe,
         e('td', null, h.toHop || ''),
-        e('td', null, h.toSo ? 'Tổ ' + h.toSo : ''),
+        tdTo,
         tdChuc
       );
       return tr;
@@ -396,7 +406,12 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
     const than = $('#thanTkb');
 
     const hangDau = e('tr');
-    hangDau.append(e('th', null, 'Tiết'), ...cacThu.map((t) => e('th', null, t === 7 ? 'Thứ 7' : 'Thứ ' + t)));
+    hangDau.append(e('th', null, 'Tiết'), ...cacThu.map((t) => {
+      const laHomNay = t === soThuTkb;
+      const th = e('th', laHomNay ? 'cot-hom-nay' : null, t === 7 ? 'Thứ 7' : 'Thứ ' + t);
+      if (laHomNay) th.append(e('span', 'nhan-hom-nay', 'Hôm nay'));
+      return th;
+    }));
     datNoiDung(dau, hangDau);
 
     const oBuoi = o.filter((x) => x.buoi === buoiDangXem);
@@ -414,7 +429,10 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
     for (let i = 1; i <= soTiet; i++) {
       const tr = e('tr');
       tr.append(Object.assign(e('td', null, 'Tiết ' + i), { style: 'font-weight:700;color:var(--chinh);white-space:nowrap' }));
-      cacThu.forEach((t) => tr.append(e('td', null, bang[`${t}-${i}`] || '—')));
+      cacThu.forEach((t) => {
+        const laHomNay = t === soThuTkb;
+        tr.append(e('td', laHomNay ? 'cot-hom-nay' : null, bang[`${t}-${i}`] || '—'));
+      });
       hang.push(tr);
     }
     datNoiDung(than, ...hang);
@@ -611,27 +629,201 @@ function veThuQuy(tq) {
   );
 
   const hop = $('#tqKhoan');
-  if (!tq.khoan.length) {
+  if (!tq.khoan || !tq.khoan.length) {
     return datNoiDung(hop, e('p', 'trong', 'Chưa có khoản thu nào được mở.'));
   }
 
-  datNoiDung(hop, e('h3', null, 'Các khoản thu'), ...tq.khoan.map((k) => {
-    const dong = e('div');
-    dong.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--vien)';
-    const dau = e('div');
-    dau.style.cssText = 'display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap';
-    dau.append(
-      e('b', null, k.ten + (k.dangMo ? '' : ' (đã đóng)')),
-      e('span', null, `${tienVN(k.tongDaThu)} / ${tienVN(k.tongCanThu)}`)
-    );
-    dong.append(dau);
-    const thanh = e('div', 'thanh-tien-do');
-    const i = e('i', 'p-comat');
-    i.style.width = Math.min(100, k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0) + '%';
-    thanh.append(i);
-    dong.append(thanh);
-    return dong;
-  }));
+  let locTrangThai = ''; // '' (tất cả) | 'dang_mo' | 'da_du' | 'da_dong'
+  let timKhoan = '';
+
+  const dsKhoanGoc = tq.khoan;
+  const soDangMo = dsKhoanGoc.filter((k) => k.dangMo && ((k.tongCanThu ? (k.tongDaThu / k.tongCanThu) * 100 : 0) < 100)).length;
+  const soDaDu = dsKhoanGoc.filter((k) => k.tongCanThu && (k.tongDaThu >= k.tongCanThu)).length;
+  const soDaDong = dsKhoanGoc.filter((k) => !k.dangMo).length;
+
+  const khungBoc = e('div', 'khu-khoan-thu');
+
+  // Thanh công cụ: tiêu đề + số lượng + ô tìm kiếm
+  const thanhCongCu = e('div', 'thanh-cong-cu-khoan');
+  const tieuDeKhoan = e('div', 'tieu-de-khoan');
+  tieuDeKhoan.append(
+    e('h3', null, 'Các khoản thu lớp'),
+    e('span', 'nhan nhan-xam', `${dsKhoanGoc.length} khoản`)
+  );
+  thanhCongCu.append(tieuDeKhoan);
+
+  if (dsKhoanGoc.length > 4) {
+    const oTim = e('input', 'o-nhap o-tim-khoan');
+    oTim.type = 'search';
+    oTim.placeholder = 'Tìm khoản thu, tuần…';
+    oTim.setAttribute('aria-label', 'Tìm kiếm khoản thu');
+    oTim.addEventListener('input', (ev) => {
+      timKhoan = ev.target.value.trim().toLowerCase();
+      veDanhSachKhoan();
+    });
+    thanhCongCu.append(oTim);
+  }
+  khungBoc.append(thanhCongCu);
+
+  // Bộ lọc dạng viên thuốc (Tất cả / Đang thu / Đã đủ / Đã đóng)
+  const dayLoc = e('div', 'day-loc');
+  const CAC_MUC_LOC = [
+    ['', `Tất cả (${dsKhoanGoc.length})`],
+    ['dang_mo', `Đang thu (${soDangMo})`],
+    ['da_du', `Đã đủ 100% (${soDaDu})`],
+  ];
+  if (soDaDong > 0) {
+    CAC_MUC_LOC.push(['da_dong', `Đã đóng (${soDaDong})`]);
+  }
+
+  function veNutLoc() {
+    datNoiDung(dayLoc, ...CAC_MUC_LOC.map(([giaTri, nhan]) => {
+      const b = e('button', 'vien-loc', nhan);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(locTrangThai === giaTri));
+      b.addEventListener('click', () => {
+        locTrangThai = giaTri;
+        veNutLoc();
+        veDanhSachKhoan();
+      });
+      return b;
+    }));
+  }
+  veNutLoc();
+  khungBoc.append(dayLoc);
+
+  const dsTheKhoi = e('div', 'ds-the-khoan');
+  khungBoc.append(dsTheKhoi);
+
+  function veDanhSachKhoan() {
+    const danhSachLoc = dsKhoanGoc.filter((k) => {
+      const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+      if (locTrangThai === 'dang_mo' && (!k.dangMo || phanTram >= 100)) return false;
+      if (locTrangThai === 'da_du' && phanTram < 100) return false;
+      if (locTrangThai === 'da_dong' && k.dangMo) return false;
+      if (timKhoan) {
+        const tenThuong = (k.ten || '').toLowerCase();
+        if (!tenThuong.includes(timKhoan)) return false;
+      }
+      return true;
+    });
+
+    if (!danhSachLoc.length) {
+      return datNoiDung(dsTheKhoi, e('p', 'trong', 'Không có khoản thu nào phù hợp với bộ lọc.'));
+    }
+
+    datNoiDung(dsTheKhoi, ...danhSachLoc.map((k) => {
+      const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+      const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
+      const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
+
+      // Phân loại trạng thái
+      let lopTrangThai = 'dang-thu';
+      let badgeTrangThai;
+      let icon = laDinhKy ? '📅' : '💰';
+
+      if (!k.dangMo) {
+        lopTrangThai = 'da-dong';
+        badgeTrangThai = e('span', 'nhan nhan-xam', '🔒 Đã đóng');
+        icon = '📁';
+      } else if (phanTram >= 100) {
+        lopTrangThai = 'da-du';
+        badgeTrangThai = e('span', 'nhan nhan-tot', '✓ Đã thu đủ (100%)');
+        icon = '✅';
+      } else if (k.tongDaThu === 0) {
+        lopTrangThai = 'chua-thu';
+        badgeTrangThai = e('span', 'nhan nhan-xam', 'Chưa thu (0%)');
+        icon = '⏳';
+      } else {
+        badgeTrangThai = e('span', 'nhan', `Đang thu · ${phanTram}%`);
+      }
+
+      const the = e('div', 'the-khoan-thu ' + lopTrangThai);
+
+      // 1. Đầu thẻ
+      const dau = e('div', 'the-khoan-dau');
+      const trai = e('div', 'the-khoan-trai');
+      trai.append(e('div', 'the-khoan-icon', icon));
+
+      const thongTin = e('div', 'the-khoan-thong-tin');
+      const dongTen = e('div', 'the-khoan-ten-hang');
+      dongTen.append(e('h4', 'the-khoan-ten', k.ten));
+      thongTin.append(dongTen);
+
+      const chipDay = e('div', 'the-khoan-chip-day');
+      chipDay.append(e('span', 'the-khoan-chip', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'));
+
+      // Khoảng ngày nếu có
+      if (k.ngayBatDau && k.ngayKetThuc) {
+        chipDay.append(e('span', 'the-khoan-chip', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`));
+      } else {
+        const m = /\(([^)]+)\)/.exec(k.ten);
+        if (m) {
+          chipDay.append(e('span', 'the-khoan-chip', `📅 ${m[1]}`));
+        }
+      }
+
+      if (k.soTienMoiEm) {
+        chipDay.append(e('span', 'the-khoan-chip', `👤 ${tienVN(k.soTienMoiEm)}/em`));
+      }
+      thongTin.append(chipDay);
+      trai.append(thongTin);
+
+      const phai = e('div', 'the-khoan-phai');
+      phai.append(badgeTrangThai);
+      dau.append(trai, phai);
+      the.append(dau);
+
+      // 2. Khối số liệu
+      const soLieu = e('div', 'the-khoan-so-lieu');
+
+      const cotDaThu = e('div');
+      cotDaThu.append(
+        e('div', 'nhan-cot', 'Đã thu được'),
+        e('div', 'gia-tri-da-thu', tienVN(k.tongDaThu))
+      );
+
+      const cotMucTieu = e('div');
+      cotMucTieu.append(
+        e('div', 'nhan-cot', 'Mục tiêu cả lớp'),
+        e('div', 'gia-tri-muc-tieu', tienVN(k.tongCanThu))
+      );
+
+      const cotTienDo = e('div', 'cot-tien-do');
+      cotTienDo.append(
+        e('div', 'nhan-cot', 'Tiến độ'),
+        e('div', 'gia-tri-phan-tram', `${phanTram}%`)
+      );
+
+      soLieu.append(cotDaThu, cotMucTieu, cotTienDo);
+      the.append(soLieu);
+
+      // 3. Thanh tiến độ
+      const tienDoKhung = e('div', 'the-khoan-tien-do-khung');
+      const tienDoChay = e('div', 'the-khoan-tien-do-chay');
+      tienDoChay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
+      tienDoKhung.append(tienDoChay);
+      the.append(tienDoKhung);
+
+      // 4. Chân thẻ
+      const chan = e('div', 'the-khoan-chan');
+      if (phanTram >= 100) {
+        chan.append(e('span', 'hoan-thanh-tot', '🎉 Đã hoàn thành 100% chỉ tiêu thu của lớp'));
+      } else if (k.dangMo) {
+        chan.append(e('span', 'con-thieu', `Còn thiếu ${tienVN(conThieu)} để đạt chỉ tiêu`));
+      } else {
+        chan.append(e('span', null, 'Khoản thu đã khoá sổ.'));
+      }
+
+      chan.append(e('span', null, k.dangMo ? 'Đang mở đóng quỹ' : 'Đã đóng'));
+      the.append(chan);
+
+      return the;
+    }));
+  }
+
+  veDanhSachKhoan();
+  datNoiDung(hop, khungBoc);
 }
 
 /* ---------- Xem ảnh phóng to (lightbox): điều hướng ảnh trước/sau, phím tắt, đóng bằng nền/Esc ---------- */

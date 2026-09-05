@@ -1050,3 +1050,367 @@ body.trang-dang-nhap {
     font-size: 15px !important;
   }
 }
+
+/* ---------- 16. Giao diện Khoản thu lớp (Thủ quỹ công khai) ---------- */
+.khu-khoan-thu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.thanh-cong-cu-khoan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vien);
+}
+.thanh-cong-cu-khoan .tieu-de-khoan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.thanh-cong-cu-khoan .tieu-de-khoan h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.thanh-cong-cu-khoan .o-tim-khoan {
+  max-width: 240px;
+  min-height: 38px;
+  padding: 6px 12px;
+  font-size: 13.5px;
+}
+.ds-the-khoan {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.the-khoan-thu {
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  box-shadow: var(--bong-1);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  position: relative;
+  overflow: hidden;
+  border-left: 4px solid var(--vien-dam);
+}
+.the-khoan-thu:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bong-2);
+  border-color: color-mix(in srgb, var(--chinh) 45%, var(--vien));
+}
+.the-khoan-thu.da-du {
+  border-left-color: #10b981;
+}
+.the-khoan-thu.dang-thu {
+  border-left-color: var(--chinh);
+}
+.the-khoan-thu.chua-thu {
+  border-left-color: #f59e0b;
+}
+.the-khoan-thu.da-dong {
+  border-left-color: var(--chu-mo);
+  opacity: .85;
+}
+.the-khoan-thu.da-dong:hover {
+  opacity: 1;
+}
+
+/* Đầu thẻ khoản thu */
+.the-khoan-dau {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.the-khoan-trai {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.the-khoan-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--chinh-nen);
+  color: var(--chinh);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.the-khoan-thu.da-du .the-khoan-icon {
+  background: var(--tot-nen);
+  color: var(--tot);
+}
+.the-khoan-thu.chua-thu .the-khoan-icon {
+  background: var(--luu-y-nen);
+  color: var(--luu-y);
+}
+.the-khoan-thu.da-dong .the-khoan-icon {
+  background: var(--nen-noi);
+  color: var(--chu-mo);
+}
+.the-khoan-thong-tin {
+  min-width: 0;
+  flex: 1;
+}
+.the-khoan-ten-hang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.the-khoan-ten {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--chu);
+  margin: 0;
+  line-height: 1.3;
+}
+.the-khoan-chip-day {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.the-khoan-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--chu-nhat);
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.the-khoan-phai {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* Khối số liệu giữa thẻ */
+.the-khoan-so-lieu {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r-nho);
+  padding: 11px 15px;
+  margin-bottom: 12px;
+}
+@media (max-width: 480px) {
+  .the-khoan-so-lieu {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+  }
+  .the-khoan-so-lieu .cot-tien-do {
+    grid-column: span 2;
+    border-top: 1px dashed var(--vien);
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+.the-khoan-so-lieu .nhan-cot {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--chu-mo);
+  letter-spacing: .4px;
+  margin-bottom: 2px;
+}
+.the-khoan-so-lieu .gia-tri-da-thu {
+  font-size: 17px;
+  font-weight: 800;
+  color: #10b981;
+}
+:root[data-theme="light"] .the-khoan-so-lieu .gia-tri-da-thu,
+:root[data-bg-theme="light"] .the-khoan-so-lieu .gia-tri-da-thu {
+  color: #059669;
+}
+.the-khoan-so-lieu .gia-tri-muc-tieu {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--chu);
+}
+.the-khoan-so-lieu .gia-tri-phan-tram {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--chinh);
+  text-align: right;
+}
+.the-khoan-thu.da-du .the-khoan-so-lieu .gia-tri-phan-tram {
+  color: #10b981;
+}
+
+/* Thanh tiến độ trực quan */
+.the-khoan-tien-do-khung {
+  height: 9px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 8px;
+}
+.the-khoan-tien-do-chay {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--chinh) 0%, #10b981 100%);
+  transition: width .5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.the-khoan-thu.da-du .the-khoan-tien-do-chay {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+.the-khoan-thu.da-dong .the-khoan-tien-do-chay {
+  background: var(--chu-mo);
+}
+
+/* Chân thẻ khoản thu */
+.the-khoan-chan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--chu-nhat);
+}
+.the-khoan-chan .con-thieu {
+  color: #f59e0b;
+  font-weight: 600;
+}
+.the-khoan-chan .hoan-thanh-tot {
+  color: #10b981;
+  font-weight: 700;
+}
+:root[data-theme="light"] .the-khoan-chan .con-thieu,
+:root[data-bg-theme="light"] .the-khoan-chan .con-thieu {
+  color: #d97706;
+}
+:root[data-theme="light"] .the-khoan-chan .hoan-thanh-tot,
+:root[data-bg-theme="light"] .the-khoan-chan .hoan-thanh-tot {
+  color: #059669;
+}
+
+/* ---------- 17. Nhận diện Thời khoá biểu: Cột hôm nay ---------- */
+th.cot-hom-nay {
+  background: var(--chinh-nen) !important;
+  color: var(--chinh) !important;
+  border-bottom: 2.5px solid var(--chinh) !important;
+  position: relative;
+}
+td.cot-hom-nay {
+  background: color-mix(in srgb, var(--chinh-nen) 60%, transparent);
+  font-weight: 600;
+  border-left: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
+}
+.nhan-hom-nay {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--chinh);
+  color: #fff;
+  margin-left: 4px;
+  vertical-align: middle;
+  text-transform: none;
+}
+
+/* ---------- 18. Danh sách lớp: Huy hiệu tổ & giới tính ---------- */
+.nhan-to {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  color: var(--chu-nhat);
+}
+.nhan-gt {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.nhan-gt.gt-nam {
+  color: var(--chinh);
+  background: var(--chinh-nen);
+}
+.nhan-gt.gt-nu {
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.12);
+}
+:root[data-theme="light"] .nhan-gt.gt-nu,
+:root[data-bg-theme="light"] .nhan-gt.gt-nu {
+  color: #e11d48;
+  background: #ffe4e6;
+}
+
+/* ---------- 19. Trang cá nhân: Thẻ sự kiện vắng/trễ & bảng điểm ---------- */
+.ds-diem-danh .hang-hs-su-kien {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: border-color .15s, transform .15s;
+}
+.ds-diem-danh .hang-hs-su-kien:hover {
+  border-color: var(--vien-dam);
+  transform: translateX(2px);
+}
+.ds-diem-danh .hang-hs-su-kien.su-kien-tre {
+  border-left: 3.5px solid var(--luu-y);
+}
+.ds-diem-danh .hang-hs-su-kien.su-kien-phep {
+  border-left: 3.5px solid var(--chinh);
+}
+.ds-diem-danh .hang-hs-su-kien.su-kien-khong-phep {
+  border-left: 3.5px solid var(--xau);
+}
+.su-kien-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  flex: none;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+}
+.diem-gioi {
+  color: #10b981 !important;
+  font-weight: 800;
+}
+:root[data-theme="light"] .diem-gioi,
+:root[data-bg-theme="light"] .diem-gioi {
+  color: #059669 !important;
+}
+
