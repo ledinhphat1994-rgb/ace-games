@@ -205,7 +205,7 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
     truong('Ngày', oNgay),
     truong('Tiêu đề', oTd),
     truong('Loại', oLoai),
-    truong('Mức độ quan trọng', oMucDo, 'Quyết định màu nhãn hiển thị cho học sinh — chọn "Quan trọng" cho tin cần chú ý nhất.'),
+    truong('Mức độ quan trọng', oMucDo, 'Quyết định màu nhãn hiển thị cho học sinh — từ Bình thường, Quan trọng, Rất quan trọng đến Khẩn cấp.'),
     truong('Nội dung', oNd),
     hangGhim,
     hangNoiBat,

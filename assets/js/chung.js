@@ -50,12 +50,15 @@ export function ngayDayDu(v) {
    thông báo chọn mức nào thì nhãn và màu hiện RA GIỐNG NHAU ở mọi nơi, để học sinh quen
    mắt màu nào là mức nào. Đây cũng là mức độ đã thay thế "mucDo" của Kế hoạch năm học cũ. */
 export const MUC_DO_THONG_BAO = [
-  ['', 'Bình thường'], ['ok', 'Tốt / lễ hội'], ['warn', 'Cần chú ý'], ['danger', 'Quan trọng'],
+  ['', 'Bình thường'],
+  ['ok', 'Quan trọng'],
+  ['warn', 'Rất quan trọng'],
+  ['danger', 'Khẩn cấp'],
 ];
 const NHAN_MUC_DO = {
-  ok: { ten: 'Tốt / lễ hội', lop: 'nhan-tot' },
-  warn: { ten: 'Cần chú ý', lop: 'nhan-luuy' },
-  danger: { ten: 'Quan trọng', lop: 'nhan-xau' },
+  ok: { ten: 'Quan trọng', lop: 'nhan-tot' },
+  warn: { ten: 'Rất quan trọng', lop: 'nhan-luuy' },
+  danger: { ten: 'Khẩn cấp', lop: 'nhan-xau' },
 };
 /** mucDo ('', 'ok', 'warn', 'danger') -> {ten, lop} để gắn nhãn màu, hoặc null nếu bình thường. */
 export function nhanMucDo(mucDo) {
