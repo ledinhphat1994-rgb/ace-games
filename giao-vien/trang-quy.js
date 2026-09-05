@@ -585,20 +585,9 @@ export async function trangQuy(KHUNG) {
     );
     khung.append(day);
 
-    if (!d.khoan.length && !d.chi.length) {
-      const huongDan = e('div', 'the');
-      huongDan.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
-      huongDan.append(
-        e('h3', null, 'Bắt đầu thu quỹ cho lớp'),
-        e('p', null, `Lớp có ${d.siSo} học sinh. Bấm "Ghi khoản thu" bên dưới — trong hộp thoại có thể chọn thu nhanh (vd: quỹ đầu năm, tiền mua đồ dùng chung — 1 lần, có khoảng thời gian rõ ràng) hoặc thu cố định tự lặp lại theo tuần/tháng/năm (vd: quỹ lớp 5.000đ/tuần).`),
-        nut('➕ Ghi khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(tai))
-      );
-      const a = e('a', null, '☰ Xem danh sách lớp');
-      a.href = '#/hoc-sinh';
-      a.style.cssText = 'display:inline-block;margin-top:12px;font-size:13.5px';
-      huongDan.append(a);
-      khung.append(huongDan);
-    }
+    // Thẻ hướng dẫn "Bắt đầu thu quỹ cho lớp" (chỉ hiện khi rỗng) đã bỏ — trùng lặp với chính
+    // 2 thẻ "Khoản thu"/"Khoản chi" bên dưới, mỗi thẻ đã có sẵn nút "+ Ghi..." và dòng "Chưa
+    // có... nào" của riêng nó rồi.
 
     // Bố cục 2 cột trên màn hình đủ rộng: khoản thu bên trái (rộng hơn — nhiều dữ liệu hơn),
     // khoản chi bên phải; xếp dọc 1 cột khi màn hẹp thay vì ép 2 cột chật.

@@ -477,6 +477,21 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
   theApDungNhanh.append(dayApDungNhanh);
   khung.append(theApDungNhanh);
 
+  // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (giống Điểm danh chính) để giáo viên
+  // hiểu ký hiệu ✓/T/P/✗/📝 ngay khi vừa xem trang, khỏi phải cuộn qua hết cả lớp mới thấy.
+  const chuThich = e('div', 'chu-thich');
+  [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
+   ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
+   ['📝 Ghi chú lý do', 'var(--chinh)']]
+    .forEach(([chu, mau]) => {
+      const s = e('span');
+      const i = e('i');
+      i.style.background = mau;
+      s.append(i, document.createTextNode(chu));
+      chuThich.append(s);
+    });
+  khung.append(chuThich);
+
   // Danh sách học sinh — CÙNG một kiểu hàng với Điểm danh chính: cột trạng thái riêng cho
   // từng em (✓/T/P/✗), bấm lại để bỏ chọn, cộng nút 📝 ghi chú lý do riêng.
   const ds = e('div', 'ds-diem-danh');
@@ -535,19 +550,6 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     ds.append(hang);
   });
   khung.append(ds);
-
-  const chuThich = e('div', 'chu-thich');
-  [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-   ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
-   ['📝 Ghi chú lý do', 'var(--chinh)']]
-    .forEach(([chu, mau]) => {
-      const s = e('span');
-      const i = e('i');
-      i.style.background = mau;
-      s.append(i, document.createTextNode(chu));
-      chuThich.append(s);
-    });
-  khung.append(chuThich);
 
   // Thanh lưu riêng của Điểm danh phụ — vẫn một nút lưu duy nhất, lưu thẳng toàn bộ
   // thayDoi/lyDoMoi đã đổi (kể cả qua "Áp dụng nhanh" lẫn từng ô 📝).
@@ -876,6 +878,22 @@ async function trangDiemDanh() {
       theApDungNhanh.append(dayApDungNhanh);
       khung.append(theApDungNhanh);
 
+      // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (không phải sau như trước) để
+      // giáo viên hiểu ký hiệu ✓/T/P/✗/📝 nghĩa là gì NGAY khi vừa xem trang, khỏi phải cuộn
+      // qua hết cả lớp (có thể vài chục em) mới thấy chú thích nằm ở cuối.
+      const chuThich = e('div', 'chu-thich');
+      [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
+       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
+       ['📝 Ghi chú lý do', 'var(--chinh)']]
+        .forEach(([chu, mau]) => {
+          const s = e('span');
+          const i = e('i');
+          i.style.background = mau;
+          s.append(i, document.createTextNode(chu));
+          chuThich.append(s);
+        });
+      khung.append(chuThich);
+
       // Danh sách học sinh
       const ds = e('div', 'ds-diem-danh');
       duLieuChinh.danhSach.forEach((h) => {
@@ -940,19 +958,6 @@ async function trangDiemDanh() {
         ds.append(hang);
       });
       khung.append(ds);
-
-      const chuThich = e('div', 'chu-thich');
-      [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
-       ['📝 Ghi chú lý do', 'var(--chinh)']]
-        .forEach(([chu, mau]) => {
-          const s = e('span');
-          const i = e('i');
-          i.style.background = mau;
-          s.append(i, document.createTextNode(chu));
-          chuThich.append(s);
-        });
-      khung.append(chuThich);
     }
     khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
