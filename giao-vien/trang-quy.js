@@ -714,24 +714,26 @@ function moKhoanMoi(taiLai, loaiMacDinh = 'mot_lan') {
   const oGc = oNhap('qGc', 'textarea', '', 'Ghi chú (không bắt buộc)');
   const oNgayBd = oNhap('qNgayBd', 'date', homNay());
 
+  const truongTen = truong('Tên khoản thu', oTen);
   const truongLoai = truong('Loại thu', oLoai);
   const truongHk = truong('Học kì', oHk);
   const truongGc = truong('Ghi chú', oGc);
   const truongNgayBd = truong('Bắt đầu từ ngày', oNgayBd);
 
-  // Xem trước NGÀY đã chọn viết đầy đủ (vd "Thứ bảy, 05/09/2026") — ô ngày của trình duyệt
-  // hiện theo định dạng riêng của máy (có máy hiện tháng/ngày kiểu Mỹ), dễ đọc nhầm ngược
-  // ngày/tháng so với kiểu ngày/tháng quen dùng trên cả trang. Ghi rõ ra đây cho chắc chắn.
-  const xemTruocNgay = e('p', 'trong');
-  xemTruocNgay.style.marginTop = '-8px';
+  // Gắn 2 dòng "xem trước" NGAY TRONG ô của chính nó (giống cách truong() tự thêm ghi chú
+  // tĩnh) — dùng <div> chứ không phải <p> để khỏi dính margin mặc định của trình duyệt (đây
+  // là nguyên nhân của lỗi chèn chữ lên ô nhập trước đó: <p> có margin-top riêng, đặt số âm
+  // vào sẽ đẩy nó lấn ngược lên ô phía trên nếu khoảng cách gốc không đủ lớn).
+  const xemTruocNgay = e('div', 'trong');
+  xemTruocNgay.style.cssText = 'margin-top:6px;font-size:12.5px';
+  truongNgayBd.append(xemTruocNgay);
 
-  // Xem trước TÊN kỳ đầu tiên sẽ có, tính đúng theo loại + ngày bắt đầu đang chọn (không còn
-  // ví dụ viết cứng "Tháng 9"/"Năm 2026" không khớp ngày thật đã chọn như trước).
-  const xemTruocTen = e('p', 'trong');
-  xemTruocTen.style.marginTop = '-8px';
+  const xemTruocTen = e('div', 'trong');
+  xemTruocTen.style.cssText = 'margin-top:6px;font-size:12.5px';
+  truongTen.append(xemTruocTen);
 
   const ghiChuDinhKy = e('p', 'trong');
-  ghiChuDinhKy.style.marginTop = '-8px';
+  ghiChuDinhKy.style.marginTop = '4px';
 
   function capNhatXemTruoc() {
     xemTruocNgay.textContent = oNgayBd.value ? `→ ${ngayDayDu(oNgayBd.value)}` : '';
@@ -766,12 +768,10 @@ function moKhoanMoi(taiLai, loaiMacDinh = 'mot_lan') {
 
   moHopThoai('Thêm khoản thu mới', [
     truongLoai,
-    truong('Tên khoản thu', oTen),
-    xemTruocTen,
+    truongTen,
     truong('Mức thu mỗi em (đồng)', oSoTien),
     truongHk,
     truongNgayBd,
-    xemTruocNgay,
     ghiChuDinhKy,
     truongGc,
   ], [
