@@ -162,6 +162,9 @@ export async function trangQuy(KHUNG) {
     const thongTin = e('div', 'hs-thong-tin');
     const dongTen = e('div', 'hs-ten-to');
     dongTen.append(e('span', 'hs-ho-ten', k.ten));
+    // Đối xứng với nhãn "Thu cố định" ở veNhomDinhKy() — cùng là 2 loại của Khoản thu, cần
+    // hiện rõ như nhau trong CÙNG một danh sách, không tách khoản nào ra riêng.
+    if (!k.dinhKyId) dongTen.append(e('span', 'hs-to-badge', '⚡ Thu nhanh'));
     thongTin.append(dongTen);
     const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
     const dongChiTiet = e('div', 'hs-chi-tiet-dong');
@@ -564,9 +567,27 @@ export async function trangQuy(KHUNG) {
     const thanhChonChi = veThanhChonXoa(chiDaChon, 'chi', 'khoản chi', tai);
     if (thanhChonChi) the.append(thanhChonChi);
 
+    // Chọn nhanh — cùng kiểu với Khoản thu, cho đối xứng: danh sách chi dài cũng cần cách
+    // nhảy thẳng tới đúng khoản thay vì phải kéo dò từng dòng.
+    if (d.chi.length > 3) {
+      const oChonNhanhChi = oChon('quyChonNhanhChi',
+        [['', `— Chọn nhanh trong ${d.chi.length} khoản chi —`], ...d.chi.map((c) =>
+          [String(c.id), `${c.noiDung} — -${tienVN(c.soTien)} · ${ngayVN(c.ngay)}`])], '');
+      oChonNhanhChi.className = 'o-nhap quy-chon-nhanh';
+      oChonNhanhChi.setAttribute('aria-label', 'Chọn nhanh một khoản chi để xem');
+      oChonNhanhChi.addEventListener('change', () => {
+        const id = Number(oChonNhanhChi.value);
+        if (!id) return;
+        document.getElementById('chi-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        oChonNhanhChi.value = '';
+      });
+      the.append(oChonNhanhChi);
+    }
+
     const ds = e('div', 'ds-diem-danh');
     d.chi.forEach((c) => {
       const hang = e('div', 'hang-hs hang-hs-doc');
+      hang.id = 'chi-' + c.id;
       const dong1 = e('div', 'hang-hs-dong1');
 
       const khoiTrai = e('div', 'hs-khoi-trai');
@@ -1602,41 +1623,10 @@ export async function trangQuyLichSu(KHUNG) {
     return ds;
   }
 
-  /** Tab "🔒 Thu cố định" — lịch sử các đợt (mỗi đợt = một mẫu, đã sinh sẵn toàn bộ số kỳ
-      ngay lúc tạo — xem functions/api/gv/quy-dinh-ky.js). Không còn trang riêng #/quy-dinh-ky
-      nữa, đỡ bị lạc ở cuối danh sách Khoản thu như trước. */
-  async function veTabThuCoDinh(veLaiCaTrang) {
-    const d = await api('/api/gv/quy-dinh-ky');
-    const khung = e('div');
-
-    const phaiTao = e('div');
-    phaiTao.style.cssText = 'margin-bottom:14px';
-    phaiTao.append(nut('+ Ghi khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(veLaiCaTrang, 'co_dinh')));
-    khung.append(phaiTao);
-
-    if (!d.danhSach.length) {
-      khung.append(e('div', 'the trong', 'Chưa có đợt thu cố định nào.'));
-      return khung;
-    }
-
-    const ds = e('div', 'ds-the');
-    d.danhSach.forEach((dk) => {
-      const the = e('div', 'the');
-      the.append(e('h3', null, dk.ten));
-      the.append(e('p', null,
-        `${CHU_KY_HIEN_THI[dk.chuKy] || dk.chuKy} · ${tienVN(dk.soTienMoiKy)}/em/kỳ · ${dk.soKy} kỳ · `
-        + `kỳ 1: ${ngayVN(dk.ngayBatDau)}–${ngayVN(dk.ngayKetThuc)}`));
-      ds.append(the);
-    });
-    khung.append(ds);
-    return khung;
-  }
-
   const TABS = [
     ['khoi_phuc', '🛡️ Khôi phục'],
     ['thu', '💰 Khoản thu'],
     ['chi', '💸 Khoản chi'],
-    ['co_dinh', '🔒 Thu cố định'],
   ];
 
   async function ve() {
@@ -1663,8 +1653,7 @@ export async function trangQuyLichSu(KHUNG) {
 
     if (tab === 'khoi_phuc') khung.append(await veTabKhoiPhuc());
     else if (tab === 'thu') khung.append(await veTabLichSuThu());
-    else if (tab === 'chi') khung.append(await veTabLichSuChi());
-    else khung.append(await veTabThuCoDinh(ve));
+    else khung.append(await veTabLichSuChi());
 
     datNoiDung(KHUNG, khung);
   }

@@ -2,7 +2,6 @@
 // giáo viên nhập TRƯỚC tổng số kỳ muốn thu, nên toàn bộ các kỳ được sinh SẴN ngay lúc tạo mẫu
 // (không còn sinh dần mỗi khi mở trang Thủ quỹ) — mở "Các khoản thu" là thấy ngay toàn bộ lịch
 // thu từ đầu đến cuối, không còn phải đoán "định kỳ là khi nào".
-//   GET  /api/gv/quy-dinh-ky   -> lịch sử các đợt "Thu cố định" đã tạo (chỉ để xem lại)
 //   POST /api/gv/quy-dinh-ky   { ten, chuKy, soTienMoiKy, ngayBatDau, ngayKetThuc, soKy }
 //        ngayBatDau/ngayKetThuc: khoảng ngày của KỲ 1 (giáo viên tự chọn, không ép cứng độ
 //        dài) — các kỳ sau tự tính nối tiếp, xem tinhCacKy() trong _lib/quy-dinh-ky.js.
@@ -15,15 +14,6 @@ import { tinhCacKy, tenKy } from '../../_lib/quy-dinh-ky.js';
 
 const QUYEN = 'quy';
 const TOI_DA_SO_KY = 60;   // đủ cho hơn 1 năm thu theo tuần, chặn nhập nhầm số cực lớn
-
-export const onRequestGet = bocXuLy(async ({ env }) => {
-  const { results } = await env.DB.prepare(
-    `SELECT id, ten, chu_ky AS chuKy, so_tien_moi_ky AS soTienMoiKy, ngay_bat_dau AS ngayBatDau,
-            ngay_ket_thuc AS ngayKetThuc, so_ky AS soKy, tao_luc AS taoLuc
-       FROM quy_dinh_ky ORDER BY tao_luc DESC`
-  ).all();
-  return json({ ok: true, danhSach: results });
-}, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { ten, chuKy, soTienMoiKy, ngayBatDau, ngayKetThuc, soKy } = await docThan(request);
