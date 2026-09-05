@@ -9,7 +9,6 @@
 // Mỗi khoản thu có "mức thu mỗi em" để tính em nào đã đóng đủ / còn thiếu.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
 import { chupCheckpoint } from '../../_lib/quy-checkpoint.js';
-import { sinhKyConThieu } from '../../_lib/quy-dinh-ky.js';
 
 // Danh mục khoản chi — dùng để xem "chi cho hoạt động bao nhiêu, văn phòng phẩm bao nhiêu...".
 export const LOAI_CHI = [
@@ -32,18 +31,14 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   const db = env.DB;
   const khoanId = Number(new URL(request.url).searchParams.get('khoanId'));
 
-  // Sinh nốt các kỳ thu định kỳ đã tới hạn (tuần này/tháng này...) trước khi trả dữ liệu,
-  // để giáo viên luôn thấy khoản mới nhất mà không cần bấm nút riêng.
-  await sinhKyConThieu(db);
-
   if (Number.isInteger(khoanId) && khoanId > 0) {
-    // dinhKyTen/dinhKyChuKy/dinhKyDangHoatDong: chỉ có khi khoản này do một mẫu định kỳ tự
-    // sinh ra — dùng để cho phép "Dừng/Mở lại định kỳ" ngay trong chi tiết khoản, khỏi phải
-    // qua trang riêng "Thu định kỳ" nữa (xem veChiTietKhoan ở trang-quy.js).
+    // dinhKyTen/dinhKyChuKy/dinhKySoKy: chỉ có khi khoản này là một kỳ do mẫu "Thu cố định"
+    // sinh ra — dùng để chú thích rõ "đây là kỳ mấy trong tổng số bao nhiêu kỳ" khi xem chi
+    // tiết khoản (xem veChiTietKhoan ở trang-quy.js).
     const khoan = await db.prepare(
       `SELECT k.id, k.ten, k.hoc_ky AS hocKy, k.so_tien_moi_em AS soTienMoiEm, k.ghi_chu AS ghiChu, k.dang_mo AS dangMo,
-              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo,
-              dk.ten AS dinhKyTen, dk.chu_ky AS dinhKyChuKy, dk.dang_hoat_dong AS dinhKyDangHoatDong
+              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
+              dk.ten AS dinhKyTen, dk.chu_ky AS dinhKyChuKy, dk.so_ky AS dinhKySoKy
          FROM quy_khoan k LEFT JOIN quy_dinh_ky dk ON dk.id = k.dinh_ky_id
         WHERE k.id = ?1`
     ).bind(khoanId).first();
@@ -99,7 +94,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   const [{ results: khoan }, { results: chi }, siSo, { results: dongTheoEm }] = await Promise.all([
     db.prepare(
       `SELECT k.id, k.ten, k.hoc_ky AS hocKy, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
-              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo,
+              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
               COALESCE(SUM(d.so_tien), 0) AS tongDaThu
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
         GROUP BY k.id ORDER BY k.tao_luc DESC`
@@ -150,10 +145,23 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     if (!ten) return loi('Chưa nhập tên khoản thu.');
     if (!soTienHopLe(than.soTienMoiEm)) return loi('Mức thu mỗi em không hợp lệ.');
 
+    // ngayBatDau/ngayKetThuc: khoảng thời gian thu của "Thu nhanh" — không bắt buộc (khoản
+    // thu tạo qua đường cũ, hoặc gọi trực tiếp API, có thể không kèm) nhưng nếu có thì phải
+    // hợp lệ và kết thúc không trước bắt đầu.
+    let ngayBatDau = null, ngayKetThuc = null;
+    if (than.ngayBatDau !== undefined && than.ngayBatDau !== '') {
+      if (!ngayHopLe(than.ngayBatDau) || !ngayHopLe(than.ngayKetThuc)) {
+        return loi('Ngày bắt đầu/kết thúc không hợp lệ.');
+      }
+      if (than.ngayKetThuc < than.ngayBatDau) return loi('Ngày kết thúc phải từ ngày bắt đầu trở về sau.');
+      ngayBatDau = than.ngayBatDau;
+      ngayKetThuc = than.ngayKetThuc;
+    }
+
     await chupCheckpoint(db, `Trước khi: mở khoản thu "${ten}"`, phien);
     const kq = await db.prepare(
-      'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu) VALUES (?1, ?2, ?3, ?4)'
-    ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500)).run();
+      'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu, ngay_bat_dau, ngay_ket_thuc) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+    ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500), ngayBatDau, ngayKetThuc).run();
 
     return json({ ok: true, id: kq.meta.last_row_id });
   }
@@ -218,6 +226,15 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     }
     if (than.ghiChu !== undefined) them('ghi_chu', chuoi(than.ghiChu, 500));
     if (than.dangMo !== undefined) them('dang_mo', than.dangMo ? 1 : 0);
+    if (than.ngayBatDau !== undefined || than.ngayKetThuc !== undefined) {
+      const nbd = than.ngayBatDau || null;
+      const nkt = than.ngayKetThuc || null;
+      if (nbd && !ngayHopLe(nbd)) return loi('Ngày bắt đầu không hợp lệ.');
+      if (nkt && !ngayHopLe(nkt)) return loi('Ngày kết thúc không hợp lệ.');
+      if (nbd && nkt && nkt < nbd) return loi('Ngày kết thúc phải từ ngày bắt đầu trở về sau.');
+      them('ngay_bat_dau', nbd);
+      them('ngay_ket_thuc', nkt);
+    }
     if (!dat.length) return loi('Không có gì để sửa.');
 
     await chupCheckpoint(db, `Trước khi: sửa khoản thu "${khoan.ten}"`, phien);

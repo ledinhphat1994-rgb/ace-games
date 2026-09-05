@@ -47,10 +47,12 @@ export async function khoiPhucCheckpoint(db, checkpointId) {
     db.prepare('DELETE FROM quy_khoan'),
     db.prepare('DELETE FROM quy_chi'),
     // .bind() dùng "?? null / ?? 'khac'" để khôi phục được cả những checkpoint chụp TRƯỚC
-    // khi các cột dinh_ky_id/ky_so/loai tồn tại (dữ liệu cũ không có các trường này).
+    // khi các cột dinh_ky_id/ky_so/loai/ngay_bat_dau/ngay_ket_thuc tồn tại (dữ liệu cũ không
+    // có các trường này).
     ...khoan.map((k) => db.prepare(
-      'INSERT INTO quy_khoan (id, ten, hoc_ky, so_tien_moi_em, ghi_chu, dang_mo, tao_luc, dinh_ky_id, ky_so) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)'
-    ).bind(k.id, k.ten, k.hoc_ky, k.so_tien_moi_em, k.ghi_chu, k.dang_mo, k.tao_luc, k.dinh_ky_id ?? null, k.ky_so ?? null)),
+      `INSERT INTO quy_khoan (id, ten, hoc_ky, so_tien_moi_em, ghi_chu, dang_mo, tao_luc, dinh_ky_id, ky_so, ngay_bat_dau, ngay_ket_thuc)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
+    ).bind(k.id, k.ten, k.hoc_ky, k.so_tien_moi_em, k.ghi_chu, k.dang_mo, k.tao_luc, k.dinh_ky_id ?? null, k.ky_so ?? null, k.ngay_bat_dau ?? null, k.ngay_ket_thuc ?? null)),
     ...dong.map((d) => db.prepare(
       'INSERT INTO quy_dong (id, khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu, tao_luc) VALUES (?1,?2,?3,?4,?5,?6,?7)'
     ).bind(d.id, d.khoan_id, d.hoc_sinh_id, d.so_tien, d.ngay, d.ghi_chu, d.tao_luc)),
