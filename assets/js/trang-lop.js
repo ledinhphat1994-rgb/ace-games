@@ -127,21 +127,29 @@ function veOSo(thongKe) {
   }));
 }
 
-/** Link YouTube (watch/shorts/embed/youtu.be) -> mã video 11 ký tự, hoặc null nếu không nhận ra. */
+/** Link YouTube (watch/shorts/live/embed/youtu.be) -> mã video 11 ký tự, hoặc null nếu không nhận ra. */
 function idYoutube(url) {
-  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
-  return m ? m[1] : null;
+  if (!url) return null;
+  const s = String(url).trim();
+  let m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:shorts|live|embed)\/)([\w-]{11})/i);
+  if (m) return m[1];
+  m = s.match(/youtube\.com\/watch\?[^#]*[?&]v=([\w-]{11})/i);
+  if (m) return m[1];
+  m = s.match(/[?&]v=([\w-]{11})/i);
+  if (m) return m[1];
+  return null;
 }
 
 /** Link Google Drive video -> file ID hoặc null. */
 function idGoogleDrive(url) {
-  const m = String(url || '').match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/);
+  if (!url) return null;
+  const m = String(url).trim().match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
   return m ? m[1] : null;
 }
 
 /** Link video trực tiếp (.mp4, .webm, .mov, .ogg) */
 function laVideoTrucTiep(url) {
-  return /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(String(url || ''));
+  return /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(String(url || '').trim());
 }
 
 /** Hình/nhạc/video đính kèm một thông báo — trả về mảng phần tử để nối vào cuối thẻ tin. */
@@ -177,23 +185,47 @@ function veDinhKemTin(t) {
     if (maYt) {
       const boc = e('div', 'tin-video');
       const khung = e('iframe');
-      khung.src = 'https://www.youtube-nocookie.com/embed/' + maYt;
+      khung.src = 'https://www.youtube.com/embed/' + maYt;
       khung.title = t.tieuDe || 'Video YouTube';
       khung.loading = 'lazy';
-      khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
       khung.allowFullscreen = true;
+      khung.referrerPolicy = 'strict-origin-when-cross-origin';
+      khung.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       boc.append(khung);
-      ds.push(boc);
+
+      const lienKetYt = e('div', 'tin-video-duoi');
+      lienKetYt.style.cssText = 'margin-top:6px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:8px';
+      const aYt = e('a', '', '↗ Mở xem trực tiếp trên YouTube');
+      aYt.href = 'https://www.youtube.com/watch?v=' + maYt;
+      aYt.target = '_blank';
+      aYt.rel = 'noopener noreferrer';
+      aYt.style.cssText = 'color:var(--mau-chinh);text-decoration:none;font-weight:600';
+      lienKetYt.append(e('span', 'nhan nhan-xam', '🎬 YouTube'), aYt);
+
+      ds.push(boc, lienKetYt);
     } else if (maDrive) {
       const boc = e('div', 'tin-video');
       const khung = e('iframe');
       khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
       khung.title = t.tieuDe || 'Video Google Drive';
       khung.loading = 'lazy';
-      khung.allow = 'autoplay';
+      khung.allow = 'autoplay; fullscreen';
       khung.allowFullscreen = true;
+      khung.referrerPolicy = 'strict-origin-when-cross-origin';
+      khung.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       boc.append(khung);
-      ds.push(boc);
+
+      const lienKetGg = e('div', 'tin-video-duoi');
+      lienKetGg.style.cssText = 'margin-top:6px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:8px';
+      const aGg = e('a', '', '↗ Mở xem trên Google Drive');
+      aGg.href = 'https://drive.google.com/file/d/' + maDrive + '/view';
+      aGg.target = '_blank';
+      aGg.rel = 'noopener noreferrer';
+      aGg.style.cssText = 'color:var(--mau-chinh);text-decoration:none;font-weight:600';
+      lienKetGg.append(e('span', 'nhan nhan-xam', '📁 Google Drive'), aGg);
+
+      ds.push(boc, lienKetGg);
     } else if (laVideoTrucTiep(t.videoUrl)) {
       const boc = e('div', 'tin-video');
       const vid = e('video');
@@ -211,6 +243,8 @@ function veDinhKemTin(t) {
       khung.loading = 'lazy';
       khung.allow = 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share';
       khung.allowFullscreen = true;
+      khung.referrerPolicy = 'strict-origin-when-cross-origin';
+      khung.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       boc.append(khung);
       ds.push(boc);
     } else {

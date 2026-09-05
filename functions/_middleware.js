@@ -79,7 +79,7 @@ function addSecurityHeaders(res) {
   const out = new Response(res.body, res);
   out.headers.set('X-Frame-Options', 'DENY');
   out.headers.set('X-Content-Type-Options', 'nosniff');
-  out.headers.set('Referrer-Policy', 'no-referrer');
+  out.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   out.headers.set('X-Robots-Tag', 'noindex, nofollow');
   out.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   return out;
