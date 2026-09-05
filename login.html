@@ -85,6 +85,10 @@
       const d = await res.json();
 
       if (d.ok) {
+        try {
+          const maNhap = document.getElementById('ma').value.trim();
+          if (maNhap) localStorage.setItem('maCaNhan', maNhap);
+        } catch { /* bỏ qua nếu bị chặn */ }
         hien('Xác thực thành công. Đang mở trang…', 'tot');
         const tiep = new URLSearchParams(location.search).get('next');
         const laKhuGiaoVien = d.role === 'teacher' || d.role === 'phu';

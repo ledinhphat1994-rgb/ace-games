@@ -126,7 +126,7 @@ export async function onRequestPost({ request, env }) {
       if (ca && !ca.quyen) {
         role = 'student';
         tenHienThi = ca.hoTen;
-        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen };
+        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code };
       } else if (ca && ca.quyen) {
         const thietBiMay = docThietBi(request);
         if (!ca.thietBi) {
@@ -158,6 +158,7 @@ export async function onRequestPost({ request, env }) {
         phanBoSung = {
           hocSinhId: ca.hocSinhId,
           ten: ca.hoTen,
+          ma: code,
           vaiTro: ca.chucVu || 'Cán sự lớp',
           quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
         };

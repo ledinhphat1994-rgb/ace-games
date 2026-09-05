@@ -3,12 +3,19 @@ import { oThongKe, tieuDeTrang, nut } from './giao-dien.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
-api('/api/whoami').then((w) => {
+api('/api/whoami').then(async (w) => {
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
   if (w && (w.role === 'teacher' || w.role === 'phu')) {
     const ql = document.getElementById('mucQuanLy');
     if (ql) ql.hidden = false;
+  }
+  if (w && (w.hocSinhId || w.ma)) {
+    try {
+      const d = await api('/api/ca-nhan');
+      $('#khungNhapMa').hidden = true;
+      veKetQua(d);
+    } catch { /* nếu lỗi thì để học sinh tự nhập mã */ }
   }
 }).catch(() => {});
 

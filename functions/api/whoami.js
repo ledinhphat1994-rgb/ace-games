@@ -8,5 +8,7 @@ export const onRequestGet = bocXuLy(async ({ phien }) => {
     ten: phien.ten || '',
     vaiTro: phien.vaiTro || '',
     quyen: phien.quyen || [],
+    hocSinhId: phien.hocSinhId || null,
+    ma: phien.ma || '',
   });
 });

@@ -23,6 +23,7 @@ ganMenu();
 const TRANG_PHU = {
   '#/danh-sach': '#trangDanhSach',
   '#/thu-quy': '#trangThuQuy',
+  '#/diem-danh': '#trangDiemDanh',
 };
 
 /* Mỏ neo hợp lệ: #thong-bao, #thoi-khoa-bieu… (không phải địa chỉ trang riêng #/…) */
@@ -44,6 +45,9 @@ function dinhTuyen() {
 
   if (trangCanHien) {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    if (hash === '#/diem-danh') {
+      taiVaVeDiemDanh();
+    }
     return;
   }
 
@@ -619,8 +623,8 @@ function veDiemNhan(thongBao) {
   requestAnimationFrame(chay);
 }
 
-/* ---------- Thủ quỹ (công khai: chỉ số liệu tổng hợp) ---------- */
-function veThuQuy(tq) {
+/* ---------- Thủ quỹ (công khai: tổng quan & chi tiết đóng tiền từng em) ---------- */
+function veThuQuy(tq, dsHocSinh = [], phien = null) {
   const oTongQuan = $('#tqTongQuan');
   datNoiDung(oTongQuan,
     (() => { const o = e('div', 'o-thong-ke tot'); o.append(e('div', 'con-so', tienVN(tq.tonQuy)), e('div', 'ten', 'Tồn quỹ hiện tại')); return o; })(),
@@ -928,6 +932,181 @@ function veThuQuy(tq) {
 
         chan.append(e('span', null, k.dangMo ? 'Đang thu quỹ' : 'Đã khoá sổ'));
         the.append(chan);
+
+        // 5. Khối danh sách học sinh đóng tiền chi tiết
+        const dsDongChiTiet = k.dongChiTiet || {};
+        const dsHs = dsHocSinh || [];
+        const hocSinhHienTaiId = phien?.hocSinhId || null;
+
+        const danhSachHsVoiTrangThai = dsHs.map((hs) => {
+          const id = hs.stt || hs.id;
+          const thongTin = dsDongChiTiet[id] || dsDongChiTiet[String(id)] || null;
+          const daDong = thongTin ? thongTin.soTien : 0;
+          const ngayDong = thongTin ? thongTin.ngay : '';
+          const mucTieu = k.soTienMoiEm || 0;
+          let tt = 'chua_dong';
+          if (mucTieu > 0 && daDong >= mucTieu) {
+            tt = 'da_du';
+          } else if (daDong > 0) {
+            tt = 'dong_mot_phan';
+          }
+          return {
+            id,
+            hoTen: hs.hoTen,
+            lopNghe: hs.lopNghe || '',
+            daDong,
+            ngayDong,
+            trangThai: tt,
+            laChinhMinh: Boolean(hocSinhHienTaiId && hocSinhHienTaiId === id),
+          };
+        });
+
+        const soEmDaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'da_du').length;
+        const soEmDongMotPhan = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'dong_mot_phan').length;
+        const soEmChuaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'chua_dong').length;
+        const tongSoEmDaNop = soEmDaDong + soEmDongMotPhan;
+
+        const nutMoChiTiet = e('button', 'nut-mo-chi-tiet-dong');
+        nutMoChiTiet.type = 'button';
+        nutMoChiTiet.setAttribute('aria-expanded', 'false');
+        const spanNhan = e('span');
+        spanNhan.append(
+          document.createTextNode('👥 '),
+          e('b', null, 'Chi tiết đóng tiền: '),
+          document.createTextNode('Đã đóng '),
+          Object.assign(e('b', null, `${tongSoEmDaNop}/${dsHs.length}`), { style: 'color:var(--tot)' }),
+          document.createTextNode(' · Chưa đóng '),
+          Object.assign(e('b', null, String(soEmChuaDong)), { style: 'color:var(--xau)' })
+        );
+        nutMoChiTiet.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
+
+        const khungChiTiet = e('div', 'khung-chi-tiet-dong');
+        khungChiTiet.hidden = true;
+
+        let locHs = ''; // '' | 'da_dong' | 'chua_dong'
+        let timHs = '';
+
+        function veBangHs() {
+          const thanhLocHs = e('div', 'thanh-loc-chi-tiet');
+          const dayNutLoc = e('div', 'day-nut-loc');
+
+          const CAC_NUT_LOC_HS = [
+            ['', `Tất cả (${danhSachHsVoiTrangThai.length})`],
+            ['da_dong', `Đã đóng (${tongSoEmDaNop})`],
+            ['chua_dong', `Chưa đóng (${soEmChuaDong})`],
+          ];
+
+          CAC_NUT_LOC_HS.forEach(([ma, nhan]) => {
+            const b = e('button', 'nut-loc-nhanh', nhan);
+            b.type = 'button';
+            b.setAttribute('aria-pressed', String(locHs === ma));
+            b.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              locHs = ma;
+              veBangHs();
+            });
+            dayNutLoc.append(b);
+          });
+
+          const oTimHs = e('input', 'o-tim-hs');
+          oTimHs.type = 'search';
+          oTimHs.value = timHs;
+          oTimHs.placeholder = 'Tìm tên học sinh…';
+          oTimHs.setAttribute('aria-label', 'Tìm kiếm học sinh');
+          oTimHs.addEventListener('input', (ev) => {
+            timHs = ev.target.value.trim().toLowerCase();
+            veBangHs();
+          });
+
+          thanhLocHs.append(dayNutLoc, oTimHs);
+
+          const hsLoc = danhSachHsVoiTrangThai.filter((h) => {
+            if (locHs === 'da_dong' && h.trangThai === 'chua_dong') return false;
+            if (locHs === 'chua_dong' && h.trangThai !== 'chua_dong') return false;
+            if (timHs) {
+              const ht = (h.hoTen || '').toLowerCase();
+              if (!ht.includes(timHs)) return false;
+            }
+            return true;
+          });
+
+          const hopCuon = e('div', 'bang-dong-tien-cuon');
+          const bang = e('table', 'bang-dong-tien');
+          const thead = e('thead');
+          const hangTieuDe = e('tr');
+          hangTieuDe.append(
+            e('th', null, 'STT'),
+            e('th', null, 'Họ và tên'),
+            e('th', null, 'Đã đóng'),
+            e('th', null, 'Ngày đóng'),
+            e('th', null, 'Trạng thái')
+          );
+          thead.append(hangTieuDe);
+          bang.append(thead);
+
+          const tbody = e('tbody');
+          if (!hsLoc.length) {
+            const hangTrong = e('tr');
+            const tdTrong = e('td');
+            tdTrong.colSpan = 5;
+            tdTrong.style.textAlign = 'center';
+            tdTrong.style.padding = '20px';
+            tdTrong.className = 'trong';
+            tdTrong.textContent = 'Không có học sinh nào phù hợp bộ lọc.';
+            hangTrong.append(tdTrong);
+            tbody.append(hangTrong);
+          } else {
+            hsLoc.forEach((h) => {
+              const tr = e('tr', h.laChinhMinh ? 'dong-ban-than' : '');
+              const tdStt = e('td', null, String(h.id));
+              const tdTen = e('td');
+              tdTen.append(e('b', null, h.hoTen));
+              if (h.lopNghe) {
+                tdTen.append(Object.assign(e('span', 'lop-nghe-nho', ` · ${h.lopNghe}`), { style: 'font-size:11.5px;color:var(--chu-nhat)' }));
+              }
+              if (h.laChinhMinh) {
+                tdTen.append(e('span', 'tag-ban', 'Bạn'));
+              }
+
+              const tdTien = e('td');
+              if (h.daDong > 0) {
+                tdTien.append(Object.assign(e('b', null, tienVN(h.daDong)), { style: 'color:var(--tot)' }));
+              } else {
+                tdTien.append(Object.assign(e('span', 'trong', '0 đ')));
+              }
+
+              const tdNgay = e('td', 'trong', h.ngayDong ? ngayVN(h.ngayDong) : '—');
+
+              const tdTrangThai = e('td');
+              if (h.trangThai === 'da_du') {
+                tdTrangThai.append(e('span', 'nhan nhan-tot', '✓ Đã đủ 100%'));
+              } else if (h.trangThai === 'dong_mot_phan') {
+                tdTrangThai.append(e('span', 'nhan nhan-luuy', 'Đóng 1 phần'));
+              } else {
+                tdTrangThai.append(e('span', 'nhan nhan-xau', 'Chưa đóng'));
+              }
+
+              tr.append(tdStt, tdTen, tdTien, tdNgay, tdTrangThai);
+              tbody.append(tr);
+            });
+          }
+
+          bang.append(tbody);
+          hopCuon.append(bang);
+
+          datNoiDung(khungChiTiet, thanhLocHs, hopCuon);
+        }
+
+        nutMoChiTiet.addEventListener('click', () => {
+          const dangMo = !khungChiTiet.hidden;
+          khungChiTiet.hidden = dangMo;
+          nutMoChiTiet.setAttribute('aria-expanded', String(!dangMo));
+          if (!dangMo) {
+            veBangHs();
+          }
+        });
+
+        the.append(nutMoChiTiet, khungChiTiet);
 
         cacPhanTuThe.push(the);
       });
@@ -1296,13 +1475,304 @@ function veLoiTatQuanLy(phien, lamMoi) {
   });
 }
 
+/* ================= Trang Điểm danh & Chuyên cần ================= */
+let duLieuDiemDanh = null;
+let buoiDiemDanhHienTai = 'sang';
+
+async function taiVaVeDiemDanh(ngay = '', buoi = '') {
+  const hopCaNhan = $('#ddCaNhan');
+  const hopLop = $('#ddLopKhoi');
+  if (!hopCaNhan || !hopLop) return;
+
+  if (!duLieuDiemDanh || ngay || buoi) {
+    datNoiDung(hopLop, e('p', 'trong', 'Đang tải dữ liệu điểm danh…'));
+    try {
+      let url = '/api/diem-danh';
+      const params = [];
+      if (ngay) params.push('ngay=' + encodeURIComponent(ngay));
+      if (buoi) params.push('buoi=' + encodeURIComponent(buoi));
+      if (params.length) url += '?' + params.join('&');
+
+      duLieuDiemDanh = await api(url);
+      buoiDiemDanhHienTai = duLieuDiemDanh.buoi;
+    } catch (err) {
+      datNoiDung(hopLop, khoiLoi('Không tải được dữ liệu điểm danh: ' + err.message));
+      return;
+    }
+  }
+
+  const d = duLieuDiemDanh;
+  if (d.an) {
+    datNoiDung(hopCaNhan, '');
+    datNoiDung(hopLop, e('p', 'trong', '🔒 Mục Điểm danh đã được giáo viên ẩn đối với tài khoản của em.'));
+    return;
+  }
+
+  // 1. Chuyên cần cá nhân nếu người dùng là học sinh
+  if (d.caNhan) {
+    const cn = d.caNhan;
+    const theCn = e('div', 'the-chuyen-can-ca-nhan');
+    const tieuDe = e('div', 'tieu-de-ca-nhan');
+    tieuDe.append(
+      e('h3', null, '🎓 Chuyên cần của em: ' + cn.hoTen),
+      e('span', 'nhan nhan-tot', (cn.lopNghe || 'Lớp 10A7') + (cn.chucVu ? ' · ' + cn.chucVu : ''))
+    );
+    theCn.append(tieuDe);
+
+    const luoi = e('div', 'luoi-thong-ke-chuyen-can');
+    const tiLe = cn.tiLe !== null ? cn.tiLe + '%' : '—';
+    const lopTiLe = cn.tiLe >= 90 ? 'mau-tot' : cn.tiLe >= 75 ? 'mau-luuy' : 'mau-xau';
+
+    const taoO = (so, nhan, lopMau = '') => {
+      const o = e('div', 'o-chuyen-can ' + lopMau);
+      o.append(e('div', 'so', String(so)), e('div', 'nhan-so', nhan));
+      return o;
+    };
+
+    luoi.append(
+      taoO(tiLe, 'Tỉ lệ chuyên cần', lopTiLe),
+      taoO(cn.co_mat, 'Buổi có mặt', 'mau-tot'),
+      taoO(cn.vang_phep, 'Vắng có phép'),
+      taoO(cn.vang_khong_phep, 'Vắng không phép', cn.vang_khong_phep > 0 ? 'mau-xau' : ''),
+      taoO(cn.tre, 'Đi trễ', cn.tre > 0 ? 'mau-luuy' : '')
+    );
+    theCn.append(luoi);
+
+    if (cn.lichSuVang && cn.lichSuVang.length) {
+      const nutXemVang = e('button', 'nut-mo-chi-tiet-dong');
+      nutXemVang.type = 'button';
+      nutXemVang.setAttribute('aria-expanded', 'false');
+      const spanVang = e('span');
+      spanVang.append(
+        e('b', null, '📋 Xem '),
+        document.createTextNode(`${cn.lichSuVang.length} buổi em vắng hoặc đi trễ`)
+      );
+      nutXemVang.append(spanVang, e('span', 'mui-ten-chi-tiet', '▾'));
+      const hopVang = e('div', 'khung-chi-tiet-dong');
+      hopVang.hidden = true;
+
+      const dsVang = e('div', 'ds-diem-danh');
+      cn.lichSuVang.forEach((x) => {
+        const hang = e('div', 'hang-hs');
+        const ten = e('div', 'ten');
+        const tenBuoi = x.buoi === 'sang' ? 'Sáng' : x.buoi === 'chieu' ? 'Chiều' : 'Hoạt động';
+        ten.append(e('b', null, ngayVN(x.ngay) + ` (${tenBuoi})`));
+        if (x.lyDo) ten.append(e('small', null, x.lyDo));
+        let nhanTt = 'Có mặt';
+        let lopTt = 'nhan-tot';
+        if (x.trangThai === 'vang_phep') { nhanTt = 'Vắng phép'; lopTt = 'nhan'; }
+        else if (x.trangThai === 'vang_khong_phep') { nhanTt = 'Không phép'; lopTt = 'nhan-xau'; }
+        else if (x.trangThai === 'tre') { nhanTt = 'Đi trễ'; lopTt = 'nhan-luuy'; }
+        hang.append(ten, e('span', 'nhan ' + lopTt, nhanTt));
+        dsVang.append(hang);
+      });
+      hopVang.append(dsVang);
+
+      nutXemVang.addEventListener('click', () => {
+        const hien = hopVang.hidden;
+        hopVang.hidden = !hien;
+        nutXemVang.setAttribute('aria-expanded', String(hien));
+      });
+      theCn.append(nutXemVang, hopVang);
+    }
+
+    datNoiDung(hopCaNhan, theCn);
+  } else {
+    datNoiDung(hopCaNhan, '');
+  }
+
+  // 2. Điểm danh cả lớp theo ngày
+  const khungLop = e('div', 'khung-diem-danh-lop');
+
+  // Điều khiển: Chọn ngày + Chọn buổi
+  const thanhNgay = e('div', 'thanh-dieu-khien-ngay-dd');
+  const nhomNgay = e('div', 'nhom-ngay-buoi');
+
+  const nhanNgay = e('label');
+  nhanNgay.append(e('b', null, 'Ngày: '));
+  nhomNgay.append(nhanNgay);
+
+  const dropdownNgay = e('select', 'dropdown-ngay-dd');
+  (d.dsNgay || []).forEach((ng) => {
+    const opt = e('option', null, ngayDayDu(ng));
+    opt.value = ng;
+    if (ng === d.ngay) opt.selected = true;
+    dropdownNgay.append(opt);
+  });
+  dropdownNgay.addEventListener('change', (ev) => {
+    taiVaVeDiemDanh(ev.target.value, buoiDiemDanhHienTai);
+  });
+  nhomNgay.append(dropdownNgay);
+
+  const oChonNgay = e('input', 'o-chon-ngay-dd');
+  oChonNgay.type = 'date';
+  oChonNgay.value = d.ngay;
+  oChonNgay.addEventListener('change', (ev) => {
+    if (ev.target.value) {
+      taiVaVeDiemDanh(ev.target.value, buoiDiemDanhHienTai);
+    }
+  });
+  nhomNgay.append(oChonNgay);
+
+  // Buổi
+  const nhomBuoi = e('div', 'nhom-buoi-dd');
+  const CAC_BUOI = [['sang', 'Sáng'], ['chieu', 'Chiều'], ['hoat_dong', 'Hoạt động']];
+  CAC_BUOI.forEach(([maB, tenB]) => {
+    const nutB = e('button', 'nut-buoi-dd', tenB);
+    nutB.type = 'button';
+    nutB.setAttribute('aria-pressed', String(d.buoi === maB));
+    nutB.addEventListener('click', () => {
+      if (d.buoi !== maB) {
+        taiVaVeDiemDanh(d.ngay, maB);
+      }
+    });
+    nhomBuoi.append(nutB);
+  });
+
+  thanhNgay.append(nhomNgay, nhomBuoi);
+  khungLop.append(thanhNgay);
+
+  // Thống kê sĩ số ngày
+  const tk = d.thongKeNgay || {};
+  const thanhThongKe = e('div', 'thong-ke-si-so-ngay');
+  thanhThongKe.append(
+    e('span', 'chip-si-so', `👥 Sĩ số: ${tk.tongSo || 37}`),
+    e('span', 'chip-si-so chip-tot', `✅ Có mặt: ${tk.coMat || 0}`),
+    e('span', 'chip-si-so chip-phep', `📋 Vắng có phép: ${tk.vangPhep || 0}`),
+    e('span', 'chip-si-so chip-khong-phep', `⚠️ Vắng không phép: ${tk.vangKhongPhep || 0}`),
+    e('span', 'chip-si-so chip-tre', `⏱️ Đi trễ: ${tk.tre || 0}`)
+  );
+  khungLop.append(thanhThongKe);
+
+  // Thanh công cụ lọc & tìm kiếm
+  let locDd = ''; // '' | 'vang_tre' | 'co_mat'
+  let timHsDd = '';
+
+  const thanhLoc = e('div', 'thanh-cong-cu-khoan');
+  const dayLocDd = e('div', 'day-loc');
+  const soVangTre = (tk.vangPhep || 0) + (tk.vangKhongPhep || 0) + (tk.tre || 0);
+
+  const CAC_MUC_LOC_DD = [
+    ['', `Tất cả (${d.danhSach?.length || 0})`],
+    ['vang_tre', `Vắng / Đi trễ (${soVangTre})`],
+    ['co_mat', `Có mặt (${tk.coMat || 0})`],
+  ];
+
+  function veNutLocDd() {
+    datNoiDung(dayLocDd, ...CAC_MUC_LOC_DD.map(([giaTri, nhan]) => {
+      const b = e('button', 'vien-loc', nhan);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(locDd === giaTri));
+      b.addEventListener('click', () => {
+        locDd = giaTri;
+        veNutLocDd();
+        veBangDiemDanh();
+      });
+      return b;
+    }));
+  }
+  veNutLocDd();
+  thanhLoc.append(dayLocDd);
+
+  const nhomDieuKhienDd = e('div', 'nhom-dieu-khien-khoan');
+  const oTimHsDd = e('input', 'o-nhap o-tim-khoan');
+  oTimHsDd.type = 'search';
+  oTimHsDd.placeholder = 'Tìm học sinh…';
+  oTimHsDd.addEventListener('input', (ev) => {
+    timHsDd = ev.target.value.trim().toLowerCase();
+    veBangDiemDanh();
+  });
+  nhomDieuKhienDd.append(oTimHsDd);
+  thanhLoc.append(nhomDieuKhienDd);
+  khungLop.append(thanhLoc);
+
+  // Bảng điểm danh
+  const hopBang = e('div', 'bang-diem-danh-cuon');
+  khungLop.append(hopBang);
+
+  function veBangDiemDanh() {
+    const dsHs = (d.danhSach || []).filter((h) => {
+      if (locDd === 'vang_tre' && (h.trangThai === 'co_mat' || !h.trangThai)) return false;
+      if (locDd === 'co_mat' && h.trangThai !== 'co_mat') return false;
+      if (timHsDd) {
+        const ht = (h.hoTen || '').toLowerCase();
+        if (!ht.includes(timHsDd)) return false;
+      }
+      return true;
+    });
+
+    const bang = e('table', 'bang-diem-danh');
+    const thead = e('thead');
+    const trHd = e('tr');
+    trHd.append(
+      e('th', null, 'STT'),
+      e('th', null, 'Họ và tên'),
+      e('th', null, 'Lớp nghề'),
+      e('th', null, 'Trạng thái'),
+      e('th', null, 'Ghi chú / Lý do')
+    );
+    thead.append(trHd);
+    bang.append(thead);
+
+    const tbody = e('tbody');
+    if (!dsHs.length) {
+      const trTr = e('tr');
+      const tdTr = e('td');
+      tdTr.colSpan = 5;
+      tdTr.style.textAlign = 'center';
+      tdTr.style.padding = '24px';
+      tdTr.className = 'trong';
+      tdTr.textContent = 'Không có học sinh nào phù hợp.';
+      trTr.append(tdTr);
+      tbody.append(trTr);
+    } else {
+      const hocSinhHienTaiId = d.caNhan?.hocSinhId || null;
+      dsHs.forEach((h) => {
+        const laChinhMinh = Boolean(hocSinhHienTaiId && hocSinhHienTaiId === h.id);
+        const tr = e('tr', laChinhMinh ? 'dong-ban-than' : '');
+
+        const tdStt = e('td', null, String(h.id));
+        const tdTen = e('td');
+        tdTen.append(e('b', null, h.hoTen));
+        if (laChinhMinh) tdTen.append(e('span', 'tag-ban', 'Bạn'));
+
+        const tdNghe = e('td', 'trong', h.lopNghe || '—');
+
+        const tdTrangThai = e('td');
+        if (h.trangThai === 'co_mat') {
+          tdTrangThai.append(e('span', 'nhan nhan-tot', '✅ Có mặt'));
+        } else if (h.trangThai === 'vang_phep') {
+          tdTrangThai.append(e('span', 'nhan', '📋 Vắng có phép'));
+        } else if (h.trangThai === 'vang_khong_phep') {
+          tdTrangThai.append(e('span', 'nhan nhan-xau', '⚠️ Vắng không phép'));
+        } else if (h.trangThai === 'tre') {
+          tdTrangThai.append(e('span', 'nhan nhan-luuy', '⏱️ Đi trễ'));
+        } else {
+          tdTrangThai.append(e('span', 'nhan nhan-xam', '— Chưa ghi'));
+        }
+
+        const tdLyDo = e('td', 'trong', h.lyDo || '—');
+
+        tr.append(tdStt, tdTen, tdNghe, tdTrangThai, tdLyDo);
+        tbody.append(tr);
+      });
+    }
+
+    bang.append(tbody);
+    datNoiDung(hopBang, bang);
+  }
+
+  veBangDiemDanh();
+  datNoiDung(hopLop, khungLop);
+}
+
 /* ---------- Khởi động & làm mới dữ liệu ---------- */
 let thongTinPhien = null;
 
 // Mục nào giáo viên đã ẩn riêng cho mã cá nhân đang dùng trên máy này (nếu có) — chỉ để ẩn
 // bớt giao diện, không phải kiểm soát truy cập thật (mã lớp vẫn xem được dữ liệu như cũ).
 const CHO_MUC_AN = {
-  quy: '#thu-quy', 'thong-bao': '#thong-bao', 'thoi-khoa-bieu': '#thoi-khoa-bieu',
+  quy: '#thu-quy', 'thong-bao': '#thong-bao', 'thoi-khoa-bieu': '#thoi-khoa-bieu', 'diem-danh': '#trangDiemDanh',
 };
 
 function apDungAnMuc(anMuc) {
@@ -1338,7 +1808,7 @@ async function taiDuLieu() {
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHinhAnh(d.hinhAnh);
     veDanhSach(d.hocSinh);
-    veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] });
+    veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien);
     veLoiTatQuanLy(phien, taiDuLieu);
     ganNhacNen(d.nhacNen);
   } catch (err) {
@@ -1351,3 +1821,4 @@ async function taiDuLieu() {
   ganTheoDoiMuc();
   dinhTuyen();
 })();
+

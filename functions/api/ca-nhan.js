@@ -1,7 +1,6 @@
-// POST /api/ca-nhan { ma }
-// Học sinh (đã vào bằng mã lớp) nhập mã cá nhân để xem kết quả CỦA CHÍNH MÌNH.
-// Chỉ trả về dữ liệu của đúng em đó — không bao giờ trả danh sách cả lớp,
-// không trả hoàn cảnh gia đình hay số điện thoại phụ huynh.
+// POST /api/ca-nhan { ma } hoặc GET /api/ca-nhan
+// Học sinh nhập mã cá nhân hoặc tự động nhận diện từ phiên đăng nhập.
+// Chỉ trả về dữ liệu của đúng em đó — không bao giờ trả danh sách cả lớp.
 import { bocXuLy, json, loi, docThan } from '../_lib/api.js';
 import { gomBangDiem, xepLoaiHocTap } from '../_lib/tt22.js';
 import { chuanHoaMaTuyChinh } from '../_lib/ma.js';
@@ -18,33 +17,29 @@ async function quaNhieuLan(env, ip) {
   return false;
 }
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
-  const db = env.DB;
-  const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
-
-  if (await quaNhieuLan(env, ip)) {
-    return loi('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429);
+async function layDuLieuCaNhan(db, { ma, hocSinhId }) {
+  let hs = null;
+  if (hocSinhId) {
+    hs = await db.prepare(
+      `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
+              h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
+              m.an_muc AS anMucChuoi
+         FROM hoc_sinh h LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
+        WHERE h.id = ?1 AND h.dang_hoc = 1`
+    ).bind(hocSinhId).first();
+  } else if (ma) {
+    const maSach = chuanHoaMaTuyChinh(ma);
+    if (!maSach) return null;
+    hs = await db.prepare(
+      `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
+              h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
+              m.an_muc AS anMucChuoi
+         FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
+        WHERE m.ma = ?1 AND h.dang_hoc = 1`
+    ).bind(maSach).first();
   }
 
-  const { ma } = await docThan(request);
-  // KHÔNG ép chữ hoa và KHÔNG giới hạn 20 ký tự ở đây — phải khớp đúng cách chuẩn hoá
-  // dùng lúc giáo viên ĐẶT mã (chuanHoaMaTuyChinh, tối đa 32 ký tự, giữ nguyên hoa/thường).
-  // Trước đây hai bên lệch nhau nên mã có chữ thường hoặc dài hơn 20 ký tự tra cứu không ra.
-  const maSach = chuanHoaMaTuyChinh(ma);
-  if (!maSach) return loi('Chưa nhập mã cá nhân.');
-
-  // Làm chậm nhẹ để hạn chế dò mã.
-  await new Promise((r) => setTimeout(r, 350));
-
-  const hs = await db.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
-            h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
-            m.an_muc AS anMucChuoi
-       FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
-      WHERE m.ma = ?1 AND h.dang_hoc = 1`
-  ).bind(maSach).first();
-
-  if (!hs) return loi('Mã cá nhân không đúng. Hỏi lại giáo viên chủ nhiệm.', 404);
+  if (!hs) return null;
 
   // Giáo viên có thể ẩn riêng một vài mục với mã này — mặc định xem hết (chuỗi rỗng).
   const anMuc = hs.anMucChuoi ? hs.anMucChuoi.split(',') : [];
@@ -57,7 +52,6 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     ).bind(hs.id).all(),
     db.prepare('SELECT ma, ten, cach_danh_gia, so_dgtx FROM mon_hoc WHERE dang_hoc = 1 ORDER BY thu_tu').all(),
     db.prepare('SELECT mon, hoc_ki, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_sinh_id = ?1').bind(hs.id).all(),
-    // Chỉ cho xem khen thưởng và nhắc nhở đã xử lý — không phơi bày ghi chú nội bộ.
     db.prepare(
       `SELECT ngay, loai, noi_dung AS noiDung FROM nhat_ky
         WHERE hoc_sinh_id = ?1 AND loai IN ('khen', 'nhac_nho') ORDER BY ngay DESC LIMIT 20`
@@ -87,7 +81,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     return { hocKi: hk, mon, xepLoai, tbChung, renLuyen: rl.muc || '', nhanXetRenLuyen: rl.nhanXet || '' };
   });
 
-  return json({
+  return {
     ok: true,
     hocSinh: hs,
     anMuc,
@@ -95,5 +89,43 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
       ? null : { ...dem, tong: diemDanh.results.length, chiTiet: diemDanh.results },
     soDiem: anMuc.includes('thong-ke') ? [] : soDiem,
     nhatKy: nhatKy.results,
-  });
+  };
+}
+
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const url = new URL(request.url);
+  const maUrl = url.searchParams.get('ma') || '';
+  const hocSinhId = phien?.hocSinhId || null;
+  const ma = maUrl || phien?.ma || '';
+
+  if (!hocSinhId && !ma) {
+    return loi('Chưa có thông tin học sinh.', 400);
+  }
+
+  const ketQua = await layDuLieuCaNhan(env.DB, { ma, hocSinhId });
+  if (!ketQua) return loi('Không tìm thấy học sinh.', 404);
+  return json(ketQua);
+});
+
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+  const db = env.DB;
+  const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
+
+  if (await quaNhieuLan(env, ip)) {
+    return loi('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429);
+  }
+
+  const { ma: maGui } = await docThan(request).catch(() => ({}));
+  const ma = maGui || phien?.ma || '';
+  const hocSinhId = !ma ? (phien?.hocSinhId || null) : null;
+
+  if (!ma && !hocSinhId) return loi('Chưa nhập mã cá nhân.');
+
+  // Làm chậm nhẹ để hạn chế dò mã.
+  await new Promise((r) => setTimeout(r, 350));
+
+  const ketQua = await layDuLieuCaNhan(db, { ma, hocSinhId });
+  if (!ketQua) return loi('Mã cá nhân không đúng. Hỏi lại giáo viên chủ nhiệm.', 404);
+
+  return json(ketQua);
 });

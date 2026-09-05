@@ -35,7 +35,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
 
-  const [hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi] = await Promise.all([
+  const [hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi, quyDong] = await Promise.all([
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
@@ -60,7 +60,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         WHERE ngay_bat_dau <= ?1 ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
     ).bind(homNay).first(),
     db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh ORDER BY ngay DESC, id DESC LIMIT 60').all(),
-    // Thủ quỹ: chỉ số liệu TỔNG HỢP, không bao giờ trả về ai đã đóng / ai còn thiếu.
+    // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
               k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
@@ -69,6 +69,12 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         GROUP BY k.id ORDER BY k.tao_luc DESC`
     ).all(),
     db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, loai, ghi_chu AS ghiChu FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
+    db.prepare(
+      `SELECT d.khoan_id AS khoanId, d.hoc_sinh_id AS hocSinhId,
+              SUM(d.so_tien) AS tongTien, MAX(d.ngay) AS ngayDong, MAX(d.ghi_chu) AS ghiChu
+         FROM quy_dong d
+        GROUP BY d.khoan_id, d.hoc_sinh_id`
+    ).all(),
   ]);
 
   const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
@@ -93,6 +99,16 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
 
   const tongThuQuy = quyKhoan.results.reduce((a, k) => a + k.tongDaThu, 0);
   const tongChiQuy = quyChi.results.reduce((a, c) => a + c.soTien, 0);
+
+  const dongTheoKhoan = {};
+  (quyDong?.results || []).forEach((r) => {
+    dongTheoKhoan[r.khoanId] = dongTheoKhoan[r.khoanId] || {};
+    dongTheoKhoan[r.khoanId][r.hocSinhId] = {
+      soTien: r.tongTien,
+      ngay: r.ngayDong,
+      ghiChu: r.ghiChu || '',
+    };
+  });
 
   return json({
     ok: true,
@@ -124,6 +140,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
         dinhKyId: k.dinhKyId, kySo: k.kySo, ngayBatDau: k.ngayBatDau, ngayKetThuc: k.ngayKetThuc,
         tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
+        dongChiTiet: dongTheoKhoan[k.id] || {},
       })),
       chi: quyChi.results.map((c) => ({
         id: c.id, ngay: c.ngay, noiDung: c.noiDung, soTien: c.soTien,
