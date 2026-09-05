@@ -388,6 +388,11 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .luoi-quy { grid-template-columns: 1fr; }
 @media (min-width: 980px) { .luoi-quy { grid-template-columns: 1.7fr 1fr; } }
 
+/* Chọn nhanh một khoản thu — chỉ cần khi danh sách xếp 1 cột hẹp (dưới ngưỡng .luoi-quy ở
+   trên) và có nhiều khoản, kéo cuộn dễ lạc; màn rộng đã đủ chỗ nhìn bao quát nên ẩn đi. */
+.quy-chon-nhanh { display: block; width: 100%; margin: 0 0 12px; }
+@media (min-width: 980px) { .quy-chon-nhanh { display: none; } }
+
 /* Dải số liệu THU CHI NỔI BẬT: tự thích ứng 4 cột hoặc 2x2, không bao giờ bị cắt chữ */
 .chuoi-so-lieu {
   display: grid;

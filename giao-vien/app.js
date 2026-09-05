@@ -243,10 +243,20 @@ async function trangTongQuan() {
   } else {
     const ul = e('div', 'ds-diem-danh');
     d.hoanCanh.forEach((h) => {
-      const hang = e('div', 'hang-hs');
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, h.hoTen));
-      hang.append(e('div', 'stt', h.id), ten, e('span', 'nhan nhan-luuy', h.hoanCanh));
+      // "Hoàn cảnh" là văn bản tự do, có thể dài cả câu — dùng bố cục hang-hs-doc (như Khoản
+      // chi/Thủ quỹ) để xuống dòng bình thường thay vì nhét vào 1 nhãn tròn white-space:nowrap,
+      // dễ tràn ngang trên điện thoại khi nội dung dài.
+      const hang = e('div', 'hang-hs hang-hs-doc');
+      const dong1 = e('div', 'hang-hs-dong1');
+      const khoiTrai = e('div', 'hs-khoi-trai');
+      khoiTrai.append(e('div', 'stt', h.id));
+      const thongTin = e('div', 'hs-thong-tin');
+      const dongTen = e('div', 'hs-ten-to');
+      dongTen.append(e('span', 'hs-ho-ten', h.hoTen));
+      thongTin.append(dongTen, e('div', 'hs-chi-tiet-dong', h.hoanCanh));
+      khoiTrai.append(thongTin);
+      dong1.append(khoiTrai);
+      hang.append(dong1);
       ul.append(hang);
     });
     theHc.append(ul);
@@ -1315,7 +1325,9 @@ async function trangHoSo(id, tabMacDinh) {
         const gt = hang.theoMon[m.ma];
         if (gt === null || gt === '' || gt === undefined) return;
         const hangMon = e('div', 'hang-hs');
-        hangMon.append(e('div', 'ten', e('b', null, m.ten)),
+        const tenMon = e('div', 'ten');
+        tenMon.append(e('b', null, m.ten));
+        hangMon.append(tenMon,
           e('span', 'nhan ' + (m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'nhan-tot' : 'nhan-xau') : ''),
             m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'Đạt' : 'Chưa đạt') : String(gt)));
         ds.append(hangMon);

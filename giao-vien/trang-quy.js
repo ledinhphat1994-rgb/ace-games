@@ -51,21 +51,44 @@ export async function trangQuy(KHUNG) {
 
   function veHangKhoan(k) {
     const boc = e('div', 'muc-khoan');
-    const hang = e('div', 'hang-hs');
+    boc.id = 'khoan-' + k.id;
+    // Dùng chung bố cục hang-hs-doc/hang-hs-dong1 với "Khoản chi" (xem veChi bên dưới) — trên
+    // màn hẹp, tên khoản + số liệu xuống MỘT dòng riêng thay vì bị nhãn/mũi tên chen ngang giữa
+    // chừng như kiểu .hang-hs cũ (đây là chỗ gây rối trên điện thoại khi có nhiều khoản thu).
+    const hang = e('div', 'hang-hs hang-hs-doc');
     hang.style.cursor = 'pointer';
-    const ten = e('div', 'ten');
+
+    const dong1 = e('div', 'hang-hs-dong1');
+    const khoiTrai = e('div', 'hs-khoi-trai');
+    khoiTrai.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'));
+
+    const thongTin = e('div', 'hs-thong-tin');
+    const dongTen = e('div', 'hs-ten-to');
+    dongTen.append(e('span', 'hs-ho-ten', k.ten));
+    thongTin.append(dongTen);
     const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
-    ten.append(e('b', null, k.ten), e('small', null,
-      `${tienVN(k.soTienMoiEm)}/em · đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${phanTram}%)`));
-    hang.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'), ten);
+    const dongChiTiet = e('div', 'hs-chi-tiet-dong');
+    dongChiTiet.append(
+      e('span', null, `${tienVN(k.soTienMoiEm)}/em`),
+      e('span', 'cham-cach', '·'),
+      e('span', null, `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${phanTram}%)`)
+    );
+    thongTin.append(dongChiTiet);
+    khoiTrai.append(thongTin);
+    dong1.append(khoiTrai);
+
+    const khoiPhai = e('div', 'hs-khoi-phai');
     if (!k.dangMo) {
-      hang.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
+      khoiPhai.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
     } else if (phanTram >= 100) {
-      hang.append(e('span', 'nhan nhan-tot', '✓ Đã thu đủ'));
+      khoiPhai.append(e('span', 'nhan nhan-tot', '✓ Đã thu đủ'));
     } else {
-      hang.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}% · ${k.soEmChuaDu} em chưa đủ`));
+      khoiPhai.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}% · ${k.soEmChuaDu} em chưa đủ`));
     }
-    hang.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
+    khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
+    dong1.append(khoiPhai);
+
+    hang.append(dong1);
     hang.addEventListener('click', () => moKhoan(k.id));
     boc.append(hang);
 
@@ -478,6 +501,27 @@ export async function trangQuy(KHUNG) {
     if (!d.khoan.length) {
       theKhoan.append(e('p', 'trong', 'Chưa có khoản thu nào.'));
     } else {
+      // Chọn nhanh — chỉ hiện trên màn hẹp (xem CSS .quy-chon-nhanh), nơi danh sách xếp
+      // một cột nên nhiều khoản là phải kéo dài; chọn ở đây mở thẳng đúng khoản, khỏi dò.
+      if (d.khoan.length > 3) {
+        const oChonNhanh = oChon('quyChonNhanh',
+          [['', `— Chọn nhanh trong ${d.khoan.length} khoản thu —`], ...d.khoan.map((k) => {
+            const pt = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+            const trangThai = !k.dangMo ? 'Đã đóng' : pt >= 100 ? 'Đã thu đủ' : `${pt}%, ${k.soEmChuaDu} em chưa đủ`;
+            return [String(k.id), `${k.dinhKyId ? '🔁' : '💰'} ${k.ten} — ${trangThai}`];
+          })], '');
+        oChonNhanh.className = 'o-nhap quy-chon-nhanh';
+        oChonNhanh.setAttribute('aria-label', 'Chọn nhanh một khoản thu để xem');
+        oChonNhanh.addEventListener('change', async () => {
+          const id = Number(oChonNhanh.value);
+          if (!id) return;
+          if (moRong !== id) await moKhoan(id);
+          document.getElementById('khoan-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          oChonNhanh.value = '';
+        });
+        theKhoan.append(oChonNhanh);
+      }
+
       const ds = e('div', 'ds-khoan');
       d.khoan.forEach((k) => ds.append(veHangKhoan(k)));
       theKhoan.append(ds);

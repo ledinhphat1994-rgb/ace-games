@@ -564,23 +564,35 @@ async function veChuyenCan(KHUNG) {
     const ds = e('div', 'ds-diem-danh');
     const TEN_MUC = { cao: ['Nguy cơ cao', 'nhan-xau'], vua: ['Cần theo dõi', 'nhan-luuy'], nhe: ['Nhắc nhở', 'nhan'] };
     d.canhBao.forEach((h) => {
-      const hang = e('div', 'hang-hs');
+      // Bố cục hang-hs-doc (như Thủ quỹ/Tổng quan) — "hoàn cảnh" là văn bản tự do có thể dài,
+      // xuống dòng riêng thay vì nhét vào nhãn tròn white-space:nowrap dễ tràn ngang trên
+      // điện thoại; nhãn mức cảnh báo vẫn ngắn nên giữ dạng nhãn như cũ.
+      const hang = e('div', 'hang-hs hang-hs-doc');
       hang.style.cursor = 'pointer';
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, h.hoTen));
+      const dong1 = e('div', 'hang-hs-dong1');
+
+      const khoiTrai = e('div', 'hs-khoi-trai');
+      khoiTrai.append(e('div', 'stt', h.id));
+      const thongTin = e('div', 'hs-thong-tin');
+      const dongTen = e('div', 'hs-ten-to');
+      dongTen.append(e('span', 'hs-ho-ten', h.hoTen));
+      thongTin.append(dongTen);
       const chiTiet = [];
       if (h.vangKhongPhep) chiTiet.push(`${h.vangKhongPhep} buổi không phép`);
       if (h.vangPhep) chiTiet.push(`${h.vangPhep} có phép`);
       if (h.tre) chiTiet.push(`${h.tre} lần trễ`);
       if (h.tiLeChuyenCan !== null) chiTiet.push(`chuyên cần ${h.tiLeChuyenCan}%`);
-      ten.append(e('small', null, chiTiet.join(' · ')));
-      hang.append(e('div', 'stt', h.id), ten);
+      thongTin.append(e('div', 'hs-chi-tiet-dong', chiTiet.join(' · ')));
+      if (h.hoanCanh) thongTin.append(e('div', 'hs-chi-tiet-dong', h.hoanCanh));
+      khoiTrai.append(thongTin);
+      dong1.append(khoiTrai);
 
-      const phai = e('div', 'canh-phai');
+      const khoiPhai = e('div', 'hs-khoi-phai');
       const [tenMuc, lop] = TEN_MUC[h.mucCanhBao];
-      phai.append(e('span', 'nhan ' + lop, tenMuc));
-      if (h.hoanCanh) phai.append(e('span', 'nhan nhan-luuy', h.hoanCanh));
-      hang.append(phai);
+      khoiPhai.append(e('span', 'nhan ' + lop, tenMuc));
+      dong1.append(khoiPhai);
+
+      hang.append(dong1);
       hang.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
       ds.append(hang);
     });
