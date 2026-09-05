@@ -92,11 +92,16 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   // Tổng quan toàn bộ quỹ
   // Lưu ý: .first() trả thẳng một dòng (không bọc trong { results: [...] }) — khác với .all().
   const [{ results: khoan }, { results: chi }, siSo, { results: dongTheoEm }] = await Promise.all([
+    // dinhKyTen/dinhKyChuKy/dinhKySoKy: chỉ có khi khoản này là một kỳ của mẫu "Thu cố định" —
+    // dùng để GOM các kỳ cùng một mẫu lại thành một nhóm trên giao diện (xem trang-quy.js),
+    // thay vì liệt kê phẳng hàng chục dòng trông rất giống nhau, khó phân biệt.
     db.prepare(
       `SELECT k.id, k.ten, k.hoc_ky AS hocKy, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
               k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
+              dk.ten AS dinhKyTen, dk.chu_ky AS dinhKyChuKy, dk.so_ky AS dinhKySoKy,
               COALESCE(SUM(d.so_tien), 0) AS tongDaThu
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
+                          LEFT JOIN quy_dinh_ky dk ON dk.id = k.dinh_ky_id
         GROUP BY k.id ORDER BY k.tao_luc DESC`
     ).all(),
     db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, ghi_chu AS ghiChu, loai FROM quy_chi ORDER BY ngay DESC, id DESC').all(),

@@ -536,6 +536,14 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   padding: 16px; border-top: 1px solid var(--vien); background: var(--nen-chim);
 }
 
+/* Nhóm "Thu cố định" — gộp nhiều kỳ giống nhau thành một thẻ tóm tắt, mở rộng ra mới thấy
+   từng kỳ (mỗi kỳ vẫn là một .muc-khoan bình thường, thụt vào nhẹ cho rõ là con của nhóm). */
+.nhom-dinh-ky { border-color: color-mix(in srgb, var(--chinh) 35%, var(--vien)); }
+.nhom-dinh-ky-chi-tiet {
+  padding: 10px; border-top: 1px solid var(--vien); background: var(--nen-chim);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
 /* Bố cục dòng học sinh và khoản chi: phân tách rõ thông tin, số tiền và hành động */
 .hang-hs-doc {
   flex-direction: column;

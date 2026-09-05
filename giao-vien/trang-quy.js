@@ -30,6 +30,23 @@ export async function trangQuy(KHUNG) {
   const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
   const khoanDaChon = new Set();   // id các khoản thu đang tích để xoá hàng loạt
   const chiDaChon = new Set();     // id các khoản chi đang tích để xoá hàng loạt
+  const nhomMoRong = new Set();    // id các mẫu "Thu cố định" đang mở rộng (xem từng kỳ bên trong)
+
+  /** Gộp danh sách khoản thu: các kỳ cùng một mẫu "Thu cố định" gộp thành MỘT nhóm, khoản
+      "Thu nhanh" (không thuộc mẫu nào) giữ nguyên từng dòng riêng — tránh liệt kê phẳng hàng
+      chục dòng trông rất giống nhau (chỉ khác số kỳ) khiến khó phân biệt/quan sát. */
+  function nhomTheoDinhKy(danhSachKhoan) {
+    const daGom = new Set();
+    const ketQua = [];
+    danhSachKhoan.forEach((k) => {
+      if (!k.dinhKyId) { ketQua.push({ loai: 'don', khoan: k }); return; }
+      if (daGom.has(k.dinhKyId)) return;
+      daGom.add(k.dinhKyId);
+      const thanhVien = danhSachKhoan.filter((x) => x.dinhKyId === k.dinhKyId);
+      ketQua.push({ loai: 'nhom', dinhKyId: k.dinhKyId, thanhVien });
+    });
+    return ketQua;
+  }
 
   /** Thanh "Đã chọn N ... — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có mục nào đang tích. */
   function veThanhChonXoa(daChon, loai, tenSo, taiLaiFn) {
@@ -184,6 +201,80 @@ export async function trangQuy(KHUNG) {
       const chiTietBox = e('div', 'muc-khoan-chi-tiet');
       chiTietBox.append(chiTiet[k.id] ? veChiTietKhoan(k.id, chiTiet[k.id]) : khoiDangTai());
       boc.append(chiTietBox);
+    }
+    return boc;
+  }
+
+  /** Một nhóm "Thu cố định" — thẻ tóm tắt cả đợt (tên, số kỳ, tổng đã thu), bấm vào để mở
+      rộng xem TỪNG kỳ bên trong (mỗi kỳ vẫn dùng đúng veHangKhoan() như một khoản bình
+      thường — có thể tích chọn, bấm mở chi tiết từng em như cũ). */
+  function veNhomDinhKy(nhom) {
+    const { dinhKyId, thanhVien } = nhom;
+    const dauTien = thanhVien[0];
+    const dangMo = nhomMoRong.has(dinhKyId);
+
+    const boc = e('div', 'muc-khoan nhom-dinh-ky');
+    const hang = e('div', 'hang-hs hang-hs-doc');
+    hang.style.cursor = 'pointer';
+
+    const dong1 = e('div', 'hang-hs-dong1');
+    const khoiTrai = e('div', 'hs-khoi-trai');
+
+    // Tích chọn CẢ NHÓM — tương đương tích từng kỳ bên trong, để xoá hàng loạt cả đợt gọn hơn
+    // là phải mở rộng ra tích từng dòng một.
+    const oChonNhom = e('input');
+    oChonNhom.type = 'checkbox';
+    const tatCaDaChon = thanhVien.every((k) => khoanDaChon.has(k.id));
+    oChonNhom.checked = tatCaDaChon;
+    oChonNhom.setAttribute('aria-label', `Chọn cả ${thanhVien.length} kỳ của "${dauTien.dinhKyTen}" để xoá hàng loạt`);
+    oChonNhom.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
+    oChonNhom.addEventListener('click', (ev) => ev.stopPropagation());
+    oChonNhom.addEventListener('change', () => {
+      thanhVien.forEach((k) => { if (oChonNhom.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id); });
+      ve();
+    });
+    khoiTrai.append(oChonNhom);
+
+    khoiTrai.append(e('div', 'stt', '🔒'));
+
+    const thongTin = e('div', 'hs-thong-tin');
+    const dongTen = e('div', 'hs-ten-to');
+    dongTen.append(e('span', 'hs-ho-ten', dauTien.dinhKyTen));
+    dongTen.append(e('span', 'hs-to-badge', 'Thu cố định'));
+    thongTin.append(dongTen);
+
+    const tongDaThu = thanhVien.reduce((a, k) => a + k.tongDaThu, 0);
+    const tongCanThu = thanhVien.reduce((a, k) => a + k.tongCanThu, 0);
+    const soKyDaDu = thanhVien.filter((k) => k.tongCanThu > 0 && k.tongDaThu >= k.tongCanThu).length;
+    const dongChiTiet = e('div', 'hs-chi-tiet-dong');
+    dongChiTiet.append(
+      e('span', null, `${CHU_KY_HIEN_THI[dauTien.dinhKyChuKy] || dauTien.dinhKyChuKy}`),
+      e('span', 'cham-cach', '·'),
+      e('span', null, `${thanhVien.length}/${dauTien.dinhKySoKy || thanhVien.length} kỳ`),
+      e('span', 'cham-cach', '·'),
+      e('span', null, `Đã thu ${tienVN(tongDaThu)}/${tienVN(tongCanThu)}`)
+    );
+    thongTin.append(dongChiTiet);
+    khoiTrai.append(thongTin);
+    dong1.append(khoiTrai);
+
+    const khoiPhai = e('div', 'hs-khoi-phai');
+    khoiPhai.append(e('span', 'nhan ' + (soKyDaDu === thanhVien.length ? 'nhan-tot' : 'nhan-chinh'),
+      soKyDaDu === thanhVien.length ? '✓ Mọi kỳ đã đủ' : `${soKyDaDu}/${thanhVien.length} kỳ đã đủ`));
+    khoiPhai.append(e('span', 'muc-khoan-mui-ten', dangMo ? '▾' : '▸'));
+    dong1.append(khoiPhai);
+
+    hang.append(dong1);
+    hang.addEventListener('click', () => {
+      if (dangMo) nhomMoRong.delete(dinhKyId); else nhomMoRong.add(dinhKyId);
+      ve();
+    });
+    boc.append(hang);
+
+    if (dangMo) {
+      const dsKy = e('div', 'nhom-dinh-ky-chi-tiet');
+      thanhVien.forEach((k) => dsKy.append(veHangKhoan(k)));
+      boc.append(dsKy);
     }
     return boc;
   }
@@ -562,11 +653,11 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
-    // Chỉ còn 1 lối tắt CHUNG cho cả trang (xem lịch sử) — nút "Ghi khoản thu" đã dời xuống
-    // ngay trong thẻ "Khoản thu" bên dưới, đồng cấp với nút "Ghi khoản chi" trong thẻ "Khoản
-    // chi" (cùng cách đặt tên, cùng bố cục). Bỏ luôn nút "Các mẫu thu định kỳ" ở đây — mọi kỳ
-    // của một mẫu thu cố định giờ sinh sẵn ngay lúc tạo nên không còn thao tác "dừng/tiếp tục"
-    // để quản lý riêng; trang "#/quy-dinh-ky" vẫn còn, chỉ để xem lại lịch sử các đợt đã tạo.
+    // Chỉ còn 1 lối tắt CHUNG cho cả trang: "🛡️ Lịch sử & khôi phục" — đã gộp cả lịch sử
+    // khoản thu, khoản chi và các đợt thu cố định vào chung trang lịch sử này (xem
+    // trangQuyLichSu), không còn trang "#/quy-dinh-ky" riêng dễ bị lạc ở cuối danh sách nữa.
+    // Nút "Ghi khoản thu" đã dời xuống ngay trong thẻ "Khoản thu" bên dưới, đồng cấp với nút
+    // "Ghi khoản chi" trong thẻ "Khoản chi".
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
       nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; })
@@ -627,24 +718,25 @@ export async function trangQuy(KHUNG) {
         oChonNhanh.addEventListener('change', async () => {
           const id = Number(oChonNhanh.value);
           if (!id) return;
-          if (moRong !== id) await moKhoan(id);
+          // Nếu khoản này nằm trong một nhóm "Thu cố định" đang thu gọn, phải mở nhóm ra
+          // trước — không thì hàng của nó chưa tồn tại trong DOM để cuộn/mở chi tiết tới.
+          const kk = d.khoan.find((x) => x.id === id);
+          if (kk?.dinhKyId) nhomMoRong.add(kk.dinhKyId);
+          if (moRong !== id) await moKhoan(id); else ve();
           document.getElementById('khoan-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           oChonNhanh.value = '';
         });
         theKhoan.append(oChonNhanh);
       }
 
+      // Gộp các kỳ cùng một mẫu "Thu cố định" lại thành một nhóm — xem nhomTheoDinhKy() ở
+      // trên. Muốn xem lịch sử đầy đủ các đợt thu cố định thì vào "🛡️ Lịch sử & khôi phục"
+      // (đã gộp vào đó, không còn trang riêng để khỏi lạc mất ở cuối danh sách như trước).
       const ds = e('div', 'ds-khoan');
-      d.khoan.forEach((k) => ds.append(veHangKhoan(k)));
+      nhomTheoDinhKy(d.khoan).forEach((muc) => {
+        ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
+      });
       theKhoan.append(ds);
-
-      // Lối vào duy nhất còn lại tới trang quản lý mẫu định kỳ — chỉ cần cho trường hợp hiếm:
-      // xoá một mẫu vừa tạo nhầm mà ngày bắt đầu còn ở tương lai nên chưa sinh kỳ nào (dừng/mở
-      // lại một mẫu đã có kỳ thì làm ngay trong chi tiết kỳ đó, xem veChiTietKhoan ở trên).
-      const lienKetDinhKy = e('a', null, '🔁 Xem tất cả các mẫu thu định kỳ');
-      lienKetDinhKy.href = '#/quy-dinh-ky';
-      lienKetDinhKy.style.cssText = 'display:inline-block;margin-top:12px;font-size:13px;color:var(--chu-nhat)';
-      theKhoan.append(lienKetDinhKy);
     }
     luoiChinh.append(theKhoan);
 
@@ -1386,7 +1478,10 @@ function taoTaiKhoan(cacQuyen, taiLai) {
   ]);
 }
 
-/* ================= Lịch sử & khôi phục Thủ quỹ ================= */
+/* ================= Lịch sử Thủ quỹ (khôi phục + khoản thu + khoản chi + thu cố định) =================
+   Gộp cả 4 loại lịch sử vào MỘT trang có tab, thay vì tách rời "Lịch sử & khôi phục" và
+   "Thu cố định" như trước (mục thu cố định từng nằm cuối danh sách Khoản thu, rất dễ bị bỏ
+   sót) — giờ "🛡️ Lịch sử & khôi phục" ở đầu trang Thủ quỹ là NƠI DUY NHẤT để xem mọi lịch sử. */
 
 /** D1 lưu giờ UTC — cộng 7 tiếng để hiện đúng giờ Việt Nam. */
 function taoLucVN(taoLuc) {
@@ -1398,23 +1493,21 @@ function taoLucVN(taoLuc) {
   return `${gio}:${phut} ${ngayVN(d.toISOString().slice(0, 10))}`;
 }
 
+const CHU_KY_HIEN_THI = { tuan: 'Theo tuần', thang: 'Theo tháng', nam: 'Theo năm' };
+
 export async function trangQuyLichSu(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  let tab = 'khoi_phuc';   // 'khoi_phuc' | 'thu' | 'chi' | 'co_dinh'
 
-  async function ve() {
+  /** Tab "🛡️ Khôi phục" — nội dung y hệt trang cũ, chỉ bỏ phần tiêu đề/nút Về Thủ quỹ (giờ
+      nằm ở khung chung của cả trang lịch sử). */
+  async function veTabKhoiPhuc() {
     const [d, phienD] = await Promise.all([
       api('/api/gv/quy-checkpoint'),
       api('/api/whoami').catch(() => ({ role: '' })),
     ]);
     const laGiaoVien = phienD.role === 'teacher';
-
     const khung = e('div');
-    // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
-    // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
-    // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
-    khung.append(tieuDeTrang('Lịch sử & khôi phục Thủ quỹ',
-      'Mỗi lần ghi thu, ghi chi hoặc xoá đều tự động lưu một điểm khôi phục ngay trước đó.'));
 
     const the = e('div', 'the');
     the.style.borderColor = 'var(--chinh)';
@@ -1428,88 +1521,150 @@ export async function trangQuyLichSu(KHUNG) {
 
     if (!d.danhSach.length) {
       khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác đầu tiên trên Thủ quỹ.'));
-    } else {
-      const ds = e('div', 'ds-nhat-ky');
-      d.danhSach.forEach((cp) => {
-        const m = e('div', 'muc-nhat-ky khac');
-        const dong = e('div', 'dong-dau');
-        dong.append(e('span', 'ngay', taoLucVN(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
-        if (laGiaoVien) {
-          const viec = e('div', 'viec');
-          viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
-            moHopThoai('Khôi phục Thủ quỹ về điểm này?', [
-              e('p', null, cp.hanhDong),
-              Object.assign(e('p', null, `Lúc: ${taoLucVN(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
-              e('p', null, 'Mọi thay đổi về khoản thu, khoản đã đóng, khoản chi sau thời điểm này sẽ mất. Chắc chắn chứ?'),
-            ], [
-              nut('Huỷ', 'nut-nhe', dongHopThoai),
-              nut('Khôi phục ngay', 'nut-xau', async (ev) => {
-                ev.currentTarget.disabled = true;
-                try {
-                  await api('/api/gv/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
-                  dongHopThoai();
-                  nhac('Đã khôi phục Thủ quỹ', 'tot');
-                  ve();
-                } catch (err) {
-                  nhac(err.message, 'xau');
-                  ev.currentTarget.disabled = false;
-                }
-              }),
-            ]);
-          }));
-          dong.append(viec);
-        }
-        m.append(dong, e('p', null, cp.hanhDong));
-        ds.append(m);
-      });
-      khung.append(ds);
+      return khung;
     }
 
-    datNoiDung(KHUNG, khung);
+    const ds = e('div', 'ds-nhat-ky');
+    d.danhSach.forEach((cp) => {
+      const m = e('div', 'muc-nhat-ky khac');
+      const dong = e('div', 'dong-dau');
+      dong.append(e('span', 'ngay', taoLucVN(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
+      if (laGiaoVien) {
+        const viec = e('div', 'viec');
+        viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
+          moHopThoai('Khôi phục Thủ quỹ về điểm này?', [
+            e('p', null, cp.hanhDong),
+            Object.assign(e('p', null, `Lúc: ${taoLucVN(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
+            e('p', null, 'Mọi thay đổi về khoản thu, khoản đã đóng, khoản chi sau thời điểm này sẽ mất. Chắc chắn chứ?'),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Khôi phục ngay', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api('/api/gv/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
+                dongHopThoai();
+                nhac('Đã khôi phục Thủ quỹ', 'tot');
+                ve();
+              } catch (err) {
+                nhac(err.message, 'xau');
+                ev.currentTarget.disabled = false;
+              }
+            }),
+          ]);
+        }));
+        dong.append(viec);
+      }
+      m.append(dong, e('p', null, cp.hanhDong));
+      ds.append(m);
+    });
+    khung.append(ds);
+    return khung;
   }
 
-  await ve();
-}
+  /** Tab "💰 Khoản thu" — lịch sử TỪNG LẦN ghi thu (khác Khoản thu ở trang Thủ quỹ, vốn gộp
+      theo khoản chứ không theo từng lần đóng của từng em). */
+  async function veTabLichSuThu() {
+    const d = await api('/api/gv/quy-lich-su-thu');
+    if (!d.danhSach.length) return e('p', 'trong', 'Chưa có lần ghi thu nào.');
 
-/* ================= Thu cố định (lịch sử các đợt) ================= */
-// Tạo mẫu mới giờ dùng chung hộp thoại moKhoanMoi(taiLai, 'co_dinh') ở trên — không còn hộp
-// thoại riêng nữa, tránh 2 nơi tạo cùng một thứ mà giao diện khác nhau. Trang này giờ CHỈ để
-// xem lại lịch sử — mọi kỳ đã sinh sẵn hết ngay lúc tạo (xem functions/api/gv/quy-dinh-ky.js)
-// nên không còn thao tác "dừng/tiếp tục" nào để quản lý riêng ở đây nữa; muốn bỏ một kỳ cụ thể
-// thì xoá đúng khoản đó trong "Khoản thu" ở trang Thủ quỹ.
+    const ds = e('div', 'ds-nhat-ky');
+    d.danhSach.forEach((g) => {
+      const m = e('div', 'muc-nhat-ky khac');
+      const dong = e('div', 'dong-dau');
+      dong.append(e('span', 'ngay', ngayVN(g.ngay)), e('span', 'nhan nhan-tot', '+' + tienVN(g.soTien)));
+      m.append(dong, Object.assign(e('h3', null, `${g.hoTen} — ${g.khoanTen}`), { style: 'margin:4px 0' }));
+      if (g.ghiChu) m.append(e('p', null, g.ghiChu));
+      ds.append(m);
+    });
+    return ds;
+  }
 
-const CHU_KY_HIEN_THI = { tuan: 'Theo tuần', thang: 'Theo tháng', nam: 'Theo năm' };
+  /** Tab "💸 Khoản chi" — lịch sử toàn bộ khoản chi, mới nhất trước (dùng lại đúng dữ liệu
+      d.chi từ /api/gv/quy, đã sắp theo ngày giảm dần sẵn). */
+  async function veTabLichSuChi() {
+    const d = await api('/api/gv/quy');
+    if (!d.chi.length) return e('p', 'trong', 'Chưa có khoản chi nào.');
 
-export async function trangQuyDinhKy(KHUNG) {
-  datNoiDung(KHUNG, khoiDangTai());
+    const ds = e('div', 'ds-nhat-ky');
+    d.chi.forEach((c) => {
+      const loaiTen = (CAC_LOAI_CHI.find((x) => x[0] === c.loai) || [null, 'Khác'])[1];
+      const m = e('div', 'muc-nhat-ky khac');
+      const dong = e('div', 'dong-dau');
+      dong.append(
+        e('span', 'ngay', ngayVN(c.ngay)),
+        e('span', 'nhan nhan-xam', loaiTen),
+        e('span', 'nhan nhan-luuy', '-' + tienVN(c.soTien))
+      );
+      m.append(dong, Object.assign(e('h3', null, c.noiDung), { style: 'margin:4px 0' }));
+      if (c.ghiChu) m.append(e('p', null, c.ghiChu));
+      ds.append(m);
+    });
+    return ds;
+  }
+
+  /** Tab "🔒 Thu cố định" — lịch sử các đợt (mỗi đợt = một mẫu, đã sinh sẵn toàn bộ số kỳ
+      ngay lúc tạo — xem functions/api/gv/quy-dinh-ky.js). Không còn trang riêng #/quy-dinh-ky
+      nữa, đỡ bị lạc ở cuối danh sách Khoản thu như trước. */
+  async function veTabThuCoDinh(veLaiCaTrang) {
+    const d = await api('/api/gv/quy-dinh-ky');
+    const khung = e('div');
+
+    const phaiTao = e('div');
+    phaiTao.style.cssText = 'margin-bottom:14px';
+    phaiTao.append(nut('+ Ghi khoản thu', 'nut-vien nut-nho', () => moKhoanMoi(veLaiCaTrang, 'co_dinh')));
+    khung.append(phaiTao);
+
+    if (!d.danhSach.length) {
+      khung.append(e('div', 'the trong', 'Chưa có đợt thu cố định nào.'));
+      return khung;
+    }
+
+    const ds = e('div', 'ds-the');
+    d.danhSach.forEach((dk) => {
+      const the = e('div', 'the');
+      the.append(e('h3', null, dk.ten));
+      the.append(e('p', null,
+        `${CHU_KY_HIEN_THI[dk.chuKy] || dk.chuKy} · ${tienVN(dk.soTienMoiKy)}/em/kỳ · ${dk.soKy} kỳ · `
+        + `kỳ 1: ${ngayVN(dk.ngayBatDau)}–${ngayVN(dk.ngayKetThuc)}`));
+      ds.append(the);
+    });
+    khung.append(ds);
+    return khung;
+  }
+
+  const TABS = [
+    ['khoi_phuc', '🛡️ Khôi phục'],
+    ['thu', '💰 Khoản thu'],
+    ['chi', '💸 Khoản chi'],
+    ['co_dinh', '🔒 Thu cố định'],
+  ];
 
   async function ve() {
-    const d = await api('/api/gv/quy-dinh-ky');
+    datNoiDung(KHUNG, khoiDangTai());
     const khung = e('div');
 
     // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
     // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
     // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
     khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
-    khung.append(tieuDeTrang('Thu cố định — lịch sử các đợt',
-      'Mỗi đợt là một chuỗi khoản thu tự sinh nối tiếp nhau, đã tạo sẵn toàn bộ ngay từ đầu.',
-      nut('+ Ghi khoản thu', '', () => moKhoanMoi(ve, 'co_dinh'))
-    ));
+    khung.append(tieuDeTrang('Lịch sử Thủ quỹ',
+      'Toàn bộ lịch sử ghi thu, ghi chi, các đợt thu cố định và điểm khôi phục — tất cả ở một chỗ.'));
 
-    if (!d.danhSach.length) {
-      khung.append(e('div', 'the trong', 'Chưa có đợt thu cố định nào.'));
-    } else {
-      const ds = e('div', 'ds-the');
-      d.danhSach.forEach((dk) => {
-        const the = e('div', 'the');
-        the.append(e('h3', null, dk.ten));
-        the.append(e('p', null,
-          `${CHU_KY_HIEN_THI[dk.chuKy] || dk.chuKy} · ${tienVN(dk.soTienMoiKy)}/em/kỳ · ${dk.soKy} kỳ · `
-          + `kỳ 1: ${ngayVN(dk.ngayBatDau)}–${ngayVN(dk.ngayKetThuc)}`));
-        ds.append(the);
-      });
-      khung.append(ds);
-    }
+    const hopTab = e('div', 'day-loc');
+    hopTab.style.margin = '4px 0 16px';
+    TABS.forEach(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tab === ma));
+      b.addEventListener('click', () => { tab = ma; ve(); });
+      hopTab.append(b);
+    });
+    khung.append(hopTab);
+
+    if (tab === 'khoi_phuc') khung.append(await veTabKhoiPhuc());
+    else if (tab === 'thu') khung.append(await veTabLichSuThu());
+    else if (tab === 'chi') khung.append(await veTabLichSuChi());
+    else khung.append(await veTabThuCoDinh(ve));
 
     datNoiDung(KHUNG, khung);
   }

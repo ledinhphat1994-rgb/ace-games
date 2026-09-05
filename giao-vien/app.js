@@ -13,7 +13,7 @@ import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/
 import {
   trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
-import { trangQuy, trangQuyLichSu, trangQuyDinhKy } from './trang-quy.js';
+import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
@@ -39,7 +39,6 @@ const QUYEN_THEO_TUYEN = {
   'hinh-anh': 'hinh-anh',
   'quy': 'quy',
   'quy-lich-su': 'quy',
-  'quy-dinh-ky': 'quy',
   'thoi-khoa-bieu': null,
   'thoi-khoa-bieu-lich-su': null,
   'thoi-khoa-bieu-xem': null,
@@ -1824,7 +1823,6 @@ const TRANG = {
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
-  '/quy-dinh-ky': () => trangQuyDinhKy(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
   '/them': trangThem,
