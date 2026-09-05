@@ -1739,7 +1739,7 @@ export async function trangQuyLichSu(KHUNG) {
     }
 
     function veLai() {
-      ds.innerHTML = '';
+      ds.replaceChildren();
       d.khoan.forEach((k) => ds.append(veHang(k)));
     }
     veLai();

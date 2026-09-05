@@ -97,16 +97,24 @@ export async function xoaKhoiThuVien(env, loaiThuVien, id) {
 }
 
 /** Xoá NHIỀU mục cùng lúc (đã chọn từng mục, hoặc xoá sạch cả thư viện) — dùng chung logic dọn
-    R2 + D1 với xoaKhoiThuVien(), tránh phải chọn/xoá từng cái một khi có nhiều mục. */
+    R2 + D1 với xoaKhoiThuVien(), tránh phải chọn/xoá từng cái một khi có nhiều mục.
+    Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới hạn tham số truy vấn của Cloudflare D1. */
 export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
   if (!ids.length) return { daXoa: 0 };
 
-  const cho = ids.map(() => '?').join(',');
-  const { results } = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...ids).all();
-
-  if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
-  await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...ids).run();
-  return { daXoa: results.length };
+  let tongDaXoa = 0;
+  const KICH_THUOC_LO = 50;
+  for (let i = 0; i < ids.length; i += KICH_THUOC_LO) {
+    const lo = ids.slice(i, i + KICH_THUOC_LO);
+    const cho = lo.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...lo).all();
+    if (results && results.length) {
+      if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
+      await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...lo).run();
+      tongDaXoa += results.length;
+    }
+  }
+  return { daXoa: tongDaXoa };
 }

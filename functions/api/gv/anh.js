@@ -9,7 +9,7 @@
 // Ảnh đã được nén nhỏ ngay trên máy giáo viên trước khi gửi lên, nên mỗi tấm
 // chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare R2, phần mô tả lưu trong D1.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
-import { tongDungLuongDaDung, GIOI_HAN_TOI_DA_TONG_BYTE, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
+import { tongDungLuongDaDung, GIOI_HAN_TOI_DA_TONG_BYTE, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
@@ -93,12 +93,9 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   }
 
   const id = Number(q.get('id'));
-  if (!Number.isInteger(id)) return loi('Thiếu mã ảnh.');
+  if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã ảnh.');
 
-  const anh = await env.DB.prepare('SELECT khoa FROM hinh_anh WHERE id = ?1').bind(id).first();
-  if (!anh) return loi('Không tìm thấy ảnh.', 404);
-
-  await env.ANH.delete(anh.khoa);
-  await env.DB.prepare('DELETE FROM hinh_anh WHERE id = ?1').bind(id).run();
+  const loiXoa = await xoaKhoiThuVien(env, 'anh', id);
+  if (loiXoa) return loiXoa;
   return json({ ok: true });
 }, { canGiaoVien: true, quyenCan: 'hinh-anh' });

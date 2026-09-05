@@ -11,11 +11,13 @@ const CLOUDFLARE_ID = 'bfc647e65d847f61ca386b7f11c27173';
 
 let saiSot = 0;
 
-function chay(lenh, layCaLoi) {
+function chay(lenh, layCaLoi, envBoSung = {}) {
   try {
     return execSync(lenh, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', layCaLoi ? 'pipe' : 'ignore'],
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...envBoSung },
+      timeout: 15000,
     });
   } catch (e) {
     return layCaLoi ? String((e.stdout || '') + (e.stderr || '')) : null;
@@ -37,9 +39,9 @@ const remote = (chay('git remote get-url origin') || '').trim();
 if (remote && !remote.includes(`${GITHUB_DUNG}/lop-10a7`)) {
   console.error(`✗ Remote git trỏ sai chỗ: ${remote}`);
   saiSot++;
-} else if (remote) {
-  const thu = chay('git ls-remote --heads origin', true) || '';
-  if (/refs\/heads\//.test(thu)) {
+} else if (remote && token && token.trim()) {
+  const repo = (chay(`gh api repos/${GITHUB_DUNG}/lop-10a7 --jq .full_name`, true, { GH_TOKEN: token.trim() }) || '').trim();
+  if (repo === `${GITHUB_DUNG}/lop-10a7`) {
     console.log(`✓ Kho mã nguồn: vào được ${GITHUB_DUNG}/lop-10a7`);
   } else {
     console.error('✗ Không truy cập được kho mã nguồn của lớp.');

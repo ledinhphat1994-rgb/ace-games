@@ -1391,8 +1391,11 @@ export async function trangThuVienAmThanh(KHUNG) {
     if (daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size} bài`));
+      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} bài`));
       const hop = e('div', 'day-loc');
+      if (daChon.size < d.danhSach.length) {
+        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); }));
+      }
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} bài đã chọn`, 'nut-xau nut-nho', () => {
@@ -1586,8 +1589,11 @@ export async function trangThuVienVideo(KHUNG) {
     if (daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size} video`));
+      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} video`));
       const hop = e('div', 'day-loc');
+      if (daChon.size < d.danhSach.length) {
+        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); }));
+      }
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} video đã chọn`, 'nut-xau nut-nho', () => {
@@ -1760,8 +1766,11 @@ export async function trangHinhAnh(KHUNG) {
     if (daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size} ảnh`));
+      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} ảnh`));
       const hop = e('div', 'day-loc');
+      if (daChon.size < d.danhSach.length) {
+        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((a) => daChon.add(a.id)); ve(); }));
+      }
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} ảnh đã chọn`, 'nut-xau nut-nho', () => {
