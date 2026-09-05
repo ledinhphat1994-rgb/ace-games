@@ -1309,6 +1309,83 @@ body.trang-dang-nhap {
   color: #059669;
 }
 
+/* Chuyển đổi tab Thu / Chi */
+.tab-chuyen-thu-chi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.nut-tab-thu-chi {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--nen-chim);
+  border: 1.5px solid var(--vien);
+  color: var(--chu);
+  transition: all .18s ease;
+}
+.nut-tab-thu-chi:hover {
+  border-color: var(--chinh);
+  color: var(--chinh);
+  background: var(--chinh-nen);
+}
+.nut-tab-thu-chi[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--chinh), var(--chinh-sang));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 3px 12px -2px color-mix(in srgb, var(--chinh) 60%, transparent);
+}
+.nut-tab-thu-chi.tab-chi[aria-pressed="true"] {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 3px 12px -2px rgba(239, 68, 68, 0.45);
+}
+
+/* Thẻ khoản chi công khai */
+.the-khoan-chi {
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  box-shadow: var(--bong-1);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  position: relative;
+  overflow: hidden;
+  border-left: 4px solid var(--xau);
+}
+.the-khoan-chi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bong-2);
+  border-color: color-mix(in srgb, var(--xau) 45%, var(--vien));
+}
+.the-khoan-chi .the-khoan-icon {
+  background: var(--xau-nen);
+  color: var(--xau);
+}
+.the-khoan-chi .gia-tri-tien-chi {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--xau);
+  text-align: right;
+  letter-spacing: -.01em;
+}
+.the-khoan-chi-ghi-chu {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--nen-noi);
+  border: 1px dashed var(--vien);
+  font-size: 13px;
+  color: var(--chu-nhat);
+}
+
 /* ---------- 17. Nhận diện Thời khoá biểu: Cột hôm nay ---------- */
 th.cot-hom-nay {
   background: var(--chinh-nen) !important;

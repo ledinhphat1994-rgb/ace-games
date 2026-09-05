@@ -68,7 +68,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
         GROUP BY k.id ORDER BY k.tao_luc DESC`
     ).all(),
-    db.prepare('SELECT COALESCE(SUM(so_tien), 0) AS tongChi FROM quy_chi').first(),
+    db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, loai, ghi_chu AS ghiChu FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
   ]);
 
   const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
@@ -92,7 +92,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   const nghe = [...new Set(hocSinh.results.map((h) => h.lopNghe).filter((x) => x && x !== 'Chưa xếp'))];
 
   const tongThuQuy = quyKhoan.results.reduce((a, k) => a + k.tongDaThu, 0);
-  const tongChiQuy = quyChi?.tongChi || 0;
+  const tongChiQuy = quyChi.results.reduce((a, c) => a + c.soTien, 0);
 
   return json({
     ok: true,
@@ -124,6 +124,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
         dinhKyId: k.dinhKyId, kySo: k.kySo, ngayBatDau: k.ngayBatDau, ngayKetThuc: k.ngayKetThuc,
         tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
+      })),
+      chi: quyChi.results.map((c) => ({
+        id: c.id, ngay: c.ngay, noiDung: c.noiDung, soTien: c.soTien,
+        loai: c.loai || 'khac', ghiChu: c.ghiChu || '',
       })),
     },
   });

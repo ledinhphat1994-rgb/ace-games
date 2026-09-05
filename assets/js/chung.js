@@ -89,6 +89,14 @@ export async function nenAnhThanhBlob(tep) {
   return blob;
 }
 
+export const CAC_LOAI_CHI = [
+  ['hoat_dong', 'Hoạt động lớp'],
+  ['vpp', 'Văn phòng phẩm'],
+  ['khen_thuong', 'Khen thưởng'],
+  ['ho_tro', 'Hỗ trợ học sinh'],
+  ['khac', 'Khác'],
+];
+
 /* ---------- Tiền tệ ---------- */
 
 /** 1500000 -> "1.500.000 đ" */
