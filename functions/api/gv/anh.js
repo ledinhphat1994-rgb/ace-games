@@ -7,13 +7,10 @@
 // Ảnh đã được nén nhỏ ngay trên máy giáo viên trước khi gửi lên, nên mỗi tấm
 // chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare KV, phần mô tả lưu trong D1.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { tongDungLuongDaDung, GIOI_HAN_TOI_DA_TONG_BYTE } from '../../_lib/thu-vien.js';
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
-
-// Giới hạn an toàn tuyệt đối: 9,5 GB (ngưỡng miễn phí của Cloudflare R2 là 10 GB).
-// Chặn 100% việc tải thêm nếu vượt quá, bảo đảm tài khoản không bao giờ phát sinh chi phí.
-const GIOI_HAN_TOI_DA_TONG_BYTE = 9_500_000_000;
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
@@ -22,7 +19,9 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
 
   const tongByte = results.reduce((a, r) => a + r.coByte, 0);
   return json({ ok: true, danhSach: results, soAnh: results.length, tongByte });
-}, { canGiaoVien: true, quyenCan: 'hinh-anh' });
+// Cho phép cả tài khoản chỉ có quyền "thong-bao" xem danh sách này — cần để dùng bộ chọn
+// "đính kèm từ thư viện" trong hộp thoại soạn Thông báo (chỉ ĐỌC, không thêm/xoá được).
+}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'thong-bao'] });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (!env.ANH) return loi('Chưa gắn kho ảnh vào project.', 500);
@@ -46,10 +45,10 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     return loi(`Ảnh còn ${Math.round(byte.length / 1024)} KB, vượt mức cho phép. Hãy chọn ảnh nhỏ hơn.`);
   }
 
-  // Chốt chặn an toàn: không vượt quá 9,5 GB để không bao giờ bị tính phí
-  const tongAnh = await env.DB.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM hinh_anh').first('tong');
-  const tongNhac = await env.DB.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM nhac_nen').first('tong');
-  if ((Number(tongAnh) || 0) + (Number(tongNhac) || 0) + byte.length > GIOI_HAN_TOI_DA_TONG_BYTE) {
+  // Chốt chặn an toàn: không vượt quá 9,5 GB để không bao giờ bị tính phí — cộng ĐỦ CẢ 3 thư
+  // viện (Ảnh + Âm thanh + Video), không tính thiếu như cách làm cũ.
+  const daDung = await tongDungLuongDaDung(env.DB);
+  if (daDung + byte.length > GIOI_HAN_TOI_DA_TONG_BYTE) {
     return loi('Kho lưu trữ đã đạt ngưỡng an toàn 9,5 GB (trong mức 10 GB miễn phí). Đã tự động khoá tải lên để bảo đảm 100% không phát sinh chi phí.');
   }
 

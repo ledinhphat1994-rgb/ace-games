@@ -41,11 +41,23 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
          FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
     ).all(),
+    // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
+    // ngoài dán riêng (hinh_url/nhac_url), cuối cùng mới tới cột cũ (tb.hinh_khoa/nhac_khoa —
+    // thông báo tạo từ trước khi có thư viện, giữ tạm để không mất đính kèm cũ).
     db.prepare(
-      `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, noi_bat AS noiBat,
-              muc_do AS mucDo, hinh_khoa AS hinhKhoa, hinh_kieu AS hinhKieu, nhac_khoa AS nhacKhoa,
-              nhac_kieu AS nhacKieu, video_url AS videoUrl, video_khoa AS videoKhoa, video_kieu AS videoKieu
-         FROM thong_bao WHERE hien = 1 ORDER BY ghim DESC, ngay DESC LIMIT 50`
+      `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim,
+              tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
+              COALESCE(ha.khoa, tb.hinh_url, tb.hinh_khoa) AS hinhKhoa,
+              COALESCE(ha.kieu, tb.hinh_kieu) AS hinhKieu,
+              COALESCE(at.khoa, tb.nhac_url, tb.nhac_khoa) AS nhacKhoa,
+              COALESCE(at.kieu, tb.nhac_kieu) AS nhacKieu,
+              tb.video_url AS videoUrl, COALESCE(v.khoa, tb.video_khoa) AS videoKhoa,
+              COALESCE(v.kieu, tb.video_kieu) AS videoKieu
+         FROM thong_bao tb
+         LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
+         LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
+         LEFT JOIN video v ON v.id = tb.video_id
+        WHERE tb.hien = 1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
     ).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
@@ -62,7 +74,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     db.prepare('SELECT COALESCE(SUM(so_tien), 0) AS tongChi FROM quy_chi').first(),
   ]);
 
-  const nhacNen = await db.prepare('SELECT ten_bai AS tenBai FROM nhac_nen WHERE id = 1').first().catch(() => null);
+  const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
 
   let anMuc = [];
   if (hocSinhIdPhien) {

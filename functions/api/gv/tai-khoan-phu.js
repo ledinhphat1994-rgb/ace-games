@@ -14,8 +14,9 @@ export const CAC_QUYEN = [
   ['thong-bao', 'Thông báo — soạn và đăng thông báo lên trang lớp'],
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
-  ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
-  ['nhac-nen', 'Nhạc nền trang chủ — đổi bài nhạc phát trên trang lớp'],
+  ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
+  ['video', 'Thư viện Video — tải video lên'],
 ];
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));
 

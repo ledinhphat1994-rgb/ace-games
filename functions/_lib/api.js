@@ -61,7 +61,11 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
 
     if (canGiaoVien) {
       const laGiaoVien = phien.role === 'teacher';
-      const laPhuDuocCap = phien.role === 'phu' && quyenCan && (phien.quyen || []).includes(quyenCan);
+      // quyenCan có thể là một mã, hoặc một MẢNG các mã — chỉ cần khớp MỘT trong số đó (dùng
+      // khi một API được nhiều chức năng cùng gọi tới, vd danh sách thư viện Âm thanh/Video
+      // cũng cần đọc được từ hộp thoại soạn Thông báo).
+      const cacQuyenCan = Array.isArray(quyenCan) ? quyenCan : (quyenCan ? [quyenCan] : []);
+      const laPhuDuocCap = phien.role === 'phu' && cacQuyenCan.some((q) => (phien.quyen || []).includes(q));
       if (!laGiaoVien && !laPhuDuocCap) {
         return loi('Bạn không có quyền thao tác ở mục này.', 403);
       }

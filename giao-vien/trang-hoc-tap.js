@@ -1084,10 +1084,14 @@ const CAC_QUYEN_QUAN_LY = [
   ['thong-bao', 'Thông báo — soạn và đăng thông báo'],
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
-  ['hinh-anh', 'Ảnh hoạt động — đăng ảnh của lớp'],
-  ['nhac-nen', 'Nhạc nền trang chủ — đổi bài nhạc phát trên trang lớp'],
+  ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
+  ['video', 'Thư viện Video — tải video lên'],
 ];
-const ICON_QUYEN = { quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'hinh-anh': '📸', 'nhac-nen': '♪' };
+const ICON_QUYEN = {
+  quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅',
+  'hinh-anh': '📸', 'am-thanh': '♪', video: '🎬',
+};
 
 function taoNhomTich(danhMuc, daChon) {
   const bo = new Set(daChon);
@@ -1317,57 +1321,22 @@ async function nenAnh(tep) {
   return { base64: btoa(chuoiNhiPhan), coByte: dem.length, kieu: 'image/jpeg' };
 }
 
-/** Quản lý nhạc nền trang chủ — phát khi học sinh vào trang lớp. */
-export async function trangNhacNen(KHUNG) {
+/** Thư viện Âm thanh — nhiều bài, chọn ĐÚNG MỘT bài làm nhạc nền trang chủ tại một thời điểm.
+    Đây cũng là nguồn duy nhất để đính kèm âm thanh vào Thông báo (chọn từ thư viện này). */
+export async function trangThuVienAmThanh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
   async function ve() {
-    const d = await api('/api/gv/nhac-nen');
+    const d = await api('/api/gv/thu-vien-am-thanh');
     const khung = e('div');
-    const tieuDePhu = d.nhac
-      ? `Đang phát: ${d.nhac.tenBai} (${(d.nhac.coByte / 1_000_000).toFixed(1)} MB)`
-      : 'Chưa cài nhạc nền';
-    khung.append(tieuDeTrang('Nhạc nền trang chủ', tieuDePhu));
+    const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
+    khung.append(tieuDeTrang('Thư viện Âm thanh',
+      d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào'));
 
     const the = e('div', 'the');
-    the.append(e('h3', null, '♪ Bài nhạc đang phát'));
+    the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
     the.append(e('p', 'trong',
-      'Phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
-
-    if (d.nhac) {
-      const dong = e('div');
-      dong.style.cssText = 'margin:12px 0 8px;font-size:14px';
-      dong.append(e('b', null, d.nhac.tenBai), document.createTextNode(` · ${(d.nhac.coByte / 1_000_000).toFixed(1)} MB`));
-      the.append(dong);
-
-      const audio = e('audio');
-      audio.controls = true;
-      audio.preload = 'none';
-      audio.src = '/api/nhac-nen';
-      audio.style.cssText = 'width:100%;margin-bottom:12px';
-      the.append(audio);
-
-      the.append(nut('🗑 Xoá nhạc nền', 'nut-nhe nut-nho', () => {
-        moHopThoai('Xoá nhạc nền?', e('p', null, 'Học sinh sẽ không còn nghe được nhạc nền khi mở trang lớp.'), [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá', 'nut-xau', async () => {
-            try {
-              await api('/api/gv/nhac-nen', { method: 'DELETE' });
-              dongHopThoai();
-              nhac('Đã xoá nhạc nền', 'tot');
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }),
-        ]);
-      }));
-    } else {
-      the.append(e('p', 'trong', 'Chưa có nhạc nền nào. Chọn một file .mp3 bên dưới để tải lên.'));
-    }
-    khung.append(the);
-
-    const theTai = e('div', 'the');
-    theTai.style.marginTop = '16px';
-    theTai.append(e('h3', null, d.nhac ? 'Thay bằng bài khác' : 'Tải bài nhạc mới'));
+      'Bài nào được đặt làm "nhạc nền trang chủ" sẽ phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
 
     const oTepNhac = e('input');
     oTepNhac.type = 'file';
@@ -1376,15 +1345,15 @@ export async function trangNhacNen(KHUNG) {
     oTepNhac.className = 'o-nhap';
     const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền lớp 10A7');
 
-    theTai.append(
-      truong(d.nhac ? 'Chọn file .mp3 mới (tối đa 12 MB)' : 'Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
+    the.append(
+      truong('Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
       truong('Tên bài hát hiển thị', oTenBai)
     );
 
     const tienTrinh = e('div', 'trong');
     tienTrinh.style.marginTop = '8px';
 
-    theTai.append(nut('⬆ Tải nhạc lên', '', async (ev) => {
+    the.append(nut('⬆ Tải lên', '', async (ev) => {
       const tep = oTepNhac.files[0];
       if (!tep) return nhac('Chưa chọn file nhạc', 'xau');
       if (!/\.mp3$/i.test(tep.name) && tep.type !== 'audio/mpeg') return nhac('Chỉ nhận file .mp3', 'xau');
@@ -1395,21 +1364,177 @@ export async function trangNhacNen(KHUNG) {
       try {
         const duLieu = await tep.arrayBuffer();
         const tenBai = (oTenBai.value || tep.name.replace(/\.mp3$/i, '')).trim();
-        const res = await fetch('/api/gv/nhac-nen?tenBai=' + encodeURIComponent(tenBai), {
+        const res = await fetch('/api/gv/thu-vien-am-thanh?tenBai=' + encodeURIComponent(tenBai), {
           method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
         });
         const kq = await res.json();
         if (!kq.ok) throw new Error(kq.loi || 'Tải lên thất bại.');
-        nhac('Đã cập nhật nhạc nền', 'tot');
+        nhac('Đã thêm vào thư viện', 'tot');
+        oTepNhac.value = ''; oTenBai.value = '';
         ve();
       } catch (err) {
         nhac(err.message, 'xau');
-        b.disabled = false;
         tienTrinh.textContent = '';
+      } finally {
+        b.disabled = false;
       }
     }), tienTrinh);
+    khung.append(the);
 
-    khung.append(theTai);
+    if (!d.danhSach.length) {
+      khung.append(Object.assign(e('p', 'trong', 'Chưa có bài nào trong thư viện.'), { style: 'margin-top:16px' }));
+    } else {
+      const ds = e('div');
+      ds.style.cssText = 'margin-top:18px;display:flex;flex-direction:column;gap:12px';
+      d.danhSach.forEach((bai) => {
+        const muc = e('div', 'the');
+        const dau = e('div', 'tieu-de-trang');
+        const ten = e('h3', null, bai.ten || 'Bài hát chưa đặt tên');
+        dau.append(ten);
+        if (bai.dangPhat) dau.append(e('span', 'nhan nhan-tot', '♪ Đang làm nhạc nền'));
+        muc.append(dau);
+        muc.append(e('p', 'trong', `${(bai.coByte / 1_000_000).toFixed(1)} MB`));
+
+        const audio = e('audio');
+        audio.controls = true;
+        audio.preload = 'none';
+        audio.src = '/api/thu-vien-tep?loai=am-thanh&id=' + bai.id;
+        audio.style.cssText = 'width:100%;margin:8px 0';
+        muc.append(audio);
+
+        const hangNut = e('div', 'day-loc');
+        if (!bai.dangPhat) {
+          hangNut.append(nut('▶ Đặt làm nhạc nền', 'nut-vien nut-nho', async () => {
+            try {
+              await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { id: bai.id, datNhacNen: true } });
+              nhac('Đã đặt làm nhạc nền trang chủ', 'tot');
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); }
+          }));
+        }
+        hangNut.append(nut('🗑 Xoá', 'nut-nhe nut-nho', () => {
+          moHopThoai('Xoá bài này khỏi thư viện?', e('p', null,
+            bai.dangPhat
+              ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi đặt bài khác.`
+              : `Xoá "${bai.ten}"? Không thể hoàn tác.`), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/thu-vien-am-thanh?id=' + bai.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        }));
+        muc.append(hangNut);
+        ds.append(muc);
+      });
+      khung.append(ds);
+    }
+
+    datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
+}
+
+/** Thư viện Video — video tải lên từ máy/điện thoại (khác video dán link YouTube/Drive ở
+    Thông báo, vốn không tốn kho lưu trữ nên không thuộc thư viện này). Đây là nguồn duy nhất
+    để đính kèm video-tải-lên vào Thông báo (chọn từ thư viện này). */
+export async function trangThuVienVideo(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  async function ve() {
+    const d = await api('/api/gv/thu-vien-video');
+    const khung = e('div');
+    const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
+    khung.append(tieuDeTrang('Thư viện Video',
+      d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào'));
+
+    const the = e('div', 'the');
+    the.append(e('h3', null, '⬆ Tải video mới vào thư viện'));
+    the.append(e('p', 'trong', 'Video YouTube/Google Drive dán link ở Thông báo không cần tải lên đây — chỉ video từ máy/điện thoại mới cần.'));
+
+    const oTep = e('input');
+    oTep.type = 'file';
+    oTep.accept = 'video/mp4,video/webm,video/quicktime,video/*';
+    oTep.id = 'chonVideo';
+    oTep.className = 'o-nhap';
+    const oTen = oNhap('videoTen', 'text', '', 'Ví dụ: Văn nghệ 20/11');
+
+    the.append(
+      truong('Chọn file video (tối đa 50 MB)', oTep),
+      truong('Tên hiển thị', oTen)
+    );
+
+    const tienTrinh = e('div', 'trong');
+    tienTrinh.style.marginTop = '8px';
+
+    the.append(nut('⬆ Tải lên', '', async (ev) => {
+      const tep = oTep.files[0];
+      if (!tep) return nhac('Chưa chọn video', 'xau');
+      if (tep.size > 50_000_000) return nhac('File vượt quá 50 MB', 'xau');
+
+      const b = ev.currentTarget;
+      b.disabled = true;
+      tienTrinh.textContent = 'Đang tải lên…';
+      try {
+        const duLieu = await tep.arrayBuffer();
+        const ten = (oTen.value || tep.name).trim();
+        const res = await fetch('/api/gv/thu-vien-video?ten=' + encodeURIComponent(ten), {
+          method: 'POST', headers: { 'Content-Type': tep.type || 'video/mp4' }, body: duLieu,
+        });
+        const kq = await res.json();
+        if (!kq.ok) throw new Error(kq.loi || 'Tải lên thất bại.');
+        nhac('Đã thêm vào thư viện', 'tot');
+        oTep.value = ''; oTen.value = '';
+        ve();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        tienTrinh.textContent = '';
+      } finally {
+        b.disabled = false;
+      }
+    }), tienTrinh);
+    khung.append(the);
+
+    if (!d.danhSach.length) {
+      khung.append(Object.assign(e('p', 'trong', 'Chưa có video nào trong thư viện.'), { style: 'margin-top:16px' }));
+    } else {
+      const ds = e('div');
+      ds.style.cssText = 'margin-top:18px;display:flex;flex-direction:column;gap:12px';
+      d.danhSach.forEach((v) => {
+        const muc = e('div', 'the');
+        muc.append(e('h3', null, v.ten || 'Video chưa đặt tên'));
+        muc.append(e('p', 'trong', `${(v.coByte / 1_000_000).toFixed(1)} MB`));
+
+        const vid = e('video');
+        vid.controls = true;
+        vid.preload = 'metadata';
+        vid.src = '/api/thu-vien-tep?loai=video&id=' + v.id;
+        vid.style.cssText = 'max-width:320px;max-height:200px;border-radius:8px;display:block;margin:8px 0;background:#000';
+        muc.append(vid);
+
+        muc.append(nut('🗑 Xoá', 'nut-nhe nut-nho', () => {
+          moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Không thể hoàn tác.`), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/thu-vien-video?id=' + v.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        }));
+        ds.append(muc);
+      });
+      khung.append(ds);
+    }
+
     datNoiDung(KHUNG, khung);
   }
 

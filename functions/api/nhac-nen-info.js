@@ -4,6 +4,6 @@
 import { bocXuLy, json } from '../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
-  const nhac = await env.DB.prepare('SELECT ten_bai AS tenBai FROM nhac_nen WHERE id = 1').first().catch(() => null);
+  const nhac = await env.DB.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
   return json({ ok: true, nhac: nhac ? { tenBai: nhac.tenBai } : null });
 }, { canGiaoVien: false });

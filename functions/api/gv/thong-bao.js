@@ -16,17 +16,25 @@ import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js
 const MUC_DO_HOP_LE = new Set(['', 'ok', 'warn', 'danger']);
 
 export const onRequestGet = bocXuLy(async ({ env }) => {
+  // Trả cả mã tham chiếu thư viện (anhId/amThanhId/videoId) THẬT lẫn khoá/kiểu đã tra sẵn để
+  // xem trước ngay trong hộp thoại sửa, không cần gọi thêm API thư viện.
   const { results } = await env.DB.prepare(
-    `SELECT id, ngay, tieu_de AS tieuDe, noi_dung AS noiDung, loai, ghim, hien, noi_bat AS noiBat,
-            muc_do AS mucDo, hinh_khoa AS hinhKhoa, hinh_kieu AS hinhKieu, nhac_khoa AS nhacKhoa,
-            nhac_kieu AS nhacKieu, video_url AS videoUrl, video_khoa AS videoKhoa, video_kieu AS videoKieu
-       FROM thong_bao ORDER BY ghim DESC, ngay DESC LIMIT 200`
+    `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim, tb.hien,
+            tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
+            tb.anh_id AS anhId, COALESCE(ha.khoa, tb.hinh_khoa) AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
+            tb.am_thanh_id AS amThanhId, COALESCE(at.khoa, tb.nhac_khoa) AS nhacKhoa, at.kieu AS nhacKieu, tb.nhac_url AS nhacUrl,
+            tb.video_id AS videoId, COALESCE(v.khoa, tb.video_khoa) AS videoKhoa, v.kieu AS videoKieu, tb.video_url AS videoUrl
+       FROM thong_bao tb
+       LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
+       LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
+       LEFT JOIN video v ON v.id = tb.video_id
+      ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 200`
   ).all();
   return json({ ok: true, danhSach: results });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestPost = bocXuLy(async ({ request, env }) => {
-  const { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl, hinhKhoa, nhacKhoa } = await docThan(request);
+  const { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl, anhId, hinhUrl, amThanhId, nhacUrl, videoId } = await docThan(request);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
   const td = chuoi(tieuDe, 200);
@@ -35,15 +43,15 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (!nd) return loi('Chưa nhập nội dung.');
   if (mucDo !== undefined && !MUC_DO_HOP_LE.has(mucDo)) return loi('Mức độ không hợp lệ.');
 
-  const hk = chuoi(hinhKhoa, 1000) || null;
-  const nk = chuoi(nhacKhoa, 1000) || null;
-
   const kq = await env.DB.prepare(
-    `INSERT INTO thong_bao (ngay, tieu_de, noi_dung, loai, ghim, noi_bat, muc_do, video_url, hinh_khoa, nhac_khoa)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`
+    `INSERT INTO thong_bao (ngay, tieu_de, noi_dung, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
   ).bind(
     ngay, td, nd, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
-    mucDo || '', chuoi(videoUrl, 500) || null, hk, nk
+    mucDo || '', chuoi(videoUrl, 500) || null,
+    Number.isInteger(anhId) ? anhId : null, chuoi(hinhUrl, 1000) || null,
+    Number.isInteger(amThanhId) ? amThanhId : null, chuoi(nhacUrl, 1000) || null,
+    Number.isInteger(videoId) ? videoId : null
   ).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
@@ -84,8 +92,23 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
     them('muc_do', than.mucDo);
   }
   if (than.videoUrl !== undefined) them('video_url', chuoi(than.videoUrl, 500) || null);
-  if (than.hinhKhoa !== undefined) them('hinh_khoa', chuoi(than.hinhKhoa, 1000) || null);
-  if (than.nhacKhoa !== undefined) them('nhac_khoa', chuoi(than.nhacKhoa, 1000) || null);
+
+  // Mỗi loại đính kèm: đúng MỘT trong hai (mã thư viện HOẶC link ngoài) — đặt cái này thì xoá
+  // luôn cái kia, tránh còn sót giá trị cũ gây hiển thị sai (vd vừa có anh_id vừa có hinh_url).
+  if (than.anhId !== undefined || than.hinhUrl !== undefined) {
+    them('anh_id', Number.isInteger(than.anhId) ? than.anhId : null);
+    them('hinh_url', chuoi(than.hinhUrl, 1000) || null);
+    them('hinh_khoa', null);
+  }
+  if (than.amThanhId !== undefined || than.nhacUrl !== undefined) {
+    them('am_thanh_id', Number.isInteger(than.amThanhId) ? than.amThanhId : null);
+    them('nhac_url', chuoi(than.nhacUrl, 1000) || null);
+    them('nhac_khoa', null);
+  }
+  if (than.videoId !== undefined) {
+    them('video_id', Number.isInteger(than.videoId) ? than.videoId : null);
+    them('video_khoa', null);
+  }
 
   if (!dat.length) return loi('Không có thông tin cần đổi.');
 
@@ -100,7 +123,10 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
-  // Dọn luôn tệp ảnh/nhạc/video đính kèm trong kho R2, tránh rác lại khi xoá thông báo.
+  // Đính kèm giờ tham chiếu vào thư viện (anh_id/am_thanh_id/video_id) DÙNG CHUNG, nên xoá
+  // thông báo KHÔNG được xoá luôn file trong thư viện (mục đó có thể còn dùng cho thông báo
+  // khác, hoặc chỉ đơn giản vẫn còn giá trị lưu lại). Chỉ dọn tệp kiểu CŨ (hinh_khoa/nhac_khoa/
+  // video_khoa) — đính kèm từ trước khi có thư viện, vẫn thuộc RIÊNG thông báo này.
   if (env.ANH) {
     const tb = await env.DB.prepare('SELECT hinh_khoa AS hinhKhoa, nhac_khoa AS nhacKhoa, video_khoa AS videoKhoa FROM thong_bao WHERE id = ?1').bind(id).first();
     if (tb) {
