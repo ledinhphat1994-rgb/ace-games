@@ -1173,6 +1173,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
         'nhat-ky': '📖',
         'diem-danh': '✅',
         'hinh-anh': '📸',
+        'nhac-nen': '♪',
       };
 
       d.danhSach.forEach((tk) => {
@@ -1520,14 +1521,17 @@ export async function trangQuyLichSu(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   let tab = 'khoi_phuc';   // 'khoi_phuc' | 'thu' | 'chi' | 'co_dinh'
 
+  // Tra MỘT LẦN cho cả trang — dùng chung cho cả 3 tab để quyết định có hiện nút xoá hay
+  // không. Tài khoản cán sự (kể cả được cấp quyền "quy") KHÔNG được xoá lịch sử/khôi phục:
+  // bocXuLy() phía máy chủ đã tự chặn cứng mọi DELETE từ tài khoản không phải giáo viên (xem
+  // functions/_lib/api.js), nút ở đây chỉ ẩn đi cho gọn giao diện, không phải lớp bảo vệ chính.
+  const phienD = await api('/api/whoami').catch(() => ({ role: '' }));
+  const laGiaoVien = phienD.role === 'teacher';
+
   /** Tab "🛡️ Khôi phục" — nội dung y hệt trang cũ, chỉ bỏ phần tiêu đề/nút Về Thủ quỹ (giờ
       nằm ở khung chung của cả trang lịch sử). */
   async function veTabKhoiPhuc() {
-    const [d, phienD] = await Promise.all([
-      api('/api/gv/quy-checkpoint'),
-      api('/api/whoami').catch(() => ({ role: '' })),
-    ]);
-    const laGiaoVien = phienD.role === 'teacher';
+    const d = await api('/api/gv/quy-checkpoint');
     const khung = e('div');
 
     const the = e('div', 'the');
@@ -1536,13 +1540,39 @@ export async function trangQuyLichSu(KHUNG) {
       e('h3', null, laGiaoVien ? 'Nếu tài khoản bị lộ hoặc dữ liệu sai' : 'Chỉ giáo viên chủ nhiệm mới khôi phục được'),
       e('p', null, laGiaoVien
         ? 'Chọn đúng thời điểm trước khi sự cố xảy ra, bấm "Khôi phục về đây". Toàn bộ khoản thu, khoản đã đóng và khoản chi sẽ trở về đúng như lúc đó. Bản thân việc khôi phục cũng được lưu lại một điểm mới, nên nếu chọn nhầm vẫn quay lại được.'
-        : 'Tài khoản đặc biệt (kể cả Thủ quỹ) chỉ xem được lịch sử này, không tự khôi phục được — tránh trường hợp một mã bị lộ rồi tự xoá dấu vết.')
+        : 'Tài khoản đặc biệt (kể cả Thủ quỹ) chỉ xem được lịch sử này, không tự khôi phục hay xoá được — tránh trường hợp một mã bị lộ rồi tự xoá dấu vết.')
     );
     khung.append(the);
 
     if (!d.danhSach.length) {
       khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác đầu tiên trên Thủ quỹ.'));
       return khung;
+    }
+
+    if (laGiaoVien) {
+      const nutXoaTatCaCp = e('div');
+      nutXoaTatCaCp.style.cssText = 'margin-bottom:10px;text-align:right';
+      nutXoaTatCaCp.append(nut('🗑 Xoá tất cả điểm khôi phục', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá TOÀN BỘ lịch sử khôi phục?', [
+          e('p', null, `Toàn bộ ${d.danhSach.length} điểm khôi phục sẽ mất vĩnh viễn.`),
+          e('p', 'trong', 'Đây là lưới an toàn duy nhất nếu tài khoản bị lộ hay ghi nhầm số liệu — xoá xong sẽ KHÔNG còn cách nào quay lại các thời điểm cũ nữa. Chỉ xoá khi chắc chắn không cần nữa.'),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá tất cả', 'nut-xau', async (ev) => {
+            ev.currentTarget.disabled = true;
+            try {
+              await api('/api/gv/quy-checkpoint?tatCa=1', { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              ev.currentTarget.disabled = false;
+            }
+          }),
+        ]);
+      }));
+      khung.append(nutXoaTatCaCp);
     }
 
     const ds = e('div', 'ds-nhat-ky');
@@ -1573,6 +1603,26 @@ export async function trangQuyLichSu(KHUNG) {
             }),
           ]);
         }));
+        viec.append(nut('🗑 Xoá', 'nut-nho nut-nhe', () => {
+          moHopThoai('Xoá điểm khôi phục này?', [
+            e('p', null, cp.hanhDong),
+            e('p', 'trong', 'Chỉ xoá dòng lịch sử này — không ảnh hưởng số liệu thu chi hiện tại. Không thể hoàn tác.'),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api('/api/gv/quy-checkpoint?id=' + cp.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá điểm khôi phục', 'tot');
+                ve();
+              } catch (err) {
+                nhac(err.message, 'xau');
+                ev.currentTarget.disabled = false;
+              }
+            }),
+          ]);
+        }));
         dong.append(viec);
       }
       m.append(dong, e('p', null, cp.hanhDong));
@@ -1587,11 +1637,39 @@ export async function trangQuyLichSu(KHUNG) {
       chục em, danh sách phẳng dài và khó tìm đúng khoản đang cần xem). */
   async function veTabLichSuThu() {
     const d = await api('/api/gv/quy');
-    if (!d.khoan.length) return e('p', 'trong', 'Chưa có khoản thu nào.');
+    const khung = e('div');
+    if (!d.khoan.length) { khung.append(e('p', 'trong', 'Chưa có khoản thu nào.')); return khung; }
+
+    if (laGiaoVien) {
+      const hangNut = e('div');
+      hangNut.style.cssText = 'margin-bottom:10px;text-align:right';
+      hangNut.append(nut('🗑 Xoá tất cả khoản thu', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá TOÀN BỘ khoản thu?', [
+          e('p', null, `Toàn bộ ${d.khoan.length} khoản thu VÀ số tiền đã ghi cho từng em trong các khoản đó sẽ mất hết.`),
+          e('p', 'trong', 'Nếu chọn nhầm, vào tab "🛡️ Khôi phục" để khôi phục lại đúng thời điểm trước khi xoá.'),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá tất cả', 'nut-xau', async (ev) => {
+            ev.currentTarget.disabled = true;
+            try {
+              await api('/api/gv/quy?loai=khoan&tatCa=1', { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá toàn bộ khoản thu', 'tot');
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              ev.currentTarget.disabled = false;
+            }
+          }),
+        ]);
+      }));
+      khung.append(hangNut);
+    }
 
     const chiTiet = {};
     let moRongId = null;
     const ds = e('div', 'ds-khoan');
+    khung.append(ds);
 
     function veChiTietAiDong(dk) {
       const daNop = dk.danhSach.filter((h) => h.daDong > 0);
@@ -1623,6 +1701,29 @@ export async function trangQuyLichSu(KHUNG) {
       khoiTrai.append(thongTin);
       dong1.append(khoiTrai);
       const khoiPhai = e('div', 'hs-khoi-phai');
+      if (laGiaoVien) {
+        const bXoa = e('button', 'nut-thao-tac-lan xoa');
+        bXoa.type = 'button';
+        bXoa.title = 'Xoá khoản thu: ' + k.ten;
+        bXoa.setAttribute('aria-label', 'Xoá khoản thu: ' + k.ten);
+        bXoa.append(taoSvgIcon('M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6', 13, 13));
+        bXoa.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          moHopThoai('Xoá khoản thu này?', e('p', null,
+            `Toàn bộ số tiền đã ghi cho từng em trong khoản "${k.ten}" sẽ mất. Không thể hoàn tác.`), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/quy?loai=khoan&id=' + k.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá khoản thu', 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        });
+        khoiPhai.append(bXoa);
+      }
       khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRongId === k.id ? '▾' : '▸'));
       dong1.append(khoiPhai);
       hang.append(dong1);
@@ -1641,16 +1742,44 @@ export async function trangQuyLichSu(KHUNG) {
       d.khoan.forEach((k) => ds.append(veHang(k)));
     }
     veLai();
-    return ds;
+    return khung;
   }
 
   /** Tab "💸 Khoản chi" — lịch sử toàn bộ khoản chi, mới nhất trước (dùng lại đúng dữ liệu
       d.chi từ /api/gv/quy, đã sắp theo ngày giảm dần sẵn). */
   async function veTabLichSuChi() {
     const d = await api('/api/gv/quy');
-    if (!d.chi.length) return e('p', 'trong', 'Chưa có khoản chi nào.');
+    const khung = e('div');
+    if (!d.chi.length) { khung.append(e('p', 'trong', 'Chưa có khoản chi nào.')); return khung; }
+
+    if (laGiaoVien) {
+      const hangNut = e('div');
+      hangNut.style.cssText = 'margin-bottom:10px;text-align:right';
+      hangNut.append(nut('🗑 Xoá tất cả khoản chi', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá TOÀN BỘ khoản chi?', [
+          e('p', null, `Toàn bộ ${d.chi.length} khoản chi sẽ mất hết.`),
+          e('p', 'trong', 'Nếu chọn nhầm, vào tab "🛡️ Khôi phục" để khôi phục lại đúng thời điểm trước khi xoá.'),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá tất cả', 'nut-xau', async (ev) => {
+            ev.currentTarget.disabled = true;
+            try {
+              await api('/api/gv/quy?loai=chi&tatCa=1', { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá toàn bộ khoản chi', 'tot');
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              ev.currentTarget.disabled = false;
+            }
+          }),
+        ]);
+      }));
+      khung.append(hangNut);
+    }
 
     const ds = e('div', 'ds-nhat-ky');
+    khung.append(ds);
     d.chi.forEach((c) => {
       const loaiTen = (CAC_LOAI_CHI.find((x) => x[0] === c.loai) || [null, 'Khác'])[1];
       const m = e('div', 'muc-nhat-ky khac');
@@ -1660,11 +1789,28 @@ export async function trangQuyLichSu(KHUNG) {
         e('span', 'nhan nhan-xam', loaiTen),
         e('span', 'nhan nhan-luuy', '-' + tienVN(c.soTien))
       );
+      if (laGiaoVien) {
+        const viec = e('div', 'viec');
+        viec.append(nut('🗑 Xoá', 'nut-nho nut-nhe', () => {
+          moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/quy?loai=chi&id=' + c.id, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá khoản chi', 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        }));
+        dong.append(viec);
+      }
       m.append(dong, Object.assign(e('h3', null, c.noiDung), { style: 'margin:4px 0' }));
       if (c.ghiChu) m.append(e('p', null, c.ghiChu));
       ds.append(m);
     });
-    return ds;
+    return khung;
   }
 
   const TABS = [
