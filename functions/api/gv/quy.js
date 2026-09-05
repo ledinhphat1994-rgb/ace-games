@@ -37,10 +37,15 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   await sinhKyConThieu(db);
 
   if (Number.isInteger(khoanId) && khoanId > 0) {
+    // dinhKyTen/dinhKyChuKy/dinhKyDangHoatDong: chỉ có khi khoản này do một mẫu định kỳ tự
+    // sinh ra — dùng để cho phép "Dừng/Mở lại định kỳ" ngay trong chi tiết khoản, khỏi phải
+    // qua trang riêng "Thu định kỳ" nữa (xem veChiTietKhoan ở trang-quy.js).
     const khoan = await db.prepare(
-      `SELECT id, ten, hoc_ky AS hocKy, so_tien_moi_em AS soTienMoiEm, ghi_chu AS ghiChu, dang_mo AS dangMo,
-              dinh_ky_id AS dinhKyId, ky_so AS kySo
-         FROM quy_khoan WHERE id = ?1`
+      `SELECT k.id, k.ten, k.hoc_ky AS hocKy, k.so_tien_moi_em AS soTienMoiEm, k.ghi_chu AS ghiChu, k.dang_mo AS dangMo,
+              k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo,
+              dk.ten AS dinhKyTen, dk.chu_ky AS dinhKyChuKy, dk.dang_hoat_dong AS dinhKyDangHoatDong
+         FROM quy_khoan k LEFT JOIN quy_dinh_ky dk ON dk.id = k.dinh_ky_id
+        WHERE k.id = ?1`
     ).bind(khoanId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 

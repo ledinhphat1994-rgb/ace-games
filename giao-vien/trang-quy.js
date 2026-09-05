@@ -1,4 +1,4 @@
-import { e, datNoiDung, api, homNay, ngayVN, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -102,6 +102,44 @@ export async function trangQuy(KHUNG) {
 
   function veChiTietKhoan(khoanId, dk) {
     const box = e('div');
+
+    // Khoản này do một mẫu định kỳ tự sinh ra: cho dừng/mở lại NGAY ĐÂY, khỏi cần qua trang
+    // riêng "Thu định kỳ" nữa (trang đó đã bỏ khỏi menu chính vì gây thêm một khái niệm tách
+    // rời — dừng/mở lại một mẫu giờ làm ngay tại nơi đang xem kỳ của chính nó).
+    if (dk.khoan.dinhKyId) {
+      const tb = e('div', 'the trong');
+      tb.style.cssText = 'margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap';
+      tb.append(e('span', null,
+        `🔁 Khoản này do mẫu định kỳ "${dk.khoan.dinhKyTen}" (${CHU_KY_HIEN_THI[dk.khoan.dinhKyChuKy] || dk.khoan.dinhKyChuKy}) tự tạo — kỳ ${dk.khoan.kySo}.`));
+      const hangNutDk = e('div', 'day-loc');
+      if (dk.khoan.dinhKyDangHoatDong) {
+        hangNutDk.append(nut('⏸ Dừng định kỳ này', 'nut-nhe nut-nho', async () => {
+          moHopThoai('Dừng mẫu thu định kỳ này?', [
+            e('p', null, `Mẫu "${dk.khoan.dinhKyTen}" sẽ không tự tạo thêm kỳ mới nào nữa. Các kỳ đã sinh (kể cả kỳ này) vẫn giữ nguyên, không mất gì.`),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Dừng', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/quy-dinh-ky', { method: 'PATCH', than: { id: dk.khoan.dinhKyId, dangHoatDong: false } });
+                dongHopThoai();
+                nhac('Đã dừng mẫu định kỳ', 'tot');
+                await lamMoiKhoanDangMo();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        }));
+      } else {
+        hangNutDk.append(nut('▶ Mở lại định kỳ này', 'nut-vien nut-nho', async () => {
+          try {
+            await api('/api/gv/quy-dinh-ky', { method: 'PATCH', than: { id: dk.khoan.dinhKyId, dangHoatDong: true } });
+            nhac('Đã mở lại mẫu định kỳ', 'tot');
+            await lamMoiKhoanDangMo();
+          } catch (err) { nhac(err.message, 'xau'); }
+        }));
+      }
+      tb.append(hangNutDk);
+      box.append(tb);
+    }
 
     const hangNut = e('div', 'day-loc');
     hangNut.style.margin = '2px 0 14px';
@@ -439,13 +477,14 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
-    // Chỉ còn 2 lối tắt CHUNG cho cả trang (xem lịch sử, xem các mẫu định kỳ) — nút "Thêm
-    // khoản thu" đã dời xuống ngay trong thẻ "Các khoản thu" bên dưới, đồng cấp với nút
-    // "Ghi khoản chi" trong thẻ "Khoản chi" (trước đây 2 nút này lệch cấp, nhìn không hợp lý).
+    // Chỉ còn 1 lối tắt CHUNG cho cả trang (xem lịch sử) — nút "Thêm khoản thu" đã dời xuống
+    // ngay trong thẻ "Các khoản thu" bên dưới, đồng cấp với nút "Ghi khoản chi" trong thẻ
+    // "Khoản chi". Bỏ luôn nút "Các mẫu thu định kỳ" ở đây — dừng/mở lại một mẫu định kỳ giờ
+    // làm ngay trong chi tiết một kỳ đã sinh (xem veChiTietKhoan), không cần trang riêng nữa;
+    // trang "#/quy-dinh-ky" vẫn còn (chỉ để xoá một mẫu vừa tạo mà chưa sinh kỳ nào).
     khung.append(tieuDeTrang('Thủ quỹ lớp',
       `${d.siSo} học sinh · công thức: Tồn quỹ = Tổng đã thu − Tổng đã chi`,
-      nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; }),
-      nut('🔁 Các mẫu thu định kỳ', 'nut-vien', () => { location.hash = '#/quy-dinh-ky'; })
+      nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/quy-lich-su'; })
     ));
 
     // Khoản thu hầu như luôn ở trạng thái "đang mở" trong thực tế dùng (ít khi giáo viên chủ
@@ -517,6 +556,14 @@ export async function trangQuy(KHUNG) {
       const ds = e('div', 'ds-khoan');
       d.khoan.forEach((k) => ds.append(veHangKhoan(k)));
       theKhoan.append(ds);
+
+      // Lối vào duy nhất còn lại tới trang quản lý mẫu định kỳ — chỉ cần cho trường hợp hiếm:
+      // xoá một mẫu vừa tạo nhầm mà ngày bắt đầu còn ở tương lai nên chưa sinh kỳ nào (dừng/mở
+      // lại một mẫu đã có kỳ thì làm ngay trong chi tiết kỳ đó, xem veChiTietKhoan ở trên).
+      const lienKetDinhKy = e('a', null, '🔁 Xem tất cả các mẫu thu định kỳ');
+      lienKetDinhKy.href = '#/quy-dinh-ky';
+      lienKetDinhKy.style.cssText = 'display:inline-block;margin-top:12px;font-size:13px;color:var(--chu-nhat)';
+      theKhoan.append(lienKetDinhKy);
     }
     luoiChinh.append(theKhoan);
 
@@ -643,6 +690,22 @@ const LOAI_THU_KHOAN = [
 ];
 const TEN_CHU_KY = { tuan: 'tuần', thang: 'tháng', nam: 'năm' };
 
+/** Tên/khoảng ngày của KỲ 1 cho một mẫu định kỳ — dùng để xem trước cho chính xác, khớp
+    logic tenKy() phía máy chủ (functions/_lib/quy-dinh-ky.js), thay vì ví dụ viết cứng
+    ("Tháng 9", "Năm 2026"...) không đúng với ngày bắt đầu thật sự đã chọn. */
+function tenKyDau(chuKy, ngayBatDauISO) {
+  if (!ngayBatDauISO) return '';
+  const bd = new Date(ngayBatDauISO + 'T00:00:00Z');
+  if (isNaN(bd)) return '';
+  const dinhDangNgan = (d) => `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  if (chuKy === 'tuan') {
+    const cuoiKy = new Date(bd); cuoiKy.setUTCDate(cuoiKy.getUTCDate() + 6);
+    return `Tuần 1 (${dinhDangNgan(bd)}–${dinhDangNgan(cuoiKy)})`;
+  }
+  if (chuKy === 'nam') return `Năm ${bd.getUTCFullYear()}`;
+  return `Tháng ${bd.getUTCMonth() + 1}/${bd.getUTCFullYear()}`;
+}
+
 function moKhoanMoi(taiLai, loaiMacDinh = 'mot_lan') {
   const oLoai = oChon('qLoaiThu', LOAI_THU_KHOAN, loaiMacDinh);
   const oTen = oNhap('qTen', 'text', '', 'Ví dụ: Quỹ lớp học kì 1');
@@ -655,36 +718,60 @@ function moKhoanMoi(taiLai, loaiMacDinh = 'mot_lan') {
   const truongHk = truong('Học kì', oHk);
   const truongGc = truong('Ghi chú', oGc);
   const truongNgayBd = truong('Bắt đầu từ ngày', oNgayBd);
+
+  // Xem trước NGÀY đã chọn viết đầy đủ (vd "Thứ bảy, 05/09/2026") — ô ngày của trình duyệt
+  // hiện theo định dạng riêng của máy (có máy hiện tháng/ngày kiểu Mỹ), dễ đọc nhầm ngược
+  // ngày/tháng so với kiểu ngày/tháng quen dùng trên cả trang. Ghi rõ ra đây cho chắc chắn.
+  const xemTruocNgay = e('p', 'trong');
+  xemTruocNgay.style.marginTop = '-8px';
+
+  // Xem trước TÊN kỳ đầu tiên sẽ có, tính đúng theo loại + ngày bắt đầu đang chọn (không còn
+  // ví dụ viết cứng "Tháng 9"/"Năm 2026" không khớp ngày thật đã chọn như trước).
+  const xemTruocTen = e('p', 'trong');
+  xemTruocTen.style.marginTop = '-8px';
+
   const ghiChuDinhKy = e('p', 'trong');
   ghiChuDinhKy.style.marginTop = '-8px';
+
+  function capNhatXemTruoc() {
+    xemTruocNgay.textContent = oNgayBd.value ? `→ ${ngayDayDu(oNgayBd.value)}` : '';
+    const hauTo = tenKyDau(oLoai.value, oNgayBd.value);
+    xemTruocTen.textContent = hauTo ? `→ Kỳ đầu tiên sẽ có tên: "${(oTen.value.trim() || 'Quỹ lớp')} — ${hauTo}"` : '';
+  }
 
   function capNhatHienThi() {
     const laDinhKy = oLoai.value !== 'mot_lan';
     truongHk.hidden = laDinhKy;
     truongGc.hidden = laDinhKy;
     truongNgayBd.hidden = !laDinhKy;
+    xemTruocNgay.hidden = !laDinhKy;
+    xemTruocTen.hidden = !laDinhKy;
     ghiChuDinhKy.hidden = !laDinhKy;
+    oTen.placeholder = laDinhKy ? 'Ví dụ: Quỹ lớp' : 'Ví dụ: Quỹ lớp học kì 1';
     if (laDinhKy) {
       const tenCk = TEN_CHU_KY[oLoai.value];
-      oTen.placeholder = `Ví dụ: Quỹ lớp (tự thêm "— ${oLoai.value === 'tuan' ? 'Tuần 1' : oLoai.value === 'thang' ? 'Tháng 9' : 'Năm 2026'}"... vào mỗi kỳ)`;
       ghiChuDinhKy.textContent =
         `Định kỳ nghĩa là: hệ thống tự tạo một khoản thu mới ứng với mỗi ${tenCk}, tính từ ngày `
         + `bắt đầu — không cần tạo tay từng ${tenCk}. Kỳ 1 xuất hiện ngay (nếu ngày bắt đầu không `
         + `ở tương lai); các kỳ sau tự xuất hiện ngay khi bạn mở lại trang Thủ quỹ, đúng vào lúc `
-        + `đã đến hạn. Xem danh sách các mẫu định kỳ và kỳ đã sinh ở "🔁 Các mẫu thu định kỳ".`;
-    } else {
-      oTen.placeholder = 'Ví dụ: Quỹ lớp học kì 1';
+        + `đã đến hạn. Muốn dừng một mẫu định kỳ, mở chi tiết một kỳ đã sinh của nó (biểu tượng `
+        + `🔁 trong danh sách) rồi bấm "Dừng định kỳ này".`;
     }
+    capNhatXemTruoc();
   }
   oLoai.addEventListener('change', capNhatHienThi);
+  oNgayBd.addEventListener('input', capNhatXemTruoc);
+  oTen.addEventListener('input', capNhatXemTruoc);
   capNhatHienThi();
 
   moHopThoai('Thêm khoản thu mới', [
     truongLoai,
     truong('Tên khoản thu', oTen),
+    xemTruocTen,
     truong('Mức thu mỗi em (đồng)', oSoTien),
     truongHk,
     truongNgayBd,
+    xemTruocNgay,
     ghiChuDinhKy,
     truongGc,
   ], [
