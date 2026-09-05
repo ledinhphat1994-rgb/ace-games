@@ -676,6 +676,7 @@ function veThuQuy(tq) {
   // --- 1. KHU VỰC KHOẢN THU ---
   let locTrangThai = ''; // '' (tất cả) | 'dang_mo' | 'da_du' | 'da_dong'
   let timKhoan = '';
+  let khoanDuocChonId = null;
 
   const soDangMo = dsKhoanGoc.filter((k) => k.dangMo && ((k.tongCanThu ? (k.tongDaThu / k.tongCanThu) * 100 : 0) < 100)).length;
   const soDaDu = dsKhoanGoc.filter((k) => k.tongCanThu && (k.tongDaThu >= k.tongCanThu)).length;
@@ -688,7 +689,7 @@ function veThuQuy(tq) {
 
     const khungBoc = e('div', 'khu-khoan-thu');
 
-    // Thanh công cụ: tiêu đề + số lượng + ô tìm kiếm
+    // Thanh công cụ: tiêu đề + số lượng + nhóm điều khiển (dropdown chọn nhanh + ô tìm kiếm)
     const thanhCongCu = e('div', 'thanh-cong-cu-khoan');
     const tieuDeKhoan = e('div', 'tieu-de-khoan');
     tieuDeKhoan.append(
@@ -697,18 +698,49 @@ function veThuQuy(tq) {
     );
     thanhCongCu.append(tieuDeKhoan);
 
-    if (dsKhoanGoc.length > 4) {
-      const oTim = e('input', 'o-nhap o-tim-khoan');
-      oTim.type = 'search';
-      oTim.value = timKhoan;
-      oTim.placeholder = 'Tìm khoản thu, tuần…';
-      oTim.setAttribute('aria-label', 'Tìm kiếm khoản thu');
-      oTim.addEventListener('input', (ev) => {
-        timKhoan = ev.target.value.trim().toLowerCase();
-        veDanhSachKhoan();
-      });
-      thanhCongCu.append(oTim);
-    }
+    const nhomDieuKhien = e('div', 'nhom-dieu-khien-khoan');
+
+    // Dropdown chọn nhanh: [Kiểu thu] Tên thu
+    const dropdown = e('select', 'dropdown-chon-khoan');
+    dropdown.setAttribute('aria-label', 'Chọn nhanh khoản thu');
+    const optMacDinh = e('option', null, `-- Chọn nhanh khoản thu (${dsKhoanGoc.length}) --`);
+    optMacDinh.value = '';
+    dropdown.append(optMacDinh);
+
+    dsKhoanGoc.forEach((k) => {
+      const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
+      const kieuThu = laDinhKy ? '[Thu định kỳ]' : '[Thu nhanh]';
+      const opt = e('option', null, `${kieuThu} ${k.ten}`);
+      opt.value = String(k.id);
+      dropdown.append(opt);
+    });
+
+    const oTim = e('input', 'o-nhap o-tim-khoan');
+    oTim.type = 'search';
+    oTim.value = timKhoan;
+    oTim.placeholder = 'Tìm khoản thu, tuần…';
+    oTim.setAttribute('aria-label', 'Tìm kiếm khoản thu');
+
+    dropdown.addEventListener('change', (ev) => {
+      khoanDuocChonId = ev.target.value ? Number(ev.target.value) : null;
+      if (khoanDuocChonId) {
+        timKhoan = '';
+        oTim.value = '';
+      }
+      veDanhSachKhoan();
+    });
+
+    oTim.addEventListener('input', (ev) => {
+      timKhoan = ev.target.value.trim().toLowerCase();
+      if (timKhoan) {
+        khoanDuocChonId = null;
+        dropdown.value = '';
+      }
+      veDanhSachKhoan();
+    });
+
+    nhomDieuKhien.append(dropdown, oTim);
+    thanhCongCu.append(nhomDieuKhien);
     khungBoc.append(thanhCongCu);
 
     // Bộ lọc dạng viên thuốc (Tất cả / Đang thu / Đã đủ / Đã đóng)
@@ -726,8 +758,10 @@ function veThuQuy(tq) {
       datNoiDung(dayLoc, ...CAC_MUC_LOC.map(([giaTri, nhan]) => {
         const b = e('button', 'vien-loc', nhan);
         b.type = 'button';
-        b.setAttribute('aria-pressed', String(locTrangThai === giaTri));
+        b.setAttribute('aria-pressed', String(locTrangThai === giaTri && !khoanDuocChonId));
         b.addEventListener('click', () => {
+          khoanDuocChonId = null;
+          dropdown.value = '';
           locTrangThai = giaTri;
           veNutLoc();
           veDanhSachKhoan();
@@ -742,26 +776,53 @@ function veThuQuy(tq) {
     khungBoc.append(dsTheKhoi);
 
     function veDanhSachKhoan() {
-      const danhSachLoc = dsKhoanGoc.filter((k) => {
-        const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
-        if (locTrangThai === 'dang_mo' && (!k.dangMo || phanTram >= 100)) return false;
-        if (locTrangThai === 'da_du' && phanTram < 100) return false;
-        if (locTrangThai === 'da_dong' && k.dangMo) return false;
-        if (timKhoan) {
-          const tenThuong = (k.ten || '').toLowerCase();
-          if (!tenThuong.includes(timKhoan)) return false;
-        }
-        return true;
-      });
+      let danhSachLoc;
+      if (khoanDuocChonId) {
+        danhSachLoc = dsKhoanGoc.filter((k) => k.id === khoanDuocChonId);
+      } else {
+        danhSachLoc = dsKhoanGoc.filter((k) => {
+          const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
+          if (locTrangThai === 'dang_mo' && (!k.dangMo || phanTram >= 100)) return false;
+          if (locTrangThai === 'da_du' && phanTram < 100) return false;
+          if (locTrangThai === 'da_dong' && k.dangMo) return false;
+          if (timKhoan) {
+            const tenThuong = (k.ten || '').toLowerCase();
+            if (!tenThuong.includes(timKhoan)) return false;
+          }
+          return true;
+        });
+      }
+
+      const cacPhanTuThe = [];
+
+      if (khoanDuocChonId && danhSachLoc.length > 0) {
+        const thanhBao = e('div', 'thanh-loc-dang-chon');
+        thanhBao.append(
+          e('span', null, `🔍 Đang xem riêng: "${danhSachLoc[0].ten}"`),
+          (() => {
+            const nutHuy = e('button', 'nut-huy-loc', '✕ Xem tất cả');
+            nutHuy.type = 'button';
+            nutHuy.addEventListener('click', () => {
+              khoanDuocChonId = null;
+              dropdown.value = '';
+              veNutLoc();
+              veDanhSachKhoan();
+            });
+            return nutHuy;
+          })()
+        );
+        cacPhanTuThe.push(thanhBao);
+      }
 
       if (!danhSachLoc.length) {
         return datNoiDung(dsTheKhoi, e('p', 'trong', 'Không có khoản thu nào phù hợp với bộ lọc.'));
       }
 
-      datNoiDung(dsTheKhoi, ...danhSachLoc.map((k) => {
+      danhSachLoc.forEach((k) => {
         const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
         const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
         const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
+        const matchTuan = /Tuần\s*(\d+)/i.exec(k.ten);
 
         // Phân loại trạng thái
         let lopTrangThai = 'dang-thu';
@@ -784,7 +845,13 @@ function veThuQuy(tq) {
           badgeTrangThai = e('span', 'nhan', `Đang thu · ${phanTram}%`);
         }
 
-        const the = e('div', 'the-khoan-thu ' + lopTrangThai);
+        const lopPhu = [
+          lopTrangThai,
+          laDinhKy ? 'loai-dinh-ky' : 'loai-nhanh',
+          khoanDuocChonId === k.id ? 'dang-chon' : '',
+        ].filter(Boolean).join(' ');
+
+        const the = e('div', 'the-khoan-thu ' + lopPhu);
 
         // 1. Đầu thẻ
         const dau = e('div', 'the-khoan-dau');
@@ -793,11 +860,15 @@ function veThuQuy(tq) {
 
         const thongTin = e('div', 'the-khoan-thong-tin');
         const dongTen = e('div', 'the-khoan-ten-hang');
+
+        if (matchTuan) {
+          dongTen.append(e('span', 'badge-tuan', `Tuần ${matchTuan[1]}`));
+        }
         dongTen.append(e('h4', 'the-khoan-ten', k.ten));
         thongTin.append(dongTen);
 
         const chipDay = e('div', 'the-khoan-chip-day');
-        chipDay.append(e('span', 'the-khoan-chip', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'));
+        chipDay.append(e('span', 'the-khoan-chip ' + (laDinhKy ? 'chip-dinh-ky' : 'chip-nhanh'), laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'));
 
         // Khoảng ngày nếu có
         if (k.ngayBatDau && k.ngayKetThuc) {
@@ -864,8 +935,10 @@ function veThuQuy(tq) {
         chan.append(e('span', null, k.dangMo ? 'Đang thu quỹ' : 'Đã khoá sổ'));
         the.append(chan);
 
-        return the;
-      }));
+        cacPhanTuThe.push(the);
+      });
+
+      datNoiDung(dsTheKhoi, ...cacPhanTuThe);
     }
 
     veDanhSachKhoan();
@@ -875,6 +948,7 @@ function veThuQuy(tq) {
   // --- 2. KHU VỰC KHOẢN CHI ---
   let locLoaiChi = ''; // '' (tất cả) | 'hoat_dong' | 'vpp' ...
   let timChi = '';
+  let chiDuocChonId = null;
 
   const MAP_ICON_CHI = {
     hoat_dong: '🎪',
@@ -904,18 +978,47 @@ function veThuQuy(tq) {
     );
     thanhCongCu.append(tieuDeChi);
 
-    if (dsChiGoc.length > 4) {
-      const oTim = e('input', 'o-nhap o-tim-khoan');
-      oTim.type = 'search';
-      oTim.value = timChi;
-      oTim.placeholder = 'Tìm khoản chi, nội dung…';
-      oTim.setAttribute('aria-label', 'Tìm kiếm khoản chi');
-      oTim.addEventListener('input', (ev) => {
-        timChi = ev.target.value.trim().toLowerCase();
-        veDanhSachChi();
-      });
-      thanhCongCu.append(oTim);
-    }
+    const nhomDieuKhienChi = e('div', 'nhom-dieu-khien-khoan');
+
+    // Dropdown chọn nhanh khoản chi: [Kiểu chi] Tên chi · -Số tiền
+    const dropdownChi = e('select', 'dropdown-chon-khoan');
+    dropdownChi.setAttribute('aria-label', 'Chọn nhanh khoản chi');
+    const optMacDinhChi = e('option', null, `-- Chọn nhanh khoản chi (${dsChiGoc.length}) --`);
+    optMacDinhChi.value = '';
+    dropdownChi.append(optMacDinhChi);
+
+    dsChiGoc.forEach((c) => {
+      const opt = e('option', null, `[${tenLoaiChi(c.loai)}] ${c.noiDung} · -${tienVN(c.soTien)}`);
+      opt.value = String(c.id);
+      dropdownChi.append(opt);
+    });
+
+    const oTim = e('input', 'o-nhap o-tim-khoan');
+    oTim.type = 'search';
+    oTim.value = timChi;
+    oTim.placeholder = 'Tìm khoản chi, nội dung…';
+    oTim.setAttribute('aria-label', 'Tìm kiếm khoản chi');
+
+    dropdownChi.addEventListener('change', (ev) => {
+      chiDuocChonId = ev.target.value ? Number(ev.target.value) : null;
+      if (chiDuocChonId) {
+        timChi = '';
+        oTim.value = '';
+      }
+      veDanhSachChi();
+    });
+
+    oTim.addEventListener('input', (ev) => {
+      timChi = ev.target.value.trim().toLowerCase();
+      if (timChi) {
+        chiDuocChonId = null;
+        dropdownChi.value = '';
+      }
+      veDanhSachChi();
+    });
+
+    nhomDieuKhienChi.append(dropdownChi, oTim);
+    thanhCongCu.append(nhomDieuKhienChi);
     khungBoc.append(thanhCongCu);
 
     // Bộ lọc theo loại chi
@@ -928,20 +1031,23 @@ function veThuQuy(tq) {
       }
     });
 
+    let veNutLocChi = () => {};
     if (cacMucLoc.length > 1) {
-      function veNutLocChi() {
+      veNutLocChi = () => {
         datNoiDung(dayLoc, ...cacMucLoc.map(([giaTri, nhan]) => {
           const b = e('button', 'vien-loc', nhan);
           b.type = 'button';
-          b.setAttribute('aria-pressed', String(locLoaiChi === giaTri));
+          b.setAttribute('aria-pressed', String(locLoaiChi === giaTri && !chiDuocChonId));
           b.addEventListener('click', () => {
+            chiDuocChonId = null;
+            dropdownChi.value = '';
             locLoaiChi = giaTri;
             veNutLocChi();
             veDanhSachChi();
           });
           return b;
         }));
-      }
+      };
       veNutLocChi();
       khungBoc.append(dayLoc);
     }
@@ -950,22 +1056,48 @@ function veThuQuy(tq) {
     khungBoc.append(dsTheKhoi);
 
     function veDanhSachChi() {
-      const danhSachLoc = dsChiGoc.filter((c) => {
-        if (locLoaiChi && c.loai !== locLoaiChi) return false;
-        if (timChi) {
-          const nd = (c.noiDung || '').toLowerCase();
-          const gc = (c.ghiChu || '').toLowerCase();
-          if (!nd.includes(timChi) && !gc.includes(timChi)) return false;
-        }
-        return true;
-      });
+      let danhSachLoc;
+      if (chiDuocChonId) {
+        danhSachLoc = dsChiGoc.filter((c) => c.id === chiDuocChonId);
+      } else {
+        danhSachLoc = dsChiGoc.filter((c) => {
+          if (locLoaiChi && c.loai !== locLoaiChi) return false;
+          if (timChi) {
+            const nd = (c.noiDung || '').toLowerCase();
+            const gc = (c.ghiChu || '').toLowerCase();
+            if (!nd.includes(timChi) && !gc.includes(timChi)) return false;
+          }
+          return true;
+        });
+      }
+
+      const cacPhanTuThe = [];
+
+      if (chiDuocChonId && danhSachLoc.length > 0) {
+        const thanhBao = e('div', 'thanh-loc-dang-chon');
+        thanhBao.append(
+          e('span', null, `🔍 Đang xem riêng: "${danhSachLoc[0].noiDung}"`),
+          (() => {
+            const nutHuy = e('button', 'nut-huy-loc', '✕ Xem tất cả');
+            nutHuy.type = 'button';
+            nutHuy.addEventListener('click', () => {
+              chiDuocChonId = null;
+              dropdownChi.value = '';
+              if (cacMucLoc.length > 1) veNutLocChi();
+              veDanhSachChi();
+            });
+            return nutHuy;
+          })()
+        );
+        cacPhanTuThe.push(thanhBao);
+      }
 
       if (!danhSachLoc.length) {
         return datNoiDung(dsTheKhoi, e('p', 'trong', 'Chưa có khoản chi nào phù hợp.'));
       }
 
-      datNoiDung(dsTheKhoi, ...danhSachLoc.map((c) => {
-        const the = e('div', 'the-khoan-chi');
+      danhSachLoc.forEach((c) => {
+        const the = e('div', 'the-khoan-chi ' + (chiDuocChonId === c.id ? 'dang-chon' : ''));
         const dau = e('div', 'the-khoan-dau');
         const trai = e('div', 'the-khoan-trai');
         const icon = MAP_ICON_CHI[c.loai] || '💸';
@@ -993,8 +1125,10 @@ function veThuQuy(tq) {
           the.append(e('div', 'the-khoan-chi-ghi-chu', `📝 ${c.ghiChu}`));
         }
 
-        return the;
-      }));
+        cacPhanTuThe.push(the);
+      });
+
+      datNoiDung(dsTheKhoi, ...cacPhanTuThe);
     }
 
     veDanhSachChi();
