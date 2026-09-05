@@ -1549,7 +1549,7 @@ export async function trangHinhAnh(KHUNG) {
 
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
-    khung.append(tieuDeTrang('Ảnh hoạt động',
+    khung.append(tieuDeTrang('Thư viện Ảnh',
       d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào'));
 
     // Khu chọn ảnh
