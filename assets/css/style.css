@@ -323,6 +323,14 @@ code {
 .nut-tron[hidden] { display: none; }
 /* Trên thanh trên cùng, nút chỉ có biểu tượng phải đủ to để ngón tay chạm được. */
 .thanh-tren .nut-tron { width: 44px; height: 44px; border-radius: 12px; font-size: 16px; }
+.nut-tron svg,
+.nut-tron .bieu-tuong-svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  vertical-align: middle;
+}
 #nutNhac[aria-pressed="true"] {
   background: linear-gradient(135deg, var(--chinh), var(--chinh-sang)); border-color: transparent; color: #fff;
 }
@@ -461,6 +469,14 @@ code {
 .menu-icon {
   width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center;
   background: var(--chinh-nen); color: var(--chinh); font-size: 17px;
+}
+.menu-icon svg,
+.menu-icon .bieu-tuong-svg {
+  width: 21px;
+  height: 21px;
+  stroke: currentColor;
+  stroke-width: 2;
+  display: block;
 }
 .menu-chu { display: flex; flex-direction: column; min-width: 0; }
 .menu-chu b { font-size: 15px; font-weight: 700; line-height: 1.3; }
@@ -1846,7 +1862,7 @@ td.cot-hom-nay {
   gap: 8px;
   flex-wrap: wrap;
 }
-.dropdown-ngay-dd, .o-chon-ngay-dd {
+.o-chon-ngay-dd {
   height: 38px;
   padding: 0 12px;
   border-radius: 10px;
@@ -1855,6 +1871,16 @@ td.cot-hom-nay {
   color: var(--chu);
   font-size: 13.5px;
   outline: none;
+}
+.nhan-thu-dd {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--chinh);
+  background: var(--chinh-nen);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
+  white-space: nowrap;
 }
 .nhom-buoi-dd {
   display: flex;

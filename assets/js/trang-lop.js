@@ -1592,18 +1592,6 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '') {
   nhanNgay.append(e('b', null, 'Ngày: '));
   nhomNgay.append(nhanNgay);
 
-  const dropdownNgay = e('select', 'dropdown-ngay-dd');
-  (d.dsNgay || []).forEach((ng) => {
-    const opt = e('option', null, ngayDayDu(ng));
-    opt.value = ng;
-    if (ng === d.ngay) opt.selected = true;
-    dropdownNgay.append(opt);
-  });
-  dropdownNgay.addEventListener('change', (ev) => {
-    taiVaVeDiemDanh(ev.target.value, buoiDiemDanhHienTai);
-  });
-  nhomNgay.append(dropdownNgay);
-
   const oChonNgay = e('input', 'o-chon-ngay-dd');
   oChonNgay.type = 'date';
   oChonNgay.value = d.ngay;
@@ -1613,6 +1601,9 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '') {
     }
   });
   nhomNgay.append(oChonNgay);
+
+  const nhanThu = e('span', 'nhan-thu-dd', ngayDayDu(d.ngay));
+  nhomNgay.append(nhanThu);
 
   // Buổi
   const nhomBuoi = e('div', 'nhom-buoi-dd');
