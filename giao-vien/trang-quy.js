@@ -1173,7 +1173,8 @@ export async function veKhoiTaiKhoanPhu(khung) {
         'nhat-ky': '📖',
         'diem-danh': '✅',
         'hinh-anh': '📸',
-        'nhac-nen': '♪',
+        'am-thanh': '♪',
+        'video': '🎬',
       };
 
       d.danhSach.forEach((tk) => {
