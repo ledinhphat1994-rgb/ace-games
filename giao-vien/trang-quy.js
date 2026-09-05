@@ -1187,7 +1187,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
         const khoiTrai = e('div');
         khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
 
-        const avatar = e('div', 'the-tk-avatar');
+        const avatar = e('div', ['the-tk-avatar', info.lopMau].filter(Boolean).join(' '));
         avatar.style.cssText = `width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:${info.mauNen};border:1.5px solid ${info.mauVien};box-shadow:0 4px 14px -3px ${info.mauVien};flex:none;`;
         avatar.textContent = info.bieuTuong;
 
@@ -1198,7 +1198,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
         dongTen.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
         dongTen.append(
           Object.assign(e('h3', null, tk.ten), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
-          Object.assign(e('span', 'nhan', `${info.bieuTuong} ${info.tenGoi}`), {
+          Object.assign(e('span', ['nhan', info.lopMau].filter(Boolean).join(' '), `${info.bieuTuong} ${info.tenGoi}`), {
             style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12px;padding:2px 9px;border-radius:6px;`
           })
         );
@@ -1352,7 +1352,7 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
           document.createTextNode('1. Trên thẻ phân quyền: '),
           Object.assign(e('b', null, t), { style: 'color:var(--chu)' }),
           document.createTextNode(' kèm huy hiệu '),
-          Object.assign(e('span', 'nhan', `${inf.bieuTuong} ${inf.tenGoi}`), {
+          Object.assign(e('span', ['nhan', inf.lopMau].filter(Boolean).join(' '), `${inf.bieuTuong} ${inf.tenGoi}`), {
             style: `background:${inf.mauNen};border-color:${inf.mauVien};color:${inf.mauChu};font-weight:700;font-size:11.5px;padding:1px 6px;border-radius:5px;`
           })
         );

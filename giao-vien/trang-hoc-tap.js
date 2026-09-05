@@ -905,7 +905,7 @@ function veHangHocSinh(h, taiLai, capNhatHang) {
   tdChucVu.style.overflow = 'hidden';
   if (h.chucVu) {
     const info = layThongTinVaiTro(h.chucVu);
-    tdChucVu.append(Object.assign(e('span', 'nhan', `${info.bieuTuong} ${h.chucVu}`), {
+    tdChucVu.append(Object.assign(e('span', ['nhan', info.lopMau].filter(Boolean).join(' '), `${info.bieuTuong} ${h.chucVu}`), {
       style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;`
     }));
   } else {
@@ -1446,7 +1446,7 @@ export async function trangThuVienAmThanh(KHUNG) {
         giua.append(e('p', 'trong', `${(bai.coByte / 1_000_000).toFixed(1)} MB`));
         dongDau.append(giua);
 
-        dongDau.append(nut('🗑', 'nut-nhe nut-nho', () => {
+        dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
           moHopThoai('Xoá bài này khỏi thư viện?', e('p', null,
             bai.dangPhat
               ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi chọn bài khác.`
@@ -1644,7 +1644,7 @@ export async function trangThuVienVideo(KHUNG) {
         giua.append(e('p', 'trong', `${(v.coByte / 1_000_000).toFixed(1)} MB`));
         dongDau.append(giua);
 
-        dongDau.append(nut('🗑', 'nut-nhe nut-nho', () => {
+        dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
           moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Không thể hoàn tác.`), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
@@ -1800,34 +1800,45 @@ export async function trangHinhAnh(KHUNG) {
       const luoi = e('div', 'thu-vien');
       luoi.style.marginTop = '18px';
       d.danhSach.forEach((a) => {
-        const hinh = e('figure');
+        const hinh = e('figure', 'the-anh-gv');
         hinh.style.position = 'relative';
         const img = e('img');
         img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
         img.alt = a.chuThich || 'Ảnh lớp 10A7';
         img.loading = 'lazy';
+        img.style.cursor = 'pointer';
+        img.title = 'Bấm để xem ảnh kích thước đầy đủ';
+        img.addEventListener('click', () => {
+          window.open('/api/anh?khoa=' + encodeURIComponent(a.khoa), '_blank');
+        });
         hinh.append(img);
 
         const oChonXoa = e('input');
         oChonXoa.type = 'checkbox';
         oChonXoa.checked = daChon.has(a.id);
         oChonXoa.setAttribute('aria-label', 'Chọn ảnh ' + ngayVN(a.ngay) + ' để xoá hàng loạt');
-        oChonXoa.style.cssText = 'position:absolute;top:8px;left:8px;width:20px;height:20px;cursor:pointer;accent-color:var(--xau);box-shadow:0 1px 4px rgba(0,0,0,.5)';
+        oChonXoa.style.cssText = 'position:absolute;top:8px;left:8px;width:20px;height:20px;cursor:pointer;accent-color:var(--xau);box-shadow:0 1px 4px rgba(0,0,0,.6);border-radius:4px;z-index:2';
         oChonXoa.addEventListener('change', () => {
           if (oChonXoa.checked) daChon.add(a.id); else daChon.delete(a.id);
           ve();
         });
         hinh.append(oChonXoa);
 
-        const chan = e('figcaption');
-        chan.append(document.createTextNode(`${ngayVN(a.ngay)} · ${Math.round(a.coByte / 1024)} KB`));
-        if (a.chuThich) chan.append(e('div', null, a.chuThich));
+        const chan = e('div', 'the-anh-chan');
+        const dongThongTin = e('div', 'the-anh-thong-tin');
+        dongThongTin.append(document.createTextNode(`${ngayVN(a.ngay)} · ${Math.round(a.coByte / 1024)} KB`));
+        chan.append(dongThongTin);
 
-        const hangNut = e('div', 'day-loc');
-        hangNut.style.marginTop = '6px';
+        if (a.chuThich) {
+          const chu = e('div', 'the-anh-chu-thich', a.chuThich);
+          chu.title = a.chuThich;
+          chan.append(chu);
+        }
+
+        const hangNut = e('div', 'the-anh-tac-vu');
         hangNut.append(
-          nut('✎', 'nut-nhe nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
-          nut('✕', 'nut-nhe nut-nho', () => {
+          nut('✎ Sửa', 'nut-sua-anh nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
+          nut('🗑 Xoá', 'nut-xoa-anh nut-nho', () => {
             moHopThoai('Xoá ảnh này?', e('p', null, a.chuThich || ngayVN(a.ngay)), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {

@@ -170,7 +170,16 @@
   --chu: #0f172a; --chu-nhat: #475569; --chu-mo: #94a3b8;
   --vien: #cbd5e1; --vien-dam: #94a3b8;
   --chinh: #0284c7; --chinh-sang: #0369a1; --chinh-nen: #e0f2fe;
+  --chinh-2: #0d9488; --chinh-2-nen: #ccfbf1;
+  --tot: #059669;    --tot-nen: #d1fae5;
+  --luu-y: #d97706;  --luu-y-nen: #fef3c7;
+  --xau: #dc2626;    --xau-nen: #fee2e2;
+  --nhan: #7c3aed;   --nhan-nen: #ede9fe;
   --tieu-de: #0f172a; --tieu-de-phu: #0284c7;
+  --bong-1: 0 1px 3px rgba(0, 0, 0, .08);
+  --bong-2: 0 4px 14px rgba(0, 0, 0, .08), 0 10px 24px rgba(0, 0, 0, .05);
+  --bong-3: 0 20px 48px rgba(0, 0, 0, .12);
+  --bong-mau: 0 8px 20px -4px rgba(2, 132, 199, 0.25);
   --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(2, 132, 199, 0.08), transparent 70%),
                  radial-gradient(900px 600px at 90% 20%, rgba(99, 102, 241, 0.06), transparent 70%),
                  #f1f5f9;
@@ -608,6 +617,64 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 .nhan-xam { background: var(--nen-chim); color: var(--chu-nhat); border-color: var(--vien); }
 .nhan-mo { background: transparent; color: var(--chu-mo); border-color: var(--vien); border-style: dashed; }
 
+/* ---------- Huy hiệu vai trò tài khoản & chức vụ ---------- */
+.vai-tro-thu-quy {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.35));
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+.vai-tro-lop-truong {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.35));
+  border: 1px solid #f59e0b;
+  color: #fbbf24;
+}
+.vai-tro-bi-thu {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(251, 113, 133, 0.35));
+  border: 1px solid #f43f5e;
+  color: #fb7185;
+}
+.vai-tro-to-truong {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(56, 189, 248, 0.35));
+  border: 1px solid #0ea5e9;
+  color: #38bdf8;
+}
+.vai-tro-admin {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.35));
+  border: 1px solid #6366f1;
+  color: #818cf8;
+}
+.vai-tro-can-su {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.35));
+  border: 1px solid #a855f7;
+  color: #c084fc;
+}
+
+/* Tối ưu tương phản cho vai trò trên Theme Trắng (Light Theme) */
+:root[data-theme="light"] .vai-tro-thu-quy,
+:root[data-bg-theme="light"] .vai-tro-thu-quy {
+  background: #d1fae5 !important; border-color: #059669 !important; color: #065f46 !important;
+}
+:root[data-theme="light"] .vai-tro-lop-truong,
+:root[data-bg-theme="light"] .vai-tro-lop-truong {
+  background: #fef3c7 !important; border-color: #d97706 !important; color: #92400e !important;
+}
+:root[data-theme="light"] .vai-tro-bi-thu,
+:root[data-bg-theme="light"] .vai-tro-bi-thu {
+  background: #ffe4e6 !important; border-color: #f43f5e !important; color: #9f1239 !important;
+}
+:root[data-theme="light"] .vai-tro-to-truong,
+:root[data-bg-theme="light"] .vai-tro-to-truong {
+  background: #e0f2fe !important; border-color: #0284c7 !important; color: #075985 !important;
+}
+:root[data-theme="light"] .vai-tro-admin,
+:root[data-bg-theme="light"] .vai-tro-admin {
+  background: #e0e7ff !important; border-color: #6366f1 !important; color: #3730a3 !important;
+}
+:root[data-theme="light"] .vai-tro-can-su,
+:root[data-bg-theme="light"] .vai-tro-can-su {
+  background: #ede9fe !important; border-color: #7c3aed !important; color: #5b21b6 !important;
+}
+
 /* ---------- 7. Nút ---------- */
 .nut {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
@@ -767,11 +834,59 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
   box-shadow: var(--bong-1); transition: box-shadow .18s, transform .18s;
 }
 .thu-vien figure:hover { box-shadow: var(--bong-2); transform: translateY(-2px); }
-.thu-vien img { aspect-ratio: 4 / 3; object-fit: cover; width: 100%; }
+.thu-vien img { aspect-ratio: 4 / 3; object-fit: cover; width: 100%; display: block; }
 .thu-vien figcaption {
   padding: 9px 11px; font-size: 12.5px; color: var(--chu-nhat);
   /* Chú thích dài không được đẩy các ô ảnh cao lệch nhau */
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Thẻ ảnh trong phần quản lý thư viện của giáo viên */
+.the-anh-gv {
+  display: flex; flex-direction: column; height: 100%;
+  border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden;
+  background: var(--nen-noi); box-shadow: var(--bong-1);
+  transition: box-shadow .18s, transform .18s, border-color .18s;
+}
+.the-anh-gv:hover {
+  box-shadow: var(--bong-2); transform: translateY(-2px); border-color: var(--vien-dam);
+}
+.the-anh-chan {
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 5px;
+  flex: 1; min-width: 0; background: var(--nen-noi);
+}
+.the-anh-thong-tin {
+  font-size: 12px; font-weight: 600; color: var(--chu-mo);
+  font-variant-numeric: tabular-nums;
+}
+.the-anh-chu-thich {
+  font-size: 13.5px; font-weight: 600; color: var(--chu);
+  line-height: 1.4; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.the-anh-tac-vu {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  margin-top: auto; padding-top: 8px; border-top: 1px solid var(--vien);
+}
+.nut-sua-anh, .nut-xoa-anh, .nut-xoa-muc {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 5px 12px; min-height: 32px; font-size: 13px; font-weight: 700;
+  border-radius: 8px; cursor: pointer; transition: all .15s;
+  box-shadow: none;
+}
+.nut-sua-anh {
+  border: 1px solid var(--vien-dam); background: var(--nen-chim); color: var(--chinh);
+}
+.nut-sua-anh:hover {
+  background: var(--chinh-nen); border-color: var(--chinh); color: var(--chinh);
+  transform: translateY(-1px);
+}
+.nut-xoa-anh, .nut-xoa-muc {
+  border: 1px solid var(--vien-dam); background: var(--nen-chim); color: var(--xau);
+}
+.nut-xoa-anh:hover, .nut-xoa-muc:hover {
+  background: var(--xau-nen); border-color: var(--xau); color: var(--xau);
+  transform: translateY(-1px);
 }
 
 /* ---------- Xem ảnh phóng to (lightbox) ---------- */

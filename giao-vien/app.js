@@ -1031,7 +1031,7 @@ function xoaHocSinh(h, taiLai) {
     e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.id}) khỏi danh sách lớp 10A7 không?`),
     Object.assign(e('p'), {
       textContent: '⚠️ CẢNH BÁO: Toàn bộ dữ liệu điểm danh, điểm số, nhật ký và thông tin của học sinh này sẽ bị xoá vĩnh viễn khỏi hệ thống.',
-      style: 'margin-top:8px;padding:10px;border-radius:8px;background:rgba(239, 68, 68, 0.15);border:1px solid #ef4444;color:#fca5a5;font-size:13.5px;'
+      style: 'margin-top:8px;padding:10px;border-radius:8px;background:var(--xau-nen);border:1px solid var(--xau);color:var(--xau);font-size:13.5px;font-weight:600;'
     })
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -1106,11 +1106,11 @@ async function trangHocSinh() {
       // danh sách 37 em mà phần lớn chưa chia tổ.
       if (h.toSo) phai.append(e('span', 'nhan nhan-xam', 'Tổ ' + h.toSo));
 
-      const nutXoa = e('button', 'nut-nhe nut-nho', '🗑 Xoá');
+      const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑 Xoá');
       nutXoa.type = 'button';
       nutXoa.title = `Xoá học sinh ${h.hoTen}`;
       nutXoa.setAttribute('aria-label', `Xoá học sinh ${h.hoTen}`);
-      nutXoa.style.cssText = 'color:#f87171;font-size:12.5px;padding:3px 9px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);';
+      nutXoa.style.cssText = 'font-size:12.5px;padding:3px 9px;min-height:30px;';
       nutXoa.addEventListener('click', (ev) => {
         ev.stopPropagation();
         xoaHocSinh(h, () => trangHocSinh());

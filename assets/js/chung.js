@@ -198,14 +198,17 @@ export function khoiTaoThemeBg() {
 
 export function layThongTinVaiTro(vaiTro = '') {
   const vt = String(vaiTro || '').toLowerCase().trim();
+  const laThemeSang = typeof document !== 'undefined' &&
+    (document.documentElement.getAttribute('data-theme') === 'light' || document.documentElement.getAttribute('data-bg-theme') === 'light');
+
   if (vt.includes('thu quy') || vt.includes('thủ quỹ') || vt === 'quy') {
     return {
       bieuTuong: '🪙',
       tenGoi: 'Thủ quỹ',
       lopMau: 'vai-tro-thu-quy',
-      mauNen: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.35))',
-      mauVien: '#10b981',
-      mauChu: '#34d399',
+      mauNen: laThemeSang ? '#d1fae5' : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.35))',
+      mauVien: laThemeSang ? '#059669' : '#10b981',
+      mauChu: laThemeSang ? '#065f46' : '#34d399',
     };
   }
   if (vt.includes('lop truong') || vt.includes('lớp trưởng')) {
@@ -213,9 +216,9 @@ export function layThongTinVaiTro(vaiTro = '') {
       bieuTuong: '👑',
       tenGoi: 'Lớp trưởng',
       lopMau: 'vai-tro-lop-truong',
-      mauNen: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.35))',
-      mauVien: '#f59e0b',
-      mauChu: '#fbbf24',
+      mauNen: laThemeSang ? '#fef3c7' : 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.35))',
+      mauVien: laThemeSang ? '#d97706' : '#f59e0b',
+      mauChu: laThemeSang ? '#92400e' : '#fbbf24',
     };
   }
   if (vt.includes('bi thu') || vt.includes('bí thư')) {
@@ -223,9 +226,9 @@ export function layThongTinVaiTro(vaiTro = '') {
       bieuTuong: '⚡',
       tenGoi: 'Bí thư',
       lopMau: 'vai-tro-bi-thu',
-      mauNen: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(251, 113, 133, 0.35))',
-      mauVien: '#f43f5e',
-      mauChu: '#fb7185',
+      mauNen: laThemeSang ? '#ffe4e6' : 'linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(251, 113, 133, 0.35))',
+      mauVien: laThemeSang ? '#f43f5e' : '#f43f5e',
+      mauChu: laThemeSang ? '#9f1239' : '#fb7185',
     };
   }
   if (vt.includes('to truong') || vt.includes('tổ trưởng')) {
@@ -233,9 +236,9 @@ export function layThongTinVaiTro(vaiTro = '') {
       bieuTuong: '📋',
       tenGoi: 'Tổ trưởng',
       lopMau: 'vai-tro-to-truong',
-      mauNen: 'linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(56, 189, 248, 0.35))',
-      mauVien: '#0ea5e9',
-      mauChu: '#38bdf8',
+      mauNen: laThemeSang ? '#e0f2fe' : 'linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(56, 189, 248, 0.35))',
+      mauVien: laThemeSang ? '#0284c7' : '#0ea5e9',
+      mauChu: laThemeSang ? '#075985' : '#38bdf8',
     };
   }
   if (vt.includes('admin') || vt.includes('quan tri') || vt.includes('quản trị')) {
@@ -243,18 +246,18 @@ export function layThongTinVaiTro(vaiTro = '') {
       bieuTuong: '🛡️',
       tenGoi: 'Quản trị viên',
       lopMau: 'vai-tro-admin',
-      mauNen: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.35))',
-      mauVien: '#6366f1',
-      mauChu: '#818cf8',
+      mauNen: laThemeSang ? '#e0e7ff' : 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.35))',
+      mauVien: laThemeSang ? '#6366f1' : '#6366f1',
+      mauChu: laThemeSang ? '#3730a3' : '#818cf8',
     };
   }
   return {
     bieuTuong: '🎖️',
     tenGoi: vaiTro || 'Ban cán sự',
     lopMau: 'vai-tro-can-su',
-    mauNen: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.35))',
-    mauVien: '#a855f7',
-    mauChu: '#c084fc',
+    mauNen: laThemeSang ? '#ede9fe' : 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.35))',
+    mauVien: laThemeSang ? '#7c3aed' : '#a855f7',
+    mauChu: laThemeSang ? '#5b21b6' : '#c084fc',
   };
 }
 
