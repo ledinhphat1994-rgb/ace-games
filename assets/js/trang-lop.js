@@ -147,6 +147,28 @@ function idGoogleDrive(url) {
   return m ? m[1] : null;
 }
 
+/** Xử lý link hình ảnh: hỗ trợ cả kho R2, link mạng trực tiếp, và link chia sẻ Google Drive */
+function xuLyLinkHinh(khoa) {
+  if (!khoa) return '';
+  if (/^https?:\/\//i.test(khoa)) {
+    const mDrive = khoa.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+    if (mDrive) return 'https://lh3.googleusercontent.com/d/' + mDrive[1];
+    return khoa;
+  }
+  return '/api/anh?khoa=' + encodeURIComponent(khoa);
+}
+
+/** Xử lý link âm thanh: hỗ trợ cả kho R2, link mạng trực tiếp, và link chia sẻ Google Drive */
+function xuLyLinkNhac(khoa, id) {
+  if (!khoa) return '';
+  if (/^https?:\/\//i.test(khoa)) {
+    const mDrive = khoa.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+    if (mDrive) return 'https://drive.google.com/uc?export=download&id=' + mDrive[1];
+    return khoa;
+  }
+  return '/api/thong-bao-nhac?id=' + encodeURIComponent(id);
+}
+
 /** Link video trực tiếp (.mp4, .webm, .mov, .ogg) */
 function laVideoTrucTiep(url) {
   return /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(String(url || '').trim());
@@ -157,16 +179,17 @@ function veDinhKemTin(t) {
   const ds = [];
   if (t.hinhKhoa) {
     const img = e('img', 'tin-hinh');
-    img.src = /^https?:\/\//i.test(t.hinhKhoa) ? t.hinhKhoa : ('/api/anh?khoa=' + encodeURIComponent(t.hinhKhoa));
+    img.src = xuLyLinkHinh(t.hinhKhoa);
     img.alt = t.tieuDe || '';
     img.loading = 'lazy';
+    img.onerror = () => { img.style.display = 'none'; };
     ds.push(img);
   }
   if (t.nhacKhoa) {
     const audio = e('audio');
     audio.controls = true;
     audio.preload = 'none';
-    audio.src = /^https?:\/\//i.test(t.nhacKhoa) ? t.nhacKhoa : ('/api/thong-bao-nhac?id=' + encodeURIComponent(t.id));
+    audio.src = xuLyLinkNhac(t.nhacKhoa, t.id);
     audio.className = 'tin-nhac';
     ds.push(audio);
   }

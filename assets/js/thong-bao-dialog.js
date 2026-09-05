@@ -16,6 +16,26 @@ function hangTich(id, nhanChu, daChon) {
   return [o, l];
 }
 
+function xuLyLinkHinh(url) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) {
+    const mDrive = url.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+    if (mDrive) return `https://lh3.googleusercontent.com/d/${mDrive[1]}`;
+    return url;
+  }
+  return '/api/anh?khoa=' + encodeURIComponent(url);
+}
+
+function xuLyLinkNhac(url, id) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) {
+    const mDrive = url.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+    if (mDrive) return `https://drive.google.com/uc?export=download&id=${mDrive[1]}`;
+    return url;
+  }
+  return '/api/thong-bao-nhac?id=' + encodeURIComponent(id);
+}
+
 /** Khối "đính kèm hình ảnh": hỗ trợ tải ảnh từ máy (tự nén) HOẶC dán link ảnh trực tuyến. */
 function khoiDinhKemHinh(tb) {
   const khung = e('div');
@@ -25,9 +45,7 @@ function khoiDinhKemHinh(tb) {
   let oXoa = null;
   if (tb && tb.hinhKhoa) {
     const img = e('img');
-    img.src = (tb.hinhKhoa.startsWith('http://') || tb.hinhKhoa.startsWith('https://'))
-      ? tb.hinhKhoa
-      : ('/api/anh?khoa=' + encodeURIComponent(tb.hinhKhoa));
+    img.src = xuLyLinkHinh(tb.hinhKhoa);
     img.style.cssText = 'max-width:160px;max-height:120px;border-radius:8px;display:block;margin-bottom:8px;object-fit:cover';
     khung.append(img);
     const [o, l] = hangTich('tbXoaHinh', 'Xoá ảnh hiện tại', false);
@@ -42,11 +60,11 @@ function khoiDinhKemHinh(tb) {
   oTep.className = 'o-nhap';
 
   const linkHienTai = (tb && tb.hinhKhoa && tb.hinhKhoa.startsWith('http')) ? tb.hinhKhoa : '';
-  const oUrlHinh = oNhap('tbUrlHinh', 'text', linkHienTai, 'Dán link ảnh từ mạng (https://...)');
+  const oUrlHinh = oNhap('tbUrlHinh', 'text', linkHienTai, 'Dán link ảnh trực tiếp (https://...) hoặc link chia sẻ Google Drive');
 
   khung.append(
-    truong('Cách 1: Chọn ảnh từ máy (tự nén nhỏ)', oTep),
-    truong('Cách 2: Hoặc dán link ảnh trực tuyến', oUrlHinh)
+    truong('Cách 1: Chọn ảnh từ máy (tự nén nhỏ)', oTep, 'Hệ thống tự nén ảnh tối ưu dung lượng (dưới 1,5 MB) lưu vào Cloudflare R2.'),
+    truong('Cách 2: Hoặc dán link ảnh trực tuyến', oUrlHinh, 'Dán link ảnh từ internet (chuột phải chọn "Sao chép địa chỉ hình ảnh") hoặc link Google Drive (quyền xem: Bất kỳ ai có liên kết).')
   );
 
   return { khung, oTep, oUrlHinh, oXoa };
@@ -63,9 +81,7 @@ function khoiDinhKemNhac(tb) {
     const audio = e('audio');
     audio.controls = true;
     audio.preload = 'none';
-    audio.src = (tb.nhacKhoa.startsWith('http://') || tb.nhacKhoa.startsWith('https://'))
-      ? tb.nhacKhoa
-      : ('/api/thong-bao-nhac?id=' + tb.id);
+    audio.src = xuLyLinkNhac(tb.nhacKhoa, tb.id);
     audio.style.cssText = 'width:100%;margin-bottom:8px';
     khung.append(audio);
     const [o, l] = hangTich('tbXoaNhac', 'Xoá âm thanh hiện tại', false);
@@ -80,11 +96,11 @@ function khoiDinhKemNhac(tb) {
   oTep.className = 'o-nhap';
 
   const linkHienTai = (tb && tb.nhacKhoa && tb.nhacKhoa.startsWith('http')) ? tb.nhacKhoa : '';
-  const oUrlNhac = oNhap('tbUrlNhac', 'text', linkHienTai, 'Dán link file nhạc trực tuyến (.mp3)');
+  const oUrlNhac = oNhap('tbUrlNhac', 'text', linkHienTai, 'Dán link file nhạc (.mp3) hoặc link chia sẻ Google Drive');
 
   khung.append(
-    truong('Cách 1: Chọn file .mp3 từ máy (tối đa 12 MB)', oTep),
-    truong('Cách 2: Hoặc dán link âm thanh trực tuyến', oUrlNhac)
+    truong('Cách 1: Chọn file .mp3 từ máy (tối đa 12 MB)', oTep, 'Tệp MP3 tải lên sẽ lưu an toàn trong kho Cloudflare R2 của lớp.'),
+    truong('Cách 2: Hoặc dán link âm thanh trực tuyến', oUrlNhac, 'Dán link tệp .mp3 trực tuyến hoặc link chia sẻ file âm thanh từ Google Drive.')
   );
 
   return { khung, oTep, oUrlNhac, oXoa };
