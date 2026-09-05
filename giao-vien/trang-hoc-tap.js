@@ -1,5 +1,5 @@
 /* Sổ điểm, thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, chonHocKi, bieuDoCot, chuThichMau,
@@ -1293,25 +1293,10 @@ function thoat(s) {
 
 /* ================= Ảnh hoạt động ================= */
 
-const RONG_TOI_DA = 1600;   // thu nhỏ cạnh dài nhất về 1600 điểm ảnh
-const CHAT_LUONG = 0.82;
-
-/** Nén ảnh ngay trên máy giáo viên: ảnh 5 MB từ điện thoại còn khoảng 200 KB. */
+/** Nén ảnh ngay trên máy giáo viên (dùng chung nenAnhThanhBlob ở chung.js), rồi đổi sang
+    base64 vì /api/gv/anh nhận JSON (khác /api/gv/thong-bao-tep nhận thẳng nhị phân). */
 async function nenAnh(tep) {
-  const anh = await createImageBitmap(tep);
-  const tiLe = Math.min(1, RONG_TOI_DA / Math.max(anh.width, anh.height));
-  const w = Math.round(anh.width * tiLe);
-  const h = Math.round(anh.height * tiLe);
-
-  const khung = document.createElement('canvas');
-  khung.width = w;
-  khung.height = h;
-  khung.getContext('2d').drawImage(anh, 0, 0, w, h);
-  anh.close();
-
-  const blob = await new Promise((giai) => khung.toBlob(giai, 'image/jpeg', CHAT_LUONG));
-  if (!blob) throw new Error('Không xử lý được ảnh này.');
-
+  const blob = await nenAnhThanhBlob(tep);
   const dem = new Uint8Array(await blob.arrayBuffer());
   let chuoiNhiPhan = '';
   const KHOI = 8192;   // chia nhỏ để không tràn ngăn xếp khi ảnh lớn

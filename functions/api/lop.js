@@ -42,17 +42,13 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
          FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
     ).all(),
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
-    // ngoài dán riêng (hinh_url/nhac_url), cuối cùng mới tới cột cũ (tb.hinh_khoa/nhac_khoa —
-    // thông báo tạo từ trước khi có thư viện, giữ tạm để không mất đính kèm cũ).
+    // ngoài dán riêng (hinh_url/nhac_url).
     db.prepare(
       `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim,
               tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
-              COALESCE(ha.khoa, tb.hinh_url, tb.hinh_khoa) AS hinhKhoa,
-              COALESCE(ha.kieu, tb.hinh_kieu) AS hinhKieu,
-              COALESCE(at.khoa, tb.nhac_url, tb.nhac_khoa) AS nhacKhoa,
-              COALESCE(at.kieu, tb.nhac_kieu) AS nhacKieu,
-              tb.video_url AS videoUrl, COALESCE(v.khoa, tb.video_khoa) AS videoKhoa,
-              COALESCE(v.kieu, tb.video_kieu) AS videoKieu
+              COALESCE(ha.khoa, tb.hinh_url) AS hinhKhoa, ha.kieu AS hinhKieu,
+              COALESCE(at.khoa, tb.nhac_url) AS nhacKhoa, at.kieu AS nhacKieu,
+              tb.video_url AS videoUrl, v.khoa AS videoKhoa, v.kieu AS videoKieu
          FROM thong_bao tb
          LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
          LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id

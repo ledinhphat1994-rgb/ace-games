@@ -4,7 +4,8 @@
 // đính kèm (còn lại: chọn mục có sẵn trong thư viện, hoặc dán link ngoài — xử lý trực tiếp ở
 // functions/api/gv/thong-bao.js, không qua endpoint này).
 //   POST   /api/gv/thong-bao-tep?id=<id>&loai=hinh|nhac|video   (thân là DỮ LIỆU NHỊ PHÂN THÔ)
-//   DELETE /api/gv/thong-bao-tep?id=<id>&loai=hinh|nhac|video   (gỡ đính kèm khỏi thông báo — KHÔNG xoá mục khỏi thư viện)
+// Gỡ đính kèm (không tải file mới) đi thẳng qua PATCH /api/gv/thong-bao — đặt anhId/amThanhId/
+// videoId = null, xem assets/js/thong-bao-dialog.js.
 import { bocXuLy, json, loi } from '../../_lib/api.js';
 import { themTepVaoThuVien } from '../../_lib/thu-vien.js';
 
@@ -41,29 +42,4 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   await env.DB.prepare(cauLenh).bind(dong.id, id).run();
 
   return json({ ok: true, id: dong.id, khoa: dong.khoa, kieu: dong.kieu, coByte: dong.coByte });
-}, { canGiaoVien: true, quyenCan: 'thong-bao' });
-
-export const onRequestDelete = bocXuLy(async ({ request, env }) => {
-  const { id, loaiTep } = docThamSo(request);
-  if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
-  if (!LOAI_THU_VIEN[loaiTep]) return loi('Loại tệp không hợp lệ.');
-
-  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1').bind(id).first();
-  if (!tb) return loi('Không tìm thấy thông báo.', 404);
-
-  const cotId = COT_ID[loaiTep];
-  const cotUrl = COT_URL[loaiTep];
-  // Gỡ đính kèm khỏi thông báo này thôi — mục vẫn còn nguyên trong thư viện để dùng lại chỗ
-  // khác. Đồng thời dọn cột kiểu CŨ (hinh_khoa/nhac_khoa/video_khoa) nếu thông báo này còn sót
-  // đính kèm kiểu cũ (từ trước khi có thư viện).
-  const cotKhoaCu = loaiTep === 'hinh' ? 'hinh_khoa' : (loaiTep === 'nhac' ? 'nhac_khoa' : 'video_khoa');
-  const cotKieuCu = loaiTep === 'hinh' ? 'hinh_kieu' : (loaiTep === 'nhac' ? 'nhac_kieu' : 'video_kieu');
-  const truoc = await env.DB.prepare(`SELECT ${cotKhoaCu} AS khoa FROM thong_bao WHERE id = ?1`).bind(id).first();
-  if (truoc?.khoa && env.ANH) await env.ANH.delete(truoc.khoa).catch(() => {});
-
-  const dat = [`${cotId} = NULL`, `${cotKhoaCu} = NULL`, `${cotKieuCu} = NULL`];
-  if (cotUrl) dat.push(`${cotUrl} = NULL`);
-  await env.DB.prepare(`UPDATE thong_bao SET ${dat.join(', ')} WHERE id = ?1`).bind(id).run();
-
-  return json({ ok: true });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });

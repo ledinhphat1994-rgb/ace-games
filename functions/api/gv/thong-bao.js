@@ -21,9 +21,9 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
   const { results } = await env.DB.prepare(
     `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim, tb.hien,
             tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
-            tb.anh_id AS anhId, COALESCE(ha.khoa, tb.hinh_khoa) AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
-            tb.am_thanh_id AS amThanhId, COALESCE(at.khoa, tb.nhac_khoa) AS nhacKhoa, at.kieu AS nhacKieu, tb.nhac_url AS nhacUrl,
-            tb.video_id AS videoId, COALESCE(v.khoa, tb.video_khoa) AS videoKhoa, v.kieu AS videoKieu, tb.video_url AS videoUrl
+            tb.anh_id AS anhId, ha.khoa AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
+            tb.am_thanh_id AS amThanhId, at.khoa AS nhacKhoa, at.kieu AS nhacKieu, tb.nhac_url AS nhacUrl,
+            tb.video_id AS videoId, v.khoa AS videoKhoa, v.kieu AS videoKieu, tb.video_url AS videoUrl
        FROM thong_bao tb
        LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
        LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
@@ -98,16 +98,13 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   if (than.anhId !== undefined || than.hinhUrl !== undefined) {
     them('anh_id', Number.isInteger(than.anhId) ? than.anhId : null);
     them('hinh_url', chuoi(than.hinhUrl, 1000) || null);
-    them('hinh_khoa', null);
   }
   if (than.amThanhId !== undefined || than.nhacUrl !== undefined) {
     them('am_thanh_id', Number.isInteger(than.amThanhId) ? than.amThanhId : null);
     them('nhac_url', chuoi(than.nhacUrl, 1000) || null);
-    them('nhac_khoa', null);
   }
   if (than.videoId !== undefined) {
     them('video_id', Number.isInteger(than.videoId) ? than.videoId : null);
-    them('video_khoa', null);
   }
 
   if (!dat.length) return loi('Không có thông tin cần đổi.');
@@ -123,19 +120,8 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
-  // Đính kèm giờ tham chiếu vào thư viện (anh_id/am_thanh_id/video_id) DÙNG CHUNG, nên xoá
-  // thông báo KHÔNG được xoá luôn file trong thư viện (mục đó có thể còn dùng cho thông báo
-  // khác, hoặc chỉ đơn giản vẫn còn giá trị lưu lại). Chỉ dọn tệp kiểu CŨ (hinh_khoa/nhac_khoa/
-  // video_khoa) — đính kèm từ trước khi có thư viện, vẫn thuộc RIÊNG thông báo này.
-  if (env.ANH) {
-    const tb = await env.DB.prepare('SELECT hinh_khoa AS hinhKhoa, nhac_khoa AS nhacKhoa, video_khoa AS videoKhoa FROM thong_bao WHERE id = ?1').bind(id).first();
-    if (tb) {
-      if (tb.hinhKhoa && !tb.hinhKhoa.startsWith('http')) await env.ANH.delete(tb.hinhKhoa).catch(() => {});
-      if (tb.nhacKhoa && !tb.nhacKhoa.startsWith('http')) await env.ANH.delete(tb.nhacKhoa).catch(() => {});
-      if (tb.videoKhoa) await env.ANH.delete(tb.videoKhoa).catch(() => {});
-    }
-  }
-
+  // Đính kèm giờ tham chiếu vào thư viện (anh_id/am_thanh_id/video_id) DÙNG CHUNG — xoá thông
+  // báo KHÔNG xoá file trong thư viện (mục đó có thể còn dùng cho thông báo khác).
   await env.DB.prepare('DELETE FROM thong_bao WHERE id = ?1').bind(id).run();
   return json({ ok: true });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });
