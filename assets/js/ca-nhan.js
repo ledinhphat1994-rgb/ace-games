@@ -36,8 +36,6 @@ const TEN_TRANG_THAI = {
   vang_khong_phep: ['Vắng không phép', 'nhan-xau'],
 };
 
-const LOP_XEP_LOAI = { 'Tốt': 'nhan-tot', 'Khá': 'nhan', 'Đạt': 'nhan-luuy', 'Chưa đạt': 'nhan-xau' };
-
 const oMa = $('#oMa');
 const nutXem = $('#nutXem');
 const loiNhan = $('#loiNhan');
@@ -155,88 +153,6 @@ function veKetQua(d) {
       }
       noi.append(thePhu);
     }
-  }
-
-  /* ---------- Sổ điểm ---------- */
-  if (anMuc.includes('thong-ke')) noi.append(ghiChuAn('Sổ điểm / thống kê học tập'));
-  d.soDiem.forEach((hk) => {
-    const coGi = hk.mon.some((m) => m.dtb !== null || m.nhanXet);
-    if (!coGi) return;
-
-    const the = e('div', 'the');
-    the.style.marginTop = '14px';
-    const dau = e('div', 'dong-dau');
-    dau.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap';
-    dau.append(e('h3', null, 'Học kì ' + hk.hocKi));
-    if (hk.xepLoai) dau.append(e('span', 'nhan ' + LOP_XEP_LOAI[hk.xepLoai], 'Học lực: ' + hk.xepLoai));
-    if (hk.renLuyen) dau.append(e('span', 'nhan ' + (LOP_XEP_LOAI[hk.renLuyen] || 'nhan-xam'), 'Rèn luyện: ' + hk.renLuyen));
-    if (hk.tbChung !== null) dau.append(e('span', 'nhan nhan-xam', 'TB chung: ' + hk.tbChung));
-    the.append(dau);
-
-    const boc = e('div', 'cuon-ngang');
-    const bang = e('table');
-    const thead = e('thead');
-    const hd = e('tr');
-    hd.append(e('th', null, 'Môn học'), e('th', null, 'Thường xuyên'),
-      e('th', null, 'Giữa kì'), e('th', null, 'Cuối kì'), e('th', null, 'ĐTB'));
-    thead.append(hd);
-
-    const tbody = e('tbody');
-    hk.mon.forEach((m) => {
-      const tr = e('tr');
-      if (m.cachDanhGia === 'diem') {
-        const tx = m.tx.filter((v) => v !== null);
-        tr.append(
-          e('td', null, m.ten),
-          e('td', null, tx.length ? tx.join(', ') : '—'),
-          e('td', null, m.gk ?? '—'),
-          e('td', null, m.ck ?? '—')
-        );
-        const tdDtb = e('td', null, m.dtb ?? '—');
-        tdDtb.style.fontWeight = '700';
-        if (typeof m.dtb === 'number') {
-          if (m.dtb < 5) tdDtb.className = 'diem-kem';
-          else if (m.dtb >= 8) tdDtb.className = 'diem-gioi';
-        }
-        tr.append(tdDtb);
-      } else {
-        const td = e('td');
-        td.colSpan = 4;
-        td.textContent = m.nhanXet === 'D' ? 'Đạt' : m.nhanXet === 'CD' ? 'Chưa đạt' : '—';
-        tr.append(e('td', null, m.ten), td);
-      }
-      tbody.append(tr);
-    });
-
-    bang.append(thead, tbody);
-    boc.append(bang);
-    the.append(boc);
-
-    if (hk.nhanXetRenLuyen) {
-      the.append(Object.assign(e('p', null, 'Nhận xét: ' + hk.nhanXetRenLuyen), { style: 'margin-top:10px' }));
-    }
-    noi.append(the);
-  });
-
-  /* ---------- Khen thưởng & nhắc nhở ---------- */
-  if (d.nhatKy.length) {
-    const the = e('div');
-    the.style.marginTop = '18px';
-    the.append(e('h3', null, 'Khen thưởng và nhắc nhở'));
-    const ds = e('div', 'ds-nhat-ky');
-    d.nhatKy.forEach((n) => {
-      const m = e('div', 'muc-nhat-ky ' + n.loai);
-      const dong = e('div', 'dong-dau');
-      dong.append(
-        e('span', 'nhan ' + (n.loai === 'khen' ? 'nhan-tot' : 'nhan-luuy'),
-          n.loai === 'khen' ? 'Khen thưởng' : 'Nhắc nhở'),
-        e('span', 'ngay', ngayVN(n.ngay))
-      );
-      m.append(dong, e('p', null, n.noiDung));
-      ds.append(m);
-    });
-    the.append(ds);
-    noi.append(the);
   }
 
   /* ---------- Lịch sử vắng ---------- */

@@ -2,7 +2,6 @@
 // Học sinh nhập mã cá nhân hoặc tự động nhận diện từ phiên đăng nhập.
 // Chỉ trả về dữ liệu của đúng em đó — không bao giờ trả danh sách cả lớp.
 import { bocXuLy, json, loi, docThan } from '../_lib/api.js';
-import { gomBangDiem, xepLoaiHocTap } from '../_lib/tt22.js';
 import { chuanHoaMaTuyChinh } from '../_lib/ma.js';
 
 const TOI_DA_THU = 12;      // số lần nhập sai cho phép
@@ -48,18 +47,15 @@ async function layDuLieuCaNhan(db, { ma, hocSinhId, lopId }) {
   const anMuc = hs.anMucChuoi ? hs.anMucChuoi.split(',') : [];
   delete hs.anMucChuoi;
 
-  const [diemDanh, cacMon, diem, nhatKy, renLuyen] = await Promise.all([
+  // Trang web là kỷ niệm đẹp của lớp, không phải chỗ để học sinh soi điểm số/nhận xét vi phạm
+  // của chính mình — Sổ điểm và Nhật ký lớp (khen thưởng/nhắc nhở) đã bỏ HẲN khỏi mục tra cứu
+  // cá nhân này, không truy vấn/trả về nữa. Giáo viên vẫn quản lý đầy đủ hai mục đó ở khu Quản
+  // lý (functions/api/gv/so-diem.js, nhat-ky.js) — không đổi gì ở đó.
+  const [diemDanh] = await Promise.all([
     db.prepare(
       `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
          FROM diem_danh WHERE hoc_sinh_id = ?1 ORDER BY ngay DESC, buoi DESC LIMIT 120`
     ).bind(hs.id).all(),
-    db.prepare('SELECT ma, ten, cach_danh_gia, so_dgtx FROM mon_hoc WHERE dang_hoc = 1 ORDER BY thu_tu').all(),
-    db.prepare('SELECT mon, hoc_ki, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_sinh_id = ?1').bind(hs.id).all(),
-    db.prepare(
-      `SELECT ngay, loai, noi_dung AS noiDung FROM nhat_ky
-        WHERE hoc_sinh_id = ?1 AND loai IN ('khen', 'nhac_nho') ORDER BY ngay DESC LIMIT 20`
-    ).bind(hs.id).all(),
-    db.prepare('SELECT hoc_ki AS hocKi, muc, nhan_xet AS nhanXet FROM ren_luyen WHERE hoc_sinh_id = ?1').bind(hs.id).all(),
   ]);
 
   const dsChinh = diemDanh.results.filter((d) => !d.buoi.endsWith('_phu'));
@@ -73,25 +69,6 @@ async function layDuLieuCaNhan(db, { ma, hocSinhId, lopId }) {
 
   const demPhu = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
   dsPhu.forEach((d) => { if (demPhu[d.trangThai] !== undefined) demPhu[d.trangThai]++; });
-
-  const soDiem = [1, 2].map((hk) => {
-    const cua = diem.results.filter((d) => d.hoc_ki === hk)
-      .map((d) => ({ ...d, hoc_sinh_id: hs.id }));
-    const bang = gomBangDiem(cua, cacMon.results);
-    const mon = cacMon.results.map((m) => ({
-      ma: m.ma, ten: m.ten, cachDanhGia: m.cach_danh_gia,
-      tx: bang[m.ma].tx, gk: bang[m.ma].gk, ck: bang[m.ma].ck,
-      dtb: bang[m.ma].dtb, nhanXet: bang[m.ma].nhanXet,
-    }));
-    const xepLoai = xepLoaiHocTap(mon.map((m) => ({
-      cachDanhGia: m.cachDanhGia, dtb: m.dtb, nhanXet: m.nhanXet,
-    })));
-    const coDiem = mon.filter((m) => m.cachDanhGia === 'diem' && m.dtb !== null);
-    const tbChung = coDiem.length
-      ? Math.round((coDiem.reduce((a, m) => a + m.dtb, 0) / coDiem.length) * 10) / 10 : null;
-    const rl = renLuyen.results.find((r) => r.hocKi === hk) || {};
-    return { hocKi: hk, mon, xepLoai, tbChung, renLuyen: rl.muc || '', nhanXetRenLuyen: rl.nhanXet || '' };
-  });
 
   return {
     ok: true,
@@ -108,8 +85,6 @@ async function layDuLieuCaNhan(db, { ma, hocSinhId, lopId }) {
           chiTiet: dsPhu,
         },
       },
-    soDiem: anMuc.includes('thong-ke') ? [] : soDiem,
-    nhatKy: nhatKy.results,
   };
 }
 

@@ -1070,12 +1070,15 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
    quyền QUẢN LÝ (soạn thông báo, thủ quỹ...) — không cần tạo tài khoản phụ riêng nữa.
    Có quyền quản lý thì mã đó dùng được ở trang đăng nhập /login.html, và bị RÀNG BUỘC
    1 mã = 1 thiết bị (giáo viên có thể "Đặt lại thiết bị" nếu em đổi máy). ---------- */
+// "Sổ điểm / thống kê học tập" (thong-ke) không còn ở đây nữa — trang web là kỷ niệm đẹp của
+// lớp, không đăng điểm số/vi phạm ra cho học sinh xem; mục này giờ ẨN HẲN với TẤT CẢ học sinh
+// (xem functions/api/ca-nhan.js), không còn là lựa chọn bật/tắt theo từng em nữa. Giáo viên vẫn
+// quản lý điểm đầy đủ ở "Sổ điểm" trong khu Quản lý như trước — không đổi gì ở đó.
 const CAC_MUC_XEM = [
   ['quy', 'Tiền quỹ'],
   ['thong-bao', 'Thông báo'],
   ['thoi-khoa-bieu', 'Thời khoá biểu'],
   ['diem-danh', 'Điểm danh / chuyên cần'],
-  ['thong-ke', 'Sổ điểm / thống kê học tập'],
 ];
 // Trùng danh mục CAC_QUYEN ở functions/api/gv/tai-khoan-phu.js — chép tay vì đây là mã
 // chạy trên trình duyệt, không import trực tiếp từ functions/ được.
