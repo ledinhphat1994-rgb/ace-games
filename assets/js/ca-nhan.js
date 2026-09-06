@@ -101,25 +101,54 @@ function veKetQua(d) {
   if (!cc) {
     noi.append(ghiChuAn('Chuyên cần / điểm danh'));
   } else {
-  const tiLe = cc.tong ? Math.round((cc.co_mat / cc.tong) * 100) : null;
+    const tiLe = cc.tong ? Math.round((cc.co_mat / cc.tong) * 100) : null;
 
-  const day = e('div', 'day-so');
-  day.append(
-    oThongKe(tiLe === null ? '—' : tiLe + '%', 'Tỉ lệ chuyên cần', tiLe >= 90 ? 'tot' : tiLe >= 75 ? 'luuy' : 'xau'),
-    oThongKe(String(cc.co_mat), 'Buổi có mặt', 'tot'),
-    oThongKe(String(cc.vang_phep), 'Vắng có phép'),
-    oThongKe(String(cc.vang_khong_phep), 'Vắng không phép', 'xau')
-  );
-  noi.append(day);
+    const day = e('div', 'day-so');
+    day.append(
+      oThongKe(tiLe === null ? '—' : tiLe + '%', 'Tỉ lệ chuyên cần', tiLe >= 90 ? 'tot' : tiLe >= 75 ? 'luuy' : 'xau'),
+      oThongKe(String(cc.co_mat), 'Buổi có mặt', 'tot'),
+      oThongKe(String(cc.vang_phep), 'Vắng có phép'),
+      oThongKe(String(cc.vang_khong_phep), 'Vắng không phép', cc.vang_khong_phep > 0 ? 'xau' : ''),
+      oThongKe(String(cc.tre || 0), 'Đi trễ', (cc.tre || 0) > 0 ? 'luuy' : '')
+    );
+    noi.append(day);
 
-  if (cc.vang_khong_phep >= 5) {
-    const canh = e('div', 'the');
-    canh.style.borderColor = 'var(--xau)';
-    canh.append(e('h3', null, 'Em cần chú ý chuyên cần'),
-      e('p', null, `Em đã vắng không phép ${cc.vang_khong_phep} buổi. `
-        + 'Hãy gặp giáo viên chủ nhiệm để trao đổi sớm.'));
-    noi.append(canh);
-  }
+    if (cc.vang_khong_phep >= 5) {
+      const canh = e('div', 'the');
+      canh.style.borderColor = 'var(--xau)';
+      canh.append(e('h3', null, 'Em cần chú ý chuyên cần'),
+        e('p', null, `Em đã vắng không phép ${cc.vang_khong_phep} buổi. `
+          + 'Hãy gặp giáo viên chủ nhiệm để trao đổi sớm.'));
+      noi.append(canh);
+    }
+
+    // Hoạt động & Điểm danh phụ
+    if (cc.phu && cc.phu.tong > 0) {
+      const thePhu = e('div', 'the');
+      thePhu.style.marginTop = '14px';
+      thePhu.append(
+        e('h3', null, '⚡ Hoạt động & Điểm danh phụ'),
+        e('p', 'trong', `Em có ${cc.phu.tong} lượt ghi nhận trong Điểm danh phụ (Có mặt: ${cc.phu.co_mat || 0}, Vắng: ${(cc.phu.vang_phep || 0) + (cc.phu.vang_khong_phep || 0)}, Đi trễ: ${cc.phu.tre || 0}).`)
+      );
+      if (cc.phu.chiTiet && cc.phu.chiTiet.length) {
+        const dsPhu = e('div', 'ds-diem-danh');
+        dsPhu.style.marginTop = '10px';
+        cc.phu.chiTiet.forEach((x) => {
+          const tenBuoi = x.buoiGoc === 'sang' ? 'Sáng' : x.buoiGoc === 'chieu' ? 'Chiều' : 'Hoạt động';
+          const hang = e('div', 'hang-hs hang-hs-su-kien ' + (x.trangThai === 'tre' ? 'su-kien-tre' : x.trangThai === 'vang_khong_phep' ? 'su-kien-khong-phep' : x.trangThai === 'vang_phep' ? 'su-kien-phep' : ''));
+          const icon = x.trangThai === 'co_mat' ? '✅' : x.trangThai === 'tre' ? '⏱️' : x.trangThai === 'vang_khong_phep' ? '⚠️' : '📋';
+          const iconEl = e('div', 'su-kien-icon', icon);
+          const ten = e('div', 'ten');
+          ten.append(e('b', null, `${ngayVN(x.ngay)} (${tenBuoi})`));
+          if (x.lyDo) ten.append(e('small', null, x.lyDo));
+          const [tenTt, lop] = TEN_TRANG_THAI[x.trangThai] || ['—', 'nhan-xam'];
+          hang.append(iconEl, ten, e('span', 'nhan ' + lop, tenTt));
+          dsPhu.append(hang);
+        });
+        thePhu.append(dsPhu);
+      }
+      noi.append(thePhu);
+    }
   }
 
   /* ---------- Sổ điểm ---------- */
@@ -209,7 +238,7 @@ function veKetQua(d) {
   if (vang.length) {
     const the = e('div', 'the');
     the.style.marginTop = '14px';
-    the.append(e('h3', null, 'Những buổi em vắng hoặc đi trễ'));
+    the.append(e('h3', null, 'Những buổi em vắng hoặc đi trễ chính khoá'));
     const ds = e('div', 'ds-diem-danh');
     vang.slice(0, 20).forEach((x) => {
       const lopSuKien = x.trangThai === 'tre' ? 'su-kien-tre'
@@ -219,7 +248,8 @@ function veKetQua(d) {
       const hang = e('div', 'hang-hs hang-hs-su-kien ' + lopSuKien);
       const iconEl = e('div', 'su-kien-icon', icon);
       const ten = e('div', 'ten');
-      ten.append(e('b', null, ngayVN(x.ngay)));
+      const tenBuoi = x.buoi === 'sang' ? 'Sáng' : x.buoi === 'chieu' ? 'Chiều' : 'Hoạt động';
+      ten.append(e('b', null, `${ngayVN(x.ngay)} (${tenBuoi})`));
       if (x.lyDo) ten.append(e('small', null, x.lyDo));
       const [tenTt, lop] = TEN_TRANG_THAI[x.trangThai] || ['—', 'nhan-xam'];
       hang.append(iconEl, ten, e('span', 'nhan ' + lop, tenTt));
