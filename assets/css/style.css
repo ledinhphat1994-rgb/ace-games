@@ -789,6 +789,20 @@ textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
   box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--chinh) 55%, transparent);
 }
 
+/* Công tắc Văn bản/Ảnh/Video/Âm thanh ở hộp "Thêm hoạt động lớp" — icon đặt trong khung màu
+   riêng từng loại (kiểu Facebook/Zalo: ảnh xanh lá, video đỏ, nhạc tím...) để dễ nhận diện và
+   bắt mắt hơn emoji trơn một màu. */
+.cong-tac-loai { display: inline-flex; align-items: center; gap: 7px; padding-left: 8px; }
+.icon-loai {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 23px; height: 23px; border-radius: 7px; font-size: 13px; flex: 0 0 auto;
+}
+.icon-loai-text { background: color-mix(in srgb, #3b82f6 22%, transparent); }
+.icon-loai-anh { background: color-mix(in srgb, #22c55e 22%, transparent); }
+.icon-loai-video { background: color-mix(in srgb, #ef4444 22%, transparent); }
+.icon-loai-am-thanh { background: color-mix(in srgb, #a855f7 22%, transparent); }
+.vien-loc[aria-pressed="true"] .icon-loai { background: rgba(255, 255, 255, .25); }
+
 /* ---------- 9. Bảng ---------- */
 .cuon-ngang { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
@@ -919,10 +933,27 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
      giao diện tối — viền mờ quá thì 2 bài liền kề nhìn dính vào nhau, không rõ ranh giới. */
   border: 1px solid var(--vien-dam, var(--vien)); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
   box-shadow: var(--bong-1); transition: box-shadow .18s, transform .18s;
+  /* Nhiều bài (kèm ảnh/video) xếp dọc trên cùng trang chủ — content-visibility bỏ qua layout/vẽ
+     cho những bài đang ở ngoài màn hình, trình duyệt hỗ trợ sẽ mượt hơn hẳn khi cuộn. */
+  content-visibility: auto; contain-intrinsic-size: 0 480px;
 }
 .hoat-dong-the:hover { box-shadow: var(--bong-2); transform: translateY(-2px); }
 .hoat-dong-the video, .hoat-dong-the iframe { aspect-ratio: 16 / 9; width: 100%; display: block; border: 0; background: #000; }
 .hoat-dong-the audio { display: block; margin: 14px 12px 6px; width: calc(100% - 24px); }
+/* "Mặt nạ" video (poster + nút play) — thay cho nhúng iframe ngay khi vẽ trang, chỉ nhúng thật
+   khi bấm play (xem taoKhungVideoNgoai/veMatNaVideo trong trang-lop.js). Nhiều iframe YouTube/
+   Drive/Facebook nhúng sẵn cùng lúc trên một trang là nguyên nhân chính gây giật/lag. */
+.video-mat-na {
+  position: relative; aspect-ratio: 16 / 9; width: 100%; display: flex; align-items: center;
+  justify-content: center; background: #000; cursor: pointer;
+}
+.hoat-dong-the .video-mat-na img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; border-radius: 0; opacity: .85; }
+.video-mat-na-nut {
+  position: relative; z-index: 1; width: 58px; height: 58px; border-radius: 50%;
+  background: rgba(226, 30, 30, .92); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; padding-left: 3px; box-shadow: 0 2px 14px rgba(0, 0, 0, .45); transition: transform .15s, background .15s;
+}
+.video-mat-na:hover .video-mat-na-nut { background: #e21e1e; transform: scale(1.08); }
 /* Ảnh trong bài "Hoạt động lớp": KHÔNG ép cắt vuông 4:3 như lưới Thư viện Ảnh (.thu-vien img) —
    để ảnh hiện trọn vẹn, khớp khung hình gốc. Không đặt max-height/object-fit ở đây: kết hợp với
    width:100% sẽ ép hộp chứa co theo chiều cao, khiến ảnh dọc bị "đóng khung" chừa khoảng trắng

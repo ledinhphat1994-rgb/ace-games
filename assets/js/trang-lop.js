@@ -1530,6 +1530,53 @@ function xuLyLinkAmThanhHoatDong(item) {
   return xuLyLinkNhac(item.amThanhUrl, item.id);
 }
 
+/** Tạo khối nhúng THẬT SỰ cho video ngoài (YouTube/Drive/Facebook/TikTok) — chỉ gọi khi người
+    xem đã bấm play, KHÔNG tạo sẵn lúc vẽ trang. Mỗi iframe nhúng (nhất là YouTube) tự kéo theo
+    cả trình phát nặng của bên đó — nhiều bài có video trên cùng trang chủ cùng lúc là nguyên
+    nhân chính gây giật/lag, dù đã có loading="lazy". */
+function taoKhungVideoNgoai(url, maYt, maDrive) {
+  if (maYt) {
+    const khung = e('iframe');
+    khung.src = 'https://www.youtube.com/embed/' + maYt + '?autoplay=1';
+    khung.allowFullscreen = true;
+    khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    return khung;
+  }
+  if (maDrive) {
+    const khung = e('iframe');
+    khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
+    khung.allowFullscreen = true; khung.allow = 'autoplay; fullscreen';
+    return khung;
+  }
+  const khung = e('iframe');
+  khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(url) + '&show_text=0&autoplay=true';
+  khung.allowFullscreen = true;
+  return khung;
+}
+
+/** "Mặt nạ" nhẹ thay cho iframe — hiện ảnh nền (poster) + nút play, đợi người xem bấm mới thật
+    sự nhúng trình phát của YouTube/Drive/Facebook/TikTok. Nhẹ hơn RẤT nhiều so với nhúng sẵn cả
+    trang, vì trang chủ có thể có nhiều bài video hiển thị cùng lúc. */
+function veMatNaVideo(url, maYt, maDrive) {
+  const boc = e('div', 'video-mat-na');
+  boc.setAttribute('role', 'button');
+  boc.tabIndex = 0;
+  boc.title = 'Nhấn để xem video';
+  if (maYt) {
+    const anhNen = e('img');
+    anhNen.src = 'https://img.youtube.com/vi/' + maYt + '/hqdefault.jpg';
+    anhNen.loading = 'lazy'; anhNen.decoding = 'async'; anhNen.alt = '';
+    boc.append(anhNen);
+  }
+  boc.append(Object.assign(e('span', 'video-mat-na-nut', '▶'), { 'aria-hidden': 'true' }));
+  function moThat() {
+    boc.replaceWith(taoKhungVideoNgoai(url, maYt, maDrive));
+  }
+  boc.addEventListener('click', moThat);
+  boc.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); moThat(); } });
+  return boc;
+}
+
 /** Khối video của một hoạt động — tách riêng vì logic nhận diện nguồn (thư viện/YouTube/Drive/
     Facebook/TikTok/link .mp4 trực tiếp) khá dài, dùng lại được cho cả thẻ chỉ có video lẫn thẻ
     gộp nhiều loại. */
@@ -1543,29 +1590,13 @@ function veKhoiVideoHoatDong(item) {
   const url = item.videoUrl;
   const maYt = idYoutube(url);
   const maDrive = idGoogleDrive(url);
-  if (maYt) {
-    const khung = e('iframe');
-    khung.src = 'https://www.youtube.com/embed/' + maYt;
-    khung.loading = 'lazy'; khung.allowFullscreen = true;
-    khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-    return khung;
-  }
-  if (maDrive) {
-    const khung = e('iframe');
-    khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
-    khung.loading = 'lazy'; khung.allowFullscreen = true; khung.allow = 'autoplay; fullscreen';
-    return khung;
+  if (maYt || maDrive || /facebook\.com|fb\.watch|tiktok\.com/i.test(url || '')) {
+    return veMatNaVideo(url, maYt, maDrive);
   }
   if (laVideoTrucTiep(url)) {
     const vid = e('video');
     vid.controls = true; vid.playsInline = true; vid.preload = 'metadata'; vid.src = url;
     return vid;
-  }
-  if (/facebook\.com|fb\.watch|tiktok\.com/i.test(url || '')) {
-    const khung = e('iframe');
-    khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(url) + '&show_text=0';
-    khung.loading = 'lazy'; khung.allowFullscreen = true;
-    return khung;
   }
   const a = e('a', 'nut nut-vien nut-nho', '🎬 Xem video');
   a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';

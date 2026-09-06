@@ -118,7 +118,13 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
   function veCongTac() {
     datNoiDung(dayCongTac, ...CAC_LOAI.map(([ma, nhan, choPhep, tenQuyen]) => {
       const dangBatMa = dangBat.has(ma);
-      const b = e('button', 'vien-loc', (choPhep ? ICON_LOAI[ma] : '🔒') + ' ' + nhan);
+      // Icon đặt trong khung màu riêng từng loại (kiểu Facebook: ảnh xanh lá, video đỏ...) cho
+      // dễ nhận diện nhanh và bắt mắt hơn emoji trơn.
+      const b = e('button', 'vien-loc cong-tac-loai');
+      b.append(
+        e('span', 'icon-loai icon-loai-' + ma, choPhep ? ICON_LOAI[ma] : '🔒'),
+        e('span', null, nhan),
+      );
       b.type = 'button';
       b.setAttribute('aria-pressed', String(dangBatMa));
       if (!choPhep) {
