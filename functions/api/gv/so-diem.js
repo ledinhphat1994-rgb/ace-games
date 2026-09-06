@@ -14,7 +14,7 @@ async function layMon(db) {
   return results;
 }
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const q = new URL(request.url).searchParams;
   const hocKi = Number(q.get('hocKi')) === 2 ? 2 : 1;
@@ -22,7 +22,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
   const [cacMon, { results: hocSinh }] = await Promise.all([
     layMon(db),
-    db.prepare('SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id').all(),
+    db.prepare('SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(phien.lopId).all(),
   ]);
 
   // --- Bảng điểm của một môn ---
@@ -31,8 +31,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     if (!thongTinMon) return loi('Không có môn học này.', 404);
 
     const { results: diem } = await db.prepare(
-      'SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE mon = ?1 AND hoc_ki = ?2'
-    ).bind(mon, hocKi).all();
+      'SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE mon = ?1 AND hoc_ki = ?2 AND lop_id = ?3'
+    ).bind(mon, hocKi, phien.lopId).all();
 
     const theoHs = {};
     diem.forEach((d) => { (theoHs[d.hoc_sinh_id] = theoHs[d.hoc_sinh_id] || []).push(d); });
@@ -48,9 +48,9 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
 
   // --- Tổng hợp toàn bộ môn ---
   const [{ results: diem }, { results: renLuyen }] = await Promise.all([
-    db.prepare('SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_ki = ?1')
-      .bind(hocKi).all(),
-    db.prepare('SELECT hoc_sinh_id, muc, nhan_xet FROM ren_luyen WHERE hoc_ki = ?1').bind(hocKi).all(),
+    db.prepare('SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_ki = ?1 AND lop_id = ?2')
+      .bind(hocKi, phien.lopId).all(),
+    db.prepare('SELECT hoc_sinh_id, muc, nhan_xet FROM ren_luyen WHERE hoc_ki = ?1 AND lop_id = ?2').bind(hocKi, phien.lopId).all(),
   ]);
 
   const theoHs = {};
@@ -86,7 +86,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   return json({ ok: true, hocKi, monHoc: cacMon, danhSach });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { hocKi, mon, ghiDiem } = await docThan(request);
 
   const hk = Number(hocKi) === 2 ? 2 : 1;
@@ -94,10 +94,13 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (!Array.isArray(ghiDiem) || !ghiDiem.length) return loi('Không có điểm nào để lưu.');
   if (ghiDiem.length > 500) return loi('Quá nhiều điểm trong một lần gửi.');
 
+  const { results: hsLop } = await env.DB.prepare('SELECT id FROM hoc_sinh WHERE lop_id = ?1').bind(phien.lopId).all();
+  const idHopLe = new Set(hsLop.map((h) => h.id));
+
   const cauLenh = [];
   for (const g of ghiDiem) {
     const id = Number(g.hocSinhId);
-    if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
+    if (!Number.isInteger(id) || id <= 0 || !idHopLe.has(id)) return loi('Mã học sinh không hợp lệ.');
     if (!LOAI_DIEM.has(g.loai)) return loi(`Loại điểm không hợp lệ: ${g.loai}`);
 
     const stt = Number(g.soThuTu) || 1;
@@ -122,13 +125,13 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
       ).bind(id, mon, hk, g.loai, stt));
     } else {
       cauLenh.push(env.DB.prepare(
-        `INSERT INTO diem (hoc_sinh_id, mon, hoc_ki, loai, so_thu_tu, gia_tri, nhan_xet, cap_nhat_luc)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+        `INSERT INTO diem (hoc_sinh_id, mon, hoc_ki, loai, so_thu_tu, gia_tri, nhan_xet, cap_nhat_luc, lop_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'), ?8)
          ON CONFLICT(hoc_sinh_id, mon, hoc_ki, loai, so_thu_tu)
          DO UPDATE SET gia_tri = excluded.gia_tri,
                        nhan_xet = excluded.nhan_xet,
                        cap_nhat_luc = datetime('now')`
-      ).bind(id, mon, hk, g.loai, stt, giaTri, nx));
+      ).bind(id, mon, hk, g.loai, stt, giaTri, nx, phien.lopId));
     }
   }
 

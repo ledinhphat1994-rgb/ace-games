@@ -7,12 +7,14 @@
 import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
 import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
 
-export const onRequestGet = bocXuLy(async ({ env }) => {
-  const { results } = await env.DB.prepare('SELECT vai_tro AS vaiTro, ma, cap_nhat_luc AS capNhatLuc FROM ma_dang_nhap').all();
+export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+  const { results } = await env.DB.prepare('SELECT vai_tro AS vaiTro, ma, cap_nhat_luc AS capNhatLuc FROM ma_dang_nhap WHERE lop_id = ?1').bind(phien.lopId).all();
   const daDat = Object.fromEntries(results.map((r) => [r.vaiTro, r]));
 
+  // Biến môi trường CLASS_CODE/TEACHER_CODE chỉ còn ý nghĩa mặc định cho lớp gốc (lopId=1) —
+  // lớp thêm sau này luôn phải có mã riêng đặt qua web, không có biến môi trường dự phòng.
   const goi = (vaiTro, maMacDinh) => ({
-    ma: daDat[vaiTro]?.ma || maMacDinh || '',
+    ma: daDat[vaiTro]?.ma || (phien.lopId === 1 ? maMacDinh : '') || '',
     daTuDat: Boolean(daDat[vaiTro]),
     capNhatLuc: daDat[vaiTro]?.capNhatLuc || null,
   });
@@ -20,7 +22,7 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
   return json({ ok: true, student: goi('student', env.CLASS_CODE), teacher: goi('teacher', env.TEACHER_CODE) });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { vaiTro, ma } = await docThan(request);
   if (!['student', 'teacher'].includes(vaiTro)) return loi('Vai trò không hợp lệ.');
 
@@ -39,9 +41,9 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   }
 
   await env.DB.prepare(
-    `INSERT INTO ma_dang_nhap (vai_tro, ma, cap_nhat_luc) VALUES (?1, ?2, datetime('now'))
-     ON CONFLICT(vai_tro) DO UPDATE SET ma = excluded.ma, cap_nhat_luc = datetime('now')`
-  ).bind(vaiTro, maMoi).run();
+    `INSERT INTO ma_dang_nhap (lop_id, vai_tro, ma, cap_nhat_luc) VALUES (?1, ?2, ?3, datetime('now'))
+     ON CONFLICT(lop_id, vai_tro) DO UPDATE SET ma = excluded.ma, cap_nhat_luc = datetime('now')`
+  ).bind(phien.lopId, vaiTro, maMoi).run();
 
   return json({ ok: true, ma: maMoi });
 }, { canGiaoVien: true });

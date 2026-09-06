@@ -7,7 +7,7 @@
 //          -> dangHoc: false = đánh dấu đã nghỉ/chuyển trường (không xoá dữ liệu)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const id = Number(new URL(request.url).searchParams.get('id'));
 
@@ -17,18 +17,18 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
         `SELECT id, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
                 lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo,
                 dien_thoai_ph AS dienThoaiPh, hoan_canh AS hoanCanh, ghi_chu AS ghiChu
-           FROM hoc_sinh WHERE id = ?1`
-      ).bind(id).first(),
+           FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2`
+      ).bind(id, phien.lopId).first(),
       db.prepare(
         `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
-           FROM diem_danh WHERE hoc_sinh_id = ?1 ORDER BY ngay DESC LIMIT 60`
-      ).bind(id).all(),
+           FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 60`
+      ).bind(id, phien.lopId).all(),
       db.prepare(
         `SELECT id, ngay, loai, noi_dung AS noiDung, da_xu_ly AS daXuLy
-           FROM nhat_ky WHERE hoc_sinh_id = ?1 ORDER BY ngay DESC LIMIT 50`
-      ).bind(id).all(),
-      db.prepare('SELECT muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi WHERE hoc_sinh_id = ?1')
-        .bind(id).all(),
+           FROM nhat_ky WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 50`
+      ).bind(id, phien.lopId).all(),
+      db.prepare('SELECT muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi WHERE hoc_sinh_id = ?1 AND lop_id = ?2')
+        .bind(id, phien.lopId).all(),
     ]);
 
     if (!hs) return loi('Không tìm thấy học sinh.', 404);
@@ -48,14 +48,14 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
             COALESCE(SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 END), 0) AS vangKhongPhep,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 END), 0) AS vangPhep,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 END), 0) AS tre
-       FROM hoc_sinh h LEFT JOIN diem_danh d ON d.hoc_sinh_id = h.id
-      WHERE h.dang_hoc = 1
+       FROM hoc_sinh h LEFT JOIN diem_danh d ON d.hoc_sinh_id = h.id AND d.lop_id = h.lop_id
+      WHERE h.dang_hoc = 1 AND h.lop_id = ?1
       GROUP BY h.id ORDER BY h.id`
-  ).all();
+  ).bind(phien.lopId).all();
 
   const { results: td } = await db.prepare(
-    'SELECT hoc_sinh_id AS hocSinhId, muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi'
-  ).all();
+    'SELECT hoc_sinh_id AS hocSinhId, muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi WHERE lop_id = ?1'
+  ).bind(phien.lopId).all();
 
   const theoId = {};
   td.forEach((x) => {
@@ -69,7 +69,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
   const hoTen = chuoi(than.hoTen, 100);
   if (!hoTen) return loi('Chưa nhập họ tên.');
@@ -81,18 +81,24 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   const toSo = than.toSo === '' || than.toSo == null ? null : Number(than.toSo);
   if (toSo !== null && (!Number.isInteger(toSo) || toSo < 1)) return loi('Số tổ phải là số nguyên dương (từ 1 trở lên).');
 
-  const maxId = await env.DB.prepare('SELECT COALESCE(MAX(id), 0) AS n FROM hoc_sinh').first();
+  // id là khoá thay thế DUY NHẤT TOÀN HỆ THỐNG (không riêng theo lớp) để không bao giờ đụng
+  // hàng giữa các lớp; so_thu_tu mới là "số thứ tự trong sổ lớp" thật sự, tính riêng từng lớp.
+  const [maxId, maxStt] = await Promise.all([
+    env.DB.prepare('SELECT COALESCE(MAX(id), 0) AS n FROM hoc_sinh').first(),
+    env.DB.prepare('SELECT COALESCE(MAX(so_thu_tu), 0) AS n FROM hoc_sinh WHERE lop_id = ?1').bind(phien.lopId).first(),
+  ]);
   const id = (maxId?.n || 0) + 1;
+  const soThuTu = (maxStt?.n || 0) + 1;
 
   await env.DB.prepare(
-    `INSERT INTO hoc_sinh (id, ho_ten, gioi_tinh, ngay_sinh, lop_nghe, to_hop, to_so, dang_hoc)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1)`
-  ).bind(id, hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo).run();
+    `INSERT INTO hoc_sinh (id, lop_id, so_thu_tu, ho_ten, gioi_tinh, ngay_sinh, lop_nghe, to_hop, to_so, dang_hoc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1)`
+  ).bind(id, phien.lopId, soThuTu, hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo).run();
 
   return json({ ok: true, id });
 }, { canGiaoVien: true });
 
-export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
   const id = Number(than.id);
   if (!Number.isInteger(id)) return loi('Thiếu mã học sinh.');
@@ -119,16 +125,20 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
 
   if (!dat.length) return loi('Không có gì để cập nhật.');
 
-  thamSo.push(id);
-  await env.DB.prepare(`UPDATE hoc_sinh SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`)
+  thamSo.push(id, phien.lopId);
+  const kq = await env.DB.prepare(`UPDATE hoc_sinh SET ${dat.join(', ')} WHERE id = ?${thamSo.length - 1} AND lop_id = ?${thamSo.length}`)
     .bind(...thamSo).run();
+  if (!kq.meta.changes) return loi('Không tìm thấy học sinh.', 404);
 
   return json({ ok: true });
 }, { canGiaoVien: true });
 
-export const onRequestDelete = bocXuLy(async ({ request, env }) => {
+export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã học sinh.');
+
+  const hs = await env.DB.prepare('SELECT id FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+  if (!hs) return loi('Không tìm thấy học sinh.', 404);
 
   // Xoá học sinh và toàn bộ dữ liệu phụ thuộc
   await env.DB.batch([
@@ -138,8 +148,6 @@ export const onRequestDelete = bocXuLy(async ({ request, env }) => {
     env.DB.prepare('DELETE FROM lien_he_phu_huynh WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM quy_dong WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM diem WHERE hoc_sinh_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM nhan_xet_mon WHERE hoc_sinh_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM danh_gia_hoc_ki WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('UPDATE tai_khoan_phu SET hoc_sinh_id = NULL WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM hoc_sinh WHERE id = ?1').bind(id),
   ]);

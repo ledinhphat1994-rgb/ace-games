@@ -3,8 +3,8 @@
 import { bocXuLy, loi } from '../_lib/api.js';
 import { phucVuTepR2 } from '../_lib/media-stream.js';
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
-  const bai = await env.DB.prepare('SELECT khoa, kieu FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first();
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const bai = await env.DB.prepare('SELECT khoa, kieu FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 LIMIT 1').bind(phien.lopId).first();
   if (!bai) return loi('Chưa có nhạc nền.', 404);
   return phucVuTepR2(env, bai.khoa, 'audio/mpeg', request);
 }, { canGiaoVien: false });

@@ -293,8 +293,9 @@ function phanHoiBaoCao(dinhDang, tenTepGoc, duLieu) {
   return traVeExcel(tenTepGoc, duLieu);
 }
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
+  const lopId = phien.lopId;
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai') || 'hoc-sinh';
   const dinhDang = (q.get('dinhDang') || 'excel').toLowerCase() === 'csv' ? 'csv' : 'excel';
@@ -321,8 +322,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vang_khong_phep
          FROM hoc_sinh h LEFT JOIN diem_danh d
            ON d.hoc_sinh_id = h.id AND d.ngay BETWEEN ?1 AND ?2
-        WHERE h.dang_hoc = 1 GROUP BY h.id ORDER BY h.id`
-    ).bind(tuNgay, denNgay).all();
+        WHERE h.dang_hoc = 1 AND h.lop_id = ?3 GROUP BY h.id ORDER BY h.id`
+    ).bind(tuNgay, denNgay, lopId).all();
 
     let tongBuoi = 0;
     let tongCoMat = 0;
@@ -382,8 +383,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (loai === 'hoc-sinh' || loai === 'danh-sach') {
     const { results } = await db.prepare(
       `SELECT id, ho_ten, gioi_tinh, ngay_sinh, lop_nghe, to_hop, chuc_vu, to_so, dien_thoai_ph, hoan_canh, ghi_chu
-         FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
-    ).all();
+         FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id`
+    ).bind(lopId).all();
 
     const namDem = results.filter((h) => (h.gioi_tinh || '').toLowerCase() === 'nam').length;
     const nuDem = results.length - namDem;
@@ -431,9 +432,9 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (loai === 'so-diem') {
     const [{ results: cacMon }, { results: hocSinh }, { results: diem }, { results: renLuyen }] = await Promise.all([
       db.prepare('SELECT ma, ten, cach_danh_gia, so_dgtx FROM mon_hoc WHERE dang_hoc = 1 ORDER BY thu_tu').all(),
-      db.prepare('SELECT id, ho_ten FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id').all(),
-      db.prepare('SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_ki = ?1').bind(hocKi).all(),
-      db.prepare('SELECT hoc_sinh_id, muc FROM ren_luyen WHERE hoc_ki = ?1').bind(hocKi).all(),
+      db.prepare('SELECT id, ho_ten FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(lopId).all(),
+      db.prepare('SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_ki = ?1 AND lop_id = ?2').bind(hocKi, lopId).all(),
+      db.prepare('SELECT hoc_sinh_id, muc FROM ren_luyen WHERE hoc_ki = ?1 AND lop_id = ?2').bind(hocKi, lopId).all(),
     ]);
 
     const theoHs = {};
@@ -484,8 +485,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
     const { results } = await db.prepare(
       `SELECT n.ngay, n.loai, n.noi_dung, n.da_xu_ly, h.ho_ten
          FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
-        WHERE n.ngay BETWEEN ?1 AND ?2 ORDER BY n.ngay DESC`
-    ).bind(tuNgay, denNgay).all();
+        WHERE n.ngay BETWEEN ?1 AND ?2 AND n.lop_id = ?3 ORDER BY n.ngay DESC`
+    ).bind(tuNgay, denNgay, lopId).all();
 
     const TEN_LOAI = { khen: 'Khen thưởng', nhac_nho: 'Nhắc nhở', vi_pham: 'Vi phạm', ho_tro: 'Cần hỗ trợ', khac: 'Khác' };
     const cacHang = results.map((n, i) => [
@@ -508,10 +509,10 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   // 5. MỤC: THỦ QUỸ (Khớp mục "Thủ quỹ" trong Vùng 1)
   if (loai === 'thu-quy') {
     const [{ results: cacKhoan }, { results: hocSinh }, { results: cacDong }, { results: cacChi }] = await Promise.all([
-      db.prepare('SELECT id, ten, so_tien_moi_em FROM quy_khoan ORDER BY id ASC').all(),
-      db.prepare('SELECT id, ho_ten, to_so FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id').all(),
-      db.prepare('SELECT khoan_id, hoc_sinh_id, so_tien FROM quy_dong').all(),
-      db.prepare('SELECT id, ngay, noi_dung, so_tien, ghi_chu FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
+      db.prepare('SELECT id, ten, so_tien_moi_em FROM quy_khoan WHERE lop_id = ?1 ORDER BY id ASC').bind(lopId).all(),
+      db.prepare('SELECT id, ho_ten, to_so FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(lopId).all(),
+      db.prepare('SELECT khoan_id, hoc_sinh_id, so_tien FROM quy_dong WHERE lop_id = ?1').bind(lopId).all(),
+      db.prepare('SELECT id, ngay, noi_dung, so_tien, ghi_chu FROM quy_chi WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC').bind(lopId).all(),
     ]);
 
     const dongTheoKhoanHs = {};
@@ -601,8 +602,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (loai === 'thong-bao') {
     const { results } = await db.prepare(
       `SELECT id, tieu_de, noi_dung, ngay_tao, ghim, nguoi_tao
-         FROM thong_bao ORDER BY ngay_tao DESC, id DESC`
-    ).all();
+         FROM thong_bao WHERE lop_id = ?1 ORDER BY ngay_tao DESC, id DESC`
+    ).bind(lopId).all();
 
     const cacHang = results.map((t, i) => [
       { v: i + 1, kieu: 'giua' },
@@ -627,8 +628,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   // 8. MỤC: THỜI KHOÁ BIỂU (Khớp mục "Thời khoá biểu" trong Vùng 1)
   if (loai === 'thoi-khoa-bieu') {
     const phienBan = await db.prepare(
-      `SELECT id, ten, ngay_bat_dau FROM tkb_phien_ban ORDER BY ngay_bat_dau DESC LIMIT 1`
-    ).first();
+      `SELECT id, ten, ngay_bat_dau FROM tkb_phien_ban WHERE lop_id = ?1 ORDER BY ngay_bat_dau DESC LIMIT 1`
+    ).bind(lopId).first();
 
     const cacHang = [];
     if (phienBan) {
@@ -675,8 +676,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               (SELECT trang_thai FROM theo_doi t WHERE t.hoc_sinh_id = h.id AND t.muc = 'sgk') AS sgk,
               (SELECT trang_thai FROM theo_doi t WHERE t.hoc_sinh_id = h.id AND t.muc = 'dong_phuc') AS dong_phuc
          FROM hoc_sinh h LEFT JOIN diem_danh d ON d.hoc_sinh_id = h.id
-        WHERE h.dang_hoc = 1 GROUP BY h.id ORDER BY h.id`
-    ).all();
+        WHERE h.dang_hoc = 1 AND h.lop_id = ?1 GROUP BY h.id ORDER BY h.id`
+    ).bind(lopId).all();
 
     const cacHang = results.map((h, i) => [
       { v: i + 1, kieu: 'giua' },
@@ -710,8 +711,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
          FROM hoc_sinh h
          LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
          LEFT JOIN tai_khoan_phu t ON t.hoc_sinh_id = h.id
-        WHERE h.dang_hoc = 1 ORDER BY h.id`
-    ).all();
+        WHERE h.dang_hoc = 1 AND h.lop_id = ?1 ORDER BY h.id`
+    ).bind(lopId).all();
 
     const BAN_DO_QUYEN = Object.fromEntries(CAC_QUYEN);
 

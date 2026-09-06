@@ -1,5 +1,6 @@
 // GET /api/anh?khoa=... — trả về nội dung một tấm ảnh.
-// Học sinh đã vào bằng mã lớp đều xem được. Người ngoài thì không (middleware chặn từ trước).
+// Học sinh đã vào bằng mã lớp đều xem được — NHƯNG chỉ ảnh của ĐÚNG LỚP mình, không phải chỉ
+// cần đăng nhập là xem được ảnh của bất kỳ lớp nào nếu đoán ra đúng khoá.
 import { layPhien } from '../_lib/api.js';
 
 export async function onRequestGet({ request, env }) {
@@ -10,8 +11,14 @@ export async function onRequestGet({ request, env }) {
     return new Response('Khoá ảnh không hợp lệ.', { status: 400 });
   }
 
-  if (!(await layPhien(request, env))) return new Response('Chưa đăng nhập.', { status: 401 });
+  const phien = await layPhien(request, env);
+  if (!phien) return new Response('Chưa đăng nhập.', { status: 401 });
   if (!env.ANH) return new Response('Chưa gắn kho ảnh.', { status: 500 });
+
+  if (env.DB) {
+    const anh = await env.DB.prepare('SELECT id FROM hinh_anh WHERE khoa = ?1 AND lop_id = ?2').bind(khoa, phien.lopId).first();
+    if (!anh) return new Response('Không tìm thấy ảnh.', { status: 404 });
+  }
 
   let value, kieuTraVe;
   if (typeof env.ANH.getWithMetadata === 'function') {

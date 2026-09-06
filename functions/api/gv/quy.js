@@ -27,7 +27,7 @@ function soTienHopLe(v) {
   return Number.isFinite(n) && n >= 0 && n <= 100_000_000 && Number.isInteger(n);
 }
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const khoanId = Number(new URL(request.url).searchParams.get('khoanId'));
 
@@ -40,12 +40,12 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
               dk.ten AS dinhKyTen, dk.chu_ky AS dinhKyChuKy, dk.so_ky AS dinhKySoKy
          FROM quy_khoan k LEFT JOIN quy_dinh_ky dk ON dk.id = k.dinh_ky_id
-        WHERE k.id = ?1`
-    ).bind(khoanId).first();
+        WHERE k.id = ?1 AND k.lop_id = ?2`
+    ).bind(khoanId, phien.lopId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
     const [{ results: hocSinh }, { results: dong }] = await Promise.all([
-      db.prepare('SELECT id, ho_ten AS hoTen, to_so AS toSo FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id').all(),
+      db.prepare('SELECT id, ho_ten AS hoTen, to_so AS toSo FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(phien.lopId).all(),
       db.prepare(
         'SELECT id, hoc_sinh_id AS hocSinhId, so_tien AS soTien, ngay, ghi_chu AS ghiChu FROM quy_dong WHERE khoan_id = ?1 ORDER BY ngay DESC, id DESC'
       ).bind(khoanId).all(),
@@ -102,16 +102,17 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               COALESCE(SUM(d.so_tien), 0) AS tongDaThu
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
                           LEFT JOIN quy_dinh_ky dk ON dk.id = k.dinh_ky_id
+        WHERE k.lop_id = ?1
         GROUP BY k.id ORDER BY k.tao_luc DESC`
-    ).all(),
-    db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, ghi_chu AS ghiChu, loai FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
-    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1').first(),
+    ).bind(phien.lopId).all(),
+    db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, ghi_chu AS ghiChu, loai FROM quy_chi WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC').bind(phien.lopId).all(),
+    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1').bind(phien.lopId).first(),
     // Số tiền từng em đã đóng theo TỪNG khoản — dùng để đếm "bao nhiêu em đã đóng đủ" ngay
     // ở dòng tóm tắt (thu gọn), khỏi phải mở rộng khoản mới biết.
     db.prepare(
       `SELECT khoan_id AS khoanId, hoc_sinh_id AS hocSinhId, SUM(so_tien) AS tong
-         FROM quy_dong GROUP BY khoan_id, hoc_sinh_id`
-    ).all(),
+         FROM quy_dong WHERE lop_id = ?1 GROUP BY khoan_id, hoc_sinh_id`
+    ).bind(phien.lopId).all(),
   ]);
 
   const emDuTheoKhoan = {};
@@ -165,8 +166,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
     await chupCheckpoint(db, `Trước khi: mở khoản thu "${ten}" (Thu nhanh)`, phien);
     const kq = await db.prepare(
-      'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu, ngay_bat_dau, ngay_ket_thuc) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
-    ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500), ngayBatDau, ngayKetThuc).run();
+      'INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, ghi_chu, ngay_bat_dau, ngay_ket_thuc, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)'
+    ).bind(ten, Number(than.hocKy) === 2 ? 2 : 1, Number(than.soTienMoiEm), chuoi(than.ghiChu, 500), ngayBatDau, ngayKetThuc, phien.lopId).run();
 
     return json({ ok: true, id: kq.meta.last_row_id });
   }
@@ -179,17 +180,18 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     if (!soTienHopLe(than.soTien) || Number(than.soTien) <= 0) return loi('Số tiền không hợp lệ.');
     const ngay = ngayHopLe(than.ngay) ? than.ngay : new Date().toISOString().slice(0, 10);
 
-    const khoan = await db.prepare('SELECT id, ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1').bind(khoanId).first();
+    const khoan = await db.prepare('SELECT id, ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1 AND lop_id = ?2').bind(khoanId, phien.lopId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
-    const hocSinh = await db.prepare('SELECT ho_ten AS hoTen FROM hoc_sinh WHERE id = ?1').bind(hocSinhId).first();
+    const hocSinh = await db.prepare('SELECT ho_ten AS hoTen FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2').bind(hocSinhId, phien.lopId).first();
+    if (!hocSinh) return loi('Mã học sinh không hợp lệ.');
     const loaiThu = khoan.dinhKyId ? 'Thu cố định' : 'Thu nhanh';
 
     await chupCheckpoint(db,
       `Trước khi: ghi thu ${than.soTien}đ — ${hocSinh?.hoTen || 'học sinh #' + hocSinhId} nộp khoản `
       + `"${khoan.ten}" (${loaiThu})`, phien);
     const kq = await db.prepare(
-      'INSERT INTO quy_dong (khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu) VALUES (?1, ?2, ?3, ?4, ?5)'
-    ).bind(khoanId, hocSinhId, Number(than.soTien), ngay, chuoi(than.ghiChu, 300)).run();
+      'INSERT INTO quy_dong (khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+    ).bind(khoanId, hocSinhId, Number(than.soTien), ngay, chuoi(than.ghiChu, 300), phien.lopId).run();
 
     return json({ ok: true, id: kq.meta.last_row_id });
   }
@@ -203,8 +205,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
     await chupCheckpoint(db, `Trước khi: ghi chi ${than.soTien}đ — "${noiDung}"`, phien);
     const kq = await db.prepare(
-      'INSERT INTO quy_chi (ngay, noi_dung, so_tien, ghi_chu, loai) VALUES (?1, ?2, ?3, ?4, ?5)'
-    ).bind(ngay, noiDung, Number(than.soTien), chuoi(than.ghiChu, 300), loai).run();
+      'INSERT INTO quy_chi (ngay, noi_dung, so_tien, ghi_chu, loai, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+    ).bind(ngay, noiDung, Number(than.soTien), chuoi(than.ghiChu, 300), loai, phien.lopId).run();
 
     return json({ ok: true, id: kq.meta.last_row_id });
   }
@@ -219,7 +221,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
 
   if (than.banGhi === 'khoan') {
-    const khoan = await db.prepare('SELECT ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1').bind(id).first();
+    const khoan = await db.prepare('SELECT ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
     const dat = []; const thamSo = [];
@@ -259,8 +261,8 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
          FROM quy_dong d
          JOIN hoc_sinh h ON h.id = d.hoc_sinh_id
          JOIN quy_khoan k ON k.id = d.khoan_id
-        WHERE d.id = ?1`
-    ).bind(id).first();
+        WHERE d.id = ?1 AND d.lop_id = ?2`
+    ).bind(id, phien.lopId).first();
     if (!dong) return loi('Không tìm thấy lần ghi thu này.', 404);
 
     const soTien = than.soTien !== undefined ? Number(than.soTien) : dong.so_tien;
@@ -277,7 +279,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   }
 
   if (than.banGhi === 'chi') {
-    const chi = await db.prepare('SELECT * FROM quy_chi WHERE id = ?1').bind(id).first();
+    const chi = await db.prepare('SELECT * FROM quy_chi WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
     if (!chi) return loi('Không tìm thấy khoản chi này.', 404);
 
     const noiDung = than.noiDung !== undefined ? chuoi(than.noiDung, 300) : chi.noi_dung;
@@ -310,15 +312,20 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   let ids;
   if (q.get('tatCa') === '1') {
     if (loai !== 'khoan' && loai !== 'chi') return loi('Chỉ xoá tất cả được với khoản thu hoặc khoản chi.');
-    const { results } = await env.DB.prepare(`SELECT id FROM ${BANG[loai]}`).all();
+    const { results } = await env.DB.prepare(`SELECT id FROM ${BANG[loai]} WHERE lop_id = ?1`).bind(phien.lopId).all();
     ids = results.map((r) => r.id);
   } else if (q.get('ids')) {
     if (loai !== 'khoan' && loai !== 'chi') return loi('Chỉ xoá hàng loạt được với khoản thu hoặc khoản chi.');
-    ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+    const yeuCau = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+    if (!yeuCau.length) return json({ ok: true, daXoa: 0 });
+    const cho0 = yeuCau.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(`SELECT id FROM ${BANG[loai]} WHERE lop_id = ? AND id IN (${cho0})`).bind(phien.lopId, ...yeuCau).all();
+    ids = results.map((r) => r.id);
   } else {
     const id = Number(q.get('id'));
     if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bản ghi.');
-    ids = [id];
+    const hang = await env.DB.prepare(`SELECT id FROM ${BANG[loai]} WHERE id = ? AND lop_id = ?`).bind(id, phien.lopId).first();
+    ids = hang ? [id] : [];
   }
   if (!ids.length) return json({ ok: true, daXoa: 0 });
 

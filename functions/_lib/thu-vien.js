@@ -3,6 +3,9 @@
 // Mọi nơi tải file lên (trang thư viện, hoặc đính kèm ngay trong lúc soạn Thông báo) đều đi
 // qua themTepVaoThuVien() — tải lên ở đâu cũng biến file đó thành MỘT MỤC THẬT trong đúng thư
 // viện, không còn file "riêng" của một tính năng nào nữa.
+//
+// Mọi hàm ở đây đều nhận thêm lopId — thư viện của mỗi lớp tách biệt hoàn toàn (kể cả dung
+// lượng tính riêng, xoá/sửa chỉ tác động đúng mục của lớp đó), dù cùng chung một kho R2/D1.
 import { loi } from './api.js';
 
 const CAU_HINH = {
@@ -30,25 +33,31 @@ export function cauHinhThuVien(loaiThuVien) {
   return CAU_HINH[loaiThuVien] || null;
 }
 
-/** Tổng dung lượng ĐÃ DÙNG trên toàn bộ kho — cộng CẢ 3 thư viện, không bỏ sót bảng nào (khác
-    các bản trước đây mỗi nơi tự tính SUM một bảng riêng, dẫn tới đếm thiếu). */
-export async function tongDungLuongDaDung(db) {
+/** Tổng dung lượng ĐÃ DÙNG của MỘT LỚP — cộng CẢ 3 thư viện, không bỏ sót bảng nào (khác các
+    bản trước đây mỗi nơi tự tính SUM một bảng riêng, dẫn tới đếm thiếu). */
+export async function tongDungLuongDaDung(db, lopId) {
   const [anh, amThanh, video] = await Promise.all([
-    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM hinh_anh').first('tong'),
-    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM am_thanh').first('tong'),
-    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM video').first('tong'),
+    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM hinh_anh WHERE lop_id = ?1').bind(lopId).first('tong'),
+    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM am_thanh WHERE lop_id = ?1').bind(lopId).first('tong'),
+    db.prepare('SELECT COALESCE(SUM(co_byte), 0) AS tong FROM video WHERE lop_id = ?1').bind(lopId).first('tong'),
   ]);
   return (Number(anh) || 0) + (Number(amThanh) || 0) + (Number(video) || 0);
 }
 
-// Giới hạn an toàn tuyệt đối: 9,5 GB (ngưỡng miễn phí của Cloudflare R2 là 10 GB). Chặn 100%
-// việc tải thêm nếu vượt quá, bảo đảm tài khoản không bao giờ phát sinh chi phí.
+// Trần mặc định nếu lớp chưa tự đặt riêng — 9,5 GB (ngưỡng miễn phí Cloudflare R2 là 10 GB).
 export const GIOI_HAN_TOI_DA_TONG_BYTE = 9_500_000_000;
 
-/** Thêm một tệp nhị phân vào thư viện — dùng chung cho trang quản lý thư viện VÀ cho việc
-    "tải file mới" ngay trong lúc soạn Thông báo (kết quả trả về có id để đính kèm luôn).
+/** Trần lưu trữ RIÊNG của một lớp — đọc từ lop.gioi_han_byte (giáo viên chỉnh được mỗi lớp
+    một mức khác nhau), dùng hằng số mặc định nếu vì lý do gì đó không đọc được. */
+export async function gioiHanCuaLop(db, lopId) {
+  const row = await db.prepare('SELECT gioi_han_byte AS gioiHan FROM lop WHERE id = ?1').bind(lopId).first();
+  return row?.gioiHan || GIOI_HAN_TOI_DA_TONG_BYTE;
+}
+
+/** Thêm một tệp nhị phân vào thư viện của MỘT LỚP — dùng chung cho trang quản lý thư viện VÀ
+    cho việc "tải file mới" ngay trong lúc soạn Thông báo (kết quả trả về có id để đính kèm luôn).
     Trả { loi } nếu có lỗi, hoặc { dong } nếu thành công (dong = dòng vừa thêm). */
-export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, ten) {
+export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, ten, lopId) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
   if (!env.ANH) return { loi: 'Chưa gắn kho lưu trữ vào project.' };
@@ -58,9 +67,12 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
     return { loi: `File nặng ${Math.round(duLieuNhiPhan.byteLength / 1_000_000)} MB, vượt mức cho phép (${Math.round(cauHinh.toiDaByte / 1_000_000)} MB).` };
   }
 
-  const daDung = await tongDungLuongDaDung(env.DB);
-  if (daDung + duLieuNhiPhan.byteLength > GIOI_HAN_TOI_DA_TONG_BYTE) {
-    return { loi: 'Kho lưu trữ đã đạt ngưỡng an toàn 9,5 GB (trong mức 10 GB miễn phí). Đã tự động khoá tải lên để bảo đảm 100% không phát sinh chi phí.' };
+  const [daDung, gioiHan] = await Promise.all([
+    tongDungLuongDaDung(env.DB, lopId),
+    gioiHanCuaLop(env.DB, lopId),
+  ]);
+  if (daDung + duLieuNhiPhan.byteLength > gioiHan) {
+    return { loi: `Kho lưu trữ của lớp đã đạt trần an toàn ${Math.round(gioiHan / 1_000_000_000 * 10) / 10} GB. Đã tự động khoá tải lên để bảo đảm không phát sinh chi phí.` };
   }
 
   const khoa = `${cauHinh.tienTo}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
@@ -74,21 +86,22 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
   // khái niệm thư viện chung — giữ nguyên hình dạng bảng đó, chỉ ánh xạ "ten" sang "chu_thich".
   const kq = loaiThuVien === 'anh'
     ? await env.DB.prepare(
-        'INSERT INTO hinh_anh (khoa, chu_thich, ngay, kieu, co_byte) VALUES (?1, ?2, ?3, ?4, ?5)'
-      ).bind(khoa, ten || '', new Date().toISOString().slice(0, 10), kieu, duLieuNhiPhan.byteLength).run()
+        'INSERT INTO hinh_anh (khoa, chu_thich, ngay, kieu, co_byte, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+      ).bind(khoa, ten || '', new Date().toISOString().slice(0, 10), kieu, duLieuNhiPhan.byteLength, lopId).run()
     : await env.DB.prepare(
-        `INSERT INTO ${cauHinh.bang} (ten, khoa, kieu, co_byte) VALUES (?1, ?2, ?3, ?4)`
-      ).bind(ten || '', khoa, kieu, duLieuNhiPhan.byteLength).run();
+        `INSERT INTO ${cauHinh.bang} (ten, khoa, kieu, co_byte, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)`
+      ).bind(ten || '', khoa, kieu, duLieuNhiPhan.byteLength, lopId).run();
 
   return { dong: { id: kq.meta.last_row_id, ten: ten || '', khoa, kieu, coByte: duLieuNhiPhan.byteLength } };
 }
 
-/** Xoá một mục khỏi thư viện — dọn cả file R2 lẫn dòng D1. */
-export async function xoaKhoiThuVien(env, loaiThuVien, id) {
+/** Xoá một mục khỏi thư viện — dọn cả file R2 lẫn dòng D1. Chỉ xoá được mục THUỘC ĐÚNG LỚP
+    đang đăng nhập (lopId), không cho xoá nhầm/xoá lén mục của lớp khác. */
+export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return loi('Loại thư viện không hợp lệ.');
 
-  const dong = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id = ?1`).bind(id).first();
+  const dong = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id = ?1 AND lop_id = ?2`).bind(id, lopId).first();
   if (!dong) return loi('Không tìm thấy mục này trong thư viện.', 404);
 
   if (env.ANH) await env.ANH.delete(dong.khoa).catch(() => {});
@@ -97,9 +110,11 @@ export async function xoaKhoiThuVien(env, loaiThuVien, id) {
 }
 
 /** Xoá NHIỀU mục cùng lúc (đã chọn từng mục, hoặc xoá sạch cả thư viện) — dùng chung logic dọn
-    R2 + D1 với xoaKhoiThuVien(), tránh phải chọn/xoá từng cái một khi có nhiều mục.
-    Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới hạn tham số truy vấn của Cloudflare D1. */
-export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids) {
+    R2 + D1 với xoaKhoiThuVien(), tránh phải chọn/xoá từng cái một khi có nhiều mục. Chỉ xoá các
+    id THUỘC ĐÚNG LỚP đang đăng nhập — id của lớp khác lỡ lọt vào danh sách sẽ bị bỏ qua, không
+    xoá nhầm. Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới hạn tham số truy vấn
+    của Cloudflare D1. */
+export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
   if (!ids.length) return { daXoa: 0 };
@@ -109,10 +124,12 @@ export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids) {
   for (let i = 0; i < ids.length; i += KICH_THUOC_LO) {
     const lo = ids.slice(i, i + KICH_THUOC_LO);
     const cho = lo.map(() => '?').join(',');
-    const { results } = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...lo).all();
+    const { results } = await env.DB.prepare(`SELECT id, khoa FROM ${cauHinh.bang} WHERE lop_id = ? AND id IN (${cho})`).bind(lopId, ...lo).all();
     if (results && results.length) {
+      const idThucXoa = results.map((r) => r.id);
+      const choXoa = idThucXoa.map(() => '?').join(',');
       if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
-      await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...lo).run();
+      await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${choXoa})`).bind(...idThucXoa).run();
       tongDaXoa += results.length;
     }
   }

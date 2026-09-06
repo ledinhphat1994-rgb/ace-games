@@ -13,52 +13,56 @@ export function taChuThich(phien) {
   return phien.role || 'Không rõ';
 }
 
-/** Chụp toàn bộ trạng thái quỹ hiện tại, TRƯỚC khi áp dụng một thay đổi. */
+/** Chụp toàn bộ trạng thái quỹ hiện tại CỦA ĐÚNG LỚP đang đăng nhập, TRƯỚC khi áp dụng một
+    thay đổi — không chụp lẫn dữ liệu quỹ của lớp khác vào cùng một điểm khôi phục. */
 export async function chupCheckpoint(db, hanhDong, phien) {
+  const lopId = phien?.lopId ?? 1;
   const [khoan, dong, chi] = await Promise.all([
-    db.prepare('SELECT * FROM quy_khoan').all(),
-    db.prepare('SELECT * FROM quy_dong').all(),
-    db.prepare('SELECT * FROM quy_chi').all(),
+    db.prepare('SELECT * FROM quy_khoan WHERE lop_id = ?1').bind(lopId).all(),
+    db.prepare('SELECT * FROM quy_dong WHERE lop_id = ?1').bind(lopId).all(),
+    db.prepare('SELECT * FROM quy_chi WHERE lop_id = ?1').bind(lopId).all(),
   ]);
 
   const duLieu = JSON.stringify({ khoan: khoan.results, dong: dong.results, chi: chi.results });
 
   await db.prepare(
-    'INSERT INTO quy_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu) VALUES (?1, ?2, ?3)'
-  ).bind(hanhDong, taChuThich(phien), duLieu).run();
+    'INSERT INTO quy_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu, lop_id) VALUES (?1, ?2, ?3, ?4)'
+  ).bind(hanhDong, taChuThich(phien), duLieu, lopId).run();
 
-  // Dọn bớt các bản cũ, tránh phình bảng vô hạn.
+  // Dọn bớt các bản cũ CỦA ĐÚNG LỚP NÀY, tránh phình bảng vô hạn (không đụng tới lớp khác).
   await db.prepare(
-    `DELETE FROM quy_checkpoint WHERE id NOT IN
-       (SELECT id FROM quy_checkpoint ORDER BY id DESC LIMIT ?1)`
-  ).bind(TOI_DA_CHECKPOINT).run();
+    `DELETE FROM quy_checkpoint WHERE lop_id = ?1 AND id NOT IN
+       (SELECT id FROM quy_checkpoint WHERE lop_id = ?1 ORDER BY id DESC LIMIT ?2)`
+  ).bind(lopId, TOI_DA_CHECKPOINT).run();
 }
 
-/** Ghi đè toàn bộ 3 bảng quỹ bằng đúng nội dung của một checkpoint đã chụp. */
-export async function khoiPhucCheckpoint(db, checkpointId) {
-  const cp = await db.prepare('SELECT du_lieu FROM quy_checkpoint WHERE id = ?1').bind(checkpointId).first();
+/** Ghi đè toàn bộ 3 bảng quỹ CỦA ĐÚNG LỚP bằng đúng nội dung của một checkpoint đã chụp —
+    không đụng tới dữ liệu quỹ của lớp khác. */
+export async function khoiPhucCheckpoint(db, checkpointId, lopId) {
+  const cp = await db.prepare('SELECT du_lieu FROM quy_checkpoint WHERE id = ?1 AND lop_id = ?2').bind(checkpointId, lopId).first();
   if (!cp) throw new Error('Không tìm thấy điểm khôi phục này.');
 
   const { khoan, dong, chi } = JSON.parse(cp.du_lieu);
 
   const cauLenh = [
     // Xoá bảng con (quy_dong tham chiếu quy_khoan) TRƯỚC bảng cha, nếu không vi phạm khoá ngoại.
-    db.prepare('DELETE FROM quy_dong'),
-    db.prepare('DELETE FROM quy_khoan'),
-    db.prepare('DELETE FROM quy_chi'),
+    // Chỉ xoá dữ liệu CỦA ĐÚNG LỚP NÀY.
+    db.prepare('DELETE FROM quy_dong WHERE lop_id = ?1').bind(lopId),
+    db.prepare('DELETE FROM quy_khoan WHERE lop_id = ?1').bind(lopId),
+    db.prepare('DELETE FROM quy_chi WHERE lop_id = ?1').bind(lopId),
     // .bind() dùng "?? null / ?? 'khac'" để khôi phục được cả những checkpoint chụp TRƯỚC
     // khi các cột dinh_ky_id/ky_so/loai/ngay_bat_dau/ngay_ket_thuc tồn tại (dữ liệu cũ không
     // có các trường này).
     ...khoan.map((k) => db.prepare(
-      `INSERT INTO quy_khoan (id, ten, hoc_ky, so_tien_moi_em, ghi_chu, dang_mo, tao_luc, dinh_ky_id, ky_so, ngay_bat_dau, ngay_ket_thuc)
-       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`
-    ).bind(k.id, k.ten, k.hoc_ky, k.so_tien_moi_em, k.ghi_chu, k.dang_mo, k.tao_luc, k.dinh_ky_id ?? null, k.ky_so ?? null, k.ngay_bat_dau ?? null, k.ngay_ket_thuc ?? null)),
+      `INSERT INTO quy_khoan (id, ten, hoc_ky, so_tien_moi_em, ghi_chu, dang_mo, tao_luc, dinh_ky_id, ky_so, ngay_bat_dau, ngay_ket_thuc, lop_id)
+       VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)`
+    ).bind(k.id, k.ten, k.hoc_ky, k.so_tien_moi_em, k.ghi_chu, k.dang_mo, k.tao_luc, k.dinh_ky_id ?? null, k.ky_so ?? null, k.ngay_bat_dau ?? null, k.ngay_ket_thuc ?? null, lopId)),
     ...dong.map((d) => db.prepare(
-      'INSERT INTO quy_dong (id, khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu, tao_luc) VALUES (?1,?2,?3,?4,?5,?6,?7)'
-    ).bind(d.id, d.khoan_id, d.hoc_sinh_id, d.so_tien, d.ngay, d.ghi_chu, d.tao_luc)),
+      'INSERT INTO quy_dong (id, khoan_id, hoc_sinh_id, so_tien, ngay, ghi_chu, tao_luc, lop_id) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)'
+    ).bind(d.id, d.khoan_id, d.hoc_sinh_id, d.so_tien, d.ngay, d.ghi_chu, d.tao_luc, lopId)),
     ...chi.map((c) => db.prepare(
-      'INSERT INTO quy_chi (id, ngay, noi_dung, so_tien, ghi_chu, tao_luc, loai) VALUES (?1,?2,?3,?4,?5,?6,?7)'
-    ).bind(c.id, c.ngay, c.noi_dung, c.so_tien, c.ghi_chu, c.tao_luc, c.loai ?? 'khac')),
+      'INSERT INTO quy_chi (id, ngay, noi_dung, so_tien, ghi_chu, tao_luc, loai, lop_id) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)'
+    ).bind(c.id, c.ngay, c.noi_dung, c.so_tien, c.ghi_chu, c.tao_luc, c.loai ?? 'khac', lopId)),
   ];
 
   // batch() chạy trọn vẹn hoặc không chạy gì — không sợ khôi phục dở dang.

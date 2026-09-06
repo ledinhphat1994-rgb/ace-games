@@ -63,33 +63,47 @@ export async function onRequestPost({ request, env }) {
   // Làm chậm nhẹ để hạn chế dò mã tự động.
   await new Promise((r) => setTimeout(r, 400));
 
-  // Mã giáo viên: ưu tiên đọc từ D1 nếu giáo viên đã tự đặt qua web (mục "Mã đăng nhập");
-  // nếu chưa từng đặt thì dùng biến môi trường cũ trên Cloudflare. Không còn "mã học sinh
-  // cả lớp" dùng chung nữa — mỗi em đăng nhập bằng đúng mã cá nhân của mình (xem nhánh
-  // ma_ca_nhan bên dưới), để biết chính xác ai đang xem, không còn một mã lộ ra là cả lớp
-  // cùng lộ.
-  let maGiaoVien = env.TEACHER_CODE || '';
-  if (env.DB) {
-    try {
-      const dn = await env.DB.prepare("SELECT ma FROM ma_dang_nhap WHERE vai_tro = 'teacher'").first();
-      if (dn) maGiaoVien = dn.ma;
-    } catch {
-      // Bảng chưa tồn tại (chưa chạy migration) — dùng biến môi trường như trước.
-    }
-  }
-
+  // Mã giáo viên: MỖI LỚP có một mã riêng trong ma_dang_nhap (khoá (lop_id, vai_tro)) — so
+  // khớp mã nhập vào với TẤT CẢ các dòng vai_tro='teacher' (số lớp rất ít, quét hết là đủ
+  // nhanh), dòng nào khớp thì biết luôn lớp nào. Nếu bảng trống hoàn toàn (chưa từng đặt qua
+  // web) thì dùng biến môi trường cũ trên Cloudflare cho lớp mặc định (lopId=1) — không phá
+  // vỡ mã đang dùng. Không còn "mã học sinh cả lớp" dùng chung nữa — mỗi em đăng nhập bằng
+  // đúng mã cá nhân của mình (xem nhánh ma_ca_nhan bên dưới).
   let role = null;
   let phanBoSung = {};
   let tenHienThi = '';
 
-  if (maGiaoVien && safeEqual(code, maGiaoVien)) {
+  if (env.DB) {
+    try {
+      const { results: dsGiaoVien } = await env.DB.prepare(
+        "SELECT lop_id AS lopId, ma FROM ma_dang_nhap WHERE vai_tro = 'teacher'"
+      ).all();
+      const khop = dsGiaoVien.find((dn) => safeEqual(code, dn.ma));
+      if (khop) {
+        role = 'teacher';
+        phanBoSung = { lopId: khop.lopId };
+      } else if (!dsGiaoVien.length && env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+        role = 'teacher';
+        phanBoSung = { lopId: 1 };
+      }
+    } catch {
+      // Bảng chưa tồn tại (chưa chạy migration) — dùng biến môi trường như trước, lớp mặc định.
+      if (env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+        role = 'teacher';
+        phanBoSung = { lopId: 1 };
+      }
+    }
+  } else if (env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
     role = 'teacher';
-  } else if (env.DB) {
-    // Không khớp 2 mã cố định — thử tìm trong bảng tài khoản đặc biệt
+    phanBoSung = { lopId: 1 };
+  }
+
+  if (!role && env.DB) {
+    // Không khớp mã giáo viên nào — thử tìm trong bảng tài khoản đặc biệt
     // (lớp trưởng, thủ quỹ... do giáo viên tự cấp trên web).
     try {
       const phu = await env.DB.prepare(
-        'SELECT id, ten, vai_tro, quyen FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
+        'SELECT id, ten, vai_tro, quyen, lop_id AS lopId FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
       ).bind(code).first();
 
       if (phu) {
@@ -100,6 +114,7 @@ export async function onRequestPost({ request, env }) {
           ten: phu.ten,
           vaiTro: phu.vai_tro,
           quyen: (phu.quyen || '').split(',').map((s) => s.trim()).filter(Boolean),
+          lopId: phu.lopId,
         };
       }
     } catch {
@@ -118,7 +133,8 @@ export async function onRequestPost({ request, env }) {
   if (!role && env.DB) {
     try {
       const ca = await env.DB.prepare(
-        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, h.ho_ten AS hoTen, h.chuc_vu AS chucVu
+        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, m.lop_id AS lopId,
+                h.ho_ten AS hoTen, h.chuc_vu AS chucVu
            FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
       ).bind(code).first();
@@ -126,7 +142,7 @@ export async function onRequestPost({ request, env }) {
       if (ca && !ca.quyen) {
         role = 'student';
         tenHienThi = ca.hoTen;
-        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code };
+        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code, lopId: ca.lopId };
       } else if (ca && ca.quyen) {
         const thietBiMay = docThietBi(request);
         if (!ca.thietBi) {
@@ -145,8 +161,8 @@ export async function onRequestPost({ request, env }) {
 
         if (ketQuaThietBi === 'sai_thiet_bi') {
           await env.DB.prepare(
-            'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip) VALUES (?1, ?2, ?3, ?4)'
-          ).bind(code, ca.hocSinhId, ketQuaThietBi, ip).run().catch(() => {});
+            'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'
+          ).bind(code, ca.hocSinhId, ketQuaThietBi, ip, ca.lopId).run().catch(() => {});
           return json({
             ok: false,
             message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của em.',
@@ -161,10 +177,11 @@ export async function onRequestPost({ request, env }) {
           ma: code,
           vaiTro: ca.chucVu || 'Cán sự lớp',
           quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
+          lopId: ca.lopId,
         };
         await env.DB.prepare(
-          'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip) VALUES (?1, ?2, ?3, ?4)'
-        ).bind(code, ca.hocSinhId, 'thanh_cong', ip).run().catch(() => {});
+          'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'
+        ).bind(code, ca.hocSinhId, 'thanh_cong', ip, ca.lopId).run().catch(() => {});
       }
     } catch {
       // Bảng/cột chưa tồn tại (chưa chạy migration) — coi như không khớp.

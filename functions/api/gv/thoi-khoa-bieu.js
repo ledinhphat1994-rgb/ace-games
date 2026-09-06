@@ -15,13 +15,13 @@
 //   DELETE /api/gv/thoi-khoa-bieu?phienBanId=5   -> xoá một phiên bản (không phải bản đang áp dụng)
 import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../_lib/api.js';
 
-async function layPhienBanApDung(db, homNay) {
+async function layPhienBanApDung(db, homNay, lopId) {
   return db.prepare(
     `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ngay_ket_thuc AS ngayKetThuc, ghi_chu AS ghiChu
        FROM tkb_phien_ban
-      WHERE ngay_bat_dau <= ?1
+      WHERE ngay_bat_dau <= ?1 AND lop_id = ?2
       ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
-  ).bind(homNay).first();
+  ).bind(homNay, lopId).first();
 }
 
 async function layO(db, phienBanId) {
@@ -31,15 +31,15 @@ async function layO(db, phienBanId) {
   return results;
 }
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const q = new URL(request.url).searchParams;
 
   if (q.get('ds')) {
     const { results } = await db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ngay_ket_thuc AS ngayKetThuc, ghi_chu AS ghiChu
-         FROM tkb_phien_ban ORDER BY ngay_bat_dau DESC, id DESC`
-    ).all();
+         FROM tkb_phien_ban WHERE lop_id = ?1 ORDER BY ngay_bat_dau DESC, id DESC`
+    ).bind(phien.lopId).all();
     return json({ ok: true, danhSach: results });
   }
 
@@ -47,19 +47,19 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (Number.isInteger(phienBanId) && phienBanId > 0) {
     const pb = await db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ngay_ket_thuc AS ngayKetThuc, ghi_chu AS ghiChu
-         FROM tkb_phien_ban WHERE id = ?1`
-    ).bind(phienBanId).first();
+         FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2`
+    ).bind(phienBanId, phien.lopId).first();
     if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
     return json({ ok: true, phienBan: pb, o: await layO(db, phienBanId) });
   }
 
   const homNay = new Date().toISOString().slice(0, 10);
-  const pb = await layPhienBanApDung(db, homNay);
+  const pb = await layPhienBanApDung(db, homNay, phien.lopId);
   if (!pb) return json({ ok: true, phienBan: null, o: [] });
   return json({ ok: true, phienBan: pb, o: await layO(db, pb.id) });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const { ten, ngayBatDau, ghiChu, o } = await docThan(request);
 
@@ -82,7 +82,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   // Phiên bản đang áp dụng (nếu có, và có ngày bắt đầu SỚM HƠN phiên bản mới) sẽ được
   // đóng lại đúng một ngày trước ngày áp dụng của phiên bản mới.
   const homNay = new Date().toISOString().slice(0, 10);
-  const dangApDung = await layPhienBanApDung(db, homNay);
+  const dangApDung = await layPhienBanApDung(db, homNay, phien.lopId);
 
   const cauLenh = [];
   if (dangApDung && dangApDung.ngayBatDau < ngayBatDau) {
@@ -95,14 +95,14 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   }
 
   const kqTao = await db.prepare(
-    'INSERT INTO tkb_phien_ban (ten, ngay_bat_dau, ghi_chu) VALUES (?1, ?2, ?3)'
-  ).bind(tenSach, ngayBatDau, String(ghiChu || '').slice(0, 500)).run();
+    'INSERT INTO tkb_phien_ban (ten, ngay_bat_dau, ghi_chu, lop_id) VALUES (?1, ?2, ?3, ?4)'
+  ).bind(tenSach, ngayBatDau, String(ghiChu || '').slice(0, 500), phien.lopId).run();
   const phienBanMoiId = kqTao.meta.last_row_id;
 
   hopLe.forEach((x) => {
     cauLenh.push(
-      db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon) VALUES (?1, ?2, ?3, ?4, ?5)')
-        .bind(phienBanMoiId, x.buoi, x.thu, x.tiet, x.mon)
+      db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+        .bind(phienBanMoiId, x.buoi, x.thu, x.tiet, x.mon, phien.lopId)
     );
   });
 
@@ -111,7 +111,7 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   return json({ ok: true, phienBanId: phienBanMoiId, daLuu: hopLe.length });
 }, { canGiaoVien: true });
 
-export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const { phienBanId, o } = await docThan(request);
 
@@ -120,7 +120,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   if (!Array.isArray(o)) return loi('Dữ liệu ô không hợp lệ.');
   if (o.length > 140) return loi('Quá nhiều ô trong một lần gửi.');
 
-  const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1').bind(idSo).first();
+  const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2').bind(idSo, phien.lopId).first();
   if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
 
   const hopLe = [];
@@ -137,8 +137,8 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   const cauLenh = [db.prepare('DELETE FROM tkb_o WHERE phien_ban_id = ?1').bind(idSo)];
   hopLe.forEach((x) => {
     cauLenh.push(
-      db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon) VALUES (?1, ?2, ?3, ?4, ?5)')
-        .bind(idSo, x.buoi, x.thu, x.tiet, x.mon)
+      db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+        .bind(idSo, x.buoi, x.thu, x.tiet, x.mon, phien.lopId)
     );
   });
   await db.batch(cauLenh);
@@ -146,13 +146,16 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   return json({ ok: true, daLuu: hopLe.length });
 }, { canGiaoVien: true });
 
-export const onRequestDelete = bocXuLy(async ({ request, env }) => {
+export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const phienBanId = Number(new URL(request.url).searchParams.get('phienBanId'));
   if (!Number.isInteger(phienBanId) || phienBanId <= 0) return loi('Thiếu mã phiên bản.');
 
+  const pbTonTai = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2').bind(phienBanId, phien.lopId).first();
+  if (!pbTonTai) return loi('Không tìm thấy phiên bản này.', 404);
+
   const homNay = new Date().toISOString().slice(0, 10);
-  const dangApDung = await layPhienBanApDung(db, homNay);
+  const dangApDung = await layPhienBanApDung(db, homNay, phien.lopId);
   if (dangApDung && dangApDung.id === phienBanId) {
     return loi('Không thể xoá phiên bản đang áp dụng. Tạo phiên bản mới để thay thế thay vì xoá.');
   }

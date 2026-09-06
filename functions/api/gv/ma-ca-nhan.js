@@ -17,12 +17,12 @@ function locQuyen(mang) {
   return [...new Set(mang.filter((q) => MA_QUYEN.has(q)))].join(',');
 }
 
-export const onRequestGet = bocXuLy(async ({ env }) => {
+export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
     `SELECT h.id, h.ho_ten AS hoTen, h.chuc_vu AS chucVu, m.ma, m.an_muc AS anMuc, m.quyen, m.thiet_bi AS thietBi
        FROM hoc_sinh h LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
-      WHERE h.dang_hoc = 1 ORDER BY h.id`
-  ).all();
+      WHERE h.dang_hoc = 1 AND h.lop_id = ?1 ORDER BY h.id`
+  ).bind(phien.lopId).all();
   return json({
     ok: true,
     danhSach: results.map((h) => ({
@@ -34,12 +34,12 @@ export const onRequestGet = bocXuLy(async ({ env }) => {
   });
 }, { canGiaoVien: true });
 
-export const onRequestPatch = bocXuLy(async ({ request, env }) => {
+export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
   const id = Number(than.hocSinhId);
   if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
 
-  const co = await env.DB.prepare('SELECT hoc_sinh_id FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(id).first();
+  const co = await env.DB.prepare('SELECT hoc_sinh_id FROM ma_ca_nhan WHERE hoc_sinh_id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
   if (!co) return loi('Em này chưa có mã cá nhân — cấp mã trước rồi mới đặt quyền.');
 
   if (than.datLaiThietBi) {
@@ -60,7 +60,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env }) => {
   return json({ ok: true });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { hocSinhId, tatCa, maTuyChinh } = await docThan(request);
   const db = env.DB;
 
@@ -68,15 +68,17 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (maTuyChinh) {
     const id = Number(hocSinhId);
     if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
+    const hs = await db.prepare('SELECT id FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+    if (!hs) return loi('Mã học sinh không hợp lệ.');
 
     const ma = chuanHoaMaTuyChinh(maTuyChinh);
     if (!maHopLe(ma)) return loi('Mã dài 3–32 ký tự, không chứa khoảng trắng (chấp nhận chữ hoa, chữ thường, số, ký tự đặc biệt).');
     if (await maDaTonTai(db, ma, { hocSinhId: id })) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
 
     await db.prepare(
-      `INSERT INTO ma_ca_nhan (hoc_sinh_id, ma) VALUES (?1, ?2)
+      `INSERT INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (?1, ?2, ?3)
        ON CONFLICT(hoc_sinh_id) DO UPDATE SET ma = excluded.ma, tao_luc = datetime('now')`
-    ).bind(id, ma).run();
+    ).bind(id, ma, phien.lopId).run();
 
     return json({ ok: true, daCap: 1, ketQua: [{ hocSinhId: id, ma }] });
   }
@@ -85,18 +87,20 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
   if (tatCa) {
     const { results } = await db.prepare(
       `SELECT h.id FROM hoc_sinh h LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
-        WHERE h.dang_hoc = 1 AND m.ma IS NULL`
-    ).all();
+        WHERE h.dang_hoc = 1 AND h.lop_id = ?1 AND m.ma IS NULL`
+    ).bind(phien.lopId).all();
     canCap = results.map((r) => r.id);
   } else {
     const id = Number(hocSinhId);
     if (!Number.isInteger(id) || id <= 0) return loi('Mã học sinh không hợp lệ.');
+    const hs = await db.prepare('SELECT id FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+    if (!hs) return loi('Mã học sinh không hợp lệ.');
     canCap = [id];
   }
 
   if (!canCap.length) return json({ ok: true, daCap: 0, ghiChu: 'Mọi học sinh đều đã có mã.' });
 
-  // Lấy trước các mã đang dùng để tránh trùng.
+  // Lấy trước các mã đang dùng để tránh trùng (toàn hệ thống — mã cá nhân vẫn UNIQUE toàn cục).
   const { results: dangDung } = await db.prepare('SELECT ma FROM ma_ca_nhan').all();
   const daCo = new Set(dangDung.map((r) => r.ma));
 
@@ -108,9 +112,9 @@ export const onRequestPost = bocXuLy(async ({ request, env }) => {
     daCo.add(ma);
     ketQua.push({ hocSinhId: id, ma });
     cauLenh.push(db.prepare(
-      `INSERT INTO ma_ca_nhan (hoc_sinh_id, ma) VALUES (?1, ?2)
+      `INSERT INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (?1, ?2, ?3)
        ON CONFLICT(hoc_sinh_id) DO UPDATE SET ma = excluded.ma, tao_luc = datetime('now')`
-    ).bind(id, ma));
+    ).bind(id, ma, phien.lopId));
   }
 
   await db.batch(cauLenh);

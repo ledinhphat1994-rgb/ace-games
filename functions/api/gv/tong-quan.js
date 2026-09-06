@@ -1,10 +1,11 @@
 // GET /api/gv/tong-quan — bảng điều khiển của giáo viên chủ nhiệm.
 import { bocXuLy, json } from '../../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const url = new URL(request.url);
   const homNay = url.searchParams.get('ngay') || new Date().toISOString().slice(0, 10);
+  const lopId = phien.lopId;
 
   // 30 ngày gần nhất tính từ ngày đang xem.
   const tuNgay = new Date(homNay + 'T00:00:00Z');
@@ -12,12 +13,12 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   const moc = tuNgay.toISOString().slice(0, 10);
 
   const [siSo, ddHomNay, vangNhieu, theoDoi, nhatKy, keHoachToi, hoanCanh, nhatKyChuaXuLy, viPhamKhen] = await Promise.all([
-    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1').first(),
+    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1').bind(lopId).first(),
 
     db.prepare(
       `SELECT buoi, trang_thai AS trangThai, COUNT(*) AS n
-         FROM diem_danh WHERE ngay = ?1 AND buoi NOT LIKE '%_phu' GROUP BY buoi, trang_thai`
-    ).bind(homNay).all(),
+         FROM diem_danh WHERE ngay = ?1 AND buoi NOT LIKE '%_phu' AND lop_id = ?2 GROUP BY buoi, trang_thai`
+    ).bind(homNay, lopId).all(),
 
     // Toàn bộ ứng viên có ít nhất 1 buổi không "có mặt" trong 30 ngày — KHÔNG giới hạn LIMIT ở đây,
     // vì đây là nguồn dữ liệu để tính "Cần chú ý" (lọc/sắp xếp lại bên dưới), không phải danh sách
@@ -28,44 +29,45 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 ELSE 0 END) AS vangPhep,
               SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 ELSE 0 END) AS tre
          FROM hoc_sinh h JOIN diem_danh d ON d.hoc_sinh_id = h.id
-        WHERE d.ngay >= ?1 AND d.trang_thai <> 'co_mat' AND d.buoi NOT LIKE '%_phu'
+        WHERE d.ngay >= ?1 AND d.trang_thai <> 'co_mat' AND d.buoi NOT LIKE '%_phu' AND h.lop_id = ?2
         GROUP BY h.id
         HAVING vangKhongPhep + vangPhep + tre > 0`
-    ).bind(moc).all(),
+    ).bind(moc, lopId).all(),
 
 
     db.prepare(
       `SELECT muc, trang_thai AS trangThai, COUNT(*) AS n
-         FROM theo_doi GROUP BY muc, trang_thai`
-    ).all(),
+         FROM theo_doi WHERE lop_id = ?1 GROUP BY muc, trang_thai`
+    ).bind(lopId).all(),
 
     db.prepare(
       `SELECT n.id, n.ngay, n.loai, n.noi_dung AS noiDung, n.da_xu_ly AS daXuLy,
               h.ho_ten AS hoTen, h.id AS hocSinhId
          FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
+        WHERE n.lop_id = ?1
         ORDER BY n.ngay DESC, n.id DESC LIMIT 15`
-    ).all(),
+    ).bind(lopId).all(),
 
     // "Sắp tới" lấy thẳng từ Thông báo (không còn bảng ke_hoach riêng nữa) — thông báo nào
     // ghi ngày trong tương lai (vd: lịch kiểm tra, lễ khai giảng…) đều coi là một mốc sắp tới.
     db.prepare(
       `SELECT id, ngay, tieu_de AS tieuDe, muc_do AS mucDo
-         FROM thong_bao WHERE ngay >= ?1 AND hien = 1 ORDER BY ngay LIMIT 5`
-    ).bind(homNay).all(),
+         FROM thong_bao WHERE ngay >= ?1 AND hien = 1 AND lop_id = ?2 ORDER BY ngay LIMIT 5`
+    ).bind(homNay, lopId).all(),
 
     db.prepare(
       `SELECT id, ho_ten AS hoTen, hoan_canh AS hoanCanh
-         FROM hoc_sinh WHERE dang_hoc = 1 AND hoan_canh <> '' ORDER BY id`
-    ).all(),
+         FROM hoc_sinh WHERE dang_hoc = 1 AND hoan_canh <> '' AND lop_id = ?1 ORDER BY id`
+    ).bind(lopId).all(),
 
     // Việc còn tồn đọng — cũ nhất lên trước, để không bị quên lâu ngày.
     db.prepare(
       `SELECT n.id, n.ngay, n.loai, n.noi_dung AS noiDung,
               h.ho_ten AS hoTen, h.id AS hocSinhId
          FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
-        WHERE n.da_xu_ly = 0
+        WHERE n.da_xu_ly = 0 AND n.lop_id = ?1
         ORDER BY n.ngay ASC, n.id ASC LIMIT 20`
-    ).all(),
+    ).bind(lopId).all(),
 
     // Khen/vi phạm trong 30 ngày gần nhất — để gộp với chuyên cần thành "Cần chú ý".
     db.prepare(
@@ -73,9 +75,9 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN loai = 'vi_pham' THEN 1 ELSE 0 END) AS soViPham,
               SUM(CASE WHEN loai = 'khen' THEN 1 ELSE 0 END) AS soKhen
          FROM nhat_ky
-        WHERE ngay >= ?1 AND hoc_sinh_id IS NOT NULL
+        WHERE ngay >= ?1 AND hoc_sinh_id IS NOT NULL AND lop_id = ?2
         GROUP BY hoc_sinh_id`
-    ).bind(moc).all(),
+    ).bind(moc, lopId).all(),
   ]);
 
   // --- Cần chú ý: 2 tín hiệu ĐỘC LẬP, không cộng trừ lẫn nhau ---
@@ -94,8 +96,8 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (idThieu.length) {
     const cho = idThieu.map((_, i) => `?${i + 1}`).join(',');
     const { results } = await db.prepare(
-      `SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE id IN (${cho})`
-    ).bind(...idThieu).all();
+      `SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE id IN (${cho}) AND lop_id = ?${idThieu.length + 1}`
+    ).bind(...idThieu, lopId).all();
     tenThieu = results;
   }
   tenThieu.forEach((h) => { theoHs[h.id] = { id: h.id, hoTen: h.hoTen, vangKhongPhep: 0, vangPhep: 0, tre: 0, soViPham: 0, soKhen: 0 }; });

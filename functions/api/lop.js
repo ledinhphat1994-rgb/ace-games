@@ -9,6 +9,7 @@ import { bocXuLy, json } from '../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) => {
   const db = env.DB;
+  const lopId = phien.lopId;
 
   const homNay = new Date().toISOString().slice(0, 10);
   const ma = new URL(request.url).searchParams.get('ma');
@@ -22,25 +23,26 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   const ghiLuot = (async () => {
     let hocSinhId = hocSinhIdPhien;
     if (!hocSinhId && ma) {
-      const m = await db.prepare('SELECT hoc_sinh_id AS id FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
+      const m = await db.prepare('SELECT hoc_sinh_id AS id FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first();
       hocSinhId = m?.id ?? null;
     }
     await db.batch([
       db.prepare(
-        `INSERT INTO luot_truy_cap (ngay, luot) VALUES (?1, 1)
-         ON CONFLICT(ngay) DO UPDATE SET luot = luot + 1`
-      ).bind(homNay),
-      db.prepare('INSERT INTO nhat_ky_truy_cap (ma, hoc_sinh_id) VALUES (?1, ?2)').bind(ma || null, hocSinhId),
+        `INSERT INTO luot_truy_cap (lop_id, ngay, luot) VALUES (?1, ?2, 1)
+         ON CONFLICT(lop_id, ngay) DO UPDATE SET luot = luot + 1`
+      ).bind(lopId, homNay),
+      db.prepare('INSERT INTO nhat_ky_truy_cap (ma, hoc_sinh_id, lop_id) VALUES (?1, ?2, ?3)').bind(ma || null, hocSinhId, lopId),
     ]);
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
 
-  const [hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi, quyDong] = await Promise.all([
+  const [lopRow, hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi, quyDong] = await Promise.all([
+    db.prepare('SELECT ten, nam_hoc AS namHoc, truong, gioi_thieu AS gioiThieu FROM lop WHERE id = ?1').bind(lopId).first(),
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
-         FROM hoc_sinh WHERE dang_hoc = 1 ORDER BY id`
-    ).all(),
+         FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id`
+    ).bind(lopId).all(),
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
     // ngoài dán riêng (hinh_url/nhac_url).
     db.prepare(
@@ -53,38 +55,40 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
          LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
          LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
          LEFT JOIN video v ON v.id = tb.video_id
-        WHERE tb.hien = 1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
-    ).all(),
+        WHERE tb.hien = 1 AND tb.lop_id = ?1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
+    ).bind(lopId).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
-        WHERE ngay_bat_dau <= ?1 ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
-    ).bind(homNay).first(),
-    db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh ORDER BY ngay DESC, id DESC LIMIT 60').all(),
+        WHERE ngay_bat_dau <= ?1 AND lop_id = ?2 ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
+    ).bind(homNay, lopId).first(),
+    db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC LIMIT 60').bind(lopId).all(),
     // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
               k.dinh_ky_id AS dinhKyId, k.ky_so AS kySo, k.ngay_bat_dau AS ngayBatDau, k.ngay_ket_thuc AS ngayKetThuc,
               COALESCE(SUM(d.so_tien), 0) AS tongDaThu
          FROM quy_khoan k LEFT JOIN quy_dong d ON d.khoan_id = k.id
+        WHERE k.lop_id = ?1
         GROUP BY k.id ORDER BY k.tao_luc DESC`
-    ).all(),
-    db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, loai, ghi_chu AS ghiChu FROM quy_chi ORDER BY ngay DESC, id DESC').all(),
+    ).bind(lopId).all(),
+    db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, loai, ghi_chu AS ghiChu FROM quy_chi WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC').bind(lopId).all(),
     db.prepare(
       `SELECT d.khoan_id AS khoanId, d.hoc_sinh_id AS hocSinhId,
               SUM(d.so_tien) AS tongTien, MAX(d.ngay) AS ngayDong, MAX(d.ghi_chu) AS ghiChu
          FROM quy_dong d
+        WHERE d.lop_id = ?1
         GROUP BY d.khoan_id, d.hoc_sinh_id`
-    ).all(),
+    ).bind(lopId).all(),
   ]);
 
-  const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
+  const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 LIMIT 1').bind(lopId).first().catch(() => null);
 
   let anMuc = [];
   if (hocSinhIdPhien) {
     const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first();
     if (m && m.anMuc) anMuc = m.anMuc.split(',');
   } else if (ma) {
-    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1').bind(ma).first();
+    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first();
     if (m && m.anMuc) anMuc = m.anMuc.split(',');
   }
 
@@ -114,9 +118,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     ok: true,
     anMuc,
     lop: {
-      ten: 'Lớp 10A7',
-      namHoc: '2026 – 2027',
-      truong: 'Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai',
+      ten: lopRow?.ten || 'Lớp học',
+      namHoc: lopRow?.namHoc || '',
+      truong: lopRow?.truong || '',
+      gioiThieu: lopRow?.gioiThieu || '',
       thongKe: [
         { giaTri: String(sl), nhan: 'Học sinh' },
         { giaTri: `${nam} / ${sl - nam}`, nhan: 'Nam / Nữ' },

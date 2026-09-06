@@ -3,7 +3,7 @@
 // nhân...) để biết có nên hiện nút loa trên thanh đầu trang hay không.
 import { bocXuLy, json } from '../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ env }) => {
-  const nhac = await env.DB.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 LIMIT 1').first().catch(() => null);
+export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+  const nhac = await env.DB.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 LIMIT 1').bind(phien.lopId).first().catch(() => null);
   return json({ ok: true, nhac: nhac ? { tenBai: nhac.tenBai } : null });
 }, { canGiaoVien: false });

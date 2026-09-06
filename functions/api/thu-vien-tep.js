@@ -5,7 +5,7 @@ import { bocXuLy, loi } from '../_lib/api.js';
 import { cauHinhThuVien } from '../_lib/thu-vien.js';
 import { phucVuTepR2 } from '../_lib/media-stream.js';
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const loaiThuVien = q.get('loai');
   const id = Number(q.get('id'));
@@ -13,7 +13,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã mục trong thư viện.');
 
   const cauHinh = cauHinhThuVien(loaiThuVien);
-  const dong = await env.DB.prepare(`SELECT khoa, kieu FROM ${cauHinh.bang} WHERE id = ?1`).bind(id).first();
+  const dong = await env.DB.prepare(`SELECT khoa, kieu FROM ${cauHinh.bang} WHERE id = ?1 AND lop_id = ?2`).bind(id, phien.lopId).first();
   if (!dong) return loi('Không tìm thấy mục này.', 404);
 
   return phucVuTepR2(env, dong.khoa, cauHinh.kieuMacDinh, request);

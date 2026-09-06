@@ -36,14 +36,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   await chupCheckpoint(db, `Trước khi: tạo mẫu thu cố định "${tenSach}" (${soKySo} kỳ)`, phien);
 
   const kq = await db.prepare(
-    'INSERT INTO quy_dinh_ky (ten, chu_ky, so_tien_moi_ky, ngay_bat_dau, ngay_ket_thuc, so_ky) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
-  ).bind(tenSach, chuKy, soTien, ngayBatDau, ngayKetThuc, soKySo).run();
+    'INSERT INTO quy_dinh_ky (ten, chu_ky, so_tien_moi_ky, ngay_bat_dau, ngay_ket_thuc, so_ky, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)'
+  ).bind(tenSach, chuKy, soTien, ngayBatDau, ngayKetThuc, soKySo, phien.lopId).run();
   const dinhKyId = kq.meta.last_row_id;
 
   await db.batch(cacKy.map((k) => db.prepare(
-    `INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, dinh_ky_id, ky_so, ngay_bat_dau, ngay_ket_thuc)
-     VALUES (?1, 1, ?2, ?3, ?4, ?5, ?6)`
-  ).bind(tenKy(tenSach, chuKy, k), soTien, dinhKyId, k.kySo, k.ngayBatDau, k.ngayKetThuc)));
+    `INSERT INTO quy_khoan (ten, hoc_ky, so_tien_moi_em, dinh_ky_id, ky_so, ngay_bat_dau, ngay_ket_thuc, lop_id)
+     VALUES (?1, 1, ?2, ?3, ?4, ?5, ?6, ?7)`
+  ).bind(tenKy(tenSach, chuKy, k), soTien, dinhKyId, k.kySo, k.ngayBatDau, k.ngayKetThuc, phien.lopId)));
 
   return json({ ok: true, id: dinhKyId, soKySinh: cacKy.length });
 }, { canGiaoVien: true, quyenCan: QUYEN });

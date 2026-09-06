@@ -7,7 +7,7 @@ import { bocXuLy, json, ngayHopLe } from '../../_lib/api.js';
 const NGUONG = { cao: 10, vua: 5 };
 const BUOI_HOP_LE = new Set(['', 'sang', 'chieu', 'hoat_dong']);
 
-export const onRequestGet = bocXuLy(async ({ request, env }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const q = new URL(request.url).searchParams;
 
@@ -21,8 +21,9 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
   const buoi = BUOI_HOP_LE.has(q.get('buoi')) ? q.get('buoi') : '';
   const dieuKienBuoi = buoi ? 'AND buoi = ?3' : "AND buoi NOT LIKE '%_phu'";
   const dieuKienBuoiJoin = buoi ? 'AND d.buoi = ?3' : "AND d.buoi NOT LIKE '%_phu'";
-  const thamSo = buoi ? [tuNgay, denNgay, buoi] : [tuNgay, denNgay];
-
+  const thamSoGoc = buoi ? [tuNgay, denNgay, buoi] : [tuNgay, denNgay];
+  const thamSo = [...thamSoGoc, phien.lopId];
+  const viTriLop = thamSo.length;
 
   const [theoNgay, theoHs, tongTheoMuc, siSo] = await Promise.all([
     db.prepare(
@@ -31,7 +32,7 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN trang_thai = 'tre' THEN 1 ELSE 0 END) AS tre,
               SUM(CASE WHEN trang_thai = 'vang_phep' THEN 1 ELSE 0 END) AS vangPhep,
               SUM(CASE WHEN trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vangKhongPhep
-         FROM diem_danh WHERE ngay BETWEEN ?1 AND ?2 ${dieuKienBuoi}
+         FROM diem_danh WHERE ngay BETWEEN ?1 AND ?2 ${dieuKienBuoi} AND lop_id = ?${viTriLop}
         GROUP BY ngay ORDER BY ngay`
     ).bind(...thamSo).all(),
 
@@ -44,16 +45,16 @@ export const onRequestGet = bocXuLy(async ({ request, env }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vangKhongPhep
          FROM hoc_sinh h LEFT JOIN diem_danh d
            ON d.hoc_sinh_id = h.id AND d.ngay BETWEEN ?1 AND ?2 ${dieuKienBuoiJoin}
-        WHERE h.dang_hoc = 1
+        WHERE h.dang_hoc = 1 AND h.lop_id = ?${viTriLop}
         GROUP BY h.id ORDER BY vangKhongPhep DESC, vangPhep DESC, h.id`
     ).bind(...thamSo).all(),
 
     db.prepare(
       `SELECT trang_thai AS trangThai, COUNT(*) AS n FROM diem_danh
-        WHERE ngay BETWEEN ?1 AND ?2 ${dieuKienBuoi} GROUP BY trang_thai`
+        WHERE ngay BETWEEN ?1 AND ?2 ${dieuKienBuoi} AND lop_id = ?${viTriLop} GROUP BY trang_thai`
     ).bind(...thamSo).all(),
 
-    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1').first(),
+    db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1').bind(phien.lopId).first(),
   ]);
 
   // Gom theo tuần để vẽ biểu đồ.

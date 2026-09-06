@@ -20,18 +20,18 @@ function docThamSo(request) {
   return { id, loaiTep };
 }
 
-export const onRequestPost = bocXuLy(async ({ request, env }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { id, loaiTep } = docThamSo(request);
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
   if (!LOAI_THU_VIEN[loaiTep]) return loi('Loại tệp không hợp lệ.');
 
-  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1').bind(id).first();
+  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
   if (!tb) return loi('Không tìm thấy thông báo.', 404);
 
   const kieu = (request.headers.get('Content-Type') || '').split(';')[0].trim();
   const duLieu = await request.arrayBuffer();
 
-  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`);
+  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`, phien.lopId);
   if (thongBaoLoi) return loi(thongBaoLoi);
 
   const cotId = COT_ID[loaiTep];

@@ -1878,13 +1878,18 @@ async function dieuHuong() {
 (async function khoiDong() {
   try {
     const d = await api('/api/whoami');
-    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [] };
+    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [], tenLop: d.tenLop || '' };
   } catch {
     // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
   }
 
+  // Ghi rõ "Đang quản lý: <tên lớp>" — cùng một người có thể chủ nhiệm nhiều lớp bằng nhiều mã
+  // khác nhau, cần tín hiệu nhìn thấy ngay để tránh tự nhầm lẫn đang thao tác nhầm lớp (dữ liệu
+  // đã được máy chủ tách biệt tuyệt đối, đây chỉ là hiển thị cho rõ ràng).
   const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
+  if (hieuPhu) {
+    hieuPhu.textContent = layNhanTaiKhoan(PHIEN) + (PHIEN.tenLop ? ` · Đang quản lý: ${PHIEN.tenLop}` : '');
+  }
 
   locMenuTheoQuyen();
   addEventListener('hashchange', dieuHuong);
