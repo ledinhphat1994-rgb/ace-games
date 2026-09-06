@@ -18,8 +18,8 @@
 <header class="thanh-tren">
   <div class="wrap">
     <a class="hieu" href="/">
-      <span class="hieu-o">🎓</span>
-      <span class="hieu-ten">Hệ thống lớp học<small class="hieu-phu">Đăng nhập</small></span>
+      <span class="hieu-o" id="hieuMaLop">🎓</span>
+      <span class="hieu-ten"><span id="hieuTenLop">Hệ thống lớp học</span><small class="hieu-phu">Đăng nhập</small></span>
     </a>
     <div class="thanh-phai">
       <a class="nut-tron" href="/" title="Trang chủ" aria-label="Trang chủ">
@@ -35,9 +35,9 @@
 </header>
 
 <main class="the-dang-nhap">
-  <div class="hieu-o">🎓</div>
-  <h1>Đăng nhập</h1>
-  <p class="phu">Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã</p>
+  <div class="hieu-o" id="hieuOChinh">🎓</div>
+  <h1 id="tieuDeDangNhap">Đăng nhập</h1>
+  <p class="phu" id="phuDeDangNhap">Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã</p>
 
   <form id="bieuMau" autocomplete="off">
     <label class="nhan-nhap" for="ma">Mã cá nhân của em (hoặc mã giáo viên)</label>
@@ -59,6 +59,26 @@
 <script type="module">
   import { ganDoiGiaoDien } from '/assets/js/chung.js';
   ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
+
+  // Mỗi lớp có một đường link đăng nhập riêng: /login.html?lop=<slug> — mở đúng link của lớp
+  // nào thì thấy ngay tên lớp đó TRƯỚC KHI nhập mã, để học sinh chắc chắn đang vào đúng trang
+  // của lớp mình (không phải cơ chế bảo mật, chỉ để hiển thị — mã vẫn xác thực như cũ).
+  (async function hienThiTenLop() {
+    const slug = new URLSearchParams(location.search).get('lop');
+    if (!slug) return;
+    try {
+      const res = await fetch('/api/lop-cong-khai?lop=' + encodeURIComponent(slug));
+      const d = await res.json();
+      if (!d.ok || !d.lop) return;
+      const tenNgan = (d.lop.ten || '').replace(/^Lớp\s*/i, '');
+      document.title = `Đăng nhập · ${d.lop.ten}`;
+      document.getElementById('hieuTenLop').textContent = d.lop.ten;
+      document.getElementById('hieuMaLop').textContent = tenNgan || '🎓';
+      document.getElementById('tieuDeDangNhap').textContent = d.lop.ten;
+      document.getElementById('hieuOChinh').textContent = tenNgan || '🎓';
+      document.getElementById('phuDeDangNhap').textContent = d.lop.truong || '';
+    } catch { /* giữ nguyên chữ chung chung nếu không tra được */ }
+  })();
 
   const bieuMau = document.getElementById('bieuMau');
   const loiNhan = document.getElementById('loiNhan');

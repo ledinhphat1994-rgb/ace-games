@@ -8,6 +8,9 @@ const PUBLIC_PATHS = new Set([
   '/favicon.ico', '/robots.txt',
   // Hai tệp này chỉ mô tả cách cài ứng dụng, không chứa dữ liệu của lớp.
   '/manifest.webmanifest', '/sw.js',
+  // Chỉ trả tên/trường/năm học của MỘT lớp theo slug trên đường link — không có dữ liệu học
+  // sinh/điểm/quỹ nào — cần công khai để màn hình đăng nhập hiện đúng tên lớp trước khi đăng nhập.
+  '/api/lop-cong-khai',
 ]);
 
 function isPublic(pathname) {
