@@ -1096,28 +1096,19 @@ async function trangHocSinh() {
       const noi = e('div', 'noi');
       const stt = h.soThuTu || h.id;
       noi.append(e('b', null, `${stt}. ${h.hoTen}`));
-      const phu = [h.lopNghe, h.chucVu].filter(Boolean).join(' · ');
-      noi.append(e('small', null, phu || ngayVN(h.ngaySinh)));
+      // Luôn hiện ngày sinh — lopNghe/chucVu hiện bên phải thành nhãn riêng, không đè lên ngày sinh
+      noi.append(e('small', null, ngayVN(h.ngaySinh) || ''));
       khoiTrai.append(noi);
 
       khoiTrai.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
 
       const phai = e('div', 'canh-phai');
-      phai.style.cssText = 'display:flex;align-items:center;gap:8px';
+      phai.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end';
 
-      // Tổ hiện thành nhãn riêng khi đã xếp — chưa xếp thì không ghi gì, đỡ rối mắt với
-      // danh sách 37 em mà phần lớn chưa chia tổ.
+      // Nhãn bên phải: lớp nghề → chức vụ → tổ
+      if (h.lopNghe) phai.append(e('span', 'nhan nhan-xam', h.lopNghe));
+      if (h.chucVu) phai.append(e('span', 'nhan nhan-tot', h.chucVu));
       if (h.toSo) phai.append(e('span', 'nhan nhan-xam', 'Tổ ' + h.toSo));
-
-      const nutSua = e('button', 'nut-vien nut-nho', '✎ Sửa');
-      nutSua.type = 'button';
-      nutSua.title = `Sửa hồ sơ ${h.hoTen}`;
-      nutSua.setAttribute('aria-label', `Sửa hồ sơ ${h.hoTen}`);
-      nutSua.style.cssText = 'font-size:12.5px;padding:3px 9px;min-height:30px;';
-      nutSua.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        suaHoSo(h);
-      });
 
       const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑 Xoá');
       nutXoa.type = 'button';
@@ -1129,7 +1120,7 @@ async function trangHocSinh() {
         xoaHocSinh(h, () => trangHocSinh());
       });
 
-      phai.append(nutSua, nutXoa);
+      phai.append(nutXoa);
       the.append(khoiTrai, phai);
       return the;
     }));
