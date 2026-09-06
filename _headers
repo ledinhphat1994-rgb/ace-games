@@ -1,0 +1,22 @@
+# Buộc trình duyệt LUÔN hỏi lại máy chủ trước khi dùng bản đã lưu (no-cache = vẫn được lưu,
+# nhưng phải xác nhận "còn mới" với máy chủ mỗi lần — dùng ETag nên vẫn nhanh, không tải lại
+# toàn bộ nếu không đổi gì). Tránh lặp lại nhiều lần lỗi "sửa code xong nhưng người dùng vẫn
+# thấy bản cũ" — nhất là học sinh/cán sự, vì chỉ có trang /giao-vien/ mới có service worker
+# (sw.js) tự ép lấy bản mới; trang chủ và trang cá nhân không có lớp bảo vệ đó.
+/
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache
+
+/assets/*
+  Cache-Control: no-cache
+
+/giao-vien/*
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache

@@ -1535,15 +1535,17 @@ export async function trangQuyLichSu(KHUNG) {
     const d = await api('/api/gv/quy-checkpoint');
     const khung = e('div');
 
-    const the = e('div', 'the');
-    the.style.borderColor = 'var(--chinh)';
-    the.append(
-      e('h3', null, laGiaoVien ? 'Nếu tài khoản bị lộ hoặc dữ liệu sai' : 'Chỉ giáo viên chủ nhiệm mới khôi phục được'),
-      e('p', null, laGiaoVien
-        ? 'Chọn đúng thời điểm trước khi sự cố xảy ra, bấm "Khôi phục về đây". Toàn bộ khoản thu, khoản đã đóng và khoản chi sẽ trở về đúng như lúc đó. Bản thân việc khôi phục cũng được lưu lại một điểm mới, nên nếu chọn nhầm vẫn quay lại được.'
-        : 'Tài khoản đặc biệt (kể cả Thủ quỹ) chỉ xem được lịch sử này, không tự khôi phục hay xoá được — tránh trường hợp một mã bị lộ rồi tự xoá dấu vết.')
-    );
-    khung.append(the);
+    // Tài khoản không phải giáo viên (vd Thủ quỹ) chỉ xem được danh sách này, không có nút
+    // Khôi phục/Xoá nào cả — đã đủ tự giải thích, không cần thêm ghi chú nhắc lại.
+    if (laGiaoVien) {
+      const the = e('div', 'the');
+      the.style.borderColor = 'var(--chinh)';
+      the.append(
+        e('h3', null, 'Nếu tài khoản bị lộ hoặc dữ liệu sai'),
+        e('p', null, 'Chọn đúng thời điểm trước khi sự cố xảy ra, bấm "Khôi phục về đây". Toàn bộ khoản thu, khoản đã đóng và khoản chi sẽ trở về đúng như lúc đó. Bản thân việc khôi phục cũng được lưu lại một điểm mới, nên nếu chọn nhầm vẫn quay lại được.')
+      );
+      khung.append(the);
+    }
 
     if (!d.danhSach.length) {
       khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác đầu tiên trên Thủ quỹ.'));

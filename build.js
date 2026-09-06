@@ -9,7 +9,7 @@ const OUT = path.join(ROOT, 'dist');
 // Chỉ những mục có tên dưới đây mới được đăng lên.
 const DANH_SACH_DANG = [
   'index.html', 'login.html', 'ca-nhan.html', 'robots.txt',
-  'manifest.webmanifest', 'sw.js',
+  'manifest.webmanifest', 'sw.js', '_headers',
   'assets', 'data', 'functions', 'giao-vien',
 ];
 
