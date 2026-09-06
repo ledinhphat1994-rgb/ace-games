@@ -20,10 +20,21 @@ function docThamSo(request) {
   return { id, loaiTep };
 }
 
+const QUYEN_THU_VIEN = { hinh: 'hinh-anh', nhac: 'am-thanh', video: 'video' };
+
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { id, loaiTep } = docThamSo(request);
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
   if (!LOAI_THU_VIEN[loaiTep]) return loi('Loại tệp không hợp lệ.');
+
+  // Đính kèm mục CÓ SẴN (chọn từ thư viện, dán link) chỉ cần quyền "thong-bao" — nhưng TẢI FILE
+  // MỚI là hành động khác hẳn: tự thêm hẳn một mục mới vào thư viện Ảnh/Âm thanh/Video DÙNG
+  // CHUNG cho cả lớp, nên bắt buộc phải có đúng quyền của thư viện đó. Thiếu kiểm tra này thì
+  // tài khoản chỉ được cấp quyền "Thông báo" (không được cấp quyền Ảnh/Âm thanh/Video) vẫn tự
+  // thêm được nội dung mới vào thư viện chung mà giáo viên chưa từng cho phép.
+  if (phien.role !== 'teacher' && !(phien.quyen || []).includes(QUYEN_THU_VIEN[loaiTep])) {
+    return loi('Bạn chưa được cấp quyền thêm tệp mới vào thư viện này — nhờ giáo viên chủ nhiệm cấp quyền, hoặc chọn mục có sẵn/dán link thay vì tải file mới.', 403);
+  }
 
   const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
   if (!tb) return loi('Không tìm thấy thông báo.', 404);

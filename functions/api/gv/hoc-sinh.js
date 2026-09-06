@@ -1,7 +1,6 @@
-// Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được.
-//   GET    /api/gv/hoc-sinh            -> cả lớp; cán sự được cấp quyền "hoc-sinh" cũng xem
-//          được danh sách này, nhưng CHỈ thấy thêm hoàn cảnh/SĐT/ghi chú/thống kê vắng nếu
-//          giáo viên đã bật đúng mục đó ở "⚙ Tuỳ chỉnh hiển thị" (mặc định không bật gì thêm).
+// Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được (không tài khoản đặc biệt nào
+// khác được cấp quyền vào đây — xem "⚙ Tuỳ chỉnh hiển thị" ở trang-lop cho phần công khai).
+//   GET    /api/gv/hoc-sinh            -> cả lớp
 //   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký —
 //          LUÔN chỉ giáo viên chủ nhiệm (có cả nhật ký vi phạm, không phải thứ nên lộ cho bạn học).
 //   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
@@ -69,24 +68,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     theoId[x.hocSinhId][x.muc] = { trangThai: x.trangThai, ghiChu: x.ghiChu };
   });
 
-  let danhSach = results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} }));
-
-  // Cán sự (không phải giáo viên) chỉ thấy thêm những trường nhạy cảm giáo viên đã CHỦ ĐỘNG
-  // bật ở "⚙ Tuỳ chỉnh hiển thị" (xem functions/api/gv/cau-hinh-hoc-sinh.js) — mặc định ẩn hết,
-  // và "theoDoi" (ghi chú theo dõi riêng) luôn ẩn với cán sự bất kể cấu hình.
-  if (phien.role !== 'teacher') {
-    const lopRow = await db.prepare('SELECT hs_can_su_hien AS hienThem FROM lop WHERE id = ?1').bind(phien.lopId).first();
-    const hienThem = new Set((lopRow?.hienThem || '').split(',').map((s) => s.trim()).filter(Boolean));
-    danhSach = danhSach.map((h) => {
-      const { dienThoaiPh, hoanCanh, ghiChu, vangKhongPhep, vangPhep, tre, theoDoi, ...conLai } = h;
-      const rieng = {};
-      if (hienThem.has('dien-thoai-ph')) rieng.dienThoaiPh = dienThoaiPh;
-      if (hienThem.has('hoan-canh')) rieng.hoanCanh = hoanCanh;
-      if (hienThem.has('ghi-chu')) rieng.ghiChu = ghiChu;
-      if (hienThem.has('thong-ke-vang')) Object.assign(rieng, { vangKhongPhep, vangPhep, tre });
-      return { ...conLai, ...rieng };
-    });
-  }
+  // Hàm này giờ chỉ giáo viên chủ nhiệm gọi tới được (canGiaoVien không có quyenCan), nên
+  // không cần lọc bớt trường nào nữa — trước đây có lọc riêng cho cán sự được cấp quyền
+  // "Học sinh", nhưng quyền đó đã bỏ (xem functions/api/gv/tai-khoan-phu.js).
+  const danhSach = results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} }));
 
   return json({ ok: true, danhSach });
 }, { canGiaoVien: true });

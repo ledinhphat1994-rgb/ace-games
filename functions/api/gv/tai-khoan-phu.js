@@ -18,9 +18,12 @@ export const CAC_QUYEN = [
   // KHÔNG có mục "Học sinh" ở đây — xem/sửa hồ sơ học sinh chỉ dành riêng cho giáo viên chủ
   // nhiệm; tài khoản đặc biệt (dù được cấp quyền gì) chỉ xem danh sách qua Menu như học sinh
   // thường, không có trang quản lý riêng.
-  ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
-  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
-  ['video', 'Thư viện Video — tải video lên'],
+  // Có 1 trong 3 quyền thư viện dưới đây là đủ để đăng/gỡ mục ở "Hoạt động lớp" (xem
+  // functions/api/gv/hoat-dong-lop.js) — không phải quyền riêng, ghi rõ trong nhãn để giáo
+  // viên biết đúng những gì mình đang cấp.
+  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý ảnh, đăng vào Hoạt động lớp'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ, đăng vào Hoạt động lớp'],
+  ['video', 'Thư viện Video — tải/quản lý video, đăng vào Hoạt động lớp'],
 ];
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));
 

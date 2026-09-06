@@ -1087,9 +1087,11 @@ const CAC_QUYEN_QUAN_LY = [
   ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học'],
   // KHÔNG có mục "Học sinh" — xem/sửa hồ sơ chỉ dành cho giáo viên chủ nhiệm, xem [functions/
   // api/gv/tai-khoan-phu.js] CAC_QUYEN.
-  ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
-  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
-  ['video', 'Thư viện Video — tải video lên'],
+  // Có 1 trong 3 quyền thư viện dưới đây là đủ để đăng/gỡ mục ở "Hoạt động lớp" — không phải
+  // quyền riêng, ghi rõ trong nhãn để giáo viên biết đúng những gì mình đang cấp.
+  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý ảnh, đăng vào Hoạt động lớp'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ, đăng vào Hoạt động lớp'],
+  ['video', 'Thư viện Video — tải/quản lý video, đăng vào Hoạt động lớp'],
 ];
 const ICON_QUYEN = {
   quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'thoi-khoa-bieu': '🕒', 'hoc-sinh': '👥',
