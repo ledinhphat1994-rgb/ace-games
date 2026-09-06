@@ -1,21 +1,11 @@
 /* Hộp thoại đổi ảnh/video nền đầu trang lớp (banner) — chỉ giáo viên chủ nhiệm.
-   Mô phỏng đúng "3 cách đính kèm" đã dùng cho Thông báo (xem thong-bao-dialog.js): chọn từ
-   thư viện có sẵn / tải file mới / dán link ngoài — áp dụng cho ảnh và video, ĐÚNG MỘT TRONG
-   HAI tại một thời điểm. Không có mục âm thanh ở đây — nhạc nền trang chủ đã là một tính năng
-   riêng (Thư viện Âm thanh → Làm nhạc nền), banner chỉ lo phần "nhìn thấy". */
-import { e, api, ngayVN, nenAnhThanhBlob, nhac } from './chung.js';
-import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
-
-function hangTich(id, nhanChu, daChon) {
-  const o = e('input');
-  o.type = 'checkbox';
-  o.id = id;
-  o.checked = Boolean(daChon);
-  const l = e('label');
-  l.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600';
-  l.append(o, document.createTextNode(nhanChu));
-  return [o, l];
-}
+   Gọn theo 2 lớp lựa chọn để đỡ rối mắt: chọn LOẠI (Ảnh/Video) bằng tab, rồi chọn NGUỒN
+   (Thư viện có sẵn / Tải lên / Dán link) bằng 3 nút nhỏ — chỉ MỘT ô nhập hiện ra tại một
+   thời điểm, thay vì hiện sẵn cả 6 ô như trước. Không có mục âm thanh ở đây — nhạc nền trang
+   chủ đã là một tính năng riêng (Thư viện Âm thanh → Làm nhạc nền), banner chỉ lo phần
+   "nhìn thấy". */
+import { e, api, datNoiDung, ngayVN, nenAnhThanhBlob, nhac } from './chung.js';
+import { nut, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
 
 function xuLyLinkHinh(url) {
   if (!url) return '';
@@ -36,69 +26,89 @@ async function layDanhSachThuVien(duong) {
   }
 }
 
-async function khoiChonHinh(banner) {
-  const khung = e('div');
-  khung.style.cssText = 'border-top:1px dashed var(--vien);padding-top:12px;margin-top:4px';
-  khung.append(Object.assign(e('div', null, '🖼 Ảnh nền'), { style: 'font-weight:700;font-size:13.5px;margin-bottom:8px' }));
+const NGUON = [['thu-vien', '📚 Thư viện'], ['tai-len', '⬆ Tải lên'], ['link', '🔗 Dán link']];
 
-  if (banner && (banner.bannerHinhKhoa || banner.bannerHinhUrl)) {
-    const img = e('img');
-    img.src = xuLyLinkHinh(banner.bannerHinhKhoa || banner.bannerHinhUrl);
-    img.style.cssText = 'max-width:200px;max-height:120px;border-radius:8px;display:block;margin-bottom:8px;object-fit:cover';
-    khung.append(img);
+/** Một khối "chọn loại nền" dùng chung cho Ảnh và Video — tự vẽ 3 nút nguồn, chỉ hiện
+    đúng một ô nhập tương ứng nguồn đang chọn. */
+function khoiChonNguon({ nguonMacDinh, oThuVien, oTep, oLink, ghiChuLink }) {
+  const khung = e('div');
+  const dayNut = e('div', 'day-loc');
+  dayNut.style.cssText = 'margin-bottom:10px';
+  const oNoiDung = e('div');
+
+  let nguonHienTai = nguonMacDinh;
+
+  function ve() {
+    datNutDay();
+    let o;
+    if (nguonHienTai === 'thu-vien') o = oThuVien;
+    else if (nguonHienTai === 'tai-len') o = oTep;
+    else o = oLink;
+
+    const con = [o];
+    if (nguonHienTai === 'link' && ghiChuLink) {
+      con.push(Object.assign(e('div', 'trong', ghiChuLink), { style: 'margin-top:6px;font-size:12px' }));
+    }
+    oNoiDung.replaceChildren(...con);
   }
 
+  function datNutDay() {
+    dayNut.replaceChildren(...NGUON.map(([ma, nhan]) => {
+      const b = e('button', 'vien-loc', nhan);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(nguonHienTai === ma));
+      b.addEventListener('click', () => { nguonHienTai = ma; ve(); });
+      return b;
+    }));
+  }
+
+  khung.append(dayNut, oNoiDung);
+  ve();
+  return { khung, layNguon: () => nguonHienTai };
+}
+
+async function khoiAnh(banner) {
   const dsAnh = await layDanhSachThuVien('/api/gv/anh');
-  const oChonThuVien = oChon('bnChonAnh',
-    [['', '— Không chọn —'], ...dsAnh.map((a) => [String(a.id), `${a.chuThich || 'Ảnh'} — ${ngayVN(a.ngay)}`])],
-    banner && banner.bannerAnhId ? String(banner.bannerAnhId) : '');
+  const oThuVien = oChon('bnChonAnh',
+    [['', '— Chọn một ảnh —'], ...dsAnh.map((a) => [String(a.id), `${a.chuThich || 'Ảnh'} — ${ngayVN(a.ngay)}`])],
+    banner?.bannerAnhId ? String(banner.bannerAnhId) : '');
 
   const oTep = e('input');
   oTep.type = 'file';
   oTep.accept = 'image/jpeg,image/png,image/webp';
-  oTep.id = 'bnTepHinh';
   oTep.className = 'o-nhap';
 
-  const oUrlHinh = oNhap('bnUrlHinh', 'text', (banner && banner.bannerHinhUrl) || '', 'Dán link ảnh trực tiếp (https://...) hoặc link chia sẻ Google Drive');
+  const oLink = oNhap('bnUrlHinh', 'text', banner?.bannerHinhUrl || '', 'Dán link ảnh (https://...) hoặc link Google Drive');
 
-  khung.append(
-    truong('Cách 1: Chọn ảnh có sẵn trong Thư viện Ảnh', oChonThuVien),
-    truong('Cách 2: Hoặc tải ảnh mới từ máy (tự nén, tự thêm vào thư viện)', oTep, 'Hệ thống tự nén ảnh tối ưu dung lượng (dưới 1,5 MB).'),
-    truong('Cách 3: Hoặc dán link ảnh trực tuyến', oUrlHinh, 'Dán link ảnh từ internet (chuột phải chọn "Sao chép địa chỉ hình ảnh") hoặc link Google Drive (quyền xem: Bất kỳ ai có liên kết).')
-  );
+  const nguonMacDinh = banner?.bannerHinhUrl ? 'link' : (banner?.bannerAnhId ? 'thu-vien' : 'thu-vien');
+  const { khung, layNguon } = khoiChonNguon({
+    nguonMacDinh, oThuVien, oTep, oLink,
+    ghiChuLink: 'Chuột phải ảnh → "Sao chép địa chỉ hình ảnh", hoặc link chia sẻ Google Drive (quyền xem: Bất kỳ ai có liên kết).',
+  });
 
-  return { khung, oTep, oUrlHinh, oChonThuVien };
+  return { khung, oTep, oLink, oThuVien, layNguon };
 }
 
-async function khoiChonVideo(banner) {
-  const khung = e('div');
-  khung.style.cssText = 'border-top:1px dashed var(--vien);padding-top:12px;margin-top:4px';
-  khung.append(Object.assign(e('div', null, '🎬 Video nền'), { style: 'font-weight:700;font-size:13.5px;margin-bottom:8px' }));
-
-  if (banner && banner.bannerVideoTen) {
-    khung.append(Object.assign(e('div', null, '🎬 Đang dùng: ' + banner.bannerVideoTen), { style: 'font-size:13px;margin-bottom:8px;color:var(--chu-nhat)' }));
-  }
-
+async function khoiVideo(banner) {
   const dsVideo = await layDanhSachThuVien('/api/gv/thu-vien-video');
-  const oChonThuVien = oChon('bnChonVideo',
-    [['', '— Không chọn —'], ...dsVideo.map((v) => [String(v.id), v.ten || 'Video chưa đặt tên'])],
-    banner && banner.bannerVideoId ? String(banner.bannerVideoId) : '');
+  const oThuVien = oChon('bnChonVideo',
+    [['', '— Chọn một video —'], ...dsVideo.map((v) => [String(v.id), v.ten || 'Video chưa đặt tên'])],
+    banner?.bannerVideoId ? String(banner.bannerVideoId) : '');
 
   const oTep = e('input');
   oTep.type = 'file';
   oTep.accept = 'video/mp4,video/webm,video/quicktime,video/*';
-  oTep.id = 'bnTepVideo';
   oTep.className = 'o-nhap';
 
-  const oUrlVideo = oNhap('bnUrlVideo', 'text', (banner && banner.bannerVideoUrl) || '', 'Dán link video phát trực tiếp (.mp4)');
+  const oLink = oNhap('bnUrlVideo', 'text', banner?.bannerVideoUrl || '', 'Dán link video .mp4 phát trực tiếp');
 
-  khung.append(
-    truong('Cách 1: Chọn video có sẵn trong Thư viện Video', oChonThuVien),
-    truong('Cách 2: Hoặc tải video mới từ máy/điện thoại (tối đa 50 MB, tự thêm vào thư viện)', oTep),
-    truong('Cách 3: Hoặc dán link video .mp4 trực tuyến', oUrlVideo, 'Banner tự phát/lặp lại/tắt tiếng nên chỉ nhận link phát trực tiếp (.mp4) — không dùng được link YouTube/TikTok/Facebook ở đây.')
-  );
+  const nguonMacDinh = banner?.bannerVideoUrl ? 'link' : 'thu-vien';
+  const { khung, layNguon } = khoiChonNguon({
+    nguonMacDinh, oThuVien, oTep, oLink,
+    ghiChuLink: 'Banner tự phát/lặp/tắt tiếng nên chỉ nhận link .mp4 phát trực tiếp — không dùng được link YouTube/TikTok/Facebook.',
+  });
 
-  return { khung, oTep, oUrlVideo, oChonThuVien };
+  return { khung, oTep, oLink, oThuVien, layNguon };
 }
 
 export async function moHopThoaiBannerLop(lamMoi) {
@@ -111,48 +121,97 @@ export async function moHopThoaiBannerLop(lamMoi) {
   }
 
   const coBanner = Boolean(banner.bannerAnhId || banner.bannerHinhUrl || banner.bannerVideoId || banner.bannerVideoUrl);
-  const [oXoa, hangXoa] = hangTich('bnXoa', 'Xoá banner hiện tại, dùng lại nền mặc định', false);
+  const laVideoHienTai = Boolean(banner.bannerVideoId || banner.bannerVideoUrl);
 
-  const [ketQuaHinh, ketQuaVideo] = await Promise.all([khoiChonHinh(banner), khoiChonVideo(banner)]);
-  const { khung: khoiHinh, oTep: oTepHinh, oUrlHinh, oChonThuVien: oChonAnh } = ketQuaHinh;
-  const { khung: khoiVideo, oTep: oTepVideo, oUrlVideo, oChonThuVien: oChonVideo } = ketQuaVideo;
+  // Xem trước banner hiện tại (nếu có) — một dòng gọn, không choán chỗ.
+  const khungXemTruoc = e('div');
+  if (coBanner) {
+    khungXemTruoc.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px;border:1px solid var(--vien);border-radius:10px';
+    const nhoNhan = e('span', 'trong', 'Đang dùng:');
+    nhoNhan.style.fontSize = '13px';
+    if (banner.bannerHinhKhoa || banner.bannerHinhUrl) {
+      const img = e('img');
+      img.src = xuLyLinkHinh(banner.bannerHinhKhoa || banner.bannerHinhUrl);
+      img.style.cssText = 'width:52px;height:36px;border-radius:6px;object-fit:cover';
+      khungXemTruoc.append(img, nhoNhan, e('b', null, 'Ảnh nền'));
+    } else {
+      khungXemTruoc.append(e('span', null, '🎬'), nhoNhan, e('b', null, banner.bannerVideoTen || 'Video nền'));
+    }
+  }
+
+  const [ketQuaAnh, ketQuaVideo] = await Promise.all([khoiAnh(banner), khoiVideo(banner)]);
+
+  let loaiHienTai = laVideoHienTai ? 'video' : 'anh';
+  const dayTabLoai = e('div', 'day-loc');
+  const khungLoai = e('div');
+
+  function veTabLoai() {
+    datNoiDung(dayTabLoai, ...[['anh', '🖼 Ảnh'], ['video', '🎬 Video']].map(([ma, nhan]) => {
+      const b = e('button', 'vien-loc', nhan);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(loaiHienTai === ma));
+      b.addEventListener('click', () => { loaiHienTai = ma; veTabLoai(); veNoiDungLoai(); });
+      return b;
+    }));
+  }
+  function veNoiDungLoai() {
+    datNoiDung(khungLoai, loaiHienTai === 'anh' ? ketQuaAnh.khung : ketQuaVideo.khung);
+  }
+  veTabLoai();
+  veNoiDungLoai();
 
   moHopThoai('Ảnh/video nền đầu trang lớp', [
-    e('p', null, 'Chọn ĐÚNG MỘT TRONG HAI để làm nền cho khối giới thiệu đầu trang lớp: ảnh HOẶC video. Chọn/tải loại nào thì loại kia tự bỏ.'),
-    coBanner ? hangXoa : null,
-    khoiVideo,
-    khoiHinh,
-  ].filter(Boolean), [
+    khungXemTruoc,
+    e('p', 'trong', 'Chọn ảnh hoặc video làm nền cho khối giới thiệu đầu trang — chọn loại nào thì banner dùng đúng loại đó.'),
+    dayTabLoai,
+    khungLoai,
+  ], [
+    coBanner ? nut('🗑 Xoá banner', 'nut-nhe nut-nho', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/lop-banner', { method: 'PATCH', than: {} });
+        dongHopThoai();
+        nhac('Đã xoá banner, dùng lại nền mặc định', 'tot');
+        if (lamMoi) await lamMoi();
+      } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+    }) : null,
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
-      const tepVideo = oTepVideo.files[0];
-      if (tepVideo && tepVideo.size > 50_000_000) {
+      const { oTep: oTepAnh, oLink: oLinkAnh, oThuVien: oThuVienAnh, layNguon: layNguonAnh } = ketQuaAnh;
+      const { oTep: oTepVideo, oLink: oLinkVideo, oThuVien: oThuVienVideo, layNguon: layNguonVideo } = ketQuaVideo;
+
+      if (loaiHienTai === 'video' && oTepVideo.files[0] && oTepVideo.files[0].size > 50_000_000) {
         return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link .mp4', 'xau');
-      }
-      const coXoa = oXoa && oXoa.checked;
-      const coChonGi = coXoa || oTepHinh.files[0] || tepVideo
-        || oChonVideo.value || oUrlVideo.value.trim() || oChonAnh.value || oUrlHinh.value.trim();
-      if (!coChonGi) {
-        return nhac('Chưa chọn ảnh hoặc video nào — tích vào "Xoá banner" nếu muốn quay về nền mặc định.', 'xau');
       }
 
       ev.currentTarget.disabled = true;
       try {
-        if (coXoa) {
-          await api('/api/gv/lop-banner', { method: 'PATCH', than: {} });
-        } else if (oTepHinh.files[0]) {
-          const blob = await nenAnhThanhBlob(oTepHinh.files[0]);
-          await api('/api/gv/lop-banner-tep?loai=hinh', { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-        } else if (tepVideo) {
-          const duLieu = await tepVideo.arrayBuffer();
-          await api('/api/gv/lop-banner-tep?loai=video', { method: 'POST', headers: { 'Content-Type': tepVideo.type || 'video/mp4' }, body: duLieu });
+        if (loaiHienTai === 'anh') {
+          const nguon = layNguonAnh();
+          if (nguon === 'tai-len' && oTepAnh.files[0]) {
+            const blob = await nenAnhThanhBlob(oTepAnh.files[0]);
+            await api('/api/gv/lop-banner-tep?loai=hinh', { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+          } else if (nguon === 'thu-vien' && oThuVienAnh.value) {
+            await api('/api/gv/lop-banner', { method: 'PATCH', than: { anhId: Number(oThuVienAnh.value) } });
+          } else if (nguon === 'link' && oLinkAnh.value.trim()) {
+            await api('/api/gv/lop-banner', { method: 'PATCH', than: { hinhUrl: oLinkAnh.value.trim() } });
+          } else {
+            ev.currentTarget.disabled = false;
+            return nhac('Chưa chọn ảnh nào — chọn từ thư viện, tải lên, hoặc dán link.', 'xau');
+          }
         } else {
-          const than = {};
-          if (oChonVideo.value) than.videoId = Number(oChonVideo.value);
-          else if (oUrlVideo.value.trim()) than.videoUrl = oUrlVideo.value.trim();
-          else if (oChonAnh.value) than.anhId = Number(oChonAnh.value);
-          else than.hinhUrl = oUrlHinh.value.trim();
-          await api('/api/gv/lop-banner', { method: 'PATCH', than });
+          const nguon = layNguonVideo();
+          if (nguon === 'tai-len' && oTepVideo.files[0]) {
+            const duLieu = await oTepVideo.files[0].arrayBuffer();
+            await api('/api/gv/lop-banner-tep?loai=video', { method: 'POST', headers: { 'Content-Type': oTepVideo.files[0].type || 'video/mp4' }, body: duLieu });
+          } else if (nguon === 'thu-vien' && oThuVienVideo.value) {
+            await api('/api/gv/lop-banner', { method: 'PATCH', than: { videoId: Number(oThuVienVideo.value) } });
+          } else if (nguon === 'link' && oLinkVideo.value.trim()) {
+            await api('/api/gv/lop-banner', { method: 'PATCH', than: { videoUrl: oLinkVideo.value.trim() } });
+          } else {
+            ev.currentTarget.disabled = false;
+            return nhac('Chưa chọn video nào — chọn từ thư viện, tải lên, hoặc dán link.', 'xau');
+          }
         }
 
         dongHopThoai();
@@ -163,5 +222,5 @@ export async function moHopThoaiBannerLop(lamMoi) {
         ev.currentTarget.disabled = false;
       }
     }),
-  ]);
+  ].filter(Boolean));
 }

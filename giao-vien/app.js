@@ -41,9 +41,9 @@ const QUYEN_THEO_TUYEN = {
   'thu-vien-video': 'video',
   'quy': 'quy',
   'quy-lich-su': 'quy',
-  'thoi-khoa-bieu': null,
-  'thoi-khoa-bieu-lich-su': null,
-  'thoi-khoa-bieu-xem': null,
+  'thoi-khoa-bieu': 'thoi-khoa-bieu',
+  'thoi-khoa-bieu-lich-su': 'thoi-khoa-bieu',
+  'thoi-khoa-bieu-xem': 'thoi-khoa-bieu',
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.

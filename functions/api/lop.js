@@ -36,7 +36,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
 
-  const [lopRow, hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi, quyDong] = await Promise.all([
+  const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong] = await Promise.all([
     db.prepare(
       `SELECT l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
               ha.khoa AS bannerHinhKhoa, l.banner_hinh_url AS bannerHinhUrl,
@@ -71,7 +71,19 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
                  (CASE WHEN ngay_bat_dau <= ?2 THEN 0 ELSE 1 END),
                  ngay_bat_dau DESC, id DESC LIMIT 1`
     ).bind(lopId, homNay).first(),
-    db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC LIMIT 60').bind(lopId).all(),
+    // "Hoạt động lớp" — CHỈ những mục giáo viên/cán sự đã chọn đăng công khai, không phải mọi
+    // ảnh trong thư viện Ảnh (thư viện còn dùng chung cho Banner, Thông báo... không nên tự lộ
+    // hết ra trang chủ).
+    db.prepare(
+      `SELECT hd.id, hd.loai, hd.chu_thich AS chuThich, hd.ngay, hd.url,
+              hd.video_id AS videoId, hd.am_thanh_id AS amThanhId,
+              ha.khoa AS anhKhoa, v.khoa AS videoKhoa, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
+         FROM hoat_dong_lop hd
+         LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
+         LEFT JOIN video v ON v.id = hd.video_id
+         LEFT JOIN am_thanh at ON at.id = hd.am_thanh_id
+        WHERE hd.lop_id = ?1 ORDER BY hd.ngay DESC, hd.id DESC LIMIT 60`
+    ).bind(lopId).all(),
     // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,
@@ -149,7 +161,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau } : null,
       o: oTkb,
     },
-    hinhAnh: hinhAnh.results,
+    hoatDongLop: hoatDongLop.results,
     nhacNen: nhacNen ? { tenBai: nhacNen.tenBai } : null,
     thuQuy: {
       tonQuy: tongThuQuy - tongChiQuy,

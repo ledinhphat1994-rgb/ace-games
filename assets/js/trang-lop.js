@@ -8,6 +8,7 @@ import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDie
 import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
+import { moHopThoaiThemHoatDong } from './hoat-dong-lop-dialog.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -385,6 +386,7 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   const soTietHomNay = soThuTkb ? o.filter((t) => t.thu === soThuTkb).length : 0;
 
   const dong = [];
+  if (phienBan?.ten) dong.push(phienBan.ten);
   if (o.length) dong.push(soThuTkb ? `Hôm nay có ${soTietHomNay} tiết` : 'Hôm nay Chủ nhật — nghỉ');
   dong.push(phienBan ? `áp dụng từ ${ngayVN(phienBan.ngayBatDau)}` : 'chưa cập nhật thời khoá biểu');
   $('#tkbApDung').textContent = dong.join(' · ');
@@ -449,6 +451,11 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
       }));
     };
     veTab();
+  } else if (cacBuoiCo.length === 1) {
+    // Chỉ có đúng một buổi thì không cần nút chọn (không có gì để chuyển qua lại), nhưng vẫn
+    // phải ghi rõ đó là buổi nào — không thì học sinh nhìn bảng không biết đây là lịch buổi
+    // sáng hay buổi chiều của lớp mình.
+    datNoiDung(hopTab, e('span', 'nhan nhan-xam', cacBuoiCo[0][1]));
   } else {
     datNoiDung(hopTab);
   }
@@ -1377,7 +1384,7 @@ function khoiHopXemAnh() {
   function ve() {
     const a = dsAnhDangXem[chiSoAnhDangXem];
     if (!a) return dong();
-    img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+    img.src = a.src;
     img.alt = a.chuThich || 'Ảnh hoạt động của lớp';
     chuThich.textContent = a.chuThich || '';
     chuThich.hidden = !a.chuThich;
@@ -1413,18 +1420,89 @@ function moXemAnh(ds, chiSo) {
   khoiHopXemAnh().moTai(ds, chiSo);
 }
 
-function veHinhAnh(ds) {
+function xuLyLinkAmThanhHoatDong(item) {
+  if (item.amThanhKhoa) return '/api/thu-vien-tep?loai=am-thanh&id=' + encodeURIComponent(item.amThanhId);
+  return xuLyLinkNhac(item.url, item.id);
+}
+
+function veTheHoatDong(item) {
+  const the = e('div', 'hoat-dong-the');
+
+  if (item.loai === 'anh') {
+    const hinh = e('figure');
+    const img = e('img');
+    img.src = xuLyLinkHinh(item.anhKhoa || item.url);
+    img.alt = item.chuThich || 'Hoạt động của lớp';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    hinh.append(img);
+    if (item.chuThich) hinh.append(e('figcaption', null, item.chuThich));
+    hinh.style.cursor = 'zoom-in';
+    hinh.addEventListener('click', () => moXemAnh([{ src: img.src, chuThich: item.chuThich }], 0));
+    the.append(hinh);
+  } else if (item.loai === 'video') {
+    if (item.videoKhoa) {
+      const vid = e('video');
+      vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
+      vid.src = '/api/thu-vien-tep?loai=video&id=' + encodeURIComponent(item.videoId);
+      the.append(vid);
+    } else {
+      const maYt = idYoutube(item.url);
+      const maDrive = idGoogleDrive(item.url);
+      if (maYt) {
+        const khung = e('iframe');
+        khung.src = 'https://www.youtube.com/embed/' + maYt;
+        khung.loading = 'lazy'; khung.allowFullscreen = true;
+        khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        the.append(khung);
+      } else if (maDrive) {
+        const khung = e('iframe');
+        khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
+        khung.loading = 'lazy'; khung.allowFullscreen = true; khung.allow = 'autoplay; fullscreen';
+        the.append(khung);
+      } else if (laVideoTrucTiep(item.url) || /facebook\.com|fb\.watch|tiktok\.com/i.test(item.url || '')) {
+        if (laVideoTrucTiep(item.url)) {
+          const vid = e('video');
+          vid.controls = true; vid.playsInline = true; vid.preload = 'metadata'; vid.src = item.url;
+          the.append(vid);
+        } else {
+          const khung = e('iframe');
+          khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(item.url) + '&show_text=0';
+          khung.loading = 'lazy'; khung.allowFullscreen = true;
+          the.append(khung);
+        }
+      } else {
+        const a = e('a', 'nut nut-vien nut-nho', '🎬 Xem video');
+        a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        the.append(a);
+      }
+    }
+    if (item.chuThich) the.append(e('p', 'hoat-dong-chu-thich', item.chuThich));
+  } else {
+    const audio = e('audio');
+    audio.controls = true; audio.preload = 'none';
+    audio.src = xuLyLinkAmThanhHoatDong(item);
+    the.append(audio);
+    the.append(e('p', 'hoat-dong-chu-thich', item.chuThich || item.amThanhTen || 'Âm thanh'));
+  }
+
+  return the;
+}
+
+function veHoatDongLop(ds, phien, lamMoi) {
   const than = $('#hinh-anh .than-khoi');
   const hop = $('#thuVien');
   const dsDay = ds || [];
+  const duocQuanLy = Boolean(phien && (phien.role === 'teacher'
+    || ['hinh-anh', 'am-thanh', 'video'].some((q) => (phien.quyen || []).includes(q))));
 
   let oTim = $('#thuVienTim');
   if (!oTim && than) {
     oTim = e('input', 'o-nhap');
     oTim.id = 'thuVienTim';
     oTim.type = 'search';
-    oTim.placeholder = 'Tìm ảnh theo chú thích…';
-    oTim.setAttribute('aria-label', 'Tìm ảnh theo chú thích');
+    oTim.placeholder = 'Tìm theo chú thích…';
+    oTim.setAttribute('aria-label', 'Tìm theo chú thích');
     oTim.style.marginBottom = '14px';
     than.insertBefore(oTim, hop);
     oTim.addEventListener('input', () => veLoc());
@@ -1434,28 +1512,34 @@ function veHinhAnh(ds) {
   function veLoc() {
     if (!dsDay.length) {
       return datNoiDung(hop, e('p', 'trong',
-        'Chưa có hình ảnh nào. Giáo viên chủ nhiệm sẽ đăng ảnh hoạt động của lớp tại đây.'));
+        'Chưa có hoạt động nào. Giáo viên chủ nhiệm sẽ đăng ảnh, video hoặc âm thanh hoạt động của lớp tại đây.'));
     }
 
     const q = (oTim?.value || '').trim().toLowerCase();
     const dsHien = q ? dsDay.filter((a) => (a.chuThich || '').toLowerCase().includes(q)) : dsDay;
 
     if (!dsHien.length) {
-      return datNoiDung(hop, e('p', 'trong', 'Không tìm thấy ảnh nào khớp với "' + q + '".'));
+      return datNoiDung(hop, e('p', 'trong', 'Không tìm thấy hoạt động nào khớp với "' + q + '".'));
     }
 
-    datNoiDung(hop, ...dsHien.map((a, i) => {
-      const hinh = e('figure');
-      const img = e('img');
-      img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
-      img.alt = a.chuThich || 'Ảnh hoạt động của lớp';
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      hinh.append(img);
-      if (a.chuThich) hinh.append(e('figcaption', null, a.chuThich));
-      hinh.addEventListener('click', () => moXemAnh(dsHien, i));
-      hinh.style.cursor = 'zoom-in';
-      return hinh;
+    datNoiDung(hop, ...dsHien.map((item) => {
+      const the = veTheHoatDong(item);
+      if (duocQuanLy) {
+        const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑');
+        nutXoa.type = 'button';
+        nutXoa.title = 'Gỡ khỏi Hoạt động lớp';
+        nutXoa.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          if (!confirm('Gỡ mục này khỏi Hoạt động lớp?')) return;
+          try {
+            await api('/api/gv/hoat-dong-lop?id=' + item.id, { method: 'DELETE' });
+            nhac('Đã gỡ khỏi Hoạt động lớp', 'tot');
+            if (lamMoi) await lamMoi();
+          } catch (err) { nhac(err.message, 'xau'); }
+        });
+        the.append(nutXoa);
+      }
+      return the;
     }));
   }
 
@@ -1468,7 +1552,7 @@ function veHinhAnh(ds) {
 const MUC_QUAN_LY = [
   ['thong-bao', '#/thong-bao', 'thong-bao'],
   ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
-  ['hinh-anh', '#/hinh-anh', 'hinh-anh'],
+  ['hinh-anh', null, ['hinh-anh', 'am-thanh', 'video']],
   ['danh-sach', '#/hoc-sinh', null],
   ['thu-quy', '#/quy', 'quy'],
 ];
@@ -1479,7 +1563,8 @@ function veLoiTatQuanLy(phien, lamMoi) {
   $('#mucQuanLy').hidden = false;
 
   MUC_QUAN_LY.forEach(([idMuc, duong, quyenCan]) => {
-    const duocPhep = phien.role === 'teacher' || (quyenCan && (phien.quyen || []).includes(quyenCan));
+    const cacQuyenCan = Array.isArray(quyenCan) ? quyenCan : (quyenCan ? [quyenCan] : []);
+    const duocPhep = phien.role === 'teacher' || cacQuyenCan.some((q) => (phien.quyen || []).includes(q));
     if (!duocPhep) return;
 
     const dauMuc = document.querySelector(`#${idMuc} .dau-muc`);
@@ -1497,10 +1582,15 @@ function veLoiTatQuanLy(phien, lamMoi) {
     if (idMuc === 'thong-bao') {
       vungThaoTac.append(nut('+ Thêm thông báo', 'nut-chinh nut-nho', () => moHopThoaiThemThongBao(lamMoi)));
     }
+    if (idMuc === 'hinh-anh') {
+      vungThaoTac.append(nut('+ Thêm hoạt động', 'nut-chinh nut-nho', () => moHopThoaiThemHoatDong(lamMoi)));
+    }
 
-    const a = e('a', 'nut nut-vien nut-nho', '⚙ Quản lý');
-    a.href = '/giao-vien/' + duong;
-    vungThaoTac.append(a);
+    if (duong) {
+      const a = e('a', 'nut nut-vien nut-nho', '⚙ Quản lý');
+      a.href = '/giao-vien/' + duong;
+      vungThaoTac.append(a);
+    }
   });
 }
 
@@ -2026,7 +2116,7 @@ async function taiDuLieu() {
     veDiemNhan(thongBaoHien);
     veThongBao(thongBaoHien, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);
-    veHinhAnh(d.hinhAnh);
+    veHoatDongLop(d.hoatDongLop, phien, taiDuLieu);
     veDanhSach(d.hocSinh);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien);
     veLoiTatQuanLy(phien, taiDuLieu);

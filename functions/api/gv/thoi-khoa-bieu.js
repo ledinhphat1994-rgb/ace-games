@@ -59,7 +59,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const pb = await layPhienBanApDung(db, homNay, phien.lopId);
   if (!pb) return json({ ok: true, phienBan: null, o: [] });
   return json({ ok: true, phienBan: pb, o: await layO(db, pb.id) });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thoi-khoa-bieu' });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
@@ -111,7 +111,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (cauLenh.length) await db.batch(cauLenh);
 
   return json({ ok: true, phienBanId: phienBanMoiId, daLuu: hopLe.length });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thoi-khoa-bieu' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
@@ -146,7 +146,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   await db.batch(cauLenh);
 
   return json({ ok: true, daLuu: hopLe.length });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thoi-khoa-bieu' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
@@ -167,4 +167,4 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     db.prepare('DELETE FROM tkb_phien_ban WHERE id = ?1').bind(phienBanId),
   ]);
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: 'thoi-khoa-bieu' });
