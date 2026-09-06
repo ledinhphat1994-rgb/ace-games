@@ -24,4 +24,4 @@ buoc('soát dữ liệu và mã nguồn', 'node', ['cong-cu/kiem-tra-du-lieu.js'
 buoc('gom tệp vào dist/', 'node', ['build.js']);
 buoc('đăng lên Cloudflare', 'npx', ['wrangler', 'pages', 'deploy']);
 
-console.log('\nXong. Trang đã cập nhật tại https://lop-10a7.pages.dev');
+console.log('\nXong. Trang đã cập nhật tại https://gdtxdinhquan.pages.dev');

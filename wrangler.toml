@@ -1,8 +1,12 @@
-# Cấu hình Cloudflare Pages cho trang lớp 10A7.
+# Cấu hình Cloudflare Pages cho web quản lý nhiều lớp (GDTX Định Quán).
 # Tài khoản được khoá cứng trong deploy.js (biến CLOUDFLARE_ACCOUNT_ID),
 # vì cấu hình Pages không cho khai báo account_id ở đây.
-
-name = "lop-10a7"
+#
+# "name" quyết định địa chỉ *.pages.dev — Cloudflare KHÔNG cho đổi tên này sau khi đã tạo
+# project (xác nhận từ tài liệu chính thức, 2026-09), nên đổi "name" ở đây và deploy lại sẽ
+# TẠO MỘT PROJECT MỚI (project "lop-10a7" cũ vẫn còn nguyên, không tự xoá) chứ không đổi tên
+# project hiện có. D1/R2/KV vẫn dùng chung ĐÚNG các tài nguyên bên dưới — không tạo dữ liệu mới.
+name = "gdtxdinhquan"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-09-03"
 

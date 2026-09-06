@@ -44,4 +44,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name lop-10a7 --branch main --commit-dirty=true
+          command: pages deploy dist --project-name gdtxdinhquan --branch main --commit-dirty=true

@@ -9,7 +9,7 @@ tự động có HTTPS, CDN và chống DDoS của Cloudflare.
 
 | Mục | Giá trị |
 |---|---|
-| Địa chỉ trang | **https://lop-10a7.pages.dev** |
+| Địa chỉ trang | **https://gdtxdinhquan.pages.dev** (địa chỉ cũ `lop-10a7.pages.dev` vẫn còn, chưa xoá) |
 | Mã cho học sinh | xem tin nhắn riêng của giáo viên (biến `CLASS_CODE`) |
 | Mã của giáo viên | xem tin nhắn riêng (biến `TEACHER_CODE`) — mở thêm `/giao-vien` |
 | Mã nguồn | https://github.com/ledinhphat1994-rgb/lop-10a7 (Private) |
@@ -99,7 +99,7 @@ chuyên cần, điểm và nhận xét **của chính mình**.
 
 ### Cài lên màn hình chính điện thoại
 
-Mở `lop-10a7.pages.dev/giao-vien/` bằng Chrome trên điện thoại → menu ⋮ → **Thêm vào màn hình chính**.
+Mở `gdtxdinhquan.pages.dev/giao-vien/` bằng Chrome trên điện thoại → menu ⋮ → **Thêm vào màn hình chính**.
 Ứng dụng chạy toàn màn hình như app thật, và phần giao diện vẫn mở được khi mạng chập chờn
 (dữ liệu vẫn cần mạng, vì đó là thông tin riêng tư nên không lưu tạm trên máy).
 
@@ -284,8 +284,11 @@ Mở `https://lop-10a7.pages.dev` → hiện trang nhập mã → nhập `CLASS_
 
 Thứ tự ưu tiên tôi khuyên dùng:
 
-1. **`lop10a7.pages.dev`** — có sẵn, miễn phí vĩnh viễn, không cần làm gì thêm.
-   Bạn được đổi tên project để chọn tiền tố đẹp (Settings → General → Project name).
+1. **`<tên>.pages.dev`** — có sẵn, miễn phí vĩnh viễn, không cần làm gì thêm.
+   **Đính chính (2026-09):** Cloudflare KHÔNG cho đổi tên một project Pages đã tạo (tài liệu
+   chính thức xác nhận `*.pages.dev` không đổi được sau khi tạo) — muốn đổi tiền tố phải tạo
+   MỘT PROJECT MỚI với tên khác (đổi `name` trong `wrangler.toml` rồi deploy lại), project cũ
+   vẫn còn nguyên cho tới khi tự tay xoá trên dashboard.
 2. **Tên miền `.id.vn` / `.io.vn`** — chương trình tên miền quốc gia của VNNIC, phí đăng ký rất thấp
    và có chương trình miễn phí cho cá nhân/học sinh (đăng ký qua các nhà đăng ký trong nước như iNET, Tenten,
    Nhân Hoà). Ví dụ `10a7dinhquan.id.vn`. **Lưu ý:** điều kiện và thời hạn miễn phí do VNNIC/nhà đăng ký quy định
