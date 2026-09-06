@@ -10,12 +10,6 @@ import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
-// Hiển thị vai trò tài khoản đăng nhập rõ ràng
-api('/api/whoami').then((w) => {
-  const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
-}).catch(() => {});
-
 /* ---------- Menu ---------- */
 ganMenu();
 
@@ -1900,7 +1894,7 @@ const CHO_MUC_AN = {
 // Website giờ phục vụ được nhiều lớp — mọi chỗ HTML tĩnh còn ghi cứng "10A7"/tên trường đều
 // được ghi đè lại đúng theo lớp của phiên đang đăng nhập, để học sinh/giáo viên lớp khác không
 // thấy nhầm thương hiệu của lớp 10A7.
-function apDungThuongHieuLop(lop) {
+function apDungThuongHieuLop(lop, phien) {
   if (!lop) return;
   const ten = lop.ten || 'Lớp học';
   const tenNgan = ten.replace(/^Lớp\s*/i, '');
@@ -1911,7 +1905,11 @@ function apDungThuongHieuLop(lop) {
   $('#tenLop').textContent = ten;
   const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) hieuMaLop.textContent = tenNgan;
   const hieuTenLop = $('#hieuTenLop'); if (hieuTenLop) hieuTenLop.textContent = ten;
-  const hieuTruong = $('#hieuTruong'); if (hieuTruong) hieuTruong.textContent = truong;
+  // Dòng phụ dưới tên lớp: ghép CẢ tên tài khoản đang đăng nhập LẪN tên trường — trước đây có
+  // 2 đoạn mã khác nhau cùng tranh nhau ghi vào đúng một chỗ này (một đoạn ghi tài khoản, một
+  // đoạn ghi tên trường), ai chạy xong sau thì đoạn kia bị mất — gộp lại một chỗ cho chắc.
+  const hieuTruong = $('#hieuTruong');
+  if (hieuTruong) hieuTruong.textContent = [phien ? layNhanTaiKhoan(phien) : '', truong].filter(Boolean).join(' · ');
   const gioiThieuHinhAnh = $('#gioiThieuHinhAnh'); if (gioiThieuHinhAnh) gioiThieuHinhAnh.textContent = `Khoảnh khắc của tập thể ${tenNgan}.`;
   const chanTrangTen = $('#chanTrangTen');
   if (chanTrangTen) chanTrangTen.textContent = [ten, namHoc ? `Năm học ${namHoc}` : '', truong].filter(Boolean).join(' · ');
@@ -1943,7 +1941,7 @@ async function taiDuLieu() {
     ]);
     thongTinPhien = phien;
 
-    apDungThuongHieuLop(d.lop);
+    apDungThuongHieuLop(d.lop, phien);
     apDungAnMuc(d.anMuc);
     const thongBaoHien = (d.anMuc || []).includes('thong-bao') ? [] : d.thongBao;
     veOSo(d.lop.thongKe);
