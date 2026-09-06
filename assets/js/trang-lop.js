@@ -472,8 +472,12 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   } else if (cacBuoiCo.length === 1) {
     // Chỉ có đúng một buổi thì không cần nút chọn (không có gì để chuyển qua lại), nhưng vẫn
     // phải ghi rõ đó là buổi nào — không thì học sinh nhìn bảng không biết đây là lịch buổi
-    // sáng hay buổi chiều của lớp mình.
-    datNoiDung(hopTab, e('span', 'nhan nhan-xam', cacBuoiCo[0][1]));
+    // sáng hay buổi chiều của lớp mình. Vẫn tô "sáng" (kiểu như tab đang chọn) dù không bấm
+    // được, để nhất quán với kiểu hiển thị khi lớp có 2 buổi.
+    const nhan = e('span', 'vien-loc', cacBuoiCo[0][1]);
+    nhan.setAttribute('aria-pressed', 'true');
+    nhan.style.cursor = 'default';
+    datNoiDung(hopTab, nhan);
   } else {
     datNoiDung(hopTab);
   }
@@ -2060,6 +2064,10 @@ function apDungThuongHieuLop(lop, phien) {
   // ĐÚNG MỘT nơi ghi vào đây để tránh lặp lại lỗi đó.
   const hieuTruong = $('#hieuTruong');
   if (hieuTruong) hieuTruong.textContent = phien ? layNhanTaiKhoan(phien) : '';
+  // "Đổi lớp chủ nhiệm" chỉ giáo viên chủ nhiệm mới có — tài khoản học sinh (dù thường hay
+  // được cấp quyền) chỉ gắn với đúng một lớp nên nút này không có ý nghĩa gì với các em.
+  const nutDoiLop = $('#nutDoiLop');
+  if (nutDoiLop) nutDoiLop.hidden = !(phien && phien.role === 'teacher');
   const gioiThieuHinhAnh = $('#gioiThieuHinhAnh'); if (gioiThieuHinhAnh) gioiThieuHinhAnh.textContent = `Khoảnh khắc của tập thể ${tenNgan}.`;
   const chanTrangTen = $('#chanTrangTen');
   if (chanTrangTen) chanTrangTen.textContent = [ten, namHoc ? `Năm học ${namHoc}` : '', truong].filter(Boolean).join(' · ');

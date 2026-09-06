@@ -120,7 +120,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
 
   function veDauTrang() {
     datNoiDung(dauTrang, tieuDeTrang(
-      chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : 'Thời khoá biểu',
+      chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : (d.phienBan?.ten || 'Thời khoá biểu'),
       d.phienBan
         ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ' — đang áp dụng'}`
         : 'Chưa có thời khoá biểu nào.',

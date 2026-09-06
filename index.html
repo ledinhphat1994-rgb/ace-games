@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260906_02">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260906_02">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260906_03">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260906_03">
 </head>
 <body>
 
@@ -30,12 +30,15 @@
     </nav>
 
     <div class="thanh-phai">
+      <a class="nut-tron nut-ve-trang-chu" href="/" title="Trang chủ" aria-label="Trang chủ">
+        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
+      </a>
       <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
       <button class="nut-tron nut-theme-bg" id="nutThemeBg" aria-label="Tùy chỉnh hình nền & chủ đề" title="Đổi màu nền & chủ đề">
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
       </button>
       <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-      <a class="nut-tron" id="nutDoiLop" href="/api/logout" onclick="return confirm('Đăng xuất khỏi lớp đang quản lý, rồi chọn lớp khác và nhập mã của lớp đó?');" title="Đổi lớp chủ nhiệm" aria-label="Đổi lớp chủ nhiệm">
+      <a class="nut-tron" id="nutDoiLop" href="/api/logout" onclick="return confirm('Đăng xuất khỏi lớp đang quản lý, rồi chọn lớp khác và nhập mã của lớp đó?');" title="Đổi lớp chủ nhiệm" aria-label="Đổi lớp chủ nhiệm" hidden>
         <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
       </a>
       <a class="nut-tron nut-dang-xuat" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');" title="Đăng xuất tài khoản" aria-label="Đăng xuất tài khoản">
@@ -68,7 +71,7 @@
         </a>
         <a class="menu-muc" href="#/danh-sach">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-          <span class="menu-chu"><b>Danh sách lớp</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
+          <span class="menu-chu"><b>Học sinh</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
         </a>
         <a class="menu-muc" href="#/thu-quy" data-muc="quy">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg></span>
@@ -76,7 +79,7 @@
         </a>
         <a class="menu-muc" href="#/diem-danh" data-muc="diem-danh">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
-          <span class="menu-chu"><b>Điểm danh / Chuyên cần</b><small>Tình hình có mặt, vắng trễ của lớp và của em</small></span>
+          <span class="menu-chu"><b>Điểm danh</b><small>Tình hình có mặt, vắng trễ của lớp và của em</small></span>
         </a>
         <a class="menu-muc" href="/ca-nhan.html">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
@@ -166,7 +169,7 @@
     <a class="quay-lai" href="#/">‹ Trang chủ</a>
     <section id="danh-sach">
       <div class="dau-muc">
-        <h2>Danh sách lớp</h2>
+        <h2>Học sinh</h2>
         <p id="soLuongHs"></p>
       </div>
       <div class="the">
@@ -228,6 +231,6 @@
 </footer>
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260906_02"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260906_03"></script>
 </body>
 </html>

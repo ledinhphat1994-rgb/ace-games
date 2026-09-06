@@ -1121,7 +1121,7 @@ async function trangHocSinh() {
     const khung = e('div');
     const cacNutPhai = [nut('+ Thêm học sinh', 'nut-vien nut-nho', () => themHocSinh(() => trangHocSinh()))];
     if (PHIEN.role === 'teacher') {
-      cacNutPhai.unshift(nut('⚙ Tuỳ chỉnh hiển thị', 'nut-nhe nut-nho', moCauHinhHienThiHocSinh));
+      cacNutPhai.unshift(nut('⚙ Tuỳ chỉnh hiển thị', 'nut-vien nut-nho', moCauHinhHienThiHocSinh));
     }
     khung.append(tieuDeTrang('Học sinh', `${d.danhSach.length} em đang học`, ...cacNutPhai));
 
@@ -2013,6 +2013,11 @@ async function dieuHuong() {
     const hieuMaLop = document.querySelector('#hieuMaLop');
     if (hieuMaLop) hieuMaLop.textContent = PHIEN.tenLop.replace(/^Lớp\s*/i, '');
   }
+
+  // "Đổi lớp chủ nhiệm" — chỉ giáo viên chủ nhiệm mới có (người có thể giữ mã của nhiều lớp);
+  // tài khoản cán sự chỉ gắn với đúng một lớp nên nút này không có ý nghĩa gì với họ.
+  const nutDoiLop = document.querySelector('#nutDoiLop');
+  if (nutDoiLop) nutDoiLop.hidden = PHIEN.role !== 'teacher';
 
   locMenuTheoQuyen();
   addEventListener('hashchange', dieuHuong);
