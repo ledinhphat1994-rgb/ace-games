@@ -13,6 +13,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const loaiTep = url.searchParams.get('loai');
   if (!LOAI_THU_VIEN[loaiTep]) return loi('Loại tệp không hợp lệ.');
 
+  const QUYEN_THEO_LOAI = { anh: 'hinh-anh', video: 'video', 'am-thanh': 'am-thanh' };
+  if (phien.role === 'phu') {
+    const quyenCanLoai = QUYEN_THEO_LOAI[loaiTep];
+    if (!quyenCanLoai || !(phien.quyen || []).includes(quyenCanLoai)) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện tương ứng để tải tệp này. Bạn chỉ được đăng nội dung văn bản thông thường.', 403);
+    }
+  }
+
   const kieu = (request.headers.get('Content-Type') || '').split(';')[0].trim();
   const duLieu = await request.arrayBuffer();
 
@@ -25,4 +33,4 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   ).bind(phien.lopId, loaiTep, dong.id, new Date().toISOString().slice(0, 10)).run();
 
   return json({ ok: true, id: kq.meta.last_row_id, khoa: dong.khoa, kieu: dong.kieu });
-}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'am-thanh', 'video'] });
+}, { canGiaoVien: true, quyenCan: ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'] });

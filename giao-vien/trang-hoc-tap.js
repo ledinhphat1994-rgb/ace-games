@@ -1079,23 +1079,29 @@ const CAC_MUC_XEM = [
 ];
 // Trùng danh mục CAC_QUYEN ở functions/api/gv/tai-khoan-phu.js — chép tay vì đây là mã
 // chạy trên trình duyệt, không import trực tiếp từ functions/ được.
+// Chuẩn hoá khớp chính xác danh sách các mục thuộc nhóm "LỚP HỌC" trên sidebar.
 const CAC_QUYEN_QUAN_LY = [
-  ['quy', 'Thủ quỹ — ghi thu, ghi chi, tạo khoản thu'],
-  ['thong-bao', 'Thông báo — soạn và đăng thông báo'],
-  ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
-  ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
-  ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học'],
-  // KHÔNG có mục "Học sinh" — xem/sửa hồ sơ chỉ dành cho giáo viên chủ nhiệm, xem [functions/
-  // api/gv/tai-khoan-phu.js] CAC_QUYEN.
-  // Có 1 trong 3 quyền thư viện dưới đây là đủ để đăng/gỡ mục ở "Hoạt động lớp" — không phải
-  // quyền riêng, ghi rõ trong nhãn để giáo viên biết đúng những gì mình đang cấp.
-  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý ảnh, đăng vào Hoạt động lớp'],
-  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ, đăng vào Hoạt động lớp'],
-  ['video', 'Thư viện Video — tải/quản lý video, đăng vào Hoạt động lớp'],
+  ['diem-danh', 'Điểm danh — điểm danh chuyên cần hằng ngày'],
+  ['quy', 'Thủ quỹ lớp — ghi thu, ghi chi, quản lý quỹ lớp'],
+  ['thong-bao', 'Thông báo — soạn và đăng thông báo lên trang lớp'],
+  ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học của lớp'],
+  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý kho ảnh, quyền đính kèm ảnh'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát/quản lý nhạc nền, quyền đính kèm âm thanh'],
+  ['video', 'Thư viện Video — tải/quản lý kho video, quyền đính kèm video'],
+  ['nhat-ky', 'Nhật ký lớp — ghi nhận xét, khen thưởng, vi phạm'],
+  ['hoat-dong-lop', 'Hoạt động lớp — đăng tin/hoạt động lớp (chỉ ghi text nếu không cấp quyền media)'],
 ];
 const ICON_QUYEN = {
-  quy: '🪙', 'thong-bao': '📢', 'nhat-ky': '📖', 'diem-danh': '✅', 'thoi-khoa-bieu': '🕒', 'hoc-sinh': '👥',
-  'hinh-anh': '📸', 'am-thanh': '♪', video: '🎬',
+  'diem-danh': '✅',
+  quy: '🪙',
+  'thong-bao': '📢',
+  'thoi-khoa-bieu': '🕒',
+  'hinh-anh': '📸',
+  'am-thanh': '♪',
+  video: '🎬',
+  'nhat-ky': '📖',
+  'hoat-dong-lop': '🌿',
+  'hoc-sinh': '👥',
 };
 
 function taoNhomTich(danhMuc, daChon) {
@@ -1109,6 +1115,60 @@ function taoNhomTich(danhMuc, daChon) {
     nhanO.append(o, document.createTextNode(nhan));
     return [ma, o, nhanO];
   });
+}
+
+function taoNhomTichQuyenQuanLy(daChon) {
+  const bo = new Set(daChon);
+  const hop = e('div');
+  hop.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px;';
+
+  const oTich = [];
+
+  const ghiChuMedia = e('div');
+  ghiChuMedia.style.cssText = 'padding:9px 12px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;font-size:12.5px;color:var(--chu);line-height:1.5;margin-bottom:4px;';
+  datNoiDung(ghiChuMedia,
+    Object.assign(e('b', null, '💡 Quy tắc Media: '), { style: 'color:var(--chinh)' }),
+    document.createTextNode('Học sinh được cấp quyền '),
+    e('i', null, 'Thông báo'),
+    document.createTextNode(' hoặc '),
+    e('i', null, 'Hoạt động lớp'),
+    document.createTextNode(' nếu không được tích quyền '),
+    e('i', null, 'Thư viện Ảnh / Âm thanh / Video'),
+    document.createTextNode(' thì '),
+    e('b', null, 'chỉ được ghi văn bản (text) thông thường'),
+    document.createTextNode('; các nút chọn hoặc tải media sẽ tự động bị khoá.')
+  );
+  hop.append(ghiChuMedia);
+
+  CAC_QUYEN_QUAN_LY.forEach(([ma, nhan]) => {
+    const o = e('input');
+    o.type = 'checkbox';
+    o.checked = bo.has(ma);
+    o.style.cssText = 'margin-top:2px;cursor:pointer;flex-shrink:0;width:16px;height:16px;accent-color:var(--chinh);';
+
+    const nhanO = e('label');
+    nhanO.style.cssText = 'display:flex;gap:10px;align-items:flex-start;font-size:13.5px;padding:8px 10px;border-radius:8px;background:var(--nen-chim);border:1px solid var(--vien);cursor:pointer;transition:all 0.15s;';
+    nhanO.addEventListener('mouseenter', () => { nhanO.style.borderColor = 'var(--chinh)'; });
+    nhanO.addEventListener('mouseleave', () => { nhanO.style.borderColor = 'var(--vien)'; });
+
+    const [tieuDe, moTa] = nhan.split(' — ');
+    const icon = ICON_QUYEN[ma] || '🔑';
+    const nd = e('div');
+    nd.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+    const dongTd = e('div');
+    dongTd.style.cssText = 'font-weight:700;color:var(--chu);display:flex;align-items:center;gap:6px;';
+    dongTd.append(e('span', null, icon), document.createTextNode(tieuDe));
+    nd.append(dongTd);
+    if (moTa) {
+      nd.append(Object.assign(e('div', 'trong', moTa), { style: 'font-size:12px;line-height:1.35;color:var(--chu-nhat);' }));
+    }
+
+    nhanO.append(o, nd);
+    hop.append(nhanO);
+    oTich.push([ma, o]);
+  });
+
+  return { hop, oTich };
 }
 
 /* ---------- MỘT hộp thoại duy nhất cho một học sinh: họ tên, chức vụ, mã cá nhân, quyền
@@ -1148,7 +1208,7 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
     nhanO.append(o, document.createTextNode(nhan));
     return [ma, o, nhanO];
   });
-  const oTichQuanLy = taoNhomTich(CAC_QUYEN_QUAN_LY, hocSinh.quyen || []);
+  const { hop: hopQuyenQuanLy, oTich: oTichQuanLy } = taoNhomTichQuyenQuanLy(hocSinh.quyen || []);
 
   const noi = [
     e('h3', null, '👤 Thông tin'),
@@ -1184,8 +1244,8 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
     ...oTichXem.map(([, , nhanO]) => nhanO),
 
     Object.assign(e('h3', null, '🔑 Quyền quản lý (đăng nhập được ở /login.html)'), { style: 'margin-top:18px' }),
-    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó. Để trống hết = chỉ xem, không quản lý gì.'),
-    ...oTichQuanLy.map(([, , nhanO]) => nhanO),
+    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó trên sidebar. Để trống hết = chỉ xem kết quả học tập cá nhân, không quản lý gì.'),
+    hopQuyenQuanLy,
   ].filter(Boolean);
 
   moHopThoai(`Quản lý — ${hocSinh.hoTen}`, noi, [

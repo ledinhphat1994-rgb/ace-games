@@ -51,6 +51,21 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!td) return loi('Chưa nhập tiêu đề.');
   if (!nd) return loi('Chưa nhập nội dung.');
   if (mucDo !== undefined && !MUC_DO_HOP_LE.has(mucDo)) return loi('Mức độ không hợp lệ.');
+
+  // Ràng buộc Media: Tài khoản phụ chỉ được đính kèm loại media nếu có quyền thư viện tương ứng
+  if (phien.role === 'phu') {
+    const quyenCo = phien.quyen || [];
+    if ((anhId || hinhUrl) && !quyenCo.includes('hinh-anh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh. Bạn chỉ có thể soạn thông báo bằng văn bản.', 403);
+    }
+    if ((amThanhId || nhacUrl) && !quyenCo.includes('am-thanh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh. Bạn chỉ có thể soạn thông báo bằng văn bản.', 403);
+    }
+    if ((videoId || videoUrl) && !quyenCo.includes('video')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Video. Bạn chỉ có thể soạn thông báo bằng văn bản.', 403);
+    }
+  }
+
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'hinh_anh', anhId))) return loi('Ảnh đính kèm không hợp lệ.');
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
@@ -111,18 +126,32 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   // Mỗi loại đính kèm: đúng MỘT trong hai (mã thư viện HOẶC link ngoài) — đặt cái này thì xoá
   // luôn cái kia, tránh còn sót giá trị cũ gây hiển thị sai (vd vừa có anh_id vừa có hinh_url).
   if (than.anhId !== undefined || than.hinhUrl !== undefined) {
+    const giaTriAnh = Number.isInteger(than.anhId) ? than.anhId : null;
+    const giaTriUrl = chuoi(than.hinhUrl, 1000) || null;
+    if ((giaTriAnh || giaTriUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('hinh-anh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh để đính kèm hình.', 403);
+    }
     if (!(await xacThucThuVien(env.DB, phien.lopId, 'hinh_anh', than.anhId))) return loi('Ảnh đính kèm không hợp lệ.');
-    them('anh_id', Number.isInteger(than.anhId) ? than.anhId : null);
-    them('hinh_url', chuoi(than.hinhUrl, 1000) || null);
+    them('anh_id', giaTriAnh);
+    them('hinh_url', giaTriUrl);
   }
   if (than.amThanhId !== undefined || than.nhacUrl !== undefined) {
+    const giaTriAmThanh = Number.isInteger(than.amThanhId) ? than.amThanhId : null;
+    const giaTriNhacUrl = chuoi(than.nhacUrl, 1000) || null;
+    if ((giaTriAmThanh || giaTriNhacUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('am-thanh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh để đính kèm bài hát.', 403);
+    }
     if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', than.amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
-    them('am_thanh_id', Number.isInteger(than.amThanhId) ? than.amThanhId : null);
-    them('nhac_url', chuoi(than.nhacUrl, 1000) || null);
+    them('am_thanh_id', giaTriAmThanh);
+    them('nhac_url', giaTriNhacUrl);
   }
   if (than.videoId !== undefined) {
+    const giaTriVideo = Number.isInteger(than.videoId) ? than.videoId : null;
+    if (giaTriVideo && phien.role === 'phu' && !(phien.quyen || []).includes('video')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Video để đính kèm video.', 403);
+    }
     if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', than.videoId))) return loi('Video đính kèm không hợp lệ.');
-    them('video_id', Number.isInteger(than.videoId) ? than.videoId : null);
+    them('video_id', giaTriVideo);
   }
 
   if (!dat.length) return loi('Không có thông tin cần đổi.');

@@ -302,12 +302,26 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 // DELETE ?loai=&id=            -> xoá một bản ghi (như trước)
 // DELETE ?loai=&ids=1,2,3      -> xoá nhiều bản ghi đã chọn (chỉ khoan/chi)
 // DELETE ?loai=&tatCa=1        -> xoá SẠCH toàn bộ danh mục đó (chỉ khoan/chi)
+// Tài khoản thủ quỹ (phu + quyền 'quy') chỉ được xoá đúng loại 'dong' (lần đóng tiền),
+// không được xoá 'khoan' (khoản thu) hay 'chi' (khoản chi) và không được xoá hàng loạt.
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai');
 
   const BANG = { khoan: 'quy_khoan', dong: 'quy_dong', chi: 'quy_chi' };
   if (!BANG[loai]) return loi('Loại không hợp lệ.');
+
+  // Tài khoản thủ quỹ (phu) chỉ được xoá từng lần đóng tiền ('dong'), không được xoá khoản
+  // thu/chi và không được xoá hàng loạt. Mọi thao tác đều có checkpoint ghi lại dấu vết.
+  const laGiaoVien = phien.role === 'teacher';
+  if (!laGiaoVien) {
+    if (loai !== 'dong') {
+      return loi('Tài khoản thủ quỹ chỉ được xoá lần đóng tiền, không được xoá khoản thu hoặc khoản chi. Nhờ giáo viên chủ nhiệm xoá giúp.', 403);
+    }
+    if (q.get('tatCa') === '1' || q.get('ids')) {
+      return loi('Tài khoản thủ quỹ không được xoá hàng loạt. Nhờ giáo viên chủ nhiệm xoá giúp.', 403);
+    }
+  }
 
   let ids;
   if (q.get('tatCa') === '1') {
@@ -358,4 +372,5 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   }
 
   return json({ ok: true, daXoa: ids.length });
-}, { canGiaoVien: true, quyenCan: QUYEN });
+}, { canGiaoVien: true, quyenCan: QUYEN, choPhepXoaPhu: true });
+

@@ -20,6 +20,19 @@ function taoSvgIcon(pathD, w = 14, h = 14) {
   return svg;
 }
 
+const ICON_QUYEN = {
+  'diem-danh': '✅',
+  quy: '🪙',
+  'thong-bao': '📢',
+  'thoi-khoa-bieu': '🕒',
+  'hinh-anh': '📸',
+  'am-thanh': '♪',
+  video: '🎬',
+  'nhat-ky': '📖',
+  'hoat-dong-lop': '🌿',
+  'hoc-sinh': '👥',
+};
+
 /* ================= Thủ quỹ — 1 trang, mở rộng tại chỗ, sửa được mọi bản ghi ================= */
 
 export async function trangQuy(KHUNG) {
@@ -520,6 +533,8 @@ export async function trangQuy(KHUNG) {
             bSua.append(taoSvgIcon('M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 12, 12));
             bSua.addEventListener('click', () => suaDong(ld, h.hoTen, lamMoiKhoanDangMo));
 
+            // Nút xoá lần đóng: giáo viên và thủ quỹ đều được xoá (API đã ghi checkpoint trước khi xoá).
+            // Tài khoản không phải giáo viên chỉ xoá được 'dong', không xoá được 'khoan'/'chi'.
             const bXoa = e('button', 'nut-thao-tac-lan xoa');
             bXoa.type = 'button';
             bXoa.title = 'Xoá lần đóng này';
@@ -532,7 +547,7 @@ export async function trangQuy(KHUNG) {
                   try {
                     await api('/api/gv/quy?loai=dong&id=' + ld.id, { method: 'DELETE' });
                     dongHopThoai();
-                    nhac('Đã xoá', 'tot');
+                    nhac('Đã xoá lần đóng — hệ thống đã ghi lại dấu vết.', 'tot');
                     await lamMoiKhoanDangMo();
                   } catch (err) { nhac(err.message, 'xau'); }
                 }),
@@ -1132,25 +1147,22 @@ function ghiKhoanDong(khoanId, hocSinh, taiLai, duLieuCu = null) {
       const stt = hocSinh.soThuTu || hocSinh.hocSinhId;
 
       // Bước xác nhận trước khi duyệt thu
+      const hopXn = e('div', 'hop-xac-nhan-quy');
+      const bangXn = e('div', 'bang-xac-nhan');
+      const hangXn = (nhan, val, kieu = '') => {
+        const r = e('div', 'dong-xn');
+        r.append(e('span', 'nhan-xn', nhan), e('span', kieu ? 'gt-xn ' + kieu : 'gt-xn', val));
+        return r;
+      };
+      bangXn.append(
+        hangXn('Học sinh', `${hocSinh.hoTen} (STT ${stt}${hocSinh.toSo ? ' · Tổ ' + hocSinh.toSo : ''})`, 'chu-dam'),
+        hangXn('Số tiền thu', tienVN(soTien), 'tien-tot-noi-bat'),
+        hangXn('Ngày thu', ngayVN(ngay)),
+      );
+      if (ghiChu) bangXn.append(hangXn('Ghi chú', ghiChu));
+      hopXn.append(bangXn, e('p', 'ghi-chu-canh-bao', '⚠️ Vui lòng kiểm tra kỹ số tiền mặt đã nhận trước khi xác nhận lưu vào hệ thống.'));
       moHopThoai('Xác nhận ghi thu tiền', [
-        e('div', 'hop-xac-nhan-quy',
-          (() => {
-            const box = e('div', 'bang-xac-nhan');
-            const hang = (nhan, val, kieu = '') => {
-              const r = e('div', 'dong-xn');
-              r.append(e('span', 'nhan-xn', nhan), e('span', 'gt-xn ' + kieu, val));
-              return r;
-            };
-            box.append(
-              hang('Học sinh', `${hocSinh.hoTen} (STT ${stt}${hocSinh.toSo ? ' · Tổ ' + hocSinh.toSo : ''})`, 'chu-dam'),
-              hang('Số tiền thu', tienVN(soTien), 'tien-tot-noi-bat'),
-              hang('Ngày thu', ngayVN(ngay)),
-            );
-            if (ghiChu) box.append(hang('Ghi chú', ghiChu));
-            return box;
-          })(),
-          e('p', 'ghi-chu-canh-bao', '⚠️ Vui lòng kiểm tra kỹ số tiền mặt đã nhận trước khi xác nhận lưu vào hệ thống.')
-        ),
+        hopXn,
       ], [
         nut('❮ Quay lại sửa', 'nut-nhe', () => ghiKhoanDong(khoanId, hocSinh, taiLai, { soTien, ngay, ghiChu })),
         nut('✓ Xác nhận ghi thu', 'nut-tot', async (ev) => {
@@ -1465,23 +1477,48 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
 
   oTen.addEventListener('input', capNhatXemTruoc);
   oVaiTro.addEventListener('input', capNhatXemTruoc);
-  capNhatXemTruoc();
-
   const hopQuyen = e('div');
   hopQuyen.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px';
   const hopChon = [];
 
+  const ghiChuMedia = e('div');
+  ghiChuMedia.style.cssText = 'padding:9px 12px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;font-size:12.5px;color:var(--chu);line-height:1.5;margin-bottom:4px;';
+  datNoiDung(ghiChuMedia,
+    Object.assign(e('b', null, '💡 Quy tắc Media: '), { style: 'color:var(--chinh)' }),
+    document.createTextNode('Cấp quyền '),
+    e('i', null, 'Thông báo'),
+    document.createTextNode(' hoặc '),
+    e('i', null, 'Hoạt động lớp'),
+    document.createTextNode(' nếu không cấp kèm '),
+    e('i', null, 'Thư viện Ảnh / Âm thanh / Video'),
+    document.createTextNode(' thì tài khoản '),
+    e('b', null, 'chỉ được ghi nội dung văn bản (text)'),
+    document.createTextNode('; các mục tải/chọn media sẽ bị khoá.')
+  );
+  hopQuyen.append(ghiChuMedia);
+
   cacQuyen.forEach(([ma, moTa]) => {
     const nhan = e('label');
-    nhan.style.cssText = 'display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:14px';
+    nhan.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13.5px;padding:8px 10px;border-radius:8px;background:var(--nen-chim);border:1px solid var(--vien);transition:all 0.15s;';
+    nhan.addEventListener('mouseenter', () => { nhan.style.borderColor = 'var(--chinh)'; });
+    nhan.addEventListener('mouseleave', () => { nhan.style.borderColor = 'var(--vien)'; });
+
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = ma;
     cb.checked = (tk.quyen || []).includes(ma);
+    cb.style.cssText = 'margin-top:2px;cursor:pointer;flex-shrink:0;width:16px;height:16px;accent-color:var(--chinh);';
     hopChon.push(cb);
+
     const phanTach = moTa.split(' — ');
+    const icon = ICON_QUYEN[ma] || '🔑';
     const chu = e('div');
-    chu.append(e('b', null, phanTach[0]), Object.assign(e('div', 'trong', phanTach[1] || ''), { style: 'font-size:12px' }));
+    chu.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+    const dongTd = e('div');
+    dongTd.style.cssText = 'font-weight:700;color:var(--chu);display:flex;align-items:center;gap:6px;';
+    dongTd.append(e('span', null, icon), document.createTextNode(phanTach[0]));
+    chu.append(dongTd, Object.assign(e('div', 'trong', phanTach[1] || ''), { style: 'font-size:12px;line-height:1.35;color:var(--chu-nhat);' }));
+
     nhan.append(cb, chu);
     hopQuyen.append(nhan);
   });
@@ -1550,19 +1587,45 @@ function taoTaiKhoan(cacQuyen, taiLai) {
   const oMa = oNhap('tkMa', 'text', '', 'Để trống = tự sinh mã ngẫu nhiên');
 
   const hopQuyen = e('div');
+  hopQuyen.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px';
   const quyenDaChon = new Set();
+
+  const ghiChuMedia = e('div');
+  ghiChuMedia.style.cssText = 'padding:9px 12px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;font-size:12.5px;color:var(--chu);line-height:1.5;margin-bottom:4px;';
+  datNoiDung(ghiChuMedia,
+    Object.assign(e('b', null, '💡 Quy tắc Media: '), { style: 'color:var(--chinh)' }),
+    document.createTextNode('Cấp quyền '),
+    e('i', null, 'Thông báo'),
+    document.createTextNode(' hoặc '),
+    e('i', null, 'Hoạt động lớp'),
+    document.createTextNode(' nếu không cấp kèm '),
+    e('i', null, 'Thư viện Ảnh / Âm thanh / Video'),
+    document.createTextNode(' thì tài khoản '),
+    e('b', null, 'chỉ được ghi nội dung văn bản (text)'),
+    document.createTextNode('; các mục tải/chọn media sẽ bị khoá.')
+  );
+  hopQuyen.append(ghiChuMedia);
+
   cacQuyen.forEach(([ma, moTa]) => {
     const nhan = e('label');
-    nhan.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:8px 0;font-size:14.5px;cursor:pointer';
-    const cb = e('input');
+    nhan.style.cssText = 'display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13.5px;padding:8px 10px;border-radius:8px;background:var(--nen-chim);border:1px solid var(--vien);transition:all 0.15s;';
+    nhan.addEventListener('mouseenter', () => { nhan.style.borderColor = 'var(--chinh)'; });
+    nhan.addEventListener('mouseleave', () => { nhan.style.borderColor = 'var(--vien)'; });
+
+    const cb = document.createElement('input');
     cb.type = 'checkbox';
-    cb.style.marginTop = '3px';
+    cb.style.cssText = 'margin-top:2px;cursor:pointer;flex-shrink:0;width:16px;height:16px;accent-color:var(--chinh)';
     cb.addEventListener('change', () => { cb.checked ? quyenDaChon.add(ma) : quyenDaChon.delete(ma); });
+
     const phanTach = moTa.split(' — ');
-    const tieuDe = phanTach[0];
-    const moTaChiTiet = phanTach[1] || '';
+    const icon = ICON_QUYEN[ma] || '🔑';
     const chu = e('div');
-    chu.append(e('div', null, tieuDe), Object.assign(e('div', 'trong', moTaChiTiet), { style: 'font-size:12.5px' }));
+    chu.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+    const dongTd = e('div');
+    dongTd.style.cssText = 'font-weight:700;color:var(--chu);display:flex;align-items:center;gap:6px;';
+    dongTd.append(e('span', null, icon), document.createTextNode(phanTach[0]));
+    chu.append(dongTd, Object.assign(e('div', 'trong', phanTach[1] || ''), { style: 'font-size:12px;line-height:1.35;color:var(--chu-nhat);' }));
+
     nhan.append(cb, chu);
     hopQuyen.append(nhan);
   });
@@ -1923,7 +1986,11 @@ export async function trangQuyLichSu(KHUNG) {
     // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
     // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
     // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
-    khung.append(nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; }));
+    const nutVeQuy = nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; });
+    const cardVeQuy = e('div');
+    cardVeQuy.style.cssText = 'display:inline-flex;align-items:center;padding:2px 4px 2px 0;margin-bottom:10px;border-radius:10px;background:var(--nen-chim);border:1px solid var(--vien);';
+    cardVeQuy.append(nutVeQuy);
+    khung.append(cardVeQuy);
     khung.append(tieuDeTrang('Lịch sử Thủ quỹ',
       'Toàn bộ lịch sử ghi thu, ghi chi, các đợt thu cố định và điểm khôi phục — tất cả ở một chỗ.'));
 

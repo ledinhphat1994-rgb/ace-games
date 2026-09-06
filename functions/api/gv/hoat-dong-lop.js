@@ -6,7 +6,7 @@
 //   DELETE /api/gv/hoat-dong-lop?id=        -> gỡ một mục khỏi danh sách công khai
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 
-const QUYEN = ['hinh-anh', 'am-thanh', 'video'];
+const QUYEN = ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'];
 const BANG_THEO_LOAI = { anh: 'hinh_anh', video: 'video', 'am-thanh': 'am_thanh' };
 
 async function xacThucThamChieu(db, lopId, bang, id) {
@@ -29,7 +29,39 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { loai, anhId, videoId, amThanhId, url, chuThich } = await docThan(request);
+  const { loai, anhId, videoId, amThanhId, url, chuThich, tieuDe, ngay } = await docThan(request);
+  const ngayLuu = chuoi(ngay, 10) || new Date().toISOString().slice(0, 10);
+
+  // 1. Hoạt động dạng văn bản (text thông thường / bài viết sự kiện)
+  if (loai === 'text') {
+    const nd = chuoi(chuThich, 2000);
+    const td = chuoi(tieuDe, 150);
+    const noiDungGop = td ? (nd ? `${td}\n\n${nd}` : td) : nd;
+    if (!noiDungGop) return loi('Chưa nhập nội dung hoặc tiêu đề hoạt động.');
+
+    const kq = await env.DB.prepare(
+      `INSERT INTO hoat_dong_lop (lop_id, loai, chu_thich, ngay)
+       VALUES (?1, 'text', ?2, ?3)`
+    ).bind(phien.lopId, noiDungGop, ngayLuu).run();
+
+    return json({ ok: true, id: kq.meta.last_row_id });
+  }
+
+  // 2. Hoạt động có đính kèm Media (Ảnh, Video, Âm thanh)
+  // Ràng buộc Media: Tài khoản phụ (role='phu') bắt buộc phải có đúng quyền thư viện tương ứng
+  if (phien.role === 'phu') {
+    const quyenHienCo = phien.quyen || [];
+    if (loai === 'anh' && !quyenHienCo.includes('hinh-anh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    }
+    if (loai === 'video' && !quyenHienCo.includes('video')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Video. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    }
+    if (loai === 'am-thanh' && !quyenHienCo.includes('am-thanh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    }
+  }
+
   const bang = BANG_THEO_LOAI[loai];
   if (!bang) return loi('Loại hoạt động không hợp lệ.');
 
@@ -51,8 +83,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     loai === 'video' ? idSo : null,
     loai === 'am-thanh' ? idSo : null,
     idSo ? null : urlSach,
-    chuoi(chuThich, 200),
-    new Date().toISOString().slice(0, 10)
+    chuoi(chuThich, 2000),
+    ngayLuu
   ).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });

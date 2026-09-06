@@ -34,7 +34,7 @@ const QUYEN_THEO_TUYEN = {
   'hoc-sinh': null,
   'so-diem': null,
   'nhat-ky': 'nhat-ky',
-  'hoat-dong-lop': ['hinh-anh', 'am-thanh', 'video'],
+  'hoat-dong-lop': ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'],
   'thong-ke': null,
   'thong-bao': 'thong-bao',
   'bao-cao': null,
@@ -1874,7 +1874,7 @@ function trangThem() {
 
 /* ================= Trang: Hoạt động lớp ================= */
 
-const ICON_LOAI_HOAT_DONG = { anh: '🖼', video: '🎬', 'am-thanh': '🎵' };
+const ICON_LOAI_HOAT_DONG = { anh: '🖼', video: '🎬', 'am-thanh': '🎵', text: '📝' };
 
 async function trangHoatDongLop(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
@@ -1887,31 +1887,41 @@ async function trangHoatDongLop(KHUNG) {
     ));
 
     if (!d.danhSach.length) {
-      khung.append(e('p', 'trong', 'Chưa có mục nào — bấm "+ Thêm hoạt động" để đăng ảnh, video hoặc âm thanh lên trang chủ.'));
+      khung.append(e('p', 'trong', 'Chưa có mục nào — bấm "+ Thêm hoạt động" để đăng bài viết, ảnh, video hoặc âm thanh lên trang chủ.'));
     } else {
       const ds = e('div', 'ds-nhat-ky');
       d.danhSach.forEach((item) => {
         const m = e('div', 'muc-nhat-ky');
         const dong = e('div', 'dong-dau');
         const nhanTen = item.loai === 'video' ? (item.videoTen || 'Video')
-          : item.loai === 'am-thanh' ? (item.amThanhTen || 'Âm thanh') : (item.chuThich || 'Ảnh');
+          : item.loai === 'am-thanh' ? (item.amThanhTen || 'Âm thanh')
+          : item.loai === 'text' ? 'Tin hoạt động / Bài viết'
+          : (item.chuThich || 'Ảnh');
         dong.append(
           e('span', 'nhan nhan-xam', `${ICON_LOAI_HOAT_DONG[item.loai] || '📎'} ${nhanTen}`),
           e('span', 'ngay', ngayVN(item.ngay))
         );
-        const thaoTac = e('div');
-        thaoTac.style.cssText = 'margin-left:auto;display:inline-flex';
-        const nutXoa = nut('🗑 Gỡ', 'nut-nhe nut-nho', async () => {
-          if (!confirm('Gỡ mục này khỏi trang chủ?')) return;
-          try {
-            await api('/api/gv/hoat-dong-lop?id=' + item.id, { method: 'DELETE' });
-            nhac('Đã gỡ', 'tot');
-            ve();
-          } catch (err) { nhac(err.message, 'xau'); }
-        });
-        dong.append(nutXoa);
+        if (PHIEN.role === 'teacher') {
+          const thaoTac = e('div');
+          thaoTac.style.cssText = 'margin-left:auto;display:inline-flex';
+          const nutXoa = nut('🗑 Gỡ', 'nut-nhe nut-nho', async () => {
+            if (!confirm('Gỡ mục này khỏi trang chủ?')) return;
+            try {
+              await api('/api/gv/hoat-dong-lop?id=' + item.id, { method: 'DELETE' });
+              nhac('Đã gỡ', 'tot');
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); }
+          });
+          dong.append(nutXoa);
+        }
         m.append(dong);
-        if (item.chuThich && item.loai !== 'anh') m.append(e('p', null, item.chuThich));
+        if (item.chuThich && item.loai !== 'anh') {
+          const pNd = e('p', null, item.chuThich);
+          if (item.loai === 'text') {
+            pNd.style.cssText = 'white-space:pre-wrap;margin-top:6px;line-height:1.5;color:var(--chu);';
+          }
+          m.append(pNd);
+        }
         ds.append(m);
       });
       khung.append(ds);

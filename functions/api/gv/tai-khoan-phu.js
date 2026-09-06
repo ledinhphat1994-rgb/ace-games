@@ -9,21 +9,17 @@ import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
 
 // Những mục có thể trao quyền. Mỗi mục ứng với đúng một "quyenCan" đang dùng ở các API khác.
+// Chuẩn hoá khớp chính xác danh sách các mục thuộc nhóm "LỚP HỌC" trên sidebar.
 export const CAC_QUYEN = [
-  ['quy', 'Thủ quỹ — ghi thu, ghi chi, tạo khoản thu'],
+  ['diem-danh', 'Điểm danh — điểm danh chuyên cần hằng ngày'],
+  ['quy', 'Thủ quỹ lớp — ghi thu, ghi chi, quản lý quỹ lớp'],
   ['thong-bao', 'Thông báo — soạn và đăng thông báo lên trang lớp'],
-  ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
-  ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
-  ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học'],
-  // KHÔNG có mục "Học sinh" ở đây — xem/sửa hồ sơ học sinh chỉ dành riêng cho giáo viên chủ
-  // nhiệm; tài khoản đặc biệt (dù được cấp quyền gì) chỉ xem danh sách qua Menu như học sinh
-  // thường, không có trang quản lý riêng.
-  // Có 1 trong 3 quyền thư viện dưới đây là đủ để đăng/gỡ mục ở "Hoạt động lớp" (xem
-  // functions/api/gv/hoat-dong-lop.js) — không phải quyền riêng, ghi rõ trong nhãn để giáo
-  // viên biết đúng những gì mình đang cấp.
-  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý ảnh, đăng vào Hoạt động lớp'],
-  ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ, đăng vào Hoạt động lớp'],
-  ['video', 'Thư viện Video — tải/quản lý video, đăng vào Hoạt động lớp'],
+  ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học của lớp'],
+  ['hinh-anh', 'Thư viện Ảnh — tải/quản lý kho ảnh, quyền đính kèm ảnh'],
+  ['am-thanh', 'Thư viện Âm thanh — tải bài hát/quản lý nhạc nền, quyền đính kèm âm thanh'],
+  ['video', 'Thư viện Video — tải/quản lý kho video, quyền đính kèm video'],
+  ['nhat-ky', 'Nhật ký lớp — ghi nhận xét, khen thưởng, vi phạm'],
+  ['hoat-dong-lop', 'Hoạt động lớp — đăng tin/hoạt động lớp (chỉ ghi text nếu không cấp quyền media)'],
 ];
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));
 

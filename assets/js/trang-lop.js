@@ -1024,15 +1024,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const nutMoChiTiet = e('button', 'nut-mo-chi-tiet-dong');
         nutMoChiTiet.type = 'button';
         nutMoChiTiet.setAttribute('aria-expanded', 'false');
-        const spanNhan = e('span');
-        spanNhan.append(
-          document.createTextNode('👥 '),
-          e('b', null, 'Chi tiết đóng tiền: '),
-          document.createTextNode('Đã đóng '),
-          Object.assign(e('b', null, `${tongSoEmDaNop}/${dsHs.length}`), { style: 'color:var(--tot)' }),
-          document.createTextNode(' · Chưa đóng '),
-          Object.assign(e('b', null, String(soEmChuaDong)), { style: 'color:var(--xau)' })
-        );
+        const spanNhan = e('span', 'tom-tat-dong-tien');
+        const spanTieuDe = e('span');
+        spanTieuDe.append(document.createTextNode('👥 '), e('b', null, 'Chi tiết đóng tiền'));
+        const spanStats = e('span', 'tom-tat-stats');
+        const pillDaDong = e('span', 'pill-dong-tien pill-da-dong');
+        pillDaDong.append(document.createTextNode('Đã đóng '), e('b', null, `${tongSoEmDaNop}/${dsHs.length}`));
+        const pillChuaDong = e('span', 'pill-dong-tien pill-chua-dong');
+        pillChuaDong.append(document.createTextNode('Chưa đóng '), e('b', null, String(soEmChuaDong)));
+        spanStats.append(pillDaDong, pillChuaDong);
+        spanNhan.append(spanTieuDe, spanStats);
         nutMoChiTiet.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
 
         const khungChiTiet = e('div', 'khung-chi-tiet-dong');
@@ -1122,21 +1123,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             hsLoc.forEach((h) => {
               const sttChu = String(h.sttHienThi || h.id);
 
-              // Render Card cho Mobile
-              const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
-              const cDau = e('div', 'card-hs-dong-dau');
-              const cTrai = e('div', 'card-hs-dong-trai');
-              cTrai.append(e('span', 'stt-tron-hs', sttChu));
-              const cTenWrap = e('div', 'card-hs-dong-ten');
-              cTenWrap.append(e('b', 'ten-chu', h.hoTen));
-              if (h.lopNghe) {
-                cTenWrap.append(e('span', 'lop-nghe-nho', ` · ${h.lopNghe}`));
-              }
-              if (h.laChinhMinh) {
-                cTenWrap.append(e('span', 'tag-ban', 'Bạn'));
-              }
-              cTrai.append(cTenWrap);
+              // Render Card cho Mobile theo bố cục dọc chuẩn:
+              //  Hàng 1: STT tròn + Badge trạng thái (ôm sát nhau, không lấn sang tên)
+              //  Hàng 2: Tên đầy đủ + Lớp nghề (thoải mái xuống dòng khi dài)
+              //  Hàng 3: Đã nộp + Ngày nộp
 
+              const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
+
+              // Hàng 1: STT + Badge
+              const cDau = e('div', 'card-hs-dong-dau');
+              const sttEl = e('span', 'stt-tron-hs', sttChu);
               let badgeMobile;
               if (h.trangThai === 'da_du') {
                 badgeMobile = e('span', 'nhan nhan-tot', '✓ Đã đủ');
@@ -1145,8 +1141,19 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
               } else {
                 badgeMobile = e('span', 'nhan nhan-xau', 'Chưa đóng');
               }
-              cDau.append(cTrai, badgeMobile);
+              cDau.append(sttEl, badgeMobile);
+              if (h.laChinhMinh) {
+                cDau.append(e('span', 'tag-ban', 'Bạn'));
+              }
 
+              // Hàng 2: Tên đầy đủ + Lớp nghề (xuống dòng tự nhiên, không cắp ép)
+              const cTenWrap = e('div', 'card-hs-dong-ten');
+              cTenWrap.append(e('b', 'ten-chu', h.hoTen));
+              if (h.lopNghe) {
+                cTenWrap.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
+              }
+
+              // Hàng 3: Tiền + Ngày
               const cThan = e('div', 'card-hs-dong-than');
               const cTien = e('div', 'card-hs-tien');
               cTien.append(e('span', 'nhan-muc', 'Đã nộp: '));
@@ -1161,7 +1168,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
                 cThan.append(e('span', 'card-hs-gc', `📝 ${h.ghiChu}`));
               }
 
-              card.append(cDau, cThan);
+              card.append(cDau, cTenWrap, cThan);
               dsTheMobile.append(card);
 
               // Render Table row cho Desktop
@@ -1514,6 +1521,38 @@ function xuLyLinkAmThanhHoatDong(item) {
 function veTheHoatDong(item) {
   const the = e('div', 'hoat-dong-the');
 
+  if (item.loai === 'text') {
+    the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
+
+    const dongDau = e('div');
+    dongDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+    dongDau.append(
+      Object.assign(e('span', 'nhan nhan-chinh', '📝 Tin hoạt động'), { style: 'font-weight:700;font-size:11.5px;' }),
+      e('span', 'trong', ngayVN(item.ngay))
+    );
+    the.append(dongDau);
+
+    const noiDungText = item.chuThich || '';
+    const dongDong = noiDungText.split('\n\n');
+    let tieuDe = '';
+    let thanText = noiDungText;
+    if (dongDong.length > 1 && dongDong[0].length < 150) {
+      tieuDe = dongDong[0];
+      thanText = dongDong.slice(1).join('\n\n');
+    }
+
+    if (tieuDe) {
+      const h4 = e('h4', null, tieuDe);
+      h4.style.cssText = 'margin:2px 0 0;font-size:15px;font-weight:700;color:var(--chu);line-height:1.4;';
+      the.append(h4);
+    }
+    const pNd = e('p', null, thanText);
+    pNd.style.cssText = 'margin:0;font-size:13.5px;color:var(--chu-nhat);white-space:pre-wrap;line-height:1.5;';
+    the.append(pNd);
+
+    return the;
+  }
+
   if (item.loai === 'anh') {
     const hinh = e('figure');
     const img = e('img');
@@ -1579,8 +1618,6 @@ function veHoatDongLop(ds, phien, lamMoi) {
   const than = $('#hinh-anh .than-khoi');
   const hop = $('#thuVien');
   const dsDay = ds || [];
-  const duocQuanLy = Boolean(phien && (phien.role === 'teacher'
-    || ['hinh-anh', 'am-thanh', 'video'].some((q) => (phien.quyen || []).includes(q))));
 
   let oTim = $('#thuVienTim');
   if (!oTim && than) {
@@ -1598,7 +1635,7 @@ function veHoatDongLop(ds, phien, lamMoi) {
   function veLoc() {
     if (!dsDay.length) {
       return datNoiDung(hop, e('p', 'trong',
-        'Chưa có hoạt động nào. Giáo viên chủ nhiệm sẽ đăng ảnh, video hoặc âm thanh hoạt động của lớp tại đây.'));
+        'Chưa có hoạt động nào. Giáo viên chủ nhiệm sẽ đăng bài viết, ảnh, video hoặc âm thanh hoạt động của lớp tại đây.'));
     }
 
     const q = (oTim?.value || '').trim().toLowerCase();
@@ -1610,7 +1647,7 @@ function veHoatDongLop(ds, phien, lamMoi) {
 
     datNoiDung(hop, ...dsHien.map((item) => {
       const the = veTheHoatDong(item);
-      if (duocQuanLy) {
+      if (phien && phien.role === 'teacher') {
         const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑');
         nutXoa.type = 'button';
         nutXoa.title = 'Gỡ khỏi Hoạt động lớp';
@@ -1638,7 +1675,7 @@ function veHoatDongLop(ds, phien, lamMoi) {
 const MUC_QUAN_LY = [
   ['thong-bao', '#/thong-bao', 'thong-bao'],
   ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
-  ['hinh-anh', null, ['hinh-anh', 'am-thanh', 'video']],
+  ['hinh-anh', '#/hoat-dong-lop', ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video']],
   ['danh-sach', '#/hoc-sinh', null],
   ['thu-quy', '#/quy', 'quy'],
 ];

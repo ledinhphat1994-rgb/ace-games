@@ -23,7 +23,9 @@ export async function layPhien(request, env) {
 // quyenCan: nếu đặt, một "tài khoản đặc biệt" (role 'phu' — lớp trưởng, thủ quỹ...)
 //   được cấp đúng quyền này thì cũng thao tác được, không cần là giáo viên.
 //   Không đặt quyenCan nghĩa là mục đó CHỈ giáo viên mới được vào (dữ liệu nhạy cảm hơn).
-export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
+// choPhepXoaPhu: nếu true, cho phép tài khoản 'phu' gọi DELETE — hàm xử lý tự chịu
+//   trách nhiệm kiểm tra phạm vi (vd chỉ cho xoá "dong", không cho xoá "khoan"/"chi").
+export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoaPhu = false } = {}) {
   return async (context) => {
     const { request, env } = context;
     if (!env.DB) return loi('Chưa gắn cơ sở dữ liệu D1 vào project.', 500);
@@ -70,8 +72,9 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null } = {}) {
         return loi('Bạn không có quyền thao tác ở mục này.', 403);
       }
       // Tài khoản cán sự (không phải giáo viên) chỉ được thêm/sửa/cập nhật — KHÔNG được
-      // xoá, để tránh mất dữ liệu nếu tài khoản bị chiếm quyền.
-      if (!laGiaoVien && request.method === 'DELETE') {
+      // xoá, để tránh mất dữ liệu nếu tài khoản bị chiếm quyền. Ngoại lệ: các API khai báo
+      // choPhepXoaPhu=true sẽ tự kiểm tra phạm vi (ví dụ: thủ quỹ chỉ được xoá "dong").
+      if (!laGiaoVien && request.method === 'DELETE' && !choPhepXoaPhu) {
         return loi('Tài khoản được cấp quyền chỉ được sửa/thêm, không được xoá. Nhờ giáo viên chủ nhiệm xoá giúp.', 403);
       }
     }
