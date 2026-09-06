@@ -1030,7 +1030,7 @@ function themHocSinh(taiLai) {
 
 function xoaHocSinh(h, taiLai) {
   moHopThoai(`Xoá học sinh — ${h.hoTen}`, [
-    e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.id}) khỏi danh sách lớp không?`),
+    e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.soThuTu || h.id}) khỏi danh sách lớp không?`),
     Object.assign(e('p'), {
       textContent: '⚠️ CẢNH BÁO: Toàn bộ dữ liệu điểm danh, điểm số, nhật ký và thông tin của học sinh này sẽ bị xoá vĩnh viễn khỏi hệ thống.',
       style: 'margin-top:8px;padding:10px;border-radius:8px;background:var(--xau-nen);border:1px solid var(--xau);color:var(--xau);font-size:13.5px;font-weight:600;'
@@ -1094,7 +1094,8 @@ async function trangHocSinh() {
       khoiTrai.append(e('div', 'chu-cai', (h.hoTen.trim().split(/\s+/).pop() || '?')[0].toUpperCase()));
 
       const noi = e('div', 'noi');
-      noi.append(e('b', null, `${h.id}. ${h.hoTen}`));
+      const stt = h.soThuTu || h.id;
+      noi.append(e('b', null, `${stt}. ${h.hoTen}`));
       const phu = [h.lopNghe, h.chucVu].filter(Boolean).join(' · ');
       noi.append(e('small', null, phu || ngayVN(h.ngaySinh)));
       khoiTrai.append(noi);
@@ -1108,6 +1109,16 @@ async function trangHocSinh() {
       // danh sách 37 em mà phần lớn chưa chia tổ.
       if (h.toSo) phai.append(e('span', 'nhan nhan-xam', 'Tổ ' + h.toSo));
 
+      const nutSua = e('button', 'nut-vien nut-nho', '✎ Sửa');
+      nutSua.type = 'button';
+      nutSua.title = `Sửa hồ sơ ${h.hoTen}`;
+      nutSua.setAttribute('aria-label', `Sửa hồ sơ ${h.hoTen}`);
+      nutSua.style.cssText = 'font-size:12.5px;padding:3px 9px;min-height:30px;';
+      nutSua.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        suaHoSo(h);
+      });
+
       const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑 Xoá');
       nutXoa.type = 'button';
       nutXoa.title = `Xoá học sinh ${h.hoTen}`;
@@ -1118,7 +1129,7 @@ async function trangHocSinh() {
         xoaHocSinh(h, () => trangHocSinh());
       });
 
-      phai.append(nutXoa);
+      phai.append(nutSua, nutXoa);
       the.append(khoiTrai, phai);
       return the;
     }));

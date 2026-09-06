@@ -854,23 +854,45 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const thongTin = e('div', 'the-khoan-thong-tin');
         const dongTen = e('div', 'the-khoan-ten-hang');
 
-        if (matchTuan) {
-          dongTen.append(e('span', 'badge-tuan', `Tuần ${matchTuan[1]}`));
+        // Dòng đầu: kiểu thu, tuần thu, tên thu (không ghi thời gian)
+        dongTen.append(e(
+          'span',
+          'badge-kieu-thu ' + (laDinhKy ? 'badge-dinh-ky' : 'badge-nhanh'),
+          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'
+        ));
+
+        const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
+        if (soTuan) {
+          dongTen.append(e('span', 'badge-tuan', `Tuần ${soTuan}`));
         }
-        dongTen.append(e('h4', 'the-khoan-ten', k.ten));
+
+        let tenThuSach = (k.ten || '').trim();
+        tenThuSach = tenThuSach.replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim();
+        if (soTuan) {
+          const reTuan = new RegExp(`\\s*[–\\-—]?\\s*Tuần\\s*${soTuan}\\s*[–\\-—]?\\s*`, 'gi');
+          const daBoTuan = tenThuSach.replace(reTuan, ' ').trim();
+          if (daBoTuan) tenThuSach = daBoTuan;
+        }
+        tenThuSach = tenThuSach.replace(/^[–\-—\s:]+|[–\-—\s:]+$/g, '').trim();
+        if (!tenThuSach) {
+          tenThuSach = (k.ten || '').replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim() || k.ten;
+        }
+        dongTen.append(e('h4', 'the-khoan-ten', tenThuSach));
         thongTin.append(dongTen);
 
+        // Dòng 2: lịch thu, số tiền đóng mỗi em
         const chipDay = e('div', 'the-khoan-chip-day');
-        chipDay.append(e('span', 'the-khoan-chip ' + (laDinhKy ? 'chip-dinh-ky' : 'chip-nhanh'), laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'));
-
-        // Khoảng ngày nếu có
+        let lichThu = '';
         if (k.ngayBatDau && k.ngayKetThuc) {
-          chipDay.append(e('span', 'the-khoan-chip', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`));
+          lichThu = `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`;
+        } else if (k.ngayBatDau) {
+          lichThu = `📅 Từ ${ngayVN(k.ngayBatDau)}`;
         } else {
-          const m = /\(([^)]+)\)/.exec(k.ten);
-          if (m) {
-            chipDay.append(e('span', 'the-khoan-chip', `📅 ${m[1]}`));
-          }
+          const m = /\(([^)]+\d+[/–-]\d+[^)]*)\)/.exec(k.ten);
+          if (m) lichThu = `📅 ${m[1]}`;
+        }
+        if (lichThu) {
+          chipDay.append(e('span', 'the-khoan-chip', lichThu));
         }
 
         if (k.soTienMoiEm) {
@@ -1266,13 +1288,25 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
         const thongTin = e('div', 'the-khoan-thong-tin');
         const dongTen = e('div', 'the-khoan-ten-hang');
-        dongTen.append(e('h4', 'the-khoan-ten', c.noiDung));
+
+        // Dòng đầu: kiểu chi (loại chi), tên chi (không ghi thời gian)
+        dongTen.append(e('span', 'badge-kieu-chi', `🏷️ ${tenLoaiChi(c.loai)}`));
+
+        let noiDungSach = (c.noiDung || '').trim();
+        noiDungSach = noiDungSach.replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim();
+        noiDungSach = noiDungSach.replace(/^[–\-—\s:]+|[–\-—\s:]+$/g, '').trim();
+        if (!noiDungSach) noiDungSach = c.noiDung;
+
+        dongTen.append(e('h4', 'the-khoan-ten', noiDungSach));
         thongTin.append(dongTen);
 
+        // Dòng 2: lịch chi, số tiền chi
         const chipDay = e('div', 'the-khoan-chip-day');
-        chipDay.append(e('span', 'the-khoan-chip', `🏷️ ${tenLoaiChi(c.loai)}`));
         if (c.ngay) {
           chipDay.append(e('span', 'the-khoan-chip', `📅 ${ngayVN(c.ngay)}`));
+        }
+        if (c.soTien) {
+          chipDay.append(e('span', 'the-khoan-chip chip-tien-chi', `💸 ${tienVN(c.soTien)}`));
         }
         thongTin.append(chipDay);
         trai.append(thongTin);

@@ -42,7 +42,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   }
 
   const { results } = await db.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
+    `SELECT h.id, h.so_thu_tu AS soThuTu, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
             h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
             h.dien_thoai_ph AS dienThoaiPh, h.hoan_canh AS hoanCanh, h.ghi_chu AS ghiChu,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 END), 0) AS vangKhongPhep,
@@ -50,7 +50,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
             COALESCE(SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 END), 0) AS tre
        FROM hoc_sinh h LEFT JOIN diem_danh d ON d.hoc_sinh_id = h.id AND d.lop_id = h.lop_id
       WHERE h.dang_hoc = 1 AND h.lop_id = ?1
-      GROUP BY h.id ORDER BY h.id`
+      GROUP BY h.id ORDER BY h.so_thu_tu, h.id`
   ).bind(phien.lopId).all();
 
   const { results: td } = await db.prepare(

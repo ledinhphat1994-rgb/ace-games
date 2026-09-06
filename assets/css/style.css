@@ -1279,31 +1279,76 @@ body.trang-dang-nhap {
   font-size: 11.5px;
   font-weight: 800;
   letter-spacing: .02em;
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
+  color: #2563eb;
+  border: 1px solid color-mix(in srgb, #3b82f6 40%, transparent);
+  white-space: nowrap;
+  flex: none;
+}
+:root[data-theme="dark"] .badge-tuan {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Huy hiệu kiểu thu trên dòng 1 */
+.badge-kieu-thu {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  flex: none;
+}
+.badge-kieu-thu.badge-dinh-ky {
   background: color-mix(in srgb, #06b6d4 18%, transparent);
   color: #0891b2;
   border: 1px solid color-mix(in srgb, #06b6d4 40%, transparent);
 }
-:root[data-theme="dark"] .badge-tuan {
+:root[data-theme="dark"] .badge-kieu-thu.badge-dinh-ky {
   color: #67e8f9;
   background: rgba(6, 182, 212, 0.2);
 }
-.the-khoan-chip.chip-dinh-ky {
-  background: color-mix(in srgb, #06b6d4 15%, transparent);
-  color: #0891b2;
-  border-color: color-mix(in srgb, #06b6d4 35%, transparent);
-  font-weight: 700;
-}
-:root[data-theme="dark"] .the-khoan-chip.chip-dinh-ky {
-  color: #22d3ee;
-}
-.the-khoan-chip.chip-nhanh {
-  background: color-mix(in srgb, #f59e0b 15%, transparent);
+.badge-kieu-thu.badge-nhanh {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
   color: #d97706;
-  border-color: color-mix(in srgb, #f59e0b 35%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
+}
+:root[data-theme="dark"] .badge-kieu-thu.badge-nhanh {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.2);
+}
+
+/* Huy hiệu kiểu chi trên dòng 1 */
+.badge-kieu-chi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  flex: none;
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  color: #7c3aed;
+  border: 1px solid color-mix(in srgb, #8b5cf6 38%, transparent);
+}
+:root[data-theme="dark"] .badge-kieu-chi {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.22);
+}
+
+.the-khoan-chip.chip-tien-chi {
+  color: var(--xau);
   font-weight: 700;
 }
-:root[data-theme="dark"] .the-khoan-chip.chip-nhanh {
-  color: #fbbf24;
+:root[data-theme="dark"] .the-khoan-chip.chip-tien-chi {
+  color: #f87171;
 }
 
 /* Đầu thẻ khoản thu */
