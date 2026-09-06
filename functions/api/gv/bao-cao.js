@@ -62,7 +62,10 @@ function traVeCsv(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, ghiChu 
 }
 
 // Xuất file Excel chuyên nghiệp (.xls) mở ngay trong Microsoft Excel với bố cục chuẩn văn bản giáo dục
-function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thongKeThem, ghiChu }) {
+function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thongKeThem, ghiChu, lop }) {
+  const tenLopHoa = (lop?.ten || 'Lớp học').toUpperCase();
+  const truongHoa = (lop?.truong || '').toUpperCase();
+  const namHoc = lop?.namHoc || '';
   const soCot = Math.max(tieuDeCot.length, 6);
   const cotTrai = Math.floor(soCot / 2);
   const cotPhai = soCot - cotTrai;
@@ -155,7 +158,7 @@ function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thong
     <x:ExcelWorkbook>
       <x:ExcelWorksheets>
         <x:ExcelWorksheet>
-          <x:Name>Báo cáo 10A7</x:Name>
+          <x:Name>Báo cáo lớp</x:Name>
           <x:WorksheetOptions>
             <x:DisplayGridlines/>
             <x:Print>
@@ -226,11 +229,11 @@ function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thong
   <table>
     <!-- Phần Quốc hiệu & Cơ quan ban hành -->
     <tr class="no-border">
-      <td colspan="${cotTrai}" class="no-border hdr-don-vi">TRUNG TÂM GDNN – GDTX ĐỊNH QUÁN</td>
+      <td colspan="${cotTrai}" class="no-border hdr-don-vi">${escapeHtml(truongHoa)}</td>
       <td colspan="${cotPhai}" class="no-border hdr-quoc-hieu">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</td>
     </tr>
     <tr class="no-border">
-      <td colspan="${cotTrai}" class="no-border hdr-lop">LỚP 10A7 — NĂM HỌC 2026-2027</td>
+      <td colspan="${cotTrai}" class="no-border hdr-lop">${escapeHtml(tenLopHoa)}${namHoc ? ' — NĂM HỌC ' + escapeHtml(namHoc.toUpperCase()) : ''}</td>
       <td colspan="${cotPhai}" class="no-border hdr-tieu-ngu">Độc lập – Tự do – Hạnh phúc</td>
     </tr>
     <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 12px;"></td></tr>
@@ -286,16 +289,18 @@ function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thong
   });
 }
 
-function phanHoiBaoCao(dinhDang, tenTepGoc, duLieu) {
+function phanHoiBaoCao(dinhDang, tenTepGoc, duLieu, lop) {
   if (dinhDang === 'csv') {
     return traVeCsv(tenTepGoc, duLieu);
   }
-  return traVeExcel(tenTepGoc, duLieu);
+  return traVeExcel(tenTepGoc, { ...duLieu, lop });
 }
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
   const lopId = phien.lopId;
+  const lop = await db.prepare('SELECT ten, nam_hoc AS namHoc, truong FROM lop WHERE id = ?1').bind(lopId).first();
+  const tenLopTep = (lop?.ten || 'Lop hoc').replace(/\s+/g, '_').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, (m) => m === 'đ' ? 'd' : 'D');
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai') || 'hoc-sinh';
   const dinhDang = (q.get('dinhDang') || 'excel').toLowerCase() === 'csv' ? 'csv' : 'excel';
@@ -369,14 +374,14 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: '', kieu: 'giua' },
     ];
 
-    return phanHoiBaoCao(dinhDang, `Bao_cao_Diem_danh_10A7_${tuNgay}_den_${denNgay}`, {
-      tieuDe: 'BÁO CÁO ĐIỂM DANH VÀ CHUYÊN CẦN LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Diem_danh_${tenLopTep}_${tuNgay}_den_${denNgay}`, {
+      tieuDe: `BÁO CÁO ĐIỂM DANH VÀ CHUYÊN CẦN ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Theo dõi từ ngày ${ngayVN(tuNgay)} đến ngày ${ngayVN(denNgay)}`,
       tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Tổ', 'Tổng buổi', 'Có mặt', 'Đi trễ', 'Vắng phép', 'Không phép', 'Tỉ lệ (%)', 'Đánh giá'],
       cacHang,
       tongCong,
       ghiChu: ['Tỉ lệ chuyên cần tính bằng số buổi có mặt chia cho tổng số buổi điểm danh thực tế.'],
-    });
+    }, lop);
   }
 
   // 2. MỤC: HỌC SINH (Khớp mục "Học sinh" trong Vùng 1)
@@ -419,13 +424,13 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: '', kieu: 'giua' },
     ];
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Hoc_sinh_10A7', {
-      tieuDe: 'BÁO CÁO DANH SÁCH HỌC SINH LỚP 10A7',
-      phuDe: `Năm học 2026-2027 — Trích xuất ngày ${ngayVN(denNgay)}`,
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Hoc_sinh_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO DANH SÁCH HỌC SINH ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
+      phuDe: `Năm học ${lop?.namHoc || ''} — Trích xuất ngày ${ngayVN(denNgay)}`,
       tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Giới tính', 'Ngày sinh', 'Lớp nghề', 'Tổ hợp', 'Tổ', 'Chức vụ', 'ĐT Phụ huynh', 'Hoàn cảnh', 'Ghi chú'],
       cacHang,
       tongCong,
-    });
+    }, lop);
   }
 
   // 3. MỤC: SỔ ĐIỂM (Khớp mục "Sổ điểm" trong Vùng 1)
@@ -472,12 +477,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
     const tieuDeCot = ['STT', 'Họ và tên', ...cacMon.map((m) => m.ten), 'ĐTB chung', 'Học lực', 'Rèn luyện'];
 
-    return phanHoiBaoCao(dinhDang, `Bao_cao_So_diem_10A7_Hoc_ki_${hocKi}`, {
-      tieuDe: `BÁO CÁO BẢNG ĐIỂM TỔNG HỢP LỚP 10A7 — HỌC KÌ ${hocKi}`,
+    return phanHoiBaoCao(dinhDang, `Bao_cao_So_diem_${tenLopTep}_Hoc_ki_${hocKi}`, {
+      tieuDe: `BÁO CÁO BẢNG ĐIỂM TỔNG HỢP ${(lop?.ten || 'LỚP HỌC').toUpperCase()} — HỌC KÌ ${hocKi}`,
       phuDe: 'Điểm trung bình và kết quả đánh giá xếp loại theo Thông tư 22/2021/TT-BGDĐT',
       tieuDeCot,
       cacHang,
-    });
+    }, lop);
   }
 
   // 4. MỤC: NHẬT KÝ LỚP (Khớp mục "Nhật ký lớp" trong Vùng 1)
@@ -498,12 +503,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: n.da_xu_ly ? 'Đã xử lý' : 'Chưa xử lý', kieu: 'giua', mau: n.da_xu_ly ? '#15803d' : '#dc2626' },
     ]);
 
-    return phanHoiBaoCao(dinhDang, `Bao_cao_Nhat_ky_lop_10A7_${tuNgay}_den_${denNgay}`, {
-      tieuDe: 'BÁO CÁO SỔ NHẬT KÝ THEO DÕI LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Nhat_ky_lop_${tenLopTep}_${tuNgay}_den_${denNgay}`, {
+      tieuDe: `BÁO CÁO SỔ NHẬT KÝ THEO DÕI ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Ghi nhận từ ngày ${ngayVN(tuNgay)} đến ngày ${ngayVN(denNgay)}`,
       tieuDeCot: ['STT', 'Ngày', 'Phân loại', 'Học sinh liên quan', 'Nội dung sự việc / Theo dõi', 'Tình trạng xử lý'],
       cacHang,
-    });
+    }, lop);
   }
 
   // 5. MỤC: THỦ QUỸ (Khớp mục "Thủ quỹ" trong Vùng 1)
@@ -585,8 +590,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { nhan: 'Số dư tồn quỹ hiện tại', giaTri: dinhDangTien(tonQuyHienTai) },
     ];
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Thu_quy_10A7', {
-      tieuDe: 'BÁO CÁO THU CHI VÀ QUẢN LÝ QUỸ LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Thu_quy_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO THU CHI VÀ QUẢN LÝ QUỸ ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Cập nhật đến ngày ${ngayVN(denNgay)}`,
       tieuDeCot,
       cacHang,
@@ -595,7 +600,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ghiChu: [
         `Tổng quỹ thu được: ${dinhDangTien(tongThuThucTe)}. Tổng các khoản đã chi: ${dinhDangTien(tongChiThucTe)}. Tồn quỹ thực tế: ${dinhDangTien(tonQuyHienTai)}.`,
       ],
-    });
+    }, lop);
   }
 
   // 6. MỤC: THÔNG BÁO (Khớp mục "Thông báo" trong Vùng 1)
@@ -614,12 +619,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: t.nguoi_tao || 'Giáo viên', kieu: 'giua' },
     ]);
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Thong_bao_10A7', {
-      tieuDe: 'BÁO CÁO DANH SÁCH THÔNG BÁO LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Thong_bao_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO DANH SÁCH THÔNG BÁO ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Tổng hợp toàn bộ thông báo đã ban hành đến ngày ${ngayVN(denNgay)}`,
       tieuDeCot: ['STT', 'Ngày ban hành', 'Tiêu đề thông báo', 'Nội dung chi tiết', 'Trạng thái', 'Người ban hành'],
       cacHang,
-    });
+    }, lop);
   }
 
   // (Kế hoạch năm học đã gộp vào Thông báo — xem "mức độ quan trọng" khi soạn thông báo —
@@ -656,12 +661,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       });
     }
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Thoi_khoa_bieu_10A7', {
-      tieuDe: 'BÁO CÁO THỜI KHOÁ BIỂU LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Thoi_khoa_bieu_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO THỜI KHOÁ BIỂU ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: phienBan ? `Phiên bản: ${phienBan.ten} — Áp dụng từ ngày ${ngayVN(phienBan.ngay_bat_dau)}` : '',
       tieuDeCot: ['Buổi', 'Tiết', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'],
       cacHang,
-    });
+    }, lop);
   }
 
   // 9. MỤC: THỐNG KÊ (Khớp mục "Thống kê" trong Vùng 1)
@@ -696,12 +701,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: h.dong_phuc === 'roi' ? 'Đã nhận' : 'Chưa nhận', kieu: 'giua' },
     ]);
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Thong_ke_tong_hop_10A7', {
-      tieuDe: 'BÁO CÁO THỐNG KÊ TỔNG HỢP LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Thong_ke_tong_hop_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO THỐNG KÊ TỔNG HỢP ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Báo cáo chuyên cần, nề nếp, sách giáo khoa & đồng phục — Ngày ${ngayVN(denNgay)}`,
       tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Giới tính', 'Lớp nghề', 'Tổ', 'Chức vụ', 'Vắng phép', 'Không phép', 'Đi trễ', 'Vi phạm', 'Khen thưởng', 'Sách GK', 'Đồng phục'],
       cacHang,
-    });
+    }, lop);
   }
 
   // 10. MỤC: MÃ CÁ NHÂN & PHÂN QUYỀN (Khớp mục "Mã cá nhân" trong Vùng 1)
@@ -734,13 +739,13 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ];
     });
 
-    return phanHoiBaoCao(dinhDang, 'Bao_cao_Ma_ca_nhan_10A7', {
-      tieuDe: 'BÁO CÁO MÃ TRA CỨU CÁ NHÂN VÀ PHÂN QUYỀN LỚP 10A7',
+    return phanHoiBaoCao(dinhDang, `Bao_cao_Ma_ca_nhan_${tenLopTep}`, {
+      tieuDe: `BÁO CÁO MÃ TRA CỨU CÁ NHÂN VÀ PHÂN QUYỀN ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: 'Danh sách mã bảo mật cá nhân và tài khoản cán sự được phân quyền quản lý',
       tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Chức vụ', 'Tổ', 'Mã cá nhân', 'Vai trò quản trị', 'Quyền thao tác'],
       cacHang,
       ghiChu: ['Mã cá nhân dùng để học sinh xem điểm, chuyên cần và tài khoản cán sự đăng nhập quản lý.'],
-    });
+    }, lop);
   }
 
   return loi('Loại báo cáo không hợp lệ.', 400);

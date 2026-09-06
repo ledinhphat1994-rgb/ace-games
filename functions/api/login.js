@@ -65,10 +65,12 @@ export async function onRequestPost({ request, env }) {
 
   // Mã giáo viên: MỖI LỚP có một mã riêng trong ma_dang_nhap (khoá (lop_id, vai_tro)) — so
   // khớp mã nhập vào với TẤT CẢ các dòng vai_tro='teacher' (số lớp rất ít, quét hết là đủ
-  // nhanh), dòng nào khớp thì biết luôn lớp nào. Nếu bảng trống hoàn toàn (chưa từng đặt qua
-  // web) thì dùng biến môi trường cũ trên Cloudflare cho lớp mặc định (lopId=1) — không phá
-  // vỡ mã đang dùng. Không còn "mã học sinh cả lớp" dùng chung nữa — mỗi em đăng nhập bằng
-  // đúng mã cá nhân của mình (xem nhánh ma_ca_nhan bên dưới).
+  // nhanh), dòng nào khớp thì biết luôn lớp nào. Riêng LỚP MẶC ĐỊNH (lopId=1): nếu lớp đó
+  // CHƯA TỰ ĐẶT mã riêng qua web thì mới dùng biến môi trường cũ trên Cloudflare — kiểm tra
+  // đúng "lớp 1 đã có dòng riêng chưa", KHÔNG PHẢI "cả bảng có trống hay không", để việc lớp
+  // khác đã tự đặt mã không vô tình khoá luôn lối vào bằng biến môi trường của lớp 1.
+  // Không còn "mã học sinh cả lớp" dùng chung nữa — mỗi em đăng nhập bằng đúng mã cá nhân của
+  // mình (xem nhánh ma_ca_nhan bên dưới).
   let role = null;
   let phanBoSung = {};
   let tenHienThi = '';
@@ -79,10 +81,11 @@ export async function onRequestPost({ request, env }) {
         "SELECT lop_id AS lopId, ma FROM ma_dang_nhap WHERE vai_tro = 'teacher'"
       ).all();
       const khop = dsGiaoVien.find((dn) => safeEqual(code, dn.ma));
+      const lop1DaTuDat = dsGiaoVien.some((dn) => dn.lopId === 1);
       if (khop) {
         role = 'teacher';
         phanBoSung = { lopId: khop.lopId };
-      } else if (!dsGiaoVien.length && env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+      } else if (!lop1DaTuDat && env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
         role = 'teacher';
         phanBoSung = { lopId: 1 };
       }

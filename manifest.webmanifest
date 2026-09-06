@@ -1,7 +1,7 @@
 {
-  "name": "Quản lý lớp 10A7",
-  "short_name": "Lớp 10A7",
-  "description": "Quản lý chủ nhiệm lớp 10A7 — GDNN-GDTX xã Định Quán, Đồng Nai",
+  "name": "Quản lý lớp học",
+  "short_name": "Lớp học",
+  "description": "Quản lý chủ nhiệm lớp — điểm danh, sổ điểm, thủ quỹ, thông báo",
   "lang": "vi",
   "dir": "ltr",
   "start_url": "/giao-vien/",

@@ -292,7 +292,7 @@ export function layNhanTaiKhoan(phien = {}) {
     return `${info.bieuTuong} Tài khoản: ${vt} (${t})`;
   }
   if (t) return `Tài khoản: ${t}`;
-  return 'Lớp 10A7 · 2026 – 2027';
+  return 'Tài khoản đặc biệt';
 }
 
 /* ---------- Bảng tùy chỉnh hình nền & chủ đề dùng chung cho toàn bộ trang ---------- */
@@ -425,7 +425,7 @@ export function ganNhacNen(nhacNen) {
   if (!nut) return;   // trang không có thanh đầu kiểu này (vd: login.html) — bỏ qua
   if (!nhacNen) { nut.hidden = true; return; }
   nut.hidden = false;
-  nut.title = 'Nhạc nền: ' + (nhacNen.tenBai || 'Lớp 10A7');
+  nut.title = 'Nhạc nền: ' + (nhacNen.tenBai || 'Đang phát');
 
   const audio = $('#nhacNenAudio');
   audio.src = '/api/nhac-nen';

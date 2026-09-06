@@ -1250,9 +1250,13 @@ function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
 
 
 /** Mở cửa sổ in danh sách mã, cắt rời phát cho từng em. */
-function inDanhSachMa(danhSach) {
+async function inDanhSachMa(danhSach) {
+  // window.open PHẢI gọi ngay, đồng bộ với cú bấm — gọi sau một await sẽ bị trình duyệt
+  // chặn popup vì không còn được coi là phản hồi trực tiếp của người dùng.
   const cua = window.open('', '_blank');
   if (!cua) return nhac('Trình duyệt đã chặn cửa sổ in. Hãy cho phép rồi thử lại.', 'xau');
+
+  const tenLop = await api('/api/whoami').then((d) => d.tenLop).catch(() => '') || 'Lớp học';
 
   const the = danhSach.filter((h) => h.ma).map((h) => `
     <div class="phieu">
@@ -1263,7 +1267,7 @@ function inDanhSachMa(danhSach) {
     </div>`).join('');
 
   cua.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
-    <title>Mã cá nhân lớp 10A7</title><style>
+    <title>Mã cá nhân ${thoat(tenLop)}</title><style>
       *{box-sizing:border-box}
       body{font:14px "Segoe UI",system-ui,sans-serif;margin:14mm;color:#111}
       h1{font-size:17px;margin:0 0 3mm}
@@ -1276,7 +1280,7 @@ function inDanhSachMa(danhSach) {
       .chan{font-size:9px;color:#888}
       @media print{body{margin:8mm}}
     </style></head><body>
-      <h1>MÃ CÁ NHÂN HỌC SINH LỚP 10A7 — NĂM HỌC 2026-2027</h1>
+      <h1>MÃ CÁ NHÂN HỌC SINH ${thoat(tenLop.toUpperCase())}</h1>
       <p class="dan">Cắt rời và phát cho từng em. Nhắc các em không đưa mã cho bạn khác.</p>
       <div class="luoi">${the}</div>
     </body></html>`);
@@ -1349,7 +1353,7 @@ export async function trangThuVienAmThanh(KHUNG) {
     oTepNhac.accept = 'audio/mpeg,.mp3';
     oTepNhac.id = 'chonNhac';
     oTepNhac.className = 'o-nhap';
-    const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền lớp 10A7');
+    const oTenBai = oNhap('nhacTenBai', 'text', '', 'Ví dụ: Nhạc nền đầu giờ');
 
     the.append(
       truong('Chọn file .mp3 (tối đa 12 MB)', oTepNhac),
@@ -1804,7 +1808,7 @@ export async function trangHinhAnh(KHUNG) {
         hinh.style.position = 'relative';
         const img = e('img');
         img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
-        img.alt = a.chuThich || 'Ảnh lớp 10A7';
+        img.alt = a.chuThich || 'Ảnh hoạt động của lớp';
         img.loading = 'lazy';
         img.style.cursor = 'pointer';
         img.title = 'Bấm để xem ảnh kích thước đầy đủ';

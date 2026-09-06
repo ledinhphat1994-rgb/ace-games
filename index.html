@@ -10,16 +10,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css">
-<link rel="stylesheet" href="/assets/css/quan-ly.css">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260906_02">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260906_02">
 </head>
 <body>
 
 <header class="thanh-tren">
   <div class="wrap">
     <a class="hieu" href="/" title="Về đầu trang chủ">
-      <span class="hieu-o">10A7</span>
-      <span class="hieu-ten">Lớp 10A7<small class="hieu-phu">GDNN – GDTX xã Định Quán</small></span>
+      <span class="hieu-o" id="hieuMaLop">10A7</span>
+      <span class="hieu-ten"><span id="hieuTenLop">Lớp 10A7</span><small class="hieu-phu" id="hieuTruong">GDNN – GDTX xã Định Quán</small></span>
     </a>
 
     <!-- Máy tính: bốn mục của trang chủ nằm ngay trên thanh. Điện thoại: ẩn, nằm trong menu. -->
@@ -141,7 +141,7 @@
     <section class="khoi-trang-chu" id="hinh-anh">
       <div class="dau-muc">
         <h2>🖼 Hình ảnh hoạt động</h2>
-        <p>Khoảnh khắc của tập thể 10A7.</p>
+        <p id="gioiThieuHinhAnh">Khoảnh khắc của tập thể 10A7.</p>
       </div>
       <div class="than-khoi">
         <div class="thu-vien" id="thuVien"></div>
@@ -201,6 +201,7 @@
         <h2>Điểm danh & Chuyên cần</h2>
         <p>Theo dõi tình hình sĩ số lớp hằng ngày và chuyên cần cá nhân của em.</p>
       </div>
+      <div class="day-loc" id="ddTabLoai" style="margin: 14px 0 20px 0;"></div>
       <div id="ddCaNhan"></div>
       <div class="the" id="ddLopKhoi"></div>
     </section>
@@ -210,12 +211,12 @@
 
 <footer class="chan-trang">
   <div class="wrap">
-    <span>Lớp 10A7 · Năm học 2026 – 2027 · GDNN – GDTX xã Định Quán, Đồng Nai</span>
+    <span id="chanTrangTen">Lớp 10A7 · Năm học 2026 – 2027 · GDNN – GDTX xã Định Quán, Đồng Nai</span>
     <span>Trang nội bộ — không chia sẻ mã bảo mật ra ngoài lớp.</span>
   </div>
 </footer>
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260906_02"></script>
 </body>
 </html>

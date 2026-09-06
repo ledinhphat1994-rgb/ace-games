@@ -1,4 +1,4 @@
-/* Ứng dụng quản lý lớp 10A7 dành cho giáo viên chủ nhiệm.
+/* Ứng dụng quản lý lớp dành cho giáo viên chủ nhiệm.
    Điều hướng bằng dấu # trên thanh địa chỉ: #/tong-quan, #/diem-danh, ... */
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
@@ -336,7 +336,7 @@ function moHopThoaiGhiChuDiemDanh(h, ttHienTai, ldHienTai, onSave) {
   thongTin.style.cssText = 'padding:10px 14px;background:var(--nen-chim);border-radius:10px;margin-bottom:14px;';
   thongTin.append(
     Object.assign(e('b', null, `${h.id}. ${h.hoTen}`), { style: 'font-size:15.5px;display:block;' }),
-    Object.assign(e('small', null, `${h.lopNghe || 'Lớp 10A7'} • Trạng thái: ${ttHienTai && DIEM_DANH[ttHienTai] ? DIEM_DANH[ttHienTai].ten : 'Chưa điểm danh'}`), { style: 'color:var(--chu-nhat);font-size:12.5px;' })
+    Object.assign(e('small', null, `${h.lopNghe || 'Chưa xếp'} • Trạng thái: ${ttHienTai && DIEM_DANH[ttHienTai] ? DIEM_DANH[ttHienTai].ten : 'Chưa điểm danh'}`), { style: 'color:var(--chu-nhat);font-size:12.5px;' })
   );
   noiDung.append(thongTin);
 
@@ -1028,7 +1028,7 @@ function themHocSinh(taiLai) {
 
 function xoaHocSinh(h, taiLai) {
   moHopThoai(`Xoá học sinh — ${h.hoTen}`, [
-    e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.id}) khỏi danh sách lớp 10A7 không?`),
+    e('p', null, `Bạn có chắc chắn muốn xoá học sinh "${h.hoTen}" (STT ${h.id}) khỏi danh sách lớp không?`),
     Object.assign(e('p'), {
       textContent: '⚠️ CẢNH BÁO: Toàn bộ dữ liệu điểm danh, điểm số, nhật ký và thông tin của học sinh này sẽ bị xoá vĩnh viễn khỏi hệ thống.',
       style: 'margin-top:8px;padding:10px;border-radius:8px;background:var(--xau-nen);border:1px solid var(--xau);color:var(--xau);font-size:13.5px;font-weight:600;'
@@ -1889,6 +1889,11 @@ async function dieuHuong() {
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
     hieuPhu.textContent = layNhanTaiKhoan(PHIEN) + (PHIEN.tenLop ? ` · Đang quản lý: ${PHIEN.tenLop}` : '');
+  }
+  if (PHIEN.tenLop) {
+    document.title = `Quản lý ${PHIEN.tenLop}`;
+    const hieuMaLop = document.querySelector('#hieuMaLop');
+    if (hieuMaLop) hieuMaLop.textContent = PHIEN.tenLop.replace(/^Lớp\s*/i, '');
   }
 
   locMenuTheoQuyen();
