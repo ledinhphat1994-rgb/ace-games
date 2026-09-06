@@ -4,6 +4,10 @@ import { oThongKe, tieuDeTrang, nut } from './giao-dien.js';
 ganDoiGiaoDien($('#doiGiaoDien'));
 
 api('/api/whoami').then(async (w) => {
+  // Ô lô-gô đầu trang (mã lớp viết tắt) — phải luôn hiện đúng lớp đang đăng nhập, giống hệt
+  // trang lớp và khu quản lý, để "vùng đầu trang" nhất quán trên mọi trang của web.
+  const hieuMaLop = $('#hieuMaLop');
+  if (hieuMaLop && w && w.tenLop) hieuMaLop.textContent = w.tenLop.replace(/^Lớp\s*/i, '');
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
   if (w && (w.role === 'teacher' || w.role === 'phu')) {
