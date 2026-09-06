@@ -774,6 +774,33 @@ textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
 @media (min-width: 620px) { .hang-nhap-2 { grid-template-columns: 1fr 1fr; } }
 .nhan-nhap { display: block; font-size: 13px; font-weight: 700; color: var(--chu-nhat); margin-bottom: 5px; }
 
+/* Hộp soạn "Nội dung chi tiết" của Hoạt động lớp — in đậm/in nghiêng/font/cỡ/màu chữ + emoji. */
+.thanh-soan-thao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.nut-soan {
+  min-width: 34px; height: 34px; padding: 0 8px; border-radius: 8px; font: inherit; font-size: 14.5px;
+  border: 1.5px solid var(--vien-dam); background: var(--nen-noi); color: var(--chu); cursor: pointer;
+}
+.nut-soan:hover { border-color: var(--chinh); color: var(--chinh); }
+/* select.o-nhap (thẻ + lớp, đặc trưng cao hơn .o-soan-nho đứng một mình) đã ép width:100% —
+   phải khớp đúng độ đặc trưng đó (select.o-soan-nho) mới ghi đè được thành rộng vừa nội dung. */
+select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px; font-size: 12.5px; }
+.day-mau { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; }
+.nut-mau {
+  width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--vien-dam); cursor: pointer; padding: 0;
+  transition: transform .12s;
+}
+.nut-mau:hover { transform: scale(1.15); }
+.o-soan-thao {
+  min-height: 110px; max-height: 320px; overflow-y: auto; cursor: text;
+  white-space: pre-wrap; word-break: break-word; line-height: 1.55;
+}
+.o-soan-thao:empty::before { content: attr(data-goi-y); color: var(--chu-mo); pointer-events: none; }
+.bang-emoji, .nut-emoji { font-size: 16px; }
+.nut-emoji {
+  border: 0; background: none; cursor: pointer; border-radius: 6px; padding: 3px; line-height: 1;
+}
+.nut-emoji:hover { background: var(--nen-chim); }
+
 /* Nút lọc dạng viên thuốc */
 .day-loc { display: flex; flex-wrap: wrap; gap: 7px; }
 .vien-loc {

@@ -7,6 +7,7 @@
 //                                    amThanhId?|amThanhUrl?, ngay? } — cần ít nhất MỘT trong số đó.
 //   DELETE /api/gv/hoat-dong-lop?id=  -> gỡ một bài khỏi trang chủ (mọi nội dung trong bài đó)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
 
 const QUYEN = ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'];
 
@@ -18,7 +19,7 @@ async function xacThucThamChieu(db, lopId, bang, id) {
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
-    `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.ngay,
+    `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
             hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
             hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
             hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
@@ -32,11 +33,14 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { tieuDe, noiDung, anhId, hinhUrl, videoId, videoUrl, amThanhId, amThanhUrl, ngay } = await docThan(request);
+  const { tieuDe, noiDung, noiDungHtml, anhId, hinhUrl, videoId, videoUrl, amThanhId, amThanhUrl, ngay } = await docThan(request);
   const ngayLuu = chuoi(ngay, 10) || new Date().toISOString().slice(0, 10);
 
   const td = chuoi(tieuDe, 150) || null;
   const nd = chuoi(noiDung, 2000) || null;
+  // Không tin vào việc lọc HTML đã làm ở trình duyệt (hộp soạn thảo) — lọc lại lần nữa ở đây
+  // trước khi lưu, vì API này gọi trực tiếp được (không bắt buộc phải qua giao diện).
+  const ndHtml = noiDungHtml ? (locHtmlNoiDung(noiDungHtml) || null) : null;
 
   const idAnh = Number.isInteger(anhId) ? anhId : null;
   const urlAnh = !idAnh ? (chuoi(hinhUrl, 1000) || null) : null;
@@ -48,7 +52,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const coAnh = Boolean(idAnh || urlAnh);
   const coVideo = Boolean(idVideo || urlVideo);
   const coAmThanh = Boolean(idAmThanh || urlAmThanh);
-  const coVanBan = Boolean(td || nd);
+  const coVanBan = Boolean(td || nd || ndHtml);
 
   if (!coVanBan && !coAnh && !coVideo && !coAmThanh) {
     return loi('Chưa nhập nội dung văn bản, cũng chưa chọn ảnh/video/âm thanh nào.');
@@ -86,9 +90,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   const kq = await env.DB.prepare(
     `INSERT INTO hoat_dong_lop
-       (lop_id, loai, tieu_de, chu_thich, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`
-  ).bind(phien.lopId, loaiGop, td, nd, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
+       (lop_id, loai, tieu_de, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
+  ).bind(phien.lopId, loaiGop, td, nd, ndHtml, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
 }, { canGiaoVien: true, quyenCan: QUYEN });

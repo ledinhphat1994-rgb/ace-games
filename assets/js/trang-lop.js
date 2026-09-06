@@ -9,6 +9,7 @@ import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
 import { moHopThoaiThemHoatDong } from './hoat-dong-lop-dialog.js';
+import { locHtmlNoiDung } from './html-an-toan.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -1650,9 +1651,16 @@ function veTheHoatDong(item, coNutXoa) {
     the.append(h4);
   }
 
-  if (noiDung) {
-    const pNd = e('p', null, noiDung);
+  if (item.noiDungHtml || noiDung) {
+    const pNd = e('p');
     pNd.style.cssText = 'margin:0;font-size:15.5px;color:var(--chu);white-space:pre-wrap;line-height:1.6;';
+    if (item.noiDungHtml) {
+      // Đã lọc an toàn ở máy chủ trước khi lưu — lọc lại lần nữa ở đây cho chắc (phòng khi dữ
+      // liệu cũ/khác nguồn chưa qua lọc), CHỈ cho phép b/i/u/span[style đã duyệt]/br.
+      pNd.innerHTML = locHtmlNoiDung(item.noiDungHtml);
+    } else {
+      pNd.textContent = noiDung;
+    }
     the.append(pNd);
   }
 
