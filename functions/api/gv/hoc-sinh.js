@@ -1,6 +1,9 @@
 // Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được.
-//   GET    /api/gv/hoc-sinh            -> cả lớp kèm hoàn cảnh, SĐT phụ huynh, thống kê vắng
-//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký
+//   GET    /api/gv/hoc-sinh            -> cả lớp; cán sự được cấp quyền "hoc-sinh" cũng xem
+//          được danh sách này, nhưng CHỈ thấy thêm hoàn cảnh/SĐT/ghi chú/thống kê vắng nếu
+//          giáo viên đã bật đúng mục đó ở "⚙ Tuỳ chỉnh hiển thị" (mặc định không bật gì thêm).
+//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký —
+//          LUÔN chỉ giáo viên chủ nhiệm (có cả nhật ký vi phạm, không phải thứ nên lộ cho bạn học).
 //   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
 //          -> thêm học sinh mới (nhập học/chuyển đến giữa năm), id tự tăng tiếp theo sổ lớp
 //   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
@@ -12,6 +15,9 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
 
   if (Number.isInteger(id) && id > 0) {
+    if (phien.role !== 'teacher') {
+      return loi('Chỉ giáo viên chủ nhiệm mới xem được hồ sơ chi tiết từng em.', 403);
+    }
     const [hs, diemDanh, nhatKy, theoDoi] = await Promise.all([
       db.prepare(
         `SELECT id, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
@@ -63,11 +69,27 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     theoId[x.hocSinhId][x.muc] = { trangThai: x.trangThai, ghiChu: x.ghiChu };
   });
 
-  return json({
-    ok: true,
-    danhSach: results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} })),
-  });
-}, { canGiaoVien: true });
+  let danhSach = results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} }));
+
+  // Cán sự (không phải giáo viên) chỉ thấy thêm những trường nhạy cảm giáo viên đã CHỦ ĐỘNG
+  // bật ở "⚙ Tuỳ chỉnh hiển thị" (xem functions/api/gv/cau-hinh-hoc-sinh.js) — mặc định ẩn hết,
+  // và "theoDoi" (ghi chú theo dõi riêng) luôn ẩn với cán sự bất kể cấu hình.
+  if (phien.role !== 'teacher') {
+    const lopRow = await db.prepare('SELECT hs_can_su_hien AS hienThem FROM lop WHERE id = ?1').bind(phien.lopId).first();
+    const hienThem = new Set((lopRow?.hienThem || '').split(',').map((s) => s.trim()).filter(Boolean));
+    danhSach = danhSach.map((h) => {
+      const { dienThoaiPh, hoanCanh, ghiChu, vangKhongPhep, vangPhep, tre, theoDoi, ...conLai } = h;
+      const rieng = {};
+      if (hienThem.has('dien-thoai-ph')) rieng.dienThoaiPh = dienThoaiPh;
+      if (hienThem.has('hoan-canh')) rieng.hoanCanh = hoanCanh;
+      if (hienThem.has('ghi-chu')) rieng.ghiChu = ghiChu;
+      if (hienThem.has('thong-ke-vang')) Object.assign(rieng, { vangKhongPhep, vangPhep, tre });
+      return { ...conLai, ...rieng };
+    });
+  }
+
+  return json({ ok: true, danhSach });
+}, { canGiaoVien: true, quyenCan: 'hoc-sinh' });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);

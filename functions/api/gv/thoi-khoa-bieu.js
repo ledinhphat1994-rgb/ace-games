@@ -115,15 +115,29 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  const { phienBanId, o } = await docThan(request);
+  const { phienBanId, o, ngayBatDau, ghiChu } = await docThan(request);
 
   const idSo = Number(phienBanId);
   if (!Number.isInteger(idSo) || idSo <= 0) return loi('Thiếu mã phiên bản.');
   if (!Array.isArray(o)) return loi('Dữ liệu ô không hợp lệ.');
   if (o.length > 140) return loi('Quá nhiều ô trong một lần gửi.');
+  if (ngayBatDau !== undefined && !ngayHopLe(ngayBatDau)) return loi('Ngày áp dụng không hợp lệ.');
 
   const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2').bind(idSo, phien.lopId).first();
   if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
+
+  // "Sửa nhanh" cho phép chỉnh luôn ngày áp dụng/ghi chú tại chỗ (không tạo phiên bản mới) —
+  // dùng khi gõ nhầm ngày hoặc muốn cập nhật ghi chú (phòng học, giờ có mặt...), khác với
+  // "Đổi lịch" (POST) vốn dành cho lịch học thật sự thay đổi.
+  if (ngayBatDau !== undefined || ghiChu !== undefined) {
+    const dat = [];
+    const thamSo = [];
+    if (ngayBatDau !== undefined) { thamSo.push(ngayBatDau); dat.push(`ngay_bat_dau = ?${thamSo.length}`); }
+    if (ghiChu !== undefined) { thamSo.push(String(ghiChu || '').slice(0, 500)); dat.push(`ghi_chu = ?${thamSo.length}`); }
+    thamSo.push(idSo, phien.lopId);
+    await db.prepare(`UPDATE tkb_phien_ban SET ${dat.join(', ')} WHERE id = ?${thamSo.length - 1} AND lop_id = ?${thamSo.length}`)
+      .bind(...thamSo).run();
+  }
 
   const hopLe = [];
   for (const x of o) {

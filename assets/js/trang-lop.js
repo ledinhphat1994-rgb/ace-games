@@ -299,8 +299,12 @@ function veThongBao(ds, phien, lamMoi) {
   }));
 }
 
-function veDanhSach(ds) {
+function veDanhSach(ds, anMucHs) {
   const than = $('#bangHocSinh');
+  const boAn = new Set(anMucHs || []);
+  document.querySelectorAll('#trangDanhSach thead [data-cot]').forEach((th) => {
+    th.hidden = boAn.has(th.dataset.cot);
+  });
   const nam = ds.filter((h) => h.gioiTinh === 'Nam').length;
   const tomTat = `${ds.length} học sinh · ${nam} nam · ${ds.length - nam} nữ`;
   $('#soLuongHs').textContent = tomTat;
@@ -340,27 +344,38 @@ function veDanhSach(ds) {
     datNoiDung(than, ...hang.map((h) => {
       const tr = e('tr');
       const tdNghe = e('td');
+      tdNghe.dataset.cot = 'lop-nghe';
       if (h.lopNghe) tdNghe.append(e('span', 'nhan nhan-xam', h.lopNghe));
       const tdChuc = e('td');
+      tdChuc.dataset.cot = 'chuc-vu';
       if (h.chucVu) tdChuc.append(e('span', 'nhan nhan-tot', h.chucVu));
 
       const tdGt = e('td');
+      tdGt.dataset.cot = 'gioi-tinh';
       if (h.gioiTinh) {
         tdGt.append(e('span', 'nhan-gt ' + (h.gioiTinh === 'Nam' ? 'gt-nam' : 'gt-nu'), h.gioiTinh));
       }
 
+      const tdNgaySinh = e('td', null, ngayVN(h.ngaySinh));
+      tdNgaySinh.dataset.cot = 'ngay-sinh';
+      const tdToHop = e('td', null, h.toHop || '');
+      tdToHop.dataset.cot = 'to-hop';
+
       const tdTo = e('td');
+      tdTo.dataset.cot = 'to-so';
       if (h.toSo) {
         tdTo.append(e('span', 'nhan-to', 'Tổ ' + h.toSo));
       }
+
+      [tdGt, tdNgaySinh, tdNghe, tdToHop, tdTo, tdChuc].forEach((td) => { td.hidden = boAn.has(td.dataset.cot); });
 
       tr.append(
         e('td', 'so', h.stt),
         e('td', null, h.hoTen),
         tdGt,
-        e('td', null, ngayVN(h.ngaySinh)),
+        tdNgaySinh,
         tdNghe,
-        e('td', null, h.toHop || ''),
+        tdToHop,
         tdTo,
         tdChuc
       );
@@ -2117,7 +2132,7 @@ async function taiDuLieu() {
     veThongBao(thongBaoHien, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHoatDongLop(d.hoatDongLop, phien, taiDuLieu);
-    veDanhSach(d.hocSinh);
+    veDanhSach(d.hocSinh, d.hocSinhAnMuc);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien);
     veLoiTatQuanLy(phien, taiDuLieu);
     ganNhacNen(d.nhacNen);

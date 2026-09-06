@@ -28,7 +28,7 @@ const KHUNG = $('#noiDung');
 const QUYEN_THEO_TUYEN = {
   'tong-quan': null,
   'diem-danh': 'diem-danh',
-  'hoc-sinh': null,
+  'hoc-sinh': 'hoc-sinh',
   'so-diem': null,
   'nhat-ky': 'nhat-ky',
   'thong-ke': null,
@@ -1059,6 +1059,55 @@ function xoaHocSinh(h, taiLai) {
   ]);
 }
 
+const CAC_MUC_CONG_KHAI = [
+  ['gioi-tinh', 'Giới tính'], ['ngay-sinh', 'Ngày sinh'], ['lop-nghe', 'Lớp nghề'],
+  ['to-hop', 'Tổ hợp'], ['chuc-vu', 'Chức vụ'], ['to-so', 'Tổ'],
+];
+const CAC_MUC_CAN_SU = [
+  ['dien-thoai-ph', 'Điện thoại phụ huynh'], ['hoan-canh', 'Hoàn cảnh gia đình'],
+  ['ghi-chu', 'Ghi chú riêng của giáo viên'], ['thong-ke-vang', 'Số liệu vắng / đi trễ'],
+];
+
+function moCauHinhHienThiHocSinh() {
+  api('/api/gv/cau-hinh-hoc-sinh').then((cfg) => {
+    const boCongKhaiAn = new Set(cfg.congKhaiAn);
+    const boCanSuHien = new Set(cfg.canSuHien);
+
+    const taoTich = (ma, nhan, daChon) => {
+      const o = e('input'); o.type = 'checkbox'; o.checked = daChon;
+      const l = e('label');
+      l.style.cssText = 'display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;padding:5px 0';
+      l.append(o, document.createTextNode(nhan));
+      return [o, l];
+    };
+
+    const dsCongKhai = CAC_MUC_CONG_KHAI.map(([ma, nhan]) => [ma, ...taoTich(ma, nhan, !boCongKhaiAn.has(ma))]);
+    const dsCanSu = CAC_MUC_CAN_SU.map(([ma, nhan]) => [ma, ...taoTich(ma, nhan, boCanSuHien.has(ma))]);
+
+    moHopThoai('⚙ Tuỳ chỉnh hiển thị thông tin học sinh', [
+      e('p', 'trong', 'Quyết định thông tin nào học sinh xem được — áp dụng cho mọi mã trong lớp.'),
+      Object.assign(e('h3', null, '👁 Công khai ở "Danh sách lớp" (mọi học sinh xem được)'), { style: 'margin-top:14px' }),
+      e('p', 'trong', 'Bỏ tích mục nào thì ẩn cột đó khỏi danh sách lớp công khai (họ tên luôn hiện).'),
+      ...dsCongKhai.map(([, , nhanO]) => nhanO),
+      Object.assign(e('h3', null, '🔑 Thêm cho cán sự được cấp quyền "Học sinh"'), { style: 'margin-top:18px' }),
+      e('p', 'trong', 'Tích mục nào thì cán sự có quyền "Học sinh" xem được thêm mục đó trong khu quản lý — mặc định không tích gì (an toàn nhất, chỉ giáo viên xem đủ).'),
+      ...dsCanSu.map(([, , nhanO]) => nhanO),
+    ], [
+      nut('Huỷ', 'nut-nhe', dongHopThoai),
+      nut('Lưu', '', async (ev) => {
+        ev.currentTarget.disabled = true;
+        try {
+          const congKhaiAn = dsCongKhai.filter(([, o]) => !o.checked).map(([ma]) => ma);
+          const canSuHien = dsCanSu.filter(([, o]) => o.checked).map(([ma]) => ma);
+          await api('/api/gv/cau-hinh-hoc-sinh', { method: 'PATCH', than: { congKhaiAn, canSuHien } });
+          dongHopThoai();
+          nhac('Đã lưu cấu hình hiển thị', 'tot');
+        } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+      }),
+    ]);
+  }).catch((err) => nhac(err.message, 'xau'));
+}
+
 async function trangHocSinh() {
   datNoiDung(KHUNG, khoiDangTai());
   const d = await api('/api/gv/hoc-sinh');
@@ -1066,9 +1115,11 @@ async function trangHocSinh() {
 
   function ve() {
     const khung = e('div');
-    khung.append(tieuDeTrang('Học sinh', `${d.danhSach.length} em đang học`,
-      nut('+ Thêm học sinh', 'nut-vien nut-nho', () => themHocSinh(() => trangHocSinh()))
-    ));
+    const cacNutPhai = [nut('+ Thêm học sinh', 'nut-vien nut-nho', () => themHocSinh(() => trangHocSinh()))];
+    if (PHIEN.role === 'teacher') {
+      cacNutPhai.unshift(nut('⚙ Tuỳ chỉnh hiển thị', 'nut-nhe nut-nho', moCauHinhHienThiHocSinh));
+    }
+    khung.append(tieuDeTrang('Học sinh', `${d.danhSach.length} em đang học`, ...cacNutPhai));
 
     const o = oNhap('timHs', 'search', tim, 'Tìm theo họ tên…');
     o.addEventListener('input', (ev) => {

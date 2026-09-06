@@ -39,6 +39,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong] = await Promise.all([
     db.prepare(
       `SELECT l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
+              l.hs_cong_khai_an AS hsCongKhaiAn,
               ha.khoa AS bannerHinhKhoa, l.banner_hinh_url AS bannerHinhUrl,
               l.banner_video_id AS bannerVideoId, l.banner_video_url AS bannerVideoUrl
          FROM lop l
@@ -136,9 +137,12 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     };
   });
 
+  const hocSinhAnMuc = (lopRow?.hsCongKhaiAn || '').split(',').filter(Boolean);
+
   return json({
     ok: true,
     anMuc,
+    hocSinhAnMuc,
     lop: {
       ten: lopRow?.ten || 'Lớp học',
       namHoc: lopRow?.namHoc || '',
