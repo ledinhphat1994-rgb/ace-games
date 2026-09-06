@@ -765,7 +765,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
     dsKhoanGoc.forEach((k) => {
       const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
-      const kieuThu = laDinhKy ? '[Thu định kỳ]' : '[Thu linh hoạt]';
+      const kieuThu = laDinhKy ? '[Thu định kỳ]' : '[Thu linh động]';
       const opt = e('option', null, `${kieuThu} ${k.ten}`);
       opt.value = String(k.id);
       dropdown.append(opt);
@@ -901,7 +901,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         dongTen.append(e(
           'span',
           'badge-kieu-thu ' + (laDinhKy ? 'badge-dinh-ky' : 'badge-nhanh'),
-          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh hoạt'
+          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'
         ));
 
         const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
