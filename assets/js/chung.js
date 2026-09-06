@@ -272,12 +272,23 @@ export function layThongTinVaiTro(vaiTro = '') {
   };
 }
 
+// Chỉ ghi tên, tổ, chức vụ (nếu có) — KHÔNG ghi tên trường/trung tâm ở đây (đã hiện sẵn ở chỗ
+// khác trên trang, nhắc lại là thừa và làm dòng này quá dài).
+function toChucVu(phien) {
+  const phu = [];
+  if (phien.toSo) phu.push(`Tổ ${phien.toSo}`);
+  if (phien.chucVu) phu.push(phien.chucVu);
+  return phu;
+}
+
 export function layNhanTaiKhoan(phien = {}) {
   const role = phien.role || '';
   if (role === 'teacher') return '👩‍🏫 Tài khoản: Giáo viên chủ nhiệm';
   if (role === 'student') {
     const ten = (phien.ten || '').trim();
-    return ten ? `🎓 Tài khoản: ${ten}` : '🎓 Tài khoản: Học sinh thường';
+    const phu = toChucVu(phien);
+    const nhan = [ten || 'Học sinh thường', ...phu].join(' · ');
+    return `🎓 Tài khoản: ${nhan}`;
   }
 
   let vt = (phien.vaiTro || '').trim();
@@ -285,13 +296,14 @@ export function layNhanTaiKhoan(phien = {}) {
   vt = info.tenGoi;
 
   const t = (phien.ten || '').trim();
+  const toSoNhan = phien.toSo ? ` · Tổ ${phien.toSo}` : '';
   if (vt) {
     if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
-      return `${info.bieuTuong} Tài khoản: ${vt}`;
+      return `${info.bieuTuong} Tài khoản: ${vt}${toSoNhan}`;
     }
-    return `${info.bieuTuong} Tài khoản: ${vt} (${t})`;
+    return `${info.bieuTuong} Tài khoản: ${vt} (${t})${toSoNhan}`;
   }
-  if (t) return `Tài khoản: ${t}`;
+  if (t) return `Tài khoản: ${t}${toSoNhan}`;
   return 'Tài khoản đặc biệt';
 }
 

@@ -15,5 +15,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
     hocSinhId: phien.hocSinhId || null,
     ma: phien.ma || '',
     tenLop: lop?.ten || '',
+    toSo: phien.toSo || null,
+    chucVu: phien.chucVu || '',
   });
 });

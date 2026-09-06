@@ -137,7 +137,7 @@ export async function onRequestPost({ request, env }) {
     try {
       const ca = await env.DB.prepare(
         `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, m.lop_id AS lopId,
-                h.ho_ten AS hoTen, h.chuc_vu AS chucVu
+                h.ho_ten AS hoTen, h.chuc_vu AS chucVu, h.to_so AS toSo
            FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
       ).bind(code).first();
@@ -145,7 +145,7 @@ export async function onRequestPost({ request, env }) {
       if (ca && !ca.quyen) {
         role = 'student';
         tenHienThi = ca.hoTen;
-        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code, lopId: ca.lopId };
+        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code, lopId: ca.lopId, toSo: ca.toSo, chucVu: ca.chucVu };
       } else if (ca && ca.quyen) {
         const thietBiMay = docThietBi(request);
         if (!ca.thietBi) {
@@ -181,6 +181,7 @@ export async function onRequestPost({ request, env }) {
           vaiTro: ca.chucVu || 'Cán sự lớp',
           quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
           lopId: ca.lopId,
+          toSo: ca.toSo,
         };
         await env.DB.prepare(
           'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'

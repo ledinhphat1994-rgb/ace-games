@@ -1905,11 +1905,13 @@ function apDungThuongHieuLop(lop, phien) {
   $('#tenLop').textContent = ten;
   const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) hieuMaLop.textContent = tenNgan;
   const hieuTenLop = $('#hieuTenLop'); if (hieuTenLop) hieuTenLop.textContent = ten;
-  // Dòng phụ dưới tên lớp: ghép CẢ tên tài khoản đang đăng nhập LẪN tên trường — trước đây có
-  // 2 đoạn mã khác nhau cùng tranh nhau ghi vào đúng một chỗ này (một đoạn ghi tài khoản, một
-  // đoạn ghi tên trường), ai chạy xong sau thì đoạn kia bị mất — gộp lại một chỗ cho chắc.
+  // Dòng phụ dưới tên lớp: hiện tài khoản đang đăng nhập (tên · tổ · chức vụ nếu có) — KHÔNG
+  // lặp lại tên trường ở đây (đã hiện đủ ở đoạn giới thiệu bên dưới, nhắc lại là thừa).
+  // Lưu ý: trước đây có 2 đoạn mã khác nhau cùng tranh nhau ghi vào đúng một chỗ này (một đoạn
+  // ghi tài khoản, một đoạn ghi tên trường), ai chạy xong sau thì đoạn kia bị mất — chỉ còn
+  // ĐÚNG MỘT nơi ghi vào đây để tránh lặp lại lỗi đó.
   const hieuTruong = $('#hieuTruong');
-  if (hieuTruong) hieuTruong.textContent = [phien ? layNhanTaiKhoan(phien) : '', truong].filter(Boolean).join(' · ');
+  if (hieuTruong) hieuTruong.textContent = phien ? layNhanTaiKhoan(phien) : '';
   const gioiThieuHinhAnh = $('#gioiThieuHinhAnh'); if (gioiThieuHinhAnh) gioiThieuHinhAnh.textContent = `Khoảnh khắc của tập thể ${tenNgan}.`;
   const chanTrangTen = $('#chanTrangTen');
   if (chanTrangTen) chanTrangTen.textContent = [ten, namHoc ? `Năm học ${namHoc}` : '', truong].filter(Boolean).join(' · ');
