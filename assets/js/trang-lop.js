@@ -765,7 +765,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
     dsKhoanGoc.forEach((k) => {
       const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
-      const kieuThu = laDinhKy ? '[Thu định kỳ]' : '[Thu nhanh]';
+      const kieuThu = laDinhKy ? '[Thu định kỳ]' : '[Thu linh hoạt]';
       const opt = e('option', null, `${kieuThu} ${k.ten}`);
       opt.value = String(k.id);
       dropdown.append(opt);
@@ -774,8 +774,8 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
     const oTim = e('input', 'o-nhap o-tim-khoan');
     oTim.type = 'search';
     oTim.value = timKhoan;
-    oTim.placeholder = 'Tìm khoản thu, tuần…';
-    oTim.setAttribute('aria-label', 'Tìm kiếm khoản thu');
+    oTim.placeholder = 'Tìm khoản thu, tuần… hoặc tên học sinh';
+    oTim.setAttribute('aria-label', 'Tìm kiếm khoản thu hoặc tên học sinh');
 
     dropdown.addEventListener('change', (ev) => {
       khoanDuocChonId = ev.target.value ? Number(ev.target.value) : null;
@@ -803,6 +803,15 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
     khungBoc.append(dsTheKhoi);
 
     function veDanhSachKhoan() {
+      // Tìm theo TÊN KHOẢN vẫn hoạt động như cũ. Nếu không khớp tên khoản nào nhưng khớp tên
+      // một học sinh, chuyển sang "chế độ tìm theo học sinh": KHÔNG lọc bớt khoản nào cả (mọi
+      // khoản thu đều áp dụng cho mọi em) — thay vào đó hiện đủ mọi khoản (đã đóng, chưa đóng,
+      // đóng chưa đủ) và tự mở sẵn phần "Chi tiết đóng tiền" của từng khoản, lọc luôn theo đúng
+      // tên vừa gõ, để xem ngay một em đã đóng/chưa đóng/thiếu ở khoản nào trong nháy mắt.
+      const timTheoTenKhoan = timKhoan && dsKhoanGoc.some((k) => (k.ten || '').toLowerCase().includes(timKhoan));
+      const timTheoTenHs = Boolean(timKhoan) && !timTheoTenKhoan
+        && dsHocSinh.some((h) => (h.hoTen || '').toLowerCase().includes(timKhoan));
+
       let danhSachLoc;
       if (khoanDuocChonId) {
         danhSachLoc = dsKhoanGoc.filter((k) => k.id === khoanDuocChonId);
@@ -812,7 +821,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           if (locTrangThai === 'dang_mo' && (!k.dangMo || phanTram >= 100)) return false;
           if (locTrangThai === 'da_du' && phanTram < 100) return false;
           if (locTrangThai === 'da_dong' && k.dangMo) return false;
-          if (timKhoan) {
+          if (timKhoan && !timTheoTenHs) {
             const tenThuong = (k.ten || '').toLowerCase();
             if (!tenThuong.includes(timKhoan)) return false;
           }
@@ -892,7 +901,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         dongTen.append(e(
           'span',
           'badge-kieu-thu ' + (laDinhKy ? 'badge-dinh-ky' : 'badge-nhanh'),
-          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu nhanh'
+          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh hoạt'
         ));
 
         const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
@@ -1023,7 +1032,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
         const nutMoChiTiet = e('button', 'nut-mo-chi-tiet-dong');
         nutMoChiTiet.type = 'button';
-        nutMoChiTiet.setAttribute('aria-expanded', 'false');
+        nutMoChiTiet.setAttribute('aria-expanded', String(timTheoTenHs));
         const spanNhan = e('span', 'tom-tat-dong-tien');
         const spanTieuDe = e('span');
         spanTieuDe.append(document.createTextNode('👥 '), e('b', null, 'Chi tiết đóng tiền'));
@@ -1037,10 +1046,12 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         nutMoChiTiet.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
 
         const khungChiTiet = e('div', 'khung-chi-tiet-dong');
-        khungChiTiet.hidden = true;
+        // Đang tìm theo tên học sinh ở ô tìm kiếm chính (không khớp tên khoản nào) — tự mở sẵn
+        // và lọc luôn theo đúng tên đó, đỡ phải bấm mở rồi gõ lại tên lần nữa cho từng khoản.
+        khungChiTiet.hidden = !timTheoTenHs;
 
         let locHs = ''; // '' | 'da_dong' | 'chua_dong'
-        let timHs = '';
+        let timHs = timTheoTenHs ? timKhoan : '';
 
         function veBangHs() {
           const thanhLocHs = e('div', 'thanh-loc-chi-tiet');
@@ -1222,6 +1233,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             veBangHs();
           }
         });
+        if (timTheoTenHs) veBangHs();   // tự mở sẵn nên phải tự vẽ nội dung ngay, không đợi bấm
 
         the.append(nutMoChiTiet, khungChiTiet);
 
@@ -1749,7 +1761,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   if (buoi) buoiDiemDanhHienTai = buoi;
   if (ngay) ngayDiemDanhHienTai = ngay;
 
-  // Thanh tab chuyển đổi giữa Điểm danh chính và Điểm danh phụ
+  // Thanh tab chuyển đổi giữa Điểm danh chính và Điểm danh linh động
   let hopTabLoai = $('#ddTabLoai');
   if (!hopTabLoai) {
     hopTabLoai = e('div', 'day-loc');
@@ -1765,7 +1777,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
 
   if (hopTabLoai) {
     datNoiDung(hopTabLoai,
-      ...[['chinh', '📋 Điểm danh chính'], ['phu', '⚡ Điểm danh phụ']].map(([maL, tenL]) => {
+      ...[['chinh', '📋 Điểm danh chính'], ['phu', '⚡ Điểm danh linh động']].map(([maL, tenL]) => {
         const b = e('button', 'vien-loc', tenL);
         b.type = 'button';
         b.setAttribute('aria-pressed', String(loaiDiemDanhHienTai === maL));
@@ -1815,7 +1827,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
 
     const tieuDe = e('div', 'tieu-de-ca-nhan');
     tieuDe.append(
-      e('h3', null, (isPhu ? '⚡ Điểm danh phụ & Hoạt động: ' : '🎓 Chuyên cần chính khoá: ') + cn.hoTen),
+      e('h3', null, (isPhu ? '⚡ Điểm danh linh động & Hoạt động: ' : '🎓 Chuyên cần chính khoá: ') + cn.hoTen),
       e('span', 'nhan ' + (isPhu ? 'nhan-luuy' : 'nhan-tot'), (cn.lopNghe || 'Chưa xếp') + (cn.chucVu ? ' · ' + cn.chucVu : ''))
     );
     theCn.append(tieuDe);
@@ -1888,7 +1900,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
           e('span', null, '⚡ '),
           document.createTextNode('Em có '),
           e('b', null, `${cn.phu.tong} lượt ghi nhận`),
-          document.createTextNode(` trong Điểm danh phụ (${cn.phu.co_mat} có mặt).`)
+          document.createTextNode(` trong Điểm danh linh động (${cn.phu.co_mat} có mặt).`)
         );
         nhacPhu.append(
           veTrai,
@@ -1954,7 +1966,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   // 2. Điểm danh cả lớp theo ngày
   const khungLop = e('div', 'khung-diem-danh-lop');
 
-  // Ghi chú giải thích nếu đang xem tab Điểm danh phụ
+  // Ghi chú giải thích nếu đang xem tab Điểm danh linh động
   if (isPhu) {
     const hopGhiChuPhu = e('div', 'hop-huong-dan-phu');
     hopGhiChuPhu.style.cssText = 'margin-bottom: 16px; padding: 13px 16px; border-radius: 12px; background: var(--nen-chim); border: 1.5px dashed color-mix(in srgb, var(--chinh) 45%, var(--vien)); font-size: 13.5px; line-height: 1.5; color: var(--chu);';

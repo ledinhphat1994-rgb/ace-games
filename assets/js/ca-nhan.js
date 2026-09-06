@@ -128,13 +128,13 @@ function veKetQua(d) {
       noi.append(canh);
     }
 
-    // Hoạt động & Điểm danh phụ
+    // Hoạt động & Điểm danh linh động
     if (cc.phu && cc.phu.tong > 0) {
       const thePhu = e('div', 'the');
       thePhu.style.marginTop = '14px';
       thePhu.append(
-        e('h3', null, '⚡ Hoạt động & Điểm danh phụ'),
-        e('p', 'trong', `Em có ${cc.phu.tong} lượt ghi nhận trong Điểm danh phụ (Có mặt: ${cc.phu.co_mat || 0}, Vắng: ${(cc.phu.vang_phep || 0) + (cc.phu.vang_khong_phep || 0)}, Đi trễ: ${cc.phu.tre || 0}).`)
+        e('h3', null, '⚡ Hoạt động & Điểm danh linh động'),
+        e('p', 'trong', `Em có ${cc.phu.tong} lượt ghi nhận trong Điểm danh linh động (Có mặt: ${cc.phu.co_mat || 0}, Vắng: ${(cc.phu.vang_phep || 0) + (cc.phu.vang_khong_phep || 0)}, Đi trễ: ${cc.phu.tre || 0}).`)
       );
       if (cc.phu.chiTiet && cc.phu.chiTiet.length) {
         const dsPhu = e('div', 'ds-diem-danh');

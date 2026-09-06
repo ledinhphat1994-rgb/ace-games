@@ -336,7 +336,7 @@ async function trangTongQuan() {
   datNoiDung(KHUNG, khung);
 }
 
-/* ---------- Điểm danh nhanh: đánh dấu hàng loạt cho trường hợp đặc biệt (đi bồi dưỡng,
+/* ---------- Điểm danh linh động: đánh dấu hàng loạt cho trường hợp đặc biệt (đi bồi dưỡng,
    lao động, hoạt động ngoại khoá…) — chọn lý do có sẵn hoặc gõ riêng, tích những em liên
    quan (hoặc chọn tất cả), bấm MỘT nút là lưu thẳng lên máy chủ ngay — không phải qua bước
    "áp dụng" rồi mới đi tìm nút "Lưu điểm danh" ở chỗ khác như trước, dễ gây hiểu lầm là
@@ -567,7 +567,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
   });
   khung.append(ds);
 
-  // Thanh lưu riêng của Điểm danh phụ — vẫn một nút lưu duy nhất, lưu thẳng toàn bộ
+  // Thanh lưu riêng của Điểm danh linh động — vẫn một nút lưu duy nhất, lưu thẳng toàn bộ
   // thayDoi/lyDoMoi đã đổi (kể cả qua "Áp dụng nhanh" lẫn từng ô 📝).
   const cacIdThayDoi = new Set([...thayDoi.keys(), ...lyDoMoi.keys()]);
   if (cacIdThayDoi.size) {
@@ -590,7 +590,7 @@ async function trangDiemDanh() {
 
   let ngay = sessionStorage.getItem('dd-ngay') || homNay();
   let buoi = sessionStorage.getItem('dd-buoi') || 'sang';
-  let tabCon = 'ngay';   // 'ngay' = Điểm danh chính | 'nhanh' = Điểm danh phụ
+  let tabCon = 'ngay';   // 'ngay' = Điểm danh chính | 'nhanh' = Điểm danh linh động
 
   let duLieuChinh = null;
   const thayDoiChinh = new Map();
@@ -754,7 +754,7 @@ async function trangDiemDanh() {
 
     const hopTabCon = e('div', 'day-loc');
     hopTabCon.style.margin = '14px 0';
-    [['ngay', '📋 Điểm danh chính'], ['nhanh', '⚡ Điểm danh phụ']].forEach(([ma, ten]) => {
+    [['ngay', '📋 Điểm danh chính'], ['nhanh', '⚡ Điểm danh linh động']].forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tabCon === ma));
@@ -977,7 +977,7 @@ async function trangDiemDanh() {
     }
     khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 
-    // Thanh lưu — CHỈ hiện ở tab Điểm danh chính. Tab Điểm danh phụ đã có nút lưu riêng ngay
+    // Thanh lưu — CHỈ hiện ở tab Điểm danh chính. Tab Điểm danh linh động đã có nút lưu riêng ngay
     // trong thẻ của nó (lưu thẳng toàn bộ thayDoiPhu, lyDoMoiPhu),
     // nên không hiện thêm thanh này nữa — tránh 2 nút "Lưu điểm danh" cùng lúc gây rối.
     const cacIdThayDoi = new Set([...thayDoiChinh.keys(), ...lyDoMoiChinh.keys()]);
@@ -1864,7 +1864,7 @@ function trangThem() {
     a.append(e('div', 'chu-cai', bieuTuong));
     const noi = e('div', 'noi');
     noi.append(e('b', null, ten), e('small', null, moTa));
-    a.append(noi, e('div', 'canh-phai', '›'));
+    a.append(noi, e('div', 'canh-phai canh-phai-mui-ten', '›'));
     ds.append(a);
   });
   khung.append(ds);

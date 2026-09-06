@@ -1224,6 +1224,13 @@ body.trang-dang-nhap {
   .thanh-cong-cu-khoan .o-tim-khoan {
     width: 100%;
   }
+  /* Màn điện thoại hẹp: cuộn ngang ẩn mất viên "Đã đủ 100%..." khỏi mép màn hình mà không có
+     dấu hiệu gì báo còn nội dung — nhìn như bị lỗi/cắt cụt. Cho xuống dòng thay vì cuộn ngang,
+     chỉ vài viên lọc ngắn nên xuống dòng vẫn gọn, lại thấy hết ngay không cần dò cuộn. */
+  .thanh-cong-cu-khoan .day-loc {
+    overflow-x: visible;
+    flex-wrap: wrap;
+  }
 }
 .thanh-loc-dang-chon {
   display: flex;
@@ -1779,10 +1786,17 @@ td.cot-hom-nay {
   color: var(--chinh);
 }
 .nut-mo-chi-tiet-dong .mui-ten-chi-tiet {
-  font-size: 13px;
-  transition: transform .25s ease;
+  font-size: 15px;
+  transition: transform .25s ease, background .15s ease;
   flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--nen-chim);
 }
+.nut-mo-chi-tiet-dong:hover .mui-ten-chi-tiet { background: var(--chinh-nen); }
 .nut-mo-chi-tiet-dong[aria-expanded="true"] .mui-ten-chi-tiet {
   transform: rotate(180deg);
 }

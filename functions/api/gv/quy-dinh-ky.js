@@ -8,11 +8,13 @@
 // Không có PATCH/DELETE: một khi đã tạo, muốn bỏ một kỳ cụ thể thì xoá đúng khoản đó (khoản
 // nào cũng xoá được độc lập qua /api/gv/quy?loai=khoan&id=), không cần khái niệm "dừng/tiếp
 // tục" cả mẫu nữa vì mọi kỳ đã tồn tại sẵn ngay từ đầu.
+// CHỈ giáo viên chủ nhiệm mới tạo được — tài khoản thủ quỹ (phu + quyền "quy") chỉ tạo được
+// khoản thu LINH HOẠT (từng khoản đơn qua /api/gv/quy hanhDong "tao_khoan"), không tạo được
+// chuỗi thu cố định nhiều kỳ (dễ tạo nhầm số kỳ/số tiền hàng loạt, ảnh hưởng lâu dài cả năm học).
 import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../_lib/api.js';
 import { chupCheckpoint } from '../../_lib/quy-checkpoint.js';
 import { tinhCacKy, tenKy } from '../../_lib/quy-dinh-ky.js';
 
-const QUYEN = 'quy';
 const TOI_DA_SO_KY = 60;   // đủ cho hơn 1 năm thu theo tuần, chặn nhập nhầm số cực lớn
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
@@ -46,4 +48,4 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   ).bind(tenKy(tenSach, chuKy, k), soTien, dinhKyId, k.kySo, k.ngayBatDau, k.ngayKetThuc, phien.lopId)));
 
   return json({ ok: true, id: dinhKyId, soKySinh: cacKy.length });
-}, { canGiaoVien: true, quyenCan: QUYEN });
+}, { canGiaoVien: true });

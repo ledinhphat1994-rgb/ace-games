@@ -37,6 +37,10 @@ const ICON_QUYEN = {
 
 export async function trangQuy(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
+  // Chỉ giáo viên chủ nhiệm mới tạo được "Thu cố định" (chuỗi nhiều kỳ) — tài khoản thủ quỹ
+  // (phu) chỉ tạo được khoản thu LINH HOẠT từng khoản đơn (xem moKhoanMoi bên dưới).
+  const phienQuy = await api('/api/whoami').catch(() => ({ role: 'teacher' }));
+  const laGiaoVienQuy = phienQuy.role === 'teacher';
   let d = null;                 // tổng quan
   let tabHienTai = 'thu';       // 'thu' | 'chi' — tách biệt hai khu vực thu và chi
   let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
@@ -47,7 +51,7 @@ export async function trangQuy(KHUNG) {
   const nhomMoRong = new Set();    // id các mẫu "Thu cố định" đang mở rộng (xem từng kỳ bên trong)
 
   /** Gộp danh sách khoản thu: các kỳ cùng một mẫu "Thu cố định" gộp thành MỘT nhóm, khoản
-      "Thu nhanh" (không thuộc mẫu nào) giữ nguyên từng dòng riêng — tránh liệt kê phẳng hàng
+      "Thu linh hoạt" (không thuộc mẫu nào) giữ nguyên từng dòng riêng — tránh liệt kê phẳng hàng
       chục dòng trông rất giống nhau (chỉ khác số kỳ) khiến khó phân biệt/quan sát. */
   function nhomTheoDinhKy(danhSachKhoan) {
     const daGom = new Set();
@@ -173,7 +177,7 @@ export async function trangQuy(KHUNG) {
     const thongTin = e('div', 'hs-thong-tin');
     const dongTen = e('div', 'hs-ten-to');
     dongTen.append(e('span', 'hs-ho-ten', k.ten));
-    if (!k.dinhKyId) dongTen.append(e('span', 'hs-to-badge badge-nhanh', '⚡ Thu nhanh'));
+    if (!k.dinhKyId) dongTen.append(e('span', 'hs-to-badge badge-nhanh', '⚡ Thu linh hoạt'));
     thongTin.append(dongTen);
     const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
     const dongChiTiet = e('div', 'hs-chi-tiet-dong');
@@ -320,7 +324,7 @@ export async function trangQuy(KHUNG) {
     } else if (dk.khoan.ngayBatDau) {
       const tb = e('div', 'the trong');
       tb.style.cssText = 'margin-bottom:14px';
-      tb.append(e('span', null, `⚡ Thu nhanh — khoảng thời gian thu: ${ngayVN(dk.khoan.ngayBatDau)}–${ngayVN(dk.khoan.ngayKetThuc)}.`));
+      tb.append(e('span', null, `⚡ Thu linh hoạt — khoảng thời gian thu: ${ngayVN(dk.khoan.ngayBatDau)}–${ngayVN(dk.khoan.ngayKetThuc)}.`));
       box.append(tb);
     }
 
@@ -767,7 +771,7 @@ export async function trangQuy(KHUNG) {
       const dauKhoan = e('div', 'tieu-de-trang tieu-de-thu');
       dauKhoan.append(e('h2', null, '💰 Danh sách khoản thu'));
       const phaiKhoan = e('div', 'phai');
-      phaiKhoan.append(nut('➕ Ghi khoản thu', 'nut-chinh nut-nho', () => moKhoanMoi(tai)));
+      phaiKhoan.append(nut('➕ Ghi khoản thu', 'nut-chinh nut-nho', () => moKhoanMoi(tai, 'nhanh', laGiaoVienQuy)));
       const nutXoaTatCaKhoan = nutXoaTatCa(d.khoan.length, 'khoan', 'khoản thu', tai);
       if (nutXoaTatCaKhoan) phaiKhoan.append(nutXoaTatCaKhoan);
       dauKhoan.append(phaiKhoan);
@@ -935,7 +939,7 @@ function suaChi(chi, taiLai) {
 // Loại thu chọn ngay khi tạo — gộp chung "khoản thu một lần" và "mẫu thu định kỳ" (trước đây
 // là 2 nút, 2 khái niệm tách rời khiến không rõ định kỳ nghĩa là gì) vào MỘT hộp thoại duy
 // nhất: chọn định kỳ thì các trường đổi theo và có giải thích lịch sinh kỳ ngay tại chỗ.
-const LOAI_CHINH_THU = [['nhanh', '⚡ Thu nhanh'], ['co_dinh', '🔒 Thu cố định']];
+const LOAI_CHINH_THU = [['nhanh', '⚡ Thu linh hoạt'], ['co_dinh', '🔒 Thu cố định']];
 const CHU_KY_CO_DINH = [['tuan', 'Theo tuần'], ['thang', 'Theo tháng'], ['nam', 'Theo năm']];
 const NHAN_CHU_KY = { tuan: 'Tuần', thang: 'Tháng', nam: 'Năm' };
 const TOI_DA_SO_KY = 60;   // khớp giới hạn phía máy chủ (functions/api/gv/quy-dinh-ky.js)
@@ -972,8 +976,11 @@ function tinhCacKyXemTruoc(tuNgayKy1ISO, denNgayKy1ISO, soKy) {
   return ds;
 }
 
-function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh') {
-  const oLoaiChinh = oChon('qLoaiChinh', LOAI_CHINH_THU, loaiChinhMacDinh);
+function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh', duocTaoCoDinh = true) {
+  // Tài khoản thủ quỹ (phu) không tạo được "Thu cố định" — bớt hẳn lựa chọn đó khỏi hộp thoại
+  // thay vì cho chọn rồi báo lỗi lúc lưu.
+  const cacLoaiChoPhep = duocTaoCoDinh ? LOAI_CHINH_THU : LOAI_CHINH_THU.filter(([ma]) => ma !== 'co_dinh');
+  const oLoaiChinh = oChon('qLoaiChinh', cacLoaiChoPhep, duocTaoCoDinh ? loaiChinhMacDinh : 'nhanh');
   const oChuKy = oChon('qChuKy', CHU_KY_CO_DINH, 'tuan');
   const oSoKy = oNhap('qSoKy', 'number', '8');
   const oTen = oNhap('qTen', 'text', '', 'Ví dụ: Quỹ lớp học kì 1');
@@ -1856,7 +1863,7 @@ export async function trangQuyLichSu(KHUNG) {
       khoiTrai.append(e('div', 'stt', k.dinhKyId ? '🔁' : '💰'));
       const thongTin = e('div', 'hs-thong-tin');
       const dongTen = e('div', 'hs-ten-to');
-      dongTen.append(e('span', 'hs-ho-ten', k.ten), e('span', 'hs-to-badge', k.dinhKyId ? 'Thu cố định' : 'Thu nhanh'));
+      dongTen.append(e('span', 'hs-ho-ten', k.ten), e('span', 'hs-to-badge', k.dinhKyId ? 'Thu cố định' : 'Thu linh hoạt'));
       thongTin.append(dongTen);
       const pt = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
       thongTin.append(e('div', 'hs-chi-tiet-dong', `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${pt}%)`));

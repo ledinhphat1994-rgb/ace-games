@@ -413,6 +413,14 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
     justify-content: flex-start !important;
     padding-left: 50px;
   }
+  /* Ngoại lệ: .canh-phai chỉ chứa MỘT mũi tên "›" đơn giản (thẻ ở trang "Thêm") — không có
+     nhiều nhãn dài để xuống dòng, nên KHÔNG xuống dòng, giữ nguyên gọn ở cuối hàng như cũ.
+     Không dùng luật ở trên tránh mũi tên trôi lơ lửng một mình xuống hàng riêng. */
+  .the-hs .canh-phai-mui-ten {
+    flex: none !important;
+    justify-content: center !important;
+    padding-left: 0;
+  }
 }
 
 .ds-the { display: grid; gap: 9px; grid-template-columns: 1fr; }
