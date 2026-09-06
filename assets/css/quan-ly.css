@@ -973,3 +973,295 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
 .lich-nho i.tre { background: var(--luu-y); }
 .lich-nho i.vang_phep { background: var(--chinh); }
 .lich-nho i.vang_khong_phep { background: var(--xau); }
+
+/* ================= GIAO DIỆN THỦ QUỸ NÂNG CẤP ================= */
+.tab-chuyen-quy-chinh {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 16px;
+  background: var(--nen-chim);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--vien);
+}
+.nut-tab-chuyen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--chu-nhat);
+  font-size: 15.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 48px;
+}
+.nut-tab-chuyen:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--chu);
+}
+.nut-tab-chuyen.dang-chon {
+  background: var(--nen-noi);
+  color: var(--chu);
+  box-shadow: var(--bong-2);
+  border-color: var(--vien);
+}
+.nut-tab-chuyen.tab-thu.dang-chon {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), var(--nen-noi));
+}
+.nut-tab-chuyen.tab-chi.dang-chon {
+  color: #f97316;
+  border-color: rgba(249, 115, 22, 0.4);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), var(--nen-noi));
+}
+.tab-badge {
+  background: var(--nen-chim);
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.nut-tab-chuyen.tab-thu.dang-chon .tab-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+.nut-tab-chuyen.tab-chi.dang-chon .tab-badge {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+/* Thẻ khung Khoản thu & Khoản chi */
+.the-khoan-thu-khung {
+  border-top: 3.5px solid #10b981 !important;
+  border-radius: var(--r) !important;
+}
+.the-khoan-chi-khung {
+  border-top: 3.5px solid #f97316 !important;
+  border-radius: var(--r) !important;
+}
+.card-khoan-thu {
+  margin-bottom: 12px;
+  border: 1.5px solid var(--vien) !important;
+  border-radius: 14px !important;
+  background: var(--nen-noi);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card-khoan-thu:hover {
+  border-color: var(--chinh) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+.card-khoan-thu.dang-mo {
+  border-color: #10b981 !important;
+}
+.hs-icon-khoan {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 18px !important;
+  background: var(--nen-chim) !important;
+  border: 1px solid var(--vien) !important;
+}
+.pill-muc-thu {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--chu);
+  background: rgba(56, 189, 248, 0.12);
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+.badge-nhanh {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+.badge-dinh-ky {
+  background: rgba(99, 102, 241, 0.14) !important;
+  color: #818cf8 !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+.so-tien-thu-duoc {
+  font-weight: 600;
+}
+.thanh-tien-do-khoan-nho {
+  height: 5px;
+  background: var(--nen-chim);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 10px;
+  width: 100%;
+}
+.thanh-tien-do-chay {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7, #10b981);
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+.thanh-tien-do-chay.da-du {
+  background: #10b981;
+}
+
+/* Khoản chi đặc trưng warm tone */
+.card-item-chi {
+  border-left: 4.5px solid #f97316 !important;
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.07) 0%, var(--nen-noi) 45%) !important;
+  margin-bottom: 12px;
+  border: 1px solid var(--vien);
+  border-radius: 13px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+.badge-loai-chi {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+.tien-chi-noi-bat strong {
+  color: #ef4444 !important;
+  font-size: 15.5px !important;
+  font-weight: 800 !important;
+}
+.chi-ten {
+  font-size: 16px !important;
+}
+.nut-cam {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  padding: 8px 14px;
+}
+.nut-cam:hover {
+  filter: brightness(1.1);
+}
+
+/* Tách biệt giữa các em học sinh */
+.the-hs-quy {
+  margin-bottom: 10px;
+  border-radius: 14px !important;
+  border: 1.5px solid var(--vien) !important;
+  padding: 13px 16px !important;
+  background: var(--nen-noi);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.03);
+  transition: transform 0.12s, border-color 0.12s;
+}
+.the-hs-quy:hover {
+  border-color: var(--chinh) !important;
+}
+.the-hs-quy.quy-da-du {
+  border-left: 4.5px solid #10b981 !important;
+}
+.the-hs-quy.quy-con-thieu {
+  border-left: 4.5px solid #f59e0b !important;
+}
+.the-hs-quy.quy-chua-dong {
+  border-left: 4.5px solid #ef4444 !important;
+}
+.hs-stt-tron {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: var(--nen-chim) !important;
+  display: grid !important;
+  place-items: center !important;
+  font-weight: 800 !important;
+  font-size: 14.5px !important;
+  border: 1.5px solid var(--vien) !important;
+  color: var(--chu) !important;
+  flex: none !important;
+}
+.nut-ghi-thu-hs {
+  min-height: 42px !important;
+  padding: 8px 18px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Hộp thoại xác nhận duyệt thu / chi */
+.hop-xac-nhan-quy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.bang-xac-nhan {
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dong-xn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  font-size: 14.5px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--vien);
+}
+.dong-xn:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.nhan-xn {
+  color: var(--chu-nhat);
+  font-size: 13.5px;
+  flex: none;
+}
+.gt-xn {
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+.gt-xn.chu-dam {
+  font-weight: 800;
+  font-size: 15.5px;
+  color: var(--chu);
+}
+.gt-xn.tien-tot-noi-bat {
+  color: #10b981;
+  font-size: 20px;
+  font-weight: 800;
+}
+.gt-xn.tien-xau-noi-bat {
+  color: #ef4444;
+  font-size: 20px;
+  font-weight: 800;
+}
+.ghi-chu-canh-bao {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--chu-nhat);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin: 0;
+}
+.ghi-chu-canh-bao.canh-bao-do {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+}

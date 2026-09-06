@@ -47,9 +47,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         WHERE l.id = ?1`
     ).bind(lopId).first(),
     db.prepare(
-      `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
+      `SELECT id, COALESCE(so_thu_tu, id) AS stt, COALESCE(so_thu_tu, id) AS soThuTu,
+              ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
-         FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id`
+         FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY so_thu_tu, id`
     ).bind(lopId).all(),
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
     // ngoài dán riêng (hinh_url/nhac_url).

@@ -45,7 +45,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
     const [{ results: hocSinh }, { results: dong }] = await Promise.all([
-      db.prepare('SELECT id, ho_ten AS hoTen, to_so AS toSo FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(phien.lopId).all(),
+      db.prepare('SELECT id, ho_ten AS hoTen, to_so AS toSo, COALESCE(so_thu_tu, id) AS soThuTu FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY so_thu_tu, id').bind(phien.lopId).all(),
       db.prepare(
         'SELECT id, hoc_sinh_id AS hocSinhId, so_tien AS soTien, ngay, ghi_chu AS ghiChu FROM quy_dong WHERE khoan_id = ?1 ORDER BY ngay DESC, id DESC'
       ).bind(khoanId).all(),
@@ -61,7 +61,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     const danhSach = hocSinh.map((h) => {
       const t = theoHs[h.id] || { daDong: 0, lanDong: [] };
       return {
-        hocSinhId: h.id, hoTen: h.hoTen, toSo: h.toSo,
+        hocSinhId: h.id, soThuTu: h.soThuTu || h.id, hoTen: h.hoTen, toSo: h.toSo,
         daDong: t.daDong,
         conThieu: Math.max(0, khoan.soTienMoiEm - t.daDong),
         daDuDinh: t.daDong >= khoan.soTienMoiEm,

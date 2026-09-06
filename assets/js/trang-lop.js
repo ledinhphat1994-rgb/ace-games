@@ -990,8 +990,9 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const hocSinhHienTaiId = phien?.hocSinhId || null;
 
         const danhSachHsVoiTrangThai = dsHs.map((hs) => {
-          const id = hs.stt || hs.id;
-          const thongTin = dsDongChiTiet[id] || dsDongChiTiet[String(id)] || null;
+          const id = hs.id || hs.stt;
+          const sttHienThi = hs.soThuTu || hs.stt || hs.id;
+          const thongTin = dsDongChiTiet[hs.id] || dsDongChiTiet[String(hs.id)] || dsDongChiTiet[hs.stt] || dsDongChiTiet[String(hs.stt)] || null;
           const daDong = thongTin ? thongTin.soTien : 0;
           const ngayDong = thongTin ? thongTin.ngay : '';
           const ghiChu = thongTin ? thongTin.ghiChu : '';
@@ -1004,6 +1005,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           }
           return {
             id,
+            sttHienThi,
             hoTen: hs.hoTen,
             lopNghe: hs.lopNghe || '',
             daDong,
@@ -1084,7 +1086,12 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           });
 
           const hopCuon = e('div', 'bang-dong-tien-cuon');
-          const bang = e('table', 'bang-dong-tien');
+
+          // 1. Danh sách dạng Thẻ (tách biệt rõ ràng từng em trên điện thoại)
+          const dsTheMobile = e('div', 'ds-card-hs-dong');
+
+          // 2. Dạng Bảng (cho màn hình lớn)
+          const bang = e('table', 'bang-dong-tien bang-dong-tien-desktop');
           const thead = e('thead');
           const hangTieuDe = e('tr');
           hangTieuDe.append(
@@ -1109,10 +1116,57 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             tdTrong.textContent = 'Không có học sinh nào phù hợp bộ lọc.';
             hangTrong.append(tdTrong);
             tbody.append(hangTrong);
+
+            dsTheMobile.append(e('div', 'trong o-trong-card', 'Không có học sinh nào phù hợp bộ lọc.'));
           } else {
             hsLoc.forEach((h) => {
+              const sttChu = String(h.sttHienThi || h.id);
+
+              // Render Card cho Mobile
+              const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
+              const cDau = e('div', 'card-hs-dong-dau');
+              const cTrai = e('div', 'card-hs-dong-trai');
+              cTrai.append(e('span', 'stt-tron-hs', sttChu));
+              const cTenWrap = e('div', 'card-hs-dong-ten');
+              cTenWrap.append(e('b', 'ten-chu', h.hoTen));
+              if (h.lopNghe) {
+                cTenWrap.append(e('span', 'lop-nghe-nho', ` · ${h.lopNghe}`));
+              }
+              if (h.laChinhMinh) {
+                cTenWrap.append(e('span', 'tag-ban', 'Bạn'));
+              }
+              cTrai.append(cTenWrap);
+
+              let badgeMobile;
+              if (h.trangThai === 'da_du') {
+                badgeMobile = e('span', 'nhan nhan-tot', '✓ Đã đủ');
+              } else if (h.trangThai === 'dong_mot_phan') {
+                badgeMobile = e('span', 'nhan nhan-luuy', 'Đóng 1 phần');
+              } else {
+                badgeMobile = e('span', 'nhan nhan-xau', 'Chưa đóng');
+              }
+              cDau.append(cTrai, badgeMobile);
+
+              const cThan = e('div', 'card-hs-dong-than');
+              const cTien = e('div', 'card-hs-tien');
+              cTien.append(e('span', 'nhan-muc', 'Đã nộp: '));
+              if (h.daDong > 0) {
+                cTien.append(Object.assign(e('b', null, tienVN(h.daDong)), { style: 'color:var(--tot)' }));
+              } else {
+                cTien.append(Object.assign(e('span', 'trong', '0 đ')));
+              }
+              const cNgay = e('span', 'card-hs-ngay', h.ngayDong ? `📅 ${ngayVN(h.ngayDong)}` : 'Chưa nộp');
+              cThan.append(cTien, cNgay);
+              if (h.ghiChu) {
+                cThan.append(e('span', 'card-hs-gc', `📝 ${h.ghiChu}`));
+              }
+
+              card.append(cDau, cThan);
+              dsTheMobile.append(card);
+
+              // Render Table row cho Desktop
               const tr = e('tr', h.laChinhMinh ? 'dong-ban-than' : '');
-              const tdStt = e('td', null, String(h.id));
+              const tdStt = e('td', null, sttChu);
               const tdTen = e('td');
               tdTen.append(e('b', null, h.hoTen));
               if (h.lopNghe) {
@@ -1148,7 +1202,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           }
 
           bang.append(tbody);
-          hopCuon.append(bang);
+          hopCuon.append(dsTheMobile, bang);
 
           datNoiDung(khungChiTiet, thanhLocHs, hopCuon);
         }
