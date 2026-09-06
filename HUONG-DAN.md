@@ -1,4 +1,4 @@
-# Hướng dẫn trang lớp 10A7
+# Hướng dẫn web quản lý lớp (nhiều lớp)
 
 Trang chạy trên **Cloudflare Pages** — miễn phí vĩnh viễn, băng thông không giới hạn,
 tự động có HTTPS, CDN và chống DDoS của Cloudflare.
@@ -18,6 +18,42 @@ tự động có HTTPS, CDN và chống DDoS của Cloudflare.
 Ba biến bí mật `SESSION_SECRET`, `CLASS_CODE`, `TEACHER_CODE` **đã được nạp lên Cloudflare**.
 Đã kiểm tra thực tế: chưa nhập mã thì bị chặn (302), mã sai bị từ chối (401), cookie giả mạo bị từ chối,
 học sinh không vào được `/giao-vien` (403).
+
+## 0b. Quản lý nhiều lớp (từ 2026-09-06)
+
+Web giờ phục vụ được **nhiều lớp cùng lúc** trên chung một địa chỉ `gdtxdinhquan.pages.dev` —
+mỗi lớp dữ liệu tách biệt tuyệt đối (học sinh, điểm, điểm danh, quỹ, thông báo, thư viện ảnh/
+nhạc/video, thời khoá biểu, báo cáo...), không thể lẫn giữa các lớp dù chung một web.
+
+**Nguyên tắc cốt lõi: mỗi lớp có một mã đăng nhập giáo viên RIÊNG.** Không có màn hình "chọn
+lớp" — gõ đúng mã của lớp nào thì vào thẳng đúng lớp đó, tự động, không cần chọn gì thêm.
+
+| Lớp | Mã giáo viên |
+|---|---|
+| Lớp 10A7 | mã bạn đã tự đặt trước đó (xem/đổi ở Mã đăng nhập) |
+| Lớp 11A1 | `GV11A1-G3WNFYKN` — mã tạm, **nên đổi ngay** ở bước dưới |
+
+**Biết đang ở lớp nào:** góc trên bên trái khu quản lý luôn ghi rõ *"Đang quản lý: <tên lớp>"*,
+tiêu đề tab trình duyệt cũng hiện tên lớp — nhìn một cái là biết ngay, không sợ thao tác nhầm.
+
+**Đổi mã đăng nhập của một lớp:** đăng nhập đúng lớp đó → *Khu quản lý → Mã đăng nhập* → đặt mã
+mới. Chỉ đổi mã của lớp đang đăng nhập, không đụng tới lớp kia.
+
+**Xem đồng thời cả 2 lớp cùng lúc (không cần đăng xuất/đăng nhập lại liên tục):** vì cookie phiên
+đăng nhập dùng chung theo trình duyệt, 1 cửa sổ chỉ giữ được 1 phiên tại một thời điểm — mở lớp
+kia trong cùng cửa sổ sẽ tự đăng xuất lớp đang xem. Muốn xem cả hai cùng lúc:
+- Cách 1: 1 cửa sổ Chrome bình thường (đăng nhập lớp A) + 1 cửa sổ **ẩn danh/Incognito** (đăng
+  nhập lớp B) — hai cửa sổ giữ hai phiên độc lập.
+- Cách 2: dùng 2 trình duyệt khác nhau (vd Chrome cho lớp A, Edge/Cốc Cốc cho lớp B).
+- Cách 3 (gọn nhất trên điện thoại): thêm cả 2 địa chỉ vào màn hình chính như 2 "app" riêng —
+  Chrome trên Android/iOS coi mỗi app thêm vào màn hình chính là một hồ sơ trình duyệt tách biệt.
+
+**Dung lượng lưu trữ (ảnh/nhạc/video):** chia riêng cho từng lớp (hiện mỗi lớp ~4,75 GB trong
+tổng 9,5 GB an toàn) — lớp này tải nhiều không làm hết chỗ của lớp kia.
+
+**Thêm lớp thứ 3 trở lên:** chưa làm nút tự thêm trên giao diện vì rất hiếm khi cần — chỉ cần
+nhắn Claude "tạo thêm lớp <tên>, cùng/khác trường ra sao" là tạo xong trong vài phút (tạo lớp
+mới trong cơ sở dữ liệu + cấp mã đăng nhập riêng), không cần chạm tới lớp đang có.
 
 ### Tài khoản đã được khoá cứng cho thư mục này
 
