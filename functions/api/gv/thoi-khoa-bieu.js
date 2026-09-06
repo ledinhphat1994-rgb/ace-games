@@ -115,23 +115,25 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  const { phienBanId, o, ngayBatDau, ghiChu } = await docThan(request);
+  const { phienBanId, o, buoiDaSua, ten, ngayBatDau, ghiChu } = await docThan(request);
 
   const idSo = Number(phienBanId);
   if (!Number.isInteger(idSo) || idSo <= 0) return loi('Thiếu mã phiên bản.');
   if (!Array.isArray(o)) return loi('Dữ liệu ô không hợp lệ.');
   if (o.length > 140) return loi('Quá nhiều ô trong một lần gửi.');
   if (ngayBatDau !== undefined && !ngayHopLe(ngayBatDau)) return loi('Ngày áp dụng không hợp lệ.');
+  if (ten !== undefined && !String(ten || '').trim()) return loi('Tên thời khoá biểu không được để trống.');
 
   const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2').bind(idSo, phien.lopId).first();
   if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
 
-  // "Sửa nhanh" cho phép chỉnh luôn ngày áp dụng/ghi chú tại chỗ (không tạo phiên bản mới) —
-  // dùng khi gõ nhầm ngày hoặc muốn cập nhật ghi chú (phòng học, giờ có mặt...), khác với
-  // "Đổi lịch" (POST) vốn dành cho lịch học thật sự thay đổi.
-  if (ngayBatDau !== undefined || ghiChu !== undefined) {
+  // "Sửa nhanh" cho phép chỉnh luôn tên/ngày áp dụng/ghi chú tại chỗ (không tạo phiên bản mới) —
+  // dùng khi gõ nhầm hoặc muốn cập nhật cho gọn (phòng học, giờ có mặt...), khác với "Đổi lịch"
+  // (POST) vốn dành cho lịch học thật sự thay đổi.
+  if (ten !== undefined || ngayBatDau !== undefined || ghiChu !== undefined) {
     const dat = [];
     const thamSo = [];
+    if (ten !== undefined) { thamSo.push(String(ten).trim().slice(0, 200)); dat.push(`ten = ?${thamSo.length}`); }
     if (ngayBatDau !== undefined) { thamSo.push(ngayBatDau); dat.push(`ngay_bat_dau = ?${thamSo.length}`); }
     if (ghiChu !== undefined) { thamSo.push(String(ghiChu || '').slice(0, 500)); dat.push(`ghi_chu = ?${thamSo.length}`); }
     thamSo.push(idSo, phien.lopId);
@@ -150,14 +152,27 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if (mon) hopLe.push({ buoi, thu, tiet, mon });
   }
 
-  const cauLenh = [db.prepare('DELETE FROM tkb_o WHERE phien_ban_id = ?1').bind(idSo)];
+  // CHỈ xoá đúng (các) buổi thật sự được gửi lên để thay thế — KHÔNG xoá sạch cả phiên bản.
+  // Trước đây xoá hết rồi chèn lại "o" đã làm mất trắng buổi kia nếu Sửa nhanh chỉ xem/gửi
+  // đúng một buổi (vd em không mở tab buổi còn lại) — một lần đã xoá nhầm cả thời khoá biểu
+  // buổi chiều đang dùng thật. "buoiDaSua" do trình duyệt gửi kèm (buổi nào đã hiện ô sửa,
+  // kể cả khi để trống) mới là buổi được phép ghi đè; suy luận từ "o" chỉ là phương án dự
+  // phòng cho client cũ chưa gửi buoiDaSua.
+  const cacBuoiXoa = Array.isArray(buoiDaSua) && buoiDaSua.length
+    ? [...new Set(buoiDaSua.filter((b) => b === 'sang' || b === 'chieu'))]
+    : [...new Set(hopLe.map((x) => x.buoi))];
+
+  const cauLenh = cacBuoiXoa.length
+    ? [db.prepare(`DELETE FROM tkb_o WHERE phien_ban_id = ?1 AND buoi IN (${cacBuoiXoa.map((_, i) => `?${i + 2}`).join(',')})`)
+        .bind(idSo, ...cacBuoiXoa)]
+    : [];
   hopLe.forEach((x) => {
     cauLenh.push(
       db.prepare('INSERT INTO tkb_o (phien_ban_id, buoi, thu, tiet, mon, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
         .bind(idSo, x.buoi, x.thu, x.tiet, x.mon, phien.lopId)
     );
   });
-  await db.batch(cauLenh);
+  if (cauLenh.length) await db.batch(cauLenh);
 
   return json({ ok: true, daLuu: hopLe.length });
 }, { canGiaoVien: true, quyenCan: 'thoi-khoa-bieu' });

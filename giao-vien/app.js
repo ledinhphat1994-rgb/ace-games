@@ -6,6 +6,7 @@ import {
   layNhanTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo,
 } from '/assets/js/chung.js';
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
+import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -31,6 +32,7 @@ const QUYEN_THEO_TUYEN = {
   'hoc-sinh': 'hoc-sinh',
   'so-diem': null,
   'nhat-ky': 'nhat-ky',
+  'hoat-dong-lop': ['hinh-anh', 'am-thanh', 'video'],
   'thong-ke': null,
   'thong-bao': 'thong-bao',
   'bao-cao': null,
@@ -53,7 +55,9 @@ function duocVaoTuyen(duong) {
   if (PHIEN.role === 'teacher') return true;
   const khoa = duong.replace(/^\//, '').split('/')[0];
   const can = QUYEN_THEO_TUYEN[khoa];
-  return can !== undefined && can !== null && PHIEN.quyen.includes(can);
+  if (can === undefined || can === null) return false;
+  const cacCan = Array.isArray(can) ? can : [can];
+  return cacCan.some((q) => PHIEN.quyen.includes(q));
 }
 
 /** Ẩn các mục trong menu (cột trái, tab dưới) mà tài khoản hiện tại không có quyền vào. */
@@ -1876,6 +1880,57 @@ function trangThem() {
   datNoiDung(KHUNG, khung);
 }
 
+/* ================= Trang: Hoạt động lớp ================= */
+
+const ICON_LOAI_HOAT_DONG = { anh: '🖼', video: '🎬', 'am-thanh': '🎵' };
+
+async function trangHoatDongLop(KHUNG) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  async function ve() {
+    const d = await api('/api/gv/hoat-dong-lop');
+    const khung = e('div');
+    khung.append(tieuDeTrang('Hoạt động lớp', `${d.danhSach.length} mục đang hiện ở trang chủ`,
+      nut('+ Thêm hoạt động', '', () => moHopThoaiThemHoatDong(ve))
+    ));
+
+    if (!d.danhSach.length) {
+      khung.append(e('p', 'trong', 'Chưa có mục nào — bấm "+ Thêm hoạt động" để đăng ảnh, video hoặc âm thanh lên trang chủ.'));
+    } else {
+      const ds = e('div', 'ds-nhat-ky');
+      d.danhSach.forEach((item) => {
+        const m = e('div', 'muc-nhat-ky');
+        const dong = e('div', 'dong-dau');
+        const nhanTen = item.loai === 'video' ? (item.videoTen || 'Video')
+          : item.loai === 'am-thanh' ? (item.amThanhTen || 'Âm thanh') : (item.chuThich || 'Ảnh');
+        dong.append(
+          e('span', 'nhan nhan-xam', `${ICON_LOAI_HOAT_DONG[item.loai] || '📎'} ${nhanTen}`),
+          e('span', 'ngay', ngayVN(item.ngay))
+        );
+        const thaoTac = e('div');
+        thaoTac.style.cssText = 'margin-left:auto;display:inline-flex';
+        const nutXoa = nut('🗑 Gỡ', 'nut-nhe nut-nho', async () => {
+          if (!confirm('Gỡ mục này khỏi trang chủ?')) return;
+          try {
+            await api('/api/gv/hoat-dong-lop?id=' + item.id, { method: 'DELETE' });
+            nhac('Đã gỡ', 'tot');
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); }
+        });
+        dong.append(nutXoa);
+        m.append(dong);
+        if (item.chuThich && item.loai !== 'anh') m.append(e('p', null, item.chuThich));
+        ds.append(m);
+      });
+      khung.append(ds);
+    }
+
+    datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
+}
+
 /* ================= Điều hướng ================= */
 
 const TRANG = {
@@ -1884,6 +1939,7 @@ const TRANG = {
   '/hoc-sinh': trangHocSinh,
   '/so-diem': () => trangSoDiem(KHUNG),
   '/nhat-ky': trangNhatKy,
+  '/hoat-dong-lop': () => trangHoatDongLop(KHUNG),
   '/thong-bao': trangThongBao,
   '/thong-ke': () => trangThongKe(KHUNG),
   '/bao-cao': () => trangBaoCao(KHUNG),
@@ -1901,7 +1957,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (trongMucThem && a.dataset.nhom === 'them');

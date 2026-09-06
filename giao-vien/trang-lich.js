@@ -27,6 +27,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   (d.o || []).forEach((x) => { bang[`${x.buoi}-${x.thu}-${x.tiet}`] = x.mon; });
   let soTietToiDa = Math.max(5, ...(d.o || []).map((x) => x.tiet), 0);
   const oCacO = new Map();   // "buoi-thu-tiet" -> input, dùng khi đang sửa nhanh — giữ qua đổi tab buổi
+  let oTenSua = null;        // input tên phiên bản khi đang "Sửa nhanh"
   let oNgayApDung = null;    // input ngày áp dụng khi đang "Sửa nhanh" — null nếu không ở chế độ sửa
   let oGhiChuSua = null;     // input ghi chú khi đang "Sửa nhanh"
 
@@ -57,6 +58,29 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     }));
   }
 
+  // Khi bắt đầu "Sửa nhanh", tạo sẵn ô nhập cho TẤT CẢ tiết của CẢ HAI buổi ngay lập tức — dù
+  // giáo viên chỉ đang nhìn một buổi trên màn hình. Bắt buộc phải làm vậy: trước đây ô chỉ được
+  // tạo cho buổi đang xem tại thời điểm gõ, nên nếu lưu mà chưa từng bấm sang tab buổi kia, dữ
+  // liệu buổi đó bị coi là "rỗng" và server xoá mất luôn buổi thật đang áp dụng — đã xảy ra thật
+  // một lần, xoá sạch cả buổi chiều của lớp. Giờ luôn có đủ dữ liệu gốc của cả hai buổi trong
+  // oCacO trước khi lưu, nên không buổi nào bị hiểu nhầm là "để trống".
+  function damBaoOChoCaHaiBuoi() {
+    const soTiet = Math.max(soTietToiDa, 5);
+    CAC_BUOI.forEach(([buoi]) => {
+      for (let tiet = 1; tiet <= soTiet; tiet++) {
+        CAC_THU.forEach((thu) => {
+          const khoa = `${buoi}-${thu}-${tiet}`;
+          if (!oCacO.has(khoa)) {
+            const o = e('input', 'o-nhap');
+            o.style.cssText = 'min-width:100px;min-height:34px;padding:4px 7px;font-size:13px';
+            o.value = bang[khoa] || '';
+            oCacO.set(khoa, o);
+          }
+        });
+      }
+    });
+  }
+
   const khungBang = e('div');
   const khungThanhLuu = e('div');
 
@@ -68,6 +92,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     thanh.append(
       nut('Huỷ', 'nut-nhe nut-nho', () => { dangSua = false; oCacO.clear(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
       nut('Lưu thay đổi', '', async (ev) => {
+        if (oTenSua && !oTenSua.value.trim()) { return nhac('Chưa nhập tên thời khoá biểu.', 'xau'); }
         if (oNgayApDung && !oNgayApDung.value) { return nhac('Chưa nhập ngày áp dụng.', 'xau'); }
         ev.currentTarget.disabled = true;
         const o = [];
@@ -77,7 +102,8 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
           o.push({ buoi, thu: Number(thu), tiet: Number(tiet), mon: input.value.trim() });
         });
         try {
-          const than = { phienBanId: d.phienBan.id, o };
+          const than = { phienBanId: d.phienBan.id, o, buoiDaSua: CAC_BUOI.map(([ma]) => ma) };
+          if (oTenSua) than.ten = oTenSua.value.trim();
           if (oNgayApDung) than.ngayBatDau = oNgayApDung.value;
           if (oGhiChuSua) than.ghiChu = oGhiChuSua.value.trim();
           await api('/api/gv/thoi-khoa-bieu', { method: 'PATCH', than });
@@ -100,7 +126,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
         : 'Chưa có thời khoá biểu nào.',
       ...(chiXem || !d.phienBan ? [] : dangSua ? [] : [
         nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
-        nut('✎ Sửa nhanh', 'nut-vien nut-nho', () => { dangSua = true; veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
+        nut('✎ Sửa nhanh', 'nut-vien nut-nho', () => { dangSua = true; damBaoOChoCaHaiBuoi(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
         nut('+ Đổi lịch (tạo phiên bản mới)', '', () => taoPhienBanMoi(bang, soTietToiDa)),
       ])
     ));
@@ -148,13 +174,18 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   function veChiTiet() {
     if (chiXem) return datNoiDung(khungChiTiet);
     if (dangSua) {
+      oTenSua = oNhap('tkbSuaTen', 'text', d.phienBan?.ten || '', 'Ví dụ: Thời khoá biểu HK1');
       oNgayApDung = oNhap('tkbSuaNgay', 'date', d.phienBan?.ngayBatDau || homNay());
       oGhiChuSua = oNhap('tkbSuaGhiChu', 'text', d.phienBan?.ghiChu || '', 'Ví dụ: Phòng A5, có mặt lúc 12h45 (không bắt buộc)');
       const hang = e('div', 'luoi luoi-2');
       hang.style.cssText = 'margin-top:12px;gap:10px';
-      hang.append(truong('Áp dụng từ ngày', oNgayApDung), truong('Ghi chú', oGhiChuSua));
-      datNoiDung(khungChiTiet, hang);
+      hang.append(truong('Tên', oTenSua), truong('Áp dụng từ ngày', oNgayApDung));
+      const hangGhiChu = e('div');
+      hangGhiChu.style.marginTop = '10px';
+      hangGhiChu.append(truong('Ghi chú', oGhiChuSua));
+      datNoiDung(khungChiTiet, hang, hangGhiChu);
     } else {
+      oTenSua = null;
       oNgayApDung = null;
       oGhiChuSua = null;
       datNoiDung(khungChiTiet, d.phienBan?.ghiChu

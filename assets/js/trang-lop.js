@@ -400,10 +400,13 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   const soThuTkb = thuHomNay === 0 ? null : thuHomNay + 1;
   const soTietHomNay = soThuTkb ? o.filter((t) => t.thu === soThuTkb).length : 0;
 
+  // Tên phiên bản (vd "Thời khoá biểu HK1 (từ 07/09/2026)") thường đã ghi sẵn ngày áp dụng —
+  // không lặp lại "áp dụng từ ..." nữa kẻo dư thừa, chỉ ghi ngày riêng khi phiên bản CHƯA có tên.
   const dong = [];
   if (phienBan?.ten) dong.push(phienBan.ten);
+  else if (phienBan) dong.push(`áp dụng từ ${ngayVN(phienBan.ngayBatDau)}`);
+  else dong.push('chưa cập nhật thời khoá biểu');
   if (o.length) dong.push(soThuTkb ? `Hôm nay có ${soTietHomNay} tiết` : 'Hôm nay Chủ nhật — nghỉ');
-  dong.push(phienBan ? `áp dụng từ ${ngayVN(phienBan.ngayBatDau)}` : 'chưa cập nhật thời khoá biểu');
   $('#tkbApDung').textContent = dong.join(' · ');
 
   if (!o.length) {
@@ -982,6 +985,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           const thongTin = dsDongChiTiet[id] || dsDongChiTiet[String(id)] || null;
           const daDong = thongTin ? thongTin.soTien : 0;
           const ngayDong = thongTin ? thongTin.ngay : '';
+          const ghiChu = thongTin ? thongTin.ghiChu : '';
           const mucTieu = k.soTienMoiEm || 0;
           let tt = 'chua_dong';
           if (mucTieu > 0 && daDong >= mucTieu) {
@@ -995,6 +999,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             lopNghe: hs.lopNghe || '',
             daDong,
             ngayDong,
+            ghiChu,
             trangThai: tt,
             laChinhMinh: Boolean(hocSinhHienTaiId && hocSinhHienTaiId === id),
           };
@@ -1078,7 +1083,8 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             e('th', null, 'Họ và tên'),
             e('th', null, 'Đã đóng'),
             e('th', null, 'Ngày đóng'),
-            e('th', null, 'Trạng thái')
+            e('th', null, 'Trạng thái'),
+            e('th', null, 'Ghi chú')
           );
           thead.append(hangTieuDe);
           bang.append(thead);
@@ -1087,7 +1093,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           if (!hsLoc.length) {
             const hangTrong = e('tr');
             const tdTrong = e('td');
-            tdTrong.colSpan = 5;
+            tdTrong.colSpan = 6;
             tdTrong.style.textAlign = 'center';
             tdTrong.style.padding = '20px';
             tdTrong.className = 'trong';
@@ -1125,7 +1131,9 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
                 tdTrangThai.append(e('span', 'nhan nhan-xau', 'Chưa đóng'));
               }
 
-              tr.append(tdStt, tdTen, tdTien, tdNgay, tdTrangThai);
+              const tdGhiChu = e('td', 'trong', h.ghiChu || '—');
+
+              tr.append(tdStt, tdTen, tdTien, tdNgay, tdTrangThai, tdGhiChu);
               tbody.append(tr);
             });
           }
