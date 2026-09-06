@@ -408,6 +408,11 @@ function veThoiKhoaBieu(thoiKhoaBieu) {
   else dong.push('chưa cập nhật thời khoá biểu');
   if (o.length) dong.push(soThuTkb ? `Hôm nay có ${soTietHomNay} tiết` : 'Hôm nay Chủ nhật — nghỉ');
   $('#tkbApDung').textContent = dong.join(' · ');
+  const oGhiChuTkb = $('#tkbGhiChu');
+  if (oGhiChuTkb) {
+    oGhiChuTkb.textContent = phienBan?.ghiChu ? 'Ghi chú: ' + phienBan.ghiChu : '';
+    oGhiChuTkb.hidden = !phienBan?.ghiChu;
+  }
 
   if (!o.length) {
     datNoiDung($('#tkbTabBuoi'));

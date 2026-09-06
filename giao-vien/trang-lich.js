@@ -28,7 +28,6 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   let soTietToiDa = Math.max(5, ...(d.o || []).map((x) => x.tiet), 0);
   const oCacO = new Map();   // "buoi-thu-tiet" -> input, dùng khi đang sửa nhanh — giữ qua đổi tab buổi
   let oTenSua = null;        // input tên phiên bản khi đang "Sửa nhanh"
-  let oNgayApDung = null;    // input ngày áp dụng khi đang "Sửa nhanh" — null nếu không ở chế độ sửa
   let oGhiChuSua = null;     // input ghi chú khi đang "Sửa nhanh"
 
   const khung = e('div');
@@ -93,7 +92,6 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
       nut('Huỷ', 'nut-nhe nut-nho', () => { dangSua = false; oCacO.clear(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
       nut('Lưu thay đổi', '', async (ev) => {
         if (oTenSua && !oTenSua.value.trim()) { return nhac('Chưa nhập tên thời khoá biểu.', 'xau'); }
-        if (oNgayApDung && !oNgayApDung.value) { return nhac('Chưa nhập ngày áp dụng.', 'xau'); }
         ev.currentTarget.disabled = true;
         const o = [];
         oCacO.forEach((input, khoa) => {
@@ -104,7 +102,6 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
         try {
           const than = { phienBanId: d.phienBan.id, o, buoiDaSua: CAC_BUOI.map(([ma]) => ma) };
           if (oTenSua) than.ten = oTenSua.value.trim();
-          if (oNgayApDung) than.ngayBatDau = oNgayApDung.value;
           if (oGhiChuSua) than.ghiChu = oGhiChuSua.value.trim();
           await api('/api/gv/thoi-khoa-bieu', { method: 'PATCH', than });
           nhac('Đã lưu thời khoá biểu', 'tot');
@@ -121,9 +118,12 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   function veDauTrang() {
     datNoiDung(dauTrang, tieuDeTrang(
       chiXem ? `Phiên bản cũ: ${d.phienBan?.ten || ''}` : (d.phienBan?.ten || 'Thời khoá biểu'),
-      d.phienBan
-        ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ' — đang áp dụng'}`
-        : 'Chưa có thời khoá biểu nào.',
+      // Không lặp lại "Áp dụng từ ... đang áp dụng" ở đây nữa — thông tin này đã có sẵn trong
+      // "Tên" (vd "HK1 (từ 07/09/2026)") và ô "Áp dụng từ ngày" khi sửa, ghi 2 lần là dư thừa.
+      // Khi xem phiên bản cũ (chiXem) vẫn cần ghi rõ khoảng ngày áp dụng vì "Tên" không chắc có.
+      chiXem && d.phienBan
+        ? `Áp dụng từ ${ngayVN(d.phienBan.ngayBatDau)}${d.phienBan.ngayKetThuc ? ' đến ' + ngayVN(d.phienBan.ngayKetThuc) : ''}`
+        : (d.phienBan ? null : 'Chưa có thời khoá biểu nào.'),
       ...(chiXem || !d.phienBan ? [] : dangSua ? [] : [
         nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
         nut('✎ Sửa nhanh', 'nut-vien nut-nho', () => { dangSua = true; damBaoOChoCaHaiBuoi(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
@@ -175,18 +175,19 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     if (chiXem) return datNoiDung(khungChiTiet);
     if (dangSua) {
       oTenSua = oNhap('tkbSuaTen', 'text', d.phienBan?.ten || '', 'Ví dụ: Thời khoá biểu HK1');
-      oNgayApDung = oNhap('tkbSuaNgay', 'date', d.phienBan?.ngayBatDau || homNay());
       oGhiChuSua = oNhap('tkbSuaGhiChu', 'text', d.phienBan?.ghiChu || '', 'Ví dụ: Phòng A5, có mặt lúc 12h45 (không bắt buộc)');
-      const hang = e('div', 'luoi luoi-2');
-      hang.style.cssText = 'margin-top:12px;gap:10px';
-      hang.append(truong('Tên', oTenSua), truong('Áp dụng từ ngày', oNgayApDung));
+      // Đổi ngày áp dụng KHÔNG còn sửa nhanh được ở đây nữa — đổi ngày là thay đổi hiệu lực của
+      // cả phiên bản (kéo theo tự động kết thúc phiên bản trước đó), nên phải đi qua "+ Đổi lịch
+      // (tạo phiên bản mới)" cho rõ ràng, tránh sửa nhầm ngày ngay trong lúc chỉ định sửa vài ô.
+      const hangTen = e('div');
+      hangTen.style.marginTop = '12px';
+      hangTen.append(truong('Tên', oTenSua));
       const hangGhiChu = e('div');
       hangGhiChu.style.marginTop = '10px';
       hangGhiChu.append(truong('Ghi chú', oGhiChuSua));
-      datNoiDung(khungChiTiet, hang, hangGhiChu);
+      datNoiDung(khungChiTiet, hangTen, hangGhiChu);
     } else {
       oTenSua = null;
-      oNgayApDung = null;
       oGhiChuSua = null;
       datNoiDung(khungChiTiet, d.phienBan?.ghiChu
         ? Object.assign(e('p', 'trong', 'Ghi chú: ' + d.phienBan.ghiChu), { style: 'margin-top:12px' })

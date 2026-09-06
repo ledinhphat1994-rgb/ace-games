@@ -66,7 +66,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         WHERE tb.hien = 1 AND tb.lop_id = ?1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
     ).bind(lopId).all(),
     db.prepare(
-      `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
+      `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ghi_chu AS ghiChu FROM tkb_phien_ban
         WHERE lop_id = ?1
         ORDER BY (CASE WHEN ngay_ket_thuc IS NULL THEN 0 ELSE 1 END),
                  (CASE WHEN ngay_bat_dau <= ?2 THEN 0 ELSE 1 END),
@@ -162,7 +162,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     hocSinh: hocSinh.results,
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim), noiBat: Boolean(t.noiBat) })),
     thoiKhoaBieu: {
-      phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau } : null,
+      phienBan: phienBanTkb ? { id: phienBanTkb.id, ten: phienBanTkb.ten, ngayBatDau: phienBanTkb.ngayBatDau, ghiChu: phienBanTkb.ghiChu || '' } : null,
       o: oTkb,
     },
     hoatDongLop: hoatDongLop.results,
