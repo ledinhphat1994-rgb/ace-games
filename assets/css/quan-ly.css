@@ -400,6 +400,21 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .the-hs .noi small { color: var(--chu-nhat); font-size: 12.5px; }
 .the-hs .canh-phai { display: flex; gap: 5px; flex: none; align-items: center; }
 
+/* Màn hẹp: học sinh có tên dài + nhiều nhãn (lớp nghề, chức vụ, tổ) từng bị ép chung một hàng
+   với avatar+tên, khiến avatar+tên bị bóp nhỏ tới mức TÊN TỰ XUỐNG DÒNG NGAY GIỮA CHỮ (vì
+   .noi có min-width:0 cho phép co nhỏ hơn cả nội dung). Xuống hẳn thành 2 hàng riêng biệt —
+   hàng 1: avatar + tên, hàng 2: các nhãn — để tên luôn đọc trọn vẹn trên một dòng.
+   !important vì .canh-phai/.the-hs đang có inline style (flex:none, justify-content:flex-end)
+   ghi đè ngay trên phần tử, chỉ luật !important mới thắng được. */
+@media (max-width: 480px) {
+  .the-hs { flex-wrap: wrap; }
+  .the-hs .canh-phai {
+    flex: 1 1 100% !important;
+    justify-content: flex-start !important;
+    padding-left: 50px;
+  }
+}
+
 .ds-the { display: grid; gap: 9px; grid-template-columns: 1fr; }
 @media (min-width: 760px) { .ds-the { grid-template-columns: repeat(2, 1fr); } }
 
