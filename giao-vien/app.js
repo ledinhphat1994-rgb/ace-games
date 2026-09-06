@@ -58,6 +58,13 @@ function duocVaoTuyen(duong) {
 
 /** Ẩn các mục trong menu (cột trái, tab dưới) mà tài khoản hiện tại không có quyền vào. */
 function locMenuTheoQuyen() {
+  // "Đổi lớp chủ nhiệm" chỉ có ý nghĩa với giáo viên (người có thể giữ mã của NHIỀU lớp) —
+  // tài khoản cán sự chỉ gắn với đúng một lớp nên không cần mục này, dù nút tắt trên thanh
+  // đầu trang (khác hẳn mục trong Menu này) vẫn luôn hiện với mọi tài khoản như bình thường.
+  if (PHIEN.role !== 'teacher') {
+    const mucDoiLop = document.getElementById('mucDoiLop');
+    if (mucDoiLop) mucDoiLop.remove();
+  }
   if (PHIEN.role === 'teacher') return;
   $$('.cot-trai a, .tab-duoi a, #menuDayDu a').forEach((a) => {
     const href = a.getAttribute('href') || '';

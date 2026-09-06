@@ -10,8 +10,6 @@ api('/api/whoami').then(async (w) => {
   if (hieuMaLop && w && w.tenLop) hieuMaLop.textContent = w.tenLop.replace(/^Lớp\s*/i, '');
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(w);
-  const nutDoiLop = $('#nutDoiLop');
-  if (nutDoiLop) nutDoiLop.hidden = !(w && w.role === 'teacher');
   if (w && (w.role === 'teacher' || w.role === 'phu')) {
     const ql = document.getElementById('mucQuanLy');
     if (ql) ql.hidden = false;

@@ -1953,12 +1953,6 @@ function apDungThuongHieuLop(lop, phien) {
   const gioiThieu = $('#gioiThieu');
   if (gioiThieu) gioiThieu.textContent = lop.gioiThieu || `Trang thông tin nội bộ của tập thể ${ten}${truong ? ' – ' + truong : ''}.`;
 
-  // Nút đổi nhanh lớp chủ nhiệm — chỉ giáo viên mới cần, và phải có ở MỌI trang giáo viên hay
-  // ghé (kể cả trang chủ công khai này, không riêng gì khu quản lý), không thì lại rơi vào tình
-  // huống cũ: có tính năng nhưng chỉ hiện ở một trang, trang khác lại thiếu.
-  const nutDoiLop = $('#nutDoiLop');
-  if (nutDoiLop) nutDoiLop.hidden = !(phien && phien.role === 'teacher');
-
   veBannerLop(lop);
   const nutSuaBanner = $('#moDauNutSua');
   if (nutSuaBanner) {
