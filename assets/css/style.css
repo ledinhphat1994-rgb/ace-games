@@ -219,7 +219,6 @@ h1, h2, h3, h4 {
 h1 {
   font-size: clamp(24px, 4.6vw, 34px);
   color: var(--tieu-de, var(--chu));
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
 }
 h2 {
   font-size: clamp(19px, 3vw, 24px);
@@ -1805,6 +1804,14 @@ td.cot-hom-nay {
   margin-bottom: 24px;
   box-shadow: var(--bong-1);
 }
+.the-chuyen-can-ca-nhan.the-chuyen-can-phu {
+  background: linear-gradient(135deg, color-mix(in srgb, #f59e0b 13%, var(--nen-chim)), var(--nen-chim));
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--vien));
+}
+.hop-chuyen-nhanh-phu:hover {
+  border-color: var(--chinh) !important;
+  background: var(--chinh-nen) !important;
+}
 .the-chuyen-can-ca-nhan .tieu-de-ca-nhan {
   display: flex;
   align-items: center;
@@ -1871,16 +1878,40 @@ td.cot-hom-nay {
   color: var(--chu);
   font-size: 13.5px;
   outline: none;
+  cursor: pointer;
+  transition: all .25s ease;
 }
-.nhan-thu-dd {
-  font-size: 13px;
+.o-chon-ngay-dd:hover {
+  border-color: color-mix(in srgb, var(--chinh) 50%, var(--vien));
+}
+.o-chon-ngay-dd:focus {
+  border-color: var(--chinh);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chinh) 25%, transparent);
+}
+
+/* Khung lịch sáng lên khi đang ở ngày hiện tại (Hôm nay), ngày khác thì bình thường */
+.o-chon-ngay-dd.la-hom-nay {
+  border-color: #06b6d4 !important;
+  color: #0891b2 !important;
   font-weight: 700;
-  color: var(--chinh);
-  background: var(--chinh-nen);
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
-  white-space: nowrap;
+  background: color-mix(in srgb, #06b6d4 12%, var(--nen-noi)) !important;
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.4), 0 0 16px rgba(6, 182, 212, 0.55) !important;
+  animation: pulselich 2.5s infinite ease-in-out;
+}
+:root[data-theme="dark"] .o-chon-ngay-dd.la-hom-nay {
+  border-color: #38bdf8 !important;
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4), 0 0 20px rgba(56, 189, 248, 0.6) !important;
+}
+
+@keyframes pulselich {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35), 0 0 12px rgba(56, 189, 248, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6), 0 0 22px rgba(56, 189, 248, 0.75);
+  }
 }
 .nhom-buoi-dd {
   display: flex;
