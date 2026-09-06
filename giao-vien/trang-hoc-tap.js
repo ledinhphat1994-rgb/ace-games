@@ -1085,7 +1085,8 @@ const CAC_QUYEN_QUAN_LY = [
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
   ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học'],
-  ['hoc-sinh', 'Học sinh — xem danh sách (mức xem do giáo viên tự cấu hình)'],
+  // KHÔNG có mục "Học sinh" — xem/sửa hồ sơ chỉ dành cho giáo viên chủ nhiệm, xem [functions/
+  // api/gv/tai-khoan-phu.js] CAC_QUYEN.
   ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
   ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
   ['video', 'Thư viện Video — tải video lên'],

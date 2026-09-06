@@ -29,7 +29,9 @@ const KHUNG = $('#noiDung');
 const QUYEN_THEO_TUYEN = {
   'tong-quan': null,
   'diem-danh': 'diem-danh',
-  'hoc-sinh': 'hoc-sinh',
+  // Học sinh: KHÔNG có quyenCan nào cấp được — trang quản lý hồ sơ học sinh chỉ dành cho giáo
+  // viên chủ nhiệm; tài khoản đặc biệt chỉ xem danh sách qua Menu (trang lớp), không qua đây.
+  'hoc-sinh': null,
   'so-diem': null,
   'nhat-ky': 'nhat-ky',
   'hoat-dong-lop': ['hinh-anh', 'am-thanh', 'video'],

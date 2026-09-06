@@ -7,7 +7,7 @@
      2) Tải file MỚI từ máy — file này tự động trở thành một mục mới trong thư viện đó.
      3) Dán LINK ngoài (ảnh/nhạc: link trực tiếp hoặc Google Drive; video: YouTube/Drive/TikTok/Facebook/.mp4). */
 import { e, api, homNay, ngayVN, nhac, nenAnhThanhBlob, MUC_DO_THONG_BAO } from './chung.js';
-import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
+import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, khoiChonNguon } from './giao-dien.js';
 
 const LOAI_THONG_BAO = [['Chủ nhiệm', 'Chủ nhiệm'], ['Nhà trường', 'Nhà trường'], ['Học tập', 'Học tập'], ['Hoạt động', 'Hoạt động']];
 
@@ -86,11 +86,13 @@ async function khoiDinhKemHinh(tb) {
   const linkHienTai = (tb && tb.hinhUrl) || '';
   const oUrlHinh = oNhap('tbUrlHinh', 'text', linkHienTai, 'Dán link ảnh trực tiếp (https://...) hoặc link chia sẻ Google Drive');
 
-  khung.append(
-    truong('Cách 1: Chọn ảnh có sẵn trong Thư viện Ảnh', oChonThuVien),
-    truong('Cách 2: Hoặc tải ảnh mới từ máy (tự nén, tự thêm vào thư viện)', oTep, 'Hệ thống tự nén ảnh tối ưu dung lượng (dưới 1,5 MB).'),
-    truong('Cách 3: Hoặc dán link ảnh trực tuyến', oUrlHinh, 'Dán link ảnh từ internet (chuột phải chọn "Sao chép địa chỉ hình ảnh") hoặc link Google Drive (quyền xem: Bất kỳ ai có liên kết).')
-  );
+  const { khung: khoiNguon } = khoiChonNguon({
+    nguonMacDinh: linkHienTai ? 'link' : 'thu-vien',
+    oThuVien: oChonThuVien, oTep, oLink: oUrlHinh,
+    nhanTaiLen: 'Hệ thống tự nén ảnh tối ưu dung lượng (dưới 1,5 MB).',
+    ghiChuLink: 'Chuột phải ảnh → "Sao chép địa chỉ hình ảnh", hoặc link chia sẻ Google Drive (quyền xem: Bất kỳ ai có liên kết).',
+  });
+  khung.append(khoiNguon);
 
   return { khung, oTep, oUrlHinh, oXoa, oChonThuVien };
 }
@@ -129,11 +131,13 @@ async function khoiDinhKemNhac(tb) {
   const linkHienTai = (tb && tb.nhacUrl) || '';
   const oUrlNhac = oNhap('tbUrlNhac', 'text', linkHienTai, 'Dán link file nhạc (.mp3) hoặc link chia sẻ Google Drive');
 
-  khung.append(
-    truong('Cách 1: Chọn bài có sẵn trong Thư viện Âm thanh', oChonThuVien),
-    truong('Cách 2: Hoặc tải file .mp3 mới từ máy (tối đa 12 MB, tự thêm vào thư viện)', oTep),
-    truong('Cách 3: Hoặc dán link âm thanh trực tuyến', oUrlNhac, 'Dán link tệp .mp3 trực tuyến hoặc link chia sẻ file âm thanh từ Google Drive.')
-  );
+  const { khung: khoiNguon } = khoiChonNguon({
+    nguonMacDinh: linkHienTai ? 'link' : 'thu-vien',
+    oThuVien: oChonThuVien, oTep, oLink: oUrlNhac,
+    nhanTaiLen: 'Tối đa 12 MB.',
+    ghiChuLink: 'Dán link tệp .mp3 trực tuyến hoặc link chia sẻ file âm thanh từ Google Drive.',
+  });
+  khung.append(khoiNguon);
 
   return { khung, oTep, oUrlNhac, oXoa, oChonThuVien };
 }
@@ -173,11 +177,14 @@ async function khoiDinhKemVideo(tb) {
 
   const oUrlVideo = oNhap('tbVideo', 'text', tb ? (tb.videoUrl || '') : '', 'Dán link YouTube, Google Drive, TikTok, Facebook, hoặc link .mp4');
 
-  khung.append(
-    truong('Cách 1: Chọn video có sẵn trong Thư viện Video', oChonThuVien),
-    truong('Cách 2: Hoặc dán link video (YouTube, Drive, TikTok, Facebook, .mp4)', oUrlVideo, 'Hệ thống tự động nhận diện và nhúng phát video trên cả máy tính lẫn điện thoại.'),
-    truong('Cách 3: Hoặc tải file video mới từ máy/điện thoại (tối đa 50 MB, tự thêm vào thư viện)', oTep)
-  );
+  const linkHienTai = tb ? (tb.videoUrl || '') : '';
+  const { khung: khoiNguon } = khoiChonNguon({
+    nguonMacDinh: linkHienTai ? 'link' : 'thu-vien',
+    oThuVien: oChonThuVien, oTep, oLink: oUrlVideo,
+    nhanTaiLen: 'Tối đa 50 MB.',
+    ghiChuLink: 'Hệ thống tự động nhận diện và nhúng phát video trên cả máy tính lẫn điện thoại.',
+  });
+  khung.append(khoiNguon);
 
   return { khung, oTep, oUrlVideo, oXoa, oChonThuVien };
 }

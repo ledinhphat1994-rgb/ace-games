@@ -33,7 +33,7 @@ function layGiaTriO(o) {
 }
 
 // Xuất file CSV chuẩn có BOM và chỉ thị sep=; ở đầu tệp
-function traVeCsv(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, ghiChu }) {
+function traVeCsv(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, ghiChu, bangPhu }) {
   const dong = [
     [tieuDe],
     phuDe ? [phuDe] : [],
@@ -44,6 +44,16 @@ function traVeCsv(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, ghiChu 
 
   if (tongCong && tongCong.length) {
     dong.push(tongCong.map(layGiaTriO));
+  }
+
+  if (bangPhu && bangPhu.length) {
+    bangPhu.forEach((b) => {
+      dong.push([]);
+      dong.push([b.tieuDe]);
+      dong.push(b.tieuDeCot);
+      b.cacHang.forEach((hang) => dong.push(hang.map(layGiaTriO)));
+      if (b.tongCong && b.tongCong.length) dong.push(b.tongCong.map(layGiaTriO));
+    });
   }
 
   if (ghiChu && ghiChu.length) {
@@ -61,33 +71,9 @@ function traVeCsv(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, ghiChu 
   });
 }
 
-// Xuất file Excel chuyên nghiệp (.xls) mở ngay trong Microsoft Excel với bố cục chuẩn văn bản giáo dục
-function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thongKeThem, ghiChu, lop }) {
-  const tenLopHoa = (lop?.ten || 'Lớp học').toUpperCase();
-  const truongHoa = (lop?.truong || '').toUpperCase();
-  const namHoc = lop?.namHoc || '';
-  const soCot = Math.max(tieuDeCot.length, 6);
-  const cotTrai = Math.floor(soCot / 2);
-  const cotPhai = soCot - cotTrai;
-
-  const homNay = new Date();
-  const ngayStr = `Định Quán, ngày ${String(homNay.getDate()).padStart(2, '0')} tháng ${String(homNay.getMonth() + 1).padStart(2, '0')} năm ${homNay.getFullYear()}`;
-
-  let hangThemHtml = '';
-  if (thongKeThem && thongKeThem.length) {
-    hangThemHtml = `
-      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 10px;"></td></tr>
-      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="font-weight: bold; color: #1e3a8a; font-size: 11pt;">THỐNG KÊ TỔNG HỢP:</td></tr>
-      ${thongKeThem.map((tk) => `
-        <tr class="no-border">
-          <td colspan="2" class="no-border" style="font-weight: bold; color: #334155;">${escapeHtml(tk.nhan)}:</td>
-          <td colspan="${soCot - 2}" class="no-border" style="color: #0f172a;">${escapeHtml(tk.giaTri)}</td>
-        </tr>
-      `).join('')}
-      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 10px;"></td></tr>
-    `;
-  }
-
+// Vẽ một bảng dữ liệu (đầu cột + các hàng + hàng tổng cộng nếu có) — dùng chung cho bảng
+// chính và mọi "bảng phụ" (vd chi tiết các khoản chi đi kèm báo cáo Thủ quỹ).
+function veBangHtml(tieuDeCot, cacHang, tongCong) {
   const theadHtml = `
     <tr>
       ${tieuDeCot.map((tc) => `<th>${escapeHtml(tc)}</th>`).join('')}
@@ -131,6 +117,56 @@ function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thong
       return `<td class="tong-cong c-${kieu}">${escapeHtml(v)}</td>`;
     }).join('');
     tfootHtml = `<tfoot><tr>${oTong}</tr></tfoot>`;
+  }
+
+  return { theadHtml, tbodyHtml, tfootHtml };
+}
+
+// Xuất file Excel chuyên nghiệp (.xls) mở ngay trong Microsoft Excel với bố cục chuẩn văn bản giáo dục
+function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thongKeThem, ghiChu, bangPhu, lop }) {
+  const tenLopHoa = (lop?.ten || 'Lớp học').toUpperCase();
+  const truongHoa = (lop?.truong || '').toUpperCase();
+  const namHoc = lop?.namHoc || '';
+  const soCot = Math.max(tieuDeCot.length, 6);
+  const cotTrai = Math.floor(soCot / 2);
+  const cotPhai = soCot - cotTrai;
+
+  const homNay = new Date();
+  const ngayStr = `Định Quán, ngày ${String(homNay.getDate()).padStart(2, '0')} tháng ${String(homNay.getMonth() + 1).padStart(2, '0')} năm ${homNay.getFullYear()}`;
+
+  let hangThemHtml = '';
+  if (thongKeThem && thongKeThem.length) {
+    hangThemHtml = `
+      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 10px;"></td></tr>
+      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="font-weight: bold; color: #1e3a8a; font-size: 11pt;">THỐNG KÊ TỔNG HỢP:</td></tr>
+      ${thongKeThem.map((tk) => `
+        <tr class="no-border">
+          <td colspan="2" class="no-border" style="font-weight: bold; color: #334155;">${escapeHtml(tk.nhan)}:</td>
+          <td colspan="${soCot - 2}" class="no-border" style="color: #0f172a;">${escapeHtml(tk.giaTri)}</td>
+        </tr>
+      `).join('')}
+      <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 10px;"></td></tr>
+    `;
+  }
+
+  const { theadHtml, tbodyHtml, tfootHtml } = veBangHtml(tieuDeCot, cacHang, tongCong);
+
+  // Bảng phụ (vd "Chi tiết các khoản chi") — mỗi bảng có tiêu đề riêng, đóng khung trong CHÍNH
+  // bảng Excel duy nhất (colspan hết chiều rộng) để mở ra vẫn là MỘT sheet gọn, không phải
+  // nhiều sheet rời nhau dễ bị bỏ sót.
+  let bangPhuHtml = '';
+  if (bangPhu && bangPhu.length) {
+    bangPhuHtml = bangPhu.map((b) => {
+      const bp = veBangHtml(b.tieuDeCot, b.cacHang, b.tongCong);
+      return `
+        <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 22px;"></td></tr>
+        <tr class="no-border"><td colspan="${soCot}" class="no-border" style="font-weight: bold; color: #1e3a8a; font-size: 12pt; text-transform: uppercase; border-bottom: 1pt solid #1e3a8a; padding-bottom: 4px;">${escapeHtml(b.tieuDe)}</td></tr>
+        <tr class="no-border"><td colspan="${soCot}" class="no-border" style="height: 6px;"></td></tr>
+        ${bp.theadHtml}
+        ${bp.tbodyHtml}
+        ${bp.tfootHtml}
+      `;
+    }).join('');
   }
 
   let ghiChuHtml = '';
@@ -250,6 +286,8 @@ function traVeExcel(tenTep, { tieuDe, phuDe, tieuDeCot, cacHang, tongCong, thong
     ${theadHtml}
     ${tbodyHtml}
     ${tfootHtml}
+
+    ${bangPhuHtml}
 
     ${ghiChuHtml}
 
@@ -584,6 +622,24 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
     const tieuDeCot = ['STT', 'Mã HS', 'Họ và tên', 'Tổ', ...cacKhoan.map((k) => k.ten), 'Tổng đã đóng', 'Trạng thái'];
 
+    // Chi tiết từng khoản CHI — trước đây báo cáo chỉ gộp thành 1 con số "Tổng đã chi tiêu"
+    // trong phần thống kê, không liệt kê ra từng khoản, nên xem báo cáo không biết đã chi
+    // những gì. Giờ liệt kê đầy đủ, giống hệt cách bảng KHOẢN THU liệt kê từng em.
+    const cacHangChi = cacChi.map((c, i) => [
+      { v: i + 1, kieu: 'giua' },
+      { v: ngayVN(c.ngay), kieu: 'giua' },
+      { v: c.noi_dung, kieu: 'trai', dam: true },
+      { v: c.so_tien, kieu: 'tien' },
+      { v: c.ghi_chu || '', kieu: 'trai' },
+    ]);
+    const tongCongChi = [
+      { v: 'TỔNG CHI', kieu: 'giua', dam: true },
+      { v: '', kieu: 'giua' },
+      { v: `${cacChi.length} khoản chi`, kieu: 'trai', dam: true },
+      { v: tongChiThucTe, kieu: 'tien', dam: true },
+      { v: '', kieu: 'giua' },
+    ];
+
     const thongKeThem = [
       { nhan: 'Tổng số tiền đã thu', giaTri: dinhDangTien(tongThuThucTe) },
       { nhan: 'Tổng số tiền đã chi tiêu', giaTri: dinhDangTien(tongChiThucTe) },
@@ -597,6 +653,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       cacHang,
       tongCong,
       thongKeThem,
+      bangPhu: cacHangChi.length ? [{
+        tieuDe: 'Chi tiết các khoản chi',
+        tieuDeCot: ['STT', 'Ngày', 'Nội dung chi', 'Số tiền', 'Ghi chú'],
+        cacHang: cacHangChi,
+        tongCong: tongCongChi,
+      }] : [],
       ghiChu: [
         `Tổng quỹ thu được: ${dinhDangTien(tongThuThucTe)}. Tổng các khoản đã chi: ${dinhDangTien(tongChiThucTe)}. Tồn quỹ thực tế: ${dinhDangTien(tonQuyHienTai)}.`,
       ],
@@ -715,7 +777,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   // 10. MỤC: MÃ CÁ NHÂN & PHÂN QUYỀN (Khớp mục "Mã cá nhân" trong Vùng 1)
   if (loai === 'ma-ca-nhan') {
     const { results } = await db.prepare(
-      `SELECT h.id, h.ho_ten, h.chuc_vu, h.to_so, m.ma, m.quyen, m.an_muc, t.vai_tro_ten
+      `SELECT h.id, h.ho_ten, h.chuc_vu, h.to_so, m.ma, m.quyen, m.an_muc, t.vai_tro
          FROM hoc_sinh h
          LEFT JOIN ma_ca_nhan m ON m.hoc_sinh_id = h.id
          LEFT JOIN tai_khoan_phu t ON t.hoc_sinh_id = h.id
@@ -723,6 +785,19 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     ).bind(lopId).all();
 
     const BAN_DO_QUYEN = Object.fromEntries(CAC_QUYEN);
+    // Chép gọn lại tên gọi vai trò từ [assets/js/chung.js] layThongTinVaiTro() — không import
+    // được thẳng vì đó là mã chạy trên trình duyệt (có đụng tới document/theme), ở đây chỉ cần
+    // đúng phần tên hiển thị.
+    const tenVaiTro = (vt) => {
+      const s = String(vt || '').toLowerCase().trim();
+      if (!s) return '';
+      if (s.includes('thu quy') || s.includes('thủ quỹ') || s === 'quy') return 'Thủ quỹ';
+      if (s.includes('lop truong') || s.includes('lớp trưởng')) return 'Lớp trưởng';
+      if (s.includes('bi thu') || s.includes('bí thư')) return 'Bí thư';
+      if (s.includes('to truong') || s.includes('tổ trưởng')) return 'Tổ trưởng';
+      if (s.includes('admin') || s.includes('quan tri') || s.includes('quản trị')) return 'Quản trị viên';
+      return vt;
+    };
 
     const cacHang = results.map((h, i) => {
       const quyenDs = (h.quyen ? h.quyen.split(',') : [])
@@ -737,7 +812,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         { v: h.chuc_vu || 'Học sinh', kieu: 'giua' },
         { v: h.to_so ? 'Tổ ' + h.to_so : '', kieu: 'giua' },
         { v: h.ma || '—', kieu: 'chuoi', dam: true },
-        { v: h.vai_tro_ten || (quyenDs ? 'Ban cán sự' : 'Học sinh'), kieu: 'giua' },
+        { v: tenVaiTro(h.vai_tro) || (quyenDs ? 'Ban cán sự' : 'Học sinh'), kieu: 'giua' },
         { v: quyenDs || 'Chỉ tra cứu cá nhân', kieu: 'trai' },
       ];
     });

@@ -5,7 +5,7 @@
    chủ đã là một tính năng riêng (Thư viện Âm thanh → Làm nhạc nền), banner chỉ lo phần
    "nhìn thấy". */
 import { e, api, datNoiDung, ngayVN, nenAnhThanhBlob, nhac } from './chung.js';
-import { nut, oNhap, oChon, moHopThoai, dongHopThoai } from './giao-dien.js';
+import { nut, oNhap, oChon, moHopThoai, dongHopThoai, khoiChonNguon } from './giao-dien.js';
 
 function xuLyLinkHinh(url) {
   if (!url) return '';
@@ -24,47 +24,6 @@ async function layDanhSachThuVien(duong) {
   } catch {
     return [];
   }
-}
-
-const NGUON = [['thu-vien', '📚 Thư viện'], ['tai-len', '⬆ Tải lên'], ['link', '🔗 Dán link']];
-
-/** Một khối "chọn loại nền" dùng chung cho Ảnh và Video — tự vẽ 3 nút nguồn, chỉ hiện
-    đúng một ô nhập tương ứng nguồn đang chọn. */
-function khoiChonNguon({ nguonMacDinh, oThuVien, oTep, oLink, ghiChuLink }) {
-  const khung = e('div');
-  const dayNut = e('div', 'day-loc');
-  dayNut.style.cssText = 'margin-bottom:10px';
-  const oNoiDung = e('div');
-
-  let nguonHienTai = nguonMacDinh;
-
-  function ve() {
-    datNutDay();
-    let o;
-    if (nguonHienTai === 'thu-vien') o = oThuVien;
-    else if (nguonHienTai === 'tai-len') o = oTep;
-    else o = oLink;
-
-    const con = [o];
-    if (nguonHienTai === 'link' && ghiChuLink) {
-      con.push(Object.assign(e('div', 'trong', ghiChuLink), { style: 'margin-top:6px;font-size:12px' }));
-    }
-    oNoiDung.replaceChildren(...con);
-  }
-
-  function datNutDay() {
-    dayNut.replaceChildren(...NGUON.map(([ma, nhan]) => {
-      const b = e('button', 'vien-loc', nhan);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(nguonHienTai === ma));
-      b.addEventListener('click', () => { nguonHienTai = ma; ve(); });
-      return b;
-    }));
-  }
-
-  khung.append(dayNut, oNoiDung);
-  ve();
-  return { khung, layNguon: () => nguonHienTai };
 }
 
 async function khoiAnh(banner) {

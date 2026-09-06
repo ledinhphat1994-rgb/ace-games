@@ -89,7 +89,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   }
 
   return json({ ok: true, danhSach });
-}, { canGiaoVien: true, quyenCan: 'hoc-sinh' });
+}, { canGiaoVien: true });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);

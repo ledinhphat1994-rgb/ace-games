@@ -15,7 +15,9 @@ export const CAC_QUYEN = [
   ['nhat-ky', 'Nhật ký lớp — ghi khen thưởng, nhắc nhở, vi phạm'],
   ['diem-danh', 'Điểm danh — điểm danh hằng ngày'],
   ['thoi-khoa-bieu', 'Thời khoá biểu — chỉnh sửa lịch học'],
-  ['hoc-sinh', 'Học sinh — xem danh sách (mức xem do giáo viên tự cấu hình)'],
+  // KHÔNG có mục "Học sinh" ở đây — xem/sửa hồ sơ học sinh chỉ dành riêng cho giáo viên chủ
+  // nhiệm; tài khoản đặc biệt (dù được cấp quyền gì) chỉ xem danh sách qua Menu như học sinh
+  // thường, không có trang quản lý riêng.
   ['hinh-anh', 'Thư viện Ảnh — đăng ảnh hoạt động của lớp'],
   ['am-thanh', 'Thư viện Âm thanh — tải bài hát, đặt nhạc nền trang chủ'],
   ['video', 'Thư viện Video — tải video lên'],

@@ -188,6 +188,13 @@
 /* ---------- 2. Nền tảng ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* QUAN TRỌNG VỀ BẢO MẬT HIỂN THỊ: mặc định trình duyệt tự ẩn phần tử có thuộc tính "hidden",
+   nhưng NHIỀU class nút/khối trong file này (vd .nut, .the...) tự đặt "display" riêng — CSS do
+   TA viết luôn thắng CSS mặc định của trình duyệt dù cùng độ ưu tiên, nên phần tử vẫn hiện ra
+   dù đã bị gán hidden=true bằng JS (đã xảy ra thật với nút "Đổi ảnh/video nền" — JS ẩn đúng
+   nhưng CSS của .nut vẫn hiện). Luật này ép "hidden" luôn thắng tuyệt đối mọi class khác. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 
 body {
