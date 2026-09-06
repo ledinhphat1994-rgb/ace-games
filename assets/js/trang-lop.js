@@ -542,122 +542,35 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
    chạy được khi nội dung dài hơn khung nhìn). Muốn tự tay xem thì kéo chuột/vuốt tay — animation tự
    dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. Bấm vào thẻ (không kéo) sẽ mở đúng
    mục thông báo đó, cuộn tới và tô sáng tạm thời để dễ nhận ra. */
+// Trước đây là một băng thẻ tự trôi ngang liên tục (carousel) — thay bằng đúng MỘT thẻ tĩnh,
+// không tự chạy: tin nổi bật khẩn cấp nhất trước (mucDo cao hơn), gần đây nhất nếu bằng nhau.
+// Đỡ rối mắt hơn nhiều so với dải màu xanh chạy liên tục, và học sinh không bị trôi mất tin
+// đang đọc dở nếu không bấm kịp.
+const DO_UU_TIEN_MUC = { danger: 3, warn: 2, ok: 1, '': 0 };
+
 function veDiemNhan(thongBao) {
   const khoi = $('#bangDiemNhan');
-  const cuon = $('#dnCuon');
-  const track = $('#dnTrack');
-
-  const cacTin = (thongBao || []).filter((t) => t.noiBat).map((t) => {
-    const mucDo = nhanMucDo(t.mucDo);
-    return {
-      nhan: mucDo ? mucDo.ten : 'Thông báo', lop: mucDo ? mucDo.lop : '',
-      tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#tin-' + t.id,
-    };
-  }).slice(0, 10);
+  const cacTin = (thongBao || []).filter((t) => t.noiBat);
   if (!cacTin.length) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
-  const moDich = (href) => {
-    const dich = document.querySelector(href);
+  const tin = [...cacTin].sort((a, b) => (DO_UU_TIEN_MUC[b.mucDo || ''] || 0) - (DO_UU_TIEN_MUC[a.mucDo || ''] || 0))[0];
+  const mucDo = nhanMucDo(tin.mucDo);
+
+  const the = e('div', 'tin-khan-cap' + (tin.mucDo ? ` muc-${tin.mucDo}` : ''));
+  the.append(
+    e('span', 'nhan ' + (mucDo ? mucDo.lop : 'nhan-xam'), mucDo ? mucDo.ten : '📌 Thông báo'),
+    e('h3', null, tin.tieuDe),
+    e('span', 'tin-khan-cap-ngay', ngayDayDu(tin.ngay))
+  );
+  the.addEventListener('click', () => {
+    const dich = document.querySelector('#tin-' + tin.id);
     if (!dich) return;
     dich.scrollIntoView({ behavior: 'smooth', block: 'center' });
     dich.classList.add('dich-noi-bat');
     setTimeout(() => dich.classList.remove('dich-noi-bat'), 2200);
-  };
-
-  const taoThe = (t) => {
-    // KHÔNG dùng thẻ <a> — trình duyệt tự khởi động thao tác "kéo link" ngay khi vừa nhấn chuột
-    // xuống, chặn mất sự kiện pointermove nên không thể kéo-xem bằng chuột được. Dùng <button> và
-    // tự điều hướng bằng JS để vừa kéo được vừa bấm mở được, phân biệt rõ bằng cờ "daKeoThat".
-    const a = e('button', 'dn-the');
-    a.type = 'button';
-    const lopMau = t.lop ? ' dn-nhan-' + t.lop.replace('nhan-', '') : '';
-    a.append(e('span', 'dn-nhan' + lopMau, t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
-    a.addEventListener('click', () => moDich(t.href));
-    return a;
-  };
-  // Lặp 2 lần để trôi vòng lặp liền mạch — chỉ 1 lần thì sẽ có khoảng trống lộ ra khi dịch tới nửa sau.
-  datNoiDung(track, ...cacTin.map(taoThe), ...cacTin.map(taoThe));
-
-  if (khoi.dataset.daGanCuon) return;   // chỉ gắn sự kiện một lần dù dữ liệu tải lại nhiều lần
-  khoi.dataset.daGanCuon = '1';
-
-  const giamChuyenDong = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let offset = 0;          // px, luôn <= 0 (trôi sang trái)
-  let dangTamDung = false; // rê chuột vào / đang kéo
-  let dangKeo = false;
-  let xBatDauKeo = 0;
-  let offsetBatDauKeo = 0;
-  let daKeoThat = false;   // phân biệt "kéo" thật với "bấm" để không chặn nhầm việc bấm vào thẻ
-
-  function motVong() { return track.scrollWidth / 2 || 1; }
-
-  function chay() {
-    if (!giamChuyenDong && !dangTamDung && !dangKeo) {
-      offset -= 0.6;
-      const vong = motVong();
-      if (-offset >= vong) offset += vong;
-      track.style.transform = `translateX(${offset}px)`;
-    }
-    requestAnimationFrame(chay);
-  }
-
-  function nhichMotThe(chieu) {
-    const the = track.querySelector('.dn-the');
-    const rong = (the ? the.offsetWidth : 300) + 14;
-    offset -= chieu * rong;
-    const vong = motVong();
-    if (offset > 0) offset -= vong;
-    if (-offset >= vong) offset += vong;
-    track.style.transition = 'transform .35s ease';
-    track.style.transform = `translateX(${offset}px)`;
-    setTimeout(() => { track.style.transition = ''; }, 360);
-  }
-
-  khoi.addEventListener('mouseenter', () => { dangTamDung = true; });
-  khoi.addEventListener('mouseleave', () => { dangTamDung = false; });
-
-  // Kéo bằng chuột/ngón tay để chủ động xem — dùng Pointer Events, gộp chung chuột và cảm ứng.
-  // CHỈ setPointerCapture SAU KHI đã xác nhận là kéo thật (vượt ngưỡng 4px) — bắt giữ con trỏ
-  // ngay từ pointerdown khiến trình duyệt coi luôn cuon là đích của sự kiện "click" đi kèm ngay
-  // sau đó (dù không hề rê chuột), nên bấm thẳng vào thẻ để mở mục không bao giờ hoạt động được.
-  cuon.addEventListener('pointerdown', (ev) => {
-    dangKeo = true; daKeoThat = false;
-    xBatDauKeo = ev.clientX; offsetBatDauKeo = offset;
   });
-  cuon.addEventListener('pointermove', (ev) => {
-    if (!dangKeo) return;
-    const delta = ev.clientX - xBatDauKeo;
-    if (!daKeoThat && Math.abs(delta) > 4) {
-      daKeoThat = true;
-      cuon.classList.add('dang-keo');
-      cuon.setPointerCapture(ev.pointerId);
-    }
-    if (!daKeoThat) return;
-    offset = offsetBatDauKeo + delta;
-    track.style.transform = `translateX(${offset}px)`;
-    ev.preventDefault();
-  });
-  function ketThucKeo(ev) {
-    if (!dangKeo) return;
-    dangKeo = false;
-    cuon.classList.remove('dang-keo');
-    if (ev && cuon.hasPointerCapture(ev.pointerId)) cuon.releasePointerCapture(ev.pointerId);
-    const vong = motVong();
-    while (offset > 0) offset -= vong;
-    while (-offset >= vong) offset += vong;
-  }
-  cuon.addEventListener('pointerup', ketThucKeo);
-  cuon.addEventListener('pointercancel', ketThucKeo);
-  // Vừa kéo xong thì chặn đúng 1 lần click kế tiếp, tránh mở nhầm mục khi người dùng chỉ định kéo xem.
-  cuon.addEventListener('click', (ev) => {
-    if (daKeoThat) { ev.preventDefault(); ev.stopPropagation(); daKeoThat = false; }
-  }, true);
-
-  $('#dnTrai').addEventListener('click', () => nhichMotThe(-1));
-  $('#dnPhai').addEventListener('click', () => nhichMotThe(1));
-
-  requestAnimationFrame(chay);
+  datNoiDung(khoi, the);
 }
 
 /* ---------- Thủ quỹ (công khai: tổng quan & chi tiết đóng tiền từng em) ---------- */
@@ -897,27 +810,18 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
         const the = e('div', 'the-khoan-thu ' + lopPhu);
 
-        // 1. Đầu thẻ
+        // 1. Đầu thẻ — tiêu đề lớn/đậm đứng riêng một hàng, MỌI nhãn (kiểu thu, tuần, lịch thu,
+        // số tiền/em, trạng thái) đều là các pill nhỏ/mờ xếp ngay bên dưới — không còn badge to
+        // nổi bật tách riêng ở góc phải như trước (kiểu Linear/Vercel: chữ là trọng tâm, nhãn chỉ
+        // là ngữ cảnh phụ).
         const dau = e('div', 'the-khoan-dau');
         const trai = e('div', 'the-khoan-trai');
         trai.append(e('div', 'the-khoan-icon', icon));
 
         const thongTin = e('div', 'the-khoan-thong-tin');
-        const dongTen = e('div', 'the-khoan-ten-hang');
-
-        // Dòng đầu: kiểu thu, tuần thu, tên thu (không ghi thời gian)
-        dongTen.append(e(
-          'span',
-          'badge-kieu-thu ' + (laDinhKy ? 'badge-dinh-ky' : 'badge-nhanh'),
-          laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'
-        ));
-
-        const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
-        if (soTuan) {
-          dongTen.append(e('span', 'badge-tuan', `Tuần ${soTuan}`));
-        }
 
         let tenThuSach = (k.ten || '').trim();
+        const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
         tenThuSach = tenThuSach.replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim();
         if (soTuan) {
           const reTuan = new RegExp(`\\s*[–\\-—]?\\s*Tuần\\s*${soTuan}\\s*[–\\-—]?\\s*`, 'gi');
@@ -928,11 +832,13 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         if (!tenThuSach) {
           tenThuSach = (k.ten || '').replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim() || k.ten;
         }
-        dongTen.append(e('h4', 'the-khoan-ten', tenThuSach));
-        thongTin.append(dongTen);
+        thongTin.append(e('h4', 'the-khoan-ten', tenThuSach));
 
-        // Dòng 2: lịch thu, số tiền đóng mỗi em
-        const chipDay = e('div', 'the-khoan-chip-day');
+        const nhanHang = e('div', 'the-khoan-nhan-hang');
+        nhanHang.append(e('span', 'tag-nhe', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'));
+        if (soTuan) nhanHang.append(e('span', 'tag-nhe', `Tuần ${soTuan}`));
+        nhanHang.append(badgeTrangThai);
+
         let lichThu = '';
         if (k.ngayBatDau && k.ngayKetThuc) {
           lichThu = `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`;
@@ -942,61 +848,39 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           const m = /\(([^)]+\d+[/–-]\d+[^)]*)\)/.exec(k.ten);
           if (m) lichThu = `📅 ${m[1]}`;
         }
-        if (lichThu) {
-          chipDay.append(e('span', 'the-khoan-chip', lichThu));
-        }
+        if (lichThu) nhanHang.append(e('span', 'tag-nhe', lichThu));
+        if (k.soTienMoiEm) nhanHang.append(e('span', 'tag-nhe', `👤 ${tienVN(k.soTienMoiEm)}/em`));
+        thongTin.append(nhanHang);
 
-        if (k.soTienMoiEm) {
-          chipDay.append(e('span', 'the-khoan-chip', `👤 ${tienVN(k.soTienMoiEm)}/em`));
-        }
-        thongTin.append(chipDay);
         trai.append(thongTin);
-
-        const phai = e('div', 'the-khoan-phai');
-        phai.append(badgeTrangThai);
-        dau.append(trai, phai);
+        dau.append(trai);
         the.append(dau);
 
-        // 2. Khối số liệu — CHỈ 2 cột (Đã thu / Mục tiêu). Bỏ cột "Tiến độ %" vì đã có ở badge
-        // đầu thẻ ("Đang thu · X%") và ở thanh tiến độ ngay bên dưới — 3 chỗ cùng lặp một con số
-        // là thừa, dễ rối mắt.
-        const soLieu = e('div', 'the-khoan-so-lieu');
+        // 2. Widget số liệu + tiến độ GỘP LÀM MỘT: Đã thu — %  (kèm chú thích phụ ngay cạnh,
+        // thay cho khối "Còn thiếu…" tách riêng trước đây) — Mục tiêu, rồi thanh tiến độ bên dưới.
+        const ttdChuThich = phanTram >= 100 ? '🎉 Đã hoàn thành'
+          : k.dangMo ? `còn thiếu ${tienVN(conThieu)}`
+            : 'đã khoá sổ';
 
-        const cotDaThu = e('div');
-        cotDaThu.append(
-          e('div', 'nhan-cot', 'Đã thu được'),
-          e('div', 'gia-tri-da-thu', tienVN(k.tongDaThu))
-        );
+        const widget = e('div', 'the-khoan-tien-do-widget');
+        const ttdHang = e('div', 'ttd-hang');
+        const cotDaThu = e('div', 'ttd-cot');
+        cotDaThu.append(e('span', 'nhan-cot', 'Đã thu'), e('span', 'ttd-so ttd-so-tot', tienVN(k.tongDaThu)));
+        const cotGiua = e('div', 'ttd-giua');
+        cotGiua.append(e('span', 'ttd-phan-tram', `${phanTram}%`), e('span', 'ttd-phu', ttdChuThich));
+        const cotMucTieu = e('div', 'ttd-cot ttd-cot-phai');
+        cotMucTieu.append(e('span', 'nhan-cot', 'Mục tiêu'), e('span', 'ttd-so', tienVN(k.tongCanThu)));
+        ttdHang.append(cotDaThu, cotGiua, cotMucTieu);
+        widget.append(ttdHang);
 
-        const cotMucTieu = e('div');
-        cotMucTieu.append(
-          e('div', 'nhan-cot', 'Mục tiêu cả lớp'),
-          e('div', 'gia-tri-muc-tieu', tienVN(k.tongCanThu))
-        );
-
-        soLieu.append(cotDaThu, cotMucTieu);
-        the.append(soLieu);
-
-        // 3. Thanh tiến độ
         const tienDoKhung = e('div', 'the-khoan-tien-do-khung');
         const tienDoChay = e('div', 'the-khoan-tien-do-chay');
         tienDoChay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
         tienDoKhung.append(tienDoChay);
-        the.append(tienDoKhung);
+        widget.append(tienDoKhung);
+        the.append(widget);
 
-        // 4. Chân thẻ — chỉ 1 dòng thông điệp. Bỏ cụm "Đang thu quỹ/Đã khoá sổ" từng lặp lại ở
-        // đây vì đã có badge "Đang thu · X%" / "Đã đóng"/"Đã thu đủ" ngay đầu thẻ rồi.
-        const chan = e('div', 'the-khoan-chan');
-        if (phanTram >= 100) {
-          chan.append(e('span', 'hoan-thanh-tot', '🎉 Đã hoàn thành 100% chỉ tiêu thu của lớp'));
-        } else if (k.dangMo) {
-          chan.append(e('span', 'con-thieu', `Còn thiếu ${tienVN(conThieu)} để đạt chỉ tiêu`));
-        } else {
-          chan.append(e('span', null, 'Khoản thu đã khoá sổ.'));
-        }
-        the.append(chan);
-
-        // 5. Khối danh sách học sinh đóng tiền chi tiết
+        // 3. Khối danh sách học sinh đóng tiền chi tiết
         const dsDongChiTiet = k.dongChiTiet || {};
         const dsHs = dsHocSinh || [];
         const hocSinhHienTaiId = phien?.hocSinhId || null;
@@ -1033,6 +917,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         // xem gắn với đúng 1 học sinh trong lớp.
         const banGhiCuaMinh = danhSachHsVoiTrangThai.find((x) => x.laChinhMinh);
         if (banGhiCuaMinh) {
+          // Callout gọn, KHÔNG còn chiếm trọn bề ngang thẻ — chỉ vừa đủ nội dung, viền mờ.
           const hopBanThan = e('div', 'the-khoan-ban-than');
           const [chuTrangThai, lopTrangThaiBt] = banGhiCuaMinh.trangThai === 'da_du' ? ['✓ Đã đủ 100%', 'nhan-tot']
             : banGhiCuaMinh.trangThai === 'dong_mot_phan' ? ['Đóng 1 phần', 'nhan-luuy']
@@ -1052,9 +937,10 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const soEmChuaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'chua_dong').length;
         const tongSoEmDaNop = soEmDaDong + soEmDongMotPhan;
 
-        const nutMoChiTiet = e('button', 'nut-mo-chi-tiet-dong');
-        nutMoChiTiet.type = 'button';
-        nutMoChiTiet.setAttribute('aria-expanded', String(timTheoTenHs));
+        // <details>/<summary> chuẩn thay cho nút + div ẩn/hiện tự chế — trình duyệt tự lo
+        // toggle/accessibility, thẻ luôn gọn ở trạng thái đóng mặc định.
+        const chiTietDongTien = e('details', 'chi-tiet-dong-tien');
+        const tomTat = e('summary', 'nut-mo-chi-tiet-dong');
         const spanNhan = e('span', 'tom-tat-dong-tien');
         const spanTieuDe = e('span');
         spanTieuDe.append(document.createTextNode('👥 '), e('b', null, 'Chi tiết đóng tiền'));
@@ -1065,12 +951,12 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         pillChuaDong.append(document.createTextNode('Chưa đóng '), e('b', null, String(soEmChuaDong)));
         spanStats.append(pillDaDong, pillChuaDong);
         spanNhan.append(spanTieuDe, spanStats);
-        nutMoChiTiet.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
+        tomTat.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
 
         const khungChiTiet = e('div', 'khung-chi-tiet-dong');
         // Đang tìm theo tên học sinh ở ô tìm kiếm chính (không khớp tên khoản nào) — tự mở sẵn
         // và lọc luôn theo đúng tên đó, đỡ phải bấm mở rồi gõ lại tên lần nữa cho từng khoản.
-        khungChiTiet.hidden = !timTheoTenHs;
+        chiTietDongTien.open = timTheoTenHs;
         // Cặp "Đã đóng x/y" / "Chưa đóng z" ở đây chỉ hữu ích khi ĐANG ĐÓNG (xem nhanh không cần
         // mở) — mở ra rồi thì các nút lọc Tất cả/Đã đóng/Chưa đóng bên dưới đã lặp lại đúng những
         // con số này, ẩn bớt đi cho đỡ trùng.
@@ -1132,12 +1018,12 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           const bang = e('table', 'bang-dong-tien bang-dong-tien-desktop');
           const thead = e('thead');
           const hangTieuDe = e('tr');
+          // Bỏ cột STT (đã dư — tên + số thứ tự trong sổ lớp không cần thêm cột riêng), gộp
+          // "Đã đóng" và "Trạng thái" làm một cột để đỡ chiếm ngang.
           hangTieuDe.append(
-            e('th', null, 'STT'),
             e('th', null, 'Họ và tên'),
             e('th', null, 'Đã đóng'),
             e('th', null, 'Ngày đóng'),
-            e('th', null, 'Trạng thái'),
             e('th', null, 'Ghi chú')
           );
           thead.append(hangTieuDe);
@@ -1147,7 +1033,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           if (!hsLoc.length) {
             const hangTrong = e('tr');
             const tdTrong = e('td');
-            tdTrong.colSpan = 6;
+            tdTrong.colSpan = 4;
             tdTrong.style.textAlign = 'center';
             tdTrong.style.padding = '20px';
             tdTrong.className = 'trong';
@@ -1208,9 +1094,8 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
               card.append(cDau, cTenWrap, cThan);
               dsTheMobile.append(card);
 
-              // Render Table row cho Desktop
+              // Render Table row cho Desktop — không còn cột STT riêng
               const tr = e('tr', h.laChinhMinh ? 'dong-ban-than' : '');
-              const tdStt = e('td', null, sttChu);
               const tdTen = e('td');
               tdTen.append(e('b', null, h.hoTen));
               if (h.lopNghe) {
@@ -1220,27 +1105,28 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
                 tdTen.append(e('span', 'tag-ban', 'Bạn'));
               }
 
+              // "Đã đóng" + "Trạng thái" gộp làm 1 cột: số tiền rồi tới nhãn trạng thái ngay cạnh.
               const tdTien = e('td');
+              const oDongTien = e('div', 'o-dong-trang-thai');
               if (h.daDong > 0) {
-                tdTien.append(Object.assign(e('b', null, tienVN(h.daDong)), { style: 'color:var(--tot)' }));
+                oDongTien.append(Object.assign(e('b', null, tienVN(h.daDong)), { style: 'color:var(--tot)' }));
               } else {
-                tdTien.append(Object.assign(e('span', 'trong', '0 đ')));
+                oDongTien.append(e('span', 'trong', '0 đ'));
               }
+              if (h.trangThai === 'da_du') {
+                oDongTien.append(e('span', 'nhan nhan-tot', '✓ Đủ'));
+              } else if (h.trangThai === 'dong_mot_phan') {
+                oDongTien.append(e('span', 'nhan nhan-luuy', '1 phần'));
+              } else {
+                oDongTien.append(e('span', 'nhan nhan-xau', 'Chưa đóng'));
+              }
+              tdTien.append(oDongTien);
 
               const tdNgay = e('td', 'trong', h.ngayDong ? ngayVN(h.ngayDong) : '—');
+              // Ghi chú trống thì để trắng hẳn, không hiện dấu "—" giả vờ có nội dung.
+              const tdGhiChu = e('td', 'trong', h.ghiChu || '');
 
-              const tdTrangThai = e('td');
-              if (h.trangThai === 'da_du') {
-                tdTrangThai.append(e('span', 'nhan nhan-tot', '✓ Đã đủ 100%'));
-              } else if (h.trangThai === 'dong_mot_phan') {
-                tdTrangThai.append(e('span', 'nhan nhan-luuy', 'Đóng 1 phần'));
-              } else {
-                tdTrangThai.append(e('span', 'nhan nhan-xau', 'Chưa đóng'));
-              }
-
-              const tdGhiChu = e('td', 'trong', h.ghiChu || '—');
-
-              tr.append(tdStt, tdTen, tdTien, tdNgay, tdTrangThai, tdGhiChu);
+              tr.append(tdTen, tdTien, tdNgay, tdGhiChu);
               tbody.append(tr);
             });
           }
@@ -1251,18 +1137,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           datNoiDung(khungChiTiet, thanhLocHs, hopCuon);
         }
 
-        nutMoChiTiet.addEventListener('click', () => {
-          const dangMo = !khungChiTiet.hidden;
-          khungChiTiet.hidden = dangMo;
-          spanStats.hidden = !dangMo;
-          nutMoChiTiet.setAttribute('aria-expanded', String(!dangMo));
-          if (!dangMo) {
-            veBangHs();
-          }
+        // <details> tự lo việc mở/đóng — chỉ cần vẽ lại nội dung khi nó MỞ (đóng thì không cần
+        // tính bảng, tiết kiệm việc dựng DOM cho những khoản người dùng chưa bấm xem).
+        chiTietDongTien.addEventListener('toggle', () => {
+          spanStats.hidden = chiTietDongTien.open;
+          if (chiTietDongTien.open) veBangHs();
         });
         if (timTheoTenHs) veBangHs();   // tự mở sẵn nên phải tự vẽ nội dung ngay, không đợi bấm
 
-        the.append(nutMoChiTiet, khungChiTiet);
+        chiTietDongTien.append(tomTat, khungChiTiet);
+        the.append(chiTietDongTien);
 
         cacPhanTuThe.push(the);
       });

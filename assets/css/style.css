@@ -45,14 +45,16 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { color-scheme: dark; }
   :root:not([data-theme="light"]) {
-    --nen: #070b14;
+    /* Bề mặt kiểu "SaaS tối tối giản" (Linear/Raycast/Vercel): nền sâu, 2 tầng bề mặt rõ rệt,
+       viền chỉ còn là hairline mờ thay vì viền xanh sáng như trước. */
+    --nen: #090d16;
     --nen-noi: #0f172a;
-    --nen-chim: #1e293b;
+    --nen-chim: #162032;
     --chu: #f1f5f9;
     --chu-nhat: #94a3b8;
     --chu-mo: #64748b;
-    --vien: #1e293b;
-    --vien-dam: #334155;
+    --vien: rgba(255, 255, 255, 0.07);
+    --vien-dam: rgba(255, 255, 255, 0.12);
 
     --chinh: #38bdf8;
     --chinh-sang: #7dd3fc;
@@ -60,9 +62,11 @@
     --chinh-2: #2dd4bf;
     --chinh-2-nen: rgba(45, 212, 191, 0.14);
 
-    --tot: #34d399;    --tot-nen: rgba(52, 211, 153, 0.16);
-    --luu-y: #fbbf24;  --luu-y-nen: rgba(251, 191, 36, 0.16);
-    --xau: #f87171;    --xau-nen: rgba(248, 113, 113, 0.16);
+    /* Emerald / Amber / Rose — chỉ dùng cho chữ và nhãn pill (nền luôn ở dạng mờ ~14%),
+       không bao giờ tô kín nền cả khối. */
+    --tot: #10b981;    --tot-nen: rgba(16, 185, 129, 0.14);
+    --luu-y: #f59e0b;  --luu-y-nen: rgba(245, 158, 11, 0.14);
+    --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
     --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
     --tieu-de: #ffffff;
     --tieu-de-phu: #38bdf8;
@@ -76,14 +80,14 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --nen: #070b14; --nen-noi: #0f172a; --nen-chim: #1e293b;
+  --nen: #090d16; --nen-noi: #0f172a; --nen-chim: #162032;
   --chu: #f1f5f9; --chu-nhat: #94a3b8; --chu-mo: #64748b;
-  --vien: #1e293b; --vien-dam: #334155;
+  --vien: rgba(255, 255, 255, 0.07); --vien-dam: rgba(255, 255, 255, 0.12);
   --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.14);
   --chinh-2: #2dd4bf; --chinh-2-nen: rgba(45, 212, 191, 0.14);
-  --tot: #34d399;    --tot-nen: rgba(52, 211, 153, 0.16);
-  --luu-y: #fbbf24;  --luu-y-nen: rgba(251, 191, 36, 0.16);
-  --xau: #f87171;    --xau-nen: rgba(248, 113, 113, 0.16);
+  --tot: #10b981;    --tot-nen: rgba(16, 185, 129, 0.14);
+  --luu-y: #f59e0b;  --luu-y-nen: rgba(245, 158, 11, 0.14);
+  --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
   --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
   --tieu-de: #ffffff;
   --tieu-de-phu: #38bdf8;
@@ -97,15 +101,21 @@
 /* 1. Cosmic Deep (Vũ trụ xanh sâu - Mặc định tối) */
 :root[data-bg-theme="cosmic"] {
   color-scheme: dark;
-  --nen: #070b14; --nen-noi: #0c1424; --nen-chim: #15223c;
+  /* Đây là theme MẶC ĐỊNH thật sự (xem ganDoiMauNen() trong chung.js) — bề mặt "SaaS tối tối
+     giản": nền sâu, 2 tầng bề mặt tách bạch rõ, viền chỉ còn hairline mờ thay cho viền xanh
+     sáng nổi bật như trước. */
+  --nen: #090d16; --nen-noi: #0f172a; --nen-chim: #162032;
   --chu: #f8fafc; --chu-nhat: #94a3b8; --chu-mo: #64748b;
-  --vien: #1e2e4f; --vien-dam: #2d4370;
+  --vien: rgba(255, 255, 255, 0.07); --vien-dam: rgba(255, 255, 255, 0.12);
   --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.16);
+  --tot: #10b981;    --tot-nen: rgba(16, 185, 129, 0.14);
+  --luu-y: #f59e0b;  --luu-y-nen: rgba(245, 158, 11, 0.14);
+  --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
   --tieu-de: #ffffff; --tieu-de-phu: #38bdf8;
-  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.15), transparent 70%),
-                 radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.14), transparent 70%),
-                 radial-gradient(1000px 800px at 50% 100%, rgba(16, 185, 129, 0.08), transparent 70%),
-                 #070b14;
+  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
+                 radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.08), transparent 70%),
+                 radial-gradient(1000px 800px at 50% 100%, rgba(16, 185, 129, 0.05), transparent 70%),
+                 #090d16;
 }
 
 /* 2. Midnight Nebula (Tinh vân tím lam) */
@@ -553,14 +563,15 @@ code {
 }
 @media (min-width: 620px) { .o-so { grid-template-columns: repeat(4, 1fr); } }
 .o-so > div {
-  background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: var(--r); padding: 11px 13px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: var(--r); padding: 13px 14px;
   backdrop-filter: blur(6px);
-  transition: background .15s, transform .15s;
+  transition: background .15s, transform .15s, border-color .15s;
 }
-.o-so > div:hover { background: rgba(255, 255, 255, .18); transform: translateY(-2px); }
-.o-so b { display: block; font-size: 21px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; }
-.o-so span { font-size: 12px; color: #d9ecfb; }
+.o-so > div:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .18); transform: translateY(-2px); }
+/* Số liệu to/đậm, trắng tinh — nhãn nhỏ, viết hoa, màu xám nhạt (slate) bên dưới. */
+.o-so b { display: block; font-size: 24px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; color: #ffffff; }
+.o-so span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
 
 /* ---------- 5. Bố cục & thẻ ---------- */
 section { margin: 30px 0; scroll-margin-top: 78px; }
@@ -596,55 +607,20 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 @media (min-width: 720px) { .khoi-trang-chu > .than-khoi { padding: 24px 26px; } }
 .khoi-trang-chu > .than-khoi > .the { box-shadow: none; }
 
-/* ---------- Băng điểm nhấn (spotlight): tự cuộn ngang, nhóm tin quan trọng nhất. ---------- */
-.bang-diem-nhan {
-  position: relative; margin: 0 0 30px;
-  border-radius: var(--r-lon); overflow: hidden;
-  background: linear-gradient(120deg, var(--chinh) 0%, var(--chinh-sang) 55%, var(--chinh-2) 100%);
-  box-shadow: var(--bong-mau);
-}
+/* ---------- Tin khẩn cấp: MỘT thẻ pinned duy nhất, tĩnh, không tự trôi. ---------- */
+.bang-diem-nhan { margin: 0 0 30px; }
 @media (min-width: 720px) { .bang-diem-nhan { margin-bottom: 40px; } }
-/* Khung ngoài chỉ để CẮT (overflow hidden) — dải thẻ bên trong (.bang-diem-nhan-track) tự
-   trôi liên tục bằng transform (JS), không dùng cuộn gốc của trình duyệt nữa. Vẫn kéo được
-   bằng chuột/ngón tay (con trỏ "grab") để chủ động xem, không chỉ ngồi chờ tự chạy. */
-.bang-diem-nhan-cuon {
-  overflow: hidden; padding: 16px 0; cursor: grab; touch-action: pan-y;
+.tin-khan-cap {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--nen-noi); border: 1px solid var(--vien); border-left: 3px solid var(--chinh);
+  border-radius: var(--r); padding: 14px 18px; cursor: pointer;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
 }
-.bang-diem-nhan-cuon.dang-keo { cursor: grabbing; }
-.bang-diem-nhan-track { display: flex; gap: 14px; width: max-content; padding: 0 16px; will-change: transform; }
-@media (prefers-reduced-motion: reduce) { .bang-diem-nhan-cuon { cursor: default; } }
-.dn-the {
-  flex: none; width: min(320px, 82vw); user-select: none;
-  background: color-mix(in srgb, #fff 14%, transparent);
-  backdrop-filter: blur(6px);
-  border: 1px solid color-mix(in srgb, #fff 30%, transparent);
-  border-radius: var(--r); padding: 14px 16px; color: #fff;
-  text-decoration: none; display: block; cursor: pointer;
-  transition: transform .15s, background .15s;
-  font: inherit; text-align: left; appearance: none;
-  -webkit-user-drag: none;
-}
-.dn-the:hover { background: color-mix(in srgb, #fff 22%, transparent); transform: translateY(-2px); }
-.dn-the .dn-nhan {
-  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 99px; background: rgba(0,0,0,.22); margin-bottom: 8px;
-}
-/* Màu theo mức độ quan trọng (nhanMucDo trong chung.js) — để học sinh nhận ra ngay bằng màu,
-   không phải đọc hết chữ. Trộn với nền tối .22 sẵn có để vẫn tương phản tốt trên nền gradient. */
-.dn-the .dn-nhan.dn-nhan-tot { background: color-mix(in srgb, var(--tot) 60%, rgba(0,0,0,.22)); }
-.dn-the .dn-nhan.dn-nhan-luuy { background: color-mix(in srgb, var(--luu-y) 60%, rgba(0,0,0,.22)); }
-.dn-the .dn-nhan.dn-nhan-xau { background: color-mix(in srgb, var(--xau) 60%, rgba(0,0,0,.22)); }
-.dn-the h3 { margin: 0 0 4px; font-size: 15px; color: #fff; line-height: 1.3; }
-.dn-the p { margin: 0; font-size: 12.5px; color: rgba(255,255,255,.85); }
-.bdn-dieu-huong {
-  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
-  width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
-  background: rgba(0,0,0,.28); color: #fff; font-size: 18px; display: none; place-items: center;
-  transition: background .15s;
-}
-.bdn-dieu-huong:hover { background: rgba(0,0,0,.45); }
-.bdn-trai { left: 10px; } .bdn-phai { right: 10px; }
-@media (min-width: 640px) { .bdn-dieu-huong { display: grid; } }
+.tin-khan-cap:hover { border-color: var(--chinh); box-shadow: var(--bong-2); transform: translateY(-1px); }
+.tin-khan-cap.muc-warn { border-left-color: var(--luu-y); }
+.tin-khan-cap.muc-danger { border-left-color: var(--xau); }
+.tin-khan-cap h3 { margin: 0; font-size: 15px; color: var(--chu); line-height: 1.35; flex: 1; min-width: 200px; }
+.tin-khan-cap-ngay { font-size: 12.5px; color: var(--chu-mo); white-space: nowrap; }
 
 .the {
   position: relative;
@@ -1348,7 +1324,7 @@ body.trang-dang-nhap {
 .ds-the-khoan {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 2rem;
 }
 .the-khoan-thu {
   background: var(--nen-chim);
@@ -1392,58 +1368,6 @@ body.trang-dang-nhap {
 .the-khoan-chi.dang-chon {
   border-color: var(--chinh) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--chinh) 35%, transparent), var(--bong-2) !important;
-}
-
-/* Huy hiệu tuần / định kỳ */
-.badge-tuan {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: .02em;
-  background: color-mix(in srgb, #3b82f6 18%, transparent);
-  color: #2563eb;
-  border: 1px solid color-mix(in srgb, #3b82f6 40%, transparent);
-  white-space: nowrap;
-  flex: none;
-}
-:root[data-theme="dark"] .badge-tuan {
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.2);
-}
-
-/* Huy hiệu kiểu thu trên dòng 1 */
-.badge-kieu-thu {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: .02em;
-  white-space: nowrap;
-  flex: none;
-}
-.badge-kieu-thu.badge-dinh-ky {
-  background: color-mix(in srgb, #06b6d4 18%, transparent);
-  color: #0891b2;
-  border: 1px solid color-mix(in srgb, #06b6d4 40%, transparent);
-}
-:root[data-theme="dark"] .badge-kieu-thu.badge-dinh-ky {
-  color: #67e8f9;
-  background: rgba(6, 182, 212, 0.2);
-}
-.badge-kieu-thu.badge-nhanh {
-  background: color-mix(in srgb, #f59e0b 18%, transparent);
-  color: #d97706;
-  border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent);
-}
-:root[data-theme="dark"] .badge-kieu-thu.badge-nhanh {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.2);
 }
 
 /* Huy hiệu kiểu chi trên dòng 1 */
@@ -1518,140 +1442,84 @@ body.trang-dang-nhap {
   min-width: 0;
   flex: 1;
 }
-.the-khoan-ten-hang {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 5px;
-}
+/* Tiêu đề đứng riêng, to/đậm rõ ràng — trọng tâm của đầu thẻ. */
 .the-khoan-ten {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   color: var(--chu);
-  margin: 0;
+  margin: 0 0 8px;
   line-height: 1.3;
+  letter-spacing: -.01em;
 }
-.the-khoan-chip-day {
+/* Mọi nhãn phụ (kiểu thu, tuần, lịch thu, số tiền/em, trạng thái) gộp thành MỘT hàng pill nhỏ,
+   mờ, xếp ngay dưới tiêu đề — không còn badge to nổi bật tách riêng góc phải như trước. */
+.the-khoan-nhan-hang {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-.the-khoan-chip {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--chu-nhat);
-  background: var(--nen-noi);
-  border: 1px solid var(--vien);
-  padding: 2px 8px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.the-khoan-phai {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+.tag-nhe {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: 12px; font-weight: 600; padding: 3.5px 10px; border-radius: 99px;
+  background: var(--nen-noi); color: var(--chu-nhat); border: 1px solid var(--vien);
 }
 
-/* Khối số liệu giữa thẻ — chỉ 2 cột (Đã thu / Mục tiêu); cột "Tiến độ %" đã bỏ vì trùng với
-   badge đầu thẻ và thanh tiến độ ngay bên dưới. */
-.the-khoan-so-lieu {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+/* Widget "Đã thu — % — Mục tiêu" + thanh tiến độ GỘP LÀM MỘT khối duy nhất. */
+.the-khoan-tien-do-widget {
   background: var(--nen-noi);
   border: 1px solid var(--vien);
   border-radius: var(--r-nho);
-  padding: 11px 15px;
-  margin-bottom: 12px;
+  padding: 13px 16px;
+  margin-bottom: 4px;
 }
-.the-khoan-so-lieu .nhan-cot {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--chu-mo);
-  letter-spacing: .4px;
-  margin-bottom: 2px;
+.ttd-hang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.the-khoan-so-lieu .gia-tri-da-thu {
-  font-size: 17px;
-  font-weight: 800;
-  color: #10b981;
+.ttd-cot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ttd-cot-phai { align-items: flex-end; text-align: right; }
+.ttd-cot .nhan-cot {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  color: var(--chu-mo); letter-spacing: .4px;
 }
-:root[data-theme="light"] .the-khoan-so-lieu .gia-tri-da-thu,
-:root[data-bg-theme="light"] .the-khoan-so-lieu .gia-tri-da-thu {
-  color: #059669;
-}
-.the-khoan-so-lieu .gia-tri-muc-tieu {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--chu);
-}
+.ttd-so { font-size: 15px; font-weight: 700; color: var(--chu); }
+.ttd-so-tot { color: var(--tot); }
+.ttd-giua { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.ttd-phan-tram { font-size: 22px; font-weight: 800; color: var(--chu); letter-spacing: -.02em; }
+.ttd-phu { font-size: 11.5px; color: var(--chu-mo); white-space: nowrap; }
+.the-khoan-thu.da-du .ttd-phu { color: var(--tot); }
+.the-khoan-thu.dang-thu .ttd-phu, .the-khoan-thu.chua-thu .ttd-phu { color: var(--luu-y); }
 
 /* Thanh tiến độ trực quan */
 .the-khoan-tien-do-khung {
-  height: 9px;
-  background: var(--nen-noi);
-  border: 1px solid var(--vien);
+  height: 7px;
+  background: var(--nen-chim);
   border-radius: 99px;
   overflow: hidden;
   position: relative;
-  margin-bottom: 8px;
 }
 .the-khoan-tien-do-chay {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--chinh) 0%, #10b981 100%);
+  background: linear-gradient(90deg, var(--chinh) 0%, var(--tot) 100%);
   transition: width .5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.the-khoan-thu.da-du .the-khoan-tien-do-chay {
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-}
-.the-khoan-thu.da-dong .the-khoan-tien-do-chay {
-  background: var(--chu-mo);
-}
+.the-khoan-thu.da-du .the-khoan-tien-do-chay { background: var(--tot); }
+.the-khoan-thu.da-dong .the-khoan-tien-do-chay { background: var(--chu-mo); }
 
-/* Chân thẻ khoản thu */
-.the-khoan-chan {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--chu-nhat);
-}
-.the-khoan-chan .con-thieu {
-  color: #f59e0b;
-  font-weight: 600;
-}
-.the-khoan-chan .hoan-thanh-tot {
-  color: #10b981;
-  font-weight: 700;
-}
-:root[data-theme="light"] .the-khoan-chan .con-thieu,
-:root[data-bg-theme="light"] .the-khoan-chan .con-thieu {
-  color: #d97706;
-}
-:root[data-theme="light"] .the-khoan-chan .hoan-thanh-tot,
-:root[data-bg-theme="light"] .the-khoan-chan .hoan-thanh-tot {
-  color: #059669;
-}
-
-/* "Phần của bạn" — trạng thái đóng tiền của chính học sinh đang xem, nổi bật ngay trên thẻ để
-   không phải mở "Chi tiết đóng tiền" rồi tự dò tìm giữa cả lớp mới biết. */
+/* "Phần của bạn" — callout GỌN, chỉ vừa đủ nội dung (không còn chiếm hết bề ngang thẻ), viền mờ. */
 .the-khoan-ban-than {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  margin-top: 10px; padding: 9px 13px; border-radius: var(--r-nho);
-  background: color-mix(in srgb, var(--chinh) 12%, var(--nen-noi));
-  border: 1.5px solid color-mix(in srgb, var(--chinh) 35%, var(--vien));
-  font-size: 13px; font-weight: 700; color: var(--chu);
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px; padding: 7px 13px; border-radius: 99px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  font-size: 12.5px; font-weight: 700; color: var(--chu);
 }
-.the-khoan-ban-than .trong { font-weight: 500; margin-left: auto; }
+.the-khoan-ban-than .trong { font-weight: 500; color: var(--chu-nhat); }
 
 /* Chuyển đổi tab Thu / Chi */
 .tab-chuyen-thu-chi {
@@ -1733,17 +1601,17 @@ body.trang-dang-nhap {
 }
 
 /* ---------- 17. Nhận diện Thời khoá biểu: Cột hôm nay ---------- */
+/* Nổi bật nhưng nhẹ nhàng — chỉ tô nền mờ + viền dưới ở tiêu đề, KHÔNG còn viền dọc trái/phải
+   (giữ đúng tinh thần "chỉ hairline ngang" áp dụng cho mọi bảng trong trang). */
 th.cot-hom-nay {
   background: var(--chinh-nen) !important;
   color: var(--chinh) !important;
-  border-bottom: 2.5px solid var(--chinh) !important;
+  border-bottom: 2px solid var(--chinh) !important;
   position: relative;
 }
 td.cot-hom-nay {
-  background: color-mix(in srgb, var(--chinh-nen) 60%, transparent);
+  background: color-mix(in srgb, var(--chinh-nen) 45%, transparent);
   font-weight: 600;
-  border-left: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--chinh) 30%, transparent);
 }
 .nhan-hom-nay {
   display: inline-block;
@@ -1838,6 +1706,8 @@ td.cot-hom-nay {
 }
 
 /* ================= CHI TIẾT ĐÓNG TIỀN THEO HỌC SINH (THỦ QUỸ) ================= */
+/* <details>/<summary> chuẩn — nhẹ, có sẵn accessibility, thẻ luôn gọn ở trạng thái đóng. */
+.chi-tiet-dong-tien { margin-top: 14px; }
 .nut-mo-chi-tiet-dong {
   width: 100%;
   display: flex;
@@ -1845,7 +1715,6 @@ td.cot-hom-nay {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  margin-top: 12px;
   background: var(--nen-noi);
   border: 1px solid var(--vien);
   border-radius: 10px;
@@ -1853,7 +1722,10 @@ td.cot-hom-nay {
   font-size: 13.5px;
   cursor: pointer;
   transition: all .18s ease;
+  list-style: none;
 }
+.nut-mo-chi-tiet-dong::-webkit-details-marker,
+.nut-mo-chi-tiet-dong::marker { display: none; content: ''; }
 .nut-mo-chi-tiet-dong:hover {
   background: var(--nen-chim);
   border-color: var(--chinh);
@@ -1871,8 +1743,13 @@ td.cot-hom-nay {
   background: var(--nen-chim);
 }
 .nut-mo-chi-tiet-dong:hover .mui-ten-chi-tiet { background: var(--chinh-nen); }
-.nut-mo-chi-tiet-dong[aria-expanded="true"] .mui-ten-chi-tiet {
+.chi-tiet-dong-tien[open] .nut-mo-chi-tiet-dong .mui-ten-chi-tiet {
   transform: rotate(180deg);
+}
+.chi-tiet-dong-tien[open] .nut-mo-chi-tiet-dong {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
 }
 
 /* Nút tóm tắt: tiêu đề và stats tự xuống dòng đẹp trên mobile */
@@ -1926,15 +1803,11 @@ td.cot-hom-nay {
 }
 
 .khung-chi-tiet-dong {
-  margin-top: 12px;
   padding: 14px;
   background: var(--nen-noi);
   border: 1px solid var(--vien);
-  border-radius: 12px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-.khung-chi-tiet-dong[hidden] {
-  display: none;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
 }
 .thanh-loc-chi-tiet {
   display: flex;
@@ -2017,6 +1890,8 @@ td.cot-hom-nay {
 .bang-dong-tien tr:hover td {
   background: color-mix(in srgb, var(--chinh) 6%, transparent);
 }
+/* Cột gộp "Đã đóng" + "Trạng thái" — số tiền rồi tới nhãn ngay cạnh, đỡ tốn một cột riêng. */
+.o-dong-trang-thai { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bang-dong-tien tr.dong-ban-than td {
   background: color-mix(in srgb, var(--chinh) 12%, transparent);
   font-weight: 600;
