@@ -66,8 +66,11 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     ).bind(lopId).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau FROM tkb_phien_ban
-        WHERE ngay_bat_dau <= ?1 AND lop_id = ?2 ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
-    ).bind(homNay, lopId).first(),
+        WHERE lop_id = ?1
+        ORDER BY (CASE WHEN ngay_ket_thuc IS NULL THEN 0 ELSE 1 END),
+                 (CASE WHEN ngay_bat_dau <= ?2 THEN 0 ELSE 1 END),
+                 ngay_bat_dau DESC, id DESC LIMIT 1`
+    ).bind(lopId, homNay).first(),
     db.prepare('SELECT khoa, chu_thich AS chuThich, ngay FROM hinh_anh WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC LIMIT 60').bind(lopId).all(),
     // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(

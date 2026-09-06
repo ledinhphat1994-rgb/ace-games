@@ -19,9 +19,11 @@ async function layPhienBanApDung(db, homNay, lopId) {
   return db.prepare(
     `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ngay_ket_thuc AS ngayKetThuc, ghi_chu AS ghiChu
        FROM tkb_phien_ban
-      WHERE ngay_bat_dau <= ?1 AND lop_id = ?2
-      ORDER BY ngay_bat_dau DESC, id DESC LIMIT 1`
-  ).bind(homNay, lopId).first();
+      WHERE lop_id = ?1
+      ORDER BY (CASE WHEN ngay_ket_thuc IS NULL THEN 0 ELSE 1 END),
+               (CASE WHEN ngay_bat_dau <= ?2 THEN 0 ELSE 1 END),
+               ngay_bat_dau DESC, id DESC LIMIT 1`
+  ).bind(lopId, homNay).first();
 }
 
 async function layO(db, phienBanId) {
