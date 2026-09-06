@@ -950,7 +950,9 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         dau.append(trai, phai);
         the.append(dau);
 
-        // 2. Khối số liệu
+        // 2. Khối số liệu — CHỈ 2 cột (Đã thu / Mục tiêu). Bỏ cột "Tiến độ %" vì đã có ở badge
+        // đầu thẻ ("Đang thu · X%") và ở thanh tiến độ ngay bên dưới — 3 chỗ cùng lặp một con số
+        // là thừa, dễ rối mắt.
         const soLieu = e('div', 'the-khoan-so-lieu');
 
         const cotDaThu = e('div');
@@ -965,13 +967,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           e('div', 'gia-tri-muc-tieu', tienVN(k.tongCanThu))
         );
 
-        const cotTienDo = e('div', 'cot-tien-do');
-        cotTienDo.append(
-          e('div', 'nhan-cot', 'Tiến độ'),
-          e('div', 'gia-tri-phan-tram', `${phanTram}%`)
-        );
-
-        soLieu.append(cotDaThu, cotMucTieu, cotTienDo);
+        soLieu.append(cotDaThu, cotMucTieu);
         the.append(soLieu);
 
         // 3. Thanh tiến độ
@@ -981,7 +977,8 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         tienDoKhung.append(tienDoChay);
         the.append(tienDoKhung);
 
-        // 4. Chân thẻ
+        // 4. Chân thẻ — chỉ 1 dòng thông điệp. Bỏ cụm "Đang thu quỹ/Đã khoá sổ" từng lặp lại ở
+        // đây vì đã có badge "Đang thu · X%" / "Đã đóng"/"Đã thu đủ" ngay đầu thẻ rồi.
         const chan = e('div', 'the-khoan-chan');
         if (phanTram >= 100) {
           chan.append(e('span', 'hoan-thanh-tot', '🎉 Đã hoàn thành 100% chỉ tiêu thu của lớp'));
@@ -990,8 +987,6 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         } else {
           chan.append(e('span', null, 'Khoản thu đã khoá sổ.'));
         }
-
-        chan.append(e('span', null, k.dangMo ? 'Đang thu quỹ' : 'Đã khoá sổ'));
         the.append(chan);
 
         // 5. Khối danh sách học sinh đóng tiền chi tiết
@@ -1026,6 +1021,25 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           };
         });
 
+        // Học sinh cần biết NGAY phần của chính mình, không phải mở "Chi tiết đóng tiền" rồi tự
+        // tìm giữa cả lớp mới thấy — hiện sẵn một dòng riêng ngay trên thẻ nếu tài khoản đang
+        // xem gắn với đúng 1 học sinh trong lớp.
+        const banGhiCuaMinh = danhSachHsVoiTrangThai.find((x) => x.laChinhMinh);
+        if (banGhiCuaMinh) {
+          const hopBanThan = e('div', 'the-khoan-ban-than');
+          const [chuTrangThai, lopTrangThaiBt] = banGhiCuaMinh.trangThai === 'da_du' ? ['✓ Đã đủ 100%', 'nhan-tot']
+            : banGhiCuaMinh.trangThai === 'dong_mot_phan' ? ['Đóng 1 phần', 'nhan-luuy']
+              : ['Chưa đóng', 'nhan-xau'];
+          hopBanThan.append(e('span', null, '🙋 Phần của bạn'), e('span', 'nhan ' + lopTrangThaiBt, chuTrangThai));
+          if (banGhiCuaMinh.daDong > 0) {
+            hopBanThan.append(e('span', 'trong', `Đã nộp ${tienVN(banGhiCuaMinh.daDong)}`
+              + (banGhiCuaMinh.ngayDong ? ` · ${ngayVN(banGhiCuaMinh.ngayDong)}` : '')));
+          } else if (k.soTienMoiEm) {
+            hopBanThan.append(e('span', 'trong', `Cần nộp ${tienVN(k.soTienMoiEm)}`));
+          }
+          the.append(hopBanThan);
+        }
+
         const soEmDaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'da_du').length;
         const soEmDongMotPhan = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'dong_mot_phan').length;
         const soEmChuaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'chua_dong').length;
@@ -1050,6 +1064,10 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         // Đang tìm theo tên học sinh ở ô tìm kiếm chính (không khớp tên khoản nào) — tự mở sẵn
         // và lọc luôn theo đúng tên đó, đỡ phải bấm mở rồi gõ lại tên lần nữa cho từng khoản.
         khungChiTiet.hidden = !timTheoTenHs;
+        // Cặp "Đã đóng x/y" / "Chưa đóng z" ở đây chỉ hữu ích khi ĐANG ĐÓNG (xem nhanh không cần
+        // mở) — mở ra rồi thì các nút lọc Tất cả/Đã đóng/Chưa đóng bên dưới đã lặp lại đúng những
+        // con số này, ẩn bớt đi cho đỡ trùng.
+        spanStats.hidden = timTheoTenHs;
 
         let locHs = ''; // '' | 'da_dong' | 'chua_dong'
         let timHs = timTheoTenHs ? timKhoan : '';
@@ -1229,6 +1247,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         nutMoChiTiet.addEventListener('click', () => {
           const dangMo = !khungChiTiet.hidden;
           khungChiTiet.hidden = dangMo;
+          spanStats.hidden = !dangMo;
           nutMoChiTiet.setAttribute('aria-expanded', String(!dangMo));
           if (!dangMo) {
             veBangHs();
@@ -2013,6 +2032,17 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
     datNoiDung(hopCaNhan, theCn);
   } else {
     datNoiDung(hopCaNhan, '');
+  }
+
+  // Học sinh bình thường chỉ cần biết CHUYÊN CẦN CỦA CHÍNH MÌNH (đã vẽ ở khối trên) — không cần
+  // xem cả bảng điểm danh của toàn lớp (vắng/lý do của bạn khác cũng là thông tin riêng tư của
+  // người ta). Toàn bộ danh sách cả lớp theo ngày CHỈ dành cho giáo viên, hoặc tài khoản đặc biệt
+  // (phu) được cấp đúng quyền "diem-danh" (vd lớp trưởng hỗ trợ điểm danh).
+  const coQuyenXemCaLop = Boolean(thongTinPhien && (thongTinPhien.role === 'teacher'
+    || (thongTinPhien.role === 'phu' && (thongTinPhien.quyen || []).includes('diem-danh'))));
+  if (!coQuyenXemCaLop) {
+    datNoiDung(hopLop, d.caNhan ? '' : e('p', 'trong', 'Chưa có dữ liệu điểm danh để hiển thị.'));
+    return;
   }
 
   // 2. Điểm danh cả lớp theo ngày

@@ -1544,30 +1544,17 @@ body.trang-dang-nhap {
   gap: 6px;
 }
 
-/* Khối số liệu giữa thẻ */
+/* Khối số liệu giữa thẻ — chỉ 2 cột (Đã thu / Mục tiêu); cột "Tiến độ %" đã bỏ vì trùng với
+   badge đầu thẻ và thanh tiến độ ngay bên dưới. */
 .the-khoan-so-lieu {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   background: var(--nen-noi);
   border: 1px solid var(--vien);
   border-radius: var(--r-nho);
   padding: 11px 15px;
   margin-bottom: 12px;
-}
-@media (max-width: 480px) {
-  .the-khoan-so-lieu {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px 12px;
-  }
-  .the-khoan-so-lieu .cot-tien-do {
-    grid-column: span 2;
-    border-top: 1px dashed var(--vien);
-    padding-top: 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
 }
 .the-khoan-so-lieu .nhan-cot {
   font-size: 11px;
@@ -1590,15 +1577,6 @@ body.trang-dang-nhap {
   font-size: 15px;
   font-weight: 700;
   color: var(--chu);
-}
-.the-khoan-so-lieu .gia-tri-phan-tram {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--chinh);
-  text-align: right;
-}
-.the-khoan-thu.da-du .the-khoan-so-lieu .gia-tri-phan-tram {
-  color: #10b981;
 }
 
 /* Thanh tiến độ trực quan */
@@ -1649,6 +1627,17 @@ body.trang-dang-nhap {
 :root[data-bg-theme="light"] .the-khoan-chan .hoan-thanh-tot {
   color: #059669;
 }
+
+/* "Phần của bạn" — trạng thái đóng tiền của chính học sinh đang xem, nổi bật ngay trên thẻ để
+   không phải mở "Chi tiết đóng tiền" rồi tự dò tìm giữa cả lớp mới biết. */
+.the-khoan-ban-than {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 10px; padding: 9px 13px; border-radius: var(--r-nho);
+  background: color-mix(in srgb, var(--chinh) 12%, var(--nen-noi));
+  border: 1.5px solid color-mix(in srgb, var(--chinh) 35%, var(--vien));
+  font-size: 13px; font-weight: 700; color: var(--chu);
+}
+.the-khoan-ban-than .trong { font-weight: 500; margin-left: auto; }
 
 /* Chuyển đổi tab Thu / Chi */
 .tab-chuyen-thu-chi {
