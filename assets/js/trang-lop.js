@@ -1577,7 +1577,7 @@ function veKhoiVideoHoatDong(item) {
     loại duy nhất theo "item.loai" như thiết kế cũ. */
 function veTheHoatDong(item) {
   const the = e('div', 'hoat-dong-the');
-  the.style.cssText = 'padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
+  the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
 
   const coAnh = Boolean(item.anhKhoa || item.hinhUrl);
   const coVideo = Boolean(item.videoKhoa || item.videoUrl);
@@ -1607,7 +1607,7 @@ function veTheHoatDong(item) {
 
   if (tieuDe) {
     const h4 = e('h4', null, tieuDe);
-    h4.style.cssText = 'margin:0;font-size:15px;font-weight:700;color:var(--chu);line-height:1.4;';
+    h4.style.cssText = 'margin:0;font-size:19px;font-weight:800;color:var(--chu);line-height:1.35;';
     the.append(h4);
   }
 
@@ -1636,7 +1636,7 @@ function veTheHoatDong(item) {
 
   if (noiDung) {
     const pNd = e('p', null, noiDung);
-    pNd.style.cssText = 'margin:0;font-size:13.5px;color:var(--chu-nhat);white-space:pre-wrap;line-height:1.5;';
+    pNd.style.cssText = 'margin:0;font-size:15.5px;color:var(--chu);white-space:pre-wrap;line-height:1.6;';
     the.append(pNd);
   }
 
