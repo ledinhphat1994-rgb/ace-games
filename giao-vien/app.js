@@ -71,8 +71,10 @@ function locMenuTheoQuyen() {
     if (!nhom.querySelector('a')) nhom.remove();
   });
 
+  // Cùng một chỗ hiển thị này còn bị khoiDong() ghi thêm "· Đang quản lý: <lớp>" — giữ nguyên
+  // phần đó ở đây, không thì tài khoản cán sự sẽ mất dòng tên lớp ngay khi hàm này chạy xong.
   const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN) + (PHIEN.tenLop ? ` · Đang quản lý: ${PHIEN.tenLop}` : '');
 }
 
 /* ================= Từ điển hiển thị ================= */
