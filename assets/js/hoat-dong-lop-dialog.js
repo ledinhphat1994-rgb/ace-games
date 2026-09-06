@@ -166,20 +166,21 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
           than.noiDung = oNoiDungText.value.trim();
         }
 
+        // Với mỗi loại media đang BẬT: chỉ đính kèm nếu THỰC SỰ đã chọn/điền gì đó ở đúng
+        // nguồn đang xem — bật công tắc chỉ để xem thử rồi bỏ trống thì ÂM THẦM bỏ qua loại
+        // đó, không chặn đăng cả bài (trước đây bắt buộc phải điền đủ MỌI công tắc đang bật,
+        // dù người dùng chỉ định thật sự dùng 1-2 loại, khiến không đăng được gì cả).
         if (dangBat.has('anh') && ketQuaAnh) {
           const { oTep, oLink, oThuVien, layNguon } = ketQuaAnh;
           const nguon = layNguon();
           const tep = oTep.files[0];
-          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn ảnh để tải lên.', 'xau'); }
-          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn ảnh nào trong thư viện.', 'xau'); }
-          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link ảnh.', 'xau'); }
-          if (nguon === 'tai-len') {
+          if (nguon === 'tai-len' && tep) {
             const blob = await nenAnhThanhBlob(tep);
             const kq = await api('/api/gv/hoat-dong-lop-tep?loai=anh', { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
             than.anhId = kq.id;
-          } else if (nguon === 'thu-vien') {
+          } else if (nguon === 'thu-vien' && oThuVien.value) {
             than.anhId = Number(oThuVien.value);
-          } else {
+          } else if (nguon === 'link' && oLink.value.trim()) {
             than.hinhUrl = oLink.value.trim();
           }
         }
@@ -189,16 +190,13 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
           const nguon = layNguon();
           const tep = oTep.files[0];
           if (nguon === 'tai-len' && tep && tep.size > 50_000_000) { ev.currentTarget.disabled = false; return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
-          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn video để tải lên.', 'xau'); }
-          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn video nào trong thư viện.', 'xau'); }
-          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link video.', 'xau'); }
-          if (nguon === 'tai-len') {
+          if (nguon === 'tai-len' && tep) {
             const duLieu = await tep.arrayBuffer();
             const kq = await api('/api/gv/hoat-dong-lop-tep?loai=video', { method: 'POST', headers: { 'Content-Type': tep.type || 'video/mp4' }, body: duLieu });
             than.videoId = kq.id;
-          } else if (nguon === 'thu-vien') {
+          } else if (nguon === 'thu-vien' && oThuVien.value) {
             than.videoId = Number(oThuVien.value);
-          } else {
+          } else if (nguon === 'link' && oLink.value.trim()) {
             than.videoUrl = oLink.value.trim();
           }
         }
@@ -208,16 +206,13 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
           const nguon = layNguon();
           const tep = oTep.files[0];
           if (nguon === 'tai-len' && tep && tep.size > 12_000_000) { ev.currentTarget.disabled = false; return nhac('File nhạc vượt quá 12 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
-          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn file nhạc để tải lên.', 'xau'); }
-          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn bài nào trong thư viện.', 'xau'); }
-          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link âm thanh.', 'xau'); }
-          if (nguon === 'tai-len') {
+          if (nguon === 'tai-len' && tep) {
             const duLieu = await tep.arrayBuffer();
             const kq = await api('/api/gv/hoat-dong-lop-tep?loai=am-thanh', { method: 'POST', headers: { 'Content-Type': tep.type || 'audio/mpeg' }, body: duLieu });
             than.amThanhId = kq.id;
-          } else if (nguon === 'thu-vien') {
+          } else if (nguon === 'thu-vien' && oThuVien.value) {
             than.amThanhId = Number(oThuVien.value);
-          } else {
+          } else if (nguon === 'link' && oLink.value.trim()) {
             than.amThanhUrl = oLink.value.trim();
           }
         }

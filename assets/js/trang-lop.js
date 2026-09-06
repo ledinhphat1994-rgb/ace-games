@@ -1674,9 +1674,14 @@ function veHoatDongLop(ds, phien, lamMoi) {
       return datNoiDung(hop, e('p', 'trong', 'Không tìm thấy hoạt động nào khớp với "' + q + '".'));
     }
 
+    // Xoá được nếu là giáo viên, HOẶC tài khoản đặc biệt có ít nhất 1 trong các quyền liên
+    // quan tới Hoạt động lớp — được cấp quyền đăng thì cũng gỡ được bài mình/lớp đã đăng,
+    // khớp đúng quyền máy chủ đã cho phép (xem functions/api/gv/hoat-dong-lop.js).
+    const duocXoaHoatDong = Boolean(phien && (phien.role === 'teacher'
+      || ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'].some((q) => (phien.quyen || []).includes(q))));
     datNoiDung(hop, ...dsHien.map((item) => {
       const the = veTheHoatDong(item);
-      if (phien && phien.role === 'teacher') {
+      if (duocXoaHoatDong) {
         const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑');
         nutXoa.type = 'button';
         nutXoa.title = 'Gỡ khỏi Hoạt động lớp';

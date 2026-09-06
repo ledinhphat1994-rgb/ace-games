@@ -1907,7 +1907,11 @@ async function trangHoatDongLop(KHUNG) {
           e('span', 'nhan nhan-xam', nhanCacLoaiHoatDong(item)),
           e('span', 'ngay', ngayVN(item.ngay))
         );
-        if (PHIEN.role === 'teacher') {
+        // Xoá được nếu là giáo viên, hoặc tài khoản đặc biệt có ít nhất 1 trong các quyền liên
+        // quan tới Hoạt động lớp — khớp đúng quyền máy chủ đã cho phép.
+        const duocXoaHoatDong = PHIEN.role === 'teacher'
+          || ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'].some((q) => (PHIEN.quyen || []).includes(q));
+        if (duocXoaHoatDong) {
           const thaoTac = e('div');
           thaoTac.style.cssText = 'margin-left:auto;display:inline-flex';
           const nutXoa = nut('🗑 Gỡ', 'nut-nhe nut-nho', async () => {
