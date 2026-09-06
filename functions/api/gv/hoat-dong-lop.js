@@ -1,13 +1,14 @@
-// "Hoạt động lớp" — danh sách ảnh/video/âm thanh do giáo viên (hoặc học sinh được cấp quyền
-// quản lý Ảnh/Âm thanh/Video) CHỌN TỪNG MỤC để đăng công khai ở trang chủ — KHÔNG tự động lấy
-// hết thư viện như "Hình ảnh hoạt động" trước đây.
-//   GET    /api/gv/hoat-dong-lop            -> danh sách đã đăng, kèm khoá/kiểu để xem trước
-//   POST   /api/gv/hoat-dong-lop  { loai, anhId|videoId|amThanhId|url, chuThich? }
-//   DELETE /api/gv/hoat-dong-lop?id=        -> gỡ một mục khỏi danh sách công khai
+// "Hoạt động lớp" — bài đăng công khai ở trang chủ, do giáo viên (hoặc học sinh được cấp
+// quyền) tạo. MỘT bài có thể gộp NHIỀU loại nội dung cùng lúc — văn bản + ảnh + video + âm
+// thanh — bật/tắt độc lập từng loại, giống hệt cách Thông báo đã làm (không còn ép "đúng một
+// trong bốn loại" như thiết kế cũ nữa).
+//   GET    /api/gv/hoat-dong-lop  -> danh sách đã đăng, kèm mọi loại nội dung đang có của từng bài
+//   POST   /api/gv/hoat-dong-lop  { tieuDe?, noiDung?, anhId?|hinhUrl?, videoId?|videoUrl?,
+//                                    amThanhId?|amThanhUrl?, ngay? } — cần ít nhất MỘT trong số đó.
+//   DELETE /api/gv/hoat-dong-lop?id=  -> gỡ một bài khỏi trang chủ (mọi nội dung trong bài đó)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 
 const QUYEN = ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'];
-const BANG_THEO_LOAI = { anh: 'hinh_anh', video: 'video', 'am-thanh': 'am_thanh' };
 
 async function xacThucThamChieu(db, lopId, bang, id) {
   if (!Number.isInteger(id)) return true;
@@ -17,8 +18,10 @@ async function xacThucThamChieu(db, lopId, bang, id) {
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
-    `SELECT hd.id, hd.loai, hd.chu_thich AS chuThich, hd.ngay, hd.url,
-            ha.khoa AS anhKhoa, v.khoa AS videoKhoa, v.ten AS videoTen, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
+    `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.ngay,
+            hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
+            hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
+            hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
        FROM hoat_dong_lop hd
        LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
        LEFT JOIN video v ON v.id = hd.video_id
@@ -29,63 +32,63 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { loai, anhId, videoId, amThanhId, url, chuThich, tieuDe, ngay } = await docThan(request);
+  const { tieuDe, noiDung, anhId, hinhUrl, videoId, videoUrl, amThanhId, amThanhUrl, ngay } = await docThan(request);
   const ngayLuu = chuoi(ngay, 10) || new Date().toISOString().slice(0, 10);
 
-  // 1. Hoạt động dạng văn bản (text thông thường / bài viết sự kiện)
-  if (loai === 'text') {
-    const nd = chuoi(chuThich, 2000);
-    const td = chuoi(tieuDe, 150);
-    const noiDungGop = td ? (nd ? `${td}\n\n${nd}` : td) : nd;
-    if (!noiDungGop) return loi('Chưa nhập nội dung hoặc tiêu đề hoạt động.');
+  const td = chuoi(tieuDe, 150) || null;
+  const nd = chuoi(noiDung, 2000) || null;
 
-    const kq = await env.DB.prepare(
-      `INSERT INTO hoat_dong_lop (lop_id, loai, chu_thich, ngay)
-       VALUES (?1, 'text', ?2, ?3)`
-    ).bind(phien.lopId, noiDungGop, ngayLuu).run();
+  const idAnh = Number.isInteger(anhId) ? anhId : null;
+  const urlAnh = !idAnh ? (chuoi(hinhUrl, 1000) || null) : null;
+  const idVideo = Number.isInteger(videoId) ? videoId : null;
+  const urlVideo = !idVideo ? (chuoi(videoUrl, 1000) || null) : null;
+  const idAmThanh = Number.isInteger(amThanhId) ? amThanhId : null;
+  const urlAmThanh = !idAmThanh ? (chuoi(amThanhUrl, 1000) || null) : null;
 
-    return json({ ok: true, id: kq.meta.last_row_id });
+  const coAnh = Boolean(idAnh || urlAnh);
+  const coVideo = Boolean(idVideo || urlVideo);
+  const coAmThanh = Boolean(idAmThanh || urlAmThanh);
+  const coVanBan = Boolean(td || nd);
+
+  if (!coVanBan && !coAnh && !coVideo && !coAmThanh) {
+    return loi('Chưa nhập nội dung văn bản, cũng chưa chọn ảnh/video/âm thanh nào.');
   }
 
-  // 2. Hoạt động có đính kèm Media (Ảnh, Video, Âm thanh)
-  // Ràng buộc Media: Tài khoản phụ (role='phu') bắt buộc phải có đúng quyền thư viện tương ứng
+  // Ràng buộc quyền: tài khoản đặc biệt (phu) chỉ được gắn ĐÚNG loại media mình có quyền —
+  // độc lập theo từng loại, vì giờ một bài có thể gộp nhiều loại cùng lúc.
   if (phien.role === 'phu') {
-    const quyenHienCo = phien.quyen || [];
-    if (loai === 'anh' && !quyenHienCo.includes('hinh-anh')) {
-      return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    const q = phien.quyen || [];
+    if (coAnh && !q.includes('hinh-anh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh để đính kèm ảnh.', 403);
     }
-    if (loai === 'video' && !quyenHienCo.includes('video')) {
-      return loi('Tài khoản chưa được cấp quyền Thư viện Video. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    if (coVideo && !q.includes('video')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Video để đính kèm video.', 403);
     }
-    if (loai === 'am-thanh' && !quyenHienCo.includes('am-thanh')) {
-      return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh. Bạn chỉ được ghi nội dung văn bản thông thường.', 403);
+    if (coAmThanh && !q.includes('am-thanh')) {
+      return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh để đính kèm âm thanh.', 403);
     }
   }
 
-  const bang = BANG_THEO_LOAI[loai];
-  if (!bang) return loi('Loại hoạt động không hợp lệ.');
-
-  const idThamChieu = loai === 'anh' ? anhId : loai === 'video' ? videoId : amThanhId;
-  const idSo = Number.isInteger(idThamChieu) ? idThamChieu : null;
-  const urlSach = String(url || '').trim();
-  if (!idSo && !urlSach) return loi('Chưa chọn mục nào trong thư viện, cũng chưa dán link.');
-
-  if (idSo && !(await xacThucThamChieu(env.DB, phien.lopId, bang, idSo))) {
-    return loi('Mục này không thuộc thư viện của lớp.');
+  if (idAnh && !(await xacThucThamChieu(env.DB, phien.lopId, 'hinh_anh', idAnh))) {
+    return loi('Ảnh đính kèm không thuộc thư viện của lớp.');
   }
+  if (idVideo && !(await xacThucThamChieu(env.DB, phien.lopId, 'video', idVideo))) {
+    return loi('Video đính kèm không thuộc thư viện của lớp.');
+  }
+  if (idAmThanh && !(await xacThucThamChieu(env.DB, phien.lopId, 'am_thanh', idAmThanh))) {
+    return loi('Âm thanh đính kèm không thuộc thư viện của lớp.');
+  }
+
+  // "loai" giờ chỉ còn mang tính mô tả (gộp các loại đang có, cách nhau bằng dấu phẩy) — hiển
+  // thị/icon ở giao diện đọc trực tiếp từ các cột dữ liệu thực tế, không còn dựa vào cột này.
+  const loaiGop = [coVanBan && 'text', coAnh && 'anh', coVideo && 'video', coAmThanh && 'am-thanh']
+    .filter(Boolean).join(',');
 
   const kq = await env.DB.prepare(
-    `INSERT INTO hoat_dong_lop (lop_id, loai, anh_id, video_id, am_thanh_id, url, chu_thich, ngay)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
-  ).bind(
-    phien.lopId, loai,
-    loai === 'anh' ? idSo : null,
-    loai === 'video' ? idSo : null,
-    loai === 'am-thanh' ? idSo : null,
-    idSo ? null : urlSach,
-    chuoi(chuThich, 2000),
-    ngayLuu
-  ).run();
+    `INSERT INTO hoat_dong_lop
+       (lop_id, loai, tieu_de, chu_thich, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`
+  ).bind(phien.lopId, loaiGop, td, nd, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
 }, { canGiaoVien: true, quyenCan: QUYEN });

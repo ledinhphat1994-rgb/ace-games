@@ -77,9 +77,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     // ảnh trong thư viện Ảnh (thư viện còn dùng chung cho Banner, Thông báo... không nên tự lộ
     // hết ra trang chủ).
     db.prepare(
-      `SELECT hd.id, hd.loai, hd.chu_thich AS chuThich, hd.ngay, hd.url,
-              hd.video_id AS videoId, hd.am_thanh_id AS amThanhId,
-              ha.khoa AS anhKhoa, v.khoa AS videoKhoa, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
+      `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.ngay,
+              hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
+              hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
+              hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
          FROM hoat_dong_lop hd
          LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
          LEFT JOIN video v ON v.id = hd.video_id

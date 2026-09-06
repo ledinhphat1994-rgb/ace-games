@@ -1874,7 +1874,17 @@ function trangThem() {
 
 /* ================= Trang: Hoạt động lớp ================= */
 
-const ICON_LOAI_HOAT_DONG = { anh: '🖼', video: '🎬', 'am-thanh': '🎵', text: '📝' };
+// Một mục giờ có thể gộp NHIỀU loại nội dung cùng lúc (văn bản + ảnh + video + âm thanh) —
+// đọc trực tiếp từ các cột dữ liệu thực tế của mục đó, không còn dựa vào "item.loai" (cột này
+// giờ chỉ mang tính mô tả, gộp các loại cách nhau bằng dấu phẩy).
+function nhanCacLoaiHoatDong(item) {
+  const cac = [];
+  if (item.tieuDe || item.chuThich) cac.push('📝 Văn bản');
+  if (item.anhId || item.hinhUrl) cac.push('🖼 Ảnh');
+  if (item.videoId || item.videoUrl) cac.push(`🎬 ${item.videoTen || 'Video'}`);
+  if (item.amThanhId || item.amThanhUrl) cac.push(`🎵 ${item.amThanhTen || 'Âm thanh'}`);
+  return cac.length ? cac.join(' · ') : '📎 (trống)';
+}
 
 async function trangHoatDongLop(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
@@ -1893,12 +1903,8 @@ async function trangHoatDongLop(KHUNG) {
       d.danhSach.forEach((item) => {
         const m = e('div', 'muc-nhat-ky');
         const dong = e('div', 'dong-dau');
-        const nhanTen = item.loai === 'video' ? (item.videoTen || 'Video')
-          : item.loai === 'am-thanh' ? (item.amThanhTen || 'Âm thanh')
-          : item.loai === 'text' ? 'Tin hoạt động / Bài viết'
-          : (item.chuThich || 'Ảnh');
         dong.append(
-          e('span', 'nhan nhan-xam', `${ICON_LOAI_HOAT_DONG[item.loai] || '📎'} ${nhanTen}`),
+          e('span', 'nhan nhan-xam', nhanCacLoaiHoatDong(item)),
           e('span', 'ngay', ngayVN(item.ngay))
         );
         if (PHIEN.role === 'teacher') {
@@ -1915,11 +1921,12 @@ async function trangHoatDongLop(KHUNG) {
           dong.append(nutXoa);
         }
         m.append(dong);
-        if (item.chuThich && item.loai !== 'anh') {
+        if (item.tieuDe) {
+          m.append(Object.assign(e('b', null, item.tieuDe), { style: 'display:block;margin-top:6px;' }));
+        }
+        if (item.chuThich) {
           const pNd = e('p', null, item.chuThich);
-          if (item.loai === 'text') {
-            pNd.style.cssText = 'white-space:pre-wrap;margin-top:6px;line-height:1.5;color:var(--chu);';
-          }
+          pNd.style.cssText = 'white-space:pre-wrap;margin-top:4px;line-height:1.5;color:var(--chu);';
           m.append(pNd);
         }
         ds.append(m);

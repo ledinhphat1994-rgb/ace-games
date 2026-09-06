@@ -1515,100 +1515,117 @@ function moXemAnh(ds, chiSo) {
 
 function xuLyLinkAmThanhHoatDong(item) {
   if (item.amThanhKhoa) return '/api/thu-vien-tep?loai=am-thanh&id=' + encodeURIComponent(item.amThanhId);
-  return xuLyLinkNhac(item.url, item.id);
+  return xuLyLinkNhac(item.amThanhUrl, item.id);
 }
 
+/** Khối video của một hoạt động — tách riêng vì logic nhận diện nguồn (thư viện/YouTube/Drive/
+    Facebook/TikTok/link .mp4 trực tiếp) khá dài, dùng lại được cho cả thẻ chỉ có video lẫn thẻ
+    gộp nhiều loại. */
+function veKhoiVideoHoatDong(item) {
+  if (item.videoKhoa) {
+    const vid = e('video');
+    vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
+    vid.src = '/api/thu-vien-tep?loai=video&id=' + encodeURIComponent(item.videoId);
+    return vid;
+  }
+  const url = item.videoUrl;
+  const maYt = idYoutube(url);
+  const maDrive = idGoogleDrive(url);
+  if (maYt) {
+    const khung = e('iframe');
+    khung.src = 'https://www.youtube.com/embed/' + maYt;
+    khung.loading = 'lazy'; khung.allowFullscreen = true;
+    khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    return khung;
+  }
+  if (maDrive) {
+    const khung = e('iframe');
+    khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
+    khung.loading = 'lazy'; khung.allowFullscreen = true; khung.allow = 'autoplay; fullscreen';
+    return khung;
+  }
+  if (laVideoTrucTiep(url)) {
+    const vid = e('video');
+    vid.controls = true; vid.playsInline = true; vid.preload = 'metadata'; vid.src = url;
+    return vid;
+  }
+  if (/facebook\.com|fb\.watch|tiktok\.com/i.test(url || '')) {
+    const khung = e('iframe');
+    khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(url) + '&show_text=0';
+    khung.loading = 'lazy'; khung.allowFullscreen = true;
+    return khung;
+  }
+  const a = e('a', 'nut nut-vien nut-nho', '🎬 Xem video');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  return a;
+}
+
+/** Một thẻ "Hoạt động lớp" giờ có thể gộp NHIỀU loại nội dung cùng lúc (văn bản + ảnh + video +
+    âm thanh) — vẽ TỪNG khối tương ứng với đúng những gì bài đó thực sự có, thay vì chỉ vẽ một
+    loại duy nhất theo "item.loai" như thiết kế cũ. */
 function veTheHoatDong(item) {
   const the = e('div', 'hoat-dong-the');
+  the.style.cssText = 'padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
 
-  if (item.loai === 'text') {
-    the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
+  const coAnh = Boolean(item.anhKhoa || item.hinhUrl);
+  const coVideo = Boolean(item.videoKhoa || item.videoUrl);
+  const coAmThanh = Boolean(item.amThanhKhoa || item.amThanhUrl);
 
-    const dongDau = e('div');
-    dongDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
-    dongDau.append(
-      Object.assign(e('span', 'nhan nhan-chinh', '📝 Tin hoạt động'), { style: 'font-weight:700;font-size:11.5px;' }),
-      e('span', 'trong', ngayVN(item.ngay))
-    );
-    the.append(dongDau);
-
-    const noiDungText = item.chuThich || '';
-    const dongDong = noiDungText.split('\n\n');
-    let tieuDe = '';
-    let thanText = noiDungText;
+  // Dữ liệu cũ (trước khi tách cột tieu_de): tiêu đề từng được ghép chung vào chu_thich, cách
+  // nhau bằng một dòng trống — suy đoán lại cho các bài cũ, bài mới đã có tieu_de riêng.
+  let tieuDe = item.tieuDe || '';
+  let noiDung = item.chuThich || '';
+  if (!tieuDe && noiDung) {
+    const dongDong = noiDung.split('\n\n');
     if (dongDong.length > 1 && dongDong[0].length < 150) {
       tieuDe = dongDong[0];
-      thanText = dongDong.slice(1).join('\n\n');
+      noiDung = dongDong.slice(1).join('\n\n');
     }
-
-    if (tieuDe) {
-      const h4 = e('h4', null, tieuDe);
-      h4.style.cssText = 'margin:2px 0 0;font-size:15px;font-weight:700;color:var(--chu);line-height:1.4;';
-      the.append(h4);
-    }
-    const pNd = e('p', null, thanText);
-    pNd.style.cssText = 'margin:0;font-size:13.5px;color:var(--chu-nhat);white-space:pre-wrap;line-height:1.5;';
-    the.append(pNd);
-
-    return the;
   }
 
-  if (item.loai === 'anh') {
+  const nhanLoai = [tieuDe || noiDung ? '📝' : '', coAnh ? '🖼' : '', coVideo ? '🎬' : '', coAmThanh ? '🎵' : '']
+    .filter(Boolean).join(' ') || '📎';
+  const dongDau = e('div');
+  dongDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+  dongDau.append(
+    Object.assign(e('span', 'nhan nhan-chinh', nhanLoai + ' Hoạt động lớp'), { style: 'font-weight:700;font-size:11.5px;' }),
+    e('span', 'trong', ngayVN(item.ngay))
+  );
+  the.append(dongDau);
+
+  if (tieuDe) {
+    const h4 = e('h4', null, tieuDe);
+    h4.style.cssText = 'margin:0;font-size:15px;font-weight:700;color:var(--chu);line-height:1.4;';
+    the.append(h4);
+  }
+
+  if (coAnh) {
     const hinh = e('figure');
+    hinh.style.cssText = 'margin:0;cursor:zoom-in;';
     const img = e('img');
-    img.src = xuLyLinkHinh(item.anhKhoa || item.url);
-    img.alt = item.chuThich || 'Hoạt động của lớp';
+    img.src = xuLyLinkHinh(item.anhKhoa || item.hinhUrl);
+    img.alt = tieuDe || noiDung || 'Hoạt động của lớp';
     img.loading = 'lazy';
     img.decoding = 'async';
     hinh.append(img);
-    if (item.chuThich) hinh.append(e('figcaption', null, item.chuThich));
-    hinh.style.cursor = 'zoom-in';
-    hinh.addEventListener('click', () => moXemAnh([{ src: img.src, chuThich: item.chuThich }], 0));
+    hinh.addEventListener('click', () => moXemAnh([{ src: img.src, chuThich: noiDung }], 0));
     the.append(hinh);
-  } else if (item.loai === 'video') {
-    if (item.videoKhoa) {
-      const vid = e('video');
-      vid.controls = true; vid.playsInline = true; vid.preload = 'metadata';
-      vid.src = '/api/thu-vien-tep?loai=video&id=' + encodeURIComponent(item.videoId);
-      the.append(vid);
-    } else {
-      const maYt = idYoutube(item.url);
-      const maDrive = idGoogleDrive(item.url);
-      if (maYt) {
-        const khung = e('iframe');
-        khung.src = 'https://www.youtube.com/embed/' + maYt;
-        khung.loading = 'lazy'; khung.allowFullscreen = true;
-        khung.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        the.append(khung);
-      } else if (maDrive) {
-        const khung = e('iframe');
-        khung.src = 'https://drive.google.com/file/d/' + maDrive + '/preview';
-        khung.loading = 'lazy'; khung.allowFullscreen = true; khung.allow = 'autoplay; fullscreen';
-        the.append(khung);
-      } else if (laVideoTrucTiep(item.url) || /facebook\.com|fb\.watch|tiktok\.com/i.test(item.url || '')) {
-        if (laVideoTrucTiep(item.url)) {
-          const vid = e('video');
-          vid.controls = true; vid.playsInline = true; vid.preload = 'metadata'; vid.src = item.url;
-          the.append(vid);
-        } else {
-          const khung = e('iframe');
-          khung.src = 'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(item.url) + '&show_text=0';
-          khung.loading = 'lazy'; khung.allowFullscreen = true;
-          the.append(khung);
-        }
-      } else {
-        const a = e('a', 'nut nut-vien nut-nho', '🎬 Xem video');
-        a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        the.append(a);
-      }
-    }
-    if (item.chuThich) the.append(e('p', 'hoat-dong-chu-thich', item.chuThich));
-  } else {
+  }
+
+  if (coVideo) the.append(veKhoiVideoHoatDong(item));
+
+  if (coAmThanh) {
     const audio = e('audio');
     audio.controls = true; audio.preload = 'none';
     audio.src = xuLyLinkAmThanhHoatDong(item);
     the.append(audio);
-    the.append(e('p', 'hoat-dong-chu-thich', item.chuThich || item.amThanhTen || 'Âm thanh'));
+    if (!noiDung && item.amThanhTen) the.append(e('p', 'hoat-dong-chu-thich', item.amThanhTen));
+  }
+
+  if (noiDung) {
+    const pNd = e('p', null, noiDung);
+    pNd.style.cssText = 'margin:0;font-size:13.5px;color:var(--chu-nhat);white-space:pre-wrap;line-height:1.5;';
+    the.append(pNd);
   }
 
   return the;

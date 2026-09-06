@@ -1679,10 +1679,12 @@ export async function trangQuyLichSu(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   let tab = 'khoi_phuc';   // 'khoi_phuc' | 'thu' | 'chi' | 'co_dinh'
 
-  // Tra MỘT LẦN cho cả trang — dùng chung cho cả 3 tab để quyết định có hiện nút xoá hay
-  // không. Tài khoản cán sự (kể cả được cấp quyền "quy") KHÔNG được xoá lịch sử/khôi phục:
-  // bocXuLy() phía máy chủ đã tự chặn cứng mọi DELETE từ tài khoản không phải giáo viên (xem
-  // functions/_lib/api.js), nút ở đây chỉ ẩn đi cho gọn giao diện, không phải lớp bảo vệ chính.
+  // Tra MỘT LẦN cho cả trang. "laGiaoVien" giờ CHỈ còn dùng để ẩn/hiện các thao tác của riêng
+  // tab "🛡️ Khôi phục" (xem/khôi phục/xoá điểm khôi phục) — thứ duy nhất vẫn mãi mãi chỉ giáo
+  // viên chủ nhiệm mới đụng tới được (bocXuLy() phía máy chủ tự chặn cứng, xem
+  // functions/api/gv/quy-checkpoint.js). Xoá khoản thu/khoản chi/lần đóng ở 2 tab còn lại thì
+  // tài khoản thủ quỹ (phu + quyền "quy") làm được BÌNH THƯỜNG như giáo viên — ai vào được
+  // trang này cũng đã đủ quyền "quy" nên không cần điều kiện riêng cho các nút xoá đó nữa.
   const phienD = await api('/api/whoami').catch(() => ({ role: '' }));
   const laGiaoVien = phienD.role === 'teacher';
 
@@ -1800,7 +1802,7 @@ export async function trangQuyLichSu(KHUNG) {
     const khung = e('div');
     if (!d.khoan.length) { khung.append(e('p', 'trong', 'Chưa có khoản thu nào.')); return khung; }
 
-    if (laGiaoVien) {
+    {
       const hangNut = e('div');
       hangNut.style.cssText = 'margin-bottom:10px;text-align:right';
       hangNut.append(nut('🗑 Xoá tất cả khoản thu', 'nut-nhe nut-nho', () => {
@@ -1861,7 +1863,7 @@ export async function trangQuyLichSu(KHUNG) {
       khoiTrai.append(thongTin);
       dong1.append(khoiTrai);
       const khoiPhai = e('div', 'hs-khoi-phai');
-      if (laGiaoVien) {
+      {
         const bXoa = e('button', 'nut-thao-tac-lan xoa');
         bXoa.type = 'button';
         bXoa.title = 'Xoá khoản thu: ' + k.ten;
@@ -1912,7 +1914,7 @@ export async function trangQuyLichSu(KHUNG) {
     const khung = e('div');
     if (!d.chi.length) { khung.append(e('p', 'trong', 'Chưa có khoản chi nào.')); return khung; }
 
-    if (laGiaoVien) {
+    {
       const hangNut = e('div');
       hangNut.style.cssText = 'margin-bottom:10px;text-align:right';
       hangNut.append(nut('🗑 Xoá tất cả khoản chi', 'nut-nhe nut-nho', () => {
@@ -1949,7 +1951,7 @@ export async function trangQuyLichSu(KHUNG) {
         e('span', 'nhan nhan-xam', loaiTen),
         e('span', 'nhan nhan-luuy', '-' + tienVN(c.soTien))
       );
-      if (laGiaoVien) {
+      {
         const viec = e('div', 'viec');
         viec.append(nut('🗑 Xoá', 'nut-nho nut-nhe', () => {
           moHopThoai('Xoá khoản chi này?', e('p', null, c.noiDung + ' — ' + tienVN(c.soTien)), [

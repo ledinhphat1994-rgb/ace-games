@@ -1,7 +1,8 @@
 /* Hộp thoại thêm MỘT mục vào "Hoạt động lớp" — dành cho giáo viên hoặc học sinh được cấp quyền.
-   Hỗ trợ 2 hình thức:
-     1) Bài viết / Bản tin văn bản (text thông thường) — dành cho mọi tài khoản có quyền Hoạt động lớp.
-     2) Đính kèm Media (Ảnh, Video, Âm thanh) — chỉ dành cho tài khoản có quyền Thư viện tương ứng. */
+   Văn bản / Ảnh / Video / Âm thanh giờ là 4 CÔNG TẮC ĐỘC LẬP — bấm để bật (sáng), bấm lại để
+   tắt — có thể bật NHIỀU cái cùng lúc, đăng gộp thành MỘT bài duy nhất (giống hệt cách Thông
+   báo đã làm), thay vì buộc chọn đúng một loại như thiết kế cũ. Loại nào tài khoản chưa được
+   cấp quyền thư viện tương ứng thì công tắc đó bị khoá (🔒), chỉ bấm được Văn bản. */
 import { e, api, datNoiDung, ngayVN, nenAnhThanhBlob, nhac, homNay } from './chung.js';
 import { nut, oNhap, oChon, moHopThoai, dongHopThoai, truong } from './giao-dien.js';
 
@@ -75,182 +76,158 @@ async function khoiAmThanh() {
 }
 
 export async function moHopThoaiThemHoatDong(lamMoi) {
-  // Lấy thông tin phiên để phân quyền các tab media
+  // Lấy thông tin phiên để phân quyền từng công tắc media
   const phien = await api('/api/whoami').catch(() => ({ role: 'teacher', quyen: [] }));
   const laGiaoVien = phien.role === 'teacher';
   const quyen = phien.quyen || [];
   const coQuyenAnh = laGiaoVien || quyen.includes('hinh-anh');
   const coQuyenVideo = laGiaoVien || quyen.includes('video');
   const coQuyenAmThanh = laGiaoVien || quyen.includes('am-thanh');
-  const coBatKyMedia = coQuyenAnh || coQuyenVideo || coQuyenAmThanh;
 
-  // Khởi tạo các khối nhập
   const oNgay = oNhap('hdNgay', 'date', homNay());
 
-  // 1. Khối Văn bản (Text)
+  // Khối Văn bản — tiêu đề/nội dung dùng chung cho CẢ bài (kể cả khi có kèm media, đây là chú
+  // thích chung của bài đó, không phải chú thích riêng từng loại nữa).
   const oTieuDe = oNhap('hdTieuDe', 'text', '', 'Ví dụ: Lao động vệ sinh khuôn viên lớp, Thi văn nghệ 20/11...');
   const oNoiDungText = oNhap('hdNoiDungText', 'textarea', '', 'Ghi lại diễn biến, thành tích hoặc chi tiết hoạt động...');
   oNoiDungText.rows = 4;
   const khungText = e('div');
-  khungText.append(
-    truong('Tiêu đề / Chủ đề hoạt động', oTieuDe),
-    truong('Nội dung chi tiết', oNoiDungText),
-    truong('Ngày diễn ra', oNgay)
-  );
+  khungText.append(truong('Tiêu đề / Chủ đề', oTieuDe), truong('Nội dung chi tiết', oNoiDungText));
 
-  // 2. Các khối Media (chỉ nạp khi có quyền tương ứng)
   const [ketQuaAnh, ketQuaVideo, ketQuaNhac] = await Promise.all([
     coQuyenAnh ? khoiAnh() : null,
     coQuyenVideo ? khoiVideo() : null,
     coQuyenAmThanh ? khoiAmThanh() : null,
   ]);
-  const KHOI_THEO_LOAI = {
-    text: { khung: khungText },
-    anh: ketQuaAnh,
-    video: ketQuaVideo,
-    'am-thanh': ketQuaNhac,
-  };
 
-  // Mặc định chọn text nếu không có media hoặc ưu tiên text cho học sinh
-  let loaiHienTai = coBatKyMedia ? 'anh' : 'text';
-
+  // 4 công tắc độc lập — Set các loại đang BẬT. Mặc định bật sẵn "Văn bản" (ai cũng có quyền).
+  const dangBat = new Set(['text']);
   const CAC_LOAI = [
-    ['text', '📝 Văn bản / Bài viết', true],
-    ['anh', coQuyenAnh ? '🖼 Ảnh' : '🔒 Ảnh', coQuyenAnh, 'Cần quyền Thư viện Ảnh'],
-    ['video', coQuyenVideo ? '🎬 Video' : '🔒 Video', coQuyenVideo, 'Cần quyền Thư viện Video'],
-    ['am-thanh', coQuyenAmThanh ? '🎵 Âm thanh' : '🔒 Âm thanh', coQuyenAmThanh, 'Cần quyền Thư viện Âm thanh'],
+    ['text', 'Văn bản / Bài viết', true, null, khungText],
+    ['anh', 'Ảnh', coQuyenAnh, 'Thư viện Ảnh', ketQuaAnh?.khung],
+    ['video', 'Video', coQuyenVideo, 'Thư viện Video', ketQuaVideo?.khung],
+    ['am-thanh', 'Âm thanh', coQuyenAmThanh, 'Thư viện Âm thanh', ketQuaNhac?.khung],
   ];
+  const ICON_LOAI = { text: '📝', anh: '🖼', video: '🎬', 'am-thanh': '🎵' };
 
-  const dayTabLoai = e('div', 'day-loc');
-  dayTabLoai.style.cssText = 'margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;';
-  const khungLoai = e('div');
-  const oChuThichMedia = oNhap('hdChuThichMedia', 'text', '', 'Ví dụ: Buổi giao lưu chào cờ sáng thứ Hai (không bắt buộc)');
-  const vungChuThichMedia = e('div');
-  vungChuThichMedia.style.marginTop = '10px';
-  vungChuThichMedia.append(e('label', 'nhan-nhap', 'Chú thích ảnh/video/âm thanh'), oChuThichMedia);
+  const dayCongTac = e('div', 'day-loc');
+  dayCongTac.style.cssText = 'margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;';
+  const khungNoiDung = e('div');
+  khungNoiDung.style.cssText = 'display:flex;flex-direction:column;gap:14px;';
 
-  // Thông báo giải thích quy tắc text cho học sinh không có quyền media
-  const hopHuongDan = e('div');
-  hopHuongDan.style.cssText = 'padding:10px 12px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;font-size:12.5px;color:var(--chu);line-height:1.5;margin-bottom:12px;';
-  if (!coBatKyMedia) {
-    datNoiDung(hopHuongDan,
-      Object.assign(e('b', null, 'ℹ️ Chế độ văn bản: '), { style: 'color:var(--chinh)' }),
-      document.createTextNode('Bạn được cấp quyền '),
-      e('i', null, 'Hoạt động lớp'),
-      document.createTextNode(' để đăng tin, bài viết sự kiện bằng văn bản. Để tải ảnh, video hoặc bài hát, nhờ giáo viên chủ nhiệm cấp thêm quyền '),
-      e('i', null, 'Thư viện'),
-      document.createTextNode(' tương ứng.')
-    );
-  } else {
-    datNoiDung(hopHuongDan,
-      Object.assign(e('b', null, '💡 Hoạt động lớp: '), { style: 'color:var(--chinh)' }),
-      document.createTextNode('Bạn có thể đăng bản tin dạng văn bản hoặc đính kèm ảnh, video, âm thanh vào trang chủ.')
-    );
-  }
-
-  function veTabLoai() {
-    datNoiDung(dayTabLoai, ...CAC_LOAI.map(([ma, nhan, choPhep, lyDo]) => {
-      const b = e('button', 'vien-loc', nhan);
+  function veCongTac() {
+    datNoiDung(dayCongTac, ...CAC_LOAI.map(([ma, nhan, choPhep, tenQuyen]) => {
+      const dangBatMa = dangBat.has(ma);
+      const b = e('button', 'vien-loc', (choPhep ? ICON_LOAI[ma] : '🔒') + ' ' + nhan);
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(loaiHienTai === ma));
+      b.setAttribute('aria-pressed', String(dangBatMa));
       if (!choPhep) {
         b.style.opacity = '0.55';
-        b.title = lyDo || 'Chưa được cấp quyền';
+        b.title = `Cần quyền ${tenQuyen}`;
       }
       b.addEventListener('click', () => {
         if (!choPhep) {
-          return nhac(`Tài khoản chưa được cấp quyền ${lyDo ? lyDo.replace('Cần ', '') : 'này'}. Bạn có thể ghi bài viết bằng tab "Văn bản / Bài viết".`, 'xau');
+          return nhac(`Tài khoản chưa được cấp quyền ${tenQuyen}. Nhờ giáo viên chủ nhiệm cấp thêm quyền để dùng mục này.`, 'xau');
         }
-        loaiHienTai = ma;
-        veTabLoai();
-        veNoiDungLoai();
+        if (dangBatMa) dangBat.delete(ma); else dangBat.add(ma);
+        veCongTac();
+        veNoiDung();
       });
       return b;
     }));
   }
 
-  function veNoiDungLoai() {
-    if (loaiHienTai === 'text') {
-      datNoiDung(khungLoai, KHOI_THEO_LOAI.text.khung);
-      vungChuThichMedia.hidden = true;
-    } else {
-      datNoiDung(khungLoai, KHOI_THEO_LOAI[loaiHienTai].khung);
-      vungChuThichMedia.hidden = false;
+  function veNoiDung() {
+    const khoiHien = CAC_LOAI.filter(([ma]) => dangBat.has(ma)).map(([, , , , khung]) => khung).filter(Boolean);
+    if (!khoiHien.length) {
+      datNoiDung(khungNoiDung, e('p', 'trong', 'Bật ít nhất một công tắc ở trên (Văn bản, Ảnh, Video hoặc Âm thanh) để bắt đầu.'));
+      return;
     }
+    datNoiDung(khungNoiDung, ...khoiHien);
   }
 
-  veTabLoai();
-  veNoiDungLoai();
+  veCongTac();
+  veNoiDung();
 
   moHopThoai('Thêm hoạt động lớp', [
-    hopHuongDan,
-    dayTabLoai,
-    khungLoai,
-    vungChuThichMedia,
+    e('p', 'trong', '💡 Bấm để bật/tắt từng mục — có thể bật nhiều mục cùng lúc, đăng gộp thành một bài duy nhất.'),
+    dayCongTac,
+    khungNoiDung,
+    truong('Ngày diễn ra', oNgay),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Đăng lên trang chủ', '', async (ev) => {
       ev.currentTarget.disabled = true;
-
       try {
-        if (loaiHienTai === 'text') {
-          const td = oTieuDe.value.trim();
-          const nd = oNoiDungText.value.trim();
-          if (!td && !nd) {
-            ev.currentTarget.disabled = false;
-            return nhac('Vui lòng nhập tiêu đề hoặc nội dung hoạt động.', 'xau');
-          }
-          await api('/api/gv/hoat-dong-lop', {
-            method: 'POST',
-            than: {
-              loai: 'text',
-              tieuDe: td,
-              chuThich: nd,
-              ngay: oNgay.value || homNay(),
-            },
-          });
-        } else {
-          const { oTep, oLink, oThuVien, layNguon } = KHOI_THEO_LOAI[loaiHienTai];
+        const than = { ngay: oNgay.value || homNay() };
+
+        if (dangBat.has('text')) {
+          than.tieuDe = oTieuDe.value.trim();
+          than.noiDung = oNoiDungText.value.trim();
+        }
+
+        if (dangBat.has('anh') && ketQuaAnh) {
+          const { oTep, oLink, oThuVien, layNguon } = ketQuaAnh;
           const nguon = layNguon();
           const tep = oTep.files[0];
-
-          if (loaiHienTai === 'video' && tep && tep.size > 50_000_000) {
-            ev.currentTarget.disabled = false;
-            return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau');
-          }
-          if (loaiHienTai === 'am-thanh' && tep && tep.size > 12_000_000) {
-            ev.currentTarget.disabled = false;
-            return nhac('File nhạc vượt quá 12 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau');
-          }
-          if (nguon === 'tai-len' && !tep) {
-            ev.currentTarget.disabled = false;
-            return nhac('Chưa chọn file để tải lên.', 'xau');
-          }
-          if (nguon === 'thu-vien' && !oThuVien.value) {
-            ev.currentTarget.disabled = false;
-            return nhac('Chưa chọn mục nào trong thư viện.', 'xau');
-          }
-          if (nguon === 'link' && !oLink.value.trim()) {
-            ev.currentTarget.disabled = false;
-            return nhac('Chưa dán link nào.', 'xau');
-          }
-
+          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn ảnh để tải lên.', 'xau'); }
+          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn ảnh nào trong thư viện.', 'xau'); }
+          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link ảnh.', 'xau'); }
           if (nguon === 'tai-len') {
-            const duLieu = loaiHienTai === 'anh' ? await nenAnhThanhBlob(tep) : await tep.arrayBuffer();
-            const kieu = loaiHienTai === 'anh' ? 'image/jpeg' : (tep.type || (loaiHienTai === 'video' ? 'video/mp4' : 'audio/mpeg'));
-            await api(`/api/gv/hoat-dong-lop-tep?loai=${loaiHienTai}`, { method: 'POST', headers: { 'Content-Type': kieu }, body: duLieu });
+            const blob = await nenAnhThanhBlob(tep);
+            const kq = await api('/api/gv/hoat-dong-lop-tep?loai=anh', { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+            than.anhId = kq.id;
+          } else if (nguon === 'thu-vien') {
+            than.anhId = Number(oThuVien.value);
           } else {
-            const than = { loai: loaiHienTai, chuThich: oChuThichMedia.value.trim(), ngay: oNgay.value || homNay() };
-            if (nguon === 'thu-vien') {
-              if (loaiHienTai === 'anh') than.anhId = Number(oThuVien.value);
-              else if (loaiHienTai === 'video') than.videoId = Number(oThuVien.value);
-              else than.amThanhId = Number(oThuVien.value);
-            } else {
-              than.url = oLink.value.trim();
-            }
-            await api('/api/gv/hoat-dong-lop', { method: 'POST', than });
+            than.hinhUrl = oLink.value.trim();
           }
         }
+
+        if (dangBat.has('video') && ketQuaVideo) {
+          const { oTep, oLink, oThuVien, layNguon } = ketQuaVideo;
+          const nguon = layNguon();
+          const tep = oTep.files[0];
+          if (nguon === 'tai-len' && tep && tep.size > 50_000_000) { ev.currentTarget.disabled = false; return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
+          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn video để tải lên.', 'xau'); }
+          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn video nào trong thư viện.', 'xau'); }
+          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link video.', 'xau'); }
+          if (nguon === 'tai-len') {
+            const duLieu = await tep.arrayBuffer();
+            const kq = await api('/api/gv/hoat-dong-lop-tep?loai=video', { method: 'POST', headers: { 'Content-Type': tep.type || 'video/mp4' }, body: duLieu });
+            than.videoId = kq.id;
+          } else if (nguon === 'thu-vien') {
+            than.videoId = Number(oThuVien.value);
+          } else {
+            than.videoUrl = oLink.value.trim();
+          }
+        }
+
+        if (dangBat.has('am-thanh') && ketQuaNhac) {
+          const { oTep, oLink, oThuVien, layNguon } = ketQuaNhac;
+          const nguon = layNguon();
+          const tep = oTep.files[0];
+          if (nguon === 'tai-len' && tep && tep.size > 12_000_000) { ev.currentTarget.disabled = false; return nhac('File nhạc vượt quá 12 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
+          if (nguon === 'tai-len' && !tep) { ev.currentTarget.disabled = false; return nhac('Chưa chọn file nhạc để tải lên.', 'xau'); }
+          if (nguon === 'thu-vien' && !oThuVien.value) { ev.currentTarget.disabled = false; return nhac('Chưa chọn bài nào trong thư viện.', 'xau'); }
+          if (nguon === 'link' && !oLink.value.trim()) { ev.currentTarget.disabled = false; return nhac('Chưa dán link âm thanh.', 'xau'); }
+          if (nguon === 'tai-len') {
+            const duLieu = await tep.arrayBuffer();
+            const kq = await api('/api/gv/hoat-dong-lop-tep?loai=am-thanh', { method: 'POST', headers: { 'Content-Type': tep.type || 'audio/mpeg' }, body: duLieu });
+            than.amThanhId = kq.id;
+          } else if (nguon === 'thu-vien') {
+            than.amThanhId = Number(oThuVien.value);
+          } else {
+            than.amThanhUrl = oLink.value.trim();
+          }
+        }
+
+        if (!than.tieuDe && !than.noiDung && !than.anhId && !than.hinhUrl && !than.videoId && !than.videoUrl && !than.amThanhId && !than.amThanhUrl) {
+          ev.currentTarget.disabled = false;
+          return nhac('Bật ít nhất một mục và nhập/chọn nội dung cho mục đó.', 'xau');
+        }
+
+        await api('/api/gv/hoat-dong-lop', { method: 'POST', than });
 
         dongHopThoai();
         nhac('Đã đăng vào Hoạt động lớp', 'tot');
