@@ -100,4 +100,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const kq = await env.DB.prepare('DELETE FROM hoat_dong_lop WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy mục này.', 404);
   return json({ ok: true });
-}, { canGiaoVien: true, quyenCan: QUYEN });
+// choPhepXoaPhu: bocXuLy() mặc định chặn CỨNG mọi DELETE từ tài khoản không phải giáo viên,
+// bất kể quyenCan có khớp hay không — phải khai báo rõ ở đây mới thật sự xoá được (thiếu dòng
+// này là lý do nút "Gỡ" hiện ra đúng cho tài khoản có quyền nhưng bấm vào vẫn bị từ chối).
+}, { canGiaoVien: true, quyenCan: QUYEN, choPhepXoaPhu: true });

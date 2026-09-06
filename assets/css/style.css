@@ -892,6 +892,10 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 
 /* ---------- 11. Thư viện ảnh ---------- */
 .thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+/* Mục "Hoạt động lớp" ở trang chủ: 1 tin 1 hàng (dọc) thay vì lưới ngang, để xem được nhiều
+   nội dung hơn trên mỗi bài — chỉ áp dụng ở đây, KHÔNG đổi lưới ảnh của trang quản lý Thư viện
+   Ảnh (giao-vien/trang-hoc-tap.js cũng dùng chung class .thu-vien cho mục đích khác). */
+#hinh-anh .thu-vien { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
 .thu-vien figure {
   position: relative;
   margin: 0; border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
