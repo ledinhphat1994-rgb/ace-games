@@ -326,7 +326,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 ELSE 0 END) AS vang_phep,
               SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vang_khong_phep
          FROM hoc_sinh h LEFT JOIN diem_danh d
-           ON d.hoc_sinh_id = h.id AND d.ngay BETWEEN ?1 AND ?2
+           ON d.hoc_sinh_id = h.id AND d.ngay BETWEEN ?1 AND ?2 AND (d.buoi IS NULL OR d.buoi NOT LIKE '%_phu')
         WHERE h.dang_hoc = 1 AND h.lop_id = ?3 GROUP BY h.id ORDER BY h.id`
     ).bind(tuNgay, denNgay, lopId).all();
 
@@ -606,23 +606,26 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   // 6. MỤC: THÔNG BÁO (Khớp mục "Thông báo" trong Vùng 1)
   if (loai === 'thong-bao') {
     const { results } = await db.prepare(
-      `SELECT id, tieu_de, noi_dung, ngay_tao, ghim, nguoi_tao
-         FROM thong_bao WHERE lop_id = ?1 ORDER BY ngay_tao DESC, id DESC`
+      `SELECT id, tieu_de, noi_dung, ngay, ghim, loai, muc_do
+         FROM thong_bao WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC`
     ).bind(lopId).all();
+
+    const NHAN_MUC_DO = { ok: 'Tốt / lễ hội', warn: 'Cần chú ý', danger: 'Quan trọng' };
 
     const cacHang = results.map((t, i) => [
       { v: i + 1, kieu: 'giua' },
-      { v: ngayVN(t.ngay_tao ? t.ngay_tao.slice(0, 10) : ''), kieu: 'giua' },
+      { v: ngayVN(t.ngay), kieu: 'giua' },
       { v: t.tieu_de, kieu: 'trai', dam: true },
       { v: t.noi_dung, kieu: 'trai' },
       { v: t.ghim ? '★ Đang ghim' : 'Bình thường', kieu: 'giua', mau: t.ghim ? '#0284c7' : '' },
-      { v: t.nguoi_tao || 'Giáo viên', kieu: 'giua' },
+      { v: NHAN_MUC_DO[t.muc_do] || 'Bình thường', kieu: 'giua' },
+      { v: t.loai || 'Chủ nhiệm', kieu: 'giua' },
     ]);
 
     return phanHoiBaoCao(dinhDang, `Bao_cao_Thong_bao_${tenLopTep}`, {
       tieuDe: `BÁO CÁO DANH SÁCH THÔNG BÁO ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Tổng hợp toàn bộ thông báo đã ban hành đến ngày ${ngayVN(denNgay)}`,
-      tieuDeCot: ['STT', 'Ngày ban hành', 'Tiêu đề thông báo', 'Nội dung chi tiết', 'Trạng thái', 'Người ban hành'],
+      tieuDeCot: ['STT', 'Ngày ban hành', 'Tiêu đề thông báo', 'Nội dung chi tiết', 'Trạng thái', 'Mức độ', 'Người ban hành'],
       cacHang,
     }, lop);
   }
