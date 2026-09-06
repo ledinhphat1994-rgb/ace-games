@@ -1575,7 +1575,7 @@ function veKhoiVideoHoatDong(item) {
 /** Một thẻ "Hoạt động lớp" giờ có thể gộp NHIỀU loại nội dung cùng lúc (văn bản + ảnh + video +
     âm thanh) — vẽ TỪNG khối tương ứng với đúng những gì bài đó thực sự có, thay vì chỉ vẽ một
     loại duy nhất theo "item.loai" như thiết kế cũ. */
-function veTheHoatDong(item) {
+function veTheHoatDong(item, coNutXoa) {
   const the = e('div', 'hoat-dong-the');
   the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
 
@@ -1598,7 +1598,10 @@ function veTheHoatDong(item) {
   const nhanLoai = [tieuDe || noiDung ? '📝' : '', coAnh ? '🖼' : '', coVideo ? '🎬' : '', coAmThanh ? '🎵' : '']
     .filter(Boolean).join(' ') || '📎';
   const dongDau = e('div');
-  dongDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+  // Chừa chỗ bên phải khi có nút "🗑 Gỡ" (định vị absolute đè lên góc thẻ) — nếu không, ngày
+  // đăng bị nút xoá che mất trên khung hẹp (điện thoại).
+  dongDau.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;'
+    + (coNutXoa ? 'padding-right:34px;' : '');
   dongDau.append(
     Object.assign(e('span', 'nhan nhan-chinh', nhanLoai + ' Hoạt động lớp'), { style: 'font-weight:700;font-size:11.5px;' }),
     e('span', 'trong', ngayVN(item.ngay))
@@ -1680,7 +1683,7 @@ function veHoatDongLop(ds, phien, lamMoi) {
     const duocXoaHoatDong = Boolean(phien && (phien.role === 'teacher'
       || ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'].some((q) => (phien.quyen || []).includes(q))));
     datNoiDung(hop, ...dsHien.map((item) => {
-      const the = veTheHoatDong(item);
+      const the = veTheHoatDong(item, duocXoaHoatDong);
       if (duocXoaHoatDong) {
         const nutXoa = e('button', 'nut-xoa-anh nut-nho', '🗑');
         nutXoa.type = 'button';
