@@ -1608,10 +1608,18 @@ function veTheHoatDong(item, coNutXoa) {
   );
   the.append(dongDau);
 
+  // Giống bài đăng trên mạng xã hội (X, Facebook): PHẦN VIẾT (tiêu đề + nội dung) luôn ở trên
+  // cùng, media (ảnh/video/âm thanh) xếp bên dưới — không xen giữa nội dung như thiết kế cũ.
   if (tieuDe) {
     const h4 = e('h4', null, tieuDe);
     h4.style.cssText = 'margin:0;font-size:19px;font-weight:800;color:var(--chu);line-height:1.35;';
     the.append(h4);
+  }
+
+  if (noiDung) {
+    const pNd = e('p', null, noiDung);
+    pNd.style.cssText = 'margin:0;font-size:15.5px;color:var(--chu);white-space:pre-wrap;line-height:1.6;';
+    the.append(pNd);
   }
 
   if (coAnh) {
@@ -1635,12 +1643,6 @@ function veTheHoatDong(item, coNutXoa) {
     audio.src = xuLyLinkAmThanhHoatDong(item);
     the.append(audio);
     if (!noiDung && item.amThanhTen) the.append(e('p', 'hoat-dong-chu-thich', item.amThanhTen));
-  }
-
-  if (noiDung) {
-    const pNd = e('p', null, noiDung);
-    pNd.style.cssText = 'margin:0;font-size:15.5px;color:var(--chu);white-space:pre-wrap;line-height:1.6;';
-    the.append(pNd);
   }
 
   return the;

@@ -920,8 +920,10 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .hoat-dong-the video, .hoat-dong-the iframe { aspect-ratio: 16 / 9; width: 100%; display: block; border: 0; background: #000; }
 .hoat-dong-the audio { display: block; margin: 14px 12px 6px; width: calc(100% - 24px); }
 /* Ảnh trong bài "Hoạt động lớp": KHÔNG ép cắt vuông 4:3 như lưới Thư viện Ảnh (.thu-vien img) —
-   để ảnh hiện trọn vẹn, khớp khung hình gốc, chỉ giới hạn chiều cao tối đa cho ảnh quá dài. */
-.hoat-dong-the img { aspect-ratio: auto; max-height: 70vh; object-fit: contain; background: var(--nen-the, var(--nen-chim)); border-radius: var(--r-nho, 10px); }
+   để ảnh hiện trọn vẹn, khớp khung hình gốc. Không đặt max-height/object-fit ở đây: kết hợp với
+   width:100% sẽ ép hộp chứa co theo chiều cao, khiến ảnh dọc bị "đóng khung" chừa khoảng trắng
+   2 bên thay vì lấp đầy hết chiều ngang của thẻ. */
+.hoat-dong-the img { aspect-ratio: auto; width: 100%; height: auto; border-radius: var(--r-nho, 10px); }
 .hoat-dong-chu-thich { padding: 4px 11px 11px; font-size: 12.5px; color: var(--chu-nhat); margin: 0; }
 .hoat-dong-the .nut-xoa-anh, .thu-vien figure .nut-xoa-anh {
   position: absolute; top: 8px; right: 8px; z-index: 2;
