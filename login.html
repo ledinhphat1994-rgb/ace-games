@@ -36,10 +36,15 @@
 
 <main class="the-dang-nhap">
   <div class="hieu-o" id="hieuOChinh">🎓</div>
-  <h1 id="tieuDeDangNhap">Đăng nhập</h1>
-  <p class="phu" id="phuDeDangNhap">Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã</p>
+  <h1 id="tieuDeDangNhap">Chọn lớp của em</h1>
+  <p class="phu" id="phuDeDangNhap">Chạm vào đúng lớp của mình để tiếp tục</p>
 
-  <form id="bieuMau" autocomplete="off">
+  <!-- Bước 1: chọn lớp (chỉ hiện khi vào thẳng / mà không kèm ?lop=, và có từ 2 lớp trở lên). -->
+  <div id="chonLop" style="display:none;flex-direction:column;gap:10px;margin:18px 0;" hidden></div>
+
+  <!-- Bước 2: nhập mã — ẩn cho tới khi đã biết đang vào lớp nào. -->
+  <form id="bieuMau" autocomplete="off" hidden>
+    <button type="button" id="nutDoiLop" class="nut-nhe nut-nho" style="margin-bottom:10px;" hidden>‹ Chọn lại lớp khác</button>
     <label class="nhan-nhap" for="ma">Mã cá nhân của em (hoặc mã giáo viên)</label>
     <input class="o-nhap" id="ma" name="ma" type="password"
            placeholder="Nhập mã cá nhân giáo viên chủ nhiệm đã cấp" required autofocus
@@ -60,27 +65,101 @@
   import { ganDoiGiaoDien } from '/assets/js/chung.js';
   ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
 
-  // Mỗi lớp có một đường link đăng nhập riêng: /login.html?lop=<slug> — mở đúng link của lớp
-  // nào thì thấy ngay tên lớp đó TRƯỚC KHI nhập mã, để học sinh chắc chắn đang vào đúng trang
-  // của lớp mình (không phải cơ chế bảo mật, chỉ để hiển thị — mã vẫn xác thực như cũ).
-  (async function hienThiTenLop() {
-    const slug = new URLSearchParams(location.search).get('lop');
-    if (!slug) return;
-    try {
-      const res = await fetch('/api/lop-cong-khai?lop=' + encodeURIComponent(slug));
-      const d = await res.json();
-      if (!d.ok || !d.lop) return;
-      const tenNgan = (d.lop.ten || '').replace(/^Lớp\s*/i, '');
-      document.title = `Đăng nhập · ${d.lop.ten}`;
-      document.getElementById('hieuTenLop').textContent = d.lop.ten;
-      document.getElementById('hieuMaLop').textContent = tenNgan || '🎓';
-      document.getElementById('tieuDeDangNhap').textContent = d.lop.ten;
-      document.getElementById('hieuOChinh').textContent = tenNgan || '🎓';
-      document.getElementById('phuDeDangNhap').textContent = d.lop.truong || '';
-    } catch { /* giữ nguyên chữ chung chung nếu không tra được */ }
-  })();
-
+  // Đăng nhập giờ có 2 BƯỚC khi vào thẳng "/" (không kèm ?lop=): (1) chọn đúng lớp trong danh
+  // sách công khai (chỉ tên lớp, không phải cơ chế bảo mật), (2) nhập mã của đúng lớp đó. Mở
+  // thẳng link riêng của một lớp (?lop=<slug>) thì bỏ qua bước 1, vào ngay bước 2.
+  const chonLop = document.getElementById('chonLop');
   const bieuMau = document.getElementById('bieuMau');
+  const nutDoiLop = document.getElementById('nutDoiLop');
+
+  function apDungThuongHieu(lop) {
+    const tenNgan = (lop.ten || '').replace(/^Lớp\s*/i, '');
+    document.title = `Đăng nhập · ${lop.ten}`;
+    document.getElementById('hieuTenLop').textContent = lop.ten;
+    document.getElementById('hieuMaLop').textContent = tenNgan || '🎓';
+    document.getElementById('tieuDeDangNhap').textContent = lop.ten;
+    document.getElementById('hieuOChinh').textContent = tenNgan || '🎓';
+    document.getElementById('phuDeDangNhap').textContent = lop.truong || '';
+  }
+
+  // Giữ nguyên "next" (trang định vào trước khi bị bắt đăng nhập lại) khi đổi URL sang dạng
+  // ?lop=... — không thì đăng nhập xong sẽ bị đưa về trang mặc định thay vì đúng trang đang xem dở.
+  function datThamSoLop(slug) {
+    const qs = new URLSearchParams(location.search);
+    qs.set('lop', slug);
+    history.replaceState(null, '', '?' + qs.toString());
+  }
+
+  // Lưu ý: #chonLop có style="display:flex" cố định để xếp các nút theo cột — thuộc tính
+  // "hidden" một mình không thắng nổi display:flex đã đặt sẵn (inline style luôn thắng), nên
+  // MỌI LẦN ẩn/hiện đều phải đặt lại .style.display tường minh, không chỉ đổi .hidden.
+  function hienChonLop(hien) {
+    chonLop.hidden = !hien;
+    chonLop.style.display = hien ? 'flex' : 'none';
+  }
+
+  function moBuocNhapMa(slug, lop, coTheDoiLop) {
+    if (lop) apDungThuongHieu(lop);
+    if (slug) datThamSoLop(slug);
+    hienChonLop(false);
+    bieuMau.hidden = false;
+    nutDoiLop.hidden = !coTheDoiLop;
+    document.getElementById('ma').focus();
+  }
+
+  function moBuocChonLop(danhSach) {
+    document.getElementById('hieuTenLop').textContent = 'Hệ thống lớp học';
+    document.getElementById('hieuMaLop').textContent = '🎓';
+    document.getElementById('hieuOChinh').textContent = '🎓';
+    document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';
+    document.getElementById('phuDeDangNhap').textContent = 'Chạm vào đúng lớp của mình để tiếp tục';
+    document.title = 'Chọn lớp — Đăng nhập';
+    chonLop.innerHTML = '';
+    danhSach.forEach((lop) => {
+      const nut = document.createElement('button');
+      nut.type = 'button';
+      nut.className = 'nut nut-vien nut-rong';
+      nut.textContent = lop.ten;
+      nut.addEventListener('click', () => moBuocNhapMa(lop.slug, lop, true));
+      chonLop.append(nut);
+    });
+    hienChonLop(true);
+    bieuMau.hidden = true;
+  }
+
+  nutDoiLop.addEventListener('click', () => {
+    const qs = new URLSearchParams(location.search);
+    qs.delete('lop');
+    history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs.toString() : ''));
+    khoiDongTrang();
+  });
+
+  async function khoiDongTrang() {
+    const slug = new URLSearchParams(location.search).get('lop');
+
+    if (slug) {
+      try {
+        const d = await fetch('/api/lop-cong-khai?lop=' + encodeURIComponent(slug)).then((r) => r.json());
+        if (d.ok && d.lop) return moBuocNhapMa(slug, d.lop, true);
+      } catch { /* rơi xuống bước chọn lớp nếu tra không được */ }
+    }
+
+    try {
+      const d = await fetch('/api/lop-cong-khai').then((r) => r.json());
+      const danhSach = (d.ok && d.danhSach) || [];
+      if (danhSach.length === 1) return moBuocNhapMa(danhSach[0].slug, danhSach[0], false);
+      if (danhSach.length > 1) return moBuocChonLop(danhSach);
+    } catch { /* không tra được danh sách lớp — vẫn cho nhập mã chung chung bên dưới */ }
+
+    // Không có slug, không tra được lớp nào — vẫn mở form nhập mã chung chung để không chặn
+    // đường vào của bất kỳ ai (đăng nhập vẫn luôn dựa vào chính mã nhập, không phụ thuộc bước này).
+    document.getElementById('tieuDeDangNhap').textContent = 'Đăng nhập';
+    document.getElementById('phuDeDangNhap').textContent = 'Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã';
+    hienChonLop(false);
+    bieuMau.hidden = false;
+  }
+  khoiDongTrang();
+
   const loiNhan = document.getElementById('loiNhan');
   const nutGui = document.getElementById('nutGui');
 
