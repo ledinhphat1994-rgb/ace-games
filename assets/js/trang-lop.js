@@ -1577,7 +1577,10 @@ function veKhoiVideoHoatDong(item) {
     loại duy nhất theo "item.loai" như thiết kế cũ. */
 function veTheHoatDong(item, coNutXoa) {
   const the = e('div', 'hoat-dong-the');
-  the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--nen-the, var(--nen-chim));border-radius:var(--r-nho, 10px);border:1px solid var(--vien);position:relative;';
+  // Border/nền/bo góc/position đã có sẵn ở CSS class .hoat-dong-the (style.css) — không lặp lại
+  // ở đây nữa, vì style inline luôn thắng CSS class dù class được sửa sau (đã từng gây lỗi việc
+  // đổi màu viền trong CSS không có tác dụng do bị đè bởi chính dòng này).
+  the.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:12px;';
 
   const coAnh = Boolean(item.anhKhoa || item.hinhUrl);
   const coVideo = Boolean(item.videoKhoa || item.videoUrl);

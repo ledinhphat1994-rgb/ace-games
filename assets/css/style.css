@@ -894,8 +894,10 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .thu-vien { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 /* Mục "Hoạt động lớp" ở trang chủ: 1 tin 1 hàng (dọc) thay vì lưới ngang, để xem được nhiều
    nội dung hơn trên mỗi bài — chỉ áp dụng ở đây, KHÔNG đổi lưới ảnh của trang quản lý Thư viện
-   Ảnh (giao-vien/trang-hoc-tap.js cũng dùng chung class .thu-vien cho mục đích khác). */
-#hinh-anh .thu-vien { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
+   Ảnh (giao-vien/trang-hoc-tap.js cũng dùng chung class .thu-vien cho mục đích khác). Không giới
+   hạn max-width: để mỗi bài lấp đầy hết chiều ngang của khối, tránh chừa khoảng trống 2 bên.
+   Gap tăng lên rõ rệt để phân biệt ranh giới giữa 2 bài liền nhau (viền thẻ khá mờ trên nền tối). */
+#hinh-anh .thu-vien { grid-template-columns: 1fr; gap: 28px; }
 .thu-vien figure {
   position: relative;
   margin: 0; border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
@@ -913,7 +915,9 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
    không phải <figure>, nên định lại kiểu dáng khung cho khớp. */
 .hoat-dong-the {
   position: relative;
-  border: 1px solid var(--vien); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
+  /* Viền dùng --vien-dam (đậm hơn --vien mặc định) vì nền thẻ và nền trang khá gần màu nhau ở
+     giao diện tối — viền mờ quá thì 2 bài liền kề nhìn dính vào nhau, không rõ ranh giới. */
+  border: 1px solid var(--vien-dam, var(--vien)); border-radius: var(--r); overflow: hidden; background: var(--nen-noi);
   box-shadow: var(--bong-1); transition: box-shadow .18s, transform .18s;
 }
 .hoat-dong-the:hover { box-shadow: var(--bong-2); transform: translateY(-2px); }
