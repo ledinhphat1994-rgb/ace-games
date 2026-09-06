@@ -1,4 +1,6 @@
-// POST /api/login  { code: "..." }  -> đặt cookie phiên nếu mã đúng.
+// POST /api/login  { code: "...", lop?: "<slug>" }  -> đặt cookie phiên nếu mã đúng.
+// "lop" là slug của lớp đang hiện trên màn hình đăng nhập (nếu có) — dùng để CHẶN việc mã
+// nhập vào tuy đúng thật nhưng lại thuộc một lớp KHÁC với lớp đang chọn trên màn hình.
 import { COOKIE_NAME, createToken, safeEqual } from '../_lib/auth.js';
 
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
@@ -51,14 +53,35 @@ export async function onRequestPost({ request, env }) {
   }
 
   let code = '';
+  let lopSlug = '';
   try {
     const body = await request.json();
     code = String(body.code || '').trim();
+    lopSlug = String(body.lop || '').trim();
   } catch {
     return json({ ok: false, message: 'Dữ liệu gửi lên không hợp lệ.' }, 400);
   }
 
   if (!code) return json({ ok: false, message: 'Vui lòng nhập mã bảo mật.' }, 400);
+
+  // Màn đăng nhập cho người vào thẳng "?lop=<slug>" hoặc đã bấm chọn một lớp trong danh sách —
+  // mã nhập vào PHẢI thuộc ĐÚNG lớp đang hiện trên màn hình đó, không được âm thầm đưa qua lớp
+  // khác dù mã có khớp thật (vd giáo viên chủ nhiệm nhiều lớp gõ nhầm mã của lớp quen tay hơn).
+  // Không có slug (vào link chung, không chọn lớp nào) thì vẫn giữ hành vi cũ: mã tự quyết định
+  // vào lớp nào.
+  let lopIdDaChon = null;
+  let lopDaChonTen = '';
+  if (lopSlug && env.DB) {
+    try {
+      const l = await env.DB.prepare('SELECT id, ten FROM lop WHERE slug = ?1').bind(lopSlug).first();
+      if (l) { lopIdDaChon = l.id; lopDaChonTen = l.ten; }
+    } catch { /* bảng chưa có cột slug — bỏ qua, coi như không chọn lớp nào */ }
+  }
+  const thongBaoSaiLop = () => json({
+    ok: false,
+    message: `Mã này không phải của ${lopDaChonTen || 'lớp bạn đã chọn'}. Bấm "‹ Chọn lại lớp khác" nếu em nhầm lớp, hoặc kiểm tra lại mã.`,
+  }, 401);
+  const khopDungLop = (lopId) => lopIdDaChon === null || lopId === lopIdDaChon;
 
   // Làm chậm nhẹ để hạn chế dò mã tự động.
   await new Promise((r) => setTimeout(r, 400));
@@ -83,20 +106,24 @@ export async function onRequestPost({ request, env }) {
       const khop = dsGiaoVien.find((dn) => safeEqual(code, dn.ma));
       const lop1DaTuDat = dsGiaoVien.some((dn) => dn.lopId === 1);
       if (khop) {
+        if (!khopDungLop(khop.lopId)) return thongBaoSaiLop();
         role = 'teacher';
         phanBoSung = { lopId: khop.lopId };
       } else if (!lop1DaTuDat && env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+        if (!khopDungLop(1)) return thongBaoSaiLop();
         role = 'teacher';
         phanBoSung = { lopId: 1 };
       }
     } catch {
       // Bảng chưa tồn tại (chưa chạy migration) — dùng biến môi trường như trước, lớp mặc định.
       if (env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+        if (!khopDungLop(1)) return thongBaoSaiLop();
         role = 'teacher';
         phanBoSung = { lopId: 1 };
       }
     }
   } else if (env.TEACHER_CODE && safeEqual(code, env.TEACHER_CODE)) {
+    if (!khopDungLop(1)) return thongBaoSaiLop();
     role = 'teacher';
     phanBoSung = { lopId: 1 };
   }
@@ -110,6 +137,7 @@ export async function onRequestPost({ request, env }) {
       ).bind(code).first();
 
       if (phu) {
+        if (!khopDungLop(phu.lopId)) return thongBaoSaiLop();
         role = 'phu';
         tenHienThi = phu.ten;
         phanBoSung = {
@@ -141,6 +169,8 @@ export async function onRequestPost({ request, env }) {
            FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
       ).bind(code).first();
+
+      if (ca && !khopDungLop(ca.lopId)) return thongBaoSaiLop();
 
       if (ca && !ca.quyen) {
         role = 'student';

@@ -179,7 +179,10 @@
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: document.getElementById('ma').value })
+        body: JSON.stringify({
+          code: document.getElementById('ma').value,
+          lop: new URLSearchParams(location.search).get('lop') || '',
+        })
       });
       const d = await res.json();
 
