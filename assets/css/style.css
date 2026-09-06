@@ -774,7 +774,8 @@ textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
 @media (min-width: 620px) { .hang-nhap-2 { grid-template-columns: 1fr 1fr; } }
 .nhan-nhap { display: block; font-size: 13px; font-weight: 700; color: var(--chu-nhat); margin-bottom: 5px; }
 
-/* Hộp soạn "Nội dung chi tiết" của Hoạt động lớp — in đậm/in nghiêng/font/cỡ/màu chữ + emoji. */
+/* Hộp soạn thảo có định dạng (assets/js/soan-thao.js) — dùng chung cho "Nội dung chi tiết" của
+   Hoạt động lớp lẫn Thông báo (tiêu đề + nội dung): in đậm/in nghiêng/font/cỡ/màu chữ + emoji. */
 .thanh-soan-thao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
 .nut-soan {
   min-width: 34px; height: 34px; padding: 0 8px; border-radius: 8px; font: inherit; font-size: 14.5px;
@@ -794,11 +795,24 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
   min-height: 110px; max-height: 320px; overflow-y: auto; cursor: text;
   white-space: pre-wrap; word-break: break-word; line-height: 1.55;
 }
-.o-soan-thao:empty::before { content: attr(data-goi-y); color: var(--chu-mo); pointer-events: none; }
-.bang-emoji, .nut-emoji { font-size: 16px; }
-.nut-emoji {
-  border: 0; background: none; cursor: pointer; border-radius: 6px; padding: 3px; line-height: 1;
+/* Biến thể MỘT DÒNG (dùng cho Tiêu đề) — hành xử giống input thường: 1 hàng cố định, chữ dài
+   tự cuộn ngang thay vì xuống dòng, vì phím Enter đã bị chặn ở JS. */
+.o-soan-mot-dong {
+  min-height: 44px; height: 44px; max-height: 44px; overflow-x: auto; overflow-y: hidden;
+  white-space: nowrap; display: flex; align-items: center;
 }
+.o-soan-thao:empty::before { content: attr(data-goi-y); color: var(--chu-mo); pointer-events: none; }
+/* Nút emoji TRẦN — không khung/nền, chỉ nổi bật khi rê chuột, cho gọn mắt hơn nút có viền. */
+.nut-emoji-mo { border: 0; background: none; cursor: pointer; font-size: 19px; line-height: 1; padding: 5px 7px; border-radius: 8px; }
+.nut-emoji-mo:hover { background: var(--nen-chim); }
+/* Bảng chọn emoji: position:fixed gắn vào <body> (xem soan-thao.js) nên không bị vùng cuộn của
+   hộp thoại cắt mất hay đẩy lệch chỗ — luôn hiện trọn vẹn ngay dưới (hoặc trên) nút bấm. */
+.bang-emoji-noi {
+  max-height: 190px; overflow: auto; padding: 8px; border-radius: 10px;
+  border: 1px solid var(--vien-dam, var(--vien)); background: var(--nen-noi); box-shadow: var(--bong-3);
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+}
+.nut-emoji { font-size: 16px; border: 0; background: none; cursor: pointer; border-radius: 6px; padding: 3px; line-height: 1; }
 .nut-emoji:hover { background: var(--nen-chim); }
 
 /* Nút lọc dạng viên thuốc */

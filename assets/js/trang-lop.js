@@ -295,7 +295,14 @@ function veThongBao(ds, phien, lamMoi) {
       dau.append(thaoTac);
     }
 
-    bai.append(dau, e('h3', null, t.tieuDe), e('p', null, t.noiDung), ...veDinhKemTin(t));
+    const h3 = e('h3');
+    if (t.tieuDeHtml) h3.innerHTML = locHtmlNoiDung(t.tieuDeHtml);
+    else h3.textContent = t.tieuDe;
+    const pNd = e('p');
+    if (t.noiDungHtml) pNd.innerHTML = locHtmlNoiDung(t.noiDungHtml);
+    else pNd.textContent = t.noiDung;
+
+    bai.append(dau, h3, pNd, ...veDinhKemTin(t));
     return bai;
   }));
 }
@@ -1664,9 +1671,11 @@ function veTheHoatDong(item, coNutXoa) {
 
   // Giống bài đăng trên mạng xã hội (X, Facebook): PHẦN VIẾT (tiêu đề + nội dung) luôn ở trên
   // cùng, media (ảnh/video/âm thanh) xếp bên dưới — không xen giữa nội dung như thiết kế cũ.
-  if (tieuDe) {
-    const h4 = e('h4', null, tieuDe);
+  if (item.tieuDeHtml || tieuDe) {
+    const h4 = e('h4');
     h4.style.cssText = 'margin:0;font-size:19px;font-weight:800;color:var(--chu);line-height:1.35;';
+    if (item.tieuDeHtml) h4.innerHTML = locHtmlNoiDung(item.tieuDeHtml);
+    else h4.textContent = tieuDe;
     the.append(h4);
   }
 

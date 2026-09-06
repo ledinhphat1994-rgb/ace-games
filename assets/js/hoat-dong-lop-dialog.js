@@ -5,172 +5,7 @@
    cấp quyền thư viện tương ứng thì công tắc đó bị khoá (🔒), chỉ bấm được Văn bản. */
 import { e, api, datNoiDung, ngayVN, nenAnhThanhBlob, nhac, homNay } from './chung.js';
 import { nut, oNhap, oChon, moHopThoai, dongHopThoai, truong } from './giao-dien.js';
-import { locHtmlNoiDung } from './html-an-toan.js';
-
-const EMOJI_GOI_Y = [
-  '😀', '😁', '😂', '🤣', '😊', '😍', '🥳', '🤩', '👍', '👏', '🙌', '💪',
-  '🔥', '⭐', '🌟', '✨', '❤️', '💙', '💚', '💛', '🧡', '💜', '🎉', '🎊',
-  '🎈', '🎓', '📚', '✏️', '📝', '🏆', '🥇', '🎯', '📷', '🎵', '🎬', '📢',
-];
-
-/** Nút "😊" mở bảng chọn emoji nhỏ — dùng chung cho cả ô Tiêu đề (input thường) lẫn ô Nội dung
-    (soạn thảo có định dạng). `khiChon(emoji)` do nơi gọi tự quyết định chèn vào đâu. */
-function nutChonEmoji(khiChon) {
-  const boc = e('div');
-  boc.style.cssText = 'position:relative;display:inline-block;';
-  const nutMo = e('button', 'nut-nhe nut-nho', '😊');
-  nutMo.type = 'button';
-  nutMo.title = 'Chèn emoji';
-  const bang = e('div');
-  bang.style.cssText = 'position:absolute;z-index:20;top:calc(100% + 4px);left:0;width:226px;'
-    + 'max-height:168px;overflow:auto;padding:8px;border-radius:10px;'
-    + 'border:1px solid var(--vien-dam, var(--vien));background:var(--nen-noi);box-shadow:var(--bong-2);'
-    + 'grid-template-columns:repeat(7, 1fr);gap:2px;display:none;';
-  EMOJI_GOI_Y.forEach((kyTu) => {
-    const nutE = e('button', 'nut-emoji', kyTu);
-    nutE.type = 'button';
-    // mousedown + preventDefault: tránh cướp tiêu điểm/con trỏ đang có trong ô soạn thảo trước
-    // khi kịp chèn emoji vào đúng chỗ.
-    nutE.addEventListener('mousedown', (ev) => ev.preventDefault());
-    nutE.addEventListener('click', () => { khiChon(kyTu); dong(); });
-    bang.append(nutE);
-  });
-  let mo = false;
-  function dong() { mo = false; bang.style.display = 'none'; document.removeEventListener('mousedown', ngoaiVung); }
-  function ngoaiVung(ev) { if (!boc.contains(ev.target)) dong(); }
-  nutMo.addEventListener('mousedown', (ev) => { if (mo) return; ev.preventDefault(); });
-  nutMo.addEventListener('click', () => {
-    mo = !mo;
-    bang.style.display = mo ? 'grid' : 'none';
-    if (mo) setTimeout(() => document.addEventListener('mousedown', ngoaiVung), 0);
-  });
-  boc.append(nutMo, bang);
-  return boc;
-}
-
-/** Chèn văn bản vào đúng vị trí con trỏ của một ô input thường (không phải soạn thảo). */
-function chenVaoONhap(input, text) {
-  const bd = input.selectionStart ?? input.value.length;
-  const kt = input.selectionEnd ?? input.value.length;
-  input.value = input.value.slice(0, bd) + text + input.value.slice(kt);
-  const viTri = bd + text.length;
-  input.focus();
-  input.setSelectionRange(viTri, viTri);
-}
-
-/** Hộp soạn thảo có định dạng cơ bản (in đậm, in nghiêng, font/cỡ/màu chữ, chèn emoji) cho phần
-    "Nội dung chi tiết" — giống các nút soạn bài trên mạng xã hội. Dùng contenteditable + lệnh
-    execCommand cho in đậm/in nghiêng (được hỗ trợ rộng), còn font/cỡ/màu chữ tự bọc <span
-    style="..."> quanh vùng đang bôi đen (execCommand không cho chỉnh cỡ chữ theo px). Nội dung
-    thật sự gửi lên máy chủ sẽ được lọc lại qua locHtmlNoiDung() — chỉ vài thẻ/CSS được duyệt mới
-    lọt qua, nên dù trình duyệt sinh ra gì thừa thãi cũng không đáng ngại. */
-function khoiSoanThaoNoiDung(goiY) {
-  const oSoan = e('div', 'o-nhap o-soan-thao');
-  oSoan.contentEditable = 'true';
-  oSoan.setAttribute('data-goi-y', goiY || '');
-  oSoan.setAttribute('role', 'textbox');
-  oSoan.setAttribute('aria-multiline', 'true');
-  oSoan.addEventListener('focus', () => {
-    try { document.execCommand('defaultParagraphSeparator', false, 'br'); } catch { /* trình duyệt cũ bỏ qua */ }
-  });
-
-  let phamViDaLuu = null;
-  function ghiNhoViTriChon() {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && oSoan.contains(sel.anchorNode)) {
-      phamViDaLuu = sel.getRangeAt(0).cloneRange();
-    }
-  }
-  oSoan.addEventListener('mouseup', ghiNhoViTriChon);
-  oSoan.addEventListener('keyup', ghiNhoViTriChon);
-  oSoan.addEventListener('focus', ghiNhoViTriChon);
-  // 'input' bắt được MỌI thay đổi nội dung (gõ, dán, gõ tiếng Việt qua bộ gõ...) — đáng tin hơn
-  // keyup vì vài cách nhập không phát đủ sự kiện bàn phím cho từng ký tự.
-  oSoan.addEventListener('input', ghiNhoViTriChon);
-
-  function khoiPhucVaChay(hanhDong) {
-    oSoan.focus();
-    const sel = window.getSelection();
-    if (sel) {
-      sel.removeAllRanges();
-      if (phamViDaLuu) { try { sel.addRange(phamViDaLuu); } catch { /* vùng chọn cũ không còn hợp lệ */ } }
-    }
-    hanhDong();
-    ghiNhoViTriChon();
-  }
-
-  function apDungKieuChoVungChon(thuocTinh, giaTri) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      nhac('Bôi đen đoạn chữ cần đổi trước đã nhé.', 'xau');
-      return;
-    }
-    const khoang = sel.getRangeAt(0);
-    const span = document.createElement('span');
-    span.style[thuocTinh] = giaTri;
-    let trich;
-    try { trich = khoang.extractContents(); } catch { return; }
-    span.appendChild(trich);
-    khoang.insertNode(span);
-    sel.removeAllRanges();
-    const r2 = document.createRange();
-    r2.selectNodeContents(span);
-    sel.addRange(r2);
-  }
-
-  const nutDam = e('button', 'nut-soan', 'B');
-  nutDam.type = 'button'; nutDam.title = 'In đậm'; nutDam.style.fontWeight = '800';
-  nutDam.addEventListener('click', () => khoiPhucVaChay(() => document.execCommand('bold')));
-
-  const nutNghieng = e('button', 'nut-soan', 'I');
-  nutNghieng.type = 'button'; nutNghieng.title = 'In nghiêng'; nutNghieng.style.fontStyle = 'italic';
-  nutNghieng.addEventListener('click', () => khoiPhucVaChay(() => document.execCommand('italic')));
-
-  const oFont = e('select', 'o-nhap o-soan-nho');
-  oFont.title = 'Font chữ';
-  [['', 'Aa Font'], ["'Be Vietnam Pro', sans-serif", 'Chữ thường'], ['Georgia, serif', 'Trang trọng'],
-    ["'Courier New', monospace", 'Đánh máy'], ["'Comic Sans MS', cursive", 'Viết tay']].forEach(([v, t]) => {
-    const op = e('option', null, t); op.value = v; oFont.append(op);
-  });
-  oFont.addEventListener('change', () => {
-    if (oFont.value) khoiPhucVaChay(() => apDungKieuChoVungChon('fontFamily', oFont.value));
-    oFont.value = '';
-  });
-
-  const oCoChu = e('select', 'o-nhap o-soan-nho');
-  oCoChu.title = 'Cỡ chữ';
-  [['', 'Cỡ chữ'], ['13px', 'Nhỏ'], ['16px', 'Vừa'], ['20px', 'Lớn'], ['26px', 'Rất lớn']].forEach(([v, t]) => {
-    const op = e('option', null, t); op.value = v; oCoChu.append(op);
-  });
-  oCoChu.addEventListener('change', () => {
-    if (oCoChu.value) khoiPhucVaChay(() => apDungKieuChoVungChon('fontSize', oCoChu.value));
-    oCoChu.value = '';
-  });
-
-  const dayMau = e('div', 'day-mau');
-  dayMau.title = 'Màu chữ';
-  ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'].forEach((mau) => {
-    const nutMau = e('button', 'nut-mau');
-    nutMau.type = 'button'; nutMau.title = 'Đổi màu chữ'; nutMau.style.background = mau;
-    nutMau.addEventListener('click', () => khoiPhucVaChay(() => apDungKieuChoVungChon('color', mau)));
-    dayMau.append(nutMau);
-  });
-
-  const nutEmoji = nutChonEmoji((kyTu) => khoiPhucVaChay(() => document.execCommand('insertText', false, kyTu)));
-
-  const thanhCongCu = e('div', 'thanh-soan-thao');
-  thanhCongCu.append(nutDam, nutNghieng, oFont, oCoChu, dayMau, nutEmoji);
-
-  const khung = e('div');
-  khung.append(thanhCongCu, oSoan);
-
-  return {
-    khung,
-    oSoan,
-    layHtml: () => locHtmlNoiDung(oSoan.innerHTML),
-    layVanBanThuong: () => oSoan.textContent.trim(),
-  };
-}
+import { khoiSoanThaoDinhDang } from './soan-thao.js';
 
 async function layDanhSachThuVien(duong) {
   try {
@@ -253,16 +88,13 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
   const oNgay = oNhap('hdNgay', 'date', homNay());
 
   // Khối Văn bản — tiêu đề/nội dung dùng chung cho CẢ bài (kể cả khi có kèm media, đây là chú
-  // thích chung của bài đó, không phải chú thích riêng từng loại nữa).
-  const oTieuDe = oNhap('hdTieuDe', 'text', '', 'Ví dụ: Lao động vệ sinh khuôn viên lớp, Thi văn nghệ 20/11...');
-  const hangTieuDe = e('div');
-  hangTieuDe.style.cssText = 'display:flex;gap:6px;align-items:flex-start;';
-  hangTieuDe.append(oTieuDe, nutChonEmoji((kyTu) => chenVaoONhap(oTieuDe, kyTu)));
-
-  const oNoiDung = khoiSoanThaoNoiDung('Ghi lại diễn biến, thành tích hoặc chi tiết hoạt động...');
+  // thích chung của bài đó, không phải chú thích riêng từng loại nữa). Cả hai đều dùng chung một
+  // hộp soạn thảo có định dạng (soan-thao.js) — Tiêu đề là biến thể MỘT DÒNG.
+  const oTieuDe = khoiSoanThaoDinhDang({ nhieuDong: false, goiY: 'Ví dụ: Lao động vệ sinh khuôn viên lớp, Thi văn nghệ 20/11...' });
+  const oNoiDung = khoiSoanThaoDinhDang({ nhieuDong: true, goiY: 'Ghi lại diễn biến, thành tích hoặc chi tiết hoạt động...' });
 
   const khungText = e('div');
-  khungText.append(truong('Tiêu đề / Chủ đề', hangTieuDe), truong('Nội dung chi tiết', oNoiDung.khung));
+  khungText.append(truong('Tiêu đề / Chủ đề', oTieuDe.khung), truong('Nội dung chi tiết', oNoiDung.khung));
 
   const [ketQuaAnh, ketQuaVideo, ketQuaNhac] = await Promise.all([
     coQuyenAnh ? khoiAnh() : null,
@@ -338,10 +170,11 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
         const than = { ngay: oNgay.value || homNay() };
 
         if (dangBat.has('text')) {
-          than.tieuDe = oTieuDe.value.trim();
           // Gửi cả hai: bản văn bản thuần (tìm kiếm/hiển thị dự phòng) và bản HTML đã lọc (in
           // đậm/nghiêng/font/cỡ/màu chữ) — máy chủ lọc lại lần nữa trước khi lưu. Chỉ gửi bản
           // HTML khi thực sự có chữ, tránh lưu rác kiểu chỉ có "<br>".
+          than.tieuDe = oTieuDe.layVanBanThuong();
+          if (than.tieuDe) than.tieuDeHtml = oTieuDe.layHtml();
           than.noiDung = oNoiDung.layVanBanThuong();
           if (than.noiDung) than.noiDungHtml = oNoiDung.layHtml();
         }

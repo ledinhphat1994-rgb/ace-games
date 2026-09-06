@@ -19,7 +19,8 @@ async function xacThucThamChieu(db, lopId, bang, id) {
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
-    `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
+    `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.tieu_de_html AS tieuDeHtml,
+            hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
             hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
             hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
             hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
@@ -33,13 +34,14 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 }, { canGiaoVien: true, quyenCan: QUYEN });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { tieuDe, noiDung, noiDungHtml, anhId, hinhUrl, videoId, videoUrl, amThanhId, amThanhUrl, ngay } = await docThan(request);
+  const { tieuDe, tieuDeHtml, noiDung, noiDungHtml, anhId, hinhUrl, videoId, videoUrl, amThanhId, amThanhUrl, ngay } = await docThan(request);
   const ngayLuu = chuoi(ngay, 10) || new Date().toISOString().slice(0, 10);
 
   const td = chuoi(tieuDe, 150) || null;
   const nd = chuoi(noiDung, 2000) || null;
   // Không tin vào việc lọc HTML đã làm ở trình duyệt (hộp soạn thảo) — lọc lại lần nữa ở đây
   // trước khi lưu, vì API này gọi trực tiếp được (không bắt buộc phải qua giao diện).
+  const tdHtml = tieuDeHtml ? (locHtmlNoiDung(tieuDeHtml, 300) || null) : null;
   const ndHtml = noiDungHtml ? (locHtmlNoiDung(noiDungHtml) || null) : null;
 
   const idAnh = Number.isInteger(anhId) ? anhId : null;
@@ -90,9 +92,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   const kq = await env.DB.prepare(
     `INSERT INTO hoat_dong_lop
-       (lop_id, loai, tieu_de, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
-  ).bind(phien.lopId, loaiGop, td, nd, ndHtml, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
+       (lop_id, loai, tieu_de, tieu_de_html, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
+  ).bind(phien.lopId, loaiGop, td, tdHtml, nd, ndHtml, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
 }, { canGiaoVien: true, quyenCan: QUYEN });

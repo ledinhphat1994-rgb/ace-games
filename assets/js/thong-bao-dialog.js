@@ -8,6 +8,7 @@
      3) Dán LINK ngoài (ảnh/nhạc: link trực tiếp hoặc Google Drive; video: YouTube/Drive/TikTok/Facebook/.mp4). */
 import { e, datNoiDung, api, homNay, ngayVN, nhac, nenAnhThanhBlob, MUC_DO_THONG_BAO } from './chung.js';
 import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, khoiChonNguon } from './giao-dien.js';
+import { khoiSoanThaoDinhDang } from './soan-thao.js';
 
 const LOAI_THONG_BAO = [['Chủ nhiệm', 'Chủ nhiệm'], ['Nhà trường', 'Nhà trường'], ['Học tập', 'Học tập'], ['Hoạt động', 'Hoạt động']];
 
@@ -191,8 +192,12 @@ async function khoiDinhKemVideo(tb) {
 
 export async function moHopThoaiSoanThongBao(tb, lamMoi) {
   const oNgay = oNhap('tbNgay', 'date', tb ? tb.ngay : homNay());
-  const oTd = oNhap('tbTd', 'text', tb ? tb.tieuDe : '', 'Ví dụ: Họp phụ huynh đầu năm');
-  const oNd = oNhap('tbNd', 'textarea', tb ? tb.noiDung : '', 'Nội dung chi tiết…');
+  // Tiêu đề + Nội dung dùng chung hộp soạn thảo có định dạng (giống hệt Hoạt động lớp) — Tiêu đề
+  // là biến thể MỘT DÒNG. Nếu đang sửa thông báo cũ đã có bản HTML thì nạp lại đúng định dạng cũ.
+  const oTd = khoiSoanThaoDinhDang({ nhieuDong: false, goiY: 'Ví dụ: Họp phụ huynh đầu năm' });
+  if (tb && tb.tieuDeHtml) oTd.dat(tb.tieuDeHtml); else if (tb) oTd.oSoan.textContent = tb.tieuDe || '';
+  const oNd = khoiSoanThaoDinhDang({ nhieuDong: true, goiY: 'Nội dung chi tiết…' });
+  if (tb && tb.noiDungHtml) oNd.dat(tb.noiDungHtml); else if (tb) oNd.oSoan.textContent = tb.noiDung || '';
   const oLoai = oChon('tbLoai', LOAI_THONG_BAO, tb ? tb.loai : 'Chủ nhiệm');
   const oMucDo = oChon('tbMucDo', MUC_DO_THONG_BAO, tb ? (tb.mucDo || '') : '');
 
@@ -246,10 +251,10 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
   moHopThoai(tb ? 'Sửa thông báo' : 'Soạn thông báo', [
     hopHuongDan,
     truong('Ngày', oNgay),
-    truong('Tiêu đề', oTd),
+    truong('Tiêu đề', oTd.khung),
     truong('Loại', oLoai),
     truong('Mức độ quan trọng', oMucDo, 'Quyết định màu nhãn hiển thị cho học sinh — từ Bình thường, Quan trọng, Rất quan trọng đến Khẩn cấp.'),
-    truong('Nội dung', oNd),
+    truong('Nội dung', oNd.khung),
     hangGhim,
     hangNoiBat,
     coQuyenVideo ? khoiVideo : taoKhoiKhoa('video', 'Thư viện Video'),
@@ -258,7 +263,9 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
   ].filter(Boolean), [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut(tb ? 'Lưu thay đổi' : 'Đăng thông báo', '', async (ev) => {
-      if (!oTd.value.trim() || !oNd.value.trim()) return nhac('Cần nhập cả tiêu đề và nội dung', 'xau');
+      const tieuDeThuong = oTd.layVanBanThuong();
+      const noiDungThuong = oNd.layVanBanThuong();
+      if (!tieuDeThuong || !noiDungThuong) return nhac('Cần nhập cả tiêu đề và nội dung', 'xau');
       const tepNhac = oTepNhac?.files?.[0];
       if (tepNhac && tepNhac.type !== 'audio/mpeg' && !/\.mp3$/i.test(tepNhac.name)) {
         return nhac('File âm thanh chỉ nhận định dạng .mp3', 'xau');
@@ -271,7 +278,8 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
       ev.currentTarget.disabled = true;
       try {
         const than = {
-          ngay: oNgay.value, tieuDe: oTd.value, noiDung: oNd.value, loai: oLoai.value,
+          ngay: oNgay.value, tieuDe: tieuDeThuong, tieuDeHtml: oTd.layHtml(),
+          noiDung: noiDungThuong, noiDungHtml: oNd.layHtml(), loai: oLoai.value,
           ghim: oGhim.checked, noiBat: oNoiBat.checked, mucDo: oMucDo.value,
           videoUrl: coQuyenVideo ? ((oXoaVideo && oXoaVideo.checked) ? '' : (oUrlVideo?.value?.trim() || '')) : undefined,
         };

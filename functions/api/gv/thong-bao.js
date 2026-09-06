@@ -12,6 +12,7 @@
 // Ảnh/nhạc đính kèm tải lên qua /api/gv/thong-bao-tep (thân nhị phân riêng, xem tệp đó) vì vượt
 // giới hạn thân JSON ở đây; videoUrl chỉ là một đường dẫn văn bản (dán link YouTube…).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
 
 const MUC_DO_HOP_LE = new Set(['', 'ok', 'warn', 'danger']);
 
@@ -19,7 +20,8 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   // Trả cả mã tham chiếu thư viện (anhId/amThanhId/videoId) THẬT lẫn khoá/kiểu đã tra sẵn để
   // xem trước ngay trong hộp thoại sửa, không cần gọi thêm API thư viện.
   const { results } = await env.DB.prepare(
-    `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim, tb.hien,
+    `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
+            tb.noi_dung AS noiDung, tb.noi_dung_html AS noiDungHtml, tb.loai, tb.ghim, tb.hien,
             tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
             tb.anh_id AS anhId, ha.khoa AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
             tb.am_thanh_id AS amThanhId, at.khoa AS nhacKhoa, at.kieu AS nhacKieu, tb.nhac_url AS nhacUrl,
@@ -43,7 +45,7 @@ async function xacThucThuVien(db, lopId, bang, id) {
 }
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl, anhId, hinhUrl, amThanhId, nhacUrl, videoId } = await docThan(request);
+  const { ngay, tieuDe, tieuDeHtml, noiDung, noiDungHtml, loai, ghim, noiBat, mucDo, videoUrl, anhId, hinhUrl, amThanhId, nhacUrl, videoId } = await docThan(request);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
   const td = chuoi(tieuDe, 200);
@@ -51,6 +53,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!td) return loi('Chưa nhập tiêu đề.');
   if (!nd) return loi('Chưa nhập nội dung.');
   if (mucDo !== undefined && !MUC_DO_HOP_LE.has(mucDo)) return loi('Mức độ không hợp lệ.');
+  // Không tin vào việc lọc HTML đã làm ở trình duyệt (hộp soạn thảo) — lọc lại lần nữa ở đây
+  // trước khi lưu, vì API này gọi trực tiếp được (không bắt buộc phải qua giao diện).
+  const tdHtml = tieuDeHtml ? (locHtmlNoiDung(tieuDeHtml, 300) || null) : null;
+  const ndHtml = noiDungHtml ? (locHtmlNoiDung(noiDungHtml) || null) : null;
 
   // Ràng buộc Media: Tài khoản phụ chỉ được đính kèm loại media nếu có quyền thư viện tương ứng
   if (phien.role === 'phu') {
@@ -71,10 +77,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
 
   const kq = await env.DB.prepare(
-    `INSERT INTO thong_bao (ngay, tieu_de, noi_dung, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
+    `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`
   ).bind(
-    ngay, td, nd, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
+    ngay, td, tdHtml, nd, ndHtml, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
     mucDo || '', chuoi(videoUrl, 500) || null,
     Number.isInteger(anhId) ? anhId : null, chuoi(hinhUrl, 1000) || null,
     Number.isInteger(amThanhId) ? amThanhId : null, chuoi(nhacUrl, 1000) || null,
@@ -107,11 +113,13 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     const td = chuoi(than.tieuDe, 200);
     if (!td) return loi('Tiêu đề không được để trống.');
     them('tieu_de', td);
+    them('tieu_de_html', than.tieuDeHtml ? (locHtmlNoiDung(than.tieuDeHtml, 300) || null) : null);
   }
   if (than.noiDung !== undefined) {
     const nd = chuoi(than.noiDung, 5000);
     if (!nd) return loi('Nội dung không được để trống.');
     them('noi_dung', nd);
+    them('noi_dung_html', than.noiDungHtml ? (locHtmlNoiDung(than.noiDungHtml) || null) : null);
   }
   if (than.loai !== undefined) them('loai', chuoi(than.loai, 50) || 'Chủ nhiệm');
   if (than.ghim !== undefined) them('ghim', than.ghim ? 1 : 0);

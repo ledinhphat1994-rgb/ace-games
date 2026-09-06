@@ -55,7 +55,8 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
     // ngoài dán riêng (hinh_url/nhac_url).
     db.prepare(
-      `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.noi_dung AS noiDung, tb.loai, tb.ghim,
+      `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
+              tb.noi_dung AS noiDung, tb.noi_dung_html AS noiDungHtml, tb.loai, tb.ghim,
               tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
               COALESCE(ha.khoa, tb.hinh_url) AS hinhKhoa, ha.kieu AS hinhKieu,
               COALESCE(at.khoa, tb.nhac_url) AS nhacKhoa, at.kieu AS nhacKieu,
@@ -77,7 +78,8 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     // ảnh trong thư viện Ảnh (thư viện còn dùng chung cho Banner, Thông báo... không nên tự lộ
     // hết ra trang chủ).
     db.prepare(
-      `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
+      `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.tieu_de_html AS tieuDeHtml,
+              hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
               hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
               hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
               hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
