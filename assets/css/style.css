@@ -509,6 +509,25 @@ code {
 @media (min-width: 720px) { .mo-dau { padding: 38px 34px; } }
 .mo-dau h1 { margin: 10px 0 8px; color: #fff; }
 .mo-dau p { color: #d9ecfb; max-width: 60ch; margin: 0; font-size: 14.5px; }
+
+/* Ảnh/video nền tuỳ chỉnh (banner lớp) — nằm dưới lớp phủ tối màu để chữ trắng luôn đọc được
+   dù ảnh/video sáng đến đâu; ẩn hẳn (không chiếm chỗ) khi lớp chưa đặt banner riêng. */
+.mo-dau-nen {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 0;
+}
+.mo-dau-phu {
+  position: absolute; inset: 0; z-index: 1;
+  background:
+    radial-gradient(760px 320px at 6% -50%, rgba(255, 255, 255, .18), transparent 60%),
+    linear-gradient(148deg, rgba(11, 55, 99, .82) 0%, rgba(20, 88, 143, .78) 46%, rgba(31, 143, 217, .72) 100%);
+}
+.mo-dau-noi-dung { position: relative; z-index: 2; }
+.mo-dau-dau { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mo-dau-nut-sua {
+  margin-left: auto; background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .32); color: #fff;
+}
+.mo-dau-nut-sua:hover { background: rgba(255, 255, 255, .24); }
 .nhan-tren {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11.5px; font-weight: 800; letter-spacing: 1.2px;

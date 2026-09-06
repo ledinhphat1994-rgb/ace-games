@@ -7,6 +7,7 @@
 import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI } from './chung.js';
 import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
+import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -1917,6 +1918,47 @@ function apDungThuongHieuLop(lop, phien) {
   if (chanTrangTen) chanTrangTen.textContent = [ten, namHoc ? `Năm học ${namHoc}` : '', truong].filter(Boolean).join(' · ');
   const gioiThieu = $('#gioiThieu');
   if (gioiThieu) gioiThieu.textContent = lop.gioiThieu || `Trang thông tin nội bộ của tập thể ${ten}${truong ? ' – ' + truong : ''}.`;
+
+  veBannerLop(lop);
+  const nutSuaBanner = $('#moDauNutSua');
+  if (nutSuaBanner) {
+    nutSuaBanner.hidden = !(phien && phien.role === 'teacher');
+    if (!nutSuaBanner.dataset.daGan) {
+      nutSuaBanner.dataset.daGan = '1';
+      nutSuaBanner.addEventListener('click', () => moHopThoaiBannerLop(taiDuLieu));
+    }
+  }
+}
+
+/** Ảnh/video nền tuỳ chỉnh đầu trang lớp — ĐÚNG MỘT TRONG HAI (ưu tiên video nếu lỡ có cả
+    hai, dù backend đã đảm bảo không xảy ra). Không có gì thì giữ nguyên nền màu mặc định. */
+function veBannerLop(lop) {
+  const oVideo = $('#moDauVideo');
+  const oAnh = $('#moDauAnh');
+  if (!oVideo || !oAnh) return;
+
+  if (lop.bannerVideoId || lop.bannerVideoUrl) {
+    oAnh.hidden = true;
+    oAnh.removeAttribute('src');
+    const src = lop.bannerVideoId ? '/api/thu-vien-tep?loai=video&id=' + lop.bannerVideoId : lop.bannerVideoUrl;
+    if (oVideo.dataset.src !== src) {
+      oVideo.dataset.src = src;
+      oVideo.src = src;
+    }
+    oVideo.hidden = false;
+  } else if (lop.bannerHinhKhoa || lop.bannerHinhUrl) {
+    oVideo.hidden = true;
+    oVideo.removeAttribute('src');
+    oVideo.removeAttribute('data-src');
+    oAnh.src = xuLyLinkHinh(lop.bannerHinhKhoa || lop.bannerHinhUrl);
+    oAnh.hidden = false;
+  } else {
+    oVideo.hidden = true;
+    oVideo.removeAttribute('src');
+    oVideo.removeAttribute('data-src');
+    oAnh.hidden = true;
+    oAnh.removeAttribute('src');
+  }
 }
 
 function apDungAnMuc(anMuc) {

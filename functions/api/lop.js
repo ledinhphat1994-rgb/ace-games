@@ -37,7 +37,14 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   if (waitUntil) waitUntil(ghiLuot);
 
   const [lopRow, hocSinh, thongBao, phienBanTkb, hinhAnh, quyKhoan, quyChi, quyDong] = await Promise.all([
-    db.prepare('SELECT ten, nam_hoc AS namHoc, truong, gioi_thieu AS gioiThieu FROM lop WHERE id = ?1').bind(lopId).first(),
+    db.prepare(
+      `SELECT l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
+              ha.khoa AS bannerHinhKhoa, l.banner_hinh_url AS bannerHinhUrl,
+              l.banner_video_id AS bannerVideoId, l.banner_video_url AS bannerVideoUrl
+         FROM lop l
+         LEFT JOIN hinh_anh ha ON ha.id = l.banner_anh_id
+        WHERE l.id = ?1`
+    ).bind(lopId).first(),
     db.prepare(
       `SELECT id AS stt, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
               lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
@@ -122,6 +129,10 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       namHoc: lopRow?.namHoc || '',
       truong: lopRow?.truong || '',
       gioiThieu: lopRow?.gioiThieu || '',
+      bannerHinhKhoa: lopRow?.bannerHinhKhoa || null,
+      bannerHinhUrl: lopRow?.bannerHinhUrl || null,
+      bannerVideoId: lopRow?.bannerVideoId || null,
+      bannerVideoUrl: lopRow?.bannerVideoUrl || null,
       thongKe: [
         { giaTri: String(sl), nhan: 'Học sinh' },
         { giaTri: `${nam} / ${sl - nam}`, nhan: 'Nam / Nữ' },
