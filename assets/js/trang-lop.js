@@ -2243,13 +2243,22 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
       return true;
     });
 
+    // Cột "Lớp nghề" theo đúng cấu hình "Học sinh > Tuỳ chỉnh hiển thị" (hocSinhAnMuc) — cùng
+    // nguồn cấu hình dùng ở Danh sách lớp (xem veDanhSach), tránh chỗ ẩn chỗ không.
+    const hienNghe = !(d.hocSinhAnMuc || []).includes('lop-nghe');
+
     const bang = e('table', 'bang-diem-danh');
     const thead = e('thead');
     const trHd = e('tr');
+    // Giữ nguyên vị trí cột (ẩn bằng "hidden" thay vì bỏ hẳn khỏi mảng) — các quy tắc CSS
+    // nth-child cho cột Trạng thái/Ghi chú tính theo VỊ TRÍ, bỏ hẳn cột sẽ làm chúng trúng
+    // nhầm cột khi ẩn Lớp nghề.
+    const thNghe = e('th', null, 'Lớp nghề');
+    thNghe.hidden = !hienNghe;
     trHd.append(
       e('th', null, 'STT'),
       e('th', null, 'Họ và tên'),
-      e('th', null, 'Lớp nghề'),
+      thNghe,
       e('th', null, 'Trạng thái'),
       e('th', null, 'Ghi chú / Lý do')
     );
@@ -2279,6 +2288,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
         if (laChinhMinh) tdTen.append(e('span', 'tag-ban', 'Bạn'));
 
         const tdNghe = e('td', 'trong', h.lopNghe || '—');
+        tdNghe.hidden = !hienNghe;
 
         const tdTrangThai = e('td');
         if (h.trangThai === 'co_mat') {

@@ -1091,8 +1091,8 @@ function moCauHinhHienThiHocSinh() {
 
     moHopThoai('⚙ Tuỳ chỉnh hiển thị thông tin học sinh', [
       e('p', 'trong', 'Quyết định thông tin nào học sinh xem được — áp dụng cho mọi mã trong lớp.'),
-      Object.assign(e('h3', null, '👁 Công khai ở "Danh sách lớp" (mọi học sinh xem được)'), { style: 'margin-top:14px' }),
-      e('p', 'trong', 'Bỏ tích mục nào thì ẩn cột đó khỏi danh sách lớp công khai (họ tên luôn hiện).'),
+      Object.assign(e('h3', null, '👁 Công khai giữa học sinh trong lớp (mọi học sinh xem được)'), { style: 'margin-top:14px' }),
+      e('p', 'trong', 'Bỏ tích mục nào thì ẩn cột đó khỏi mọi nơi học sinh xem thông tin của nhau — "Danh sách lớp" và bảng "Điểm danh" cả lớp (họ tên luôn hiện).'),
       ...dsCongKhai.map(([, , nhanO]) => nhanO),
     ], [
       nut('Huỷ', 'nut-nhe', dongHopThoai),

@@ -67,6 +67,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ORDER BY h.id`
   ).bind(ngay, buoi, lopId).all();
 
+  // Cột nào đang bị ẩn khỏi "Danh sách lớp" công khai (Học sinh > Tuỳ chỉnh hiển thị) thì bảng
+  // điểm danh cả lớp ở đây cũng ẩn theo đúng cột đó — Học sinh là nguồn cấu hình duy nhất cho
+  // việc "học sinh xem được thông tin gì của nhau", không để mỗi màn hình tự quyết một kiểu.
+  const lopRow = await db.prepare('SELECT hs_cong_khai_an AS hsCongKhaiAn FROM lop WHERE id = ?1').bind(lopId).first();
+  const hocSinhAnMuc = (lopRow?.hsCongKhaiAn || '').split(',').filter(Boolean);
+
   const demNgay = { coMat: 0, vangPhep: 0, vangKhongPhep: 0, tre: 0, chuaGhi: 0 };
   danhSach.forEach((r) => {
     if (r.trangThai === 'co_mat') demNgay.coMat++;
@@ -146,5 +152,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     thongKeNgay: { ...demNgay, daGhi, tongSo: danhSach.length },
     danhSach,
     caNhan,
+    hocSinhAnMuc,
   });
 });
