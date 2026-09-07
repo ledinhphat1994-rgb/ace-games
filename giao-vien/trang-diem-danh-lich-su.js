@@ -13,7 +13,9 @@ const TEN_TRANG_THAI = {
   vang_khong_phep: 'Vắng không phép',
   tre: 'Đi trễ',
 };
-const tenTt = (ma) => (ma ? (TEN_TRANG_THAI[ma] || ma) : 'Chưa ghi');
+// "Chưa ghi" dễ gây khó hiểu ("chưa ghi" gì?) — nói rõ là CHƯA ĐIỂM DANH (chưa có bản ghi nào
+// trước lần thay đổi này), đúng thuật ngữ dùng xuyên suốt trang.
+const tenTt = (ma) => (ma ? (TEN_TRANG_THAI[ma] || ma) : 'Chưa điểm danh');
 
 const TABS = [['', 'Tất cả'], ['chinh', '📋 Điểm danh chính'], ['phu', '⚡ Điểm danh linh động']];
 
@@ -131,7 +133,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
         viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
           moHopThoai('Khôi phục Điểm danh về điểm này?', [
             e('p', null, cp.hanhDong),
-            Object.assign(e('p', null, `Lúc: ${taoLucVNNgayTruoc(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
+            Object.assign(e('p', null, taoLucVNNgayTruoc(cp.taoLuc)), { style: 'color:var(--chu-nhat)' }),
             e('p', null, 'Mọi thay đổi điểm danh sau thời điểm này sẽ mất. Chắc chắn chứ?'),
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),

@@ -1698,15 +1698,18 @@ export function taoLucVN(taoLuc) {
   return `${gio}:${phut} ${ngayVN(d.toISOString().slice(0, 10))}`;
 }
 
-/** Như taoLucVN() nhưng NGÀY đứng trước GIỜ — đúng thứ tự "ngày tháng năm" quen thuộc, dùng
-    cho những chỗ liệt kê theo ngày là chính (vd Lịch sử Điểm danh). */
+/** Như taoLucVN() nhưng viết ĐẦY ĐỦ "Ngày... tháng... năm..." theo đúng văn phong Việt Nam
+    (không chỉ gạch chéo dd/mm/yyyy dễ lẫn với kiểu Mỹ) — dùng cho những chỗ liệt kê theo ngày
+    là chính (vd Lịch sử Điểm danh). */
 export function taoLucVNNgayTruoc(taoLuc) {
   const d = new Date(taoLuc.replace(' ', 'T') + 'Z');
   if (isNaN(d)) return taoLuc;
   d.setHours(d.getHours() + 7);
   const gio = String(d.getHours()).padStart(2, '0');
   const phut = String(d.getMinutes()).padStart(2, '0');
-  return `${ngayVN(d.toISOString().slice(0, 10))} lúc ${gio}:${phut}`;
+  const ngay = String(d.getDate()).padStart(2, '0');
+  const thang = String(d.getMonth() + 1).padStart(2, '0');
+  return `Ngày ${ngay} tháng ${thang} năm ${d.getFullYear()} lúc ${gio}:${phut}`;
 }
 
 const CHU_KY_HIEN_THI = { tuan: 'Theo tuần', thang: 'Theo tháng', nam: 'Theo năm' };
