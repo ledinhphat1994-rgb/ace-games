@@ -412,8 +412,9 @@ function moHopThoaiGhiChuDiemDanh(h, ttHienTai, ldHienTai, onSave) {
   setTimeout(() => oLd.focus(), 80);
 }
 
-function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, trangThaiHienTai, lyDoHienTai) {
+function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, trangThaiHienTai, lyDoHienTai, timPhuBanDau, datTimPhu) {
   const khung = e('div');
+  let timPhu = timPhuBanDau || '';
 
   const the = e('div', 'the');
   the.append(e('p', 'trong',
@@ -438,126 +439,167 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
   the.append(hangChip);
   khung.append(the);
 
-  // Thanh áp dụng nhanh cho cả lớp & Xoá tất cả ghi chú — giống hệt Điểm danh chính.
-  const theApDungNhanh = e('div', 'the');
-  theApDungNhanh.style.cssText = 'padding:12px 14px;margin:12px 0;';
-  theApDungNhanh.append(Object.assign(
-    e('div', null, '⚡ Áp dụng nhanh cho cả lớp'),
-    { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
-  ));
-  const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
-  Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-    const caLopDangChon = danhSach.length > 0 &&
-      danhSach.every((h) => trangThaiHienTai(h.id, h.trangThai) === ma);
-
-    const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
-    b.type = 'button';
-    b.setAttribute('aria-pressed', String(caLopDangChon));
-    b.title = caLopDangChon
-      ? `Bỏ chọn tất cả "${tt2.ten}"`
-      : `Đặt "${tt2.ten}" cho cả lớp (bấm lại để bỏ chọn tất cả)`;
-    b.addEventListener('click', () => {
-      danhSach.forEach((h) => thayDoi.set(h.id, caLopDangChon ? null : ma));
-      veLai();
-    });
-    dayApDungNhanh.append(b);
+  // Ô tìm kiếm học sinh — cùng cơ chế với Điểm danh chính: chỉ rebuild "khuVucPhu" khi gõ
+  // (không gọi veLai() để không mất focus), và "Áp dụng nhanh" chỉ áp lên đúng danh sách tìm
+  // thấy. timPhu lưu ở ngoài (trangDiemDanh) qua datTimPhu nên không mất khi bấm nút khác.
+  const oTimPhu = oNhap('ddTimPhu', 'search', timPhu, 'Tìm theo tên, tổ/lớp nghề, hoặc STT…');
+  oTimPhu.addEventListener('input', (ev) => {
+    timPhu = ev.target.value;
+    datTimPhu(timPhu);
+    veKhuVucPhu();
   });
+  khung.append(truong('🔎 Tìm học sinh', oTimPhu));
 
-  const soCoGhiChu = danhSach.filter((h) => lyDoHienTai(h.id, h.lyDo)).length;
-  const nutXoaGhiChuPhu = e('button', 'vien-loc', `🗑 Xoá tất cả ghi chú${soCoGhiChu ? ` (${soCoGhiChu})` : ''}`);
-  nutXoaGhiChuPhu.type = 'button';
-  if (soCoGhiChu) { nutXoaGhiChuPhu.style.color = 'var(--xau)'; nutXoaGhiChuPhu.style.borderColor = 'var(--xau)'; }
-  nutXoaGhiChuPhu.addEventListener('click', () => {
-    if (!soCoGhiChu) return nhac('Hiện không có học sinh nào có ghi chú trong điểm danh phụ.', 'nhe');
-    moHopThoai('Xoá tất cả ghi chú điểm danh phụ?', [
-      e('p', null, `Bạn có chắc muốn xoá toàn bộ ghi chú của ${soCoGhiChu} học sinh trong điểm danh phụ buổi này?`),
-      e('p', 'trong', 'Thao tác này chỉ xoá ghi chú trong điểm danh phụ, hoàn toàn không ảnh hưởng điểm danh chính.')
-    ], [
-      nut('Huỷ', 'nut-nhe', dongHopThoai),
-      nut('Xoá tất cả ghi chú', 'nut-xau', () => {
-        danhSach.forEach((h) => { if (lyDoHienTai(h.id, h.lyDo)) lyDoMoi.set(h.id, ''); });
-        dongHopThoai();
-        nhac('Đã xoá sạch ghi chú điểm danh phụ (hãy bấm "Lưu điểm danh")', 'tot');
-        veLai();
-      })
-    ]);
-  });
-  dayApDungNhanh.append(nutXoaGhiChuPhu);
-  theApDungNhanh.append(dayApDungNhanh);
-  khung.append(theApDungNhanh);
+  const khuVucPhu = e('div');
+  khung.append(khuVucPhu);
 
-  // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (giống Điểm danh chính) để giáo viên
-  // hiểu ký hiệu ✓/T/P/✗/📝 ngay khi vừa xem trang, khỏi phải cuộn qua hết cả lớp mới thấy.
-  const chuThich = e('div', 'chu-thich');
-  [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-   ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
-    .forEach(([chu, mau]) => {
-      const s = e('span');
-      const i = e('i');
-      i.style.background = mau;
-      s.append(i, document.createTextNode(chu));
-      chuThich.append(s);
-    });
-  khung.append(chuThich);
+  const dsLocPhu = () => {
+    const q = timPhu.trim().toLowerCase();
+    if (!q) return danhSach;
+    return danhSach.filter((h) =>
+      h.hoTen.toLowerCase().includes(q) ||
+      String(h.id).includes(q) ||
+      (h.lopNghe || '').toLowerCase().includes(q)
+    );
+  };
 
-  // Danh sách học sinh — CÙNG một kiểu hàng với Điểm danh chính: cột trạng thái riêng cho
-  // từng em (✓/T/P/✗), bấm lại để bỏ chọn, cộng nút 📝 ghi chú lý do riêng.
-  const ds = e('div', 'ds-diem-danh');
-  ds.style.marginTop = '10px';
-  danhSach.forEach((h) => {
-    const tt = trangThaiHienTai(h.id, h.trangThai);
-    const ld = lyDoHienTai(h.id, h.lyDo);
-    const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+  function veKhuVucPhu() {
+    const dsLoc = dsLocPhu();
+    const dangLoc = Boolean(timPhu.trim());
+    const khungCon = e('div');
 
-    const ten = e('div', 'ten');
-    ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
-
-    const moGhiChu = () => {
-      moHopThoaiGhiChuDiemDanh(h, tt, ld || oLyDoChung.value, (val, ttChon) => {
-        lyDoMoi.set(h.id, val);
-        if (ttChon) thayDoi.set(h.id, ttChon);
-        else if (!thayDoi.has(h.id) && val && !tt) thayDoi.set(h.id, 'vang_phep');
-        veLai();
-      });
-    };
-
-    if (ld) {
-      const dongLd = e('div', 'dong-ly-do');
-      dongLd.title = `Ghi chú: ${ld} — Bấm để sửa`;
-      dongLd.append(e('span', null, '💬'), Object.assign(e('span', 'dong-ly-do-chu', ld)));
-      dongLd.addEventListener('click', (ev) => { ev.stopPropagation(); moGhiChu(); });
-      ten.append(dongLd);
+    if (dangLoc && !dsLoc.length) {
+      khungCon.append(e('p', 'trong', `Không tìm thấy học sinh nào khớp "${timPhu.trim()}".`));
+      datNoiDung(khuVucPhu, khungCon);
+      return;
     }
 
-    hang.append(e('div', 'stt', h.id), ten);
-
-    const nhom = e('div', 'nhom-chon');
+    // Thanh áp dụng nhanh cho cả lớp (hoặc đúng danh sách tìm thấy) & Xoá tất cả ghi chú —
+    // giống hệt Điểm danh chính.
+    const theApDungNhanh = e('div', 'the');
+    theApDungNhanh.style.cssText = 'padding:12px 14px;margin:12px 0;';
+    theApDungNhanh.append(Object.assign(
+      e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
+      { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
+    ));
+    const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
     Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-      const b = e('button', null, tt2.ky);
+      const caLopDangChon = dsLoc.length > 0 &&
+        dsLoc.every((h) => trangThaiHienTai(h.id, h.trangThai) === ma);
+
+      const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
       b.type = 'button';
-      b.dataset.tt = ma;
-      b.title = tt2.ten + ' — bấm lại để bỏ chọn';
-      b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
-      b.setAttribute('aria-pressed', String(tt === ma));
+      b.setAttribute('aria-pressed', String(caLopDangChon));
+      b.title = caLopDangChon
+        ? `Bỏ chọn tất cả "${tt2.ten}"`
+        : `Đặt "${tt2.ten}" cho ${dangLoc ? 'danh sách tìm thấy' : 'cả lớp'} (bấm lại để bỏ chọn tất cả)`;
       b.addEventListener('click', () => {
-        thayDoi.set(h.id, tt === ma ? null : ma);
+        dsLoc.forEach((h) => thayDoi.set(h.id, caLopDangChon ? null : ma));
         veLai();
       });
-      nhom.append(b);
+      dayApDungNhanh.append(b);
     });
 
-    const nutGc = e('button', 'nut-icon-ghi-chu' + (ld ? ' da-co-ghi-chu' : ''));
-    nutGc.type = 'button';
-    nutGc.textContent = '📝';
-    nutGc.title = ld ? `Ghi chú: "${ld}" — Bấm để sửa` : `Thêm ghi chú/lý do cho ${h.hoTen}`;
-    nutGc.setAttribute('aria-label', `Ghi chú cho ${h.hoTen}`);
-    nutGc.addEventListener('click', (ev) => { ev.stopPropagation(); moGhiChu(); });
-    nhom.append(nutGc);
+    const soCoGhiChu = dsLoc.filter((h) => lyDoHienTai(h.id, h.lyDo)).length;
+    const nutXoaGhiChuPhu = e('button', 'vien-loc', `🗑 Xoá tất cả ghi chú${soCoGhiChu ? ` (${soCoGhiChu})` : ''}`);
+    nutXoaGhiChuPhu.type = 'button';
+    if (soCoGhiChu) { nutXoaGhiChuPhu.style.color = 'var(--xau)'; nutXoaGhiChuPhu.style.borderColor = 'var(--xau)'; }
+    nutXoaGhiChuPhu.addEventListener('click', () => {
+      if (!soCoGhiChu) return nhac('Hiện không có học sinh nào có ghi chú trong điểm danh phụ.', 'nhe');
+      moHopThoai('Xoá tất cả ghi chú điểm danh phụ?', [
+        e('p', null, `Bạn có chắc muốn xoá toàn bộ ghi chú của ${soCoGhiChu} học sinh${dangLoc ? ' (trong danh sách đang tìm thấy)' : ''} trong điểm danh phụ buổi này?`),
+        e('p', 'trong', 'Thao tác này chỉ xoá ghi chú trong điểm danh phụ, hoàn toàn không ảnh hưởng điểm danh chính.')
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá tất cả ghi chú', 'nut-xau', () => {
+          dsLoc.forEach((h) => { if (lyDoHienTai(h.id, h.lyDo)) lyDoMoi.set(h.id, ''); });
+          dongHopThoai();
+          nhac('Đã xoá sạch ghi chú điểm danh phụ (hãy bấm "Lưu điểm danh")', 'tot');
+          veLai();
+        })
+      ]);
+    });
+    dayApDungNhanh.append(nutXoaGhiChuPhu);
+    theApDungNhanh.append(dayApDungNhanh);
+    khungCon.append(theApDungNhanh);
 
-    hang.append(nhom);
-    ds.append(hang);
-  });
-  khung.append(ds);
+    // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (giống Điểm danh chính) để giáo viên
+    // hiểu ký hiệu ✓/T/P/✗/📝 ngay khi vừa xem trang, khỏi phải cuộn qua hết cả lớp mới thấy.
+    const chuThich = e('div', 'chu-thich');
+    [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
+     ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
+      .forEach(([chu, mau]) => {
+        const s = e('span');
+        const i = e('i');
+        i.style.background = mau;
+        s.append(i, document.createTextNode(chu));
+        chuThich.append(s);
+      });
+    khungCon.append(chuThich);
+
+    // Danh sách học sinh (đúng danh sách tìm thấy) — CÙNG một kiểu hàng với Điểm danh chính:
+    // cột trạng thái riêng cho từng em (✓/T/P/✗), bấm lại để bỏ chọn, cộng nút 📝 ghi chú riêng.
+    const ds = e('div', 'ds-diem-danh');
+    ds.style.marginTop = '10px';
+    dsLoc.forEach((h) => {
+      const tt = trangThaiHienTai(h.id, h.trangThai);
+      const ld = lyDoHienTai(h.id, h.lyDo);
+      const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+
+      const ten = e('div', 'ten');
+      ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
+
+      const moGhiChu = () => {
+        moHopThoaiGhiChuDiemDanh(h, tt, ld || oLyDoChung.value, (val, ttChon) => {
+          lyDoMoi.set(h.id, val);
+          if (ttChon) thayDoi.set(h.id, ttChon);
+          else if (!thayDoi.has(h.id) && val && !tt) thayDoi.set(h.id, 'vang_phep');
+          veLai();
+        });
+      };
+
+      if (ld) {
+        const dongLd = e('div', 'dong-ly-do');
+        dongLd.title = `Ghi chú: ${ld} — Bấm để sửa`;
+        dongLd.append(e('span', null, '💬'), Object.assign(e('span', 'dong-ly-do-chu', ld)));
+        dongLd.addEventListener('click', (ev) => { ev.stopPropagation(); moGhiChu(); });
+        ten.append(dongLd);
+      }
+
+      hang.append(e('div', 'stt', h.id), ten);
+
+      const nhom = e('div', 'nhom-chon');
+      Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+        const b = e('button', null, tt2.ky);
+        b.type = 'button';
+        b.dataset.tt = ma;
+        b.title = tt2.ten + ' — bấm lại để bỏ chọn';
+        b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
+        b.setAttribute('aria-pressed', String(tt === ma));
+        b.addEventListener('click', () => {
+          thayDoi.set(h.id, tt === ma ? null : ma);
+          veLai();
+        });
+        nhom.append(b);
+      });
+
+      const nutGc = e('button', 'nut-icon-ghi-chu' + (ld ? ' da-co-ghi-chu' : ''));
+      nutGc.type = 'button';
+      nutGc.textContent = '📝';
+      nutGc.title = ld ? `Ghi chú: "${ld}" — Bấm để sửa` : `Thêm ghi chú/lý do cho ${h.hoTen}`;
+      nutGc.setAttribute('aria-label', `Ghi chú cho ${h.hoTen}`);
+      nutGc.addEventListener('click', (ev) => { ev.stopPropagation(); moGhiChu(); });
+      nhom.append(nutGc);
+
+      hang.append(nhom);
+      ds.append(hang);
+    });
+    khungCon.append(ds);
+
+    datNoiDung(khuVucPhu, khungCon);
+  }
+
+  veKhuVucPhu();
 
   // Thanh lưu riêng của Điểm danh linh động — vẫn một nút lưu duy nhất, lưu thẳng toàn bộ
   // thayDoi/lyDoMoi đã đổi (kể cả qua "Áp dụng nhanh" lẫn từng ô 📝).
@@ -584,6 +626,7 @@ async function trangDiemDanh() {
   let buoi = sessionStorage.getItem('dd-buoi') || 'sang';
   let tabCon = 'ngay';   // 'ngay' = Điểm danh chính | 'nhanh' = Điểm danh linh động
   let timChinh = '';     // ô tìm kiếm học sinh ở Điểm danh chính
+  let timPhu = '';       // ô tìm kiếm học sinh ở Điểm danh linh động
 
   let duLieuChinh = null;
   const thayDoiChinh = new Map();
@@ -799,7 +842,7 @@ async function trangDiemDanh() {
       );
       khung.append(dayPhu);
 
-      khung.append(veTabDiemDanhNhanh(duLieuPhu.danhSach, thayDoiPhu, lyDoMoiPhu, ve, luuDiemDanhPhu, trangThaiHienTaiPhu, lyDoHienTaiPhu));
+      khung.append(veTabDiemDanhNhanh(duLieuPhu.danhSach, thayDoiPhu, lyDoMoiPhu, ve, luuDiemDanhPhu, trangThaiHienTaiPhu, lyDoHienTaiPhu, timPhu, (v) => { timPhu = v; }));
     } else {
       if (!duLieuChinh) {
         taiChinh().then(ve);
