@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi } from './chung.js';
 import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -898,6 +898,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
           goiYBanThan.setAttribute('role', 'button');
           goiYBanThan.setAttribute('aria-label', chuTrangThai.replace(/^[✓🙋]\s*/, '') + ' — ' + chiTietBanThan);
           goiYBanThan.append(e('span', 'nhan ' + lopTrangThaiBt, chuTrangThai), e('div', 'tien-do-tooltip', chiTietBanThan));
+          ganTooltipNoi(goiYBanThan, true);
           dau.append(goiYBanThan);
         }
 
@@ -932,6 +933,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         tienDoChay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
         tienDoNen.append(tienDoChay);
         tienDoKhung.append(tienDoNen, e('div', 'tien-do-tooltip', ttdChuThich));
+        ganTooltipNoi(tienDoKhung, false);
         widget.append(tienDoKhung);
         the.append(widget);
 

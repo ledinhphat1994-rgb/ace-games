@@ -1,4 +1,4 @@
-import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan, ganTooltipNoi } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -214,6 +214,7 @@ export async function trangQuy(KHUNG) {
     }
     khoiPhai.setAttribute('aria-label', chiTietBadge);
     khoiPhai.append(nhanTrangThai, e('div', 'tien-do-tooltip', chiTietBadge));
+    ganTooltipNoi(khoiPhai, true);
     khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
     dong1.append(khoiPhai);
 
@@ -390,29 +391,39 @@ export async function trangQuy(KHUNG) {
     const hopDs = e('div', 'ds-diem-danh');
     box.append(hopDs);
 
+    // Tạo 4 nút lọc DUY NHẤT MỘT LẦN — bấm chuyển bộ lọc chỉ đổi class "active" trên đúng các
+    // nút có sẵn (không dựng lại toàn bộ nút mỗi lần bấm), tránh giật/nháy màn hình do nút vừa
+    // bấm bị xoá khỏi DOM ngay giữa lúc xử lý sự kiện click của chính nó.
     function capNhatNutLoc() {
       const dsGoc = dk.danhSach;
       const soDaDu = dsGoc.filter((h) => h.daDuDinh).length;
       const soConThieu = dsGoc.filter((h) => !h.daDuDinh && h.daDong > 0).length;
       const soChuaDong = dsGoc.filter((h) => !h.daDuDinh && (!h.daDong || h.daDong === 0)).length;
 
+      const capNhatActive = () => {
+        cacNutLoc.forEach((b) => b.classList.toggle('active', b.dataset.loc === boLocTrangThai));
+      };
+
       const taoNutLoc = (id, label, so) => {
         const b = e('button', null, `${label} (${so})`);
-        if (boLocTrangThai === id) b.classList.add('active');
+        b.type = 'button';
+        b.dataset.loc = id;
         b.addEventListener('click', () => {
           boLocTrangThai = id;
-          capNhatNutLoc();
+          capNhatActive();
           veDsEm();
         });
         return b;
       };
 
-      datNoiDung(hopLocTrangThai,
+      const cacNutLoc = [
         taoNutLoc('', 'Tất cả', dsGoc.length),
         taoNutLoc('chua_dong', '✕ Chưa đóng', soChuaDong),
         taoNutLoc('con_thieu', '⚠️ Còn thiếu', soConThieu),
-        taoNutLoc('da_du', '✓ Đã đủ', soDaDu)
-      );
+        taoNutLoc('da_du', '✓ Đã đủ', soDaDu),
+      ];
+      capNhatActive();
+      datNoiDung(hopLocTrangThai, ...cacNutLoc);
     }
 
     function veDsEm() {

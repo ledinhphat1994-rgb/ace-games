@@ -1334,13 +1334,15 @@ body.trang-dang-nhap {
   border-radius: var(--r);
   padding: 16px 18px;
   box-shadow: var(--bong-1);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  transition: box-shadow .18s ease, border-color .18s ease;
   position: relative;
   overflow: hidden;
   border-left: 4.5px solid var(--vien-dam);
 }
+/* Không dùng transform khi hover: nó tạo "containing block" mới cho mọi phần tử con
+   position:fixed bên trong (ví dụ tooltip nổi) khiến chúng định vị sai/lệch — xem ganTooltipNoi()
+   trong chung.js. Giữ lại box-shadow/border-color để vẫn có phản hồi khi rê chuột. */
 .the-khoan-thu:hover {
-  transform: translateY(-2px);
   box-shadow: var(--bong-2);
   border-color: color-mix(in srgb, var(--chinh) 45%, var(--vien));
 }
@@ -1527,53 +1529,51 @@ body.trang-dang-nhap {
 .the-khoan-thu.da-du .the-khoan-tien-do-chay { background: var(--tot); }
 .the-khoan-thu.da-dong .the-khoan-tien-do-chay { background: var(--chu-mo); }
 
-/* Tooltip tiến độ: ẩn mặc định, hiện khi rê chuột / bấm-focus vào thanh (bàn phím + cảm ứng). */
+/* Tooltip tiến độ: ẩn mặc định, hiện khi rê chuột / bấm-focus vào thanh (bàn phím + cảm ứng).
+   position:fixed + toạ độ do JS (ganTooltipNoi() trong chung.js) đo lúc hiện — nhờ vậy tooltip
+   luôn nổi TRÊN CÙNG mọi lớp khác (thanh dính, thẻ...) và không bao giờ bị thẻ cha có
+   overflow:hidden (dùng để bo góc) cắt mất, dù thẻ nằm sát mép trên/dưới màn hình. */
 .tien-do-tooltip {
-  position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(4px);
+  position: fixed;
   background: var(--chu); color: var(--nen);
   font-size: 12px; font-weight: 700; white-space: nowrap;
   padding: 6px 11px; border-radius: 8px; box-shadow: var(--bong-2);
-  opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease;
-  z-index: 3;
+  opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  z-index: 500;
 }
 .tien-do-tooltip::after {
   content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
   border: 5px solid transparent; border-top-color: var(--chu);
 }
-.the-khoan-tien-do-khung:hover .tien-do-tooltip,
-.the-khoan-tien-do-khung:focus .tien-do-tooltip {
-  opacity: 1; transform: translateX(-50%) translateY(0);
+/* Lật ngược mũi tên khi tooltip bị đẩy xuống DƯỚI phần tử kích hoạt (do phía trên hết chỗ). */
+.tien-do-tooltip.o-duoi::after {
+  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--chu);
 }
-.the-khoan-tien-do-khung:focus { outline: none; }
+.the-khoan-tien-do-khung:hover .tien-do-tooltip,
+.the-khoan-tien-do-khung:focus .tien-do-tooltip,
+.the-khoan-ban-than:hover .tien-do-tooltip,
+.the-khoan-ban-than:focus .tien-do-tooltip,
+.badge-trang-thai-khoan:hover .tien-do-tooltip,
+.badge-trang-thai-khoan:focus .tien-do-tooltip {
+  opacity: 1;
+}
+.the-khoan-tien-do-khung:focus,
+.the-khoan-ban-than:focus,
+.badge-trang-thai-khoan:focus {
+  outline: none;
+}
 
 /* "Phần của bạn" — chỉ còn 1 badge nhỏ ở góc phải đầu thẻ (dùng lại đúng kiểu .nhan sẵn có),
-   rê chuột/chạm mới hiện tooltip chi tiết (đã nộp bao nhiêu, ngày nào) — dùng lại pattern tooltip
-   giống thanh tiến độ (.tien-do-tooltip) cho nhất quán. */
+   rê chuột/chạm mới hiện tooltip chi tiết (đã nộp bao nhiêu, ngày nào). */
 .the-khoan-ban-than {
   position: relative; flex: none; cursor: pointer;
 }
-.the-khoan-ban-than:focus { outline: none; }
-/* Badge nằm sát mép phải thẻ — tooltip căn theo mép phải (không căn giữa) để không tràn ra
-   ngoài màn hình. */
-.the-khoan-ban-than .tien-do-tooltip { left: auto; right: 0; transform: translateY(4px); }
-.the-khoan-ban-than .tien-do-tooltip::after { left: auto; right: 14px; transform: none; }
-.the-khoan-ban-than:hover .tien-do-tooltip,
-.the-khoan-ban-than:focus .tien-do-tooltip {
-  opacity: 1; transform: translateY(0);
-}
 
-/* Badge trạng thái khoản thu (panel giáo viên) — cùng pattern tooltip trên, neo theo mép phải
-   vì badge nằm sát rìa phải hàng khoản. */
+/* Badge trạng thái khoản thu (panel giáo viên) — cùng pattern tooltip trên. */
 .badge-trang-thai-khoan {
   position: relative; cursor: pointer;
 }
-.badge-trang-thai-khoan:focus { outline: none; }
-.badge-trang-thai-khoan .tien-do-tooltip { left: auto; right: 0; transform: translateY(4px); white-space: normal; max-width: 260px; }
-.badge-trang-thai-khoan .tien-do-tooltip::after { left: auto; right: 14px; transform: none; }
-.badge-trang-thai-khoan:hover .tien-do-tooltip,
-.badge-trang-thai-khoan:focus .tien-do-tooltip {
-  opacity: 1; transform: translateY(0);
-}
+.badge-trang-thai-khoan .tien-do-tooltip { white-space: normal; max-width: 260px; }
 
 /* Chuyển đổi tab Thu / Chi */
 .tab-chuyen-thu-chi {

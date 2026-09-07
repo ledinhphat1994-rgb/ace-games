@@ -518,3 +518,33 @@ export function khoiDangTai(chu = 'Đang tải…') {
   d.append(e('span', 'quay'), document.createTextNode(chu));
   return d;
 }
+
+/* ---------- Tooltip nổi (.tien-do-tooltip) ---------- */
+
+/** Gắn tooltip nổi cho một phần tử kích hoạt (chứa sẵn 1 con ".tien-do-tooltip").
+    Định vị bằng "fixed" + toạ độ đo thực tế lúc rê chuột/focus — nhờ vậy tooltip
+    luôn nổi TRÊN CÙNG, thoát khỏi mọi overflow:hidden của thẻ cha (khác với
+    position:absolute vốn bị cắt bởi thẻ cha có overflow:hidden dùng để bo góc).
+    Tự lật xuống dưới nếu phía trên không đủ chỗ (thẻ nằm sát mép trên màn hình). */
+export function ganTooltipNoi(kichHoat, canPhai = false) {
+  const tip = kichHoat.querySelector('.tien-do-tooltip');
+  if (!tip) return;
+  const dat = () => {
+    const r = kichHoat.getBoundingClientRect();
+    const caoTip = tip.offsetHeight || 34;
+    const oDuoi = r.top - caoTip - 8 < 4;
+    tip.classList.toggle('o-duoi', oDuoi);
+    tip.style.top = (oDuoi ? r.bottom + 8 : r.top - caoTip - 8) + 'px';
+    if (canPhai) {
+      tip.style.right = Math.max(4, window.innerWidth - r.right) + 'px';
+      tip.style.left = 'auto';
+    } else {
+      const rongTip = tip.offsetWidth || 160;
+      const trai = Math.max(4, Math.min(r.left + r.width / 2 - rongTip / 2, window.innerWidth - rongTip - 4));
+      tip.style.left = trai + 'px';
+      tip.style.right = 'auto';
+    }
+  };
+  kichHoat.addEventListener('mouseenter', dat);
+  kichHoat.addEventListener('focus', dat);
+}
