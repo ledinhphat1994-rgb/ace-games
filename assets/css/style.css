@@ -618,38 +618,14 @@ code {
 .o-so span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
 
 /* ---------- Bố cục Trang chủ (#trangChu) ----------
-   Dưới 1024px: xếp dọc 1 cột theo đúng thứ tự sẵn có trong HTML (không cần "order").
-   Từ 1024px: lưới 2 cột — trái là Thời khoá biểu + Hoạt động lớp (chiếm phần lớn), phải là
-   Tin khẩn cấp (ghim trên) + Thông báo, để không còn khoảng trắng lãng phí 2 bên trên màn rộng.
-   Đặt margin:0 lên các khối con vì khoảng cách giữa chúng nay do "gap" của lưới/flex quyết định
-   — giữ nguyên margin cũ (30/40px của section, 18px của .mo-dau) sẽ cộng dồn thành khoảng trắng
-   thừa bên cạnh gap. */
-@media (max-width: 1023px) {
-  #trangChu { display: flex; flex-direction: column; gap: 1.25rem; }
-  #trangChu > .mo-dau,
-  #trangChu > section { margin: 0; }
-}
-@media (min-width: 1024px) {
-  #trangChu {
-    display: grid;
-    grid-template-columns: 1.55fr 1fr;
-    grid-template-areas:
-      "modau   modau"
-      "tkb     diemnhan"
-      "tkb     thongbao"
-      "hinhanh thongbao"
-      "hinhanh .";
-    gap: 1.75rem;
-    align-items: start;
-  }
-  #trangChu > .mo-dau,
-  #trangChu > section { margin: 0; }
-  #moDau { grid-area: modau; }
-  #bangDiemNhan { grid-area: diemnhan; }
-  #thong-bao { grid-area: thongbao; }
-  #thoi-khoa-bieu { grid-area: tkb; }
-  #hinh-anh { grid-area: hinhanh; }
-}
+   Một hàng — một khối, full chiều ngang của .wrap, ở MỌI kích thước màn hình. Chia 2 cột từng
+   thử nhưng bỏ vì mỗi khối co hẹp lại nửa chiều ngang trong khi chiều cao lại kéo dài xuống rất
+   nhiều màn hình cuộn — phí không gian ngang rộng có sẵn thay vì tận dụng nó. Nay mỗi khối rộng
+   tối đa, giữ nguyên đúng thứ tự có sẵn trong HTML. */
+#trangChu { display: flex; flex-direction: column; gap: 1.25rem; }
+#trangChu > .mo-dau,
+#trangChu > section { margin: 0; }
+@media (min-width: 1024px) { #trangChu { gap: 1.75rem; } }
 
 /* ---------- 5. Bố cục & thẻ ---------- */
 section { margin: 30px 0; scroll-margin-top: 78px; }
