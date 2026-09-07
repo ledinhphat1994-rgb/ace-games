@@ -583,6 +583,7 @@ async function trangDiemDanh() {
   let ngay = sessionStorage.getItem('dd-ngay') || homNay();
   let buoi = sessionStorage.getItem('dd-buoi') || 'sang';
   let tabCon = 'ngay';   // 'ngay' = Điểm danh chính | 'nhanh' = Điểm danh linh động
+  let timChinh = '';     // ô tìm kiếm học sinh ở Điểm danh chính
 
   let duLieuChinh = null;
   const thayDoiChinh = new Map();
@@ -829,98 +830,169 @@ async function trangDiemDanh() {
       );
       khung.append(day);
 
-      // Thanh áp dụng nhanh cho cả lớp & Xoá tất cả ghi chú
-      const theApDungNhanh = e('div', 'the');
-      theApDungNhanh.style.cssText = 'padding:12px 14px;margin-bottom:12px;';
-      theApDungNhanh.append(Object.assign(
-        e('div', null, '⚡ Áp dụng nhanh cho cả lớp'),
-        { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
-      ));
-      const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
-      Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-        const caLopDangChon = duLieuChinh.danhSach.length > 0 &&
-          duLieuChinh.danhSach.every((h) => trangThaiHienTaiChinh(h.id, h.trangThai) === ma);
-
-        const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
-        b.type = 'button';
-        b.setAttribute('aria-pressed', String(caLopDangChon));
-        b.title = caLopDangChon
-          ? `Bỏ chọn tất cả "${tt2.ten}"`
-          : `Đặt "${tt2.ten}" cho cả lớp (bấm lại để bỏ chọn tất cả)`;
-        b.addEventListener('click', () => {
-          if (caLopDangChon) {
-            duLieuChinh.danhSach.forEach((h) => thayDoiChinh.set(h.id, null));
-          } else {
-            duLieuChinh.danhSach.forEach((h) => thayDoiChinh.set(h.id, ma));
-          }
-          ve();
-        });
-        dayApDungNhanh.append(b);
+      // Ô tìm kiếm học sinh — lọc TRỰC TIẾP danh sách bên dưới, và "Áp dụng nhanh" cũng chỉ áp
+      // dụng lên đúng danh sách đang tìm thấy (không áp lên cả lớp khi đang lọc), để giáo viên
+      // gõ tên một nhóm nhỏ rồi bấm trạng thái là điểm danh nhanh đúng nhóm đó. Chỉ rebuild
+      // "khuVucChinh" (không rebuild cả trang) mỗi khi gõ, để ô tìm kiếm không mất focus.
+      const oTimChinh = oNhap('ddTimChinh', 'search', timChinh, 'Tìm theo tên, tổ/lớp nghề, hoặc STT…');
+      oTimChinh.addEventListener('input', (ev) => {
+        timChinh = ev.target.value;
+        veKhuVucChinh();
       });
+      khung.append(truong('🔎 Tìm học sinh', oTimChinh));
 
-      // Nút Xoá tất cả ghi chú của Điểm danh chính
-      const soCoGhiChu = duLieuChinh.danhSach.filter((h) => lyDoHienTaiChinh(h.id, h.lyDo)).length;
-      const bXoaGc = e('button', 'vien-loc', `🗑 Xoá tất cả ghi chú${soCoGhiChu ? ` (${soCoGhiChu})` : ''}`);
-      bXoaGc.type = 'button';
-      if (soCoGhiChu) {
-        bXoaGc.style.color = 'var(--xau)';
-        bXoaGc.style.borderColor = 'var(--xau)';
-      }
-      bXoaGc.title = 'Xoá toàn bộ ghi chú lý do của cả lớp trong buổi chính này';
-      bXoaGc.addEventListener('click', () => {
-        if (!soCoGhiChu) return nhac('Hiện không có học sinh nào có ghi chú trong buổi này.', 'nhe');
-        moHopThoai('Xoá tất cả ghi chú buổi này?', [
-          e('p', null, `Bạn có chắc muốn xoá toàn bộ ghi chú lý do của ${soCoGhiChu} học sinh trong buổi chính này?`),
-          e('p', 'trong', 'Trạng thái điểm danh (Có mặt, Vắng, Trễ) vẫn giữ nguyên, chỉ xoá sạch nội dung ghi chú lý do.')
-        ], [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá tất cả ghi chú', 'nut-xau', () => {
-            duLieuChinh.danhSach.forEach((h) => {
-              if (lyDoHienTaiChinh(h.id, h.lyDo)) {
-                lyDoMoiChinh.set(h.id, '');
-              }
-            });
-            dongHopThoai();
-            nhac('Đã xoá sạch ghi chú của cả lớp (hãy bấm "Lưu điểm danh")', 'tot');
+      const khuVucChinh = e('div');
+      khuVucChinh.id = 'dd-khu-vuc-chinh';
+      khung.append(khuVucChinh);
+
+      const dsLocChinh = () => {
+        const q = timChinh.trim().toLowerCase();
+        if (!q) return duLieuChinh.danhSach;
+        return duLieuChinh.danhSach.filter((h) =>
+          h.hoTen.toLowerCase().includes(q) ||
+          String(h.id).includes(q) ||
+          (h.lopNghe || '').toLowerCase().includes(q)
+        );
+      };
+
+      function veKhuVucChinh() {
+        const dsLoc = dsLocChinh();
+        const dangLoc = Boolean(timChinh.trim());
+        const khungCon = e('div');
+
+        if (dangLoc && !dsLoc.length) {
+          khungCon.append(e('p', 'trong', `Không tìm thấy học sinh nào khớp "${timChinh.trim()}".`));
+          datNoiDung(khuVucChinh, khungCon);
+          return;
+        }
+
+        // Thanh áp dụng nhanh cho cả lớp (hoặc đúng danh sách đang tìm thấy) & Xoá tất cả ghi chú
+        const theApDungNhanh = e('div', 'the');
+        theApDungNhanh.style.cssText = 'padding:12px 14px;margin-bottom:12px;';
+        theApDungNhanh.append(Object.assign(
+          e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
+          { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
+        ));
+        const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
+        Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+          const caLopDangChon = dsLoc.length > 0 &&
+            dsLoc.every((h) => trangThaiHienTaiChinh(h.id, h.trangThai) === ma);
+
+          const b = e('button', 'vien-loc', `${tt2.ky} ${tt2.ten}`);
+          b.type = 'button';
+          b.setAttribute('aria-pressed', String(caLopDangChon));
+          b.title = caLopDangChon
+            ? `Bỏ chọn tất cả "${tt2.ten}"`
+            : `Đặt "${tt2.ten}" cho ${dangLoc ? 'danh sách tìm thấy' : 'cả lớp'} (bấm lại để bỏ chọn tất cả)`;
+          b.addEventListener('click', () => {
+            if (caLopDangChon) {
+              dsLoc.forEach((h) => thayDoiChinh.set(h.id, null));
+            } else {
+              dsLoc.forEach((h) => thayDoiChinh.set(h.id, ma));
+            }
             ve();
-          })
-        ]);
-      });
-      dayApDungNhanh.append(bXoaGc);
-
-      theApDungNhanh.append(dayApDungNhanh);
-      khung.append(theApDungNhanh);
-
-      // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (không phải sau như trước) để
-      // giáo viên hiểu ký hiệu ✓/T/P/✗/📝 nghĩa là gì NGAY khi vừa xem trang, khỏi phải cuộn
-      // qua hết cả lớp (có thể vài chục em) mới thấy chú thích nằm ở cuối.
-      const chuThich = e('div', 'chu-thich');
-      [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
-        .forEach(([chu, mau]) => {
-          const s = e('span');
-          const i = e('i');
-          i.style.background = mau;
-          s.append(i, document.createTextNode(chu));
-          chuThich.append(s);
+          });
+          dayApDungNhanh.append(b);
         });
-      khung.append(chuThich);
 
-      // Danh sách học sinh
-      const ds = e('div', 'ds-diem-danh');
-      duLieuChinh.danhSach.forEach((h) => {
-        const tt = trangThaiHienTaiChinh(h.id, h.trangThai);
-        const ld = lyDoHienTaiChinh(h.id, h.lyDo);
-        const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+        // Nút Xoá tất cả ghi chú (của cả lớp, hoặc đúng danh sách đang tìm thấy)
+        const soCoGhiChu = dsLoc.filter((h) => lyDoHienTaiChinh(h.id, h.lyDo)).length;
+        const bXoaGc = e('button', 'vien-loc', `🗑 Xoá tất cả ghi chú${soCoGhiChu ? ` (${soCoGhiChu})` : ''}`);
+        bXoaGc.type = 'button';
+        if (soCoGhiChu) {
+          bXoaGc.style.color = 'var(--xau)';
+          bXoaGc.style.borderColor = 'var(--xau)';
+        }
+        bXoaGc.title = `Xoá toàn bộ ghi chú lý do của ${dangLoc ? 'danh sách tìm thấy' : 'cả lớp'} trong buổi chính này`;
+        bXoaGc.addEventListener('click', () => {
+          if (!soCoGhiChu) return nhac('Hiện không có học sinh nào có ghi chú trong buổi này.', 'nhe');
+          moHopThoai('Xoá tất cả ghi chú buổi này?', [
+            e('p', null, `Bạn có chắc muốn xoá toàn bộ ghi chú lý do của ${soCoGhiChu} học sinh${dangLoc ? ' (trong danh sách đang tìm thấy)' : ''} trong buổi chính này?`),
+            e('p', 'trong', 'Trạng thái điểm danh (Có mặt, Vắng, Trễ) vẫn giữ nguyên, chỉ xoá sạch nội dung ghi chú lý do.')
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá tất cả ghi chú', 'nut-xau', () => {
+              dsLoc.forEach((h) => {
+                if (lyDoHienTaiChinh(h.id, h.lyDo)) {
+                  lyDoMoiChinh.set(h.id, '');
+                }
+              });
+              dongHopThoai();
+              nhac('Đã xoá sạch ghi chú (hãy bấm "Lưu điểm danh")', 'tot');
+              ve();
+            })
+          ]);
+        });
+        dayApDungNhanh.append(bXoaGc);
 
-        const ten = e('div', 'ten');
-        ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
+        theApDungNhanh.append(dayApDungNhanh);
+        khungCon.append(theApDungNhanh);
 
-        if (ld) {
-          const dongLd = e('div', 'dong-ly-do');
-          dongLd.title = `Ghi chú: ${ld} — Bấm để sửa`;
-          dongLd.append(e('span', null, '💬'), Object.assign(e('span', 'dong-ly-do-chu', ld)));
-          dongLd.addEventListener('click', (ev) => {
+        // Chú thích các nút trạng thái — đặt TRƯỚC danh sách (không phải sau như trước) để
+        // giáo viên hiểu ký hiệu ✓/T/P/✗/📝 nghĩa là gì NGAY khi vừa xem trang, khỏi phải cuộn
+        // qua hết cả lớp (có thể vài chục em) mới thấy chú thích nằm ở cuối.
+        const chuThich = e('div', 'chu-thich');
+        [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
+         ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
+          .forEach(([chu, mau]) => {
+            const s = e('span');
+            const i = e('i');
+            i.style.background = mau;
+            s.append(i, document.createTextNode(chu));
+            chuThich.append(s);
+          });
+        khungCon.append(chuThich);
+
+        // Danh sách học sinh (đúng danh sách đang tìm thấy — cả lớp nếu không lọc gì)
+        const ds = e('div', 'ds-diem-danh');
+        dsLoc.forEach((h) => {
+          const tt = trangThaiHienTaiChinh(h.id, h.trangThai);
+          const ld = lyDoHienTaiChinh(h.id, h.lyDo);
+          const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+
+          const ten = e('div', 'ten');
+          ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
+
+          if (ld) {
+            const dongLd = e('div', 'dong-ly-do');
+            dongLd.title = `Ghi chú: ${ld} — Bấm để sửa`;
+            dongLd.append(e('span', null, '💬'), Object.assign(e('span', 'dong-ly-do-chu', ld)));
+            dongLd.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              moHopThoaiGhiChuDiemDanh(h, tt, ld, (val, ttChon) => {
+                lyDoMoiChinh.set(h.id, val);
+                if (ttChon) thayDoiChinh.set(h.id, ttChon);
+                else if (!thayDoiChinh.has(h.id) && val && !tt) thayDoiChinh.set(h.id, 'vang_phep');
+                ve();
+              });
+            });
+            ten.append(dongLd);
+          }
+
+          hang.append(e('div', 'stt', h.id), ten);
+
+          const nhom = e('div', 'nhom-chon');
+          Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
+            const b = e('button', null, tt2.ky);
+            b.type = 'button';
+            b.dataset.tt = ma;
+            b.title = tt2.ten + ' — bấm lại để bỏ chọn';
+            b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
+            b.setAttribute('aria-pressed', String(tt === ma));
+            b.addEventListener('click', () => {
+              thayDoiChinh.set(h.id, tt === ma ? null : ma);
+              ve();
+            });
+            nhom.append(b);
+          });
+
+          // Nút thứ 5: Ghi chú lý do cho từng học sinh
+          const nutGc = e('button', 'nut-icon-ghi-chu' + (ld ? ' da-co-ghi-chu' : ''));
+          nutGc.type = 'button';
+          nutGc.textContent = '📝';
+          nutGc.title = ld ? `Ghi chú: "${ld}" — Bấm để sửa` : `Thêm ghi chú/lý do cho ${h.hoTen}`;
+          nutGc.setAttribute('aria-label', `Ghi chú cho ${h.hoTen}`);
+          nutGc.addEventListener('click', (ev) => {
             ev.stopPropagation();
             moHopThoaiGhiChuDiemDanh(h, tt, ld, (val, ttChon) => {
               lyDoMoiChinh.set(h.id, val);
@@ -929,47 +1001,17 @@ async function trangDiemDanh() {
               ve();
             });
           });
-          ten.append(dongLd);
-        }
+          nhom.append(nutGc);
 
-        hang.append(e('div', 'stt', h.id), ten);
-
-        const nhom = e('div', 'nhom-chon');
-        Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
-          const b = e('button', null, tt2.ky);
-          b.type = 'button';
-          b.dataset.tt = ma;
-          b.title = tt2.ten + ' — bấm lại để bỏ chọn';
-          b.setAttribute('aria-label', `${h.hoTen}: ${tt2.ten}`);
-          b.setAttribute('aria-pressed', String(tt === ma));
-          b.addEventListener('click', () => {
-            thayDoiChinh.set(h.id, tt === ma ? null : ma);
-            ve();
-          });
-          nhom.append(b);
+          hang.append(nhom);
+          ds.append(hang);
         });
+        khungCon.append(ds);
 
-        // Nút thứ 5: Ghi chú lý do cho từng học sinh
-        const nutGc = e('button', 'nut-icon-ghi-chu' + (ld ? ' da-co-ghi-chu' : ''));
-        nutGc.type = 'button';
-        nutGc.textContent = '📝';
-        nutGc.title = ld ? `Ghi chú: "${ld}" — Bấm để sửa` : `Thêm ghi chú/lý do cho ${h.hoTen}`;
-        nutGc.setAttribute('aria-label', `Ghi chú cho ${h.hoTen}`);
-        nutGc.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          moHopThoaiGhiChuDiemDanh(h, tt, ld, (val, ttChon) => {
-            lyDoMoiChinh.set(h.id, val);
-            if (ttChon) thayDoiChinh.set(h.id, ttChon);
-            else if (!thayDoiChinh.has(h.id) && val && !tt) thayDoiChinh.set(h.id, 'vang_phep');
-            ve();
-          });
-        });
-        nhom.append(nutGc);
+        datNoiDung(khuVucChinh, khungCon);
+      }
 
-        hang.append(nhom);
-        ds.append(hang);
-      });
-      khung.append(ds);
+      veKhuVucChinh();
     }
     khung.append(Object.assign(e('div'), { style: 'height:70px' }));
 

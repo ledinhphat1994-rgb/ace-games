@@ -440,7 +440,15 @@ export async function trangThungRacThuVien(KHUNG, { duongApi, tieuDe, veTrangTru
         })
       );
       dauDong.append(viec);
-      dong.append(dauDong, hienThi(m));
+
+      // Ai xoá / lúc nào / vì sao — bắt buộc phải rõ ràng để tra soát được khi có sự cố (tài
+      // khoản được cấp quyền cũng xoá được, xem functions/api/gv/anh.js).
+      const chiTietXoa = e('div', 'trong');
+      chiTietXoa.style.cssText = 'font-size:12px;line-height:1.6;margin-top:6px;';
+      chiTietXoa.append(e('div', null, `🗑 Người xoá: ${m.xoaBoi || 'Không rõ'} · 🕐 Lúc: ${taoLucVN(m.daXoaLuc)}`));
+      if (m.lyDoXoa) chiTietXoa.append(e('div', null, `💬 Lý do: ${m.lyDoXoa}`));
+
+      dong.append(dauDong, hienThi(m), chiTietXoa);
       ds.append(dong);
     });
     khung.append(ds);

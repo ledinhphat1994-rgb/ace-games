@@ -7,6 +7,7 @@
 // Mọi hàm ở đây đều nhận thêm lopId — thư viện của mỗi lớp tách biệt hoàn toàn (kể cả dung
 // lượng tính riêng, xoá/sửa chỉ tác động đúng mục của lớp đó), dù cùng chung một kho R2/D1.
 import { loi } from './api.js';
+import { taChuThich } from './quy-checkpoint.js';
 
 const CAU_HINH = {
   anh: {
@@ -102,14 +103,16 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
 const NGAY_GIU_THUNG_RAC = 30;
 
 /** "Xoá" một mục khỏi thư viện = chuyển vào thùng rác. Chỉ xoá được mục THUỘC ĐÚNG LỚP đang
-    đăng nhập (lopId), không cho xoá nhầm/xoá lén mục của lớp khác. */
-export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId) {
+    đăng nhập (lopId), không cho xoá nhầm/xoá lén mục của lớp khác. Ghi lại AI xoá (phien) và VÌ
+    SAO (lyDo, không bắt buộc) — để tra soát được khi có sự cố, xem functions/_lib/quy-checkpoint.js. */
+export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId, phien, lyDo) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return loi('Loại thư viện không hợp lệ.');
 
   const kq = await env.DB.prepare(
-    `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now') WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL`
-  ).bind(id, lopId).run();
+    `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now'), xoa_boi = ?1, ly_do_xoa = ?2
+       WHERE id = ?3 AND lop_id = ?4 AND da_xoa_luc IS NULL`
+  ).bind(taChuThich(phien), lyDo || null, id, lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy mục này trong thư viện.', 404);
 
   // Bài đang là "nhạc nền trang chủ" mà bị chuyển vào thùng rác thì tắt luôn cờ đó — không để
@@ -123,20 +126,22 @@ export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId) {
 /** Xoá NHIỀU mục cùng lúc (đã chọn từng mục, hoặc xoá sạch cả thư viện) = chuyển tất cả vào
     thùng rác. Chỉ xoá các id THUỘC ĐÚNG LỚP đang đăng nhập — id của lớp khác lỡ lọt vào danh
     sách sẽ bị bỏ qua, không xoá nhầm. Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới
-    hạn tham số truy vấn của Cloudflare D1. */
-export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId) {
+    hạn tham số truy vấn của Cloudflare D1. Cũng ghi lại AI/VÌ SAO như xoaKhoiThuVien(). */
+export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId, phien, lyDo) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
   if (!ids.length) return { daXoa: 0 };
 
+  const nguoiXoa = taChuThich(phien);
   let tongDaXoa = 0;
   const KICH_THUOC_LO = 50;
   for (let i = 0; i < ids.length; i += KICH_THUOC_LO) {
     const lo = ids.slice(i, i + KICH_THUOC_LO);
     const cho = lo.map(() => '?').join(',');
     const kq = await env.DB.prepare(
-      `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now') WHERE lop_id = ? AND da_xoa_luc IS NULL AND id IN (${cho})`
-    ).bind(lopId, ...lo).run();
+      `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now'), xoa_boi = ?, ly_do_xoa = ?
+         WHERE lop_id = ? AND da_xoa_luc IS NULL AND id IN (${cho})`
+    ).bind(nguoiXoa, lyDo || null, lopId, ...lo).run();
     tongDaXoa += kq.meta.changes || 0;
   }
 

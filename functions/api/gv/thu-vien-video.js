@@ -23,7 +23,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
 
   const { results } = await env.DB.prepare(
-    `SELECT id, ten, kieu, co_byte AS coByte, tao_luc AS taoLuc, da_xoa_luc AS daXoaLuc
+    `SELECT id, ten, kieu, co_byte AS coByte, tao_luc AS taoLuc, da_xoa_luc AS daXoaLuc,
+            xoa_boi AS xoaBoi, ly_do_xoa AS lyDoXoa
        FROM video WHERE lop_id = ?1 AND da_xoa_luc IS ${xemRac ? 'NOT NULL' : 'NULL'}
       ORDER BY ${xemRac ? 'da_xoa_luc DESC' : 'tao_luc DESC'}`
   ).bind(phien.lopId).all();
@@ -65,6 +66,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const laGiaoVien = phien.role === 'teacher';
+  const { lyDo } = await docThan(request);
 
   if (q.get('vinhVien') === '1') {
     if (!laGiaoVien) return loi('Chỉ giáo viên chủ nhiệm xoá vĩnh viễn được.', 403);
@@ -84,14 +86,14 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     } else {
       ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
     }
-    const { daXoa } = await xoaNhieuKhoiThuVien(env, 'video', ids, phien.lopId);
+    const { daXoa } = await xoaNhieuKhoiThuVien(env, 'video', ids, phien.lopId, phien, chuoi(lyDo, 300));
     return json({ ok: true, daXoa });
   }
 
   const id = Number(q.get('id'));
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã video.');
 
-  const loiXoa = await xoaKhoiThuVien(env, 'video', id, phien.lopId);
+  const loiXoa = await xoaKhoiThuVien(env, 'video', id, phien.lopId, phien, chuoi(lyDo, 300));
   if (loiXoa) return loiXoa;
   return json({ ok: true });
 // choPhepXoaPhu: tài khoản được cấp quyền "video" xoá được (chuyển vào thùng rác) — an toàn vì

@@ -11,6 +11,12 @@ const MAU = {
   vangPhep: 'var(--chinh)', vangKhongPhep: 'var(--xau)',
 };
 
+/** Ô "Lý do xoá" (không bắt buộc) — dùng chung cho mọi hộp thoại xoá của 3 thư viện media, để
+    ghi lại VÌ SAO xoá (cùng với AI và LÚC NÀO máy chủ tự ghi) — xem lại được ở "🗑 Thùng rác". */
+function taoOLyDoXoa() {
+  return oNhap('lyDoXoaTam', 'text', '', 'Ví dụ: ảnh mờ/trùng, chụp nhầm, nội dung không phù hợp…');
+}
+
 
 /* ================= Thống kê chuyên cần ================= */
 
@@ -1155,15 +1161,17 @@ export async function trangThuVienAmThanh(KHUNG) {
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
     const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+      const oLyDo = taoOLyDoXoa();
       moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
         e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
         e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
+        truong('Lý do xoá (không bắt buộc)', oLyDo),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
           ev.currentTarget.disabled = true;
           try {
-            await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE' });
+            await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
@@ -1237,12 +1245,16 @@ export async function trangThuVienAmThanh(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} bài đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
+            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
@@ -1287,14 +1299,18 @@ export async function trangThuVienAmThanh(KHUNG) {
         dongDau.append(giua);
 
         dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
-          moHopThoai('Xoá bài này khỏi thư viện?', e('p', null,
-            bai.dangPhat
-              ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi chọn bài khác.`
-              : `Xoá "${bai.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`), [
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai('Xoá bài này khỏi thư viện?', [
+            e('p', null,
+              bai.dangPhat
+                ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi chọn bài khác.`
+                : `Xoá "${bai.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
               try {
-                await api('/api/gv/thu-vien-am-thanh?id=' + bai.id, { method: 'DELETE' });
+                await api('/api/gv/thu-vien-am-thanh?id=' + bai.id, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.delete(bai.id);
@@ -1361,15 +1377,17 @@ export async function trangThuVienVideo(KHUNG) {
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
     const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+      const oLyDo = taoOLyDoXoa();
       moHopThoai('Xoá TOÀN BỘ thư viện Video?', [
         e('p', null, `Toàn bộ ${d.danhSach.length} video sẽ chuyển vào thùng rác.`),
         e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
+        truong('Lý do xoá (không bắt buộc)', oLyDo),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
           ev.currentTarget.disabled = true;
           try {
-            await api('/api/gv/thu-vien-video?tatCa=1', { method: 'DELETE' });
+            await api('/api/gv/thu-vien-video?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
@@ -1442,12 +1460,16 @@ export async function trangThuVienVideo(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} video đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, [
+            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
@@ -1492,11 +1514,15 @@ export async function trangThuVienVideo(KHUNG) {
         dongDau.append(giua);
 
         dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
-          moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`), [
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai('Xoá video này khỏi thư viện?', [
+            e('p', null, `Xoá "${v.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
               try {
-                await api('/api/gv/thu-vien-video?id=' + v.id, { method: 'DELETE' });
+                await api('/api/gv/thu-vien-video?id=' + v.id, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.delete(v.id);
@@ -1539,15 +1565,17 @@ export async function trangHinhAnh(KHUNG) {
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
     const nutXoaTatCa = (laGiaoVien && d.soAnh) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+      const oLyDo = taoOLyDoXoa();
       moHopThoai('Xoá TOÀN BỘ thư viện Ảnh?', [
         e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ chuyển vào thùng rác.`),
         e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
+        truong('Lý do xoá (không bắt buộc)', oLyDo),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
           ev.currentTarget.disabled = true;
           try {
-            await api('/api/gv/anh?tatCa=1', { method: 'DELETE' });
+            await api('/api/gv/anh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
@@ -1627,12 +1655,16 @@ export async function trangHinhAnh(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} ảnh đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, [
+            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api(`/api/gv/anh?ids=${[...daChon].join(',')}`, { method: 'DELETE' });
+                await api(`/api/gv/anh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
@@ -1694,11 +1726,15 @@ export async function trangHinhAnh(KHUNG) {
         hangNut.append(
           nut('✎ Sửa', 'nut-sua-anh nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
           nut('🗑 Xoá', 'nut-xoa-anh nut-nho', () => {
-            moHopThoai('Xoá ảnh này?', e('p', null, a.chuThich || ngayVN(a.ngay)), [
+            const oLyDo = taoOLyDoXoa();
+            moHopThoai('Xoá ảnh này?', [
+              e('p', null, a.chuThich || ngayVN(a.ngay)),
+              truong('Lý do xoá (không bắt buộc)', oLyDo),
+            ], [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {
                 try {
-                  await api('/api/gv/anh?id=' + a.id, { method: 'DELETE' });
+                  await api('/api/gv/anh?id=' + a.id, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                   dongHopThoai();
                   nhac('Đã xoá ảnh', 'tot');
                   daChon.delete(a.id);
