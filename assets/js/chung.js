@@ -415,9 +415,23 @@ export function ganMenu(nut = document.getElementById('moMenu'), bang = document
   if (nut.dataset.boundMenu) return;
   nut.dataset.boundMenu = '1';
   let scrollYLuu = 0;
+
+  // Chiều cao thanh đầu KHÔNG còn cố định (dòng phụ đề tài khoản dài giờ xuống dòng thay vì cắt
+  // "…", xem style.css) — phải đo thật chiều cao hiện tại mỗi lần mở, không dùng sẵn --cao-thanh
+  // nữa, không thì bảng menu đè lên phần thanh đầu đã cao thêm. ".menu-day" nằm LỒNG BÊN TRONG
+  // ".thanh-tren" (position:sticky) nên "top" tính theo chính chiều cao thanh đầu (offsetHeight),
+  // không phải toạ độ theo khung nhìn (getBoundingClientRect) — thanh-tren là khung chứa của nó.
+  function dinhViTriMenu() {
+    const thanh = nut.closest('.thanh-tren');
+    const caoThanh = thanh ? thanh.offsetHeight : 60;
+    bang.style.top = caoThanh + 'px';
+    bang.style.maxHeight = `calc(100dvh - ${caoThanh}px)`;
+  }
+
   const dat = (mo) => {
     bang.hidden = !mo;
     nut.setAttribute('aria-expanded', String(mo));
+    if (mo) dinhViTriMenu();
     // Khoá cuộn trang NỀN khi menu đang mở — không thì trên điện thoại, kéo bên trong menu có
     // thể "chuyền" (scroll chaining) sang cuộn cả trang phía dưới, khiến trang nền vẫn di
     // chuyển/chạm được dù đang che bởi menu. Dùng position:fixed (không chỉ overflow:hidden) vì
@@ -444,6 +458,7 @@ export function ganMenu(nut = document.getElementById('moMenu'), bang = document
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && !bang.hidden) { dat(false); nut.focus(); }
   });
+  addEventListener('resize', () => { if (!bang.hidden) dinhViTriMenu(); });
 }
 
 /* ---------- Nhạc nền: dùng chung cho MỌI trang có thanh đầu (trang lớp, khu quản lý, trang

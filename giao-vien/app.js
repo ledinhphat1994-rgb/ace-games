@@ -719,7 +719,6 @@ async function trangDiemDanh() {
     });
 
     const chonBuoi = oChon('chonBuoi', Object.entries(TEN_BUOI), buoi);
-    chonBuoi.style.width = 'auto';
     chonBuoi.addEventListener('change', async () => {
       buoi = chonBuoi.value;
       sessionStorage.setItem('dd-buoi', buoi);

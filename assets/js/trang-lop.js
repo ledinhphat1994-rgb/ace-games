@@ -2198,7 +2198,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   let timHsDd = '';
 
   const thanhLoc = e('div', 'thanh-cong-cu-khoan');
-  const dayLocDd = e('div', 'day-loc');
+  const dayLocDd = e('div', 'day-loc day-loc-deu');
   const soVangTre = (tk.vangPhep || 0) + (tk.vangKhongPhep || 0) + (tk.tre || 0);
 
   const CAC_MUC_LOC_DD = [

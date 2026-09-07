@@ -405,7 +405,11 @@ code {
   .thanh-tren > .wrap {
     padding-left: 10px;
     padding-right: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     gap: 8px;
+    height: auto;
+    min-height: var(--cao-thanh);
   }
   .hieu {
     gap: 8px;
@@ -419,11 +423,20 @@ code {
     border-radius: 11px;
     letter-spacing: -.3px;
   }
+  /* Tên/vai trò tài khoản XUỐNG DÒNG khi hết chỗ thay vì cắt "…" — khu quản lý ghép thêm
+     "· Đang quản lý: Lớp..." vào dòng phụ đề nên dễ dài hơn hẳn trang lớp. Nút Menu bên phải
+     có flex-shrink:0 (xem .thanh-phai) nên luôn còn nguyên chỗ, không bao giờ bị chữ đè mất. */
   .hieu-ten {
     font-size: 13px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
   .hieu-phu {
     font-size: 12px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
   .thanh-phai {
     gap: 5px;
@@ -909,16 +922,21 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
    xoá ghi chú), để chữ ngắn ("Có mặt") và chữ dài ("Xoá tất cả ghi chú") vẫn ra thẻ to bằng nhau,
    thay vì viên thuốc co giãn theo độ dài chữ như .day-loc mặc định (vốn hợp cho các bộ lọc chữ
    ngắn/dài rất khác nhau, không cùng vai trò). */
+/* !important vì đây là lớp "ghi đè bắt buộc" — vài nơi có sẵn luật riêng cho ".day-loc" theo
+   ngữ cảnh (vd ".thanh-cong-cu-khoan .day-loc" đặt lại flex-wrap cho bộ lọc dài cuộn ngang),
+   độ đặc thù CAO HƠN nên nếu không có !important, ".day-loc-deu" sẽ bị đè ngược mất tác dụng
+   ở đúng những nơi nó cần chạy nhất. */
 .day-loc-deu {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)) !important;
+  flex-wrap: unset !important;
+  overflow-x: visible !important;
   gap: 7px;
 }
-/* ".nut" (nut() ở giao-dien.js) và ".vien-loc" là hai kiểu nút khác nhau nhưng đều được dùng
-   làm hàng nút cùng cấp ở khắp nơi trong dự án — cả hai đều mặc định "white-space:nowrap" nên
-   PHẢI ghi đè ở đây, không thì chữ dài tràn ra ngoài khung 1 cột thay vì xuống dòng bên trong. */
-.day-loc-deu > .vien-loc,
-.day-loc-deu > .nut {
+/* Áp cho MỌI phần tử con trực tiếp — dù là ".nut", ".vien-loc", hay chip thống kê dạng
+   <span class="chip-si-so">, tất cả đều mặc định "white-space:nowrap" nên PHẢI ghi đè ở đây,
+   không thì chữ dài tràn ra ngoài khung 1 cột thay vì xuống dòng bên trong. */
+.day-loc-deu > * {
   width: 100%;
   white-space: normal;
   text-align: center;
@@ -2621,22 +2639,27 @@ td.cot-hom-nay {
   color: #fff;
 }
 
+/* Lưới ĐỀU CỘT (giống .day-loc-deu) thay vì flex-wrap co giãn tự do — 5 chip (số lẻ) trước đây
+   xuống dòng kiểu 2+2+1 với chip cuối trôi lệch, không thẳng lề với các chip phía trên. */
 .thong-ke-si-so-ngay {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
-  flex-wrap: wrap;
 }
 .chip-si-so {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 12.5px;
   font-weight: 600;
   background: var(--nen-noi);
   border: 1px solid var(--vien);
+  white-space: normal;
+  text-align: center;
 }
 .chip-si-so.chip-tot { color: #10b981; border-color: color-mix(in srgb, #10b981 40%, var(--vien)); }
 .chip-si-so.chip-phep { color: var(--chinh); border-color: color-mix(in srgb, var(--chinh) 40%, var(--vien)); }
