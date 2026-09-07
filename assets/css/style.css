@@ -1766,12 +1766,19 @@ td.cot-hom-nay {
   border-color: var(--chinh);
   color: var(--chinh);
 }
+/* Nhãn chữ "Mở rộng"/"Thu gọn" — mờ (không giành trọng tâm với tiêu đề) nhưng vẫn đủ rõ để học
+   sinh nhận ra ngay đây là nút bấm được, không phải chỉ trông chờ vào mỗi mũi tên bé xíu. */
+.nhan-mo-rong {
+  flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--chu-nhat);
+  white-space: nowrap;
+}
+.nut-mo-chi-tiet-dong:hover .nhan-mo-rong { color: var(--chinh); }
 .nut-mo-chi-tiet-dong .mui-ten-chi-tiet {
-  font-size: 15px;
+  font-size: 18px;
   transition: transform .25s ease, background .15s ease;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 50%;

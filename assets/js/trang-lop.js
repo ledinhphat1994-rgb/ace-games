@@ -959,12 +959,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         pillChuaDong.append(document.createTextNode('Chưa đóng '), e('b', null, String(soEmChuaDong)));
         spanStats.append(pillDaDong, pillChuaDong);
         spanNhan.append(spanTieuDe, spanStats);
-        tomTat.append(spanNhan, e('span', 'mui-ten-chi-tiet', '▾'));
+        // Nhãn chữ "Mở rộng"/"Thu gọn" đứng cạnh mũi tên — chỉ có icon mũi tên bé xíu thì học
+        // sinh dễ không để ý là bấm được vào đây.
+        const nhanMoRong = e('span', 'nhan-mo-rong', 'Mở rộng');
+        tomTat.append(spanNhan, nhanMoRong, e('span', 'mui-ten-chi-tiet', '▾'));
 
         const khungChiTiet = e('div', 'khung-chi-tiet-dong');
         // Đang tìm theo tên học sinh ở ô tìm kiếm chính (không khớp tên khoản nào) — tự mở sẵn
         // và lọc luôn theo đúng tên đó, đỡ phải bấm mở rồi gõ lại tên lần nữa cho từng khoản.
         chiTietDongTien.open = timTheoTenHs;
+        if (timTheoTenHs) nhanMoRong.textContent = 'Thu gọn';
         // Cặp "Đã đóng x/y" / "Chưa đóng z" ở đây chỉ hữu ích khi ĐANG ĐÓNG (xem nhanh không cần
         // mở) — mở ra rồi thì các nút lọc Tất cả/Đã đóng/Chưa đóng bên dưới đã lặp lại đúng những
         // con số này, ẩn bớt đi cho đỡ trùng.
@@ -1149,6 +1153,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         // tính bảng, tiết kiệm việc dựng DOM cho những khoản người dùng chưa bấm xem).
         chiTietDongTien.addEventListener('toggle', () => {
           spanStats.hidden = chiTietDongTien.open;
+          nhanMoRong.textContent = chiTietDongTien.open ? 'Thu gọn' : 'Mở rộng';
           if (chiTietDongTien.open) veBangHs();
         });
         if (timTheoTenHs) veBangHs();   // tự mở sẵn nên phải tự vẽ nội dung ngay, không đợi bấm
