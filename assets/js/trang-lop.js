@@ -270,7 +270,6 @@ function veThongBao(ds, phien, lamMoi) {
   if (!ds.length) return datNoiDung(hop, e('p', 'trong', 'Chưa có thông báo nào.'));
 
   const duocPhep = phien && (phien.role === 'teacher' || (phien.quyen || []).includes('thong-bao'));
-  const tinDangHienONoiBat = tinNoiBatDuocChon(ds);
 
   datNoiDung(hop, ...ds.map((t) => {
     const bai = e('article', 'tin' + (t.ghim ? ' tin-ghim' : ''));
@@ -284,13 +283,7 @@ function veThongBao(ds, phien, lamMoi) {
     if (mucDo) thongTin.append(e('span', 'nhan ' + mucDo.lop, mucDo.ten));
     if (t.ghim) thongTin.append(e('span', 'nhan nhan-xam', '📌 Ghim'));
     if (t.loai) thongTin.append(e('span', 'nhan nhan-xam', t.loai));
-    if (duocPhep && t.noiBat) {
-      if (tinDangHienONoiBat && tinDangHienONoiBat.id === t.id) {
-        thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
-      } else {
-        thongTin.append(e('span', 'nhan nhan-xam', '★ Đã đánh dấu — đang xếp sau tin mức độ cao hơn'));
-      }
-    }
+    if (duocPhep && t.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
     thongTin.append(e('span', null, ngayDayDu(t.ngay)));
     dau.append(thongTin);
 
@@ -551,46 +544,124 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
    chạy được khi nội dung dài hơn khung nhìn). Muốn tự tay xem thì kéo chuột/vuốt tay — animation tự
    dừng khi đang kéo và khi rê chuột vào, chạy lại khi thả ra. Bấm vào thẻ (không kéo) sẽ mở đúng
    mục thông báo đó, cuộn tới và tô sáng tạm thời để dễ nhận ra. */
-// Trước đây là một băng thẻ tự trôi ngang liên tục (carousel) — thay bằng đúng MỘT thẻ tĩnh,
-// không tự chạy: tin nổi bật khẩn cấp nhất trước (mucDo cao hơn), gần đây nhất nếu bằng nhau.
-// Đỡ rối mắt hơn nhiều so với dải màu xanh chạy liên tục, và học sinh không bị trôi mất tin
-// đang đọc dở nếu không bấm kịp.
-const DO_UU_TIEN_MUC = { danger: 3, warn: 2, ok: 1, '': 0 };
-
-// Nhiều thông báo có thể cùng được tích "nổi bật", nhưng băng điểm nhấn chỉ hiện được ĐÚNG MỘT
-// thẻ — hàm này chọn ra người thắng (mucDo cao nhất) để veDiemNhan() và veThongBao() dùng chung
-// một kết quả, tránh lệch nhau (vd nhãn ở danh sách Thông báo nói "đang ở băng điểm nhấn" nhưng
-// thực ra một tin khác mức độ cao hơn mới là tin đang hiện).
-function tinNoiBatDuocChon(thongBao) {
-  const cacTin = (thongBao || []).filter((t) => t.noiBat);
-  if (!cacTin.length) return null;
-  return [...cacTin].sort((a, b) => (DO_UU_TIEN_MUC[b.mucDo || ''] || 0) - (DO_UU_TIEN_MUC[a.mucDo || ''] || 0))[0];
-}
-
 function veDiemNhan(thongBao) {
   const khoi = $('#bangDiemNhan');
-  const tin = tinNoiBatDuocChon(thongBao);
-  if (!tin) { khoi.hidden = true; return; }
+  const cuon = $('#dnCuon');
+  const track = $('#dnTrack');
+
+  const cacTin = (thongBao || []).filter((t) => t.noiBat).map((t) => {
+    const mucDo = nhanMucDo(t.mucDo);
+    return {
+      nhan: mucDo ? mucDo.ten : 'Thông báo', lop: mucDo ? mucDo.lop : '',
+      tieuDe: t.tieuDe, phu: ngayDayDu(t.ngay), href: '#tin-' + t.id,
+    };
+  }).slice(0, 10);
+  if (!cacTin.length) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
-  const mucDo = nhanMucDo(tin.mucDo);
-
-  const the = e('div', 'tin-khan-cap' + (tin.mucDo ? ` muc-${tin.mucDo}` : ''));
-  the.append(
-    e('span', 'nhan ' + (mucDo ? mucDo.lop : 'nhan-xam'), mucDo ? mucDo.ten : '📌 Thông báo'),
-    e('h3', null, tin.tieuDe),
-    e('span', 'tin-khan-cap-ngay', ngayDayDu(tin.ngay))
-  );
-  the.addEventListener('click', () => {
-    const dich = document.querySelector('#tin-' + tin.id);
+  const moDich = (href) => {
+    const dich = document.querySelector(href);
     if (!dich) return;
     // behavior: 'instant' — 'smooth' bị treo im re (bấm vào không cuộn tới đâu cả) trên một số
     // trình duyệt/thiết bị, đúng lỗi người dùng báo "băng điểm nhấn không chạy".
     dich.scrollIntoView({ behavior: 'instant', block: 'center' });
     dich.classList.add('dich-noi-bat');
     setTimeout(() => dich.classList.remove('dich-noi-bat'), 2200);
+  };
+
+  const taoThe = (t) => {
+    // KHÔNG dùng thẻ <a> — trình duyệt tự khởi động thao tác "kéo link" ngay khi vừa nhấn chuột
+    // xuống, chặn mất sự kiện pointermove nên không thể kéo-xem bằng chuột được. Dùng <button> và
+    // tự điều hướng bằng JS để vừa kéo được vừa bấm mở được, phân biệt rõ bằng cờ "daKeoThat".
+    const a = e('button', 'dn-the');
+    a.type = 'button';
+    const lopMau = t.lop ? ' dn-nhan-' + t.lop.replace('nhan-', '') : '';
+    a.append(e('span', 'dn-nhan' + lopMau, t.nhan), e('h3', null, t.tieuDe), e('p', null, t.phu));
+    a.addEventListener('click', () => moDich(t.href));
+    return a;
+  };
+  // Lặp 2 lần để trôi vòng lặp liền mạch — chỉ 1 lần thì sẽ có khoảng trống lộ ra khi dịch tới nửa sau.
+  datNoiDung(track, ...cacTin.map(taoThe), ...cacTin.map(taoThe));
+
+  if (khoi.dataset.daGanCuon) return;   // chỉ gắn sự kiện một lần dù dữ liệu tải lại nhiều lần
+  khoi.dataset.daGanCuon = '1';
+
+  const giamChuyenDong = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let offset = 0;          // px, luôn <= 0 (trôi sang trái)
+  let dangTamDung = false; // rê chuột vào / đang kéo
+  let dangKeo = false;
+  let xBatDauKeo = 0;
+  let offsetBatDauKeo = 0;
+  let daKeoThat = false;   // phân biệt "kéo" thật với "bấm" để không chặn nhầm việc bấm vào thẻ
+
+  function motVong() { return track.scrollWidth / 2 || 1; }
+
+  function chay() {
+    if (!giamChuyenDong && !dangTamDung && !dangKeo) {
+      offset -= 0.6;
+      const vong = motVong();
+      if (-offset >= vong) offset += vong;
+      track.style.transform = `translateX(${offset}px)`;
+    }
+    requestAnimationFrame(chay);
+  }
+
+  function nhichMotThe(chieu) {
+    const the = track.querySelector('.dn-the');
+    const rong = (the ? the.offsetWidth : 300) + 14;
+    offset -= chieu * rong;
+    const vong = motVong();
+    if (offset > 0) offset -= vong;
+    if (-offset >= vong) offset += vong;
+    track.style.transition = 'transform .35s ease';
+    track.style.transform = `translateX(${offset}px)`;
+    setTimeout(() => { track.style.transition = ''; }, 360);
+  }
+
+  khoi.addEventListener('mouseenter', () => { dangTamDung = true; });
+  khoi.addEventListener('mouseleave', () => { dangTamDung = false; });
+
+  // Kéo bằng chuột/ngón tay để chủ động xem — dùng Pointer Events, gộp chung chuột và cảm ứng.
+  // CHỈ setPointerCapture SAU KHI đã xác nhận là kéo thật (vượt ngưỡng 4px) — bắt giữ con trỏ
+  // ngay từ pointerdown khiến trình duyệt coi luôn cuon là đích của sự kiện "click" đi kèm ngay
+  // sau đó (dù không hề rê chuột), nên bấm thẳng vào thẻ để mở mục không bao giờ hoạt động được.
+  cuon.addEventListener('pointerdown', (ev) => {
+    dangKeo = true; daKeoThat = false;
+    xBatDauKeo = ev.clientX; offsetBatDauKeo = offset;
   });
-  datNoiDung(khoi, the);
+  cuon.addEventListener('pointermove', (ev) => {
+    if (!dangKeo) return;
+    const delta = ev.clientX - xBatDauKeo;
+    if (!daKeoThat && Math.abs(delta) > 4) {
+      daKeoThat = true;
+      cuon.classList.add('dang-keo');
+      cuon.setPointerCapture(ev.pointerId);
+    }
+    if (!daKeoThat) return;
+    offset = offsetBatDauKeo + delta;
+    track.style.transform = `translateX(${offset}px)`;
+    ev.preventDefault();
+  });
+  function ketThucKeo(ev) {
+    if (!dangKeo) return;
+    dangKeo = false;
+    cuon.classList.remove('dang-keo');
+    if (ev && cuon.hasPointerCapture(ev.pointerId)) cuon.releasePointerCapture(ev.pointerId);
+    const vong = motVong();
+    while (offset > 0) offset -= vong;
+    while (-offset >= vong) offset += vong;
+  }
+  cuon.addEventListener('pointerup', ketThucKeo);
+  cuon.addEventListener('pointercancel', ketThucKeo);
+  // Vừa kéo xong thì chặn đúng 1 lần click kế tiếp, tránh mở nhầm mục khi người dùng chỉ định kéo xem.
+  cuon.addEventListener('click', (ev) => {
+    if (daKeoThat) { ev.preventDefault(); ev.stopPropagation(); daKeoThat = false; }
+  }, true);
+
+  $('#dnTrai').addEventListener('click', () => nhichMotThe(-1));
+  $('#dnPhai').addEventListener('click', () => nhichMotThe(1));
+
+  requestAnimationFrame(chay);
 }
 
 /* ---------- Thủ quỹ (công khai: tổng quan & chi tiết đóng tiền từng em) ---------- */

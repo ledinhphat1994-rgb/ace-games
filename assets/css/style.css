@@ -661,20 +661,55 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 @media (min-width: 720px) { .khoi-trang-chu > .than-khoi { padding: 24px 26px; } }
 .khoi-trang-chu > .than-khoi > .the { box-shadow: none; }
 
-/* ---------- Tin khẩn cấp: MỘT thẻ pinned duy nhất, tĩnh, không tự trôi. ---------- */
-.bang-diem-nhan { margin: 0 0 30px; }
-@media (min-width: 720px) { .bang-diem-nhan { margin-bottom: 40px; } }
-.tin-khan-cap {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  background: var(--nen-noi); border: 1px solid var(--vien); border-left: 3px solid var(--chinh);
-  border-radius: var(--r); padding: 14px 18px; cursor: pointer;
-  transition: border-color .15s, transform .15s, box-shadow .15s;
+/* ---------- Băng điểm nhấn (spotlight): tự cuộn ngang, nhóm tin quan trọng nhất. ---------- */
+.bang-diem-nhan {
+  position: relative; margin: 0 0 30px;
+  border-radius: var(--r-lon); overflow: hidden;
+  background: linear-gradient(120deg, var(--chinh) 0%, var(--chinh-sang) 55%, var(--chinh-2) 100%);
+  box-shadow: var(--bong-mau);
 }
-.tin-khan-cap:hover { border-color: var(--chinh); box-shadow: var(--bong-2); transform: translateY(-1px); }
-.tin-khan-cap.muc-warn { border-left-color: var(--luu-y); }
-.tin-khan-cap.muc-danger { border-left-color: var(--xau); }
-.tin-khan-cap h3 { margin: 0; font-size: 15px; color: var(--chu); line-height: 1.35; flex: 1; min-width: 200px; }
-.tin-khan-cap-ngay { font-size: 12.5px; color: var(--chu-mo); white-space: nowrap; }
+@media (min-width: 720px) { .bang-diem-nhan { margin-bottom: 40px; } }
+/* Khung ngoài chỉ để CẮT (overflow hidden) — dải thẻ bên trong (.bang-diem-nhan-track) tự
+   trôi liên tục bằng transform (JS), không dùng cuộn gốc của trình duyệt nữa. Vẫn kéo được
+   bằng chuột/ngón tay (con trỏ "grab") để chủ động xem, không chỉ ngồi chờ tự chạy. */
+.bang-diem-nhan-cuon {
+  overflow: hidden; padding: 16px 0; cursor: grab; touch-action: pan-y;
+}
+.bang-diem-nhan-cuon.dang-keo { cursor: grabbing; }
+.bang-diem-nhan-track { display: flex; gap: 14px; width: max-content; padding: 0 16px; will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .bang-diem-nhan-cuon { cursor: default; } }
+.dn-the {
+  flex: none; width: min(320px, 82vw); user-select: none;
+  background: color-mix(in srgb, #fff 14%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid color-mix(in srgb, #fff 30%, transparent);
+  border-radius: var(--r); padding: 14px 16px; color: #fff;
+  text-decoration: none; display: block; cursor: pointer;
+  transition: transform .15s, background .15s;
+  font: inherit; text-align: left; appearance: none;
+  -webkit-user-drag: none;
+}
+.dn-the:hover { background: color-mix(in srgb, #fff 22%, transparent); transform: translateY(-2px); }
+.dn-the .dn-nhan {
+  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 99px; background: rgba(0,0,0,.22); margin-bottom: 8px;
+}
+/* Màu theo mức độ quan trọng (nhanMucDo trong chung.js) — để học sinh nhận ra ngay bằng màu,
+   không phải đọc hết chữ. Trộn với nền tối .22 sẵn có để vẫn tương phản tốt trên nền gradient. */
+.dn-the .dn-nhan.dn-nhan-tot { background: color-mix(in srgb, var(--tot) 60%, rgba(0,0,0,.22)); }
+.dn-the .dn-nhan.dn-nhan-luuy { background: color-mix(in srgb, var(--luu-y) 60%, rgba(0,0,0,.22)); }
+.dn-the .dn-nhan.dn-nhan-xau { background: color-mix(in srgb, var(--xau) 60%, rgba(0,0,0,.22)); }
+.dn-the h3 { margin: 0 0 4px; font-size: 15px; color: #fff; line-height: 1.3; }
+.dn-the p { margin: 0; font-size: 12.5px; color: rgba(255,255,255,.85); }
+.bdn-dieu-huong {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(0,0,0,.28); color: #fff; font-size: 18px; display: none; place-items: center;
+  transition: background .15s;
+}
+.bdn-dieu-huong:hover { background: rgba(0,0,0,.45); }
+.bdn-trai { left: 10px; } .bdn-phai { right: 10px; }
+@media (min-width: 640px) { .bdn-dieu-huong { display: grid; } }
 
 .the {
   position: relative;

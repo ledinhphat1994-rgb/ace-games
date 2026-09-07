@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260907_21">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260907_21">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260907_22">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260907_22">
 </head>
 <body>
 
@@ -120,7 +120,15 @@
 
     <!-- Tin khẩn cấp: một thẻ pinned tĩnh duy nhất (tin nổi bật ưu tiên cao nhất) — xem
          veDiemNhan() trong trang-lop.js. Ẩn hẳn (không chừa khoảng trống) khi chưa có gì khẩn. -->
-    <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin khẩn cấp"></section>
+    <!-- Băng điểm nhấn: tự cuộn ngang, gộp mọi thông báo được đánh dấu "nổi bật". Ẩn hẳn
+         (không chừa khoảng trống) khi chưa có gì đáng nổi bật. -->
+    <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
+      <div class="bang-diem-nhan-cuon" id="dnCuon">
+        <div class="bang-diem-nhan-track" id="dnTrack"></div>
+      </div>
+      <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
+      <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
+    </section>
 
     <section class="khoi-trang-chu" id="thong-bao">
       <div class="dau-muc">
@@ -228,6 +236,6 @@
 </footer>
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260907_21"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260907_22"></script>
 </body>
 </html>
