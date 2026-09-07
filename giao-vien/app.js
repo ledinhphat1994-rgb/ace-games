@@ -497,8 +497,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
   // hiểu ký hiệu ✓/T/P/✗/📝 ngay khi vừa xem trang, khỏi phải cuộn qua hết cả lớp mới thấy.
   const chuThich = e('div', 'chu-thich');
   [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-   ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
-   ['📝 Ghi chú lý do', 'var(--chinh)']]
+   ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
     .forEach(([chu, mau]) => {
       const s = e('span');
       const i = e('i');
@@ -902,8 +901,7 @@ async function trangDiemDanh() {
       // qua hết cả lớp (có thể vài chục em) mới thấy chú thích nằm ở cuối.
       const chuThich = e('div', 'chu-thich');
       [['✓ Có mặt', 'var(--tot)'], ['T Đi trễ', 'var(--luu-y)'],
-       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)'],
-       ['📝 Ghi chú lý do', 'var(--chinh)']]
+       ['P Vắng có phép', 'var(--chinh)'], ['✗ Vắng không phép', 'var(--xau)']]
         .forEach(([chu, mau]) => {
           const s = e('span');
           const i = e('i');

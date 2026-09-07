@@ -1783,9 +1783,11 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
         const b = e('button', 'vien-loc', tenL);
         b.type = 'button';
         b.setAttribute('aria-pressed', String(loaiDiemDanhHienTai === maL));
-        b.addEventListener('click', () => {
+        b.addEventListener('click', async () => {
           if (loaiDiemDanhHienTai !== maL) {
-            taiVaVeDiemDanh(ngayDiemDanhHienTai || '', buoiDiemDanhHienTai || '', maL);
+            // Chuyển tab không được làm màn hình nhảy vị trí — ghim thanh tab đứng yên trong
+            // lúc vẽ lại (xem giuViTriCuonKhiVe trong chung.js).
+            await giuViTriCuonKhiVe('ddTabLoai', () => taiVaVeDiemDanh(ngayDiemDanhHienTai || '', buoiDiemDanhHienTai || '', maL));
           }
         });
         return b;
@@ -1854,20 +1856,22 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
     theCn.append(luoi);
 
     if (!isPhu) {
-      // Tab chính: Danh sách buổi vắng hoặc đi trễ chính khoá
+      // Tab chính: Danh sách buổi vắng hoặc đi trễ chính khoá — dùng đúng <details>/<summary>
+      // + icon tròn to + nhãn "Mở rộng"/"Thu gọn" như bên Thủ quỹ, cho đồng bộ giao diện và
+      // dễ nhận biết là bấm mở rộng được (thay vì nút tự chế trước đây).
       if (cnData.lichSuVang && cnData.lichSuVang.length) {
-        const nutXemVang = e('button', 'nut-mo-chi-tiet-dong');
-        nutXemVang.type = 'button';
-        nutXemVang.setAttribute('aria-expanded', 'false');
-        const spanVang = e('span');
-        spanVang.append(
-          e('b', null, '📋 Xem '),
-          document.createTextNode(`${cnData.lichSuVang.length} buổi em vắng hoặc đi trễ chính khoá`)
-        );
-        nutXemVang.append(spanVang, e('span', 'mui-ten-chi-tiet', '▾'));
-        const hopVang = e('div', 'khung-chi-tiet-dong');
-        hopVang.hidden = true;
+        const chiTietVang = e('details', 'chi-tiet-dong-tien');
+        const tomTatVang = e('summary', 'nut-mo-chi-tiet-dong');
+        const spanTieuDeVang = e('span');
+        spanTieuDeVang.append(document.createTextNode('📋 '), e('b', null, 'Buổi vắng / đi trễ'));
+        const pillSoBuoiVang = e('span', 'pill-dong-tien pill-chua-dong');
+        pillSoBuoiVang.append(e('b', null, String(cnData.lichSuVang.length)), document.createTextNode(' buổi'));
+        const spanNhanVang = e('span', 'tom-tat-dong-tien');
+        spanNhanVang.append(spanTieuDeVang, pillSoBuoiVang);
+        const nhanMoRongVang = e('span', 'nhan-mo-rong', 'Mở rộng');
+        tomTatVang.append(spanNhanVang, nhanMoRongVang, e('span', 'mui-ten-chi-tiet', '▾'));
 
+        const khungVang = e('div', 'khung-chi-tiet-dong');
         const dsVang = e('div', 'ds-diem-danh');
         cnData.lichSuVang.forEach((x) => {
           const hang = e('div', 'hang-hs');
@@ -1883,35 +1887,13 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
           hang.append(ten, e('span', 'nhan ' + lopTt, nhanTt));
           dsVang.append(hang);
         });
-        hopVang.append(dsVang);
+        khungVang.append(dsVang);
+        chiTietVang.append(tomTatVang, khungVang);
 
-        nutXemVang.addEventListener('click', () => {
-          const hien = hopVang.hidden;
-          hopVang.hidden = !hien;
-          nutXemVang.setAttribute('aria-expanded', String(hien));
+        chiTietVang.addEventListener('toggle', () => {
+          nhanMoRongVang.textContent = chiTietVang.open ? 'Thu gọn' : 'Mở rộng';
         });
-        theCn.append(nutXemVang, hopVang);
-      }
-
-      // Nếu em có lượt tham gia ở điểm danh phụ, hiển thị gợi ý chuyển tab
-      if (cn.phu && cn.phu.tong > 0) {
-        const nhacPhu = e('div', 'hop-chuyen-nhanh-phu');
-        nhacPhu.style.cssText = 'margin-top:14px;padding:10px 14px;border-radius:10px;background:var(--nen-noi);border:1.5px dashed color-mix(in srgb, var(--chinh) 50%, var(--vien));display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;flex-wrap:wrap;transition:all .2s;';
-        const veTrai = e('div');
-        veTrai.append(
-          e('span', null, '⚡ '),
-          document.createTextNode('Em có '),
-          e('b', null, `${cn.phu.tong} lượt ghi nhận`),
-          document.createTextNode(` trong Điểm danh linh động (${cn.phu.co_mat} có mặt).`)
-        );
-        nhacPhu.append(
-          veTrai,
-          e('span', 'nhan nhan-tot', 'Xem sổ điểm danh phụ →')
-        );
-        nhacPhu.addEventListener('click', () => {
-          taiVaVeDiemDanh(ngayDiemDanhHienTai, buoiDiemDanhHienTai, 'phu');
-        });
-        theCn.append(nhacPhu);
+        theCn.append(chiTietVang);
       }
     } else {
       // Tab phụ: Danh sách chi tiết các buổi điểm danh phụ của em

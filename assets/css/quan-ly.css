@@ -439,18 +439,6 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .quy-chon-nhanh { display: block; width: 100%; margin: 0 0 12px; }
 @media (min-width: 980px) { .quy-chon-nhanh { display: none; } }
 
-/* Thanh tiến độ thu quỹ của khoản */
-.thanh-tien-do-khoan {
-  margin-top: 4px; margin-bottom: 14px;
-  background: var(--nen-chim); height: 9px; border-radius: 99px;
-  overflow: hidden; border: 1px solid var(--vien);
-}
-.thanh-tien-do-khoan-chay {
-  height: 100%; border-radius: 99px;
-  background: linear-gradient(90deg, #38bdf8, #34d399);
-  transition: width .3s ease;
-}
-
 /* Bộ lọc trạng thái quỹ (Tất cả / Chưa đóng / Còn thiếu / Đã đủ) */
 .loc-trang-thai-quy {
   display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
@@ -1053,13 +1041,16 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
   font-weight: 600;
 }
 .thanh-tien-do-khoan-nho {
+  position: relative;
   height: 5px;
   background: var(--nen-chim);
   border-radius: 99px;
   overflow: hidden;
   margin-top: 10px;
   width: 100%;
+  cursor: pointer;
 }
+.thanh-tien-do-khoan-nho:focus { outline: none; }
 .thanh-tien-do-chay {
   height: 100%;
   background: linear-gradient(90deg, #0284c7, #10b981);

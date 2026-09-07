@@ -244,12 +244,18 @@ export async function trangQuy(KHUNG) {
     khoiPhai.append(oBadge, khoiMoRongHang(moRong === k.id));
     dong1.append(khoiPhai);
 
-    // Thanh tiến độ mini trực quan trên card
+    // Thanh tiến độ mini trực quan trên card — rê chuột/chạm hiện tooltip đủ số liệu, giống hệt
+    // badge trạng thái bên trên (dùng lại đúng chiTietBadge, đỡ phải hiện khối số liệu riêng
+    // trong phần chi tiết mở rộng nữa).
     const thanhTienDoNho = e('div', 'thanh-tien-do-khoan-nho');
+    thanhTienDoNho.tabIndex = 0;
+    thanhTienDoNho.setAttribute('role', 'button');
+    thanhTienDoNho.setAttribute('aria-label', chiTietBadge);
     const chay = e('div', 'thanh-tien-do-chay');
     chay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
     if (phanTram >= 100) chay.classList.add('da-du');
-    thanhTienDoNho.append(chay);
+    thanhTienDoNho.append(chay, e('div', 'tien-do-tooltip', chiTietBadge));
+    ganTooltipNoi(thanhTienDoNho, false);
 
     hang.append(dong1, thanhTienDoNho);
     hang.addEventListener('click', () => moKhoan(k.id));
@@ -323,12 +329,18 @@ export async function trangQuy(KHUNG) {
     khoiPhai.append(khoiMoRongHang(dangMo));
     dong1.append(khoiPhai);
 
-    // Thanh tiến độ mini trực quan cho nhóm định kỳ
+    // Thanh tiến độ mini trực quan cho nhóm định kỳ — cũng rê chuột/chạm hiện tooltip số liệu
+    // tổng, đồng bộ với khoản đơn lẻ.
+    const chiTietNhom = `Đã thu ${tienVN(tongDaThu)}/${tienVN(tongCanThu)} · ${soKyDaDu}/${thanhVien.length} kỳ đã đủ`;
     const thanhTienDoNho = e('div', 'thanh-tien-do-khoan-nho');
+    thanhTienDoNho.tabIndex = 0;
+    thanhTienDoNho.setAttribute('role', 'button');
+    thanhTienDoNho.setAttribute('aria-label', chiTietNhom);
     const chay = e('div', 'thanh-tien-do-chay');
     chay.style.width = Math.min(100, Math.max(0, phanTramNhom)) + '%';
     if (phanTramNhom >= 100) chay.classList.add('da-du');
-    thanhTienDoNho.append(chay);
+    thanhTienDoNho.append(chay, e('div', 'tien-do-tooltip', chiTietNhom));
+    ganTooltipNoi(thanhTienDoNho, false);
 
     hang.append(dong1, thanhTienDoNho);
     hang.addEventListener('click', () => {
@@ -386,16 +398,8 @@ export async function trangQuy(KHUNG) {
     );
     box.append(hangNut);
 
-    // Số liệu chi tiết (đã thu/mục tiêu/còn thiếu/em đủ) giờ xem qua tooltip của badge trạng
-    // thái ở hàng thu gọn (veHangKhoan) — ở đây chỉ còn thanh tiến độ trực quan.
-    const phanTram = dk.tongCanThu ? Math.round((dk.tongDaThu / dk.tongCanThu) * 100) : 0;
-
-    // Thanh tiến độ trực quan
-    const thanhTienDo = e('div', 'thanh-tien-do-khoan');
-    const chay = e('div', 'thanh-tien-do-khoan-chay');
-    chay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
-    thanhTienDo.append(chay);
-    box.append(thanhTienDo);
+    // Số liệu chi tiết (đã thu/mục tiêu/còn thiếu/em đủ) và thanh tiến độ giờ xem qua tooltip
+    // của badge + thanh tiến độ mini ở hàng thu gọn (veHangKhoan) — trùng lặp nên bỏ khỏi đây.
 
     const dsTheoToUniq = [...new Set(dk.danhSach.map((h) => h.toSo).filter(Boolean))].sort((a, b) => a - b);
     const nhanTung = e('div', 'the-nhan', 'Từng em học sinh');
