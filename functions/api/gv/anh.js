@@ -1,13 +1,16 @@
 // Ảnh hoạt động của lớp.
 //   GET    /api/gv/anh          -> danh sách ảnh ĐANG HIỂN THỊ (kèm dung lượng đã dùng)
-//   GET    /api/gv/anh?rac=1    -> danh sách ảnh trong THÙNG RÁC (tự dọn mục quá hạn trước khi trả về)
+//   GET    /api/gv/anh?rac=1    -> danh sách ảnh trong THÙNG RÁC (CHỈ giáo viên — tự dọn mục quá hạn)
 //   POST   /api/gv/anh          { tenTep, kieu, duLieu (base64), chuThich, ngay }
 //   PATCH  /api/gv/anh          { id, chuThich }
-//   PATCH  /api/gv/anh          { id, khoiPhuc: true }   -> khôi phục khỏi thùng rác
-//   DELETE /api/gv/anh?id=              -> chuyển một ảnh vào thùng rác
-//   DELETE /api/gv/anh?ids=1,2,3         -> chuyển nhiều ảnh đã chọn vào thùng rác
-//   DELETE /api/gv/anh?tatCa=1           -> chuyển sạch cả thư viện vào thùng rác
-//   DELETE /api/gv/anh?id=&vinhVien=1    -> xoá VĨNH VIỄN một ảnh ĐÃ ở trong thùng rác
+//   PATCH  /api/gv/anh          { id, khoiPhuc: true }   -> khôi phục khỏi thùng rác (CHỈ giáo viên)
+//   DELETE /api/gv/anh?id=              -> chuyển MỘT ảnh vào thùng rác (tài khoản có quyền "hinh-anh"
+//                                            cũng xoá được — an toàn vì có thùng rác, giáo viên khôi
+//                                            phục lại được nếu xoá nhầm/bị lạm dụng)
+//   DELETE /api/gv/anh?ids=1,2,3         -> chuyển NHIỀU ảnh vào thùng rác (CHỈ giáo viên — xoá hàng
+//                                            loạt rủi ro cao hơn nên không mở cho tài khoản cấp quyền)
+//   DELETE /api/gv/anh?tatCa=1           -> chuyển sạch cả thư viện vào thùng rác (CHỈ giáo viên)
+//   DELETE /api/gv/anh?id=&vinhVien=1    -> xoá VĨNH VIỄN một ảnh ĐÃ ở trong thùng rác (CHỈ giáo viên)
 //
 // Ảnh đã được nén nhỏ ngay trên máy giáo viên trước khi gửi lên, nên mỗi tấm
 // chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare R2, phần mô tả lưu trong D1.
@@ -22,6 +25,10 @@ const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const xemRac = new URL(request.url).searchParams.get('rac') === '1';
+  // Thùng rác CHỈ giáo viên chủ nhiệm xem được — cùng nguyên tắc "chỉ giáo viên khôi phục được"
+  // ở Lịch sử & khôi phục: tài khoản được cấp quyền xoá được (chuyển vào rác) nhưng không tự
+  // khôi phục/xem lại được, để không thể tự xoá dấu vết nếu tài khoản bị chiếm.
+  if (xemRac && phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm xem được thùng rác.', 403);
   if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
 
   const { results } = await env.DB.prepare(
@@ -87,6 +94,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   if (!Number.isInteger(Number(id))) return loi('Thiếu mã ảnh.');
 
   if (khoiPhuc) {
+    if (phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm khôi phục được.', 403);
     const loiKp = await khoiPhucKhoiThuVien(env, 'anh', Number(id), phien.lopId);
     if (loiKp) return loiKp;
     return json({ ok: true });
@@ -100,8 +108,10 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
+  const laGiaoVien = phien.role === 'teacher';
 
   if (q.get('vinhVien') === '1') {
+    if (!laGiaoVien) return loi('Chỉ giáo viên chủ nhiệm xoá vĩnh viễn được.', 403);
     const id = Number(q.get('id'));
     if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã ảnh.');
     const loiXoa = await xoaVinhVienKhoiThuVien(env, 'anh', id, phien.lopId);
@@ -110,6 +120,9 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   }
 
   if (q.get('tatCa') === '1' || q.get('ids')) {
+    // Xoá hàng loạt CHỈ giáo viên — tài khoản được cấp quyền chỉ xoá được từng ảnh một (xem
+    // nhánh cuối cùng bên dưới), tránh một tài khoản bị chiếm quét sạch cả thư viện cùng lúc.
+    if (!laGiaoVien) return loi('Tài khoản được cấp quyền chỉ xoá được từng ảnh một. Nhờ giáo viên chủ nhiệm nếu cần xoá nhiều ảnh cùng lúc.', 403);
     let ids;
     if (q.get('tatCa') === '1') {
       const { results } = await env.DB.prepare('SELECT id FROM hinh_anh WHERE lop_id = ?1 AND da_xoa_luc IS NULL').bind(phien.lopId).all();
@@ -127,4 +140,6 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const loiXoa = await xoaKhoiThuVien(env, 'anh', id, phien.lopId);
   if (loiXoa) return loiXoa;
   return json({ ok: true });
-}, { canGiaoVien: true, quyenCan: 'hinh-anh' });
+// choPhepXoaPhu: tài khoản được cấp quyền "hinh-anh" xoá được (chuyển vào thùng rác) — an toàn vì
+// giáo viên luôn khôi phục lại được nếu xoá nhầm hoặc tài khoản bị chiếm quyền lạm dụng.
+}, { canGiaoVien: true, quyenCan: 'hinh-anh', choPhepXoaPhu: true });

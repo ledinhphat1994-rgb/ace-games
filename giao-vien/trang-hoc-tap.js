@@ -1144,16 +1144,20 @@ async function nenAnh(tep) {
 export async function trangThuVienAmThanh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   const daChon = new Set();   // id các bài đang tích chọn để xoá hàng loạt
+  // Xoá hàng loạt, xoá tất cả, và thùng rác đều CHỈ giáo viên chủ nhiệm dùng được (khớp đúng máy
+  // chủ — xem functions/api/gv/thu-vien-am-thanh.js) — tài khoản được cấp quyền "am-thanh" chỉ
+  // xoá được từng bài một (nút "🗑 Xoá" trên mỗi bài vẫn hiện bình thường cho họ).
+  const laGiaoVien = (await api('/api/whoami').catch(() => ({ role: 'teacher' }))).role === 'teacher';
 
   async function ve() {
     const d = await api('/api/gv/thu-vien-am-thanh');
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
-    const nutXoaTatCa = d.danhSach.length ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+    const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
       moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
-        e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ mất hết, kể cả bài đang làm nhạc nền trang chủ.`),
-        e('p', 'trong', 'Không thể hoàn tác.'),
+        e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
+        e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
@@ -1161,7 +1165,7 @@ export async function trangThuVienAmThanh(KHUNG) {
           try {
             await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE' });
             dongHopThoai();
-            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
           } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
@@ -1170,7 +1174,7 @@ export async function trangThuVienAmThanh(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Âm thanh',
       d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
-      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; }),
+      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
@@ -1221,8 +1225,8 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
-    if (daChon.size) {
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên.
+    if (laGiaoVien && daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} bài`));
@@ -1233,7 +1237,7 @@ export async function trangThuVienAmThanh(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} bài đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
@@ -1263,16 +1267,18 @@ export async function trangThuVienAmThanh(KHUNG) {
         const dongDau = e('div');
         dongDau.style.cssText = 'display:flex;align-items:flex-start;gap:9px';
 
-        const oChonXoa = e('input');
-        oChonXoa.type = 'checkbox';
-        oChonXoa.checked = daChon.has(bai.id);
-        oChonXoa.setAttribute('aria-label', 'Chọn "' + bai.ten + '" để xoá hàng loạt');
-        oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
-        oChonXoa.addEventListener('change', () => {
-          if (oChonXoa.checked) daChon.add(bai.id); else daChon.delete(bai.id);
-          ve();
-        });
-        dongDau.append(oChonXoa);
+        if (laGiaoVien) {
+          const oChonXoa = e('input');
+          oChonXoa.type = 'checkbox';
+          oChonXoa.checked = daChon.has(bai.id);
+          oChonXoa.setAttribute('aria-label', 'Chọn "' + bai.ten + '" để xoá hàng loạt');
+          oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
+          oChonXoa.addEventListener('change', () => {
+            if (oChonXoa.checked) daChon.add(bai.id); else daChon.delete(bai.id);
+            ve();
+          });
+          dongDau.append(oChonXoa);
+        }
 
         const giua = e('div');
         giua.style.cssText = 'flex:1;min-width:0';
@@ -1284,7 +1290,7 @@ export async function trangThuVienAmThanh(KHUNG) {
           moHopThoai('Xoá bài này khỏi thư viện?', e('p', null,
             bai.dangPhat
               ? `"${bai.ten}" đang là nhạc nền trang chủ — xoá xong học sinh sẽ không còn nghe được nhạc nền cho tới khi chọn bài khác.`
-              : `Xoá "${bai.ten}"? Không thể hoàn tác.`), [
+              : `Xoá "${bai.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
               try {
@@ -1344,16 +1350,20 @@ export async function trangThuVienAmThanh(KHUNG) {
 export async function trangThuVienVideo(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   const daChon = new Set();   // id các video đang tích chọn để xoá hàng loạt
+  // Xoá hàng loạt, xoá tất cả, và thùng rác đều CHỈ giáo viên chủ nhiệm dùng được (khớp đúng máy
+  // chủ — xem functions/api/gv/thu-vien-video.js) — tài khoản được cấp quyền "video" chỉ xoá
+  // được từng video một (nút "🗑 Xoá" trên mỗi video vẫn hiện bình thường cho họ).
+  const laGiaoVien = (await api('/api/whoami').catch(() => ({ role: 'teacher' }))).role === 'teacher';
 
   async function ve() {
     const d = await api('/api/gv/thu-vien-video');
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
-    const nutXoaTatCa = d.danhSach.length ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+    const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
       moHopThoai('Xoá TOÀN BỘ thư viện Video?', [
-        e('p', null, `Toàn bộ ${d.danhSach.length} video sẽ mất hết.`),
-        e('p', 'trong', 'Không thể hoàn tác.'),
+        e('p', null, `Toàn bộ ${d.danhSach.length} video sẽ chuyển vào thùng rác.`),
+        e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
@@ -1361,7 +1371,7 @@ export async function trangThuVienVideo(KHUNG) {
           try {
             await api('/api/gv/thu-vien-video?tatCa=1', { method: 'DELETE' });
             dongHopThoai();
-            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
           } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
@@ -1370,7 +1380,7 @@ export async function trangThuVienVideo(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Video',
       d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào',
-      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-video-thung-rac'; }),
+      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-video-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
@@ -1420,8 +1430,8 @@ export async function trangThuVienVideo(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
-    if (daChon.size) {
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên.
+    if (laGiaoVien && daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} video`));
@@ -1432,7 +1442,7 @@ export async function trangThuVienVideo(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} video đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
@@ -1462,16 +1472,18 @@ export async function trangThuVienVideo(KHUNG) {
         const dongDau = e('div');
         dongDau.style.cssText = 'display:flex;align-items:flex-start;gap:9px';
 
-        const oChonXoa = e('input');
-        oChonXoa.type = 'checkbox';
-        oChonXoa.checked = daChon.has(v.id);
-        oChonXoa.setAttribute('aria-label', 'Chọn "' + v.ten + '" để xoá hàng loạt');
-        oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
-        oChonXoa.addEventListener('change', () => {
-          if (oChonXoa.checked) daChon.add(v.id); else daChon.delete(v.id);
-          ve();
-        });
-        dongDau.append(oChonXoa);
+        if (laGiaoVien) {
+          const oChonXoa = e('input');
+          oChonXoa.type = 'checkbox';
+          oChonXoa.checked = daChon.has(v.id);
+          oChonXoa.setAttribute('aria-label', 'Chọn "' + v.ten + '" để xoá hàng loạt');
+          oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
+          oChonXoa.addEventListener('change', () => {
+            if (oChonXoa.checked) daChon.add(v.id); else daChon.delete(v.id);
+            ve();
+          });
+          dongDau.append(oChonXoa);
+        }
 
         const giua = e('div');
         giua.style.cssText = 'flex:1;min-width:0';
@@ -1480,7 +1492,7 @@ export async function trangThuVienVideo(KHUNG) {
         dongDau.append(giua);
 
         dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
-          moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Không thể hoàn tác.`), [
+          moHopThoai('Xoá video này khỏi thư viện?', e('p', null, `Xoá "${v.ten}"? Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.`), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async () => {
               try {
@@ -1516,16 +1528,20 @@ export async function trangThuVienVideo(KHUNG) {
 export async function trangHinhAnh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   const daChon = new Set();   // id các ảnh đang tích chọn để xoá hàng loạt
+  // Xoá hàng loạt, xoá tất cả, và thùng rác đều CHỈ giáo viên chủ nhiệm dùng được (khớp đúng máy
+  // chủ — xem functions/api/gv/anh.js) — tài khoản được cấp quyền "hinh-anh" chỉ xoá được từng
+  // ảnh một (nút "🗑 Xoá" trên mỗi ảnh vẫn hiện bình thường cho họ).
+  const laGiaoVien = (await api('/api/whoami').catch(() => ({ role: 'teacher' }))).role === 'teacher';
 
   async function ve() {
     const d = await api('/api/gv/anh');
 
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
-    const nutXoaTatCa = d.soAnh ? nut('🗑 Xoá tất cả', 'nut-nhe nut-nho', () => {
+    const nutXoaTatCa = (laGiaoVien && d.soAnh) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
       moHopThoai('Xoá TOÀN BỘ thư viện Ảnh?', [
-        e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ mất hết.`),
-        e('p', 'trong', 'Không thể hoàn tác.'),
+        e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ chuyển vào thùng rác.`),
+        e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
@@ -1533,7 +1549,7 @@ export async function trangHinhAnh(KHUNG) {
           try {
             await api('/api/gv/anh?tatCa=1', { method: 'DELETE' });
             dongHopThoai();
-            nhac('Đã xoá toàn bộ thư viện', 'tot');
+            nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
           } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
@@ -1542,7 +1558,7 @@ export async function trangHinhAnh(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Ảnh',
       d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào',
-      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; }),
+      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     // Khu chọn ảnh
@@ -1598,8 +1614,9 @@ export async function trangHinhAnh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn.
-    if (daChon.size) {
+    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên (tài
+    // khoản được cấp quyền không có ô tích chọn hàng loạt, xem bên dưới).
+    if (laGiaoVien && daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} ảnh`));
@@ -1610,7 +1627,7 @@ export async function trangHinhAnh(KHUNG) {
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
         nut(`🗑 Xoá ${daChon.size} ảnh đã chọn`, 'nut-xau nut-nho', () => {
-          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, e('p', null, 'Không thể hoàn tác.'), [
+          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'), [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
@@ -1649,16 +1666,18 @@ export async function trangHinhAnh(KHUNG) {
         });
         hinh.append(img);
 
-        const oChonXoa = e('input');
-        oChonXoa.type = 'checkbox';
-        oChonXoa.checked = daChon.has(a.id);
-        oChonXoa.setAttribute('aria-label', 'Chọn ảnh ' + ngayVN(a.ngay) + ' để xoá hàng loạt');
-        oChonXoa.style.cssText = 'position:absolute;top:8px;left:8px;width:20px;height:20px;cursor:pointer;accent-color:var(--xau);box-shadow:0 1px 4px rgba(0,0,0,.6);border-radius:4px;z-index:2';
-        oChonXoa.addEventListener('change', () => {
-          if (oChonXoa.checked) daChon.add(a.id); else daChon.delete(a.id);
-          ve();
-        });
-        hinh.append(oChonXoa);
+        if (laGiaoVien) {
+          const oChonXoa = e('input');
+          oChonXoa.type = 'checkbox';
+          oChonXoa.checked = daChon.has(a.id);
+          oChonXoa.setAttribute('aria-label', 'Chọn ảnh ' + ngayVN(a.ngay) + ' để xoá hàng loạt');
+          oChonXoa.style.cssText = 'position:absolute;top:8px;left:8px;width:20px;height:20px;cursor:pointer;accent-color:var(--xau);box-shadow:0 1px 4px rgba(0,0,0,.6);border-radius:4px;z-index:2';
+          oChonXoa.addEventListener('change', () => {
+            if (oChonXoa.checked) daChon.add(a.id); else daChon.delete(a.id);
+            ve();
+          });
+          hinh.append(oChonXoa);
+        }
 
         const chan = e('div', 'the-anh-chan');
         const dongThongTin = e('div', 'the-anh-thong-tin');
