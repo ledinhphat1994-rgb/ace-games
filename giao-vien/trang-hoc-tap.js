@@ -1,5 +1,5 @@
 /* Sổ điểm, thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, chonHocKi, bieuDoCot, chuThichMau,
@@ -277,6 +277,7 @@ export async function trangThongKe(KHUNG) {
 
   const vo = e('div');
   const hopTab = e('div', 'day-loc');
+  hopTab.id = 'thong-ke-tab';
   hopTab.style.margin = '0 0 16px';
   const noiDung = e('div');
   vo.append(hopTab, noiDung);
@@ -287,11 +288,13 @@ export async function trangThongKe(KHUNG) {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tab === ma));
-      b.addEventListener('click', () => {
-        tab = ma;
-        sessionStorage.setItem('tk-tab', tab);
-        veThanhTab();
-        veTab();
+      b.addEventListener('click', async () => {
+        await giuViTriCuonKhiVe('thong-ke-tab', async () => {
+          tab = ma;
+          sessionStorage.setItem('tk-tab', tab);
+          veThanhTab();
+          await veTab();
+        });
       });
       return b;
     }));
@@ -449,6 +452,7 @@ async function veChuyenCan(KHUNG) {
 
     // Vùng bộ lọc chuyên sâu: Thời gian & Buổi học
     const theBoLoc = e('div', 'the');
+    theBoLoc.id = 'chuyen-can-bo-loc';
     theBoLoc.style.cssText = 'padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:12px;';
 
     // Dòng 1: Chọn nhanh thời gian (Presets)
@@ -467,10 +471,12 @@ async function veChuyenCan(KHUNG) {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(cheDo === kieu));
-      b.addEventListener('click', () => {
-        cheDo = kieu;
-        [tuNgay, denNgay] = layKhoangThoiGian(kieu);
-        ve();
+      b.addEventListener('click', async () => {
+        await giuViTriCuonKhiVe('chuyen-can-bo-loc', async () => {
+          cheDo = kieu;
+          [tuNgay, denNgay] = layKhoangThoiGian(kieu);
+          await ve();
+        });
       });
       dongNhanh.append(b);
     });
@@ -487,13 +493,15 @@ async function veChuyenCan(KHUNG) {
     const inpDen = oNhap('tkDenNgay', 'date', d.denNgay);
     inpDen.style.cssText = 'max-width:160px;padding:5px 10px;font-size:13px;';
 
-    const nutApDung = nut('Áp dụng ngày', 'nut-chinh nut-nho', () => {
+    const nutApDung = nut('Áp dụng ngày', 'nut-chinh nut-nho', async () => {
       if (!inpTu.value || !inpDen.value) return nhac('Vui lòng chọn đủ từ ngày và đến ngày', 'xau');
       if (inpTu.value > inpDen.value) return nhac('Từ ngày không được lớn hơn đến ngày', 'xau');
-      cheDo = 'tuy_chon';
-      tuNgay = inpTu.value;
-      denNgay = inpDen.value;
-      ve();
+      await giuViTriCuonKhiVe('chuyen-can-bo-loc', async () => {
+        cheDo = 'tuy_chon';
+        tuNgay = inpTu.value;
+        denNgay = inpDen.value;
+        await ve();
+      });
     });
 
     dongNgayTuyChon.append(inpTu, document.createTextNode('→'), inpDen, nutApDung);
@@ -514,7 +522,9 @@ async function veChuyenCan(KHUNG) {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(buoi === ma));
-      b.addEventListener('click', () => { buoi = ma; ve(); });
+      b.addEventListener('click', async () => {
+        await giuViTriCuonKhiVe('chuyen-can-bo-loc', async () => { buoi = ma; await ve(); });
+      });
       dongBuoi.append(b);
     });
     theBoLoc.append(dongBuoi);

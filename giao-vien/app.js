@@ -3,7 +3,7 @@
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
-  layNhanTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo,
+  layNhanTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo, giuViTriCuonKhiVe,
 } from '/assets/js/chung.js';
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
@@ -753,21 +753,24 @@ async function trangDiemDanh() {
     khung.append(hangChon);
 
     const hopTabCon = e('div', 'day-loc');
+    hopTabCon.id = 'diem-danh-tab-con';
     hopTabCon.style.margin = '14px 0';
     [['ngay', '📋 Điểm danh chính'], ['nhanh', '⚡ Điểm danh linh động']].forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tabCon === ma));
       b.addEventListener('click', async () => {
-        tabCon = ma;
-        if (tabCon === 'nhanh' && !duLieuPhu) {
-          datNoiDung(KHUNG, khoiDangTai());
-          await taiPhu();
-        } else if (tabCon === 'ngay' && !duLieuChinh) {
-          datNoiDung(KHUNG, khoiDangTai());
-          await taiChinh();
-        }
-        ve();
+        await giuViTriCuonKhiVe('diem-danh-tab-con', async () => {
+          tabCon = ma;
+          if (tabCon === 'nhanh' && !duLieuPhu) {
+            datNoiDung(KHUNG, khoiDangTai());
+            await taiPhu();
+          } else if (tabCon === 'ngay' && !duLieuChinh) {
+            datNoiDung(KHUNG, khoiDangTai());
+            await taiChinh();
+          }
+          ve();
+        });
       });
       hopTabCon.append(b);
     });
@@ -1288,6 +1291,7 @@ async function trangHoSo(id, tabMacDinh) {
   // --- 4 tab: Chuyên cần / Học tập / Hạnh kiểm / Phụ huynh — cùng dữ liệu đã có, tổ chức lại
   // cách xem, không phải 4 trang riêng và không thêm tab Timeline. ---
   const hopTab = e('div', 'day-loc');
+  hopTab.id = 'ho-so-tab';
   hopTab.style.margin = '18px 0 14px';
   khung.append(hopTab);
   const noiDungTab = e('div');
@@ -1299,10 +1303,12 @@ async function trangHoSo(id, tabMacDinh) {
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tab === ma));
       b.addEventListener('click', () => {
-        tab = ma;
-        sessionStorage.setItem('hs-tab', ma);
-        veThanhTab();
-        veNoiDungTab();
+        giuViTriCuonKhiVe('ho-so-tab', () => {
+          tab = ma;
+          sessionStorage.setItem('hs-tab', ma);
+          veThanhTab();
+          veNoiDungTab();
+        });
       });
       return b;
     }));
@@ -1703,12 +1709,15 @@ async function trangNhatKy() {
     khung.append(dau);
 
     const hopLoc = e('div', 'day-loc');
+    hopLoc.id = 'nhat-ky-hop-loc';
     hopLoc.style.marginBottom = '10px';
     [['', 'Tất cả'], ...Object.entries(LOAI_NHAT_KY).map(([k, v]) => [k, v.ten])].forEach(([v, t]) => {
       const b = e('button', 'vien-loc', t);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(loai === v));
-      b.addEventListener('click', () => { loai = v; ve(); });
+      b.addEventListener('click', async () => {
+        await giuViTriCuonKhiVe('nhat-ky-hop-loc', async () => { loai = v; await ve(); });
+      });
       hopLoc.append(b);
     });
     khung.append(hopLoc);
@@ -1719,7 +1728,9 @@ async function trangNhatKy() {
     const bChuaXl = e('button', 'vien-loc', 'Chưa xử lý');
     bChuaXl.type = 'button';
     bChuaXl.setAttribute('aria-pressed', String(chiChuaXuLy));
-    bChuaXl.addEventListener('click', () => { chiChuaXuLy = !chiChuaXuLy; ve(); });
+    bChuaXl.addEventListener('click', async () => {
+      await giuViTriCuonKhiVe('nhat-ky-hop-loc', async () => { chiChuaXuLy = !chiChuaXuLy; await ve(); });
+    });
     hopLocXl.append(bChuaXl);
     khung.append(hopLocXl);
 

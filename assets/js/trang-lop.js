@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
 import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -594,6 +594,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
   // Thanh chuyển tab Thu / Chi
   const thanhTab = e('div', 'tab-chuyen-thu-chi');
+  thanhTab.id = 'thu-quy-thanh-tab';
   const nutTabThu = e('button', 'nut-tab-thu-chi tab-thu', `📥 Các khoản thu (${dsKhoanGoc.length})`);
   nutTabThu.type = 'button';
   const nutTabChi = e('button', 'nut-tab-thu-chi tab-chi', `💸 Các khoản chi (${dsChiGoc.length})`);
@@ -615,15 +616,19 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
   nutTabThu.addEventListener('click', () => {
     if (tabHienTai !== 'thu') {
-      tabHienTai = 'thu';
-      capNhatTab();
+      giuViTriCuonKhiVe('thu-quy-thanh-tab', () => {
+        tabHienTai = 'thu';
+        capNhatTab();
+      });
     }
   });
 
   nutTabChi.addEventListener('click', () => {
     if (tabHienTai !== 'chi') {
-      tabHienTai = 'chi';
-      capNhatTab();
+      giuViTriCuonKhiVe('thu-quy-thanh-tab', () => {
+        tabHienTai = 'chi';
+        capNhatTab();
+      });
     }
   });
 
@@ -657,20 +662,31 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
       CAC_MUC_LOC.push(['da_dong', `Đã đóng (${soDaDong})`]);
     }
 
+    // Tạo nút lọc DUY NHẤT MỘT LẦN — bấm chỉ đổi aria-pressed trên đúng các nút có sẵn (không
+    // dựng lại từ đầu mỗi lần bấm), tránh giật/mất focus do nút vừa bấm bị xoá khỏi DOM ngay
+    // giữa lúc xử lý sự kiện click của chính nó.
+    let dsNutLoc = [];
+    function capNhatNutLoc() {
+      dsNutLoc.forEach((b) => {
+        b.setAttribute('aria-pressed', String(locTrangThai === b.dataset.loc && !khoanDuocChonId));
+      });
+    }
     function veNutLoc() {
-      datNoiDung(dayLoc, ...CAC_MUC_LOC.map(([giaTri, nhan]) => {
+      dsNutLoc = CAC_MUC_LOC.map(([giaTri, nhan]) => {
         const b = e('button', 'vien-loc', nhan);
         b.type = 'button';
-        b.setAttribute('aria-pressed', String(locTrangThai === giaTri && !khoanDuocChonId));
+        b.dataset.loc = giaTri;
         b.addEventListener('click', () => {
           khoanDuocChonId = null;
           dropdown.value = '';
           locTrangThai = giaTri;
-          veNutLoc();
+          capNhatNutLoc();
           veDanhSachKhoan();
         });
         return b;
-      }));
+      });
+      capNhatNutLoc();
+      datNoiDung(dayLoc, ...dsNutLoc);
     }
     veNutLoc();
     thanhCongCu.append(dayLoc);
@@ -762,7 +778,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             nutHuy.addEventListener('click', () => {
               khoanDuocChonId = null;
               dropdown.value = '';
-              veNutLoc();
+              capNhatNutLoc();
               veDanhSachKhoan();
             });
             return nutHuy;
@@ -1208,21 +1224,31 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
       }
     });
 
-    let veNutLocChi = () => {};
-    veNutLocChi = () => {
-      datNoiDung(dayLoc, ...cacMucLoc.map(([giaTri, nhan]) => {
+    // Tạo nút lọc DUY NHẤT MỘT LẦN — bấm chỉ đổi aria-pressed trên đúng các nút có sẵn (không
+    // dựng lại từ đầu mỗi lần bấm), tránh giật/mất focus do nút vừa bấm bị xoá khỏi DOM ngay
+    // giữa lúc xử lý sự kiện click của chính nó.
+    let dsNutLocChi = [];
+    const capNhatNutLocChi = () => {
+      dsNutLocChi.forEach((b) => {
+        b.setAttribute('aria-pressed', String(locLoaiChi === b.dataset.loc && !chiDuocChonId));
+      });
+    };
+    const veNutLocChi = () => {
+      dsNutLocChi = cacMucLoc.map(([giaTri, nhan]) => {
         const b = e('button', 'vien-loc', nhan);
         b.type = 'button';
-        b.setAttribute('aria-pressed', String(locLoaiChi === giaTri && !chiDuocChonId));
+        b.dataset.loc = giaTri;
         b.addEventListener('click', () => {
           chiDuocChonId = null;
           dropdownChi.value = '';
           locLoaiChi = giaTri;
-          veNutLocChi();
+          capNhatNutLocChi();
           veDanhSachChi();
         });
         return b;
-      }));
+      });
+      capNhatNutLocChi();
+      datNoiDung(dayLoc, ...dsNutLocChi);
     };
     veNutLocChi();
     thanhCongCu.append(dayLoc);
@@ -1301,7 +1327,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
             nutHuy.addEventListener('click', () => {
               chiDuocChonId = null;
               dropdownChi.value = '';
-              if (cacMucLoc.length > 1) veNutLocChi();
+              if (cacMucLoc.length > 1) capNhatNutLocChi();
               veDanhSachChi();
             });
             return nutHuy;
