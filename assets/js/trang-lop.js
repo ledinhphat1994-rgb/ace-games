@@ -781,6 +781,33 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
         const matchTuan = /Tuần\s*(\d+)/i.exec(k.ten);
 
+        // Tính sẵn "phần của bạn" TRƯỚC khi vẽ đầu thẻ — cần biết ngay từ đầu để hiện gọn ở góc
+        // phải tiêu đề (badge nhỏ + tooltip), thay vì một dòng riêng chiếm chỗ như trước.
+        const dsDongChiTiet = k.dongChiTiet || {};
+        const dsHs = dsHocSinh || [];
+        const hocSinhHienTaiId = phien?.hocSinhId || null;
+        const danhSachHsVoiTrangThai = dsHs.map((hs) => {
+          const id = hs.id || hs.stt;
+          const sttHienThi = hs.soThuTu || hs.stt || hs.id;
+          const thongTin = dsDongChiTiet[hs.id] || dsDongChiTiet[String(hs.id)] || dsDongChiTiet[hs.stt] || dsDongChiTiet[String(hs.stt)] || null;
+          const daDong = thongTin ? thongTin.soTien : 0;
+          const ngayDong = thongTin ? thongTin.ngay : '';
+          const ghiChu = thongTin ? thongTin.ghiChu : '';
+          const mucTieu = k.soTienMoiEm || 0;
+          let tt = 'chua_dong';
+          if (mucTieu > 0 && daDong >= mucTieu) {
+            tt = 'da_du';
+          } else if (daDong > 0) {
+            tt = 'dong_mot_phan';
+          }
+          return {
+            id, sttHienThi, hoTen: hs.hoTen, lopNghe: hs.lopNghe || '',
+            daDong, ngayDong, ghiChu, trangThai: tt,
+            laChinhMinh: Boolean(hocSinhHienTaiId && hocSinhHienTaiId === id),
+          };
+        });
+        const banGhiCuaMinh = danhSachHsVoiTrangThai.find((x) => x.laChinhMinh);
+
         // Phân loại trạng thái — không còn badge chữ riêng ("Đang thu · X%"...) nữa, vì đã lặp
         // với % ở thanh tiến độ. Trạng thái giờ chỉ thể hiện qua icon + màu viền trái của thẻ,
         // còn số liệu chính xác (đã chạy bao nhiêu %, còn thiếu bao nhiêu) xem khi RÊ CHUỘT vào
@@ -854,6 +881,26 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
 
         trai.append(thongTin);
         dau.append(trai);
+
+        // Góc phải đầu thẻ: CHỈ dành cho học sinh đang xem đúng khoản của mình — một badge nhỏ,
+        // ngắn gọn ("Bạn: Đã đủ 100%"...), rê chuột/chạm mới hiện tooltip đủ chi tiết (đã nộp bao
+        // nhiêu, ngày nào) — thay cho cả một dòng "Phần của bạn" chiếm chỗ như trước.
+        if (banGhiCuaMinh) {
+          const [chuTrangThai, lopTrangThaiBt] = banGhiCuaMinh.trangThai === 'da_du' ? ['✓ Bạn: Đã đủ 100%', 'nhan-tot']
+            : banGhiCuaMinh.trangThai === 'dong_mot_phan' ? ['🙋 Bạn: Đóng 1 phần', 'nhan-luuy']
+              : ['🙋 Bạn: Chưa đóng', 'nhan-xau'];
+          const chiTietBanThan = banGhiCuaMinh.daDong > 0
+            ? `Đã nộp ${tienVN(banGhiCuaMinh.daDong)}` + (banGhiCuaMinh.ngayDong ? ` · ${ngayVN(banGhiCuaMinh.ngayDong)}` : '')
+            : k.soTienMoiEm ? `Cần nộp ${tienVN(k.soTienMoiEm)}` : 'Chưa nộp khoản này';
+
+          const goiYBanThan = e('div', 'the-khoan-ban-than');
+          goiYBanThan.tabIndex = 0;
+          goiYBanThan.setAttribute('role', 'button');
+          goiYBanThan.setAttribute('aria-label', chuTrangThai.replace(/^[✓🙋]\s*/, '') + ' — ' + chiTietBanThan);
+          goiYBanThan.append(e('span', 'nhan ' + lopTrangThaiBt, chuTrangThai), e('div', 'tien-do-tooltip', chiTietBanThan));
+          dau.append(goiYBanThan);
+        }
+
         the.append(dau);
 
         // 2. Widget số liệu + tiến độ: Đã thu — Mục tiêu, rồi thanh tiến độ bên dưới. Không còn
@@ -888,57 +935,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         widget.append(tienDoKhung);
         the.append(widget);
 
-        // 3. Khối danh sách học sinh đóng tiền chi tiết
-        const dsDongChiTiet = k.dongChiTiet || {};
-        const dsHs = dsHocSinh || [];
-        const hocSinhHienTaiId = phien?.hocSinhId || null;
-
-        const danhSachHsVoiTrangThai = dsHs.map((hs) => {
-          const id = hs.id || hs.stt;
-          const sttHienThi = hs.soThuTu || hs.stt || hs.id;
-          const thongTin = dsDongChiTiet[hs.id] || dsDongChiTiet[String(hs.id)] || dsDongChiTiet[hs.stt] || dsDongChiTiet[String(hs.stt)] || null;
-          const daDong = thongTin ? thongTin.soTien : 0;
-          const ngayDong = thongTin ? thongTin.ngay : '';
-          const ghiChu = thongTin ? thongTin.ghiChu : '';
-          const mucTieu = k.soTienMoiEm || 0;
-          let tt = 'chua_dong';
-          if (mucTieu > 0 && daDong >= mucTieu) {
-            tt = 'da_du';
-          } else if (daDong > 0) {
-            tt = 'dong_mot_phan';
-          }
-          return {
-            id,
-            sttHienThi,
-            hoTen: hs.hoTen,
-            lopNghe: hs.lopNghe || '',
-            daDong,
-            ngayDong,
-            ghiChu,
-            trangThai: tt,
-            laChinhMinh: Boolean(hocSinhHienTaiId && hocSinhHienTaiId === id),
-          };
-        });
-
-        // Học sinh cần biết NGAY phần của chính mình, không phải mở "Chi tiết đóng tiền" rồi tự
-        // tìm giữa cả lớp mới thấy — hiện sẵn một dòng riêng ngay trên thẻ nếu tài khoản đang
-        // xem gắn với đúng 1 học sinh trong lớp.
-        const banGhiCuaMinh = danhSachHsVoiTrangThai.find((x) => x.laChinhMinh);
-        if (banGhiCuaMinh) {
-          // Callout gọn, KHÔNG còn chiếm trọn bề ngang thẻ — chỉ vừa đủ nội dung, viền mờ.
-          const hopBanThan = e('div', 'the-khoan-ban-than');
-          const [chuTrangThai, lopTrangThaiBt] = banGhiCuaMinh.trangThai === 'da_du' ? ['✓ Đã đủ 100%', 'nhan-tot']
-            : banGhiCuaMinh.trangThai === 'dong_mot_phan' ? ['Đóng 1 phần', 'nhan-luuy']
-              : ['Chưa đóng', 'nhan-xau'];
-          hopBanThan.append(e('span', null, '🙋 Phần của bạn'), e('span', 'nhan ' + lopTrangThaiBt, chuTrangThai));
-          if (banGhiCuaMinh.daDong > 0) {
-            hopBanThan.append(e('span', 'trong', `Đã nộp ${tienVN(banGhiCuaMinh.daDong)}`
-              + (banGhiCuaMinh.ngayDong ? ` · ${ngayVN(banGhiCuaMinh.ngayDong)}` : '')));
-          } else if (k.soTienMoiEm) {
-            hopBanThan.append(e('span', 'trong', `Cần nộp ${tienVN(k.soTienMoiEm)}`));
-          }
-          the.append(hopBanThan);
-        }
+        // 3. Khối danh sách học sinh đóng tiền chi tiết (dữ liệu đã tính sẵn ở đầu vòng lặp)
 
         const soEmDaDong = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'da_du').length;
         const soEmDongMotPhan = danhSachHsVoiTrangThai.filter((x) => x.trangThai === 'dong_mot_phan').length;

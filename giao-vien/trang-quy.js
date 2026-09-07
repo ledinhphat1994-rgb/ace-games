@@ -188,22 +188,32 @@ export async function trangQuy(KHUNG) {
         e('span', 'thoi-gian-thu', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`)
       );
     }
-    dongChiTiet.append(
-      e('span', 'cham-cach', '·'),
-      e('span', 'so-tien-thu-duoc', `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} (${phanTram}%)`)
-    );
+    // "Đã thu X/Y (Z%)" bỏ khỏi đây — lặp với badge trạng thái bên phải (rê chuột vào đó xem
+    // đủ chi tiết qua tooltip), để dòng tóm tắt đỡ dài.
     thongTin.append(dongChiTiet);
     khoiTrai.append(thongTin);
     dong1.append(khoiTrai);
 
-    const khoiPhai = e('div', 'hs-khoi-phai');
+    // Badge trạng thái ở góc phải: NGẮN GỌN, rê chuột/chạm mới hiện tooltip đủ số liệu (đã thu
+    // bao nhiêu/mục tiêu, còn thiếu, bao nhiêu em đã đủ) — thay cho việc hiện sẵn khối 4 ô số
+    // liệu + "Theo tổ" thường trực mỗi khi mở rộng khoản.
+    const tongEm = (k.soEmDaDu || 0) + (k.soEmChuaDu || 0);
+    const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
+    const chiTietBadge = `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} — còn thiếu ${tienVN(conThieu)} · ${k.soEmDaDu || 0}/${tongEm} em đã đủ`;
+
+    const khoiPhai = e('div', 'hs-khoi-phai badge-trang-thai-khoan');
+    khoiPhai.tabIndex = 0;
+    khoiPhai.setAttribute('role', 'button');
+    let nhanTrangThai;
     if (!k.dangMo) {
-      khoiPhai.append(e('span', 'nhan nhan-xam', 'Đã đóng'));
+      nhanTrangThai = e('span', 'nhan nhan-xam', 'Đã đóng');
     } else if (phanTram >= 100) {
-      khoiPhai.append(e('span', 'nhan nhan-tot', '✓ Đã thu đủ'));
+      nhanTrangThai = e('span', 'nhan nhan-tot', '✓ Đã thu đủ');
     } else {
-      khoiPhai.append(e('span', 'nhan nhan-chinh', `Thu ${phanTram}% · ${k.soEmChuaDu} em chưa đủ`));
+      nhanTrangThai = e('span', 'nhan nhan-chinh', `Thu ${phanTram}%`);
     }
+    khoiPhai.setAttribute('aria-label', chiTietBadge);
+    khoiPhai.append(nhanTrangThai, e('div', 'tien-do-tooltip', chiTietBadge));
     khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
     dong1.append(khoiPhai);
 
@@ -321,11 +331,6 @@ export async function trangQuy(KHUNG) {
         + `(${CHU_KY_HIEN_THI[dk.khoan.dinhKyChuKy] || dk.khoan.dinhKyChuKy}) — `
         + `${ngayVN(dk.khoan.ngayBatDau)}–${ngayVN(dk.khoan.ngayKetThuc)}.`));
       box.append(tb);
-    } else if (dk.khoan.ngayBatDau) {
-      const tb = e('div', 'the trong');
-      tb.style.cssText = 'margin-bottom:14px';
-      tb.append(e('span', null, `⚡ Thu linh động — khoảng thời gian thu: ${ngayVN(dk.khoan.ngayBatDau)}–${ngayVN(dk.khoan.ngayKetThuc)}.`));
-      box.append(tb);
     }
 
     const hangNut = e('div', 'day-loc');
@@ -351,29 +356,9 @@ export async function trangQuy(KHUNG) {
     );
     box.append(hangNut);
 
-    // Dải số liệu THU CHI NỔI BẬT với thẻ riêng & số to rõ (tự thích ứng, không bao giờ bị cắt chữ)
+    // Số liệu chi tiết (đã thu/mục tiêu/còn thiếu/em đủ) giờ xem qua tooltip của badge trạng
+    // thái ở hàng thu gọn (veHangKhoan) — ở đây chỉ còn thanh tiến độ trực quan.
     const phanTram = dk.tongCanThu ? Math.round((dk.tongDaThu / dk.tongCanThu) * 100) : 0;
-    const conThieuKhoan = Math.max(0, (dk.tongCanThu || 0) - (dk.tongDaThu || 0));
-
-    const soLieu = (nhan, giaTri, kieu, phu = null) => {
-      const the = e('div', 'the-so-lieu');
-      the.append(
-        e('div', 'nhan-so-lieu', nhan),
-        e('div', 'gt-so-lieu' + (kieu ? ' ' + kieu : ''), giaTri)
-      );
-      if (phu) {
-        the.append(e('div', 'phu-so-lieu', phu));
-      }
-      return the;
-    };
-    const day = e('div', 'chuoi-so-lieu');
-    day.append(
-      soLieu('Đã thu', tienVN(dk.tongDaThu), 'tot', `Đạt ${phanTram}% chỉ tiêu`),
-      soLieu('Chỉ tiêu thu (tổng cả lớp)', tienVN(dk.tongCanThu), 'can', `Mức ${tienVN(dk.khoan?.soTienMoiEm)} / em × ${dk.danhSach.length} em`),
-      soLieu('Còn thiếu (để đủ chỉ tiêu)', tienVN(conThieuKhoan), conThieuKhoan > 0 ? 'luuy' : 'tot', `${dk.danhSach.length - dk.soEmDaDuDinh} em chưa nộp đủ`),
-      soLieu('Tiến độ thu', `${dk.soEmDaDuDinh}/${dk.danhSach.length} em đủ`, dk.soEmDaDuDinh === dk.danhSach.length ? 'tot' : 'luuy', `Hoàn thành ${phanTram}% tổng quỹ`)
-    );
-    box.append(day);
 
     // Thanh tiến độ trực quan
     const thanhTienDo = e('div', 'thanh-tien-do-khoan');
@@ -381,18 +366,6 @@ export async function trangQuy(KHUNG) {
     chay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
     thanhTienDo.append(chay);
     box.append(thanhTienDo);
-
-    if (dk.theoTo && dk.theoTo.length > 1) {
-      const nhanNhomTo = e('div', 'the-nhan', 'Theo tổ');
-      nhanNhomTo.style.margin = '14px 0 6px';
-      box.append(nhanNhomTo);
-      const dayTo = e('div', 'day-loc');
-      dk.theoTo.forEach((t) => {
-        dayTo.append(e('span', 'nhan ' + (t.soEmDuDinh === t.soEm ? 'nhan-tot' : 'nhan-luuy'),
-          `${t.toSo ? 'Tổ ' + t.toSo : 'Chưa xếp tổ'}: ${t.soEmDuDinh}/${t.soEm} đủ`));
-      });
-      box.append(dayTo);
-    }
 
     const dsTheoToUniq = [...new Set(dk.danhSach.map((h) => h.toSo).filter(Boolean))].sort((a, b) => a - b);
     const nhanTung = e('div', 'the-nhan', 'Từng em học sinh');

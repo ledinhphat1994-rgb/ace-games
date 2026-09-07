@@ -1546,15 +1546,34 @@ body.trang-dang-nhap {
 }
 .the-khoan-tien-do-khung:focus { outline: none; }
 
-/* "Phần của bạn" — callout GỌN, chỉ vừa đủ nội dung (không còn chiếm hết bề ngang thẻ), viền mờ. */
+/* "Phần của bạn" — chỉ còn 1 badge nhỏ ở góc phải đầu thẻ (dùng lại đúng kiểu .nhan sẵn có),
+   rê chuột/chạm mới hiện tooltip chi tiết (đã nộp bao nhiêu, ngày nào) — dùng lại pattern tooltip
+   giống thanh tiến độ (.tien-do-tooltip) cho nhất quán. */
 .the-khoan-ban-than {
-  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  margin-top: 12px; padding: 7px 13px; border-radius: 99px;
-  background: var(--nen-noi);
-  border: 1px solid var(--vien);
-  font-size: 12.5px; font-weight: 700; color: var(--chu);
+  position: relative; flex: none; cursor: pointer;
 }
-.the-khoan-ban-than .trong { font-weight: 500; color: var(--chu-nhat); }
+.the-khoan-ban-than:focus { outline: none; }
+/* Badge nằm sát mép phải thẻ — tooltip căn theo mép phải (không căn giữa) để không tràn ra
+   ngoài màn hình. */
+.the-khoan-ban-than .tien-do-tooltip { left: auto; right: 0; transform: translateY(4px); }
+.the-khoan-ban-than .tien-do-tooltip::after { left: auto; right: 14px; transform: none; }
+.the-khoan-ban-than:hover .tien-do-tooltip,
+.the-khoan-ban-than:focus .tien-do-tooltip {
+  opacity: 1; transform: translateY(0);
+}
+
+/* Badge trạng thái khoản thu (panel giáo viên) — cùng pattern tooltip trên, neo theo mép phải
+   vì badge nằm sát rìa phải hàng khoản. */
+.badge-trang-thai-khoan {
+  position: relative; cursor: pointer;
+}
+.badge-trang-thai-khoan:focus { outline: none; }
+.badge-trang-thai-khoan .tien-do-tooltip { left: auto; right: 0; transform: translateY(4px); white-space: normal; max-width: 260px; }
+.badge-trang-thai-khoan .tien-do-tooltip::after { left: auto; right: 14px; transform: none; }
+.badge-trang-thai-khoan:hover .tien-do-tooltip,
+.badge-trang-thai-khoan:focus .tien-do-tooltip {
+  opacity: 1; transform: translateY(0);
+}
 
 /* Chuyển đổi tab Thu / Chi */
 .tab-chuyen-thu-chi {
