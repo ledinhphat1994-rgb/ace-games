@@ -257,8 +257,11 @@ code {
 
 :focus-visible { outline: 2px solid var(--chinh-sang); outline-offset: 2px; border-radius: 4px; }
 
-.wrap { width: 100%; max-width: var(--rong); margin: 0 auto; padding: 0 16px; }
-@media (min-width: 720px) { .wrap { padding: 0 24px; } }
+.wrap {
+  width: 100%; max-width: 1440px; margin: 0 auto; box-sizing: border-box;
+  padding: 0 1.5rem; overflow-x: clip;
+}
+@media (max-width: 767px) { .wrap { padding: 0 0.875rem; } }
 
 .chi-doc-man-hinh {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -599,10 +602,10 @@ code {
 .mo-dau-nut-sua:hover { background: rgba(255, 255, 255, .24); }
 
 .o-so {
-  display: grid; gap: 10px; margin-top: 20px;
+  display: grid; gap: 0.75rem; margin-top: 20px;
   grid-template-columns: repeat(2, 1fr);
 }
-@media (min-width: 620px) { .o-so { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 768px) { .o-so { grid-template-columns: repeat(4, 1fr); gap: 1rem; } }
 .o-so > div {
   background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1);
   border-radius: var(--r); padding: 13px 14px;
@@ -613,6 +616,40 @@ code {
 /* Số liệu to/đậm, trắng tinh — nhãn nhỏ, viết hoa, màu xám nhạt (slate) bên dưới. */
 .o-so b { display: block; font-size: 24px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em; color: #ffffff; }
 .o-so span { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+
+/* ---------- Bố cục Trang chủ (#trangChu) ----------
+   Dưới 1024px: xếp dọc 1 cột theo đúng thứ tự sẵn có trong HTML (không cần "order").
+   Từ 1024px: lưới 2 cột — trái là Thời khoá biểu + Hoạt động lớp (chiếm phần lớn), phải là
+   Tin khẩn cấp (ghim trên) + Thông báo, để không còn khoảng trắng lãng phí 2 bên trên màn rộng.
+   Đặt margin:0 lên các khối con vì khoảng cách giữa chúng nay do "gap" của lưới/flex quyết định
+   — giữ nguyên margin cũ (30/40px của section, 18px của .mo-dau) sẽ cộng dồn thành khoảng trắng
+   thừa bên cạnh gap. */
+@media (max-width: 1023px) {
+  #trangChu { display: flex; flex-direction: column; gap: 1.25rem; }
+  #trangChu > .mo-dau,
+  #trangChu > section { margin: 0; }
+}
+@media (min-width: 1024px) {
+  #trangChu {
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    grid-template-areas:
+      "modau   modau"
+      "tkb     diemnhan"
+      "tkb     thongbao"
+      "hinhanh thongbao"
+      "hinhanh .";
+    gap: 1.75rem;
+    align-items: start;
+  }
+  #trangChu > .mo-dau,
+  #trangChu > section { margin: 0; }
+  #moDau { grid-area: modau; }
+  #bangDiemNhan { grid-area: diemnhan; }
+  #thong-bao { grid-area: thongbao; }
+  #thoi-khoa-bieu { grid-area: tkb; }
+  #hinh-anh { grid-area: hinhanh; }
+}
 
 /* ---------- 5. Bố cục & thẻ ---------- */
 section { margin: 30px 0; scroll-margin-top: 78px; }
