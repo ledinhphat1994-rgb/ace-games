@@ -1444,17 +1444,31 @@ body.trang-dang-nhap {
   min-width: 0;
   flex: 1;
 }
-/* Tiêu đề đứng riêng, to/đậm rõ ràng — trọng tâm của đầu thẻ. */
+/* Tiêu đề + "Tuần N" đứng SÁT nhau trên cùng hàng — to/đậm/nổi bật nhất thẻ, để nhận biết ngay
+   khoản gì của tuần nào mà không cần dò xuống hàng pill phụ bên dưới. */
+.the-khoan-tieu-de-hang {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
 .the-khoan-ten {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   color: var(--chu);
-  margin: 0 0 8px;
+  margin: 0;
   line-height: 1.3;
   letter-spacing: -.01em;
 }
-/* Mọi nhãn phụ (kiểu thu, tuần, lịch thu, số tiền/em, trạng thái) gộp thành MỘT hàng pill nhỏ,
-   mờ, xếp ngay dưới tiêu đề — không còn badge to nổi bật tách riêng góc phải như trước. */
+.the-khoan-so-tuan {
+  display: inline-flex; align-items: center; white-space: nowrap; flex: none;
+  font-size: 12.5px; font-weight: 800; padding: 3px 10px; border-radius: 99px;
+  background: var(--chinh-nen); color: var(--chinh-sang);
+  border: 1px solid color-mix(in srgb, var(--chinh) 35%, transparent);
+}
+/* Mọi nhãn phụ còn lại (kiểu thu, lịch thu, số tiền/em) gộp thành MỘT hàng pill nhỏ, mờ, xếp
+   ngay dưới tiêu đề. */
 .the-khoan-nhan-hang {
   display: flex;
   align-items: center;
@@ -1490,28 +1504,19 @@ body.trang-dang-nhap {
 }
 .ttd-so { font-size: 15px; font-weight: 700; color: var(--chu); }
 .ttd-so-tot { color: var(--tot); }
-.ttd-giua { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
-.ttd-phan-tram { font-size: 22px; font-weight: 800; color: var(--chu); letter-spacing: -.02em; }
-/* Màn hình rất hẹp (<360px): 3 cột dễ co rúm/tràn chữ — % (quan trọng nhất) chuyển lên hàng
-   riêng ở trên, Đã thu/Mục tiêu xếp cạnh nhau bên dưới thay vì ép chung một hàng ngang. */
-@media (max-width: 360px) {
-  .ttd-hang { flex-wrap: wrap; row-gap: 10px; }
-  .ttd-giua { order: -1; flex: 1 1 100%; }
-  .ttd-cot { flex: 1 1 40%; }
-}
-/* --chu-nhat (không phải --chu-mo) để đủ tương phản đọc được trên nền thẻ #0f172a — đây là
-   thông tin có ý nghĩa ("còn thiếu bao nhiêu"), không phải chữ trang trí mờ. */
-.ttd-phu { font-size: 11.5px; color: var(--chu-nhat); white-space: nowrap; }
-.the-khoan-thu.da-du .ttd-phu { color: var(--tot); }
-.the-khoan-thu.dang-thu .ttd-phu, .the-khoan-thu.chua-thu .ttd-phu { color: var(--luu-y); }
 
-/* Thanh tiến độ trực quan */
+/* Thanh tiến độ — bọc ngoài KHÔNG cắt tràn (để tooltip trồi lên còn thấy được), khối con bên
+   trong mới thật sự bo góc + cắt tràn thanh chạy. */
 .the-khoan-tien-do-khung {
+  position: relative;
+  padding: 6px 0; margin: -6px 0;   /* nới vùng bấm/rê chuột cho dễ trúng trên điện thoại */
+  cursor: pointer;
+}
+.the-khoan-tien-do-nen {
   height: 7px;
   background: var(--nen-chim);
   border-radius: 99px;
   overflow: hidden;
-  position: relative;
 }
 .the-khoan-tien-do-chay {
   height: 100%;
@@ -1521,6 +1526,25 @@ body.trang-dang-nhap {
 }
 .the-khoan-thu.da-du .the-khoan-tien-do-chay { background: var(--tot); }
 .the-khoan-thu.da-dong .the-khoan-tien-do-chay { background: var(--chu-mo); }
+
+/* Tooltip tiến độ: ẩn mặc định, hiện khi rê chuột / bấm-focus vào thanh (bàn phím + cảm ứng). */
+.tien-do-tooltip {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%) translateY(4px);
+  background: var(--chu); color: var(--nen);
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+  padding: 6px 11px; border-radius: 8px; box-shadow: var(--bong-2);
+  opacity: 0; pointer-events: none; transition: opacity .15s ease, transform .15s ease;
+  z-index: 3;
+}
+.tien-do-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--chu);
+}
+.the-khoan-tien-do-khung:hover .tien-do-tooltip,
+.the-khoan-tien-do-khung:focus .tien-do-tooltip {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+.the-khoan-tien-do-khung:focus { outline: none; }
 
 /* "Phần của bạn" — callout GỌN, chỉ vừa đủ nội dung (không còn chiếm hết bề ngang thẻ), viền mờ. */
 .the-khoan-ban-than {

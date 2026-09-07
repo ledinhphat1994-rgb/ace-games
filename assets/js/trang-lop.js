@@ -781,25 +781,22 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         const laDinhKy = Boolean(k.dinhKyId) || /tuần|tháng|kỳ/i.test(k.ten);
         const matchTuan = /Tuần\s*(\d+)/i.exec(k.ten);
 
-        // Phân loại trạng thái
+        // Phân loại trạng thái — không còn badge chữ riêng ("Đang thu · X%"...) nữa, vì đã lặp
+        // với % ở thanh tiến độ. Trạng thái giờ chỉ thể hiện qua icon + màu viền trái của thẻ,
+        // còn số liệu chính xác (đã chạy bao nhiêu %, còn thiếu bao nhiêu) xem khi RÊ CHUỘT vào
+        // thanh tiến độ (tooltip) — xem khối "tien-do-tooltip" bên dưới.
         let lopTrangThai = 'dang-thu';
-        let badgeTrangThai;
         let icon = laDinhKy ? '📅' : '💰';
 
         if (!k.dangMo) {
           lopTrangThai = 'da-dong';
-          badgeTrangThai = e('span', 'nhan nhan-xam', '🔒 Đã đóng');
           icon = '📁';
         } else if (phanTram >= 100) {
           lopTrangThai = 'da-du';
-          badgeTrangThai = e('span', 'nhan nhan-tot', '✓ Đã thu đủ (100%)');
           icon = '✅';
         } else if (k.tongDaThu === 0) {
           lopTrangThai = 'chua-thu';
-          badgeTrangThai = e('span', 'nhan nhan-xam', 'Chưa thu (0%)');
           icon = '⏳';
-        } else {
-          badgeTrangThai = e('span', 'nhan', `Đang thu · ${phanTram}%`);
         }
 
         const lopPhu = [
@@ -832,12 +829,15 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         if (!tenThuSach) {
           tenThuSach = (k.ten || '').replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim() || k.ten;
         }
-        thongTin.append(e('h4', 'the-khoan-ten', tenThuSach));
+        // Tên khoản + "Tuần N" đứng SÁT NHAU trên cùng 1 hàng, to/đậm/nổi bật nhất thẻ — nhìn
+        // phát biết ngay đây là khoản thu gì của tuần nào, không phải dò xuống hàng pill bên dưới.
+        const dongTieuDe = e('div', 'the-khoan-tieu-de-hang');
+        dongTieuDe.append(e('h4', 'the-khoan-ten', tenThuSach));
+        if (soTuan) dongTieuDe.append(e('span', 'the-khoan-so-tuan', `Tuần ${soTuan}`));
+        thongTin.append(dongTieuDe);
 
         const nhanHang = e('div', 'the-khoan-nhan-hang');
         nhanHang.append(e('span', 'tag-nhe', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'));
-        if (soTuan) nhanHang.append(e('span', 'tag-nhe', `Tuần ${soTuan}`));
-        nhanHang.append(badgeTrangThai);
 
         let lichThu = '';
         if (k.ngayBatDau && k.ngayKetThuc) {
@@ -856,27 +856,35 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
         dau.append(trai);
         the.append(dau);
 
-        // 2. Widget số liệu + tiến độ GỘP LÀM MỘT: Đã thu — %  (kèm chú thích phụ ngay cạnh,
-        // thay cho khối "Còn thiếu…" tách riêng trước đây) — Mục tiêu, rồi thanh tiến độ bên dưới.
-        const ttdChuThich = phanTram >= 100 ? '🎉 Đã hoàn thành'
-          : k.dangMo ? `còn thiếu ${tienVN(conThieu)}`
+        // 2. Widget số liệu + tiến độ: Đã thu — Mục tiêu, rồi thanh tiến độ bên dưới. Không còn
+        // hiện sẵn "X% / còn thiếu Y đ" thường trực nữa (lặp với badge + chữ to giữa thẻ) — RÊ
+        // CHUỘT (hoặc bấm/focus trên điện thoại) vào thanh tiến độ mới hiện tooltip đúng số đó,
+        // gọn hơn nhiều mà vẫn tra được ngay khi cần.
+        const ttdTomTat = phanTram >= 100 ? '🎉 Đã hoàn thành chỉ tiêu'
+          : k.dangMo ? `còn thiếu ${tienVN(conThieu)} để đủ chỉ tiêu`
             : 'đã khoá sổ';
+        const ttdChuThich = `Đã đạt ${phanTram}% — ${ttdTomTat}`;
 
         const widget = e('div', 'the-khoan-tien-do-widget');
         const ttdHang = e('div', 'ttd-hang');
         const cotDaThu = e('div', 'ttd-cot');
         cotDaThu.append(e('span', 'nhan-cot', 'Đã thu'), e('span', 'ttd-so ttd-so-tot', tienVN(k.tongDaThu)));
-        const cotGiua = e('div', 'ttd-giua');
-        cotGiua.append(e('span', 'ttd-phan-tram', `${phanTram}%`), e('span', 'ttd-phu', ttdChuThich));
         const cotMucTieu = e('div', 'ttd-cot ttd-cot-phai');
         cotMucTieu.append(e('span', 'nhan-cot', 'Mục tiêu'), e('span', 'ttd-so', tienVN(k.tongCanThu)));
-        ttdHang.append(cotDaThu, cotGiua, cotMucTieu);
+        ttdHang.append(cotDaThu, cotMucTieu);
         widget.append(ttdHang);
 
+        // Bọc ngoài KHÔNG cắt tràn (để tooltip trồi lên trên còn thấy được) — riêng nền/thanh
+        // chạy mới bo góc + cắt tràn ở khối con bên trong.
         const tienDoKhung = e('div', 'the-khoan-tien-do-khung');
+        tienDoKhung.tabIndex = 0;
+        tienDoKhung.setAttribute('role', 'button');
+        tienDoKhung.setAttribute('aria-label', ttdChuThich);
+        const tienDoNen = e('div', 'the-khoan-tien-do-nen');
         const tienDoChay = e('div', 'the-khoan-tien-do-chay');
         tienDoChay.style.width = Math.min(100, Math.max(0, phanTram)) + '%';
-        tienDoKhung.append(tienDoChay);
+        tienDoNen.append(tienDoChay);
+        tienDoKhung.append(tienDoNen, e('div', 'tien-do-tooltip', ttdChuThich));
         widget.append(tienDoKhung);
         the.append(widget);
 
