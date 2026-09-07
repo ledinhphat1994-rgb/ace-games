@@ -1210,14 +1210,16 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
    đụng #noiDung bên khu quản lý giáo viên vốn dùng class khác) được chừa sẵn khoảng trống
    dưới đúng bằng chiều cao thanh này để nội dung không bị che khuất. */
 main.wrap#noiDung {
-  padding-bottom: 30px;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 .chan-trang {
-  position: static;
-  margin-top: 45px;
-  padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  margin-top: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--vien);
-  background: var(--nen);
+  background: color-mix(in srgb, var(--nen) 90%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: var(--chu-nhat); font-size: 13.5px; text-align: center;
 }
 .chan-trang .wrap {

@@ -268,6 +268,7 @@ function veThongBao(ds, phien, lamMoi) {
   if (!ds.length) return datNoiDung(hop, e('p', 'trong', 'Chưa có thông báo nào.'));
 
   const duocPhep = phien && (phien.role === 'teacher' || (phien.quyen || []).includes('thong-bao'));
+  const tinDangHienONoiBat = tinNoiBatDuocChon(ds);
 
   datNoiDung(hop, ...ds.map((t) => {
     const bai = e('article', 'tin' + (t.ghim ? ' tin-ghim' : ''));
@@ -281,7 +282,13 @@ function veThongBao(ds, phien, lamMoi) {
     if (mucDo) thongTin.append(e('span', 'nhan ' + mucDo.lop, mucDo.ten));
     if (t.ghim) thongTin.append(e('span', 'nhan nhan-xam', '📌 Ghim'));
     if (t.loai) thongTin.append(e('span', 'nhan nhan-xam', t.loai));
-    if (duocPhep && t.noiBat) thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
+    if (duocPhep && t.noiBat) {
+      if (tinDangHienONoiBat && tinDangHienONoiBat.id === t.id) {
+        thongTin.append(e('span', 'nhan nhan-noi-bat', '★ Đang ở băng điểm nhấn'));
+      } else {
+        thongTin.append(e('span', 'nhan nhan-xam', '★ Đã đánh dấu — đang xếp sau tin mức độ cao hơn'));
+      }
+    }
     thongTin.append(e('span', null, ngayDayDu(t.ngay)));
     dau.append(thongTin);
 
@@ -548,13 +555,22 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
 // đang đọc dở nếu không bấm kịp.
 const DO_UU_TIEN_MUC = { danger: 3, warn: 2, ok: 1, '': 0 };
 
+// Nhiều thông báo có thể cùng được tích "nổi bật", nhưng băng điểm nhấn chỉ hiện được ĐÚNG MỘT
+// thẻ — hàm này chọn ra người thắng (mucDo cao nhất) để veDiemNhan() và veThongBao() dùng chung
+// một kết quả, tránh lệch nhau (vd nhãn ở danh sách Thông báo nói "đang ở băng điểm nhấn" nhưng
+// thực ra một tin khác mức độ cao hơn mới là tin đang hiện).
+function tinNoiBatDuocChon(thongBao) {
+  const cacTin = (thongBao || []).filter((t) => t.noiBat);
+  if (!cacTin.length) return null;
+  return [...cacTin].sort((a, b) => (DO_UU_TIEN_MUC[b.mucDo || ''] || 0) - (DO_UU_TIEN_MUC[a.mucDo || ''] || 0))[0];
+}
+
 function veDiemNhan(thongBao) {
   const khoi = $('#bangDiemNhan');
-  const cacTin = (thongBao || []).filter((t) => t.noiBat);
-  if (!cacTin.length) { khoi.hidden = true; return; }
+  const tin = tinNoiBatDuocChon(thongBao);
+  if (!tin) { khoi.hidden = true; return; }
   khoi.hidden = false;
 
-  const tin = [...cacTin].sort((a, b) => (DO_UU_TIEN_MUC[b.mucDo || ''] || 0) - (DO_UU_TIEN_MUC[a.mucDo || ''] || 0))[0];
   const mucDo = nhanMucDo(tin.mucDo);
 
   const the = e('div', 'tin-khan-cap' + (tin.mucDo ? ` muc-${tin.mucDo}` : ''));
