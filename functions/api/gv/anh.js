@@ -1,22 +1,33 @@
 // Ảnh hoạt động của lớp.
-//   GET    /api/gv/anh          -> danh sách ảnh (kèm dung lượng đã dùng)
+//   GET    /api/gv/anh          -> danh sách ảnh ĐANG HIỂN THỊ (kèm dung lượng đã dùng)
+//   GET    /api/gv/anh?rac=1    -> danh sách ảnh trong THÙNG RÁC (tự dọn mục quá hạn trước khi trả về)
 //   POST   /api/gv/anh          { tenTep, kieu, duLieu (base64), chuThich, ngay }
 //   PATCH  /api/gv/anh          { id, chuThich }
-//   DELETE /api/gv/anh?id=            -> xoá một ảnh
-//   DELETE /api/gv/anh?ids=1,2,3       -> xoá nhiều ảnh đã chọn
-//   DELETE /api/gv/anh?tatCa=1         -> xoá sạch cả thư viện
+//   PATCH  /api/gv/anh          { id, khoiPhuc: true }   -> khôi phục khỏi thùng rác
+//   DELETE /api/gv/anh?id=              -> chuyển một ảnh vào thùng rác
+//   DELETE /api/gv/anh?ids=1,2,3         -> chuyển nhiều ảnh đã chọn vào thùng rác
+//   DELETE /api/gv/anh?tatCa=1           -> chuyển sạch cả thư viện vào thùng rác
+//   DELETE /api/gv/anh?id=&vinhVien=1    -> xoá VĨNH VIỄN một ảnh ĐÃ ở trong thùng rác
 //
 // Ảnh đã được nén nhỏ ngay trên máy giáo viên trước khi gửi lên, nên mỗi tấm
 // chỉ khoảng 100–300 KB. Nội dung ảnh lưu trong Cloudflare R2, phần mô tả lưu trong D1.
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
-import { tongDungLuongDaDung, gioiHanCuaLop, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
+import {
+  tongDungLuongDaDung, gioiHanCuaLop, xoaKhoiThuVien, xoaNhieuKhoiThuVien,
+  khoiPhucKhoiThuVien, xoaVinhVienKhoiThuVien, donDepThungRacHetHan,
+} from '../../_lib/thu-vien.js';
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
 
-export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const xemRac = new URL(request.url).searchParams.get('rac') === '1';
+  if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
+
   const { results } = await env.DB.prepare(
-    'SELECT id, khoa, chu_thich AS chuThich, ngay, kieu, co_byte AS coByte FROM hinh_anh WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC'
+    `SELECT id, khoa, chu_thich AS chuThich, ngay, kieu, co_byte AS coByte, da_xoa_luc AS daXoaLuc
+       FROM hinh_anh WHERE lop_id = ?1 AND da_xoa_luc IS ${xemRac ? 'NOT NULL' : 'NULL'}
+      ORDER BY ${xemRac ? 'da_xoa_luc DESC' : 'ngay DESC, id DESC'}`
   ).bind(phien.lopId).all();
 
   const tongByte = results.reduce((a, r) => a + r.coByte, 0);
@@ -72,8 +83,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 }, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
-  const { id, chuThich } = await docThan(request);
+  const { id, chuThich, khoiPhuc } = await docThan(request);
   if (!Number.isInteger(Number(id))) return loi('Thiếu mã ảnh.');
+
+  if (khoiPhuc) {
+    const loiKp = await khoiPhucKhoiThuVien(env, 'anh', Number(id), phien.lopId);
+    if (loiKp) return loiKp;
+    return json({ ok: true });
+  }
 
   const kq = await env.DB.prepare('UPDATE hinh_anh SET chu_thich = ?1 WHERE id = ?2 AND lop_id = ?3')
     .bind(chuoi(chuThich, 300), Number(id), phien.lopId).run();
@@ -84,10 +101,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
 
+  if (q.get('vinhVien') === '1') {
+    const id = Number(q.get('id'));
+    if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã ảnh.');
+    const loiXoa = await xoaVinhVienKhoiThuVien(env, 'anh', id, phien.lopId);
+    if (loiXoa) return loiXoa;
+    return json({ ok: true });
+  }
+
   if (q.get('tatCa') === '1' || q.get('ids')) {
     let ids;
     if (q.get('tatCa') === '1') {
-      const { results } = await env.DB.prepare('SELECT id FROM hinh_anh WHERE lop_id = ?1').bind(phien.lopId).all();
+      const { results } = await env.DB.prepare('SELECT id FROM hinh_anh WHERE lop_id = ?1 AND da_xoa_luc IS NULL').bind(phien.lopId).all();
       ids = results.map((r) => r.id);
     } else {
       ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];

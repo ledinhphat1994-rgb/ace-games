@@ -14,6 +14,7 @@
 //           Dùng khi gõ nhầm tên môn/tiết — đổi lịch thật sự vẫn nên dùng POST (tạo phiên bản mới).
 //   DELETE /api/gv/thoi-khoa-bieu?phienBanId=5   -> xoá một phiên bản (không phải bản đang áp dụng)
 import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../_lib/api.js';
+import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
 
 async function layPhienBanApDung(db, homNay, lopId) {
   return db.prepare(
@@ -96,6 +97,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     );
   }
 
+  await chupCheckpointChung(db, 'thoi-khoa-bieu', `Trước khi: tạo phiên bản mới "${tenSach}"`, phien);
   const kqTao = await db.prepare(
     'INSERT INTO tkb_phien_ban (ten, ngay_bat_dau, ghi_chu, lop_id) VALUES (?1, ?2, ?3, ?4)'
   ).bind(tenSach, ngayBatDau, String(ghiChu || '').slice(0, 500), phien.lopId).run();
@@ -126,6 +128,8 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 
   const pb = await db.prepare('SELECT id FROM tkb_phien_ban WHERE id = ?1 AND lop_id = ?2').bind(idSo, phien.lopId).first();
   if (!pb) return loi('Không tìm thấy phiên bản này.', 404);
+
+  await chupCheckpointChung(db, 'thoi-khoa-bieu', `Trước khi: sửa nhanh phiên bản #${idSo}`, phien);
 
   // "Sửa nhanh" cho phép chỉnh luôn tên/ngày áp dụng/ghi chú tại chỗ (không tạo phiên bản mới) —
   // dùng khi gõ nhầm hoặc muốn cập nhật cho gọn (phòng học, giờ có mặt...), khác với "Đổi lịch"
@@ -191,6 +195,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     return loi('Không thể xoá phiên bản đang áp dụng. Tạo phiên bản mới để thay thế thay vì xoá.');
   }
 
+  await chupCheckpointChung(db, 'thoi-khoa-bieu', `Trước khi: xoá phiên bản #${phienBanId}`, phien);
   await db.batch([
     db.prepare('DELETE FROM tkb_o WHERE phien_ban_id = ?1').bind(phienBanId),
     db.prepare('DELETE FROM tkb_phien_ban WHERE id = ?1').bind(phienBanId),

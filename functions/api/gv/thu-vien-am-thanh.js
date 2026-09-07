@@ -1,17 +1,28 @@
 // Thư viện Âm thanh — nhiều bài, chọn ĐÚNG MỘT bài làm "nhạc nền trang chủ" tại một thời điểm.
-//   GET    /api/gv/thu-vien-am-thanh              -> danh sách + tổng dung lượng
+//   GET    /api/gv/thu-vien-am-thanh              -> danh sách bài ĐANG HIỂN THỊ + tổng dung lượng
+//   GET    /api/gv/thu-vien-am-thanh?rac=1        -> danh sách bài trong THÙNG RÁC (tự dọn mục quá hạn)
 //   POST   /api/gv/thu-vien-am-thanh?tenBai=...    -> tải bài MP3 mới vào thư viện (thân nhị phân thô)
 //   PATCH  /api/gv/thu-vien-am-thanh { id, datNhacNen: true }  -> đặt bài này làm nhạc nền trang chủ
 //   PATCH  /api/gv/thu-vien-am-thanh { id, ten }               -> đổi tên hiển thị
-//   DELETE /api/gv/thu-vien-am-thanh?id=            -> xoá một bài
-//   DELETE /api/gv/thu-vien-am-thanh?ids=1,2,3       -> xoá nhiều bài đã chọn
-//   DELETE /api/gv/thu-vien-am-thanh?tatCa=1         -> xoá sạch cả thư viện
+//   PATCH  /api/gv/thu-vien-am-thanh { id, khoiPhuc: true }    -> khôi phục khỏi thùng rác
+//   DELETE /api/gv/thu-vien-am-thanh?id=              -> chuyển một bài vào thùng rác
+//   DELETE /api/gv/thu-vien-am-thanh?ids=1,2,3         -> chuyển nhiều bài đã chọn vào thùng rác
+//   DELETE /api/gv/thu-vien-am-thanh?tatCa=1           -> chuyển sạch cả thư viện vào thùng rác
+//   DELETE /api/gv/thu-vien-am-thanh?id=&vinhVien=1    -> xoá VĨNH VIỄN một bài ĐÃ ở trong thùng rác
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
-import { themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
+import {
+  themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien,
+  khoiPhucKhoiThuVien, xoaVinhVienKhoiThuVien, donDepThungRacHetHan,
+} from '../../_lib/thu-vien.js';
 
-export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const xemRac = new URL(request.url).searchParams.get('rac') === '1';
+  if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
+
   const { results } = await env.DB.prepare(
-    'SELECT id, ten, kieu, co_byte AS coByte, dang_phat AS dangPhat, tao_luc AS taoLuc FROM am_thanh WHERE lop_id = ?1 ORDER BY tao_luc DESC'
+    `SELECT id, ten, kieu, co_byte AS coByte, dang_phat AS dangPhat, tao_luc AS taoLuc, da_xoa_luc AS daXoaLuc
+       FROM am_thanh WHERE lop_id = ?1 AND da_xoa_luc IS ${xemRac ? 'NOT NULL' : 'NULL'}
+      ORDER BY ${xemRac ? 'da_xoa_luc DESC' : 'tao_luc DESC'}`
   ).bind(phien.lopId).all();
   return json({ ok: true, danhSach: results.map((r) => ({ ...r, dangPhat: Boolean(r.dangPhat) })) });
 // Cho phép cả tài khoản chỉ có quyền "thong-bao" xem danh sách này — cần để dùng bộ chọn
@@ -39,7 +50,13 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const id = Number(than.id);
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bài hát.');
 
-  const bai = await env.DB.prepare('SELECT id FROM am_thanh WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+  if (than.khoiPhuc) {
+    const loiKp = await khoiPhucKhoiThuVien(env, 'am-thanh', id, phien.lopId);
+    if (loiKp) return loiKp;
+    return json({ ok: true });
+  }
+
+  const bai = await env.DB.prepare('SELECT id FROM am_thanh WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL').bind(id, phien.lopId).first();
   if (!bai) return loi('Không tìm thấy bài hát này.', 404);
 
   if (than.datNhacNen) {
@@ -59,10 +76,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
 
+  if (q.get('vinhVien') === '1') {
+    const id = Number(q.get('id'));
+    if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bài hát.');
+    const loiXoa = await xoaVinhVienKhoiThuVien(env, 'am-thanh', id, phien.lopId);
+    if (loiXoa) return loiXoa;
+    return json({ ok: true });
+  }
+
   if (q.get('tatCa') === '1' || q.get('ids')) {
     let ids;
     if (q.get('tatCa') === '1') {
-      const { results } = await env.DB.prepare('SELECT id FROM am_thanh WHERE lop_id = ?1').bind(phien.lopId).all();
+      const { results } = await env.DB.prepare('SELECT id FROM am_thanh WHERE lop_id = ?1 AND da_xoa_luc IS NULL').bind(phien.lopId).all();
       ids = results.map((r) => r.id);
     } else {
       ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];

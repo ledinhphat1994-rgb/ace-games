@@ -8,12 +8,14 @@
 //   DELETE /api/gv/hoat-dong-lop?id=  -> gỡ một bài khỏi trang chủ (mọi nội dung trong bài đó)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
+import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
 
 const QUYEN = ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'];
 
 async function xacThucThamChieu(db, lopId, bang, id) {
   if (!Number.isInteger(id)) return true;
-  const hang = await db.prepare(`SELECT id FROM ${bang} WHERE id = ?1 AND lop_id = ?2`).bind(id, lopId).first();
+  // "da_xoa_luc IS NULL": mục đang trong THÙNG RÁC không được đính kèm mới (xem thu-vien.js).
+  const hang = await db.prepare(`SELECT id FROM ${bang} WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL`).bind(id, lopId).first();
   return Boolean(hang);
 }
 
@@ -90,6 +92,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const loaiGop = [coVanBan && 'text', coAnh && 'anh', coVideo && 'video', coAmThanh && 'am-thanh']
     .filter(Boolean).join(',');
 
+  await chupCheckpointChung(env.DB, 'hoat-dong-lop', 'Trước khi: đăng một mục Hoạt động lớp', phien);
   const kq = await env.DB.prepare(
     `INSERT INTO hoat_dong_lop
        (lop_id, loai, tieu_de, tieu_de_html, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
@@ -103,6 +106,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã mục hoạt động.');
 
+  await chupCheckpointChung(env.DB, 'hoat-dong-lop', `Trước khi: gỡ mục Hoạt động lớp #${id}`, phien);
   const kq = await env.DB.prepare('DELETE FROM hoat_dong_lop WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy mục này.', 404);
   return json({ ok: true });

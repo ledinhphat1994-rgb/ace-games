@@ -13,6 +13,7 @@
 // giới hạn thân JSON ở đây; videoUrl chỉ là một đường dẫn văn bản (dán link YouTube…).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
 import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
+import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
 
 const MUC_DO_HOP_LE = new Set(['', 'ok', 'warn', 'danger']);
 
@@ -40,7 +41,8 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 // trường hợp gán nhầm/cố ý một mục thư viện của lớp khác vào thông báo công khai của lớp này.
 async function xacThucThuVien(db, lopId, bang, id) {
   if (!Number.isInteger(id)) return true;
-  const hang = await db.prepare(`SELECT id FROM ${bang} WHERE id = ?1 AND lop_id = ?2`).bind(id, lopId).first();
+  // "da_xoa_luc IS NULL": mục đang trong THÙNG RÁC không được đính kèm mới (xem thu-vien.js).
+  const hang = await db.prepare(`SELECT id FROM ${bang} WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL`).bind(id, lopId).first();
   return Boolean(hang);
 }
 
@@ -76,6 +78,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
 
+  await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: đăng thông báo "${td}"`, phien);
   const kq = await env.DB.prepare(
     `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`
@@ -164,6 +167,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 
   if (!dat.length) return loi('Không có thông tin cần đổi.');
 
+  await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: sửa thông báo #${id}`, phien);
   thamSo.push(id);
   await env.DB.prepare(`UPDATE thong_bao SET ${dat.join(', ')} WHERE id = ?${thamSo.length}`)
     .bind(...thamSo).run();
@@ -177,6 +181,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
 
   // Đính kèm giờ tham chiếu vào thư viện (anh_id/am_thanh_id/video_id) DÙNG CHUNG — xoá thông
   // báo KHÔNG xoá file trong thư viện (mục đó có thể còn dùng cho thông báo khác).
+  await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: xoá thông báo #${id}`, phien);
   const kq = await env.DB.prepare('DELETE FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy thông báo này.', 404);
   return json({ ok: true });

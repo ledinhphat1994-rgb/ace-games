@@ -2,7 +2,7 @@
 import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
-  moHopThoai, dongHopThoai, bieuDoCot, chuThichMau,
+  moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
 
@@ -1170,6 +1170,7 @@ export async function trangThuVienAmThanh(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Âm thanh',
       d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
+      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; }),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
@@ -1369,6 +1370,7 @@ export async function trangThuVienVideo(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Video',
       d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào',
+      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-video-thung-rac'; }),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
@@ -1540,6 +1542,7 @@ export async function trangHinhAnh(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Ảnh',
       d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào',
+      nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; }),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     // Khu chọn ảnh
@@ -1711,4 +1714,42 @@ export async function trangHinhAnh(KHUNG) {
   }
 
   await ve();
+}
+
+/* ---------- Thùng rác của 3 thư viện — cùng dùng chung trangThungRacThuVien(), chỉ khác đường
+   API và cách hiển thị ngắn gọn từng loại mục (ảnh xem trước / tên bài / tên video). ---------- */
+export async function trangHinhAnhThungRac(KHUNG) {
+  await trangThungRacThuVien(KHUNG, {
+    duongApi: '/api/gv/anh',
+    tieuDe: 'Ảnh',
+    veTrangTruoc: '#/hinh-anh',
+    hienThi: (a) => {
+      const hop = e('div');
+      hop.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:8px;';
+      const img = e('img');
+      img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+      img.alt = a.chuThich || 'Ảnh hoạt động của lớp';
+      img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0;';
+      hop.append(img, e('span', null, a.chuThich || '(không có chú thích)'));
+      return hop;
+    },
+  });
+}
+
+export async function trangThuVienAmThanhThungRac(KHUNG) {
+  await trangThungRacThuVien(KHUNG, {
+    duongApi: '/api/gv/thu-vien-am-thanh',
+    tieuDe: 'Âm thanh',
+    veTrangTruoc: '#/thu-vien-am-thanh',
+    hienThi: (a) => e('p', null, `🎵 ${a.ten} · ${(a.coByte / 1_000_000).toFixed(1)} MB`),
+  });
+}
+
+export async function trangThuVienVideoThungRac(KHUNG) {
+  await trangThungRacThuVien(KHUNG, {
+    duongApi: '/api/gv/thu-vien-video',
+    tieuDe: 'Video',
+    veTrangTruoc: '#/thu-vien-video',
+    hienThi: (a) => e('p', null, `🎬 ${a.ten} · ${(a.coByte / 1_000_000).toFixed(1)} MB`),
+  });
 }

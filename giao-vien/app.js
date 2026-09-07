@@ -8,11 +8,12 @@ import {
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
 import {
-  tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
+  tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, trangLichSuKhoiPhucChung,
 } from '/assets/js/giao-dien.js';
 import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
   trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangThuVienAmThanh, trangThuVienVideo, trangNhatKyDangNhap,
+  trangHinhAnhThungRac, trangThuVienAmThanhThungRac, trangThuVienVideoThungRac,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
@@ -35,19 +36,25 @@ const QUYEN_THEO_TUYEN = {
   // viên chủ nhiệm; tài khoản đặc biệt chỉ xem danh sách qua Menu (trang lớp), không qua đây.
   'hoc-sinh': null,
   'hoat-dong-lop': ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'],
+  'hoat-dong-lop-khoi-phuc': ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'],
   'thong-ke': null,
   'thong-bao': 'thong-bao',
+  'thong-bao-khoi-phuc': 'thong-bao',
   'bao-cao': null,
   'ma-ca-nhan': null,
   'nhat-ky-dang-nhap': null,
   'hinh-anh': 'hinh-anh',
+  'hinh-anh-thung-rac': 'hinh-anh',
   'thu-vien-am-thanh': 'am-thanh',
+  'thu-vien-am-thanh-thung-rac': 'am-thanh',
   'thu-vien-video': 'video',
+  'thu-vien-video-thung-rac': 'video',
   'quy': 'quy',
   'quy-lich-su': 'quy',
   'thoi-khoa-bieu': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-lich-su': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-xem': 'thoi-khoa-bieu',
+  'thoi-khoa-bieu-khoi-phuc': 'thoi-khoa-bieu',
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
@@ -1481,7 +1488,10 @@ async function trangThongBao() {
     const trai = e('div');
     trai.append(e('h1', null, 'Thông báo'), e('p', null, 'Đăng lên trang lớp, cả lớp xem được ngay.'));
     const phai = e('div', 'phai');
-    phai.append(nut('+ Soạn thông báo', '', () => soanThongBao(null, ve)));
+    phai.append(
+      nut('🛡️ Lịch sử & khôi phục', 'nut-vien nut-nho', () => { location.hash = '#/thong-bao-khoi-phuc'; }),
+      nut('+ Soạn thông báo', '', () => soanThongBao(null, ve))
+    );
     dau.append(trai, phai);
     khung.append(dau);
 
@@ -1624,6 +1634,7 @@ async function trangHoatDongLop(KHUNG) {
     const d = await api('/api/gv/hoat-dong-lop');
     const khung = e('div');
     khung.append(tieuDeTrang('Hoạt động lớp', `${d.danhSach.length} mục đang hiện ở trang chủ`,
+      nut('🛡️ Lịch sử & khôi phục', 'nut-vien nut-nho', () => { location.hash = '#/hoat-dong-lop-khoi-phuc'; }),
       nut('+ Thêm hoạt động', '', () => moHopThoaiThemHoatDong(ve))
     ));
 
@@ -1683,18 +1694,24 @@ const TRANG = {
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
   '/hoat-dong-lop': () => trangHoatDongLop(KHUNG),
+  '/hoat-dong-lop-khoi-phuc': () => trangLichSuKhoiPhucChung(KHUNG, { muc: 'hoat-dong-lop', tieuDe: 'Hoạt động lớp', veTrangTruoc: '#/hoat-dong-lop' }),
   '/thong-bao': trangThongBao,
+  '/thong-bao-khoi-phuc': () => trangLichSuKhoiPhucChung(KHUNG, { muc: 'thong-bao', tieuDe: 'Thông báo', veTrangTruoc: '#/thong-bao' }),
   '/thong-ke': () => trangThongKe(KHUNG),
   '/bao-cao': () => trangBaoCao(KHUNG),
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
   '/nhat-ky-dang-nhap': () => trangNhatKyDangNhap(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
+  '/hinh-anh-thung-rac': () => trangHinhAnhThungRac(KHUNG),
   '/thu-vien-am-thanh': () => trangThuVienAmThanh(KHUNG),
+  '/thu-vien-am-thanh-thung-rac': () => trangThuVienAmThanhThungRac(KHUNG),
   '/thu-vien-video': () => trangThuVienVideo(KHUNG),
+  '/thu-vien-video-thung-rac': () => trangThuVienVideoThungRac(KHUNG),
   '/quy': () => trangQuy(KHUNG),
   '/quy-lich-su': () => trangQuyLichSu(KHUNG),
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
+  '/thoi-khoa-bieu-khoi-phuc': () => trangLichSuKhoiPhucChung(KHUNG, { muc: 'thoi-khoa-bieu', tieuDe: 'Thời khoá biểu', veTrangTruoc: '#/thoi-khoa-bieu' }),
   '/them': trangThem,
 };
 
@@ -1705,6 +1722,12 @@ function danhDauMenu(duong) {
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')
       || (duong === '/quy-lich-su' && a.getAttribute('href') === '#/quy')
+      || (duong === '/thong-bao-khoi-phuc' && a.getAttribute('href') === '#/thong-bao')
+      || (duong === '/hoat-dong-lop-khoi-phuc' && a.getAttribute('href') === '#/hoat-dong-lop')
+      || (duong === '/thoi-khoa-bieu-khoi-phuc' && a.getAttribute('href') === '#/thoi-khoa-bieu')
+      || (duong === '/hinh-anh-thung-rac' && a.getAttribute('href') === '#/hinh-anh')
+      || (duong === '/thu-vien-am-thanh-thung-rac' && a.getAttribute('href') === '#/thu-vien-am-thanh')
+      || (duong === '/thu-vien-video-thung-rac' && a.getAttribute('href') === '#/thu-vien-video')
       || (trongMucThem && a.dataset.nhom === 'them');
     if (khop) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');

@@ -140,24 +140,37 @@ Gửi lại nhiều lần cũng ra đúng một kết quả, không nhân đôi.
 
 ---
 
-## 9b. Chống mất dữ liệu — đặc biệt là Thủ quỹ
+## 9b. Chống mất dữ liệu — mọi mục có thể cấp quyền cho người khác
 
-Câu hỏi thầy/cô đặt ra rất đúng: nếu ai đó chiếm được mã đăng nhập và phá dữ liệu, làm sao lấy lại?
-Có **hai lớp** bảo vệ, độc lập với nhau:
+Câu hỏi thầy/cô đặt ra rất đúng: nếu ai đó chiếm được mã đăng nhập (hoặc được cấp quyền) và phá dữ
+liệu, làm sao lấy lại? Có **hai lớp** bảo vệ, độc lập với nhau:
 
-### Lớp 1 — Điểm khôi phục tự động của riêng Thủ quỹ (đã bật sẵn)
+### Lớp 1 — Điểm khôi phục tự động (đã bật sẵn cho mọi mục có thể cấp quyền)
 
-**Mỗi lần** ghi thu, ghi chi, mở khoản, hay xoá bất cứ gì trong Thủ quỹ, hệ thống **tự động chụp lại
-toàn bộ trạng thái quỹ ngay trước đó** — không cần thầy/cô làm gì. Vào **Thủ quỹ → 🛡 Lịch sử & khôi phục**
-để xem danh sách các điểm này (giữ 200 điểm gần nhất, đủ dùng vài tháng).
+**Mỗi lần** ghi/sửa/xoá ở Thủ quỹ, Điểm danh, Thông báo, Thời khoá biểu, Hoạt động lớp, hệ thống
+**tự động chụp lại toàn bộ dữ liệu của đúng mục đó ngay trước đó** — không cần thầy/cô làm gì. Vào
+trang tương ứng → **🛡️ Lịch sử & khôi phục** để xem danh sách các điểm này (Thủ quỹ/Điểm danh giữ
+200 điểm gần nhất; 3 mục còn lại giữ 100 điểm — đều đủ dùng vài tháng).
 
 Nếu phát hiện dữ liệu bị phá: chọn đúng điểm **trước lúc** sự cố xảy ra → **Khôi phục về đây** →
-toàn bộ khoản thu, khoản đã đóng, khoản chi trở về đúng như lúc đó. Bản thân việc khôi phục cũng
-tự tạo thêm một điểm mới, nên nếu lỡ chọn nhầm vẫn quay lại được — không có thao tác nào là "điểm chết".
+toàn bộ dữ liệu mục đó trở về đúng như lúc đó. Bản thân việc khôi phục cũng tự tạo thêm một điểm
+mới, nên nếu lỡ chọn nhầm vẫn quay lại được — không có thao tác nào là "điểm chết".
 
-**Chỉ giáo viên chủ nhiệm khôi phục được**, kể cả tài khoản Thủ quỹ (do thầy/cô tự cấp) cũng chỉ
-**xem** được lịch sử, không tự khôi phục. Lý do: nếu chính mã Thủ quỹ bị lộ, kẻ xấu phá dữ liệu xong
-không thể tự "khôi phục" để xoá dấu vết — chỉ mã giáo viên mới làm được, và mã đó thầy/cô là người duy nhất giữ.
+**Chỉ giáo viên chủ nhiệm khôi phục được**, kể cả tài khoản được cấp quyền (Thủ quỹ, Lớp trưởng...)
+cũng chỉ **xem** được lịch sử, không tự khôi phục. Lý do: nếu chính mã đó bị lộ, kẻ xấu phá dữ liệu
+xong không thể tự "khôi phục" để xoá dấu vết — chỉ mã giáo viên mới làm được, và mã đó thầy/cô là
+người duy nhất giữ.
+
+### Thùng rác riêng cho 3 Thư viện Ảnh / Âm thanh / Video
+
+3 thư viện media không dùng chung cơ chế "điểm khôi phục" ở trên vì file thật nằm trong kho lưu trữ
+R2 — xoá thẳng là mất file vĩnh viễn, không "khôi phục" nào cứu lại được. Vì vậy bấm **Xoá** ở 3 thư
+viện này chỉ **chuyển vào Thùng rác** (nút **🗑 Thùng rác** ở đầu mỗi trang): file thật vẫn còn nguyên,
+**Khôi phục** lại được bất cứ lúc nào trong vòng **30 ngày**, hoặc bấm **Xoá vĩnh viễn** để xoá hẳn
+sớm hơn. Sau 30 ngày, mục trong thùng rác tự động bị xoá vĩnh viễn (dọn dẹp mỗi khi có ai mở xem
+thùng rác — không cần tiến trình nền riêng). Lưu ý: dung lượng file trong thùng rác **vẫn tính vào
+trần lưu trữ của lớp** (file thật vẫn đang chiếm chỗ thật trong kho), nên nếu gần đầy kho hãy xoá
+vĩnh viễn sớm thay vì chỉ để trong thùng rác chờ tự dọn.
 
 ### Lớp 2 — Cloudflare D1 Time Travel (bảo vệ toàn bộ cơ sở dữ liệu, có sẵn, miễn phí)
 

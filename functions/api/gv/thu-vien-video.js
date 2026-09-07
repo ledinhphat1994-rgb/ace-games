@@ -1,17 +1,28 @@
 // Thư viện Video — nhiều video tải lên từ máy/điện thoại (khác video dán link YouTube/Drive,
 // vốn không tốn kho lưu trữ nên không thuộc thư viện này).
-//   GET    /api/gv/thu-vien-video               -> danh sách + tổng dung lượng
+//   GET    /api/gv/thu-vien-video               -> danh sách video ĐANG HIỂN THỊ + tổng dung lượng
+//   GET    /api/gv/thu-vien-video?rac=1         -> danh sách video trong THÙNG RÁC (tự dọn mục quá hạn)
 //   POST   /api/gv/thu-vien-video?ten=...        -> tải video mới vào thư viện (thân nhị phân thô)
 //   PATCH  /api/gv/thu-vien-video { id, ten }    -> đổi tên hiển thị
-//   DELETE /api/gv/thu-vien-video?id=            -> xoá một video
-//   DELETE /api/gv/thu-vien-video?ids=1,2,3       -> xoá nhiều video đã chọn
-//   DELETE /api/gv/thu-vien-video?tatCa=1         -> xoá sạch cả thư viện
+//   PATCH  /api/gv/thu-vien-video { id, khoiPhuc: true }  -> khôi phục khỏi thùng rác
+//   DELETE /api/gv/thu-vien-video?id=              -> chuyển một video vào thùng rác
+//   DELETE /api/gv/thu-vien-video?ids=1,2,3         -> chuyển nhiều video đã chọn vào thùng rác
+//   DELETE /api/gv/thu-vien-video?tatCa=1           -> chuyển sạch cả thư viện vào thùng rác
+//   DELETE /api/gv/thu-vien-video?id=&vinhVien=1    -> xoá VĨNH VIỄN một video ĐÃ ở trong thùng rác
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
-import { themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien } from '../../_lib/thu-vien.js';
+import {
+  themTepVaoThuVien, xoaKhoiThuVien, xoaNhieuKhoiThuVien,
+  khoiPhucKhoiThuVien, xoaVinhVienKhoiThuVien, donDepThungRacHetHan,
+} from '../../_lib/thu-vien.js';
 
-export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const xemRac = new URL(request.url).searchParams.get('rac') === '1';
+  if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
+
   const { results } = await env.DB.prepare(
-    'SELECT id, ten, kieu, co_byte AS coByte, tao_luc AS taoLuc FROM video WHERE lop_id = ?1 ORDER BY tao_luc DESC'
+    `SELECT id, ten, kieu, co_byte AS coByte, tao_luc AS taoLuc, da_xoa_luc AS daXoaLuc
+       FROM video WHERE lop_id = ?1 AND da_xoa_luc IS ${xemRac ? 'NOT NULL' : 'NULL'}
+      ORDER BY ${xemRac ? 'da_xoa_luc DESC' : 'tao_luc DESC'}`
   ).bind(phien.lopId).all();
   return json({ ok: true, danhSach: results });
 // Cho phép cả tài khoản chỉ có quyền "thong-bao" xem danh sách này — cần để dùng bộ chọn
@@ -32,9 +43,15 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
   const id = Number(than.id);
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã video.');
+
+  if (than.khoiPhuc) {
+    const loiKp = await khoiPhucKhoiThuVien(env, 'video', id, phien.lopId);
+    if (loiKp) return loiKp;
+    return json({ ok: true });
+  }
   if (than.ten === undefined) return loi('Không có gì để sửa.');
 
-  const dong = await env.DB.prepare('SELECT id FROM video WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+  const dong = await env.DB.prepare('SELECT id FROM video WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL').bind(id, phien.lopId).first();
   if (!dong) return loi('Không tìm thấy video này.', 404);
 
   await env.DB.prepare('UPDATE video SET ten = ?1 WHERE id = ?2').bind(chuoi(than.ten, 200), id).run();
@@ -44,10 +61,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
 
+  if (q.get('vinhVien') === '1') {
+    const id = Number(q.get('id'));
+    if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã video.');
+    const loiXoa = await xoaVinhVienKhoiThuVien(env, 'video', id, phien.lopId);
+    if (loiXoa) return loiXoa;
+    return json({ ok: true });
+  }
+
   if (q.get('tatCa') === '1' || q.get('ids')) {
     let ids;
     if (q.get('tatCa') === '1') {
-      const { results } = await env.DB.prepare('SELECT id FROM video WHERE lop_id = ?1').bind(phien.lopId).all();
+      const { results } = await env.DB.prepare('SELECT id FROM video WHERE lop_id = ?1 AND da_xoa_luc IS NULL').bind(phien.lopId).all();
       ids = results.map((r) => r.id);
     } else {
       ids = [...new Set(q.get('ids').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];

@@ -1,5 +1,5 @@
 /* Các mảnh giao diện dùng lại trong khu quản lý. */
-import { $, e, datNoiDung } from './chung.js';
+import { $, e, datNoiDung, api, nhac, khoiDangTai, ngayVN } from './chung.js';
 
 export function tieuDeTrang(tieuDe, phu, ...nutPhai) {
   const hop = e('div', 'tieu-de-trang');
@@ -237,4 +237,215 @@ export function chuThichMau(cacMuc) {
     hop.append(s);
   });
   return hop;
+}
+
+// Giờ Việt Nam từ chuỗi "YYYY-MM-DD HH:MM:SS" (UTC) do D1 lưu — lặp lại đúng logic taoLucVN()
+// ở giao-vien/trang-quy.js (không import chéo từ đó vì file này là tiện ích nền, không nên phụ
+// thuộc ngược vào một trang cụ thể).
+function taoLucVN(taoLuc) {
+  const d = new Date(String(taoLuc).replace(' ', 'T') + 'Z');
+  if (isNaN(d)) return taoLuc;
+  d.setHours(d.getHours() + 7);
+  const gio = String(d.getHours()).padStart(2, '0');
+  const phut = String(d.getMinutes()).padStart(2, '0');
+  return `${gio}:${phut} ${ngayVN(d.toISOString().slice(0, 10))}`;
+}
+
+/** Trang "Lịch sử & khôi phục" DÙNG CHUNG cho Thông báo / Thời khoá biểu / Hoạt động lớp — cùng
+    một kiểu giao diện với "🛡️ Lịch sử & khôi phục" của Thủ quỹ, chỉ khác nguồn API
+    (/api/gv/checkpoint-chung?muc=...) và tham số "muc" cho đúng chức năng đang xem.
+      muc: 'thong-bao' | 'thoi-khoa-bieu' | 'hoat-dong-lop'
+      tieuDe: tên chức năng hiển thị, ví dụ 'Thông báo'
+      veTrangTruoc: hash quay lại trang chính của chức năng, ví dụ '#/thong-bao' */
+export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruoc }) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  const phienD = await api('/api/whoami').catch(() => ({ role: '' }));
+  const laGiaoVien = phienD.role === 'teacher';
+
+  async function ve() {
+    const d = await api('/api/gv/checkpoint-chung?muc=' + muc);
+    const khung = e('div');
+    khung.append(nut('← Về ' + tieuDe, 'nut-nhe nut-nho', () => { location.hash = veTrangTruoc; }));
+    khung.append(tieuDeTrang('Lịch sử & khôi phục — ' + tieuDe, `${d.danhSach.length} điểm khôi phục gần nhất`));
+
+    if (laGiaoVien) {
+      const the = e('div', 'the');
+      the.style.borderColor = 'var(--chinh)';
+      the.append(
+        e('h3', null, 'Nếu tài khoản bị lộ hoặc dữ liệu sai'),
+        e('p', null, `Chọn đúng thời điểm trước khi sự cố xảy ra, bấm "Khôi phục về đây". Toàn bộ dữ liệu ${tieuDe} sẽ trở về đúng như lúc đó. Bản thân việc khôi phục cũng được lưu lại một điểm mới, nên nếu chọn nhầm vẫn quay lại được.`)
+      );
+      khung.append(the);
+    } else {
+      khung.append(e('p', 'trong', 'Tài khoản của bạn chỉ xem được danh sách này. Nhờ giáo viên chủ nhiệm khôi phục nếu cần.'));
+    }
+
+    if (!d.danhSach.length) {
+      khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác đầu tiên.'));
+      datNoiDung(KHUNG, khung);
+      return;
+    }
+
+    if (laGiaoVien) {
+      const nutXoaTatCa = e('div');
+      nutXoaTatCa.style.cssText = 'margin-bottom:10px;text-align:right';
+      nutXoaTatCa.append(nut('🗑 Xoá tất cả điểm khôi phục', 'nut-nhe nut-nho', () => {
+        moHopThoai('Xoá TOÀN BỘ lịch sử khôi phục?', [
+          e('p', null, `Toàn bộ ${d.danhSach.length} điểm khôi phục sẽ mất vĩnh viễn.`),
+          e('p', 'trong', 'Đây là lưới an toàn duy nhất nếu tài khoản bị lộ hay ghi nhầm dữ liệu — xoá xong sẽ KHÔNG còn cách nào quay lại các thời điểm cũ nữa. Chỉ xoá khi chắc chắn không cần nữa.'),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá tất cả', 'nut-xau', async (ev) => {
+            ev.currentTarget.disabled = true;
+            try {
+              await api(`/api/gv/checkpoint-chung?muc=${muc}&tatCa=1`, { method: 'DELETE' });
+              dongHopThoai();
+              nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              ev.currentTarget.disabled = false;
+            }
+          }),
+        ]);
+      }));
+      khung.append(nutXoaTatCa);
+    }
+
+    const ds = e('div', 'ds-nhat-ky');
+    d.danhSach.forEach((cp) => {
+      const m = e('div', 'muc-nhat-ky khac');
+      const dong = e('div', 'dong-dau');
+      dong.append(e('span', 'ngay', taoLucVN(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
+      if (laGiaoVien) {
+        const viec = e('div', 'viec');
+        viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
+          moHopThoai(`Khôi phục ${tieuDe} về điểm này?`, [
+            e('p', null, cp.hanhDong),
+            Object.assign(e('p', null, `Lúc: ${taoLucVN(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
+            e('p', null, `Mọi thay đổi ${tieuDe} sau thời điểm này sẽ mất. Chắc chắn chứ?`),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Khôi phục ngay', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api('/api/gv/checkpoint-chung', { method: 'POST', than: { muc, id: cp.id } });
+                dongHopThoai();
+                nhac('Đã khôi phục ' + tieuDe, 'tot');
+                ve();
+              } catch (err) {
+                nhac(err.message, 'xau');
+                ev.currentTarget.disabled = false;
+              }
+            }),
+          ]);
+        }));
+        viec.append(nut('🗑 Xoá', 'nut-nho nut-nhe', () => {
+          moHopThoai('Xoá điểm khôi phục này?', [
+            e('p', null, cp.hanhDong),
+            e('p', 'trong', 'Chỉ xoá dòng lịch sử này — không ảnh hưởng dữ liệu hiện tại. Không thể hoàn tác.'),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api(`/api/gv/checkpoint-chung?muc=${muc}&id=${cp.id}`, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá điểm khôi phục', 'tot');
+                ve();
+              } catch (err) {
+                nhac(err.message, 'xau');
+                ev.currentTarget.disabled = false;
+              }
+            }),
+          ]);
+        }));
+        dong.append(viec);
+      }
+      m.append(dong, e('p', null, cp.hanhDong));
+      ds.append(m);
+    });
+    khung.append(ds);
+    datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
+}
+
+// Số ngày còn lại trước khi một mục trong thùng rác bị tự xoá vĩnh viễn (khớp
+// NGAY_GIU_THUNG_RAC = 30 ở functions/_lib/thu-vien.js).
+function soNgayConLaiTruocKhiXoa(daXoaLuc) {
+  const d = new Date(String(daXoaLuc).replace(' ', 'T') + 'Z');
+  if (isNaN(d)) return 30;
+  const conLaiMs = d.getTime() + 30 * 86400000 - Date.now();
+  return Math.max(0, Math.ceil(conLaiMs / 86400000));
+}
+
+/** Trang "Thùng rác" DÙNG CHUNG cho 3 thư viện Ảnh / Âm thanh / Video — mục bị "xoá" chỉ CHUYỂN
+    VÀO ĐÂY (ẩn khỏi thư viện, file thật vẫn còn nguyên trong kho R2), khôi phục lại được trong
+    30 ngày trước khi tự xoá vĩnh viễn hẳn — xem functions/_lib/thu-vien.js.
+      duongApi: đường API gốc của đúng thư viện đó, ví dụ '/api/gv/anh' hoặc '/api/gv/thu-vien-video'
+      tieuDe: tên hiển thị, ví dụ 'Ảnh'
+      veTrangTruoc: hash quay lại trang thư viện chính
+      hienThi(item): trả về một phần tử DOM mô tả ngắn mục đó (tên bài, ảnh xem trước...) */
+export async function trangThungRacThuVien(KHUNG, { duongApi, tieuDe, veTrangTruoc, hienThi }) {
+  datNoiDung(KHUNG, khoiDangTai());
+
+  async function ve() {
+    const d = await api(duongApi + '?rac=1');
+    const khung = e('div');
+    khung.append(nut('← Về ' + tieuDe, 'nut-nhe nut-nho', () => { location.hash = veTrangTruoc; }));
+    khung.append(tieuDeTrang('🗑 Thùng rác — ' + tieuDe, `${d.danhSach.length} mục — tự xoá vĩnh viễn sau 30 ngày kể từ lúc xoá`));
+
+    if (!d.danhSach.length) {
+      khung.append(e('p', 'trong', 'Thùng rác trống.'));
+      datNoiDung(KHUNG, khung);
+      return;
+    }
+
+    const ds = e('div', 'ds-nhat-ky');
+    d.danhSach.forEach((m) => {
+      const dong = e('div', 'muc-nhat-ky');
+      const dauDong = e('div', 'dong-dau');
+      const conLai = soNgayConLaiTruocKhiXoa(m.daXoaLuc);
+      dauDong.append(e('span', 'nhan ' + (conLai <= 5 ? 'nhan-luuy' : 'nhan-xam'),
+        conLai <= 0 ? '⏳ Sắp tự xoá vĩnh viễn' : `⏳ Còn ${conLai} ngày`));
+
+      const viec = e('div', 'viec');
+      viec.append(
+        nut('↩ Khôi phục', 'nut-nho', async (ev) => {
+          ev.currentTarget.disabled = true;
+          try {
+            await api(duongApi, { method: 'PATCH', than: { id: m.id, khoiPhuc: true } });
+            nhac('Đã khôi phục', 'tot');
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        }),
+        nut('❌ Xoá vĩnh viễn', 'nut-nho nut-xau', () => {
+          moHopThoai('Xoá VĨNH VIỄN mục này?', [
+            e('p', 'trong', 'Không thể hoàn tác — file thật sẽ mất hẳn khỏi kho lưu trữ ngay lập tức.'),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
+              ev.currentTarget.disabled = true;
+              try {
+                await api(`${duongApi}?id=${m.id}&vinhVien=1`, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá vĩnh viễn', 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+            }),
+          ]);
+        })
+      );
+      dauDong.append(viec);
+      dong.append(dauDong, hienThi(m));
+      ds.append(dong);
+    });
+    khung.append(ds);
+    datNoiDung(KHUNG, khung);
+  }
+
+  await ve();
 }

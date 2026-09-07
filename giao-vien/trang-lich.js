@@ -126,6 +126,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
         : (d.phienBan ? null : 'Chưa có thời khoá biểu nào.'),
       ...(chiXem || !d.phienBan ? [] : dangSua ? [] : [
         nut('📜 Lịch sử phiên bản', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-lich-su'; }),
+        nut('🛡️ Lịch sử & khôi phục', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu-khoi-phuc'; }),
         nut('✎ Sửa nhanh', 'nut-vien nut-nho', () => { dangSua = true; damBaoOChoCaHaiBuoi(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
         nut('+ Đổi lịch (tạo phiên bản mới)', '', () => taoPhienBanMoi(bang, soTietToiDa)),
       ])

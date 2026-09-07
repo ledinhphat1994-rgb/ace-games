@@ -95,25 +95,35 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
   return { dong: { id: kq.meta.last_row_id, ten: ten || '', khoa, kieu, coByte: duLieuNhiPhan.byteLength } };
 }
 
-/** Xoá một mục khỏi thư viện — dọn cả file R2 lẫn dòng D1. Chỉ xoá được mục THUỘC ĐÚNG LỚP
-    đang đăng nhập (lopId), không cho xoá nhầm/xoá lén mục của lớp khác. */
+// Xoá KHÔNG còn xoá thẳng nữa — R2 xoá là mất vĩnh viễn, không "khôi phục" nào cứu lại được file
+// thật đã mất. "Xoá" giờ là CHUYỂN VÀO THÙNG RÁC (đặt da_xoa_luc, giữ nguyên file thật trong R2
+// và dòng D1) — tự dọn hẳn sau NGAY_GIU_THUNG_RAC ngày (donDepThungRacHetHan(), gọi lười mỗi khi
+// mở thùng rác), hoặc giáo viên tự bấm "Xoá vĩnh viễn" sớm hơn (xoaVinhVienKhoiThuVien()).
+const NGAY_GIU_THUNG_RAC = 30;
+
+/** "Xoá" một mục khỏi thư viện = chuyển vào thùng rác. Chỉ xoá được mục THUỘC ĐÚNG LỚP đang
+    đăng nhập (lopId), không cho xoá nhầm/xoá lén mục của lớp khác. */
 export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return loi('Loại thư viện không hợp lệ.');
 
-  const dong = await env.DB.prepare(`SELECT khoa FROM ${cauHinh.bang} WHERE id = ?1 AND lop_id = ?2`).bind(id, lopId).first();
-  if (!dong) return loi('Không tìm thấy mục này trong thư viện.', 404);
+  const kq = await env.DB.prepare(
+    `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now') WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL`
+  ).bind(id, lopId).run();
+  if (!kq.meta.changes) return loi('Không tìm thấy mục này trong thư viện.', 404);
 
-  if (env.ANH) await env.ANH.delete(dong.khoa).catch(() => {});
-  await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id = ?1`).bind(id).run();
+  // Bài đang là "nhạc nền trang chủ" mà bị chuyển vào thùng rác thì tắt luôn cờ đó — không để
+  // trang chủ tiếp tục phát một bài đã nằm trong thùng rác.
+  if (loaiThuVien === 'am-thanh') {
+    await env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE id = ?1 AND dang_phat = 1').bind(id).run();
+  }
   return null;
 }
 
-/** Xoá NHIỀU mục cùng lúc (đã chọn từng mục, hoặc xoá sạch cả thư viện) — dùng chung logic dọn
-    R2 + D1 với xoaKhoiThuVien(), tránh phải chọn/xoá từng cái một khi có nhiều mục. Chỉ xoá các
-    id THUỘC ĐÚNG LỚP đang đăng nhập — id của lớp khác lỡ lọt vào danh sách sẽ bị bỏ qua, không
-    xoá nhầm. Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới hạn tham số truy vấn
-    của Cloudflare D1. */
+/** Xoá NHIỀU mục cùng lúc (đã chọn từng mục, hoặc xoá sạch cả thư viện) = chuyển tất cả vào
+    thùng rác. Chỉ xoá các id THUỘC ĐÚNG LỚP đang đăng nhập — id của lớp khác lỡ lọt vào danh
+    sách sẽ bị bỏ qua, không xoá nhầm. Tự động chia nhỏ theo lô tối đa 50 mục để không vượt giới
+    hạn tham số truy vấn của Cloudflare D1. */
 export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
@@ -124,14 +134,63 @@ export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId) {
   for (let i = 0; i < ids.length; i += KICH_THUOC_LO) {
     const lo = ids.slice(i, i + KICH_THUOC_LO);
     const cho = lo.map(() => '?').join(',');
-    const { results } = await env.DB.prepare(`SELECT id, khoa FROM ${cauHinh.bang} WHERE lop_id = ? AND id IN (${cho})`).bind(lopId, ...lo).all();
-    if (results && results.length) {
-      const idThucXoa = results.map((r) => r.id);
-      const choXoa = idThucXoa.map(() => '?').join(',');
-      if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
-      await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${choXoa})`).bind(...idThucXoa).run();
-      tongDaXoa += results.length;
-    }
+    const kq = await env.DB.prepare(
+      `UPDATE ${cauHinh.bang} SET da_xoa_luc = datetime('now') WHERE lop_id = ? AND da_xoa_luc IS NULL AND id IN (${cho})`
+    ).bind(lopId, ...lo).run();
+    tongDaXoa += kq.meta.changes || 0;
+  }
+
+  // Xem xoaKhoiThuVien(): bài "nhạc nền trang chủ" bị chuyển vào thùng rác thì tắt luôn cờ đó.
+  if (loaiThuVien === 'am-thanh' && tongDaXoa) {
+    await env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE lop_id = ?1 AND dang_phat = 1 AND da_xoa_luc IS NOT NULL').bind(lopId).run();
   }
   return { daXoa: tongDaXoa };
+}
+
+/** Khôi phục một mục ĐANG NẰM TRONG THÙNG RÁC về lại thư viện bình thường. */
+export async function khoiPhucKhoiThuVien(env, loaiThuVien, id, lopId) {
+  const cauHinh = cauHinhThuVien(loaiThuVien);
+  if (!cauHinh) return loi('Loại thư viện không hợp lệ.');
+
+  const kq = await env.DB.prepare(
+    `UPDATE ${cauHinh.bang} SET da_xoa_luc = NULL WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NOT NULL`
+  ).bind(id, lopId).run();
+  if (!kq.meta.changes) return loi('Không tìm thấy mục này trong thùng rác.', 404);
+  return null;
+}
+
+/** Xoá VĨNH VIỄN một mục ĐANG NẰM TRONG THÙNG RÁC — dọn cả file R2 lẫn dòng D1, không thể hoàn
+    tác. Chỉ xoá vĩnh viễn được mục ĐÃ ở trong thùng rác (chặn xoá tắt qua thùng rác của mục còn
+    đang hiển thị bình thường). */
+export async function xoaVinhVienKhoiThuVien(env, loaiThuVien, id, lopId) {
+  const cauHinh = cauHinhThuVien(loaiThuVien);
+  if (!cauHinh) return loi('Loại thư viện không hợp lệ.');
+
+  const dong = await env.DB.prepare(
+    `SELECT khoa FROM ${cauHinh.bang} WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NOT NULL`
+  ).bind(id, lopId).first();
+  if (!dong) return loi('Không tìm thấy mục này trong thùng rác.', 404);
+
+  if (env.ANH) await env.ANH.delete(dong.khoa).catch(() => {});
+  await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id = ?1`).bind(id).run();
+  return null;
+}
+
+/** Dọn thùng rác của MỘT LỚP: xoá vĩnh viễn (R2 + D1) mọi mục đã nằm trong thùng rác quá
+    NGAY_GIU_THUNG_RAC ngày, ở cả 3 thư viện. Gọi LƯỜI mỗi khi có ai mở xem thùng rác — dự án
+    không dùng Cloudflare Cron Triggers nên không có tiến trình nền chạy riêng. */
+export async function donDepThungRacHetHan(env, lopId) {
+  for (const loaiThuVien of Object.keys(CAU_HINH)) {
+    const cauHinh = CAU_HINH[loaiThuVien];
+    const { results } = await env.DB.prepare(
+      `SELECT id, khoa FROM ${cauHinh.bang}
+        WHERE lop_id = ?1 AND da_xoa_luc IS NOT NULL AND da_xoa_luc < datetime('now', '-${NGAY_GIU_THUNG_RAC} days')`
+    ).bind(lopId).all();
+    if (!results || !results.length) continue;
+
+    if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
+    const ids = results.map((r) => r.id);
+    const cho = ids.map(() => '?').join(',');
+    await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...ids).run();
+  }
 }
