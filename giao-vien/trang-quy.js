@@ -1689,7 +1689,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
    sót) — giờ "🛡️ Lịch sử & khôi phục" ở đầu trang Thủ quỹ là NƠI DUY NHẤT để xem mọi lịch sử. */
 
 /** D1 lưu giờ UTC — cộng 7 tiếng để hiện đúng giờ Việt Nam. */
-function taoLucVN(taoLuc) {
+export function taoLucVN(taoLuc) {
   const d = new Date(taoLuc.replace(' ', 'T') + 'Z');
   if (isNaN(d)) return taoLuc;
   d.setHours(d.getHours() + 7);

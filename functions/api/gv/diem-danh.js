@@ -4,8 +4,10 @@
 //        trangThai = null/rỗng -> XOÁ điểm danh của em đó ngày/buổi này (bấm lại nút đang
 //        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { chupCheckpointDiemDanh } from '../../_lib/diem-danh-checkpoint.js';
 
 const TRANG_THAI_HOP_LE = new Set(['co_mat', 'vang_phep', 'vang_khong_phep', 'tre']);
+const TEN_BUOI = { sang: 'Sáng', chieu: 'Chiều', hoat_dong: 'Hoạt động', sang_phu: 'Sáng (phụ)', chieu_phu: 'Chiều (phụ)', hoat_dong_phu: 'Hoạt động (phụ)' };
 
 function chuanHoaBuoi(buoi, loai) {
   if (!buoi || typeof buoi !== 'string') return null;
@@ -85,6 +87,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       ).bind(ngay, buoi, id, g.trangThai, chuoi(g.lyDo, 300), phien.lopId)
     );
   }
+
+  // Chụp lại toàn bộ điểm danh hiện tại TRƯỚC khi ghi đè — giống hệt cơ chế của Thủ quỹ, để
+  // ghi nhầm hay tài khoản bị chiếm vẫn khôi phục lại được (xem trang "Lịch sử điểm danh").
+  await chupCheckpointDiemDanh(env.DB, `Trước khi: ghi điểm danh ${TEN_BUOI[buoi] || buoi} ngày ${ngay}`, phien);
 
   await env.DB.batch(cauLenh);
   return json({ ok: true, daLuu: cauLenh.length });

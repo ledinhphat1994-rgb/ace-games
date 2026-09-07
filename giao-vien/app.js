@@ -16,6 +16,7 @@ import {
 } from './trang-hoc-tap.js';
 import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
+import { trangDiemDanhLichSu } from './trang-diem-danh-lich-su.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -29,6 +30,7 @@ const KHUNG = $('#noiDung');
 const QUYEN_THEO_TUYEN = {
   'tong-quan': null,
   'diem-danh': 'diem-danh',
+  'diem-danh-lich-su': 'diem-danh',
   // Học sinh: KHÔNG có quyenCan nào cấp được — trang quản lý hồ sơ học sinh chỉ dành cho giáo
   // viên chủ nhiệm; tài khoản đặc biệt chỉ xem danh sách qua Menu (trang lớp), không qua đây.
   'hoc-sinh': null,
@@ -732,7 +734,9 @@ async function trangDiemDanh() {
       await tai();
     });
 
-    khung.append(tieuDeTrang('Điểm danh', ngayDayDu(ngay)));
+    khung.append(tieuDeTrang('Điểm danh', ngayDayDu(ngay),
+      nut('🛡️ Lịch sử & khôi phục', 'nut-vien', () => { location.hash = '#/diem-danh-lich-su'; })
+    ));
 
     const cho = soChoGui();
     if (cho) {
@@ -1958,6 +1962,7 @@ async function trangHoatDongLop(KHUNG) {
 const TRANG = {
   '/tong-quan': trangTongQuan,
   '/diem-danh': trangDiemDanh,
+  '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
   '/so-diem': () => trangSoDiem(KHUNG),
   '/nhat-ky': trangNhatKy,
@@ -1982,6 +1987,7 @@ function danhDauMenu(duong) {
     const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
+      || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')
       || (trongMucThem && a.dataset.nhom === 'them');
     if (khop) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
