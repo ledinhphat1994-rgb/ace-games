@@ -69,6 +69,44 @@ function duocVaoTuyen(duong) {
   return cacCan.some((q) => PHIEN.quyen.includes(q));
 }
 
+// Mọi mục có thể xuất hiện làm "lối tắt nhanh" ở tab dưới của tài khoản cán sự — theo đúng thứ
+// tự ưu tiên hiển thị. Điểm danh/Thủ quỹ đã có sẵn 2 chỗ cố định trong HTML (#tabDuoi); các mục
+// còn lại (Thông báo, Hoạt động lớp, Thời khoá biểu, 3 thư viện) KHÔNG có chỗ cố định nào — tài
+// khoản chỉ được cấp đúng những quyền đó (không có "diem-danh"/"quy") sẽ chỉ còn mỗi tab "Thêm"
+// nếu không bù thêm lối tắt ở đây. Icon lấy y hệt icon dùng ở menu đầy đủ (#menuDayDu) cho nhất quán.
+const LOI_TAT_THEO_QUYEN = [
+  ['thong-bao', '#/thong-bao', 'Thông báo', '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'],
+  ['hoat-dong-lop', '#/hoat-dong-lop', 'Hoạt động', '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>'],
+  ['thoi-khoa-bieu', '#/thoi-khoa-bieu', 'TKB', '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'],
+  ['hinh-anh', '#/hinh-anh', 'Ảnh', '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'],
+  ['am-thanh', '#/thu-vien-am-thanh', 'Âm thanh', '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 9l12-2"/>'],
+  ['video', '#/thu-vien-video', 'Video', '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'],
+];
+const TOI_DA_TAB_CHINH = 4;   // 4 lối tắt + "Thêm" = 5 tab, cùng mật độ với thanh của giáo viên
+
+/** Bù thêm lối tắt cho những quyền KHÔNG có chỗ cố định trong #tabDuoi (xem LOI_TAT_THEO_QUYEN),
+    chèn ngay trước tab "Thêm" — để tài khoản chỉ được cấp vd "Thông báo" vẫn có tab riêng thay vì
+    chỉ còn mỗi "Thêm" để bấm vào mọi thứ. */
+function themLoiTatTabDuoi() {
+  const tabDuoi = document.getElementById('tabDuoi');
+  if (!tabDuoi) return;
+  const nutThem = tabDuoi.querySelector('a[href="#/them"]');
+  if (!nutThem) return;
+
+  let soTabChinh = tabDuoi.querySelectorAll('a').length - 1;   // trừ "Thêm"
+  for (const [quyen, href, nhan, duongDan] of LOI_TAT_THEO_QUYEN) {
+    if (soTabChinh >= TOI_DA_TAB_CHINH) break;
+    if (!PHIEN.quyen.includes(quyen)) continue;
+    if (tabDuoi.querySelector(`a[href="${href}"]`)) continue;   // đã có sẵn (không nên xảy ra, phòng hờ)
+
+    const a = e('a');
+    a.setAttribute('href', href);
+    a.innerHTML = `<span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">${duongDan}</svg></span>${nhan}`;
+    tabDuoi.insertBefore(a, nutThem);
+    soTabChinh++;
+  }
+}
+
 /** Ẩn các mục trong menu (cột trái, tab dưới) mà tài khoản hiện tại không có quyền vào. */
 function locMenuTheoQuyen() {
   // "Đổi lớp chủ nhiệm" chỉ có ý nghĩa với giáo viên (người có thể giữ mã của NHIỀU lớp) —
@@ -85,6 +123,7 @@ function locMenuTheoQuyen() {
     if (href === '#/them') return;         // menu "Thêm" luôn hiện, tự lọc bên trong
     if (!duocVaoTuyen(href.slice(1))) a.remove();
   });
+  themLoiTatTabDuoi();
 
   // Ẩn luôn tiêu đề nhóm nếu không còn mục nào trong nhóm đó (tài khoản đặc biệt chỉ có vài quyền).
   $$('.cot-trai .nhom-dieu-huong').forEach((nhom) => {
@@ -406,7 +445,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     e('div', null, '⚡ Áp dụng nhanh cho cả lớp'),
     { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
   ));
-  const dayApDungNhanh = e('div', 'day-loc');
+  const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
   Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
     const caLopDangChon = danhSach.length > 0 &&
       danhSach.every((h) => trangThaiHienTai(h.id, h.trangThai) === ma);
@@ -707,7 +746,7 @@ async function trangDiemDanh() {
     hangChon.append(oNgay, chonBuoi);
     khung.append(hangChon);
 
-    const hopTabCon = e('div', 'day-loc');
+    const hopTabCon = e('div', 'day-loc day-loc-deu');
     hopTabCon.id = 'diem-danh-tab-con';
     hopTabCon.style.margin = '14px 0';
     [['ngay', '📋 Điểm danh chính'], ['nhanh', '⚡ Điểm danh linh động']].forEach(([ma, ten]) => {
@@ -797,7 +836,7 @@ async function trangDiemDanh() {
         e('div', null, '⚡ Áp dụng nhanh cho cả lớp'),
         { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
       ));
-      const dayApDungNhanh = e('div', 'day-loc');
+      const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
       Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
         const caLopDangChon = duLieuChinh.danhSach.length > 0 &&
           duLieuChinh.danhSach.every((h) => trangThaiHienTaiChinh(h.id, h.trangThai) === ma);
