@@ -115,6 +115,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         tong: tongChinh,
         tiLe: tiLeChinh,
         ...demChinh,
+        danhSach: dsChinh,
         lichSuVang: lichSuVangChinh,
       },
       // Dữ liệu hoạt động / điểm danh phụ
@@ -129,6 +130,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       tong: tongChinh,
       tiLe: tiLeChinh,
       ...demChinh,
+      danhSach: dsChinh,
       lichSuVang: lichSuVangChinh,
     };
   }

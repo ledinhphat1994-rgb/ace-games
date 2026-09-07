@@ -1,16 +1,52 @@
 /* ================= Lịch sử & khôi phục Điểm danh =================
    Y hệt cơ chế "🛡️ Lịch sử & khôi phục" đã có ở Thủ quỹ (xem trang-quy.js) — trước mỗi lần
    lưu điểm danh, toàn bộ bản ghi hiện tại được chụp lại một điểm khôi phục; giáo viên có thể
-   xem lại và khôi phục về đúng thời điểm đó nếu ghi nhầm hoặc tài khoản bị chiếm. */
-import { e, datNoiDung, api, khoiDangTai, nhac } from '/assets/js/chung.js';
+   xem lại (chi tiết từng học sinh đã đổi gì, lý do nếu có, kể cả bị xoá hẳn) và khôi phục về
+   đúng thời điểm đó nếu ghi nhầm hoặc tài khoản bị chiếm. */
+import { e, datNoiDung, api, khoiDangTai, nhac, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import { tieuDeTrang, nut, moHopThoai, dongHopThoai } from '/assets/js/giao-dien.js';
-import { taoLucVN } from './trang-quy.js';
+import { taoLucVNNgayTruoc } from './trang-quy.js';
+
+const TEN_TRANG_THAI = {
+  co_mat: 'Có mặt',
+  vang_phep: 'Vắng có phép',
+  vang_khong_phep: 'Vắng không phép',
+  tre: 'Đi trễ',
+};
+const tenTt = (ma) => (ma ? (TEN_TRANG_THAI[ma] || ma) : 'Chưa ghi');
+
+const TABS = [['', 'Tất cả'], ['chinh', '📋 Điểm danh chính'], ['phu', '⚡ Điểm danh linh động']];
 
 export async function trangDiemDanhLichSu(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
   const phienD = await api('/api/whoami').catch(() => ({ role: '' }));
   const laGiaoVien = phienD.role === 'teacher';
+  let tab = '';   // '' | 'chinh' | 'phu'
+
+  /** Mỗi dòng chi tiết: "Họ tên: Trước → Sau" (+ lý do nếu có) — "Sau" là "(đã xoá)" nếu bị bỏ chọn. */
+  function veChiTiet(chiTiet) {
+    if (!chiTiet || !chiTiet.length) return null;
+    const ds = e('div', 'ds-chi-tiet-diem-danh');
+    ds.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:5px;';
+    chiTiet.forEach((c) => {
+      const dong = e('div');
+      dong.style.cssText = 'font-size:13px;color:var(--chu-nhat);display:flex;flex-wrap:wrap;gap:5px;align-items:center;';
+      dong.append(e('b', null, c.hoTen), document.createTextNode(':'));
+      if (c.sau === null) {
+        dong.append(e('span', 'nhan nhan-xam', `Xoá (trước đó: ${tenTt(c.truoc)})`));
+      } else {
+        dong.append(
+          e('span', null, tenTt(c.truoc)),
+          e('span', null, '→'),
+          e('span', 'nhan ' + (c.sau === 'co_mat' ? 'nhan-tot' : c.sau === 'vang_khong_phep' ? 'nhan-xau' : c.sau === 'tre' ? 'nhan-luuy' : 'nhan'), tenTt(c.sau))
+        );
+      }
+      if (c.lyDo) dong.append(e('small', null, `Lý do: ${c.lyDo}`));
+      ds.append(dong);
+    });
+    return ds;
+  }
 
   async function ve() {
     datNoiDung(KHUNG, khoiDangTai());
@@ -23,9 +59,25 @@ export async function trangDiemDanhLichSu(KHUNG) {
     cardVeDiemDanh.append(nutVeDiemDanh);
     khung.append(cardVeDiemDanh);
     khung.append(tieuDeTrang('Lịch sử Điểm danh',
-      'Mỗi lần lưu điểm danh đều tự lưu lại một điểm khôi phục — xem lại và khôi phục nếu ghi nhầm.'));
+      'Mỗi lần lưu điểm danh đều tự lưu lại một điểm khôi phục, kèm chi tiết từng học sinh đã đổi gì.'));
 
-    const d = await api('/api/gv/diem-danh-checkpoint');
+    const hopTab = e('div', 'day-loc');
+    hopTab.id = 'diem-danh-lich-su-tab';
+    hopTab.style.margin = '4px 0 16px';
+    TABS.forEach(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tab === ma));
+      b.addEventListener('click', () => {
+        if (tab === ma) return;
+        tab = ma;
+        giuViTriCuonKhiVe('diem-danh-lich-su-tab', ve);
+      });
+      hopTab.append(b);
+    });
+    khung.append(hopTab);
+
+    const d = await api('/api/gv/diem-danh-checkpoint' + (tab ? '?loai=' + tab : ''));
 
     if (laGiaoVien) {
       const the = e('div', 'the');
@@ -38,7 +90,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
     }
 
     if (!d.danhSach.length) {
-      khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào — sẽ tự xuất hiện khi có thao tác điểm danh đầu tiên.'));
+      khung.append(e('p', 'trong', 'Chưa có điểm khôi phục nào phù hợp.'));
       datNoiDung(KHUNG, khung);
       return;
     }
@@ -48,14 +100,14 @@ export async function trangDiemDanhLichSu(KHUNG) {
       nutXoaTatCaCp.style.cssText = 'margin-bottom:10px;text-align:right';
       nutXoaTatCaCp.append(nut('🗑 Xoá tất cả điểm khôi phục', 'nut-nhe nut-nho', () => {
         moHopThoai('Xoá TOÀN BỘ lịch sử khôi phục?', [
-          e('p', null, `Toàn bộ ${d.danhSach.length} điểm khôi phục sẽ mất vĩnh viễn.`),
+          e('p', null, `Toàn bộ ${d.danhSach.length} điểm khôi phục đang hiện sẽ mất vĩnh viễn.`),
           e('p', 'trong', 'Đây là lưới an toàn duy nhất nếu tài khoản bị lộ hay ghi nhầm điểm danh — xoá xong sẽ KHÔNG còn cách nào quay lại các thời điểm cũ nữa. Chỉ xoá khi chắc chắn không cần nữa.'),
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
             ev.currentTarget.disabled = true;
             try {
-              await api('/api/gv/diem-danh-checkpoint?tatCa=1', { method: 'DELETE' });
+              await api('/api/gv/diem-danh-checkpoint?tatCa=1' + (tab ? '&loai=' + tab : ''), { method: 'DELETE' });
               dongHopThoai();
               nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
               ve();
@@ -73,13 +125,13 @@ export async function trangDiemDanhLichSu(KHUNG) {
     d.danhSach.forEach((cp) => {
       const m = e('div', 'muc-nhat-ky khac');
       const dong = e('div', 'dong-dau');
-      dong.append(e('span', 'ngay', taoLucVN(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
+      dong.append(e('span', 'ngay', taoLucVNNgayTruoc(cp.taoLuc)), e('span', 'nhan nhan-xam', cp.nguoiThucHien));
       if (laGiaoVien) {
         const viec = e('div', 'viec');
         viec.append(nut('Khôi phục về đây', 'nut-nho nut-xau', () => {
           moHopThoai('Khôi phục Điểm danh về điểm này?', [
             e('p', null, cp.hanhDong),
-            Object.assign(e('p', null, `Lúc: ${taoLucVN(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
+            Object.assign(e('p', null, `Lúc: ${taoLucVNNgayTruoc(cp.taoLuc)}`), { style: 'color:var(--chu-nhat)' }),
             e('p', null, 'Mọi thay đổi điểm danh sau thời điểm này sẽ mất. Chắc chắn chứ?'),
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -120,6 +172,8 @@ export async function trangDiemDanhLichSu(KHUNG) {
         dong.append(viec);
       }
       m.append(dong, e('p', null, cp.hanhDong));
+      const khoiChiTiet = veChiTiet(cp.chiTiet);
+      if (khoiChiTiet) m.append(khoiChiTiet);
       ds.append(m);
     });
     khung.append(ds);

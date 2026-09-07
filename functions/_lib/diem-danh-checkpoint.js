@@ -11,16 +11,19 @@ const TOI_DA_CHECKPOINT = 200;   // giữ 200 điểm gần nhất, đủ cho v�
 export { taChuThich };
 
 /** Chụp toàn bộ bản ghi điểm danh hiện tại CỦA ĐÚNG LỚP đang đăng nhập, TRƯỚC khi áp dụng
-    một thay đổi — không chụp lẫn dữ liệu điểm danh của lớp khác vào cùng một điểm khôi phục. */
-export async function chupCheckpointDiemDanh(db, hanhDong, phien) {
+    một thay đổi — không chụp lẫn dữ liệu điểm danh của lớp khác vào cùng một điểm khôi phục.
+    `loai` ('chinh' | 'phu' | null) và `chiTiet` (mảng {hocSinhId, hoTen, truoc, sau, lyDo})
+    cho phép trang Lịch sử Điểm danh lọc theo tab và hiện đúng từng em đã đổi gì — null dùng
+    cho điểm chụp trước khi KHÔI PHỤC (ảnh hưởng toàn bộ, không thuộc riêng loại nào). */
+export async function chupCheckpointDiemDanh(db, hanhDong, phien, loai = null, chiTiet = null) {
   const lopId = phien?.lopId ?? 1;
   const { results } = await db.prepare('SELECT * FROM diem_danh WHERE lop_id = ?1').bind(lopId).all();
 
   const duLieu = JSON.stringify({ diemDanh: results });
 
   await db.prepare(
-    'INSERT INTO diem_danh_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu, lop_id) VALUES (?1, ?2, ?3, ?4)'
-  ).bind(hanhDong, taChuThich(phien), duLieu, lopId).run();
+    'INSERT INTO diem_danh_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu, loai, chi_tiet, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+  ).bind(hanhDong, taChuThich(phien), duLieu, loai, chiTiet ? JSON.stringify(chiTiet) : null, lopId).run();
 
   // Dọn bớt các bản cũ CỦA ĐÚNG LỚP NÀY, tránh phình bảng vô hạn (không đụng tới lớp khác).
   await db.prepare(

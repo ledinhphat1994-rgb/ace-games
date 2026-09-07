@@ -57,17 +57,31 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (ghiNhan.length > 200) return loi('Quá nhiều bản ghi trong một lần gửi.');
 
   // Chỉ chấp nhận học sinh THẬT SỰ thuộc lớp đang đăng nhập — chặn trường hợp id học sinh
-  // của lớp khác lỡ lọt vào dữ liệu gửi lên.
-  const { results: hsLop } = await env.DB.prepare('SELECT id FROM hoc_sinh WHERE lop_id = ?1').bind(phien.lopId).all();
-  const idHopLe = new Set(hsLop.map((h) => h.id));
+  // của lớp khác lỡ lọt vào dữ liệu gửi lên. Lấy sẵn họ tên để ghi lịch sử chi tiết bên dưới.
+  const { results: hsLop } = await env.DB.prepare('SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE lop_id = ?1').bind(phien.lopId).all();
+  const tenMap = new Map(hsLop.map((h) => [h.id, h.hoTen]));
+
+  // Trạng thái TRƯỚC khi ghi (đúng ngày/buổi này) — so sánh để biết CHÍNH XÁC ai đổi từ gì
+  // sang gì, kể cả bị xoá hẳn — phục vụ lịch sử chi tiết từng học sinh (xem trang "Lịch sử
+  // điểm danh"), không chỉ một dòng mô tả chung chung như trước.
+  const { results: truocDs } = await env.DB.prepare(
+    'SELECT hoc_sinh_id AS hocSinhId, trang_thai AS trangThai, ly_do AS lyDo FROM diem_danh WHERE ngay = ?1 AND buoi = ?2 AND lop_id = ?3'
+  ).bind(ngay, buoi, phien.lopId).all();
+  const truocMap = new Map(truocDs.map((r) => [r.hocSinhId, r]));
 
   const cauLenh = [];
+  const chiTiet = [];
   for (const g of ghiNhan) {
     const id = Number(g.hocSinhId);
-    if (!Number.isInteger(id) || id <= 0 || !idHopLe.has(id)) return loi('Mã học sinh không hợp lệ.');
+    if (!Number.isInteger(id) || id <= 0 || !tenMap.has(id)) return loi('Mã học sinh không hợp lệ.');
+    const truoc = truocMap.get(id) || null;
 
     if (!g.trangThai) {
-      // Bỏ chọn — xoá hẳn bản ghi, không phải một "trạng thái rỗng".
+      // Bỏ chọn — xoá hẳn bản ghi, không phải một "trạng thái rỗng". Chỉ ghi vào lịch sử nếu
+      // TRƯỚC ĐÓ thật sự đã có gì đó (bỏ chọn khi chưa từng ghi thì không phải một thay đổi).
+      if (truoc) {
+        chiTiet.push({ hocSinhId: id, hoTen: tenMap.get(id), truoc: truoc.trangThai, sau: null, lyDo: truoc.lyDo || '' });
+      }
       cauLenh.push(
         env.DB.prepare('DELETE FROM diem_danh WHERE ngay = ?1 AND buoi = ?2 AND hoc_sinh_id = ?3')
           .bind(ngay, buoi, id)
@@ -76,6 +90,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     }
 
     if (!TRANG_THAI_HOP_LE.has(g.trangThai)) return loi(`Trạng thái không hợp lệ: ${g.trangThai}`);
+    const lyDoMoi = chuoi(g.lyDo, 300);
+    if (!truoc || truoc.trangThai !== g.trangThai || (truoc.lyDo || '') !== lyDoMoi) {
+      chiTiet.push({ hocSinhId: id, hoTen: tenMap.get(id), truoc: truoc ? truoc.trangThai : null, sau: g.trangThai, lyDo: lyDoMoi });
+    }
     cauLenh.push(
       env.DB.prepare(
         `INSERT INTO diem_danh (ngay, buoi, hoc_sinh_id, trang_thai, ly_do, cap_nhat_luc, lop_id)
@@ -84,13 +102,18 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
          DO UPDATE SET trang_thai = excluded.trang_thai,
                        ly_do = excluded.ly_do,
                        cap_nhat_luc = datetime('now')`
-      ).bind(ngay, buoi, id, g.trangThai, chuoi(g.lyDo, 300), phien.lopId)
+      ).bind(ngay, buoi, id, g.trangThai, lyDoMoi, phien.lopId)
     );
   }
 
   // Chụp lại toàn bộ điểm danh hiện tại TRƯỚC khi ghi đè — giống hệt cơ chế của Thủ quỹ, để
   // ghi nhầm hay tài khoản bị chiếm vẫn khôi phục lại được (xem trang "Lịch sử điểm danh").
-  await chupCheckpointDiemDanh(env.DB, `Trước khi: ghi điểm danh ${TEN_BUOI[buoi] || buoi} ngày ${ngay}`, phien);
+  // Chỉ chụp khi THẬT SỰ có gì đổi (chiTiet không rỗng) — tránh lịch sử rác cho lần bấm lưu
+  // mà không đổi gì.
+  if (chiTiet.length) {
+    const hanhDong = `Ghi điểm danh ${TEN_BUOI[buoi] || buoi} ngày ${ngay} — ${chiTiet.length} học sinh`;
+    await chupCheckpointDiemDanh(env.DB, hanhDong, phien, loai === 'phu' ? 'phu' : 'chinh', chiTiet);
+  }
 
   await env.DB.batch(cauLenh);
   return json({ ok: true, daLuu: cauLenh.length });

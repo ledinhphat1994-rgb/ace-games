@@ -283,12 +283,12 @@ function toChucVu(phien) {
 
 export function layNhanTaiKhoan(phien = {}) {
   const role = phien.role || '';
-  if (role === 'teacher') return '👩‍🏫 Tài khoản: Giáo viên chủ nhiệm';
+  if (role === 'teacher') return '👩‍🏫 Giáo viên chủ nhiệm';
   if (role === 'student') {
     const ten = (phien.ten || '').trim();
     const phu = toChucVu(phien);
     const nhan = [ten || 'Học sinh thường', ...phu].join(' · ');
-    return `🎓 Tài khoản: ${nhan}`;
+    return `🎓 ${nhan}`;
   }
 
   let vt = (phien.vaiTro || '').trim();
@@ -299,11 +299,11 @@ export function layNhanTaiKhoan(phien = {}) {
   const toSoNhan = phien.toSo ? ` · Tổ ${phien.toSo}` : '';
   if (vt) {
     if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
-      return `${info.bieuTuong} Tài khoản: ${vt}${toSoNhan}`;
+      return `${info.bieuTuong} ${vt}${toSoNhan}`;
     }
-    return `${info.bieuTuong} Tài khoản: ${vt} (${t})${toSoNhan}`;
+    return `${info.bieuTuong} ${vt} (${t})${toSoNhan}`;
   }
-  if (t) return `Tài khoản: ${t}${toSoNhan}`;
+  if (t) return `${t}${toSoNhan}`;
   return 'Tài khoản đặc biệt';
 }
 

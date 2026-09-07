@@ -45,7 +45,7 @@
   <!-- Bước 2: nhập mã — ẩn cho tới khi đã biết đang vào lớp nào. -->
   <form id="bieuMau" autocomplete="off" hidden>
     <button type="button" id="nutDoiLop" class="nut nut-vien nut-nho" style="margin-bottom:14px;" hidden>‹ Chọn lại lớp khác</button>
-    <label class="nhan-nhap" for="ma">Mã cá nhân của em (hoặc mã giáo viên)</label>
+    <label class="nhan-nhap" for="ma">Mã cá nhân của em</label>
     <input class="o-nhap" id="ma" name="ma" type="password"
            placeholder="Nhập mã cá nhân giáo viên chủ nhiệm đã cấp" required autofocus
            autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -77,8 +77,10 @@
     document.title = `Đăng nhập · ${lop.ten}`;
     document.getElementById('hieuTenLop').textContent = lop.ten;
     document.getElementById('hieuMaLop').textContent = tenNgan || '🎓';
-    document.getElementById('tieuDeDangNhap').textContent = lop.ten;
-    document.getElementById('hieuOChinh').textContent = tenNgan || '🎓';
+    // Bước nhập mã: bỏ hẳn huy hiệu + tiêu đề "Lớp ..." lặp lại (đã thấy ở thanh trên rồi) —
+    // chỉ còn đúng một dòng giới thiệu tên trường, làm to rõ để bù lại.
+    document.getElementById('hieuOChinh').hidden = true;
+    document.getElementById('tieuDeDangNhap').hidden = true;
     document.getElementById('phuDeDangNhap').textContent = lop.truong || '';
   }
 
@@ -111,7 +113,9 @@
     document.getElementById('hieuTenLop').textContent = 'Hệ thống lớp học';
     document.getElementById('hieuMaLop').textContent = '🎓';
     document.getElementById('hieuOChinh').textContent = '🎓';
+    document.getElementById('hieuOChinh').hidden = false;
     document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';
+    document.getElementById('tieuDeDangNhap').hidden = false;
     document.getElementById('phuDeDangNhap').textContent = 'Chạm vào đúng lớp của mình để tiếp tục';
     document.title = 'Chọn lớp — Đăng nhập';
     chonLop.innerHTML = '';
@@ -153,7 +157,8 @@
 
     // Không có slug, không tra được lớp nào — vẫn mở form nhập mã chung chung để không chặn
     // đường vào của bất kỳ ai (đăng nhập vẫn luôn dựa vào chính mã nhập, không phụ thuộc bước này).
-    document.getElementById('tieuDeDangNhap').textContent = 'Đăng nhập';
+    document.getElementById('hieuOChinh').hidden = true;
+    document.getElementById('tieuDeDangNhap').hidden = true;
     document.getElementById('phuDeDangNhap').textContent = 'Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã';
     hienChonLop(false);
     bieuMau.hidden = false;

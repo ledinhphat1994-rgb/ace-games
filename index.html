@@ -10,16 +10,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260907_11">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260907_11">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260907_14">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260907_14">
 </head>
 <body>
 
 <header class="thanh-tren">
   <div class="wrap">
     <a class="hieu" href="/" title="Về đầu trang chủ">
-      <span class="hieu-o" id="hieuMaLop">10A7</span>
-      <span class="hieu-ten"><span id="hieuTenLop">Lớp 10A7</span><small class="hieu-phu" id="hieuTruong">GDNN – GDTX xã Định Quán</small></span>
+      <span class="hieu-o-boc">
+        <span class="hieu-o" id="hieuMaLop">10A7</span>
+        <span class="hieu-nam-hoc" id="hieuNamHoc"></span>
+      </span>
+      <span class="hieu-ten"><span id="hieuTenLop" hidden>Lớp 10A7</span><span class="hieu-phu" id="hieuTruong">GDNN – GDTX xã Định Quán</span></span>
     </a>
 
     <!-- Máy tính: bốn mục của trang chủ nằm ngay trên thanh. Điện thoại: ẩn, nằm trong menu. -->
@@ -109,11 +112,8 @@
       <div class="mo-dau-phu"></div>
       <div class="mo-dau-noi-dung">
         <div class="mo-dau-dau">
-          <span class="nhan-tren">Năm học 2026 – 2027</span>
           <button class="nut nut-vien nut-nho mo-dau-nut-sua" id="moDauNutSua" type="button" hidden>✏ Đổi ảnh/video nền</button>
         </div>
-        <h1 id="tenLop">Lớp 10A7</h1>
-        <p id="gioiThieu">Trang thông tin nội bộ của tập thể lớp 10A7 – Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai.</p>
         <div class="o-so" id="oSo"></div>
       </div>
     </div>
@@ -152,7 +152,7 @@
     <section class="khoi-trang-chu" id="hinh-anh">
       <div class="dau-muc">
         <h2>🎉 Hoạt động lớp</h2>
-        <p id="gioiThieuHinhAnh">Khoảnh khắc của tập thể 10A7.</p>
+        <p id="gioiThieuHinhAnh">Khoảnh khắc & kỷ niệm sinh hoạt của lớp.</p>
       </div>
       <div class="than-khoi">
         <div class="thu-vien" id="thuVien"></div>
@@ -222,12 +222,12 @@
 
 <footer class="chan-trang">
   <div class="wrap">
-    <span id="chanTrangTen">Lớp 10A7 · Năm học 2026 – 2027 · GDNN – GDTX xã Định Quán, Đồng Nai</span>
-    <span>Trang nội bộ — không chia sẻ mã bảo mật ra ngoài lớp.</span>
+    <p class="chan-trang-dong-1">Trang nội bộ — không chia sẻ mã bảo mật ra ngoài lớp.</p>
+    <p class="chan-trang-dong-2">Made with <span class="trai-tim-xanh" aria-label="yêu thương">💙</span></p>
   </div>
 </footer>
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260907_11"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260907_14"></script>
 </body>
 </html>
