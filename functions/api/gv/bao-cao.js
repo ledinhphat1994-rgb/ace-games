@@ -3,8 +3,8 @@
 //   dinhDang = 'excel' (.xls, bảng tính định dạng sư phạm chuẩn)
 //   dinhDang = 'csv'   (.csv, có chỉ thị sep=; và UTF-8 BOM để Excel tự động tách cột)
 //
-// 9 danh mục báo cáo đồng bộ 100% với Vùng 1:
-//   - Lớp học: diem-danh, hoc-sinh, so-diem, nhat-ky, thu-quy
+// 8 danh mục báo cáo đồng bộ 100% với Vùng 1:
+//   - Lớp học: diem-danh, hoc-sinh, so-diem, thu-quy
 //   - Trang lớp: thong-bao (đảm nhiệm luôn vai trò của "kế hoạch năm học" cũ), thoi-khoa-bieu
 //   - Báo cáo & Tài khoản: thong-ke, ma-ca-nhan
 import { bocXuLy, loi, ngayHopLe } from '../../_lib/api.js';
@@ -523,32 +523,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     }, lop);
   }
 
-  // 4. MỤC: NHẬT KÝ LỚP (Khớp mục "Nhật ký lớp" trong Vùng 1)
-  if (loai === 'nhat-ky') {
-    const { results } = await db.prepare(
-      `SELECT n.ngay, n.loai, n.noi_dung, n.da_xu_ly, h.ho_ten
-         FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
-        WHERE n.ngay BETWEEN ?1 AND ?2 AND n.lop_id = ?3 ORDER BY n.ngay DESC`
-    ).bind(tuNgay, denNgay, lopId).all();
-
-    const TEN_LOAI = { khen: 'Khen thưởng', nhac_nho: 'Nhắc nhở', vi_pham: 'Vi phạm', ho_tro: 'Cần hỗ trợ', khac: 'Khác' };
-    const cacHang = results.map((n, i) => [
-      { v: i + 1, kieu: 'giua' },
-      { v: ngayVN(n.ngay), kieu: 'giua' },
-      { v: TEN_LOAI[n.loai] || n.loai, kieu: 'giua', dam: true },
-      { v: n.ho_ten || 'Cả lớp', kieu: 'trai', dam: Boolean(n.ho_ten) },
-      { v: n.noi_dung, kieu: 'trai' },
-      { v: n.da_xu_ly ? 'Đã xử lý' : 'Chưa xử lý', kieu: 'giua', mau: n.da_xu_ly ? '#15803d' : '#dc2626' },
-    ]);
-
-    return phanHoiBaoCao(dinhDang, `Bao_cao_Nhat_ky_lop_${tenLopTep}_${tuNgay}_den_${denNgay}`, {
-      tieuDe: `BÁO CÁO SỔ NHẬT KÝ THEO DÕI ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
-      phuDe: `Ghi nhận từ ngày ${ngayVN(tuNgay)} đến ngày ${ngayVN(denNgay)}`,
-      tieuDeCot: ['STT', 'Ngày', 'Phân loại', 'Học sinh liên quan', 'Nội dung sự việc / Theo dõi', 'Tình trạng xử lý'],
-      cacHang,
-    }, lop);
-  }
-
   // 5. MỤC: THỦ QUỸ (Khớp mục "Thủ quỹ" trong Vùng 1)
   if (loai === 'thu-quy') {
     const [{ results: cacKhoan }, { results: hocSinh }, { results: cacDong }, { results: cacChi }] = await Promise.all([
@@ -741,8 +715,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
               SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 ELSE 0 END) AS vang_khong_phep,
               SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 ELSE 0 END) AS vang_phep,
               SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 ELSE 0 END) AS tre,
-              (SELECT COUNT(*) FROM nhat_ky n WHERE n.hoc_sinh_id = h.id AND n.loai = 'vi_pham') AS vi_pham,
-              (SELECT COUNT(*) FROM nhat_ky n WHERE n.hoc_sinh_id = h.id AND n.loai = 'khen') AS khen,
               (SELECT trang_thai FROM theo_doi t WHERE t.hoc_sinh_id = h.id AND t.muc = 'sgk') AS sgk,
               (SELECT trang_thai FROM theo_doi t WHERE t.hoc_sinh_id = h.id AND t.muc = 'dong_phuc') AS dong_phuc
          FROM hoc_sinh h LEFT JOIN diem_danh d ON d.hoc_sinh_id = h.id
@@ -760,8 +732,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       { v: h.vang_phep, kieu: 'giua' },
       { v: h.vang_khong_phep, kieu: 'giua', mau: h.vang_khong_phep > 0 ? '#dc2626' : '' },
       { v: h.tre, kieu: 'giua' },
-      { v: h.vi_pham, kieu: 'giua', mau: h.vi_pham > 0 ? '#dc2626' : '' },
-      { v: h.khen, kieu: 'giua', mau: h.khen > 0 ? '#15803d' : '' },
       { v: h.sgk === 'du' ? 'Đủ' : h.sgk === 'thieu' ? 'Thiếu' : 'Chưa có', kieu: 'giua' },
       { v: h.dong_phuc === 'roi' ? 'Đã nhận' : 'Chưa nhận', kieu: 'giua' },
     ]);
@@ -769,7 +739,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     return phanHoiBaoCao(dinhDang, `Bao_cao_Thong_ke_tong_hop_${tenLopTep}`, {
       tieuDe: `BÁO CÁO THỐNG KÊ TỔNG HỢP ${(lop?.ten || 'LỚP HỌC').toUpperCase()}`,
       phuDe: `Báo cáo chuyên cần, nề nếp, sách giáo khoa & đồng phục — Ngày ${ngayVN(denNgay)}`,
-      tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Giới tính', 'Lớp nghề', 'Tổ', 'Chức vụ', 'Vắng phép', 'Không phép', 'Đi trễ', 'Vi phạm', 'Khen thưởng', 'Sách GK', 'Đồng phục'],
+      tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Giới tính', 'Lớp nghề', 'Tổ', 'Chức vụ', 'Vắng phép', 'Không phép', 'Đi trễ', 'Sách GK', 'Đồng phục'],
       cacHang,
     }, lop);
   }

@@ -679,7 +679,7 @@ export async function trangBaoCao(KHUNG) {
   );
   const chuThichLoc = e('p', 'trong');
   chuThichLoc.style.cssText = 'font-size:12.5px;color:var(--chu-mo);margin:10px 0 0 0;line-height:1.4;';
-  chuThichLoc.textContent = '💡 Khoảng ngày áp dụng cho Điểm danh & Nhật ký; Học kỳ áp dụng cho Sổ điểm.';
+  chuThichLoc.textContent = '💡 Khoảng ngày áp dụng cho Điểm danh; Học kỳ áp dụng cho Sổ điểm.';
   theLoc.append(hangLoc, chuThichLoc);
   khung.append(theLoc);
 
@@ -742,16 +742,15 @@ export async function trangBaoCao(KHUNG) {
     return the;
   }
 
-  // 9 BÁO CÁO ĐỒNG BỘ 9 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
+  // 8 BÁO CÁO ĐỒNG BỘ 8 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
   const DANH_SACH_BAO_CAO = [
     ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
     ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
     ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
-    ['📝', 'Báo cáo Nhật ký lớp', 'Sổ nhật ký chủ nhiệm: ghi nhận khen thưởng, nhắc nhở, vi phạm và tình trạng xử lý.', 'nhat-ky', true, 'Theo ngày'],
     ['💰', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
     ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp (gồm cả mốc sự kiện, mức độ quan trọng), ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
     ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
-    ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, kỷ luật, khen thưởng, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
+    ['📊', 'Báo cáo Thống kê tổng hợp', 'Báo cáo tổng hợp toàn diện: chuyên cần, sách giáo khoa, đồng phục cả lớp.', 'thong-ke', false, 'Tổng hợp'],
     ['🔑', 'Báo cáo Mã cá nhân & Phân quyền', 'Danh sách mã tra cứu điểm cá nhân của từng em, tài khoản ban cán sự và quyền quản trị.', 'ma-ca-nhan', false, 'Bảo mật'],
   ];
 
@@ -1101,7 +1100,6 @@ const CAC_QUYEN_QUAN_LY = [
   ['hinh-anh', 'Thư viện Ảnh — tải/quản lý kho ảnh, quyền đính kèm ảnh'],
   ['am-thanh', 'Thư viện Âm thanh — tải bài hát/quản lý nhạc nền, quyền đính kèm âm thanh'],
   ['video', 'Thư viện Video — tải/quản lý kho video, quyền đính kèm video'],
-  ['nhat-ky', 'Nhật ký lớp — ghi nhận xét, khen thưởng, vi phạm'],
   ['hoat-dong-lop', 'Hoạt động lớp — đăng tin/hoạt động lớp (chỉ ghi text nếu không cấp quyền media)'],
 ];
 const ICON_QUYEN = {
@@ -1112,7 +1110,6 @@ const ICON_QUYEN = {
   'hinh-anh': '📸',
   'am-thanh': '♪',
   video: '🎬',
-  'nhat-ky': '📖',
   'hoat-dong-lop': '🌿',
   'hoc-sinh': '👥',
 };

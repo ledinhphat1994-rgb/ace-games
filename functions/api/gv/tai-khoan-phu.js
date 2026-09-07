@@ -18,7 +18,6 @@ export const CAC_QUYEN = [
   ['hinh-anh', 'Thư viện Ảnh — tải/quản lý kho ảnh, quyền đính kèm ảnh'],
   ['am-thanh', 'Thư viện Âm thanh — tải bài hát/quản lý nhạc nền, quyền đính kèm âm thanh'],
   ['video', 'Thư viện Video — tải/quản lý kho video, quyền đính kèm video'],
-  ['nhat-ky', 'Nhật ký lớp — ghi nhận xét, khen thưởng, vi phạm'],
   ['hoat-dong-lop', 'Hoạt động lớp — đăng tin/hoạt động lớp (chỉ ghi text nếu không cấp quyền media)'],
 ];
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));

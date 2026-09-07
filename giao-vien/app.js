@@ -35,7 +35,6 @@ const QUYEN_THEO_TUYEN = {
   // viên chủ nhiệm; tài khoản đặc biệt chỉ xem danh sách qua Menu (trang lớp), không qua đây.
   'hoc-sinh': null,
   'so-diem': null,
-  'nhat-ky': 'nhat-ky',
   'hoat-dong-lop': ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'],
   'thong-ke': null,
   'thong-bao': 'thong-bao',
@@ -101,14 +100,6 @@ const DIEM_DANH = {
   vang_khong_phep: { ten: 'Vắng không phép', ky: '✗', lop: 'nhan-xau' },
 };
 
-const LOAI_NHAT_KY = {
-  khen:     { ten: 'Khen thưởng', lop: 'nhan-tot' },
-  nhac_nho: { ten: 'Nhắc nhở',    lop: 'nhan-luuy' },
-  vi_pham:  { ten: 'Vi phạm',     lop: 'nhan-xau' },
-  ho_tro:   { ten: 'Cần hỗ trợ',  lop: 'nhan-tim' },
-  khac:     { ten: 'Khác',        lop: 'nhan-xam' },
-};
-
 const TEN_BUOI = { sang: 'Buổi sáng', chieu: 'Buổi chiều', hoat_dong: 'Hoạt động' };
 
 // Nhãn tương đối cho mốc sắp tới — chỉ để quét nhanh độ gấp, không thay ngày tuyệt đối
@@ -145,46 +136,17 @@ async function trangTongQuan() {
   );
   khung.append(day);
 
-  // --- Việc hôm nay: lối tắt hành động + việc còn tồn đọng, để không phải chạy qua nhiều trang ---
+  // --- Việc hôm nay: lối tắt hành động, để không phải chạy qua nhiều trang ---
   const theVh = e('div', 'the');
   theVh.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
   theVh.append(e('h3', null, 'Việc hôm nay'));
   const dayTat = e('div', 'day-loc');
   dayTat.style.margin = '10px 0 4px';
   dayTat.append(
-    nut('✎ Ghi vi phạm / khen', 'nut-vien nut-nho', () => themNhatKy(null, trangTongQuan)),
     nut('💰 Ghi thu quỹ', 'nut-vien nut-nho', () => { location.hash = '#/quy'; }),
     nut('◈ Soạn thông báo', 'nut-vien nut-nho', () => soanThongBao(null, trangTongQuan))
   );
   theVh.append(dayTat);
-
-  if (d.viecTonDong && d.viecTonDong.length) {
-    const nhanTon = e('div', 'the-nhan', `${d.viecTonDong.length} việc chưa xử lý — cũ nhất trước`);
-    nhanTon.style.margin = '14px 0 8px';
-    theVh.append(nhanTon);
-    const dsTon = e('div', 'ds-nhat-ky');
-    d.viecTonDong.slice(0, 6).forEach((n) => {
-      const loai = LOAI_NHAT_KY[n.loai] || LOAI_NHAT_KY.khac;
-      const m = e('div', 'muc-nhat-ky ' + n.loai);
-      const dong = e('div', 'dong-dau');
-      dong.append(e('span', 'nhan ' + loai.lop, loai.ten));
-      if (n.hoTen) dong.append(e('span', 'nhan nhan-xam', n.hoTen));
-      dong.append(e('span', 'ngay', ngayVN(n.ngay)));
-      const viec = e('div', 'viec');
-      viec.append(nut('✓ Xong', 'nut-nhe nut-nho', async () => {
-        try {
-          await api('/api/gv/nhat-ky', { method: 'PATCH', than: { id: n.id, daXuLy: true } });
-          trangTongQuan();
-        } catch (err) { nhac(err.message, 'xau'); }
-      }));
-      dong.append(viec);
-      m.append(dong, e('p', null, n.noiDung));
-      dsTon.append(m);
-    });
-    theVh.append(dsTon);
-  } else {
-    theVh.append(e('p', 'trong', 'Không có việc nào tồn đọng trong nhật ký lớp.'));
-  }
   khung.append(theVh);
 
   if (!daDiemDanh) {
@@ -237,13 +199,10 @@ async function trangTongQuan() {
       tenBam.append(e('b', null, h.hoTen), e('small', null, h.lyDo));
       tenBam.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
       hang.append(e('div', 'stt', h.id), tenBam);
-      // Khen chỉ hiện như thông tin thêm, KHÔNG phải dấu hiệu làm giảm mức cần chú ý.
-      if (h.soKhen) hang.append(e('span', 'nhan nhan-xam', `${h.soKhen} khen`));
 
       // Hành động ngay tại dòng — không bắt rời Tổng quan để xử lý (Action Proximity).
       const hanhDong = e('div', 'hanh-dong');
       hanhDong.append(
-        nut('Ghi nhật ký', 'nut-nhe nut-nho', () => themNhatKy(h.id, trangTongQuan), 'Ghi nhật ký cho ' + h.hoTen),
         nut('Liên hệ PH', 'nut-nhe nut-nho', () => ghiLienHe(h, trangTongQuan), 'Liên hệ phụ huynh của ' + h.hoTen)
       );
       hang.append(hanhDong);
@@ -321,19 +280,6 @@ async function trangTongQuan() {
   luoi.append(theKh);
 
   khung.append(luoi);
-
-  // --- Nhật ký gần đây ---
-  const theNk = e('div');
-  theNk.style.marginTop = '18px';
-  theNk.append(e('h3', null, 'Nhật ký gần đây'));
-  if (!d.nhatKy.length) {
-    theNk.append(e('p', 'trong', 'Chưa có ghi chép nào.'));
-  } else {
-    const ds = e('div', 'ds-nhat-ky');
-    d.nhatKy.slice(0, 6).forEach((n) => ds.append(veMucNhatKy(n, null)));
-    theNk.append(ds);
-  }
-  khung.append(theNk);
 
   datNoiDung(KHUNG, khung);
 }
@@ -1193,7 +1139,6 @@ const LOP_XEP_LOAI_HOC_TAP = { 'Tốt': 'nhan-tot', 'Khá': 'nhan', 'Đạt': 'n
 const CAC_TAB_HO_SO = [
   ['chuyen-can', 'Chuyên cần'],
   ['hoc-tap', 'Học tập'],
-  ['hanh-kiem', 'Hạnh kiểm'],
   ['phu-huynh', 'Phụ huynh'],
 ];
 
@@ -1206,7 +1151,7 @@ async function trangHoSo(id, tabMacDinh) {
   let diemCache = null;   // { 1: {monHoc, hang}, 2: {...} } — nạp khi mở tab Học tập lần đầu
 
   const khung = e('div');
-  // Quay lại ĐÚNG chỗ vừa đến (Tổng quan, Nhật ký...), không phải luôn về Danh sách cố định
+  // Quay lại ĐÚNG chỗ vừa đến (Tổng quan, Danh sách...), không phải luôn về Danh sách cố định
   // — nếu không, bấm nút Back thật của trình duyệt sau đó sẽ nhảy lung tung.
   const quayLai = nut('← Quay lại', 'nut-nhe nut-nho', () => {
     if (history.length > 1) history.back(); else location.hash = '#/hoc-sinh';
@@ -1413,24 +1358,6 @@ async function trangHoSo(id, tabMacDinh) {
     noiDungTab.replaceChildren(noiDung);
   }
 
-  function veHanhKiem() {
-    const box = e('div');
-    const dauNk = e('div', 'tieu-de-trang');
-    dauNk.append(e('h2', null, 'Nhật ký của em này'));
-    const phaiNk = e('div', 'phai');
-    phaiNk.append(nut('+ Thêm ghi chép', 'nut-vien nut-nho', () => themNhatKy(h.id, () => trangHoSo(id, 'hanh-kiem'))));
-    dauNk.append(phaiNk);
-    box.append(dauNk);
-
-    if (!d.nhatKy.length) {
-      box.append(e('p', 'trong', 'Chưa có ghi chép nào.'));
-    } else {
-      const ds = e('div', 'ds-nhat-ky');
-      d.nhatKy.forEach((n) => ds.append(veMucNhatKy({ ...n, hoTen: null }, () => trangHoSo(id, 'hanh-kiem'))));
-      box.append(ds);
-    }
-    return box;
-  }
 
   async function vePhuHuynh() {
     const box = e('div');
@@ -1461,7 +1388,6 @@ async function trangHoSo(id, tabMacDinh) {
   function veNoiDungTab() {
     if (tab === 'chuyen-can') return noiDungTab.replaceChildren(veChuyenCan());
     if (tab === 'hoc-tap') return veHocTap();
-    if (tab === 'hanh-kiem') return noiDungTab.replaceChildren(veHanhKiem());
     if (tab === 'phu-huynh') return vePhuHuynh();
   }
 
@@ -1610,144 +1536,6 @@ function suaHoSo(h) {
       }
     }),
   ]);
-}
-
-/* ================= Trang: Nhật ký ================= */
-
-function veMucNhatKy(n, taiLai) {
-  const loai = LOAI_NHAT_KY[n.loai] || LOAI_NHAT_KY.khac;
-  const m = e('div', 'muc-nhat-ky ' + n.loai + (n.daXuLy ? ' da-xong' : ''));
-
-  const dong = e('div', 'dong-dau');
-  dong.append(e('span', 'nhan ' + loai.lop, loai.ten));
-  if (n.hoTen) dong.append(e('span', 'nhan nhan-xam', n.hoTen));
-  dong.append(e('span', 'ngay', ngayVN(n.ngay)));
-
-  if (taiLai) {
-    const nguoiLienQuan = n.hoTen || 'cả lớp';
-    const viec = e('div', 'viec');
-    viec.append(
-      nut(n.daXuLy ? '↺' : '✓', 'nut-nhe nut-nho', async () => {
-        try {
-          await api('/api/gv/nhat-ky', { method: 'PATCH', than: { id: n.id, daXuLy: !n.daXuLy } });
-          taiLai();
-        } catch (err) { nhac(err.message, 'xau'); }
-      }, (n.daXuLy ? 'Đánh dấu chưa xử lý — ' : 'Đánh dấu đã xử lý — ') + nguoiLienQuan),
-      nut('✕', 'nut-nhe nut-nho', async () => {
-        moHopThoai('Xoá ghi chép?', e('p', null, n.noiDung), [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá', 'nut-xau', async () => {
-            try {
-              await api('/api/gv/nhat-ky?id=' + n.id, { method: 'DELETE' });
-              dongHopThoai();
-              nhac('Đã xoá', 'tot');
-              taiLai();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }),
-        ]);
-      }, 'Xoá ghi chép — ' + nguoiLienQuan)
-    );
-    dong.append(viec);
-  }
-
-  m.append(dong, e('p', null, n.noiDung));
-  return m;
-}
-
-function themNhatKy(hocSinhIdMacDinh, taiLai) {
-  api('/api/gv/hoc-sinh').then((d) => {
-    const oNgay = oNhap('nkNgay', 'date', homNay());
-    const oLoai = oChon('nkLoai', Object.entries(LOAI_NHAT_KY).map(([k, v]) => [k, v.ten]), 'nhac_nho');
-    const oHs = oChon('nkHs',
-      [['', '— Cả lớp —'], ...d.danhSach.map((h) => [String(h.id), `${h.id}. ${h.hoTen}`])],
-      hocSinhIdMacDinh ? String(hocSinhIdMacDinh) : '');
-    const oNd = oNhap('nkNd', 'textarea', '', 'Nội dung ghi chép…');
-
-    moHopThoai('Thêm ghi chép', [
-      truong('Ngày', oNgay),
-      truong('Loại', oLoai),
-      truong('Học sinh', oHs),
-      truong('Nội dung', oNd),
-    ], [
-      nut('Huỷ', 'nut-nhe', dongHopThoai),
-      nut('Lưu', '', async (ev) => {
-        if (!oNd.value.trim()) return nhac('Chưa nhập nội dung', 'xau');
-        ev.currentTarget.disabled = true;
-        try {
-          await api('/api/gv/nhat-ky', {
-            method: 'POST',
-            than: { ngay: oNgay.value, loai: oLoai.value, hocSinhId: oHs.value || null, noiDung: oNd.value },
-          });
-          dongHopThoai();
-          nhac('Đã thêm ghi chép', 'tot');
-          taiLai();
-        } catch (err) {
-          nhac(err.message, 'xau');
-          ev.currentTarget.disabled = false;
-        }
-      }),
-    ]);
-  }).catch((err) => nhac(err.message, 'xau'));
-}
-
-async function trangNhatKy() {
-  datNoiDung(KHUNG, khoiDangTai());
-  let loai = '';
-  let chiChuaXuLy = false;
-
-  async function ve() {
-    const q = new URLSearchParams();
-    if (loai) q.set('loai', loai);
-    if (chiChuaXuLy) q.set('daXuLy', '0');
-    const d = await api('/api/gv/nhat-ky' + (q.toString() ? '?' + q.toString() : ''));
-    const khung = e('div');
-
-    const dau = e('div', 'tieu-de-trang');
-    const trai = e('div');
-    trai.append(e('h1', null, 'Nhật ký lớp'), e('p', null, 'Khen thưởng, nhắc nhở, vi phạm, hỗ trợ.'));
-    const phai = e('div', 'phai');
-    phai.append(nut('+ Thêm ghi chép', '', () => themNhatKy(null, ve)));
-    dau.append(trai, phai);
-    khung.append(dau);
-
-    const hopLoc = e('div', 'day-loc');
-    hopLoc.id = 'nhat-ky-hop-loc';
-    hopLoc.style.marginBottom = '10px';
-    [['', 'Tất cả'], ...Object.entries(LOAI_NHAT_KY).map(([k, v]) => [k, v.ten])].forEach(([v, t]) => {
-      const b = e('button', 'vien-loc', t);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(loai === v));
-      b.addEventListener('click', async () => {
-        await giuViTriCuonKhiVe('nhat-ky-hop-loc', async () => { loai = v; await ve(); });
-      });
-      hopLoc.append(b);
-    });
-    khung.append(hopLoc);
-
-    // Lọc theo trạng thái xử lý — phối hợp được với bộ lọc loại ở trên (cả hai cùng áp dụng).
-    const hopLocXl = e('div', 'day-loc');
-    hopLocXl.style.marginBottom = '16px';
-    const bChuaXl = e('button', 'vien-loc', 'Chưa xử lý');
-    bChuaXl.type = 'button';
-    bChuaXl.setAttribute('aria-pressed', String(chiChuaXuLy));
-    bChuaXl.addEventListener('click', async () => {
-      await giuViTriCuonKhiVe('nhat-ky-hop-loc', async () => { chiChuaXuLy = !chiChuaXuLy; await ve(); });
-    });
-    hopLocXl.append(bChuaXl);
-    khung.append(hopLocXl);
-
-    if (!d.danhSach.length) {
-      khung.append(e('p', 'trong', chiChuaXuLy ? 'Không còn ghi chép nào chưa xử lý.' : 'Chưa có ghi chép nào.'));
-    } else {
-      const ds = e('div', 'ds-nhat-ky');
-      d.danhSach.forEach((n) => ds.append(veMucNhatKy(n, ve)));
-      khung.append(ds);
-    }
-
-    datNoiDung(KHUNG, khung);
-  }
-
-  await ve();
 }
 
 /* ================= Trang: Thông báo ================= */
@@ -1965,7 +1753,6 @@ const TRANG = {
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
   '/so-diem': () => trangSoDiem(KHUNG),
-  '/nhat-ky': trangNhatKy,
   '/hoat-dong-lop': () => trangHoatDongLop(KHUNG),
   '/thong-bao': trangThongBao,
   '/thong-ke': () => trangThongKe(KHUNG),

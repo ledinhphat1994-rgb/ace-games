@@ -47,10 +47,9 @@ async function layDuLieuCaNhan(db, { ma, hocSinhId, lopId }) {
   const anMuc = hs.anMucChuoi ? hs.anMucChuoi.split(',') : [];
   delete hs.anMucChuoi;
 
-  // Trang web là kỷ niệm đẹp của lớp, không phải chỗ để học sinh soi điểm số/nhận xét vi phạm
-  // của chính mình — Sổ điểm và Nhật ký lớp (khen thưởng/nhắc nhở) đã bỏ HẲN khỏi mục tra cứu
-  // cá nhân này, không truy vấn/trả về nữa. Giáo viên vẫn quản lý đầy đủ hai mục đó ở khu Quản
-  // lý (functions/api/gv/so-diem.js, nhat-ky.js) — không đổi gì ở đó.
+  // Trang web là kỷ niệm đẹp của lớp, không phải chỗ để học sinh soi điểm số của chính mình —
+  // Sổ điểm đã bỏ HẲN khỏi mục tra cứu cá nhân này, không truy vấn/trả về nữa. Giáo viên vẫn
+  // quản lý đầy đủ ở khu Quản lý (functions/api/gv/so-diem.js) — không đổi gì ở đó.
   const [diemDanh] = await Promise.all([
     db.prepare(
       `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo

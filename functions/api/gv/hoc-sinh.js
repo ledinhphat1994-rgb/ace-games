@@ -1,8 +1,8 @@
 // Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được (không tài khoản đặc biệt nào
 // khác được cấp quyền vào đây — xem "⚙ Tuỳ chỉnh hiển thị" ở trang-lop cho phần công khai).
 //   GET    /api/gv/hoc-sinh            -> cả lớp
-//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh và nhật ký —
-//          LUÔN chỉ giáo viên chủ nhiệm (có cả nhật ký vi phạm, không phải thứ nên lộ cho bạn học).
+//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh — LUÔN chỉ giáo
+//          viên chủ nhiệm, không tài khoản đặc biệt nào khác được xem hồ sơ chi tiết.
 //   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
 //          -> thêm học sinh mới (nhập học/chuyển đến giữa năm), id tự tăng tiếp theo sổ lớp
 //   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
@@ -17,7 +17,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     if (phien.role !== 'teacher') {
       return loi('Chỉ giáo viên chủ nhiệm mới xem được hồ sơ chi tiết từng em.', 403);
     }
-    const [hs, diemDanh, nhatKy, theoDoi] = await Promise.all([
+    const [hs, diemDanh, theoDoi] = await Promise.all([
       db.prepare(
         `SELECT id, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
                 lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo,
@@ -28,10 +28,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
            FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 60`
       ).bind(id, phien.lopId).all(),
-      db.prepare(
-        `SELECT id, ngay, loai, noi_dung AS noiDung, da_xu_ly AS daXuLy
-           FROM nhat_ky WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 50`
-      ).bind(id, phien.lopId).all(),
       db.prepare('SELECT muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi WHERE hoc_sinh_id = ?1 AND lop_id = ?2')
         .bind(id, phien.lopId).all(),
     ]);
@@ -41,7 +37,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ok: true,
       hocSinh: hs,
       diemDanh: diemDanh.results,
-      nhatKy: nhatKy.results,
       theoDoi: theoDoi.results,
     });
   }
@@ -150,7 +145,6 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   // Xoá học sinh và toàn bộ dữ liệu phụ thuộc
   await env.DB.batch([
     env.DB.prepare('DELETE FROM diem_danh WHERE hoc_sinh_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM nhat_ky WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM theo_doi WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM lien_he_phu_huynh WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM quy_dong WHERE hoc_sinh_id = ?1').bind(id),

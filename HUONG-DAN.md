@@ -84,7 +84,7 @@ npm run kiem-tra
 | Địa chỉ | Ai vào được | Dùng để làm gì |
 |---|---|---|
 | `/` | Học sinh (mã lớp) | Thông báo (gồm cả mốc sự kiện, mức độ quan trọng), danh sách lớp, thời khoá biểu, hình ảnh |
-| `/giao-vien/` | Chỉ mã giáo viên | Tổng quan, điểm danh, hồ sơ học sinh, nhật ký lớp, soạn thông báo |
+| `/giao-vien/` | Chỉ mã giáo viên | Tổng quan, điểm danh, hồ sơ học sinh, soạn thông báo |
 
 ### Nội dung giờ nằm trong cơ sở dữ liệu, không còn sửa tệp
 
@@ -93,9 +93,8 @@ rồi chạy lệnh nữa. Dữ liệu lưu trong **Cloudflare D1** (cơ sở d�
 
 - **Điểm danh**: mở `/giao-vien/` → tab *Điểm danh* → chạm ✓ / T / P / ✗ cho từng em → *Lưu*.
   Nút *Cả lớp có mặt* điền nhanh rồi chỉ sửa vài em vắng.
-- **Nhật ký lớp**: ghi khen thưởng, nhắc nhở, vi phạm, cần hỗ trợ — gắn với từng em hoặc cả lớp.
 - **Thông báo**: soạn trên web, bấm *Đăng*, cả lớp thấy ngay. Ghim để đẩy lên đầu.
-- **Hồ sơ học sinh**: bấm vào tên em bất kỳ để xem lịch sử điểm danh, nhật ký, và sửa chức vụ,
+- **Hồ sơ học sinh**: bấm vào tên em bất kỳ để xem lịch sử điểm danh, và sửa chức vụ,
   tổ, số điện thoại phụ huynh, hoàn cảnh.
 
 Chỉ còn hai thứ vẫn sửa bằng tệp: **hình ảnh** (`data/hinh-anh.json`) và giao diện.
@@ -123,8 +122,8 @@ Cột **Rèn luyện** ở bảng tổng hợp chọn tay, lưu ngay khi chọn.
 
 ### Báo cáo
 
-**Thêm → Báo cáo**: chọn khoảng thời gian rồi tải về tệp `.csv`. Có 5 loại: danh sách lớp,
-chuyên cần, sổ điểm, sổ nhật ký, báo cáo tổng hợp. Tệp mở thẳng bằng Excel, không lỗi font tiếng Việt,
+**Thêm → Báo cáo**: chọn khoảng thời gian rồi tải về tệp `.csv`. Có nhiều loại: danh sách lớp,
+chuyên cần, sổ điểm, báo cáo tổng hợp, và nhiều mục khác. Tệp mở thẳng bằng Excel, không lỗi font tiếng Việt,
 cột ngăn bằng dấu chấm phẩy đúng chuẩn Excel bản tiếng Việt.
 
 ### Mã cá nhân cho học sinh
@@ -223,9 +222,10 @@ Xong. Từ đó mỗi lần `git push` là trang tự đăng lại, không cần
 
 ### Cấu trúc cơ sở dữ liệu
 
-Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`, `nhat_ky`,
+Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`,
 `thong_bao`, `theo_doi`, `thoi_khoa_bieu`. (`ke_hoach` không còn dùng từ bản cập nhật
-"18-thong-bao-mo-rong.sql" — chức năng đã gộp vào `thong_bao`, bảng cũ vẫn giữ nguyên dữ liệu.)
+"18-thong-bao-mo-rong.sql" — chức năng đã gộp vào `thong_bao`, bảng cũ vẫn giữ nguyên dữ liệu.
+`nhat_ky` — "Nhật ký lớp" — đã bỏ hẳn từ "40-xoa-nhat-ky-lop.sql".)
 
 Xem nhanh dữ liệu bằng lệnh:
 

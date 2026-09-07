@@ -40,7 +40,6 @@ const ICON_QUYEN = {
   'hinh-anh': '📸',
   'am-thanh': '♪',
   video: '🎬',
-  'nhat-ky': '📖',
   'hoat-dong-lop': '🌿',
   'hoc-sinh': '👥',
 };
@@ -1310,7 +1309,6 @@ export async function veKhoiTaiKhoanPhu(khung) {
       const ICON_QUYEN = {
         'quy': '🪙',
         'thong-bao': '📢',
-        'nhat-ky': '📖',
         'diem-danh': '✅',
         'hinh-anh': '📸',
         'am-thanh': '♪',

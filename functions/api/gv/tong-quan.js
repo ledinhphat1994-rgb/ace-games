@@ -12,7 +12,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   tuNgay.setUTCDate(tuNgay.getUTCDate() - 30);
   const moc = tuNgay.toISOString().slice(0, 10);
 
-  const [siSo, ddHomNay, vangNhieu, theoDoi, nhatKy, keHoachToi, hoanCanh, nhatKyChuaXuLy, viPhamKhen] = await Promise.all([
+  const [siSo, ddHomNay, vangNhieu, theoDoi, keHoachToi, hoanCanh] = await Promise.all([
     db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1').bind(lopId).first(),
 
     db.prepare(
@@ -40,14 +40,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
          FROM theo_doi WHERE lop_id = ?1 GROUP BY muc, trang_thai`
     ).bind(lopId).all(),
 
-    db.prepare(
-      `SELECT n.id, n.ngay, n.loai, n.noi_dung AS noiDung, n.da_xu_ly AS daXuLy,
-              h.ho_ten AS hoTen, h.id AS hocSinhId
-         FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
-        WHERE n.lop_id = ?1
-        ORDER BY n.ngay DESC, n.id DESC LIMIT 15`
-    ).bind(lopId).all(),
-
     // "Sắp tới" lấy thẳng từ Thông báo (không còn bảng ke_hoach riêng nữa) — thông báo nào
     // ghi ngày trong tương lai (vd: lịch kiểm tra, lễ khai giảng…) đều coi là một mốc sắp tới.
     db.prepare(
@@ -59,69 +51,24 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       `SELECT id, ho_ten AS hoTen, hoan_canh AS hoanCanh
          FROM hoc_sinh WHERE dang_hoc = 1 AND hoan_canh <> '' AND lop_id = ?1 ORDER BY id`
     ).bind(lopId).all(),
-
-    // Việc còn tồn đọng — cũ nhất lên trước, để không bị quên lâu ngày.
-    db.prepare(
-      `SELECT n.id, n.ngay, n.loai, n.noi_dung AS noiDung,
-              h.ho_ten AS hoTen, h.id AS hocSinhId
-         FROM nhat_ky n LEFT JOIN hoc_sinh h ON h.id = n.hoc_sinh_id
-        WHERE n.da_xu_ly = 0 AND n.lop_id = ?1
-        ORDER BY n.ngay ASC, n.id ASC LIMIT 20`
-    ).bind(lopId).all(),
-
-    // Khen/vi phạm trong 30 ngày gần nhất — để gộp với chuyên cần thành "Cần chú ý".
-    db.prepare(
-      `SELECT hoc_sinh_id AS hocSinhId,
-              SUM(CASE WHEN loai = 'vi_pham' THEN 1 ELSE 0 END) AS soViPham,
-              SUM(CASE WHEN loai = 'khen' THEN 1 ELSE 0 END) AS soKhen
-         FROM nhat_ky
-        WHERE ngay >= ?1 AND hoc_sinh_id IS NOT NULL AND lop_id = ?2
-        GROUP BY hoc_sinh_id`
-    ).bind(moc, lopId).all(),
   ]);
 
-  // --- Cần chú ý: 2 tín hiệu ĐỘC LẬP, không cộng trừ lẫn nhau ---
-  //   attendanceConcern: >=1 vắng KHÔNG phép, HOẶC >=2 lần trễ. Vắng CÓ phép không tính (đã được duyệt,
-  //   là việc hành chính bình thường, không phải dấu hiệu xấu).
-  //   behaviorConcern:   >=1 vi phạm. Khen KHÔNG được phép triệt tiêu vi phạm — 2 trục ngữ nghĩa khác nhau.
-  //   "score" bên dưới CHỈ dùng để sắp xếp thứ tự hiển thị, không phải nội dung giáo viên phải giải mã —
-  //   mỗi em luôn kèm "lyDo" bằng tiếng Việt giải thích rõ vì sao xuất hiện.
-  const diemVpk = {};
-  viPhamKhen.results.forEach((r) => { diemVpk[r.hocSinhId] = r; });
-  const theoHs = {};
-  vangNhieu.results.forEach((h) => { theoHs[h.id] = { ...h, soViPham: 0, soKhen: 0 }; });
-  // Cần lấy cả em có vi phạm/khen nhưng KHÔNG nằm trong danh sách vắng nhiều — nạp tên cho các em đó.
-  const idThieu = viPhamKhen.results.map((r) => r.hocSinhId).filter((id) => !theoHs[id]);
-  let tenThieu = [];
-  if (idThieu.length) {
-    const cho = idThieu.map((_, i) => `?${i + 1}`).join(',');
-    const { results } = await db.prepare(
-      `SELECT id, ho_ten AS hoTen FROM hoc_sinh WHERE id IN (${cho}) AND lop_id = ?${idThieu.length + 1}`
-    ).bind(...idThieu, lopId).all();
-    tenThieu = results;
-  }
-  tenThieu.forEach((h) => { theoHs[h.id] = { id: h.id, hoTen: h.hoTen, vangKhongPhep: 0, vangPhep: 0, tre: 0, soViPham: 0, soKhen: 0 }; });
-
-  const canChuY = Object.values(theoHs).map((h) => {
-    const vpk = diemVpk[h.id];
-    h.soViPham = vpk?.soViPham || 0;
-    h.soKhen = vpk?.soKhen || 0;
-
+  // --- Cần chú ý: dựa trên chuyên cần — >=1 vắng KHÔNG phép, HOẶC >=2 lần trễ. Vắng CÓ phép
+  //   không tính (đã được duyệt, là việc hành chính bình thường, không phải dấu hiệu xấu).
+  //   "diemXepHang" CHỈ dùng để sắp xếp thứ tự hiển thị — mỗi em luôn kèm "lyDo" bằng tiếng
+  //   Việt giải thích rõ vì sao xuất hiện.
+  const canChuY = vangNhieu.results.map((h) => {
     const attendanceConcern = h.vangKhongPhep >= 1 || h.tre >= 2;
-    const behaviorConcern = h.soViPham >= 1;
 
     const phanLyDo = [];
     if (h.vangKhongPhep >= 1) phanLyDo.push(`${h.vangKhongPhep} vắng không phép`);
     if (h.tre >= 2) phanLyDo.push(`${h.tre} lần đi trễ`);
-    if (h.soViPham >= 1) phanLyDo.push(`${h.soViPham} vi phạm`);
 
     return {
       ...h,
-      attendanceConcern, behaviorConcern,
-      concern: attendanceConcern || behaviorConcern,
+      concern: attendanceConcern,
       lyDo: phanLyDo.join(' · '),
-      // Chỉ để SẮP XẾP — vắng có phép và khen luôn có trọng số 0, không được giảm điểm của em khác.
-      diemXepHang: h.vangKhongPhep * 3 + h.tre * 1 + h.soViPham * 3,
+      diemXepHang: h.vangKhongPhep * 3 + h.tre * 1,
     };
   }).filter((h) => h.concern).sort((a, b) => b.diemXepHang - a.diemXepHang).slice(0, 8);
 
@@ -142,10 +89,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     diemDanhHomNayTheoBuoi: theoBuoi,
     vangNhieu: vangNhieu.results,
     theoDoi: theoDoi.results,
-    nhatKy: nhatKy.results,
     keHoachSapToi: keHoachToi.results,
     hoanCanh: hoanCanh.results,
-    viecTonDong: nhatKyChuaXuLy.results,
     canChuY,
   });
 }, { canGiaoVien: true });

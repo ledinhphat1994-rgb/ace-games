@@ -17,7 +17,6 @@
   ],
   "shortcuts": [
     { "name": "Điểm danh hôm nay", "short_name": "Điểm danh", "url": "/giao-vien/#/diem-danh" },
-    { "name": "Nhật ký lớp", "short_name": "Nhật ký", "url": "/giao-vien/#/nhat-ky" },
     { "name": "Sổ điểm", "short_name": "Sổ điểm", "url": "/giao-vien/#/so-diem" }
   ]
 }
