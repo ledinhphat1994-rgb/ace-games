@@ -1803,7 +1803,16 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
     );
   }
 
-  datNoiDung(hopLop, e('p', 'trong', 'Đang tải dữ liệu điểm danh…'));
+  const coSanNoiDung = Boolean(hopLop.firstElementChild && !hopLop.querySelector('.trong'));
+  const chieuCaoCu = hopLop.offsetHeight;
+  if (coSanNoiDung && chieuCaoCu > 80) {
+    hopLop.style.minHeight = chieuCaoCu + 'px';
+    hopLop.style.opacity = '0.5';
+    hopLop.style.pointerEvents = 'none';
+  } else {
+    datNoiDung(hopLop, e('p', 'trong', 'Đang tải dữ liệu điểm danh…'));
+  }
+
   try {
     let url = '/api/diem-danh';
     const params = [];
@@ -1817,6 +1826,9 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
     ngayDiemDanhHienTai = duLieuDiemDanh.ngay || ngayDiemDanhHienTai;
     loaiDiemDanhHienTai = duLieuDiemDanh.loai || loaiDiemDanhHienTai;
   } catch (err) {
+    hopLop.style.opacity = '';
+    hopLop.style.pointerEvents = '';
+    hopLop.style.minHeight = '';
     datNoiDung(hopLop, khoiLoi('Không tải được dữ liệu điểm danh: ' + err.message));
     return;
   }
@@ -2092,9 +2104,16 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
       b.type = 'button';
       b.setAttribute('aria-pressed', String(locDd === giaTri));
       b.addEventListener('click', () => {
+        if (locDd === giaTri) return;
         locDd = giaTri;
         veNutLocDd();
+        const hopBang = khungLop.querySelector('.bang-diem-danh-cuon');
+        const caoTruoc = hopBang ? hopBang.offsetHeight : 0;
+        if (hopBang && caoTruoc > 80) hopBang.style.minHeight = caoTruoc + 'px';
         veBangDiemDanh();
+        if (hopBang) {
+          setTimeout(() => { hopBang.style.minHeight = ''; }, 120);
+        }
       });
       return b;
     }));
@@ -2191,7 +2210,12 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   }
 
   veBangDiemDanh();
+  hopLop.style.opacity = '';
+  hopLop.style.pointerEvents = '';
   datNoiDung(hopLop, khungLop);
+  requestAnimationFrame(() => {
+    hopLop.style.minHeight = '';
+  });
 }
 
 /* ---------- Khởi động & làm mới dữ liệu ---------- */

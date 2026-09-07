@@ -1197,40 +1197,39 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
    đụng #noiDung bên khu quản lý giáo viên vốn dùng class khác) được chừa sẵn khoảng trống
    dưới đúng bằng chiều cao thanh này để nội dung không bị che khuất. */
 main.wrap#noiDung {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 30px;
 }
 .chan-trang {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  margin-top: 0;
-  padding: 7px 16px calc(7px + env(safe-area-inset-bottom, 0px));
+  position: static;
+  margin-top: 45px;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--vien);
-  background: color-mix(in srgb, var(--nen) 90%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--nen);
   color: var(--chu-nhat); font-size: 13.5px; text-align: center;
 }
 .chan-trang .wrap {
-  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;
 }
 .chan-trang-dong-1 {
   margin: 0;
-  font-size: clamp(10px, 3vw, 12.5px);
+  font-size: clamp(10.5px, 3.15vw, 13px);
   font-weight: 500;
   color: var(--chu-nhat);
   display: block;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
   letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 .chan-trang-dong-2 {
   margin: 0;
-  font-size: clamp(11px, 3.2vw, 13px);
+  font-size: clamp(11.5px, 3.4vw, 13.5px);
   font-weight: 600;
   color: var(--chu-mo);
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  line-height: 1.4;
+  line-height: 1.5;
   white-space: nowrap;
 }
 .trai-tim-xanh {
@@ -2575,11 +2574,14 @@ td.cot-hom-nay {
 .bang-diem-danh-cuon {
   border-radius: 12px;
   border: 1px solid var(--vien);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--nen-chim);
+  margin-bottom: 24px;
 }
 .bang-diem-danh {
   width: 100%;
+  min-width: 530px;
   border-collapse: collapse;
   font-size: 13.5px;
   text-align: left;
@@ -2591,10 +2593,26 @@ td.cot-hom-nay {
   font-weight: 700;
   padding: 10px 14px;
   border-bottom: 1.5px solid var(--vien);
+  white-space: nowrap;
 }
 .bang-diem-danh td {
   padding: 10px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--vien) 60%, transparent);
+}
+.bang-diem-danh td:nth-child(1) {
+  width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--chu-mo);
+}
+.bang-diem-danh td:nth-child(2) {
+  white-space: nowrap;
+}
+.bang-diem-danh td:nth-child(4) {
+  white-space: nowrap;
+}
+.bang-diem-danh td:nth-child(5) {
+  min-width: 120px;
 }
 .bang-diem-danh tr:last-child td {
   border-bottom: none;
@@ -2605,6 +2623,25 @@ td.cot-hom-nay {
 .bang-diem-danh tr.dong-ban-than td {
   background: color-mix(in srgb, var(--chinh) 12%, transparent);
   font-weight: 600;
+}
+
+#ddLopKhoi {
+  transition: opacity 0.18s ease;
+}
+
+@media (max-width: 600px) {
+  .bang-diem-danh {
+    min-width: 490px;
+    font-size: 13px;
+  }
+  .bang-diem-danh th,
+  .bang-diem-danh td {
+    padding: 9px 10px;
+  }
+  .bang-diem-danh td:nth-child(1) {
+    width: 36px;
+    padding: 9px 4px;
+  }
 }
 
 
