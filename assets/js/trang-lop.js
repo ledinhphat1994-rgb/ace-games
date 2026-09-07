@@ -1879,7 +1879,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   // Thanh tab chuyển đổi giữa Điểm danh chính và Điểm danh linh động
   let hopTabLoai = $('#ddTabLoai');
   if (!hopTabLoai) {
-    hopTabLoai = e('div', 'day-loc');
+    hopTabLoai = e('div', 'day-loc day-loc-deu');
     hopTabLoai.id = 'ddTabLoai';
     hopTabLoai.style.cssText = 'margin: 14px 0 20px 0;';
     const khuDd = $('#khuDiemDanh');

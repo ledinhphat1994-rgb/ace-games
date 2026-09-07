@@ -185,7 +185,7 @@ async function trangTongQuan() {
   const theVh = e('div', 'the');
   theVh.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
   theVh.append(e('h3', null, 'Việc hôm nay'));
-  const dayTat = e('div', 'day-loc');
+  const dayTat = e('div', 'day-loc day-loc-deu');
   dayTat.style.margin = '10px 0 4px';
   dayTat.append(
     nut('💰 Ghi thu quỹ', 'nut-vien nut-nho', () => { location.hash = '#/quy'; }),
@@ -1234,7 +1234,7 @@ async function trangHoSo(id, tabMacDinh) {
     hang.append(Object.assign(e('span', null, k), { style: 'color:var(--chu-nhat);min-width:150px' }), e('span', null, v));
     theHs.append(hang);
   });
-  const hangNutHs = e('div', 'day-loc');
+  const hangNutHs = e('div', 'day-loc day-loc-deu');
   hangNutHs.style.marginTop = '12px';
   hangNutHs.append(
     nut('Sửa hồ sơ', 'nut-vien nut-nho', () => suaHoSo(h)),
@@ -1278,7 +1278,7 @@ async function trangHoSo(id, tabMacDinh) {
 
   // --- 4 tab: Chuyên cần / Học tập / Hạnh kiểm / Phụ huynh — cùng dữ liệu đã có, tổ chức lại
   // cách xem, không phải 4 trang riêng và không thêm tab Timeline. ---
-  const hopTab = e('div', 'day-loc');
+  const hopTab = e('div', 'day-loc day-loc-deu');
   hopTab.id = 'ho-so-tab';
   hopTab.style.margin = '18px 0 14px';
   khung.append(hopTab);

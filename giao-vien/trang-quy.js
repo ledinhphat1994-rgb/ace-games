@@ -83,7 +83,7 @@ export async function trangQuy(KHUNG) {
     const thanh = e('div', 'the');
     thanh.style.cssText = 'margin-bottom:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
     thanh.append(e('span', null, `Đã chọn ${daChon.size} ${tenSo}`));
-    const hop = e('div', 'day-loc');
+    const hop = e('div', 'day-loc day-loc-deu');
     hop.append(
       nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
       nut(`🗑 Xoá ${daChon.size} mục đã chọn`, 'nut-xau nut-nho', () => {
@@ -374,7 +374,7 @@ export async function trangQuy(KHUNG) {
       box.append(tb);
     }
 
-    const hangNut = e('div', 'day-loc');
+    const hangNut = e('div', 'day-loc day-loc-deu');
     hangNut.style.margin = '2px 0 14px';
     hangNut.append(
       nut('✎ Sửa khoản', 'nut-vien nut-nho', () => suaKhoan(dk.khoan, lamMoiKhoanDangMo)),
@@ -1362,7 +1362,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
         });
         the.append(oQuyen);
 
-        const nutHang = e('div', 'day-loc');
+        const nutHang = e('div', 'day-loc day-loc-deu');
         nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
         nutHang.append(
           nut('✏ Sửa tài khoản', 'nut-vien nut-nho', () => suaTaiKhoan(tk, d.cacQuyen, ve)),
@@ -2025,7 +2025,7 @@ export async function trangQuyLichSu(KHUNG) {
     khung.append(tieuDeTrang('Lịch sử Thủ quỹ',
       'Toàn bộ lịch sử ghi thu, ghi chi, các đợt thu cố định và điểm khôi phục — tất cả ở một chỗ.'));
 
-    const hopTab = e('div', 'day-loc');
+    const hopTab = e('div', 'day-loc day-loc-deu');
     hopTab.id = 'quy-lich-su-tab';
     hopTab.style.margin = '4px 0 16px';
     TABS.forEach(([ma, ten]) => {

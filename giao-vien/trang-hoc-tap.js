@@ -26,7 +26,7 @@ export async function trangThongKe(KHUNG) {
   if (!CAC_TAB_THONG_KE.some(([ma]) => ma === tab)) tab = 'chuyen-can';
 
   const vo = e('div');
-  const hopTab = e('div', 'day-loc');
+  const hopTab = e('div', 'day-loc day-loc-deu');
   hopTab.id = 'thong-ke-tab';
   hopTab.style.margin = '0 0 16px';
   const noiDung = e('div');
@@ -1230,7 +1230,7 @@ export async function trangThuVienAmThanh(KHUNG) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} bài`));
-      const hop = e('div', 'day-loc');
+      const hop = e('div', 'day-loc day-loc-deu');
       if (daChon.size < d.danhSach.length) {
         hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); }));
       }
@@ -1435,7 +1435,7 @@ export async function trangThuVienVideo(KHUNG) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} video`));
-      const hop = e('div', 'day-loc');
+      const hop = e('div', 'day-loc day-loc-deu');
       if (daChon.size < d.danhSach.length) {
         hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); }));
       }
@@ -1620,7 +1620,7 @@ export async function trangHinhAnh(KHUNG) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
       thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} ảnh`));
-      const hop = e('div', 'day-loc');
+      const hop = e('div', 'day-loc day-loc-deu');
       if (daChon.size < d.danhSach.length) {
         hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((a) => daChon.add(a.id)); ve(); }));
       }

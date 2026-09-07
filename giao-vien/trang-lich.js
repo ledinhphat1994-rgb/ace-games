@@ -44,7 +44,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   khung.append(dauTrang);
 
   // Tab chọn buổi
-  const tabBuoi = e('div', 'day-loc');
+  const tabBuoi = e('div', 'day-loc day-loc-deu');
   tabBuoi.style.marginBottom = '14px';
 
   function veTab() {
@@ -224,7 +224,7 @@ function taoPhienBanMoi(bangCu, soTietCu) {
   const oCacO = new Map();   // "buoi-thu-tiet" -> input
 
   const hopBang = e('div');
-  const tabBuoi = e('div', 'day-loc');
+  const tabBuoi = e('div', 'day-loc day-loc-deu');
   tabBuoi.style.margin = '10px 0';
 
   function veTabSua() {

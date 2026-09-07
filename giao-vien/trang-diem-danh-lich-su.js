@@ -63,7 +63,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
     khung.append(tieuDeTrang('Lịch sử Điểm danh',
       'Mỗi lần lưu điểm danh đều tự lưu lại một điểm khôi phục, kèm chi tiết từng học sinh đã đổi gì.'));
 
-    const hopTab = e('div', 'day-loc');
+    const hopTab = e('div', 'day-loc day-loc-deu');
     hopTab.id = 'diem-danh-lich-su-tab';
     hopTab.style.margin = '4px 0 16px';
     TABS.forEach(([ma, ten]) => {

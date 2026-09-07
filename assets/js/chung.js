@@ -414,9 +414,27 @@ export function ganMenu(nut = document.getElementById('moMenu'), bang = document
   if (!nut || !bang) return;
   if (nut.dataset.boundMenu) return;
   nut.dataset.boundMenu = '1';
+  let scrollYLuu = 0;
   const dat = (mo) => {
     bang.hidden = !mo;
     nut.setAttribute('aria-expanded', String(mo));
+    // Khoá cuộn trang NỀN khi menu đang mở — không thì trên điện thoại, kéo bên trong menu có
+    // thể "chuyền" (scroll chaining) sang cuộn cả trang phía dưới, khiến trang nền vẫn di
+    // chuyển/chạm được dù đang che bởi menu. Dùng position:fixed (không chỉ overflow:hidden) vì
+    // đây là cách duy nhất chặn được cuộn nền chắc chắn trên iOS Safari.
+    if (mo) {
+      scrollYLuu = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollYLuu}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+    } else {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      window.scrollTo(0, scrollYLuu);
+    }
   };
   nut.addEventListener('click', (ev) => { ev.stopPropagation(); dat(bang.hidden); });
   bang.addEventListener('click', (ev) => { if (ev.target.closest('a')) dat(false); });

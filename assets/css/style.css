@@ -432,6 +432,13 @@ code {
   .thanh-phai .nut-dang-xuat {
     display: none !important;
   }
+  /* Khu quản lý (body.ung-dung): dòng phụ đề dưới huy hiệu dài hơn hẳn trang lớp (kèm vai trò +
+     tên tài khoản + "Đang quản lý: Lớp..."), nên trên điện thoại không đủ chỗ cho thêm nút Trang
+     chủ nữa — để lại dễ làm chữ bị bóp mất hẳn. Mục "Trang chủ" (xem trang học sinh) đã có sẵn
+     trong "Thêm" nên bỏ ở đây không mất chức năng gì. */
+  body.ung-dung .thanh-phai .nut-ve-trang-chu {
+    display: none !important;
+  }
   .thanh-tren .nut-tron {
     width: 36px;
     height: 36px;
@@ -511,6 +518,7 @@ code {
   background: var(--nen-noi); border-bottom: 1px solid var(--vien);
   box-shadow: var(--bong-2);
   max-height: calc(100dvh - var(--cao-thanh)); overflow-y: auto;
+  overscroll-behavior: contain;
   animation: menu-mo .16s ease-out;
 }
 .menu-day[hidden] { display: none; }
@@ -906,7 +914,11 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
   grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   gap: 7px;
 }
-.day-loc-deu > .vien-loc {
+/* ".nut" (nut() ở giao-dien.js) và ".vien-loc" là hai kiểu nút khác nhau nhưng đều được dùng
+   làm hàng nút cùng cấp ở khắp nơi trong dự án — cả hai đều mặc định "white-space:nowrap" nên
+   PHẢI ghi đè ở đây, không thì chữ dài tràn ra ngoài khung 1 cột thay vì xuống dòng bên trong. */
+.day-loc-deu > .vien-loc,
+.day-loc-deu > .nut {
   width: 100%;
   white-space: normal;
   text-align: center;

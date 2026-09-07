@@ -101,7 +101,7 @@ export async function moHopThoaiBannerLop(lamMoi) {
   const [ketQuaAnh, ketQuaVideo] = await Promise.all([khoiAnh(banner), khoiVideo(banner)]);
 
   let loaiHienTai = laVideoHienTai ? 'video' : 'anh';
-  const dayTabLoai = e('div', 'day-loc');
+  const dayTabLoai = e('div', 'day-loc day-loc-deu');
   const khungLoai = e('div');
 
   function veTabLoai() {

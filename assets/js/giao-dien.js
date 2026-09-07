@@ -74,7 +74,7 @@ const NGUON_TEP = [['thu-vien', '📚 Thư viện'], ['tai-len', '⬆ Tải lên
 
 export function khoiChonNguon({ nguonMacDinh, oThuVien, oTep, oLink, ghiChuLink, nhanTaiLen }) {
   const khung = e('div');
-  const dayNut = e('div', 'day-loc');
+  const dayNut = e('div', 'day-loc day-loc-deu');
   dayNut.style.cssText = 'margin-bottom:10px';
   const oNoiDung = e('div');
 

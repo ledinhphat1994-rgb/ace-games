@@ -20,7 +20,7 @@ const NGUON = [['thu-vien', '📚 Thư viện'], ['tai-len', '⬆ Tải lên'], 
 
 function khoiChonNguon({ oThuVien, oTep, oLink, ghiChuLink }) {
   const khung = e('div');
-  const dayNut = e('div', 'day-loc');
+  const dayNut = e('div', 'day-loc day-loc-deu');
   dayNut.style.cssText = 'margin-bottom:10px';
   const oNoiDung = e('div');
   let nguonHienTai = 'thu-vien';
