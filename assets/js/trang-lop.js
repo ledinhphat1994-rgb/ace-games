@@ -49,9 +49,11 @@ function dinhTuyen() {
   }
 
   // Về trang chủ: nếu địa chỉ là mỏ neo của một mục thì cuộn tới mục đó.
+  // behavior: 'instant' — 'smooth' từng bị treo im re (không cuộn) ở một số trình duyệt khi
+  // gọi ngay sau lúc vừa đổi hash, cùng lỗi đã gặp ở băng điểm nhấn bên dưới.
   if (laMoNeo(hash)) {
     const muc = document.querySelector(hash);
-    if (muc) muc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (muc) muc.scrollIntoView({ behavior: 'instant', block: 'start' });
   }
 }
 
@@ -582,7 +584,9 @@ function veDiemNhan(thongBao) {
   the.addEventListener('click', () => {
     const dich = document.querySelector('#tin-' + tin.id);
     if (!dich) return;
-    dich.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // behavior: 'instant' — 'smooth' bị treo im re (bấm vào không cuộn tới đâu cả) trên một số
+    // trình duyệt/thiết bị, đúng lỗi người dùng báo "băng điểm nhấn không chạy".
+    dich.scrollIntoView({ behavior: 'instant', block: 'center' });
     dich.classList.add('dich-noi-bat');
     setTimeout(() => dich.classList.remove('dich-noi-bat'), 2200);
   });
@@ -2035,6 +2039,10 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   const coQuyenXemCaLop = Boolean(thongTinPhien && (thongTinPhien.role === 'teacher'
     || (thongTinPhien.role === 'phu' && (thongTinPhien.quyen || []).includes('diem-danh'))));
   if (!coQuyenXemCaLop) {
+    // Đã hiện đủ chuyên cần của chính em ở khối trên (hopCaNhan) — nếu để trống, khung thẻ
+    // ".the" (viền + nền) của hopLop vẫn hiện ra như một khối rỗng vô nghĩa. Ẩn hẳn khung này
+    // khi không có gì để hiện, chỉ hiện khi thật sự có thông báo cần nói (chưa có dữ liệu).
+    hopLop.hidden = Boolean(d.caNhan);
     datNoiDung(hopLop, d.caNhan ? '' : e('p', 'trong', 'Chưa có dữ liệu điểm danh để hiển thị.'));
     return;
   }
@@ -2226,6 +2234,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   }
 
   veBangDiemDanh();
+  hopLop.hidden = false;
   hopLop.style.opacity = '';
   hopLop.style.pointerEvents = '';
   datNoiDung(hopLop, khungLop);

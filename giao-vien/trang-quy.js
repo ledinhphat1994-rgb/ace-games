@@ -623,7 +623,7 @@ export async function trangQuy(KHUNG) {
       oChonNhanhChi.addEventListener('change', () => {
         const id = Number(oChonNhanhChi.value);
         if (!id) return;
-        document.getElementById('chi-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('chi-' + id)?.scrollIntoView({ behavior: 'instant', block: 'start' });
         oChonNhanhChi.value = '';
       });
       the.append(oChonNhanhChi);
@@ -816,7 +816,7 @@ export async function trangQuy(KHUNG) {
             const kk = d.khoan.find((x) => x.id === id);
             if (kk?.dinhKyId) nhomMoRong.add(kk.dinhKyId);
             if (moRong !== id) await moKhoan(id); else ve();
-            document.getElementById('khoan-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('khoan-' + id)?.scrollIntoView({ behavior: 'instant', block: 'start' });
             oChonNhanh.value = '';
           });
           theKhoan.append(oChonNhanh);
