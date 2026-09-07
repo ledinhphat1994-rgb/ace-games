@@ -665,7 +665,11 @@ function veDiemNhan(thongBao) {
 }
 
 /* ---------- Thủ quỹ (công khai: tổng quan & chi tiết đóng tiền từng em) ---------- */
-function veThuQuy(tq, dsHocSinh = [], phien = null) {
+function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
+  // Cùng nguyên tắc như bảng Điểm danh cả lớp: "Lớp nghề" hiện cạnh tên học sinh ở đây (danh
+  // sách đã đóng/chưa đóng) phải theo đúng cấu hình "Học sinh > Tuỳ chỉnh hiển thị", không tự
+  // hiện riêng một kiểu khác với Danh sách lớp/Điểm danh.
+  const hienNgheThuQuy = !(hocSinhAnMuc || []).includes('lop-nghe');
   const oTongQuan = $('#tqTongQuan');
   datNoiDung(oTongQuan,
     (() => { const o = e('div', 'o-thong-ke tot'); o.append(e('div', 'con-so', tienVN(tq.tonQuy)), e('div', 'ten', 'Tồn quỹ hiện tại')); return o; })(),
@@ -1190,7 +1194,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
               // Hàng 2: Tên đầy đủ + Lớp nghề (xuống dòng tự nhiên, không cắp ép)
               const cTenWrap = e('div', 'card-hs-dong-ten');
               cTenWrap.append(e('b', 'ten-chu', h.hoTen));
-              if (h.lopNghe) {
+              if (h.lopNghe && hienNgheThuQuy) {
                 cTenWrap.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
               }
 
@@ -1216,7 +1220,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null) {
               const tr = e('tr', h.laChinhMinh ? 'dong-ban-than' : '');
               const tdTen = e('td');
               tdTen.append(e('b', null, h.hoTen));
-              if (h.lopNghe) {
+              if (h.lopNghe && hienNgheThuQuy) {
                 tdTen.append(Object.assign(e('span', 'lop-nghe-nho', ` · ${h.lopNghe}`), { style: 'font-size:11.5px;color:var(--chu-nhat)' }));
               }
               if (h.laChinhMinh) {
@@ -2443,7 +2447,7 @@ async function taiDuLieu() {
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHoatDongLop(d.hoatDongLop, phien, taiDuLieu);
     veDanhSach(d.hocSinh, d.hocSinhAnMuc);
-    veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien);
+    veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien, d.hocSinhAnMuc);
     veLoiTatQuanLy(phien, taiDuLieu);
     ganNhacNen(d.nhacNen);
   } catch (err) {
