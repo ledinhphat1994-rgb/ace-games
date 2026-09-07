@@ -123,7 +123,9 @@
   color-scheme: dark;
   --nen: #0a0614; --nen-noi: #130c26; --nen-chim: #1f143d;
   --chu: #faf5ff; --chu-nhat: #a89ec4; --chu-mo: #796c99;
-  --vien: #2d1d57; --vien-dam: #462d85;
+  /* Viền hairline trung tính (đồng bộ với theme mặc định "cosmic") thay vì viền tím đậm — bớt
+     "viền cũ" nổi rõ trở lại khi học sinh đổi sang theme này. */
+  --vien: rgba(255, 255, 255, 0.08); --vien-dam: rgba(255, 255, 255, 0.14);
   --chinh: #c084fc; --chinh-sang: #e879f9; --chinh-nen: rgba(192, 132, 252, 0.18);
   --tieu-de: #ffffff; --tieu-de-phu: #e879f9;
   --bg-gradient: radial-gradient(1000px 600px at 15% 5%, rgba(192, 132, 252, 0.18), transparent 70%),
@@ -137,7 +139,7 @@
   color-scheme: dark;
   --nen: #04100c; --nen-noi: #091c16; --nen-chim: #0f2d23;
   --chu: #f0fdf4; --chu-nhat: #86a89b; --chu-mo: #55786b;
-  --vien: #153c30; --vien-dam: #1f5847;
+  --vien: rgba(255, 255, 255, 0.08); --vien-dam: rgba(255, 255, 255, 0.14);
   --chinh: #34d399; --chinh-sang: #6ee7b7; --chinh-nen: rgba(52, 211, 153, 0.16);
   --tieu-de: #ffffff; --tieu-de-phu: #34d399;
   --bg-gradient: radial-gradient(1000px 600px at 10% 0%, rgba(52, 211, 153, 0.16), transparent 70%),
@@ -151,7 +153,7 @@
   color-scheme: dark;
   --nen: #100b06; --nen-noi: #1d140a; --nen-chim: #2d2011;
   --chu: #fffbeb; --chu-nhat: #baa68c; --chu-mo: #85725a;
-  --vien: #3f2c17; --vien-dam: #5e4222;
+  --vien: rgba(255, 255, 255, 0.08); --vien-dam: rgba(255, 255, 255, 0.14);
   --chinh: #f59e0b; --chinh-sang: #fbbf24; --chinh-nen: rgba(245, 158, 11, 0.16);
   --tieu-de: #ffffff; --tieu-de-phu: #fbbf24;
   --bg-gradient: radial-gradient(1000px 600px at 10% 5%, rgba(245, 158, 11, 0.18), transparent 70%),
@@ -165,7 +167,7 @@
   color-scheme: dark;
   --nen: #0b0f14; --nen-noi: #121820; --nen-chim: #1a232e;
   --chu: #f8fafc; --chu-nhat: #94a3b8; --chu-mo: #64748b;
-  --vien: #243140; --vien-dam: #374b61;
+  --vien: rgba(255, 255, 255, 0.08); --vien-dam: rgba(255, 255, 255, 0.14);
   --chinh: #38bdf8; --chinh-sang: #60a5fa; --chinh-nen: rgba(56, 189, 248, 0.14);
   --tieu-de: #ffffff; --tieu-de-phu: #60a5fa;
   --bg-gradient: radial-gradient(1000px 550px at 15% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
@@ -1490,7 +1492,16 @@ body.trang-dang-nhap {
 .ttd-so-tot { color: var(--tot); }
 .ttd-giua { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
 .ttd-phan-tram { font-size: 22px; font-weight: 800; color: var(--chu); letter-spacing: -.02em; }
-.ttd-phu { font-size: 11.5px; color: var(--chu-mo); white-space: nowrap; }
+/* Màn hình rất hẹp (<360px): 3 cột dễ co rúm/tràn chữ — % (quan trọng nhất) chuyển lên hàng
+   riêng ở trên, Đã thu/Mục tiêu xếp cạnh nhau bên dưới thay vì ép chung một hàng ngang. */
+@media (max-width: 360px) {
+  .ttd-hang { flex-wrap: wrap; row-gap: 10px; }
+  .ttd-giua { order: -1; flex: 1 1 100%; }
+  .ttd-cot { flex: 1 1 40%; }
+}
+/* --chu-nhat (không phải --chu-mo) để đủ tương phản đọc được trên nền thẻ #0f172a — đây là
+   thông tin có ý nghĩa ("còn thiếu bao nhiêu"), không phải chữ trang trí mờ. */
+.ttd-phu { font-size: 11.5px; color: var(--chu-nhat); white-space: nowrap; }
 .the-khoan-thu.da-du .ttd-phu { color: var(--tot); }
 .the-khoan-thu.dang-thu .ttd-phu, .the-khoan-thu.chua-thu .ttd-phu { color: var(--luu-y); }
 
