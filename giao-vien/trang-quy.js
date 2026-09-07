@@ -524,7 +524,7 @@ export async function trangQuy(KHUNG) {
         const khoiPhai = e('div', 'hs-khoi-phai');
         khoiPhai.append(
           nhanBadge,
-          nut('+ Thu tiền', 'nut-chinh nut-ghi-thu-hs', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo))
+          nut('+ Thu tiền', 'nut-chinh nut-ghi-thu-hs', () => ghiKhoanDong(khoanId, h, lamMoiKhoanDangMo, dk.khoan))
         );
 
         dong1.append(khoiTrai, khoiPhai);
@@ -1153,7 +1153,7 @@ function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh', duocTaoCoDinh = true) {
   ]);
 }
 
-function ghiKhoanDong(khoanId, hocSinh, taiLai, duLieuCu = null) {
+function ghiKhoanDong(khoanId, hocSinh, taiLai, khoan = null, duLieuCu = null) {
   const oSoTien = oNhap('dSoTien', 'number', duLieuCu?.soTien ?? (hocSinh.conThieu || ''));
   const oNgay = oNhap('dNgay', 'date', duLieuCu?.ngay || homNay());
   const oGc = oNhap('dGc', 'text', duLieuCu?.ghiChu || '', 'Ghi chú (không bắt buộc)');
@@ -1179,6 +1179,15 @@ function ghiKhoanDong(khoanId, hocSinh, taiLai, duLieuCu = null) {
         r.append(e('span', 'nhan-xn', nhan), e('span', kieu ? 'gt-xn ' + kieu : 'gt-xn', val));
         return r;
       };
+      if (khoan) {
+        bangXn.append(hangXn(khoan.dinhKyId ? 'Khoản thu (định kỳ)' : 'Khoản thu', khoan.ten, 'chu-dam'));
+        if (khoan.dinhKyId) {
+          bangXn.append(hangXn('Kỳ thu',
+            `Kỳ ${khoan.kySo}/${khoan.dinhKySoKy} · ${CHU_KY_HIEN_THI[khoan.dinhKyChuKy] || khoan.dinhKyChuKy}`));
+        } else {
+          bangXn.append(hangXn('Loại thu', '⚡ Thu linh động'));
+        }
+      }
       bangXn.append(
         hangXn('Học sinh', `${hocSinh.hoTen} (STT ${stt}${hocSinh.toSo ? ' · Tổ ' + hocSinh.toSo : ''})`, 'chu-dam'),
         hangXn('Số tiền thu', tienVN(soTien), 'tien-tot-noi-bat'),
@@ -1189,7 +1198,7 @@ function ghiKhoanDong(khoanId, hocSinh, taiLai, duLieuCu = null) {
       moHopThoai('Xác nhận ghi thu tiền', [
         hopXn,
       ], [
-        nut('❮ Quay lại sửa', 'nut-nhe', () => ghiKhoanDong(khoanId, hocSinh, taiLai, { soTien, ngay, ghiChu })),
+        nut('❮ Quay lại sửa', 'nut-nhe', () => ghiKhoanDong(khoanId, hocSinh, taiLai, khoan, { soTien, ngay, ghiChu })),
         nut('✓ Xác nhận ghi thu', 'nut-tot', async (ev) => {
           ev.currentTarget.disabled = true;
           try {
