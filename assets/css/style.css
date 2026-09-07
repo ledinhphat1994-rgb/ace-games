@@ -1298,11 +1298,6 @@ main.wrap#noiDung {
 @media (prefers-reduced-motion: reduce) {
   .trai-tim-xanh { animation: none; }
 }
-.chan-trang-link {
-  color: inherit; text-decoration: none; opacity: .85; transition: opacity .15s;
-}
-.chan-trang-link:hover { opacity: 1; text-decoration: underline; }
-
 @media (max-width: 420px) {
   .thanh-tren > .wrap {
     padding-left: 6px;
