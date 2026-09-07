@@ -22,6 +22,12 @@ const TRANG_PHU = {
   '#/thu-quy': '#trangThuQuy',
   '#/diem-danh': '#trangDiemDanh',
 };
+// Trang riêng nào ứng với một mục có thể bị giáo viên ẩn riêng cho từng mã (xem CHO_MUC_AN +
+// apDungAnMuc bên dưới) — dùng để CHẶN THẬT việc mở lại trang qua địa chỉ trực tiếp/nút Back/
+// đánh dấu trang, không chỉ ẩn mục khỏi menu. Trước đây dinhTuyen() không biết gì về anMuc nên
+// bấm thẳng vào #/thu-quy hay #/diem-danh vẫn mở lại được dù đã ẩn.
+const TRANG_PHU_MUC = { '#/thu-quy': 'quy', '#/diem-danh': 'diem-danh' };
+let anMucHienTai = new Set();
 
 /* Mỏ neo hợp lệ: #thong-bao, #thoi-khoa-bieu… (không phải địa chỉ trang riêng #/…) */
 function laMoNeo(hash) {
@@ -30,7 +36,11 @@ function laMoNeo(hash) {
 
 function dinhTuyen() {
   const hash = location.hash;
-  const trangCanHien = TRANG_PHU[hash] || null;
+  let trangCanHien = TRANG_PHU[hash] || null;
+  if (trangCanHien && TRANG_PHU_MUC[hash] && anMucHienTai.has(TRANG_PHU_MUC[hash])) {
+    trangCanHien = null;
+    history.replaceState(null, '', location.pathname + location.search);
+  }
 
   // Ẩn hết rồi mới hiện đúng một trang — không bao giờ để hai trang cùng hiện.
   $('#trangChu').hidden = Boolean(trangCanHien);
@@ -2114,11 +2124,11 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   const coQuyenXemCaLop = Boolean(thongTinPhien && (thongTinPhien.role === 'teacher'
     || (thongTinPhien.role === 'phu' && (thongTinPhien.quyen || []).includes('diem-danh'))));
   if (!coQuyenXemCaLop) {
-    // Đã hiện đủ chuyên cần của chính em ở khối trên (hopCaNhan) — nếu để trống, khung thẻ
-    // ".the" (viền + nền) của hopLop vẫn hiện ra như một khối rỗng vô nghĩa. Ẩn hẳn khung này
-    // khi không có gì để hiện, chỉ hiện khi thật sự có thông báo cần nói (chưa có dữ liệu).
-    hopLop.hidden = Boolean(d.caNhan);
-    datNoiDung(hopLop, d.caNhan ? '' : e('p', 'trong', 'Chưa có dữ liệu điểm danh để hiển thị.'));
+    // Không có quyền xem cả lớp — chuyên cần của chính em (nếu có) đã hiện đủ ở khối trên
+    // (hopCaNhan). Ẩn hẳn khung này, không để lại khối rỗng/thông báo thừa: em không có quyền
+    // này thì không có gì để xem thêm ở đây cả.
+    hopLop.hidden = true;
+    datNoiDung(hopLop, '');
     return;
   }
 
@@ -2416,6 +2426,7 @@ function veBannerLop(lop) {
 
 function apDungAnMuc(anMuc) {
   const bo = new Set(anMuc || []);
+  anMucHienTai = bo;
   Object.entries(CHO_MUC_AN).forEach(([muc, chonLoc]) => {
     const khoi = document.querySelector(chonLoc);
     if (khoi) khoi.hidden = bo.has(muc);

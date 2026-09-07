@@ -1249,8 +1249,8 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
       ? nut('📱 Đặt lại thiết bị (cho đăng nhập máy mới)', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai, capNhatHang))
       : null,
 
-    Object.assign(e('h3', null, '👁 Quyền xem trên trang lớp'), { style: 'margin-top:18px' }),
-    e('p', 'trong', 'Bỏ tích mục nào thì em KHÔNG thấy mục đó nữa (mặc định xem hết).'),
+    Object.assign(e('h3', null, '🧹 Gọn giao diện trang lớp'), { style: 'margin-top:18px' }),
+    e('p', 'trong', 'Bỏ tích mục nào thì ẨN mục đó khỏi trang chủ/menu của em (mặc định hiện hết). Đây chỉ là dọn bớt giao diện cho gọn — KHÔNG phải khoá dữ liệu: mã lớp và các mã khác vẫn xem được như thường.'),
     ...oTichXem.map(([, , nhanO]) => nhanO),
 
     Object.assign(e('h3', null, '🔑 Quyền quản lý (đăng nhập được ở /login.html)'), { style: 'margin-top:18px' }),

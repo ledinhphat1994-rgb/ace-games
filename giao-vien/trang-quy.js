@@ -1320,69 +1320,47 @@ export async function veKhoiTaiKhoanPhu(khung) {
         const info = layThongTinVaiTro(tk.vaiTro);
 
         const dau2 = e('div', 'the-tk-dau');
-        dau2.style.cssText = 'display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap';
+        dau2.style.cssText = 'display:flex;align-items:flex-start;gap:12px;justify-content:space-between;flex-wrap:wrap';
 
         const khoiTrai = e('div');
         khoiTrai.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:0';
 
         const avatar = e('div', ['the-tk-avatar', info.lopMau].filter(Boolean).join(' '));
-        avatar.style.cssText = `width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:${info.mauNen};border:1.5px solid ${info.mauVien};box-shadow:0 4px 14px -3px ${info.mauVien};flex:none;`;
+        avatar.style.cssText = `width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;background:${info.mauNen};border:1.5px solid ${info.mauVien};flex:none;`;
         avatar.textContent = info.bieuTuong;
-
-        const thongTin = e('div');
-        thongTin.style.cssText = 'min-width:0;display:flex;flex-direction:column;gap:3px';
 
         const dongTen = e('div');
         dongTen.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
         dongTen.append(
-          Object.assign(e('h3', null, tk.ten), { style: 'margin:0;font-size:16.5px;font-weight:700;' }),
+          Object.assign(e('h3', null, tk.ten), { style: 'margin:0;font-size:16px;font-weight:700;' }),
           Object.assign(e('span', ['nhan', info.lopMau].filter(Boolean).join(' '), `${info.bieuTuong} ${info.tenGoi}`), {
-            style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:12px;padding:2px 9px;border-radius:6px;`
-          })
+            style: `background:${info.mauNen};border-color:${info.mauVien};color:${info.mauChu};font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:6px;`
+          }),
+          e('span', tk.dangHoatDong ? 'nhan nhan-tot' : 'nhan nhan-xam', tk.dangHoatDong ? '✓ Hoạt động' : '🔒 Đã khoá')
         );
+        khoiTrai.append(avatar, dongTen);
 
-        const nhanDangNhap = layNhanTaiKhoan({ role: 'phu', vaiTro: tk.vaiTro, ten: tk.ten });
-        const dongDangNhap = e('div');
-        dongDangNhap.style.cssText = 'font-size:12.5px;color:var(--chu-nhat);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px';
-        dongDangNhap.append(
-          document.createTextNode('Hiển thị khi đăng nhập: '),
-          Object.assign(e('span', null, nhanDangNhap), {
-            style: 'color:var(--chinh);font-weight:600;'
-          })
-        );
+        // Mã đăng nhập đặt ngay cạnh tên/badge — bỏ dòng "Hiển thị khi đăng nhập" riêng vì
+        // trùng lặp với tên + huy hiệu vai trò vừa hiện ở trên, không cần lặp lại lần nữa.
+        const maChu = e('code', null, tk.ma);
+        maChu.style.cssText = 'font-size:14.5px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:6px;color:var(--chinh);background:var(--nen-chim);border:1px solid var(--vien);flex:none;';
 
-        thongTin.append(dongTen, dongDangNhap);
-        khoiTrai.append(avatar, thongTin);
-
-        const khoiPhai = e('div');
-        khoiPhai.style.cssText = 'display:flex;align-items:center;gap:8px';
-        if (!tk.dangHoatDong) {
-          khoiPhai.append(e('span', 'nhan nhan-xam', '🔒 Đã khoá'));
-        } else {
-          khoiPhai.append(e('span', 'nhan nhan-tot', '✓ Đang hoạt động'));
-        }
-
-        dau2.append(khoiTrai, khoiPhai);
+        dau2.append(khoiTrai, maChu);
         the.append(dau2);
 
         const oQuyen = e('div', 'day-loc');
-        oQuyen.style.cssText = 'margin-top:12px;gap:6px;flex-wrap:wrap;';
+        oQuyen.style.cssText = 'margin-top:10px;gap:5px;flex-wrap:wrap;';
         tk.quyen.forEach((q) => {
-          const ten = (d.cacQuyen.find((x) => x[0] === q) || [q, q])[1].split(' — ')[0];
+          const timThay = d.cacQuyen.find((x) => x[0] === q);
+          if (!timThay) return; // mục đã bỏ khỏi hệ thống — không hiện thẻ vô nghĩa
+          const ten = timThay[1].split(' — ')[0];
           const icon = ICON_QUYEN[q] || '⭐';
-          const chip = e('span', 'nhan nhan-tim');
-          chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:3px 10px;font-weight:600;border-radius:8px;';
+          const chip = e('span', 'nhan nhan-xam');
+          chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;font-weight:600;border-radius:7px;';
           chip.append(e('span', null, icon), document.createTextNode(ten));
           oQuyen.append(chip);
         });
         the.append(oQuyen);
-
-        const maHop = e('p');
-        maHop.style.cssText = 'margin-top:12px;font-size:14px;color:var(--chu-nhat);display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-        const maChu = e('code', null, tk.ma);
-        maChu.style.cssText = 'font-size:16px;font-weight:800;letter-spacing:1.5px;padding:3px 8px;border-radius:6px;color:var(--chinh);background:var(--nen-chim);border:1px solid var(--vien);';
-        maHop.append(document.createTextNode('Mã đăng nhập: '), maChu);
-        the.append(maHop);
 
         const nutHang = e('div', 'day-loc');
         nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
