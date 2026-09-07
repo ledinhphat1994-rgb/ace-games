@@ -1,4 +1,4 @@
-import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan, ganTooltipNoi } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan, ganTooltipNoi, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -153,9 +153,14 @@ export async function trangQuy(KHUNG) {
   }
 
   async function moKhoan(id) {
-    moRong = moRong === id ? null : id;
-    if (moRong && !chiTiet[moRong]) await taiChiTiet(moRong);
-    ve();
+    // ve() vẽ lại TOÀN BỘ trang — nếu đang mở 1 khoản dài rồi bấm thu gọn, trang co lại đột
+    // ngột khiến trình duyệt tự kéo cuộn lên, cảm giác "nhảy về mặc định". Ghim đúng thẻ khoản
+    // này đứng yên trên màn hình trong lúc vẽ lại để tránh việc đó.
+    await giuViTriCuonKhiVe('khoan-' + id, async () => {
+      moRong = moRong === id ? null : id;
+      if (moRong && !chiTiet[moRong]) await taiChiTiet(moRong);
+      ve();
+    });
   }
 
   async function lamMoiKhoanDangMo() {
@@ -267,6 +272,7 @@ export async function trangQuy(KHUNG) {
     const dangMo = nhomMoRong.has(dinhKyId);
 
     const boc = e('div', 'muc-khoan muc-khoan-thu card-khoan-thu nhom-dinh-ky' + (dangMo ? ' dang-mo' : ''));
+    boc.id = 'nhom-' + dinhKyId;
     const hang = e('div', 'hang-hs hang-hs-doc hang-khoan-thu');
     hang.style.cursor = 'pointer';
 
@@ -326,8 +332,10 @@ export async function trangQuy(KHUNG) {
 
     hang.append(dong1, thanhTienDoNho);
     hang.addEventListener('click', () => {
-      if (dangMo) nhomMoRong.delete(dinhKyId); else nhomMoRong.add(dinhKyId);
-      ve();
+      giuViTriCuonKhiVe('nhom-' + dinhKyId, () => {
+        if (dangMo) nhomMoRong.delete(dinhKyId); else nhomMoRong.add(dinhKyId);
+        ve();
+      });
     });
     boc.append(hang);
 
@@ -739,6 +747,7 @@ export async function trangQuy(KHUNG) {
 
     // Thanh chuyển Tab Thu / Chi nổi bật, tách biệt hoàn toàn 2 khu vực
     const thanhTab = e('div', 'tab-chuyen-quy-chinh');
+    thanhTab.id = 'quy-thanh-tab';
     const nutTabThu = e('button', 'nut-tab-chuyen tab-thu' + (tabHienTai === 'thu' ? ' dang-chon' : ''));
     nutTabThu.type = 'button';
     nutTabThu.append(
@@ -749,7 +758,7 @@ export async function trangQuy(KHUNG) {
     nutTabThu.addEventListener('click', () => {
       if (tabHienTai !== 'thu') {
         tabHienTai = 'thu';
-        ve();
+        giuViTriCuonKhiVe('quy-thanh-tab', ve);
       }
     });
 
@@ -763,7 +772,7 @@ export async function trangQuy(KHUNG) {
     nutTabChi.addEventListener('click', () => {
       if (tabHienTai !== 'chi') {
         tabHienTai = 'chi';
-        ve();
+        giuViTriCuonKhiVe('quy-thanh-tab', ve);
       }
     });
 
@@ -1861,6 +1870,7 @@ export async function trangQuyLichSu(KHUNG) {
 
     function veHang(k) {
       const boc = e('div', 'muc-khoan');
+      boc.id = 'ls-khoan-' + k.id;
       const hang = e('div', 'hang-hs hang-hs-doc');
       hang.style.cursor = 'pointer';
       const dong1 = e('div', 'hang-hs-dong1');
@@ -1902,9 +1912,11 @@ export async function trangQuyLichSu(KHUNG) {
       dong1.append(khoiPhai);
       hang.append(dong1);
       hang.addEventListener('click', async () => {
-        moRongId = moRongId === k.id ? null : k.id;
-        if (moRongId && !chiTiet[moRongId]) chiTiet[moRongId] = await api('/api/gv/quy?khoanId=' + moRongId);
-        veLai();
+        await giuViTriCuonKhiVe('ls-khoan-' + k.id, async () => {
+          moRongId = moRongId === k.id ? null : k.id;
+          if (moRongId && !chiTiet[moRongId]) chiTiet[moRongId] = await api('/api/gv/quy?khoanId=' + moRongId);
+          veLai();
+        });
       });
       boc.append(hang);
       if (moRongId === k.id) boc.append(chiTiet[k.id] ? veChiTietAiDong(chiTiet[k.id]) : khoiDangTai());
@@ -2009,12 +2021,16 @@ export async function trangQuyLichSu(KHUNG) {
       'Toàn bộ lịch sử ghi thu, ghi chi, các đợt thu cố định và điểm khôi phục — tất cả ở một chỗ.'));
 
     const hopTab = e('div', 'day-loc');
+    hopTab.id = 'quy-lich-su-tab';
     hopTab.style.margin = '4px 0 16px';
     TABS.forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tab === ma));
-      b.addEventListener('click', () => { tab = ma; ve(); });
+      b.addEventListener('click', () => {
+        tab = ma;
+        giuViTriCuonKhiVe('quy-lich-su-tab', ve);
+      });
       hopTab.append(b);
     });
     khung.append(hopTab);

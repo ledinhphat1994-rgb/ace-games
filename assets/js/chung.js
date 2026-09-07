@@ -558,3 +558,28 @@ export function ganTooltipNoi(kichHoat, canPhai = false) {
   kichHoat.addEventListener('mouseenter', dat);
   kichHoat.addEventListener('focus', dat);
 }
+
+/* ---------- Giữ vị trí cuộn khi vẽ lại (mở rộng/thu gọn, chuyển tab con...) ---------- */
+
+/** Nhiều màn hình vẽ lại TOÀN BỘ nội dung (thay hẳn cây DOM) mỗi khi đổi trạng thái — mở
+    rộng/thu gọn 1 thẻ, chuyển tab con... Nếu nội dung sau khi vẽ lại NGẮN hơn trước (thu gọn 1
+    khối dài, hoặc tab mới ít nội dung hơn), trình duyệt tự kéo thanh cuộn về vừa với chiều cao
+    mới — cảm giác như màn hình "nhảy" về vị trí khác hẳn chỗ đang xem, dù không có dòng lệnh nào
+    chủ động cuộn cả.
+
+    Hàm này ghim một phần tử mốc (tìm theo id, phải còn tồn tại y nguyên id sau khi vẽ lại) đứng
+    yên tại đúng vị trí trên màn hình trước và sau khi `capNhat` chạy xong — bất kể nội dung xung
+    quanh co giãn thế nào. Dùng cho mọi thao tác "vẫn đang xem chỗ này, chỉ đổi trạng thái tại
+    chỗ" (bấm mở rộng/thu gọn ngay tại thẻ đó, chuyển tab con mà thanh tab vẫn ở nguyên chỗ). */
+export async function giuViTriCuonKhiVe(idMoc, capNhat) {
+  const truoc = idMoc ? document.getElementById(idMoc) : null;
+  const yTruoc = truoc ? truoc.getBoundingClientRect().top : null;
+  await capNhat();
+  if (yTruoc === null) return;
+  const sau = document.getElementById(idMoc);
+  if (!sau) return;
+  const ySau = sau.getBoundingClientRect().top;
+  if (ySau !== yTruoc) {
+    window.scrollTo({ top: window.scrollY + (ySau - yTruoc), behavior: 'instant' });
+  }
+}

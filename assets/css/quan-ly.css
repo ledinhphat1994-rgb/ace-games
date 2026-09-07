@@ -643,6 +643,18 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   flex-shrink: 0;
   margin-left: auto;
 }
+/* Hàng khoản thu (thẻ khoản, nhóm thu cố định): mỗi thứ 1 hàng riêng — badge trạng thái to rõ
+   ở trên, khối "Mở rộng/Thu gọn" ở dưới — thay vì chen chung 1 hàng chật hẹp khó nhìn. */
+.hang-khoan-thu .hs-khoi-phai {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+.hang-khoan-thu .hs-khoi-phai .nhan {
+  font-size: 15px;
+  font-weight: 800;
+  padding: 6px 14px;
+}
 /* Nhãn "Mở rộng"/"Thu gọn" + icon tròn — gộp làm 1 khối (flex:none) để không bị tách rời khi
    .hs-khoi-phai chuyển sang justify-content:space-between trên di động. ".nhan-mo-rong" đã có
    kiểu chữ dùng chung ở style.css — ở đây chỉ cần tô icon tròn to (".mui-ten-chi-tiet" vốn chỉ
@@ -965,11 +977,15 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
   border-color: rgba(249, 115, 22, 0.4);
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), var(--nen-noi));
 }
+.tab-chu {
+  font-size: 16.5px;
+  font-weight: 800;
+}
 .tab-badge {
   background: var(--nen-chim);
   padding: 2px 9px;
   border-radius: 99px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 800;
 }
 .nut-tab-chuyen.tab-thu.dang-chon .tab-badge {
