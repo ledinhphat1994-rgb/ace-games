@@ -1537,6 +1537,7 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
     truong('Họ và tên', oTen, 'Tên người dùng (học sinh hoặc cán sự lớp).'),
     truong('Vai trò hiển thị', hopVaiTro, 'Hiển thị trên hệ thống (Quản trị viên, Lớp trưởng, Thủ quỹ, Bí thư...).'),
     hopXemTruoc,
+    Object.assign(e('p', 'trong', 'ℹ️ Tài khoản này KHÔNG nằm trong danh sách học sinh — chỉ làm được đúng những việc được tích dưới đây, không xem/sửa được gì khác. (Nếu muốn cấp quyền quản lý cho một học sinh sẵn có trong lớp, dùng nút "⚙ Quản lý" ở trang Học sinh thay vì tạo tài khoản riêng ở đây.)'), { style: 'margin-top:4px' }),
     truong('Phân quyền thao tác', hopQuyen, 'Chọn những việc tài khoản này được phép làm.'),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -1641,6 +1642,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
   });
 
   moHopThoai('Cấp tài khoản mới', [
+    Object.assign(e('p', 'trong', 'ℹ️ Dùng khi người được cấp quyền KHÔNG nằm trong danh sách học sinh (phụ huynh, người ngoài lớp…). Nếu là một học sinh sẵn có trong lớp, dùng nút "⚙ Quản lý" ở trang Học sinh thay vì tạo tài khoản riêng ở đây.'), { style: 'margin-bottom:2px' }),
     truong('Họ và tên', oTen),
     truong('Vai trò (chỉ để hiển thị)', oVaiTro),
     truong('Mã đăng nhập (không bắt buộc)', oMa),

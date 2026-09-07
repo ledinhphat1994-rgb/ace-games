@@ -964,7 +964,17 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
   });
   const { hop: hopQuyenQuanLy, oTich: oTichQuanLy } = taoNhomTichQuyenQuanLy(hocSinh.quyen || []);
 
+  const ghiChuTongQuan = e('div');
+  ghiChuTongQuan.style.cssText = 'padding:10px 12px;background:var(--nen-chim);border:1px solid var(--vien);border-radius:8px;font-size:12.5px;color:var(--chu-nhat);line-height:1.6;';
+  datNoiDung(ghiChuTongQuan,
+    Object.assign(e('div', null, '📖 3 tầng, từ ít đến nhiều quyền:'), { style: 'font-weight:700;color:var(--chu);margin-bottom:4px;' }),
+    e('div', null, '1. Mặc định (không tích gì cả) — em chỉ xem trang lớp công khai, y hệt mọi bạn khác.'),
+    e('div', null, '2. "Gọn giao diện" bên dưới — chỉ ẩn/hiện mục trên trang chủ CỦA RIÊNG EM, không khoá dữ liệu.'),
+    e('div', null, '3. "Quyền quản lý" bên dưới — biến mã của em thành tài khoản đăng nhập được khu quản lý, sức mạnh giống hệt "Tài khoản đặc biệt" (Thủ quỹ, Lớp trưởng…) ở trang Thủ quỹ.')
+  );
+
   const noi = [
+    ghiChuTongQuan,
     e('h3', null, '👤 Thông tin'),
     truong('Họ và tên', oHoTen),
     truong('Chức vụ', oChucVu),
