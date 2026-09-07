@@ -1533,21 +1533,32 @@ body.trang-dang-nhap {
    position:fixed + toạ độ do JS (ganTooltipNoi() trong chung.js) đo lúc hiện — nhờ vậy tooltip
    luôn nổi TRÊN CÙNG mọi lớp khác (thanh dính, thẻ...) và không bao giờ bị thẻ cha có
    overflow:hidden (dùng để bo góc) cắt mất, dù thẻ nằm sát mép trên/dưới màn hình. */
+/* Nền/chữ dùng đúng tông bề mặt nổi (--nen-chim + viền) thay vì đảo màu gắt (nền trắng/chữ đen
+   trên nền tối) — nhìn dịu mắt hơn nhiều mà vẫn đủ nổi bật nhờ viền + đổ bóng. Chữ đậm vừa
+   (600) thay vì 700 cho bớt "gắt". */
 .tien-do-tooltip {
   position: fixed;
-  background: var(--chu); color: var(--nen);
-  font-size: 12px; font-weight: 700; white-space: nowrap;
+  background: var(--nen-chim); color: var(--chu);
+  border: 1px solid var(--vien-dam);
+  font-size: 12px; font-weight: 600; white-space: nowrap;
   padding: 6px 11px; border-radius: 8px; box-shadow: var(--bong-2);
   opacity: 0; pointer-events: none; transition: opacity .15s ease;
   z-index: 500;
 }
 .tien-do-tooltip::after {
-  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-  border: 5px solid transparent; border-top-color: var(--chu);
+  content: ''; position: absolute; top: 100%; left: var(--mui-ten-x, 50%); transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--vien-dam);
+}
+.tien-do-tooltip::before {
+  content: ''; position: absolute; top: calc(100% - 1px); left: var(--mui-ten-x, 50%); transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--nen-chim); z-index: 1;
 }
 /* Lật ngược mũi tên khi tooltip bị đẩy xuống DƯỚI phần tử kích hoạt (do phía trên hết chỗ). */
 .tien-do-tooltip.o-duoi::after {
-  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--chu);
+  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--vien-dam);
+}
+.tien-do-tooltip.o-duoi::before {
+  top: auto; bottom: calc(100% - 1px); border-top-color: transparent; border-bottom-color: var(--nen-chim);
 }
 .the-khoan-tien-do-khung:hover .tien-do-tooltip,
 .the-khoan-tien-do-khung:focus .tien-do-tooltip,

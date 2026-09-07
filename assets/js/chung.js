@@ -525,7 +525,10 @@ export function khoiDangTai(chu = 'Đang tải…') {
     Định vị bằng "fixed" + toạ độ đo thực tế lúc rê chuột/focus — nhờ vậy tooltip
     luôn nổi TRÊN CÙNG, thoát khỏi mọi overflow:hidden của thẻ cha (khác với
     position:absolute vốn bị cắt bởi thẻ cha có overflow:hidden dùng để bo góc).
-    Tự lật xuống dưới nếu phía trên không đủ chỗ (thẻ nằm sát mép trên màn hình). */
+    Tự lật xuống dưới nếu phía trên không đủ chỗ (thẻ nằm sát mép trên màn hình).
+    Mũi tên (::before/::after) cũng được tính lại theo đúng tâm của phần tử kích hoạt
+    (biến CSS --mui-ten-x) — không còn cố định ở giữa hộp tooltip, để luôn chỉ sát vào
+    đúng chỗ vừa rê/chạm dù hộp tooltip lệch hẳn về một phía. */
 export function ganTooltipNoi(kichHoat, canPhai = false) {
   const tip = kichHoat.querySelector('.tien-do-tooltip');
   if (!tip) return;
@@ -536,7 +539,11 @@ export function ganTooltipNoi(kichHoat, canPhai = false) {
     tip.classList.toggle('o-duoi', oDuoi);
     tip.style.top = (oDuoi ? r.bottom + 8 : r.top - caoTip - 8) + 'px';
     if (canPhai) {
-      tip.style.right = Math.max(4, window.innerWidth - r.right) + 'px';
+      const rongTip = tip.offsetWidth || 160;
+      // Kẹp để mép trái tooltip không tràn ra ngoài màn hình bên trái — badge neo phải có thể
+      // nằm khá lệch trái trên thẻ hẹp, trong khi tooltip lại dài hơn hẳn badge.
+      const phai = Math.min(Math.max(4, window.innerWidth - r.right), window.innerWidth - rongTip - 4);
+      tip.style.right = phai + 'px';
       tip.style.left = 'auto';
     } else {
       const rongTip = tip.offsetWidth || 160;
@@ -544,6 +551,9 @@ export function ganTooltipNoi(kichHoat, canPhai = false) {
       tip.style.left = trai + 'px';
       tip.style.right = 'auto';
     }
+    const hopTip = tip.getBoundingClientRect();
+    const giuaKichHoat = r.left + r.width / 2 - hopTip.left;
+    tip.style.setProperty('--mui-ten-x', Math.max(12, Math.min(giuaKichHoat, hopTip.width - 12)) + 'px');
   };
   kichHoat.addEventListener('mouseenter', dat);
   kichHoat.addEventListener('focus', dat);

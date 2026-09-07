@@ -516,7 +516,6 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   overflow: hidden; box-shadow: var(--bong-1);
 }
 .muc-khoan .hang-hs { border: 0; border-radius: 0; padding: 14px 16px; }
-.muc-khoan-mui-ten { color: var(--chu-nhat); font-size: 14px; flex: none; }
 .muc-khoan-chi-tiet {
   padding: 16px; border-top: 1px solid var(--vien); background: var(--nen-chim);
 }
@@ -644,6 +643,26 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   flex-shrink: 0;
   margin-left: auto;
 }
+/* Nhãn "Mở rộng"/"Thu gọn" + icon tròn — gộp làm 1 khối (flex:none) để không bị tách rời khi
+   .hs-khoi-phai chuyển sang justify-content:space-between trên di động. ".nhan-mo-rong" đã có
+   kiểu chữ dùng chung ở style.css — ở đây chỉ cần tô icon tròn to (".mui-ten-chi-tiet" vốn chỉ
+   định nghĩa lồng trong ".nut-mo-chi-tiet-dong" bên trang học sinh) cho khối này. */
+.khoi-mo-rong-hang {
+  display: flex; align-items: center; gap: 6px; flex: none; cursor: pointer;
+}
+.khoi-mo-rong-hang .mui-ten-chi-tiet {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--nen-chim);
+  transition: background .15s ease;
+}
+.khoi-mo-rong-hang:hover .nhan-mo-rong { color: var(--chinh); }
+.khoi-mo-rong-hang:hover .mui-ten-chi-tiet { background: var(--chinh-nen); }
 
 /* Bố cục tối ưu trên thiết bị di động: tên không bị ngắt dọc, các nút dàn đều thoáng đãng */
 @media (max-width: 640px) {

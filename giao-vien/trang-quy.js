@@ -20,6 +20,18 @@ function taoSvgIcon(pathD, w = 14, h = 14) {
   return svg;
 }
 
+/* Khối nhãn "Mở rộng"/"Thu gọn" + icon tròn to (dùng lại đúng kiểu .nhan-mo-rong/.mui-ten-chi-tiet
+   bên trang học sinh) — gộp cả 2 vào 1 khối để không bị justify-content:space-between (mobile)
+   tách nhãn ra xa icon. */
+function khoiMoRongHang(daMo) {
+  const khoi = e('div', 'khoi-mo-rong-hang');
+  khoi.append(
+    e('span', 'nhan-mo-rong', daMo ? 'Thu gọn' : 'Mở rộng'),
+    e('span', 'mui-ten-chi-tiet', daMo ? '▾' : '▸')
+  );
+  return khoi;
+}
+
 const ICON_QUYEN = {
   'diem-danh': '✅',
   quy: '🪙',
@@ -201,9 +213,6 @@ export async function trangQuy(KHUNG) {
     const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
     const chiTietBadge = `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} — còn thiếu ${tienVN(conThieu)} · ${k.soEmDaDu || 0}/${tongEm} em đã đủ`;
 
-    const khoiPhai = e('div', 'hs-khoi-phai badge-trang-thai-khoan');
-    khoiPhai.tabIndex = 0;
-    khoiPhai.setAttribute('role', 'button');
     let nhanTrangThai;
     if (!k.dangMo) {
       nhanTrangThai = e('span', 'nhan nhan-xam', 'Đã đóng');
@@ -212,10 +221,22 @@ export async function trangQuy(KHUNG) {
     } else {
       nhanTrangThai = e('span', 'nhan nhan-chinh', `Thu ${phanTram}%`);
     }
-    khoiPhai.setAttribute('aria-label', chiTietBadge);
-    khoiPhai.append(nhanTrangThai, e('div', 'tien-do-tooltip', chiTietBadge));
-    ganTooltipNoi(khoiPhai, true);
-    khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRong === k.id ? '▾' : '▸'));
+    // Badge trạng thái — RIÊNG một khối nhỏ chỉ bọc đúng cái nhãn này (không gộp chung với
+    // nhãn "Mở rộng"/mũi tên bên dưới), để tooltip định vị đúng ngay sát chỗ rê chuột/chạm,
+    // không lệch ra xa theo nhãn mở rộng nằm cạnh nó.
+    const oBadge = e('div', 'badge-trang-thai-khoan');
+    oBadge.tabIndex = 0;
+    oBadge.setAttribute('role', 'button');
+    oBadge.setAttribute('aria-label', chiTietBadge);
+    oBadge.append(nhanTrangThai, e('div', 'tien-do-tooltip', chiTietBadge));
+    ganTooltipNoi(oBadge, true);
+
+    // Nhãn "Mở rộng"/"Thu gọn" + icon to hơn (cùng kiểu ".mui-ten-chi-tiet"/".nhan-mo-rong" bên
+    // trang học sinh) để dễ nhận ra đây là khối bấm mở rộng được, không chỉ mỗi mũi tên bé.
+    // Gộp nhãn+icon vào 1 khối (khoi-mo-rong-hang) để không bị justify-content:space-between
+    // (mobile) tách rời nhau.
+    const khoiPhai = e('div', 'hs-khoi-phai');
+    khoiPhai.append(oBadge, khoiMoRongHang(moRong === k.id));
     dong1.append(khoiPhai);
 
     // Thanh tiến độ mini trực quan trên card
@@ -293,7 +314,7 @@ export async function trangQuy(KHUNG) {
     const khoiPhai = e('div', 'hs-khoi-phai');
     khoiPhai.append(e('span', 'nhan ' + (soKyDaDu === thanhVien.length ? 'nhan-tot' : 'nhan-chinh'),
       soKyDaDu === thanhVien.length ? '✓ Mọi kỳ đã đủ' : `${soKyDaDu}/${thanhVien.length} kỳ đã đủ`));
-    khoiPhai.append(e('span', 'muc-khoan-mui-ten', dangMo ? '▾' : '▸'));
+    khoiPhai.append(khoiMoRongHang(dangMo));
     dong1.append(khoiPhai);
 
     // Thanh tiến độ mini trực quan cho nhóm định kỳ
@@ -1877,7 +1898,7 @@ export async function trangQuyLichSu(KHUNG) {
         });
         khoiPhai.append(bXoa);
       }
-      khoiPhai.append(e('span', 'muc-khoan-mui-ten', moRongId === k.id ? '▾' : '▸'));
+      khoiPhai.append(khoiMoRongHang(moRongId === k.id));
       dong1.append(khoiPhai);
       hang.append(dong1);
       hang.addEventListener('click', async () => {
