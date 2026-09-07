@@ -104,26 +104,10 @@ Sau khi sửa những thứ đó thì chạy:
 npm run deploy
 ```
 
-### Sổ điểm
-
-Vào `/giao-vien/` → **Sổ điểm** → chọn học kì → bấm tên môn để nhập điểm.
-Mỗi môn có các cột TX (thường xuyên), Giữa kì, Cuối kì. Điểm trung bình tự tính theo công thức
-Thông tư 22/2021:
-
-```
-ĐTBmhk = (tổng ĐĐGtx + 2 × ĐĐGgk + 3 × ĐĐGck) / (số ĐĐGtx + 5)
-```
-
-Xếp loại học lực (Tốt / Khá / Đạt / Chưa đạt) tự suy ra theo Điều 9 Thông tư 22.
-Cột **Rèn luyện** ở bảng tổng hợp chọn tay, lưu ngay khi chọn.
-
-> Công thức và ngưỡng xếp loại được viết đúng theo Thông tư 22, nhưng **thầy/cô nên đối chiếu lại
-> với hướng dẫn hiện hành của Sở/Trung tâm** trước khi dùng kết quả để vào học bạ.
-
 ### Báo cáo
 
 **Thêm → Báo cáo**: chọn khoảng thời gian rồi tải về tệp `.csv`. Có nhiều loại: danh sách lớp,
-chuyên cần, sổ điểm, báo cáo tổng hợp, và nhiều mục khác. Tệp mở thẳng bằng Excel, không lỗi font tiếng Việt,
+chuyên cần, báo cáo tổng hợp, và nhiều mục khác. Tệp mở thẳng bằng Excel, không lỗi font tiếng Việt,
 cột ngăn bằng dấu chấm phẩy đúng chuẩn Excel bản tiếng Việt.
 
 ### Mã cá nhân cho học sinh
@@ -177,7 +161,7 @@ không thể tự "khôi phục" để xoá dấu vết — chỉ mã giáo viê
 
 ### Lớp 2 — Cloudflare D1 Time Travel (bảo vệ toàn bộ cơ sở dữ liệu, có sẵn, miễn phí)
 
-Ngoài Thủ quỹ, **toàn bộ cơ sở dữ liệu** (điểm danh, sổ điểm, thông báo, hồ sơ học sinh...) được
+Ngoài Thủ quỹ, **toàn bộ cơ sở dữ liệu** (điểm danh, thông báo, hồ sơ học sinh...) được
 Cloudflare tự động lưu lại liên tục trong **30 ngày gần nhất**, không tốn thêm phí, không cần cấu hình.
 Đây là tính năng có sẵn của D1, độc lập hoàn toàn với mọi thứ thầy/cô hay tôi làm trong ứng dụng —
 kể cả nếu toàn bộ mã nguồn bị xoá, dữ liệu này vẫn còn.
@@ -225,7 +209,8 @@ Xong. Từ đó mỗi lần `git push` là trang tự đăng lại, không cần
 Các bảng nằm trong `co-so-du-lieu/01-khoi-tao.sql`: `hoc_sinh`, `diem_danh`,
 `thong_bao`, `theo_doi`, `thoi_khoa_bieu`. (`ke_hoach` không còn dùng từ bản cập nhật
 "18-thong-bao-mo-rong.sql" — chức năng đã gộp vào `thong_bao`, bảng cũ vẫn giữ nguyên dữ liệu.
-`nhat_ky` — "Nhật ký lớp" — đã bỏ hẳn từ "40-xoa-nhat-ky-lop.sql".)
+`nhat_ky` — "Nhật ký lớp" — đã bỏ hẳn từ "40-xoa-nhat-ky-lop.sql". `diem`/`ren_luyen`/`mon_hoc`
+— "Sổ điểm" — đã bỏ hẳn từ "42-xoa-so-diem.sql".)
 
 Xem nhanh dữ liệu bằng lệnh:
 

@@ -1,6 +1,6 @@
 # Tổng quan dự án — trang lớp 10A7
 
-Trang nội bộ của một lớp học: thông báo, điểm danh, sổ điểm, quỹ lớp, hình ảnh.
+Trang nội bộ của một lớp học: thông báo, điểm danh, quỹ lớp, hình ảnh.
 Chạy trên **Cloudflare Pages** (miễn phí), dữ liệu trong **D1** (SQLite) và **KV**.
 
 **Không có bước biên dịch, không framework.** HTML + CSS + JavaScript thuần, chạy trực tiếp.

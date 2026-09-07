@@ -158,19 +158,6 @@ export const dongHopThoai = () => {
   if (hop && hop.open) hop.close();
 };
 
-/** Nút chọn học kì, dùng ở sổ điểm và báo cáo. */
-export function chonHocKi(hienTai, khiDoi) {
-  const hop = e('div', 'day-loc');
-  [1, 2].forEach((hk) => {
-    const b = e('button', 'vien-loc', 'Học kì ' + hk);
-    b.type = 'button';
-    b.setAttribute('aria-pressed', String(hienTai === hk));
-    b.addEventListener('click', () => khiDoi(hk));
-    hop.append(b);
-  });
-  return hop;
-}
-
 /**
  * Biểu đồ cột chồng vẽ bằng SVG thuần — không cần tải thư viện nào.
  * @param {Array<{nhan:string, phan:Array<{giaTri:number, mau:string, ten:string}>}>} cot

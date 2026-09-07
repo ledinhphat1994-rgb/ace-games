@@ -148,7 +148,6 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     env.DB.prepare('DELETE FROM theo_doi WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM lien_he_phu_huynh WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM quy_dong WHERE hoc_sinh_id = ?1').bind(id),
-    env.DB.prepare('DELETE FROM diem WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('UPDATE tai_khoan_phu SET hoc_sinh_id = NULL WHERE hoc_sinh_id = ?1').bind(id),
     env.DB.prepare('DELETE FROM hoc_sinh WHERE id = ?1').bind(id),
   ]);

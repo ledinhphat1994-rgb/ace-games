@@ -1,7 +1,7 @@
 {
   "name": "Quản lý lớp học",
   "short_name": "Lớp học",
-  "description": "Quản lý chủ nhiệm lớp — điểm danh, sổ điểm, thủ quỹ, thông báo",
+  "description": "Quản lý chủ nhiệm lớp — điểm danh, thủ quỹ, thông báo",
   "lang": "vi",
   "dir": "ltr",
   "start_url": "/giao-vien/",
@@ -17,6 +17,6 @@
   ],
   "shortcuts": [
     { "name": "Điểm danh hôm nay", "short_name": "Điểm danh", "url": "/giao-vien/#/diem-danh" },
-    { "name": "Sổ điểm", "short_name": "Sổ điểm", "url": "/giao-vien/#/so-diem" }
+    { "name": "Thủ quỹ lớp", "short_name": "Thủ quỹ", "url": "/giao-vien/#/quy" }
   ]
 }

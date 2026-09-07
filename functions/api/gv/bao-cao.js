@@ -1,14 +1,13 @@
-// GET /api/gv/bao-cao?loai=...&dinhDang=excel|csv&hocKi=&tuNgay=&denNgay=
+// GET /api/gv/bao-cao?loai=...&dinhDang=excel|csv&tuNgay=&denNgay=
 // Xuất báo cáo chuyên nghiệp mở được trực tiếp bằng Microsoft Excel:
 //   dinhDang = 'excel' (.xls, bảng tính định dạng sư phạm chuẩn)
 //   dinhDang = 'csv'   (.csv, có chỉ thị sep=; và UTF-8 BOM để Excel tự động tách cột)
 //
-// 8 danh mục báo cáo đồng bộ 100% với Vùng 1:
-//   - Lớp học: diem-danh, hoc-sinh, so-diem, thu-quy
+// 7 danh mục báo cáo đồng bộ 100% với Vùng 1:
+//   - Lớp học: diem-danh, hoc-sinh, thu-quy
 //   - Trang lớp: thong-bao (đảm nhiệm luôn vai trò của "kế hoạch năm học" cũ), thoi-khoa-bieu
 //   - Báo cáo & Tài khoản: thong-ke, ma-ca-nhan
 import { bocXuLy, loi, ngayHopLe } from '../../_lib/api.js';
-import { gomBangDiem, xepLoaiHocTap } from '../../_lib/tt22.js';
 import { CAC_QUYEN } from './tai-khoan-phu.js';
 
 const BOM = '\uFEFF';
@@ -342,7 +341,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const q = new URL(request.url).searchParams;
   const loai = q.get('loai') || 'hoc-sinh';
   const dinhDang = (q.get('dinhDang') || 'excel').toLowerCase() === 'csv' ? 'csv' : 'excel';
-  const hocKi = Number(q.get('hocKi')) === 2 ? 2 : 1;
 
   const denNgay = ngayHopLe(q.get('denNgay')) ? q.get('denNgay') : new Date().toISOString().slice(0, 10);
   let tuNgay = q.get('tuNgay');
@@ -468,58 +466,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       tieuDeCot: ['STT', 'Mã HS', 'Họ và tên', 'Giới tính', 'Ngày sinh', 'Lớp nghề', 'Tổ hợp', 'Tổ', 'Chức vụ', 'ĐT Phụ huynh', 'Hoàn cảnh', 'Ghi chú'],
       cacHang,
       tongCong,
-    }, lop);
-  }
-
-  // 3. MỤC: SỔ ĐIỂM (Khớp mục "Sổ điểm" trong Vùng 1)
-  if (loai === 'so-diem') {
-    const [{ results: cacMon }, { results: hocSinh }, { results: diem }, { results: renLuyen }] = await Promise.all([
-      db.prepare('SELECT ma, ten, cach_danh_gia, so_dgtx FROM mon_hoc WHERE dang_hoc = 1 ORDER BY thu_tu').all(),
-      db.prepare('SELECT id, ho_ten FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY id').bind(lopId).all(),
-      db.prepare('SELECT hoc_sinh_id, mon, loai, so_thu_tu, gia_tri, nhan_xet FROM diem WHERE hoc_ki = ?1 AND lop_id = ?2').bind(hocKi, lopId).all(),
-      db.prepare('SELECT hoc_sinh_id, muc FROM ren_luyen WHERE hoc_ki = ?1 AND lop_id = ?2').bind(hocKi, lopId).all(),
-    ]);
-
-    const theoHs = {};
-    diem.forEach((d) => { (theoHs[d.hoc_sinh_id] = theoHs[d.hoc_sinh_id] || []).push(d); });
-    const rl = Object.fromEntries(renLuyen.map((r) => [r.hoc_sinh_id, r.muc]));
-
-    const cacHang = hocSinh.map((h, i) => {
-      const bang = gomBangDiem(theoHs[h.id] || [], cacMon);
-      const oDiem = cacMon.map((m) => {
-        if (m.cach_danh_gia === 'diem') {
-          return { v: bang[m.ma].dtb !== null ? bang[m.ma].dtb : '', kieu: 'phai' };
-        }
-        const nx = bang[m.ma].nhanXet;
-        return { v: nx === 'CD' ? 'Chưa đạt' : nx === 'D' ? 'Đạt' : '', kieu: 'giua' };
-      });
-
-      const coDiem = cacMon.filter((m) => m.cach_danh_gia === 'diem' && bang[m.ma].dtb !== null);
-      const tb = coDiem.length
-        ? Math.round((coDiem.reduce((a, m) => a + bang[m.ma].dtb, 0) / coDiem.length) * 10) / 10
-        : '';
-
-      const xl = xepLoaiHocTap(cacMon.map((m) => ({
-        cachDanhGia: m.cach_danh_gia, dtb: bang[m.ma].dtb, nhanXet: bang[m.ma].nhanXet,
-      })));
-
-      return [
-        { v: i + 1, kieu: 'giua' },
-        { v: h.ho_ten, kieu: 'trai', dam: true },
-        ...oDiem,
-        { v: tb, kieu: 'phai', dam: true },
-        { v: xl || '', kieu: 'giua', dam: true },
-        { v: rl[h.id] || '', kieu: 'giua' },
-      ];
-    });
-
-    const tieuDeCot = ['STT', 'Họ và tên', ...cacMon.map((m) => m.ten), 'ĐTB chung', 'Học lực', 'Rèn luyện'];
-
-    return phanHoiBaoCao(dinhDang, `Bao_cao_So_diem_${tenLopTep}_Hoc_ki_${hocKi}`, {
-      tieuDe: `BÁO CÁO BẢNG ĐIỂM TỔNG HỢP ${(lop?.ten || 'LỚP HỌC').toUpperCase()} — HỌC KÌ ${hocKi}`,
-      phuDe: 'Điểm trung bình và kết quả đánh giá xếp loại theo Thông tư 22/2021/TT-BGDĐT',
-      tieuDeCot,
-      cacHang,
     }, lop);
   }
 

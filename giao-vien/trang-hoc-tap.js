@@ -1,8 +1,8 @@
-/* Sổ điểm, thống kê chuyên cần, báo cáo và mã cá nhân. */
+/* Thống kê chuyên cần, báo cáo và mã cá nhân. */
 import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
-  moHopThoai, dongHopThoai, chonHocKi, bieuDoCot, chuThichMau,
+  moHopThoai, dongHopThoai, bieuDoCot, chuThichMau,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
 
@@ -11,256 +11,6 @@ const MAU = {
   vangPhep: 'var(--chinh)', vangKhongPhep: 'var(--xau)',
 };
 
-const MUC_XEP_LOAI = ['Tốt', 'Khá', 'Đạt', 'Chưa đạt'];
-const LOP_XEP_LOAI = { 'Tốt': 'nhan-tot', 'Khá': 'nhan', 'Đạt': 'nhan-luuy', 'Chưa đạt': 'nhan-xau' };
-
-/* ================= Sổ điểm ================= */
-
-export async function trangSoDiem(KHUNG, monDangXem) {
-  datNoiDung(KHUNG, khoiDangTai());
-  let hocKi = Number(sessionStorage.getItem('sd-hocki')) || 1;
-  let mon = monDangXem || '';
-
-  async function ve() {
-    sessionStorage.setItem('sd-hocki', String(hocKi));
-    const d = await api(`/api/gv/so-diem?hocKi=${hocKi}${mon ? '&mon=' + encodeURIComponent(mon) : ''}`);
-    datNoiDung(KHUNG, mon ? veBangMot(d) : veTongHop(d));
-  }
-
-  /* ---------- Tổng hợp tất cả các môn ---------- */
-  function veTongHop(d) {
-    const khung = e('div');
-    khung.append(tieuDeTrang('Sổ điểm', `Học kì ${hocKi} · điểm trung bình tính theo Thông tư 22/2021`));
-    khung.append(chonHocKi(hocKi, (hk) => { hocKi = hk; ve(); }));
-
-    const dem = {};
-    d.danhSach.forEach((h) => { if (h.xepLoai) dem[h.xepLoai] = (dem[h.xepLoai] || 0) + 1; });
-    const chuaDu = d.danhSach.filter((h) => !h.xepLoai).length;
-
-    const day = e('div', 'day-so');
-    day.style.marginTop = '16px';
-    day.append(
-      oThongKe(String(dem['Tốt'] || 0), 'Tốt', 'tot'),
-      oThongKe(String(dem['Khá'] || 0), 'Khá'),
-      oThongKe(String(dem['Đạt'] || 0), 'Đạt', 'luuy'),
-      oThongKe(String((dem['Chưa đạt'] || 0)), 'Chưa đạt', 'xau')
-    );
-    khung.append(day);
-
-    if (chuaDu) {
-      const nhac2 = e('div', 'the');
-      nhac2.style.borderColor = 'var(--luu-y)';
-      nhac2.append(e('p', null,
-        `${chuaDu} em chưa xếp loại được vì còn thiếu điểm giữa kì hoặc cuối kì ở một số môn.`));
-      khung.append(nhac2);
-    }
-
-    // Chọn môn để nhập điểm
-    const nhanMon = e('div', 'the-nhan', 'Chọn môn để nhập điểm');
-    nhanMon.style.margin = '18px 0 8px';
-    khung.append(nhanMon);
-
-    const hopMon = e('div', 'day-loc');
-    d.monHoc.forEach((m) => {
-      const b = e('button', 'vien-loc', m.ten);
-      b.type = 'button';
-      b.addEventListener('click', () => { mon = m.ma; ve(); });
-      hopMon.append(b);
-    });
-    khung.append(hopMon);
-
-    // Bảng tổng hợp
-    const boc = e('div', 'cuon-ngang');
-    boc.style.marginTop = '18px';
-    const bang = e('table');
-    const dau = e('thead');
-    const hangDau = e('tr');
-    hangDau.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'));
-    d.monHoc.forEach((m) => {
-      const th = e('th', null, vietTat(m.ten));
-      th.title = m.ten;
-      dau.append();
-      hangDau.append(th);
-    });
-    hangDau.append(e('th', null, 'TB'), e('th', null, 'Học lực'), e('th', null, 'Rèn luyện'));
-    dau.append(hangDau);
-
-    const than = e('tbody');
-    d.danhSach.forEach((h) => {
-      const tr = e('tr');
-      tr.append(e('td', 'so', h.id), e('td', null, h.hoTen));
-      d.monHoc.forEach((m) => {
-        const v = h.theoMon[m.ma];
-        const td = e('td');
-        if (m.cach_danh_gia === 'diem') {
-          td.textContent = v === null || v === undefined ? '—' : String(v);
-          if (typeof v === 'number' && v < 5) td.style.color = 'var(--xau)';
-        } else {
-          td.textContent = v === 'CD' ? 'CĐ' : v === 'D' ? 'Đ' : '—';
-        }
-        tr.append(td);
-      });
-      tr.append(e('td', null, h.dtbChung ?? '—'));
-
-      const tdXl = e('td');
-      if (h.xepLoai) tdXl.append(e('span', 'nhan ' + LOP_XEP_LOAI[h.xepLoai], h.xepLoai));
-      else tdXl.append(e('span', 'trong', 'Thiếu điểm'));
-      tr.append(tdXl);
-
-      const tdRl = e('td');
-      const chonRl = oChon('rl' + h.id, [['', '—'], ...MUC_XEP_LOAI.map((m2) => [m2, m2])], h.renLuyen);
-      chonRl.style.cssText = 'min-height:32px;padding:4px 8px;font-size:13px';
-      chonRl.addEventListener('change', async () => {
-        try {
-          await api('/api/gv/ren-luyen', {
-            method: 'POST',
-            than: { hocKi, ghiNhan: [{ hocSinhId: h.id, muc: chonRl.value, nhanXet: h.nhanXetRenLuyen }] },
-          });
-          nhac('Đã lưu rèn luyện', 'tot');
-        } catch (err) { nhac(err.message, 'xau'); }
-      });
-      tdRl.append(chonRl);
-      tr.append(tdRl);
-      than.append(tr);
-    });
-
-    bang.append(dau, than);
-    boc.append(bang);
-    khung.append(boc);
-
-    khung.append(Object.assign(
-      e('p', 'trong', 'Đ = Đạt, CĐ = Chưa đạt (môn đánh giá bằng nhận xét). Ô “—” là chưa đủ điểm để tính.'),
-      { style: 'margin-top:10px' }
-    ));
-    return khung;
-  }
-
-  /* ---------- Nhập điểm một môn ---------- */
-  function veBangMot(d) {
-    const m = d.mon;
-    const thayDoi = new Map();   // "hsId|loai|stt" -> giá trị
-
-    const khung = e('div');
-    khung.append(nut('← Tất cả các môn', 'nut-nhe nut-nho', () => { mon = ''; ve(); }));
-    khung.append(tieuDeTrang(m.ten, `Học kì ${hocKi} · ${m.cach_danh_gia === 'diem'
-      ? `${m.so_dgtx} cột thường xuyên + giữa kì + cuối kì` : 'đánh giá bằng nhận xét'}`));
-    khung.append(chonHocKi(hocKi, (hk) => { hocKi = hk; ve(); }));
-
-    const boc = e('div', 'cuon-ngang');
-    boc.style.marginTop = '16px';
-    const bang = e('table');
-
-    const hangDau = e('tr');
-    hangDau.append(e('th', 'so', 'STT'), e('th', null, 'Họ và tên'));
-    if (m.cach_danh_gia === 'diem') {
-      for (let i = 1; i <= m.so_dgtx; i++) hangDau.append(e('th', null, 'TX' + i));
-      hangDau.append(e('th', null, 'Giữa kì'), e('th', null, 'Cuối kì'), e('th', null, 'ĐTB'));
-    } else {
-      hangDau.append(e('th', null, 'Đánh giá'));
-    }
-    const dau = e('thead');
-    dau.append(hangDau);
-
-    const than = e('tbody');
-    d.danhSach.forEach((h) => {
-      const tr = e('tr');
-      tr.append(e('td', 'so', h.id), e('td', null, h.hoTen));
-
-      if (m.cach_danh_gia === 'diem') {
-        const oDtb = e('td', null, h.dtb ?? '—');
-        oDtb.style.fontWeight = '700';
-
-        const taoO = (loai, stt, giaTri) => {
-          const o = e('input', 'o-nhap');
-          o.type = 'number';
-          o.min = '0'; o.max = '10'; o.step = '0.1';
-          o.value = giaTri === null || giaTri === undefined ? '' : String(giaTri);
-          o.style.cssText = 'width:62px;min-height:34px;padding:4px 6px;text-align:center;font-size:14px';
-          o.setAttribute('aria-label', `${h.hoTen} — ${loai === 'tx' ? 'thường xuyên ' + stt : loai === 'gk' ? 'giữa kì' : 'cuối kì'}`);
-          o.addEventListener('input', () => {
-            const v = o.value.trim();
-            if (v !== '' && (Number(v) < 0 || Number(v) > 10 || Number.isNaN(Number(v)))) {
-              o.style.borderColor = 'var(--xau)';
-              return;
-            }
-            o.style.borderColor = '';
-            thayDoi.set(`${h.id}|${loai}|${stt}`, v === '' ? null : Number(v));
-            capNhatThanhLuu();
-          });
-          const td = e('td');
-          td.append(o);
-          return td;
-        };
-
-        for (let i = 0; i < m.so_dgtx; i++) tr.append(taoO('tx', i + 1, h.tx[i]));
-        tr.append(taoO('gk', 1, h.gk), taoO('ck', 1, h.ck), oDtb);
-      } else {
-        const chon = oChon('nx' + h.id, [['', '—'], ['D', 'Đạt'], ['CD', 'Chưa đạt']], h.nhanXet);
-        chon.style.cssText = 'min-height:32px;padding:4px 8px;font-size:13px;width:auto';
-        chon.addEventListener('change', () => {
-          thayDoi.set(`${h.id}|ck|1`, chon.value);
-          capNhatThanhLuu();
-        });
-        const td = e('td');
-        td.append(chon);
-        tr.append(td);
-      }
-      than.append(tr);
-    });
-
-    bang.append(dau, than);
-    boc.append(bang);
-    khung.append(boc);
-    khung.append(Object.assign(e('div'), { style: 'height:70px' }));
-
-    function capNhatThanhLuu() {
-      const cu = khung.querySelector('.thanh-luu');
-      if (cu) cu.remove();
-      if (!thayDoi.size) return;
-
-      const thanh = e('div', 'thanh-luu');
-      thanh.append(e('div', 'thong-tin', `${thayDoi.size} ô điểm chưa lưu`));
-      thanh.append(
-        nut('Bỏ', 'nut-nhe nut-nho', () => ve()),
-        nut('Lưu điểm', '', async (ev) => {
-          const b = ev.currentTarget;
-          b.disabled = true;
-          b.textContent = 'Đang lưu…';
-          try {
-            const ghiDiem = [...thayDoi].map(([khoa, giaTri]) => {
-              const [hsId, loai, stt] = khoa.split('|');
-              return m.cach_danh_gia === 'diem'
-                ? { hocSinhId: Number(hsId), loai, soThuTu: Number(stt), giaTri }
-                : { hocSinhId: Number(hsId), loai: 'ck', soThuTu: 1, giaTri: null, nhanXet: giaTri || '' };
-            });
-            await api('/api/gv/so-diem', { method: 'POST', than: { hocKi, mon: m.ma, ghiDiem } });
-            nhac('Đã lưu điểm', 'tot');
-            await ve();
-          } catch (err) {
-            nhac(err.message, 'xau');
-            b.disabled = false;
-            b.textContent = 'Lưu điểm';
-          }
-        })
-      );
-      khung.append(thanh);
-    }
-
-    return khung;
-  }
-
-  await ve();
-}
-
-function vietTat(ten) {
-  const rutGon = {
-    'Ngữ văn': 'Văn', 'Toán': 'Toán', 'Tiếng Anh': 'Anh', 'Vật lí': 'Lí', 'Hoá học': 'Hoá',
-    'Sinh học': 'Sinh', 'Lịch sử': 'Sử', 'Địa lí': 'Địa', 'Tin học': 'Tin',
-    'Giáo dục kinh tế & pháp luật': 'KT-PL', 'Giáo dục thể chất': 'TC',
-    'Hoạt động trải nghiệm, hướng nghiệp': 'HĐTN',
-  };
-  return rutGon[ten] || ten.slice(0, 6);
-}
 
 /* ================= Thống kê chuyên cần ================= */
 
@@ -666,7 +416,6 @@ export async function trangBaoCao(KHUNG) {
 
   const oTu = oNhap('bcTu', 'date', truoc30);
   const oDen = oNhap('bcDen', 'date', nay);
-  const oHk = oChon('bcHk', [[1, 'Học kì 1'], [2, 'Học kì 2']], sessionStorage.getItem('sd-hocki') || 1);
 
   const theLoc = e('div', 'the');
   theLoc.style.marginBottom = '20px';
@@ -674,12 +423,11 @@ export async function trangBaoCao(KHUNG) {
   hangLoc.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;align-items:end;';
   hangLoc.append(
     truong('Từ ngày', oTu),
-    truong('Đến ngày', oDen),
-    truong('Học kì', oHk)
+    truong('Đến ngày', oDen)
   );
   const chuThichLoc = e('p', 'trong');
   chuThichLoc.style.cssText = 'font-size:12.5px;color:var(--chu-mo);margin:10px 0 0 0;line-height:1.4;';
-  chuThichLoc.textContent = '💡 Khoảng ngày áp dụng cho Điểm danh; Học kỳ áp dụng cho Sổ điểm.';
+  chuThichLoc.textContent = '💡 Khoảng ngày áp dụng cho báo cáo Điểm danh.';
   theLoc.append(hangLoc, chuThichLoc);
   khung.append(theLoc);
 
@@ -689,7 +437,6 @@ export async function trangBaoCao(KHUNG) {
       p.set('tuNgay', oTu.value);
       p.set('denNgay', oDen.value);
     }
-    if (ma === 'so-diem') p.set('hocKi', oHk.value);
     location.href = '/api/gv/bao-cao?' + p.toString();
   }
 
@@ -742,11 +489,10 @@ export async function trangBaoCao(KHUNG) {
     return the;
   }
 
-  // 8 BÁO CÁO ĐỒNG BỘ 8 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
+  // 7 BÁO CÁO ĐỒNG BỘ 7 MỤC QUẢN LÝ — HIỂN THỊ TRÊN LƯỚI PHẲNG THỐNG NHẤT, KHÔNG PHÂN NHÓM RƯỜM RÀ
   const DANH_SACH_BAO_CAO = [
     ['✅', 'Báo cáo Điểm danh', 'Tổng số buổi có mặt, đi trễ, vắng phép, không phép và tỉ lệ chuyên cần từng em.', 'diem-danh', true, 'Theo ngày'],
     ['👥', 'Báo cáo Học sinh', 'Danh sách trích ngang: Họ tên, ngày sinh, giới tính, nghề, tổ hợp, tổ, chức vụ, ĐT phụ huynh.', 'hoc-sinh', false, 'Danh sách lớp'],
-    ['📑', 'Báo cáo Sổ điểm', 'Điểm trung bình từng môn học, ĐTB chung, xếp loại học lực và rèn luyện theo TT 22/2021/TT-BGDĐT.', 'so-diem', false, 'Theo học kỳ'],
     ['💰', 'Báo cáo Thủ quỹ', 'Bảng đóng nộp từng em (đã đóng, thiếu, chưa đóng), tổng chi tiêu và số dư tồn quỹ thực tế.', 'thu-quy', false, 'Quỹ lớp'],
     ['📢', 'Báo cáo Thông báo', 'Tổng hợp toàn bộ các thông báo đã ban hành của lớp (gồm cả mốc sự kiện, mức độ quan trọng), ngày đăng, nội dung và trạng thái ghim.', 'thong-bao', false, 'Toàn bộ'],
     ['⏰', 'Báo cáo Thời khoá biểu', 'Lịch học các tiết từ Thứ 2 đến Thứ 7 theo phiên bản thời khoá biểu đang áp dụng.', 'thoi-khoa-bieu', false, 'TKB hiện hành'],
@@ -1079,10 +825,8 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
    quyền QUẢN LÝ (soạn thông báo, thủ quỹ...) — không cần tạo tài khoản phụ riêng nữa.
    Có quyền quản lý thì mã đó dùng được ở trang đăng nhập /login.html, và bị RÀNG BUỘC
    1 mã = 1 thiết bị (giáo viên có thể "Đặt lại thiết bị" nếu em đổi máy). ---------- */
-// "Sổ điểm / thống kê học tập" (thong-ke) không còn ở đây nữa — trang web là kỷ niệm đẹp của
-// lớp, không đăng điểm số/vi phạm ra cho học sinh xem; mục này giờ ẨN HẲN với TẤT CẢ học sinh
-// (xem functions/api/ca-nhan.js), không còn là lựa chọn bật/tắt theo từng em nữa. Giáo viên vẫn
-// quản lý điểm đầy đủ ở "Sổ điểm" trong khu Quản lý như trước — không đổi gì ở đó.
+// Sổ điểm/xếp loại học tập đã bỏ HẲN khỏi cả hệ thống (không còn tính năng chấm điểm) — không
+// còn liên quan gì tới danh sách "gọn giao diện" theo từng em ở đây nữa.
 const CAC_MUC_XEM = [
   ['quy', 'Tiền quỹ'],
   ['thong-bao', 'Thông báo'],

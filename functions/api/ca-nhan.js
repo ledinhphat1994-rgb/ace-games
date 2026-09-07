@@ -48,8 +48,8 @@ async function layDuLieuCaNhan(db, { ma, hocSinhId, lopId }) {
   delete hs.anMucChuoi;
 
   // Trang web là kỷ niệm đẹp của lớp, không phải chỗ để học sinh soi điểm số của chính mình —
-  // Sổ điểm đã bỏ HẲN khỏi mục tra cứu cá nhân này, không truy vấn/trả về nữa. Giáo viên vẫn
-  // quản lý đầy đủ ở khu Quản lý (functions/api/gv/so-diem.js) — không đổi gì ở đó.
+  // Sổ điểm đã bỏ HẲN khỏi mục tra cứu cá nhân này từ trước, và giờ đã bỏ hẳn khỏi cả hệ
+  // thống (không còn tính năng chấm điểm/xếp loại học tập nào nữa).
   const [diemDanh] = await Promise.all([
     db.prepare(
       `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo

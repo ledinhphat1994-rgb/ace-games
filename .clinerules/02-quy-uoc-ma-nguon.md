@@ -2,7 +2,7 @@
 
 ## Ngôn ngữ và cách đặt tên
 
-- Tên tệp: tiếng Việt **không dấu**, nối bằng gạch ngang (`thoi-khoa-bieu.js`, `so-diem.js`).
+- Tên tệp: tiếng Việt **không dấu**, nối bằng gạch ngang (`thoi-khoa-bieu.js`, `dang-nhap.js`).
 - Tên biến/hàm: tiếng Việt không dấu kiểu lạc đà (`layPhien`, `bocXuLy`, `ngayHopLe`, `docThan`).
 - Bình luận và mọi chữ hiện ra cho người dùng: tiếng Việt **có dấu**.
 - Bình luận giải thích **vì sao** làm vậy, không diễn giải lại dòng code.

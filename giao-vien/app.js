@@ -12,7 +12,7 @@ import {
 } from '/assets/js/giao-dien.js';
 import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
-  trangSoDiem, trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangThuVienAmThanh, trangThuVienVideo, trangNhatKyDangNhap,
+  trangThongKe, trangBaoCao, trangMaCaNhan, trangHinhAnh, trangThuVienAmThanh, trangThuVienVideo, trangNhatKyDangNhap,
 } from './trang-hoc-tap.js';
 import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
@@ -34,7 +34,6 @@ const QUYEN_THEO_TUYEN = {
   // Học sinh: KHÔNG có quyenCan nào cấp được — trang quản lý hồ sơ học sinh chỉ dành cho giáo
   // viên chủ nhiệm; tài khoản đặc biệt chỉ xem danh sách qua Menu (trang lớp), không qua đây.
   'hoc-sinh': null,
-  'so-diem': null,
   'hoat-dong-lop': ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video'],
   'thong-ke': null,
   'thong-bao': 'thong-bao',
@@ -1134,11 +1133,8 @@ async function trangHocSinh() {
   ve();
 }
 
-const LOP_XEP_LOAI_HOC_TAP = { 'Tốt': 'nhan-tot', 'Khá': 'nhan', 'Đạt': 'nhan-luuy', 'Chưa đạt': 'nhan-xau' };
-
 const CAC_TAB_HO_SO = [
   ['chuyen-can', 'Chuyên cần'],
-  ['hoc-tap', 'Học tập'],
   ['phu-huynh', 'Phụ huynh'],
 ];
 
@@ -1148,7 +1144,6 @@ async function trangHoSo(id, tabMacDinh) {
   const h = d.hocSinh;
   let tab = tabMacDinh || sessionStorage.getItem('hs-tab') || 'chuyen-can';
   if (!CAC_TAB_HO_SO.some(([ma]) => ma === tab)) tab = 'chuyen-can';
-  let diemCache = null;   // { 1: {monHoc, hang}, 2: {...} } — nạp khi mở tab Học tập lần đầu
 
   const khung = e('div');
   // Quay lại ĐÚNG chỗ vừa đến (Tổng quan, Danh sách...), không phải luôn về Danh sách cố định
@@ -1295,70 +1290,6 @@ async function trangHoSo(id, tabMacDinh) {
     return box;
   }
 
-  // Học tập: đọc lại (không sửa) — Sổ điểm vẫn là nơi duy nhất nhập/sửa điểm.
-  // Tái dùng nguyên API /api/gv/so-diem đã có (bảng tổng hợp 37 em), lọc ra đúng 1 em ở trình
-  // duyệt — 37 dòng là dữ liệu nhỏ, không cần thêm tham số/API riêng.
-  async function veHocTap() {
-    const box = e('div');
-    box.append(khoiDangTai());
-    noiDungTab.replaceChildren(box);
-
-    if (!diemCache) {
-      const [hk1, hk2] = await Promise.all([
-        api('/api/gv/so-diem?hocKi=1'),
-        api('/api/gv/so-diem?hocKi=2'),
-      ]);
-      diemCache = {
-        1: { monHoc: hk1.monHoc, hang: hk1.danhSach.find((x) => x.id === h.id) },
-        2: { monHoc: hk2.monHoc, hang: hk2.danhSach.find((x) => x.id === h.id) },
-      };
-    }
-    if (tab !== 'hoc-tap') return;   // giáo viên đã chuyển tab khác trong lúc chờ tải
-
-    const noiDung = e('div');
-    [1, 2].forEach((hocKi) => {
-      const { monHoc, hang } = diemCache[hocKi] || {};
-      const the = e('div', 'the');
-      the.style.marginTop = hocKi === 1 ? '0' : '14px';
-      the.append(e('h3', null, `Học kì ${hocKi}`));
-
-      if (!hang || (hang.soMonCoDiem === 0 && !hang.renLuyen)) {
-        the.append(e('p', 'trong', `Chưa có điểm nào trong học kì ${hocKi}.`));
-        noiDung.append(the);
-        return;
-      }
-
-      if (hang.dtbChung !== null) {
-        const tomTat = e('div', 'day-loc');
-        tomTat.style.margin = '4px 0 10px';
-        tomTat.append(e('span', 'nhan nhan-tim', `ĐTB ${hang.dtbChung}`));
-        if (hang.xepLoai) tomTat.append(e('span', 'nhan ' + (LOP_XEP_LOAI_HOC_TAP[hang.xepLoai] || ''), hang.xepLoai));
-        if (hang.renLuyen) tomTat.append(e('span', 'nhan nhan-luuy', 'Rèn luyện: ' + hang.renLuyen));
-        the.append(tomTat);
-      }
-
-      const ds = e('div', 'ds-diem-danh');
-      monHoc.forEach((m) => {
-        const gt = hang.theoMon[m.ma];
-        if (gt === null || gt === '' || gt === undefined) return;
-        const hangMon = e('div', 'hang-hs');
-        const tenMon = e('div', 'ten');
-        tenMon.append(e('b', null, m.ten));
-        hangMon.append(tenMon,
-          e('span', 'nhan ' + (m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'nhan-tot' : 'nhan-xau') : ''),
-            m.cach_danh_gia === 'nhan_xet' ? (gt === 'D' ? 'Đạt' : 'Chưa đạt') : String(gt)));
-        ds.append(hangMon);
-      });
-      if (!ds.children.length) the.append(e('p', 'trong', 'Chưa có điểm môn nào được nhập.'));
-      else the.append(ds);
-      if (hang.nhanXetRenLuyen) the.append(Object.assign(e('p', null, 'Nhận xét rèn luyện: ' + hang.nhanXetRenLuyen), { style: 'margin-top:8px;font-size:13px;color:var(--chu-nhat)' }));
-      noiDung.append(the);
-    });
-
-    noiDungTab.replaceChildren(noiDung);
-  }
-
-
   async function vePhuHuynh() {
     const box = e('div');
     box.append(khoiDangTai());
@@ -1387,7 +1318,6 @@ async function trangHoSo(id, tabMacDinh) {
 
   function veNoiDungTab() {
     if (tab === 'chuyen-can') return noiDungTab.replaceChildren(veChuyenCan());
-    if (tab === 'hoc-tap') return veHocTap();
     if (tab === 'phu-huynh') return vePhuHuynh();
   }
 
@@ -1752,7 +1682,6 @@ const TRANG = {
   '/diem-danh': trangDiemDanh,
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
-  '/so-diem': () => trangSoDiem(KHUNG),
   '/hoat-dong-lop': () => trangHoatDongLop(KHUNG),
   '/thong-bao': trangThongBao,
   '/thong-ke': () => trangThongKe(KHUNG),
@@ -1771,10 +1700,11 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/quy', '/quy-lich-su', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')
+      || (duong === '/quy-lich-su' && a.getAttribute('href') === '#/quy')
       || (trongMucThem && a.dataset.nhom === 'them');
     if (khop) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');

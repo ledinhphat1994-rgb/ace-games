@@ -2,8 +2,7 @@
 // mã cá nhân học sinh (ma_ca_nhan), mã tài khoản đặc biệt (tai_khoan_phu).
 
 // Các mục có thể ẨN riêng theo từng mã cá nhân — mặc định XEM HẾT, giáo viên tích để ẨN BỚT.
-// "thong-ke" (Sổ điểm) đã bỏ khỏi danh sách này — giờ ẨN HẲN với mọi học sinh, không còn là lựa
-// chọn theo từng em nữa (xem functions/api/ca-nhan.js).
+// Sổ điểm đã bỏ hẳn khỏi cả hệ thống, không còn là lựa chọn theo từng em nữa.
 export const CAC_MUC_CA_NHAN = ['quy', 'thong-bao', 'thoi-khoa-bieu', 'diem-danh'];
 
 export function chuanHoaAnMuc(ds) {
