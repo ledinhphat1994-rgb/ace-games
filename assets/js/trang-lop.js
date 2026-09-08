@@ -5,7 +5,7 @@
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
 import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
-import { nut, moHopThoai, dongHopThoai, boiNgayVN } from './giao-dien.js';
+import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
 import { moHopThoaiThemHoatDong } from './hoat-dong-lop-dialog.js';
@@ -1910,6 +1910,21 @@ function veLichSuHangBang(h, veLai) {
   if (ls === 'dang-tai') {
     khoi.append(e('p', 'trong', 'Đang tải lịch sử điểm danh…'));
     return td;
+  }
+  if (ls && ls.length) {
+    // Thống kê tổng của em này — TÍNH Y HỆT trang Hồ sơ học sinh bên khu quản lý, để luôn ra
+    // đúng MỘT con số duy nhất dù xem ở đâu, đồng bộ với các nơi khác đã có kiểu thống kê này.
+    const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
+    ls.forEach((x) => { if (dem[x.trangThai] !== undefined) dem[x.trangThai]++; });
+    const daySo = e('div', 'day-so');
+    daySo.style.cssText = 'margin-bottom:10px;';
+    daySo.append(
+      oThongKe(String(dem.co_mat), 'Có mặt', 'tot'),
+      oThongKe(String(dem.tre), 'Đi trễ', 'luuy'),
+      oThongKe(String(dem.vang_phep), 'Vắng có phép'),
+      oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
+    );
+    khoi.append(daySo);
   }
   const dsKhac = (ls || []).filter((x) => {
     const laPhuBanGhi = x.buoi.endsWith('_phu');

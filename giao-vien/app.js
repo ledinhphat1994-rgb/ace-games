@@ -444,10 +444,26 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
     khoi.append(e('p', 'trong', 'Đang tải lịch sử điểm danh…'));
     return khoi;
   }
-  if (!ls) {
+  if (!ls || !ls.length) {
     khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
     return khoi;
   }
+  // Thống kê tổng của em này — TÍNH Y HỆT cách trang Hồ sơ học sinh (#/hoc-sinh/:id) đang làm,
+  // để một em luôn ra đúng MỘT con số duy nhất dù xem ở đâu, không phải tự cộng nhẩm từ danh
+  // sách bên dưới (trước đây chỉ có danh sách, không có tổng — không "đồng bộ" với các nơi khác
+  // trong web đã có sẵn kiểu thống kê này).
+  const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
+  ls.forEach((x) => { if (dem[x.trangThai] !== undefined) dem[x.trangThai]++; });
+  const daySo = e('div', 'day-so');
+  daySo.style.cssText = 'margin-bottom:10px;';
+  daySo.append(
+    oThongKe(String(dem.co_mat), 'Có mặt', 'tot'),
+    oThongKe(String(dem.tre), 'Đi trễ', 'luuy'),
+    oThongKe(String(dem.vang_phep), 'Vắng có phép'),
+    oThongKe(String(dem.vang_khong_phep), 'Vắng không phép', 'xau')
+  );
+  khoi.append(daySo);
+
   // Bỏ ĐÚNG bản ghi của ngày/buổi/loại đang xem NGAY TẠI TRANG NÀY — bản ghi đó đã hiện sẵn (và
   // sửa được trực tiếp) ở hàng học sinh phía trên, hiện lại trong "lịch sử" là dư thừa, dễ hiểu
   // lầm thành 2 nguồn khác nhau. API trả về mới → cũ (ngay DESC) để .slice() lấy đúng 15 lần GẦN
