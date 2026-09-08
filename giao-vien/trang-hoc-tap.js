@@ -5,7 +5,7 @@ import {
   moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
-import { moHopThoaiBannerLop } from '/assets/js/lop-banner-dialog.js';
+import { veKhoiChonBannerLop } from '/assets/js/lop-banner-dialog.js';
 
 const MAU = {
   coMat: 'var(--tot)', tre: 'var(--luu-y)',
@@ -1518,6 +1518,44 @@ export async function trangThuVienVideo(KHUNG) {
   await ve();
 }
 
+// 3 "kho ảnh" xem/chuyển qua lại tự do bằng tab, KHÔNG phải 3 trang riêng — cùng một chỗ để dễ
+// đối chiếu, đỡ phải nhớ url khác nhau. "Ảnh chung" là toàn bộ thư viện (như trước đây, không
+// đổi gì); "Ảnh nền"/"Ảnh banner" chỉ XEM/ĐỔI/XOÁ ảnh đang dùng — việc ĐẶT một ảnh bất kỳ làm
+// nền/banner vẫn làm y hệt trước đây (nút "🖼 Nền"/"🏠 Banner" ngay trên từng ảnh ở tab chung).
+let tabAnhThuVien = 'chung'; // 'chung' | 'nen' | 'banner'
+
+// Tab "Ảnh nền" — ảnh nền tuỳ chỉnh là cài đặt RIÊNG TỪNG THIẾT BỊ (lưu ở localStorage, xem
+// chung.js), không phải dữ liệu của lớp, nên không có danh sách để chọn ở đây — chỉ xem ảnh
+// ĐANG DÙNG trên chính máy này và xoá nếu muốn. Đặt ảnh mới vẫn làm ở tab "Ảnh chung" (nút
+// "🖼 Nền" ngay trên từng ảnh) — không đổi gì so với trước.
+function veKhoiAnhNenTuyChon(veLai) {
+  const khung = e('div', 'the');
+  const url = layNenAnhTuyChonUrl();
+  if (!url) {
+    khung.append(e('p', 'trong', 'Chưa đặt ảnh nền tuỳ chỉnh nào trên thiết bị này. Sang tab "🖼 Ảnh chung", bấm nút "🖼 Nền" trên ảnh muốn dùng làm nền web.'));
+    return khung;
+  }
+  const xemTruoc = e('div');
+  xemTruoc.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:14px;';
+  const img = e('img');
+  img.src = url;
+  img.alt = 'Ảnh nền đang dùng';
+  img.style.cssText = 'width:76px;height:54px;border-radius:8px;object-fit:cover;border:1px solid var(--vien);flex:none;';
+  xemTruoc.append(img, Object.assign(
+    e('span', null, 'Đang dùng ảnh này làm nền web — chỉ trên thiết bị này.'),
+    { style: 'font-size:13.5px;color:var(--chu-nhat);' }
+  ));
+  khung.append(
+    xemTruoc,
+    nut('🗑 Xoá ảnh nền', 'nut-xoa-anh nut-nho', () => {
+      apDungNenAnhTuyChon(null);
+      nhac('Đã xoá ảnh nền, dùng lại theme màu', 'tot');
+      veLai();
+    })
+  );
+  return khung;
+}
+
 export async function trangHinhAnh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   const daChon = new Set();   // id các ảnh đang tích chọn để xoá hàng loạt
@@ -1537,7 +1575,7 @@ export async function trangHinhAnh(KHUNG) {
 
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
-    const nutXoaTatCa = (laGiaoVien && d.soAnh) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+    const nutXoaTatCa = (tabAnhThuVien === 'chung' && laGiaoVien && d.soAnh) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
       const oLyDo = taoOLyDoXoa();
       moHopThoai('Xoá TOÀN BỘ thư viện Ảnh?', [
         e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ chuyển vào thùng rác.`),
@@ -1558,11 +1596,54 @@ export async function trangHinhAnh(KHUNG) {
         }),
       ]);
     }) : null;
-    khung.append(tieuDeTrang('Thư viện Ảnh',
-      d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào',
-      ...(coQuyenBanner ? [nut('🖼 Quản lý banner…', 'nut-vien nut-nho', () => moHopThoaiBannerLop(ve))] : []),
-      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
+    const phuDeTrang = tabAnhThuVien === 'chung'
+      ? (d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào')
+      : tabAnhThuVien === 'nen'
+        ? 'Ảnh nền tuỳ chỉnh cho web — chỉ áp dụng trên thiết bị này, không ai khác thấy.'
+        : 'Ảnh/video nền đầu trang lớp — hiện cho MỌI người xem trang lớp.';
+    khung.append(tieuDeTrang('Thư viện Ảnh', phuDeTrang,
+      ...(tabAnhThuVien === 'chung' && laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
+
+    // 3 kho ảnh, chuyển qua lại tự do bằng tab — không phải trang riêng.
+    const hopTabKho = e('div', 'day-loc day-loc-deu');
+    hopTabKho.style.margin = '0 0 18px';
+    [['chung', '🖼 Ảnh chung'], ['nen', '🎨 Ảnh nền'], ...(coQuyenBanner ? [['banner', '🏠 Ảnh banner']] : [])].forEach(([ma, ten]) => {
+      const b = e('button', 'vien-loc', ten);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(tabAnhThuVien === ma));
+      b.addEventListener('click', () => {
+        if (tabAnhThuVien === ma) return;
+        tabAnhThuVien = ma;
+        ve();
+      });
+      hopTabKho.append(b);
+    });
+    khung.append(hopTabKho);
+
+    if (tabAnhThuVien === 'nen') {
+      khung.append(veKhoiAnhNenTuyChon(ve));
+      return datNoiDung(KHUNG, khung);
+    }
+    if (tabAnhThuVien === 'banner') {
+      const ket = await veKhoiChonBannerLop();
+      if (ket) {
+        khung.append(ket.khung);
+        const hangNutBanner = e('div', 'day-loc day-loc-deu-co-gian');
+        hangNutBanner.style.cssText = 'margin-top:14px;';
+        hangNutBanner.style.setProperty('--the-nho-nhat', '128px');
+        if (ket.coBanner) {
+          hangNutBanner.append(nut('🗑 Xoá banner', 'nut-xoa-anh nut-nho', async (ev) => {
+            if (await ket.xoa(ev.currentTarget)) ve();
+          }));
+        }
+        hangNutBanner.append(nut('💾 Lưu banner', 'nut-nho', async (ev) => {
+          if (await ket.luu(ev.currentTarget)) ve();
+        }));
+        khung.append(hangNutBanner);
+      }
+      return datNoiDung(KHUNG, khung);
+    }
 
     // Khu chọn ảnh
     const the = e('div', 'the');
