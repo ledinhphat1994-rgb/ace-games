@@ -1,5 +1,4 @@
-/* Thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe, apDungNenAnhTuyChon, layNenAnhTuyChonUrl } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, ganNhacNen, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe, apDungNenAnhTuyChon, layNenAnhTuyChonUrl } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
@@ -1151,7 +1150,7 @@ export async function trangThuVienAmThanh(KHUNG) {
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
     the.append(e('p', 'trong',
-      'Bài nào được chọn "🔊 Làm nhạc nền" sẽ phát khi học sinh mở trang lớp — trình duyệt bắt buộc học sinh tự bấm nút nhạc mới nghe được, không tự phát tiếng.'));
+      'Bài được đặt "🔊 Đang làm nhạc nền" sẽ phát trên trang chủ lớp. Trình duyệt hiện đại quy định người nghe tự bấm vào biểu tượng chiếc loa 🎵 ở góc trên bên phải màn hình để bật/tắt tiếng.'));
 
     const oTepNhac = e('input');
     oTepNhac.type = 'file';
@@ -1240,27 +1239,34 @@ export async function trangThuVienAmThanh(KHUNG) {
       d.danhSach.forEach((bai) => {
         const muc = e('div', 'the');
 
-        const dongDau = e('div');
-        dongDau.style.cssText = 'display:flex;align-items:flex-start;gap:9px';
-
-        if (laGiaoVien) {
-          const oChonXoa = e('input');
-          oChonXoa.type = 'checkbox';
-          oChonXoa.checked = daChon.has(bai.id);
-          oChonXoa.setAttribute('aria-label', 'Chọn "' + bai.ten + '" để xoá hàng loạt');
-          oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau);margin-top:2px';
-          oChonXoa.addEventListener('change', () => {
-            if (oChonXoa.checked) daChon.add(bai.id); else daChon.delete(bai.id);
-            ve();
-          });
-          dongDau.append(oChonXoa);
+        if (bai.dangPhat) {
+          muc.style.cssText = 'border-color:var(--tot);background:rgba(16,185,129,0.06);box-shadow:0 0 0 1px var(--tot)';
         }
+
+        const dongDau = e('div');
+        dongDau.style.cssText = 'display:flex;align-items:center;gap:9px';
 
         const giua = e('div');
         giua.style.cssText = 'flex:1;min-width:0';
         giua.append(e('h3', null, bai.ten || 'Bài hát chưa đặt tên'));
         giua.append(e('p', 'trong', `${(bai.coByte / 1_000_000).toFixed(1)} MB`));
         dongDau.append(giua);
+
+        if (laGiaoVien) {
+          const oChonXoaNhan = e('label');
+          oChonXoaNhan.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;color:var(--chu-mo);cursor:pointer;flex:none';
+          const oChonXoa = e('input');
+          oChonXoa.type = 'checkbox';
+          oChonXoa.checked = daChon.has(bai.id);
+          oChonXoa.setAttribute('aria-label', 'Chọn "' + bai.ten + '" để xoá hàng loạt');
+          oChonXoa.style.cssText = 'width:16px;height:16px;cursor:pointer;accent-color:var(--xau)';
+          oChonXoa.addEventListener('change', () => {
+            if (oChonXoa.checked) daChon.add(bai.id); else daChon.delete(bai.id);
+            ve();
+          });
+          oChonXoaNhan.append(oChonXoa, document.createTextNode('Chọn xoá'));
+          dongDau.append(oChonXoaNhan);
+        }
 
         dongDau.append(nut('🗑', 'nut-xoa-anh nut-nho', () => {
           const oLyDo = taoOLyDoXoa();
@@ -1292,26 +1298,43 @@ export async function trangThuVienAmThanh(KHUNG) {
         audio.style.cssText = 'width:100%;margin:10px 0 8px';
         muc.append(audio);
 
-        // Tuỳ chọn (radio) — chọn ĐÚNG MỘT bài làm nhạc nền, tách biệt hẳn với tích chọn để
-        // xoá ở trên (khác hình dạng: nút tròn so với ô vuông) cho khỏi lẫn hai việc.
-        const oChonNenNhan = e('label');
-        oChonNenNhan.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;cursor:pointer';
-        const oChonNen = e('input');
-        oChonNen.type = 'radio';
-        oChonNen.name = 'nhacNenDangChon';
-        oChonNen.checked = bai.dangPhat;
-        oChonNen.style.cssText = 'width:17px;height:17px;cursor:pointer;accent-color:var(--tot)';
-        oChonNen.addEventListener('change', async () => {
-          if (!oChonNen.checked) return;
-          try {
-            await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { id: bai.id, datNhacNen: true } });
-            nhac('Đã đặt làm nhạc nền trang chủ', 'tot');
-            ve();
-          } catch (err) { nhac(err.message, 'xau'); }
-        });
-        oChonNenNhan.append(oChonNen, document.createTextNode(bai.dangPhat ? '🔊 Đang làm nhạc nền' : 'Làm nhạc nền'));
-        if (bai.dangPhat) oChonNenNhan.style.color = 'var(--tot)';
-        muc.append(oChonNenNhan);
+        // Khối điều khiển Nhạc nền: nút to, rõ ràng, có nút Tắt nhạc nền và cập nhật thanh loa tức thì
+        const dongNen = e('div');
+        dongNen.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;margin-top:2px;border-top:1px solid var(--vien)';
+        if (bai.dangPhat) {
+          const huyHieu = e('span', 'nhan nhan-tot', '🔊 Đang làm nhạc nền');
+          huyHieu.style.fontWeight = '600';
+          const nutTat = nut('⏹ Tắt nhạc nền', 'nut-vien nut-nho', async (ev) => {
+            const b = ev.currentTarget;
+            b.disabled = true;
+            try {
+              await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { tatNhacNen: true } });
+              nhac('Đã tắt nhạc nền trang chủ', 'tot');
+              ganNhacNen(null);
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              b.disabled = false;
+            }
+          }, 'Tắt bài này, không phát nhạc nền nữa');
+          dongNen.append(huyHieu, nutTat);
+        } else {
+          const nutDat = nut('🎵 Đặt làm nhạc nền', 'nut-chinh nut-nho', async (ev) => {
+            const b = ev.currentTarget;
+            b.disabled = true;
+            try {
+              const kq = await api('/api/gv/thu-vien-am-thanh', { method: 'PATCH', than: { id: bai.id, datNhacNen: true } });
+              nhac('Đã đặt làm nhạc nền trang chủ', 'tot');
+              ganNhacNen(kq.nhac || { id: bai.id, tenBai: bai.ten });
+              ve();
+            } catch (err) {
+              nhac(err.message, 'xau');
+              b.disabled = false;
+            }
+          }, 'Đặt bài này làm nhạc nền trang chủ');
+          dongNen.append(e('span', 'trong', 'Chưa chọn'), nutDat);
+        }
+        muc.append(dongNen);
 
         luoi.append(muc);
       });

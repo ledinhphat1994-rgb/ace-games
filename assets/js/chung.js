@@ -561,12 +561,41 @@ export function ganMenu(nut = document.getElementById('moMenu'), bang = document
 export function ganNhacNen(nhacNen) {
   const nut = $('#nutNhac');
   if (!nut) return;   // trang không có thanh đầu kiểu này (vd: login.html) — bỏ qua
-  if (!nhacNen) { nut.hidden = true; return; }
+  const audio = $('#nhacNenAudio');
+
+  const dat = (dangPhat) => {
+    nut.setAttribute('aria-pressed', String(dangPhat));
+    nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');
+    try { localStorage.setItem('nhacNenBat', dangPhat ? '1' : '0'); } catch { /* riêng tư trình duyệt chặn cũng không sao */ }
+  };
+
+  if (!nhacNen) {
+    nut.hidden = true;
+    if (audio) {
+      delete audio.dataset.idBai;
+      if (!audio.paused) audio.pause();
+      audio.removeAttribute('src');
+    }
+    dat(false);
+    return;
+  }
+
   nut.hidden = false;
   nut.title = 'Nhạc nền: ' + (nhacNen.tenBai || 'Đang phát');
 
-  const audio = $('#nhacNenAudio');
-  audio.src = '/api/nhac-nen';
+  if (audio) {
+    const idChuoi = String(nhacNen.id || '');
+    if (audio.dataset.idBai !== idChuoi) {
+      audio.dataset.idBai = idChuoi;
+      const nguonMoi = nhacNen.id
+        ? `/api/thu-vien-tep?loai=am-thanh&id=${encodeURIComponent(nhacNen.id)}`
+        : '/api/nhac-nen';
+      const dangPhat = !audio.paused;
+      audio.src = nguonMoi;
+      audio.load();
+      if (dangPhat) audio.play().catch(() => {});
+    }
+  }
 
   if (nut.dataset.daGan) return;   // chỉ gắn sự kiện 1 lần dù dữ liệu tải lại nhiều lần
   nut.dataset.daGan = '1';
@@ -575,7 +604,7 @@ export function ganNhacNen(nhacNen) {
   // CSS điều khiển hiện/ẩn qua ":hover"/":focus-within", xem .nhac-am-luong trong style.css.
   let amLuongBanDau = 70;
   try { amLuongBanDau = Number(localStorage.getItem('nhacNenAmLuong')) || 70; } catch { /* bỏ qua */ }
-  audio.volume = amLuongBanDau / 100;
+  if (audio) audio.volume = amLuongBanDau / 100;
 
   const oAmLuong = e('input', 'nhac-am-luong-truot');
   oAmLuong.type = 'range';
@@ -584,7 +613,7 @@ export function ganNhacNen(nhacNen) {
   oAmLuong.value = String(amLuongBanDau);
   oAmLuong.setAttribute('aria-label', 'Âm lượng nhạc nền');
   oAmLuong.addEventListener('input', () => {
-    audio.volume = Number(oAmLuong.value) / 100;
+    if (audio) audio.volume = Number(oAmLuong.value) / 100;
     try { localStorage.setItem('nhacNenAmLuong', oAmLuong.value); } catch { /* bỏ qua */ }
   });
   const hopAmLuong = e('div', 'nhac-am-luong');
@@ -598,15 +627,15 @@ export function ganNhacNen(nhacNen) {
   dinhViAmLuong();
   addEventListener('resize', dinhViAmLuong);
 
-  const dat = (dangPhat) => {
-    nut.setAttribute('aria-pressed', String(dangPhat));
-    nut.setAttribute('aria-label', dangPhat ? 'Tắt nhạc nền' : 'Bật nhạc nền');
-    try { localStorage.setItem('nhacNenBat', dangPhat ? '1' : '0'); } catch { /* riêng tư trình duyệt chặn cũng không sao */ }
-  };
-
   nut.addEventListener('click', async () => {
+    if (!audio) return;
     if (audio.paused) {
-      try { await audio.play(); dat(true); } catch { nhac('Trình duyệt chặn phát nhạc tự động, thử bấm lại.', 'xau'); }
+      try {
+        await audio.play();
+        dat(true);
+      } catch {
+        nhac('Trình duyệt chặn phát nhạc tự động, thử bấm lại.', 'xau');
+      }
     } else {
       audio.pause();
       dat(false);
@@ -617,7 +646,7 @@ export function ganNhacNen(nhacNen) {
   // trong phiên này) thì coi như tắt, người dùng tự bấm lại.
   let tungBat = false;
   try { tungBat = localStorage.getItem('nhacNenBat') === '1'; } catch { /* bỏ qua */ }
-  if (tungBat) audio.play().then(() => dat(true)).catch(() => dat(false));
+  if (tungBat && audio) audio.play().then(() => dat(true)).catch(() => dat(false));
 }
 
 /* ---------- Thông báo nổi ---------- */

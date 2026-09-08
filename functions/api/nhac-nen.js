@@ -13,7 +13,7 @@
 import { bocXuLy, loi } from '../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
-  const bai = await env.DB.prepare('SELECT id FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 LIMIT 1').bind(phien.lopId).first();
+  const bai = await env.DB.prepare('SELECT id FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(phien.lopId).first();
   if (!bai) return loi('Chưa có nhạc nền.', 404);
 
   const dich = new URL('/api/thu-vien-tep', request.url);

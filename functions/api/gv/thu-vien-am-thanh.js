@@ -51,6 +51,12 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
+
+  if (than.tatNhacNen) {
+    await env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE dang_phat = 1 AND lop_id = ?1').bind(phien.lopId).run();
+    return json({ ok: true, daTat: true, nhac: null });
+  }
+
   const id = Number(than.id);
   if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bài hát.');
 
@@ -61,21 +67,21 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     return json({ ok: true });
   }
 
-  const bai = await env.DB.prepare('SELECT id FROM am_thanh WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL').bind(id, phien.lopId).first();
+  const bai = await env.DB.prepare('SELECT id, ten FROM am_thanh WHERE id = ?1 AND lop_id = ?2 AND da_xoa_luc IS NULL').bind(id, phien.lopId).first();
   if (!bai) return loi('Không tìm thấy bài hát này.', 404);
 
   if (than.datNhacNen) {
     // "Đang phát" tính riêng theo TỪNG LỚP — đặt nhạc nền của lớp này không đụng tới lớp khác.
     await env.DB.batch([
       env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE dang_phat = 1 AND lop_id = ?1').bind(phien.lopId),
-      env.DB.prepare('UPDATE am_thanh SET dang_phat = 1 WHERE id = ?1').bind(id),
+      env.DB.prepare('UPDATE am_thanh SET dang_phat = 1 WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId),
     ]);
   }
   if (than.ten !== undefined) {
     await env.DB.prepare('UPDATE am_thanh SET ten = ?1 WHERE id = ?2').bind(chuoi(than.ten, 200), id).run();
   }
 
-  return json({ ok: true });
+  return json({ ok: true, nhac: than.datNhacNen ? { id: bai.id, tenBai: bai.ten } : undefined });
 }, { canGiaoVien: true, quyenCan: 'am-thanh' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {

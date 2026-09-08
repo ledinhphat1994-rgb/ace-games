@@ -109,7 +109,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     ).bind(lopId).all(),
   ]);
 
-  const nhacNen = await db.prepare('SELECT ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 LIMIT 1').bind(lopId).first().catch(() => null);
+  const nhacNen = await db.prepare('SELECT id, ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(lopId).first().catch(() => null);
 
   let anMuc = [];
   if (hocSinhIdPhien) {
@@ -179,7 +179,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       o: oTkb,
     },
     hoatDongLop: hoatDongLop.results,
-    nhacNen: nhacNen ? { tenBai: nhacNen.tenBai } : null,
+    nhacNen: nhacNen ? { id: nhacNen.id, tenBai: nhacNen.tenBai } : null,
     thuQuy: {
       tonQuy: tongThuQuy - tongChiQuy,
       tongThu: tongThuQuy,

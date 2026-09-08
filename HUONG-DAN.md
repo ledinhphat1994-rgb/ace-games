@@ -392,6 +392,17 @@ Cloudflare tự động deploy lại sau ~30 giây.
 
 ---
 
+## 7b. Thư viện Âm thanh & Nhạc nền trang chủ
+
+Khu quản lý có mục **Thư viện Âm thanh** (`#/thu-vien-am-thanh`) dùng để tải bài hát (.mp3) và chọn bài phát làm nhạc nền trang chủ:
+
+- **Đặt nhạc nền:** Bấm nút **`🎵 Đặt làm nhạc nền`** trên thẻ của bài hát muốn chọn. Thẻ bài hát sẽ chuyển sang trạng thái **`🔊 Đang làm nhạc nền`**, đồng thời biểu tượng chiếc loa trên thanh đầu trang sẽ sáng lên.
+- **Tắt nhạc nền:** Nếu không muốn phát nhạc nền nữa, bấm nút **`⏹ Tắt nhạc nền`** trên bài đang phát.
+- **Cách nghe trên web / điện thoại:** Theo quy định bảo mật của các trình duyệt hiện nay (Chrome, Safari, Edge), trang web **không được tự ý phát tiếng** khi vừa mở. Giáo viên và học sinh muốn nghe nhạc nền hãy **bấm vào biểu tượng chiếc loa 🎵 ở góc trên bên phải thanh đầu trang**. Có thể trượt thanh âm lượng khi rê chuột/chạm vào biểu tượng này.
+- **Xoá bài:** Ô tích `Chọn xoá` ở đầu mỗi bài chỉ dùng khi cần xoá bài (chuyển vào thùng rác), không liên quan đến việc chọn bài làm nhạc nền.
+
+---
+
 ## 8. Chạy thử trên máy trước khi đưa lên mạng
 
 Mã dùng thử nằm trong tệp `.dev.vars` ở thư mục dự án (tệp này không bao giờ lên GitHub).
