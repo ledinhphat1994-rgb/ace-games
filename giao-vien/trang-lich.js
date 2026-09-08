@@ -92,7 +92,10 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
       nut('Huỷ', 'nut-nhe nut-nho', () => { dangSua = false; oCacO.clear(); veDauTrang(); veBang(); veChiTiet(); veThanhLuu(); }),
       nut('Lưu thay đổi', '', async (ev) => {
         if (oTenSua && !oTenSua.value.trim()) { return nhac('Chưa nhập tên thời khoá biểu.', 'xau'); }
-        ev.currentTarget.disabled = true;
+        // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+        // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+        const nutBam = ev.currentTarget;
+        nutBam.disabled = true;
         const o = [];
         oCacO.forEach((input, khoa) => {
           if (!input.value.trim()) return;
@@ -108,7 +111,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
           await trangThoiKhoaBieu(KHUNG, phienBanXem);
         } catch (err) {
           nhac(err.message, 'xau');
-          ev.currentTarget.disabled = false;
+          nutBam.disabled = false;
         }
       })
     );
@@ -287,7 +290,8 @@ function taoPhienBanMoi(bangCu, soTietCu) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu phiên bản mới', '', async (ev) => {
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       const o = [];
       oCacO.forEach((input, khoa) => {
         if (!input.value.trim()) return;
@@ -305,7 +309,7 @@ function taoPhienBanMoi(bangCu, soTietCu) {
         trangThoiKhoaBieu(document.getElementById('noiDung'));
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);

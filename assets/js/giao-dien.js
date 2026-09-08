@@ -322,7 +322,10 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+            // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api(`/api/gv/checkpoint-chung?muc=${muc}&tatCa=1`, { method: 'DELETE' });
               dongHopThoai();
@@ -330,7 +333,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
               ve();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);
@@ -353,7 +356,8 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api('/api/gv/checkpoint-chung', { method: 'POST', than: { muc, id: cp.id } });
                 dongHopThoai();
@@ -361,7 +365,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
@@ -373,7 +377,8 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api(`/api/gv/checkpoint-chung?muc=${muc}&id=${cp.id}`, { method: 'DELETE' });
                 dongHopThoai();
@@ -381,7 +386,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
@@ -440,12 +445,13 @@ export async function trangThungRacThuVien(KHUNG, { duongApi, tieuDe, veTrangTru
       const viec = e('div', 'viec');
       viec.append(
         nut('↩ Khôi phục', 'nut-nho', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api(duongApi, { method: 'PATCH', than: { id: m.id, khoiPhuc: true } });
             nhac('Đã khôi phục', 'tot');
             ve();
-          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
         }),
         nut('❌ Xoá vĩnh viễn', 'nut-nho nut-xau', () => {
           moHopThoai('Xoá VĨNH VIỄN mục này?', [
@@ -453,13 +459,14 @@ export async function trangThungRacThuVien(KHUNG, { duongApi, tieuDe, veTrangTru
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api(`${duongApi}?id=${m.id}&vinhVien=1`, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá vĩnh viễn', 'tot');
                 ve();
-              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
             }),
           ]);
         })

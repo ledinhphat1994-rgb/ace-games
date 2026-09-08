@@ -275,7 +275,10 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
         return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link YouTube/Drive', 'xau');
       }
 
-      ev.currentTarget.disabled = true;
+      // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+      // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const than = {
           ngay: oNgay.value, tieuDe: tieuDeThuong, tieuDeHtml: oTd.layHtml(),
@@ -333,7 +336,7 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
         if (lamMoi) await lamMoi();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);

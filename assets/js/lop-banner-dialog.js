@@ -126,13 +126,16 @@ export async function moHopThoaiBannerLop(lamMoi) {
     khungLoai,
   ], [
     coBanner ? nut('🗑 Xoá banner', 'nut-nhe nut-nho', async (ev) => {
-      ev.currentTarget.disabled = true;
+      // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+      // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/lop-banner', { method: 'PATCH', than: {} });
         dongHopThoai();
         nhac('Đã xoá banner, dùng lại nền mặc định', 'tot');
         if (lamMoi) await lamMoi();
-      } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+      } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
     }) : null,
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
@@ -143,7 +146,8 @@ export async function moHopThoaiBannerLop(lamMoi) {
         return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link .mp4', 'xau');
       }
 
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         if (loaiHienTai === 'anh') {
           const nguon = layNguonAnh();
@@ -155,7 +159,7 @@ export async function moHopThoaiBannerLop(lamMoi) {
           } else if (nguon === 'link' && oLinkAnh.value.trim()) {
             await api('/api/gv/lop-banner', { method: 'PATCH', than: { hinhUrl: oLinkAnh.value.trim() } });
           } else {
-            ev.currentTarget.disabled = false;
+            nutBam.disabled = false;
             return nhac('Chưa chọn ảnh nào — chọn từ thư viện, tải lên, hoặc dán link.', 'xau');
           }
         } else {
@@ -168,7 +172,7 @@ export async function moHopThoaiBannerLop(lamMoi) {
           } else if (nguon === 'link' && oLinkVideo.value.trim()) {
             await api('/api/gv/lop-banner', { method: 'PATCH', than: { videoUrl: oLinkVideo.value.trim() } });
           } else {
-            ev.currentTarget.disabled = false;
+            nutBam.disabled = false;
             return nhac('Chưa chọn video nào — chọn từ thư viện, tải lên, hoặc dán link.', 'xau');
           }
         }
@@ -178,7 +182,7 @@ export async function moHopThoaiBannerLop(lamMoi) {
         if (lamMoi) await lamMoi();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ].filter(Boolean));

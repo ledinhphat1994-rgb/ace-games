@@ -94,7 +94,10 @@ export async function trangQuy(KHUNG) {
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+            // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api(`/api/gv/quy?loai=${loai}&ids=${[...daChon].join(',')}`, { method: 'DELETE' });
               dongHopThoai();
@@ -104,7 +107,7 @@ export async function trangQuy(KHUNG) {
               await taiLaiFn();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);
@@ -126,7 +129,8 @@ export async function trangQuy(KHUNG) {
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut(`Xoá tất cả ${tenSo}`, 'nut-xau', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api(`/api/gv/quy?loai=${loai}&tatCa=1`, { method: 'DELETE' });
             dongHopThoai();
@@ -135,7 +139,7 @@ export async function trangQuy(KHUNG) {
             await taiLaiFn();
           } catch (err) {
             nhac(err.message, 'xau');
-            ev.currentTarget.disabled = false;
+            nutBam.disabled = false;
           }
         }),
       ]);
@@ -865,7 +869,8 @@ function suaKhoan(khoan, taiLai) {
       if (oTuNgay.value && oDenNgay.value && oDenNgay.value < oTuNgay.value) {
         return nhac('Ngày kết thúc phải từ ngày bắt đầu trở về sau', 'xau');
       }
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/quy', {
           method: 'PATCH',
@@ -880,7 +885,7 @@ function suaKhoan(khoan, taiLai) {
         await taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -900,7 +905,8 @@ function suaDong(dong, hoTen, taiLai) {
     nut('Lưu', '', async (ev) => {
       const soTien = Number(oSoTien.value);
       if (!soTien || soTien <= 0) return nhac('Số tiền không hợp lệ', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/quy', {
           method: 'PATCH',
@@ -911,7 +917,7 @@ function suaDong(dong, hoTen, taiLai) {
         await taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -936,7 +942,8 @@ function suaChi(chi, taiLai) {
       if (!oNoiDung.value.trim()) return nhac('Nội dung không được để trống', 'xau');
       const soTien = Number(oSoTien.value);
       if (!soTien || soTien <= 0) return nhac('Số tiền không hợp lệ', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/quy', {
           method: 'PATCH',
@@ -947,7 +954,7 @@ function suaChi(chi, taiLai) {
         await taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1120,7 +1127,8 @@ function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh', duocTaoCoDinh = true) {
       if (!oTuNgay.value || !oDenNgay.value) return nhac('Chưa chọn đủ ngày bắt đầu/kết thúc', 'xau');
       if (oDenNgay.value < oTuNgay.value) return nhac('Ngày kết thúc phải từ ngày bắt đầu trở về sau', 'xau');
 
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         if (oLoaiChinh.value === 'nhanh') {
           await api('/api/gv/quy', {
@@ -1146,7 +1154,7 @@ function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh', duocTaoCoDinh = true) {
         await taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1199,7 +1207,8 @@ function ghiKhoanDong(khoanId, hocSinh, taiLai, khoan = null, duLieuCu = null) {
       ], [
         nut('❮ Quay lại sửa', 'nut-nhe', () => ghiKhoanDong(khoanId, hocSinh, taiLai, khoan, { soTien, ngay, ghiChu })),
         nut('✓ Xác nhận ghi thu', 'nut-tot', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api('/api/gv/quy', {
               method: 'POST',
@@ -1210,7 +1219,7 @@ function ghiKhoanDong(khoanId, hocSinh, taiLai, khoan = null, duLieuCu = null) {
             taiLai();
           } catch (err) {
             nhac(err.message, 'xau');
-            ev.currentTarget.disabled = false;
+            nutBam.disabled = false;
           }
         }),
       ]);
@@ -1272,7 +1281,8 @@ function ghiKhoanChi(taiLai, duLieuCu = null) {
       ], [
         nut('❮ Quay lại sửa', 'nut-nhe', () => ghiKhoanChi(taiLai, { noiDung, soTien, ngay, loai, ghiChu })),
         nut('💸 Xác nhận duyệt chi', 'nut-xau', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api('/api/gv/quy', {
               method: 'POST',
@@ -1283,7 +1293,7 @@ function ghiKhoanChi(taiLai, duLieuCu = null) {
             taiLai();
           } catch (err) {
             nhac(err.message, 'xau');
-            ev.currentTarget.disabled = false;
+            nutBam.disabled = false;
           }
         }),
       ]);
@@ -1558,7 +1568,8 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
       const quyenMoi = hopChon.filter((c) => c.checked).map((c) => c.value);
       if (!quyenMoi.length) return nhac('Phải chọn ít nhất một quyền', 'xau');
 
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/tai-khoan-phu', {
           method: 'PATCH',
@@ -1574,7 +1585,7 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1589,7 +1600,8 @@ function datMaTuyChinhTaiKhoanPhu(tk, taiLai) {
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
       if (!oMa.value.trim()) return nhac('Chưa nhập mã', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const kq = await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, maTuyChinh: oMa.value } });
         dongHopThoai();
@@ -1597,7 +1609,7 @@ function datMaTuyChinhTaiKhoanPhu(tk, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1664,7 +1676,8 @@ function taoTaiKhoan(cacQuyen, taiLai) {
     nut('Cấp tài khoản', '', async (ev) => {
       if (!oTen.value.trim()) return nhac('Chưa nhập tên', 'xau');
       if (!quyenDaChon.size) return nhac('Chọn ít nhất một việc được phép làm', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const kq = await api('/api/gv/tai-khoan-phu', {
           method: 'POST',
@@ -1675,7 +1688,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1758,7 +1771,8 @@ export async function trangQuyLichSu(KHUNG) {
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api('/api/gv/quy-checkpoint?tatCa=1', { method: 'DELETE' });
               dongHopThoai();
@@ -1766,7 +1780,7 @@ export async function trangQuyLichSu(KHUNG) {
               ve();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);
@@ -1789,7 +1803,8 @@ export async function trangQuyLichSu(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api('/api/gv/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
                 dongHopThoai();
@@ -1797,7 +1812,7 @@ export async function trangQuyLichSu(KHUNG) {
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
@@ -1809,7 +1824,8 @@ export async function trangQuyLichSu(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api('/api/gv/quy-checkpoint?id=' + cp.id, { method: 'DELETE' });
                 dongHopThoai();
@@ -1817,7 +1833,7 @@ export async function trangQuyLichSu(KHUNG) {
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
@@ -1849,7 +1865,8 @@ export async function trangQuyLichSu(KHUNG) {
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api('/api/gv/quy?loai=khoan&tatCa=1', { method: 'DELETE' });
               dongHopThoai();
@@ -1857,7 +1874,7 @@ export async function trangQuyLichSu(KHUNG) {
               ve();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);
@@ -1964,7 +1981,8 @@ export async function trangQuyLichSu(KHUNG) {
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api('/api/gv/quy?loai=chi&tatCa=1', { method: 'DELETE' });
               dongHopThoai();
@@ -1972,7 +1990,7 @@ export async function trangQuyLichSu(KHUNG) {
               ve();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);

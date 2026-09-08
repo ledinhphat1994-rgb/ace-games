@@ -459,7 +459,10 @@ function moHopThoaiSuaLichSuDiemDanh(h, banGhi, veLai) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('💾 Lưu', 'nut-chinh', async (ev) => {
-      ev.currentTarget.disabled = true;
+      // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+      // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/diem-danh', {
           method: 'POST',
@@ -474,7 +477,7 @@ function moHopThoaiSuaLichSuDiemDanh(h, banGhi, veLai) {
         if (veLai) veLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1287,7 +1290,8 @@ function themHocSinh(taiLai) {
     nut('Thêm', '', async (ev) => {
       if (!oHoTen.value.trim()) return nhac('Chưa nhập họ tên', 'xau');
       if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/hoc-sinh', {
           method: 'POST',
@@ -1301,7 +1305,7 @@ function themHocSinh(taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1317,7 +1321,8 @@ function xoaHocSinh(h, taiLai) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/hoc-sinh?id=' + h.id, { method: 'DELETE' });
         dongHopThoai();
@@ -1325,7 +1330,7 @@ function xoaHocSinh(h, taiLai) {
         if (taiLai) taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1358,13 +1363,14 @@ function moCauHinhHienThiHocSinh() {
     ], [
       nut('Huỷ', 'nut-nhe', dongHopThoai),
       nut('Lưu', '', async (ev) => {
-        ev.currentTarget.disabled = true;
+        const nutBam = ev.currentTarget;
+        nutBam.disabled = true;
         try {
           const congKhaiAn = dsCongKhai.filter(([, o]) => !o.checked).map(([ma]) => ma);
           await api('/api/gv/cau-hinh-hoc-sinh', { method: 'PATCH', than: { congKhaiAn } });
           dongHopThoai();
           nhac('Đã lưu cấu hình hiển thị', 'tot');
-        } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
       }),
     ]);
   }).catch((err) => nhac(err.message, 'xau'));
@@ -1695,7 +1701,8 @@ function ghiLienHe(hocSinh, taiLai) {
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
       if (!oNoiDung.value.trim()) return nhac('Chưa nhập nội dung đã trao đổi', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/lien-he', {
           method: 'POST',
@@ -1706,7 +1713,7 @@ function ghiLienHe(hocSinh, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1727,7 +1734,8 @@ function suaLienHe(lh, taiLai) {
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
       if (!oNoiDung.value.trim()) return nhac('Nội dung không được để trống', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/lien-he', {
           method: 'PATCH',
@@ -1738,7 +1746,7 @@ function suaLienHe(lh, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1767,7 +1775,8 @@ function suaHoSo(h) {
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Lưu', '', async (ev) => {
       if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/hoc-sinh', {
           method: 'PATCH',
@@ -1781,7 +1790,7 @@ function suaHoSo(h) {
         trangHoSo(h.id);
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);

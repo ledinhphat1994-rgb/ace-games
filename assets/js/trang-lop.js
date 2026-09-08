@@ -534,7 +534,10 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Xoá thông báo', 'nut-xau', async (ev) => {
-      ev.currentTarget.disabled = true;
+      // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+      // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/thong-bao?id=' + tb.id, { method: 'DELETE' });
         dongHopThoai();
@@ -542,7 +545,7 @@ function moHopThoaiXoaThongBao(tb, lamMoi) {
         if (lamMoi) await lamMoi();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);

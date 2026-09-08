@@ -166,7 +166,10 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Đăng lên trang chủ', '', async (ev) => {
-      ev.currentTarget.disabled = true;
+      // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+      // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const than = { ngay: oNgay.value || homNay() };
 
@@ -203,7 +206,7 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
           const { oTep, oLink, oThuVien, layNguon } = ketQuaVideo;
           const nguon = layNguon();
           const tep = oTep.files[0];
-          if (nguon === 'tai-len' && tep && tep.size > 50_000_000) { ev.currentTarget.disabled = false; return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
+          if (nguon === 'tai-len' && tep && tep.size > 50_000_000) { nutBam.disabled = false; return nhac('File video vượt quá 50 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
           if (nguon === 'tai-len' && tep) {
             const duLieu = await tep.arrayBuffer();
             const kq = await api('/api/gv/hoat-dong-lop-tep?loai=video', { method: 'POST', headers: { 'Content-Type': tep.type || 'video/mp4' }, body: duLieu });
@@ -219,7 +222,7 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
           const { oTep, oLink, oThuVien, layNguon } = ketQuaNhac;
           const nguon = layNguon();
           const tep = oTep.files[0];
-          if (nguon === 'tai-len' && tep && tep.size > 12_000_000) { ev.currentTarget.disabled = false; return nhac('File nhạc vượt quá 12 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
+          if (nguon === 'tai-len' && tep && tep.size > 12_000_000) { nutBam.disabled = false; return nhac('File nhạc vượt quá 12 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau'); }
           if (nguon === 'tai-len' && tep) {
             const duLieu = await tep.arrayBuffer();
             const kq = await api('/api/gv/hoat-dong-lop-tep?loai=am-thanh', { method: 'POST', headers: { 'Content-Type': tep.type || 'audio/mpeg' }, body: duLieu });
@@ -232,7 +235,7 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
         }
 
         if (!than.tieuDe && !than.noiDung && !than.anhId && !than.hinhUrl && !than.videoId && !than.videoUrl && !than.amThanhId && !than.amThanhUrl) {
-          ev.currentTarget.disabled = false;
+          nutBam.disabled = false;
           return nhac('Bật ít nhất một mục và nhập/chọn nội dung cho mục đó.', 'xau');
         }
 
@@ -243,7 +246,7 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
         if (lamMoi) await lamMoi();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);

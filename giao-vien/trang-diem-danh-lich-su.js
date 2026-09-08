@@ -108,7 +108,10 @@ export async function trangDiemDanhLichSu(KHUNG) {
         ], [
           nut('Huỷ', 'nut-nhe', dongHopThoai),
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            ev.currentTarget.disabled = true;
+            // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+            // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
             try {
               await api('/api/gv/diem-danh-checkpoint?tatCa=1' + (tab ? '&loai=' + tab : ''), { method: 'DELETE' });
               dongHopThoai();
@@ -116,7 +119,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
               ve();
             } catch (err) {
               nhac(err.message, 'xau');
-              ev.currentTarget.disabled = false;
+              nutBam.disabled = false;
             }
           }),
         ]);
@@ -139,7 +142,8 @@ export async function trangDiemDanhLichSu(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api('/api/gv/diem-danh-checkpoint', { method: 'POST', than: { id: cp.id } });
                 dongHopThoai();
@@ -147,7 +151,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
@@ -159,7 +163,8 @@ export async function trangDiemDanhLichSu(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api('/api/gv/diem-danh-checkpoint?id=' + cp.id, { method: 'DELETE' });
                 dongHopThoai();
@@ -167,7 +172,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
                 ve();
               } catch (err) {
                 nhac(err.message, 'xau');
-                ev.currentTarget.disabled = false;
+                nutBam.disabled = false;
               }
             }),
           ]);
