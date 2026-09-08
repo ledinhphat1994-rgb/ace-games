@@ -1195,18 +1195,36 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên.
+    // Thanh chọn hàng loạt — 1 hàng ngang cân đối: [badge trái] ←→ [nút phải]
     if (laGiaoVien && daChon.size) {
       const thanh = e('div', 'the');
-      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} bài`));
-      const hop = e('div', 'day-loc day-loc-deu');
+      thanh.style.cssText = [
+        'margin-top:14px', 'padding:10px 16px',
+        'display:flex', 'align-items:center', 'justify-content:space-between',
+        'gap:12px', 'flex-wrap:wrap',
+        'border-color:var(--xau)', 'background:rgba(239,68,68,0.06)',
+      ].join(';');
+
+      // Trái — pill badge
+      const badge = e('span');
+      badge.style.cssText = [
+        'display:inline-flex', 'align-items:center', 'gap:6px',
+        'font-size:13px', 'font-weight:600', 'color:var(--xau)',
+        'background:rgba(239,68,68,0.12)', 'border:1px solid rgba(239,68,68,0.28)',
+        'border-radius:20px', 'padding:4px 12px', 'white-space:nowrap',
+      ].join(';');
+      badge.textContent = `☑ ${daChon.size} / ${d.danhSach.length} bài đã chọn`;
+      thanh.append(badge);
+
+      // Phải — các nút thẳng hàng
+      const hop = e('div');
+      hop.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
       if (daChon.size < d.danhSach.length) {
         hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); }));
       }
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
-        nut(`🗑 Xoá ${daChon.size} bài đã chọn`, 'nut-xau nut-nho', () => {
+        nut(`🗑 Xoá ${daChon.size} bài`, 'nut-xau nut-nho', () => {
           const oLyDo = taoOLyDoXoa();
           moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
             e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
