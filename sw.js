@@ -5,15 +5,15 @@
  * và phải luôn lấy bản mới nhất từ máy chủ.
  */
 
-const PHIEN_BAN = 'lop10a7-v89';
+const PHIEN_BAN = 'lop10a7-v90';
 const VO_UNG_DUNG = [
   '/giao-vien/',
-  '/giao-vien/index.html?v=20260908_58',
-  '/giao-vien/app.js?v=20260908_58',
-  '/assets/css/style.css?v=20260908_58',
-  '/assets/css/quan-ly.css?v=20260908_58',
-  '/assets/js/chung.js?v=20260908_58',
-  '/assets/js/trang-lop.js?v=20260908_58',
+  '/giao-vien/index.html?v=20260908_59',
+  '/giao-vien/app.js?v=20260908_59',
+  '/assets/css/style.css?v=20260908_59',
+  '/assets/css/quan-ly.css?v=20260908_59',
+  '/assets/js/chung.js?v=20260908_59',
+  '/assets/js/trang-lop.js?v=20260908_59',
   '/assets/img/bieu-tuong-192.png',
   '/manifest.webmanifest',
 ];
