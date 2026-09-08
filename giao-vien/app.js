@@ -465,14 +465,15 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
     const laPhu = x.buoi.endsWith('_phu');
     const buoiGoc = x.buoi.replace(/_phu$/, '');
     const tt2 = DIEM_DANH[x.trangThai] || {};
-    const dong = e('div', 'dong-lich-su-dd');
-    const thongTin = e('div', 'dong-lich-su-dd-info');
-    thongTin.append(
+    const the = e('div', 'the-lich-su-dd');
+    const dong1 = e('div', 'dong-lich-su-dd-dong1');
+    dong1.append(
       e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
-      e('span', 'dong-lich-su-dd-ngay', `${ngayVN(x.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`)
+      nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu))
     );
-    dong.append(thongTin, nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu)));
-    khoi.append(dong);
+    const dong2 = e('div', 'dong-lich-su-dd-dong2', `${ngayVN(x.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`);
+    the.append(dong1, dong2);
+    khoi.append(the);
   });
   return khoi;
 }

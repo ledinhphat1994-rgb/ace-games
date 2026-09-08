@@ -1924,18 +1924,19 @@ function veLichSuHangBang(h, veLai) {
     const laPhu = x.buoi.endsWith('_phu');
     const buoiGoc = x.buoi.replace(/_phu$/, '');
     const tt2 = NHAN_TRANG_THAI_DD[x.trangThai] || {};
-    const dong = e('div', 'dong-lich-su-dd');
-    const thongTin = e('div', 'dong-lich-su-dd-info');
-    thongTin.append(
+    const the = e('div', 'the-lich-su-dd');
+    const dong1 = e('div', 'dong-lich-su-dd-dong1');
+    dong1.append(
       e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
-      e('span', 'dong-lich-su-dd-ngay', `${ngayVN(x.ngay)} · ${TEN_BUOI_DD[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`)
+      nut('Sửa', 'nut-nhe nut-nho', () => {
+        sessionStorage.setItem('dd-ngay', x.ngay);
+        sessionStorage.setItem('dd-buoi', buoiGoc);
+        location.href = '/giao-vien/#/diem-danh';
+      })
     );
-    dong.append(thongTin, nut('Sửa', 'nut-nhe nut-nho', () => {
-      sessionStorage.setItem('dd-ngay', x.ngay);
-      sessionStorage.setItem('dd-buoi', buoiGoc);
-      location.href = '/giao-vien/#/diem-danh';
-    }));
-    khoi.append(dong);
+    const dong2 = e('div', 'dong-lich-su-dd-dong2', `${ngayVN(x.ngay)} · ${TEN_BUOI_DD[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`);
+    the.append(dong1, dong2);
+    khoi.append(the);
   });
   return td;
 }
@@ -2535,8 +2536,16 @@ async function taiDuLieu() {
     thongTinPhien = phien;
 
     apDungThuongHieuLop(d.lop, phien);
-    apDungAnMuc(d.anMuc);
-    const thongBaoHien = (d.anMuc || []).includes('thong-bao') ? [] : d.thongBao;
+    // Tài khoản KHÔNG gắn với một học sinh cụ thể (giáo viên chủ nhiệm, hoặc tài khoản phụ dạng
+    // quản trị không ứng với em nào trong lớp) không có "chuyên cần cá nhân"/"đã đóng quỹ của
+    // em" nào để xem ở trang này — chức năng Điểm danh/Thủ quỹ ĐẦY ĐỦ, mạnh hơn hẳn đã có sẵn
+    // trong khu quản lý (⚙ Quản lý), lặp lại ở đây chỉ thừa và dễ nhầm tưởng phải làm ở cả hai
+    // chỗ. Ẩn hẳn 2 mục này (nội dung lẫn mục trong Menu) CHỈ cho các tài khoản này — học sinh
+    // thường và tài khoản phụ có gắn học sinh (vd lớp trưởng) vẫn thấy như cũ.
+    const khongPhaiHocSinh = Boolean(phien) && phien.role !== 'student' && !phien.hocSinhId;
+    const anMuc = khongPhaiHocSinh ? [...new Set([...(d.anMuc || []), 'diem-danh', 'quy'])] : (d.anMuc || []);
+    apDungAnMuc(anMuc);
+    const thongBaoHien = anMuc.includes('thong-bao') ? [] : d.thongBao;
     veOSo(d.lop.thongKe);
     veDiemNhan(thongBaoHien);
     veThongBao(thongBaoHien, phien, taiDuLieu);
