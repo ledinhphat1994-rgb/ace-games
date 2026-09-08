@@ -252,10 +252,12 @@ export function layThongTinVaiTro(vaiTro = '') {
       mauChu: laThemeSang ? '#075985' : '#38bdf8',
     };
   }
-  if (vt.includes('admin') || vt.includes('quan tri') || vt.includes('quản trị')) {
+  if (vt.includes('admin') || vt.includes('quan tri') || vt.includes('quản trị') || vt.includes('quan ly') || vt.includes('quản lý')) {
     return {
       bieuTuong: '🛡️',
-      tenGoi: 'Quản trị viên',
+      // "Quản lý" chứ không phải "Quản trị viên" — trang đã có sẵn tiêu đề "Quản lý lớp" ngay
+      // cạnh đó, dùng thêm một từ "quản trị" khác nghĩa dễ gây rối, tưởng như 2 vai trò khác nhau.
+      tenGoi: 'Quản lý',
       lopMau: 'vai-tro-admin',
       mauNen: laThemeSang ? '#e0e7ff' : 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.35))',
       mauVien: laThemeSang ? '#6366f1' : '#6366f1',
@@ -301,7 +303,9 @@ export function layNhanTaiKhoan(phien = {}) {
     if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
       return `${info.bieuTuong} ${vt}${toSoNhan}`;
     }
-    return `${info.bieuTuong} ${vt} (${t})${toSoNhan}`;
+    // Tên TRƯỚC, chức danh SAU (giống hệt thứ tự đã dùng ở nhánh học sinh phía trên) — chỉ đúng
+    // MỘT họ tên và MỘT chức danh, không lồng ngoặc đơn nữa.
+    return `${info.bieuTuong} ${t} · ${vt}${toSoNhan}`;
   }
   if (t) return `${t}${toSoNhan}`;
   return 'Tài khoản đặc biệt';

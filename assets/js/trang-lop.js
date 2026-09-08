@@ -1867,6 +1867,72 @@ let buoiDiemDanhHienTai = 'sang';
 let loaiDiemDanhHienTai = 'chinh';
 let ngayDiemDanhHienTai = '';
 
+// Lịch sử điểm danh MỌI ngày/buổi/loại của một học sinh — hiện khi tìm kiếm trong bảng điểm
+// danh (không chỉ đúng ngày/buổi đang xem, xem thêm giải thích ở veLichSuHangBang bên dưới).
+const NHAN_TRANG_THAI_DD = {
+  co_mat: { ten: '✅ Có mặt', lop: 'nhan-tot' },
+  vang_phep: { ten: '📋 Vắng có phép', lop: 'nhan' },
+  vang_khong_phep: { ten: '⚠️ Vắng không phép', lop: 'nhan-xau' },
+  tre: { ten: '⏱️ Đi trễ', lop: 'nhan-luuy' },
+};
+const TEN_BUOI_DD = { sang: 'Sáng', chieu: 'Chiều', hoat_dong: 'Hoạt động' };
+const lichSuDiemDanhCacheBang = new Map();
+
+// Dòng lịch sử hiện dưới MỖI học sinh khớp tìm kiếm trong bảng điểm danh (đúng cơ chế đã dùng ở
+// khu quản lý giáo viên: hiện TẤT CẢ ngày/buổi/loại đã từng điểm danh, KHÔNG lặp lại đúng bản ghi
+// của ngày/buổi/loại đang xem — bản ghi đó đã hiện sẵn ở chính hàng này rồi. Sắp xếp cũ → mới.
+// "Sửa" ở đây điều hướng SANG hẳn trang Điểm danh của khu quản lý (trang này chỉ xem, không sửa
+// tại chỗ) — ghi sẵn ngày/buổi vào sessionStorage để trang đó tự mở đúng chỗ.
+function veLichSuHangBang(h, veLai) {
+  const td = e('td');
+  td.colSpan = 5;
+  const khoi = e('div', 'lich-su-tim-dd');
+  td.append(khoi);
+  if (!lichSuDiemDanhCacheBang.has(h.id)) {
+    lichSuDiemDanhCacheBang.set(h.id, 'dang-tai');
+    api('/api/gv/diem-danh?hocSinhId=' + h.id).then((d2) => {
+      lichSuDiemDanhCacheBang.set(h.id, d2.lichSu || []);
+      veLai();
+    }).catch((err) => {
+      lichSuDiemDanhCacheBang.delete(h.id);
+      khoi.replaceChildren(e('p', 'trong', err.message || 'Không tải được lịch sử điểm danh.'));
+      veLai();
+    });
+  }
+  const ls = lichSuDiemDanhCacheBang.get(h.id);
+  if (ls === 'dang-tai') {
+    khoi.append(e('p', 'trong', 'Đang tải lịch sử điểm danh…'));
+    return td;
+  }
+  const dsKhac = (ls || []).filter((x) => {
+    const laPhuBanGhi = x.buoi.endsWith('_phu');
+    const buoiGocBanGhi = x.buoi.replace(/_phu$/, '');
+    return !(x.ngay === ngayDiemDanhHienTai && buoiGocBanGhi === buoiDiemDanhHienTai && laPhuBanGhi === (loaiDiemDanhHienTai === 'phu'));
+  });
+  if (!dsKhac.length) {
+    khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
+    return td;
+  }
+  dsKhac.slice(0, 15).reverse().forEach((x) => {
+    const laPhu = x.buoi.endsWith('_phu');
+    const buoiGoc = x.buoi.replace(/_phu$/, '');
+    const tt2 = NHAN_TRANG_THAI_DD[x.trangThai] || {};
+    const dong = e('div', 'dong-lich-su-dd');
+    const thongTin = e('div', 'dong-lich-su-dd-info');
+    thongTin.append(
+      e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
+      e('span', 'dong-lich-su-dd-ngay', `${ngayVN(x.ngay)} · ${TEN_BUOI_DD[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`)
+    );
+    dong.append(thongTin, nut('Sửa', 'nut-nhe nut-nho', () => {
+      sessionStorage.setItem('dd-ngay', x.ngay);
+      sessionStorage.setItem('dd-buoi', buoiGoc);
+      location.href = '/giao-vien/#/diem-danh';
+    }));
+    khoi.append(dong);
+  });
+  return td;
+}
+
 async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
   const hopCaNhan = $('#ddCaNhan');
   const hopLop = $('#ddLopKhoi');
@@ -2324,6 +2390,15 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
 
         tr.append(tdStt, tdTen, tdNghe, tdTrangThai, tdLyDo);
         tbody.append(tr);
+
+        // Đang tìm kiếm (không phải xem cả lớp) — hiện thêm TOÀN BỘ lịch sử điểm danh của đúng
+        // em này. Giới hạn số em hiện lịch sử (dsHs nhỏ) để tránh gọi API dồn dập khi gõ từ khoá
+        // chung chung khớp cả chục em.
+        if (timHsDd && dsHs.length <= 8) {
+          const trLs = e('tr', 'dong-lich-su-bang');
+          trLs.append(veLichSuHangBang(h, veBangDiemDanh));
+          tbody.append(trLs);
+        }
       });
     }
 
