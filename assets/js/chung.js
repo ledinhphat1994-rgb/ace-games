@@ -192,15 +192,53 @@ export const DANH_SACH_THEME = [
 
 export function apDungThemeBg(id) {
   const t = DANH_SACH_THEME.find((x) => x.id === id) || DANH_SACH_THEME[0];
+  // Xoá ảnh nền tùy chỉnh (nếu đang dùng) khi chuyển sang theme thông thường
+  document.documentElement.style.removeProperty('--nen-anh-tuy-chon');
+  document.documentElement.removeAttribute('data-bg-custom');
   document.documentElement.setAttribute('data-bg-theme', t.id);
   document.documentElement.setAttribute('data-theme', t.dark ? 'dark' : 'light');
   try {
     localStorage.setItem('c10a7-bg-theme', t.id);
     localStorage.setItem('c10a7-giao-dien', t.dark ? 'dark' : 'light');
+    localStorage.removeItem('c10a7-bg-custom-url');
+  } catch {}
+}
+
+/** Đặt một ảnh (qua URL) làm hình nền toàn web — lưu vào localStorage để khôi phục khi tải lại.
+    Truyền url = null/'' để xoá ảnh nền tùy chỉnh và quay về theme hiện tại. */
+export function apDungNenAnhTuyChon(url) {
+  if (!url) {
+    // Xoá ảnh tùy chỉnh — khôi phục theme đã lưu
+    document.documentElement.style.removeProperty('--nen-anh-tuy-chon');
+    document.documentElement.removeAttribute('data-bg-custom');
+    try {
+      localStorage.removeItem('c10a7-bg-custom-url');
+      const luuTheme = localStorage.getItem('c10a7-bg-theme');
+      if (luuTheme) apDungThemeBg(luuTheme);
+    } catch {}
+    return;
+  }
+  // Giữ nguyên data-bg-theme (theme màu chữ) nhưng phủ background bằng ảnh
+  document.documentElement.style.setProperty('--nen-anh-tuy-chon', `url(${JSON.stringify(url)})`);
+  document.documentElement.setAttribute('data-bg-custom', '1');
+  try {
+    localStorage.setItem('c10a7-bg-custom-url', url);
   } catch {}
 }
 
 export function khoiTaoThemeBg() {
+  // Ưu tiên: ảnh tùy chỉnh > theme thông thường
+  const luuAnh = (() => { try { return localStorage.getItem('c10a7-bg-custom-url'); } catch { return null; } })();
+  if (luuAnh) {
+    const luuTheme = (() => { try { return localStorage.getItem('c10a7-bg-theme'); } catch { return null; } })();
+    if (luuTheme) {
+      const t = DANH_SACH_THEME.find((x) => x.id === luuTheme) || DANH_SACH_THEME[0];
+      document.documentElement.setAttribute('data-bg-theme', t.id);
+      document.documentElement.setAttribute('data-theme', t.dark ? 'dark' : 'light');
+    }
+    apDungNenAnhTuyChon(luuAnh);
+    return;
+  }
   const luu = (() => { try { return localStorage.getItem('c10a7-bg-theme'); } catch { return null; } })();
   if (luu) apDungThemeBg(luu);
 }
@@ -330,11 +368,31 @@ export function moBangThemeBg() {
     document.body.appendChild(hop);
   }
 
+  const dangDungAnh = document.documentElement.hasAttribute('data-bg-custom');
   const hienTai = document.documentElement.getAttribute('data-bg-theme') || 'cosmic';
   const luoi = e('div', 'luoi-theme-bg');
 
+  // Thẻ "Đang dùng ảnh tùy chỉnh" — hiện ở đầu nếu đang dùng
+  if (dangDungAnh) {
+    const theAnh = e('div', 'the-theme-bg active');
+    theAnh.style.cssText = 'border-color:var(--chinh);background:var(--nen-chim)';
+    const xemTruoc = e('div', 'the-theme-mau');
+    xemTruoc.style.cssText = 'height:40px;border-radius:6px;overflow:hidden;background:var(--nen-anh-tuy-chon,#333) center/cover;margin-bottom:6px';
+    theAnh.append(
+      xemTruoc,
+      e('div', 'the-theme-ten', '📸 Ảnh tùy chỉnh'),
+      e('div', 'the-theme-mo-ta', 'Đang dùng ảnh từ thư viện làm nền web.')
+    );
+    theAnh.addEventListener('click', () => {
+      apDungNenAnhTuyChon(null);
+      hop.close();
+      nhac('Đã xoá ảnh nền, dùng lại theme màu', 'tot');
+    });
+    luoi.append(theAnh);
+  }
+
   DANH_SACH_THEME.forEach((t) => {
-    const the = e('div', 'the-theme-bg' + (hienTai === t.id ? ' active' : ''));
+    const the = e('div', 'the-theme-bg' + (!dangDungAnh && hienTai === t.id ? ' active' : ''));
     the.tabIndex = 0;
 
     const hangMau = e('div', 'the-theme-mau');
@@ -362,7 +420,9 @@ export function moBangThemeBg() {
   const tieuDe = e('div', 'hop-thoai-dau');
   tieuDe.append(
     e('h3', null, '🎨 Tùy chỉnh hình nền & chủ đề'),
-    Object.assign(e('p', null, 'Chọn phong cách hiển thị và màu nền bạn yêu thích:'), { style: 'margin-top:4px;font-size:13px;color:var(--chu-nhat)' })
+    Object.assign(e('p', null, dangDungAnh
+      ? 'Đang dùng ảnh tùy chỉnh. Bấm vào ảnh để xoá, hoặc chọn một theme màu bên dưới.'
+      : 'Chọn phong cách hiển thị và màu nền bạn yêu thích:'), { style: 'margin-top:4px;font-size:13px;color:var(--chu-nhat)' })
   );
 
   const than = e('div', 'hop-thoai-than');

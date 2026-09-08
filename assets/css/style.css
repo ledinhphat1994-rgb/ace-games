@@ -197,6 +197,14 @@
                  #f1f5f9;
 }
 
+/* 7. Ảnh nền tùy chỉnh (đặt từ Thư viện Ảnh) — phủ lên trên bất kỳ theme nào */
+:root[data-bg-custom] body {
+  background:
+    /* Overlay tối giúp chữ vẫn đọc được dù ảnh sáng/tối */
+    linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,.55) 100%),
+    var(--nen-anh-tuy-chon) center center / cover fixed !important;
+}
+
 /* ---------- 2. Nền tảng ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -1281,8 +1289,9 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
   line-height: 1.4; word-break: break-word;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* ".day-loc-deu-co-gian" (thêm ở JS) lo phần chia đều/xuống dòng — ở đây chỉ còn khoảng cách
+   với phần nội dung phía trên. */
 .the-anh-tac-vu {
-  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   margin-top: auto; padding-top: 8px; border-top: 1px solid var(--vien);
 }
 .nut-sua-anh, .nut-xoa-anh, .nut-xoa-muc {

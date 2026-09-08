@@ -1,5 +1,5 @@
 /* Thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe, apDungNenAnhTuyChon } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
@@ -1678,6 +1678,53 @@ export async function trangHinhAnh(KHUNG) {
       khung.append(thanh);
     }
 
+    // Lightbox xem ảnh phóng to — tái sử dụng 1 thẻ duy nhất cho cả trang
+    function moLightbox(src, chuThich) {
+      let hop = document.getElementById('hopXemAnhGv');
+      if (!hop) {
+        hop = document.createElement('div');
+        hop.id = 'hopXemAnhGv';
+        hop.className = 'hop-xem-anh';
+        hop.setAttribute('role', 'dialog');
+        hop.setAttribute('aria-modal', 'true');
+        hop.setAttribute('aria-label', 'Xem ảnh phóng to');
+
+        const nutDong = document.createElement('button');
+        nutDong.className = 'hxa-dong';
+        nutDong.setAttribute('aria-label', 'Đóng');
+        nutDong.innerHTML = '×';
+        nutDong.addEventListener('click', () => { hop.hidden = true; });
+
+        const noiDung = document.createElement('div');
+        noiDung.className = 'hxa-noi-dung';
+
+        const khungAnh = document.createElement('div');
+        khungAnh.className = 'hxa-khung';
+        const anhEl = document.createElement('img');
+        anhEl.className = 'hxa-anh';
+        khungAnh.append(anhEl);
+
+        const chuEl = document.createElement('p');
+        chuEl.className = 'hxa-chu-thich';
+
+        noiDung.append(khungAnh, chuEl);
+        hop.append(nutDong, noiDung);
+        document.body.append(hop);
+
+        // Đóng khi click vùng tối xung quanh
+        hop.addEventListener('click', (ev) => { if (ev.target === hop) hop.hidden = true; });
+        // Đóng bằng Escape
+        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !hop.hidden) hop.hidden = true; });
+      }
+      const anhEl = hop.querySelector('.hxa-anh');
+      const chuEl = hop.querySelector('.hxa-chu-thich');
+      anhEl.src = src;
+      anhEl.alt = chuThich || 'Ảnh hoạt động của lớp';
+      chuEl.textContent = chuThich || '';
+      chuEl.hidden = !chuThich;
+      hop.hidden = false;
+    }
+
     // Danh sách ảnh đã có
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có ảnh nào.'), { style: 'margin-top:16px' }));
@@ -1687,17 +1734,19 @@ export async function trangHinhAnh(KHUNG) {
       d.danhSach.forEach((a) => {
         const hinh = e('figure', 'the-anh-gv');
         hinh.style.position = 'relative';
+        const anhUrl = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+
+        // Ảnh chính — click mở lightbox
         const img = e('img');
-        img.src = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
+        img.src = anhUrl;
         img.alt = a.chuThich || 'Ảnh hoạt động của lớp';
         img.loading = 'lazy';
-        img.style.cursor = 'pointer';
-        img.title = 'Bấm để xem ảnh kích thước đầy đủ';
-        img.addEventListener('click', () => {
-          window.open('/api/anh?khoa=' + encodeURIComponent(a.khoa), '_blank');
-        });
+        img.style.cursor = 'zoom-in';
+        img.title = 'Bấm để xem ảnh phóng to';
+        img.addEventListener('click', () => moLightbox(anhUrl, a.chuThich));
         hinh.append(img);
 
+        // Checkbox chọn hàng loạt (góc trái trên) — chỉ giáo viên
         if (laGiaoVien) {
           const oChonXoa = e('input');
           oChonXoa.type = 'checkbox';
@@ -1711,6 +1760,7 @@ export async function trangHinhAnh(KHUNG) {
           hinh.append(oChonXoa);
         }
 
+        // Phần thông tin + nút — nằm trong .the-anh-chan
         const chan = e('div', 'the-anh-chan');
         const dongThongTin = e('div', 'the-anh-thong-tin');
         dongThongTin.append(document.createTextNode(`${ngayVN(a.ngay)} · ${Math.round(a.coByte / 1024)} KB`));
@@ -1722,9 +1772,27 @@ export async function trangHinhAnh(KHUNG) {
           chan.append(chu);
         }
 
-        const hangNut = e('div', 'the-anh-tac-vu');
+        // Hàng nút: Sửa / Nền / Banner / Xoá — dùng ".day-loc-deu-co-gian" để tự chia đều hết
+        // chiều ngang, mỗi hàng xuống dòng lấp đầy riêng, không còn cảnh 1 nút lẻ trôi dạt.
+        const hangNut = e('div', 'the-anh-tac-vu day-loc-deu-co-gian');
+        hangNut.style.setProperty('--the-nho-nhat', '84px');
         hangNut.append(
           nut('✎ Sửa', 'nut-sua-anh nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
+          nut('🖼 Nền', 'nut-nhe nut-nho', () => {
+            apDungNenAnhTuyChon(anhUrl);
+            nhac('Đã đặt làm hình nền web', 'tot');
+          }, 'Đặt ảnh này làm hình nền toàn web'),
+          ...(laGiaoVien ? [nut('🏠 Banner', 'nut-nhe nut-nho', async (ev) => {
+            // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await"
+            // là bị trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              await api('/api/gv/lop-banner', { method: 'PATCH', than: { anhId: a.id } });
+              nhac('Đã đặt làm banner trang chủ', 'tot');
+            } catch (err) { nhac(err.message, 'xau'); }
+            nutBam.disabled = false;
+          }, 'Đặt làm banner trang chủ')] : []),
           nut('🗑 Xoá', 'nut-xoa-anh nut-nho', () => {
             const oLyDo = taoOLyDoXoa();
             moHopThoai('Xoá ảnh này?', [
