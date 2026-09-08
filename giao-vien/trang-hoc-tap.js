@@ -2,7 +2,7 @@
 import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
-  moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien,
+  moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
 
@@ -260,7 +260,7 @@ async function veChuyenCan(KHUNG) {
       });
     });
 
-    dongNgayTuyChon.append(inpTu, document.createTextNode('→'), inpDen, nutApDung);
+    dongNgayTuyChon.append(boiNgayVN(inpTu), document.createTextNode('→'), boiNgayVN(inpDen), nutApDung);
     theBoLoc.append(dongNgayTuyChon);
 
     // Dòng 3: Chọn buổi học (Sáng / Chiều / Cả sáng chiều)

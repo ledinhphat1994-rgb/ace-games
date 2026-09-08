@@ -739,7 +739,7 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
   border-radius: var(--r); padding: 18px; box-shadow: var(--bong-1);
   transition: box-shadow .18s, border-color .18s;
 }
-.the-nhan { font-size: 12px; font-weight: 700; color: var(--chu-nhat); text-transform: uppercase; letter-spacing: .5px; }
+.the-nhan { font-size: 12px; font-weight: 700; color: var(--chu); text-transform: uppercase; letter-spacing: .5px; }
 
 /* align-items: start — nếu không, lưới sẽ kéo giãn mọi thẻ bằng chiều cao thẻ cao nhất cùng
    hàng, làm thẻ ít nội dung (như "Theo dõi đầu năm") có khoảng trống rỗng rất lớn bên dưới. */
@@ -856,6 +856,25 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
 .o-nhap::placeholder { color: var(--chu-mo); }
 .o-nhap:focus { border-color: var(--chinh); outline: 3px solid color-mix(in srgb, var(--chinh) 20%, transparent); outline-offset: 0; }
+
+/* Bọc <input type="date"> để LUÔN hiện đúng thứ tự lịch Việt Nam ngày/tháng/năm — xem giải
+   thích đầy đủ ở boiNgayVN() trong giao-dien.js. */
+.boc-ngay-vn { position: relative; display: inline-block; }
+.boc-ngay-vn input[type="date"] { position: relative; z-index: 1; }
+@supports (-webkit-appearance: none) {
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit,
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-text,
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-day-field,
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-month-field,
+  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-year-field {
+    color: transparent;
+  }
+}
+.nhan-ngay-vn {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; z-index: 2; font: inherit; color: inherit; white-space: nowrap;
+}
 /* Danh sách xổ xuống của <select> — trình duyệt (Chrome/Edge/Firefox) áp dụng được các thuộc
    tính này lên từng <option>, nên tô đúng theo tông tối/sáng của web thay vì để mặc định trắng
    trơ, đồng thời thêm đệm cho cân đối, dễ đọc. Áp dụng chung cho MỌI dropdown (oChon() dùng lại
@@ -873,7 +892,11 @@ select.o-nhap option:checked {
 
 .hang-nhap { display: grid; gap: 12px; margin-bottom: 12px; }
 @media (min-width: 620px) { .hang-nhap-2 { grid-template-columns: 1fr 1fr; } }
-.nhan-nhap { display: block; font-size: 13px; font-weight: 700; color: var(--chu-nhat); margin-bottom: 5px; }
+/* Nhãn tên trường (label) của MỌI ô nhập trong web — trước đây dùng "--chu-nhat" (màu chữ phụ,
+   khá mờ) khiến nhãn/tiêu đề nhỏ trông không nổi bật; đổi sang "--chu" (màu chữ chính, sáng rõ)
+   để dễ đọc hơn, áp dụng đồng loạt cho mọi trang (dùng chung 1 stylesheet — không phân biệt tài
+   khoản học sinh thường hay quản lý). */
+.nhan-nhap { display: block; font-size: 13px; font-weight: 700; color: var(--chu); margin-bottom: 5px; }
 
 /* Hộp soạn thảo có định dạng (assets/js/soan-thao.js) — dùng chung cho "Nội dung chi tiết" của
    Hoạt động lớp lẫn Thông báo (tiêu đề + nội dung): in đậm/in nghiêng/font/cỡ/màu chữ + emoji. */
@@ -2653,40 +2676,18 @@ td.cot-hom-nay {
     box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6), 0 0 22px rgba(56, 189, 248, 0.75);
   }
 }
-/* Trước đây "display:flex" không co giãn + "overflow:hidden" cắt cụt luôn chữ "Hoạt động" khi
-   ba nút không đủ chỗ nằm một hàng (đúng lỗi "nội dung dài bị che mất"). Đổi sang lưới đều cột,
-   tự ĐƯA ĐÚNG NÚT QUÁ DÀI xuống hàng dưới khi thiếu chỗ — 2 nút còn lại vẫn giữ nguyên một hàng,
-   nút xuống hàng dùng đúng bề rộng cột như các nút cùng hàng phía trên (không phải nút rời rạc). */
+/* Buổi (Sáng/Chiều/Hoạt động) dùng đúng kiểu lưới thẻ bo tròn đều ".day-loc-deu" + nút ".vien-loc"
+   — GIỐNG mọi hàng thẻ khác trong web (trước đây tự vẽ kiểu "thanh gộp liền" (segmented control,
+   1 khối viền chung không tách rời), trông như MỘT thẻ dính liền chứ không phải 3 lựa chọn rõ
+   ràng — không nhất quán với thiết kế card bo tròn dùng ở mọi nơi khác). */
 .nhom-buoi-dd {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  /* "auto-fit" cần biết chiều rộng THẬT của chính hộp này để tính đúng số cột — nhưng hộp này là
-     flex item trong ".thanh-dieu-khien-ngay-dd" nên mặc định co theo đúng nội dung (không co giãn),
-     khiến trình duyệt không xác định được rộng bao nhiêu và tự chọn 1 cột (3 nút xếp chồng dọc,
-     trông như bị vỡ). flex:1 1 260px vừa cho phép nằm cùng hàng với ô Ngày khi màn rộng, vừa co
-     giãn lấp đầy cả hàng khi xuống dòng riêng trên điện thoại — lúc đó "auto-fit" mới tính đúng. */
+  /* ".day-loc-deu" là lưới auto-fit cần biết chiều rộng THẬT của chính hộp này để tính đúng số
+     cột — nhưng hộp này là flex item trong ".thanh-dieu-khien-ngay-dd" nên mặc định co theo
+     đúng nội dung (không co giãn), khiến trình duyệt không xác định được rộng bao nhiêu và tự
+     chọn 1 cột (3 nút xếp chồng dọc, trông như bị vỡ). flex:1 1 260px vừa cho phép nằm cùng
+     hàng với ô Ngày khi màn rộng, vừa co giãn lấp đầy cả hàng khi xuống dòng riêng trên điện
+     thoại — lúc đó "auto-fit" mới tính đúng. */
   flex: 1 1 260px;
-  border: 1.5px solid var(--vien);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--nen-chim);
-}
-.nut-buoi-dd {
-  padding: 6px 14px;
-  min-height: 35px;
-  border: none;
-  background: transparent;
-  color: var(--chu);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .15s ease;
-  white-space: normal;
-  text-align: center;
-}
-.nut-buoi-dd[aria-pressed="true"] {
-  background: var(--chinh);
-  color: #fff;
 }
 
 /* Lưới ĐỀU CỘT (giống .day-loc-deu) thay vì flex-wrap co giãn tự do — 5 chip (số lẻ) trước đây

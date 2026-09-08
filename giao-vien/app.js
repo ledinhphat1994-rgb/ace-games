@@ -8,7 +8,7 @@ import {
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
 import {
-  tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, trangLichSuKhoiPhucChung,
+  tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, trangLichSuKhoiPhucChung, boiNgayVN,
 } from '/assets/js/giao-dien.js';
 import { themVaoHangDoi, soChoGui, dongBo, tuDongBoKhiCoMang } from '/assets/js/hang-doi.js';
 import {
@@ -426,11 +426,14 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi) {
   const khoi = e('div', 'lich-su-tim-dd');
   if (!lichSuDiemDanhCache.has(h.id)) {
     lichSuDiemDanhCache.set(h.id, 'dang-tai');
-    api('/api/gv/hoc-sinh?id=' + h.id).then((d) => {
-      lichSuDiemDanhCache.set(h.id, d.diemDanh || []);
+    api('/api/gv/diem-danh?hocSinhId=' + h.id).then((d) => {
+      lichSuDiemDanhCache.set(h.id, d.lichSu || []);
       veLai();
-    }).catch(() => {
-      lichSuDiemDanhCache.set(h.id, []);
+    }).catch((err) => {
+      // KHÔNG cache lỗi thành mảng rỗng — nếu không, một lần lỗi mạng/quyền sẽ hiện nhầm thành
+      // "chưa có lịch sử" mãi mãi cho tới khi tải lại trang, dù học sinh thật ra có lịch sử.
+      lichSuDiemDanhCache.delete(h.id);
+      khoi.replaceChildren(e('p', 'trong', err.message || 'Không tải được lịch sử điểm danh.'));
       veLai();
     });
   }
@@ -439,7 +442,7 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi) {
     khoi.append(e('p', 'trong', 'Đang tải lịch sử điểm danh…'));
     return khoi;
   }
-  if (!ls.length) {
+  if (!ls || !ls.length) {
     khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
     return khoi;
   }
@@ -494,8 +497,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     datTimPhu(timPhu);
     veKhuVucPhu();
   });
-  khung.append(truong('🔎 Tìm học sinh', oTimPhu,
-    `Kết quả thuộc: ${ngayVN(ngay)} · ${TEN_BUOI[buoi]} · Điểm danh linh động — sửa đúng vào đây sẽ áp dụng cho buổi này.`));
+  khung.append(truong('🔎 Tìm học sinh', oTimPhu));
 
   const khuVucPhu = e('div');
   khung.append(khuVucPhu);
@@ -527,7 +529,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     theApDungNhanh.style.cssText = 'padding:12px 14px;margin:12px 0;';
     theApDungNhanh.append(Object.assign(
       e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
-      { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
+      { style: 'font-size:12.5px;font-weight:700;color:var(--chu);margin-bottom:8px;' }
     ));
     const dayApDungNhanh = e('div', 'day-loc day-loc-deu-co-gian');
     Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
@@ -861,7 +863,7 @@ async function trangDiemDanh() {
     }
 
     const hangChon = e('div', 'chon-ngay');
-    hangChon.append(oNgay, chonBuoi);
+    hangChon.append(boiNgayVN(oNgay), chonBuoi);
     khung.append(hangChon);
 
     const hopTabCon = e('div', 'day-loc day-loc-deu');
@@ -956,8 +958,7 @@ async function trangDiemDanh() {
         timChinh = ev.target.value;
         veKhuVucChinh();
       });
-      khung.append(truong('🔎 Tìm học sinh', oTimChinh,
-        `Kết quả thuộc: ${ngayVN(ngay)} · ${TEN_BUOI[buoi]} · Điểm danh chính — sửa đúng vào đây sẽ áp dụng cho buổi này.`));
+      khung.append(truong('🔎 Tìm học sinh', oTimChinh));
 
       const khuVucChinh = e('div');
       khuVucChinh.id = 'dd-khu-vuc-chinh';
@@ -989,7 +990,7 @@ async function trangDiemDanh() {
         theApDungNhanh.style.cssText = 'padding:12px 14px;margin-bottom:12px;';
         theApDungNhanh.append(Object.assign(
           e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
-          { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
+          { style: 'font-size:12.5px;font-weight:700;color:var(--chu);margin-bottom:8px;' }
         ));
         const dayApDungNhanh = e('div', 'day-loc day-loc-deu-co-gian');
         Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {

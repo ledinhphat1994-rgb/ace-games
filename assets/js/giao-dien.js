@@ -11,6 +11,27 @@ export function tieuDeTrang(tieuDe, phu, ...nutPhai) {
   return hop;
 }
 
+/** Bọc một <input type="date"> để LUÔN hiện chữ theo đúng thứ tự lịch Việt Nam (ngày/tháng/năm),
+    bất kể máy đang đặt ngôn ngữ hệ thống gì — định dạng chữ hiển thị của ô ngày gốc theo NGÔN
+    NGỮ/VÙNG của HỆ ĐIỀU HÀNH trình duyệt đang chạy, không theo lang="vi" của trang, nên nhiều
+    máy vẫn hiện kiểu Mỹ tháng/ngày/năm (dễ đọc nhầm ngày, có thể trùng cả hai cách đọc như 09/08).
+    Chỉ ẨN PHẦN CHỮ của ô gốc bằng CSS (giữ icon lịch, giữ nguyên hành vi bấm mở lịch/gõ tay),
+    rồi đè lên một nhãn tự vẽ đúng dd/mm/yyyy. Chỉ Chromium (Chrome/Edge/WebView Android — trình
+    duyệt chính của người dùng ứng dụng này) hỗ trợ ẩn đúng phần chữ qua ::-webkit-datetime-edit;
+    trình duyệt khác (vd Firefox) không ẩn được nên bỏ qua, giữ nguyên hiển thị gốc của họ. */
+export function boiNgayVN(oNgay) {
+  const boc = e('span', 'boc-ngay-vn');
+  boc.append(oNgay);
+  const nhan = e('span', 'nhan-ngay-vn');
+  nhan.setAttribute('aria-hidden', 'true');
+  boc.append(nhan);
+  const capNhat = () => { nhan.textContent = oNgay.value ? ngayVN(oNgay.value) : ''; };
+  oNgay.addEventListener('input', capNhat);
+  oNgay.addEventListener('change', capNhat);
+  capNhat();
+  return boc;
+}
+
 export function oThongKe(conSo, ten, kieu = '', bieuTuong = '') {
   const o = e('div', 'o-thong-ke ' + kieu);
   const dau = e('div', 'o-thong-ke-dau');
@@ -40,7 +61,10 @@ export function truong(nhan, oNhap, ghiChu) {
   const hop = e('div');
   const l = e('label', 'nhan-nhap', nhan);
   l.htmlFor = oNhap.id;
-  hop.append(l, oNhap);
+  // Mọi ô ngày đi qua truong() đều tự động hiện đúng thứ tự lịch Việt Nam (xem boiNgayVN) — áp
+  // dụng chung MỘT LẦN ở đây thay vì phải sửa từng nơi gọi oNhap(id, 'date', ...) rải rác khắp
+  // các trang/hộp thoại.
+  hop.append(l, oNhap.type === 'date' ? boiNgayVN(oNhap) : oNhap);
   if (ghiChu) hop.append(Object.assign(e('div', 'trong', ghiChu), { style: 'margin-top:4px;font-size:12.5px' }));
   return hop;
 }

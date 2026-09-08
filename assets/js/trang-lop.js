@@ -5,7 +5,7 @@
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
 import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
-import { nut, moHopThoai, dongHopThoai } from './giao-dien.js';
+import { nut, moHopThoai, dongHopThoai, boiNgayVN } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
 import { moHopThoaiThemHoatDong } from './hoat-dong-lop-dialog.js';
@@ -2161,13 +2161,13 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
       taiVaVeDiemDanh(ev.target.value, buoiDiemDanhHienTai, loaiDiemDanhHienTai);
     }
   });
-  nhomNgay.append(oChonNgay);
+  nhomNgay.append(boiNgayVN(oChonNgay));
 
   // Buổi
-  const nhomBuoi = e('div', 'nhom-buoi-dd');
+  const nhomBuoi = e('div', 'nhom-buoi-dd day-loc day-loc-deu');
   const CAC_BUOI = [['sang', 'Sáng'], ['chieu', 'Chiều'], ['hoat_dong', 'Hoạt động']];
   CAC_BUOI.forEach(([maB, tenB]) => {
-    const nutB = e('button', 'nut-buoi-dd', tenB);
+    const nutB = e('button', 'vien-loc', tenB);
     nutB.type = 'button';
     nutB.setAttribute('aria-pressed', String(d.buoi === maB));
     nutB.addEventListener('click', () => {

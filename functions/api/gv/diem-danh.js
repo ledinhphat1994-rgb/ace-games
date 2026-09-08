@@ -1,5 +1,10 @@
-// Điểm danh — chỉ giáo viên chủ nhiệm.
+// Điểm danh — chỉ giáo viên chủ nhiệm (và tài khoản phụ được cấp quyền "diem-danh").
 //   GET  /api/gv/diem-danh?ngay=2026-09-15&buoi=sang   -> danh sách lớp kèm trạng thái đã ghi
+//   GET  /api/gv/diem-danh?hocSinhId=5   -> TOÀN BỘ lịch sử điểm danh (mọi ngày/buổi/loại) của
+//        đúng một em — dùng cho ô "Tìm học sinh" ở trang Điểm danh (xem toàn bộ lịch sử để dễ
+//        sửa một bản ghi cũ). Tách riêng khỏi /api/gv/hoc-sinh?id= (hồ sơ ĐẦY ĐỦ, chỉ giáo viên
+//        chủ nhiệm) vì tài khoản phụ có quyền "diem-danh" cũng cần xem được đúng phần lịch sử
+//        điểm danh này (không phải hồ sơ riêng tư: sđt phụ huynh, hoàn cảnh, ghi chú...).
 //   POST /api/gv/diem-danh   { ngay, buoi, ghiNhan:[{hocSinhId, trangThai, lyDo}] }
 //        trangThai = null/rỗng -> XOÁ điểm danh của em đó ngày/buổi này (bấm lại nút đang
 //        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
@@ -22,6 +27,16 @@ function chuanHoaBuoi(buoi, loai) {
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
+
+  const hocSinhId = Number(url.searchParams.get('hocSinhId'));
+  if (Number.isInteger(hocSinhId) && hocSinhId > 0) {
+    const { results } = await env.DB.prepare(
+      `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
+         FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 60`
+    ).bind(hocSinhId, phien.lopId).all();
+    return json({ ok: true, lichSu: results });
+  }
+
   const ngay = url.searchParams.get('ngay') || new Date().toISOString().slice(0, 10);
   const buoiGoc = url.searchParams.get('buoi') || 'sang';
   const loai = url.searchParams.get('loai') || '';
