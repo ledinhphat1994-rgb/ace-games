@@ -6,6 +6,11 @@
 //
 // Mọi hàm ở đây đều nhận thêm lopId — thư viện của mỗi lớp tách biệt hoàn toàn (kể cả dung
 // lượng tính riêng, xoá/sửa chỉ tác động đúng mục của lớp đó), dù cùng chung một kho R2/D1.
+//
+// Tài khoản được cấp quyền (không phải giáo viên) còn bị thêm trần TẢI LÊN MỖI NGÀY (gộp cả 3
+// thư viện, không giới hạn số bài đăng) — xem kiemTraGioiHanTaiLenNgay()/ghiNhanTaiLenNgay() bên
+// dưới. functions/api/gv/anh.js có đường tải ảnh RIÊNG (không qua themTepVaoThuVien vì hinh_anh
+// có hình dạng cột khác từ trước) nên tự gọi 2 hàm đó, không được quên khi thêm đường tải mới.
 import { loi } from './api.js';
 import { taChuThich } from './quy-checkpoint.js';
 
@@ -55,10 +60,71 @@ export async function gioiHanCuaLop(db, lopId) {
   return row?.gioiHan || GIOI_HAN_TOI_DA_TONG_BYTE;
 }
 
+/* ---------- Giới hạn tải lên MỖI NGÀY cho tài khoản ĐƯỢC CẤP QUYỀN ----------
+   Chỉ áp dụng vai trò 'phu' (tài khoản phụ hoặc mã cá nhân được cấp quyền) — giáo viên chủ
+   nhiệm KHÔNG giới hạn. Gộp chung cả 3 thư viện (ảnh/nhạc/video), KHÔNG giới hạn số bài đăng ở
+   Hoạt động lớp/Thông báo (chỉ giới hạn dung lượng file đính kèm nếu có đính kèm). Mục đích:
+   một tài khoản bị lộ/lạm dụng chỉ phá được tối đa NGẦN ẤY dung lượng mỗi ngày, không "cháy"
+   hết trần chung của cả lớp chỉ trong một lần. */
+export const GIOI_HAN_TAI_LEN_NGAY_PHU = 50_000_000; // 50 MB/ngày
+
+/** Định danh ỔN ĐỊNH của một phiên 'phu' để cộng dồn dung lượng — dùng id thật (không dùng
+    thẳng mã đăng nhập) vì mã có thể đổi nhưng vẫn phải tính chung một người. null nếu không áp
+    dụng (không phải vai trò 'phu', hoặc thiếu cả 2 id — an toàn thì coi như không giới hạn). */
+function danhTinhTaiLen(phien) {
+  if (!phien || phien.role !== 'phu') return null;
+  if (phien.phuId) return `phu-${phien.phuId}`;
+  if (phien.hocSinhId) return `hs-${phien.hocSinhId}`;
+  return null;
+}
+
+// Giờ Việt Nam (UTC+7) — nhất quán với cách các nơi khác trong dự án tính "ngày hôm nay".
+function ngayVNHomNay() {
+  const d = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Kiểm tra một lượt tải lên MỚI (soByteMoi) có làm vượt trần ngày của phiên 'phu' này không.
+    Trả về thông báo lỗi (chuỗi) nếu vượt, hoặc null nếu vẫn còn trong hạn mức (kể cả khi không
+    áp dụng, vd giáo viên). KHÔNG tự ghi nhận — gọi ghiNhanTaiLenNgay() SAU KHI tải lên thành công. */
+export async function kiemTraGioiHanTaiLenNgay(db, lopId, phien, soByteMoi) {
+  const danhTinh = danhTinhTaiLen(phien);
+  if (!danhTinh) return null;
+
+  try {
+    const ngay = ngayVNHomNay();
+    const daTai = await db.prepare(
+      'SELECT COALESCE(SUM(co_byte), 0) AS tong FROM tai_len_theo_ngay WHERE lop_id = ?1 AND danh_tinh = ?2 AND ngay = ?3'
+    ).bind(lopId, danhTinh, ngay).first('tong');
+
+    if ((Number(daTai) || 0) + soByteMoi > GIOI_HAN_TAI_LEN_NGAY_PHU) {
+      const daTaiMB = Math.round((Number(daTai) || 0) / 1_000_000 * 10) / 10;
+      const tranMB = Math.round(GIOI_HAN_TAI_LEN_NGAY_PHU / 1_000_000);
+      return `Tài khoản của bạn đã tải lên ${daTaiMB} MB hôm nay, vượt giới hạn ${tranMB} MB/ngày dành cho tài khoản được cấp quyền. Thử lại vào ngày mai, hoặc nhờ giáo viên chủ nhiệm tải giúp.`;
+    }
+    return null;
+  } catch {
+    // Bảng chưa tồn tại (chưa chạy migration) — không chặn tải lên vì lý do này.
+    return null;
+  }
+}
+
+/** Ghi nhận một lượt tải lên thành công vào sổ theo ngày — gọi NGAY SAU KHI tải lên thành công
+    (không ghi khi tải thất bại). Không áp dụng (không phải 'phu') thì bỏ qua, không ghi gì. */
+export async function ghiNhanTaiLenNgay(db, lopId, phien, soByte) {
+  const danhTinh = danhTinhTaiLen(phien);
+  if (!danhTinh) return;
+  await db.prepare(
+    'INSERT INTO tai_len_theo_ngay (lop_id, danh_tinh, ngay, co_byte) VALUES (?1, ?2, ?3, ?4)'
+  ).bind(lopId, danhTinh, ngayVNHomNay(), soByte).run().catch(() => {});
+}
+
 /** Thêm một tệp nhị phân vào thư viện của MỘT LỚP — dùng chung cho trang quản lý thư viện VÀ
     cho việc "tải file mới" ngay trong lúc soạn Thông báo (kết quả trả về có id để đính kèm luôn).
+    "phien" dùng để kiểm tra trần tải lên MỖI NGÀY của tài khoản được cấp quyền (xem
+    kiemTraGioiHanTaiLenNgay ở trên) — giáo viên chủ nhiệm không bị giới hạn.
     Trả { loi } nếu có lỗi, hoặc { dong } nếu thành công (dong = dòng vừa thêm). */
-export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, ten, lopId) {
+export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, ten, lopId, phien) {
   const cauHinh = cauHinhThuVien(loaiThuVien);
   if (!cauHinh) return { loi: 'Loại thư viện không hợp lệ.' };
   if (!env.ANH) return { loi: 'Chưa gắn kho lưu trữ vào project.' };
@@ -68,13 +134,15 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
     return { loi: `File nặng ${Math.round(duLieuNhiPhan.byteLength / 1_000_000)} MB, vượt mức cho phép (${Math.round(cauHinh.toiDaByte / 1_000_000)} MB).` };
   }
 
-  const [daDung, gioiHan] = await Promise.all([
+  const [daDung, gioiHan, loiTranNgay] = await Promise.all([
     tongDungLuongDaDung(env.DB, lopId),
     gioiHanCuaLop(env.DB, lopId),
+    kiemTraGioiHanTaiLenNgay(env.DB, lopId, phien, duLieuNhiPhan.byteLength),
   ]);
   if (daDung + duLieuNhiPhan.byteLength > gioiHan) {
     return { loi: `Kho lưu trữ của lớp đã đạt trần an toàn ${Math.round(gioiHan / 1_000_000_000 * 10) / 10} GB. Đã tự động khoá tải lên để bảo đảm không phát sinh chi phí.` };
   }
+  if (loiTranNgay) return { loi: loiTranNgay };
 
   const khoa = `${cauHinh.tienTo}-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   await env.ANH.put(khoa, duLieuNhiPhan, {
@@ -92,6 +160,8 @@ export async function themTepVaoThuVien(env, loaiThuVien, duLieuNhiPhan, kieu, t
     : await env.DB.prepare(
         `INSERT INTO ${cauHinh.bang} (ten, khoa, kieu, co_byte, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)`
       ).bind(ten || '', khoa, kieu, duLieuNhiPhan.byteLength, lopId).run();
+
+  await ghiNhanTaiLenNgay(env.DB, lopId, phien, duLieuNhiPhan.byteLength);
 
   return { dong: { id: kq.meta.last_row_id, ten: ten || '', khoa, kieu, coByte: duLieuNhiPhan.byteLength } };
 }

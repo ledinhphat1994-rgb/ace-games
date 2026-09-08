@@ -421,6 +421,20 @@ hiệu lực trong 7 ngày kể từ lần đăng nhập gần nhất), rồi b�
 không còn thiết bị nào đang đăng nhập sẵn nữa, cần nhắn Claude hỗ trợ xoá trực tiếp trong cơ sở dữ
 liệu (`UPDATE ma_dang_nhap SET totp_secret = NULL WHERE lop_id = ... AND vai_tro = 'teacher'`).
 
+### 6f. Trần tải lên mỗi ngày cho tài khoản được cấp quyền (2026-09-09)
+
+Tài khoản được cấp quyền (lớp trưởng, thủ quỹ, tổ trưởng... — không áp dụng giáo viên chủ nhiệm,
+giáo viên không giới hạn) chỉ tải lên tối đa **50 MB/ngày**, gộp chung cả 3 thư viện (Ảnh, Âm
+thanh, Video) — tính theo giờ Việt Nam, hết ngày tự làm mới. **Không giới hạn số bài đăng** ở
+Hoạt động lớp/Thông báo, chỉ giới hạn dung lượng file đính kèm nếu có. Mục đích: một tài khoản bị
+lộ/lạm dụng chỉ phá được tối đa ngần ấy dung lượng mỗi ngày, không "cháy" hết trần lưu trữ chung
+của cả lớp (mục 6 ở trên) chỉ trong một lần.
+
+Đổi mức 50 MB: sửa `GIOI_HAN_TAI_LEN_NGAY_PHU` trong `functions/_lib/thu-vien.js`, deploy lại —
+không cần đổi gì trên Cloudflare Dashboard. Vượt trần thì tài khoản đó thấy thông báo rõ ràng
+("đã tải lên X MB hôm nay, vượt giới hạn 50 MB/ngày..."), không có cách "chờ tí rồi thử lại" —
+phải đợi sang ngày hôm sau (giờ Việt Nam) hoặc nhờ giáo viên chủ nhiệm tải giúp.
+
 ---
 
 ## 7. Cách cập nhật nội dung hằng ngày

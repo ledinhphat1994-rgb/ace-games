@@ -20,7 +20,7 @@ import {
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const xemRac = new URL(request.url).searchParams.get('rac') === '1';
   if (xemRac && phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm xem được thùng rác.', 403);
-  if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
+  if (xemRac) await donDepThungRacHetHan(env, phien.lopId, phien);
 
   const { results } = await env.DB.prepare(
     `SELECT id, ten, kieu, co_byte AS coByte, dang_phat AS dangPhat, tao_luc AS taoLuc, da_xoa_luc AS daXoaLuc,
@@ -38,7 +38,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const duLieu = await request.arrayBuffer();
   const tenBai = chuoi(new URL(request.url).searchParams.get('tenBai'), 200) || 'Bài hát chưa đặt tên';
 
-  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, 'am-thanh', duLieu, kieu, tenBai, phien.lopId);
+  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, 'am-thanh', duLieu, kieu, tenBai, phien.lopId, phien);
   if (thongBaoLoi) return loi(thongBaoLoi);
 
   // Thư viện trống trước đó (chưa có bài nào CỦA LỚP NÀY) — tự đặt luôn bài đầu tiên làm nhạc
@@ -62,7 +62,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 
   if (than.khoiPhuc) {
     if (phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm khôi phục được.', 403);
-    const loiKp = await khoiPhucKhoiThuVien(env, 'am-thanh', id, phien.lopId);
+    const loiKp = await khoiPhucKhoiThuVien(env, 'am-thanh', id, phien.lopId, phien);
     if (loiKp) return loiKp;
     return json({ ok: true });
   }
@@ -93,7 +93,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     if (!laGiaoVien) return loi('Chỉ giáo viên chủ nhiệm xoá vĩnh viễn được.', 403);
     const id = Number(q.get('id'));
     if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã bài hát.');
-    const loiXoa = await xoaVinhVienKhoiThuVien(env, 'am-thanh', id, phien.lopId);
+    const loiXoa = await xoaVinhVienKhoiThuVien(env, 'am-thanh', id, phien.lopId, phien);
     if (loiXoa) return loiXoa;
     return json({ ok: true });
   }

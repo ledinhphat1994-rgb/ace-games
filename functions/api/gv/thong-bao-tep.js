@@ -42,7 +42,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const kieu = (request.headers.get('Content-Type') || '').split(';')[0].trim();
   const duLieu = await request.arrayBuffer();
 
-  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`, phien.lopId);
+  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`, phien.lopId, phien);
   if (thongBaoLoi) return loi(thongBaoLoi);
 
   const cotId = COT_ID[loaiTep];

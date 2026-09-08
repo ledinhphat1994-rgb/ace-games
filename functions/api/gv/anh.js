@@ -21,6 +21,7 @@ import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js
 import {
   tongDungLuongDaDung, gioiHanCuaLop, xoaKhoiThuVien, xoaNhieuKhoiThuVien,
   khoiPhucKhoiThuVien, xoaVinhVienKhoiThuVien, donDepThungRacHetHan,
+  kiemTraGioiHanTaiLenNgay, ghiNhanTaiLenNgay,
 } from '../../_lib/thu-vien.js';
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -72,13 +73,15 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   // Chốt chặn an toàn theo TRẦN RIÊNG của lớp — cộng ĐỦ CẢ 3 thư viện (Ảnh + Âm thanh + Video)
   // của đúng lớp này, không tính thiếu và không đụng dung lượng của lớp khác.
-  const [daDung, gioiHan] = await Promise.all([
+  const [daDung, gioiHan, loiTranNgay] = await Promise.all([
     tongDungLuongDaDung(env.DB, phien.lopId),
     gioiHanCuaLop(env.DB, phien.lopId),
+    kiemTraGioiHanTaiLenNgay(env.DB, phien.lopId, phien, byte.length),
   ]);
   if (daDung + byte.length > gioiHan) {
     return loi(`Kho lưu trữ của lớp đã đạt trần an toàn ${Math.round(gioiHan / 1_000_000_000 * 10) / 10} GB. Đã tự động khoá tải lên để bảo đảm không phát sinh chi phí.`);
   }
+  if (loiTranNgay) return loi(loiTranNgay);
 
   const khoa = 'anh-' + Date.now().toString(36) + '-' + crypto.randomUUID().slice(0, 8);
   await env.ANH.put(khoa, byte, {
@@ -90,6 +93,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const kq = await env.DB.prepare(
     'INSERT INTO hinh_anh (khoa, chu_thich, ngay, kieu, co_byte, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
   ).bind(khoa, chuoi(chuThich, 300), ngay || new Date().toISOString().slice(0, 10), kieu, byte.length, phien.lopId).run();
+
+  await ghiNhanTaiLenNgay(env.DB, phien.lopId, phien, byte.length);
 
   return json({ ok: true, id: kq.meta.last_row_id, khoa, coByte: byte.length });
 }, { canGiaoVien: true, quyenCan: 'hinh-anh' });
