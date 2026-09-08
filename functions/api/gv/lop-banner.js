@@ -26,7 +26,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
       WHERE l.id = ?1`
   ).bind(phien.lopId).first();
   return json({ ok: true, banner: row || {} });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'video'] });
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const than = await docThan(request);
@@ -52,4 +52,4 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   ).run();
 
   return json({ ok: true });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'video'] });

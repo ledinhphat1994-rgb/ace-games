@@ -226,6 +226,12 @@ export function apDungNenAnhTuyChon(url) {
   } catch {}
 }
 
+/** URL ảnh nền tùy chỉnh đang dùng trên MÁY NÀY (rỗng nếu không dùng) — để nơi khác (vd nút
+    "🖼 Nền" trong Thư viện Ảnh) biết ảnh nào đang là nền hiện tại mà tô đậm/đổi thành nút xoá. */
+export function layNenAnhTuyChonUrl() {
+  try { return localStorage.getItem('c10a7-bg-custom-url') || ''; } catch { return ''; }
+}
+
 export function khoiTaoThemeBg() {
   // Ưu tiên: ảnh tùy chỉnh > theme thông thường
   const luuAnh = (() => { try { return localStorage.getItem('c10a7-bg-custom-url'); } catch { return null; } })();

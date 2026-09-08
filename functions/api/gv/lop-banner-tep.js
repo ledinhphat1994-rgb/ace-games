@@ -26,4 +26,4 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   await env.DB.prepare(cauLenh).bind(dong.id, phien.lopId).run();
 
   return json({ ok: true, id: dong.id, khoa: dong.khoa, kieu: dong.kieu, coByte: dong.coByte });
-}, { canGiaoVien: true });
+}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'video'] });

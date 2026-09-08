@@ -2489,7 +2489,12 @@ function apDungThuongHieuLop(lop, phien) {
   veBannerLop(lop);
   const nutSuaBanner = $('#moDauNutSua');
   if (nutSuaBanner) {
-    nutSuaBanner.hidden = !(phien && phien.role === 'teacher');
+    // Giống mọi chức năng quản lý khác — không chỉ giáo viên chủ nhiệm, tài khoản được cấp
+    // đúng quyền "hinh-anh" hoặc "video" (khớp với functions/api/gv/lop-banner.js) cũng sửa
+    // banner được, không phải chỉ mỗi giáo viên mới thấy nút này.
+    const duocSuaBanner = Boolean(phien && (phien.role === 'teacher'
+      || (phien.role === 'phu' && ['hinh-anh', 'video'].some((q) => (phien.quyen || []).includes(q)))));
+    nutSuaBanner.hidden = !duocSuaBanner;
     if (!nutSuaBanner.dataset.daGan) {
       nutSuaBanner.dataset.daGan = '1';
       nutSuaBanner.addEventListener('click', () => moHopThoaiBannerLop(taiDuLieu));

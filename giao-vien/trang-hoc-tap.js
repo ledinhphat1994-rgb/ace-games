@@ -1,10 +1,11 @@
 /* Thống kê chuyên cần, báo cáo và mã cá nhân. */
-import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe, apDungNenAnhTuyChon } from '/assets/js/chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai, layThongTinVaiTro, nenAnhThanhBlob, giuViTriCuonKhiVe, apDungNenAnhTuyChon, layNenAnhTuyChonUrl } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, lienKetNut, truong, oNhap, oChon,
   moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
+import { moHopThoaiBannerLop } from '/assets/js/lop-banner-dialog.js';
 
 const MAU = {
   coMat: 'var(--tot)', tre: 'var(--luu-y)',
@@ -1557,7 +1558,13 @@ export async function trangHinhAnh(KHUNG) {
   // Xoá hàng loạt, xoá tất cả, và thùng rác đều CHỈ giáo viên chủ nhiệm dùng được (khớp đúng máy
   // chủ — xem functions/api/gv/anh.js) — tài khoản được cấp quyền "hinh-anh" chỉ xoá được từng
   // ảnh một (nút "🗑 Xoá" trên mỗi ảnh vẫn hiện bình thường cho họ).
-  const laGiaoVien = (await api('/api/whoami').catch(() => ({ role: 'teacher' }))).role === 'teacher';
+  const phienAnh = await api('/api/whoami').catch(() => ({ role: 'teacher', quyen: [] }));
+  const laGiaoVien = phienAnh.role === 'teacher';
+  // Banner lớp không phải thao tác xoá (chỉ đổi/tắt tham chiếu, ảnh gốc vẫn còn nguyên trong thư
+  // viện) nên KHÔNG theo quy tắc "chỉ giáo viên mới xoá" ở trên — tài khoản có quyền "hinh-anh"
+  // (đang ở đúng trang này) tự nhiên cũng quản lý được banner, khớp với quyenCan đã mở ở
+  // functions/api/gv/lop-banner.js.
+  const coQuyenBanner = laGiaoVien || (phienAnh.quyen || []).includes('hinh-anh');
 
   async function ve() {
     const d = await api('/api/gv/anh');
@@ -1586,6 +1593,7 @@ export async function trangHinhAnh(KHUNG) {
     }) : null;
     khung.append(tieuDeTrang('Thư viện Ảnh',
       d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào',
+      ...(coQuyenBanner ? [nut('🖼 Quản lý banner…', 'nut-vien nut-nho', () => moHopThoaiBannerLop(ve))] : []),
       ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
@@ -1776,13 +1784,23 @@ export async function trangHinhAnh(KHUNG) {
         // chiều ngang, mỗi hàng xuống dòng lấp đầy riêng, không còn cảnh 1 nút lẻ trôi dạt.
         const hangNut = e('div', 'the-anh-tac-vu day-loc-deu-co-gian');
         hangNut.style.setProperty('--the-nho-nhat', '84px');
+        // "Nền" là nút BẬT/TẮT (toggle) — bấm lại đúng ảnh đang làm nền sẽ XOÁ nền, không phải
+        // chỉ có chiều đặt mà không có chiều gỡ (trước đây muốn gỡ phải mở riêng hộp thoại Tuỳ
+        // chỉnh giao diện, không ai nghĩ ra là phải làm vậy — coi như "không xoá được ảnh nền").
+        const dangLaNenHienTai = layNenAnhTuyChonUrl() === anhUrl;
         hangNut.append(
           nut('✎ Sửa', 'nut-sua-anh nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
-          nut('🖼 Nền', 'nut-nhe nut-nho', () => {
-            apDungNenAnhTuyChon(anhUrl);
-            nhac('Đã đặt làm hình nền web', 'tot');
-          }, 'Đặt ảnh này làm hình nền toàn web'),
-          ...(laGiaoVien ? [nut('🏠 Banner', 'nut-nhe nut-nho', async (ev) => {
+          nut(dangLaNenHienTai ? '✓ Đang làm nền' : '🖼 Nền', 'nut-nho' + (dangLaNenHienTai ? ' nut-chinh' : ' nut-nhe'), () => {
+            if (dangLaNenHienTai) {
+              apDungNenAnhTuyChon(null);
+              nhac('Đã xoá ảnh nền, dùng lại theme màu', 'tot');
+            } else {
+              apDungNenAnhTuyChon(anhUrl);
+              nhac('Đã đặt làm hình nền web', 'tot');
+            }
+            ve();
+          }, dangLaNenHienTai ? 'Bấm để xoá ảnh nền này' : 'Đặt ảnh này làm hình nền toàn web'),
+          ...(coQuyenBanner ? [nut('🏠 Banner', 'nut-nhe nut-nho', async (ev) => {
             // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await"
             // là bị trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
             const nutBam = ev.currentTarget;
