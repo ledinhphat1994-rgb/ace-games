@@ -2081,13 +2081,14 @@ async function dieuHuong() {
 (async function khoiDong() {
   try {
     const d = await api('/api/whoami');
-    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [], tenLop: d.tenLop || '' };
+    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [], tenLop: d.tenLop || '', namHoc: d.namHoc || '' };
   } catch {
     // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
   }
 
-  // Chỉ hiện tên + quyền — tên lớp đang quản lý đã hiện sẵn ở huy hiệu/tiêu đề ngay cạnh đó
-  // (xem thêm giải thích ở hàm cập nhật .hieu-phu phía trên), không nhắc lại ở đây nữa.
+  // Chỉ hiện tên + quyền — tên lớp đang quản lý đã hiện sẵn ở huy hiệu ngay cạnh đó (mã lớp +
+  // năm học), không nhắc lại bằng chữ "Lớp ..." riêng nữa (trước đây có dòng chữ này, thừa vì
+  // đã có huy hiệu, lại dễ đọc thành lặp từ nếu chức danh tài khoản cũng chứa chữ "Quản lý").
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
     hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
@@ -2096,14 +2097,14 @@ async function dieuHuong() {
     document.title = `Quản lý ${PHIEN.tenLop}`;
     const hieuMaLop = document.querySelector('#hieuMaLop');
     if (hieuMaLop) hieuMaLop.textContent = PHIEN.tenLop.replace(/^Lớp\s*/i, '');
-    // Thay chữ tĩnh "Quản lý lớp" bằng tên lớp thật (vd "Lớp 10A7") — trước đây luôn ghi cứng
-    // "Quản lý lớp" bất kể đang ở lớp nào, lại dễ đọc thành "Quản lý lớp ... · Quản lý" nếu tài
-    // khoản có chức danh cũng chứa chữ "Quản lý", trông như lặp từ. Tên lớp thật vừa không bao
-    // giờ trùng chữ với chức danh, vừa hữu ích hơn hẳn (biết ngay đang ở lớp nào).
-    const hieuTen = document.querySelector('.hieu-ten');
-    if (hieuTen) {
-      const nutChu = Array.from(hieuTen.childNodes).find((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-      if (nutChu) nutChu.textContent = PHIEN.tenLop;
+  }
+  // Badge năm học ghim ở góc huy hiệu lớp — viết tắt "26–27" cho gọn, giống hệt cách trang lớp
+  // công khai đang làm (xem apDungThuongHieuLop trong assets/js/trang-lop.js).
+  if (PHIEN.namHoc) {
+    const hieuNamHoc = document.querySelector('#hieuNamHoc');
+    if (hieuNamHoc) {
+      const m = PHIEN.namHoc.match(/(\d{4})\s*[–-]\s*(\d{4})/);
+      hieuNamHoc.textContent = m ? `${m[1].slice(2)}–${m[2].slice(2)}` : PHIEN.namHoc;
     }
   }
 
