@@ -239,10 +239,15 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .thanh-tien-do .p-khongphep { background: var(--xau); }
 
 .ds-diem-danh { display: flex; flex-direction: column; gap: 8px; }
+/* "--nen-chim" (thay vì "--nen-noi") + đổ bóng — trước đây viền chỉ 1px màu gần như trong suốt
+   trên nền tối nên hàng học sinh trông "trôi nổi" không ra hình khối, khác hẳn kiểu thẻ bo tròn
+   rõ ràng đã dùng cho các thẻ thống kê/lịch sử ngay bên dưới (cùng một khu vực nhưng 2 kiểu khác
+   nhau, không nhất quán). */
 .hang-hs {
   display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
-  background: var(--nen-noi); border: 1px solid var(--vien);
+  background: var(--nen-chim); border: 1px solid var(--vien);
   border-radius: var(--r); padding: 10px 12px;
+  box-shadow: var(--bong-2);
   transition: border-color .15s, box-shadow .15s;
 }
 .hang-hs.chua-ghi { border-style: dashed; }
@@ -535,7 +540,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r);
   overflow: hidden; box-shadow: var(--bong-1);
 }
-.muc-khoan .hang-hs { border: 0; border-radius: 0; padding: 14px 16px; }
+.muc-khoan .hang-hs { border: 0; border-radius: 0; padding: 14px 16px; box-shadow: none; }
 .muc-khoan-chi-tiet {
   padding: 16px; border-top: 1px solid var(--vien); background: var(--nen-chim);
 }
