@@ -1934,7 +1934,10 @@ function veLichSuHangBang(h, veLai) {
         location.href = '/giao-vien/#/diem-danh';
       })
     );
-    const dong2 = e('div', 'dong-lich-su-dd-dong2', `${ngayVN(x.ngay)} · ${TEN_BUOI_DD[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`);
+    const phanDoan = [ngayVN(x.ngay), TEN_BUOI_DD[buoiGoc] || buoiGoc];
+    if (x.lyDo) phanDoan.push(x.lyDo);
+    if (laPhu) phanDoan.push('Linh động');
+    const dong2 = e('div', 'dong-lich-su-dd-dong2', phanDoan.join(' · '));
     the.append(dong1, dong2);
     khoi.append(the);
   });

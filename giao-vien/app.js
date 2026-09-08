@@ -471,7 +471,10 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
       e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
       nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu))
     );
-    const dong2 = e('div', 'dong-lich-su-dd-dong2', `${ngayVN(x.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`);
+    const phanDoan = [ngayVN(x.ngay), TEN_BUOI[buoiGoc] || buoiGoc];
+    if (x.lyDo) phanDoan.push(x.lyDo);
+    if (laPhu) phanDoan.push('Linh động');
+    const dong2 = e('div', 'dong-lich-su-dd-dong2', phanDoan.join(' · '));
     the.append(dong1, dong2);
     khoi.append(the);
   });
