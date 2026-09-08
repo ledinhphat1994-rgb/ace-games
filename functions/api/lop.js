@@ -49,7 +49,8 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     db.prepare(
       `SELECT id, COALESCE(so_thu_tu, id) AS stt, COALESCE(so_thu_tu, id) AS soThuTu,
               ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
-              lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo
+              lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo,
+              dien_thoai_hs AS dienThoaiHs
          FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY so_thu_tu, id`
     ).bind(lopId).all(),
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
@@ -142,6 +143,14 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   });
 
   const hocSinhAnMuc = (lopRow?.hsCongKhaiAn || '').split(',').filter(Boolean);
+
+  // Điện thoại HỌC SINH (khác điện thoại phụ huynh — luôn không bao giờ trả về, xem đầu file)
+  // là số thật của một em, nhạy cảm hơn hẳn các trường như lớp nghề/giới tính — không chỉ ẩn ở
+  // giao diện theo hocSinhAnMuc mà XOÁ HẲN khỏi phản hồi khi giáo viên đang để ẩn, để không lộ
+  // qua network dù có ai đó tự đọc thẳng dữ liệu API.
+  if (hocSinhAnMuc.includes('dien-thoai-hs')) {
+    hocSinh.results.forEach((h) => { delete h.dienThoaiHs; });
+  }
 
   return json({
     ok: true,

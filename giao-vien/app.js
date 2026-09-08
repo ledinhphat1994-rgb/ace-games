@@ -1251,7 +1251,7 @@ function xoaHocSinh(h, taiLai) {
 
 const CAC_MUC_CONG_KHAI = [
   ['gioi-tinh', 'Giới tính'], ['ngay-sinh', 'Ngày sinh'], ['lop-nghe', 'Lớp nghề'],
-  ['to-hop', 'Tổ hợp'], ['chuc-vu', 'Chức vụ'], ['to-so', 'Tổ'],
+  ['to-hop', 'Tổ hợp'], ['chuc-vu', 'Chức vụ'], ['to-so', 'Tổ'], ['dien-thoai-hs', 'Điện thoại học sinh'],
 ];
 
 function moCauHinhHienThiHocSinh() {
@@ -1412,6 +1412,7 @@ async function trangHoSo(id, tabMacDinh) {
   const bang = [
     ['Chức vụ', h.chucVu || '—'],
     ['Tổ', h.toSo ? 'Tổ ' + h.toSo : '—'],
+    ['Điện thoại học sinh', h.dienThoaiHs || '—'],
     ['Điện thoại phụ huynh', h.dienThoaiPh || '—'],
     ['Hoàn cảnh', h.hoanCanh || '—'],
     ['Ghi chú', h.ghiChu || '—'],
@@ -1667,6 +1668,7 @@ function suaHoSo(h) {
   const oTo = oNhap('sTo', 'number', h.toSo ?? '', 'Số tổ');
   oTo.min = '1';
   oTo.step = '1';
+  const oSdtHs = oNhap('sSdtHs', 'tel', h.dienThoaiHs, 'Điện thoại học sinh');
   const oSdt = oNhap('sSdt', 'tel', h.dienThoaiPh, 'Điện thoại phụ huynh');
   const oHc = oNhap('sHc', 'text', h.hoanCanh, 'Hộ cận nghèo, GĐ khó khăn…');
   const oGc = oNhap('sGc', 'textarea', h.ghiChu, 'Ghi chú riêng');
@@ -1675,7 +1677,8 @@ function suaHoSo(h) {
     truong('Họ và tên', oHoTen, 'Sửa lại họ tên nếu có sai sót'),
     truong('Chức vụ', oChuc),
     truong('Tổ', oTo),
-    truong('Điện thoại phụ huynh', oSdt),
+    truong('Điện thoại học sinh', oSdtHs, 'Có thể hiện cho học sinh trong lớp xem của nhau — bật ở "⚙ Tuỳ chỉnh hiển thị".'),
+    truong('Điện thoại phụ huynh', oSdt, 'Luôn chỉ giáo viên chủ nhiệm xem được.'),
     truong('Hoàn cảnh', oHc),
     truong('Ghi chú', oGc),
   ], [
@@ -1688,7 +1691,7 @@ function suaHoSo(h) {
           method: 'PATCH',
           than: {
             id: h.id, hoTen: oHoTen.value.trim(), chucVu: oChuc.value, toSo: oTo.value,
-            dienThoaiPh: oSdt.value, hoanCanh: oHc.value, ghiChu: oGc.value,
+            dienThoaiHs: oSdtHs.value, dienThoaiPh: oSdt.value, hoanCanh: oHc.value, ghiChu: oGc.value,
           },
         });
         dongHopThoai();

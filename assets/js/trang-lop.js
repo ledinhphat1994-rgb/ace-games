@@ -357,7 +357,7 @@ function veDanhSach(ds, anMucHs) {
 
     if (!hang.length) {
       const tr = e('tr');
-      tr.append(Object.assign(e('td', 'trong', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 8 }));
+      tr.append(Object.assign(e('td', 'trong', 'Không tìm thấy học sinh phù hợp.'), { colSpan: 9 }));
       return datNoiDung(than, tr);
     }
 
@@ -387,7 +387,13 @@ function veDanhSach(ds, anMucHs) {
         tdTo.append(e('span', 'nhan-to', 'Tổ ' + h.toSo));
       }
 
-      [tdGt, tdNgaySinh, tdNghe, tdToHop, tdTo, tdChuc].forEach((td) => { td.hidden = boAn.has(td.dataset.cot); });
+      // "dienThoaiHs" chỉ có mặt trong dữ liệu khi giáo viên đang BẬT công khai (xem
+      // functions/api/lop.js) — server đã xoá hẳn khoá này khỏi phản hồi khi đang ẩn, nên ở đây
+      // chỉ cần kiểm tra "có" hay "không", không cần tự ẩn thêm lần nữa.
+      const tdDienThoai = e('td', 'trong', h.dienThoaiHs || '');
+      tdDienThoai.dataset.cot = 'dien-thoai-hs';
+
+      [tdGt, tdNgaySinh, tdNghe, tdToHop, tdTo, tdChuc, tdDienThoai].forEach((td) => { td.hidden = boAn.has(td.dataset.cot); });
 
       tr.append(
         e('td', 'so', h.stt),
@@ -397,7 +403,8 @@ function veDanhSach(ds, anMucHs) {
         tdNghe,
         tdToHop,
         tdTo,
-        tdChuc
+        tdChuc,
+        tdDienThoai
       );
       return tr;
     }));

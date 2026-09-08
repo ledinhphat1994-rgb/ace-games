@@ -5,7 +5,7 @@
 //          viên chủ nhiệm, không tài khoản đặc biệt nào khác được xem hồ sơ chi tiết.
 //   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
 //          -> thêm học sinh mới (nhập học/chuyển đến giữa năm), id tự tăng tiếp theo sổ lớp
-//   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
+//   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiHs, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
 //          -> dangHoc: false = đánh dấu đã nghỉ/chuyển trường (không xoá dữ liệu)
 import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
 
@@ -21,7 +21,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       db.prepare(
         `SELECT id, ho_ten AS hoTen, gioi_tinh AS gioiTinh, ngay_sinh AS ngaySinh,
                 lop_nghe AS lopNghe, to_hop AS toHop, chuc_vu AS chucVu, to_so AS toSo,
-                dien_thoai_ph AS dienThoaiPh, hoan_canh AS hoanCanh, ghi_chu AS ghiChu
+                dien_thoai_hs AS dienThoaiHs, dien_thoai_ph AS dienThoaiPh, hoan_canh AS hoanCanh, ghi_chu AS ghiChu
            FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2`
       ).bind(id, phien.lopId).first(),
       db.prepare(
@@ -46,7 +46,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const { results } = await db.prepare(
     `SELECT h.id, h.so_thu_tu AS soThuTu, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.ngay_sinh AS ngaySinh,
             h.lop_nghe AS lopNghe, h.to_hop AS toHop, h.chuc_vu AS chucVu, h.to_so AS toSo,
-            h.dien_thoai_ph AS dienThoaiPh, h.hoan_canh AS hoanCanh, h.ghi_chu AS ghiChu,
+            h.dien_thoai_hs AS dienThoaiHs, h.dien_thoai_ph AS dienThoaiPh, h.hoan_canh AS hoanCanh, h.ghi_chu AS ghiChu,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'vang_khong_phep' THEN 1 END), 0) AS vangKhongPhep,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'vang_phep' THEN 1 END), 0) AS vangPhep,
             COALESCE(SUM(CASE WHEN d.trang_thai = 'tre' THEN 1 END), 0) AS tre
@@ -115,6 +115,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   if (than.ghiChu !== undefined) them('ghi_chu', chuoi(than.ghiChu, 500));
   if (than.hoanCanh !== undefined) them('hoan_canh', chuoi(than.hoanCanh, 120));
   if (than.dienThoaiPh !== undefined) them('dien_thoai_ph', chuoi(than.dienThoaiPh, 30));
+  if (than.dienThoaiHs !== undefined) them('dien_thoai_hs', chuoi(than.dienThoaiHs, 30));
   if (than.hoTen !== undefined) {
     const t = chuoi(than.hoTen, 100);
     if (!t) return loi('Họ tên không được để trống.');
