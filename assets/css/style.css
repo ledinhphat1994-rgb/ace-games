@@ -945,6 +945,7 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
   width: 100%;
   white-space: normal !important;
   text-align: center;
+  justify-content: center;
   border-radius: 12px;
 }
 /* Biến thể co giãn THEO TỪNG DÒNG — dùng khi SỐ THẺ không chia hết cho số cột (vd 5 nút trạng
@@ -962,6 +963,7 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
   min-width: 0;
   white-space: normal !important;
   text-align: center;
+  justify-content: center;
   border-radius: 12px;
 }
 .vien-loc {
@@ -980,7 +982,7 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
 /* Công tắc Văn bản/Ảnh/Video/Âm thanh ở hộp "Thêm hoạt động lớp" — icon đặt trong khung màu
    riêng từng loại (kiểu Facebook/Zalo: ảnh xanh lá, video đỏ, nhạc tím...) để dễ nhận diện và
    bắt mắt hơn emoji trơn một màu. */
-.cong-tac-loai { display: inline-flex; align-items: center; gap: 7px; padding-left: 8px; }
+.cong-tac-loai { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .icon-loai {
   display: inline-flex; align-items: center; justify-content: center;
   width: 23px; height: 23px; border-radius: 7px; font-size: 13px; flex: 0 0 auto;

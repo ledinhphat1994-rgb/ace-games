@@ -240,7 +240,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 
 .ds-diem-danh { display: flex; flex-direction: column; gap: 8px; }
 .hang-hs {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
   background: var(--nen-noi); border: 1px solid var(--vien);
   border-radius: var(--r); padding: 10px 12px;
   transition: border-color .15s, box-shadow .15s;
@@ -348,6 +348,27 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .chu-thich { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--chu-nhat); margin-top: 12px; }
 .chu-thich span { display: inline-flex; align-items: center; gap: 5px; }
 .chu-thich i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+/* Lịch sử điểm danh hiện dưới MỖI học sinh khớp tìm kiếm ở trang Điểm danh — "flex: 1 1 100%"
+   để LUÔN xuống dòng riêng bên dưới hàng stt/tên/nút trạng thái (không chen ngang), bất kể còn
+   chỗ trống hay không (".hang-hs" đã bật flex-wrap để chỗ này có thể xuống dòng). */
+.lich-su-tim-dd {
+  flex: 1 1 100%;
+  order: 99;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--vien);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dong-lich-su-dd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.dong-lich-su-dd-ngay { font-size: 12px; color: var(--chu-mo); flex: 1 1 auto; }
 
 /* Thanh lưu nổi ở dưới */
 /* Thanh lưu nổi: căn giữa theo đúng khung nội dung (không tràn hết viewport), và đẩy nút
