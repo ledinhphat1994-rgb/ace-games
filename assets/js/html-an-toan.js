@@ -1,5 +1,5 @@
 // Lọc HTML "an toàn" cho phần định dạng cơ bản trong Hoạt động lớp (in đậm, in nghiêng, cỡ chữ,
-// màu chữ, font chữ) — CHỈ cho qua một tập thẻ/khai báo CSS đã được duyệt trước, mọi thứ khác
+// màu chữ, font chữ, căn lề) — CHỈ cho qua một tập thẻ/khai báo CSS đã được duyệt trước, mọi thứ khác
 // (script, thẻ lạ, thuộc tính lạ như onclick/href, giá trị CSS lạ) đều bị loại bỏ hoàn toàn,
 // chỉ giữ lại phần CHỮ bên trong. Không dùng DOMParser vì Cloudflare Workers không có DOM — hàm
 // này thuần chuỗi/regex nên chạy được cả ở đây lẫn ở trình duyệt.
@@ -8,7 +8,8 @@
 // chủ trước khi lưu — không tin hoàn toàn vào việc lọc phía trình duyệt) — sửa quy tắc gì ở đây
 // thì nhớ sửa luôn bên đó cho khớp.
 
-const THE_CHO_PHEP = new Set(['b', 'strong', 'i', 'em', 'u', 'br', 'span']);
+const THE_CHO_PHEP = new Set(['b', 'strong', 'i', 'em', 'u', 'br', 'span', 'div']);
+const CAN_LE_CHO_PHEP = new Set(['left', 'center', 'right']);
 // Chuỗi phải khớp CHÍNH XÁC với cách trình duyệt tự chuẩn hoá khi đọc lại qua .innerHTML —
 // CSSOM luôn đổi dấu nháy đơn quanh tên font thành nháy kép, dù lúc gán là nháy đơn.
 const FONT_CHO_PHEP = new Set([
@@ -42,6 +43,7 @@ function locGiaTriStyle(styleStr) {
     else if (k === 'font-family' && FONT_CHO_PHEP.has(v)) ra.push(`font-family:${v}`);
     else if (k === 'font-weight' && v === 'bold') ra.push('font-weight:bold');
     else if (k === 'font-style' && v === 'italic') ra.push('font-style:italic');
+    else if (k === 'text-align' && CAN_LE_CHO_PHEP.has(v)) ra.push(`text-align:${v}`);
   }
   return ra.join(';');
 }
@@ -58,12 +60,12 @@ export function locHtmlNoiDung(html, toiDa = 4000) {
     if (tag === 'br') return '<br>';
     const dong = full.startsWith('</');
     if (dong) return `</${tag}>`;
-    if (tag === 'span') {
+    if (tag === 'span' || tag === 'div') {
       const m = /style\s*=\s*"([^"]*)"/i.exec(attrs) || /style\s*=\s*'([^']*)'/i.exec(attrs);
       const style = m ? locGiaTriStyle(m[1]) : '';
       // font-family hợp lệ có thể chứa dấu " (vd "Be Vietnam Pro") — phải mã hoá lại thành
       // &quot; khi chèn vào thuộc tính style="...", nếu không sẽ làm hỏng cấu trúc thẻ.
-      return style ? `<span style="${style.replace(/"/g, '&quot;')}">` : '<span>';
+      return style ? `<${tag} style="${style.replace(/"/g, '&quot;')}">` : `<${tag}>`;
     }
     return `<${tag}>`;
   });

@@ -883,19 +883,32 @@ select.o-nhap option:checked {
   border: 1.5px solid var(--vien-dam); background: var(--nen-noi); color: var(--chu); cursor: pointer;
 }
 .nut-soan:hover { border-color: var(--chinh); color: var(--chinh); }
+/* Nút đang ở trạng thái BẬT (căn lề hiện tại của ô) — cùng kiểu nổi bật với nút màu đang chọn,
+   để nhận ra ngay đang căn kiểu gì mà không cần đoán qua nội dung. */
+.nut-soan.dang-chon { border-color: var(--chinh); background: var(--chinh-nen); color: var(--chinh); }
 /* select.o-nhap (thẻ + lớp, đặc trưng cao hơn .o-soan-nho đứng một mình) đã ép width:100% —
    phải khớp đúng độ đặc trưng đó (select.o-soan-nho) mới ghi đè được thành rộng vừa nội dung. */
 select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px; font-size: 12.5px; }
 .day-mau { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; }
 .nut-mau {
   width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--vien-dam); cursor: pointer; padding: 0;
-  transition: transform .12s;
+  transition: transform .12s, box-shadow .12s;
 }
 .nut-mau:hover { transform: scale(1.15); }
+/* Dấu hiệu "đã chọn màu này" — viền sáng + bóng đổ quanh chấm màu vừa bấm, để phân biệt rõ hơn
+   là chỉ dựa vào việc bôi đen chữ đổi màu (khó nhận ra ngay bằng mắt trên chấm tròn nhỏ). */
+.nut-mau.dang-chon {
+  border-color: var(--nen-noi);
+  box-shadow: 0 0 0 2px var(--nen-noi), 0 0 0 4px var(--chu);
+  transform: scale(1.15);
+}
 .o-soan-thao {
   min-height: 110px; max-height: 320px; overflow-y: auto; cursor: text;
   white-space: pre-wrap; word-break: break-word; line-height: 1.55;
 }
+/* Khối bọc để căn lề (xem apDungCanLe trong soan-thao.js) — luôn rộng hết cỡ để text-align thật
+   sự có "chỗ trống" mà căn vào, kể cả khi ô Tiêu đề (.o-soan-mot-dong) là flex container. */
+.o-soan-thao > div { width: 100%; }
 /* Biến thể MỘT DÒNG (dùng cho Tiêu đề) — hành xử giống input thường: 1 hàng cố định, chữ dài
    tự cuộn ngang thay vì xuống dòng, vì phím Enter đã bị chặn ở JS. */
 .o-soan-mot-dong {

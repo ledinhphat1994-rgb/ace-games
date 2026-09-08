@@ -136,13 +136,26 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
 
   function apDungKieuChoVungChon(thuocTinh, giaTri) {
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-      nhac('Bôi đen đoạn chữ cần đổi trước đã nhé.', 'xau');
+    if (!sel || sel.rangeCount === 0) {
+      nhac('Bấm vào ô soạn thảo trước đã nhé.', 'xau');
       return;
     }
     const khoang = sel.getRangeAt(0);
     const span = document.createElement('span');
     span.style[thuocTinh] = giaTri;
+    if (khoang.collapsed) {
+      // Chưa bôi đen gì (chỉ đặt con trỏ) — áp dụng cho CHỮ GÕ TIẾP THEO ngay từ vị trí con trỏ,
+      // giống hệt cách In đậm/In nghiêng hoạt động khi chưa chọn gì, thay vì bắt buộc phải bôi
+      // đen trước mới dùng được (trước đây báo lỗi và không làm gì cả trong trường hợp này).
+      span.appendChild(document.createTextNode('​'));
+      khoang.insertNode(span);
+      const r2 = document.createRange();
+      r2.setStart(span.firstChild, 1);
+      r2.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r2);
+      return;
+    }
     let trich;
     try { trich = khoang.extractContents(); } catch { return; }
     span.appendChild(trich);
@@ -151,6 +164,33 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
     const r2 = document.createRange();
     r2.selectNodeContents(span);
     sel.addRange(r2);
+  }
+
+  // Khối <div> bọc TOÀN BỘ nội dung của ô soạn — chỉ tạo khi lần đầu bấm căn lề (Trái/Giữa/Phải
+  // là thao tác trên CẢ Ô, không phải trên vùng bôi đen như màu/font/cỡ chữ). Dùng đúng MỘT div
+  // bọc ngoài cùng vì "text-align" trên span (phần tử inline) không có tác dụng — phải là phần
+  // tử khối mới căn được, và phải NẰM TRONG innerHTML (không phải style của chính oSoan) để giữ
+  // được khi gửi lên máy chủ rồi hiển thị lại ở nơi khác (xem assets/js/html-an-toan.js).
+  function layKhoiCanLe() {
+    const con = oSoan.firstElementChild;
+    return (con && con.tagName === 'DIV' && oSoan.childNodes.length === 1) ? con : null;
+  }
+  function capNhatNutCanLe() {
+    const hienTai = layKhoiCanLe()?.style.textAlign || 'left';
+    [['left', nutCanTrai], ['center', nutCanGiua], ['right', nutCanPhai]].forEach(([gt, nut]) => {
+      nut.classList.toggle('dang-chon', gt === hienTai);
+    });
+  }
+  function apDungCanLe(giaTri) {
+    oSoan.focus();
+    let khoi = layKhoiCanLe();
+    if (!khoi) {
+      khoi = document.createElement('div');
+      while (oSoan.firstChild) khoi.appendChild(oSoan.firstChild);
+      oSoan.appendChild(khoi);
+    }
+    khoi.style.textAlign = giaTri;
+    capNhatNutCanLe();
   }
 
   // mousedown + preventDefault trên MỌI nút công cụ: giữ nguyên vùng bôi đen đang hiện (màu
@@ -167,6 +207,10 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
 
   const nutDam = nutCongCu('B', 'In đậm', () => khoiPhucVaChay(() => document.execCommand('bold')), 'font-weight:800;');
   const nutNghieng = nutCongCu('I', 'In nghiêng', () => khoiPhucVaChay(() => document.execCommand('italic')), 'font-style:italic;');
+
+  const nutCanTrai = nutCongCu('Trái', 'Căn lề trái', () => apDungCanLe('left'));
+  const nutCanGiua = nutCongCu('Giữa', 'Căn lề giữa', () => apDungCanLe('center'));
+  const nutCanPhai = nutCongCu('Phải', 'Căn lề phải', () => apDungCanLe('right'));
 
   const oFont = e('select', 'o-nhap o-soan-nho');
   oFont.title = 'Font chữ';
@@ -189,29 +233,44 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
     oCoChu.value = '';
   });
 
+  // Nút màu đang chọn được đánh dấu bằng viền nổi bật (".dang-chon") — dấu hiệu RÕ vừa bấm màu
+  // nào, vì nút màu tự thân chỉ là một chấm tròn nhỏ, không có tên chữ để phân biệt như các nút
+  // khác. Chỉ đánh dấu nút VỪA BẤM (không đồng bộ theo màu thật của vùng bôi đen — bôi đen có
+  // thể gồm nhiều màu khác nhau nên không có "một màu đang chọn" chính xác để đồng bộ ngược).
+  let nutMauDangChon = null;
   const dayMau = e('div', 'day-mau');
   dayMau.title = 'Màu chữ';
   ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'].forEach((mau) => {
     const nutMau = e('button', 'nut-mau');
     nutMau.type = 'button'; nutMau.title = 'Đổi màu chữ'; nutMau.style.background = mau;
     nutMau.addEventListener('mousedown', (ev) => ev.preventDefault());
-    nutMau.addEventListener('click', () => khoiPhucVaChay(() => apDungKieuChoVungChon('color', mau)));
+    nutMau.addEventListener('click', () => {
+      khoiPhucVaChay(() => apDungKieuChoVungChon('color', mau));
+      if (nutMauDangChon) nutMauDangChon.classList.remove('dang-chon');
+      nutMau.classList.add('dang-chon');
+      nutMauDangChon = nutMau;
+    });
     dayMau.append(nutMau);
   });
 
   const nutEmoji = nutChonEmoji((ky) => khoiPhucVaChay(() => document.execCommand('insertText', false, ky)));
 
   const thanhCongCu = e('div', 'thanh-soan-thao');
-  thanhCongCu.append(nutDam, nutNghieng, oFont, oCoChu, dayMau, nutEmoji);
+  thanhCongCu.append(nutDam, nutNghieng, nutCanTrai, nutCanGiua, nutCanPhai, oFont, oCoChu, dayMau, nutEmoji);
 
   const khung = e('div');
   khung.append(thanhCongCu, oSoan);
+
+  capNhatNutCanLe();
 
   return {
     khung,
     oSoan,
     layHtml: () => locHtmlNoiDung(oSoan.innerHTML, nhieuDong ? 4000 : 300),
     layVanBanThuong: () => oSoan.textContent.trim(),
-    dat(html) { oSoan.innerHTML = locHtmlNoiDung(html || '', nhieuDong ? 4000 : 300); },
+    dat(html) {
+      oSoan.innerHTML = locHtmlNoiDung(html || '', nhieuDong ? 4000 : 300);
+      capNhatNutCanLe();
+    },
   };
 }
