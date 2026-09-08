@@ -423,6 +423,30 @@ chức năng của tài khoản có quyền không bị ảnh hưởng gì.
 đúng lớp bằng tài khoản có quyền (không phải giáo viên) — mọi trang/nút vẫn phải hoạt động bình
 thường, không bị chặn ở đâu cả.
 
+### 6e. Xác thực 2 lớp bằng Authenticator — ngay trong bước đăng nhập giáo viên
+
+Khác với Access ở mục 6d (chặn Ở NGOÀI web, trước cả khi vào), đây là lớp thứ 2 nằm NGAY BÊN
+TRONG chính bước nhập mã: bật lên thì đăng nhập giáo viên cần **đúng mã đăng nhập VÀ đúng mã 6 số**
+đổi mỗi 30 giây từ app Authenticator (Google Authenticator, Authy...) mới vào được. Không cần cấu
+hình gì trên Cloudflare — tự bật/tắt ngay trên web, không cần deploy lại.
+
+**Bật lên:** Khu quản lý → Thêm → Mã cá nhân → mục **"🔐 Xác thực 2 lớp (Authenticator)"** → bấm
+**"Bật xác thực 2 lớp"** → **"Bắt đầu"** → web hiện ra một **mã thiết lập dạng chữ** (vd
+`MKQ6 O6I2 5QGC YJHE...`) → mở app Authenticator trên điện thoại → **Thêm tài khoản → "Nhập mã
+thiết lập"/"Enter a setup key"** (không phải quét QR) → dán đúng chuỗi đó vào → app hiện ra mã 6
+số → gõ đúng mã đó vào web → **"Xác nhận, bật ngay"**.
+
+**Tắt đi:** cũng ở mục đó, bấm **"Tắt xác thực 2 lớp"** → nhập đúng mã 6 số app đang hiện → xác
+nhận. Bắt buộc phải đúng mã hiện tại mới tắt được, để một phiên trình duyệt bị đánh cắp (không
+phải chính giáo viên) không tự ý tắt lớp bảo vệ này đi.
+
+**Lưu ý quan trọng:** mã thiết lập (chuỗi chữ lúc bật) chỉ hiện ĐÚNG MỘT LẦN lúc thiết lập, không
+xem lại được sau đó. Nếu đổi điện thoại hoặc xoá nhầm app Authenticator, cách duy nhất để vào lại
+được là: **bấm "Tắt xác thực 2 lớp" TRÊN MỘT THIẾT BỊ CÒN ĐANG ĐĂNG NHẬP SẴN** (phiên cũ vẫn còn
+hiệu lực trong 7 ngày kể từ lần đăng nhập gần nhất), rồi bật lại từ đầu trên điện thoại mới. Nếu
+không còn thiết bị nào đang đăng nhập sẵn nữa, cần nhắn Claude hỗ trợ xoá trực tiếp trong cơ sở dữ
+liệu (`UPDATE ma_dang_nhap SET totp_secret = NULL WHERE lop_id = ... AND vai_tro = 'teacher'`).
+
 ---
 
 ## 7. Cách cập nhật nội dung hằng ngày

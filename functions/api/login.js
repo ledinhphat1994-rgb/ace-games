@@ -2,6 +2,7 @@
 // "lop" là slug của lớp đang hiện trên màn hình đăng nhập (nếu có) — dùng để CHẶN việc mã
 // nhập vào tuy đúng thật nhưng lại thuộc một lớp KHÁC với lớp đang chọn trên màn hình.
 import { COOKIE_NAME, createToken, safeEqual } from '../_lib/auth.js';
+import { totpKiemTra } from '../_lib/totp.js';
 
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
 const MAX_TRIES = 8;                  // số lần nhập sai tối đa
@@ -98,11 +99,13 @@ export async function onRequestPost({ request, env }) {
   let code = '';
   let lopSlug = '';
   let turnstileToken = '';
+  let totpCode = '';
   try {
     const body = await request.json();
     code = String(body.code || '').trim();
     lopSlug = String(body.lop || '').trim();
     turnstileToken = String(body.turnstileToken || '').trim();
+    totpCode = String(body.totpCode || '').trim();
   } catch {
     return json({ ok: false, message: 'Dữ liệu gửi lên không hợp lệ.' }, 400);
   }
@@ -267,6 +270,25 @@ export async function onRequestPost({ request, env }) {
   }
 
   if (!role) return json({ ok: false, message: 'Mã bảo mật không đúng. Vui lòng hỏi lại giáo viên chủ nhiệm.' }, 401);
+
+  // Xác thực 2 lớp (TOTP) — CHỈ áp dụng cho giáo viên, và CHỈ khi đã tự bật (xem
+  // functions/api/gv/rieng/totp.js). Kiểm tra ở đây, SAU khi đã biết chắc mã đăng nhập đúng —
+  // không lộ việc "mã đúng nhưng thiếu TOTP" cho ai gõ mã sai để dò xem lớp có bật 2FA hay không.
+  if (role === 'teacher' && env.DB) {
+    try {
+      const dongMa = await env.DB.prepare(
+        'SELECT totp_secret AS totpSecret FROM ma_dang_nhap WHERE lop_id = ?1 AND vai_tro = ?2'
+      ).bind(phanBoSung.lopId, 'teacher').first();
+      if (dongMa?.totpSecret) {
+        if (!totpCode) {
+          return json({ ok: false, canTotp: true, message: 'Nhập thêm mã 6 số từ app Authenticator.' }, 401);
+        }
+        if (!(await totpKiemTra(dongMa.totpSecret, totpCode))) {
+          return json({ ok: false, canTotp: true, message: 'Mã Authenticator không đúng hoặc đã hết hạn.' }, 401);
+        }
+      }
+    } catch { /* cột chưa tồn tại (chưa chạy migration) — bỏ qua, không chặn đăng nhập */ }
+  }
 
   // Ghi nhật ký đăng nhập cho MỌI vai trò đăng nhập thành công (giáo viên, tài khoản phụ, mã cá
   // nhân thường/có quyền) — trước đây chỉ ghi mã được cấp quyền quản lý. Đặt MỘT chỗ duy nhất ở

@@ -575,9 +575,10 @@ export async function trangMaCaNhan(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
   async function ve() {
-    const [d, dangNhap] = await Promise.all([
+    const [d, dangNhap, totp] = await Promise.all([
       api('/api/gv/rieng/ma-ca-nhan'),
       api('/api/gv/rieng/ma-dang-nhap'),
+      api('/api/gv/rieng/totp'),
     ]);
     const chuaCo = d.danhSach.filter((h) => !h.ma).length;
 
@@ -591,7 +592,7 @@ export async function trangMaCaNhan(KHUNG) {
     dau1.append(e('h2', null, '1️⃣ Mã đăng nhập chung & tài khoản ngoài lớp'));
     khung.append(dau1);
 
-    khung.append(veTheMaDangNhap(dangNhap, ve));
+    khung.append(veTheMaDangNhap(dangNhap, totp, ve));
 
     const dauTkPhu = e('div', 'tieu-de-trang');
     dauTkPhu.style.marginTop = '16px';
@@ -819,7 +820,7 @@ export async function trangNhatKyDangNhap(KHUNG) {
 
 /* ---------- Mã đăng nhập chung: mã lớp (học sinh) và mã giáo viên ---------- */
 
-function veTheMaDangNhap(dangNhap, taiLai) {
+function veTheMaDangNhap(dangNhap, totp, taiLai) {
   const the = e('div', 'the');
   the.style.borderColor = 'var(--chinh)';
   the.append(
@@ -847,7 +848,100 @@ function veTheMaDangNhap(dangNhap, taiLai) {
     });
 
   the.append(luoi);
+
+  // Xác thực 2 lớp (TOTP) — CHỈ giáo viên, ngay trong chính bước đăng nhập (khác hẳn Cloudflare
+  // Access nếu đã bật riêng cho /api/gv/rieng/*: cái đó chặn Ở NGOÀI trước khi vào web, cái này
+  // là lớp thứ 2 NGAY BÊN TRONG bước nhập mã).
+  const oTotp = e('div');
+  oTotp.style.cssText = 'margin-top:14px;background:var(--nen-chim);border-radius:var(--r-nho);padding:12px';
+  oTotp.append(e('div', 'the-nhan', '🔐 Xác thực 2 lớp (Authenticator)'));
+  const dongTrangThai = e('div');
+  dongTrangThai.style.cssText = 'display:flex;align-items:center;gap:8px;margin:6px 0';
+  dongTrangThai.append(e('span', 'nhan ' + (totp.daBat ? 'nhan-tot' : 'nhan-xam'), totp.daBat ? 'Đang bật' : 'Chưa bật'));
+  oTotp.append(dongTrangThai);
+  oTotp.append(e('p', 'trong', totp.daBat
+    ? 'Đăng nhập giáo viên cần thêm đúng mã 6 số từ app Authenticator (Google Authenticator, Authy...).'
+    : 'Bật thêm để đăng nhập giáo viên cần cả mã đăng nhập LẪN mã 6 số từ app Authenticator trên điện thoại — dù mã đăng nhập bị lộ, thiếu app đó vẫn không vào được.'));
+  oTotp.append(totp.daBat
+    ? nut('Tắt xác thực 2 lớp', 'nut-nhe nut-nho', () => moTatTotp(taiLai))
+    : nut('Bật xác thực 2 lớp', 'nut-vien nut-nho', () => moThietLapTotp(taiLai)));
+  the.append(oTotp);
+
   return the;
+}
+
+function moThietLapTotp(taiLai) {
+  moHopThoai('Bật xác thực 2 lớp', [
+    e('p', null, 'Bấm "Bắt đầu" để tạo mã thiết lập, rồi thêm vào app Authenticator (Google Authenticator, Authy...) bằng cách chọn "Nhập mã thiết lập" / "Enter a setup key" (không cần quét QR).'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Bắt đầu', '', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      try {
+        const kq = await api('/api/gv/rieng/totp', { method: 'POST', than: { hanhDong: 'batDau' } });
+        moBuocXacNhanTotp(kq.khoa, taiLai);
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+      }
+    }),
+  ]);
+}
+
+function moBuocXacNhanTotp(khoa, taiLai) {
+  const oMaKhoa = e('code', null, khoa);
+  oMaKhoa.style.cssText = 'display:block;font-size:16px;font-weight:800;letter-spacing:1px;text-align:center;padding:10px;background:var(--nen-chim);border-radius:var(--r-nho);margin:8px 0;user-select:all;';
+  const oMa6So = oNhap('totpXacNhan', 'text', '', '000000');
+  oMa6So.inputMode = 'numeric';
+  oMa6So.maxLength = 6;
+
+  moHopThoai('Nhập mã thiết lập vào app', [
+    e('p', null, 'Mở app Authenticator → Thêm tài khoản → "Nhập mã thiết lập" (Enter a setup key) → dán đúng chuỗi dưới đây:'),
+    oMaKhoa,
+    truong('Mã 6 số app vừa hiện ra', oMa6So, 'Gõ đúng mã app đang hiện NGAY BÂY GIỜ để xác nhận đã thêm đúng.'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Xác nhận, bật ngay', '', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      try {
+        await api('/api/gv/rieng/totp', { method: 'POST', than: { hanhDong: 'xacNhan', ma: oMa6So.value.trim() } });
+        dongHopThoai();
+        nhac('Đã bật xác thực 2 lớp cho giáo viên.', 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+      }
+    }),
+  ]);
+}
+
+function moTatTotp(taiLai) {
+  const oMa6So = oNhap('totpTat', 'text', '', '000000');
+  oMa6So.inputMode = 'numeric';
+  oMa6So.maxLength = 6;
+
+  moHopThoai('Tắt xác thực 2 lớp', [
+    e('p', 'trong', 'Tắt xong, đăng nhập giáo viên chỉ cần đúng mã đăng nhập, không cần mã Authenticator nữa.'),
+    truong('Mã 6 số hiện tại trên app', oMa6So),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Tắt', 'nut-xau', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      try {
+        await api('/api/gv/rieng/totp', { method: 'DELETE', than: { ma: oMa6So.value.trim() } });
+        dongHopThoai();
+        nhac('Đã tắt xác thực 2 lớp.', 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+      }
+    }),
+  ]);
 }
 
 function datMaDangNhap(vaiTro, nhan, taiLai) {
