@@ -1124,31 +1124,75 @@ export async function trangThuVienAmThanh(KHUNG) {
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
-    const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
-      const oLyDo = taoOLyDoXoa();
-      moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
-        e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
-        e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
-        truong('Lý do xoá (không bắt buộc)', oLyDo),
-      ], [
-        nut('Huỷ', 'nut-nhe', dongHopThoai),
-        nut('Xoá tất cả', 'nut-xau', async (ev) => {
-          const nutBam = ev.currentTarget;
-          nutBam.disabled = true;
-          try {
-            await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
-            dongHopThoai();
-            nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
-            daChon.clear();
-            ve();
-          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-        }),
-      ]);
-    }) : null;
+    // Xây dựng nút phía phải header — khi đang chọn hàng loạt: hiện controls chọn ngay trong header.
+    let nutsPhai;
+    if (laGiaoVien && daChon.size) {
+      // Chế độ chọn hàng loạt — badge + Chọn tất cả + Bỏ chọn + Xoá N bài
+      const badge = e('span');
+      badge.style.cssText = [
+        'display:inline-flex', 'align-items:center', 'gap:6px',
+        'font-size:13px', 'font-weight:600', 'color:var(--xau)',
+        'background:rgba(239,68,68,0.13)', 'border:1px solid rgba(239,68,68,0.32)',
+        'border-radius:20px', 'padding:4px 12px', 'white-space:nowrap',
+      ].join(';');
+      badge.textContent = `☑ ${daChon.size} / ${d.danhSach.length} bài`;
+
+      const nutChonTatCa = (daChon.size < d.danhSach.length)
+        ? nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); })
+        : null;
+      const nutBoChon = nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); });
+      const nutXoaDaChon = nut(`🗑 Xoá ${daChon.size} bài`, 'nut-xau nut-nho', () => {
+        const oLyDo = taoOLyDoXoa();
+        moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
+          e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+          truong('Lý do xoá (không bắt buộc)', oLyDo),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async (ev) => {
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              daChon.clear();
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+          }),
+        ]);
+      });
+      nutsPhai = [badge, ...(nutChonTatCa ? [nutChonTatCa] : []), nutBoChon, nutXoaDaChon];
+    } else {
+      // Chế độ bình thường — Thùng rác + Xoá tất cả
+      const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+        const oLyDo = taoOLyDoXoa();
+        moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
+          e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
+          e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
+          truong('Lý do xoá (không bắt buộc)', oLyDo),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá tất cả', 'nut-xau', async (ev) => {
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
+              dongHopThoai();
+              nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
+              daChon.clear();
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+          }),
+        ]);
+      }) : null;
+      nutsPhai = [
+        ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
+        ...(nutXoaTatCa ? [nutXoaTatCa] : []),
+      ];
+    }
     khung.append(tieuDeTrang('Thư viện Âm thanh',
       d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
-      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
-      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
+      ...nutsPhai));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
@@ -1198,59 +1242,7 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh chọn hàng loạt — 1 hàng ngang cân đối: [badge trái] ←→ [nút phải]
-    if (laGiaoVien && daChon.size) {
-      const thanh = e('div', 'the');
-      thanh.style.cssText = [
-        'margin-top:14px', 'padding:10px 16px',
-        'display:flex', 'align-items:center', 'justify-content:space-between',
-        'gap:12px', 'flex-wrap:wrap',
-        'border-color:var(--xau)', 'background:rgba(239,68,68,0.06)',
-      ].join(';');
-
-      // Trái — pill badge
-      const badge = e('span');
-      badge.style.cssText = [
-        'display:inline-flex', 'align-items:center', 'gap:6px',
-        'font-size:13px', 'font-weight:600', 'color:var(--xau)',
-        'background:rgba(239,68,68,0.12)', 'border:1px solid rgba(239,68,68,0.28)',
-        'border-radius:20px', 'padding:4px 12px', 'white-space:nowrap',
-      ].join(';');
-      badge.textContent = `☑ ${daChon.size} / ${d.danhSach.length} bài đã chọn`;
-      thanh.append(badge);
-
-      // Phải — các nút thẳng hàng
-      const hop = e('div');
-      hop.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
-      if (daChon.size < d.danhSach.length) {
-        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); }));
-      }
-      hop.append(
-        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
-        nut(`🗑 Xoá ${daChon.size} bài`, 'nut-xau nut-nho', () => {
-          const oLyDo = taoOLyDoXoa();
-          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
-            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-            truong('Lý do xoá (không bắt buộc)', oLyDo),
-          ], [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async (ev) => {
-              const nutBam = ev.currentTarget;
-              nutBam.disabled = true;
-              try {
-                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                daChon.clear();
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-            }),
-          ]);
-        })
-      );
-      thanh.append(hop);
-      khung.append(thanh);
-    }
+    // Thanh chọn hàng loạt đã được tích hợp vào header (tieuDeTrang) ở trên.
 
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có bài nào trong thư viện.'), { style: 'margin-top:16px' }));
