@@ -1348,8 +1348,12 @@ export async function veKhoiTaiKhoanPhu(khung) {
         dau2.append(khoiTrai, maChu);
         the.append(dau2);
 
-        const oQuyen = e('div', 'day-loc');
-        oQuyen.style.cssText = 'margin-top:10px;gap:5px;flex-wrap:wrap;';
+        // ".day-loc-deu-co-gian" thay vì ".day-loc" tự vẽ tay — trước đây hàng thẻ quyền xuống
+        // dòng kiểu "còn thừa mấy ô cuối" (vd hàng 2 chỉ có 2 thẻ, để trống rất nhiều bên phải),
+        // giờ mỗi hàng xuống dòng tự lấp đầy hết chiều ngang, đúng quy tắc thiết kế thẻ đã chốt.
+        const oQuyen = e('div', 'day-loc day-loc-deu-co-gian');
+        oQuyen.style.cssText = 'margin-top:10px;';
+        oQuyen.style.setProperty('--the-nho-nhat', '110px');
         tk.quyen.forEach((q) => {
           const timThay = d.cacQuyen.find((x) => x[0] === q);
           if (!timThay) return; // mục đã bỏ khỏi hệ thống — không hiện thẻ vô nghĩa
@@ -1362,12 +1366,19 @@ export async function veKhoiTaiKhoanPhu(khung) {
         });
         the.append(oQuyen);
 
-        const nutHang = e('div', 'day-loc day-loc-deu');
-        nutHang.style.cssText = 'margin-top:12px;gap:8px;flex-wrap:wrap;';
+        // ".day-loc-deu-co-gian" — cùng lý do như hàng thẻ quyền ở trên: 5 nút dễ xuống dòng
+        // 3+2 hay 2+3 tuỳ bề rộng màn hình, cần tự lấp đầy từng hàng thay vì để trống. Đồng thời
+        // đưa TẤT CẢ 5 nút về CÙNG kiểu viền (".nut-vien") thay vì trộn 2 nút có viền rõ với 3
+        // nút gần như không viền (".nut-nhe" — viền trong suốt) trong cùng một hàng, trông như 2
+        // kiểu nút khác hẳn nhau dù cùng một hàng thao tác. "Xoá hẳn" đổi riêng sang màu đỏ cảnh
+        // báo (".nut-xoa-anh") vì là thao tác không thể hoàn tác, cần nổi bật hơn 4 nút còn lại.
+        const nutHang = e('div', 'day-loc day-loc-deu-co-gian');
+        nutHang.style.cssText = 'margin-top:12px;';
+        nutHang.style.setProperty('--the-nho-nhat', '128px');
         nutHang.append(
           nut('✏ Sửa tài khoản', 'nut-vien nut-nho', () => suaTaiKhoan(tk, d.cacQuyen, ve)),
           nut('✎ Đặt mã tuỳ chỉnh', 'nut-vien nut-nho', () => datMaTuyChinhTaiKhoanPhu(tk, ve)),
-          nut('🎲 Cấp lại mã', 'nut-nhe nut-nho', () => {
+          nut('🎲 Cấp lại mã', 'nut-vien nut-nho', () => {
             moHopThoai('Cấp lại mã mới?', e('p', null,
               'Mã cũ "' + tk.ma + '" sẽ không dùng được nữa. Dùng khi nghi ngờ mã bị lộ.'), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -1381,14 +1392,14 @@ export async function veKhoiTaiKhoanPhu(khung) {
               }),
             ]);
           }),
-          nut(tk.dangHoatDong ? '🔒 Khoá lại' : '🔓 Mở lại', 'nut-nhe nut-nho', async () => {
+          nut(tk.dangHoatDong ? '🔒 Khoá lại' : '🔓 Mở lại', 'nut-vien nut-nho', async () => {
             try {
               await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, dangHoatDong: !tk.dangHoatDong } });
               nhac(tk.dangHoatDong ? 'Đã khoá tài khoản' : 'Đã mở lại tài khoản', 'tot');
               ve();
             } catch (err) { nhac(err.message, 'xau'); }
           }),
-          nut('🗑 Xoá hẳn', 'nut-nhe nut-nho', () => {
+          nut('🗑 Xoá hẳn', 'nut-xoa-anh nut-nho', () => {
             moHopThoai('Xoá hẳn tài khoản này?', e('p', null, tk.ten + ' sẽ không đăng nhập được nữa.'), [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {

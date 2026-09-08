@@ -125,6 +125,16 @@ function locMenuTheoQuyen() {
   });
   themLoiTatTabDuoi();
 
+  // Tab "Thêm" ở thanh dưới cũng đổi tên giống tiêu đề trang (xem trangThem) — với tài khoản cán
+  // sự đây là toàn bộ khu quản lý của họ, không phải "vài mục thêm" như với giáo viên.
+  const nutTabThem = document.querySelector('.tab-duoi a[href="#/them"]');
+  if (nutTabThem) {
+    // Không lấy text node ĐẦU TIÊN — đó là khoảng trắng/xuống dòng nằm TRƯỚC <span class="bieu-
+    // tuong">, không phải chữ "Thêm" (nằm sau, cùng cấp). Lọc đúng node có chữ thật.
+    const nutChu = Array.from(nutTabThem.childNodes).find((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+    if (nutChu) nutChu.textContent = 'Khu quản lý';
+  }
+
   // Ẩn luôn tiêu đề nhóm nếu không còn mục nào trong nhóm đó (tài khoản đặc biệt chỉ có vài quyền).
   $$('.cot-trai .nhom-dieu-huong').forEach((nhom) => {
     if (!nhom.querySelector('a')) nhom.remove();
@@ -1857,8 +1867,10 @@ function soanThongBao(tb, taiLai) {
 /* ================= Trang: Thêm (menu phụ trên điện thoại) ================= */
 
 const MUC_THEM = [
+  ['#/diem-danh', '✅', 'Điểm danh', 'Điểm danh chính khoá và linh động, xem/sửa lịch sử.'],
   ['#/thong-ke', '📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần và cảnh báo em có nguy cơ.'],
   ['#/thong-bao', '◈', 'Thông báo', 'Soạn và đăng thông báo lên trang lớp.'],
+  ['#/hoat-dong-lop', '🌿', 'Hoạt động lớp', 'Đăng ảnh, video, âm thanh hoạt động lên trang chủ.'],
   ['#/thoi-khoa-bieu', '▦', 'Thời khoá biểu', 'Sửa thời khoá biểu hiện trên trang lớp.'],
   ['#/bao-cao', '⬇', 'Báo cáo & xuất dữ liệu', 'Tải tệp CSV mở bằng Excel để nộp trường.'],
   ['#/quy', '💰', 'Thủ quỹ', 'Ghi thu, ghi chi, xem tồn quỹ.'],
@@ -1890,10 +1902,13 @@ function trangThem() {
   }
 
   const khung = e('div');
+  // Với giáo viên, đây đúng là "còn vài công cụ khác" (đã có sẵn rất nhiều trang chính khác) —
+  // nhưng với tài khoản cán sự, đây LÀ toàn bộ khu quản lý của họ (không có trang nào khác ngoài
+  // các mục được cấp quyền liệt kê ở đây), gọi là "Thêm" dễ hiểu lầm thành vài mục lặt vặt.
   const tieuDePhu = PHIEN.role === 'teacher'
     ? 'Các công cụ khác của lớp'
     : layNhanTaiKhoan(PHIEN);
-  khung.append(tieuDeTrang('Thêm', tieuDePhu));
+  khung.append(tieuDeTrang(PHIEN.role === 'teacher' ? 'Thêm' : 'Khu quản lý', tieuDePhu));
 
   if (!mucDuocPhep.length) {
     khung.append(e('div', 'the trong', 'Tài khoản này chưa được cấp quyền làm việc nào. Liên hệ giáo viên chủ nhiệm.'));
