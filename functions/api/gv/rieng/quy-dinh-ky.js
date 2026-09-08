@@ -2,7 +2,7 @@
 // giáo viên nhập TRƯỚC tổng số kỳ muốn thu, nên toàn bộ các kỳ được sinh SẴN ngay lúc tạo mẫu
 // (không còn sinh dần mỗi khi mở trang Thủ quỹ) — mở "Các khoản thu" là thấy ngay toàn bộ lịch
 // thu từ đầu đến cuối, không còn phải đoán "định kỳ là khi nào".
-//   POST /api/gv/quy-dinh-ky   { ten, chuKy, soTienMoiKy, ngayBatDau, ngayKetThuc, soKy }
+//   POST /api/gv/rieng/quy-dinh-ky   { ten, chuKy, soTienMoiKy, ngayBatDau, ngayKetThuc, soKy }
 //        ngayBatDau/ngayKetThuc: khoảng ngày của KỲ 1 (giáo viên tự chọn, không ép cứng độ
 //        dài) — các kỳ sau tự tính nối tiếp, xem tinhCacKy() trong _lib/quy-dinh-ky.js.
 // Không có PATCH/DELETE: một khi đã tạo, muốn bỏ một kỳ cụ thể thì xoá đúng khoản đó (khoản
@@ -11,9 +11,9 @@
 // CHỈ giáo viên chủ nhiệm mới tạo được — tài khoản thủ quỹ (phu + quyền "quy") chỉ tạo được
 // khoản thu LINH HOẠT (từng khoản đơn qua /api/gv/quy hanhDong "tao_khoan"), không tạo được
 // chuỗi thu cố định nhiều kỳ (dễ tạo nhầm số kỳ/số tiền hàng loạt, ảnh hưởng lâu dài cả năm học).
-import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../_lib/api.js';
-import { chupCheckpoint } from '../../_lib/quy-checkpoint.js';
-import { tinhCacKy, tenKy } from '../../_lib/quy-dinh-ky.js';
+import { bocXuLy, json, loi, docThan, ngayHopLe } from '../../../_lib/api.js';
+import { chupCheckpoint } from '../../../_lib/quy-checkpoint.js';
+import { tinhCacKy, tenKy } from '../../../_lib/quy-dinh-ky.js';
 
 const TOI_DA_SO_KY = 60;   // đủ cho hơn 1 năm thu theo tuần, chặn nhập nhầm số cực lớn
 

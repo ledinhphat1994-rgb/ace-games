@@ -1,12 +1,12 @@
 // Cấu hình những thông tin học sinh nào công khai ở "Danh sách lớp" — CHỈ giáo viên chủ nhiệm
 // chỉnh được (đây là quyết định về quyền riêng tư của học sinh trong lớp).
-//   GET   /api/gv/cau-hinh-hoc-sinh  -> cấu hình hiện tại
-//   PATCH /api/gv/cau-hinh-hoc-sinh  { congKhaiAn: [...] }
+//   GET   /api/gv/rieng/cau-hinh-hoc-sinh  -> cấu hình hiện tại
+//   PATCH /api/gv/rieng/cau-hinh-hoc-sinh  { congKhaiAn: [...] }
 //
 // "congKhaiAn": các cột ẨN khỏi "Danh sách lớp" công khai ở trang chủ (mọi học sinh xem được).
 // (Trước đây còn có "canSuHien" — thêm trường riêng cho cán sự được cấp quyền "Học sinh" — đã
 // bỏ vì quyền "Học sinh" không còn cấp được cho tài khoản đặc biệt nữa, xem hoc-sinh.js.)
-import { bocXuLy, json, loi } from '../../_lib/api.js';
+import { bocXuLy, json, loi } from '../../../_lib/api.js';
 
 const CONG_KHAI = ['gioi-tinh', 'ngay-sinh', 'lop-nghe', 'to-hop', 'chuc-vu', 'to-so'];
 

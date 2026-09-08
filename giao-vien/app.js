@@ -1102,7 +1102,7 @@ function themHocSinh(taiLai) {
       if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/hoc-sinh', {
+        await api('/api/gv/rieng/hoc-sinh', {
           method: 'POST',
           than: {
             hoTen: oHoTen.value, gioiTinh: oGioiTinh.value, ngaySinh: oNgaySinh.value || null,
@@ -1132,7 +1132,7 @@ function xoaHocSinh(h, taiLai) {
     nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/hoc-sinh?id=' + h.id, { method: 'DELETE' });
+        await api('/api/gv/rieng/hoc-sinh?id=' + h.id, { method: 'DELETE' });
         dongHopThoai();
         nhac(`Đã xoá học sinh ${h.hoTen}`, 'tot');
         if (taiLai) taiLai();
@@ -1150,7 +1150,7 @@ const CAC_MUC_CONG_KHAI = [
 ];
 
 function moCauHinhHienThiHocSinh() {
-  api('/api/gv/cau-hinh-hoc-sinh').then((cfg) => {
+  api('/api/gv/rieng/cau-hinh-hoc-sinh').then((cfg) => {
     const boCongKhaiAn = new Set(cfg.congKhaiAn);
 
     const taoTich = (ma, nhan, daChon) => {
@@ -1174,7 +1174,7 @@ function moCauHinhHienThiHocSinh() {
         ev.currentTarget.disabled = true;
         try {
           const congKhaiAn = dsCongKhai.filter(([, o]) => !o.checked).map(([ma]) => ma);
-          await api('/api/gv/cau-hinh-hoc-sinh', { method: 'PATCH', than: { congKhaiAn } });
+          await api('/api/gv/rieng/cau-hinh-hoc-sinh', { method: 'PATCH', than: { congKhaiAn } });
           dongHopThoai();
           nhac('Đã lưu cấu hình hiển thị', 'tot');
         } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
@@ -1185,7 +1185,7 @@ function moCauHinhHienThiHocSinh() {
 
 async function trangHocSinh() {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/hoc-sinh');
+  const d = await api('/api/gv/rieng/hoc-sinh');
   let tim = '';
 
   function ve() {
@@ -1269,7 +1269,7 @@ const CAC_TAB_HO_SO = [
 
 async function trangHoSo(id, tabMacDinh) {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/hoc-sinh?id=' + encodeURIComponent(id));
+  const d = await api('/api/gv/rieng/hoc-sinh?id=' + encodeURIComponent(id));
   const h = d.hocSinh;
   let tab = tabMacDinh || sessionStorage.getItem('hs-tab') || 'chuyen-can';
   if (!CAC_TAB_HO_SO.some(([ma]) => ma === tab)) tab = 'chuyen-can';
@@ -1328,7 +1328,7 @@ async function trangHoSo(id, tabMacDinh) {
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xác nhận', 'nut-xau', async () => {
           try {
-            await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: h.id, dangHoc: false } });
+            await api('/api/gv/rieng/hoc-sinh', { method: 'PATCH', than: { id: h.id, dangHoc: false } });
             dongHopThoai();
             nhac('Đã đánh dấu nghỉ/chuyển trường', 'tot');
             location.hash = '#/hoc-sinh';
@@ -1425,7 +1425,7 @@ async function trangHoSo(id, tabMacDinh) {
     box.append(khoiDangTai());
     noiDungTab.replaceChildren(box);
 
-    const dsLh = await api('/api/gv/lien-he?hocSinhId=' + h.id);
+    const dsLh = await api('/api/gv/rieng/lien-he?hocSinhId=' + h.id);
     if (tab !== 'phu-huynh') return;
 
     const noiDung = e('div');
@@ -1478,7 +1478,7 @@ function veMucLienHe(lh, taiLai) {
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá', 'nut-xau', async () => {
           try {
-            await api('/api/gv/lien-he?id=' + lh.id, { method: 'DELETE' });
+            await api('/api/gv/rieng/lien-he?id=' + lh.id, { method: 'DELETE' });
             dongHopThoai();
             nhac('Đã xoá', 'tot');
             taiLai();
@@ -1510,7 +1510,7 @@ function ghiLienHe(hocSinh, taiLai) {
       if (!oNoiDung.value.trim()) return nhac('Chưa nhập nội dung đã trao đổi', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/lien-he', {
+        await api('/api/gv/rieng/lien-he', {
           method: 'POST',
           than: { hocSinhId: hocSinh.id, ngay: oNgay.value, hinhThuc: oHinhThuc.value, noiDung: oNoiDung.value, ketQua: oKetQua.value },
         });
@@ -1542,7 +1542,7 @@ function suaLienHe(lh, taiLai) {
       if (!oNoiDung.value.trim()) return nhac('Nội dung không được để trống', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/lien-he', {
+        await api('/api/gv/rieng/lien-he', {
           method: 'PATCH',
           than: { id: lh.id, ngay: oNgay.value, hinhThuc: oHinhThuc.value, noiDung: oNoiDung.value, ketQua: oKetQua.value },
         });
@@ -1582,7 +1582,7 @@ function suaHoSo(h) {
       if (oTo.value && Number(oTo.value) < 1) return nhac('Số tổ phải từ 1 trở lên.', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/hoc-sinh', {
+        await api('/api/gv/rieng/hoc-sinh', {
           method: 'PATCH',
           than: {
             id: h.id, hoTen: oHoTen.value.trim(), chucVu: oChuc.value, toSo: oTo.value,

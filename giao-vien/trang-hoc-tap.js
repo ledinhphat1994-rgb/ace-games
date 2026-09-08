@@ -16,6 +16,47 @@ function taoOLyDoXoa() {
   return oNhap('lyDoXoaTam', 'text', '', 'Ví dụ: ảnh mờ/trùng, chụp nhầm, nội dung không phù hợp…');
 }
 
+/** Thanh điều khiển chọn hàng loạt (Vùng 2) — dùng chung cho cả 3 thư viện media (Âm thanh,
+    Video, Ảnh), đặt ngay giữa khối Tải lên và lưới danh sách. Khoảng cách vừa vặn, gọn gàng,
+    1 hàng ngang cân đối, pill badge bo tròn đỏ bên trái, các nút thao tác bên phải. */
+function taoThanhChonHangLoat({ soDaChon, tongSo, donVi, onChonTatCa, onBoChon, onXoa }) {
+  const thanh = e('div');
+  thanh.style.cssText = [
+    'margin: 12px 0 10px',
+    'padding: 7px 14px',
+    'display: flex',
+    'align-items: center',
+    'justify-content: space-between',
+    'gap: 10px',
+    'flex-wrap: wrap',
+    'background: rgba(239, 68, 68, 0.07)',
+    'border: 1px solid rgba(239, 68, 68, 0.28)',
+    'border-radius: 12px',
+  ].join(';');
+
+  const badge = e('span');
+  badge.style.cssText = [
+    'display: inline-flex', 'align-items: center', 'gap: 6px',
+    'font-size: 13px', 'font-weight: 600', 'color: var(--xau)',
+    'background: rgba(239, 68, 68, 0.13)', 'border: 1px solid rgba(239, 68, 68, 0.32)',
+    'border-radius: 20px', 'padding: 3px 12px', 'white-space: nowrap',
+  ].join(';');
+  badge.textContent = `☑ Đã chọn ${soDaChon}/${tongSo} ${donVi}`;
+
+  const hop = e('div');
+  hop.style.cssText = 'display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+  if (onChonTatCa) {
+    hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', onChonTatCa));
+  }
+  hop.append(
+    nut('Bỏ chọn', 'nut-nhe nut-nho', onBoChon),
+    nut(`🗑 Xoá ${soDaChon} ${donVi}`, 'nut-xau nut-nho', onXoa)
+  );
+
+  thanh.append(badge, hop);
+  return thanh;
+}
+
 
 /* ================= Thống kê chuyên cần ================= */
 
@@ -75,7 +116,7 @@ function taoLucVN(taoLuc) {
 
 /* ---------- Tương tác: lượt truy cập trang lớp + chỗ dành cho chat/trò chơi sau này ---------- */
 async function veTuongTac(KHUNG) {
-  const d = await api('/api/gv/tuong-tac');
+  const d = await api('/api/gv/rieng/tuong-tac');
   const khung = e('div');
   khung.append(tieuDeTrang('Tương tác', 'Lượt truy cập trang lớp và các hoạt động tương tác khác.'));
 
@@ -189,7 +230,7 @@ async function veChuyenCan(KHUNG) {
     if (denNgay) params.set('denNgay', denNgay);
     if (buoi) params.set('buoi', buoi);
 
-    const d = await api('/api/gv/thong-ke?' + params.toString());
+    const d = await api('/api/gv/rieng/thong-ke?' + params.toString());
     veNoiDung(d);
   }
 
@@ -442,7 +483,7 @@ export async function trangBaoCao(KHUNG) {
       p.set('tuNgay', oTu.value);
       p.set('denNgay', oDen.value);
     }
-    location.href = '/api/gv/bao-cao?' + p.toString();
+    location.href = '/api/gv/rieng/bao-cao?' + p.toString();
   }
 
   function taoTheBaoCao(icon, ten, moTa, ma, theoNgay, nhanPhu) {
@@ -535,8 +576,8 @@ export async function trangMaCaNhan(KHUNG) {
 
   async function ve() {
     const [d, dangNhap] = await Promise.all([
-      api('/api/gv/ma-ca-nhan'),
-      api('/api/gv/ma-dang-nhap'),
+      api('/api/gv/rieng/ma-ca-nhan'),
+      api('/api/gv/rieng/ma-dang-nhap'),
     ]);
     const chuaCo = d.danhSach.filter((h) => !h.ma).length;
 
@@ -580,13 +621,13 @@ export async function trangMaCaNhan(KHUNG) {
         const nutBam = ev.currentTarget;
         nutBam.disabled = true;
         try {
-          const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { tatCa: true } });
+          const kq = await api('/api/gv/rieng/ma-ca-nhan', { method: 'POST', than: { tatCa: true } });
           nhac(`Đã cấp ${kq.daCap} mã`, 'tot');
           ve();
         } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
       }),
       nut('📥 Xuất danh sách mã', 'nut-vien', () => {
-        location.href = '/api/gv/bao-cao?loai=ma-ca-nhan&dinhDang=excel';
+        location.href = '/api/gv/rieng/bao-cao?loai=ma-ca-nhan&dinhDang=excel';
       }),
       nut('📜 Nhật ký đăng nhập', 'nut-vien', () => { location.hash = '#/nhat-ky-dang-nhap'; })
     );
@@ -735,7 +776,7 @@ function veHangHocSinh(h, taiLai, capNhatHang) {
 /* ---------- Nhật ký đăng nhập: chỉ đọc, không có nút xoá ---------- */
 export async function trangNhatKyDangNhap(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/nhat-ky-dang-nhap');
+  const d = await api('/api/gv/rieng/nhat-ky-dang-nhap');
   const khung = e('div');
   khung.append(nut('← Về Mã cá nhân', 'nut-vien nut-nho', () => { location.hash = '#/ma-ca-nhan'; }));
   khung.append(tieuDeTrang('Nhật ký đăng nhập',
@@ -823,7 +864,7 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
-        const kq = await api('/api/gv/ma-dang-nhap', { method: 'POST', than: { vaiTro, ma: oMa.value.trim() || undefined } });
+        const kq = await api('/api/gv/rieng/ma-dang-nhap', { method: 'POST', than: { vaiTro, ma: oMa.value.trim() || undefined } });
         dongHopThoai();
         nhac('Mã mới: ' + kq.ma, 'tot');
         taiLai();
@@ -847,7 +888,7 @@ const CAC_MUC_XEM = [
   ['thoi-khoa-bieu', 'Thời khoá biểu'],
   ['diem-danh', 'Điểm danh / chuyên cần'],
 ];
-// Trùng danh mục CAC_QUYEN ở functions/api/gv/tai-khoan-phu.js — chép tay vì đây là mã
+// Trùng danh mục CAC_QUYEN ở functions/api/gv/rieng/tai-khoan-phu.js — chép tay vì đây là mã
 // chạy trên trình duyệt, không import trực tiếp từ functions/ được.
 // Chuẩn hoá khớp chính xác danh sách các mục thuộc nhóm "LỚP HỌC" trên sidebar.
 const CAC_QUYEN_QUAN_LY = [
@@ -1002,7 +1043,7 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
-        const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id } });
+        const kq = await api('/api/gv/rieng/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id } });
         const maMoi = kq.ketQua[0].ma;
         hocSinh.ma = maMoi;
         oMa.value = maMoi;
@@ -1035,17 +1076,17 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
-        await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi, chucVu: oChucVu.value.trim() } });
+        await api('/api/gv/rieng/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi, chucVu: oChucVu.value.trim() } });
 
         const maMoi = oMa.value.trim();
         if (maMoi && maMoi !== hocSinh.ma) {
-          await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: maMoi } });
+          await api('/api/gv/rieng/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id, maTuyChinh: maMoi } });
           hocSinh.ma = maMoi;
         }
 
         const anMucMoi = oTichXem.filter(([, o]) => !o.checked).map(([ma]) => ma);
         const quyenMoi = oTichQuanLy.filter(([, o]) => o.checked).map(([ma]) => ma);
-        await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, anMuc: anMucMoi, quyen: quyenMoi } });
+        await api('/api/gv/rieng/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, anMuc: anMucMoi, quyen: quyenMoi } });
 
         hocSinh.hoTen = tenMoi;
         hocSinh.chucVu = oChucVu.value.trim();
@@ -1077,7 +1118,7 @@ function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
-        await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
+        await api('/api/gv/rieng/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
         hocSinh.coThietBi = 0;
         dongHopThoai();
         nhac('Đã đặt lại thiết bị cho ' + hocSinh.hoTen, 'tot');
@@ -1124,75 +1165,31 @@ export async function trangThuVienAmThanh(KHUNG) {
     const khung = e('div');
     const tongByte = d.danhSach.reduce((a, b) => a + b.coByte, 0);
 
-    // Xây dựng nút phía phải header — khi đang chọn hàng loạt: hiện controls chọn ngay trong header.
-    let nutsPhai;
-    if (laGiaoVien && daChon.size) {
-      // Chế độ chọn hàng loạt — badge + Chọn tất cả + Bỏ chọn + Xoá N bài
-      const badge = e('span');
-      badge.style.cssText = [
-        'display:inline-flex', 'align-items:center', 'gap:6px',
-        'font-size:13px', 'font-weight:600', 'color:var(--xau)',
-        'background:rgba(239,68,68,0.13)', 'border:1px solid rgba(239,68,68,0.32)',
-        'border-radius:20px', 'padding:4px 12px', 'white-space:nowrap',
-      ].join(';');
-      badge.textContent = `☑ ${daChon.size} / ${d.danhSach.length} bài`;
-
-      const nutChonTatCa = (daChon.size < d.danhSach.length)
-        ? nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); })
-        : null;
-      const nutBoChon = nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); });
-      const nutXoaDaChon = nut(`🗑 Xoá ${daChon.size} bài`, 'nut-xau nut-nho', () => {
-        const oLyDo = taoOLyDoXoa();
-        moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
-          e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-          truong('Lý do xoá (không bắt buộc)', oLyDo),
-        ], [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá', 'nut-xau', async (ev) => {
-            const nutBam = ev.currentTarget;
-            nutBam.disabled = true;
-            try {
-              await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-              dongHopThoai();
-              nhac('Đã xoá', 'tot');
-              daChon.clear();
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-          }),
-        ]);
-      });
-      nutsPhai = [badge, ...(nutChonTatCa ? [nutChonTatCa] : []), nutBoChon, nutXoaDaChon];
-    } else {
-      // Chế độ bình thường — Thùng rác + Xoá tất cả
-      const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
-        const oLyDo = taoOLyDoXoa();
-        moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
-          e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
-          e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
-          truong('Lý do xoá (không bắt buộc)', oLyDo),
-        ], [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá tất cả', 'nut-xau', async (ev) => {
-            const nutBam = ev.currentTarget;
-            nutBam.disabled = true;
-            try {
-              await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
-              dongHopThoai();
-              nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
-              daChon.clear();
-              ve();
-            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-          }),
-        ]);
-      }) : null;
-      nutsPhai = [
-        ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
-        ...(nutXoaTatCa ? [nutXoaTatCa] : []),
-      ];
-    }
+    const nutXoaTatCa = (laGiaoVien && d.danhSach.length) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
+      const oLyDo = taoOLyDoXoa();
+      moHopThoai('Xoá TOÀN BỘ thư viện Âm thanh?', [
+        e('p', null, `Toàn bộ ${d.danhSach.length} bài sẽ chuyển vào thùng rác, kể cả bài đang làm nhạc nền trang chủ.`),
+        e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
+        truong('Lý do xoá (không bắt buộc)', oLyDo),
+      ], [
+        nut('Huỷ', 'nut-nhe', dongHopThoai),
+        nut('Xoá tất cả', 'nut-xau', async (ev) => {
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
+          try {
+            await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
+            dongHopThoai();
+            nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
+            daChon.clear();
+            ve();
+          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+        }),
+      ]);
+    }) : null;
     khung.append(tieuDeTrang('Thư viện Âm thanh',
       d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
-      ...nutsPhai));
+      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
+      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
@@ -1242,13 +1239,42 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh chọn hàng loạt đã được tích hợp vào header (tieuDeTrang) ở trên.
+    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên và danh sách bài, khoảng trống vừa đủ
+    if (laGiaoVien && daChon.size) {
+      khung.append(taoThanhChonHangLoat({
+        soDaChon: daChon.size,
+        tongSo: d.danhSach.length,
+        donVi: 'bài',
+        onChonTatCa: daChon.size < d.danhSach.length ? () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); } : null,
+        onBoChon: () => { daChon.clear(); ve(); },
+        onXoa: () => {
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
+            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
+              try {
+                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                daChon.clear();
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+            }),
+          ]);
+        },
+      }));
+    }
 
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có bài nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div');
-      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
+      luoi.style.cssText = `margin-top:${laGiaoVien && daChon.size ? '10px' : '18px'};display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px`;
       d.danhSach.forEach((bai) => {
         const muc = e('div', 'the');
 
@@ -1449,18 +1475,15 @@ export async function trangThuVienVideo(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên.
+    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên và danh sách video, khoảng trống vừa đủ
     if (laGiaoVien && daChon.size) {
-      const thanh = e('div', 'the');
-      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} video`));
-      const hop = e('div', 'day-loc day-loc-deu');
-      if (daChon.size < d.danhSach.length) {
-        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); }));
-      }
-      hop.append(
-        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
-        nut(`🗑 Xoá ${daChon.size} video đã chọn`, 'nut-xau nut-nho', () => {
+      khung.append(taoThanhChonHangLoat({
+        soDaChon: daChon.size,
+        tongSo: d.danhSach.length,
+        donVi: 'video',
+        onChonTatCa: daChon.size < d.danhSach.length ? () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); } : null,
+        onBoChon: () => { daChon.clear(); ve(); },
+        onXoa: () => {
           const oLyDo = taoOLyDoXoa();
           moHopThoai(`Xoá ${daChon.size} video đã chọn?`, [
             e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
@@ -1479,17 +1502,15 @@ export async function trangThuVienVideo(KHUNG) {
               } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
             }),
           ]);
-        })
-      );
-      thanh.append(hop);
-      khung.append(thanh);
+        },
+      }));
     }
 
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có video nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div');
-      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
+      luoi.style.cssText = `margin-top:${laGiaoVien && daChon.size ? '10px' : '18px'};display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px`;
       d.danhSach.forEach((v) => {
         const muc = e('div', 'the');
 
@@ -1688,51 +1709,6 @@ export async function trangHinhAnh(KHUNG) {
       khung.append(the);
     }
 
-    // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên (tài
-    // khoản được cấp quyền không có ô tích chọn hàng loạt, xem bên dưới).
-    if (laGiaoVien && daChon.size) {
-      const thanh = e('div', 'the');
-      thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${dsLoc.length} ảnh`));
-      const hop = e('div', 'day-loc day-loc-deu');
-      if (daChon.size < dsLoc.length) {
-        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { dsLoc.forEach((a) => daChon.add(a.id)); ve(); }));
-      }
-      hop.append(
-        nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
-        nut(`🗑 Xoá ${daChon.size} ảnh đã chọn`, 'nut-xau nut-nho', () => {
-          const oLyDo = taoOLyDoXoa();
-          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, [
-            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-            truong('Lý do xoá (không bắt buộc)', oLyDo),
-          ], [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async (ev) => {
-              const nutBam = ev.currentTarget;
-              nutBam.disabled = true;
-              try {
-                const idsDaChon = [...daChon];
-                await api(`/api/gv/anh?ids=${idsDaChon.join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-                // Nếu ảnh nền web (localStorage) nằm trong danh sách vừa xóa thì tự gỡ luôn
-                const nenHienTai = layNenAnhTuyChonUrl();
-                if (nenHienTai) {
-                  const khoaNen = nenHienTai.replace('/api/anh?khoa=', '').replace(/%[0-9A-Fa-f]{2}/g, decodeURIComponent);
-                  const anhNenBiXoa = dsLoc.find((a) => idsDaChon.includes(a.id) && a.khoa === decodeURIComponent(nenHienTai.replace('/api/anh?khoa=', '')));
-                  if (anhNenBiXoa) apDungNenAnhTuyChon(null);
-                }
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                daChon.clear();
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-            }),
-          ]);
-        })
-      );
-      thanh.append(hop);
-      khung.append(thanh);
-    }
-
     // Lightbox xem ảnh phóng to — tái sử dụng 1 thẻ duy nhất cho cả trang
     function moLightbox(src, chuThich) {
       let hop = document.getElementById('hopXemAnhGv');
@@ -1780,12 +1756,50 @@ export async function trangHinhAnh(KHUNG) {
       hop.hidden = false;
     }
 
+    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên/tab và danh sách ảnh, khoảng trống vừa đủ
+    if (laGiaoVien && daChon.size) {
+      khung.append(taoThanhChonHangLoat({
+        soDaChon: daChon.size,
+        tongSo: dsLoc.length,
+        donVi: 'ảnh',
+        onChonTatCa: daChon.size < dsLoc.length ? () => { dsLoc.forEach((a) => daChon.add(a.id)); ve(); } : null,
+        onBoChon: () => { daChon.clear(); ve(); },
+        onXoa: () => {
+          const oLyDo = taoOLyDoXoa();
+          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, [
+            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+            truong('Lý do xoá (không bắt buộc)', oLyDo),
+          ], [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async (ev) => {
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
+              try {
+                const idsDaChon = [...daChon];
+                await api(`/api/gv/anh?ids=${idsDaChon.join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+                // Nếu ảnh nền web (localStorage) nằm trong danh sách vừa xoá thì tự gỡ luôn
+                const nenHienTai = layNenAnhTuyChonUrl();
+                if (nenHienTai) {
+                  const anhNenBiXoa = dsLoc.find((a) => idsDaChon.includes(a.id) && a.khoa === decodeURIComponent(nenHienTai.replace('/api/anh?khoa=', '')));
+                  if (anhNenBiXoa) apDungNenAnhTuyChon(null);
+                }
+                dongHopThoai();
+                nhac('Đã xoá', 'tot');
+                daChon.clear();
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+            }),
+          ]);
+        },
+      }));
+    }
+
     // Danh sách ảnh đã có TRONG ĐÚNG KHO ĐANG XEM
     if (!dsLoc.length) {
       khung.append(Object.assign(e('p', 'trong', `Chưa có ảnh nào trong kho "${TEN_KHO_ANH[tabAnhThuVien]}".`), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div', 'thu-vien');
-      luoi.style.marginTop = '18px';
+      luoi.style.marginTop = (laGiaoVien && daChon.size) ? '10px' : '18px';
       dsLoc.forEach((a) => {
         const hinh = e('figure', 'the-anh-gv');
         hinh.style.position = 'relative';

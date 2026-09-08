@@ -1,7 +1,7 @@
-// GET /api/gv/thong-ke?tuNgay=&denNgay=&buoi=
+// GET /api/gv/rieng/thong-ke?tuNgay=&denNgay=&buoi=
 // Thống kê chuyên cần theo tuần và cảnh báo học sinh có nguy cơ.
 // buoi = '' (mặc định, gộp mọi buổi) | 'sang' | 'chieu' | 'hoat_dong'
-import { bocXuLy, json, ngayHopLe } from '../../_lib/api.js';
+import { bocXuLy, json, ngayHopLe } from '../../../_lib/api.js';
 
 // Ngưỡng cảnh báo — theo quy chế, nghỉ quá 45 buổi/năm là không được lên lớp.
 const NGUONG = { cao: 10, vua: 5 };

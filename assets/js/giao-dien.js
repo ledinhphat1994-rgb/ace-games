@@ -278,7 +278,8 @@ function taoLucVN(taoLuc) {
 
 /** Trang "Lịch sử & khôi phục" DÙNG CHUNG cho Thông báo / Thời khoá biểu / Hoạt động lớp — cùng
     một kiểu giao diện với "🛡️ Lịch sử & khôi phục" của Thủ quỹ, chỉ khác nguồn API
-    (/api/gv/checkpoint-chung?muc=...) và tham số "muc" cho đúng chức năng đang xem.
+    (/api/gv/checkpoint-chung?muc=... để xem, /api/gv/rieng/checkpoint-chung để khôi phục/xoá —
+    xem functions/api/gv/checkpoint-chung.js) và tham số "muc" cho đúng chức năng đang xem.
       muc: 'thong-bao' | 'thoi-khoa-bieu' | 'hoat-dong-lop'
       tieuDe: tên chức năng hiển thị, ví dụ 'Thông báo'
       veTrangTruoc: hash quay lại trang chính của chức năng, ví dụ '#/thong-bao' */
@@ -324,7 +325,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
             ev.currentTarget.disabled = true;
             try {
-              await api(`/api/gv/checkpoint-chung?muc=${muc}&tatCa=1`, { method: 'DELETE' });
+              await api(`/api/gv/rieng/checkpoint-chung?muc=${muc}&tatCa=1`, { method: 'DELETE' });
               dongHopThoai();
               nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
               ve();
@@ -355,7 +356,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api('/api/gv/checkpoint-chung', { method: 'POST', than: { muc, id: cp.id } });
+                await api('/api/gv/rieng/checkpoint-chung', { method: 'POST', than: { muc, id: cp.id } });
                 dongHopThoai();
                 nhac('Đã khôi phục ' + tieuDe, 'tot');
                 ve();
@@ -375,7 +376,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api(`/api/gv/checkpoint-chung?muc=${muc}&id=${cp.id}`, { method: 'DELETE' });
+                await api(`/api/gv/rieng/checkpoint-chung?muc=${muc}&id=${cp.id}`, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá điểm khôi phục', 'tot');
                 ve();

@@ -1,11 +1,11 @@
 // Mã đăng nhập của lớp (học sinh) và của giáo viên chủ nhiệm — đổi/đặt tuỳ ý ngay trên web.
 // Có hiệu lực NGAY LẬP TỨC, không cần vào Cloudflare dashboard hay deploy lại.
-//   GET  /api/gv/ma-dang-nhap             -> trạng thái hiện tại (không lộ mã hiện có, chỉ báo đã tự đặt hay chưa)
-//   POST /api/gv/ma-dang-nhap  { vaiTro: 'student'|'teacher', ma? }
+//   GET  /api/gv/rieng/ma-dang-nhap             -> trạng thái hiện tại (không lộ mã hiện có, chỉ báo đã tự đặt hay chưa)
+//   POST /api/gv/rieng/ma-dang-nhap  { vaiTro: 'student'|'teacher', ma? }
 //        Không truyền "ma" -> tự sinh mã ngẫu nhiên dễ đọc.
 //        Có truyền "ma" -> dùng đúng mã đó (chấp nhận chữ hoa/thường/số/ký tự đặc biệt, 3–32 ký tự).
-import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
-import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
+import { bocXuLy, json, loi, docThan } from '../../../_lib/api.js';
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../../_lib/ma.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare('SELECT vai_tro AS vaiTro, ma, cap_nhat_luc AS capNhatLuc FROM ma_dang_nhap WHERE lop_id = ?1').bind(phien.lopId).all();

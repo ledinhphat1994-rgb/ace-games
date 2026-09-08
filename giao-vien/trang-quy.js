@@ -82,7 +82,15 @@ export async function trangQuy(KHUNG) {
     if (!daChon.size) return null;
     const thanh = e('div', 'the');
     thanh.style.cssText = 'margin-bottom:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-    thanh.append(e('span', null, `Đã chọn ${daChon.size} ${tenSo}`));
+    const badge = e('span');
+    badge.style.cssText = [
+      'display:inline-flex', 'align-items:center', 'gap:6px',
+      'font-size:13px', 'font-weight:600', 'color:var(--xau)',
+      'background:rgba(239,68,68,0.13)', 'border:1px solid rgba(239,68,68,0.32)',
+      'border-radius:20px', 'padding:4px 12px', 'white-space:nowrap',
+    ].join(';');
+    badge.textContent = `☑ ${daChon.size} ${tenSo} đã chọn`;
+    thanh.append(badge);
     const hop = e('div', 'day-loc day-loc-deu');
     hop.append(
       nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
@@ -959,7 +967,7 @@ function suaChi(chi, taiLai) {
 const LOAI_CHINH_THU = [['nhanh', '⚡ Thu linh động'], ['co_dinh', '🔒 Thu cố định']];
 const CHU_KY_CO_DINH = [['tuan', 'Theo tuần'], ['thang', 'Theo tháng'], ['nam', 'Theo năm']];
 const NHAN_CHU_KY = { tuan: 'Tuần', thang: 'Tháng', nam: 'Năm' };
-const TOI_DA_SO_KY = 60;   // khớp giới hạn phía máy chủ (functions/api/gv/quy-dinh-ky.js)
+const TOI_DA_SO_KY = 60;   // khớp giới hạn phía máy chủ (functions/api/gv/rieng/quy-dinh-ky.js)
 
 function dinhDangNgan(iso) {
   const [, thang, ngay] = iso.split('-');
@@ -1136,7 +1144,7 @@ function moKhoanMoi(taiLai, loaiChinhMacDinh = 'nhanh', duocTaoCoDinh = true) {
           if (!Number.isInteger(soKy) || soKy < 1 || soKy > TOI_DA_SO_KY) {
             throw new Error(`Số lượng kỳ phải là số nguyên từ 1 đến ${TOI_DA_SO_KY}.`);
           }
-          const kq = await api('/api/gv/quy-dinh-ky', {
+          const kq = await api('/api/gv/rieng/quy-dinh-ky', {
             method: 'POST',
             than: { ten: oTen.value, chuKy: oChuKy.value, soTienMoiKy: soTien, ngayBatDau: oTuNgay.value, ngayKetThuc: oDenNgay.value, soKy },
           });
@@ -1299,7 +1307,7 @@ function ghiKhoanChi(taiLai, duLieuCu = null) {
    này chỉ còn dùng cho trường hợp hiếm cần một tài khoản không phải học sinh. */
 export async function veKhoiTaiKhoanPhu(khung) {
   async function ve() {
-    const d = await api('/api/gv/tai-khoan-phu');
+    const d = await api('/api/gv/rieng/tai-khoan-phu');
     datNoiDung(khung);
 
     if (!d.danhSach.length) {
@@ -1384,7 +1392,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Cấp lại', '', async () => {
                 try {
-                  const kq = await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, capLaiMa: true } });
+                  const kq = await api('/api/gv/rieng/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, capLaiMa: true } });
                   dongHopThoai();
                   nhac('Mã mới: ' + kq.ma, 'tot');
                   ve();
@@ -1394,7 +1402,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
           }),
           nut(tk.dangHoatDong ? '🔒 Khoá lại' : '🔓 Mở lại', 'nut-vien nut-nho', async () => {
             try {
-              await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, dangHoatDong: !tk.dangHoatDong } });
+              await api('/api/gv/rieng/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, dangHoatDong: !tk.dangHoatDong } });
               nhac(tk.dangHoatDong ? 'Đã khoá tài khoản' : 'Đã mở lại tài khoản', 'tot');
               ve();
             } catch (err) { nhac(err.message, 'xau'); }
@@ -1404,7 +1412,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {
                 try {
-                  await api('/api/gv/tai-khoan-phu?id=' + tk.id, { method: 'DELETE' });
+                  await api('/api/gv/rieng/tai-khoan-phu?id=' + tk.id, { method: 'DELETE' });
                   dongHopThoai();
                   nhac('Đã xoá', 'tot');
                   ve();
@@ -1560,7 +1568,7 @@ function suaTaiKhoan(tk, cacQuyen, taiLai) {
 
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/tai-khoan-phu', {
+        await api('/api/gv/rieng/tai-khoan-phu', {
           method: 'PATCH',
           than: {
             id: tk.id,
@@ -1591,7 +1599,7 @@ function datMaTuyChinhTaiKhoanPhu(tk, taiLai) {
       if (!oMa.value.trim()) return nhac('Chưa nhập mã', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        const kq = await api('/api/gv/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, maTuyChinh: oMa.value } });
+        const kq = await api('/api/gv/rieng/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, maTuyChinh: oMa.value } });
         dongHopThoai();
         nhac('Đã đặt mã: ' + kq.ma, 'tot');
         taiLai();
@@ -1666,7 +1674,7 @@ function taoTaiKhoan(cacQuyen, taiLai) {
       if (!quyenDaChon.size) return nhac('Chọn ít nhất một việc được phép làm', 'xau');
       ev.currentTarget.disabled = true;
       try {
-        const kq = await api('/api/gv/tai-khoan-phu', {
+        const kq = await api('/api/gv/rieng/tai-khoan-phu', {
           method: 'POST',
           than: { ten: oTen.value, vaiTro: oVaiTro.value, quyen: [...quyenDaChon], ma: oMa.value || undefined },
         });
@@ -1760,7 +1768,7 @@ export async function trangQuyLichSu(KHUNG) {
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
             ev.currentTarget.disabled = true;
             try {
-              await api('/api/gv/quy-checkpoint?tatCa=1', { method: 'DELETE' });
+              await api('/api/gv/rieng/quy-checkpoint?tatCa=1', { method: 'DELETE' });
               dongHopThoai();
               nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
               ve();
@@ -1791,7 +1799,7 @@ export async function trangQuyLichSu(KHUNG) {
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api('/api/gv/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
+                await api('/api/gv/rieng/quy-checkpoint', { method: 'POST', than: { id: cp.id } });
                 dongHopThoai();
                 nhac('Đã khôi phục Thủ quỹ', 'tot');
                 ve();
@@ -1811,7 +1819,7 @@ export async function trangQuyLichSu(KHUNG) {
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api('/api/gv/quy-checkpoint?id=' + cp.id, { method: 'DELETE' });
+                await api('/api/gv/rieng/quy-checkpoint?id=' + cp.id, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá điểm khôi phục', 'tot');
                 ve();

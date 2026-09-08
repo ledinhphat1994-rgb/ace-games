@@ -1,9 +1,9 @@
 // Nhật ký liên hệ phụ huynh — chỉ giáo viên chủ nhiệm xem/ghi (dữ liệu nhạy cảm).
-//   GET    /api/gv/lien-he?hocSinhId=5   -> lịch sử liên hệ của một em
-//   POST   /api/gv/lien-he   { hocSinhId, ngay, hinhThuc, noiDung, ketQua }
-//   PATCH  /api/gv/lien-he   { id, ngay, hinhThuc, noiDung, ketQua }
-//   DELETE /api/gv/lien-he?id=
-import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+//   GET    /api/gv/rieng/lien-he?hocSinhId=5   -> lịch sử liên hệ của một em
+//   POST   /api/gv/rieng/lien-he   { hocSinhId, ngay, hinhThuc, noiDung, ketQua }
+//   PATCH  /api/gv/rieng/lien-he   { id, ngay, hinhThuc, noiDung, ketQua }
+//   DELETE /api/gv/rieng/lien-he?id=
+import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../../_lib/api.js';
 
 const HINH_THUC = new Set(['goi_dien', 'gap_truc_tiep', 'nhan_tin', 'khac']);
 

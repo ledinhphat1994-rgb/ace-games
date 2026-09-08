@@ -1,13 +1,13 @@
 // Hồ sơ học sinh — bản đầy đủ, chỉ giáo viên chủ nhiệm xem được (không tài khoản đặc biệt nào
 // khác được cấp quyền vào đây — xem "⚙ Tuỳ chỉnh hiển thị" ở trang-lop cho phần công khai).
-//   GET    /api/gv/hoc-sinh            -> cả lớp
-//   GET    /api/gv/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh — LUÔN chỉ giáo
+//   GET    /api/gv/rieng/hoc-sinh            -> cả lớp
+//   GET    /api/gv/rieng/hoc-sinh?id=5       -> hồ sơ một em kèm lịch sử điểm danh — LUÔN chỉ giáo
 //          viên chủ nhiệm, không tài khoản đặc biệt nào khác được xem hồ sơ chi tiết.
-//   POST   /api/gv/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
+//   POST   /api/gv/rieng/hoc-sinh            { hoTen, gioiTinh, ngaySinh, lopNghe, toHop, toSo }
 //          -> thêm học sinh mới (nhập học/chuyển đến giữa năm), id tự tăng tiếp theo sổ lớp
-//   PATCH  /api/gv/hoc-sinh            { id, chucVu, toSo, dienThoaiHs, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
+//   PATCH  /api/gv/rieng/hoc-sinh            { id, chucVu, toSo, dienThoaiHs, dienThoaiPh, hoanCanh, ghiChu, dangHoc }
 //          -> dangHoc: false = đánh dấu đã nghỉ/chuyển trường (không xoá dữ liệu)
-import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+import { bocXuLy, json, loi, docThan, chuoi } from '../../../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
@@ -67,7 +67,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   // Hàm này giờ chỉ giáo viên chủ nhiệm gọi tới được (canGiaoVien không có quyenCan), nên
   // không cần lọc bớt trường nào nữa — trước đây có lọc riêng cho cán sự được cấp quyền
-  // "Học sinh", nhưng quyền đó đã bỏ (xem functions/api/gv/tai-khoan-phu.js).
+  // "Học sinh", nhưng quyền đó đã bỏ (xem functions/api/gv/rieng/tai-khoan-phu.js).
   const danhSach = results.map((h) => ({ ...h, theoDoi: theoId[h.id] || {} }));
 
   return json({ ok: true, danhSach });

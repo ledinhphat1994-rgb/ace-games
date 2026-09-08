@@ -5,6 +5,7 @@ Thumbs.db
 .secrets-tam.json
 dist/
 server-*.js
+_worker.bundle
 
 # Mã bí mật để chạy thử trên máy — không bao giờ đưa lên GitHub.
 .dev.vars

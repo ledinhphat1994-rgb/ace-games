@@ -1,14 +1,14 @@
 // Mã tra cứu cá nhân — mỗi học sinh một mã riêng để xem kết quả của chính mình, và (nếu
 // được cấp quyền) đăng nhập vào khu quản lý với đúng quyền đó.
-//   GET    /api/gv/ma-ca-nhan          -> danh sách mã (để in phát cho từng em)
-//   POST   /api/gv/ma-ca-nhan { hocSinhId }                 -> cấp lại mã NGẪU NHIÊN cho một em
-//   POST   /api/gv/ma-ca-nhan { hocSinhId, maTuyChinh }     -> đặt ĐÚNG mã này cho một em (tuỳ ý, dễ nhớ)
-//   POST   /api/gv/ma-ca-nhan { tatCa: true }               -> cấp mã ngẫu nhiên cho mọi em chưa có
-//   PATCH  /api/gv/ma-ca-nhan { hocSinhId, anMuc: [...] }        -> đặt các mục ẨN riêng cho mã của em đó
-//   PATCH  /api/gv/ma-ca-nhan { hocSinhId, quyen: [...] }        -> đặt quyền QUẢN LÝ (soạn thông báo, thủ quỹ...)
-//   PATCH  /api/gv/ma-ca-nhan { hocSinhId, datLaiThietBi: true } -> gỡ ràng buộc thiết bị, cho đăng nhập máy mới
-import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
-import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai, chuanHoaAnMuc } from '../../_lib/ma.js';
+//   GET    /api/gv/rieng/ma-ca-nhan          -> danh sách mã (để in phát cho từng em)
+//   POST   /api/gv/rieng/ma-ca-nhan { hocSinhId }                 -> cấp lại mã NGẪU NHIÊN cho một em
+//   POST   /api/gv/rieng/ma-ca-nhan { hocSinhId, maTuyChinh }     -> đặt ĐÚNG mã này cho một em (tuỳ ý, dễ nhớ)
+//   POST   /api/gv/rieng/ma-ca-nhan { tatCa: true }               -> cấp mã ngẫu nhiên cho mọi em chưa có
+//   PATCH  /api/gv/rieng/ma-ca-nhan { hocSinhId, anMuc: [...] }        -> đặt các mục ẨN riêng cho mã của em đó
+//   PATCH  /api/gv/rieng/ma-ca-nhan { hocSinhId, quyen: [...] }        -> đặt quyền QUẢN LÝ (soạn thông báo, thủ quỹ...)
+//   PATCH  /api/gv/rieng/ma-ca-nhan { hocSinhId, datLaiThietBi: true } -> gỡ ràng buộc thiết bị, cho đăng nhập máy mới
+import { bocXuLy, json, loi, docThan } from '../../../_lib/api.js';
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai, chuanHoaAnMuc } from '../../../_lib/ma.js';
 import { CAC_QUYEN } from './tai-khoan-phu.js';
 
 const MA_QUYEN = new Set(CAC_QUYEN.map((q) => q[0]));

@@ -1,12 +1,12 @@
 // Tài khoản đặc biệt (lớp trưởng, thủ quỹ...) — CHỈ giáo viên chủ nhiệm quản lý được.
-//   GET    /api/gv/tai-khoan-phu
-//   POST   /api/gv/tai-khoan-phu   { ten, vaiTro, quyen:[...], hocSinhId, ma? }
+//   GET    /api/gv/rieng/tai-khoan-phu
+//   POST   /api/gv/rieng/tai-khoan-phu   { ten, vaiTro, quyen:[...], hocSinhId, ma? }
 //        Không truyền "ma" -> tự sinh ngẫu nhiên. Có truyền -> dùng đúng mã đó (tuỳ ý, dễ nhớ).
-//   PATCH  /api/gv/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa } — capLaiMa: true = mã ngẫu nhiên mới
-//   PATCH  /api/gv/tai-khoan-phu   { id, maTuyChinh } — đặt ĐÚNG mã này (tuỳ ý)
-//   DELETE /api/gv/tai-khoan-phu?id=
-import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
-import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../_lib/ma.js';
+//   PATCH  /api/gv/rieng/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa } — capLaiMa: true = mã ngẫu nhiên mới
+//   PATCH  /api/gv/rieng/tai-khoan-phu   { id, maTuyChinh } — đặt ĐÚNG mã này (tuỳ ý)
+//   DELETE /api/gv/rieng/tai-khoan-phu?id=
+import { bocXuLy, json, loi, docThan, chuoi } from '../../../_lib/api.js';
+import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../../_lib/ma.js';
 
 // Những mục có thể trao quyền. Mỗi mục ứng với đúng một "quyenCan" đang dùng ở các API khác.
 // Chuẩn hoá khớp chính xác danh sách các mục thuộc nhóm "LỚP HỌC" trên sidebar.

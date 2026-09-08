@@ -1,8 +1,8 @@
-// GET /api/gv/nhat-ky-dang-nhap — nhật ký đăng nhập của MỌI vai trò (giáo viên, tài khoản phụ,
+// GET /api/gv/rieng/nhat-ky-dang-nhap — nhật ký đăng nhập của MỌI vai trò (giáo viên, tài khoản phụ,
 // mã cá nhân thường/có quyền — trước đây chỉ ghi mã được cấp quyền quản lý). CHỈ ĐỌC — không có
 // DELETE ở đây, kể cả cho giáo viên, để nhật ký luôn còn nguyên vẹn mà khôi phục lại nếu một mã
 // bị chiếm quyền và xoá phá dữ liệu.
-import { bocXuLy, json } from '../../_lib/api.js';
+import { bocXuLy, json } from '../../../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(

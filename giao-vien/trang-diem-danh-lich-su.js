@@ -110,7 +110,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
           nut('Xoá tất cả', 'nut-xau', async (ev) => {
             ev.currentTarget.disabled = true;
             try {
-              await api('/api/gv/diem-danh-checkpoint?tatCa=1' + (tab ? '&loai=' + tab : ''), { method: 'DELETE' });
+              await api('/api/gv/rieng/diem-danh-checkpoint?tatCa=1' + (tab ? '&loai=' + tab : ''), { method: 'DELETE' });
               dongHopThoai();
               nhac('Đã xoá toàn bộ lịch sử khôi phục', 'tot');
               ve();
@@ -141,7 +141,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
             nut('Khôi phục ngay', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api('/api/gv/diem-danh-checkpoint', { method: 'POST', than: { id: cp.id } });
+                await api('/api/gv/rieng/diem-danh-checkpoint', { method: 'POST', than: { id: cp.id } });
                 dongHopThoai();
                 nhac('Đã khôi phục Điểm danh', 'tot');
                 ve();
@@ -161,7 +161,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
             nut('Xoá', 'nut-xau', async (ev) => {
               ev.currentTarget.disabled = true;
               try {
-                await api('/api/gv/diem-danh-checkpoint?id=' + cp.id, { method: 'DELETE' });
+                await api('/api/gv/rieng/diem-danh-checkpoint?id=' + cp.id, { method: 'DELETE' });
                 dongHopThoai();
                 nhac('Đã xoá điểm khôi phục', 'tot');
                 ve();

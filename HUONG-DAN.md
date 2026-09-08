@@ -375,6 +375,54 @@ Nếu một mã đăng nhập từ IP KHÁC với lần thành công gần nhấ
 không tự khoá, vì mạng di động (4G/5G) đổi IP liên tục là chuyện bình thường, khoá cứng theo IP sẽ
 khoá nhầm học sinh dùng điện thoại.
 
+### 6d. Cloudflare Access + đăng nhập Google — lớp bảo vệ THỨ HAI riêng cho giáo viên
+
+Toàn bộ API mà CHỈ giáo viên chủ nhiệm gọi được (đổi mã đăng nhập, quản lý tài khoản phụ, cấp/thu
+quyền mã cá nhân, hồ sơ học sinh, liên hệ phụ huynh, báo cáo, thống kê, tương tác, quỹ định kỳ,
+khôi phục/xoá lịch sử Thủ quỹ-Điểm danh-Thông báo-TKB-Hoạt động lớp) đã được gom hết vào một tiền
+tố URL riêng: **`/api/gv/rieng/*`**. Các API mà tài khoản có quyền (lớp trưởng, thủ quỹ, tổ
+trưởng...) vẫn cần dùng thì KHÔNG nằm trong tiền tố này — đặt Access lên đúng `/api/gv/rieng/*`
+sẽ không chặn nhầm bất kỳ tài khoản có quyền nào (đã kiểm chứng: mọi nút gọi tới các API này từ
+trước tới nay chỉ hiện ra khi đăng nhập bằng đúng vai trò giáo viên).
+
+**Vì sao không đặt Access lên cả `/giao-vien/*`:** trang `/giao-vien/` là MỘT ứng dụng dùng chung
+cho cả giáo viên lẫn tài khoản có quyền — không có địa chỉ URL riêng nào để phân biệt hai loại tài
+khoản này ở tầng biên. Nếu khoá cả `/giao-vien/*`, mọi tài khoản có quyền (vốn đăng nhập bằng mã,
+không có email) sẽ bị chặn đứng ngay cửa vào, trước cả khi kịp nhập mã.
+
+**Bật lên (khoảng 10 phút):**
+
+1. Vào **dash.cloudflare.com → Zero Trust** → lần đầu sẽ hỏi tạo "team name" (gõ tuỳ ý, vd
+   `gdtxdinhquan`) → chọn gói **Free**.
+2. **Zero Trust → Settings → Authentication → Login methods → Add new** → chọn **Google** →
+   làm theo hướng dẫn của Cloudflare để tạo OAuth Client ID/Secret trên
+   [Google Cloud Console](https://console.cloud.google.com) (miễn phí, dùng đúng tài khoản Gmail
+   `ledinhphat1994@gmail.com` đang quản lý Cloudflare) → dán Client ID/Secret vào Cloudflare →
+   **Save**. Xong bước này, "Sign in with Google" xuất hiện như một lựa chọn đăng nhập Access.
+3. **Zero Trust → Access → Applications → Add an application → Self-hosted**:
+   - **Application domain**: `gdtxdinhquan.pages.dev`, path `/api/gv/rieng` — **CHỈ đúng path
+     này, không thêm domain gốc `/` hay bất kỳ path nào khác**, kẻo chặn nhầm học sinh/tài khoản
+     có quyền.
+   - **Identity providers**: chỉ tích **Google** (bỏ tích "Accept all available identity
+     providers" nếu có, để không lỡ mở thêm One-time PIN cho ai cũng vào được).
+4. Ở bước **Policies**, tạo 1 policy:
+   - Action: **Allow**
+   - Include → **Emails** → nhập đúng email Gmail của giáo viên chủ nhiệm (thêm nhiều email nếu
+     có đồng nghiệp cùng quản lý).
+   - Bấm **Save**.
+
+**Kết quả:** mọi lượt gọi tới `/api/gv/rieng/*` (hồ sơ học sinh, quản lý tài khoản phụ, đổi mã
+đăng nhập, khôi phục dữ liệu...) từ nay đòi hỏi đăng nhập Google TRƯỚC — Cloudflare tự hiện màn
+"Sign in with Google", chọn đúng tài khoản trong danh sách cho phép mới qua được, rồi mới tới màn
+nhập mã giáo viên như cũ. Dù mã giáo viên có bị lộ, kẻ gian vẫn cần chiếm được đúng tài khoản
+Google đó mới thao tác được các chức năng nhạy cảm nhất. Trang `/giao-vien/` nói chung và mọi
+chức năng của tài khoản có quyền không bị ảnh hưởng gì.
+
+**Kiểm tra sau khi bật:** mở ẩn danh, thử gọi thẳng một API trong `/api/gv/rieng/*` (vd
+`gdtxdinhquan.pages.dev/api/gv/rieng/hoc-sinh`) — phải hiện màn Google trước tiên. Đăng nhập
+đúng lớp bằng tài khoản có quyền (không phải giáo viên) — mọi trang/nút vẫn phải hoạt động bình
+thường, không bị chặn ở đâu cả.
+
 ---
 
 ## 7. Cách cập nhật nội dung hằng ngày

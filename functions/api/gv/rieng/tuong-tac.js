@@ -1,9 +1,9 @@
-// GET /api/gv/tuong-tac — số liệu "Tương tác" trên trang lớp: lượt truy cập theo ngày,
+// GET /api/gv/rieng/tuong-tac — số liệu "Tương tác" trên trang lớp: lượt truy cập theo ngày,
 // và AI đã truy cập bao nhiêu lần / lần gần nhất (suy ra từ mã cá nhân máy đó đã lưu — nếu
 // học sinh chưa từng tra cứu mã, lượt của em tính vào "Ẩn danh"). Đây là nơi tập trung mọi
 // số liệu tương tác trong tương lai (chat nhóm, chat cá nhân, trò chơi nhẹ…) — thêm bảng/
 // nguồn dữ liệu mới thì gộp vào đây, KHÔNG tạo trang thống kê rời rạc khác.
-import { bocXuLy, json } from '../../_lib/api.js';
+import { bocXuLy, json } from '../../../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const denNgay = new Date().toISOString().slice(0, 10);

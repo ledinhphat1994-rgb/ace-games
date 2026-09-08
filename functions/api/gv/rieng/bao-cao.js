@@ -1,4 +1,4 @@
-// GET /api/gv/bao-cao?loai=...&dinhDang=excel|csv&tuNgay=&denNgay=
+// GET /api/gv/rieng/bao-cao?loai=...&dinhDang=excel|csv&tuNgay=&denNgay=
 // Xuất báo cáo chuyên nghiệp mở được trực tiếp bằng Microsoft Excel:
 //   dinhDang = 'excel' (.xls, bảng tính định dạng sư phạm chuẩn)
 //   dinhDang = 'csv'   (.csv, có chỉ thị sep=; và UTF-8 BOM để Excel tự động tách cột)
@@ -7,7 +7,7 @@
 //   - Lớp học: diem-danh, hoc-sinh, thu-quy
 //   - Trang lớp: thong-bao (đảm nhiệm luôn vai trò của "kế hoạch năm học" cũ), thoi-khoa-bieu
 //   - Báo cáo & Tài khoản: thong-ke, ma-ca-nhan
-import { bocXuLy, loi, ngayHopLe } from '../../_lib/api.js';
+import { bocXuLy, loi, ngayHopLe } from '../../../_lib/api.js';
 import { CAC_QUYEN } from './tai-khoan-phu.js';
 
 const BOM = '\uFEFF';

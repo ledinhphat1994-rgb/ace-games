@@ -3,7 +3,7 @@
 // Kỳ 1 do giáo viên tự chọn khoảng ngày (không nhất thiết đúng 7/30/365 ngày — có thể là một
 // "tuần" lệch để khớp lịch trường thực tế). Từ kỳ 2 trở đi, mỗi kỳ nối tiếp NGAY SAU kỳ liền
 // trước, với ĐÚNG độ dài (số ngày) của kỳ 1 — không ép cứng theo lịch dương như thiết kế cũ.
-// Toàn bộ "số lượng kỳ" được sinh SẴN một lần lúc tạo mẫu (xem functions/api/gv/quy-dinh-ky.js),
+// Toàn bộ "số lượng kỳ" được sinh SẴN một lần lúc tạo mẫu (xem functions/api/gv/rieng/quy-dinh-ky.js),
 // không còn sinh dần mỗi khi mở trang Thủ quỹ.
 export function tinhCacKy(ngayBatDauKy1, ngayKetThucKy1, soKy) {
   const bd1 = new Date(ngayBatDauKy1 + 'T00:00:00Z');

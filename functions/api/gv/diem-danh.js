@@ -2,7 +2,7 @@
 //   GET  /api/gv/diem-danh?ngay=2026-09-15&buoi=sang   -> danh sách lớp kèm trạng thái đã ghi
 //   GET  /api/gv/diem-danh?hocSinhId=5   -> TOÀN BỘ lịch sử điểm danh (mọi ngày/buổi/loại) của
 //        đúng một em — dùng cho ô "Tìm học sinh" ở trang Điểm danh (xem toàn bộ lịch sử để dễ
-//        sửa một bản ghi cũ). Tách riêng khỏi /api/gv/hoc-sinh?id= (hồ sơ ĐẦY ĐỦ, chỉ giáo viên
+//        sửa một bản ghi cũ). Tách riêng khỏi /api/gv/rieng/hoc-sinh?id= (hồ sơ ĐẦY ĐỦ, chỉ giáo viên
 //        chủ nhiệm) vì tài khoản phụ có quyền "diem-danh" cũng cần xem được đúng phần lịch sử
 //        điểm danh này (không phải hồ sơ riêng tư: sđt phụ huynh, hoàn cảnh, ghi chú...).
 //   POST /api/gv/diem-danh   { ngay, buoi, ghiNhan:[{hocSinhId, trangThai, lyDo}] }
