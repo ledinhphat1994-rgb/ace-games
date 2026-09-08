@@ -1460,7 +1460,7 @@ async function trangHoSo(id, tabMacDinh) {
   const khung = e('div');
   // Quay lại ĐÚNG chỗ vừa đến (Tổng quan, Danh sách...), không phải luôn về Danh sách cố định
   // — nếu không, bấm nút Back thật của trình duyệt sau đó sẽ nhảy lung tung.
-  const quayLai = nut('← Quay lại', 'nut-nhe nut-nho', () => {
+  const quayLai = nut('← Quay lại', 'nut-vien nut-nho', () => {
     if (history.length > 1) history.back(); else location.hash = '#/hoc-sinh';
   });
   khung.append(quayLai);

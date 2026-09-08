@@ -291,7 +291,7 @@ export async function trangLichSuKhoiPhucChung(KHUNG, { muc, tieuDe, veTrangTruo
   async function ve() {
     const d = await api('/api/gv/checkpoint-chung?muc=' + muc);
     const khung = e('div');
-    khung.append(nut('← Về ' + tieuDe, 'nut-nhe nut-nho', () => { location.hash = veTrangTruoc; }));
+    khung.append(nut('← Về ' + tieuDe, 'nut-vien nut-nho', () => { location.hash = veTrangTruoc; }));
     khung.append(tieuDeTrang('Lịch sử & khôi phục — ' + tieuDe, `${d.danhSach.length} điểm khôi phục gần nhất`));
 
     if (laGiaoVien) {
@@ -420,7 +420,7 @@ export async function trangThungRacThuVien(KHUNG, { duongApi, tieuDe, veTrangTru
   async function ve() {
     const d = await api(duongApi + '?rac=1');
     const khung = e('div');
-    khung.append(nut('← Về ' + tieuDe, 'nut-nhe nut-nho', () => { location.hash = veTrangTruoc; }));
+    khung.append(nut('← Về ' + tieuDe, 'nut-vien nut-nho', () => { location.hash = veTrangTruoc; }));
     khung.append(tieuDeTrang('🗑 Thùng rác — ' + tieuDe, `${d.danhSach.length} mục — tự xoá vĩnh viễn sau 30 ngày kể từ lúc xoá`));
 
     if (!d.danhSach.length) {

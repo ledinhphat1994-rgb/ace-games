@@ -54,12 +54,12 @@ export async function trangDiemDanhLichSu(KHUNG) {
     datNoiDung(KHUNG, khoiDangTai());
     const khung = e('div');
 
-    // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Điểm danh).
-    const nutVeDiemDanh = nut('← Về Điểm danh', 'nut-nhe nut-nho', () => { location.hash = '#/diem-danh'; });
-    const cardVeDiemDanh = e('div');
-    cardVeDiemDanh.style.cssText = 'display:inline-flex;align-items:center;padding:2px 4px 2px 0;margin-bottom:10px;border-radius:10px;background:var(--nen-chim);border:1px solid var(--vien);';
-    cardVeDiemDanh.append(nutVeDiemDanh);
-    khung.append(cardVeDiemDanh);
+    // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Điểm danh). ".nut-vien"
+    // (viền rõ) chứ không phải ".nut-nhe" (gần như trong suốt) — trên nền tối, chữ nút quay lại
+    // trước đây gần như chìm mất vào nền, khó nhận ra là một nút bấm được.
+    const nutVeDiemDanh = nut('← Về Điểm danh', 'nut-vien nut-nho', () => { location.hash = '#/diem-danh'; });
+    nutVeDiemDanh.style.marginBottom = '10px';
+    khung.append(nutVeDiemDanh);
     khung.append(tieuDeTrang('Lịch sử Điểm danh',
       'Mỗi lần lưu điểm danh đều tự lưu lại một điểm khôi phục, kèm chi tiết từng học sinh đã đổi gì.'));
 

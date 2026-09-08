@@ -2028,11 +2028,9 @@ export async function trangQuyLichSu(KHUNG) {
     // Đi thẳng bằng hash — nút này luôn về đúng một chỗ cố định (trang Thủ quỹ), nên không cần
     // history.back() (rủi ro tải lại cả trang, mất tiếng nhạc nền, nếu mục trước đó trong lịch
     // sử duyệt là một trang khác hẳn — vd trang lớp mở bằng link "⚙ Quản lý").
-    const nutVeQuy = nut('← Về Thủ quỹ', 'nut-nhe nut-nho', () => { location.hash = '#/quy'; });
-    const cardVeQuy = e('div');
-    cardVeQuy.style.cssText = 'display:inline-flex;align-items:center;padding:2px 4px 2px 0;margin-bottom:10px;border-radius:10px;background:var(--nen-chim);border:1px solid var(--vien);';
-    cardVeQuy.append(nutVeQuy);
-    khung.append(cardVeQuy);
+    const nutVeQuy = nut('← Về Thủ quỹ', 'nut-vien nut-nho', () => { location.hash = '#/quy'; });
+    nutVeQuy.style.marginBottom = '10px';
+    khung.append(nutVeQuy);
     khung.append(tieuDeTrang('Lịch sử Thủ quỹ',
       'Toàn bộ lịch sử ghi thu, ghi chi, các đợt thu cố định và điểm khôi phục — tất cả ở một chỗ.'));
 

@@ -739,7 +739,7 @@ export async function trangNhatKyDangNhap(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
   const d = await api('/api/gv/nhat-ky-dang-nhap');
   const khung = e('div');
-  khung.append(nut('← Về Mã cá nhân', 'nut-nhe nut-nho', () => { location.hash = '#/ma-ca-nhan'; }));
+  khung.append(nut('← Về Mã cá nhân', 'nut-vien nut-nho', () => { location.hash = '#/ma-ca-nhan'; }));
   khung.append(tieuDeTrang('Nhật ký đăng nhập',
     'Chỉ ghi các lượt đăng nhập bằng mã ĐƯỢC CẤP quyền quản lý — không xoá được, để còn dò lại nếu một mã bị chiếm quyền.'));
 

@@ -37,7 +37,7 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
     // (thời khoá biểu hiện tại), nên không cần dựa vào lịch sử duyệt. Dựa vào history.back()
     // ở đây có rủi ro: nếu mục trước đó trong lịch sử là một trang KHÁC hẳn (vd trang lớp mở
     // bằng link "⚙ Quản lý"), trình duyệt sẽ tải lại toàn trang, làm mất tiếng nhạc nền đang phát.
-    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
+    khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-vien nut-nho', () => { location.hash = '#/thoi-khoa-bieu'; }));
   }
 
   const dauTrang = e('div');
@@ -316,7 +316,7 @@ export async function trangThoiKhoaBieuLichSu(KHUNG) {
   const d = await api('/api/gv/thoi-khoa-bieu?ds=1');
 
   const khung = e('div');
-  khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-nhe nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
+  khung.append(nut('← Về thời khoá biểu hiện tại', 'nut-vien nut-nho', () => { if (history.length > 1) history.back(); else location.hash = '#/thoi-khoa-bieu'; }));
   khung.append(tieuDeTrang('Lịch sử thời khoá biểu', `${d.danhSach.length} phiên bản đã lưu`));
 
   if (!d.danhSach.length) {
