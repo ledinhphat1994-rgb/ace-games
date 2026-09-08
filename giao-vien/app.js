@@ -1,5 +1,5 @@
 /* Ứng dụng quản lý lớp dành cho giáo viên chủ nhiệm.
-   Điều hướng bằng dấu # trên thanh địa chỉ: #/tong-quan, #/diem-danh, ... */
+   Điều hướng bằng dấu # trên thanh địa chỉ: #/diem-danh, #/hoc-sinh, ... */
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
@@ -29,7 +29,6 @@ const KHUNG = $('#noiDung');
 // Mỗi tuyến ứng với đúng một "quyenCan" phía máy chủ (functions/api/gv/*.js).
 // null = CHỈ giáo viên chủ nhiệm (dữ liệu nhạy cảm: hồ sơ, điểm, thống kê từng em...).
 const QUYEN_THEO_TUYEN = {
-  'tong-quan': null,
   'diem-danh': 'diem-danh',
   'diem-danh-lich-su': 'diem-danh',
   // Học sinh: KHÔNG có quyenCan nào cấp được — trang quản lý hồ sơ học sinh chỉ dành cho giáo
@@ -154,188 +153,6 @@ const DIEM_DANH = {
 };
 
 const TEN_BUOI = { sang: 'Buổi sáng', chieu: 'Buổi chiều', hoat_dong: 'Hoạt động' };
-
-// Nhãn tương đối cho mốc sắp tới — chỉ để quét nhanh độ gấp, không thay ngày tuyệt đối
-// (ngày dd/mm/yyyy vẫn luôn hiện cạnh nhãn này).
-function nhanTuongDoi(ngay, homNayHienTai) {
-  const soNgay = Math.round((new Date(ngay + 'T00:00:00Z') - new Date(homNayHienTai + 'T00:00:00Z')) / 86400000);
-  if (soNgay === 0) return { chu: 'Hôm nay', lop: 'nhan-xau' };
-  if (soNgay === 1) return { chu: 'Ngày mai', lop: 'nhan-luuy' };
-  if (soNgay >= 2 && soNgay <= 7) return { chu: 'Tuần này', lop: 'nhan' };
-  if (soNgay >= 8 && soNgay <= 14) return { chu: 'Tuần sau', lop: 'nhan-xam' };
-  return null;
-}
-
-
-
-/* ================= Trang: Tổng quan ================= */
-
-async function trangTongQuan() {
-  datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/tong-quan');
-
-  const dd = d.diemDanhHomNay || {};
-  const daDiemDanh = Object.values(dd).reduce((a, b) => a + b, 0);
-
-  const khung = e('div');
-  khung.append(tieuDeTrang('Tổng quan', 'Bảng tin hằng ngày — ' + ngayDayDu(d.ngay) + ': việc cần làm, học sinh cần chú ý, không phải trang thống kê.'));
-
-  const day = e('div', 'day-so');
-  day.append(
-    oThongKe(String(d.siSo), 'Sĩ số lớp'),
-    oThongKe(String(dd.co_mat || 0), 'Có mặt hôm nay', 'tot'),
-    oThongKe(String((dd.vang_phep || 0) + (dd.vang_khong_phep || 0)), 'Vắng hôm nay', 'luuy'),
-    oThongKe(String(dd.vang_khong_phep || 0), 'Vắng không phép', 'xau')
-  );
-  khung.append(day);
-
-  // --- Việc hôm nay: lối tắt hành động, để không phải chạy qua nhiều trang ---
-  const theVh = e('div', 'the');
-  theVh.style.cssText = 'margin-top:16px;border-color:var(--chinh)';
-  theVh.append(e('h3', null, 'Việc hôm nay'));
-  const dayTat = e('div', 'day-loc day-loc-deu');
-  dayTat.style.margin = '10px 0 4px';
-  dayTat.append(
-    nut('💰 Ghi thu quỹ', 'nut-vien nut-nho', () => { location.hash = '#/quy'; }),
-    nut('◈ Soạn thông báo', 'nut-vien nut-nho', () => soanThongBao(null, trangTongQuan))
-  );
-  theVh.append(dayTat);
-  khung.append(theVh);
-
-  if (!daDiemDanh) {
-    const nhacNho = e('div', 'the');
-    nhacNho.style.borderColor = 'var(--luu-y)';
-    nhacNho.append(
-      e('h3', null, 'Hôm nay chưa điểm danh'),
-      e('p', 'trong', 'Bấm nút bên dưới để điểm danh nhanh cho cả lớp.'),
-      nut('Điểm danh ngay', '', () => { location.hash = '#/diem-danh'; })
-    );
-    khung.append(nhacNho);
-  } else {
-    // Lớp học cả sáng lẫn chiều: tách rõ buổi nào đã điểm danh, buổi nào chưa.
-    const theoBuoi = d.diemDanhHomNayTheoBuoi || {};
-    const cacBuoiCoDiemDanh = Object.keys(theoBuoi);
-    if (cacBuoiCoDiemDanh.length) {
-      const theBuoi = e('div', 'the');
-      theBuoi.append(e('h3', null, 'Điểm danh hôm nay theo buổi'));
-      const day2 = e('div', 'day-loc');
-      day2.style.marginTop = '8px';
-      [['sang', 'Buổi sáng'], ['chieu', 'Buổi chiều'], ['hoat_dong', 'Hoạt động']].forEach(([ma, ten]) => {
-        const tt = theoBuoi[ma];
-        if (!tt) return;
-        const soVang = (tt.vang_khong_phep || 0) + (tt.vang_phep || 0);
-        day2.append(e('span', 'nhan ' + (soVang ? 'nhan-luuy' : 'nhan-tot'),
-          `${ten}: ${tt.co_mat || 0} có mặt${soVang ? `, ${soVang} vắng` : ''}`));
-      });
-      theBuoi.append(day2);
-      khung.append(theBuoi);
-    }
-  }
-
-  const luoi = e('div', 'luoi luoi-2');
-  luoi.style.marginTop = '18px';
-
-  // --- Cần chú ý: 2 tín hiệu độc lập (chuyên cần / hạnh kiểm), không cộng trừ thành 1 điểm ẩn.
-  // Vắng có phép và khen KHÔNG làm giảm mức cần chú ý của em khác — mỗi dòng luôn có lý do rõ ràng.
-  const theVang = e('div', 'the');
-  theVang.append(e('h3', null, 'Cần chú ý'), e('p', 'trong', 'Vắng không phép, đi trễ từ 2 lần, hoặc có vi phạm — 30 ngày gần nhất.'));
-  const canChuY = d.canChuY || [];
-  if (!canChuY.length) {
-    theVang.append(e('p', 'trong', 'Không có em nào cần chú ý. Rất tốt.'));
-  } else {
-    const ds = e('div', 'ds-diem-danh');
-    canChuY.forEach((h) => {
-      const hang = e('div', 'hang-hs hang-can-chu-y');
-      const tenBam = e('button', 'ten-bam ten');
-      tenBam.type = 'button';
-      tenBam.setAttribute('aria-label', 'Xem hồ sơ: ' + h.hoTen);
-      tenBam.append(e('b', null, h.hoTen), e('small', null, h.lyDo));
-      tenBam.addEventListener('click', () => { location.hash = '#/hoc-sinh/' + h.id; });
-      hang.append(e('div', 'stt', h.id), tenBam);
-
-      // Hành động ngay tại dòng — không bắt rời Tổng quan để xử lý (Action Proximity).
-      const hanhDong = e('div', 'hanh-dong');
-      hanhDong.append(
-        nut('Liên hệ PH', 'nut-nhe nut-nho', () => ghiLienHe(h, trangTongQuan), 'Liên hệ phụ huynh của ' + h.hoTen)
-      );
-      hang.append(hanhDong);
-      ds.append(hang);
-    });
-    theVang.append(ds);
-  }
-  luoi.append(theVang);
-
-  // --- Hoàn cảnh cần quan tâm ---
-  const theHc = e('div', 'the');
-  theHc.append(e('h3', null, 'Hoàn cảnh cần quan tâm'));
-  if (!d.hoanCanh.length) {
-    theHc.append(e('p', 'trong', 'Chưa ghi nhận trường hợp nào.'));
-  } else {
-    const ul = e('div', 'ds-diem-danh');
-    d.hoanCanh.forEach((h) => {
-      // "Hoàn cảnh" là văn bản tự do, có thể dài cả câu — dùng bố cục hang-hs-doc (như Khoản
-      // chi/Thủ quỹ) để xuống dòng bình thường thay vì nhét vào 1 nhãn tròn white-space:nowrap,
-      // dễ tràn ngang trên điện thoại khi nội dung dài.
-      const hang = e('div', 'hang-hs hang-hs-doc');
-      const dong1 = e('div', 'hang-hs-dong1');
-      const khoiTrai = e('div', 'hs-khoi-trai');
-      khoiTrai.append(e('div', 'stt', h.id));
-      const thongTin = e('div', 'hs-thong-tin');
-      const dongTen = e('div', 'hs-ten-to');
-      dongTen.append(e('span', 'hs-ho-ten', h.hoTen));
-      thongTin.append(dongTen, e('div', 'hs-chi-tiet-dong', h.hoanCanh));
-      khoiTrai.append(thongTin);
-      dong1.append(khoiTrai);
-      hang.append(dong1);
-      ul.append(hang);
-    });
-    theHc.append(ul);
-  }
-  luoi.append(theHc);
-
-  // --- Theo dõi đầu năm ---
-  const theTd = e('div', 'the');
-  theTd.append(e('h3', null, 'Theo dõi đầu năm'));
-  const nhomMuc = {};
-  d.theoDoi.forEach((t) => {
-    nhomMuc[t.muc] = nhomMuc[t.muc] || [];
-    nhomMuc[t.muc].push(t);
-  });
-  const TEN_MUC = { sgk: 'Sách giáo khoa', dong_phuc: 'Đồng phục' };
-  Object.entries(nhomMuc).forEach(([muc, ds]) => {
-    theTd.append(e('div', 'the-nhan', TEN_MUC[muc] || muc));
-    const hop = e('div', 'day-loc');
-    hop.style.margin = '6px 0 12px';
-    ds.sort((a, b) => b.n - a.n).forEach((t) => {
-      const l = /Chưa/.test(t.trangThai) ? 'nhan-xau' : /thiếu/i.test(t.trangThai) ? 'nhan-luuy' : 'nhan-tot';
-      hop.append(e('span', 'nhan ' + l, `${t.trangThai}: ${t.n}`));
-    });
-    theTd.append(hop);
-  });
-  luoi.append(theTd);
-
-  // --- Sắp tới ---
-  const theKh = e('div', 'the');
-  theKh.append(e('h3', null, 'Sắp tới'));
-  if (!d.keHoachSapToi.length) {
-    theKh.append(e('p', 'trong', 'Không có mốc nào sắp tới.'));
-  } else {
-    d.keHoachSapToi.forEach((k) => {
-      const hang = e('div', 'hang-hs');
-      const ten = e('div', 'ten');
-      ten.append(e('b', null, k.tieuDe), e('small', null, ngayDayDu(k.ngay)));
-      hang.append(ten);
-      const nhanTd = nhanTuongDoi(k.ngay, d.ngay);
-      if (nhanTd) hang.append(e('span', 'nhan ' + nhanTd.lop, nhanTd.chu));
-      theKh.append(hang);
-    });
-  }
-  luoi.append(theKh);
-
-  khung.append(luoi);
-
-  datNoiDung(KHUNG, khung);
-}
 
 /* ---------- Điểm danh linh động: đánh dấu hàng loạt cho trường hợp đặc biệt (đi bồi dưỡng,
    lao động, hoạt động ngoại khoá…) — chọn lý do có sẵn hoặc gõ riêng, tích những em liên
@@ -2002,7 +1819,6 @@ async function trangHoatDongLop(KHUNG) {
 /* ================= Điều hướng ================= */
 
 const TRANG = {
-  '/tong-quan': trangTongQuan,
   '/diem-danh': trangDiemDanh,
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
@@ -2048,7 +1864,7 @@ function danhDauMenu(duong) {
 }
 
 async function dieuHuong() {
-  const duong = location.hash.replace(/^#/, '') || (PHIEN.role === 'teacher' ? '/tong-quan' : '/them');
+  const duong = location.hash.replace(/^#/, '') || (PHIEN.role === 'teacher' ? '/diem-danh' : '/them');
   danhDauMenu(duong);
   window.scrollTo(0, 0);
 
@@ -2066,7 +1882,7 @@ async function dieuHuong() {
     const xemTkb = duong.match(/^\/thoi-khoa-bieu-xem\/(\d+)$/);
     if (xemTkb) return await trangThoiKhoaBieu(KHUNG, Number(xemTkb[1]));
 
-    const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangTongQuan : trangThem);
+    const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangDiemDanh : trangThem);
     await xuLy();
   } catch (err) {
     console.error(err);
@@ -2125,6 +1941,6 @@ async function dieuHuong() {
   // Có mạng trở lại thì tự gửi những lần điểm danh còn nằm chờ trong máy.
   tuDongBoKhiCoMang((kq) => {
     nhac(`Đã gửi ${kq.daGui} lần điểm danh lưu tạm lúc mất mạng`, 'tot');
-    if (location.hash.startsWith('#/diem-danh') || location.hash.startsWith('#/tong-quan')) dieuHuong();
+    if (location.hash.startsWith('#/diem-danh')) dieuHuong();
   });
 })();

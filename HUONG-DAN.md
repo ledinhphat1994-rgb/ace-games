@@ -84,7 +84,7 @@ npm run kiem-tra
 | Địa chỉ | Ai vào được | Dùng để làm gì |
 |---|---|---|
 | `/` | Học sinh (mã lớp) | Thông báo (gồm cả mốc sự kiện, mức độ quan trọng), danh sách lớp, thời khoá biểu, hình ảnh |
-| `/giao-vien/` | Chỉ mã giáo viên | Tổng quan, điểm danh, hồ sơ học sinh, soạn thông báo |
+| `/giao-vien/` | Chỉ mã giáo viên | Điểm danh, hồ sơ học sinh, soạn thông báo |
 
 ### Nội dung giờ nằm trong cơ sở dữ liệu, không còn sửa tệp
 
