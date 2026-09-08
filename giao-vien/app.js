@@ -2096,6 +2096,15 @@ async function dieuHuong() {
     document.title = `Quản lý ${PHIEN.tenLop}`;
     const hieuMaLop = document.querySelector('#hieuMaLop');
     if (hieuMaLop) hieuMaLop.textContent = PHIEN.tenLop.replace(/^Lớp\s*/i, '');
+    // Thay chữ tĩnh "Quản lý lớp" bằng tên lớp thật (vd "Lớp 10A7") — trước đây luôn ghi cứng
+    // "Quản lý lớp" bất kể đang ở lớp nào, lại dễ đọc thành "Quản lý lớp ... · Quản lý" nếu tài
+    // khoản có chức danh cũng chứa chữ "Quản lý", trông như lặp từ. Tên lớp thật vừa không bao
+    // giờ trùng chữ với chức danh, vừa hữu ích hơn hẳn (biết ngay đang ở lớp nào).
+    const hieuTen = document.querySelector('.hieu-ten');
+    if (hieuTen) {
+      const nutChu = Array.from(hieuTen.childNodes).find((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+      if (nutChu) nutChu.textContent = PHIEN.tenLop;
+    }
   }
 
   // "Đổi lớp chủ nhiệm" — chỉ giáo viên chủ nhiệm mới có (người có thể giữ mã của nhiều lớp);
