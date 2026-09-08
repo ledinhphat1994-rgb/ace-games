@@ -30,9 +30,13 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   const hocSinhId = Number(url.searchParams.get('hocSinhId'));
   if (Number.isInteger(hocSinhId) && hocSinhId > 0) {
+    // "ORDER BY ngay DESC, buoi DESC" — PHẢI khớp CHÍNH XÁC thứ tự ở /api/diem-danh.js (chuyên
+    // cần cá nhân em học sinh tự xem), nếu không cùng một bộ dữ liệu sẽ hiện thứ tự KHÁC NHAU ở
+    // hai nơi (bản ghi cùng ngày nhưng khác buổi không có thứ tự cố định nếu chỉ ORDER BY ngay),
+    // trông như dữ liệu sai lệch dù thật ra chỉ là thứ tự hiển thị ngẫu nhiên.
     const { results } = await env.DB.prepare(
       `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
-         FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 60`
+         FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC, buoi DESC LIMIT 60`
     ).bind(hocSinhId, phien.lopId).all();
     return json({ ok: true, lichSu: results });
   }

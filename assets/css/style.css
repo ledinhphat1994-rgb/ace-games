@@ -1547,6 +1547,15 @@ body.trang-dang-nhap {
   flex-wrap: wrap;
   margin: 0;
 }
+/* ".day-loc-deu" (lưới auto-fit) là con của flex-row ở trên nhưng KHÔNG co giãn theo mặc định
+   (flex:0 1 auto — co theo đúng nội dung), nên lưới không có bề rộng THẬT để tính số cột, tự
+   sập về 1 cột dọc (xem giải thích đầy đủ ở ".nhom-buoi-dd") — đúng lỗi "3 thẻ lọc xếp dọc, dư
+   khoảng trống rất lớn tới ô tìm kiếm" trên màn hình rộng (≥ 821px, dưới mức đó cột đã tự stretch
+   nên không dính lỗi). flex-grow:1 vừa cho lưới bề rộng thật để tính đúng cột, vừa lấp hết phần
+   trống thừa thay vì để "justify-content:space-between" kéo giãn khoảng cách vô ích. */
+.thanh-cong-cu-khoan .day-loc-deu {
+  flex: 1 1 320px;
+}
 .thanh-cong-cu-khoan .nhom-dieu-khien-khoan {
   display: flex;
   align-items: center;
@@ -1578,8 +1587,8 @@ body.trang-dang-nhap {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--chinh) 25%, transparent);
 }
 .thanh-cong-cu-khoan .o-tim-khoan {
-  width: 180px;
-  max-width: 200px;
+  width: 220px;
+  max-width: 260px;
   height: 38px;
   min-height: 38px;
   padding: 0 12px;

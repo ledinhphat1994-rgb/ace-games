@@ -25,8 +25,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
            FROM hoc_sinh WHERE id = ?1 AND lop_id = ?2`
       ).bind(id, phien.lopId).first(),
       db.prepare(
+        // "ngay DESC, buoi DESC" khớp đúng thứ tự ở /api/diem-danh.js và /api/gv/diem-danh.js
+        // (?hocSinhId=) — cùng một bản ghi không được hiện thứ tự khác nhau ở mỗi nơi.
         `SELECT ngay, buoi, trang_thai AS trangThai, ly_do AS lyDo
-           FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC LIMIT 60`
+           FROM diem_danh WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY ngay DESC, buoi DESC LIMIT 60`
       ).bind(id, phien.lopId).all(),
       db.prepare('SELECT muc, trang_thai AS trangThai, ghi_chu AS ghiChu FROM theo_doi WHERE hoc_sinh_id = ?1 AND lop_id = ?2')
         .bind(id, phien.lopId).all(),
