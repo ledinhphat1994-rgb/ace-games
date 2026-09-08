@@ -367,6 +367,19 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   flex-direction: column;
   gap: 6px;
 }
+/* Khi tìm kiếm ra ít kết quả, hàng học sinh (.hang-hs) không còn hàng tên+nút bấm nhanh riêng
+   nữa (thay hẳn bằng khối lịch sử này) — bỏ viền/khoảng cách vốn dùng để NGĂN CÁCH với hàng đó,
+   giờ không còn gì phía trên để ngăn cách nữa. */
+.hang-hs > .lich-su-tim-dd:only-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.lich-su-tim-dd-ten {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.lich-su-tim-dd-ten b { font-size: 15px; font-weight: 600; }
+.lich-su-tim-dd-ten small { color: var(--chu-nhat); font-size: 12px; }
 /* Mỗi lần điểm danh trong lịch sử là MỘT THẺ RIÊNG, bo góc + viền — dễ tách bạch từng dòng thay
    vì một danh sách phẳng liền mạch. LUÔN đúng 2 dòng cố định (không co giãn/xuống dòng thêm tuỳ
    độ dài chữ, tránh đúng lỗi trước đây "khi thì Sửa cùng dòng, khi thì rơi lệch xuống dưới"):

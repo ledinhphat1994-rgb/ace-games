@@ -420,12 +420,70 @@ function moHopThoaiGhiChuDiemDanh(h, ttHienTai, ldHienTai, onSave) {
 // dưới) vì lúc đó lịch sử của (các) học sinh vừa lưu đã cũ.
 const lichSuDiemDanhCache = new Map();
 
+// Sửa MỘT bản ghi điểm danh cụ thể (ngày/buổi/loại đã biết rõ) — lưu NGAY qua API, không qua
+// hàng đợi "Lưu điểm danh" như khi bấm nút trạng thái trực tiếp trên hàng học sinh: đây là sửa
+// một bản ghi CŨ tìm thấy khi tra cứu, thao tác đơn lẻ nên lưu ngay cho rõ ràng, đỡ phải nhớ
+// thêm bước "Lưu" tổng ở cuối trang. Hiện đủ ngày/buổi/loại để không nhầm đang sửa buổi nào.
+function moHopThoaiSuaLichSuDiemDanh(h, banGhi, veLai) {
+  const laPhu = banGhi.buoi.endsWith('_phu');
+  const buoiGoc = banGhi.buoi.replace(/_phu$/, '');
+
+  const thongTin = e('div');
+  thongTin.style.cssText = 'padding:10px 14px;background:var(--nen-chim);border-radius:10px;margin-bottom:14px;';
+  thongTin.append(
+    Object.assign(e('b', null, h.hoTen), { style: 'font-size:15.5px;display:block;' }),
+    Object.assign(e('small', null, `${ngayVN(banGhi.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Điểm danh linh động' : 'Điểm danh chính'}`), { style: 'color:var(--chu-nhat);font-size:12.5px;' })
+  );
+
+  const oTt = oChon('suaLsTt', [
+    ['', '✕ Chưa điểm danh (xoá bản ghi)'],
+    ...Object.entries(DIEM_DANH).map(([k, v]) => [k, `${v.ky} ${v.ten}`]),
+  ], banGhi.trangThai || '');
+
+  const oLd = oNhap('suaLsLd', 'text', banGhi.lyDo || '', 'Lý do / ghi chú (không bắt buộc)');
+
+  moHopThoai(`Sửa điểm danh — ${h.hoTen}`, [
+    thongTin,
+    truong('Trạng thái', oTt),
+    truong('Lý do / Ghi chú', oLd),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('💾 Lưu', 'nut-chinh', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        await api('/api/gv/diem-danh', {
+          method: 'POST',
+          than: {
+            ngay: banGhi.ngay, buoi: buoiGoc, loai: laPhu ? 'phu' : 'chinh',
+            ghiNhan: [{ hocSinhId: h.id, trangThai: oTt.value || null, lyDo: oLd.value.trim() }],
+          },
+        });
+        dongHopThoai();
+        nhac('Đã lưu điểm danh', 'tot');
+        lichSuDiemDanhCache.delete(h.id);
+        if (veLai) veLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        ev.currentTarget.disabled = false;
+      }
+    }),
+  ]);
+  setTimeout(() => oLd.focus(), 80);
+}
+
 // Khối lịch sử hiện dưới MỖI học sinh khớp tìm kiếm — hiện TẤT CẢ ngày/buổi/loại đã từng điểm
-// danh (không chỉ đúng ngày/buổi đang xem), vì mục đích tìm kiếm ở đây là để rà và SỬA một bản
-// ghi cũ, không phải chỉ xem/sửa đúng buổi hôm nay. Nút "Sửa" nhảy thẳng tới đúng ngày/buổi/tab
-// của bản ghi đó (qua nhayDenNgayBuoi) để bấm trạng thái mới ngay tại đó.
-function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, dangLaPhu) {
+// danh (kể cả đúng buổi đang xem — trước đây loại trừ vì tưởng đã sửa được ở hàng học sinh phía
+// trên, nhưng khi đang tìm kiếm thì hàng đó đã bị bỏ hẳn (xem veKhuVucChinh/veKhuVucPhu), nên
+// đây giờ là NƠI DUY NHẤT để xem/sửa, không được thiếu buổi nào). Mọi loại (có mặt/trễ/vắng...)
+// đều dùng chung đúng một kiểu thẻ — bấm "Sửa" mở popup rõ ngày/buổi/loại thay vì nhảy sang chỗ
+// khác như trước.
+function veLichSuTimThay(h, veLai) {
   const khoi = e('div', 'lich-su-tim-dd');
+
+  const tieuDe = e('div', 'lich-su-tim-dd-ten');
+  tieuDe.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
+  khoi.append(tieuDe);
+
   if (!lichSuDiemDanhCache.has(h.id)) {
     lichSuDiemDanhCache.set(h.id, 'dang-tai');
     api('/api/gv/diem-danh?hocSinhId=' + h.id).then((d) => {
@@ -445,13 +503,12 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
     return khoi;
   }
   if (!ls || !ls.length) {
-    khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
+    khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào.'));
     return khoi;
   }
   // Thống kê tổng của em này — TÍNH Y HỆT cách trang Hồ sơ học sinh (#/hoc-sinh/:id) đang làm,
   // để một em luôn ra đúng MỘT con số duy nhất dù xem ở đâu, không phải tự cộng nhẩm từ danh
-  // sách bên dưới (trước đây chỉ có danh sách, không có tổng — không "đồng bộ" với các nơi khác
-  // trong web đã có sẵn kiểu thống kê này).
+  // sách bên dưới.
   const dem = { co_mat: 0, tre: 0, vang_phep: 0, vang_khong_phep: 0 };
   ls.forEach((x) => { if (dem[x.trangThai] !== undefined) dem[x.trangThai]++; });
   const daySo = e('div', 'day-so');
@@ -464,20 +521,9 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
   );
   khoi.append(daySo);
 
-  // Bỏ ĐÚNG bản ghi của ngày/buổi/loại đang xem NGAY TẠI TRANG NÀY — bản ghi đó đã hiện sẵn (và
-  // sửa được trực tiếp) ở hàng học sinh phía trên, hiện lại trong "lịch sử" là dư thừa, dễ hiểu
-  // lầm thành 2 nguồn khác nhau. API trả về mới → cũ (ngay DESC) để .slice() lấy đúng 15 lần GẦN
-  // ĐÂY NHẤT, sau đó đảo lại thành cũ → mới (từ quá khứ tới hiện tại) khi hiển thị.
-  const dsKhac = ls.filter((x) => {
-    const laPhuBanGhi = x.buoi.endsWith('_phu');
-    const buoiGocBanGhi = x.buoi.replace(/_phu$/, '');
-    return !(x.ngay === ngayHienTai && buoiGocBanGhi === buoiHienTai && laPhuBanGhi === dangLaPhu);
-  });
-  if (!dsKhac.length) {
-    khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
-    return khoi;
-  }
-  dsKhac.slice(0, 15).reverse().forEach((x) => {
+  // API trả về mới → cũ (ngay DESC) để .slice() lấy đúng 15 lần GẦN ĐÂY NHẤT, sau đó đảo lại
+  // thành cũ → mới (từ quá khứ tới hiện tại) khi hiển thị.
+  ls.slice(0, 15).reverse().forEach((x) => {
     const laPhu = x.buoi.endsWith('_phu');
     const buoiGoc = x.buoi.replace(/_phu$/, '');
     const tt2 = DIEM_DANH[x.trangThai] || {};
@@ -485,7 +531,7 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, da
     const dong1 = e('div', 'dong-lich-su-dd-dong1');
     dong1.append(
       e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
-      nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu))
+      nut('Sửa', 'nut-nhe nut-nho', () => moHopThoaiSuaLichSuDiemDanh(h, x, veLai))
     );
     const phanDoan = [ngayVN(x.ngay), TEN_BUOI[buoiGoc] || buoiGoc];
     if (x.lyDo) phanDoan.push(x.lyDo);
@@ -626,10 +672,22 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     // cột trạng thái riêng cho từng em (✓/T/P/✗), bấm lại để bỏ chọn, cộng nút 📝 ghi chú riêng.
     const ds = e('div', 'ds-diem-danh');
     ds.style.marginTop = '10px';
+    // Đang tìm kiếm với ít kết quả (≤ 8 em) — hiện hẳn TOÀN BỘ lịch sử điểm danh của đúng những
+    // em đó thay cho hàng bấm nhanh ✓/T/P/✗ (đằng nào cũng đã có thanh "⚡ Áp dụng nhanh" phía
+    // trên lo phần bấm nhanh này rồi — lặp thêm một hàng bấm-nhanh riêng cho từng em là dư thừa,
+    // lại khác kiểu thẻ hẳn với chính khối lịch sử ngay bên dưới nó). Giới hạn số em hiện lịch sử
+    // (dsLoc nhỏ) để tránh gọi API dồn dập khi gõ từ khoá chung chung khớp cả chục em.
+    const dangHienLichSu = dangLoc && dsLoc.length <= 8;
     dsLoc.forEach((h) => {
       const tt = trangThaiHienTai(h.id, h.trangThai);
       const ld = lyDoHienTai(h.id, h.lyDo);
       const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+
+      if (dangHienLichSu) {
+        hang.append(veLichSuTimThay(h, veKhuVucPhu));
+        ds.append(hang);
+        return;
+      }
 
       const ten = e('div', 'ten');
       ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
@@ -677,15 +735,6 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
       nhom.append(nutGc);
 
       hang.append(nhom);
-
-      // Đang tìm kiếm (không phải xem cả lớp) — hiện thêm TOÀN BỘ lịch sử điểm danh của đúng
-      // em này (mọi ngày/buổi/loại), không chỉ đúng buổi đang xem, để dễ rà và sửa một bản ghi
-      // cũ. Giới hạn số em hiện lịch sử (dsLoc nhỏ) để tránh gọi API dồn dập khi gõ từ khoá
-      // chung chung khớp cả chục em.
-      if (dangLoc && dsLoc.length <= 8) {
-        hang.append(veLichSuTimThay(h, veKhuVucPhu, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timPhu), ngay, buoi, true));
-      }
-
       ds.append(hang);
     });
     if (dangLoc && dsLoc.length > 8) {
@@ -1100,10 +1149,21 @@ async function trangDiemDanh() {
 
         // Danh sách học sinh (đúng danh sách đang tìm thấy — cả lớp nếu không lọc gì)
         const ds = e('div', 'ds-diem-danh');
+        // Đang tìm kiếm với ít kết quả (≤ 8 em) — hiện hẳn TOÀN BỘ lịch sử điểm danh của đúng
+        // những em đó thay cho hàng bấm nhanh ✓/T/P/✗ (đằng nào cũng đã có thanh "⚡ Áp dụng
+        // nhanh" phía trên lo phần bấm nhanh này rồi — lặp thêm một hàng bấm-nhanh riêng cho
+        // từng em là dư thừa, lại khác kiểu thẻ hẳn với chính khối lịch sử ngay bên dưới nó).
+        const dangHienLichSu = dangLoc && dsLoc.length <= 8;
         dsLoc.forEach((h) => {
           const tt = trangThaiHienTaiChinh(h.id, h.trangThai);
           const ld = lyDoHienTaiChinh(h.id, h.lyDo);
           const hang = e('div', 'hang-hs' + (tt ? '' : ' chua-ghi'));
+
+          if (dangHienLichSu) {
+            hang.append(veLichSuTimThay(h, veKhuVucChinh));
+            ds.append(hang);
+            return;
+          }
 
           const ten = e('div', 'ten');
           ten.append(e('b', null, h.hoTen), e('small', null, h.lopNghe || ''));
@@ -1159,14 +1219,6 @@ async function trangDiemDanh() {
           nhom.append(nutGc);
 
           hang.append(nhom);
-
-          // Xem thêm phần giải thích ở veTabDiemDanhNhanh — cùng cơ chế: hiện TOÀN BỘ lịch sử
-          // điểm danh của em này (mọi ngày/buổi/loại) khi đang tìm kiếm, không chỉ đúng buổi
-          // đang xem, kèm nút "Sửa" nhảy thẳng tới đúng ngày/buổi/tab của bản ghi cũ đó.
-          if (dangLoc && dsLoc.length <= 8) {
-            hang.append(veLichSuTimThay(h, veKhuVucChinh, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timChinh), ngay, buoi, false));
-          }
-
           ds.append(hang);
         });
         if (dangLoc && dsLoc.length > 8) {
