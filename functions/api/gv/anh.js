@@ -3,6 +3,9 @@
 //   GET    /api/gv/anh?rac=1    -> danh sách ảnh trong THÙNG RÁC (CHỈ giáo viên — tự dọn mục quá hạn)
 //   POST   /api/gv/anh          { tenTep, kieu, duLieu (base64), chuThich, ngay }
 //   PATCH  /api/gv/anh          { id, chuThich }
+//   PATCH  /api/gv/anh          { id, kho }              -> chuyển ảnh sang kho 'chung'|'nen'|'banner'
+//                                  (CHỈ là nhãn phân loại để dễ tìm lại — KHÔNG phải đang đặt làm
+//                                  nền/banner thật, 2 việc đó vẫn qua cơ chế riêng như trước)
 //   PATCH  /api/gv/anh          { id, khoiPhuc: true }   -> khôi phục khỏi thùng rác (CHỈ giáo viên)
 //   DELETE /api/gv/anh?id=              -> chuyển MỘT ảnh vào thùng rác (tài khoản có quyền "hinh-anh"
 //                                            cũng xoá được — an toàn vì có thùng rác, giáo viên khôi
@@ -22,6 +25,7 @@ import {
 
 const KIEU_CHO_PHEP = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const TOI_DA_BYTE = 1_500_000;   // 1,5 MB mỗi ảnh sau khi nén
+const CAC_KHO = new Set(['chung', 'nen', 'banner']);
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const xemRac = new URL(request.url).searchParams.get('rac') === '1';
@@ -32,7 +36,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (xemRac) await donDepThungRacHetHan(env, phien.lopId);
 
   const { results } = await env.DB.prepare(
-    `SELECT id, khoa, chu_thich AS chuThich, ngay, kieu, co_byte AS coByte, da_xoa_luc AS daXoaLuc,
+    `SELECT id, khoa, chu_thich AS chuThich, ngay, kieu, co_byte AS coByte, kho, da_xoa_luc AS daXoaLuc,
             xoa_boi AS xoaBoi, ly_do_xoa AS lyDoXoa
        FROM hinh_anh WHERE lop_id = ?1 AND da_xoa_luc IS ${xemRac ? 'NOT NULL' : 'NULL'}
       ORDER BY ${xemRac ? 'da_xoa_luc DESC' : 'ngay DESC, id DESC'}`
@@ -91,13 +95,23 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 }, { canGiaoVien: true, quyenCan: 'hinh-anh' });
 
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
-  const { id, chuThich, khoiPhuc } = await docThan(request);
+  const { id, chuThich, khoiPhuc, kho } = await docThan(request);
   if (!Number.isInteger(Number(id))) return loi('Thiếu mã ảnh.');
 
   if (khoiPhuc) {
     if (phien.role !== 'teacher') return loi('Chỉ giáo viên chủ nhiệm khôi phục được.', 403);
     const loiKp = await khoiPhucKhoiThuVien(env, 'anh', Number(id), phien.lopId);
     if (loiKp) return loiKp;
+    return json({ ok: true });
+  }
+
+  // Chuyển kho (chỉ nhãn phân loại, không đụng ảnh đang làm nền/banner thật) — tách riêng khỏi
+  // sửa chú thích vì gọi từ 2 nút khác hẳn nhau trên giao diện.
+  if (kho !== undefined) {
+    if (!CAC_KHO.has(kho)) return loi('Kho không hợp lệ.');
+    const kq = await env.DB.prepare('UPDATE hinh_anh SET kho = ?1 WHERE id = ?2 AND lop_id = ?3')
+      .bind(kho, Number(id), phien.lopId).run();
+    if (!kq.meta.changes) return loi('Không tìm thấy ảnh.', 404);
     return json({ ok: true });
   }
 

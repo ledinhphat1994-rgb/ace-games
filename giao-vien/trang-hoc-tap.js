@@ -5,7 +5,6 @@ import {
   moHopThoai, dongHopThoai, bieuDoCot, chuThichMau, trangThungRacThuVien, boiNgayVN,
 } from '/assets/js/giao-dien.js';
 import { veKhoiTaiKhoanPhu } from './trang-quy.js';
-import { veKhoiChonBannerLop } from '/assets/js/lop-banner-dialog.js';
 
 const MAU = {
   coMat: 'var(--tot)', tre: 'var(--luu-y)',
@@ -1518,43 +1517,14 @@ export async function trangThuVienVideo(KHUNG) {
   await ve();
 }
 
-// 3 "kho ảnh" xem/chuyển qua lại tự do bằng tab, KHÔNG phải 3 trang riêng — cùng một chỗ để dễ
-// đối chiếu, đỡ phải nhớ url khác nhau. "Ảnh chung" là toàn bộ thư viện (như trước đây, không
-// đổi gì); "Ảnh nền"/"Ảnh banner" chỉ XEM/ĐỔI/XOÁ ảnh đang dùng — việc ĐẶT một ảnh bất kỳ làm
-// nền/banner vẫn làm y hệt trước đây (nút "🖼 Nền"/"🏠 Banner" ngay trên từng ảnh ở tab chung).
+// 3 "kho ảnh" phân loại, chuyển qua lại tự do bằng tab (KHÔNG phải 3 trang riêng) — mỗi ảnh
+// thuộc ĐÚNG MỘT kho tại một thời điểm (cột "kho" trên bảng hinh_anh, xem migration 47). Đây
+// CHỈ là nhãn phân loại để dễ duyệt/tìm lại — HOÀN TOÀN KHÁC việc một ảnh có đang THẬT SỰ được
+// dùng làm nền web/banner trang chủ hay không (2 việc đó vẫn qua đúng cơ chế cũ, không đổi:
+// nút "🖼 Nền"/"🏠 Banner" ngay trên từng ảnh, hiện ở CẢ 3 tab).
 let tabAnhThuVien = 'chung'; // 'chung' | 'nen' | 'banner'
-
-// Tab "Ảnh nền" — ảnh nền tuỳ chỉnh là cài đặt RIÊNG TỪNG THIẾT BỊ (lưu ở localStorage, xem
-// chung.js), không phải dữ liệu của lớp, nên không có danh sách để chọn ở đây — chỉ xem ảnh
-// ĐANG DÙNG trên chính máy này và xoá nếu muốn. Đặt ảnh mới vẫn làm ở tab "Ảnh chung" (nút
-// "🖼 Nền" ngay trên từng ảnh) — không đổi gì so với trước.
-function veKhoiAnhNenTuyChon(veLai) {
-  const khung = e('div', 'the');
-  const url = layNenAnhTuyChonUrl();
-  if (!url) {
-    khung.append(e('p', 'trong', 'Chưa đặt ảnh nền tuỳ chỉnh nào trên thiết bị này. Sang tab "🖼 Ảnh chung", bấm nút "🖼 Nền" trên ảnh muốn dùng làm nền web.'));
-    return khung;
-  }
-  const xemTruoc = e('div');
-  xemTruoc.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:14px;';
-  const img = e('img');
-  img.src = url;
-  img.alt = 'Ảnh nền đang dùng';
-  img.style.cssText = 'width:76px;height:54px;border-radius:8px;object-fit:cover;border:1px solid var(--vien);flex:none;';
-  xemTruoc.append(img, Object.assign(
-    e('span', null, 'Đang dùng ảnh này làm nền web — chỉ trên thiết bị này.'),
-    { style: 'font-size:13.5px;color:var(--chu-nhat);' }
-  ));
-  khung.append(
-    xemTruoc,
-    nut('🗑 Xoá ảnh nền', 'nut-xoa-anh nut-nho', () => {
-      apDungNenAnhTuyChon(null);
-      nhac('Đã xoá ảnh nền, dùng lại theme màu', 'tot');
-      veLai();
-    })
-  );
-  return khung;
-}
+const TEN_KHO_ANH = { chung: 'Ảnh chung', nen: 'Ảnh nền', banner: 'Ảnh banner' };
+const ICON_KHO_ANH = { chung: '🖼', nen: '🎨', banner: '🏠' };
 
 export async function trangHinhAnh(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
@@ -1572,13 +1542,16 @@ export async function trangHinhAnh(KHUNG) {
 
   async function ve() {
     const d = await api('/api/gv/anh');
+    // Mỗi ảnh thuộc ĐÚNG MỘT kho — lọc theo tab đang xem. Ảnh cũ trước khi có cột "kho" mặc định
+    // là 'chung' (xem migration 47), không bị lạc mất khỏi mọi kho.
+    const dsLoc = d.danhSach.filter((a) => (a.kho || 'chung') === tabAnhThuVien);
 
     const khung = e('div');
     const dungLuongMB = (d.tongByte / 1048576).toFixed(1);
     const nutXoaTatCa = (tabAnhThuVien === 'chung' && laGiaoVien && d.soAnh) ? nut('🗑 Xoá tất cả', 'nut-vien nut-nho', () => {
       const oLyDo = taoOLyDoXoa();
       moHopThoai('Xoá TOÀN BỘ thư viện Ảnh?', [
-        e('p', null, `Toàn bộ ${d.soAnh} ảnh sẽ chuyển vào thùng rác.`),
+        e('p', null, `Toàn bộ ${d.soAnh} ảnh (cả 3 kho) sẽ chuyển vào thùng rác.`),
         e('p', 'trong', 'Khôi phục lại được trong 30 ngày ở "🗑 Thùng rác".'),
         truong('Lý do xoá (không bắt buộc)', oLyDo),
       ], [
@@ -1596,20 +1569,19 @@ export async function trangHinhAnh(KHUNG) {
         }),
       ]);
     }) : null;
-    const phuDeTrang = tabAnhThuVien === 'chung'
-      ? (d.soAnh ? `${d.soAnh} ảnh · Dung lượng: ${dungLuongMB} MB` : 'Chưa có ảnh nào')
-      : tabAnhThuVien === 'nen'
-        ? 'Ảnh nền tuỳ chỉnh cho web — chỉ áp dụng trên thiết bị này, không ai khác thấy.'
-        : 'Ảnh/video nền đầu trang lớp — hiện cho MỌI người xem trang lớp.';
+    const phuDeTrang = dsLoc.length
+      ? `${dsLoc.length} ảnh trong kho này · ${d.soAnh} ảnh toàn thư viện · ${dungLuongMB} MB`
+      : `Chưa có ảnh nào trong kho "${TEN_KHO_ANH[tabAnhThuVien]}".`;
     khung.append(tieuDeTrang('Thư viện Ảnh', phuDeTrang,
       ...(tabAnhThuVien === 'chung' && laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
       ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
 
-    // 3 kho ảnh, chuyển qua lại tự do bằng tab — không phải trang riêng.
+    // 3 kho ảnh — chỉ là nhãn phân loại để dễ duyệt/tìm lại, chuyển qua lại tự do bằng tab, mỗi
+    // ảnh xem/đổi kho ngay tại thẻ của nó (nút "📁 Sang ..." bên dưới) — không phải 3 trang riêng.
     const hopTabKho = e('div', 'day-loc day-loc-deu');
     hopTabKho.style.margin = '0 0 18px';
-    [['chung', '🖼 Ảnh chung'], ['nen', '🎨 Ảnh nền'], ...(coQuyenBanner ? [['banner', '🏠 Ảnh banner']] : [])].forEach(([ma, ten]) => {
-      const b = e('button', 'vien-loc', ten);
+    ['chung', 'nen', ...(coQuyenBanner ? ['banner'] : [])].forEach((ma) => {
+      const b = e('button', 'vien-loc', `${ICON_KHO_ANH[ma]} ${TEN_KHO_ANH[ma]}`);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(tabAnhThuVien === ma));
       b.addEventListener('click', () => {
@@ -1621,92 +1593,71 @@ export async function trangHinhAnh(KHUNG) {
     });
     khung.append(hopTabKho);
 
-    if (tabAnhThuVien === 'nen') {
-      khung.append(veKhoiAnhNenTuyChon(ve));
-      return datNoiDung(KHUNG, khung);
-    }
-    if (tabAnhThuVien === 'banner') {
-      const ket = await veKhoiChonBannerLop();
-      if (ket) {
-        khung.append(ket.khung);
-        const hangNutBanner = e('div', 'day-loc day-loc-deu-co-gian');
-        hangNutBanner.style.cssText = 'margin-top:14px;';
-        hangNutBanner.style.setProperty('--the-nho-nhat', '128px');
-        if (ket.coBanner) {
-          hangNutBanner.append(nut('🗑 Xoá banner', 'nut-xoa-anh nut-nho', async (ev) => {
-            if (await ket.xoa(ev.currentTarget)) ve();
-          }));
+    // Khu chọn ảnh — CHỈ ở tab "Ảnh chung": ảnh mới tải lên luôn vào kho chung trước, muốn xếp
+    // vào kho nền/banner thì bấm nút "📁 Sang ..." trên chính ảnh đó sau khi đã thấy ảnh thật.
+    if (tabAnhThuVien === 'chung') {
+      const the = e('div', 'the');
+      const oTep = e('input');
+      oTep.type = 'file';
+      oTep.accept = 'image/*';
+      oTep.multiple = true;
+      oTep.id = 'chonAnh';
+      oTep.className = 'o-nhap';
+
+      const oChu = oNhap('chuThichAnh', 'text', '', 'Chú thích chung cho đợt ảnh này');
+      const oNgay = oNhap('ngayAnh', 'date', homNay());
+
+      the.append(
+        truong('Chọn ảnh từ máy hoặc chụp bằng điện thoại', oTep,
+          'Ảnh được thu nhỏ ngay trên máy trước khi tải lên, nên không tốn dung lượng mạng.'),
+        truong('Chú thích', oChu),
+        truong('Ngày chụp', oNgay)
+      );
+
+      const tienTrinh = e('div', 'trong');
+      tienTrinh.style.marginTop = '10px';
+
+      the.append(nut('⬆ Tải ảnh lên', '', async (ev) => {
+        const cacTep = [...oTep.files];
+        if (!cacTep.length) return nhac('Chưa chọn ảnh nào', 'xau');
+
+        const b = ev.currentTarget;
+        b.disabled = true;
+        let xong = 0;
+        let hong = 0;
+
+        for (const tep of cacTep) {
+          tienTrinh.textContent = `Đang xử lý ${xong + hong + 1}/${cacTep.length}: ${tep.name}`;
+          try {
+            const { base64, kieu } = await nenAnh(tep);
+            await api('/api/gv/anh', {
+              method: 'POST',
+              than: { kieu, duLieu: base64, chuThich: oChu.value, ngay: oNgay.value },
+            });
+            xong++;
+          } catch (err) {
+            hong++;
+            nhac(`${tep.name}: ${err.message}`, 'xau');
+          }
         }
-        hangNutBanner.append(nut('💾 Lưu banner', 'nut-nho', async (ev) => {
-          if (await ket.luu(ev.currentTarget)) ve();
-        }));
-        khung.append(hangNutBanner);
-      }
-      return datNoiDung(KHUNG, khung);
+
+        tienTrinh.textContent = '';
+        b.disabled = false;
+        nhac(hong ? `Đã tải ${xong} ảnh, ${hong} ảnh lỗi` : `Đã tải lên ${xong} ảnh`, hong ? 'xau' : 'tot');
+        ve();
+      }), tienTrinh);
+      khung.append(the);
     }
-
-    // Khu chọn ảnh
-    const the = e('div', 'the');
-    const oTep = e('input');
-    oTep.type = 'file';
-    oTep.accept = 'image/*';
-    oTep.multiple = true;
-    oTep.id = 'chonAnh';
-    oTep.className = 'o-nhap';
-
-    const oChu = oNhap('chuThichAnh', 'text', '', 'Chú thích chung cho đợt ảnh này');
-    const oNgay = oNhap('ngayAnh', 'date', homNay());
-
-    the.append(
-      truong('Chọn ảnh từ máy hoặc chụp bằng điện thoại', oTep,
-        'Ảnh được thu nhỏ ngay trên máy trước khi tải lên, nên không tốn dung lượng mạng.'),
-      truong('Chú thích', oChu),
-      truong('Ngày chụp', oNgay)
-    );
-
-    const tienTrinh = e('div', 'trong');
-    tienTrinh.style.marginTop = '10px';
-
-    the.append(nut('⬆ Tải ảnh lên', '', async (ev) => {
-      const cacTep = [...oTep.files];
-      if (!cacTep.length) return nhac('Chưa chọn ảnh nào', 'xau');
-
-      const b = ev.currentTarget;
-      b.disabled = true;
-      let xong = 0;
-      let hong = 0;
-
-      for (const tep of cacTep) {
-        tienTrinh.textContent = `Đang xử lý ${xong + hong + 1}/${cacTep.length}: ${tep.name}`;
-        try {
-          const { base64, kieu } = await nenAnh(tep);
-          await api('/api/gv/anh', {
-            method: 'POST',
-            than: { kieu, duLieu: base64, chuThich: oChu.value, ngay: oNgay.value },
-          });
-          xong++;
-        } catch (err) {
-          hong++;
-          nhac(`${tep.name}: ${err.message}`, 'xau');
-        }
-      }
-
-      tienTrinh.textContent = '';
-      b.disabled = false;
-      nhac(hong ? `Đã tải ${xong} ảnh, ${hong} ảnh lỗi` : `Đã tải lên ${xong} ảnh`, hong ? 'xau' : 'tot');
-      ve();
-    }), tienTrinh);
-    khung.append(the);
 
     // Thanh "Đã chọn N — Bỏ chọn / Xoá đã chọn", chỉ hiện khi có tích chọn — CHỈ giáo viên (tài
     // khoản được cấp quyền không có ô tích chọn hàng loạt, xem bên dưới).
     if (laGiaoVien && daChon.size) {
       const thanh = e('div', 'the');
       thanh.style.cssText = 'margin-top:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-color:var(--xau)';
-      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${d.danhSach.length} ảnh`));
+      thanh.append(e('span', null, `Đã chọn ${daChon.size}/${dsLoc.length} ảnh`));
       const hop = e('div', 'day-loc day-loc-deu');
-      if (daChon.size < d.danhSach.length) {
-        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((a) => daChon.add(a.id)); ve(); }));
+      if (daChon.size < dsLoc.length) {
+        hop.append(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { dsLoc.forEach((a) => daChon.add(a.id)); ve(); }));
       }
       hop.append(
         nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }),
@@ -1782,13 +1733,13 @@ export async function trangHinhAnh(KHUNG) {
       hop.hidden = false;
     }
 
-    // Danh sách ảnh đã có
-    if (!d.danhSach.length) {
-      khung.append(Object.assign(e('p', 'trong', 'Chưa có ảnh nào.'), { style: 'margin-top:16px' }));
+    // Danh sách ảnh đã có TRONG ĐÚNG KHO ĐANG XEM
+    if (!dsLoc.length) {
+      khung.append(Object.assign(e('p', 'trong', `Chưa có ảnh nào trong kho "${TEN_KHO_ANH[tabAnhThuVien]}".`), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div', 'thu-vien');
       luoi.style.marginTop = '18px';
-      d.danhSach.forEach((a) => {
+      dsLoc.forEach((a) => {
         const hinh = e('figure', 'the-anh-gv');
         hinh.style.position = 'relative';
         const anhUrl = '/api/anh?khoa=' + encodeURIComponent(a.khoa);
@@ -1860,6 +1811,20 @@ export async function trangHinhAnh(KHUNG) {
             } catch (err) { nhac(err.message, 'xau'); }
             nutBam.disabled = false;
           }, 'Đặt làm banner trang chủ')] : []),
+          // "Sang kho X" — CHỈ đổi nhãn phân loại (khác hẳn "Nền"/"Banner" ở trên, vốn là ĐẶT
+          // LÀM nền/banner thật), nên dùng từ khác hẳn ("Sang") để không lẫn với 2 nút kia. Chỉ
+          // hiện 2 kho CÒN LẠI (không hiện lại đúng kho đang xem).
+          ...Object.keys(TEN_KHO_ANH)
+            .filter((ma) => ma !== tabAnhThuVien && (ma !== 'banner' || coQuyenBanner))
+            .map((ma) => nut(`📁 Sang ${TEN_KHO_ANH[ma]}`, 'nut-nhe nut-nho', async (ev) => {
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
+              try {
+                await api('/api/gv/anh', { method: 'PATCH', than: { id: a.id, kho: ma } });
+                nhac(`Đã chuyển sang kho "${TEN_KHO_ANH[ma]}"`, 'tot');
+                ve();
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+            }, `Chuyển ảnh này sang kho ${TEN_KHO_ANH[ma]}`)),
           nut('🗑 Xoá', 'nut-xoa-anh nut-nho', () => {
             const oLyDo = taoOLyDoXoa();
             moHopThoai('Xoá ảnh này?', [
