@@ -25,7 +25,7 @@ export async function chupCheckpoint(db, hanhDong, phien) {
 
   const duLieu = JSON.stringify({ khoan: khoan.results, dong: dong.results, chi: chi.results });
 
-  await db.prepare(
+  const kq = await db.prepare(
     'INSERT INTO quy_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu, lop_id) VALUES (?1, ?2, ?3, ?4)'
   ).bind(hanhDong, taChuThich(phien), duLieu, lopId).run();
 
@@ -34,6 +34,8 @@ export async function chupCheckpoint(db, hanhDong, phien) {
     `DELETE FROM quy_checkpoint WHERE lop_id = ?1 AND id NOT IN
        (SELECT id FROM quy_checkpoint WHERE lop_id = ?1 ORDER BY id DESC LIMIT ?2)`
   ).bind(lopId, TOI_DA_CHECKPOINT).run();
+
+  return kq.meta.last_row_id;
 }
 
 /** Ghi đè toàn bộ 3 bảng quỹ CỦA ĐÚNG LỚP bằng đúng nội dung của một checkpoint đã chụp —

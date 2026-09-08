@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260908_71">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260908_71">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260909_72">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260909_72">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Quản lý lớp">
@@ -97,6 +97,10 @@
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5L13 7l-1.5-1.5L10 7l-2-2a5 5 0 1 0-4 7l8 8a2 2 0 0 0 2.83 0l6.17-6.17a5 5 0 0 0 0-7.07z"/></svg></span>
           <span class="menu-chu"><b>Mã cá nhân & Phân quyền</b><small>Cấp quyền cho cán sự lớp</small></span>
         </a>
+        <a class="menu-muc" href="#/reset-du-lieu">
+          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg></span>
+          <span class="menu-chu"><b>Reset dữ liệu lớp</b><small>Xoá sạch từng mục, khôi phục lại được ngay</small></span>
+        </a>
         <a class="menu-muc" href="/">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></span>
           <span class="menu-chu"><b>Trang chủ của lớp</b><small>Xem giao diện học sinh nhìn thấy</small></span>
@@ -163,6 +167,9 @@
       <a href="#/ma-ca-nhan">
         <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5L13 7l-1.5-1.5L10 7l-2-2a5 5 0 1 0-4 7l8 8a2 2 0 0 0 2.83 0l6.17-6.17a5 5 0 0 0 0-7.07z"/></svg></span> Mã cá nhân
       </a>
+      <a href="#/reset-du-lieu">
+        <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg></span> Reset dữ liệu
+      </a>
     </div>
   </nav>
 
@@ -199,11 +206,11 @@
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
 
-<script type="module" src="/giao-vien/app.js?v=20260908_71"></script>
+<script type="module" src="/giao-vien/app.js?v=20260909_72"></script>
 <script>
   // Cho phép cài lên màn hình chính và mở được khi mạng chập chờn.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20260908_71').catch(() => {}));
+    addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20260909_72').catch(() => {}));
   }
 </script>
 </body>

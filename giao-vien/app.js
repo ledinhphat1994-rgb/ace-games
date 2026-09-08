@@ -18,6 +18,7 @@ import {
 import { trangQuy, trangQuyLichSu } from './trang-quy.js';
 import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 import { trangDiemDanhLichSu } from './trang-diem-danh-lich-su.js';
+import { trangResetDuLieu } from './trang-reset-du-lieu.js';
 
 ganDoiGiaoDien($('#doiGiaoDien'));
 
@@ -42,6 +43,7 @@ const QUYEN_THEO_TUYEN = {
   'bao-cao': null,
   'ma-ca-nhan': null,
   'nhat-ky-dang-nhap': null,
+  'reset-du-lieu': null,
   'hinh-anh': 'hinh-anh',
   'hinh-anh-thung-rac': 'hinh-anh',
   'thu-vien-am-thanh': 'am-thanh',
@@ -1691,6 +1693,7 @@ const MUC_THEM = [
   ['#/thu-vien-am-thanh', '♪', 'Thư viện Âm thanh', 'Tải bài hát, đặt bài nào phát làm nhạc nền trang chủ.'],
   ['#/thu-vien-video', '🎬', 'Thư viện Video', 'Tải video từ máy/điện thoại lên, dùng lại khi soạn thông báo.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân & phân quyền', 'Cấp mã, cấp quyền quản lý cho lớp trưởng, thủ quỹ...'],
+  ['#/reset-du-lieu', '↻', 'Reset dữ liệu lớp', 'Xoá sạch từng mục theo lựa chọn, khôi phục lại được ngay.'],
   ['/', '🏠', 'Trang chủ', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
 ];
@@ -1830,6 +1833,7 @@ const TRANG = {
   '/bao-cao': () => trangBaoCao(KHUNG),
   '/ma-ca-nhan': () => trangMaCaNhan(KHUNG),
   '/nhat-ky-dang-nhap': () => trangNhatKyDangNhap(KHUNG),
+  '/reset-du-lieu': () => trangResetDuLieu(KHUNG),
   '/hinh-anh': () => trangHinhAnh(KHUNG),
   '/hinh-anh-thung-rac': () => trangHinhAnhThungRac(KHUNG),
   '/thu-vien-am-thanh': () => trangThuVienAmThanh(KHUNG),
@@ -1846,7 +1850,7 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/thoi-khoa-bieu'].includes(duong);
+    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/reset-du-lieu', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')

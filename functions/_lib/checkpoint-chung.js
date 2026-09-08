@@ -33,7 +33,7 @@ export async function chupCheckpointChung(db, tinhNang, hanhDong, phien) {
     duLieu[bang] = (await db.prepare(`SELECT * FROM ${bang} WHERE lop_id = ?1`).bind(lopId).all()).results;
   }
 
-  await db.prepare(
+  const kq = await db.prepare(
     'INSERT INTO checkpoint_chung (tinh_nang, hanh_dong, nguoi_thuc_hien, du_lieu, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'
   ).bind(tinhNang, hanhDong, taChuThich(phien), JSON.stringify(duLieu), lopId).run();
 
@@ -42,6 +42,8 @@ export async function chupCheckpointChung(db, tinhNang, hanhDong, phien) {
     `DELETE FROM checkpoint_chung WHERE lop_id = ?1 AND tinh_nang = ?2 AND id NOT IN
        (SELECT id FROM checkpoint_chung WHERE lop_id = ?1 AND tinh_nang = ?2 ORDER BY id DESC LIMIT ?3)`
   ).bind(lopId, tinhNang, TOI_DA_CHECKPOINT_MOI_MUC).run();
+
+  return kq.meta.last_row_id;
 }
 
 export async function danhSachCheckpointChung(db, tinhNang, lopId) {

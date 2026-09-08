@@ -21,7 +21,7 @@ export async function chupCheckpointDiemDanh(db, hanhDong, phien, loai = null, c
 
   const duLieu = JSON.stringify({ diemDanh: results });
 
-  await db.prepare(
+  const kq = await db.prepare(
     'INSERT INTO diem_danh_checkpoint (hanh_dong, nguoi_thuc_hien, du_lieu, loai, chi_tiet, lop_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
   ).bind(hanhDong, taChuThich(phien), duLieu, loai, chiTiet ? JSON.stringify(chiTiet) : null, lopId).run();
 
@@ -30,6 +30,8 @@ export async function chupCheckpointDiemDanh(db, hanhDong, phien, loai = null, c
     `DELETE FROM diem_danh_checkpoint WHERE lop_id = ?1 AND id NOT IN
        (SELECT id FROM diem_danh_checkpoint WHERE lop_id = ?1 ORDER BY id DESC LIMIT ?2)`
   ).bind(lopId, TOI_DA_CHECKPOINT).run();
+
+  return kq.meta.last_row_id;
 }
 
 /** Ghi đè toàn bộ bảng diem_danh CỦA ĐÚNG LỚP bằng đúng nội dung của một checkpoint đã chụp —
