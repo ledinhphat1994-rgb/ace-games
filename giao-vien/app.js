@@ -424,7 +424,7 @@ const lichSuDiemDanhCache = new Map();
 // danh (không chỉ đúng ngày/buổi đang xem), vì mục đích tìm kiếm ở đây là để rà và SỬA một bản
 // ghi cũ, không phải chỉ xem/sửa đúng buổi hôm nay. Nút "Sửa" nhảy thẳng tới đúng ngày/buổi/tab
 // của bản ghi đó (qua nhayDenNgayBuoi) để bấm trạng thái mới ngay tại đó.
-function veLichSuTimThay(h, veLai, nhayDenNgayBuoi) {
+function veLichSuTimThay(h, veLai, nhayDenNgayBuoi, ngayHienTai, buoiHienTai, dangLaPhu) {
   const khoi = e('div', 'lich-su-tim-dd');
   if (!lichSuDiemDanhCache.has(h.id)) {
     lichSuDiemDanhCache.set(h.id, 'dang-tai');
@@ -444,20 +444,34 @@ function veLichSuTimThay(h, veLai, nhayDenNgayBuoi) {
     khoi.append(e('p', 'trong', 'Đang tải lịch sử điểm danh…'));
     return khoi;
   }
-  if (!ls || !ls.length) {
+  if (!ls) {
     khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
     return khoi;
   }
-  ls.slice(0, 15).forEach((x) => {
+  // Bỏ ĐÚNG bản ghi của ngày/buổi/loại đang xem NGAY TẠI TRANG NÀY — bản ghi đó đã hiện sẵn (và
+  // sửa được trực tiếp) ở hàng học sinh phía trên, hiện lại trong "lịch sử" là dư thừa, dễ hiểu
+  // lầm thành 2 nguồn khác nhau. API trả về mới → cũ (ngay DESC) để .slice() lấy đúng 15 lần GẦN
+  // ĐÂY NHẤT, sau đó đảo lại thành cũ → mới (từ quá khứ tới hiện tại) khi hiển thị.
+  const dsKhac = ls.filter((x) => {
+    const laPhuBanGhi = x.buoi.endsWith('_phu');
+    const buoiGocBanGhi = x.buoi.replace(/_phu$/, '');
+    return !(x.ngay === ngayHienTai && buoiGocBanGhi === buoiHienTai && laPhuBanGhi === dangLaPhu);
+  });
+  if (!dsKhac.length) {
+    khoi.append(e('p', 'trong', 'Chưa có lịch sử điểm danh nào khác.'));
+    return khoi;
+  }
+  dsKhac.slice(0, 15).reverse().forEach((x) => {
     const laPhu = x.buoi.endsWith('_phu');
     const buoiGoc = x.buoi.replace(/_phu$/, '');
     const tt2 = DIEM_DANH[x.trangThai] || {};
     const dong = e('div', 'dong-lich-su-dd');
-    dong.append(
+    const thongTin = e('div', 'dong-lich-su-dd-info');
+    thongTin.append(
       e('span', 'nhan ' + (tt2.lop || ''), tt2.ten || x.trangThai),
-      e('span', 'dong-lich-su-dd-ngay', `${ngayVN(x.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`),
-      nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu))
+      e('span', 'dong-lich-su-dd-ngay', `${ngayVN(x.ngay)} · ${TEN_BUOI[buoiGoc] || buoiGoc} · ${laPhu ? 'Linh động' : 'Chính'}`)
     );
+    dong.append(thongTin, nut('Sửa', 'nut-nhe nut-nho', () => nhayDenNgayBuoi(x.ngay, buoiGoc, laPhu)));
     khoi.append(dong);
   });
   return khoi;
@@ -649,7 +663,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
       // cũ. Giới hạn số em hiện lịch sử (dsLoc nhỏ) để tránh gọi API dồn dập khi gõ từ khoá
       // chung chung khớp cả chục em.
       if (dangLoc && dsLoc.length <= 8) {
-        hang.append(veLichSuTimThay(h, veKhuVucPhu, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timPhu)));
+        hang.append(veLichSuTimThay(h, veKhuVucPhu, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timPhu), ngay, buoi, true));
       }
 
       ds.append(hang);
@@ -1130,7 +1144,7 @@ async function trangDiemDanh() {
           // điểm danh của em này (mọi ngày/buổi/loại) khi đang tìm kiếm, không chỉ đúng buổi
           // đang xem, kèm nút "Sửa" nhảy thẳng tới đúng ngày/buổi/tab của bản ghi cũ đó.
           if (dangLoc && dsLoc.length <= 8) {
-            hang.append(veLichSuTimThay(h, veKhuVucChinh, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timChinh)));
+            hang.append(veLichSuTimThay(h, veKhuVucChinh, (ngayMoi, buoiMoi, laPhu) => nhayDenNgayBuoi(ngayMoi, buoiMoi, laPhu, timChinh), ngay, buoi, false));
           }
 
           ds.append(hang);

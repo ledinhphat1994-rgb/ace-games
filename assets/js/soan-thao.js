@@ -121,13 +121,25 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
   // In đậm/in nghiêng ÁP DỤNG ĐƯỢC ĐỒNG THỜI CẢ HAI bình thường (document.execCommand tự chồng
   // lên nhau, không loại trừ nhau) — nhưng trước đây 2 nút này không có dấu hiệu "đang bật" nào
   // cả (khác với nút căn lề/màu đã có ".dang-chon"), nên bấm cả hai vẫn ra đúng chữ đậm-nghiêng
-  // nhưng nhìn NHƯ không chọn được cả hai vì nút không sáng lên. Đồng bộ trạng thái nút theo
-  // đúng định dạng TẠI vị trí con trỏ/vùng chọn hiện tại, cập nhật mỗi khi con trỏ di chuyển.
+  // nhưng nhìn NHƯ không chọn được cả hai vì nút không sáng lên.
+  //
+  // Đồng bộ trạng thái nút bằng getComputedStyle tại vị trí con trỏ — CHỦ Ý không dùng
+  // document.queryCommandState('bold'/'italic'): trên thực tế (một số bản Chrome/WebView Android
+  // của giáo viên) queryCommandState('italic') trả sai/không cập nhật dù chữ ĐÃ thật sự nghiêng
+  // trong DOM, khiến nút "I" không bao giờ sáng lên dù bấm đúng — đây là lỗi kinh điển của
+  // execCommand/queryCommandState (API đã bị coi là lỗi thời, hành vi không nhất quán giữa các
+  // trình duyệt). getComputedStyle đọc THẲNG kiểu chữ thật sự đang hiển thị nên luôn khớp với
+  // những gì mắt thấy trên màn hình, không phụ thuộc bộ nhớ đệm nội bộ của execCommand.
   function capNhatNutDamNghieng() {
-    try {
-      nutDam.classList.toggle('dang-chon', document.queryCommandState('bold'));
-      nutNghieng.classList.toggle('dang-chon', document.queryCommandState('italic'));
-    } catch { /* trình duyệt không hỗ trợ queryCommandState — bỏ qua, không chặn thao tác khác */ }
+    const sel = window.getSelection();
+    let node = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+    if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !oSoan.contains(node)) node = oSoan;
+    const cs = getComputedStyle(node);
+    const dam = Number.parseInt(cs.fontWeight, 10) >= 600 || cs.fontWeight === 'bold' || cs.fontWeight === 'bolder';
+    const nghieng = cs.fontStyle === 'italic' || cs.fontStyle === 'oblique';
+    nutDam.classList.toggle('dang-chon', dam);
+    nutNghieng.classList.toggle('dang-chon', nghieng);
   }
   function ghiNhoViTriChon() {
     const sel = window.getSelection();

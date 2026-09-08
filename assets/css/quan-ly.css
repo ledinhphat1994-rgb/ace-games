@@ -362,13 +362,17 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   flex-direction: column;
   gap: 6px;
 }
-.dong-lich-su-dd {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 10px;
+/* KHÔNG flex-wrap trên chính ".dong-lich-su-dd" — nút "Sửa" nhờ vậy LUÔN đứng cố định ở mép phải,
+   không bao giờ bị đẩy xuống dòng riêng của nó (trước đây để flex-wrap ở đây khiến "Sửa" khi thì
+   nằm cùng dòng bên phải, khi thì rơi xuống dòng dưới lệch trái tùy độ dài chữ — không theo quy
+   luật căn chỉnh nào, đúng lỗi đã phản ánh). Phần nhãn+ngày co giãn/xuống dòng RIÊNG bên trong
+   ".dong-lich-su-dd-info" của nó, không ảnh hưởng tới vị trí nút "Sửa". */
+.dong-lich-su-dd { display: flex; align-items: center; gap: 10px; }
+.dong-lich-su-dd-info {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
 }
-.dong-lich-su-dd-ngay { font-size: 12px; color: var(--chu-mo); flex: 1 1 auto; }
+.dong-lich-su-dd-ngay { font-size: 12px; color: var(--chu-mo); }
 
 /* Thanh lưu nổi ở dưới */
 /* Thanh lưu nổi: căn giữa theo đúng khung nội dung (không tràn hết viewport), và đẩy nút
