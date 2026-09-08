@@ -1346,6 +1346,11 @@ export async function veKhoiTaiKhoanPhu(khung) {
           }),
           e('span', tk.dangHoatDong ? 'nhan nhan-tot' : 'nhan nhan-xam', tk.dangHoatDong ? '✓ Hoạt động' : '🔒 Đã khoá')
         );
+        if (tk.coThietBi) {
+          const nhanTb = e('span', 'nhan nhan-xam', '📱 Đã gắn máy');
+          nhanTb.title = 'Tài khoản đã liên kết với một thiết bị';
+          dongTen.append(nhanTb);
+        }
         khoiTrai.append(avatar, dongTen);
 
         // Mã đăng nhập đặt ngay cạnh tên/badge — bỏ dòng "Hiển thị khi đăng nhập" riêng vì
@@ -1386,6 +1391,7 @@ export async function veKhoiTaiKhoanPhu(khung) {
         nutHang.append(
           nut('✏ Sửa tài khoản', 'nut-vien nut-nho', () => suaTaiKhoan(tk, d.cacQuyen, ve)),
           nut('✎ Đặt mã tuỳ chỉnh', 'nut-vien nut-nho', () => datMaTuyChinhTaiKhoanPhu(tk, ve)),
+          ...(tk.coThietBi ? [nut('📱 Đặt lại thiết bị', 'nut-vien nut-nho', () => datLaiThietBiTaiKhoanPhu(tk, ve))] : []),
           nut('🎲 Cấp lại mã', 'nut-vien nut-nho', () => {
             moHopThoai('Cấp lại mã mới?', e('p', null,
               'Mã cũ "' + tk.ma + '" sẽ không dùng được nữa. Dùng khi nghi ngờ mã bị lộ.'), [
@@ -1434,6 +1440,27 @@ export async function veKhoiTaiKhoanPhu(khung) {
   }
 
   await ve();
+}
+
+function datLaiThietBiTaiKhoanPhu(tk, taiLai) {
+  moHopThoai('Đặt lại thiết bị?', [
+    e('p', null, `Mã của ${tk.ten} sẽ đăng nhập được ở một máy MỚI (máy cũ không tự mất quyền, chỉ là không còn bị ràng buộc riêng máy đó nữa cho tới lần đăng nhập kế tiếp).`),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Đặt lại', '', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      try {
+        await api('/api/gv/rieng/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, datLaiThietBi: true } });
+        dongHopThoai();
+        nhac('Đã đặt lại thiết bị cho ' + tk.ten, 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+      }
+    }),
+  ]);
 }
 
 function suaTaiKhoan(tk, cacQuyen, taiLai) {

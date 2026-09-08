@@ -4,6 +4,7 @@
 //        Không truyền "ma" -> tự sinh ngẫu nhiên. Có truyền -> dùng đúng mã đó (tuỳ ý, dễ nhớ).
 //   PATCH  /api/gv/rieng/tai-khoan-phu   { id, ten, vaiTro, quyen, dangHoatDong, capLaiMa } — capLaiMa: true = mã ngẫu nhiên mới
 //   PATCH  /api/gv/rieng/tai-khoan-phu   { id, maTuyChinh } — đặt ĐÚNG mã này (tuỳ ý)
+//   PATCH  /api/gv/rieng/tai-khoan-phu   { id, datLaiThietBi: true } -> gỡ ràng buộc thiết bị, cho đăng nhập máy mới
 //   DELETE /api/gv/rieng/tai-khoan-phu?id=
 import { bocXuLy, json, loi, docThan, chuoi } from '../../../_lib/api.js';
 import { sinhMa, chuanHoaMaTuyChinh, maHopLe, maDaTonTai } from '../../../_lib/ma.js';
@@ -29,12 +30,16 @@ function locQuyen(mang) {
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
-    `SELECT id, ten, vai_tro AS vaiTro, ma, quyen, hoc_sinh_id AS hocSinhId, dang_hoat_dong AS dangHoatDong, tao_luc AS taoLuc
+    `SELECT id, ten, vai_tro AS vaiTro, ma, quyen, hoc_sinh_id AS hocSinhId, dang_hoat_dong AS dangHoatDong,
+            thiet_bi AS thietBi, tao_luc AS taoLuc
        FROM tai_khoan_phu WHERE lop_id = ?1 ORDER BY tao_luc DESC`
   ).bind(phien.lopId).all();
   return json({
     ok: true, cacQuyen: CAC_QUYEN,
-    danhSach: results.map((r) => ({ ...r, quyen: (r.quyen || '').split(',').filter(Boolean), dangHoatDong: Boolean(r.dangHoatDong) })),
+    danhSach: results.map((r) => ({
+      ...r, quyen: (r.quyen || '').split(',').filter(Boolean), dangHoatDong: Boolean(r.dangHoatDong),
+      coThietBi: Boolean(r.thietBi), thietBi: undefined,
+    })),
   });
 }, { canGiaoVien: true });
 
@@ -94,6 +99,11 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if (await maDaTonTai(env.DB, ma, { taiKhoanPhuId: id })) return loi('Mã này đã có người khác dùng rồi, chọn mã khác.');
     await env.DB.prepare('UPDATE tai_khoan_phu SET ma = ?1 WHERE id = ?2').bind(ma, id).run();
     return json({ ok: true, ma });
+  }
+
+  if (than.datLaiThietBi) {
+    await env.DB.prepare('UPDATE tai_khoan_phu SET thiet_bi = NULL WHERE id = ?1').bind(id).run();
+    return json({ ok: true });
   }
 
   const dat = [];

@@ -42,6 +42,22 @@ function taoThietBi() {
   return crypto.randomUUID();
 }
 
+// Dùng chung cho MỌI tài khoản bị ràng buộc "1 mã = 1 thiết bị" (mã cá nhân được cấp quyền VÀ
+// tài khoản đặc biệt/tài khoản phụ) — trước đây chỉ mã cá nhân có, tài khoản đặc biệt đăng nhập
+// được từ bao nhiêu máy cũng được, không đồng bộ. Trả về:
+//   hopLe: false          -> thiết bị khác, phải từ chối
+//   hopLe: true, canLuu   -> lần đầu gắn máy, cần UPDATE cột thiet_bi = canLuu
+//   hopLe: true, cookie   -> (nếu có) cần Set-Cookie thiet_bi_id cho máy này
+function apDungThietBi(request, thietBiDaLuu) {
+  const thietBiMay = docThietBi(request);
+  if (!thietBiDaLuu) {
+    const idMoi = thietBiMay || taoThietBi();
+    return { hopLe: true, canLuu: idMoi, cookie: thietBiMay ? null : `thiet_bi_id=${idMoi}; Path=/; Max-Age=31536000; Secure; SameSite=Lax` };
+  }
+  if (thietBiMay === thietBiDaLuu) return { hopLe: true, canLuu: null, cookie: null };
+  return { hopLe: false };
+}
+
 // Xác minh Turnstile (Cloudflare) — chặn script dò mã tự động NGAY CẢ KHI nó đổi IP liên tục để
 // né giới hạn "8 lần sai/10 phút/IP" ở trên, vì Turnstile đòi hỏi một trình duyệt thật giải được
 // thử thách, không phải chỉ có IP "sạch". Chỉ bật khi đã cấu hình TURNSTILE_SECRET_KEY trên
@@ -180,16 +196,33 @@ export async function onRequestPost({ request, env }) {
     phanBoSung = { lopId: 1 };
   }
 
+  // Tài khoản đặc biệt/tài khoản phụ (lớp trưởng, thủ quỹ, quản trị viên ngoài lớp...) — RÀNG
+  // BUỘC 1 mã = 1 thiết bị giống hệt mã cá nhân được cấp quyền bên dưới, vì tài khoản này cũng
+  // sửa/xoá được dữ liệu thật. Trước đây KHÔNG có ràng buộc này — không đồng bộ, một mã đăng
+  // nhập được từ bao nhiêu máy cũng được.
+  let dongCookieThietBi = null;
   if (!role && env.DB) {
-    // Không khớp mã giáo viên nào — thử tìm trong bảng tài khoản đặc biệt
-    // (lớp trưởng, thủ quỹ... do giáo viên tự cấp trên web).
     try {
       const phu = await env.DB.prepare(
-        'SELECT id, ten, vai_tro, quyen, lop_id AS lopId FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
+        'SELECT id, ten, vai_tro, quyen, thiet_bi AS thietBi, lop_id AS lopId FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
       ).bind(code).first();
 
       if (phu) {
         if (!khopDungLop(phu.lopId)) return thongBaoSaiLop();
+
+        const kqThietBi = apDungThietBi(request, phu.thietBi);
+        if (!kqThietBi.hopLe) {
+          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: null, ketQua: 'sai_thiet_bi', ip, lopId: phu.lopId, vaiTro: 'phu' });
+          return json({
+            ok: false,
+            message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của bạn.',
+          }, 403);
+        }
+        if (kqThietBi.canLuu) {
+          await env.DB.prepare('UPDATE tai_khoan_phu SET thiet_bi = ?1 WHERE id = ?2').bind(kqThietBi.canLuu, phu.id).run();
+        }
+        if (kqThietBi.cookie) dongCookieThietBi = kqThietBi.cookie;
+
         role = 'phu';
         tenHienThi = phu.ten;
         phanBoSung = {
@@ -201,7 +234,7 @@ export async function onRequestPost({ request, env }) {
         };
       }
     } catch {
-      // Bảng chưa tồn tại (chưa chạy migration) — coi như không khớp, không chặn đăng nhập thường.
+      // Bảng/cột chưa tồn tại (chưa chạy migration) — coi như không khớp, không chặn đăng nhập thường.
     }
   }
 
@@ -211,8 +244,6 @@ export async function onRequestPost({ request, env }) {
   //     KHÔNG giới hạn thiết bị (không có gì để mất nếu xem từ nhiều máy).
   //   - ĐƯỢC CẤP quyền quản lý: role 'phu' + quyen, RÀNG BUỘC 1 mã = 1 thiết bị + ghi nhật ký
   //     đăng nhập, vì tài khoản này có thể sửa/xoá dữ liệu thật.
-  let ketQuaThietBi = null;
-  let dongCookieThietBi = null;
   if (!role && env.DB) {
     try {
       const ca = await env.DB.prepare(
@@ -229,28 +260,18 @@ export async function onRequestPost({ request, env }) {
         tenHienThi = ca.hoTen;
         phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code, lopId: ca.lopId, toSo: ca.toSo, chucVu: ca.chucVu };
       } else if (ca && ca.quyen) {
-        const thietBiMay = docThietBi(request);
-        if (!ca.thietBi) {
-          // Lần đầu đăng nhập bằng mã này — gắn luôn vào máy đang dùng.
-          const idMoi = thietBiMay || taoThietBi();
-          await env.DB.prepare('UPDATE ma_ca_nhan SET thiet_bi = ?1 WHERE hoc_sinh_id = ?2').bind(idMoi, ca.hocSinhId).run();
-          if (!thietBiMay) {
-            dongCookieThietBi = `thiet_bi_id=${idMoi}; Path=/; Max-Age=31536000; Secure; SameSite=Lax`;
-          }
-          ketQuaThietBi = 'thanh_cong';
-        } else if (thietBiMay === ca.thietBi) {
-          ketQuaThietBi = 'thanh_cong';
-        } else {
-          ketQuaThietBi = 'sai_thiet_bi';
-        }
-
-        if (ketQuaThietBi === 'sai_thiet_bi') {
-          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: ca.hocSinhId, ketQua: ketQuaThietBi, ip, lopId: ca.lopId, vaiTro: 'phu' });
+        const kqThietBi = apDungThietBi(request, ca.thietBi);
+        if (!kqThietBi.hopLe) {
+          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: ca.hocSinhId, ketQua: 'sai_thiet_bi', ip, lopId: ca.lopId, vaiTro: 'phu' });
           return json({
             ok: false,
             message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của em.',
           }, 403);
         }
+        if (kqThietBi.canLuu) {
+          await env.DB.prepare('UPDATE ma_ca_nhan SET thiet_bi = ?1 WHERE hoc_sinh_id = ?2').bind(kqThietBi.canLuu, ca.hocSinhId).run();
+        }
+        if (kqThietBi.cookie) dongCookieThietBi = kqThietBi.cookie;
 
         role = 'phu';
         tenHienThi = ca.hoTen;
