@@ -1014,7 +1014,7 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
     ...oTichXem.map(([, , nhanO]) => nhanO),
 
     Object.assign(e('h3', null, '🔑 Quyền quản lý (đăng nhập được ở /login.html)'), { style: 'margin-top:18px' }),
-    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó trên sidebar. Để trống hết = chỉ xem kết quả học tập cá nhân, không quản lý gì.'),
+    e('p', 'trong', 'Tích mục nào thì mã này đăng nhập được vào khu quản lý, chỉ thấy đúng mục đó trên sidebar. Để trống hết = học sinh thường, chỉ đăng nhập xem trang lớp bình thường, không quản lý gì.'),
     hopQuyenQuanLy,
   ].filter(Boolean);
 
@@ -1098,7 +1098,7 @@ async function inDanhSachMa(danhSach) {
       <div class="ten">${thoat(h.hoTen)}</div>
       <div class="nhan">Mã cá nhân của em</div>
       <div class="ma">${thoat(h.ma)}</div>
-      <div class="chan">lop-10a7.pages.dev &middot; Xem kết quả của tôi</div>
+      <div class="chan">lop-10a7.pages.dev &middot; Đăng nhập trang lớp</div>
     </div>`).join('');
 
   cua.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">

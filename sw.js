@@ -14,7 +14,6 @@ const VO_UNG_DUNG = [
   '/assets/css/quan-ly.css?v=20260908_48',
   '/assets/js/chung.js?v=20260908_48',
   '/assets/js/trang-lop.js?v=20260908_48',
-  '/assets/js/ca-nhan.js?v=20260908_48',
   '/assets/img/bieu-tuong-192.png',
   '/manifest.webmanifest',
 ];
