@@ -49,6 +49,7 @@
     <input class="o-nhap" id="ma" name="ma" type="password"
            placeholder="Nhập mã cá nhân giáo viên chủ nhiệm đã cấp" required autofocus
            autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div id="turnstileHop" style="margin:14px 0;" hidden></div>
     <button class="nut" type="submit" id="nutGui">Vào trang lớp</button>
   </form>
 
@@ -64,6 +65,26 @@
 <script type="module">
   import { ganDoiGiaoDien } from '/assets/js/chung.js';
   ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
+
+  // Cloudflare Turnstile — xác minh "không phải robot" gần như vô hình, chặn script dò mã tự
+  // động NGAY CẢ KHI nó đổi IP liên tục (né được giới hạn "8 lần sai/10 phút/IP" ở máy chủ).
+  // TURNSTILE_SITE_KEY để RỖNG nghĩa là CHƯA cấu hình — ẩn hẳn ô này, đăng nhập vẫn hoạt động
+  // bình thường như trước. Điền site key (giá trị CÔNG KHAI, không phải bí mật) sau khi tạo
+  // widget ở Cloudflare Dashboard → Turnstile.
+  const TURNSTILE_SITE_KEY = '';
+  let turnstileWidgetId = null;
+  if (TURNSTILE_SITE_KEY) {
+    const turnstileHop = document.getElementById('turnstileHop');
+    turnstileHop.hidden = false;
+    const kichBan = document.createElement('script');
+    kichBan.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    kichBan.async = true;
+    kichBan.defer = true;
+    kichBan.onload = () => {
+      turnstileWidgetId = window.turnstile.render(turnstileHop, { sitekey: TURNSTILE_SITE_KEY, theme: 'auto' });
+    };
+    document.head.append(kichBan);
+  }
 
   // Đăng nhập giờ có 2 BƯỚC khi vào thẳng "/" (không kèm ?lop=): (1) chọn đúng lớp trong danh
   // sách công khai (chỉ tên lớp, không phải cơ chế bảo mật), (2) nhập mã của đúng lớp đó. Mở
@@ -187,9 +208,14 @@
         body: JSON.stringify({
           code: document.getElementById('ma').value,
           lop: new URLSearchParams(location.search).get('lop') || '',
+          turnstileToken: (TURNSTILE_SITE_KEY && window.turnstile) ? window.turnstile.getResponse(turnstileWidgetId) : '',
         })
       });
       const d = await res.json();
+
+      // Mỗi thử thách Turnstile chỉ dùng được 1 lần — sai mã thì phải giải lại thử thách mới
+      // cho lần thử tiếp theo.
+      if (!d.ok && TURNSTILE_SITE_KEY && window.turnstile) window.turnstile.reset(turnstileWidgetId);
 
       if (d.ok) {
         try {

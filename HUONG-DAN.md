@@ -341,13 +341,39 @@ Trong dashboard Cloudflare, ở phần **Security**:
 - **Bot Fight Mode**: bật — chặn bot dò quét tự động.
 - **WAF → Rate limiting rules** (gói free cho 1 rule): tạo rule cho đường dẫn `/api/login`,
   giới hạn **10 request / 10 phút / 1 IP**, hành động **Block**. Đây là lá chắn tốt nhất chống dò mã.
-- **Turnstile**: nếu muốn thêm ô "xác minh không phải robot" ở trang đăng nhập.
+- **Turnstile**: xem hướng dẫn bật ngay bên dưới — mã nguồn đã sẵn sàng dùng, chỉ cần tạo khoá.
 - **Under Attack Mode**: chỉ bật khi thực sự bị tấn công.
 
 **Giới hạn số lần nhập sai (tuỳ chọn, làm trong code):** vào **Workers & Pages → KV → Create namespace**
 đặt tên `RATE_LIMIT`, rồi vào Pages project → **Settings → Bindings → KV namespace**, thêm binding
 tên biến `RATE_LIMIT` trỏ tới namespace vừa tạo. Khi có binding này, hệ thống tự khoá IP nhập sai
 quá 8 lần trong 10 phút. Không có binding thì trang vẫn chạy bình thường.
+
+### 6b. Bật Turnstile — chặn dò mã tự động kể cả khi đổi IP liên tục
+
+Rate limiting ở trên tính theo IP, nên kẻ dò mã có thể né bằng cách đổi IP qua VPN/proxy liên tục.
+Turnstile đòi hỏi một trình duyệt thật giải được thử thách (gần như vô hình với người dùng thật),
+chặn được cả trường hợp đó. Mã nguồn (`login.html`, `functions/api/login.js`) đã viết sẵn, **mặc
+định TẮT** (không cấu hình thì đăng nhập vẫn chạy bình thường như trước) — bật lên bằng 3 bước:
+
+1. Vào **Cloudflare Dashboard → Turnstile → Add site** (miễn phí). Tên tuỳ ý, domain điền đúng
+   domain đang dùng (vd `gdtxdinhquan.pages.dev`), Widget Mode chọn **Managed**.
+2. Sau khi tạo xong, Cloudflare hiện 2 khoá — **Site Key** (công khai) và **Secret Key** (bí mật):
+   - **Site Key**: gửi giá trị này để điền vào biến `TURNSTILE_SITE_KEY` ở đầu khối `<script>`
+     trong `login.html` (dòng `const TURNSTILE_SITE_KEY = '';`), rồi `npm run deploy`.
+   - **Secret Key**: **KHÔNG gửi qua chat** — tự vào Pages project → **Settings → Variables and
+     Secrets → Add**, thêm biến tên `TURNSTILE_SECRET_KEY`, kiểu **Secret**, dán giá trị vào, áp
+     dụng cho cả Production và Preview → **Deployments → Retry deployment**.
+3. Mở lại trang đăng nhập, ô "xác minh không phải robot" sẽ tự hiện. Muốn tắt lại: xoá giá trị
+   `TURNSTILE_SITE_KEY` trong `login.html` (hoặc xoá biến `TURNSTILE_SECRET_KEY` trên Cloudflare).
+
+### 6c. Cảnh báo đăng nhập từ IP lạ (không tự chặn)
+
+Mỗi lượt đăng nhập thành công đều được ghi lại (giáo viên, tài khoản có quyền, học sinh thường).
+Nếu một mã đăng nhập từ IP KHÁC với lần thành công gần nhất, dòng đó được đánh dấu ⚠️ ở
+**Khu quản lý → Thêm → Mã cá nhân → 📜 Nhật ký đăng nhập** — CHỈ để thầy/cô tự xem xét, hệ thống
+không tự khoá, vì mạng di động (4G/5G) đổi IP liên tục là chuyện bình thường, khoá cứng theo IP sẽ
+khoá nhầm học sinh dùng điện thoại.
 
 ---
 

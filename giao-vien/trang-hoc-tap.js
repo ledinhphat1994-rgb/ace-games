@@ -739,7 +739,7 @@ export async function trangNhatKyDangNhap(KHUNG) {
   const khung = e('div');
   khung.append(nut('← Về Mã cá nhân', 'nut-vien nut-nho', () => { location.hash = '#/ma-ca-nhan'; }));
   khung.append(tieuDeTrang('Nhật ký đăng nhập',
-    'Chỉ ghi các lượt đăng nhập bằng mã ĐƯỢC CẤP quyền quản lý — không xoá được, để còn dò lại nếu một mã bị chiếm quyền.'));
+    'Ghi mọi lượt đăng nhập (giáo viên, tài khoản có quyền, học sinh thường) — không xoá được, để còn dò lại nếu một mã bị chiếm quyền. Dòng có ⚠️ là mã đăng nhập từ IP khác lần gần nhất — không tự chặn (mạng di động đổi IP là bình thường), thầy/cô tự đánh giá có bất thường không.'));
 
   if (!d.danhSach.length) {
     khung.append(e('p', 'trong', 'Chưa có lượt đăng nhập nào.'));
@@ -748,21 +748,24 @@ export async function trangNhatKyDangNhap(KHUNG) {
     boc.style.marginTop = '14px';
     const bang = e('table');
     const dau = e('tr');
-    dau.append(e('th', null, 'Thời điểm'), e('th', null, 'Học sinh'), e('th', null, 'Mã'), e('th', null, 'Kết quả'), e('th', null, 'IP'));
+    dau.append(e('th', null, 'Thời điểm'), e('th', null, 'Vai trò'), e('th', null, 'Học sinh'), e('th', null, 'Mã'), e('th', null, 'Kết quả'), e('th', null, 'IP'));
     const than = e('tbody');
     than.append(dau);
     const KET_QUA_NHAN = { thanh_cong: ['nhan-tot', 'Thành công'], sai_thiet_bi: ['nhan-xau', 'Sai thiết bị'], khoa: ['nhan-xau', 'Bị khoá'] };
+    const VAI_TRO_NHAN = { teacher: 'Giáo viên', phu: 'Có quyền', student: 'Học sinh' };
     d.danhSach.forEach((n) => {
       const tr = e('tr');
+      if (n.canhBaoIp) tr.style.background = 'var(--luu-y-nen)';
       const [lop, chu] = KET_QUA_NHAN[n.ketQua] || ['nhan-xam', n.ketQua];
       tr.append(
         e('td', null, taoLucVN(n.thoiDiem)),
+        e('td', null, VAI_TRO_NHAN[n.vaiTro] || n.vaiTro || '—'),
         e('td', null, n.hoTen || '—'),
         e('td', null, n.ma),
         Object.assign(e('td'), {}),
-        e('td', null, n.ip || '—')
+        e('td', null, (n.canhBaoIp ? '⚠️ ' : '') + (n.ip || '—'))
       );
-      tr.children[3].append(e('span', 'nhan ' + lop, chu));
+      tr.children[4].append(e('span', 'nhan ' + lop, chu));
       than.append(tr);
     });
     bang.append(than);

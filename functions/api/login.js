@@ -41,6 +41,49 @@ function taoThietBi() {
   return crypto.randomUUID();
 }
 
+// Xác minh Turnstile (Cloudflare) — chặn script dò mã tự động NGAY CẢ KHI nó đổi IP liên tục để
+// né giới hạn "8 lần sai/10 phút/IP" ở trên, vì Turnstile đòi hỏi một trình duyệt thật giải được
+// thử thách, không phải chỉ có IP "sạch". Chỉ bật khi đã cấu hình TURNSTILE_SECRET_KEY trên
+// Cloudflare — CHƯA cấu hình thì bỏ qua bước này (không chặn đăng nhập của ai cả), để triển khai
+// code trước, thêm khoá Turnstile sau mà không có lúc nào web bị khoá ngoài dự kiến.
+async function turnstileHopLe(env, token, ip) {
+  if (!env.TURNSTILE_SECRET_KEY) return true;
+  if (!token) return false;
+  try {
+    const form = new FormData();
+    form.append('secret', env.TURNSTILE_SECRET_KEY);
+    form.append('response', token);
+    form.append('remoteip', ip);
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
+    const kq = await res.json();
+    return Boolean(kq.success);
+  } catch {
+    // Cloudflare siteverify không phản hồi được — không vì lỗi mạng phía máy chủ mà khoá hết
+    // đường vào của mọi người, coi như bỏ qua bước này cho lần thử này.
+    return true;
+  }
+}
+
+// Ghi 1 dòng vào nhật ký đăng nhập — nay ghi CHO MỌI VAI TRÒ (không chỉ mã được cấp quyền như
+// trước), và tự tính "canh_bao_ip": đăng nhập THÀNH CÔNG mà IP khác với lần đăng nhập THÀNH CÔNG
+// gần nhất của ĐÚNG mã này thì đánh dấu để giáo viên xem, KHÔNG chặn (mạng di động đổi IP liên
+// tục là chuyện bình thường, chặn cứng sẽ khoá nhầm học sinh dùng điện thoại).
+async function ghiNhatKyDangNhap(env, { ma, hocSinhId, ketQua, ip, lopId, vaiTro }) {
+  try {
+    let canhBaoIp = 0;
+    if (ketQua === 'thanh_cong') {
+      const truoc = await env.DB.prepare(
+        `SELECT ip FROM nhat_ky_dang_nhap WHERE ma = ?1 AND lop_id = ?2 AND ket_qua = 'thanh_cong'
+          ORDER BY id DESC LIMIT 1`
+      ).bind(ma, lopId).first();
+      if (truoc && truoc.ip && truoc.ip !== ip) canhBaoIp = 1;
+    }
+    await env.DB.prepare(
+      'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id, vai_tro, canh_bao_ip) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)'
+    ).bind(ma, hocSinhId ?? null, ketQua, ip, lopId, vaiTro, canhBaoIp).run();
+  } catch { /* bảng/cột chưa có (chưa chạy migration) — bỏ qua, không chặn đăng nhập */ }
+}
+
 export async function onRequestPost({ request, env }) {
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0';
 
@@ -54,15 +97,21 @@ export async function onRequestPost({ request, env }) {
 
   let code = '';
   let lopSlug = '';
+  let turnstileToken = '';
   try {
     const body = await request.json();
     code = String(body.code || '').trim();
     lopSlug = String(body.lop || '').trim();
+    turnstileToken = String(body.turnstileToken || '').trim();
   } catch {
     return json({ ok: false, message: 'Dữ liệu gửi lên không hợp lệ.' }, 400);
   }
 
   if (!code) return json({ ok: false, message: 'Vui lòng nhập mã bảo mật.' }, 400);
+
+  if (!(await turnstileHopLe(env, turnstileToken, ip))) {
+    return json({ ok: false, message: 'Xác minh "không phải robot" chưa xong hoặc đã hết hạn. Tải lại trang rồi thử lại.' }, 400);
+  }
 
   // Màn đăng nhập cho người vào thẳng "?lop=<slug>" hoặc đã bấm chọn một lớp trong danh sách —
   // mã nhập vào PHẢI thuộc ĐÚNG lớp đang hiện trên màn hình đó, không được âm thầm đưa qua lớp
@@ -193,9 +242,7 @@ export async function onRequestPost({ request, env }) {
         }
 
         if (ketQuaThietBi === 'sai_thiet_bi') {
-          await env.DB.prepare(
-            'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'
-          ).bind(code, ca.hocSinhId, ketQuaThietBi, ip, ca.lopId).run().catch(() => {});
+          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: ca.hocSinhId, ketQua: ketQuaThietBi, ip, lopId: ca.lopId, vaiTro: 'phu' });
           return json({
             ok: false,
             message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của em.',
@@ -213,9 +260,6 @@ export async function onRequestPost({ request, env }) {
           lopId: ca.lopId,
           toSo: ca.toSo,
         };
-        await env.DB.prepare(
-          'INSERT INTO nhat_ky_dang_nhap (ma, hoc_sinh_id, ket_qua, ip, lop_id) VALUES (?1, ?2, ?3, ?4, ?5)'
-        ).bind(code, ca.hocSinhId, 'thanh_cong', ip, ca.lopId).run().catch(() => {});
       }
     } catch {
       // Bảng/cột chưa tồn tại (chưa chạy migration) — coi như không khớp.
@@ -223,6 +267,15 @@ export async function onRequestPost({ request, env }) {
   }
 
   if (!role) return json({ ok: false, message: 'Mã bảo mật không đúng. Vui lòng hỏi lại giáo viên chủ nhiệm.' }, 401);
+
+  // Ghi nhật ký đăng nhập cho MỌI vai trò đăng nhập thành công (giáo viên, tài khoản phụ, mã cá
+  // nhân thường/có quyền) — trước đây chỉ ghi mã được cấp quyền quản lý. Đặt MỘT chỗ duy nhất ở
+  // đây (thay vì rải rác theo từng nhánh) để không sót/không ghi trùng.
+  if (env.DB) {
+    await ghiNhatKyDangNhap(env, {
+      ma: code, hocSinhId: phanBoSung.hocSinhId ?? null, ketQua: 'thanh_cong', ip, lopId: phanBoSung.lopId, vaiTro: role,
+    });
+  }
 
   await clearTries(env, ip);
   const token = await createToken(env.SESSION_SECRET, { role, ...phanBoSung }, SESSION_TTL);
