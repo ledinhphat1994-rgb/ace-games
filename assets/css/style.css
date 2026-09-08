@@ -329,14 +329,21 @@ code {
   display: flex; flex-direction: column; justify-content: center;
 }
 .hieu-ten [hidden] { display: none !important; }
+/* .hieu-phu là hàng flex: icon riêng một cột cố định + cột chữ (tối đa 2 dòng) — tách icon ra
+   khỏi chữ để dòng 1 (tên) và dòng 2 (chức vụ) luôn căn thẳng lề trái với nhau, không bị icon
+   ở dòng 1 đẩy lệch so với dòng 2 không có icon. */
 .hieu-phu {
-  display: block; font-weight: 600; font-size: 12.5px; color: var(--chu);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12.5px; color: var(--chu);
+  min-width: 0;
+}
+.hieu-phu-icon { flex: none; font-size: 13px; line-height: 1; }
+.hieu-phu-dong-boc {
+  display: flex; flex-direction: column; justify-content: center; min-width: 0;
 }
 /* Tên + chức danh của tài khoản (khu quản lý) khi tách thành 2 dòng riêng — mỗi dòng tự co chữ
    "…" riêng, không phải cả cụm chung một dòng dài dễ vỡ chữ. */
 .hieu-phu-dong {
-  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25;
 }
 .hieu-phu-dong + .hieu-phu-dong { font-weight: 500; opacity: .82; }
 
@@ -446,8 +453,10 @@ code {
     overflow: visible;
     text-overflow: clip;
   }
-  .hieu-phu, .hieu-phu-dong {
+  .hieu-phu {
     font-size: 12px;
+  }
+  .hieu-phu-dong {
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
@@ -1303,6 +1312,14 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
    với phần nội dung phía trên. */
 .the-anh-tac-vu {
   margin-top: auto; padding-top: 8px; border-top: 1px solid var(--vien);
+}
+/* ".day-loc-deu-co-gian > *" mặc định cho chữ xuống dòng tự do (hợp với nhãn 2-3 chữ ở chỗ
+   khác) — nhưng nhãn nút ảnh ("✓ Đang là nền", "📁 Sang Banner"...) cần giữ ĐÚNG 1 dòng để hàng
+   nút thẳng hàng, không lệch cao thấp giữa các nút trong cùng 1 tấm ảnh. */
+.the-anh-tac-vu > * {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .nut-sua-anh, .nut-xoa-anh, .nut-xoa-muc {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;

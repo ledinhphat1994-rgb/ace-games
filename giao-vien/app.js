@@ -2086,10 +2086,13 @@ async function dieuHuong() {
   // năm học), không nhắc lại bằng chữ "Lớp ..." riêng nữa (trước đây có dòng chữ này, thừa vì
   // đã có huy hiệu, lại dễ đọc thành lặp từ nếu chức danh tài khoản cũng chứa chữ "Quản lý").
   // Tên và chức danh xuống 2 DÒNG RIÊNG (bỏ dấu "·" nối giữa) — trước đây nhồi chung 1 dòng dài
-  // "Tên · Chức danh", trên điện thoại hẹp dễ vỡ chữ giữa dòng, phải tách hẳn cho rõ ràng.
+  // "Tên · Chức danh", trên điện thoại hẹp dễ vỡ chữ giữa dòng, phải tách hẳn cho rõ ràng. Icon
+  // tách ra một cột RIÊNG (không nhồi vào đầu dòng 1) để dòng 1 và dòng 2 luôn căn thẳng lề trái.
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
-    datNoiDung(hieuPhu, ...layCacDongTaiKhoan(PHIEN).map((dong) => e('span', 'hieu-phu-dong', dong)));
+    const { icon, dong } = layCacDongTaiKhoan(PHIEN);
+    const boc = datNoiDung(e('span', 'hieu-phu-dong-boc'), ...dong.map((d) => e('span', 'hieu-phu-dong', d)));
+    datNoiDung(hieuPhu, e('span', 'hieu-phu-icon', icon), boc);
   }
   if (PHIEN.tenLop) {
     document.title = `Quản lý ${PHIEN.tenLop}`;

@@ -355,32 +355,27 @@ export function layNhanTaiKhoan(phien = {}) {
   return 'Tài khoản đặc biệt';
 }
 
-/** Giống layNhanTaiKhoan() nhưng trả về MẢNG các dòng riêng thay vì nối chung bằng "·" — dùng
-    cho những chỗ chật hẹp cần xuống dòng RÕ RÀNG (vd huy hiệu đầu trang khu quản lý) thay vì
-    nhồi tên + chức danh vào một dòng dài, dễ vỡ chữ giữa dòng trên điện thoại. */
+/** Giống layNhanTaiKhoan() nhưng trả về { icon, dong } — icon TÁCH RIÊNG khỏi chữ (để vẽ ở cột
+    icon cố định, không lồng vào dòng đầu) và dong là MẢNG TỐI ĐA 2 DÒNG (tên, rồi chức vụ/tổ —
+    gộp bằng ", " chứ không phải "·"), để hàng trên/hàng dưới luôn căn thẳng nhau — dùng cho
+    những chỗ chật hẹp cần xuống dòng RÕ RÀNG (vd huy hiệu đầu trang khu quản lý). */
 export function layCacDongTaiKhoan(phien = {}) {
   const role = phien.role || '';
-  if (role === 'teacher') return ['👩‍🏫 Giáo viên chủ nhiệm'];
+  if (role === 'teacher') return { icon: '👩‍🏫', dong: ['Giáo viên chủ nhiệm'] };
   if (role === 'student') {
-    const ten = (phien.ten || '').trim();
+    const ten = (phien.ten || '').trim() || 'Học sinh thường';
     const phu = toChucVu(phien);
-    return [`🎓 ${ten || 'Học sinh thường'}`, ...phu];
+    return { icon: '🎓', dong: phu.length ? [ten, phu.join(', ')] : [ten] };
   }
 
-  let vt = (phien.vaiTro || '').trim();
-  const info = layThongTinVaiTro(vt);
-  vt = info.tenGoi;
-
+  const info = layThongTinVaiTro((phien.vaiTro || '').trim());
+  const vt = info.tenGoi;
   const t = (phien.ten || '').trim();
   const toSoNhan = phien.toSo ? `Tổ ${phien.toSo}` : '';
-  if (vt) {
-    if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
-      return [`${info.bieuTuong} ${vt}`, toSoNhan].filter(Boolean);
-    }
-    return [`${info.bieuTuong} ${t}`, [vt, toSoNhan].filter(Boolean).join(' · ')];
+  if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
+    return { icon: info.bieuTuong, dong: [vt, toSoNhan].filter(Boolean) };
   }
-  if (t) return [t, toSoNhan].filter(Boolean);
-  return ['Tài khoản đặc biệt'];
+  return { icon: info.bieuTuong, dong: [t, [vt, toSoNhan].filter(Boolean).join(', ')] };
 }
 
 /* ---------- Bảng tùy chỉnh hình nền & chủ đề dùng chung cho toàn bộ trang ---------- */

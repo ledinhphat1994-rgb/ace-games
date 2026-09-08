@@ -1524,6 +1524,9 @@ export async function trangThuVienVideo(KHUNG) {
 // nút "🖼 Nền"/"🏠 Banner" ngay trên từng ảnh, hiện ở CẢ 3 tab).
 let tabAnhThuVien = 'chung'; // 'chung' | 'nen' | 'banner'
 const TEN_KHO_ANH = { chung: 'Ảnh chung', nen: 'Ảnh nền', banner: 'Ảnh banner' };
+// Tên NGẮN dùng riêng cho nút "Sang..." trên từng ảnh — TEN_KHO_ANH (đầy đủ) để ở tab bar thì vừa
+// chỗ, nhưng nhồi cả cụm "Sang Ảnh banner" vào 1 nút nhỏ trong hàng nút thì tràn chữ, vỡ dòng.
+const TEN_KHO_NGAN = { chung: 'Chung', nen: 'Nền', banner: 'Banner' };
 const ICON_KHO_ANH = { chung: '🖼', nen: '🎨', banner: '🏠' };
 
 export async function trangHinhAnh(KHUNG) {
@@ -1783,14 +1786,17 @@ export async function trangHinhAnh(KHUNG) {
         // Hàng nút: Sửa / Nền / Banner / Xoá — dùng ".day-loc-deu-co-gian" để tự chia đều hết
         // chiều ngang, mỗi hàng xuống dòng lấp đầy riêng, không còn cảnh 1 nút lẻ trôi dạt.
         const hangNut = e('div', 'the-anh-tac-vu day-loc-deu-co-gian');
-        hangNut.style.setProperty('--the-nho-nhat', '84px');
+        // Đủ rộng cho nhãn dài nhất ("✓ Đang là nền"/"📁 Sang Banner") không bị tràn chữ ra
+        // ngoài nút — .nut vốn "white-space:nowrap" nên nếu ô hẹp hơn chữ, chữ sẽ đè lên nút bên
+        // cạnh trông rất lỗi, chứ không tự xuống dòng gọn gàng.
+        hangNut.style.setProperty('--the-nho-nhat', '108px');
         // "Nền" là nút BẬT/TẮT (toggle) — bấm lại đúng ảnh đang làm nền sẽ XOÁ nền, không phải
         // chỉ có chiều đặt mà không có chiều gỡ (trước đây muốn gỡ phải mở riêng hộp thoại Tuỳ
         // chỉnh giao diện, không ai nghĩ ra là phải làm vậy — coi như "không xoá được ảnh nền").
         const dangLaNenHienTai = layNenAnhTuyChonUrl() === anhUrl;
         hangNut.append(
           nut('✎ Sửa', 'nut-sua-anh nut-nho', () => suaChuThich(a, ve), 'Sửa chú thích ảnh ' + ngayVN(a.ngay)),
-          nut(dangLaNenHienTai ? '✓ Đang làm nền' : '🖼 Nền', 'nut-nho' + (dangLaNenHienTai ? ' nut-chinh' : ' nut-nhe'), () => {
+          nut(dangLaNenHienTai ? '✓ Đang là nền' : '🖼 Nền', 'nut-nho' + (dangLaNenHienTai ? ' nut-chinh' : ' nut-nhe'), () => {
             if (dangLaNenHienTai) {
               apDungNenAnhTuyChon(null);
               nhac('Đã xoá ảnh nền, dùng lại theme màu', 'tot');
@@ -1816,7 +1822,7 @@ export async function trangHinhAnh(KHUNG) {
           // hiện 2 kho CÒN LẠI (không hiện lại đúng kho đang xem).
           ...Object.keys(TEN_KHO_ANH)
             .filter((ma) => ma !== tabAnhThuVien && (ma !== 'banner' || coQuyenBanner))
-            .map((ma) => nut(`📁 Sang ${TEN_KHO_ANH[ma]}`, 'nut-nhe nut-nho', async (ev) => {
+            .map((ma) => nut(`📁 Sang ${TEN_KHO_NGAN[ma]}`, 'nut-nhe nut-nho', async (ev) => {
               const nutBam = ev.currentTarget;
               nutBam.disabled = true;
               try {
