@@ -1186,10 +1186,45 @@ export async function trangThuVienAmThanh(KHUNG) {
         }),
       ]);
     }) : null;
-    khung.append(tieuDeTrang('Thư viện Âm thanh',
+    // Chuẩn bị nút phải tiêu đề — khi có mục đang chọn hàng loạt, badge + nút thao tác
+    // nằm NGAY TRONG tiêu đề (Vùng 1), trước Thùng rác / Xoá tất cả.
+    const nutsDauTrangAT = [];
+    if (laGiaoVien && daChon.size) {
+      const badgeAT = e('span');
+      badgeAT.style.cssText = 'display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--xau);background:rgba(239,68,68,0.13);border:1px solid rgba(239,68,68,0.32);border-radius:20px;padding:3px 12px;white-space:nowrap';
+      badgeAT.textContent = `☑ Đã chọn ${daChon.size}/${d.danhSach.length} bài`;
+      nutsDauTrangAT.push(badgeAT);
+      if (daChon.size < d.danhSach.length) {
+        nutsDauTrangAT.push(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); }));
+      }
+      nutsDauTrangAT.push(nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }));
+      nutsDauTrangAT.push(nut(`🗑 Xoá ${daChon.size} bài`, 'nut-xau nut-nho', () => {
+        const oLyDo = taoOLyDoXoa();
+        moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
+          e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+          truong('Lý do xoá (không bắt buộc)', oLyDo),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async (ev) => {
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              daChon.clear();
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+          }),
+        ]);
+      }));
+    }
+    if (laGiaoVien) nutsDauTrangAT.push(nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; }));
+    if (nutXoaTatCa) nutsDauTrangAT.push(nutXoaTatCa);
+    khung.append(tieuDeTrang(
+      'Thư viện Âm thanh',
       d.danhSach.length ? `${d.danhSach.length} bài · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có bài nào',
-      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-am-thanh-thung-rac'; })] : []),
-      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
+      ...nutsDauTrangAT));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải bài mới vào thư viện'));
@@ -1239,42 +1274,13 @@ export async function trangThuVienAmThanh(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên và danh sách bài, khoảng trống vừa đủ
-    if (laGiaoVien && daChon.size) {
-      khung.append(taoThanhChonHangLoat({
-        soDaChon: daChon.size,
-        tongSo: d.danhSach.length,
-        donVi: 'bài',
-        onChonTatCa: daChon.size < d.danhSach.length ? () => { d.danhSach.forEach((b) => daChon.add(b.id)); ve(); } : null,
-        onBoChon: () => { daChon.clear(); ve(); },
-        onXoa: () => {
-          const oLyDo = taoOLyDoXoa();
-          moHopThoai(`Xoá ${daChon.size} bài đã chọn?`, [
-            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-            truong('Lý do xoá (không bắt buộc)', oLyDo),
-          ], [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async (ev) => {
-              const nutBam = ev.currentTarget;
-              nutBam.disabled = true;
-              try {
-                await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                daChon.clear();
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-            }),
-          ]);
-        },
-      }));
-    }
+
 
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có bài nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div');
-      luoi.style.cssText = `margin-top:${laGiaoVien && daChon.size ? '10px' : '18px'};display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px`;
+      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
       d.danhSach.forEach((bai) => {
         const muc = e('div', 'the');
 
@@ -1423,10 +1429,45 @@ export async function trangThuVienVideo(KHUNG) {
         }),
       ]);
     }) : null;
-    khung.append(tieuDeTrang('Thư viện Video',
+    // Chuẩn bị nút phải tiêu đề — khi có mục đang chọn hàng loạt, badge + nút thao tác
+    // nằm NGAY TRONG tiêu đề (Vùng 1), trước Thùng rác / Xoá tất cả.
+    const nutsDauTrangVD = [];
+    if (laGiaoVien && daChon.size) {
+      const badgeVD = e('span');
+      badgeVD.style.cssText = 'display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--xau);background:rgba(239,68,68,0.13);border:1px solid rgba(239,68,68,0.32);border-radius:20px;padding:3px 12px;white-space:nowrap';
+      badgeVD.textContent = `☑ Đã chọn ${daChon.size}/${d.danhSach.length} video`;
+      nutsDauTrangVD.push(badgeVD);
+      if (daChon.size < d.danhSach.length) {
+        nutsDauTrangVD.push(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); }));
+      }
+      nutsDauTrangVD.push(nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }));
+      nutsDauTrangVD.push(nut(`🗑 Xoá ${daChon.size} video`, 'nut-xau nut-nho', () => {
+        const oLyDo = taoOLyDoXoa();
+        moHopThoai(`Xoá ${daChon.size} video đã chọn?`, [
+          e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+          truong('Lý do xoá (không bắt buộc)', oLyDo),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async (ev) => {
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              daChon.clear();
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+          }),
+        ]);
+      }));
+    }
+    if (laGiaoVien) nutsDauTrangVD.push(nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-video-thung-rac'; }));
+    if (nutXoaTatCa) nutsDauTrangVD.push(nutXoaTatCa);
+    khung.append(tieuDeTrang(
+      'Thư viện Video',
       d.danhSach.length ? `${d.danhSach.length} video · Dung lượng: ${(tongByte / 1_000_000).toFixed(1)} MB` : 'Chưa có video nào',
-      ...(laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/thu-vien-video-thung-rac'; })] : []),
-      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
+      ...nutsDauTrangVD));
 
     const the = e('div', 'the');
     the.append(e('h3', null, '⬆ Tải video mới vào thư viện'));
@@ -1475,42 +1516,13 @@ export async function trangThuVienVideo(KHUNG) {
     }), tienTrinh);
     khung.append(the);
 
-    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên và danh sách video, khoảng trống vừa đủ
-    if (laGiaoVien && daChon.size) {
-      khung.append(taoThanhChonHangLoat({
-        soDaChon: daChon.size,
-        tongSo: d.danhSach.length,
-        donVi: 'video',
-        onChonTatCa: daChon.size < d.danhSach.length ? () => { d.danhSach.forEach((v) => daChon.add(v.id)); ve(); } : null,
-        onBoChon: () => { daChon.clear(); ve(); },
-        onXoa: () => {
-          const oLyDo = taoOLyDoXoa();
-          moHopThoai(`Xoá ${daChon.size} video đã chọn?`, [
-            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-            truong('Lý do xoá (không bắt buộc)', oLyDo),
-          ], [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async (ev) => {
-              const nutBam = ev.currentTarget;
-              nutBam.disabled = true;
-              try {
-                await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                daChon.clear();
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-            }),
-          ]);
-        },
-      }));
-    }
+
 
     if (!d.danhSach.length) {
       khung.append(Object.assign(e('p', 'trong', 'Chưa có video nào trong thư viện.'), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div');
-      luoi.style.cssText = `margin-top:${laGiaoVien && daChon.size ? '10px' : '18px'};display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px`;
+      luoi.style.cssText = 'margin-top:18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
       d.danhSach.forEach((v) => {
         const muc = e('div', 'the');
 
@@ -1632,9 +1644,49 @@ export async function trangHinhAnh(KHUNG) {
     const phuDeTrang = dsLoc.length
       ? `${dsLoc.length} ảnh trong kho này · ${d.soAnh} ảnh toàn thư viện · ${dungLuongMB} MB`
       : `Chưa có ảnh nào trong kho "${TEN_KHO_ANH[tabAnhThuVien]}".`;
-    khung.append(tieuDeTrang('Thư viện Ảnh', phuDeTrang,
-      ...(tabAnhThuVien === 'chung' && laGiaoVien ? [nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; })] : []),
-      ...(nutXoaTatCa ? [nutXoaTatCa] : [])));
+    // Chuẩn bị nút phải tiêu đề — khi có mục đang chọn hàng loạt, badge + nút thao tác
+    // nằm NGAY TRONG tiêu đề (Vùng 1), trước Thùng rác / Xoá tất cả.
+    const nutsDauTrangHA = [];
+    if (laGiaoVien && daChon.size) {
+      const badgeHA = e('span');
+      badgeHA.style.cssText = 'display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--xau);background:rgba(239,68,68,0.13);border:1px solid rgba(239,68,68,0.32);border-radius:20px;padding:3px 12px;white-space:nowrap';
+      badgeHA.textContent = `☑ Đã chọn ${daChon.size}/${dsLoc.length} ảnh`;
+      nutsDauTrangHA.push(badgeHA);
+      if (daChon.size < dsLoc.length) {
+        nutsDauTrangHA.push(nut('Chọn tất cả', 'nut-nhe nut-nho', () => { dsLoc.forEach((a) => daChon.add(a.id)); ve(); }));
+      }
+      nutsDauTrangHA.push(nut('Bỏ chọn', 'nut-nhe nut-nho', () => { daChon.clear(); ve(); }));
+      nutsDauTrangHA.push(nut(`🗑 Xoá ${daChon.size} ảnh`, 'nut-xau nut-nho', () => {
+        const oLyDo = taoOLyDoXoa();
+        moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, [
+          e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
+          truong('Lý do xoá (không bắt buộc)', oLyDo),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Xoá', 'nut-xau', async (ev) => {
+            const nutBam = ev.currentTarget;
+            nutBam.disabled = true;
+            try {
+              const idsDaChon = [...daChon];
+              await api(`/api/gv/anh?ids=${idsDaChon.join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+              // Nếu ảnh nền web (localStorage) nằm trong danh sách vừa xoá thì tự gỡ luôn
+              const nenHienTai = layNenAnhTuyChonUrl();
+              if (nenHienTai) {
+                const anhNenBiXoa = dsLoc.find((a) => idsDaChon.includes(a.id) && a.khoa === decodeURIComponent(nenHienTai.replace('/api/anh?khoa=', '')));
+                if (anhNenBiXoa) apDungNenAnhTuyChon(null);
+              }
+              dongHopThoai();
+              nhac('Đã xoá', 'tot');
+              daChon.clear();
+              ve();
+            } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
+          }),
+        ]);
+      }));
+    }
+    if (tabAnhThuVien === 'chung' && laGiaoVien) nutsDauTrangHA.push(nut('🗑 Thùng rác', 'nut-vien nut-nho', () => { location.hash = '#/hinh-anh-thung-rac'; }));
+    if (nutXoaTatCa) nutsDauTrangHA.push(nutXoaTatCa);
+    khung.append(tieuDeTrang('Thư viện Ảnh', phuDeTrang, ...nutsDauTrangHA));
 
     // 3 kho ảnh — chỉ là nhãn phân loại để dễ duyệt/tìm lại, chuyển qua lại tự do bằng tab, mỗi
     // ảnh xem/đổi kho ngay tại thẻ của nó (nút "📁 Sang ..." bên dưới) — không phải 3 trang riêng.
@@ -1756,50 +1808,14 @@ export async function trangHinhAnh(KHUNG) {
       hop.hidden = false;
     }
 
-    // Vùng 2: Thanh chọn hàng loạt — nằm giữa khối tải lên/tab và danh sách ảnh, khoảng trống vừa đủ
-    if (laGiaoVien && daChon.size) {
-      khung.append(taoThanhChonHangLoat({
-        soDaChon: daChon.size,
-        tongSo: dsLoc.length,
-        donVi: 'ảnh',
-        onChonTatCa: daChon.size < dsLoc.length ? () => { dsLoc.forEach((a) => daChon.add(a.id)); ve(); } : null,
-        onBoChon: () => { daChon.clear(); ve(); },
-        onXoa: () => {
-          const oLyDo = taoOLyDoXoa();
-          moHopThoai(`Xoá ${daChon.size} ảnh đã chọn?`, [
-            e('p', null, 'Chuyển vào thùng rác, khôi phục lại được trong 30 ngày.'),
-            truong('Lý do xoá (không bắt buộc)', oLyDo),
-          ], [
-            nut('Huỷ', 'nut-nhe', dongHopThoai),
-            nut('Xoá', 'nut-xau', async (ev) => {
-              const nutBam = ev.currentTarget;
-              nutBam.disabled = true;
-              try {
-                const idsDaChon = [...daChon];
-                await api(`/api/gv/anh?ids=${idsDaChon.join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
-                // Nếu ảnh nền web (localStorage) nằm trong danh sách vừa xoá thì tự gỡ luôn
-                const nenHienTai = layNenAnhTuyChonUrl();
-                if (nenHienTai) {
-                  const anhNenBiXoa = dsLoc.find((a) => idsDaChon.includes(a.id) && a.khoa === decodeURIComponent(nenHienTai.replace('/api/anh?khoa=', '')));
-                  if (anhNenBiXoa) apDungNenAnhTuyChon(null);
-                }
-                dongHopThoai();
-                nhac('Đã xoá', 'tot');
-                daChon.clear();
-                ve();
-              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
-            }),
-          ]);
-        },
-      }));
-    }
+
 
     // Danh sách ảnh đã có TRONG ĐÚNG KHO ĐANG XEM
     if (!dsLoc.length) {
       khung.append(Object.assign(e('p', 'trong', `Chưa có ảnh nào trong kho "${TEN_KHO_ANH[tabAnhThuVien]}".`), { style: 'margin-top:16px' }));
     } else {
       const luoi = e('div', 'thu-vien');
-      luoi.style.marginTop = (laGiaoVien && daChon.size) ? '10px' : '18px';
+      luoi.style.marginTop = '18px';
       dsLoc.forEach((a) => {
         const hinh = e('figure', 'the-anh-gv');
         hinh.style.position = 'relative';
