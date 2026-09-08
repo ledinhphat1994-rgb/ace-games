@@ -430,10 +430,14 @@ Hoạt động lớp/Thông báo, chỉ giới hạn dung lượng file đính k
 lộ/lạm dụng chỉ phá được tối đa ngần ấy dung lượng mỗi ngày, không "cháy" hết trần lưu trữ chung
 của cả lớp (mục 6 ở trên) chỉ trong một lần.
 
-Đổi mức 50 MB: sửa `GIOI_HAN_TAI_LEN_NGAY_PHU` trong `functions/_lib/thu-vien.js`, deploy lại —
-không cần đổi gì trên Cloudflare Dashboard. Vượt trần thì tài khoản đó thấy thông báo rõ ràng
-("đã tải lên X MB hôm nay, vượt giới hạn 50 MB/ngày..."), không có cách "chờ tí rồi thử lại" —
-phải đợi sang ngày hôm sau (giờ Việt Nam) hoặc nhờ giáo viên chủ nhiệm tải giúp.
+**Tự đổi mức trên web** (không cần sửa code/deploy): **Khu quản lý → Thêm → Mã cá nhân →
+"📊 Trần tải lên mỗi ngày" → ✎ Đổi mức này** — để trống ô nhập để quay lại dùng mặc định 50 MB.
+Cùng chỗ này còn hiện danh sách **"Đã tải hôm nay"** của từng tài khoản (chỉ hiện ai đã tải gì
+đó), để biết ai sắp chạm trần hoặc có dấu hiệu bất thường trước khi cân nhắc đổi mức.
+
+Vượt trần thì tài khoản đó thấy thông báo rõ ràng ("đã tải lên X MB hôm nay, vượt giới hạn Y
+MB/ngày..."), không có cách "chờ tí rồi thử lại" — phải đợi sang ngày hôm sau (giờ Việt Nam) hoặc
+nhờ giáo viên chủ nhiệm tải giúp.
 
 ---
 

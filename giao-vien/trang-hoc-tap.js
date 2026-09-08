@@ -575,10 +575,11 @@ export async function trangMaCaNhan(KHUNG) {
   datNoiDung(KHUNG, khoiDangTai());
 
   async function ve() {
-    const [d, dangNhap, totp] = await Promise.all([
+    const [d, dangNhap, totp, gioiHanTaiLen] = await Promise.all([
       api('/api/gv/rieng/ma-ca-nhan'),
       api('/api/gv/rieng/ma-dang-nhap'),
       api('/api/gv/rieng/totp'),
+      api('/api/gv/rieng/gioi-han-tai-len'),
     ]);
     const chuaCo = d.danhSach.filter((h) => !h.ma).length;
 
@@ -593,6 +594,7 @@ export async function trangMaCaNhan(KHUNG) {
     khung.append(dau1);
 
     khung.append(veTheMaDangNhap(dangNhap, totp, ve));
+    khung.append(veTheGioiHanTaiLen(gioiHanTaiLen, ve));
 
     const dauTkPhu = e('div', 'tieu-de-trang');
     dauTkPhu.style.marginTop = '16px';
@@ -868,6 +870,65 @@ function veTheMaDangNhap(dangNhap, totp, taiLai) {
   the.append(oTotp);
 
   return the;
+}
+
+/** Trần tải lên/ngày của tài khoản được cấp quyền — giáo viên tự xem/chỉnh (mặc định 50MB, xem
+    functions/_lib/thu-vien.js) — kèm danh sách "ai đã tải bao nhiêu hôm nay" để giám sát thật,
+    không chỉ đặt số rồi thôi. Chỉ hiện những tài khoản ĐÃ tải gì đó hôm nay (đa số ngày không
+    tải gì cũng chẳng cần liệt kê ra làm rối trang). */
+function veTheGioiHanTaiLen(d, taiLai) {
+  const the = e('div');
+  the.style.cssText = 'margin-top:14px;background:var(--nen-chim);border-radius:var(--r-nho);padding:12px';
+  the.append(e('div', 'the-nhan', '📊 Trần tải lên mỗi ngày (tài khoản được cấp quyền)'));
+
+  const dongMuc = e('div');
+  dongMuc.style.cssText = 'display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap';
+  const soChu = e('code', null, `${d.gioiHanMB} MB/ngày`);
+  soChu.style.cssText = 'font-size:17px;font-weight:800;letter-spacing:.5px';
+  dongMuc.append(soChu);
+  if (d.macDinh) dongMuc.append(e('span', 'nhan nhan-xam', 'Mặc định'));
+  the.append(dongMuc);
+  the.append(e('p', 'trong', 'Gộp chung cả 3 thư viện (Ảnh/Âm thanh/Video), không giới hạn số bài đăng ở Hoạt động lớp/Thông báo — chỉ giới hạn dung lượng file đính kèm nếu có. Giáo viên chủ nhiệm không bị giới hạn.'));
+  the.append(nut('✎ Đổi mức này', 'nut-vien nut-nho', () => datGioiHanTaiLen(d, taiLai)));
+
+  if (d.danhSachDaDung.length) {
+    const oDaDung = e('div');
+    oDaDung.style.marginTop = '10px';
+    oDaDung.append(e('p', 'trong', 'Đã tải hôm nay (giờ Việt Nam):'));
+    const ds = e('div', 'day-loc');
+    ds.style.cssText = 'gap:6px;flex-wrap:wrap';
+    d.danhSachDaDung.forEach((tk) => {
+      const soMB = Math.round(tk.daTaiByte / 1_000_000 * 10) / 10;
+      const chamTran = tk.daTaiByte >= d.gioiHanMB * 1_000_000 * 0.8;
+      ds.append(e('span', 'nhan ' + (chamTran ? 'nhan-xau' : 'nhan-xam'), `${tk.ten}: ${soMB} MB`));
+    });
+    oDaDung.append(ds);
+    the.append(oDaDung);
+  }
+
+  return the;
+}
+
+function datGioiHanTaiLen(d, taiLai) {
+  const oMuc = oNhap('gioiHanTaiLenMB', 'number', d.macDinh ? '' : String(d.gioiHanMB), `Để trống để dùng mặc định (${d.gioiHanMB} MB)`);
+  moHopThoai('Đổi trần tải lên mỗi ngày', [
+    truong('Mức tối đa (MB/ngày)', oMuc, 'Áp dụng cho tài khoản được cấp quyền (lớp trưởng, thủ quỹ...). Giáo viên chủ nhiệm không bị giới hạn.'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu', '', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      try {
+        const kq = await api('/api/gv/rieng/gioi-han-tai-len', { method: 'PATCH', than: { gioiHanMB: oMuc.value ? Number(oMuc.value) : null } });
+        dongHopThoai();
+        nhac('Đã đặt trần tải lên: ' + kq.gioiHanMB + ' MB/ngày', 'tot');
+        taiLai();
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+      }
+    }),
+  ]);
 }
 
 function moThietLapTotp(taiLai) {

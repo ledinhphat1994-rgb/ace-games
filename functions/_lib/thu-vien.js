@@ -66,7 +66,19 @@ export async function gioiHanCuaLop(db, lopId) {
    Hoạt động lớp/Thông báo (chỉ giới hạn dung lượng file đính kèm nếu có đính kèm). Mục đích:
    một tài khoản bị lộ/lạm dụng chỉ phá được tối đa NGẦN ẤY dung lượng mỗi ngày, không "cháy"
    hết trần chung của cả lớp chỉ trong một lần. */
-export const GIOI_HAN_TAI_LEN_NGAY_PHU = 50_000_000; // 50 MB/ngày
+export const GIOI_HAN_TAI_LEN_NGAY_PHU = 50_000_000; // 50 MB/ngày — mặc định nếu lớp chưa tự đặt
+
+/** Trần tải lên/ngày RIÊNG của một lớp — đọc từ lop.gioi_han_tai_len_ngay_byte (giáo viên tự
+    chỉnh trên web, xem functions/api/gv/rieng/gioi-han-tai-len.js), dùng hằng số mặc định nếu
+    lớp chưa từng tự đặt hoặc vì lý do gì đó không đọc được. */
+export async function gioiHanTaiLenNgayCuaLop(db, lopId) {
+  try {
+    const row = await db.prepare('SELECT gioi_han_tai_len_ngay_byte AS gioiHan FROM lop WHERE id = ?1').bind(lopId).first();
+    return row?.gioiHan || GIOI_HAN_TAI_LEN_NGAY_PHU;
+  } catch {
+    return GIOI_HAN_TAI_LEN_NGAY_PHU;
+  }
+}
 
 /** Định danh ỔN ĐỊNH của một phiên 'phu' để cộng dồn dung lượng — dùng id thật (không dùng
     thẳng mã đăng nhập) vì mã có thể đổi nhưng vẫn phải tính chung một người. null nếu không áp
@@ -93,13 +105,16 @@ export async function kiemTraGioiHanTaiLenNgay(db, lopId, phien, soByteMoi) {
 
   try {
     const ngay = ngayVNHomNay();
-    const daTai = await db.prepare(
-      'SELECT COALESCE(SUM(co_byte), 0) AS tong FROM tai_len_theo_ngay WHERE lop_id = ?1 AND danh_tinh = ?2 AND ngay = ?3'
-    ).bind(lopId, danhTinh, ngay).first('tong');
+    const [daTai, gioiHan] = await Promise.all([
+      db.prepare(
+        'SELECT COALESCE(SUM(co_byte), 0) AS tong FROM tai_len_theo_ngay WHERE lop_id = ?1 AND danh_tinh = ?2 AND ngay = ?3'
+      ).bind(lopId, danhTinh, ngay).first('tong'),
+      gioiHanTaiLenNgayCuaLop(db, lopId),
+    ]);
 
-    if ((Number(daTai) || 0) + soByteMoi > GIOI_HAN_TAI_LEN_NGAY_PHU) {
+    if ((Number(daTai) || 0) + soByteMoi > gioiHan) {
       const daTaiMB = Math.round((Number(daTai) || 0) / 1_000_000 * 10) / 10;
-      const tranMB = Math.round(GIOI_HAN_TAI_LEN_NGAY_PHU / 1_000_000);
+      const tranMB = Math.round(gioiHan / 1_000_000);
       return `Tài khoản của bạn đã tải lên ${daTaiMB} MB hôm nay, vượt giới hạn ${tranMB} MB/ngày dành cho tài khoản được cấp quyền. Thử lại vào ngày mai, hoặc nhờ giáo viên chủ nhiệm tải giúp.`;
     }
     return null;
@@ -117,6 +132,24 @@ export async function ghiNhanTaiLenNgay(db, lopId, phien, soByte) {
   await db.prepare(
     'INSERT INTO tai_len_theo_ngay (lop_id, danh_tinh, ngay, co_byte) VALUES (?1, ?2, ?3, ?4)'
   ).bind(lopId, danhTinh, ngayVNHomNay(), soByte).run().catch(() => {});
+}
+
+/** Tra CÙNG LÚC mức đã tải HÔM NAY của nhiều "danh tính" — dùng để hiện lên danh sách tài khoản
+    phụ/mã cá nhân (mỗi dòng một badge "Đã tải hôm nay: X MB") thay vì hỏi CSDL từng dòng một.
+    Trả về { [danhTinh]: soByte }, thiếu trong danh sách nghĩa là hôm nay chưa tải gì. */
+export async function layMucDaTaiHomNay(db, lopId, dsDanhTinh) {
+  if (!dsDanhTinh || !dsDanhTinh.length) return {};
+  try {
+    const ngay = ngayVNHomNay();
+    const cho = dsDanhTinh.map(() => '?').join(',');
+    const { results } = await db.prepare(
+      `SELECT danh_tinh AS danhTinh, SUM(co_byte) AS tong FROM tai_len_theo_ngay
+        WHERE lop_id = ? AND ngay = ? AND danh_tinh IN (${cho}) GROUP BY danh_tinh`
+    ).bind(lopId, ngay, ...dsDanhTinh).all();
+    return Object.fromEntries(results.map((r) => [r.danhTinh, Number(r.tong) || 0]));
+  } catch {
+    return {};
+  }
 }
 
 /** Thêm một tệp nhị phân vào thư viện của MỘT LỚP — dùng chung cho trang quản lý thư viện VÀ
