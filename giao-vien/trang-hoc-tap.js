@@ -577,14 +577,19 @@ export async function trangMaCaNhan(KHUNG) {
     hangNut.append(
       nut(chuaCo ? `Cấp mã cho ${chuaCo} em chưa có` : 'Mọi em đều đã có mã', '', async (ev) => {
         if (!chuaCo) return;
-        ev.currentTarget.disabled = true;
+        // "currentTarget" chỉ tồn tại TRONG LÚC sự kiện đang lan truyền — qua khỏi "await" là bị
+        // trình duyệt đặt lại thành null, nên phải lưu tham chiếu nút TRƯỚC khi chờ.
+        const nutBam = ev.currentTarget;
+        nutBam.disabled = true;
         try {
           const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { tatCa: true } });
           nhac(`Đã cấp ${kq.daCap} mã`, 'tot');
           ve();
-        } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
       }),
-      nut('🖨 In danh sách mã', 'nut-vien', () => inDanhSachMa(d.danhSach)),
+      nut('📥 Xuất danh sách mã', 'nut-vien', () => {
+        location.href = '/api/gv/bao-cao?loai=ma-ca-nhan&dinhDang=excel';
+      }),
       nut('📜 Nhật ký đăng nhập', 'nut-vien', () => { location.hash = '#/nhat-ky-dang-nhap'; })
     );
     the.append(hangNut);
@@ -814,7 +819,8 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Đổi mã', 'nut-xau', async (ev) => {
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const kq = await api('/api/gv/ma-dang-nhap', { method: 'POST', than: { vaiTro, ma: oMa.value.trim() || undefined } });
         dongHopThoai();
@@ -822,7 +828,7 @@ function datMaDangNhap(vaiTro, nhan, taiLai) {
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -992,7 +998,8 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
       ? truong('Mã (sửa để đổi mã tuỳ chỉnh)', oMa)
       : truong('Đặt mã (bỏ trống thì bấm "Cấp mã ngẫu nhiên" bên dưới)', oMa),
     nut('🎲 Cấp mã ngẫu nhiên mới ngay', 'nut-nhe nut-nho', async (ev) => {
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         const kq = await api('/api/gv/ma-ca-nhan', { method: 'POST', than: { hocSinhId: hocSinh.id } });
         const maMoi = kq.ketQua[0].ma;
@@ -1000,8 +1007,8 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
         oMa.value = maMoi;
         nhac('Đã cấp mã mới: ' + maMoi, 'tot');
         if (typeof capNhatHang === 'function') capNhatHang(hocSinh);
-        ev.currentTarget.disabled = false;
-      } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+        nutBam.disabled = false;
+      } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
     }),
     hocSinh.coThietBi
       ? Object.assign(e('p', 'trong', '🔒 Mã này đã gắn với một thiết bị.'), { style: 'margin-top:8px' })
@@ -1024,7 +1031,8 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
     nut('Lưu tất cả', '', async (ev) => {
       const tenMoi = oHoTen.value.trim();
       if (!tenMoi) return nhac('Họ tên không được để trống', 'xau');
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/hoc-sinh', { method: 'PATCH', than: { id: hocSinh.id, hoTen: tenMoi, chucVu: oChucVu.value.trim() } });
 
@@ -1053,7 +1061,7 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
         }
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
@@ -1065,7 +1073,8 @@ function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Đặt lại', 'nut-xau', async (ev) => {
-      ev.currentTarget.disabled = true;
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
       try {
         await api('/api/gv/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
         hocSinh.coThietBi = 0;
@@ -1078,57 +1087,10 @@ function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
         }
       } catch (err) {
         nhac(err.message, 'xau');
-        ev.currentTarget.disabled = false;
+        nutBam.disabled = false;
       }
     }),
   ]);
-}
-
-
-/** Mở cửa sổ in danh sách mã, cắt rời phát cho từng em. */
-async function inDanhSachMa(danhSach) {
-  // window.open PHẢI gọi ngay, đồng bộ với cú bấm — gọi sau một await sẽ bị trình duyệt
-  // chặn popup vì không còn được coi là phản hồi trực tiếp của người dùng.
-  const cua = window.open('', '_blank');
-  if (!cua) return nhac('Trình duyệt đã chặn cửa sổ in. Hãy cho phép rồi thử lại.', 'xau');
-
-  const tenLop = await api('/api/whoami').then((d) => d.tenLop).catch(() => '') || 'Lớp học';
-
-  const the = danhSach.filter((h) => h.ma).map((h) => `
-    <div class="phieu">
-      <div class="ten">${thoat(h.hoTen)}</div>
-      <div class="nhan">Mã cá nhân của em</div>
-      <div class="ma">${thoat(h.ma)}</div>
-      <div class="chan">lop-10a7.pages.dev &middot; Đăng nhập trang lớp</div>
-    </div>`).join('');
-
-  cua.document.write(`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
-    <title>Mã cá nhân ${thoat(tenLop)}</title><style>
-      *{box-sizing:border-box}
-      body{font:14px "Segoe UI",system-ui,sans-serif;margin:14mm;color:#111}
-      h1{font-size:17px;margin:0 0 3mm}
-      p.dan{font-size:12px;color:#555;margin:0 0 6mm}
-      .luoi{display:grid;grid-template-columns:repeat(3,1fr);gap:5mm}
-      .phieu{border:1px dashed #999;border-radius:3mm;padding:5mm;text-align:center;page-break-inside:avoid}
-      .ten{font-weight:700;font-size:13px;margin-bottom:2mm}
-      .nhan{font-size:10px;color:#666}
-      .ma{font-size:22px;font-weight:800;letter-spacing:3px;margin:2mm 0;font-family:Consolas,monospace}
-      .chan{font-size:9px;color:#888}
-      @media print{body{margin:8mm}}
-    </style></head><body>
-      <h1>MÃ CÁ NHÂN HỌC SINH ${thoat(tenLop.toUpperCase())}</h1>
-      <p class="dan">Cắt rời và phát cho từng em. Nhắc các em không đưa mã cho bạn khác.</p>
-      <div class="luoi">${the}</div>
-    </body></html>`);
-  cua.document.close();
-  cua.focus();
-  setTimeout(() => cua.print(), 400);
-}
-
-function thoat(s) {
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
 }
 
 /* ================= Ảnh hoạt động ================= */
@@ -1170,14 +1132,15 @@ export async function trangThuVienAmThanh(KHUNG) {
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api('/api/gv/thu-vien-am-thanh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
-          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
         }),
       ]);
     }) : null;
@@ -1253,14 +1216,15 @@ export async function trangThuVienAmThanh(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api(`/api/gv/thu-vien-am-thanh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
                 ve();
-              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
             }),
           ]);
         })
@@ -1386,14 +1350,15 @@ export async function trangThuVienVideo(KHUNG) {
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api('/api/gv/thu-vien-video?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
-          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
         }),
       ]);
     }) : null;
@@ -1468,14 +1433,15 @@ export async function trangThuVienVideo(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api(`/api/gv/thu-vien-video?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
                 ve();
-              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
             }),
           ]);
         })
@@ -1580,14 +1546,15 @@ export async function trangHinhAnh(KHUNG) {
       ], [
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xoá tất cả', 'nut-xau', async (ev) => {
-          ev.currentTarget.disabled = true;
+          const nutBam = ev.currentTarget;
+          nutBam.disabled = true;
           try {
             await api('/api/gv/anh?tatCa=1', { method: 'DELETE', than: { lyDo: oLyDo.value } });
             dongHopThoai();
             nhac('Đã chuyển toàn bộ thư viện vào thùng rác', 'tot');
             daChon.clear();
             ve();
-          } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+          } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
         }),
       ]);
     }) : null;
@@ -1670,14 +1637,15 @@ export async function trangHinhAnh(KHUNG) {
           ], [
             nut('Huỷ', 'nut-nhe', dongHopThoai),
             nut('Xoá', 'nut-xau', async (ev) => {
-              ev.currentTarget.disabled = true;
+              const nutBam = ev.currentTarget;
+              nutBam.disabled = true;
               try {
                 await api(`/api/gv/anh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
                 ve();
-              } catch (err) { nhac(err.message, 'xau'); ev.currentTarget.disabled = false; }
+              } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
             }),
           ]);
         })
