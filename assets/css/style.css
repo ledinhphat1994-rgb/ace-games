@@ -438,19 +438,16 @@ code {
     overflow: visible;
     text-overflow: clip;
   }
+  /* CÁC ICON CHỨC NĂNG Ở HEADER KHÔNG BAO GIỜ ĐƯỢC ẨN — dù màn hình hẹp cỡ nào, dù trang nào,
+     PC hay điện thoại (yêu cầu tuyệt đối, đã lặp lại nhiều lần). Trước đây hết chỗ thì ẨN BỚT
+     nút (nut-dang-xuat, nut-ve-trang-chu) — SAI cách, phải làm ngược lại: header tự cao lên
+     (đã có sẵn "height:auto" ở .thanh-tren > .wrap) để phần tên/vai trò tài khoản (.hieu-ten,
+     .hieu-phu) xuống dòng khi hết chỗ, còn HÀNG NÚT bên phải luôn giữ nguyên đủ, không rút gọn. */
   .thanh-phai {
     gap: 5px;
     flex-shrink: 0;
-  }
-  .thanh-phai .nut-dang-xuat {
-    display: none !important;
-  }
-  /* Khu quản lý (body.ung-dung): dòng phụ đề dưới huy hiệu dài hơn hẳn trang lớp (kèm vai trò +
-     tên tài khoản + "Đang quản lý: Lớp..."), nên trên điện thoại không đủ chỗ cho thêm nút Trang
-     chủ nữa — để lại dễ làm chữ bị bóp mất hẳn. Mục "Trang chủ" (xem trang học sinh) đã có sẵn
-     trong "Thêm" nên bỏ ở đây không mất chức năng gì. */
-  body.ung-dung .thanh-phai .nut-ve-trang-chu {
-    display: none !important;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .thanh-tren .nut-tron {
     width: 36px;
@@ -900,7 +897,11 @@ select.o-nhap option:checked {
 
 /* Hộp soạn thảo có định dạng (assets/js/soan-thao.js) — dùng chung cho "Nội dung chi tiết" của
    Hoạt động lớp lẫn Thông báo (tiêu đề + nội dung): in đậm/in nghiêng/font/cỡ/màu chữ + emoji. */
-.thanh-soan-thao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+/* 3 hàng riêng: định dạng (B/I/căn lề), chọn font/cỡ chữ, màu/emoji — mỗi hàng ".day-loc-deu-co-gian"
+   tự chia đều hết chiều ngang (xem soan-thao.js), thay vì dồn hết vào một hàng lớn xuống dòng tự
+   do khiến hàng cuối cùng thừa nhiều khoảng trống bên phải. */
+.thanh-soan-thao { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.hang-mau-soan-thao { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .nut-soan {
   min-width: 34px; height: 34px; padding: 0 8px; border-radius: 8px; font: inherit; font-size: 14.5px;
   border: 1.5px solid var(--vien-dam); background: var(--nen-noi); color: var(--chu); cursor: pointer;

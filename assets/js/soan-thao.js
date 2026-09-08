@@ -47,7 +47,13 @@ export function nutChonEmoji(khiChon) {
       b.addEventListener('click', () => { khiChon(ky); dong(); });
       bang.append(b);
     });
-    document.body.append(bang);
+    // Nút này thường nằm TRONG một <dialog> mở bằng showModal() — trình duyệt đưa <dialog> lên
+    // "top layer", LUÔN vẽ đè lên MỌI phần tử khác của trang bất kể z-index cao thế nào, nên nếu
+    // gắn bảng chọn thẳng vào <body> như phần tử "anh em" với dialog thì bảng chọn bị dialog che
+    // mất hoàn toàn (tồn tại trong DOM, đúng vị trí, nhưng vô hình — đúng lỗi "bấm emoji không
+    // thấy gì"). Phải gắn bảng chọn làm CON của chính <dialog> đó thì mới cùng lên top layer,
+    // hiện được lên trên nội dung dialog.
+    (nutMo.closest('dialog') || document.body).append(bang);
 
     const RONG = 236;
     const CAO_UOC_LUONG = 172;
@@ -255,8 +261,23 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
 
   const nutEmoji = nutChonEmoji((ky) => khoiPhucVaChay(() => document.execCommand('insertText', false, ky)));
 
+  // Mỗi hàng công cụ dùng ".day-loc-deu-co-gian" để CÁC NÚT CHIA ĐỀU HẾT CHIỀU NGANG — trước đây
+  // để mặc định "flex-wrap" tự do nên các nút chỉ to vừa đúng chữ, dồn về bên trái, để lại
+  // khoảng trống lãng phí bên phải hàng (đúng lỗi thiếu thẩm mỹ đã lặp lại nhiều lần ở các card
+  // khác trong web). "--the-nho-nhat" nhỏ để 5 nút định dạng luôn vừa một hàng.
+  const hangDinhDang = e('div', 'day-loc day-loc-deu-co-gian');
+  hangDinhDang.style.setProperty('--the-nho-nhat', '40px');
+  hangDinhDang.append(nutDam, nutNghieng, nutCanTrai, nutCanGiua, nutCanPhai);
+
+  const hangChonKieu = e('div', 'day-loc day-loc-deu-co-gian');
+  hangChonKieu.style.setProperty('--the-nho-nhat', '90px');
+  hangChonKieu.append(oFont, oCoChu);
+
+  const hangMau = e('div', 'hang-mau-soan-thao');
+  hangMau.append(dayMau, nutEmoji);
+
   const thanhCongCu = e('div', 'thanh-soan-thao');
-  thanhCongCu.append(nutDam, nutNghieng, nutCanTrai, nutCanGiua, nutCanPhai, oFont, oCoChu, dayMau, nutEmoji);
+  thanhCongCu.append(hangDinhDang, hangChonKieu, hangMau);
 
   const khung = e('div');
   khung.append(thanhCongCu, oSoan);
