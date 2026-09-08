@@ -412,7 +412,7 @@ function moHopThoaiGhiChuDiemDanh(h, ttHienTai, ldHienTai, onSave) {
   setTimeout(() => oLd.focus(), 80);
 }
 
-function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, trangThaiHienTai, lyDoHienTai, timPhuBanDau, datTimPhu) {
+function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, trangThaiHienTai, lyDoHienTai, timPhuBanDau, datTimPhu, ngay, buoi) {
   const khung = e('div');
   let timPhu = timPhuBanDau || '';
 
@@ -448,7 +448,8 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
     datTimPhu(timPhu);
     veKhuVucPhu();
   });
-  khung.append(truong('🔎 Tìm học sinh', oTimPhu));
+  khung.append(truong('🔎 Tìm học sinh', oTimPhu,
+    `Kết quả thuộc: ${ngayVN(ngay)} · ${TEN_BUOI[buoi]} · Điểm danh linh động — sửa đúng vào đây sẽ áp dụng cho buổi này.`));
 
   const khuVucPhu = e('div');
   khung.append(khuVucPhu);
@@ -842,7 +843,7 @@ async function trangDiemDanh() {
       );
       khung.append(dayPhu);
 
-      khung.append(veTabDiemDanhNhanh(duLieuPhu.danhSach, thayDoiPhu, lyDoMoiPhu, ve, luuDiemDanhPhu, trangThaiHienTaiPhu, lyDoHienTaiPhu, timPhu, (v) => { timPhu = v; }));
+      khung.append(veTabDiemDanhNhanh(duLieuPhu.danhSach, thayDoiPhu, lyDoMoiPhu, ve, luuDiemDanhPhu, trangThaiHienTaiPhu, lyDoHienTaiPhu, timPhu, (v) => { timPhu = v; }, ngay, buoi));
     } else {
       if (!duLieuChinh) {
         taiChinh().then(ve);
@@ -881,7 +882,8 @@ async function trangDiemDanh() {
         timChinh = ev.target.value;
         veKhuVucChinh();
       });
-      khung.append(truong('🔎 Tìm học sinh', oTimChinh));
+      khung.append(truong('🔎 Tìm học sinh', oTimChinh,
+        `Kết quả thuộc: ${ngayVN(ngay)} · ${TEN_BUOI[buoi]} · Điểm danh chính — sửa đúng vào đây sẽ áp dụng cho buổi này.`));
 
       const khuVucChinh = e('div');
       khuVucChinh.id = 'dd-khu-vuc-chinh';

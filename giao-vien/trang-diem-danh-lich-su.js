@@ -66,6 +66,7 @@ export async function trangDiemDanhLichSu(KHUNG) {
     const hopTab = e('div', 'day-loc day-loc-deu');
     hopTab.id = 'diem-danh-lich-su-tab';
     hopTab.style.margin = '4px 0 16px';
+    hopTab.style.setProperty('--the-nho-nhat', '100px');
     TABS.forEach(([ma, ten]) => {
       const b = e('button', 'vien-loc', ten);
       b.type = 'button';

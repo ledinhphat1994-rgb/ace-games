@@ -2199,6 +2199,9 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
 
   const thanhLoc = e('div', 'thanh-cong-cu-khoan');
   const dayLocDd = e('div', 'day-loc day-loc-deu');
+  // Chữ ngắn hơn hẳn hàng "Áp dụng nhanh" (vốn có nút dài "🗑 Xoá tất cả ghi chú" cần 108px) —
+  // để mặc định sẽ ép 3 thẻ ngắn này xuống còn 2 cột dù 3 cột vẫn thừa chỗ, để lại khoảng trống.
+  dayLocDd.style.setProperty('--the-nho-nhat', '85px');
   const soVangTre = (tk.vangPhep || 0) + (tk.vangKhongPhep || 0) + (tk.tre || 0);
 
   const CAC_MUC_LOC_DD = [

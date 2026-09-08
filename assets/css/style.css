@@ -925,10 +925,15 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
 /* !important vì đây là lớp "ghi đè bắt buộc" — vài nơi có sẵn luật riêng cho ".day-loc" theo
    ngữ cảnh (vd ".thanh-cong-cu-khoan .day-loc" đặt lại flex-wrap cho bộ lọc dài cuộn ngang),
    độ đặc thù CAO HƠN nên nếu không có !important, ".day-loc-deu" sẽ bị đè ngược mất tác dụng
-   ở đúng những nơi nó cần chạy nhất. */
+   ở đúng những nơi nó cần chạy nhất.
+   "--the-nho-nhat": bề rộng nhỏ nhất một thẻ được co lại trước khi cả hàng phải bớt cột — mặc
+   định 108px hợp cho hàng có nút CHỮ DÀI (vd "🗑 Xoá tất cả ghi chú"), nhưng lại làm hàng toàn
+   chữ NGẮN (vd "Tất cả (37)") bị ép xuống 2 cột dù 3 cột vẫn thừa chỗ, để lại khoảng trống dư —
+   đúng lỗi "chia chưa hết chiều ngang". Chỗ nào chữ ngắn hơn thì set JS
+   `el.style.setProperty('--the-nho-nhat', '80px')` để đúng số cột mong muốn. */
 .day-loc-deu {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(var(--the-nho-nhat, 108px), 1fr)) !important;
   flex-wrap: unset !important;
   overflow-x: visible !important;
   gap: 7px;
@@ -2616,16 +2621,27 @@ td.cot-hom-nay {
     box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6), 0 0 22px rgba(56, 189, 248, 0.75);
   }
 }
+/* Trước đây "display:flex" không co giãn + "overflow:hidden" cắt cụt luôn chữ "Hoạt động" khi
+   ba nút không đủ chỗ nằm một hàng (đúng lỗi "nội dung dài bị che mất"). Đổi sang lưới đều cột,
+   tự ĐƯA ĐÚNG NÚT QUÁ DÀI xuống hàng dưới khi thiếu chỗ — 2 nút còn lại vẫn giữ nguyên một hàng,
+   nút xuống hàng dùng đúng bề rộng cột như các nút cùng hàng phía trên (không phải nút rời rạc). */
 .nhom-buoi-dd {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  /* "auto-fit" cần biết chiều rộng THẬT của chính hộp này để tính đúng số cột — nhưng hộp này là
+     flex item trong ".thanh-dieu-khien-ngay-dd" nên mặc định co theo đúng nội dung (không co giãn),
+     khiến trình duyệt không xác định được rộng bao nhiêu và tự chọn 1 cột (3 nút xếp chồng dọc,
+     trông như bị vỡ). flex:1 1 260px vừa cho phép nằm cùng hàng với ô Ngày khi màn rộng, vừa co
+     giãn lấp đầy cả hàng khi xuống dòng riêng trên điện thoại — lúc đó "auto-fit" mới tính đúng. */
+  flex: 1 1 260px;
   border: 1.5px solid var(--vien);
   border-radius: 10px;
   overflow: hidden;
   background: var(--nen-chim);
 }
 .nut-buoi-dd {
-  padding: 0 14px;
-  height: 35px;
+  padding: 6px 14px;
+  min-height: 35px;
   border: none;
   background: transparent;
   color: var(--chu);
@@ -2633,6 +2649,8 @@ td.cot-hom-nay {
   font-weight: 600;
   cursor: pointer;
   transition: all .15s ease;
+  white-space: normal;
+  text-align: center;
 }
 .nut-buoi-dd[aria-pressed="true"] {
   background: var(--chinh);

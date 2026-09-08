@@ -76,6 +76,7 @@ export function khoiChonNguon({ nguonMacDinh, oThuVien, oTep, oLink, ghiChuLink,
   const khung = e('div');
   const dayNut = e('div', 'day-loc day-loc-deu');
   dayNut.style.cssText = 'margin-bottom:10px';
+  dayNut.style.setProperty('--the-nho-nhat', '85px');
   const oNoiDung = e('div');
 
   let nguonHienTai = nguonMacDinh;
