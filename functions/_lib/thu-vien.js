@@ -115,10 +115,16 @@ export async function xoaKhoiThuVien(env, loaiThuVien, id, lopId, phien, lyDo) {
   ).bind(taChuThich(phien), lyDo || null, id, lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy mục này trong thư viện.', 404);
 
-  // Bài đang là "nhạc nền trang chủ" mà bị chuyển vào thùng rác thì tắt luôn cờ đó — không để
-  // trang chủ tiếp tục phát một bài đã nằm trong thùng rác.
+  // Bài đang là "nhạc nền trang chủ" mà bị chuyển vào thùng rác thì tắt luôn cờ đó.
   if (loaiThuVien === 'am-thanh') {
     await env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE id = ?1 AND dang_phat = 1').bind(id).run();
+  }
+  // Ảnh đang làm BANNER trang chủ mà bị chuyển vào thùng rác thì tự xóa banner_anh_id
+  // — tàn trang chủ không hiện một banner đã bị xóa (hiển thị 404 / khung trống).
+  if (loaiThuVien === 'anh') {
+    await env.DB.prepare(
+      'UPDATE lop SET banner_anh_id = NULL WHERE id = ?1 AND banner_anh_id = ?2'
+    ).bind(lopId, id).run();
   }
   return null;
 }
@@ -148,6 +154,12 @@ export async function xoaNhieuKhoiThuVien(env, loaiThuVien, ids, lopId, phien, l
   // Xem xoaKhoiThuVien(): bài "nhạc nền trang chủ" bị chuyển vào thùng rác thì tắt luôn cờ đó.
   if (loaiThuVien === 'am-thanh' && tongDaXoa) {
     await env.DB.prepare('UPDATE am_thanh SET dang_phat = 0 WHERE lop_id = ?1 AND dang_phat = 1 AND da_xoa_luc IS NOT NULL').bind(lopId).run();
+  }
+  // Ảnh đang làm BANNER trang chủ mà bị xóa hàng loạt thì tự xóa banner_anh_id.
+  if (loaiThuVien === 'anh' && tongDaXoa) {
+    await env.DB.prepare(
+      'UPDATE lop SET banner_anh_id = NULL WHERE id = ?1 AND banner_anh_id IN (' + ids.map(() => '?').join(',') + ')'
+    ).bind(lopId, ...ids).run();
   }
   return { daXoa: tongDaXoa };
 }

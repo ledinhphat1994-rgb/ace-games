@@ -1711,7 +1711,15 @@ export async function trangHinhAnh(KHUNG) {
               const nutBam = ev.currentTarget;
               nutBam.disabled = true;
               try {
-                await api(`/api/gv/anh?ids=${[...daChon].join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+                const idsDaChon = [...daChon];
+                await api(`/api/gv/anh?ids=${idsDaChon.join(',')}`, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+                // Nếu ảnh nền web (localStorage) nằm trong danh sách vừa xóa thì tự gỡ luôn
+                const nenHienTai = layNenAnhTuyChonUrl();
+                if (nenHienTai) {
+                  const khoaNen = nenHienTai.replace('/api/anh?khoa=', '').replace(/%[0-9A-Fa-f]{2}/g, decodeURIComponent);
+                  const anhNenBiXoa = dsLoc.find((a) => idsDaChon.includes(a.id) && a.khoa === decodeURIComponent(nenHienTai.replace('/api/anh?khoa=', '')));
+                  if (anhNenBiXoa) apDungNenAnhTuyChon(null);
+                }
                 dongHopThoai();
                 nhac('Đã xoá', 'tot');
                 daChon.clear();
@@ -1869,14 +1877,20 @@ export async function trangHinhAnh(KHUNG) {
             }, `Chuyển ảnh này sang kho ${TEN_KHO_ANH[ma]}`)),
           nut('🗑 Xoá', 'nut-xoa-anh nut-nho', () => {
             const oLyDo = taoOLyDoXoa();
+            const dangLaNen = layNenAnhTuyChonUrl() === anhUrl;
+            const moTa = dangLaNen
+              ? `Ảnh này đang làm hình nền trang web. Xoá xong sẽ tự động gỡ nền đó luôn.`
+              : (a.chuThich || ngayVN(a.ngay));
             moHopThoai('Xoá ảnh này?', [
-              e('p', null, a.chuThich || ngayVN(a.ngay)),
+              e('p', null, moTa),
               truong('Lý do xoá (không bắt buộc)', oLyDo),
             ], [
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {
                 try {
                   await api('/api/gv/anh?id=' + a.id, { method: 'DELETE', than: { lyDo: oLyDo.value } });
+                  // Nếu ảnh này đang làm hình nền web (localStorage) thì tự xoá luôn
+                  if (dangLaNen) apDungNenAnhTuyChon(null);
                   dongHopThoai();
                   nhac('Đã xoá ảnh', 'tot');
                   daChon.delete(a.id);
