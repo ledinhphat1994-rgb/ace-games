@@ -3,7 +3,7 @@
 import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
-  layNhanTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo, giuViTriCuonKhiVe,
+  layNhanTaiKhoan, layCacDongTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo, giuViTriCuonKhiVe,
 } from '/assets/js/chung.js';
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
@@ -140,12 +140,8 @@ function locMenuTheoQuyen() {
     if (!nhom.querySelector('a')) nhom.remove();
   });
 
-  // Chỉ hiện tên + quyền (layNhanTaiKhoan) — bỏ hẳn phần "· Đang quản lý: <lớp>" nối thêm trước
-  // đây: tên lớp đã hiện sẵn ở huy hiệu và tiêu đề ngay bên cạnh, nối thêm vào đây chỉ làm dòng
-  // phụ đề dài dòng, dễ tràn dòng trên điện thoại. Áp dụng NHƯ NHAU cho mọi loại tài khoản (học
-  // sinh thường, học sinh/người ngoài được cấp quyền, giáo viên chủ nhiệm).
-  const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
+  // Đã ghi ".hieu-phu" một lần duy nhất ở khoiDong() (chạy TRƯỚC hàm này, cho MỌI vai trò) —
+  // không ghi lại ở đây nữa để khỏi trùng logic 2 nơi cùng tranh nhau ghi vào đúng một chỗ.
 }
 
 /* ================= Từ điển hiển thị ================= */
@@ -2089,9 +2085,11 @@ async function dieuHuong() {
   // Chỉ hiện tên + quyền — tên lớp đang quản lý đã hiện sẵn ở huy hiệu ngay cạnh đó (mã lớp +
   // năm học), không nhắc lại bằng chữ "Lớp ..." riêng nữa (trước đây có dòng chữ này, thừa vì
   // đã có huy hiệu, lại dễ đọc thành lặp từ nếu chức danh tài khoản cũng chứa chữ "Quản lý").
+  // Tên và chức danh xuống 2 DÒNG RIÊNG (bỏ dấu "·" nối giữa) — trước đây nhồi chung 1 dòng dài
+  // "Tên · Chức danh", trên điện thoại hẹp dễ vỡ chữ giữa dòng, phải tách hẳn cho rõ ràng.
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
-    hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
+    datNoiDung(hieuPhu, ...layCacDongTaiKhoan(PHIEN).map((dong) => e('span', 'hieu-phu-dong', dong)));
   }
   if (PHIEN.tenLop) {
     document.title = `Quản lý ${PHIEN.tenLop}`;

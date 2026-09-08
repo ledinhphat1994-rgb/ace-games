@@ -355,6 +355,34 @@ export function layNhanTaiKhoan(phien = {}) {
   return 'Tài khoản đặc biệt';
 }
 
+/** Giống layNhanTaiKhoan() nhưng trả về MẢNG các dòng riêng thay vì nối chung bằng "·" — dùng
+    cho những chỗ chật hẹp cần xuống dòng RÕ RÀNG (vd huy hiệu đầu trang khu quản lý) thay vì
+    nhồi tên + chức danh vào một dòng dài, dễ vỡ chữ giữa dòng trên điện thoại. */
+export function layCacDongTaiKhoan(phien = {}) {
+  const role = phien.role || '';
+  if (role === 'teacher') return ['👩‍🏫 Giáo viên chủ nhiệm'];
+  if (role === 'student') {
+    const ten = (phien.ten || '').trim();
+    const phu = toChucVu(phien);
+    return [`🎓 ${ten || 'Học sinh thường'}`, ...phu];
+  }
+
+  let vt = (phien.vaiTro || '').trim();
+  const info = layThongTinVaiTro(vt);
+  vt = info.tenGoi;
+
+  const t = (phien.ten || '').trim();
+  const toSoNhan = phien.toSo ? `Tổ ${phien.toSo}` : '';
+  if (vt) {
+    if (!t || t.toLowerCase() === vt.toLowerCase() || t.toLowerCase() === 'admin') {
+      return [`${info.bieuTuong} ${vt}`, toSoNhan].filter(Boolean);
+    }
+    return [`${info.bieuTuong} ${t}`, [vt, toSoNhan].filter(Boolean).join(' · ')];
+  }
+  if (t) return [t, toSoNhan].filter(Boolean);
+  return ['Tài khoản đặc biệt'];
+}
+
 /* ---------- Bảng tùy chỉnh hình nền & chủ đề dùng chung cho toàn bộ trang ---------- */
 
 export function moBangThemeBg() {

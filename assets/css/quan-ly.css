@@ -350,7 +350,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   }
 }
 
-.chu-thich { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--chu-nhat); margin-top: 12px; }
+.chu-thich { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--chu-nhat); margin: 12px 0 14px; }
 .chu-thich span { display: inline-flex; align-items: center; gap: 5px; }
 .chu-thich i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
@@ -377,8 +377,9 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 }
 .lich-su-tim-dd-ten {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 4px;
 }
-.lich-su-tim-dd-ten b { font-size: 15px; font-weight: 600; }
+.lich-su-tim-dd-ten b { font-size: 18px; font-weight: 700; }
 .lich-su-tim-dd-ten small { color: var(--chu-nhat); font-size: 12px; }
 /* Mỗi lần điểm danh trong lịch sử là MỘT THẺ RIÊNG, bo góc + viền — dễ tách bạch từng dòng thay
    vì một danh sách phẳng liền mạch. LUÔN đúng 2 dòng cố định (không co giãn/xuống dòng thêm tuỳ

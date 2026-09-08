@@ -333,6 +333,12 @@ code {
   display: block; font-weight: 600; font-size: 12.5px; color: var(--chu);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Tên + chức danh của tài khoản (khu quản lý) khi tách thành 2 dòng riêng — mỗi dòng tự co chữ
+   "…" riêng, không phải cả cụm chung một dòng dài dễ vỡ chữ. */
+.hieu-phu-dong {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hieu-phu-dong + .hieu-phu-dong { font-weight: 500; opacity: .82; }
 
 .thanh-phai { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; position: relative; }
 
@@ -440,7 +446,7 @@ code {
     overflow: visible;
     text-overflow: clip;
   }
-  .hieu-phu {
+  .hieu-phu, .hieu-phu-dong {
     font-size: 12px;
     white-space: normal;
     overflow: visible;
@@ -520,11 +526,15 @@ code {
 .menu a {
   padding: 8px 13px; border-radius: 9px; text-decoration: none;
   color: var(--chu-nhat); font-size: 14.5px; font-weight: 600; white-space: nowrap;
-  transition: color .15s, background .15s;
+  /* "background-color" (không phải "background" chung, và không dùng gradient ở trạng thái đang
+     xem) — mục đang xem đổi màu khi cuộn qua từng mục; trình duyệt không nội suy mượt được giữa
+     "không nền"/nền đặc và một linear-gradient (transition trên "background" bị giật/nhảy khựng
+     thay vì mờ dần êm), còn "background-color" với 2 nền đều là màu đặc thì luôn chuyển mượt. */
+  transition: color .15s, background-color .15s;
 }
-.menu a:hover { background: var(--chinh-nen); color: var(--chinh); }
+.menu a:hover { background-color: var(--chinh-nen); color: var(--chinh); }
 .menu a[aria-current="page"], .menu a.dang-xem {
-  background: linear-gradient(135deg, var(--chinh), var(--chinh-sang)); color: #fff;
+  background-color: var(--chinh); color: #fff;
   box-shadow: 0 3px 10px -3px color-mix(in srgb, var(--chinh) 60%, transparent);
 }
 @media (min-width: 860px) { .menu { display: flex; margin-left: 8px; } }
