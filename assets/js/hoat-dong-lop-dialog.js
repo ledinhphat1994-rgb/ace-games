@@ -113,8 +113,8 @@ export async function moHopThoaiThemHoatDong(lamMoi) {
   ];
   const ICON_LOAI = { text: '📝', anh: '🖼', video: '🎬', 'am-thanh': '🎵' };
 
-  const dayCongTac = e('div', 'day-loc');
-  dayCongTac.style.cssText = 'margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;';
+  const dayCongTac = e('div', 'day-loc day-loc-deu');
+  dayCongTac.style.cssText = 'margin-bottom:12px;';
   const khungNoiDung = e('div');
   khungNoiDung.style.cssText = 'display:flex;flex-direction:column;gap:14px;';
 

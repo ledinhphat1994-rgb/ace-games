@@ -483,7 +483,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
       e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
       { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
     ));
-    const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
+    const dayApDungNhanh = e('div', 'day-loc day-loc-deu-co-gian');
     Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
       const caLopDangChon = dsLoc.length > 0 &&
         dsLoc.every((h) => trangThaiHienTai(h.id, h.trangThai) === ma);
@@ -917,7 +917,7 @@ async function trangDiemDanh() {
           e('div', null, dangLoc ? `⚡ Áp dụng nhanh cho ${dsLoc.length} học sinh tìm thấy` : '⚡ Áp dụng nhanh cho cả lớp'),
           { style: 'font-size:12.5px;font-weight:700;color:var(--chu-nhat);margin-bottom:8px;' }
         ));
-        const dayApDungNhanh = e('div', 'day-loc day-loc-deu');
+        const dayApDungNhanh = e('div', 'day-loc day-loc-deu-co-gian');
         Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
           const caLopDangChon = dsLoc.length > 0 &&
             dsLoc.every((h) => trangThaiHienTaiChinh(h.id, h.trangThai) === ma);

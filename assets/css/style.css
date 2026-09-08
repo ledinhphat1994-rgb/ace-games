@@ -943,7 +943,24 @@ select.o-soan-nho { width: auto; min-height: 34px; height: 34px; padding: 0 8px;
    không thì chữ dài tràn ra ngoài khung 1 cột thay vì xuống dòng bên trong. */
 .day-loc-deu > * {
   width: 100%;
-  white-space: normal;
+  white-space: normal !important;
+  text-align: center;
+  border-radius: 12px;
+}
+/* Biến thể co giãn THEO TỪNG DÒNG — dùng khi SỐ THẺ không chia hết cho số cột (vd 5 nút trạng
+   thái điểm danh + nút xoá ghi chú: 3+2 hoặc 2+2+1 tuỳ bề rộng màn hình). ".day-loc-deu" (lưới
+   cột cố định cho cả khối) luôn để trống phần cột thừa ở dòng cuối không đủ thẻ lấp đầy — đúng
+   lỗi "chừa khoảng trống". Flexbox thì co giãn phần thừa NGAY TRONG dòng đó (không bị khoá theo
+   lưới cột chung), nên dòng nào cũng lấp đầy hết chiều ngang dù số thẻ mỗi dòng khác nhau. */
+.day-loc-deu-co-gian {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px;
+}
+.day-loc-deu-co-gian > * {
+  flex: 1 1 var(--the-nho-nhat, 108px);
+  min-width: 0;
+  white-space: normal !important;
   text-align: center;
   border-radius: 12px;
 }
