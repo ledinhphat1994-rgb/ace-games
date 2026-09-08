@@ -857,16 +857,28 @@ textarea.o-nhap { min-height: 92px; resize: vertical; line-height: 1.55; }
 /* Bọc <input type="date"> để LUÔN hiện đúng thứ tự lịch Việt Nam ngày/tháng/năm — xem giải
    thích đầy đủ ở boiNgayVN() trong giao-dien.js. */
 .boc-ngay-vn { position: relative; display: inline-block; }
-.boc-ngay-vn input[type="date"] { position: relative; z-index: 1; }
-@supports (-webkit-appearance: none) {
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit,
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-text,
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-day-field,
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-month-field,
-  .boc-ngay-vn input[type="date"]::-webkit-datetime-edit-year-field {
-    color: transparent;
-  }
+/* "color:transparent" đặt THẲNG lên input (không bọc trong @supports/pseudo-class riêng của
+   WebKit) — thử qua ::-webkit-datetime-edit* trước đây KHÔNG ăn trên một số bản Chrome/WebView
+   Android thực tế của giáo viên (dù đúng trên máy test), khiến chữ gốc VẪN hiện, chồng lên nhãn
+   dd/mm/yyyy tự vẽ bên trên => chữ đè chữ, đọc như "008/09/2026" (đúng lỗi trong ảnh chụp thật).
+   "color" là thuộc tính CSS chuẩn, input nào cũng phải theo, không phụ thuộc engine — chắc chắn
+   ẩn được chữ gốc ở MỌI trình duyệt, kể cả nơi không đọc được ::-webkit-datetime-edit* (khi đó
+   coi như trống trơn, không có gì "chồng chữ" để mà sai). Thêm -webkit-text-fill-color vì vài
+   bản WebKit tô glyph theo thuộc tính này thay vì "color" thường. Giữ luôn 3 dòng
+   ::-webkit-datetime-edit* làm lớp phòng hờ thêm (vô hại nếu trình duyệt không hiểu). */
+.boc-ngay-vn input[type="date"] {
+  position: relative; z-index: 1;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit,
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit-text,
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit-day-field,
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit-month-field,
+.boc-ngay-vn input[type="date"]::-webkit-datetime-edit-year-field {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 .nhan-ngay-vn {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);

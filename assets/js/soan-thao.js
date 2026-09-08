@@ -118,11 +118,23 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
   // vùng đang chọn — ghi nhớ lại vị trí mỗi khi có thay đổi/di chuyển con trỏ THẬT trong ô, rồi
   // khôi phục đúng vị trí đó trước khi thực thi lệnh định dạng.
   let phamViDaLuu = null;
+  // In đậm/in nghiêng ÁP DỤNG ĐƯỢC ĐỒNG THỜI CẢ HAI bình thường (document.execCommand tự chồng
+  // lên nhau, không loại trừ nhau) — nhưng trước đây 2 nút này không có dấu hiệu "đang bật" nào
+  // cả (khác với nút căn lề/màu đã có ".dang-chon"), nên bấm cả hai vẫn ra đúng chữ đậm-nghiêng
+  // nhưng nhìn NHƯ không chọn được cả hai vì nút không sáng lên. Đồng bộ trạng thái nút theo
+  // đúng định dạng TẠI vị trí con trỏ/vùng chọn hiện tại, cập nhật mỗi khi con trỏ di chuyển.
+  function capNhatNutDamNghieng() {
+    try {
+      nutDam.classList.toggle('dang-chon', document.queryCommandState('bold'));
+      nutNghieng.classList.toggle('dang-chon', document.queryCommandState('italic'));
+    } catch { /* trình duyệt không hỗ trợ queryCommandState — bỏ qua, không chặn thao tác khác */ }
+  }
   function ghiNhoViTriChon() {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && oSoan.contains(sel.anchorNode)) {
       phamViDaLuu = sel.getRangeAt(0).cloneRange();
     }
+    capNhatNutDamNghieng();
   }
   oSoan.addEventListener('mouseup', ghiNhoViTriChon);
   oSoan.addEventListener('keyup', ghiNhoViTriChon);
@@ -211,8 +223,8 @@ export function khoiSoanThaoDinhDang({ nhieuDong = true, goiY = '' } = {}) {
     return b;
   }
 
-  const nutDam = nutCongCu('B', 'In đậm', () => khoiPhucVaChay(() => document.execCommand('bold')), 'font-weight:800;');
-  const nutNghieng = nutCongCu('I', 'In nghiêng', () => khoiPhucVaChay(() => document.execCommand('italic')), 'font-style:italic;');
+  const nutDam = nutCongCu('B', 'In đậm', () => { khoiPhucVaChay(() => document.execCommand('bold')); capNhatNutDamNghieng(); }, 'font-weight:800;');
+  const nutNghieng = nutCongCu('I', 'In nghiêng', () => { khoiPhucVaChay(() => document.execCommand('italic')); capNhatNutDamNghieng(); }, 'font-style:italic;');
 
   const nutCanTrai = nutCongCu('Trái', 'Căn lề trái', () => apDungCanLe('left'));
   const nutCanGiua = nutCongCu('Giữa', 'Căn lề giữa', () => apDungCanLe('center'));

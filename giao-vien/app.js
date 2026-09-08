@@ -130,10 +130,12 @@ function locMenuTheoQuyen() {
     if (!nhom.querySelector('a')) nhom.remove();
   });
 
-  // Cùng một chỗ hiển thị này còn bị khoiDong() ghi thêm "· Đang quản lý: <lớp>" — giữ nguyên
-  // phần đó ở đây, không thì tài khoản cán sự sẽ mất dòng tên lớp ngay khi hàm này chạy xong.
+  // Chỉ hiện tên + quyền (layNhanTaiKhoan) — bỏ hẳn phần "· Đang quản lý: <lớp>" nối thêm trước
+  // đây: tên lớp đã hiện sẵn ở huy hiệu và tiêu đề ngay bên cạnh, nối thêm vào đây chỉ làm dòng
+  // phụ đề dài dòng, dễ tràn dòng trên điện thoại. Áp dụng NHƯ NHAU cho mọi loại tài khoản (học
+  // sinh thường, học sinh/người ngoài được cấp quyền, giáo viên chủ nhiệm).
   const hieuPhu = document.querySelector('.hieu-phu');
-  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN) + (PHIEN.tenLop ? ` · Đang quản lý: ${PHIEN.tenLop}` : '');
+  if (hieuPhu) hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
 }
 
 /* ================= Từ điển hiển thị ================= */
@@ -1980,12 +1982,11 @@ async function dieuHuong() {
     // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
   }
 
-  // Ghi rõ "Đang quản lý: <tên lớp>" — cùng một người có thể chủ nhiệm nhiều lớp bằng nhiều mã
-  // khác nhau, cần tín hiệu nhìn thấy ngay để tránh tự nhầm lẫn đang thao tác nhầm lớp (dữ liệu
-  // đã được máy chủ tách biệt tuyệt đối, đây chỉ là hiển thị cho rõ ràng).
+  // Chỉ hiện tên + quyền — tên lớp đang quản lý đã hiện sẵn ở huy hiệu/tiêu đề ngay cạnh đó
+  // (xem thêm giải thích ở hàm cập nhật .hieu-phu phía trên), không nhắc lại ở đây nữa.
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
-    hieuPhu.textContent = layNhanTaiKhoan(PHIEN) + (PHIEN.tenLop ? ` · Đang quản lý: ${PHIEN.tenLop}` : '');
+    hieuPhu.textContent = layNhanTaiKhoan(PHIEN);
   }
   if (PHIEN.tenLop) {
     document.title = `Quản lý ${PHIEN.tenLop}`;
