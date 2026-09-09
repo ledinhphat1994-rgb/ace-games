@@ -89,10 +89,16 @@ export async function trangResetDuLieu(KHUNG) {
 
   const oKetQua = e('div');
 
-  const nutReset = nut('🗑 Reset các mục đã chọn', 'nut-xau', () => {
+  const nutReset = nut('🗑 Reset các mục đã chọn', 'nut-xau', async (ev) => {
     const dsChon = dsHopKiemTra.filter((cb) => cb.checked).map((cb) => cb.dataset.muc);
     if (!dsChon.length) return nhac('Chưa chọn mục nào.', 'xau');
-    xacNhanReset(dsChon, oKetQua);
+    const nutBam = ev.currentTarget;
+    nutBam.disabled = true;
+    try {
+      await xacNhanReset(dsChon, oKetQua);
+    } finally {
+      nutBam.disabled = false;
+    }
   });
   nutReset.style.marginTop = '14px';
   oDsMuc.append(nutReset);
@@ -102,12 +108,29 @@ export async function trangResetDuLieu(KHUNG) {
   datNoiDung(KHUNG, khung);
 }
 
-function xacNhanReset(dsMuc, oKetQua) {
+async function xacNhanReset(dsMuc, oKetQua) {
+  // Cookie đăng nhập dùng CHUNG cho cả trình duyệt, không riêng theo từng tab — nếu giáo viên
+  // mở nhiều tab cho nhiều lớp, tab đang xem có thể vẫn hiện huy hiệu lớp CŨ (đã tải từ trước)
+  // trong khi cookie thật đã đổi sang lớp khác ở một tab khác. Lấy "đang là lớp nào" MỚI NHẤT
+  // ngay lúc này (không dùng dữ liệu đã có sẵn trên trang) để hiện thật rõ ràng trước khi giáo
+  // viên bấm xác nhận — từng có ca reset nhầm lớp vì tin vào huy hiệu cũ trên màn hình.
+  let tenLopThat = '';
+  try {
+    const ai = await api('/api/whoami');
+    tenLopThat = ai.tenLop || '';
+  } catch { /* không lấy được thì bỏ qua dòng cảnh báo, không chặn hẳn thao tác */ }
+
   const mucKhongKhoiPhuc = dsMuc.filter((m) => MUC_KHONG_KHOI_PHUC.has(m));
-  const noiDung = [
+  const noiDung = [];
+  if (tenLopThat) {
+    const dongLop = e('p', null, `Đang thao tác trên: ${tenLopThat}`);
+    dongLop.style.cssText = 'font-weight:800;font-size:16px;color:var(--chinh);margin-bottom:4px;';
+    noiDung.push(dongLop);
+  }
+  noiDung.push(
     e('p', null, `Sẽ xoá sạch: ${dsMuc.map(tenMuc).join(', ')}.`),
     e('p', 'trong', 'Các mục còn lại có thể khôi phục lại ngay sau khi xoá, hoặc khôi phục lại sau qua trang "Lịch sử & khôi phục" của từng mục.'),
-  ];
+  );
   if (mucKhongKhoiPhuc.length) {
     const canhBao = e('p', null, `⚠ Riêng ${mucKhongKhoiPhuc.map(tenMuc).join(', ')}: xoá xong KHÔNG khôi phục lại được (dạng nhật ký).`);
     canhBao.style.color = 'var(--xau)';
