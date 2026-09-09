@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layNhanTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
 import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -1846,8 +1846,11 @@ function veLoiTatQuanLy(phien, lamMoi) {
 
     let vungThaoTac = dauMuc.querySelector('.khu-thao-tac-muc');
     if (!vungThaoTac) {
-      vungThaoTac = e('div', 'khu-thao-tac-muc');
-      vungThaoTac.style.cssText = 'margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap';
+      // "day-loc-deu-co-gian" để các nút TỰ CHIA ĐỀU hết chiều ngang khi hàng này xuống dòng
+      // riêng trên điện thoại (trước đây chỉ "margin-left:auto" nên các nút dồn về một phía,
+      // thừa hẳn nửa hàng bên kia — đúng lỗi "card chưa đều so với màn hình").
+      vungThaoTac = e('div', 'khu-thao-tac-muc day-loc-deu-co-gian');
+      vungThaoTac.style.marginLeft = 'auto';
       dauMuc.append(vungThaoTac);
     } else {
       datNoiDung(vungThaoTac);
@@ -2477,8 +2480,19 @@ function apDungThuongHieuLop(lop, phien) {
   // Lưu ý: trước đây có 2 đoạn mã khác nhau cùng tranh nhau ghi vào đúng một chỗ này (một đoạn
   // ghi tài khoản, một đoạn ghi tên trường), ai chạy xong sau thì đoạn kia bị mất — chỉ còn
   // ĐÚNG MỘT nơi ghi vào đây để tránh lặp lại lỗi đó.
+  // Tài khoản: icon TÁCH RIÊNG khỏi chữ + xuống 2 DÒNG (tên, rồi chức vụ/tổ) — giống hệt cách
+  // đang làm ở khu quản lý (xem giao-vien/app.js) — trước đây gộp chung 1 dòng nối bằng "·",
+  // trên điện thoại hẹp dễ vỡ chữ giữa dòng và dấu "·" trông như một dấu chấm lạc lõng.
   const hieuTruong = $('#hieuTruong');
-  if (hieuTruong) hieuTruong.textContent = phien ? layNhanTaiKhoan(phien) : (truong || 'Hệ thống lớp học');
+  if (hieuTruong) {
+    if (phien) {
+      const { icon, dong } = layCacDongTaiKhoan(phien);
+      const boc = datNoiDung(e('span', 'hieu-phu-dong-boc'), ...dong.map((d) => e('span', 'hieu-phu-dong', d)));
+      datNoiDung(hieuTruong, e('span', 'hieu-phu-icon', icon), boc);
+    } else {
+      hieuTruong.textContent = truong || 'Hệ thống lớp học';
+    }
+  }
   // "Đổi lớp chủ nhiệm" chỉ giáo viên chủ nhiệm mới có — tài khoản học sinh (dù thường hay
   // được cấp quyền) chỉ gắn với đúng một lớp nên nút này không có ý nghĩa gì với các em.
   const nutDoiLop = $('#nutDoiLop');

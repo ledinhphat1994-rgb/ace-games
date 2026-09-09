@@ -683,6 +683,14 @@ section { margin: 30px 0; scroll-margin-top: 78px; }
 /* Mục có hơn 1 dòng phụ đề (vd Thời khoá biểu: ngày áp dụng + ghi chú) — xuống hẳn dòng riêng
    dưới tiêu đề, mỗi ý một dòng, thay vì nhồi chung một hàng với tiêu đề nhìn rối. */
 .dau-muc-phu { flex-basis: 100%; display: flex; flex-direction: column; gap: 3px; }
+/* Cụm nút thao tác nhanh của mỗi mục ("+ Thêm...", "⚙ Quản lý") — trên máy tính vẫn nằm gọn bên
+   phải tiêu đề (không cần chia đều, thừa chỗ để làm vậy); trên điện thoại hàng này hết chỗ nên
+   xuống dòng RIÊNG — lúc đó phải chiếm hết bề rộng để ".day-loc-deu-co-gian" chia đều các nút,
+   không thì chỉ dồn về bên phải, thừa khoảng trống bên trái (đúng lỗi "card chưa đều so với
+   màn hình"). */
+@media (max-width: 767px) {
+  .khu-thao-tac-muc { flex-basis: 100%; margin-left: 0 !important; }
+}
 
 /* ---------- Khối trang chủ: khung bao trọn tiêu đề + nội dung, để mỗi mục rõ ràng
    là MỘT khối riêng biệt thay vì tiêu đề "lơ lửng" phía trên một hộp khác. ---------- */
