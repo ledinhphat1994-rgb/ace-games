@@ -179,8 +179,10 @@ export async function trangQuy(KHUNG) {
     ve();
   }
 
-  function veHangKhoan(k) {
-    const boc = e('div', 'muc-khoan muc-khoan-thu card-khoan-thu' + (moRong === k.id ? ' dang-mo' : ''));
+  function veHangKhoan(k, laKhoanCon = false) {
+    const boc = e('div', 'muc-khoan muc-khoan-thu card-khoan-thu'
+      + (moRong === k.id ? ' dang-mo' : '')
+      + (laKhoanCon ? ' khoan-con-nhom' : ''));
     boc.id = 'khoan-' + k.id;
     const hang = e('div', 'hang-hs hang-hs-doc hang-khoan-thu');
     hang.style.cursor = 'pointer';
@@ -379,7 +381,7 @@ export async function trangQuy(KHUNG) {
 
     if (dangMo) {
       const dsKy = e('div', 'nhom-dinh-ky-chi-tiet');
-      thanhVien.forEach((k) => dsKy.append(veHangKhoan(k)));
+      thanhVien.forEach((k) => dsKy.append(veHangKhoan(k, true)));
       boc.append(dsKy);
     }
     return boc;

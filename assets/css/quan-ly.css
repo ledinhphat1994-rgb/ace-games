@@ -585,11 +585,47 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 }
 
 /* Nhóm "Thu cố định" — gộp nhiều kỳ giống nhau thành một thẻ tóm tắt, mở rộng ra mới thấy
-   từng kỳ (mỗi kỳ vẫn là một .muc-khoan bình thường, thụt vào nhẹ cho rõ là con của nhóm). */
+   từng kỳ (mỗi kỳ là một khoản con, thụt vào rõ ràng và có nhánh nối để nhận biết cấp cha / con). */
 .nhom-dinh-ky { border-color: color-mix(in srgb, var(--chinh) 35%, var(--vien)); }
 .nhom-dinh-ky-chi-tiet {
-  padding: 10px; border-top: 1px solid var(--vien); background: var(--nen-chim);
-  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px 16px 20px;
+  border-top: 1px solid var(--vien);
+  background: var(--nen-chim);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 3.5px solid var(--chinh);
+  margin: 0 12px 14px 26px;
+  border-radius: 0 0 12px 12px;
+}
+
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom {
+  background: var(--nen-noi);
+  border: 1px solid color-mix(in srgb, var(--vien) 85%, var(--chinh) 15%);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover {
+  border-color: color-mix(in srgb, var(--chinh) 50%, var(--vien));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
+  padding: 12px 14px;
+}
+
+@media (max-width: 600px) {
+  .nhom-dinh-ky-chi-tiet {
+    padding: 10px 8px 12px 12px;
+    margin: 0 6px 10px 14px;
+    border-left-width: 3px;
+    gap: 8px;
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
+    padding: 10px 10px;
+  }
 }
 
 /* Bố cục dòng học sinh và khoản chi: phân tách rõ thông tin, số tiền và hành động */
