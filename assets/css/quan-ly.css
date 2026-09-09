@@ -585,46 +585,168 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 }
 
 /* Nhóm "Thu cố định" — gộp nhiều kỳ giống nhau thành một thẻ tóm tắt, mở rộng ra mới thấy
-   từng kỳ (mỗi kỳ là một khoản con, thụt vào rõ ràng và có nhánh nối để nhận biết cấp cha / con). */
-.nhom-dinh-ky { border-color: color-mix(in srgb, var(--chinh) 35%, var(--vien)); }
-.nhom-dinh-ky-chi-tiet {
-  padding: 12px 14px 16px 20px;
-  border-top: 1px solid var(--vien);
-  background: var(--nen-chim);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-left: 3.5px solid var(--chinh);
-  margin: 0 12px 14px 26px;
-  border-radius: 0 0 12px 12px;
+   từng kỳ (mỗi kỳ là một khoản con, thụt vào rõ ràng và có nhánh nối cây trực quan để nhận biết cấp cha / con). */
+.nhom-dinh-ky {
+  border-color: color-mix(in srgb, var(--chinh) 35%, var(--vien));
+  transition: border-color .2s, box-shadow .2s;
+}
+.nhom-dinh-ky.dang-mo {
+  border-color: color-mix(in srgb, var(--chinh) 50%, var(--vien));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.22);
+}
+.nhom-dinh-ky.dang-mo > .hang-hs {
+  border-bottom: 1px solid color-mix(in srgb, var(--chinh) 22%, var(--vien));
 }
 
+/* Khung chứa các kỳ thu con — lồng khung inset tinh tế với trục dọc cây thư mục */
+.nhom-dinh-ky-chi-tiet {
+  position: relative;
+  padding: 14px 18px 20px 52px;
+  background: color-mix(in srgb, var(--nen-chim) 88%, #000 12%);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 0 0 var(--r) var(--r);
+}
+
+/* Đường trục dọc chính kết nối từ mục cha xuống toàn bộ các kỳ con */
+.nhom-dinh-ky-chi-tiet::before {
+  content: '';
+  position: absolute;
+  top: 42px;
+  bottom: 32px;
+  left: 28px;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--chinh) 0%,
+    color-mix(in srgb, var(--chinh) 55%, var(--vien)) 65%,
+    color-mix(in srgb, var(--chinh) 15%, transparent) 100%
+  );
+  border-radius: 99px;
+  z-index: 1;
+}
+
+/* Tiêu đề / Huy hiệu các kỳ con */
+.nhom-dinh-ky-tieu-de-con {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+  padding-left: 2px;
+}
+.nhom-dinh-ky-badge-con {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--chinh);
+  background: color-mix(in srgb, var(--chinh) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chinh) 28%, transparent);
+  border-radius: 99px;
+  padding: 3px 12px;
+}
+
+/* Thẻ con từng tuần trong nhóm — có nhánh ngang nối từ trục dọc và điểm nút phát sáng */
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom {
+  position: relative;
   background: var(--nen-noi);
-  border: 1px solid color-mix(in srgb, var(--vien) 85%, var(--chinh) 15%);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transition: border-color .15s, box-shadow .15s;
+  border: 1px solid color-mix(in srgb, var(--vien) 80%, var(--chinh) 20%);
+  border-left: 3.5px solid color-mix(in srgb, var(--chinh) 75%, var(--vien));
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  transition: all .2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+}
+
+/* Nhánh kẻ ngang nối từ trục dọc vào thẻ con */
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 24px;
+  width: 24px;
+  height: 2px;
+  background: color-mix(in srgb, var(--chinh) 55%, var(--vien));
+  border-radius: 2px;
+  z-index: 1;
+  transition: background .2s ease;
+}
+
+/* Nút tròn điểm kết nối trên trục dọc */
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::after {
+  content: '';
+  position: absolute;
+  left: -28px;
+  top: 21px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chinh);
+  border: 2px solid var(--nen-noi);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--chinh) 80%, transparent);
+  z-index: 2;
+  transition: transform .2s ease, background-color .2s ease, box-shadow .2s ease;
 }
 
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover {
-  border-color: color-mix(in srgb, var(--chinh) 50%, var(--vien));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-color: var(--chinh);
+  border-left-color: var(--chinh);
+  transform: translateX(4px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::before {
+  background: var(--chinh);
+}
+.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::after {
+  transform: scale(1.3);
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
 }
 
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
   padding: 12px 14px;
+  border-radius: 12px;
 }
 
 @media (max-width: 600px) {
   .nhom-dinh-ky-chi-tiet {
-    padding: 10px 8px 12px 12px;
-    margin: 0 6px 10px 14px;
-    border-left-width: 3px;
+    padding: 12px 10px 14px 34px;
     gap: 8px;
   }
+  .nhom-dinh-ky-chi-tiet::before {
+    left: 17px;
+    top: 36px;
+    bottom: 22px;
+    width: 1.5px;
+  }
+  .nhom-dinh-ky-badge-con {
+    font-size: 10.5px;
+    padding: 2px 10px;
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom {
+    border-radius: 10px;
+    border-left-width: 3px;
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::before {
+    left: -17px;
+    top: 20px;
+    width: 17px;
+    height: 1.5px;
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::after {
+    left: -20px;
+    top: 17px;
+    width: 6px;
+    height: 6px;
+    border-width: 1.5px;
+  }
   .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
-    padding: 10px 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
   }
 }
 

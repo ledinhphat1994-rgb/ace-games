@@ -381,6 +381,15 @@ export async function trangQuy(KHUNG) {
 
     if (dangMo) {
       const dsKy = e('div', 'nhom-dinh-ky-chi-tiet');
+      const tieuDeCon = e('div', 'nhom-dinh-ky-tieu-de-con');
+      const tongSoKy = dauTien.dinhKySoKy || thanhVien.length;
+      const ghiChuKy = thanhVien.length < tongSoKy
+        ? `${thanhVien.length}/${tongSoKy} kỳ khớp bộ lọc`
+        : `${thanhVien.length} kỳ thu con`;
+      tieuDeCon.append(
+        e('span', 'nhom-dinh-ky-badge-con', `📁 ${ghiChuKy}`)
+      );
+      dsKy.append(tieuDeCon);
       thanhVien.forEach((k) => dsKy.append(veHangKhoan(k, true)));
       boc.append(dsKy);
     }
