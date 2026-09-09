@@ -1,4 +1,4 @@
-import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan, ganTooltipNoi, giuViTriCuonKhiVe } from '/assets/js/chung.js';
+import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTai, layThongTinVaiTro, layNhanTaiKhoan, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa } from '/assets/js/chung.js';
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
@@ -57,6 +57,7 @@ export async function trangQuy(KHUNG) {
   let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
   const chiTiet = {};           // cache: { [khoanId]: dữ liệu chi tiết }
   const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
+  const timTheoKhoan = {};      // { [khoanId]: chuỗi đang tìm } — ô tìm học sinh trong từng khoản
   let tuKhoaTimKhoan = '';      // từ khoá tìm kiếm khoản thu theo tên ở ngoài danh sách
   const khoanDaChon = new Set();   // id các khoản thu đang tích để xoá hàng loạt
   const chiDaChon = new Set();     // id các khoản chi đang tích để xoá hàng loạt
@@ -496,9 +497,9 @@ export async function trangQuy(KHUNG) {
       }).filter((h) => {
         if (!q) return true;
         const sttSo = h.soThuTu || h.hocSinhId;
-        return (h.hoTen || '').toLowerCase().includes(q)
+        return khopTuKhoa(h.hoTen, q)
           || String(sttSo).includes(q)
-          || (h.toSo ? `tổ ${h.toSo}`.includes(q) || String(h.toSo).includes(q) : false);
+          || (h.toSo ? khopTuKhoa(`tổ ${h.toSo}`, q) || String(h.toSo).includes(q) : false);
       });
 
       if (!ds.length) {
@@ -860,26 +861,51 @@ export async function trangQuy(KHUNG) {
         const oTimKhoan = oNhap('quyTimKhoan', 'search', tuKhoaTimKhoan, '🔍 Tìm khoản thu theo tên…');
         oTimKhoan.className = 'o-nhap quy-tim-khoan';
         oTimKhoan.setAttribute('aria-label', 'Tìm kiếm khoản thu theo tên');
-        oTimKhoan.addEventListener('input', () => {
-          tuKhoaTimKhoan = oTimKhoan.value.trim().toLowerCase();
-          ve();
-        });
         theKhoan.append(oTimKhoan);
 
-        // Lọc khoản thu theo từ khoá tìm kiếm trước khi nhóm
-        const khoanHienThi = tuKhoaTimKhoan
-          ? d.khoan.filter((k) => k.ten.toLowerCase().includes(tuKhoaTimKhoan))
-          : d.khoan;
-
         const ds = e('div', 'ds-khoan');
-        if (khoanHienThi.length === 0) {
-          ds.append(e('p', 'trong', `Không tìm thấy khoản thu nào khớp với "${tuKhoaTimKhoan}".`));
-        } else {
-          nhomTheoDinhKy(khoanHienThi).forEach((muc) => {
-            ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
-          });
-        }
         theKhoan.append(ds);
+
+        function veDsKhoan() {
+          const tuKhoa = tuKhoaTimKhoan.trim();
+          const khopKhoan = (k) => {
+            if (!tuKhoa) return true;
+            return khopTuKhoa(k.ten, tuKhoa)
+              || (k.dinhKyTen && khopTuKhoa(k.dinhKyTen, tuKhoa))
+              || (k.ghiChu && khopTuKhoa(k.ghiChu, tuKhoa));
+          };
+
+          const khoanHienThi = tuKhoa
+            ? d.khoan.filter(khopKhoan)
+            : d.khoan;
+
+          // Nếu người dùng tìm đích danh số kỳ/tuần (kết quả lọc trong nhóm ít hơn tổng số kỳ), tự mở nhóm để thấy ngay
+          if (tuKhoa) {
+            const nhomLoc = nhomTheoDinhKy(khoanHienThi);
+            nhomLoc.forEach((muc) => {
+              if (muc.loai === 'nhom' && muc.thanhVien.length < (muc.thanhVien[0]?.dinhKySoKy || 999)) {
+                nhomMoRong.add(muc.dinhKyId);
+              }
+            });
+          }
+
+          ds.replaceChildren();
+          if (khoanHienThi.length === 0) {
+            ds.append(e('p', 'trong', `Không tìm thấy khoản thu nào khớp với "${tuKhoa}".`));
+          } else {
+            nhomTheoDinhKy(khoanHienThi).forEach((muc) => {
+              ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
+            });
+          }
+        }
+
+        // Lắng nghe gõ phím: CHỈ cập nhật danh sách ds bên dưới, KHÔNG gọi ve() để không bao giờ mất focus
+        oTimKhoan.addEventListener('input', () => {
+          tuKhoaTimKhoan = oTimKhoan.value;
+          veDsKhoan();
+        });
+
+        veDsKhoan();
       }
       khung.append(theKhoan);
     } else {
@@ -891,7 +917,19 @@ export async function trangQuy(KHUNG) {
       khung.append(cotChi);
     }
 
+    const dangGiuFocusTim = document.activeElement?.id === 'quyTimKhoan';
+    const viTriConTro = dangGiuFocusTim ? document.activeElement.selectionStart : null;
+
     datNoiDung(KHUNG, khung);
+
+    // Nếu vừa vẽ lại trang trong lúc đang gõ tìm kiếm, khôi phục lại tiêu điểm và con trỏ
+    if (dangGiuFocusTim) {
+      const oTimMoi = document.getElementById('quyTimKhoan');
+      if (oTimMoi) {
+        oTimMoi.focus();
+        if (viTriConTro != null) oTimMoi.setSelectionRange(viTriConTro, viTriConTro);
+      }
+    }
   }
 
   await tai();

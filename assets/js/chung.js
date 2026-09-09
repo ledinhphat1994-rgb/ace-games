@@ -105,6 +105,27 @@ export function tienVN(so) {
   return n.toLocaleString('vi-VN') + ' đ';
 }
 
+/* ---------- Tìm kiếm & Xử lý chuỗi ---------- */
+
+/** Bỏ dấu tiếng Việt và chuyển chữ thường để tìm kiếm linh hoạt (vd: "Quỹ lớp" khớp "quy lop") */
+export function xoaDau(s) {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase();
+}
+
+/** So khớp từ khoá linh hoạt (có dấu hoặc không dấu) */
+export function khopTuKhoa(vanBan, tuKhoa) {
+  if (!tuKhoa) return true;
+  const vb = String(vanBan || '').toLowerCase();
+  const tk = String(tuKhoa || '').trim().toLowerCase();
+  if (vb.includes(tk)) return true;
+  return xoaDau(vb).includes(xoaDau(tk));
+}
+
 /* ---------- Gọi API ---------- */
 
 export async function api(duongDan, tuyChon = {}) {

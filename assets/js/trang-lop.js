@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa } from './chung.js';
 import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -881,9 +881,9 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
       // khoản thu đều áp dụng cho mọi em) — thay vào đó hiện đủ mọi khoản (đã đóng, chưa đóng,
       // đóng chưa đủ) và tự mở sẵn phần "Chi tiết đóng tiền" của từng khoản, lọc luôn theo đúng
       // tên vừa gõ, để xem ngay một em đã đóng/chưa đóng/thiếu ở khoản nào trong nháy mắt.
-      const timTheoTenKhoan = timKhoan && dsKhoanGoc.some((k) => (k.ten || '').toLowerCase().includes(timKhoan));
+      const timTheoTenKhoan = timKhoan && dsKhoanGoc.some((k) => khopTuKhoa(k.ten, timKhoan) || (k.dinhKyTen && khopTuKhoa(k.dinhKyTen, timKhoan)));
       const timTheoTenHs = Boolean(timKhoan) && !timTheoTenKhoan
-        && dsHocSinh.some((h) => (h.hoTen || '').toLowerCase().includes(timKhoan));
+        && dsHocSinh.some((h) => khopTuKhoa(h.hoTen, timKhoan));
 
       let danhSachLoc;
       if (khoanDuocChonId) {
@@ -895,8 +895,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
           if (locTrangThai === 'da_du' && phanTram < 100) return false;
           if (locTrangThai === 'da_dong' && k.dangMo) return false;
           if (timKhoan && !timTheoTenHs) {
-            const tenThuong = (k.ten || '').toLowerCase();
-            if (!tenThuong.includes(timKhoan)) return false;
+            if (!khopTuKhoa(k.ten, timKhoan) && (!k.dinhKyTen || !khopTuKhoa(k.dinhKyTen, timKhoan))) return false;
           }
           return true;
         });
@@ -1179,10 +1178,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
           const hsLoc = danhSachHsVoiTrangThai.filter((h) => {
             if (locHs === 'da_dong' && h.trangThai === 'chua_dong') return false;
             if (locHs === 'chua_dong' && h.trangThai !== 'chua_dong') return false;
-            if (timHs) {
-              const ht = (h.hoTen || '').toLowerCase();
-              if (!ht.includes(timHs)) return false;
-            }
+            if (timHs && !khopTuKhoa(h.hoTen, timHs)) return false;
             return true;
           });
 
