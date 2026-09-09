@@ -1043,13 +1043,10 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
 
         the.append(dau);
 
-        // VÙNG 2: Đưa xuống dưới icon lịch bên trái ngoài cùng (không thụt lề theo icon)
+        // VÙNG 2: Tuần X + ngày trên cùng 1 dòng, không có icon lịch
         const vung2 = e('div', 'the-khoan-vung2');
-        if (soTuan) {
-          vung2.append(e('span', 'the-khoan-so-tuan', `Tuần ${soTuan}`));
-        }
 
-        // 14/09–17/09 ở 1 dòng dưới tuần không cần ngoặc đơn
+        // Hàng đầu vùng 2: Tuần X và 14/09–17/09 cùng 1 dòng
         let chuoiNgayNgan = '';
         if (k.ngayBatDau && k.ngayKetThuc) {
           const dinhDangNgayNgan = (iso) => {
@@ -1066,8 +1063,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
             chuoiNgayNgan = m[1].replace(/\/\d{4}/g, '').replace(/[()]/g, '').trim();
           }
         }
-        if (chuoiNgayNgan) {
-          vung2.append(e('div', 'the-khoan-dong-ngay', `📅 ${chuoiNgayNgan}`));
+
+        if (soTuan || chuoiNgayNgan) {
+          const hangTuanNgay = e('div', 'the-khoan-hang-tuan-ngay');
+          if (soTuan) {
+            hangTuanNgay.append(e('span', 'the-khoan-so-tuan', `Tuần ${soTuan}`));
+          }
+          if (chuoiNgayNgan) {
+            hangTuanNgay.append(e('span', 'the-khoan-dong-ngay', chuoiNgayNgan));
+          }
+          vung2.append(hangTuanNgay);
         }
 
         const nhanHang = e('div', 'the-khoan-nhan-hang');
@@ -1279,7 +1284,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
                 cThan.append(e('span', 'card-hs-gc', `📝 ${h.ghiChu}`));
               }
 
-              card.append(cDau, cTenWrap, cThan);
+              card.append(cThan);
               dsTheMobile.append(card);
 
               // Render Table row cho Desktop — không còn cột STT riêng

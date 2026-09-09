@@ -2163,13 +2163,19 @@ body.trang-dang-nhap {
   background: var(--chinh-nen); color: var(--chinh-sang);
   border: 1px solid color-mix(in srgb, var(--chinh) 35%, transparent);
 }
+/* Hàng đầu vùng 2: Tuần X và ngày cùng 1 dòng */
+.the-khoan-hang-tuan-ngay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .the-khoan-dong-ngay {
   font-size: 13px;
   font-weight: 600;
   color: var(--chu-nhat);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
 }
 .the-khoan-nhan-hang {
   display: flex;
