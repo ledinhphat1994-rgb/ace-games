@@ -169,8 +169,11 @@ export async function trangQuy(KHUNG) {
     // này đứng yên trên màn hình trong lúc vẽ lại để tránh việc đó.
     await giuViTriCuonKhiVe('khoan-' + id, async () => {
       moRong = moRong === id ? null : id;
-      if (moRong && !chiTiet[moRong]) await taiChiTiet(moRong);
       ve();
+      if (moRong && !chiTiet[moRong]) {
+        await taiChiTiet(moRong);
+        ve();
+      }
     });
   }
 
@@ -2109,8 +2112,11 @@ export async function trangQuyLichSu(KHUNG) {
       hang.addEventListener('click', async () => {
         await giuViTriCuonKhiVe('ls-khoan-' + k.id, async () => {
           moRongId = moRongId === k.id ? null : k.id;
-          if (moRongId && !chiTiet[moRongId]) chiTiet[moRongId] = await api('/api/gv/quy?khoanId=' + moRongId);
           veLai();
+          if (moRongId && !chiTiet[moRongId]) {
+            chiTiet[moRongId] = await api('/api/gv/quy?khoanId=' + moRongId);
+            veLai();
+          }
         });
       });
       boc.append(hang);
