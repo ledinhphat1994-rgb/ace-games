@@ -1934,9 +1934,28 @@ body.trang-dang-nhap {
     gap: 12px;
   }
   .thanh-cong-cu-khoan .day-loc {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 4px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    overflow-x: visible;
+  }
+  .thanh-cong-cu-khoan .day-loc.co-bon-muc {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .thanh-cong-cu-khoan .day-loc .vien-loc {
+    width: 100%;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    border-radius: 10px;
+    box-sizing: border-box;
   }
   .thanh-cong-cu-khoan .nhom-dieu-khien-khoan {
     width: 100%;
@@ -1962,12 +1981,15 @@ body.trang-dang-nhap {
   .thanh-cong-cu-khoan .o-tim-khoan {
     width: 100%;
   }
-  /* Màn điện thoại hẹp: cuộn ngang ẩn mất viên "Đã đủ 100%..." khỏi mép màn hình mà không có
-     dấu hiệu gì báo còn nội dung — nhìn như bị lỗi/cắt cụt. Cho xuống dòng thay vì cuộn ngang,
-     chỉ vài viên lọc ngắn nên xuống dòng vẫn gọn, lại thấy hết ngay không cần dò cuộn. */
   .thanh-cong-cu-khoan .day-loc {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
     overflow-x: visible;
-    flex-wrap: wrap;
+  }
+  .thanh-cong-cu-khoan .day-loc.co-bon-muc {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 .thanh-loc-dang-chon {
@@ -2081,15 +2103,15 @@ body.trang-dang-nhap {
 /* Đầu thẻ khoản thu */
 .the-khoan-dau {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .the-khoan-trai {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
@@ -2117,19 +2139,6 @@ body.trang-dang-nhap {
   background: var(--nen-noi);
   color: var(--chu-mo);
 }
-.the-khoan-thong-tin {
-  min-width: 0;
-  flex: 1;
-}
-/* Tiêu đề + "Tuần N" đứng SÁT nhau trên cùng hàng — to/đậm/nổi bật nhất thẻ, để nhận biết ngay
-   khoản gì của tuần nào mà không cần dò xuống hàng pill phụ bên dưới. */
-.the-khoan-tieu-de-hang {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
 .the-khoan-ten {
   font-size: 19px;
   font-weight: 800;
@@ -2137,6 +2146,16 @@ body.trang-dang-nhap {
   margin: 0;
   line-height: 1.3;
   letter-spacing: -.01em;
+  word-break: break-word;
+}
+/* Vùng 2: Nằm dưới icon lịch bên trái ngoài cùng (không thụt lề) */
+.the-khoan-vung2 {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 12px;
 }
 .the-khoan-so-tuan {
   display: inline-flex; align-items: center; white-space: nowrap; flex: none;
@@ -2144,8 +2163,14 @@ body.trang-dang-nhap {
   background: var(--chinh-nen); color: var(--chinh-sang);
   border: 1px solid color-mix(in srgb, var(--chinh) 35%, transparent);
 }
-/* Mọi nhãn phụ còn lại (kiểu thu, lịch thu, số tiền/em) gộp thành MỘT hàng pill nhỏ, mờ, xếp
-   ngay dưới tiêu đề. */
+.the-khoan-dong-ngay {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chu-nhat);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 .the-khoan-nhan-hang {
   display: flex;
   align-items: center;
@@ -2560,27 +2585,48 @@ td.cot-hom-nay {
 }
 .thanh-loc-chi-tiet {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 .thanh-loc-chi-tiet .day-nut-loc {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  flex-wrap: wrap;
+  width: 100%;
+}
+@media (min-width: 600px) {
+  .thanh-loc-chi-tiet {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .thanh-loc-chi-tiet .day-nut-loc {
+    display: flex;
+    width: auto;
+  }
+  .thanh-loc-chi-tiet .o-tim-hs {
+    width: 200px;
+  }
 }
 .thanh-loc-chi-tiet .nut-loc-nhanh {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12.5px;
-  font-weight: 600;
+  width: 100%;
+  padding: 8px 4px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
   border: 1px solid var(--vien);
   background: var(--nen-chim);
   color: var(--chu);
   cursor: pointer;
   transition: all .15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .thanh-loc-chi-tiet .nut-loc-nhanh:hover {
   border-color: var(--chinh);
@@ -2592,9 +2638,9 @@ td.cot-hom-nay {
   border-color: var(--chinh);
 }
 .thanh-loc-chi-tiet .o-tim-hs {
-  width: 180px;
-  max-width: 100%;
-  padding: 5px 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
   border-radius: 8px;
   font-size: 12.5px;
   border: 1px solid var(--vien);
@@ -2682,15 +2728,21 @@ td.cot-hom-nay {
   background: color-mix(in srgb, var(--chinh) 8%, var(--nen-noi));
 }
 
-/* Hàng 1: STT tròn + Badge trạng thái + Tag "Bạn" — cùng một hàng, ko lấn sang tên */
+/* Hàng 1: STT tròn + Tên học sinh (sát số) <--------> Tag "Bạn" (góc phải trên cùng) */
 .card-hs-dong-dau {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
 }
-
-/* Hàng 2: Tên + Lớp nghề — tự xuống dòng, không bị ép */
+.card-hs-nhom-ten {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
 .card-hs-dong-ten {
   display: flex;
   align-items: baseline;
@@ -2725,14 +2777,29 @@ td.cot-hom-nay {
   white-space: nowrap;
 }
 .tag-ban {
-  display: inline-block;
-  padding: 1px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
   border-radius: 99px;
   background: var(--chinh);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
   flex: none;
+  margin-left: auto;
+}
+/* Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự) */
+.card-hs-dong-trang-thai {
+  display: flex;
+  align-items: center;
+  margin: 1px 0 2px;
+}
+.card-hs-dong-trang-thai .nhan {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
 }
 
 /* Hàng 3: Tiền + Ngày */

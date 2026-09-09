@@ -5,10 +5,10 @@
  * và phải luôn lấy bản mới nhất từ máy chủ.
  */
 
-const PHIEN_BAN = 'lop10a7-v123';
+const PHIEN_BAN = 'lop10a7-v124';
 const VO_UNG_DUNG = [
   '/giao-vien/',
-  '/giao-vien/index.html?v=20260909_92',
+  '/giao-vien/index.html?v=20260909_93',
   '/giao-vien/app.js?v=20260909_90',
   '/assets/css/style.css?v=20260909_90',
   '/assets/css/quan-ly.css?v=20260909_90',

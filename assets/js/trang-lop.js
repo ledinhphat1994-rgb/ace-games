@@ -796,6 +796,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
     ];
     if (soDaDong > 0) {
       CAC_MUC_LOC.push(['da_dong', `Đã đóng (${soDaDong})`]);
+      dayLoc.classList.add('co-bon-muc');
     }
 
     // Tạo nút lọc DUY NHẤT MỘT LẦN — bấm chỉ đổi aria-pressed trên đúng các nút có sẵn (không
@@ -1007,8 +1008,6 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
         const trai = e('div', 'the-khoan-trai');
         trai.append(e('div', 'the-khoan-icon', icon));
 
-        const thongTin = e('div', 'the-khoan-thong-tin');
-
         let tenThuSach = (k.ten || '').trim();
         const soTuan = laDinhKy ? (matchTuan ? matchTuan[1] : (k.kySo || null)) : null;
         tenThuSach = tenThuSach.replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim();
@@ -1021,35 +1020,10 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
         if (!tenThuSach) {
           tenThuSach = (k.ten || '').replace(/\s*\([^)]*\d+[/–-]\d+[^)]*\)/g, '').trim() || k.ten;
         }
-        // Tên khoản + "Tuần N" đứng SÁT NHAU trên cùng 1 hàng, to/đậm/nổi bật nhất thẻ — nhìn
-        // phát biết ngay đây là khoản thu gì của tuần nào, không phải dò xuống hàng pill bên dưới.
-        const dongTieuDe = e('div', 'the-khoan-tieu-de-hang');
-        dongTieuDe.append(e('h4', 'the-khoan-ten', tenThuSach));
-        if (soTuan) dongTieuDe.append(e('span', 'the-khoan-so-tuan', `Tuần ${soTuan}`));
-        thongTin.append(dongTieuDe);
-
-        const nhanHang = e('div', 'the-khoan-nhan-hang');
-        nhanHang.append(e('span', 'tag-nhe', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'));
-
-        let lichThu = '';
-        if (k.ngayBatDau && k.ngayKetThuc) {
-          lichThu = `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`;
-        } else if (k.ngayBatDau) {
-          lichThu = `📅 Từ ${ngayVN(k.ngayBatDau)}`;
-        } else {
-          const m = /\(([^)]+\d+[/–-]\d+[^)]*)\)/.exec(k.ten);
-          if (m) lichThu = `📅 ${m[1]}`;
-        }
-        if (lichThu) nhanHang.append(e('span', 'tag-nhe', lichThu));
-        if (k.soTienMoiEm) nhanHang.append(e('span', 'tag-nhe', `👤 ${tienVN(k.soTienMoiEm)}/em`));
-        thongTin.append(nhanHang);
-
-        trai.append(thongTin);
+        trai.append(e('h4', 'the-khoan-ten', tenThuSach));
         dau.append(trai);
 
-        // Góc phải đầu thẻ: CHỈ dành cho học sinh đang xem đúng khoản của mình — một badge nhỏ,
-        // ngắn gọn ("Bạn: Đã đủ 100%"...), rê chuột/chạm mới hiện tooltip đủ chi tiết (đã nộp bao
-        // nhiêu, ngày nào) — thay cho cả một dòng "Phần của bạn" chiếm chỗ như trước.
+        // Góc phải đầu thẻ: CHỈ dành cho học sinh đang xem đúng khoản của mình
         if (banGhiCuaMinh) {
           const [chuTrangThai, lopTrangThaiBt] = banGhiCuaMinh.trangThai === 'da_du' ? ['✓ Bạn: Đã đủ 100%', 'nhan-tot']
             : banGhiCuaMinh.trangThai === 'dong_mot_phan' ? ['🙋 Bạn: Đóng 1 phần', 'nhan-luuy']
@@ -1068,6 +1042,41 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
         }
 
         the.append(dau);
+
+        // VÙNG 2: Đưa xuống dưới icon lịch bên trái ngoài cùng (không thụt lề theo icon)
+        const vung2 = e('div', 'the-khoan-vung2');
+        if (soTuan) {
+          vung2.append(e('span', 'the-khoan-so-tuan', `Tuần ${soTuan}`));
+        }
+
+        // 14/09–17/09 ở 1 dòng dưới tuần không cần ngoặc đơn
+        let chuoiNgayNgan = '';
+        if (k.ngayBatDau && k.ngayKetThuc) {
+          const dinhDangNgayNgan = (iso) => {
+            const p = (iso || '').split('-');
+            return p.length >= 3 ? `${p[2]}/${p[1]}` : iso;
+          };
+          chuoiNgayNgan = `${dinhDangNgayNgan(k.ngayBatDau)}–${dinhDangNgayNgan(k.ngayKetThuc)}`;
+        } else if (k.ngayBatDau) {
+          const p = k.ngayBatDau.split('-');
+          chuoiNgayNgan = `Từ ${p.length >= 3 ? p[2] + '/' + p[1] : k.ngayBatDau}`;
+        } else {
+          const m = /\(([^)]+\d+[/–-]\d+[^)]*)\)/.exec(k.ten);
+          if (m) {
+            chuoiNgayNgan = m[1].replace(/\/\d{4}/g, '').replace(/[()]/g, '').trim();
+          }
+        }
+        if (chuoiNgayNgan) {
+          vung2.append(e('div', 'the-khoan-dong-ngay', `📅 ${chuoiNgayNgan}`));
+        }
+
+        const nhanHang = e('div', 'the-khoan-nhan-hang');
+        nhanHang.append(e('span', 'tag-nhe', laDinhKy ? '🔁 Thu định kỳ' : '⚡ Thu linh động'));
+        if (k.soTienMoiEm) {
+          nhanHang.append(e('span', 'tag-nhe', `👤 ${tienVN(k.soTienMoiEm)}/em`));
+        }
+        vung2.append(nhanHang);
+        the.append(vung2);
 
         // 2. Widget số liệu + tiến độ: Đã thu — Mục tiêu, rồi thanh tiến độ bên dưới. Không còn
         // hiện sẵn "X% / còn thiếu Y đ" thường trực nữa (lặp với badge + chữ to giữa thẻ) — RÊ
@@ -1219,35 +1228,41 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
             hsLoc.forEach((h) => {
               const sttChu = String(h.sttHienThi || h.id);
 
-              // Render Card cho Mobile theo bố cục dọc chuẩn:
-              //  Hàng 1: STT tròn + Badge trạng thái (ôm sát nhau, không lấn sang tên)
-              //  Hàng 2: Tên đầy đủ + Lớp nghề (thoải mái xuống dòng khi dài)
+              // Render Card cho Mobile theo yêu cầu:
+              //  Hàng 1: STT tròn + Tên học sinh (sát số) <--------> Tag "Bạn" (góc phải trên cùng)
+              //  Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự)
               //  Hàng 3: Đã nộp + Ngày nộp
 
               const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
 
-              // Hàng 1: STT + Badge
+              // Hàng 1: STT + Tên sát nhau (trái) <--------> Tag "Bạn" (phải góc trên cùng)
               const cDau = e('div', 'card-hs-dong-dau');
+              const cNhomTrai = e('div', 'card-hs-nhom-ten');
               const sttEl = e('span', 'stt-tron-hs', sttChu);
-              let badgeMobile;
-              if (h.trangThai === 'da_du') {
-                badgeMobile = e('span', 'nhan nhan-tot', '✓ Đã đủ');
-              } else if (h.trangThai === 'dong_mot_phan') {
-                badgeMobile = e('span', 'nhan nhan-luuy', 'Đóng 1 phần');
-              } else {
-                badgeMobile = e('span', 'nhan nhan-xau', 'Chưa đóng');
-              }
-              cDau.append(sttEl, badgeMobile);
-              if (h.laChinhMinh) {
-                cDau.append(e('span', 'tag-ban', 'Bạn'));
-              }
-
-              // Hàng 2: Tên đầy đủ + Lớp nghề (xuống dòng tự nhiên, không cắp ép)
               const cTenWrap = e('div', 'card-hs-dong-ten');
               cTenWrap.append(e('b', 'ten-chu', h.hoTen));
               if (h.lopNghe && hienNgheThuQuy) {
                 cTenWrap.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
               }
+              cNhomTrai.append(sttEl, cTenWrap);
+              cDau.append(cNhomTrai);
+              if (h.laChinhMinh) {
+                cDau.append(e('span', 'tag-ban', 'Bạn'));
+              }
+              card.append(cDau);
+
+              // Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự)
+              const cTrangThai = e('div', 'card-hs-dong-trang-thai');
+              let badgeMobile;
+              if (h.trangThai === 'da_du') {
+                badgeMobile = e('span', 'nhan nhan-tot', '✓ Đã đủ');
+              } else if (h.trangThai === 'dong_mot_phan') {
+                badgeMobile = e('span', 'nhan nhan-luuy', 'Đóng thiếu');
+              } else {
+                badgeMobile = e('span', 'nhan nhan-xau', 'Chưa đóng');
+              }
+              cTrangThai.append(badgeMobile);
+              card.append(cTrangThai);
 
               // Hàng 3: Tiền + Ngày
               const cThan = e('div', 'card-hs-dong-than');

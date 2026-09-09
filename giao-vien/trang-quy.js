@@ -212,12 +212,20 @@ export async function trangQuy(KHUNG) {
 
     // Tên khoản (nếu là kỳ con thì lược bỏ "QUỸ LỚP — " dư thừa theo Vùng 4)
     let tenHienThi = k.ten || '';
+    let chuoiNgayCon = '';
     if (laKhoanCon) {
       if (k.dinhKyTen) {
         const escaped = k.dinhKyTen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         tenHienThi = tenHienThi.replace(new RegExp(`^${escaped}\\s*[-—–:]\\s*`, 'i'), '');
       }
       tenHienThi = tenHienThi.replace(/^quỹ\s*lớp\s*[-—–:]\s*/i, '');
+
+      // Tách ngày tháng dạng (dd/mm–dd/mm) ra thành dòng riêng dưới tuần, không ngoặc đơn
+      const mNgay = /\(([^)]+\d+[/–-]\d+[^)]*)\)/.exec(tenHienThi);
+      if (mNgay) {
+        chuoiNgayCon = mNgay[1].replace(/[()]/g, '').trim();
+        tenHienThi = tenHienThi.replace(mNgay[0], '').trim();
+      }
     }
     const tenKhoan = e('span', 'hs-ho-ten', tenHienThi);
     khoiTrai.append(tenKhoan);
@@ -246,11 +254,14 @@ export async function trangQuy(KHUNG) {
     dongTieuDe.append(khoiTrai, oBadge);
     hang.append(dongTieuDe);
 
-    // ── Vùng 1 (1 hàng riêng trên dòng chi tiết): badge loại nếu là khoản linh động ──
+    // ── Vùng 1 (1 hàng riêng trên dòng chi tiết): badge loại nếu là khoản linh động, hoặc ngày tháng nếu là kỳ con ──
     if (!k.dinhKyId) {
       const dongBadgeLoai = e('div', 'khoan-dong-badge-loai');
       dongBadgeLoai.append(e('span', 'hs-to-badge badge-nhanh', '⚡ Thu linh động'));
       hang.append(dongBadgeLoai);
+    } else if (laKhoanCon && chuoiNgayCon) {
+      const dongNgayCon = e('div', 'khoan-dong-ngay-con', `📅 ${chuoiNgayCon}`);
+      hang.append(dongNgayCon);
     }
 
     // ── Vùng 2 (nội dung bên dưới tiêu đề): chi tiết số tiền + thanh tiến độ ──

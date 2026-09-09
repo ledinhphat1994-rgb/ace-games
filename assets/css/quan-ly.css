@@ -975,6 +975,15 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   width: 100%;
   margin: 1px 0 2px;
 }
+.khoan-dong-ngay-con {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chu-nhat);
+  margin: 1px 0 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .khoan-dong-noi-dung {
   display: flex;
   flex-direction: column;
