@@ -500,6 +500,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
    trên) và có nhiều khoản, kéo cuộn dễ lạc; màn rộng đã đủ chỗ nhìn bao quát nên ẩn đi. */
 .quy-chon-nhanh { display: block; width: 100%; margin: 0 0 12px; }
 @media (min-width: 980px) { .quy-chon-nhanh { display: none; } }
+.quy-tim-khoan { display: block; width: 100%; margin: 0 0 14px; }
 
 /* Bộ lọc trạng thái quỹ (Tất cả / Chưa đóng / Còn thiếu / Đã đủ) */
 .loc-trang-thai-quy {

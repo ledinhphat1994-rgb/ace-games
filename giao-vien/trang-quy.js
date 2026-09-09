@@ -57,7 +57,7 @@ export async function trangQuy(KHUNG) {
   let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
   const chiTiet = {};           // cache: { [khoanId]: dữ liệu chi tiết }
   const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
-  const timTheoKhoan = {};      // { [khoanId]: chuỗi đang tìm } — ô tìm học sinh trong từng khoản
+  let tuKhoaTimKhoan = '';      // từ khoá tìm kiếm khoản thu theo tên ở ngoài danh sách
   const khoanDaChon = new Set();   // id các khoản thu đang tích để xoá hàng loạt
   const chiDaChon = new Set();     // id các khoản chi đang tích để xoá hàng loạt
   const nhomMoRong = new Set();    // id các mẫu "Thu cố định" đang mở rộng (xem từng kỳ bên trong)
@@ -856,10 +856,29 @@ export async function trangQuy(KHUNG) {
           theKhoan.append(oChonNhanh);
         }
 
-        const ds = e('div', 'ds-khoan');
-        nhomTheoDinhKy(d.khoan).forEach((muc) => {
-          ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
+        // Thanh tìm kiếm khoản thu theo tên
+        const oTimKhoan = oNhap('quyTimKhoan', 'search', tuKhoaTimKhoan, '🔍 Tìm khoản thu theo tên…');
+        oTimKhoan.className = 'o-nhap quy-tim-khoan';
+        oTimKhoan.setAttribute('aria-label', 'Tìm kiếm khoản thu theo tên');
+        oTimKhoan.addEventListener('input', () => {
+          tuKhoaTimKhoan = oTimKhoan.value.trim().toLowerCase();
+          ve();
         });
+        theKhoan.append(oTimKhoan);
+
+        // Lọc khoản thu theo từ khoá tìm kiếm trước khi nhóm
+        const khoanHienThi = tuKhoaTimKhoan
+          ? d.khoan.filter((k) => k.ten.toLowerCase().includes(tuKhoaTimKhoan))
+          : d.khoan;
+
+        const ds = e('div', 'ds-khoan');
+        if (khoanHienThi.length === 0) {
+          ds.append(e('p', 'trong', `Không tìm thấy khoản thu nào khớp với "${tuKhoaTimKhoan}".`));
+        } else {
+          nhomTheoDinhKy(khoanHienThi).forEach((muc) => {
+            ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
+          });
+        }
         theKhoan.append(ds);
       }
       khung.append(theKhoan);
