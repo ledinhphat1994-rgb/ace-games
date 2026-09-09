@@ -917,6 +917,20 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
         return datNoiDung(dsTheKhoi, e('p', 'trong', 'Không có khoản thu nào phù hợp với bộ lọc.'));
       }
 
+      // Sắp xếp tăng dần: Tuần 1 → 2 → … → 35 lên đầu.
+      // Trích số thứ tự từ tên khoản (Tuần X, Tháng X, Kỳ X…); khoản không có số thì xếp sau
+      // cùng theo id tăng dần để giữ thứ tự tạo ban đầu.
+      const soThuTuTuTen = (ten) => {
+        const m = /(?:tuần|tháng|kỳ|ky)\s*(\d+)/i.exec(ten || '');
+        return m ? Number(m[1]) : Infinity;
+      };
+      danhSachLoc = [...danhSachLoc].sort((a, b) => {
+        const soA = soThuTuTuTen(a.ten);
+        const soB = soThuTuTuTen(b.ten);
+        if (soA !== soB) return soA - soB;        // tăng dần theo số tuần/tháng/kỳ
+        return (a.id || 0) - (b.id || 0);          // fallback: id tăng dần
+      });
+
       danhSachLoc.forEach((k) => {
         const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
         const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
