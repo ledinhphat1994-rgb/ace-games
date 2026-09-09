@@ -1322,6 +1322,7 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 #danh-sach .day-loc, #thoi-khoa-bieu .day-loc { margin: 12px 0; }
 #danh-sach .cuon-ngang, #thoi-khoa-bieu .cuon-ngang { margin-top: 14px; }
 #tqTongQuan { margin-bottom: 16px; }
+@media (min-width: 700px) { #tqTongQuan { grid-template-columns: repeat(3, 1fr); } }
 
 /* Bảng cố định tuyệt đối chống xô lệch layout / nhảy cột khi thêm hoặc bớt quyền */
 .bang-co-dinh {
