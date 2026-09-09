@@ -8,7 +8,7 @@
 //   POST /api/gv/diem-danh   { ngay, buoi, ghiNhan:[{hocSinhId, trangThai, lyDo}] }
 //        trangThai = null/rỗng -> XOÁ điểm danh của em đó ngày/buổi này (bấm lại nút đang
 //        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
-import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi, ngayVNHomNay } from '../../_lib/api.js';
 import { chupCheckpointDiemDanh } from '../../_lib/diem-danh-checkpoint.js';
 
 const TRANG_THAI_HOP_LE = new Set(['co_mat', 'vang_phep', 'vang_khong_phep', 'tre']);
@@ -17,9 +17,12 @@ const TEN_BUOI = { sang: 'Sáng', chieu: 'Chiều', hoat_dong: 'Hoạt động',
 function chuanHoaBuoi(buoi, loai) {
   if (!buoi || typeof buoi !== 'string') return null;
   let b = buoi.trim();
-  if (loai === 'phu' && !b.endsWith('_phu')) {
-    b = `${b}_phu`;
-  }
+  // "loai" quyết định hẳn có hậu tố "_phu" hay không — không tin vào hậu tố client tự gửi sẵn.
+  // Trước đây chỉ THÊM "_phu" khi loai='phu' nhưng không bao giờ BỎ nó khi loai khác 'phu', nên
+  // một request gửi buoi="sang_phu" kèm loai="chinh"/rỗng vẫn lọt qua — ghi nhầm vào sổ phụ
+  // trong khi checkpoint lại gắn nhãn "chinh", lẫn lộn giữa hai sổ đáng lẽ phải tách bạch rõ.
+  b = b.replace(/_phu$/, '');
+  if (loai === 'phu') b = `${b}_phu`;
   const goc = b.replace(/_phu$/, '');
   if (!['sang', 'chieu', 'hoat_dong'].includes(goc)) return null;
   return b;
@@ -41,7 +44,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     return json({ ok: true, lichSu: results });
   }
 
-  const ngay = url.searchParams.get('ngay') || new Date().toISOString().slice(0, 10);
+  const ngay = url.searchParams.get('ngay') || ngayVNHomNay();
   const buoiGoc = url.searchParams.get('buoi') || 'sang';
   const loai = url.searchParams.get('loai') || '';
   const buoi = chuanHoaBuoi(buoiGoc, loai);
@@ -102,8 +105,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         chiTiet.push({ hocSinhId: id, hoTen: tenMap.get(id), truoc: truoc.trangThai, sau: null, lyDo: truoc.lyDo || '' });
       }
       cauLenh.push(
-        env.DB.prepare('DELETE FROM diem_danh WHERE ngay = ?1 AND buoi = ?2 AND hoc_sinh_id = ?3')
-          .bind(ngay, buoi, id)
+        env.DB.prepare('DELETE FROM diem_danh WHERE ngay = ?1 AND buoi = ?2 AND hoc_sinh_id = ?3 AND lop_id = ?4')
+          .bind(ngay, buoi, id, phien.lopId)
       );
       continue;
     }

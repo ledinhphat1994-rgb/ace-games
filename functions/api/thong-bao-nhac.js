@@ -3,7 +3,7 @@
 import { bocXuLy, loi } from '../_lib/api.js';
 import { phucVuTepR2 } from '../_lib/media-stream.js';
 
-export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien, waitUntil }) => {
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
@@ -15,5 +15,5 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!tb) return loi('Không tìm thấy thông báo.', 404);
   if (!tb.khoa) return loi('Thông báo này chưa có tệp âm thanh.', 404);
 
-  return phucVuTepR2(env, tb.khoa, tb.kieu || 'audio/mpeg', request);
+  return phucVuTepR2(env, tb.khoa, tb.kieu || 'audio/mpeg', request, phien.lopId, waitUntil);
 }, { canGiaoVien: false });

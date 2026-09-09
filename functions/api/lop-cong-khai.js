@@ -7,8 +7,11 @@
 // chế xác thực, chỉ để hiển thị đẹp trước khi nhập mã.
 export async function onRequestGet({ request, env }) {
   const slug = (new URL(request.url).searchParams.get('lop') || '').trim().toLowerCase();
+  // Dữ liệu gần như tĩnh (tên/slug lớp, ít khi đổi) và KHÔNG chứa gì riêng tư — public + cache
+  // ngắn giúp giảm tải D1 khi nhiều học sinh cùng mở màn hình đăng nhập một lúc (đầu giờ học),
+  // khác hẳn các API khác trong dự án (luôn "no-store" vì có dữ liệu riêng của từng lớp/học sinh).
   const tra = (data, status = 200) => new Response(JSON.stringify(data), {
-    status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': status === 200 ? 'public, max-age=60' : 'no-store' },
   });
 
   if (!env.DB) return tra({ ok: false }, 500);

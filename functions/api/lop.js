@@ -5,13 +5,13 @@
 // từng tra cứu) để nhận về "anMuc" — các mục giáo viên đã ẩn riêng cho em, dùng để tự ẩn bớt
 // tiền quỹ/thông báo/thời khoá biểu ở giao diện. Không phải xác thực — chỉ là gợi ý hiển thị,
 // dữ liệu vẫn công khai như nhau cho mọi mã lớp giống hệt trước đây.
-import { bocXuLy, json } from '../_lib/api.js';
+import { bocXuLy, json, ngayVNHomNay } from '../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) => {
   const db = env.DB;
   const lopId = phien.lopId;
 
-  const homNay = new Date().toISOString().slice(0, 10);
+  const homNay = ngayVNHomNay();
   const ma = new URL(request.url).searchParams.get('ma');
   // Đăng nhập bằng mã cá nhân thật (phiên có hocSinhId) là nguồn đáng tin cậy nhất để biết
   // "đây là em nào" — ?ma= chỉ còn là phương án dự phòng cho trang cũ dùng localStorage.
@@ -36,7 +36,11 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
 
-  const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong] = await Promise.all([
+  // "nhacNen" và "anMucRow" hoàn toàn độc lập với 8 câu bên dưới (và với nhau) — trước đây bị
+  // await TUẦN TỰ sau khối Promise.all này, thành 2 round-trip D1 thừa nối đuôi nhau trên đường
+  // găng của route đông người dùng nhất (mọi học sinh vào trang chủ đều gọi). Gộp chung vào một
+  // Promise.all để chạy song song, giảm độ trễ cảm nhận được khi nhiều học sinh cùng tải trang.
+  const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong, nhacNenRow, anMucRow] = await Promise.all([
     db.prepare(
       `SELECT l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
               l.hs_cong_khai_an AS hsCongKhaiAn,
@@ -107,18 +111,14 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         WHERE d.lop_id = ?1
         GROUP BY d.khoan_id, d.hoc_sinh_id`
     ).bind(lopId).all(),
+    db.prepare('SELECT id, ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(lopId).first().catch(() => null),
+    hocSinhIdPhien
+      ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first()
+      : (ma ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first() : null),
   ]);
 
-  const nhacNen = await db.prepare('SELECT id, ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(lopId).first().catch(() => null);
-
-  let anMuc = [];
-  if (hocSinhIdPhien) {
-    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first();
-    if (m && m.anMuc) anMuc = m.anMuc.split(',');
-  } else if (ma) {
-    const m = await db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first();
-    if (m && m.anMuc) anMuc = m.anMuc.split(',');
-  }
+  const nhacNen = nhacNenRow;
+  const anMuc = anMucRow && anMucRow.anMuc ? anMucRow.anMuc.split(',') : [];
 
   const oTkb = phienBanTkb
     ? (await db.prepare('SELECT buoi, thu, tiet, mon, phong FROM tkb_o WHERE phien_ban_id = ?1 ORDER BY buoi, tiet, thu')

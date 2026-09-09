@@ -1,13 +1,11 @@
 // GET /api/diem-danh?ngay=YYYY-MM-DD&buoi=sang&loai=chinh
 // Xem tình hình điểm danh lớp theo ngày (chính/phụ) và chuyên cần của học sinh đang đăng nhập.
-import { bocXuLy, json, loi, ngayHopLe } from '../_lib/api.js';
+import { bocXuLy, json, loi, ngayHopLe, ngayVNHomNay } from '../_lib/api.js';
 
 function chuanHoaBuoi(buoi, loai) {
   if (!buoi || typeof buoi !== 'string') return null;
-  let b = buoi.trim();
-  if (loai === 'phu' && !b.endsWith('_phu')) {
-    b = `${b}_phu`;
-  }
+  let b = buoi.trim().replace(/_phu$/, '');
+  if (loai === 'phu') b = `${b}_phu`;
   const goc = b.replace(/_phu$/, '');
   if (!['sang', 'chieu', 'hoat_dong'].includes(goc)) return null;
   return b;
@@ -39,10 +37,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const cacNgay = await db.prepare(cauLenhCacNgay).bind(lopId).all();
   const dsNgay = cacNgay.results.map((r) => r.ngay);
 
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const homNayVN = now.toISOString().slice(0, 10);
-  const ngay = url.searchParams.get('ngay') || homNayVN;
+  const ngay = url.searchParams.get('ngay') || ngayVNHomNay();
   const buoiGoc = (url.searchParams.get('buoi') || 'sang').replace(/_phu$/, '');
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');

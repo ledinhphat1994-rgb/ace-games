@@ -11,7 +11,7 @@
 // thư viện, không giới hạn số bài đăng) — xem kiemTraGioiHanTaiLenNgay()/ghiNhanTaiLenNgay() bên
 // dưới. functions/api/gv/anh.js có đường tải ảnh RIÊNG (không qua themTepVaoThuVien vì hinh_anh
 // có hình dạng cột khác từ trước) nên tự gọi 2 hàm đó, không được quên khi thêm đường tải mới.
-import { loi } from './api.js';
+import { loi, ngayVNHomNay } from './api.js';
 import { taChuThich } from './quy-checkpoint.js';
 
 const CAU_HINH = {
@@ -90,12 +90,6 @@ function danhTinhTaiLen(phien) {
   return null;
 }
 
-// Giờ Việt Nam (UTC+7) — nhất quán với cách các nơi khác trong dự án tính "ngày hôm nay".
-function ngayVNHomNay() {
-  const d = new Date(Date.now() + 7 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Kiểm tra một lượt tải lên MỚI (soByteMoi) có làm vượt trần ngày của phiên 'phu' này không.
     Trả về thông báo lỗi (chuỗi) nếu vượt, hoặc null nếu vẫn còn trong hạn mức (kể cả khi không
     áp dụng, vd giáo viên). KHÔNG tự ghi nhận — gọi ghiNhanTaiLenNgay() SAU KHI tải lên thành công. */
@@ -131,7 +125,12 @@ export async function ghiNhanTaiLenNgay(db, lopId, phien, soByte) {
   if (!danhTinh) return;
   await db.prepare(
     'INSERT INTO tai_len_theo_ngay (lop_id, danh_tinh, ngay, co_byte) VALUES (?1, ?2, ?3, ?4)'
-  ).bind(lopId, danhTinh, ngayVNHomNay(), soByte).run().catch(() => {});
+  ).bind(lopId, danhTinh, ngayVNHomNay(), soByte).run().catch((e) => {
+    // Lỗi khác "bảng chưa tồn tại" (chưa chạy migration) lẽ ra hiếm khi xảy ra — nếu xảy ra
+    // thường xuyên sẽ ÂM THẦM vô hiệu hoá hẳn trần tải-lên-mỗi-ngày của tài khoản được cấp
+    // quyền mà không ai biết. Log lại để còn dấu vết khi rà soát.
+    console.error('Không ghi được sổ tải-lên-ngày (lopId=' + lopId + ', danhTinh=' + danhTinh + '):', e);
+  });
 }
 
 /** Tra CÙNG LÚC mức đã tải HÔM NAY của nhiều "danh tính" — dùng để hiện lên danh sách tài khoản
@@ -291,7 +290,16 @@ export async function xoaVinhVienKhoiThuVien(env, loaiThuVien, id, lopId) {
   ).bind(id, lopId).first();
   if (!dong) return loi('Không tìm thấy mục này trong thùng rác.', 404);
 
-  if (env.ANH) await env.ANH.delete(dong.khoa).catch(() => {});
+  // R2.delete() vốn không báo lỗi nếu khoá không tồn tại (thao tác idempotent) — bắt được lỗi
+  // ở đây nghĩa là có sự cố THẬT (mạng/quyền truy cập...). Vẫn xoá dòng D1 ngay sau đó (không
+  // chặn thao tác của giáo viên vì một sự cố tạm thời), nhưng phải log lại — nếu không, dòng D1
+  // (duy nhất còn "biết" khoá R2 này) mất đi mãi mãi trong khi file thật có thể vẫn còn trong
+  // kho, không cách nào dọn lại được qua giao diện.
+  if (env.ANH) {
+    await env.ANH.delete(dong.khoa).catch((e) => {
+      console.error(`Xoá R2 thất bại (khoa=${dong.khoa}, loai=${loaiThuVien}, id=${id}):`, e);
+    });
+  }
   await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id = ?1`).bind(id).run();
   return null;
 }
@@ -308,7 +316,11 @@ export async function donDepThungRacHetHan(env, lopId) {
     ).bind(lopId).all();
     if (!results || !results.length) continue;
 
-    if (env.ANH) await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch(() => {})));
+    if (env.ANH) {
+      await Promise.all(results.map((r) => env.ANH.delete(r.khoa).catch((e) => {
+        console.error(`Dọn thùng rác: xoá R2 thất bại (khoa=${r.khoa}, loai=${loaiThuVien}):`, e);
+      })));
+    }
     const ids = results.map((r) => r.id);
     const cho = ids.map(() => '?').join(',');
     await env.DB.prepare(`DELETE FROM ${cauHinh.bang} WHERE id IN (${cho})`).bind(...ids).run();

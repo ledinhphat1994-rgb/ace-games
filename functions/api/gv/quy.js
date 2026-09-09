@@ -315,6 +315,16 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const BANG = { khoan: 'quy_khoan', dong: 'quy_dong', chi: 'quy_chi' };
   if (!BANG[loai]) return loi('Loại không hợp lệ.');
 
+  // Xoá hàng loạt/xoá sạch (tatCa/ids) CHỈ giáo viên — khác với xoá TỪNG bản ghi một (nhánh
+  // else bên dưới) vẫn cho tài khoản thủ quỹ dùng bình thường. Cùng nguyên tắc đã áp dụng cho
+  // 3 thư viện media (xem functions/api/gv/anh.js): một mã thủ quỹ bị lộ/đoán được chỉ có thể
+  // gây gián đoạn dữ liệu quỹ ở mức "xoá từng dòng", không thể xoá sạch toàn bộ khoản thu/chi
+  // chỉ bằng một request.
+  const laGiaoVien = phien.role === 'teacher';
+  if ((q.get('tatCa') === '1' || q.get('ids')) && !laGiaoVien) {
+    return loi('Tài khoản thủ quỹ chỉ xoá được từng khoản một. Nhờ giáo viên chủ nhiệm nếu cần xoá nhiều khoản/xoá sạch cùng lúc.', 403);
+  }
+
   let ids;
   if (q.get('tatCa') === '1') {
     if (loai !== 'khoan' && loai !== 'chi') return loi('Chỉ xoá tất cả được với khoản thu hoặc khoản chi.');

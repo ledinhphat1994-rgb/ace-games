@@ -52,13 +52,21 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoa
             quyen: (tk.quyen || '').split(',').map((s) => s.trim()).filter(Boolean),
           };
         }
-      } catch (_e) {}
+      } catch (e) {
+        // Lỗi DB tạm thời ở đây khiến quyền ÂM THẦM rơi về giá trị cũ trong cookie thay vì mới
+        // nhất — nếu giáo viên vừa THU HỒI quyền đúng lúc này, request vẫn đi qua với quyền cũ.
+        // Không chặn request (fail-open có chủ đích, tránh khoá nhầm khi DB chỉ trục trặc thoáng
+        // qua), nhưng phải log để có dấu vết khi cần điều tra phân quyền không nhất quán.
+        console.error('Không làm mới được quyền tài khoản phụ (phuId=' + phien.phuId + '):', e);
+      }
     }
     if (phien.role === 'phu' && phien.hocSinhId && env.DB) {
       try {
         const m = await env.DB.prepare('SELECT quyen FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(phien.hocSinhId).first();
         phien = { ...phien, quyen: (m?.quyen || '').split(',').map((s) => s.trim()).filter(Boolean) };
-      } catch (_e) {}
+      } catch (e) {
+        console.error('Không làm mới được quyền mã cá nhân (hocSinhId=' + phien.hocSinhId + '):', e);
+      }
     }
 
     if (canGiaoVien) {
@@ -98,6 +106,14 @@ export async function docThan(request) {
 // Kiểm tra ngày dạng NĂM-THÁNG-NGÀY.
 export function ngayHopLe(v) {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+// "Hôm nay" theo giờ Việt Nam (UTC+7) — Worker luôn chạy ở UTC nên KHÔNG được dùng
+// Date().getTimezoneOffset() (luôn trả về 0 trên máy chủ, khác hẳn khi chạy trong trình duyệt
+// của người dùng ở VN — dùng nhầm cách đó khiến khung 00:00–06:59 giờ VN bị tính sang "hôm qua").
+// Dùng chung hàm này ở MỌI nơi cần "ngày hôm nay" phía máy chủ, không tự viết lại từng chỗ.
+export function ngayVNHomNay() {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 // Giới hạn độ dài chuỗi người dùng nhập.

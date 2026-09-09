@@ -1,6 +1,6 @@
 // Reset dữ liệu lớp theo từng mục — CHỈ giáo viên chủ nhiệm. HẦU HẾT các mục được CHỤP LẠI
 // (checkpoint/thùng rác) NGAY TRƯỚC khi xoá sạch nên khôi phục lại được — RIÊNG "Tương tác" và
-// "Lịch sử đăng nhập" là dạng NHẬT KÝ (xem MUC_KHONG_KHOI_PHUC bên dưới), xoá xong KHÔNG cứu lại
+// "Lịch sử đăng nhập" là dạng NHẬT KÝ (loaiKhoiPhuc: 'khong-khoi-phuc'), xoá xong KHÔNG cứu lại
 // được, đã cảnh báo rõ ở giao diện trước khi bấm. "ketQua" trả về sau khi reset dùng lại được
 // ngay cho hành động "hoanTac" (nút "↩ Hoàn tác" hiện ngay trên giao diện sau khi reset, chỉ áp
 // dụng cho các mục khôi phục được trong lần reset đó) — các mục khôi phục được vẫn khôi phục lại
@@ -33,9 +33,10 @@ const TEN_MUC = {
   'lich-su-dang-nhap': 'Lịch sử đăng nhập',
 };
 const BANG_CHECKPOINT_CHUNG = { 'thong-bao': 'thong_bao', 'hoat-dong-lop': 'hoat_dong_lop', 'theo-doi': 'theo_doi' };
-// 2 mục dạng NHẬT KÝ (ghi lại việc đã xảy ra, không phải "nội dung lớp") — xoá xong KHÔNG khôi
-// phục lại được, khác hẳn các mục còn lại. Không có bảng checkpoint riêng cho 2 mục này.
-const MUC_KHONG_KHOI_PHUC = new Set(['tuong-tac', 'lich-su-dang-nhap']);
+// "tuong-tac"/"lich-su-dang-nhap" là 2 mục dạng NHẬT KÝ (ghi lại việc đã xảy ra, không phải
+// "nội dung lớp") — xoá xong KHÔNG khôi phục lại được, khác hẳn các mục còn lại (đánh dấu bằng
+// loaiKhoiPhuc: 'khong-khoi-phuc' ở nhánh xử lý riêng của từng mục bên dưới, không có bảng
+// checkpoint nào cho 2 mục này).
 const LOAI_THU_VIEN = { 'hinh-anh': 'anh', 'am-thanh': 'am-thanh', video: 'video' };
 const BANG_THU_VIEN = { anh: 'hinh_anh', 'am-thanh': 'am_thanh', video: 'video' };
 const CAC_MUC_HOP_LE = new Set(Object.keys(TEN_MUC));

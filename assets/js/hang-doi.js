@@ -32,10 +32,13 @@ export function soChoGui() {
   return doc().length;
 }
 
-/** Đưa một lần điểm danh vào hàng đợi. Nếu đã có bản ghi cùng ngày+buổi thì gộp vào. */
+/** Đưa một lần điểm danh vào hàng đợi. Nếu đã có bản ghi cùng ngày+buổi+loại thì gộp vào.
+    PHẢI so cả "loai" ('chinh'|'phu') — chỉ ngày+buổi thôi thì điểm danh chính và điểm danh linh
+    động cùng ngày/buổi (buoi gửi lên là giá trị GỐC, chưa gắn hậu tố "_phu", máy chủ mới tự gắn)
+    sẽ bị gộp lẫn vào nhau, ghi đè nhầm giữa 2 sổ khi đang chờ gửi lúc mất mạng. */
 export function themVaoHangDoi(muc) {
   const ds = doc();
-  const cu = ds.find((x) => x.ngay === muc.ngay && x.buoi === muc.buoi);
+  const cu = ds.find((x) => x.ngay === muc.ngay && x.buoi === muc.buoi && x.loai === muc.loai);
 
   if (cu) {
     // Bản mới đè lên bản cũ cho từng học sinh.
@@ -67,7 +70,9 @@ export async function dongBo() {
       const res = await fetch('/api/gv/diem-danh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ngay: muc.ngay, buoi: muc.buoi, ghiNhan: muc.ghiNhan }),
+        // "loai" PHẢI gửi kèm — thiếu thì máy chủ mặc định 'chinh', ghi nhầm điểm danh linh
+        // động thành điểm danh chính khi đồng bộ lại sau lúc mất mạng.
+        body: JSON.stringify({ ngay: muc.ngay, buoi: muc.buoi, loai: muc.loai, ghiNhan: muc.ghiNhan }),
       });
 
       if (res.ok) { daGui++; continue; }

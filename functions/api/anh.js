@@ -3,7 +3,7 @@
 // cần đăng nhập là xem được ảnh của bất kỳ lớp nào nếu đoán ra đúng khoá.
 import { layPhien } from '../_lib/api.js';
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, waitUntil }) {
   const khoa = new URL(request.url).searchParams.get('khoa') || '';
 
   // Chỉ nhận khoá do hệ thống sinh ra, tránh bị dò sang khoá khác trong KV.
@@ -20,6 +20,16 @@ export async function onRequestGet({ request, env }) {
     if (!anh) return new Response('Không tìm thấy ảnh.', { status: 404 });
   }
 
+  // Cache CHUNG theo (lớp + khoá) ở tầng edge Cloudflare — sau khi đã xác thực quyền xem ở trên
+  // (KHÔNG bỏ qua bước đó), nhiều học sinh CÙNG LỚP xem cùng một ảnh chỉ tốn đúng 1 lần đọc R2
+  // thay vì mỗi em một lần — quan trọng khi cả trăm em cùng mở trang chủ/hoạt động lớp một lúc.
+  // Khoá cache gắn CẢ lopId (không chỉ "khoa") để dù khoá ảnh có bị đoán trúng, cache của lớp
+  // này không bao giờ trả nhầm cho phiên của lớp khác.
+  const cacheKey = new Request(`https://cache.noi-bo.invalid/anh/${phien.lopId}/${khoa}`);
+  const kho = caches.default;
+  const daCache = await kho.match(cacheKey);
+  if (daCache) return daCache;
+
   let value, kieuTraVe;
   if (typeof env.ANH.getWithMetadata === 'function') {
     const res = await env.ANH.getWithMetadata(khoa, { type: 'arrayBuffer' });
@@ -35,12 +45,21 @@ export async function onRequestGet({ request, env }) {
       || 'image/jpeg';
   }
 
-  return new Response(value, {
+  const traLoi = new Response(value, {
     headers: {
       'Content-Type': kieuTraVe,
       // Ảnh không đổi nội dung nên cho trình duyệt giữ lại, đỡ tốn dữ liệu di động của học sinh.
-      'Cache-Control': 'private, max-age=604800',
+      // "public" (không phải "private" như trước) — an toàn vì cache-key ở trên đã tự tách theo
+      // lớp rồi, đây chỉ là chỉ dẫn cho trình duyệt của CHÍNH học sinh đó tự giữ lại cho lần sau.
+      'Cache-Control': 'public, max-age=604800',
       'X-Content-Type-Options': 'nosniff',
     },
   });
+
+  // Ghi vào cache CHẠY NỀN (không chờ) để không làm chậm phản hồi cho học sinh đang đợi ảnh này.
+  const banSaoDeCache = traLoi.clone();
+  const ghiCache = kho.put(cacheKey, banSaoDeCache).catch(() => {});
+  if (waitUntil) waitUntil(ghiCache); else await ghiCache;
+
+  return traLoi;
 }

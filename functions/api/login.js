@@ -5,8 +5,13 @@ import { COOKIE_NAME, createToken, safeEqual } from '../_lib/auth.js';
 import { totpKiemTra } from '../_lib/totp.js';
 
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
-const MAX_TRIES = 8;                  // số lần nhập sai tối đa
-const WINDOW = 600;                   // trong 10 phút, tính theo IP
+const MAX_TRIES_IP = 30;              // theo IP — NỚI RỘNG vì nhiều học sinh dùng chung Wi-Fi
+                                       // trường/mạng di động NAT chung 1 IP công cộng; khoá chặt
+                                       // theo IP sẽ khoá OAN cả nhóm chỉ vì 1-2 em gõ sai mã.
+const MAX_TRIES_MA = 8;               // theo ĐÚNG MÃ đang thử — vẫn giữ CHẶT như cũ, đây mới là
+                                       // phòng thủ chống dò mã thật sự (không quan tâm gõ từ IP
+                                       // nào, nên không thể né bằng cách đổi IP liên tục).
+const WINDOW = 600;                   // 10 phút
 
 function json(data, status = 200, extraHeaders = {}, cookiePhu = null) {
   const h = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -15,18 +20,38 @@ function json(data, status = 200, extraHeaders = {}, cookiePhu = null) {
   return new Response(JSON.stringify(data), { status, headers: h });
 }
 
-// Giới hạn số lần thử nếu đã gắn KV namespace tên RATE_LIMIT (không bắt buộc).
-async function tooManyTries(env, ip) {
+// Băm mã trước khi dùng làm khoá KV — không lưu mã bảo mật thật dưới bất kỳ hình thức nào ngoài
+// cookie phiên đã ký, kể cả trong tên khoá của một bộ đếm tạm thời.
+async function bamMa(ma) {
+  const du = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ma));
+  return [...new Uint8Array(du)].slice(0, 10).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Giới hạn số lần thử nếu đã gắn KV namespace tên RATE_LIMIT (không bắt buộc) — TÁCH 2 TẦNG:
+// theo IP (nới rộng) và theo ĐÚNG MÃ đang thử (giữ chặt) — xem giải thích ở MAX_TRIES_IP/MA.
+async function tooManyTries(env, ip, ma) {
   if (!env.RATE_LIMIT) return false;
-  const key = `login:${ip}`;
-  const n = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10);
-  if (n >= MAX_TRIES) return true;
-  await env.RATE_LIMIT.put(key, String(n + 1), { expirationTtl: WINDOW });
+  const keyIp = `login:ip:${ip}`;
+  const nIp = parseInt((await env.RATE_LIMIT.get(keyIp)) || '0', 10);
+  if (nIp >= MAX_TRIES_IP) return true;
+
+  let keyMa = null;
+  let nMa = 0;
+  if (ma) {
+    keyMa = `login:ma:${await bamMa(ma)}`;
+    nMa = parseInt((await env.RATE_LIMIT.get(keyMa)) || '0', 10);
+    if (nMa >= MAX_TRIES_MA) return true;
+  }
+
+  await env.RATE_LIMIT.put(keyIp, String(nIp + 1), { expirationTtl: WINDOW });
+  if (keyMa) await env.RATE_LIMIT.put(keyMa, String(nMa + 1), { expirationTtl: WINDOW });
   return false;
 }
 
-async function clearTries(env, ip) {
-  if (env.RATE_LIMIT) await env.RATE_LIMIT.delete(`login:${ip}`);
+async function clearTries(env, ip, ma) {
+  if (!env.RATE_LIMIT) return;
+  await env.RATE_LIMIT.delete(`login:ip:${ip}`);
+  if (ma) await env.RATE_LIMIT.delete(`login:ma:${await bamMa(ma)}`);
 }
 
 // Đọc/tạo mã thiết bị — một chuỗi ngẫu nhiên lưu trong cookie riêng của trình duyệt này,
@@ -108,10 +133,6 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, message: 'Máy chủ chưa được cấu hình.' }, 500);
   }
 
-  if (await tooManyTries(env, ip)) {
-    return json({ ok: false, message: 'Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10 phút.' }, 429);
-  }
-
   let code = '';
   let lopSlug = '';
   let turnstileToken = '';
@@ -127,6 +148,12 @@ export async function onRequestPost({ request, env }) {
   }
 
   if (!code) return json({ ok: false, message: 'Vui lòng nhập mã bảo mật.' }, 400);
+
+  // Cần có "code" trước để giới hạn ĐƯỢC theo đúng mã (xem tooManyTries) — vì vậy kiểm tra này
+  // đứng SAU bước đọc thân yêu cầu, khác thứ tự cũ (kiểm tra ngay từ đầu chỉ theo IP).
+  if (await tooManyTries(env, ip, code)) {
+    return json({ ok: false, message: 'Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10 phút.' }, 429);
+  }
 
   if (!(await turnstileHopLe(env, turnstileToken, ip))) {
     return json({ ok: false, message: 'Xác minh "không phải robot" chưa xong hoặc đã hết hạn. Tải lại trang rồi thử lại.' }, 400);
@@ -320,7 +347,7 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  await clearTries(env, ip);
+  await clearTries(env, ip, code);
   const token = await createToken(env.SESSION_SECRET, { role, ...phanBoSung }, SESSION_TTL);
   const cookie = [
     `${COOKIE_NAME}=${token}`,
