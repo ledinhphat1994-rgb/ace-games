@@ -95,6 +95,17 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   margin: 4px 0 0; color: var(--chu-nhat); font-size: 14px;
 }
 .tieu-de-trang .phai { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* Trên điện thoại, cụm nút bên phải tiêu đề (vd "Lịch sử & khôi phục"/"+ Thêm...") hết chỗ nên
+   xuống dòng RIÊNG dưới tiêu đề — lúc đó phải chiếm hết bề rộng và chia đều các nút, không thì
+   chỉ dồn về bên phải theo "margin-left:auto", thừa khoảng trống bên trái (đúng lỗi "card chưa
+   đều so với màn hình" — cùng quy tắc thiết kế đã áp dụng ở trang chủ công khai). */
+@media (max-width: 767px) {
+  .tieu-de-trang .phai { flex-basis: 100%; margin-left: 0; }
+  .tieu-de-trang .phai > * {
+    flex: 1 1 108px; min-width: 0;
+    white-space: normal; text-align: center; justify-content: center;
+  }
+}
 
 /* ---------- Ô số liệu thu chi nổi bật ---------- */
 .day-so { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-bottom: 22px; }
