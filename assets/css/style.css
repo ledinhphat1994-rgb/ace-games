@@ -115,7 +115,7 @@
   --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
                  radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.08), transparent 70%),
                  radial-gradient(1000px 800px at 50% 100%, rgba(16, 185, 129, 0.05), transparent 70%),
-                 #090d16;
+                 rgba(9, 13, 22, 0.82);
 }
 
 /* 2. Midnight Nebula (Tinh vân tím lam) */
@@ -131,7 +131,7 @@
   --bg-gradient: radial-gradient(1000px 600px at 15% 5%, rgba(192, 132, 252, 0.18), transparent 70%),
                  radial-gradient(900px 700px at 85% 30%, rgba(56, 189, 248, 0.14), transparent 70%),
                  radial-gradient(1100px 800px at 45% 95%, rgba(236, 72, 153, 0.10), transparent 70%),
-                 #0a0614;
+                 rgba(10, 6, 20, 0.80);
 }
 
 /* 3. Emerald Luxury (Ngọc lục bảo quý phái) */
@@ -145,7 +145,7 @@
   --bg-gradient: radial-gradient(1000px 600px at 10% 0%, rgba(52, 211, 153, 0.16), transparent 70%),
                  radial-gradient(900px 700px at 90% 25%, rgba(45, 212, 191, 0.14), transparent 70%),
                  radial-gradient(1000px 800px at 50% 100%, rgba(14, 165, 233, 0.08), transparent 70%),
-                 #04100c;
+                 rgba(4, 16, 12, 0.82);
 }
 
 /* 4. Amber Aurora (Hoàng hôn hoàng kim) */
@@ -159,7 +159,7 @@
   --bg-gradient: radial-gradient(1000px 600px at 10% 5%, rgba(245, 158, 11, 0.18), transparent 70%),
                  radial-gradient(900px 700px at 85% 25%, rgba(244, 63, 94, 0.12), transparent 70%),
                  radial-gradient(1100px 800px at 50% 95%, rgba(217, 119, 6, 0.10), transparent 70%),
-                 #100b06;
+                 rgba(16, 11, 6, 0.82);
 }
 
 /* 5. Cyber Slate (Xám than công nghệ tối giản) */
@@ -172,7 +172,7 @@
   --tieu-de: #ffffff; --tieu-de-phu: #60a5fa;
   --bg-gradient: radial-gradient(1000px 550px at 15% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
                  radial-gradient(900px 600px at 85% 20%, rgba(96, 165, 250, 0.08), transparent 70%),
-                 #0b0f14;
+                 rgba(11, 15, 20, 0.84);
 }
 
 /* 6. Clean Light (Sáng thanh lịch, dễ nhìn ban ngày) */
@@ -215,19 +215,24 @@
    nhưng CSS của .nut vẫn hiện). Luật này ép "hidden" luôn thắng tuyệt đối mọi class khác. */
 [hidden] { display: none !important; }
 
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+html {
+  -webkit-text-size-adjust: 100%; scroll-behavior: smooth;
+  /* Ảnh nền không gian tím/xanh — luôn hiển thị bên dưới tất cả theme tối.
+     body dùng gradient overlay (rgba bán trong suốt) nên ảnh lộ ra phía sau. */
+  background: url("/assets/img/nen-trang.jpg") center center / cover fixed;
+  background-color: #090d16; /* fallback khi ảnh chưa tải */
+}
 
 body {
   margin: 0;
-  /* Ảnh nền không gian tím/xanh mặc định — gradient CSS overlay phía trên giúp chữ luôn đọc được.
-     Khi user chọn theme màu khác hoặc ảnh tùy chỉnh (data-bg-custom), sẽ bị override hoàn toàn. */
-  background:
-    var(--bg-gradient,
-      radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.14), transparent 70%),
-      radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.12), transparent 70%),
-      rgba(7, 11, 20, 0.55)
-    ),
-    url("/assets/img/nen-trang.jpg") center center / cover;
+  /* Gradient overlay bán trong suốt — ảnh nền thật nằm trên html bên dưới.
+     Mỗi theme tối định nghĩa --bg-gradient kết thúc bằng rgba(...) để ảnh html lộ ra.
+     Khi user chọn ảnh tùy chỉnh (data-bg-custom), rule riêng phủ hoàn toàn bằng !important. */
+  background: var(--bg-gradient,
+    radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.14), transparent 70%),
+    radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.12), transparent 70%),
+    rgba(7, 11, 20, 0.70)
+  );
   background-attachment: fixed;
   color: var(--chu);
   font-family: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, "Noto Sans", Arial, sans-serif;
