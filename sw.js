@@ -5,7 +5,7 @@
  * và phải luôn lấy bản mới nhất từ máy chủ.
  */
 
-const PHIEN_BAN = 'lop10a7-v109';
+const PHIEN_BAN = 'lop10a7-v110';
 const VO_UNG_DUNG = [
   '/giao-vien/',
   '/giao-vien/index.html?v=20260909_78',
@@ -49,10 +49,15 @@ self.addEventListener('fetch', (sk) => {
   if (url.pathname.startsWith('/api/') || url.pathname === '/login.html') return;
 
   // Giao diện: lấy từ mạng trước cho luôn mới, hỏng mạng thì dùng bản đã lưu.
-  // "cache: no-store" bắt buộc hỏi thẳng máy chủ mỗi lần, không dùng bộ nhớ đệm HTTP
-  // của trình duyệt — nếu không, sửa mã nguồn xong người dùng vẫn thấy bản cũ dù có mạng tốt.
+  // "cache: no-cache" (KHÔNG phải "no-store") — bắt buộc trình duyệt luôn HỎI LẠI máy chủ
+  // trước khi dùng bản đã lưu (nên sửa mã nguồn xong người dùng vẫn thấy bản mới ngay, không
+  // cần đợi), nhưng vẫn cho phép trình duyệt gửi kèm ETag để máy chủ trả "304 Not Modified"
+  // (rất nhỏ, rất nhanh) khi file chưa đổi gì — khớp đúng "_headers" (Cache-Control: no-cache)
+  // đã cấu hình sẵn cho các đường dẫn này. Trước đây dùng "no-store" ép tải lại TOÀN BỘ nội
+  // dung mỗi lần dù không đổi gì — hàng chục tệp CSS/JS phải tải lại y hệt mỗi khi chuyển
+  // trang/mở lại khu quản lý, gây khựng/giật rõ rệt, nhất là mạng di động của học sinh.
   sk.respondWith(
-    fetch(yeuCau, { cache: 'no-store' })
+    fetch(yeuCau, { cache: 'no-cache' })
       .then((traLoi) => {
         if (traLoi.ok && traLoi.type === 'basic') {
           const ban_sao = traLoi.clone();
