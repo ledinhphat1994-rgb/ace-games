@@ -7,7 +7,7 @@
 -- Trần lưu trữ: chia đôi 9,5 GB an toàn cho 2 lớp hiện có (lớp 10A7 mới dùng ~4 MB nên hạ
 -- xuống 4,75 GB vẫn rất thoải mái).
 INSERT INTO lop (id, ten, nam_hoc, truong, gioi_thieu, gioi_han_byte)
-  SELECT 2, 'Lớp 11A1', '2026 – 2027', 'Trung tâm GDNN – GDTX xã Định Quán, tỉnh Đồng Nai', '', 4750000000
+  SELECT 2, 'Lớp 11A1', '2026 – 2027', 'Trung tâm GDNN-GDTX Khu vực 1 - Phân khu 2 xã Định Quán , thành phố Đồng Nai', '', 4750000000
   WHERE NOT EXISTS (SELECT 1 FROM lop WHERE id = 2);
 
 UPDATE lop SET gioi_han_byte = 4750000000 WHERE id = 1;

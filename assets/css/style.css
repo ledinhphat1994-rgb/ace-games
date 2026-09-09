@@ -1812,15 +1812,32 @@ body.trang-dang-nhap {
     border-radius: var(--r);
   }
 }
-.the-dang-nhap .hieu-o { width: 52px; height: 52px; border-radius: 15px; font-size: 15px; margin-bottom: 16px; }
-.the-dang-nhap h1 { font-size: 21px; margin: 0 0 4px; }
-/* Bước nhập mã bỏ hẳn huy hiệu + tiêu đề "Lớp ..." (đã thấy ở thanh trên) — dòng giới thiệu
-   trường trở thành nội dung chính của thẻ nên phải to rõ, đậm, nổi bật, căn giữa khung. */
+.the-dang-nhap .hieu-o { width: 52px; height: 52px; border-radius: 15px; font-size: 15px; margin: 0 auto 16px; }
+.the-dang-nhap h1 { font-size: 21px; font-weight: 800; margin: 0 0 6px; text-align: center; }
+/* Bước chọn lớp: dòng hướng dẫn là phụ đề căn giữa, màu nhạt thanh thoát */
 .the-dang-nhap .phu {
-  color: var(--chu); font-size: 16px; font-weight: 700; text-align: center;
-  line-height: 1.45; margin: 4px auto 24px; max-width: 340px;
+  color: var(--chu-nhat); font-size: 14px; font-weight: 500; text-align: center;
+  line-height: 1.5; margin: 0 auto 20px; max-width: 360px;
+}
+/* Bước nhập mã: dòng giới thiệu tên trường thay thế tiêu đề nên to rõ, đậm, nổi bật, căn giữa khung */
+.the-dang-nhap .phu.ten-truong {
+  color: var(--chu); font-size: 15.5px; font-weight: 700; text-align: center;
+  line-height: 1.45; margin: 4px auto 22px; max-width: 360px;
 }
 .the-dang-nhap .nut { width: 100%; margin-top: 14px; min-height: 47px; font-size: 15px; }
+.the-dang-nhap .turnstile-hop:not([hidden]) {
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 65px;
+}
+.the-dang-nhap .turnstile-hop iframe,
+.the-dang-nhap .turnstile-hop > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
 .loi-nhan { margin-top: 14px; padding: 11px 13px; border-radius: var(--r-nho); font-size: 14px; }
 .loi-nhan.xau { background: var(--xau-nen); color: var(--xau); }
 .loi-nhan.tot { background: var(--tot-nen); color: var(--tot); }

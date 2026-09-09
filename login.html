@@ -55,7 +55,7 @@
              maxlength="6" placeholder="000000" autocomplete="one-time-code"
              autocapitalize="none" autocorrect="off" spellcheck="false">
     </div>
-    <div id="turnstileHop" style="margin:14px 0;" hidden></div>
+    <div id="turnstileHop" class="turnstile-hop" hidden></div>
     <button class="nut" type="submit" id="nutGui">Vào trang lớp</button>
   </form>
 
@@ -101,7 +101,7 @@
     kichBan.async = true;
     kichBan.defer = true;
     kichBan.onload = () => {
-      turnstileWidgetId = window.turnstile.render(turnstileHop, { sitekey: TURNSTILE_SITE_KEY, theme: 'auto' });
+      turnstileWidgetId = window.turnstile.render(turnstileHop, { sitekey: TURNSTILE_SITE_KEY, theme: 'auto', size: 'flexible' });
     };
     document.head.append(kichBan);
   }
@@ -122,7 +122,9 @@
     // chỉ còn đúng một dòng giới thiệu tên trường, làm to rõ để bù lại.
     document.getElementById('hieuOChinh').hidden = true;
     document.getElementById('tieuDeDangNhap').hidden = true;
-    document.getElementById('phuDeDangNhap').textContent = lop.truong || '';
+    const phu = document.getElementById('phuDeDangNhap');
+    phu.textContent = lop.truong || '';
+    phu.classList.add('ten-truong');
   }
 
   // Giữ nguyên "next" (trang định vào trước khi bị bắt đăng nhập lại) khi đổi URL sang dạng
@@ -157,7 +159,9 @@
     document.getElementById('hieuOChinh').hidden = false;
     document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';
     document.getElementById('tieuDeDangNhap').hidden = false;
-    document.getElementById('phuDeDangNhap').textContent = 'Chạm vào đúng lớp của mình để tiếp tục';
+    const phu = document.getElementById('phuDeDangNhap');
+    phu.textContent = 'Chạm vào đúng lớp của mình để tiếp tục';
+    phu.classList.remove('ten-truong');
     document.title = 'Chọn lớp — Đăng nhập';
     chonLop.innerHTML = '';
     danhSach.forEach((lop) => {
