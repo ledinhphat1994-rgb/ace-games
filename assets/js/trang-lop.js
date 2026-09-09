@@ -1233,31 +1233,32 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
             hsLoc.forEach((h) => {
               const sttChu = String(h.sttHienThi || h.id);
 
-              // Render Card cho Mobile theo yêu cầu:
-              //  Hàng 1: STT tròn + Tên học sinh (sát số) <--------> Tag "Bạn" (góc phải trên cùng)
-              //  Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự)
-              //  Hàng 3: Đã nộp + Ngày nộp
+              // Render Card cho Mobile:
+              //  Hàng 1: [STT] [Tên] (trái) <-----------------> [Badge trạng thái] (sát bên phải)
+              //  Dưới tên 1 hàng: Tag "Bạn" (nếu là chính mình)
+              //  Hàng tiếp theo: Tiền đã nộp + Ngày
 
               const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
 
-              // Hàng 1: STT + Tên sát nhau (trái) <--------> Tag "Bạn" (phải góc trên cùng)
+              // Hàng 1: STT + Tên (trái) <--------> Badge trạng thái (phải)
               const cDau = e('div', 'card-hs-dong-dau');
               const cNhomTrai = e('div', 'card-hs-nhom-ten');
               const sttEl = e('span', 'stt-tron-hs', sttChu);
               const cTenWrap = e('div', 'card-hs-dong-ten');
-              cTenWrap.append(e('b', 'ten-chu', h.hoTen));
+              const cTenHang = e('div', 'card-hs-ten-hang');
+              cTenHang.append(e('b', 'ten-chu', h.hoTen));
               if (h.lopNghe && hienNgheThuQuy) {
-                cTenWrap.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
+                cTenHang.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
+              }
+              cTenWrap.append(cTenHang);
+              if (h.laChinhMinh) {
+                // Vùng 2: Đưa tag Bạn dưới tên học sinh 1 hàng
+                cTenWrap.append(e('span', 'tag-ban', 'Bạn'));
               }
               cNhomTrai.append(sttEl, cTenWrap);
               cDau.append(cNhomTrai);
-              if (h.laChinhMinh) {
-                cDau.append(e('span', 'tag-ban', 'Bạn'));
-              }
-              card.append(cDau);
 
-              // Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự)
-              const cTrangThai = e('div', 'card-hs-dong-trang-thai');
+              // Vùng 1: Badge trạng thái → sát bên phải cùng hàng với tên học sinh
               let badgeMobile;
               if (h.trangThai === 'da_du') {
                 badgeMobile = e('span', 'nhan nhan-tot', '✓ Đã đủ');
@@ -1266,10 +1267,10 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
               } else {
                 badgeMobile = e('span', 'nhan nhan-xau', 'Chưa đóng');
               }
-              cTrangThai.append(badgeMobile);
-              card.append(cTrangThai);
+              cDau.append(badgeMobile);
+              card.append(cDau);
 
-              // Hàng 3: Tiền + Ngày
+              // Hàng 2: Tiền + Ngày (ngay dưới tên)
               const cThan = e('div', 'card-hs-dong-than');
               const cTien = e('div', 'card-hs-tien');
               cTien.append(e('span', 'nhan-muc', 'Đã nộp: '));

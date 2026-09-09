@@ -2167,8 +2167,8 @@ body.trang-dang-nhap {
 .the-khoan-hang-tuan-ngay {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 .the-khoan-dong-ngay {
   font-size: 13px;
@@ -2176,6 +2176,7 @@ body.trang-dang-nhap {
   color: var(--chu-nhat);
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 .the-khoan-nhan-hang {
   display: flex;
@@ -2734,22 +2735,29 @@ td.cot-hom-nay {
   background: color-mix(in srgb, var(--chinh) 8%, var(--nen-noi));
 }
 
-/* Hàng 1: STT tròn + Tên học sinh (sát số) <--------> Tag "Bạn" (góc phải trên cùng) */
+/* Hàng 1: STT tròn + Tên học sinh <--------> Badge trạng thái (sát bên phải) */
 .card-hs-dong-dau {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
 }
 .card-hs-nhom-ten {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
   flex: 1;
 }
 .card-hs-dong-ten {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+.card-hs-ten-hang {
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -2775,6 +2783,7 @@ td.cot-hom-nay {
   border: 1px solid var(--vien);
   color: var(--chu);
   flex: none;
+  margin-top: 1px;
 }
 .lop-nghe-nho {
   font-size: 12.5px;
@@ -2793,9 +2802,18 @@ td.cot-hom-nay {
   font-size: 11px;
   font-weight: 700;
   flex: none;
-  margin-left: auto;
+  width: fit-content;
 }
-/* Hàng 2: Badge trạng thái (đã đủ hay chưa đóng, đóng thiếu đưa xuống dưới số thứ tự) */
+.card-hs-dong-dau .nhan {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+  flex: none;
+  margin-top: 1px;
+}
+/* Hàng 2 cũ: giữ lại fallback */
 .card-hs-dong-trang-thai {
   display: flex;
   align-items: center;
