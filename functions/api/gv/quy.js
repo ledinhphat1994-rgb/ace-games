@@ -91,7 +91,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   // Tổng quan toàn bộ quỹ
   // Lưu ý: .first() trả thẳng một dòng (không bọc trong { results: [...] }) — khác với .all().
-  const [{ results: khoan }, { results: chi }, siSo, { results: dongTheoEm }] = await Promise.all([
+  const [{ results: khoan }, { results: chi }, siSo, { results: dongTheoEm }, { results: hocSinh }] = await Promise.all([
     // dinhKyTen/dinhKyChuKy/dinhKySoKy: chỉ có khi khoản này là một kỳ của mẫu "Thu cố định" —
     // dùng để GOM các kỳ cùng một mẫu lại thành một nhóm trên giao diện (xem trang-quy.js),
     // thay vì liệt kê phẳng hàng chục dòng trông rất giống nhau, khó phân biệt.
@@ -107,16 +107,37 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     ).bind(phien.lopId).all(),
     db.prepare('SELECT id, ngay, noi_dung AS noiDung, so_tien AS soTien, ghi_chu AS ghiChu, loai FROM quy_chi WHERE lop_id = ?1 ORDER BY ngay DESC, id DESC').bind(phien.lopId).all(),
     db.prepare('SELECT COUNT(*) AS n FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1').bind(phien.lopId).first(),
-    // Số tiền từng em đã đóng theo TỪNG khoản — dùng để đếm "bao nhiêu em đã đóng đủ" ngay
-    // ở dòng tóm tắt (thu gọn), khỏi phải mở rộng khoản mới biết.
+    // Số tiền từng em đã đóng theo TỪNG khoản — kèm họ tên để thanh tìm kiếm tra được khoản đã nộp theo tên học sinh
     db.prepare(
-      `SELECT khoan_id AS khoanId, hoc_sinh_id AS hocSinhId, SUM(so_tien) AS tong
-         FROM quy_dong WHERE lop_id = ?1 GROUP BY khoan_id, hoc_sinh_id`
+      `SELECT d.khoan_id AS khoanId, d.hoc_sinh_id AS hocSinhId,
+              COALESCE(h.ho_ten, '') AS hoTen,
+              h.to_so AS toSo, COALESCE(h.so_thu_tu, d.hoc_sinh_id) AS soThuTu,
+              SUM(d.so_tien) AS tong
+         FROM quy_dong d
+         JOIN quy_khoan k ON k.id = d.khoan_id
+         LEFT JOIN hoc_sinh h ON h.id = d.hoc_sinh_id
+        WHERE k.lop_id = ?1
+        GROUP BY d.khoan_id, d.hoc_sinh_id`
+    ).bind(phien.lopId).all(),
+    db.prepare(
+      'SELECT id, ho_ten AS hoTen, to_so AS toSo, COALESCE(so_thu_tu, id) AS soThuTu FROM hoc_sinh WHERE dang_hoc = 1 AND lop_id = ?1 ORDER BY so_thu_tu, id'
     ).bind(phien.lopId).all(),
   ]);
 
   const emDuTheoKhoan = {};
-  dongTheoEm.forEach((r) => { emDuTheoKhoan[r.khoanId] = emDuTheoKhoan[r.khoanId] || []; emDuTheoKhoan[r.khoanId].push(r); });
+  const dongTheoKhoan = {};
+  dongTheoEm.forEach((r) => {
+    emDuTheoKhoan[r.khoanId] = emDuTheoKhoan[r.khoanId] || [];
+    emDuTheoKhoan[r.khoanId].push(r);
+    dongTheoKhoan[r.khoanId] = dongTheoKhoan[r.khoanId] || [];
+    dongTheoKhoan[r.khoanId].push({
+      id: r.hocSinhId,
+      hoTen: r.hoTen || '',
+      toSo: r.toSo,
+      soThuTu: r.soThuTu,
+      tong: r.tong,
+    });
+  });
 
   const tongThu = khoan.reduce((a, k) => a + k.tongDaThu, 0);
   const tongChi = chi.reduce((a, c) => a + c.soTien, 0);
@@ -140,9 +161,11 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         return (a.id || 0) - (b.id || 0);
       })
       .map((k) => {
+        const nguoiDong = dongTheoKhoan[k.id] || [];
         const soEmDaDu = (emDuTheoKhoan[k.id] || []).filter((r) => r.tong >= k.soTienMoiEm).length;
         return {
           ...k,
+          nguoiDong,
           tongCanThu: k.soTienMoiEm * (siSo?.n || 0),
           soEmDaDu,
           soEmChuaDu: (siSo?.n || 0) - soEmDaDu,
@@ -152,6 +175,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     chiTheoLoai: LOAI_CHI.map(([ma, ten]) => ({ ma, ten, soTien: chiTheoLoai[ma] || 0 })).filter((x) => x.soTien > 0),
     tonQuy: tongThu - tongChi,
     siSo: siSo?.n || 0,
+    hocSinh,
   });
 }, { canGiaoVien: true, quyenCan: QUYEN });
 

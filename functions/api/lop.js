@@ -108,7 +108,8 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       `SELECT d.khoan_id AS khoanId, d.hoc_sinh_id AS hocSinhId,
               SUM(d.so_tien) AS tongTien, MAX(d.ngay) AS ngayDong, MAX(d.ghi_chu) AS ghiChu
          FROM quy_dong d
-        WHERE d.lop_id = ?1
+         JOIN quy_khoan k ON k.id = d.khoan_id
+        WHERE k.lop_id = ?1
         GROUP BY d.khoan_id, d.hoc_sinh_id`
     ).bind(lopId).all(),
     db.prepare('SELECT id, ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(lopId).first().catch(() => null),

@@ -501,6 +501,19 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .quy-chon-nhanh { display: block; width: 100%; margin: 0 0 12px; }
 @media (min-width: 980px) { .quy-chon-nhanh { display: none; } }
 .quy-tim-khoan { display: block; width: 100%; margin: 0 0 14px; }
+.pill-hs-khop {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 99px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 /* Bộ lọc trạng thái quỹ (Tất cả / Chưa đóng / Còn thiếu / Đã đủ) */
 .loc-trang-thai-quy {

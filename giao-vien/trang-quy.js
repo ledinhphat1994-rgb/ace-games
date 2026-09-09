@@ -218,8 +218,19 @@ export async function trangQuy(KHUNG) {
         e('span', 'thoi-gian-thu', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`)
       );
     }
-    // "Đã thu X/Y (Z%)" bỏ khỏi đây — lặp với badge trạng thái bên phải (rê chuột vào đó xem
-    // đủ chi tiết qua tooltip), để dòng tóm tắt đỡ dài.
+    // Hiển thị huy hiệu học sinh đã nộp khớp với từ khoá tìm kiếm
+    if (tuKhoaTimKhoan) {
+      const tk = tuKhoaTimKhoan.trim();
+      const hsKhop = (k.nguoiDong || []).filter((nd) => khopTuKhoa(nd.hoTen, tk));
+      if (hsKhop.length > 0) {
+        hsKhop.forEach((nd) => {
+          dongChiTiet.append(
+            e('span', 'cham-cach', '·'),
+            e('span', 'pill-hs-khop', `👤 ${nd.hoTen}: đã nộp ${tienVN(nd.tong)}`)
+          );
+        });
+      }
+    }
     thongTin.append(dongChiTiet);
     khoiTrai.append(thongTin);
     dong1.append(khoiTrai);
@@ -857,10 +868,10 @@ export async function trangQuy(KHUNG) {
           theKhoan.append(oChonNhanh);
         }
 
-        // Thanh tìm kiếm khoản thu theo tên
-        const oTimKhoan = oNhap('quyTimKhoan', 'search', tuKhoaTimKhoan, '🔍 Tìm khoản thu theo tên…');
+        // Thanh tìm kiếm khoản thu theo tên hoặc theo học sinh đã đóng
+        const oTimKhoan = oNhap('quyTimKhoan', 'search', tuKhoaTimKhoan, '🔍 Tìm theo tên khoản thu, hoặc tên học sinh…');
         oTimKhoan.className = 'o-nhap quy-tim-khoan';
-        oTimKhoan.setAttribute('aria-label', 'Tìm kiếm khoản thu theo tên');
+        oTimKhoan.setAttribute('aria-label', 'Tìm kiếm khoản thu hoặc học sinh đã đóng');
         theKhoan.append(oTimKhoan);
 
         const ds = e('div', 'ds-khoan');
@@ -868,30 +879,62 @@ export async function trangQuy(KHUNG) {
 
         function veDsKhoan() {
           const tuKhoa = tuKhoaTimKhoan.trim();
+
+          // Kiểm tra xem từ khoá có khớp tên học sinh nào trong danh sách lớp không
+          const hsTrongLop = (d.hocSinh || []).filter((h) => khopTuKhoa(h.hoTen, tuKhoa));
+          const laTimHs = hsTrongLop.length > 0;
+
           const khopKhoan = (k) => {
             if (!tuKhoa) return true;
-            return khopTuKhoa(k.ten, tuKhoa)
+            // 1. Khớp theo tên khoản, tên mẫu định kỳ, hoặc ghi chú
+            if (khopTuKhoa(k.ten, tuKhoa)
               || (k.dinhKyTen && khopTuKhoa(k.dinhKyTen, tuKhoa))
-              || (k.ghiChu && khopTuKhoa(k.ghiChu, tuKhoa));
+              || (k.ghiChu && khopTuKhoa(k.ghiChu, tuKhoa))) {
+              return true;
+            }
+            // 2. Khớp theo học sinh ĐÃ ĐÓNG trong khoản này
+            if (k.nguoiDong && k.nguoiDong.length > 0) {
+              const coHsDong = k.nguoiDong.some((nd) => {
+                if (khopTuKhoa(nd.hoTen, tuKhoa)) return true;
+                if (String(nd.soThuTu) === tuKhoa || String(nd.id) === tuKhoa) return true;
+                if (nd.toSo && (khopTuKhoa(`tổ ${nd.toSo}`, tuKhoa) || `tổ ${nd.toSo}` === tuKhoa.toLowerCase() || `to ${nd.toSo}` === tuKhoa.toLowerCase())) return true;
+                return false;
+              });
+              if (coHsDong) return true;
+            }
+            return false;
           };
 
           const khoanHienThi = tuKhoa
             ? d.khoan.filter(khopKhoan)
             : d.khoan;
 
-          // Nếu người dùng tìm đích danh số kỳ/tuần (kết quả lọc trong nhóm ít hơn tổng số kỳ), tự mở nhóm để thấy ngay
+          // Nếu có từ khoá tìm kiếm, tự mở các nhóm định kỳ có chứa khoản khớp để thấy ngay kết quả
           if (tuKhoa) {
             const nhomLoc = nhomTheoDinhKy(khoanHienThi);
             nhomLoc.forEach((muc) => {
-              if (muc.loai === 'nhom' && muc.thanhVien.length < (muc.thanhVien[0]?.dinhKySoKy || 999)) {
+              if (muc.loai === 'nhom') {
                 nhomMoRong.add(muc.dinhKyId);
               }
             });
+            // Nếu người dùng đang tìm theo tên học sinh, tự động điền sẵn từ khoá vào ô tìm kiếm chi tiết của các khoản khớp
+            if (laTimHs) {
+              khoanHienThi.forEach((k) => {
+                if (!timTheoKhoan[k.id]) {
+                  timTheoKhoan[k.id] = tuKhoa;
+                }
+              });
+            }
           }
 
           ds.replaceChildren();
           if (khoanHienThi.length === 0) {
-            ds.append(e('p', 'trong', `Không tìm thấy khoản thu nào khớp với "${tuKhoa}".`));
+            if (laTimHs) {
+              const tenHs = hsTrongLop.map((h) => h.hoTen).join(', ');
+              ds.append(e('p', 'trong', `Học sinh "${tenHs}" chưa đóng tiền ở khoản thu nào.`));
+            } else {
+              ds.append(e('p', 'trong', `Không tìm thấy khoản thu nào khớp với "${tuKhoa}".`));
+            }
           } else {
             nhomTheoDinhKy(khoanHienThi).forEach((muc) => {
               ds.append(muc.loai === 'nhom' ? veNhomDinhKy(muc) : veHangKhoan(muc.khoan));
@@ -899,11 +942,17 @@ export async function trangQuy(KHUNG) {
           }
         }
 
-        // Lắng nghe gõ phím: CHỈ cập nhật danh sách ds bên dưới, KHÔNG gọi ve() để không bao giờ mất focus
-        oTimKhoan.addEventListener('input', () => {
+        const xuLyDoiTuKhoa = () => {
           tuKhoaTimKhoan = oTimKhoan.value;
+          if (!tuKhoaTimKhoan.trim()) {
+            Object.keys(timTheoKhoan).forEach((k) => delete timTheoKhoan[k]);
+          }
           veDsKhoan();
-        });
+        };
+
+        // Lắng nghe gõ phím: CHỈ cập nhật danh sách ds bên dưới, KHÔNG gọi ve() để không bao giờ mất focus
+        oTimKhoan.addEventListener('input', xuLyDoiTuKhoa);
+        oTimKhoan.addEventListener('search', xuLyDoiTuKhoa);
 
         veDsKhoan();
       }
