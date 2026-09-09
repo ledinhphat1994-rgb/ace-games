@@ -2735,36 +2735,29 @@ td.cot-hom-nay {
   background: color-mix(in srgb, var(--chinh) 8%, var(--nen-noi));
 }
 
-/* Hàng 1: STT tròn + Tên học sinh <--------> Badge trạng thái (sát bên phải) */
+/* Hàng 1: STT tròn + Tên học sinh <--------> Badge trạng thái (căn đều trục giữa) */
 .card-hs-dong-dau {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
 }
 .card-hs-nhom-ten {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   min-width: 0;
   flex: 1;
 }
-.card-hs-dong-ten {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  min-width: 0;
-}
 .card-hs-ten-hang {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
   flex-wrap: wrap;
   min-width: 0;
 }
-.card-hs-dong-ten .ten-chu {
+.card-hs-ten-hang .ten-chu {
   font-size: 15.5px;
   font-weight: 700;
   color: var(--chu);
@@ -2776,20 +2769,28 @@ td.cot-hom-nay {
   height: 28px;
   border-radius: 50%;
   background: var(--nen-chim);
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
   font-size: 13px;
   border: 1px solid var(--vien);
   color: var(--chu);
   flex: none;
-  margin-top: 1px;
+  line-height: 1;
+  margin: 0;
 }
 .lop-nghe-nho {
   font-size: 12.5px;
   color: var(--chu-nhat);
   font-weight: 500;
   white-space: nowrap;
+}
+.card-hs-dong-ban {
+  display: flex;
+  align-items: center;
+  padding-left: 36px;
+  margin: -1px 0 2px;
 }
 .tag-ban {
   display: inline-flex;
@@ -2811,7 +2812,7 @@ td.cot-hom-nay {
   border-radius: 99px;
   white-space: nowrap;
   flex: none;
-  margin-top: 1px;
+  margin: 0;
 }
 /* Hàng 2 cũ: giữ lại fallback */
 .card-hs-dong-trang-thai {

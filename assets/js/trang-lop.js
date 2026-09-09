@@ -1240,22 +1240,16 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
 
               const card = e('div', 'card-hs-dong' + (h.laChinhMinh ? ' dong-ban-than' : ''));
 
-              // Hàng 1: STT + Tên (trái) <--------> Badge trạng thái (phải)
+              // Hàng 1: STT + Tên (trái) <--------> Badge trạng thái (phải) — Căn đều chính giữa
               const cDau = e('div', 'card-hs-dong-dau');
               const cNhomTrai = e('div', 'card-hs-nhom-ten');
               const sttEl = e('span', 'stt-tron-hs', sttChu);
-              const cTenWrap = e('div', 'card-hs-dong-ten');
               const cTenHang = e('div', 'card-hs-ten-hang');
               cTenHang.append(e('b', 'ten-chu', h.hoTen));
               if (h.lopNghe && hienNgheThuQuy) {
                 cTenHang.append(e('span', 'lop-nghe-nho', `· ${h.lopNghe}`));
               }
-              cTenWrap.append(cTenHang);
-              if (h.laChinhMinh) {
-                // Vùng 2: Đưa tag Bạn dưới tên học sinh 1 hàng
-                cTenWrap.append(e('span', 'tag-ban', 'Bạn'));
-              }
-              cNhomTrai.append(sttEl, cTenWrap);
+              cNhomTrai.append(sttEl, cTenHang);
               cDau.append(cNhomTrai);
 
               // Vùng 1: Badge trạng thái → sát bên phải cùng hàng với tên học sinh
@@ -1270,7 +1264,14 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
               cDau.append(badgeMobile);
               card.append(cDau);
 
-              // Hàng 2: Tiền + Ngày (ngay dưới tên)
+              // Tag Bạn: nằm dưới tên học sinh 1 hàng (nếu là chính mình)
+              if (h.laChinhMinh) {
+                const cDongBan = e('div', 'card-hs-dong-ban');
+                cDongBan.append(e('span', 'tag-ban', 'Bạn'));
+                card.append(cDongBan);
+              }
+
+              // Hàng 2: Tiền đã nộp (xóa ngày nộp theo yêu cầu người dùng)
               const cThan = e('div', 'card-hs-dong-than');
               const cTien = e('div', 'card-hs-tien');
               cTien.append(e('span', 'nhan-muc', 'Đã nộp: '));
@@ -1279,8 +1280,7 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
               } else {
                 cTien.append(Object.assign(e('span', 'trong', '0 đ')));
               }
-              const cNgay = e('span', 'card-hs-ngay', h.ngayDong ? `📅 ${ngayVN(h.ngayDong)}` : 'Chưa nộp');
-              cThan.append(cTien, cNgay);
+              cThan.append(cTien);
               if (h.ghiChu) {
                 cThan.append(e('span', 'card-hs-gc', `📝 ${h.ghiChu}`));
               }
