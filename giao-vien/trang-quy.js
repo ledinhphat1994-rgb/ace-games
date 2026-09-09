@@ -190,7 +190,8 @@ export async function trangQuy(KHUNG) {
     const hang = e('div', 'hang-hs hang-hs-doc hang-khoan-thu');
     hang.style.cursor = 'pointer';
 
-    const dong1 = e('div', 'hang-hs-dong1');
+    // ── Vùng 1 & 2 (hàng tiêu đề): checkbox + icon + tên | badge trạng thái ──
+    const dongTieuDe = e('div', 'khoan-dong-tieu-de');
     const khoiTrai = e('div', 'hs-khoi-trai');
 
     if (laGiaoVienQuy || !k.dinhKyId) {
@@ -209,40 +210,20 @@ export async function trangQuy(KHUNG) {
 
     khoiTrai.append(e('div', 'stt hs-icon-khoan', k.dinhKyId ? '🔁' : '💰'));
 
-    const thongTin = e('div', 'hs-thong-tin');
-    const dongTen = e('div', 'hs-ten-to');
-    dongTen.append(e('span', 'hs-ho-ten', k.ten));
-    if (!k.dinhKyId) dongTen.append(e('span', 'hs-to-badge badge-nhanh', '⚡ Thu linh động'));
-    thongTin.append(dongTen);
-    const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
-    const dongChiTiet = e('div', 'hs-chi-tiet-dong');
-    dongChiTiet.append(e('span', 'pill-muc-thu', `${tienVN(k.soTienMoiEm)}/em`));
-    if (k.ngayBatDau && !k.dinhKyId) {
-      dongChiTiet.append(
-        e('span', 'cham-cach', '·'),
-        e('span', 'thoi-gian-thu', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`)
-      );
-    }
-    // Hiển thị huy hiệu học sinh đã nộp khớp với từ khoá tìm kiếm
-    if (tuKhoaTimKhoan) {
-      const tk = tuKhoaTimKhoan.trim();
-      const hsKhop = (k.nguoiDong || []).filter((nd) => khopTuKhoa(nd.hoTen, tk));
-      if (hsKhop.length > 0) {
-        hsKhop.forEach((nd) => {
-          dongChiTiet.append(
-            e('span', 'cham-cach', '·'),
-            e('span', 'pill-hs-khop', `👤 ${nd.hoTen}: đã nộp ${tienVN(nd.tong)}`)
-          );
-        });
+    // Tên khoản (nếu là kỳ con thì lược bỏ "QUỸ LỚP — " dư thừa theo Vùng 4)
+    let tenHienThi = k.ten || '';
+    if (laKhoanCon) {
+      if (k.dinhKyTen) {
+        const escaped = k.dinhKyTen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        tenHienThi = tenHienThi.replace(new RegExp(`^${escaped}\\s*[-—–:]\\s*`, 'i'), '');
       }
+      tenHienThi = tenHienThi.replace(/^quỹ\s*lớp\s*[-—–:]\s*/i, '');
     }
-    thongTin.append(dongChiTiet);
-    khoiTrai.append(thongTin);
-    dong1.append(khoiTrai);
+    const tenKhoan = e('span', 'hs-ho-ten', tenHienThi);
+    khoiTrai.append(tenKhoan);
 
-    // Badge trạng thái ở góc phải: NGẮN GỌN, rê chuột/chạm mới hiện tooltip đủ số liệu (đã thu
-    // bao nhiêu/mục tiêu, còn thiếu, bao nhiêu em đã đủ) — thay cho việc hiện sẵn khối 4 ô số
-    // liệu + "Theo tổ" thường trực mỗi khi mở rộng khoản.
+    // Badge trạng thái — đặt song song bên phải hàng tiêu đề
+    const phanTram = k.tongCanThu ? Math.round((k.tongDaThu / k.tongCanThu) * 100) : 0;
     const tongEm = (k.soEmDaDu || 0) + (k.soEmChuaDu || 0);
     const conThieu = Math.max(0, (k.tongCanThu || 0) - (k.tongDaThu || 0));
     const chiTietBadge = `Đã thu ${tienVN(k.tongDaThu)}/${tienVN(k.tongCanThu)} — còn thiếu ${tienVN(conThieu)} · ${k.soEmDaDu || 0}/${tongEm} em đã đủ`;
@@ -255,9 +236,6 @@ export async function trangQuy(KHUNG) {
     } else {
       nhanTrangThai = e('span', 'nhan nhan-chinh', `Thu ${phanTram}%`);
     }
-    // Badge trạng thái — RIÊNG một khối nhỏ chỉ bọc đúng cái nhãn này (không gộp chung với
-    // nhãn "Mở rộng"/mũi tên bên dưới), để tooltip định vị đúng ngay sát chỗ rê chuột/chạm,
-    // không lệch ra xa theo nhãn mở rộng nằm cạnh nó.
     const oBadge = e('div', 'badge-trang-thai-khoan');
     oBadge.tabIndex = 0;
     oBadge.setAttribute('role', 'button');
@@ -265,17 +243,41 @@ export async function trangQuy(KHUNG) {
     oBadge.append(nhanTrangThai, e('div', 'tien-do-tooltip', chiTietBadge));
     ganTooltipNoi(oBadge, true);
 
-    // Nhãn "Mở rộng"/"Thu gọn" + icon to hơn (cùng kiểu ".mui-ten-chi-tiet"/".nhan-mo-rong" bên
-    // trang học sinh) để dễ nhận ra đây là khối bấm mở rộng được, không chỉ mỗi mũi tên bé.
-    // Gộp nhãn+icon vào 1 khối (khoi-mo-rong-hang) để không bị justify-content:space-between
-    // (mobile) tách rời nhau.
-    const khoiPhai = e('div', 'hs-khoi-phai');
-    khoiPhai.append(oBadge, khoiMoRongHang(moRong === k.id));
-    dong1.append(khoiPhai);
+    dongTieuDe.append(khoiTrai, oBadge);
+    hang.append(dongTieuDe);
 
-    // Thanh tiến độ mini trực quan trên card — rê chuột/chạm hiện tooltip đủ số liệu, giống hệt
-    // badge trạng thái bên trên (dùng lại đúng chiTietBadge, đỡ phải hiện khối số liệu riêng
-    // trong phần chi tiết mở rộng nữa).
+    // ── Vùng 1 (1 hàng riêng trên dòng chi tiết): badge loại nếu là khoản linh động ──
+    if (!k.dinhKyId) {
+      const dongBadgeLoai = e('div', 'khoan-dong-badge-loai');
+      dongBadgeLoai.append(e('span', 'hs-to-badge badge-nhanh', '⚡ Thu linh động'));
+      hang.append(dongBadgeLoai);
+    }
+
+    // ── Vùng 2 (nội dung bên dưới tiêu đề): chi tiết số tiền + thanh tiến độ ──
+    const dongNoiDung = e('div', 'khoan-dong-noi-dung');
+    const dongChiTiet = e('div', 'hs-chi-tiet-dong');
+    dongChiTiet.append(e('span', 'pill-muc-thu', `${tienVN(k.soTienMoiEm)}/em`));
+    if (k.ngayBatDau && !k.dinhKyId) {
+      dongChiTiet.append(
+        e('span', 'cham-cach', '·'),
+        e('span', 'thoi-gian-thu', `📅 ${ngayVN(k.ngayBatDau)}–${ngayVN(k.ngayKetThuc)}`)
+      );
+    }
+    // Huy hiệu học sinh đã nộp khớp từ khoá tìm kiếm
+    if (tuKhoaTimKhoan) {
+      const tk = tuKhoaTimKhoan.trim();
+      const hsKhop = (k.nguoiDong || []).filter((nd) => khopTuKhoa(nd.hoTen, tk));
+      if (hsKhop.length > 0) {
+        hsKhop.forEach((nd) => {
+          dongChiTiet.append(
+            e('span', 'cham-cach', '·'),
+            e('span', 'pill-hs-khop', `👤 ${nd.hoTen}: đã nộp ${tienVN(nd.tong)}`)
+          );
+        });
+      }
+    }
+
+    // Thanh tiến độ mini — rê chuột/chạm hiện tooltip đủ số liệu
     const thanhTienDoNho = e('div', 'thanh-tien-do-khoan-nho');
     thanhTienDoNho.tabIndex = 0;
     thanhTienDoNho.setAttribute('role', 'button');
@@ -286,7 +288,14 @@ export async function trangQuy(KHUNG) {
     thanhTienDoNho.append(chay, e('div', 'tien-do-tooltip', chiTietBadge));
     ganTooltipNoi(thanhTienDoNho, false);
 
-    hang.append(dong1, thanhTienDoNho);
+    dongNoiDung.append(dongChiTiet, thanhTienDoNho);
+    hang.append(dongNoiDung);
+
+    // ── Vùng 3 (footer): nút Mở rộng / Thu gọn ──
+    const dongFooter = e('div', 'khoan-dong-footer');
+    dongFooter.append(khoiMoRongHang(moRong === k.id));
+    hang.append(dongFooter);
+
     hang.addEventListener('click', () => moKhoan(k.id));
     boc.append(hang);
 
@@ -311,7 +320,15 @@ export async function trangQuy(KHUNG) {
     const hang = e('div', 'hang-hs hang-hs-doc hang-khoan-thu');
     hang.style.cursor = 'pointer';
 
-    const dong1 = e('div', 'hang-hs-dong1');
+    // Tính toán số liệu tổng hợp
+    const tongDaThu = thanhVien.reduce((a, k) => a + k.tongDaThu, 0);
+    const tongCanThu = thanhVien.reduce((a, k) => a + k.tongCanThu, 0);
+    const soKyDaDu = thanhVien.filter((k) => k.tongCanThu > 0 && k.tongDaThu >= k.tongCanThu).length;
+    const phanTramNhom = tongCanThu ? Math.round((tongDaThu / tongCanThu) * 100) : 0;
+    const chiTietNhom = `Đã thu ${tienVN(tongDaThu)}/${tienVN(tongCanThu)} · ${soKyDaDu}/${thanhVien.length} kỳ đã đủ`;
+
+    // ── Vùng 1 & 2 (hàng tiêu đề): checkbox + icon + tên | badge trạng thái ──
+    const dongTieuDe = e('div', 'khoan-dong-tieu-de');
     const khoiTrai = e('div', 'hs-khoi-trai');
 
     if (laGiaoVienQuy) {
@@ -329,19 +346,26 @@ export async function trangQuy(KHUNG) {
       khoiTrai.append(oChonNhom);
     }
 
+    // Icon ổ khóa + tên nhóm
     khoiTrai.append(e('div', 'stt hs-icon-khoan', '🔒'));
+    khoiTrai.append(e('span', 'hs-ho-ten', dauTien.dinhKyTen));
 
-    const thongTin = e('div', 'hs-thong-tin');
-    const dongTen = e('div', 'hs-ten-to');
-    dongTen.append(e('span', 'hs-ho-ten', dauTien.dinhKyTen));
-    dongTen.append(e('span', 'hs-to-badge badge-dinh-ky', 'Thu cố định'));
-    thongTin.append(dongTen);
+    // Badge trạng thái nhóm — song song bên phải hàng tiêu đề
+    const nhanNhom = e('span', 'nhan ' + (soKyDaDu === thanhVien.length ? 'nhan-tot' : 'nhan-chinh'),
+      soKyDaDu === thanhVien.length ? '✓ Mọi kỳ đã đủ' : `${soKyDaDu}/${thanhVien.length} kỳ đã đủ`);
+    const oBadgeNhom = e('div', 'badge-trang-thai-khoan');
+    oBadgeNhom.append(nhanNhom);
 
-    const tongDaThu = thanhVien.reduce((a, k) => a + k.tongDaThu, 0);
-    const tongCanThu = thanhVien.reduce((a, k) => a + k.tongCanThu, 0);
-    const soKyDaDu = thanhVien.filter((k) => k.tongCanThu > 0 && k.tongDaThu >= k.tongCanThu).length;
-    const phanTramNhom = tongCanThu ? Math.round((tongDaThu / tongCanThu) * 100) : 0;
+    dongTieuDe.append(khoiTrai, oBadgeNhom);
+    hang.append(dongTieuDe);
 
+    // ── Vùng 1 (1 hàng riêng trên dòng theo tuần): badge "Thu cố định" ──
+    const dongBadgeLoai = e('div', 'khoan-dong-badge-loai');
+    dongBadgeLoai.append(e('span', 'hs-to-badge badge-dinh-ky', 'Thu cố định'));
+    hang.append(dongBadgeLoai);
+
+    // ── Vùng 2 (nội dung): chi tiết số liệu + thanh tiến độ ──
+    const dongNoiDung = e('div', 'khoan-dong-noi-dung');
     const dongChiTiet = e('div', 'hs-chi-tiet-dong');
     dongChiTiet.append(
       e('span', 'pill-muc-thu', `${CHU_KY_HIEN_THI[dauTien.dinhKyChuKy] || dauTien.dinhKyChuKy}`),
@@ -350,19 +374,7 @@ export async function trangQuy(KHUNG) {
       e('span', 'cham-cach', '·'),
       e('span', 'so-tien-thu-duoc', `Đã thu ${tienVN(tongDaThu)}/${tienVN(tongCanThu)} (${phanTramNhom}%)`)
     );
-    thongTin.append(dongChiTiet);
-    khoiTrai.append(thongTin);
-    dong1.append(khoiTrai);
 
-    const khoiPhai = e('div', 'hs-khoi-phai');
-    khoiPhai.append(e('span', 'nhan ' + (soKyDaDu === thanhVien.length ? 'nhan-tot' : 'nhan-chinh'),
-      soKyDaDu === thanhVien.length ? '✓ Mọi kỳ đã đủ' : `${soKyDaDu}/${thanhVien.length} kỳ đã đủ`));
-    khoiPhai.append(khoiMoRongHang(dangMo));
-    dong1.append(khoiPhai);
-
-    // Thanh tiến độ mini trực quan cho nhóm định kỳ — cũng rê chuột/chạm hiện tooltip số liệu
-    // tổng, đồng bộ với khoản đơn lẻ.
-    const chiTietNhom = `Đã thu ${tienVN(tongDaThu)}/${tienVN(tongCanThu)} · ${soKyDaDu}/${thanhVien.length} kỳ đã đủ`;
     const thanhTienDoNho = e('div', 'thanh-tien-do-khoan-nho');
     thanhTienDoNho.tabIndex = 0;
     thanhTienDoNho.setAttribute('role', 'button');
@@ -373,7 +385,14 @@ export async function trangQuy(KHUNG) {
     thanhTienDoNho.append(chay, e('div', 'tien-do-tooltip', chiTietNhom));
     ganTooltipNoi(thanhTienDoNho, false);
 
-    hang.append(dong1, thanhTienDoNho);
+    dongNoiDung.append(dongChiTiet, thanhTienDoNho);
+    hang.append(dongNoiDung);
+
+    // ── Vùng 3 (footer): nút Mở rộng / Thu gọn ──
+    const dongFooter = e('div', 'khoan-dong-footer');
+    dongFooter.append(khoiMoRongHang(dangMo));
+    hang.append(dongFooter);
+
     hang.addEventListener('click', () => {
       giuViTriCuonKhiVe('nhom-' + dinhKyId, () => {
         if (dangMo) nhomMoRong.delete(dinhKyId); else nhomMoRong.add(dinhKyId);
@@ -401,19 +420,6 @@ export async function trangQuy(KHUNG) {
 
   function veChiTietKhoan(khoanId, dk) {
     const box = e('div');
-
-    // Khoản này là một kỳ do mẫu "Thu cố định" sinh ra — chỉ hiện thông tin, không còn nút
-    // dừng/tiếp tục nào nữa vì TOÀN BỘ số kỳ đã được tạo sẵn ngay lúc tạo mẫu (không phải sinh
-    // dần như thiết kế cũ). Muốn bỏ kỳ nào thì xoá thẳng khoản đó bằng nút "Xoá khoản" bên dưới.
-    if (dk.khoan.dinhKyId) {
-      const tb = e('div', 'the trong');
-      tb.style.cssText = 'margin-bottom:14px';
-      tb.append(e('span', null,
-        `🔁 Kỳ ${dk.khoan.kySo}/${dk.khoan.dinhKySoKy} của mẫu thu cố định "${dk.khoan.dinhKyTen}" `
-        + `(${CHU_KY_HIEN_THI[dk.khoan.dinhKyChuKy] || dk.khoan.dinhKyChuKy}) — `
-        + `${ngayVN(dk.khoan.ngayBatDau)}–${ngayVN(dk.khoan.ngayKetThuc)}.`));
-      box.append(tb);
-    }
 
     const laThuCoDinh = Boolean(dk.khoan.dinhKyId);
     const duocSuaXoaKhoan = laGiaoVienQuy || !laThuCoDinh;

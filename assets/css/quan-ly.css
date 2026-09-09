@@ -558,19 +558,35 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   white-space: nowrap;
 }
 
-/* Bộ lọc trạng thái quỹ (Tất cả / Chưa đóng / Còn thiếu / Đã đủ) */
+/* Bộ lọc trạng thái quỹ (Tất cả / Chưa đóng / Còn thiếu / Đã đủ) — chia đều 2 cột trên mobile, 4 cột trên desktop */
 .loc-trang-thai-quy {
-  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+@media (min-width: 600px) {
+  .loc-trang-thai-quy {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 .loc-trang-thai-quy button {
-  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: 99px;
-  padding: 5px 12px; font-size: 12.5px; font-weight: 700; color: var(--chu-nhat);
+  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: 10px;
+  padding: 8px 6px; font-size: 12px; font-weight: 700; color: var(--chu-nhat);
   cursor: pointer; transition: all .15s;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .loc-trang-thai-quy button:active {
-  transform: scale(0.94);
+  transform: scale(0.95);
   transition: transform 0.05s ease;
 }
 .loc-trang-thai-quy button:hover {
@@ -919,20 +935,61 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   flex-shrink: 0;
   margin-left: auto;
 }
-/* Hàng khoản thu (thẻ khoản, nhóm thu cố định): mỗi thứ 1 hàng riêng — badge trạng thái to rõ
-   ở trên, khối "Mở rộng/Thu gọn" ở dưới — thay vì chen chung 1 hàng chật hẹp khó nhìn. */
-.hang-khoan-thu .hs-khoi-phai {
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
+/* Layout card khoản thu / nhóm định kỳ:
+   - Hàng tiêu đề: [checkbox] [icon] [Tên khoản] <--------> [badge trạng thái]
+   - Hàng badge loại: [⚡ Thu linh động] hoặc [Thu cố định] (1 hàng riêng trên dòng theo tuần/chi tiết)
+   - Hàng nội dung  : [nội dung chi tiết / dòng theo tuần] + thanh tiến độ
+   - Hàng footer    : [Mở rộng / Thu gọn] — căn phải */
+.khoan-dong-tieu-de {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
-.hang-khoan-thu .hs-khoi-phai .nhan {
+.khoan-dong-tieu-de .hs-khoi-trai {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.khoan-dong-tieu-de .hs-ho-ten {
+  font-weight: 700;
   font-size: 15px;
+  color: var(--chu);
+  word-break: break-word;
+}
+.khoan-dong-tieu-de .badge-trang-thai-khoan {
+  flex-shrink: 0;
+}
+.khoan-dong-tieu-de .nhan {
+  font-size: 13px;
   font-weight: 800;
-  padding: 6px 14px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.khoan-dong-badge-loai {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 1px 0 2px;
+}
+.khoan-dong-noi-dung {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.khoan-dong-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  padding-top: 2px;
 }
 /* Nhãn "Mở rộng"/"Thu gọn" + icon tròn — gộp làm 1 khối (flex:none) để không bị tách rời khi
-   .hs-khoi-phai chuyển sang justify-content:space-between trên di động. ".nhan-mo-rong" đã có
+   .khoan-dong-footer chuyển sang justify-content:space-between trên di động. ".nhan-mo-rong" đã có
    kiểu chữ dùng chung ở style.css — ở đây chỉ cần tô icon tròn to (".mui-ten-chi-tiet" vốn chỉ
    định nghĩa lồng trong ".nut-mo-chi-tiet-dong" bên trang học sinh) cho khối này. */
 .khoi-mo-rong-hang {
@@ -1005,25 +1062,16 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   .khung-lan-dong {
     padding-left: 40px;
   }
-  /* Khoản thu: giữ layout dọc căn phải ngay cả trên mobile — không để align-items:center
-     (từ rule generic .hs-khoi-phai ở trên) làm badge "Thu X%" bị kéo vào giữa khi
-     flex-direction vẫn là column */
-  .hang-khoan-thu .hs-khoi-phai {
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding-left: 0;
-    width: auto;
-    margin-left: auto;
+  /* Khoản thu: trên mobile, hàng tiêu đề vẫn giữ flex-row (badge song song với tên) *
+     chỉ cần thu nhỏ padding nội dung lại cho vừa màn hình. */
+  .khoan-dong-tieu-de .nhan {
+    font-size: 13px;
+    padding: 4px 10px;
   }
-  .hang-khoan-thu .hs-khoi-phai .nhan-trang-thai-quy {
-    flex: none;
-    text-align: right;
-  }
-  /* Card con trong cây kết nối đã thụt vào rồi — xoá double-indent từ .hs-khoi-phai */
-  .nhom-dinh-ky-chi-tiet .hs-khoi-phai {
+  .khoan-dong-noi-dung {
     padding-left: 0;
   }
+  /* Card con trong cây kết nối đã thụt vào rồi — không double-indent */
   .nhom-dinh-ky-chi-tiet .khung-lan-dong {
     padding-left: 0;
   }
