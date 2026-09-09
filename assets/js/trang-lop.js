@@ -95,7 +95,16 @@ function ganTheoDoiMuc() {
     for (const x of muc) {
       if (x.phanTu.getBoundingClientRect().top <= nguong) hienTai = x;
     }
-    if (cuoiTrang) hienTai = muc[muc.length - 1];
+    // Cuộn hết trang mà mục CUỐI (vd "Hoạt động lớp" khi chưa có bài đăng nào, rất ngắn) vẫn
+    // không tự thắng theo luật trên — vì đỉnh của nó không bao giờ chạm nổi ngưỡng khi trang
+    // không đủ dài để cuộn tới đó. Trước đây hễ chạm đáy trang là ép nhảy thẳng sang mục cuối,
+    // kể cả khi mục ĐANG thắng (vd "Thời khoá biểu") còn chiếm gần hết màn hình dưới thanh tab —
+    // đúng lỗi "nhảy cóc bỏ qua mục giữa". Giờ chỉ ép chuyển khi mục đang thắng đã cuộn qua HẲN
+    // (đáy của nó cũng vượt ngưỡng rồi), nghĩa là không còn gì của mục đó để xem nữa.
+    if (cuoiTrang && hienTai !== muc[muc.length - 1]) {
+      const daCuonQuaHan = hienTai.phanTu.getBoundingClientRect().bottom <= nguong;
+      if (daCuonQuaHan) hienTai = muc[muc.length - 1];
+    }
 
     lienKet.forEach((a) => a.classList.toggle('dang-xem', a === hienTai.a));
   }
