@@ -237,6 +237,10 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     const khoan = await db.prepare('SELECT ten, dinh_ky_id AS dinhKyId FROM quy_khoan WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
     if (!khoan) return loi('Không tìm thấy khoản thu này.', 404);
 
+    if (khoan.dinhKyId && phien.role !== 'teacher') {
+      return loi('Khoản thu cố định chỉ có giáo viên chủ nhiệm mới được chỉnh sửa.', 403);
+    }
+
     const dat = []; const thamSo = [];
     const them = (cot, giaTri) => { thamSo.push(giaTri); dat.push(`${cot} = ?${thamSo.length}`); };
     if (than.ten !== undefined) {
@@ -357,6 +361,16 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     ids = hang ? [id] : [];
   }
   if (!ids.length) return json({ ok: true, daXoa: 0 });
+
+  if (loai === 'khoan' && phien.role !== 'teacher') {
+    const choKiemTra = ids.map(() => '?').join(',');
+    const coDinhKy = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM quy_khoan WHERE id IN (${choKiemTra}) AND lop_id = ? AND dinh_ky_id IS NOT NULL`
+    ).bind(...ids, phien.lopId).first();
+    if (coDinhKy && coDinhKy.n > 0) {
+      return loi('Khoản thu cố định chỉ có giáo viên chủ nhiệm mới được xoá.', 403);
+    }
+  }
 
   // "dong" (một lần ghi thu) luôn xoá từng cái một (không có xoá hàng loạt) — nêu rõ ai nộp,
   // khoản nào, kiểu gì thay vì chỉ ghi số id trần trụi, để xem lại lịch sử khôi phục hiểu ngay

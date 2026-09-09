@@ -187,17 +187,19 @@ export async function trangQuy(KHUNG) {
     const dong1 = e('div', 'hang-hs-dong1');
     const khoiTrai = e('div', 'hs-khoi-trai');
 
-    const oChonXoa = e('input');
-    oChonXoa.type = 'checkbox';
-    oChonXoa.checked = khoanDaChon.has(k.id);
-    oChonXoa.setAttribute('aria-label', 'Chọn khoản thu "' + k.ten + '" để xoá hàng loạt');
-    oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
-    oChonXoa.addEventListener('click', (ev) => ev.stopPropagation());
-    oChonXoa.addEventListener('change', () => {
-      if (oChonXoa.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id);
-      ve();
-    });
-    khoiTrai.append(oChonXoa);
+    if (laGiaoVienQuy || !k.dinhKyId) {
+      const oChonXoa = e('input');
+      oChonXoa.type = 'checkbox';
+      oChonXoa.checked = khoanDaChon.has(k.id);
+      oChonXoa.setAttribute('aria-label', 'Chọn khoản thu "' + k.ten + '" để xoá hàng loạt');
+      oChonXoa.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
+      oChonXoa.addEventListener('click', (ev) => ev.stopPropagation());
+      oChonXoa.addEventListener('change', () => {
+        if (oChonXoa.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id);
+        ve();
+      });
+      khoiTrai.append(oChonXoa);
+    }
 
     khoiTrai.append(e('div', 'stt hs-icon-khoan', k.dinhKyId ? '🔁' : '💰'));
 
@@ -295,18 +297,20 @@ export async function trangQuy(KHUNG) {
     const dong1 = e('div', 'hang-hs-dong1');
     const khoiTrai = e('div', 'hs-khoi-trai');
 
-    const oChonNhom = e('input');
-    oChonNhom.type = 'checkbox';
-    const tatCaDaChon = thanhVien.every((k) => khoanDaChon.has(k.id));
-    oChonNhom.checked = tatCaDaChon;
-    oChonNhom.setAttribute('aria-label', `Chọn cả ${thanhVien.length} kỳ của "${dauTien.dinhKyTen}" để xoá hàng loạt`);
-    oChonNhom.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
-    oChonNhom.addEventListener('click', (ev) => ev.stopPropagation());
-    oChonNhom.addEventListener('change', () => {
-      thanhVien.forEach((k) => { if (oChonNhom.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id); });
-      ve();
-    });
-    khoiTrai.append(oChonNhom);
+    if (laGiaoVienQuy) {
+      const oChonNhom = e('input');
+      oChonNhom.type = 'checkbox';
+      const tatCaDaChon = thanhVien.every((k) => khoanDaChon.has(k.id));
+      oChonNhom.checked = tatCaDaChon;
+      oChonNhom.setAttribute('aria-label', `Chọn cả ${thanhVien.length} kỳ của "${dauTien.dinhKyTen}" để xoá hàng loạt`);
+      oChonNhom.style.cssText = 'width:18px;height:18px;flex:none;cursor:pointer;accent-color:var(--xau)';
+      oChonNhom.addEventListener('click', (ev) => ev.stopPropagation());
+      oChonNhom.addEventListener('change', () => {
+        thanhVien.forEach((k) => { if (oChonNhom.checked) khoanDaChon.add(k.id); else khoanDaChon.delete(k.id); });
+        ve();
+      });
+      khoiTrai.append(oChonNhom);
+    }
 
     khoiTrai.append(e('div', 'stt hs-icon-khoan', '🔒'));
 
@@ -385,28 +389,33 @@ export async function trangQuy(KHUNG) {
       box.append(tb);
     }
 
-    const hangNut = e('div', 'day-loc day-loc-deu');
-    hangNut.style.margin = '2px 0 14px';
-    hangNut.append(
-      nut('✎ Sửa khoản', 'nut-vien nut-nho', () => suaKhoan(dk.khoan, lamMoiKhoanDangMo)),
-      nut('🗑 Xoá khoản', 'nut-nhe nut-nho', () => {
-        moHopThoai('Xoá cả khoản thu này?', e('p', null,
-          `Toàn bộ số tiền đã ghi cho từng em trong khoản "${dk.khoan.ten}" sẽ mất. Không thể hoàn tác.`), [
-          nut('Huỷ', 'nut-nhe', dongHopThoai),
-          nut('Xoá', 'nut-xau', async () => {
-            try {
-              await api('/api/gv/quy?loai=khoan&id=' + khoanId, { method: 'DELETE' });
-              dongHopThoai();
-              nhac('Đã xoá khoản thu', 'tot');
-              delete chiTiet[khoanId];
-              moRong = null;
-              await tai();
-            } catch (err) { nhac(err.message, 'xau'); }
-          }),
-        ]);
-      })
-    );
-    box.append(hangNut);
+    const laThuCoDinh = Boolean(dk.khoan.dinhKyId);
+    const duocSuaXoaKhoan = laGiaoVienQuy || !laThuCoDinh;
+
+    if (duocSuaXoaKhoan) {
+      const hangNut = e('div', 'day-loc day-loc-deu');
+      hangNut.style.margin = '2px 0 14px';
+      hangNut.append(
+        nut('✎ Sửa khoản', 'nut-vien nut-nho', () => suaKhoan(dk.khoan, lamMoiKhoanDangMo)),
+        nut('🗑 Xoá khoản', 'nut-nhe nut-nho', () => {
+          moHopThoai('Xoá cả khoản thu này?', e('p', null,
+            `Toàn bộ số tiền đã ghi cho từng em trong khoản "${dk.khoan.ten}" sẽ mất. Không thể hoàn tác.`), [
+            nut('Huỷ', 'nut-nhe', dongHopThoai),
+            nut('Xoá', 'nut-xau', async () => {
+              try {
+                await api('/api/gv/quy?loai=khoan&id=' + khoanId, { method: 'DELETE' });
+                dongHopThoai();
+                nhac('Đã xoá khoản thu', 'tot');
+                delete chiTiet[khoanId];
+                moRong = null;
+                await tai();
+              } catch (err) { nhac(err.message, 'xau'); }
+            }),
+          ]);
+        })
+      );
+      box.append(hangNut);
+    }
 
     // Số liệu chi tiết (đã thu/mục tiêu/còn thiếu/em đủ) và thanh tiến độ giờ xem qua tooltip
     // của badge + thanh tiến độ mini ở hàng thu gọn (veHangKhoan) — trùng lặp nên bỏ khỏi đây.
