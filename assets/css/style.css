@@ -697,27 +697,52 @@ code {
 }
 .mo-dau-nut-sua:hover { background: rgba(255, 255, 255, .24); }
 
+/* Ô thống kê (Học sinh / Nam·Nữ) — nằm gọn góc trái, cạnh nút "Đổi ảnh", KHÔNG kéo xuống dưới */
 .o-so {
-  display: grid; gap: 0.75rem; margin-top: 24px;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 0; align-items: flex-start;
 }
-@media (min-width: 768px) { .o-so { grid-template-columns: repeat(4, 1fr); gap: 1.1rem; } }
 .o-so > div {
-  background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--r); padding: 18px 18px 16px;
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  transition: background .22s, transform .22s, border-color .22s, box-shadow .22s;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 14px; padding: 10px 18px 9px;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  position: relative; overflow: hidden;
+  transition: background .24s, transform .24s, border-color .24s, box-shadow .24s;
+  animation: statFadeIn .55s cubic-bezier(.22,1,.36,1) both;
+  min-width: 80px;
+}
+.o-so > div:nth-child(1) { animation-delay: .08s; }
+.o-so > div:nth-child(2) { animation-delay: .18s; }
+@keyframes statFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Shimmer sweep trên mỗi thẻ stat */
+.o-so > div::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.08) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: statShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.o-so > div:nth-child(2)::after { animation-delay: 1.6s; }
+@keyframes statShimmer {
+  0%   { transform: translateX(-100%); }
+  40%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
 }
 .o-so > div:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.26);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.40);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.12);
 }
 /* Số liệu to/đậm, trắng tinh — nhãn nhỏ, viết hoa, màu xám nhạt (slate) bên dưới. */
-.o-so b { display: block; font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -.03em; color: #ffffff; text-shadow: 0 0 24px rgba(255,255,255,0.40); }
-.o-so span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: rgba(255,255,255,0.55); margin-top: 4px; display: block; }
+.o-so b { display: block; font-size: 22px; line-height: 1.15; font-weight: 800; letter-spacing: -.03em; color: #ffffff; text-shadow: 0 0 18px rgba(255,255,255,0.45); }
+.o-so span { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,0.52); margin-top: 3px; display: block; }
 
 /* ---------- Bố cục Trang chủ (#trangChu) ----------
    Một hàng — một khối, full chiều ngang của .wrap, ở MỌI kích thước màn hình. Chia 2 cột từng

@@ -168,8 +168,6 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       thongKe: [
         { giaTri: String(sl), nhan: 'Học sinh' },
         { giaTri: `${nam} / ${sl - nam}`, nhan: 'Nam / Nữ' },
-        { giaTri: String(nghe.length), nhan: 'Lớp nghề' },
-        { giaTri: 'A4', nhan: 'Tổ hợp môn' },
       ],
     },
     hocSinh: hocSinh.results,
