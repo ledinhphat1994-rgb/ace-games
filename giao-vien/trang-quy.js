@@ -618,17 +618,23 @@ export async function trangQuy(KHUNG) {
 
           const dsThe = e('div', 'ds-the-lan-dong');
           h.lanDong.forEach((ld) => {
+            const hangItem = e('div', 'hang-item-lan-dong');
+
+            // Thẻ chứa số tiền và ngày đóng: trọn không gian, không bị chật/rớt dòng
             const the = e('div', 'the-lan-dong');
             const tienEl = e('span', 'lan-dong-tien', `+${tienVN(ld.soTien)}`);
+            const chamEl = e('span', 'lan-dong-cham', '·');
             const ngayEl = e('span', 'lan-dong-ngay', ngayVN(ld.ngay));
+            the.append(tienEl, chamEl, ngayEl);
 
+            // Nút sửa và xoá đặt riêng bên phải của card, tách biệt hoàn toàn khỏi thẻ tiền
             const thaoTac = e('div', 'lan-dong-thao-tac');
 
             const bSua = e('button', 'nut-thao-tac-lan sua');
             bSua.type = 'button';
             bSua.title = 'Sửa lần đóng này';
             bSua.setAttribute('aria-label', `Sửa lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
-            bSua.append(taoSvgIcon('M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 12, 12));
+            bSua.append(taoSvgIcon('M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z', 13, 13));
             bSua.addEventListener('click', () => suaDong(ld, h.hoTen, lamMoiKhoanDangMo));
 
             // Nút xoá lần đóng: giáo viên và thủ quỹ đều được xoá (API đã ghi checkpoint trước khi xoá).
@@ -637,7 +643,7 @@ export async function trangQuy(KHUNG) {
             bXoa.type = 'button';
             bXoa.title = 'Xoá lần đóng này';
             bXoa.setAttribute('aria-label', `Xoá lần đóng của ${h.hoTen} ngày ${ngayVN(ld.ngay)}`);
-            bXoa.append(taoSvgIcon('M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6', 12, 12));
+            bXoa.append(taoSvgIcon('M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6', 13, 13));
             bXoa.addEventListener('click', () => {
               moHopThoai('Xoá lần đóng này?', e('p', null, `${h.hoTen} — ${tienVN(ld.soTien)} ngày ${ngayVN(ld.ngay)}`), [
                 nut('Huỷ', 'nut-nhe', dongHopThoai),
@@ -653,8 +659,8 @@ export async function trangQuy(KHUNG) {
             });
 
             thaoTac.append(bSua, bXoa);
-            the.append(tienEl, ngayEl, thaoTac);
-            dsThe.append(the);
+            hangItem.append(the, thaoTac);
+            dsThe.append(hangItem);
           });
 
           khungLan.append(tieuDeLan, dsThe);
