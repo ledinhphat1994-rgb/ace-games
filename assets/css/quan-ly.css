@@ -663,34 +663,20 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   border-bottom: 1px solid color-mix(in srgb, var(--chinh) 22%, var(--vien));
 }
 
-/* Khung chứa các kỳ thu con — lồng khung inset tinh tế với trục dọc cây thư mục */
+/* Khung chứa các kỳ thu con */
 .nhom-dinh-ky-chi-tiet {
   position: relative;
-  padding: 14px 18px 20px 52px;
+  padding: 12px 10px 14px 10px;
   background: color-mix(in srgb, var(--nen-chim) 88%, #000 12%);
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   border-radius: 0 0 var(--r) var(--r);
 }
 
-/* Đường trục dọc chính kết nối từ mục cha xuống toàn bộ các kỳ con */
+/* Đường trục dọc đã ẩn — giảm tải thị giác trên mobile */
 .nhom-dinh-ky-chi-tiet::before {
-  content: '';
-  position: absolute;
-  top: 42px;
-  bottom: 32px;
-  left: 28px;
-  width: 2px;
-  background: linear-gradient(
-    180deg,
-    var(--chinh) 0%,
-    color-mix(in srgb, var(--chinh) 55%, var(--vien)) 65%,
-    color-mix(in srgb, var(--chinh) 15%, transparent) 100%
-  );
-  border-radius: 99px;
-  z-index: 1;
+  display: none;
 }
 
 /* Tiêu đề / Huy hiệu các kỳ con */
@@ -715,47 +701,25 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   padding: 3px 12px;
 }
 
-/* Thẻ con từng tuần trong nhóm — có nhánh ngang nối từ trục dọc và điểm nút phát sáng */
+/* Thẻ con từng tuần trong nhóm */
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom {
-  position: relative;
   background: var(--nen-noi);
   border: 1px solid color-mix(in srgb, var(--vien) 80%, var(--chinh) 20%);
-  border-left: 3.5px solid color-mix(in srgb, var(--chinh) 75%, var(--vien));
+  border-left: 3px solid color-mix(in srgb, var(--chinh) 75%, var(--vien));
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-  /* Chỉ animate các prop cụ thể — "all" gây layout/paint liên tục, rất nặng trên mobile */
-  transition: border-color .2s ease, border-left-color .2s ease, box-shadow .2s ease, transform .2s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: visible;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+  transition: border-color .2s ease, box-shadow .2s ease;
+  overflow: hidden;
 }
 
-/* Nhánh kẻ ngang nối từ trục dọc vào thẻ con */
+/* Nhánh ngang đã ẩn — giảm tải thị giác trên mobile */
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::before {
-  content: '';
-  position: absolute;
-  left: -24px;
-  top: 24px;
-  width: 24px;
-  height: 2px;
-  background: color-mix(in srgb, var(--chinh) 55%, var(--vien));
-  border-radius: 2px;
-  z-index: 1;
-  transition: background .2s ease;
+  display: none;
 }
 
-/* Nút tròn điểm kết nối trên trục dọc */
+/* Điểm kết nối đã ẩn — giảm tải thị giác trên mobile */
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::after {
-  content: '';
-  position: absolute;
-  left: -28px;
-  top: 21px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--chinh);
-  border: 2px solid var(--nen-noi);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--chinh) 80%, transparent);
-  z-index: 2;
-  transition: transform .2s ease, background-color .2s ease, box-shadow .2s ease;
+  display: none;
 }
 
 /* Hover effect chỉ trên thiết bị có chuột thật — touch device không trigger hover đúng nghĩa
@@ -764,16 +728,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover {
     border-color: var(--chinh);
     border-left-color: var(--chinh);
-    transform: translateX(4px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-  }
-  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::before {
-    background: var(--chinh);
-  }
-  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::after {
-    transform: scale(1.3);
-    background: #38bdf8;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   }
 }
 
@@ -784,14 +739,8 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 
 @media (max-width: 600px) {
   .nhom-dinh-ky-chi-tiet {
-    padding: 12px 10px 14px 34px;
+    padding: 10px 8px 12px 8px;
     gap: 8px;
-  }
-  .nhom-dinh-ky-chi-tiet::before {
-    left: 17px;
-    top: 36px;
-    bottom: 22px;
-    width: 1.5px;
   }
   .nhom-dinh-ky-badge-con {
     font-size: 10.5px;
@@ -800,19 +749,6 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom {
     border-radius: 10px;
     border-left-width: 3px;
-  }
-  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::before {
-    left: -17px;
-    top: 20px;
-    width: 17px;
-    height: 1.5px;
-  }
-  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom::after {
-    left: -20px;
-    top: 17px;
-    width: 6px;
-    height: 6px;
-    border-width: 1.5px;
   }
   .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
     padding: 10px 12px;
@@ -1131,15 +1067,18 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .the-lan-dong {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--nen-chim);
   border: 1px solid var(--vien);
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 5px 9px;
+  font-size: 12.5px;
   box-shadow: var(--bong-1);
   transition: border-color .15s;
   white-space: nowrap;
+  max-width: calc(100% - 72px);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .the-lan-dong:hover {
   border-color: var(--chinh);
