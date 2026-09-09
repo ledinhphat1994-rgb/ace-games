@@ -52,14 +52,16 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const cacBuoiNgay = await db.prepare(cauLenhCacBuoi).bind(ngay, lopId).all();
   const dsBuoiTrongNgay = cacBuoiNgay.results.map((r) => r.buoi.replace(/_phu$/, ''));
 
+  // "so_thu_tu" là số thứ tự thật trong sổ lớp — "id" chỉ là khoá kỹ thuật, không phản ánh vị
+  // trí của em trong sổ (xem giải thích đầy đủ ở functions/api/gv/diem-danh.js, cùng lỗi).
   const { results: danhSach } = await db.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.lop_nghe AS lopNghe,
+    `SELECT h.id, h.so_thu_tu AS soThuTu, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.lop_nghe AS lopNghe,
             d.trang_thai AS trangThai, d.ly_do AS lyDo
        FROM hoc_sinh h
        LEFT JOIN diem_danh d
          ON d.hoc_sinh_id = h.id AND d.ngay = ?1 AND d.buoi = ?2 AND d.lop_id = ?3
       WHERE h.dang_hoc = 1 AND h.lop_id = ?3
-      ORDER BY h.id`
+      ORDER BY h.so_thu_tu, h.id`
   ).bind(ngay, buoi, lopId).all();
 
   // Cột nào đang bị ẩn khỏi "Danh sách lớp" công khai (Học sinh > Tuỳ chỉnh hiển thị) thì bảng

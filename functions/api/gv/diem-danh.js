@@ -53,14 +53,20 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!buoi) return loi('Buổi không hợp lệ.');
 
 
+  // "so_thu_tu" mới là số thứ tự thật trong sổ lớp — "id" chỉ là khoá kỹ thuật tăng dần theo
+  // thứ tự TẠO record (học sinh thêm sau/chuyển vào sau có id lớn hơn hẳn, không liên quan gì
+  // tới vị trí của em trong sổ lớp). Trước đây thiếu "so_thu_tu" ở đây nên giao diện phải tạm
+  // lấy "id" làm STT hiển thị VÀ sắp xếp luôn theo "id" — học sinh thêm sau (id lớn, vd 68, 69)
+  // bị hiện STT sai VÀ trôi lạc xuống cuối danh sách, dù trang "Học sinh" (đã dùng đúng
+  // so_thu_tu) hiện đúng. Khớp đúng quy ước đã dùng ở /api/gv/rieng/hoc-sinh.js.
   const { results } = await env.DB.prepare(
-    `SELECT h.id, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.lop_nghe AS lopNghe,
+    `SELECT h.id, h.so_thu_tu AS soThuTu, h.ho_ten AS hoTen, h.gioi_tinh AS gioiTinh, h.lop_nghe AS lopNghe,
             d.trang_thai AS trangThai, d.ly_do AS lyDo
        FROM hoc_sinh h
        LEFT JOIN diem_danh d
          ON d.hoc_sinh_id = h.id AND d.ngay = ?1 AND d.buoi = ?2 AND d.lop_id = ?3
       WHERE h.dang_hoc = 1 AND h.lop_id = ?3
-      ORDER BY h.id`
+      ORDER BY h.so_thu_tu, h.id`
   ).bind(ngay, buoi, phien.lopId).all();
 
   const daGhi = results.filter((r) => r.trangThai).length;

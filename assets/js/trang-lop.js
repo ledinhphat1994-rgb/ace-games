@@ -2422,7 +2422,7 @@ async function taiVaVeDiemDanh(ngay = '', buoi = '', loai = '') {
         const laChinhMinh = Boolean(hocSinhHienTaiId && hocSinhHienTaiId === h.id);
         const tr = e('tr', laChinhMinh ? 'dong-ban-than' : '');
 
-        const tdStt = e('td', null, String(h.id));
+        const tdStt = e('td', null, String(h.soThuTu ?? h.id));
         const tdTen = e('td');
         tdTen.append(e('b', null, h.hoTen));
         if (laChinhMinh) tdTen.append(e('span', 'tag-ban', 'Bạn'));

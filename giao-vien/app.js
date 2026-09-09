@@ -534,7 +534,7 @@ function veTabDiemDanhNhanh(danhSach, thayDoi, lyDoMoi, veLai, luuDiemDanh, tran
         ten.append(dongLd);
       }
 
-      hang.append(e('div', 'stt', h.id), ten);
+      hang.append(e('div', 'stt', h.soThuTu ?? h.id), ten);
 
       const nhom = e('div', 'nhom-chon');
       Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
@@ -1009,7 +1009,7 @@ async function trangDiemDanh() {
             ten.append(dongLd);
           }
 
-          hang.append(e('div', 'stt', h.id), ten);
+          hang.append(e('div', 'stt', h.soThuTu ?? h.id), ten);
 
           const nhom = e('div', 'nhom-chon');
           Object.entries(DIEM_DANH).forEach(([ma, tt2]) => {
