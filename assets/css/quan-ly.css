@@ -628,15 +628,12 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 /* Phân biệt rõ hàng học sinh theo màu sắc trạng thái thu quỹ */
 .hang-hs.quy-da-du {
   border-left: 4px solid #10b981;
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, var(--nen-noi) 35%);
 }
 .hang-hs.quy-con-thieu {
   border-left: 4px solid #f59e0b;
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.06) 0%, var(--nen-noi) 35%);
 }
 .hang-hs.quy-chua-dong {
   border-left: 4px solid #ef4444;
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, var(--nen-noi) 35%);
 }
 
 .ds-khoan { display: flex; flex-direction: column; gap: 10px; }
@@ -646,7 +643,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 }
 .muc-khoan .hang-hs { border: 0; border-radius: 0; padding: 14px 16px; box-shadow: none; }
 .muc-khoan-chi-tiet {
-  padding: 16px; border-top: 1px solid var(--vien); background: var(--nen-chim);
+  padding: 10px 12px; border-top: 1px solid var(--vien); background: var(--nen-chim);
 }
 
 /* Nhóm "Thu cố định" — gộp nhiều kỳ giống nhau thành một thẻ tóm tắt, mở rộng ra mới thấy
@@ -990,7 +987,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   .hs-khoi-phai {
     width: 100%;
     margin-left: 0;
-    padding-left: 40px;
+    padding-left: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1005,7 +1002,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
     white-space: nowrap;
   }
   .khung-lan-dong {
-    padding-left: 40px;
+    padding-left: 0;
   }
   /* Khoản thu: trên mobile, hàng tiêu đề vẫn giữ flex-row (badge song song với tên) *
      chỉ cần thu nhỏ padding nội dung lại cho vừa màn hình. */
@@ -1427,9 +1424,9 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
   margin-bottom: 10px;
   border-radius: 14px !important;
   border: 1.5px solid var(--vien) !important;
-  padding: 13px 16px !important;
+  padding: 10px 12px !important;
   background: var(--nen-noi);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   transition: transform 0.12s, border-color 0.12s;
 }
 .the-hs-quy:hover {
