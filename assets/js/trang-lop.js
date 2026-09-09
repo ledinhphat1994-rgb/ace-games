@@ -88,7 +88,12 @@ function ganTheoDoiMuc() {
 
   function capNhat() {
     dangCho = false;
-    const nguong = (thanh ? thanh.getBoundingClientRect().bottom : 0) + 4;
+    // Ngưỡng nằm sát ngay mép thanh menu (chỉ +4px) khiến mục chỉ được tính "đang xem" khi đã
+    // cuộn gần hết cả mục đó lên khỏi màn hình — trong khi mắt người đọc đã thấy rõ tiêu đề/nội
+    // dung mục MỚI chiếm phần lớn màn hình từ lâu rồi, tạo cảm giác "đứng yên không nhảy màu".
+    // Đẩy ngưỡng xuống khoảng 1/3 chiều cao màn hình để mục sáng lên đúng lúc mắt người dùng
+    // thật sự đang nhìn vào nó, không phải đợi tới khi nó gần cuộn hết ra khỏi màn hình.
+    const nguong = (thanh ? thanh.getBoundingClientRect().bottom : 0) + Math.max(80, window.innerHeight * 0.3);
     const cuoiTrang = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 2;
 
     let hienTai = muc[0];
