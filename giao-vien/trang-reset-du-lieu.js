@@ -1,7 +1,10 @@
 /* Reset dữ liệu lớp theo từng mục — CHỈ giáo viên chủ nhiệm (xem functions/api/gv/rieng/
-   reset-du-lieu.js). Mỗi mục được CHỤP LẠI trước khi xoá sạch nên luôn khôi phục lại được —
+   reset-du-lieu.js). HẦU HẾT các mục được CHỤP LẠI trước khi xoá sạch nên khôi phục lại được —
    khác hẳn "Học sinh/Mã cá nhân/Tài khoản phụ" cố tình KHÔNG đưa vào đây vì xoá xong không cứu
    được (xoá học sinh còn kéo theo mất điểm danh/liên hệ phụ huynh/khoản đóng quỹ của em đó).
+   RIÊNG "Tương tác"/"Lịch sử đăng nhập" (xem MUC_KHONG_KHOI_PHUC) là dạng nhật ký, xoá xong cũng
+   KHÔNG khôi phục lại được như 2 mục trên — nhưng vẫn cho chọn chung vì không kéo theo hậu quả gì
+   khác ngoài mất đúng số liệu đó (không như xoá học sinh).
 
    Nút "↩ Hoàn tác" chỉ giữ trong bộ nhớ của trang này (không lưu localStorage) — CỐ Ý, vì
    localStorage dùng chung nếu sau này đăng nhập sang lớp khác trên CÙNG trình duyệt sẽ lẫn dữ
@@ -19,7 +22,14 @@ const CAC_MUC = [
   ['hinh-anh', '🖼', 'Thư viện Ảnh', 'Chuyển toàn bộ ảnh (chưa ở thùng rác) vào thùng rác.'],
   ['am-thanh', '♪', 'Thư viện Âm thanh', 'Chuyển toàn bộ bài hát (chưa ở thùng rác) vào thùng rác.'],
   ['video', '🎬', 'Thư viện Video', 'Chuyển toàn bộ video (chưa ở thùng rác) vào thùng rác.'],
+  ['theo-doi', '🎒', 'Theo dõi đầu năm', 'Trạng thái sách giáo khoa/đồng phục của mọi học sinh, về lại trạng thái trống.'],
+  ['tuong-tac', '📈', 'Tương tác (lượt truy cập)', 'Toàn bộ số liệu lượt truy cập trang lớp. XOÁ VĨNH VIỄN — không khôi phục được.'],
+  ['lich-su-dang-nhap', '🔑', 'Lịch sử đăng nhập', 'Toàn bộ nhật ký ai đăng nhập, IP, cảnh báo IP lạ. XOÁ VĨNH VIỄN — không khôi phục được.'],
 ];
+
+// 2 mục dạng nhật ký — xoá xong KHÔNG khôi phục lại được, khớp đúng MUC_KHONG_KHOI_PHUC ở
+// functions/api/gv/rieng/reset-du-lieu.js (giữ 2 nơi đồng bộ nếu sau này thêm/bớt).
+const MUC_KHONG_KHOI_PHUC = new Set(['tuong-tac', 'lich-su-dang-nhap']);
 
 function tenMuc(ma) {
   const timThay = CAC_MUC.find((m) => m[0] === ma);
@@ -29,13 +39,13 @@ function tenMuc(ma) {
 export async function trangResetDuLieu(KHUNG) {
   const khung = e('div');
   khung.append(tieuDeTrang('Reset dữ liệu lớp',
-    'Xoá sạch từng mục theo lựa chọn — mỗi mục được CHỤP LẠI trước khi xoá nên luôn khôi phục lại được. Không bao gồm Học sinh/Mã cá nhân/Tài khoản phụ (xoá xong không cứu được).'));
+    'Xoá sạch từng mục theo lựa chọn — hầu hết các mục được CHỤP LẠI trước khi xoá nên khôi phục lại được (riêng Tương tác/Lịch sử đăng nhập thì không). Không bao gồm Học sinh/Mã cá nhân/Tài khoản phụ (xoá xong không cứu được).'));
 
   const canhBao = e('div', 'the');
   canhBao.style.borderColor = 'var(--xau)';
   canhBao.append(
     e('h3', null, '⚠ Đọc kỹ trước khi dùng'),
-    e('p', null, 'Đây là thao tác XOÁ HÀNG LOẠT — chỉ dùng khi thật sự muốn dọn sạch để bắt đầu lại (vd sang học kỳ/năm học mới). Mỗi mục xoá xong đều khôi phục lại được qua đúng trang "Lịch sử & khôi phục" của mục đó, nhưng vẫn nên chắc chắn trước khi bấm.'),
+    e('p', null, 'Đây là thao tác XOÁ HÀNG LOẠT — chỉ dùng khi thật sự muốn dọn sạch để bắt đầu lại (vd sang học kỳ/năm học mới). Hầu hết các mục xoá xong đều khôi phục lại được qua đúng trang "Lịch sử & khôi phục" của mục đó — riêng "Tương tác" và "Lịch sử đăng nhập" là dạng nhật ký, xoá xong không cứu lại được. Vẫn nên chắc chắn trước khi bấm.'),
   );
   khung.append(canhBao);
 
@@ -93,10 +103,18 @@ export async function trangResetDuLieu(KHUNG) {
 }
 
 function xacNhanReset(dsMuc, oKetQua) {
-  moHopThoai('Xác nhận reset dữ liệu?', [
+  const mucKhongKhoiPhuc = dsMuc.filter((m) => MUC_KHONG_KHOI_PHUC.has(m));
+  const noiDung = [
     e('p', null, `Sẽ xoá sạch: ${dsMuc.map(tenMuc).join(', ')}.`),
-    e('p', 'trong', 'Có thể khôi phục lại ngay sau khi xoá, hoặc khôi phục lại sau qua trang "Lịch sử & khôi phục" của từng mục.'),
-  ], [
+    e('p', 'trong', 'Các mục còn lại có thể khôi phục lại ngay sau khi xoá, hoặc khôi phục lại sau qua trang "Lịch sử & khôi phục" của từng mục.'),
+  ];
+  if (mucKhongKhoiPhuc.length) {
+    const canhBao = e('p', null, `⚠ Riêng ${mucKhongKhoiPhuc.map(tenMuc).join(', ')}: xoá xong KHÔNG khôi phục lại được (dạng nhật ký).`);
+    canhBao.style.color = 'var(--xau)';
+    canhBao.style.fontWeight = '700';
+    noiDung.push(canhBao);
+  }
+  moHopThoai('Xác nhận reset dữ liệu?', noiDung, [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
     nut('Reset ngay', 'nut-xau', async (ev) => {
       const nutBam = ev.currentTarget;
@@ -115,27 +133,36 @@ function xacNhanReset(dsMuc, oKetQua) {
 }
 
 function veKetQua(ketQua, oKetQua) {
+  const coKhoiPhuc = ketQua.filter((k) => k.loaiKhoiPhuc !== 'khong-khoi-phuc');
+  const khongKhoiPhuc = ketQua.filter((k) => k.loaiKhoiPhuc === 'khong-khoi-phuc');
+
   const the = e('div', 'the');
   the.style.cssText = 'margin-top:14px;border-color:var(--tot)';
   the.append(
     e('h3', null, '✓ Đã reset xong'),
     e('p', null, `Đã xoá: ${ketQua.map((k) => tenMuc(k.muc)).join(', ')}.`),
-    e('p', 'trong', 'Nút "Hoàn tác" dưới đây chỉ dùng được khi còn đứng ở trang này (rời trang là mất) — sau đó vẫn khôi phục lại được bình thường qua trang "Lịch sử & khôi phục" riêng của từng mục.'),
   );
-  const nutHoanTac = nut('↩ Hoàn tác toàn bộ vừa reset', 'nut-vien', async (ev) => {
-    const nutBam = ev.currentTarget;
-    nutBam.disabled = true;
-    nutBam.textContent = 'Đang hoàn tác…';
-    try {
-      await api('/api/gv/rieng/reset-du-lieu', { method: 'POST', than: { hanhDong: 'hoanTac', ketQua } });
-      datNoiDung(the, e('h3', null, '✓ Đã hoàn tác — dữ liệu trở lại như trước khi reset.'));
-      nhac('Đã hoàn tác.', 'tot');
-    } catch (err) {
-      nhac(err.message, 'xau');
-      nutBam.disabled = false;
-      nutBam.textContent = '↩ Hoàn tác toàn bộ vừa reset';
-    }
-  });
-  the.append(nutHoanTac);
+  if (khongKhoiPhuc.length) {
+    the.append(e('p', 'trong', `⚠ ${khongKhoiPhuc.map((k) => tenMuc(k.muc)).join(', ')} đã xoá vĩnh viễn, không có gì để hoàn tác.`));
+  }
+  if (coKhoiPhuc.length) {
+    the.append(e('p', 'trong', 'Nút "Hoàn tác" dưới đây chỉ dùng được khi còn đứng ở trang này (rời trang là mất) — sau đó vẫn khôi phục lại được bình thường qua trang "Lịch sử & khôi phục" riêng của từng mục.'));
+    const nutHoanTac = nut(`↩ Hoàn tác ${coKhoiPhuc.map((k) => tenMuc(k.muc)).join(', ')}`, 'nut-vien', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      const nhanGoc = nutBam.textContent;
+      nutBam.textContent = 'Đang hoàn tác…';
+      try {
+        await api('/api/gv/rieng/reset-du-lieu', { method: 'POST', than: { hanhDong: 'hoanTac', ketQua: coKhoiPhuc } });
+        datNoiDung(the, e('h3', null, '✓ Đã hoàn tác — dữ liệu trở lại như trước khi reset.'));
+        nhac('Đã hoàn tác.', 'tot');
+      } catch (err) {
+        nhac(err.message, 'xau');
+        nutBam.disabled = false;
+        nutBam.textContent = nhanGoc;
+      }
+    });
+    the.append(nutHoanTac);
+  }
   datNoiDung(oKetQua, the);
 }

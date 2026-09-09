@@ -15,6 +15,7 @@ const CAC_TINH_NANG = {
   'thong-bao': ['thong_bao'],
   'hoat-dong-lop': ['hoat_dong_lop'],
   'thoi-khoa-bieu': ['tkb_phien_ban', 'tkb_o'],
+  'theo-doi': ['theo_doi'],
 };
 
 export function tinhNangHopLe(tinhNang) {

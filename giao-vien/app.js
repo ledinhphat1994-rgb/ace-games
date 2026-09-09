@@ -1693,7 +1693,7 @@ const MUC_THEM = [
   ['#/thu-vien-am-thanh', '♪', 'Thư viện Âm thanh', 'Tải bài hát, đặt bài nào phát làm nhạc nền trang chủ.'],
   ['#/thu-vien-video', '🎬', 'Thư viện Video', 'Tải video từ máy/điện thoại lên, dùng lại khi soạn thông báo.'],
   ['#/ma-ca-nhan', '🔑', 'Mã cá nhân & phân quyền', 'Cấp mã, cấp quyền quản lý cho lớp trưởng, thủ quỹ...'],
-  ['#/reset-du-lieu', '↻', 'Reset dữ liệu lớp', 'Xoá sạch từng mục theo lựa chọn, khôi phục lại được ngay.'],
+  ['#/reset-du-lieu', '↻', 'Reset dữ liệu lớp', 'Xoá sạch từng mục theo lựa chọn, hầu hết khôi phục lại được ngay.'],
   ['/', '🏠', 'Trang chủ', 'Xem trang mà học sinh nhìn thấy.'],
   ['/api/logout', '⏻', 'Đăng xuất', 'Thoát khỏi khu quản lý trên thiết bị này.'],
 ];

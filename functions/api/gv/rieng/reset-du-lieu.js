@@ -1,8 +1,11 @@
-// Reset dữ liệu lớp theo từng mục — CHỈ giáo viên chủ nhiệm. Mỗi mục được CHỤP LẠI (checkpoint/
-// thùng rác) NGAY TRƯỚC khi xoá sạch, nên luôn khôi phục lại được — không phải xoá thẳng mất
-// dấu vết. "ketQua" trả về sau khi reset dùng lại được ngay cho hành động "hoanTac" (nút "↩ Hoàn
-// tác" hiện ngay trên giao diện sau khi reset) — vẫn khôi phục được về sau qua đúng trang "Lịch
-// sử & khôi phục" của từng mục như bình thường, "hoanTac" chỉ là đường tắt gộp nhiều mục 1 lần.
+// Reset dữ liệu lớp theo từng mục — CHỈ giáo viên chủ nhiệm. HẦU HẾT các mục được CHỤP LẠI
+// (checkpoint/thùng rác) NGAY TRƯỚC khi xoá sạch nên khôi phục lại được — RIÊNG "Tương tác" và
+// "Lịch sử đăng nhập" là dạng NHẬT KÝ (xem MUC_KHONG_KHOI_PHUC bên dưới), xoá xong KHÔNG cứu lại
+// được, đã cảnh báo rõ ở giao diện trước khi bấm. "ketQua" trả về sau khi reset dùng lại được
+// ngay cho hành động "hoanTac" (nút "↩ Hoàn tác" hiện ngay trên giao diện sau khi reset, chỉ áp
+// dụng cho các mục khôi phục được trong lần reset đó) — các mục khôi phục được vẫn khôi phục lại
+// về sau qua đúng trang "Lịch sử & khôi phục" của từng mục như bình thường, "hoanTac" chỉ là
+// đường tắt gộp nhiều mục 1 lần.
 //   POST /api/gv/rieng/reset-du-lieu { hanhDong: 'reset', mucs: ['diem-danh','quy',...] }
 //        -> xoá sạch các mục đã chọn, trả { ketQua: [...] }.
 //   POST /api/gv/rieng/reset-du-lieu { hanhDong: 'hoanTac', ketQua: [...] }
@@ -25,8 +28,14 @@ const TEN_MUC = {
   'hinh-anh': 'Thư viện Ảnh',
   'am-thanh': 'Thư viện Âm thanh',
   video: 'Thư viện Video',
+  'theo-doi': 'Theo dõi đầu năm',
+  'tuong-tac': 'Tương tác (lượt truy cập)',
+  'lich-su-dang-nhap': 'Lịch sử đăng nhập',
 };
-const BANG_CHECKPOINT_CHUNG = { 'thong-bao': 'thong_bao', 'hoat-dong-lop': 'hoat_dong_lop' };
+const BANG_CHECKPOINT_CHUNG = { 'thong-bao': 'thong_bao', 'hoat-dong-lop': 'hoat_dong_lop', 'theo-doi': 'theo_doi' };
+// 2 mục dạng NHẬT KÝ (ghi lại việc đã xảy ra, không phải "nội dung lớp") — xoá xong KHÔNG khôi
+// phục lại được, khác hẳn các mục còn lại. Không có bảng checkpoint riêng cho 2 mục này.
+const MUC_KHONG_KHOI_PHUC = new Set(['tuong-tac', 'lich-su-dang-nhap']);
 const LOAI_THU_VIEN = { 'hinh-anh': 'anh', 'am-thanh': 'am-thanh', video: 'video' };
 const BANG_THU_VIEN = { anh: 'hinh_anh', 'am-thanh': 'am_thanh', video: 'video' };
 const CAC_MUC_HOP_LE = new Set(Object.keys(TEN_MUC));
@@ -73,6 +82,21 @@ async function resetMotMuc(env, phien, muc) {
     return { muc, loaiKhoiPhuc: 'checkpoint-chung', tinhNang: 'thoi-khoa-bieu', checkpointId };
   }
 
+  if (muc === 'tuong-tac') {
+    // Dạng nhật ký — không chụp checkpoint, xoá xong không cứu lại được (đã cảnh báo rõ ở giao
+    // diện trước khi giáo viên bấm reset).
+    await db.batch([
+      db.prepare('DELETE FROM luot_truy_cap WHERE lop_id = ?1').bind(lopId),
+      db.prepare('DELETE FROM nhat_ky_truy_cap WHERE lop_id = ?1').bind(lopId),
+    ]);
+    return { muc, loaiKhoiPhuc: 'khong-khoi-phuc' };
+  }
+
+  if (muc === 'lich-su-dang-nhap') {
+    await db.prepare('DELETE FROM nhat_ky_dang_nhap WHERE lop_id = ?1').bind(lopId).run();
+    return { muc, loaiKhoiPhuc: 'khong-khoi-phuc' };
+  }
+
   if (LOAI_THU_VIEN[muc]) {
     const loaiThuVien = LOAI_THU_VIEN[muc];
     const bang = BANG_THU_VIEN[loaiThuVien];
@@ -88,6 +112,8 @@ async function resetMotMuc(env, phien, muc) {
 async function hoanTacMotMuc(env, phien, kq) {
   const db = env.DB;
   const lopId = phien.lopId;
+  // 'khong-khoi-phuc' (Tương tác/Lịch sử đăng nhập) không khớp nhánh nào bên dưới — cố ý không
+  // làm gì, giao diện đã không gửi các mục này lên đây (xem trang-reset-du-lieu.js).
   if (kq.loaiKhoiPhuc === 'diem-danh') {
     await khoiPhucCheckpointDiemDanh(db, kq.checkpointId, lopId);
   } else if (kq.loaiKhoiPhuc === 'quy') {
