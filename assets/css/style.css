@@ -1210,7 +1210,7 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .thu-vien figcaption {
   padding: 9px 11px; font-size: 12.5px; color: var(--chu-nhat);
   /* Chú thích dài không được đẩy các ô ảnh cao lệch nhau */
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
 /* Thẻ video/âm thanh trong "Hoạt động lớp" — cùng lưới với thẻ ảnh (.thu-vien figure) nhưng
@@ -1328,7 +1328,7 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 .the-anh-chu-thich {
   font-size: 13.5px; font-weight: 600; color: var(--chu);
   line-height: 1.4; word-break: break-word;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* ".day-loc-deu-co-gian" (thêm ở JS) lo phần chia đều/xuống dòng — ở đây chỉ còn khoảng cách
    với phần nội dung phía trên. */
