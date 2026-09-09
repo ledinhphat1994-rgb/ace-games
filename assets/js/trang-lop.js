@@ -709,7 +709,17 @@ function veThuQuy(tq, dsHocSinh = [], phien = null, hocSinhAnMuc = []) {
   );
 
   const hop = $('#tqKhoan');
-  const dsKhoanGoc = tq.khoan || [];
+  const soThuTuTuKhoan = (k) => {
+    if (Number.isFinite(k.kySo) && k.kySo > 0) return k.kySo;
+    const m = /(?:tuần|tháng|kỳ|ky)\s*(\d+)/i.exec(k.ten || '');
+    return m ? Number(m[1]) : Infinity;
+  };
+  const dsKhoanGoc = (tq.khoan || []).slice().sort((a, b) => {
+    const soA = soThuTuTuKhoan(a);
+    const soB = soThuTuTuKhoan(b);
+    if (soA !== soB) return soA - soB;
+    return (a.id || 0) - (b.id || 0);
+  });
   const dsChiGoc = tq.chi || [];
 
   if (!dsKhoanGoc.length && !dsChiGoc.length) {

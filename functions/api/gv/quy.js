@@ -126,15 +126,28 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   return json({
     ok: true,
-    khoan: khoan.map((k) => {
-      const soEmDaDu = (emDuTheoKhoan[k.id] || []).filter((r) => r.tong >= k.soTienMoiEm).length;
-      return {
-        ...k,
-        tongCanThu: k.soTienMoiEm * (siSo?.n || 0),
-        soEmDaDu,
-        soEmChuaDu: (siSo?.n || 0) - soEmDaDu,
-      };
-    }),
+    khoan: khoan
+      .slice()
+      .sort((a, b) => {
+        const soThuTu = (k) => {
+          if (Number.isFinite(k.kySo) && k.kySo > 0) return k.kySo;
+          const m = /(?:tuần|tháng|kỳ|ky)\s*(\d+)/i.exec(k.ten || '');
+          return m ? Number(m[1]) : Infinity;
+        };
+        const soA = soThuTu(a);
+        const soB = soThuTu(b);
+        if (soA !== soB) return soA - soB;
+        return (a.id || 0) - (b.id || 0);
+      })
+      .map((k) => {
+        const soEmDaDu = (emDuTheoKhoan[k.id] || []).filter((r) => r.tong >= k.soTienMoiEm).length;
+        return {
+          ...k,
+          tongCanThu: k.soTienMoiEm * (siSo?.n || 0),
+          soEmDaDu,
+          soEmChuaDu: (siSo?.n || 0) - soEmDaDu,
+        };
+      }),
     chi, tongThu, tongChi,
     chiTheoLoai: LOAI_CHI.map(([ma, ten]) => ({ ma, ten, soTien: chiTheoLoai[ma] || 0 })).filter((x) => x.soTien > 0),
     tonQuy: tongThu - tongChi,

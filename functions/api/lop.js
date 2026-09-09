@@ -184,12 +184,25 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
       tonQuy: tongThuQuy - tongChiQuy,
       tongThu: tongThuQuy,
       tongChi: tongChiQuy,
-      khoan: quyKhoan.results.map((k) => ({
-        id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
-        dinhKyId: k.dinhKyId, kySo: k.kySo, ngayBatDau: k.ngayBatDau, ngayKetThuc: k.ngayKetThuc,
-        tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
-        dongChiTiet: dongTheoKhoan[k.id] || {},
-      })),
+      khoan: quyKhoan.results
+        .slice()
+        .sort((a, b) => {
+          const soThuTu = (k) => {
+            if (Number.isFinite(k.kySo) && k.kySo > 0) return k.kySo;
+            const m = /(?:tuần|tháng|kỳ|ky)\s*(\d+)/i.exec(k.ten || '');
+            return m ? Number(m[1]) : Infinity;
+          };
+          const soA = soThuTu(a);
+          const soB = soThuTu(b);
+          if (soA !== soB) return soA - soB;
+          return (a.id || 0) - (b.id || 0);
+        })
+        .map((k) => ({
+          id: k.id, ten: k.ten, soTienMoiEm: k.soTienMoiEm, dangMo: Boolean(k.dangMo),
+          dinhKyId: k.dinhKyId, kySo: k.kySo, ngayBatDau: k.ngayBatDau, ngayKetThuc: k.ngayKetThuc,
+          tongDaThu: k.tongDaThu, tongCanThu: k.soTienMoiEm * sl,
+          dongChiTiet: dongTheoKhoan[k.id] || {},
+        })),
       chi: quyChi.results.map((c) => ({
         id: c.id, ngay: c.ngay, noiDung: c.noiDung, soTien: c.soTien,
         loai: c.loai || 'khac', ghiChu: c.ghiChu || '',

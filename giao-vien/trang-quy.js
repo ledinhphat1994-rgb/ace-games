@@ -57,6 +57,7 @@ export async function trangQuy(KHUNG) {
   let moRong = null;            // id khoản đang mở rộng (accordion) — chỉ 1 khoản mở cùng lúc
   const chiTiet = {};           // cache: { [khoanId]: dữ liệu chi tiết }
   const locToTheoKhoan = {};    // { [khoanId]: '' | soTo } — lọc tổ đang chọn trong từng khoản
+  const timTheoKhoan = {};      // { [khoanId]: chuỗi đang tìm } — ô tìm học sinh trong từng khoản
   const khoanDaChon = new Set();   // id các khoản thu đang tích để xoá hàng loạt
   const chiDaChon = new Set();     // id các khoản chi đang tích để xoá hàng loạt
   const nhomMoRong = new Set();    // id các mẫu "Thu cố định" đang mở rộng (xem từng kỳ bên trong)
@@ -71,7 +72,9 @@ export async function trangQuy(KHUNG) {
       if (!k.dinhKyId) { ketQua.push({ loai: 'don', khoan: k }); return; }
       if (daGom.has(k.dinhKyId)) return;
       daGom.add(k.dinhKyId);
-      const thanhVien = danhSachKhoan.filter((x) => x.dinhKyId === k.dinhKyId);
+      const thanhVien = danhSachKhoan
+        .filter((x) => x.dinhKyId === k.dinhKyId)
+        .sort((a, b) => (a.kySo || 0) - (b.kySo || 0) || (a.id || 0) - (b.id || 0));
       ketQua.push({ loai: 'nhom', dinhKyId: k.dinhKyId, thanhVien });
     });
     return ketQua;
@@ -415,6 +418,12 @@ export async function trangQuy(KHUNG) {
 
     let boLocTrangThai = ''; // '' | 'chua_dong' | 'con_thieu' | 'da_du'
 
+    // Ô tìm học sinh — cùng cơ chế với Điểm danh (lọc trực tiếp danh sách bên dưới khi gõ),
+    // hữu ích khi lớp đông (39 em) và cần tìm nhanh một em để thu tiền thay vì cuộn cả danh sách.
+    const oTim = oNhap('quyTim' + khoanId, 'search', timTheoKhoan[khoanId] || '', 'Tìm theo tên, tổ, hoặc STT…');
+    oTim.addEventListener('input', () => { timTheoKhoan[khoanId] = oTim.value; veDsEm(); });
+    box.append(truong('🔎 Tìm học sinh', oTim));
+
     // Bộ lọc theo tổ nếu có nhiều tổ
     if (dsTheoToUniq.length > 1) {
       const oLoc = oChon('locTo' + khoanId,
@@ -468,16 +477,25 @@ export async function trangQuy(KHUNG) {
 
     function veDsEm() {
       const locTo = locToTheoKhoan[khoanId] || '';
+      const q = (timTheoKhoan[khoanId] || '').trim().toLowerCase();
       const ds = dk.danhSach.filter((h) => {
         if (locTo && String(h.toSo) !== locTo) return false;
         if (boLocTrangThai === 'da_du') return h.daDuDinh;
         if (boLocTrangThai === 'con_thieu') return !h.daDuDinh && h.daDong > 0;
         if (boLocTrangThai === 'chua_dong') return !h.daDuDinh && (!h.daDong || h.daDong === 0);
         return true;
+      }).filter((h) => {
+        if (!q) return true;
+        const sttSo = h.soThuTu || h.hocSinhId;
+        return (h.hoTen || '').toLowerCase().includes(q)
+          || String(sttSo).includes(q)
+          || (h.toSo ? `tổ ${h.toSo}`.includes(q) || String(h.toSo).includes(q) : false);
       });
 
       if (!ds.length) {
-        datNoiDung(hopDs, e('p', 'trong', 'Không có học sinh nào phù hợp với bộ lọc.'));
+        datNoiDung(hopDs, e('p', 'trong', q
+          ? `Không tìm thấy học sinh nào khớp "${timTheoKhoan[khoanId].trim()}".`
+          : 'Không có học sinh nào phù hợp với bộ lọc.'));
         return;
       }
 
