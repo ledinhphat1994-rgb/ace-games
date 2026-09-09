@@ -130,7 +130,11 @@ function goi(duongDan, tuyChon) {
 
 async function docTraLoi(res, _duongDan) {
   if (res.status === 401) {
-    location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.hash);
+    // Cất "trang định vào" vào sessionStorage thay vì nhét vào URL (?next=%2Fgiao-vien%2F...) —
+    // đây là chi tiết kỹ thuật, không có ý nghĩa gì để lộ ra thanh địa chỉ, chỉ làm URL rối mắt.
+    // login.html đọc lại đúng giá trị này sau khi đăng nhập xong (xem donDepUrl() ở đó).
+    try { sessionStorage.setItem('dn-next', location.pathname + location.hash); } catch {}
+    location.href = '/login.html';
     throw new Error('Phiên đăng nhập đã hết hạn.');
   }
 

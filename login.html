@@ -72,6 +72,20 @@
   import { ganDoiGiaoDien } from '/assets/js/chung.js';
   ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
 
+  // Dọn URL cho gọn, chuyên nghiệp: "next" (trang định vào trước khi bị bắt đăng nhập lại) là
+  // chi tiết kỹ thuật, không có ý nghĩa gì để lộ trên thanh địa chỉ (vd
+  // "?next=%2Fgiao-vien%2F%23%2Fdiem-danh&lop=10a7" nhìn rất rối) — cất vào sessionStorage rồi
+  // xoá khỏi URL ngay, chỉ còn giữ lại "?lop=..." (có ý nghĩa thật, đáng để lộ vì là link chia sẻ
+  // được cho đúng lớp). Đọc lại đúng giá trị này ở bieuMau.addEventListener('submit', ...) bên dưới.
+  (function donDepUrl() {
+    const url = new URL(location.href);
+    const next = url.searchParams.get('next');
+    if (!next) return;
+    try { sessionStorage.setItem('dn-next', next); } catch {}
+    url.searchParams.delete('next');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  })();
+
   // Cloudflare Turnstile — xác minh "không phải robot" gần như vô hình, chặn script dò mã tự
   // động NGAY CẢ KHI nó đổi IP liên tục (né được giới hạn "8 lần sai/10 phút/IP" ở máy chủ).
   // TURNSTILE_SITE_KEY để RỖNG nghĩa là CHƯA cấu hình — ẩn hẳn ô này, đăng nhập vẫn hoạt động
@@ -243,7 +257,8 @@
           if (maNhap) localStorage.setItem('maCaNhan', maNhap);
         } catch { /* bỏ qua nếu bị chặn */ }
         hien('Xác thực thành công. Đang mở trang…', 'tot');
-        const tiep = new URLSearchParams(location.search).get('next');
+        let tiep = '';
+        try { tiep = sessionStorage.getItem('dn-next') || ''; sessionStorage.removeItem('dn-next'); } catch {}
         const laKhuGiaoVien = d.role === 'teacher' || d.role === 'phu';
         location.href = (tiep && tiep.startsWith('/')) ? tiep : (laKhuGiaoVien ? '/giao-vien/' : '/');
         return;
