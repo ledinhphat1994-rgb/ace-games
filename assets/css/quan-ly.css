@@ -658,7 +658,8 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   border-left: 3.5px solid color-mix(in srgb, var(--chinh) 75%, var(--vien));
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-  transition: all .2s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Chỉ animate các prop cụ thể — "all" gây layout/paint liên tục, rất nặng trên mobile */
+  transition: border-color .2s ease, border-left-color .2s ease, box-shadow .2s ease, transform .2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: visible;
 }
 
@@ -692,19 +693,23 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   transition: transform .2s ease, background-color .2s ease, box-shadow .2s ease;
 }
 
-.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover {
-  border-color: var(--chinh);
-  border-left-color: var(--chinh);
-  transform: translateX(4px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-}
-.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::before {
-  background: var(--chinh);
-}
-.nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::after {
-  transform: scale(1.3);
-  background: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+/* Hover effect chỉ trên thiết bị có chuột thật — touch device không trigger hover đúng nghĩa
+   nên bỏ transform/glow để tránh layout-jump và repaint tốn pin trên điện thoại */
+@media (hover: hover) {
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover {
+    border-color: var(--chinh);
+    border-left-color: var(--chinh);
+    transform: translateX(4px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::before {
+    background: var(--chinh);
+  }
+  .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom:hover::after {
+    transform: scale(1.3);
+    background: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  }
 }
 
 .nhom-dinh-ky-chi-tiet .muc-khoan.khoan-con-nhom .hang-hs {
@@ -950,6 +955,28 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
   }
   .khung-lan-dong {
     padding-left: 40px;
+  }
+  /* Khoản thu: giữ layout dọc căn phải ngay cả trên mobile — không để align-items:center
+     (từ rule generic .hs-khoi-phai ở trên) làm badge "Thu X%" bị kéo vào giữa khi
+     flex-direction vẫn là column */
+  .hang-khoan-thu .hs-khoi-phai {
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding-left: 0;
+    width: auto;
+    margin-left: auto;
+  }
+  .hang-khoan-thu .hs-khoi-phai .nhan-trang-thai-quy {
+    flex: none;
+    text-align: right;
+  }
+  /* Card con trong cây kết nối đã thụt vào rồi — xoá double-indent từ .hs-khoi-phai */
+  .nhom-dinh-ky-chi-tiet .hs-khoi-phai {
+    padding-left: 0;
+  }
+  .nhom-dinh-ky-chi-tiet .khung-lan-dong {
+    padding-left: 0;
   }
 }
 @media (max-width: 420px) {
