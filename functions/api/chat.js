@@ -8,6 +8,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const lopId = phien.lopId || 1;
   const laGiaoVien = phien.role === 'teacher';
 
+  // Lấy tên lớp để hiển thị rõ ràng trên tiêu đề phòng chat
+  const lopRow = await env.DB.prepare('SELECT ten FROM lop WHERE id = ?1').bind(lopId).first().catch(() => null);
+  const tenLop = lopRow ? lopRow.ten : `Lớp ${lopId}`;
+
   // 1. Đọc cài đặt phòng chat (mặc định: mở, 5 giây giãn cách)
   let caiDat = await env.DB.prepare(
     'SELECT dang_mo AS dangMo, gian_cach_giay AS gianCachGiay, thong_bao_ghim AS thongBaoGhim FROM chat_cai_dat WHERE lop_id = ?1'
@@ -67,12 +71,46 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   ).bind(lopId).all();
   const daXoaIds = (rsDaXoa.results || []).map((r) => r.id);
 
-  // Tin đã xoá sẽ hiển thị nội dung thông báo đã xoá
-  const danhSachTin = tinNhan.map((t) => {
-    if (t.daXoa) {
-      return { ...t, noiDung: '[Tin nhắn đã bị xoá]' };
+  // Xác định tên người dùng hiện tại
+  let tenNguoiDungHienTai = 'Học sinh';
+  if (laGiaoVien) {
+    tenNguoiDungHienTai = 'Giáo viên chủ nhiệm';
+  } else if (phien.hocSinhId) {
+    const hs = await env.DB.prepare(
+      'SELECT ho_ten AS hoTen, chuc_vu AS chucVu FROM hoc_sinh WHERE id = ?1'
+    ).bind(phien.hocSinhId).first().catch(() => null);
+    if (hs && hs.hoTen) {
+      tenNguoiDungHienTai = hs.hoTen;
+      if (hs.chucVu && hs.chucVu !== 'Học sinh') {
+        tenNguoiDungHienTai += ` (${hs.chucVu})`;
+      }
+    } else {
+      tenNguoiDungHienTai = phien.ten || phien.hoTen || 'Học sinh';
     }
-    return t;
+  } else if (phien.ten || phien.hoTen) {
+    tenNguoiDungHienTai = phien.ten || phien.hoTen;
+    const cv = phien.chucVu || phien.vaiTro;
+    if (cv && cv !== 'Học sinh' && cv !== 'student') {
+      tenNguoiDungHienTai += ` (${cv})`;
+    }
+  }
+
+  // Tin đã xoá sẽ hiển thị nội dung thông báo đã xoá, tính sẵn laTinCuaToi
+  const danhSachTin = tinNhan.map((t) => {
+    let laTinCuaToi = false;
+    if (laGiaoVien) {
+      laTinCuaToi = (t.vaiTro === 'giao_vien');
+    } else if (phien.hocSinhId) {
+      laTinCuaToi = (t.hocSinhId === phien.hocSinhId);
+    } else if (phien.phuId || phien.role === 'phu') {
+      laTinCuaToi = (t.vaiTro === 'phu' || t.tenNguoiGui === tenNguoiDungHienTai);
+    }
+
+    return {
+      ...t,
+      noiDung: t.daXoa ? '[Tin nhắn đã bị xoá]' : t.noiDung,
+      laTinCuaToi,
+    };
   });
 
   return json({
@@ -82,7 +120,11 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     lyDoCam,
     denLucCam,
     laGiaoVien,
+    tenLop,
+    lopId,
     hocSinhIdHienTai: phien.hocSinhId || null,
+    tenHienTai: tenNguoiDungHienTai,
+    vaiTroHienTai: phien.role || (laGiaoVien ? 'teacher' : 'student'),
     tinNhan: danhSachTin,
     daXoaIds,
   });
@@ -135,12 +177,15 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     ).bind(phien.hocSinhId, lopId).first();
 
     if (tinCuoi && tinCuoi.taoLuc) {
-      const thoiGianTinCuoi = new Date(tinCuoi.taoLuc + 'Z').getTime();
-      const hienTai = Date.now();
-      const giayTroiQua = (hienTai - thoiGianTinCuoi) / 1000;
-      if (giayTroiQua < gianCach) {
-        const conLai = Math.ceil(gianCach - giayTroiQua);
-        return loi(`Bạn đang gửi quá nhanh. Vui lòng chờ ${conLai} giây nữa.`, 429);
+      const isoStr = tinCuoi.taoLuc.replace(' ', 'T') + 'Z';
+      const thoiGianTinCuoi = new Date(isoStr).getTime();
+      if (!Number.isNaN(thoiGianTinCuoi)) {
+        const hienTai = Date.now();
+        const giayTroiQua = (hienTai - thoiGianTinCuoi) / 1000;
+        if (giayTroiQua < gianCach) {
+          const conLai = Math.ceil(gianCach - giayTroiQua);
+          return loi(`Bạn đang gửi quá nhanh. Vui lòng chờ ${conLai} giây nữa.`, 429);
+        }
       }
     }
   }
@@ -154,10 +199,35 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     tenNguoiGui = 'Giáo viên chủ nhiệm';
     vaiTro = 'giao_vien';
     hocSinhId = null;
-  } else if (phien.hoTen) {
-    tenNguoiGui = phien.hoTen;
-    if (phien.chucVu && phien.chucVu !== 'Học sinh') {
-      tenNguoiGui += ` (${phien.chucVu})`;
+  } else if (hocSinhId) {
+    // Luôn tra cứu họ tên thật của học sinh từ DB theo hocSinhId
+    const hs = await env.DB.prepare(
+      'SELECT ho_ten AS hoTen, chuc_vu AS chucVu FROM hoc_sinh WHERE id = ?1'
+    ).bind(hocSinhId).first().catch(() => null);
+
+    if (hs && hs.hoTen) {
+      tenNguoiGui = hs.hoTen;
+      if (hs.chucVu && hs.chucVu !== 'Học sinh') {
+        tenNguoiGui += ` (${hs.chucVu})`;
+      }
+    } else {
+      tenNguoiGui = phien.ten || phien.hoTen || 'Học sinh';
+      const cv = phien.chucVu || phien.vaiTro;
+      if (cv && cv !== 'Học sinh' && cv !== 'student') {
+        tenNguoiGui += ` (${cv})`;
+      }
+    }
+  } else if (phien.phuId || phien.role === 'phu') {
+    tenNguoiGui = phien.ten || 'Quản trị viên';
+    vaiTro = 'phu';
+    if (phien.vaiTro && phien.vaiTro !== 'Học sinh' && phien.vaiTro !== 'student') {
+      tenNguoiGui += ` (${phien.vaiTro})`;
+    }
+  } else if (phien.ten || phien.hoTen) {
+    tenNguoiGui = phien.ten || phien.hoTen;
+    const cv = phien.chucVu || phien.vaiTro;
+    if (cv && cv !== 'Học sinh' && cv !== 'student') {
+      tenNguoiGui += ` (${cv})`;
     }
   }
 
@@ -166,5 +236,5 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     'INSERT INTO chat_tin_nhan (lop_id, hoc_sinh_id, ten_nguoi_gui, vai_tro, noi_dung) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id, hoc_sinh_id AS hocSinhId, ten_nguoi_gui AS tenNguoiGui, vai_tro AS vaiTro, noi_dung AS noiDung, da_xoa AS daXoa, tao_luc AS taoLuc'
   ).bind(lopId, hocSinhId, tenNguoiGui, vaiTro, noiDung).first();
 
-  return json({ ok: true, tinNhan: ketQua });
+  return json({ ok: true, tinNhan: { ...ketQua, laTinCuaToi: true } });
 }, { canGiaoVien: false });

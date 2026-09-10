@@ -128,17 +128,22 @@
         btn.textContent = emoji;
         btn.type = 'button';
         btn.title = emoji;
+
+        // Chặn hoàn toàn việc kích hoạt bàn phím ảo trên di động
+        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); });
+
         btn.onclick = (e) => {
           e.preventDefault();
+          e.stopPropagation();
           const input = document.getElementById('chatInputField');
-          // Chèn emoji mà KHÔNG gọi input.focus() để tránh bàn phím ảo hiện trên mobile
-          const start = input.selectionStart ?? input.value.length;
-          const end = input.selectionEnd ?? input.value.length;
-          input.value = input.value.substring(0, start) + emoji + input.value.substring(end);
-          // Cập nhật con trỏ nhưng không trigger bàn phím
-          try {
-            input.setSelectionRange(start + emoji.length, start + emoji.length);
-          } catch {}
+          if (input) {
+            // Chèn emoji vào cuối hoặc vị trí hiện tại mà KHÔNG focus và KHÔNG gọi setSelectionRange
+            // để bàn phím ảo KHÔNG BAO GIỜ tự bật lên trên mobile
+            input.value += emoji;
+            input.blur();
+          }
         };
         gridContainer.appendChild(btn);
       });
@@ -154,10 +159,13 @@
       tabBtn.dataset.cat = cat.id;
       tabBtn.textContent = cat.ten;
       tabBtn.type = 'button';
+      tabBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
+      tabBtn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+      tabBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
       tabBtn.onclick = (e) => {
         e.preventDefault();
-        // Blur để tránh bàn phím hiện lại khi đổi tab emoji
-        if (e.currentTarget) e.currentTarget.blur();
+        const input = document.getElementById('chatInputField');
+        if (input) input.blur();
         renderEmojiGrid(cat.id);
       };
       tabsContainer.appendChild(tabBtn);
@@ -201,24 +209,28 @@
       dongKhungChat();
     });
 
-    document.getElementById('chatEmojiToggleBtn').onclick = (e) => {
-      if (e) e.preventDefault();
+    const emojiToggleBtn = document.getElementById('chatEmojiToggleBtn');
+    emojiToggleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
+    emojiToggleBtn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+    emojiToggleBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
+    emojiToggleBtn.onclick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const input = document.getElementById('chatInputField');
+      if (input) input.blur();
       const d = document.getElementById('chatEmojiDrawer');
       const seHienThi = d.style.display === 'none';
       d.style.display = seHienThi ? 'flex' : 'none';
-      if (seHienThi) {
-        // ẨN BàN PHÍM ẢO trước khi emoji drawer mở: gọi blur() rối focus() vào nút (không phải input)
-        // để đảm bảo bàn phím ảo được ẩn trên mọi trình duyệt mobile.
-        const input = document.getElementById('chatInputField');
-        if (input) {
-          input.blur();
-        }
-        // Dồn focus vào chính nút toggle (không phải input) để tránh bàn phím hiện lại
-        e.currentTarget.blur();
-      }
     };
 
     const inputField = document.getElementById('chatInputField');
+    // Khi người dùng chạm vào ô nhập để gõ chữ: ẩn khay emoji để nhường chỗ cho bàn phím ảo
+    inputField.addEventListener('focus', () => {
+      const d = document.getElementById('chatEmojiDrawer');
+      if (d) d.style.display = 'none';
+    });
     inputField.onkeydown = (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -272,7 +284,10 @@
     capNhatBadge();
     cuonXuongDuoi();
 
-    // Không tự động bật bàn phím ảo (chỉ hiện khi người dùng chủ động chạm vào ô nhập)
+    // Ẩn khay emoji và đảm bảo KHÔNG tự động bật bàn phím ảo
+    const d = document.getElementById('chatEmojiDrawer');
+    if (d) d.style.display = 'none';
+
     const input = document.getElementById('chatInputField');
     if (input) {
       try { input.blur(); } catch {}
@@ -298,8 +313,15 @@
     if (backdrop) backdrop.classList.remove('chat-backdrop-active');
     document.body.classList.remove('chat-modal-open');
 
-    document.getElementById('chatEmojiDrawer').style.display = 'none';
-    document.getElementById('chatTeacherModal').style.display = 'none';
+    const d = document.getElementById('chatEmojiDrawer');
+    if (d) d.style.display = 'none';
+    const tm = document.getElementById('chatTeacherModal');
+    if (tm) tm.style.display = 'none';
+
+    const input = document.getElementById('chatInputField');
+    if (input) {
+      try { input.blur(); } catch {}
+    }
 
     khoiDongPolling();
   }
@@ -381,6 +403,12 @@
       hocSinhIdHienTai = data.hocSinhIdHienTai;
       caiDatHienTai = data.caiDat || caiDatHienTai;
       gianCachGiay = caiDatHienTai.gianCachGiay || 5;
+
+      // Cập nhật tên lớp trên tiêu đề khung chat để người dùng thấy rõ lớp đang chat
+      if (data.tenLop) {
+        const titleEl = document.querySelector('.chat-header-title');
+        if (titleEl) titleEl.textContent = `💬 Tán gẫu · ${data.tenLop}`;
+      }
 
       // Đồng bộ các tin đã bị xoá tức thì qua danh sách daXoaIds
       if (Array.isArray(data.daXoaIds) && data.daXoaIds.length > 0) {
@@ -485,7 +513,9 @@
     row.id = `chatMsg_${t.id}`;
     row.dataset.msgId = t.id;
 
-    const laTinCuaToi = (!laGiaoVien && hocSinhIdHienTai && t.hocSinhId === hocSinhIdHienTai) || (laGiaoVien && t.vaiTro === 'giao_vien');
+    const laTinCuaToi = (typeof t.laTinCuaToi === 'boolean')
+      ? t.laTinCuaToi
+      : ((!laGiaoVien && hocSinhIdHienTai && t.hocSinhId === hocSinhIdHienTai) || (laGiaoVien && t.vaiTro === 'giao_vien'));
     const laHeThong = t.vaiTro === 'he_thong';
     const laGvcn = t.vaiTro === 'giao_vien';
     const daBiXoa = !!t.daXoa;
@@ -520,8 +550,10 @@
 
       let thoiGianStr = '';
       if (t.taoLuc) {
-        const d = new Date(t.taoLuc + 'Z');
-        thoiGianStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const d = new Date(t.taoLuc.replace(' ', 'T') + 'Z');
+        if (!Number.isNaN(d.getTime())) {
+          thoiGianStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
       }
 
       let footerHtml = '';
@@ -614,8 +646,8 @@
 
   function khoiDongPolling() {
     dungPolling();
-    // Khi đang mở khung chat: thăm dò mỗi 1s để gần real-time; khi đóng: mỗi 20s
-    const chuKy = dangMoKhungChat ? 1000 : 20000;
+    // Khi đang mở khung chat: thăm dò mỗi 1s để gần real-time; khi đóng: mỗi 4s để cập nhật badge nhanh
+    const chuKy = dangMoKhungChat ? 1000 : 4000;
     pollingTimer = setInterval(() => {
       taiTinNhan(false);
     }, chuKy);

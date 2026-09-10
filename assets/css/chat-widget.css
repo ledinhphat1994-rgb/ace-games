@@ -447,6 +447,8 @@ body.chat-modal-open {
   transition: transform 0.1s ease, background 0.1s ease;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chat-emoji-btn:hover {
@@ -489,6 +491,10 @@ body.chat-modal-open {
   justify-content: center;
   transition: background 0.15s ease;
   flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .chat-emoji-toggle:hover {
