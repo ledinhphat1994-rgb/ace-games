@@ -9,9 +9,9 @@ const OUT = path.join(ROOT, 'dist');
 // Chỉ những mục có tên dưới đây mới được đăng lên.
 const DANH_SACH_DANG = [
   'index.html', 'login.html', 'robots.txt',
-  'manifest.webmanifest', 'sw.js', '_headers',
+  'manifest.webmanifest', 'sw.js', '_headers', '_redirects',
   'assets', 'data', 'functions', 'giao-vien',
-  'digital-campus.html', 'community-feed.html',
+  'digital-campus.html', 'community-feed.html', 'class-home.html',
 ];
 
 // Không đăng các tệp ghi chú nội bộ nằm lẫn trong thư mục trên.

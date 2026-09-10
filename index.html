@@ -1,406 +1,1207 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="dark">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#17558f">
-<title>Lớp 10A7 · Năm học 2026 – 2027</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260910_25">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_25">
-<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260910_25">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GDTX Định Quán · Lớp 10A7 Digital Campus — Không gian học tập ảo, phòng học trực tuyến, bảng tin lớp và hoạt động trực tiếp.">
+  <meta name="theme-color" content="#0B0E14">
+  <meta property="og:title" content="Lớp 10A7 · Digital Campus Hub · GDTX Định Quán">
+  <meta property="og:description" content="Không gian trường học ảo: Rạp chiếu Danmaku, Cờ Caro 15x15, Lofi Study Cafe, DJ Radio lớp và bảng tin cộng đồng.">
+  <meta property="og:type" content="website">
+  <title>Lớp 10A7 · Digital Campus · GDTX Định Quán</title>
+  <link rel="icon" href="assets/img/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            obsidian: '#0B0E14',
+            surface: '#151A23',
+            cyanGlow: '#00F2FE',
+            violetGlow: '#8B5CF6',
+            amberGold: '#FFB800',
+          },
+          gridTemplateColumns: { '15': 'repeat(15, minmax(0, 1fr))' }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 + ReactDOM + Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: #0B0E14;
+      color: #f1f5f9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Danmaku bullet animation ── */
+    @keyframes danmakuMove {
+      0%   { transform: translateX(100vw); }
+      100% { transform: translateX(-100%); }
+    }
+
+    /* ── Events Ticker ── */
+    @keyframes tickerScroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-track { animation: tickerScroll 40s linear infinite; }
+    .ticker-track:hover { animation-play-state: paused; }
+
+    /* ── Fade-in / Scale-up ── */
+    @keyframes fadeIn    { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    @keyframes scaleUp   { from { opacity:0; transform:scale(.94); }      to { opacity:1; transform:none; } }
+    .animate-fadeIn  { animation: fadeIn  .35s ease both; }
+    .animate-scaleUp { animation: scaleUp .3s  ease both; }
+
+    /* ── Pulse ring (voice speaking) ── */
+    @keyframes pulseRing {
+      0%   { box-shadow: 0 0 0 0 rgba(52,211,153,.6); }
+      70%  { box-shadow: 0 0 0 7px rgba(52,211,153,0); }
+      100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+    }
+    .ring-speaking { animation: pulseRing 1.4s ease-out infinite; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0B0E14; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+
+    /* ── Auth-gate overlay ── */
+    #authGateOverlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(11,14,20,.85);
+      backdrop-filter: blur(16px);
+      align-items: center; justify-content: center;
+    }
+    #authGateOverlay.show { display: flex; }
+
+    /* ── Guest Banner ── */
+    #guestBanner {
+      display: none;
+      background: linear-gradient(90deg, rgba(139,92,246,.12), rgba(0,242,254,.08));
+      border-bottom: 1px solid rgba(139,92,246,.25);
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #94a3b8;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #guestBanner.show { display: flex; }
+  </style>
 </head>
 <body>
 
-<header class="thanh-tren">
-  <div class="wrap">
-    <a class="hieu" href="/" title="Về đầu trang chủ">
-      <span class="hieu-o-boc">
-        <span class="hieu-o" id="hieuMaLop">10A7</span>
-        <span class="hieu-nam-hoc" id="hieuNamHoc"></span>
-      </span>
-      <span class="hieu-ten"><span id="hieuTenLop" hidden>Lớp 10A7</span><span class="hieu-phu" id="hieuTruong">GDNN-GDTX Khu vực 1 - Định Quán</span></span>
-    </a>
+<!-- ══════════════════════════════════════════════════════════════════
+     GUEST BANNER (hiện khi chưa đăng nhập)
+════════════════════════════════════════════════════════════════════ -->
+<div id="guestBanner">
+  <span>👋 Bạn đang xem <strong style="color:#8B5CF6;">Digital Campus</strong> dưới dạng khách — tham gia phòng hoặc chat cần đăng nhập.</span>
+  <a href="/login.html" style="padding:4px 14px;border-radius:9999px;background:linear-gradient(90deg,#8B5CF6,#00F2FE);color:#000;font-weight:800;text-decoration:none;font-size:11px;">Đăng nhập ngay →</a>
+  <button onclick="document.getElementById('guestBanner').style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+</div>
 
-
-    <div class="thanh-phai">
-      <a class="nut-tron nut-ve-trang-chu" href="/" title="Trang chủ" aria-label="Trang chủ">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
-      </a>
-      <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
-      <button class="nut-tron nut-theme-bg" id="nutThemeBg" aria-label="Tùy chỉnh hình nền & chủ đề" title="Đổi màu nền & chủ đề">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-      </button>
-      <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-      <a class="nut-tron" id="nutDoiLop" href="/api/logout" onclick="return confirm('Đăng xuất khỏi lớp đang quản lý, rồi chọn lớp khác và nhập mã của lớp đó?');" title="Đổi lớp chủ nhiệm" aria-label="Đổi lớp chủ nhiệm" hidden>
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-      </a>
-      <a class="nut-tron nut-dang-xuat" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');" title="Đăng xuất tài khoản" aria-label="Đăng xuất tài khoản">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-      </a>
-      <button class="nut-menu" id="moMenu" aria-expanded="false" aria-controls="menuDayDu">
-        <span class="nut-menu-vach" aria-hidden="true"></span>
-        <span class="nut-menu-chu">Menu</span>
-      </button>
+<!-- ══════════════════════════════════════════════════════════════════
+     EVENTS TICKER (cuộn ngang — luôn hiện)
+════════════════════════════════════════════════════════════════════ -->
+<div id="eventsTicker" style="background:linear-gradient(90deg,rgba(255,184,0,.08),rgba(255,184,0,.04));border-bottom:1px solid rgba(255,184,0,.2);height:32px;overflow:hidden;display:flex;align-items:center;user-select:none;">
+  <div style="flex-shrink:0;padding:0 12px;font-size:10px;font-weight:800;color:#FFB800;letter-spacing:1px;border-right:1px solid rgba(255,184,0,.3);white-space:nowrap;">
+    📌 SỰ KIỆN
+  </div>
+  <div style="overflow:hidden;flex:1;position:relative;">
+    <div class="ticker-track" style="display:inline-flex;gap:48px;white-space:nowrap;font-size:11px;padding:0 24px;">
+      <!-- Doubled for seamless loop -->
+      <span style="color:#FFB800;font-weight:700;">🏆 Hội thao liên trường 10A7 · <span style="color:#fff;">Thứ 7, 14/09</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#00F2FE;font-weight:700;">📚 Nộp đề cương ôn tập HK1 · <span style="color:#fff;">Hạn: Chủ nhật 22:00</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#8B5CF6;font-weight:700;">🎵 DJ Radio đêm nay 20:00 · <span style="color:#fff;">Lofi × Chill Session #12</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#10b981;font-weight:700;">✅ Điểm danh tuần 3 · <span style="color:#fff;">Tỉ lệ chuyên cần: 94.8%</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#f43f5e;font-weight:700;">🚨 Họp phụ huynh · <span style="color:#fff;">Thứ 4, 18/09 · 18:30</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <!-- Clone for seamless -->
+      <span style="color:#FFB800;font-weight:700;">🏆 Hội thao liên trường 10A7 · <span style="color:#fff;">Thứ 7, 14/09</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#00F2FE;font-weight:700;">📚 Nộp đề cương ôn tập HK1 · <span style="color:#fff;">Hạn: Chủ nhật 22:00</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#8B5CF6;font-weight:700;">🎵 DJ Radio đêm nay 20:00 · <span style="color:#fff;">Lofi × Chill Session #12</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#10b981;font-weight:700;">✅ Điểm danh tuần 3 · <span style="color:#fff;">Tỉ lệ chuyên cần: 94.8%</span></span>
+      <span style="color:#94a3b8;">•</span>
+      <span style="color:#f43f5e;font-weight:700;">🚨 Họp phụ huynh · <span style="color:#fff;">Thứ 4, 18/09 · 18:30</span></span>
     </div>
   </div>
+</div>
 
-  <!-- Menu đầy đủ: MỘT danh sách phẳng mọi mục trang chủ này cho phép xem — không chia
-       nhóm "trong trang chủ"/"trang riêng" nữa, mục nào bị ẩn quyền thì gỡ hẳn khỏi đây
-       (xem apDungAnMuc trong trang-lop.js). -->
-  <div class="menu-day" id="menuDayDu" hidden>
-    <div class="wrap menu-day-trong">
-      <div class="menu-luoi">
-        <a class="menu-muc" href="digital-campus.html" target="_blank" style="background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(0, 242, 254, 0.3);">
-          <span class="menu-icon" style="color: #00F2FE;"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg></span>
-          <span class="menu-chu"><b style="color: #00F2FE;">Digital Campus ✨</b><small>Trường học ảo: Rạp phim Danmaku, Cờ Caro & DJ Radio</small></span>
-        </a>
-        <a class="menu-muc" href="#/danh-sach">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-          <span class="menu-chu"><b>Học sinh</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
-        </a>
-        <a class="menu-muc" href="#/thu-quy" data-muc="quy">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg></span>
-          <span class="menu-chu"><b>Thủ quỹ lớp</b><small>Công khai tổng thu – tổng chi của lớp</small></span>
-        </a>
-        <a class="menu-muc" href="#/diem-danh" data-muc="diem-danh">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
-          <span class="menu-chu"><b>Điểm danh</b><small>Tình hình có mặt, vắng trễ của lớp và của em</small></span>
-        </a>
-        <a class="menu-muc" id="mucQuanLy" href="/giao-vien/" hidden>
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
-          <span class="menu-chu"><b>Khu quản lý</b><small>Chỉnh sửa các mục em được cấp quyền</small></span>
-        </a>
-        <a class="menu-muc menu-muc-ra" href="/api/logout">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></span>
-          <span class="menu-chu"><b>Đăng xuất</b><small>Thoát khỏi trang lớp trên máy này</small></span>
-        </a>
+<!-- ══════════════════════════════════════════════════════════════════
+     AUTH-GATE OVERLAY (khi chưa đăng nhập mà bấm tương tác)
+════════════════════════════════════════════════════════════════════ -->
+<div id="authGateOverlay">
+  <div style="background:#151A23;border:1px solid rgba(139,92,246,.4);border-radius:24px;padding:36px 32px;max-width:400px;width:90%;text-align:center;box-shadow:0 0 60px rgba(139,92,246,.25);">
+    <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#8B5CF6,#00F2FE);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px;box-shadow:0 0 24px rgba(139,92,246,.4);">🔐</div>
+    <h2 style="margin:0 0 8px;font-size:18px;font-weight:800;color:#fff;">Đăng nhập để tham gia</h2>
+    <p style="margin:0 0 24px;font-size:13px;color:#94a3b8;line-height:1.6;">Xem Campus thì miễn phí cho tất cả. Nhưng để <strong style="color:#fff;">tham gia phòng, chat, gửi Danmaku</strong> hoặc tạo phòng mới, bạn cần đăng nhập vào lớp của mình.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="/login.html" style="display:block;padding:12px;border-radius:14px;background:linear-gradient(135deg,#8B5CF6,#00F2FE);color:#000;font-weight:800;text-decoration:none;font-size:14px;">Đăng nhập ngay →</a>
+      <button onclick="document.getElementById('authGateOverlay').classList.remove('show')" style="padding:10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#94a3b8;cursor:pointer;font-size:13px;">Tiếp tục xem dưới dạng khách</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     ROOT (React App mount point)
+════════════════════════════════════════════════════════════════════ -->
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Auth State (read from session/cookie) ──────────────────────────────────
+// Trong production, thay bằng check thực sự từ /api/me hoặc session cookie.
+// Tạm thời: đọc flag từ localStorage để demo.
+const getAuthState = () => {
+  try {
+    const s = localStorage.getItem('campus_auth');
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+};
+
+// Hiện auth-gate overlay khi chưa đăng nhập và cố tương tác
+const requireAuth = (fn) => {
+  return (...args) => {
+    const auth = getAuthState();
+    if (!auth) {
+      document.getElementById('authGateOverlay').classList.add('show');
+      return;
+    }
+    return fn(...args);
+  };
+};
+
+// ─── Icon Helper ─────────────────────────────────────────────────────────────
+const I = ({ d, className = "w-4 h-4", fill = "none", sw = 2, ...p }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
+       strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    {Array.isArray(d) ? d.map((x, i) => <path key={i} d={x} />) : <path d={d} />}
+  </svg>
+);
+
+const ICONS = {
+  tv:        "M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM17 2l-5 5-5-5",
+  game:      ["M6 12h4M8 10v4M15 13h.01M18 11h.01", "M2 6a6 6 0 0 1 20 0v12a6 6 0 0 1-20 0z"].join("|"),
+  phones:    "M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3",
+  plus:      "M12 5v14M5 12h14",
+  left:      "M19 12H5M12 19l-7-7 7-7",
+  send:      ["m22 2-7 20-4-9-9-4z", "M22 2 11 13"],
+  shield:    "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
+  radio:     ["M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z","M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"],
+  sparkles:  "m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z",
+  lock:      ["M3 11a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z","M7 11V7a5 5 0 0 1 10 0v4"],
+  unlock:    ["M3 11a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z","M7 11V7a5 5 0 0 1 9.9-1"],
+  users:     ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2","M22 21v-2a4 4 0 0 0-3-3.87","M16 3.13a4 4 0 0 1 0 7.75","circle cx=9 cy=7 r=4"],
+  ghost:     ["M9 10h.01","M15 10h.01","M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"],
+  eye:       ["M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"],
+  x:         "M18 6 6 18M6 6l12 12",
+  check:     "M20 6 9 17l-5-5",
+  clock:     ["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M12 6v6l4 2"],
+  pin:       "M12 2a7 7 0 0 1 7 7c0 4.5-7 13-7 13S5 13.5 5 9a7 7 0 0 1 7-7z",
+  bell:      ["M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9","M10.3 21a1.94 1.94 0 0 0 3.4 0"],
+  trophy:    ["M6 9H3l3 8h12l3-8h-3","M9 9V5a3 3 0 0 1 6 0v4","M12 17v4","M8 21h8"],
+  calendar:  ["M8 2v4","M16 2v4","M3 10h18","M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+  home:      ["M3 10.5 12 3l9 7.5","M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"],
+  community: ["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2","M23 21v-2a4 4 0 0 0-3-3.87","M16 3.13a4 4 0 0 1 0 7.75"],
+  play:      "M5 3l14 9-14 9z",
+  pause:     "M6 4h4v16H6zM14 4h4v16h-4z",
+  globe:     ["M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z","M2 12h20","M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"],
+  logout:    ["M18.36 6.64a9 9 0 1 1-12.73 0","M12 2v10"],
+};
+
+const Ic = ({ name, className = "w-4 h-4" }) => {
+  const d = ICONS[name];
+  if (!d) return null;
+  const paths = Array.isArray(d) ? d : [d];
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {paths.map((p, i) => {
+        if (p.startsWith('circle')) {
+          const m = p.match(/cx=(\S+)\s+cy=(\S+)\s+r=(\S+)/);
+          return m ? <circle key={i} cx={m[1]} cy={m[2]} r={m[3]} /> : null;
+        }
+        if (p.startsWith('M') || p.startsWith('m') || p.startsWith('L') || p.startsWith('A')) {
+          return <path key={i} d={p} />;
+        }
+        return <path key={i} d={p} />;
+      })}
+    </svg>
+  );
+};
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const TEACHER = {
+  id: 'tc-01', name: 'Thầy Lê Đình Phát', role: 'GVCN',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+  classId: '10A7'
+};
+const CURRENT_USER = getAuthState() || {
+  id: null, name: 'Khách', role: 'GUEST',
+  avatar: '', classId: null
+};
+
+const MULTI_CLASSES = [
+  { id: '10A7', label: 'Lớp 10A7', color: '#00F2FE', online: 24, total: 39 },
+  { id: '10A8', label: 'Lớp 10A8', color: '#8B5CF6', online: 18, total: 41 },
+  { id: '11B3', label: 'Lớp 11B3', color: '#FFB800', online: 31, total: 38 },
+];
+
+const INITIAL_ROOMS = [
+  {
+    id: 'room-cinema-1', classId: '10A7',
+    title: '🍿 Chiếu Phim & Xem Youtube Chung: Ôn Thi Lý 10',
+    type: 'CINEMA', privacy: 'PUBLIC_CLASS',
+    host: { name: 'Thầy Lê Đình Phát', role: 'TEACHER' },
+    membersCount: 16, maxCapacity: 45, isLocked: false,
+    thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=80',
+    videoTitle: 'Vật Lý 10: Chuyển Động Thẳng Biến Đổi Đều', videoProgress: '14:28 / 38:50',
+    tags: ['Học tập', 'Đồng bộ'],
+  },
+  {
+    id: 'room-game-1', classId: '10A7',
+    title: '⚔️ Đấu Trường Cờ Caro 15x15: Bảo vs Kiệt',
+    type: 'GAME_CARO', privacy: 'DUO_POD',
+    host: { name: 'Phan Quốc Bảo', role: 'STUDENT' },
+    membersCount: 2, maxCapacity: 2, isLocked: false,
+    thumbnail: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=500&auto=format&fit=crop&q=80',
+    tags: ['Giải trí'],
+  },
+  {
+    id: 'room-lofi-1', classId: '10A7',
+    title: '🎧 Lofi Study Cafe: Mưa Rơi & Đọc Sách',
+    type: 'LOFI_STUDY', privacy: 'SQUAD_POD',
+    host: { name: 'Lê Hoàng Long', role: 'STUDENT' },
+    membersCount: 4, maxCapacity: 6, isLocked: false,
+    thumbnail: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&auto=format&fit=crop&q=80',
+    tags: ['Tập trung'],
+  },
+  {
+    id: 'room-lofi-2', classId: '10A8',
+    title: '🌙 Lofi Khuya Lớp 10A8: Deep Focus Mode',
+    type: 'LOFI_STUDY', privacy: 'PUBLIC_CLASS',
+    host: { name: 'Nguyễn Lan Anh', role: 'STUDENT' },
+    membersCount: 9, maxCapacity: 20, isLocked: false,
+    thumbnail: 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=500&auto=format&fit=crop&q=80',
+    tags: ['10A8', 'Tập trung'],
+  },
+  {
+    id: 'room-solo-1', classId: '10A7',
+    title: '🔒 Góc Tự Học Cá Nhân (Do Not Disturb)',
+    type: 'LOFI_STUDY', privacy: 'SOLO_POD',
+    host: { name: 'Ngô Thanh Sơn', role: 'STUDENT' },
+    membersCount: 1, maxCapacity: 1, isLocked: true,
+    thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=500&auto=format&fit=crop&q=80',
+    tags: ['Cá nhân'],
+  },
+];
+
+const INITIAL_CHATS = [
+  { id: 'm1', author: 'Thầy Lê Đình Phát', text: 'Chào cả lớp! Ai vào phòng rồi nhớ mở âm lượng vừa đủ nghe nhé.', time: '20:01', isTeacher: true },
+  { id: 'm2', author: 'Trần Gia Hân', text: 'Dạ Thầy! Màn hình chiếu nét lắm ạ.', time: '20:02' },
+  { id: 'm3', author: 'Phan Quốc Bảo', text: 'Ai rảnh ra bàn Cờ Caro không nào? 🔥', time: '20:03' },
+  { id: 'm4', author: 'Ẩn danh #407', text: 'Thầy ơi tí nữa có bài gia tốc rơi tự do không ạ?', time: '20:05', isAnon: true },
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: 'Nguyễn Minh Thư', sessions: 28, streak: 14, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', badge: '🥇' },
+  { rank: 2, name: 'Trần Gia Hân',    sessions: 25, streak: 10, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80', badge: '🥈' },
+  { rank: 3, name: 'Lê Hoàng Long',   sessions: 22, streak: 7,  avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80', badge: '🥉' },
+  { rank: 4, name: 'Đặng Tuấn Kiệt',  sessions: 19, streak: 5,  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', badge: '' },
+  { rank: 5, name: 'Phạm Quỳnh Như',  sessions: 17, streak: 4,  avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80', badge: '' },
+];
+
+const NOTIFICATIONS = [
+  { id: 'n1', icon: '📢', text: 'GVCN vừa đăng thông báo mới: "Lịch ôn tập Vật Lý 10"', time: '15 phút trước', unread: true },
+  { id: 'n2', icon: '🏆', text: 'Trần Gia Hân đã vượt qua bạn trong bảng xếp hạng!', time: '1 giờ trước', unread: true },
+  { id: 'n3', icon: '🎮', text: 'Phan Quốc Bảo mời bạn vào ván Cờ Caro.', time: '2 giờ trước', unread: false },
+  { id: 'n4', icon: '🎵', text: 'DJ Radio lớp bắt đầu phát nhạc — 24 người đang nghe.', time: '3 giờ trước', unread: false },
+];
+
+const CALENDAR_EVENTS = [
+  { date: 11, label: 'Ôn Lý', color: '#00F2FE' },
+  { date: 14, label: 'Hội thao', color: '#FFB800' },
+  { date: 18, label: 'Họp PH', color: '#f43f5e' },
+  { date: 22, label: 'Nộp BT', color: '#8B5CF6' },
+  { date: 28, label: 'Thi HK1', color: '#f43f5e' },
+];
+
+// ─── Caro helpers ─────────────────────────────────────────────────────────────
+const checkWin = (board, r, c, p) => {
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for (const [dr, dc] of dirs) {
+    let n = 1;
+    for (let s = 1; s < 5; s++) { const nr=r+dr*s, nc=c+dc*s; if (nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]===p) n++; else break; }
+    for (let s = 1; s < 5; s++) { const nr=r-dr*s, nc=c-dc*s; if (nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]===p) n++; else break; }
+    if (n >= 5) return true;
+  }
+  return false;
+};
+
+// ─── Reusable Sidebar & Mobile Widgets (DRY) ─────────────────────────────────
+const DjRadioBox = ({ djPlaying, setDjPlaying, djProgress }) => (
+  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2 text-xs font-bold text-white">
+        <Ic name="radio" className="w-4 h-4 text-[#00F2FE]" />
+        <span>Classroom DJ Radio 📻</span>
       </div>
+      <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">LIVE</span>
+    </div>
+    <p className="text-xs font-bold text-white truncate">Lofi Study Chillhop · Đêm Muộn</p>
+    <p className="text-[10px] text-slate-400 mb-3">Phát chung toàn bộ các phòng · 24 người nghe</p>
+    <div className="flex items-end gap-1 h-6 mb-3">
+      {[12,22,16,26,10,20,14,24,18,12,22,15].map((v,i) => (
+        <span key={i}
+          style={{ height: djPlaying ? `${Math.max(4,(v*(djProgress%4+1))%24)}px` : '4px' }}
+          className="flex-1 bg-gradient-to-t from-[#00F2FE] to-[#8B5CF6] rounded-full transition-all duration-300">
+        </span>
+      ))}
+    </div>
+    <div className="flex items-center justify-between text-xs">
+      <button onClick={() => setDjPlaying(!djPlaying)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10">
+        <Ic name={djPlaying ? 'pause' : 'play'} className="w-3.5 h-3.5" />
+        <span>{djPlaying ? 'Tạm Dừng' : 'Phát Nhạc'}</span>
+      </button>
+      <span className="text-[10px] font-mono text-slate-400">02:15 / 03:45</span>
     </div>
   </div>
-</header>
+);
 
-<main class="wrap" id="noiDung">
+const CalendarBox = () => (
+  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
+    <div className="flex items-center gap-2 text-xs font-bold text-white mb-3">
+      <Ic name="calendar" className="w-4 h-4 text-[#8B5CF6]" />
+      <span>Lịch Tháng 9 / 2026</span>
+    </div>
+    <div className="grid grid-cols-7 gap-1 text-center text-[10px]">
+      {['T2','T3','T4','T5','T6','T7','CN'].map(d => (
+        <div key={d} className="text-slate-500 font-bold py-1">{d}</div>
+      ))}
+      {[...Array(3)].map((_,i) => <div key={`e${i}`}></div>)}
+      {[...Array(30)].map((_,i) => {
+        const day = i + 1;
+        const ev = CALENDAR_EVENTS.find(e => e.date === day);
+        const isToday = day === 10;
+        return (
+          <div key={day} title={ev ? ev.label : undefined}
+            className={`py-1.5 rounded-lg text-[10px] font-medium relative cursor-default transition-all
+              ${isToday ? 'bg-[#00F2FE] text-black font-black' : ev ? 'bg-white/5 text-white font-bold' : 'text-slate-500 hover:bg-white/5'}`}
+            style={ev && !isToday ? { boxShadow: `0 0 0 1px ${ev.color}40`, color: ev.color } : undefined}>
+            {day}
+            {ev && !isToday && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full" style={{ background: ev.color }}></span>}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
-  <!-- ================= TRANG CHỦ (TWITTER / X COMMUNITIES) ================= -->
-  <div id="trangChu">
-    <div class="community-container">
+const LeaderboardBox = () => (
+  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
+    <div className="flex items-center gap-2 text-xs font-bold text-white mb-3">
+      <Ic name="trophy" className="w-4 h-4 text-[#FFB800]" />
+      <span>Bảng Xếp Hạng Hoạt Động</span>
+    </div>
+    <div className="flex flex-col gap-2">
+      {LEADERBOARD.map(m => (
+        <div key={m.rank} className={`flex items-center gap-2.5 p-2 rounded-xl ${m.rank <= 3 ? 'bg-white/5 border border-white/5' : ''}`}>
+          <span className="text-base shrink-0 w-6 text-center">{m.badge || m.rank}</span>
+          <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover ring-1 ring-white/10 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{m.name}</p>
+            <p className="text-[10px] text-slate-400">{m.sessions} buổi · 🔥 {m.streak} ngày</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
-      <!-- 1. Header Card: Cover Banner & Thông tin Cộng đồng (Hình 2) -->
-      <section class="community-header-card">
-        <div class="community-cover-box" id="communityCoverBox">
-          <video class="community-cover-video" id="moDauVideo" autoplay muted loop playsinline hidden></video>
-          <img class="community-cover-img" id="moDauAnh" alt="" hidden>
-          <div class="community-cover-overlay"></div>
-          <button class="community-cover-edit-btn" id="moDauNutSua" type="button" hidden>✏ Đổi ảnh bìa</button>
+const LiveChatBox = ({ chatMessages, chatInput, setChatInput, handleSendChat, isGuest, chatEndRef }) => (
+  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[300px]">
+    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+      <span className="text-xs font-bold text-white">Chat Trực Tiếp</span>
+      <span className="text-[10px] text-[#00F2FE]">Đồng bộ tức thì</span>
+    </div>
+    <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-64 sm:max-h-72">
+      {chatMessages.map(m => (
+        <div key={m.id} className="text-xs bg-[#0B0E14]/60 p-2 rounded-xl border border-white/5">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className={`font-bold truncate ${m.isTeacher ? 'text-[#FFB800]' : m.isAnon ? 'text-[#8B5CF6]' : 'text-[#00F2FE]'}`}>{m.author}</span>
+            <span className="text-[9px] text-slate-500 font-mono">{m.time}</span>
+          </div>
+          <p className="text-slate-200">{m.text}</p>
+        </div>
+      ))}
+      <div ref={chatEndRef} />
+    </div>
+    <form onSubmit={handleSendChat} className="mt-3 flex items-center gap-2">
+      <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+        placeholder={isGuest ? 'Đăng nhập để chat...' : 'Nhắn tin / Danmaku...'}
+        disabled={isGuest}
+        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE] disabled:opacity-40" />
+      <button type="submit" disabled={isGuest}
+        className="p-2 rounded-xl bg-[#00F2FE] text-black font-bold shadow-[0_0_8px_rgba(0,242,254,.3)] hover:scale-105 transition-all disabled:opacity-40">
+        <Ic name="send" className="w-3.5 h-3.5" />
+      </button>
+    </form>
+  </div>
+);
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function DigitalCampusApp() {
+  const isGuest = !CURRENT_USER.id;
+
+  // View state
+  const [currentView, setCurrentView] = useState('LOBBY');
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [catFilter, setCatFilter] = useState('ALL');
+  const [classFilter, setClassFilter] = useState('ALL');
+  const [isTeacherMode, setIsTeacherMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('lobby'); // lobby | attendance | treasury | students
+  const [mobileTab, setMobileTab] = useState('ROOMS'); // ROOMS | CHAT | RADIO_CALENDAR | LEADERBOARD
+
+  // Notification center
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const unreadCount = notifications.filter(n => n.unread).length;
+
+  // Danmaku
+  const [danmakuEnabled, setDanmakuEnabled] = useState(true);
+  const [danmakuList, setDanmakuList] = useState([
+    { id: 1, text: 'Thầy giảng dễ hiểu quá! ❤️', color: '#00F2FE', top: 15, dur: 8 },
+    { id: 2, text: 'Đáp án là v = v0 + at nha mn 📐', color: '#FFB800', top: 40, dur: 10 },
+    { id: 3, text: '10A7 mãi đỉnh 🔥🔥🔥', color: '#f43f5e', top: 68, dur: 7 },
+  ]);
+
+  // Chat
+  const [chatMessages, setChatMessages] = useState(INITIAL_CHATS);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef(null);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+
+  // Rooms
+  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRoom, setNewRoom] = useState({ title: '', type: 'CINEMA', privacy: 'SQUAD_POD' });
+
+  // Caro
+  const [caroBoard, setCaroBoard] = useState(() => Array(15).fill(null).map(() => Array(15).fill(null)));
+  const [caroTurn, setCaroTurn] = useState('X');
+  const [caroWinner, setCaroWinner] = useState(null);
+
+  // DJ
+  const [djPlaying, setDjPlaying] = useState(true);
+  const [djProgress, setDjProgress] = useState(35);
+  useEffect(() => {
+    if (!djPlaying) return;
+    const t = setInterval(() => setDjProgress(p => p >= 100 ? 0 : p + 1), 1000);
+    return () => clearInterval(t);
+  }, [djPlaying]);
+
+  // Show guest banner
+  useEffect(() => {
+    if (isGuest) document.getElementById('guestBanner').classList.add('show');
+  }, []);
+
+  // ── Filtered rooms ──────────────────────────────────────────────────────────
+  const filteredRooms = rooms.filter(r => {
+    const catOk = catFilter === 'ALL' || (catFilter === 'CINEMA' && r.type === 'CINEMA')
+      || (catFilter === 'GAME' && r.type === 'GAME_CARO')
+      || (catFilter === 'LOFI' && r.type === 'LOFI_STUDY');
+    const classOk = classFilter === 'ALL' || r.classId === classFilter;
+    return catOk && classOk;
+  });
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleJoinRoom = useCallback(requireAuth((room) => {
+    if (room.isLocked && room.privacy === 'SOLO_POD') {
+      alert('Phòng tự học cá nhân (SOLO POD) đang khóa: Do Not Disturb.'); return;
+    }
+    setSelectedRoom(room);
+    setCurrentView('ROOM_ACTIVE');
+  }), []);
+
+  const handleSendChat = useCallback(requireAuth((e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const clean = chatInput.replace(/đm|vcl|vkl/gi, '***');
+    const msg = {
+      id: Date.now(), author: isTeacherMode ? TEACHER.name : (CURRENT_USER.name || 'Khách'),
+      text: clean, time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      isTeacher: isTeacherMode,
+    };
+    setChatMessages(p => [...p, msg]);
+    if (danmakuEnabled && currentView === 'ROOM_ACTIVE') {
+      const colors = ['#00F2FE','#8B5CF6','#10B981','#FFB800','#f43f5e'];
+      setDanmakuList(p => [...p, { id: Date.now(), text: clean, color: colors[Math.floor(Math.random()*5)], top: Math.floor(Math.random()*70)+10, dur: 8 }]);
+    }
+    setChatInput('');
+  }), [chatInput, danmakuEnabled, isTeacherMode, currentView]);
+
+  const handleCaroClick = useCallback(requireAuth((r, c) => {
+    if (caroBoard[r][c] || caroWinner) return;
+    const nb = caroBoard.map(row => [...row]);
+    nb[r][c] = caroTurn;
+    setCaroBoard(nb);
+    if (checkWin(nb, r, c, caroTurn)) setCaroWinner(`Quân ${caroTurn} chiến thắng! 🎉`);
+    else setCaroTurn(t => t === 'X' ? 'O' : 'X');
+  }), [caroBoard, caroTurn, caroWinner]);
+
+  const handleCreateRoom = useCallback(requireAuth((e) => {
+    e.preventDefault();
+    if (!newRoom.title.trim()) return;
+    const r = {
+      id: `room-${Date.now()}`, classId: CURRENT_USER.classId || '10A7',
+      title: newRoom.title, type: newRoom.type, privacy: newRoom.privacy,
+      host: { name: isTeacherMode ? TEACHER.name : (CURRENT_USER.name || 'Bạn'), role: isTeacherMode ? 'TEACHER' : 'STUDENT' },
+      membersCount: 1, maxCapacity: newRoom.privacy === 'SOLO_POD' ? 1 : newRoom.privacy === 'DUO_POD' ? 2 : 6,
+      isLocked: newRoom.privacy === 'SOLO_POD',
+      thumbnail: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&auto=format&fit=crop&q=80',
+      tags: [],
+    };
+    setRooms(p => [r, ...p]);
+    setShowCreateModal(false);
+    setNewRoom({ title: '', type: 'CINEMA', privacy: 'SQUAD_POD' });
+    setSelectedRoom(r); setCurrentView('ROOM_ACTIVE');
+  }), [newRoom, isTeacherMode]);
+
+  const markAllRead = () => setNotifications(p => p.map(n => ({ ...n, unread: false })));
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[#0B0E14] text-slate-100 font-sans antialiased">
+
+      {/* ═══════════════════════════════════════════════════════
+          HEADER / TOP NAV
+      ═══════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-40 bg-[#0B0E14]/95 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 h-16 flex items-center justify-between gap-3">
+
+        {/* Logo + Class Identity */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#00F2FE] via-[#8B5CF6] to-[#00F2FE] p-[1.5px] shadow-[0_0_16px_rgba(0,242,254,.35)]">
+            <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center font-black text-sm text-[#00F2FE]">10A7</div>
+          </div>
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm text-white">GDTX Định Quán</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/20 font-bold">Digital Campus</span>
+            </div>
+            <p className="text-[10px] text-slate-400">Không Gian Học Tập Ảo · Toàn Trường</p>
+          </div>
         </div>
 
-        <div class="community-profile-info">
-          <div class="community-title-row">
-            <h1 class="community-title" id="commTenLop">Lớp 10A7</h1>
-            <div class="community-actions-right">
-              <a class="community-campus-btn" href="digital-campus.html" target="_blank" title="Mở không gian trường học ảo Digital Campus">
-                <span class="campus-badge-pulse"></span>
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                <span>Digital Campus ✨</span>
-              </a>
-              <button class="community-edit-info-btn" id="commBtnSuaThongTin" type="button" title="Chỉnh sửa thông tin lớp">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span>Chỉnh sửa thông tin</span>
-              </button>
-            </div>
+        {/* Center: Tab Navigation */}
+        <nav className="hidden md:flex items-center gap-1 bg-[#151A23] border border-white/10 rounded-2xl p-1">
+          {[
+            { id: 'lobby',      label: '🏛️ Lobby',     },
+            { id: 'attendance', label: '📋 Điểm Danh', },
+            { id: 'treasury',   label: '💰 Thủ Quỹ',   },
+            { id: 'students',   label: '👥 Học Sinh',   },
+          ].map(t => (
+            <button key={t.id} onClick={() => { setActiveTab(t.id); setCurrentView('LOBBY'); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === t.id ? 'bg-gradient-to-r from-[#00F2FE]/20 to-[#8B5CF6]/20 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-400 hover:text-white'}`}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Live counter */}
+          <div className="hidden md:flex items-center gap-1.5 bg-[#151A23] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-slate-300">Online: <strong className="text-white">24/39</strong></span>
           </div>
 
-          <p class="community-bio" id="commBio">Trung tâm GDNN - GDTX Huyện Định Quán · Niên khóa 2026 – 2027</p>
-
-          <div class="community-meta-row">
-            <div class="community-members-badge" id="commMembersBadge" role="button" tabindex="0" title="Xem danh sách thành viên" style="cursor:pointer;">
-              <div class="community-avatar-stack" id="commAvatarStack">
-                <!-- Avatar tròn xếp chồng -->
+          {/* Notification Bell */}
+          <div className="relative">
+            <button onClick={() => { setShowNotifs(!showNotifs); markAllRead(); }}
+              className="relative p-2.5 rounded-xl bg-[#151A23] border border-white/10 hover:border-[#00F2FE]/40 transition-all">
+              <Ic name="bell" className="w-4 h-4 text-slate-300" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-black text-white flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotifs && (
+              <div className="absolute right-0 top-12 w-80 bg-[#151A23] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden animate-scaleUp">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                  <span className="font-bold text-sm text-white">Thông Báo</span>
+                  <button onClick={() => setShowNotifs(false)} className="text-slate-400 hover:text-white">
+                    <Ic name="x" className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.map(n => (
+                    <div key={n.id} className={`px-4 py-3 border-b border-white/5 flex gap-3 items-start ${n.unread ? 'bg-[#00F2FE]/5' : ''}`}>
+                      <span className="text-lg shrink-0">{n.icon}</span>
+                      <div className="flex-1">
+                        <p className="text-xs text-slate-200 leading-relaxed">{n.text}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">{n.time}</p>
+                      </div>
+                      {n.unread && <span className="w-2 h-2 rounded-full bg-[#00F2FE] shrink-0 mt-1"></span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-2 text-center">
+                  <a href="/class-home.html" className="text-xs text-[#00F2FE] hover:underline font-semibold">Xem tất cả thông báo →</a>
+                </div>
               </div>
-              <div class="community-members-text" id="commMemberCount">
-                <b id="commSoLuongThanhVien">42</b><span>Thành viên</span>
-              </div>
-            </div>
+            )}
           </div>
-        </div>
-      </section>
 
-      <!-- 1.5. Banner Digital Campus 10A7 Nổi Bật -->
-      <section class="community-campus-hero" style="margin: 14px 0; border-radius: 20px; background: linear-gradient(135deg, rgba(11, 14, 20, 0.96), rgba(21, 26, 35, 0.96)); border: 1px solid rgba(0, 242, 254, 0.35); padding: 16px 20px; box-shadow: 0 0 24px rgba(0, 242, 254, 0.15); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden;">
-        <div style="position: absolute; right: -20px; top: -20px; width: 140px; height: 140px; background: radial-gradient(circle, rgba(0, 242, 254, 0.18), transparent 70%); pointer-events: none;"></div>
-        <div style="display: flex; align-items: center; gap: 14px; z-index: 1;">
-          <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #00F2FE, #8B5CF6); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 0 16px rgba(0, 242, 254, 0.4); flex-shrink: 0;">
-            🚀
+          {/* Teacher mode toggle */}
+          <div className="hidden lg:flex items-center gap-2 bg-[#151A23] px-3 py-1.5 rounded-xl border border-[#8B5CF6]/30 text-xs">
+            <Ic name="shield" className="w-3.5 h-3.5 text-[#8B5CF6]" />
+            <button onClick={() => setIsTeacherMode(!isTeacherMode)}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded transition-all ${isTeacherMode ? 'bg-[#8B5CF6] text-white shadow-[0_0_10px_rgba(139,92,246,.5)]' : 'bg-white/10 text-slate-400'}`}>
+              {isTeacherMode ? 'GVCN BẬT' : 'GVCN TẮT'}
+            </button>
           </div>
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.2px;">Class 10A7 Digital Campus Hub</h2>
-              <span style="font-size: 10px; font-weight: 700; background: rgba(0, 242, 254, 0.15); color: #00F2FE; border: 1px solid rgba(0, 242, 254, 0.3); padding: 2px 8px; border-radius: 999px;">TRƯỜNG HỌC ẢO</span>
-            </div>
-            <p style="margin: 3px 0 0; font-size: 12px; color: #94a3b8;">Không gian tương tác thời gian thực: Rạp chiếu Danmaku, Cờ Caro 15x15, Phòng Lofi & DJ Radio.</p>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px; z-index: 1;">
-          <a href="digital-campus.html" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; border-radius: 999px; background: linear-gradient(135deg, #00F2FE, #8B5CF6); color: #000; font-size: 12.5px; font-weight: 800; text-decoration: none; box-shadow: 0 0 16px rgba(0, 242, 254, 0.4);">
-            <span>Vào Trải Nghiệm Campus ➔</span>
+
+          {/* Nav links */}
+          <a href="/community-feed.html" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,.3)] hover:opacity-90 transition-all">
+            <Ic name="community" className="w-3.5 h-3.5" />
+            <span>Bảng Tin</span>
           </a>
+          <a href="/class-home.html" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 text-xs transition-all">
+            <Ic name="home" className="w-3.5 h-3.5" />
+            <span>Trang Lớp</span>
+          </a>
+
+          {/* Auth CTA / Avatar */}
+          {isGuest ? (
+            <a href="/login.html" className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#8B5CF6]/50 text-slate-300 text-xs font-bold transition-all">
+              Đăng nhập
+            </a>
+          ) : (
+            <img src={CURRENT_USER.avatar} alt="User" className="w-9 h-9 rounded-full object-cover ring-2 ring-[#00F2FE]" />
+          )}
         </div>
-      </section>
+      </header>
 
-      <!-- 2. Băng điểm nhấn / Tin nổi bật ghim (Nếu có) -->
-      <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
-        <div class="bang-diem-nhan-cuon" id="dnCuon">
-          <div class="bang-diem-nhan-track" id="dnTrack"></div>
-        </div>
-        <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
-        <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
-      </section>
+      {/* ═══════════════════════════════════════════════════════
+          3-COLUMN LAYOUT
+      ═══════════════════════════════════════════════════════ */}
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-4 pt-4 pb-24 lg:py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-6">
 
-      <!-- 3. Thanh 4 Tabs Twitter Communities: Top · Latest · Media · About (Hình 2) -->
-      <nav class="community-nav-tabs" id="commNavTabs" aria-label="Các tab cộng đồng">
-        <button class="community-tab-item active" data-tab="top" type="button">Top</button>
-        <button class="community-tab-item" data-tab="latest" type="button">Latest</button>
-        <button class="community-tab-item" data-tab="media" type="button">Media</button>
-        <button class="community-tab-item" data-tab="about" type="button">About</button>
-      </nav>
+        {/* ─── LEFT SIDEBAR ─────────────────────────────────── */}
+        <aside className="hidden lg:flex flex-col gap-4 sticky top-24 h-[calc(100vh-8rem)] overflow-y-auto pr-1">
 
-      <!-- 4. Khung Soạn Bài "What's happening?" (Hình 1 - CHỈ HIỆN KHI ĐƯỢC CẤP QUYỀN) -->
-      <section class="community-composer" id="commComposer" hidden>
-        <div class="composer-row-top">
-          <img class="composer-user-avatar" id="compAvatar" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='20' fill='%231d9bf0'/><text x='50%25' y='54%25' font-size='18' text-anchor='middle' fill='%23fff' font-family='sans-serif' dy='.3em'>🎓</text></svg>" alt="Avatar">
-          <div class="composer-input-area">
-            <textarea class="composer-textarea" id="compInput" placeholder="Có gì mới ở lớp 10A7 hôm nay?..." rows="2"></textarea>
-            <div class="composer-preview-box" id="compPreviewBox" hidden>
-              <img class="composer-preview-media" id="compPreviewImg" alt="Xem trước ảnh" hidden>
-              <video class="composer-preview-media" id="compPreviewVid" controls hidden></video>
-              <div class="composer-audio-preview" id="compPreviewAudio" hidden>
-                <span style="font-size:20px;">🎵</span>
-                <audio id="compAudioPlayer" controls style="flex:1;height:36px;"></audio>
-              </div>
-              <button class="composer-preview-remove" id="compPreviewRemove" type="button" title="Gỡ đính kèm">✕</button>
-            </div>
-          </div>
-        </div>
+          {/* Create Room CTA */}
+          <button onClick={requireAuth(() => setShowCreateModal(true))}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs tracking-wide shadow-[0_0_20px_rgba(0,242,254,.3)] hover:opacity-95 hover:scale-[1.02] active:scale-[.98] transition-all">
+            <Ic name="plus" className="w-4 h-4" />
+            <span>TẠO PHÒNG HOẠT ĐỘNG MỚI</span>
+          </button>
 
-        <!-- Khung Media Picker 3 nguồn (Từ máy / Thư viện / Link hoặc YouTube) -->
-        <div class="composer-picker-panel" id="compMediaPicker" hidden>
-          <div class="composer-picker-tabs" id="compPickerTabs">
-            <button class="composer-picker-tab active" id="compTabMay" type="button" data-nguon="may">📁 Từ máy</button>
-            <button class="composer-picker-tab" id="compTabThuVien" type="button" data-nguon="thuvien">📚 Thư viện lớp</button>
-            <button class="composer-picker-tab" id="compTabLink" type="button" data-nguon="link">🔗 Link / YouTube</button>
-          </div>
-          <div class="composer-picker-body">
-            <!-- Nguồn 1: Từ máy (Upload) -->
-            <div id="compPanelMay">
-              <input type="file" id="compFileInput" style="display:none;">
-              <button class="nut nut-vien nut-rong" id="compBtnChonTep" type="button" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
-                <span style="font-size:18px;">⬆</span> <span id="compBtnChonTepText">Chọn tệp từ thiết bị của bạn</span>
+          {/* Multi-class switcher */}
+          <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 shadow-xl">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-2 mb-2 flex items-center gap-1.5">
+              <Ic name="globe" className="w-3.5 h-3.5" /> Toàn Trường
+            </p>
+            <div className="flex flex-col gap-1">
+              <button onClick={() => setClassFilter('ALL')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${classFilter === 'ALL' ? 'bg-white/10 text-white font-bold' : 'text-slate-400 hover:bg-white/5'}`}>
+                <span>🏫 Tất cả lớp</span>
+                <span className="text-[10px] text-slate-500">{rooms.length} phòng</span>
               </button>
-            </div>
-            <!-- Nguồn 2: Thư viện lớp -->
-            <div id="compPanelThuVien" hidden>
-              <div class="composer-picker-library-grid" id="compLibGrid">
-                <div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;">Đang tải thư viện…</div>
-              </div>
-            </div>
-            <!-- Nguồn 3: Dán link / YouTube -->
-            <div id="compPanelLink" hidden>
-              <input class="o-nhap o-nhap-nho" id="compInputLinkUrl" placeholder="Dán đường dẫn trực tiếp hoặc link YouTube...">
+              {MULTI_CLASSES.map(cls => (
+                <button key={cls.id} onClick={() => setClassFilter(cls.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${classFilter === cls.id ? 'bg-white/10 text-white font-bold' : 'text-slate-400 hover:bg-white/5'}`}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ background: cls.color }}></span>
+                    {cls.label}
+                  </span>
+                  <span className="text-[10px] text-emerald-400 font-mono">{cls.online}/{cls.total}</span>
+                </button>
+              ))}
             </div>
           </div>
-        </div>
 
-        <!-- Khay Emoji nhanh -->
-        <div class="composer-emoji-drawer" id="compEmojiDrawer" hidden></div>
-
-        <div class="composer-row-bottom">
-          <div class="composer-tools-list">
-            <button class="composer-tool-btn" id="compToolAnh" type="button" title="Ảnh (Từ máy / Thư viện / Link)">
-              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7-3 3.72L9 13l-3 4h12l-4-5z"/></svg>
-            </button>
-            <button class="composer-tool-btn" id="compToolVideo" type="button" title="Video (Từ máy / Thư viện / YouTube)">
-              <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-            </button>
-            <button class="composer-tool-btn" id="compToolAmThanh" type="button" title="Âm thanh (Từ máy / Thư viện / Link)">
-              <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            </button>
-            <button class="composer-tool-btn" id="compToolEmoji" type="button" title="Biểu tượng cảm xúc">
-              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
-            </button>
+          {/* Category filter */}
+          <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 shadow-xl">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-2 mb-2">Loại Phòng</p>
+            <nav className="flex flex-col gap-1">
+              {[
+                { id: 'ALL', label: 'Tất Cả', icon: 'radio', count: filteredRooms.length },
+                { id: 'CINEMA', label: 'Rạp Chiếu', icon: 'tv', count: rooms.filter(r=>r.type==='CINEMA').length },
+                { id: 'GAME', label: 'Cờ Caro', icon: 'game', count: rooms.filter(r=>r.type==='GAME_CARO').length },
+                { id: 'LOFI', label: 'Lofi Study', icon: 'phones', count: rooms.filter(r=>r.type==='LOFI_STUDY').length },
+              ].map(cat => (
+                <button key={cat.id} onClick={() => { setCatFilter(cat.id); if (currentView==='ROOM_ACTIVE') setCurrentView('LOBBY'); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${catFilter === cat.id ? 'bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                  <div className="flex items-center gap-2.5">
+                    <Ic name={cat.icon} className="w-4 h-4" />
+                    <span>{cat.label}</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5">{cat.count}</span>
+                </button>
+              ))}
+            </nav>
           </div>
-          <button class="composer-post-btn" id="compBtnDang" type="button" disabled>Post</button>
-        </div>
-      </section>
 
-      <!-- 5. Vùng hiển thị nội dung theo từng Tab -->
-      <!-- TAB TOP: Thông báo ghim & Hoạt động nổi bật -->
-      <section class="community-tab-pane" id="commPaneTop">
-        <div class="twitter-feed-container" id="feedTop">
-          <div class="dang-tai"><span class="quay"></span>Đang tải bảng tin…</div>
-        </div>
-      </section>
+          {/* Upcoming deadline */}
+          <div className="bg-[#151A23] border border-amber-400/30 rounded-2xl p-4 shadow-[0_0_15px_rgba(255,184,0,.1)]">
+            <div className="flex items-center gap-2 text-[#FFB800] text-xs font-bold mb-2">
+              <Ic name="clock" className="w-4 h-4" />
+              <span>Hạn Chót Sắp Đến</span>
+            </div>
+            <p className="text-xs text-slate-200 font-semibold mb-1">Nộp Đề Cương Ôn Tập HK1</p>
+            <p className="text-[11px] text-slate-400 mb-2">Chủ Nhật, 22:00 (Còn 2 ngày 5 giờ)</p>
+            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-[#FFB800] h-full rounded-full" style={{width:'75%'}}></div>
+            </div>
+          </div>
+        </aside>
 
-      <!-- TAB LATEST: Bảng tin hoạt động & bài đăng dòng thời gian -->
-      <section class="community-tab-pane" id="commPaneLatest" hidden>
-        <div class="twitter-feed-container" id="feedLatest">
-          <div class="dang-tai"><span class="quay"></span>Đang tải dòng thời gian…</div>
-        </div>
-      </section>
+        {/* ─── CENTER STAGE ─────────────────────────────────── */}
+        <main className="flex flex-col gap-6 min-w-0">
 
-      <!-- TAB MEDIA: Lưới ảnh & video hoạt động -->
-      <section class="community-tab-pane" id="commPaneMedia" hidden>
-        <div class="community-media-grid" id="feedMedia">
-          <div class="dang-tai"><span class="quay"></span>Đang tải thư viện ảnh…</div>
-        </div>
-      </section>
-
-      <!-- TAB ABOUT: Thông tin giới thiệu lớp (Văn bản + Hình ảnh + Âm thanh + Video) -->
-      <section class="community-tab-pane" id="commPaneAbout" hidden>
-        <div class="community-about-container">
-          <div class="community-about-card" id="commAboutCard">
-            <div class="community-about-header">
-              <h3 class="community-about-title">Giới thiệu về lớp</h3>
-              <button class="community-about-edit-btn" id="commBtnSuaAbout" type="button" title="Chỉnh sửa thông tin giới thiệu" hidden>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                <span>Chỉnh sửa</span>
+          {/* Mobile quick category & create strip */}
+          <div className="flex lg:hidden items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {[
+              { id: 'ALL', label: 'Tất Cả' },
+              { id: 'CINEMA', label: '🎬 Rạp Chiếu' },
+              { id: 'GAME', label: '♟️ Cờ Caro' },
+              { id: 'LOFI', label: '🎧 Lofi Cafe' },
+            ].map(cat => (
+              <button key={cat.id} onClick={() => { setCatFilter(cat.id); setMobileTab('ROOMS'); }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${catFilter === cat.id && mobileTab === 'ROOMS' ? 'bg-[#00F2FE] text-black shadow-[0_0_10px_rgba(0,242,254,.3)]' : 'bg-[#151A23] text-slate-300 border border-white/10'}`}>
+                {cat.label}
               </button>
+            ))}
+            <button onClick={requireAuth(() => setShowCreateModal(true))}
+              className="ml-auto px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs whitespace-nowrap shrink-0 shadow-[0_0_12px_rgba(0,242,254,.3)]">
+              + Tạo Phòng
+            </button>
+          </div>
+
+          {/* Mobile Tab Views */}
+          {mobileTab === 'CHAT' && (
+            <div className="flex lg:hidden flex-col gap-4 animate-fadeIn">
+              <LiveChatBox chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput} handleSendChat={handleSendChat} isGuest={isGuest} chatEndRef={chatEndRef} />
             </div>
+          )}
 
-            <div class="community-about-body" id="commAboutBody">
-              <!-- Nội dung văn bản -->
-              <div class="community-about-text" id="commAboutText" hidden></div>
+          {mobileTab === 'RADIO_CALENDAR' && (
+            <div className="flex lg:hidden flex-col gap-4 animate-fadeIn">
+              <DjRadioBox djPlaying={djPlaying} setDjPlaying={setDjPlaying} djProgress={djProgress} />
+              <CalendarBox />
+            </div>
+          )}
 
-              <!-- Nội dung hình ảnh -->
-              <div class="community-about-media-image" id="commAboutImageWrap" hidden>
-                <img id="commAboutImage" src="" alt="Ảnh giới thiệu lớp" loading="lazy">
-              </div>
+          {mobileTab === 'LEADERBOARD' && (
+            <div className="flex lg:hidden flex-col gap-4 animate-fadeIn">
+              <LeaderboardBox />
+            </div>
+          )}
 
-              <!-- Nội dung video -->
-              <div class="community-about-media-video" id="commAboutVideoWrap" hidden>
-                <div id="commAboutVideoContainer"></div>
-              </div>
+          {/* Main Content Container (Always visible on desktop, visible on mobile when mobileTab === 'ROOMS') */}
+          <div className={mobileTab !== 'ROOMS' ? 'hidden lg:flex flex-col gap-6' : 'flex flex-col gap-6'}>
 
-              <!-- Nội dung âm thanh -->
-              <div class="community-about-media-audio" id="commAboutAudioWrap" hidden>
-                <div class="about-audio-player-box">
-                  <span class="about-audio-icon">🎵</span>
-                  <audio id="commAboutAudio" controls preload="none"></audio>
+          {/* ── ROOM ACTIVE VIEW ── */}
+          {currentView === 'ROOM_ACTIVE' && selectedRoom && (
+            <div className="flex flex-col gap-5 animate-fadeIn">
+              {/* Top bar */}
+              <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => { setSelectedRoom(null); setCurrentView('LOBBY'); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all">
+                    <Ic name="left" className="w-4 h-4" /> Rời Phòng
+                  </button>
+                  <div>
+                    <h2 className="text-sm font-bold text-white line-clamp-1">{selectedRoom.title}</h2>
+                    <p className="text-[11px] text-slate-400">Chủ phòng: {selectedRoom.host.name} · {selectedRoom.membersCount}/{selectedRoom.maxCapacity} người</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 hidden sm:inline">Danmaku:</span>
+                  <button onClick={() => setDanmakuEnabled(!danmakuEnabled)}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${danmakuEnabled ? 'bg-[#00F2FE] text-black shadow-[0_0_10px_rgba(0,242,254,.4)]' : 'bg-white/10 text-slate-400'}`}>
+                    {danmakuEnabled ? 'BẬT' : 'TẮT'}
+                  </button>
                 </div>
               </div>
 
-              <!-- Trạng thái trống -->
-              <div class="community-about-empty" id="commAboutEmpty">
-                <p>Chưa có thông tin giới thiệu về lớp.</p>
-              </div>
+              {/* Cinema */}
+              {selectedRoom.type === 'CINEMA' && (
+                <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+                  <img src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=1200&auto=format&fit=crop&q=80" className="w-full h-full object-cover opacity-85" alt="Cinema" />
+                  {danmakuEnabled && (
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                      {danmakuList.map(d => (
+                        <div key={d.id} style={{ top:`${d.top}%`, color: d.color, animation:`danmakuMove ${d.dur}s linear infinite` }}
+                          className="absolute whitespace-nowrap text-sm font-extrabold drop-shadow-[0_2px_4px_rgba(0,0,0,.9)] px-3 py-1 rounded-full bg-black/40 border border-white/10">
+                          {d.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 p-4 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3">
+                      <button className="w-9 h-9 rounded-full bg-[#00F2FE] text-black flex items-center justify-center shadow-lg">
+                        <Ic name="play" className="w-4 h-4" />
+                      </button>
+                      <div>
+                        <p className="font-bold text-white truncate max-w-xs">{selectedRoom.videoTitle || selectedRoom.title}</p>
+                        <p className="text-[10px] text-slate-400">{selectedRoom.videoProgress || 'Đang đồng bộ'}</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold animate-pulse">ĐỒNG BỘ TRỰC TIẾP</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Caro */}
+              {selectedRoom.type === 'GAME_CARO' && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-2xl flex flex-col items-center">
+                  <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-white/10 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white">Lượt đi:</span>
+                      <span className={`px-2.5 py-1 rounded-lg font-black text-xs ${caroTurn==='X' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40'}`}>Quân {caroTurn}</span>
+                    </div>
+                    {caroWinner && <span className="text-emerald-400 font-bold text-xs animate-bounce">{caroWinner}</span>}
+                    <button onClick={() => { setCaroBoard(Array(15).fill(null).map(()=>Array(15).fill(null))); setCaroWinner(null); setCaroTurn('X'); }}
+                      className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10">Chơi Lại</button>
+                  </div>
+                  <div className="overflow-x-auto max-w-full pb-2">
+                    <div className="grid grid-cols-15 gap-[1px] bg-slate-700/50 p-[2px] rounded-lg border border-white/10">
+                      {caroBoard.map((row, r) => row.map((cell, c) => (
+                        <button key={`${r}-${c}`} onClick={() => handleCaroClick(r, c)}
+                          className={`w-6 h-6 sm:w-7 sm:h-7 bg-[#0B0E14] hover:bg-white/5 flex items-center justify-center font-bold text-xs transition-colors ${cell==='X' ? 'text-[#00F2FE]' : cell==='O' ? 'text-[#8B5CF6]' : ''}`}>
+                          {cell}
+                        </button>
+                      )))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Lofi */}
+              {selectedRoom.type === 'LOFI_STUDY' && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl p-6 shadow-2xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-base font-bold text-white">Bàn Học Tập Tập Trung</h3>
+                      <p className="text-xs text-slate-400">Micro của tất cả thành viên được tắt tự động.</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                      <span className="text-xs text-emerald-400 font-bold">Yên lặng tuyệt đối</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[{name:'Học sinh A', av:'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80'},
+                      {name:'Học sinh B', av:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'},
+                      {name:'Học sinh C', av:'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'}].map(m => (
+                      <div key={m.name} className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14]/70 border border-white/10">
+                        <img src={m.av} className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-400/40" alt={m.name} />
+                        <div>
+                          <p className="text-xs font-semibold text-white">{m.name}</p>
+                          <p className="text-[10px] text-slate-400">Đang học...</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* ── LOBBY VIEW ── */}
+          {currentView === 'LOBBY' && (
+            <>
+              {/* ── TAB: Lobby ── */}
+              {activeTab === 'lobby' && (
+                <>
+                  {/* Announcement banner */}
+                  <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 backdrop-blur-md rounded-2xl p-4 flex items-start gap-3 shadow-[0_0_20px_rgba(255,184,0,.1)]">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                      <Ic name="bell" className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30">📢 Thông Báo Lớp</span>
+                        <span className="text-[10px] text-slate-400">Thầy Lê Đình Phát · 15 phút trước</span>
+                        {isTeacherMode && (
+                          <button onClick={requireAuth(() => alert('Mở Create Announcement Modal'))}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/30 transition-colors">
+                            + Phát Thông Báo Mới
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs font-bold text-white mb-1">📌 LỊCH ÔN TẬP VẬT LÝ 10 & THỐNG NHẤT ĐỘI HÌNH HỘI THAO</p>
+                      <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">Tối nay từ 20:00 - 21:30, phòng Cinema Lounge sẽ phát bài giảng ôn tập Vật Lý 10 có giải đáp trực tiếp. Nhóm bóng đá và cờ vua nhớ nộp danh sách trước 22:00 Chủ Nhật!</p>
+                    </div>
+                  </div>
+
+                  {/* Lobby header */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h2 className="text-base font-bold text-white flex items-center gap-2">
+                        Lobby Hoạt Động Trực Tiếp <Ic name="sparkles" className="w-4 h-4 text-[#00F2FE]" />
+                      </h2>
+                      <p className="text-xs text-slate-400">Chọn một phòng để học tập, xem video hoặc giải trí cùng bạn bè</p>
+                    </div>
+                    <span className="text-xs text-[#00F2FE] font-medium">{filteredRooms.length} phòng đang mở</span>
+                  </div>
+
+                  {/* Activity grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredRooms.map(room => {
+                      const soloLocked = room.privacy === 'SOLO_POD' && room.isLocked;
+                      const classInfo = MULTI_CLASSES.find(c => c.id === room.classId);
+                      return (
+                        <div key={room.id}
+                          className={`group relative bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col justify-between transition-all duration-300 ${soloLocked ? 'opacity-65' : 'hover:border-[#00F2FE]/50 hover:shadow-[0_0_24px_rgba(0,242,254,.15)]'}`}>
+                          <div>
+                            <div className="relative aspect-video w-full rounded-xl overflow-hidden mb-3 bg-black/40">
+                              <img src={room.thumbnail} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                              <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-bold text-white">
+                                {soloLocked ? <Ic name="lock" className="w-3 h-3 text-rose-400" /> : <Ic name="unlock" className="w-3 h-3 text-emerald-400" />}
+                                <span>{room.privacy}</span>
+                              </div>
+                              <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                                {classInfo && (
+                                  <span className="px-2 py-0.5 rounded-full bg-black/70 text-[10px] font-bold border border-white/10" style={{ color: classInfo.color }}>{classInfo.label}</span>
+                                )}
+                                <span className="px-2 py-0.5 rounded-full bg-black/70 text-[10px] text-slate-200 font-mono">{room.membersCount}/{room.maxCapacity}</span>
+                              </div>
+                            </div>
+                            <h3 className="text-sm font-bold text-white group-hover:text-[#00F2FE] transition-colors line-clamp-1 mb-1">{room.title}</h3>
+                            <p className="text-[11px] text-slate-400 mb-3 flex items-center gap-1">
+                              Chủ phòng: <strong className="text-slate-300">{room.host.name}</strong>
+                              {room.host.role === 'TEACHER' && <Ic name="check" className="w-3 h-3 text-[#00F2FE]" />}
+                            </p>
+                          </div>
+                          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                            <div className="flex gap-1.5 flex-wrap">
+                              {room.tags?.map(tag => (
+                                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-400">{tag}</span>
+                              ))}
+                            </div>
+                            <button onClick={() => handleJoinRoom(room)} disabled={soloLocked}
+                              className={`px-4 py-1.5 rounded-xl font-bold text-xs transition-all ${soloLocked ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : room.type === 'CINEMA' ? 'bg-[#00F2FE] text-black shadow-[0_0_12px_rgba(0,242,254,.3)] hover:scale-105' : 'bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black shadow-[0_0_12px_rgba(139,92,246,.3)] hover:scale-105'}`}>
+                              {soloLocked ? 'Đang Tự Học (Khóa)' : 'Tham Gia Ngay'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── TAB: Attendance ── */}
+              {activeTab === 'attendance' && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl p-6 shadow-xl animate-fadeIn">
+                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">📋 Điểm Danh & Chuyên Cần
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">Tuần 3</span>
+                  </h3>
+                  {isGuest ? (
+                    <div className="text-center py-12">
+                      <p className="text-slate-400 text-sm mb-4">Đăng nhập để xem thông tin điểm danh cá nhân và lớp.</p>
+                      <a href="/login.html" className="px-6 py-2 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#00F2FE] text-black font-bold text-sm">Đăng nhập →</a>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        {[{label:'Có mặt',val:'36/39',sub:'92.3%',color:'#10b981'},{label:'Vắng',val:'3',sub:'Có phép: 2',color:'#f43f5e'},{label:'Đi trễ',val:'1',sub:'Trong tuần',color:'#FFB800'}].map(s => (
+                          <div key={s.label} className="bg-[#0B0E14] rounded-xl p-4 text-center border border-white/5">
+                            <p className="text-xl font-black" style={{color:s.color}}>{s.val}</p>
+                            <p className="text-[11px] text-slate-300 font-semibold">{s.label}</p>
+                            <p className="text-[10px] text-slate-500">{s.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-400 text-center">Dữ liệu đầy đủ xem tại <a href="/class-home.html#/diem-danh" className="text-[#00F2FE] hover:underline">Trang Lớp → Điểm Danh</a></p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB: Treasury ── */}
+              {activeTab === 'treasury' && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl p-6 shadow-xl animate-fadeIn">
+                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">💰 Thủ Quỹ Lớp</h3>
+                  {isGuest ? (
+                    <div className="text-center py-12">
+                      <p className="text-slate-400 text-sm mb-4">Đăng nhập để xem thông tin quỹ lớp.</p>
+                      <a href="/login.html" className="px-6 py-2 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#00F2FE] text-black font-bold text-sm">Đăng nhập →</a>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {[{label:'Tổng Thu',val:'4.200.000 đ',color:'#10b981'},{label:'Tổng Chi',val:'1.850.000 đ',color:'#f43f5e'},{label:'Số Dư',val:'2.350.000 đ',color:'#FFB800'},{label:'Đã Đóng',val:'35/39',color:'#00F2FE'}].map(s => (
+                          <div key={s.label} className="bg-[#0B0E14] rounded-xl p-4 border border-white/5">
+                            <p className="text-base font-black" style={{color:s.color}}>{s.val}</p>
+                            <p className="text-[11px] text-slate-400">{s.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-400 text-center">Chi tiết đầy đủ tại <a href="/class-home.html#/thu-quy" className="text-[#00F2FE] hover:underline">Trang Lớp → Thủ Quỹ</a></p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB: Students ── */}
+              {activeTab === 'students' && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl p-6 shadow-xl animate-fadeIn">
+                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">👥 Danh Sách Học Sinh
+                    <span className="text-xs text-slate-400 font-normal">39 thành viên</span>
+                  </h3>
+                  {isGuest ? (
+                    <div className="text-center py-12">
+                      <p className="text-slate-400 text-sm mb-4">Đăng nhập để xem danh sách học sinh.</p>
+                      <a href="/login.html" className="px-6 py-2 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#00F2FE] text-black font-bold text-sm">Đăng nhập →</a>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-slate-400 text-sm">Xem danh sách đầy đủ tại <a href="/class-home.html#/danh-sach" className="text-[#00F2FE] hover:underline font-semibold">Trang Lớp → Học Sinh</a></p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+          </div>
+        </main>
+
+        {/* ─── RIGHT SIDEBAR (Desktop) ──────────────────────── */}
+        <aside className="hidden lg:flex flex-col gap-4 sticky top-24 h-[calc(100vh-8rem)] overflow-y-auto pl-1">
+          <DjRadioBox djPlaying={djPlaying} setDjPlaying={setDjPlaying} djProgress={djProgress} />
+          <CalendarBox />
+          <LeaderboardBox />
+          <LiveChatBox chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput} handleSendChat={handleSendChat} isGuest={isGuest} chatEndRef={chatEndRef} />
+        </aside>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          MOBILE BOTTOM NAVIGATION (Fixed bottom for mobile users)
+      ═══════════════════════════════════════════════════════ */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#151A23]/95 backdrop-blur-xl border-t border-white/10 flex lg:hidden items-center justify-around py-2.5 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+        <button onClick={() => setMobileTab('ROOMS')}
+          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${mobileTab === 'ROOMS' ? 'text-[#00F2FE]' : 'text-slate-400 hover:text-white'}`}>
+          <Ic name="tv" className="w-5 h-5" />
+          <span>Phòng Học</span>
+        </button>
+        <button onClick={() => setMobileTab('CHAT')}
+          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${mobileTab === 'CHAT' ? 'text-[#00F2FE]' : 'text-slate-400 hover:text-white'}`}>
+          <div className="relative">
+            <Ic name="send" className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00F2FE] animate-ping"></span>
+          </div>
+          <span>Trò Chuyện</span>
+        </button>
+        <button onClick={() => setMobileTab('RADIO_CALENDAR')}
+          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${mobileTab === 'RADIO_CALENDAR' ? 'text-[#00F2FE]' : 'text-slate-400 hover:text-white'}`}>
+          <Ic name="radio" className="w-5 h-5" />
+          <span>Radio & Lịch</span>
+        </button>
+        <button onClick={() => setMobileTab('LEADERBOARD')}
+          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${mobileTab === 'LEADERBOARD' ? 'text-[#00F2FE]' : 'text-slate-400 hover:text-white'}`}>
+          <Ic name="trophy" className="w-5 h-5" />
+          <span>Xếp Hạng</span>
+        </button>
+      </nav>
+
+      {/* ═══════════════════════════════════════════════════════
+          CREATE ROOM MODAL
+      ═══════════════════════════════════════════════════════ */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#151A23] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleUp">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Ic name="plus" className="w-5 h-5 text-[#00F2FE]" /> Tạo Phòng Hoạt Động Mới
+              </h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10">
+                <Ic name="x" className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateRoom} className="flex flex-col gap-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Tên Phòng</label>
+                <input required value={newRoom.title} onChange={e => setNewRoom({...newRoom, title: e.target.value})}
+                  placeholder="Ví dụ: Ôn Lý Nhóm 3 / Thách Đấu Cờ Caro..."
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#00F2FE]" />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Loại Hoạt Động</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[{t:'CINEMA',l:'🎬 Rạp Phim'},{t:'GAME_CARO',l:'♟️ Cờ Caro'},{t:'LOFI_STUDY',l:'🎧 Lofi Cafe'}].map(a => (
+                    <button key={a.t} type="button" onClick={() => setNewRoom({...newRoom, type: a.t})}
+                      className={`p-2.5 rounded-xl border font-semibold transition-all ${newRoom.type===a.t ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}>
+                      {a.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Quy Mô</label>
+                <select value={newRoom.privacy} onChange={e => setNewRoom({...newRoom, privacy: e.target.value})}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#00F2FE]">
+                  <option value="PUBLIC_CLASS">PUBLIC_CLASS (Mở cho cả lớp)</option>
+                  <option value="SQUAD_POD">SQUAD_POD (Nhóm 2-8 người)</option>
+                  <option value="DUO_POD">DUO_POD (1v1)</option>
+                  <option value="SOLO_POD">SOLO_POD (Tự học - Khóa)</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-3 mt-2 pt-3 border-t border-white/10">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold">Hủy</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold shadow-[0_0_12px_rgba(0,242,254,.4)]">Tạo & Vào Phòng</button>
+              </div>
+            </form>
           </div>
         </div>
-      </section>
+      )}
 
-      <!-- Khối ẩn hỗ trợ tương thích ngược cho các hook cũ nếu cần -->
-      <div id="thong-bao" style="display:none !important;" hidden><div id="dsThongBao" style="display:none !important;"></div></div>
-      <div id="hinh-anh" hidden><div id="thuVien"></div></div>
-      <div id="moDau" hidden></div>
-
+      {/* Click outside to close notifications */}
+      {showNotifs && <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)}></div>}
     </div>
-  </div>
+  );
+}
 
-  <!-- ================= TRANG RIÊNG (mở từ menu) ================= -->
-  <div class="trang-phu" id="trangDanhSach" hidden>
-    <a class="quay-lai" href="#/">‹ Trang chủ</a>
-    <section id="danh-sach">
-      <div class="dau-muc">
-        <h2>Học sinh</h2>
-        <p id="soLuongHs"></p>
-      </div>
-      <div class="the">
-        <input class="o-nhap" id="oTim" type="search" placeholder="Tìm theo họ tên, lớp nghề…" aria-label="Tìm học sinh">
-        <div class="day-loc" id="locNghe"></div>
-        <div class="cuon-ngang">
-          <table>
-            <thead>
-              <tr>
-                <th class="so">STT</th>
-                <th>Họ và tên</th>
-                <th data-cot="gioi-tinh">Giới tính</th>
-                <th data-cot="ngay-sinh">Ngày sinh</th>
-                <th data-cot="lop-nghe">Lớp nghề</th>
-                <th data-cot="to-hop">Tổ hợp</th>
-                <th data-cot="to-so">Tổ</th>
-                <th data-cot="chuc-vu">Chức vụ</th>
-                <th data-cot="dien-thoai-hs">Điện thoại</th>
-              </tr>
-            </thead>
-            <tbody id="bangHocSinh"><tr><td colspan="9" class="trong">Đang tải…</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="trang-phu" id="trangThuQuy" hidden>
-    <a class="quay-lai" href="#/">‹ Trang chủ</a>
-    <section id="thu-quy">
-      <div class="dau-muc">
-        <h2>Thủ quỹ lớp</h2>
-        <p>Công khai minh bạch thu – chi. Xem chi tiết danh sách học sinh đã đóng và chưa đóng từng khoản.</p>
-      </div>
-      <div class="day-so" id="tqTongQuan"></div>
-      <div class="the" id="tqKhoan"></div>
-    </section>
-  </div>
-
-  <div class="trang-phu" id="trangDiemDanh" hidden>
-    <a class="quay-lai" href="#/">‹ Trang chủ</a>
-    <section id="khuDiemDanh">
-      <div class="dau-muc">
-        <h2>Điểm danh & Chuyên cần</h2>
-        <p>Theo dõi tình hình sĩ số lớp hằng ngày và chuyên cần cá nhân của em.</p>
-      </div>
-      <div class="day-loc" id="ddTabLoai" style="margin: 14px 0 20px 0;"></div>
-      <div id="ddCaNhan"></div>
-      <div class="the" id="ddLopKhoi"></div>
-    </section>
-  </div>
-
-</main>
-
-<footer class="chan-trang">
-  <div class="wrap">
-    <p class="chan-trang-dong-1">Trang nội bộ — không chia sẻ mã bảo mật ra ngoài lớp.</p>
-    <p class="chan-trang-dong-2">Made with <span class="trai-tim-xanh" aria-label="yêu thương">💙</span></p>
-  </div>
-</footer>
-
-  <!-- SLIDE-OVER DANH SÁCH THÀNH VIÊN (VÙNG 3 - TWITTER STYLE) -->
-  <div class="members-panel-backdrop" id="membersBackdrop"></div>
-  <aside class="members-panel" id="membersPanel" aria-label="Danh sách thành viên">
-    <div class="members-panel-header">
-      <button class="members-panel-close" id="membersCloseBtn" type="button" aria-label="Đóng" title="Đóng">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-      <h2 class="members-panel-title">Thành viên</h2>
-    </div>
-    <div class="members-panel-search">
-      <input type="search" id="membersSearchInput" placeholder="🔍 Tìm kiếm thành viên…" autocomplete="off">
-    </div>
-    <div class="members-panel-tabs">
-      <button class="members-panel-tab active" id="membersTabAll" type="button">Tất cả</button>
-      <button class="members-panel-tab" id="membersTabMods" type="button">Ban quản trị</button>
-    </div>
-    <div class="members-panel-list" id="membersList">
-      <!-- Dynamic members rows -->
-    </div>
-  </aside>
-
-<audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260910_25"></script>
-<script src="/assets/js/chat-widget.js?v=20260910_25"></script>
-<script src="/assets/js/thanh-chuc-nang-nhanh.js?v=20260910_25"></script>
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<DigitalCampusApp />);
+</script>
 </body>
 </html>
