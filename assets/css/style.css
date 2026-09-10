@@ -3317,11 +3317,23 @@ td.cot-hom-nay {
 .community-cover-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 6;
-  min-height: 140px;
-  max-height: 240px;
+  min-height: 220px;
+  height: 260px;
   background: linear-gradient(135deg, #1d9bf0, #8b5cf6, #ec4899);
   overflow: hidden;
+}
+@media (min-width: 768px) {
+  .community-cover-box {
+    min-height: 380px;
+    height: 440px;
+  }
+}
+@media (min-width: 1200px) {
+  .community-cover-box {
+    min-height: 480px;
+    height: 540px;
+    max-height: 640px;
+  }
 }
 
 .community-cover-img,
@@ -4286,15 +4298,19 @@ td.cot-hom-nay {
   font-weight: 500;
 }
 
-/* ── 10. MEMBERS SLIDE-OVER PANEL ── */
+/* ── 10. MEMBERS CENTERED MODAL PANEL ── */
 .members-panel-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(5px);
   z-index: 1100;
   opacity: 0;
-  transition: opacity .22s ease;
   pointer-events: none;
+  transition: opacity .25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .members-panel-backdrop.hien {
   opacity: 1;
@@ -4302,53 +4318,72 @@ td.cot-hom-nay {
 }
 .members-panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  height: 100dvh;
-  width: min(420px, 100vw);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  width: min(540px, 94vw);
+  max-height: 85dvh;
   background: var(--nen-noi);
-  border-left: 1px solid var(--vien);
-  box-shadow: -8px 0 32px rgba(0,0,0,0.18);
+  border: 1px solid var(--vien);
+  border-radius: var(--r-lon);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
   z-index: 1101;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
-  transition: transform .26s cubic-bezier(.4,0,.2,1);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform .26s cubic-bezier(.4, 0, .2, 1), opacity .22s ease, visibility .22s ease;
   overflow: hidden;
 }
+@media (min-width: 900px) {
+  .members-panel { width: min(880px, 86vw); max-height: 86dvh; }
+}
+@media (min-width: 1300px) {
+  .members-panel { width: min(1060px, 80vw); max-height: 88dvh; }
+}
 .members-panel.hien {
-  transform: translateX(0);
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 .members-panel-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 16px 22px;
   border-bottom: 1px solid var(--vien);
   flex-shrink: 0;
 }
 .members-panel-title {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   color: var(--chu);
   margin: 0;
+  order: 1;
   flex: 1;
 }
 .members-panel-close {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: none;
-  background: transparent;
-  color: var(--chu-nhat);
+  background: var(--nen-chim);
+  color: var(--chu);
   cursor: pointer;
   font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background .15s;
+  order: 2;
+  margin-left: auto;
+  transition: background .15s, transform .15s;
 }
-.members-panel-close:hover { background: var(--nen-chim); }
+.members-panel-close:hover {
+  background: var(--vien);
+  transform: scale(1.05);
+}
 .members-panel-search {
   padding: 12px 18px 8px 18px;
   flex-shrink: 0;
@@ -4706,5 +4741,97 @@ main.wrap:has(#trangChu),
 .composer-emoji-item:hover {
   background: var(--nen-noi);
   transform: scale(1.2);
+}
+
+/* ── PC: Composer to hơn trên màn hình rộng ── */
+@media (min-width: 900px) {
+  .community-composer {
+    padding: 24px 28px 20px 28px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  .composer-user-avatar {
+    width: 58px;
+    height: 58px;
+    font-size: 24px;
+  }
+  .composer-row-top {
+    gap: 18px;
+  }
+  .composer-textarea {
+    font-size: 19px;
+    min-height: 84px;
+    line-height: 1.55;
+  }
+  .composer-textarea::placeholder {
+    font-size: 19px;
+  }
+  .composer-preview-box {
+    max-height: 420px;
+  }
+  .composer-preview-media {
+    max-height: 420px;
+  }
+  .composer-tools-bar {
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+  .composer-tool-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .composer-tool-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  .composer-post-btn {
+    padding: 11px 32px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .composer-picker-panel {
+    border-radius: 14px;
+    margin-top: 14px;
+  }
+}
+
+/* ── PC: Members panel list — 2 cột thẻ to, rộng rãi trên màn hình rộng ── */
+@media (min-width: 768px) {
+  .members-panel-list {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    align-content: start;
+  }
+  .member-item {
+    background: var(--nen-the, var(--nen-noi));
+    border: 1px solid var(--vien);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: transform .18s ease, box-shadow .18s ease, background .15s ease;
+  }
+  .member-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    background: var(--nen-chim);
+  }
+  .member-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 19px;
+  }
+  .member-name {
+    font-size: 15.5px;
+  }
+  .member-sub {
+    font-size: 13.5px;
+  }
+  .member-action-btn {
+    padding: 8px 18px;
+    font-size: 13.5px;
+  }
 }
 

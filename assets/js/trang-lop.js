@@ -2766,7 +2766,7 @@ function khoiTaoComposer(phien, lamMoi) {
       nutDang.textContent = 'Đang lưu…';
       await api('/api/gv/hoat-dong-lop', {
         method: 'POST',
-        body: {
+        than: {
           noiDung: nd,
           anhId,
           videoId,
@@ -2775,7 +2775,7 @@ function khoiTaoComposer(phien, lamMoi) {
           videoUrl,
           amThanhUrl,
           ngay: new Date().toISOString().slice(0, 10),
-        }
+        },
       });
 
       nhac('Đã đăng bài lên bảng tin cộng đồng!', 'tot');
