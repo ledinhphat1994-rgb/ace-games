@@ -3456,6 +3456,45 @@ td.cot-hom-nay {
   gap: 8px;
 }
 
+/* Nút mở Digital Campus Hub */
+.community-campus-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(139, 92, 246, 0.2));
+  border: 1px solid rgba(0, 242, 254, 0.45);
+  color: #00F2FE;
+  font-size: 13.5px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.25);
+  position: relative;
+}
+.community-campus-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.3), rgba(139, 92, 246, 0.35));
+  border-color: #00F2FE;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 242, 254, 0.5);
+}
+.campus-badge-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00F2FE;
+  box-shadow: 0 0 8px #00F2FE;
+  animation: campusPulseDot 1.5s infinite;
+  flex-shrink: 0;
+}
+@keyframes campusPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
 .community-edit-info-btn {
   display: inline-flex;
   align-items: center;
