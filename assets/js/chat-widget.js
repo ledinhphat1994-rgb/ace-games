@@ -85,6 +85,12 @@
 
     // 4. Bắt sự kiện
     bubble.onclick = toggleKhungChat;
+    bubble.addEventListener('touchend', (e) => {
+      // Chặn delay 300ms của mobile và mở bàn phím ngay lập tức
+      e.preventDefault();
+      toggleKhungChat();
+    }, { passive: false });
+
     document.getElementById('chatCloseBtn').onclick = toggleKhungChat;
     document.getElementById('chatEmojiToggleBtn').onclick = () => {
       const d = document.getElementById('chatEmojiDrawer');
@@ -100,6 +106,17 @@
     };
     document.getElementById('chatSendBtn').onclick = guiTinNhan;
     document.getElementById('chatTeacherSettingBtn').onclick = moCaiDatGiaoVien;
+
+    // Tự động co giãn theo bàn phím ảo trên điện thoại (Visual Viewport)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        if (dangMoKhungChat && window.innerWidth <= 600) {
+          const vh = window.visualViewport.height;
+          windowEl.style.height = `${vh}px`;
+          cuonXuongDuoi();
+        }
+      });
+    }
 
     // Tạm dừng polling khi tab bị ẩn để tiết kiệm pin & mạng
     document.addEventListener('visibilitychange', () => {
@@ -117,17 +134,26 @@
 
   function toggleKhungChat() {
     const win = document.getElementById('chatWidgetWindow');
+    const bubble = document.getElementById('chatWidgetBubble');
     dangMoKhungChat = !dangMoKhungChat;
 
     if (dangMoKhungChat) {
       win.classList.remove('chat-hidden');
+      if (bubble) bubble.style.display = 'none'; // Ẩn nút tròn khi khung chat đang mở
       tinChuaDoc = 0;
       capNhatBadge();
       cuonXuongDuoi();
-      document.getElementById('chatInputField').focus();
+
+      // Kích hoạt bàn phím ảo ngay lập tức trên cả Mobile & Desktop
+      const input = document.getElementById('chatInputField');
+      if (input) {
+        input.focus();
+        setTimeout(() => { input.focus(); }, 60);
+      }
       taiTinNhan(false);
     } else {
       win.classList.add('chat-hidden');
+      if (bubble) bubble.style.display = 'flex'; // Hiện lại nút tròn khi đóng khung chat
       document.getElementById('chatEmojiDrawer').style.display = 'none';
       document.getElementById('chatTeacherModal').style.display = 'none';
     }
@@ -209,8 +235,12 @@
 
       // Xử lý tin nhắn mới
       const tinMoi = data.tinNhan || [];
+      const container = document.getElementById('chatMessagesContainer');
+
       if (tinMoi.length > 0) {
-        const container = document.getElementById('chatMessagesContainer');
+        const emptyEl = document.getElementById('chatEmptyPlaceholder');
+        if (emptyEl) emptyEl.remove();
+
         if (laLanDau) {
           container.innerHTML = '';
         }
@@ -232,9 +262,8 @@
             capNhatBadge();
           }
         }
-      } else if (laLanDau) {
-        const container = document.getElementById('chatMessagesContainer');
-        container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 13px; margin-top: 30px;">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên! 👋</div>';
+      } else if (laLanDau && container.children.length === 0) {
+        container.innerHTML = '<div id="chatEmptyPlaceholder" style="text-align: center; color: #94a3b8; font-size: 13px; margin-top: 30px;">Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên! 👋</div>';
       }
     } catch (e) {
       console.warn('Lỗi tải chat:', e);
@@ -242,6 +271,9 @@
   }
 
   function themTinNhanVaoDom(t, container) {
+    const emptyEl = document.getElementById('chatEmptyPlaceholder');
+    if (emptyEl) emptyEl.remove();
+
     const row = document.createElement('div');
     const laTinCuaToi = (!laGiaoVien && hocSinhIdHienTai && t.hocSinhId === hocSinhIdHienTai) || (laGiaoVien && t.vaiTro === 'giao_vien');
     const laHeThong = t.vaiTro === 'he_thong';
@@ -253,19 +285,22 @@
     } else {
       row.className = `chat-msg-row ${laTinCuaToi ? 'msg-mine' : 'msg-other'} ${laGvcn ? 'msg-gv' : ''}`;
 
+      let modBtn = '';
+      if (laGiaoVien && !t.daXoa) {
+        modBtn = `<button class="chat-msg-mod-btn" title="Xoá tin này" onclick="window.chatWidgetXoaTin(${t.id})">✕ Xoá</button>`;
+      }
+
       let authorHtml = '';
       if (!laTinCuaToi) {
         authorHtml = `
-          <div class="chat-msg-author" ${laGiaoVien && t.hocSinhId ? `style="cursor: pointer; text-decoration: underline;" title="Bấm để cấm chat" onclick="window.chatWidgetCamHs(${t.hocSinhId}, '${escapeHtml(t.tenNguoiGui)}')"` : ''}>
-            ${escapeHtml(t.tenNguoiGui)}
-            ${laGvcn ? '<span class="badge-gv">GVCN</span>' : ''}
+          <div class="chat-msg-author" style="display: flex; align-items: center; justify-content: space-between;">
+            <span ${laGiaoVien && t.hocSinhId ? `style="cursor: pointer; text-decoration: underline;" title="Bấm để cấm chat" onclick="window.chatWidgetCamHs(${t.hocSinhId}, '${escapeHtml(t.tenNguoiGui)}')"` : ''}>
+              ${escapeHtml(t.tenNguoiGui)}
+              ${laGvcn ? '<span class="badge-gv">GVCN</span>' : ''}
+            </span>
+            ${modBtn}
           </div>
         `;
-      }
-
-      let modBtn = '';
-      if (laGiaoVien && !t.daXoa) {
-        modBtn = `<button class="chat-msg-mod-btn" title="Xoá tin này" onclick="window.chatWidgetXoaTin(${t.id})">✕</button>`;
       }
 
       let thoiGianStr = '';
@@ -274,13 +309,24 @@
         thoiGianStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       }
 
+      let footerHtml = '';
+      if (laTinCuaToi) {
+        footerHtml = `
+          <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 3px;">
+            ${modBtn}
+            ${thoiGianStr ? `<span class="chat-msg-time">${thoiGianStr}</span>` : ''}
+          </div>
+        `;
+      } else {
+        footerHtml = thoiGianStr ? `<div class="chat-msg-time">${thoiGianStr}</div>` : '';
+      }
+
       row.innerHTML = `
         ${authorHtml}
         <div class="chat-msg-bubble ${t.daXoa ? 'chat-msg-deleted' : ''}">
           ${escapeHtml(t.noiDung)}
         </div>
-        ${thoiGianStr ? `<div class="chat-msg-time">${thoiGianStr}</div>` : ''}
-        ${modBtn}
+        ${footerHtml}
       `;
     }
 

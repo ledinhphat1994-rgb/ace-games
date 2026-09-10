@@ -11,7 +11,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 
   // 2. Danh sách học sinh đang bị cấm chat
   const rsCam = await env.DB.prepare(`
-    SELECT c.hoc_sinh_id AS hocSinhId, h.ho_ten AS hoTen, h.stt, c.ly_do AS lyDo, c.den_luc AS denLuc, c.tao_luc AS taoLuc
+    SELECT c.hoc_sinh_id AS hocSinhId, h.ho_ten AS hoTen, COALESCE(h.so_thu_tu, h.id) AS stt, c.ly_do AS lyDo, c.den_luc AS denLuc, c.tao_luc AS taoLuc
     FROM chat_cam_hoc_sinh c
     JOIN hoc_sinh h ON c.hoc_sinh_id = h.id
     WHERE c.lop_id = ?1
