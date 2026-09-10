@@ -31,7 +31,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 
   const dangMo = than.dangMo === false ? 0 : 1;
   const gianCachGiay = Math.max(1, Math.min(60, parseInt(than.gianCachGiay || '5', 10)));
-  const thongBaoGhim = String(than.thongBaoGhim || '').trim().slice(0, 300);
+  const thongBaoGhim = String(than.thongBaoGhim || '').trim().slice(0, 500);
 
   await env.DB.prepare(`
     INSERT INTO chat_cai_dat (lop_id, dang_mo, gian_cach_giay, thong_bao_ghim, cap_nhat_luc)

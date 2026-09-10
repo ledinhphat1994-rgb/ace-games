@@ -16,7 +16,29 @@
   let dangGui = false;
   let caiDatHienTai = { dangMo: 1, gianCachGiay: 5, thongBaoGhim: '' };
 
-  const EMOJI_POPULAR = ['😊', '😂', '👍', '❤️', '👏', '🔥', '🎉', '📚', '✍️', '⚽', '🏆', '🐱', '💡', '💯', '🌸', '✨'];
+  // Kho icon chat phong phú (130+ emoji được phân loại khoa học)
+  const EMOJI_CATEGORIES = [
+    {
+      id: 'faces',
+      ten: '😀 Mặt cười',
+      icons: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😋', '😜', '🤪', '😎', '🥳', '😏', '🤔', '🤫', '🤭', '🤐', '😴', '😷', '🤒', '🤕', '🥺', '😢', '😭', '😱', '😤', '😡', '🤯', '🤠', '🤡', '👻']
+    },
+    {
+      id: 'hands',
+      ten: '👍 Cử chỉ',
+      icons: ['👍', '👎', '👏', '🙌', '🤝', '✌️', '🤞', '🤙', '👊', '✊', '🤛', '🤜', '🙏', '💪', '💖', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❣️', '💕', '💞', '💓', '💗']
+    },
+    {
+      id: 'school',
+      ten: '📚 Học tập',
+      icons: ['📚', '📖', '📕', '📗', '📘', '📙', '📝', '✍️', '✏️', '✒️', '📐', '📏', '📎', '📌', '🎨', '🎓', '🎒', '🏫', '💡', '🔔', '📢', '⏰', '⏱️', '📅', '💯', '🎯', '🏆', '🥇', '🥈', '🥉']
+    },
+    {
+      id: 'fun',
+      ten: '🎉 Hoạt động',
+      icons: ['🎉', '🎊', '🎈', '✨', '🔥', '⭐', '🌟', '💥', '🍀', '🌸', '🌹', '🌻', '🐱', '🐶', '🐰', '🐼', '🦊', '🐻', '🐯', '⚽', '🏀', '🏐', '🏸', '🎮', '☕', '🍵', '🧋', '🍦', '🍰', '🍕', '🍔']
+    }
+  ];
 
   function khoiTaoGiaoDien() {
     // 0. Lớp phủ nền (Backdrop) chặn toàn bộ tương tác của trang bên dưới khi chat mở
@@ -87,20 +109,49 @@
     `;
     document.body.appendChild(windowEl);
 
-    // 3. Đổ danh sách Emoji nhanh
+    // 3. Khởi tạo khay Emoji nâng cao với nhiều chủ đề
     const emojiDrawer = document.getElementById('chatEmojiDrawer');
-    EMOJI_POPULAR.forEach((emoji) => {
-      const btn = document.createElement('button');
-      btn.className = 'chat-emoji-btn';
-      btn.textContent = emoji;
-      btn.type = 'button';
-      btn.onclick = () => {
-        const input = document.getElementById('chatInputField');
-        input.value += emoji;
-        input.focus();
-      };
-      emojiDrawer.appendChild(btn);
+    emojiDrawer.innerHTML = `
+      <div class="chat-emoji-tabs" id="chatEmojiTabs"></div>
+      <div class="chat-emoji-grid" id="chatEmojiGrid"></div>
+    `;
+
+    const tabsContainer = document.getElementById('chatEmojiTabs');
+    const gridContainer = document.getElementById('chatEmojiGrid');
+
+    function renderEmojiGrid(catId) {
+      const cat = EMOJI_CATEGORIES.find((c) => c.id === catId) || EMOJI_CATEGORIES[0];
+      gridContainer.innerHTML = '';
+      cat.icons.forEach((emoji) => {
+        const btn = document.createElement('button');
+        btn.className = 'chat-emoji-btn';
+        btn.textContent = emoji;
+        btn.type = 'button';
+        btn.title = emoji;
+        btn.onclick = () => {
+          const input = document.getElementById('chatInputField');
+          input.value += emoji;
+          input.focus();
+        };
+        gridContainer.appendChild(btn);
+      });
+
+      tabsContainer.querySelectorAll('.chat-emoji-tab-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.cat === cat.id);
+      });
+    }
+
+    EMOJI_CATEGORIES.forEach((cat, idx) => {
+      const tabBtn = document.createElement('button');
+      tabBtn.className = `chat-emoji-tab-btn ${idx === 0 ? 'active' : ''}`;
+      tabBtn.dataset.cat = cat.id;
+      tabBtn.textContent = cat.ten;
+      tabBtn.type = 'button';
+      tabBtn.onclick = () => renderEmojiGrid(cat.id);
+      tabsContainer.appendChild(tabBtn);
     });
+
+    renderEmojiGrid(EMOJI_CATEGORIES[0].id);
 
     // 4. Event delegation cho Xoá tin & Cấm HS trong danh sách tin nhắn
     const msgContainer = document.getElementById('chatMessagesContainer');
@@ -120,7 +171,7 @@
       }
     });
 
-    // 5. Bắt sự kiện bấm vào bong bóng để mở chat — cực nhạy trên cả Mobile và Desktop
+    // 5. Bắt sự kiện bấm vào bong bóng để mở chat — không tự bật bàn phím
     function xuLyMoChat(e) {
       if (e) {
         e.preventDefault();
@@ -197,7 +248,7 @@
     capNhatBadge();
     cuonXuongDuoi();
 
-    // Không tự động bật bàn phím ảo khi mở khung chat (chỉ hiện khi người dùng bấm vào ô nhập)
+    // Không tự động bật bàn phím ảo (chỉ hiện khi người dùng chủ động chạm vào ô nhập)
     const input = document.getElementById('chatInputField');
     if (input) {
       try { input.blur(); } catch {}
@@ -263,6 +314,23 @@
     if (modBtn) modBtn.remove();
   }
 
+  // Chuyển đổi định dạng chữ cho thông báo ghim (**đậm**, *nghiêng*, <u>gạch chân</u>, [do], [vang], [xanh])
+  function formatThongBaoGhim(str) {
+    if (!str) return '';
+    let html = escapeHtml(str);
+    // In đậm: **text**
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // In nghiêng: *text*
+    html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+    // Gạch chân: <u>text</u>
+    html = html.replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/gi, '<span style="text-decoration: underline;">$1</span>');
+    // Màu sắc: [do], [vang], [xanh]
+    html = html.replace(/\[(?:red|do)\](.+?)\[\/(?:red|do)\]/gi, '<span style="color:#dc2626;font-weight:700;">$1</span>');
+    html = html.replace(/\[(?:yellow|vang)\](.+?)\[\/(?:yellow|vang)\]/gi, '<span style="color:#d97706;font-weight:700;">$1</span>');
+    html = html.replace(/\[(?:green|xanh)\](.+?)\[\/(?:green|xanh)\]/gi, '<span style="color:#16a34a;font-weight:700;">$1</span>');
+    return html;
+  }
+
   async function taiTinNhan(laLanDau = false) {
     try {
       // Khi tải lại từ đầu (làm mới / sau khi xoá), reset về 0 để lấy đủ danh sách mới nhất
@@ -312,8 +380,8 @@
       const banner = document.getElementById('chatPinnedBanner');
       if (banner) {
         if (caiDatHienTai.thongBaoGhim) {
-          banner.textContent = `📌 ${caiDatHienTai.thongBaoGhim}`;
-          banner.style.display = 'block';
+          banner.innerHTML = `<span style="flex-shrink: 0; font-size: 13.5px;">📌</span><span style="flex: 1;">${formatThongBaoGhim(caiDatHienTai.thongBaoGhim)}</span>`;
+          banner.style.display = 'flex';
         } else {
           banner.style.display = 'none';
         }
@@ -538,6 +606,52 @@
 
   // ================= CÔNG CỤ QUẢN TRỊ CHO GIÁO VIÊN =================
 
+  // Thao tác chèn định dạng chữ vào ô textarea thông báo ghim
+  function chenDinhDangVaoTextarea(ta, tool) {
+    const start = ta.selectionStart || 0;
+    const end = ta.selectionEnd || 0;
+    const val = ta.value;
+    const sel = val.substring(start, end);
+    let before = '', after = '', insert = '';
+
+    switch (tool) {
+      case 'bold':
+        before = '**'; after = '**'; insert = sel || 'chữ đậm';
+        break;
+      case 'italic':
+        before = '*'; after = '*'; insert = sel || 'chữ nghiêng';
+        break;
+      case 'underline':
+        before = '<u>'; after = '</u>'; insert = sel || 'gạch chân';
+        break;
+      case 'color-red':
+        before = '[do]'; after = '[/do]'; insert = sel || 'chữ đỏ';
+        break;
+      case 'color-yellow':
+        before = '[vang]'; after = '[/vang]'; insert = sel || 'chữ vàng';
+        break;
+      case 'color-green':
+        before = '[xanh]'; after = '[/xanh]'; insert = sel || 'chữ xanh';
+        break;
+      case 'icon-warning': insert = '⚠️ '; break;
+      case 'icon-bell': insert = '📢 '; break;
+      case 'icon-clock': insert = '⏰ '; break;
+      case 'icon-task': insert = '📝 '; break;
+      case 'icon-star': insert = '⭐ '; break;
+      default: return;
+    }
+
+    const replacement = before + insert + after;
+    ta.value = val.substring(0, start) + replacement + val.substring(end);
+    ta.focus();
+    if (sel.length > 0) {
+      ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    } else {
+      const newCursor = start + before.length + insert.length;
+      ta.setSelectionRange(newCursor, newCursor);
+    }
+  }
+
   async function moCaiDatGiaoVien() {
     const modal = document.getElementById('chatTeacherModal');
     modal.style.display = 'flex';
@@ -607,23 +721,56 @@
               </select>
             </div>
 
+            <!-- VÙNG 2: THÊM BỘ CÔNG CỤ CHỈNH CHỮ CHO THÔNG BÁO GHIM -->
             <div class="chat-setting-group">
               <label>📌 Thông báo ghim đầu khung chat</label>
-              <input type="text" id="chatSettingGhim" class="chat-setting-input"
-                value="${escapeAttr(cd.thongBaoGhim || '')}" placeholder="Ví dụ: Giữ trật tự trong giờ học..." maxlength="200" />
+
+              <div class="chat-text-toolbar" id="chatTextToolbar">
+                <button type="button" class="chat-tool-btn" data-tool="bold" title="In đậm (bôi đen chữ rồi bấm)"><b>B</b></button>
+                <button type="button" class="chat-tool-btn" data-tool="italic" title="In nghiêng"><i>I</i></button>
+                <button type="button" class="chat-tool-btn" data-tool="underline" title="Gạch chân"><u>U</u></button>
+                <span class="chat-tool-sep"></span>
+                <button type="button" class="chat-tool-btn" data-tool="color-red" title="Chữ đỏ" style="color: #dc2626;">🔴 Đỏ</button>
+                <button type="button" class="chat-tool-btn" data-tool="color-yellow" title="Chữ vàng" style="color: #d97706;">🟡 Vàng</button>
+                <button type="button" class="chat-tool-btn" data-tool="color-green" title="Chữ xanh" style="color: #16a34a;">🟢 Xanh</button>
+                <span class="chat-tool-sep"></span>
+                <button type="button" class="chat-tool-btn" data-tool="icon-warning" title="Icon cảnh báo">⚠️</button>
+                <button type="button" class="chat-tool-btn" data-tool="icon-bell" title="Icon thông báo">📢</button>
+                <button type="button" class="chat-tool-btn" data-tool="icon-clock" title="Icon thời gian">⏰</button>
+                <button type="button" class="chat-tool-btn" data-tool="icon-task" title="Icon nhiệm vụ">📝</button>
+                <button type="button" class="chat-tool-btn" data-tool="icon-star" title="Icon quan trọng">⭐</button>
+              </div>
+
+              <textarea id="chatSettingGhim" class="chat-setting-input chat-setting-textarea" rows="3"
+                placeholder="Ví dụ: 📢 **Lưu ý**: Nhớ chuẩn bị bài học trước khi đến lớp..." maxlength="500">${escapeHtml(cd.thongBaoGhim || '')}</textarea>
             </div>
 
             <button id="chatSaveSettingsBtn" class="chat-save-btn" type="button">💾 Lưu cài đặt</button>
 
-            <div style="border-top: 1px solid #e2e8f0; margin: 4px 0 0;"></div>
+            <div style="border-top: 1px solid #e2e8f0; margin: 2px 0 0;"></div>
 
             <div style="font-size: 13px; font-weight: 700; color: #dc2626;">🚫 Học sinh đang bị cấm chat:</div>
-            <div id="chatCamList" style="max-height: 140px; overflow-y: auto;">${camRows}</div>
+            <div id="chatCamList" style="max-height: 120px; overflow-y: auto;">${camRows}</div>
 
-            <button id="chatXoaLichSuBtn" class="chat-danger-btn" type="button">🗑 Xoá toàn bộ lịch sử chat lớp</button>
+            <!-- VÙNG 1: ĐƯA SÁT XUỐNG MÉP DƯỚI -->
+            <div class="chat-modal-footer-danger">
+              <button id="chatXoaLichSuBtn" class="chat-danger-btn" type="button">🗑 Xoá toàn bộ lịch sử chat lớp</button>
+            </div>
           </div>
         </div>
       `;
+
+      // Bắt sự kiện bộ công cụ chỉnh chữ (Toolbar)
+      const toolbar = document.getElementById('chatTextToolbar');
+      const ghimTextarea = document.getElementById('chatSettingGhim');
+      if (toolbar && ghimTextarea) {
+        toolbar.addEventListener('click', (e) => {
+          const btn = e.target.closest('[data-tool]');
+          if (!btn) return;
+          e.preventDefault();
+          chenDinhDangVaoTextarea(ghimTextarea, btn.dataset.tool);
+        });
+      }
 
       // Bắt sự kiện nút Mở cấm bên trong modal
       modal.addEventListener('click', async (e) => {
