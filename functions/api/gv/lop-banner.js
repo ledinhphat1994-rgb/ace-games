@@ -52,4 +52,4 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   ).run();
 
   return json({ ok: true });
-}, { canGiaoVien: true, quyenCan: ['hinh-anh', 'video'] });
+}, { canGiaoVien: true });

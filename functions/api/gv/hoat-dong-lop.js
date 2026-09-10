@@ -116,3 +116,53 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
 // bất kể quyenCan có khớp hay không — phải khai báo rõ ở đây mới thật sự xoá được (thiếu dòng
 // này là lý do nút "Gỡ" hiện ra đúng cho tài khoản có quyền nhưng bấm vào vẫn bị từ chối).
 }, { canGiaoVien: true, quyenCan: QUYEN, choPhepXoaPhu: true });
+
+export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
+  const than = await docThan(request);
+  const id = Number(than.id);
+  if (!Number.isInteger(id) || id <= 0) return loi('Thiếu mã mục hoạt động.');
+
+  const tieuDe = chuoi(than.tieuDe, 200);
+  const noiDung = chuoi(than.noiDung, 5000);
+  const hinhUrl = chuoi(than.hinhUrl, 1000);
+  const videoUrl = chuoi(than.videoUrl, 1000);
+  const amThanhUrl = chuoi(than.amThanhUrl, 1000);
+
+  const coVanBan = Boolean(noiDung || tieuDe);
+  const coAnh = Boolean(hinhUrl || than.anhId);
+  const coVideo = Boolean(videoUrl || than.videoId);
+  const coAmThanh = Boolean(amThanhUrl || than.amThanhId);
+
+  if (!coVanBan && !coAnh && !coVideo && !coAmThanh) {
+    return loi('Bài viết phải có ít nhất một nội dung (văn bản, ảnh, video hoặc âm thanh).');
+  }
+
+  const loaiGop = [coVanBan && 'text', coAnh && 'anh', coVideo && 'video', coAmThanh && 'am-thanh']
+    .filter(Boolean).join(',');
+
+  await chupCheckpointChung(env.DB, 'hoat-dong-lop', `Trước khi: sửa mục Hoạt động lớp #${id}`, phien);
+
+  const dat = ['loai = ?1', 'tieu_de = ?2', 'chu_thich = ?3'];
+  const thamSo = [loaiGop, tieuDe || null, noiDung || null];
+
+  if (than.hinhUrl !== undefined) {
+    thamSo.push(hinhUrl || null);
+    dat.push(`hinh_url = ?${thamSo.length}`);
+  }
+  if (than.videoUrl !== undefined) {
+    thamSo.push(videoUrl || null);
+    dat.push(`video_url = ?${thamSo.length}`);
+  }
+  if (than.amThanhUrl !== undefined) {
+    thamSo.push(amThanhUrl || null);
+    dat.push(`am_thanh_url = ?${thamSo.length}`);
+  }
+
+  thamSo.push(id, phien.lopId);
+  const kq = await env.DB.prepare(
+    `UPDATE hoat_dong_lop SET ${dat.join(', ')} WHERE id = ?${thamSo.length - 1} AND lop_id = ?${thamSo.length}`
+  ).bind(...thamSo).run();
+
+  if (!kq.meta.changes) return loi('Không tìm thấy mục hoạt động này.', 404);
+  return json({ ok: true, thongBao: 'Đã cập nhật bài viết thành công!' });
+}, { canGiaoVien: true, quyenCan: QUYEN, choPhepXoaPhu: true });

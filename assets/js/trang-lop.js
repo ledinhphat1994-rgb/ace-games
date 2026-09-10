@@ -1972,6 +1972,62 @@ function taoCumIconCamXuc(cacLoaiArray, camXucCuaToi, tongCamXuc) {
   return [cum, countSpan];
 }
 
+/** Hộp thoại chỉnh sửa một bài Hoạt động lớp */
+function moHopThoaiSuaHoatDongLop(item, lamMoi) {
+  const oTieuDe = oNhap('editHdLopTieuDe', 'text', item.tieuDe || '', 'Tiêu đề bài viết (tuỳ chọn)…');
+  const oNoiDung = oNhap('editHdLopNoiDung', 'textarea', item.noiDung || item.chuThich || '', 'Nội dung bài viết…');
+  oNoiDung.rows = 4;
+
+  const oHinh = oNhap('editHdLopHinh', 'url', item.hinhUrl || '', 'https://… (Link ảnh JPG/PNG/WebP)');
+  const oVideo = oNhap('editHdLopVideo', 'url', item.videoUrl || '', 'https://… (Link video YouTube / trực tiếp)');
+  const oAmThanh = oNhap('editHdLopAmThanh', 'url', item.amThanhUrl || '', 'https://… (Link âm thanh MP3/M4A/WAV)');
+
+  moHopThoai('Chỉnh sửa bài viết', [
+    truong('Tiêu đề bài viết', oTieuDe),
+    truong('Nội dung', oNoiDung),
+    truong('Link hình ảnh', oHinh),
+    truong('Link video', oVideo),
+    truong('Link âm thanh', oAmThanh),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu bài viết', 'nut-chinh', async (ev) => {
+      const btn = ev.currentTarget;
+      const tieuDe = oTieuDe.value.trim();
+      const noiDung = oNoiDung.value.trim();
+      const hinhUrl = oHinh.value.trim();
+      const videoUrl = oVideo.value.trim();
+      const amThanhUrl = oAmThanh.value.trim();
+
+      if (!noiDung && !tieuDe && !hinhUrl && !videoUrl && !amThanhUrl) {
+        return nhac('Bài viết phải có ít nhất nội dung hoặc liên kết đính kèm.', 'xau');
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Đang lưu…';
+      try {
+        await api('/api/gv/hoat-dong-lop', {
+          method: 'PUT',
+          than: {
+            id: item.id,
+            tieuDe,
+            noiDung,
+            hinhUrl: hinhUrl || null,
+            videoUrl: videoUrl || null,
+            amThanhUrl: amThanhUrl || null,
+          },
+        });
+        dongHopThoai();
+        nhac('Đã cập nhật bài viết thành công!', 'tot');
+        if (lamMoi) await lamMoi();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Lưu bài viết';
+        nhac(err.message, 'xau');
+      }
+    }),
+  ]);
+}
+
 /** Vẽ 1 Thẻ Bài Đăng Chuẩn X / Twitter Communities (Hình 2) */
 function veTheTwitterPost(item, phien, lamMoi) {
   const card = e('article', 'twitter-post-card');
@@ -1980,7 +2036,7 @@ function veTheTwitterPost(item, phien, lamMoi) {
 
   const laThongBao = Boolean(item.mucDo !== undefined || (item.tieuDe !== undefined && !item.anhId && !item.hinhUrl && !item.videoUrl && item.noiDung));
   const laGiaoVien = Boolean(phien && phien.role === 'teacher');
-  const coQuyenQuanLy = Boolean(phien && (laGiaoVien || (phien.quyen || []).some((q) => ['hoat-dong-lop', 'hinh-anh', 'video', 'dang-bai'].includes(q))));
+  const coQuyenQuanLy = Boolean(phien && (laGiaoVien || (phien.quyen || []).some((q) => ['hoat-dong-lop', 'hinh-anh', 'video', 'dang-bai', 'thong-bao'].includes(q))));
 
   // Avatar tác giả
   const avatarCol = e('div', 'tpc-avatar-col');
@@ -2003,7 +2059,7 @@ function veTheTwitterPost(item, phien, lamMoi) {
     contentCol.append(pinBadge);
   }
 
-  // Header tác giả (ĐÃ XÓA VÙNG 4: Nút ...)
+  // Header tác giả: Tên + Tích xanh + Thời gian (ĐÃ XÓA VÙNG 3: authorHandle @...)
   const header = e('div', 'tpc-header');
   const authorInfo = e('div', 'tpc-author-info');
 
@@ -2011,14 +2067,57 @@ function veTheTwitterPost(item, phien, lamMoi) {
   const verifiedBadge = e('span', 'tpc-verified-badge');
   verifiedBadge.title = 'Tài khoản xác thực lớp 10A7';
   verifiedBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.273 1.273 2.643 2.148 4.223 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.46l-4.24-4.24 1.41-1.41 2.83 2.83 6.36-6.36 1.41 1.41-7.77 7.77z"/></svg>`;
-  const authorHandle = e('span', 'tpc-author-handle', (laThongBao || item.loai === 'thong_bao') ? '@gvcn_10a7' : '@lop10a7_official');
   const dot = e('span', 'tpc-dot', '·');
   // Giờ đăng chính xác: ưu tiên taoLuc, fallback ngay
   const timeText = e('span', 'tpc-time', thoiGianTuongDoi(item.taoLuc || item.ngay));
 
-  authorInfo.append(authorName, verifiedBadge, authorHandle, dot, timeText);
+  // VÙNG 3: Đã xoá authorHandle (@lop10a7_official / @gvcn_10a7)
+  authorInfo.append(authorName, verifiedBadge, dot, timeText);
   header.append(authorInfo);
+
+  // VÙNG 2: Thêm nút Sửa (Edit) và Xoá (Delete)
+  if (coQuyenQuanLy) {
+    const actionsTop = e('div', 'tpc-actions-top');
+
+    // Nút Sửa
+    const btnEdit = e('button', 'tpc-post-edit-btn', '✏ Sửa');
+    btnEdit.type = 'button';
+    btnEdit.title = 'Chỉnh sửa bài viết';
+    btnEdit.addEventListener('click', () => {
+      if (laThongBao || item.loai === 'thong_bao') {
+        moHopThoaiSuaThongBao(item, lamMoi);
+      } else {
+        moHopThoaiSuaHoatDongLop(item, lamMoi);
+      }
+    });
+
+    // Nút Xoá
+    const btnDelete = e('button', 'tpc-post-del-btn', '🗑 Xoá');
+    btnDelete.type = 'button';
+    btnDelete.title = 'Xoá bài viết';
+    btnDelete.addEventListener('click', async () => {
+      if (!confirm('Bạn có chắc chắn muốn xoá bài viết này không? Thao tác này không thể hoàn tác.')) return;
+      btnDelete.disabled = true;
+      try {
+        const endpoint = (laThongBao || item.loai === 'thong_bao')
+          ? '/api/gv/thong-bao?id=' + item.id
+          : '/api/gv/hoat-dong-lop?id=' + item.id;
+        await api(endpoint, { method: 'DELETE' });
+        nhac('Đã xoá bài viết thành công!', 'tot');
+        card.remove();
+        if (lamMoi) await lamMoi();
+      } catch (err) {
+        btnDelete.disabled = false;
+        nhac(err.message, 'xau');
+      }
+    });
+
+    actionsTop.append(btnEdit, btnDelete);
+    header.append(actionsTop);
+  }
+
   contentCol.append(header);
+
 
   // Tiêu đề bài viết
   const tieuDe = (item.tieuDe || '').trim();
@@ -2946,13 +3045,12 @@ function veTwitterCommunities(d, phien, lamMoi) {
   // Slide-over danh sách thành viên (centered modal)
   khoiTaoMembersPanel(d, phien);
 
-  // Nút Chỉnh sửa thông tin lớp — hiện với giáo viên VÀ học sinh được cấp quyền
+  // Nút Chỉnh sửa thông tin lớp — chỉ hiện với giáo viên
   const nutSuaThongTin = $('#commBtnSuaThongTin');
   if (nutSuaThongTin) {
-    const laGiaoVien = phien?.role === 'teacher';
-    const coQuyenSuaLop = laGiaoVien || (phien?.quyen || []).some(q => ['hoat-dong-lop', 'dang-bai'].includes(q));
-    nutSuaThongTin.hidden = !coQuyenSuaLop;
-    if (coQuyenSuaLop && !nutSuaThongTin.dataset.daGan) {
+    const laGiaoVien = Boolean(phien && phien.role === 'teacher');
+    nutSuaThongTin.hidden = !laGiaoVien;
+    if (laGiaoVien && !nutSuaThongTin.dataset.daGan) {
       nutSuaThongTin.dataset.daGan = '1';
       nutSuaThongTin.addEventListener('click', async () => {
         const lopHienTai = d.lop || {};
@@ -3947,11 +4045,8 @@ function apDungThuongHieuLop(lop, phien) {
   veBannerLop(lop);
   const nutSuaBanner = $('#moDauNutSua');
   if (nutSuaBanner) {
-    // Giống mọi chức năng quản lý khác — không chỉ giáo viên chủ nhiệm, tài khoản được cấp
-    // đúng quyền "hinh-anh" hoặc "video" (khớp với functions/api/gv/lop-banner.js) cũng sửa
-    // banner được, không phải chỉ mỗi giáo viên mới thấy nút này.
-    const duocSuaBanner = Boolean(phien && (phien.role === 'teacher'
-      || (phien.role === 'phu' && ['hinh-anh', 'video'].some((q) => (phien.quyen || []).includes(q)))));
+    // Chỉ giáo viên chủ nhiệm mới sửa được ảnh/video bìa lớp (Vùng 1)
+    const duocSuaBanner = Boolean(phien && phien.role === 'teacher');
     nutSuaBanner.hidden = !duocSuaBanner;
     if (!nutSuaBanner.dataset.daGan) {
       nutSuaBanner.dataset.daGan = '1';
