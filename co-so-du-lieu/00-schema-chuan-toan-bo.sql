@@ -306,3 +306,58 @@ CREATE TABLE IF NOT EXISTS nhat_ky_truy_cap (
   lop_id     INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id)
 );
 CREATE INDEX IF NOT EXISTS idx_nhat_ky_truy_cap ON nhat_ky_truy_cap(lop_id, thoi_gian DESC);
+
+-- 22. CẤU HÌNH PHÒNG CHAT (RATE LIMIT, BẬT/TẮT CHAT LỚP)
+CREATE TABLE IF NOT EXISTS chat_cai_dat (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  lop_id              INTEGER NOT NULL UNIQUE REFERENCES lop(id),
+  dang_mo             INTEGER NOT NULL DEFAULT 1,     -- 1: Mở chat, 0: Giáo viên tạm khoá
+  gian_cach_giay      INTEGER NOT NULL DEFAULT 5,     -- Số giây giữa 2 tin nhắn (Rate limit)
+  thong_bao_ghim      TEXT,                           -- Nội quy ghim đầu khung chat
+  cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_chat_cai_dat_lop ON chat_cai_dat(lop_id);
+
+-- 23. TIN NHẮN TÁN GẪU LỚP HỌC
+CREATE TABLE IF NOT EXISTS chat_tin_nhan (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  lop_id          INTEGER NOT NULL REFERENCES lop(id),
+  hoc_sinh_id     INTEGER REFERENCES hoc_sinh(id) ON DELETE SET NULL,
+  ten_nguoi_gui   TEXT NOT NULL,
+  vai_tro         TEXT NOT NULL DEFAULT 'hoc_sinh',   -- 'hoc_sinh' | 'giao_vien' | 'he_thong'
+  noi_dung        TEXT NOT NULL,
+  da_xoa          INTEGER NOT NULL DEFAULT 0,
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_chat_tin_nhan_lop ON chat_tin_nhan(lop_id, id ASC);
+
+-- 24. DANH SÁCH HỌC SINH BỊ CẤM CHAT
+CREATE TABLE IF NOT EXISTS chat_cam_hoc_sinh (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  hoc_sinh_id     INTEGER NOT NULL REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  lop_id          INTEGER NOT NULL REFERENCES lop(id),
+  ly_do           TEXT,
+  den_luc         TEXT,
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(hoc_sinh_id, lop_id)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_cam_hs ON chat_cam_hoc_sinh(lop_id, hoc_sinh_id);
+
+-- 25. KHUNG TRÒ CHƠI ĐỐI KHÁNG (CỜ TƯỚNG, CỜ CARO...)
+CREATE TABLE IF NOT EXISTS game_phong (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  lop_id          INTEGER NOT NULL REFERENCES lop(id),
+  loai_game       TEXT NOT NULL,
+  ten_ban         TEXT NOT NULL,
+  chu_phong_id    INTEGER NOT NULL REFERENCES hoc_sinh(id),
+  chu_phong_ten   TEXT NOT NULL,
+  khach_id        INTEGER REFERENCES hoc_sinh(id),
+  khach_ten       TEXT,
+  trang_thai      TEXT NOT NULL DEFAULT 'cho_nguoi',
+  luot_di_id      INTEGER,
+  du_lieu_ban_co  TEXT,
+  nguoi_thang_id  INTEGER,
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
+  cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_game_phong_lop ON game_phong(lop_id, loai_game, trang_thai);
