@@ -128,10 +128,17 @@
         btn.textContent = emoji;
         btn.type = 'button';
         btn.title = emoji;
-        btn.onclick = () => {
+        btn.onclick = (e) => {
+          e.preventDefault();
           const input = document.getElementById('chatInputField');
-          input.value += emoji;
-          input.focus();
+          // Chèn emoji mà KHÔNG gọi input.focus() để tránh bàn phím ảo hiện trên mobile
+          const start = input.selectionStart ?? input.value.length;
+          const end = input.selectionEnd ?? input.value.length;
+          input.value = input.value.substring(0, start) + emoji + input.value.substring(end);
+          // Cập nhật con trỏ nhưng không trigger bàn phím
+          try {
+            input.setSelectionRange(start + emoji.length, start + emoji.length);
+          } catch {}
         };
         gridContainer.appendChild(btn);
       });
@@ -590,8 +597,8 @@
 
   function khoiDongPolling() {
     dungPolling();
-    // Khi đang mở khung chat: thăm dò mỗi 2.5s; khi đóng: thăm dò mỗi 20s
-    const chuKy = dangMoKhungChat ? 2500 : 20000;
+    // Khi đang mở khung chat: thăm dò mỗi 1s để gần real-time; khi đóng: mỗi 20s
+    const chuKy = dangMoKhungChat ? 1000 : 20000;
     pollingTimer = setInterval(() => {
       taiTinNhan(false);
     }, chuKy);
