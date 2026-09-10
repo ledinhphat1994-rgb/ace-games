@@ -1613,17 +1613,17 @@ export async function veKhoiTaiKhoanPhu(khung) {
 }
 
 function datLaiThietBiTaiKhoanPhu(tk, taiLai) {
-  moHopThoai('Đặt lại thiết bị?', [
-    e('p', null, `Mã của ${tk.ten} sẽ đăng nhập được ở một máy MỚI (máy cũ không tự mất quyền, chỉ là không còn bị ràng buộc riêng máy đó nữa cho tới lần đăng nhập kế tiếp).`),
+  moHopThoai('Đăng xuất khỏi thiết bị?', [
+    e('p', null, `Phiên đăng nhập hiện tại của ${tk.ten} sẽ bị kết thúc ngay lập tức. Tài khoản sẽ thấy thông báo "Tài khoản đăng nhập nơi khác" và phải đăng nhập lại.`),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Đặt lại', '', async (ev) => {
+    nut('Đăng xuất', '', async (ev) => {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
         await api('/api/gv/rieng/tai-khoan-phu', { method: 'PATCH', than: { id: tk.id, datLaiThietBi: true } });
         dongHopThoai();
-        nhac('Đã đặt lại thiết bị cho ' + tk.ten, 'tot');
+        nhac('Đã đăng xuất thiết bị của ' + tk.ten, 'tot');
         taiLai();
       } catch (err) {
         nhac(err.message, 'xau');

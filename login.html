@@ -219,6 +219,24 @@
     loiNhan.hidden = false;
   }
 
+  // Hiển thị thông báo nếu bị văng ra do tài khoản đăng nhập trên một thiết bị khác
+  (function kiemTraBiVangRa() {
+    const url = new URL(location.href);
+    const lyDo = url.searchParams.get('lyDo');
+    let thongBao = '';
+    try {
+      thongBao = sessionStorage.getItem('thong-bao-dang-xuat') || '';
+      sessionStorage.removeItem('thong-bao-dang-xuat');
+    } catch {}
+
+    if (lyDo === 'da_dang_nhap_noi_khac' || thongBao) {
+      const noiDung = thongBao || 'Tài khoản của em vừa được đăng nhập trên một thiết bị khác. Phiên trên thiết bị này đã tự động đăng xuất.';
+      hien(noiDung, 'xau');
+      url.searchParams.delete('lyDo');
+      history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash);
+    }
+  })();
+
   bieuMau.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     loiNhan.hidden = true;

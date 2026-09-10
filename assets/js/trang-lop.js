@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien } from './chung.js';
 import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -2656,5 +2656,6 @@ async function taiDuLieu() {
   await taiDuLieu();
   ganTheoDoiMuc();
   dinhTuyen();
+  batDauTheoDoiPhien();
 })();
 

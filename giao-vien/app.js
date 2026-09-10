@@ -4,6 +4,7 @@ import {
   $, $$, e, datNoiDung, api, homNay, ngayVN, ngayDayDu,
   ganDoiGiaoDien, nhac, khoiLoi, khoiDangTai,
   layNhanTaiKhoan, layCacDongTaiKhoan, moBangThemeBg, ganNhacNen, nhanMucDo, giuViTriCuonKhiVe,
+  batDauTheoDoiPhien,
 } from '/assets/js/chung.js';
 import { moHopThoaiSoanThongBao } from '/assets/js/thong-bao-dialog.js';
 import { moHopThoaiThemHoatDong } from '/assets/js/hoat-dong-lop-dialog.js';
@@ -1947,4 +1948,6 @@ async function dieuHuong() {
     nhac(`Đã gửi ${kq.daGui} lần điểm danh lưu tạm lúc mất mạng`, 'tot');
     if (location.hash.startsWith('#/diem-danh')) dieuHuong();
   });
+
+  batDauTheoDoiPhien();
 })();

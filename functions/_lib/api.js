@@ -17,6 +17,77 @@ export async function layPhien(request, env) {
   return verifyToken(env.SESSION_SECRET, readCookie(request, COOKIE_NAME));
 }
 
+// Kiểm tra phiên đăng nhập còn hiệu lực không — đảm bảo "1 tài khoản chỉ 1 thiết bị đăng nhập đồng thời".
+// Trả về: { hopLe: true, phienMoi?: ... } hoặc { hopLe: false, biDaRa?: boolean, lyDo: 'da_dang_nhap_noi_khac' | 'tai_khoan_khoa' | ..., thongBao: '...' }
+export async function kiemTraPhienHieuLuc(phien, env) {
+  if (!phien) return { hopLe: false, lyDo: 'chua_dang_nhap', thongBao: 'Chưa đăng nhập.' };
+  if (!env || !env.DB) return { hopLe: true };
+
+  // 1. Tài khoản phụ (cán sự lớp, thủ quỹ, tài khoản đặc biệt)
+  if (phien.role === 'phu' && phien.phuId) {
+    try {
+      const tk = await env.DB.prepare(
+        'SELECT ten, vai_tro AS vaiTro, quyen, dang_hoat_dong AS dangHoatDong, thiet_bi AS thietBi FROM tai_khoan_phu WHERE id = ?1'
+      ).bind(phien.phuId).first();
+      if (tk) {
+        if (!tk.dangHoatDong) {
+          return { hopLe: false, biDaRa: true, lyDo: 'tai_khoan_khoa', thongBao: 'Tài khoản này đã bị khoá.' };
+        }
+        // Kiểm tra thiết bị/phiên duy nhất:
+        // Nếu DB có thiet_bi mà session.phienId không khớp (hoặc session không có phienId) => đã bị đá ra
+        if (tk.thietBi && (!phien.phienId || tk.thietBi !== phien.phienId)) {
+          return {
+            hopLe: false,
+            biDaRa: true,
+            lyDo: 'da_dang_nhap_noi_khac',
+            thongBao: 'Tài khoản của bạn đã được đăng nhập trên một thiết bị khác. Bạn đã bị đăng xuất.',
+          };
+        }
+        return {
+          hopLe: true,
+          phienMoi: {
+            ...phien,
+            ten: tk.ten || phien.ten,
+            vaiTro: tk.vaiTro || phien.vaiTro,
+            quyen: (tk.quyen || '').split(',').map((s) => s.trim()).filter(Boolean),
+          },
+        };
+      }
+    } catch (e) {
+      console.error('Không làm mới được quyền tài khoản phụ (phuId=' + phien.phuId + '):', e);
+    }
+  }
+
+  // 2. Mã cá nhân học sinh (bao gồm cả học sinh thường và học sinh được cấp quyền cán sự)
+  if (phien.hocSinhId) {
+    try {
+      const m = await env.DB.prepare(
+        'SELECT quyen, thiet_bi AS thietBi FROM ma_ca_nhan WHERE hoc_sinh_id = ?1'
+      ).bind(phien.hocSinhId).first();
+      if (m) {
+        // Kiểm tra thiết bị/phiên duy nhất:
+        if (m.thietBi && (!phien.phienId || m.thietBi !== phien.phienId)) {
+          return {
+            hopLe: false,
+            biDaRa: true,
+            lyDo: 'da_dang_nhap_noi_khac',
+            thongBao: 'Tài khoản của em đã được đăng nhập trên một thiết bị khác. Em đã bị đăng xuất khỏi thiết bị này.',
+          };
+        }
+        let phienMoi = phien;
+        if (phien.role === 'phu') {
+          phienMoi = { ...phien, quyen: (m.quyen || '').split(',').map((s) => s.trim()).filter(Boolean) };
+        }
+        return { hopLe: true, phienMoi };
+      }
+    } catch (e) {
+      console.error('Không làm mới được quyền mã cá nhân (hocSinhId=' + phien.hocSinhId + '):', e);
+    }
+  }
+
+  return { hopLe: true, phienMoi: phien };
+}
+
 // Bọc một hàm xử lý: tự kiểm tra đăng nhập, quyền, và bắt lỗi.
 //
 // canGiaoVien: đường API này chỉ dành cho khu giáo viên (không phải học sinh).
@@ -33,41 +104,22 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoa
     let phien = await layPhien(request, env);
     if (!phien) return loi('Chưa đăng nhập.', 401);
 
-    // Với tài khoản cán sự (tài khoản phụ hoặc mã cá nhân được cấp quyền): luôn lấy quyền
-    // mới nhất từ cơ sở dữ liệu — giáo viên đổi quyền thì có hiệu lực ngay, không cần đăng
-    // nhập lại.
-    if (phien.role === 'phu' && phien.phuId && env.DB) {
-      try {
-        const tk = await env.DB.prepare(
-          'SELECT ten, vai_tro AS vaiTro, quyen, dang_hoat_dong AS dangHoatDong FROM tai_khoan_phu WHERE id = ?1'
-        ).bind(phien.phuId).first();
-        if (tk) {
-          if (!tk.dangHoatDong) {
-            return loi('Tài khoản này đã bị khoá.', 403);
-          }
-          phien = {
-            ...phien,
-            ten: tk.ten || phien.ten,
-            vaiTro: tk.vaiTro || phien.vaiTro,
-            quyen: (tk.quyen || '').split(',').map((s) => s.trim()).filter(Boolean),
-          };
-        }
-      } catch (e) {
-        // Lỗi DB tạm thời ở đây khiến quyền ÂM THẦM rơi về giá trị cũ trong cookie thay vì mới
-        // nhất — nếu giáo viên vừa THU HỒI quyền đúng lúc này, request vẫn đi qua với quyền cũ.
-        // Không chặn request (fail-open có chủ đích, tránh khoá nhầm khi DB chỉ trục trặc thoáng
-        // qua), nhưng phải log để có dấu vết khi cần điều tra phân quyền không nhất quán.
-        console.error('Không làm mới được quyền tài khoản phụ (phuId=' + phien.phuId + '):', e);
-      }
+    // Kiểm tra tính hợp lệ của phiên (1 tài khoản chỉ 1 thiết bị đăng nhập đồng thời)
+    const check = await kiemTraPhienHieuLuc(phien, env);
+    if (!check.hopLe) {
+      const h = new Headers({
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Set-Cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+      });
+      return new Response(JSON.stringify({
+        ok: false,
+        biDangXuat: true,
+        lyDo: check.lyDo,
+        loi: check.thongBao || 'Phiên đăng nhập không còn hiệu lực.',
+      }), { status: 401, headers: h });
     }
-    if (phien.role === 'phu' && phien.hocSinhId && env.DB) {
-      try {
-        const m = await env.DB.prepare('SELECT quyen FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(phien.hocSinhId).first();
-        phien = { ...phien, quyen: (m?.quyen || '').split(',').map((s) => s.trim()).filter(Boolean) };
-      } catch (e) {
-        console.error('Không làm mới được quyền mã cá nhân (hocSinhId=' + phien.hocSinhId + '):', e);
-      }
-    }
+    if (check.phienMoi) phien = check.phienMoi;
 
     if (canGiaoVien) {
       const laGiaoVien = phien.role === 'teacher';

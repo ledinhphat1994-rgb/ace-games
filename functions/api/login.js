@@ -54,34 +54,6 @@ async function clearTries(env, ip, ma) {
   if (ma) await env.RATE_LIMIT.delete(`login:ma:${await bamMa(ma)}`);
 }
 
-// Đọc/tạo mã thiết bị — một chuỗi ngẫu nhiên lưu trong cookie riêng của trình duyệt này,
-// dùng để nhận ra "đây có phải đúng máy đã đăng nhập lần đầu" cho các mã ĐƯỢC CẤP QUYỀN
-// quản lý (không áp dụng cho học sinh thường). Không phải cookie phiên — sống độc lập,
-// không hết hạn theo phiên đăng nhập.
-function docThietBi(request) {
-  const raw = request.headers.get('Cookie') || '';
-  const m = raw.match(/(?:^|;\s*)thiet_bi_id=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
-function taoThietBi() {
-  return crypto.randomUUID();
-}
-
-// Dùng chung cho MỌI tài khoản bị ràng buộc "1 mã = 1 thiết bị" (mã cá nhân được cấp quyền VÀ
-// tài khoản đặc biệt/tài khoản phụ) — trước đây chỉ mã cá nhân có, tài khoản đặc biệt đăng nhập
-// được từ bao nhiêu máy cũng được, không đồng bộ. Trả về:
-//   hopLe: false          -> thiết bị khác, phải từ chối
-//   hopLe: true, canLuu   -> lần đầu gắn máy, cần UPDATE cột thiet_bi = canLuu
-//   hopLe: true, cookie   -> (nếu có) cần Set-Cookie thiet_bi_id cho máy này
-function apDungThietBi(request, thietBiDaLuu) {
-  const thietBiMay = docThietBi(request);
-  if (!thietBiDaLuu) {
-    const idMoi = thietBiMay || taoThietBi();
-    return { hopLe: true, canLuu: idMoi, cookie: thietBiMay ? null : `thiet_bi_id=${idMoi}; Path=/; Max-Age=31536000; Secure; SameSite=Lax` };
-  }
-  if (thietBiMay === thietBiDaLuu) return { hopLe: true, canLuu: null, cookie: null };
-  return { hopLe: false };
-}
 
 // Xác minh Turnstile (Cloudflare) — chặn script dò mã tự động NGAY CẢ KHI nó đổi IP liên tục để
 // né giới hạn "8 lần sai/10 phút/IP" ở trên, vì Turnstile đòi hỏi một trình duyệt thật giải được
@@ -223,36 +195,25 @@ export async function onRequestPost({ request, env }) {
     phanBoSung = { lopId: 1 };
   }
 
-  // Tài khoản đặc biệt/tài khoản phụ (lớp trưởng, thủ quỹ, quản trị viên ngoài lớp...) — RÀNG
-  // BUỘC 1 mã = 1 thiết bị giống hệt mã cá nhân được cấp quyền bên dưới, vì tài khoản này cũng
-  // sửa/xoá được dữ liệu thật. Trước đây KHÔNG có ràng buộc này — không đồng bộ, một mã đăng
-  // nhập được từ bao nhiêu máy cũng được.
-  let dongCookieThietBi = null;
+  // Tài khoản đặc biệt/tài khoản phụ (lớp trưởng, thủ quỹ, quản trị viên ngoài lớp...) —
+  // RÀNG BUỘC 1 tài khoản = 1 phiên đăng nhập đồng thời: người đăng nhập sau luôn được vào,
+  // sinh phienId mới lưu vào DB để tự động đá phiên cũ ra ngoài.
   if (!role && env.DB) {
     try {
       const phu = await env.DB.prepare(
-        'SELECT id, ten, vai_tro, quyen, thiet_bi AS thietBi, lop_id AS lopId FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
+        'SELECT id, ten, vai_tro, quyen, lop_id AS lopId FROM tai_khoan_phu WHERE ma = ?1 AND dang_hoat_dong = 1'
       ).bind(code).first();
 
       if (phu) {
         if (!khopDungLop(phu.lopId)) return thongBaoSaiLop();
 
-        const kqThietBi = apDungThietBi(request, phu.thietBi);
-        if (!kqThietBi.hopLe) {
-          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: null, ketQua: 'sai_thiet_bi', ip, lopId: phu.lopId, vaiTro: 'phu' });
-          return json({
-            ok: false,
-            message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của bạn.',
-          }, 403);
-        }
-        if (kqThietBi.canLuu) {
-          await env.DB.prepare('UPDATE tai_khoan_phu SET thiet_bi = ?1 WHERE id = ?2').bind(kqThietBi.canLuu, phu.id).run();
-        }
-        if (kqThietBi.cookie) dongCookieThietBi = kqThietBi.cookie;
+        const phienIdMoi = crypto.randomUUID();
+        await env.DB.prepare('UPDATE tai_khoan_phu SET thiet_bi = ?1 WHERE id = ?2').bind(phienIdMoi, phu.id).run();
 
         role = 'phu';
         tenHienThi = phu.ten;
         phanBoSung = {
+          phienId: phienIdMoi,
           phuId: phu.id,
           ten: phu.ten,
           vaiTro: phu.vai_tro,
@@ -265,16 +226,13 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Mã cá nhân của học sinh — giờ là cách DUY NHẤT học sinh vào trang lớp (không còn mã cả
-  // lớp dùng chung). Hai trường hợp:
-  //   - Không được cấp quyền quản lý: role 'student' như trước, xem được mọi thứ công khai,
-  //     KHÔNG giới hạn thiết bị (không có gì để mất nếu xem từ nhiều máy).
-  //   - ĐƯỢC CẤP quyền quản lý: role 'phu' + quyen, RÀNG BUỘC 1 mã = 1 thiết bị + ghi nhật ký
-  //     đăng nhập, vì tài khoản này có thể sửa/xoá dữ liệu thật.
+  // Mã cá nhân của học sinh — RÀNG BUỘC 1 tài khoản = 1 phiên đăng nhập đồng thời cho toàn bộ
+  // học sinh (cả học sinh thường và học sinh được cấp quyền quản lý). Người đăng nhập sau luôn
+  // được vào ngay, sinh phienId mới lưu vào DB để đá thiết bị đăng nhập trước đó ra kèm thông báo.
   if (!role && env.DB) {
     try {
       const ca = await env.DB.prepare(
-        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.thiet_bi AS thietBi, m.lop_id AS lopId,
+        `SELECT m.hoc_sinh_id AS hocSinhId, m.quyen, m.lop_id AS lopId,
                 h.ho_ten AS hoTen, h.chuc_vu AS chucVu, h.to_so AS toSo
            FROM ma_ca_nhan m JOIN hoc_sinh h ON h.id = m.hoc_sinh_id
           WHERE m.ma = ?1 AND h.dang_hoc = 1`
@@ -282,35 +240,36 @@ export async function onRequestPost({ request, env }) {
 
       if (ca && !khopDungLop(ca.lopId)) return thongBaoSaiLop();
 
-      if (ca && !ca.quyen) {
-        role = 'student';
-        tenHienThi = ca.hoTen;
-        phanBoSung = { hocSinhId: ca.hocSinhId, ten: ca.hoTen, ma: code, lopId: ca.lopId, toSo: ca.toSo, chucVu: ca.chucVu };
-      } else if (ca && ca.quyen) {
-        const kqThietBi = apDungThietBi(request, ca.thietBi);
-        if (!kqThietBi.hopLe) {
-          await ghiNhatKyDangNhap(env, { ma: code, hocSinhId: ca.hocSinhId, ketQua: 'sai_thiet_bi', ip, lopId: ca.lopId, vaiTro: 'phu' });
-          return json({
-            ok: false,
-            message: 'Mã này đã đăng nhập trên một thiết bị khác. Nhờ giáo viên chủ nhiệm đặt lại thiết bị nếu đây là máy mới của em.',
-          }, 403);
-        }
-        if (kqThietBi.canLuu) {
-          await env.DB.prepare('UPDATE ma_ca_nhan SET thiet_bi = ?1 WHERE hoc_sinh_id = ?2').bind(kqThietBi.canLuu, ca.hocSinhId).run();
-        }
-        if (kqThietBi.cookie) dongCookieThietBi = kqThietBi.cookie;
+      if (ca) {
+        const phienIdMoi = crypto.randomUUID();
+        await env.DB.prepare('UPDATE ma_ca_nhan SET thiet_bi = ?1 WHERE hoc_sinh_id = ?2').bind(phienIdMoi, ca.hocSinhId).run();
 
-        role = 'phu';
-        tenHienThi = ca.hoTen;
-        phanBoSung = {
-          hocSinhId: ca.hocSinhId,
-          ten: ca.hoTen,
-          ma: code,
-          vaiTro: ca.chucVu || 'Cán sự lớp',
-          quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
-          lopId: ca.lopId,
-          toSo: ca.toSo,
-        };
+        if (!ca.quyen) {
+          role = 'student';
+          tenHienThi = ca.hoTen;
+          phanBoSung = {
+            phienId: phienIdMoi,
+            hocSinhId: ca.hocSinhId,
+            ten: ca.hoTen,
+            ma: code,
+            lopId: ca.lopId,
+            toSo: ca.toSo,
+            chucVu: ca.chucVu,
+          };
+        } else {
+          role = 'phu';
+          tenHienThi = ca.hoTen;
+          phanBoSung = {
+            phienId: phienIdMoi,
+            hocSinhId: ca.hocSinhId,
+            ten: ca.hoTen,
+            ma: code,
+            vaiTro: ca.chucVu || 'Cán sự lớp',
+            quyen: ca.quyen.split(',').map((s) => s.trim()).filter(Boolean),
+            lopId: ca.lopId,
+            toSo: ca.toSo,
+          };
+        }
       }
     } catch {
       // Bảng/cột chưa tồn tại (chưa chạy migration) — coi như không khớp.
@@ -359,7 +318,7 @@ export async function onRequestPost({ request, env }) {
   ].join('; ');
 
   const headers = { 'Set-Cookie': cookie };
-  return json({ ok: true, role, ten: tenHienThi }, 200, headers, dongCookieThietBi);
+  return json({ ok: true, role, ten: tenHienThi }, 200, headers);
 }
 
 export function onRequestGet() {

@@ -1,6 +1,7 @@
 // Cổng bảo vệ toàn trang: chạy TRƯỚC mọi yêu cầu tới Cloudflare Pages.
 // Chưa có phiên hợp lệ => máy chủ không trả nội dung, chỉ trả trang đăng nhập.
 import { COOKIE_NAME, readCookie, verifyToken } from './_lib/auth.js';
+import { kiemTraPhienHieuLuc } from './_lib/api.js';
 
 // Những đường dẫn ai cũng vào được (nếu không thì không thể hiện trang đăng nhập).
 const PUBLIC_PATHS = new Set([
@@ -57,6 +58,41 @@ export async function onRequest(context) {
     const to = new URL('/login.html', url);
     to.searchParams.set('next', url.pathname + url.search);
     return Response.redirect(to.toString(), 302);
+  }
+
+  // Kiểm tra phiên còn hiệu lực không (đá phiên cũ khi có thiết bị khác đăng nhập sau)
+  const checkPhien = await kiemTraPhienHieuLuc(session, env);
+  if (!checkPhien.hopLe) {
+    const xoaCookie = `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+    if (laApi) {
+      return new Response(JSON.stringify({
+        ok: false,
+        biDangXuat: true,
+        lyDo: checkPhien.lyDo,
+        loi: checkPhien.thongBao || 'Phiên đăng nhập không còn hiệu lực.',
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'Set-Cookie': xoaCookie,
+        },
+      });
+    }
+    const to = new URL('/login.html', url);
+    if (checkPhien.lyDo === 'da_dang_nhap_noi_khac') {
+      to.searchParams.set('lyDo', 'da_dang_nhap_noi_khac');
+    } else {
+      to.searchParams.set('next', url.pathname + url.search);
+    }
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: to.toString(),
+        'Set-Cookie': xoaCookie,
+        'Cache-Control': 'no-store',
+      },
+    });
   }
 
   // Khu vực giáo viên: trang /giao-vien và các API /api/gv/.

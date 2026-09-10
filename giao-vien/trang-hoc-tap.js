@@ -1208,11 +1208,12 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
       } catch (err) { nhac(err.message, 'xau'); nutBam.disabled = false; }
     }),
     hocSinh.coThietBi
-      ? Object.assign(e('p', 'trong', '🔒 Mã này đã gắn với một thiết bị.'), { style: 'margin-top:8px' })
+      ? Object.assign(e('p', 'trong', '🟢 Đang có phiên đăng nhập trên thiết bị.'), { style: 'margin-top:8px' })
       : null,
     hocSinh.coThietBi
-      ? nut('📱 Đặt lại thiết bị (cho đăng nhập máy mới)', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai, capNhatHang))
+      ? nut('📱 Đăng xuất khỏi thiết bị', 'nut-nhe nut-nho', () => datLaiThietBi(hocSinh, taiLai, capNhatHang))
       : null,
+
 
     Object.assign(e('h3', null, '🧹 Gọn giao diện trang lớp'), { style: 'margin-top:18px' }),
     e('p', 'trong', 'Bỏ tích mục nào thì ẨN mục đó khỏi trang chủ/menu của em (mặc định hiện hết). Đây chỉ là dọn bớt giao diện cho gọn — KHÔNG phải khoá dữ liệu: mã lớp và các mã khác vẫn xem được như thường.'),
@@ -1265,18 +1266,18 @@ function moQuanLyHocSinh(hocSinh, taiLai, capNhatHang) {
 }
 
 function datLaiThietBi(hocSinh, taiLai, capNhatHang) {
-  moHopThoai('Đặt lại thiết bị?', [
-    e('p', null, `Mã của ${hocSinh.hoTen} sẽ đăng nhập được ở một máy MỚI (máy cũ không tự mất quyền, chỉ là không còn bị ràng buộc riêng máy đó nữa cho tới lần đăng nhập kế tiếp).`),
+  moHopThoai('Đăng xuất khỏi thiết bị?', [
+    e('p', null, `Phiên đăng nhập hiện tại của ${hocSinh.hoTen} sẽ bị kết thúc ngay lập tức. Em sẽ thấy thông báo "Tài khoản đăng nhập nơi khác" và phải đăng nhập lại.`),
   ], [
     nut('Huỷ', 'nut-nhe', dongHopThoai),
-    nut('Đặt lại', 'nut-xau', async (ev) => {
+    nut('Đăng xuất', 'nut-xau', async (ev) => {
       const nutBam = ev.currentTarget;
       nutBam.disabled = true;
       try {
         await api('/api/gv/rieng/ma-ca-nhan', { method: 'PATCH', than: { hocSinhId: hocSinh.id, datLaiThietBi: true } });
         hocSinh.coThietBi = 0;
         dongHopThoai();
-        nhac('Đã đặt lại thiết bị cho ' + hocSinh.hoTen, 'tot');
+        nhac('Đã đăng xuất thiết bị của ' + hocSinh.hoTen, 'tot');
         if (typeof capNhatHang === 'function') {
           capNhatHang(hocSinh);
         } else if (typeof taiLai === 'function') {

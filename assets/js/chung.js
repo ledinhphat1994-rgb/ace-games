@@ -150,22 +150,111 @@ function goi(duongDan, tuyChon) {
 }
 
 async function docTraLoi(res, _duongDan) {
+  let duLieu = null;
+  try { duLieu = await res.json(); } catch { /* không phải JSON */ }
+
   if (res.status === 401) {
+    if (duLieu && (duLieu.lyDo === 'da_dang_nhap_noi_khac' || duLieu.biDangXuat)) {
+      xuLyBiVangRa(duLieu.loi);
+      throw new Error(duLieu.loi || 'Tài khoản của em đã được đăng nhập trên một thiết bị khác.');
+    }
     // Cất "trang định vào" vào sessionStorage thay vì nhét vào URL (?next=%2Fgiao-vien%2F...) —
     // đây là chi tiết kỹ thuật, không có ý nghĩa gì để lộ ra thanh địa chỉ, chỉ làm URL rối mắt.
     // login.html đọc lại đúng giá trị này sau khi đăng nhập xong (xem donDepUrl() ở đó).
     try { sessionStorage.setItem('dn-next', location.pathname + location.hash); } catch {}
     location.href = '/login.html';
-    throw new Error('Phiên đăng nhập đã hết hạn.');
+    throw new Error((duLieu && duLieu.loi) || 'Phiên đăng nhập đã hết hạn.');
   }
-
-  let duLieu = null;
-  try { duLieu = await res.json(); } catch { /* không phải JSON */ }
 
   if (!res.ok || (duLieu && duLieu.ok === false)) {
     throw new Error((duLieu && duLieu.loi) || `Lỗi ${res.status}`);
   }
   return duLieu;
+}
+
+/* ---------- Xử lý bị đá ra do thiết bị khác đăng nhập sau ---------- */
+let daVangRa = false;
+export function xuLyBiVangRa(thongDiep) {
+  if (daVangRa) return;
+  daVangRa = true;
+  dungTheoDoiPhien();
+
+  const chu = thongDiep || 'Tài khoản của em vừa được đăng nhập trên một thiết bị khác. Em đã bị đăng xuất khỏi thiết bị này.';
+  try {
+    sessionStorage.setItem('thong-bao-dang-xuat', chu);
+  } catch {}
+
+  let hop = document.getElementById('hopThoaiBiVangRa');
+  if (!hop) {
+    hop = document.createElement('div');
+    hop.id = 'hopThoaiBiVangRa';
+    hop.style.cssText = 'position:fixed;inset:0;background:rgba(3,7,18,0.8);backdrop-filter:blur(8px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+    hop.innerHTML = `
+      <div style="background:var(--nen-hop, #0f172a);border:1px solid rgba(239,68,68,0.45);border-radius:20px;max-width:390px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);color:#f8fafc;font-family:'Be Vietnam Pro',sans-serif;">
+        <div style="font-size:48px;line-height:1;margin-bottom:14px;">📱⚠️</div>
+        <h3 style="margin:0 0 10px 0;font-size:18px;font-weight:700;color:#f87171;">Tài khoản đăng nhập nơi khác</h3>
+        <p style="margin:0 0 22px 0;font-size:14px;line-height:1.6;color:#cbd5e1;">${chu}</p>
+        <button type="button" id="nutDongYVangRa" class="nut nut-rong" style="background:#dc2626;border-color:#dc2626;color:#fff;font-weight:600;font-size:15px;padding:12px 20px;border-radius:12px;cursor:pointer;width:100%;box-shadow:0 4px 14px rgba(220,38,38,0.35);">Đã hiểu &amp; Đăng xuất</button>
+      </div>
+    `;
+    document.body.appendChild(hop);
+    const diDenLogin = () => {
+      location.href = '/login.html?lyDo=da_dang_nhap_noi_khac';
+    };
+    document.getElementById('nutDongYVangRa')?.addEventListener('click', diDenLogin);
+    // Tự động chuyển trang sau 4 giây nếu học sinh không bấm
+    setTimeout(diDenLogin, 4000);
+  }
+}
+
+let boDemTheoDoiPhien = null;
+let dangKiemTraPhien = false;
+
+async function kiemTraPhienNgay() {
+  if (daVangRa || dangKiemTraPhien) return;
+  dangKiemTraPhien = true;
+  try {
+    const res = await fetch('/api/kiem-tra-phien', {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+    if (res.status === 401) {
+      let d = null;
+      try { d = await res.json(); } catch {}
+      if (d?.lyDo === 'da_dang_nhap_noi_khac' || d?.biDangXuat) {
+        xuLyBiVangRa(d.loi);
+      }
+    }
+  } catch {
+    // Lỗi mạng thoáng qua — kiểm tra lại ở chu kỳ tiếp theo
+  } finally {
+    dangKiemTraPhien = false;
+  }
+}
+
+export function batDauTheoDoiPhien() {
+  if (boDemTheoDoiPhien) return;
+  boDemTheoDoiPhien = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      kiemTraPhienNgay();
+    }
+  }, 15000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      kiemTraPhienNgay();
+    }
+  });
+  window.addEventListener('focus', () => {
+    kiemTraPhienNgay();
+  });
+}
+
+export function dungTheoDoiPhien() {
+  if (boDemTheoDoiPhien) {
+    clearInterval(boDemTheoDoiPhien);
+    boDemTheoDoiPhien = null;
+  }
 }
 
 /* ---------- Giao diện sáng / tối & Chủ đề hình nền ---------- */
