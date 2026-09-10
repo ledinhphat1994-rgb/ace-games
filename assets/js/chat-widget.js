@@ -197,16 +197,10 @@
     capNhatBadge();
     cuonXuongDuoi();
 
-    // Mở bàn phím ảo ngay lập tức: gọi focus() trực tiếp trong chuỗi tương tác người dùng
+    // Không tự động bật bàn phím ảo khi mở khung chat (chỉ hiện khi người dùng bấm vào ô nhập)
     const input = document.getElementById('chatInputField');
     if (input) {
-      input.focus({ preventScroll: true });
-      // Thêm một nhịp fallback sau khi layout hoàn tất
-      requestAnimationFrame(() => {
-        try {
-          input.focus({ preventScroll: true });
-        } catch {}
-      });
+      try { input.blur(); } catch {}
     }
 
     taiTinNhan(false);
