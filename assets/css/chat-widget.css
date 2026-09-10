@@ -22,17 +22,12 @@
   pointer-events: auto;
 }
 
-/* Khoá cuộn trang web bên dưới khi mở khung chat */
+/* Khoá cuộn trang web bên dưới khi mở khung chat nhưng không phong tỏa cảm ứng */
 body.chat-modal-open {
   overflow: hidden !important;
-  position: fixed !important;
-  width: 100% !important;
-  height: 100% !important;
-  overscroll-behavior: none !important;
-  touch-action: none !important;
 }
 
-/* 1. NÚT BONG BÓNG NỔI GÓC PHẢI */
+/* 1. NÚT BONG BÓNG NỔI ĐA NĂNG (KÉO THẢ TỰ DO, LƯU VỊ TRÍ) */
 .chat-widget-bubble {
   position: fixed;
   bottom: 24px;
@@ -46,14 +41,21 @@ body.chat-modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: grab;
   z-index: 99990;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
-  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border: 2.5px solid rgba(255, 255, 255, 0.5);
   user-select: none;
   -webkit-user-select: none;
-  touch-action: manipulation;
+  touch-action: none; /* Ngăn scroll trang khi kéo bong bóng trên mobile */
   -webkit-tap-highlight-color: transparent;
+}
+
+.chat-widget-bubble.chat-bubble-dragging {
+  cursor: grabbing !important;
+  transform: scale(1.15) !important;
+  box-shadow: 0 18px 36px -4px rgba(37, 99, 235, 0.75), 0 0 0 6px rgba(37, 99, 235, 0.25) !important;
+  transition: none !important;
 }
 
 /* Hit-area vô hình mở rộng 10px xung quanh: Bấm cực nhạy trên mọi thiết bị di động */
@@ -264,15 +266,100 @@ body.chat-modal-open {
   transform: scale(0.95);
 }
 
-/* Nút X đóng khung chat (cực kỳ rõ ràng, tương phản sắc nét) */
-.chat-close-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+/* Nút thu nhỏ về bong bóng nổi (thay cho dấu X) */
+.chat-minimize-btn {
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.chat-close-btn:hover {
-  background: rgba(239, 68, 68, 0.85);
-  border-color: #ef4444;
+.chat-minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.38);
+  transform: scale(1.08);
+}
+
+/* THANH ĐIỀU HƯỚNG BONG BÓNG ĐA NĂNG (TÁN GẪU | NHẠC YOUTUBE | CHƠI GAME) */
+.chat-hub-nav {
+  display: flex;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 4px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chat-hub-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.chat-hub-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.7);
+  color: #1e293b;
+}
+
+.chat-hub-tab-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.hub-tab-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.hub-tab-label {
+  white-space: nowrap;
+}
+
+/* VÙNG CHỨA CÁC TAB ĐA NĂNG */
+.chat-hub-panels-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-hub-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Ẩn panel nhưng giữ offscreen để nhạc YouTube vẫn phát nền khi chuyển qua Chat hoặc Game */
+.chat-hub-panel.panel-hidden {
+  position: absolute !important;
+  left: -99999px !important;
+  top: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
 }
 
 /* 4. DÒNG GHIM NỘI QUY / TRẠNG THÁI KHÓA */
@@ -1039,3 +1126,501 @@ body.chat-modal-open {
     display: none !important;
   }
 }
+
+/* ==============================================================================
+   10. MODULE TIỆN ÍCH: PHÒNG NGHE NHẠC YOUTUBE MINI
+   ============================================================================== */
+.hub-panel-music {
+  padding: 14px 16px;
+  overflow-y: auto;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.music-hub-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.music-hub-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.music-hub-desc {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.music-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.music-chip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.music-chip:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.music-chip.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
+}
+
+.music-custom-row {
+  display: flex;
+  gap: 6px;
+}
+
+.music-input {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  outline: none;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.music-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.music-play-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.music-play-btn:hover {
+  background: #1d4ed8;
+}
+
+.music-player-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 */
+  height: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  background: #000000;
+}
+
+.music-player-wrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.music-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.music-eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.music-eq-bars span {
+  width: 3px;
+  background: #2563eb;
+  border-radius: 1px;
+  animation: eqJump 0.8s ease-in-out infinite alternate;
+}
+
+.music-eq-bars span:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+.music-eq-bars span:nth-child(2) { height: 14px; animation-delay: 0.3s; }
+.music-eq-bars span:nth-child(3) { height: 9px; animation-delay: 0.2s; }
+
+@keyframes eqJump {
+  0% { height: 4px; }
+  100% { height: 14px; }
+}
+
+.music-bg-notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* ==============================================================================
+   11. MODULE TIỆN ÍCH: GAME HUB (CỜ CARO & 2048)
+   ============================================================================== */
+.hub-panel-game {
+  padding: 12px 14px;
+  overflow-y: auto;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-hub-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.game-hub-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.game-hub-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.game-back-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.game-back-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.game-hub-desc {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Menu chọn game */
+.game-selector-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.game-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  touch-action: manipulation;
+}
+
+.game-card:hover {
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.12);
+}
+
+.game-card-icon {
+  font-size: 30px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.game-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-card-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.game-card-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.game-card-badge {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.game-card-play-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.game-card:hover .game-card-play-btn {
+  background: #1d4ed8;
+}
+
+/* Sân chơi Cờ Caro */
+.caro-arena {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.caro-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.caro-status {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.caro-mode-btn, .caro-reset-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.caro-reset-btn {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.caro-board-wrapper {
+  max-width: 100%;
+  overflow: auto;
+  border: 2px solid #94a3b8;
+  border-radius: 8px;
+  background: #fef08a;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  padding: 2px;
+  touch-action: pan-x pan-y;
+}
+
+.caro-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 24px);
+  grid-template-rows: repeat(15, 24px);
+  gap: 1px;
+  background: #ca8a04;
+}
+
+.caro-cell {
+  background: #fef9c3;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.caro-cell:hover {
+  background: #fef08a;
+}
+
+.caro-cell.cell-x {
+  color: #2563eb;
+}
+
+.caro-cell.cell-o {
+  color: #dc2626;
+}
+
+.caro-cell.cell-last {
+  background: #bbf7d0 !important;
+}
+
+.caro-cell.cell-win {
+  background: #fb7185 !important;
+  color: #ffffff !important;
+  animation: pulseBadge 0.6s infinite alternate;
+}
+
+/* Sân chơi 2048 */
+.arena-2048 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-2048-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 320px;
+}
+
+.score-boxes {
+  display: flex;
+  gap: 6px;
+}
+
+.score-box {
+  background: #bbada0;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.score-box-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #eee4da;
+}
+
+.score-box-val {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.btn-2048-new {
+  background: #8f7a66;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.board-2048 {
+  width: 290px;
+  height: 290px;
+  background: #bbada0;
+  border-radius: 10px;
+  padding: 8px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 8px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tile-2048 {
+  background: rgba(238, 228, 218, 0.35);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #776e65;
+  transition: transform 0.1s ease;
+}
+
+.tile-2 { background: #eee4da; color: #776e65; }
+.tile-4 { background: #ede0c8; color: #776e65; }
+.tile-8 { background: #f2b179; color: #f9f6f2; }
+.tile-16 { background: #f59563; color: #f9f6f2; }
+.tile-32 { background: #f67c5f; color: #f9f6f2; }
+.tile-64 { background: #f65e3b; color: #f9f6f2; }
+.tile-128 { background: #edcf72; color: #f9f6f2; font-size: 17px; }
+.tile-256 { background: #edcc61; color: #f9f6f2; font-size: 17px; }
+.tile-512 { background: #edc850; color: #f9f6f2; font-size: 17px; }
+.tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 15px; }
+.tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 15px; box-shadow: 0 0 10px rgba(243, 215, 116, 0.5); }

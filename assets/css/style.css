@@ -1669,22 +1669,20 @@ td.so, th.so { text-align: center; width: 52px; color: var(--chu-nhat); font-var
 }
 
 /* ---------- 13. Chân trang ----------
-   Cố định dưới cùng màn hình trên MỌI trang của trang lớp (thay vì nằm cuối nội dung, chỉ
-   thấy khi cuộn hết) — main.wrap#noiDung (index.html/ca-nhan.html — RIÊNG selector này, không
-   đụng #noiDung bên khu quản lý giáo viên vốn dùng class khác) được chừa sẵn khoảng trống
-   dưới đúng bằng chiều cao thanh này để nội dung không bị che khuất. */
+   Chân trang tự nhiên nằm ở cuối nội dung (KHÔNG cố định / không sticky khi cuộn),
+   chỉ xuất hiện khi người dùng cuộn xuống dưới cùng của trang. */
 main.wrap#noiDung {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 24px;
 }
 .chan-trang {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  margin-top: 0;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  position: static;
+  margin-top: 40px;
+  padding: 20px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--vien);
-  background: color-mix(in srgb, var(--nen) 90%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--chu-nhat); font-size: 13.5px; text-align: center;
+  background: transparent;
+  color: var(--chu-nhat);
+  font-size: 13.5px;
+  text-align: center;
 }
 .chan-trang .wrap {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;

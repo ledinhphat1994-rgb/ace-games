@@ -15,6 +15,9 @@
   let caiDatHienTai = { dangMo: 1, gianCachGiay: 5, thongBaoGhim: '' };
   let lopIdHienTai = 1;
   let cuonTrangY = 0;
+  let dangGui = false;
+  let tinChuaDoc = 0;
+  let tabHienTai = 'chat'; // 'chat' | 'music' | 'game'
 
   // Kho icon chat phong phú (130+ emoji được phân loại khoa học)
   const EMOJI_CATEGORIES = [
@@ -40,6 +43,636 @@
     }
   ];
 
+  // ==============================================================================
+  // KÉO THẢ TỰ DO VÀ LƯU VỊ TRÍ BONG BÓNG ĐA NĂNG
+  // ==============================================================================
+  function khoiTaoKeoThaBongBong(bubble) {
+    const STORAGE_KEY = 'lop10a7_bubble_coords';
+    let dangKeo = false;
+    let daDiChuyen = false;
+    let startX = 0, startY = 0;
+    let initialX = 0, initialY = 0;
+
+    function khoiPhucViTri() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const pos = JSON.parse(saved);
+          if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+            const maxX = Math.max(10, window.innerWidth - 68);
+            const maxY = Math.max(10, window.innerHeight - 68);
+            const x = Math.min(Math.max(10, pos.x), maxX);
+            const y = Math.min(Math.max(10, pos.y), maxY);
+            bubble.style.left = `${x}px`;
+            bubble.style.top = `${y}px`;
+            bubble.style.right = 'auto';
+            bubble.style.bottom = 'auto';
+            return;
+          }
+        }
+      } catch {}
+      // Mặc định: góc phải dưới
+      bubble.style.right = '20px';
+      bubble.style.bottom = '24px';
+      bubble.style.left = 'auto';
+      bubble.style.top = 'auto';
+    }
+
+    khoiPhucViTri();
+
+    function batDau(clientX, clientY) {
+      if (dangMoKhungChat) return;
+      dangKeo = true;
+      daDiChuyen = false;
+      startX = clientX;
+      startY = clientY;
+
+      const rect = bubble.getBoundingClientRect();
+      initialX = rect.left;
+      initialY = rect.top;
+
+      bubble.style.transition = 'none';
+      bubble.classList.add('chat-bubble-dragging');
+    }
+
+    function diChuyen(clientX, clientY, e) {
+      if (!dangKeo) return;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      if (Math.hypot(dx, dy) > 5) {
+        daDiChuyen = true;
+        if (e && e.cancelable) e.preventDefault();
+      }
+
+      if (daDiChuyen) {
+        const maxX = Math.max(10, window.innerWidth - bubble.offsetWidth - 10);
+        const maxY = Math.max(10, window.innerHeight - bubble.offsetHeight - 10);
+        const newX = Math.min(Math.max(10, initialX + dx), maxX);
+        const newY = Math.min(Math.max(10, initialY + dy), maxY);
+
+        bubble.style.left = `${newX}px`;
+        bubble.style.top = `${newY}px`;
+        bubble.style.right = 'auto';
+        bubble.style.bottom = 'auto';
+      }
+    }
+
+    function ketThuc() {
+      if (!dangKeo) return;
+      dangKeo = false;
+      bubble.classList.remove('chat-bubble-dragging');
+      bubble.style.transition = 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease';
+
+      if (daDiChuyen) {
+        const rect = bubble.getBoundingClientRect();
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            x: Math.round(rect.left),
+            y: Math.round(rect.top),
+          }));
+        } catch {}
+      } else {
+        moKhungChat();
+      }
+    }
+
+    // Chuột PC
+    bubble.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      batDau(e.clientX, e.clientY);
+
+      const onMouseMove = (ev) => diChuyen(ev.clientX, ev.clientY, ev);
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        ketThuc();
+      };
+      window.addEventListener('mousemove', onMouseMove, { passive: false });
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    // Cảm ứng Mobile
+    bubble.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      batDau(touch.clientX, touch.clientY);
+    }, { passive: true });
+
+    bubble.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      diChuyen(touch.clientX, touch.clientY, e);
+    }, { passive: false });
+
+    bubble.addEventListener('touchend', ketThuc, { passive: true });
+    bubble.addEventListener('touchcancel', ketThuc, { passive: true });
+
+    // Đảm bảo không văng ra ngoài khi xoay ngang/đổi kích thước màn hình
+    window.addEventListener('resize', () => {
+      const rect = bubble.getBoundingClientRect();
+      const maxX = Math.max(10, window.innerWidth - bubble.offsetWidth - 10);
+      const maxY = Math.max(10, window.innerHeight - bubble.offsetHeight - 10);
+      if (rect.left > maxX || rect.top > maxY) {
+        const x = Math.min(Math.max(10, rect.left), maxX);
+        const y = Math.min(Math.max(10, rect.top), maxY);
+        bubble.style.left = `${x}px`;
+        bubble.style.top = `${y}px`;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: Math.round(x), y: Math.round(y) }));
+        } catch {}
+      }
+    });
+  }
+
+  // ==============================================================================
+  // MODULE NHẠC YOUTUBE MINI
+  // ==============================================================================
+  function khoiTaoNhacYouTube() {
+    const presetContainer = document.getElementById('musicPresetChips');
+    const iframe = document.getElementById('musicIframe');
+    const customInput = document.getElementById('musicCustomInput');
+    const playBtn = document.getElementById('musicPlayCustomBtn');
+    const trackTitle = document.getElementById('musicTrackTitle');
+
+    if (!iframe) return;
+
+    function phatVideo(videoId, titleText) {
+      if (!videoId) return;
+      iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&origin=${encodeURIComponent(window.location.origin)}`;
+      if (trackTitle && titleText) {
+        trackTitle.textContent = `Đang phát: ${titleText}`;
+      }
+    }
+
+    if (presetContainer) {
+      presetContainer.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-yt-id]');
+        if (!chip) return;
+        presetContainer.querySelectorAll('.music-chip').forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        phatVideo(chip.dataset.ytId, chip.dataset.ytTitle);
+      });
+    }
+
+    function trichXuatYtId(urlOrId) {
+      if (!urlOrId) return '';
+      const str = urlOrId.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+      const m1 = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+      if (m1) return m1[1];
+      const m2 = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+      if (m2) return m2[1];
+      const m3 = str.match(/embed\/([a-zA-Z0-9_-]{11})/);
+      if (m3) return m3[1];
+      return '';
+    }
+
+    if (playBtn && customInput) {
+      const handleCustomPlay = () => {
+        const id = trichXuatYtId(customInput.value);
+        if (!id) {
+          alert('Vui lòng nhập link hoặc ID video YouTube hợp lệ (ví dụ: jfKfPfyJRdk hoặc https://youtu.be/...)');
+          return;
+        }
+        if (presetContainer) {
+          presetContainer.querySelectorAll('.music-chip').forEach((c) => c.classList.remove('active'));
+        }
+        phatVideo(id, `YouTube (${id})`);
+      };
+
+      playBtn.onclick = handleCustomPlay;
+      customInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCustomPlay();
+        }
+      };
+    }
+  }
+
+  // ==============================================================================
+  // MODULE GAME HUB (CỜ CARO 15x15 & 2048)
+  // ==============================================================================
+  function khoiTaoGameHub() {
+    const selector = document.getElementById('gameSelectorGrid');
+    const caroArena = document.getElementById('caroArena');
+    const arena2048 = document.getElementById('arena2048');
+    const backBtn = document.getElementById('gameBackToMenuBtn');
+    const hubTitle = document.getElementById('gameHubTitle');
+    const hubDesc = document.getElementById('gameHubDesc');
+
+    function moMenuChinh() {
+      if (selector) selector.style.display = 'flex';
+      if (caroArena) caroArena.style.display = 'none';
+      if (arena2048) arena2048.style.display = 'none';
+      if (backBtn) backBtn.style.display = 'none';
+      if (hubTitle) hubTitle.textContent = '🎮 Trò chơi giải trí Lớp 10A7';
+      if (hubDesc) hubDesc.textContent = 'Giải trí lành mạnh, thư giãn thông minh cùng bạn bè';
+    }
+
+    if (backBtn) backBtn.onclick = moMenuChinh;
+
+    const cardCaro = document.getElementById('cardStartCaro');
+    if (cardCaro) {
+      cardCaro.onclick = () => {
+        if (selector) selector.style.display = 'none';
+        if (caroArena) caroArena.style.display = 'flex';
+        if (arena2048) arena2048.style.display = 'none';
+        if (backBtn) backBtn.style.display = 'inline-block';
+        if (hubTitle) hubTitle.textContent = '⭕❌ Cờ Caro (Gomoku) 15x15';
+        if (hubDesc) hubDesc.textContent = 'Tạo thành 5 quân liên tiếp hàng ngang, dọc hoặc chéo để chiến thắng';
+        khoiTaoCaro();
+      };
+    }
+
+    const card2048 = document.getElementById('cardStart2048');
+    if (card2048) {
+      card2048.onclick = () => {
+        if (selector) selector.style.display = 'none';
+        if (caroArena) caroArena.style.display = 'none';
+        if (arena2048) arena2048.style.display = 'flex';
+        if (backBtn) backBtn.style.display = 'inline-block';
+        if (hubTitle) hubTitle.textContent = '🔢 2048 Siêu Trí Tuệ';
+        if (hubDesc) hubDesc.textContent = 'Vuốt màn hình hoặc dùng phím mũi tên để ghép các ô số';
+        khoiTao2048();
+      };
+    }
+
+    // ----- LOGIC CỜ CARO (15x15) -----
+    const SIZE = 15;
+    let board = [];
+    let luotNguoi = 1; // 1 = X (người/X), 2 = O (máy/O)
+    let daKetThuc = false;
+    let cheDo = 'ai'; // 'ai' hoặc 'pvp'
+    let lastMove = null;
+
+    function khoiTaoCaro() {
+      board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+      luotNguoi = 1;
+      daKetThuc = false;
+      lastMove = null;
+      renderCaroGrid();
+      capNhatTrangThaiCaro();
+    }
+
+    const modeBtn = document.getElementById('caroModeBtn');
+    if (modeBtn) {
+      modeBtn.onclick = () => {
+        cheDo = (cheDo === 'ai') ? 'pvp' : 'ai';
+        modeBtn.textContent = `Chế độ: ${cheDo === 'ai' ? 'Đấu với Máy' : '2 Người chơi'}`;
+        khoiTaoCaro();
+      };
+    }
+
+    const resetBtn = document.getElementById('caroResetBtn');
+    if (resetBtn) {
+      resetBtn.onclick = khoiTaoCaro;
+    }
+
+    function capNhatTrangThaiCaro() {
+      const st = document.getElementById('caroStatus');
+      if (!st || daKetThuc) return;
+      if (cheDo === 'ai') {
+        st.textContent = luotNguoi === 1 ? 'Lượt: 🔵 X (Bạn)' : 'Lượt: 🔴 O (Máy đang nghĩ...)';
+      } else {
+        st.textContent = luotNguoi === 1 ? 'Lượt: 🔵 Quân X' : 'Lượt: 🔴 Quân O';
+      }
+    }
+
+    function renderCaroGrid() {
+      const grid = document.getElementById('caroGrid');
+      if (!grid) return;
+      grid.textContent = '';
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'caro-cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+
+          const val = board[r][c];
+          if (val === 1) {
+            cell.textContent = '✕';
+            cell.classList.add('cell-x');
+          } else if (val === 2) {
+            cell.textContent = '◯';
+            cell.classList.add('cell-o');
+          }
+
+          if (lastMove && lastMove.r === r && lastMove.c === c) {
+            cell.classList.add('cell-last');
+          }
+
+          cell.onclick = () => nuocDiNguoiChoi(r, c);
+          grid.appendChild(cell);
+        }
+      }
+    }
+
+    function nuocDiNguoiChoi(r, c) {
+      if (daKetThuc || board[r][c] !== 0) return;
+      if (cheDo === 'ai' && luotNguoi !== 1) return;
+
+      board[r][c] = luotNguoi;
+      lastMove = { r, c };
+      renderCaroGrid();
+
+      const winLine = kiemTraThang(r, c, luotNguoi);
+      if (winLine) {
+        xuLyThang(luotNguoi, winLine);
+        return;
+      }
+
+      if (cheDo === 'ai') {
+        luotNguoi = 2;
+        capNhatTrangThaiCaro();
+        setTimeout(nuocDiMayAI, 200);
+      } else {
+        luotNguoi = luotNguoi === 1 ? 2 : 1;
+        capNhatTrangThaiCaro();
+      }
+    }
+
+    function nuocDiMayAI() {
+      if (daKetThuc) return;
+      const bestMove = tinhNuocDiAI();
+      if (!bestMove) return;
+
+      board[bestMove.r][bestMove.c] = 2;
+      lastMove = bestMove;
+      renderCaroGrid();
+
+      const winLine = kiemTraThang(bestMove.r, bestMove.c, 2);
+      if (winLine) {
+        xuLyThang(2, winLine);
+        return;
+      }
+
+      luotNguoi = 1;
+      capNhatTrangThaiCaro();
+    }
+
+    function kiemTraThang(r, c, player) {
+      const directions = [
+        [[0, 1], [0, -1]],
+        [[1, 0], [-1, 0]],
+        [[1, 1], [-1, -1]],
+        [[1, -1], [-1, 1]]
+      ];
+
+      for (const dir of directions) {
+        const line = [{ r, c }];
+        for (const [dr, dc] of dir) {
+          let nr = r + dr;
+          let nc = c + dc;
+          while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === player) {
+            line.push({ r: nr, c: nc });
+            nr += dr;
+            nc += dc;
+          }
+        }
+        if (line.length >= 5) return line;
+      }
+      return null;
+    }
+
+    function xuLyThang(player, winLine) {
+      daKetThuc = true;
+      const st = document.getElementById('caroStatus');
+      if (st) {
+        if (cheDo === 'ai') {
+          st.textContent = player === 1 ? '🎉 BẠN ĐÃ THẮNG MÁY AI!' : '🤖 MÁY AI ĐÃ THẮNG!';
+        } else {
+          st.textContent = player === 1 ? '🎉 QUÂN X THẮNG!' : '🎉 QUÂN O THẮNG!';
+        }
+      }
+
+      winLine.forEach((p) => {
+        const cell = document.querySelector(`.caro-cell[data-r="${p.r}"][data-c="${p.c}"]`);
+        if (cell) cell.classList.add('cell-win');
+      });
+    }
+
+    function tinhNuocDiAI() {
+      let maxScore = -1;
+      let candidates = [];
+
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (board[r][c] === 0) {
+            let coHangXom = false;
+            for (let dr = -2; dr <= 2 && !coHangXom; dr++) {
+              for (let dc = -2; dc <= 2; dc++) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] !== 0) {
+                  coHangXom = true;
+                  break;
+                }
+              }
+            }
+            if (!coHangXom && (r !== 7 || c !== 7)) continue;
+
+            const scoreAttack = danhGiaNuocDi(r, c, 2);
+            const scoreDefend = danhGiaNuocDi(r, c, 1);
+            const totalScore = scoreAttack + scoreDefend * 1.15;
+
+            if (totalScore > maxScore) {
+              maxScore = totalScore;
+              candidates = [{ r, c }];
+            } else if (totalScore === maxScore) {
+              candidates.push({ r, c });
+            }
+          }
+        }
+      }
+
+      if (candidates.length === 0) return { r: 7, c: 7 };
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function danhGiaNuocDi(r, c, player) {
+      let score = 0;
+      const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+
+      for (const [dr, dc] of dirs) {
+        let count = 1;
+        let block = 0;
+
+        let nr = r + dr;
+        let nc = c + dc;
+        while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === player) {
+          count++; nr += dr; nc += dc;
+        }
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE || board[nr][nc] !== 0) {
+          block++;
+        }
+
+        nr = r - dr;
+        nc = c - dc;
+        while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === player) {
+          count++; nr -= dr; nc -= dc;
+        }
+        if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE || board[nr][nc] !== 0) {
+          block++;
+        }
+
+        if (count >= 5) score += 100000;
+        else if (count === 4 && block === 0) score += 10000;
+        else if (count === 4 && block === 1) score += 2000;
+        else if (count === 3 && block === 0) score += 1000;
+        else if (count === 3 && block === 1) score += 200;
+        else if (count === 2 && block === 0) score += 100;
+      }
+      return score;
+    }
+
+    // ----- LOGIC GAME 2048 (4x4) -----
+    let grid2048 = [];
+    let score2048 = 0;
+    let best2048 = parseInt(localStorage.getItem('lop10a7_2048_best') || '0', 10);
+
+    function khoiTao2048() {
+      grid2048 = [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ];
+      score2048 = 0;
+      sinhO2048();
+      sinhO2048();
+      render2048();
+    }
+
+    const btnNew2048 = document.getElementById('btn2048New');
+    if (btnNew2048) btnNew2048.onclick = khoiTao2048;
+
+    function sinhO2048() {
+      const trong = [];
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 4; c++) {
+          if (grid2048[r][c] === 0) trong.push({ r, c });
+        }
+      }
+      if (trong.length > 0) {
+        const rand = trong[Math.floor(Math.random() * trong.length)];
+        grid2048[rand.r][rand.c] = Math.random() < 0.9 ? 2 : 4;
+      }
+    }
+
+    function render2048() {
+      const boardEl = document.getElementById('board2048');
+      const scoreEl = document.getElementById('score2048Val');
+      const bestEl = document.getElementById('best2048Val');
+      if (!boardEl) return;
+
+      if (scoreEl) scoreEl.textContent = String(score2048);
+      if (bestEl) {
+        if (score2048 > best2048) {
+          best2048 = score2048;
+          try { localStorage.setItem('lop10a7_2048_best', String(best2048)); } catch {}
+        }
+        bestEl.textContent = String(best2048);
+      }
+
+      boardEl.textContent = '';
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 4; c++) {
+          const val = grid2048[r][c];
+          const tile = document.createElement('div');
+          tile.className = `tile-2048 ${val ? `tile-${val}` : ''}`;
+          tile.textContent = val ? String(val) : '';
+          boardEl.appendChild(tile);
+        }
+      }
+    }
+
+    function truot2048(row) {
+      let arr = row.filter((val) => val);
+      for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === arr[i + 1]) {
+          arr[i] *= 2;
+          score2048 += arr[i];
+          arr[i + 1] = 0;
+        }
+      }
+      arr = arr.filter((val) => val);
+      while (arr.length < 4) arr.push(0);
+      return arr;
+    }
+
+    function diChuyen2048(huong) {
+      let daThayDoi = false;
+      const cu = JSON.stringify(grid2048);
+
+      if (huong === 'left') {
+        for (let r = 0; r < 4; r++) {
+          grid2048[r] = truot2048(grid2048[r]);
+        }
+      } else if (huong === 'right') {
+        for (let r = 0; r < 4; r++) {
+          grid2048[r] = truot2048(grid2048[r].slice().reverse()).reverse();
+        }
+      } else if (huong === 'up') {
+        for (let c = 0; c < 4; c++) {
+          let col = [grid2048[0][c], grid2048[1][c], grid2048[2][c], grid2048[3][c]];
+          col = truot2048(col);
+          for (let r = 0; r < 4; r++) grid2048[r][c] = col[r];
+        }
+      } else if (huong === 'down') {
+        for (let c = 0; c < 4; c++) {
+          let col = [grid2048[3][c], grid2048[2][c], grid2048[1][c], grid2048[0][c]];
+          col = truot2048(col);
+          for (let r = 0; r < 4; r++) grid2048[3 - r][c] = col[r];
+        }
+      }
+
+      if (JSON.stringify(grid2048) !== cu) {
+        daThayDoi = true;
+        sinhO2048();
+        render2048();
+      }
+      return daThayDoi;
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const arena = document.getElementById('arena2048');
+      if (!arena || arena.style.display === 'none' || !dangMoKhungChat) return;
+
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        if (e.key === 'ArrowLeft') diChuyen2048('left');
+        if (e.key === 'ArrowRight') diChuyen2048('right');
+        if (e.key === 'ArrowUp') diChuyen2048('up');
+        if (e.key === 'ArrowDown') diChuyen2048('down');
+      }
+    });
+
+    const board2048El = document.getElementById('board2048');
+    if (board2048El) {
+      let touchStartX = 0, touchStartY = 0;
+      board2048El.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      board2048El.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.hypot(dx, dy) < 25) return;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          if (dx > 0) diChuyen2048('right');
+          else diChuyen2048('left');
+        } else {
+          if (dy > 0) diChuyen2048('down');
+          else diChuyen2048('up');
+        }
+      }, { passive: true });
+    }
+  }
+
   function khoiTaoGiaoDien() {
     // 0. Lớp phủ nền (Backdrop) chặn toàn bộ tương tác của trang bên dưới khi chat mở
     const backdrop = document.createElement('div');
@@ -56,20 +689,20 @@
     }, { passive: false });
     document.body.appendChild(backdrop);
 
-    // 1. Nút bong bóng chat nổi
+    // 1. Nút bong bóng chat nổi đa năng
     const bubble = document.createElement('button');
     bubble.className = 'chat-widget-bubble';
     bubble.id = 'chatWidgetBubble';
     bubble.type = 'button';
-    bubble.title = 'Phòng tán gẫu lớp học';
-    bubble.setAttribute('aria-label', 'Mở phòng tán gẫu');
+    bubble.title = 'Bong bóng đa năng (Tán gẫu · Nhạc · Game)';
+    bubble.setAttribute('aria-label', 'Mở bong bóng đa năng');
     bubble.innerHTML = `
       <span class="chat-bubble-icon">💬</span>
       <span class="chat-bubble-badge" id="chatUnreadBadge" style="display: none;">0</span>
     `;
     document.body.appendChild(bubble);
 
-    // 2. Tạo cửa sổ khung chat
+    // 2. Tạo cửa sổ khung đa năng (Tán gẫu, Nhạc YouTube, Chơi game)
     const windowEl = document.createElement('div');
     windowEl.className = 'chat-widget-window chat-hidden';
     windowEl.id = 'chatWidgetWindow';
@@ -87,28 +720,161 @@
         </div>
         <div class="chat-header-actions">
           <button class="chat-header-btn" id="chatTeacherSettingBtn" title="Cài đặt phòng chat" style="display: none;">⚙️</button>
-          <button class="chat-header-btn chat-close-btn" id="chatCloseBtn" title="Thu nhỏ khung chat" aria-label="Đóng chat">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 1.5l10 10M11.5 1.5l-10 10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <button class="chat-header-btn chat-minimize-btn" id="chatCloseBtn" title="Thu nhỏ về bong bóng nổi" aria-label="Thu nhỏ về bong bóng">
+            <span style="font-size: 16px; line-height: 1;">🫧</span>
           </button>
         </div>
       </div>
 
-      <div class="chat-pinned-banner" id="chatPinnedBanner" style="display: none;"></div>
-      <div class="chat-lock-banner" id="chatLockBanner" style="display: none;">⚠️ Giáo viên đang tạm khóa chat</div>
-
-      <div class="chat-messages-container" id="chatMessagesContainer">
-        <div style="text-align: center; color: #94a3b8; font-size: 12.5px; margin-top: 24px;">Đang tải tin nhắn...</div>
+      <!-- THANH ĐIỀU HƯỚNG BONG BÓNG ĐA NĂNG (TÁN GẪU | NHẠC YOUTUBE | CHƠI GAME) -->
+      <div class="chat-hub-nav" id="chatHubNav">
+        <button class="chat-hub-tab-btn active" data-hub-tab="chat" type="button">
+          <span class="hub-tab-icon">💬</span>
+          <span class="hub-tab-label">Tán gẫu</span>
+        </button>
+        <button class="chat-hub-tab-btn" data-hub-tab="music" type="button">
+          <span class="hub-tab-icon">🎵</span>
+          <span class="hub-tab-label">Nhạc YouTube</span>
+        </button>
+        <button class="chat-hub-tab-btn" data-hub-tab="game" type="button">
+          <span class="hub-tab-icon">🎮</span>
+          <span class="hub-tab-label">Chơi game</span>
+        </button>
       </div>
 
-      <div class="chat-emoji-drawer" id="chatEmojiDrawer" style="display: none;"></div>
+      <div class="chat-hub-panels-wrap">
+        <!-- 1. TAB TÁN GẪU -->
+        <div class="chat-hub-panel" id="chatHubChatPanel">
+          <div class="chat-pinned-banner" id="chatPinnedBanner" style="display: none;"></div>
+          <div class="chat-lock-banner" id="chatLockBanner" style="display: none;">⚠️ Giáo viên đang tạm khóa chat</div>
 
-      <div class="chat-window-footer" id="chatWindowFooter">
-        <div class="chat-input-row">
-          <button class="chat-emoji-toggle" id="chatEmojiToggleBtn" title="Chọn biểu tượng cảm xúc" type="button">😊</button>
-          <input type="text" class="chat-input-field" id="chatInputField" placeholder="Nhập tin nhắn..." maxlength="300" autocomplete="off" />
-          <button class="chat-send-btn" id="chatSendBtn" type="button">Gửi</button>
+          <div class="chat-messages-container" id="chatMessagesContainer">
+            <div style="text-align: center; color: #94a3b8; font-size: 12.5px; margin-top: 24px;">Đang tải tin nhắn...</div>
+          </div>
+
+          <div class="chat-emoji-drawer" id="chatEmojiDrawer" style="display: none;"></div>
+
+          <div class="chat-window-footer" id="chatWindowFooter">
+            <div class="chat-input-row">
+              <button class="chat-emoji-toggle" id="chatEmojiToggleBtn" title="Chọn biểu tượng cảm xúc" type="button">😊</button>
+              <input type="text" class="chat-input-field" id="chatInputField" placeholder="Nhập tin nhắn..." maxlength="300" autocomplete="off" />
+              <button class="chat-send-btn" id="chatSendBtn" type="button">Gửi</button>
+            </div>
+            <div class="chat-rate-hint" id="chatRateHint">Chỉ gửi chữ & icon • Giãn cách 5s</div>
+          </div>
         </div>
-        <div class="chat-rate-hint" id="chatRateHint">Chỉ gửi chữ & icon • Giãn cách 5s</div>
+
+        <!-- 2. TAB NHẠC YOUTUBE MINI -->
+        <div class="chat-hub-panel hub-panel-music panel-hidden" id="chatHubMusicPanel">
+          <div class="music-hub-header">
+            <div class="music-hub-title">🎵 Phòng nghe nhạc Lớp 10A7</div>
+            <div class="music-hub-desc">Nhạc lofi, chill, acoustic & video YouTube tự chọn</div>
+          </div>
+
+          <div class="music-preset-chips" id="musicPresetChips">
+            <button class="music-chip active" type="button" data-yt-id="jfKfPfyJRdk" data-yt-title="Lofi Hip Hop Chill Học Bài">
+              ☕ Lofi Học Bài
+            </button>
+            <button class="music-chip" type="button" data-yt-id="4xDzrJKXOOY" data-yt-title="Acoustic Guitar Thư Giãn">
+              🎸 Acoustic Guitar
+            </button>
+            <button class="music-chip" type="button" data-yt-id="WPni755-Krg" data-yt-title="Tiếng Mưa Rơi & Piano">
+              🌧️ Mưa & Piano
+            </button>
+            <button class="music-chip" type="button" data-yt-id="mIYzp5rcTvU" data-yt-title="Không Lời Nâng Cao Tập Trung">
+              📚 Nhạc Focus
+            </button>
+          </div>
+
+          <div class="music-custom-row">
+            <input type="text" class="music-input" id="musicCustomInput" placeholder="Dán link hoặc ID video YouTube (vd: jfKfPfyJRdk)..." />
+            <button class="music-play-btn" id="musicPlayCustomBtn" type="button">▶ Phát</button>
+          </div>
+
+          <div class="music-player-wrapper">
+            <iframe id="musicIframe"
+              src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1&origin=https://gdtxdinhquan.pages.dev"
+              title="YouTube Music Player"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>
+
+          <div class="music-now-playing" id="musicNowPlaying">
+            <div class="music-eq-bars"><span></span><span></span><span></span></div>
+            <span id="musicTrackTitle">Đang sẵn sàng: Lofi Hip Hop Chill Học Bài</span>
+          </div>
+
+          <div class="music-bg-notice">
+            💡 <strong>Mẹo hay:</strong> Bạn có thể chuyển sang tab <strong>Tán gẫu</strong> hoặc <strong>Chơi game</strong>, âm nhạc vẫn tiếp tục phát nền mượt mà!
+          </div>
+        </div>
+
+        <!-- 3. TAB CHƠI GAME GIẢI TRÍ -->
+        <div class="chat-hub-panel hub-panel-game panel-hidden" id="chatHubGamePanel">
+          <div class="game-hub-header">
+            <div class="game-hub-top-row">
+              <div class="game-hub-title" id="gameHubTitle">🎮 Trò chơi giải trí Lớp 10A7</div>
+              <button class="game-back-btn" id="gameBackToMenuBtn" type="button" style="display: none;">← Đổi game khác</button>
+            </div>
+            <div class="game-hub-desc" id="gameHubDesc">Giải trí lành mạnh, thư giãn thông minh cùng bạn bè</div>
+          </div>
+
+          <!-- Sảnh chọn game -->
+          <div class="game-selector-grid" id="gameSelectorGrid">
+            <div class="game-card" id="cardStartCaro">
+              <div class="game-card-icon">⭕❌</div>
+              <div class="game-card-info">
+                <div class="game-card-name">Cờ Caro (Gomoku) 15x15</div>
+                <div class="game-card-desc">Đấu trí 5 quân cờ liên tiếp với Máy AI thông minh hoặc 2 bạn bè cùng chơi</div>
+                <span class="game-card-badge">Đấu trí 1v1 & AI</span>
+              </div>
+              <button class="game-card-play-btn" type="button">Chơi ngay</button>
+            </div>
+
+            <div class="game-card" id="cardStart2048">
+              <div class="game-card-icon">🔢</div>
+              <div class="game-card-info">
+                <div class="game-card-name">2048 Siêu Trí Tuệ</div>
+                <div class="game-card-desc">Ghép các ô số đạt mốc 2048 kỷ lục. Vuốt mượt trên mobile & phím mũi tên PC</div>
+                <span class="game-card-badge">Thư giãn tư duy</span>
+              </div>
+              <button class="game-card-play-btn" type="button">Chơi ngay</button>
+            </div>
+          </div>
+
+          <!-- Khu vực Cờ Caro -->
+          <div class="game-arena caro-arena" id="caroArena" style="display: none;">
+            <div class="caro-controls">
+              <div class="caro-status" id="caroStatus">Lượt: 🔵 X (Bạn)</div>
+              <div style="display: flex; gap: 4px;">
+                <button class="caro-mode-btn" id="caroModeBtn" type="button">Chế độ: Đấu với Máy</button>
+                <button class="caro-reset-btn" id="caroResetBtn" type="button">Ván mới</button>
+              </div>
+            </div>
+            <div class="caro-board-wrapper">
+              <div class="caro-grid" id="caroGrid"></div>
+            </div>
+          </div>
+
+          <!-- Khu vực Game 2048 -->
+          <div class="game-arena arena-2048" id="arena2048" style="display: none;">
+            <div class="game-2048-top">
+              <div class="score-boxes">
+                <div class="score-box">
+                  <div class="score-box-title">ĐIỂM</div>
+                  <div class="score-box-val" id="score2048Val">0</div>
+                </div>
+                <div class="score-box">
+                  <div class="score-box-title">KỶ LỤC</div>
+                  <div class="score-box-val" id="best2048Val">0</div>
+                </div>
+              </div>
+              <button class="btn-2048-new" id="btn2048New" type="button">Chơi lại</button>
+            </div>
+            <div class="board-2048" id="board2048"></div>
+          </div>
+        </div>
       </div>
 
       <div class="chat-teacher-modal" id="chatTeacherModal" style="display: none;"></div>
@@ -232,23 +998,52 @@
       if (menu && !menu.contains(e.target)) window.chatWidgetAnMenuTin();
     }, { passive: true });
 
-    // 5. Bắt sự kiện bấm vào bong bóng để mở chat — không tự bật bàn phím
-    function xuLyMoChat(e) {
-      if (e) {
+    // 5. Kích hoạt kéo thả tự do & lưu vị trí cho bong bóng nổi
+    khoiTaoKeoThaBongBong(bubble);
+
+    // Thu nhỏ về bong bóng nổi (thay cho dấu X)
+    const closeBtn = document.getElementById('chatCloseBtn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-      }
-      moKhungChat();
+        dongKhungChat();
+      });
     }
 
-    bubble.addEventListener('click', xuLyMoChat);
+    // Chuyển đổi giữa các tab đa năng: Tán gẫu | Nhạc YouTube | Chơi game
+    function chuyenTab(tabKey) {
+      tabHienTai = tabKey;
+      const tabs = document.querySelectorAll('.chat-hub-tab-btn');
+      tabs.forEach((b) => b.classList.toggle('active', b.dataset.hubTab === tabKey));
 
-    const closeBtn = document.getElementById('chatCloseBtn');
-    closeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dongKhungChat();
-    });
+      const chatPanel = document.getElementById('chatHubChatPanel');
+      const musicPanel = document.getElementById('chatHubMusicPanel');
+      const gamePanel = document.getElementById('chatHubGamePanel');
+
+      if (chatPanel) chatPanel.classList.toggle('panel-hidden', tabKey !== 'chat');
+      if (musicPanel) musicPanel.classList.toggle('panel-hidden', tabKey !== 'music');
+      if (gamePanel) gamePanel.classList.toggle('panel-hidden', tabKey !== 'game');
+
+      if (tabKey === 'chat') {
+        cuonXuongDuoi();
+      }
+    }
+
+    const hubNav = document.getElementById('chatHubNav');
+    if (hubNav) {
+      hubNav.addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('[data-hub-tab]');
+        if (!tabBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        chuyenTab(tabBtn.dataset.hubTab);
+      });
+    }
+
+    // Khởi tạo các tiện ích Nhạc và Game Hub
+    khoiTaoNhacYouTube();
+    khoiTaoGameHub();
 
     const emojiToggleBtn = document.getElementById('chatEmojiToggleBtn');
     emojiToggleBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
@@ -278,8 +1073,25 @@
         guiTinNhan();
       }
     };
-    document.getElementById('chatSendBtn').onclick = guiTinNhan;
-    document.getElementById('chatTeacherSettingBtn').onclick = moCaiDatGiaoVien;
+
+    const sendBtn = document.getElementById('chatSendBtn');
+    if (sendBtn) {
+      sendBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        guiTinNhan();
+      };
+      sendBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        guiTinNhan();
+      }, { passive: false });
+    }
+
+    const teacherSettingBtn = document.getElementById('chatTeacherSettingBtn');
+    if (teacherSettingBtn) {
+      teacherSettingBtn.onclick = moCaiDatGiaoVien;
+    }
 
     // Tự động co giãn theo bàn phím ảo trên điện thoại (Visual Viewport API) một cách an toàn
     if (window.visualViewport) {
@@ -331,7 +1143,9 @@
 
     tinChuaDoc = 0;
     capNhatBadge();
-    cuonXuongDuoi();
+    if (tabHienTai === 'chat') {
+      cuonXuongDuoi();
+    }
 
     // Ẩn khay emoji và đảm bảo KHÔNG tự động bật bàn phím ảo
     const d = document.getElementById('chatEmojiDrawer');
@@ -691,12 +1505,16 @@
     if (dangGui || demNguocGiay > 0) return;
 
     const input = document.getElementById('chatInputField');
+    if (!input) return;
     const noiDung = input.value.trim();
     if (!noiDung) return;
 
     dangGui = true;
     const sendBtn = document.getElementById('chatSendBtn');
-    sendBtn.disabled = true;
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.textContent = '...';
+    }
 
     try {
       const res = await fetch('/api/chat', {
@@ -730,11 +1548,15 @@
 
       // Tải ngay tin mới từ server
       await taiTinNhan(false);
-    } catch {
-      alert('Lỗi kết nối khi gửi tin nhắn.');
+    } catch (err) {
+      console.error('Lỗi gửi tin nhắn:', err);
+      alert('Lỗi kết nối khi gửi tin nhắn. Vui lòng thử lại!');
     } finally {
       dangGui = false;
-      if (demNguocGiay <= 0) sendBtn.disabled = false;
+      if (sendBtn && demNguocGiay <= 0) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Gửi';
+      }
     }
   }
 
