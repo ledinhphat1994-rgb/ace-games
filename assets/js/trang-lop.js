@@ -2520,7 +2520,9 @@ function apDungThuongHieuLop(lop, phien) {
   const namHoc = lop.namHoc || '';
 
   document.title = namHoc ? `${ten} · Năm học ${namHoc}` : ten;
-  const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) hieuMaLop.textContent = tenNgan;
+  // Ẩn mã lớp (10A7) trong badge — logo huy hiệu đã thể hiện mã lớp trực quan rồi,
+  // hiện thêm chữ trong vòng tròn là thừa và làm badge trông rối.
+  const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) { hieuMaLop.textContent = tenNgan; hieuMaLop.hidden = true; }
   // Badge năm học gắn ở góc huy hiệu lớp — viết tắt "26–27" cho gọn (thay vì "Năm học 2026 –
   // 2027" đầy đủ, quá dài cho một cái nhãn nhỏ ở góc icon), vẫn tự nhận diện đúng 2 năm dù sau
   // này đổi định dạng namHoc khác đi.
@@ -2545,7 +2547,27 @@ function apDungThuongHieuLop(lop, phien) {
       const boc = datNoiDung(e('span', 'hieu-phu-dong-boc'), ...dong.map((d) => e('span', 'hieu-phu-dong', d)));
       datNoiDung(hieuTruong, e('span', 'hieu-phu-icon', icon), boc);
     } else {
-      hieuTruong.textContent = truong || 'Hệ thống lớp học';
+      // Tên trường hiện 2 dòng căn đều:
+      // Dòng 1: tên đầy đủ của trung tâm (ưu tiên từ DB), Dòng 2: địa chỉ hành chính.
+      // Nếu truong có dấu " - " hoặc ", " thì tách tự động, không thì dùng 2 hằng mặc định.
+      let dong1, dong2;
+      if (truong) {
+        const sep = truong.includes(' - ') ? ' - ' : (truong.includes(', ') ? ', ' : null);
+        if (sep) {
+          const parts = truong.split(sep);
+          dong1 = parts[0].trim();
+          dong2 = parts.slice(1).join(sep).trim();
+        } else {
+          dong1 = truong;
+          dong2 = '';
+        }
+      } else {
+        dong1 = 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2';
+        dong2 = 'xã Định Quán, thành phố Đồng Nai';
+      }
+      const cac = dong2 ? [dong1, dong2] : [dong1];
+      const boc = datNoiDung(e('span', 'hieu-phu-dong-boc'), ...cac.map((d) => e('span', 'hieu-phu-dong', d)));
+      datNoiDung(hieuTruong, boc);
     }
   }
   // "Đổi lớp chủ nhiệm" chỉ giáo viên chủ nhiệm mới có — tài khoản học sinh (dù thường hay

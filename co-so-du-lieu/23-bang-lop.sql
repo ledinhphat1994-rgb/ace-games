@@ -14,5 +14,11 @@ CREATE TABLE IF NOT EXISTS lop (
 );
 
 INSERT INTO lop (id, ten, nam_hoc, truong, gioi_thieu, gioi_han_byte)
-  SELECT 1, 'Lớp 10A7', '2026 – 2027', 'Trung tâm GDNN-GDTX Khu vực 1 - Phân khu 2 xã Định Quán , thành phố Đồng Nai', '', 9500000000
+  SELECT 1, 'Lớp 10A7', '2026 – 2027', 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2 - xã Định Quán, thành phố Đồng Nai', '', 9500000000
   WHERE NOT EXISTS (SELECT 1 FROM lop WHERE id = 1);
+
+-- Cập nhật tên trường đúng cho bản ghi đã tồn tại (migration đồng bộ VPS)
+UPDATE lop
+  SET truong = 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2 - xã Định Quán, thành phố Đồng Nai'
+  WHERE id = 1
+    AND truong != 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2 - xã Định Quán, thành phố Đồng Nai';
