@@ -879,6 +879,123 @@ body.chat-modal-open {
 }
 
 /* ==============================================================================
+   8b. NÚT XÓA PHÍ TÔI (PC) + TIN THU HỒI (GIÁO VIÊN) + CONTEXT MENU (MOBILE)
+   ============================================================================== */
+
+/* Nút ✕ nhỏ cho học sinh xóa phía mình (PC): góc trên phải card msg-mine */
+.chat-msg-row.msg-mine {
+  position: relative;
+}
+
+.chat-msg-own-del-btn {
+  position: absolute;
+  top: 2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.chat-msg-row.msg-mine:hover .chat-msg-own-del-btn {
+  opacity: 1;
+}
+
+.chat-msg-own-del-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: scale(1.15);
+}
+
+/* Tin đã bị thu hồi — giáo viên thấy nội dung gốc với viền cam nhạt */
+.chat-msg-recalled-gv {
+  color: #92400e !important;
+  font-style: italic;
+  background: #fff7ed !important;
+  border: 1px dashed #fdba74 !important;
+  opacity: 0.85;
+}
+
+/* ---- CONTEXT MENU MOBILE (long-press) ---- */
+.chat-context-menu {
+  position: fixed;
+  z-index: 999999;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(0,0,0,0.06);
+  padding: 6px 0;
+  min-width: 200px;
+  max-width: 240px;
+  overflow: hidden;
+  animation: ctxFadeIn 0.18s cubic-bezier(0.16,1,0.3,1);
+}
+
+@keyframes ctxFadeIn {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.chat-ctx-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 16px 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.chat-ctx-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chat-ctx-btn:active {
+  background: #f1f5f9;
+}
+
+.chat-ctx-recall {
+  color: #2563eb;
+}
+
+.chat-ctx-local {
+  color: #dc2626;
+}
+
+.chat-ctx-cancel {
+  color: #64748b;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ==============================================================================
    9. TỐI ƯU MÀN HÌNH DI ĐỘNG (FULL SCREEN, VỊ TRÍ FAB CHUẨN TRÊN FOOTER)
    ============================================================================== */
 @media (max-width: 600px) {
@@ -915,5 +1032,10 @@ body.chat-modal-open {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: none !important;
+  }
+
+  /* Trên mobile: ẩn nút ✕ PC; dùng long-press để mở context menu */
+  .chat-msg-own-del-btn {
+    display: none !important;
   }
 }

@@ -109,6 +109,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   }
 
   // Tin đã xoá sẽ hiển thị nội dung thông báo đã xoá, tính sẵn laTinCuaToi
+  // Giáo viên luôn thấy nội dung gốc dù học sinh đã thu hồi (kèm nhãn [Thu hồi])
   const danhSachTin = tinNhan.map((t) => {
     let laTinCuaToi = false;
     if (laGiaoVien) {
@@ -119,9 +120,18 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       laTinCuaToi = (t.vaiTro === 'phu' || t.tenNguoiGui === tenNguoiDungHienTai);
     }
 
+    let noiDungHienThi;
+    if (t.daXoa) {
+      noiDungHienThi = laGiaoVien
+        ? `[Thu hồi] ${t.noiDung}`
+        : '[Tin nhắn đã bị xoá]';
+    } else {
+      noiDungHienThi = t.noiDung;
+    }
+
     return {
       ...t,
-      noiDung: t.daXoa ? '[Tin nhắn đã bị xoá]' : t.noiDung,
+      noiDung: noiDungHienThi,
       laTinCuaToi,
     };
   });
@@ -142,6 +152,35 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     tinNhan: danhSachTin,
     daXoaIds,
   });
+}, { canGiaoVien: false });
+
+// Thu hồi tin nhắn: học sinh chỉ được thu hồi tin của chính mình; giáo viên dùng API riêng
+export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
+  const laGiaoVien = phien.role === 'teacher';
+  const than = await docThan(request);
+  const tinId = Number(than.tinId);
+
+  if (!tinId) return loi('Thiếu mã tin nhắn.');
+
+  // Lấy thông tin tin nhắn cần thu hồi
+  const tin = await env.DB.prepare(
+    'SELECT id, hoc_sinh_id AS hocSinhId, da_xoa AS daXoa FROM chat_tin_nhan WHERE id = ?1'
+  ).bind(tinId).first();
+
+  if (!tin) return loi('Tin nhắn không tồn tại.');
+  if (tin.daXoa) return loi('Tin nhắn này đã được thu hồi rồi.');
+
+  // Học sinh chỉ được thu hồi tin của chính mình
+  if (!laGiaoVien) {
+    if (!phien.hocSinhId || tin.hocSinhId !== phien.hocSinhId) {
+      return loi('Bạn không có quyền thu hồi tin nhắn này.', 403);
+    }
+  }
+
+  await env.DB.prepare('UPDATE chat_tin_nhan SET da_xoa = 1 WHERE id = ?1')
+    .bind(tinId).run();
+
+  return json({ ok: true, tinId });
 }, { canGiaoVien: false });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {

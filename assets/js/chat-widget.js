@@ -176,9 +176,10 @@
 
     renderEmojiGrid(EMOJI_CATEGORIES[0].id);
 
-    // 4. Event delegation cho Xoá tin & Cấm HS trong danh sách tin nhắn
+    // 4. Event delegation cho Xoá tin & Cấm HS & Nút xóa phía tôi (PC) trong danh sách tin nhắn
     const msgContainer = document.getElementById('chatMessagesContainer');
     msgContainer.addEventListener('click', (e) => {
+      // Giáo viên: xoá tin khỏi DB
       const xoaBtn = e.target.closest('[data-xoa-tin]');
       if (xoaBtn) {
         e.preventDefault();
@@ -186,13 +187,50 @@
         window.chatWidgetXoaTin(Number(xoaBtn.dataset.xoaTin));
         return;
       }
+      // Giáo viên: cấm học sinh chat
       const camBtn = e.target.closest('[data-cam-hs]');
       if (camBtn) {
         e.preventDefault();
         e.stopPropagation();
         window.chatWidgetCamHs(Number(camBtn.dataset.camHs), camBtn.dataset.ten || '');
+        return;
+      }
+      // Học sinh (PC): nút X nhỏ xóa phía tôi
+      const ownDelBtn = e.target.closest('[data-xoa-phia-toi]');
+      if (ownDelBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.chatWidgetXoaPhiaToi(Number(ownDelBtn.dataset.xoaPhiaToi));
+        return;
       }
     });
+
+    // Mobile: Long-press để mở menu hành động cho tin nhắn của chính học sinh
+    let _lpTimer = null;
+    msgContainer.addEventListener('touchstart', (e) => {
+      const row = e.target.closest('[data-own-msg]');
+      if (!row || laGiaoVien) return;
+      _lpTimer = setTimeout(() => {
+        _lpTimer = null;
+        const tinId = Number(row.dataset.ownMsg);
+        const touch = e.touches[0];
+        window.chatWidgetHienThiMenuTin(tinId, touch.clientX, touch.clientY);
+      }, 550);
+    }, { passive: true });
+
+    msgContainer.addEventListener('touchmove', () => {
+      if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+    }, { passive: true });
+
+    msgContainer.addEventListener('touchend', () => {
+      if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+    }, { passive: true });
+
+    // Bấm ra ngoài để đóng context menu
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('chatMsgContextMenu');
+      if (menu && !menu.contains(e.target)) window.chatWidgetAnMenuTin();
+    }, { passive: true });
 
     // 5. Bắt sự kiện bấm vào bong bóng để mở chat — không tự bật bàn phím
     function xuLyMoChat(e) {
@@ -580,10 +618,18 @@
     } else {
       row.className = `chat-msg-row ${laTinCuaToi ? 'msg-mine' : 'msg-other'} ${laGvcn ? 'msg-gv' : ''}`;
 
-      // Nút xoá chỉ hiện cho giáo viên đối với các tin CHƯA bị xoá
+      // PC: Nút xoá tin dành cho giáo viên (tin chưa bị xoá)
       let modBtn = '';
       if (laGiaoVien && !daBiXoa) {
         modBtn = `<button class="chat-msg-mod-btn" data-xoa-tin="${t.id}" title="Xoá tin nhắn này">✕ Xoá</button>`;
+      }
+
+      // PC: Nút ✕ nhỏ góc phải cho học sinh (chỉ tin của chính mình, chưa thu hồi)
+      // Mobile: ẩn qua CSS, dùng long-press thay thế
+      let ownDelBtn = '';
+      if (!laGiaoVien && laTinCuaToi && !daBiXoa) {
+        ownDelBtn = `<button class="chat-msg-own-del-btn" data-xoa-phia-toi="${t.id}" title="Xóa khỏi màn hình" aria-label="Xóa">✕</button>`;
+        row.dataset.ownMsg = t.id; // đánh dấu để long-press mobile nhận diện
       }
 
       let authorHtml = '';
@@ -622,12 +668,17 @@
         footerHtml = thoiGianStr ? `<div class="chat-msg-time">${thoiGianStr}</div>` : '';
       }
 
-      const noiDungHienThi = daBiXoa ? '[Tin nhắn đã bị xoá]' : t.noiDung;
+      // Giáo viên xem tin đã thu hồi: thấy nội dung gốc với nhãn "Thu hồi"
+      // Học sinh: thấy bong bóng mờ [Tin nhắn đã bị xoá]
+      const bubbleClass = daBiXoa
+        ? (laGiaoVien ? 'chat-msg-recalled-gv' : 'chat-msg-deleted')
+        : '';
 
       row.innerHTML = `
+        ${ownDelBtn}
         ${authorHtml}
-        <div class="chat-msg-bubble ${daBiXoa ? 'chat-msg-deleted' : ''}">
-          ${escapeHtml(noiDungHienThi)}
+        <div class="chat-msg-bubble ${bubbleClass}">
+          ${escapeHtml(t.noiDung)}
         </div>
         ${footerHtml}
       `;
@@ -1056,6 +1107,84 @@
     } catch {
       alert('Lỗi kết nối.');
     }
+  };
+
+  // ===== XỬ LÝ TIN NHẮN CỦA HỌC SINH =====
+
+  // Thu hồi tin nhắn (học sinh): cập nhật DB, tất cả thấy [Tin nhắn đã bị xoá]; giáo viên vẫn thấy gốc
+  window.chatWidgetThuHoi = async function (tinId) {
+    if (!confirm('Thu hồi tin nhắn này? Mọi người sẽ thấy "Tin nhắn đã bị xoá".')) return;
+    capNhatTinDaXoaTrongDom(tinId);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tinId }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.loi || 'Không thu hồi được.');
+        await taiTinNhan(true);
+      }
+    } catch {
+      alert('Lỗi kết nối khi thu hồi.');
+      await taiTinNhan(true);
+    }
+  };
+
+  // Xóa phía tôi: chỉ ẩn khỏi DOM của người gửi, không thay đổi DB
+  window.chatWidgetXoaPhiaToi = function (tinId) {
+    const row = document.getElementById(`chatMsg_${tinId}`);
+    if (row) {
+      row.style.transition = 'opacity 0.25s ease';
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 250);
+    }
+  };
+
+  // Hiện context menu tại vị trí touch (mobile long-press)
+  window.chatWidgetHienThiMenuTin = function (tinId, clientX, clientY) {
+    window.chatWidgetAnMenuTin();
+    const menu = document.createElement('div');
+    menu.id = 'chatMsgContextMenu';
+    menu.className = 'chat-context-menu';
+
+    const menuW = 210;
+    const menuH = 150;
+    const x = Math.max(8, Math.min(clientX - menuW / 2, window.innerWidth - menuW - 8));
+    const y = Math.max(8, Math.min(clientY - menuH - 12, window.innerHeight - menuH - 8));
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    menu.innerHTML = `
+      <div class="chat-ctx-title">Tin nhắn của bạn</div>
+      <button class="chat-ctx-btn chat-ctx-recall" type="button" data-ctx-thu-hoi="${tinId}">↩️ Thu hồi tin nhắn</button>
+      <button class="chat-ctx-btn chat-ctx-local" type="button" data-ctx-xoa-phia-toi="${tinId}">🗑 Xóa phía tôi</button>
+      <button class="chat-ctx-btn chat-ctx-cancel" type="button" data-ctx-huy>✕ Hủy</button>
+    `;
+
+    document.body.appendChild(menu);
+
+    menu.querySelector('[data-ctx-thu-hoi]').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      window.chatWidgetAnMenuTin();
+      await window.chatWidgetThuHoi(tinId);
+    });
+    menu.querySelector('[data-ctx-xoa-phia-toi]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.chatWidgetAnMenuTin();
+      window.chatWidgetXoaPhiaToi(tinId);
+    });
+    menu.querySelector('[data-ctx-huy]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.chatWidgetAnMenuTin();
+    });
+  };
+
+  // Ẩn / xoá context menu
+  window.chatWidgetAnMenuTin = function () {
+    const menu = document.getElementById('chatMsgContextMenu');
+    if (menu) menu.remove();
   };
 
   function escapeHtml(str) {
