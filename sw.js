@@ -5,7 +5,7 @@
  * và phải luôn lấy bản mới nhất từ máy chủ.
  */
 
-const PHIEN_BAN = 'lop10a7-v135';
+const PHIEN_BAN = 'lop10a7-v136';
 const VO_UNG_DUNG = [
   '/giao-vien/',
   '/giao-vien/index.html?v=20260909_94',

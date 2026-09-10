@@ -27,24 +27,24 @@ body.chat-modal-open {
   overflow: hidden !important;
 }
 
-/* 1. NÚT BONG BÓNG NỔI ĐA NĂNG (KÉO THẢ TỰ DO, LƯU VỊ TRÍ) */
+/* 1. NÚT BONG BÓNG NỔI ĐA NĂNG (KÉO THẢ TỰ DO, LƯU VỊ TRÍ, LOGO ĐA PHƯƠNG TIỆN) */
 .chat-widget-bubble {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #ec4899 100%);
   color: #ffffff;
-  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.45), 0 8px 10px -6px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 10px 25px -4px rgba(124, 58, 237, 0.55), 0 0 18px rgba(236, 72, 153, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
   z-index: 99990;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
-  border: 2.5px solid rgba(255, 255, 255, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.65);
   user-select: none;
   -webkit-user-select: none;
   touch-action: none; /* Ngăn scroll trang khi kéo bong bóng trên mobile */
@@ -53,8 +53,8 @@ body.chat-modal-open {
 
 .chat-widget-bubble.chat-bubble-dragging {
   cursor: grabbing !important;
-  transform: scale(1.15) !important;
-  box-shadow: 0 18px 36px -4px rgba(37, 99, 235, 0.75), 0 0 0 6px rgba(37, 99, 235, 0.25) !important;
+  transform: scale(1.16) !important;
+  box-shadow: 0 18px 36px -4px rgba(124, 58, 237, 0.8), 0 0 0 6px rgba(236, 72, 153, 0.3) !important;
   transition: none !important;
 }
 
@@ -68,7 +68,7 @@ body.chat-modal-open {
 
 .chat-widget-bubble:hover {
   transform: scale(1.08) translateY(-2px);
-  box-shadow: 0 14px 30px -4px rgba(37, 99, 235, 0.6);
+  box-shadow: 0 14px 30px -4px rgba(124, 58, 237, 0.7), 0 0 22px rgba(236, 72, 153, 0.55);
 }
 
 .chat-widget-bubble:active {
@@ -79,6 +79,16 @@ body.chat-modal-open {
   font-size: 26px;
   line-height: 1;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-bubble-svg {
+  width: 34px;
+  height: 34px;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
 .chat-bubble-badge {
@@ -506,26 +516,56 @@ body.chat-modal-open {
   padding: 0 4px;
 }
 
-/* Nút xoá tin dành cho giáo viên (gọn gàng, bắt mắt, bấm nhạy) */
-.chat-msg-mod-btn {
-  background: #fee2e2;
+/* VÙNG 1: Nút ✕ xoá / tuỳ chọn nhỏ gọn, mờ nhẹ ở góc trên bên phải của bong bóng tin nhắn */
+.chat-bubble-corner-del {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(254, 242, 242, 0.95);
   color: #dc2626;
-  border: 1px solid #fca5a5;
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  line-height: 1.2;
-  transition: all 0.15s ease;
+  opacity: 0.35;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  z-index: 8;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.chat-msg-mod-btn:hover {
-  background: #dc2626;
-  color: #ffffff;
-  border-color: #dc2626;
-  transform: scale(1.05);
+.chat-msg-row:hover .chat-bubble-corner-del {
+  opacity: 0.85;
+}
+
+.chat-bubble-corner-del:hover {
+  opacity: 1 !important;
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+  transform: scale(1.18);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45);
+}
+
+.chat-bubble-own-del {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(248, 250, 252, 0.95);
+  color: #64748b;
+}
+
+.chat-bubble-own-del:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 /* 6. KHAY EMOJI NHANH NÂNG CAO (ĐA DẠNG ICON THEO NHÓM) */
@@ -1476,6 +1516,107 @@ body.chat-modal-open {
   font-weight: 700;
 }
 
+/* Sảnh đấu Cờ Caro trực tuyến cùng bạn trong lớp */
+.caro-online-lobby {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+.caro-lobby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.caro-lobby-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.caro-create-room-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.caro-create-room-btn:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.caro-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.caro-room-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.caro-room-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.caro-room-status {
+  font-size: 10.5px;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.caro-join-btn {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.caro-join-btn:hover {
+  background: #059669;
+}
+
+.caro-vs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
 .caro-board-wrapper {
   max-width: 100%;
   overflow: auto;
@@ -1624,3 +1765,294 @@ body.chat-modal-open {
 .tile-512 { background: #edc850; color: #f9f6f2; font-size: 17px; }
 .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 15px; }
 .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 15px; box-shadow: 0 0 10px rgba(243, 215, 116, 0.5); }
+
+/* ==============================================================================
+   THANH CHỨC NĂNG NHANH ĐÁY MÀN HÌNH (BOTTOM QUICK BAR)
+   Chỉ hiện trên điện thoại & tablet (màn hình <= 860px)
+   ============================================================================== */
+.thanh-chuc-nang-nhanh {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 6px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 99950;
+  box-sizing: content-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-theme="dark"] .thanh-chuc-nang-nhanh {
+  background: rgba(15, 23, 42, 0.94);
+  border-top-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.thanh-nhanh-nut {
+  flex: 1;
+  max-width: 72px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  border-radius: 12px;
+  color: #64748b;
+  font-family: inherit;
+  transition: all 0.18s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+[data-theme="dark"] .thanh-nhanh-nut {
+  color: #94a3b8;
+}
+
+.thanh-nhanh-icon {
+  font-size: 20px;
+  line-height: 1.2;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.thanh-nhanh-chu {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.thanh-nhanh-nut:active {
+  transform: scale(0.92);
+}
+
+.thanh-nhanh-nut.dang-active {
+  color: #2563eb;
+}
+
+[data-theme="dark"] .thanh-nhanh-nut.dang-active {
+  color: #60a5fa;
+}
+
+.thanh-nhanh-nut.dang-active .thanh-nhanh-icon {
+  transform: translateY(-2px) scale(1.15);
+}
+
+.thanh-nhanh-nut.dang-active::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: #2563eb;
+}
+
+[data-theme="dark"] .thanh-nhanh-nut.dang-active::after {
+  background: #60a5fa;
+}
+
+.thanh-nhanh-tuy {
+  color: #8b5cf6;
+}
+
+[data-theme="dark"] .thanh-nhanh-tuy {
+  color: #a78bfa;
+}
+
+/* Khoảng trống đệm đáy cho body trên điện thoại để không bị thanh che và đẩy bubble lên */
+@media (max-width: 860px) {
+  body {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .chat-widget-bubble {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Trên màn hình lớn máy tính (PC): thanh menu ngang trên header đã đầy đủ, ẩn thanh đáy để gọn gàng */
+@media (min-width: 861px) {
+  .thanh-chuc-nang-nhanh {
+    display: none !important;
+  }
+}
+
+/* HỘP THOẠI TUỲ CHỈNH THANH NHANH */
+.hop-tuy-chinh-thanh {
+  position: fixed;
+  inset: 0;
+  z-index: 99995;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.hop-tuy-chinh-thanh.hop-hien {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hop-tuy-chinh-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.hop-tuy-chinh-noi {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 18px 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-noi {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+.hop-tuy-chinh-thanh.hop-hien .hop-tuy-chinh-noi {
+  transform: translateY(0);
+}
+
+.hop-tuy-chinh-tieu-de {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1e293b;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-tieu-de {
+  color: #f8fafc;
+}
+
+.hop-tuy-chinh-dong {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-dong {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+.hop-tuy-chinh-ds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin: 12px 0 16px;
+}
+
+.hop-tuy-chinh-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-row {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.hop-tuy-chinh-row:has(.hop-tuy-chinh-check:checked) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-row:has(.hop-tuy-chinh-check:checked) {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: #3b82f6;
+}
+
+.hop-tuy-chinh-check {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.hop-tuy-chinh-icon {
+  font-size: 20px;
+}
+
+.hop-tuy-chinh-ten {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+}
+
+[data-theme="dark"] .hop-tuy-chinh-ten {
+  color: #f1f5f9;
+}
+
+.hop-tuy-chinh-luu {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  transition: transform 0.15s ease;
+  touch-action: manipulation;
+}
+
+.hop-tuy-chinh-luu:active {
+  transform: scale(0.98);
+}

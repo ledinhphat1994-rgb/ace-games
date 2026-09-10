@@ -315,17 +315,44 @@
     }
 
     const modeBtn = document.getElementById('caroModeBtn');
+    // Chế độ: 'ai' | 'pvp' | 'online'
+    const MODES = ['ai', 'pvp', 'online'];
+    const MODE_LABELS = { ai: 'Đấu với Máy', pvp: '2 Người chơi', online: 'Online (cùng bạn)' };
     if (modeBtn) {
       modeBtn.onclick = () => {
-        cheDo = (cheDo === 'ai') ? 'pvp' : 'ai';
-        modeBtn.textContent = `Chế độ: ${cheDo === 'ai' ? 'Đấu với Máy' : '2 Người chơi'}`;
-        khoiTaoCaro();
+        const idx = MODES.indexOf(cheDo);
+        cheDo = MODES[(idx + 1) % MODES.length];
+        modeBtn.textContent = `Chế độ: ${MODE_LABELS[cheDo]}`;
+        if (cheDo === 'online') {
+          const lobby = document.getElementById('caroOnlineLobby');
+          const vsBar = document.getElementById('caroVsBar');
+          const boardWrapper = document.getElementById('caroBoardWrapper');
+          if (lobby) lobby.style.display = 'flex';
+          if (vsBar) vsBar.style.display = 'none';
+          if (boardWrapper) boardWrapper.style.display = 'none';
+          taiPhongOnline();
+        } else {
+          const lobby = document.getElementById('caroOnlineLobby');
+          const vsBar = document.getElementById('caroVsBar');
+          const boardWrapper = document.getElementById('caroBoardWrapper');
+          if (lobby) lobby.style.display = 'none';
+          if (vsBar) vsBar.style.display = 'none';
+          if (boardWrapper) boardWrapper.style.display = '';
+          roiPhongOnline();
+          khoiTaoCaro();
+        }
       };
     }
 
     const resetBtn = document.getElementById('caroResetBtn');
     if (resetBtn) {
-      resetBtn.onclick = khoiTaoCaro;
+      resetBtn.onclick = () => {
+        if (cheDo === 'online') {
+          if (typeof vanMoiOnline === 'function') vanMoiOnline();
+        } else {
+          khoiTaoCaro();
+        }
+      };
     }
 
     function capNhatTrangThaiCaro() {
@@ -671,6 +698,227 @@
         }
       }, { passive: true });
     }
+
+    // ==============================================================================
+    // GAME ONLINE CỜ CARO — POLLING REALTIME QUA /api/game
+    // ==============================================================================
+    let _onlinePhongId = null;
+    let _onlineMyId = null;
+    let _onlinePollTimer = null;
+    let _onlineMyTen = null;
+
+    async function taiPhongOnline() {
+      const roomList = document.getElementById('caroRoomList');
+      if (roomList) roomList.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px;">Đang tải...</div>';
+      try {
+        const res = await fetch('/api/game?loai=co_caro');
+        const data = await res.json();
+        if (!data.ok) return;
+        const ds = data.danhSachBan || [];
+        if (roomList) {
+          if (ds.length === 0) {
+            roomList.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:12px;">Chưa có bàn nào. Hãy tạo bàn mới!</div>';
+          } else {
+            roomList.innerHTML = ds.map((p) => `
+              <div class="caro-room-card">
+                <div>
+                  <div class="caro-room-name">${escapeHtml(p.tenBan)}</div>
+                  <div style="font-size:10.5px;color:#64748b;margin-top:2px;">${escapeHtml(p.chuPhongTen)}${p.khachTen ? ` vs ${escapeHtml(p.khachTen)}` : ''}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                  <span class="caro-room-status">${p.trangThai === 'cho_nguoi' ? '⏳ Chờ' : '🟢 Đang chơi'}</span>
+                  ${p.trangThai === 'cho_nguoi' ? `<button class="caro-join-btn" data-join-phong="${p.id}" type="button">▶ Vào chơi</button>` : ''}
+                </div>
+              </div>
+            `).join('');
+            roomList.querySelectorAll('[data-join-phong]').forEach((btn) => {
+              btn.onclick = () => vaoPhong(Number(btn.dataset.joinPhong));
+            });
+          }
+        }
+      } catch { /* bỏ qua lỗi mạng */ }
+    }
+
+    async function taoPhongMoi() {
+      const btn = document.getElementById('caroCreateRoomBtn');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hanhDong: 'tao_ban', loaiGame: 'co_caro' }),
+        });
+        const data = await res.json();
+        if (!data.ok) { alert(data.loi || 'Không tạo được bàn.'); return; }
+        const phong = data.phong;
+        _onlinePhongId = phong.id;
+        _onlineMyId = phong.chuPhongId;
+        _onlineMyTen = phong.chuPhongTen;
+        batDauPhienOnline(phong);
+      } catch { alert('Lỗi kết nối khi tạo bàn.'); }
+      finally { if (btn) btn.disabled = false; }
+    }
+
+    async function vaoPhong(phongId) {
+      try {
+        const res = await fetch('/api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hanhDong: 'vao_ban', phongId }),
+        });
+        const data = await res.json();
+        if (!data.ok) { alert(data.loi || 'Không vào được bàn.'); return; }
+        _onlinePhongId = phongId;
+        // Lấy thông tin phòng để biết vai trò
+        const infoRes = await fetch(`/api/game?phongId=${phongId}`);
+        const infoData = await infoRes.json();
+        if (!infoData.ok) return;
+        const phong = infoData.phong;
+        _onlineMyId = phong.khachId;
+        _onlineMyTen = phong.khachTen;
+        batDauPhienOnline(phong);
+      } catch { alert('Lỗi kết nối khi vào bàn.'); }
+    }
+
+    function batDauPhienOnline(phong) {
+      const lobby = document.getElementById('caroOnlineLobby');
+      const vsBar = document.getElementById('caroVsBar');
+      const boardWrapper = document.getElementById('caroBoardWrapper');
+      if (lobby) lobby.style.display = 'none';
+      if (vsBar) vsBar.style.display = 'flex';
+      if (boardWrapper) boardWrapper.style.display = '';
+      capNhatVsBar(phong);
+      if (phong.banCo) {
+        board = phong.banCo.map((row) => row.map((v) => v === 'X' ? 1 : (v === 'O' ? 2 : 0)));
+      } else {
+        board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+      }
+      daKetThuc = phong.trangThai === 'ket_thuc' || phong.trangThai === 'hoa';
+      renderCaroGrid();
+      batDauPollOnline();
+    }
+
+    function capNhatVsBar(phong) {
+      const p1El = document.getElementById('caroVsPlayer1');
+      const p2El = document.getElementById('caroVsPlayer2');
+      if (p1El) p1El.textContent = `🔴 ${escapeHtml(phong.chuPhongTen)} (X)`;
+      if (p2El) p2El.textContent = phong.khachTen ? `⭕ ${escapeHtml(phong.khachTen)} (O)` : '⭕ Chờ đối thủ...';
+      const st = document.getElementById('caroStatus');
+      if (st) {
+        if (phong.trangThai === 'cho_nguoi') {
+          st.textContent = '⏳ Đang chờ đối thủ vào bàn...';
+        } else if (phong.trangThai === 'ket_thuc') {
+          st.textContent = phong.nguoiThangId === _onlineMyId ? '🎉 Bạn đã THẮNG!' : '😢 Bạn đã thua!';
+        } else if (phong.trangThai === 'hoa') {
+          st.textContent = '🤝 Hòa! Không ai thắng!';
+        } else {
+          const laLuotToi = phong.luotDiId === _onlineMyId;
+          st.textContent = laLuotToi ? '⇐ Lượt của bạn!' : '⏳ Chờ bạn kia đánh...';
+        }
+      }
+    }
+
+    function batDauPollOnline() {
+      dungPollOnline();
+      _onlinePollTimer = setInterval(pollPhongOnline, 1200);
+    }
+
+    function dungPollOnline() {
+      if (_onlinePollTimer) { clearInterval(_onlinePollTimer); _onlinePollTimer = null; }
+    }
+
+    async function pollPhongOnline() {
+      if (!_onlinePhongId) return;
+      try {
+        const res = await fetch(`/api/game?phongId=${_onlinePhongId}`);
+        const data = await res.json();
+        if (!data.ok) return;
+        const phong = data.phong;
+        if (phong.banCo) {
+          board = phong.banCo.map((row) => row.map((v) => v === 'X' ? 1 : (v === 'O' ? 2 : 0)));
+          daKetThuc = phong.trangThai === 'ket_thuc' || phong.trangThai === 'hoa';
+          renderCaroGrid();
+        }
+        capNhatVsBar(phong);
+        if (phong.trangThai === 'huy') {
+          dungPollOnline();
+          alert('❌ Đối thủ đã rời bàn!');
+          roiPhongOnline();
+        }
+        if (daKetThuc) dungPollOnline();
+      } catch { /* bỏ qua lỗi mạng */ }
+    }
+
+    async function roiPhongOnline() {
+      dungPollOnline();
+      if (_onlinePhongId) {
+        fetch('/api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hanhDong: 'roi_ban', phongId: _onlinePhongId }),
+        }).catch(() => {});
+      }
+      _onlinePhongId = null;
+      _onlineMyId = null;
+      const lobby = document.getElementById('caroOnlineLobby');
+      const vsBar = document.getElementById('caroVsBar');
+      const boardWrapper = document.getElementById('caroBoardWrapper');
+      if (lobby) { lobby.style.display = 'flex'; taiPhongOnline(); }
+      if (vsBar) vsBar.style.display = 'none';
+      if (boardWrapper) boardWrapper.style.display = 'none';
+    }
+
+    async function nuocDiOnline(r, c) {
+      if (daKetThuc || !_onlinePhongId) return;
+      if (board[r][c] !== 0) return;
+      try {
+        await fetch('/api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hanhDong: 'danh_co', phongId: _onlinePhongId, r, c }),
+        });
+        await pollPhongOnline();
+      } catch { /* bỏ qua */ }
+    }
+
+    async function vanMoiOnline() {
+      if (!_onlinePhongId) return;
+      try {
+        await fetch('/api/game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hanhDong: 'van_moi', phongId: _onlinePhongId }),
+        });
+        await pollPhongOnline();
+      } catch { /* bỏ qua */ }
+    }
+
+    // Gắn sự kiện nút tạo/rời phòng
+    const createRoomBtn = document.getElementById('caroCreateRoomBtn');
+    if (createRoomBtn) createRoomBtn.onclick = taoPhongMoi;
+
+    const leaveRoomBtn = document.getElementById('caroLeaveRoomBtn');
+    if (leaveRoomBtn) leaveRoomBtn.onclick = roiPhongOnline;
+
+    // Patch renderCaroGrid: khi chế độ online thì ô click gọi nuocDiOnline
+    const _origRenderCaro = renderCaroGrid;
+    renderCaroGrid = function() {
+      _origRenderCaro();
+      if (cheDo !== 'online' || !_onlinePhongId) return;
+      const grid = document.getElementById('caroGrid');
+      if (!grid) return;
+      grid.querySelectorAll('.caro-cell').forEach((cell) => {
+        const rr = Number(cell.dataset.r);
+        const cc = Number(cell.dataset.c);
+        cell.onclick = () => nuocDiOnline(rr, cc);
+      });
+    };
+
+    // Tạm dừng poll khi ẩn tab
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) dungPollOnline();
+      else if (_onlinePhongId && cheDo === 'online') batDauPollOnline();
+    });
   }
 
   function khoiTaoGiaoDien() {
@@ -697,7 +945,25 @@
     bubble.title = 'Bong bóng đa năng (Tán gẫu · Nhạc · Game)';
     bubble.setAttribute('aria-label', 'Mở bong bóng đa năng');
     bubble.innerHTML = `
-      <span class="chat-bubble-icon">💬</span>
+      <span class="chat-bubble-icon">
+        <svg class="chat-bubble-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Gamepad body -->
+          <rect x="6" y="17" width="32" height="17" rx="8" fill="rgba(255,255,255,0.92)"/>
+          <!-- D-pad left -->
+          <rect x="11" y="22" width="6" height="2" rx="1" fill="#7c3aed"/>
+          <rect x="13" y="20" width="2" height="6" rx="1" fill="#7c3aed"/>
+          <!-- Buttons right -->
+          <circle cx="29" cy="22" r="1.5" fill="#ec4899"/>
+          <circle cx="33" cy="24" r="1.5" fill="#4f46e5"/>
+          <circle cx="31" cy="27" r="1.5" fill="#10b981"/>
+          <!-- Music note top -->
+          <path d="M20 10 L27 8 L27 14 L24 14" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+          <circle cx="20" cy="13" r="2" fill="rgba(255,255,255,0.9)"/>
+          <circle cx="24" cy="15" r="2" fill="rgba(255,255,255,0.9)"/>
+          <!-- Chat bubble outline -->
+          <path d="M14 7 Q8 7 8 12 Q8 17 14 17 L16 17 L15 20 L20 17 Q26 17 26 12 Q26 7 14 7 Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+        </svg>
+      </span>
       <span class="chat-bubble-badge" id="chatUnreadBadge" style="display: none;">0</span>
     `;
     document.body.appendChild(bubble);
@@ -847,12 +1113,29 @@
           <div class="game-arena caro-arena" id="caroArena" style="display: none;">
             <div class="caro-controls">
               <div class="caro-status" id="caroStatus">Lượt: 🔵 X (Bạn)</div>
-              <div style="display: flex; gap: 4px;">
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
                 <button class="caro-mode-btn" id="caroModeBtn" type="button">Chế độ: Đấu với Máy</button>
                 <button class="caro-reset-btn" id="caroResetBtn" type="button">Ván mới</button>
               </div>
             </div>
-            <div class="caro-board-wrapper">
+            <!-- Sảnh đấu Online (hiện khi chọn chế độ Online) -->
+            <div class="caro-online-lobby" id="caroOnlineLobby" style="display: none;">
+              <div class="caro-lobby-header">
+                <span class="caro-lobby-title">🌐 Sảnh đấu Online · Lớp 10A7</span>
+                <button class="caro-create-room-btn" id="caroCreateRoomBtn" type="button">➕ Tạo bàn mới</button>
+              </div>
+              <div class="caro-room-list" id="caroRoomList">
+                <div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px;">Đang tải danh sách bàn...</div>
+              </div>
+            </div>
+            <!-- Thanh trạng thái vs khi đang trong phòng online -->
+            <div class="caro-vs-bar" id="caroVsBar" style="display: none;">
+              <span id="caroVsPlayer1">🔴 ...</span>
+              <span style="color:#94a3b8">VS</span>
+              <span id="caroVsPlayer2">⭕ Chờ đối thủ...</span>
+              <button class="game-back-btn" id="caroLeaveRoomBtn" type="button" style="font-size:10.5px;padding:3px 8px;">↩ Rời bàn</button>
+            </div>
+            <div class="caro-board-wrapper" id="caroBoardWrapper">
               <div class="caro-grid" id="caroGrid"></div>
             </div>
           </div>
@@ -971,26 +1254,35 @@
       }
     });
 
-    // Mobile: Long-press để mở menu hành động cho tin nhắn của chính học sinh
-    let _lpTimer = null;
+    // Mobile: Chạm 1 lần (tap nhanh, không cuộn) để mở menu hành động cho tin nhắn của học sinh
+    let _tapStartY = 0;
+    let _tapStartX = 0;
+    let _tapMoved = false;
     msgContainer.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      _tapStartX = touch.clientX;
+      _tapStartY = touch.clientY;
+      _tapMoved = false;
+    }, { passive: true });
+
+    msgContainer.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      const dx = touch.clientX - _tapStartX;
+      const dy = touch.clientY - _tapStartY;
+      if (Math.hypot(dx, dy) > 8) _tapMoved = true;
+    }, { passive: true });
+
+    msgContainer.addEventListener('touchend', (e) => {
+      if (_tapMoved) return; // bỏ qua nếu học sinh đang cuộn
       const row = e.target.closest('[data-own-msg]');
       if (!row || laGiaoVien) return;
-      _lpTimer = setTimeout(() => {
-        _lpTimer = null;
-        const tinId = Number(row.dataset.ownMsg);
-        const touch = e.touches[0];
-        window.chatWidgetHienThiMenuTin(tinId, touch.clientX, touch.clientY);
-      }, 550);
-    }, { passive: true });
-
-    msgContainer.addEventListener('touchmove', () => {
-      if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-    }, { passive: true });
-
-    msgContainer.addEventListener('touchend', () => {
-      if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
-    }, { passive: true });
+      // Không chặn nút corner-del xử lý riêng qua click delegation
+      if (e.target.closest('.chat-bubble-corner-del')) return;
+      e.preventDefault();
+      const tinId = Number(row.dataset.ownMsg);
+      const touch = e.changedTouches[0];
+      window.chatWidgetHienThiMenuTin(tinId, touch.clientX, touch.clientY);
+    }, { passive: false });
 
     // Bấm ra ngoài để đóng context menu
     document.addEventListener('click', (e) => {
@@ -1217,15 +1509,18 @@
     const row = document.getElementById(`chatMsg_${tinId}`);
     if (!row) return;
 
-    const bubbleEl = row.querySelector('.chat-msg-bubble');
+    const wrap = row.querySelector('.chat-msg-bubble-wrap');
+    const bubbleEl = wrap ? wrap.querySelector('.chat-msg-bubble') : row.querySelector('.chat-msg-bubble');
     if (bubbleEl) {
       bubbleEl.textContent = '[Tin nhắn đã bị xoá]';
       bubbleEl.classList.add('chat-msg-deleted');
     }
 
-    // Xoá nút "✕ Xoá" khỏi DOM
-    const modBtn = row.querySelector('.chat-msg-mod-btn');
-    if (modBtn) modBtn.remove();
+    // Xoá nút ✕ góc khỏi DOM
+    const cornerBtn = row.querySelector('.chat-bubble-corner-del');
+    if (cornerBtn) cornerBtn.remove();
+    // Xóa data-own-msg để không hiện menu nữa
+    delete row.dataset.ownMsg;
   }
 
   // Chuyển đổi định dạng chữ cho thông báo ghim (**đậm**, *nghiêng*, <u>gạch chân</u>, [do], [vang], [xanh])
@@ -1432,18 +1727,14 @@
     } else {
       row.className = `chat-msg-row ${laTinCuaToi ? 'msg-mine' : 'msg-other'} ${laGvcn ? 'msg-gv' : ''}`;
 
-      // PC: Nút xoá tin dành cho giáo viên (tin chưa bị xoá)
-      let modBtn = '';
+      // Nút ✕ góc trên bên phải của BUBBLE (giáo viên xoá mọi tin; học sinh xoá tin mình)
+      // Thiết kế: nhỏ 16x16, mờ, chỉ nổi lên khi hover vào hàng tin — đẹp và thẩm mỹ
+      let cornerDelBtn = '';
       if (laGiaoVien && !daBiXoa) {
-        modBtn = `<button class="chat-msg-mod-btn" data-xoa-tin="${t.id}" title="Xoá tin nhắn này">✕ Xoá</button>`;
-      }
-
-      // PC: Nút ✕ nhỏ góc phải cho học sinh (chỉ tin của chính mình, chưa thu hồi)
-      // Mobile: ẩn qua CSS, dùng long-press thay thế
-      let ownDelBtn = '';
-      if (!laGiaoVien && laTinCuaToi && !daBiXoa) {
-        ownDelBtn = `<button class="chat-msg-own-del-btn" data-xoa-phia-toi="${t.id}" title="Xóa khỏi màn hình" aria-label="Xóa">✕</button>`;
-        row.dataset.ownMsg = t.id; // đánh dấu để long-press mobile nhận diện
+        cornerDelBtn = `<button class="chat-bubble-corner-del" data-xoa-tin="${t.id}" title="Xoá tin nhắn này" aria-label="Xoá tin nhắn">✕</button>`;
+      } else if (!laGiaoVien && laTinCuaToi && !daBiXoa) {
+        cornerDelBtn = `<button class="chat-bubble-corner-del chat-bubble-own-del" data-xoa-phia-toi="${t.id}" title="Tuỳ chọn tin nhắn" aria-label="Xoá/Thu hồi">✕</button>`;
+        row.dataset.ownMsg = t.id; // đánh dấu để single-tap mobile nhận diện
       }
 
       let authorHtml = '';
@@ -1457,7 +1748,6 @@
               ${escapeHtml(t.tenNguoiGui)}
               ${laGvcn ? '<span class="badge-gv">GVCN</span>' : ''}
             </span>
-            ${modBtn}
           </div>
         `;
       }
@@ -1470,17 +1760,7 @@
         }
       }
 
-      let footerHtml = '';
-      if (laTinCuaToi) {
-        footerHtml = `
-          <div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 3px;">
-            ${modBtn}
-            ${thoiGianStr ? `<span class="chat-msg-time">${thoiGianStr}</span>` : ''}
-          </div>
-        `;
-      } else {
-        footerHtml = thoiGianStr ? `<div class="chat-msg-time">${thoiGianStr}</div>` : '';
-      }
+      const footerHtml = thoiGianStr ? `<div class="chat-msg-time">${thoiGianStr}</div>` : '';
 
       // Giáo viên xem tin đã thu hồi: thấy nội dung gốc với nhãn "Thu hồi"
       // Học sinh: thấy bong bóng mờ [Tin nhắn đã bị xoá]
@@ -1488,11 +1768,12 @@
         ? (laGiaoVien ? 'chat-msg-recalled-gv' : 'chat-msg-deleted')
         : '';
 
+      // Bọc bubble trong wrapper có position:relative để nút ✕ anchor đúng góc
       row.innerHTML = `
-        ${ownDelBtn}
         ${authorHtml}
-        <div class="chat-msg-bubble ${bubbleClass}">
-          ${escapeHtml(t.noiDung)}
+        <div class="chat-msg-bubble-wrap" style="position:relative;display:inline-block;max-width:100%;">
+          ${cornerDelBtn}
+          <div class="chat-msg-bubble ${bubbleClass}">${escapeHtml(t.noiDung)}</div>
         </div>
         ${footerHtml}
       `;
