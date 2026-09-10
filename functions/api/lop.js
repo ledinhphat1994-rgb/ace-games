@@ -40,7 +40,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
   // await TUẦN TỰ sau khối Promise.all này, thành 2 round-trip D1 thừa nối đuôi nhau trên đường
   // găng của route đông người dùng nhất (mọi học sinh vào trang chủ đều gọi). Gộp chung vào một
   // Promise.all để chạy song song, giảm độ trễ cảm nhận được khi nhiều học sinh cùng tải trang.
-  const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong, nhacNenRow, anMucRow] = await Promise.all([
+  const [lopRow, hocSinh, thongBao, phienBanTkb, hoatDongLop, quyKhoan, quyChi, quyDong, nhacNenRow, anMucRow, aboutRow] = await Promise.all([
     db.prepare(
       `SELECT l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
               l.hs_cong_khai_an AS hsCongKhaiAn,
@@ -118,9 +118,21 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     hocSinhIdPhien
       ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first()
       : (ma ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first() : null),
+    db.prepare(
+      `SELECT a.van_ban AS vanBan, a.anh_id AS anhId, a.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
+              a.video_id AS videoId, a.video_url AS videoUrl, v.khoa AS videoKhoa,
+              a.am_thanh_id AS amThanhId, a.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa,
+              a.cap_nhat_luc AS capNhatLuc
+         FROM lop_about a
+         LEFT JOIN hinh_anh ha ON ha.id = a.anh_id
+         LEFT JOIN video v ON v.id = a.video_id
+         LEFT JOIN am_thanh at ON at.id = a.am_thanh_id
+        WHERE a.lop_id = ?1`
+    ).bind(lopId).first().catch(() => null),
   ]);
 
   const nhacNen = nhacNenRow;
+  const about = aboutRow;
   const anMuc = anMucRow && anMucRow.anMuc ? anMucRow.anMuc.split(',') : [];
 
   const oTkb = phienBanTkb
@@ -173,6 +185,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
         { giaTri: `${nam} / ${sl - nam}`, nhan: 'Nam / Nữ' },
       ],
     },
+    about: about || null,
     hocSinh: hocSinh.results,
     thongBao: thongBao.results.map((t) => ({ ...t, ghim: Boolean(t.ghim), noiBat: Boolean(t.noiBat) })),
     thoiKhoaBieu: {

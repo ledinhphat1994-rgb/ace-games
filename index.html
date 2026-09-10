@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260910_17">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_17">
-<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260910_17">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260910_20">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_20">
+<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260910_20">
 </head>
 <body>
 
@@ -26,12 +26,6 @@
       <span class="hieu-ten"><span id="hieuTenLop" hidden>Lớp 10A7</span><span class="hieu-phu" id="hieuTruong">GDNN-GDTX Khu vực 1 - Định Quán</span></span>
     </a>
 
-    <!-- Máy tính: bốn mục của trang chủ nằm ngay trên thanh. Điện thoại: ẩn, nằm trong menu. -->
-    <nav class="menu" id="menuNgang" aria-label="Các mục trong trang chủ">
-      <a href="#thong-bao">Thông báo</a>
-      <a href="#thoi-khoa-bieu">Thời khoá biểu</a>
-      <a href="#hinh-anh">Hoạt động</a>
-    </nav>
 
     <div class="thanh-phai">
       <a class="nut-tron nut-ve-trang-chu" href="/" title="Trang chủ" aria-label="Trang chủ">
@@ -61,18 +55,6 @@
   <div class="menu-day" id="menuDayDu" hidden>
     <div class="wrap menu-day-trong">
       <div class="menu-luoi">
-        <a class="menu-muc" href="#thong-bao" data-muc="thong-bao">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
-          <span class="menu-chu"><b>Thông báo</b><small>Tin mới nhất từ giáo viên chủ nhiệm</small></span>
-        </a>
-        <a class="menu-muc" href="#thoi-khoa-bieu" data-muc="thoi-khoa-bieu">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-          <span class="menu-chu"><b>Thời khoá biểu</b><small>Các tiết học theo buổi, theo thứ</small></span>
-        </a>
-        <a class="menu-muc" href="#hinh-anh">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
-          <span class="menu-chu"><b>Hoạt động lớp</b><small>Ảnh, video, âm thanh của tập thể lớp</small></span>
-        </a>
         <a class="menu-muc" href="#/danh-sach">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
           <span class="menu-chu"><b>Học sinh</b><small id="menuSoHs">Họ tên, lớp nghề, tổ hợp, chức vụ</small></span>
@@ -246,32 +228,45 @@
         </div>
       </section>
 
-      <!-- TAB ABOUT: Thông tin lớp, TKB, Sĩ số, Quỹ lớp -->
+      <!-- TAB ABOUT: Thông tin giới thiệu lớp (Văn bản + Hình ảnh + Âm thanh + Video) -->
       <section class="community-tab-pane" id="commPaneAbout" hidden>
         <div class="community-about-container">
-          <!-- Khối TKB -->
-          <div class="community-about-card" id="thoi-khoa-bieu">
-            <h3>▦ Thời khoá biểu tuần</h3>
-            <div class="dau-muc-phu" style="margin-bottom:12px;">
-              <p id="tkbApDung" style="margin:0;font-size:13.5px;color:var(--chu-nhat);">Đang tải…</p>
-              <p id="tkbGhiChu" class="trong" hidden></p>
+          <div class="community-about-card" id="commAboutCard">
+            <div class="community-about-header">
+              <h3 class="community-about-title">Giới thiệu về lớp</h3>
+              <button class="community-about-edit-btn" id="commBtnSuaAbout" type="button" title="Chỉnh sửa thông tin giới thiệu" hidden>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                <span>Chỉnh sửa</span>
+              </button>
             </div>
-            <div class="day-loc" id="tkbTabBuoi" style="margin-bottom:12px;"></div>
-            <div class="cuon-ngang">
-              <table class="bang-tkb">
-                <thead id="dauTkb"></thead>
-                <tbody id="thanTkb"><tr><td class="trong">Đang tải…</td></tr></tbody>
-              </table>
-            </div>
-          </div>
 
-          <!-- Khối Giới thiệu & Sĩ số -->
-          <div class="community-about-card">
-            <h3>👥 Tập thể lớp & Niên khóa</h3>
-            <p id="commAboutDesc" style="margin:0 0 14px 0;line-height:1.6;color:var(--chu-nhat);">
-              Tập thể Lớp 10A7 – Trung tâm GDNN - GDTX Khu vực 1 Định Quán, Tỉnh Đồng Nai. Năm học 2026 – 2027.
-            </p>
-            <div class="day-so" id="commAboutDaySo"></div>
+            <div class="community-about-body" id="commAboutBody">
+              <!-- Nội dung văn bản -->
+              <div class="community-about-text" id="commAboutText" hidden></div>
+
+              <!-- Nội dung hình ảnh -->
+              <div class="community-about-media-image" id="commAboutImageWrap" hidden>
+                <img id="commAboutImage" src="" alt="Ảnh giới thiệu lớp" loading="lazy">
+              </div>
+
+              <!-- Nội dung video -->
+              <div class="community-about-media-video" id="commAboutVideoWrap" hidden>
+                <div id="commAboutVideoContainer"></div>
+              </div>
+
+              <!-- Nội dung âm thanh -->
+              <div class="community-about-media-audio" id="commAboutAudioWrap" hidden>
+                <div class="about-audio-player-box">
+                  <span class="about-audio-icon">🎵</span>
+                  <audio id="commAboutAudio" controls preload="none"></audio>
+                </div>
+              </div>
+
+              <!-- Trạng thái trống -->
+              <div class="community-about-empty" id="commAboutEmpty">
+                <p>Chưa có thông tin giới thiệu về lớp.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -373,8 +368,8 @@
   </aside>
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260910_17"></script>
-<script src="/assets/js/chat-widget.js?v=20260910_17"></script>
-<script src="/assets/js/thanh-chuc-nang-nhanh.js?v=20260910_17"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260910_20"></script>
+<script src="/assets/js/chat-widget.js?v=20260910_20"></script>
+<script src="/assets/js/thanh-chuc-nang-nhanh.js?v=20260910_20"></script>
 </body>
 </html>

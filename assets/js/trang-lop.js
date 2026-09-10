@@ -135,7 +135,9 @@ function ganTheoDoiMuc() {
 /* ---------- Vẽ từng phần ---------- */
 
 function veOSo(thongKe) {
-  datNoiDung($('#oSo'), ...thongKe.map((t) => {
+  const oSo = $('#oSo');
+  if (!oSo || !Array.isArray(thongKe)) return;
+  datNoiDung(oSo, ...thongKe.map((t) => {
     const o = e('div');
     o.append(e('b', null, t.giaTri), e('span', null, t.nhan));
     return o;
@@ -439,6 +441,7 @@ function veDanhSach(ds, anMucHs) {
 const CAC_BUOI_TKB = [['sang', 'Buổi sáng'], ['chieu', 'Buổi chiều']];
 
 function veThoiKhoaBieu(thoiKhoaBieu) {
+  if (!$('#tkbApDung') && !$('#dauTkb')) return;
   const phienBan = thoiKhoaBieu?.phienBan;
   const o = thoiKhoaBieu?.o || [];
   const cacThu = [2, 3, 4, 5, 6, 7];
@@ -2962,16 +2965,8 @@ function veTwitterCommunities(d, phien, lamMoi) {
     }
   }
 
-  // 6. Tab About: Cập nhật thông tin tổng quan
-  const aboutDaySo = $('#commAboutDaySo');
-  if (aboutDaySo && d.hocSinh) {
-    const nam = d.hocSinh.filter(h => h.gioiTinh === 'Nam').length;
-    datNoiDung(aboutDaySo,
-      oThongKe(String(d.hocSinh.length), 'Tổng sĩ số', 'tot'),
-      oThongKe(String(nam), 'Học sinh Nam', 'chinh'),
-      oThongKe(String(d.hocSinh.length - nam), 'Học sinh Nữ', 'nhan')
-    );
-  }
+  // 6. Tab About: Giới thiệu lớp (Text + Hình ảnh + Âm thanh + Video)
+  veTabAbout(d.about, phien, lamMoi);
 
   // Điều hướng hash anchor tự chuyển tab
   const hash = location.hash;
@@ -2982,6 +2977,147 @@ function veTwitterCommunities(d, phien, lamMoi) {
   } else if (hash === '#thong-bao') {
     chuyenTab('top');
   }
+}
+
+/** Hiển thị nội dung Tab About (Văn bản + Hình ảnh + Video + Âm thanh) */
+function veTabAbout(aboutData, phien, lamMoi) {
+  const card = $('#commAboutCard');
+  if (!card) return;
+
+  const textEl = $('#commAboutText');
+  const imgWrap = $('#commAboutImageWrap');
+  const imgEl = $('#commAboutImage');
+  const vidWrap = $('#commAboutVideoWrap');
+  const vidContainer = $('#commAboutVideoContainer');
+  const audioWrap = $('#commAboutAudioWrap');
+  const audioEl = $('#commAboutAudio');
+  const emptyEl = $('#commAboutEmpty');
+  const btnSua = $('#commBtnSuaAbout');
+
+  const laGiaoVien = phien?.role === 'teacher';
+  if (btnSua) {
+    btnSua.hidden = !laGiaoVien;
+    if (laGiaoVien && !btnSua.dataset.daGan) {
+      btnSua.dataset.daGan = '1';
+      btnSua.addEventListener('click', () => {
+        moHopThoaiSuaAbout(aboutData, lamMoi);
+      });
+    }
+  }
+
+  const vanBan = (aboutData?.vanBan || '').trim();
+  const anhSrc = aboutData?.anhKhoa ? xuLyLinkHinh(aboutData.anhKhoa) : (aboutData?.hinhUrl || '');
+  const videoSrc = aboutData?.videoUrl || '';
+  const amThanhSrc = aboutData?.amThanhKhoa ? ('/api/thu-vien-tep?loai=am-thanh&id=' + encodeURIComponent(aboutData.amThanhId)) : (aboutData?.amThanhUrl || '');
+
+  let coDuLieu = false;
+
+  // 1. Văn bản
+  if (vanBan && textEl) {
+    textEl.textContent = vanBan;
+    textEl.hidden = false;
+    coDuLieu = true;
+  } else if (textEl) {
+    textEl.hidden = true;
+  }
+
+  // 2. Hình ảnh
+  if (anhSrc && imgWrap && imgEl) {
+    imgEl.src = anhSrc;
+    imgWrap.hidden = false;
+    imgEl.onclick = () => moXemAnh([{ src: anhSrc, chuThich: vanBan || 'Ảnh giới thiệu lớp' }], 0);
+    coDuLieu = true;
+  } else if (imgWrap) {
+    imgWrap.hidden = true;
+  }
+
+  // 3. Video
+  if (videoSrc && vidWrap && vidContainer) {
+    vidWrap.hidden = false;
+    vidContainer.innerHTML = '';
+    const maYt = idYoutube(videoSrc);
+    if (maYt) {
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${maYt}`;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      vidContainer.append(iframe);
+    } else {
+      const vid = document.createElement('video');
+      vid.controls = true;
+      vid.playsInline = true;
+      vid.preload = 'metadata';
+      vid.src = videoSrc;
+      vidContainer.append(vid);
+    }
+    coDuLieu = true;
+  } else if (vidWrap) {
+    vidWrap.hidden = true;
+  }
+
+  // 4. Âm thanh
+  if (amThanhSrc && audioWrap && audioEl) {
+    audioEl.src = amThanhSrc;
+    audioWrap.hidden = false;
+    coDuLieu = true;
+  } else if (audioWrap) {
+    audioWrap.hidden = true;
+  }
+
+  // 5. Trạng thái trống
+  if (emptyEl) {
+    emptyEl.hidden = coDuLieu;
+    if (laGiaoVien && !coDuLieu) {
+      emptyEl.innerHTML = '<p>Chưa có thông tin giới thiệu về lớp.<br><small style="color:var(--chinh);cursor:pointer;" id="commAboutEmptyLink">👉 Bấm vào đây hoặc nút "Chỉnh sửa" ở trên để thêm nội dung</small></p>';
+      $('#commAboutEmptyLink')?.addEventListener('click', () => moHopThoaiSuaAbout(aboutData, lamMoi));
+    }
+  }
+}
+
+/** Hộp thoại chỉnh sửa thông tin Tab About của lớp */
+function moHopThoaiSuaAbout(aboutData, lamMoi) {
+  const hienTai = aboutData || {};
+  const oVanBan = oNhap('aboutVanBan', 'textarea', hienTai.vanBan || '', 'Nhập nội dung giới thiệu lớp (truyền thống, kỷ niệm, thông điệp, quy định...)');
+  oVanBan.rows = 6;
+
+  const oHinhUrl = oNhap('aboutHinhUrl', 'url', hienTai.hinhUrl || '', 'Dán link ảnh trực tiếp (https://...)');
+  const oVideoUrl = oNhap('aboutVideoUrl', 'url', hienTai.videoUrl || '', 'Dán link YouTube (https://youtu.be/... hoặc link video trực tiếp)');
+  const oAmThanhUrl = oNhap('aboutAmThanhUrl', 'url', hienTai.amThanhUrl || '', 'Dán link file âm thanh trực tiếp (https://... .mp3)');
+
+  moHopThoai('Chỉnh sửa Tab About của lớp', [
+    truong('Nội dung văn bản giới thiệu', oVanBan),
+    truong('Hình ảnh giới thiệu (Link ảnh)', oHinhUrl, 'Dán link ảnh trực tiếp (JPEG, PNG, WebP)'),
+    truong('Video giới thiệu (YouTube / Link video)', oVideoUrl, 'Hỗ trợ link YouTube shorts/watch hoặc file mp4 trực tiếp'),
+    truong('Âm thanh / Bài hát của lớp (Link audio)', oAmThanhUrl, 'Hỗ trợ file âm thanh mp3, m4a, wav'),
+  ], [
+    nut('Huỷ', 'nut-nhe', dongHopThoai),
+    nut('Lưu thông tin', 'nut-chinh', async (ev) => {
+      const nutBam = ev.currentTarget;
+      nutBam.disabled = true;
+      nutBam.textContent = 'Đang lưu…';
+      try {
+        await api('/api/gv/thong-tin-about', {
+          method: 'POST',
+          than: {
+            vanBan: oVanBan.value.trim(),
+            hinhUrl: oHinhUrl.value.trim(),
+            videoUrl: oVideoUrl.value.trim(),
+            amThanhUrl: oAmThanhUrl.value.trim(),
+            anhId: hienTai.anhId || null,
+            videoId: hienTai.videoId || null,
+            amThanhId: hienTai.amThanhId || null,
+          },
+        });
+        dongHopThoai();
+        nhac('Đã cập nhật thông tin Tab About thành công!', 'tot');
+        if (lamMoi) await lamMoi();
+      } catch (err) {
+        nutBam.disabled = false;
+        nutBam.textContent = 'Lưu thông tin';
+        nhac(err.message, 'xau');
+      }
+    }),
+  ]);
 }
 
 /* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------

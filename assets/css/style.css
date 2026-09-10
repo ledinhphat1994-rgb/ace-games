@@ -349,6 +349,9 @@ code {
 }
 .thanh-tren > .wrap {
   display: flex; align-items: center; gap: 10px; height: var(--cao-thanh);
+  max-width: 100%;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .hieu { display: flex; align-items: center; gap: 11px; min-width: 0; text-decoration: none; color: inherit; }
@@ -4199,24 +4202,138 @@ td.cot-hom-nay {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 820px;
+  margin: 0 auto;
 }
 
 .community-about-card {
-  background: var(--nen-noi);
+  background: var(--nen-the, var(--nen-noi));
   border: 1px solid var(--vien);
-  border-radius: var(--r);
-  padding: 20px;
-  box-shadow: var(--bong-1);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-.community-about-card h3 {
-  margin: 0 0 14px 0;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--chu);
+.community-about-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--vien);
+}
+
+.community-about-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--chu);
+  letter-spacing: -0.01em;
+}
+
+.community-about-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--vien-dam);
+  background: var(--nen-noi);
+  color: var(--chu);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.community-about-edit-btn:hover {
+  border-color: var(--chinh);
+  color: var(--chinh);
+  background: var(--nen-chim);
+  transform: translateY(-1px);
+}
+.community-about-edit-btn svg {
+  flex-shrink: 0;
+}
+
+.community-about-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.community-about-text {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--chu);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.community-about-media-image {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--vien);
+  max-height: 480px;
+  background: var(--nen-chim);
+}
+.community-about-media-image img {
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: transform .2s ease;
+}
+.community-about-media-image img:hover {
+  transform: scale(1.01);
+}
+
+.community-about-media-video {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--vien);
+  background: #000;
+}
+.community-about-media-video video,
+.community-about-media-video iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+  display: block;
+}
+
+.community-about-media-audio {
+  border-radius: 14px;
+}
+.about-audio-player-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.about-audio-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.about-audio-player-box audio {
+  flex: 1;
+  height: 40px;
+}
+
+.community-about-empty {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--chu-nhat);
+  font-size: 14px;
+  background: var(--nen-chim);
+  border-radius: 14px;
+  border: 1px dashed var(--vien-dam);
 }
 
 /* Responsive Mobile */

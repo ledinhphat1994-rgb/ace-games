@@ -13,6 +13,7 @@ export function e(the, lop, chu) {
 
 /** Xoá sạch rồi thêm các phần tử con. */
 export function datNoiDung(nut, ...con) {
+  if (!nut) return null;
   nut.replaceChildren(...con.filter(Boolean));
   return nut;
 }
