@@ -5,6 +5,9 @@ import { kiemTraPhienHieuLuc } from './_lib/api.js';
 
 // Những đường dẫn ai cũng vào được (nếu không thì không thể hiện trang đăng nhập).
 const PUBLIC_PATHS = new Set([
+  '/', '/index.html',
+  '/digital-campus', '/digital-campus.html',
+  '/community-feed', '/community-feed.html',
   '/login', '/login.html', '/api/login', '/api/logout',
   '/favicon.ico', '/robots.txt',
   // Hai tệp này chỉ mô tả cách cài ứng dụng, không chứa dữ liệu của lớp.
