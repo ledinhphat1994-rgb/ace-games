@@ -83,15 +83,27 @@
       emojiDrawer.appendChild(btn);
     });
 
-    // 4. Bắt sự kiện
-    bubble.onclick = toggleKhungChat;
-    bubble.addEventListener('touchend', (e) => {
-      // Chặn delay 300ms của mobile và mở bàn phím ngay lập tức
-      e.preventDefault();
-      toggleKhungChat();
-    }, { passive: false });
+    // 4. Bắt sự kiện mở/đóng khung chat nhạy và chống double-tap
+    let lastToggleTime = 0;
+    function xuLyMoChat(e) {
+      if (e) {
+        if (e.cancelable && e.type === 'touchend') {
+          e.preventDefault();
+        }
+        e.stopPropagation();
+      }
+      const now = Date.now();
+      if (now - lastToggleTime < 350) return; // Chống double-fire giữa touchend và synthetic click
+      lastToggleTime = now;
 
-    document.getElementById('chatCloseBtn').onclick = toggleKhungChat;
+      toggleKhungChat();
+    }
+
+    bubble.addEventListener('click', xuLyMoChat);
+    bubble.addEventListener('touchend', xuLyMoChat, { passive: false });
+    document.getElementById('chatCloseBtn').addEventListener('click', xuLyMoChat);
+    document.getElementById('chatCloseBtn').addEventListener('touchend', xuLyMoChat, { passive: false });
+
     document.getElementById('chatEmojiToggleBtn').onclick = () => {
       const d = document.getElementById('chatEmojiDrawer');
       d.style.display = d.style.display === 'none' ? 'flex' : 'none';
@@ -153,6 +165,7 @@
       taiTinNhan(false);
     } else {
       win.classList.add('chat-hidden');
+      win.style.height = ''; // Khôi phục chiều cao mặc định
       if (bubble) bubble.style.display = 'flex'; // Hiện lại nút tròn khi đóng khung chat
       document.getElementById('chatEmojiDrawer').style.display = 'none';
       document.getElementById('chatTeacherModal').style.display = 'none';
