@@ -2248,12 +2248,35 @@ function veTheTwitterPost(item, phien, lamMoi) {
   const commentsList = e('div', 'tpc-comments-list');
   const commentForm = e('div', 'tpc-comment-form');
   const commentInput = e('input', 'tpc-comment-input');
-  commentInput.placeholder = 'Viết bình luận của em… (cho tất cả học sinh)';
+  commentInput.placeholder = 'Viết bình luận…';
   const commentSendBtn = e('button', 'tpc-comment-send', 'Gửi');
   commentSendBtn.type = 'button';
 
-  commentForm.append(commentInput, commentSendBtn);
-  commentDrawer.append(commentsList, commentForm);
+  // Emoji picker nhỏ sát nút Gửi
+  const CM_EMOJIS = ['😀','😂','🥰','😍','🤩','😎','😭','😱','🥳','👍','❤️','🔥','✨','🎉','👏','💪','🙏','💯','😅','🤔','😬','😴','🌸','🎵'];
+  const cmEmojiDrawer = e('div', 'tpc-cm-emoji-drawer');
+  cmEmojiDrawer.hidden = true;
+  cmEmojiDrawer.innerHTML = CM_EMOJIS.map(em => `<button class="tpc-cm-emoji-item" type="button">${em}</button>`).join('');
+  cmEmojiDrawer.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.tpc-cm-emoji-item');
+    if (!btn) return;
+    const pos = commentInput.selectionStart ?? commentInput.value.length;
+    const v = commentInput.value;
+    commentInput.value = v.slice(0, pos) + btn.textContent + v.slice(pos);
+    commentInput.focus();
+    cmEmojiDrawer.hidden = true;
+  });
+  const cmEmojiBtn = e('button', 'tpc-cm-emoji-btn', '😊');
+  cmEmojiBtn.type = 'button';
+  cmEmojiBtn.title = 'Chèn biểu tượng cảm xúc';
+  cmEmojiBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    cmEmojiDrawer.hidden = !cmEmojiDrawer.hidden;
+  });
+  document.addEventListener('click', () => { cmEmojiDrawer.hidden = true; }, { capture: false });
+
+  commentForm.append(commentInput, cmEmojiBtn, commentSendBtn);
+  commentDrawer.append(commentsList, cmEmojiDrawer, commentForm);
   contentCol.append(commentDrawer);
 
   let daTaiBinhLuan = false;
@@ -3345,9 +3368,6 @@ function moHopThoaiSuaAbout(aboutData, lamMoi) {
    Trang này ai đăng nhập cũng xem được (kể cả giáo viên). Với người có quyền,
    thêm nút thao tác trực tiếp (Thêm thông báo) và lối tắt vào khu quản lý. */
 const MUC_QUAN_LY = [
-  ['thong-bao', '#/thong-bao', 'thong-bao'],
-  ['thoi-khoa-bieu', '#/thoi-khoa-bieu', null],
-  ['hinh-anh', '#/hoat-dong-lop', ['hoat-dong-lop', 'hinh-anh', 'am-thanh', 'video']],
   ['danh-sach', '#/hoc-sinh', null],
   ['thu-quy', '#/quy', 'quy'],
 ];

@@ -27,7 +27,10 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
             COALESCE(hd.luot_xem, 0) AS luotXem,
             hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
             hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
-            hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
+            hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen,
+            (SELECT COUNT(*) FROM bai_dang_cam_xuc cx WHERE cx.bai_dang_id = hd.id AND cx.lop_id = hd.lop_id) AS tongCamXuc,
+            (SELECT GROUP_CONCAT(cx2.loai_cam_xuc, ',') FROM bai_dang_cam_xuc cx2 WHERE cx2.bai_dang_id = hd.id AND cx2.lop_id = hd.lop_id LIMIT 3) AS cacLoaiCamXuc,
+            (SELECT COUNT(*) FROM bai_dang_binh_luan bl WHERE bl.bai_dang_id = hd.id AND bl.lop_id = hd.lop_id) AS tongBinhLuan
        FROM hoat_dong_lop hd
        LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
        LEFT JOIN video v ON v.id = hd.video_id

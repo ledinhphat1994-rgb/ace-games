@@ -4282,6 +4282,50 @@ td.cot-hom-nay {
   background: #1a8cd8;
 }
 
+/* Emoji btn & drawer trong khay bình luận */
+.tpc-cm-emoji-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.tpc-cm-emoji-btn:hover { background: var(--nen-chim); }
+
+.tpc-cm-emoji-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+.tpc-cm-emoji-item {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+  line-height: 1;
+}
+.tpc-cm-emoji-item:hover { background: var(--nen-chim); }
+
 /* ── 7. LƯỚI ĐA PHƯƠNG TIỆN (MEDIA TAB GRID) ── */
 .community-media-grid {
   display: grid;
