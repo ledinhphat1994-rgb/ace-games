@@ -151,7 +151,10 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoa
 export async function docThan(request) {
   const raw = await request.text();
   if (raw.length > 200_000) throw new Error('Dữ liệu gửi lên quá lớn.');
-  if (!raw) return {};
+  if (!raw || !raw.trim()) return {};
+  if (raw === '[object Object]') {
+    throw new Error('Dữ liệu client gửi lên bị lỗi serialize ([object Object]). Hãy làm mới trình duyệt.');
+  }
   return JSON.parse(raw);
 }
 

@@ -5,7 +5,7 @@
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
 import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien, nenAnhThanhBlob } from './chung.js';
-import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
+import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe, truong, oNhap } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
 import { moHopThoaiThemHoatDong } from './hoat-dong-lop-dialog.js';
@@ -2818,23 +2818,60 @@ function veTwitterCommunities(d, phien, lamMoi) {
     }));
   }
 
-  // Slide-over danh sách thành viên (Vùng 2 -> Vùng 3 Twitter style)
+  // Slide-over danh sách thành viên (centered modal)
   khoiTaoMembersPanel(d, phien);
 
-  // Vai trò của người dùng
-  const roleBadge = $('#commRoleBadge');
-  if (roleBadge) {
-    if (phien?.role === 'teacher') roleBadge.innerHTML = '<span>👑 Quản trị viên</span>';
-    else if (phien?.role === 'phu') roleBadge.innerHTML = '<span>🛡️ Ban cán sự</span>';
-    else roleBadge.innerHTML = '<span>✓ Đã tham gia</span>';
-  }
+  // Nút Chỉnh sửa thông tin lớp (Vùng 4) — chỉ hiện với giáo viên
+  const nutSuaThongTin = $('#commBtnSuaThongTin');
+  if (nutSuaThongTin) {
+    const laGiaoVien = phien?.role === 'teacher';
+    nutSuaThongTin.hidden = !laGiaoVien;
+    if (laGiaoVien && !nutSuaThongTin.dataset.daGan) {
+      nutSuaThongTin.dataset.daGan = '1';
+      nutSuaThongTin.addEventListener('click', async () => {
+        const lopHienTai = d.lop || {};
+        const oTen = oNhap('editTenLop', 'text', lopHienTai.ten || '', 'VD: Lớp 10A7');
+        const oNamHoc = oNhap('editNamHoc', 'text', lopHienTai.namHoc || '', 'VD: 2026 – 2027');
+        const oTruong = oNhap('editTruong', 'text', lopHienTai.truong || '', 'VD: Trung tâm GDNN - GDTX Huyện Định Quán');
+        const oGioiThieu = oNhap('editGioiThieu', 'textarea', lopHienTai.gioiThieu || '', 'Mô tả ngắn về lớp…');
+        oGioiThieu.rows = 3;
 
-  // Nút chia sẻ trang lớp
-  $('#commBtnChiaSe')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.origin).then(() => {
-      nhac('Đã sao chép liên kết trang lớp 10A7!', 'tot');
-    }).catch(() => {});
-  });
+        moHopThoai('Chỉnh sửa thông tin lớp', [
+          truong('Tên lớp', oTen),
+          truong('Niên khóa', oNamHoc),
+          truong('Trường / Trung tâm', oTruong),
+          truong('Giới thiệu / Bio', oGioiThieu),
+        ], [
+          nut('Huỷ', 'nut-nhe', dongHopThoai),
+          nut('Lưu thay đổi', 'nut-chinh', async (ev) => {
+            const nutBam = ev.currentTarget;
+            const tenMoi = oTen.value.trim();
+            if (!tenMoi) return nhac('Tên lớp không được để trống.', 'xau');
+            nutBam.disabled = true;
+            nutBam.textContent = 'Đang lưu…';
+            try {
+              await api('/api/gv/thong-tin-lop', {
+                method: 'POST',
+                than: {
+                  ten: tenMoi,
+                  namHoc: oNamHoc.value.trim(),
+                  truong: oTruong.value.trim(),
+                  gioiThieu: oGioiThieu.value.trim(),
+                },
+              });
+              dongHopThoai();
+              nhac('Đã cập nhật thông tin lớp!', 'tot');
+              if (lamMoi) await lamMoi();
+            } catch (err) {
+              nutBam.disabled = false;
+              nutBam.textContent = 'Lưu thay đổi';
+              nhac(err.message, 'xau');
+            }
+          }),
+        ]);
+      });
+    }
+  }
 
   // Khởi tạo khung soạn bài thiết kế mới
   khoiTaoComposer(phien, lamMoi);

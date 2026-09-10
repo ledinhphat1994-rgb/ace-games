@@ -3453,37 +3453,30 @@ td.cot-hom-nay {
   gap: 8px;
 }
 
-.community-round-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--vien-dam);
-  background: var(--nen-noi);
-  color: var(--chu);
+.community-edit-info-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  transition: all 0.18s ease;
-}
-.community-round-btn:hover {
-  background: var(--nen-chim);
-  border-color: var(--chu-nhat);
-}
-
-.community-role-pill {
-  padding: 7px 16px;
+  gap: 7px;
+  padding: 8px 18px;
   border-radius: 999px;
+  border: 1px solid var(--vien-dam);
+  background: var(--nen-the, var(--nen-noi));
+  color: var(--chu);
   font-size: 13.5px;
   font-weight: 700;
-  border: 1.5px solid var(--vien-dam);
-  background: var(--nen-noi);
-  color: var(--chu);
-  cursor: default;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.community-edit-info-btn:hover {
+  background: var(--nen-chim);
+  border-color: var(--chinh);
+  color: var(--chinh);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.community-edit-info-btn svg {
+  flex-shrink: 0;
 }
 
 /* ── 2. THANH NAVIGATION TABS (TOP / LATEST / MEDIA / ABOUT) ── */

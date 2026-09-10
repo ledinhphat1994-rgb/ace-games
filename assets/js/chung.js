@@ -142,10 +142,16 @@ export async function api(duongDan, tuyChon = {}) {
 }
 
 function goi(duongDan, tuyChon) {
+  let body = tuyChon.body;
+  if (tuyChon.than !== undefined) {
+    body = JSON.stringify(tuyChon.than);
+  } else if (body && typeof body === 'object' && !(body instanceof FormData) && !(body instanceof Blob) && !(body instanceof ArrayBuffer) && !ArrayBuffer.isView(body)) {
+    body = JSON.stringify(body);
+  }
   return fetch(duongDan, {
     headers: { 'Content-Type': 'application/json' },
     ...tuyChon,
-    body: tuyChon.than ? JSON.stringify(tuyChon.than) : tuyChon.body,
+    body,
   });
 }
 
