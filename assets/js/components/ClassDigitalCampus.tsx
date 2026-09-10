@@ -34,8 +34,15 @@ import {
   X,
   Flame,
   Award,
-  CircleDot
+  CircleDot,
+  FileText
 } from 'lucide-react';
+import ClassAnnouncementBanner from './announcements/ClassAnnouncementBanner';
+import PinnedChatAnnouncement from './announcements/PinnedChatAnnouncement';
+import CreateAnnouncementModal from './announcements/CreateAnnouncementModal';
+import AcknowledgmentInspectModal from './announcements/AcknowledgmentInspectModal';
+import EmergencyAlertOverlay from './announcements/EmergencyAlertOverlay';
+import { Announcement, AnnouncementPriority, StudentAcknowledgment } from './announcements/types';
 
 // =================================================================
 // 1. TYPES & DATA STRUCTURES
@@ -247,6 +254,40 @@ const INITIAL_CHATS: ChatMessage[] = [
   { id: 'm4', isAnonymous: true, realAuthorName: 'Lê Hoàng Long', author: { id: 'st-anon', name: 'Ẩn danh #407', avatar: '', role: 'STUDENT' }, text: 'Thầy ơi tí nữa có bài tập tính gia tốc rơi tự do không Thầy?', timestamp: '20:05' }
 ];
 
+const INITIAL_ANNOUNCEMENT: Announcement = {
+  id: 'ann-1',
+  title: '📢 LỊCH ÔN TẬP VẬT LÝ 10 & THỐNG NHẤT ĐỘI HÌNH HỘI THAO',
+  content: 'Tối nay từ 20:00 - 21:30, phòng Cinema Lounge sẽ phát bài giảng ôn tập Vật Lý 10 (Chuyển động thẳng biến đổi đều) có giải đáp trực tiếp. Học sinh chú ý xác nhận đã nhận thông báo này. Nhóm thi đấu bóng đá và cờ vua 10A7 nhớ nộp danh sách trước 22:00 Chủ Nhật!',
+  author: {
+    id: TEACHER_USER.id,
+    name: TEACHER_USER.name,
+    role: 'GVCN Lớp 10A7',
+    avatar: TEACHER_USER.avatar,
+    verified: true,
+  },
+  priority: 'NORMAL',
+  timestamp: '20:00',
+  relativeTime: '15 phút trước',
+  totalStudents: 39,
+  acknowledgments: [
+    { studentId: 'st-101', studentName: 'Trần Gia Hân', avatar: CURRENT_USER.avatar, acknowledged: true, acknowledgedAt: '20:05' },
+    { studentId: 'st-102', studentName: 'Nguyễn Minh Thư', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', acknowledged: true, acknowledgedAt: '20:07' },
+    { studentId: 'st-103', studentName: 'Đặng Tuấn Kiệt', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', acknowledged: true, acknowledgedAt: '20:08' },
+    { studentId: 'st-104', studentName: 'Phan Quốc Bảo', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80', acknowledged: false },
+    { studentId: 'st-105', studentName: 'Lê Hoàng Long', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80', acknowledged: false },
+    { studentId: 'st-106', studentName: 'Phạm Quỳnh Như', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80', acknowledged: true, acknowledgedAt: '20:10' },
+  ],
+  reactions: {
+    thumb: { emoji: '👍', count: 28, userReacted: true },
+    heart: { emoji: '❤️', count: 35, userReacted: true },
+    crying: { emoji: '😭', count: 4, userReacted: false },
+    raising: { emoji: '🙋‍♂️', count: 18, userReacted: false },
+  },
+  attachments: [
+    { name: 'De_cuong_Vat_Ly_10_Chuong_1_2.pdf', size: '2.4 MB', url: '#', type: 'pdf' },
+  ],
+};
+
 // =================================================================
 // 3. MAIN DIGITAL CAMPUS COMPONENT
 // =================================================================
@@ -255,6 +296,13 @@ export default function ClassDigitalCampus() {
   const [currentView, setCurrentView] = useState<ViewState>('LOBBY');
   const [selectedRoom, setSelectedRoom] = useState<ActivityRoom | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+
+  // Announcement Engine States
+  const [activeAnnouncement, setActiveAnnouncement] = useState<Announcement | null>(INITIAL_ANNOUNCEMENT);
+  const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState<boolean>(false);
+  const [inspectAnnouncement, setInspectAnnouncement] = useState<Announcement | null>(null);
+  const [selectedDetailAnnouncement, setSelectedDetailAnnouncement] = useState<Announcement | null>(null);
+  const [emergencyAlertDismissed, setEmergencyAlertDismissed] = useState<boolean>(false);
 
   // Teacher Moderation State
   const [isTeacherMode, setIsTeacherMode] = useState<boolean>(false);
@@ -335,6 +383,104 @@ export default function ClassDigitalCampus() {
   const handleLeaveRoom = () => {
     setSelectedRoom(null);
     setCurrentView('LOBBY');
+  };
+
+  // ==========================================
+  // ANNOUNCEMENT BROADCAST ENGINE HANDLERS
+  // ==========================================
+  const handleToggleAcknowledge = (announcementId: string) => {
+    setActiveAnnouncement((prev) => {
+      if (!prev || prev.id !== announcementId) return prev;
+      const alreadyAck = prev.acknowledgments.some(
+        (a) => a.studentId === CURRENT_USER.id && a.acknowledged
+      );
+
+      const updatedAcks = prev.acknowledgments.map((a) => {
+        if (a.studentId === CURRENT_USER.id) {
+          return {
+            ...a,
+            acknowledged: !alreadyAck,
+            acknowledgedAt: !alreadyAck
+              ? new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+              : undefined,
+          };
+        }
+        return a;
+      });
+
+      return {
+        ...prev,
+        acknowledgments: updatedAcks,
+      };
+    });
+  };
+
+  const handleAnnouncementReaction = (announcementId: string, emojiKey: string) => {
+    setActiveAnnouncement((prev) => {
+      if (!prev || prev.id !== announcementId) return prev;
+      const target = prev.reactions[emojiKey];
+      if (!target) return prev;
+
+      const userReacted = !target.userReacted;
+      const updatedReaction = {
+        ...target,
+        userReacted,
+        count: userReacted ? target.count + 1 : Math.max(0, target.count - 1),
+      };
+
+      return {
+        ...prev,
+        reactions: {
+          ...prev.reactions,
+          [emojiKey]: updatedReaction,
+        },
+      };
+    });
+  };
+
+  const handleCreateAnnouncement = (newAnn: Partial<Announcement>) => {
+    const created: Announcement = {
+      id: `ann-${Date.now()}`,
+      title: newAnn.title || 'Thông báo mới',
+      content: newAnn.content || '',
+      author: {
+        id: TEACHER_USER.id,
+        name: TEACHER_USER.name,
+        role: 'GVCN Lớp 10A7',
+        avatar: TEACHER_USER.avatar,
+        verified: true,
+      },
+      priority: newAnn.priority || 'NORMAL',
+      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      relativeTime: 'Vừa xong',
+      totalStudents: 39,
+      expiresAt: newAnn.expiresAt,
+      acknowledgments: [
+        { studentId: 'st-101', studentName: 'Trần Gia Hân', avatar: CURRENT_USER.avatar, acknowledged: false },
+        { studentId: 'st-102', studentName: 'Nguyễn Minh Thư', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', acknowledged: false },
+        { studentId: 'st-103', studentName: 'Đặng Tuấn Kiệt', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', acknowledged: false },
+        { studentId: 'st-104', studentName: 'Phan Quốc Bảo', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80', acknowledged: false },
+      ],
+      reactions: {
+        thumb: { emoji: '👍', count: 1, userReacted: false },
+        heart: { emoji: '❤️', count: 1, userReacted: false },
+        crying: { emoji: '😭', count: 0, userReacted: false },
+        raising: { emoji: '🙋‍♂️', count: 0, userReacted: false },
+      },
+      attachments: newAnn.attachments,
+    };
+
+    setActiveAnnouncement(created);
+
+    // If emergency priority, trigger full-screen blocking overlay for all active student sessions!
+    if (created.priority === 'EMERGENCY') {
+      setEmergencyAlertDismissed(false);
+    }
+  };
+
+  const handleEmergencyAcknowledgeAndDismiss = (announcementId: string) => {
+    handleToggleAcknowledge(announcementId);
+    setEmergencyAlertDismissed(true);
   };
 
   // Send Chat Message
@@ -835,6 +981,20 @@ export default function ClassDigitalCampus() {
           =========================================================== */}
           {currentView === 'LOBBY' && (
             <>
+              {/* GLOBAL INTERACTIVE CLASSROOM BROADCAST BANNER */}
+              {activeAnnouncement && (
+                <ClassAnnouncementBanner
+                  announcement={activeAnnouncement}
+                  currentUserId={CURRENT_USER.id}
+                  isTeacherMode={isTeacherMode}
+                  onToggleAcknowledge={handleToggleAcknowledge}
+                  onReactionClick={handleAnnouncementReaction}
+                  onOpenDetailModal={(ann) => setSelectedDetailAnnouncement(ann)}
+                  onOpenInspectModal={(ann) => setInspectAnnouncement(ann)}
+                  onOpenCreateModal={() => setShowCreateAnnouncementModal(true)}
+                />
+              )}
+
               {/* Header Showcase Section */}
               <div className="flex items-center justify-between">
                 <div>
@@ -1094,6 +1254,14 @@ export default function ClassDigitalCampus() {
             </div>
           </div>
 
+          {/* 1b. PINNED CLASSROOM ANNOUNCEMENT (Sidebar Sticky) */}
+          {activeAnnouncement && (
+            <PinnedChatAnnouncement
+              announcement={activeAnnouncement}
+              onOpenDetailModal={(ann) => setSelectedDetailAnnouncement(ann)}
+            />
+          )}
+
           {/* 2. VOICE CHANNEL ACTIVE PRESENCE BUBBLES */}
           <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
             <div className="flex items-center justify-between mb-3">
@@ -1283,6 +1451,41 @@ export default function ClassDigitalCampus() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* =================================================================
+          ANNOUNCEMENT ENGINE MODALS
+      ================================================================= */}
+
+      {/* Teacher: Create/Broadcast New Announcement */}
+      {isTeacherMode && (
+        <CreateAnnouncementModal
+          isOpen={showCreateAnnouncementModal}
+          onClose={() => setShowCreateAnnouncementModal(false)}
+          onCreateAnnouncement={(newAnn) => {
+            handleCreateAnnouncement(newAnn);
+            setShowCreateAnnouncementModal(false);
+          }}
+        />
+      )}
+
+      {/* Teacher: Acknowledgment Tracking Inspector */}
+      <AcknowledgmentInspectModal
+        isOpen={!!inspectAnnouncement}
+        announcement={inspectAnnouncement}
+        onClose={() => setInspectAnnouncement(null)}
+        onSendReminders={() => {
+          // Simulate a reminder push notification
+          alert('✅ Đã gửi nhắc nhở đến các học sinh chưa xác nhận!');
+        }}
+      />
+
+      {/* EMERGENCY: Full-screen blocking overlay (mandatory read) */}
+      {activeAnnouncement?.priority === 'EMERGENCY' && !emergencyAlertDismissed && (
+        <EmergencyAlertOverlay
+          announcement={activeAnnouncement}
+          onAcknowledgeAndDismiss={handleEmergencyAcknowledgeAndDismiss}
+        />
       )}
 
       {/* Global Danmaku Move Animation Keyframes */}
