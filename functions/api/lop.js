@@ -60,18 +60,24 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     // hinhKhoa/nhacKhoa: ưu tiên mục trong thư viện (anh_id/am_thanh_id) nếu có, kế đến link
     // ngoài dán riêng (hinh_url/nhac_url).
     db.prepare(
-      `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
+      `SELECT tb.id, tb.ngay, COALESCE(tb.tao_luc, tb.ngay) AS taoLuc,
+              COALESCE(tb.luot_xem, 0) AS luotXem,
+              tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
               tb.noi_dung AS noiDung, tb.noi_dung_html AS noiDungHtml, tb.loai, tb.ghim,
               tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
               COALESCE(ha.khoa, tb.hinh_url) AS hinhKhoa, ha.kieu AS hinhKieu,
               COALESCE(at.khoa, tb.nhac_url) AS nhacKhoa, at.kieu AS nhacKieu,
-              tb.video_url AS videoUrl, v.khoa AS videoKhoa, v.kieu AS videoKieu
+              tb.video_url AS videoUrl, v.khoa AS videoKhoa, v.kieu AS videoKieu,
+              (SELECT COUNT(*) FROM bai_dang_cam_xuc WHERE bai_dang_id = tb.id AND lop_id = ?1) AS tongCamXuc,
+              (SELECT COUNT(*) FROM bai_dang_binh_luan WHERE bai_dang_id = tb.id AND lop_id = ?1) AS tongBinhLuan,
+              (SELECT GROUP_CONCAT(DISTINCT loai_cam_xuc) FROM bai_dang_cam_xuc WHERE bai_dang_id = tb.id AND lop_id = ?1) AS cacLoaiCamXuc,
+              (SELECT loai_cam_xuc FROM bai_dang_cam_xuc WHERE bai_dang_id = tb.id AND lop_id = ?1 AND nguoi_dung_id = ?2) AS camXucCuaToi
          FROM thong_bao tb
          LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
          LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
          LEFT JOIN video v ON v.id = tb.video_id
         WHERE tb.hien = 1 AND tb.lop_id = ?1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
-    ).bind(lopId).all(),
+    ).bind(lopId, (phien.role === 'teacher' ? 999999 : (phien.hocSinhId || (phien.role === 'phu' ? 800000 + (phien.phuId || 1) : 100001)))).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ghi_chu AS ghiChu FROM tkb_phien_ban
         WHERE lop_id = ?1
@@ -83,19 +89,21 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     db.prepare(
       `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.tieu_de_html AS tieuDeHtml,
               hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
+              COALESCE(hd.tao_luc, hd.ngay) AS taoLuc,
               COALESCE(hd.luot_xem, 0) AS luotXem,
               hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
               hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
               hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen,
               (SELECT COUNT(*) FROM bai_dang_cam_xuc WHERE bai_dang_id = hd.id AND lop_id = ?1) AS tongCamXuc,
               (SELECT COUNT(*) FROM bai_dang_binh_luan WHERE bai_dang_id = hd.id AND lop_id = ?1) AS tongBinhLuan,
+              (SELECT GROUP_CONCAT(DISTINCT loai_cam_xuc) FROM bai_dang_cam_xuc WHERE bai_dang_id = hd.id AND lop_id = ?1) AS cacLoaiCamXuc,
               (SELECT loai_cam_xuc FROM bai_dang_cam_xuc WHERE bai_dang_id = hd.id AND lop_id = ?1 AND nguoi_dung_id = ?2) AS camXucCuaToi
          FROM hoat_dong_lop hd
          LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
          LEFT JOIN video v ON v.id = hd.video_id
          LEFT JOIN am_thanh at ON at.id = hd.am_thanh_id
         WHERE hd.lop_id = ?1 ORDER BY hd.ngay DESC, hd.id DESC LIMIT 60`
-    ).bind(lopId, (phien.role === 'teacher' ? 999999 : (phien.role === 'phu' ? 800000 + (phien.taiKhoanPhuId || 1) : (hocSinhIdPhien || 100001)))).all(),
+    ).bind(lopId, (phien.role === 'teacher' ? 999999 : (phien.hocSinhId || (phien.role === 'phu' ? 800000 + (phien.phuId || 1) : 100001)))).all(),
     // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,

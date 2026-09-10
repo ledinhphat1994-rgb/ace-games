@@ -23,6 +23,8 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const { results } = await env.DB.prepare(
     `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.tieu_de_html AS tieuDeHtml,
             hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
+            COALESCE(hd.tao_luc, hd.ngay) AS taoLuc,
+            COALESCE(hd.luot_xem, 0) AS luotXem,
             hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
             hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
             hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
@@ -95,8 +97,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   await chupCheckpointChung(env.DB, 'hoat-dong-lop', 'Trước khi: đăng một mục Hoạt động lớp', phien);
   const kq = await env.DB.prepare(
     `INSERT INTO hoat_dong_lop
-       (lop_id, loai, tieu_de, tieu_de_html, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
+       (lop_id, loai, tieu_de, tieu_de_html, chu_thich, noi_dung_html, anh_id, hinh_url, video_id, video_url, am_thanh_id, am_thanh_url, ngay, tao_luc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, datetime('now'))`
   ).bind(phien.lopId, loaiGop, td, tdHtml, nd, ndHtml, idAnh, urlAnh, idVideo, urlVideo, idAmThanh, urlAmThanh, ngayLuu).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });

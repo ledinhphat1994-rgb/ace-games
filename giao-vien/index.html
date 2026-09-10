@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260910_13">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260909_96">
-<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260910_13">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260910_21">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_21">
+<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260910_21">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Quản lý lớp">
@@ -86,10 +86,6 @@
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></span>
           <span class="menu-chu"><b>Thư viện Video</b><small>Video kỷ niệm và hoạt động</small></span>
         </a>
-        <a class="menu-muc" href="#/hoat-dong-lop">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span>
-          <span class="menu-chu"><b>Hoạt động lớp</b><small>Ảnh, video, âm thanh đăng ở trang chủ</small></span>
-        </a>
         <a class="menu-muc" href="#/bao-cao">
           <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="18"/><line x1="15" y1="15" x2="12" y2="18"/></svg></span>
           <span class="menu-chu"><b>Báo cáo & Xuất file</b><small>Xuất danh sách, điểm, chuyên cần</small></span>
@@ -148,9 +144,6 @@
       <a href="#/thu-vien-video">
         <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></span> Thư viện Video
       </a>
-      <a href="#/hoat-dong-lop">
-        <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span> Hoạt động lớp
-      </a>
     </div>
 
     <div class="nhom-dieu-huong">
@@ -207,12 +200,12 @@
 
 <audio id="nhacNenAudio" loop preload="none"></audio>
 
-<script type="module" src="/giao-vien/app.js?v=20260909_94"></script>
-<script src="/assets/js/chat-widget.js?v=20260910_13"></script>
+<script type="module" src="/giao-vien/app.js?v=20260910_21"></script>
+<script src="/assets/js/chat-widget.js?v=20260910_21"></script>
 <script>
   // Cho phép cài lên màn hình chính và mở được khi mạng chập chờn.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20260909_94').catch(() => {}));
+    addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20260910_21').catch(() => {}));
   }
 </script>
 </body>

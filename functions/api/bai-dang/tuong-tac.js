@@ -2,23 +2,42 @@
 // Hỗ trợ mọi học sinh và giáo viên trong lớp
 import { bocXuLy, docThan, json, loi } from '../../_lib/api.js';
 
-function layThongTinNguoiDung(phien) {
+function bamChuoiThanhSo(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function layThongTinNguoiDung(phien, thietBiId = '') {
   let nguoiDungId = 100001;
-  let nguoiDungTen = phien.ten || 'Thành viên lớp';
+  let nguoiDungTen = 'Thành viên lớp';
   let vaiTro = 'hoc_sinh';
 
-  if (phien.role === 'teacher') {
-    nguoiDungId = 999999;
-    nguoiDungTen = phien.ten || 'Giáo viên chủ nhiệm';
-    vaiTro = 'giao_vien';
-  } else if (phien.role === 'phu') {
-    nguoiDungId = 800000 + (phien.taiKhoanPhuId || 1);
-    nguoiDungTen = phien.ten || 'Cán bộ lớp';
-    vaiTro = 'can_bo';
-  } else if (phien.hocSinhId) {
-    nguoiDungId = phien.hocSinhId;
-    nguoiDungTen = phien.ten || 'Học sinh';
-    vaiTro = phien.chucVu ? 'can_bo' : 'hoc_sinh';
+  if (phien) {
+    if (phien.role === 'teacher') {
+      nguoiDungId = 999999;
+      nguoiDungTen = phien.ten || 'Giáo viên chủ nhiệm';
+      vaiTro = 'giao_vien';
+    } else if (phien.hocSinhId) {
+      nguoiDungId = phien.hocSinhId;
+      nguoiDungTen = phien.ten || 'Học sinh';
+      vaiTro = phien.chucVu ? 'can_bo' : (phien.role === 'phu' ? 'can_bo' : 'hoc_sinh');
+    } else if (phien.role === 'phu') {
+      nguoiDungId = 800000 + (phien.phuId || phien.taiKhoanPhuId || 1);
+      nguoiDungTen = phien.ten || 'Cán bộ lớp';
+      vaiTro = 'can_bo';
+    } else if (phien.ten) {
+      nguoiDungTen = phien.ten;
+    }
+  }
+
+  // Nếu không có học sinh id trong phiên nhưng có mã thiết bị riêng biệt:
+  // ánh xạ thành một id người dùng duy nhất (dải 500000..699999) để không bao giờ bị ghi đè lẫn nhau
+  if (nguoiDungId === 100001 && thietBiId) {
+    nguoiDungId = 500000 + (bamChuoiThanhSo(thietBiId) % 200000);
   }
 
   return { nguoiDungId, nguoiDungTen, vaiTro };
@@ -29,15 +48,21 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const baiDangId = parseInt(url.searchParams.get('baiDangId') || '0', 10);
   const lopId = phien.lopId || 1;
-  const { nguoiDungId } = layThongTinNguoiDung(phien);
+  const thietBiId = url.searchParams.get('thietBiId') || '';
+  const { nguoiDungId } = layThongTinNguoiDung(phien, thietBiId);
 
   if (baiDangId <= 0) {
     // Tăng lượt xem nếu có request ghi nhận
     const tangXemId = parseInt(url.searchParams.get('tangXem') || '0', 10);
     if (tangXemId > 0) {
-      await env.DB.prepare(
-        'UPDATE hoat_dong_lop SET luot_xem = luot_xem + 1 WHERE id = ?1 AND lop_id = ?2'
-      ).bind(tangXemId, lopId).run().catch(() => {});
+      await Promise.all([
+        env.DB.prepare(
+          'UPDATE hoat_dong_lop SET luot_xem = luot_xem + 1 WHERE id = ?1 AND lop_id = ?2'
+        ).bind(tangXemId, lopId).run().catch(() => {}),
+        env.DB.prepare(
+          'UPDATE thong_bao SET luot_xem = luot_xem + 1 WHERE id = ?1 AND lop_id = ?2'
+        ).bind(tangXemId, lopId).run().catch(() => {})
+      ]);
       return json({ ok: true });
     }
     return loi('Thiếu mã bài đăng.');
@@ -62,9 +87,9 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   const tongCamXuc = (camXucRows.results || []).length;
 
-  // Lấy danh sách bình luận
+  // Lấy danh sách bình luận (có tra_loi_id phân cấp cha-con)
   const binhLuanRows = await env.DB.prepare(
-    `SELECT id, nguoi_dung_id AS nguoiDungId, nguoi_dung_ten AS nguoiDungTen,
+    `SELECT id, tra_loi_id AS traLoiId, nguoi_dung_id AS nguoiDungId, nguoi_dung_ten AS nguoiDungTen,
             vai_tro AS vaiTro, noi_dung AS noiDung, tao_luc AS taoLuc
        FROM bai_dang_binh_luan
       WHERE bai_dang_id = ?1 AND lop_id = ?2
@@ -88,8 +113,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const body = await docThan(request);
   const baiDangId = parseInt(body.baiDangId || '0', 10);
   const loaiCamXuc = String(body.loaiCamXuc || '').trim();
+  const thietBiId = String(body.thietBiId || '').trim();
   const lopId = phien.lopId || 1;
-  const { nguoiDungId, nguoiDungTen } = layThongTinNguoiDung(phien);
+  const { nguoiDungId, nguoiDungTen } = layThongTinNguoiDung(phien, thietBiId);
 
   if (baiDangId <= 0) return loi('Mã bài đăng không hợp lệ.');
 
@@ -134,22 +160,24 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   });
 });
 
-// PUT: Thêm bình luận mới (mọi thành viên trong lớp đều có quyền)
+// PUT: Thêm bình luận mới hoặc phản hồi (reply) cho bình luận khác
 export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
   const body = await docThan(request);
   const baiDangId = parseInt(body.baiDangId || '0', 10);
+  const traLoiId = body.traLoiId ? parseInt(body.traLoiId, 10) : null;
   const noiDung = String(body.noiDung || '').trim();
+  const thietBiId = String(body.thietBiId || '').trim();
   const lopId = phien.lopId || 1;
-  const { nguoiDungId, nguoiDungTen, vaiTro } = layThongTinNguoiDung(phien);
+  const { nguoiDungId, nguoiDungTen, vaiTro } = layThongTinNguoiDung(phien, thietBiId);
 
   if (baiDangId <= 0) return loi('Mã bài đăng không hợp lệ.');
   if (!noiDung) return loi('Vui lòng nhập nội dung bình luận.');
   if (noiDung.length > 1000) return loi('Bình luận quá dài (tối đa 1000 ký tự).');
 
   const kq = await env.DB.prepare(
-    `INSERT INTO bai_dang_binh_luan (lop_id, bai_dang_id, nguoi_dung_id, nguoi_dung_ten, vai_tro, noi_dung, tao_luc)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)`
-  ).bind(lopId, baiDangId, nguoiDungId, nguoiDungTen, vaiTro, noiDung).run();
+    `INSERT INTO bai_dang_binh_luan (lop_id, bai_dang_id, tra_loi_id, nguoi_dung_id, nguoi_dung_ten, vai_tro, noi_dung, tao_luc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)`
+  ).bind(lopId, baiDangId, traLoiId, nguoiDungId, nguoiDungTen, vaiTro, noiDung).run();
 
   const idMoi = kq.meta?.last_row_id;
 
@@ -158,6 +186,7 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
     binhLuan: {
       id: idMoi,
       baiDangId,
+      traLoiId,
       nguoiDungId,
       nguoiDungTen,
       vaiTro,
@@ -171,8 +200,9 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const id = parseInt(url.searchParams.get('id') || '0', 10);
+  const thietBiId = url.searchParams.get('thietBiId') || '';
   const lopId = phien.lopId || 1;
-  const { nguoiDungId } = layThongTinNguoiDung(phien);
+  const { nguoiDungId } = layThongTinNguoiDung(phien, thietBiId);
 
   if (id <= 0) return loi('Mã bình luận không hợp lệ.');
 
@@ -190,7 +220,10 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
     return loi('Em chỉ có thể xoá bình luận của chính mình.', 403);
   }
 
-  await env.DB.prepare('DELETE FROM bai_dang_binh_luan WHERE id = ?1 AND lop_id = ?2').bind(id, lopId).run();
+  // Xoá bình luận này và tất cả bình luận con trả lời nó
+  await env.DB.prepare(
+    'DELETE FROM bai_dang_binh_luan WHERE (id = ?1 OR tra_loi_id = ?1) AND lop_id = ?2'
+  ).bind(id, lopId).run();
 
   return json({ ok: true, id });
 });

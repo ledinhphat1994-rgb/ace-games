@@ -21,7 +21,9 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   // Trả cả mã tham chiếu thư viện (anhId/amThanhId/videoId) THẬT lẫn khoá/kiểu đã tra sẵn để
   // xem trước ngay trong hộp thoại sửa, không cần gọi thêm API thư viện.
   const { results } = await env.DB.prepare(
-    `SELECT tb.id, tb.ngay, tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
+    `SELECT tb.id, tb.ngay, COALESCE(tb.tao_luc, tb.ngay) AS taoLuc,
+            COALESCE(tb.luot_xem, 0) AS luotXem,
+            tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
             tb.noi_dung AS noiDung, tb.noi_dung_html AS noiDungHtml, tb.loai, tb.ghim, tb.hien,
             tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
             tb.anh_id AS anhId, ha.khoa AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
@@ -80,8 +82,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: đăng thông báo "${td}"`, phien);
   const kq = await env.DB.prepare(
-    `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`
+    `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id, tao_luc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, datetime('now'))`
   ).bind(
     ngay, td, tdHtml, nd, ndHtml, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
     mucDo || '', chuoi(videoUrl, 500) || null,
