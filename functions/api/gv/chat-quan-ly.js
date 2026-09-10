@@ -102,7 +102,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     await env.DB.prepare('UPDATE chat_tin_nhan SET da_xoa = 1 WHERE id = ?1 AND lop_id = ?2')
       .bind(tinId, lopId).run();
 
-    return json({ ok: true, thongBao: 'Đã xoá tin nhắn.' });
+    return json({ ok: true, tinId, thongBao: 'Đã xoá tin nhắn.' });
   }
 
   if (hanhDong === 'xoa_lich_su') {

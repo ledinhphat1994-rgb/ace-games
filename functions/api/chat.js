@@ -61,10 +61,16 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     tinNhan = rs.results || [];
   }
 
-  // Với học sinh, tin đã xoá sẽ hiển thị dạng thông báo
+  // Lấy danh sách ID các tin nhắn đã bị xoá gần đây để client đồng bộ tức thì
+  const rsDaXoa = await env.DB.prepare(
+    'SELECT id FROM chat_tin_nhan WHERE lop_id = ?1 AND da_xoa = 1 ORDER BY id DESC LIMIT 50'
+  ).bind(lopId).all();
+  const daXoaIds = (rsDaXoa.results || []).map((r) => r.id);
+
+  // Tin đã xoá sẽ hiển thị nội dung thông báo đã xoá
   const danhSachTin = tinNhan.map((t) => {
-    if (t.daXoa && !laGiaoVien) {
-      return { ...t, noiDung: '[Tin nhắn đã bị Giáo viên xoá]' };
+    if (t.daXoa) {
+      return { ...t, noiDung: '[Tin nhắn đã bị xoá]' };
     }
     return t;
   });
@@ -78,6 +84,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     laGiaoVien,
     hocSinhIdHienTai: phien.hocSinhId || null,
     tinNhan: danhSachTin,
+    daXoaIds,
   });
 }, { canGiaoVien: false });
 
