@@ -154,7 +154,12 @@
       tabBtn.dataset.cat = cat.id;
       tabBtn.textContent = cat.ten;
       tabBtn.type = 'button';
-      tabBtn.onclick = () => renderEmojiGrid(cat.id);
+      tabBtn.onclick = (e) => {
+        e.preventDefault();
+        // Blur để tránh bàn phím hiện lại khi đổi tab emoji
+        if (e.currentTarget) e.currentTarget.blur();
+        renderEmojiGrid(cat.id);
+      };
       tabsContainer.appendChild(tabBtn);
     });
 
@@ -196,9 +201,21 @@
       dongKhungChat();
     });
 
-    document.getElementById('chatEmojiToggleBtn').onclick = () => {
+    document.getElementById('chatEmojiToggleBtn').onclick = (e) => {
+      if (e) e.preventDefault();
       const d = document.getElementById('chatEmojiDrawer');
-      d.style.display = d.style.display === 'none' ? 'flex' : 'none';
+      const seHienThi = d.style.display === 'none';
+      d.style.display = seHienThi ? 'flex' : 'none';
+      if (seHienThi) {
+        // ẨN BàN PHÍM ẢO trước khi emoji drawer mở: gọi blur() rối focus() vào nút (không phải input)
+        // để đảm bảo bàn phím ảo được ẩn trên mọi trình duyệt mobile.
+        const input = document.getElementById('chatInputField');
+        if (input) {
+          input.blur();
+        }
+        // Dồn focus vào chính nút toggle (không phải input) để tránh bàn phím hiện lại
+        e.currentTarget.blur();
+      }
     };
 
     const inputField = document.getElementById('chatInputField');
