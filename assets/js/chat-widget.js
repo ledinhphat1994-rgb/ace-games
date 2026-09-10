@@ -12,9 +12,9 @@
   let demNguocGiay = 0;
   let demNguocTimer = null;
   let pollingTimer = null;
-  let tinChuaDoc = 0;
-  let dangGui = false;
   let caiDatHienTai = { dangMo: 1, gianCachGiay: 5, thongBaoGhim: '' };
+  let lopIdHienTai = 1;
+  let cuonTrangY = 0;
 
   // Kho icon chat phong phú (130+ emoji được phân loại khoa học)
   const EMOJI_CATEGORIES = [
@@ -76,8 +76,14 @@
     windowEl.innerHTML = `
       <div class="chat-window-header">
         <div class="chat-header-info">
-          <div class="chat-header-title">💬 Tán gẫu lớp</div>
-          <span class="chat-header-badge" id="chatRateBadge">⏱ 5s</span>
+          <div class="chat-header-top-row">
+            <div class="chat-header-title" id="chatHeaderTitle">💬 Tán gẫu · Lớp học</div>
+            <span class="chat-header-badge" id="chatRateBadge">⏱ 5s</span>
+          </div>
+          <div class="chat-header-sub" id="chatHeaderSub">
+            <span class="chat-header-user-tag" id="chatHeaderUserTag">👤 Đang kết nối...</span>
+            <span class="chat-header-class-switch" id="chatHeaderClassSwitch" style="display: none;"></span>
+          </div>
         </div>
         <div class="chat-header-actions">
           <button class="chat-header-btn" id="chatTeacherSettingBtn" title="Cài đặt phòng chat" style="display: none;">⚙️</button>
@@ -129,22 +135,20 @@
         btn.type = 'button';
         btn.title = emoji;
 
-        // Chặn hoàn toàn việc kích hoạt bàn phím ảo trên di động
-        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+        // Desktop: ngăn button cướp focus/selection của ô nhập
         btn.addEventListener('mousedown', (e) => { e.preventDefault(); });
 
-        btn.onclick = (e) => {
+        // Click / Tap: chọn emoji nhạy bén trên cả di động và máy tính
+        btn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           const input = document.getElementById('chatInputField');
           if (input) {
-            // Chèn emoji vào cuối hoặc vị trí hiện tại mà KHÔNG focus và KHÔNG gọi setSelectionRange
-            // để bàn phím ảo KHÔNG BAO GIỜ tự bật lên trên mobile
+            // Chèn icon vào cuối ô nhập mà không focus để không kích hoạt bàn phím ảo
             input.value += emoji;
-            input.blur();
+            try { input.blur(); } catch {}
           }
-        };
+        });
         gridContainer.appendChild(btn);
       });
 
@@ -159,15 +163,14 @@
       tabBtn.dataset.cat = cat.id;
       tabBtn.textContent = cat.ten;
       tabBtn.type = 'button';
-      tabBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
-      tabBtn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
       tabBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
-      tabBtn.onclick = (e) => {
+      tabBtn.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         const input = document.getElementById('chatInputField');
-        if (input) input.blur();
+        if (input) { try { input.blur(); } catch {} }
         renderEmojiGrid(cat.id);
-      };
+      });
       tabsContainer.appendChild(tabBtn);
     });
 
@@ -210,23 +213,23 @@
     });
 
     const emojiToggleBtn = document.getElementById('chatEmojiToggleBtn');
-    emojiToggleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); });
-    emojiToggleBtn.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
     emojiToggleBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
-    emojiToggleBtn.onclick = (e) => {
+    emojiToggleBtn.addEventListener('click', (e) => {
       if (e) {
         e.preventDefault();
         e.stopPropagation();
       }
       const input = document.getElementById('chatInputField');
-      if (input) input.blur();
+      if (input) { try { input.blur(); } catch {} }
       const d = document.getElementById('chatEmojiDrawer');
-      const seHienThi = d.style.display === 'none';
+      if (!d) return;
+      const seHienThi = d.style.display === 'none' || !d.style.display;
       d.style.display = seHienThi ? 'flex' : 'none';
-    };
+      if (seHienThi) cuonXuongDuoi();
+    });
 
     const inputField = document.getElementById('chatInputField');
-    // Khi người dùng chạm vào ô nhập để gõ chữ: ẩn khay emoji để nhường chỗ cho bàn phím ảo
+    // Khi người dùng bấm trực tiếp vào ô nhập để gõ chữ: ẩn khay emoji để nhường chỗ cho bàn phím ảo
     inputField.addEventListener('focus', () => {
       const d = document.getElementById('chatEmojiDrawer');
       if (d) d.style.display = 'none';
@@ -240,12 +243,18 @@
     document.getElementById('chatSendBtn').onclick = guiTinNhan;
     document.getElementById('chatTeacherSettingBtn').onclick = moCaiDatGiaoVien;
 
-    // Tự động co giãn theo bàn phím ảo trên điện thoại (Visual Viewport API)
+    // Tự động co giãn theo bàn phím ảo trên điện thoại (Visual Viewport API) một cách an toàn
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', () => {
         if (dangMoKhungChat && window.innerWidth <= 600) {
           const vh = window.visualViewport.height;
-          windowEl.style.height = `${vh}px`;
+          const fullH = window.innerHeight;
+          // Chỉ điều chỉnh chiều cao khi bàn phím ảo thực sự bật lên (chiều cao giảm đáng kể > 150px)
+          if (vh < fullH - 150) {
+            windowEl.style.height = `${vh}px`;
+          } else {
+            windowEl.style.height = '';
+          }
           cuonXuongDuoi();
         }
       });
@@ -271,6 +280,8 @@
     const backdrop = document.getElementById('chatBackdrop');
 
     dangMoKhungChat = true;
+    cuonTrangY = window.scrollY || document.documentElement.scrollTop || 0;
+
     win.classList.remove('chat-hidden');
 
     // Ẩn nút bong bóng khi đang mở khung chat
@@ -312,6 +323,11 @@
     // Tắt backdrop và giải phóng khoá cuộn trang web
     if (backdrop) backdrop.classList.remove('chat-backdrop-active');
     document.body.classList.remove('chat-modal-open');
+
+    // Khôi phục vị trí cuộn trang trước đó
+    if (cuonTrangY) {
+      window.scrollTo(0, cuonTrangY);
+    }
 
     const d = document.getElementById('chatEmojiDrawer');
     if (d) d.style.display = 'none';
@@ -379,13 +395,14 @@
 
   async function taiTinNhan(laLanDau = false) {
     try {
-      // Khi tải lại từ đầu (làm mới / sau khi xoá), reset về 0 để lấy đủ danh sách mới nhất
+      // Khi tải lại từ đầu (làm mới / chuyển lớp / sau khi xoá), reset về 0 để lấy đủ danh sách mới nhất
       if (laLanDau) {
         tinNhanCuoiId = 0;
       }
 
-      const res = await fetch(`/api/chat?sauId=${tinNhanCuoiId}`, {
+      const res = await fetch(`/api/chat?sauId=${tinNhanCuoiId}&lopId=${lopIdHienTai}&_t=${Date.now()}`, {
         headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
       });
 
       if (res.status === 401) {
@@ -403,11 +420,48 @@
       hocSinhIdHienTai = data.hocSinhIdHienTai;
       caiDatHienTai = data.caiDat || caiDatHienTai;
       gianCachGiay = caiDatHienTai.gianCachGiay || 5;
+      if (data.lopId) lopIdHienTai = data.lopId;
 
-      // Cập nhật tên lớp trên tiêu đề khung chat để người dùng thấy rõ lớp đang chat
-      if (data.tenLop) {
-        const titleEl = document.querySelector('.chat-header-title');
-        if (titleEl) titleEl.textContent = `💬 Tán gẫu · ${data.tenLop}`;
+      // Cập nhật tên lớp trên tiêu đề khung chat
+      const titleEl = document.getElementById('chatHeaderTitle') || document.querySelector('.chat-header-title');
+      if (titleEl && data.tenLop) {
+        titleEl.textContent = `💬 Tán gẫu · ${data.tenLop}`;
+      }
+
+      // Cập nhật thông tin người dùng đang chat
+      const userTagEl = document.getElementById('chatHeaderUserTag');
+      if (userTagEl && data.tenHienTai) {
+        userTagEl.textContent = `👤 Bạn: ${data.tenHienTai}`;
+        userTagEl.title = `Đang tham gia với tên: ${data.tenHienTai}`;
+      }
+
+      // Cập nhật bộ chuyển đổi lớp học nhanh cho Giáo viên
+      const switchContainer = document.getElementById('chatHeaderClassSwitch');
+      if (switchContainer) {
+        if (laGiaoVien && Array.isArray(data.cacLop) && data.cacLop.length > 1) {
+          switchContainer.style.display = 'inline-flex';
+          switchContainer.innerHTML = '';
+          data.cacLop.forEach((lop) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `chat-class-btn ${lop.id === lopIdHienTai ? 'active' : ''}`;
+            btn.textContent = lop.ten.replace('Lớp ', '');
+            btn.title = `Chuyển xem phòng chat ${lop.ten}`;
+            btn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (lopIdHienTai !== lop.id) {
+                lopIdHienTai = lop.id;
+                const container = document.getElementById('chatMessagesContainer');
+                if (container) container.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 12.5px; margin-top: 24px;">Đang tải tin nhắn...</div>';
+                taiTinNhan(true);
+              }
+            };
+            switchContainer.appendChild(btn);
+          });
+        } else {
+          switchContainer.style.display = 'none';
+        }
       }
 
       // Đồng bộ các tin đã bị xoá tức thì qua danh sách daXoaIds
@@ -597,7 +651,7 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noiDung }),
+        body: JSON.stringify({ noiDung, lopId: lopIdHienTai }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -606,14 +660,24 @@
       }
 
       input.value = '';
-      document.getElementById('chatEmojiDrawer').style.display = 'none';
+      const d = document.getElementById('chatEmojiDrawer');
+      if (d) d.style.display = 'none';
 
       // Kích hoạt Rate Limit Countdown cho học sinh
       if (!laGiaoVien) {
         batDauDemNguoc(gianCachGiay);
       }
 
-      // Tải ngay tin mới
+      // Đưa ngay tin nhắn vừa gửi vào DOM nếu có để người gửi thấy tức thì (0ms latency)
+      if (data.tinNhan) {
+        if (data.tinNhan.id > tinNhanCuoiId) {
+          tinNhanCuoiId = data.tinNhan.id;
+        }
+        themTinNhanVaoDom(data.tinNhan, document.getElementById('chatMessagesContainer'));
+        cuonXuongDuoi();
+      }
+
+      // Tải ngay tin mới từ server
       await taiTinNhan(false);
     } catch {
       alert('Lỗi kết nối khi gửi tin nhắn.');

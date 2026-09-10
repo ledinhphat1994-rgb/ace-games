@@ -5,8 +5,21 @@ import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const sauId = Math.max(0, parseInt(url.searchParams.get('sauId') || '0', 10));
-  const lopId = phien.lopId || 1;
   const laGiaoVien = phien.role === 'teacher';
+
+  // Lớp ID: Giáo viên có thể chuyển đổi linh hoạt qua param ?lopId=..., mặc định là lớp của phiên hoặc lớp 1
+  let lopId = phien.lopId || 1;
+  const reqLopId = parseInt(url.searchParams.get('lopId') || '', 10);
+  if (laGiaoVien && reqLopId > 0) {
+    lopId = reqLopId;
+  }
+
+  // Danh sách các lớp học đang hoạt động (cho giáo viên chuyển đổi nhanh giữa các lớp)
+  let cacLop = [];
+  if (laGiaoVien && env.DB) {
+    const rsLop = await env.DB.prepare('SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC').all().catch(() => ({ results: [] }));
+    cacLop = (rsLop.results || []).map((l) => ({ id: l.id, ten: l.ten }));
+  }
 
   // Lấy tên lớp để hiển thị rõ ràng trên tiêu đề phòng chat
   const lopRow = await env.DB.prepare('SELECT ten FROM lop WHERE id = ?1').bind(lopId).first().catch(() => null);
@@ -122,6 +135,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     laGiaoVien,
     tenLop,
     lopId,
+    cacLop,
     hocSinhIdHienTai: phien.hocSinhId || null,
     tenHienTai: tenNguoiDungHienTai,
     vaiTroHienTai: phien.role || (laGiaoVien ? 'teacher' : 'student'),
@@ -131,10 +145,16 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 }, { canGiaoVien: false });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const lopId = phien.lopId || 1;
   const laGiaoVien = phien.role === 'teacher';
   const than = await docThan(request);
   let noiDung = String(than.noiDung || '').trim();
+
+  // Giáo viên có thể chỉ định gửi vào lớp mong muốn, mặc định là lớp của phiên hoặc lớp 1
+  let lopId = phien.lopId || 1;
+  const reqLopId = parseInt(than.lopId || '', 10);
+  if (laGiaoVien && reqLopId > 0) {
+    lopId = reqLopId;
+  }
 
   if (!noiDung) return loi('Tin nhắn không được để trống.');
   if (noiDung.length > 300) return loi('Tin nhắn tối đa 300 ký tự.');
