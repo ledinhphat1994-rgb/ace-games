@@ -117,13 +117,33 @@
     const tenNgan = (lop.ten || '').replace(/^Lớp\s*/i, '');
     document.title = `Đăng nhập · ${lop.ten}`;
     document.getElementById('hieuTenLop').textContent = lop.ten;
-    document.getElementById('hieuMaLop').textContent = tenNgan || '🎓';
+    // Ẩn mã lớp trong badge — logo huy hiệu tròn đã thể hiện rồi, chữ trong vòng tròn là thừa.
+    const hieuMaLop = document.getElementById('hieuMaLop');
+    hieuMaLop.textContent = tenNgan || '🎓';
+    hieuMaLop.hidden = true;
     // Bước nhập mã: bỏ hẳn huy hiệu + tiêu đề "Lớp ..." lặp lại (đã thấy ở thanh trên rồi) —
     // chỉ còn đúng một dòng giới thiệu tên trường, làm to rõ để bù lại.
     document.getElementById('hieuOChinh').hidden = true;
     document.getElementById('tieuDeDangNhap').hidden = true;
     const phu = document.getElementById('phuDeDangNhap');
-    phu.textContent = lop.truong || '';
+    // Tên trường hiển thị 2 dòng căn đều: tách bằng " - " hoặc ", " nếu có.
+    const truong = lop.truong || '';
+    const sep = truong.includes(' - ') ? ' - ' : (truong.includes(', ') ? ', ' : null);
+    if (sep) {
+      const parts = truong.split(sep);
+      const d1 = parts[0].trim();
+      const d2 = parts.slice(1).join(sep).trim();
+      phu.innerHTML = '';
+      const span1 = document.createElement('span');
+      span1.style.cssText = 'display:block;font-weight:700;';
+      span1.textContent = d1;
+      const span2 = document.createElement('span');
+      span2.style.cssText = 'display:block;font-weight:500;opacity:.85;';
+      span2.textContent = d2;
+      phu.append(span1, span2);
+    } else {
+      phu.textContent = truong;
+    }
     phu.classList.add('ten-truong');
   }
 
@@ -154,7 +174,9 @@
 
   function moBuocChonLop(danhSach) {
     document.getElementById('hieuTenLop').textContent = 'Hệ thống lớp học';
-    document.getElementById('hieuMaLop').textContent = '🎓';
+    const _maLop = document.getElementById('hieuMaLop');
+    _maLop.textContent = '🎓';
+    _maLop.hidden = true;
     document.getElementById('hieuOChinh').textContent = '🎓';
     document.getElementById('hieuOChinh').hidden = false;
     document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';
