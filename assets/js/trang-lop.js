@@ -62,6 +62,13 @@ function dinhTuyen() {
   // behavior: 'instant' — 'smooth' từng bị treo im re (không cuộn) ở một số trình duyệt khi
   // gọi ngay sau lúc vừa đổi hash, cùng lỗi đã gặp ở băng điểm nhấn bên dưới.
   if (laMoNeo(hash)) {
+    if (hash === '#thoi-khoa-bieu') {
+      window.commChuyenTab?.('about');
+    } else if (hash === '#hinh-anh') {
+      window.commChuyenTab?.('media');
+    } else if (hash === '#thong-bao') {
+      window.commChuyenTab?.('top');
+    }
     const muc = document.querySelector(hash);
     if (muc) muc.scrollIntoView({ behavior: 'instant', block: 'start' });
   }
@@ -1875,6 +1882,704 @@ function veHoatDongLop(ds, phien, lamMoi) {
   veLoc();
 }
 
+/* =========================================================================
+   HỆ THỐNG GIAO DIỆN CỘNG ĐỒNG TWITTER / X COMMUNITIES (LỚP 10A7)
+   Theo Hình 2 (Communities Feed) & Hình 1 (Post Composer)
+   ========================================================================= */
+
+function thoiGianTuongDoi(ngayStr) {
+  if (!ngayStr) return 'vừa xong';
+  const d = new Date(ngayStr);
+  if (isNaN(d.getTime())) return ngayStr;
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return 'vừa xong';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `${diffD}d`;
+  return ngayVN(ngayStr);
+}
+
+function dinhDangHashtag(str) {
+  if (!str) return '';
+  return str.replace(/#([\w\u00C0-\u1EF9]+)/g, '<span class="tpc-hashtag">#$1</span>');
+}
+
+const BIEU_TUONG_CAM_XUC = {
+  thich: { icon: '👍', ten: 'Thích', mau: '#1d9bf0' },
+  tim: { icon: '❤️', ten: 'Yêu thích', mau: '#f91880' },
+  haha: { icon: '😂', ten: 'Haha', mau: '#f59e0b' },
+  wow: { icon: '😮', ten: 'Wow', mau: '#10b981' },
+  buon: { icon: '😢', ten: 'Buồn', mau: '#6366f1' },
+  phan_no: { icon: '😡', ten: 'Phẫn nộ', mau: '#ef4444' },
+};
+
+function formatSoLuong(num) {
+  const n = parseInt(num, 10);
+  if (!n || isNaN(n)) return '';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+/** Vẽ 1 Thẻ Bài Đăng Chuẩn X / Twitter Communities (Hình 2) */
+function veTheTwitterPost(item, phien, lamMoi) {
+  const card = e('article', 'twitter-post-card');
+  card.id = 'post-' + item.id;
+  card.dataset.id = item.id;
+
+  const laThongBao = Boolean(item.mucDo !== undefined || (item.tieuDe !== undefined && !item.anhId && !item.hinhUrl && !item.videoUrl && item.noiDung));
+  const laGiaoVien = Boolean(phien && phien.role === 'teacher');
+  const coQuyenQuanLy = Boolean(phien && (laGiaoVien || (phien.quyen || []).some((q) => ['hoat-dong-lop', 'hinh-anh', 'video', 'dang-bai'].includes(q))));
+
+  // Avatar tác giả
+  const avatarCol = e('div', 'tpc-avatar-col');
+  const avatarImg = e('img', 'tpc-avatar-img');
+  avatarImg.alt = 'Avatar';
+  if (laThongBao || item.loai === 'thong_bao') {
+    avatarImg.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44"><circle cx="22" cy="22" r="22" fill="%231d9bf0"/><text x="50%" y="54%" font-size="22" text-anchor="middle" fill="%23fff" font-family="sans-serif" dy=".3em">👨‍🏫</text></svg>';
+  } else {
+    avatarImg.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44"><circle cx="22" cy="22" r="22" fill="%238b5cf6"/><text x="50%" y="54%" font-size="22" text-anchor="middle" fill="%23fff" font-family="sans-serif" dy=".3em">🎓</text></svg>';
+  }
+  avatarCol.append(avatarImg);
+
+  // Cột nội dung
+  const contentCol = e('div', 'tpc-content-col');
+
+  // Pinned Badge nếu có ghim
+  if (item.ghim) {
+    const pinBadge = e('div', 'tpc-pinned-badge');
+    pinBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22H13V16H18V14L16 12Z"/></svg> Pinned by Community mods (GVCN & Ban Cán Sự)`;
+    contentCol.append(pinBadge);
+  }
+
+  // Header tác giả
+  const header = e('div', 'tpc-header');
+  const authorInfo = e('div', 'tpc-author-info');
+
+  const authorName = e('span', 'tpc-author-name', (laThongBao || item.loai === 'thong_bao') ? 'Thầy Lê Đình Phát (GVCN)' : 'Ban Cán Sự 10A7');
+  const verifiedBadge = e('span', 'tpc-verified-badge');
+  verifiedBadge.title = 'Tài khoản xác thực lớp 10A7';
+  verifiedBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.273 1.273 2.643 2.148 4.223 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.28 4.46l-4.24-4.24 1.41-1.41 2.83 2.83 6.36-6.36 1.41 1.41-7.77 7.77z"/></svg>`;
+  const authorHandle = e('span', 'tpc-author-handle', (laThongBao || item.loai === 'thong_bao') ? '@gvcn_10a7' : '@lop10a7_official');
+  const dot = e('span', 'tpc-dot', '·');
+  const timeText = e('span', 'tpc-time', thoiGianTuongDoi(item.ngay));
+
+  authorInfo.append(authorName, verifiedBadge, authorHandle, dot, timeText);
+
+  // Menu ba chấm
+  const moreMenu = e('div', 'tpc-more-menu');
+  const moreBtn = e('button', 'tpc-more-btn', '···');
+  moreBtn.type = 'button';
+  moreBtn.title = 'Tuỳ chọn bài viết';
+  moreBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (coQuyenQuanLy) {
+      if (confirm('Bạn có muốn gỡ bài đăng này khỏi bảng tin không?')) {
+        const xoaUrl = laThongBao ? `/api/gv/thong-bao?id=${item.id}` : `/api/gv/hoat-dong-lop?id=${item.id}`;
+        api(xoaUrl, { method: 'DELETE' }).then(() => {
+          nhac('Đã gỡ bài viết khỏi bảng tin!', 'tot');
+          if (lamMoi) lamMoi();
+        }).catch((err) => nhac(err.message, 'xau'));
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.origin + '/#post-' + item.id).then(() => {
+        nhac('Đã sao chép liên kết bài viết!', 'tot');
+      }).catch(() => {});
+    }
+  });
+  moreMenu.append(moreBtn);
+
+  header.append(authorInfo, moreMenu);
+  contentCol.append(header);
+
+  // Tiêu đề bài viết
+  const tieuDe = (item.tieuDe || '').trim();
+  if (item.tieuDeHtml || tieuDe) {
+    const h4 = e('h4', 'tpc-post-title');
+    if (item.tieuDeHtml) h4.innerHTML = locHtmlNoiDung(item.tieuDeHtml);
+    else h4.textContent = tieuDe;
+    contentCol.append(h4);
+  }
+
+  // Nội dung bài viết kèm hashtag highlight
+  const noiDung = item.noiDung || item.chuThich || '';
+  if (item.noiDungHtml || noiDung) {
+    const pBody = e('p', 'tpc-post-body');
+    if (item.noiDungHtml) {
+      pBody.innerHTML = dinhDangHashtag(locHtmlNoiDung(item.noiDungHtml));
+    } else {
+      pBody.innerHTML = dinhDangHashtag(noiDung.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+    }
+    contentCol.append(pBody);
+  }
+
+  // Media đính kèm (Ảnh / Video / Âm thanh)
+  const coAnh = Boolean(item.anhKhoa || item.hinhUrl);
+  const coVideo = Boolean(item.videoUrl || item.videoKhoa);
+  const coAmThanh = Boolean(item.amThanhKhoa || item.amThanhUrl);
+
+  if (coAnh || coVideo || coAmThanh) {
+    const mediaBox = e('div', 'tpc-media-box');
+    if (coAnh) {
+      const srcAnh = xuLyLinkHinh(item.anhKhoa || item.hinhUrl);
+      const img = e('img', 'tpc-media-img');
+      img.src = srcAnh;
+      img.alt = tieuDe || 'Ảnh hoạt động lớp';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.addEventListener('click', () => moXemAnh([{ src: srcAnh, chuThich: noiDung }], 0));
+      mediaBox.append(img);
+    }
+    if (coVideo) {
+      mediaBox.append(veKhoiVideoHoatDong(item));
+    }
+    if (coAmThanh) {
+      const audio = e('audio');
+      audio.controls = true;
+      audio.preload = 'none';
+      audio.src = xuLyLinkAmThanhHoatDong(item);
+      mediaBox.append(audio);
+    }
+    contentCol.append(mediaBox);
+  }
+
+  // Action Bar chuẩn Twitter (Hình 2)
+  const actionBar = e('div', 'tpc-action-bar');
+
+  // 1. Comment Button
+  const btnComment = e('button', 'tpc-action-btn tpc-btn-comment');
+  btnComment.type = 'button';
+  btnComment.title = 'Bình luận';
+  btnComment.innerHTML = `<svg viewBox="0 0 24 24"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-1.602.88 1.012 2.64c.267.7-.22 1.46-.968 1.46-.279 0-.54-.09-.76-.26l-3.92-3.08h-2.06c-4.421 0-8.006-3.58-8.006-8zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.32 2.688 6 6.005 6h2.52l.4.31 2.5 1.96-.64-1.68-.31-.8 1.02-.56c2.05-1.13 3.32-3.29 3.32-5.63 0-3.38-2.75-6.13-6.13-6.13H9.756z"/></svg><span class="tpc-count">${item.tongBinhLuan ? formatSoLuong(item.tongBinhLuan) : ''}</span>`;
+
+  // 2. Repost Button
+  const btnRepost = e('button', 'tpc-action-btn tpc-btn-repost');
+  btnRepost.type = 'button';
+  btnRepost.title = 'Chia sẻ bài viết';
+  btnRepost.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg><span class="tpc-count"></span>`;
+  btnRepost.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.origin + '/#post-' + item.id).then(() => {
+      nhac('Đã sao chép liên kết chia sẻ bài đăng!', 'tot');
+    }).catch(() => {});
+  });
+
+  // 3. Reaction Wrapper + Floating Emoji Picker (Reactions)
+  const reactWrapper = e('div', 'tpc-reaction-wrapper');
+  const btnLike = e('button', 'tpc-action-btn tpc-btn-like' + (item.camXucCuaToi ? ' da-chon ' + item.camXucCuaToi : ''));
+  btnLike.type = 'button';
+  btnLike.title = 'Bày tỏ cảm xúc';
+
+  let currentIcon = `<svg viewBox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-2.427.13-4.296 2.06-4.296 4.54 0 3.2 2.605 5.92 6.786 9.53l2.21 1.91 2.2-1.9c4.18-3.61 6.79-6.33 6.79-9.54 0-2.48-1.87-4.41-4.3-4.54z"/></svg>`;
+  if (item.camXucCuaToi && BIEU_TUONG_CAM_XUC[item.camXucCuaToi]) {
+    currentIcon = `<span style="font-size:17px;line-height:1;">${BIEU_TUONG_CAM_XUC[item.camXucCuaToi].icon}</span>`;
+  }
+  btnLike.innerHTML = currentIcon + `<span class="tpc-count">${item.tongCamXuc ? formatSoLuong(item.tongCamXuc) : ''}</span>`;
+
+  // Floating Reactions Bar (👍 ❤️ 😂 😮 😢 😡)
+  const floatBar = e('div', 'tpc-floating-reactions');
+  Object.keys(BIEU_TUONG_CAM_XUC).forEach((loai) => {
+    const opt = BIEU_TUONG_CAM_XUC[loai];
+    const rBtn = e('button', 'tpc-react-item', opt.icon);
+    rBtn.type = 'button';
+    rBtn.title = opt.ten;
+    rBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      reactWrapper.classList.remove('mo-khay');
+      try {
+        const kq = await api('/api/bai-dang/tuong-tac', {
+          method: 'POST',
+          body: { baiDangId: item.id, loaiCamXuc: loai }
+        });
+        if (kq.ok && kq.camXuc) {
+          const cx = kq.camXuc;
+          const daChon = cx.daChon;
+          btnLike.className = 'tpc-action-btn tpc-btn-like' + (daChon ? ' da-chon ' + daChon : '');
+          const newIcon = (daChon && BIEU_TUONG_CAM_XUC[daChon])
+            ? `<span style="font-size:17px;line-height:1;">${BIEU_TUONG_CAM_XUC[daChon].icon}</span>`
+            : `<svg viewBox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-2.427.13-4.296 2.06-4.296 4.54 0 3.2 2.605 5.92 6.786 9.53l2.21 1.91 2.2-1.9c4.18-3.61 6.79-6.33 6.79-9.54 0-2.48-1.87-4.41-4.3-4.54z"/></svg>`;
+          btnLike.innerHTML = newIcon + `<span class="tpc-count">${cx.tong ? formatSoLuong(cx.tong) : ''}</span>`;
+        }
+      } catch (err) { nhac(err.message, 'xau'); }
+    });
+    floatBar.append(rBtn);
+  });
+
+  // Chạm trên Mobile để bật/tắt khay cảm xúc
+  btnLike.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    reactWrapper.classList.toggle('mo-khay');
+  });
+
+  reactWrapper.append(btnLike, floatBar);
+
+  // 4. Views Button
+  const btnViews = e('div', 'tpc-action-btn tpc-btn-views');
+  const soLuotXem = item.luotXem || Math.max(16, (item.tongCamXuc || 0) * 3 + 24);
+  btnViews.title = `${soLuotXem} lượt xem`;
+  btnViews.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg><span class="tpc-count">${formatSoLuong(soLuotXem)}</span>`;
+
+  // 5. Tail Actions: Bookmark + Share
+  const tailBox = e('div', 'tpc-action-tail');
+  const btnBookmark = e('button', 'tpc-action-btn tpc-btn-bookmark');
+  btnBookmark.type = 'button';
+  btnBookmark.title = 'Lưu bài viết';
+  btnBookmark.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v17.26l-7.38-4.6-7.62 4.6V4.5zm2.5-.5c-.276 0-.5.22-.5.5v14.48l5.62-3.4 5.38 3.35V4.5c0-.28-.224-.5-.5-.5h-11z"/></svg>`;
+  btnBookmark.addEventListener('click', () => {
+    nhac('Đã lưu bài viết vào mục Yêu thích của em!', 'tot');
+  });
+
+  const btnShare = e('button', 'tpc-action-btn tpc-btn-share');
+  btnShare.type = 'button';
+  btnShare.title = 'Chia sẻ';
+  btnShare.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41L7.71 9.71 6.3 8.29 12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21.09 3 19.98 3 18.6V15h2v3.6c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"/></svg>`;
+  btnShare.addEventListener('click', () => {
+    if (navigator.share) {
+      navigator.share({ title: tieuDe || 'Lớp 10A7', text: noiDung, url: window.location.href }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.origin + '/#post-' + item.id).then(() => {
+        nhac('Đã sao chép liên kết chia sẻ!', 'tot');
+      }).catch(() => {});
+    }
+  });
+
+  tailBox.append(btnBookmark, btnShare);
+  actionBar.append(btnComment, btnRepost, reactWrapper, btnViews, tailBox);
+  contentCol.append(actionBar);
+
+  // 6. Comments Drawer (Khay Bình Luận)
+  const commentDrawer = e('div', 'tpc-comments-drawer');
+  commentDrawer.hidden = true;
+  const commentsList = e('div', 'tpc-comments-list');
+  const commentForm = e('div', 'tpc-comment-form');
+  const commentInput = e('input', 'tpc-comment-input');
+  commentInput.placeholder = 'Viết bình luận của em… (cho tất cả học sinh)';
+  const commentSendBtn = e('button', 'tpc-comment-send', 'Gửi');
+  commentSendBtn.type = 'button';
+
+  commentForm.append(commentInput, commentSendBtn);
+  commentDrawer.append(commentsList, commentForm);
+  contentCol.append(commentDrawer);
+
+  let daTaiBinhLuan = false;
+  async function napBinhLuan() {
+    try {
+      const kq = await api('/api/bai-dang/tuong-tac?baiDangId=' + item.id);
+      if (kq.ok && kq.binhLuan) {
+        daTaiBinhLuan = true;
+        if (!kq.binhLuan.length) {
+          datNoiDung(commentsList, e('p', 'trong', 'Chưa có bình luận nào. Hãy là người đầu tiên bình luận!'));
+        } else {
+          datNoiDung(commentsList, ...kq.binhLuan.map((bl) => {
+            const itemBl = e('div', 'tpc-comment-item');
+            const avtBl = e('img', 'tpc-comment-avatar');
+            avtBl.src = bl.vaiTro === 'giao_vien'
+              ? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="%231d9bf0"/><text x="50%" y="54%" font-size="16" text-anchor="middle" fill="%23fff" font-family="sans-serif" dy=".3em">👨‍🏫</text></svg>'
+              : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="%238b5cf6"/><text x="50%" y="54%" font-size="16" text-anchor="middle" fill="%23fff" font-family="sans-serif" dy=".3em">🎓</text></svg>';
+            const bubbleBl = e('div', 'tpc-comment-bubble');
+            const metaBl = e('div', 'tpc-comment-meta');
+            const tenBl = e('span', 'tpc-comment-author', bl.nguoiDungTen);
+            metaBl.append(tenBl);
+            if (bl.vaiTro === 'giao_vien') metaBl.append(e('span', 'tpc-comment-role', 'GVCN'));
+            else if (bl.vaiTro === 'can_bo') metaBl.append(e('span', 'tpc-comment-role', 'Cán bộ'));
+            metaBl.append(e('span', 'tpc-comment-time', thoiGianTuongDoi(bl.taoLuc)));
+
+            // Xoá bình luận nếu là chính mình hoặc giáo viên
+            if (laGiaoVien || coQuyenQuanLy) {
+              const nutXoaBl = e('button', 'tpc-comment-del', '✕');
+              nutXoaBl.title = 'Xoá bình luận';
+              nutXoaBl.addEventListener('click', async () => {
+                if (!confirm('Xoá bình luận này?')) return;
+                try {
+                  await api('/api/bai-dang/tuong-tac?id=' + bl.id, { method: 'DELETE' });
+                  itemBl.remove();
+                } catch (err) { nhac(err.message, 'xau'); }
+              });
+              metaBl.append(nutXoaBl);
+            }
+            const textBl = e('p', 'tpc-comment-text', bl.noiDung);
+            bubbleBl.append(metaBl, textBl);
+            itemBl.append(avtBl, bubbleBl);
+            return itemBl;
+          }));
+        }
+      }
+    } catch { /* bỏ qua */ }
+  }
+
+  btnComment.addEventListener('click', () => {
+    commentDrawer.hidden = !commentDrawer.hidden;
+    if (!commentDrawer.hidden && !daTaiBinhLuan) {
+      napBinhLuan();
+    }
+  });
+
+  async function guiBinhLuan() {
+    const nd = commentInput.value.trim();
+    if (!nd) return;
+    try {
+      commentSendBtn.disabled = true;
+      const kq = await api('/api/bai-dang/tuong-tac', {
+        method: 'PUT',
+        body: { baiDangId: item.id, noiDung: nd }
+      });
+      commentInput.value = '';
+      commentSendBtn.disabled = false;
+      if (kq.ok && kq.binhLuan) {
+        nhac('Đã gửi bình luận!', 'tot');
+        napBinhLuan();
+        const cntSpan = btnComment.querySelector('.tpc-count');
+        const currentCount = parseInt(cntSpan.textContent || '0', 10) || 0;
+        cntSpan.textContent = formatSoLuong(currentCount + 1);
+      }
+    } catch (err) {
+      commentSendBtn.disabled = false;
+      nhac(err.message, 'xau');
+    }
+  }
+
+  commentSendBtn.addEventListener('click', guiBinhLuan);
+  commentInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      guiBinhLuan();
+    }
+  });
+
+  card.append(avatarCol, contentCol);
+  return card;
+}
+
+/** Khởi tạo khung soạn bài "What's happening?" (Hình 1) */
+function khoiTaoComposer(phien, lamMoi) {
+  const comp = $('#commComposer');
+  if (!comp) return;
+
+  // Quyền: Giáo viên hoặc tài khoản phụ / học sinh có quyền đăng bài
+  const duocDangBai = Boolean(phien && (
+    phien.role === 'teacher' ||
+    (phien.quyen || []).some(q => ['hoat-dong-lop', 'hinh-anh', 'video', 'dang-bai'].includes(q))
+  ));
+
+  if (!duocDangBai) {
+    comp.hidden = true;
+    return;
+  }
+
+  comp.hidden = false;
+
+  const oNhap = $('#compInput');
+  const nutDang = $('#compBtnDang');
+  const boxPreview = $('#compPreviewBox');
+  const imgPreview = $('#compPreviewImg');
+  const vidPreview = $('#compPreviewVid');
+  const nutGoiPreview = $('#compPreviewRemove');
+
+  const panelExtra = $('#compExtraPanel');
+  const rowAnh = $('#compRowAnh');
+  const rowVideo = $('#compRowVideo');
+  const rowNgay = $('#compRowNgay');
+  const rowViTri = $('#compRowViTri');
+
+  const inputAnhUrl = $('#compInputAnhUrl');
+  const inputVideoUrl = $('#compInputVideoUrl');
+  const inputNgay = $('#compInputNgay');
+  const inputViTri = $('#compInputViTri');
+
+  // Gán ngày hôm nay mặc định
+  if (inputNgay && !inputNgay.value) {
+    inputNgay.value = new Date().toISOString().slice(0, 10);
+  }
+
+  function capNhatTrangThaiNut() {
+    const coText = Boolean((oNhap?.value || '').trim());
+    const coAnh = Boolean((inputAnhUrl?.value || '').trim());
+    const coVideo = Boolean((inputVideoUrl?.value || '').trim());
+    if (nutDang) nutDang.disabled = !(coText || coAnh || coVideo);
+  }
+
+  if (oNhap) {
+    oNhap.addEventListener('input', () => {
+      oNhap.style.height = 'auto';
+      oNhap.style.height = Math.min(220, Math.max(54, oNhap.scrollHeight)) + 'px';
+      capNhatTrangThaiNut();
+    });
+  }
+
+  // Bật/tắt các công cụ
+  $('#compToolAnh')?.addEventListener('click', () => {
+    panelExtra.hidden = false;
+    rowAnh.hidden = !rowAnh.hidden;
+    if (!rowAnh.hidden) inputAnhUrl.focus();
+  });
+
+  $('#compToolVideo')?.addEventListener('click', () => {
+    panelExtra.hidden = false;
+    rowVideo.hidden = !rowVideo.hidden;
+    if (!rowVideo.hidden) inputVideoUrl.focus();
+  });
+
+  $('#compToolNgay')?.addEventListener('click', () => {
+    panelExtra.hidden = false;
+    rowNgay.hidden = !rowNgay.hidden;
+  });
+
+  $('#compToolViTri')?.addEventListener('click', () => {
+    panelExtra.hidden = false;
+    rowViTri.hidden = !rowViTri.hidden;
+    if (!rowViTri.hidden) inputViTri.focus();
+  });
+
+  $('#compToolEmoji')?.addEventListener('click', () => {
+    if (oNhap) {
+      oNhap.value += ' ✨ ';
+      oNhap.focus();
+      capNhatTrangThaiNut();
+    }
+  });
+
+  $('#compToolKhaoSat')?.addEventListener('click', () => {
+    if (oNhap) {
+      oNhap.value += '\n📊 Bình chọn:\n1. \n2. ';
+      oNhap.focus();
+      capNhatTrangThaiNut();
+    }
+  });
+
+  $('#compChonKhoAnh')?.addEventListener('click', () => {
+    moHopThoaiThemHoatDong(lamMoi);
+  });
+
+  inputAnhUrl?.addEventListener('input', () => {
+    const url = inputAnhUrl.value.trim();
+    if (url) {
+      boxPreview.hidden = false;
+      imgPreview.hidden = false;
+      imgPreview.src = url;
+      vidPreview.hidden = true;
+    } else {
+      imgPreview.hidden = true;
+      if (vidPreview.hidden) boxPreview.hidden = true;
+    }
+    capNhatTrangThaiNut();
+  });
+
+  inputVideoUrl?.addEventListener('input', () => {
+    const url = inputVideoUrl.value.trim();
+    if (url) {
+      boxPreview.hidden = false;
+      vidPreview.hidden = false;
+      vidPreview.src = url;
+      imgPreview.hidden = true;
+    } else {
+      vidPreview.hidden = true;
+      if (imgPreview.hidden) boxPreview.hidden = true;
+    }
+    capNhatTrangThaiNut();
+  });
+
+  nutGoiPreview?.addEventListener('click', () => {
+    boxPreview.hidden = true;
+    imgPreview.src = '';
+    vidPreview.src = '';
+    inputAnhUrl.value = '';
+    inputVideoUrl.value = '';
+    capNhatTrangThaiNut();
+  });
+
+  // Nút Post
+  nutDang?.addEventListener('click', async () => {
+    const nd = (oNhap?.value || '').trim();
+    const urlAnh = (inputAnhUrl?.value || '').trim() || null;
+    const urlVid = (inputVideoUrl?.value || '').trim() || null;
+    const ngay = (inputNgay?.value || '').trim() || new Date().toISOString().slice(0, 10);
+    const viTri = (inputViTri?.value || '').trim();
+
+    let fullNd = nd;
+    if (viTri) fullNd = (fullNd ? fullNd + '\n' : '') + '📍 ' + viTri;
+
+    try {
+      nutDang.disabled = true;
+      nutDang.textContent = 'Đang đăng…';
+      await api('/api/gv/hoat-dong-lop', {
+        method: 'POST',
+        body: {
+          noiDung: fullNd,
+          hinhUrl: urlAnh,
+          videoUrl: urlVid,
+          ngay,
+        }
+      });
+      nhac('Đã đăng bài lên bảng tin cộng đồng!', 'tot');
+      oNhap.value = '';
+      oNhap.style.height = '54px';
+      inputAnhUrl.value = '';
+      inputVideoUrl.value = '';
+      boxPreview.hidden = true;
+      panelExtra.hidden = true;
+      nutDang.textContent = 'Post';
+      if (lamMoi) await lamMoi();
+    } catch (err) {
+      nutDang.disabled = false;
+      nutDang.textContent = 'Post';
+      nhac(err.message, 'xau');
+    }
+  });
+}
+
+/** Master Renderer cho toàn bộ Twitter / X Communities (Lớp 10A7) */
+function veTwitterCommunities(d, phien, lamMoi) {
+  // 1. Cập nhật Profile Cộng đồng
+  const tenLop = d.lop?.ten || 'Lớp 10A7';
+  if ($('#commTenLop')) $('#commTenLop').textContent = tenLop;
+  if ($('#commBio')) {
+    $('#commBio').textContent = d.lop?.gioiThieu || `Trung tâm GDNN - GDTX Huyện Định Quán · Niên khóa ${d.lop?.namHoc || '2026 – 2027'}`;
+  }
+  if ($('#commSoLuongThanhVien')) {
+    $('#commSoLuongThanhVien').textContent = (d.hocSinh || []).length || 42;
+  }
+
+  // Avatar stack: lấy 4 học sinh đầu tiên
+  const stack = $('#commAvatarStack');
+  if (stack) {
+    const hsList = (d.hocSinh || []).slice(0, 4);
+    datNoiDung(stack, ...hsList.map((h, i) => {
+      const avt = e('img', 'community-stack-avatar');
+      avt.alt = h.hoTen;
+      avt.src = `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="${['%231d9bf0','%238b5cf6','%23ec4899','%2310b981'][i % 4]}"/><text x="50%" y="54%" font-size="14" text-anchor="middle" fill="%23fff" font-family="sans-serif" dy=".3em">${h.hoTen ? h.hoTen.charAt(0) : '🎓'}</text></svg>`;
+      return avt;
+    }));
+  }
+
+  // Vai trò của người dùng
+  const roleBadge = $('#commRoleBadge');
+  if (roleBadge) {
+    if (phien?.role === 'teacher') roleBadge.innerHTML = '<span>👑 Quản trị viên</span>';
+    else if (phien?.role === 'phu') roleBadge.innerHTML = '<span>🛡️ Ban cán sự</span>';
+    else roleBadge.innerHTML = '<span>✓ Đã tham gia</span>';
+  }
+
+  // Nút chia sẻ trang lớp
+  $('#commBtnChiaSe')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.origin).then(() => {
+      nhac('Đã sao chép liên kết trang lớp 10A7!', 'tot');
+    }).catch(() => {});
+  });
+
+  // Khởi tạo khung soạn bài (Hình 1)
+  khoiTaoComposer(phien, lamMoi);
+
+  // 2. Chuyển đổi giữa 4 Tabs Twitter
+  const tabBtns = document.querySelectorAll('#commNavTabs .community-tab-item');
+  const panes = {
+    top: $('#commPaneTop'),
+    latest: $('#commPaneLatest'),
+    media: $('#commPaneMedia'),
+    about: $('#commPaneAbout'),
+  };
+
+  function chuyenTab(tabKey) {
+    tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === tabKey));
+    Object.keys(panes).forEach((k) => {
+      if (panes[k]) panes[k].hidden = k !== tabKey;
+    });
+  }
+  window.commChuyenTab = chuyenTab;
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => chuyenTab(btn.dataset.tab));
+  });
+
+  $('#commBtnKhamPha')?.addEventListener('click', () => chuyenTab('media'));
+
+  // 3. Tab Top: Thông báo ghim & bài hoạt động nổi bật
+  const feedTop = $('#feedTop');
+  if (feedTop) {
+    const dsGhim = [
+      ...(d.thongBao || []).filter(t => t.ghim || t.noiBat),
+      ...(d.hoatDongLop || []).slice(0, 8)
+    ];
+    if (!dsGhim.length) {
+      datNoiDung(feedTop, e('p', 'trong', 'Chưa có bài viết hoặc thông báo nổi bật nào được ghim.'));
+    } else {
+      datNoiDung(feedTop, ...dsGhim.map(item => veTheTwitterPost(item, phien, lamMoi)));
+    }
+  }
+
+  // 4. Tab Latest: Toàn bộ bài đăng theo thứ tự mới nhất
+  const feedLatest = $('#feedLatest');
+  if (feedLatest) {
+    const dsLatest = [...(d.hoatDongLop || []), ...(d.thongBao || [])].sort((a, b) => {
+      return (b.ngay || '').localeCompare(a.ngay || '');
+    });
+    if (!dsLatest.length) {
+      datNoiDung(feedLatest, e('p', 'trong', 'Chưa có bài đăng nào trong dòng thời gian.'));
+    } else {
+      datNoiDung(feedLatest, ...dsLatest.map(item => veTheTwitterPost(item, phien, lamMoi)));
+    }
+  }
+
+  // 5. Tab Media: Lưới ảnh & video hoạt động
+  const feedMedia = $('#feedMedia');
+  if (feedMedia) {
+    const dsMedia = [...(d.hoatDongLop || []), ...(d.thongBao || [])].filter(x => x.anhKhoa || x.hinhUrl || x.videoUrl || x.videoKhoa);
+    if (!dsMedia.length) {
+      datNoiDung(feedMedia, e('p', 'trong', 'Chưa có hình ảnh hoặc video hoạt động nào được tải lên.'));
+    } else {
+      datNoiDung(feedMedia, ...dsMedia.map(item => {
+        const tile = e('div', 'community-media-item');
+        if (item.videoUrl || item.videoKhoa) {
+          const badge = e('span', 'community-media-type-badge', '🎬 Video');
+          const maYt = idYoutube(item.videoUrl);
+          if (maYt) {
+            const img = e('img');
+            img.src = `https://img.youtube.com/vi/${maYt}/hqdefault.jpg`;
+            img.loading = 'lazy';
+            tile.append(img, badge);
+          } else {
+            tile.append(badge);
+          }
+          tile.addEventListener('click', () => {
+            if (item.videoUrl) window.open(item.videoUrl, '_blank');
+          });
+        } else {
+          const src = xuLyLinkHinh(item.anhKhoa || item.hinhUrl);
+          const img = e('img');
+          img.src = src;
+          img.loading = 'lazy';
+          tile.append(img);
+          tile.addEventListener('click', () => moXemAnh([{ src, chuThich: item.tieuDe || item.chuThich || '' }], 0));
+        }
+        return tile;
+      }));
+    }
+  }
+
+  // 6. Tab About: Cập nhật thông tin tổng quan
+  const aboutDaySo = $('#commAboutDaySo');
+  if (aboutDaySo && d.hocSinh) {
+    const nam = d.hocSinh.filter(h => h.gioiTinh === 'Nam').length;
+    datNoiDung(aboutDaySo,
+      oThongKe(String(d.hocSinh.length), 'Tổng sĩ số', 'tot'),
+      oThongKe(String(nam), 'Học sinh Nam', 'chinh'),
+      oThongKe(String(d.hocSinh.length - nam), 'Học sinh Nữ', 'nhan')
+    );
+  }
+
+  // Điều hướng hash anchor tự chuyển tab
+  const hash = location.hash;
+  if (hash === '#thoi-khoa-bieu') {
+    chuyenTab('about');
+  } else if (hash === '#hinh-anh') {
+    chuyenTab('media');
+  } else if (hash === '#thong-bao') {
+    chuyenTab('top');
+  }
+}
+
 /* ---------- Lối tắt "Quản lý" cho giáo viên / tài khoản được cấp quyền ----------
    Trang này ai đăng nhập cũng xem được (kể cả giáo viên). Với người có quyền,
    thêm nút thao tác trực tiếp (Thêm thông báo) và lối tắt vào khu quản lý. */
@@ -2664,6 +3369,7 @@ async function taiDuLieu() {
     veThongBao(thongBaoHien, phien, taiDuLieu);
     veThoiKhoaBieu(d.thoiKhoaBieu);
     veHoatDongLop(d.hoatDongLop, phien, taiDuLieu);
+    veTwitterCommunities(d, phien, taiDuLieu);
     veDanhSach(d.hocSinh, d.hocSinhAnMuc);
     veThuQuy(d.thuQuy || { tonQuy: 0, tongThu: 0, tongChi: 0, khoan: [] }, d.hocSinh, phien, d.hocSinhAnMuc);
     veLoiTatQuanLy(phien, taiDuLieu);

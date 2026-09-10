@@ -100,70 +100,181 @@
 
 <main class="wrap" id="noiDung">
 
-  <!-- ================= TRANG CHỦ ================= -->
+  <!-- ================= TRANG CHỦ (TWITTER / X COMMUNITIES) ================= -->
   <div id="trangChu">
+    <div class="community-container">
 
-    <div class="mo-dau" id="moDau">
-      <video class="mo-dau-nen" id="moDauVideo" autoplay muted loop playsinline hidden></video>
-      <img class="mo-dau-nen" id="moDauAnh" alt="" hidden>
-      <div class="mo-dau-phu"></div>
-      <div class="mo-dau-noi-dung">
-        <div class="mo-dau-dau">
-          <div class="o-so" id="oSo"></div>
-          <button class="nut nut-vien nut-nho mo-dau-nut-sua" id="moDauNutSua" type="button" hidden>✏ Đổi ảnh/video nền</button>
+      <!-- 1. Header Card: Cover Banner & Thông tin Cộng đồng (Hình 2) -->
+      <section class="community-header-card">
+        <div class="community-cover-box" id="communityCoverBox">
+          <video class="community-cover-video" id="moDauVideo" autoplay muted loop playsinline hidden></video>
+          <img class="community-cover-img" id="moDauAnh" alt="" hidden>
+          <div class="community-cover-overlay"></div>
+          <button class="community-cover-edit-btn" id="moDauNutSua" type="button" hidden>✏ Đổi ảnh bìa</button>
         </div>
-      </div>
+
+        <div class="community-profile-info">
+          <div class="community-title-row">
+            <h1 class="community-title" id="commTenLop">Lớp 10A7</h1>
+            <div class="community-actions-right">
+              <button class="community-round-btn" id="commBtnKhamPha" type="button" title="Tìm kiếm & Khám phá">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </button>
+              <button class="community-round-btn" id="commBtnChiaSe" type="button" title="Chia sẻ trang lớp">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+              <div class="community-role-pill" id="commRoleBadge">
+                <span>✓ Đã tham gia</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="community-bio" id="commBio">Trung tâm GDNN - GDTX Huyện Định Quán · Niên khóa 2026 – 2027</p>
+
+          <div class="community-meta-row">
+            <div class="community-members-badge">
+              <div class="community-avatar-stack" id="commAvatarStack">
+                <!-- Avatar tròn xếp chồng -->
+              </div>
+              <div class="community-members-text" id="commMemberCount">
+                <b id="commSoLuongThanhVien">42</b><span>Thành viên</span>
+              </div>
+            </div>
+
+            <!-- Ô số thống kê -->
+            <div class="o-so" id="oSo"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Băng điểm nhấn / Tin nổi bật ghim (Nếu có) -->
+      <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
+        <div class="bang-diem-nhan-cuon" id="dnCuon">
+          <div class="bang-diem-nhan-track" id="dnTrack"></div>
+        </div>
+        <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
+        <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
+      </section>
+
+      <!-- 3. Thanh 4 Tabs Twitter Communities: Top · Latest · Media · About (Hình 2) -->
+      <nav class="community-nav-tabs" id="commNavTabs" aria-label="Các tab cộng đồng">
+        <button class="community-tab-item active" data-tab="top" type="button">Top</button>
+        <button class="community-tab-item" data-tab="latest" type="button">Latest</button>
+        <button class="community-tab-item" data-tab="media" type="button">Media</button>
+        <button class="community-tab-item" data-tab="about" type="button">About</button>
+      </nav>
+
+      <!-- 4. Khung Soạn Bài "What's happening?" (Hình 1 - CHỈ HIỆN KHI ĐƯỢC CẤP QUYỀN) -->
+      <section class="community-composer" id="commComposer" hidden>
+        <div class="composer-row-top">
+          <img class="composer-user-avatar" id="compAvatar" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='20' fill='%231d9bf0'/><text x='50%25' y='54%25' font-size='18' text-anchor='middle' fill='%23fff' font-family='sans-serif' dy='.3em'>🎓</text></svg>" alt="Avatar">
+          <div class="composer-input-area">
+            <textarea class="composer-textarea" id="compInput" placeholder="Có gì mới ở lớp 10A7 hôm nay?..." rows="2"></textarea>
+            <div class="composer-preview-box" id="compPreviewBox" hidden>
+              <img class="composer-preview-media" id="compPreviewImg" alt="Xem trước ảnh" hidden>
+              <video class="composer-preview-media" id="compPreviewVid" controls hidden></video>
+              <button class="composer-preview-remove" id="compPreviewRemove" type="button" title="Gỡ đính kèm">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="composer-extra-panel" id="compExtraPanel" hidden>
+          <div class="composer-panel-row" id="compRowAnh" hidden>
+            <input class="o-nhap o-nhap-nho" id="compInputAnhUrl" placeholder="Dán link ảnh (https://...) hoặc chọn từ kho">
+            <button class="nut nut-vien nut-nho" id="compChonKhoAnh" type="button">Kho ảnh lớp</button>
+          </div>
+          <div class="composer-panel-row" id="compRowVideo" hidden>
+            <input class="o-nhap o-nhap-nho" id="compInputVideoUrl" placeholder="Dán link YouTube / Drive / Video...">
+          </div>
+          <div class="composer-panel-row" id="compRowNgay" hidden>
+            <input class="o-nhap o-nhap-nho" id="compInputNgay" type="date">
+          </div>
+          <div class="composer-panel-row" id="compRowViTri" hidden>
+            <input class="o-nhap o-nhap-nho" id="compInputViTri" placeholder="Địa điểm (vd: Phòng học 10A7)">
+          </div>
+        </div>
+        <div class="composer-row-bottom">
+          <div class="composer-tools-list">
+            <button class="composer-tool-btn" id="compToolAnh" type="button" title="Thêm ảnh">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7-3 3.72L9 13l-3 4h12l-4-5z"/></svg>
+            </button>
+            <button class="composer-tool-btn" id="compToolVideo" type="button" title="Thêm video">
+              <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+            </button>
+            <button class="composer-tool-btn" id="compToolKhaoSat" type="button" title="Thăm dò / Khảo sát">
+              <svg viewBox="0 0 24 24"><path d="M4 19h16v2H4zm2-4h3v-8H6zm5 0h3V3h-3zm5 0h3v-5h-3z"/></svg>
+            </button>
+            <button class="composer-tool-btn" id="compToolEmoji" type="button" title="Biểu tượng cảm xúc">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+            </button>
+            <button class="composer-tool-btn" id="compToolNgay" type="button" title="Ngày đăng">
+              <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+            </button>
+            <button class="composer-tool-btn" id="compToolViTri" type="button" title="Địa điểm">
+              <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </button>
+          </div>
+          <button class="composer-post-btn" id="compBtnDang" type="button" disabled>Post</button>
+        </div>
+      </section>
+
+      <!-- 5. Vùng hiển thị nội dung theo từng Tab -->
+      <!-- TAB TOP: Thông báo ghim & Hoạt động nổi bật -->
+      <section class="community-tab-pane" id="commPaneTop">
+        <div class="twitter-feed-container" id="feedTop">
+          <div class="dang-tai"><span class="quay"></span>Đang tải bảng tin…</div>
+        </div>
+      </section>
+
+      <!-- TAB LATEST: Bảng tin hoạt động & bài đăng dòng thời gian -->
+      <section class="community-tab-pane" id="commPaneLatest" hidden>
+        <div class="twitter-feed-container" id="feedLatest">
+          <div class="dang-tai"><span class="quay"></span>Đang tải dòng thời gian…</div>
+        </div>
+      </section>
+
+      <!-- TAB MEDIA: Lưới ảnh & video hoạt động -->
+      <section class="community-tab-pane" id="commPaneMedia" hidden>
+        <div class="community-media-grid" id="feedMedia">
+          <div class="dang-tai"><span class="quay"></span>Đang tải thư viện ảnh…</div>
+        </div>
+      </section>
+
+      <!-- TAB ABOUT: Thông tin lớp, TKB, Sĩ số, Quỹ lớp -->
+      <section class="community-tab-pane" id="commPaneAbout" hidden>
+        <div class="community-about-container">
+          <!-- Khối TKB -->
+          <div class="community-about-card" id="thoi-khoa-bieu">
+            <h3>▦ Thời khoá biểu tuần</h3>
+            <div class="dau-muc-phu" style="margin-bottom:12px;">
+              <p id="tkbApDung" style="margin:0;font-size:13.5px;color:var(--chu-nhat);">Đang tải…</p>
+              <p id="tkbGhiChu" class="trong" hidden></p>
+            </div>
+            <div class="day-loc" id="tkbTabBuoi" style="margin-bottom:12px;"></div>
+            <div class="cuon-ngang">
+              <table class="bang-tkb">
+                <thead id="dauTkb"></thead>
+                <tbody id="thanTkb"><tr><td class="trong">Đang tải…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Khối Giới thiệu & Sĩ số -->
+          <div class="community-about-card">
+            <h3>👥 Tập thể lớp & Niên khóa</h3>
+            <p id="commAboutDesc" style="margin:0 0 14px 0;line-height:1.6;color:var(--chu-nhat);">
+              Tập thể Lớp 10A7 – Trung tâm GDNN - GDTX Khu vực 1 Định Quán, Tỉnh Đồng Nai. Năm học 2026 – 2027.
+            </p>
+            <div class="day-so" id="commAboutDaySo"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Khối ẩn hỗ trợ tương thích ngược cho các hook cũ nếu cần -->
+      <div id="thong-bao" hidden><div id="dsThongBao"></div></div>
+      <div id="hinh-anh" hidden><div id="thuVien"></div></div>
+      <div id="moDau" hidden></div>
+
     </div>
-
-    <!-- Tin khẩn cấp: một thẻ pinned tĩnh duy nhất (tin nổi bật ưu tiên cao nhất) — xem
-         veDiemNhan() trong trang-lop.js. Ẩn hẳn (không chừa khoảng trống) khi chưa có gì khẩn. -->
-    <!-- Băng điểm nhấn: tự cuộn ngang, gộp mọi thông báo được đánh dấu "nổi bật". Ẩn hẳn
-         (không chừa khoảng trống) khi chưa có gì đáng nổi bật. -->
-    <section class="bang-diem-nhan" id="bangDiemNhan" hidden aria-label="Tin nổi bật">
-      <div class="bang-diem-nhan-cuon" id="dnCuon">
-        <div class="bang-diem-nhan-track" id="dnTrack"></div>
-      </div>
-      <button class="bdn-dieu-huong bdn-trai" id="dnTrai" type="button" aria-label="Xem tin trước">‹</button>
-      <button class="bdn-dieu-huong bdn-phai" id="dnPhai" type="button" aria-label="Xem tin sau">›</button>
-    </section>
-
-    <section class="khoi-trang-chu" id="thong-bao">
-      <div class="dau-muc">
-        <h2>◈ Thông báo</h2>
-        <p>Tin mới nhất từ giáo viên chủ nhiệm.</p>
-      </div>
-      <div class="than-khoi" id="dsThongBao"><div class="dang-tai"><span class="quay"></span>Đang tải…</div></div>
-    </section>
-
-    <section class="khoi-trang-chu" id="thoi-khoa-bieu">
-      <div class="dau-muc">
-        <h2>▦ Thời khoá biểu</h2>
-        <div class="dau-muc-phu">
-          <p id="tkbApDung">Đang tải…</p>
-          <p id="tkbGhiChu" class="trong" hidden></p>
-        </div>
-      </div>
-      <div class="than-khoi">
-        <div class="day-loc" id="tkbTabBuoi"></div>
-        <div class="cuon-ngang">
-          <table class="bang-tkb">
-            <thead id="dauTkb"></thead>
-            <tbody id="thanTkb"><tr><td class="trong">Đang tải…</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section class="khoi-trang-chu" id="hinh-anh">
-      <div class="dau-muc">
-        <h2>🎉 Hoạt động lớp</h2>
-        <p id="gioiThieuHinhAnh">Khoảnh khắc & kỷ niệm sinh hoạt của lớp.</p>
-      </div>
-      <div class="than-khoi">
-        <div class="thu-vien" id="thuVien"></div>
-      </div>
-    </section>
-
   </div>
 
   <!-- ================= TRANG RIÊNG (mở từ menu) ================= -->

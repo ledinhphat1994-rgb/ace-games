@@ -79,21 +79,23 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
                  (CASE WHEN ngay_bat_dau <= ?2 THEN 0 ELSE 1 END),
                  ngay_bat_dau DESC, id DESC LIMIT 1`
     ).bind(lopId, homNay).first(),
-    // "Hoạt động lớp" — CHỈ những mục giáo viên/cán sự đã chọn đăng công khai, không phải mọi
-    // ảnh trong thư viện Ảnh (thư viện còn dùng chung cho Banner, Thông báo... không nên tự lộ
-    // hết ra trang chủ).
+    // "Hoạt động lớp" — bài đăng công khai trang chủ kèm tương tác cảm xúc & bình luận
     db.prepare(
       `SELECT hd.id, hd.loai, hd.tieu_de AS tieuDe, hd.tieu_de_html AS tieuDeHtml,
               hd.chu_thich AS chuThich, hd.noi_dung_html AS noiDungHtml, hd.ngay,
+              COALESCE(hd.luot_xem, 0) AS luotXem,
               hd.anh_id AS anhId, hd.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
               hd.video_id AS videoId, hd.video_url AS videoUrl, v.khoa AS videoKhoa, v.ten AS videoTen,
-              hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen
+              hd.am_thanh_id AS amThanhId, hd.am_thanh_url AS amThanhUrl, at.khoa AS amThanhKhoa, at.ten AS amThanhTen,
+              (SELECT COUNT(*) FROM bai_dang_cam_xuc WHERE bai_dang_id = hd.id AND lop_id = ?1) AS tongCamXuc,
+              (SELECT COUNT(*) FROM bai_dang_binh_luan WHERE bai_dang_id = hd.id AND lop_id = ?1) AS tongBinhLuan,
+              (SELECT loai_cam_xuc FROM bai_dang_cam_xuc WHERE bai_dang_id = hd.id AND lop_id = ?1 AND nguoi_dung_id = ?2) AS camXucCuaToi
          FROM hoat_dong_lop hd
          LEFT JOIN hinh_anh ha ON ha.id = hd.anh_id
          LEFT JOIN video v ON v.id = hd.video_id
          LEFT JOIN am_thanh at ON at.id = hd.am_thanh_id
         WHERE hd.lop_id = ?1 ORDER BY hd.ngay DESC, hd.id DESC LIMIT 60`
-    ).bind(lopId).all(),
+    ).bind(lopId, (phien.role === 'teacher' ? 999999 : (phien.role === 'phu' ? 800000 + (phien.taiKhoanPhuId || 1) : (hocSinhIdPhien || 100001)))).all(),
     // Thủ quỹ: tổng hợp và chi tiết đóng tiền của từng học sinh theo khoản
     db.prepare(
       `SELECT k.id, k.ten, k.so_tien_moi_em AS soTienMoiEm, k.dang_mo AS dangMo,

@@ -516,16 +516,18 @@ body.chat-modal-open {
   padding: 0 4px;
 }
 
-/* VÙNG 1: Nút ✕ xoá / tuỳ chọn nhỏ gọn, mờ nhẹ ở góc trên bên phải của bong bóng tin nhắn */
+/* VÙNG 1: Nút ✕ xoá / tuỳ chọn — chỉ hiện trên PC khi hover vào hàng tin nhắn
+   Trên mobile: ẩn hoàn toàn (dùng chạm 1 lần thay thế)
+   Trên PC:     ẩn mặc định, hiện rõ 100% khi rê chuột vào hàng — chuyên nghiệp */
 .chat-bubble-corner-del {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 16px;
-  height: 16px;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  background: rgba(254, 242, 242, 0.95);
+  border: 1.5px solid rgba(239, 68, 68, 0.6);
+  background: #fef2f2;
   color: #dc2626;
   font-size: 9px;
   font-weight: 800;
@@ -534,31 +536,33 @@ body.chat-modal-open {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0.35;
-  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  opacity: 0;                /* ẩn mặc định trên PC */
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
   padding: 0;
   z-index: 8;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  pointer-events: none;      /* không thể click khi đang ẩn */
 }
 
+/* Chỉ hiện khi hover vào hàng — rõ 100%, đủ để click */
 .chat-msg-row:hover .chat-bubble-corner-del {
-  opacity: 0.85;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .chat-bubble-corner-del:hover {
-  opacity: 1 !important;
-  background: #ef4444 !important;
-  color: #ffffff !important;
-  border-color: #ef4444 !important;
-  transform: scale(1.18);
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45);
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  transform: scale(1.2);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
 }
 
 .chat-bubble-own-del {
-  border-color: rgba(148, 163, 184, 0.4);
-  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(100, 116, 139, 0.5);
+  background: #f8fafc;
   color: #64748b;
 }
 
@@ -566,6 +570,13 @@ body.chat-modal-open {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
   color: #ffffff !important;
+}
+
+/* MOBILE: ẩn hoàn toàn — học sinh dùng chạm 1 lần vào tin nhắn */
+@media (hover: none), (max-width: 860px) {
+  .chat-bubble-corner-del {
+    display: none !important;
+  }
 }
 
 /* 6. KHAY EMOJI NHANH NÂNG CAO (ĐA DẠNG ICON THEO NHÓM) */

@@ -3274,4 +3274,970 @@ td.cot-hom-nay {
   }
 }
 
+/* =========================================================================
+   HỆ THỐNG GIAO DIỆN CỘNG ĐỒNG TWITTER / X COMMUNITIES (LỚP 10A7)
+   Thiết kế chuẩn Hình 2 (Communities Feed) & Hình 1 (Post Composer)
+   ========================================================================= */
+
+/* ── 1. KHU VỰC ẢNH BÌA & PROFILE CỘNG ĐỒNG ── */
+.community-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 0 60px 0;
+}
+
+.community-header-card {
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r-lon);
+  overflow: hidden;
+  box-shadow: var(--bong-1);
+  margin-bottom: 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.community-cover-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 6;
+  min-height: 140px;
+  max-height: 240px;
+  background: linear-gradient(135deg, #1d9bf0, #8b5cf6, #ec4899);
+  overflow: hidden;
+}
+
+.community-cover-img,
+.community-cover-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.community-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.45) 100%);
+  pointer-events: none;
+}
+
+.community-cover-edit-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+  z-index: 2;
+}
+.community-cover-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.02);
+}
+
+.community-profile-info {
+  padding: 16px 20px 20px 20px;
+}
+
+.community-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.community-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--chu);
+  margin: 0;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
+}
+
+.community-bio {
+  font-size: 14.5px;
+  color: var(--chu-nhat);
+  margin: 0 0 14px 0;
+  line-height: 1.45;
+}
+
+.community-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.community-members-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.community-avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.community-stack-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--nen-noi);
+  margin-left: -8px;
+  object-fit: cover;
+  background: var(--nen-chim);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.community-stack-avatar:first-child {
+  margin-left: 0;
+}
+
+.community-members-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--chu);
+}
+.community-members-text span {
+  font-weight: 400;
+  color: var(--chu-mo);
+  margin-left: 4px;
+}
+
+.community-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-round-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--vien-dam);
+  background: var(--nen-noi);
+  color: var(--chu);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.18s ease;
+}
+.community-round-btn:hover {
+  background: var(--nen-chim);
+  border-color: var(--chu-nhat);
+}
+
+.community-role-pill {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1.5px solid var(--vien-dam);
+  background: var(--nen-noi);
+  color: var(--chu);
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── 2. THANH NAVIGATION TABS (TOP / LATEST / MEDIA / ABOUT) ── */
+.community-nav-tabs {
+  display: flex;
+  align-items: stretch;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: var(--bong-1);
+}
+
+.community-tab-item {
+  flex: 1;
+  padding: 14px 10px;
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--chu-mo);
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.community-tab-item:hover {
+  background: color-mix(in srgb, #1d9bf0 8%, transparent);
+  color: var(--chu);
+}
+
+.community-tab-item.active {
+  color: var(--chu);
+  font-weight: 800;
+}
+
+.community-tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 3.5px;
+  background: #1d9bf0;
+  border-radius: 999px;
+}
+
+/* ── 3. KHUNG SOẠN BÀI "WHAT'S HAPPENING?" (HÌNH 1) ── */
+.community-composer {
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  padding: 16px 18px 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--bong-1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.community-composer:focus-within {
+  border-color: #1d9bf0;
+  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.12);
+}
+
+.composer-row-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.composer-user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--nen-chim);
+  border: 1.5px solid var(--vien);
+  flex-shrink: 0;
+}
+
+.composer-input-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.composer-textarea {
+  width: 100%;
+  min-height: 54px;
+  max-height: 240px;
+  border: none;
+  background: transparent;
+  color: var(--chu);
+  font-size: 17px;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: 1.45;
+  resize: none;
+  padding: 6px 0;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.composer-textarea::placeholder {
+  color: var(--chu-mo);
+  font-size: 17px;
+}
+
+.composer-preview-box {
+  margin-top: 10px;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--vien);
+  max-height: 260px;
+  background: var(--nen-chim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composer-preview-media {
+  width: 100%;
+  height: 100%;
+  max-height: 260px;
+  object-fit: contain;
+}
+
+.composer-preview-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.composer-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vien);
+}
+
+.composer-tools-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.composer-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #1d9bf0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.composer-tool-btn:hover {
+  background: rgba(29, 155, 240, 0.12);
+  transform: scale(1.06);
+}
+
+.composer-tool-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.composer-post-btn {
+  padding: 8px 22px;
+  border-radius: 999px;
+  border: none;
+  background: #1d9bf0;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(29, 155, 240, 0.35);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.composer-post-btn:hover:not(:disabled) {
+  background: #1a8cd8;
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.45);
+  transform: translateY(-1px);
+}
+
+.composer-post-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.composer-extra-panel {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--nen-chim);
+  border-radius: var(--r-nho);
+  border: 1px solid var(--vien);
+}
+
+.composer-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── 4. THẺ BÀI ĐĂNG CHUẨN X / TWITTER COMMUNITIES (HÌNH 2) ── */
+.twitter-feed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.twitter-post-card {
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  padding: 16px 18px 12px 18px;
+  box-shadow: var(--bong-1);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.twitter-post-card:hover {
+  border-color: var(--vien-dam);
+  box-shadow: var(--bong-2);
+}
+
+.tpc-avatar-col {
+  flex-shrink: 0;
+}
+
+.tpc-avatar-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--nen-chim);
+  border: 1.5px solid var(--vien);
+  display: block;
+}
+
+.tpc-content-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.tpc-pinned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--chu-mo);
+  margin-bottom: 6px;
+}
+.tpc-pinned-badge svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+
+.tpc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tpc-author-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.tpc-author-name {
+  font-weight: 800;
+  color: var(--chu);
+}
+
+.tpc-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  color: #1d9bf0;
+}
+.tpc-verified-badge svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.tpc-author-handle {
+  color: var(--chu-mo);
+  font-size: 14px;
+}
+
+.tpc-dot {
+  color: var(--chu-mo);
+  font-size: 14px;
+}
+
+.tpc-time {
+  color: var(--chu-mo);
+  font-size: 14px;
+}
+
+.tpc-more-btn {
+  background: transparent;
+  border: none;
+  color: var(--chu-mo);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+.tpc-more-btn:hover {
+  background: color-mix(in srgb, var(--chinh) 10%, transparent);
+  color: var(--chu);
+}
+
+.tpc-post-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--chu);
+  margin: 0 0 6px 0;
+  line-height: 1.35;
+}
+
+.tpc-post-body {
+  font-size: 15.5px;
+  color: var(--chu);
+  margin: 0 0 10px 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tpc-hashtag {
+  color: #1d9bf0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tpc-hashtag:hover {
+  text-decoration: underline;
+}
+
+/* Khung Media đính kèm (Ảnh & Video) */
+.tpc-media-box {
+  margin: 10px 0 12px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--vien);
+  background: var(--nen-chim);
+}
+
+.tpc-media-img {
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+.tpc-media-img:hover {
+  transform: scale(1.01);
+}
+
+.tpc-media-video {
+  width: 100%;
+  max-height: 480px;
+  display: block;
+  background: #000000;
+}
+
+/* ── 5. THANH TƯƠNG TÁC ACTION BAR CHUẨN TWITTER ── */
+.tpc-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 520px;
+  margin-top: 6px;
+  padding-top: 6px;
+  color: var(--chu-mo);
+}
+
+.tpc-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--chu-mo);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tpc-action-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tpc-action-btn:hover svg {
+  transform: scale(1.18);
+}
+
+/* Hover Comment */
+.tpc-btn-comment:hover {
+  color: #1d9bf0;
+  background: rgba(29, 155, 240, 0.1);
+}
+
+/* Hover Repost */
+.tpc-btn-repost:hover {
+  color: #00ba7c;
+  background: rgba(0, 186, 124, 0.1);
+}
+
+/* Reaction Wrapper & Floating Reaction Picker */
+.tpc-reaction-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.tpc-btn-like:hover {
+  color: #f91880;
+  background: rgba(249, 24, 128, 0.1);
+}
+
+.tpc-btn-like.da-chon {
+  color: #f91880;
+  font-weight: 700;
+}
+.tpc-btn-like.da-chon svg {
+  fill: #f91880;
+}
+
+.tpc-floating-reactions {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px) scale(0.85);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--nen-noi);
+  border: 1px solid var(--vien-dam);
+  border-radius: 999px;
+  padding: 6px 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 50;
+  white-space: nowrap;
+}
+
+/* Hover trên PC hoặc class .mo-khay trên Mobile */
+.tpc-reaction-wrapper:hover .tpc-floating-reactions,
+.tpc-reaction-wrapper.mo-khay .tpc-floating-reactions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(-10px) scale(1);
+}
+
+.tpc-react-item {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 50%;
+  transition: transform 0.16s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tpc-react-item:hover {
+  transform: scale(1.38);
+}
+.tpc-react-item:active {
+  transform: scale(1.1);
+}
+
+/* Views Button */
+.tpc-btn-views {
+  cursor: default;
+}
+.tpc-btn-views:hover {
+  color: #1d9bf0;
+  background: transparent;
+}
+
+/* Tail Actions (Bookmark + Share) */
+.tpc-action-tail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tpc-btn-bookmark:hover {
+  color: #1d9bf0;
+  background: rgba(29, 155, 240, 0.1);
+}
+
+.tpc-btn-share:hover {
+  color: #1d9bf0;
+  background: rgba(29, 155, 240, 0.1);
+}
+
+/* ── 6. KHAY BÌNH LUẬN (COMMENTS DRAWER / BOX) ── */
+.tpc-comments-drawer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vien);
+}
+
+.tpc-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.tpc-comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.tpc-comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--nen-chim);
+  flex-shrink: 0;
+}
+
+.tpc-comment-bubble {
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: 14px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tpc-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+
+.tpc-comment-author {
+  font-weight: 700;
+  color: var(--chu);
+}
+
+.tpc-comment-role {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chinh) 15%, transparent);
+  color: var(--chinh);
+}
+
+.tpc-comment-time {
+  font-size: 11.5px;
+  color: var(--chu-mo);
+  margin-left: auto;
+}
+
+.tpc-comment-del {
+  background: transparent;
+  border: none;
+  color: var(--chu-mo);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.tpc-comment-del:hover {
+  color: #ef4444;
+}
+
+.tpc-comment-text {
+  font-size: 14px;
+  color: var(--chu);
+  line-height: 1.4;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tpc-comment-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tpc-comment-input {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--vien-dam);
+  background: var(--nen-chim);
+  color: var(--chu);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+.tpc-comment-input:focus {
+  border-color: #1d9bf0;
+  background: var(--nen-noi);
+}
+
+.tpc-comment-send {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  background: #1d9bf0;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tpc-comment-send:hover {
+  background: #1a8cd8;
+}
+
+/* ── 7. LƯỚI ĐA PHƯƠNG TIỆN (MEDIA TAB GRID) ── */
+.community-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.community-media-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-nho);
+  overflow: hidden;
+  border: 1px solid var(--vien);
+  background: var(--nen-chim);
+  cursor: pointer;
+}
+
+.community-media-item img,
+.community-media-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.community-media-item:hover img,
+.community-media-item:hover video {
+  transform: scale(1.05);
+}
+
+.community-media-type-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* ── 8. THẺ THÔNG TIN LỚP HỌC (ABOUT TAB) ── */
+.community-about-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.community-about-card {
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
+  border-radius: var(--r);
+  padding: 20px;
+  box-shadow: var(--bong-1);
+}
+
+.community-about-card h3 {
+  margin: 0 0 14px 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--chu);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Responsive Mobile */
+@media (max-width: 600px) {
+  .community-cover-box {
+    aspect-ratio: 16 / 7;
+    min-height: 120px;
+  }
+  .community-title {
+    font-size: 20px;
+  }
+  .community-tab-item {
+    font-size: 13.5px;
+    padding: 12px 6px;
+  }
+  .twitter-post-card {
+    padding: 14px 12px 10px 12px;
+    gap: 10px;
+  }
+  .tpc-avatar-img {
+    width: 38px;
+    height: 38px;
+  }
+  .tpc-post-title {
+    font-size: 16px;
+  }
+  .tpc-post-body {
+    font-size: 14.5px;
+  }
+  .tpc-action-bar {
+    max-width: 100%;
+  }
+  .tpc-action-btn {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+  .tpc-action-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .community-media-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
 

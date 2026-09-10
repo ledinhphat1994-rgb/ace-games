@@ -390,7 +390,13 @@
             cell.classList.add('cell-last');
           }
 
-          cell.onclick = () => nuocDiNguoiChoi(r, c);
+          cell.onclick = () => {
+            if (cheDo === 'online' && _onlinePhongId) {
+              nuocDiOnline(r, c);
+            } else {
+              nuocDiNguoiChoi(r, c);
+            }
+          };
           grid.appendChild(cell);
         }
       }
@@ -900,19 +906,6 @@
     const leaveRoomBtn = document.getElementById('caroLeaveRoomBtn');
     if (leaveRoomBtn) leaveRoomBtn.onclick = roiPhongOnline;
 
-    // Patch renderCaroGrid: khi chế độ online thì ô click gọi nuocDiOnline
-    const _origRenderCaro = renderCaroGrid;
-    renderCaroGrid = function() {
-      _origRenderCaro();
-      if (cheDo !== 'online' || !_onlinePhongId) return;
-      const grid = document.getElementById('caroGrid');
-      if (!grid) return;
-      grid.querySelectorAll('.caro-cell').forEach((cell) => {
-        const rr = Number(cell.dataset.r);
-        const cc = Number(cell.dataset.c);
-        cell.onclick = () => nuocDiOnline(rr, cc);
-      });
-    };
 
     // Tạm dừng poll khi ẩn tab
     document.addEventListener('visibilitychange', () => {
