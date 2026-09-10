@@ -9,6 +9,10 @@
 /*.html
   Cache-Control: no-cache
 
+# Ảnh nền và biểu tượng tĩnh: cho trình duyệt lưu lại 1 ngày, tiết kiệm 3G/4G của học sinh.
+/assets/img/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 /assets/*
   Cache-Control: no-cache
 

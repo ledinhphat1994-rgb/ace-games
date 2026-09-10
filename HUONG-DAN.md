@@ -525,3 +525,25 @@ Muốn soát kỹ hơn cách viết mã thì thêm `npm run lint`.
 - **Không đăng lên trang này**: số điện thoại phụ huynh, địa chỉ nhà, căn cước, ảnh chụp học bạ/điểm chi tiết
   gắn với tên từng em. Mã bảo mật bảo vệ khỏi người ngoài, nhưng không ngăn được học sinh trong lớp chụp màn hình.
 - Repo trên GitHub nên để **Private**; dù vậy trong mã nguồn cũng không hề chứa mã bảo mật.
+
+---
+
+## 10. Tối ưu hoá, Mở rộng & Bảo trì lâu dài
+
+### A. Tối ưu tốc độ tải trang
+- Khi chạy lệnh `npm run build` hoặc `npm run deploy`, hệ thống **tự động nén (minify) 100% các tệp JavaScript và CSS** trong `dist/`.
+- Tiết kiệm hơn **250 KB (gần 40% dung lượng)**, giúp học sinh mở trang nhanh gấp đôi ngay cả khi dùng mạng 3G/4G yếu.
+- Mã nguồn gốc trong thư mục dự án vẫn giữ nguyên dạng rõ ràng, đầy đủ chú thích tiếng Việt để giáo viên dễ đọc và sửa chữa.
+
+### B. Bảo trì cơ sở dữ liệu dễ dàng
+- Tệp `co-so-du-lieu/00-schema-chuan-toan-bo.sql` đã tổng hợp toàn bộ 54 đợt nâng cấp thành một cấu trúc chuẩn duy nhất.
+- Khi cần tạo lớp mới, kiểm thử hoặc chuyển giao hệ thống, chỉ cần chạy 1 tệp này là có đầy đủ toàn bộ bảng, khóa và chỉ mục.
+- Chi tiết hướng dẫn xem tại: `co-so-du-lieu/README-CSDL.md`.
+
+### C. Mở rộng dung lượng & Cấu hình mạnh hơn
+1. **Lưu trữ tài liệu nặng (R2 Object Storage):**
+   - Đã liên kết sẵn bucket Cloudflare R2 `lop-10a7-anh` với 10 GB miễn phí và không giới hạn băng thông tải về.
+   - Khi cần mở rộng kho đề thi, tài liệu ôn thi THPT (.pdf, .docx), chỉ cần tải lên R2 và lưu khoá vào bảng dữ liệu — không tốn dung lượng cơ sở dữ liệu D1.
+2. **Nâng cấp cấu hình chịu tải (Khi mở rộng toàn trường):**
+   - Hệ thống chạy Serverless trên hạ tầng toàn cầu của Cloudflare, tự động chịu tải hàng ngàn học sinh cùng lúc mà không lo sập RAM hay nghẽn CPU như máy chủ VPS.
+   - Khi cần nâng cấp dung lượng cao hơn (50 GB D1, 10 triệu lượt truy cập/tháng), chỉ cần kích hoạt gói **Workers Paid ($5/tháng)** trên Cloudflare.

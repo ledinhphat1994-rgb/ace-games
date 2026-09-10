@@ -1,0 +1,308 @@
+-- ==============================================================================
+-- SCHEMA CHUẨN TOÀN BỘ CƠ SỞ DỮ LIỆU — HỆ THỐNG QUẢN LÝ LỚP HỌC (CLOUDFLARE D1)
+-- ==============================================================================
+-- Tệp này tổng hợp đầy đủ cấu trúc của tất cả các bảng, ràng buộc và chỉ mục (index).
+-- Dùng để:
+--   1. Khởi tạo một cơ sở dữ liệu mới hoàn toàn (Local hoặc Remote).
+--   2. Tham chiếu cấu trúc bảng chuẩn khi bảo trì, sửa lỗi hoặc mở rộng tính năng.
+--   3. Xuất backup / restore nhanh chóng cho các năm học tiếp theo.
+-- ==============================================================================
+
+-- 1. BẢNG QUẢN LÝ LỚP VÀ CẤU HÌNH ĐA LỚP
+CREATE TABLE IF NOT EXISTS lop (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten          TEXT NOT NULL,                         -- Vd: "Lớp 10A7", "Lớp 11A1"
+  khoa_hoc     TEXT NOT NULL,                         -- Vd: "2026-2027"
+  nam_hoc      TEXT NOT NULL,                         -- Vd: "2026-2027"
+  truong       TEXT NOT NULL DEFAULT 'GDTX Định Quán',
+  slug         TEXT UNIQUE,                           -- Vd: "10a7", "11a1"
+  banner       TEXT,                                  -- Khoá ảnh banner lưu trên R2
+  tao_luc      TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_lop_slug ON lop(slug);
+
+-- 2. HỌC SINH
+CREATE TABLE IF NOT EXISTS hoc_sinh (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  stt                     INTEGER NOT NULL,
+  ho_ten                  TEXT NOT NULL,
+  gioi_tinh               TEXT NOT NULL CHECK(gioi_tinh IN ('Nam', 'Nữ')),
+  ngay_sinh               TEXT,
+  to_so                   INTEGER NOT NULL DEFAULT 1,
+  chuc_vu                 TEXT NOT NULL DEFAULT 'Học sinh',
+  so_dien_thoai           TEXT,
+  so_dien_thoai_phu_huynh TEXT,
+  ghi_chu                 TEXT,
+  lop_id                  INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc                 TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_hoc_sinh_lop ON hoc_sinh(lop_id, stt);
+
+-- 3. MÃ ĐĂNG NHẬP RIÊNG CỦA TỪNG HỌC SINH (MÃ CÁ NHÂN)
+CREATE TABLE IF NOT EXISTS ma_ca_nhan (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  hoc_sinh_id     INTEGER NOT NULL UNIQUE REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  ma_bam          TEXT NOT NULL,
+  muoi            TEXT NOT NULL,
+  quyen           TEXT DEFAULT '',                    -- Cán sự được cấp quyền: 'quy', 'diem_danh'...
+  thiet_bi        TEXT,                               -- phienId duy nhất để quản lý "1 tài khoản 1 phiên"
+  dang_hoat_dong  INTEGER NOT NULL DEFAULT 1,
+  lop_id          INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ma_ca_nhan_lop ON ma_ca_nhan(lop_id, hoc_sinh_id);
+
+-- 4. TÀI KHOẢN PHỤ (CÁN SỰ ĐẶC BIỆT / TRỢ GIẢNG)
+CREATE TABLE IF NOT EXISTS tai_khoan_phu (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten             TEXT NOT NULL,
+  vai_tro         TEXT NOT NULL,
+  ma_bam          TEXT NOT NULL,
+  muoi            TEXT NOT NULL,
+  quyen           TEXT NOT NULL DEFAULT '',
+  dang_hoat_dong  INTEGER NOT NULL DEFAULT 1,
+  thiet_bi        TEXT,                               -- phienId duy nhất của phiên đăng nhập hiện tại
+  lop_id          INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tai_khoan_phu_lop ON tai_khoan_phu(lop_id);
+
+-- 5. MÃ ĐĂNG NHẬP CHUNG (LỚP / GIÁO VIÊN THEO LỚP)
+CREATE TABLE IF NOT EXISTS ma_dang_nhap (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  loai     TEXT NOT NULL CHECK(loai IN ('hoc_sinh', 'giao_vien')),
+  ma_bam   TEXT NOT NULL,
+  muoi     TEXT NOT NULL,
+  lop_id   INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ma_dang_nhap_lop ON ma_dang_nhap(lop_id, loai);
+
+-- 6. ĐIỂM DANH HỌC SINH
+CREATE TABLE IF NOT EXISTS diem_danh (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ngay        TEXT NOT NULL,
+  hoc_sinh_id INTEGER NOT NULL REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  trang_thai  TEXT NOT NULL CHECK(trang_thai IN ('co_mat', 'tre', 'phep', 'khong_phep')),
+  ghi_chu     TEXT,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(ngay, hoc_sinh_id, lop_id)
+);
+CREATE INDEX IF NOT EXISTS idx_diem_danh_ngay ON diem_danh(lop_id, ngay);
+CREATE INDEX IF NOT EXISTS idx_diem_danh_hs ON diem_danh(lop_id, hoc_sinh_id);
+
+-- 7. LỊCH SỬ & KHÔI PHỤC ĐIỂM DANH (CHECKPOINT)
+CREATE TABLE IF NOT EXISTS diem_danh_checkpoint (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  ngay            TEXT NOT NULL,
+  hanh_dong       TEXT NOT NULL,
+  nguoi_thuc_hien TEXT NOT NULL DEFAULT '',
+  du_lieu         TEXT NOT NULL,                      -- JSON lưu trạng thái trước khi sửa
+  lop_id          INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_diem_danh_checkpoint ON diem_danh_checkpoint(lop_id, ngay, id DESC);
+
+-- 8. THÔNG BÁO LỚP HỌC
+CREATE TABLE IF NOT EXISTS thong_bao (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  tieu_de             TEXT NOT NULL,
+  tieu_de_dinh_dang   TEXT,
+  noi_dung            TEXT NOT NULL,
+  noi_dung_dinh_dang  TEXT,
+  ghim                INTEGER NOT NULL DEFAULT 0,
+  quan_trong          INTEGER NOT NULL DEFAULT 0,
+  moc_su_kien         TEXT,                           -- YYYY-MM-DD
+  nhac_id             INTEGER,
+  video_id            INTEGER,
+  video_tep_khoa      TEXT,
+  lop_id              INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_thong_bao_lop ON thong_bao(lop_id, ghim DESC, id DESC);
+
+-- 9. QUỸ LỚP: CÁC KHOẢN THU
+CREATE TABLE IF NOT EXISTS quy_khoan (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten         TEXT NOT NULL,
+  so_tien     INTEGER NOT NULL,
+  ghi_chu     TEXT,
+  da_dong     INTEGER NOT NULL DEFAULT 0,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_quy_khoan_lop ON quy_khoan(lop_id);
+
+-- 10. QUỸ LỚP: CHI TIẾT ĐÓNG TIỀN THEO HỌC SINH
+CREATE TABLE IF NOT EXISTS quy_dong (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  khoan_id    INTEGER NOT NULL REFERENCES quy_khoan(id) ON DELETE CASCADE,
+  hoc_sinh_id INTEGER NOT NULL REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  ngay_dong   TEXT NOT NULL,
+  so_tien     INTEGER NOT NULL,
+  ghi_chu     TEXT,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(khoan_id, hoc_sinh_id)
+);
+CREATE INDEX IF NOT EXISTS idx_quy_dong_khoan ON quy_dong(lop_id, khoan_id);
+CREATE INDEX IF NOT EXISTS idx_quy_dong_hs ON quy_dong(lop_id, hoc_sinh_id);
+
+-- 11. QUỸ LỚP: CÁC KHOẢN CHI TIÊU
+CREATE TABLE IF NOT EXISTS quy_chi (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ngay        TEXT NOT NULL,
+  noi_dung    TEXT NOT NULL,
+  so_tien     INTEGER NOT NULL,
+  loai_chi    TEXT NOT NULL DEFAULT 'chung',
+  ghi_chu     TEXT,
+  nguoi_chi   TEXT,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_quy_chi_ngay ON quy_chi(lop_id, ngay DESC);
+
+-- 12. QUỸ LỚP: CHECKPOINT KHÔI PHỤC
+CREATE TABLE IF NOT EXISTS quy_checkpoint (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  hanh_dong       TEXT NOT NULL,
+  nguoi_thuc_hien TEXT NOT NULL DEFAULT '',
+  du_lieu         TEXT NOT NULL,
+  lop_id          INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_quy_checkpoint_lop ON quy_checkpoint(lop_id, id DESC);
+
+-- 13. QUỸ LỚP: CẤU HÌNH ĐỊNH KỲ
+CREATE TABLE IF NOT EXISTS quy_dinh_ky (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten      TEXT NOT NULL,
+  so_tien  INTEGER NOT NULL,
+  chu_ky   TEXT NOT NULL CHECK(chu_ky IN ('thang', 'hoc_ky', 'nam')),
+  lop_id   INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. THƯ VIỆN HÌNH ẢNH (LƯU TRỮ TRÊN CLOUDFLARE R2)
+CREATE TABLE IF NOT EXISTS hinh_anh (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  khoa        TEXT NOT NULL UNIQUE,                   -- Khoá đối tượng trong R2 bucket
+  chu_thich   TEXT,
+  noi_bat     INTEGER NOT NULL DEFAULT 0,
+  phan_loai   TEXT DEFAULT 'chung',
+  kich_thuoc  INTEGER DEFAULT 0,
+  da_xoa_luc  TEXT,                                   -- Thùng rác (ẩn khỏi thư viện)
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_hinh_anh_lop ON hinh_anh(lop_id, noi_bat DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_hinh_anh_rac ON hinh_anh(lop_id, da_xoa_luc);
+
+-- 15. THƯ VIỆN ÂM THANH (LƯU TRÊN R2)
+CREATE TABLE IF NOT EXISTS am_thanh (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  khoa        TEXT NOT NULL UNIQUE,
+  ten         TEXT NOT NULL,
+  kieu        TEXT NOT NULL DEFAULT 'audio/mpeg',
+  kich_thuoc  INTEGER DEFAULT 0,
+  da_xoa_luc  TEXT,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_am_thanh_lop ON am_thanh(lop_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_am_thanh_rac ON am_thanh(lop_id, da_xoa_luc);
+
+-- 16. THƯ VIỆN VIDEO (LƯU TRÊN R2)
+CREATE TABLE IF NOT EXISTS video (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  khoa        TEXT NOT NULL UNIQUE,
+  ten         TEXT NOT NULL,
+  kieu        TEXT NOT NULL DEFAULT 'video/mp4',
+  kich_thuoc  INTEGER DEFAULT 0,
+  da_xoa_luc  TEXT,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_video_lop ON video(lop_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_video_rac ON video(lop_id, da_xoa_luc);
+
+-- 17. HOẠT ĐỘNG LỚP
+CREATE TABLE IF NOT EXISTS hoat_dong_lop (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  tieu_de             TEXT NOT NULL,
+  tieu_de_dinh_dang   TEXT,
+  noi_dung            TEXT,
+  noi_dung_dinh_dang  TEXT,
+  loai                TEXT DEFAULT 'anh',             -- 'anh', 'video', 'bai_viet'
+  khoa_anh            TEXT,
+  tep_id              INTEGER,
+  ngay                TEXT,
+  ghim                INTEGER DEFAULT 0,
+  lop_id              INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_hoat_dong_lop ON hoat_dong_lop(lop_id, ghim DESC, id DESC);
+
+-- 18. THỜI KHOÁ BIỂU: PHIÊN BẢN & Ô TIẾT HỌC
+CREATE TABLE IF NOT EXISTS tkb_phien_ban (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten         TEXT NOT NULL,
+  ap_dung_tu  TEXT NOT NULL,                          -- YYYY-MM-DD
+  hien_tai    INTEGER NOT NULL DEFAULT 0,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tkb_phien_ban ON tkb_phien_ban(lop_id, hien_tai DESC);
+
+CREATE TABLE IF NOT EXISTS tkb_o (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  phien_ban_id  INTEGER NOT NULL REFERENCES tkb_phien_ban(id) ON DELETE CASCADE,
+  thu           INTEGER NOT NULL CHECK(thu BETWEEN 2 AND 7),
+  tiet          INTEGER NOT NULL CHECK(tiet BETWEEN 1 AND 10),
+  mon           TEXT NOT NULL,
+  lop_id        INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id)
+);
+CREATE INDEX IF NOT EXISTS idx_tkb_o ON tkb_o(lop_id, phien_ban_id, thu, tiet);
+
+-- 19. CHECKPOINT DÙNG CHUNG (THÔNG BÁO, TKB, HOẠT ĐỘNG LỚP)
+CREATE TABLE IF NOT EXISTS checkpoint_chung (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  tinh_nang       TEXT NOT NULL,                      -- 'thong-bao' | 'thoi-khoa-bieu' | 'hoat-dong-lop'
+  hanh_dong       TEXT NOT NULL,
+  nguoi_thuc_hien TEXT NOT NULL DEFAULT '',
+  du_lieu         TEXT NOT NULL,
+  lop_id          INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  tao_luc         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_checkpoint_chung ON checkpoint_chung(lop_id, tinh_nang, id DESC);
+
+-- 20. GIỚI HẠN TẢI LÊN FILE MỖI NGÀY (CHỐNG TRÀN BỘ NHỚ R2)
+CREATE TABLE IF NOT EXISTS tai_len_theo_ngay (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ngay        TEXT NOT NULL,
+  dung_luong  INTEGER NOT NULL DEFAULT 0,
+  lop_id      INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id),
+  UNIQUE(ngay, lop_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tai_len_ngay ON tai_len_theo_ngay(lop_id, ngay);
+
+-- 21. NHẬT KÝ ĐĂNG NHẬP & TRUY CẬP HỆ THỐNG
+CREATE TABLE IF NOT EXISTS nhat_ky_dang_nhap (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  hoc_sinh_id  INTEGER,
+  thoi_gian    TEXT DEFAULT CURRENT_TIMESTAMP,
+  ip           TEXT,
+  user_agent   TEXT,
+  lop_id       INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id)
+);
+CREATE INDEX IF NOT EXISTS idx_nhat_ky_dang_nhap ON nhat_ky_dang_nhap(lop_id, thoi_gian DESC);
+
+CREATE TABLE IF NOT EXISTS nhat_ky_truy_cap (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  duong_dan  TEXT NOT NULL,
+  ip         TEXT,
+  thoi_gian  TEXT DEFAULT CURRENT_TIMESTAMP,
+  lop_id     INTEGER NOT NULL DEFAULT 1 REFERENCES lop(id)
+);
+CREATE INDEX IF NOT EXISTS idx_nhat_ky_truy_cap ON nhat_ky_truy_cap(lop_id, thoi_gian DESC);

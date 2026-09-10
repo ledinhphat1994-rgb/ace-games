@@ -57,6 +57,66 @@ if (loi) {
   process.exit(1);
 }
 
+// Nén (minify) tự động JS và CSS phía client trong dist/ để tải nhanh gấp đôi trên điện thoại.
+// Giữ nguyên mã nguồn gốc trong thư mục làm việc để giáo viên/lập trình viên dễ đọc, dễ sửa.
+let esbuild;
+try {
+  esbuild = require('esbuild');
+} catch {}
+
+if (esbuild) {
+  let truoc = 0;
+  let sau = 0;
+  let demNen = 0;
+
+  function nenThuMuc(thuMuc) {
+    if (!fs.existsSync(thuMuc)) return;
+    for (const item of fs.readdirSync(thuMuc, { withFileTypes: true })) {
+      const p = path.join(thuMuc, item.name);
+      if (item.isDirectory()) {
+        if (item.name === 'functions') continue; // Không can thiệp mã server Functions
+        nenThuMuc(p);
+      } else if (item.name.endsWith('.js') || item.name.endsWith('.css')) {
+        const code = fs.readFileSync(p, 'utf8');
+        const loader = item.name.endsWith('.css') ? 'css' : 'js';
+        try {
+          const res = esbuild.transformSync(code, { loader, minify: true, target: 'es2020' });
+          if (res.code && res.code.length < code.length) {
+            truoc += code.length;
+            sau += res.code.length;
+            demNen++;
+            fs.writeFileSync(p, res.code, 'utf8');
+          }
+        } catch (e) {
+          console.warn(`Bỏ qua nén ${item.name}: ${e.message}`);
+        }
+      }
+    }
+  }
+
+  nenThuMuc(path.join(OUT, 'assets'));
+  nenThuMuc(path.join(OUT, 'giao-vien'));
+  const swPath = path.join(OUT, 'sw.js');
+  if (fs.existsSync(swPath)) {
+    try {
+      const code = fs.readFileSync(swPath, 'utf8');
+      const res = esbuild.transformSync(code, { minify: true, target: 'es2020' });
+      if (res.code && res.code.length < code.length) {
+        truoc += code.length;
+        sau += res.code.length;
+        demNen++;
+        fs.writeFileSync(swPath, res.code, 'utf8');
+      }
+    } catch {}
+  }
+
+  if (demNen > 0) {
+    const tietKiemKb = ((truoc - sau) / 1024).toFixed(1);
+    const phanTram = ((1 - sau / truoc) * 100).toFixed(1);
+    console.log(`Đã nén ${demNen} tệp JS/CSS trong dist/ — tiết kiệm ${tietKiemKb} KB (${phanTram}%).`);
+  }
+}
+
 const dem = (d) => fs.readdirSync(d, { withFileTypes: true })
   .reduce((n, e) => n + (e.isDirectory() ? dem(path.join(d, e.name)) : 1), 0);
 
