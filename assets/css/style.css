@@ -1868,6 +1868,23 @@ body.trang-dang-nhap {
   color: #f1f5f9;
 }
 .the-dang-nhap .nut { width: 100%; margin-top: 14px; min-height: 47px; font-size: 15px; }
+.the-dang-nhap .nut.nut-vien,
+#chonLop .nut {
+  background: var(--nen-chim);
+  color: var(--chu);
+  border: 1.5px solid var(--vien-dam);
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: var(--bong-1);
+}
+.the-dang-nhap .nut.nut-vien:hover,
+#chonLop .nut:hover {
+  background: var(--chinh-nen);
+  border-color: var(--chinh);
+  color: var(--chinh);
+  transform: translateY(-2px);
+  box-shadow: var(--bong-2);
+}
 .the-dang-nhap .turnstile-hop:not([hidden]) {
   margin: 16px 0;
   display: flex;
@@ -3281,9 +3298,10 @@ td.cot-hom-nay {
 
 /* ── 1. KHU VỰC ẢNH BÌA & PROFILE CỘNG ĐỒNG ── */
 .community-container {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 0 0 60px 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 24px 60px 24px;
+  box-sizing: border-box;
 }
 
 .community-header-card {
@@ -4198,6 +4216,9 @@ td.cot-hom-nay {
 
 /* Responsive Mobile */
 @media (max-width: 600px) {
+  .community-container {
+    padding: 0 0 48px 0;
+  }
   .community-cover-box {
     aspect-ratio: 16 / 7;
     min-height: 120px;
@@ -4240,4 +4261,450 @@ td.cot-hom-nay {
   }
 }
 
+/* ── 9. LOGIN CARD LOADING SPINNER ── */
+.dang-nhap-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 0;
+}
+.dang-nhap-loading .quay {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--vien);
+  border-top-color: var(--chinh);
+  border-radius: 50%;
+  animation: xoay .7s linear infinite;
+  display: block;
+}
+.dang-nhap-loading p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--chu-nhat);
+  font-weight: 500;
+}
+
+/* ── 10. MEMBERS SLIDE-OVER PANEL ── */
+.members-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1100;
+  opacity: 0;
+  transition: opacity .22s ease;
+  pointer-events: none;
+}
+.members-panel-backdrop.hien {
+  opacity: 1;
+  pointer-events: auto;
+}
+.members-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100dvh;
+  width: min(420px, 100vw);
+  background: var(--nen-noi);
+  border-left: 1px solid var(--vien);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.18);
+  z-index: 1101;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .26s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+.members-panel.hien {
+  transform: translateX(0);
+}
+.members-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--vien);
+  flex-shrink: 0;
+}
+.members-panel-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--chu);
+  margin: 0;
+  flex: 1;
+}
+.members-panel-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--chu-nhat);
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.members-panel-close:hover { background: var(--nen-chim); }
+.members-panel-search {
+  padding: 12px 18px 8px 18px;
+  flex-shrink: 0;
+}
+.members-panel-search input {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--vien-dam);
+  background: var(--nen-chim);
+  color: var(--chu);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.members-panel-search input:focus {
+  border-color: #1d9bf0;
+  background: var(--nen-noi);
+}
+.members-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--vien);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.members-panel-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--chu-nhat);
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: color .15s;
+}
+.members-panel-tab.active {
+  color: var(--chu);
+}
+.members-panel-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 3.5px;
+  background: #1d9bf0;
+  border-radius: 999px;
+}
+.members-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  transition: background .15s;
+  cursor: default;
+}
+.member-item:hover { background: var(--nen-chim); }
+.member-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--chinh-nen);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--chinh);
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1.5px solid var(--vien);
+}
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+.member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.member-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--chu);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.member-role-badge.admin {
+  background: #0f1419;
+  color: #fff;
+}
+:root[data-theme="dark"] .member-role-badge.admin {
+  background: #e7e9ea;
+  color: #0f1419;
+}
+.member-role-badge.mod {
+  background: #334155;
+  color: #f8fafc;
+}
+.member-role-badge.member {
+  background: var(--nen-chim);
+  color: var(--chu-nhat);
+  border: 1px solid var(--vien);
+}
+.member-sub {
+  font-size: 13px;
+  color: var(--chu-nhat);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.member-action-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #0f1419;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity .15s;
+}
+:root[data-theme="dark"] .member-action-btn {
+  background: #eff3f4;
+  color: #0f1419;
+}
+.member-action-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── 11. COMPOSER MEDIA PICKER ── */
+.composer-picker-panel {
+  margin-top: 10px;
+  border-radius: var(--r-nho);
+  border: 1px solid var(--vien);
+  background: var(--nen-chim);
+  overflow: hidden;
+}
+.composer-picker-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--vien);
+}
+.composer-picker-tab {
+  flex: 1;
+  padding: 9px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chu-nhat);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+  border-bottom: 2.5px solid transparent;
+  position: relative;
+  bottom: -1px;
+}
+.composer-picker-tab.active {
+  color: #1d9bf0;
+  border-bottom-color: #1d9bf0;
+  background: var(--nen-noi);
+}
+.composer-picker-tab:hover:not(.active) {
+  background: var(--nen-noi);
+  color: var(--chu);
+}
+.composer-picker-body {
+  padding: 12px 14px;
+}
+.composer-picker-body .o-nhap {
+  width: 100%;
+  box-sizing: border-box;
+}
+.composer-picker-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.composer-lib-item {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background: var(--nen-chim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.composer-lib-item:hover { border-color: #1d9bf0; }
+.composer-lib-item.selected { border-color: #1d9bf0; box-shadow: 0 0 0 2px rgba(29,155,240,0.3); }
+.composer-lib-item img, .composer-lib-item video {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.composer-lib-audio-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--vien);
+  background: var(--nen-noi);
+  cursor: pointer;
+  transition: all .15s;
+  margin-bottom: 6px;
+}
+.composer-lib-audio-item:hover, .composer-lib-audio-item.selected {
+  border-color: #1d9bf0;
+  background: color-mix(in srgb, #1d9bf0 8%, var(--nen-noi));
+}
+.composer-lib-audio-icon { font-size: 20px; flex-shrink: 0; }
+.composer-lib-audio-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chu);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composer-picker-apply-row {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── 12. CHAT BUBBLE BADGE (HIEU-O STYLE) ── */
+.chat-bubble-lop-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--chinh), var(--chinh-sang));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: -.5px;
+  font-family: inherit;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(29,155,240,.35);
+  position: relative;
+}
+
+/* Nút thu nhỏ chat widget (Vùng 4) đồng bộ logo với Vùng 2+ */
+.chat-header-btn.chat-minimize-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #ec4899 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  cursor: pointer;
+  transition: transform .18s, box-shadow .18s;
+  flex-shrink: 0;
+}
+.chat-header-btn.chat-minimize-btn:hover {
+  transform: scale(1.12) !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.7) !important;
+}
+
+/* Khung Community rộng hết chiều ngang của PC & Mobile */
+main.wrap:has(#trangChu),
+.wrap:has(.community-container) {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+#trangChu {
+  width: 100%;
+}
+.community-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Audio preview trong Composer */
+.composer-audio-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: var(--r-nho);
+  margin-top: 10px;
+}
+.composer-audio-preview audio {
+  flex: 1;
+  height: 36px;
+}
+
+/* Quick Emoji Drawer cho Composer */
+.composer-emoji-drawer {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: var(--nen-chim);
+  border: 1px solid var(--vien);
+  border-radius: var(--r-nho);
+  max-height: 180px;
+  overflow-y: auto;
+}
+.composer-emoji-item {
+  font-size: 22px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  text-align: center;
+  line-height: 1;
+  transition: background .12s, transform .12s;
+}
+.composer-emoji-item:hover {
+  background: var(--nen-noi);
+  transform: scale(1.2);
+}
 

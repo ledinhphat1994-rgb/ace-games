@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260910_06">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_06">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260910_16">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_16">
 </head>
 <body class="trang-dang-nhap">
 
@@ -41,9 +41,15 @@
 </header>
 
 <main class="the-dang-nhap">
-  <div class="hieu-o" id="hieuOChinh">🎓</div>
-  <h1 id="tieuDeDangNhap">Chọn lớp của em</h1>
-  <p class="phu" id="phuDeDangNhap">Chạm vào đúng lớp của mình để tiếp tục</p>
+  <!-- Spinner hiện ngay trong khi fetch danh sách lớp (async) -->
+  <div class="dang-nhap-loading" id="dangNhapLoading">
+    <span class="quay"></span>
+    <p>Đang kết nối…</p>
+  </div>
+
+  <div class="hieu-o" id="hieuOChinh" hidden>🎓</div>
+  <h1 id="tieuDeDangNhap" hidden>Chọn lớp của em</h1>
+  <p class="phu" id="phuDeDangNhap" hidden>Chạm vào đúng lớp của mình để tiếp tục</p>
 
   <!-- Bước 1: chọn lớp (chỉ hiện khi vào thẳng / mà không kèm ?lop=, và có từ 2 lớp trở lên). -->
   <div id="chonLop" style="display:none;flex-direction:column;gap:10px;margin:18px 0;" hidden></div>
@@ -141,6 +147,7 @@
     document.getElementById('hieuOChinh').hidden = true;
     document.getElementById('tieuDeDangNhap').hidden = true;
     const phu = document.getElementById('phuDeDangNhap');
+    phu.hidden = false;
 
     // Tên trường hiển thị đúng 2 dòng căn đều theo yêu cầu
     let d1 = 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2';
@@ -254,27 +261,34 @@
   });
 
   async function khoiDongTrang() {
+    const spinner = document.getElementById('dangNhapLoading');
     const slug = new URLSearchParams(location.search).get('lop');
 
     if (slug) {
       try {
         const d = await fetch('/api/lop-cong-khai?lop=' + encodeURIComponent(slug)).then((r) => r.json());
-        if (d.ok && d.lop) return moBuocNhapMa(slug, d.lop, true);
+        if (d.ok && d.lop) {
+          if (spinner) spinner.hidden = true;
+          return moBuocNhapMa(slug, d.lop, true);
+        }
       } catch { /* rơi xuống bước chọn lớp nếu tra không được */ }
     }
 
     try {
       const d = await fetch('/api/lop-cong-khai').then((r) => r.json());
       const danhSach = (d.ok && d.danhSach) || [];
+      if (spinner) spinner.hidden = true;
       if (danhSach.length === 1) return moBuocNhapMa(danhSach[0].slug, danhSach[0], false);
       if (danhSach.length > 1) return moBuocChonLop(danhSach);
-    } catch { /* không tra được danh sách lớp — vẫn cho nhập mã chung chung bên dưới */ }
+    } catch { /* không tra được danh sách lớp */ }
 
-    // Không có slug, không tra được lớp nào — vẫn mở form nhập mã chung chung để không chặn
-    // đường vào của bất kỳ ai (đăng nhập vẫn luôn dựa vào chính mã nhập, không phụ thuộc bước này).
+    // Fallback: hiện form nhập mã chung chung
+    if (spinner) spinner.hidden = true;
     document.getElementById('hieuOChinh').hidden = true;
     document.getElementById('tieuDeDangNhap').hidden = true;
-    document.getElementById('phuDeDangNhap').textContent = 'Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã';
+    const phuFb = document.getElementById('phuDeDangNhap');
+    phuFb.textContent = 'Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã';
+    phuFb.hidden = false;
     hienChonLop(false);
     bieuMau.hidden = false;
   }

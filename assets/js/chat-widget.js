@@ -980,7 +980,18 @@
         <div class="chat-header-actions">
           <button class="chat-header-btn" id="chatTeacherSettingBtn" title="Cài đặt phòng chat" style="display: none;">⚙️</button>
           <button class="chat-header-btn chat-minimize-btn" id="chatCloseBtn" title="Thu nhỏ về bong bóng nổi" aria-label="Thu nhỏ về bong bóng">
-            <span style="font-size: 16px; line-height: 1;">🫧</span>
+            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; display: block;">
+              <rect x="6" y="17" width="32" height="17" rx="8" fill="rgba(255,255,255,0.92)"/>
+              <rect x="11" y="22" width="6" height="2" rx="1" fill="#7c3aed"/>
+              <rect x="13" y="20" width="2" height="6" rx="1" fill="#7c3aed"/>
+              <circle cx="29" cy="22" r="1.5" fill="#ec4899"/>
+              <circle cx="33" cy="24" r="1.5" fill="#4f46e5"/>
+              <circle cx="31" cy="27" r="1.5" fill="#10b981"/>
+              <path d="M20 10 L27 8 L27 14 L24 14" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <circle cx="20" cy="13" r="2" fill="rgba(255,255,255,0.9)"/>
+              <circle cx="24" cy="15" r="2" fill="rgba(255,255,255,0.9)"/>
+              <path d="M14 7 Q8 7 8 12 Q8 17 14 17 L16 17 L15 20 L20 17 Q26 17 26 12 Q26 7 14 7 Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+            </svg>
           </button>
         </div>
       </div>

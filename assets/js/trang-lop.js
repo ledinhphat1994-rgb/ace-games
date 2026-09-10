@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien, nenAnhThanhBlob } from './chung.js';
 import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -2253,7 +2253,153 @@ function veTheTwitterPost(item, phien, lamMoi) {
   return card;
 }
 
-/** Khởi tạo khung soạn bài "What's happening?" (Hình 1) */
+/** Khởi tạo slide-over danh sách thành viên khi bấm vào vùng 2 (Twitter Members style) */
+function khoiTaoMembersPanel(d, phien) {
+  const badgeBtn = $('#commMembersBadge');
+  const panel = $('#membersPanel');
+  const backdrop = $('#membersBackdrop');
+  const closeBtn = $('#membersCloseBtn');
+  const searchInput = $('#membersSearchInput');
+  const tabAll = $('#membersTabAll');
+  const tabMods = $('#membersTabMods');
+  const listEl = $('#membersList');
+
+  if (!panel || !badgeBtn) return;
+
+  let tabHienTai = 'all'; // 'all' | 'mods'
+  let tuKhoa = '';
+
+  // Danh sách thành viên tổng hợp
+  const dsThanhVien = [];
+
+  // 1. Giáo viên chủ nhiệm (Admin)
+  const tenGV = d.lop?.gvcn || 'Giáo viên chủ nhiệm';
+  dsThanhVien.push({
+    ten: tenGV,
+    role: 'admin',
+    roleLabel: 'Admin',
+    sub: '@gvcn · Giáo viên chủ nhiệm',
+    laMod: true,
+    avatarChar: '👑',
+    avatarBg: '#fef3c7',
+    avatarColor: '#b45309',
+  });
+
+  // 2. Học sinh trong lớp
+  (d.hocSinh || []).forEach((h, idx) => {
+    const chucVu = (h.chucVu || '').trim();
+    const laMod = Boolean(chucVu);
+    const bgColors = ['#e0f2fe', '#f3e8ff', '#fce7f3', '#dcfce7', '#fef9c3'];
+    const textColors = ['#0284c7', '#7e22ce', '#be185d', '#15803d', '#a16207'];
+    const colorIdx = idx % bgColors.length;
+
+    dsThanhVien.push({
+      ten: h.hoTen || `Học sinh ${idx + 1}`,
+      role: laMod ? 'mod' : 'member',
+      roleLabel: laMod ? (chucVu.length <= 14 ? chucVu : 'Mod') : 'Member',
+      sub: `@hs_${h.stt || idx + 1}${chucVu ? ' · ' + chucVu : ''}${h.lopNghe ? ' · ' + h.lopNghe : ''}`,
+      laMod,
+      avatarChar: (h.hoTen ? h.hoTen.trim().split(/\s+/).pop().charAt(0) : '🎓').toUpperCase(),
+      avatarBg: bgColors[colorIdx],
+      avatarColor: textColors[colorIdx],
+      chiTiet: h,
+    });
+  });
+
+  function veDanhSach() {
+    if (!listEl) return;
+    const q = tuKhoa.toLowerCase();
+    const filtered = dsThanhVien.filter((m) => {
+      if (tabHienTai === 'mods' && !m.laMod) return false;
+      if (q && !m.ten.toLowerCase().includes(q) && !m.sub.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    if (!filtered.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--chu-nhat);font-size:14px;">Không tìm thấy thành viên nào.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    filtered.forEach((m) => {
+      const item = e('div', 'member-item');
+      item.innerHTML = `
+        <div class="member-avatar" style="background:${m.avatarBg};color:${m.avatarColor};">
+          ${m.avatarChar}
+        </div>
+        <div class="member-info">
+          <div class="member-name-row">
+            <span class="member-name">${m.ten}</span>
+            <span class="member-role-badge ${m.role}">${m.roleLabel}</span>
+          </div>
+          <div class="member-sub">${m.sub}</div>
+        </div>
+        <button class="member-action-btn" type="button">Chi tiết</button>
+      `;
+
+      item.querySelector('.member-action-btn')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (m.chiTiet) {
+          nhac(`Học sinh: ${m.ten} • ${m.sub}`, 'tot');
+        } else {
+          nhac(`${m.ten} • Giáo viên chủ nhiệm`, 'tot');
+        }
+      });
+
+      listEl.appendChild(item);
+    });
+  }
+
+  function moPanel() {
+    panel.classList.add('hien');
+    backdrop.classList.add('hien');
+    document.body.style.overflow = 'hidden';
+    tuKhoa = '';
+    if (searchInput) searchInput.value = '';
+    veDanhSach();
+  }
+
+  function dongPanel() {
+    panel.classList.remove('hien');
+    backdrop.classList.remove('hien');
+    document.body.style.overflow = '';
+  }
+
+  // Gắn sự kiện click vào badge thành viên vùng 2
+  badgeBtn.onclick = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    moPanel();
+  };
+
+  closeBtn?.addEventListener('click', dongPanel);
+  backdrop?.addEventListener('click', dongPanel);
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && panel.classList.contains('hien')) dongPanel();
+  });
+
+  tabAll?.addEventListener('click', () => {
+    tabHienTai = 'all';
+    tabAll.classList.add('active');
+    tabMods?.classList.remove('active');
+    veDanhSach();
+  });
+
+  tabMods?.addEventListener('click', () => {
+    tabHienTai = 'mods';
+    tabMods.classList.add('active');
+    tabAll?.classList.remove('active');
+    veDanhSach();
+  });
+
+  searchInput?.addEventListener('input', () => {
+    tuKhoa = searchInput.value.trim();
+    veDanhSach();
+  });
+}
+
+/** Khởi tạo khung soạn bài thiết kế lại đơn giản, chuyên nghiệp (Ảnh | Video | Âm thanh | Emoji) */
 function khoiTaoComposer(phien, lamMoi) {
   const comp = $('#commComposer');
   if (!comp) return;
@@ -2276,30 +2422,288 @@ function khoiTaoComposer(phien, lamMoi) {
   const boxPreview = $('#compPreviewBox');
   const imgPreview = $('#compPreviewImg');
   const vidPreview = $('#compPreviewVid');
+  const audioPreview = $('#compPreviewAudio');
+  const audioPlayer = $('#compAudioPlayer');
   const nutGoiPreview = $('#compPreviewRemove');
 
-  const panelExtra = $('#compExtraPanel');
-  const rowAnh = $('#compRowAnh');
-  const rowVideo = $('#compRowVideo');
-  const rowNgay = $('#compRowNgay');
-  const rowViTri = $('#compRowViTri');
+  // Media Picker Panel
+  const pickerPanel = $('#compMediaPicker');
+  const pickerTabs = $('#compPickerTabs');
+  const panelMay = $('#compPanelMay');
+  const panelThuVien = $('#compPanelThuVien');
+  const panelLink = $('#compPanelLink');
+  const fileInput = $('#compFileInput');
+  const btnChonTep = $('#compBtnChonTep');
+  const btnChonTepText = $('#compBtnChonTepText');
+  const libGrid = $('#compLibGrid');
+  const inputLinkUrl = $('#compInputLinkUrl');
+  const emojiDrawer = $('#compEmojiDrawer');
 
-  const inputAnhUrl = $('#compInputAnhUrl');
-  const inputVideoUrl = $('#compInputVideoUrl');
-  const inputNgay = $('#compInputNgay');
-  const inputViTri = $('#compInputViTri');
+  // Tool buttons
+  const toolAnh = $('#compToolAnh');
+  const toolVideo = $('#compToolVideo');
+  const toolAmThanh = $('#compToolAmThanh');
+  const toolEmoji = $('#compToolEmoji');
 
-  // Gán ngày hôm nay mặc định
-  if (inputNgay && !inputNgay.value) {
-    inputNgay.value = new Date().toISOString().slice(0, 10);
-  }
+  // Active state
+  let loaiMediaHienTai = null; // 'anh' | 'video' | 'am-thanh' | null
+  let nguonHienTai = 'may'; // 'may' | 'thuvien' | 'link'
+
+  // File / URL state
+  let tepChon = null; // File object
+  let blobPreviewUrl = null;
+  let thuVienIdChon = null; // Number ID from library
+  let linkUrlChon = null; // String URL
 
   function capNhatTrangThaiNut() {
     const coText = Boolean((oNhap?.value || '').trim());
-    const coAnh = Boolean((inputAnhUrl?.value || '').trim());
-    const coVideo = Boolean((inputVideoUrl?.value || '').trim());
-    if (nutDang) nutDang.disabled = !(coText || coAnh || coVideo);
+    const coMedia = Boolean(tepChon || thuVienIdChon || linkUrlChon);
+    if (nutDang) nutDang.disabled = !(coText || coMedia);
   }
+
+  function xoaDinhKem() {
+    if (blobPreviewUrl) {
+      try { URL.revokeObjectURL(blobPreviewUrl); } catch {}
+      blobPreviewUrl = null;
+    }
+    tepChon = null;
+    thuVienIdChon = null;
+    linkUrlChon = null;
+    loaiMediaHienTai = null;
+
+    if (fileInput) fileInput.value = '';
+    if (inputLinkUrl) inputLinkUrl.value = '';
+
+    if (imgPreview) { imgPreview.src = ''; imgPreview.hidden = true; }
+    if (vidPreview) { vidPreview.src = ''; vidPreview.hidden = true; }
+    if (audioPlayer) { audioPlayer.src = ''; }
+    if (audioPreview) { audioPreview.hidden = true; }
+    if (boxPreview) { boxPreview.hidden = true; }
+
+    [toolAnh, toolVideo, toolAmThanh].forEach(b => b?.classList.remove('active'));
+    if (pickerPanel) pickerPanel.hidden = true;
+    capNhatTrangThaiNut();
+  }
+
+  nutGoiPreview?.addEventListener('click', xoaDinhKem);
+
+  function datXemTruoc(loai, src) {
+    if (!boxPreview) return;
+    boxPreview.hidden = false;
+    if (imgPreview) imgPreview.hidden = (loai !== 'anh');
+    if (vidPreview) vidPreview.hidden = (loai !== 'video');
+    if (audioPreview) audioPreview.hidden = (loai !== 'am-thanh');
+
+    if (loai === 'anh' && imgPreview) imgPreview.src = src;
+    if (loai === 'video' && vidPreview) vidPreview.src = src;
+    if (loai === 'am-thanh' && audioPlayer) audioPlayer.src = src;
+    capNhatTrangThaiNut();
+  }
+
+  function chuyenNguonPicker(nguon) {
+    nguonHienTai = nguon;
+    pickerTabs?.querySelectorAll('.composer-picker-tab').forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.nguon === nguon);
+    });
+
+    if (panelMay) panelMay.hidden = (nguon !== 'may');
+    if (panelThuVien) panelThuVien.hidden = (nguon !== 'thuvien');
+    if (panelLink) panelLink.hidden = (nguon !== 'link');
+
+    if (nguon === 'thuvien') {
+      taiDuLieuThuVien();
+    } else if (nguon === 'link' && inputLinkUrl) {
+      inputLinkUrl.focus();
+    }
+  }
+
+  pickerTabs?.addEventListener('click', (ev) => {
+    const tab = ev.target.closest('.composer-picker-tab');
+    if (tab && tab.dataset.nguon) {
+      chuyenNguonPicker(tab.dataset.nguon);
+    }
+  });
+
+  async function taiDuLieuThuVien() {
+    if (!libGrid) return;
+    libGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;"><span class="quay" style="display:inline-block;width:18px;height:18px;vertical-align:middle;margin-right:6px;"></span>Đang tải thư viện…</div>';
+
+    try {
+      if (loaiMediaHienTai === 'video') {
+        const d = await api('/api/gv/thu-vien-video');
+        const ds = (d && d.danhSach) || [];
+        if (!ds.length) {
+          libGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;">Chưa có video nào trong thư viện lớp.</div>';
+          return;
+        }
+        libGrid.innerHTML = '';
+        ds.forEach((item) => {
+          const card = e('div', 'composer-lib-item');
+          card.title = item.ten || 'Video lớp';
+          const videoSrc = item.url || `/api/gv/tep-video?id=${item.id}`;
+          card.innerHTML = `<video src="${videoSrc}" preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video><span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px;">▶</span>`;
+          card.style.position = 'relative';
+          card.addEventListener('click', () => {
+            tepChon = null;
+            thuVienIdChon = item.id;
+            linkUrlChon = videoSrc;
+            datXemTruoc('video', videoSrc);
+            pickerPanel.hidden = true;
+          });
+          libGrid.appendChild(card);
+        });
+      } else if (loaiMediaHienTai === 'am-thanh') {
+        const d = await api('/api/gv/thu-vien-am-thanh');
+        const ds = (d && d.danhSach) || [];
+        if (!ds.length) {
+          libGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;">Chưa có bài âm thanh nào trong thư viện.</div>';
+          return;
+        }
+        libGrid.innerHTML = '';
+        ds.forEach((item) => {
+          const card = e('div', 'composer-lib-audio-item');
+          const audioSrc = item.url || `/api/gv/tep-am-thanh?id=${item.id}`;
+          card.innerHTML = `
+            <span class="composer-lib-audio-icon">🎵</span>
+            <div style="flex:1;min-width:0;">
+              <div class="composer-lib-audio-name">${item.ten || item.tenBai || 'Âm thanh'}</div>
+              <small style="color:var(--chu-nhat);font-size:11px;">Chạm để chọn đính kèm</small>
+            </div>
+          `;
+          card.addEventListener('click', () => {
+            tepChon = null;
+            thuVienIdChon = item.id;
+            linkUrlChon = audioSrc;
+            datXemTruoc('am-thanh', audioSrc);
+            pickerPanel.hidden = true;
+          });
+          libGrid.appendChild(card);
+        });
+      } else {
+        // Ảnh
+        const d = await api('/api/gv/hoat-dong-lop');
+        const ds = (d && d.hoatDong) || [];
+        const dsAnh = ds.filter(x => x.anhKhoa || x.hinhUrl);
+        if (!dsAnh.length) {
+          libGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;">Chưa có ảnh nào trong thư viện lớp.</div>';
+          return;
+        }
+        libGrid.innerHTML = '';
+        dsAnh.forEach((item) => {
+          const card = e('div', 'composer-lib-item');
+          const src = item.anhKhoa ? `/api/gv/hoat-dong-lop-tep?id=${item.anhKhoa}` : item.hinhUrl;
+          card.innerHTML = `<img src="${src}" alt="Ảnh" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+          card.addEventListener('click', () => {
+            tepChon = null;
+            thuVienIdChon = item.anhKhoa || null;
+            linkUrlChon = src;
+            datXemTruoc('anh', src);
+            pickerPanel.hidden = true;
+          });
+          libGrid.appendChild(card);
+        });
+      }
+    } catch (err) {
+      libGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--xau);font-size:13px;">Lỗi tải: ${err.message}</div>`;
+    }
+  }
+
+  function moPickerChoLoai(loai) {
+    if (emojiDrawer) emojiDrawer.hidden = true;
+
+    if (loaiMediaHienTai === loai && !pickerPanel.hidden) {
+      pickerPanel.hidden = true;
+      return;
+    }
+
+    loaiMediaHienTai = loai;
+    pickerPanel.hidden = false;
+
+    // Cập nhật nhãn và accept
+    if (loai === 'anh') {
+      if (fileInput) fileInput.accept = 'image/*';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn ảnh từ thiết bị của bạn';
+      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán đường dẫn ảnh trực tiếp (https://...)';
+    } else if (loai === 'video') {
+      if (fileInput) fileInput.accept = 'video/*';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn video từ thiết bị của bạn';
+      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán link YouTube (vd: https://youtube.com/watch?v=...) hoặc link video...';
+    } else if (loai === 'am-thanh') {
+      if (fileInput) fileInput.accept = 'audio/*';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn âm thanh từ thiết bị của bạn';
+      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán đường dẫn tệp âm thanh MP3/M4A/WAV (https://...)';
+    }
+
+    chuyenNguonPicker(nguonHienTai);
+  }
+
+  toolAnh?.addEventListener('click', () => moPickerChoLoai('anh'));
+  toolVideo?.addEventListener('click', () => moPickerChoLoai('video'));
+  toolAmThanh?.addEventListener('click', () => moPickerChoLoai('am-thanh'));
+
+  btnChonTep?.addEventListener('click', () => fileInput?.click());
+
+  fileInput?.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+
+    if (loaiMediaHienTai === 'video' && file.size > 50_000_000) {
+      return nhac('Video vượt quá 50 MB, vui lòng chọn video nhỏ hơn hoặc dùng link YouTube.', 'xau');
+    }
+    if (loaiMediaHienTai === 'am-thanh' && file.size > 15_000_000) {
+      return nhac('Âm thanh vượt quá 15 MB, vui lòng chọn file nhỏ hơn hoặc dùng link.', 'xau');
+    }
+
+    tepChon = file;
+    thuVienIdChon = null;
+    linkUrlChon = null;
+
+    if (blobPreviewUrl) URL.revokeObjectURL(blobPreviewUrl);
+    blobPreviewUrl = URL.createObjectURL(file);
+
+    datXemTruoc(loaiMediaHienTai, blobPreviewUrl);
+    pickerPanel.hidden = true;
+    nhac(`Đã chọn: ${file.name}`, 'tot');
+  });
+
+  inputLinkUrl?.addEventListener('input', () => {
+    const url = (inputLinkUrl.value || '').trim();
+    if (!url) return;
+
+    linkUrlChon = url;
+    tepChon = null;
+    thuVienIdChon = null;
+
+    if (loaiMediaHienTai === 'video') {
+      const maYt = idYoutube(url);
+      if (maYt) {
+        datXemTruoc('video', `https://img.youtube.com/vi/${maYt}/hqdefault.jpg`);
+      } else {
+        datXemTruoc('video', url);
+      }
+    } else {
+      datXemTruoc(loaiMediaHienTai, url);
+    }
+  });
+
+  // Khay Emoji
+  const EMOJIS = ['😀', '😂', '🥰', '😎', '🥳', '🤔', '👍', '👏', '🔥', '✨', '🎉', '❤️', '💙', '⭐', '📚', '🎓', '📝', '💯', '🏆', '☕', '🌸', '🍀', '🎵', '🎮'];
+  if (emojiDrawer) {
+    emojiDrawer.innerHTML = EMOJIS.map(e => `<button class="composer-emoji-item" type="button">${e}</button>`).join('');
+    emojiDrawer.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.composer-emoji-item');
+      if (btn && oNhap) {
+        oNhap.value += btn.textContent;
+        oNhap.focus();
+        capNhatTrangThaiNut();
+      }
+    });
+  }
+
+  toolEmoji?.addEventListener('click', () => {
+    if (pickerPanel) pickerPanel.hidden = true;
+    if (emojiDrawer) emojiDrawer.hidden = !emojiDrawer.hidden;
+  });
 
   if (oNhap) {
     oNhap.addEventListener('input', () => {
@@ -2309,117 +2713,77 @@ function khoiTaoComposer(phien, lamMoi) {
     });
   }
 
-  // Bật/tắt các công cụ
-  $('#compToolAnh')?.addEventListener('click', () => {
-    panelExtra.hidden = false;
-    rowAnh.hidden = !rowAnh.hidden;
-    if (!rowAnh.hidden) inputAnhUrl.focus();
-  });
-
-  $('#compToolVideo')?.addEventListener('click', () => {
-    panelExtra.hidden = false;
-    rowVideo.hidden = !rowVideo.hidden;
-    if (!rowVideo.hidden) inputVideoUrl.focus();
-  });
-
-  $('#compToolNgay')?.addEventListener('click', () => {
-    panelExtra.hidden = false;
-    rowNgay.hidden = !rowNgay.hidden;
-  });
-
-  $('#compToolViTri')?.addEventListener('click', () => {
-    panelExtra.hidden = false;
-    rowViTri.hidden = !rowViTri.hidden;
-    if (!rowViTri.hidden) inputViTri.focus();
-  });
-
-  $('#compToolEmoji')?.addEventListener('click', () => {
-    if (oNhap) {
-      oNhap.value += ' ✨ ';
-      oNhap.focus();
-      capNhatTrangThaiNut();
-    }
-  });
-
-  $('#compToolKhaoSat')?.addEventListener('click', () => {
-    if (oNhap) {
-      oNhap.value += '\n📊 Bình chọn:\n1. \n2. ';
-      oNhap.focus();
-      capNhatTrangThaiNut();
-    }
-  });
-
-  $('#compChonKhoAnh')?.addEventListener('click', () => {
-    moHopThoaiThemHoatDong(lamMoi);
-  });
-
-  inputAnhUrl?.addEventListener('input', () => {
-    const url = inputAnhUrl.value.trim();
-    if (url) {
-      boxPreview.hidden = false;
-      imgPreview.hidden = false;
-      imgPreview.src = url;
-      vidPreview.hidden = true;
-    } else {
-      imgPreview.hidden = true;
-      if (vidPreview.hidden) boxPreview.hidden = true;
-    }
-    capNhatTrangThaiNut();
-  });
-
-  inputVideoUrl?.addEventListener('input', () => {
-    const url = inputVideoUrl.value.trim();
-    if (url) {
-      boxPreview.hidden = false;
-      vidPreview.hidden = false;
-      vidPreview.src = url;
-      imgPreview.hidden = true;
-    } else {
-      vidPreview.hidden = true;
-      if (imgPreview.hidden) boxPreview.hidden = true;
-    }
-    capNhatTrangThaiNut();
-  });
-
-  nutGoiPreview?.addEventListener('click', () => {
-    boxPreview.hidden = true;
-    imgPreview.src = '';
-    vidPreview.src = '';
-    inputAnhUrl.value = '';
-    inputVideoUrl.value = '';
-    capNhatTrangThaiNut();
-  });
-
   // Nút Post
   nutDang?.addEventListener('click', async () => {
     const nd = (oNhap?.value || '').trim();
-    const urlAnh = (inputAnhUrl?.value || '').trim() || null;
-    const urlVid = (inputVideoUrl?.value || '').trim() || null;
-    const ngay = (inputNgay?.value || '').trim() || new Date().toISOString().slice(0, 10);
-    const viTri = (inputViTri?.value || '').trim();
-
-    let fullNd = nd;
-    if (viTri) fullNd = (fullNd ? fullNd + '\n' : '') + '📍 ' + viTri;
+    if (!nd && !tepChon && !thuVienIdChon && !linkUrlChon) return;
 
     try {
       nutDang.disabled = true;
       nutDang.textContent = 'Đang đăng…';
+
+      let anhId = null, videoId = null, amThanhId = null;
+      let hinhUrl = null, videoUrl = null, amThanhUrl = null;
+
+      // 1. Tải tệp từ máy lên (nếu có)
+      if (tepChon) {
+        nutDang.textContent = 'Đang tải tệp…';
+        if (loaiMediaHienTai === 'anh') {
+          const blob = await nenAnhThanhBlob(tepChon);
+          const res = await api('/api/gv/hoat-dong-lop-tep?loai=anh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'image/jpeg' },
+            body: blob
+          });
+          anhId = res.id;
+        } else if (loaiMediaHienTai === 'video') {
+          const buf = await tepChon.arrayBuffer();
+          const res = await api('/api/gv/hoat-dong-lop-tep?loai=video', {
+            method: 'POST',
+            headers: { 'Content-Type': tepChon.type || 'video/mp4' },
+            body: buf
+          });
+          videoId = res.id;
+        } else if (loaiMediaHienTai === 'am-thanh') {
+          const buf = await tepChon.arrayBuffer();
+          const res = await api('/api/gv/hoat-dong-lop-tep?loai=am-thanh', {
+            method: 'POST',
+            headers: { 'Content-Type': tepChon.type || 'audio/mpeg' },
+            body: buf
+          });
+          amThanhId = res.id;
+        }
+      } else if (thuVienIdChon) {
+        if (loaiMediaHienTai === 'anh') anhId = thuVienIdChon;
+        else if (loaiMediaHienTai === 'video') videoId = thuVienIdChon;
+        else if (loaiMediaHienTai === 'am-thanh') amThanhId = thuVienIdChon;
+      } else if (linkUrlChon) {
+        if (loaiMediaHienTai === 'anh') hinhUrl = linkUrlChon;
+        else if (loaiMediaHienTai === 'video') videoUrl = linkUrlChon;
+        else if (loaiMediaHienTai === 'am-thanh') amThanhUrl = linkUrlChon;
+      }
+
+      nutDang.textContent = 'Đang lưu…';
       await api('/api/gv/hoat-dong-lop', {
         method: 'POST',
         body: {
-          noiDung: fullNd,
-          hinhUrl: urlAnh,
-          videoUrl: urlVid,
-          ngay,
+          noiDung: nd,
+          anhId,
+          videoId,
+          amThanhId,
+          hinhUrl,
+          videoUrl,
+          amThanhUrl,
+          ngay: new Date().toISOString().slice(0, 10),
         }
       });
+
       nhac('Đã đăng bài lên bảng tin cộng đồng!', 'tot');
-      oNhap.value = '';
-      oNhap.style.height = '54px';
-      inputAnhUrl.value = '';
-      inputVideoUrl.value = '';
-      boxPreview.hidden = true;
-      panelExtra.hidden = true;
+      if (oNhap) {
+        oNhap.value = '';
+        oNhap.style.height = '54px';
+      }
+      xoaDinhKem();
       nutDang.textContent = 'Post';
       if (lamMoi) await lamMoi();
     } catch (err) {
@@ -2454,6 +2818,9 @@ function veTwitterCommunities(d, phien, lamMoi) {
     }));
   }
 
+  // Slide-over danh sách thành viên (Vùng 2 -> Vùng 3 Twitter style)
+  khoiTaoMembersPanel(d, phien);
+
   // Vai trò của người dùng
   const roleBadge = $('#commRoleBadge');
   if (roleBadge) {
@@ -2469,7 +2836,7 @@ function veTwitterCommunities(d, phien, lamMoi) {
     }).catch(() => {});
   });
 
-  // Khởi tạo khung soạn bài (Hình 1)
+  // Khởi tạo khung soạn bài thiết kế mới
   khoiTaoComposer(phien, lamMoi);
 
   // 2. Chuyển đổi giữa 4 Tabs Twitter

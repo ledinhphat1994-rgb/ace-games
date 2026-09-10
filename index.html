@@ -132,7 +132,7 @@
           <p class="community-bio" id="commBio">Trung tâm GDNN - GDTX Huyện Định Quán · Niên khóa 2026 – 2027</p>
 
           <div class="community-meta-row">
-            <div class="community-members-badge">
+            <div class="community-members-badge" id="commMembersBadge" role="button" tabindex="0" title="Xem danh sách thành viên" style="cursor:pointer;">
               <div class="community-avatar-stack" id="commAvatarStack">
                 <!-- Avatar tròn xếp chồng -->
               </div>
@@ -173,44 +173,59 @@
             <div class="composer-preview-box" id="compPreviewBox" hidden>
               <img class="composer-preview-media" id="compPreviewImg" alt="Xem trước ảnh" hidden>
               <video class="composer-preview-media" id="compPreviewVid" controls hidden></video>
+              <div class="composer-audio-preview" id="compPreviewAudio" hidden>
+                <span style="font-size:20px;">🎵</span>
+                <audio id="compAudioPlayer" controls style="flex:1;height:36px;"></audio>
+              </div>
               <button class="composer-preview-remove" id="compPreviewRemove" type="button" title="Gỡ đính kèm">✕</button>
             </div>
           </div>
         </div>
-        <div class="composer-extra-panel" id="compExtraPanel" hidden>
-          <div class="composer-panel-row" id="compRowAnh" hidden>
-            <input class="o-nhap o-nhap-nho" id="compInputAnhUrl" placeholder="Dán link ảnh (https://...) hoặc chọn từ kho">
-            <button class="nut nut-vien nut-nho" id="compChonKhoAnh" type="button">Kho ảnh lớp</button>
+
+        <!-- Khung Media Picker 3 nguồn (Từ máy / Thư viện / Link hoặc YouTube) -->
+        <div class="composer-picker-panel" id="compMediaPicker" hidden>
+          <div class="composer-picker-tabs" id="compPickerTabs">
+            <button class="composer-picker-tab active" id="compTabMay" type="button" data-nguon="may">📁 Từ máy</button>
+            <button class="composer-picker-tab" id="compTabThuVien" type="button" data-nguon="thuvien">📚 Thư viện lớp</button>
+            <button class="composer-picker-tab" id="compTabLink" type="button" data-nguon="link">🔗 Link / YouTube</button>
           </div>
-          <div class="composer-panel-row" id="compRowVideo" hidden>
-            <input class="o-nhap o-nhap-nho" id="compInputVideoUrl" placeholder="Dán link YouTube / Drive / Video...">
-          </div>
-          <div class="composer-panel-row" id="compRowNgay" hidden>
-            <input class="o-nhap o-nhap-nho" id="compInputNgay" type="date">
-          </div>
-          <div class="composer-panel-row" id="compRowViTri" hidden>
-            <input class="o-nhap o-nhap-nho" id="compInputViTri" placeholder="Địa điểm (vd: Phòng học 10A7)">
+          <div class="composer-picker-body">
+            <!-- Nguồn 1: Từ máy (Upload) -->
+            <div id="compPanelMay">
+              <input type="file" id="compFileInput" style="display:none;">
+              <button class="nut nut-vien nut-rong" id="compBtnChonTep" type="button" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span style="font-size:18px;">⬆</span> <span id="compBtnChonTepText">Chọn tệp từ thiết bị của bạn</span>
+              </button>
+            </div>
+            <!-- Nguồn 2: Thư viện lớp -->
+            <div id="compPanelThuVien" hidden>
+              <div class="composer-picker-library-grid" id="compLibGrid">
+                <div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--chu-nhat);font-size:13px;">Đang tải thư viện…</div>
+              </div>
+            </div>
+            <!-- Nguồn 3: Dán link / YouTube -->
+            <div id="compPanelLink" hidden>
+              <input class="o-nhap o-nhap-nho" id="compInputLinkUrl" placeholder="Dán đường dẫn trực tiếp hoặc link YouTube...">
+            </div>
           </div>
         </div>
+
+        <!-- Khay Emoji nhanh -->
+        <div class="composer-emoji-drawer" id="compEmojiDrawer" hidden></div>
+
         <div class="composer-row-bottom">
           <div class="composer-tools-list">
-            <button class="composer-tool-btn" id="compToolAnh" type="button" title="Thêm ảnh">
+            <button class="composer-tool-btn" id="compToolAnh" type="button" title="Ảnh (Từ máy / Thư viện / Link)">
               <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7-3 3.72L9 13l-3 4h12l-4-5z"/></svg>
             </button>
-            <button class="composer-tool-btn" id="compToolVideo" type="button" title="Thêm video">
+            <button class="composer-tool-btn" id="compToolVideo" type="button" title="Video (Từ máy / Thư viện / YouTube)">
               <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
             </button>
-            <button class="composer-tool-btn" id="compToolKhaoSat" type="button" title="Thăm dò / Khảo sát">
-              <svg viewBox="0 0 24 24"><path d="M4 19h16v2H4zm2-4h3v-8H6zm5 0h3V3h-3zm5 0h3v-5h-3z"/></svg>
+            <button class="composer-tool-btn" id="compToolAmThanh" type="button" title="Âm thanh (Từ máy / Thư viện / Link)">
+              <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
             </button>
             <button class="composer-tool-btn" id="compToolEmoji" type="button" title="Biểu tượng cảm xúc">
               <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
-            </button>
-            <button class="composer-tool-btn" id="compToolNgay" type="button" title="Ngày đăng">
-              <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
-            </button>
-            <button class="composer-tool-btn" id="compToolViTri" type="button" title="Địa điểm">
-              <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
             </button>
           </div>
           <button class="composer-post-btn" id="compBtnDang" type="button" disabled>Post</button>
@@ -344,9 +359,30 @@
   </div>
 </footer>
 
+  <!-- SLIDE-OVER DANH SÁCH THÀNH VIÊN (VÙNG 3 - TWITTER STYLE) -->
+  <div class="members-panel-backdrop" id="membersBackdrop"></div>
+  <aside class="members-panel" id="membersPanel" aria-label="Danh sách thành viên">
+    <div class="members-panel-header">
+      <button class="members-panel-close" id="membersCloseBtn" type="button" aria-label="Đóng" title="Quay lại">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h2 class="members-panel-title">Thành viên</h2>
+    </div>
+    <div class="members-panel-search">
+      <input type="search" id="membersSearchInput" placeholder="🔍 Tìm kiếm thành viên…" autocomplete="off">
+    </div>
+    <div class="members-panel-tabs">
+      <button class="members-panel-tab active" id="membersTabAll" type="button">Tất cả</button>
+      <button class="members-panel-tab" id="membersTabMods" type="button">Ban quản trị</button>
+    </div>
+    <div class="members-panel-list" id="membersList">
+      <!-- Dynamic members rows -->
+    </div>
+  </aside>
+
 <audio id="nhacNenAudio" loop preload="none"></audio>
-<script type="module" src="/assets/js/trang-lop.js?v=20260910_15"></script>
-<script src="/assets/js/chat-widget.js?v=20260910_15"></script>
-<script src="/assets/js/thanh-chuc-nang-nhanh.js?v=20260910_15"></script>
+<script type="module" src="/assets/js/trang-lop.js?v=20260910_16"></script>
+<script src="/assets/js/chat-widget.js?v=20260910_16"></script>
+<script src="/assets/js/thanh-chuc-nang-nhanh.js?v=20260910_16"></script>
 </body>
 </html>
