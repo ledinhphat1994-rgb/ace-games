@@ -10,16 +10,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css">
-<link rel="stylesheet" href="/assets/css/quan-ly.css">
+<link rel="stylesheet" href="/assets/css/style.css?v=20260910_06">
+<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_06">
 </head>
 <body class="trang-dang-nhap">
 
 <header class="thanh-tren">
   <div class="wrap">
-    <a class="hieu" href="/">
-      <span class="hieu-o" id="hieuMaLop">🎓</span>
-      <span class="hieu-ten"><span id="hieuTenLop">Hệ thống lớp học</span><small class="hieu-phu">Đăng nhập</small></span>
+    <a class="hieu" href="/" title="Về trang chủ">
+      <span class="hieu-o-boc">
+        <span class="hieu-o" id="hieuMaLop">🎓</span>
+        <span class="hieu-nam-hoc" id="hieuNamHoc"></span>
+      </span>
+      <span class="hieu-ten">
+        <span id="hieuTenLop" hidden>Hệ thống lớp học</span>
+        <small class="hieu-phu" id="hieuPhuDangNhap">Đăng nhập</small>
+      </span>
     </a>
     <div class="thanh-phai">
       <a class="nut-tron" href="/" title="Trang chủ" aria-label="Trang chủ">
@@ -72,11 +78,6 @@
   import { ganDoiGiaoDien } from '/assets/js/chung.js';
   ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
 
-  // Dọn URL cho gọn, chuyên nghiệp: "next" (trang định vào trước khi bị bắt đăng nhập lại) là
-  // chi tiết kỹ thuật, không có ý nghĩa gì để lộ trên thanh địa chỉ (vd
-  // "?next=%2Fgiao-vien%2F%23%2Fdiem-danh&lop=10a7" nhìn rất rối) — cất vào sessionStorage rồi
-  // xoá khỏi URL ngay, chỉ còn giữ lại "?lop=..." (có ý nghĩa thật, đáng để lộ vì là link chia sẻ
-  // được cho đúng lớp). Đọc lại đúng giá trị này ở bieuMau.addEventListener('submit', ...) bên dưới.
   (function donDepUrl() {
     const url = new URL(location.href);
     const next = url.searchParams.get('next');
@@ -86,11 +87,6 @@
     history.replaceState(null, '', url.pathname + url.search + url.hash);
   })();
 
-  // Cloudflare Turnstile — xác minh "không phải robot" gần như vô hình, chặn script dò mã tự
-  // động NGAY CẢ KHI nó đổi IP liên tục (né được giới hạn "8 lần sai/10 phút/IP" ở máy chủ).
-  // TURNSTILE_SITE_KEY để RỖNG nghĩa là CHƯA cấu hình — ẩn hẳn ô này, đăng nhập vẫn hoạt động
-  // bình thường như trước. Điền site key (giá trị CÔNG KHAI, không phải bí mật) sau khi tạo
-  // widget ở Cloudflare Dashboard → Turnstile.
   const TURNSTILE_SITE_KEY = '0x4AAAAAAEtgYZi3oieCDROp';
   let turnstileWidgetId = null;
   if (TURNSTILE_SITE_KEY) {
@@ -106,66 +102,107 @@
     document.head.append(kichBan);
   }
 
-  // Đăng nhập giờ có 2 BƯỚC khi vào thẳng "/" (không kèm ?lop=): (1) chọn đúng lớp trong danh
-  // sách công khai (chỉ tên lớp, không phải cơ chế bảo mật), (2) nhập mã của đúng lớp đó. Mở
-  // thẳng link riêng của một lớp (?lop=<slug>) thì bỏ qua bước 1, vào ngay bước 2.
   const chonLop = document.getElementById('chonLop');
   const bieuMau = document.getElementById('bieuMau');
   const nutDoiLop = document.getElementById('nutDoiLop');
 
   function apDungThuongHieu(lop) {
     const tenNgan = (lop.ten || '').replace(/^Lớp\s*/i, '');
+    const namHoc = lop.namHoc || '';
     document.title = `Đăng nhập · ${lop.ten}`;
-    document.getElementById('hieuTenLop').textContent = lop.ten;
-    // Ẩn mã lớp trong badge — logo huy hiệu tròn đã thể hiện rồi, chữ trong vòng tròn là thừa.
+
+    // Logo lớp: hiển thị huy hiệu mã lớp (ví dụ: 10A7)
     const hieuMaLop = document.getElementById('hieuMaLop');
-    hieuMaLop.textContent = tenNgan || '🎓';
-    hieuMaLop.hidden = true;
-    // Bước nhập mã: bỏ hẳn huy hiệu + tiêu đề "Lớp ..." lặp lại (đã thấy ở thanh trên rồi) —
-    // chỉ còn đúng một dòng giới thiệu tên trường, làm to rõ để bù lại.
+    if (hieuMaLop) {
+      hieuMaLop.textContent = tenNgan || '🎓';
+      hieuMaLop.hidden = false;
+    }
+
+    // Badge năm học (ví dụ: 26–27) ở góc huy hiệu
+    const hieuNamHoc = document.getElementById('hieuNamHoc');
+    if (hieuNamHoc) {
+      const m = namHoc.match(/(\d{4})\s*[–-]\s*(\d{4})/);
+      hieuNamHoc.textContent = m ? `${m[1].slice(2)}–${m[2].slice(2)}` : namHoc;
+      hieuNamHoc.hidden = !hieuNamHoc.textContent;
+    }
+
+    // Ẩn chữ "Lớp 10A7" trên chữ "Đăng nhập" vì logo huy hiệu đã có 10A7 rồi
+    const hieuTenLop = document.getElementById('hieuTenLop');
+    if (hieuTenLop) {
+      hieuTenLop.textContent = lop.ten;
+      hieuTenLop.hidden = true;
+    }
+    const hieuPhu = document.getElementById('hieuPhuDangNhap');
+    if (hieuPhu) {
+      hieuPhu.textContent = 'Đăng nhập';
+    }
+
+    // Bước nhập mã: bỏ hẳn huy hiệu + tiêu đề "Lớp ..." lặp lại ở giữa thẻ
     document.getElementById('hieuOChinh').hidden = true;
     document.getElementById('tieuDeDangNhap').hidden = true;
     const phu = document.getElementById('phuDeDangNhap');
-    // Tên trường hiển thị 2 dòng căn đều: tách bằng " - " hoặc ", " nếu có.
-    const truong = lop.truong || '';
-    const sep = truong.includes(' - ') ? ' - ' : (truong.includes(', ') ? ', ' : null);
-    if (sep) {
-      const parts = truong.split(sep);
-      const d1 = parts[0].trim();
-      const d2 = parts.slice(1).join(sep).trim();
-      phu.innerHTML = '';
-      const span1 = document.createElement('span');
-      span1.style.cssText = 'display:block;font-weight:700;';
-      span1.textContent = d1;
+
+    // Tên trường hiển thị đúng 2 dòng căn đều theo yêu cầu
+    let d1 = 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2';
+    let d2 = 'xã Định Quán, thành phố Đồng Nai';
+    const truong = (lop.truong || '').trim();
+    if (truong) {
+      const sep = truong.includes(' - ') ? ' - ' : (truong.includes(' – ') ? ' – ' : (truong.includes(', ') ? ', ' : null));
+      if (sep) {
+        const parts = truong.split(sep);
+        d1 = parts[0].trim();
+        d2 = parts.slice(1).join(sep).trim();
+      } else {
+        d1 = truong;
+        d2 = '';
+      }
+    }
+
+    phu.innerHTML = '';
+    const span1 = document.createElement('span');
+    span1.className = 'ten-truong-d1';
+    span1.textContent = d1;
+    phu.append(span1);
+
+    if (d2) {
       const span2 = document.createElement('span');
-      span2.style.cssText = 'display:block;font-weight:500;opacity:.85;';
+      span2.className = 'ten-truong-d2';
       span2.textContent = d2;
-      phu.append(span1, span2);
-    } else {
-      phu.textContent = truong;
+      phu.append(span2);
     }
     phu.classList.add('ten-truong');
+
+    // Tự động căn chỉnh kích thước chữ vừa khít 1 dòng trên mọi kích thước màn hình
+    const canChinhChu = () => {
+      const w = phu.clientWidth;
+      if (!w) return;
+      [span1, phu.querySelector('.ten-truong-d2')].filter(Boolean).forEach((el) => {
+        el.style.fontSize = '';
+        let sz = parseFloat(window.getComputedStyle(el).fontSize) || 14;
+        while (el.scrollWidth > w && sz > 9) {
+          sz -= 0.5;
+          el.style.fontSize = sz + 'px';
+        }
+      });
+    };
+    requestAnimationFrame(canChinhChu);
+    window.addEventListener('resize', canChinhChu, { passive: true });
   }
 
-  // Giữ nguyên "next" (trang định vào trước khi bị bắt đăng nhập lại) khi đổi URL sang dạng
-  // ?lop=... — không thì đăng nhập xong sẽ bị đưa về trang mặc định thay vì đúng trang đang xem dở.
   function datThamSoLop(slug) {
     const qs = new URLSearchParams(location.search);
     qs.set('lop', slug);
     history.replaceState(null, '', '?' + qs.toString());
   }
 
-  // Lưu ý: #chonLop có style="display:flex" cố định để xếp các nút theo cột — thuộc tính
-  // "hidden" một mình không thắng nổi display:flex đã đặt sẵn (inline style luôn thắng), nên
-  // MỌI LẦN ẩn/hiện đều phải đặt lại .style.display tường minh, không chỉ đổi .hidden.
   function hienChonLop(hien) {
     chonLop.hidden = !hien;
     chonLop.style.display = hien ? 'flex' : 'none';
   }
 
   function moBuocNhapMa(slug, lop, coTheDoiLop) {
-    if (lop) apDungThuongHieu(lop);
-    if (slug) datThamSoLop(slug);
+    datThamSoLop(slug);
+    apDungThuongHieu(lop);
     hienChonLop(false);
     bieuMau.hidden = false;
     nutDoiLop.hidden = !coTheDoiLop;
@@ -173,10 +210,21 @@
   }
 
   function moBuocChonLop(danhSach) {
-    document.getElementById('hieuTenLop').textContent = 'Hệ thống lớp học';
+    const hieuTenLop = document.getElementById('hieuTenLop');
+    if (hieuTenLop) {
+      hieuTenLop.textContent = 'Hệ thống lớp học';
+      hieuTenLop.hidden = false;
+    }
     const _maLop = document.getElementById('hieuMaLop');
-    _maLop.textContent = '🎓';
-    _maLop.hidden = true;
+    if (_maLop) {
+      _maLop.textContent = '🎓';
+      _maLop.hidden = false;
+    }
+    const _namHoc = document.getElementById('hieuNamHoc');
+    if (_namHoc) {
+      _namHoc.textContent = '';
+      _namHoc.hidden = true;
+    }
     document.getElementById('hieuOChinh').textContent = '🎓';
     document.getElementById('hieuOChinh').hidden = false;
     document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';

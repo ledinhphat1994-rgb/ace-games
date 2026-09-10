@@ -1819,17 +1819,55 @@ body.trang-dang-nhap {
   color: var(--chu-nhat); font-size: 14px; font-weight: 500; text-align: center;
   line-height: 1.5; margin: 0 auto 20px; max-width: 360px;
 }
-/* Bước nhập mã: dòng giới thiệu tên trường thay thế tiêu đề nên to rõ, đậm, nổi bật, căn giữa khung */
+/* Bước nhập mã: dòng giới thiệu tên trường thay thế tiêu đề — 2 dòng căn đều, dòng 1 không ngắt chữ */
 .the-dang-nhap .phu.ten-truong {
-  color: var(--chu); font-size: 15.5px; font-weight: 700; text-align: center;
-  line-height: 1.55; margin: 4px auto 22px; max-width: 340px;
-  padding: 0 16px; word-break: keep-all; overflow-wrap: break-word;
-  hyphens: auto;
+  color: var(--chu);
+  text-align: center;
+  margin: 4px auto 22px;
+  max-width: 100%;
+  padding: 0;
+  width: 100%;
+}
+.the-dang-nhap .phu.ten-truong .ten-truong-d1 {
+  display: block;
+  font-weight: 800;
+  font-size: clamp(12px, 3.8vw, 16px);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  letter-spacing: -0.015em;
+  color: var(--chu);
+}
+.the-dang-nhap .phu.ten-truong .ten-truong-d2 {
+  display: block;
+  font-weight: 500;
+  font-size: clamp(11.5px, 3.4vw, 14px);
+  opacity: 0.88;
+  line-height: 1.35;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--chu);
 }
 @media (max-width: 400px) {
-  .the-dang-nhap .phu.ten-truong {
-    font-size: 14px; line-height: 1.6; padding: 0 12px; max-width: 100%;
+  .the-dang-nhap .phu.ten-truong .ten-truong-d1 {
+    font-size: clamp(11.5px, 3.6vw, 14px);
+    line-height: 1.3;
   }
+  .the-dang-nhap .phu.ten-truong .ten-truong-d2 {
+    font-size: clamp(11px, 3.2vw, 13px);
+    line-height: 1.3;
+    margin-top: 4px;
+  }
+}
+.trang-dang-nhap .hieu-phu {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
 }
 .the-dang-nhap .nut { width: 100%; margin-top: 14px; min-height: 47px; font-size: 15px; }
 .the-dang-nhap .turnstile-hop:not([hidden]) {

@@ -2520,9 +2520,8 @@ function apDungThuongHieuLop(lop, phien) {
   const namHoc = lop.namHoc || '';
 
   document.title = namHoc ? `${ten} · Năm học ${namHoc}` : ten;
-  // Ẩn mã lớp (10A7) trong badge — logo huy hiệu đã thể hiện mã lớp trực quan rồi,
-  // hiện thêm chữ trong vòng tròn là thừa và làm badge trông rối.
-  const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) { hieuMaLop.textContent = tenNgan; hieuMaLop.hidden = true; }
+  // Hiển thị mã lớp (10A7) trong logo huy hiệu
+  const hieuMaLop = $('#hieuMaLop'); if (hieuMaLop) { hieuMaLop.textContent = tenNgan; hieuMaLop.hidden = false; }
   // Badge năm học gắn ở góc huy hiệu lớp — viết tắt "26–27" cho gọn (thay vì "Năm học 2026 –
   // 2027" đầy đủ, quá dài cho một cái nhãn nhỏ ở góc icon), vẫn tự nhận diện đúng 2 năm dù sau
   // này đổi định dạng namHoc khác đi.
