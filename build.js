@@ -11,6 +11,7 @@ const DANH_SACH_DANG = [
   'index.html', 'login.html', 'robots.txt',
   'manifest.webmanifest', 'sw.js', '_headers',
   'assets', 'data', 'functions', 'giao-vien',
+  'digital-campus.html', 'community-feed.html',
 ];
 
 // Không đăng các tệp ghi chú nội bộ nằm lẫn trong thư mục trên.
