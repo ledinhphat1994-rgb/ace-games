@@ -1964,7 +1964,8 @@ function taoCumIconCamXuc(cacLoaiArray, camXucCuaToi, tongCamXuc) {
       }
     });
   } else {
-    cum.innerHTML = `<svg viewBox="0 0 24 24"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-2.427.13-4.296 2.06-4.296 4.54 0 3.2 2.605 5.92 6.786 9.53l2.21 1.91 2.2-1.9c4.18-3.61 6.79-6.33 6.79-9.54 0-2.48-1.87-4.41-4.3-4.54z"/></svg>`;
+    // Chưa có cảm xúc nào: dùng icon ❤️ mờ thể hiện "thả cảm xúc"
+    cum.append(e('span', 'tpc-mini-icon tpc-mini-icon-empty', '🤍'));
   }
 
   const countSpan = e('span', 'tpc-count', tongCamXuc ? formatSoLuong(tongCamXuc) : '');
@@ -2727,16 +2728,16 @@ function khoiTaoComposer(phien, lamMoi) {
     // Cập nhật nhãn và accept
     if (loai === 'anh') {
       if (fileInput) fileInput.accept = 'image/*';
-      if (btnChonTepText) btnChonTepText.textContent = 'Chọn ảnh từ thiết bị của bạn';
-      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán đường dẫn ảnh trực tiếp (https://...)';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn ảnh từ thiết bị (JPG, PNG, WebP)';
+      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán link ảnh trực tiếp: JPG, PNG, WebP, GIF (https://...)';
     } else if (loai === 'video') {
       if (fileInput) fileInput.accept = 'video/*';
-      if (btnChonTepText) btnChonTepText.textContent = 'Chọn video từ thiết bị của bạn';
-      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán link YouTube (vd: https://youtube.com/watch?v=...) hoặc link video...';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn video từ thiết bị (MP4, WebM, MOV)';
+      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán link YouTube, Google Drive, hoặc file video trực tiếp (.mp4)...';
     } else if (loai === 'am-thanh') {
       if (fileInput) fileInput.accept = 'audio/*';
-      if (btnChonTepText) btnChonTepText.textContent = 'Chọn âm thanh từ thiết bị của bạn';
-      if (inputLinkUrl) inputLinkUrl.placeholder = 'Dán đường dẫn tệp âm thanh MP3/M4A/WAV (https://...)';
+      if (btnChonTepText) btnChonTepText.textContent = 'Chọn file âm thanh từ thiết bị (MP3, M4A, WAV)';
+      if (inputLinkUrl) inputLinkUrl.placeholder = '🔗 Link file âm thanh trực tiếp: MP3, M4A, WAV (KHÔNG nhận YouTube)';
     }
 
     chuyenNguonPicker(nguonHienTai);
@@ -2775,6 +2776,16 @@ function khoiTaoComposer(phien, lamMoi) {
     const url = (inputLinkUrl.value || '').trim();
     if (!url) return;
 
+    // Âm thanh KHÔNG được nhận YouTube link — YouTube chỉ dành cho Video
+    if (loaiMediaHienTai === 'am-thanh') {
+      if (idYoutube(url) || /youtube\.com|youtu\.be/i.test(url)) {
+        nhac('⚠️ Âm thanh không hỗ trợ YouTube. Vui lòng dán link file âm thanh trực tiếp (MP3, M4A, WAV).', 'xau');
+        inputLinkUrl.value = '';
+        linkUrlChon = null;
+        return;
+      }
+    }
+
     linkUrlChon = url;
     tepChon = null;
     thuVienIdChon = null;
@@ -2786,6 +2797,15 @@ function khoiTaoComposer(phien, lamMoi) {
       } else {
         datXemTruoc('video', url);
       }
+    } else if (loaiMediaHienTai === 'anh') {
+      // Ảnh: chỉ nhận URL ảnh trực tiếp, không nhận YouTube
+      if (idYoutube(url) || /youtube\.com|youtu\.be/i.test(url)) {
+        nhac('⚠️ Ảnh không hỗ trợ YouTube. Vui lòng dán link ảnh trực tiếp (JPG, PNG, WebP).', 'xau');
+        inputLinkUrl.value = '';
+        linkUrlChon = null;
+        return;
+      }
+      datXemTruoc(loaiMediaHienTai, url);
     } else {
       datXemTruoc(loaiMediaHienTai, url);
     }
@@ -2926,12 +2946,13 @@ function veTwitterCommunities(d, phien, lamMoi) {
   // Slide-over danh sách thành viên (centered modal)
   khoiTaoMembersPanel(d, phien);
 
-  // Nút Chỉnh sửa thông tin lớp (Vùng 4) — chỉ hiện với giáo viên
+  // Nút Chỉnh sửa thông tin lớp — hiện với giáo viên VÀ học sinh được cấp quyền
   const nutSuaThongTin = $('#commBtnSuaThongTin');
   if (nutSuaThongTin) {
     const laGiaoVien = phien?.role === 'teacher';
-    nutSuaThongTin.hidden = !laGiaoVien;
-    if (laGiaoVien && !nutSuaThongTin.dataset.daGan) {
+    const coQuyenSuaLop = laGiaoVien || (phien?.quyen || []).some(q => ['hoat-dong-lop', 'dang-bai'].includes(q));
+    nutSuaThongTin.hidden = !coQuyenSuaLop;
+    if (coQuyenSuaLop && !nutSuaThongTin.dataset.daGan) {
       nutSuaThongTin.dataset.daGan = '1';
       nutSuaThongTin.addEventListener('click', async () => {
         const lopHienTai = d.lop || {};
