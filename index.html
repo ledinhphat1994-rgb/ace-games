@@ -946,10 +946,10 @@ function DigitalCampusApp() {
            MAIN VIEW 1: DIGITAL CAMPUS HUB (MATCHING SCREENSHOT 2)
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'campus' && currentView === 'LOBBY' && (
-        <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-6 animate-fadeIn">
+        <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-6 items-start animate-fadeIn">
 
           {/* ─── LEFT COLUMN: CATEGORIES & CREATE ROOM ─── */}
-          <aside className="flex flex-col gap-4">
+          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
             <button onClick={() => { setActiveRoom({ id: 'cinema-main', type: 'CINEMA', title: '🍿 Rạp Chiếu & Video Bài Học 10A7' }); setCurrentView('ROOM_ACTIVE'); }}
               className="w-full py-3 px-4 rounded-xl bg-[#00F2FE] hover:bg-[#00e1ec] text-black font-extrabold text-xs tracking-wide shadow-[0_0_20px_rgba(0,242,254,0.35)] flex items-center justify-center gap-2 transition-all">
               <span className="text-base font-black">+</span>
@@ -976,7 +976,7 @@ function DigitalCampusApp() {
           </aside>
 
           {/* ─── CENTER COLUMN: CENTRAL BILLBOARD & ROOM CARDS ─── */}
-          <main className="flex flex-col gap-5 min-w-0">
+          <main className="flex flex-col gap-5 min-w-0 w-full">
 
             {/* FEATURE 3: KHOẢNG KHÔNG GIAN THÔNG BÁO Ở GIỮA CAMPUS (CENTRAL BILLBOARD) */}
             <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#151A23] via-[#111622] to-[#151A23] border border-[#00F2FE]/30 p-5 shadow-2xl">
@@ -1146,7 +1146,7 @@ function DigitalCampusApp() {
           </main>
 
           {/* ─── RIGHT COLUMN: CLASSROOM DJ RADIO & CHAT TRỰC TIẾP ─── */}
-          <aside className="flex flex-col gap-4">
+          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
             {/* Classroom DJ Radio */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-2">
@@ -1308,10 +1308,10 @@ function DigitalCampusApp() {
            MAIN VIEW 2: BẢNG TIN CỘNG ĐỒNG LỚP 10A7 (MATCHING SCREENSHOT 1)
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'feed' && (
-        <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-6 animate-fadeIn">
+        <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-[260px_1fr_340px] gap-6 items-start animate-fadeIn">
 
           {/* ─── LEFT COLUMN: CLASS IDENTITY & KÊNH THẢO LUẬN ─── */}
-          <aside className="flex flex-col gap-4">
+          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
             {/* Card 1: Cộng đồng 10A7 */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center gap-3 mb-3">
@@ -1394,7 +1394,7 @@ function DigitalCampusApp() {
           </aside>
 
           {/* ─── CENTER COLUMN: PINNED POST, COMPOSER, FEED OR MODULES ─── */}
-          <main className="flex flex-col gap-4 min-w-0">
+          <main className="flex flex-col gap-5 min-w-0 w-full">
 
             {feedSubTab === 'ban-tin' && (
               <>
@@ -1697,7 +1697,7 @@ function DigitalCampusApp() {
           </main>
 
           {/* ─── RIGHT COLUMN: LOFI STUDY ROOM, ĐỐ VUI STREAK & TRỰC TUYẾN ─── */}
-          <aside className="flex flex-col gap-4">
+          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
             {/* Lofi Study Room LIVE Player */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-3">
