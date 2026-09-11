@@ -668,6 +668,21 @@ function DigitalCampusApp() {
   const [radioPlaying, setRadioPlaying] = useState(false);
   const [radioTitle, setRadioTitle] = useState('Nhạc nền của lớp');
 
+  // 10. Phòng hoạt động động LIÊN LỚP — dữ liệu THẬT từ /api/phong + /api/phong-chat
+  const [dsPhong, setDsPhong] = useState(null); // null = chưa tải
+  const [showTaoPhong, setShowTaoPhong] = useState(false);
+  const [tpForm, setTpForm] = useState({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '' });
+  const [tpDangTao, setTpDangTao] = useState(false);
+  const [tpLoi, setTpLoi] = useState('');
+  const [phongChat, setPhongChat] = useState([]);
+  const [phongThanhVien, setPhongThanhVien] = useState([]);
+  const [phongMinhKhoa, setPhongMinhKhoa] = useState('');
+  const [phongInput, setPhongInput] = useState('');
+  const [phongLoi, setPhongLoi] = useState('');
+  const [phongDangGui, setPhongDangGui] = useState(false);
+  const phongSauIdRef = useRef(0);
+  const phongChatEndRef = useRef(null);
+
   // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
 
@@ -1290,6 +1305,163 @@ function DigitalCampusApp() {
     taiDanhSachBanCaro();
   };
 
+  // ─── PHÒNG ĐỘNG LIÊN LỚP — mọi học sinh tạo được, lớp nào cũng vào được ──
+  const taiDanhSachPhong = useCallback(async () => {
+    try {
+      const res = await fetch('/api/phong');
+      const d = await res.json();
+      if (d.ok) setDsPhong(d.phongs || []);
+    } catch { /* giữ nguyên danh sách cũ nếu lỗi mạng */ }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'campus' || auth.isGuest) return;
+    taiDanhSachPhong();
+    const iv = setInterval(taiDanhSachPhong, 15000);
+    return () => clearInterval(iv);
+  }, [activeTab, auth.isGuest, taiDanhSachPhong]);
+
+  const taoPhongMoi = async () => {
+    if (auth.isGuest) { setShowAuthGate(true); return; }
+    if (tpDangTao || tpForm.ten.trim().length < 2) return;
+    setTpDangTao(true); setTpLoi('');
+    try {
+      const res = await fetch('/api/phong', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'tao', ...tpForm, ten: tpForm.ten.trim() })
+      });
+      const d = await res.json();
+      if (d.ok && d.phong) {
+        setShowTaoPhong(false);
+        setTpForm({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '' });
+        taiDanhSachPhong();
+        vaoPhong(d.phong);
+      } else {
+        setTpLoi(d.loi || 'Không tạo được phòng. Thử lại sau.');
+      }
+    } catch { setTpLoi('Mất kết nối máy chủ.'); }
+    finally { setTpDangTao(false); }
+  };
+
+  const vaoPhong = async (p) => {
+    if (auth.isGuest) { setShowAuthGate(true); return; }
+    try {
+      const res = await fetch('/api/phong', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'vao', phongId: p.id })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setPhongChat([]); phongSauIdRef.current = 0;
+        setPhongThanhVien([]); setPhongLoi(''); setPhongInput('');
+        setActiveRoom({ id: p.id, type: 'PHONG', title: (d.phong || p).ten, phong: d.phong || p });
+        setCurrentView('ROOM_ACTIVE');
+      } else {
+        alert(d.loi || 'Không vào được phòng này.');
+      }
+    } catch { alert('Mất kết nối máy chủ — chưa vào được phòng.'); }
+  };
+
+  const roiPhongHienTai = async () => {
+    const id = activeRoom?.id;
+    try {
+      await fetch('/api/phong', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'roi', phongId: id })
+      });
+    } catch { /* bỏ qua */ }
+    setCurrentView('LOBBY');
+    taiDanhSachPhong();
+  };
+
+  const dongPhongHienTai = async () => {
+    const id = activeRoom?.id;
+    try {
+      const res = await fetch('/api/phong', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'dong', phongId: id })
+      });
+      const d = await res.json();
+      if (!d.ok) { alert(d.loi || 'Không đóng được phòng.'); return; }
+    } catch { /* bỏ qua */ }
+    setCurrentView('LOBBY');
+    taiDanhSachPhong();
+  };
+
+  const guiTinPhong = async (e) => {
+    e.preventDefault();
+    const text = phongInput.trim();
+    if (!text || phongDangGui || !activeRoom?.id) return;
+    setPhongDangGui(true); setPhongLoi('');
+    try {
+      const res = await fetch('/api/phong-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: activeRoom.id, noiDung: text })
+      });
+      const d = await res.json();
+      if (d.ok && d.tinNhan) {
+        phongSauIdRef.current = Math.max(phongSauIdRef.current, d.tinNhan.id);
+        setPhongChat(prev => [...prev, d.tinNhan].slice(-200));
+        setPhongInput('');
+      } else {
+        setPhongLoi(d.loi || 'Không gửi được tin nhắn.');
+      }
+    } catch { setPhongLoi('Mất kết nối máy chủ.'); }
+    finally { setPhongDangGui(false); }
+  };
+
+  // Khi đang trong một phòng động: poll chi tiết (10s), tin nhắn (3s), heartbeat (20s).
+  useEffect(() => {
+    if (currentView !== 'ROOM_ACTIVE' || activeRoom?.type !== 'PHONG') return;
+    const phongId = activeRoom.id;
+    let alive = true;
+    const taiChiTiet = async () => {
+      try {
+        const res = await fetch(`/api/phong?id=${phongId}`);
+        const d = await res.json();
+        if (!alive) return;
+        if (d.ok) {
+          setPhongThanhVien(d.thanhVien || []);
+          setPhongMinhKhoa(d.minhKhoa || '');
+          setActiveRoom(prev => (prev && prev.type === 'PHONG' && prev.id === phongId ? { ...prev, phong: d.phong, title: d.phong.ten } : prev));
+        } else {
+          setCurrentView('LOBBY');
+          taiDanhSachPhong();
+        }
+      } catch { /* giữ màn hình, thử lại chu kỳ sau */ }
+    };
+    const taiTin = async () => {
+      try {
+        const res = await fetch(`/api/phong-chat?phongId=${phongId}&sauId=${phongSauIdRef.current}`);
+        const d = await res.json();
+        if (!alive) return;
+        if (d.ok && d.tinNhan?.length) {
+          phongSauIdRef.current = d.tinNhan[d.tinNhan.length - 1].id;
+          setPhongChat(prev => [...prev, ...d.tinNhan].slice(-200));
+        }
+      } catch { /* bỏ qua */ }
+    };
+    const nhip = () => fetch('/api/phong', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hanhDong: 'nhip', phongId })
+    }).catch(() => {});
+    taiChiTiet(); taiTin(); nhip();
+    const iv1 = setInterval(taiChiTiet, 10000);
+    const iv2 = setInterval(taiTin, 3000);
+    const iv3 = setInterval(nhip, 20000);
+    return () => { alive = false; clearInterval(iv1); clearInterval(iv2); clearInterval(iv3); };
+  }, [currentView, activeRoom?.type, activeRoom?.id, taiDanhSachPhong]);
+
+  // Cuộn chat phòng xuống cuối khi có tin mới.
+  useEffect(() => {
+    phongChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [phongChat]);
+
   // ─── XUẤT SỔ QUỸ RA CSV (UTF-8 BOM để Excel đọc đúng tiếng Việt) ─────────
   const xuatSoQuyCSV = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -1716,21 +1888,19 @@ function DigitalCampusApp() {
 
           {/* ─── LEFT COLUMN: CATEGORIES & CREATE ROOM ─── */}
           <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
-            {/* TẠO PHÒNG — chờ danh sách loại phòng từ GV (coming soon) */}
-            {auth.user?.isTeacher ? (
-              <button
-                title="Tính năng đang phát triển — danh sách loại phòng sẽ sớm có"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F2FE]/40 to-[#8B5CF6]/40 border border-[#00F2FE]/30 text-white/70 font-extrabold text-xs tracking-wide flex items-center justify-center gap-2 cursor-not-allowed select-none"
-                disabled>
+            {/* TẠO PHÒNG — mọi thành viên đăng nhập đều mở được phòng hoạt động */}
+            {!auth.isGuest ? (
+              <button onClick={() => { setTpLoi(''); setShowTaoPhong(true); }}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs tracking-wide flex items-center justify-center gap-2 hover:opacity-95 active:scale-95 transition-all shadow-[0_0_16px_rgba(0,242,254,0.25)]">
                 <span className="text-base font-black">+</span>
                 <span>TẠO PHÒNG HOẠT ĐỘNG MỚI</span>
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[9px] font-bold border border-amber-500/30">SOON</span>
               </button>
             ) : (
-              <div className="w-full py-3 px-4 rounded-xl bg-[#151A23] border border-white/5 text-slate-500 text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none">
+              <button onClick={() => setShowAuthGate(true)}
+                className="w-full py-3 px-4 rounded-xl bg-[#151A23] border border-white/10 text-slate-400 text-xs flex items-center justify-center gap-2 hover:border-[#00F2FE]/40 transition-all">
                 <span className="text-base">🔒</span>
-                <span>Chỉ Giáo Viên Mở Phòng Mới</span>
-              </div>
+                <span>Đăng nhập để tạo phòng</span>
+              </button>
             )}
 
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 shadow-xl">
@@ -1738,6 +1908,7 @@ function DigitalCampusApp() {
               <div className="flex flex-col gap-1">
                 {[
                   { id: 'ALL', label: 'Tất Cả Hoạt Động', icon: 'radio' },
+                  { id: 'CHAT', label: 'Phòng Chat & Thảo Luận', icon: 'community' },
                   { id: 'CINEMA', label: 'Rạp Chiếu & Xem Chung', icon: 'tv' },
                   { id: 'GAME', label: 'Cờ Caro 15x15', icon: 'game' },
                   { id: 'LOFI', label: 'Lofi Study Cafe', icon: 'phones' }
@@ -1920,6 +2091,68 @@ function DigitalCampusApp() {
                 </div>
               )}
             </div>
+
+            {/* ─── PHÒNG DO THÀNH VIÊN TẠO — liên lớp, dữ liệu THẬT từ /api/phong ─── */}
+            {(() => {
+              const loaiSangCat = { chat: 'CHAT', video: 'CINEMA', game: 'GAME', nhac: 'LOFI' };
+              const loaiIcon = { chat: 'community', video: 'tv', game: 'game', nhac: 'phones' };
+              const loaiMau = { chat: '#00F2FE', video: '#F43F5E', game: '#FFB800', nhac: '#8B5CF6' };
+              const phongLoc = (dsPhong || []).filter(p =>
+                categoryFilter === 'ALL' || loaiSangCat[p.loai] === categoryFilter
+              );
+              return (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-white">Phòng Do Học Sinh Tạo</h3>
+                    <span className="text-[#00F2FE] text-xs">✦</span>
+                    <span className="text-[10px] text-slate-500">— mọi lớp đều có thể vào phòng 🌐 Toàn trường</span>
+                  </div>
+                  {dsPhong === null ? (
+                    <p className="text-xs text-slate-500 py-4 text-center">
+                      {auth.isGuest ? 'Đăng nhập để xem và tạo phòng hoạt động cùng các lớp khác.' : 'Đang tải danh sách phòng…'}
+                    </p>
+                  ) : phongLoc.length === 0 ? (
+                    <div className="bg-[#151A23] border border-dashed border-white/10 rounded-2xl p-6 text-center">
+                      <p className="text-xs text-slate-400 mb-1">Chưa có phòng nào đang mở</p>
+                      <p className="text-[11px] text-slate-500">Bấm "TẠO PHÒNG HOẠT ĐỘNG MỚI" để mở phòng đầu tiên — rủ bạn bè các lớp vào chơi cùng!</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {phongLoc.map(p => (
+                        <div key={p.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col gap-3 hover:border-[#00F2FE]/40 transition-all">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+                              style={{ backgroundColor: `${loaiMau[p.loai]}15`, borderColor: `${loaiMau[p.loai]}40` }}>
+                              <Ic name={loaiIcon[p.loai] || 'community'} className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-bold text-white truncate">{p.ten}</h4>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                Chủ phòng: {p.chuPhongTen}{p.lopTen ? ` • ${p.lopTen}` : ''}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${p.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
+                              {p.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 ${p.lopTen || 'Lớp'}`}
+                            </span>
+                          </div>
+                          {p.moTa && <p className="text-[11px] text-slate-400 line-clamp-2">{p.moTa}</p>}
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
+                            <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span>{p.soNguoi || 0} đang trong phòng</span>
+                            </span>
+                            <button onClick={() => vaoPhong(p)}
+                              className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
+                              Vào phòng
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </main>
 
           {/* ─── RIGHT COLUMN: CHAT TRỰC TIẾP LỚP 10A7 (ĐÃ XÓA CLASSROOM DJ RADIO) ─── */}
@@ -1977,9 +2210,9 @@ function DigitalCampusApp() {
         <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full flex flex-col gap-5 animate-fadeIn">
           <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
             <div className="flex items-center gap-3">
-              <button onClick={() => setCurrentView('LOBBY')}
+              <button onClick={() => activeRoom.type === 'PHONG' ? roiPhongHienTai() : setCurrentView('LOBBY')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all">
-                <Ic name="left" className="w-4 h-4" /> Thoát Phòng
+                <Ic name="left" className="w-4 h-4" /> {activeRoom.type === 'PHONG' ? 'Rời Phòng' : 'Thoát Phòng'}
               </button>
               <h2 className="text-sm font-extrabold text-white">{activeRoom.title}</h2>
             </div>
@@ -2165,6 +2398,132 @@ function DigitalCampusApp() {
               </button>
             </div>
           )}
+
+          {/* PHÒNG ĐỘNG DO THÀNH VIÊN TẠO — chat phòng + thành viên + nội dung theo loại */}
+          {activeRoom.type === 'PHONG' && activeRoom.phong && (() => {
+            const p = activeRoom.phong;
+            let cauHinh = {};
+            try { cauHinh = p.cauHinh ? JSON.parse(p.cauHinh) : {}; } catch { /* bỏ qua */ }
+            const yt = cauHinh.videoUrl ? idYoutube(cauHinh.videoUrl) : null;
+            const drv = cauHinh.videoUrl ? idGoogleDrive(cauHinh.videoUrl) : null;
+            const trucTiep = cauHinh.videoUrl && !yt && !drv && laVideoTrucTiepFe(cauHinh.videoUrl) ? urlMediaFe(cauHinh.videoUrl) : '';
+            const laChuPhong = phongMinhKhoa && p.chuPhongKhoa === phongMinhKhoa;
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
+                <div className="flex flex-col gap-4 min-w-0">
+                  {/* Thông tin phòng */}
+                  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-wrap items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${p.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
+                      {p.phamVi === 'truong' ? '🌐 Toàn trường — mọi lớp vào được' : `🔒 Chỉ lớp ${p.lopTen || ''}`}
+                    </span>
+                    <span className="text-[11px] text-slate-400">Chủ phòng: <strong className="text-slate-200">{p.chuPhongTen}</strong></span>
+                    {(laChuPhong || auth.user?.isTeacher) && p.chuPhongKhoa !== 'he-thong' && (
+                      <button onClick={dongPhongHienTai}
+                        className="ml-auto px-3 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30">
+                        Đóng phòng
+                      </button>
+                    )}
+                    {p.moTa && <p className="w-full text-[11px] text-slate-400 leading-relaxed">{p.moTa}</p>}
+                  </div>
+
+                  {/* Nội dung theo loại phòng */}
+                  {p.loai === 'video' && (
+                    <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10">
+                      {yt ? (
+                        <iframe src={`https://www.youtube.com/embed/${yt}`} title={p.ten}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
+                          className="w-full h-full" />
+                      ) : drv ? (
+                        <iframe src={`https://drive.google.com/file/d/${drv}/preview`} title={p.ten}
+                          allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
+                      ) : trucTiep ? (
+                        <video src={trucTiep} controls className="w-full h-full" />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-slate-500">Link video không phát được trong phòng.</div>
+                      )}
+                    </div>
+                  )}
+                  {p.loai === 'nhac' && (
+                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
+                      <Ic name="phones" className="w-8 h-8 text-[#8B5CF6] mx-auto mb-2" />
+                      <p className="text-xs text-slate-300 font-bold mb-1">Phòng nghe nhạc cùng nhau</p>
+                      <p className="text-[11px] text-slate-500">Bật nhạc nền của lớp rồi trò chuyện cùng mọi người trong phòng.</p>
+                      <button onClick={toggleRadio}
+                        className="mt-3 px-4 py-2 rounded-xl bg-[#8B5CF6]/20 text-[#8B5CF6] text-xs font-bold border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/30">
+                        {radioPlaying ? '⏸ Tạm dừng nhạc nền' : '▶ Bật nhạc nền'}
+                      </button>
+                    </div>
+                  )}
+                  {p.loai === 'game' && (
+                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
+                      <Ic name="game" className="w-8 h-8 text-[#FFB800] mx-auto mb-2" />
+                      <p className="text-xs text-slate-300 font-bold mb-1">Phòng tập kết game</p>
+                      <p className="text-[11px] text-slate-500 mb-3">Hẹn nhau ở đây rồi vào Đấu Trường Caro cùng lớp để so tài.</p>
+                      <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); taiDanhSachBanCaro(); }}
+                        className="px-4 py-2 rounded-xl bg-[#FFB800]/20 text-[#FFB800] text-xs font-bold border border-[#FFB800]/30 hover:bg-[#FFB800]/30">
+                        ⚔️ Vào Đấu Trường Caro →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Chat của phòng */}
+                  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[320px]">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3 pb-2 border-b border-white/10">
+                      Chat phòng{p.phamVi === 'truong' ? ' — liên lớp' : ''}
+                    </p>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-80">
+                      {phongChat.length === 0 && (
+                        <p className="text-[11px] text-slate-500 text-center py-6">Chưa có tin nhắn — gửi lời chào đầu tiên!</p>
+                      )}
+                      {phongChat.map((m, idx) => (
+                        <div key={m.id || idx} className="text-xs">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`font-bold ${m.vaiTro === 'giao_vien' ? 'text-[#00F2FE]' : 'text-slate-200'}`}>
+                              {m.tenNguoiGui || 'Thành viên'}
+                            </span>
+                            {m.lopTen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-slate-500 border border-white/10">{m.lopTen}</span>}
+                            <span className="text-[10px] text-slate-500 font-mono ml-auto">{formatTimeOnly(m.taoLuc)}</span>
+                          </div>
+                          <p className="text-slate-300 leading-relaxed break-words">{m.noiDung}</p>
+                        </div>
+                      ))}
+                      <div ref={phongChatEndRef} />
+                    </div>
+                    {phongLoi && <p className="text-[11px] text-rose-400 mt-2">{phongLoi}</p>}
+                    <form onSubmit={guiTinPhong} className="mt-3 flex items-center gap-2">
+                      <input type="text" value={phongInput} onChange={e => setPhongInput(e.target.value)}
+                        placeholder="Nhắn cho mọi người trong phòng..." maxLength={500}
+                        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+                      <button type="submit" disabled={phongDangGui}
+                        className="p-2.5 rounded-xl bg-[#00F2FE] text-black hover:bg-[#00e1ec] transition-all shadow-[0_0_10px_rgba(0,242,254,0.3)] disabled:opacity-50">
+                        <Ic name="send" className="w-3.5 h-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Thành viên đang trong phòng */}
+                <aside className="bg-[#151A23] border border-white/10 rounded-2xl p-4 sticky top-[56px] self-start">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3 pb-2 border-b border-white/10">
+                    Trong phòng ({phongThanhVien.length})
+                  </p>
+                  <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+                    {phongThanhVien.map(tv => (
+                      <div key={tv.khoa} className="flex items-center gap-2 text-xs">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${tv.vaiTro === 'giao_vien' ? 'bg-[#00F2FE]' : 'bg-emerald-400'}`}></span>
+                        <span className="text-slate-200 font-semibold truncate">{tv.ten}</span>
+                        {Boolean(tv.laChuPhong) && <span className="text-[9px] text-amber-400 font-bold shrink-0">★ chủ phòng</span>}
+                        {tv.lopTen && <span className="text-[9px] text-slate-500 ml-auto shrink-0">{tv.lopTen}</span>}
+                      </div>
+                    ))}
+                    {phongThanhVien.length === 0 && (
+                      <p className="text-[11px] text-slate-500 text-center py-4">Đang tải…</p>
+                    )}
+                  </div>
+                </aside>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -3085,6 +3444,88 @@ function DigitalCampusApp() {
               <button onClick={() => setShowGamificationModal(false)}
                 className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold transition-all">
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           MODAL: TẠO PHÒNG HOẠT ĐỘNG (mọi thành viên đăng nhập đều mở được)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {showTaoPhong && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#151A23] border border-[#00F2FE]/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-extrabold text-white">Tạo Phòng Hoạt Động</h3>
+              <button onClick={() => setShowTaoPhong(false)}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400">
+                <Ic name="x" className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Tên phòng *</label>
+                <input type="text" value={tpForm.ten} onChange={e => setTpForm(f => ({ ...f, ten: e.target.value }))}
+                  placeholder="VD: Góc ôn thi Toán, FC bóng đá..." maxLength={80}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Loại phòng</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'chat', label: '💬 Chat & Thảo luận' },
+                    { id: 'video', label: '🍿 Xem video chung' },
+                    { id: 'nhac', label: '🎧 Nghe nhạc' },
+                    { id: 'game', label: '🎮 Tập kết game' }
+                  ].map(l => (
+                    <button key={l.id} type="button" onClick={() => setTpForm(f => ({ ...f, loai: l.id }))}
+                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${tpForm.loai === l.id ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/40' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {tpForm.loai === 'video' && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Link video *</label>
+                  <input type="text" value={tpForm.videoUrl} onChange={e => setTpForm(f => ({ ...f, videoUrl: e.target.value }))}
+                    placeholder="https://youtube.com/watch?v=... hoặc link Drive/mp4" maxLength={1000}
+                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Mô tả ngắn</label>
+                <input type="text" value={tpForm.moTa} onChange={e => setTpForm(f => ({ ...f, moTa: e.target.value }))}
+                  placeholder="Phòng này để làm gì?" maxLength={300}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Ai được vào?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setTpForm(f => ({ ...f, phamVi: 'truong' }))}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${tpForm.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                    🌐 Toàn trường
+                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Học sinh mọi lớp</span>
+                  </button>
+                  <button type="button" onClick={() => setTpForm(f => ({ ...f, phamVi: 'lop' }))}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${tpForm.phamVi === 'lop' ? 'bg-[#8B5CF6]/15 text-[#8B5CF6] border-[#8B5CF6]/40' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                    🔒 Chỉ lớp mình
+                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Riêng lớp của bạn</span>
+                  </button>
+                </div>
+              </div>
+
+              {tpLoi && <p className="text-[11px] text-rose-400">{tpLoi}</p>}
+
+              <button onClick={taoPhongMoi} disabled={tpDangTao || tpForm.ten.trim().length < 2}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                {tpDangTao ? 'Đang tạo…' : '🚀 Mở phòng ngay'}
               </button>
             </div>
           </div>
