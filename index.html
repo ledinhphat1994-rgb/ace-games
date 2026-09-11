@@ -17,6 +17,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 
+  <!-- Core SaaS Class Design System Tokens & Custom Styles -->
+  <link rel="stylesheet" href="assets/css/style.css">
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -183,6 +186,11 @@ function DigitalCampusApp() {
   const [mobileTab, setMobileTab] = useState('ROOMS'); // ROOMS | CHAT | RADIO | UTILS
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
+  // Sub-tabs for Attendance & Treasury
+  const [ddTabSub, setDdTabSub] = useState('ngay'); // 'ngay' | 'tong_hop' | 'ca_nhan'
+  const [tqTabSub, setTqTabSub] = useState('thu'); // 'thu' | 'chi'
+  const [ddMatrixSearch, setDdMatrixSearch] = useState('');
+
   // 3. Class Real Data
   const [classData, setClassData] = useState({
     loaded: false,
@@ -193,6 +201,7 @@ function DigitalCampusApp() {
     quyKhoan: [],
     quyChi: [],
     quyDong: [],
+    thuQuy: null,
     phienBanTkb: null
   });
 
@@ -209,7 +218,15 @@ function DigitalCampusApp() {
   const danmakuColors = ['#00F2FE', '#8B5CF6', '#10B981', '#FFB800', '#F43F5E', '#38BDF8'];
 
   // 6. Attendance State
-  const [attendance, setAttendance] = useState({ loaded: false, danhSach: [], stats: null, ngay: '', buoi: 'sang' });
+  const [attendance, setAttendance] = useState({
+    loaded: false,
+    danhSach: [],
+    stats: null,
+    ngay: new Date().toISOString().slice(0, 10),
+    buoi: 'sang',
+    loai: 'chinh',
+    caNhan: null
+  });
 
   // 7. Caro Game State
   const [caroRooms, setCaroRooms] = useState([]);
@@ -279,6 +296,7 @@ function DigitalCampusApp() {
               quyKhoan: d.quyKhoan || [],
               quyChi: d.quyChi || [],
               quyDong: d.quyDong || [],
+              thuQuy: d.thuQuy || null,
               phienBanTkb: d.phienBanTkb || null
             });
             return;
@@ -311,32 +329,133 @@ function DigitalCampusApp() {
   }, []);
 
   // ─── FETCH REAL ATTENDANCE ────────────────────────────────────────────────
-  const fetchAttendance = useCallback(async () => {
+  const fetchAttendance = useCallback(async (customNgay, customBuoi, customLoai) => {
     if (auth.isGuest) return;
     try {
-      const res = await fetch('/api/diem-danh');
+      const qNgay = customNgay || attendance.ngay || new Date().toISOString().slice(0, 10);
+      const qBuoi = customBuoi || attendance.buoi || 'sang';
+      const qLoai = customLoai || attendance.loai || 'chinh';
+      const res = await fetch(`/api/diem-danh?ngay=${encodeURIComponent(qNgay)}&buoi=${encodeURIComponent(qBuoi)}&loai=${encodeURIComponent(qLoai)}`);
       if (res.ok) {
         const d = await res.json();
         if (d.ok && !d.an) {
-          const list = d.danhSach || [];
+          let list = d.danhSach || [];
+          if ((!list || list.length === 0) && classData.hocSinh && classData.hocSinh.length > 0) {
+            list = classData.hocSinh.map(hs => ({
+              id: hs.id,
+              soThuTu: hs.soThuTu || hs.stt,
+              hoTen: hs.hoTen,
+              lopNghe: hs.lopNghe,
+              dienThoaiHs: hs.dienThoaiHs,
+              trangThai: null,
+              lyDo: ''
+            }));
+          }
           const coMat = list.filter(s => s.trangThai === 'co_mat').length;
-          const vangCoPhep = list.filter(s => s.trangThai === 'phep').length;
-          const vangKhongPhep = list.filter(s => s.trangThai === 'khong_phep').length;
+          const vangCoPhep = list.filter(s => s.trangThai === 'phep' || s.trangThai === 'vang_phep').length;
+          const vangKhongPhep = list.filter(s => s.trangThai === 'khong_phep' || s.trangThai === 'vang_khong_phep').length;
           const tre = list.filter(s => s.trangThai === 'tre').length;
-          const tong = list.length || 39;
-          const chuyenCan = tong > 0 ? ((coMat / tong) * 100).toFixed(1) : '100';
+          const tong = list.length || classData.hocSinh?.length || 39;
+          const daGhi = coMat + vangCoPhep + vangKhongPhep + tre;
+          const chuyenCan = daGhi > 0 ? ((coMat / daGhi) * 100).toFixed(1) : '100';
 
           setAttendance({
             loaded: true,
             danhSach: list,
             stats: { tong, coMat, vangCoPhep, vangKhongPhep, tre, chuyenCan },
-            ngay: d.ngay || new Date().toISOString().slice(0, 10),
-            buoi: d.buoi || 'sang'
+            ngay: d.ngay || qNgay,
+            buoi: (d.buoi || qBuoi).replace(/_phu$/, ''),
+            loai: d.loai || qLoai,
+            caNhan: d.caNhan || null
           });
         }
       }
-    } catch {}
-  }, [auth.isGuest]);
+    } catch (err) {
+      console.warn('fetchAttendance error:', err);
+    }
+  }, [auth.isGuest, attendance.ngay, attendance.buoi, attendance.loai, classData.hocSinh]);
+
+  // 1-Touch Attendance Status Toggle
+  const handleToggleAttendanceStatus = (studentId, statusKey) => {
+    setAttendance(prev => {
+      const nextList = prev.danhSach.map(s => {
+        if (s.id !== studentId) return s;
+        if (statusKey === 'bo_tiet') {
+          return { ...s, trangThai: 'khong_phep', lyDo: 'Bỏ tiết' };
+        }
+        const newStatus = s.trangThai === statusKey ? null : statusKey;
+        return { ...s, trangThai: newStatus };
+      });
+      const coMat = nextList.filter(s => s.trangThai === 'co_mat').length;
+      const vangCoPhep = nextList.filter(s => s.trangThai === 'phep' || s.trangThai === 'vang_phep').length;
+      const vangKhongPhep = nextList.filter(s => s.trangThai === 'khong_phep' || s.trangThai === 'vang_khong_phep').length;
+      const tre = nextList.filter(s => s.trangThai === 'tre').length;
+      const tong = nextList.length || 39;
+      const daGhi = coMat + vangCoPhep + vangKhongPhep + tre;
+      const chuyenCan = daGhi > 0 ? ((coMat / daGhi) * 100).toFixed(1) : '100';
+      return {
+        ...prev,
+        danhSach: nextList,
+        stats: { tong, coMat, vangCoPhep, vangKhongPhep, tre, chuyenCan }
+      };
+    });
+
+    if (auth.user?.isTeacher) {
+      const normalizedStatus = statusKey === 'bo_tiet' ? 'vang_khong_phep' :
+        (statusKey === 'phep' ? 'vang_phep' : (statusKey === 'khong_phep' ? 'vang_khong_phep' : statusKey));
+      const note = statusKey === 'bo_tiet' ? 'Bỏ tiết' : undefined;
+      fetch('/api/gv/diem-danh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ngay: attendance.ngay,
+          buoi: attendance.buoi,
+          loai: attendance.loai,
+          ghiNhan: [{ hocSinhId: studentId, trangThai: normalizedStatus, lyDo: note }]
+        })
+      }).catch(() => {});
+    }
+  };
+
+  // Batch 1-touch Mark All Present
+  const handleBatchMarkAllPresent = () => {
+    setAttendance(prev => {
+      const nextList = prev.danhSach.map(s => ({ ...s, trangThai: 'co_mat' }));
+      const coMat = nextList.length;
+      const tong = nextList.length;
+      return {
+        ...prev,
+        danhSach: nextList,
+        stats: { tong, coMat, vangCoPhep: 0, vangKhongPhep: 0, tre: 0, chuyenCan: '100' }
+      };
+    });
+
+    if (auth.user?.isTeacher) {
+      const ghiNhan = attendance.danhSach.map(s => ({
+        hocSinhId: s.id,
+        trangThai: 'co_mat',
+        lyDo: ''
+      }));
+      fetch('/api/gv/diem-danh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ngay: attendance.ngay,
+          buoi: attendance.buoi,
+          loai: attendance.loai,
+          ghiNhan
+        })
+      }).catch(() => {});
+    }
+  };
+
+  // Inline Note Change
+  const handleAttendanceNoteChange = (studentId, noteText) => {
+    setAttendance(prev => ({
+      ...prev,
+      danhSach: prev.danhSach.map(s => s.id === studentId ? { ...s, lyDo: noteText } : s)
+    }));
+  };
 
   // ─── FETCH LIVE CHAT ──────────────────────────────────────────────────────
   const fetchChat = useCallback(async () => {
@@ -409,6 +528,44 @@ function DigitalCampusApp() {
       fetchAttendance();
     }
   }, [activeTab, attendance.loaded, fetchAttendance]);
+
+  // ─── HASH ROUTING SYNC ────────────────────────────────────────────────────
+  // Sync URL hash <-> activeTab (bidirectional)
+  useEffect(() => {
+    const HASH_TO_TAB = { '#/diem-danh': 'attendance', '#/thu-quy': 'treasury' };
+    const TAB_TO_HASH = { attendance: '#/diem-danh', treasury: '#/thu-quy' };
+
+    const onHashChange = () => {
+      const h = location.hash;
+      const tab = HASH_TO_TAB[h];
+      if (tab) {
+        setActiveTab(tab);
+        setCurrentView('LOBBY');
+      } else if (!h || h === '#') {
+        // returning to root
+        setActiveTab('lobby');
+        setCurrentView('LOBBY');
+      }
+    };
+
+    window.addEventListener('hashchange', onHashChange);
+    // Handle initial hash on mount
+    onHashChange();
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Push hash when activeTab changes (except lobby)
+  useEffect(() => {
+    const TAB_TO_HASH = { attendance: '#/diem-danh', treasury: '#/thu-quy' };
+    const desired = TAB_TO_HASH[activeTab] || '';
+    if (location.hash !== desired) {
+      if (desired) {
+        history.pushState(null, '', location.pathname + location.search + desired);
+      } else if (location.hash && ['/diem-danh', '/thu-quy'].some(s => location.hash.includes(s))) {
+        history.pushState(null, '', location.pathname + location.search);
+      }
+    }
+  }, [activeTab]);
 
   // ─── DJ RADIO AUDIO CONTROL ───────────────────────────────────────────────
   const toggleRadio = () => {
@@ -556,15 +713,74 @@ function DigitalCampusApp() {
     });
   }, [classData.hocSinh, studentSearch, studentToFilter]);
 
-  // ─── FINANCIAL TOTALS ─────────────────────────────────────────────────────
+
+  // ─── XUẤT BÁO CÁO QUỸ ────────────────────────────────────────────────────
+  const inBaoCaoQuyA4 = () => { window.print(); };
+
+  const xuatTepCSV = () => {
+    const BOM = '\uFEFF';
+    const { thu, chi, ton, khoanList, chiList } = financialSummary;
+    const now = new Date().toLocaleDateString('vi-VN');
+    const rows = [
+      ['TRUNG TÂM GDNN - GDTX ĐỊNH QUÁN - LỚP 10A7'],
+      ['BÁO CÁO CÔNG KHAI THU CHI QUỸ LỚP'],
+      ['Ngày kết xuất: ' + now],
+      [],
+      ['TỔNG QUAN'],
+      ['Tổng thu', String(thu) + ' VNĐ'],
+      ['Tổng chi', String(chi) + ' VNĐ'],
+      ['Tồn quỹ', String(ton) + ' VNĐ'],
+      [],
+      ['DANH SÁCH CÁC KHOẢN THU'],
+      ['STT', 'Tên khoản thu', 'Số tiền (VNĐ)', 'Trạng thái'],
+    ];
+    (khoanList || []).forEach((k, idx) => {
+      rows.push([
+        idx + 1,
+        '"' + (k.ten || '').replace(/"/g, '""') + '"',
+        Number(k.tongDaThu || k.soTienMoiEm || 0),
+        '"' + (k.dangMo ? 'Đang thu' : 'Đã đóng') + '"',
+      ]);
+    });
+    if (!khoanList || khoanList.length === 0) rows.push(['-', 'Không có dữ liệu', 0, '-']);
+    rows.push([]);
+    rows.push(['DANH SÁCH CÁC KHOẢN CHI']);
+    rows.push(['STT', 'Nội dung chi', 'Số tiền (VNĐ)', 'Ngày chi', 'Ghi chú']);
+    (chiList || []).forEach((c, idx) => {
+      rows.push([
+        idx + 1,
+        '"' + (c.noiDung || c.noi_dung || '').replace(/"/g, '""') + '"',
+        Number(c.soTien || c.so_tien || 0),
+        '"' + (c.ngay || '') + '"',
+        '"' + (c.ghiChu || c.ghi_chu || '').replace(/"/g, '""') + '"',
+      ]);
+    });
+    if (!chiList || chiList.length === 0) rows.push(['-', 'Không có dữ liệu', 0, '-', '-']);
+
+    const csvContent = BOM + rows.map(r => r.join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'Bao_Cao_Quy_10A7_' + dateStr + '.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── FINANCIAL TOTALS (prefer API thuQuy, fallback to local reduce) ────────
   const financialSummary = useMemo(() => {
-    const thu = (classData.quyKhoan || []).reduce((acc, k) => acc + (Number(k.soTien || k.so_tien) || 0), 0);
-    const chi = (classData.quyChi || []).reduce((acc, c) => acc + (Number(c.soTien || c.so_tien) || 0), 0);
-    const ton = thu - chi;
-    const dongCount = (classData.quyDong || []).filter(d => d.da_dong || d.daDong).length;
+    const tq = classData.thuQuy;
+    const thu = tq ? tq.tongThu : (classData.quyKhoan || []).reduce((acc, k) => acc + (Number(k.tongDaThu || k.soTien || k.so_tien) || 0), 0);
+    const chi = tq ? tq.tongChi : (classData.quyChi || []).reduce((acc, c) => acc + (Number(c.soTien || c.so_tien) || 0), 0);
+    const ton = tq ? tq.tonQuy : (thu - chi);
+    const khoanList = tq ? tq.khoan : (classData.quyKhoan || []);
+    const chiList = tq ? tq.chi : (classData.quyChi || []);
     const totalCount = classData.hocSinh?.length || 39;
-    return { thu, chi, ton, dongCount, totalCount };
-  }, [classData.quyKhoan, classData.quyChi, classData.quyDong, classData.hocSinh]);
+    return { thu, chi, ton, khoanList, chiList, totalCount };
+  }, [classData.thuQuy, classData.quyKhoan, classData.quyChi, classData.quyDong, classData.hocSinh]);
 
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 font-sans antialiased flex flex-col selection:bg-[#00F2FE] selection:text-black">
@@ -1029,185 +1245,428 @@ function DigitalCampusApp() {
             </div>
           )}
 
+
           {/* ═══════════════════════════════════════════════════
-               TAB: ATTENDANCE (ĐIỂM DANH THỰC TẾ)
+               TAB: ATTENDANCE — SaaS Linear/Vercel Design
           ════════════════════════════════════════════════════ */}
           {activeTab === 'attendance' && (
-            <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl animate-fadeIn">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10 flex-wrap gap-3">
+            <div id="khuDiemDanh" className="bg-[#151A23] border border-white/10 rounded-3xl shadow-2xl animate-fadeIn overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/10 flex-wrap gap-3">
                 <div>
                   <h2 className="text-base font-extrabold text-white flex items-center gap-2">
                     <span>📋</span> Sổ Điểm Danh Lớp 10A7
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Dữ liệu ghi nhận chuyên cần theo thời gian thực từ giáo viên</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Chuyên cần theo thời gian thực · Giáo viên cập nhật trực tiếp</p>
                 </div>
-                {attendance.stats && (
-                  <div className="flex items-center gap-2 bg-[#0B0E14] px-3.5 py-1.5 rounded-xl border border-white/10 text-xs">
-                    <span className="text-slate-400">Tỉ lệ chuyên cần:</span>
-                    <span className="font-extrabold text-[#00F2FE]">{attendance.stats.chuyenCan}%</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input type="date" value={attendance.ngay}
+                    onChange={e => { setAttendance(prev => ({ ...prev, loaded: false, ngay: e.target.value })); fetchAttendance(e.target.value, attendance.buoi, attendance.loai); }}
+                    className="bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE] cursor-pointer" />
+                  <div className="flex items-center bg-[#0B0E14] border border-white/10 rounded-xl overflow-hidden text-[11px] font-bold">
+                    {[['sang','☀ Sáng'],['chieu','🌤 Chiều'],['hoat_dong','🏃 HĐ']].map(([b, lbl]) => (
+                      <button key={b} onClick={() => { setAttendance(prev => ({ ...prev, loaded: false, buoi: b })); fetchAttendance(attendance.ngay, b, attendance.loai); }}
+                        className={`px-3 py-1.5 transition-all ${attendance.buoi === b ? 'bg-[#00F2FE] text-black' : 'text-slate-400 hover:text-white'}`}>{lbl}</button>
+                    ))}
                   </div>
+                  <div className="flex items-center bg-[#0B0E14] border border-white/10 rounded-xl overflow-hidden text-[11px] font-bold">
+                    {[['chinh','Chính'],['phu','Phụ']].map(([l, lbl]) => (
+                      <button key={l} onClick={() => { setAttendance(prev => ({ ...prev, loaded: false, loai: l })); fetchAttendance(attendance.ngay, attendance.buoi, l); }}
+                        className={`px-3 py-1.5 transition-all ${attendance.loai === l ? 'bg-[#8B5CF6] text-white' : 'text-slate-400 hover:text-white'}`}>{lbl}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-tab nav */}
+              <div id="ddTabLoai" className="flex items-center gap-1 px-6 py-3 border-b border-white/10">
+                {[
+                  { id: 'ngay', label: '📋 Hôm nay' },
+                  { id: 'ca_nhan', label: '🎓 Cá nhân' },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setDdTabSub(t.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${ddTabSub === t.id ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-400 hover:text-white'}`}>
+                    {t.label}
+                  </button>
+                ))}
+                {attendance.stats && (
+                  <span className="ml-auto flex items-center gap-1.5 bg-[#0B0E14] px-3 py-1 rounded-xl border border-white/10 text-xs">
+                    <span className="text-slate-400">Chuyên cần:</span>
+                    <span className="font-extrabold text-[#00F2FE]">{attendance.stats.chuyenCan}%</span>
+                  </span>
                 )}
               </div>
 
               {auth.isGuest ? (
-                <div className="text-center py-12 px-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3 text-2xl">
-                    🔐
-                  </div>
+                <div className="text-center py-14 px-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3 text-2xl">🔐</div>
                   <h3 className="text-sm font-bold text-white mb-2">Đăng nhập để xem sổ điểm danh</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
-                    Sổ điểm danh là dữ liệu bảo mật nội bộ của Lớp 10A7. Vui lòng đăng nhập mã cá nhân hoặc mã lớp để xem chi tiết.
-                  </p>
-                  <a href="/login.html" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">
-                    Đăng nhập tài khoản →
-                  </a>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">Dữ liệu bảo mật nội bộ. Vui lòng đăng nhập mã cá nhân hoặc mã lớp.</p>
+                  <a href="/login.html" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">Đăng nhập →</a>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Attendance Stats Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { label: 'Có Mặt',       val: attendance.stats?.coMat || 0,       color: '#10b981' },
-                      { label: 'Vắng Có Phép', val: attendance.stats?.vangCoPhep || 0, color: '#FFB800' },
-                      { label: 'Vắng K.Phép',  val: attendance.stats?.vangKhongPhep || 0, color: '#f43f5e' },
-                      { label: 'Đi Trễ',       val: attendance.stats?.tre || 0,         color: '#8B5CF6' },
-                    ].map(s => (
-                      <div key={s.label} className="bg-[#0B0E14] p-3.5 rounded-2xl border border-white/5">
-                        <p className="text-xl font-black" style={{ color: s.color }}>{s.val}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{s.label}</p>
-                      </div>
-                    ))}
-                  </div>
+                <div className="p-6 space-y-5">
+                  {/* KPI Stats */}
+                  {attendance.stats && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Có Mặt',      val: attendance.stats.coMat || 0,          color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+                        { label: 'Vắng Phép',   val: attendance.stats.vangCoPhep || 0,     color: '#FFB800', bg: 'rgba(255,184,0,0.08)' },
+                        { label: 'Vắng K.Phép', val: attendance.stats.vangKhongPhep || 0,  color: '#f43f5e', bg: 'rgba(244,63,94,0.08)' },
+                        { label: 'Đi Trễ',      val: attendance.stats.tre || 0,            color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)' },
+                      ].map(s => (
+                        <div key={s.label} className="rounded-2xl border border-white/5 p-4" style={{ background: s.bg }}>
+                          <p className="text-2xl font-black" style={{ color: s.color }}>{s.val}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">{s.label}</p>
+                          <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((s.val/(attendance.stats.tong||1))*100)}%`, background: s.color }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                  {/* Attendance List Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider">
-                          <th className="py-2.5 px-3">STT</th>
-                          <th className="py-2.5 px-3">Họ và Tên</th>
-                          <th className="py-2.5 px-3">Lớp Nghề</th>
-                          <th className="py-2.5 px-3 text-center">Trạng Thái</th>
-                          <th className="py-2.5 px-3">Lý Do / Ghi Chú</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {attendance.danhSach && attendance.danhSach.length > 0 ? (
-                          attendance.danhSach.map((hs, i) => (
-                            <tr key={hs.id || i} className="hover:bg-white/5 transition-colors">
-                              <td className="py-2 px-3 text-slate-500 font-mono">{hs.soThuTu || (i + 1)}</td>
-                              <td className="py-2 px-3 font-semibold text-white">{hs.hoTen}</td>
-                              <td className="py-2 px-3 text-slate-400">{hs.lopNghe || '—'}</td>
-                              <td className="py-2 px-3 text-center">
-                                {hs.trangThai === 'co_mat' && <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">Có mặt</span>}
-                                {hs.trangThai === 'phep'   && <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">Vắng phép</span>}
-                                {hs.trangThai === 'khong_phep' && <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-bold">K.Phép</span>}
-                                {hs.trangThai === 'tre'    && <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold">Đi trễ</span>}
-                                {!hs.trangThai && <span className="text-slate-500 text-[11px]">Chưa điểm danh</span>}
-                              </td>
-                              <td className="py-2 px-3 text-slate-400">{hs.lyDo || '—'}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="5" className="py-8 text-center text-slate-500">
-                              Chưa có bản ghi điểm danh nào cho ngày hôm nay.
-                            </td>
+                  {/* Teacher batch action */}
+                  {auth.user?.isTeacher && ddTabSub === 'ngay' && attendance.danhSach?.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button onClick={handleBatchMarkAllPresent}
+                        className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold hover:bg-emerald-500/20 transition-all">
+                        ✅ Có mặt hết lớp
+                      </button>
+                      <button onClick={() => fetchAttendance(attendance.ngay, attendance.buoi, attendance.loai)}
+                        className="px-4 py-2 rounded-xl bg-white/5 text-slate-300 border border-white/10 text-xs font-bold hover:bg-white/10 transition-all">
+                        🔄 Làm mới
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hôm nay table */}
+                  {ddTabSub === 'ngay' && (
+                    <div id="ddLopKhoi" className="overflow-x-auto rounded-2xl border border-white/5">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider bg-[#0B0E14]/60">
+                            <th className="py-2.5 px-3">STT</th>
+                            <th className="py-2.5 px-3">Họ và Tên</th>
+                            <th className="py-2.5 px-3">Lớp Nghề</th>
+                            <th className="py-2.5 px-3 text-center">Trạng Thái</th>
+                            {auth.user?.isTeacher && <th className="py-2.5 px-3">1-Touch</th>}
+                            <th className="py-2.5 px-3">Ghi Chú</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {attendance.danhSach && attendance.danhSach.length > 0 ? (
+                            attendance.danhSach.map((hs, i) => (
+                              <tr key={hs.id || i} className="hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{hs.soThuTu || (i + 1)}</td>
+                                <td className="py-2 px-3 font-semibold text-white">{hs.hoTen}</td>
+                                <td className="py-2 px-3 text-slate-400">{hs.lopNghe || '—'}</td>
+                                <td className="py-2 px-3 text-center">
+                                  {hs.trangThai === 'co_mat' && <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">Có mặt</span>}
+                                  {(hs.trangThai === 'phep' || hs.trangThai === 'vang_phep') && <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold">Vắng phép</span>}
+                                  {(hs.trangThai === 'khong_phep' || hs.trangThai === 'vang_khong_phep') && <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-bold">K.Phép</span>}
+                                  {hs.trangThai === 'tre' && <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold">Đi trễ</span>}
+                                  {!hs.trangThai && <span className="text-slate-500 text-[11px]">—</span>}
+                                </td>
+                                {auth.user?.isTeacher && (
+                                  <td className="py-1.5 px-3">
+                                    <div className="flex items-center gap-1">
+                                      {[
+                                        { s: 'co_mat',           lbl: '✅', cls: 'text-emerald-400 hover:bg-emerald-500/15' },
+                                        { s: 'vang_phep',        lbl: '🟡', cls: 'text-amber-400 hover:bg-amber-500/15' },
+                                        { s: 'vang_khong_phep',  lbl: '❌', cls: 'text-rose-400 hover:bg-rose-500/15' },
+                                        { s: 'tre',              lbl: '⏰', cls: 'text-purple-400 hover:bg-purple-500/15' },
+                                      ].map(({ s, lbl, cls }) => (
+                                        <button key={s} title={s} onClick={() => handleToggleAttendanceStatus(hs.id, s)}
+                                          className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-all ${hs.trangThai === s ? 'ring-1 ring-current bg-white/10' : ''} ${cls}`}>
+                                          {lbl}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </td>
+                                )}
+                                <td className="py-2 px-3 text-slate-400 max-w-[140px]">
+                                  {auth.user?.isTeacher ? (
+                                    <input type="text" value={hs.lyDo || ''} onChange={e => handleAttendanceNoteChange(hs.id, e.target.value)}
+                                      placeholder="Ghi chú..."
+                                      className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 focus:outline-none border-b border-transparent focus:border-white/20 py-0.5" />
+                                  ) : (hs.lyDo || '—')}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr><td colSpan={auth.user?.isTeacher ? 6 : 5} className="py-10 text-center text-slate-500">
+                              Chưa có bản ghi điểm danh nào cho buổi này.
+                            </td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Cá nhân */}
+                  {ddTabSub === 'ca_nhan' && (
+                    <div id="ddCaNhan">
+                      {attendance.caNhan ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Sổ Chính Khoá</h4>
+                            <div className="flex items-end gap-3 mb-3">
+                              <p className="text-3xl font-black text-[#00F2FE]">{attendance.caNhan.chinh?.tiLe ?? '—'}<span className="text-base ml-0.5">%</span></p>
+                              <p className="text-xs text-slate-400 pb-1">{attendance.caNhan.chinh?.co_mat ?? 0}/{attendance.caNhan.chinh?.tong ?? 0} buổi</p>
+                            </div>
+                            <div className="flex gap-3 text-[11px]">
+                              <span className="text-amber-400">🟡 Phép: {attendance.caNhan.chinh?.vang_phep ?? 0}</span>
+                              <span className="text-rose-400">❌ K.Phép: {attendance.caNhan.chinh?.vang_khong_phep ?? 0}</span>
+                              <span className="text-purple-400">⏰ Trễ: {attendance.caNhan.chinh?.tre ?? 0}</span>
+                            </div>
+                          </div>
+                          {attendance.caNhan.phu && (
+                            <div className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Sổ Phụ Khoá</h4>
+                              <div className="flex items-end gap-3 mb-3">
+                                <p className="text-3xl font-black text-[#8B5CF6]">{attendance.caNhan.phu?.tiLe ?? '—'}<span className="text-base ml-0.5">%</span></p>
+                                <p className="text-xs text-slate-400 pb-1">{attendance.caNhan.phu?.co_mat ?? 0}/{attendance.caNhan.phu?.tong ?? 0} buổi</p>
+                              </div>
+                              <div className="flex gap-3 text-[11px]">
+                                <span className="text-amber-400">🟡 Phép: {attendance.caNhan.phu?.vang_phep ?? 0}</span>
+                                <span className="text-rose-400">❌ K.Phép: {attendance.caNhan.phu?.vang_khong_phep ?? 0}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="py-10 text-center text-slate-500 text-xs">
+                          Đăng nhập bằng mã cá nhân để xem thống kê chuyên cần riêng của em.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════
-               TAB: TREASURY (THỦ QUỸ THỰC TẾ TỪ D1)
+               TAB: TREASURY — SaaS KPI + Split Thu/Chi
           ════════════════════════════════════════════════════ */}
           {activeTab === 'treasury' && (
-            <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl animate-fadeIn">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+            <div id="thu-quy" className="bg-[#151A23] border border-white/10 rounded-3xl shadow-2xl animate-fadeIn overflow-hidden">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/10 flex-wrap gap-3">
                 <div>
                   <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                    <span>💰</span> Quỹ Lớp 10A7 Công Khai
+                    <span>💰</span> Quỹ Lớp 10A7 — Minh Bạch Thu Chi
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Minh bạch thu chi tài chính quỹ lớp học</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Dữ liệu tài chính lớp học · Cập nhật theo thời gian thực</p>
                 </div>
               </div>
 
+              {/* Sub-tab nav */}
+              <div className="flex items-center gap-1 px-6 py-3 border-b border-white/10">
+                {[
+                  { id: 'thu', label: '📥 Các đợt thu' },
+                  { id: 'chi', label: '💸 Các khoản chi' },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setTqTabSub(t.id)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${tqTabSub === t.id ? 'bg-[#FFB800]/15 text-[#FFB800] border border-[#FFB800]/30' : 'text-slate-400 hover:text-white'}`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
               {auth.isGuest ? (
-                <div className="text-center py-12 px-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FFB800]/20 to-[#8B5CF6]/20 border border-[#FFB800]/30 flex items-center justify-center mx-auto mb-3 text-2xl">
-                    🔒
-                  </div>
+                <div className="text-center py-14 px-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#FFB800]/20 to-[#8B5CF6]/20 border border-[#FFB800]/30 flex items-center justify-center mx-auto mb-3 text-2xl">🔒</div>
                   <h3 className="text-sm font-bold text-white mb-2">Đăng nhập để xem sổ quỹ</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
-                    Sổ quỹ lớp được công khai cho học sinh và phụ huynh lớp 10A7. Vui lòng đăng nhập để xem chi tiết.
-                  </p>
-                  <a href="/login.html" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">
-                    Đăng nhập tài khoản →
-                  </a>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">Sổ quỹ công khai cho học sinh và phụ huynh lớp 10A7.</p>
+                  <a href="/login.html" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">Đăng nhập →</a>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Treasury Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-white/5">
-                      <p className="text-lg font-black text-emerald-400">{formatVND(financialSummary.thu)}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Tổng Thu</p>
+                <div className="p-6 space-y-5">
+                  {/* Thanh công cụ xuất báo cáo */}
+                  <div className="tq-actions-bar">
+                    <button type="button" className="btn-tq-action btn-tq-primary" onClick={inBaoCaoQuyA4}
+                      aria-label="In báo cáo thu chi A4 chuẩn hành chính">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      In Báo Cáo A4
+                    </button>
+                    <button type="button" className="btn-tq-action" onClick={xuatTepCSV}
+                      aria-label="Tải file Excel CSV dữ liệu thu chi">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Tải Bảng Tính (CSV)
+                    </button>
+                  </div>
+
+                  {/* KPI grid */}
+                  <div id="tqTongQuan" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Quỹ tồn thực tế</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFB800]/10 text-[#FFB800] border border-[#FFB800]/20 font-bold">Khả dụng</span>
+                      </div>
+                      <p className="text-xl font-black text-[#FFB800]">{formatVND(financialSummary.ton)}</p>
                     </div>
-                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-white/5">
-                      <p className="text-lg font-black text-rose-400">{formatVND(financialSummary.chi)}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Tổng Chi</p>
+                    <div className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Tổng đã thu</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Thu vào</span>
+                      </div>
+                      <p className="text-xl font-black text-emerald-400">{formatVND(financialSummary.thu)}</p>
                     </div>
-                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-white/5">
-                      <p className="text-lg font-black text-[#FFB800]">{formatVND(financialSummary.ton)}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Số Dư Hiện Tại</p>
-                    </div>
-                    <div className="bg-[#0B0E14] p-4 rounded-2xl border border-white/5">
-                      <p className="text-lg font-black text-[#00F2FE]">{financialSummary.dongCount}/{financialSummary.totalCount}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Đã Hoàn Thành Quỹ</p>
+                    <div className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Tổng đã chi</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">Đã chi</span>
+                      </div>
+                      <p className="text-xl font-black text-rose-400">-{formatVND(financialSummary.chi)}</p>
                     </div>
                   </div>
 
-                  {/* Expense Items Breakdown */}
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Các Khoản Chi Gần Nhất</h4>
-                    <div className="overflow-x-auto">
+                  {/* Sub-tab: Thu */}
+                  {tqTabSub === 'thu' && (
+                    <div id="tqKhoan" className="space-y-3">
+                      {financialSummary.khoanList && financialSummary.khoanList.length > 0 ? (
+                        financialSummary.khoanList.map((k, i) => {
+                          const tongCanThu = k.tongCanThu || (k.soTienMoiEm * financialSummary.totalCount);
+                          const tongDaThu = k.tongDaThu || 0;
+                          const pct = tongCanThu > 0 ? Math.min(100, Math.round((tongDaThu / tongCanThu) * 100)) : 100;
+                          return (
+                            <div key={k.id || i} className="bg-[#0B0E14] rounded-2xl p-4 border border-white/5">
+                              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-white text-sm">{k.ten}</span>
+                                  {k.dangMo ? (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Đang thu</span>
+                                  ) : (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 border border-slate-500/20 font-bold">Đã đóng</span>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs text-slate-400">Mỗi em: <span className="font-bold text-white">{formatVND(k.soTienMoiEm)}</span></p>
+                                  <p className="text-xs font-bold text-[#00F2FE]">{formatVND(tongDaThu)} / {formatVND(tongCanThu || tongDaThu)}</p>
+                                </div>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: pct + '%', background: pct >= 100 ? '#10b981' : '#00F2FE' }} />
+                              </div>
+                              <p className="text-[10px] text-slate-500 mt-1">{pct}% hoàn thành</p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="py-8 text-center text-slate-500 text-xs">Chưa có đợt thu nào.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sub-tab: Chi */}
+                  {tqTabSub === 'chi' && (
+                    <div className="overflow-x-auto rounded-2xl border border-white/5">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider">
-                            <th className="py-2 px-3">Ngày</th>
-                            <th className="py-2 px-3">Nội Dung Khoản Chi</th>
-                            <th className="py-2 px-3 text-right">Số Tiền</th>
-                            <th className="py-2 px-3">Ghi Chú</th>
+                          <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider bg-[#0B0E14]/60">
+                            <th className="py-2.5 px-4">Ngày</th>
+                            <th className="py-2.5 px-4">Nội dung</th>
+                            <th className="py-2.5 px-4 text-right">Số tiền</th>
+                            <th className="py-2.5 px-4">Ghi chú</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                          {classData.quyChi && classData.quyChi.length > 0 ? (
-                            classData.quyChi.map((c, i) => (
+                          {financialSummary.chiList && financialSummary.chiList.length > 0 ? (
+                            financialSummary.chiList.map((c, i) => (
                               <tr key={c.id || i} className="hover:bg-white/5 transition-colors">
-                                <td className="py-2 px-3 text-slate-400 font-mono">{formatDateVN(c.ngay)}</td>
-                                <td className="py-2 px-3 font-semibold text-white">{c.noiDung || c.noi_dung}</td>
-                                <td className="py-2 px-3 text-right font-black text-rose-400">{formatVND(c.soTien || c.so_tien)}</td>
-                                <td className="py-2 px-3 text-slate-400">{c.ghiChu || c.ghi_chu || '—'}</td>
+                                <td className="py-2.5 px-4 text-slate-400 font-mono">{formatDateVN(c.ngay)}</td>
+                                <td className="py-2.5 px-4 font-semibold text-white">{c.noiDung || c.noi_dung}</td>
+                                <td className="py-2.5 px-4 text-right font-black text-rose-400">-{formatVND(c.soTien || c.so_tien)}</td>
+                                <td className="py-2.5 px-4 text-slate-400">{c.ghiChu || c.ghi_chu || '—'}</td>
                               </tr>
                             ))
                           ) : (
-                            <tr>
-                              <td colSpan="4" className="py-6 text-center text-slate-500">Chưa có phát sinh chi nào trong quỹ.</td>
-                            </tr>
+                            <tr><td colSpan="4" className="py-8 text-center text-slate-500">Chưa có phát sinh chi nào.</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
           )}
+
+
+                  {/* Khu vực ẩn dùng cho in A4 chuẩn hành chính */}
+                  <div id="khuInBaoCaoA4">
+                    <div className="print-header">
+                      <div className="print-header-left">
+                        <div className="print-sub">TRUNG TÂM GDNN - GDTX ĐỊNH QUÁN</div>
+                        <div className="print-main">TẬP THỂ LỚP 10A7</div>
+                        <div className="print-divider"></div>
+                      </div>
+                      <div className="print-header-right">
+                        <div className="print-main">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                        <div className="print-sub" style={{ fontWeight: 'bold' }}>Độc lập - Tự do - Hạnh phúc</div>
+                        <div className="print-divider"></div>
+                      </div>
+                    </div>
+                    <div className="print-title">BÁO CÁO CÔNG KHAI THU - CHI QUỸ LỚP</div>
+                    <div className="print-date">
+                      Niên khóa 2026 - 2027 · Thời điểm kết xuất: {new Date().toLocaleDateString('vi-VN')}
+                    </div>
+                    <div className="print-summary-box">
+                      <div><strong>Tổng thu:</strong> {financialSummary.thu.toLocaleString('vi-VN')} đ</div>
+                      <div><strong>Tổng chi:</strong> {financialSummary.chi.toLocaleString('vi-VN')} đ</div>
+                      <div><strong>Tồn quỹ hiện tại:</strong> {financialSummary.ton.toLocaleString('vi-VN')} đ</div>
+                    </div>
+                    <div style={{ fontWeight: 'bold', marginTop: '12px' }}>I. CÁC KHOẢN THU:</div>
+                    <table className="print-table">
+                      <thead><tr><th style={{ width: '36px' }}>STT</th><th>Tên Khoản Thu / Đợt Thu</th><th style={{ width: '130px' }}>Số Tiền Mỗi Em (đ)</th><th style={{ width: '110px' }}>Đã Thu (đ)</th><th style={{ width: '80px' }}>Trạng Thái</th></tr></thead>
+                      <tbody>
+                        {financialSummary.khoanList && financialSummary.khoanList.length > 0 ? (
+                          financialSummary.khoanList.map((k, idx) => (
+                            <tr key={'pk-' + idx}>
+                              <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                              <td>{k.ten}</td>
+                              <td style={{ textAlign: 'right' }}>{Number(k.soTienMoiEm || 0).toLocaleString('vi-VN')}</td>
+                              <td style={{ textAlign: 'right' }}>{Number(k.tongDaThu || 0).toLocaleString('vi-VN')}</td>
+                              <td style={{ textAlign: 'center' }}>{k.dangMo ? 'Đang thu' : 'Đã đóng'}</td>
+                            </tr>
+                          ))
+                        ) : <tr><td colSpan="5" style={{ textAlign: 'center' }}>Chưa có bản ghi thu</td></tr>}
+                      </tbody>
+                    </table>
+                    <div style={{ fontWeight: 'bold', marginTop: '12px' }}>II. CÁC KHOẢN CHI:</div>
+                    <table className="print-table">
+                      <thead><tr><th style={{ width: '36px' }}>STT</th><th>Nội Dung Chi Tiết</th><th style={{ width: '120px' }}>Số Tiền (đ)</th><th style={{ width: '100px' }}>Ngày Chi</th><th style={{ width: '150px' }}>Chứng Từ / Ghi Chú</th></tr></thead>
+                      <tbody>
+                        {financialSummary.chiList && financialSummary.chiList.length > 0 ? (
+                          financialSummary.chiList.map((c, idx) => (
+                            <tr key={'pc-' + idx}>
+                              <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                              <td>{c.noiDung || c.noi_dung}</td>
+                              <td style={{ textAlign: 'right' }}>{Number(c.soTien || c.so_tien || 0).toLocaleString('vi-VN')}</td>
+                              <td style={{ textAlign: 'center' }}>{c.ngay || '-'}</td>
+                              <td>{c.ghiChu || c.ghi_chu || 'Đã duyệt'}</td>
+                            </tr>
+                          ))
+                        ) : <tr><td colSpan="5" style={{ textAlign: 'center' }}>Chưa có bản ghi chi</td></tr>}
+                      </tbody>
+                    </table>
+                    <div className="print-signatures">
+                      <div className="print-sig-block">
+                        <div style={{ fontWeight: 'bold' }}>NGƯỜI LẬP BÁO CÁO</div>
+                        <div style={{ fontStyle: 'italic', fontSize: '10pt' }}>(Ký và ghi rõ họ tên)</div>
+                        <div className="print-sig-space"></div>
+                        <div style={{ fontWeight: 'bold' }}>Ban Cán Sự / Thủ Quỹ</div>
+                      </div>
+                      <div className="print-sig-block">
+                        <div style={{ fontStyle: 'italic' }}>Định Quán, ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}</div>
+                        <div style={{ fontWeight: 'bold' }}>GIÁO VIÊN CHỦ NHIỆM</div>
+                        <div style={{ fontStyle: 'italic', fontSize: '10pt' }}>(Ký và ghi rõ họ tên)</div>
+                        <div className="print-sig-space"></div>
+                        <div style={{ fontWeight: 'bold' }}>Thầy Lê Đình Phát</div>
+                      </div>
+                    </div>
+                  </div>
 
           {/* ═══════════════════════════════════════════════════
                TAB: STUDENTS (DANH SÁCH HỌC SINH THỰC TẾ)
