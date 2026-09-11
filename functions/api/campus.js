@@ -27,10 +27,14 @@ export async function onRequestGet({ env }) {
         ORDER BY soNguoi DESC, p.tao_luc DESC LIMIT 30`
     ).bind(NHIP_HIEU_LUC).all();
 
-    // Số người đang hoạt động — DISTINCT khoá phiên, không lộ họ là ai.
+    // Số người đang hoạt động — DISTINCT khoá phiên trong các phòng toàn trường đang mở.
     const dd = await db.prepare(
-      `SELECT COUNT(DISTINCT khoa) AS n FROM phong_thanh_vien
-        WHERE datetime(hoat_dong_luc) > datetime('now', ?1)`
+      `SELECT COUNT(DISTINCT v.khoa) AS n
+         FROM phong_thanh_vien v
+         JOIN phong p ON p.id = v.phong_id
+        WHERE p.trang_thai = 'mo'
+          AND p.pham_vi = 'truong'
+          AND datetime(v.hoat_dong_luc) > datetime('now', ?1)`
     ).bind(NHIP_HIEU_LUC).first();
 
     // Sự kiện campus — chỉ trường an toàn.

@@ -118,10 +118,14 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       LIMIT 50`
   ).bind(phien.lopId || 0, phien.role === 'teacher' ? 1 : 0, NHIP_HIEU_LUC).all();
 
-  // Số người đang hoạt động toàn campus — DISTINCT khoá phiên (không lộ ai).
+  // Số người đang hoạt động toàn campus (chỉ tính phòng toàn trường đang mở) — DISTINCT khoá phiên.
   const dd = await db.prepare(
-    `SELECT COUNT(DISTINCT khoa) AS n FROM phong_thanh_vien
-      WHERE datetime(hoat_dong_luc) > datetime('now', ?1)`
+    `SELECT COUNT(DISTINCT v.khoa) AS n
+       FROM phong_thanh_vien v
+       JOIN phong p ON p.id = v.phong_id
+      WHERE p.trang_thai = 'mo'
+        AND p.pham_vi = 'truong'
+        AND datetime(v.hoat_dong_luc) > datetime('now', ?1)`
   ).bind(NHIP_HIEU_LUC).first();
 
   return json({ ok: true, phongs: rs.results || [], dangHoatDong: dd?.n || 0 });

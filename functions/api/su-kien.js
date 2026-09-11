@@ -80,8 +80,15 @@ async function kiemTraSuKien(db, than) {
   const loai = LOAI_SU_KIEN.includes(than.loai) ? than.loai : 'chung';
   if (tieuDe.length < 3) return { loi: 'Tên sự kiện ít nhất 3 ký tự.' };
 
-  const bd = Date.parse(than.batDau);
-  const kt = Date.parse(than.ketThuc);
+  const ISO_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+  const batDauRaw = typeof than.batDau === 'string' ? than.batDau.trim() : '';
+  const ketThucRaw = typeof than.ketThuc === 'string' ? than.ketThuc.trim() : '';
+  if (!batDauRaw || !ISO_REGEX.test(batDauRaw) || !ketThucRaw || !ISO_REGEX.test(ketThucRaw)) {
+    return { loi: 'Giờ bắt đầu và kết thúc phải là chuỗi định dạng ISO 8601 hợp lệ (VD: 2026-09-11T19:00:00.000Z).' };
+  }
+
+  const bd = Date.parse(batDauRaw);
+  const kt = Date.parse(ketThucRaw);
   if (isNaN(bd) || isNaN(kt)) return { loi: 'Giờ bắt đầu / kết thúc không hợp lệ.' };
   if (kt <= bd) return { loi: 'Giờ kết thúc phải sau giờ bắt đầu.' };
 

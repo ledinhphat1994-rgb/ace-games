@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -422,6 +422,20 @@ function demNguocSuKien(sk) {
   return dinhDangNgayGioVN(sk.batDau);
 }
 
+// Quyền quản trị sự kiện chính thức Campus — khớp đúng điều kiện canGiaoVien của backend.
+const canManageCampusEvents = (auth) => Boolean(auth?.user?.role === 'teacher');
+
+// Chuẩn hoá phòng campus: phòng công khai từ /api/campus mặc định là 'truong', không suy diễn là private.
+function normalizeCampusRoom(r, isGuest) {
+  if (!r) return r;
+  const phamVi = r.phamVi || (isGuest ? 'truong' : (r.lopId ? 'lop' : 'truong'));
+  return {
+    ...r,
+    phamVi,
+    laToanTruong: phamVi === 'truong',
+  };
+}
+
 // Thẻ hoạt động — variant 'compact' (Hot Now strip) và 'standard' (lưới chính).
 function TheHoatDong({ p, onVao, compact = false }) {
   const ui = PHONG_LOAI_UI[p.loai] || PHONG_LOAI_UI.chat;
@@ -441,7 +455,7 @@ function TheHoatDong({ p, onVao, compact = false }) {
             </span>
           </div>
           <p className="text-[10px] text-slate-400 truncate mt-0.5">
-            {ui.nhan}{p.chuPhongTen ? ` • ${p.chuPhongTen}` : ''}{p.lopTen ? ` • ${p.lopTen}` : ''} • {p.phamVi === 'truong' ? '🌐 Toàn trường' : '🔒 Chỉ lớp'}
+            {ui.nhan}{p.chuPhongTen ? ` • ${p.chuPhongTen}` : ''}{p.lopTen ? ` • ${p.lopTen}` : ''} • {p.phamVi === 'lop' ? '🔒 Chỉ lớp' : '🌐 Toàn trường'}
           </p>
         </div>
       </div>
@@ -1142,11 +1156,11 @@ function DigitalCampusApp() {
   // ─── INITIAL LIFECYCLE ────────────────────────────────────────────────────
   useEffect(() => {
     fetchAuth().then(isLoggedIn => {
-      fetchClassData(isLoggedIn);
       if (isLoggedIn) {
+        fetchClassData(true);
         fetchChat();
+        fetchGamification();
       }
-      fetchGamification();
     });
   }, [fetchAuth, fetchClassData, fetchChat, fetchGamification]);
 
@@ -1280,13 +1294,14 @@ function DigitalCampusApp() {
     : (auth.user?.hocSinhId || (auth.user?.role === 'phu' ? 800000 + (auth.user?.phuId || 1) : 100001));
 
   const taiDanhSachBanCaro = useCallback(async () => {
+    if (auth.isGuest) return;
     try {
       const res = await fetch('/api/game?loai=co_caro');
       const d = await res.json();
       if (d.ok) setCaroRooms(d.danhSachBan || []);
       else setCaroLoi(d.loi || '');
     } catch { /* giữ nguyên danh sách cũ */ }
-  }, []);
+  }, [auth.isGuest]);
 
   const taiPhongCaro = useCallback(async (phongId) => {
     try {
@@ -1392,10 +1407,12 @@ function DigitalCampusApp() {
       const res = await fetch(auth.isGuest ? '/api/campus' : '/api/phong');
       const d = await res.json();
       if (d.ok) {
-        setDsPhong(d.phongs || []);
+        const rawPhongs = d.phongs || [];
+        const normalized = rawPhongs.map(p => normalizeCampusRoom(p, auth.isGuest));
+        setDsPhong(normalized);
         setDangHoatDong(d.dangHoatDong || 0);
         if (d.suKien) setDsSuKien(d.suKien);
-        const sanh = (d.phongs || []).find(p => p.chuPhongKhoa === 'he-thong');
+        const sanh = normalized.find(p => p.chuPhongKhoa === 'he-thong');
         if (sanh) setSanhId(sanh.id);
       }
     } catch { /* giữ nguyên danh sách cũ nếu lỗi mạng */ }
@@ -2032,7 +2049,7 @@ function DigitalCampusApp() {
 
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#151A23] border border-white/10 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Online: <strong className="text-emerald-400">{onlineCount !== null ? onlineCount : '—'}/{classData.hocSinh?.length || '—'}</strong></span>
+              <span>Hoạt động: <strong className="text-emerald-400">{dangHoatDong}</strong></span>
             </div>
 
             {/* Bell Notification */}
@@ -2208,16 +2225,11 @@ function DigitalCampusApp() {
                       <div className="flex flex-wrap items-center gap-2 text-[11px]">
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                          <span>{onlineCount !== null ? onlineCount : '—'} đang online</span>
+                          <span>{dangHoatDong} bạn đang hoạt động trên Campus</span>
                         </span>
                         {phongCongDong.length > 0 && (
                           <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 font-semibold">
                             {phongCongDong.length} phòng đang mở
-                          </span>
-                        )}
-                        {dangHoatDong > 0 && (
-                          <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 font-semibold">
-                            {dangHoatDong} bạn đang hoạt động trong phòng
                           </span>
                         )}
                       </div>
@@ -2278,7 +2290,7 @@ function DigitalCampusApp() {
               {skHomNay.length === 0 ? (
                 <div className="bg-[#151A23] border border-dashed border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
                   <p className="text-[11px] text-slate-500">Hôm nay chưa có sự kiện được lên lịch — khám phá các phòng đang mở bên dưới.</p>
-                  {auth.user?.isTeacher && (
+                  {canManageCampusEvents(auth) && (
                     <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
                       className="shrink-0 px-3 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[11px] font-bold hover:bg-purple-500/25">
                       + Tạo sự kiện
@@ -2412,14 +2424,19 @@ function DigitalCampusApp() {
                       </h3>
                       <p className="text-[11px] text-slate-400 mb-4">
                         {caroRooms === null
-                          ? 'Đang tải danh sách bàn…'
+                          ? (auth.isGuest ? 'Đấu trí logic 1v1 trên bàn cờ 15x15 — đăng nhập để tham gia so tài.' : 'Đang tải danh sách bàn…')
                           : caroRooms.length > 0
-                            ? `${caroRooms.length} bàn đang mở — vào thách đấu bạn cùng lớp ngay!`
-                            : 'Chưa có bàn nào — mở bàn đầu tiên và thách đấu cả lớp!'}
+                            ? `${caroRooms.length} bàn đang mở — vào tranh tài cùng các kỳ thủ ngay!`
+                            : 'Chưa có bàn nào — mở bàn đầu tiên để so tài trí tuệ!'}
                       </p>
                     </div>
                     <div className="flex items-center justify-end pt-2 border-t border-white/5">
-                      <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); setCurrentView('ROOM_ACTIVE'); taiDanhSachBanCaro(); }}
+                      <button onClick={() => {
+                        if (auth.isGuest) { setShowAuthGate(true); return; }
+                        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+                        setCurrentView('ROOM_ACTIVE');
+                        taiDanhSachBanCaro();
+                      }}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
                         Vào đấu trường
                       </button>
@@ -2619,7 +2636,7 @@ function DigitalCampusApp() {
               {railTab === 'su-kien' && (
                 <div role="tabpanel" id="railpanel-su-kien" aria-labelledby="railtab-su-kien"
                   className="flex-1 overflow-y-auto space-y-2 max-h-96">
-                  {auth.user?.isTeacher && (
+                  {canManageCampusEvents(auth) && (
                     <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
                       className="w-full px-3 py-2 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[11px] font-bold hover:bg-purple-500/25 transition-all">
                       + Tạo sự kiện campus
@@ -2840,8 +2857,12 @@ function DigitalCampusApp() {
                     <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
                       <Ic name="game" className="w-8 h-8 text-[#FFB800] mx-auto mb-2" />
                       <p className="text-xs text-slate-300 font-bold mb-1">Phòng tập kết game</p>
-                      <p className="text-[11px] text-slate-500 mb-3">Hẹn nhau ở đây rồi vào Đấu Trường Caro cùng lớp để so tài.</p>
-                      <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); taiDanhSachBanCaro(); }}
+                      <p className="text-[11px] text-slate-500 mb-3">Hẹn nhau ở đây rồi vào Đấu Trường Caro để so tài trí tuệ.</p>
+                      <button onClick={() => {
+                        if (auth.isGuest) { setShowAuthGate(true); return; }
+                        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+                        taiDanhSachBanCaro();
+                      }}
                         className="px-4 py-2 rounded-xl bg-[#FFB800]/20 text-[#FFB800] text-xs font-bold border border-[#FFB800]/30 hover:bg-[#FFB800]/30">
                         ⚔️ Vào Đấu Trường Caro →
                       </button>
@@ -2957,6 +2978,7 @@ function DigitalCampusApp() {
                   <button key={ch.name} onClick={() => {
                     setActiveChannel(ch.name);
                     if (ch.sub === 'caro') {
+                      if (auth.isGuest) { setShowAuthGate(true); return; }
                       setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
                       setCurrentView('ROOM_ACTIVE');
                     } else if (ch.sub === 'vinh-danh') {
@@ -3917,7 +3939,7 @@ function DigitalCampusApp() {
       )}
 
       {/* ─── MODAL TẠO SỰ KIỆN CAMPUS — chỉ giáo viên thấy (API cũng chặn) ─── */}
-      {showTaoSuKien && auth.user?.isTeacher && (
+      {showTaoSuKien && canManageCampusEvents(auth) && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#151A23] border border-purple-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -3989,7 +4011,7 @@ function DigitalCampusApp() {
            MODAL 3: AUTH GATE
       ══════════════════════════════════════════════════════════════════════ */}
       {showAuthGate && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div id="modal-auth-gate" className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#151A23] border border-[#8B5CF6]/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center animate-scaleIn">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#00F2FE] flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg">
               🔐
