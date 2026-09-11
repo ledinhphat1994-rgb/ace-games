@@ -112,8 +112,8 @@ try {
     dCampus.dangHoatDong > 0 ? (/đang hoạt động/i.test(textCampus) && !/online/i.test(textCampus)) : !/Campus sẵn sàng kết nối/i.test(textCampus));
 
   // ── 2.1 Campus Simplification: X / 1 / 2 Assertions ─────────────────────────
-  console.log('\n== 2.1 Campus Simplification: X / 1 / 2 Assertions ==');
-  ok('Campus Hero Stage render (#campus-hero-stage)', await page.locator('#campus-hero-stage').count() > 0);
+  const hasHeroStage = (await page.locator('#campus-hero-stage').count() > 0) || (await page.locator('#campus-lobby').count() > 0);
+  ok('Campus Hero Stage / Lobby render (#campus-hero-stage / #campus-lobby)', hasHeroStage);
   ok('Campus Pulse strip hoàn toàn vắng mặt (#campus-pulse-status = 0)', await page.locator('#campus-pulse-status').count() === 0);
   ok('"Hôm Nay Trên Campus" lớn vắng mặt trên home', await page.locator('main').locator('#campus-events-section').count() === 0);
   ok('"Phòng Do Học Sinh Tạo" lớn vắng mặt trên home', await page.locator('main').locator('text=Phòng Do Học Sinh Tạo').count() === 0);
@@ -499,9 +499,9 @@ try {
       const isMobileNavVisible = await mobileNav.isVisible();
       ok(`${vp.name}: Mobile quick-nav hiển thị khả dụng`, isMobileNavVisible);
 
-      // 3. Hero stage phải ở vị trí dễ tiếp cận ngay trên màn hình (không bị sidebar đẩy xuống)
-      const heroStage = page.locator('#campus-hero-stage');
-      const heroBox = await heroStage.boundingBox();
+      // 3. Hero stage / lobby phải ở vị trí dễ tiếp cận ngay trên màn hình (không bị sidebar đẩy xuống)
+      const heroStage = page.locator('#campus-hero-stage, #campus-lobby').first();
+      const heroBox = (await heroStage.count()) ? await heroStage.boundingBox() : null;
       if (heroBox) {
         ok(`${vp.name}: Hero ở vị trí ưu tiên gần đỉnh trang (y < 280px)`,
           heroBox.y < 280,

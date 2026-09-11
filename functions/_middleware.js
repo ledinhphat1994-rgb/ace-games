@@ -2,6 +2,7 @@
 // Chưa có phiên hợp lệ => máy chủ không trả nội dung, chỉ trả trang đăng nhập.
 import { COOKIE_NAME, readCookie, verifyToken } from './_lib/auth.js';
 import { kiemTraPhienHieuLuc } from './_lib/api.js';
+import { coQuyenThanhVien } from './_lib/community.js';
 
 // Những đường dẫn ai cũng vào được (nếu không thì không thể hiện trang đăng nhập).
 const PUBLIC_PATHS = new Set([
@@ -114,6 +115,14 @@ export async function onRequest(context) {
           status: 403, headers: { 'Content-Type': 'application/json; charset=utf-8' },
         })
       : new Response(thongDiep, { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+
+  if (['/api/gv/hoat-dong-lop', '/api/gv/thong-bao'].includes(url.pathname)) {
+    if (!(await coQuyenThanhVien(env, session))) {
+      return addSecurityHeaders(new Response(JSON.stringify({ ok: false, error: 'community_membership_required' }), {
+        status: 403, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      }));
+    }
   }
 
   const res = await next();

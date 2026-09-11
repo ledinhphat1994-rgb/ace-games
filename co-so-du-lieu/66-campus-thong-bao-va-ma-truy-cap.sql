@@ -55,12 +55,3 @@ CREATE TABLE IF NOT EXISTS campus_bien_tap_vien (
   PRIMARY KEY (hoc_sinh_id, lop_id)
 );
 CREATE INDEX IF NOT EXISTS idx_cbtv_lop ON campus_bien_tap_vien(lop_id);
-
--- 4. DỮ LIỆU BAN ĐẦU: MÃ TRUY CẬP MẪU & THÔNG BÁO CHÍNH THỨC
-INSERT OR IGNORE INTO ma_truy_cap_cong_dong (id, ma_code, lop_id, ten_goi, so_lan_dung_toi_da, dang_hoat_dong, tao_boi_khoa)
-VALUES (1, '10A7-2026', 1, 'Mã truy cập Lớp 10A7 (2026-2027)', 0, 1, 'he-thong');
-
-INSERT OR IGNORE INTO campus_thong_bao (id, tieu_de, noi_dung, loai, pham_vi, lop_id, trang_thai, ghim, nguoi_tao_khoa, nguoi_tao_ten, nguoi_tao_vai_tro, xuat_ban_luc)
-VALUES
-(1, 'Chào mừng đến với Digital Campus Trung tâm GDTX Định Quán', 'Không gian học tập và sinh hoạt số mở dành cho toàn thể học sinh và giáo viên. Hãy cùng tham gia các hoạt động Xem chung, Game đối kháng và Focus Room!', 'thong_bao', 'truong', NULL, 'published', 1, 'gvcn-dinh-quan', 'Thầy Lê Đình Phát (GVCN)', 'giao_vien', CURRENT_TIMESTAMP),
-(2, 'Lịch kiểm tra định kỳ & Kế hoạch ôn tập Học kỳ 1', 'Các em học sinh chú ý theo dõi lịch ôn tập môn Toán và các môn chuyên đề. Phòng học tập Study Café mở 24/7 để các nhóm cùng luyện đề.', 'lich_thi', 'truong', NULL, 'published', 0, 'gvcn-dinh-quan', 'Ban Giám Hiệu & GVCN', 'giao_vien', CURRENT_TIMESTAMP);

@@ -3,6 +3,7 @@
 // Phiên đăng nhập (cookie ký HMAC) là nguồn DUY NHẤT để biết "đây là em nào" — không còn
 // chấp nhận ?ma=<mã cá nhân> trên URL (mã bí mật không được phép lọt vào URL/log truy cập).
 import { bocXuLy, json, ngayVNHomNay } from '../_lib/api.js';
+import { coQuyenThanhVien } from '../_lib/community.js';
 
 export const onRequestGet = bocXuLy(async ({ env, waitUntil, phien }) => {
   const db = env.DB;
@@ -10,6 +11,16 @@ export const onRequestGet = bocXuLy(async ({ env, waitUntil, phien }) => {
 
   const homNay = ngayVNHomNay();
   const hocSinhIdPhien = phien.hocSinhId || null;
+
+  // Bảo vệ máy chủ cho Bảng Tin Cộng Đồng: Học sinh bắt buộc phải có quyền thành viên
+  if (!(await coQuyenThanhVien(env, phien))) {
+      return json({
+        ok: false,
+        error: 'community_membership_required',
+        canMaCongDong: true,
+        message: 'Bạn cần mã truy cập do Giáo viên cấp để tham gia Bảng Tin Cộng Đồng và xem dữ liệu lớp học.'
+      }, 403);
+  }
 
   // Ghi lại lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
   // số liệu tham khảo cho tab Tương tác. Ghi cả bảng tổng theo ngày (nhanh cho biểu đồ) lẫn

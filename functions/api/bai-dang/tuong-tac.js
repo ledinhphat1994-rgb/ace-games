@@ -46,8 +46,22 @@ function layThongTinNguoiDung(phien, thietBiId = '') {
   return { nguoiDungId, nguoiDungTen, vaiTro };
 }
 
+import { coQuyenThanhVien } from '../../_lib/community.js';
+
+async function baiThuocLop(db, id, lopId) {
+  return Boolean(await db.prepare(`
+    SELECT id FROM hoat_dong_lop WHERE id = ?1 AND lop_id = ?2
+    UNION ALL SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2 AND hien = 1
+    LIMIT 1
+  `).bind(id, lopId).first());
+}
+
 // GET: Lấy danh sách bình luận và thống kê cảm xúc cho bài đăng
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  if (!(await coQuyenThanhVien(env, phien))) {
+    return json({ ok: false, error: 'community_membership_required', message: 'Cần mã truy cập từ Giáo viên để tham gia Bảng Tin.' }, 403);
+  }
+
   const url = new URL(request.url);
   const baiDangId = parseInt(url.searchParams.get('baiDangId') || '0', 10);
   const lopId = phien.lopId || 1;
@@ -113,6 +127,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
 // POST: Thả / Đổi / Gỡ cảm xúc cho bài đăng
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+  if (!(await coQuyenThanhVien(env, phien))) {
+    return json({ ok: false, error: 'community_membership_required', message: 'Cần mã truy cập từ Giáo viên để tham gia Bảng Tin.' }, 403);
+  }
+
   const body = await docThan(request);
   const baiDangId = parseInt(body.baiDangId || '0', 10);
   const loaiCamXuc = String(body.loaiCamXuc || '').trim();
@@ -121,6 +139,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const { nguoiDungId, nguoiDungTen } = layThongTinNguoiDung(phien, thietBiId);
 
   if (baiDangId <= 0) return loi('Mã bài đăng không hợp lệ.');
+  if (!(await baiThuocLop(env.DB, baiDangId, phien.lopId))) return loi('Không tìm thấy bài đăng.', 404);
 
   const loaiHopLe = ['thich', 'tim', 'haha', 'wow', 'buon', 'phan_no'];
 
@@ -135,7 +154,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       `INSERT INTO bai_dang_cam_xuc (lop_id, bai_dang_id, nguoi_dung_id, nguoi_dung_ten, loai_cam_xuc, tao_luc)
        VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
        ON CONFLICT(bai_dang_id, nguoi_dung_id)
-       DO UPDATE SET loai_cam_xuc = excluded.loai_cam_xuc, tao_luc = CURRENT_TIMESTAMP`
+       DO UPDATE SET loai_cam_xuc = excluded.loai_cam_xuc, tao_luc = CURRENT_TIMESTAMP
+       WHERE bai_dang_cam_xuc.lop_id = excluded.lop_id`
     ).bind(lopId, baiDangId, nguoiDungId, nguoiDungTen, loaiCamXuc).run();
   }
 
@@ -165,6 +185,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
 // PUT: Thêm bình luận mới hoặc phản hồi (reply) cho bình luận khác
 export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
+  if (!(await coQuyenThanhVien(env, phien))) {
+    return json({ ok: false, error: 'community_membership_required', message: 'Cần mã truy cập từ Giáo viên để tham gia Bảng Tin.' }, 403);
+  }
+
   const body = await docThan(request);
   const baiDangId = parseInt(body.baiDangId || '0', 10);
   const traLoiId = body.traLoiId ? parseInt(body.traLoiId, 10) : null;
@@ -174,6 +198,10 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
   const { nguoiDungId, nguoiDungTen, vaiTro } = layThongTinNguoiDung(phien, thietBiId);
 
   if (baiDangId <= 0) return loi('Mã bài đăng không hợp lệ.');
+  if (!(await baiThuocLop(env.DB, baiDangId, phien.lopId))) return loi('Không tìm thấy bài đăng.', 404);
+  if (traLoiId && !(await env.DB.prepare(
+    'SELECT id FROM bai_dang_binh_luan WHERE id = ?1 AND bai_dang_id = ?2 AND lop_id = ?3'
+  ).bind(traLoiId, baiDangId, phien.lopId).first())) return loi('Không tìm thấy bình luận gốc.', 404);
   if (!noiDung) return loi('Vui lòng nhập nội dung bình luận.');
   if (noiDung.length > 1000) return loi('Bình luận quá dài (tối đa 1000 ký tự).');
 
@@ -209,6 +237,10 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
 
 // DELETE: Xoá bình luận (người viết hoặc giáo viên / tài khoản có quyền)
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
+  if (!(await coQuyenThanhVien(env, phien))) {
+    return json({ ok: false, error: 'community_membership_required', message: 'Cần mã truy cập từ Giáo viên để tham gia Bảng Tin.' }, 403);
+  }
+
   const url = new URL(request.url);
   const id = parseInt(url.searchParams.get('id') || '0', 10);
   const thietBiId = url.searchParams.get('thietBiId') || '';

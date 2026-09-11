@@ -1,4 +1,4 @@
-// API Tổng hợp Tiêu Điểm Hoạt Động Digital Campus
+// API Tổng hợp Tiêu Điểm Hoạt Động Digital Campus (Phase 4A.1 Privacy Hardening)
 import { json, loi } from '../_lib/api.js';
 
 export async function onRequestGet({ env }) {
@@ -14,56 +14,55 @@ export async function onRequestGet({ env }) {
     let gameDoiKhang = { soBan: 0, dangDau: 0 };
     const thongKe = { tongOnline: 0, tongPhong: 0 };
 
-    // 1. TOP STREAK: Học sinh có chuỗi chuyên cần / sinh hoạt cao nhất
+    // 1. TOP STREAK: Thống kê số lượng học sinh có chuỗi chuyên cần (PRIVACY: Không lộ họ tên/ID học sinh)
     try {
       const rsStreak = await db.prepare(`
-        SELECT us.streak_hien_tai AS streak, hs.ho_ten AS hoTen
-        FROM hoc_sinh_streak us
-        JOIN hoc_sinh hs ON hs.id = us.hoc_sinh_id
-        WHERE us.streak_hien_tai > 0
-        ORDER BY us.streak_hien_tai DESC
-        LIMIT 3
-      `).all();
+        SELECT COUNT(DISTINCT hoc_sinh_id) AS soHocSinh, MAX(streak_hien_tai) AS maxStreak
+        FROM user_streaks
+        WHERE streak_hien_tai > 0
+      `).first();
 
-      if (rsStreak.results && rsStreak.results.length > 0) {
-        topStreaks = rsStreak.results;
-        for (const s of rsStreak.results) {
-          highlights.push({
-            id: `streak-${s.hoTen}-${s.streak}`,
-            loai: 'streak',
-            bieuTuong: '🔥',
-            tieuDe: `${s.hoTen} đạt chuỗi ${s.streak} ngày`,
-            chiTiet: 'Hoạt động & chuyên cần xuất sắc liên tục',
-            badge: 'STREAK CAO',
-            mauSac: 'amber'
-          });
-        }
+      if (rsStreak && rsStreak.soHocSinh > 0) {
+        const soHocSinh = Number(rsStreak.soHocSinh) || 0;
+        const maxStreak = Number(rsStreak.maxStreak) || 0;
+        topStreaks = [{ soHocSinh, maxStreak }];
+
+        highlights.push({
+          id: 'streak-summary',
+          loai: 'streak',
+          bieuTuong: '🔥',
+          tieuDe: `${soHocSinh} học sinh duy trì chuỗi học tập tốt`,
+          chiTiet: `Kỷ lục hiện tại: ${maxStreak} ngày chuyên cần liên tục`,
+          badge: 'STREAK NỔI BẬT',
+          mauSac: 'amber'
+        });
       }
     } catch {
       // bỏ qua nếu bảng chưa có dữ liệu
     }
 
-    // 2. ARENA GAME: Đếm số bàn cờ Caro / Game đang mở hoặc đang thi đấu
+    // 2. ARENA GAME: Đếm số bàn cờ Caro phạm vi TOÀN TRƯỜNG theo trạng thái thực tế ('cho_nguoi', 'dang_choi')
     try {
       const gameStats = await db.prepare(`
         SELECT COUNT(*) AS soBan,
-               SUM(CASE WHEN trang_thai = 'playing' THEN 1 ELSE 0 END) AS dangDau
+               SUM(CASE WHEN trang_thai = 'dang_choi' THEN 1 ELSE 0 END) AS dangDau
         FROM game_phong
-        WHERE trang_thai IN ('waiting', 'playing')
+        WHERE trang_thai IN ('cho_nguoi', 'dang_choi')
+          AND pham_vi = 'truong'
           AND datetime(cap_nhat_luc) > datetime('now', '-30 minutes')
       `).first();
 
       if (gameStats && gameStats.soBan > 0) {
-        gameDoiKhang = {
-          soBan: Number(gameStats.soBan) || 0,
-          dangDau: Number(gameStats.dangDau) || 0
-        };
+        const soBan = Number(gameStats.soBan) || 0;
+        const dangDau = Number(gameStats.dangDau) || 0;
+        gameDoiKhang = { soBan, dangDau };
+
         highlights.push({
           id: 'arena-active',
           loai: 'game',
           bieuTuong: '🎮',
-          tieuDe: `Arena Game có ${gameStats.soBan} bàn hoạt động`,
-          chiTiet: `${gameStats.dangDau || 0} trận đang so tài kịch tính`,
+          tieuDe: `Đấu trường Game có ${soBan} bàn mở toàn trường`,
+          chiTiet: `${dangDau} trận cờ Caro đang so tài kịch tính`,
           badge: 'SÔI ĐỘNG',
           mauSac: 'cyan',
           hanhDong: 'vao_game'
@@ -73,13 +72,14 @@ export async function onRequestGet({ env }) {
       // bỏ qua
     }
 
-    // 3. FOCUS STUDY STATS: Đếm số học sinh đang trong phòng tự học
+    // 3. FOCUS STUDY STATS: Đếm số người trong phòng tự học TOÀN TRƯỜNG (pham_vi = 'truong')
     try {
       const focusStats = await db.prepare(`
         SELECT COUNT(DISTINCT v.khoa) AS soNguoi, p.ten AS tenPhong
         FROM phong_thanh_vien v
         JOIN phong p ON p.id = v.phong_id
         WHERE p.trang_thai = 'mo'
+          AND p.pham_vi = 'truong'
           AND p.loai IN ('focus', 'nhac')
           AND datetime(v.hoat_dong_luc) > datetime('now', ?1)
         GROUP BY p.id
@@ -96,8 +96,8 @@ export async function onRequestGet({ env }) {
           id: 'focus-active',
           loai: 'focus',
           bieuTuong: '📚',
-          tieuDe: `${focusStats.soNguoi} học sinh đang trong Focus Room`,
-          chiTiet: `Phòng "${focusStats.tenPhong}" đang tập trung cao độ`,
+          tieuDe: `${focusStats.soNguoi} người trong Focus Room`,
+          chiTiet: `Không gian "${focusStats.tenPhong}" mở toàn trường`,
           badge: 'CHĂM HỌC',
           mauSac: 'emerald'
         });
@@ -106,13 +106,14 @@ export async function onRequestGet({ env }) {
       // bỏ qua
     }
 
-    // 4. TRENDING WATCH ROOM: Phòng xem chung đông nhất
+    // 4. TRENDING WATCH ROOM: Phòng xem chung TOÀN TRƯỜNG đông nhất (pham_vi = 'truong')
     try {
       const watchStats = await db.prepare(`
         SELECT COUNT(DISTINCT v.khoa) AS soNguoi, p.ten AS tenPhong, p.id AS phongId
         FROM phong_thanh_vien v
         JOIN phong p ON p.id = v.phong_id
         WHERE p.trang_thai = 'mo'
+          AND p.pham_vi = 'truong'
           AND p.loai = 'video'
           AND datetime(v.hoat_dong_luc) > datetime('now', ?1)
         GROUP BY p.id
@@ -126,7 +127,7 @@ export async function onRequestGet({ env }) {
           loai: 'video',
           bieuTuong: '🎬',
           tieuDe: `Xem chung "${watchStats.tenPhong}"`,
-          chiTiet: `${watchStats.soNguoi} bạn đang cùng theo dõi video`,
+          chiTiet: `${watchStats.soNguoi} bạn đang cùng theo dõi video toàn trường`,
           badge: 'HOT TREND',
           mauSac: 'purple'
         });
@@ -135,7 +136,7 @@ export async function onRequestGet({ env }) {
       // bỏ qua
     }
 
-    // 5. UPCOMING / ACTIVE EVENT
+    // 5. UPCOMING / ACTIVE EVENT TOÀN TRƯỜNG
     try {
       const sk = await db.prepare(`
         SELECT id, tieu_de AS tieuDe, loai, bat_dau_luc AS batDauLuc, ket_thuc_luc AS ketThucLuc
@@ -164,9 +165,9 @@ export async function onRequestGet({ env }) {
       // bỏ qua
     }
 
-    // Tổng hợp thống kê
+    // Tổng hợp số phòng toàn trường đang mở
     try {
-      const rTongPhong = await db.prepare("SELECT COUNT(*) AS c FROM phong WHERE trang_thai = 'mo'").first();
+      const rTongPhong = await db.prepare("SELECT COUNT(*) AS c FROM phong WHERE trang_thai = 'mo' AND pham_vi = 'truong'").first();
       thongKe.tongPhong = Number(rTongPhong?.c) || 0;
     } catch {
       // bỏ qua
@@ -176,8 +177,12 @@ export async function onRequestGet({ env }) {
       ok: true,
       highlights,
       topStreaks,
+      topStreak: topStreaks,
       focusTongQuan,
+      focusSummary: { soNguoiHoc: focusTongQuan.soNguoi, tenPhong: focusTongQuan.tenPhong },
       gameDoiKhang,
+      activeGameArena: { soBanChoi: gameDoiKhang.soBan, dangDau: gameDoiKhang.dangDau },
+      trendingRooms: highlights.filter(h => h.loai === 'focus' || h.loai === 'video'),
       thongKe
     });
   } catch (e) {

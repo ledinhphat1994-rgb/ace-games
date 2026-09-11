@@ -463,20 +463,27 @@ CREATE TABLE IF NOT EXISTS campus_thong_bao (
 CREATE INDEX IF NOT EXISTS idx_ctb_pham_vi ON campus_thong_bao(pham_vi, trang_thai, ghim DESC, tao_luc DESC);
 CREATE INDEX IF NOT EXISTS idx_ctb_lop ON campus_thong_bao(lop_id, trang_thai);
 
--- 30. MÃ TRUY CẬP BẢNG TIN CỘNG ĐỒNG (PHASE 4A)
+-- 30. MÃ TRUY CẬP BẢNG TIN CỘNG ĐỒNG (PHASE 4A & 4A.1)
 CREATE TABLE IF NOT EXISTS ma_truy_cap_cong_dong (
-  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-  ma_code             TEXT NOT NULL UNIQUE,
-  lop_id              INTEGER NOT NULL REFERENCES lop(id) ON DELETE CASCADE,
-  ten_goi             TEXT NOT NULL,
-  so_lan_dung_toi_da  INTEGER DEFAULT 0,
-  so_lan_da_dung      INTEGER NOT NULL DEFAULT 0,
-  het_han_luc         TEXT,
-  dang_hoat_dong      INTEGER NOT NULL DEFAULT 1,
-  tao_boi_khoa        TEXT,
-  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_code                 TEXT NOT NULL UNIQUE,
+  lop_id                  INTEGER NOT NULL REFERENCES lop(id) ON DELETE CASCADE,
+  hoc_sinh_id             INTEGER REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  ma_hash                 TEXT,
+  ma_hien_thi             TEXT,
+  ten_goi                 TEXT NOT NULL,
+  so_lan_dung_toi_da      INTEGER DEFAULT 0,
+  so_lan_da_dung          INTEGER NOT NULL DEFAULT 0,
+  da_dung_boi_hoc_sinh_id INTEGER REFERENCES hoc_sinh(id),
+  da_dung_luc             TEXT,
+  het_han_luc             TEXT,
+  dang_hoat_dong          INTEGER NOT NULL DEFAULT 1,
+  tao_boi_khoa            TEXT,
+  tao_luc                 TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_mtccd_code ON ma_truy_cap_cong_dong(ma_code, dang_hoat_dong);
+CREATE INDEX IF NOT EXISTS idx_mtccd_hash ON ma_truy_cap_cong_dong(ma_hash);
+CREATE INDEX IF NOT EXISTS idx_mtccd_hs ON ma_truy_cap_cong_dong(hoc_sinh_id);
 
 -- 31. HỌC SINH ĐƯỢC ỦY QUYỀN BIÊN TẬP (PHASE 4A)
 CREATE TABLE IF NOT EXISTS campus_bien_tap_vien (
@@ -488,3 +495,17 @@ CREATE TABLE IF NOT EXISTS campus_bien_tap_vien (
   PRIMARY KEY (hoc_sinh_id, lop_id)
 );
 CREATE INDEX IF NOT EXISTS idx_cbtv_lop ON campus_bien_tap_vien(lop_id);
+
+-- 32. QUYỀN THÀNH VIÊN BẢNG TIN CỘNG ĐỒNG (PHASE 4A.1)
+CREATE TABLE IF NOT EXISTS community_membership (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  hoc_sinh_id     INTEGER NOT NULL REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  lop_id          INTEGER NOT NULL REFERENCES lop(id) ON DELETE CASCADE,
+  ma_truy_cap_id  INTEGER REFERENCES ma_truy_cap_cong_dong(id) ON DELETE SET NULL,
+  granted_by      TEXT NOT NULL,
+  granted_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+  revoked_at      TEXT,
+  UNIQUE(hoc_sinh_id, lop_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cm_hs_lop ON community_membership(hoc_sinh_id, lop_id, revoked_at);
+CREATE INDEX IF NOT EXISTS idx_cm_lop ON community_membership(lop_id, revoked_at);
