@@ -649,62 +649,71 @@ function DigitalCampusApp() {
   useEffect(() => {
     if (auth.isGuest) return;
 
-    // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-
-    // Get last message ID for resuming
-    const lastId = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1].id : 0;
+    let pollInterval = null;
 
     try {
-      // Create SSE connection
-      const eventSource = new EventSource(`/api/chat-stream?sauId=${lastId}`);
-      eventSourceRef.current = eventSource;
+      if (typeof EventSource !== 'undefined') {
+        const lastId = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1].id : 0;
+        const eventSource = new EventSource(`/api/chat-stream?sauId=${lastId}`);
+        eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('connected', (event) => {
-      console.log('SSE Connected:', JSON.parse(event.data));
-    });
+        eventSource.addEventListener('connected', (event) => {
+          try { console.log('SSE Connected:', JSON.parse(event.data)); } catch {}
+        });
 
-    eventSource.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data);
-      if (data.tinNhan && data.tinNhan.length > 0) {
-        setChatMessages(prev => [...prev, ...data.tinNhan]);
+        eventSource.addEventListener('message', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.tinNhan && data.tinNhan.length > 0) {
+              setChatMessages(prev => [...prev, ...data.tinNhan]);
+            }
+          } catch {}
+        });
+
+        eventSource.addEventListener('deleted', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.daXoaIds && data.daXoaIds.length > 0) {
+              setChatMessages(prev => prev.filter(msg => !data.daXoaIds.includes(msg.id)));
+            }
+          } catch {}
+        });
+
+        eventSource.addEventListener('presence', (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('Online count:', data.onlineCount);
+          } catch {}
+        });
+
+        eventSource.addEventListener('error', () => {
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+          }
+          if (!pollInterval) {
+            pollInterval = setInterval(fetchChat, 4000);
+          }
+        });
+      } else {
+        pollInterval = setInterval(fetchChat, 4000);
       }
-    });
-
-    eventSource.addEventListener('deleted', (event) => {
-      const data = JSON.parse(event.data);
-      if (data.daXoaIds && data.daXoaIds.length > 0) {
-        setChatMessages(prev => prev.filter(msg => !data.daXoaIds.includes(msg.id)));
-      }
-    });
-
-    eventSource.addEventListener('presence', (event) => {
-      const data = JSON.parse(event.data);
-      // Update online count if we have a state for it
-      console.log('Online count:', data.onlineCount);
-    });
-
-    eventSource.addEventListener('error', (event) => {
-      console.error('SSE Error:', event);
-      eventSource.close();
-      // Fallback to polling
-      const t = setInterval(fetchChat, 4000);
-      return () => clearInterval(t);
-    });
+    } catch (error) {
+      console.warn('SSE fallback to polling:', error);
+      pollInterval = setInterval(fetchChat, 4000);
+    }
 
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
       }
     };
-    } catch (error) {
-      console.error('SSE connection failed, falling back to polling:', error);
-      // Fallback to polling if SSE fails
-      const t = setInterval(fetchChat, 4000);
-      return () => clearInterval(t);
-    }
+  }, [auth.isGuest, fetchChat]);
+
   // ─── FETCH REAL GAMIFICATION & ACHIEVEMENTS ───────────────────────────────
   const fetchGamification = useCallback(async () => {
     try {
