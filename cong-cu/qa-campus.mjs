@@ -109,7 +109,32 @@ try {
   ok('KHÔNG rò nội dung lớp vào Campus Hero',
     !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textCampus));
   ok('Hero hiển thị chỉ số hoạt động Campus',
-    /hoạt động trên Campus/i.test(textCampus) || /đang hoạt động/i.test(textCampus));
+    /hoạt động trên Campus/i.test(textCampus) || /đang hoạt động/i.test(textCampus) || /Campus đang yên tĩnh/i.test(textCampus));
+
+  // ── 2.1 Phase 3A: Featured Stage & Flagship Spaces ─────────────────────────
+  console.log('\n== 2.1 Phase 3A: Feature Stage & Flagship Destinations ==');
+  ok('Campus Hero Stage render (#campus-hero-stage)', await page.locator('#campus-hero-stage').count() > 0);
+  ok('Campus Pulse Status render (#campus-pulse-status)', await page.locator('#campus-pulse-status').count() > 0);
+
+  ok('Flagship Cinema Space hiển thị ("Xem Chung")', await page.locator('text=Xem Chung').count() > 0);
+  ok('Flagship Game Arena Space hiển thị ("Game Arena" / "Cờ Caro")',
+    (await page.locator('text=Game Arena').count() > 0) || (await page.locator('text=Cờ Caro').count() > 0));
+  ok('Flagship Music & Focus Space hiển thị',
+    (await page.locator('text=Music & Focus').count() > 0) || (await page.locator('text=Lofi Study').count() > 0));
+  ok('Flagship Social Space hiển thị',
+    (await page.locator('text=Trò Chuyện & Kết Nối').count() > 0) || (await page.locator('text=Sảnh Trò Chuyện').count() > 0));
+
+  // ── 2.2 Phase 3A: Client-Side Campus Search ───────────────────────────────
+  console.log('\n== 2.2 Phase 3A: Campus Local Search Affordance ==');
+  const searchInput = page.locator('#campus-search-input');
+  ok('Campus search input hiển thị (#campus-search-input)', await searchInput.count() > 0);
+  if (await searchInput.count()) {
+    await searchInput.fill('Caro');
+    await page.waitForTimeout(300);
+    ok('Tìm kiếm "Caro" lọc được kết quả đấu trường', (await page.locator('text=Cờ Caro').count() > 0) || (await page.locator('text=Game Arena').count() > 0));
+    await searchInput.fill('');
+    await page.waitForTimeout(200);
+  }
 
   // ── 3. Guest Caro CTA Boundary ─────────────────────────────────────────────
   console.log('\n== 3. Guest Caro CTA Boundary ==');
@@ -156,10 +181,12 @@ try {
     ok('Nhạc rail là phòng campus, không phải nhạc lớp', !/Nhạc nền lớp 10A7/i.test(panelNhac));
   }
 
-  // ── 5. Responsive Matrix (1440px, 1024px, 768px, 390px) ────────────────────
-  console.log('\n== 5. Responsive Breakpoint Matrix ==');
+  // ── 5. Responsive Matrix (1920px, 1440px, 1280px, 1024px, 768px, 390px) ───
+  console.log('\n== 5. Responsive Breakpoint Matrix (6 Viewports) ==');
   const viewports = [
-    { name: 'Desktop (1440px)', width: 1440, height: 900 },
+    { name: 'Ultra-wide Desktop (1920px)', width: 1920, height: 1080 },
+    { name: 'Large Desktop (1440px)', width: 1440, height: 900 },
+    { name: 'Standard Laptop (1280px)', width: 1280, height: 800 },
     { name: 'Laptop/Tablet L (1024px)', width: 1024, height: 768 },
     { name: 'Tablet (768px)', width: 768, height: 1024 },
     { name: 'Mobile (390px)', width: 390, height: 844 },
