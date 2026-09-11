@@ -21,6 +21,7 @@
     "qa:campus": "node cong-cu/qa-campus.mjs",
     "qa:arena": "node cong-cu/qa-arena-concurrency.mjs",
     "qa:watch-together": "node cong-cu/qa-watch-together.mjs",
+    "qa:focus": "node cong-cu/qa-focus-room.mjs",
     "deploy": "node deploy.js",
     "dev": "node build.js && wrangler pages dev --compatibility-date=2026-05-03",
     "log": "wrangler pages deployment tail --project-name lop-10a7",

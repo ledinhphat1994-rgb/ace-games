@@ -423,3 +423,18 @@ CREATE TABLE IF NOT EXISTS phong_dong_bo_video (
   nguoi_cap_nhat_ten  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pdbv_phong ON phong_dong_bo_video(phong_id);
+
+-- 28. ĐỒNG BỘ PHIÊN TẬP TRUNG FOCUS ROOM / STUDY CAFÉ (PHASE 3D.1)
+CREATE TABLE IF NOT EXISTS phong_focus_state (
+  phong_id                INTEGER PRIMARY KEY REFERENCES phong(id) ON DELETE CASCADE,
+  giai_doan               TEXT NOT NULL DEFAULT 'focus',
+  trang_thai              TEXT NOT NULL DEFAULT 'paused',
+  thoi_luong_giay         INTEGER NOT NULL DEFAULT 1500,
+  thoi_gian_con_lai_giay  INTEGER NOT NULL DEFAULT 1500,
+  preset                  TEXT NOT NULL DEFAULT '25_5',
+  revision                INTEGER NOT NULL DEFAULT 1,
+  cap_nhat_luc            TEXT DEFAULT CURRENT_TIMESTAMP,
+  nguoi_cap_nhat_khoa     TEXT,
+  nguoi_cap_nhat_ten      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pfs_phong ON phong_focus_state(phong_id);

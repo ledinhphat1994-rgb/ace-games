@@ -179,6 +179,12 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
          VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)`
       ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
     }
+    if (loai === 'nhac' && phongId > 0) {
+      await db.prepare(
+        `INSERT INTO phong_focus_state (phong_id, giai_doan, trang_thai, thoi_luong_giay, thoi_gian_con_lai_giay, preset, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
+         VALUES (?1, 'focus', 'paused', 1500, 1500, '25_5', 1, CURRENT_TIMESTAMP, ?2, ?3)`
+      ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
+    }
     await ghiNhanVao(db, phongId, phien);
     if (phien.hocSinhId) {
       await ghiNhanHoatDong(env, { hocSinhId: phien.hocSinhId, lopId: phien.lopId, loaiHoatDong: 'chat', moTa: `Tạo phòng "${ten}"` }).catch(() => {});
@@ -214,6 +220,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     await db.prepare(`UPDATE phong SET trang_thai = 'dong', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1`).bind(phongId).run();
     await db.prepare('DELETE FROM phong_thanh_vien WHERE phong_id = ?1').bind(phongId).run();
     await db.prepare('DELETE FROM phong_dong_bo_video WHERE phong_id = ?1').bind(phongId).run().catch(() => {});
+    await db.prepare('DELETE FROM phong_focus_state WHERE phong_id = ?1').bind(phongId).run().catch(() => {});
     return json({ ok: true });
   }
 

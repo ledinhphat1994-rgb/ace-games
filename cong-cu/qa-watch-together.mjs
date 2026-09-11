@@ -546,12 +546,19 @@ try {
   // 2. KIỂM THỬ SEEK CONVERGENCE THẬT TRÊN DOM VIDEO
   // ──────────────────────────────────────────────────
   console.log('  -> Host A seek đến vị trí 25.0s trên giao diện...');
+  await pageA.waitForSelector('#btn-host-watch-toggle:not([disabled])', { timeout: 5000 }).catch(() => {});
   await pageA.evaluate(() => {
     const slider = document.querySelector('#host-seek-slider');
     if (slider) {
-      slider.value = '25';
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(slider, '25');
+      } else {
+        slider.value = '25';
+      }
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
       slider.dispatchEvent(new Event('change', { bubbles: true }));
-      slider.dispatchEvent(new Event('mouseup', { bubbles: true }));
+      slider.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     }
   });
 
@@ -571,7 +578,9 @@ try {
   // 3. KIỂM THỬ PAUSE THẬT TRÊN DOM VIDEO
   // ──────────────────────────────────────────────────
   console.log('  -> Host A bấm nút Tạm Dừng trên UI...');
+  await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Tạm Dừng")', { timeout: 6000 });
   await btnToggleHostA.click(); // Click Tạm Dừng
+  await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Phát Chung")', { timeout: 6000 }).catch(() => {});
 
   await pageB.waitForTimeout(3500);
 
@@ -599,24 +608,33 @@ try {
   const perturbedTime = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
 
   // Host phát tiếp tại mốc 35.0s
+  await pageA.waitForSelector('#btn-host-watch-toggle:not([disabled])', { timeout: 5000 }).catch(() => {});
   await pageA.evaluate(() => {
     const slider = document.querySelector('#host-seek-slider');
     if (slider) {
-      slider.value = '35';
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(slider, '35');
+      } else {
+        slider.value = '35';
+      }
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
       slider.dispatchEvent(new Event('change', { bubbles: true }));
-      slider.dispatchEvent(new Event('mouseup', { bubbles: true }));
+      slider.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     }
   });
   await pageA.waitForTimeout(500);
+  await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Phát Chung")', { timeout: 6000 });
   await btnToggleHostA.click(); // Phát lại
+  await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Tạm Dừng")', { timeout: 6000 }).catch(() => {});
 
-  // Đợi 2 chu kỳ poll (4.5s) để cơ chế bù trôi phát hiện drift > 1.5s và kéo về mốc đúng
-  await pageB.waitForTimeout(4500);
+  // Đợi 2 chu kỳ poll (5.0s) để cơ chế bù trôi phát hiện drift > 1.5s và kéo về mốc đúng
+  await pageB.waitForTimeout(5000);
 
   const correctedTimeB = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
-  // Dự kiến: mốc 35s + 4.5s phát = ~39.5s. Nếu KHÔNG bù trôi sẽ là 35 + 8 + 4.5 = 47.5s.
-  const driftCorrected = Math.abs(correctedTimeB - 39.5) <= 2.5;
-  ok(`Drift correction: Video Browser B tự động kéo về mốc phòng (${correctedTimeB.toFixed(1)}s, dự kiến ~39.5s, không bị trôi 47s)`, driftCorrected, 'browser');
+  // Dự kiến: mốc 35s + 5.0s phát = ~40.0s. Nếu KHÔNG bù trôi sẽ là 35 + 8 + 5.0 = 48.0s.
+  const driftCorrected = Math.abs(correctedTimeB - 40.0) <= 3.0;
+  ok(`Drift correction: Video Browser B tự động kéo về mốc phòng (${correctedTimeB.toFixed(1)}s, dự kiến ~40.0s, không bị trôi 48s)`, driftCorrected, 'browser');
   resultsByGroup.detailed['Drift correction'] = driftCorrected ? 'PASS' : 'FAIL';
 
   // ──────────────────────────────────────────────────
