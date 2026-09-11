@@ -682,6 +682,11 @@ function DigitalCampusApp() {
   const [phongDangGui, setPhongDangGui] = useState(false);
   const phongSauIdRef = useRef(0);
   const phongChatEndRef = useRef(null);
+  // Sảnh chat toàn trường (phòng hệ thống) — khung chat góc phải lobby dùng kênh này
+  const [sanhId, setSanhId] = useState(null);
+  const [sanhChat, setSanhChat] = useState([]);
+  const sanhSauIdRef = useRef(0);
+  const sanhChatEndRef = useRef(null);
 
   // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -1310,7 +1315,11 @@ function DigitalCampusApp() {
     try {
       const res = await fetch('/api/phong');
       const d = await res.json();
-      if (d.ok) setDsPhong(d.phongs || []);
+      if (d.ok) {
+        setDsPhong(d.phongs || []);
+        const sanh = (d.phongs || []).find(p => p.chuPhongKhoa === 'he-thong');
+        if (sanh) setSanhId(sanh.id);
+      }
     } catch { /* giữ nguyên danh sách cũ nếu lỗi mạng */ }
   }, []);
 
@@ -1461,6 +1470,55 @@ function DigitalCampusApp() {
   useEffect(() => {
     phongChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [phongChat]);
+
+  // Chat sảnh TOÀN TRƯỜNG (phòng hệ thống 'he-thong') — poll tin mới mỗi 4s.
+  useEffect(() => {
+    if (activeTab !== 'campus' || auth.isGuest || !sanhId) return;
+    let alive = true;
+    const taiTinSanh = async () => {
+      try {
+        const res = await fetch(`/api/phong-chat?phongId=${sanhId}&sauId=${sanhSauIdRef.current}`);
+        const d = await res.json();
+        if (!alive) return;
+        if (d.ok && d.tinNhan?.length) {
+          sanhSauIdRef.current = d.tinNhan[d.tinNhan.length - 1].id;
+          setSanhChat(prev => [...prev, ...d.tinNhan].slice(-200));
+        }
+      } catch { /* bỏ qua lỗi mạng */ }
+    };
+    taiTinSanh();
+    const iv = setInterval(taiTinSanh, 4000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [activeTab, auth.isGuest, sanhId]);
+
+  useEffect(() => {
+    sanhChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [sanhChat]);
+
+  const guiTinSanh = async (e) => {
+    e.preventDefault();
+    if (auth.isGuest) { setShowAuthGate(true); return; }
+    const text = chatInput.trim();
+    if (!text || chatSending || !sanhId) return;
+    setChatSending(true); setChatError('');
+    try {
+      const res = await fetch('/api/phong-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: sanhId, noiDung: text })
+      });
+      const d = await res.json();
+      if (d.ok && d.tinNhan) {
+        sanhSauIdRef.current = Math.max(sanhSauIdRef.current, d.tinNhan.id);
+        setSanhChat(prev => [...prev, d.tinNhan].slice(-200));
+        setChatInput('');
+      } else {
+        setChatError(d.loi || 'Không gửi được tin nhắn. Thử lại sau.');
+      }
+    } catch {
+      setChatError('Mất kết nối máy chủ — tin nhắn chưa được gửi.');
+    } finally { setChatSending(false); }
+  };
 
   // ─── XUẤT SỔ QUỸ RA CSV (UTF-8 BOM để Excel đọc đúng tiếng Việt) ─────────
   const xuatSoQuyCSV = () => {
@@ -2098,7 +2156,9 @@ function DigitalCampusApp() {
               const loaiIcon = { chat: 'community', video: 'tv', game: 'game', nhac: 'phones' };
               const loaiMau = { chat: '#00F2FE', video: '#F43F5E', game: '#FFB800', nhac: '#8B5CF6' };
               const phongLoc = (dsPhong || []).filter(p =>
-                categoryFilter === 'ALL' || loaiSangCat[p.loai] === categoryFilter
+                // Phòng hệ thống (Sảnh Chính) không hiện ở đây — chat toàn trường đã có ở cột phải
+                p.chuPhongKhoa !== 'he-thong' &&
+                (categoryFilter === 'ALL' || loaiSangCat[p.loai] === categoryFilter)
               );
               return (
                 <div className="flex flex-col gap-3">
@@ -2161,7 +2221,7 @@ function DigitalCampusApp() {
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-xs font-bold text-white">Chat Trực Tiếp Campus</span>
+                  <span className="text-xs font-bold text-white">Chat Toàn Trường</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-[#00F2FE] font-bold border border-cyan-500/20">
                   LIVE
@@ -2169,32 +2229,33 @@ function DigitalCampusApp() {
               </div>
 
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-80">
-                {chatMessages.length === 0 && (
+                {sanhChat.length === 0 && (
                   <p className="text-[11px] text-slate-500 text-center py-6">
-                    {auth.isGuest ? 'Đăng nhập để xem và tham gia trò chuyện cùng lớp.' : 'Chưa có tin nhắn nào — hãy gửi lời chào đầu tiên!'}
+                    {auth.isGuest ? 'Đăng nhập để xem và tham gia trò chuyện toàn trường.' : 'Chưa có tin nhắn nào — hãy gửi lời chào đầu tiên cho các lớp!'}
                   </p>
                 )}
-                {chatMessages.map((m, idx) => (
+                {sanhChat.map((m, idx) => (
                   <div key={m.id || idx} className="text-xs">
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 mb-1">
                       <span className={`font-bold ${m.vaiTro === 'giao_vien' ? 'text-[#00F2FE]' : 'text-slate-200'}`}>
                         {m.tenNguoiGui || 'Học sinh'}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-mono">{formatTimeOnly(m.taoLuc)}</span>
+                      {m.lopTen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-slate-500 border border-white/10">{m.lopTen}</span>}
+                      <span className="text-[10px] text-slate-500 font-mono ml-auto">{formatTimeOnly(m.taoLuc)}</span>
                     </div>
                     <p className="text-slate-300 leading-relaxed break-words">{m.noiDung}</p>
                   </div>
                 ))}
-                <div ref={chatEndRef} />
+                <div ref={sanhChatEndRef} />
               </div>
 
               {chatError && <p className="text-[11px] text-rose-400 mt-2">{chatError}</p>}
-              <form onSubmit={handleSendChat} className="mt-3 flex items-center gap-2">
+              <form onSubmit={guiTinSanh} className="mt-3 flex items-center gap-2">
                 <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                  placeholder="Nhắn tin / Danmaku..."
+                  placeholder="Nhắn cho toàn trường..." maxLength={500}
                   className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                <button type="submit"
-                  className="p-2.5 rounded-xl bg-[#00F2FE] text-black hover:bg-[#00e1ec] transition-all shadow-[0_0_10px_rgba(0,242,254,0.3)]">
+                <button type="submit" disabled={chatSending}
+                  className="p-2.5 rounded-xl bg-[#00F2FE] text-black hover:bg-[#00e1ec] transition-all shadow-[0_0_10px_rgba(0,242,254,0.3)] disabled:opacity-50">
                   <Ic name="send" className="w-3.5 h-3.5" />
                 </button>
               </form>
