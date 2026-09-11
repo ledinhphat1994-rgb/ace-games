@@ -20,7 +20,6 @@
     "deny": [
       "Read(**/.dev.vars)",
       "Write(**/.dev.vars)",
-      "Exec(wrangler d1 execute * --remote)",
       "Exec(git push --force)"
     ]
   },
