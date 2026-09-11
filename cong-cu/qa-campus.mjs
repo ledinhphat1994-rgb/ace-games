@@ -109,12 +109,61 @@ try {
   ok('KHÔNG rò nội dung lớp vào Campus Hero',
     !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textCampus));
   ok('Hero hiển thị chỉ số hoạt động Campus',
-    /hoạt động trên Campus/i.test(textCampus) || /đang hoạt động/i.test(textCampus) || /Campus đang yên tĩnh/i.test(textCampus));
+    /hoạt động trên Campus/i.test(textCampus) || /đang hoạt động/i.test(textCampus) || /Campus đang yên tĩnh/i.test(textCampus) || /Campus sẵn sàng kết nối/i.test(textCampus));
 
-  // ── 2.1 Phase 3A: Featured Stage & Flagship Spaces ─────────────────────────
-  console.log('\n== 2.1 Phase 3A: Feature Stage & Flagship Destinations ==');
+  // ── 2.1 Campus Simplification: X / 1 / 2 Assertions ─────────────────────────
+  console.log('\n== 2.1 Campus Simplification: X / 1 / 2 Assertions ==');
   ok('Campus Hero Stage render (#campus-hero-stage)', await page.locator('#campus-hero-stage').count() > 0);
-  ok('Campus Pulse Status render (#campus-pulse-status)', await page.locator('#campus-pulse-status').count() > 0);
+  ok('Campus Pulse strip hoàn toàn vắng mặt (#campus-pulse-status = 0)', await page.locator('#campus-pulse-status').count() === 0);
+  ok('"Hôm Nay Trên Campus" lớn vắng mặt trên home', await page.locator('main').locator('#campus-events-section').count() === 0);
+  ok('"Phòng Do Học Sinh Tạo" lớn vắng mặt trên home', await page.locator('main').locator('text=Phòng Do Học Sinh Tạo').count() === 0);
+
+  // Region 2: Activity Room Navigator
+  const roomNav = page.locator('#campus-room-navigator');
+  ok('Left Activity Room Navigator hiển thị (#campus-room-navigator)', await roomNav.count() > 0);
+
+  if (await roomNav.count()) {
+    // 1. Click Cinema category
+    const catCinema = page.locator('#cat-nav-CINEMA');
+    ok('Category nav Cinema hiển thị (#cat-nav-CINEMA)', await catCinema.count() > 0);
+    if (await catCinema.count()) {
+      await catCinema.click();
+      await page.waitForTimeout(300);
+      ok('Bấm Cinema mở danh sách phòng (#room-nav-list-CINEMA)', await page.locator('#room-nav-list-CINEMA').count() > 0);
+    }
+
+    // 2. Click Music / Lofi category
+    const catLofi = page.locator('#cat-nav-LOFI');
+    ok('Category nav Lofi hiển thị (#cat-nav-LOFI)', await catLofi.count() > 0);
+    if (await catLofi.count()) {
+      await catLofi.click();
+      await page.waitForTimeout(300);
+      ok('Bấm Lofi mở danh sách phòng (#room-nav-list-LOFI)', await page.locator('#room-nav-list-LOFI').count() > 0);
+    }
+
+    // 3. Click Game / Caro category
+    const catGame = page.locator('#cat-nav-GAME');
+    ok('Category nav Game hiển thị (#cat-nav-GAME)', await catGame.count() > 0);
+    if (await catGame.count()) {
+      await catGame.click();
+      await page.waitForTimeout(300);
+      ok('Bấm Game mở danh sách bàn cờ (#room-nav-list-GAME)', await page.locator('#room-nav-list-GAME').count() > 0);
+    }
+
+    // 4. CTA tạo phòng / vào phòng bảo vệ Auth Gate đối với khách
+    const btnCreateNav = page.locator('#campus-room-navigator button:has-text("+ Mở"), #campus-room-navigator button:has-text("+ Tạo")').first();
+    ok('Navigator có CTA tạo phòng', await btnCreateNav.count() > 0);
+    if (await btnCreateNav.count()) {
+      await btnCreateNav.click();
+      await page.waitForTimeout(350);
+      ok('Khách bấm tạo phòng mở Auth Gate modal', await page.locator('#modal-auth-gate').count() > 0);
+      const btnDongGate = page.locator('#modal-auth-gate button:has-text("Tiếp tục xem trang")').first();
+      if (await btnDongGate.count()) {
+        await btnDongGate.click();
+        await page.waitForTimeout(300);
+      }
+    }
+  }
 
   ok('Flagship Cinema Space hiển thị ("Xem Chung")', await page.locator('text=Xem Chung').count() > 0);
   ok('Flagship Game Arena Space hiển thị ("Game Arena" / "Cờ Caro")',
@@ -154,7 +203,7 @@ try {
     // 3. Tìm kiếm từ khóa không tồn tại -> Hiển thị Empty State thống nhất
     await searchInput.fill('xyznonexistentterm123');
     await page.waitForTimeout(300);
-    const emptyStateVisible = await page.locator('text=Không tìm thấy kết quả phù hợp').count() > 0;
+    const emptyStateVisible = (await page.locator('#campus-search-empty').count() > 0) || (await page.locator('text=Không tìm thấy kết quả phù hợp').count() > 0);
     ok('Tìm kiếm từ khóa không tồn tại hiển thị Empty State chuẩn', emptyStateVisible);
 
     // Reset lại ô tìm kiếm
@@ -296,6 +345,22 @@ try {
           heroBox.y < 280,
           `heroY=${Math.round(heroBox.y)}`
         );
+      }
+
+      // 4. Khi ở 390px (mobile): Bấm pill category mở drawer #campus-mobile-room-sheet
+      if (vp.width === 390) {
+        const btnMobCinema = page.locator('#mobile-cat-CINEMA');
+        if (await btnMobCinema.count() && await btnMobCinema.isVisible()) {
+          await btnMobCinema.click();
+          await page.waitForTimeout(300);
+          const sheetVisible = await page.locator('#campus-mobile-room-sheet').isVisible();
+          ok('Mobile bấm category pill mở #campus-mobile-room-sheet', sheetVisible);
+          const btnCloseSheet = page.locator('#campus-mobile-room-sheet button:has-text("✕")').first();
+          if (await btnCloseSheet.count()) {
+            await btnCloseSheet.click();
+            await page.waitForTimeout(200);
+          }
+        }
       }
     }
   }
