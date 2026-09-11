@@ -1468,7 +1468,7 @@ function DigitalCampusApp() {
             <div className="p-2 rounded-xl bg-[#1C2333] border border-white/10 shadow-sm">
               <span className="text-[10px] text-slate-300 block mb-0.5">Chuyên cần</span>
               <span className="font-extrabold text-emerald-400 text-xs">
-                {attendance.caNhan?.chinh?.tiLe != null ? `${attendance.caNhan.chinh.tiLe}%` : (attendance.stats.tong > 0 ? `${attendance.stats.chuyenCan}%` : '—')}
+                {attendance.caNhan?.chinh?.tiLe != null ? `${attendance.caNhan.chinh.tiLe}%` : (attendance.stats?.tong > 0 ? `${attendance.stats.chuyenCan}%` : '—')}
               </span>
             </div>
             <div className="p-2 rounded-xl bg-[#1C2333] border border-white/10 shadow-sm">
