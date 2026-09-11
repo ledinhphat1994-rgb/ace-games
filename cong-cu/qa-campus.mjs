@@ -108,8 +108,8 @@ try {
   ok('Có brand Digital Campus', /Digital Campus/i.test(await page.textContent('body')));
   ok('KHÔNG rò nội dung lớp vào Campus Hero',
     !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textCampus));
-  ok('Hero hiển thị chỉ số hoạt động Campus đúng ngữ cảnh (online khi >0, không bịa placeholder)',
-    dCampus.dangHoatDong > 0 ? /online/i.test(textCampus) : !/Campus sẵn sàng kết nối/i.test(textCampus));
+  ok('Hero hiển thị chỉ số hoạt động Campus đúng ngữ cảnh ("đang hoạt động" khi >0, không dùng "online")',
+    dCampus.dangHoatDong > 0 ? (/đang hoạt động/i.test(textCampus) && !/online/i.test(textCampus)) : !/Campus sẵn sàng kết nối/i.test(textCampus));
 
   // ── 2.1 Campus Simplification: X / 1 / 2 Assertions ─────────────────────────
   console.log('\n== 2.1 Campus Simplification: X / 1 / 2 Assertions ==');
@@ -308,24 +308,105 @@ try {
   ok('13. Game Arena Quick Match button có aria-label chuẩn',
     await page.locator('#room-nav-list-GAME button[aria-label="Quick Match Caro 15x15"]').count() > 0
   );
+  const flagshipCardButtons = page.locator('#campus-flagship-spaces > div > button[type="button"]');
+  ok('14. 4 Flagship cards có interactive root semantic button', (await flagshipCardButtons.count()) >= 4);
+  const nestedButtonCount = await page.locator('#campus-flagship-spaces button button').count();
+  ok('15. Flagship cards KHÔNG chứa button lồng nhau (0 nested buttons)', nestedButtonCount === 0);
+  const flagshipCardsCount = await page.locator('#campus-flagship-spaces > div > button').count();
+  ok('16. Mỗi Flagship card có đúng 1 interactive root duy nhất', flagshipCardsCount === 4);
 
-  // ── 3. Guest Caro CTA Boundary ─────────────────────────────────────────────
-  console.log('\n== 3. Guest Caro CTA Boundary ==');
-  const btnVaoCaro = page.locator('button:has-text("Vào đấu trường")').first();
-  ok('Có nút CTA Caro "Vào đấu trường"', await btnVaoCaro.count() > 0);
-  if (await btnVaoCaro.count()) {
-    await btnVaoCaro.click();
-    await page.waitForTimeout(400);
-    const authGateOpen = await page.locator('#modal-auth-gate').count() > 0;
-    ok('Bấm Caro CTA mở Auth Gate modal', authGateOpen);
-    const enteredGameScreen = await page.locator('#caro-arena').count() > 0;
-    ok('Khách KHÔNG bị đưa vào màn hình game bảo vệ', !enteredGameScreen);
+  // Semantics: Hero, Chat card, Chat rail
+  ok('17. Hero Stage KHÔNG dùng từ "online" cho dangHoatDong', !/\bonline\b/i.test(heroStageText));
+  const chatCardEl = page.locator('#campus-flagship-spaces button:has-text("Chat")').first();
+  const chatCardText = (await chatCardEl.count()) ? await chatCardEl.innerText() : '';
+  ok('18. Chat card KHÔNG hiển thị chỉ số dangHoatDong toàn trường làm chat presence', !/online|đang hoạt động|\d+\s*(bạn|người)/i.test(chatCardText));
 
-    // Đóng Auth Gate modal để tiếp tục kiểm tra
-    const btnDongAuthGate = page.locator('#modal-auth-gate button:has-text("Tiếp tục xem trang")').first();
-    if (await btnDongAuthGate.count()) {
-      await btnDongAuthGate.click();
-      await page.waitForTimeout(300);
+  const railChatHeaderEl = page.locator('#railpanel-chat div.flex.items-center.justify-between').first();
+  const railChatHeaderText = (await railChatHeaderEl.count()) ? await railChatHeaderEl.innerText() : '';
+  ok('19. Chat rail header KHÔNG hiển thị dangHoatDong toàn trường', !/online|đang hoạt động|\d+\s*online/i.test(railChatHeaderText));
+
+  // ── 3. Category Navigation, Game Hub Hierarchy & Guest Boundary ─────────────
+  console.log('\n== 3. Category Navigation, Game Hub Hierarchy & Guest Boundary ==');
+
+  // 3.1 Xem chung card opens category/list
+  const cardCinema = page.locator('#campus-flagship-spaces button:has-text("Xem chung")').first();
+  if (await cardCinema.count()) {
+    await cardCinema.click();
+    await page.waitForTimeout(300);
+    const viewAllCinemaOpen = await page.locator('#modal-campus-view-all-rooms').isVisible();
+    ok('Click Xem chung card mở modal danh sách phòng (#modal-campus-view-all-rooms)', viewAllCinemaOpen);
+    const closeBtn = page.locator('#modal-campus-view-all-rooms button[aria-label="Đóng"], #modal-campus-view-all-rooms button:has-text("Đóng"), #modal-campus-view-all-rooms button:has-text("✕")').first();
+    if (await closeBtn.count()) {
+      await closeBtn.click();
+      await page.waitForTimeout(200);
+    }
+  }
+
+  // 3.2 Music card opens category/list
+  const cardMusic = page.locator('#campus-flagship-spaces button:has-text("Music")').first();
+  if (await cardMusic.count()) {
+    await cardMusic.click();
+    await page.waitForTimeout(300);
+    const viewAllMusicOpen = await page.locator('#modal-campus-view-all-rooms').isVisible();
+    ok('Click Music card mở modal danh sách phòng (#modal-campus-view-all-rooms)', viewAllMusicOpen);
+    const closeBtn = page.locator('#modal-campus-view-all-rooms button[aria-label="Đóng"], #modal-campus-view-all-rooms button:has-text("Đóng"), #modal-campus-view-all-rooms button:has-text("✕")').first();
+    if (await closeBtn.count()) {
+      await closeBtn.click();
+      await page.waitForTimeout(200);
+    }
+  }
+
+  // 3.3 Chat card opens Chat
+  const cardChat = page.locator('#campus-flagship-spaces button:has-text("Chat")').first();
+  if (await cardChat.count()) {
+    await cardChat.click();
+    await page.waitForTimeout(300);
+    ok('Click Chat card mở tab Chat (#railpanel-chat)', await page.locator('#railpanel-chat').isVisible());
+  }
+
+  // 3.4 Game card opens Game Hub (NOT directly GAME_CARO Arena)
+  const cardGame = page.locator('#campus-flagship-spaces button:has-text("Game")').first();
+  ok('Flagship Game card tồn tại', await cardGame.count() > 0);
+  if (await cardGame.count()) {
+    await cardGame.click();
+    await page.waitForTimeout(350);
+
+    // 1. Click Game card KHÔNG trực tiếp vào GAME_CARO Arena
+    const arenaVisibleImmediately = await page.locator('#caro-arena').count() > 0;
+    ok('Click Game card KHÔNG vào thẳng Arena GAME_CARO', !arenaVisibleImmediately);
+
+    // 2. Mở Game Hub / Selector
+    const gameHubOpen = (await page.locator('#campus-game-hub, #modal-game-hub').count()) > 0;
+    ok('Click Game card mở Game Hub / Game Selector (#campus-game-hub)', gameHubOpen);
+
+    // 3. Game Hub chứa trò chơi Caro 15×15
+    const gameHubText = await page.locator('#campus-game-hub').innerText().catch(() => '');
+    ok('Game Hub chứa trò chơi "Caro 15×15"', /Caro 15[×x]15/i.test(gameHubText));
+
+    // 4. Bấm Caro trong Game Hub mở Arena (đối với khách: kích hoạt Auth Gate bảo vệ)
+    const btnVaoCaroFromHub = page.locator('#campus-game-hub button:has-text("Vào đấu trường")').first();
+    ok('Trong Game Hub có nút "Vào đấu trường" cho Caro 15×15', await btnVaoCaroFromHub.count() > 0);
+    if (await btnVaoCaroFromHub.count()) {
+      await btnVaoCaroFromHub.click();
+      await page.waitForTimeout(350);
+
+      const authGateOpen = await page.locator('#modal-auth-gate').count() > 0;
+      ok('Bấm Caro trong Game Hub kích hoạt Auth Gate bảo vệ khách', authGateOpen);
+      ok('Khách KHÔNG bị đưa vào màn hình game bảo vệ (#caro-arena = 0)', (await page.locator('#caro-arena').count()) === 0);
+
+      // Đóng Auth Gate modal
+      const btnDongAuthGate = page.locator('#modal-auth-gate button:has-text("Tiếp tục xem trang")').first();
+      if (await btnDongAuthGate.count()) {
+        await btnDongAuthGate.click();
+        await page.waitForTimeout(200);
+      }
+    }
+
+    // Đóng Game Hub modal nếu vẫn mở
+    const closeGameHub = page.locator('#modal-campus-view-all-rooms button:has-text("✕"), #modal-campus-view-all-rooms button:has-text("Đóng")').first();
+    if (await closeGameHub.count() && await closeGameHub.isVisible()) {
+      await closeGameHub.click();
+      await page.waitForTimeout(200);
     }
   }
 
