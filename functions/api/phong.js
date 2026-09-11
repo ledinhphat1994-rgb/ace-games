@@ -118,7 +118,13 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       LIMIT 50`
   ).bind(phien.lopId || 0, phien.role === 'teacher' ? 1 : 0, NHIP_HIEU_LUC).all();
 
-  return json({ ok: true, phongs: rs.results || [] });
+  // Số người đang hoạt động toàn campus — DISTINCT khoá phiên (không lộ ai).
+  const dd = await db.prepare(
+    `SELECT COUNT(DISTINCT khoa) AS n FROM phong_thanh_vien
+      WHERE datetime(hoat_dong_luc) > datetime('now', ?1)`
+  ).bind(NHIP_HIEU_LUC).first();
+
+  return json({ ok: true, phongs: rs.results || [], dangHoatDong: dd?.n || 0 });
 });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
@@ -137,6 +143,12 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     if (ten.length < 2) return loi('Đặt tên phòng ít nhất 2 ký tự.');
 
     const cauHinh = {};
+    if (loai === 'nhac' && than.nhacUrl) {
+      const u = chuanUrlMedia(than.nhacUrl);
+      if (u === false) return loi('Link nhạc không hợp lệ — chỉ nhận link https:// (mp3/stream).');
+      if (u) cauHinh.nhacUrl = u;
+    }
+
     if (loai === 'video') {
       const u = chuanUrlMedia(than.videoUrl);
       if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https:// (YouTube, Drive, mp4...).');

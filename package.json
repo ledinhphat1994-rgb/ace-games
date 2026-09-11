@@ -16,6 +16,7 @@
     "kiem-tra-du-lieu": "node cong-cu/kiem-tra-du-lieu.js",
     "lint": "eslint .",
     "build": "node build.js",
+    "qa:campus": "node cong-cu/qa-campus.mjs",
     "deploy": "node deploy.js",
     "dev": "node build.js && wrangler pages dev --compatibility-date=2026-05-03",
     "log": "wrangler pages deployment tail --project-name lop-10a7",

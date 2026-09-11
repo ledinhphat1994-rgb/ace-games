@@ -381,10 +381,45 @@ const PHONG_LOAI_UI = {
 const PHONG_LOAI_SANG_CAT = { chat: 'CHAT', video: 'CINEMA', game: 'GAME', nhac: 'LOFI' };
 
 // Trạng thái phòng — domain model nhẹ, UI không tự quyết định nhãn.
+// Có người trong phòng = "ĐANG HOẠT ĐỘNG" (presence), KHÔNG phải "TRỰC TIẾP" —
+// nhãn TRỰC TIẾP chỉ dành cho sự kiện campus đang diễn ra.
 function trangThaiPhong(p) {
   return (p.soNguoi || 0) > 0
-    ? { nhan: 'TRỰC TIẾP', lopMau: 'bg-rose-500/15 text-rose-400 border-rose-500/30', cham: 'bg-rose-400 animate-pulse' }
-    : { nhan: 'ĐANG MỞ',  lopMau: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', cham: 'bg-emerald-400' };
+    ? { nhan: 'ĐANG HOẠT ĐỘNG', lopMau: 'bg-amber-500/15 text-amber-400 border-amber-500/30', cham: 'bg-amber-400 animate-pulse' }
+    : { nhan: 'ĐANG MỞ',       lopMau: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', cham: 'bg-emerald-400' };
+}
+
+// Trạng thái sự kiện — suy từ field trangThai mà /api/su-kien tính sẵn.
+const SK_LOAI_UI = {
+  chung: { icon: '📣', nhan: 'Chung' }, chat: { icon: '💬', nhan: 'Trò chuyện' },
+  video: { icon: '🎬', nhan: 'Xem chung' }, nhac: { icon: '🎧', nhan: 'Âm nhạc' },
+  game: { icon: '🎮', nhan: 'Trò chơi' }, 'hoc-tap': { icon: '📚', nhan: 'Học tập' },
+  'cuoc-thi': { icon: '🏆', nhan: 'Cuộc thi' }
+};
+function trangThaiSuKienUI(sk) {
+  if (sk.trangThai === 'dang_dien_ra') return { nhan: 'TRỰC TIẾP', lopMau: 'bg-rose-500/15 text-rose-400 border-rose-500/30' };
+  if (sk.trangThai === 'sap_dien_ra') return { nhan: 'SẮP DIỄN RA', lopMau: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+  return { nhan: 'ĐÃ KẾT THÚC', lopMau: 'bg-white/5 text-slate-500 border-white/10' };
+}
+
+// Giờ VN (Asia/Ho_Chi_Minh) — máy chủ trả UTC ISO, trình duyệt hiển thị giờ VN.
+function dinhDangGioVN(iso) {
+  try { return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }); }
+  catch { return ''; }
+}
+function dinhDangNgayGioVN(iso) {
+  try { return new Date(iso).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }); }
+  catch { return ''; }
+}
+// Đếm ngược ngắn gọn cho sự kiện sắp diễn ra.
+function demNguocSuKien(sk) {
+  if (sk.trangThai === 'dang_dien_ra') return 'Đang diễn ra';
+  if (sk.trangThai === 'da_ket_thuc') return 'Đã kết thúc';
+  const p = sk.conLaiPhut || 0;
+  if (p <= 0) return 'Sắp bắt đầu';
+  if (p < 60) return `Bắt đầu sau ${p} phút`;
+  if (sk.homNay) return `Hôm nay ${dinhDangGioVN(sk.batDau)}`;
+  return dinhDangNgayGioVN(sk.batDau);
 }
 
 // Thẻ hoạt động — variant 'compact' (Hot Now strip) và 'standard' (lưới chính).
@@ -406,7 +441,7 @@ function TheHoatDong({ p, onVao, compact = false }) {
             </span>
           </div>
           <p className="text-[10px] text-slate-400 truncate mt-0.5">
-            {ui.nhan} • {p.chuPhongTen}{p.lopTen ? ` • ${p.lopTen}` : ''} • {p.phamVi === 'truong' ? '🌐 Toàn trường' : '🔒 Chỉ lớp'}
+            {ui.nhan}{p.chuPhongTen ? ` • ${p.chuPhongTen}` : ''}{p.lopTen ? ` • ${p.lopTen}` : ''} • {p.phamVi === 'truong' ? '🌐 Toàn trường' : '🔒 Chỉ lớp'}
           </p>
         </div>
       </div>
@@ -714,9 +749,7 @@ function DigitalCampusApp() {
   const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
-  // 6. Danmaku State
-  const [danmakuBullets, setDanmakuBullets] = useState([]);
-  const danmakuColors = ['#00F2FE', '#8B5CF6', '#10B981', '#FFB800', '#F43F5E', '#38BDF8'];
+
 
   // 7. Attendance State
   const [attendance, setAttendance] = useState({
@@ -741,7 +774,7 @@ function DigitalCampusApp() {
   // 10. Phòng hoạt động động LIÊN LỚP — dữ liệu THẬT từ /api/phong + /api/phong-chat
   const [dsPhong, setDsPhong] = useState(null); // null = chưa tải
   const [showTaoPhong, setShowTaoPhong] = useState(false);
-  const [tpForm, setTpForm] = useState({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '' });
+  const [tpForm, setTpForm] = useState({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '', nhacUrl: '' });
   const [tpDangTao, setTpDangTao] = useState(false);
   const [tpLoi, setTpLoi] = useState('');
   const [phongChat, setPhongChat] = useState([]);
@@ -759,6 +792,14 @@ function DigitalCampusApp() {
   const sanhChatEndRef = useRef(null);
   // 11. Rail tiện ích bên phải campus — tab linh hoạt thay vì chiếm chỗ cố định
   const [railTab, setRailTab] = useState('chat'); // 'chat' | 'nhac' | 'su-kien'
+
+  // 12. Sự kiện campus toàn trường (/api/su-kien — public) + occupancy duy nhất
+  const [dsSuKien, setDsSuKien] = useState([]);
+  const [dangHoatDong, setDangHoatDong] = useState(0);
+  const [showTaoSuKien, setShowTaoSuKien] = useState(false);
+  const [skForm, setSkForm] = useState({ tieuDe: '', loai: 'chung', moTa: '', batDau: '', ketThuc: '', phongId: '', noiBat: false });
+  const [skDangTao, setSkDangTao] = useState(false);
+  const [skLoi, setSkLoi] = useState('');
 
   // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
@@ -1197,46 +1238,7 @@ function DigitalCampusApp() {
   };
 
   // ─── SEND CHAT & DANMAKU ──────────────────────────────────────────────────
-  const handleSendChat = async (e) => {
-    e.preventDefault();
-    if (auth.isGuest) {
-      setShowAuthGate(true);
-      return;
-    }
-    const text = chatInput.trim();
-    if (!text || chatSending) return;
-
-    setChatSending(true);
-    setChatError('');
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noiDung: text })
-      });
-      const d = await res.json();
-      if (d.ok && d.tinNhan) {
-        setChatMessages(prev => [...prev, d.tinNhan].slice(-200));
-        setChatInput('');
-
-        const bullet = {
-          id: Date.now() + Math.random(),
-          text,
-          color: danmakuColors[Math.floor(Math.random() * danmakuColors.length)],
-          top: Math.floor(Math.random() * 65) + 15,
-          duration: Math.floor(Math.random() * 4) + 7
-        };
-        setDanmakuBullets(prev => [...prev.slice(-15), bullet]);
-      } else {
-        // KHÔNG giả vờ đã gửi — hiện lỗi thật để người dùng biết tin chưa lưu.
-        setChatError(d.loi || 'Không gửi được tin nhắn. Thử lại sau.');
-      }
-    } catch {
-      setChatError('Mất kết nối máy chủ — tin nhắn chưa được gửi.');
-    } finally {
-      setChatSending(false);
-    }
-  };
+  // ─── ĐĂNG BÀI LÊN BẢNG TIN — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' ──
 
   // ─── ĐĂNG BÀI LÊN BẢNG TIN — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' ──
   const canPostFeed = auth.user?.isTeacher || (auth.user?.quyen || []).includes('hoat-dong-lop');
@@ -1385,22 +1387,37 @@ function DigitalCampusApp() {
   // ─── PHÒNG ĐỘNG LIÊN LỚP — mọi học sinh tạo được, lớp nào cũng vào được ──
   const taiDanhSachPhong = useCallback(async () => {
     try {
-      const res = await fetch('/api/phong');
+      // Khách → /api/campus (sanitized, chỉ phòng toàn trường, không danh tính).
+      // Đã đăng nhập → /api/phong (đầy đủ, kèm phòng lớp mình + chủ phòng).
+      const res = await fetch(auth.isGuest ? '/api/campus' : '/api/phong');
       const d = await res.json();
       if (d.ok) {
         setDsPhong(d.phongs || []);
+        setDangHoatDong(d.dangHoatDong || 0);
+        if (d.suKien) setDsSuKien(d.suKien);
         const sanh = (d.phongs || []).find(p => p.chuPhongKhoa === 'he-thong');
         if (sanh) setSanhId(sanh.id);
       }
     } catch { /* giữ nguyên danh sách cũ nếu lỗi mạng */ }
+  }, [auth.isGuest]);
+
+  // Sự kiện campus — endpoint public, ai cũng đọc được.
+  const taiSuKien = useCallback(async () => {
+    try {
+      const res = await fetch('/api/su-kien');
+      const d = await res.json();
+      if (d.ok) setDsSuKien(d.suKien || []);
+    } catch { /* bỏ qua */ }
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'campus' || auth.isGuest) return;
+    if (activeTab !== 'campus') return;
     taiDanhSachPhong();
+    taiSuKien();
     const iv = setInterval(taiDanhSachPhong, 15000);
-    return () => clearInterval(iv);
-  }, [activeTab, auth.isGuest, taiDanhSachPhong]);
+    const iv2 = setInterval(taiSuKien, 60000);
+    return () => { clearInterval(iv); clearInterval(iv2); };
+  }, [activeTab, taiDanhSachPhong, taiSuKien]);
 
   const taoPhongMoi = async () => {
     if (auth.isGuest) { setShowAuthGate(true); return; }
@@ -1415,7 +1432,7 @@ function DigitalCampusApp() {
       const d = await res.json();
       if (d.ok && d.phong) {
         setShowTaoPhong(false);
-        setTpForm({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '' });
+        setTpForm({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '', nhacUrl: '' });
         taiDanhSachPhong();
         vaoPhong(d.phong);
       } else {
@@ -1437,8 +1454,12 @@ function DigitalCampusApp() {
       if (d.ok) {
         setPhongChat([]); phongSauIdRef.current = 0;
         setPhongThanhVien([]); setPhongLoi(''); setPhongInput('');
-        // "Tiếp tục gần đây" — lưu phòng vừa vào để hero gợi ý vào lại.
-        try { localStorage.setItem('phong_gan_day', JSON.stringify({ id: p.id, ten: p.ten })); } catch { }
+        // "Gần đây" — lưu tối đa 5 phòng vừa vào (chỉ id + tên, kiểm tra lại với server).
+        try {
+          const cu = JSON.parse(localStorage.getItem('phong_gan_day') || '[]');
+          const ds = [{ id: p.id, ten: p.ten }, ...(Array.isArray(cu) ? cu : []).filter(x => x && x.id !== p.id)].slice(0, 5);
+          localStorage.setItem('phong_gan_day', JSON.stringify(ds));
+        } catch { }
         setActiveRoom({ id: p.id, type: 'PHONG', title: (d.phong || p).ten, phong: d.phong || p });
         setCurrentView('ROOM_ACTIVE');
       } else {
@@ -1637,24 +1658,77 @@ function DigitalCampusApp() {
     return { thu, chi, ton, khoanList, chiList, totalCount };
   }, [classData.thuQuy, classData.quyKhoan, classData.quyChi, classData.quyDong, classData.hocSinh]);
 
-  // Video mới nhất mà lớp đã đăng (trong Hoạt động lớp hoặc Thông báo) — cho Rạp Chiếu.
-  const videoMoiNhat = useMemo(() => {
-    const ds = [...(classData.hoatDongLop || []), ...(classData.thongBao || [])];
-    return ds.find(x => x.videoId || x.videoKhoa || (x.videoUrl && (idYoutube(x.videoUrl) || idGoogleDrive(x.videoUrl) || laVideoTrucTiepFe(x.videoUrl)))) || null;
-  }, [classData.hoatDongLop, classData.thongBao]);
-
   // ─── DỮ LIỆU SỐNG CHO CAMPUS HERO & HOT NOW — suy ra từ /api/phong THẬT ───
   // Không bịa số liệu: chỉ hiển thị khi phòng có người (heartbeat < 90 giây).
   const phongCongDong = (dsPhong || []).filter(p => p.chuPhongKhoa !== 'he-thong');
   const phongXepTheoDoDong = [...phongCongDong].sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0));
   const phongDongNhat = phongXepTheoDoDong.find(p => (p.soNguoi || 0) > 0) || null;
   const phongDangHot = phongXepTheoDoDong.filter(p => (p.soNguoi || 0) > 0).slice(0, 8);
-  const tongNguoiTrongPhong = phongCongDong.reduce((s, p) => s + (p.soNguoi || 0), 0);
-  let phongGanDay = null;
+  // "Gần đây" — kiểm tra mọi id trong localStorage với dữ liệu server hiện tại
+  // (phòng đã đóng / bị xoá sẽ tự rơi ra, không tin localStorage làm chuẩn).
+  let phongGanDayDs = [];
   try {
-    const g = JSON.parse(localStorage.getItem('phong_gan_day') || 'null');
-    if (g) phongGanDay = phongCongDong.find(p => p.id === g.id) || null;
+    const raw = JSON.parse(localStorage.getItem('phong_gan_day') || '[]');
+    phongGanDayDs = (Array.isArray(raw) ? raw : [])
+      .map(g => phongCongDong.find(p => p.id === g?.id)).filter(Boolean).slice(0, 5);
   } catch { }
+  const phongGanDay = phongGanDayDs[0] || null;
+
+  // Sự kiện campus suy ra cho hero/section — dữ liệu thật từ /api/su-kien.
+  const skDangDienRa = dsSuKien.find(s => s.trangThai === 'dang_dien_ra' && s.noiBat)
+    || dsSuKien.find(s => s.trangThai === 'dang_dien_ra') || null;
+  const skSapToi = dsSuKien.filter(s => s.trangThai === 'sap_dien_ra')
+    .sort((a, b) => (a.conLaiPhut || 0) - (b.conLaiPhut || 0))[0] || null;
+  const skHomNay = dsSuKien.filter(s => s.homNay && s.trangThai !== 'da_ket_thuc');
+
+  // ─── "DÀNH CHO BẠN" — selector thuần, tách khỏi JSX ─────────────────────
+  // Ưu tiên: phòng gần đây còn mở → sự kiện sắp diễn ra → phòng đông nhất.
+  const deXuatChoBan = (() => {
+    const ds = [];
+    phongGanDayDs.forEach(p => ds.push({ kieu: 'gan-day', phong: p }));
+    if (skSapToi) ds.push({ kieu: 'su-kien', sk: skSapToi });
+    const hotKhacGanDay = phongDangHot.filter(p => !phongGanDayDs.some(g => g.id === p.id)).slice(0, 3);
+    hotKhacGanDay.forEach(p => ds.push({ kieu: 'phong', phong: p }));
+    return ds.slice(0, 6);
+  })();
+
+  // Giáo viên tạo sự kiện campus.
+  const taoSuKien = async () => {
+    if (skDangTao) return;
+    setSkDangTao(true); setSkLoi('');
+    try {
+      const res = await fetch('/api/su-kien', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...skForm,
+          batDau: skForm.batDau ? new Date(skForm.batDau).toISOString() : '',
+          ketThuc: skForm.ketThuc ? new Date(skForm.ketThuc).toISOString() : '',
+          phongId: skForm.phongId || null
+        })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setShowTaoSuKien(false);
+        setSkForm({ tieuDe: '', loai: 'chung', moTa: '', batDau: '', ketThuc: '', phongId: '', noiBat: false });
+        taiSuKien();
+      } else {
+        setSkLoi(d.loi || 'Không tạo được sự kiện.');
+      }
+    } catch { setSkLoi('Mất kết nối máy chủ.'); }
+    finally { setSkDangTao(false); }
+  };
+
+  // Điều hướng bàn phím cho tab rail (WAI-ARIA tabs: ←/→ chuyển tab).
+  const RAIL_TABS = ['chat', 'nhac', 'su-kien'];
+  const xuLyPhimTabRail = (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const i = RAIL_TABS.indexOf(railTab);
+    const ke = RAIL_TABS[(i + (e.key === 'ArrowRight' ? 1 : RAIL_TABS.length - 1)) % RAIL_TABS.length];
+    setRailTab(ke);
+    document.getElementById(`railtab-${ke}`)?.focus();
+  };
 
   // ─── USER PROFILE DROPDOWN (STUDENT / TEACHER PORTAL) ─────────────────────
   const renderUserProfileDropdown = () => (
@@ -2089,10 +2163,35 @@ function DigitalCampusApp() {
           {/* ─── CENTER COLUMN: CENTRAL BILLBOARD & ROOM CARDS ─── */}
           <main className="flex flex-col gap-5 min-w-0 w-full">
 
-            {/* ═══ CAMPUS LIVE HERO — trạng thái THẬT: phòng đông nhất / thông báo ghim ═══ */}
+            {/* ═══ CAMPUS LIVE HERO — chỉ dữ liệu CAMPUS (phòng/sự kiện toàn trường),
+                  KHÔNG đọc thông báo/nhạc riêng của lớp ═══ */}
             {(() => {
-              const tbGhim = (classData.thongBao || []).find(t => t.ghim) || (classData.thongBao || [])[0] || null;
+              // Ưu tiên: sự kiện đang diễn ra → phòng đông nhất → sự kiện sắp diễn ra → phòng gần đây → chào mừng.
               const hot = phongDongNhat;
+              let badge, tieuDe, moTa, ctaChinh;
+              if (skDangDienRa) {
+                badge = { txt: '🔴 Sự kiện đang diễn ra', lop: 'bg-rose-500/15 border-rose-500/40 text-rose-300' };
+                tieuDe = skDangDienRa.tieuDe;
+                moTa = skDangDienRa.moTa || `Sự kiện campus ${demNguocSuKien(skDangDienRa).toLowerCase()} — tham gia cùng các lớp.`;
+                ctaChinh = skDangDienRa.phongId
+                  ? { txt: 'Vào phòng sự kiện →', fn: () => { const p = phongCongDong.find(x => x.id === skDangDienRa.phongId); if (p) vaoPhong(p); } }
+                  : { txt: 'Xem chi tiết →', fn: () => setRailTab('su-kien') };
+              } else if (hot) {
+                badge = { txt: '🔥 Đang sôi động trên Campus', lop: 'bg-amber-500/15 border-amber-500/40 text-amber-300', cham: true };
+                tieuDe = hot.ten;
+                moTa = hot.moTa || `Đang có ${hot.soNguoi} bạn trong phòng — vào cùng ngay!`;
+                ctaChinh = { txt: 'Tham gia ngay →', fn: () => vaoPhong(hot) };
+              } else if (skSapToi) {
+                badge = { txt: '⏰ Sắp diễn ra', lop: 'bg-amber-500/15 border-amber-500/40 text-amber-300' };
+                tieuDe = skSapToi.tieuDe;
+                moTa = `${demNguocSuKien(skSapToi)}${skSapToi.moTa ? ` — ${skSapToi.moTa}` : ''}`;
+                ctaChinh = { txt: 'Xem sự kiện →', fn: () => setRailTab('su-kien') };
+              } else {
+                badge = { txt: '✨ Digital Campus', lop: 'bg-[#00F2FE]/10 border-[#00F2FE]/30 text-[#00F2FE]' };
+                tieuDe = 'Chào mừng đến Digital Campus';
+                moTa = 'Chat toàn trường, đấu cờ, nghe nhạc và xem video cùng học sinh các lớp.';
+                ctaChinh = { txt: '+ Tạo phòng mới', fn: () => auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setShowTaoPhong(true)) };
+              }
               return (
                 <div className="relative rounded-3xl overflow-hidden border border-[#00F2FE]/25 shadow-2xl"
                   style={{ background: 'linear-gradient(120deg, #0d1420 0%, #101a2e 45%, #16102b 100%)' }}>
@@ -2100,19 +2199,12 @@ function DigitalCampusApp() {
                   <div className="absolute -bottom-20 left-1/3 w-56 h-56 bg-[#8B5CF6]/10 rounded-full blur-3xl pointer-events-none"></div>
                   <div className="relative z-10 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-5">
                     <div className="flex-1 min-w-0">
-                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider mb-2.5 ${hot ? 'bg-rose-500/15 border-rose-500/40 text-rose-300' : 'bg-[#00F2FE]/10 border-[#00F2FE]/30 text-[#00F2FE]'}`}>
-                        {hot
-                          ? <><span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span><span>Đang sôi động trên Campus</span></>
-                          : <span>✨ Digital Campus</span>}
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider mb-2.5 ${badge.lop}`}>
+                        {badge.cham && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>}
+                        <span>{badge.txt}</span>
                       </div>
-                      <h2 className="text-xl font-black text-white tracking-tight mb-1.5">
-                        {hot ? hot.ten : (tbGhim ? tbGhim.tieuDe : 'Chào mừng đến Digital Campus')}
-                      </h2>
-                      <p className="text-xs text-slate-300 max-w-xl leading-relaxed line-clamp-2 mb-3">
-                        {hot
-                          ? (hot.moTa || `Đang có ${hot.soNguoi} bạn trong phòng — vào cùng ngay!`)
-                          : (tbGhim ? (tbGhim.noiDung || '') : 'Chat toàn trường, đấu cờ, nghe nhạc nền và xem video cùng học sinh các lớp.')}
-                      </p>
+                      <h2 className="text-xl font-black text-white tracking-tight mb-1.5">{tieuDe}</h2>
+                      <p className="text-xs text-slate-300 max-w-xl leading-relaxed line-clamp-2 mb-3">{moTa}</p>
                       <div className="flex flex-wrap items-center gap-2 text-[11px]">
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -2123,35 +2215,22 @@ function DigitalCampusApp() {
                             {phongCongDong.length} phòng đang mở
                           </span>
                         )}
-                        {tongNguoiTrongPhong > 0 && (
+                        {dangHoatDong > 0 && (
                           <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 font-semibold">
-                            {tongNguoiTrongPhong} bạn đang trong phòng
+                            {dangHoatDong} bạn đang hoạt động trong phòng
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex sm:flex-col gap-2 shrink-0">
-                      {hot ? (
-                        <button onClick={() => vaoPhong(hot)}
-                          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_16px_rgba(0,242,254,0.3)] hover:opacity-95 active:scale-95 transition-all whitespace-nowrap">
-                          Tham gia ngay →
-                        </button>
-                      ) : (
-                        <button onClick={() => auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setShowTaoPhong(true))}
-                          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_16px_rgba(0,242,254,0.3)] hover:opacity-95 active:scale-95 transition-all whitespace-nowrap">
-                          + Tạo phòng mới
-                        </button>
-                      )}
+                      <button onClick={ctaChinh.fn}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_16px_rgba(0,242,254,0.3)] hover:opacity-95 active:scale-95 transition-all whitespace-nowrap">
+                        {ctaChinh.txt}
+                      </button>
                       {phongGanDay && (
                         <button onClick={() => vaoPhong(phongGanDay)}
                           className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/15 transition-all whitespace-nowrap truncate max-w-[220px]">
                           ↩ {phongGanDay.ten}
-                        </button>
-                      )}
-                      {tbGhim && !hot && (
-                        <button onClick={() => setShowNotifModal(true)}
-                          className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/15 transition-all whitespace-nowrap">
-                          📢 Thông báo lớp →
                         </button>
                       )}
                     </div>
@@ -2191,47 +2270,122 @@ function DigitalCampusApp() {
               ))}
             </div>
 
-            {/* Room Cards — dữ liệu THẬT: bàn cờ từ /api/game, video mới nhất & nhạc nền từ /api/lop */}
+            {/* ═══ HÔM NAY TRÊN CAMPUS — sự kiện toàn trường THẬT từ /api/su-kien ═══ */}
+            <div>
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-sm font-black text-white">📅 Hôm Nay Trên Campus</span>
+              </div>
+              {skHomNay.length === 0 ? (
+                <div className="bg-[#151A23] border border-dashed border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                  <p className="text-[11px] text-slate-500">Hôm nay chưa có sự kiện được lên lịch — khám phá các phòng đang mở bên dưới.</p>
+                  {auth.user?.isTeacher && (
+                    <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
+                      className="shrink-0 px-3 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[11px] font-bold hover:bg-purple-500/25">
+                      + Tạo sự kiện
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {skHomNay.map(sk => {
+                    const tt = trangThaiSuKienUI(sk);
+                    const ui = SK_LOAI_UI[sk.loai] || SK_LOAI_UI.chung;
+                    const phongLienKet = sk.phongId ? phongCongDong.find(x => x.id === sk.phongId) : null;
+                    return (
+                      <div key={sk.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col gap-2 hover:border-white/25 transition-all">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{ui.icon}</span>
+                          <h4 className="text-xs font-bold text-white truncate flex-1">{sk.tieuDe}</h4>
+                          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black border ${tt.lopMau}`}>{tt.nhan}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <span>{dinhDangGioVN(sk.batDau)} – {dinhDangGioVN(sk.ketThuc)} • {ui.nhan}</span>
+                          <span className="font-bold text-amber-300">{demNguocSuKien(sk)}</span>
+                        </div>
+                        {phongLienKet && (
+                          <button onClick={() => vaoPhong(phongLienKet)}
+                            className="self-start px-3.5 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
+                            Vào phòng →
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ═══ DÀNH CHO BẠN — gợi ý deterministic từ dữ liệu thật ═══ */}
+            {!auth.isGuest && deXuatChoBan.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className="text-sm font-black text-white">✨ Dành Cho Bạn</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {deXuatChoBan.map((g, i) => g.kieu === 'su-kien' ? (
+                    <button key={`sk-${g.sk.id}`} onClick={() => setRailTab('su-kien')}
+                      className="min-w-[240px] w-[240px] shrink-0 text-left bg-[#151A23] border border-amber-500/25 rounded-2xl p-3.5 hover:border-amber-500/50 transition-all">
+                      <p className="text-[9px] font-black text-amber-400 uppercase tracking-wider mb-1">Sự kiện sắp tới</p>
+                      <p className="text-xs font-bold text-white truncate">{g.sk.tieuDe}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{demNguocSuKien(g.sk)}</p>
+                    </button>
+                  ) : (
+                    <div key={`p-${g.phong.id}`} className="relative">
+                      {g.kieu === 'gan-day' && (
+                        <span className="absolute -top-2 left-3 z-10 px-2 py-0.5 rounded-full bg-[#8B5CF6] text-black text-[9px] font-black">GẦN ĐÂY</span>
+                      )}
+                      <TheHoatDong p={g.phong} compact onVao={() => vaoPhong(g.phong)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Room Cards — dữ liệu CAMPUS THẬT: phòng động từ /api/phong + bàn cờ /api/game.
+                  KHÔNG đọc video/nhạc riêng của lớp — xem chung & nghe nhạc dùng phòng campus. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Card 1: Rạp Chiếu — phát video mới nhất lớp đã đăng */}
-              {(categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && (
+              {/* Card 1: Xem Chung — phòng video campus đông nhất hoặc CTA tạo */}
+              {(categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && (() => {
+                const phongVideo = phongCongDong.filter(p => p.loai === 'video')
+                  .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
+                return (
                 <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#00F2FE]/40 transition-all">
                   <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0B0E14] to-[#151A23] flex items-center justify-center">
                     <div className="text-center">
                       <div className="w-14 h-14 rounded-2xl bg-[#00F2FE]/10 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-2">
                         <Ic name="tv" className="w-7 h-7 text-[#00F2FE]" />
                       </div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rạp chiếu lớp học</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rạp chiếu toàn trường</p>
                     </div>
-                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                      <Ic name="lock" className="w-3 h-3" />
-                      <span>LỚP 10A7</span>
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10">
+                      <span>🌐 TOÀN TRƯỜNG</span>
                     </div>
                   </div>
                   <div className="p-4 flex flex-col justify-between flex-1">
                     <div>
                       <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#00F2FE] transition-colors">
-                        🍿 Rạp Chiếu: {videoMoiNhat ? (videoMoiNhat.tieuDe || 'Video lớp') : 'Chưa có video nào'}
+                        🍿 {phongVideo ? phongVideo.ten : 'Xem Chung Cùng Nhau'}
                       </h3>
                       <p className="text-[11px] text-slate-400 mb-4">
-                        {videoMoiNhat
-                          ? `Đăng ${thoiGianTruoc(videoMoiNhat.taoLuc || videoMoiNhat.ngay)} • ${videoMoiNhat.luotXem || 0} lượt xem`
-                          : 'Chưa có video nào được đăng.'}
+                        {phongVideo
+                          ? `${phongVideo.soNguoi || 0} bạn đang trong phòng xem`
+                          : 'Chưa có phòng xem video nào — mở phòng đầu tiên nhé!'}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${videoMoiNhat ? 'text-emerald-400' : 'text-slate-500'}`}>
-                        <span className={`w-2 h-2 rounded-full ${videoMoiNhat ? 'bg-emerald-400' : 'bg-slate-600'}`}></span>
-                        <span>{videoMoiNhat ? 'Sẵn sàng phát' : 'Chưa có nội dung'}</span>
+                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${phongVideo ? 'text-amber-400' : 'text-slate-500'}`}>
+                        <span className={`w-2 h-2 rounded-full ${phongVideo ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`}></span>
+                        <span>{phongVideo ? 'Đang hoạt động' : 'Chưa có phòng'}</span>
                       </span>
-                      <button onClick={() => { setActiveRoom({ id: 'cinema-main', type: 'CINEMA', title: '🍿 Rạp Chiếu Video Lớp 10A7' }); setCurrentView('ROOM_ACTIVE'); }}
+                      <button onClick={() => phongVideo ? vaoPhong(phongVideo) : (auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setTpForm(f => ({ ...f, loai: 'video' })), setShowTaoPhong(true)))}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
-                        {videoMoiNhat ? 'Xem ngay' : 'Vào phòng'}
+                        {phongVideo ? 'Vào xem ngay' : '+ Tạo phòng xem'}
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Card 2: Đấu Trường Caro — số bàn THẬT đang mở từ /api/game */}
               {(categoryFilter === 'ALL' || categoryFilter === 'GAME') && (
@@ -2274,45 +2428,48 @@ function DigitalCampusApp() {
                 </div>
               )}
 
-              {/* Card 3: Lofi Study — bài nhạc THẬT đang phát của lớp */}
-              {(categoryFilter === 'ALL' || categoryFilter === 'LOFI') && (
+              {/* Card 3: Phòng Nhạc — phòng nhạc campus đông nhất hoặc CTA tạo */}
+              {(categoryFilter === 'ALL' || categoryFilter === 'LOFI') && (() => {
+                const phongNhac = phongCongDong.filter(p => p.loai === 'nhac')
+                  .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
+                return (
                 <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#8B5CF6]/40 transition-all">
                   <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0B0E14] to-[#14121f] flex items-center justify-center">
                     <div className="text-center">
                       <div className="w-14 h-14 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 flex items-center justify-center mx-auto mb-2">
                         <Ic name="phones" className="w-7 h-7 text-[#8B5CF6]" />
                       </div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Góc tự học có nhạc</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nghe nhạc & tập trung</p>
                     </div>
-                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                      <Ic name="lock" className="w-3 h-3" />
-                      <span>STUDY LOUNGE</span>
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10">
+                      <span>🌐 TOÀN TRƯỜNG</span>
                     </div>
                   </div>
                   <div className="p-4 flex flex-col justify-between flex-1">
                     <div>
                       <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#8B5CF6] transition-colors">
-                        🎧 Lofi Study Lounge
+                        🎧 {phongNhac ? phongNhac.ten : 'Phòng Nhạc & Tập Trung'}
                       </h3>
                       <p className="text-[11px] text-slate-400 mb-4">
-                        {classData.nhacNen?.tenBai
-                          ? `Đang phát: ${classData.nhacNen.tenBai}`
-                          : 'Chưa có nhạc nền.'}
+                        {phongNhac
+                          ? `${phongNhac.soNguoi || 0} bạn đang nghe`
+                          : 'Chưa có phòng nhạc nào — mở phòng chill đầu tiên nhé!'}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${radioPlaying ? 'text-emerald-400' : 'text-slate-500'}`}>
-                        <span className={`w-2 h-2 rounded-full ${radioPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></span>
-                        <span>{radioPlaying ? 'Đang phát' : 'Đang tắt'}</span>
+                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${phongNhac ? 'text-amber-400' : 'text-slate-500'}`}>
+                        <span className={`w-2 h-2 rounded-full ${phongNhac ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`}></span>
+                        <span>{phongNhac ? 'Đang hoạt động' : 'Chưa có phòng'}</span>
                       </span>
-                      <button onClick={() => { setActiveRoom({ id: 'lofi-main', type: 'LOFI_STUDY', title: '🎧 Lofi Study Lounge' }); setCurrentView('ROOM_ACTIVE'); }}
+                      <button onClick={() => phongNhac ? vaoPhong(phongNhac) : (auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setTpForm(f => ({ ...f, loai: 'nhac' })), setShowTaoPhong(true)))}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
-                        Vào phòng học
+                        {phongNhac ? 'Vào nghe cùng' : '+ Tạo phòng nhạc'}
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* ─── PHÒNG DO THÀNH VIÊN TẠO — liên lớp, dữ liệu THẬT từ /api/phong ─── */}
@@ -2353,14 +2510,17 @@ function DigitalCampusApp() {
           {/* ─── RIGHT RAIL: tiện ích campus — Chat toàn trường / Nhạc / Sự kiện ─── */}
           <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[480px]">
-              {/* Tab rail */}
-              <div className="flex items-center gap-1 pb-3 border-b border-white/10 mb-3" role="tablist">
+              {/* Tab rail — WAI-ARIA tabs đầy đủ: tablist/tab/tabpanel + phím ←/→ */}
+              <div className="flex items-center gap-1 pb-3 border-b border-white/10 mb-3"
+                role="tablist" aria-label="Tiện ích campus" onKeyDown={xuLyPhimTabRail}>
                 {[
                   { id: 'chat', icon: '💬', nhan: 'Chat trường' },
-                  { id: 'nhac', icon: '🎧', nhan: 'Nhạc nền' },
+                  { id: 'nhac', icon: '🎧', nhan: 'Nhạc' },
                   { id: 'su-kien', icon: '📅', nhan: 'Sự kiện' }
                 ].map(t => (
-                  <button key={t.id} role="tab" aria-selected={railTab === t.id}
+                  <button key={t.id} role="tab" id={`railtab-${t.id}`}
+                    aria-selected={railTab === t.id} aria-controls={`railpanel-${t.id}`}
+                    tabIndex={railTab === t.id ? 0 : -1}
                     onClick={() => setRailTab(t.id)}
                     className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all ${railTab === t.id ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-400 hover:text-white border border-transparent'}`}>
                     {t.icon} {t.nhan}
@@ -2368,7 +2528,7 @@ function DigitalCampusApp() {
                 ))}
               </div>
 
-              {railTab === 'chat' && (<>
+              {railTab === 'chat' && (<div role="tabpanel" id="railpanel-chat" aria-labelledby="railtab-chat" className="flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -2410,49 +2570,82 @@ function DigitalCampusApp() {
                   <Ic name="send" className="w-3.5 h-3.5" />
                 </button>
               </form>
-              </>)}
+              </div>)}
 
-              {railTab === 'nhac' && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 py-4">
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-                    <img src={PRESET_AVATARS[5].url} alt="Nhạc lớp" className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white truncate max-w-[240px]">{radioTitle}</h4>
-                    <p className="text-[10px] text-slate-400">{classData.nhacNen ? 'Nhạc nền lớp 10A7' : 'Chưa có bài nào được chọn'}</p>
-                  </div>
-                  {radioPlaying && (
-                    <div className="flex items-end justify-center gap-1 h-5">
-                      {[12, 18, 14, 24, 10, 20, 16, 22, 12, 18].map((h, i) => (
-                        <span key={i} className="w-1.5 bg-[#8B5CF6] rounded-full eq-bar" style={{ height: `${h}px` }}></span>
-                      ))}
+              {railTab === 'nhac' && (() => {
+                const phongNhac = phongCongDong.filter(p => p.loai === 'nhac')
+                  .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0));
+                return (
+                <div role="tabpanel" id="railpanel-nhac" aria-labelledby="railtab-nhac"
+                  className="flex-1 overflow-y-auto space-y-2 max-h-96">
+                  {phongNhac.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#8B5CF6]/20 to-[#00F2FE]/20 border border-[#8B5CF6]/30 flex items-center justify-center mx-auto mb-3">
+                        <Ic name="phones" className="w-7 h-7 text-[#8B5CF6]" />
+                      </div>
+                      <p className="text-xs font-bold text-white mb-1">Chưa có phòng nhạc đang hoạt động</p>
+                      <p className="text-[10px] text-slate-500 mb-3">Mở một phòng nghe nhạc chung cho cả trường.</p>
+                      <button onClick={() => auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setTpForm(f => ({ ...f, loai: 'nhac' })), setShowTaoPhong(true))}
+                        className="px-4 py-1.5 rounded-full bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40 text-xs font-bold hover:bg-[#8B5CF6]/30 transition-all">
+                        + Tạo phòng nhạc
+                      </button>
                     </div>
-                  )}
-                  <button onClick={toggleRadio} disabled={!classData.nhacNen} aria-label={radioPlaying ? 'Tắt nhạc nền' : 'Bật nhạc nền'}
-                    className="w-12 h-12 rounded-full bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black flex items-center justify-center shadow-[0_0_16px_rgba(139,92,246,0.4)] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95">
-                    <Ic name={radioPlaying ? 'pause' : 'play'} className="w-5 h-5 fill-current" />
-                  </button>
+                  ) : phongNhac.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#0B0E14] border border-white/5 hover:border-[#8B5CF6]/40 transition-all">
+                      <div className="w-9 h-9 rounded-xl bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 flex items-center justify-center shrink-0">
+                        <Ic name="phones" className="w-4 h-4 text-[#8B5CF6]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-white truncate">{p.ten}</p>
+                        <p className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                          {p.soNguoi > 0 && <span className="flex items-end gap-0.5 h-2.5">
+                            <span className="w-0.5 bg-[#8B5CF6] rounded-full eq-bar" style={{ height: '8px' }}></span>
+                            <span className="w-0.5 bg-[#8B5CF6] rounded-full eq-bar" style={{ height: '12px' }}></span>
+                            <span className="w-0.5 bg-[#8B5CF6] rounded-full eq-bar" style={{ height: '6px' }}></span>
+                          </span>}
+                          <span>{p.soNguoi || 0} đang nghe</span>
+                        </p>
+                      </div>
+                      <button onClick={() => vaoPhong(p)}
+                        className="shrink-0 px-3 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-[11px] hover:bg-[#00e1ec] transition-all">
+                        Vào
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              )}
+                );
+              })()}
 
               {railTab === 'su-kien' && (
-                <div className="flex-1 overflow-y-auto space-y-2 max-h-96">
-                  {(classData.thongBao || []).slice(0, 6).map((tb, i) => (
-                    <button key={tb.id || i} onClick={() => setShowNotifModal(true)}
-                      className="w-full text-left p-3 rounded-xl bg-[#0B0E14] border border-white/5 hover:border-[#00F2FE]/30 transition-all">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        {Boolean(tb.ghim) && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold">📌 Ghim</span>}
-                        <span className="text-[9px] text-slate-500 ml-auto">{thoiGianTruoc(tb.taoLuc || tb.ngay)}</span>
-                      </div>
-                      <p className="text-xs font-bold text-white line-clamp-1">{tb.tieuDe}</p>
-                      {tb.noiDung && <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">{tb.noiDung}</p>}
+                <div role="tabpanel" id="railpanel-su-kien" aria-labelledby="railtab-su-kien"
+                  className="flex-1 overflow-y-auto space-y-2 max-h-96">
+                  {auth.user?.isTeacher && (
+                    <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
+                      className="w-full px-3 py-2 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[11px] font-bold hover:bg-purple-500/25 transition-all">
+                      + Tạo sự kiện campus
                     </button>
-                  ))}
-                  {(classData.thongBao || []).length === 0 && (
+                  )}
+                  {dsSuKien.map(sk => {
+                    const tt = trangThaiSuKienUI(sk);
+                    const ui = SK_LOAI_UI[sk.loai] || SK_LOAI_UI.chung;
+                    return (
+                      <div key={sk.id} className="p-3 rounded-xl bg-[#0B0E14] border border-white/5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black border ${tt.lopMau}`}>{tt.nhan}</span>
+                          {sk.noiBat && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold">⭐ Nổi bật</span>}
+                          <span className="text-[9px] text-slate-500 ml-auto">{demNguocSuKien(sk)}</span>
+                        </div>
+                        <p className="text-xs font-bold text-white line-clamp-1">{ui.icon} {sk.tieuDe}</p>
+                        {sk.moTa && <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">{sk.moTa}</p>}
+                        <p className="text-[9px] text-slate-500 mt-1">{dinhDangNgayGioVN(sk.batDau)} – {dinhDangGioVN(sk.ketThuc)}</p>
+                      </div>
+                    );
+                  })}
+                  {dsSuKien.length === 0 && (
                     <div className="text-center py-10">
                       <p className="text-2xl mb-2">📅</p>
                       <p className="text-xs font-bold text-white mb-1">Chưa có sự kiện sắp tới</p>
-                      <p className="text-[10px] text-slate-500">Khi GVCN đăng thông báo hoặc có phòng mới, nội dung sẽ hiện tại đây.</p>
+                      <p className="text-[10px] text-slate-500">Sự kiện toàn trường do giáo viên lên lịch sẽ hiện ở đây.</p>
                     </div>
                   )}
                 </div>
@@ -2480,60 +2673,6 @@ function DigitalCampusApp() {
               <span>ONLINE</span>
             </span>
           </div>
-
-          {activeRoom.type === 'CINEMA' && (() => {
-            const v = videoMoiNhat;
-            const maYt = v ? idYoutube(v.videoUrl) : null;
-            const maDrive = v ? idGoogleDrive(v.videoUrl) : null;
-            const srcTrucTiep = v && !maYt && !maDrive && laVideoTrucTiepFe(v.videoUrl) ? urlMediaFe(v.videoUrl) : '';
-            const srcNoiBo = v?.videoId ? `/api/thu-vien-tep?loai=video&id=${v.videoId}` : '';
-            return (
-              <div className="bg-[#151A23] border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden flex flex-col gap-4">
-                <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10">
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-                    {danmakuBullets.map(b => (
-                      <span key={b.id} className="danmaku-bullet text-base font-extrabold"
-                            style={{ top: `${b.top}%`, color: b.color, animationDuration: `${b.duration}s` }}>
-                        {b.text}
-                      </span>
-                    ))}
-                  </div>
-                  {srcNoiBo ? (
-                    <video src={srcNoiBo} controls className="w-full h-full" />
-                  ) : maYt ? (
-                    <iframe src={`https://www.youtube.com/embed/${maYt}`} title={v.tieuDe || 'Video lớp'}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
-                      className="w-full h-full" />
-                  ) : maDrive ? (
-                    <iframe src={`https://drive.google.com/file/d/${maDrive}/preview`} title={v.tieuDe || 'Video lớp'}
-                      allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
-                  ) : srcTrucTiep ? (
-                    <video src={srcTrucTiep} controls className="w-full h-full" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-center p-6 z-10">
-                      <div>
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3">
-                          <Ic name="tv" className="w-8 h-8 text-[#00F2FE]" />
-                        </div>
-                        <h4 className="text-base font-bold text-white mb-1">Rạp Chiếu Video Bài Học Lớp</h4>
-                        <p className="text-xs text-slate-400 max-w-md mx-auto mb-2">Chưa có video nào được đăng.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {chatError && <p className="text-[11px] text-rose-400">{chatError}</p>}
-                <form onSubmit={handleSendChat} className="flex items-center gap-2">
-                  <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                    placeholder="Gửi đạn bình luận Danmaku bay ngang màn hình..."
-                    className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                  <button type="submit"
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs">
-                    Bắn Danmaku
-                  </button>
-                </form>
-              </div>
-            );
-          })()}
 
           {activeRoom.type === 'GAME_CARO' && (
             <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center">
@@ -2642,20 +2781,6 @@ function DigitalCampusApp() {
             </div>
           )}
 
-          {activeRoom.type === 'LOFI_STUDY' && (
-            <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#00F2FE] flex items-center justify-center text-black mb-4">
-                <Ic name="phones" className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-extrabold text-white mb-6">Lofi Study Cafe Campus</h3>
-              <button onClick={toggleRadio}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black">
-                <Ic name={radioPlaying ? 'pause' : 'play'} className="w-4 h-4" />
-                <span>{radioPlaying ? 'Tạm Dừng Nhạc Nền' : 'Bật Nhạc Nền Campus'}</span>
-              </button>
-            </div>
-          )}
-
           {/* PHÒNG ĐỘNG DO THÀNH VIÊN TẠO — chat phòng + thành viên + nội dung theo loại */}
           {activeRoom.type === 'PHONG' && activeRoom.phong && (() => {
             const p = activeRoom.phong;
@@ -2704,11 +2829,11 @@ function DigitalCampusApp() {
                     <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
                       <Ic name="phones" className="w-8 h-8 text-[#8B5CF6] mx-auto mb-2" />
                       <p className="text-xs text-slate-300 font-bold mb-1">Phòng nghe nhạc cùng nhau</p>
-                      <p className="text-[11px] text-slate-500">Bật nhạc nền của lớp rồi trò chuyện cùng mọi người trong phòng.</p>
-                      <button onClick={toggleRadio}
-                        className="mt-3 px-4 py-2 rounded-xl bg-[#8B5CF6]/20 text-[#8B5CF6] text-xs font-bold border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/30">
-                        {radioPlaying ? '⏸ Tạm dừng nhạc nền' : '▶ Bật nhạc nền'}
-                      </button>
+                      {cauHinh.nhacUrl ? (
+                        <audio controls src={cauHinh.nhacUrl} className="w-full mt-2" preload="none" />
+                      ) : (
+                        <p className="text-[11px] text-slate-500">Chủ phòng chưa gắn link nhạc — trò chuyện cùng mọi người trong phòng.</p>
+                      )}
                     </div>
                   )}
                   {p.loai === 'game' && (
@@ -3748,6 +3873,15 @@ function DigitalCampusApp() {
                 </div>
               )}
 
+              {tpForm.loai === 'nhac' && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Link nhạc (tuỳ chọn)</label>
+                  <input type="text" value={tpForm.nhacUrl || ''} onChange={e => setTpForm(f => ({ ...f, nhacUrl: e.target.value }))}
+                    placeholder="https://... (link mp3/stream công khai)" maxLength={1000}
+                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+                </div>
+              )}
+
               <div>
                 <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Mô tả ngắn</label>
                 <input type="text" value={tpForm.moTa} onChange={e => setTpForm(f => ({ ...f, moTa: e.target.value }))}
@@ -3776,6 +3910,75 @@ function DigitalCampusApp() {
               <button onClick={taoPhongMoi} disabled={tpDangTao || tpForm.ten.trim().length < 2}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {tpDangTao ? 'Đang tạo…' : '🚀 Mở phòng ngay'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL TẠO SỰ KIỆN CAMPUS — chỉ giáo viên thấy (API cũng chặn) ─── */}
+      {showTaoSuKien && auth.user?.isTeacher && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#151A23] border border-purple-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-extrabold text-white">Tạo Sự Kiện Campus</h3>
+              <button onClick={() => setShowTaoSuKien(false)} aria-label="Đóng"
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400">
+                <Ic name="x" className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Tên sự kiện *</label>
+                <input type="text" value={skForm.tieuDe} onChange={e => setSkForm(f => ({ ...f, tieuDe: e.target.value }))}
+                  placeholder="VD: Đêm nhạc Campus, Quiz Battle toàn trường..." maxLength={120}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Loại sự kiện</label>
+                <select value={skForm.loai} onChange={e => setSkForm(f => ({ ...f, loai: e.target.value }))}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
+                  {Object.entries(SK_LOAI_UI).map(([id, ui]) => (
+                    <option key={id} value={id}>{ui.icon} {ui.nhan}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Bắt đầu *</label>
+                  <input type="datetime-local" value={skForm.batDau} onChange={e => setSkForm(f => ({ ...f, batDau: e.target.value }))}
+                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Kết thúc *</label>
+                  <input type="datetime-local" value={skForm.ketThuc} onChange={e => setSkForm(f => ({ ...f, ketThuc: e.target.value }))}
+                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Mô tả</label>
+                <input type="text" value={skForm.moTa} onChange={e => setSkForm(f => ({ ...f, moTa: e.target.value }))}
+                  placeholder="Nội dung sự kiện..." maxLength={500}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Gắn phòng campus (tuỳ chọn)</label>
+                <select value={skForm.phongId} onChange={e => setSkForm(f => ({ ...f, phongId: e.target.value }))}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
+                  <option value="">— Không gắn phòng —</option>
+                  {phongCongDong.filter(p => p.phamVi === 'truong').map(p => (
+                    <option key={p.id} value={p.id}>{p.ten}</option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={skForm.noiBat} onChange={e => setSkForm(f => ({ ...f, noiBat: e.target.checked }))} />
+                <span>⭐ Ghim lên Hero campus</span>
+              </label>
+              {skLoi && <p className="text-[11px] text-rose-400">{skLoi}</p>}
+              <button onClick={taoSuKien} disabled={skDangTao || skForm.tieuDe.trim().length < 3 || !skForm.batDau || !skForm.ketThuc}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#00F2FE] text-black font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                {skDangTao ? 'Đang tạo…' : '📅 Tạo sự kiện'}
               </button>
             </div>
           </div>

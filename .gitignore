@@ -18,3 +18,7 @@ test-results/
 # Cấu hình Devin cá nhân (không commit) và ảnh chụp QA.
 .devin/*.local.json
 qa/
+
+live-*.png
+qa-click.mjs
+qa-live.mjs
