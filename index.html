@@ -2121,7 +2121,7 @@ function AuthModal({ isOpen, initialTab = 'login', onClose, onSuccess }) {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hoTen: ht, username: u, password: p, loaiTaiKhoan: lt })
+        body: JSON.stringify({ displayName: ht, hoTen: ht, username: u, password: p, accountType: lt, loaiTaiKhoan: lt })
       });
       const d = await res.json();
       if (d.ok) {
@@ -2133,7 +2133,7 @@ function AuthModal({ isOpen, initialTab = 'login', onClose, onSuccess }) {
         setTab('login');
         setLoginForm({ username: u, password: '' });
       } else {
-        setLoi(d.loi || 'Không thể đăng ký tài khoản.');
+        setLoi(d.loi || d.message || 'Không thể đăng ký tài khoản.');
       }
     } catch {
       setLoi('Lỗi kết nối máy chủ. Thử lại sau.');

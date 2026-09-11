@@ -14,7 +14,10 @@ function json(data, status = 200, cookie = null) {
     'Cache-Control': 'no-store',
   });
   if (cookie) h.append('Set-Cookie', cookie);
-  return new Response(JSON.stringify(data), { status, headers: h });
+  const out = { ...data };
+  if (!out.loi && out.message) out.loi = out.message;
+  if (!out.message && out.loi) out.message = out.loi;
+  return new Response(JSON.stringify(out), { status, headers: h });
 }
 
 async function rateLimitIp(env, ip) {
@@ -49,9 +52,9 @@ export async function onRequestPost({ request, env }) {
   }
 
   const rawUsername = String(body.username || body.tenDangNhap || '').trim();
-  const rawDisplayName = String(body.displayName || body.tenHienThi || '').trim();
+  const rawDisplayName = String(body.displayName || body.tenHienThi || body.hoTen || body.hoten || '').trim();
   const rawPassword = String(body.password || body.matKhau || '').trim();
-  const rawAccountType = String(body.accountType || body.vaiTro || 'student').trim().toLowerCase();
+  const rawAccountType = String(body.accountType || body.vaiTro || body.loaiTaiKhoan || body.loai_tai_khoan || 'student').trim().toLowerCase();
 
   // Validate username
   const username = rawUsername.toLowerCase();
@@ -116,7 +119,11 @@ export async function onRequestPost({ request, env }) {
     phienId
   ).run();
 
-  const accountId = insertKq.meta?.last_row_id;
+  let accountId = insertKq?.meta?.last_row_id;
+  if (!accountId) {
+    const row = await env.DB.prepare('SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = ?1').bind(username).first().catch(() => null);
+    accountId = row?.id;
+  }
   if (!accountId) {
     return json({ ok: false, message: 'Không thể tạo tài khoản, vui lòng thử lại.' }, 500);
   }
