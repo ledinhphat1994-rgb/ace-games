@@ -507,6 +507,8 @@ function CampusSpaceCard({
   title,
   subtitle,
   description,
+  statusText,
+  isLive,
   activeCount = 0,
   idleLabel = 'Sẵn sàng mở phiên mới',
   actionText = 'Khám phá ngay',
@@ -519,6 +521,7 @@ function CampusSpaceCard({
       glow: 'from-[#00F2FE]/15 via-transparent to-transparent',
       pill: 'bg-[#00F2FE]/10 border-[#00F2FE]/30 text-[#00F2FE]',
       btn: 'bg-[#00F2FE] text-black hover:bg-[#00e1ec] shadow-[0_0_16px_rgba(0,242,254,0.3)]',
+      titleHover: 'group-hover:text-[#00F2FE]',
       gradient: 'linear-gradient(135deg, #071324 0%, #0d1b30 50%, #151A23 100%)'
     },
     amber: {
@@ -526,6 +529,7 @@ function CampusSpaceCard({
       glow: 'from-[#FFB800]/15 via-transparent to-transparent',
       pill: 'bg-[#FFB800]/10 border-[#FFB800]/30 text-[#FFB800]',
       btn: 'bg-[#FFB800] text-black hover:bg-[#e6a600] shadow-[0_0_16px_rgba(255,184,0,0.3)]',
+      titleHover: 'group-hover:text-[#FFB800]',
       gradient: 'linear-gradient(135deg, #1c1204 0%, #291a06 50%, #151A23 100%)'
     },
     violet: {
@@ -533,6 +537,7 @@ function CampusSpaceCard({
       glow: 'from-[#8B5CF6]/15 via-transparent to-transparent',
       pill: 'bg-[#8B5CF6]/10 border-[#8B5CF6]/30 text-[#8B5CF6]',
       btn: 'bg-[#8B5CF6] text-white hover:bg-[#7c4def] shadow-[0_0_16px_rgba(139,92,246,0.3)]',
+      titleHover: 'group-hover:text-[#8B5CF6]',
       gradient: 'linear-gradient(135deg, #160a2b 0%, #220f40 50%, #151A23 100%)'
     },
     teal: {
@@ -540,10 +545,13 @@ function CampusSpaceCard({
       glow: 'from-[#10B981]/15 via-transparent to-transparent',
       pill: 'bg-[#10B981]/10 border-[#10B981]/30 text-[#10B981]',
       btn: 'bg-[#10B981] text-black hover:bg-[#0ea372] shadow-[0_0_16px_rgba(16,185,129,0.3)]',
+      titleHover: 'group-hover:text-[#10B981]',
       gradient: 'linear-gradient(135deg, #051a14 0%, #0a2820 50%, #151A23 100%)'
     }
   };
   const t = themes[theme] || themes.cyan;
+  const hienThiStatus = statusText != null ? statusText : (activeCount > 0 ? `${activeCount} bạn tham gia` : idleLabel);
+  const trangThaiLive = isLive != null ? isLive : (activeCount > 0);
 
   return (
     <div className={`group relative rounded-3xl border ${t.border} bg-[#151A23] shadow-xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl`}
@@ -647,7 +655,7 @@ function CampusSpaceCard({
       {/* Content Area */}
       <div className="p-5 sm:p-6 flex flex-col justify-between flex-1 gap-4">
         <div>
-          <h3 className="text-base sm:text-lg font-black text-white tracking-tight group-hover:text-[#00F2FE] transition-colors mb-1">
+          <h3 className={`text-base sm:text-lg font-black text-white tracking-tight ${t.titleHover} transition-colors mb-1`}>
             {title}
           </h3>
           {subtitle && (
@@ -662,9 +670,9 @@ function CampusSpaceCard({
 
         <div className="flex items-center justify-between pt-3 border-t border-white/10 mt-auto">
           <div className="flex items-center gap-2 text-xs">
-            <span className={`w-2 h-2 rounded-full ${activeCount > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-            <span className={`font-semibold ${activeCount > 0 ? 'text-emerald-300' : 'text-slate-400'}`}>
-              {activeCount > 0 ? `${activeCount} bạn tham gia` : idleLabel}
+            <span className={`w-2 h-2 rounded-full ${trangThaiLive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+            <span className={`font-semibold ${trangThaiLive ? 'text-emerald-300' : 'text-slate-400'}`}>
+              {hienThiStatus}
             </span>
           </div>
           <button onClick={onAction}
@@ -725,10 +733,17 @@ function CampusHeroStage({
           </p>
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs mb-6">
-            <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold flex items-center gap-2 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>{dangHoatDong} bạn đang hoạt động trên Campus</span>
-            </span>
+            {dangHoatDong > 0 ? (
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold flex items-center gap-2 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{dangHoatDong} bạn đang hoạt động trên Campus</span>
+              </span>
+            ) : (
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300/90 font-bold flex items-center gap-2 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>✦ Campus sẵn sàng kết nối</span>
+              </span>
+            )}
             {phongMoCount > 0 && (
               <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 font-bold">
                 {phongMoCount} không gian mở
@@ -2516,8 +2531,8 @@ function DigitalCampusApp() {
       {activeTab === 'campus' && currentView === 'LOBBY' && (
         <div className="max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[230px_1fr_300px] 2xl:grid-cols-[240px_1fr_320px] gap-6 items-start animate-fadeIn" id="campus-lobby">
 
-          {/* ─── LEFT COLUMN: CATEGORIES & CREATE ROOM ─── */}
-          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
+          {/* ─── LEFT COLUMN: CATEGORIES & CREATE ROOM (DESKTOP) ─── */}
+          <aside id="campus-left-nav" className="hidden lg:flex flex-col gap-4 sticky top-[56px] self-start">
             {/* TẠO PHÒNG — mọi thành viên đăng nhập đều mở được phòng hoạt động */}
             {!auth.isGuest ? (
               <button onClick={() => { setTpLoi(''); setShowTaoPhong(true); }}
@@ -2581,6 +2596,47 @@ function DigitalCampusApp() {
           {/* ─── CENTER COLUMN: CENTRAL BILLBOARD & ROOM CARDS ─── */}
           <main className="flex flex-col gap-6 min-w-0 w-full">
 
+            {/* ─── MOBILE COMPACT NAVIGATION (< lg) ─── */}
+            <div id="campus-mobile-nav" className="lg:hidden flex flex-col gap-2 bg-[#151A23] border border-white/10 rounded-2xl p-2.5 shadow-md">
+              <div className="flex items-center justify-between gap-2">
+                {!auth.isGuest ? (
+                  <button onClick={() => { setTpLoi(''); setShowTaoPhong(true); }}
+                    className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-[#00F2FE] via-[#38BDF8] to-[#8B5CF6] text-black font-black text-xs tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                    <span className="text-base font-black leading-none">+</span>
+                    <span>TẠO PHÒNG MỚI</span>
+                  </button>
+                ) : (
+                  <button onClick={() => setShowAuthGate(true)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                    <span>🔐</span>
+                    <span>Đăng nhập tạo phòng</span>
+                  </button>
+                )}
+                <button onClick={() => setShowGamificationModal(true)}
+                  className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-amber-300 flex items-center gap-1.5 shrink-0 active:scale-95 transition-all">
+                  <span>🏆</span>
+                  <span>Thành Tựu</span>
+                </button>
+              </div>
+
+              {/* Destination pills strip */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar text-xs">
+                {[
+                  { id: 'ALL', label: '🏠 Tất cả' },
+                  { id: 'HOT', label: `🔥 Sôi động${phongDangHot.length > 0 ? ` (${phongDangHot.length})` : ''}` },
+                  { id: 'CINEMA', label: '🎬 Rạp chiếu' },
+                  { id: 'GAME', label: '⚔️ Cờ Caro' },
+                  { id: 'LOFI', label: '🎧 Lofi Café' },
+                  { id: 'CHAT', label: '💬 Sảnh chat' }
+                ].map(cat => (
+                  <button key={cat.id} onClick={() => setCategoryFilter(cat.id)}
+                    className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all text-[11px] ${categoryFilter === cat.id ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm' : 'bg-white/5 text-slate-300 border border-white/5'}`}>
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* ═══ CAMPUS LIVE HERO — Feature Stage with Real Data Priority ═══ */}
             {(() => {
               const hot = phongDongNhat;
@@ -2618,8 +2674,8 @@ function DigitalCampusApp() {
                 theme = phongGanDay.loai === 'game' ? 'game' : (phongGanDay.loai === 'video' ? 'cinema' : 'music');
               } else {
                 badge = { txt: '✨ Digital Commons', lop: 'bg-[#00F2FE]/10 border-[#00F2FE]/30 text-[#00F2FE]' };
-                tieuDe = 'Digital Campus 10A7 & Toàn Trường';
-                moTa = 'Không gian kết nối trực tuyến dành cho học sinh: rạp chiếu xem chung, bàn cờ caro 15x15, phòng nghe nhạc lofi và sảnh trò chuyện cộng đồng 24/7.';
+                tieuDe = 'Digital Campus · GDTX Định Quán';
+                moTa = 'Không gian kết nối trực tuyến toàn trường: rạp chiếu xem chung, bàn cờ caro 15x15, phòng nghe nhạc lofi và sảnh trò chuyện cộng đồng 24/7.';
                 ctaChinh = { txt: '+ Khởi tạo hoạt động mới', fn: () => auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setShowTaoPhong(true)) };
                 theme = 'welcome';
               }
@@ -2705,70 +2761,84 @@ function DigitalCampusApp() {
             )}
 
             {/* ═══ FLAGSHIP SPACES (DESTINATIONS) ═══ */}
-            {(!campusSearch || /xem|phim|cinema|video|caro|game|co|nhac|lofi|cafe|chat|sanh/i.test(campusSearch)) && (
-              <div>
-                <CampusSectionHeader
-                  title="Không Gian Tiêu Biểu"
-                  subtitle="Các điểm hẹn số trực tiếp dành cho học sinh toàn trường"
-                  icon="🏛️"
-                  badge="DESTINATIONS"
-                />
+            {(() => {
+              const q = campusSearch.trim().toLowerCase();
+              // Từ khóa tìm kiếm chuẩn xác cho từng điểm hẹn (không match bừa bãi)
+              const matchCinema = !q || /xem|phim|cinema|video|rạp|rap/i.test(q);
+              const matchGame = !q || /caro|cờ|co|game|đấu|dau/i.test(q);
+              const matchMusic = !q || /nhạc|nhac|music|lofi|café|cafe|nghe/i.test(q);
+              const matchSocial = !q || /chat|trò chuyện|tro chuyen|sảnh|sanh|giao lưu|giao luu|cộng đồng|cong dong/i.test(q);
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Space 1: Rạp Chiếu & Xem Chung */}
-                  {(categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && (() => {
-                    const phongVideo = phongCongDong.filter(p => p.loai === 'video')
-                      .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
-                    return (
+              const showCinema = (categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && matchCinema;
+              const showGame = (categoryFilter === 'ALL' || categoryFilter === 'GAME') && matchGame;
+              const showMusic = (categoryFilter === 'ALL' || categoryFilter === 'LOFI') && matchMusic;
+              const showSocial = (categoryFilter === 'ALL' || categoryFilter === 'CHAT') && matchSocial;
+
+              const hasAnyFlagship = showCinema || showGame || showMusic || showSocial;
+              if (!hasAnyFlagship) return null;
+
+              const phongVideo = phongCongDong.filter(p => p.loai === 'video')
+                .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
+              const phongNhac = phongCongDong.filter(p => p.loai === 'nhac')
+                .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
+
+              return (
+                <div id="campus-flagship-spaces">
+                  <CampusSectionHeader
+                    title={q ? "Không Gian Tiêu Biểu Khớp Tìm Kiếm" : "Không Gian Tiêu Biểu"}
+                    subtitle={q ? "Các điểm hẹn số trực tiếp phù hợp với từ khóa của bạn" : "Các điểm hẹn số trực tiếp dành cho học sinh toàn trường"}
+                    icon="🏛️"
+                    badge="DESTINATIONS"
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Space 1: Rạp Chiếu & Xem Chung */}
+                    {showCinema && (
                       <CampusSpaceCard
                         theme="cyan"
                         sceneType="cinema"
                         badge="RẠP CHIẾU TOÀN TRƯỜNG"
                         title={phongVideo ? `🍿 ${phongVideo.ten}` : '🎬 Rạp Chiếu & Xem Chung'}
-                        subtitle="Không gian phát video đồng bộ 1080p & thảo luận"
+                        subtitle="Không gian xem video chung & thảo luận"
                         description={phongVideo
                           ? `${phongVideo.soNguoi || 0} bạn đang xem cùng nhau trên màn ảnh lớn. Tham gia để theo dõi và bình luận trực tiếp!`
                           : 'Chưa có phiên xem chung — mở phòng đầu tiên để xem phim, bài giảng hoặc video ca nhạc cùng các lớp.'}
-                        activeCount={phongVideo?.soNguoi || 0}
-                        idleLabel="Sẵn sàng mở phòng xem"
+                        statusText={phongVideo && (phongVideo.soNguoi || 0) > 0 ? `${phongVideo.soNguoi} bạn đang xem` : 'Sẵn sàng mở phòng xem'}
+                        isLive={!!(phongVideo && (phongVideo.soNguoi || 0) > 0)}
                         actionText={phongVideo ? 'Vào xem ngay →' : '+ Mở phòng xem'}
                         onAction={() => phongVideo
                           ? vaoPhong(phongVideo)
                           : (auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setTpForm(f => ({ ...f, loai: 'video' })), setShowTaoPhong(true)))}
                       />
-                    );
-                  })()}
+                    )}
 
-                  {/* Space 2: Đấu Trường Cờ Caro 15x15 */}
-                  {(categoryFilter === 'ALL' || categoryFilter === 'GAME') && (
-                    <CampusSpaceCard
-                      theme="amber"
-                      sceneType="game"
-                      badge="ĐẤU TRÍ 1v1"
-                      title="⚔️ Đấu Trường Cờ Caro 15x15"
-                      subtitle="Bàn cờ chuẩn quốc tế, tính giờ và so tài logic"
-                      description={caroRooms === null
-                        ? (auth.isGuest ? 'Đấu trí logic 1v1 trên bàn cờ 15x15 — đăng nhập để so tài trí tuệ.' : 'Đang tải danh sách bàn đấu…')
-                        : caroRooms.length > 0
-                          ? `${caroRooms.length} bàn cờ đang mở tranh tài. Vào ghép cặp hoặc mở bàn mới để thử thách đối thủ!`
-                          : 'Chưa có bàn nào đang thi đấu — mở bàn đầu tiên để so tài trí tuệ cùng các bạn!'}
-                      activeCount={caroRooms ? caroRooms.length : 0}
-                      idleLabel={caroRooms && caroRooms.length > 0 ? `${caroRooms.length} bàn cờ` : 'Sẵn sàng tranh tài'}
-                      actionText="Vào đấu trường"
-                      onAction={() => {
-                        if (auth.isGuest) { setShowAuthGate(true); return; }
-                        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
-                        setCurrentView('ROOM_ACTIVE');
-                        taiDanhSachBanCaro();
-                      }}
-                    />
-                  )}
+                    {/* Space 2: Đấu Trường Cờ Caro 15x15 */}
+                    {showGame && (
+                      <CampusSpaceCard
+                        theme="amber"
+                        sceneType="game"
+                        badge="ĐẤU TRÍ 1v1"
+                        title="⚔️ Đấu Trường Cờ Caro 15x15"
+                        subtitle="Bàn cờ chuẩn quốc tế, tính giờ và so tài logic"
+                        description={caroRooms === null
+                          ? (auth.isGuest ? 'Đấu trí logic 1v1 trên bàn cờ 15x15 — đăng nhập để so tài trí tuệ.' : 'Đang tải danh sách bàn đấu…')
+                          : caroRooms.length > 0
+                            ? `${caroRooms.length} bàn cờ đang mở tranh tài. Vào ghép cặp hoặc mở bàn mới để thử thách đối thủ!`
+                            : 'Chưa có bàn nào đang thi đấu — mở bàn đầu tiên để so tài trí tuệ cùng các bạn!'}
+                        statusText={caroRooms && caroRooms.length > 0 ? `${caroRooms.length} bàn đang mở` : 'Sẵn sàng tranh tài'}
+                        isLive={!!(caroRooms && caroRooms.length > 0)}
+                        actionText="Vào đấu trường"
+                        onAction={() => {
+                          if (auth.isGuest) { setShowAuthGate(true); return; }
+                          setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+                          setCurrentView('ROOM_ACTIVE');
+                          taiDanhSachBanCaro();
+                        }}
+                      />
+                    )}
 
-                  {/* Space 3: Lofi Study Café & Nghe Nhạc */}
-                  {(categoryFilter === 'ALL' || categoryFilter === 'LOFI') && (() => {
-                    const phongNhac = phongCongDong.filter(p => p.loai === 'nhac')
-                      .sort((a, b) => (b.soNguoi || 0) - (a.soNguoi || 0))[0] || null;
-                    return (
+                    {/* Space 3: Lofi Study Café & Nghe Nhạc */}
+                    {showMusic && (
                       <CampusSpaceCard
                         theme="violet"
                         sceneType="music"
@@ -2778,94 +2848,108 @@ function DigitalCampusApp() {
                         description={phongNhac
                           ? `${phongNhac.soNguoi || 0} bạn đang cùng lắng nghe giai điệu. Vào thả lỏng tâm trí và tập trung học bài!`
                           : 'Chưa có phòng nhạc nào — mở không gian âm thanh chill đầu tiên cho học sinh toàn trường.'}
-                        activeCount={phongNhac?.soNguoi || 0}
-                        idleLabel="Sẵn sàng phát nhạc"
+                        statusText={phongNhac && (phongNhac.soNguoi || 0) > 0 ? `${phongNhac.soNguoi} bạn đang nghe` : 'Sẵn sàng phát nhạc'}
+                        isLive={!!(phongNhac && (phongNhac.soNguoi || 0) > 0)}
                         actionText={phongNhac ? 'Vào nghe cùng →' : '+ Tạo phòng nhạc'}
                         onAction={() => phongNhac
                           ? vaoPhong(phongNhac)
                           : (auth.isGuest ? setShowAuthGate(true) : (setTpLoi(''), setTpForm(f => ({ ...f, loai: 'nhac' })), setShowTaoPhong(true)))}
                       />
-                    );
-                  })()}
+                    )}
 
-                  {/* Space 4: Sảnh Trò Chuyện Toàn Trường */}
-                  {(categoryFilter === 'ALL' || categoryFilter === 'CHAT') && (
-                    <CampusSpaceCard
-                      theme="teal"
-                      sceneType="social"
-                      badge="CỘNG ĐỒNG SỐ"
-                      title="💬 Sảnh Trò Chuyện Toàn Trường"
-                      subtitle="Kênh giao lưu mở kết nối mọi lớp học"
-                      description="Nơi học sinh toàn trường làm quen, trao đổi kinh nghiệm học tập và chia sẻ những câu chuyện hằng ngày."
-                      activeCount={dangHoatDong}
-                      idleLabel="Mở cửa tự do 24/7"
-                      actionText="Vào trò chuyện →"
-                      onAction={() => setRailTab('chat')}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ═══ HÔM NAY TRÊN CAMPUS — sự kiện toàn trường THẬT từ /api/su-kien ═══ */}
-            {(!campusSearch || dsSuKien.some(s => s.tieuDe.toLowerCase().includes(campusSearch.toLowerCase()))) && (
-              <div>
-                <CampusSectionHeader
-                  title="Hôm Nay Trên Campus"
-                  subtitle="Lịch sinh hoạt và sự kiện chính thức do nhà trường lên lịch"
-                  icon="📅"
-                  badge="EVENTS"
-                  extra={canManageCampusEvents(auth) && (
-                    <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
-                      className="px-3.5 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-bold hover:bg-purple-500/25 transition-all">
-                      + Tạo sự kiện
-                    </button>
-                  )}
-                />
-                {skHomNay.length === 0 ? (
-                  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">🌿</span>
-                      <p className="text-xs text-slate-300">Hôm nay chưa có sự kiện được lên lịch — các phòng sinh hoạt tự do vẫn mở 24/7 bên dưới.</p>
-                    </div>
-                    {canManageCampusEvents(auth) && (
-                      <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
-                        className="shrink-0 px-3.5 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-bold hover:bg-purple-500/25 transition-all">
-                        + Lên lịch sự kiện mới
-                      </button>
+                    {/* Space 4: Sảnh Trò Chuyện Toàn Trường */}
+                    {showSocial && (
+                      <CampusSpaceCard
+                        theme="teal"
+                        sceneType="social"
+                        badge="CỘNG ĐỒNG SỐ"
+                        title="💬 Sảnh Trò Chuyện Toàn Trường"
+                        subtitle="Kênh giao lưu mở kết nối mọi lớp học"
+                        description="Nơi học sinh toàn trường làm quen, trao đổi kinh nghiệm học tập và chia sẻ những câu chuyện hằng ngày."
+                        statusText="Mở cửa tự do 24/7"
+                        isLive={false}
+                        actionText="Vào trò chuyện →"
+                        onAction={() => setRailTab('chat')}
+                      />
                     )}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {skHomNay.map(sk => {
-                      const tt = trangThaiSuKienUI(sk);
-                      const ui = SK_LOAI_UI[sk.loai] || SK_LOAI_UI.chung;
-                      const phongLienKet = sk.phongId ? phongCongDong.find(x => x.id === sk.phongId) : null;
-                      return (
-                        <div key={sk.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-3 hover:border-white/25 transition-all">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xl">{ui.icon}</span>
-                            <h4 className="text-sm sm:text-base font-black text-white truncate flex-1">{sk.tieuDe}</h4>
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black border ${tt.lopMau}`}>{tt.nhan}</span>
+                </div>
+              );
+            })()}
+
+            {/* ═══ HÔM NAY TRÊN CAMPUS — sự kiện toàn trường THẬT từ /api/su-kien ═══ */}
+            {(() => {
+              const q = campusSearch.trim().toLowerCase();
+              const suKienLoc = skHomNay.filter(sk => {
+                if (!q) return true;
+                const matchTitle = sk.tieuDe && sk.tieuDe.toLowerCase().includes(q);
+                const matchDesc = sk.moTa && sk.moTa.toLowerCase().includes(q);
+                const matchType = sk.loai && sk.loai.toLowerCase().includes(q);
+                return matchTitle || matchDesc || matchType;
+              });
+
+              // Khi tìm kiếm, chỉ hiện phần sự kiện nếu có sự kiện khớp
+              if (q && suKienLoc.length === 0) return null;
+
+              return (
+                <div id="campus-events-section">
+                  <CampusSectionHeader
+                    title={q ? "Sự Kiện Khớp Tìm Kiếm" : "Hôm Nay Trên Campus"}
+                    subtitle={q ? `Tìm thấy ${suKienLoc.length} sự kiện phù hợp` : "Lịch sinh hoạt và sự kiện chính thức do nhà trường lên lịch"}
+                    icon="📅"
+                    badge="EVENTS"
+                    extra={canManageCampusEvents(auth) && (
+                      <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
+                        className="px-3.5 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-bold hover:bg-purple-500/25 transition-all">
+                        + Tạo sự kiện
+                      </button>
+                    )}
+                  />
+                  {suKienLoc.length === 0 ? (
+                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">🌿</span>
+                        <p className="text-xs text-slate-300">Hôm nay chưa có sự kiện được lên lịch — các phòng sinh hoạt tự do vẫn mở 24/7 bên dưới.</p>
+                      </div>
+                      {canManageCampusEvents(auth) && (
+                        <button onClick={() => { setSkLoi(''); setShowTaoSuKien(true); }}
+                          className="shrink-0 px-3.5 py-1.5 rounded-xl bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs font-bold hover:bg-purple-500/25 transition-all">
+                          + Lên lịch sự kiện mới
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {suKienLoc.map(sk => {
+                        const tt = trangThaiSuKienUI(sk);
+                        const ui = SK_LOAI_UI[sk.loai] || SK_LOAI_UI.chung;
+                        const phongLienKet = sk.phongId ? phongCongDong.find(x => x.id === sk.phongId) : null;
+                        return (
+                          <div key={sk.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-3 hover:border-white/25 transition-all">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xl">{ui.icon}</span>
+                              <h4 className="text-sm sm:text-base font-black text-white truncate flex-1">{sk.tieuDe}</h4>
+                              <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black border ${tt.lopMau}`}>{tt.nhan}</span>
+                            </div>
+                            {sk.moTa && <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{sk.moTa}</p>}
+                            <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5 mt-auto">
+                              <span>{dinhDangGioVN(sk.batDau)} – {dinhDangGioVN(sk.ketThuc)} • {ui.nhan}</span>
+                              <span className="font-bold text-amber-300">{demNguocSuKien(sk)}</span>
+                            </div>
+                            {phongLienKet && (
+                              <button onClick={() => vaoPhong(phongLienKet)}
+                                className="self-start px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-extrabold text-xs hover:bg-[#00e1ec] transition-all">
+                                Vào phòng sự kiện →
+                              </button>
+                            )}
                           </div>
-                          {sk.moTa && <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{sk.moTa}</p>}
-                          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5 mt-auto">
-                            <span>{dinhDangGioVN(sk.batDau)} – {dinhDangGioVN(sk.ketThuc)} • {ui.nhan}</span>
-                            <span className="font-bold text-amber-300">{demNguocSuKien(sk)}</span>
-                          </div>
-                          {phongLienKet && (
-                            <button onClick={() => vaoPhong(phongLienKet)}
-                              className="self-start px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-extrabold text-xs hover:bg-[#00e1ec] transition-all">
-                              Vào phòng sự kiện →
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ═══ DÀNH CHO BẠN — gợi ý deterministic từ dữ liệu thật ═══ */}
             {!auth.isGuest && deXuatChoBan.length > 0 && !campusSearch && (
@@ -2906,10 +2990,50 @@ function DigitalCampusApp() {
                 return matchSearch && matchCat;
               });
 
+              // Kiểm tra có kết quả nào ở các khu vực khác không
+              const matchCinema = !q || /xem|phim|cinema|video|rạp|rap/i.test(q);
+              const matchGame = !q || /caro|cờ|co|game|đấu|dau/i.test(q);
+              const matchMusic = !q || /nhạc|nhac|music|lofi|café|cafe|nghe/i.test(q);
+              const matchSocial = !q || /chat|trò chuyện|tro chuyen|sảnh|sanh|giao lưu|giao luu|cộng đồng|cong dong/i.test(q);
+              const showCinema = (categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && matchCinema;
+              const showGame = (categoryFilter === 'ALL' || categoryFilter === 'GAME') && matchGame;
+              const showMusic = (categoryFilter === 'ALL' || categoryFilter === 'LOFI') && matchMusic;
+              const showSocial = (categoryFilter === 'ALL' || categoryFilter === 'CHAT') && matchSocial;
+              const hasFlagship = showCinema || showGame || showMusic || showSocial;
+
+              const suKienLoc = skHomNay.filter(sk => {
+                if (!q) return true;
+                return (sk.tieuDe && sk.tieuDe.toLowerCase().includes(q)) || (sk.moTa && sk.moTa.toLowerCase().includes(q)) || (sk.loai && sk.loai.toLowerCase().includes(q));
+              });
+
+              const isSearchEmpty = q && !hasFlagship && suKienLoc.length === 0 && phongLoc.length === 0;
+
+              if (isSearchEmpty) {
+                return (
+                  <div className="bg-[#151A23] border border-dashed border-white/10 rounded-3xl p-8 sm:p-12 text-center shadow-lg my-4 animate-fadeIn">
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl mx-auto mb-3">
+                      🔍
+                    </div>
+                    <h3 className="text-base font-black text-white mb-1.5">Không tìm thấy kết quả phù hợp cho "{campusSearch}"</h3>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto mb-5 leading-relaxed">
+                      Không tìm thấy không gian, sự kiện hoặc phòng hoạt động nào khớp với từ khóa của bạn. Thử tìm kiếm "caro", "lofi", "xem phim" hoặc bấm nút bên dưới để xem toàn bộ Campus.
+                    </p>
+                    <button onClick={() => setCampusSearch('')}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-md hover:opacity-90 transition-all">
+                      ✕ Xóa tìm kiếm & xem tất cả
+                    </button>
+                  </div>
+                );
+              }
+
+              if (q && phongLoc.length === 0) {
+                return null;
+              }
+
               return (
                 <div className="flex flex-col gap-3">
                   <CampusSectionHeader
-                    title={q ? `Kết quả tìm kiếm cho "${campusSearch}"` : 'Phòng Do Học Sinh Tạo'}
+                    title={q ? `Phòng Hoạt Động Khớp Tìm Kiếm` : 'Phòng Do Học Sinh Tạo'}
                     subtitle={q ? `Tìm thấy ${phongLoc.length} phòng phù hợp` : 'Không gian mở tự do do học sinh các lớp khởi xướng'}
                     icon="👥"
                     badge="COMMUNITY"
@@ -2926,11 +3050,9 @@ function DigitalCampusApp() {
                     </p>
                   ) : phongLoc.length === 0 ? (
                     <div className="bg-[#151A23] border border-dashed border-white/10 rounded-2xl p-8 text-center shadow-sm">
-                      <p className="text-sm font-bold text-slate-300 mb-1.5">
-                        {q ? 'Không tìm thấy phòng nào phù hợp' : 'Chưa có phòng cộng đồng nào đang mở'}
-                      </p>
+                      <p className="text-sm font-bold text-slate-300 mb-1.5">Chưa có phòng cộng đồng nào đang mở</p>
                       <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">
-                        {q ? 'Thử tìm kiếm với từ khóa khác hoặc bấm "Xem tất cả phòng".' : 'Bấm nút "TẠO PHÒNG MỚI" ở cột trái để mở không gian đầu tiên và kết nối bạn bè các lớp!'}
+                        Bấm nút "TẠO PHÒNG MỚI" ở thanh công cụ để mở không gian đầu tiên và kết nối bạn bè các lớp!
                       </p>
                       {!auth.isGuest && (
                         <button onClick={() => { setTpLoi(''); setShowTaoPhong(true); }}
@@ -2952,17 +3074,23 @@ function DigitalCampusApp() {
           </main>
 
           {/* ─── RIGHT RAIL: tiện ích campus — Chat toàn trường / Nhạc / Sự kiện ─── */}
-          <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
+          <aside id="campus-right-rail" className="flex flex-col gap-4 w-full lg:col-start-2 lg:col-span-1 xl:col-start-3 xl:col-span-1 xl:sticky xl:top-[56px] xl:self-start">
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[420px]">
               {/* Header trạng thái */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className={`w-2.5 h-2.5 rounded-full ${dangHoatDong > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
                   <span className="text-xs font-black text-white uppercase tracking-wider">Tiện Ích Campus</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-[#00F2FE] font-bold border border-cyan-500/20">
-                  {dangHoatDong} ONLINE
-                </span>
+                {dangHoatDong > 0 ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-[#00F2FE] font-bold border border-cyan-500/20">
+                    {dangHoatDong} ĐANG HOẠT ĐỘNG
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-400 font-medium border border-white/10">
+                    Campus yên tĩnh
+                  </span>
+                )}
               </div>
 
               {/* Tab rail — WAI-ARIA tabs đầy đủ: tablist/tab/tabpanel + phím ←/→ */}

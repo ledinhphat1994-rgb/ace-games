@@ -6,7 +6,7 @@ const url = process.argv[2] || 'http://127.0.0.1:8788';
 const outDir = path.resolve(process.cwd(), 'qa');
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-const artifactDir = 'C:\\Users\\lepha\\.gemini\\antigravity-ide\\brain\\1e1daa78-3e35-4321-815c-17803a413ced';
+const artifactDir = process.env.CAMPUS_ARTIFACT_DIR || null;
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext();
@@ -23,6 +23,8 @@ await page.waitForTimeout(2000);
 const viewports = [
   { name: 'phase3a_campus_1920', width: 1920, height: 1080 },
   { name: 'phase3a_campus_1440', width: 1440, height: 900 },
+  { name: 'phase3a_campus_1024', width: 1024, height: 768 },
+  { name: 'phase3a_campus_768', width: 768, height: 1024 },
   { name: 'phase3a_campus_390', width: 390, height: 844 },
 ];
 
@@ -33,7 +35,7 @@ for (const vp of viewports) {
   await page.screenshot({ path: localPath, fullPage: false });
   console.log(`Saved screenshot: ${localPath}`);
 
-  if (fs.existsSync(artifactDir)) {
+  if (artifactDir && fs.existsSync(artifactDir)) {
     const artPath = path.join(artifactDir, `${vp.name}.png`);
     fs.copyFileSync(localPath, artPath);
     console.log(`Copied to artifact dir: ${artPath}`);

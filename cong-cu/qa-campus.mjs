@@ -124,17 +124,60 @@ try {
   ok('Flagship Social Space hiển thị',
     (await page.locator('text=Trò Chuyện & Kết Nối').count() > 0) || (await page.locator('text=Sảnh Trò Chuyện').count() > 0));
 
-  // ── 2.2 Phase 3A: Client-Side Campus Search ───────────────────────────────
-  console.log('\n== 2.2 Phase 3A: Campus Local Search Affordance ==');
+  // ── 2.2 Phase 3A.1: Campus Search Hardening & Exclusivity ─────────────────
+  console.log('\n== 2.2 Phase 3A.1: Campus Local Search Exclusivity ==');
   const searchInput = page.locator('#campus-search-input');
   ok('Campus search input hiển thị (#campus-search-input)', await searchInput.count() > 0);
   if (await searchInput.count()) {
+    // 1. Tìm kiếm "Caro" -> Chỉ hiện Caro/Game, Cinema và Music không được hiện
     await searchInput.fill('Caro');
     await page.waitForTimeout(300);
-    ok('Tìm kiếm "Caro" lọc được kết quả đấu trường', (await page.locator('text=Cờ Caro').count() > 0) || (await page.locator('text=Game Arena').count() > 0));
-    await searchInput.fill('');
-    await page.waitForTimeout(200);
+    const hasCaro = (await page.locator('text=Cờ Caro').count() > 0) || (await page.locator('text=Game Arena').count() > 0);
+    ok('Tìm kiếm "Caro" hiển thị kết quả Cờ Caro / Game', hasCaro);
+
+    const flagshipSpaces = page.locator('#campus-flagship-spaces');
+    const cinemaCount = await flagshipSpaces.locator('text=Rạp Chiếu & Xem Chung').count();
+    const musicCount = await flagshipSpaces.locator('text=Lofi Study Café').count();
+    const socialCount = await flagshipSpaces.locator('text=Sảnh Trò Chuyện Toàn Trường').count();
+    ok('Tìm kiếm "Caro" KHÔNG hiển thị Rạp Chiếu Cinema', cinemaCount === 0, `cinemaCount=${cinemaCount}`);
+    ok('Tìm kiếm "Caro" KHÔNG hiển thị Lofi Music', musicCount === 0, `musicCount=${musicCount}`);
+    ok('Tìm kiếm "Caro" KHÔNG hiển thị Sảnh Trò Chuyện Social', socialCount === 0, `socialCount=${socialCount}`);
+
+    // 2. Tìm kiếm "nhạc" -> Hiện Lofi Music, không hiện Caro
+    await searchInput.fill('nhạc');
+    await page.waitForTimeout(300);
+    const hasMusic = (await flagshipSpaces.locator('text=Lofi Study Café').count() > 0);
+    const caroWhenMusic = await flagshipSpaces.locator('text=Đấu Trường Cờ Caro').count();
+    ok('Tìm kiếm "nhạc" hiển thị Lofi Study Café', hasMusic);
+    ok('Tìm kiếm "nhạc" KHÔNG hiển thị Đấu Trường Cờ Caro', caroWhenMusic === 0, `caroCount=${caroWhenMusic}`);
+
+    // 3. Tìm kiếm từ khóa không tồn tại -> Hiển thị Empty State thống nhất
+    await searchInput.fill('xyznonexistentterm123');
+    await page.waitForTimeout(300);
+    const emptyStateVisible = await page.locator('text=Không tìm thấy kết quả phù hợp').count() > 0;
+    ok('Tìm kiếm từ khóa không tồn tại hiển thị Empty State chuẩn', emptyStateVisible);
+
+    // Reset lại ô tìm kiếm
+    const btnClearSearch = page.locator('button:has-text("Xóa tìm kiếm")').first();
+    if (await btnClearSearch.count()) {
+      await btnClearSearch.click();
+    } else {
+      await searchInput.fill('');
+    }
+    await page.waitForTimeout(300);
   }
+
+  // ── 2.3 Phase 3A.1: Semantic Correctness & Copy Claims ────────────────────
+  console.log('\n== 2.3 Phase 3A.1: Semantic Correctness & Copy Claims ==');
+  const bodyText = await page.textContent('body');
+  ok('Hero brand là trường rộng ("GDTX Định Quán" / "Toàn Trường")',
+    /Digital Campus · GDTX Định Quán/i.test(bodyText) || /Digital Campus Toàn Trường/i.test(bodyText));
+  ok('Hero KHÔNG dùng brand lai "Digital Campus 10A7 & Toàn Trường"',
+    !/Digital Campus 10A7 & Toàn Trường/i.test(bodyText));
+  ok('Cinema card KHÔNG quảng cáo unverified "đồng bộ 1080p"',
+    !/đồng bộ 1080p/i.test(bodyText));
+  ok('Right rail KHÔNG dùng wording gây hiểu lầm "0 ONLINE"',
+    !/0 ONLINE/i.test(bodyText));
 
   // ── 3. Guest Caro CTA Boundary ─────────────────────────────────────────────
   console.log('\n== 3. Guest Caro CTA Boundary ==');
@@ -182,7 +225,7 @@ try {
   }
 
   // ── 5. Responsive Matrix (1920px, 1440px, 1280px, 1024px, 768px, 390px) ───
-  console.log('\n== 5. Responsive Breakpoint Matrix (6 Viewports) ==');
+  console.log('\n== 5. Responsive Breakpoint Matrix (Real Layout & Bounding Boxes) ==');
   const viewports = [
     { name: 'Ultra-wide Desktop (1920px)', width: 1920, height: 1080 },
     { name: 'Large Desktop (1440px)', width: 1440, height: 900 },
@@ -194,7 +237,7 @@ try {
 
   for (const vp of viewports) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
 
     const hasHorizontalOverflow = await page.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth + 2;
@@ -204,8 +247,57 @@ try {
     const heroRendered = await page.locator('#campus-lobby').isVisible();
     ok(`${vp.name}: Campus Hero hiển thị`, heroRendered);
 
-    const navUsable = (await page.locator('#railtab-phong, #railtab-su-kien, nav, header').first().count()) > 0;
-    ok(`${vp.name}: Điều hướng Campus khả dụng`, navUsable);
+    const leftNav = page.locator('#campus-left-nav');
+    const mainContent = page.locator('main').first();
+    const rightRail = page.locator('#campus-right-rail');
+
+    if (vp.width >= 1280) {
+      // >= 1280px: 3 cột nằm ngang Left < Main < Right
+      const leftBox = await leftNav.boundingBox();
+      const mainBox = await mainContent.boundingBox();
+      const rightBox = await rightRail.boundingBox();
+      if (leftBox && mainBox && rightBox) {
+        ok(`${vp.name}: Bố cục 3 cột nằm ngang chuẩn (Left < Main < Right)`,
+          leftBox.x < mainBox.x && mainBox.x < rightBox.x,
+          `leftX=${Math.round(leftBox.x)}, mainX=${Math.round(mainBox.x)}, rightX=${Math.round(rightBox.x)}`
+        );
+      }
+    } else if (vp.width >= 1024) {
+      // 1024px: left nav ở cột 1, main ở cột 2. Right rail nằm dưới main ở cột 2 (rightX >= mainX), KHÔNG lọt dưới sidebar cột 1!
+      const leftBox = await leftNav.boundingBox();
+      const mainBox = await mainContent.boundingBox();
+      const rightBox = await rightRail.boundingBox();
+      if (leftBox && mainBox && rightBox) {
+        ok(`${vp.name}: Right rail nằm dưới main content (rightX >= mainX), không rơi vào cột sidebar 220px`,
+          rightBox.x >= mainBox.x - 10,
+          `leftX=${Math.round(leftBox.x)}, mainX=${Math.round(mainBox.x)}, rightX=${Math.round(rightBox.x)}`
+        );
+        ok(`${vp.name}: Right rail rộng tương đương main (không bị bóp méo)`,
+          rightBox.width >= 400,
+          `rightWidth=${Math.round(rightBox.width)}`
+        );
+      }
+    } else {
+      // < 1024px (768px, 390px):
+      // 1. Desktop sidebar phải ẩn
+      const isLeftNavHidden = await leftNav.evaluate(el => window.getComputedStyle(el).display === 'none');
+      ok(`${vp.name}: Desktop sidebar được ẩn gọn trên mobile/tablet`, isLeftNavHidden);
+
+      // 2. Mobile navigation strip phải hiển thị
+      const mobileNav = page.locator('#campus-mobile-nav');
+      const isMobileNavVisible = await mobileNav.isVisible();
+      ok(`${vp.name}: Mobile quick-nav hiển thị khả dụng`, isMobileNavVisible);
+
+      // 3. Hero stage phải ở vị trí dễ tiếp cận ngay trên màn hình (không bị sidebar đẩy xuống)
+      const heroStage = page.locator('#campus-hero-stage');
+      const heroBox = await heroStage.boundingBox();
+      if (heroBox) {
+        ok(`${vp.name}: Hero ở vị trí ưu tiên gần đỉnh trang (y < 280px)`,
+          heroBox.y < 280,
+          `heroY=${Math.round(heroBox.y)}`
+        );
+      }
+    }
   }
 
   // ── 6. Console Errors & Unexpected 401s ─────────────────────────────────────
