@@ -261,6 +261,7 @@ function DigitalCampusApp() {
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   // 6. Danmaku State
   const [danmakuBullets, setDanmakuBullets] = useState([]);
@@ -561,9 +562,16 @@ function DigitalCampusApp() {
     return () => clearInterval(t);
   }, [auth.isGuest, fetchChat]);
 
-  // Scroll chat to bottom on new messages
+  // Scroll chat to bottom ONLY when user is already near the bottom of the chat container
+  // Never hijack page scroll — scroll only inside the chat box itself
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 80;
+    if (isNearBottom) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
   }, [chatMessages]);
 
   // ─── HASH ROUTING SYNC & SMOOTH SCROLLING ────────────────────────────────
@@ -576,7 +584,7 @@ function DigitalCampusApp() {
       else if (subTab === 'thu-quy') setActiveChannel('💰 Quỹ Lớp Minh Bạch');
       else setActiveChannel('# Bảng tin chung');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Intentionally no page scroll — user controls the page position
 
     let desired = '';
     if (tabId === 'campus') desired = '#/campus';
@@ -1166,7 +1174,7 @@ function DigitalCampusApp() {
                 <span className="text-xs font-bold text-white">Chat Trực Tiếp Lớp 10A7</span>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72">
                 {chatMessages.map((m, idx) => (
                   <div key={m.id || idx} className="text-xs">
                     <div className="flex items-center justify-between mb-1">
