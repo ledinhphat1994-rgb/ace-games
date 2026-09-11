@@ -12,10 +12,10 @@
   <link rel="icon" href="assets/img/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
 
-  <!-- Google Fonts: Plus Jakarta Sans -->
+  <!-- Google Fonts: Be Vietnam Pro — chuyên nghiệp, hỗ trợ tiếng Việt đầy đủ -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
 
   <!-- Core SaaS Class Design System Tokens & Custom Styles -->
   <link rel="stylesheet" href="assets/css/style.css">
@@ -27,7 +27,7 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          fontFamily: { sans: ['"Be Vietnam Pro"', 'sans-serif'] },
           colors: {
             obsidian: '#0B0E14',
             surface: '#151A23',
@@ -53,7 +53,7 @@
     body {
       background-color: #0B0E14;
       color: #f1f5f9;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Be Vietnam Pro', sans-serif;
       margin: 0;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
@@ -1724,7 +1724,6 @@ function DigitalCampusApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white group-hover:text-[#00F2FE] transition-colors">Tùy biến Avatar & Ảnh đại diện</p>
-                <p className="text-[10px] text-slate-300">Chọn 8 phong cách avatar phong phú hoặc tải ảnh</p>
               </div>
               <span className="text-xs text-slate-400">›</span>
             </button>
@@ -1737,7 +1736,6 @@ function DigitalCampusApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Chuyên cần & Điểm danh của em</p>
-                <p className="text-[10px] text-slate-300">Xem thống kê hiện diện, phép vắng cá nhân</p>
               </div>
               <span className="text-xs text-slate-400">›</span>
             </button>
@@ -1750,7 +1748,6 @@ function DigitalCampusApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white group-hover:text-[#FFB800] transition-colors">Quỹ lớp 10A7 & Khoản đóng</p>
-                <p className="text-[10px] text-slate-300">Minh bạch thu - chi, theo dõi tiền quỹ của em</p>
               </div>
               <span className="text-xs text-slate-400">›</span>
             </button>
@@ -1763,7 +1760,6 @@ function DigitalCampusApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white group-hover:text-purple-400 transition-colors">Thông báo & Lời dặn GVCN</p>
-                <p className="text-[10px] text-slate-300">Kế hoạch tuần, ôn tập và sự kiện lớp</p>
               </div>
               <span className="text-xs text-slate-400">›</span>
             </button>
@@ -1776,7 +1772,6 @@ function DigitalCampusApp() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">Sổ tay nội quy & Văn hóa 10A7</p>
-                <p className="text-[10px] text-slate-300">5 quy tắc vàng học tập & sinh hoạt văn minh</p>
               </div>
               <span className="text-xs text-slate-400">›</span>
             </button>
@@ -1794,23 +1789,29 @@ function DigitalCampusApp() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-cyan-300">Chấm điểm danh sĩ số lớp</p>
-                    <p className="text-[10px] text-slate-300">Ghi nhận có mặt, phép vắng hôm nay</p>
                   </div>
                 </button>
               </div>
             )}
 
-            {/* Mục GVCN (CHỈ HIỆN KHI LÀ GIÁO VIÊN) */}
+            {/* Chế độ Giáo viên (CHỈ HIỆN KHI LÀ GVCN): Chỉnh sửa → bàn làm việc / Xem trước → như học sinh */}
             {auth.user?.isTeacher && (
-              <div className="pt-2 border-t border-white/10 space-y-1.5">
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider px-2.5 mb-1">
-                  QUYỀN HẠN GIÁO VIÊN CHỦ NHIỆM
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider px-2.5 mb-1.5">
+                  CHẾ ĐỘ GIÁO VIÊN
                 </p>
-                <a href="/giao-vien/"
-                  className="w-full flex items-center gap-2.5 p-2 rounded-2xl bg-[#181F2C] hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 text-xs font-bold transition-all shadow-sm">
-                  <span>⚙️</span>
-                  <span>Đến Bàn Làm Việc GVCN →</span>
-                </a>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <a href="/giao-vien/"
+                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-200 text-xs font-bold hover:bg-purple-500/30 transition-all shadow-sm">
+                    <span>✏️</span>
+                    <span>Chỉnh sửa</span>
+                  </a>
+                  <button onClick={() => setShowUserMenu(false)}
+                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#0B0E14] border border-white/10 text-slate-300 text-xs font-bold hover:border-[#00F2FE]/40 hover:text-white transition-all shadow-sm">
+                    <span>👁️</span>
+                    <span>Xem trước</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2019,7 +2020,6 @@ function DigitalCampusApp() {
                 <h2 className="text-base font-extrabold text-white">Lobby Hoạt Động Campus</h2>
                 <span className="text-[#00F2FE] text-xs">✦</span>
               </div>
-              <p className="text-xs text-slate-400">Khám phá các phòng học tập, rạp chiếu và hoạt động tập thể toàn trường</p>
             </div>
 
             {/* Room Cards — dữ liệu THẬT: bàn cờ từ /api/game, video mới nhất & nhạc nền từ /api/lop */}
@@ -2047,7 +2047,7 @@ function DigitalCampusApp() {
                       <p className="text-[11px] text-slate-400 mb-4">
                         {videoMoiNhat
                           ? `Đăng ${thoiGianTruoc(videoMoiNhat.taoLuc || videoMoiNhat.ngay)} • ${videoMoiNhat.luotXem || 0} lượt xem`
-                          : 'Khi GVCN đăng video bài giảng/hoạt động, phòng này sẽ phát video mới nhất.'}
+                          : 'Chưa có video nào được đăng.'}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
@@ -2095,11 +2095,7 @@ function DigitalCampusApp() {
                             : 'Chưa có bàn nào — mở bàn đầu tiên và thách đấu cả lớp!'}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span>Đấu thật qua máy chủ</span>
-                      </span>
+                    <div className="flex items-center justify-end pt-2 border-t border-white/5">
                       <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); setCurrentView('ROOM_ACTIVE'); taiDanhSachBanCaro(); }}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
                         Vào đấu trường
@@ -2132,7 +2128,7 @@ function DigitalCampusApp() {
                       <p className="text-[11px] text-slate-400 mb-4">
                         {classData.nhacNen?.tenBai
                           ? `Đang phát: ${classData.nhacNen.tenBai}`
-                          : 'Nhạc nền do GVCN chọn từ thư viện lớp — bật lên để tập trung tự học.'}
+                          : 'Chưa có nhạc nền.'}
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
@@ -2165,7 +2161,6 @@ function DigitalCampusApp() {
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-extrabold text-white">Phòng Do Học Sinh Tạo</h3>
                     <span className="text-[#00F2FE] text-xs">✦</span>
-                    <span className="text-[10px] text-slate-500">— mọi lớp đều có thể vào phòng 🌐 Toàn trường</span>
                   </div>
                   {dsPhong === null ? (
                     <p className="text-xs text-slate-500 py-4 text-center">
@@ -2318,8 +2313,7 @@ function DigitalCampusApp() {
                           <Ic name="tv" className="w-8 h-8 text-[#00F2FE]" />
                         </div>
                         <h4 className="text-base font-bold text-white mb-1">Rạp Chiếu Video Bài Học Lớp</h4>
-                        <p className="text-xs text-slate-400 max-w-md mx-auto mb-2">Chưa có video nào được đăng — khi GVCN đăng video lên Bảng Tin, nó sẽ phát tại đây.</p>
-                        <p className="text-[10px] text-slate-500">Bạn vẫn có thể bắn Danmaku bên dưới cho vui!</p>
+                        <p className="text-xs text-slate-400 max-w-md mx-auto mb-2">Chưa có video nào được đăng.</p>
                       </div>
                     </div>
                   )}
@@ -2450,8 +2444,7 @@ function DigitalCampusApp() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#00F2FE] flex items-center justify-center text-black mb-4">
                 <Ic name="phones" className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-extrabold text-white mb-2">Lofi Study Cafe Campus</h3>
-              <p className="text-xs text-slate-400 max-w-md mb-6">Không gian tập trung tự học toàn trường. Bật nhạc nền để nâng cao năng suất!</p>
+              <h3 className="text-lg font-extrabold text-white mb-6">Lofi Study Cafe Campus</h3>
               <button onClick={toggleRadio}
                 className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black">
                 <Ic name={radioPlaying ? 'pause' : 'play'} className="w-4 h-4" />
@@ -2665,7 +2658,7 @@ function DigitalCampusApp() {
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold text-white">Lofi Study Room</h4>
-                  <p className="text-[10px] text-slate-400 truncate">{radioPlaying ? `Đang phát: ${radioTitle}` : (classData.nhacNen?.tenBai || 'Nhấn vào để mở phòng nhạc')}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{radioPlaying ? `Đang phát: ${radioTitle}` : (classData.nhacNen?.tenBai || 'Chưa có nhạc nền')}</p>
                 </div>
               </div>
               <div className="flex items-end gap-0.5 h-4">
@@ -2800,7 +2793,6 @@ function DigitalCampusApp() {
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
                   <div>
                     <h3 className="text-base font-extrabold text-white">Sổ Điểm Danh & Chuyên Cần Lớp 10A7</h3>
-                    <p className="text-xs text-slate-400">Theo dõi sĩ số, vắng có phép, không phép và chuyên cần từng em</p>
                   </div>
                   <div id="ddTabLoai" className="flex items-center gap-1 bg-[#0B0E14] p-1 rounded-xl border border-white/10">
                     <button onClick={() => setDdTabSub('ngay')}
@@ -2966,7 +2958,7 @@ function DigitalCampusApp() {
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
                   <div>
                     <h3 className="text-base font-extrabold text-white">Thủ Quỹ Lớp 10A7</h3>
-                    <p className="text-xs text-slate-400">Công khai minh bạch toàn bộ các khoản thu - chi của lớp</p>
+
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={xuatSoQuyCSV}
@@ -3086,8 +3078,7 @@ function DigitalCampusApp() {
                 if (top3.length === 0) {
                   return (
                     <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-3 text-xs text-slate-400 text-center">
-                      <p className="mb-1">Chưa có dữ liệu xếp hạng tuần này.</p>
-                      <p className="text-[10px] text-slate-500">Tích cực chat, điểm danh & thắng cờ để lên bảng vàng!</p>
+                      <p>Chưa có dữ liệu xếp hạng tuần này.</p>
                     </div>
                   );
                 }
@@ -3110,15 +3101,10 @@ function DigitalCampusApp() {
 
             {/* Trực tuyến — số người online THẬT từ SSE presence (phiên đăng nhập đang sống) */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
-              <div className="flex items-center gap-2 text-xs font-bold text-white mb-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-white">
                 <Ic name="users" className="w-4 h-4 text-[#00F2FE]" />
                 <span>Trực tuyến ({onlineCount !== null ? onlineCount : '—'})</span>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                {onlineCount !== null
-                  ? `${onlineCount} tài khoản đang có phiên hoạt động trên hệ thống của lớp.`
-                  : 'Đang kết nối để đếm số thành viên trực tuyến…'}
-              </p>
               {gamification.streaks?.[0] && (
                 <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
                   <span className="text-slate-400">Chuỗi hoạt động của bạn</span>
