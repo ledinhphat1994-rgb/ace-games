@@ -108,8 +108,8 @@ try {
   ok('Có brand Digital Campus', /Digital Campus/i.test(await page.textContent('body')));
   ok('KHÔNG rò nội dung lớp vào Campus Hero',
     !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textCampus));
-  ok('Hero hiển thị chỉ số hoạt động Campus',
-    /hoạt động trên Campus/i.test(textCampus) || /đang hoạt động/i.test(textCampus) || /Campus đang yên tĩnh/i.test(textCampus) || /Campus sẵn sàng kết nối/i.test(textCampus));
+  ok('Hero hiển thị chỉ số hoạt động Campus đúng ngữ cảnh (online khi >0, không bịa placeholder)',
+    dCampus.dangHoatDong > 0 ? /online/i.test(textCampus) : !/Campus sẵn sàng kết nối/i.test(textCampus));
 
   // ── 2.1 Campus Simplification: X / 1 / 2 Assertions ─────────────────────────
   console.log('\n== 2.1 Campus Simplification: X / 1 / 2 Assertions ==');
@@ -132,11 +132,11 @@ try {
       ok('Bấm Cinema mở danh sách phòng (#room-nav-list-CINEMA)', await page.locator('#room-nav-list-CINEMA').count() > 0);
 
       // Decoupling assertion: clicking Cinema does NOT alter central categoryFilter (remains ALL)
-      const chipAll = page.locator('button:has-text("✨ Tất cả")');
+      const chipAll = page.locator('button:has-text("Tất cả")').first();
       const isAllActive = await chipAll.evaluate(el => el.className.includes('text-[#00F2FE]'));
       ok('Click Cinema navigator KHÔNG đổi categoryFilter trung tâm (Tất cả vẫn active)', isAllActive);
-      const gameArenaStillVisible = (await page.locator('text=Game Arena').count() > 0) || (await page.locator('text=Cờ Caro').count() > 0);
-      ok('Trung tâm vẫn giữ đầy đủ các điểm hẹn khác (Game Arena vẫn hiển thị)', gameArenaStillVisible);
+      const gameArenaStillVisible = (await page.locator('#campus-flagship-spaces').locator('text=Game').count() > 0);
+      ok('Trung tâm vẫn giữ đầy đủ các điểm hẹn khác (Game vẫn hiển thị)', gameArenaStillVisible);
     }
 
     // 2. Click Music / Lofi category
@@ -197,13 +197,10 @@ try {
     }
   }
 
-  ok('Flagship Cinema Space hiển thị ("Xem Chung")', await page.locator('text=Xem Chung').count() > 0);
-  ok('Flagship Game Arena Space hiển thị ("Game Arena" / "Cờ Caro")',
-    (await page.locator('text=Game Arena').count() > 0) || (await page.locator('text=Cờ Caro').count() > 0));
-  ok('Flagship Music & Focus Space hiển thị',
-    (await page.locator('text=Music & Focus').count() > 0) || (await page.locator('text=Lofi Study').count() > 0));
-  ok('Flagship Social Space hiển thị',
-    (await page.locator('text=Trò Chuyện & Kết Nối').count() > 0) || (await page.locator('text=Sảnh Trò Chuyện').count() > 0));
+  ok('Flagship Cinema Space hiển thị ("Xem chung")', await page.locator('#campus-flagship-spaces').locator('text=Xem chung').count() > 0);
+  ok('Flagship Game Space hiển thị ("Game")', await page.locator('#campus-flagship-spaces').locator('text=Game').count() > 0);
+  ok('Flagship Music Space hiển thị ("Music")', await page.locator('#campus-flagship-spaces').locator('text=Music').count() > 0);
+  ok('Flagship Social Space hiển thị ("Chat")', await page.locator('#campus-flagship-spaces').locator('text=Chat').count() > 0);
 
   // ── 2.2 Phase 3A.1: Campus Search Hardening & Exclusivity ─────────────────
   console.log('\n== 2.2 Phase 3A.1: Campus Local Search Exclusivity ==');
@@ -213,24 +210,24 @@ try {
     // 1. Tìm kiếm "Caro" -> Chỉ hiện Caro/Game, Cinema và Music không được hiện
     await searchInput.fill('Caro');
     await page.waitForTimeout(300);
-    const hasCaro = (await page.locator('text=Cờ Caro').count() > 0) || (await page.locator('text=Game Arena').count() > 0);
-    ok('Tìm kiếm "Caro" hiển thị kết quả Cờ Caro / Game', hasCaro);
+    const hasCaro = (await page.locator('#campus-flagship-spaces').locator('text=Game').count() > 0);
+    ok('Tìm kiếm "Caro" hiển thị kết quả Game', hasCaro);
 
     const flagshipSpaces = page.locator('#campus-flagship-spaces');
-    const cinemaCount = await flagshipSpaces.locator('text=Rạp Chiếu & Xem Chung').count();
-    const musicCount = await flagshipSpaces.locator('text=Lofi Study Café').count();
-    const socialCount = await flagshipSpaces.locator('text=Sảnh Trò Chuyện Toàn Trường').count();
+    const cinemaCount = await flagshipSpaces.locator('text=Xem chung').count();
+    const musicCount = await flagshipSpaces.locator('text=Music').count();
+    const socialCount = await flagshipSpaces.locator('text=Chat').count();
     ok('Tìm kiếm "Caro" KHÔNG hiển thị Rạp Chiếu Cinema', cinemaCount === 0, `cinemaCount=${cinemaCount}`);
     ok('Tìm kiếm "Caro" KHÔNG hiển thị Lofi Music', musicCount === 0, `musicCount=${musicCount}`);
     ok('Tìm kiếm "Caro" KHÔNG hiển thị Sảnh Trò Chuyện Social', socialCount === 0, `socialCount=${socialCount}`);
 
-    // 2. Tìm kiếm "nhạc" -> Hiện Lofi Music, không hiện Caro
+    // 2. Tìm kiếm "nhạc" -> Hiện Music, không hiện Caro/Game
     await searchInput.fill('nhạc');
     await page.waitForTimeout(300);
-    const hasMusic = (await flagshipSpaces.locator('text=Lofi Study Café').count() > 0);
-    const caroWhenMusic = await flagshipSpaces.locator('text=Đấu Trường Cờ Caro').count();
-    ok('Tìm kiếm "nhạc" hiển thị Lofi Study Café', hasMusic);
-    ok('Tìm kiếm "nhạc" KHÔNG hiển thị Đấu Trường Cờ Caro', caroWhenMusic === 0, `caroCount=${caroWhenMusic}`);
+    const hasMusic = (await flagshipSpaces.locator('text=Music').count() > 0);
+    const caroWhenMusic = await flagshipSpaces.locator('text=Game').count();
+    ok('Tìm kiếm "nhạc" hiển thị Music', hasMusic);
+    ok('Tìm kiếm "nhạc" KHÔNG hiển thị Game', caroWhenMusic === 0, `caroCount=${caroWhenMusic}`);
 
     // 3. Tìm kiếm từ khóa không tồn tại -> Hiển thị Empty State thống nhất
     await searchInput.fill('xyznonexistentterm123');
@@ -252,13 +249,65 @@ try {
   console.log('\n== 2.3 Phase 3A.1: Semantic Correctness & Copy Claims ==');
   const bodyText = await page.textContent('body');
   ok('Hero brand là trường rộng ("GDTX Định Quán" / "Toàn Trường")',
-    /Digital Campus · GDTX Định Quán/i.test(bodyText) || /Digital Campus Toàn Trường/i.test(bodyText));
+    /Digital Campus\s*[·•]\s*GDTX Định Quán/i.test(bodyText) || /Digital Campus Toàn Trường/i.test(bodyText));
   ok('Hero KHÔNG dùng brand lai "Digital Campus 10A7 & Toàn Trường"',
     !/Digital Campus 10A7 & Toàn Trường/i.test(bodyText));
   ok('Cinema card KHÔNG quảng cáo unverified "đồng bộ 1080p"',
     !/đồng bộ 1080p/i.test(bodyText));
   ok('Right rail KHÔNG dùng wording gây hiểu lầm "0 ONLINE"',
     !/0 ONLINE/i.test(bodyText));
+
+  // ── 2.4 UI Density Simplification & Professional Polish Assertions ─────────
+  console.log('\n== 2.4 UI Density Simplification & Professional Polish Assertions ==');
+  const heroStageEl = page.locator('#campus-hero-stage');
+  const heroStageText = await heroStageEl.innerText().catch(() => '');
+  ok('1. Hero không chứa đoạn văn giải thích dài dòng',
+    !/không gian số dành cho học sinh|nơi kết nối|học sinh toàn trường 24\/7/i.test(heroStageText) && (await heroStageEl.locator('p').count() === 0 || heroStageText.length < 150)
+  );
+  ok('2. Section title trung tâm là "Khám phá"',
+    await page.locator('#campus-flagship-spaces h2:has-text("Khám phá")').count() > 0
+  );
+  ok('3. "DESTINATIONS" badge hoàn toàn vắng mặt',
+    await page.locator('text=DESTINATIONS').count() === 0
+  );
+  const flagshipText = await page.locator('#campus-flagship-spaces').innerText().catch(() => '');
+  ok('4. 4 Card trung tâm dùng canonical taxonomy: Xem chung, Game, Music, Chat',
+    /Xem chung/i.test(flagshipText) && /\bGame\b/i.test(flagshipText) && /\bMusic\b/i.test(flagshipText) && /\bChat\b/i.test(flagshipText)
+  );
+  const gameCardH3 = await page.locator('#campus-flagship-spaces h3').allInnerTexts().catch(() => []);
+  ok('5. Card Game chính có tiêu đề strictly "Game" (không phải "Caro 15x15")',
+    gameCardH3.some(t => t.trim() === 'Game') && !gameCardH3.some(t => /Caro 15x15/i.test(t))
+  );
+  const leftNavGameText = await page.locator('#room-nav-list-GAME').innerText().catch(() => '');
+  ok('6. Game trong Left Nav mở trải nghiệm con chứa "Caro 15×15"',
+    /Caro 15[×x]15/i.test(leftNavGameText)
+  );
+  const catNavCinema = await page.locator('#cat-nav-CINEMA').innerText().catch(() => '');
+  const catNavGame = await page.locator('#cat-nav-GAME').innerText().catch(() => '');
+  const catNavLofi = await page.locator('#cat-nav-LOFI').innerText().catch(() => '');
+  const catNavChat = await page.locator('#cat-nav-CHAT').innerText().catch(() => '');
+  ok('7. Sidebar visible category labels là dạng ngắn gọn',
+    /Xem chung/i.test(catNavCinema) && /Game/i.test(catNavGame) && /Music/i.test(catNavLofi) && /Chat/i.test(catNavChat)
+  );
+  const allNavText = await page.locator('#campus-room-navigator').innerText().catch(() => '');
+  ok('8. Không có nhãn gạch chéo (/ Cờ Caro, / Music, / Trò Chuyện)',
+    !/Game \/|Lofi \/|Chat \/|Xem Chung \//i.test(allNavText)
+  );
+  ok('9. Không còn đoạn văn giải thích dài dòng trong các Card điểm hẹn',
+    !/Không gian xem video chung|Đấu trí 1v1|Tập trung học tập|Kênh thảo luận công khai/i.test(flagshipText)
+  );
+  ok('10. Live metrics dạng compact dot (● {metric}) hoặc ẩn khi rỗng',
+    !/Sẵn sàng kết nối|Sẵn sàng thách đấu|Sẵn sàng phát nhạc/i.test(flagshipText)
+  );
+  ok('11. Không hiển thị metric 0 giả tạo để lấp chỗ trống',
+    !/● 0 đang|● 0 bàn|● 0 online/i.test(flagshipText)
+  );
+  ok('12. Left Nav Game có nút "⚡ Quick Match"',
+    await page.locator('#room-nav-list-GAME button:has-text("Quick Match")').count() > 0
+  );
+  ok('13. Game Arena Quick Match button có aria-label chuẩn',
+    await page.locator('#room-nav-list-GAME button[aria-label="Quick Match Caro 15x15"]').count() > 0
+  );
 
   // ── 3. Guest Caro CTA Boundary ─────────────────────────────────────────────
   console.log('\n== 3. Guest Caro CTA Boundary ==');
@@ -282,8 +331,8 @@ try {
 
   // ── 4. Mood Chips & Rail Tabs ──────────────────────────────────────────────
   console.log('\n== 4. Campus Features & WAI-ARIA Tabs ==');
-  const chipChat = page.locator('button:has-text("💬 Trò chuyện")');
-  ok('Mood chip "💬 Trò chuyện" hiển thị', await chipChat.count() > 0);
+  const chipChat = page.locator('button:has-text("Chat")').first();
+  ok('Filter chip "Chat" hiển thị', await chipChat.count() > 0);
   if (await chipChat.count()) {
     await chipChat.click();
     await page.waitForTimeout(300);
@@ -382,7 +431,7 @@ try {
       // 4. Khi ở 390px (mobile): Bấm pill category mở drawer #campus-mobile-room-sheet
       if (vp.width === 390) {
         // Đảm bảo filter trung tâm đang là "Tất cả" trước khi kiểm tra decoupling
-        const chipAllMob = page.locator('button:has-text("✨ Tất cả")').first();
+        const chipAllMob = page.locator('button:has-text("Tất cả")').first();
         if (await chipAllMob.count()) {
           await chipAllMob.click();
           await page.waitForTimeout(250);
