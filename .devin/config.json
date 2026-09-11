@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(**)",
+      "Exec(npm)",
+      "Exec(npx)",
+      "Exec(node)",
+      "Exec(git)",
+      "Exec(wrangler)",
+      "Exec(npx wrangler pages dev)",
+      "Exec(npx wrangler d1 execute * --local)",
+      "Exec(rg)",
+      "Exec(Get-Content)",
+      "Exec(Select-String)",
+      "Exec(Get-ChildItem)",
+      "Fetch(http://localhost:8788/*)",
+      "Fetch(https://gdtxdinhquan.pages.dev/*)"
+    ],
+    "deny": [
+      "Read(**/.dev.vars)",
+      "Write(**/.dev.vars)",
+      "Exec(wrangler d1 execute * --remote)",
+      "Exec(git push --force)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "edit",
+        "hooks": [
+          { "type": "command", "command": "npx eslint --no-warn-ignored --quiet index.html functions assets/js || true" }
+        ]
+      }
+    ]
+  }
+}

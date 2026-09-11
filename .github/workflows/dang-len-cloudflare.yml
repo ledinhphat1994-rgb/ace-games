@@ -36,6 +36,12 @@ jobs:
       - name: Cài thư viện
         run: npm ci || npm install
 
+      - name: Lint mã nguồn
+        run: npm run lint
+
+      - name: Kiểm tra dữ liệu
+        run: npm run kiem-tra-du-lieu
+
       - name: Gom tệp cần đăng vào dist/
         run: node build.js
 
