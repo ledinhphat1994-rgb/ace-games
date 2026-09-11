@@ -50,9 +50,12 @@ if (await nutCampus.count()) await nutCampus.click();
 await page.waitForTimeout(1500);
 
 ok('Hero render', await page.locator('#campus-lobby').count() > 0);
-const textBody = await page.textContent('body');
-ok('Có brand Digital Campus', /Digital Campus/i.test(textBody));
-ok('KHÔNG rò nội dung lớp vào Campus', !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textBody));
+// Chỉ quét DOM ĐÃ RENDER trong khu campus — không quét source script (chứa comment).
+const textCampus = (await page.locator('#campus-lobby').count())
+  ? await page.locator('#campus-lobby').textContent() : '';
+ok('Có brand Digital Campus', /Digital Campus/i.test(await page.textContent('body')));
+ok('KHÔNG rò nội dung lớp vào Campus',
+  !/Thông báo lớp|nhạc nền lớp 10A7|Bảng Tin Cộng Đồng lớp/i.test(textCampus));
 
 // Mood chips
 const chipChat = page.locator('button:has-text("💬 Trò chuyện")');
@@ -83,7 +86,8 @@ const tranNgang = await page.evaluate(() => document.documentElement.scrollWidth
 ok('Không tràn ngang', !tranNgang, `scrollWidth>innerWidth`);
 
 // ── 6. Console errors ────────────────────────────────────────────────────────
-const loiNghiem = loiConsole.filter(l => !/favicon|404|net::/i.test(l));
+// 401 = khách gọi API cần đăng nhập (/api/auth, /api/lop...) — hành vi ĐÚNG.
+const loiNghiem = loiConsole.filter(l => !/favicon|404|401|net::/i.test(l));
 ok('Không có lỗi console nghiêm trọng', loiNghiem.length === 0, loiNghiem.slice(0, 3).join(' | '));
 
 await browser.close();
