@@ -41,7 +41,8 @@ console.log('\n== Render Campus (khách, desktop) ==');
 const page = await ctx.newPage();
 page.on('console', m => { if (m.type() === 'error') loiConsole.push(m.text()); });
 page.on('pageerror', e => loiConsole.push(String(e)));
-await page.goto(BASE, { waitUntil: 'networkidle' });
+await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+await page.waitForLoadState('load').catch(() => {});
 
 // Campus là tab mặc định khi chưa đăng nhập; bấm nút Campus nếu đang ở bảng tin.
 const nutCampus = page.locator('button:has-text("Digital Campus")').first();

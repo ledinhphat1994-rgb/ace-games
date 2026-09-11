@@ -15,6 +15,10 @@ const PUBLIC_PATHS = new Set([
   // Chỉ trả tên/trường/năm học của MỘT lớp theo slug trên đường link — không có dữ liệu học
   // sinh/điểm/quỹ nào — cần công khai để màn hình đăng nhập hiện đúng tên lớp trước khi đăng nhập.
   '/api/lop-cong-khai',
+  // Discovery công khai của Digital Campus cho khách vãng lai: chỉ phòng toàn trường +
+  // sự kiện campus với các trường đã lọc (không tên học sinh, lớp, khoá phiên, thành viên).
+  // Các method ghi (POST/PUT/DELETE) của /api/su-kien vẫn bị bocXuLy({canGiaoVien}) chặn lại.
+  '/api/campus', '/api/su-kien',
 ]);
 
 function isPublic(pathname) {
