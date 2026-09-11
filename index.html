@@ -1000,6 +1000,459 @@ function TheBaiDang({ bai, thietBiId, auth, onCanDangNhap }) {
   );
 }
 
+// ─── Phase 3C.1: Watch Together Component (Campus Cinema) ───────────────────
+function napYouTubeIframeApi(cb) {
+  if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
+    if (cb) cb();
+    return;
+  }
+  if (!window._ytCallbacks) window._ytCallbacks = [];
+  if (cb) window._ytCallbacks.push(cb);
+  if (window._ytLoading) return;
+  window._ytLoading = true;
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.async = true;
+  window.onYouTubeIframeAPIReady = () => {
+    window._ytReady = true;
+    if (window._ytCallbacks) {
+      while (window._ytCallbacks.length) {
+        const fn = window._ytCallbacks.shift();
+        try { fn(); } catch { }
+      }
+    }
+  };
+  document.head.appendChild(tag);
+}
+
+function dinhDangGiayPhut(s) {
+  const t = Math.max(0, Math.floor(Number(s) || 0));
+  const m = Math.floor(t / 60);
+  const sec = t % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function CampusWatchTogether({
+  phong,
+  phongMinhKhoa,
+  auth,
+  dongPhongHienTai,
+  soNguoi
+}) {
+  const [watchState, setWatchState] = useState({
+    playing: false,
+    positionSeconds: 0,
+    basePositionSeconds: 0,
+    playbackRate: 1.0,
+    revision: 1,
+    updatedAt: '',
+    serverNow: '',
+    updatedBy: ''
+  });
+  const [canControl, setCanControl] = useState(false);
+  const [provider, setProvider] = useState('UNSUPPORTED');
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [localTime, setLocalTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [dangGuiLenh, setDangGuiLenh] = useState(false);
+  const [loi, setLoi] = useState('');
+
+  const videoRef = useRef(null);
+  const ytPlayerRef = useRef(null);
+  const ytContainerId = `yt-player-${phong.id}`;
+  const isSeekingRef = useRef(false);
+
+  let cauHinh = {};
+  try { cauHinh = phong.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
+  const videoUrl = cauHinh.videoUrl || '';
+  const ytId = videoUrl ? idYoutube(videoUrl) : null;
+  const drvId = videoUrl ? idGoogleDrive(videoUrl) : null;
+  const trucTiepUrl = videoUrl && !ytId && !drvId && laVideoTrucTiepFe(videoUrl) ? urlMediaFe(videoUrl) : '';
+
+  // Khởi tạo YouTube IFrame Player khi provider là YouTube
+  useEffect(() => {
+    if (!ytId) return;
+    let destroyed = false;
+    napYouTubeIframeApi(() => {
+      if (destroyed || !document.getElementById(ytContainerId)) return;
+      try {
+        ytPlayerRef.current = new window.YT.Player(ytContainerId, {
+          width: '100%',
+          height: '100%',
+          videoId: ytId,
+          playerVars: {
+            autoplay: 0,
+            controls: canControl ? 1 : 0,
+            disablekb: canControl ? 0 : 1,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1
+          },
+          events: {
+            onReady: (event) => {
+              if (destroyed) return;
+              if (event.target.getDuration) {
+                const d = event.target.getDuration();
+                if (d > 0) setDuration(d);
+              }
+            },
+            onStateChange: (event) => {
+              if (canControl && !dangGuiLenh && !isSeekingRef.current) {
+                if (event.data === 1 && !watchState.playing) {
+                  guiLenh('play', event.target.getCurrentTime());
+                } else if (event.data === 2 && watchState.playing) {
+                  guiLenh('pause', event.target.getCurrentTime());
+                }
+              }
+            }
+          }
+        });
+      } catch { }
+    });
+
+    return () => {
+      destroyed = true;
+      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch { }
+        ytPlayerRef.current = null;
+      }
+    };
+  }, [ytId, phong.id]);
+
+  // Áp dụng trạng thái đồng bộ từ server
+  const apDungDongBo = (st, ctrl, prov) => {
+    const nowMs = Date.now();
+    const serverTimeMs = st.serverNow ? new Date(st.serverNow).getTime() : nowMs;
+    const updateTimeMs = st.updatedAt ? new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
+    const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+
+    let targetPos = Number(st.positionSeconds || 0);
+    if (st.playing) {
+      targetPos = Number(st.basePositionSeconds || 0) + (elapsedSec * (st.playbackRate || 1.0));
+    }
+    setLocalTime(Math.max(0, Math.floor(targetPos)));
+
+    if (ctrl && isSeekingRef.current) return;
+
+    if (prov === 'NATIVE_HTML5' && videoRef.current) {
+      const v = videoRef.current;
+      if (st.playing) {
+        const drift = Math.abs(v.currentTime - targetPos);
+        if (drift > 1.5) {
+          v.currentTime = targetPos;
+        }
+        if (v.paused && (hasInteracted || ctrl)) {
+          v.play().catch(() => {});
+        }
+        if (v.playbackRate !== (st.playbackRate || 1.0)) {
+          v.playbackRate = st.playbackRate || 1.0;
+        }
+      } else {
+        if (!v.paused) v.pause();
+        const drift = Math.abs(v.currentTime - st.positionSeconds);
+        if (drift > 0.8) {
+          v.currentTime = st.positionSeconds;
+        }
+      }
+    } else if (prov === 'YOUTUBE' && ytPlayerRef.current && ytPlayerRef.current.getPlayerState) {
+      const p = ytPlayerRef.current;
+      try {
+        const cur = p.getCurrentTime() || 0;
+        const drift = Math.abs(cur - targetPos);
+        if (st.playing) {
+          if (drift > 1.5) {
+            p.seekTo(targetPos, true);
+          }
+          const ps = p.getPlayerState();
+          if (ps !== 1 && ps !== 3 && (hasInteracted || ctrl)) {
+            p.playVideo();
+          }
+        } else {
+          const ps = p.getPlayerState();
+          if (ps === 1) p.pauseVideo();
+          if (Math.abs(cur - st.positionSeconds) > 0.8) {
+            p.seekTo(st.positionSeconds, true);
+          }
+        }
+      } catch { }
+    }
+  };
+
+  // Poll trạng thái máy chủ mỗi 2.5s
+  useEffect(() => {
+    let active = true;
+    const fetchWatch = async () => {
+      try {
+        const res = await fetch(`/api/phong-watch?phongId=${phong.id}`);
+        const d = await res.json();
+        if (!active) return;
+        if (d.ok && d.state) {
+          setWatchState(d.state);
+          setCanControl(Boolean(d.canControl));
+          setProvider(d.provider || 'UNSUPPORTED');
+          apDungDongBo(d.state, Boolean(d.canControl), d.provider || 'UNSUPPORTED');
+        }
+      } catch { }
+    };
+
+    fetchWatch();
+    const timer = setInterval(fetchWatch, 2500);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [phong.id, hasInteracted]);
+
+  // Timer tăng localTime đều đặn khi playing
+  useEffect(() => {
+    if (!watchState.playing) return;
+    const tick = setInterval(() => {
+      if (!isSeekingRef.current) {
+        setLocalTime(t => t + 1);
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [watchState.playing]);
+
+  // Gửi lệnh điều khiển (Play / Pause / Seek)
+  const guiLenh = async (action, customPos) => {
+    if (dangGuiLenh) return;
+    setDangGuiLenh(true);
+    setLoi('');
+
+    let pos = customPos;
+    if (pos === undefined) {
+      if (provider === 'NATIVE_HTML5' && videoRef.current) {
+        pos = videoRef.current.currentTime;
+      } else if (provider === 'YOUTUBE' && ytPlayerRef.current?.getCurrentTime) {
+        pos = ytPlayerRef.current.getCurrentTime();
+      } else {
+        pos = localTime;
+      }
+    }
+    pos = Math.max(0, Number((pos || 0).toFixed(2)));
+
+    // Cập nhật lạc quan trên local player
+    if (action === 'play') {
+      if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.play().catch(() => {});
+      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.playVideo) ytPlayerRef.current.playVideo();
+    } else if (action === 'pause') {
+      if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.pause();
+      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
+    } else if (action === 'seek') {
+      if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.currentTime = pos;
+      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.seekTo) ytPlayerRef.current.seekTo(pos, true);
+    }
+
+    try {
+      const res = await fetch('/api/phong-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phongId: phong.id,
+          action,
+          position: pos,
+          expectedRevision: watchState.revision,
+          playbackRate: watchState.playbackRate || 1.0
+        })
+      });
+      const d = await res.json();
+      if (d.ok && d.state) {
+        setWatchState(d.state);
+        setLocalTime(Math.floor(d.state.positionSeconds || pos));
+      } else if (d.conflict && d.state) {
+        setWatchState(d.state);
+        apDungDongBo(d.state, canControl, provider);
+      } else {
+        setLoi(d.loi || 'Lỗi cập nhật phát video.');
+      }
+    } catch {
+      setLoi('Mất kết nối máy chủ.');
+    } finally {
+      setDangGuiLenh(false);
+    }
+  };
+
+  const handleStartViewing = () => {
+    setHasInteracted(true);
+    if (provider === 'NATIVE_HTML5' && videoRef.current) {
+      if (watchState.playing) videoRef.current.play().catch(() => {});
+    } else if (provider === 'YOUTUBE' && ytPlayerRef.current?.playVideo) {
+      if (watchState.playing) ytPlayerRef.current.playVideo();
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 min-w-0 w-full">
+      {/* Khung phát video chính */}
+      <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        {/* Overlay Autoplay / Gesture cho người xem */}
+        {!hasInteracted && !canControl && (provider === 'YOUTUBE' || provider === 'NATIVE_HTML5') && (
+          <div className="absolute inset-0 z-20 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-fadeIn">
+            <div className="w-14 h-14 rounded-full bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 flex items-center justify-center text-2xl mb-3 shadow-[0_0_25px_rgba(0,242,254,0.35)] animate-pulse">
+              🎬
+            </div>
+            <p className="text-sm font-black text-white mb-1">Xem Chung Cùng Phòng</p>
+            <p className="text-xs text-slate-300 max-w-xs mb-4">
+              Bấm nút bên dưới để cấp quyền âm thanh và cùng theo dõi timeline với chủ phòng.
+            </p>
+            <button
+              type="button"
+              onClick={handleStartViewing}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#3B82F6] text-black font-black text-xs shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
+              <span>▶</span>
+              <span>Bắt đầu xem cùng phòng</span>
+            </button>
+          </div>
+        )}
+
+        {/* Video elements theo provider */}
+        {ytId ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div id={ytContainerId} className="w-full h-full" />
+          </div>
+        ) : drvId ? (
+          <iframe
+            src={`https://drive.google.com/file/d/${drvId}/preview`}
+            title={phong.ten}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            className="w-full h-full"
+          />
+        ) : trucTiepUrl ? (
+          <video
+            ref={videoRef}
+            src={trucTiepUrl}
+            playsInline
+            controls={canControl}
+            className="w-full h-full object-contain"
+            onLoadedMetadata={e => {
+              if (e.target.duration > 0) setDuration(e.target.duration);
+            }}
+            onPlay={() => {
+              if (canControl && !watchState.playing && !dangGuiLenh) {
+                guiLenh('play', videoRef.current?.currentTime);
+              }
+            }}
+            onPause={() => {
+              if (canControl && watchState.playing && !dangGuiLenh) {
+                guiLenh('pause', videoRef.current?.currentTime);
+              }
+            }}
+            onSeeked={() => {
+              if (canControl && !dangGuiLenh && !isSeekingRef.current) {
+                guiLenh('seek', videoRef.current?.currentTime);
+              }
+            }}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-xs text-slate-500 p-6 text-center">
+            <span className="text-2xl mb-2">⚠️</span>
+            <span>Link video không hỗ trợ phát trực tiếp hoặc không hợp lệ.</span>
+          </div>
+        )}
+      </div>
+
+      {/* Thông báo riêng cho Google Drive */}
+      {drvId && (
+        <div className="px-3.5 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2 text-xs text-amber-300">
+          <span className="text-sm">ℹ️</span>
+          <span>Google Drive phát ở chế độ <strong>Xem độc lập</strong> (Google Drive không hỗ trợ API điều khiển từ xa).</span>
+        </div>
+      )}
+
+      {/* Thanh trạng thái phòng & Điều khiển Host */}
+      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-white/10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${phong.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
+              {phong.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 Chỉ lớp ${phong.lopTen || ''}`}
+            </span>
+            <span className="text-xs text-slate-200 font-bold truncate max-w-[200px] sm:max-w-xs">{phong.ten}</span>
+            <span className="text-[11px] text-slate-400">
+              • Chủ phòng: <strong className="text-slate-200">{phong.chuPhongTen}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* Sync State Badge */}
+            {provider !== 'GOOGLE_DRIVE' && provider !== 'UNSUPPORTED' ? (
+              <span className={`text-[11px] font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                <span>{watchState.playing ? (canControl ? 'Đang phát chung' : 'Đang phát cùng phòng') : (canControl ? 'Tạm dừng' : 'Tạm dừng theo chủ phòng')}</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                Xem độc lập
+              </span>
+            )}
+
+            {canControl && (
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
+                Chủ phòng
+              </span>
+            )}
+
+            {(canControl || auth.user?.isTeacher) && phong.chuPhongKhoa !== 'he-thong' && (
+              <button
+                type="button"
+                onClick={dongPhongHienTai}
+                className="px-3 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all">
+                Đóng phòng
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Thanh công cụ phát chung (chỉ hiển thị cho Host / Teacher khi dùng provider có thể điều khiển) */}
+        {canControl && (provider === 'NATIVE_HTML5' || provider === 'YOUTUBE') && (
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => guiLenh(watchState.playing ? 'pause' : 'play')}
+              disabled={dangGuiLenh}
+              className={`w-full sm:w-auto px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 ${watchState.playing ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30' : 'bg-[#00F2FE] text-black hover:bg-[#00e1ec]'}`}>
+              <span>{watchState.playing ? '⏸' : '▶'}</span>
+              <span>{watchState.playing ? 'Tạm Dừng Phòng' : 'Phát Chung Cả Phòng'}</span>
+            </button>
+
+            <div className="flex-1 flex items-center gap-2.5 w-full">
+              <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                {dinhDangGiayPhut(localTime)}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max={duration > 0 ? duration : Math.max(localTime, 300)}
+                step="1"
+                value={localTime}
+                onMouseDown={() => { isSeekingRef.current = true; }}
+                onTouchStart={() => { isSeekingRef.current = true; }}
+                onChange={e => setLocalTime(Number(e.target.value))}
+                onMouseUp={e => {
+                  isSeekingRef.current = false;
+                  guiLenh('seek', Number(e.target.value));
+                }}
+                onTouchEnd={e => {
+                  isSeekingRef.current = false;
+                  guiLenh('seek', Number(e.target.value));
+                }}
+                className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#00F2FE]"
+              />
+              <span className="text-[11px] font-mono text-slate-400 shrink-0">
+                {duration > 0 ? dinhDangGiayPhut(duration) : '--:--'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {loi && <p className="text-xs text-rose-400">{loi}</p>}
+        {phong.moTa && <p className="text-[11px] text-slate-400 leading-relaxed pt-1">{phong.moTa}</p>}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Application Component ─────────────────────────────────────────────
 function DigitalCampusApp() {
   // 1. Authentication State & Role Tiers
@@ -3742,63 +4195,59 @@ function DigitalCampusApp() {
             return (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
                 <div className="flex flex-col gap-4 min-w-0">
-                  {/* Thông tin phòng */}
-                  <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-wrap items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${p.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
-                      {p.phamVi === 'truong' ? '🌐 Toàn trường — mọi lớp vào được' : `🔒 Chỉ lớp ${p.lopTen || ''}`}
-                    </span>
-                    <span className="text-[11px] text-slate-400">Chủ phòng: <strong className="text-slate-200">{p.chuPhongTen}</strong></span>
-                    {(laChuPhong || auth.user?.isTeacher) && p.chuPhongKhoa !== 'he-thong' && (
-                      <button onClick={dongPhongHienTai}
-                        className="ml-auto px-3 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30">
-                        Đóng phòng
-                      </button>
-                    )}
-                    {p.moTa && <p className="w-full text-[11px] text-slate-400 leading-relaxed">{p.moTa}</p>}
-                  </div>
-
                   {/* Nội dung theo loại phòng */}
-                  {p.loai === 'video' && (
-                    <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10">
-                      {yt ? (
-                        <iframe src={`https://www.youtube.com/embed/${yt}`} title={p.ten}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
-                          className="w-full h-full" />
-                      ) : drv ? (
-                        <iframe src={`https://drive.google.com/file/d/${drv}/preview`} title={p.ten}
-                          allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
-                      ) : trucTiep ? (
-                        <video src={trucTiep} controls className="w-full h-full" />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-xs text-slate-500">Link video không phát được trong phòng.</div>
+                  {p.loai === 'video' ? (
+                    <CampusWatchTogether
+                      phong={p}
+                      phongMinhKhoa={phongMinhKhoa}
+                      auth={auth}
+                      dongPhongHienTai={dongPhongHienTai}
+                      soNguoi={phongThanhVien.length}
+                    />
+                  ) : (
+                    <>
+                      {/* Thông tin phòng cho các loại khác */}
+                      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-wrap items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${p.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
+                          {p.phamVi === 'truong' ? '🌐 Toàn trường — mọi lớp vào được' : `🔒 Chỉ lớp ${p.lopTen || ''}`}
+                        </span>
+                        <span className="text-[11px] text-slate-400">Chủ phòng: <strong className="text-slate-200">{p.chuPhongTen}</strong></span>
+                        {(laChuPhong || auth.user?.isTeacher) && p.chuPhongKhoa !== 'he-thong' && (
+                          <button type="button" onClick={dongPhongHienTai}
+                            className="ml-auto px-3 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30">
+                            Đóng phòng
+                          </button>
+                        )}
+                        {p.moTa && <p className="w-full text-[11px] text-slate-400 leading-relaxed">{p.moTa}</p>}
+                      </div>
+
+                      {p.loai === 'nhac' && (
+                        <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
+                          <Ic name="phones" className="w-8 h-8 text-[#8B5CF6] mx-auto mb-2" />
+                          <p className="text-xs text-slate-300 font-bold mb-1">Phòng nghe nhạc cùng nhau</p>
+                          {cauHinh.nhacUrl ? (
+                            <audio controls src={cauHinh.nhacUrl} className="w-full mt-2" preload="none" />
+                          ) : (
+                            <p className="text-[11px] text-slate-500">Chủ phòng chưa gắn link nhạc — trò chuyện cùng mọi người trong phòng.</p>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                  {p.loai === 'nhac' && (
-                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
-                      <Ic name="phones" className="w-8 h-8 text-[#8B5CF6] mx-auto mb-2" />
-                      <p className="text-xs text-slate-300 font-bold mb-1">Phòng nghe nhạc cùng nhau</p>
-                      {cauHinh.nhacUrl ? (
-                        <audio controls src={cauHinh.nhacUrl} className="w-full mt-2" preload="none" />
-                      ) : (
-                        <p className="text-[11px] text-slate-500">Chủ phòng chưa gắn link nhạc — trò chuyện cùng mọi người trong phòng.</p>
+                      {p.loai === 'game' && (
+                        <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
+                          <Ic name="game" className="w-8 h-8 text-[#FFB800] mx-auto mb-2" />
+                          <p className="text-xs text-slate-300 font-bold mb-1">Phòng tập kết game</p>
+                          <p className="text-[11px] text-slate-500 mb-3">Hẹn nhau ở đây rồi vào Đấu Trường Caro để so tài trí tuệ.</p>
+                          <button type="button" onClick={() => {
+                            if (auth.isGuest) { setShowAuthGate(true); return; }
+                            setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+                            taiDanhSachBanCaro();
+                          }}
+                            className="px-4 py-2 rounded-xl bg-[#FFB800]/20 text-[#FFB800] text-xs font-bold border border-[#FFB800]/30 hover:bg-[#FFB800]/30">
+                            ⚔️ Vào Đấu Trường Caro →
+                          </button>
+                        </div>
                       )}
-                    </div>
-                  )}
-                  {p.loai === 'game' && (
-                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 text-center">
-                      <Ic name="game" className="w-8 h-8 text-[#FFB800] mx-auto mb-2" />
-                      <p className="text-xs text-slate-300 font-bold mb-1">Phòng tập kết game</p>
-                      <p className="text-[11px] text-slate-500 mb-3">Hẹn nhau ở đây rồi vào Đấu Trường Caro để so tài trí tuệ.</p>
-                      <button onClick={() => {
-                        if (auth.isGuest) { setShowAuthGate(true); return; }
-                        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
-                        taiDanhSachBanCaro();
-                      }}
-                        className="px-4 py-2 rounded-xl bg-[#FFB800]/20 text-[#FFB800] text-xs font-bold border border-[#FFB800]/30 hover:bg-[#FFB800]/30">
-                        ⚔️ Vào Đấu Trường Caro →
-                      </button>
-                    </div>
+                    </>
                   )}
 
                   {/* Chat của phòng */}

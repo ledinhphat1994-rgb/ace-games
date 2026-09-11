@@ -367,3 +367,59 @@ CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game
 CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting
 ON game_phong(chu_phong_id, loai_game)
 WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi';
+
+-- 26. PHÒNG HOẠT ĐỘNG CAMPUS & HIỆN DIỆN & CHAT RIÊNG
+CREATE TABLE IF NOT EXISTS phong (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  loai            TEXT NOT NULL DEFAULT 'chat',
+  ten             TEXT NOT NULL,
+  mo_ta           TEXT,
+  pham_vi         TEXT NOT NULL DEFAULT 'truong',
+  lop_id          INTEGER REFERENCES lop(id),
+  chu_phong_khoa  TEXT NOT NULL,
+  chu_phong_ten   TEXT NOT NULL,
+  cau_hinh        TEXT,
+  trang_thai      TEXT NOT NULL DEFAULT 'mo',
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
+  cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_phong_mo ON phong(trang_thai, pham_vi, lop_id);
+
+CREATE TABLE IF NOT EXISTS phong_thanh_vien (
+  phong_id        INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa            TEXT NOT NULL,
+  hoc_sinh_id     INTEGER,
+  ten             TEXT NOT NULL,
+  vai_tro         TEXT NOT NULL DEFAULT 'hoc_sinh',
+  lop_id          INTEGER,
+  hoat_dong_luc   TEXT NOT NULL,
+  vao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (phong_id, khoa)
+);
+CREATE INDEX IF NOT EXISTS idx_ptv_phong ON phong_thanh_vien(phong_id);
+
+CREATE TABLE IF NOT EXISTS phong_tin_nhan (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  phong_id        INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa            TEXT NOT NULL,
+  hoc_sinh_id     INTEGER,
+  ten_nguoi_gui   TEXT NOT NULL,
+  vai_tro         TEXT NOT NULL DEFAULT 'hoc_sinh',
+  lop_id          INTEGER,
+  noi_dung        TEXT NOT NULL,
+  tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ptn_phong ON phong_tin_nhan(phong_id, id);
+
+-- 27. ĐỒNG BỘ PHÁT VIDEO WATCH TOGETHER (PHASE 3C.1)
+CREATE TABLE IF NOT EXISTS phong_dong_bo_video (
+  phong_id            INTEGER PRIMARY KEY REFERENCES phong(id) ON DELETE CASCADE,
+  trang_thai          TEXT NOT NULL DEFAULT 'paused',
+  vi_tri_giay         REAL NOT NULL DEFAULT 0,
+  toc_do              REAL NOT NULL DEFAULT 1.0,
+  revision            INTEGER NOT NULL DEFAULT 1,
+  cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP,
+  nguoi_cap_nhat_khoa TEXT,
+  nguoi_cap_nhat_ten  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pdbv_phong ON phong_dong_bo_video(phong_id);
