@@ -19,6 +19,7 @@ const PUBLIC_PATHS = new Set([
   // sự kiện campus với các trường đã lọc (không tên học sinh, lớp, khoá phiên, thành viên).
   // Các method ghi (POST/PUT/DELETE) của /api/su-kien vẫn bị bocXuLy({canGiaoVien}) chặn lại.
   '/api/campus', '/api/su-kien',
+  '/api/campus-thong-bao', '/api/campus-highlights', '/api/kiem-tra-ma-cong-dong',
 ]);
 
 function isPublic(pathname) {

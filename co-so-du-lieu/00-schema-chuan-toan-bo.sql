@@ -438,3 +438,53 @@ CREATE TABLE IF NOT EXISTS phong_focus_state (
   nguoi_cap_nhat_ten      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pfs_phong ON phong_focus_state(phong_id);
+
+-- 29. THÔNG BÁO GIÁO VIÊN & BIÊN TẬP CAMPUS (PHASE 4A)
+CREATE TABLE IF NOT EXISTS campus_thong_bao (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  tieu_de             TEXT NOT NULL,
+  noi_dung            TEXT NOT NULL,
+  noi_dung_dinh_dang  TEXT,
+  anh_bia_url         TEXT,
+  loai                TEXT NOT NULL DEFAULT 'thong_bao' CHECK (loai IN ('thong_bao', 'nhac_nho', 'lich_thi', 'tin_khan')),
+  pham_vi             TEXT NOT NULL DEFAULT 'truong' CHECK (pham_vi IN ('truong', 'lop')),
+  lop_id              INTEGER REFERENCES lop(id),
+  trang_thai          TEXT NOT NULL DEFAULT 'published' CHECK (trang_thai IN ('draft', 'pending_review', 'published', 'archived')),
+  ghim                INTEGER NOT NULL DEFAULT 0,
+  uu_tien             INTEGER NOT NULL DEFAULT 0,
+  nguoi_tao_khoa      TEXT NOT NULL,
+  nguoi_tao_ten       TEXT NOT NULL,
+  nguoi_tao_vai_tro   TEXT NOT NULL DEFAULT 'giao_vien' CHECK (nguoi_tao_vai_tro IN ('giao_vien', 'bien_tap_vien', 'admin')),
+  nguoi_duyet_ten     TEXT,
+  xuat_ban_luc        TEXT,
+  cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP,
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ctb_pham_vi ON campus_thong_bao(pham_vi, trang_thai, ghim DESC, tao_luc DESC);
+CREATE INDEX IF NOT EXISTS idx_ctb_lop ON campus_thong_bao(lop_id, trang_thai);
+
+-- 30. MÃ TRUY CẬP BẢNG TIN CỘNG ĐỒNG (PHASE 4A)
+CREATE TABLE IF NOT EXISTS ma_truy_cap_cong_dong (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  ma_code             TEXT NOT NULL UNIQUE,
+  lop_id              INTEGER NOT NULL REFERENCES lop(id) ON DELETE CASCADE,
+  ten_goi             TEXT NOT NULL,
+  so_lan_dung_toi_da  INTEGER DEFAULT 0,
+  so_lan_da_dung      INTEGER NOT NULL DEFAULT 0,
+  het_han_luc         TEXT,
+  dang_hoat_dong      INTEGER NOT NULL DEFAULT 1,
+  tao_boi_khoa        TEXT,
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_mtccd_code ON ma_truy_cap_cong_dong(ma_code, dang_hoat_dong);
+
+-- 31. HỌC SINH ĐƯỢC ỦY QUYỀN BIÊN TẬP (PHASE 4A)
+CREATE TABLE IF NOT EXISTS campus_bien_tap_vien (
+  hoc_sinh_id         INTEGER NOT NULL REFERENCES hoc_sinh(id) ON DELETE CASCADE,
+  lop_id              INTEGER NOT NULL REFERENCES lop(id) ON DELETE CASCADE,
+  duoc_phep_dang      INTEGER NOT NULL DEFAULT 0,
+  nguoi_cap_khoa      TEXT NOT NULL,
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (hoc_sinh_id, lop_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cbtv_lop ON campus_bien_tap_vien(lop_id);
