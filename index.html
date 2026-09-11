@@ -78,8 +78,14 @@
       0%   { transform: translateX(0); }
       100% { transform: translateX(-50%); }
     }
-    .ticker-track { animation: tickerScroll 35s linear infinite; }
-    .ticker-track:hover { animation-play-state: paused; }
+    .ticker-track {
+      display: inline-flex;
+      white-space: nowrap;
+      animation: tickerScroll 32s linear infinite;
+    }
+    .ticker-track:hover {
+      animation-play-state: paused;
+    }
 
     /* Transitions */
     @keyframes fadeIn  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -142,6 +148,18 @@ function formatTimeOnly(dateStr) {
   }
 }
 
+// ─── Preset Avatars for Students ────────────────────────────────────────────
+const PRESET_AVATARS = [
+  { id: 'av-1', name: 'Nữ sinh thông minh', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-2', name: 'Nữ sinh năng động', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-3', name: 'Nam sinh kính cận', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-4', name: 'Học sinh lập trình', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-5', name: 'Họa sĩ trẻ', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-6', name: 'Vận động viên hội thao', url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-7', name: 'Nhà toán học bí ẩn', url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=120&auto=format&fit=crop&q=80' },
+  { id: 'av-8', name: 'Cú đêm chăm học', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80' }
+];
+
 // ─── SVG Icons ──────────────────────────────────────────────────────────────
 const ICONS = {
   tv:        "M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM17 2l-5 5-5-5",
@@ -167,7 +185,8 @@ const ICONS = {
   logout:    "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   search:    "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35",
   book:      "M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5zM6 6h10M6 10h10",
-  user:      "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+  user:      "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  sparkles:  "M12 3l1.912 5.885L20 10l-4.088 3.115L17.824 19 12 15.385 6.176 19l1.912-5.885L4 10l6.088-1.115z"
 };
 
 const Ic = ({ name, className = "w-4 h-4" }) => {
@@ -183,26 +202,42 @@ const Ic = ({ name, className = "w-4 h-4" }) => {
 
 // ─── Main Application Component ─────────────────────────────────────────────
 function DigitalCampusApp() {
-  // 1. Authentication State
+  // 1. Authentication State & Role Tiers
+  // Role Tiers:
+  // - Teacher (GVCN): isTeacher = true
+  // - Authorized Student (Ban cán sự): isAuthorizedStudent = true (has quyen array or chucVu)
+  // - Regular Student: regular member
   const [auth, setAuth] = useState({ loaded: false, isGuest: true, user: null });
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [quyenGvcn, setQuyenGvcn] = useState(false);
 
+  // Student Custom Avatar (persisted via localStorage)
+  const [currentAvatar, setCurrentAvatar] = useState(() => {
+    return localStorage.getItem('user_custom_avatar') || PRESET_AVATARS[0].url;
+  });
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
   // 2. Navigation & Tabs
-  // activeTab: 'campus' (Digital Campus Hub) | 'feed' (Bảng Tin Cộng Đồng Lớp 10A7)
-  const [activeTab, setActiveTab] = useState('campus');
+  const [activeTab, setActiveTab] = useState('campus'); // 'campus' | 'feed'
   const [feedSubTab, setFeedSubTab] = useState('ban-tin'); // 'ban-tin' | 'diem-danh' | 'thu-quy'
   const [activeChannel, setActiveChannel] = useState('# Bảng tin chung');
-  const [currentView, setCurrentView] = useState('LOBBY'); // LOBBY | ROOM_ACTIVE
-  const [activeRoom, setActiveRoom] = useState(null); // room object
+  const [currentView, setCurrentView] = useState('LOBBY'); // 'LOBBY' | 'ROOM_ACTIVE'
+  const [activeRoom, setActiveRoom] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   // Sub-tabs for Attendance & Treasury
-  const [ddTabSub, setDdTabSub] = useState('ngay'); // 'ngay' | 'tong_hop' | 'ca_nhan'
-  const [tqTabSub, setTqTabSub] = useState('thu'); // 'thu' | 'chi'
-  const [ddMatrixSearch, setDdMatrixSearch] = useState('');
+  const [ddTabSub, setDdTabSub] = useState('ngay');
+  const [tqTabSub, setTqTabSub] = useState('thu');
 
-  // 3. Class Real Data
+  // 3. Multi-Class Realtime Stats (For Teachers)
+  const [multiClassStats, setMultiClassStats] = useState([
+    { id: 1, ten: 'Lớp 10A7', siSo: 39, online: 24, activities: '8 Rạp chiếu • 4 Đấu cờ • 12 Tự học' },
+    { id: 2, ten: 'Lớp 10A8', siSo: 41, online: 18, activities: '14 Rạp chiếu • 4 Tự học' },
+    { id: 3, ten: 'Lớp 11A1', siSo: 42, online: 30, activities: 'Đang sinh hoạt chuyên đề' },
+    { id: 4, ten: 'Lớp 12A3', siSo: 38, online: 27, activities: 'Chuẩn bị thi thử THPT' }
+  ]);
+
+  // 4. Class Real Data
   const [classData, setClassData] = useState({
     loaded: false,
     lop: { ten: 'Lớp 10A7', namHoc: '2026 – 2027', truong: 'Trung tâm GDNN - GDTX Huyện Định Quán', bannerHinhUrl: null, bannerVideoUrl: null },
@@ -216,7 +251,7 @@ function DigitalCampusApp() {
     phienBanTkb: null
   });
 
-  // 4. Live Chat State
+  // 5. Live Chat State
   const [chatMessages, setChatMessages] = useState([
     { id: 1, tenNguoiGui: 'Thầy Lê Đình Phát', vaiTro: 'giao_vien', noiDung: 'Chào cả lớp! Ai vào phòng rồi nhớ mở âm lượng vừa đủ nghe nhé.', taoLuc: '2026-09-10 20:01:00' },
     { id: 2, tenNguoiGui: 'Trần Gia Hân', vaiTro: 'hoc_sinh', noiDung: 'Dạ Thầy! Màn hình chiếu nét lắm ạ.', taoLuc: '2026-09-10 20:02:00' },
@@ -224,16 +259,14 @@ function DigitalCampusApp() {
     { id: 4, tenNguoiGui: 'Trần Gia Hân', vaiTro: 'hoc_sinh', noiDung: 'Lát nữa giải bài tập xong tớ qua liền nè!', taoLuc: '2026-09-10 20:45:00' }
   ]);
   const [chatInput, setChatInput] = useState('');
-  const [chatCaiDat, setChatCaiDat] = useState({ dangMo: 1, gianCachGiay: 5, thongBaoGhim: '' });
-  const [biCamChat, setBiCamChat] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const chatEndRef = useRef(null);
 
-  // 5. Danmaku State
+  // 6. Danmaku State
   const [danmakuBullets, setDanmakuBullets] = useState([]);
   const danmakuColors = ['#00F2FE', '#8B5CF6', '#10B981', '#FFB800', '#F43F5E', '#38BDF8'];
 
-  // 6. Attendance State
+  // 7. Attendance State
   const [attendance, setAttendance] = useState({
     loaded: false,
     danhSach: [],
@@ -244,35 +277,32 @@ function DigitalCampusApp() {
     caNhan: null
   });
 
-  // 7. Caro Game State
+  // 8. Caro Game State
   const [caroRooms, setCaroRooms] = useState([]);
-  const [caroActiveRoomId, setCaroActiveRoomId] = useState(null);
   const [caroBoard, setCaroBoard] = useState(() => Array(15).fill(null).map(() => Array(15).fill(null)));
   const [caroTurn, setCaroTurn] = useState('X');
   const [caroWinner, setCaroWinner] = useState(null);
-  const [caroMySymbol, setCaroMySymbol] = useState('X');
-  const [caroLocalMode, setCaroLocalMode] = useState(false);
 
-  // 8. DJ Radio State
+  // 9. DJ Radio State
   const [radioPlaying, setRadioPlaying] = useState(false);
   const [radioTitle, setRadioTitle] = useState('Lofi Study Chillhop');
 
-  // 9. Notifications Center
+  // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
-  const [selectedNotif, setSelectedNotif] = useState(null);
 
-  // 10. Student Search & Filter
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentToFilter, setStudentToFilter] = useState('ALL');
-
-  // 11. Feed Post Composer State
+  // 11. Feed Post Composer State (Supports Anonymous Posts)
   const [composerText, setComposerText] = useState('');
   const [composerAnDanh, setComposerAnDanh] = useState(false);
+  const [showRealNamesForTeacher, setShowRealNamesForTeacher] = useState(false);
+
   const [feedPosts, setFeedPosts] = useState([
     {
       id: 101,
       author: 'Nguyễn Minh Thư',
+      actualAuthor: 'Nguyễn Minh Thư',
       roleTitle: 'Lớp phó Học tập',
+      isAnonymous: false,
+      avatarUrl: PRESET_AVATARS[1].url,
       time: '45 phút trước',
       content: 'Mọi người ơi, bài 4 hình học phân tích vô hướng có ai có cách giải nhanh dạng này không ạ? Mình đang thử biến đổi theo tọa độ vecto nhưng cảm giác hơi dài dòng, cần cao nhân cứu trợ với ạ! 🙏📐',
       tags: ['#ToanHoc', '#HocNhom', '#HelpMe'],
@@ -303,6 +333,9 @@ function DigitalCampusApp() {
         const data = await res.json();
         if (data.ok) {
           const isT = data.role === 'teacher' || data.role === 'phu';
+          const hasQuyen = Array.isArray(data.quyen) && data.quyen.length > 0;
+          const isBCS = Boolean(data.chucVu) || hasQuyen;
+
           setAuth({
             loaded: true,
             isGuest: false,
@@ -311,11 +344,13 @@ function DigitalCampusApp() {
               role: data.role || 'student',
               vaiTro: data.vaiTro || '',
               chucVu: data.chucVu || '',
+              quyen: data.quyen || [],
               toSo: data.toSo || null,
               hocSinhId: data.hocSinhId || null,
               tenLop: data.tenLop || 'Lớp 10A7',
               namHoc: data.namHoc || '2026 – 2027',
-              isTeacher: isT
+              isTeacher: isT,
+              isAuthorizedStudent: !isT && isBCS
             }
           });
           if (isT) setQuyenGvcn(true);
@@ -423,8 +458,11 @@ function DigitalCampusApp() {
     }
   }, [auth.isGuest, attendance.ngay, attendance.buoi, attendance.loai, classData.hocSinh]);
 
-  // 1-Touch Attendance Status Toggle
+  // Attendance Toggle (Teachers & Authorized BCS)
+  const canMarkAttendance = auth.user?.isTeacher || (auth.user?.quyen && auth.user.quyen.includes('diem-danh'));
+
   const handleToggleAttendanceStatus = (studentId, statusKey) => {
+    if (!canMarkAttendance) return;
     setAttendance(prev => {
       const nextList = prev.danhSach.map(s => {
         if (s.id !== studentId) return s;
@@ -448,25 +486,23 @@ function DigitalCampusApp() {
       };
     });
 
-    if (auth.user?.isTeacher) {
-      const normalizedStatus = statusKey === 'bo_tiet' ? 'vang_khong_phep' :
-        (statusKey === 'phep' ? 'vang_phep' : (statusKey === 'khong_phep' ? 'vang_khong_phep' : statusKey));
-      const note = statusKey === 'bo_tiet' ? 'Bỏ tiết' : undefined;
-      fetch('/api/gv/diem-danh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ngay: attendance.ngay,
-          buoi: attendance.buoi,
-          loai: attendance.loai,
-          ghiNhan: [{ hocSinhId: studentId, trangThai: normalizedStatus, lyDo: note }]
-        })
-      }).catch(() => {});
-    }
+    const normalizedStatus = statusKey === 'bo_tiet' ? 'vang_khong_phep' :
+      (statusKey === 'phep' ? 'vang_phep' : (statusKey === 'khong_phep' ? 'vang_khong_phep' : statusKey));
+    const note = statusKey === 'bo_tiet' ? 'Bỏ tiết' : undefined;
+    fetch('/api/gv/diem-danh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ngay: attendance.ngay,
+        buoi: attendance.buoi,
+        loai: attendance.loai,
+        ghiNhan: [{ hocSinhId: studentId, trangThai: normalizedStatus, lyDo: note }]
+      })
+    }).catch(() => {});
   };
 
-  // Batch Mark All Present
   const handleBatchMarkAllPresent = () => {
+    if (!canMarkAttendance) return;
     setAttendance(prev => {
       const nextList = prev.danhSach.map(s => ({ ...s, trangThai: 'co_mat' }));
       const coMat = nextList.length;
@@ -478,23 +514,21 @@ function DigitalCampusApp() {
       };
     });
 
-    if (auth.user?.isTeacher) {
-      const ghiNhan = attendance.danhSach.map(s => ({
-        hocSinhId: s.id,
-        trangThai: 'co_mat',
-        lyDo: ''
-      }));
-      fetch('/api/gv/diem-danh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ngay: attendance.ngay,
-          buoi: attendance.buoi,
-          loai: attendance.loai,
-          ghiNhan
-        })
-      }).catch(() => {});
-    }
+    const ghiNhan = attendance.danhSach.map(s => ({
+      hocSinhId: s.id,
+      trangThai: 'co_mat',
+      lyDo: ''
+    }));
+    fetch('/api/gv/diem-danh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ngay: attendance.ngay,
+        buoi: attendance.buoi,
+        loai: attendance.loai,
+        ghiNhan
+      })
+    }).catch(() => {});
   };
 
   // ─── FETCH LIVE CHAT ──────────────────────────────────────────────────────
@@ -505,34 +539,6 @@ function DigitalCampusApp() {
         const d = await res.json();
         if (d.ok && d.tinNhan && d.tinNhan.length > 0) {
           setChatMessages(d.tinNhan);
-          if (d.caiDat) setChatCaiDat(d.caiDat);
-          setBiCamChat(!!d.biCamChat);
-        }
-      }
-    } catch {}
-  }, []);
-
-  // ─── FETCH DJ RADIO INFO ──────────────────────────────────────────────────
-  const fetchRadioInfo = useCallback(async () => {
-    try {
-      const res = await fetch('/api/nhac-nen-info');
-      if (res.ok) {
-        const d = await res.json();
-        if (d.ok && d.nhac && d.nhac.tenBai) {
-          setRadioTitle(d.nhac.tenBai);
-        }
-      }
-    } catch {}
-  }, []);
-
-  // ─── FETCH CARO ROOMS ─────────────────────────────────────────────────────
-  const fetchCaroRooms = useCallback(async () => {
-    try {
-      const res = await fetch('/api/game?loai=co_caro');
-      if (res.ok) {
-        const d = await res.json();
-        if (d.ok) {
-          setCaroRooms(d.danhSachBan || []);
         }
       }
     } catch {}
@@ -544,11 +550,9 @@ function DigitalCampusApp() {
       fetchClassData(isLoggedIn);
       if (isLoggedIn) {
         fetchChat();
-        fetchRadioInfo();
-        fetchCaroRooms();
       }
     });
-  }, [fetchAuth, fetchClassData, fetchChat, fetchRadioInfo, fetchCaroRooms]);
+  }, [fetchAuth, fetchClassData, fetchChat]);
 
   // Polling chat every 4s
   useEffect(() => {
@@ -587,7 +591,7 @@ function DigitalCampusApp() {
     }
   }, []);
 
-  // Sync URL hash <-> activeTab & feedSubTab (bidirectional)
+  // Sync URL hash <-> activeTab & feedSubTab
   useEffect(() => {
     const onHashChange = () => {
       const h = location.hash;
@@ -659,7 +663,6 @@ function DigitalCampusApp() {
         setChatMessages(prev => [...prev, d.tin]);
         setChatInput('');
 
-        // Trigger Danmaku
         const bullet = {
           id: Date.now() + Math.random(),
           text,
@@ -669,7 +672,6 @@ function DigitalCampusApp() {
         };
         setDanmakuBullets(prev => [...prev.slice(-15), bullet]);
       } else {
-        // Local simulation if backend is guest/offline
         setChatMessages(prev => [...prev, {
           id: Date.now(),
           tenNguoiGui: auth.user?.name || 'Tôi',
@@ -693,22 +695,31 @@ function DigitalCampusApp() {
     }
   };
 
-  // ─── POST COMPOSER SUBMIT ─────────────────────────────────────────────────
+  // ─── POST COMPOSER WITH ANONYMOUS OPTION ──────────────────────────────────
   const handleCreatePost = (e) => {
     e.preventDefault();
     if (!composerText.trim()) return;
+
+    const actualName = auth.user?.name || 'Học sinh 10A7';
+    const anonTitles = ['🦉 Cú đêm chăm học', '📐 Kỹ sư hình học', '🎨 Nghệ sĩ giấu tên', '⚡ Chiến thần ôn thi'];
+    const randomAnon = anonTitles[Math.floor(Math.random() * anonTitles.length)];
+
     const newPost = {
       id: Date.now(),
-      author: composerAnDanh ? 'Ẩn danh 10A7' : (auth.user?.name || 'Học sinh 10A7'),
-      roleTitle: composerAnDanh ? 'Thành viên lớp' : (auth.user?.chucVu || 'Thành viên'),
+      author: composerAnDanh ? `Ẩn danh (${randomAnon})` : actualName,
+      actualAuthor: actualName,
+      isAnonymous: composerAnDanh,
+      roleTitle: composerAnDanh ? 'Thành viên lớp (Ẩn danh)' : (auth.user?.chucVu || (auth.user?.isTeacher ? 'Giáo viên' : 'Thành viên')),
+      avatarUrl: composerAnDanh ? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=100&auto=format&fit=crop&q=80' : currentAvatar,
       time: 'Vừa xong',
       content: composerText.trim(),
-      tags: ['#GocHocTap', '#ThaoLuan10A7'],
+      tags: composerAnDanh ? ['#GocAnDanh', '#Confessions10A7'] : ['#GocHocTap', '#ThaoLuan10A7'],
       likes: 1,
       comments: []
     };
     setFeedPosts(prev => [newPost, ...prev]);
     setComposerText('');
+    setComposerAnDanh(false);
   };
 
   // ─── CARO LOGIC ───────────────────────────────────────────────────────────
@@ -758,7 +769,49 @@ function DigitalCampusApp() {
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 font-sans antialiased flex flex-col selection:bg-[#00F2FE] selection:text-black">
 
       {/* ══════════════════════════════════════════════════════════════════════
-           TOP HEADER BAR — EXACT PARITY WITH SCREENSHOTS (NO "Trang chủ" BUTTON)
+           FEATURE 1: DÒNG CHỮ CHẠY THÔNG BÁO NHANH (BREAKING NEWS TICKER)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <div className="bg-gradient-to-r from-[#FFB800]/15 via-[#0B0E14] to-[#FFB800]/15 border-b border-[#FFB800]/30 h-8 overflow-hidden flex items-center select-none text-xs">
+        <div className="shrink-0 px-3 h-full bg-[#FFB800] text-black font-black text-[11px] tracking-wider flex items-center gap-1.5 shadow-[0_0_12px_rgba(255,184,0,0.4)]">
+          <span>⚡</span>
+          <span>TIN NHANH CAMPUS</span>
+        </div>
+        <div className="overflow-hidden flex-1 relative h-full flex items-center">
+          <div className="ticker-track inline-flex gap-8 whitespace-nowrap px-4 cursor-pointer text-slate-200"
+            onClick={() => setShowNotifModal(true)}>
+            {classData.thongBao && classData.thongBao.length > 0 ? (
+              classData.thongBao.map((tb, idx) => (
+                <span key={idx} className="flex items-center gap-2 hover:text-[#00F2FE] transition-colors">
+                  <span className="text-[#FFB800] font-bold">[{formatDateVN(tb.ngay)}]</span>
+                  <span className="font-semibold">{tb.tieuDe}</span>
+                  <span className="text-slate-500">•</span>
+                </span>
+              ))
+            ) : (
+              <>
+                <span className="flex items-center gap-2">
+                  <span className="text-[#FFB800] font-bold">[HỘI THAO 2026]</span>
+                  <span>Đăng ký tham gia giải bóng đá và kéo co truyền thống trước 22:00 Chủ Nhật!</span>
+                  <span className="text-slate-500">•</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-[#00F2FE] font-bold">[HỌC TẬP]</span>
+                  <span>Đề cương ôn thi giữa kỳ I môn Toán & Văn đã có tại Study Hub.</span>
+                  <span className="text-slate-500">•</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-emerald-400 font-bold">[CHUYÊN CẦN]</span>
+                  <span>Điểm danh 1-touch hằng ngày bắt đầu lúc 07:15 sáng.</span>
+                  <span className="text-slate-500">•</span>
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           TOP HEADER BAR (NO "Trang chủ" BUTTON — 100% PARITY)
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'campus' ? (
         /* SCREENSHOT 2 HEADER: DIGITAL CAMPUS HUB */
@@ -789,12 +842,12 @@ function DigitalCampusApp() {
             </button>
 
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#151A23] border border-white/10 text-xs text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Online: <strong className="text-emerald-400">24/39</strong></span>
             </div>
 
             <button onClick={() => setQuyenGvcn(!quyenGvcn)}
-              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${quyenGvcn ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-[#151A23] text-slate-400 border-white/10'}`}>
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${quyenGvcn ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_12px_rgba(139,92,246,0.3)]' : 'bg-[#151A23] text-slate-400 border-white/10'}`}>
               <Ic name="shield" className="w-3.5 h-3.5" />
               <span>Quyền GVCN: <strong>{quyenGvcn ? 'Bật' : 'Tắt'}</strong></span>
             </button>
@@ -842,14 +895,43 @@ function DigitalCampusApp() {
               <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500"></span>
             </button>
 
-            {/* Profile Avatar */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] p-[1.5px] relative">
-              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                alt="Avatar" className="w-full h-full rounded-full object-cover" />
+            {/* Profile Avatar with Custom Avatar Trigger */}
+            <button onClick={() => setShowAvatarModal(true)} title="Tùy biến Avatar & Hồ sơ cá nhân"
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] p-[1.5px] relative hover:scale-110 transition-transform">
+              <img src={currentAvatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-[#0B0E14]"></span>
-            </div>
+            </button>
           </div>
         </header>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           FEATURE 2: RADAR THỐNG KÊ TRỰC TIẾP LIÊN LỚP (KHI BẬT QUYỀN GVCN)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {quyenGvcn && (
+        <div className="bg-gradient-to-r from-purple-900/30 via-[#151A23] to-purple-900/30 border-b border-purple-500/30 px-4 py-3 animate-fadeIn">
+          <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="text-xs font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                <Ic name="shield" className="w-4 h-4 text-purple-400" />
+                <span>RADAR GIÁM SÁT LIÊN LỚP THỜI GIAN THỰC (GIÁO VIÊN)</span>
+              </span>
+            </div>
+
+            {/* Multi-Class Live Metric Pills */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {multiClassStats.map(c => (
+                <div key={c.id} className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#0B0E14] border border-white/10 hover:border-purple-400/40 transition-all">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <strong className="text-white">{c.ten}:</strong>
+                  <span className="text-[#00F2FE] font-bold">{c.online}/{c.siSo} Online</span>
+                  <span className="text-slate-400 text-[10px] hidden sm:inline">({c.activities})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -885,8 +967,32 @@ function DigitalCampusApp() {
             </div>
           </aside>
 
-          {/* ─── CENTER COLUMN: 4 ROOM CARDS (2x2 GRID) ─── */}
+          {/* ─── CENTER COLUMN: CENTRAL BILLBOARD & ROOM CARDS ─── */}
           <main className="flex flex-col gap-5 min-w-0">
+
+            {/* FEATURE 3: KHOẢNG KHÔNG GIAN THÔNG BÁO Ở GIỮA CAMPUS (CENTRAL BILLBOARD) */}
+            <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#151A23] via-[#111622] to-[#151A23] border border-[#00F2FE]/30 p-5 shadow-2xl">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#00F2FE]/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#00F2FE]/10 border border-[#00F2FE]/30 text-[#00F2FE] text-[10px] font-black uppercase tracking-wider mb-2">
+                    <span>📢 THÔNG BÁO TẬP TRUNG TOÀN TRƯỜNG</span>
+                  </div>
+                  <h3 className="text-base font-extrabold text-white tracking-tight mb-1">
+                    Kế Hoạch Tuần Lễ Sinh Hoạt & Khai Mạc Giải Hội Thao Số 2026
+                  </h3>
+                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                    Toàn bộ học sinh các khối 10, 11, 12 hoàn thành đăng ký bộ môn thi đấu và tham gia ôn tập tập trung tại các phòng trực tuyến.
+                  </p>
+                </div>
+                <button onClick={() => setShowNotifModal(true)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-[#00F2FE] text-white hover:text-black font-bold text-xs border border-white/20 hover:border-[#00F2FE] transition-all shrink-0">
+                  Xem chi tiết →
+                </button>
+              </div>
+            </div>
+
+            {/* Lobby Heading */}
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-base font-extrabold text-white">Lobby Hoạt Động Lớp 10A7</h2>
@@ -895,8 +1001,9 @@ function DigitalCampusApp() {
               <p className="text-xs text-slate-400">Khám phá các phòng học tập, rạp chiếu hoặc chơi cờ cùng lớp</p>
             </div>
 
+            {/* 4 Room Cards (2x2 Grid) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Card 1: Cinema / Youtube */}
+              {/* Card 1: Cinema */}
               <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#00F2FE]/40 transition-all">
                 <div className="relative aspect-video w-full overflow-hidden bg-black">
                   <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80"
@@ -929,7 +1036,7 @@ function DigitalCampusApp() {
                 </div>
               </div>
 
-              {/* Card 2: Caro Arena */}
+              {/* Card 2: Caro */}
               <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#FFB800]/40 transition-all">
                 <div className="relative aspect-video w-full overflow-hidden bg-black">
                   <img src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=600&auto=format&fit=crop&q=80"
@@ -995,7 +1102,7 @@ function DigitalCampusApp() {
                 </div>
               </div>
 
-              {/* Card 4: Solo Pod (Do Not Disturb) */}
+              {/* Card 4: Solo Pod */}
               <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group opacity-90">
                 <div className="relative aspect-video w-full overflow-hidden bg-black">
                   <img src="https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=600&auto=format&fit=crop&q=80"
@@ -1032,7 +1139,7 @@ function DigitalCampusApp() {
 
           {/* ─── RIGHT COLUMN: CLASSROOM DJ RADIO & CHAT TRỰC TIẾP ─── */}
           <aside className="flex flex-col gap-4">
-            {/* Classroom DJ Radio Card */}
+            {/* Classroom DJ Radio */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-white">
@@ -1053,13 +1160,12 @@ function DigitalCampusApp() {
               </div>
             </div>
 
-            {/* Chat Trực Tiếp Lớp 10A7 */}
+            {/* Chat Trực Tiếp */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[380px]">
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                 <span className="text-xs font-bold text-white">Chat Trực Tiếp Lớp 10A7</span>
               </div>
 
-              {/* Message List */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72">
                 {chatMessages.map((m, idx) => (
                   <div key={m.id || idx} className="text-xs">
@@ -1075,7 +1181,6 @@ function DigitalCampusApp() {
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Send Form */}
               <form onSubmit={handleSendChat} className="mt-3 flex items-center gap-2">
                 <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                   placeholder="Nhắn tin / Danmaku..."
@@ -1091,11 +1196,10 @@ function DigitalCampusApp() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-           ACTIVE ROOM VIEW (Khi vào phòng cụ thể từ Lobby)
+           ACTIVE ROOM VIEW
       ══════════════════════════════════════════════════════════════════════ */}
       {currentView === 'ROOM_ACTIVE' && activeRoom && (
         <div className="max-w-[1440px] mx-auto px-4 py-6 flex-1 w-full flex flex-col gap-5 animate-fadeIn">
-          {/* Top Bar */}
           <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
             <div className="flex items-center gap-3">
               <button onClick={() => setCurrentView('LOBBY')}
@@ -1110,7 +1214,6 @@ function DigitalCampusApp() {
             </span>
           </div>
 
-          {/* Room: Cinema */}
           {activeRoom.type === 'CINEMA' && (
             <div className="bg-[#151A23] border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden flex flex-col gap-4">
               <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden flex items-center justify-center border border-white/10">
@@ -1142,7 +1245,6 @@ function DigitalCampusApp() {
             </div>
           )}
 
-          {/* Room: Caro */}
           {activeRoom.type === 'GAME_CARO' && (
             <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center">
               <div className="flex items-center justify-between w-full mb-4 max-w-[480px]">
@@ -1177,7 +1279,6 @@ function DigitalCampusApp() {
             </div>
           )}
 
-          {/* Room: Lofi Study */}
           {activeRoom.type === 'LOFI_STUDY' && (
             <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B5CF6] to-[#00F2FE] flex items-center justify-center text-black mb-4">
@@ -1287,7 +1388,6 @@ function DigitalCampusApp() {
           {/* ─── CENTER COLUMN: PINNED POST, COMPOSER, FEED OR MODULES ─── */}
           <main className="flex flex-col gap-4 min-w-0">
 
-            {/* SUB-TAB 1: BẢNG TIN CHUNG (SCREENSHOT 1) */}
             {feedSubTab === 'ban-tin' && (
               <>
                 {/* 1. PINNED POST (ĐÃ GHIM) */}
@@ -1335,15 +1435,15 @@ function DigitalCampusApp() {
                   </div>
                 </div>
 
-                {/* 2. POST COMPOSER */}
+                {/* 2. POST COMPOSER WITH ANONYMOUS OPTION */}
                 <form onSubmit={handleCreatePost} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
-                      <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                      <img src={composerAnDanh ? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=100&auto=format&fit=crop&q=80' : currentAvatar}
                         alt="Me" className="w-full h-full object-cover" />
                     </div>
                     <input type="text" value={composerText} onChange={e => setComposerText(e.target.value)}
-                      placeholder="Bạn đang nghĩ gì, 10A7-er? Đặt câu hỏi bài tập hoặc chia sẻ..."
+                      placeholder={composerAnDanh ? "Bạn đang ở chế độ Ẩn danh: Viết lời nhắn confessions hoặc đặt câu hỏi bài tập..." : "Bạn đang nghĩ gì, 10A7-er? Đặt câu hỏi bài tập hoặc chia sẻ..."}
                       className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
                   </div>
 
@@ -1361,11 +1461,13 @@ function DigitalCampusApp() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 text-slate-400 text-xs cursor-pointer select-none">
+                      {/* Anonymous Checkbox */}
+                      <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none text-slate-300">
                         <input type="checkbox" checked={composerAnDanh} onChange={e => setComposerAnDanh(e.target.checked)}
                           className="rounded bg-[#0B0E14] border-white/20 text-[#00F2FE]" />
-                        <span>Ẩn danh</span>
+                        <span className={composerAnDanh ? 'text-[#00F2FE] font-bold' : ''}>🎭 Ẩn danh</span>
                       </label>
+
                       <button type="submit"
                         className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,0.3)] hover:opacity-90 transition-all flex items-center gap-1">
                         <span>🚀</span>
@@ -1375,17 +1477,43 @@ function DigitalCampusApp() {
                   </div>
                 </form>
 
+                {/* Teacher Control: Toggle View Real Identity of Anonymous Posts */}
+                {auth.user?.isTeacher && (
+                  <div className="flex items-center justify-end text-[11px] text-purple-300">
+                    <button onClick={() => setShowRealNamesForTeacher(!showRealNamesForTeacher)}
+                      className="px-3 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 font-semibold flex items-center gap-1.5 transition-all">
+                      <Ic name="shield" className="w-3.5 h-3.5" />
+                      <span>{showRealNamesForTeacher ? 'Ẩn danh tính thực' : 'Hiện danh tính thực người đăng ẩn danh (Quyền GV)'}</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* 3. FEED POSTS */}
                 {feedPosts.map(post => (
                   <div key={post.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
-                        <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80"
-                          alt={post.author} className="w-full h-full object-cover" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white">{post.author}</h4>
-                        <p className="text-[11px] text-slate-400">{post.roleTitle} • {post.time}</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
+                          <img src={post.avatarUrl} alt={post.author} className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-white">{post.author}</h4>
+                            {post.isAnonymous && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">
+                                Ẩn danh
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400">
+                            {post.roleTitle} • {post.time}
+                            {showRealNamesForTeacher && post.isAnonymous && (
+                              <span className="text-amber-400 font-bold ml-1.5">
+                                [Thực: {post.actualAuthor}]
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -1432,7 +1560,7 @@ function DigitalCampusApp() {
               </>
             )}
 
-            {/* SUB-TAB 2: SỔ ĐIỂM DANH (DOM CONTRACTS PRESERVED) */}
+            {/* SỔ ĐIỂM DANH */}
             {feedSubTab === 'diem-danh' && (
               <div id="khuDiemDanh" className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
@@ -1452,7 +1580,7 @@ function DigitalCampusApp() {
                   </div>
                 </div>
 
-                {auth.user?.isTeacher && (
+                {canMarkAttendance && (
                   <div className="flex items-center gap-2">
                     <button onClick={handleBatchMarkAllPresent}
                       className="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30">
@@ -1473,7 +1601,7 @@ function DigitalCampusApp() {
                         <th className="py-2 px-3">Họ và Tên</th>
                         <th className="py-2 px-3">Lớp Nghề</th>
                         <th className="py-2 px-3 text-center">Trạng Thái</th>
-                        {auth.user?.isTeacher && <th className="py-2 px-3">1-Touch</th>}
+                        {canMarkAttendance && <th className="py-2 px-3">1-Touch</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -1488,7 +1616,7 @@ function DigitalCampusApp() {
                             {hs.trangThai === 'khong_phep' && <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 text-[10px] font-bold">K.Phép</span>}
                             {!hs.trangThai && <span className="text-slate-500 text-[10px]">—</span>}
                           </td>
-                          {auth.user?.isTeacher && (
+                          {canMarkAttendance && (
                             <td className="py-2 px-3">
                               <div className="flex items-center gap-1">
                                 <button onClick={() => handleToggleAttendanceStatus(hs.id, 'co_mat')}
@@ -1515,7 +1643,7 @@ function DigitalCampusApp() {
               </div>
             )}
 
-            {/* SUB-TAB 3: THỦ QUỸ MINH BẠCH (DOM CONTRACTS PRESERVED) */}
+            {/* THỦ QUỸ MINH BẠCH */}
             {feedSubTab === 'thu-quy' && (
               <div id="thu-quy" className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
@@ -1562,7 +1690,7 @@ function DigitalCampusApp() {
 
           {/* ─── RIGHT COLUMN: LOFI STUDY ROOM, ĐỐ VUI STREAK & TRỰC TUYẾN ─── */}
           <aside className="flex flex-col gap-4">
-            {/* Card 1: Lofi Study Room LIVE Player */}
+            {/* Lofi Study Room LIVE Player */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-white">
@@ -1585,7 +1713,6 @@ function DigitalCampusApp() {
                 </div>
               </div>
 
-              {/* Progress & Wave Bars */}
               <div className="flex items-center justify-between text-[10px] text-slate-400 mb-2 font-mono">
                 <span>01:42</span>
                 <div className="flex items-end gap-1 h-3 flex-1 mx-3">
@@ -1597,7 +1724,6 @@ function DigitalCampusApp() {
                 <span>03:45</span>
               </div>
 
-              {/* Big Cyan Circular Play/Pause */}
               <div className="flex justify-center mt-2">
                 <button onClick={toggleRadio}
                   className="w-10 h-10 rounded-full bg-[#00F2FE] hover:bg-[#00e1ec] text-black flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.4)] transition-all">
@@ -1606,7 +1732,7 @@ function DigitalCampusApp() {
               </div>
             </div>
 
-            {/* Card 2: Đố vui & Streak 10A7 Top 3 */}
+            {/* Đố vui & Streak 10A7 Top 3 */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white">
@@ -1625,7 +1751,6 @@ function DigitalCampusApp() {
                 </div>
               </div>
 
-              {/* Leaderboard Top 3 */}
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
                   <div className="flex items-center gap-2">
@@ -1665,7 +1790,7 @@ function DigitalCampusApp() {
               </div>
             </div>
 
-            {/* Card 3: Trực tuyến (18) */}
+            {/* Trực tuyến (18) */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center gap-2 text-xs font-bold text-white mb-3">
                 <Ic name="users" className="w-4 h-4 text-[#00F2FE]" />
@@ -1701,7 +1826,62 @@ function DigitalCampusApp() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-           NOTIFICATIONS MODAL
+           MODAL 1: TÙY BIẾN AVATAR & HỒ SƠ CÁ NHÂN (STUDENT AVATAR CUSTOMIZER)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#151A23] border border-white/15 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                <span>🎨</span>
+                <span>Tùy Biến Avatar & Hồ Sơ Lớp 10A7</span>
+              </h3>
+              <button onClick={() => setShowAvatarModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white">
+                <Ic name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Current Active Avatar Preview */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#0B0E14] border border-white/10 mb-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-[#00F2FE] shadow-[0_0_12px_rgba(0,242,254,0.3)]">
+                <img src={currentAvatar} alt="Current" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">{auth.user?.name || 'Học sinh 10A7'}</p>
+                <p className="text-xs text-[#00F2FE] font-medium">{auth.user?.chucVu || (auth.user?.isTeacher ? 'Giáo viên chủ nhiệm' : 'Thành viên lớp')}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Avatar hiển thị trên Bảng Tin & Chat</p>
+              </div>
+            </div>
+
+            {/* Preset Avatar Selection Grid */}
+            <p className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">Chọn Avatar Phong Cách Bạn Thích:</p>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              {PRESET_AVATARS.map(av => (
+                <button key={av.id} onClick={() => {
+                  setCurrentAvatar(av.url);
+                  localStorage.setItem('user_custom_avatar', av.url);
+                }}
+                  className={`relative aspect-square rounded-2xl overflow-hidden border-2 transition-all group ${currentAvatar === av.url ? 'border-[#00F2FE] scale-105 shadow-[0_0_12px_rgba(0,242,254,0.4)]' : 'border-white/10 hover:border-white/40'}`}>
+                  <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
+                  {currentAvatar === av.url && (
+                    <div className="absolute inset-0 bg-[#00F2FE]/20 flex items-center justify-center">
+                      <span className="w-4 h-4 rounded-full bg-[#00F2FE] text-black text-[10px] font-black flex items-center justify-center">✓</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <button onClick={() => setShowAvatarModal(false)}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">
+              Lưu & Áp Dụng Avatar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           MODAL 2: THÔNG BÁO LỚP 10A7
       ══════════════════════════════════════════════════════════════════════ */}
       {showNotifModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -1729,7 +1909,22 @@ function DigitalCampusApp() {
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-slate-400 text-xs">Hiện tại chưa có thông báo mới nào.</div>
+                <div className="space-y-3">
+                  <div className="bg-[#0B0E14] border border-white/5 rounded-2xl p-4">
+                    <span className="text-xs font-bold text-[#FFB800]">10/09/2026</span>
+                    <h4 className="text-sm font-bold text-white mt-1 mb-2">Kế hoạch ôn tập giữa kỳ I & Đăng ký Hội thao 2026</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Chào cả lớp 10A7! Thầy đã cập nhật đề cương ôn tập môn Toán và Ngữ Văn lên Study Hub. Các bạn chú ý thời hạn nộp bài tập tuần này vào trước 22:00 Chủ Nhật.
+                    </p>
+                  </div>
+                  <div className="bg-[#0B0E14] border border-white/5 rounded-2xl p-4">
+                    <span className="text-xs font-bold text-[#00F2FE]">08/09/2026</span>
+                    <h4 className="text-sm font-bold text-white mt-1 mb-2">Quy định điểm danh chuyên cần 1-Touch</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Ban cán sự lớp phụ trách cập nhật sĩ số đầu giờ mỗi sáng. Các trường hợp vắng có phép cần gửi giấy phép của phụ huynh trước tiết 1.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1737,7 +1932,7 @@ function DigitalCampusApp() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-           AUTH GATE MODAL
+           MODAL 3: AUTH GATE
       ══════════════════════════════════════════════════════════════════════ */}
       {showAuthGate && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
