@@ -5749,3 +5749,79 @@ main.wrap:has(#trangChu),
     height: 70px;
   }
 }
+
+/* ==========================================================================
+   CLASS 10A7 COMMUNITY FEED & SUB-NAVIGATION IA STYLING
+   ========================================================================== */
+.class-feed-subnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #151A23;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.class-feed-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.class-feed-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.class-feed-tab-btn.active {
+  color: #00F2FE;
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.3);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.15);
+}
+
+.class-feed-tab-btn.active-treasury {
+  color: #FFB800;
+  background: rgba(255, 184, 0, 0.12);
+  border-color: rgba(255, 184, 0, 0.3);
+  box-shadow: 0 0 16px rgba(255, 184, 0, 0.15);
+}
+
+.class-feed-tab-btn.active-attendance {
+  color: #8B5CF6;
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+}
+
+.tab-pane-transition {
+  animation: tabFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

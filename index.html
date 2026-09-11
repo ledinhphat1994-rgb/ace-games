@@ -180,10 +180,11 @@ function DigitalCampusApp() {
   const [showAuthGate, setShowAuthGate] = useState(false);
 
   // 2. Navigation & Tabs
-  const [activeTab, setActiveTab] = useState('lobby'); // lobby | attendance | treasury | students
+  const [activeTab, setActiveTab] = useState('campus'); // campus | caro | feed
+  const [feedSubTab, setFeedSubTab] = useState('ban-tin'); // ban-tin | diem-danh | thu-quy
   const [currentView, setCurrentView] = useState('LOBBY'); // LOBBY | ROOM_ACTIVE
   const [activeRoom, setActiveRoom] = useState(null); // room object
-  const [mobileTab, setMobileTab] = useState('ROOMS'); // ROOMS | CHAT | RADIO | UTILS
+  const [mobileTab, setMobileTab] = useState('campus');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
 
   // Sub-tabs for Attendance & Treasury
@@ -524,48 +525,70 @@ function DigitalCampusApp() {
 
   // Fetch tab-specific data
   useEffect(() => {
-    if (activeTab === 'attendance' && !attendance.loaded) {
+    if (activeTab === 'feed' && feedSubTab === 'diem-danh' && !attendance.loaded) {
       fetchAttendance();
     }
-  }, [activeTab, attendance.loaded, fetchAttendance]);
+  }, [activeTab, feedSubTab, attendance.loaded, fetchAttendance]);
 
-  // ─── HASH ROUTING SYNC ────────────────────────────────────────────────────
-  // Sync URL hash <-> activeTab (bidirectional)
+  // ─── HASH ROUTING SYNC & SMOOTH SCROLLING ────────────────────────────────
+  const navigateTab = useCallback((tabId, subTab = 'ban-tin') => {
+    setActiveTab(tabId);
+    setCurrentView('LOBBY');
+    if (tabId === 'feed') {
+      setFeedSubTab(subTab);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    let desired = '';
+    if (tabId === 'campus') desired = '#/campus';
+    else if (tabId === 'caro') desired = '#/caro';
+    else if (tabId === 'feed') {
+      if (subTab === 'diem-danh') desired = '#/diem-danh';
+      else if (subTab === 'thu-quy') desired = '#/thu-quy';
+      else desired = '#/bang-tin-lop';
+    }
+
+    if (desired && location.hash !== desired) {
+      history.pushState(null, '', location.pathname + location.search + desired);
+    }
+  }, []);
+
+  // Sync URL hash <-> activeTab & feedSubTab (bidirectional)
   useEffect(() => {
-    const HASH_TO_TAB = { '#/diem-danh': 'attendance', '#/thu-quy': 'treasury' };
-    const TAB_TO_HASH = { attendance: '#/diem-danh', treasury: '#/thu-quy' };
-
     const onHashChange = () => {
       const h = location.hash;
-      const tab = HASH_TO_TAB[h];
-      if (tab) {
-        setActiveTab(tab);
+      if (h === '#/caro') {
+        setActiveTab('caro');
         setCurrentView('LOBBY');
-      } else if (!h || h === '#') {
-        // returning to root
-        setActiveTab('lobby');
+      } else if (h === '#/diem-danh' || h.startsWith('#/bang-tin-lop?tab=diem-danh') || h === '#/bang-tin-lop/diem-danh') {
+        setActiveTab('feed');
+        setFeedSubTab('diem-danh');
+        setCurrentView('LOBBY');
+      } else if (h === '#/thu-quy' || h.startsWith('#/bang-tin-lop?tab=thu-quy') || h === '#/bang-tin-lop/thu-quy') {
+        setActiveTab('feed');
+        setFeedSubTab('thu-quy');
+        setCurrentView('LOBBY');
+      } else if (h === '#/bang-tin-lop' || h.startsWith('#/bang-tin-lop?tab=ban-tin') || h === '#/ban-tin') {
+        setActiveTab('feed');
+        setFeedSubTab('ban-tin');
+        setCurrentView('LOBBY');
+      } else if (h === '#/quan-ly') {
+        if (auth.user?.isTeacher) {
+          window.location.href = '/giao-vien/';
+        } else {
+          setActiveTab('campus');
+          setCurrentView('LOBBY');
+        }
+      } else if (h === '#/campus' || !h || h === '#') {
+        setActiveTab('campus');
         setCurrentView('LOBBY');
       }
     };
 
     window.addEventListener('hashchange', onHashChange);
-    // Handle initial hash on mount
     onHashChange();
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Push hash when activeTab changes (except lobby)
-  useEffect(() => {
-    const TAB_TO_HASH = { attendance: '#/diem-danh', treasury: '#/thu-quy' };
-    const desired = TAB_TO_HASH[activeTab] || '';
-    if (location.hash !== desired) {
-      if (desired) {
-        history.pushState(null, '', location.pathname + location.search + desired);
-      } else if (location.hash && ['/diem-danh', '/thu-quy'].some(s => location.hash.includes(s))) {
-        history.pushState(null, '', location.pathname + location.search);
-      }
-    }
-  }, [activeTab]);
+  }, [auth.user?.isTeacher]);
 
   // ─── DJ RADIO AUDIO CONTROL ───────────────────────────────────────────────
   const toggleRadio = () => {
@@ -850,16 +873,15 @@ function DigitalCampusApp() {
           </div>
         </div>
 
-        {/* Center Tabs Navigation */}
+        {/* Center Tabs Navigation — 3 Clean Root Hubs */}
         <nav className="hidden md:flex items-center gap-1 bg-[#151A23] border border-white/10 rounded-2xl p-1 shadow-inner">
           {[
-            { id: 'lobby',      label: '🏛️ Sảnh Lớp' },
-            { id: 'attendance', label: '📋 Điểm Danh' },
-            { id: 'treasury',   label: '💰 Thủ Quỹ' },
-            { id: 'students',   label: '👥 Học Sinh' },
+            { id: 'campus', label: '🏛️ Sảnh Campus' },
+            { id: 'caro',   label: '⚔️ Đấu Trường Caro' },
+            { id: 'feed',   label: '📢 Bảng Tin Lớp 10A7' },
           ].map(t => (
-            <button key={t.id} onClick={() => { setActiveTab(t.id); setCurrentView('LOBBY'); }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === t.id && currentView === 'LOBBY' ? 'bg-gradient-to-r from-[#00F2FE]/20 to-[#8B5CF6]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-[0_0_12px_rgba(0,242,254,0.15)]' : 'text-slate-400 hover:text-white'}`}>
+            <button key={t.id} onClick={() => navigateTab(t.id)}
+              className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === t.id && currentView === 'LOBBY' ? 'bg-gradient-to-r from-[#00F2FE]/20 to-[#8B5CF6]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-[0_0_12px_rgba(0,242,254,0.15)]' : 'text-slate-400 hover:text-white'}`}>
               {t.label}
             </button>
           ))}
@@ -868,8 +890,8 @@ function DigitalCampusApp() {
         {/* Right Actions */}
         <div className="flex items-center gap-2.5 shrink-0">
           {/* Notification Bell */}
-          <button onClick={() => setShowNotifModal(true)}
-            className="relative p-2.5 rounded-xl bg-[#151A23] border border-white/10 hover:border-[#00F2FE]/40 text-slate-300 hover:text-white transition-all">
+          <button onClick={() => setShowNotifModal(true)} aria-label="Xem thông báo lớp"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center relative p-2.5 rounded-xl bg-[#151A23] border border-white/10 hover:border-[#00F2FE]/40 text-slate-300 hover:text-white transition-all">
             <Ic name="bell" className="w-4 h-4" />
             {classData.thongBao?.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-black text-white flex items-center justify-center">
@@ -878,15 +900,9 @@ function DigitalCampusApp() {
             )}
           </button>
 
-          {/* Community Feed Button */}
-          <a href="/community-feed.html" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,0.25)] hover:opacity-95 transition-all">
-            <Ic name="community" className="w-3.5 h-3.5" />
-            <span>Bảng Tin</span>
-          </a>
-
           {/* Teacher Portal Link (If teacher) */}
           {auth.user?.isTeacher && (
-            <a href="/giao-vien/" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs hover:bg-purple-500/25 transition-all">
+            <a href="/giao-vien/" className="min-h-[44px] hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs hover:bg-purple-500/25 transition-all">
               <Ic name="shield" className="w-3.5 h-3.5" />
               <span>Quản Lý</span>
             </a>
@@ -894,17 +910,17 @@ function DigitalCampusApp() {
 
           {/* User Profile / Auth State */}
           {auth.isGuest ? (
-            <a href="/login.html" className="px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#00F2FE]/40 text-slate-200 hover:text-white text-xs font-bold transition-all">
+            <a href="/login.html" className="min-h-[44px] inline-flex items-center px-4 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#00F2FE]/40 text-slate-200 hover:text-white text-xs font-bold transition-all">
               Đăng nhập
             </a>
           ) : (
-            <div className="flex items-center gap-2 bg-[#151A23] border border-white/10 rounded-xl pl-2.5 pr-1.5 py-1">
+            <div className="flex items-center gap-2 bg-[#151A23] border border-white/10 rounded-xl pl-3 pr-1.5 py-1 min-h-[44px]">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-bold text-white line-clamp-1">{auth.user.name}</p>
                 <p className="text-[10px] text-[#00F2FE] font-medium">{auth.user.chucVu || (auth.user.isTeacher ? 'Giáo viên' : 'Học sinh')}</p>
               </div>
               <a href="/api/logout" title="Đăng xuất" onClick={e => { if(!confirm('Bạn có chắc chắn muốn đăng xuất không?')) e.preventDefault(); }}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all">
+                className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all min-h-[36px] min-w-[36px] flex items-center justify-center">
                 <Ic name="logout" className="w-3.5 h-3.5" />
               </a>
             </div>
@@ -965,8 +981,8 @@ function DigitalCampusApp() {
                 { id: 'GAME',   label: 'Cờ Caro',   icon: 'game' },
                 { id: 'LOFI',   label: 'Lofi Cafe', icon: 'phones' },
               ].map(cat => (
-                <button key={cat.id} onClick={() => { setCategoryFilter(cat.id); setCurrentView('LOBBY'); setActiveTab('lobby'); }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${categoryFilter === cat.id && activeTab === 'lobby' ? 'bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                <button key={cat.id} onClick={() => { if (cat.id === 'GAME') { navigateTab('caro'); } else { setCategoryFilter(cat.id); navigateTab('campus'); } }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${(cat.id === 'GAME' ? activeTab === 'caro' : categoryFilter === cat.id && activeTab === 'campus') ? 'bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
                   <div className="flex items-center gap-2">
                     <Ic name={cat.icon} className="w-4 h-4" />
                     <span>{cat.label}</span>
@@ -980,10 +996,10 @@ function DigitalCampusApp() {
           <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 shadow-xl">
             <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-2 mb-2">Liên Kết Tiện Ích</p>
             <div className="flex flex-col gap-1 text-xs">
-              <a href="/community-feed.html" className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-300 hover:bg-white/5 hover:text-[#00F2FE] transition-all">
+              <button onClick={() => navigateTab('feed', 'ban-tin')} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-300 hover:bg-white/5 hover:text-[#00F2FE] transition-all text-left">
                 <Ic name="community" className="w-4 h-4 text-[#00F2FE]" />
-                <span>Bảng Tin Cộng Đồng</span>
-              </a>
+                <span>Bảng Tin Lớp 10A7</span>
+              </button>
               {auth.user?.isTeacher && (
                 <a href="/giao-vien/" className="flex items-center gap-2 px-3 py-2 rounded-xl text-purple-300 hover:bg-white/5 hover:text-purple-200 transition-all">
                   <Ic name="shield" className="w-4 h-4 text-purple-400" />
@@ -1005,8 +1021,15 @@ function DigitalCampusApp() {
               { id: 'GAME', label: '♟️ Cờ Caro' },
               { id: 'LOFI', label: '🎧 Lofi Cafe' },
             ].map(c => (
-              <button key={c.id} onClick={() => { setCategoryFilter(c.id); setActiveTab('lobby'); }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${categoryFilter === c.id && activeTab === 'lobby' ? 'bg-[#00F2FE] text-black shadow-[0_0_10px_rgba(0,242,254,0.3)]' : 'bg-[#151A23] text-slate-300 border border-white/10'}`}>
+              <button key={c.id} onClick={() => {
+                if (c.id === 'GAME') {
+                  navigateTab('caro');
+                } else {
+                  setCategoryFilter(c.id);
+                  navigateTab('campus');
+                }
+              }}
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${((c.id === 'GAME' && activeTab === 'caro') || (categoryFilter === c.id && activeTab === 'campus')) ? 'bg-[#00F2FE] text-black shadow-[0_0_10px_rgba(0,242,254,0.3)]' : 'bg-[#151A23] text-slate-300 border border-white/10'}`}>
                 {c.label}
               </button>
             ))}
@@ -1020,7 +1043,7 @@ function DigitalCampusApp() {
               {/* Room Top Bar */}
               <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                  <button onClick={() => { setActiveRoom(null); setCurrentView('LOBBY'); }}
+                  <button onClick={() => { setActiveRoom(null); navigateTab(activeRoom?.type === 'GAME_CARO' ? 'caro' : 'campus'); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all">
                     <Ic name="left" className="w-4 h-4" /> Thoát Phòng
                   </button>
@@ -1134,9 +1157,9 @@ function DigitalCampusApp() {
           )}
 
           {/* ═══════════════════════════════════════════════════
-               TAB: LOBBY (DANH SÁCH PHÒNG HỌC ẢO)
+               TAB 1: CAMPUS LOBBY (KHÔNG GIAN TRƯỜNG HỌC SỐ CHUNG)
           ════════════════════════════════════════════════════ */}
-          {activeTab === 'lobby' && currentView === 'LOBBY' && (
+          {activeTab === 'campus' && currentView === 'LOBBY' && (
             <div className="flex flex-col gap-6 animate-fadeIn">
               {/* Featured Banner Card */}
               <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#151A23] via-[#10141D] to-[#151A23] border border-white/10 p-6 sm:p-8 shadow-2xl">
@@ -1157,9 +1180,9 @@ function DigitalCampusApp() {
                       className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_16px_rgba(0,242,254,0.3)] hover:scale-105 transition-all">
                       Vào Rạp Chiếu Phim
                     </button>
-                    <button onClick={handleCreateCaroRoom}
-                      className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs border border-white/10 transition-all">
-                      Đấu Cờ Caro 15x15
+                    <button onClick={() => navigateTab('caro')}
+                      className="min-h-[44px] px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs border border-white/10 transition-all inline-flex items-center justify-center">
+                      Đấu Cờ Caro 15x15 →
                     </button>
                   </div>
                 </div>
@@ -1212,8 +1235,8 @@ function DigitalCampusApp() {
                           Tranh tài xếp 5 quân thắng cuộc cùng các bạn trong lớp. Tự động kiểm tra nước đi hợp lệ.
                         </p>
                       </div>
-                      <button onClick={handleCreateCaroRoom}
-                        className="w-full py-2 rounded-xl bg-white/5 group-hover:bg-[#FFB800] text-slate-200 group-hover:text-black font-bold text-xs transition-all border border-white/10 group-hover:border-[#FFB800]">
+                      <button onClick={() => navigateTab('caro')}
+                        className="w-full min-h-[44px] py-2 rounded-xl bg-white/5 group-hover:bg-[#FFB800] text-slate-200 group-hover:text-black font-bold text-xs transition-all border border-white/10 group-hover:border-[#FFB800] inline-flex items-center justify-center">
                         Vào Đấu Trí →
                       </button>
                     </div>
@@ -1246,10 +1269,270 @@ function DigitalCampusApp() {
           )}
 
 
-          {/* ═══════════════════════════════════════════════════
-               TAB: ATTENDANCE — SaaS Linear/Vercel Design
+                    {/* ═══════════════════════════════════════════════════
+               TAB 2: CARO ARENA — ĐẤU TRƯỜNG CỜ CARO 15x15
           ════════════════════════════════════════════════════ */}
-          {activeTab === 'attendance' && (
+          {activeTab === 'caro' && currentView === 'LOBBY' && (
+            <div className="flex flex-col gap-6 animate-fadeIn">
+              <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl">
+                <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-wrap gap-3">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#FFB800]/10 text-[#FFB800] border border-[#FFB800]/20 text-[10px] font-bold mb-1">
+                      <span>⚔️ MULTIPLAYER ARENA</span>
+                    </div>
+                    <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+                      Đấu Trường Cờ Caro 15x15
+                    </h2>
+                    <p className="text-xs text-slate-400">Tranh tài xếp 5 quân thẳng hàng · Kiểm tra luật thi đấu tự động</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setCaroBoard(Array(15).fill(null).map(() => Array(15).fill(null))); setCaroWinner(null); }}
+                      className="min-h-[44px] px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs border border-white/10 transition-all flex items-center gap-1.5">
+                      <span>🔄</span> Ván Mới
+                    </button>
+                    <button onClick={handleCreateCaroRoom}
+                      className="min-h-[44px] px-4 py-2 rounded-xl bg-gradient-to-r from-[#FFB800] to-[#F59E0B] text-black font-extrabold text-xs shadow-lg hover:scale-105 transition-all flex items-center gap-1.5">
+                      <span>➕</span> Mở Bàn Mới
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center py-4">
+                  <div className="flex items-center justify-between w-full mb-4 max-w-[500px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">Lượt đi hiện tại:</span>
+                      <span className={`px-3 py-1 rounded-full font-black text-xs ${caroTurn === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-[0_0_10px_rgba(0,242,254,0.2)]' : 'bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/40 shadow-[0_0_10px_rgba(255,184,0,0.2)]'}`}>
+                        Quân {caroTurn}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400">Chế độ 2 người chơi tại máy</span>
+                  </div>
+
+                  {caroWinner && (
+                    <div className="mb-4 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/50 text-center animate-scaleIn w-full max-w-[500px]">
+                      <span className="text-sm font-extrabold text-[#00F2FE]">{caroWinner}</span>
+                    </div>
+                  )}
+
+                  {/* 15x15 Caro Grid */}
+                  <div className="grid grid-cols-15 gap-0.5 p-2 bg-[#0B0E14] border border-white/15 rounded-2xl shadow-inner max-w-[500px] w-full aspect-square">
+                    {caroBoard.map((row, r) => (
+                      row.map((cell, c) => (
+                        <button key={`caro-page-${r}-${c}`} onClick={() => handleCaroCellClick(r, c)}
+                          aria-label={`Ô cờ hàng ${r+1} cột ${c+1}`}
+                          className={`aspect-square rounded-[3px] flex items-center justify-center font-black text-[10px] sm:text-xs transition-colors ${!cell ? 'bg-[#151A23]/60 hover:bg-white/10' : cell === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE]' : 'bg-[#FFB800]/20 text-[#FFB800]'}`}>
+                          {cell}
+                        </button>
+                      ))
+                    ))}
+                  </div>
+
+                  {/* Open tables list */}
+                  <div className="mt-6 w-full max-w-[500px]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Danh Sách Bàn Đấu ({caroRooms.length})</span>
+                      <button onClick={fetchCaroRooms} className="text-xs text-[#00F2FE] hover:underline font-semibold">Làm mới</button>
+                    </div>
+                    {caroRooms.length > 0 ? (
+                      <div className="space-y-2">
+                        {caroRooms.map(r => (
+                          <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-[#0B0E14] border border-white/5 text-xs">
+                            <div>
+                              <p className="font-bold text-white">{r.tenBan || ('Bàn #' + r.id)}</p>
+                              <p className="text-[10px] text-slate-400">Tạo lúc: {formatTimeOnly(r.taoLuc)}</p>
+                            </div>
+                            <button onClick={() => { setActiveRoom({ id: r.id, type: 'GAME_CARO', title: r.tenBan || 'Bàn cờ' }); setCurrentView('ROOM_ACTIVE'); }}
+                              className="px-3 py-1.5 rounded-lg bg-[#FFB800] text-black font-bold text-xs">
+                              Vào Bàn
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 text-center py-4 bg-[#0B0E14] rounded-xl border border-white/5">
+                        Chưa có bàn đấu trực tuyến nào đang chờ. Bạn có thể bấm "Mở Bàn Mới" để mời bạn bè!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+               TAB 3: CLASS 10A7 FEED & COMMUNITY WORKSPACE
+          ════════════════════════════════════════════════════ */}
+          {activeTab === 'feed' && currentView === 'LOBBY' && (
+            <div className="flex flex-col gap-5 animate-fadeIn">
+              {/* Class Header Banner */}
+              <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#00F2FE]/5 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="flex items-center justify-between flex-wrap gap-4 relative z-10">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/20 text-[11px] font-bold mb-2">
+                      <span className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse"></span>
+                      <span>KHÔNG GIAN NỘI BỘ LỚP 10A7</span>
+                    </div>
+                    <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Không Gian Sinh Hoạt & Học Tập Lớp 10A7
+                    </h1>
+                    <p className="text-xs text-slate-300 mt-1">
+                      GVCN: <strong className="text-white">Thầy Lê Đình Phát</strong> · Sĩ số: <strong className="text-[#FFB800]">{classData.hocSinh?.length || 39} học sinh</strong> · Năm học 2026 – 2027
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-Navigation Bar (Pill / Underline Tabs) */}
+                <div className="class-feed-subnav mt-5">
+                  <button id="tab-ban-tin" type="button"
+                    onClick={() => { setFeedSubTab('ban-tin'); if (location.hash !== '#/bang-tin-lop') history.pushState(null, '', location.pathname + location.search + '#/bang-tin-lop'); }}
+                    className={`class-feed-tab-btn ${feedSubTab === 'ban-tin' ? 'active' : ''}`}>
+                    <span>📌 Bản Tin Lớp</span>
+                    {classData.thongBao?.length > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-[#00F2FE]/20 text-[#00F2FE] text-[10px] font-extrabold">
+                        {classData.thongBao.length}
+                      </span>
+                    )}
+                  </button>
+                  <button id="tab-diem-danh" type="button"
+                    onClick={() => { setFeedSubTab('diem-danh'); if (!attendance.loaded) fetchAttendance(); if (location.hash !== '#/diem-danh') history.pushState(null, '', location.pathname + location.search + '#/diem-danh'); }}
+                    className={`class-feed-tab-btn ${feedSubTab === 'diem-danh' ? 'active-attendance' : ''}`}>
+                    <span>📋 Sổ Điểm Danh</span>
+                  </button>
+                  <button id="tab-thu-quy" type="button"
+                    onClick={() => { setFeedSubTab('thu-quy'); if (location.hash !== '#/thu-quy') history.pushState(null, '', location.pathname + location.search + '#/thu-quy'); }}
+                    className={`class-feed-tab-btn ${feedSubTab === 'thu-quy' ? 'active-treasury' : ''}`}>
+                    <span>💰 Thủ Quỹ Minh Bạch</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Tab A: Class Stream (Bản Tin Lớp & Hoạt Động & Tra Cứu Thành Viên) */}
+              {feedSubTab === 'ban-tin' && (
+                <div className="tab-pane-transition space-y-6">
+                  {/* Teacher Announcements List */}
+                  <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                      <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                        <span>📢</span> Thông Báo Từ Giáo Viên Chủ Nhiệm
+                      </h3>
+                      <span className="text-xs text-slate-400">{classData.thongBao?.length || 0} bài đăng</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {classData.thongBao && classData.thongBao.length > 0 ? (
+                        classData.thongBao.map((tb, idx) => (
+                          <div key={tb.id || idx} onClick={() => { setSelectedNotif(tb); setShowNotifModal(true); }}
+                            className="bg-[#0B0E14] border border-white/5 hover:border-[#00F2FE]/40 rounded-2xl p-4 transition-all cursor-pointer group">
+                            <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-[#00F2FE]">{formatDateVN(tb.ngay)}</span>
+                                {tb.ghim && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-[#FFB800] font-bold border border-amber-500/30">Ghim quan trọng</span>}
+                              </div>
+                              <span className="text-[11px] text-slate-400 font-medium">GVCN Lê Đình Phát</span>
+                            </div>
+                            <h4 className="text-sm font-bold text-white mb-1.5 group-hover:text-[#00F2FE] transition-colors">{tb.tieuDe}</h4>
+                            <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{tb.noiDung}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-8 text-center text-slate-500 text-xs">Hiện tại chưa có thông báo mới nào.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Class Activities & Timeline */}
+                  {classData.hoatDongLop && classData.hoatDongLop.length > 0 && (
+                    <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-xl">
+                      <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
+                        <span>🎯</span> Hoạt Động & Kế Hoạch Lớp
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {classData.hoatDongLop.map((hd, i) => (
+                          <div key={hd.id || i} className="bg-[#0B0E14] p-4 rounded-2xl border border-white/5">
+                            <span className="text-[11px] font-bold text-[#FFB800]">{formatDateVN(hd.ngay || hd.thoi_gian)}</span>
+                            <h4 className="text-xs font-bold text-white mt-1 mb-1">{hd.tieuDe || hd.ten}</h4>
+                            <p className="text-xs text-slate-400">{hd.noiDung || hd.mo_ta}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Integrated Class Roster (Tra cứu thành viên 10A7) */}
+                  <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 flex-wrap gap-3">
+                      <div>
+                        <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                          <span>👥</span> Danh Sách Thành Viên Lớp 10A7
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Sĩ số chính thức: {classData.hocSinh?.length || 39} học sinh</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="relative">
+                          <input type="text" value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                            placeholder="Tìm theo tên, nghề..."
+                            className="bg-[#0B0E14] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+                          <span className="absolute left-2.5 top-2 text-slate-500">
+                            <Ic name="search" className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+                        <select value={studentToFilter} onChange={e => setStudentToFilter(e.target.value)}
+                          className="bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
+                          <option value="ALL">Tất cả tổ</option>
+                          <option value="1">Tổ 1</option>
+                          <option value="2">Tổ 2</option>
+                          <option value="3">Tổ 3</option>
+                          <option value="4">Tổ 4</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {auth.isGuest ? (
+                      <div className="text-center py-8 px-4 bg-[#0B0E14] rounded-2xl border border-white/5">
+                        <p className="text-xs text-slate-400 mb-3">Đăng nhập tài khoản để xem danh sách chi tiết các bạn trong lớp.</p>
+                        <a href="/login.html" className="inline-block px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs border border-white/10">Đăng nhập →</a>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider">
+                              <th className="py-2 px-3">STT</th>
+                              <th className="py-2 px-3">Họ và Tên</th>
+                              <th className="py-2 px-3">Giới Tính</th>
+                              <th className="py-2 px-3">Tổ</th>
+                              <th className="py-2 px-3">Lớp Nghề</th>
+                              <th className="py-2 px-3">Chức Vụ</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5">
+                            {filteredStudents.map((hs, i) => (
+                              <tr key={hs.id || i} className="hover:bg-white/5 transition-colors">
+                                <td className="py-2 px-3 text-slate-500 font-mono">{hs.soThuTu || (i + 1)}</td>
+                                <td className="py-2 px-3 font-semibold text-white">{hs.hoTen}</td>
+                                <td className="py-2 px-3 text-slate-400">{hs.gioiTinh === 'nu' ? 'Nữ' : 'Nam'}</td>
+                                <td className="py-2 px-3 text-slate-300">Tổ {hs.toSo || '—'}</td>
+                                <td className="py-2 px-3 text-[#00F2FE]">{hs.lopNghe || '—'}</td>
+                                <td className="py-2 px-3">
+                                  {hs.chucVu && hs.chucVu !== 'Học sinh' ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-[#FFB800]/15 text-[#FFB800] border border-[#FFB800]/30 font-bold text-[10px]">{hs.chucVu}</span>
+                                  ) : <span className="text-slate-500 text-[11px]">Thành viên</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-Tab B: Attendance Module */}
+              {feedSubTab === 'diem-danh' && (
+                <div className="tab-pane-transition">
             <div id="khuDiemDanh" className="bg-[#151A23] border border-white/10 rounded-3xl shadow-2xl animate-fadeIn overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/10 flex-wrap gap-3">
@@ -1445,12 +1728,12 @@ function DigitalCampusApp() {
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ═══════════════════════════════════════════════════
-               TAB: TREASURY — SaaS KPI + Split Thu/Chi
-          ════════════════════════════════════════════════════ */}
-          {activeTab === 'treasury' && (
+              {/* Sub-Tab C: Transparent Treasury Module */}
+              {feedSubTab === 'thu-quy' && (
+                <div className="tab-pane-transition">
             <div id="thu-quy" className="bg-[#151A23] border border-white/10 rounded-3xl shadow-2xl animate-fadeIn overflow-hidden">
               <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/10 flex-wrap gap-3">
                 <div>
@@ -1591,10 +1874,8 @@ function DigitalCampusApp() {
                 </div>
               )}
             </div>
-          )}
 
-
-                  {/* Khu vực ẩn dùng cho in A4 chuẩn hành chính */}
+            {/* Khu vực ẩn dùng cho in A4 chuẩn hành chính */}
                   <div id="khuInBaoCaoA4">
                     <div className="print-header">
                       <div className="print-header-left">
@@ -1668,88 +1949,6 @@ function DigitalCampusApp() {
                     </div>
                   </div>
 
-          {/* ═══════════════════════════════════════════════════
-               TAB: STUDENTS (DANH SÁCH HỌC SINH THỰC TẾ)
-          ════════════════════════════════════════════════════ */}
-          {activeTab === 'students' && (
-            <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl animate-fadeIn">
-              <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10 flex-wrap gap-4">
-                <div>
-                  <h2 className="text-base font-extrabold text-white flex items-center gap-2">
-                    <span>👥</span> Danh Sách Học Sinh 10A7
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Sĩ số chính thức: {classData.hocSinh?.length || 39} thành viên</p>
-                </div>
-
-                {/* Filter & Search Bar */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative">
-                    <input type="text" value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                      placeholder="Tìm theo tên, lớp nghề..."
-                      className="bg-[#0B0E14] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                    <span className="absolute left-2.5 top-2 text-slate-500">
-                      <Ic name="search" className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-
-                  <select value={studentToFilter} onChange={e => setStudentToFilter(e.target.value)}
-                    className="bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
-                    <option value="ALL">Tất cả tổ</option>
-                    <option value="1">Tổ 1</option>
-                    <option value="2">Tổ 2</option>
-                    <option value="3">Tổ 3</option>
-                    <option value="4">Tổ 4</option>
-                  </select>
-                </div>
-              </div>
-
-              {auth.isGuest ? (
-                <div className="text-center py-12 px-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3 text-2xl">
-                    👥
-                  </div>
-                  <h3 className="text-sm font-bold text-white mb-2">Đăng nhập để xem danh sách lớp</h3>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
-                    Danh sách học sinh chứa thông tin nội bộ của lớp 10A7. Vui lòng đăng nhập để xem.
-                  </p>
-                  <a href="/login.html" className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg">
-                    Đăng nhập ngay →
-                  </a>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/10 text-slate-400 uppercase text-[10px] tracking-wider">
-                        <th className="py-2.5 px-3">STT</th>
-                        <th className="py-2.5 px-3">Họ và Tên</th>
-                        <th className="py-2.5 px-3">Giới Tính</th>
-                        <th className="py-2.5 px-3">Tổ</th>
-                        <th className="py-2.5 px-3">Lớp Nghề</th>
-                        <th className="py-2.5 px-3">Chức Vụ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {filteredStudents.map((hs, i) => (
-                        <tr key={hs.id || i} className="hover:bg-white/5 transition-colors">
-                          <td className="py-2.5 px-3 text-slate-500 font-mono">{hs.soThuTu || (i + 1)}</td>
-                          <td className="py-2.5 px-3 font-semibold text-white">{hs.hoTen}</td>
-                          <td className="py-2.5 px-3 text-slate-400">{hs.gioiTinh === 'nu' ? 'Nữ' : 'Nam'}</td>
-                          <td className="py-2.5 px-3 text-slate-300 font-medium">Tổ {hs.toSo || '—'}</td>
-                          <td className="py-2.5 px-3 text-[#00F2FE]">{hs.lopNghe || '—'}</td>
-                          <td className="py-2.5 px-3">
-                            {hs.chucVu && hs.chucVu !== 'Học sinh' ? (
-                              <span className="px-2 py-0.5 rounded-full bg-[#FFB800]/15 text-[#FFB800] border border-[#FFB800]/30 font-bold text-[10px]">
-                                {hs.chucVu}
-                              </span>
-                            ) : (
-                              <span className="text-slate-500 text-[11px]">Thành viên</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
               )}
             </div>
@@ -1838,28 +2037,23 @@ function DigitalCampusApp() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-           MOBILE BOTTOM NAVIGATION
+           MOBILE BOTTOM NAVIGATION — Consolidated 3 Core Hubs
       ══════════════════════════════════════════════════════════════════════ */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#151A23]/95 backdrop-blur-xl border-t border-white/10 flex lg:hidden items-center justify-around py-2.5 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
-        <button onClick={() => { setActiveTab('lobby'); setCurrentView('LOBBY'); setMobileTab('ROOMS'); }}
-          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${activeTab === 'lobby' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-[#151A23]/95 backdrop-blur-xl border-t border-white/10 flex lg:hidden items-center justify-around py-2 px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+        <button onClick={() => navigateTab('campus')}
+          className={`flex flex-col items-center justify-center min-h-[44px] px-3 gap-1 text-[11px] font-bold transition-all ${activeTab === 'campus' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
           <Ic name="tv" className="w-5 h-5" />
-          <span>Sảnh Lớp</span>
+          <span>Sảnh Campus</span>
         </button>
-        <button onClick={() => { setActiveTab('attendance'); setCurrentView('LOBBY'); setMobileTab('ROOMS'); }}
-          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${activeTab === 'attendance' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
-          <Ic name="check" className="w-5 h-5" />
-          <span>Điểm Danh</span>
+        <button onClick={() => navigateTab('caro')}
+          className={`flex flex-col items-center justify-center min-h-[44px] px-3 gap-1 text-[11px] font-bold transition-all ${activeTab === 'caro' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
+          <Ic name="game" className="w-5 h-5" />
+          <span>Đấu Cờ</span>
         </button>
-        <button onClick={() => { setActiveTab('treasury'); setCurrentView('LOBBY'); setMobileTab('ROOMS'); }}
-          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${activeTab === 'treasury' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
-          <span className="text-base leading-none">💰</span>
-          <span>Thủ Quỹ</span>
-        </button>
-        <button onClick={() => { setActiveTab('students'); setCurrentView('LOBBY'); setMobileTab('ROOMS'); }}
-          className={`flex flex-col items-center gap-1 text-[11px] font-bold transition-all ${activeTab === 'students' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
-          <Ic name="users" className="w-5 h-5" />
-          <span>Học Sinh</span>
+        <button onClick={() => navigateTab('feed', 'ban-tin')}
+          className={`flex flex-col items-center justify-center min-h-[44px] px-3 gap-1 text-[11px] font-bold transition-all ${activeTab === 'feed' ? 'text-[#00F2FE]' : 'text-slate-400'}`}>
+          <Ic name="community" className="w-5 h-5" />
+          <span>Bảng Tin Lớp</span>
         </button>
       </nav>
 
