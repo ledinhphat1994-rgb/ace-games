@@ -1,10 +1,13 @@
 // API Trò chơi trực tuyến nhiều người (Game Hub Online)
-// Dùng chung cho học sinh trong lớp (Cờ Caro trực tuyến thời gian thực)
+// PHASE 3B.1 — CAMPUS GAME ARENA CORE: Hybrid Open Lobby + Quick Match + Cross-Class Caro 15x15
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
 
+let bangGameDaKiemTra = false;
+
 async function damBaoBangGame(db) {
-  if (!db) return;
+  if (!db || bangGameDaKiemTra) return;
+  // Tạo bảng với schema đầy đủ Phase 3B.1 (nếu là database mới tạo)
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS game_phong (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,13 +23,35 @@ async function damBaoBangGame(db) {
       du_lieu_ban_co  TEXT,
       nguoi_thang_id  INTEGER,
       tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
-      cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
+      cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP,
+      pham_vi         TEXT NOT NULL DEFAULT 'lop' CHECK (pham_vi IN ('lop', 'truong')),
+      kieu_ghep       TEXT NOT NULL DEFAULT 'thu_cong' CHECK (kieu_ghep IN ('thu_cong', 'nhanh'))
     )
   `).run().catch(() => {});
+
+  // Kiểm tra nâng cấp nhẹ nhàng một lần cho môi trường cục bộ cũ
+  try {
+    const info = await db.prepare('PRAGMA table_info(game_phong)').all();
+    const cols = new Set((info.results || []).map(r => r.name));
+    if (!cols.has('pham_vi')) {
+      await db.prepare("ALTER TABLE game_phong ADD COLUMN pham_vi TEXT NOT NULL DEFAULT 'lop'").run().catch(() => {});
+    }
+    if (!cols.has('kieu_ghep')) {
+      await db.prepare("ALTER TABLE game_phong ADD COLUMN kieu_ghep TEXT NOT NULL DEFAULT 'thu_cong'").run().catch(() => {});
+    }
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game, trang_thai, kieu_ghep)').run().catch(() => {});
+    await db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting
+      ON game_phong(chu_phong_id, loai_game)
+      WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi'
+    `).run().catch(() => {});
+    bangGameDaKiemTra = true;
+  } catch {
+    // Không làm sập request
+  }
 }
 
-// Xác định lop_id được phép thao tác: học sinh/cán sự bị khoá vào lớp của chính mình
-// (chống IDOR xuyên lớp). Chỉ giáo viên chủ nhiệm mới được xem lớp khác qua tham số.
+// Xác định lop_id được phép thao tác trong phạm vi lớp
 function lopIdCuaPhien(phien, reqLopIdRaw) {
   const lopId = phien.lopId || 1;
   if (phien.role === 'teacher') {
@@ -34,6 +59,50 @@ function lopIdCuaPhien(phien, reqLopIdRaw) {
     if (req > 0) return req;
   }
   return lopId;
+}
+
+// Phân quyền truy cập phòng cờ (Centralized Game Room Scope Authorization Helper)
+function canAccessGameRoom(phien, room) {
+  if (!room || !phien) return false;
+  if (room.pham_vi === 'truong') {
+    // Đấu trường toàn trường: bất kỳ học sinh/giáo viên/tài khoản phụ hợp lệ nào đã đăng nhập đều có thể truy cập
+    return Boolean(phien.hocSinhId || phien.role === 'teacher' || phien.phuId);
+  }
+  // Phạm vi lớp ('lop'): bắt buộc cùng lớp hoặc giáo viên
+  const lopId = phien.lopId || 1;
+  if (phien.role === 'teacher') return true;
+  return room.lop_id === lopId;
+}
+
+// Định dạng dữ liệu bàn cờ trả về client
+function formatPhong(phong) {
+  let banCo = null;
+  if (phong.du_lieu_ban_co) {
+    try {
+      banCo = JSON.parse(phong.du_lieu_ban_co);
+    } catch {
+      banCo = null;
+    }
+  }
+  return {
+    id: phong.id,
+    lopId: phong.lop_id,
+    lopTen: phong.lop_ten || `Lớp ${phong.lop_id}`,
+    loaiGame: phong.loai_game,
+    tenBan: phong.ten_ban,
+    chuPhongId: phong.chu_phong_id,
+    chuPhongTen: phong.chu_phong_ten,
+    khachId: phong.khach_id,
+    khachTen: phong.khach_ten,
+    trangThai: phong.trang_thai,
+    luotDiId: phong.luot_di_id,
+    banCo,
+    nguoiThangId: phong.nguoi_thang_id,
+    phamVi: phong.pham_vi || 'lop',
+    kieuGhep: phong.kieu_ghep || 'thu_cong',
+    taoLuc: phong.tao_luc,
+    capNhatLuc: phong.cap_nhat_luc,
+  };
 }
 
 // Kiểm tra thắng 5 quân liên tiếp cho bàn cờ Caro 15x15
@@ -78,65 +147,90 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('phongId') || '0', 10);
   const loaiGame = url.searchParams.get('loai') || 'co_caro';
+  const phamVi = url.searchParams.get('phamVi') || 'lop'; // 'lop' | 'truong'
   const lopId = lopIdCuaPhien(phien, url.searchParams.get('lopId'));
 
-  // Lấy chi tiết 1 phòng cụ thể — bắt buộc thuộc lớp của phiên đăng nhập
+  // 1. LẤY CHI TIẾT 1 PHÒNG CỤ THỂ
   if (phongId > 0) {
-    const phong = await env.DB.prepare(
-      'SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2'
-    ).bind(phongId, lopId).first();
+    const phong = await env.DB.prepare(`
+      SELECT g.*, l.ten AS lop_ten
+      FROM game_phong g
+      LEFT JOIN lop l ON g.lop_id = l.id
+      WHERE g.id = ?1
+    `).bind(phongId).first();
 
     if (!phong) return loi('Bàn chơi không tồn tại hoặc đã kết thúc.', 404);
 
-    let banCo = null;
-    try {
-      banCo = phong.du_lieu_ban_co ? JSON.parse(phong.du_lieu_ban_co) : null;
-    } catch {
-      banCo = null;
+    if (!canAccessGameRoom(phien, phong)) {
+      return loi('Bạn không có quyền truy cập bàn chơi này.', 403);
     }
 
     return json({
       ok: true,
-      phong: {
-        id: phong.id,
-        lopId: phong.lop_id,
-        loaiGame: phong.loai_game,
-        tenBan: phong.ten_ban,
-        chuPhongId: phong.chu_phong_id,
-        chuPhongTen: phong.chu_phong_ten,
-        khachId: phong.khach_id,
-        khachTen: phong.khach_ten,
-        trangThai: phong.trang_thai,
-        luotDiId: phong.luot_di_id,
-        banCo,
-        nguoiThangId: phong.nguoi_thang_id,
-        capNhatLuc: phong.cap_nhat_luc,
-      },
+      phong: formatPhong(phong),
     });
   }
 
-  // Dọn dẹp phòng rác quá 2 tiếng không hoạt động
+  // 2. DỌN DẸP BÀN RÁC & QUICK MATCH HẾT HẠN
   await env.DB.prepare(`
     DELETE FROM game_phong
-    WHERE lop_id = ?1 AND datetime(cap_nhat_luc) < datetime('now', '-2 hours')
-  `).bind(lopId).run().catch(() => {});
+    WHERE datetime(cap_nhat_luc) < datetime('now', '-2 hours')
+       OR (pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi' AND datetime(cap_nhat_luc) < datetime('now', '-5 minutes'))
+  `).run().catch(() => {});
 
-  // Lấy danh sách các bàn đang mở / đang chơi của lớp
+  // 3. LẤY DANH SÁCH BÀN THEO PHẠM VI
+  if (phamVi === 'truong') {
+    // Đấu trường toàn trường: yêu cầu đăng nhập hợp lệ
+    if (!phien.hocSinhId && phien.role !== 'teacher' && !phien.phuId) {
+      return loi('Vui lòng đăng nhập để xem đấu trường toàn trường.', 403);
+    }
+
+    const rs = await env.DB.prepare(`
+      SELECT g.id, g.lop_id AS lopId, l.ten AS lopTen,
+             g.loai_game AS loaiGame, g.ten_ban AS tenBan,
+             g.chu_phong_id AS chuPhongId, g.chu_phong_ten AS chuPhongTen,
+             g.khach_id AS khachId, g.khach_ten AS khachTen,
+             g.trang_thai AS trangThai, g.luot_di_id AS luotDiId,
+             g.pham_vi AS phamVi, g.kieu_ghep AS kieuGhep,
+             g.tao_luc AS taoLuc, g.cap_nhat_luc AS capNhatLuc
+      FROM game_phong g
+      LEFT JOIN lop l ON g.lop_id = l.id
+      WHERE g.pham_vi = 'truong' AND g.loai_game = ?1 AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
+      ORDER BY g.id DESC
+      LIMIT 30
+    `).bind(loaiGame).all();
+
+    return json({
+      ok: true,
+      danhSachBan: (rs.results || []).map(b => ({
+        ...b,
+        lopTen: b.lopTen || `Lớp ${b.lopId}`,
+      })),
+    });
+  }
+
+  // Mặc định: Danh sách bàn nội bộ lớp (100% tương thích ngược)
   const rs = await env.DB.prepare(`
-    SELECT id, lop_id AS lopId, loai_game AS loaiGame, ten_ban AS tenBan,
-           chu_phong_id AS chuPhongId, chu_phong_ten AS chuPhongTen,
-           khach_id AS khachId, khach_ten AS khachTen,
-           trang_thai AS trangThai, luot_di_id AS luotDiId,
-           tao_luc AS taoLuc, cap_nhat_luc AS capNhatLuc
-    FROM game_phong
-    WHERE lop_id = ?1 AND loai_game = ?2 AND trang_thai IN ('cho_nguoi', 'dang_choi')
-    ORDER BY id DESC
+    SELECT g.id, g.lop_id AS lopId, l.ten AS lopTen,
+           g.loai_game AS loaiGame, g.ten_ban AS tenBan,
+           g.chu_phong_id AS chuPhongId, g.chu_phong_ten AS chuPhongTen,
+           g.khach_id AS khachId, g.khach_ten AS khachTen,
+           g.trang_thai AS trangThai, g.luot_di_id AS luotDiId,
+           g.pham_vi AS phamVi, g.kieu_ghep AS kieuGhep,
+           g.tao_luc AS taoLuc, g.cap_nhat_luc AS capNhatLuc
+    FROM game_phong g
+    LEFT JOIN lop l ON g.lop_id = l.id
+    WHERE g.lop_id = ?1 AND g.pham_vi = 'lop' AND g.loai_game = ?2 AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
+    ORDER BY g.id DESC
     LIMIT 20
   `).bind(lopId, loaiGame).all();
 
   return json({
     ok: true,
-    danhSachBan: rs.results || [],
+    danhSachBan: (rs.results || []).map(b => ({
+      ...b,
+      lopTen: b.lopTen || `Lớp ${b.lopId}`,
+    })),
   });
 }, { canGiaoVien: false });
 
@@ -147,7 +241,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
   const laGiaoVien = phien.role === 'teacher';
   const lopId = lopIdCuaPhien(phien, than.lopId);
 
-  // Xác định người chơi hiện tại
+  // Xác định danh tính người chơi
   let nguoiChoiId = phien.hocSinhId;
   let tenNguoiChoi = phien.ten || phien.hoTen || 'Học sinh';
   if (laGiaoVien) {
@@ -164,9 +258,20 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     if (hs && hs.hoTen) tenNguoiChoi = hs.hoTen;
   }
 
-  // 1. TẠO BÀN MỚI
+  // 1. TẠO BÀN MỚI THỦ CÔNG (Manual Table Creation)
   if (hanhDong === 'tao_ban') {
     const loaiGame = String(than.loaiGame || 'co_caro').trim();
+    const phamVi = than.phamVi === 'truong' ? 'truong' : 'lop';
+    const kieuGhep = than.kieuGhep === 'nhanh' ? 'nhanh' : 'thu_cong';
+
+    // Đấu trường toàn trường yêu cầu học sinh có tài khoản định danh (canonical student identity)
+    if (phamVi === 'truong') {
+      if (!phien.hocSinhId) {
+        return loi('Đấu trường toàn trường chỉ dành cho học sinh có tài khoản định danh.', 403);
+      }
+      nguoiChoiId = phien.hocSinhId;
+    }
+
     let tenBan = String(than.tenBan || '').trim();
     if (!tenBan) tenBan = `Bàn của ${tenNguoiChoi}`;
     if (tenBan.length > 40) tenBan = tenBan.slice(0, 40);
@@ -177,30 +282,42 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     const tao = await env.DB.prepare(`
       INSERT INTO game_phong (
         lop_id, loai_game, ten_ban, chu_phong_id, chu_phong_ten,
-        trang_thai, luot_di_id, du_lieu_ban_co, cap_nhat_luc
-      ) VALUES (?1, ?2, ?3, ?4, ?5, 'cho_nguoi', ?4, ?6, CURRENT_TIMESTAMP)
+        trang_thai, luot_di_id, du_lieu_ban_co, pham_vi, kieu_ghep, cap_nhat_luc
+      ) VALUES (?1, ?2, ?3, ?4, ?5, 'cho_nguoi', ?4, ?6, ?7, ?8, CURRENT_TIMESTAMP)
       RETURNING id, lop_id AS lopId, loai_game AS loaiGame, ten_ban AS tenBan,
                 chu_phong_id AS chuPhongId, chu_phong_ten AS chuPhongTen,
                 khach_id AS khachId, khach_ten AS khachTen,
-                trang_thai AS trangThai, luot_di_id AS luotDiId
-    `).bind(lopId, loaiGame, tenBan, nguoiChoiId, tenNguoiChoi, JSON.stringify(banCoRong)).first();
+                trang_thai AS trangThai, luot_di_id AS luotDiId,
+                pham_vi AS phamVi, kieu_ghep AS kieuGhep,
+                tao_luc AS taoLuc, cap_nhat_luc AS capNhatLuc
+    `).bind(
+      phamVi === 'truong' ? (phien.lopId || 1) : lopId,
+      loaiGame,
+      tenBan,
+      nguoiChoiId,
+      tenNguoiChoi,
+      JSON.stringify(banCoRong),
+      phamVi,
+      kieuGhep
+    ).first();
 
     return json({ ok: true, phong: { ...tao, banCo: banCoRong } });
   }
 
-  // 2. VÀO BÀN CHƠI (Học sinh 2 tham gia)
+  // 2. VÀO BÀN CHƠI THỦ CÔNG (Manual Join)
   if (hanhDong === 'vao_ban') {
     const phongId = Number(than.phongId);
     if (!phongId) return loi('Thiếu mã bàn chơi.');
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
-    if (phong.trang_thai !== 'cho_nguoi') {
-      if (phong.chu_phong_id === nguoiChoiId || phong.khach_id === nguoiChoiId) {
-        // Đã ở trong bàn, cho phép quay lại
-        return json({ ok: true, phongId });
-      }
-      return loi('Bàn này đã đủ 2 người chơi hoặc đã kết thúc.');
+
+    if (!canAccessGameRoom(phien, phong)) {
+      return loi('Bạn không có quyền vào bàn chơi này.', 403);
+    }
+
+    if (phong.pham_vi === 'truong' && !phien.hocSinhId) {
+      return loi('Đấu trường toàn trường chỉ dành cho học sinh có tài khoản định danh.', 403);
     }
 
     if (phong.chu_phong_id === nguoiChoiId) {
@@ -208,12 +325,20 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       return json({ ok: true, phongId });
     }
 
-    // Cập nhật có điều kiện — chỉ nhận khách khi bàn vẫn đang chờ (chống 2 người vào cùng lúc)
+    if (phong.trang_thai !== 'cho_nguoi') {
+      if (phong.khach_id === nguoiChoiId) {
+        // Khách đã ở trong bàn, cho phép quay lại
+        return json({ ok: true, phongId });
+      }
+      return loi('Bàn này đã đủ 2 người chơi hoặc đã kết thúc.', 409);
+    }
+
+    // Cập nhật có điều kiện NGUYÊN TỬ — chỉ nhận khách khi bàn vẫn đang chờ (chống 2 người vào cùng lúc)
     const vao = await env.DB.prepare(`
       UPDATE game_phong
       SET khach_id = ?1, khach_ten = ?2, trang_thai = 'dang_choi', cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?3 AND lop_id = ?4 AND trang_thai = 'cho_nguoi'
-    `).bind(nguoiChoiId, tenNguoiChoi, phongId, lopId).run();
+      WHERE id = ?3 AND trang_thai = 'cho_nguoi' AND khach_id IS NULL
+    `).bind(nguoiChoiId, tenNguoiChoi, phongId).run();
 
     if (!vao.meta || vao.meta.changes === 0) {
       return loi('Bàn này vừa có người khác vào. Hãy tải lại danh sách bàn.', 409);
@@ -222,7 +347,170 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     return json({ ok: true, phongId });
   }
 
-  // 3. ĐÁNH MỘT NƯỚC CỜ (Real-time move)
+  // 3. GHÉP TRẬN NHANH TOÀN TRƯỜNG (Quick Match FIFO)
+  if (hanhDong === 'tim_tran_nhanh') {
+    // BƯỚC 1 — ACTOR VALIDATION: Bắt buộc là học sinh định danh (canonical student identity)
+    if (!phien.hocSinhId) {
+      return loi('Tính năng Ghép trận nhanh chỉ dành cho học sinh có tài khoản định danh.', 403);
+    }
+    const hocSinhId = phien.hocSinhId;
+    const lopHocSinhId = phien.lopId || 1;
+    const loaiGame = String(than.loaiGame || 'co_caro').trim();
+
+    // BƯỚC 2 — RESUME EXISTING ACTIVE MATCH: Tiếp tục trận đấu đang diễn ra nếu có
+    const matchDangChoi = await env.DB.prepare(`
+      SELECT id, chu_phong_id, chu_phong_ten, khach_id, khach_ten, lop_id
+      FROM game_phong
+      WHERE pham_vi = 'truong'
+        AND (chu_phong_id = ?1 OR khach_id = ?1)
+        AND trang_thai = 'dang_choi'
+        AND datetime(cap_nhat_luc) >= datetime('now', '-15 minutes')
+      ORDER BY cap_nhat_luc DESC
+      LIMIT 1
+    `).bind(hocSinhId).first();
+
+    if (matchDangChoi) {
+      return json({
+        ok: true,
+        matched: true,
+        resumed: true,
+        phongId: matchDangChoi.id,
+      });
+    }
+
+    // BƯỚC 3 — RETURN OWN EXISTING QUICK WAIT: Trả về hàng đợi đang chờ của chính mình
+    const banChoCuaToi = await env.DB.prepare(`
+      SELECT id FROM game_phong
+      WHERE chu_phong_id = ?1 AND loai_game = ?2
+        AND pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi'
+        AND datetime(cap_nhat_luc) >= datetime('now', '-5 minutes')
+      ORDER BY id DESC
+      LIMIT 1
+    `).bind(hocSinhId, loaiGame).first();
+
+    if (banChoCuaToi) {
+      return json({
+        ok: true,
+        matched: false,
+        waiting: true,
+        phongId: banChoCuaToi.id,
+      });
+    }
+
+    // BƯỚC 4 — FIND FIFO OPPONENT: Tìm đối thủ chờ lâu nhất (FIFO)
+    const doiThuCho = await env.DB.prepare(`
+      SELECT g.id, g.chu_phong_id, g.chu_phong_ten, g.lop_id, l.ten AS lop_ten
+      FROM game_phong g
+      LEFT JOIN lop l ON g.lop_id = l.id
+      WHERE g.pham_vi = 'truong' AND g.kieu_ghep = 'nhanh' AND g.trang_thai = 'cho_nguoi'
+        AND g.khach_id IS NULL AND g.chu_phong_id != ?1 AND g.loai_game = ?2
+        AND datetime(g.cap_nhat_luc) >= datetime('now', '-5 minutes')
+      ORDER BY g.id ASC
+      LIMIT 3
+    `).bind(hocSinhId, loaiGame).all();
+
+    // BƯỚC 5 — ATOMIC CLAIM (Kèm điều kiện chống 1 người ghép cùng lúc 2 đối thủ)
+    for (const dt of (doiThuCho.results || [])) {
+      const claim = await env.DB.prepare(`
+        UPDATE game_phong
+        SET khach_id = ?1,
+            khach_ten = ?2,
+            trang_thai = 'dang_choi',
+            cap_nhat_luc = CURRENT_TIMESTAMP
+        WHERE id = ?3
+          AND trang_thai = 'cho_nguoi'
+          AND khach_id IS NULL
+          AND chu_phong_id != ?1
+          AND NOT EXISTS (
+            SELECT 1 FROM game_phong
+            WHERE pham_vi = 'truong'
+              AND (chu_phong_id = ?1 OR khach_id = ?1)
+              AND trang_thai = 'dang_choi'
+              AND datetime(cap_nhat_luc) >= datetime('now', '-15 minutes')
+          )
+      `).bind(hocSinhId, tenNguoiChoi, dt.id).run();
+
+      if (claim.meta && claim.meta.changes === 1) {
+        return json({
+          ok: true,
+          matched: true,
+          resumed: false,
+          phongId: dt.id,
+          doiThu: {
+            ten: dt.chu_phong_ten,
+            lopId: dt.lop_id,
+            lopTen: dt.lop_ten || `Lớp ${dt.lop_id}`,
+          },
+        });
+      }
+    }
+
+    // BƯỚC 6 — CREATE WAITING ROW: Không claim được đối thủ -> tạo bàn chờ Quick Match
+    const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
+    const tenBan = `Quick Match - ${tenNguoiChoi}`;
+
+    try {
+      const taoCho = await env.DB.prepare(`
+        INSERT INTO game_phong (
+          lop_id, loai_game, ten_ban, chu_phong_id, chu_phong_ten,
+          trang_thai, luot_di_id, du_lieu_ban_co, pham_vi, kieu_ghep, cap_nhat_luc
+        ) VALUES (?1, ?2, ?3, ?4, ?5, 'cho_nguoi', ?4, ?6, 'truong', 'nhanh', CURRENT_TIMESTAMP)
+        RETURNING id
+      `).bind(lopHocSinhId, loaiGame, tenBan, hocSinhId, tenNguoiChoi, JSON.stringify(banCoRong)).first();
+
+      return json({
+        ok: true,
+        matched: false,
+        waiting: true,
+        phongId: taoCho.id,
+      });
+    } catch (err) {
+      // Bắt xung đột từ Partial UNIQUE index uq_quick_match_waiting khi có race condition (double-click)
+      const banDaCo = await env.DB.prepare(`
+        SELECT id FROM game_phong
+        WHERE chu_phong_id = ?1 AND loai_game = ?2
+          AND pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi'
+        ORDER BY id DESC LIMIT 1
+      `).bind(hocSinhId, loaiGame).first().catch(() => null);
+
+      if (banDaCo) {
+        return json({
+          ok: true,
+          matched: false,
+          waiting: true,
+          phongId: banDaCo.id,
+        });
+      }
+      throw err;
+    }
+  }
+
+  // 4. HỦY TÌM TRẬN NHANH (Cancel Quick Match)
+  if (hanhDong === 'huy_tim_tran') {
+    const phongId = Number(than.phongId);
+    if (!phongId || !phien.hocSinhId) return json({ ok: true, cancelled: true });
+
+    // Chỉ xoá khi bàn do chính mình tạo, là quick match và chưa có khách
+    const xoa = await env.DB.prepare(`
+      DELETE FROM game_phong
+      WHERE id = ?1 AND chu_phong_id = ?2
+        AND pham_vi = 'truong' AND kieu_ghep = 'nhanh'
+        AND trang_thai = 'cho_nguoi' AND khach_id IS NULL
+    `).bind(phongId, phien.hocSinhId).run();
+
+    if (xoa.meta && xoa.meta.changes === 1) {
+      return json({ ok: true, cancelled: true });
+    }
+
+    // Nếu không xoá được, kiểm tra xem có phải vừa bị đối thủ claim vài mili-giây trước không
+    const p = await env.DB.prepare('SELECT id, trang_thai FROM game_phong WHERE id = ?1').bind(phongId).first();
+    if (p && p.trang_thai === 'dang_choi') {
+      return json({ ok: true, cancelled: false, matched: true, phongId });
+    }
+    return json({ ok: true, cancelled: true });
+  }
+
+  // 5. ĐÁNH MỘT NƯỚC CỜ (Move Concurrency - Conditional Optimistic Update)
   if (hanhDong === 'danh_co') {
     const phongId = Number(than.phongId);
     const r = parseInt(than.r, 10);
@@ -232,18 +520,23 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       return loi('Nước đi không hợp lệ.');
     }
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
+
+    if (!canAccessGameRoom(phien, phong)) {
+      return loi('Bạn không có quyền truy cập bàn chơi này.', 403);
+    }
+
     if (phong.trang_thai !== 'dang_choi') {
       return loi('Ván cờ chưa bắt đầu hoặc đã kết thúc.');
     }
 
     // Kiểm tra có phải lượt của mình không
     if (phong.luot_di_id !== nguoiChoiId) {
-      return loi('Chưa đến lượt của bạn.');
+      return loi('Chưa đến lượt của bạn.', 409);
     }
 
-    let board = [];
+    let board;
     try {
       board = JSON.parse(phong.du_lieu_ban_co || '[]');
     } catch {
@@ -263,7 +556,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     const daThang = kiemTraThangCaro(board, r, c, quanCo);
     let trangThaiMoi = 'dang_choi';
     let nguoiThangId = null;
-    let luotTiepTheo = laChuPhong ? phong.khach_id : phong.chu_phong_id;
+    const luotTiepTheo = laChuPhong ? phong.khach_id : phong.chu_phong_id;
 
     if (daThang) {
       trangThaiMoi = 'ket_thuc';
@@ -276,8 +569,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       }
     }
 
-    // Ghi nước đi NGUYÊN TỬ: chỉ thành công nếu vẫn đang là lượt của người này
-    // (chống race khi 2 request hợp lệ đến cùng lúc) và đúng lớp sở hữu bàn.
+    // GHI NƯỚC ĐI NGUYÊN TỬ (Optimistic Concurrency Control):
+    // Phải đúng id, đang trong trạng thái 'dang_choi', VÀ luot_di_id đúng là người chơi này.
+    // Nếu 2 request đồng thời từ cùng người chơi cùng gửi, request đầu đổi lượt -> request sau có changes === 0 và bị từ chối 409.
     const ghi = await env.DB.prepare(`
       UPDATE game_phong
       SET du_lieu_ban_co = ?1,
@@ -285,19 +579,20 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
           trang_thai = ?3,
           nguoi_thang_id = ?4,
           cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?5 AND lop_id = ?6 AND luot_di_id = ?7 AND trang_thai = 'dang_choi'
-    `).bind(JSON.stringify(board), luotTiepTheo, trangThaiMoi, nguoiThangId, phongId, lopId, nguoiChoiId).run();
+      WHERE id = ?5 AND trang_thai = 'dang_choi' AND luot_di_id = ?6
+    `).bind(JSON.stringify(board), luotTiepTheo, trangThaiMoi, nguoiThangId, phongId, nguoiChoiId).run();
 
     if (!ghi.meta || ghi.meta.changes === 0) {
-      return loi('Ván cờ đã thay đổi trạng thái. Hãy tải lại bàn đấu.', 409);
+      return loi('Ván cờ đã thay đổi trạng thái hoặc chưa đến lượt. Hãy tải lại bàn đấu.', 409);
     }
 
-    // Ghi điểm THẬT cho học sinh vừa thắng ván — chạy nền, không chặn phản hồi.
+    // Ghi nhận thành tích học sinh thắng ván
     if (daThang && phien.hocSinhId) {
       const ghiDiem = ghiNhanHoatDong(env, {
-        hocSinhId: phien.hocSinhId, lopId,
+        hocSinhId: phien.hocSinhId,
+        lopId: phong.lop_id,
         loaiHoatDong: 'game',
-        moTa: 'Thắng ván Cờ Caro đấu trường',
+        moTa: phong.pham_vi === 'truong' ? 'Thắng ván Cờ Caro Đấu Trường Toàn Trường' : 'Thắng ván Cờ Caro lớp',
       }).catch(() => {});
       if (waitUntil) waitUntil(ghiDiem);
     }
@@ -313,15 +608,19 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     });
   }
 
-  // 4. CHƠI VÁN MỚI (Cùng bạn trong phòng)
+  // 6. CHƠI VÁN MỚI (Scope-aware Rematch)
   if (hanhDong === 'van_moi') {
     const phongId = Number(than.phongId);
     if (!phongId) return loi('Thiếu mã bàn chơi.');
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
 
-    // Chỉ 2 người trong bàn (hoặc giáo viên) mới được mở ván mới
+    if (!canAccessGameRoom(phien, phong)) {
+      return loi('Bạn không có quyền.', 403);
+    }
+
+    // Chỉ người trong bàn (hoặc giáo viên với bàn lớp) mới được mở ván mới
     const laNguoiTrongBan = phong.chu_phong_id === nguoiChoiId || phong.khach_id === nguoiChoiId;
     if (!laNguoiTrongBan && !laGiaoVien) {
       return loi('Bạn không ở trong bàn cờ này.', 403);
@@ -329,8 +628,6 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
 
     // Bàn cờ rỗng 15x15
     const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
-
-    // Đảo lượt đi ván mới hoặc chủ bàn đi trước
     const luotMoi = phong.chu_phong_id;
 
     await env.DB.prepare(`
@@ -340,27 +637,39 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
           trang_thai = 'dang_choi',
           nguoi_thang_id = NULL,
           cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?3 AND lop_id = ?4
-    `).bind(JSON.stringify(banCoRong), luotMoi, phongId, lopId).run();
+      WHERE id = ?3 AND (chu_phong_id = ?4 OR khach_id = ?4)
+    `).bind(JSON.stringify(banCoRong), luotMoi, phongId, nguoiChoiId).run();
 
     return json({ ok: true });
   }
 
-  // 5. RỜI BÀN
+  // 7. RỜI BÀN (Scope-aware Leave)
   if (hanhDong === 'roi_ban') {
     const phongId = Number(than.phongId);
     if (!phongId) return json({ ok: true });
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
     if (phong) {
       if (phong.chu_phong_id === nguoiChoiId) {
-        // Chủ phòng rời -> huỷ bàn
-        await env.DB.prepare("UPDATE game_phong SET trang_thai = 'huy', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1 AND lop_id = ?2")
-          .bind(phongId, lopId).run();
+        // Chủ phòng rời
+        if (phong.trang_thai === 'cho_nguoi') {
+          await env.DB.prepare('DELETE FROM game_phong WHERE id = ?1 AND chu_phong_id = ?2')
+            .bind(phongId, nguoiChoiId).run().catch(() => {});
+        } else {
+          await env.DB.prepare("UPDATE game_phong SET trang_thai = 'huy', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1")
+            .bind(phongId).run().catch(() => {});
+        }
       } else if (phong.khach_id === nguoiChoiId) {
-        // Khách rời -> đưa về chờ người
-        await env.DB.prepare("UPDATE game_phong SET khach_id = NULL, khach_ten = NULL, trang_thai = 'cho_nguoi', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1 AND lop_id = ?2")
-          .bind(phongId, lopId).run();
+        // Khách rời
+        if (phong.kieu_ghep === 'nhanh') {
+          // Bàn quick match khách rời khi đang chơi -> kết thúc ván, chủ thắng
+          await env.DB.prepare("UPDATE game_phong SET trang_thai = 'ket_thuc', nguoi_thang_id = chu_phong_id, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1")
+            .bind(phongId).run().catch(() => {});
+        } else {
+          // Bàn thủ công -> đưa về chờ người
+          await env.DB.prepare("UPDATE game_phong SET khach_id = NULL, khach_ten = NULL, trang_thai = 'cho_nguoi', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1")
+            .bind(phongId).run().catch(() => {});
+        }
       }
     }
     return json({ ok: true });

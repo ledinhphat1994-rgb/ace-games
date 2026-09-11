@@ -346,18 +346,24 @@ CREATE INDEX IF NOT EXISTS idx_chat_cam_hs ON chat_cam_hoc_sinh(lop_id, hoc_sinh
 -- 25. KHUNG TRÒ CHƠI ĐỐI KHÁNG (CỜ TƯỚNG, CỜ CARO...)
 CREATE TABLE IF NOT EXISTS game_phong (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  lop_id          INTEGER NOT NULL REFERENCES lop(id),
+  lop_id          INTEGER NOT NULL,
   loai_game       TEXT NOT NULL,
   ten_ban         TEXT NOT NULL,
-  chu_phong_id    INTEGER NOT NULL REFERENCES hoc_sinh(id),
+  chu_phong_id    INTEGER NOT NULL,
   chu_phong_ten   TEXT NOT NULL,
-  khach_id        INTEGER REFERENCES hoc_sinh(id),
+  khach_id        INTEGER,
   khach_ten       TEXT,
   trang_thai      TEXT NOT NULL DEFAULT 'cho_nguoi',
   luot_di_id      INTEGER,
   du_lieu_ban_co  TEXT,
   nguoi_thang_id  INTEGER,
   tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
-  cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
+  cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP,
+  pham_vi         TEXT NOT NULL DEFAULT 'lop' CHECK (pham_vi IN ('lop', 'truong')),
+  kieu_ghep       TEXT NOT NULL DEFAULT 'thu_cong' CHECK (kieu_ghep IN ('thu_cong', 'nhanh'))
 );
 CREATE INDEX IF NOT EXISTS idx_game_phong_lop ON game_phong(lop_id, loai_game, trang_thai);
+CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game, trang_thai, kieu_ghep);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting
+ON game_phong(chu_phong_id, loai_game)
+WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi';
