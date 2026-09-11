@@ -2,379 +2,56 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#071624">
-<title>Đăng nhập hệ thống lớp học</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎓</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260910_17">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260910_17">
-</head>
-<body class="trang-dang-nhap">
-
-<header class="thanh-tren">
-  <div class="wrap">
-    <a class="hieu" href="/" title="Về trang chủ">
-      <span class="hieu-o-boc">
-        <span class="hieu-o" id="hieuMaLop">🎓</span>
-        <span class="hieu-nam-hoc" id="hieuNamHoc"></span>
-      </span>
-      <span class="hieu-ten">
-        <span id="hieuTenLop" hidden>Hệ thống lớp học</span>
-        <small class="hieu-phu" id="hieuPhuDangNhap">Đăng nhập</small>
-      </span>
-    </a>
-    <div class="thanh-phai">
-      <a class="nut-tron" href="/" title="Trang chủ" aria-label="Trang chủ">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
-      </a>
-      <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
-      <button class="nut-tron nut-theme-bg" id="nutThemeBg" aria-label="Tùy chỉnh hình nền & chủ đề" title="Đổi màu nền & chủ đề">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-      </button>
-      <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-    </div>
-  </div>
-</header>
-
-<main class="the-dang-nhap">
-  <!-- Spinner hiện ngay trong khi fetch danh sách lớp (async) -->
-  <div class="dang-nhap-loading" id="dangNhapLoading">
-    <span class="quay"></span>
-    <p>Đang kết nối…</p>
-  </div>
-
-  <div class="hieu-o" id="hieuOChinh" hidden>🎓</div>
-  <h1 id="tieuDeDangNhap" hidden>Chọn lớp của em</h1>
-  <p class="phu" id="phuDeDangNhap" hidden>Chạm vào đúng lớp của mình để tiếp tục</p>
-
-  <!-- Bước 1: chọn lớp (chỉ hiện khi vào thẳng / mà không kèm ?lop=, và có từ 2 lớp trở lên). -->
-  <div id="chonLop" style="display:none;flex-direction:column;gap:10px;margin:18px 0;" hidden></div>
-
-  <!-- Bước 2: nhập mã — ẩn cho tới khi đã biết đang vào lớp nào. -->
-  <form id="bieuMau" autocomplete="off" hidden>
-    <button type="button" id="nutDoiLop" class="nut nut-vien nut-nho" style="margin-bottom:14px;" hidden>‹ Chọn lại lớp khác</button>
-    <label class="nhan-nhap" for="ma">Mã cá nhân của em</label>
-    <input class="o-nhap" id="ma" name="ma" type="password"
-           placeholder="Nhập mã cá nhân giáo viên chủ nhiệm đã cấp" required autofocus
-           autocapitalize="none" autocorrect="off" spellcheck="false">
-    <div id="oTotpHop" style="margin-top:14px;" hidden>
-      <label class="nhan-nhap" for="totp">Mã 6 số từ app Authenticator</label>
-      <input class="o-nhap" id="totp" name="totp" type="text" inputmode="numeric" pattern="[0-9]*"
-             maxlength="6" placeholder="000000" autocomplete="one-time-code"
-             autocapitalize="none" autocorrect="off" spellcheck="false">
-    </div>
-    <div id="turnstileHop" class="turnstile-hop" hidden></div>
-    <button class="nut" type="submit" id="nutGui">Vào trang lớp</button>
-  </form>
-
-  <p class="loi-nhan xau" id="loiNhan" hidden></p>
-
-  <p class="ghi-chu-dang-nhap">
-    Trang dành riêng cho học sinh và giáo viên chủ nhiệm đã được cấp mã.
-    Mỗi em dùng đúng mã cá nhân của mình — đừng đưa mã cho bạn khác.
-    Quên mã thì liên hệ trực tiếp giáo viên chủ nhiệm.
-  </p>
-</main>
-
-<script type="module">
-  import { ganDoiGiaoDien } from '/assets/js/chung.js';
-  ganDoiGiaoDien(document.getElementById('doiGiaoDien'));
-
-  (function donDepUrl() {
-    const url = new URL(location.href);
-    const next = url.searchParams.get('next');
-    if (!next) return;
-    try { sessionStorage.setItem('dn-next', next); } catch {}
-    url.searchParams.delete('next');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
+<meta http-equiv="refresh" content="0; url=/?auth=login">
+<title>Đang chuyển hướng về cổng đăng nhập...</title>
+<script>
+  (function() {
+    var url = new URL(window.location.href);
+    var next = url.searchParams.get('next') || '';
+    var lyDo = url.searchParams.get('lyDo') || '';
+    var tab = url.searchParams.get('tab') || 'dang-nhap';
+    var target = '/?auth=' + (tab === 'dang-ky' ? 'register' : 'login');
+    if (next) target += '&next=' + encodeURIComponent(next);
+    if (lyDo) target += '&lyDo=' + encodeURIComponent(lyDo);
+    window.location.replace(target);
   })();
-
-  const TURNSTILE_SITE_KEY = '0x4AAAAAAEtgYZi3oieCDROp';
-  let turnstileWidgetId = null;
-  if (TURNSTILE_SITE_KEY) {
-    const turnstileHop = document.getElementById('turnstileHop');
-    turnstileHop.hidden = false;
-    const kichBan = document.createElement('script');
-    kichBan.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    kichBan.async = true;
-    kichBan.defer = true;
-    kichBan.onload = () => {
-      turnstileWidgetId = window.turnstile.render(turnstileHop, { sitekey: TURNSTILE_SITE_KEY, theme: 'auto', size: 'flexible' });
-    };
-    document.head.append(kichBan);
-  }
-
-  const chonLop = document.getElementById('chonLop');
-  const bieuMau = document.getElementById('bieuMau');
-  const nutDoiLop = document.getElementById('nutDoiLop');
-
-  function apDungThuongHieu(lop) {
-    const tenNgan = (lop.ten || '').replace(/^Lớp\s*/i, '');
-    const namHoc = lop.namHoc || '';
-    document.title = `Đăng nhập · ${lop.ten}`;
-
-    // Logo lớp: hiển thị huy hiệu mã lớp (ví dụ: 10A7)
-    const hieuMaLop = document.getElementById('hieuMaLop');
-    if (hieuMaLop) {
-      hieuMaLop.textContent = tenNgan || '🎓';
-      hieuMaLop.hidden = false;
-    }
-
-    // Badge năm học (ví dụ: 26–27) ở góc huy hiệu
-    const hieuNamHoc = document.getElementById('hieuNamHoc');
-    if (hieuNamHoc) {
-      const m = namHoc.match(/(\d{4})\s*[–-]\s*(\d{4})/);
-      hieuNamHoc.textContent = m ? `${m[1].slice(2)}–${m[2].slice(2)}` : namHoc;
-      hieuNamHoc.hidden = !hieuNamHoc.textContent;
-    }
-
-    // Ẩn chữ "Lớp 10A7" trên chữ "Đăng nhập" vì logo huy hiệu đã có 10A7 rồi
-    const hieuTenLop = document.getElementById('hieuTenLop');
-    if (hieuTenLop) {
-      hieuTenLop.textContent = lop.ten;
-      hieuTenLop.hidden = true;
-    }
-    const hieuPhu = document.getElementById('hieuPhuDangNhap');
-    if (hieuPhu) {
-      hieuPhu.textContent = 'Đăng nhập';
-    }
-
-    // Bước nhập mã: bỏ hẳn huy hiệu + tiêu đề "Lớp ..." lặp lại ở giữa thẻ
-    document.getElementById('hieuOChinh').hidden = true;
-    document.getElementById('tieuDeDangNhap').hidden = true;
-    const phu = document.getElementById('phuDeDangNhap');
-    phu.hidden = false;
-
-    // Tên trường hiển thị đúng 2 dòng căn đều theo yêu cầu
-    let d1 = 'Trung tâm GDNN-GDTX Khu vực I Phân hiệu 2';
-    let d2 = 'xã Định Quán, thành phố Đồng Nai';
-    const truong = (lop.truong || '').trim();
-    if (truong) {
-      const sep = truong.includes(' - ') ? ' - ' : (truong.includes(' – ') ? ' – ' : (truong.includes(', ') ? ', ' : null));
-      if (sep) {
-        const parts = truong.split(sep);
-        d1 = parts[0].trim();
-        d2 = parts.slice(1).join(sep).trim();
-      } else {
-        d1 = truong;
-        d2 = '';
-      }
-    }
-
-    phu.innerHTML = '';
-    const span1 = document.createElement('span');
-    span1.className = 'ten-truong-d1';
-    span1.textContent = d1;
-    phu.append(span1);
-
-    if (d2) {
-      const span2 = document.createElement('span');
-      span2.className = 'ten-truong-d2';
-      span2.textContent = d2;
-      phu.append(span2);
-    }
-    phu.classList.add('ten-truong');
-
-    // Tự động căn chỉnh kích thước chữ vừa khít 1 dòng trên mọi kích thước màn hình
-    const canChinhChu = () => {
-      const w = phu.clientWidth;
-      if (!w) return;
-      [span1, phu.querySelector('.ten-truong-d2')].filter(Boolean).forEach((el) => {
-        el.style.fontSize = '';
-        let sz = parseFloat(window.getComputedStyle(el).fontSize) || 14;
-        while (el.scrollWidth > w && sz > 9) {
-          sz -= 0.5;
-          el.style.fontSize = sz + 'px';
-        }
-      });
-    };
-    requestAnimationFrame(canChinhChu);
-    window.addEventListener('resize', canChinhChu, { passive: true });
-  }
-
-  function datThamSoLop(slug) {
-    const qs = new URLSearchParams(location.search);
-    qs.set('lop', slug);
-    history.replaceState(null, '', '?' + qs.toString());
-  }
-
-  function hienChonLop(hien) {
-    chonLop.hidden = !hien;
-    chonLop.style.display = hien ? 'flex' : 'none';
-  }
-
-  function moBuocNhapMa(slug, lop, coTheDoiLop) {
-    datThamSoLop(slug);
-    apDungThuongHieu(lop);
-    hienChonLop(false);
-    bieuMau.hidden = false;
-    nutDoiLop.hidden = !coTheDoiLop;
-    document.getElementById('ma').focus();
-  }
-
-  function moBuocChonLop(danhSach) {
-    const hieuTenLop = document.getElementById('hieuTenLop');
-    if (hieuTenLop) {
-      hieuTenLop.textContent = 'Hệ thống lớp học';
-      hieuTenLop.hidden = false;
-    }
-    const _maLop = document.getElementById('hieuMaLop');
-    if (_maLop) {
-      _maLop.textContent = '🎓';
-      _maLop.hidden = false;
-    }
-    const _namHoc = document.getElementById('hieuNamHoc');
-    if (_namHoc) {
-      _namHoc.textContent = '';
-      _namHoc.hidden = true;
-    }
-    document.getElementById('hieuOChinh').textContent = '🎓';
-    document.getElementById('hieuOChinh').hidden = false;
-    document.getElementById('tieuDeDangNhap').textContent = 'Chọn lớp của em';
-    document.getElementById('tieuDeDangNhap').hidden = false;
-    const phu = document.getElementById('phuDeDangNhap');
-    phu.textContent = 'Chạm vào đúng lớp của mình để tiếp tục';
-    phu.classList.remove('ten-truong');
-    document.title = 'Chọn lớp — Đăng nhập';
-    chonLop.innerHTML = '';
-    danhSach.forEach((lop) => {
-      const nut = document.createElement('button');
-      nut.type = 'button';
-      nut.className = 'nut nut-vien nut-rong';
-      nut.textContent = lop.ten;
-      nut.addEventListener('click', () => moBuocNhapMa(lop.slug, lop, true));
-      chonLop.append(nut);
-    });
-    hienChonLop(true);
-    bieuMau.hidden = true;
-  }
-
-  nutDoiLop.addEventListener('click', () => {
-    const qs = new URLSearchParams(location.search);
-    qs.delete('lop');
-    history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs.toString() : ''));
-    khoiDongTrang();
-  });
-
-  async function khoiDongTrang() {
-    const spinner = document.getElementById('dangNhapLoading');
-    const slug = new URLSearchParams(location.search).get('lop');
-
-    if (slug) {
-      try {
-        const d = await fetch('/api/lop-cong-khai?lop=' + encodeURIComponent(slug)).then((r) => r.json());
-        if (d.ok && d.lop) {
-          if (spinner) spinner.hidden = true;
-          return moBuocNhapMa(slug, d.lop, true);
-        }
-      } catch { /* rơi xuống bước chọn lớp nếu tra không được */ }
-    }
-
-    try {
-      const d = await fetch('/api/lop-cong-khai').then((r) => r.json());
-      const danhSach = (d.ok && d.danhSach) || [];
-      if (spinner) spinner.hidden = true;
-      if (danhSach.length === 1) return moBuocNhapMa(danhSach[0].slug, danhSach[0], false);
-      if (danhSach.length > 1) return moBuocChonLop(danhSach);
-    } catch { /* không tra được danh sách lớp */ }
-
-    // Fallback: hiện form nhập mã chung chung
-    if (spinner) spinner.hidden = true;
-    document.getElementById('hieuOChinh').hidden = true;
-    document.getElementById('tieuDeDangNhap').hidden = true;
-    const phuFb = document.getElementById('phuDeDangNhap');
-    phuFb.textContent = 'Dành cho học sinh và giáo viên chủ nhiệm đã được cấp mã';
-    phuFb.hidden = false;
-    hienChonLop(false);
-    bieuMau.hidden = false;
-  }
-  khoiDongTrang();
-
-  const loiNhan = document.getElementById('loiNhan');
-  const nutGui = document.getElementById('nutGui');
-
-  function hien(chu, kieu) {
-    loiNhan.textContent = chu;
-    loiNhan.className = 'loi-nhan ' + kieu;
-    loiNhan.hidden = false;
-  }
-
-  // Hiển thị thông báo nếu bị văng ra do tài khoản đăng nhập trên một thiết bị khác
-  (function kiemTraBiVangRa() {
-    const url = new URL(location.href);
-    const lyDo = url.searchParams.get('lyDo');
-    let thongBao = '';
-    try {
-      thongBao = sessionStorage.getItem('thong-bao-dang-xuat') || '';
-      sessionStorage.removeItem('thong-bao-dang-xuat');
-    } catch {}
-
-    if (lyDo === 'da_dang_nhap_noi_khac' || thongBao) {
-      const noiDung = thongBao || 'Tài khoản của em vừa được đăng nhập trên một thiết bị khác. Phiên trên thiết bị này đã tự động đăng xuất.';
-      hien(noiDung, 'xau');
-      url.searchParams.delete('lyDo');
-      history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash);
-    }
-  })();
-
-  bieuMau.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    loiNhan.hidden = true;
-    nutGui.disabled = true;
-    nutGui.textContent = 'Đang kiểm tra…';
-
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: document.getElementById('ma').value,
-          lop: new URLSearchParams(location.search).get('lop') || '',
-          turnstileToken: (TURNSTILE_SITE_KEY && window.turnstile) ? window.turnstile.getResponse(turnstileWidgetId) : '',
-          totpCode: document.getElementById('totp').value,
-        })
-      });
-      const d = await res.json();
-
-      // Mỗi thử thách Turnstile chỉ dùng được 1 lần — sai mã thì phải giải lại thử thách mới
-      // cho lần thử tiếp theo.
-      if (!d.ok && TURNSTILE_SITE_KEY && window.turnstile) window.turnstile.reset(turnstileWidgetId);
-
-      // Mã đăng nhập đúng nhưng lớp này đã bật xác thực 2 lớp — hiện thêm ô nhập mã 6 số,
-      // GIỮ NGUYÊN mã vừa gõ (không bắt gõ lại), chỉ cần điền thêm rồi bấm lại nút này.
-      if (!d.ok && d.canTotp) {
-        const oTotpHop = document.getElementById('oTotpHop');
-        oTotpHop.hidden = false;
-        const oTotp = document.getElementById('totp');
-        oTotp.focus();
-        hien(d.message || 'Nhập thêm mã Authenticator.', 'xau');
-        nutGui.disabled = false;
-        nutGui.textContent = 'Vào trang lớp';
-        return;
-      }
-
-      if (d.ok) {
-        // Không lưu mã đăng nhập vào localStorage — phiên cookie HttpOnly đã đủ định danh,
-        // lưu mã ở client chỉ tạo thêm điểm rò rỉ (XSS đọc được, URL ?ma= bị ghi log).
-        hien('Xác thực thành công. Đang mở trang…', 'tot');
-        let tiep = '';
-        try { tiep = sessionStorage.getItem('dn-next') || ''; sessionStorage.removeItem('dn-next'); } catch {}
-        const laKhuGiaoVien = d.role === 'teacher' || d.role === 'phu';
-        location.href = (tiep && tiep.startsWith('/')) ? tiep : (laKhuGiaoVien ? '/giao-vien/' : '/');
-        return;
-      }
-      hien(d.message || 'Mã bảo mật không đúng.', 'xau');
-    } catch {
-      hien('Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.', 'xau');
-    }
-
-    nutGui.disabled = false;
-    nutGui.textContent = 'Vào trang lớp';
-  });
 </script>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #071624;
+    color: #94a3b8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .redirect-box {
+    text-align: center;
+    padding: 24px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(0, 242, 254, 0.2);
+    border-top-color: #00f2fe;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  a { color: #00f2fe; text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="redirect-box">
+  <div class="spinner"></div>
+  <p>Đang chuyển hướng tới cổng đăng nhập Digital Campus…</p>
+  <p><a href="/?auth=login">Bấm vào đây nếu trình duyệt không tự chuyển hướng</a></p>
+</div>
 </body>
 </html>

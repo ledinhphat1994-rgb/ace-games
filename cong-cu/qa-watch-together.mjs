@@ -477,12 +477,19 @@ try {
   await pageB.goto(`${BASE}/`);
   await pageB.waitForSelector('#campus-lobby', { timeout: 10000 });
 
-  // Chủ phòng A vào phòng qua Left Navigator Cinema
+  // Chủ phòng A vào phòng qua Watch Lobby (Phase 4B) hoặc Left Navigator
   const navCinemaA = pageA.locator('#cat-nav-CINEMA');
-  await navCinemaA.click();
-  await pageA.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
-  const rowA = pageA.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
-  await rowA.locator('button:has-text("Vào")').first().click();
+  if (await navCinemaA.count()) {
+    await navCinemaA.click();
+    await pageA.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
+    const rowA = pageA.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
+    await rowA.locator('button:has-text("Vào")').first().click();
+  } else {
+    await pageA.locator('#campus-flagship-spaces button:has-text("Xem chung")').first().click();
+    await pageA.waitForSelector('#lobby-watch', { timeout: 5000 });
+    const rowA = pageA.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
+    await rowA.locator('button:has-text("Vào")').first().click();
+  }
 
   // Đợi màn hình ROOM_ACTIVE xuất hiện trên A
   await pageA.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
@@ -498,12 +505,19 @@ try {
   const sliderHostA = pageA.locator('#host-seek-slider');
   ok('Browser A: Thanh trượt seek (#host-seek-slider) TỒN TẠI trên UI', (await sliderHostA.count()) > 0, 'browser');
 
-  // Người xem B vào phòng qua Left Navigator Cinema
+  // Người xem B vào phòng qua Watch Lobby (Phase 4B) hoặc Left Navigator
   const navCinemaB = pageB.locator('#cat-nav-CINEMA');
-  await navCinemaB.click();
-  await pageB.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
-  const rowB = pageB.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
-  await rowB.locator('button:has-text("Vào")').first().click();
+  if (await navCinemaB.count()) {
+    await navCinemaB.click();
+    await pageB.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
+    const rowB = pageB.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
+    await rowB.locator('button:has-text("Vào")').first().click();
+  } else {
+    await pageB.locator('#campus-flagship-spaces button:has-text("Xem chung")').first().click();
+    await pageB.waitForSelector('#lobby-watch', { timeout: 5000 });
+    const rowB = pageB.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
+    await rowB.locator('button:has-text("Vào")').first().click();
+  }
 
   // Đợi màn hình ROOM_ACTIVE xuất hiện trên B
   await pageB.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
@@ -650,7 +664,7 @@ try {
 
   const btnRoiB = pageB.locator('#btn-roi-phong-top');
   await btnRoiB.click();
-  await pageB.waitForSelector('#campus-lobby', { timeout: 5000 });
+  await pageB.waitForSelector('#campus-lobby, #lobby-watch', { timeout: 5000 });
 
   // Đợi 5.5 giây (> 2 khoảng polling 2.5s)
   await pageB.waitForTimeout(5500);

@@ -379,11 +379,16 @@ CREATE TABLE IF NOT EXISTS phong (
   chu_phong_khoa  TEXT NOT NULL,
   chu_phong_ten   TEXT NOT NULL,
   cau_hinh        TEXT,
+  access_mode     TEXT NOT NULL DEFAULT 'public',
+  mat_khau_hash   TEXT,
+  mat_khau_salt   TEXT,
+  suc_chua        INTEGER NOT NULL DEFAULT 20,
   trang_thai      TEXT NOT NULL DEFAULT 'mo',
   tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
   cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_phong_mo ON phong(trang_thai, pham_vi, lop_id);
+CREATE INDEX IF NOT EXISTS idx_phong_access ON phong(access_mode, trang_thai);
 
 CREATE TABLE IF NOT EXISTS phong_thanh_vien (
   phong_id        INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
@@ -509,3 +514,26 @@ CREATE TABLE IF NOT EXISTS community_membership (
 );
 CREATE INDEX IF NOT EXISTS idx_cm_hs_lop ON community_membership(hoc_sinh_id, lop_id, revoked_at);
 CREATE INDEX IF NOT EXISTS idx_cm_lop ON community_membership(lop_id, revoked_at);
+
+-- 33. TÀI KHOẢN CAMPUS ĐỘC LẬP (PHASE 4B)
+CREATE TABLE IF NOT EXISTS tai_khoan_campus (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten_dang_nhap       TEXT NOT NULL UNIQUE,
+  ten_hien_thi        TEXT NOT NULL,
+  mat_khau_hash       TEXT NOT NULL,
+  salt                TEXT NOT NULL,
+  iterations          INTEGER NOT NULL DEFAULT 100000,
+  vai_tro             TEXT NOT NULL DEFAULT 'student',
+  teacher_pending     INTEGER NOT NULL DEFAULT 0,
+  duyet_boi_khoa      TEXT,
+  duyet_luc           TEXT,
+  hoc_sinh_id         INTEGER REFERENCES hoc_sinh(id) ON DELETE SET NULL,
+  lop_id              INTEGER REFERENCES lop(id) ON DELETE SET NULL,
+  dang_hoat_dong      INTEGER NOT NULL DEFAULT 1,
+  thiet_bi            TEXT,
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP,
+  cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tkc_ten_dn ON tai_khoan_campus(ten_dang_nhap);
+CREATE INDEX IF NOT EXISTS idx_tkc_role_pending ON tai_khoan_campus(vai_tro, teacher_pending);
+

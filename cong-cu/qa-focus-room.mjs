@@ -369,10 +369,17 @@ try {
   await pageA.waitForSelector('#campus-lobby', { timeout: 10000 });
 
   const navMusicA = pageA.locator('#cat-nav-LOFI');
-  await navMusicA.click();
-  await pageA.waitForSelector('#room-nav-list-LOFI', { timeout: 5000 });
-  const rowA = pageA.locator('#room-nav-list-LOFI div:has-text("Study Café E2E Sync Pomodoro")').first();
-  await rowA.locator('button:has-text("Vào")').first().click();
+  if (await navMusicA.count()) {
+    await navMusicA.click();
+    await pageA.waitForSelector('#room-nav-list-LOFI', { timeout: 5000 });
+    const rowA = pageA.locator('#room-nav-list-LOFI div:has-text("Study Café E2E Sync Pomodoro")').first();
+    await rowA.locator('button:has-text("Vào")').first().click();
+  } else {
+    await pageA.locator('#campus-flagship-spaces button:has-text("Music")').first().click();
+    await pageA.waitForSelector('#lobby-music', { timeout: 5000 });
+    const rowA = pageA.locator('#lobby-music div:has-text("Study Café E2E Sync Pomodoro")').first();
+    await rowA.locator('button:has-text("Vào")').first().click();
+  }
 
   await pageA.waitForSelector('#focus-timer-display', { timeout: 8000 });
   ok('Browser A (Host): Giao diện Pomodoro hiển thị (#focus-timer-display)', true, 'browser');
@@ -386,10 +393,17 @@ try {
   await pageB.waitForSelector('#campus-lobby', { timeout: 10000 });
 
   const navMusicB = pageB.locator('#cat-nav-LOFI');
-  await navMusicB.click();
-  await pageB.waitForSelector('#room-nav-list-LOFI', { timeout: 5000 });
-  const rowB = pageB.locator('#room-nav-list-LOFI div:has-text("Study Café E2E Sync Pomodoro")').first();
-  await rowB.locator('button:has-text("Vào")').first().click();
+  if (await navMusicB.count()) {
+    await navMusicB.click();
+    await pageB.waitForSelector('#room-nav-list-LOFI', { timeout: 5000 });
+    const rowB = pageB.locator('#room-nav-list-LOFI div:has-text("Study Café E2E Sync Pomodoro")').first();
+    await rowB.locator('button:has-text("Vào")').first().click();
+  } else {
+    await pageB.locator('#campus-flagship-spaces button:has-text("Music")').first().click();
+    await pageB.waitForSelector('#lobby-music', { timeout: 5000 });
+    const rowB = pageB.locator('#lobby-music div:has-text("Study Café E2E Sync Pomodoro")').first();
+    await rowB.locator('button:has-text("Vào")').first().click();
+  }
 
   await pageB.waitForSelector('#focus-timer-display', { timeout: 8000 });
   ok('Browser B (Viewer): Giao diện Pomodoro hiển thị trên người xem', true, 'browser');
@@ -498,7 +512,7 @@ try {
 
   const btnRoiB = pageB.locator('#btn-roi-phong-top');
   await btnRoiB.click();
-  await pageB.waitForSelector('#campus-lobby', { timeout: 5000 });
+  await pageB.waitForSelector('#campus-lobby, #lobby-music', { timeout: 5000 });
 
   // Đợi 7 giây (> 2 chu kỳ polling 3s)
   await pageB.waitForTimeout(7000);

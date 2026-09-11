@@ -1,10 +1,25 @@
 // Tiện ích dùng chung cho toàn bộ API.
 import { COOKIE_NAME, readCookie, verifyToken } from './auth.js';
 
-export function json(duLieu, status = 200) {
+export function json(duLieu, status = 200, headers = {}) {
+  const mergedHeaders = new Headers({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
+  if (typeof headers === 'string') {
+    mergedHeaders.set('Set-Cookie', headers);
+  } else if (headers instanceof Headers) {
+    for (const [k, v] of headers.entries()) {
+      mergedHeaders.set(k, v);
+    }
+  } else if (typeof headers === 'object' && headers !== null) {
+    for (const [k, v] of Object.entries(headers)) {
+      mergedHeaders.set(k, v);
+    }
+  }
   return new Response(JSON.stringify(duLieu), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: mergedHeaders,
   });
 }
 
@@ -22,6 +37,41 @@ export async function layPhien(request, env) {
 export async function kiemTraPhienHieuLuc(phien, env) {
   if (!phien) return { hopLe: false, lyDo: 'chua_dang_nhap', thongBao: 'Chưa đăng nhập.' };
   if (!env || !env.DB) return { hopLe: true };
+
+  // 0. Tài khoản Campus độc lập (Phase 4B)
+  if (phien.accountId) {
+    try {
+      const tk = await env.DB.prepare(
+        'SELECT ten_hien_thi AS ten, vai_tro AS vaiTro, teacher_pending AS teacherPending, dang_hoat_dong AS dangHoatDong, thiet_bi AS thietBi, hoc_sinh_id AS hocSinhId, lop_id AS lopId FROM tai_khoan_campus WHERE id = ?1'
+      ).bind(phien.accountId).first();
+      if (tk) {
+        if (!tk.dangHoatDong) {
+          return { hopLe: false, biDaRa: true, lyDo: 'tai_khoan_khoa', thongBao: 'Tài khoản này đã bị khoá.' };
+        }
+        if (tk.thietBi && phien.phienId && tk.thietBi !== phien.phienId) {
+          return {
+            hopLe: false,
+            biDaRa: true,
+            lyDo: 'da_dang_nhap_noi_khac',
+            thongBao: 'Tài khoản của bạn đã được đăng nhập trên một thiết bị khác. Bạn đã bị đăng xuất.',
+          };
+        }
+        return {
+          hopLe: true,
+          phienMoi: {
+            ...phien,
+            ten: tk.ten || phien.ten,
+            role: tk.vaiTro || phien.role,
+            teacherPending: Boolean(tk.teacherPending),
+            hocSinhId: tk.hocSinhId || phien.hocSinhId || null,
+            lopId: tk.lopId || phien.lopId || null,
+          },
+        };
+      }
+    } catch (e) {
+      console.error('Không làm mới được quyền tài khoản campus (accountId=' + phien.accountId + '):', e);
+    }
+  }
 
   // 1. Tài khoản phụ (cán sự lớp, thủ quỹ, tài khoản đặc biệt)
   if (phien.role === 'phu' && phien.phuId) {

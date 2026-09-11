@@ -9,7 +9,7 @@ const PUBLIC_PATHS = new Set([
   '/', '/index.html',
   '/digital-campus', '/digital-campus.html',
   '/community-feed', '/community-feed.html',
-  '/login', '/login.html', '/api/login', '/api/logout',
+  '/login', '/login.html', '/api/login', '/api/logout', '/api/register',
   '/favicon.ico', '/robots.txt',
   // Hai tệp này chỉ mô tả cách cài ứng dụng, không chứa dữ liệu của lớp.
   '/manifest.webmanifest', '/sw.js',

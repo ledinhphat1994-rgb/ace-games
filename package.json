@@ -18,6 +18,7 @@
     "kiem-tra-du-lieu": "node cong-cu/kiem-tra-du-lieu.js",
     "lint": "eslint .",
     "build": "node build.js",
+    "qa:phase4b": "node cong-cu/qa-phase4b.mjs",
     "qa:campus": "node cong-cu/qa-campus.mjs",
     "qa:arena": "node cong-cu/qa-arena-concurrency.mjs",
     "qa:watch-together": "node cong-cu/qa-watch-together.mjs",

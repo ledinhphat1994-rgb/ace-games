@@ -20,6 +20,7 @@ export async function onRequestGet({ env }) {
     // Phòng toàn trường đang mở — KHÔNG kèm chủ phòng, lớp hay danh tính.
     const phongs = await db.prepare(
       `SELECT p.id, p.loai, p.ten, p.mo_ta AS moTa, p.tao_luc AS taoLuc,
+              p.access_mode, p.suc_chua AS sucChua,
               (SELECT COUNT(*) FROM phong_thanh_vien v
                 WHERE v.phong_id = p.id AND datetime(v.hoat_dong_luc) > datetime('now', ?1)) AS soNguoi
          FROM phong p

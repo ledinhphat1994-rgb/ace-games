@@ -20,10 +20,13 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 
   return json({
     ok: true,
+    accountId: phien.accountId || null,
+    username: phien.username || '',
     role: phien.role,
     ten: phien.ten || '',
     vaiTro: phien.vaiTro || '',
     quyen: phien.quyen || [],
+    teacherPending: Boolean(phien.teacherPending),
     hocSinhId: phien.hocSinhId || null,
     phuId: phien.phuId || phien.taiKhoanPhuId || null,
     tenLop: lop?.ten || '',
