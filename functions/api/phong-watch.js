@@ -1,6 +1,6 @@
-// API Đồng bộ phát video thời gian thực cho phòng Xem chung (Digital Campus - Phase 3C.1).
+// API Đồng bộ phát video thời gian thực cho phòng Xem chung (Digital Campus - Phase 3C.1 Hardening).
 // Server-authoritative playback synchronization với optimistic concurrency control.
-// Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển (play/pause/seek).
+// Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển (play/pause/seek/set_rate).
 // Thành viên khác chỉ đọc và đồng bộ timeline theo máy chủ.
 import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
 
@@ -13,19 +13,6 @@ function khoaPhien(phien) {
   return `phu:${phien.phuId || 0}`;
 }
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
-
-async function damBaoBang(db) {
-  await db.prepare(`CREATE TABLE IF NOT EXISTS phong_dong_bo_video (
-    phong_id            INTEGER PRIMARY KEY REFERENCES phong(id) ON DELETE CASCADE,
-    trang_thai          TEXT NOT NULL DEFAULT 'paused',
-    vi_tri_giay         REAL NOT NULL DEFAULT 0,
-    toc_do              REAL NOT NULL DEFAULT 1.0,
-    revision            INTEGER NOT NULL DEFAULT 1,
-    cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP,
-    nguoi_cap_nhat_khoa TEXT,
-    nguoi_cap_nhat_ten  TEXT
-  )`).run().catch(() => {});
-}
 
 async function layPhongVaKiem(db, phongId, phien) {
   const p = await db.prepare(
@@ -50,13 +37,13 @@ function phanLoaiProvider(videoUrl) {
   const s = String(videoUrl || '').trim();
   if (/youtu\.be|youtube\.com/i.test(s)) return 'YOUTUBE';
   if (/drive\.google\.com/i.test(s)) return 'GOOGLE_DRIVE';
-  if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(s)) return 'NATIVE_HTML5';
+  // Chỉ coi là Native HTML5 với định dạng chuẩn tương thích phổ quát trình duyệt web
+  if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(s)) return 'NATIVE_HTML5';
   return 'UNSUPPORTED';
 }
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  await damBaoBang(db);
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('phongId') || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
@@ -75,12 +62,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
        FROM phong_dong_bo_video WHERE phong_id = ?1`
   ).bind(phongId).first();
 
-  // Khởi tạo dòng đồng bộ nếu chưa có
+  // Khởi tạo dòng đồng bộ nếu chưa có (với người cập nhật là NULL để không ghi nhận viewer sai lệch)
   if (!row) {
     await db.prepare(
       `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
-       VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)`
-    ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
+       VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, NULL, NULL)`
+    ).bind(phongId).run().catch(() => {});
 
     row = await db.prepare(
       `SELECT phong_id AS phongId, trang_thai AS trangThai, vi_tri_giay AS viTriGiay,
@@ -121,7 +108,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       id: p.id,
       ten: p.ten,
       phamVi: p.phamVi,
-      chuPhongKhoa: p.chuPhongKhoa,
       chuPhongTen: p.chuPhongTen,
       videoUrl: cauHinh.videoUrl || ''
     }
@@ -130,7 +116,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  await damBaoBang(db);
   const than = await docThan(request);
   const phongId = parseInt(than.phongId || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
@@ -150,17 +135,6 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     return loi('Hành động không hợp lệ (chỉ nhận play, pause, seek, set_rate).', 400);
   }
 
-  const rawPos = Number(than.position);
-  if (isNaN(rawPos) || !isFinite(rawPos) || rawPos < 0 || rawPos > 86400) {
-    return loi('Vị trí video không hợp lệ (phải là số từ 0 đến 86400 giây).', 400);
-  }
-  const pos = Math.max(0, Number(rawPos.toFixed(2)));
-
-  let rate = Number(than.playbackRate || 1.0);
-  if (!CAC_TOC_DO.includes(rate)) {
-    rate = 1.0;
-  }
-
   const expectedRev = parseInt(than.expectedRevision || '0', 10);
   if (!(expectedRev >= 1)) {
     return loi('Thiếu hoặc sai số revision kỳ vọng.', 400);
@@ -174,7 +148,6 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   ).bind(phongId).first();
 
   if (!hienTai) {
-    // Khởi tạo trước nếu chưa có
     await db.prepare(
       `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
        VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)`
@@ -186,11 +159,38 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     ).bind(phongId).first();
   }
 
-  // Xác định trạng thái mới
+  let rate = Number(hienTai.tocDo || 1.0);
+  let targetPos = Number(hienTai.viTriGiay || 0);
   let trangThaiMoi = hienTai.trangThai;
-  if (action === 'play') trangThaiMoi = 'playing';
-  else if (action === 'pause') trangThaiMoi = 'paused';
-  // với 'seek' hoặc 'set_rate', giữ nguyên trạng thái đang play hay pause
+
+  if (action === 'set_rate') {
+    // Với set_rate: playbackRate là bắt buộc và phải nằm trong whitelist
+    const rawRate = Number(than.playbackRate);
+    if (typeof than.playbackRate === 'undefined' || isNaN(rawRate) || !CAC_TOC_DO.includes(rawRate)) {
+      return loi('Tốc độ phát không hợp lệ (chỉ chấp nhận: 0.5, 0.75, 1.0, 1.25, 1.5, 2.0).', 400);
+    }
+    rate = rawRate;
+
+    // Giữ liên tục dòng thời gian khi đang play: tính vị trí hiện tại của server trước khi áp dụng rate mới
+    if (hienTai.trangThai === 'playing') {
+      const updateTimeMs = new Date(String(hienTai.capNhatLuc).replace(' ', 'T') + (String(hienTai.capNhatLuc).includes('T') ? '' : 'Z')).getTime();
+      const elapsedSec = Math.max(0, (Date.now() - updateTimeMs) / 1000);
+      targetPos = Math.max(0, Number((hienTai.viTriGiay + elapsedSec * (hienTai.tocDo || 1.0)).toFixed(2)));
+    } else if (typeof than.position !== 'undefined' && !isNaN(Number(than.position)) && Number(than.position) >= 0) {
+      targetPos = Math.max(0, Number(Number(than.position).toFixed(2)));
+    }
+  } else {
+    // Với play, pause, seek: vị trí là bắt buộc và rate được bảo toàn từ trạng thái hiện tại
+    const rawPos = Number(than.position);
+    if (isNaN(rawPos) || !isFinite(rawPos) || rawPos < 0 || rawPos > 86400) {
+      return loi('Vị trí video không hợp lệ (phải là số từ 0 đến 86400 giây).', 400);
+    }
+    targetPos = Math.max(0, Number(rawPos.toFixed(2)));
+
+    if (action === 'play') trangThaiMoi = 'playing';
+    else if (action === 'pause') trangThaiMoi = 'paused';
+    // với 'seek', giữ nguyên trạng thái playing hay paused
+  }
 
   // Thực hiện cập nhật với Optimistic Concurrency Control
   const kq = await db.prepare(
@@ -203,7 +203,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
             nguoi_cap_nhat_khoa = ?4,
             nguoi_cap_nhat_ten = ?5
       WHERE phong_id = ?6 AND revision = ?7`
-  ).bind(trangThaiMoi, pos, rate, khoa, tenCua(phien), phongId, expectedRev).run();
+  ).bind(trangThaiMoi, targetPos, rate, khoa, tenCua(phien), phongId, expectedRev).run();
 
   if (!kq.meta || kq.meta.changes === 0) {
     // Xung đột phiên bản! Lấy trạng thái mới nhất từ server trả về để client hòa giải
@@ -244,8 +244,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     ok: true,
     state: {
       playing: trangThaiMoi === 'playing',
-      positionSeconds: pos,
-      basePositionSeconds: pos,
+      positionSeconds: targetPos,
+      basePositionSeconds: targetPos,
       playbackRate: rate,
       revision: expectedRev + 1,
       updatedAt: new Date(nowMs).toISOString(),
