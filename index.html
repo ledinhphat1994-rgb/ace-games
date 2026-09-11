@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -181,6 +181,29 @@
         display: none !important;
       }
     }
+
+    /* ─── In báo cáo Sổ Quỹ ra khổ A4: chỉ giữ khu #thu-quy, ẩn toàn bộ UI khác ─── */
+    @media print {
+      @page { size: A4 portrait; margin: 14mm; }
+      body { background: #ffffff !important; color: #111827 !important; }
+      body * { visibility: hidden; }
+      #thu-quy, #thu-quy * { visibility: visible; }
+      #thu-quy {
+        position: absolute !important;
+        inset: 0 auto auto 0 !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: #ffffff !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #111827 !important;
+        padding: 0 !important;
+      }
+      #thu-quy * { color: #111827 !important; background: transparent !important; border-color: #d1d5db !important; box-shadow: none !important; text-shadow: none !important; }
+      #thu-quy button { display: none !important; }
+      #thu-quy .rounded-xl, #thu-quy .rounded-2xl { border: 1px solid #e5e7eb !important; break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
@@ -217,16 +240,20 @@ function formatTimeOnly(dateStr) {
   }
 }
 
-// ─── Preset Avatars for Students ────────────────────────────────────────────
+// ─── Preset Avatars: SVG gradient nội bộ (không phụ thuộc ảnh ngoài, tải tức thì) ──
+function taoAvatarSvg(bieuTuong, mauA, mauB) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${mauA}"/><stop offset="1" stop-color="${mauB}"/></linearGradient></defs><rect width="120" height="120" fill="url(#g)"/><text x="60" y="86" font-size="60" text-anchor="middle">${bieuTuong}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 const PRESET_AVATARS = [
-  { id: 'av-1', name: 'Nữ sinh thông minh', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-2', name: 'Nữ sinh năng động', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-3', name: 'Nam sinh kính cận', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-4', name: 'Học sinh lập trình', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-5', name: 'Họa sĩ trẻ', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-6', name: 'Vận động viên hội thao', url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-7', name: 'Nhà toán học bí ẩn', url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=120&auto=format&fit=crop&q=80' },
-  { id: 'av-8', name: 'Cú đêm chăm học', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80' }
+  { id: 'av-1', name: 'Cú đêm chăm học', url: taoAvatarSvg('🦉', '#0ea5e9', '#8B5CF6') },
+  { id: 'av-2', name: 'Chiến thần ôn thi', url: taoAvatarSvg('⚡', '#f59e0b', '#ef4444') },
+  { id: 'av-3', name: 'Kỹ sư tương lai', url: taoAvatarSvg('🤖', '#10b981', '#0ea5e9') },
+  { id: 'av-4', name: 'Họa sĩ trẻ', url: taoAvatarSvg('🎨', '#ec4899', '#8B5CF6') },
+  { id: 'av-5', name: 'Nhà toán học', url: taoAvatarSvg('📐', '#6366f1', '#00F2FE') },
+  { id: 'av-6', name: 'Vận động viên', url: taoAvatarSvg('🏅', '#f97316', '#eab308') },
+  { id: 'av-7', name: 'Mọt sách', url: taoAvatarSvg('📚', '#14b8a6', '#84cc16') },
+  { id: 'av-8', name: 'Ngôi sao lớp', url: taoAvatarSvg('🌟', '#8B5CF6', '#00F2FE') }
 ];
 
 // ─── SVG Icons ──────────────────────────────────────────────────────────────
@@ -269,6 +296,268 @@ const Ic = ({ name, className = "w-4 h-4" }) => {
   );
 };
 
+// ─── Media Helpers (client) ─────────────────────────────────────────────────
+function idYoutube(url) {
+  const s = String(url || '').trim();
+  if (!s) return null;
+  let m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:shorts|live|embed)\/)([\w-]{11})/i);
+  if (m) return m[1];
+  m = s.match(/youtube\.com\/watch\?[^#]*[?&]v=([\w-]{11})/i);
+  return m ? m[1] : null;
+}
+function idGoogleDrive(url) {
+  const m = String(url || '').match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+  return m ? m[1] : null;
+}
+// Link hình: khoa R2 → /api/anh?khoa= ; link Drive → lh3.googleusercontent.com ; https khác → giữ nguyên
+function xuLyLinkHinhFe(khoa) {
+  if (!khoa) return '';
+  if (/^https?:\/\//i.test(khoa)) {
+    const m = khoa.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+    if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+    return urlMediaFe(khoa);
+  }
+  return '/api/anh?khoa=' + encodeURIComponent(khoa);
+}
+// Link nhạc ngoài: Drive → uc download ; https khác → giữ nguyên
+function xuLyLinkNhacFe(url) {
+  if (!url) return '';
+  const m = String(url).match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);
+  if (m) return 'https://drive.google.com/uc?export=download&id=' + m[1];
+  return urlMediaFe(url);
+}
+function laVideoNhungFe(url) {
+  return /facebook\.com|fb\.watch|tiktok\.com/i.test(String(url || ''));
+}
+// Chỉ cho phép https:// hoặc đường dẫn nội bộ "/" — chặn javascript:/data:/http://
+function urlMediaFe(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (s.startsWith('/') && !s.startsWith('//')) return s;
+  try { const u = new URL(s); if (u.protocol === 'https:') return s; } catch { }
+  return '';
+}
+function laVideoTrucTiepFe(url) {
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(String(url || ''));
+}
+function thoiGianTruoc(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(String(iso).replace(' ', 'T') + (String(iso).includes('T') ? '' : 'Z'));
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (isNaN(diff) || diff < 0) return formatDateVN(String(iso).slice(0, 10));
+    if (diff < 60) return 'Vừa xong';
+    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+    return `${Math.floor(diff / 86400)} ngày trước`;
+  } catch { return ''; }
+}
+
+const EMOJI_CAM_XUC = { thich: '👍', tim: '❤️', haha: '😂', wow: '😮', buon: '😢', phan_no: '😠' };
+
+// ─── Thẻ bài đăng THẬT trên Bảng Tin (cảm xúc + bình luận qua /api/bai-dang/tuong-tac) ──
+function TheBaiDang({ bai, thietBiId, auth, onCanDangNhap }) {
+  const [camXuc, setCamXuc] = useState({ tong: bai.tongCamXuc || 0, daChon: bai.camXucCuaToi || null });
+  const [moBinhLuan, setMoBinhLuan] = useState(false);
+  const [binhLuan, setBinhLuan] = useState(null);
+  const [nhapBl, setNhapBl] = useState('');
+  const [dangGui, setDangGui] = useState(false);
+  const [loiTt, setLoiTt] = useState('');
+
+  const anhSrc = xuLyLinkHinhFe(bai.anhKhoa || bai.hinhKhoa || bai.hinhUrl);
+  const maYt = idYoutube(bai.videoUrl);
+  const maDrive = idGoogleDrive(bai.videoUrl);
+  const videoNhung = !maYt && !maDrive && laVideoNhungFe(bai.videoUrl) ? urlMediaFe(bai.videoUrl) : '';
+  const videoTrucTiep = !maYt && !maDrive && !videoNhung && laVideoTrucTiepFe(bai.videoUrl) ? urlMediaFe(bai.videoUrl) : '';
+  // Video thư viện: hoatDongLop có videoId → thu-vien-tep ; thongBao có videoKhoa → thong-bao-video
+  const videoNoiBo = bai.videoId
+    ? `/api/thu-vien-tep?loai=video&id=${bai.videoId}`
+    : (bai.videoKhoa ? `/api/thong-bao-video?id=${bai.id}` : '');
+  // Âm thanh: hoatDongLop amThanhId → thu-vien-tep ; thongBao nhacKhoa → thong-bao-nhac ; còn lại URL ngoài
+  const audioSrc = bai.amThanhId
+    ? `/api/thu-vien-tep?loai=am-thanh&id=${bai.amThanhId}`
+    : (bai.nhacKhoa && !/^https?:\/\//i.test(bai.nhacKhoa)
+        ? `/api/thong-bao-nhac?id=${bai.id}`
+        : xuLyLinkNhacFe(bai.amThanhUrl || (/^https?:\/\//i.test(bai.nhacKhoa || '') ? bai.nhacKhoa : '')));
+
+  const thaCamXuc = async (loai) => {
+    if (auth?.isGuest) { onCanDangNhap(); return; }
+    try {
+      const res = await fetch('/api/bai-dang/tuong-tac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baiDangId: bai.id, loaiCamXuc: camXuc.daChon === loai ? 'none' : loai, thietBiId })
+      });
+      const d = await res.json();
+      if (d.ok && d.camXuc) setCamXuc({ tong: d.camXuc.tong || 0, daChon: d.camXuc.daChon || null });
+      else setLoiTt(d.loi || 'Không gửi được cảm xúc.');
+    } catch { setLoiTt('Mất kết nối máy chủ.'); }
+  };
+
+  const taiBinhLuan = async () => {
+    try {
+      const res = await fetch(`/api/bai-dang/tuong-tac?baiDangId=${bai.id}&thietBiId=${encodeURIComponent(thietBiId)}`);
+      const d = await res.json();
+      if (d.ok) {
+        setBinhLuan(d.binhLuan || []);
+        if (d.camXuc) setCamXuc({ tong: d.camXuc.tong || 0, daChon: d.camXuc.daChon || null });
+      }
+    } catch { /* giữ nguyên */ }
+  };
+
+  const batBinhLuan = () => {
+    const mo = !moBinhLuan;
+    setMoBinhLuan(mo);
+    if (mo && binhLuan === null) taiBinhLuan();
+  };
+
+  const guiBinhLuan = async (e) => {
+    e.preventDefault();
+    const text = nhapBl.trim();
+    if (!text || dangGui) return;
+    if (auth?.isGuest) { onCanDangNhap(); return; }
+    setDangGui(true);
+    setLoiTt('');
+    try {
+      const res = await fetch('/api/bai-dang/tuong-tac', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baiDangId: bai.id, noiDung: text, thietBiId })
+      });
+      const d = await res.json();
+      if (d.ok) { setNhapBl(''); taiBinhLuan(); }
+      else setLoiTt(d.loi || 'Không gửi được bình luận.');
+    } catch { setLoiTt('Mất kết nối máy chủ.'); }
+    finally { setDangGui(false); }
+  };
+
+  return (
+    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 shrink-0">
+            <img src={PRESET_AVATARS[7].url} alt="10A7" className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-bold text-white">Bảng Tin 10A7</h4>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/30 font-bold">Hoạt động lớp</span>
+            </div>
+            <p className="text-[11px] text-slate-400">{thoiGianTruoc(bai.taoLuc || bai.ngay)}{bai.luotXem ? ` • ${bai.luotXem} lượt xem` : ''}</p>
+          </div>
+        </div>
+      </div>
+
+      {bai.tieuDe && <h3 className="text-sm font-extrabold text-white mb-2 leading-relaxed">{bai.tieuDe}</h3>}
+      {bai.noiDungHtml
+        ? <div className="text-xs text-slate-300 leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: bai.noiDungHtml }} />
+        : (bai.chuThich || bai.noiDung) && <p className="text-xs text-slate-300 leading-relaxed mb-3 whitespace-pre-line">{bai.chuThich || bai.noiDung}</p>}
+
+      {anhSrc && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black">
+          <img src={anhSrc} alt={bai.tieuDe || 'Ảnh hoạt động lớp'} loading="lazy" className="w-full max-h-[420px] object-cover" />
+        </div>
+      )}
+
+      {videoNoiBo && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black">
+          <video src={videoNoiBo} controls preload="metadata" className="w-full max-h-[420px]" />
+        </div>
+      )}
+      {!videoNoiBo && maYt && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black aspect-video">
+          <iframe src={`https://www.youtube.com/embed/${maYt}`} title={bai.tieuDe || 'Video YouTube'} loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
+            className="w-full h-full" />
+        </div>
+      )}
+      {!videoNoiBo && !maYt && maDrive && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black aspect-video">
+          <iframe src={`https://drive.google.com/file/d/${maDrive}/preview`} title={bai.tieuDe || 'Video Drive'} loading="lazy"
+            allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
+        </div>
+      )}
+      {!videoNoiBo && !maYt && !maDrive && videoNhung && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black aspect-video">
+          <iframe src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(videoNhung)}&show_text=0`} title={bai.tieuDe || 'Video'} loading="lazy"
+            allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
+        </div>
+      )}
+      {!videoNoiBo && !maYt && !maDrive && !videoNhung && videoTrucTiep && (
+        <div className="rounded-xl overflow-hidden border border-white/10 mb-3 bg-black">
+          <video src={videoTrucTiep} controls preload="metadata" className="w-full max-h-[420px]" />
+        </div>
+      )}
+
+      {audioSrc && (
+        <div className="rounded-xl border border-white/10 mb-3 bg-[#0B0E14] p-3">
+          <audio src={audioSrc} controls preload="none" className="w-full h-9" />
+          {bai.amThanhTen && <p className="text-[10px] text-slate-400 mt-1">🎵 {bai.amThanhTen}</p>}
+        </div>
+      )}
+
+      {/* Thanh cảm xúc & bình luận — số liệu THẬT từ bai_dang_cam_xuc/binh_luan */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => thaCamXuc('tim')}
+            className={`px-3 py-1 rounded-full font-bold flex items-center gap-1.5 transition-all ${camXuc.daChon ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' : 'bg-white/5 hover:bg-white/10 text-slate-300'}`}>
+            <span>{camXuc.daChon ? (EMOJI_CAM_XUC[camXuc.daChon] || '❤️') : '❤️'}</span>
+            <span>{camXuc.tong}</span>
+          </button>
+          <button onClick={() => thaCamXuc('thich')} title="Thích"
+            className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold transition-all">
+            👍
+          </button>
+          <button onClick={() => thaCamXuc('haha')} title="Haha"
+            className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold transition-all">
+            😂
+          </button>
+        </div>
+        <button onClick={batBinhLuan} className="text-xs text-[#00F2FE] hover:underline font-bold">
+          {(bai.tongBinhLuan || 0) + (binhLuan ? Math.max(0, binhLuan.length - (bai.tongBinhLuan || 0)) : 0)} phản hồi {moBinhLuan ? '▲' : '▼'}
+        </button>
+      </div>
+
+      {loiTt && <p className="text-[11px] text-rose-400 mt-2">{loiTt}</p>}
+
+      {moBinhLuan && (
+        <div className="pt-3 mt-3 border-t border-white/5 space-y-2">
+          {binhLuan === null ? (
+            <p className="text-[11px] text-slate-500">Đang tải bình luận…</p>
+          ) : binhLuan.length === 0 ? (
+            <p className="text-[11px] text-slate-500">Chưa có bình luận nào — hãy là người đầu tiên!</p>
+          ) : (
+            binhLuan.map(c => (
+              <div key={c.id} className="bg-[#0B0E14]/60 p-3 rounded-xl text-xs">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-white">{c.nguoiDungTen}</span>
+                  {c.vaiTro === 'giao_vien' && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#FFB800] font-bold">Giáo viên</span>
+                  )}
+                  {c.vaiTro === 'can_bo' && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#00F2FE] font-bold">Cán sự</span>
+                  )}
+                  <span className="text-[10px] text-slate-500">• {thoiGianTruoc(c.taoLuc)}</span>
+                </div>
+                <p className="text-slate-300 whitespace-pre-line">{c.noiDung}</p>
+              </div>
+            ))
+          )}
+          <form onSubmit={guiBinhLuan} className="flex items-center gap-2">
+            <input type="text" value={nhapBl} onChange={e => setNhapBl(e.target.value)}
+              placeholder="Viết bình luận…" maxLength={1000}
+              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+            <button type="submit" disabled={dangGui}
+              className="p-2.5 rounded-xl bg-[#00F2FE] text-black hover:bg-[#00e1ec] transition-all disabled:opacity-50">
+              <Ic name="send" className="w-3.5 h-3.5" />
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Application Component ─────────────────────────────────────────────
 function DigitalCampusApp() {
   // 1. Authentication State & Role Tiers
@@ -282,7 +571,12 @@ function DigitalCampusApp() {
 
   // Student Custom Avatar (persisted via localStorage)
   const [currentAvatar, setCurrentAvatar] = useState(() => {
-    return localStorage.getItem('user_custom_avatar') || PRESET_AVATARS[0].url;
+    try {
+      const saved = localStorage.getItem('user_custom_avatar');
+      // Chỉ chấp nhận avatar SVG nội bộ (data:image/svg+xml) — loại bỏ URL ngoài cũ.
+      if (saved && saved.startsWith('data:image/svg+xml')) return saved;
+    } catch { /* bỏ qua */ }
+    return PRESET_AVATARS[0].url;
   });
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -327,13 +621,8 @@ function DigitalCampusApp() {
   const [ddTabSub, setDdTabSub] = useState('ngay');
   const [tqTabSub, setTqTabSub] = useState('thu');
 
-  // 3. Multi-Class Realtime Stats (For Teachers)
-  const [multiClassStats, setMultiClassStats] = useState([
-    { id: 1, ten: 'Lớp 10A7', siSo: 39, online: 24, activities: '8 Rạp chiếu • 4 Đấu cờ • 12 Tự học' },
-    { id: 2, ten: 'Lớp 10A8', siSo: 41, online: 18, activities: '14 Rạp chiếu • 4 Tự học' },
-    { id: 3, ten: 'Lớp 11A1', siSo: 42, online: 30, activities: 'Đang sinh hoạt chuyên đề' },
-    { id: 4, ten: 'Lớp 12A3', siSo: 38, online: 27, activities: 'Chuẩn bị thi thử THPT' }
-  ]);
+  // 3. Multi-Class Realtime Stats (For Teachers) — lấy THẬT từ /api/gv/radar-lien-lop
+  const [multiClassStats, setMultiClassStats] = useState([]);
 
   // 4. Class Real Data
   const [classData, setClassData] = useState({
@@ -349,15 +638,13 @@ function DigitalCampusApp() {
     phienBanTkb: null
   });
 
-  // 5. Live Chat State
-  const [chatMessages, setChatMessages] = useState([
-    { id: 1, tenNguoiGui: 'Thầy Lê Đình Phát', vaiTro: 'giao_vien', noiDung: 'Chào cả lớp! Ai vào phòng rồi nhớ mở âm lượng vừa đủ nghe nhé.', taoLuc: '2026-09-10 20:01:00' },
-    { id: 2, tenNguoiGui: 'Trần Gia Hân', vaiTro: 'hoc_sinh', noiDung: 'Dạ Thầy! Màn hình chiếu nét lắm ạ.', taoLuc: '2026-09-10 20:02:00' },
-    { id: 3, tenNguoiGui: 'Phan Quốc Bảo', vaiTro: 'hoc_sinh', noiDung: 'Ai rảnh ra bàn Cờ Caro làm ván solo không nào? 🔥', taoLuc: '2026-09-10 20:03:00' },
-    { id: 4, tenNguoiGui: 'Trần Gia Hân', vaiTro: 'hoc_sinh', noiDung: 'Lát nữa giải bài tập xong tớ qua liền nè!', taoLuc: '2026-09-10 20:45:00' }
-  ]);
+  // 5. Live Chat State — tin nhắn THẬT từ /api/chat + /api/chat-stream (SSE)
+  const [chatMessages, setChatMessages] = useState([]);
+  const [onlineCount, setOnlineCount] = useState(null); // số người online thật từ SSE presence
   const [chatInput, setChatInput] = useState('');
   const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -376,53 +663,36 @@ function DigitalCampusApp() {
     caNhan: null
   });
 
-  // 8. Caro Game State
-  const [caroRooms, setCaroRooms] = useState([]);
-  const [caroBoard, setCaroBoard] = useState(() => Array(15).fill(null).map(() => Array(15).fill(null)));
-  const [caroTurn, setCaroTurn] = useState('X');
-  const [caroWinner, setCaroWinner] = useState(null);
+  // 8. Caro Game State — đấu THẬT qua /api/game (danh sách bàn + phòng đang chơi)
+  const [caroRooms, setCaroRooms] = useState(null); // null = chưa tải
+  const [caroPhong, setCaroPhong] = useState(null); // phòng đang vào (chi tiết từ API)
+  const [caroLoi, setCaroLoi] = useState('');
 
-  // 9. DJ Radio State
+  // 9. DJ Radio State — tên bài THẬT từ /api/lop (nhacNen) / /api/nhac-nen-info
   const [radioPlaying, setRadioPlaying] = useState(false);
-  const [radioTitle, setRadioTitle] = useState('Lofi Study Chillhop');
+  const [radioTitle, setRadioTitle] = useState('Nhạc nền của lớp');
 
   // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
 
-  // 11. Feed Post Composer State (Supports Anonymous Posts)
+  // 11. Feed Post Composer — đăng bài THẬT qua /api/gv/hoat-dong-lop (GVCN/cán sự được cấp)
   const [composerText, setComposerText] = useState('');
-  const [composerAnDanh, setComposerAnDanh] = useState(false);
-  const [showRealNamesForTeacher, setShowRealNamesForTeacher] = useState(false);
+  const [composerSending, setComposerSending] = useState(false);
+  const [composerError, setComposerError] = useState('');
 
-  const [feedPosts, setFeedPosts] = useState([
-    {
-      id: 101,
-      author: 'Nguyễn Minh Thư',
-      actualAuthor: 'Nguyễn Minh Thư',
-      roleTitle: 'Lớp phó Học tập',
-      isAnonymous: false,
-      avatarUrl: PRESET_AVATARS[1].url,
-      time: '45 phút trước',
-      content: 'Mọi người ơi, bài 4 hình học phân tích vô hướng có ai có cách giải nhanh dạng này không ạ? Mình đang thử biến đổi theo tọa độ vecto nhưng cảm giác hơi dài dòng, cần cao nhân cứu trợ với ạ! 🙏📐',
-      tags: ['#ToanHoc', '#HocNhom', '#HelpMe'],
-      likes: 16,
-      comments: [
-        {
-          id: 1,
-          author: 'Trần Hoàng Nam',
-          time: '30 phút trước',
-          content: 'Thử dùng hệ thức lượng trong tam giác vuông đi Thư ơi, vẽ thêm đường cao AH là ra trong 3 dòng luôn á!'
-        },
-        {
-          id: 2,
-          author: 'Thầy Lê Đình Phát',
-          isTeacher: true,
-          time: '18 phút trước',
-          content: 'Hoàng Nam gợi ý đúng hướng rồi đó em. Có thể xem lại Ví dụ 3 trang 42 SGK nhé, Thầy có chú thích kỹ phần phân tích vecto.'
-        }
-      ]
-    }
-  ]);
+  // Mã thiết bị bền vững để định danh lượt cảm xúc/bình luận khi đăng nhập bằng mã lớp
+  // chung (không có hocSinhId). Chỉ là gợi ý — máy chủ vẫn trộn thêm phienId từ cookie
+  // ký HMAC nên không thể giả mạo danh tính của phiên khác.
+  const thietBiId = useMemo(() => {
+    try {
+      let id = localStorage.getItem('thietBiId');
+      if (!id) {
+        id = (crypto.randomUUID ? crypto.randomUUID() : `tb-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        localStorage.setItem('thietBiId', id);
+      }
+      return id;
+    } catch { return 'thiet-bi-khong-ten'; }
+  }, []);
 
   // ─── AUTHENTICATION CHECK ─────────────────────────────────────────────────
   const fetchAuth = useCallback(async () => {
@@ -446,6 +716,7 @@ function DigitalCampusApp() {
               quyen: data.quyen || [],
               toSo: data.toSo || null,
               hocSinhId: data.hocSinhId || null,
+              phuId: data.phuId || null,
               tenLop: data.tenLop || 'Lớp 10A7',
               namHoc: data.namHoc || '2026 – 2027',
               isTeacher: isT,
@@ -479,8 +750,10 @@ function DigitalCampusApp() {
               quyChi: d.quyChi || [],
               quyDong: d.quyDong || [],
               thuQuy: d.thuQuy || null,
+              nhacNen: d.nhacNen || null,
               phienBanTkb: d.phienBanTkb || null
             });
+            if (d.nhacNen && d.nhacNen.tenBai) setRadioTitle(d.nhacNen.tenBai);
             return;
           }
         }
@@ -665,7 +938,8 @@ function DigitalCampusApp() {
           try {
             const data = JSON.parse(event.data);
             if (data.tinNhan && data.tinNhan.length > 0) {
-              setChatMessages(prev => [...prev, ...data.tinNhan]);
+              // Giữ tối đa 200 tin gần nhất — SSE chạy suốt phiên, không chặn sẽ phình DOM.
+              setChatMessages(prev => [...prev, ...data.tinNhan].slice(-200));
             }
           } catch {}
         });
@@ -682,7 +956,7 @@ function DigitalCampusApp() {
         eventSource.addEventListener('presence', (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('Online count:', data.onlineCount);
+            if (typeof data.onlineCount === 'number') setOnlineCount(data.onlineCount);
           } catch {}
         });
 
@@ -713,6 +987,22 @@ function DigitalCampusApp() {
       }
     };
   }, [auth.isGuest, fetchChat]);
+
+  // ─── FETCH RADAR LIÊN LỚP (chỉ GVCN) — số liệu THẬT từ D1 ────────────────
+  useEffect(() => {
+    if (!auth.user?.isTeacher || !quyenGvcn) return;
+    let alive = true;
+    const taiRadar = async () => {
+      try {
+        const res = await fetch('/api/gv/radar-lien-lop');
+        const d = await res.json();
+        if (alive && d.ok) setMultiClassStats(d.lops || []);
+      } catch { /* bỏ qua lỗi mạng */ }
+    };
+    taiRadar();
+    const iv = setInterval(taiRadar, 60000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [auth.user?.isTeacher, quyenGvcn]);
 
   // ─── FETCH REAL GAMIFICATION & ACHIEVEMENTS ───────────────────────────────
   const fetchGamification = useCallback(async () => {
@@ -845,6 +1135,7 @@ function DigitalCampusApp() {
     if (!text || chatSending) return;
 
     setChatSending(true);
+    setChatError('');
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -852,8 +1143,8 @@ function DigitalCampusApp() {
         body: JSON.stringify({ noiDung: text })
       });
       const d = await res.json();
-      if (d.ok && d.tin) {
-        setChatMessages(prev => [...prev, d.tin]);
+      if (d.ok && d.tinNhan) {
+        setChatMessages(prev => [...prev, d.tinNhan].slice(-200));
         setChatInput('');
 
         const bullet = {
@@ -865,85 +1156,189 @@ function DigitalCampusApp() {
         };
         setDanmakuBullets(prev => [...prev.slice(-15), bullet]);
       } else {
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          tenNguoiGui: auth.user?.name || 'Tôi',
-          vaiTro: auth.user?.isTeacher ? 'giao_vien' : 'hoc_sinh',
-          noiDung: text,
-          taoLuc: new Date().toISOString()
-        }]);
-        setChatInput('');
+        // KHÔNG giả vờ đã gửi — hiện lỗi thật để người dùng biết tin chưa lưu.
+        setChatError(d.loi || 'Không gửi được tin nhắn. Thử lại sau.');
       }
     } catch {
-      setChatMessages(prev => [...prev, {
-        id: Date.now(),
-        tenNguoiGui: auth.user?.name || 'Tôi',
-        vaiTro: auth.user?.isTeacher ? 'giao_vien' : 'hoc_sinh',
-        noiDung: text,
-        taoLuc: new Date().toISOString()
-      }]);
-      setChatInput('');
+      setChatError('Mất kết nối máy chủ — tin nhắn chưa được gửi.');
     } finally {
       setChatSending(false);
     }
   };
 
-  // ─── POST COMPOSER WITH ANONYMOUS OPTION ──────────────────────────────────
-  const handleCreatePost = (e) => {
+  // ─── ĐĂNG BÀI LÊN BẢNG TIN — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' ──
+  const canPostFeed = auth.user?.isTeacher || (auth.user?.quyen || []).includes('hoat-dong-lop');
+
+  const handleCreatePost = async (e) => {
     e.preventDefault();
-    if (!composerText.trim()) return;
+    const text = composerText.trim();
+    if (!text || composerSending) return;
+    if (auth.isGuest) { setShowAuthGate(true); return; }
 
-    const actualName = auth.user?.name || 'Học sinh 10A7';
-    const anonTitles = ['🦉 Cú đêm chăm học', '📐 Kỹ sư hình học', '🎨 Nghệ sĩ giấu tên', '⚡ Chiến thần ôn thi'];
-    const randomAnon = anonTitles[Math.floor(Math.random() * anonTitles.length)];
-
-    const newPost = {
-      id: Date.now(),
-      author: composerAnDanh ? `Ẩn danh (${randomAnon})` : actualName,
-      actualAuthor: actualName,
-      isAnonymous: composerAnDanh,
-      roleTitle: composerAnDanh ? 'Thành viên lớp (Ẩn danh)' : (auth.user?.chucVu || (auth.user?.isTeacher ? 'Giáo viên' : 'Thành viên')),
-      avatarUrl: composerAnDanh ? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=100&auto=format&fit=crop&q=80' : currentAvatar,
-      time: 'Vừa xong',
-      content: composerText.trim(),
-      tags: composerAnDanh ? ['#GocAnDanh', '#Confessions10A7'] : ['#GocHocTap', '#ThaoLuan10A7'],
-      likes: 1,
-      comments: []
-    };
-    setFeedPosts(prev => [newPost, ...prev]);
-    setComposerText('');
-    setComposerAnDanh(false);
+    setComposerSending(true);
+    setComposerError('');
+    try {
+      const res = await fetch('/api/gv/hoat-dong-lop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tieuDe: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+          noiDung: text,
+          ngay: new Date().toISOString().slice(0, 10)
+        })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setComposerText('');
+        fetchClassData(true); // tải lại để bài mới xuất hiện trên feed
+      } else {
+        setComposerError(d.loi || 'Không đăng được bài. Thử lại sau.');
+      }
+    } catch {
+      setComposerError('Mất kết nối máy chủ — bài chưa được đăng.');
+    } finally {
+      setComposerSending(false);
+    }
   };
 
-  // ─── CARO LOGIC ───────────────────────────────────────────────────────────
-  const checkCaroWin = (board, r, c, val) => {
-    const dirs = [[0,1], [1,0], [1,1], [1,-1]];
-    for (const [dr, dc] of dirs) {
-      let count = 1;
-      for (let s = 1; s < 5; s++) {
-        const nr = r + dr * s, nc = c + dc * s;
-        if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === val) count++; else break;
-      }
-      for (let s = 1; s < 5; s++) {
-        const nr = r - dr * s, nc = c - dc * s;
-        if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === val) count++; else break;
-      }
-      if (count >= 5) return true;
-    }
-    return false;
+  // ─── CỜ CARO THẬT QUA /api/game ───────────────────────────────────────────
+  const nguoiChoiIdCuaToi = auth.user?.isTeacher ? 999999
+    : (auth.user?.hocSinhId || (auth.user?.role === 'phu' ? 800000 + (auth.user?.phuId || 1) : 100001));
+
+  const taiDanhSachBanCaro = useCallback(async () => {
+    try {
+      const res = await fetch('/api/game?loai=co_caro');
+      const d = await res.json();
+      if (d.ok) setCaroRooms(d.danhSachBan || []);
+      else setCaroLoi(d.loi || '');
+    } catch { /* giữ nguyên danh sách cũ */ }
+  }, []);
+
+  const taiPhongCaro = useCallback(async (phongId) => {
+    try {
+      const res = await fetch(`/api/game?phongId=${phongId}`);
+      const d = await res.json();
+      if (d.ok && d.phong) setCaroPhong(d.phong);
+      else setCaroPhong(null);
+    } catch { /* giữ nguyên */ }
+  }, []);
+
+  // Khi đang đứng trong một phòng cờ → poll trạng thái mỗi 2s để thấy nước đi đối thủ.
+  useEffect(() => {
+    if (!caroPhong || !caroPhong.id) return;
+    if (caroPhong.trangThai === 'ket_thuc' || caroPhong.trangThai === 'hoa') return;
+    const iv = setInterval(() => taiPhongCaro(caroPhong.id), 2000);
+    return () => clearInterval(iv);
+  }, [caroPhong?.id, caroPhong?.trangThai, taiPhongCaro]);
+
+  // Khi mở phòng GAME_CARO → nạp danh sách bàn thật.
+  useEffect(() => {
+    if (activeRoom?.type === 'GAME_CARO') taiDanhSachBanCaro();
+  }, [activeRoom, taiDanhSachBanCaro]);
+
+  const taoBanCaro = async () => {
+    setCaroLoi('');
+    try {
+      const res = await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'tao_ban', loaiGame: 'co_caro' })
+      });
+      const d = await res.json();
+      if (d.ok && d.phong) {
+        setCaroPhong(d.phong);
+        taiDanhSachBanCaro();
+      } else setCaroLoi(d.loi || 'Không tạo được bàn.');
+    } catch { setCaroLoi('Mất kết nối máy chủ.'); }
   };
 
-  const handleCaroCellClick = (r, c) => {
-    if (caroBoard[r][c] || caroWinner) return;
-    const nextBoard = caroBoard.map(row => [...row]);
-    nextBoard[r][c] = caroTurn;
-    setCaroBoard(nextBoard);
+  const vaoBanCaro = async (phongId) => {
+    setCaroLoi('');
+    try {
+      const res = await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'vao_ban', phongId })
+      });
+      const d = await res.json();
+      if (d.ok) taiPhongCaro(phongId);
+      else setCaroLoi(d.loi || 'Không vào được bàn.');
+    } catch { setCaroLoi('Mất kết nối máy chủ.'); }
+  };
 
-    if (checkCaroWin(nextBoard, r, c, caroTurn)) {
-      setCaroWinner(`Quân ${caroTurn} giành chiến thắng! 🎉`);
-    } else {
-      setCaroTurn(caroTurn === 'X' ? 'O' : 'X');
-    }
+  const danhCoCaro = async (r, c) => {
+    if (!caroPhong || caroPhong.trangThai !== 'dang_choi') return;
+    if (caroPhong.luotDiId !== nguoiChoiIdCuaToi) return;
+    if (caroPhong.banCo?.[r]?.[c]) return;
+    try {
+      const res = await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'danh_co', phongId: caroPhong.id, r, c })
+      });
+      const d = await res.json();
+      if (d.ok) taiPhongCaro(caroPhong.id);
+      else setCaroLoi(d.loi || '');
+    } catch { setCaroLoi('Mất kết nối máy chủ.'); }
+  };
+
+  const vanMoiCaro = async () => {
+    if (!caroPhong) return;
+    setCaroLoi('');
+    try {
+      const res = await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'van_moi', phongId: caroPhong.id })
+      });
+      const d = await res.json();
+      if (d.ok) taiPhongCaro(caroPhong.id);
+      else setCaroLoi(d.loi || 'Chưa mở được ván mới.');
+    } catch { setCaroLoi('Mất kết nối máy chủ.'); }
+  };
+
+  const roiBanCaro = async () => {
+    if (!caroPhong) return;
+    try {
+      await fetch('/api/game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanhDong: 'roi_ban', phongId: caroPhong.id })
+      });
+    } catch { /* bỏ qua */ }
+    setCaroPhong(null);
+    taiDanhSachBanCaro();
+  };
+
+  // ─── XUẤT SỔ QUỸ RA CSV (UTF-8 BOM để Excel đọc đúng tiếng Việt) ─────────
+  const xuatSoQuyCSV = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const dong = [
+      ['SỔ QUỸ LỚP', classData.lop?.ten || '10A7'],
+      ['Ngày xuất', new Date().toLocaleDateString('vi-VN')],
+      [],
+      ['TỔNG THU (VND)', financialSummary.thu],
+      ['TỔNG CHI (VND)', financialSummary.chi],
+      ['TỒN QUỸ (VND)', financialSummary.ton],
+      [],
+      ['DANH SÁCH KHOẢN THU'],
+      ['Tên khoản thu', 'Đã thu (VND)'],
+      ...(financialSummary.khoanList || []).map(k => [k.ten, k.tongDaThu || k.soTienMoiEm || 0]),
+      [],
+      ['DANH SÁCH KHOẢN CHI'],
+      ['Ngày', 'Nội dung', 'Số tiền (VND)'],
+      ...(financialSummary.chiList || []).map(c => [formatDateVN(c.ngay), c.noiDung, c.soTien])
+    ];
+    const csv = '\uFEFF' + dong.map(r => r.map(esc).join(',')).join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `so-quy-${String(classData.lop?.ten || 'lop').replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
   };
 
   // ─── FINANCIAL TOTALS ─────────────────────────────────────────────────────
@@ -954,9 +1349,15 @@ function DigitalCampusApp() {
     const ton = tq ? tq.tonQuy : (thu - chi);
     const khoanList = tq ? tq.khoan : (classData.quyKhoan || []);
     const chiList = tq ? tq.chi : (classData.quyChi || []);
-    const totalCount = classData.hocSinh?.length || 39;
+    const totalCount = classData.hocSinh?.length || 0;
     return { thu, chi, ton, khoanList, chiList, totalCount };
   }, [classData.thuQuy, classData.quyKhoan, classData.quyChi, classData.quyDong, classData.hocSinh]);
+
+  // Video mới nhất mà lớp đã đăng (trong Hoạt động lớp hoặc Thông báo) — cho Rạp Chiếu.
+  const videoMoiNhat = useMemo(() => {
+    const ds = [...(classData.hoatDongLop || []), ...(classData.thongBao || [])];
+    return ds.find(x => x.videoId || x.videoKhoa || (x.videoUrl && (idYoutube(x.videoUrl) || idGoogleDrive(x.videoUrl) || laVideoTrucTiepFe(x.videoUrl)))) || null;
+  }, [classData.hoatDongLop, classData.thongBao]);
 
   // ─── USER PROFILE DROPDOWN (STUDENT / TEACHER PORTAL) ─────────────────────
   const renderUserProfileDropdown = () => (
@@ -1062,25 +1463,25 @@ function DigitalCampusApp() {
             </div>
           </div>
 
-          {/* Micro Status Indicators */}
+          {/* Micro Status Indicators — số liệu THẬT từ /api/diem-danh & /api/gamification */}
           <div className="grid grid-cols-3 gap-1.5 p-2.5 bg-[#0D111A] border-b border-white/10 text-center text-xs">
             <div className="p-2 rounded-xl bg-[#1C2333] border border-white/10 shadow-sm">
               <span className="text-[10px] text-slate-300 block mb-0.5">Chuyên cần</span>
-              <span className="font-extrabold text-emerald-400 text-xs">100%</span>
-            </div>
-            <button onClick={() => setComposerAnDanh(!composerAnDanh)}
-              title="Bấm để đổi chế độ đăng bài"
-              className="p-2 rounded-xl bg-[#1C2333] border border-white/10 hover:border-[#00F2FE]/40 transition-all text-left shadow-sm">
-              <span className="text-[10px] text-slate-300 block mb-0.5 text-center">Bảng tin</span>
-              <span className={`font-extrabold text-xs block text-center ${composerAnDanh ? 'text-[#00F2FE]' : 'text-slate-200'}`}>
-                {composerAnDanh ? '🎭 Ẩn danh' : '👤 Tên thật'}
+              <span className="font-extrabold text-emerald-400 text-xs">
+                {attendance.caNhan?.chinh?.tiLe != null ? `${attendance.caNhan.chinh.tiLe}%` : (attendance.stats.tong > 0 ? `${attendance.stats.chuyenCan}%` : '—')}
               </span>
-            </button>
+            </div>
+            <div className="p-2 rounded-xl bg-[#1C2333] border border-white/10 shadow-sm">
+              <span className="text-[10px] text-slate-300 block mb-0.5">Điểm tích lũy</span>
+              <span className="font-extrabold text-[#00F2FE] text-xs">
+                💎 {gamification.points?.diemTong || 0} XP
+              </span>
+            </div>
             <div className="p-2 rounded-xl bg-[#1C2333] border border-white/10 shadow-sm" title="Chuỗi ngày hoạt động liên tục">
               <span className="text-[10px] text-slate-300 block mb-0.5">Chuỗi Streak</span>
               <span className="font-extrabold text-[#FFB800] text-xs flex items-center justify-center gap-1">
                 <span>🔥</span>
-                <span>{gamification.streaks?.[0]?.streakHienTai || 1} ngày</span>
+                <span>{gamification.streaks?.[0]?.streakHienTai || 0} ngày</span>
               </span>
             </div>
           </div>
@@ -1273,7 +1674,7 @@ function DigitalCampusApp() {
 
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#151A23] border border-white/10 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Online: <strong className="text-emerald-400">24/39</strong></span>
+              <span>Online: <strong className="text-emerald-400">{onlineCount !== null ? onlineCount : '—'}/{classData.hocSinh?.length || '—'}</strong></span>
             </div>
 
             {/* Bell Notification */}
@@ -1324,17 +1725,17 @@ function DigitalCampusApp() {
               <span>🚀</span>
             </button>
 
-            {/* Search Bar */}
+            {/* Search Bar — lọc bài đăng trên Bảng tin theo từ khoá */}
             <div className="hidden md:flex items-center gap-2 bg-[#151A23] border border-white/10 rounded-full px-4 py-1.5 text-xs text-slate-400 w-64 focus-within:border-[#00F2FE]">
               <Ic name="search" className="w-3.5 h-3.5 text-slate-400" />
-              <input type="text" placeholder="Tìm kiếm bài học, tài liệu..."
+              <input type="text" placeholder="Tìm trong bảng tin..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 className="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none w-full" />
             </div>
 
             {/* Online Counter for Feed */}
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#151A23] border border-white/10 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Online: <strong className="text-emerald-400">24/39</strong></span>
+              <span>Online: <strong className="text-emerald-400">{onlineCount !== null ? onlineCount : '—'}/{classData.hocSinh?.length || '—'}</strong></span>
             </div>
 
             {/* Bell Notification */}
@@ -1373,14 +1774,16 @@ function DigitalCampusApp() {
               </span>
             </div>
 
-            {/* Multi-Class Live Metric Pills */}
+            {/* Multi-Class Live Metric Pills — số liệu THẬT từ /api/gv/radar-lien-lop */}
             <div className="flex items-center gap-2 flex-wrap text-xs">
-              {multiClassStats.map(c => (
+              {multiClassStats.length === 0 ? (
+                <span className="text-slate-400 text-[11px]">Đang tải số liệu liên lớp…</span>
+              ) : multiClassStats.map(c => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#0B0E14] border border-white/10 hover:border-purple-400/40 transition-all">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                   <strong className="text-white">{c.ten}:</strong>
                   <span className="text-[#00F2FE] font-bold">{c.online}/{c.siSo} Online</span>
-                  <span className="text-slate-400 text-[10px] hidden sm:inline">({c.activities})</span>
+                  <span className="text-slate-400 text-[10px] hidden sm:inline">(ĐD hôm nay: {c.coMatHomNay} • {c.soBaiDang} bài đăng)</span>
                 </div>
               ))}
             </div>
@@ -1439,21 +1842,28 @@ function DigitalCampusApp() {
             <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#151A23] via-[#111622] to-[#151A23] border border-[#00F2FE]/30 p-5 shadow-2xl">
               <div className="absolute top-0 right-0 w-40 h-40 bg-[#00F2FE]/10 rounded-full blur-3xl pointer-events-none"></div>
               <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#00F2FE]/10 border border-[#00F2FE]/30 text-[#00F2FE] text-[10px] font-black uppercase tracking-wider mb-2">
-                    <span>📢 THÔNG BÁO TẬP TRUNG TOÀN TRƯỜNG</span>
-                  </div>
-                  <h3 className="text-base font-extrabold text-white tracking-tight mb-1">
-                    Kế Hoạch Tuần Lễ Sinh Hoạt & Khai Mạc Giải Hội Thao Số 2026
-                  </h3>
-                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-                    Toàn bộ học sinh các khối 10, 11, 12 hoàn thành đăng ký bộ môn thi đấu và tham gia ôn tập tập trung tại các phòng trực tuyến.
-                  </p>
-                </div>
-                <button onClick={() => setShowNotifModal(true)}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-[#00F2FE] text-white hover:text-black font-bold text-xs border border-white/20 hover:border-[#00F2FE] transition-all shrink-0">
-                  Xem chi tiết →
-                </button>
+                {(() => {
+                  const tbGhim = (classData.thongBao || []).find(t => t.ghim) || (classData.thongBao || [])[0] || null;
+                  return (
+                    <>
+                      <div>
+                        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[#00F2FE]/10 border border-[#00F2FE]/30 text-[#00F2FE] text-[10px] font-black uppercase tracking-wider mb-2">
+                          <span>📢 {tbGhim?.ghim ? 'THÔNG BÁO ĐÃ GHIM' : 'THÔNG BÁO MỚI NHẤT CỦA LỚP'}</span>
+                        </div>
+                        <h3 className="text-base font-extrabold text-white tracking-tight mb-1">
+                          {tbGhim ? tbGhim.tieuDe : 'Chào mừng đến Digital Campus'}
+                        </h3>
+                        <p className="text-xs text-slate-300 max-w-xl leading-relaxed line-clamp-2">
+                          {tbGhim ? (tbGhim.noiDung || '') : 'Khu sinh hoạt trực tuyến của lớp — chat, đấu cờ, nghe nhạc nền và xem video bài giảng.'}
+                        </p>
+                      </div>
+                      <button onClick={() => setShowNotifModal(true)}
+                        className="px-4 py-2 rounded-xl bg-white/10 hover:bg-[#00F2FE] text-white hover:text-black font-bold text-xs border border-white/20 hover:border-[#00F2FE] transition-all shrink-0">
+                        Xem chi tiết →
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1466,155 +1876,132 @@ function DigitalCampusApp() {
               <p className="text-xs text-slate-400">Khám phá các phòng học tập, rạp chiếu và hoạt động tập thể toàn trường</p>
             </div>
 
-            {/* 4 Room Cards (2x2 Grid) */}
+            {/* Room Cards — dữ liệu THẬT: bàn cờ từ /api/game, video mới nhất & nhạc nền từ /api/lop */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Card 1: Cinema */}
-              <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#00F2FE]/40 transition-all">
-                <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80"
-                    alt="Rạp Chiếu" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                    <Ic name="lock" className="w-3 h-3" />
-                    <span>PUBLIC_CLASS</span>
+              {/* Card 1: Rạp Chiếu — phát video mới nhất lớp đã đăng */}
+              {(categoryFilter === 'ALL' || categoryFilter === 'CINEMA') && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#00F2FE]/40 transition-all">
+                  <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0B0E14] to-[#151A23] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#00F2FE]/10 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-2">
+                        <Ic name="tv" className="w-7 h-7 text-[#00F2FE]" />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rạp chiếu lớp học</p>
+                    </div>
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
+                      <Ic name="lock" className="w-3 h-3" />
+                      <span>LỚP 10A7</span>
+                    </div>
                   </div>
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-300 border border-white/10">
-                    16/45
-                  </div>
-                </div>
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#00F2FE] transition-colors">
-                      🍿 Chiếu Phim & Xem Youtube Chung: Ôn Thi Lý 10
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Chủ phòng: Thầy Lê Đình Phát (GVCN) · {auth.user?.isTeacher && quyenGvcn && <span className="ml-1 text-purple-400 font-bold">⚙ Đang quản lý</span>}</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>Đang hoạt động</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {auth.user?.isTeacher && quyenGvcn && (
-                        <button title="Quản lý phòng"
-                          className="px-3 py-1.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold text-xs hover:bg-purple-500/30 transition-all">
-                          ⚙ Quản lý
-                        </button>
-                      )}
-                      <button onClick={() => { setActiveRoom({ id: 'cinema-main', type: 'CINEMA', title: '🍿 Rạp Chiếu & Xem Video Chung' }); setCurrentView('ROOM_ACTIVE'); }}
+                  <div className="p-4 flex flex-col justify-between flex-1">
+                    <div>
+                      <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#00F2FE] transition-colors">
+                        🍿 Rạp Chiếu: {videoMoiNhat ? (videoMoiNhat.tieuDe || 'Video lớp') : 'Chưa có video nào'}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mb-4">
+                        {videoMoiNhat
+                          ? `Đăng ${thoiGianTruoc(videoMoiNhat.taoLuc || videoMoiNhat.ngay)} • ${videoMoiNhat.luotXem || 0} lượt xem`
+                          : 'Khi GVCN đăng video bài giảng/hoạt động, phòng này sẽ phát video mới nhất.'}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${videoMoiNhat ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        <span className={`w-2 h-2 rounded-full ${videoMoiNhat ? 'bg-emerald-400' : 'bg-slate-600'}`}></span>
+                        <span>{videoMoiNhat ? 'Sẵn sàng phát' : 'Chưa có nội dung'}</span>
+                      </span>
+                      <button onClick={() => { setActiveRoom({ id: 'cinema-main', type: 'CINEMA', title: '🍿 Rạp Chiếu Video Lớp 10A7' }); setCurrentView('ROOM_ACTIVE'); }}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
-                        Tham gia ngay
+                        {videoMoiNhat ? 'Xem ngay' : 'Vào phòng'}
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Card 2: Caro */}
-              <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#FFB800]/40 transition-all">
-                <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  <img src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=600&auto=format&fit=crop&q=80"
-                    alt="Cờ Caro" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                    <Ic name="lock" className="w-3 h-3" />
-                    <span>DUO_POD</span>
+              {/* Card 2: Đấu Trường Caro — số bàn THẬT đang mở từ /api/game */}
+              {(categoryFilter === 'ALL' || categoryFilter === 'GAME') && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#FFB800]/40 transition-all">
+                  <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0B0E14] to-[#1a1409] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#FFB800]/10 border border-[#FFB800]/30 flex items-center justify-center mx-auto mb-2">
+                        <Ic name="game" className="w-7 h-7 text-[#FFB800]" />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cờ Caro 15×15 đấu thật</p>
+                    </div>
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
+                      <Ic name="lock" className="w-3 h-3" />
+                      <span>ĐẤU 1v1</span>
+                    </div>
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-bold text-[#FFB800] border border-[#FFB800]/30">
+                      {caroRooms === null ? '…' : `${caroRooms.length} bàn`}
+                    </div>
                   </div>
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-300 border border-white/10">
-                    2/2
-                  </div>
-                </div>
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#FFB800] transition-colors">
-                      ⚔️ Đấu Trường Cờ Caro 15x15: Bảo vs Kiệt
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Chủ phòng: Phan Quốc Bảo</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>Đang hoạt động</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {auth.user?.isTeacher && quyenGvcn && (
-                        <button title="Quản lý phòng"
-                          className="px-3 py-1.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold text-xs hover:bg-purple-500/30 transition-all">
-                          ⚙ Quản lý
-                        </button>
-                      )}
-                      <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); setCurrentView('ROOM_ACTIVE'); }}
+                  <div className="p-4 flex flex-col justify-between flex-1">
+                    <div>
+                      <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#FFB800] transition-colors">
+                        ⚔️ Đấu Trường Cờ Caro 15x15
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mb-4">
+                        {caroRooms === null
+                          ? 'Đang tải danh sách bàn…'
+                          : caroRooms.length > 0
+                            ? `${caroRooms.length} bàn đang mở — vào thách đấu bạn cùng lớp ngay!`
+                            : 'Chưa có bàn nào — mở bàn đầu tiên và thách đấu cả lớp!'}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                      <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>Đấu thật qua máy chủ</span>
+                      </span>
+                      <button onClick={() => { setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' }); setCurrentView('ROOM_ACTIVE'); taiDanhSachBanCaro(); }}
                         className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
-                        Tham gia ngay
+                        Vào đấu trường
                       </button>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Card 3: Lofi Cafe */}
-              <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#8B5CF6]/40 transition-all">
-                <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80"
-                    alt="Lofi Study" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                    <Ic name="lock" className="w-3 h-3" />
-                    <span>SQUAD_POD</span>
+              {/* Card 3: Lofi Study — bài nhạc THẬT đang phát của lớp */}
+              {(categoryFilter === 'ALL' || categoryFilter === 'LOFI') && (
+                <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group hover:border-[#8B5CF6]/40 transition-all">
+                  <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-[#0B0E14] to-[#14121f] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 flex items-center justify-center mx-auto mb-2">
+                        <Ic name="phones" className="w-7 h-7 text-[#8B5CF6]" />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Góc tự học có nhạc</p>
+                    </div>
+                    <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
+                      <Ic name="lock" className="w-3 h-3" />
+                      <span>STUDY LOUNGE</span>
+                    </div>
                   </div>
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-300 border border-white/10">
-                    4/6
-                  </div>
-                </div>
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#8B5CF6] transition-colors">
-                      🎧 Lofi Study Cafe: Mưa Rơi & Đọc Sách
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Chủ phòng: Lê Hoàng Long</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>Đang hoạt động</span>
-                    </span>
-                    <button onClick={() => { setActiveRoom({ id: 'lofi-main', type: 'LOFI_STUDY', title: '🎧 Lofi Study Cafe Campus' }); setCurrentView('ROOM_ACTIVE'); }}
-                      className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
-                      Tham gia ngay
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 4: Solo Pod */}
-              <div className="bg-[#151A23] border border-white/10 rounded-2xl overflow-hidden shadow-xl flex flex-col group opacity-90">
-                <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  <img src="https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=600&auto=format&fit=crop&q=80"
-                    alt="Solo Pod" className="w-full h-full object-cover" />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-200 border border-white/10 flex items-center gap-1">
-                    <Ic name="lock" className="w-3 h-3" />
-                    <span>SOLO_POD</span>
-                  </div>
-                  <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-bold text-slate-300 border border-white/10">
-                    1/1
+                  <div className="p-4 flex flex-col justify-between flex-1">
+                    <div>
+                      <h3 className="text-sm font-bold text-white mb-1 group-hover:text-[#8B5CF6] transition-colors">
+                        🎧 Lofi Study Lounge
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mb-4">
+                        {classData.nhacNen?.tenBai
+                          ? `Đang phát: ${classData.nhacNen.tenBai}`
+                          : 'Nhạc nền do GVCN chọn từ thư viện lớp — bật lên để tập trung tự học.'}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                      <span className={`text-[11px] font-semibold flex items-center gap-1.5 ${radioPlaying ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        <span className={`w-2 h-2 rounded-full ${radioPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></span>
+                        <span>{radioPlaying ? 'Đang phát' : 'Đang tắt'}</span>
+                      </span>
+                      <button onClick={() => { setActiveRoom({ id: 'lofi-main', type: 'LOFI_STUDY', title: '🎧 Lofi Study Lounge' }); setCurrentView('ROOM_ACTIVE'); }}
+                        className="px-4 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
+                        Vào phòng học
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="p-4 flex flex-col justify-between flex-1">
-                  <div>
-                    <h3 className="text-sm font-bold text-white mb-1">
-                      🔒 Góc Tự Học Cá Nhân (Do Not Disturb)
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mb-4">Chủ phòng: Ngô Thanh Sơn</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>Đang hoạt động</span>
-                    </span>
-                    <button disabled
-                      className="px-4 py-1.5 rounded-full bg-white/10 text-slate-400 font-bold text-xs cursor-not-allowed">
-                      Khóa tự học
-                    </button>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </main>
 
@@ -1632,6 +2019,11 @@ function DigitalCampusApp() {
               </div>
 
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-80">
+                {chatMessages.length === 0 && (
+                  <p className="text-[11px] text-slate-500 text-center py-6">
+                    {auth.isGuest ? 'Đăng nhập để xem và tham gia trò chuyện cùng lớp.' : 'Chưa có tin nhắn nào — hãy gửi lời chào đầu tiên!'}
+                  </p>
+                )}
                 {chatMessages.map((m, idx) => (
                   <div key={m.id || idx} className="text-xs">
                     <div className="flex items-center justify-between mb-1">
@@ -1646,6 +2038,7 @@ function DigitalCampusApp() {
                 <div ref={chatEndRef} />
               </div>
 
+              {chatError && <p className="text-[11px] text-rose-400 mt-2">{chatError}</p>}
               <form onSubmit={handleSendChat} className="mt-3 flex items-center gap-2">
                 <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                   placeholder="Nhắn tin / Danmaku..."
@@ -1679,68 +2072,165 @@ function DigitalCampusApp() {
             </span>
           </div>
 
-          {activeRoom.type === 'CINEMA' && (
-            <div className="bg-[#151A23] border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden flex flex-col gap-4">
-              <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden flex items-center justify-center border border-white/10">
-                <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-                  {danmakuBullets.map(b => (
-                    <span key={b.id} className="danmaku-bullet text-base font-extrabold"
-                          style={{ top: `${b.top}%`, color: b.color, animationDuration: `${b.duration}s` }}>
-                      {b.text}
-                    </span>
-                  ))}
-                </div>
-                <div className="text-center p-6 z-10">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3">
-                    <Ic name="tv" className="w-8 h-8 text-[#00F2FE]" />
+          {activeRoom.type === 'CINEMA' && (() => {
+            const v = videoMoiNhat;
+            const maYt = v ? idYoutube(v.videoUrl) : null;
+            const maDrive = v ? idGoogleDrive(v.videoUrl) : null;
+            const srcTrucTiep = v && !maYt && !maDrive && laVideoTrucTiepFe(v.videoUrl) ? urlMediaFe(v.videoUrl) : '';
+            const srcNoiBo = v?.videoId ? `/api/thu-vien-tep?loai=video&id=${v.videoId}` : '';
+            return (
+              <div className="bg-[#151A23] border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden flex flex-col gap-4">
+                <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10">
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+                    {danmakuBullets.map(b => (
+                      <span key={b.id} className="danmaku-bullet text-base font-extrabold"
+                            style={{ top: `${b.top}%`, color: b.color, animationDuration: `${b.duration}s` }}>
+                        {b.text}
+                      </span>
+                    ))}
                   </div>
-                  <h4 className="text-base font-bold text-white mb-1">Rạp Chiếu Video Bài Học Campus</h4>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto mb-4">Gửi bình luận Danmaku bên dưới để dòng chữ bay ngang màn hình trực tiếp!</p>
+                  {srcNoiBo ? (
+                    <video src={srcNoiBo} controls className="w-full h-full" />
+                  ) : maYt ? (
+                    <iframe src={`https://www.youtube.com/embed/${maYt}`} title={v.tieuDe || 'Video lớp'}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
+                      className="w-full h-full" />
+                  ) : maDrive ? (
+                    <iframe src={`https://drive.google.com/file/d/${maDrive}/preview`} title={v.tieuDe || 'Video lớp'}
+                      allow="autoplay; fullscreen" allowFullScreen className="w-full h-full" />
+                  ) : srcTrucTiep ? (
+                    <video src={srcTrucTiep} controls className="w-full h-full" />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-center p-6 z-10">
+                      <div>
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00F2FE]/20 to-[#8B5CF6]/20 border border-[#00F2FE]/30 flex items-center justify-center mx-auto mb-3">
+                          <Ic name="tv" className="w-8 h-8 text-[#00F2FE]" />
+                        </div>
+                        <h4 className="text-base font-bold text-white mb-1">Rạp Chiếu Video Bài Học Lớp</h4>
+                        <p className="text-xs text-slate-400 max-w-md mx-auto mb-2">Chưa có video nào được đăng — khi GVCN đăng video lên Bảng Tin, nó sẽ phát tại đây.</p>
+                        <p className="text-[10px] text-slate-500">Bạn vẫn có thể bắn Danmaku bên dưới cho vui!</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                {chatError && <p className="text-[11px] text-rose-400">{chatError}</p>}
+                <form onSubmit={handleSendChat} className="flex items-center gap-2">
+                  <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
+                    placeholder="Gửi đạn bình luận Danmaku bay ngang màn hình..."
+                    className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
+                  <button type="submit"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs">
+                    Bắn Danmaku
+                  </button>
+                </form>
               </div>
-              <form onSubmit={handleSendChat} className="flex items-center gap-2">
-                <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                  placeholder="Gửi đạn bình luận Danmaku bay ngang màn hình..."
-                  className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                <button type="submit"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs">
-                  Bắn Danmaku
-                </button>
-              </form>
-            </div>
-          )}
+            );
+          })()}
 
           {activeRoom.type === 'GAME_CARO' && (
             <div className="bg-[#151A23] border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col items-center">
-              <div className="flex items-center justify-between w-full mb-4 max-w-[480px]">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white">Lượt đi:</span>
-                  <span className={`px-2.5 py-0.5 rounded-full font-black text-xs ${caroTurn === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-[#FFB800]/20 text-[#FFB800] border border-[#FFB800]/40'}`}>
-                    Quân {caroTurn}
-                  </span>
+              {!caroPhong ? (
+                /* SẢNH CHỜ: danh sách bàn THẬT + nút tạo bàn */
+                <div className="w-full max-w-[560px] flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-extrabold text-white">Sảnh Đấu Trường — {caroRooms?.length || 0} bàn đang mở</h3>
+                    <div className="flex items-center gap-2">
+                      <button onClick={taiDanhSachBanCaro}
+                        className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold border border-white/10">
+                        🔄 Làm mới
+                      </button>
+                      <button onClick={taoBanCaro}
+                        className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black text-xs font-extrabold">
+                        + Tạo bàn mới
+                      </button>
+                    </div>
+                  </div>
+                  {caroLoi && <p className="text-xs text-rose-400">{caroLoi}</p>}
+                  {caroRooms === null ? (
+                    <p className="text-xs text-slate-500 text-center py-6">Đang tải danh sách bàn…</p>
+                  ) : caroRooms.length === 0 ? (
+                    <div className="text-center py-8 bg-[#0B0E14] rounded-2xl border border-white/5">
+                      <p className="text-sm text-slate-400 mb-1">Chưa có bàn nào đang mở</p>
+                      <p className="text-[11px] text-slate-500">Bấm "Tạo bàn mới" rồi rủ một bạn cùng lớp vào thách đấu nhé!</p>
+                    </div>
+                  ) : (
+                    caroRooms.map(ban => (
+                      <div key={ban.id} className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0B0E14] border border-white/10 hover:border-[#FFB800]/40 transition-all">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-white truncate">{ban.tenBan || `Bàn #${ban.id}`}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {ban.chuPhongTen}{ban.khachTen ? ` vs ${ban.khachTen}` : ' • đang chờ đối thủ'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${ban.trangThai === 'cho_nguoi' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'}`}>
+                            {ban.trangThai === 'cho_nguoi' ? '⏳ Chờ người' : '🟢 Đang đấu'}
+                          </span>
+                          <button onClick={() => vaoBanCaro(ban.id)}
+                            className="px-3.5 py-1.5 rounded-full bg-[#00F2FE] text-black font-bold text-xs hover:bg-[#00e1ec] transition-all">
+                            {ban.trangThai === 'cho_nguoi' ? '▶ Vào đấu' : '👁 Xem trực tiếp'}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-                <button onClick={() => { setCaroBoard(Array(15).fill(null).map(() => Array(15).fill(null))); setCaroWinner(null); }}
-                  className="px-3 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold border border-white/10">
-                  Ván Mới
-                </button>
-              </div>
+              ) : (
+                /* BÀN CỜ: trạng thái THẬT từ máy chủ, poll 2s để thấy nước đi đối thủ */
+                <div className="flex flex-col items-center w-full">
+                  <div className="flex items-center justify-between w-full mb-4 max-w-[480px] flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white truncate max-w-[180px]">{caroPhong.tenBan || `Bàn #${caroPhong.id}`}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full font-black text-xs border ${caroPhong.trangThai === 'cho_nguoi' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/40'}`}>
+                        {caroPhong.trangThai === 'cho_nguoi' ? '⏳ Chờ đối thủ…'
+                          : caroPhong.trangThai === 'dang_choi'
+                            ? (caroPhong.luotDiId === nguoiChoiIdCuaToi ? '🎯 Lượt của bạn' : '⌛ Lượt đối thủ')
+                            : '🏁 Đã kết thúc'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(caroPhong.trangThai === 'ket_thuc' || caroPhong.trangThai === 'hoa') && (
+                        <button onClick={vanMoiCaro}
+                          className="px-3 py-1 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] text-xs font-bold border border-[#00F2FE]/30 hover:bg-[#00F2FE]/25">
+                          Ván Mới
+                        </button>
+                      )}
+                      <button onClick={roiBanCaro}
+                        className="px-3 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold border border-white/10">
+                        Rời bàn
+                      </button>
+                    </div>
+                  </div>
 
-              {caroWinner && (
-                <div className="mb-4 px-6 py-2.5 rounded-2xl bg-[#00F2FE]/20 border border-[#00F2FE]/50 text-center animate-scaleIn">
-                  <span className="text-sm font-extrabold text-[#00F2FE]">{caroWinner}</span>
+                  <p className="text-[11px] text-slate-400 mb-3">
+                    {caroPhong.chuPhongTen} (X) {caroPhong.khachTen ? `vs ${caroPhong.khachTen} (O)` : '• đang chờ đối thủ vào'}
+                  </p>
+
+                  {(caroPhong.trangThai === 'ket_thuc' || caroPhong.trangThai === 'hoa') && (
+                    <div className="mb-4 px-6 py-2.5 rounded-2xl bg-[#00F2FE]/20 border border-[#00F2FE]/50 text-center animate-scaleIn">
+                      <span className="text-sm font-extrabold text-[#00F2FE]">
+                        {caroPhong.trangThai === 'hoa' ? 'Ván đấu hoà! 🤝'
+                          : caroPhong.nguoiThangId === nguoiChoiIdCuaToi ? 'Bạn đã thắng! 🎉'
+                          : `${caroPhong.nguoiThangId === caroPhong.chuPhongId ? caroPhong.chuPhongTen : caroPhong.khachTen} giành chiến thắng!`}
+                      </span>
+                    </div>
+                  )}
+
+                  {caroLoi && <p className="text-xs text-rose-400 mb-2">{caroLoi}</p>}
+
+                  <div className="grid grid-cols-15 gap-0.5 p-2 bg-[#0B0E14] border border-white/15 rounded-2xl shadow-inner max-w-[500px] w-full aspect-square">
+                    {(caroPhong.banCo || Array(15).fill(null).map(() => Array(15).fill(null))).map((row, r) => (
+                      row.map((cell, c) => (
+                        <button key={`${r}-${c}`} onClick={() => danhCoCaro(r, c)}
+                          disabled={!caroPhong || caroPhong.trangThai !== 'dang_choi' || caroPhong.luotDiId !== nguoiChoiIdCuaToi || Boolean(cell)}
+                          className={`aspect-square rounded-[3px] flex items-center justify-center font-black text-[10px] sm:text-xs transition-colors ${!cell ? 'bg-[#151A23]/60 hover:bg-white/10' : cell === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE]' : 'bg-[#FFB800]/20 text-[#FFB800]'}`}>
+                          {cell}
+                        </button>
+                      ))
+                    ))}
+                  </div>
                 </div>
               )}
-
-              <div className="grid grid-cols-15 gap-0.5 p-2 bg-[#0B0E14] border border-white/15 rounded-2xl shadow-inner max-w-[500px] w-full aspect-square">
-                {caroBoard.map((row, r) => (
-                  row.map((cell, c) => (
-                    <button key={`${r}-${c}`} onClick={() => handleCaroCellClick(r, c)}
-                      className={`aspect-square rounded-[3px] flex items-center justify-center font-black text-[10px] sm:text-xs transition-colors ${!cell ? 'bg-[#151A23]/60 hover:bg-white/10' : cell === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE]' : 'bg-[#FFB800]/20 text-[#FFB800]'}`}>
-                      {cell}
-                    </button>
-                  ))
-                ))}
-              </div>
             </div>
           )}
 
@@ -1779,14 +2269,14 @@ function DigitalCampusApp() {
                 </div>
                 <div>
                   <h3 className="text-sm font-extrabold text-white">Cộng đồng 10A7</h3>
-                  <p className="text-[11px] text-slate-400">42 thành viên • 1 GVCN</p>
+                  <p className="text-[11px] text-slate-400">{classData.hocSinh?.length || '—'} thành viên • 1 GVCN</p>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
                 <span className="text-emerald-400 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  <span>18 bạn online</span>
+                  <span>{onlineCount !== null ? onlineCount : '—'} bạn online</span>
                 </span>
                 <button onClick={() => { setFeedSubTab('diem-danh'); setActiveChannel('📋 Sổ Điểm Danh'); if (!attendance.loaded) fetchAttendance(); }}
                   className="text-xs text-[#00F2FE] hover:underline font-bold">
@@ -1801,10 +2291,7 @@ function DigitalCampusApp() {
               <div className="flex flex-col gap-1">
                 {[
                   { name: '# Bảng tin chung', badge: null, sub: 'ban-tin' },
-                  { name: '📁 Study Hub (Góc ôn tập)', badge: '3', sub: 'ban-tin' },
-                  { name: '🏆 Bảng Vàng Vinh Danh', badge: 'TOP', sub: 'vinh-danh' },
-                  { name: '🎧 Lofi & Chill Lounge', badge: '5', sub: 'ban-tin' },
-                  { name: '🎭 Góc ẩn danh Confessions', badge: '7', sub: 'ban-tin' },
+                  { name: '🏆 Bảng Vàng Vinh Danh', badge: null, sub: 'vinh-danh' },
                   { name: '🎮 Game & Giải trí', badge: null, sub: 'caro' },
                   { name: '📋 Sổ Điểm Danh', badge: null, sub: 'diem-danh' },
                   { name: '💰 Quỹ Lớp Minh Bạch', badge: null, sub: 'thu-quy' }
@@ -1833,15 +2320,15 @@ function DigitalCampusApp() {
               </div>
             </div>
 
-            {/* Card 3: Lofi Study Room Bottom */}
+            {/* Card 3: Lofi Study Room Bottom — bài nhạc THẬT của lớp */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#00F2FE]/10 border border-[#00F2FE]/20 flex items-center justify-center text-[#00F2FE]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-[#00F2FE]/10 border border-[#00F2FE]/20 flex items-center justify-center text-[#00F2FE] shrink-0">
                   <Ic name="phones" className="w-4 h-4" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="text-xs font-bold text-white">Lofi Study Room</h4>
-                  <p className="text-[10px] text-slate-400">5 bạn đang cùng học</p>
+                  <p className="text-[10px] text-slate-400 truncate">{radioPlaying ? `Đang phát: ${radioTitle}` : (classData.nhacNen?.tenBai || 'Nhấn vào để mở phòng nhạc')}</p>
                 </div>
               </div>
               <div className="flex items-end gap-0.5 h-4">
@@ -1858,173 +2345,115 @@ function DigitalCampusApp() {
 
             {feedSubTab === 'ban-tin' && (
               <>
-                {/* 1. PINNED POST (ĐÃ GHIM) */}
-                <div className="bg-[#151A23] border border-amber-500/30 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden border border-[#00F2FE]/40">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                          alt="GVCN" className="w-full h-full object-cover" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-bold text-white">Thầy Lê Đình Phát</span>
-                          <span className="text-[#00F2FE] text-xs">✓</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 font-bold">
-                            GVCN Lớp 10A7
-                          </span>
+                {/* 1. THÔNG BÁO ĐÃ GHIM — mục thong_bao.ghim=1 THẬT mới nhất */}
+                {(() => {
+                  const tbGhim = (classData.thongBao || []).find(t => t.ghim);
+                  if (!tbGhim) return null;
+                  return (
+                    <div className="bg-[#151A23] border border-amber-500/30 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden border border-[#00F2FE]/40">
+                            <img src={PRESET_AVATARS[7].url} alt="10A7" className="w-full h-full object-cover" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-bold text-white">Bảng Tin 10A7</span>
+                              <span className="text-[#00F2FE] text-xs">✓</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 font-bold">
+                                Thông báo lớp
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400">Đã ghim • {thoiGianTruoc(tbGhim.taoLuc || tbGhim.ngay)}</p>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-slate-400">Đã ghim • 2 giờ trước</p>
+                        <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 text-xs font-bold flex items-center gap-1">
+                          <span>📌</span>
+                          <span>Ghim</span>
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-extrabold text-white mb-2 leading-relaxed">
+                        {tbGhim.tieuDe}
+                      </h3>
+                      <p className="text-xs text-slate-300 leading-relaxed mb-4 whitespace-pre-line line-clamp-4">
+                        {tbGhim.noiDung}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-white/5 text-xs text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 rounded-full bg-white/5 text-slate-300 font-bold flex items-center gap-1.5">
+                            <span>❤️</span> <span>{tbGhim.tongCamXuc || 0}</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-slate-500"><Ic name="eye" className="w-3.5 h-3.5" /> {tbGhim.luotXem || 0} lượt xem</span>
+                        </div>
+                        <span>{tbGhim.tongBinhLuan || 0} phản hồi</span>
                       </div>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 text-xs font-bold flex items-center gap-1">
-                      <span>📌</span>
-                      <span>Ghim</span>
-                    </span>
-                  </div>
+                  );
+                })()}
 
-                  <h3 className="text-sm font-extrabold text-white mb-2 leading-relaxed">
-                    📢 KẾ HOẠCH ÔN TẬP GIỮA KỲ I & ĐĂNG KÝ HỘI THAO 2026
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                    Chào cả lớp 10A7! Thầy đã cập nhật đề cương ôn tập môn Toán và Ngữ Văn lên Study Hub. Các bạn chú ý thời hạn nộp bài tập tuần này vào trước 22:00 Chủ Nhật. Chúc cả lớp có một tuần học tập tràn đầy năng lượng! 🔥✨
-                  </p>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-white/5 text-xs text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <button className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold flex items-center gap-1.5 transition-all">
-                        <span>❤️</span> <span>38</span>
-                      </button>
-                      <button className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 font-bold flex items-center gap-1.5 transition-all">
-                        <span>🪄</span> <span>24</span>
-                      </button>
-                    </div>
-                    <span>14 phản hồi</span>
-                  </div>
-                </div>
-
-                {/* 2. POST COMPOSER WITH ANONYMOUS OPTION */}
-                <form onSubmit={handleCreatePost} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
-                      <img src={composerAnDanh ? 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=100&auto=format&fit=crop&q=80' : currentAvatar}
-                        alt="Me" className="w-full h-full object-cover" />
-                    </div>
-                    <input type="text" value={composerText} onChange={e => setComposerText(e.target.value)}
-                      placeholder={composerAnDanh ? "Bạn đang ở chế độ Ẩn danh: Viết lời nhắn confessions hoặc đặt câu hỏi bài tập..." : "Bạn đang nghĩ gì, 10A7-er? Đặt câu hỏi bài tập hoặc chia sẻ..."}
-                      className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5 flex-wrap gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <button type="button" className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white flex items-center gap-1">
-                        <span>🖼️</span> <span>Ảnh</span>
-                      </button>
-                      <button type="button" className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white flex items-center gap-1">
-                        <span>🎙️</span> <span>Audio</span>
-                      </button>
-                      <button type="button" className="p-1.5 rounded-lg hover:bg-white/5 hover:text-white flex items-center gap-1">
-                        <span>📊</span> <span>Bình chọn</span>
-                      </button>
+                {/* 2. POST COMPOSER — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' */}
+                {canPostFeed && (
+                  <form onSubmit={handleCreatePost} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
+                        <img src={currentAvatar}
+                          alt="Me" className="w-full h-full object-cover" />
+                      </div>
+                      <input type="text" value={composerText} onChange={e => setComposerText(e.target.value)}
+                        placeholder="Đăng thông báo / hoạt động mới cho lớp 10A7..."
+                        maxLength={2000}
+                        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {/* Anonymous Checkbox */}
-                      <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none text-slate-300">
-                        <input type="checkbox" checked={composerAnDanh} onChange={e => setComposerAnDanh(e.target.checked)}
-                          className="rounded bg-[#0B0E14] border-white/20 text-[#00F2FE]" />
-                        <span className={composerAnDanh ? 'text-[#00F2FE] font-bold' : ''}>🎭 Ẩn danh</span>
-                      </label>
+                    {composerError && <p className="text-[11px] text-rose-400 mb-2">{composerError}</p>}
 
-                      <button type="submit"
-                        className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,0.3)] hover:opacity-90 transition-all flex items-center gap-1">
+                    <div className="flex items-center justify-end pt-2 border-t border-white/5 flex-wrap gap-2 text-xs">
+                      <button type="submit" disabled={!composerText.trim() || composerSending}
+                        className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,0.3)] hover:opacity-90 transition-all flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
                         <span>🚀</span>
-                        <span>Đăng bài</span>
+                        <span>{composerSending ? 'Đang đăng…' : 'Đăng bài'}</span>
                       </button>
                     </div>
-                  </div>
-                </form>
-
-                {/* Teacher Control: Toggle View Real Identity of Anonymous Posts */}
-                {auth.user?.isTeacher && (
-                  <div className="flex items-center justify-end text-[11px] text-purple-300">
-                    <button onClick={() => setShowRealNamesForTeacher(!showRealNamesForTeacher)}
-                      className="px-3 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 font-semibold flex items-center gap-1.5 transition-all">
-                      <Ic name="shield" className="w-3.5 h-3.5" />
-                      <span>{showRealNamesForTeacher ? 'Ẩn danh tính thực' : 'Hiện danh tính thực người đăng ẩn danh (Quyền GV)'}</span>
-                    </button>
-                  </div>
+                  </form>
                 )}
 
-                {/* 3. FEED POSTS */}
-                {feedPosts.map(post => (
-                  <div key={post.id} className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
-                          <img src={post.avatarUrl} alt={post.author} className="w-full h-full object-cover" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-white">{post.author}</h4>
-                            {post.isAnonymous && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">
-                                Ẩn danh
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-slate-400">
-                            {post.roleTitle} • {post.time}
-                            {showRealNamesForTeacher && post.isAnonymous && (
-                              <span className="text-amber-400 font-bold ml-1.5">
-                                [Thực: {post.actualAuthor}]
-                              </span>
-                            )}
-                          </p>
-                        </div>
+                {/* 3. FEED POSTS — dữ liệu THẬT từ /api/lop (hoat_dong_lop + thong_bao, đã trừ mục ghim) */}
+                {(() => {
+                  const tbGhimId = (classData.thongBao || []).find(t => t.ghim)?.id;
+                  const dsBaiDang = [
+                    ...(classData.hoatDongLop || []),
+                    ...(classData.thongBao || []).filter(t => t.id !== tbGhimId)
+                  ].sort((a, b) => String(b.taoLuc || b.ngay || '').localeCompare(String(a.taoLuc || a.ngay || '')));
+
+                  const tuKhoa = searchQuery.trim().toLowerCase();
+                  const dsLoc = tuKhoa
+                    ? dsBaiDang.filter(x => `${x.tieuDe || ''} ${x.chuThich || ''} ${x.noiDung || ''}`.toLowerCase().includes(tuKhoa))
+                    : dsBaiDang;
+
+                  if (!classData.loaded) {
+                    return <p className="text-xs text-slate-500 text-center py-8">Đang tải bảng tin…</p>;
+                  }
+                  if (dsLoc.length === 0) {
+                    return (
+                      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-8 text-center shadow-xl">
+                        <p className="text-2xl mb-2">{tuKhoa ? '🔍' : '📭'}</p>
+                        <p className="text-sm font-bold text-white mb-1">{tuKhoa ? `Không tìm thấy "${searchQuery.trim()}"` : 'Bảng tin còn trống'}</p>
+                        <p className="text-xs text-slate-400">
+                          {tuKhoa ? 'Thử từ khoá khác ngắn gọn hơn.'
+                            : auth.isGuest
+                              ? 'Đăng nhập để xem các bài đăng và hoạt động của lớp.'
+                              : 'Khi GVCN hoặc ban cán sự đăng bài, nội dung sẽ hiện tại đây.'}
+                        </p>
                       </div>
-                    </div>
-
-                    <p className="text-xs text-slate-300 leading-relaxed mb-3">{post.content}</p>
-
-                    {post.tags && (
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        {post.tags.map(t => (
-                          <span key={t} className="px-2 py-0.5 rounded-md bg-[#00F2FE]/10 text-[#00F2FE] text-[11px] font-semibold">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs text-slate-400 mb-3">
-                      <button className="flex items-center gap-1.5 text-slate-300 hover:text-rose-400">
-                        <span>❤️</span> <span>{post.likes}</span>
-                      </button>
-                      <span>{post.comments?.length || 0} phản hồi</span>
-                    </div>
-
-                    {/* Comments List */}
-                    {post.comments && post.comments.length > 0 && (
-                      <div className="space-y-2 pt-2 border-t border-white/5 pl-4 border-l-2 border-white/10">
-                        {post.comments.map(c => (
-                          <div key={c.id} className="bg-[#0B0E14]/60 p-3 rounded-xl text-xs">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-bold text-white">{c.author}</span>
-                              {c.isTeacher && (
-                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-[#FFB800] font-bold">
-                                  Giáo viên
-                                </span>
-                              )}
-                              <span className="text-[10px] text-slate-500">• {c.time}</span>
-                            </div>
-                            <p className="text-slate-300">{c.content}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  }
+                  return dsLoc.map(bai => (
+                    <TheBaiDang key={`bd-${bai.id}-${bai.chuThich !== undefined ? 'hd' : 'tb'}`}
+                      bai={bai} thietBiId={thietBiId} auth={auth} onCanDangNhap={() => setShowAuthGate(true)} />
+                  ));
+                })()}
               </>
             )}
 
@@ -2041,9 +2470,9 @@ function DigitalCampusApp() {
                       className={`px-3 py-1 rounded-lg text-xs font-bold ${ddTabSub === 'ngay' ? 'bg-[#00F2FE] text-black' : 'text-slate-400'}`}>
                       Hôm Nay
                     </button>
-                    <button onClick={() => setDdTabSub('tong_hop')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold ${ddTabSub === 'tong_hop' ? 'bg-[#00F2FE] text-black' : 'text-slate-400'}`}>
-                      Tổng Hợp Tháng
+                    <button onClick={() => setDdTabSub('ca_nhan')}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold ${ddTabSub === 'ca_nhan' ? 'bg-[#00F2FE] text-black' : 'text-slate-400'}`}>
+                      Cá Nhân
                     </button>
                   </div>
                 </div>
@@ -2061,6 +2490,55 @@ function DigitalCampusApp() {
                   </div>
                 )}
 
+                {ddTabSub === 'ca_nhan' && (
+                  <div className="rounded-xl border border-white/10 p-4 bg-[#0B0E14]/40">
+                    {!attendance.caNhan ? (
+                      <p className="text-xs text-slate-400 text-center py-4">
+                        Đăng nhập bằng <strong>mã cá nhân</strong> để xem chuyên cần và lịch sử vắng của riêng bạn.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center text-[10px]">
+                          <div className="p-3 rounded-xl bg-[#151A23] border border-white/5">
+                            <span className="block text-slate-400 mb-1">Tổng buổi đã ghi</span>
+                            <span className="font-black text-white text-base">{attendance.caNhan.chinh?.tong ?? 0}</span>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[#151A23] border border-white/5">
+                            <span className="block text-slate-400 mb-1">Chuyên cần</span>
+                            <span className="font-black text-emerald-400 text-base">{attendance.caNhan.chinh?.tiLe != null ? `${attendance.caNhan.chinh.tiLe}%` : '—'}</span>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[#151A23] border border-white/5">
+                            <span className="block text-slate-400 mb-1">Vắng có phép</span>
+                            <span className="font-black text-sky-400 text-base">{attendance.caNhan.chinh?.vang_phep ?? 0}</span>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[#151A23] border border-white/5">
+                            <span className="block text-slate-400 mb-1">Vắng không phép</span>
+                            <span className="font-black text-rose-400 text-base">{attendance.caNhan.chinh?.vang_khong_phep ?? 0}</span>
+                          </div>
+                        </div>
+                        {(attendance.caNhan.chinh?.lichSuVang || []).length > 0 ? (
+                          <div>
+                            <h5 className="text-[11px] font-bold text-slate-300 mb-2 uppercase tracking-wider">Lịch sử vắng / đi trễ gần nhất</h5>
+                            <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                              {attendance.caNhan.chinh.lichSuVang.map((v, i) => (
+                                <div key={i} className="flex items-center justify-between p-2.5 rounded-xl bg-[#151A23] border border-white/5 text-xs">
+                                  <span className="text-slate-300 font-semibold">{formatDateVN(v.ngay)} • Buổi {v.buoi === 'chieu' ? 'chiều' : 'sáng'}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${v.trangThai === 'vang_phep' ? 'bg-sky-500/15 text-sky-400' : v.trangThai === 'tre' ? 'bg-amber-500/15 text-amber-400' : 'bg-rose-500/15 text-rose-400'}`}>
+                                    {v.trangThai === 'vang_phep' ? 'Vắng có phép' : v.trangThai === 'tre' ? 'Đi trễ' : 'Vắng không phép'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-emerald-400/80 text-center">✅ Không có lượt vắng/trễ nào được ghi — giữ phong độ nhé!</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {ddTabSub === 'ngay' && (
                 <div id="ddLopKhoi" className="overflow-x-auto rounded-xl border border-white/10">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
@@ -2107,7 +2585,41 @@ function DigitalCampusApp() {
                     </tbody>
                   </table>
                 </div>
-                <div id="ddCaNhan"></div>
+                )}
+                {/* Chuyên cần CÁ NHÂN — dữ liệu thật của học sinh đang đăng nhập */}
+                <div id="ddCaNhan">
+                  {attendance.caNhan && (
+                    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-br from-[#00F2FE]/8 to-[#8B5CF6]/8 border border-[#00F2FE]/25">
+                      <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
+                        <h4 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                          <span>🎓</span>
+                          <span>Chuyên cần của {attendance.caNhan.hoTen || 'bạn'}</span>
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 font-bold">
+                          {attendance.caNhan.chinh?.tiLe != null ? `${attendance.caNhan.chinh.tiLe}% chuyên cần` : 'Chưa có dữ liệu'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+                        <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                          <span className="block text-slate-400 mb-0.5">Có mặt</span>
+                          <span className="font-black text-emerald-400 text-sm">{attendance.caNhan.chinh?.co_mat ?? 0}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                          <span className="block text-slate-400 mb-0.5">Đi trễ</span>
+                          <span className="font-black text-amber-400 text-sm">{attendance.caNhan.chinh?.tre ?? 0}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                          <span className="block text-slate-400 mb-0.5">Vắng phép</span>
+                          <span className="font-black text-sky-400 text-sm">{attendance.caNhan.chinh?.vang_phep ?? 0}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                          <span className="block text-slate-400 mb-0.5">Không phép</span>
+                          <span className="font-black text-rose-400 text-sm">{attendance.caNhan.chinh?.vang_khong_phep ?? 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2120,6 +2632,10 @@ function DigitalCampusApp() {
                     <p className="text-xs text-slate-400">Công khai minh bạch toàn bộ các khoản thu - chi của lớp</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button onClick={xuatSoQuyCSV}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                      📥 Xuất CSV
+                    </button>
                     <button onClick={() => window.print()}
                       className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-bold border border-white/10">
                       🖨️ In A4
@@ -2144,10 +2660,28 @@ function DigitalCampusApp() {
 
                 <div id="tqKhoan" className="space-y-2">
                   <h4 className="text-xs font-bold text-white uppercase tracking-wider">Danh Sách Khoản Thu</h4>
-                  {financialSummary.khoanList?.map((k, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl text-xs border border-white/5">
+                  {(financialSummary.khoanList || []).length === 0 ? (
+                    <p className="text-[11px] text-slate-500">Chưa có khoản thu nào được tạo.</p>
+                  ) : financialSummary.khoanList.map((k, i) => (
+                    <div key={k.id || i} className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl text-xs border border-white/5">
                       <span className="font-semibold text-slate-200">{k.ten}</span>
                       <span className="font-bold text-[#00F2FE]">{formatVND(k.tongDaThu || k.soTienMoiEm)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Danh sách khoản CHI thật từ quy_chi */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Danh Sách Khoản Chi</h4>
+                  {(financialSummary.chiList || []).length === 0 ? (
+                    <p className="text-[11px] text-slate-500">Chưa có khoản chi nào.</p>
+                  ) : financialSummary.chiList.map((c, i) => (
+                    <div key={c.id || i} className="flex items-center justify-between p-3 bg-[#0B0E14] rounded-xl text-xs border border-white/5">
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-200 block truncate">{c.noiDung}</span>
+                        <span className="text-[10px] text-slate-500">{formatDateVN(c.ngay)}{c.ghiChu ? ` • ${c.ghiChu}` : ''}</span>
+                      </div>
+                      <span className="font-bold text-rose-400 shrink-0">-{formatVND(c.soTien)}</span>
                     </div>
                   ))}
                 </div>
@@ -2158,136 +2692,102 @@ function DigitalCampusApp() {
 
           {/* ─── RIGHT COLUMN: LOFI STUDY ROOM, ĐỐ VUI STREAK & TRỰC TUYẾN ─── */}
           <aside className="flex flex-col gap-4 sticky top-[56px] self-start">
-            {/* Lofi Study Room LIVE Player */}
+            {/* Lofi Study Room — phát nhạc nền THẬT của lớp từ /api/nhac-nen */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-white">
                   <Ic name="radio" className="w-4 h-4 text-[#00F2FE]" />
                   <span>Lofi Study Room</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/20">
-                  LIVE
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${radioPlaying ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-slate-400 border-white/10'}`}>
+                  {radioPlaying ? 'ĐANG PHÁT' : 'TẮT'}
                 </span>
               </div>
 
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                  <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80"
-                    alt="Album" className="w-full h-full object-cover" />
+                  <img src={PRESET_AVATARS[5].url}
+                    alt="Nhạc lớp" className="w-full h-full object-cover" />
                 </div>
                 <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-white truncate">Midnight Study Beats</h4>
-                  <p className="text-[10px] text-slate-400">Lofi Girl x 10A7 Radio</p>
+                  <h4 className="text-xs font-bold text-white truncate">{radioTitle}</h4>
+                  <p className="text-[10px] text-slate-400">{classData.nhacNen ? 'Nhạc nền lớp 10A7' : 'Chưa có bài nào được chọn'}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-2 font-mono">
-                <span>01:42</span>
-                <div className="flex items-end gap-1 h-3 flex-1 mx-3">
+              {radioPlaying && (
+                <div className="flex items-end justify-center gap-1 h-4 mb-2">
                   {[12, 18, 14, 24, 10, 20, 16, 22, 12, 18].map((h, i) => (
-                    <span key={i} className="flex-1 bg-[#00F2FE] rounded-full eq-bar"
+                    <span key={i} className="w-1.5 bg-[#00F2FE] rounded-full eq-bar"
                       style={{ height: `${h}px` }}></span>
                   ))}
                 </div>
-                <span>03:45</span>
-              </div>
+              )}
 
               <div className="flex justify-center mt-2">
-                <button onClick={toggleRadio}
-                  className="w-10 h-10 rounded-full bg-[#00F2FE] hover:bg-[#00e1ec] text-black flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.4)] transition-all">
+                <button onClick={toggleRadio} disabled={!classData.nhacNen}
+                  title={classData.nhacNen ? (radioPlaying ? 'Tắt nhạc' : 'Bật nhạc nền') : 'Chưa có nhạc nền'}
+                  className="w-10 h-10 rounded-full bg-[#00F2FE] hover:bg-[#00e1ec] text-black flex items-center justify-center shadow-[0_0_16px_rgba(0,242,254,0.4)] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                   <Ic name={radioPlaying ? 'pause' : 'play'} className="w-5 h-5 fill-current" />
                 </button>
               </div>
             </div>
 
-            {/* Đố vui & Streak 10A7 Top 3 */}
+            {/* Bảng Vàng Tuần — Top 3 THẬT từ /api/gamification (leaderboards.weeklyStudy) */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                  <span>🎯</span>
-                  <span>Đố vui & Streak 10A7</span>
+                  <span>🏆</span>
+                  <span>Bảng Vàng Tuần 10A7</span>
                 </div>
-                <span className="text-[10px] text-amber-400 font-bold">Top 3</span>
+                <button onClick={() => setShowGamificationModal(true)}
+                  className="text-[10px] text-amber-400 font-bold hover:underline">Top BXH</button>
               </div>
 
-              <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-3 mb-3 text-xs">
-                <p className="text-slate-300 text-[11px] mb-2 leading-relaxed">
-                  ❓ Công thức liên hệ vận tốc, gia tốc và quãng đường (chuyển động biến đổi đều)?
-                </p>
-                <div className="px-3 py-1.5 bg-black/50 border border-white/10 rounded-lg text-center font-mono text-[#00F2FE] font-bold">
-                  v² - v₀² = 2as
-                </div>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 text-center font-bold text-amber-400">1 🥇</span>
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
-                      <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&auto=format&fit=crop&q=80"
-                        alt="1" className="w-full h-full object-cover" />
+              {(() => {
+                const top3 = (gamification.leaderboards?.weeklyStudy || []).slice(0, 3);
+                if (top3.length === 0) {
+                  return (
+                    <div className="bg-[#0B0E14] border border-white/5 rounded-xl p-3 text-xs text-slate-400 text-center">
+                      <p className="mb-1">Chưa có dữ liệu xếp hạng tuần này.</p>
+                      <p className="text-[10px] text-slate-500">Tích cực chat, điểm danh & thắng cờ để lên bảng vàng!</p>
                     </div>
-                    <span className="font-semibold text-white">Phan Quốc Bảo</span>
+                  );
+                }
+                const huyHieu = ['🥇', '🥈', '🥉'];
+                return (
+                  <div className="space-y-2 text-xs">
+                    {top3.map((hs, idx) => (
+                      <div key={hs.hocSinhId || idx} className="flex items-center justify-between p-2 rounded-xl bg-white/5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-5 text-center font-bold text-amber-400 shrink-0">{idx + 1} {huyHieu[idx]}</span>
+                          <span className="font-semibold text-white truncate">{hs.hoTen}</span>
+                        </div>
+                        <span className="text-amber-400 font-bold text-[11px] shrink-0">{hs.diem} XP</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-amber-400 font-bold text-[11px]">🔥 28 ngày</span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 text-center font-bold text-slate-300">2 🥈</span>
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
-                      <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=60&auto=format&fit=crop&q=80"
-                        alt="2" className="w-full h-full object-cover" />
-                    </div>
-                    <span className="font-semibold text-white">Nguyễn Minh Thư</span>
-                  </div>
-                  <span className="text-amber-400 font-bold text-[11px]">🔥 21 ngày</span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-xl bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 text-center font-bold text-amber-600">3 🥉</span>
-                    <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10">
-                      <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=60&auto=format&fit=crop&q=80"
-                        alt="3" className="w-full h-full object-cover" />
-                    </div>
-                    <span className="font-semibold text-white">Đặng Tuấn Kiệt</span>
-                  </div>
-                  <span className="text-amber-400 font-bold text-[11px]">🔥 18 ngày</span>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
-            {/* Trực tuyến (18) */}
+            {/* Trực tuyến — số người online THẬT từ SSE presence (phiên đăng nhập đang sống) */}
             <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
               <div className="flex items-center gap-2 text-xs font-bold text-white mb-3">
                 <Ic name="users" className="w-4 h-4 text-[#00F2FE]" />
-                <span>Trực tuyến (18)</span>
+                <span>Trực tuyến ({onlineCount !== null ? onlineCount : '—'})</span>
               </div>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>Trần Gia Hân</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">Đang giải Toán</span>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                {onlineCount !== null
+                  ? `${onlineCount} tài khoản đang có phiên hoạt động trên hệ thống của lớp.`
+                  : 'Đang kết nối để đếm số thành viên trực tuyến…'}
+              </p>
+              {gamification.streaks?.[0] && (
+                <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Chuỗi hoạt động của bạn</span>
+                  <span className="font-extrabold text-[#FFB800]">🔥 {gamification.streaks[0].streakHienTai || 0} ngày</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>Lê Hoàng Long</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">Nghe Lofi Study</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-slate-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>Phạm Quỳnh Như</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">Phòng thoại #1</span>
-                </div>
-              </div>
+              )}
             </div>
           </aside>
         </div>
@@ -2377,21 +2877,10 @@ function DigitalCampusApp() {
                   </div>
                 ))
               ) : (
-                <div className="space-y-3">
-                  <div className="bg-[#0B0E14] border border-white/5 rounded-2xl p-4">
-                    <span className="text-xs font-bold text-[#FFB800]">10/09/2026</span>
-                    <h4 className="text-sm font-bold text-white mt-1 mb-2">Kế hoạch ôn tập giữa kỳ I & Đăng ký Hội thao 2026</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Chào cả lớp 10A7! Thầy đã cập nhật đề cương ôn tập môn Toán và Ngữ Văn lên Study Hub. Các bạn chú ý thời hạn nộp bài tập tuần này vào trước 22:00 Chủ Nhật.
-                    </p>
-                  </div>
-                  <div className="bg-[#0B0E14] border border-white/5 rounded-2xl p-4">
-                    <span className="text-xs font-bold text-[#00F2FE]">08/09/2026</span>
-                    <h4 className="text-sm font-bold text-white mt-1 mb-2">Quy định điểm danh chuyên cần 1-Touch</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      Ban cán sự lớp phụ trách cập nhật sĩ số đầu giờ mỗi sáng. Các trường hợp vắng có phép cần gửi giấy phép của phụ huynh trước tiết 1.
-                    </p>
-                  </div>
+                <div className="text-center py-8">
+                  <p className="text-2xl mb-2">🔔</p>
+                  <p className="text-sm font-bold text-white mb-1">Chưa có thông báo nào</p>
+                  <p className="text-xs text-slate-400">Khi GVCN đăng thông báo mới, nội dung sẽ hiện tại đây.</p>
                 </div>
               )}
             </div>
@@ -2484,7 +2973,7 @@ function DigitalCampusApp() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div style={{ backgroundColor: '#121620' }}
             className="bg-[#121620] border border-white/20 rounded-3xl p-5 sm:p-6 max-w-2xl w-full shadow-[0_25px_60px_rgba(0,0,0,0.95)] animate-scaleIn max-h-[90vh] flex flex-col">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div className="flex items-center gap-3">
@@ -2558,16 +3047,14 @@ function DigitalCampusApp() {
             {gamificationTab === 'achievements' && (
               <div className="overflow-y-auto flex-1 pr-1 space-y-2.5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {(gamification.allAchievements && gamification.allAchievements.length > 0 ? gamification.allAchievements : [
-                    { ma: 'first_chat', ten: 'Lần đầu chào hỏi', mo_ta: 'Gửi tin nhắn đầu tiên trong phòng chat lớp', icon: '👋', diem: 10, loai: 'basic' },
-                    { ma: 'chat_master', ten: 'Bậc thầy giao lưu', mo_ta: 'Gửi 100 tin nhắn xây dựng văn hóa lớp', icon: '💬', diem: 50, loai: 'rare' },
-                    { ma: 'study_streak_3', ten: '3 ngày ôn luyện', mo_ta: 'Học tập 3 ngày liên tiếp trên hệ thống', icon: '📚', diem: 30, loai: 'basic' },
-                    { ma: 'study_streak_7', ten: 'Chiến thần tuần lễ', mo_ta: 'Học tập & hiện diện 7 ngày liên tục', icon: '🔥', diem: 100, loai: 'epic' },
-                    { ma: 'study_streak_30', ten: 'Huyền thoại chuyên cần', mo_ta: 'Học tập 30 ngày liên tiếp không đứt đoạn', icon: '⭐', diem: 500, loai: 'legendary' },
-                    { ma: 'game_winner', ten: 'Kỳ thủ tập sự', mo_ta: 'Chiến thắng ván cờ Caro online đầu tiên', icon: '🏆', diem: 25, loai: 'basic' },
-                    { ma: 'game_master', ten: 'Vua Cờ Caro 10A7', mo_ta: 'Thắng 10 ván cờ Caro trong đấu trường', icon: '🎮', diem: 75, loai: 'rare' },
-                    { ma: 'helpful_peer', ten: 'Bạn tốt 10A7', mo_ta: 'Giải đáp và tương tác tích cực với bài của bạn', icon: '🤝', diem: 40, loai: 'rare' }
-                  ]).map(a => {
+                  {(!gamification.allAchievements || gamification.allAchievements.length === 0) && (
+                    <div className="col-span-full p-8 text-center bg-[#181F2C] border border-white/5 rounded-2xl">
+                      <span className="text-3xl block mb-2">🎖️</span>
+                      <h4 className="text-xs font-bold text-white mb-1">Chưa có danh sách huy hiệu</h4>
+                      <p className="text-[11px] text-slate-400">Hệ thống thành tựu đang được khởi tạo — hãy hoạt động tích cực để mở khoá huy hiệu đầu tiên!</p>
+                    </div>
+                  )}
+                  {(gamification.allAchievements || []).map(a => {
                     const userUnlocked = gamification.achievements?.find(ua => ua.ma === a.ma);
                     const loaiColor = a.loai === 'legendary' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
                                       a.loai === 'epic' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :

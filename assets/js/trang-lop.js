@@ -4,7 +4,7 @@
    học" cũ qua mức độ quan trọng), thời khoá biểu, hình ảnh.
    Danh sách lớp và Thủ quỹ là hai "trang riêng" mở từ menu — cùng một tệp HTML,
    chỉ ẩn/hiện theo địa chỉ #/… nên không cần thêm trang mới và không cần tải lại. */
-import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien, nenAnhThanhBlob } from './chung.js';
+import { $, e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, ganDoiGiaoDien, ganMenu, khoiLoi, layCacDongTaiKhoan, nhac, ganNhacNen, nhanMucDo, CAC_LOAI_CHI, ganTooltipNoi, giuViTriCuonKhiVe, khopTuKhoa, batDauTheoDoiPhien, nenAnhThanhBlob, urlMediaAnToan } from './chung.js';
 import { nut, moHopThoai, dongHopThoai, boiNgayVN, oThongKe, truong, oNhap } from './giao-dien.js';
 import { moHopThoaiSoanThongBao } from './thong-bao-dialog.js';
 import { moHopThoaiBannerLop } from './lop-banner-dialog.js';
@@ -2610,22 +2610,29 @@ function khoiTaoMembersPanel(d, phien) {
 
     listEl.innerHTML = '';
     filtered.forEach((m) => {
+      // Dựng DOM bằng textContent/classList — tên/chức vụ học sinh lấy từ API nên không
+      // được ghép thẳng vào innerHTML (kẻ xấu đổi tên chứa mã HTML sẽ chạy được script).
       const item = e('div', 'member-item');
-      item.innerHTML = `
-        <div class="member-avatar" style="background:${m.avatarBg};color:${m.avatarColor};">
-          ${m.avatarChar}
-        </div>
-        <div class="member-info">
-          <div class="member-name-row">
-            <span class="member-name">${m.ten}</span>
-            <span class="member-role-badge ${m.role}">${m.roleLabel}</span>
-          </div>
-          <div class="member-sub">${m.sub}</div>
-        </div>
-        <button class="member-action-btn" type="button">Chi tiết</button>
-      `;
+      const av = e('div', 'member-avatar', m.avatarChar || '');
+      av.style.background = /^[#\w(),.%\s-]+$/.test(m.avatarBg || '') ? m.avatarBg : 'var(--nhat)';
+      av.style.color = /^[#\w(),.%\s-]+$/.test(m.avatarColor || '') ? m.avatarColor : '#fff';
 
-      item.querySelector('.member-action-btn')?.addEventListener('click', (ev) => {
+      const info = e('div', 'member-info');
+      const nameRow = e('div', 'member-name-row');
+      nameRow.appendChild(e('span', 'member-name', m.ten));
+      const roleCss = String(m.role || '').replace(/[^\w-]/g, '');
+      nameRow.appendChild(e('span', `member-role-badge ${roleCss}`, m.roleLabel));
+      info.appendChild(nameRow);
+      info.appendChild(e('div', 'member-sub', m.sub));
+
+      const btnChiTiet = e('button', 'member-action-btn', 'Chi tiết');
+      btnChiTiet.type = 'button';
+
+      item.appendChild(av);
+      item.appendChild(info);
+      item.appendChild(btnChiTiet);
+
+      btnChiTiet.addEventListener('click', (ev) => {
         ev.stopPropagation();
         if (m.chiTiet) {
           nhac(`Học sinh: ${m.ten} • ${m.sub}`, 'tot');
@@ -2828,8 +2835,15 @@ function khoiTaoComposer(phien, lamMoi) {
         ds.forEach((item) => {
           const card = e('div', 'composer-lib-item');
           card.title = item.ten || 'Video lớp';
-          const videoSrc = item.url || `/api/gv/tep-video?id=${item.id}`;
-          card.innerHTML = `<video src="${videoSrc}" preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video><span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px;">▶</span>`;
+          const videoSrc = urlMediaAnToan(item.url) || `/api/gv/tep-video?id=${item.id}`;
+          const vdo = document.createElement('video');
+          vdo.preload = 'metadata';
+          vdo.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          vdo.src = videoSrc;
+          const dauChay = e('span', '', '▶');
+          dauChay.style.cssText = 'position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:1px 4px;border-radius:3px;';
+          card.appendChild(vdo);
+          card.appendChild(dauChay);
           card.style.position = 'relative';
           card.addEventListener('click', () => {
             tepChon = null;
@@ -2850,14 +2864,15 @@ function khoiTaoComposer(phien, lamMoi) {
         libGrid.innerHTML = '';
         ds.forEach((item) => {
           const card = e('div', 'composer-lib-audio-item');
-          const audioSrc = item.url || `/api/gv/tep-am-thanh?id=${item.id}`;
-          card.innerHTML = `
-            <span class="composer-lib-audio-icon">🎵</span>
-            <div style="flex:1;min-width:0;">
-              <div class="composer-lib-audio-name">${item.ten || item.tenBai || 'Âm thanh'}</div>
-              <small style="color:var(--chu-nhat);font-size:11px;">Chạm để chọn đính kèm</small>
-            </div>
-          `;
+          const audioSrc = urlMediaAnToan(item.url) || `/api/gv/tep-am-thanh?id=${item.id}`;
+          card.appendChild(e('span', 'composer-lib-audio-icon', '🎵'));
+          const cot = e('div');
+          cot.style.cssText = 'flex:1;min-width:0;';
+          cot.appendChild(e('div', 'composer-lib-audio-name', item.ten || item.tenBai || 'Âm thanh'));
+          const goiY = e('small', '', 'Chạm để chọn đính kèm');
+          goiY.style.cssText = 'color:var(--chu-nhat);font-size:11px;';
+          cot.appendChild(goiY);
+          card.appendChild(cot);
           card.addEventListener('click', () => {
             tepChon = null;
             thuVienIdChon = item.id;
@@ -2879,8 +2894,14 @@ function khoiTaoComposer(phien, lamMoi) {
         libGrid.innerHTML = '';
         dsAnh.forEach((item) => {
           const card = e('div', 'composer-lib-item');
-          const src = item.anhKhoa ? `/api/gv/hoat-dong-lop-tep?id=${item.anhKhoa}` : item.hinhUrl;
-          card.innerHTML = `<img src="${src}" alt="Ảnh" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+          const src = item.anhKhoa ? `/api/gv/hoat-dong-lop-tep?id=${item.anhKhoa}` : urlMediaAnToan(item.hinhUrl);
+          if (!src) return;
+          const anh = document.createElement('img');
+          anh.src = src;
+          anh.alt = 'Ảnh';
+          anh.loading = 'lazy';
+          anh.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          card.appendChild(anh);
           card.addEventListener('click', () => {
             tepChon = null;
             thuVienIdChon = item.anhKhoa || null;
@@ -2892,7 +2913,9 @@ function khoiTaoComposer(phien, lamMoi) {
         });
       }
     } catch (err) {
-      libGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--xau);font-size:13px;">Lỗi tải: ${err.message}</div>`;
+      const loiTai = e('div', '', `Lỗi tải: ${err.message}`);
+      loiTai.style.cssText = 'grid-column:1/-1;text-align:center;padding:16px;color:var(--xau);font-size:13px;';
+      libGrid.replaceChildren(loiTai);
     }
   }
 
@@ -4372,11 +4395,10 @@ function apDungAnMuc(anMuc) {
 
 async function taiDuLieu() {
   try {
-    let maCaNhan = '';
-    try { maCaNhan = localStorage.getItem('maCaNhan') || ''; } catch { /* bỏ qua */ }
-
+    // Phiên đăng nhập (cookie HttpOnly) đã định danh học sinh — không cần gửi mã cá nhân
+    // qua ?ma= nữa, tránh để mã bí mật lọt vào URL, log truy cập và localStorage.
     const [d, phien] = await Promise.all([
-      api('/api/lop' + (maCaNhan ? '?ma=' + encodeURIComponent(maCaNhan) : '')),
+      api('/api/lop'),
       thongTinPhien ? Promise.resolve(thongTinPhien) : api('/api/whoami').catch(() => null),
     ]);
     thongTinPhien = phien;

@@ -10,6 +10,7 @@
 //        chọn ở giao diện để "bỏ chọn", quay về trạng thái chưa ghi).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi, ngayVNHomNay } from '../../_lib/api.js';
 import { chupCheckpointDiemDanh } from '../../_lib/diem-danh-checkpoint.js';
+import { ghiNhanHoatDong } from '../gamification.js';
 
 const TRANG_THAI_HOP_LE = new Set(['co_mat', 'vang_phep', 'vang_khong_phep', 'tre']);
 const TEN_BUOI = { sang: 'Sáng', chieu: 'Chiều', hoat_dong: 'Hoạt động', sang_phu: 'Sáng (phụ)', chieu_phu: 'Chiều (phụ)', hoat_dong_phu: 'Hoạt động (phụ)' };
@@ -73,7 +74,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   return json({ ok: true, ngay, buoi, daGhi, tongSo: results.length, danhSach: results });
 }, { canGiaoVien: true, quyenCan: 'diem-danh' });
 
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) => {
   const than = await docThan(request);
   const { ngay, buoi: buoiGoc = 'sang', loai = '', ghiNhan } = than;
   const buoi = chuanHoaBuoi(buoiGoc, loai);
@@ -99,6 +100,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   const cauLenh = [];
   const chiTiet = [];
+  const moiCoMat = [];
   for (const g of ghiNhan) {
     const id = Number(g.hocSinhId);
     if (!Number.isInteger(id) || id <= 0 || !tenMap.has(id)) return loi('Mã học sinh không hợp lệ.');
@@ -122,6 +124,11 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     if (!truoc || truoc.trangThai !== g.trangThai || (truoc.lyDo || '') !== lyDoMoi) {
       chiTiet.push({ hocSinhId: id, hoTen: tenMap.get(id), truoc: truoc ? truoc.trangThai : null, sau: g.trangThai, lyDo: lyDoMoi });
     }
+    // Chỉ ghi điểm chuyên cần khi trạng thái CHUYỂN SANG co_mat (trước đó không phải co_mat)
+    // — chống cộng dồn điểm bằng cách đánh dấu đi rồi đánh lại.
+    if (g.trangThai === 'co_mat' && truoc?.trangThai !== 'co_mat') {
+      moiCoMat.push(id);
+    }
     cauLenh.push(
       env.DB.prepare(
         `INSERT INTO diem_danh (ngay, buoi, hoc_sinh_id, trang_thai, ly_do, cap_nhat_luc, lop_id)
@@ -144,5 +151,21 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   }
 
   await env.DB.batch(cauLenh);
+
+  // Ghi điểm chuyên cần THẬT cho các em vừa được điểm danh có mặt — chạy nền.
+  // quaHuyHieu=false: ghi hàng loạt cho cả lớp nên bỏ qua vòng quét huy hiệu cho gọn.
+  if (moiCoMat.length) {
+    const tenBuoi = TEN_BUOI[buoi] || buoi;
+    const ghi = Promise.all(moiCoMat.map((id) =>
+      ghiNhanHoatDong(env, {
+        hocSinhId: id, lopId: phien.lopId,
+        loaiHoatDong: 'attendance',
+        moTa: `Điểm danh ${tenBuoi} ngày ${ngay} — có mặt`,
+        quaHuyHieu: false,
+      }).catch(() => {})
+    ));
+    if (waitUntil) waitUntil(ghi);
+  }
+
   return json({ ok: true, daLuu: cauLenh.length });
 }, { canGiaoVien: true, quyenCan: 'diem-danh' });

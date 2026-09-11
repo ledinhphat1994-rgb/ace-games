@@ -36,13 +36,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     }
   }
 
-  // SSE Headers
+  // SSE Headers — same-origin only, không mở CORS cho stream có xác thực cookie
   const headers = new Headers({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
+    'X-Accel-Buffering': 'no'
   });
 
   // Create a readable stream for SSE
@@ -68,7 +67,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
           ).bind(lopId, lastId).all();
 
           const tinNhan = rs.results || [];
-          
+
           if (tinNhan.length > 0) {
             // Xác định tin của mình
             const danhSachTin = tinNhan.map((t) => {
@@ -96,7 +95,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
             });
 
             sendEvent({ tinNhan: danhSachTin });
-            
+
             // Update lastId
             lastId = tinNhan[tinNhan.length - 1].id;
           }
@@ -105,14 +104,22 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
           const rsDaXoa = await env.DB.prepare(
             'SELECT id FROM chat_tin_nhan WHERE lop_id = ?1 AND da_xoa = 1 AND id > ?2 ORDER BY id DESC LIMIT 50'
           ).bind(lopId, sauId).all();
-          
+
           const daXoaIds = (rsDaXoa.results || []).map((r) => r.id);
           if (daXoaIds.length > 0) {
             sendEvent({ daXoaIds }, 'deleted');
           }
 
-          // Send online users count (mock for now, should be real-time)
-          sendEvent({ onlineCount: Math.floor(Math.random() * 10) + 20 }, 'presence');
+          // Số người đang online THẬT = số tài khoản có phiên đăng nhập hoạt động
+          // (thiet_bi chứa phienId của phiên hiện tại) trong đúng lớp này.
+          const online = await env.DB.prepare(`
+            SELECT (
+              (SELECT COUNT(*) FROM ma_ca_nhan WHERE lop_id = ?1 AND thiet_bi IS NOT NULL AND thiet_bi <> '')
+              +
+              (SELECT COUNT(*) FROM tai_khoan_phu WHERE lop_id = ?1 AND dang_hoat_dong = 1 AND thiet_bi IS NOT NULL AND thiet_bi <> '')
+            ) AS n
+          `).bind(lopId).first().catch(() => null);
+          sendEvent({ onlineCount: online ? online.n : 0 }, 'presence');
 
         } catch (error) {
           console.error('Error checking for new messages:', error);

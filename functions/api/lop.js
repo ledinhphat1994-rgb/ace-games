@@ -1,37 +1,26 @@
 // GET /api/lop — dữ liệu cho trang lớp. Học sinh đã nhập mã đều xem được.
 // KHÔNG bao giờ trả về hoàn cảnh gia đình hay điện thoại phụ huynh.
-//
-// ?ma=<mã cá nhân> (tuỳ chọn): trang lớp tự gửi kèm mã cá nhân đã lưu trên máy (nếu em đã
-// từng tra cứu) để nhận về "anMuc" — các mục giáo viên đã ẩn riêng cho em, dùng để tự ẩn bớt
-// tiền quỹ/thông báo/thời khoá biểu ở giao diện. Không phải xác thực — chỉ là gợi ý hiển thị,
-// dữ liệu vẫn công khai như nhau cho mọi mã lớp giống hệt trước đây.
+// Phiên đăng nhập (cookie ký HMAC) là nguồn DUY NHẤT để biết "đây là em nào" — không còn
+// chấp nhận ?ma=<mã cá nhân> trên URL (mã bí mật không được phép lọt vào URL/log truy cập).
 import { bocXuLy, json, ngayVNHomNay } from '../_lib/api.js';
 
-export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) => {
+export const onRequestGet = bocXuLy(async ({ env, waitUntil, phien }) => {
   const db = env.DB;
   const lopId = phien.lopId;
 
   const homNay = ngayVNHomNay();
-  const ma = new URL(request.url).searchParams.get('ma');
-  // Đăng nhập bằng mã cá nhân thật (phiên có hocSinhId) là nguồn đáng tin cậy nhất để biết
-  // "đây là em nào" — ?ma= chỉ còn là phương án dự phòng cho trang cũ dùng localStorage.
   const hocSinhIdPhien = phien.hocSinhId || null;
 
   // Ghi lại lượt tải trang — không chặn phản hồi (waitUntil), lỗi cũng bỏ qua vì đây chỉ là
   // số liệu tham khảo cho tab Tương tác. Ghi cả bảng tổng theo ngày (nhanh cho biểu đồ) lẫn
-  // chi tiết từng lượt kèm mã (nếu có) để biết ai truy cập, lúc nào, bao nhiêu lần.
+  // chi tiết từng lượt kèm hoc_sinh_id từ phiên đăng nhập (nếu có) để biết ai truy cập.
   const ghiLuot = (async () => {
-    let hocSinhId = hocSinhIdPhien;
-    if (!hocSinhId && ma) {
-      const m = await db.prepare('SELECT hoc_sinh_id AS id FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first();
-      hocSinhId = m?.id ?? null;
-    }
     await db.batch([
       db.prepare(
         `INSERT INTO luot_truy_cap (lop_id, ngay, luot) VALUES (?1, ?2, 1)
          ON CONFLICT(lop_id, ngay) DO UPDATE SET luot = luot + 1`
       ).bind(lopId, homNay),
-      db.prepare('INSERT INTO nhat_ky_truy_cap (ma, hoc_sinh_id, lop_id) VALUES (?1, ?2, ?3)').bind(ma || null, hocSinhId, lopId),
+      db.prepare('INSERT INTO nhat_ky_truy_cap (ma, hoc_sinh_id, lop_id) VALUES (?1, ?2, ?3)').bind(null, hocSinhIdPhien, lopId),
     ]);
   })().catch(() => {});
   if (waitUntil) waitUntil(ghiLuot);
@@ -125,7 +114,7 @@ export const onRequestGet = bocXuLy(async ({ env, request, waitUntil, phien }) =
     db.prepare('SELECT id, ten AS tenBai FROM am_thanh WHERE dang_phat = 1 AND lop_id = ?1 AND da_xoa_luc IS NULL LIMIT 1').bind(lopId).first().catch(() => null),
     hocSinhIdPhien
       ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE hoc_sinh_id = ?1').bind(hocSinhIdPhien).first()
-      : (ma ? db.prepare('SELECT an_muc AS anMuc FROM ma_ca_nhan WHERE ma = ?1 AND lop_id = ?2').bind(ma, lopId).first() : null),
+      : null,
     db.prepare(
       `SELECT a.van_ban AS vanBan, a.anh_id AS anhId, a.hinh_url AS hinhUrl, ha.khoa AS anhKhoa,
               a.video_id AS videoId, a.video_url AS videoUrl, v.khoa AS videoKhoa,

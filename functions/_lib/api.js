@@ -142,7 +142,10 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoa
     try {
       return await xuLy({ ...context, phien });
     } catch (e) {
-      return loi('Lỗi máy chủ: ' + (e && e.message ? e.message : String(e)), 500);
+      // Không trả e.message ra client — thông điệp lỗi nội bộ (D1, truy vấn) có thể
+      // lộ cấu trúc bảng/cột. Ghi log phía máy chủ, trả thông điệp chung.
+      console.error('Lỗi xử lý API:', e);
+      return loi('Máy chủ đang bận hoặc gặp sự cố. Thử lại sau ít phút.', 500);
     }
   };
 }
@@ -174,4 +177,20 @@ export function ngayVNHomNay() {
 // Giới hạn độ dài chuỗi người dùng nhập.
 export function chuoi(v, toiDa = 2000) {
   return String(v ?? '').trim().slice(0, toiDa);
+}
+
+// Chuẩn hoá URL media do người dùng dán vào (ảnh / âm thanh / video ngoài).
+// Chỉ chấp nhận link https:// hoặc đường dẫn nội bộ bắt đầu bằng "/" (vd /api/anh?khoa=...)
+// — chặn javascript:, data:, http:// và //host lạ trước khi lưu, vì giá trị này sau đó
+// được gán thẳng vào <img src> / <a href> / <audio src> trên trang lớp.
+// Trả về: chuỗi URL an toàn | null nếu rỗng | false nếu không hợp lệ (caller báo lỗi).
+export function chuanUrlMedia(v, toiDa = 1000) {
+  const s = chuoi(v, toiDa);
+  if (!s) return null;
+  if (s.startsWith('/') && !s.startsWith('//')) return s;
+  try {
+    const u = new URL(s);
+    if (u.protocol === 'https:') return s;
+  } catch { /* chuỗi không parse được → coi như không hợp lệ */ }
+  return false;
 }

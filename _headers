@@ -3,6 +3,14 @@
 # toàn bộ nếu không đổi gì). Tránh lặp lại nhiều lần lỗi "sửa code xong nhưng người dùng vẫn
 # thấy bản cũ" — nhất là học sinh/cán sự, vì chỉ có trang /giao-vien/ mới có service worker
 # (sw.js) tự ép lấy bản mới; trang chủ và trang cá nhân không có lớp bảo vệ đó.
+# Lớp phòng thủ ở tầng CDN cho mọi phản hồi — CSP đầy đủ nằm trong functions/_middleware.js
+# (middleware chạy trước mọi request, kể cả tệp tĩnh) để giữ chính sách một nguồn duy nhất.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
 /
   Cache-Control: no-cache
 

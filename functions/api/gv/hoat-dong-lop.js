@@ -6,7 +6,7 @@
 //   POST   /api/gv/hoat-dong-lop  { tieuDe?, noiDung?, anhId?|hinhUrl?, videoId?|videoUrl?,
 //                                    amThanhId?|amThanhUrl?, ngay? } — cần ít nhất MỘT trong số đó.
 //   DELETE /api/gv/hoat-dong-lop?id=  -> gỡ một bài khỏi trang chủ (mọi nội dung trong bài đó)
-import { bocXuLy, json, loi, docThan, chuoi } from '../../_lib/api.js';
+import { bocXuLy, json, loi, docThan, chuoi, chuanUrlMedia } from '../../_lib/api.js';
 import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
 import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
 
@@ -52,11 +52,17 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const ndHtml = noiDungHtml ? (locHtmlNoiDung(noiDungHtml) || null) : null;
 
   const idAnh = Number.isInteger(anhId) ? anhId : null;
-  const urlAnh = !idAnh ? (chuoi(hinhUrl, 1000) || null) : null;
+  const urlAnh = !idAnh ? chuanUrlMedia(hinhUrl, 1000) : null;
   const idVideo = Number.isInteger(videoId) ? videoId : null;
-  const urlVideo = !idVideo ? (chuoi(videoUrl, 1000) || null) : null;
+  const urlVideo = !idVideo ? chuanUrlMedia(videoUrl, 1000) : null;
   const idAmThanh = Number.isInteger(amThanhId) ? amThanhId : null;
-  const urlAmThanh = !idAmThanh ? (chuoi(amThanhUrl, 1000) || null) : null;
+  const urlAmThanh = !idAmThanh ? chuanUrlMedia(amThanhUrl, 1000) : null;
+
+  // Chặn URL media nguy hiểm (javascript:, data:, http://) trước khi lưu — các trường này
+  // được gán thẳng vào src/href ở trang lớp.
+  if (urlAnh === false || urlVideo === false || urlAmThanh === false) {
+    return loi('Đường dẫn media không hợp lệ — chỉ nhận link https:// (YouTube, Drive…) hoặc mục trong thư viện lớp.');
+  }
 
   const coAnh = Boolean(idAnh || urlAnh);
   const coVideo = Boolean(idVideo || urlVideo);
@@ -127,9 +133,12 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
 
   const tieuDe = chuoi(than.tieuDe, 200);
   const noiDung = chuoi(than.noiDung, 5000);
-  const hinhUrl = chuoi(than.hinhUrl, 1000);
-  const videoUrl = chuoi(than.videoUrl, 1000);
-  const amThanhUrl = chuoi(than.amThanhUrl, 1000);
+  const hinhUrl = chuanUrlMedia(than.hinhUrl, 1000);
+  const videoUrl = chuanUrlMedia(than.videoUrl, 1000);
+  const amThanhUrl = chuanUrlMedia(than.amThanhUrl, 1000);
+  if (hinhUrl === false || videoUrl === false || amThanhUrl === false) {
+    return loi('Đường dẫn media không hợp lệ — chỉ nhận link https:// (YouTube, Drive…) hoặc mục trong thư viện lớp.');
+  }
 
   const coVanBan = Boolean(noiDung || tieuDe);
   const coAnh = Boolean(hinhUrl || than.anhId);

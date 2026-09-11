@@ -1,6 +1,7 @@
 // API Phòng tán gẫu lớp học (Chat Widget)
 // Dùng chung cho cả Học sinh và Giáo viên, phân quyền theo phiên đăng nhập.
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
+import { ghiNhanHoatDong } from './gamification.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
@@ -183,7 +184,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   return json({ ok: true, tinId });
 }, { canGiaoVien: false });
 
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) => {
   const laGiaoVien = phien.role === 'teacher';
   const than = await docThan(request);
   let noiDung = String(than.noiDung || '').trim();
@@ -294,6 +295,17 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const ketQua = await env.DB.prepare(
     'INSERT INTO chat_tin_nhan (lop_id, hoc_sinh_id, ten_nguoi_gui, vai_tro, noi_dung) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id, hoc_sinh_id AS hocSinhId, ten_nguoi_gui AS tenNguoiGui, vai_tro AS vaiTro, noi_dung AS noiDung, da_xoa AS daXoa, tao_luc AS taoLuc'
   ).bind(lopId, hocSinhId, tenNguoiGui, vaiTro, noiDung).first();
+
+  // Ghi điểm hoạt động THẬT cho học sinh vừa gửi tin thành công — chạy nền, lỗi
+  // gamification không được làm hỏng phản hồi chat.
+  if (hocSinhId) {
+    const ghi = ghiNhanHoatDong(env, {
+      hocSinhId, lopId,
+      loaiHoatDong: 'chat',
+      moTa: 'Gửi tin nhắn trong phòng chat lớp',
+    }).catch(() => {});
+    if (waitUntil) waitUntil(ghi);
+  }
 
   return json({ ok: true, tinNhan: { ...ketQua, laTinCuaToi: true } });
 }, { canGiaoVien: false });

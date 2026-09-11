@@ -35,9 +35,12 @@ function layThongTinNguoiDung(phien, thietBiId = '') {
   }
 
   // Nếu không có học sinh id trong phiên nhưng có mã thiết bị riêng biệt:
-  // ánh xạ thành một id người dùng duy nhất (dải 500000..699999) để không bao giờ bị ghi đè lẫn nhau
+  // ánh xạ thành một id người dùng duy nhất (dải 500000..699999) để không bao giờ bị ghi đè lẫn nhau.
+  // BẢO MẬT: trộn thietBiId với phienId lấy từ cookie ký HMAC phía máy chủ — client không
+  // thể tự đặt phienId nên không giả mạo được danh tính thiết bị của phiên người khác
+  // (trước đây chỉ băm thietBiId do client gửi → đoán được là mạo danh được).
   if (nguoiDungId === 100001 && thietBiId) {
-    nguoiDungId = 500000 + (bamChuoiThanhSo(thietBiId) % 200000);
+    nguoiDungId = 500000 + (bamChuoiThanhSo(`${thietBiId}::${phien?.phienId || 'khach'}`) % 200000);
   }
 
   return { nguoiDungId, nguoiDungTen, vaiTro };
@@ -173,6 +176,14 @@ export const onRequestPut = bocXuLy(async ({ request, env, phien }) => {
   if (baiDangId <= 0) return loi('Mã bài đăng không hợp lệ.');
   if (!noiDung) return loi('Vui lòng nhập nội dung bình luận.');
   if (noiDung.length > 1000) return loi('Bình luận quá dài (tối đa 1000 ký tự).');
+
+  // Chống spam bình luận: mỗi người chỉ được gửi 1 bình luận mỗi 10 giây.
+  const vuaBinhLuan = await env.DB.prepare(
+    `SELECT id FROM bai_dang_binh_luan
+      WHERE nguoi_dung_id = ?1 AND lop_id = ?2 AND tao_luc > datetime('now', '-10 seconds')
+      LIMIT 1`
+  ).bind(nguoiDungId, lopId).first();
+  if (vuaBinhLuan) return loi('Bạn vừa bình luận xong — chờ vài giây rồi gửi tiếp.', 429);
 
   const kq = await env.DB.prepare(
     `INSERT INTO bai_dang_binh_luan (lop_id, bai_dang_id, tra_loi_id, nguoi_dung_id, nguoi_dung_ten, vai_tro, noi_dung, tao_luc)

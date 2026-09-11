@@ -358,10 +358,8 @@
       }
 
       if (d.ok) {
-        try {
-          const maNhap = document.getElementById('ma').value.trim();
-          if (maNhap) localStorage.setItem('maCaNhan', maNhap);
-        } catch { /* bỏ qua nếu bị chặn */ }
+        // Không lưu mã đăng nhập vào localStorage — phiên cookie HttpOnly đã đủ định danh,
+        // lưu mã ở client chỉ tạo thêm điểm rò rỉ (XSS đọc được, URL ?ma= bị ghi log).
         hien('Xác thực thành công. Đang mở trang…', 'tot');
         let tiep = '';
         try { tiep = sessionStorage.getItem('dn-next') || ''; sessionStorage.removeItem('dn-next'); } catch {}

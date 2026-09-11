@@ -117,12 +117,37 @@ export async function onRequest(context) {
   return addSecurityHeaders(out);
 }
 
+// Content-Security-Policy: trang dùng script/style inline + React/Babel/Tailwind qua CDN
+// nên script-src vẫn phải cho 'unsafe-inline' + 'unsafe-eval' (giới hạn kiến trúc hiện tại —
+// gỡ được 2 cờ này khi nào chuyển sang build cục bộ). Dù vậy CSP vẫn chặn được: script từ
+// domain lạ, object/embed, base-uri đổi hướng, và bị nhúng iframe trộm click.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://challenges.cloudflare.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https:",
+  "connect-src 'self' https://challenges.cloudflare.com",
+  "frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com https://www.youtube-nocookie.com https://drive.google.com https://www.facebook.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+].join('; ');
+
 function addSecurityHeaders(res) {
   const out = new Response(res.body, res);
+  out.headers.set('Content-Security-Policy', CSP);
+  out.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   out.headers.set('X-Frame-Options', 'DENY');
   out.headers.set('X-Content-Type-Options', 'nosniff');
   out.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   out.headers.set('X-Robots-Tag', 'noindex, nofollow');
   out.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  out.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  out.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   return out;
 }

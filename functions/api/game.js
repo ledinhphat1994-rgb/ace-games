@@ -1,6 +1,7 @@
 // API Trò chơi trực tuyến nhiều người (Game Hub Online)
 // Dùng chung cho học sinh trong lớp (Cờ Caro trực tuyến thời gian thực)
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
+import { ghiNhanHoatDong } from './gamification.js';
 
 async function damBaoBangGame(db) {
   if (!db) return;
@@ -22,6 +23,17 @@ async function damBaoBangGame(db) {
       cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run().catch(() => {});
+}
+
+// Xác định lop_id được phép thao tác: học sinh/cán sự bị khoá vào lớp của chính mình
+// (chống IDOR xuyên lớp). Chỉ giáo viên chủ nhiệm mới được xem lớp khác qua tham số.
+function lopIdCuaPhien(phien, reqLopIdRaw) {
+  const lopId = phien.lopId || 1;
+  if (phien.role === 'teacher') {
+    const req = parseInt(reqLopIdRaw || '', 10);
+    if (req > 0) return req;
+  }
+  return lopId;
 }
 
 // Kiểm tra thắng 5 quân liên tiếp cho bàn cờ Caro 15x15
@@ -66,15 +78,13 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('phongId') || '0', 10);
   const loaiGame = url.searchParams.get('loai') || 'co_caro';
-  let lopId = phien.lopId || 1;
-  const reqLopId = parseInt(url.searchParams.get('lopId') || '', 10);
-  if (reqLopId > 0) lopId = reqLopId;
+  const lopId = lopIdCuaPhien(phien, url.searchParams.get('lopId'));
 
-  // Lấy chi tiết 1 phòng cụ thể
+  // Lấy chi tiết 1 phòng cụ thể — bắt buộc thuộc lớp của phiên đăng nhập
   if (phongId > 0) {
     const phong = await env.DB.prepare(
-      'SELECT * FROM game_phong WHERE id = ?1'
-    ).bind(phongId).first();
+      'SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2'
+    ).bind(phongId, lopId).first();
 
     if (!phong) return loi('Bàn chơi không tồn tại hoặc đã kết thúc.', 404);
 
@@ -130,14 +140,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   });
 }, { canGiaoVien: false });
 
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) => {
   await damBaoBangGame(env.DB);
   const than = await docThan(request);
   const hanhDong = String(than.hanhDong || '').trim();
   const laGiaoVien = phien.role === 'teacher';
-  let lopId = phien.lopId || 1;
-  const reqLopId = parseInt(than.lopId || '', 10);
-  if (reqLopId > 0) lopId = reqLopId;
+  const lopId = lopIdCuaPhien(phien, than.lopId);
 
   // Xác định người chơi hiện tại
   let nguoiChoiId = phien.hocSinhId;
@@ -185,7 +193,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const phongId = Number(than.phongId);
     if (!phongId) return loi('Thiếu mã bàn chơi.');
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
     if (phong.trang_thai !== 'cho_nguoi') {
       if (phong.chu_phong_id === nguoiChoiId || phong.khach_id === nguoiChoiId) {
@@ -200,11 +208,16 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       return json({ ok: true, phongId });
     }
 
-    await env.DB.prepare(`
+    // Cập nhật có điều kiện — chỉ nhận khách khi bàn vẫn đang chờ (chống 2 người vào cùng lúc)
+    const vao = await env.DB.prepare(`
       UPDATE game_phong
       SET khach_id = ?1, khach_ten = ?2, trang_thai = 'dang_choi', cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?3
-    `).bind(nguoiChoiId, tenNguoiChoi, phongId).run();
+      WHERE id = ?3 AND lop_id = ?4 AND trang_thai = 'cho_nguoi'
+    `).bind(nguoiChoiId, tenNguoiChoi, phongId, lopId).run();
+
+    if (!vao.meta || vao.meta.changes === 0) {
+      return loi('Bàn này vừa có người khác vào. Hãy tải lại danh sách bàn.', 409);
+    }
 
     return json({ ok: true, phongId });
   }
@@ -219,7 +232,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       return loi('Nước đi không hợp lệ.');
     }
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
     if (phong.trang_thai !== 'dang_choi') {
       return loi('Ván cờ chưa bắt đầu hoặc đã kết thúc.');
@@ -263,15 +276,31 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       }
     }
 
-    await env.DB.prepare(`
+    // Ghi nước đi NGUYÊN TỬ: chỉ thành công nếu vẫn đang là lượt của người này
+    // (chống race khi 2 request hợp lệ đến cùng lúc) và đúng lớp sở hữu bàn.
+    const ghi = await env.DB.prepare(`
       UPDATE game_phong
       SET du_lieu_ban_co = ?1,
           luot_di_id = ?2,
           trang_thai = ?3,
           nguoi_thang_id = ?4,
           cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?5
-    `).bind(JSON.stringify(board), luotTiepTheo, trangThaiMoi, nguoiThangId, phongId).run();
+      WHERE id = ?5 AND lop_id = ?6 AND luot_di_id = ?7 AND trang_thai = 'dang_choi'
+    `).bind(JSON.stringify(board), luotTiepTheo, trangThaiMoi, nguoiThangId, phongId, lopId, nguoiChoiId).run();
+
+    if (!ghi.meta || ghi.meta.changes === 0) {
+      return loi('Ván cờ đã thay đổi trạng thái. Hãy tải lại bàn đấu.', 409);
+    }
+
+    // Ghi điểm THẬT cho học sinh vừa thắng ván — chạy nền, không chặn phản hồi.
+    if (daThang && phien.hocSinhId) {
+      const ghiDiem = ghiNhanHoatDong(env, {
+        hocSinhId: phien.hocSinhId, lopId,
+        loaiHoatDong: 'game',
+        moTa: 'Thắng ván Cờ Caro đấu trường',
+      }).catch(() => {});
+      if (waitUntil) waitUntil(ghiDiem);
+    }
 
     return json({
       ok: true,
@@ -289,8 +318,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const phongId = Number(than.phongId);
     if (!phongId) return loi('Thiếu mã bàn chơi.');
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
     if (!phong) return loi('Bàn chơi không tồn tại.');
+
+    // Chỉ 2 người trong bàn (hoặc giáo viên) mới được mở ván mới
+    const laNguoiTrongBan = phong.chu_phong_id === nguoiChoiId || phong.khach_id === nguoiChoiId;
+    if (!laNguoiTrongBan && !laGiaoVien) {
+      return loi('Bạn không ở trong bàn cờ này.', 403);
+    }
 
     // Bàn cờ rỗng 15x15
     const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
@@ -305,8 +340,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
           trang_thai = 'dang_choi',
           nguoi_thang_id = NULL,
           cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?3
-    `).bind(JSON.stringify(banCoRong), luotMoi, phongId).run();
+      WHERE id = ?3 AND lop_id = ?4
+    `).bind(JSON.stringify(banCoRong), luotMoi, phongId, lopId).run();
 
     return json({ ok: true });
   }
@@ -316,16 +351,16 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const phongId = Number(than.phongId);
     if (!phongId) return json({ ok: true });
 
-    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
+    const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1 AND lop_id = ?2').bind(phongId, lopId).first();
     if (phong) {
       if (phong.chu_phong_id === nguoiChoiId) {
         // Chủ phòng rời -> huỷ bàn
-        await env.DB.prepare("UPDATE game_phong SET trang_thai = 'huy', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1")
-          .bind(phongId).run();
+        await env.DB.prepare("UPDATE game_phong SET trang_thai = 'huy', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1 AND lop_id = ?2")
+          .bind(phongId, lopId).run();
       } else if (phong.khach_id === nguoiChoiId) {
         // Khách rời -> đưa về chờ người
-        await env.DB.prepare("UPDATE game_phong SET khach_id = NULL, khach_ten = NULL, trang_thai = 'cho_nguoi', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1")
-          .bind(phongId).run();
+        await env.DB.prepare("UPDATE game_phong SET khach_id = NULL, khach_ten = NULL, trang_thai = 'cho_nguoi', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1 AND lop_id = ?2")
+          .bind(phongId, lopId).run();
       }
     }
     return json({ ok: true });

@@ -18,6 +18,22 @@ export function datNoiDung(nut, ...con) {
   return nut;
 }
 
+/**
+ * Chỉ chấp nhận URL media an toàn để gán vào src/href: https:// hoặc đường dẫn nội
+ * bộ bắt đầu bằng "/" (vd /api/...). Mọi scheme khác (javascript:, data:, http://,
+ * //host lạ) trả về chuỗi rỗng — dùng trước khi đưa URL từ API/người dùng vào DOM.
+ */
+export function urlMediaAnToan(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (s.startsWith('/') && !s.startsWith('//')) return s;
+  try {
+    const u = new URL(s);
+    if (u.protocol === 'https:') return s;
+  } catch { /* chuỗi không hợp lệ → rỗng */ }
+  return '';
+}
+
 /* ---------- Ngày tháng ---------- */
 
 export function homNay() {

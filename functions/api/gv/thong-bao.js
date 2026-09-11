@@ -11,7 +11,7 @@
 // là chức năng thay thế cho "Kế hoạch năm học" cũ (đã gộp vào đây, không dùng bảng ke_hoach nữa).
 // Ảnh/nhạc đính kèm tải lên qua /api/gv/thong-bao-tep (thân nhị phân riêng, xem tệp đó) vì vượt
 // giới hạn thân JSON ở đây; videoUrl chỉ là một đường dẫn văn bản (dán link YouTube…).
-import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi } from '../../_lib/api.js';
+import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi, chuanUrlMedia } from '../../_lib/api.js';
 import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
 import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
 
@@ -80,15 +80,24 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
   if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
 
+  // Chặn URL media nguy hiểm (javascript:, data:, http://) trước khi lưu — các trường này
+  // được gán thẳng vào src/href ở trang lớp.
+  const urlVideo = chuanUrlMedia(videoUrl, 500);
+  const urlHinh = chuanUrlMedia(hinhUrl, 1000);
+  const urlNhac = chuanUrlMedia(nhacUrl, 1000);
+  if (urlVideo === false || urlHinh === false || urlNhac === false) {
+    return loi('Đường dẫn media không hợp lệ — chỉ nhận link https:// (YouTube, Drive…) hoặc mục trong thư viện lớp.');
+  }
+
   await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: đăng thông báo "${td}"`, phien);
   const kq = await env.DB.prepare(
     `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id, tao_luc)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, datetime('now'))`
   ).bind(
     ngay, td, tdHtml, nd, ndHtml, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
-    mucDo || '', chuoi(videoUrl, 500) || null,
-    Number.isInteger(anhId) ? anhId : null, chuoi(hinhUrl, 1000) || null,
-    Number.isInteger(amThanhId) ? amThanhId : null, chuoi(nhacUrl, 1000) || null,
+    mucDo || '', urlVideo,
+    Number.isInteger(anhId) ? anhId : null, urlHinh,
+    Number.isInteger(amThanhId) ? amThanhId : null, urlNhac,
     Number.isInteger(videoId) ? videoId : null, phien.lopId
   ).run();
 
@@ -134,13 +143,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if (!MUC_DO_HOP_LE.has(than.mucDo)) return loi('Mức độ không hợp lệ.');
     them('muc_do', than.mucDo);
   }
-  if (than.videoUrl !== undefined) them('video_url', chuoi(than.videoUrl, 500) || null);
+  if (than.videoUrl !== undefined) {
+    const u = chuanUrlMedia(than.videoUrl, 500);
+    if (u === false) return loi('Đường dẫn video không hợp lệ — chỉ nhận link https://.');
+    them('video_url', u);
+  }
 
   // Mỗi loại đính kèm: đúng MỘT trong hai (mã thư viện HOẶC link ngoài) — đặt cái này thì xoá
   // luôn cái kia, tránh còn sót giá trị cũ gây hiển thị sai (vd vừa có anh_id vừa có hinh_url).
   if (than.anhId !== undefined || than.hinhUrl !== undefined) {
     const giaTriAnh = Number.isInteger(than.anhId) ? than.anhId : null;
-    const giaTriUrl = chuoi(than.hinhUrl, 1000) || null;
+    const giaTriUrl = chuanUrlMedia(than.hinhUrl, 1000);
+    if (giaTriUrl === false) return loi('Đường dẫn ảnh không hợp lệ — chỉ nhận link https://.');
     if ((giaTriAnh || giaTriUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('hinh-anh')) {
       return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh để đính kèm hình.', 403);
     }
@@ -150,7 +164,8 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   }
   if (than.amThanhId !== undefined || than.nhacUrl !== undefined) {
     const giaTriAmThanh = Number.isInteger(than.amThanhId) ? than.amThanhId : null;
-    const giaTriNhacUrl = chuoi(than.nhacUrl, 1000) || null;
+    const giaTriNhacUrl = chuanUrlMedia(than.nhacUrl, 1000);
+    if (giaTriNhacUrl === false) return loi('Đường dẫn âm thanh không hợp lệ — chỉ nhận link https://.');
     if ((giaTriAmThanh || giaTriNhacUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('am-thanh')) {
       return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh để đính kèm bài hát.', 403);
     }

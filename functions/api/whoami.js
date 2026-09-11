@@ -13,7 +13,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
     vaiTro: phien.vaiTro || '',
     quyen: phien.quyen || [],
     hocSinhId: phien.hocSinhId || null,
-    ma: phien.ma || '',
+    phuId: phien.phuId || phien.taiKhoanPhuId || null,
     tenLop: lop?.ten || '',
     namHoc: lop?.namHoc || '',
     toSo: phien.toSo || null,

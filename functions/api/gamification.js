@@ -1,5 +1,9 @@
 // Gamification API - Achievements, Streaks, Points, Leaderboards
-import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
+// QUAN TRỌNG: điểm/streak/huy hiệu CHỈ được ghi từ các sự kiện THẬT phía máy chủ
+// (gửi chat thành công, thắng cờ, được điểm danh có mặt...) qua ghiNhanHoatDong().
+// Không có endpoint public nào cho phép client tự khai hoạt động — trước đây POST
+// /api/gamification nhận loaiHoatDong tuỳ ý nên học sinh có thể tự cộng điểm vô hạn.
+import { bocXuLy, json } from '../_lib/api.js';
 
 // Lấy gamification data của user hiện tại và bảng xếp hạng lớp
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
@@ -62,35 +66,27 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   });
 }, { canGiaoVien: false });
 
-// Hoàn thành activity và kiếm điểm
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  if (!phien.hocSinhId) return loi('Chỉ học sinh mới có thể kiếm điểm.');
+// Điểm thưởng theo loại hoạt động — bảng tra duy nhất, loại lạ bị từ chối hẳn.
+const DIEM_THEO_HOAT_DONG = {
+  chat: 1,
+  study: 5,
+  game: 3,
+  attendance: 2,
+  helpful: 10,
+};
 
-  const than = await docThan(request);
-  const loaiHoatDong = String(than.loaiHoatDong || '').trim();
-  const moTa = String(than.moTa || '').trim();
-  const lopId = phien.lopId || 1;
+// Ghi nhận MỘT hoạt động thật cho học sinh — chỉ được gọi từ code máy chủ sau khi
+// sự kiện đã xảy ra thành công (vd tin nhắn đã lưu, ván cờ đã thắng). Trả về
+// { diem, huyHieuMoi } hoặc null nếu loại hoạt động/học sinh không hợp lệ.
+export async function ghiNhanHoatDong(env, { hocSinhId, lopId, loaiHoatDong, moTa = '', quaHuyHieu = true }) {
+  const diem = DIEM_THEO_HOAT_DONG[loaiHoatDong];
+  if (!diem || !hocSinhId || !lopId) return null;
 
-  if (!loaiHoatDong) return loi('Loại hoạt động không được để trống.');
-
-  // Xác định điểm dựa trên loại hoạt động
-  const diemMap = {
-    'chat': 1,
-    'study': 5,
-    'game': 3,
-    'watch_party': 4,
-    'attendance': 2,
-    'helpful': 10
-  };
-  const diem = diemMap[loaiHoatDong] || 1;
-
-  // Ghi log activity
   await env.DB.prepare(`
     INSERT INTO activity_log (hoc_sinh_id, loai_hoat_dong, diem, mo_ta, lop_id)
     VALUES (?1, ?2, ?3, ?4, ?5)
-  `).bind(phien.hocSinhId, loaiHoatDong, diem, moTa, lopId).run();
+  `).bind(hocSinhId, loaiHoatDong, diem, moTa, lopId).run();
 
-  // Cập nhật điểm user
   await env.DB.prepare(`
     INSERT INTO user_points (hoc_sinh_id, diem_hien_tai, diem_tong, cap_do, lop_id)
     VALUES (?1, ?2, ?3, 1, ?4)
@@ -98,23 +94,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       diem_hien_tai = diem_hien_tai + ?2,
       diem_tong = diem_tong + ?3,
       cap_do = cap_do + CASE WHEN diem_hien_tai + ?2 >= cap_do * 100 THEN 1 ELSE 0 END
-  `).bind(phien.hocSinhId, diem, diem, lopId).run();
+  `).bind(hocSinhId, diem, diem, lopId).run();
 
-  // Cập nhật streak
-  await updateStreak(env, phien.hocSinhId, loaiHoatDong, lopId);
+  await updateStreak(env, hocSinhId, loaiHoatDong, lopId);
+  const huyHieuMoi = quaHuyHieu ? await checkAchievements(env, hocSinhId, lopId) : [];
+  await updateLeaderboard(env, hocSinhId, loaiHoatDong, diem, lopId);
 
-  // Kiểm tra và unlock achievements
-  const newAchievements = await checkAchievements(env, phien.hocSinhId, lopId);
-
-  // Cập nhật leaderboard
-  await updateLeaderboard(env, phien.hocSinhId, loaiHoatDong, diem, lopId);
-
-  return json({
-    ok: true,
-    diemEarned: diem,
-    newAchievements
-  });
-}, { canGiaoVien: false });
+  return { diem, huyHieuMoi };
+}
 
 // Helper functions
 function getWeekNumber(date) {
@@ -135,13 +122,13 @@ async function getLeaderboard(env, loaiBang, tuan, lopId) {
     ORDER BY lb.hang ASC
     LIMIT 10
   `).bind(loaiBang, tuan, lopId).all();
-  
+
   return result.results || [];
 }
 
 async function updateStreak(env, hocSinhId, loaiHoatDong, lopId) {
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Map activity types to streak types
   const streakTypeMap = {
     'chat': 'chat',
@@ -149,7 +136,7 @@ async function updateStreak(env, hocSinhId, loaiHoatDong, lopId) {
     'game': 'game',
     'attendance': 'attendance'
   };
-  
+
   const streakType = streakTypeMap[loaiHoatDong];
   if (!streakType) return;
 
@@ -169,7 +156,7 @@ async function updateStreak(env, hocSinhId, loaiHoatDong, lopId) {
     const lastDate = new Date(currentStreak.ngay_cuoi);
     const currentDate = new Date(today);
     const diffDays = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) {
       // Ngày tiếp theo -> tăng streak
       const newStreak = currentStreak.streak_hien_tai + 1;
@@ -191,56 +178,58 @@ async function updateStreak(env, hocSinhId, loaiHoatDong, lopId) {
 
 async function checkAchievements(env, hocSinhId, lopId) {
   const newAchievements = [];
-  
+
   // Kiểm tra từng achievement
   const achievements = await env.DB.prepare('SELECT * FROM achievements WHERE active = 1').all();
-  
+
   for (const achievement of achievements.results || []) {
     // Kiểm tra user đã có achievement này chưa
     const hasAchievement = await env.DB.prepare(`
       SELECT 1 FROM user_achievements
       WHERE hoc_sinh_id = ?1 AND achievement_id = ?2
     `).bind(hocSinhId, achievement.id).first();
-    
+
     if (hasAchievement) continue;
-    
+
     // Kiểm tra điều kiện (simplified logic)
     let unlocked = false;
-    
+
     switch (achievement.ma) {
-      case 'first_chat':
+      case 'first_chat': {
         const chatCount = await env.DB.prepare(`
           SELECT COUNT(*) as count FROM activity_log
           WHERE hoc_sinh_id = ?1 AND loai_hoat_dong = 'chat'
         `).bind(hocSinhId).first();
         unlocked = chatCount.count >= 1;
         break;
-      case 'study_streak_7':
+      }
+      case 'study_streak_7': {
         const studyStreak = await env.DB.prepare(`
           SELECT streak_hien_tai FROM user_streaks
           WHERE hoc_sinh_id = ?1 AND loai_streak = 'study'
         `).bind(hocSinhId).first();
         unlocked = studyStreak && studyStreak.streak_hien_tai >= 7;
         break;
+      }
       // Add more achievement checks...
     }
-    
+
     if (unlocked) {
       await env.DB.prepare(`
         INSERT INTO user_achievements (hoc_sinh_id, achievement_id, lop_id)
         VALUES (?1, ?2, ?3)
       `).bind(hocSinhId, achievement.id, lopId).run();
-      
+
       newAchievements.push(achievement);
     }
   }
-  
+
   return newAchievements;
 }
 
 async function updateLeaderboard(env, hocSinhId, loaiHoatDong, diem, lopId) {
   const currentWeek = getWeekNumber(new Date());
-  
+
   // Map activity types to leaderboard types
   const leaderboardMap = {
     'study': 'weekly_study',
@@ -248,7 +237,7 @@ async function updateLeaderboard(env, hocSinhId, loaiHoatDong, diem, lopId) {
     'helpful': 'most_helpful',
     'attendance': 'attendance_stars'
   };
-  
+
   const leaderboardType = leaderboardMap[loaiHoatDong];
   if (!leaderboardType) return;
 
@@ -258,7 +247,7 @@ async function updateLeaderboard(env, hocSinhId, loaiHoatDong, diem, lopId) {
     ON CONFLICT(hoc_sinh_id, loai_bang, tuan) DO UPDATE SET
       diem = diem + ?3
   `).bind(hocSinhId, leaderboardType, diem, currentWeek, lopId).run();
-  
+
   // Recalculate ranks
   await env.DB.prepare(`
     UPDATE leaderboard
