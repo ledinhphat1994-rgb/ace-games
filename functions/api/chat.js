@@ -19,11 +19,18 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const tenLop = classAuth.tenLop;
   const laGiaoVien = classAuth.isVerifiedTeacher;
 
-  // Danh sách các lớp học đang hoạt động (cho giáo viên chuyển đổi nhanh giữa các lớp)
+  // Danh sách các lớp học được phép quản lý:
+  // - School Admin: nhận tất cả các lớp đang hoạt động
+  // - GVCN thông thường: CHỈ nhận lớp được phân công phụ trách
   let cacLop = [];
   if (laGiaoVien && env.DB) {
-    const rsLop = await env.DB.prepare('SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC').all().catch(() => ({ results: [] }));
-    cacLop = (rsLop.results || []).map((l) => ({ id: l.id, ten: l.ten }));
+    if (classAuth.isSchoolAdmin) {
+      const rsLop = await env.DB.prepare('SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC').all().catch(() => ({ results: [] }));
+      cacLop = (rsLop.results || []).map((l) => ({ id: l.id, ten: l.ten }));
+    } else if (classAuth.lopId) {
+      const rsLop = await env.DB.prepare('SELECT id, ten FROM lop WHERE id = ?1 AND dang_hoat_dong = 1').bind(classAuth.lopId).all().catch(() => ({ results: [] }));
+      cacLop = (rsLop.results || []).map((l) => ({ id: l.id, ten: l.ten }));
+    }
   }
 
   // 1. Đọc cài đặt phòng chat (mặc định: mở, 5 giây giãn cách)

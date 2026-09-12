@@ -64,9 +64,9 @@ const cookieGV = await taoAuthCookie(GV);
 
 // Dọn dẹp các phòng cũ còn mở của HS_A nếu có trước khi chạy kiểm thử
 try {
-  const dsCu = await api('/api/phong', { cookie: cookieA });
-  if (dsCu.ok && Array.isArray(dsCu.data?.phongs)) {
-    for (const p of dsCu.data.phongs) {
+  const danhSachPhongCu = dsCu.data?.dsPhong || dsCu.data?.phongs;
+  if (dsCu.ok && Array.isArray(danhSachPhongCu)) {
+    for (const p of danhSachPhongCu) {
       if (p.laChuPhong || p.canControl || p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
         await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: p.id } });
       }

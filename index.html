@@ -1092,13 +1092,19 @@ function CampusWatchTogether({
     serverNow: '',
     updatedBy: ''
   });
-  const [canControl, setCanControl] = useState(false);
+  const [canControl, setCanControl] = useState(Boolean(auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
   const [provider, setProvider] = useState('UNSUPPORTED');
   const [hasInteracted, setHasInteracted] = useState(false);
   const [localTime, setLocalTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [dangGuiLenh, setDangGuiLenh] = useState(false);
   const [loi, setLoi] = useState('');
+
+  useEffect(() => {
+    if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher) {
+      setCanControl(true);
+    }
+  }, [phong?.canControl, phong?.laChuPhong, auth?.user?.isTeacher]);
 
   const videoRef = useRef(null);
   const ytPlayerRef = useRef(null);
@@ -1552,13 +1558,7 @@ function CampusFocusRoom({
   const apDungFocusState = (st) => {
     if (!st) return;
     setFocusState(st);
-    let rem = Number(st.remainingSeconds ?? 1500);
-    if (st.status === 'running' && st.updatedAt) {
-      const nowMs = Date.now();
-      const updateTimeMs = new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime();
-      const elapsedSec = Math.max(0, Math.floor((nowMs - updateTimeMs) / 1000));
-      rem = Math.max(0, (st.remainingSeconds || 0) - elapsedSec);
-    }
+    const rem = Number(st.remainingSeconds ?? 1500);
     setLocalRemaining(rem);
   };
 
@@ -4097,6 +4097,7 @@ function ActivityLobby({
   onVaoPhong,
   onVaoBanCaro,
   onTaoBanCaro,
+  onQuickMatch,
   auth = {}
 }) {
   const [search, setSearch] = React.useState('');
@@ -4169,9 +4170,13 @@ function ActivityLobby({
                 type="button"
                 id="btn-game-quick-match"
                 onClick={() => {
-                  const waiting = (caroRooms || []).find(b => b.trangThai === 'cho_nguoi');
-                  if (waiting) onVaoBanCaro(waiting.id);
-                  else if (onTaoBanCaro) onTaoBanCaro('truong');
+                  if (onQuickMatch) {
+                    onQuickMatch();
+                  } else {
+                    const waiting = (caroRooms || []).find(b => b.trangThai === 'cho_nguoi');
+                    if (waiting) onVaoBanCaro(waiting.id);
+                    else if (onTaoBanCaro) onTaoBanCaro('truong');
+                  }
                 }}
                 className="h-11 px-5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-black font-black text-xs shadow-[0_0_18px_rgba(245,158,11,0.35)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 shrink-0">
                 <span className="text-sm animate-pulse">⚡</span>
@@ -6427,9 +6432,9 @@ function DigitalCampusApp() {
 
   // Quick Match: Bắt đầu tìm trận nhanh FIFO toàn trường
   const batDauTimTranNhanh = async () => {
-    if (auth.isGuest) { setShowAuthGate(true); return; }
-    if (auth.user?.isTeacher) {
-      setCaroLoi('Chỉ học sinh chính danh mới có thể tham gia Tìm trận nhanh toàn trường.');
+    if (auth.isGuest) {
+      if (typeof setAuthModalTab === 'function') setAuthModalTab('login');
+      if (typeof setShowAuthModal === 'function') setShowAuthModal(true);
       return;
     }
     setCaroLoi('');
@@ -6441,22 +6446,26 @@ function DigitalCampusApp() {
       });
       const d = await res.json();
       if (d.ok) {
-        if (d.daGhep && d.phong) {
-          setCaroPhong(d.phong);
-          const doiThuTen = d.phong.chuPhongId === nguoiChoiIdCuaToi ? d.phong.khachTen : d.phong.chuPhongTen;
-          const doiThuLop = d.phong.chuPhongId === nguoiChoiIdCuaToi ? (d.phong.khachLopTen || 'Khác') : (d.phong.lopTen || 'Khác');
+        if ((d.matched || d.daGhep) && d.phongId) {
+          const p = d.phong || await taiPhongCaro(d.phongId);
+          if (p) setCaroPhong(p);
+          const doiThuTen = d.doiThu?.ten || (p ? (p.isHost ? (p.guestName || p.khachTen) : (p.hostName || p.chuPhongTen)) : 'Đối thủ');
+          const doiThuLop = d.doiThu?.lopTen || (p ? (p.lopTen || '') : '');
           setMatchFoundData({
             doiThu: { ten: doiThuTen, lopTen: doiThuLop },
-            banTen: d.phong.tenBan || `Bàn #${d.phong.id}`
+            banTen: p?.tenBan || `Bàn #${d.phongId}`
           });
+          setQuickWaitPhongId(null);
           setQuickState('MATCH_FOUND');
           setMatchCountdown(3);
-        } else if (d.choDoi && d.phongId) {
+        } else if ((d.waiting || d.choDoi) && d.phongId) {
           setQuickWaitPhongId(d.phongId);
           setQueueTimer(0);
           setQuickState('QUEUE_WAITING');
-        } else if (d.resumed && d.phong) {
-          setCaroPhong(d.phong);
+        } else if (d.resumed && d.phongId) {
+          const p = d.phong || await taiPhongCaro(d.phongId);
+          if (p) setCaroPhong(p);
+          setQuickWaitPhongId(null);
           setQuickState('GAME_ACTIVE');
         }
       } else {
@@ -6465,6 +6474,10 @@ function DigitalCampusApp() {
     } catch {
       setCaroLoi('Mất kết nối máy chủ.');
     }
+  };
+
+  const handleQuickMatch = () => {
+    batDauTimTranNhanh();
   };
 
   // Quick Match: Hủy tìm trận nhanh
@@ -8250,6 +8263,7 @@ function DigitalCampusApp() {
                     if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
                     setShowTaoBanModal(true);
                   }}
+                  onQuickMatch={handleQuickMatch}
                   auth={auth}
                 />
               ) : (

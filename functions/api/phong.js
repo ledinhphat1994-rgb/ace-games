@@ -74,6 +74,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       isAdmitted: check.isAdmitted,
       canControl: check.canControl,
       laChuPhong: check.isHost,
+      minhKhoa: actorKey(phien),
     });
   }
 

@@ -535,6 +535,9 @@ CREATE TABLE IF NOT EXISTS tai_khoan_campus (
   lop_id              INTEGER REFERENCES lop(id) ON DELETE SET NULL,
   dang_hoat_dong      INTEGER NOT NULL DEFAULT 1,
   thiet_bi            TEXT,
+  avatar              TEXT,
+  tieu_de_ho_so       TEXT,
+  la_admin_truong     INTEGER NOT NULL DEFAULT 0,
   tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP,
   cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -617,3 +620,35 @@ CREATE TABLE IF NOT EXISTS campus_block (
 );
 CREATE INDEX IF NOT EXISTS idx_cb_lookup ON campus_block(blocker_account_id, blocked_account_id);
 CREATE INDEX IF NOT EXISTS idx_cb_blocked ON campus_block(blocked_account_id);
+
+-- 39. BÀN ĐẤU GAME ARENA & CARO (GAME PHÒNG - PHASE 3B.1 / 4D.1)
+CREATE TABLE IF NOT EXISTS game_phong (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  lop_id              INTEGER,
+  loai_game           TEXT NOT NULL,
+  ten_ban             TEXT NOT NULL,
+  chu_phong_id        INTEGER NOT NULL,
+  chu_phong_ten       TEXT NOT NULL,
+  khach_id            INTEGER,
+  khach_ten           TEXT,
+  trang_thai          TEXT NOT NULL DEFAULT 'cho_nguoi',
+  luot_di_id          INTEGER,
+  du_lieu_ban_co      TEXT,
+  nguoi_thang_id      INTEGER,
+  pham_vi             TEXT NOT NULL DEFAULT 'lop' CHECK (pham_vi IN ('lop', 'truong')),
+  kieu_ghep           TEXT NOT NULL DEFAULT 'thu_cong' CHECK (kieu_ghep IN ('thu_cong', 'nhanh')),
+  access_mode         TEXT NOT NULL DEFAULT 'public',
+  mat_khau_hash       TEXT,
+  mat_khau_salt       TEXT,
+  chu_phong_khoa      TEXT,
+  khach_khoa          TEXT,
+  luot_di_khoa        TEXT,
+  nguoi_thang_khoa    TEXT,
+  tao_luc             TEXT DEFAULT CURRENT_TIMESTAMP,
+  cap_nhat_luc        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_game_phong_lop ON game_phong(lop_id, loai_game, trang_thai);
+CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game, trang_thai, kieu_ghep);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting_khoa
+ON game_phong(chu_phong_khoa, loai_game)
+WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi';

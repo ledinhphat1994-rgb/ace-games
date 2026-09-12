@@ -187,7 +187,7 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
   if (phien.accountId) {
     try {
       accountRecord = await db.prepare(`
-        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id
+        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id, la_admin_truong
         FROM tai_khoan_campus
         WHERE id = ?1
       `).bind(Number(phien.accountId)).first();
@@ -200,7 +200,7 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
   if (!accountRecord && phien.hocSinhId) {
     try {
       accountRecord = await db.prepare(`
-        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id
+        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id, la_admin_truong
         FROM tai_khoan_campus
         WHERE hoc_sinh_id = ?1
         LIMIT 1
@@ -232,7 +232,13 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
   }
 
   // 5. Kiểm tra quyền Giáo viên thực tế (Nếu cookie xưng là teacher nhưng DB đã hạ quyền hoặc đang pending)
-  const isRealTeacher = Boolean(accountRecord.vai_tro === 'teacher' && accountRecord.teacher_pending === 0);
+  const isSchoolAdmin = Boolean(
+    accountRecord.la_admin_truong === 1 ||
+    accountRecord.la_admin_truong === true ||
+    accountRecord.vai_tro === 'admin' ||
+    accountRecord.vai_tro === 'school_admin'
+  );
+  const isRealTeacher = Boolean(isSchoolAdmin || (accountRecord.vai_tro === 'teacher' && accountRecord.teacher_pending === 0));
   if (phien.role === 'teacher' && !isRealTeacher) {
     return {
       ok: false,
@@ -262,6 +268,7 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     lopId: isRealTeacher ? (accountRecord.lop_id || phien.lopId || null) : (isLinkedStudent ? accountRecord.lop_id : null),
     hocSinhId: isLinkedStudent ? accountRecord.hoc_sinh_id : null,
     isVerifiedTeacher: isRealTeacher,
+    isSchoolAdmin,
     isLinkedStudent,
   };
 }
@@ -276,7 +283,9 @@ export const requireActiveCampusAccount = kiemTraQuyenSocial;
  * - Học sinh PHẢI có canonical hoc_sinh_id & lop_id từ luồng nhập mã do Giáo viên cấp
  * - Tuyệt đối không tự ý gán bừa lopId = 1 khi chưa liên kết
  * - Học sinh không được phép truy cập trái phép lớp khác (chống IDOR)
- * - Giáo viên được phép truy cập lớp được phân quyền hoặc lớp chỉ định hợp lệ
+ * - School Admin được phép truy cập mọi lớp học đang hoạt động
+ * - GVCN thông thường CHỈ được phép truy cập đúng lớp được phân công phụ trách
+ * - Tuyệt đối KHÔNG tự ý fallback sang lớp hoạt động đầu tiên (no first-class fallback)
  * @param {object} env
  * @param {object} requestOrPhien
  * @param {number|string|null} requestedLopId
@@ -293,24 +302,54 @@ export async function requireVerifiedClassMembership(env, requestOrPhien, reques
 
   // Trường hợp 1: Giáo viên đã xác minh
   if (auth.isVerifiedTeacher) {
-    const targetLopId = reqLopId > 0 ? reqLopId : (auth.lopId || 1);
-    const lopRow = await db.prepare(
-      'SELECT id, ten FROM lop WHERE id = ?1 AND dang_hoat_dong = 1'
-    ).bind(targetLopId).first().catch(() => null);
+    // 1.1 Quản trị viên toàn trường (School Admin): được phép truy cập mọi lớp học đang hoạt động
+    if (auth.isSchoolAdmin) {
+      const targetLopId = reqLopId > 0 ? reqLopId : (auth.lopId || 1);
+      const lopRow = await db.prepare(
+        'SELECT id, ten FROM lop WHERE id = ?1 AND dang_hoat_dong = 1'
+      ).bind(targetLopId).first().catch(() => null);
 
-    if (!lopRow) {
-      // Nếu không tìm thấy target, thử lấy lớp hoạt động đầu tiên
-      const firstLop = await db.prepare(
-        'SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC LIMIT 1'
-      ).first().catch(() => null);
-      if (!firstLop) {
-        return { ok: false, status: 404, loi: 'Chưa có lớp học nào khả dụng.', code: 'no_class_available' };
+      if (!lopRow) {
+        return { ok: false, status: 404, loi: 'Lớp học không tồn tại hoặc đã ngưng hoạt động.', code: 'class_not_found' };
       }
       return {
         ok: true,
         ...auth,
-        lopId: firstLop.id,
-        tenLop: firstLop.ten,
+        lopId: lopRow.id,
+        tenLop: lopRow.ten,
+      };
+    }
+
+    // 1.2 Giáo viên chủ nhiệm thông thường (GVCN): CHỈ có quyền với đúng lớp được phân công
+    if (!auth.lopId) {
+      return {
+        ok: false,
+        status: 403,
+        loi: 'Tài khoản Giáo viên chưa được phân công lớp phụ trách.',
+        code: 'teacher_no_class_assigned',
+      };
+    }
+
+    const targetLopId = reqLopId > 0 ? reqLopId : auth.lopId;
+    if (targetLopId !== auth.lopId) {
+      return {
+        ok: false,
+        status: 403,
+        loi: 'Giáo viên chỉ được phép quản lý và truy cập lớp học được phân công phụ trách.',
+        code: 'class_forbidden',
+      };
+    }
+
+    const lopRow = await db.prepare(
+      'SELECT id, ten FROM lop WHERE id = ?1 AND dang_hoat_dong = 1'
+    ).bind(auth.lopId).first().catch(() => null);
+
+    if (!lopRow) {
+      return {
+        ok: false,
+        status: 404,
+        loi: 'Lớp học được phân công không tồn tại hoặc đã đóng.',
+        code: 'class_not_found',
       };
     }
 

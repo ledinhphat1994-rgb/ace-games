@@ -71,26 +71,30 @@ export function readCookie(request, name) {
 export const COOKIE_NAME = 'c10a7_session';
 
 // Khóa định danh phiên chuẩn tắc cho toàn hệ thống (Canonical Actor Key)
-// - Giáo viên: gv:<id/lopId/accountId>
-// - Học sinh danh sách: hs:<hocSinhId>
-// - Tài khoản Campus độc lập: acc:<accountId>
+// - Tài khoản Campus độc lập (bất kể vai trò student/teacher): acc:<accountId>
+// - Giáo viên phiên truyền thống (không có accountId): gv:<id> hoặc 'gv:legacy' (TUYỆT ĐỐI KHÔNG dùng lopId)
+// - Học sinh danh sách truyền thống: hs:<hocSinhId>
 // - Tài khoản phụ: phu:<phuId>
-// Tuyệt đối không trả về phu:0 cho tài khoản Campus hợp lệ.
+// Tuyệt đối không dùng lopId làm định danh cá nhân; không trả về phu:0 cho tài khoản hợp lệ.
 export function actorKey(phien) {
   if (!phien) return 'anon';
-  if (phien.role === 'teacher') {
-    return phien.id ? `gv:${phien.id}` : (phien.lopId ? `gv:${phien.lopId}` : (phien.accountId ? `gv:acc:${phien.accountId}` : 'gv:0'));
-  }
-  if (phien.hocSinhId) {
-    return `hs:${phien.hocSinhId}`;
-  }
+  // 1. Ưu tiên cao nhất: accountId định danh duy nhất cá nhân tài khoản Campus
   if (phien.accountId) {
     return `acc:${phien.accountId}`;
   }
+  // 2. Phiên giáo viên truyền thống (chưa có tài khoản Campus độc lập)
+  if (phien.role === 'teacher') {
+    return phien.id ? `gv:${phien.id}` : 'gv:legacy';
+  }
+  // 3. Phiên học sinh danh sách truyền thống
+  if (phien.hocSinhId) {
+    return `hs:${phien.hocSinhId}`;
+  }
+  // 4. Phiên tài khoản phụ
   if (phien.phuId || phien.taiKhoanPhuId) {
     return `phu:${phien.phuId || phien.taiKhoanPhuId}`;
   }
-  return 'phu:0';
+  return 'anon';
 }
 
 export const khoaPhien = actorKey;
