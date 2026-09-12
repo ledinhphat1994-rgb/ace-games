@@ -1,6 +1,6 @@
-// API Campus Chat — Trò chuyện toàn trường (Phase 4C)
+// API Campus Chat — Trò chuyện toàn trường (Phase 4C / 4C.1)
 import { json, loi } from '../_lib/api.js';
-import { kiemTraQuyenSocial, lamSachNoiDung } from '../_lib/social.js';
+import { kiemTraQuyenSocial, lamSachNoiDung, checkRateLimit } from '../_lib/social.js';
 
 export async function onRequestGet({ request, env }) {
   const auth = await kiemTraQuyenSocial(env, request);
@@ -85,23 +85,13 @@ export async function onRequestPost({ request, env }) {
     return loi('Nội dung tin nhắn tối đa 500 ký tự.', 400);
   }
 
+  // Rate limit: Tối thiểu 2 giây giữa các lần gửi (chống burst đồng thời và spam lặp lại)
+  const allowed = await checkRateLimit(env, `chat:${auth.accountId}`, 1, 2000);
+  if (!allowed) {
+    return json({ ok: false, loi: 'Bạn gửi tin nhắn quá nhanh. Vui lòng chờ 2 giây.', code: 'rate_limited' }, 429);
+  }
+
   const cleanContent = lamSachNoiDung(rawContent);
-
-  // Rate limit: tối thiểu 2 giây giữa các lần gửi
-  try {
-    const last = await db.prepare(
-      `SELECT created_at FROM campus_chat_message
-       WHERE sender_account_id = ?1
-       ORDER BY id DESC LIMIT 1`
-    ).bind(auth.accountId).first();
-
-    if (last && last.created_at) {
-      const diffMs = Date.now() - new Date(last.created_at + 'Z').getTime();
-      if (!isNaN(diffMs) && diffMs < 2000) {
-        return json({ ok: false, loi: 'Bạn gửi tin nhắn quá nhanh. Vui lòng chờ 2 giây.', code: 'rate_limited' }, 429);
-      }
-    }
-  } catch {}
 
   try {
     const res = await db.prepare(
@@ -158,19 +148,17 @@ export async function onRequestDelete({ request, env }) {
 
     // Nếu là người gửi (học sinh), chỉ cho thu hồi trong vòng 15 phút
     if (!isTeacher && isSender) {
-      const ageMs = Date.now() - new Date(msg.created_at + 'Z').getTime();
-      if (!isNaN(ageMs) && ageMs > 15 * 60 * 1000) {
-        return loi('Chỉ có thể thu hồi tin nhắn trong vòng 15 phút kể từ khi gửi.', 400);
+      const diffMin = (Date.now() - new Date(msg.created_at + 'Z').getTime()) / 60000;
+      if (!isNaN(diffMin) && diffMin > 15) {
+        return loi('Chỉ có thể thu hồi tin nhắn trong vòng 15 phút sau khi gửi.', 400);
       }
     }
 
-    await db.prepare(
-      'UPDATE campus_chat_message SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?1'
-    ).bind(id).run();
+    await db.prepare('UPDATE campus_chat_message SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?1').bind(id).run();
 
-    return json({ ok: true, message: 'Đã thu hồi tin nhắn thành công.' });
+    return json({ ok: true, message: 'Đã xóa tin nhắn thành công.' });
   } catch (e) {
     console.error('campus-chat DELETE error:', e);
-    return loi('Lỗi khi xóa tin nhắn.', 500);
+    return loi('Không thể xóa tin nhắn.', 500);
   }
 }

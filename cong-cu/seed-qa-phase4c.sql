@@ -1,3 +1,5 @@
+DELETE FROM campus_block WHERE blocker_account_id IN (91001, 91002, 91003) OR blocked_account_id IN (91001, 91002, 91003);
+DELETE FROM campus_report WHERE reporter_account_id IN (91001, 91002, 91003) OR target_account_id IN (91001, 91002, 91003);
 DELETE FROM campus_friendship WHERE requester_account_id IN (91001, 91002, 91003) OR addressee_account_id IN (91001, 91002, 91003);
 DELETE FROM campus_private_message WHERE sender_account_id IN (91001, 91002, 91003) OR receiver_account_id IN (91001, 91002, 91003);
 DELETE FROM tai_khoan_campus WHERE id IN (91001, 91002, 91003);

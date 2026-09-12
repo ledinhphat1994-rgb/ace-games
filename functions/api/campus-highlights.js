@@ -221,9 +221,10 @@ export async function onRequestGet({ request, env }) {
       ok: true,
       highlights: finalHighlights,
       topStreaks,
-      topStreak: topStreaks,
-      focusTongQuan,
-      focusSummary: { soNguoiHoc: focusTongQuan.soNguoi, tenPhong: focusTongQuan.tenPhong },
+      focusTongQuan: isSchoolMember ? focusTongQuan : { soNguoi: focusTongQuan.soNguoi },
+      focusSummary: isSchoolMember
+        ? { soNguoiHoc: focusTongQuan.soNguoi, tenPhong: focusTongQuan.tenPhong }
+        : { soNguoiHoc: focusTongQuan.soNguoi },
       gameDoiKhang,
       activeGameArena: { soBanChoi: gameDoiKhang.soBan, dangDau: gameDoiKhang.dangDau },
       trendingRooms: finalHighlights.filter(h => h.loai === 'focus' || h.loai === 'video'),

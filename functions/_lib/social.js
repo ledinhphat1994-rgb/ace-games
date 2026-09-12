@@ -1,6 +1,64 @@
-// Tiện ích xác thực quyền xã hội và định danh bạn bè cho Campus (Phase 4C)
+// Tiện ích xác thực quyền xã hội, định danh bạn bè và giới hạn tần suất cho Campus (Phase 4C / 4C.1)
 import { layPhien } from './api.js';
 
+// Cache trượt trong bộ nhớ để chặn burst tức thời (100% không lo race condition tại cùng instance)
+const memoryRateLimits = new Map();
+
+/**
+ * Kiểm tra giới hạn tần suất request (Rate Limiter)
+ * @param {object} env - Môi trường Cloudflare (chứa RATE_LIMIT KV nếu có)
+ * @param {string} key - Định danh hành động + tài khoản (ví dụ: 'chat:123', 'search:123')
+ * @param {number} maxRequests - Số request tối đa cho phép trong cửa sổ
+ * @param {number} windowMs - Kích thước cửa sổ tính theo mili-giây
+ * @returns {Promise<boolean>} true nếu hợp lệ (chưa vượt), false nếu đã chạm ngưỡng (429)
+ */
+export async function checkRateLimit(env, key, maxRequests, windowMs) {
+  const now = Date.now();
+
+  // 1. Kiểm tra bộ nhớ cục bộ (sliding window)
+  const timestamps = memoryRateLimits.get(key) || [];
+  const validTimestamps = timestamps.filter((t) => now - t < windowMs);
+
+  if (validTimestamps.length >= maxRequests) {
+    return false; // Quá tần suất
+  }
+
+  validTimestamps.push(now);
+  memoryRateLimits.set(key, validTimestamps);
+
+  // Dọn dẹp định kỳ tránh rò rỉ bộ nhớ
+  if (memoryRateLimits.size > 2000) {
+    for (const [k, ts] of memoryRateLimits.entries()) {
+      if (ts.length === 0 || now - ts[ts.length - 1] > 300000) {
+        memoryRateLimits.delete(k);
+      }
+    }
+  }
+
+  // 2. Kiểm tra KV nếu có cấu hình env.RATE_LIMIT
+  if (env?.RATE_LIMIT) {
+    try {
+      const kvKey = `rl:${key}`;
+      const count = parseInt((await env.RATE_LIMIT.get(kvKey)) || '0', 10);
+      if (count >= maxRequests) {
+        return false;
+      }
+      await env.RATE_LIMIT.put(kvKey, String(count + 1), {
+        expirationTtl: Math.max(Math.ceil(windowMs / 1000), 60),
+      });
+    } catch {}
+  }
+
+  return true;
+}
+
+/**
+ * Xác thực quyền truy cập mạng xã hội Campus (READ-ONLY, tuyệt đối KHÔNG có write side-effect)
+ * - Kiểm tra phiên đăng nhập
+ * - Kiểm tra ranh giới học sinh đã link hoặc giáo viên xác minh
+ * - Đọc trực tiếp từ CSDL để đảm bảo tài khoản còn hoạt động (dang_hoat_dong = 1)
+ * - Tuyệt đối không tự động tạo tài khoản ngầm hay gán bừa tài khoản giáo viên theo lop_id
+ */
 export async function kiemTraQuyenSocial(env, requestOrPhien) {
   let phien = requestOrPhien;
   if (requestOrPhien && typeof requestOrPhien.headers === 'object') {
@@ -16,10 +74,10 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     };
   }
 
-  const isVerifiedTeacher = Boolean(phien.role === 'teacher' && !phien.teacherPending);
-  const isLinkedStudent = Boolean(phien.hocSinhId && phien.lopId);
+  const isVerifiedTeacherClaim = Boolean(phien.role === 'teacher' && !phien.teacherPending);
+  const isLinkedStudentClaim = Boolean(phien.hocSinhId && phien.lopId);
 
-  if (!isVerifiedTeacher && !isLinkedStudent) {
+  if (!isVerifiedTeacherClaim && !isLinkedStudentClaim) {
     return {
       ok: false,
       status: 403,
@@ -33,92 +91,98 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     return { ok: false, status: 500, loi: 'Chưa gắn cơ sở dữ liệu D1.' };
   }
 
-  let accountId = phien.accountId ? Number(phien.accountId) : null;
-  let displayName = phien.ten || '';
-  let lopTen = '';
+  let accountRecord = null;
 
-  // Lấy tên lớp nếu có
-  if (phien.lopId) {
+  // 1. Nếu phiên có sẵn accountId rõ ràng
+  if (phien.accountId) {
     try {
-      const l = await db.prepare('SELECT ten FROM lop WHERE id = ?1').bind(phien.lopId).first();
+      accountRecord = await db.prepare(`
+        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id
+        FROM tai_khoan_campus
+        WHERE id = ?1
+      `).bind(Number(phien.accountId)).first();
+    } catch (e) {
+      console.error('Lỗi truy vấn tài khoản theo accountId:', e);
+    }
+  }
+
+  // 2. Nếu phiên học sinh cũ chưa có accountId, thử ánh xạ theo hoc_sinh_id ĐÃ TỒN TẠI
+  if (!accountRecord && phien.hocSinhId) {
+    try {
+      accountRecord = await db.prepare(`
+        SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, teacher_pending, dang_hoat_dong, hoc_sinh_id, lop_id
+        FROM tai_khoan_campus
+        WHERE hoc_sinh_id = ?1
+        LIMIT 1
+      `).bind(Number(phien.hocSinhId)).first();
+    } catch (e) {
+      console.error('Lỗi truy vấn tài khoản theo hocSinhId:', e);
+    }
+  }
+
+  // 3. Nếu vẫn không tìm thấy tài khoản hợp lệ:
+  // TUYỆT ĐỐI KHÔNG INSERT VÀO DB ĐỂ TRÁNH SIDE-EFFECT TRONG QUÁ TRÌNH AUTH
+  if (!accountRecord) {
+    return {
+      ok: false,
+      status: 403,
+      loi: 'Cần có tài khoản Campus hợp lệ để sử dụng tính năng này.',
+      code: 'account_required',
+    };
+  }
+
+  // 4. Kiểm tra trạng thái hoạt động thực tế (Chống thu hồi quyền trễ hạn cookie)
+  if (accountRecord.dang_hoat_dong === 0 || accountRecord.dang_hoat_dong === false) {
+    return {
+      ok: false,
+      status: 403,
+      loi: 'Tài khoản đã bị tạm khóa.',
+      code: 'account_deactivated',
+    };
+  }
+
+  // 5. Kiểm tra quyền Giáo viên thực tế (Nếu cookie xưng là teacher nhưng DB đã hạ quyền hoặc đang pending)
+  const isRealTeacher = Boolean(accountRecord.vai_tro === 'teacher' && accountRecord.teacher_pending === 0);
+  if (phien.role === 'teacher' && !isRealTeacher) {
+    return {
+      ok: false,
+      status: 403,
+      loi: 'Quyền Giáo viên chưa được phê duyệt hoặc đã bị thu hồi.',
+      code: 'teacher_unverified',
+    };
+  }
+
+  // 6. Lấy thông tin lớp
+  let lopTen = '';
+  const lopId = accountRecord.lop_id || phien.lopId;
+  if (lopId) {
+    try {
+      const l = await db.prepare('SELECT ten FROM lop WHERE id = ?1').bind(lopId).first();
       if (l?.ten) lopTen = l.ten;
     } catch {}
   }
 
-  // Đảm bảo có accountId chuẩn tắc từ tai_khoan_campus
-  if (!accountId) {
-    if (phien.hocSinhId) {
-      try {
-        const tk = await db.prepare(
-          'SELECT id, ten_hien_thi FROM tai_khoan_campus WHERE hoc_sinh_id = ?1 LIMIT 1'
-        ).bind(phien.hocSinhId).first();
-        if (tk) {
-          accountId = tk.id;
-          if (!displayName) displayName = tk.ten_hien_thi;
-        } else {
-          // Tạo bản ghi tương thích cho học sinh phiên cũ
-          const tenDn = `hs_${phien.hocSinhId}_${Date.now().toString(36)}`;
-          const tenHt = displayName || `Học sinh ${phien.hocSinhId}`;
-          const res = await db.prepare(
-            `INSERT INTO tai_khoan_campus (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, vai_tro, hoc_sinh_id, lop_id)
-             VALUES (?1, ?2, 'legacy', 'legacy', 'student', ?3, ?4)`
-          ).bind(tenDn, tenHt, phien.hocSinhId, phien.lopId).run();
-          accountId = res.meta?.last_row_id || null;
-        }
-      } catch (e) {
-        console.error('Lỗi định danh tài khoản học sinh:', e);
-      }
-    } else if (isVerifiedTeacher) {
-      try {
-        const tk = await db.prepare(
-          "SELECT id, ten_hien_thi FROM tai_khoan_campus WHERE vai_tro = 'teacher' AND (lop_id = ?1 OR id = ?1) LIMIT 1"
-        ).bind(phien.lopId || 1).first();
-        if (tk) {
-          accountId = tk.id;
-          if (!displayName) displayName = tk.ten_hien_thi;
-        } else {
-          const tenDn = `gv_lop_${phien.lopId || 1}`;
-          const tenHt = displayName || 'Giáo viên';
-          const res = await db.prepare(
-            `INSERT INTO tai_khoan_campus (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, vai_tro, teacher_pending, lop_id)
-             VALUES (?1, ?2, 'legacy', 'legacy', 'teacher', 0, ?3)`
-          ).bind(tenDn, tenHt, phien.lopId || 1).run();
-          accountId = res.meta?.last_row_id || null;
-        }
-      } catch (e) {
-        console.error('Lỗi định danh tài khoản giáo viên:', e);
-      }
-    }
-  }
-
-  if (!accountId) {
-    return {
-      ok: false,
-      status: 403,
-      loi: 'Không xác định được danh tính tài khoản hợp lệ.',
-      code: 'invalid_account',
-    };
-  }
-
   return {
     ok: true,
-    accountId,
-    displayName: displayName || 'Thành viên',
-    role: isVerifiedTeacher ? 'teacher' : 'student',
+    accountId: accountRecord.id,
+    username: accountRecord.ten_dang_nhap,
+    displayName: accountRecord.ten_hien_thi || phien.ten || 'Thành viên',
+    role: isRealTeacher ? 'teacher' : 'student',
     classBadge: lopTen,
-    lopId: phien.lopId || null,
-    isVerifiedTeacher,
-    isLinkedStudent,
+    lopId,
+    isVerifiedTeacher: isRealTeacher,
+    isLinkedStudent: Boolean(accountRecord.hoc_sinh_id && lopId),
   };
 }
 
-export function lamSachNoiDung(raw) {
+/**
+ * Làm sạch nội dung tin nhắn văn bản (Plain UTF-8, loại bỏ control chars, giữ nguyên < > & cho React render an toàn)
+ * @param {string} raw
+ * @returns {string}
+ */
+export function lamSachNoiDung(raw = '', maxLength = 500) {
   if (typeof raw !== 'string') return '';
-  return raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-    .trim();
+  // eslint-disable-next-line no-control-regex
+  const stripped = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  return stripped.slice(0, maxLength);
 }

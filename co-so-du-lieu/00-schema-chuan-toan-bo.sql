@@ -556,21 +556,26 @@ CREATE TABLE IF NOT EXISTS campus_chat_message (
 CREATE INDEX IF NOT EXISTS idx_ccm_id ON campus_chat_message(id);
 CREATE INDEX IF NOT EXISTS idx_ccm_active ON campus_chat_message(deleted_at, id);
 
--- 35. QUAN HỆ BẠN BÈ CAMPUS (CAMPUS FRIENDSHIP - PHASE 4C)
+-- 35. QUAN HỆ BẠN BÈ CAMPUS (CAMPUS FRIENDSHIP - PHASE 4C / 4C.1)
 CREATE TABLE IF NOT EXISTS campus_friendship (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   requester_account_id    INTEGER NOT NULL,
   addressee_account_id    INTEGER NOT NULL,
-  status                  TEXT NOT NULL CHECK(status IN ('pending', 'accepted', 'declined', 'blocked')),
+  pair_low                INTEGER NOT NULL,
+  pair_high               INTEGER NOT NULL,
+  status                  TEXT NOT NULL CHECK(status IN ('pending', 'accepted', 'declined')),
   action_by_account_id    INTEGER,
   created_at              TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at              TEXT DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT uq_cf_pair UNIQUE(requester_account_id, addressee_account_id),
-  CONSTRAINT chk_cf_diff CHECK(requester_account_id != addressee_account_id)
+  CONSTRAINT chk_cf_diff CHECK(requester_account_id != addressee_account_id),
+  CONSTRAINT chk_cf_order CHECK(pair_low < pair_high)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uq_cf_unordered_pair ON campus_friendship(pair_low, pair_high);
 CREATE INDEX IF NOT EXISTS idx_cf_req ON campus_friendship(requester_account_id, status);
 CREATE INDEX IF NOT EXISTS idx_cf_add ON campus_friendship(addressee_account_id, status);
 CREATE INDEX IF NOT EXISTS idx_cf_lookup ON campus_friendship(requester_account_id, addressee_account_id);
+CREATE INDEX IF NOT EXISTS idx_cf_pair_lookup ON campus_friendship(pair_low, pair_high, status);
 
 -- 36. TIN NHẮN RIÊNG 1-1 (CAMPUS PRIVATE MESSAGING / DM - PHASE 4C)
 CREATE TABLE IF NOT EXISTS campus_private_message (
@@ -585,7 +590,7 @@ CREATE TABLE IF NOT EXISTS campus_private_message (
 CREATE INDEX IF NOT EXISTS idx_cpm_convo ON campus_private_message(sender_account_id, receiver_account_id, id);
 CREATE INDEX IF NOT EXISTS idx_cpm_recv ON campus_private_message(receiver_account_id, sender_account_id, id);
 
--- 37. BÁO CÁO VI PHẠM AN TOÀN (CAMPUS REPORT - PHASE 4C)
+-- 37. BÁO CÁO VI PHẠM AN TOÀN (CAMPUS REPORT - PHASE 4C / 4C.1)
 CREATE TABLE IF NOT EXISTS campus_report (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   reporter_account_id     INTEGER NOT NULL,
@@ -593,7 +598,22 @@ CREATE TABLE IF NOT EXISTS campus_report (
   message_id              INTEGER,
   reason                  TEXT NOT NULL,
   status                  TEXT NOT NULL DEFAULT 'pending',
+  action_note             TEXT,
+  resolved_by_account_id  INTEGER,
+  resolved_at             TEXT,
   created_at              TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_cr_target ON campus_report(target_account_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_cr_status ON campus_report(status, created_at);
 
+-- 38. CHẶN NGƯỜI DÙNG CHIỀU HƯỚNG (CAMPUS BLOCK - PHASE 4C.1)
+CREATE TABLE IF NOT EXISTS campus_block (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  blocker_account_id      INTEGER NOT NULL,
+  blocked_account_id      INTEGER NOT NULL,
+  created_at              TEXT DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_cb_pair UNIQUE(blocker_account_id, blocked_account_id),
+  CONSTRAINT chk_cb_diff CHECK(blocker_account_id != blocked_account_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cb_lookup ON campus_block(blocker_account_id, blocked_account_id);
+CREATE INDEX IF NOT EXISTS idx_cb_blocked ON campus_block(blocked_account_id);

@@ -1,6 +1,6 @@
-// API Tin nhắn riêng 1-1 Campus (Phase 4C — Private Messaging / DM)
+// API Tin nhắn riêng 1-1 Campus (Phase 4C / 4C.1 — Private Messaging / DM Hardening)
 import { json, loi } from '../_lib/api.js';
-import { kiemTraQuyenSocial, lamSachNoiDung } from '../_lib/social.js';
+import { kiemTraQuyenSocial, lamSachNoiDung, checkRateLimit } from '../_lib/social.js';
 
 export async function onRequestGet({ request, env }) {
   const auth = await kiemTraQuyenSocial(env, request);
@@ -20,15 +20,28 @@ export async function onRequestGet({ request, env }) {
   }
 
   try {
-    // 1. Kiểm tra quan hệ bạn bè hợp lệ (phải là accepted)
+    // 1. Kiểm tra chặn 2 chiều
+    const isBlocked = await db.prepare(`
+      SELECT 1 FROM campus_block
+      WHERE (blocker_account_id = ?1 AND blocked_account_id = ?2)
+         OR (blocker_account_id = ?2 AND blocked_account_id = ?1)
+      LIMIT 1
+    `).bind(myId, friendAccountId).first();
+
+    if (isBlocked) {
+      return json({ ok: false, loi: 'Không thể xem cuộc trò chuyện vì người dùng đã bị chặn.', code: 'blocked' }, 403);
+    }
+
+    // 2. Kiểm tra quan hệ bạn bè hợp lệ (pair_low, pair_high và status = 'accepted')
+    const pairLow = Math.min(myId, friendAccountId);
+    const pairHigh = Math.max(myId, friendAccountId);
+
     const friendship = await db.prepare(`
       SELECT id, status
       FROM campus_friendship
-      WHERE ((requester_account_id = ?1 AND addressee_account_id = ?2)
-         OR (requester_account_id = ?2 AND addressee_account_id = ?1))
-        AND status = 'accepted'
+      WHERE pair_low = ?1 AND pair_high = ?2 AND status = 'accepted'
       LIMIT 1
-    `).bind(myId, friendAccountId).first();
+    `).bind(pairLow, pairHigh).first();
 
     if (!friendship) {
       return json({
@@ -38,7 +51,7 @@ export async function onRequestGet({ request, env }) {
       }, 403);
     }
 
-    // 2. Lấy thông tin cơ bản của bạn bè
+    // 3. Lấy thông tin cơ bản của bạn bè
     const friendInfo = await db.prepare(`
       SELECT tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName,
              tk.vai_tro AS role, l.ten AS classBadge
@@ -47,7 +60,7 @@ export async function onRequestGet({ request, env }) {
       WHERE tk.id = ?1
     `).bind(friendAccountId).first();
 
-    // 3. Tải tin nhắn
+    // 4. Tải tin nhắn
     let query = '';
     let params = [];
     if (sauId > 0) {
@@ -118,7 +131,7 @@ export async function onRequestPost({ request, env }) {
     return loi('Dữ liệu yêu cầu không hợp lệ.', 400);
   }
 
-  // --- SUB-ACTION: BÁO CÁO VI PHẠM (REPORT) ---
+  // --- SUB-ACTION: BÁO CÁO VI PHẠM (REPORT VALIDATION & RATE LIMIT) ---
   const url = new URL(request.url);
   if (body.action === 'report' || url.searchParams.get('action') === 'report') {
     const targetAccountId = Number(body.targetAccountId);
@@ -128,11 +141,52 @@ export async function onRequestPost({ request, env }) {
     if (!targetAccountId || !reason) {
       return loi('Thiếu thông tin người bị báo cáo hoặc lý do.', 400);
     }
+    if (targetAccountId === myId) {
+      return loi('Không thể tự báo cáo chính mình.', 400);
+    }
 
     try {
+      // 1. Kiểm tra đối tượng bị báo cáo có tồn tại không
+      const targetAcc = await db.prepare(
+        'SELECT id, dang_hoat_dong FROM tai_khoan_campus WHERE id = ?1'
+      ).bind(targetAccountId).first();
+
+      if (!targetAcc) {
+        return loi('Tài khoản bị báo cáo không tồn tại.', 404);
+      }
+
+      // 2. Nếu có đính kèm messageId, phải xác thực quyền sở hữu và bối cảnh tin nhắn
+      if (messageId) {
+        const msg = await db.prepare(`
+          SELECT id, sender_account_id AS senderId, receiver_account_id AS receiverId, content
+          FROM campus_private_message
+          WHERE id = ?1
+        `).bind(messageId).first();
+
+        if (!msg) {
+          return loi('Không tìm thấy tin nhắn cần báo cáo.', 404);
+        }
+
+        const isParticipant = Number(msg.senderId) === myId || Number(msg.receiverId) === myId;
+        if (!isParticipant) {
+          return loi('Bạn không thuộc cuộc trò chuyện của tin nhắn này.', 403);
+        }
+
+        // Đối tượng bị báo cáo PHẢI là người gửi của tin nhắn này
+        if (Number(msg.senderId) !== targetAccountId || Number(msg.receiverId) !== myId) {
+          return loi('Tin nhắn báo cáo không khớp với người bị báo cáo.', 403);
+        }
+      }
+
+      // Rate limit: Tối đa 20 báo cáo / 5 phút / tài khoản
+      const allowedReport = await checkRateLimit(env, `report:${myId}`, 20, 300000);
+      if (!allowedReport) {
+        return json({ ok: false, loi: 'Bạn gửi báo cáo quá nhiều lần. Vui lòng chờ 5 phút.', code: 'rate_limited' }, 429);
+      }
+
       await db.prepare(`
-        INSERT INTO campus_report (reporter_account_id, target_account_id, message_id, reason)
-        VALUES (?1, ?2, ?3, ?4)
+        INSERT INTO campus_report (reporter_account_id, target_account_id, message_id, reason, status)
+        VALUES (?1, ?2, ?3, ?4, 'pending')
       `).bind(myId, targetAccountId, messageId, reason.slice(0, 500)).run();
 
       return json({ ok: true, message: 'Đã gửi báo cáo cho giáo viên xem xét.' });
@@ -142,7 +196,7 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // --- GỬI TIN NHẮN RIÊNG ---
+  // --- GỬI TIN NHẮN RIÊNG (DM SENDING) ---
   const receiverAccountId = Number(body.receiverAccountId || body.toAccountId);
   if (!receiverAccountId || receiverAccountId === myId) {
     return loi('Người nhận tin nhắn không hợp lệ.', 400);
@@ -157,16 +211,30 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
-    // 1. Kiểm tra quan hệ bạn bè hợp lệ
-    const friendship = await db.prepare(`
-      SELECT id, status
-      FROM campus_friendship
-      WHERE ((requester_account_id = ?1 AND addressee_account_id = ?2)
-         OR (requester_account_id = ?2 AND addressee_account_id = ?1))
+    // 1. Kiểm tra chặn 2 chiều (Block check phải được ưu tiên hàng đầu)
+    const isBlocked = await db.prepare(`
+      SELECT 1 FROM campus_block
+      WHERE (blocker_account_id = ?1 AND blocked_account_id = ?2)
+         OR (blocker_account_id = ?2 AND blocked_account_id = ?1)
       LIMIT 1
     `).bind(myId, receiverAccountId).first();
 
-    if (!friendship || friendship.status !== 'accepted') {
+    if (isBlocked) {
+      return json({ ok: false, loi: 'Không thể gửi tin nhắn vì người dùng đã bị chặn.', code: 'blocked' }, 403);
+    }
+
+    // 2. Kiểm tra quan hệ bạn bè hợp lệ theo unordered pair
+    const pairLow = Math.min(myId, receiverAccountId);
+    const pairHigh = Math.max(myId, receiverAccountId);
+
+    const friendship = await db.prepare(`
+      SELECT id, status
+      FROM campus_friendship
+      WHERE pair_low = ?1 AND pair_high = ?2 AND status = 'accepted'
+      LIMIT 1
+    `).bind(pairLow, pairHigh).first();
+
+    if (!friendship) {
       return json({
         ok: false,
         loi: 'Chỉ có thể nhắn tin với bạn bè đã chấp nhận kết nối.',
@@ -174,18 +242,10 @@ export async function onRequestPost({ request, env }) {
       }, 403);
     }
 
-    // 2. Rate limit: 1s giữa các tin nhắn riêng
-    const last = await db.prepare(`
-      SELECT created_at FROM campus_private_message
-      WHERE sender_account_id = ?1
-      ORDER BY id DESC LIMIT 1
-    `).bind(myId).first();
-
-    if (last && last.created_at) {
-      const diffMs = Date.now() - new Date(last.created_at + 'Z').getTime();
-      if (!isNaN(diffMs) && diffMs < 1000) {
-        return json({ ok: false, loi: 'Bạn gửi tin nhắn quá nhanh. Vui lòng chậm lại 1 giây.', code: 'rate_limited' }, 429);
-      }
+    // 3. Rate limit: Tối thiểu 1 giây giữa các lần gửi DM (chống burst)
+    const allowed = await checkRateLimit(env, `dm:${myId}`, 1, 1000);
+    if (!allowed) {
+      return json({ ok: false, loi: 'Bạn gửi tin nhắn quá nhanh. Vui lòng chậm lại 1 giây.', code: 'rate_limited' }, 429);
     }
 
     const cleanContent = lamSachNoiDung(rawContent);

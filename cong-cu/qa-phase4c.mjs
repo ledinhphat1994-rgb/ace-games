@@ -166,6 +166,7 @@ const studentACookie = await taoSessionCookie({ accountId: uidA, hocSinhId: 35, 
 const studentBCookie = await taoSessionCookie({ accountId: uidB, hocSinhId: 36, lopId: 1, role: 'student', ten: 'Trần Thị B', username: 'qa4c_hsb' });
 
 // 3.4 Học sinh gửi tin nhắn Campus Chat
+await new Promise(r => setTimeout(r, 2100));
 const msgContentA = `Xin chào Campus từ Học sinh A ${Date.now()}`;
 const rPostA = await api('/api/campus-chat', {
   method: 'POST',
@@ -218,7 +219,7 @@ ok('Không thể gửi lời mời kết bạn cho chính mình (400)', rSelfFri
 // 4.2 Tìm kiếm bạn bè
 const rSearch = await api('/api/campus-friends', {
   method: 'POST',
-  body: { action: 'search', query: 'Trần Thị' },
+  body: { action: 'search', query: 'qa4c_hsb' },
   cookie: studentACookie
 });
 ok('Tìm kiếm bạn bè thành công', rSearch.status === 200 && Array.isArray(rSearch.data.list), 'friends');

@@ -1937,8 +1937,8 @@ function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVaoSuKien 
   );
 }
 
-// ─── CAMPUS CHAT & PRIVATE MESSAGING RAIL (PHASE 4C) ─────────────────────────
-function CampusChatRail({ auth, onRequireAuth, className = '' }) {
+// ─── CAMPUS CHAT & PRIVATE MESSAGING RAIL (PHASE 4C.1 HARDENED) ──────────────
+function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }) {
   const [tab, setTab] = React.useState('campus'); // 'campus' | 'dm'
   const [campusMessages, setCampusMessages] = React.useState([]);
   const [campusInput, setCampusInput] = React.useState('');
@@ -1959,12 +1959,27 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
   const [searchLoading, setSearchLoading] = React.useState(false);
   const [actionFeedback, setActionFeedback] = React.useState('');
 
-  const [reportModal, setReportModal] = React.useState(null); // { targetId, targetName }
+  const [reportModal, setReportModal] = React.useState(null); // { targetId, targetName, messageId?, messageContent? }
   const [reportReason, setReportReason] = React.useState('');
   const [reporting, setReporting] = React.useState(false);
 
   const campusEndRef = React.useRef(null);
   const dmEndRef = React.useRef(null);
+
+  // Stable refs for incremental polling cursor without effect restart
+  const lastCampusMessageIdRef = React.useRef(0);
+  const lastDmMessageIdRef = React.useRef(0);
+  const tabRef = React.useRef(tab);
+  const activeFriendRef = React.useRef(activeFriend);
+
+  React.useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
+
+  React.useEffect(() => {
+    activeFriendRef.current = activeFriend;
+    lastDmMessageIdRef.current = 0;
+  }, [activeFriend]);
 
   const isVerifiedSchoolMember = Boolean(
     auth?.user?.isVerifiedTeacher ||
@@ -1973,7 +1988,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
     (auth?.user?.role === 'student' && auth?.user?.hocSinhId)
   );
 
-  // 1. Tải Campus Chat
+  // 1. Tải Campus Chat incremental
   const taiCampusChat = React.useCallback(async (sauId = 0) => {
     if (!isVerifiedSchoolMember) return;
     try {
@@ -1986,11 +2001,17 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
             setCampusMessages(prev => {
               const existingIds = new Set(prev.map(m => m.id));
               const newOnes = data.messages.filter(m => !existingIds.has(m.id));
-              return [...prev, ...newOnes];
+              if (newOnes.length === 0) return prev;
+              const next = [...prev, ...newOnes];
+              lastCampusMessageIdRef.current = Math.max(...next.map(m => m.id || 0));
+              return next;
             });
           }
         } else {
           setCampusMessages(data.messages);
+          if (data.messages.length > 0) {
+            lastCampusMessageIdRef.current = Math.max(...data.messages.map(m => m.id || 0));
+          }
         }
       }
     } catch {}
@@ -2009,7 +2030,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
     } catch {}
   }, [isVerifiedSchoolMember]);
 
-  // 3. Tải tin nhắn DM
+  // 3. Tải tin nhắn DM incremental
   const taiDmMessages = React.useCallback(async (friendId, sauId = 0) => {
     if (!friendId || !isVerifiedSchoolMember) return;
     try {
@@ -2024,31 +2045,46 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
             setDmMessages(prev => {
               const existingIds = new Set(prev.map(m => m.id));
               const newOnes = data.messages.filter(m => !existingIds.has(m.id));
-              return [...prev, ...newOnes];
+              if (newOnes.length === 0) return prev;
+              const next = [...prev, ...newOnes];
+              lastDmMessageIdRef.current = Math.max(...next.map(m => m.id || 0));
+              return next;
             });
           }
         } else {
           setDmMessages(data.messages);
+          if (data.messages.length > 0) {
+            lastDmMessageIdRef.current = Math.max(...data.messages.map(m => m.id || 0));
+          }
         }
       }
     } catch {}
   }, [isVerifiedSchoolMember]);
 
-  // Bounded Polling (4s) khi tab visible
+  // Bounded Polling (4s) — Stable Interval, zero message-length thrash, scoped to active tab
   React.useEffect(() => {
-    if (!isVerifiedSchoolMember) return;
-    taiCampusChat();
-    taiFriends();
+    if (!isVerifiedSchoolMember || !isActive) return;
+
+    if (tab === 'campus') {
+      taiCampusChat(0);
+    } else if (tab === 'dm') {
+      if (activeFriend) {
+        taiDmMessages(activeFriend.accountId, 0);
+      } else {
+        taiFriends();
+      }
+    }
 
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      if (tab === 'campus') {
-        const lastId = campusMessages.length > 0 ? campusMessages[campusMessages.length - 1].id : 0;
-        taiCampusChat(lastId);
-      } else if (tab === 'dm') {
-        if (activeFriend) {
-          const lastId = dmMessages.length > 0 ? dmMessages[dmMessages.length - 1].id : 0;
-          taiDmMessages(activeFriend.accountId, lastId);
+      const currentTab = tabRef.current;
+      const currentFriend = activeFriendRef.current;
+
+      if (currentTab === 'campus') {
+        taiCampusChat(lastCampusMessageIdRef.current);
+      } else if (currentTab === 'dm') {
+        if (currentFriend) {
+          taiDmMessages(currentFriend.accountId, lastDmMessageIdRef.current);
         } else {
           taiFriends();
         }
@@ -2056,7 +2092,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [isVerifiedSchoolMember, tab, activeFriend, campusMessages.length, dmMessages.length, taiCampusChat, taiFriends, taiDmMessages]);
+  }, [isVerifiedSchoolMember, isActive, tab, activeFriend?.accountId, taiCampusChat, taiFriends, taiDmMessages]);
 
   // Auto scroll
   React.useEffect(() => {
@@ -2087,7 +2123,11 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
       const data = await res.json();
       if (data.ok && data.message) {
         setCampusInput('');
-        setCampusMessages(prev => [...prev, data.message]);
+        setCampusMessages(prev => {
+          const next = [...prev, data.message];
+          lastCampusMessageIdRef.current = Math.max(lastCampusMessageIdRef.current, data.message.id || 0);
+          return next;
+        });
       } else {
         setCampusNotice(data.loi || 'Không gửi được tin nhắn.');
       }
@@ -2130,7 +2170,11 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
       const data = await res.json();
       if (data.ok && data.message) {
         setDmInput('');
-        setDmMessages(prev => [...prev, data.message]);
+        setDmMessages(prev => {
+          const next = [...prev, data.message];
+          lastDmMessageIdRef.current = Math.max(lastDmMessageIdRef.current, data.message.id || 0);
+          return next;
+        });
       } else {
         setDmNotice(data.loi || 'Không thể gửi tin nhắn.');
       }
@@ -2141,10 +2185,11 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
     }
   };
 
-  // Tìm bạn bè
+  // Tìm bạn bè (Tối thiểu 4 ký tự tên đăng nhập để bảo mật danh bạ)
   const handleSearchFriends = async (val) => {
     setSearchQuery(val);
-    if (val.trim().length < 2) {
+    const trimmed = val.trim();
+    if (trimmed.length < 4) {
       setSearchResults([]);
       return;
     }
@@ -2153,14 +2198,17 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
       const res = await fetch('/api/campus-friends', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'search', query: val.trim() })
+        body: JSON.stringify({ action: 'search', query: trimmed })
       });
       const data = await res.json();
       if (data.ok) {
         setSearchResults(data.list || []);
+      } else {
+        setSearchResults([]);
       }
-    } catch {}
-    finally {
+    } catch {
+      setSearchResults([]);
+    } finally {
       setSearchLoading(false);
     }
   };
@@ -2215,6 +2263,8 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
       const data = await res.json();
       if (data.ok) {
         taiFriends();
+      } else {
+        alert(data.loi || 'Lỗi khi từ chối.');
       }
     } catch {}
   };
@@ -2238,7 +2288,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
 
   // Chặn người dùng
   const handleBlock = async (targetId) => {
-    if (!confirm('Bạn có chắc muốn chặn người này? Họ sẽ không thể gửi tin nhắn cho bạn.')) return;
+    if (!confirm('Bạn có chắc muốn chặn người này? Cả hai bên sẽ không thể nhắn tin hoặc gửi lời mời kết bạn.')) return;
     try {
       const res = await fetch('/api/campus-friends', {
         method: 'POST',
@@ -2254,20 +2304,24 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
     } catch {}
   };
 
-  // Gửi báo cáo
+  // Gửi báo cáo vi phạm
   const handleSubmitReport = async (e) => {
     e?.preventDefault();
     if (!reportReason.trim() || !reportModal?.targetId || reporting) return;
     setReporting(true);
     try {
+      const payload = {
+        action: 'report',
+        targetAccountId: reportModal.targetId,
+        reason: reportReason.trim()
+      };
+      if (reportModal.messageId) {
+        payload.messageId = reportModal.messageId;
+      }
       const res = await fetch('/api/campus-dm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'report',
-          targetAccountId: reportModal.targetId,
-          reason: reportReason.trim()
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.ok) {
@@ -2482,7 +2536,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
                 {/* Convo Safety Actions */}
                 <div className="flex items-center gap-1">
                   <button type="button" onClick={() => setReportModal({ targetId: activeFriend.accountId, targetName: activeFriend.displayName })}
-                    className="px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-amber-300 hover:bg-white/5 transition-all" title="Báo cáo vi phạm">
+                    className="px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-amber-300 hover:bg-white/5 transition-all" title="Báo cáo người dùng này">
                     Báo cáo
                   </button>
                   <button type="button" onClick={() => handleBlock(activeFriend.accountId)}
@@ -2504,9 +2558,21 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
                   </div>
                 ) : (
                   dmMessages.map(msg => (
-                    <div key={msg.id} className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
-                      <div className={`px-2.5 py-1.5 rounded-xl max-w-[85%] break-words text-xs leading-relaxed ${msg.isMe ? 'bg-[#00F2FE]/20 text-white border border-[#00F2FE]/40 rounded-tr-none' : 'bg-[#0B0E14] text-slate-200 border border-white/10 rounded-tl-none'}`}>
-                        {msg.content}
+                    <div key={msg.id} className={`group flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center gap-1">
+                        <div className={`px-2.5 py-1.5 rounded-xl max-w-[85%] break-words text-xs leading-relaxed ${msg.isMe ? 'bg-[#00F2FE]/20 text-white border border-[#00F2FE]/40 rounded-tr-none' : 'bg-[#0B0E14] text-slate-200 border border-white/10 rounded-tl-none'}`}>
+                          {msg.content}
+                        </div>
+                        {!msg.isMe && (
+                          <button
+                            type="button"
+                            onClick={() => setReportModal({ targetId: activeFriend.accountId, targetName: activeFriend.displayName, messageId: msg.id, messageContent: msg.content })}
+                            className="opacity-0 group-hover:opacity-100 text-[10px] text-slate-400 hover:text-amber-300 transition-opacity p-0.5"
+                            title="Báo cáo tin nhắn này"
+                          >
+                            🚩
+                          </button>
+                        )}
                       </div>
                       <span className="text-[8px] text-slate-400 mt-0.5 px-1">
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -2562,12 +2628,12 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
             <div>
               <input
                 type="text"
-                placeholder="Nhập tên đăng nhập hoặc tên học sinh..."
+                placeholder="Nhập tên đăng nhập (tối thiểu 4 ký tự)..."
                 value={searchQuery}
                 onChange={e => handleSearchFriends(e.target.value)}
                 className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]"
               />
-              <p className="text-[10px] text-slate-400 mt-1">Gõ tối thiểu 2 ký tự để tìm kiếm trong trường.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Gõ tối thiểu 4 ký tự (tên đăng nhập) để tìm kiếm bạn bè.</p>
             </div>
 
             {actionFeedback && (
@@ -2578,7 +2644,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
               {searchLoading ? (
                 <p className="text-[11px] text-slate-400 text-center py-2">Đang tìm kiếm...</p>
               ) : searchResults.length === 0 ? (
-                searchQuery.trim().length >= 2 ? (
+                searchQuery.trim().length >= 4 ? (
                   <p className="text-[11px] text-slate-400 text-center py-2">Không tìm thấy tài khoản phù hợp.</p>
                 ) : null
               ) : (
@@ -2615,10 +2681,15 @@ function CampusChatRail({ auth, onRequireAuth, className = '' }) {
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
                 <span>⚠️</span>
-                <span>Báo cáo vi phạm: {reportModal.targetName}</span>
+                <span>{reportModal.messageId ? 'Báo cáo tin nhắn' : `Báo cáo người dùng: ${reportModal.targetName}`}</span>
               </h4>
               <button type="button" onClick={() => setReportModal(null)} className="text-slate-400 hover:text-white text-sm">✕</button>
             </div>
+            {reportModal.messageContent && (
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/10 text-xs text-slate-300 italic">
+                "{reportModal.messageContent.slice(0, 100)}{reportModal.messageContent.length > 100 ? '...' : ''}"
+              </div>
+            )}
             <p className="text-[11px] text-slate-400">
               Báo cáo sẽ được chuyển thẳng đến Trung tâm Kiểm duyệt của Giáo viên.
             </p>
@@ -3106,6 +3177,59 @@ function TeacherControlCenterModal({
   const [dangTaiPending, setDangTaiPending] = React.useState(false);
   const [duyetLoi, setDuyetLoi] = React.useState('');
   const [duyetThongBao, setDuyetThongBao] = React.useState('');
+  const [reports, setReports] = React.useState([]);
+  const [reportFilter, setReportFilter] = React.useState('pending');
+  const [pendingReportsCount, setPendingReportsCount] = React.useState(0);
+  const [dangTaiReports, setDangTaiReports] = React.useState(false);
+  const [reportLoi, setReportLoi] = React.useState('');
+  const [reportThongBao, setReportThongBao] = React.useState('');
+
+  const taiReports = async (status = reportFilter) => {
+    setDangTaiReports(true);
+    setReportLoi('');
+    try {
+      const url = status === 'all' ? '/api/gv/bao-cao' : `/api/gv/bao-cao?status=${status}`;
+      const res = await fetch(url);
+      const d = await res.json();
+      if (d.ok) {
+        setReports(d.reports || []);
+        if (d.pendingCount !== undefined) setPendingReportsCount(d.pendingCount);
+      } else {
+        setReportLoi(d.loi || 'Không tải được danh sách báo cáo.');
+      }
+    } catch {
+      setReportLoi('Lỗi kết nối máy chủ.');
+    } finally {
+      setDangTaiReports(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (isOpen && tab === 'bao_cao') {
+      taiReports(reportFilter);
+    }
+  }, [isOpen, tab, reportFilter]);
+
+  const handleActionReport = async (reportId, action) => {
+    setReportLoi('');
+    setReportThongBao('');
+    try {
+      const res = await fetch('/api/gv/bao-cao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, action })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setReportThongBao(action === 'resolve' ? 'Đã đánh dấu xử lý vi phạm.' : 'Đã bỏ qua báo cáo.');
+        taiReports(reportFilter);
+      } else {
+        setReportLoi(d.loi || 'Không thể cập nhật trạng thái báo cáo.');
+      }
+    } catch {
+      setReportLoi('Lỗi máy chủ.');
+    }
+  };
 
   const taiPendingTeachers = async () => {
     setDangTaiPending(true);
@@ -3175,7 +3299,8 @@ function TeacherControlCenterModal({
             { id: 'ma_truy_cap', label: '🔑 Mã Truy Cập Lớp' },
             { id: 'bien_tap', label: '👥 Biên Tập Viên' },
             { id: 'phong', label: '🏠 Phòng Hoạt Động', count: dsPhong.length },
-            { id: 'duyet_gv', label: '🛡️ Duyệt Giáo Viên', count: pendingTeachers.length }
+            { id: 'duyet_gv', label: '🛡️ Duyệt Giáo Viên', count: pendingTeachers.length },
+            { id: 'bao_cao', label: '🚩 Báo Cáo', count: pendingReportsCount }
           ].map(t => (
             <button
               key={t.id}
@@ -3341,6 +3466,100 @@ function TeacherControlCenterModal({
                           ✕ Từ chối
                         </button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {tab === 'bao_cao' && (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/5">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Hàng đợi Kiểm duyệt Báo cáo Vi phạm</h4>
+                  <p className="text-[11px] text-slate-400">Xem và xử lý các báo cáo từ học sinh trên Campus</p>
+                </div>
+
+                {/* Filter buttons */}
+                <div className="flex items-center bg-[#0B0E14] p-0.5 rounded-lg border border-white/5 self-start">
+                  {[
+                    { id: 'pending', label: 'Chờ duyệt' },
+                    { id: 'resolved', label: 'Đã xử lý' },
+                    { id: 'dismissed', label: 'Bỏ qua' },
+                    { id: 'all', label: 'Tất cả' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setReportFilter(f.id)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${reportFilter === f.id ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {reportLoi && <p className="text-xs text-rose-400 bg-rose-500/10 p-2 rounded-xl">{reportLoi}</p>}
+              {reportThongBao && <p className="text-xs text-emerald-400 bg-emerald-500/10 p-2 rounded-xl">{reportThongBao}</p>}
+
+              {dangTaiReports ? (
+                <div className="py-8 text-center text-xs text-slate-400">Đang tải danh sách báo cáo...</div>
+              ) : reports.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">Không có báo cáo nào trong mục này.</div>
+              ) : (
+                <div className="space-y-2.5">
+                  {reports.map(r => (
+                    <div key={r.id} className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/10 flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-white">{r.reporterName} (@{r.reporterUsername})</span>
+                          <span className="text-xs text-slate-400">đã báo cáo</span>
+                          <span className="text-xs font-bold text-amber-300">{r.targetName} (@{r.targetUsername})</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            r.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                            r.status === 'dismissed' ? 'bg-slate-500/20 text-slate-300 border border-slate-500/30' :
+                            'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                          }`}>
+                            {r.status === 'resolved' ? 'Đã xử lý' : r.status === 'dismissed' ? 'Bỏ qua' : 'Đang chờ'}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(r.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Reason */}
+                      <div className="text-xs text-slate-300 bg-white/[0.02] p-2.5 rounded-xl border border-white/5">
+                        <strong className="text-slate-400">Lý do: </strong>{r.reason}
+                      </div>
+
+                      {/* Reported Message Content context */}
+                      {r.reportedMessageContent && (
+                        <div className="text-xs text-amber-200/90 bg-amber-950/20 p-2.5 rounded-xl border border-amber-500/20">
+                          <strong className="text-amber-400 text-[11px] block mb-0.5">Nội dung tin nhắn bị báo cáo:</strong>
+                          "{r.reportedMessageContent}"
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {r.status === 'pending' && (
+                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-white/5">
+                          <button
+                            type="button"
+                            onClick={() => handleActionReport(r.id, 'dismiss')}
+                            className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-bold transition-all">
+                            Bỏ qua
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleActionReport(r.id, 'resolve')}
+                            className="px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all">
+                            Xử lý vi phạm
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -5108,6 +5327,25 @@ function DigitalCampusApp() {
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
   const [showMobileChatRail, setShowMobileChatRail] = useState(false);
+  const [isXlScreen, setIsXlScreen] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(min-width: 1280px)').matches;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(min-width: 1280px)');
+    const onChange = (e) => setIsXlScreen(e.matches);
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    } else if (mql.addListener) {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -7119,19 +7357,22 @@ function DigitalCampusApp() {
               </main>
 
               {/* Right Column: Campus Chat Rail (Desktop >= 1280px) */}
-              <aside className="hidden xl:flex flex-col gap-4 order-3 sticky top-[72px] self-start">
-                <CampusChatRail
-                  auth={auth}
-                  onRequireAuth={() => { setAuthModalTab('login'); setShowAuthModal(true); }}
-                />
-              </aside>
+              {isXlScreen && (
+                <aside className="flex flex-col gap-4 order-3 sticky top-[72px] self-start">
+                  <CampusChatRail
+                    auth={auth}
+                    isActive={activeTab === 'campus'}
+                    onRequireAuth={() => { setAuthModalTab('login'); setShowAuthModal(true); }}
+                  />
+                </aside>
+              )}
             </div>
           </div>
         )
       )}
 
       {/* Mobile Chat Bottom Sheet Modal */}
-      {showMobileChatRail && (
+      {!isXlScreen && showMobileChatRail && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
           <div className="bg-[#151A23] border border-white/15 rounded-t-3xl sm:rounded-3xl w-full max-w-lg h-[85vh] max-h-[640px] flex flex-col shadow-2xl overflow-hidden animate-slideUp">
             <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-[#111620]">
@@ -7147,6 +7388,7 @@ function DigitalCampusApp() {
             <div className="flex-1 min-h-0">
               <CampusChatRail
                 auth={auth}
+                isActive={true}
                 onRequireAuth={() => { setShowMobileChatRail(false); setAuthModalTab('login'); setShowAuthModal(true); }}
                 className="h-full rounded-none border-none shadow-none"
               />

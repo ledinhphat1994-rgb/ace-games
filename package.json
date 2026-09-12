@@ -21,6 +21,7 @@
     "qa:phase4b": "node cong-cu/qa-phase4b.mjs",
     "qa:phase4b1": "node cong-cu/qa-phase4b1-hardening.mjs",
     "qa:phase4c": "node cong-cu/qa-phase4c.mjs",
+    "qa:phase4c1": "node cong-cu/qa-phase4c1.mjs",
     "qa:campus": "node cong-cu/qa-campus.mjs",
     "qa:arena": "node cong-cu/qa-arena-concurrency.mjs",
     "qa:watch-together": "node cong-cu/qa-watch-together.mjs",
