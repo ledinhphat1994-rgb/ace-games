@@ -1,55 +1,157 @@
 // Tiện ích xác thực quyền xã hội, định danh bạn bè và giới hạn tần suất cho Campus (Phase 4C / 4C.1)
 import { layPhien } from './api.js';
 
-// Cache trượt trong bộ nhớ để chặn burst tức thời (100% không lo race condition tại cùng instance)
-const memoryRateLimits = new Map();
+// Cache trượt trong bộ nhớ để chặn burst tức thời (100% không lo race condition tại cùng isolate)
+const memoryBurstThrottles = new Map();
+const memoryAbuseSlidingWindows = new Map();
 
 /**
- * Kiểm tra giới hạn tần suất request (Rate Limiter)
- * @param {object} env - Môi trường Cloudflare (chứa RATE_LIMIT KV nếu có)
- * @param {string} key - Định danh hành động + tài khoản (ví dụ: 'chat:123', 'search:123')
- * @param {number} maxRequests - Số request tối đa cho phép trong cửa sổ
- * @param {number} windowMs - Kích thước cửa sổ tính theo mili-giây
- * @returns {Promise<boolean>} true nếu hợp lệ (chưa vượt), false nếu đã chạm ngưỡng (429)
+ * Kiểm tra giới hạn burst tức thời (UX Burst Throttle) — Hoàn toàn trong bộ nhớ Isolate
+ * Dùng cho các khoảng thời gian cực ngắn (Chat 2s, DM 1s).
+ * TUYỆT ĐỐI KHÔNG dùng KV với TTL 60s cho các khoảng 1-2s vì sẽ khóa nhầm người dùng 60s.
+ * @param {string} key - Định danh (ví dụ: 'chat:123', 'dm:123')
+ * @param {number} minIntervalMs - Khoảng cách tối thiểu giữa 2 request (mili-giây)
+ * @returns {boolean} true nếu được phép gửi, false nếu vi phạm burst throttle
  */
-export async function checkRateLimit(env, key, maxRequests, windowMs) {
+export function checkBurstThrottle(key, minIntervalMs) {
   const now = Date.now();
+  const last = memoryBurstThrottles.get(key) || 0;
 
-  // 1. Kiểm tra bộ nhớ cục bộ (sliding window)
-  const timestamps = memoryRateLimits.get(key) || [];
-  const validTimestamps = timestamps.filter((t) => now - t < windowMs);
-
-  if (validTimestamps.length >= maxRequests) {
-    return false; // Quá tần suất
+  if (now - last < minIntervalMs) {
+    return false; // Chưa đủ khoảng cách tối thiểu
   }
 
-  validTimestamps.push(now);
-  memoryRateLimits.set(key, validTimestamps);
+  memoryBurstThrottles.set(key, now);
 
-  // Dọn dẹp định kỳ tránh rò rỉ bộ nhớ
-  if (memoryRateLimits.size > 2000) {
-    for (const [k, ts] of memoryRateLimits.entries()) {
-      if (ts.length === 0 || now - ts[ts.length - 1] > 300000) {
-        memoryRateLimits.delete(k);
+  // Dọn dẹp định kỳ bộ nhớ
+  if (memoryBurstThrottles.size > 3000) {
+    for (const [k, t] of memoryBurstThrottles.entries()) {
+      if (now - t > 300000) {
+        memoryBurstThrottles.delete(k);
       }
     }
   }
 
-  // 2. Kiểm tra KV nếu có cấu hình env.RATE_LIMIT
-  if (env?.RATE_LIMIT) {
+  return true;
+}
+
+/**
+ * Kiểm tra giới hạn lạm dụng thô (Coarse Abuse Ceiling) theo Time Bucket
+ * Kết hợp bộ nhớ cục bộ + Time-bucketed KV (rl:<action>:<accountId>:<timeBucket>)
+ * Khi bucket chuyển sang phút tiếp theo, bucket mới bắt đầu từ 0 và không bị ảnh hưởng bởi TTL của bucket cũ.
+ * @param {object} env - Cloudflare environment
+ * @param {string} action - Tên hành động ('chat', 'dm', 'search', 'freq', 'report')
+ * @param {string|number} accountId - ID tài khoản
+ * @param {number} maxRequests - Số lượng tối đa trong cửa sổ
+ * @param {number} windowSec - Kích thước cửa sổ tính bằng giây (ví dụ: 60 cho 1 phút, 300 cho 5 phút)
+ * @returns {Promise<boolean>} true nếu được phép, false nếu vượt ngưỡng
+ */
+export async function checkAbuseLimit(env, action, accountId, maxRequests, windowSec = 60) {
+  const now = Date.now();
+  const windowMs = windowSec * 1000;
+  const memoryKey = `${action}:${accountId}`;
+
+  // 1. Kiểm tra bộ nhớ Isolate (Sliding Window)
+  const timestamps = memoryAbuseSlidingWindows.get(memoryKey) || [];
+  const validTimestamps = timestamps.filter((t) => now - t < windowMs);
+
+  if (validTimestamps.length >= maxRequests) {
+    return false;
+  }
+
+  validTimestamps.push(now);
+  memoryAbuseSlidingWindows.set(memoryKey, validTimestamps);
+
+  // Dọn dẹp định kỳ
+  if (memoryAbuseSlidingWindows.size > 3000) {
+    for (const [k, ts] of memoryAbuseSlidingWindows.entries()) {
+      if (ts.length === 0 || now - ts[ts.length - 1] > 600000) {
+        memoryAbuseSlidingWindows.delete(k);
+      }
+    }
+  }
+
+  // 2. Kiểm tra Cloudflare native Rate Limiting binding (nếu có cấu hình)
+  if (typeof env?.RATE_LIMITER?.limit === 'function') {
     try {
-      const kvKey = `rl:${key}`;
-      const count = parseInt((await env.RATE_LIMIT.get(kvKey)) || '0', 10);
-      if (count >= maxRequests) {
+      const bindingRes = await env.RATE_LIMITER.limit({ key: `${action}:${accountId}` });
+      if (bindingRes && bindingRes.success === false) {
         return false;
       }
-      await env.RATE_LIMIT.put(kvKey, String(count + 1), {
-        expirationTtl: Math.max(Math.ceil(windowMs / 1000), 60),
+    } catch (e) {
+      console.warn('[RateLimit] Native Rate Limiting binding error:', e);
+    }
+  }
+
+  // 3. Kiểm tra Cloudflare KV dạng Time-Bucketed (rl:<action>:<accountId>:<timeBucket>)
+  if (env?.RATE_LIMIT) {
+    const timeBucket = Math.floor(now / windowMs);
+    const kvKey = `rl:${action}:${accountId}:${timeBucket}`;
+    let kvCount = 0;
+
+    try {
+      const raw = await env.RATE_LIMIT.get(kvKey);
+      if (raw) {
+        kvCount = parseInt(raw, 10) || 0;
+      }
+    } catch (err) {
+      console.warn(`[RateLimit] KV get error on key ${kvKey}:`, err);
+    }
+
+    if (kvCount >= maxRequests) {
+      return false;
+    }
+
+    try {
+      // TTL đặt gấp đôi window (tối thiểu 60s theo chuẩn Cloudflare KV) để dọn dẹp sau khi hết bucket
+      const ttl = Math.max(windowSec * 2, 60);
+      await env.RATE_LIMIT.put(kvKey, String(kvCount + 1), {
+        expirationTtl: ttl,
       });
-    } catch {}
+    } catch (err) {
+      console.warn(`[RateLimit] KV put error on key ${kvKey}:`, err);
+    }
   }
 
   return true;
+}
+
+/**
+ * Kiểm tra giới hạn tần suất tích hợp (Hỗ trợ cả UX burst throttle lẫn Abuse ceiling)
+ * - Nếu windowMs < 5000ms: áp dụng cơ chế UX Burst Throttle tức thời (không dùng KV 60s) + trần lạm dụng phút
+ * - Nếu windowMs >= 5000ms: áp dụng cơ chế Time-Bucketed KV + Sliding Window
+ * @param {object} env - Môi trường Cloudflare
+ * @param {string} key - Định danh hành động + tài khoản (ví dụ: 'chat:123', 'dm:123', 'search:123')
+ * @param {number} maxRequests - Số request tối đa cho phép
+ * @param {number} windowMs - Cửa sổ tính bằng mili-giây
+ * @returns {Promise<boolean>} true nếu hợp lệ, false nếu bị giới hạn
+ */
+export async function checkRateLimit(env, key, maxRequests, windowMs) {
+  const parts = String(key || '').split(':');
+  const action = parts[0] || 'default';
+  const accountId = parts[1] || 'global';
+
+  // Trường hợp 1: Khoảng thời gian ngắn (< 5 giây) — Đây là UX Burst Throttle
+  if (windowMs < 5000) {
+    // 1.1 Kiểm tra khoảng cách burst tức thời trong bộ nhớ isolate
+    const burstAllowed = checkBurstThrottle(key, windowMs);
+    if (!burstAllowed) {
+      return false;
+    }
+
+    // 1.2 Kiểm tra trần lạm dụng theo phút (coarse abuse ceiling) bằng Time-Bucketed KV
+    // Chat: 30 tin/phút, DM: 60 tin/phút, Mặc định: 60/phút
+    let abuseCeiling = 60;
+    if (action === 'chat') abuseCeiling = 30;
+    else if (action === 'dm') abuseCeiling = 60;
+
+    const abuseAllowed = await checkAbuseLimit(env, `${action}_abuse`, accountId, abuseCeiling, 60);
+    return abuseAllowed;
+  }
+
+  // Trường hợp 2: Cửa sổ thô (>= 5 giây) — Dùng Time-Bucketed Limiter
+  const windowSec = Math.ceil(windowMs / 1000);
+  return await checkAbuseLimit(env, action, accountId, maxRequests, windowSec);
 }
 
 /**

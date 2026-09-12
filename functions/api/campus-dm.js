@@ -178,8 +178,8 @@ export async function onRequestPost({ request, env }) {
         }
       }
 
-      // Rate limit: Tối đa 20 báo cáo / 5 phút / tài khoản
-      const allowedReport = await checkRateLimit(env, `report:${myId}`, 20, 300000);
+      // Rate limit: Tối đa 10 báo cáo / 5 phút / tài khoản
+      const allowedReport = await checkRateLimit(env, `report:${myId}`, 10, 300000);
       if (!allowedReport) {
         return json({ ok: false, loi: 'Bạn gửi báo cáo quá nhiều lần. Vui lòng chờ 5 phút.', code: 'rate_limited' }, 429);
       }
