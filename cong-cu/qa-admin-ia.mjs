@@ -55,6 +55,27 @@ async function run() {
   const cookieAdmin = await taoSessionCookie({ accountId: 99820, role: 'teacher', lopId: 1, ten: 'Ban Giám Hiệu Admin', username: 'admin_truong_phase4d1', teacherPending: false });
   const cookieGvHaiLop = await taoSessionCookie({ accountId: 99821, role: 'teacher', lopId: 1, ten: 'Thầy Giáo Viên A', username: 'gv_class1_a', teacherPending: false });
   const cookieGvMotLop = await taoSessionCookie({ accountId: 99823, role: 'teacher', lopId: 2, ten: 'Thầy Giáo Viên C', username: 'gv_class2_c', teacherPending: false });
+  // KHÔNG accountId, KHÔNG username — đúng y hệt phiên đăng nhập TRUYỀN THỐNG bằng mã giáo viên
+  // riêng từng lớp (ma_dang_nhap / TEACHER_CODE) mà giáo viên chủ nhiệm thật đang dùng hằng ngày.
+  const cookieTruyenThong = await taoSessionCookie({ role: 'teacher', lopId: 1, ten: 'Giáo Viên Đăng Nhập Truyền Thống' });
+
+  // ---------- GROUP: PHIÊN ĐĂNG NHẬP TRUYỀN THỐNG (không có accountId) ----------
+  // Bug nghiêm trọng đã phát hiện & sửa: layPhamViQuanTri() trước đây CHỈ nhận diện được tài khoản
+  // Campus (có accountId) — phiên truyền thống (vẫn là cách đăng nhập chính, KHÔNG có accountId)
+  // bị coi như "không có lớp nào" → Người dùng/Nhật ký/Tổng quan trống trơn với chính GVCN thật.
+  console.log('\n--- 0.5 PHIÊN ĐĂNG NHẬP TRUYỀN THỐNG (không accountId) — chống hồi quy bug nghiêm trọng ---');
+  const rTt1 = await api('/api/gv/lop-can-chu-y', { cookie: cookieTruyenThong });
+  ok('Phiên truyền thống thấy ĐÚNG lớp của mình (không rỗng)',
+    rTt1.status === 200 && (rTt1.data.danhSach || []).length === 1 && rTt1.data.danhSach[0].lopId === 1,
+    'scope', JSON.stringify(rTt1.data));
+
+  const rTt2 = await api('/api/gv/nguoi-dung', { cookie: cookieTruyenThong });
+  ok('Phiên truyền thống xem được danh sách Người dùng của lớp mình (không rỗng)',
+    rTt2.status === 200 && (rTt2.data.danhSach || []).length > 0, 'scope', `count=${(rTt2.data.danhSach || []).length}`);
+
+  const rTt3 = await api('/api/whoami', { cookie: cookieTruyenThong });
+  ok('Phiên truyền thống KHÔNG bị mặc định cấp quyền School Admin (an toàn)',
+    rTt3.data.isSchoolAdmin === false, 'scope');
 
   // ---------- GROUP: PHẠM VI QUẢN TRỊ (/api/gv/lop-can-chu-y) ----------
   console.log('\n--- 1. PHẠM VI QUẢN TRỊ (giao_vien_lop) ---');
