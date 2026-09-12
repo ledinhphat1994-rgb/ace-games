@@ -1,0 +1,56 @@
+PASS  A1 tao phong video public
+OBS   A1 sucChua mac dinh :: sucChua=20
+PASS  A2 tao phong password sucChua=3
+PASS  A3 server chap nhan sucChua=50 cho phong video (khong co cap study=12)
+PASS  A4 sai mat khau bi tu choi 403
+PASS  A5 password room chua admitted: isAdmitted=false va cauHinh an
+PASS  A6 vao phong dung mat khau
+PASS  A7a thanh vien thu 3 vao duoc
+PASS  A7b thanh vien thu 4 bi chan 409 khi phong day
+PASS  A8 duplicate join khong loi
+PASS  A9 heartbeat nhip giu cho
+PASS  A10 danh sach thanh vien sau khi admitted
+OBS   A10 member fields leaked? :: {"ten":"HS-A ChuPhong","vaiTro":"hoc_sinh","lopId":1,"lopTen":"Lớp 10A7","laChuPhong":1}
+PASS  A11a member (non-host) khong dong duoc phong
+PASS  A11b host dong phong
+PASS  A11c phong da dong -> 404
+PASS  A12 teacher lop khac vao phong truong + canControl=true
+PASS  B1 member doc state, canControl=false
+PASS  B2 member play bi tu choi 403
+PASS  B3 host play rev1 -> rev2
+PASS  B4 stale revision -> 409 conflict kem state
+PASS  B5a set_rate 1.5 hop le
+PASS  B5b set_rate 3.0 bi tu choi
+OBS   B6 change_video qua phong-watch :: status=400 loi=Hành động không hợp lệ (chỉ nhận play, pause, seek, set_rate).
+OBS   B6b hanhDong doi-video qua phong :: status=400 loi=Hành động không hợp lệ.
+PASS  B7 GV lop khac pause duoc video phong hoc sinh
+PASS  C1a chua nhap pass -> doc chat 403
+PASS  C1b chua nhap pass -> gui chat 403
+PASS  C2 member da admitted gui chat thanh cong
+PASS  C3 gui 2 tin <3s -> 429
+OBS   C4 DELETE phong-chat :: status=405
+PASS  D1 notes default version=0
+PASS  D2 member (non-staff) GHI DUOC notes (khong co capability check)
+PASS  D3 stale notes -> 409 conflict whole-doc
+PASS  D4 whole-doc overwrite (khong merge)
+PASS  D4b text cua B bi mat hoan toan
+PASS  D5 2 nguoi ve dong thoi -> nguoi sau 409, stroke bi mat
+PASS  D6 2 nguoi sua o khac nhau van 409 whole-doc
+PASS  D7 collab phong password chua admitted -> 403
+PASS  E1a A join voice
+PASS  E1b B join voice
+PASS  E1c C join voice -> 409 voice_room_full
+PASS  E2 C (khong trong cap 1-1) van gui duoc offer -> signaling khong rang buoc pair
+PASS  E3 voice_poll broadcast: A nhan signal ca B lan C
+PASS  E4 C gui leave van duoc chap nhan (co the ngat cap dang noi)
+PASS  F1 no q -> ok + configured flag
+OBS   F2 youtube-search khong can auth (public endpoint) :: status=200 configured=false code=youtube_unconfigured
+PASS  G1 unauth GET phong -> 401
+PASS  G2 unauth phong-watch -> 401
+PASS  G3 youtube-search unauth van 200 (public, chi co IP rate-limit)
+PASS  G4 khong lo matKhauHash/Salt/chuPhongKhoa trong detail
+PASS  G5 list khong tra cauHinh
+PASS  G6 HS lop khac bi chan phong lop
+PASS  G7 phong dong -> collab 404
+PASS  G7b phong dong -> chat 404
+TOTAL: 49 PASS 0 FAIL
