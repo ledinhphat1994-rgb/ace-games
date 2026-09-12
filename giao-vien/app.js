@@ -2299,7 +2299,6 @@ async function trangTongQuan() {
     const waitingCaro = dsGame.filter((b) => b.trangThai === 'cho_nguoi').length;
     const totalCaro = activeCaro + waitingCaro;
 
-    const ytRooms = dsPhong.filter(p => p.loai === 'video').length;
     const totalOnline = dsPhong.reduce((s, p) => s + (p.soNguoi || 0), 0) + (activeCaro * 2) + waitingCaro;
     const classesManaged = PHIEN.isSchoolAdmin ? (dsLop.length || 1) : 1;
 
@@ -2309,79 +2308,64 @@ async function trangTongQuan() {
       'Trung tâm điều hành trường học: Giám sát thời gian thực toàn bộ Campus, Bảng Tin, Lớp học và Kiểm duyệt an toàn.'
     ));
 
-    // KPI Summary Grid (10 Real Metrics - No Fake Marketing Copy, No Large Attendance Card)
-    const luoiKPI = e('div');
-    luoiKPI.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px;';
+    const canTietCanhBao = pendingReports.length > 0 || pendingTeachers.length > 0;
+    if (canTietCanhBao) {
+      const phanCanhBao = [];
+      if (pendingReports.length > 0) phanCanhBao.push(`${pendingReports.length} báo cáo vi phạm`);
+      if (pendingTeachers.length > 0) phanCanhBao.push(`${pendingTeachers.length} hồ sơ giáo viên`);
+      const canhBao = e('a', 'canh-bao-qt');
+      canhBao.href = pendingReports.length > 0 ? '#/bao-cao-vi-pham' : '#/duyet-giao-vien';
+      canhBao.append(
+        Object.assign(e('span', null, '⚠️'), { style: 'font-size: 17px;' }),
+        e('span', null, 'Đang chờ xử lý: '),
+        Object.assign(e('b', null, phanCanhBao.join(' · ') + ' đang chờ duyệt'), { style: 'font-weight: 800;' }),
+        e('span', 'mui-ten', '→')
+      );
+      khung.append(canhBao);
+    }
 
-    const taoTheKPI = (tieuDe, giaTri, phu, mau, linkHref) => {
-      const the = e(linkHref ? 'a' : 'div', 'the');
-      the.style.cssText = `background: #121620; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; transition: transform 0.15s, border-color 0.15s;`;
-      if (linkHref) {
-        the.href = linkHref;
-        the.onmouseenter = () => { the.style.borderColor = mau; the.style.transform = 'translateY(-2px)'; };
-        the.onmouseleave = () => { the.style.borderColor = 'rgba(255,255,255,0.08)'; the.style.transform = 'none'; };
-      }
-      const topRow = e('div');
-      topRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
-      const label = Object.assign(e('b', null, tieuDe), { style: 'font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em;' });
-      topRow.append(label);
+    // Dòng thống kê nhỏ trong mỗi thẻ: số đậm màu theo nhóm + nhãn xám, nối bằng " · ".
+    // Dùng DOM node thuần (không innerHTML) để không đụng quy tắc chống chèn HTML.
+    const dongSo = (...capSo) => {
+      const dong = e('div', 'the-qt-so');
+      capSo.forEach(([so, nhan], i) => {
+        if (i > 0) dong.append(e('span', null, '  ·  '));
+        dong.append(e('b', null, String(so)), e('span', null, ' ' + nhan));
+      });
+      return dong;
+    };
 
-      const val = Object.assign(e('div', null, String(giaTri)), { style: `font-size: 24px; font-weight: 900; color: ${mau}; font-family: monospace;` });
-      const sub = Object.assign(e('div', null, phu), { style: 'font-size: 11px; color: #64748B;' });
-
-      the.append(topRow, val, sub);
+    const theQuanTri = (icon, ten, moTa, href, mau, elSo) => {
+      const the = e('a', 'the the-qt');
+      the.href = href;
+      the.style.setProperty('--mau-qt', mau);
+      const dau = e('div', 'the-qt-dau');
+      dau.append(
+        e('span', 'the-qt-icon', icon),
+        datNoiDung(e('div'), e('p', 'the-qt-ten', ten), e('p', 'the-qt-mota', moTa))
+      );
+      the.append(dau, elSo);
       return the;
     };
 
-    luoiKPI.append(
-      taoTheKPI('Campus Trực Tuyến', totalOnline, 'Người dùng đang hoạt động', '#00F2FE', '#/campus-quan-tri'),
-      taoTheKPI('Phòng Hoạt Động', dsPhong.length, 'Tổng phòng mở trên Campus', '#38BDF8', '#/campus-quan-tri'),
-      taoTheKPI('Đấu Trường Game', totalCaro, `${activeCaro} đang đấu · ${waitingCaro} chờ`, '#FFB800', '#/campus-quan-tri'),
-      taoTheKPI('Phòng YouTube', ytRooms, 'Học tập & xem video nhóm', '#EF4444', '#/campus-quan-tri'),
-      taoTheKPI('Nội Dung & Bản Tin', dsTb.length, 'Bài viết & bản tin đã đăng', '#34D399', '#/bang-tin-quan-tri'),
-      taoTheKPI('Tiêu Điểm Campus', `${dsHl.length}/4`, 'Thẻ bài nổi bật toàn trường', '#F472B6', '#/campus-highlights'),
-      taoTheKPI('Kiểm Duyệt & An Toàn', pendingReports.length, pendingReports.length > 0 ? '⚠️ Cần kiểm duyệt ngay' : 'Đang an toàn', pendingReports.length > 0 ? '#F43F5E' : '#94A3B8', '#/kiem-duyet-quan-tri'),
-      taoTheKPI('Duyệt Giáo Viên', pendingTeachers.length, pendingTeachers.length > 0 ? 'Hồ sơ mới chờ duyệt' : 'Đã duyệt toàn bộ', pendingTeachers.length > 0 ? '#F59E0B' : '#94A3B8', '#/duyet-giao-vien'),
-      taoTheKPI('Lớp Học Quản Lý', classesManaged, PHIEN.isSchoolAdmin ? 'Phạm vi toàn trường' : (PHIEN.tenLop || '1 lớp'), '#60A5FA', '#/lop-quan-tri')
+    const luoiQt = e('div', 'luoi-qt');
+    luoiQt.style.marginTop = '18px';
+    luoiQt.append(
+      theQuanTri('🏛️', 'Campus Trực Tuyến & Hoạt Động', 'Quản lý phòng hoạt động, YouTube Study và đấu trường Game.', '#/campus-quan-tri', '#00F2FE',
+        dongSo([totalOnline, 'đang hoạt động'], [dsPhong.length, 'phòng mở'], [totalCaro, 'bàn Caro'])),
+      theQuanTri('📢', 'Nội Dung & Bảng Tin', 'Soạn thảo thông báo, tin tức và phân quyền ban biên tập.', '#/bang-tin-quan-tri', '#34D399',
+        dongSo([dsTb.length, 'bài đã đăng'], [`${dsHl.length}/4`, 'tiêu điểm Campus'])),
+      theQuanTri('👥', 'Lớp Học & Thành Viên', 'Học sinh, điểm danh, thủ quỹ và thời khóa biểu.', '#/lop-quan-tri', '#60A5FA',
+        dongSo([classesManaged, PHIEN.isSchoolAdmin ? 'lớp toàn trường' : (PHIEN.tenLop || 'lớp quản lý')])),
+      theQuanTri('🛡️', 'Kiểm Duyệt & An Toàn', 'Báo cáo vi phạm nội dung và phê duyệt tài khoản giáo viên.', '#/kiem-duyet-quan-tri', canTietCanhBao ? '#F43F5E' : '#34D399',
+        canTietCanhBao
+          ? dongSo([pendingReports.length, 'báo cáo chờ'], [pendingTeachers.length, 'GV chờ duyệt'])
+          : datNoiDung(e('div', 'the-qt-so'), e('span', null, '✓ Đang an toàn — không có việc tồn đọng'))),
+      theQuanTri('⚙️', 'Cấu Hình Hệ Thống', 'Hồ sơ giáo viên, xuất báo cáo, nhật ký đăng nhập và reset dữ liệu.', '#/he-thong-quan-tri', '#A855F7',
+        datNoiDung(e('div', 'the-qt-so'), e('span', null, 'Công cụ vận hành & bảo trì')))
     );
 
-    khung.append(luoiKPI);
-
-    // Fast Shortcuts Hub Grid
-    const tieuDePhimTat = Object.assign(e('h3', null, '⚡ Lối Tắt Điều Hành'), {
-      style: 'font-size: 14px; font-weight: 800; color: #CBD5E1; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: 0.05em;'
-    });
-    khung.append(tieuDePhimTat);
-
-    const luoiHub = e('div');
-    luoiHub.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;';
-
-    const taoTheHub = (icon, ten, moTa, href, mauVien) => {
-      const a = e('a', 'the');
-      a.href = href;
-      a.style.cssText = `background: #121620; border: 1px solid ${mauVien}; border-radius: 16px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; text-decoration: none; transition: transform 0.15s, background 0.15s;`;
-      a.onmouseenter = () => { a.style.transform = 'translateY(-2px)'; a.style.background = '#151A23'; };
-      a.onmouseleave = () => { a.style.transform = 'none'; a.style.background = '#121620'; };
-
-      const ico = Object.assign(e('span', null, icon), { style: 'font-size: 24px; line-height: 1;' });
-      const right = e('div');
-      right.append(
-        Object.assign(e('b', null, ten), { style: 'color: #FFFFFF; font-size: 13px; display: block; margin-bottom: 2px;' }),
-        Object.assign(e('p', null, moTa), { style: 'color: #94A3B8; font-size: 11px; margin: 0; line-height: 1.4;' })
-      );
-      a.append(ico, right);
-      return a;
-    };
-
-    luoiHub.append(
-      taoTheHub('🏛️', 'Campus Trực Tuyến & Hoạt Động', 'Quản lý phòng hoạt động, YouTube Study và Game', '#/campus-quan-tri', 'rgba(0,242,254,0.25)'),
-      taoTheHub('📢', 'Nội Dung & Bảng Tin', 'Soạn thảo thông báo và phân quyền ban biên tập', '#/bang-tin-quan-tri', 'rgba(52,211,153,0.25)'),
-      taoTheHub('👥', 'Lớp Học & Thành Viên', 'Quản lý học sinh, điểm danh, quỹ và thời khóa biểu', '#/lop-quan-tri', 'rgba(96,165,250,0.25)'),
-      taoTheHub('🛡️', 'Kiểm Duyệt & An Toàn', 'Xử lý báo cáo vi phạm và phê duyệt giáo viên', '#/kiem-duyet-quan-tri', 'rgba(244,63,94,0.25)'),
-      taoTheHub('⚙️', 'Cấu Hình Hệ Thống', 'Hồ sơ giáo viên, xuất file báo cáo và reset', '#/he-thong-quan-tri', 'rgba(168,85,247,0.25)')
-    );
-
-    khung.append(luoiHub);
+    khung.append(luoiQt);
     datNoiDung(KHUNG, khung);
   } catch (err) {
     datNoiDung(KHUNG, khoiLoi('Lỗi khi tải tổng quan quản trị: ' + err.message));
@@ -2430,10 +2414,10 @@ async function trangCampus() {
     // Helper to build room item
     const taoMucPhong = (p) => {
       const item = e('div');
-      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #0B0E14; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);';
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: var(--nen); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--vien);';
       const trai = e('div');
-      const ten = Object.assign(e('div', null, p.ten || 'Phòng học'), { style: 'color: #FFFFFF; font-size: 12px; font-weight: 700;' });
-      const phu = Object.assign(e('div', null, 'Chủ phòng: ' + (p.chuPhongTen || 'Học sinh') + ' · ' + (p.soNguoi || 0) + ' người'), { style: 'color: #64748B; font-size: 10px;' });
+      const ten = Object.assign(e('div', null, p.ten || 'Phòng học'), { style: 'color: var(--chu); font-size: 12px; font-weight: 700;' });
+      const phu = Object.assign(e('div', null, 'Chủ phòng: ' + (p.chuPhongTen || 'Học sinh') + ' · ' + (p.soNguoi || 0) + ' người'), { style: 'color: var(--chu-mo, var(--chu-nhat)); font-size: 10px;' });
       trai.append(ten, phu);
 
       const aGiamSat = e('a', 'nut nut-phu nut-nho', 'Giám sát');
@@ -2443,81 +2427,75 @@ async function trangCampus() {
       return item;
     };
 
+    // Đầu thẻ dùng chung: icon trong khối glow màu + tiêu đề + huy hiệu số — cùng ngôn ngữ
+    // hình ảnh với .the-qt ở Tổng quan, thay vì mảng màu phẳng #121620 lạc tông trước đây.
+    const dauThe = (icon, ten, mau, huyHieu) => {
+      const dau = e('div');
+      dau.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px;';
+      const trai = e('div');
+      trai.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+      trai.append(
+        Object.assign(e('span', 'the-qt-icon', icon), { style: `width: 38px; height: 38px; font-size: 18px; --mau-qt: ${mau};` }),
+        Object.assign(e('b', null, ten), { style: 'color: var(--chu); font-size: 15px;' })
+      );
+      dau.append(trai, Object.assign(e('span', null, huyHieu), {
+        style: `background: color-mix(in srgb, ${mau} 16%, transparent); color: ${mau}; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap;`
+      }));
+      return dau;
+    };
+
     // 1. Card YouTube
     const cardYt = e('div', 'the');
-    cardYt.style.cssText = 'background: #121620; border: 1px solid rgba(239,68,68,0.3); border-radius: 18px; padding: 20px;';
-    const dauYt = e('div');
-    dauYt.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
-    const tieuDeYt = e('div');
-    tieuDeYt.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeYt.append(Object.assign(e('span', null, '▶️'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Học Tập / YouTube Study'), { style: 'color: #FFFFFF; font-size: 15px;' }));
-    const badgeYt = Object.assign(e('span', null, dsYt.length + ' phòng'), { style: 'background: rgba(239,68,68,0.15); color: #EF4444; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
-    dauYt.append(tieuDeYt, badgeYt);
-    const moTaYt = Object.assign(e('p', null, 'Phòng chiếu video học tập và thảo luận nhóm đang trực tuyến.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    cardYt.style.cssText = 'border-color: color-mix(in srgb, #EF4444 30%, var(--vien)); padding: 20px;';
+    const moTaYt = Object.assign(e('p', null, 'Phòng chiếu video học tập và thảo luận nhóm đang trực tuyến.'), { style: 'color: var(--chu-nhat); font-size: 12px; margin-bottom: 14px;' });
     const dsYtDiv = e('div');
     dsYtDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
     if (dsYt.length === 0) {
-      dsYtDiv.append(Object.assign(e('div', null, 'Chưa có phòng YouTube nào đang mở.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
+      dsYtDiv.append(Object.assign(e('div', null, 'Chưa có phòng YouTube nào đang mở.'), { style: 'color: var(--chu-mo, var(--chu-nhat)); font-size: 12px; text-align: center; padding: 12px;' }));
     } else {
       dsYt.forEach(p => dsYtDiv.append(taoMucPhong(p)));
     }
-    cardYt.append(dauYt, moTaYt, dsYtDiv);
+    cardYt.append(dauThe('▶️', 'Học Tập / YouTube Study', '#EF4444', dsYt.length + ' phòng'), moTaYt, dsYtDiv);
 
     // 2. Card Game Caro
     const cardGame = e('div', 'the');
-    cardGame.style.cssText = 'background: #121620; border: 1px solid rgba(245,158,11,0.3); border-radius: 18px; padding: 20px;';
+    cardGame.style.cssText = 'border-color: color-mix(in srgb, #F59E0B 30%, var(--vien)); padding: 20px;';
     const activeCaro = dsGame.filter(b => b.trangThai === 'dang_choi').length;
     const waitingCaro = dsGame.filter(b => b.trangThai === 'cho_nguoi').length;
 
-    const dauGame = e('div');
-    dauGame.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
-    const tieuDeGame = e('div');
-    tieuDeGame.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeGame.append(Object.assign(e('span', null, '🎮'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Đấu Trường Caro'), { style: 'color: #FFFFFF; font-size: 15px;' }));
-    const badgeGame = Object.assign(e('span', null, (activeCaro + waitingCaro) + ' bàn'), { style: 'background: rgba(245,158,11,0.15); color: #F59E0B; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
-    dauGame.append(tieuDeGame, badgeGame);
-
-    const moTaGame = Object.assign(e('p', null, 'Trận đấu cờ Caro 15x15 thời gian thực giữa học sinh.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    const moTaGame = Object.assign(e('p', null, 'Trận đấu cờ Caro 15x15 thời gian thực giữa học sinh.'), { style: 'color: var(--chu-nhat); font-size: 12px; margin-bottom: 14px;' });
     const luoiGameStats = e('div');
     luoiGameStats.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;';
     const oStat1 = e('div');
-    oStat1.style.cssText = 'background: #0B0E14; padding: 10px; border-radius: 10px; text-align: center;';
-    oStat1.append(Object.assign(e('div', null, String(activeCaro)), { style: 'color: #F59E0B; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang thi đấu'), { style: 'color: #64748B; font-size: 11px;' }));
+    oStat1.style.cssText = 'background: var(--nen); padding: 10px; border-radius: 10px; text-align: center;';
+    oStat1.append(Object.assign(e('div', null, String(activeCaro)), { style: 'color: #F59E0B; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang thi đấu'), { style: 'color: var(--chu-mo, var(--chu-nhat)); font-size: 11px;' }));
 
     const oStat2 = e('div');
-    oStat2.style.cssText = 'background: #0B0E14; padding: 10px; border-radius: 10px; text-align: center;';
-    oStat2.append(Object.assign(e('div', null, String(waitingCaro)), { style: 'color: #10B981; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang chờ đối thủ'), { style: 'color: #64748B; font-size: 11px;' }));
+    oStat2.style.cssText = 'background: var(--nen); padding: 10px; border-radius: 10px; text-align: center;';
+    oStat2.append(Object.assign(e('div', null, String(waitingCaro)), { style: 'color: #10B981; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang chờ đối thủ'), { style: 'color: var(--chu-mo, var(--chu-nhat)); font-size: 11px;' }));
     luoiGameStats.append(oStat1, oStat2);
 
     const linkCampusGame = e('a', 'nut nut-vien nut-nho', 'Xem trực tiếp trên Campus →');
     linkCampusGame.href = '/';
     linkCampusGame.target = '_blank';
     linkCampusGame.style.cssText = 'width: 100%; text-align: center; display: block;';
-    cardGame.append(dauGame, moTaGame, luoiGameStats, linkCampusGame);
+    cardGame.append(dauThe('🎮', 'Đấu Trường Caro', '#F59E0B', (activeCaro + waitingCaro) + ' bàn'), moTaGame, luoiGameStats, linkCampusGame);
 
     // 3. Card Tiêu Điểm Campus
     const cardHl = e('div', 'the');
-    cardHl.style.cssText = 'background: #121620; border: 1px solid rgba(0,242,254,0.3); border-radius: 18px; padding: 20px;';
-    const dauHl = e('div');
-    dauHl.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
-    const tieuDeHl = e('div');
-    tieuDeHl.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeHl.append(Object.assign(e('span', null, '✨'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Tiêu Điểm Campus'), { style: 'color: #FFFFFF; font-size: 15px;' }));
-    const badgeHl = Object.assign(e('span', null, dsHl.length + '/4 thẻ'), { style: 'background: rgba(0,242,254,0.15); color: #00F2FE; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
-    dauHl.append(tieuDeHl, badgeHl);
-
-    const moTaHl = Object.assign(e('p', null, 'Điều phối nội dung nổi bật xuất hiện tại cột trái Digital Campus.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    cardHl.style.cssText = 'border-color: color-mix(in srgb, #00F2FE 30%, var(--vien)); padding: 20px;';
+    const moTaHl = Object.assign(e('p', null, 'Điều phối nội dung nổi bật xuất hiện tại cột trái Digital Campus.'), { style: 'color: var(--chu-nhat); font-size: 12px; margin-bottom: 14px;' });
     const dsHlDiv = e('div');
     dsHlDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
     if (dsHl.length === 0) {
-      dsHlDiv.append(Object.assign(e('div', null, 'Chưa có thẻ tiêu điểm nào.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
+      dsHlDiv.append(Object.assign(e('div', null, 'Chưa có thẻ tiêu điểm nào.'), { style: 'color: var(--chu-mo, var(--chu-nhat)); font-size: 12px; text-align: center; padding: 12px;' }));
     } else {
       dsHl.slice(0, 4).forEach(h => {
         const row = e('div');
-        row.style.cssText = 'display: flex; align-items: center; gap: 8px; background: #0B0E14; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);';
+        row.style.cssText = 'display: flex; align-items: center; gap: 8px; background: var(--nen); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--vien);';
         row.append(
           Object.assign(e('span', null, h.icon || '⭐'), { style: 'font-size: 16px;' }),
-          Object.assign(e('span', null, h.title || h.tieuDe || 'Tiêu điểm'), { style: 'color: #FFFFFF; font-size: 12px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' })
+          Object.assign(e('span', null, h.title || h.tieuDe || 'Tiêu điểm'), { style: 'color: var(--chu); font-size: 12px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' })
         );
         dsHlDiv.append(row);
       });
@@ -2525,7 +2503,7 @@ async function trangCampus() {
     const linkBienTapHl = e('a', 'nut nut-chinh nut-nho', 'Chỉnh sửa Tiêu điểm →');
     linkBienTapHl.href = '#/campus-highlights';
     linkBienTapHl.style.cssText = 'width: 100%; text-align: center; display: block; margin-top: 12px;';
-    cardHl.append(dauHl, moTaHl, dsHlDiv, linkBienTapHl);
+    cardHl.append(dauThe('✨', 'Tiêu Điểm Campus', '#00F2FE', dsHl.length + '/4 thẻ'), moTaHl, dsHlDiv, linkBienTapHl);
 
     luoi.append(cardYt, cardGame, cardHl);
     khung.append(luoi);
