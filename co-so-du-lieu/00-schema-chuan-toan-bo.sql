@@ -360,10 +360,14 @@ CREATE TABLE IF NOT EXISTS game_phong (
   tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
   cap_nhat_luc    TEXT DEFAULT CURRENT_TIMESTAMP,
   pham_vi         TEXT NOT NULL DEFAULT 'lop' CHECK (pham_vi IN ('lop', 'truong')),
-  kieu_ghep       TEXT NOT NULL DEFAULT 'thu_cong' CHECK (kieu_ghep IN ('thu_cong', 'nhanh'))
+  kieu_ghep       TEXT NOT NULL DEFAULT 'thu_cong' CHECK (kieu_ghep IN ('thu_cong', 'nhanh')),
+  access_mode     TEXT NOT NULL DEFAULT 'public',
+  mat_khau_hash   TEXT,
+  mat_khau_salt   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_game_phong_lop ON game_phong(lop_id, loai_game, trang_thai);
 CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game, trang_thai, kieu_ghep);
+CREATE INDEX IF NOT EXISTS idx_game_phong_access ON game_phong(access_mode, trang_thai);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting
 ON game_phong(chu_phong_id, loai_game)
 WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi';
@@ -536,4 +540,5 @@ CREATE TABLE IF NOT EXISTS tai_khoan_campus (
 );
 CREATE INDEX IF NOT EXISTS idx_tkc_ten_dn ON tai_khoan_campus(ten_dang_nhap);
 CREATE INDEX IF NOT EXISTS idx_tkc_role_pending ON tai_khoan_campus(vai_tro, teacher_pending);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tkc_unique_hs ON tai_khoan_campus(hoc_sinh_id) WHERE hoc_sinh_id IS NOT NULL;
 

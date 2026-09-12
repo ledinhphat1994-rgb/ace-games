@@ -3,6 +3,7 @@
 // KHÔNG BAO GIỜ tự cấp quyền Teacher khi đăng ký: tài khoản chọn Giáo viên sẽ ở trạng thái PENDING TEACHER.
 import { COOKIE_NAME, createToken } from '../_lib/auth.js';
 import { taoSalt, bamMatKhau } from '../_lib/passwords.js';
+import { turnstileHopLe } from '../_lib/turnstile.js';
 
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
 const MAX_REG_IP = 15;                // Tối đa 15 tài khoản / 10 phút từ cùng 1 IP
@@ -55,6 +56,11 @@ export async function onRequestPost({ request, env }) {
   const rawDisplayName = String(body.displayName || body.tenHienThi || body.hoTen || body.hoten || '').trim();
   const rawPassword = String(body.password || body.matKhau || '').trim();
   const rawAccountType = String(body.accountType || body.vaiTro || body.loaiTaiKhoan || body.loai_tai_khoan || 'student').trim().toLowerCase();
+  const turnstileToken = String(body.turnstileToken || '').trim();
+
+  if (turnstileToken && !(await turnstileHopLe(env, turnstileToken, ip))) {
+    return json({ ok: false, message: 'Xác minh "không phải robot" chưa xong hoặc đã hết hạn.' }, 400);
+  }
 
   // Validate username
   const username = rawUsername.toLowerCase();
@@ -71,9 +77,9 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, message: 'Tên hiển thị phải từ 2 ký tự trở lên.' }, 400);
   }
 
-  // Validate password
-  if (rawPassword.length < 6) {
-    return json({ ok: false, message: 'Mật khẩu phải từ 6 ký tự trở lên.' }, 400);
+  // Validate password (Tối thiểu 8 ký tự cho tài khoản mới)
+  if (rawPassword.length < 8) {
+    return json({ ok: false, message: 'Mật khẩu phải từ 8 ký tự trở lên để đảm bảo an toàn.' }, 400);
   }
 
   // Role validation & TEACHER SECURITY ENFORCEMENT

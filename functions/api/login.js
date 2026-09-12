@@ -4,6 +4,7 @@
 import { COOKIE_NAME, createToken, safeEqual } from '../_lib/auth.js';
 import { totpKiemTra } from '../_lib/totp.js';
 import { xacMinhMatKhau } from '../_lib/passwords.js';
+import { turnstileHopLe } from '../_lib/turnstile.js';
 
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 ngày
 const MAX_TRIES_IP = 30;              // theo IP — NỚI RỘNG vì nhiều học sinh dùng chung Wi-Fi
@@ -56,36 +57,6 @@ async function clearTries(env, ip, ma) {
   if (!env.RATE_LIMIT) return;
   await env.RATE_LIMIT.delete(`login:ip:${ip}`);
   if (ma) await env.RATE_LIMIT.delete(`login:ma:${await bamMa(ma)}`);
-}
-
-
-// Xác minh Turnstile (Cloudflare) — chặn script dò mã tự động NGAY CẢ KHI nó đổi IP liên tục để
-// né giới hạn "8 lần sai/10 phút/IP" ở trên, vì Turnstile đòi hỏi một trình duyệt thật giải được
-// thử thách, không phải chỉ có IP "sạch". Chỉ bật khi đã cấu hình TURNSTILE_SECRET_KEY trên
-// Cloudflare — CHƯA cấu hình thì bỏ qua bước này (không chặn đăng nhập của ai cả), để triển khai
-// code trước, thêm khoá Turnstile sau mà không có lúc nào web bị khoá ngoài dự kiến.
-async function turnstileHopLe(env, token, ip) {
-  if (!env.TURNSTILE_SECRET_KEY) return true;
-  if (!token) {
-    if (ip === '127.0.0.1' || ip === '0.0.0.0' || ip === '::1' || env.TURNSTILE_SECRET_KEY.startsWith('1x000000')) {
-      return true;
-    }
-    return false;
-  }
-  if (token === 'test-bypass' || token === 'dummy') return true;
-  try {
-    const form = new FormData();
-    form.append('secret', env.TURNSTILE_SECRET_KEY);
-    form.append('response', token);
-    form.append('remoteip', ip);
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
-    const kq = await res.json();
-    return Boolean(kq.success);
-  } catch {
-    // Cloudflare siteverify không phản hồi được — không vì lỗi mạng phía máy chủ mà khoá hết
-    // đường vào của mọi người, coi như bỏ qua bước này cho lần thử này.
-    return true;
-  }
 }
 
 // Ghi 1 dòng vào nhật ký đăng nhập — nay ghi CHO MỌI VAI TRÒ (không chỉ mã được cấp quyền như

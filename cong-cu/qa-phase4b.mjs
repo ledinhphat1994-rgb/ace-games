@@ -60,15 +60,32 @@ try {
   const resPendingAccess = await teacherCtx.request.get(`${BASE}/api/gv/duyet-giao-vien`);
   ok('Tài khoản chờ duyệt bị chặn 403 khi vào /api/gv/duyet-giao-vien', resPendingAccess.status() === 403, `status=${resPendingAccess.status()}`);
 
-  // 1.4 Giáo viên xác thực hệ thống (đăng nhập bằng mã GV hợp lệ)
-  // Tạo cookie giáo viên hợp lệ bằng cách login với code giáo viên mẫu hoặc tài khoản giáo viên đã có
+  // 1.4 Giáo viên xác thực hệ thống (đăng nhập bằng mã GV hợp lệ hoặc QA_TEACHER_CODE)
   const verifiedTeacherCtx = await browser.newContext();
-  // Giả lập phiên GV xác thực bằng mã đăng nhập nội bộ
-  const resGvLogin = await verifiedTeacherCtx.request.post(`${BASE}/api/login`, {
-    data: { code: 'GV11A1-G3WNFYKN', lop: '11a1' },
-    headers: { 'Content-Type': 'application/json' }
-  });
-  let verifiedTeacherOk = resGvLogin.status() === 200;
+  let activeTeacherCode = process.env.QA_TEACHER_CODE;
+  let targetLop = '11a1';
+  if (!activeTeacherCode && (BASE.includes('127.0.0.1') || BASE.includes('localhost'))) {
+    try {
+      const { execSync } = await import('child_process');
+      const { bamMatKhau, taoSalt } = await import('../functions/_lib/passwords.js');
+      const rawCode = `GV_LOCAL_QA_${Date.now()}`;
+      const salt = taoSalt(16);
+      execSync(`npx wrangler d1 execute lop-10a7-db --local --command="INSERT INTO ma_dang_nhap (lop_id, vai_tro, ma) VALUES (1, 'teacher', '${rawCode}') ON CONFLICT(lop_id, vai_tro) DO UPDATE SET ma = '${rawCode}';"`, { stdio: 'ignore' });
+      activeTeacherCode = rawCode;
+      targetLop = '10a7';
+    } catch {
+      // Bỏ qua nếu không thể seed local
+    }
+  }
+  let verifiedTeacherOk = false;
+
+  if (activeTeacherCode) {
+    const resGvLogin = await verifiedTeacherCtx.request.post(`${BASE}/api/login`, {
+      data: { code: activeTeacherCode, lop: targetLop },
+      headers: { 'Content-Type': 'application/json' }
+    });
+    verifiedTeacherOk = resGvLogin.status() === 200;
+  }
 
   if (verifiedTeacherOk) {
     console.log('  -> Đăng nhập Giáo viên xác thực thành công.');

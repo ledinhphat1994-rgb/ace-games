@@ -4,51 +4,19 @@
 // cấm chat thì cũng không gửi được tin trong phòng.
 import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
+import { actorKey } from '../_lib/auth.js';
+import { kiemTraTruyCapPhong } from '../_lib/rooms.js';
 
-const GIAN_CACH_TIN_GIAY = 3;   // chống spam: tối thiểu 3 giây giữa 2 tin của 1 người
-
-function khoaPhien(phien) {
-  if (phien.role === 'teacher') return `gv:${phien.lopId || 1}`;
-  if (phien.hocSinhId) return `hs:${phien.hocSinhId}`;
-  return `phu:${phien.phuId || 0}`;
-}
-
-async function damBaoBang(db) {
-  await db.prepare(`CREATE TABLE IF NOT EXISTS phong_tin_nhan (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phong_id INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
-    khoa TEXT NOT NULL,
-    hoc_sinh_id INTEGER,
-    ten_nguoi_gui TEXT NOT NULL,
-    vai_tro TEXT NOT NULL DEFAULT 'hoc_sinh',
-    lop_id INTEGER,
-    noi_dung TEXT NOT NULL,
-    tao_luc TEXT DEFAULT CURRENT_TIMESTAMP
-  )`).run().catch(() => {});
-}
-
-// Lấy phòng + kiểm tra quyền vào (giống api/phong.js).
-async function layPhongVaKiem(db, phongId, phien) {
-  const p = await db.prepare(
-    `SELECT id, ten, pham_vi AS phamVi, lop_id AS lopId, trang_thai AS trangThai
-       FROM phong WHERE id = ?1`
-  ).bind(phongId).first();
-  if (!p || p.trangThai !== 'mo') return { loi: 'Phòng không tồn tại hoặc đã đóng.', status: 404 };
-  if (p.phamVi !== 'truong' && phien.role !== 'teacher' && p.lopId !== phien.lopId) {
-    return { loi: 'Phòng này chỉ dành cho lớp khác.', status: 403 };
-  }
-  return { phong: p };
-}
+const GIAN_CACH_TIN_GIAY = 3; // chống spam: tối thiểu 3 giây giữa 2 tin của 1 người
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  await damBaoBang(db);
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('phongId') || '', 10);
   if (!(phongId > 0)) return loi('Thiếu phòng.', 400);
 
-  const k = await layPhongVaKiem(db, phongId, phien);
-  if (k.loi) return loi(k.loi, k.status);
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { requireAdmitted: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
 
   const sauId = Math.max(0, parseInt(url.searchParams.get('sauId') || '0', 10));
   const rs = await db.prepare(
@@ -59,22 +27,21 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ORDER BY t.id ASC LIMIT 100`
   ).bind(phongId, sauId).all();
 
-  return json({ ok: true, tinNhan: rs.results || [], minhKhoa: khoaPhien(phien) });
+  return json({ ok: true, tinNhan: rs.results || [] });
 });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  await damBaoBang(db);
   const than = await docThan(request);
   const phongId = parseInt(than.phongId || '', 10);
   const noiDung = chuoi(than.noiDung, 500);
   if (!(phongId > 0)) return loi('Thiếu phòng.', 400);
   if (!noiDung) return loi('Tin nhắn trống.', 400);
 
-  const k = await layPhongVaKiem(db, phongId, phien);
-  if (k.loi) return loi(k.loi, k.status);
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { requireAdmitted: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
 
-  const khoa = khoaPhien(phien);
+  const khoa = actorKey(phien);
   const vaiTro = phien.role === 'teacher' ? 'giao_vien' : 'hoc_sinh';
   const ten = phien.ten || phien.vaiTro || 'Thành viên';
 

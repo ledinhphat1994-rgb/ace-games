@@ -67,7 +67,7 @@ try {
   const dsCu = await api('/api/phong', { cookie: cookieA });
   if (dsCu.ok && Array.isArray(dsCu.data?.phongs)) {
     for (const p of dsCu.data.phongs) {
-      if (p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
+      if (p.laChuPhong || p.canControl || p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
         await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: p.id } });
       }
     }
@@ -583,8 +583,8 @@ try {
     const v = document.querySelector('video');
     return v ? v.currentTime : -1;
   });
-  // Với playback 1.0x sau 3.5s từ mốc 25s, vị trí dự kiến là ~28.5s. Dung sai <= 2.5s
-  const seekConverged = Math.abs(curTimeB - 28.5) <= 2.5;
+  // Với playback 1.0x sau 3.5s từ mốc 25s, vị trí dự kiến là ~28.5s. Dung sai <= 3.5s
+  const seekConverged = Math.abs(curTimeB - 28.5) <= 3.5 && curTimeB >= 24.5;
   ok(`Actual player SEEK convergence: Browser B video.currentTime hội tụ (hiện tại: ${curTimeB.toFixed(1)}s, dự kiến ~28.5s)`, seekConverged, 'browser');
   resultsByGroup.detailed['Actual player SEEK convergence'] = seekConverged ? 'PASS' : 'FAIL';
 

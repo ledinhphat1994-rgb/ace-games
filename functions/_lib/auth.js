@@ -69,3 +69,28 @@ export function readCookie(request, name) {
 }
 
 export const COOKIE_NAME = 'c10a7_session';
+
+// Khóa định danh phiên chuẩn tắc cho toàn hệ thống (Canonical Actor Key)
+// - Giáo viên: gv:<id/lopId/accountId>
+// - Học sinh danh sách: hs:<hocSinhId>
+// - Tài khoản Campus độc lập: acc:<accountId>
+// - Tài khoản phụ: phu:<phuId>
+// Tuyệt đối không trả về phu:0 cho tài khoản Campus hợp lệ.
+export function actorKey(phien) {
+  if (!phien) return 'anon';
+  if (phien.role === 'teacher') {
+    return phien.id ? `gv:${phien.id}` : (phien.lopId ? `gv:${phien.lopId}` : (phien.accountId ? `gv:acc:${phien.accountId}` : 'gv:0'));
+  }
+  if (phien.hocSinhId) {
+    return `hs:${phien.hocSinhId}`;
+  }
+  if (phien.accountId) {
+    return `acc:${phien.accountId}`;
+  }
+  if (phien.phuId || phien.taiKhoanPhuId) {
+    return `phu:${phien.phuId || phien.taiKhoanPhuId}`;
+  }
+  return 'phu:0';
+}
+
+export const khoaPhien = actorKey;

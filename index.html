@@ -1502,7 +1502,7 @@ function CampusFocusRoom({
   const [hasInteractedAudio, setHasInteractedAudio] = useState(false);
 
   // Authorization
-  const [canControl, setCanControl] = useState(Boolean(auth.user?.isTeacher));
+  const [canControl, setCanControl] = useState(Boolean(auth.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
   const isHost = canControl;
 
   // Sync state reconciliation helper
@@ -6733,7 +6733,7 @@ function DigitalCampusApp() {
             const yt = cauHinh.videoUrl ? idYoutube(cauHinh.videoUrl) : null;
             const drv = cauHinh.videoUrl ? idGoogleDrive(cauHinh.videoUrl) : null;
             const trucTiep = cauHinh.videoUrl && !yt && !drv && laVideoTrucTiepFe(cauHinh.videoUrl) ? urlMediaFe(cauHinh.videoUrl) : '';
-            const laChuPhong = phongMinhKhoa && p.chuPhongKhoa === phongMinhKhoa;
+            const laChuPhong = Boolean(p.laChuPhong || p.canControl || (phongMinhKhoa && p.chuPhongKhoa === phongMinhKhoa));
             return (
               <div className={isFocusMode && p.loai === 'nhac' ? "max-w-2xl mx-auto w-full" : "grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start"}>
                 <div className="flex flex-col gap-4 min-w-0">

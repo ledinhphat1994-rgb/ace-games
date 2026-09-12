@@ -2,28 +2,15 @@
 // Quản trị trạng thái đếm giờ tập trung (Pomodoro) theo cơ chế Server-Authoritative
 // với khoá lạc quan (Optimistic Concurrency Control) và phân quyền chặt chẽ.
 import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
+import { kiemTraTruyCapPhong } from '../_lib/rooms.js';
 
 const PRESETS = {
-  '25_5': { focus: 1500, break: 300 },   // 25 phút tập trung, 5 phút nghỉ
-  '50_10': { focus: 3000, break: 600 }   // 50 phút tập trung, 10 phút nghỉ
+  '25_5': { focus: 1500, break: 300 }, // 25 phút tập trung, 5 phút nghỉ
+  '50_10': { focus: 3000, break: 600 } // 50 phút tập trung, 10 phút nghỉ
 };
 
 const CAC_HANH_DONG = ['start', 'pause', 'reset', 'start_break', 'start_focus', 'set_preset'];
-
-function khoaPhien(phien) {
-  if (phien.role === 'teacher') return `gv:${phien.lopId || 1}`;
-  if (phien.hocSinhId) return `hs:${phien.hocSinhId}`;
-  return `phu:${phien.phuId || 0}`;
-}
-
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
-
-function duocVao(phong, phien) {
-  if (!phong || phong.trangThai !== 'mo') return false;
-  if (phong.phamVi === 'truong') return true;
-  if (phien.role === 'teacher') return true;
-  return phong.lopId === phien.lopId;
-}
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
@@ -31,15 +18,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(url.searchParams.get('phongId') || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
-  const p = await db.prepare(
-    `SELECT id, loai, ten, mo_ta AS moTa, pham_vi AS phamVi, lop_id AS lopId,
-            chu_phong_khoa AS chuPhongKhoa, chu_phong_ten AS chuPhongTen,
-            cau_hinh AS cauHinh, trang_thai AS trangThai
-       FROM phong WHERE id = ?1`
-  ).bind(phongId).first();
-
-  if (!p || p.trangThai !== 'mo') return loi('Phòng không tồn tại hoặc đã đóng.', 404);
-  if (!duocVao(p, phien)) return loi('Bạn không có quyền truy cập phòng này.', 403);
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'nhac', requireAdmitted: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
+  const p = check.phong;
+  const canControl = check.canControl;
 
   let row = await db.prepare(
     `SELECT phong_id AS phongId, giai_doan AS giaiDoan, trang_thai AS trangThai,
@@ -74,9 +56,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     const elapsedSec = Math.max(0, Math.floor((nowMs - updateTimeMs) / 1000));
     remainingSeconds = Math.max(0, remainingSeconds - elapsedSec);
   }
-
-  const khoa = khoaPhien(phien);
-  const canControl = p.chuPhongKhoa === khoa || phien.role === 'teacher';
 
   let cauHinh = {};
   try { cauHinh = p.cauHinh ? JSON.parse(p.cauHinh) : {}; } catch { }
@@ -122,21 +101,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(than.phongId || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
-  const p = await db.prepare(
-    `SELECT id, loai, ten, pham_vi AS phamVi, lop_id AS lopId,
-            chu_phong_khoa AS chuPhongKhoa, chu_phong_ten AS chuPhongTen,
-            trang_thai AS trangThai
-       FROM phong WHERE id = ?1`
-  ).bind(phongId).first();
-
-  if (!p || p.trangThai !== 'mo') return loi('Phòng không tồn tại hoặc đã đóng.', 404);
-  if (!duocVao(p, phien)) return loi('Bạn không có quyền truy cập phòng này.', 403);
-
-  const khoa = khoaPhien(phien);
-  const canControl = p.chuPhongKhoa === khoa || phien.role === 'teacher';
-  if (!canControl) {
-    return loi('Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển phiên tập trung.', 403);
-  }
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'nhac', requireAdmitted: true, requireHostOrTeacher: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
+  const khoa = check.actorKey;
 
   const action = chuoi(than.action, 20);
   if (!CAC_HANH_DONG.includes(action)) {

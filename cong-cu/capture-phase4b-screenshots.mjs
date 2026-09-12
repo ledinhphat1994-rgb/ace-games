@@ -127,26 +127,43 @@ try {
   await pageStudent.screenshot({ path: path.join(OUT_DIR, '12-community-code-gate.png'), fullPage: false });
   console.log('  -> 12-community-code-gate.png');
 
-  // 13. Teacher Control Center & Teacher Dropdown
-  const ctxTeacher = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  await ctxTeacher.request.post(`${BASE}/api/login`, {
-    data: { code: 'GV11A1-G3WNFYKN', lop: '11a1' }
-  });
-  const pageTeacher = await ctxTeacher.newPage();
-  await pageTeacher.goto(BASE, { waitUntil: 'domcontentloaded' });
-  await pageTeacher.waitForTimeout(1500);
+  let activeTeacherCode = process.env.QA_TEACHER_CODE;
+  let targetLop = '11a1';
+  if (!activeTeacherCode && (BASE.includes('127.0.0.1') || BASE.includes('localhost'))) {
+    try {
+      const { execSync } = await import('child_process');
+      const rawCode = `GV_LOCAL_SCREENSHOT_${Date.now()}`;
+      execSync(`npx wrangler d1 execute lop-10a7-db --local --command="INSERT INTO ma_dang_nhap (lop_id, vai_tro, ma) VALUES (1, 'teacher', '${rawCode}') ON CONFLICT(lop_id, vai_tro) DO UPDATE SET ma = '${rawCode}';"`, { stdio: 'ignore' });
+      activeTeacherCode = rawCode;
+      targetLop = '10a7';
+    } catch { }
+  }
 
-  // Open teacher dropdown
-  await pageTeacher.locator('#btn-user-menu').click();
-  await pageTeacher.waitForTimeout(300);
-  await pageTeacher.screenshot({ path: path.join(OUT_DIR, '13-teacher-dropdown.png'), fullPage: false });
-  console.log('  -> 13-teacher-dropdown.png');
+  if (activeTeacherCode) {
+    const ctxTeacher = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const resGv = await ctxTeacher.request.post(`${BASE}/api/login`, {
+      data: { code: activeTeacherCode, lop: targetLop }
+    });
+    if (resGv.status() === 200) {
+      const pageTeacher = await ctxTeacher.newPage();
+      await pageTeacher.goto(BASE, { waitUntil: 'domcontentloaded' });
+      await pageTeacher.waitForTimeout(1500);
 
-  // Open Teacher Control Center
-  await pageTeacher.locator('#btn-open-teacher-control-center').click();
-  await pageTeacher.waitForTimeout(500);
-  await pageTeacher.screenshot({ path: path.join(OUT_DIR, '14-teacher-control-center.png'), fullPage: false });
-  console.log('  -> 14-teacher-control-center.png');
+      // Open teacher dropdown
+      await pageTeacher.locator('#btn-user-menu').click();
+      await pageTeacher.waitForTimeout(300);
+      await pageTeacher.screenshot({ path: path.join(OUT_DIR, '13-teacher-dropdown.png'), fullPage: false });
+      console.log('  -> 13-teacher-dropdown.png');
+
+      // Open Teacher Control Center
+      await pageTeacher.locator('#btn-open-teacher-control-center').click();
+      await pageTeacher.waitForTimeout(500);
+      await pageTeacher.screenshot({ path: path.join(OUT_DIR, '14-teacher-control-center.png'), fullPage: false });
+      console.log('  -> 14-teacher-control-center.png');
+    }
+  } else {
+    console.log('  [Bỏ qua screenshot Giáo viên: QA_TEACHER_CODE không được cấu hình]');
+  }
 
   // 15. Password room join dialog
   const ctxViewer = await browser.newContext({ viewport: { width: 1440, height: 900 } });

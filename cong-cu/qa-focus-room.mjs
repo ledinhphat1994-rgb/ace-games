@@ -67,7 +67,7 @@ try {
   const dsCu = await api('/api/phong', { cookie: cookieA });
   if (dsCu.ok && Array.isArray(dsCu.data?.phongs)) {
     for (const p of dsCu.data.phongs) {
-      if (p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
+      if (p.laChuPhong || p.canControl || p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
         await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: p.id } });
       }
     }

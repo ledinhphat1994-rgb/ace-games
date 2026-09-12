@@ -31,7 +31,7 @@ lớp" — gõ đúng mã của lớp nào thì vào thẳng đúng lớp đó, 
 | Lớp | Mã giáo viên |
 |---|---|
 | Lớp 10A7 | mã bạn đã tự đặt trước đó (xem/đổi ở Mã đăng nhập) |
-| Lớp 11A1 | `GV11A1-G3WNFYKN` — mã tạm, **nên đổi ngay** ở bước dưới |
+| Lớp 11A1 | mã bảo mật riêng — cấu hình trong biến môi trường hoặc cấp trong Khu quản lý |
 
 **Biết đang ở lớp nào:** góc trên bên trái khu quản lý luôn ghi rõ *"Đang quản lý: <tên lớp>"*,
 tiêu đề tab trình duyệt cũng hiện tên lớp — nhìn một cái là biết ngay, không sợ thao tác nhầm.

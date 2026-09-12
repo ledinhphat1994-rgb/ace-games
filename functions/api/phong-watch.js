@@ -3,35 +3,12 @@
 // Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển (play/pause/seek/set_rate).
 // Thành viên khác chỉ đọc và đồng bộ timeline theo máy chủ.
 import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
+import { kiemTraTruyCapPhong } from '../_lib/rooms.js';
 
 const CAC_TOC_DO = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 const CAC_HANH_DONG = ['play', 'pause', 'seek', 'set_rate'];
 
-function khoaPhien(phien) {
-  if (phien.role === 'teacher') return `gv:${phien.lopId || 1}`;
-  if (phien.hocSinhId) return `hs:${phien.hocSinhId}`;
-  return `phu:${phien.phuId || 0}`;
-}
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
-
-async function layPhongVaKiem(db, phongId, phien) {
-  const p = await db.prepare(
-    `SELECT id, loai, ten, mo_ta AS moTa, pham_vi AS phamVi, lop_id AS lopId,
-            chu_phong_khoa AS chuPhongKhoa, chu_phong_ten AS chuPhongTen,
-            cau_hinh AS cauHinh, trang_thai AS trangThai
-       FROM phong WHERE id = ?1`
-  ).bind(phongId).first();
-
-  if (!p || p.trangThai !== 'mo') return { loi: 'Phòng không tồn tại hoặc đã đóng.', status: 404 };
-  if (p.loai !== 'video') return { loi: 'Phòng này không phải phòng xem video.', status: 400 };
-
-  // Phân quyền vào phòng: phòng trường mở cho mọi lớp; phòng lớp chỉ lớp mình hoặc GV
-  if (p.phamVi !== 'truong' && phien.role !== 'teacher' && p.lopId !== phien.lopId) {
-    return { loi: 'Phòng này chỉ dành cho lớp khác.', status: 403 };
-  }
-
-  return { phong: p };
-}
 
 function phanLoaiProvider(videoUrl) {
   const s = String(videoUrl || '').trim();
@@ -48,12 +25,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(url.searchParams.get('phongId') || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
-  const k = await layPhongVaKiem(db, phongId, phien);
-  if (k.loi) return loi(k.loi, k.status);
-  const p = k.phong;
-
-  const khoa = khoaPhien(phien);
-  const canControl = Boolean((p.chuPhongKhoa === khoa) || (phien.role === 'teacher'));
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
+  const p = check.phong;
+  const canControl = check.canControl;
 
   let row = await db.prepare(
     `SELECT phong_id AS phongId, trang_thai AS trangThai, vi_tri_giay AS viTriGiay,
@@ -120,15 +95,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(than.phongId || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
-  const k = await layPhongVaKiem(db, phongId, phien);
-  if (k.loi) return loi(k.loi, k.status);
-  const p = k.phong;
-
-  const khoa = khoaPhien(phien);
-  const canControl = Boolean((p.chuPhongKhoa === khoa) || (phien.role === 'teacher'));
-  if (!canControl) {
-    return loi('Bạn không có quyền điều khiển phát video trong phòng này (chỉ chủ phòng hoặc giáo viên).', 403);
-  }
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true, requireHostOrTeacher: true });
+  if (check.loi) return loi(check.loi, check.status || 403);
+  const khoa = check.actorKey;
 
   const action = chuoi(than.action, 20);
   if (!CAC_HANH_DONG.includes(action)) {
