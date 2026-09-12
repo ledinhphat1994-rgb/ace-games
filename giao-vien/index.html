@@ -65,6 +65,10 @@
   <div class="menu-day" id="menuDayDu" hidden>
     <div class="wrap menu-day-trong">
       <div class="menu-luoi">
+        <a class="menu-muc" href="#/tong-quan">
+          <span class="menu-icon">📊</span>
+          <span class="menu-chu"><b>Tổng quan</b><small>Trung tâm điều hành và tóm tắt hoạt động</small></span>
+        </a>
         <a class="menu-muc" href="#/diem-danh">
           <span class="menu-icon">📋</span>
           <span class="menu-chu"><b>Điểm danh</b><small>Ghi chuyên cần hôm nay và các ngày trước</small></span>
@@ -101,6 +105,26 @@
           <span class="menu-icon">🎬</span>
           <span class="menu-chu"><b>Thư viện Video</b><small>Video kỷ niệm và hoạt động</small></span>
         </a>
+        <a class="menu-muc" href="#/bao-cao-vi-pham">
+          <span class="menu-icon">🚩</span>
+          <span class="menu-chu"><b>Báo cáo vi phạm</b><small>Kiểm duyệt nội dung và xử lý báo cáo</small></span>
+        </a>
+        <a class="menu-muc" href="#/duyet-giao-vien">
+          <span class="menu-icon">🛡️</span>
+          <span class="menu-chu"><b>Duyệt giáo viên</b><small>Phê duyệt tài khoản giáo viên đăng ký</small></span>
+        </a>
+        <a class="menu-muc" href="#/ma-cong-dong">
+          <span class="menu-icon">🔑</span>
+          <span class="menu-chu"><b>Mã truy cập</b><small>Quản lý mã mời bảng tin cộng đồng</small></span>
+        </a>
+        <a class="menu-muc" href="#/bien-tap-vien">
+          <span class="menu-icon">✍️</span>
+          <span class="menu-chu"><b>Ban biên tập</b><small>Phân quyền biên tập viên học sinh</small></span>
+        </a>
+        <a class="menu-muc" href="#/phong-campus">
+          <span class="menu-icon">🏠</span>
+          <span class="menu-chu"><b>Phòng hoạt động</b><small>Giám sát phòng trực tuyến đang mở</small></span>
+        </a>
         <a class="menu-muc" href="#/bao-cao">
           <span class="menu-icon">📑</span>
           <span class="menu-chu"><b>Báo cáo & Xuất file</b><small>Xuất danh sách, điểm, chuyên cần</small></span>
@@ -110,7 +134,7 @@
           <span class="menu-chu"><b>Hồ sơ giáo viên</b><small>Cập nhật avatar và danh xưng hiển thị</small></span>
         </a>
         <a class="menu-muc" href="#/ma-ca-nhan">
-          <span class="menu-icon">🔑</span>
+          <span class="menu-icon">🔐</span>
           <span class="menu-chu"><b>Cán sự & Phân quyền</b><small>Cấp quyền cho cán sự lớp</small></span>
         </a>
         <a class="menu-muc" href="#/reset-du-lieu">
@@ -184,6 +208,12 @@
       <a href="#/bao-cao-vi-pham">
         <span class="bieu-tuong">🚩</span> Báo cáo vi phạm
       </a>
+      <a href="#/ma-cong-dong">
+        <span class="bieu-tuong">🔑</span> Mã truy cập
+      </a>
+      <a href="#/bien-tap-vien">
+        <span class="bieu-tuong">✍️</span> Ban biên tập
+      </a>
       <a href="#/ma-ca-nhan">
         <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5L13 7l-1.5-1.5L10 7l-2-2a5 5 0 1 0-4 7l8 8a2 2 0 0 0 2.83 0l6.17-6.17a5 5 0 0 0 0-7.07z"/></svg></span> Cán sự &amp; Phân quyền
       </a>
@@ -194,6 +224,9 @@
       <p class="nhom-nhan">Campus</p>
       <a href="#/phong-campus">
         <span class="bieu-tuong">🏠</span> Phòng hoạt động
+      </a>
+      <a href="#/duyet-giao-vien" id="menuDuyetGiaoVien">
+        <span class="bieu-tuong">🛡️</span> Duyệt giáo viên
       </a>
     </div>
 
@@ -218,17 +251,17 @@
 </div>
 
 <nav class="tab-duoi" id="tabDuoi">
+  <a href="#/tong-quan">
+    <span class="bieu-tuong">📊</span>Tổng quan
+  </a>
   <a href="#/diem-danh">
     <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>Điểm danh
   </a>
   <a href="#/hoc-sinh">
-    <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Học sinh
+    <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Học sinh
   </a>
   <a href="#/quy">
     <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg></span>Thủ quỹ
-  </a>
-  <a href="#/campus-highlights">
-    <span class="bieu-tuong">✨</span>Tiêu điểm
   </a>
   <a href="#/them" data-nhom="them">
     <span class="bieu-tuong"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></span>Thêm

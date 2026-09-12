@@ -57,9 +57,14 @@ const QUYEN_THEO_TUYEN = {
   'thoi-khoa-bieu-lich-su': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-xem': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-khoi-phuc': 'thoi-khoa-bieu',
+  'tong-quan': null,
   'campus-highlights': null,
   'ho-so-gv': null,
   'phong-campus': null,
+  'bao-cao-vi-pham': null,
+  'duyet-giao-vien': null,
+  'ma-cong-dong': null,
+  'bien-tap-vien': null,
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
@@ -119,6 +124,10 @@ function locMenuTheoQuyen() {
   if (PHIEN.role !== 'teacher') {
     const mucDoiLop = document.getElementById('mucDoiLop');
     if (mucDoiLop) mucDoiLop.remove();
+  }
+  if (!PHIEN.isSchoolAdmin && PHIEN.role !== 'teacher') {
+    const menuDuyet = document.getElementById('menuDuyetGiaoVien');
+    if (menuDuyet) menuDuyet.remove();
   }
   if (PHIEN.role === 'teacher') return;
   $$('.cot-trai a, .tab-duoi a, #menuDayDu a').forEach((a) => {
@@ -2243,9 +2252,621 @@ async function trangPhongCampus() {
   }
 }
 
+
+
+/* ================= Khu Quản Trị: Tổng Quan, Báo Cáo, Duyệt Giáo Viên, Mã & Ban Biên Tập ================= */
+
+function taoOThongKe(tieuDe, so, moTa, mauSo = '#00F2FE') {
+  const o = e('div');
+  o.style.cssText = 'padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);';
+  const d1 = e('div', null, tieuDe);
+  d1.style.cssText = 'font-size: 11px; color: var(--chu-nhat);';
+  const d2 = e('div', null, String(so));
+  d2.style.cssText = 'font-size: 20px; font-weight: 900; color: ' + mauSo + '; margin-top: 2px;';
+  const d3 = e('div', null, moTa);
+  d3.style.cssText = 'font-size: 10px; color: var(--chu-nhat); margin-top: 2px;';
+  o.append(d1, d2, d3);
+  return o;
+}
+
+async function trangTongQuan() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải dữ liệu tổng quan quản trị...'));
+  try {
+    const [resPhong, resGame, resBaoCao, resGv, resHs, resTb, resHl, resLop] = await Promise.allSettled([
+      api('/api/phong?phamVi=truong'),
+      api('/api/game?action=danh_sach'),
+      api('/api/gv/bao-cao?status=pending'),
+      api('/api/gv/duyet-giao-vien'),
+      api('/api/gv/hoc-sinh'),
+      api('/api/thong-bao'),
+      api('/api/campus-highlights'),
+      PHIEN.isSchoolAdmin ? api('/api/lop') : Promise.resolve({ ok: true, danhSach: [] })
+    ]);
+
+    const dsPhong = resPhong.status === 'fulfilled' && Array.isArray(resPhong.value?.phong) ? resPhong.value.phong : [];
+    const dsGame = resGame.status === 'fulfilled' && Array.isArray(resGame.value?.danhSach) ? resGame.value.danhSach : [];
+    const pendingReports = resBaoCao.status === 'fulfilled' && Array.isArray(resBaoCao.value?.reports) ? resBaoCao.value.reports : [];
+    const pendingTeachers = resGv.status === 'fulfilled' && Array.isArray(resGv.value?.pendingTeachers) ? resGv.value.pendingTeachers : [];
+    const dsHs = resHs.status === 'fulfilled' && Array.isArray(resHs.value?.danhSach) ? resHs.value.danhSach : [];
+    const dsTb = resTb.status === 'fulfilled' && Array.isArray(resTb.value?.danhSach) ? resTb.value.danhSach : [];
+    const dsHl = resHl.status === 'fulfilled' && Array.isArray(resHl.value?.highlights) ? resHl.value.highlights : [];
+    const dsLop = resLop.status === 'fulfilled' && Array.isArray(resLop.value?.danhSach) ? resLop.value.danhSach : [];
+
+    const activeCaro = dsGame.filter((b) => b.trangThai === 'dang_choi').length;
+    const waitingCaro = dsGame.filter((b) => b.trangThai === 'cho_nguoi').length;
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '📊 Tổng Quan Quản Trị Campus',
+      'Trung tâm điều hành và tóm tắt hoạt động Campus, Lớp học, Nội dung và Kiểm duyệt.'
+    ));
+
+    const luoi = e('div');
+    luoi.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 16px;';
+
+    // 1. CAMPUS
+    const theCampus = e('div', 'the');
+    theCampus.style.cssText = 'background: #121620; border: 1px solid rgba(0,242,254,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
+
+    const dauCampus = e('div');
+    dauCampus.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+    const tieuDeCampus = e('div');
+    tieuDeCampus.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeCampus.append(Object.assign(e('span', null, '🏛️'), { style: 'font-size: 20px;' }));
+    tieuDeCampus.append(Object.assign(e('b', null, 'Campus Trực Tuyến'), { style: 'font-size: 15px; color: #FFFFFF;' }));
+    const nhanCampus = e('span', 'nhan', 'Thời gian thực');
+    nhanCampus.style.cssText = 'background: rgba(0,242,254,0.15); color: #00F2FE; font-weight: 700;';
+    dauCampus.append(tieuDeCampus, nhanCampus);
+
+    const luoiCampus = e('div');
+    luoiCampus.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+    luoiCampus.append(
+      taoOThongKe('Phòng hoạt động', dsPhong.length, 'Xem chung & Học tập', '#00F2FE'),
+      taoOThongKe('Đấu trường Game', activeCaro + waitingCaro, activeCaro + ' đang đấu · ' + waitingCaro + ' chờ', '#FFB800')
+    );
+
+    const nutCampus = e('div');
+    nutCampus.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
+    const aPhong = e('a', 'nut nut-vien nut-nho', 'Giám sát phòng →');
+    aPhong.href = '#/phong-campus';
+    aPhong.style.cssText = 'flex: 1; text-align: center;';
+    const aHl = e('a', 'nut nut-phu nut-nho', 'Tiêu điểm →');
+    aHl.href = '#/campus-highlights';
+    aHl.style.cssText = 'flex: 1; text-align: center;';
+    nutCampus.append(aPhong, aHl);
+
+    theCampus.append(dauCampus, luoiCampus, nutCampus);
+    luoi.append(theCampus);
+
+    // 2. LỚP HỌC
+    const theLop = e('div', 'the');
+    theLop.style.cssText = 'background: #121620; border: 1px solid rgba(16,185,129,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
+    const tenLopHien = PHIEN.tenLop || 'Lớp 10A7';
+    const moTaLop = PHIEN.isSchoolAdmin
+      ? ('Quản trị trường học · ' + (dsLop.length > 0 ? dsLop.length + ' lớp' : 'Đa lớp'))
+      : ('GVCN · ' + (PHIEN.namHoc || '2026–2027'));
+
+    const dauLop = e('div');
+    dauLop.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+    const tieuDeLop = e('div');
+    tieuDeLop.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeLop.append(Object.assign(e('span', null, '👥'), { style: 'font-size: 20px;' }));
+    tieuDeLop.append(Object.assign(e('b', null, tenLopHien), { style: 'font-size: 15px; color: #FFFFFF;' }));
+    const nhanLop = e('span', 'nhan', moTaLop);
+    nhanLop.style.cssText = 'background: rgba(16,185,129,0.15); color: #10B981; font-weight: 700;';
+    dauLop.append(tieuDeLop, nhanLop);
+
+    const luoiLop = e('div');
+    luoiLop.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+    luoiLop.append(
+      taoOThongKe('Sĩ số học sinh', dsHs.length, 'Học sinh chính thức', '#10B981'),
+      taoOThongKe('Chuyên cần', 'Điểm danh', 'Module chuyên cần', '#FFFFFF')
+    );
+
+    const nutLop = e('div');
+    nutLop.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
+    const aDiemDanh = e('a', 'nut nut-chinh nut-nho', 'Điểm danh →');
+    aDiemDanh.href = '#/diem-danh';
+    aDiemDanh.style.cssText = 'flex: 1; text-align: center;';
+    const aHs = e('a', 'nut nut-vien nut-nho', 'Học sinh →');
+    aHs.href = '#/hoc-sinh';
+    aHs.style.cssText = 'flex: 1; text-align: center;';
+    const aQuy = e('a', 'nut nut-phu nut-nho', 'Quỹ →');
+    aQuy.href = '#/quy';
+    aQuy.style.cssText = 'flex: 1; text-align: center;';
+    nutLop.append(aDiemDanh, aHs, aQuy);
+
+    theLop.append(dauLop, luoiLop, nutLop);
+    luoi.append(theLop);
+
+    // 3. NỘI DUNG & TRUYỀN THÔNG
+    const theNoiDung = e('div', 'the');
+    theNoiDung.style.cssText = 'background: #121620; border: 1px solid rgba(139,92,246,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
+    const dauNoiDung = e('div');
+    dauNoiDung.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+    const tieuDeNoiDung = e('div');
+    tieuDeNoiDung.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeNoiDung.append(Object.assign(e('span', null, '📢'), { style: 'font-size: 20px;' }));
+    tieuDeNoiDung.append(Object.assign(e('b', null, 'Nội Dung & Truyền Thông'), { style: 'font-size: 15px; color: #FFFFFF;' }));
+    const nhanNoiDung = e('span', 'nhan', 'Campus Feed');
+    nhanNoiDung.style.cssText = 'background: rgba(139,92,246,0.15); color: #8B5CF6; font-weight: 700;';
+    dauNoiDung.append(tieuDeNoiDung, nhanNoiDung);
+
+    const luoiNoiDung = e('div');
+    luoiNoiDung.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+    luoiNoiDung.append(
+      taoOThongKe('Thông báo', dsTb.length, 'Bài viết & Ticker', '#8B5CF6'),
+      taoOThongKe('Tiêu điểm Campus', dsHl.length + '/4', 'Thẻ nổi bật đang hiện', '#FFFFFF')
+    );
+
+    const nutNoiDung = e('div');
+    nutNoiDung.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
+    const aTb = e('a', 'nut nut-vien nut-nho', 'Đăng thông báo →');
+    aTb.href = '#/thong-bao';
+    aTb.style.cssText = 'flex: 1; text-align: center;';
+    const aHlSua = e('a', 'nut nut-phu nut-nho', 'Sửa tiêu điểm →');
+    aHlSua.href = '#/campus-highlights';
+    aHlSua.style.cssText = 'flex: 1; text-align: center;';
+    nutNoiDung.append(aTb, aHlSua);
+
+    theNoiDung.append(dauNoiDung, luoiNoiDung, nutNoiDung);
+    luoi.append(theNoiDung);
+
+    // 4. KIỂM DUYỆT & AN TOÀN
+    const theKiemDuyet = e('div', 'the');
+    theKiemDuyet.style.cssText = 'background: #121620; border: 1px solid rgba(244,63,94,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
+    const dauKiemDuyet = e('div');
+    dauKiemDuyet.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+    const tieuDeKiemDuyet = e('div');
+    tieuDeKiemDuyet.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeKiemDuyet.append(Object.assign(e('span', null, '🛡️'), { style: 'font-size: 20px;' }));
+    tieuDeKiemDuyet.append(Object.assign(e('b', null, 'Kiểm Duyệt & An Toàn'), { style: 'font-size: 15px; color: #FFFFFF;' }));
+    const nhanKiemDuyet = e('span', 'nhan', 'Bảo mật');
+    nhanKiemDuyet.style.cssText = 'background: rgba(244,63,94,0.15); color: #F43F5E; font-weight: 700;';
+    dauKiemDuyet.append(tieuDeKiemDuyet, nhanKiemDuyet);
+
+    const luoiKiemDuyet = e('div');
+    luoiKiemDuyet.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+    luoiKiemDuyet.append(
+      taoOThongKe('Báo cáo vi phạm', pendingReports.length, pendingReports.length > 0 ? 'Cần xem xét' : 'Đang an toàn', pendingReports.length > 0 ? '#F43F5E' : '#FFFFFF'),
+      taoOThongKe('Duyệt Giáo viên', pendingTeachers.length, pendingTeachers.length > 0 ? 'Chờ phê duyệt' : 'Đã duyệt hết', pendingTeachers.length > 0 ? '#FFB800' : '#FFFFFF')
+    );
+
+    const nutKiemDuyet = e('div');
+    nutKiemDuyet.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
+    const aBaoCao = e('a', 'nut nut-vien nut-nho', 'Xử lý báo cáo →');
+    aBaoCao.href = '#/bao-cao-vi-pham';
+    aBaoCao.style.cssText = 'flex: 1; text-align: center;';
+    nutKiemDuyet.append(aBaoCao);
+
+    if (PHIEN.isSchoolAdmin || PHIEN.role === 'teacher') {
+      const aDuyet = e('a', 'nut nut-phu nut-nho', 'Duyệt GV →');
+      aDuyet.href = '#/duyet-giao-vien';
+      aDuyet.style.cssText = 'flex: 1; text-align: center;';
+      nutKiemDuyet.append(aDuyet);
+    }
+
+    theKiemDuyet.append(dauKiemDuyet, luoiKiemDuyet, nutKiemDuyet);
+    luoi.append(theKiemDuyet);
+
+    khung.append(luoi);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi khi tải tổng quan quản trị: ' + err.message));
+  }
+}
+
+async function trangBaoCaoViPham(trangThaiLoc = 'all') {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách báo cáo vi phạm...'));
+  try {
+    const url = trangThaiLoc === 'all' ? '/api/gv/bao-cao' : ('/api/gv/bao-cao?status=' + trangThaiLoc);
+    const res = await api(url);
+    const reports = Array.isArray(res.reports) ? res.reports : [];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '🚩 Hàng Đợi Kiểm Duyệt Báo Cáo Vi Phạm',
+      'Xem xét và xử lý các báo cáo vi phạm tin nhắn, hành vi từ học sinh trên Campus.'
+    ));
+
+    const thanhLoc = e('div');
+    thanhLoc.style.cssText = 'display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap;';
+    [
+      { id: 'all', label: 'Tất cả' },
+      { id: 'pending', label: 'Đang chờ' },
+      { id: 'resolved', label: 'Đã xử lý' },
+      { id: 'dismissed', label: 'Đã bỏ qua' }
+    ].forEach((f) => {
+      const b = nut(f.label, f.id === trangThaiLoc ? 'nut-chinh nut-nho' : 'nut-vien nut-nho', () => {
+        trangBaoCaoViPham(f.id);
+      });
+      thanhLoc.append(b);
+    });
+    khung.append(thanhLoc);
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    if (reports.length === 0) {
+      the.append(Object.assign(e('p', null, 'Không có báo cáo nào trong mục này.'), {
+        style: 'text-align: center; color: var(--chu-nhat); padding: 32px 0;'
+      }));
+    } else {
+      const danhSach = e('div');
+      danhSach.style.cssText = 'display: flex; flex-direction: column; gap: 14px;';
+
+      reports.forEach((r) => {
+        const item = e('div');
+        item.style.cssText = 'background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px;';
+
+        const headerDong = e('div');
+        headerDong.style.cssText = 'display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;';
+
+        const cotTrai = e('div');
+        cotTrai.style.cssText = 'font-size: 13px;';
+        const bReporter = e('b', null, r.reporterName || 'Học sinh');
+        bReporter.style.color = '#FFFFFF';
+        const spanDaBaoCao = e('span', null, ' đã báo cáo ');
+        spanDaBaoCao.style.color = 'var(--chu-nhat)';
+        const bTarget = e('b', null, r.targetName || 'Thành viên');
+        bTarget.style.color = '#FFB800';
+        cotTrai.append(bReporter, ' (@' + (r.reporterUsername || '') + ')', spanDaBaoCao, bTarget, ' (@' + (r.targetUsername || '') + ')');
+
+        const cotPhai = e('div');
+        cotPhai.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+        const nhanTrangThai = e(
+          'span',
+          r.status === 'resolved' ? 'nhan-tot' : r.status === 'dismissed' ? 'nhan-xam' : 'nhan-canh-bao',
+          r.status === 'resolved' ? 'Đã xử lý' : r.status === 'dismissed' ? 'Đã bỏ qua' : 'Đang chờ'
+        );
+        const spanTime = e('span', null, r.createdAt ? new Date(r.createdAt).toLocaleString('vi-VN') : '');
+        spanTime.style.cssText = 'font-size: 11px; color: var(--chu-nhat);';
+        cotPhai.append(nhanTrangThai, spanTime);
+
+        headerDong.append(cotTrai, cotPhai);
+        item.append(headerDong);
+
+        const lyDoBox = e('div');
+        lyDoBox.style.cssText = 'font-size: 12px; color: var(--chu); background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);';
+        lyDoBox.append(Object.assign(e('b', null, 'Lý do báo cáo: '), { style: 'color: var(--chu-nhat);' }), r.reason || '—');
+        item.append(lyDoBox);
+
+        if (r.reportedMessageContent) {
+          const msgBox = e('div');
+          msgBox.style.cssText = 'font-size: 12px; color: #FDE68A; background: rgba(245,158,11,0.08); padding: 10px; border-radius: 8px; border: 1px solid rgba(245,158,11,0.2);';
+          msgBox.append(Object.assign(e('b', null, 'Nội dung tin nhắn bị báo cáo: '), { style: 'display: block; margin-bottom: 2px;' }), '"' + r.reportedMessageContent + '"');
+          item.append(msgBox);
+        }
+
+        if (r.status === 'pending') {
+          const nutDong = e('div');
+          nutDong.style.cssText = 'display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;';
+
+          const nutBoQua = nut('Bỏ qua', 'nut-vien nut-nho', async () => {
+            try {
+              const resAct = await api('/api/gv/bao-cao', {
+                method: 'POST',
+                body: JSON.stringify({ reportId: r.id, action: 'dismiss' })
+              });
+              if (resAct.ok) {
+                nhac('Đã bỏ qua báo cáo', 'tot');
+                await trangBaoCaoViPham(trangThaiLoc);
+              } else {
+                nhac('Lỗi: ' + (resAct.loi || resAct.error), 'xau');
+              }
+            } catch (err) {
+              nhac('Lỗi: ' + err.message, 'xau');
+            }
+          });
+
+          const nutXuLy = nut('Xử lý vi phạm', 'nut-chinh nut-nho', async () => {
+            try {
+              const resAct = await api('/api/gv/bao-cao', {
+                method: 'POST',
+                body: JSON.stringify({ reportId: r.id, action: 'resolve' })
+              });
+              if (resAct.ok) {
+                nhac('Đã đánh dấu xử lý vi phạm', 'tot');
+                await trangBaoCaoViPham(trangThaiLoc);
+              } else {
+                nhac('Lỗi: ' + (resAct.loi || resAct.error), 'xau');
+              }
+            } catch (err) {
+              nhac('Lỗi: ' + err.message, 'xau');
+            }
+          });
+
+          nutDong.append(nutBoQua, nutXuLy);
+          item.append(nutDong);
+        }
+
+        danhSach.append(item);
+      });
+
+      the.append(danhSach);
+    }
+
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi tải báo cáo vi phạm: ' + err.message));
+  }
+}
+
+async function trangDuyetGiaoVien() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách giáo viên chờ duyệt...'));
+  try {
+    const res = await api('/api/gv/duyet-giao-vien');
+    const pendingTeachers = Array.isArray(res.pendingTeachers) ? res.pendingTeachers : [];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '🛡️ Phê Duyệt Tài Khoản Giáo Viên',
+      'Xem xét và phê duyệt các yêu cầu cấp quyền giáo viên từ tài khoản Campus.'
+    ));
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    if (pendingTeachers.length === 0) {
+      the.append(Object.assign(e('p', null, 'Không có tài khoản giáo viên nào đang chờ phê duyệt.'), {
+        style: 'text-align: center; color: var(--chu-nhat); padding: 32px 0;'
+      }));
+    } else {
+      const bang = e('table', 'khung-bang');
+      const thead = e('thead');
+      const trHead = e('tr');
+      trHead.append(
+        e('th', null, 'Họ và tên'),
+        e('th', null, 'Tên đăng nhập'),
+        e('th', null, 'Thời gian đăng ký'),
+        Object.assign(e('th', null, 'Thao tác'), { style: 'text-align: right;' })
+      );
+      thead.append(trHead);
+      bang.append(thead);
+
+      const tbody = e('tbody');
+      pendingTeachers.forEach((t) => {
+        const tr = e('tr');
+        const tdTen = e('td');
+        tdTen.append(e('b', null, t.tenHienThi || '—'));
+
+        const tdAcc = e('td');
+        const codeAcc = e('span', null, '@' + (t.tenDangNhap || ''));
+        codeAcc.style.cssText = 'color: #00F2FE; font-family: monospace;';
+        tdAcc.append(codeAcc);
+
+        const tdTime = e('td', null, t.taoLuc ? new Date(t.taoLuc).toLocaleString('vi-VN') : '—');
+
+        const tdAct = e('td');
+        tdAct.style.cssText = 'text-align: right;';
+
+        const btnApprove = nut('✓ Phê duyệt', 'nut-chinh nut-nho', async () => {
+          if (!confirm('Phê duyệt tài khoản giáo viên ' + t.tenHienThi + '?')) return;
+          try {
+            const resAct = await api('/api/gv/duyet-giao-vien', {
+              method: 'POST',
+              body: JSON.stringify({ accountId: t.id, action: 'approve' })
+            });
+            if (resAct.ok) {
+              nhac('Đã phê duyệt tài khoản giáo viên!', 'tot');
+              await trangDuyetGiaoVien();
+            } else {
+              nhac('Lỗi: ' + (resAct.loi || resAct.error), 'xau');
+            }
+          } catch (err) {
+            nhac('Lỗi: ' + err.message, 'xau');
+          }
+        });
+
+        const btnReject = nut('✕ Từ chối', 'nut-phu nut-nho', async () => {
+          if (!confirm('Từ chối tài khoản giáo viên ' + t.tenHienThi + '?')) return;
+          try {
+            const resAct = await api('/api/gv/duyet-giao-vien', {
+              method: 'POST',
+              body: JSON.stringify({ accountId: t.id, action: 'reject' })
+            });
+            if (resAct.ok) {
+              nhac('Đã từ chối tài khoản', 'tot');
+              await trangDuyetGiaoVien();
+            } else {
+              nhac('Lỗi: ' + (resAct.loi || resAct.error), 'xau');
+            }
+          } catch (err) {
+            nhac('Lỗi: ' + err.message, 'xau');
+          }
+        });
+        btnReject.style.marginLeft = '6px';
+
+        tdAct.append(btnApprove, btnReject);
+        tr.append(tdTen, tdAcc, tdTime, tdAct);
+        tbody.append(tr);
+      });
+
+      bang.append(tbody);
+      the.append(bang);
+    }
+
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi duyệt giáo viên: ' + err.message));
+  }
+}
+
+async function trangMaCongDong() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách mã truy cập cộng đồng...'));
+  try {
+    const res = await api('/api/gv/ma-cong-dong');
+    const danhSachMa = Array.isArray(res.danhSachMa) ? res.danhSachMa : [];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '🔑 Quản Lý Mã Truy Cập Bảng Tin Cộng Đồng',
+      'Cấp mã mời và giám sát học sinh tham gia Bảng tin cộng đồng của lớp.'
+    ));
+
+    const thanhTacVu = e('div');
+    thanhTacVu.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 16px;';
+    const nutTaoMa = nut('+ Tạo mã mời mới', 'nut-chinh', async () => {
+      const tenGoi = prompt('Nhập ghi chú cho mã mời (ví dụ: Mã tuần 1, Mã tổ 1...):', 'Mã mời học sinh');
+      if (!tenGoi) return;
+      try {
+        const resTao = await api('/api/gv/ma-cong-dong', {
+          method: 'POST',
+          body: JSON.stringify({ hanhDong: 'tao_ma_nhanh', tenGoi })
+        });
+        if (resTao.ok) {
+          alert('Mã mời mới tạo thành công: ' + (resTao.maHienThi || resTao.ma));
+          await trangMaCongDong();
+        } else {
+          nhac('Lỗi: ' + (resTao.loi || resTao.error), 'xau');
+        }
+      } catch (err) {
+        nhac('Lỗi: ' + err.message, 'xau');
+      }
+    });
+    thanhTacVu.append(nutTaoMa);
+    khung.append(thanhTacVu);
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    if (danhSachMa.length === 0) {
+      the.append(Object.assign(e('p', null, 'Chưa có mã truy cập nào được tạo. Bấm "+ Tạo mã mời mới" phía trên.'), {
+        style: 'text-align: center; color: var(--chu-nhat); padding: 32px 0;'
+      }));
+    } else {
+      const bang = e('table', 'khung-bang');
+      const thead = e('thead');
+      const trHead = e('tr');
+      trHead.append(
+        e('th', null, 'Ghi chú'),
+        e('th', null, 'Mã hiển thị'),
+        e('th', null, 'Học sinh sử dụng'),
+        e('th', null, 'Thời gian dùng'),
+        e('th', null, 'Trạng thái')
+      );
+      thead.append(trHead);
+      bang.append(thead);
+
+      const tbody = e('tbody');
+      danhSachMa.forEach((m) => {
+        const tr = e('tr');
+        const tdGhiChu = e('td');
+        tdGhiChu.append(e('b', null, m.tenGoi || 'Mã mời'));
+
+        const tdMa = e('td');
+        const codeElem = e('code', null, m.maHienThi || '••••••••');
+        codeElem.style.cssText = 'color: #00F2FE; font-weight: 700;';
+        tdMa.append(codeElem);
+
+        const tdHs = e('td');
+        if (m.daDungBoiHocSinhTen || m.hocSinhTen) {
+          tdHs.textContent = m.daDungBoiHocSinhTen || m.hocSinhTen;
+        } else {
+          const spanChuaDung = e('span', null, 'Chưa dùng');
+          spanChuaDung.style.color = 'var(--chu-nhat)';
+          tdHs.append(spanChuaDung);
+        }
+
+        const tdTime = e('td', null, m.daDungLuc ? new Date(m.daDungLuc).toLocaleString('vi-VN') : '—');
+        const tdTrangThai = e('td');
+        tdTrangThai.append(e('span', m.dangHoatDong ? 'nhan-tot' : 'nhan-xam', m.dangHoatDong ? 'Hoạt động' : 'Hết hạn'));
+
+        tr.append(tdGhiChu, tdMa, tdHs, tdTime, tdTrangThai);
+        tbody.append(tr);
+      });
+
+      bang.append(tbody);
+      the.append(bang);
+    }
+
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi tải mã cộng đồng: ' + err.message));
+  }
+}
+
+async function trangBienTapVien() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách Ban biên tập...'));
+  try {
+    const [resBtv, resHs] = await Promise.all([
+      api('/api/gv/bien-tap-vien'),
+      api('/api/gv/hoc-sinh')
+    ]);
+    const btvList = Array.isArray(resBtv.bienTapVien) ? resBtv.bienTapVien : [];
+    const dsHs = Array.isArray(resHs.danhSach) ? resHs.danhSach : [];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '✍️ Quản Lý Ban Biên Tập Học Sinh',
+      'Phân quyền cho các học sinh cán sự được phép đăng và duyệt bài trên Bảng tin Campus.'
+    ));
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    const btvMap = new Map(btvList.map((b) => [b.hocSinhId, b.duocPhepDang]));
+
+    const bang = e('table', 'khung-bang');
+    const thead = e('thead');
+    const trHead = e('tr');
+    trHead.append(
+      e('th', null, 'STT'),
+      e('th', null, 'Họ và tên'),
+      e('th', null, 'Quyền biên tập'),
+      Object.assign(e('th', null, 'Thao tác'), { style: 'text-align: right;' })
+    );
+    thead.append(trHead);
+    bang.append(thead);
+
+    const tbody = e('tbody');
+    dsHs.forEach((h) => {
+      const laBtv = btvMap.get(h.id) === 1;
+      const tr = e('tr');
+      tr.append(
+        e('td', null, String(h.soThuTu || '—')),
+        Object.assign(e('td'), { children: [e('b', null, h.hoTen || '')] }),
+        Object.assign(e('td'), { children: [e('span', laBtv ? 'nhan-tot' : 'nhan-xam', laBtv ? '✓ Biên tập viên' : 'Học sinh thường')] })
+      );
+      const tdAct = e('td');
+      tdAct.style.cssText = 'text-align: right;';
+      const btnToggle = nut(laBtv ? 'Hủy quyền' : 'Cấp quyền BTV', (laBtv ? 'nut-phu' : 'nut-chinh') + ' nut-nho', async () => {
+        try {
+          const resCap = await api('/api/gv/bien-tap-vien', {
+            method: 'POST',
+            body: JSON.stringify({ hocSinhId: h.id, duocPhepDang: laBtv ? 0 : 1 })
+          });
+          if (resCap.ok) {
+            nhac(laBtv ? 'Đã hủy quyền biên tập viên' : 'Đã cấp quyền biên tập viên!', 'tot');
+            await trangBienTapVien();
+          } else {
+            nhac('Lỗi: ' + (resCap.loi || resCap.error), 'xau');
+          }
+        } catch (err) {
+          nhac('Lỗi: ' + err.message, 'xau');
+        }
+      });
+      tdAct.append(btnToggle);
+      tr.append(tdAct);
+      tbody.append(tr);
+    });
+
+    bang.append(tbody);
+    the.append(bang);
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi tải ban biên tập: ' + err.message));
+  }
+}
+
 /* ================= Điều hướng ================= */
 
 const TRANG = {
+  '/tong-quan': trangTongQuan,
   '/diem-danh': trangDiemDanh,
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
@@ -2272,6 +2893,10 @@ const TRANG = {
   '/campus-highlights': trangCampusHighlights,
   '/ho-so-gv': trangHoSoGiaoVien,
   '/phong-campus': trangPhongCampus,
+  '/bao-cao-vi-pham': () => trangBaoCaoViPham('all'),
+  '/duyet-giao-vien': trangDuyetGiaoVien,
+  '/ma-cong-dong': trangMaCongDong,
+  '/bien-tap-vien': trangBienTapVien,
   '/them': trangThem,
 };
 
@@ -2279,6 +2904,7 @@ function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
     const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/reset-du-lieu', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/thoi-khoa-bieu'].includes(duong);
     const khop = a.getAttribute('href') === '#' + duong
+      || ((duong === '/tong-quan' || !duong) && a.getAttribute('href') === '#/tong-quan')
       || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
       || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')
       || (duong === '/quy-lich-su' && a.getAttribute('href') === '#/quy')
@@ -2295,7 +2921,7 @@ function danhDauMenu(duong) {
 }
 
 async function dieuHuong() {
-  const duong = location.hash.replace(/^#/, '') || (PHIEN.role === 'teacher' ? '/diem-danh' : '/them');
+  const duong = location.hash.replace(/^#/, '') || (PHIEN.role === 'teacher' ? '/tong-quan' : '/them');
   danhDauMenu(duong);
   window.scrollTo(0, 0);
 
@@ -2313,7 +2939,7 @@ async function dieuHuong() {
     const xemTkb = duong.match(/^\/thoi-khoa-bieu-xem\/(\d+)$/);
     if (xemTkb) return await trangThoiKhoaBieu(KHUNG, Number(xemTkb[1]));
 
-    const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangDiemDanh : trangThem);
+    const xuLy = TRANG[duong] || (PHIEN.role === 'teacher' ? trangTongQuan : trangThem);
     await xuLy();
   } catch (err) {
     console.error(err);
@@ -2324,7 +2950,7 @@ async function dieuHuong() {
 (async function khoiDong() {
   try {
     const d = await api('/api/whoami');
-    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [], tenLop: d.tenLop || '', namHoc: d.namHoc || '' };
+    PHIEN = { role: d.role, ten: d.ten || '', vaiTro: d.vaiTro || '', quyen: d.quyen || [], tenLop: d.tenLop || '', namHoc: d.namHoc || '', isSchoolAdmin: Boolean(d.isSchoolAdmin || d.laAdminTruong) };
   } catch {
     // Không lấy được thì coi như giáo viên (an toàn hơn là ẩn hết) — API vẫn tự kiểm tra thật ở máy chủ.
   }
