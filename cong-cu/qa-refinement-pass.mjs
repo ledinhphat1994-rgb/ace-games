@@ -47,11 +47,11 @@ async function run() {
   ok('AnnouncementTicker có nút mở trực tiếp Admin Center (#btn-admin-center-ticker)',
     html.includes('id="btn-admin-center-ticker"'), 'admin_ia');
 
-  ok('User dropdown có nút trực tiếp mở Admin Center (#btn-open-teacher-control-center)',
-    html.includes('id="btn-open-teacher-control-center"'), 'dropdown');
+  ok('Top header có nút trực tiếp mở Khu Quản Trị (#btn-header-khu-quan-tri)',
+    html.includes('id="btn-header-khu-quan-tri"') && html.includes('href="/giao-vien/"'), 'dropdown');
 
-  ok('User dropdown đã loại bỏ link trùng lặp tới /giao-vien/',
-    !html.includes('href="/giao-vien/"') && !html.includes("href='/giao-vien/'"), 'dropdown');
+  ok('User dropdown đã dọn dẹp gọn gàng cho Giáo viên (có liên kết trực tiếp vào Khu quản trị)',
+    html.includes('id="btn-dropdown-khu-quan-tri"') && html.includes('href="/giao-vien/"'), 'dropdown');
 
   ok('Flagship cards có keyframe animation cao cấp cinemaRayBreath, arenaGlowBreath, chatDotPulse',
     html.includes('cinemaRayBreath') && html.includes('arenaGlowBreath') && html.includes('chatDotPulse'), 'animations');

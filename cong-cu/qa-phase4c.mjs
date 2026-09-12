@@ -87,7 +87,7 @@ ok('Game Lobby vẫn có tạo bàn cờ', indexHtml.includes('Tạo bàn') || i
 
 // 1.3 Desktop 3-column layout & Chat Rail presence
 ok('Campus Home có cấu hình 3 cột trên desktop (Highlights | Flags | Chat Rail)',
-  indexHtml.includes('xl:grid-cols-[260px_minmax(0,1fr)_360px]'), 'home');
+  indexHtml.includes('xl:grid-cols-[260px_minmax(0,1fr)_360px]') || indexHtml.includes('xl:grid-cols-[280px_minmax(0,1fr)_360px]'), 'home');
 ok('Thành phần CampusChatRail hiện diện trong index.html', indexHtml.includes('function CampusChatRail'), 'home');
 ok('CampusChatRail được nhúng trong layout desktop', indexHtml.includes('<CampusChatRail'), 'home');
 ok('Nút toggle mobile chat hiện diện cho màn hình nhỏ', indexHtml.includes('id="mobile-campus-chat-btn"'), 'home');

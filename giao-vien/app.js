@@ -57,6 +57,9 @@ const QUYEN_THEO_TUYEN = {
   'thoi-khoa-bieu-lich-su': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-xem': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-khoi-phuc': 'thoi-khoa-bieu',
+  'campus-highlights': null,
+  'ho-so-gv': null,
+  'phong-campus': null,
 };
 
 // Phiên đăng nhập hiện tại — nạp một lần khi mở trang, dùng để ẩn bớt menu cho tài khoản đặc biệt.
@@ -1818,6 +1821,336 @@ async function trangHoatDongLop(KHUNG) {
   await ve();
 }
 
+/* ================= Khu Quản Trị: Tiêu Điểm, Hồ Sơ & Phòng Campus ================= */
+
+async function trangCampusHighlights() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách Tiêu điểm Campus...'));
+  try {
+    const data = await api('/api/campus-highlights');
+    const items = Array.isArray(data.highlights) && data.highlights.length > 0 ? data.highlights : [
+      { id: 'arena-curated', badge: 'ARENA', category: 'game', title: 'Đấu Trường Cờ Caro Đỉnh Cao', subtitle: 'Thách đấu bạn bè toàn trường, tích lũy XP leo BXH', icon: '⚔️', action_type: 'game' },
+      { id: 'focus-curated', badge: 'FOCUS', category: 'music', title: 'Phòng Tập Trung Lofi 24/7', subtitle: 'Âm nhạc thư giãn, bấm giờ Pomodoro cùng học tập', icon: '🎧', action_type: 'music' },
+      { id: 'watch-curated', badge: 'WATCH', category: 'cinema', title: 'Phòng Xem Phim Tài Liệu Chung', subtitle: 'Trải nghiệm rạp chiếu trực tuyến cùng lớp 10A7', icon: '🎬', action_type: 'cinema' },
+      { id: 'feed-curated', badge: 'BẢNG TIN', category: 'feed', title: 'Tin Tức & Sự Kiện Mới Nhất', subtitle: 'Cập nhật bảng tin sinh hoạt và phong trào đoàn', icon: '📢', action_type: 'feed' },
+    ];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang('✨ Biên Tập Tiêu Điểm Campus (Highlights)', 'Điều phối các thẻ nội dung nổi bật xuất hiện trên cột trái Digital Campus cho toàn trường. Dữ liệu lưu trữ máy chủ (Server-authoritative).'));
+
+    // Live preview container
+    const vungPreview = e('div', 'the');
+    vungPreview.style.cssText = 'background: #0B0E14; border: 1px solid rgba(0,242,254,0.3); border-radius: 16px; padding: 18px; margin-bottom: 24px;';
+
+    const previewHeader = e('div');
+    previewHeader.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;';
+    previewHeader.innerHTML = '<span style="font-size: 13px; font-weight: 800; color: #00F2FE;">👁️ Xem trước Live (Giao diện cột trái Campus)</span><span style="font-size: 11px; color: var(--chu-nhat);">Tự động cập nhật khi chỉnh sửa</span>';
+    vungPreview.append(previewHeader);
+
+    const danhSachThePreview = e('div');
+    danhSachThePreview.id = 'preview-highlights-list';
+    danhSachThePreview.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;';
+    vungPreview.append(danhSachThePreview);
+
+    function vePreview() {
+      danhSachThePreview.innerHTML = '';
+      items.forEach((it) => {
+        const the = e('div');
+        the.style.cssText = 'background: #151A23; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; display: flex; align-items: center; gap: 12px;';
+        the.innerHTML = `
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(0,242,254,0.15); border: 1px solid rgba(0,242,254,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; shrink: 0;">${it.icon || '⭐'}</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+              <span style="font-size: 9px; font-weight: 900; padding: 1px 6px; border-radius: 9999px; background: rgba(0,242,254,0.2); color: #00F2FE; text-transform: uppercase;">${it.badge || 'NỔI BẬT'}</span>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.title || 'Tiêu đề'}</div>
+            <div style="font-size: 11px; color: var(--chu-nhat); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.subtitle || 'Mô tả chi tiết'}</div>
+          </div>
+        `;
+        danhSachThePreview.append(the);
+      });
+    }
+
+    vePreview();
+    khung.append(vungPreview);
+
+    // Editor list
+    const vungEditor = e('div', 'the');
+    vungEditor.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+    const tieuDeEditor = e('h3');
+    tieuDeEditor.style.cssText = 'font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 16px;';
+    tieuDeEditor.textContent = 'Danh sách 4 Tiêu điểm';
+    vungEditor.append(tieuDeEditor);
+
+    const danhSachForm = e('div');
+    danhSachForm.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+    items.forEach((it, idx) => {
+      const hang = e('div');
+      hang.style.cssText = 'background: #151A23; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;';
+
+      const hangTieuDe = e('div');
+      hangTieuDe.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;';
+      hangTieuDe.innerHTML = `<span style="font-size: 12px; font-weight: 800; color: #8B5CF6;">#${idx + 1} • Tiêu điểm ${idx + 1}</span>`;
+      hang.append(hangTieuDe);
+
+      const luoi = e('div');
+      luoi.style.cssText = 'display: grid; grid-template-columns: 80px 140px 1fr 1fr; gap: 10px;';
+
+      const nhapIcon = oNhap(`icon_${idx}`, 'text', it.icon || '⭐', 'Icon');
+      nhapIcon.style.textAlign = 'center';
+      nhapIcon.oninput = (ev) => { it.icon = ev.target.value; vePreview(); };
+
+      const nhapBadge = oNhap(`badge_${idx}`, 'text', it.badge || '', 'Huy hiệu');
+      nhapBadge.oninput = (ev) => { it.badge = ev.target.value; vePreview(); };
+
+      const nhapTitle = oNhap(`title_${idx}`, 'text', it.title || '', 'Tiêu đề ngắn');
+      nhapTitle.oninput = (ev) => { it.title = ev.target.value; vePreview(); };
+
+      const nhapSubtitle = oNhap(`sub_${idx}`, 'text', it.subtitle || '', 'Mô tả ngắn (1 dòng)');
+      nhapSubtitle.oninput = (ev) => { it.subtitle = ev.target.value; vePreview(); };
+
+      luoi.append(
+        truong('Icon', nhapIcon),
+        truong('Badge', nhapBadge),
+        truong('Tiêu đề', nhapTitle),
+        truong('Mô tả', nhapSubtitle)
+      );
+
+      hang.append(luoi);
+      danhSachForm.append(hang);
+    });
+
+    vungEditor.append(danhSachForm);
+
+    // Actions
+    const hangNut = e('div');
+    hangNut.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-top: 20px; flex-wrap: wrap;';
+
+    const nutLuu = nut('🚀 Lưu & Xuất bản Server', 'nut-chinh', async () => {
+      nutLuu.disabled = true;
+      nutLuu.textContent = 'Đang xuất bản...';
+      try {
+        const kq = await api('/api/campus-highlights', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'publish', items })
+        });
+        if (kq.ok) {
+          nhac('Đã xuất bản Tiêu điểm Campus thành công lên Server!', 'tot');
+          await trangCampusHighlights();
+        } else {
+          nhac('Không thể lưu: ' + (kq.message || kq.error), 'xau');
+        }
+      } catch (err) {
+        nhac('Lỗi xuất bản: ' + err.message, 'xau');
+      } finally {
+        nutLuu.disabled = false;
+        nutLuu.textContent = '🚀 Lưu & Xuất bản Server';
+      }
+    });
+
+    const nutReset = nut('🔄 Khôi phục gốc (Dữ liệu thật)', 'nut-phu', async () => {
+      if (!confirm('Khôi phục danh sách Tiêu điểm về mặc định tự động từ dữ liệu hoạt động thực tế?')) return;
+      nutReset.disabled = true;
+      nutReset.textContent = 'Đang khôi phục...';
+      try {
+        const kq = await api('/api/campus-highlights', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'reset' })
+        });
+        if (kq.ok) {
+          nhac('Đã khôi phục Tiêu điểm Campus gốc!', 'tot');
+          await trangCampusHighlights();
+        } else {
+          nhac('Không thể khôi phục: ' + (kq.message || kq.error), 'xau');
+        }
+      } catch (err) {
+        nhac('Lỗi khôi phục: ' + err.message, 'xau');
+      } finally {
+        nutReset.disabled = false;
+        nutReset.textContent = '🔄 Khôi phục gốc (Dữ liệu thật)';
+      }
+    });
+
+    hangNut.append(nutLuu, nutReset);
+    vungEditor.append(hangNut);
+
+    khung.append(vungEditor);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi khi tải Tiêu điểm Campus: ' + err.message));
+  }
+}
+
+async function trangHoSoGiaoVien() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải thông tin hồ sơ giáo viên...'));
+  try {
+    const res = await api('/api/gv/ho-so');
+    const hoSo = res.hoSo || {};
+
+    const khung = e('div');
+    khung.append(tieuDeTrang('👤 Hồ Sơ Giáo Viên', 'Tùy chỉnh thông tin hiển thị của giáo viên trên Campus, Bảng tin lớp và Khu quản trị. (Các quyền hệ thống và vai trò chính thức được bảo vệ máy chủ).'));
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; max-width: 680px;';
+
+    // Preview
+    const previewBox = e('div');
+    previewBox.style.cssText = 'display: flex; align-items: center; gap: 16px; padding: 16px; background: #0B0E14; border: 1px solid rgba(0,242,254,0.25); border-radius: 14px; margin-bottom: 24px;';
+
+    const previewAvatar = e('img');
+    previewAvatar.src = hoSo.avatar || '/assets/hinh-anh/anh-lop-default.svg';
+    previewAvatar.style.cssText = 'width: 56px; height: 56px; border-radius: 14px; object-fit: cover; border: 2px solid #00F2FE;';
+
+    const previewInfo = e('div');
+    previewInfo.style.cssText = 'flex: 1; min-width: 0;';
+    const previewName = e('div', null, hoSo.tenHienThi || hoSo.tenDangNhap || 'Giáo viên');
+    previewName.style.cssText = 'font-size: 15px; font-weight: 800; color: #fff;';
+    const previewRole = e('div', null, 'Giáo Viên Chủ Nhiệm • ' + (hoSo.tenLop || 'Lớp 10A7'));
+    previewRole.style.cssText = 'font-size: 11px; color: #8B5CF6; font-weight: 700; margin-top: 2px;';
+    const previewTitle = e('div', null, hoSo.tieuDeHoSo || 'Chưa đặt tiêu đề giới thiệu');
+    previewTitle.style.cssText = 'font-size: 11px; color: var(--chu-nhat); margin-top: 2px;';
+    previewInfo.append(previewName, previewRole, previewTitle);
+
+    previewBox.append(previewAvatar, previewInfo);
+    the.append(previewBox);
+
+    // Form inputs
+    const oTen = oNhap('gv_ten_hien_thi', 'text', hoSo.tenHienThi || '', 'Ví dụ: Thầy Lê Đình Phát');
+    oTen.oninput = (e) => { previewName.textContent = e.target.value.trim() || 'Giáo viên'; };
+
+    const oAvatar = oNhap('gv_avatar', 'text', hoSo.avatar || '', 'URL ảnh đại diện hoặc /assets/...');
+    oAvatar.oninput = (e) => { previewAvatar.src = e.target.value.trim() || '/assets/hinh-anh/anh-lop-default.svg'; };
+
+    const oTieuDe = oNhap('gv_tieu_de', 'text', hoSo.tieuDeHoSo || '', 'Ví dụ: Giáo viên Chủ nhiệm Lớp 10A7 · Cố vấn học tập');
+    oTieuDe.oninput = (e) => { previewTitle.textContent = e.target.value.trim() || 'Chưa đặt tiêu đề giới thiệu'; };
+
+    the.append(
+      truong('Tên hiển thị công khai', oTen, 'Tên xuất hiện trên bài đăng thông báo, phản hồi và danh sách thành viên'),
+      truong('Ảnh đại diện (Avatar)', oAvatar, 'Đường dẫn ảnh đại diện an toàn (HTTPS hoặc nội bộ)'),
+      truong('Tiêu đề / Lời giới thiệu ngắn', oTieuDe, 'Dòng giới thiệu chức danh hoặc thông điệp ngắn gọn')
+    );
+
+    // Security Info (Read-only)
+    const securityBox = e('div');
+    securityBox.style.cssText = 'margin-top: 18px; padding: 12px 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; font-size: 11px; color: var(--chu-nhat);';
+    securityBox.innerHTML = `
+      <div style="font-weight: 700; color: var(--chu); margin-bottom: 4px;">🔒 Thông tin định danh bảo mật (Bất biến)</div>
+      <div>Tài khoản: <b>${hoSo.tenDangNhap || '—'}</b> | Vai trò hệ thống: <b style="color:#00F2FE;">${hoSo.vaiTro || 'teacher'}</b> | Lớp quản lý: <b>${hoSo.tenLop || 'Lớp 10A7'}</b></div>
+      <div style="font-size: 10px; margin-top: 4px; color: var(--chu-nhat);">Quyền quản trị và phân bổ lớp chỉ có thể thay đổi qua quy trình điều phối máy chủ.</div>
+    `;
+    the.append(securityBox);
+
+    // Action button
+    const nutLuu = nut('💾 Lưu thông tin hồ sơ', 'nut-chinh', async () => {
+      nutLuu.disabled = true;
+      nutLuu.textContent = 'Đang lưu...';
+      try {
+        const kq = await api('/api/gv/ho-so', {
+          method: 'POST',
+          body: JSON.stringify({
+            tenHienThi: oTen.value.trim(),
+            avatar: oAvatar.value.trim(),
+            tieuDeHoSo: oTieuDe.value.trim()
+          })
+        });
+        if (kq.ok) {
+          nhac('Đã cập nhật hồ sơ giáo viên thành công!', 'tot');
+          await trangHoSoGiaoVien();
+        } else {
+          nhac('Không thể lưu hồ sơ: ' + (kq.message || kq.error), 'xau');
+        }
+      } catch (err) {
+        nhac('Lỗi lưu hồ sơ: ' + err.message, 'xau');
+      } finally {
+        nutLuu.disabled = false;
+        nutLuu.textContent = '💾 Lưu thông tin hồ sơ';
+      }
+    });
+    nutLuu.style.marginTop = '20px';
+    the.append(nutLuu);
+
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi khi tải hồ sơ: ' + err.message));
+  }
+}
+
+async function trangPhongCampus() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách phòng hoạt động Campus...'));
+  try {
+    const res = await api('/api/phong?phamVi=truong');
+    const dsPhong = Array.isArray(res.phong) ? res.phong : [];
+
+    const khung = e('div');
+    khung.append(tieuDeTrang('🏛️ Sảnh Phòng Campus Đang Hoạt Động', 'Giám sát và quản lý các phòng xem chung, phòng học tập, lofi đang mở trong trường.'));
+
+    const the = e('div', 'the');
+    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    if (dsPhong.length === 0) {
+      the.innerHTML = '<p style="text-align: center; color: var(--chu-nhat); padding: 32px 0;">Hiện chưa có phòng cộng đồng nào đang mở.</p>';
+    } else {
+      const bang = e('table', 'khung-bang');
+      bang.innerHTML = `
+        <thead>
+          <tr>
+            <th>Tên phòng</th>
+            <th>Loại phòng</th>
+            <th>Người tạo</th>
+            <th>Thành viên</th>
+            <th>Trạng thái</th>
+            <th style="text-align: right;">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dsPhong.map(p => `
+            <tr>
+              <td><b>${p.ten || p.title || 'Phòng không tên'}</b></td>
+              <td><span class="nhan" style="background: rgba(0,242,254,0.15); color: #00F2FE;">${p.loai || 'hoat-dong'}</span></td>
+              <td>${p.nguoiTaoTen || p.nguoiTao || '—'}</td>
+              <td><b>${p.soNguoi || 0}</b> trực tuyến</td>
+              <td><span class="nhan-tot">Đang mở</span></td>
+              <td style="text-align: right;">
+                <button type="button" class="nut nut-phu nut-nho" data-phong-id="${p.id}" data-action="dong">Đóng phòng</button>
+                <a href="/?phong=${p.id}" target="_blank" class="nut nut-vien nut-nho" style="margin-left: 6px;">Vào xem</a>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+
+      bang.querySelectorAll('button[data-action="dong"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const pId = btn.getAttribute('data-phong-id');
+          if (!confirm('Đóng phòng hoạt động này?')) return;
+          try {
+            const kq = await api('/api/phong', {
+              method: 'POST',
+              body: JSON.stringify({ hanhDong: 'dong', phongId: pId })
+            });
+            if (kq.ok) {
+              nhac('Đã đóng phòng hoạt động!', 'tot');
+              await trangPhongCampus();
+            } else {
+              nhac('Lỗi: ' + (kq.message || kq.error), 'xau');
+            }
+          } catch (err) {
+            nhac('Lỗi: ' + err.message, 'xau');
+          }
+        });
+      });
+
+      the.append(bang);
+    }
+
+    khung.append(the);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi tải phòng Campus: ' + err.message));
+  }
+}
+
 /* ================= Điều hướng ================= */
 
 const TRANG = {
@@ -1844,6 +2177,9 @@ const TRANG = {
   '/thoi-khoa-bieu': () => trangThoiKhoaBieu(KHUNG),
   '/thoi-khoa-bieu-lich-su': () => trangThoiKhoaBieuLichSu(KHUNG),
   '/thoi-khoa-bieu-khoi-phuc': () => trangLichSuKhoiPhucChung(KHUNG, { muc: 'thoi-khoa-bieu', tieuDe: 'Thời khoá biểu', veTrangTruoc: '#/thoi-khoa-bieu' }),
+  '/campus-highlights': trangCampusHighlights,
+  '/ho-so-gv': trangHoSoGiaoVien,
+  '/phong-campus': trangPhongCampus,
   '/them': trangThem,
 };
 

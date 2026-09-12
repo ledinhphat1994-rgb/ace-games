@@ -1542,3 +1542,81 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
   border-color: rgba(239, 68, 68, 0.28);
   color: #ef4444;
 }
+
+/* =========================================================================
+   Dark Premium Architecture for Khu Quản Trị (Teacher Admin Center)
+   Aligns with Digital Campus Dark Identity (#0B0E14, #121620, #151A23, #00F2FE, #8B5CF6)
+   ========================================================================= */
+body.ung-dung {
+  background-color: var(--nen, #0B0E14);
+  color: var(--chu, #F1F5F9);
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+header.thanh-tren {
+  background: rgba(11, 14, 20, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nut-header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #E2E8F0;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.nut-header-link:hover {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.35);
+  color: #00F2FE;
+  transform: translateY(-1px);
+}
+
+.cot-trai {
+  background: #121620;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+}
+
+.cot-trai a {
+  color: #94A3B8;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.cot-trai a:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #FFFFFF;
+  transform: translateX(3px);
+}
+
+.cot-trai a[aria-current="page"] {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.16) 0%, rgba(139, 92, 246, 0.16) 100%);
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  color: #00F2FE;
+  box-shadow: 0 4px 16px -2px rgba(0, 242, 254, 0.25);
+}
+
+.cot-trai .nhom-nhan {
+  color: #00F2FE;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  padding: 8px 14px 4px;
+}
+
+.the, .o-thong-ke, .khung-bang {
+  background: #151A23;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+}

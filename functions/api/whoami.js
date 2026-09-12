@@ -18,12 +18,30 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
     if (btv) laBienTapVien = true;
   }
 
+  let avatar = null;
+  let tieuDeHoSo = null;
+  let ten = phien.ten || '';
+  if (phien.accountId || phien.username) {
+    try {
+      const tk = await env.DB.prepare(
+        'SELECT ten_hien_thi AS tenHienThi, avatar, tieu_de_ho_so AS tieuDeHoSo FROM tai_khoan_campus WHERE id = ?1 OR ten_dang_nhap = ?2 LIMIT 1'
+      ).bind(phien.accountId || -1, phien.username || '').first();
+      if (tk) {
+        if (tk.tenHienThi) ten = tk.tenHienThi;
+        avatar = tk.avatar || null;
+        tieuDeHoSo = tk.tieuDeHoSo || null;
+      }
+    } catch {}
+  }
+
   return json({
     ok: true,
+    avatar,
+    tieuDeHoSo,
     accountId: phien.accountId || null,
     username: phien.username || '',
     role: phien.role,
-    ten: phien.ten || '',
+    ten,
     vaiTro: phien.vaiTro || '',
     quyen: phien.quyen || [],
     teacherPending: Boolean(phien.teacherPending),
