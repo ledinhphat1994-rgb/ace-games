@@ -107,9 +107,45 @@
     .eq-bar:nth-child(4) { animation-delay: 0.1s; }
     .eq-bar:nth-child(5) { animation-delay: 0.35s; }
 
+    /* Flagship Card Alive Animations (Subtle & Premium) */
+    @keyframes cinemaRayBreath {
+      0%, 100% { opacity: 0.65; transform: scaleY(0.98); }
+      50% { opacity: 0.95; transform: scaleY(1.02); }
+    }
+    .cinema-ray {
+      transform-origin: 160px 20px;
+      animation: cinemaRayBreath 4s ease-in-out infinite;
+    }
+
+    @keyframes arenaGlowBreath {
+      0%, 100% { transform: scale(0.96); opacity: 0.7; }
+      50% { transform: scale(1.04); opacity: 1; }
+    }
+    .arena-glow {
+      transform-origin: 160px 90px;
+      animation: arenaGlowBreath 4.5s ease-in-out infinite;
+    }
+
+    @keyframes piecePulse {
+      0%, 100% { opacity: 0.75; }
+      50% { opacity: 1; filter: drop-shadow(0 0 4px currentColor); }
+    }
+    .caro-piece-o { animation: piecePulse 3s ease-in-out infinite; color: #FFB800; }
+    .caro-piece-x { animation: piecePulse 3s ease-in-out infinite 1.5s; color: #00F2FE; }
+
+    @keyframes chatDotPulse {
+      0%, 100% { opacity: 0.3; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-2.5px); }
+    }
+    .chat-dot-1 { animation: chatDotPulse 1.5s infinite ease-in-out; }
+    .chat-dot-2 { animation: chatDotPulse 1.5s infinite ease-in-out 0.25s; }
+    .chat-dot-3 { animation: chatDotPulse 1.5s infinite ease-in-out 0.5s; }
+
     /* Accessibility: tôn trọng prefers-reduced-motion — tắt mọi animation trang trí */
     @media (prefers-reduced-motion: reduce) {
       .danmaku-bullet, .ticker-track, .eq-bar,
+      .cinema-ray, .arena-glow, .caro-piece-o, .caro-piece-x,
+      .chat-dot-1, .chat-dot-2, .chat-dot-3,
       .animate-fadeIn, .animate-scaleIn, .animate-pulse {
         animation: none !important;
       }
@@ -512,6 +548,7 @@ const CAMPUS_GAMES = [
 ];
 
 function CampusSpaceCard({
+  id,
   theme = 'cyan',
   title,
   metric,
@@ -549,9 +586,11 @@ function CampusSpaceCard({
     }
   };
   const t = themes[theme] || themes.cyan;
+  const cardId = id || (sceneType === 'arena' ? 'campus-space-game' : (sceneType === 'cinema' ? 'campus-space-cinema' : (sceneType === 'music' ? 'campus-space-music' : 'campus-space-chat')));
 
   return (
     <button
+      id={cardId}
       type="button"
       onClick={onAction}
       aria-label={metric ? `${title}, ${metric}` : title}
@@ -569,7 +608,7 @@ function CampusSpaceCard({
                 <stop offset="1" stopColor="#00F2FE" stopOpacity="0.02" />
               </linearGradient>
             </defs>
-            <polygon points="160,20 60,150 260,150" fill="url(#cinemaRay)" />
+            <polygon points="160,20 60,150 260,150" fill="url(#cinemaRay)" className="cinema-ray" />
             <rect x="70" y="80" width="180" height="90" rx="6" fill="#090E17" stroke="#00F2FE" strokeWidth="1.5" strokeOpacity="0.6" />
             <line x1="85" y1="100" x2="235" y2="100" stroke="#00F2FE" strokeOpacity="0.25" strokeWidth="1" strokeDasharray="4 4" />
             <line x1="85" y1="120" x2="235" y2="120" stroke="#00F2FE" strokeOpacity="0.25" strokeWidth="1" strokeDasharray="4 4" />
@@ -587,7 +626,7 @@ function CampusSpaceCard({
                 <stop offset="1" stopColor="#FFB800" stopOpacity="0" />
               </radialGradient>
             </defs>
-            <circle cx="160" cy="90" r="80" fill="url(#arenaGlow)" />
+            <circle cx="160" cy="90" r="80" fill="url(#arenaGlow)" className="arena-glow" />
             <g opacity="0.65" stroke="#FFB800" strokeWidth="1" strokeOpacity="0.4">
               <path d="M160 35 L260 85 L160 135 L60 85 Z" fill="#181106" fillOpacity="0.8" />
               <line x1="160" y1="35" x2="160" y2="135" />
@@ -595,8 +634,8 @@ function CampusSpaceCard({
               <line x1="110" y1="60" x2="210" y2="110" />
               <line x1="210" y1="60" x2="110" y2="110" />
             </g>
-            <circle cx="140" cy="80" r="7" stroke="#FFB800" strokeWidth="2.5" fill="none" />
-            <path d="M174 74 L186 86 M186 74 L174 86" stroke="#00F2FE" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="140" cy="80" r="7" stroke="#FFB800" strokeWidth="2.5" fill="none" className="caro-piece-o" />
+            <path d="M174 74 L186 86 M186 74 L174 86" stroke="#00F2FE" strokeWidth="2.5" strokeLinecap="round" className="caro-piece-x" />
             <circle cx="160" cy="105" r="7" stroke="#FFB800" strokeWidth="2.5" fill="none" />
           </svg>
         )}
@@ -642,7 +681,11 @@ function CampusSpaceCard({
             <line x1="95" y1="72" x2="155" y2="72" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" />
             <line x1="95" y1="84" x2="135" y2="84" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.4" />
             <line x1="165" y1="102" x2="225" y2="102" stroke="#00F2FE" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" />
-            <line x1="165" y1="114" x2="205" y2="114" stroke="#00F2FE" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.4" />
+            <g className="chat-dots-group">
+              <circle cx="180" cy="115" r="2.5" fill="#00F2FE" className="chat-dot-1" />
+              <circle cx="192" cy="115" r="2.5" fill="#00F2FE" className="chat-dot-2" />
+              <circle cx="204" cy="115" r="2.5" fill="#00F2FE" className="chat-dot-3" />
+            </g>
           </svg>
         )}
       </div>
@@ -1886,28 +1929,42 @@ function CampusFocusRoom({
   );
 }
 
-// ─── CAMPUS HIGHLIGHTS COMPONENT (PHASE 4C REDESIGN) ─────────────────────────
-function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVaoSuKien }) {
+// ─── CAMPUS HIGHLIGHTS COMPONENT (PHASE 4C.2 REFINED) ─────────────────────────
+function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVaoSuKien, onOpenAdmin }) {
   const rows = highlights.slice(0, 4);
 
   return (
-    <div id="campus-highlights" className="bg-[#151A23] border border-white/10 rounded-2xl p-3.5 shadow-xl flex flex-col gap-3">
+    <div id="campus-highlights" className="bg-[#151A23] border border-white/10 hover:border-[#00F2FE]/25 rounded-2xl p-4 shadow-xl flex flex-col gap-3.5 transition-all">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm">✨</span>
-          <h3 className="text-xs font-bold text-white tracking-wide">Nổi bật</h3>
+          <span className="text-base">✨</span>
+          <h3 className="text-xs font-black text-white tracking-wide uppercase">Tiêu điểm Campus</h3>
         </div>
-        {rows.length > 0 && (
-          <span className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse" title="Đang cập nhật trực tiếp"></span>
-        )}
+        <div className="flex items-center gap-2">
+          {rows.length > 0 && (
+            <span className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse" title="Đang cập nhật trực tiếp"></span>
+          )}
+          {onOpenAdmin && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className="text-[10px] text-slate-400 hover:text-[#00F2FE] font-bold transition-colors"
+              title="Quản trị Tiêu điểm"
+            >
+              ⚙️
+            </button>
+          )}
+        </div>
       </div>
 
       {rows.length === 0 ? (
-        <div className="py-6 px-3 text-center rounded-xl bg-white/[0.02] border border-white/5">
-          <p className="text-xs text-slate-400">Campus đang yên tĩnh</p>
+        <div className="py-8 px-3 text-center rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+          <p className="text-lg">🌱</p>
+          <p className="text-xs font-bold text-slate-300">Campus đang yên tĩnh</p>
+          <p className="text-[10px] text-slate-500">Hoạt động nổi bật sẽ xuất hiện tại đây khi bắt đầu</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {rows.map(h => (
             <div key={h.id}
               onClick={() => {
@@ -1915,16 +1972,26 @@ function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVaoSuKien 
                 else if (h.phongId && onVaoPhong) onVaoPhong(h.phongId);
                 else if (h.loai === 'event' && onVaoSuKien) onVaoSuKien();
               }}
-              className="group p-2 rounded-xl bg-[#0D111A]/80 border border-white/5 hover:border-[#00F2FE]/40 transition-all cursor-pointer shadow-sm">
+              className="group p-3 rounded-xl bg-[#0D111A]/90 border border-white/5 hover:border-[#00F2FE]/40 hover:bg-[#121824] transition-all cursor-pointer shadow-sm">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
+                  {h.badge || 'NỔI BẬT'}
+                </span>
+                {h.category && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {h.category}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2.5">
-                <span className="text-base p-1.5 rounded-lg bg-white/5 shrink-0 group-hover:scale-110 transition-transform">
-                  {h.icon || h.bieuTuong}
+                <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0 group-hover:scale-110 group-hover:border-[#00F2FE]/40 transition-all">
+                  {h.icon || h.bieuTuong || '⭐'}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-white group-hover:text-[#00F2FE] transition-colors truncate">
                     {h.title || h.tieuDe}
                   </p>
-                  <p className="text-[10px] text-slate-400 truncate">
+                  <p className="text-[10px] text-slate-400 truncate mt-0.5">
                     {h.sub || h.chiTiet}
                   </p>
                 </div>
@@ -3158,7 +3225,7 @@ function RoomPasswordModal({ room, isOpen, onClose, onJoin }) {
   );
 }
 
-// ─── TEACHER CONTROL CENTER MODAL (PHASE 4B) ────────────────────────────────
+// ─── TEACHER CONTROL CENTER MODAL (PHASE 4C.2 REFINED) ──────────────────────
 function TeacherControlCenterModal({
   isOpen,
   onClose,
@@ -3170,7 +3237,10 @@ function TeacherControlCenterModal({
   onQuanLyMaMoi,
   onQuanLyBienTap,
   dsPhong = [],
-  onDongPhong
+  onDongPhong,
+  highlights = [],
+  onCapNhatHighlights,
+  onResetHighlights
 }) {
   const [tab, setTab] = React.useState('thong_bao');
   const [pendingTeachers, setPendingTeachers] = React.useState([]);
@@ -3183,6 +3253,26 @@ function TeacherControlCenterModal({
   const [dangTaiReports, setDangTaiReports] = React.useState(false);
   const [reportLoi, setReportLoi] = React.useState('');
   const [reportThongBao, setReportThongBao] = React.useState('');
+
+  // Campus Highlights Curation State
+  const [curHighlights, setCurHighlights] = React.useState(highlights || []);
+  const [editingHlIdx, setEditingHlIdx] = React.useState(null);
+  const [hlForm, setHlForm] = React.useState({
+    id: '',
+    title: '',
+    sub: '',
+    badge: 'NỔI BẬT',
+    icon: '✨',
+    category: 'Hoạt động',
+    loai: 'event'
+  });
+  const [hlSavedNotice, setHlSavedNotice] = React.useState('');
+
+  React.useEffect(() => {
+    if (highlights && Array.isArray(highlights)) {
+      setCurHighlights(highlights);
+    }
+  }, [highlights]);
 
   const taiReports = async (status = reportFilter) => {
     setDangTaiReports(true);
@@ -3275,17 +3365,64 @@ function TeacherControlCenterModal({
     }
   };
 
+  const handleSaveHlItem = () => {
+    if (!hlForm.title.trim()) return;
+    const item = {
+      id: hlForm.id || `hl-custom-${Date.now()}`,
+      title: hlForm.title.trim(),
+      sub: hlForm.sub.trim() || 'Hoạt động tiêu điểm',
+      badge: hlForm.badge.trim() || 'NỔI BẬT',
+      icon: hlForm.icon.trim() || '✨',
+      category: hlForm.category.trim() || 'Campus',
+      loai: hlForm.loai || 'event'
+    };
+
+    let nextList;
+    if (editingHlIdx !== null && editingHlIdx >= 0) {
+      nextList = [...curHighlights];
+      nextList[editingHlIdx] = item;
+    } else {
+      nextList = [...curHighlights, item].slice(0, 4);
+    }
+
+    setCurHighlights(nextList);
+    setEditingHlIdx(null);
+    setHlForm({ id: '', title: '', sub: '', badge: 'NỔI BẬT', icon: '✨', category: 'Hoạt động', loai: 'event' });
+  };
+
+  const handlePublishHighlights = () => {
+    if (onCapNhatHighlights) {
+      onCapNhatHighlights(curHighlights);
+      setHlSavedNotice('Đã lưu & xuất bản Tiêu điểm Campus thành công!');
+      setTimeout(() => setHlSavedNotice(''), 3000);
+    }
+  };
+
+  const handleResetHighlights = () => {
+    if (confirm('Khôi phục danh sách Tiêu điểm tự động từ hệ thống?')) {
+      if (onResetHighlights) onResetHighlights();
+      setHlSavedNotice('Đã khôi phục dữ liệu tiêu điểm hệ thống.');
+      setTimeout(() => setHlSavedNotice(''), 3000);
+    }
+  };
+
   return (
     <div id="modal-teacher-control-center" className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-fadeIn">
-      <div className="bg-[#151A23] border border-purple-500/40 rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl animate-scaleIn flex flex-col max-h-[90vh]">
+      <div id="teacher-control-center-modal" className="bg-[#121620] border border-[#00F2FE]/30 rounded-3xl p-5 sm:p-6 max-w-4xl w-full shadow-2xl animate-scaleIn flex flex-col max-h-[90vh]">
+        {/* Header */}
         <div className="flex items-center justify-between pb-3.5 border-b border-white/10 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-lg">
+            <div className="w-10 h-10 rounded-xl bg-[#00F2FE]/15 border border-[#00F2FE]/30 text-[#00F2FE] flex items-center justify-center text-lg shadow-sm">
               ⚙️
             </div>
             <div>
-              <h3 className="text-base font-black text-white">Trung Tâm Quản Trị Giáo Viên</h3>
-              <p className="text-[11px] text-purple-300">Quản lý hoạt động Campus, Bảng tin, Mã mời & Tài khoản giáo viên</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-white">Admin Center</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 uppercase">
+                  Campus Control
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">Kiểm soát nội dung Campus, Tiêu điểm, Thông báo & Tài khoản</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Đóng" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold transition-all">
@@ -3293,12 +3430,14 @@ function TeacherControlCenterModal({
           </button>
         </div>
 
+        {/* Navigation Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-white/10 mb-4 no-scrollbar">
           {[
-            { id: 'thong_bao', label: '📢 Thông Báo', count: announcements.length },
+            { id: 'thong_bao', label: '📢 Thông Báo & Ticker', count: announcements.length },
+            { id: 'tieu_diem', label: '✨ Tiêu Điểm Campus', count: curHighlights.length },
             { id: 'ma_truy_cap', label: '🔑 Mã Truy Cập Lớp' },
-            { id: 'bien_tap', label: '👥 Biên Tập Viên' },
-            { id: 'phong', label: '🏠 Phòng Hoạt Động', count: dsPhong.length },
+            { id: 'bien_tap', label: '👥 Ban Biên Tập' },
+            { id: 'phong', label: '🏠 Sảnh Hoạt Động', count: dsPhong.length },
             { id: 'duyet_gv', label: '🛡️ Duyệt Giáo Viên', count: pendingTeachers.length },
             { id: 'bao_cao', label: '🚩 Báo Cáo', count: pendingReportsCount }
           ].map(t => (
@@ -3306,7 +3445,11 @@ function TeacherControlCenterModal({
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${tab === t.id ? 'bg-purple-600 text-white shadow-md' : 'bg-[#0D111A] text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                tab === t.id
+                  ? 'bg-gradient-to-r from-[#00F2FE]/20 to-[#8B5CF6]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm font-black'
+                  : 'bg-[#0D111A] text-slate-400 hover:bg-white/5 hover:text-white border border-white/5'
+              }`}>
               <span>{t.label}</span>
               {t.count !== undefined && t.count > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-white text-[10px] font-mono">
@@ -3317,25 +3460,32 @@ function TeacherControlCenterModal({
           ))}
         </div>
 
+        {/* Tab Content Panes */}
         <div className="overflow-y-auto flex-1 pr-1">
           {tab === 'thong_bao' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2 pb-2">
-                <span className="text-xs text-slate-300">Danh sách các thông báo toàn trường và lớp</span>
+                <div>
+                  <h4 className="text-xs font-bold text-white">Quản lý Thông báo & Ticker chạy chữ</h4>
+                  <p className="text-[11px] text-slate-400">Các thông báo xuất bản sẽ xuất hiện trên Campus và thanh ticker</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => onSoanTin && onSoanTin(null)}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-black text-xs shadow-sm hover:scale-105 active:scale-95 transition-all">
-                  + Soạn thông báo mới
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-black text-xs shadow-sm hover:scale-105 active:scale-95 transition-all flex items-center gap-1">
+                  <span>+</span>
+                  <span>Soạn thông báo mới</span>
                 </button>
               </div>
 
               {announcements.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">Chưa có thông báo nào</div>
+                <div className="py-8 text-center text-xs text-slate-400 bg-[#0D111A] rounded-2xl border border-white/5">
+                  Chưa có thông báo nào. Bấm nút phía trên để soạn bài mới.
+                </div>
               ) : (
                 <div className="space-y-2">
                   {announcements.map(tb => (
-                    <div key={tb.id} className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div key={tb.id} className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/10 hover:border-white/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           {tb.ghim === 1 && <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">📌 Ghim</span>}
@@ -3363,6 +3513,195 @@ function TeacherControlCenterModal({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === 'tieu_diem' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/5">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Quản trị Tiêu Điểm Campus (Curation & Preview)</h4>
+                  <p className="text-[11px] text-slate-400">Tùy chỉnh 4 hoạt động nổi bật hiển thị ở cột trái Campus Home</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetHighlights}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all">
+                    Khôi phục gốc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePublishHighlights}
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-black text-xs shadow-md hover:opacity-90 active:scale-95 transition-all">
+                    Lưu & Xuất bản
+                  </button>
+                </div>
+              </div>
+
+              {hlSavedNotice && (
+                <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs text-center font-bold">
+                  {hlSavedNotice}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* Form & List */}
+                <div className="space-y-4">
+                  {/* Current highlights list */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Danh sách thẻ đang hiển thị ({curHighlights.length}/4):</span>
+                    {curHighlights.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic p-3 bg-[#0D111A] rounded-xl border border-white/5">Chưa có thẻ nào.</p>
+                    ) : (
+                      curHighlights.map((h, idx) => (
+                        <div key={h.id || idx} className="p-2.5 rounded-xl bg-[#0D111A] border border-white/5 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-sm shrink-0">
+                              {h.icon || '⭐'}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/15 text-[#00F2FE] font-bold">{h.badge || 'NỔI BẬT'}</span>
+                                <span className="text-xs font-bold text-white truncate">{h.title || h.tieuDe}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">{h.sub || h.chiTiet}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingHlIdx(idx);
+                                setHlForm({
+                                  id: h.id || '',
+                                  title: h.title || h.tieuDe || '',
+                                  sub: h.sub || h.chiTiet || '',
+                                  badge: h.badge || 'NỔI BẬT',
+                                  icon: h.icon || h.bieuTuong || '⭐',
+                                  category: h.category || 'Hoạt động',
+                                  loai: h.loai || 'event'
+                                });
+                              }}
+                              className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-slate-200 text-[10px] font-bold">
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = curHighlights.filter((_, i) => i !== idx);
+                                setCurHighlights(next);
+                                if (editingHlIdx === idx) setEditingHlIdx(null);
+                              }}
+                              className="px-2 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-[10px] font-bold">
+                              Xóa
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add / Edit Form */}
+                  <div className="p-3.5 rounded-2xl bg-[#0B0E14] border border-white/10 space-y-3">
+                    <span className="text-xs font-bold text-[#00F2FE] block">
+                      {editingHlIdx !== null ? `Chỉnh sửa thẻ #${editingHlIdx + 1}` : '+ Thêm thẻ tiêu điểm mới'}
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Badge (Nhãn)</label>
+                        <input
+                          type="text"
+                          value={hlForm.badge}
+                          onChange={e => setHlForm(f => ({ ...f, badge: e.target.value }))}
+                          placeholder="SÔI ĐỘNG, HOT..."
+                          className="w-full bg-[#151A23] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-1">Biểu tượng / Emoji</label>
+                        <input
+                          type="text"
+                          value={hlForm.icon}
+                          onChange={e => setHlForm(f => ({ ...f, icon: e.target.value }))}
+                          placeholder="🎮, 🎬, 🏆..."
+                          className="w-full bg-[#151A23] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Tiêu đề (ngắn gọn 1 dòng)</label>
+                      <input
+                        type="text"
+                        value={hlForm.title}
+                        onChange={e => setHlForm(f => ({ ...f, title: e.target.value }))}
+                        placeholder="Ví dụ: Đấu trường Caro đang mở..."
+                        className="w-full bg-[#151A23] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Mô tả phụ (1 dòng)</label>
+                      <input
+                        type="text"
+                        value={hlForm.sub}
+                        onChange={e => setHlForm(f => ({ ...f, sub: e.target.value }))}
+                        placeholder="Ví dụ: 3 trận đấu đang diễn ra"
+                        className="w-full bg-[#151A23] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]"
+                      />
+                    </div>
+                    {/* Live Preview Box */}
+                    <div className="p-3 bg-[#0D111A] rounded-2xl border border-[#00F2FE]/20 flex flex-col gap-2">
+                      <span className="text-[10px] font-bold text-[#00F2FE] uppercase tracking-wider">Xem Trước Hiển Thị Thẻ Tiêu Điểm</span>
+                      <div className="p-3 rounded-xl bg-[#151A23] border border-white/10 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="w-9 h-9 rounded-xl bg-[#00F2FE]/10 border border-[#00F2FE]/20 flex items-center justify-center text-lg shrink-0">
+                            {hlForm.icon || '✨'}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-[#00F2FE]/15 text-[#00F2FE] tracking-wider">
+                                {hlForm.badge || 'NỔI BẬT'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium">· {hlForm.category || 'Hoạt động'}</span>
+                            </div>
+                            <p className="text-xs font-bold text-white truncate">{hlForm.title || 'Tiêu đề thẻ tiêu điểm...'}</p>
+                            <p className="text-[11px] text-slate-400 truncate">{hlForm.sub || 'Mô tả tóm tắt hiển thị trên campus'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      {editingHlIdx !== null && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingHlIdx(null);
+                            setHlForm({ id: '', title: '', sub: '', badge: 'NỔI BẬT', icon: '✨', category: 'Hoạt động', loai: 'event' });
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold">
+                          Hủy
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleSaveHlItem}
+                        disabled={!hlForm.title.trim()}
+                        className="px-4 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-[#00F2FE] border border-cyan-500/40 text-xs font-bold transition-all disabled:opacity-40">
+                        {editingHlIdx !== null ? 'Cập nhật' : 'Thêm vào danh sách'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Preview Panel */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">👁️ Xem trước giao diện thật:</span>
+                  <div className="p-3 rounded-2xl bg-[#090D14] border border-[#00F2FE]/20 shadow-lg">
+                    <CampusHighlights highlights={curHighlights} />
+                  </div>
+                  <p className="text-[10px] text-slate-500 text-center italic">Giao diện sẽ hiển thị đúng như trên trên Campus Home và sảnh hoạt động.</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -3423,7 +3762,7 @@ function TeacherControlCenterModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-300">Danh sách tài khoản yêu cầu đăng ký vai trò Giáo viên</span>
-                <button type="button" onClick={taiPendingTeachers} className="text-xs text-purple-400 hover:underline">Làm mới</button>
+                <button type="button" onClick={taiPendingTeachers} className="text-xs text-cyan-400 hover:underline">Làm mới</button>
               </div>
 
               {duyetThongBao && (
@@ -3449,7 +3788,7 @@ function TeacherControlCenterModal({
                     <div key={t.id} className="p-3.5 rounded-2xl bg-[#0D111A] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <h4 className="text-xs font-bold text-white">{t.tenHienThi}</h4>
-                        <p className="text-[11px] text-purple-300 font-mono mt-0.5">@{t.tenDangNhap}</p>
+                        <p className="text-[11px] text-cyan-300 font-mono mt-0.5">@{t.tenDangNhap}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5">Đăng ký lúc: {t.taoLuc ? new Date(t.taoLuc).toLocaleString('vi-VN') : '—'}</p>
                       </div>
                       <div className="flex items-center gap-2 self-end sm:self-center">
@@ -3492,7 +3831,7 @@ function TeacherControlCenterModal({
                       key={f.id}
                       type="button"
                       onClick={() => setReportFilter(f.id)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${reportFilter === f.id ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${reportFilter === f.id ? 'bg-[#00F2FE]/20 text-[#00F2FE] shadow-sm' : 'text-slate-400 hover:text-white'}`}>
                       {f.label}
                     </button>
                   ))}
@@ -3572,7 +3911,7 @@ function TeacherControlCenterModal({
   );
 }
 
-// ─── UNIFIED ACTIVITY LOBBY (PHASE 4B) ──────────────────────────────────────
+
 function ActivityLobby({
   lobbyId,
   onBack,
@@ -3616,10 +3955,11 @@ function ActivityLobby({
     : roomsForCat.reduce((acc, r) => acc + (r.soNguoi || 0), 0);
 
   return (
-    <div id={meta.id} className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6 animate-fadeIn w-full">
+    <div id={meta.id} className="w-full flex flex-col gap-5 animate-fadeIn">
       <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           <button
+            id="btn-back-to-campus"
             type="button"
             onClick={onBack}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all">
@@ -6188,9 +6528,21 @@ function DigitalCampusApp() {
     } catch { /* bỏ qua */ }
   }, []);
 
-  // Phase 4A: Campus Highlights — dữ liệu THẬT tổng hợp từ /api/campus-highlights
-  const taiCampusHighlights = useCallback(async () => {
+  // Phase 4A: Campus Highlights — dữ liệu THẬT tổng hợp từ /api/campus-highlights hoặc curation GV
+  const taiCampusHighlights = useCallback(async (forceServer = false) => {
     try {
+      if (!forceServer) {
+        const saved = localStorage.getItem('curated_campus_highlights');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCampusHighlights(parsed);
+            return;
+          }
+        }
+      } else {
+        try { localStorage.removeItem('curated_campus_highlights'); } catch {}
+      }
       const res = await fetch('/api/campus-highlights');
       const d = await res.json();
       if (d.ok && Array.isArray(d.highlights)) {
@@ -7050,34 +7402,19 @@ function DigitalCampusApp() {
             {/* Chế độ Giáo viên (CHỈ HIỆN KHI LÀ GVCN) */}
             {auth.user?.isTeacher && (
               <div className="pt-2 border-t border-white/10 space-y-1.5">
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider px-2.5 mb-1">
-                  QUẢN TRỊ CAMPUS
-                </p>
                 <button
                   type="button"
                   id="btn-open-teacher-control-center"
                   onClick={() => { setShowTeacherControl(true); setShowUserMenu(false); }}
-                  className="w-full flex items-center gap-2.5 p-2.5 rounded-2xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-200 text-left transition-all shadow-sm">
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/30 text-purple-300 flex items-center justify-center text-xs shrink-0">
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-2xl bg-[#00F2FE]/10 hover:bg-[#00F2FE]/20 border border-[#00F2FE]/30 text-[#00F2FE] text-left transition-all shadow-sm">
+                  <div className="w-7 h-7 rounded-lg bg-[#00F2FE]/20 text-[#00F2FE] flex items-center justify-center text-xs shrink-0">
                     ⚙️
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-purple-200">Trung tâm quản trị Giáo viên</p>
-                    <p className="text-[10px] text-purple-300/70 truncate">Thông báo, mã mời, duyệt tài khoản GV</p>
+                    <p className="text-xs font-bold text-white">Admin Center (Campus Control)</p>
+                    <p className="text-[10px] text-[#00F2FE]/80 truncate">Quản trị thông báo, tiêu điểm & sảnh phòng</p>
                   </div>
                 </button>
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
-                  <a href="/giao-vien/"
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/5 border border-white/10 text-purple-200 text-xs font-bold hover:bg-white/10 transition-all shadow-sm">
-                    <span>✏️</span>
-                    <span>Bàn làm việc</span>
-                  </a>
-                  <button type="button" onClick={() => setShowUserMenu(false)}
-                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#0B0E14] border border-white/10 text-slate-300 text-xs font-bold hover:border-[#00F2FE]/40 hover:text-white transition-all shadow-sm">
-                    <span>👁️</span>
-                    <span>Xem trước</span>
-                  </button>
-                </div>
               </div>
             )}
           </div>
@@ -7236,142 +7573,164 @@ function DigitalCampusApp() {
 
       {/* ══════════════════════════════════════════════════════════════════════
            MAIN VIEW 1: DIGITAL CAMPUS HUB (MATCHING SCREENSHOT 2)
+      {/* ══════════════════════════════════════════════════════════════════════
+           MAIN VIEW 1: DIGITAL CAMPUS HUB (MATCHING SCREENSHOT 2)
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'campus' && currentView === 'LOBBY' && (
-        currentLobby ? (
-          <ActivityLobby
-            lobbyId={currentLobby}
-            onBack={() => setCurrentLobby(null)}
-            onOpenTaoPhong={(loai) => {
-              if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
-              setTpLoi('');
-              setTpForm(f => ({ ...f, loai, ten: '' }));
-              setShowTaoPhong(true);
-            }}
-            dsPhong={phongCongDong || []}
-            caroRooms={caroRooms || []}
-            onVaoPhong={vaoPhong}
-            onVaoBanCaro={vaoBanCaro}
-            onTaoBanCaro={() => {
-              if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
-              setShowTaoBanModal(true);
-            }}
-            auth={auth}
-          />
-        ) : (
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col gap-6 animate-fadeIn" id="campus-lobby">
-            {/* Region 5: Horizontal Teacher Announcement Ticker */}
-            <AnnouncementTicker
-              announcements={teacherAnnouncements}
-              onSelectAnnouncement={tb => setSelectedAnnouncement(tb)}
-            />
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full flex flex-col gap-6 animate-fadeIn" id="campus-lobby">
+          {/* Region 5: Horizontal Teacher Announcement Ticker + Admin Center */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <AnnouncementTicker
+                announcements={teacherAnnouncements}
+                onSelectAnnouncement={tb => setSelectedAnnouncement(tb)}
+              />
+            </div>
+            {auth.user?.isTeacher && (
+              <button
+                type="button"
+                id="btn-admin-center-ticker"
+                onClick={() => setShowTeacherControl(true)}
+                className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[#00F2FE]/10 hover:bg-[#00F2FE]/20 border border-[#00F2FE]/30 hover:border-[#00F2FE]/60 text-[#00F2FE] text-xs font-bold transition-all shadow-sm"
+                title="Mở Admin Center quản trị Campus"
+              >
+                <span>⚙️</span>
+                <span className="hidden sm:inline">Admin Center</span>
+              </button>
+            )}
+          </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_360px] lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
-              {/* Left Column: Highlights Rail */}
-              <aside id="campus-left-nav" className="flex flex-col gap-4 order-2 lg:order-1">
-                <CampusHighlights
-                  highlights={campusHighlights}
-                  onVaoGame={() => {
+          <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_360px] lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
+            {/* Left Column: Highlights Rail (Persistent in Home & Lobbies) */}
+            <aside id="campus-left-nav" className="flex flex-col gap-4 order-2 lg:order-1">
+              <CampusHighlights
+                highlights={campusHighlights}
+                onOpenAdmin={auth.user?.isTeacher ? () => setShowTeacherControl(true) : null}
+                onVaoGame={() => {
+                  setCurrentLobby('GAME');
+                  if (!auth.isGuest) taiDanhSachBanCaro();
+                }}
+                onVaoPhong={(phongId) => {
+                  const p = (phongCongDong || []).find(x => x.id === phongId);
+                  if (p) vaoPhong(p);
+                }}
+                onVaoSuKien={() => {
+                  navigateTab('feed', 'ban-tin');
+                }}
+              />
+            </aside>
+
+            {/* Center Column: 4 Flagship Destinations OR Activity Lobby */}
+            <main id="campus-main-content" className="flex flex-col gap-6 min-w-0 w-full order-1 lg:order-2">
+              {currentLobby ? (
+                <ActivityLobby
+                  lobbyId={currentLobby}
+                  onBack={() => setCurrentLobby(null)}
+                  onOpenTaoPhong={(loai) => {
                     if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
-                    setCurrentLobby('GAME');
-                    taiDanhSachBanCaro();
+                    setTpLoi('');
+                    setTpForm(f => ({ ...f, loai, ten: '' }));
+                    setShowTaoPhong(true);
                   }}
-                  onVaoPhong={(phongId) => {
-                    const p = (phongCongDong || []).find(x => x.id === phongId);
-                    if (p) vaoPhong(p);
+                  dsPhong={phongCongDong || []}
+                  caroRooms={caroRooms || []}
+                  onVaoPhong={vaoPhong}
+                  onVaoBanCaro={vaoBanCaro}
+                  onTaoBanCaro={() => {
+                    if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
+                    setShowTaoBanModal(true);
                   }}
-                  onVaoSuKien={() => {
-                    navigateTab('feed', 'ban-tin');
-                  }}
+                  auth={auth}
                 />
-              </aside>
+              ) : (
+                <>
+                  {/* Mobile Chat button (< 1280px) */}
+                  <div className="xl:hidden flex items-center justify-between px-1">
+                    <span className="text-xs font-bold text-slate-400">Campus Hub</span>
+                    <button type="button" onClick={() => setShowMobileChatRail(true)}
+                      id="mobile-campus-chat-btn"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#151A23] hover:bg-[#1E2532] border border-white/10 text-xs font-bold text-white shadow-md transition-all">
+                      <span>💬</span>
+                      <span>Chat & Bạn bè</span>
+                    </button>
+                  </div>
 
-              {/* Center Column: 4 Flagship Destinations */}
-              <main className="flex flex-col gap-6 min-w-0 w-full order-1 lg:order-2">
-                {/* Mobile Chat button (< 1280px) */}
-                <div className="xl:hidden flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-slate-400">Campus Hub</span>
-                  <button type="button" onClick={() => setShowMobileChatRail(true)}
-                    id="mobile-campus-chat-btn"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#151A23] hover:bg-[#1E2532] border border-white/10 text-xs font-bold text-white shadow-md transition-all">
-                    <span>💬</span>
-                    <span>Chat & Bạn bè</span>
-                  </button>
-                </div>
+                  <div id="campus-flagship-spaces">
+                    <div className="flex items-center justify-between pb-1">
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Khám phá hoạt động</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Chọn một điểm hẹn để vào sảnh phòng trực tuyến</p>
+                      </div>
+                    </div>
 
-                <div id="campus-flagship-spaces">
-                  <div className="flex items-center justify-between pb-1">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Khám phá hoạt động</h2>
-                      <p className="text-xs text-slate-400 mt-0.5">Chọn một điểm hẹn để vào sảnh phòng trực tuyến</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
+                      {/* Card 1: Xem chung */}
+                      <CampusSpaceCard
+                        theme="cyan"
+                        sceneType="cinema"
+                        title="Xem chung"
+                        metric={(() => {
+                          const pv = (phongCongDong || []).find(p => p.loai === 'video');
+                          return pv && (pv.soNguoi || 0) > 0 ? `${pv.soNguoi} đang xem` : null;
+                        })()}
+                        onAction={() => setCurrentLobby('CINEMA')}
+                      />
+
+                      {/* Card 2: Game */}
+                      <CampusSpaceCard
+                        theme="amber"
+                        sceneType="game"
+                        title="Game"
+                        metric={(() => {
+                          const activeCaro = (caroRooms || []).filter(b => b.trangThai === 'dang_choi').length;
+                          return activeCaro > 0 ? `${activeCaro} trận đấu` : null;
+                        })()}
+                        onAction={() => {
+                          setCurrentLobby('GAME');
+                          if (!auth.isGuest) taiDanhSachBanCaro();
+                        }}
+                      />
+
+                      {/* Card 3: Music */}
+                      <CampusSpaceCard
+                        theme="violet"
+                        sceneType="music"
+                        title="Music"
+                        metric={(() => {
+                          const pn = (phongCongDong || []).find(p => p.loai === 'nhac' || p.loai === 'focus');
+                          return pn && (pn.soNguoi || 0) > 0 ? `${pn.soNguoi} đang nghe` : null;
+                        })()}
+                        onAction={() => setCurrentLobby('LOFI')}
+                      />
+
+                      {/* Card 4: Chat */}
+                      <CampusSpaceCard
+                        theme="teal"
+                        sceneType="social"
+                        title="Chat"
+                        metric={null}
+                        onAction={() => setCurrentLobby('CHAT')}
+                      />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4">
-                    {/* Card 1: Xem chung */}
-                    <CampusSpaceCard
-                      theme="cyan"
-                      sceneType="cinema"
-                      title="Xem chung"
-                      metric={(() => {
-                        const pv = (phongCongDong || []).find(p => p.loai === 'video');
-                        return pv && (pv.soNguoi || 0) > 0 ? `${pv.soNguoi} đang xem` : null;
-                      })()}
-                      onAction={() => setCurrentLobby('CINEMA')}
-                    />
-
-                    {/* Card 2: Game */}
-                    <CampusSpaceCard
-                      theme="amber"
-                      sceneType="game"
-                      title="Game"
-                      metric={(caroRooms || []).length > 0 ? `${caroRooms.length} bàn đang mở` : null}
-                      onAction={() => {
-                        setCurrentLobby('GAME');
-                        if (!auth.isGuest) taiDanhSachBanCaro();
-                      }}
-                    />
-
-                    {/* Card 3: Music */}
-                    <CampusSpaceCard
-                      theme="violet"
-                      sceneType="music"
-                      title="Music"
-                      metric={(() => {
-                        const pn = (phongCongDong || []).find(p => p.loai === 'nhac' || p.loai === 'focus');
-                        return pn && (pn.soNguoi || 0) > 0 ? `${pn.soNguoi} đang nghe` : null;
-                      })()}
-                      onAction={() => setCurrentLobby('LOFI')}
-                    />
-
-                    {/* Card 4: Chat */}
-                    <CampusSpaceCard
-                      theme="teal"
-                      sceneType="social"
-                      title="Chat"
-                      metric={null}
-                      onAction={() => setCurrentLobby('CHAT')}
-                    />
-                  </div>
-                </div>
-              </main>
-
-              {/* Right Column: Campus Chat Rail (Desktop >= 1280px) */}
-              {isXlScreen && (
-                <aside className="flex flex-col gap-4 order-3 sticky top-[72px] self-start">
-                  <CampusChatRail
-                    auth={auth}
-                    isActive={activeTab === 'campus'}
-                    onRequireAuth={() => { setAuthModalTab('login'); setShowAuthModal(true); }}
-                  />
-                </aside>
+                </>
               )}
-            </div>
+            </main>
+
+            {/* Right Column: Campus Chat Rail (Desktop >= 1280px) */}
+            {isXlScreen && (
+                <aside className="flex flex-col gap-4 order-3 sticky top-[72px] self-start">
+                <CampusChatRail
+                  auth={auth}
+                  isActive={activeTab === 'campus'}
+                  onRequireAuth={() => { setAuthModalTab('login'); setShowAuthModal(true); }}
+                />
+              </aside>
+            )}
           </div>
-        )
+        </div>
       )}
 
-      {/* Mobile Chat Bottom Sheet Modal */}
       {!isXlScreen && showMobileChatRail && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-4">
           <div className="bg-[#151A23] border border-white/15 rounded-t-3xl sm:rounded-3xl w-full max-w-lg h-[85vh] max-h-[640px] flex flex-col shadow-2xl overflow-hidden animate-slideUp">
@@ -9126,6 +9485,12 @@ function DigitalCampusApp() {
             taiDanhSachPhong();
           }
         }}
+        highlights={campusHighlights}
+        onCapNhatHighlights={(newHls) => {
+          setCampusHighlights(newHls);
+          try { localStorage.setItem('curated_campus_highlights', JSON.stringify(newHls)); } catch {}
+        }}
+        onResetHighlights={() => taiCampusHighlights(true)}
       />
 
       <TeacherAccessCodeModal isOpen={showAccessCodes} onClose={() => setShowAccessCodes(false)} hocSinhList={classData.hocSinh} />
