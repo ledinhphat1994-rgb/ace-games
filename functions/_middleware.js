@@ -21,6 +21,7 @@ const PUBLIC_PATHS = new Set([
   // Các method ghi (POST/PUT/DELETE) của /api/su-kien vẫn bị bocXuLy({canGiaoVien}) chặn lại.
   '/api/campus', '/api/su-kien',
   '/api/campus-thong-bao', '/api/campus-highlights', '/api/kiem-tra-ma-cong-dong',
+  '/api/campus-chat', '/api/campus-friends', '/api/campus-dm',
 ]);
 
 function isPublic(pathname) {
