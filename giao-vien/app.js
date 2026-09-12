@@ -2300,7 +2300,6 @@ async function trangTongQuan() {
     const totalCaro = activeCaro + waitingCaro;
 
     const ytRooms = dsPhong.filter(p => p.loai === 'video').length;
-    const musicRooms = dsPhong.filter(p => p.loai === 'nhac' || p.loai === 'focus').length;
     const totalOnline = dsPhong.reduce((s, p) => s + (p.soNguoi || 0), 0) + (activeCaro * 2) + waitingCaro;
     const classesManaged = PHIEN.isSchoolAdmin ? (dsLop.length || 1) : 1;
 
@@ -2339,7 +2338,6 @@ async function trangTongQuan() {
       taoTheKPI('Phòng Hoạt Động', dsPhong.length, 'Tổng phòng mở trên Campus', '#38BDF8', '#/campus-quan-tri'),
       taoTheKPI('Đấu Trường Game', totalCaro, `${activeCaro} đang đấu · ${waitingCaro} chờ`, '#FFB800', '#/campus-quan-tri'),
       taoTheKPI('Phòng YouTube', ytRooms, 'Học tập & xem video nhóm', '#EF4444', '#/campus-quan-tri'),
-      taoTheKPI('Phòng Music', musicRooms, 'Không gian tự học Lofi', '#A855F7', '#/campus-quan-tri'),
       taoTheKPI('Nội Dung & Bản Tin', dsTb.length, 'Bài viết & bản tin đã đăng', '#34D399', '#/bang-tin-quan-tri'),
       taoTheKPI('Tiêu Điểm Campus', `${dsHl.length}/4`, 'Thẻ bài nổi bật toàn trường', '#F472B6', '#/campus-highlights'),
       taoTheKPI('Kiểm Duyệt & An Toàn', pendingReports.length, pendingReports.length > 0 ? '⚠️ Cần kiểm duyệt ngay' : 'Đang an toàn', pendingReports.length > 0 ? '#F43F5E' : '#94A3B8', '#/kiem-duyet-quan-tri'),
@@ -2393,14 +2391,15 @@ async function trangTongQuan() {
 async function trangCampus() {
   datNoiDung(KHUNG, khoiDangTai('Đang tải dữ liệu hoạt động Campus...'));
   try {
-    const [resPhong, resGame] = await Promise.allSettled([
+    const [resPhong, resGame, resHl] = await Promise.allSettled([
       api('/api/phong?phamVi=truong'),
-      api('/api/game?action=danh_sach')
+      api('/api/game?action=danh_sach'),
+      api('/api/campus-highlights')
     ]);
     const dsPhong = resPhong.status === 'fulfilled' && Array.isArray(resPhong.value?.phong) ? resPhong.value.phong : [];
     const dsGame = resGame.status === 'fulfilled' && Array.isArray(resGame.value?.danhSach) ? resGame.value.danhSach : [];
+    const dsHl = resHl.status === 'fulfilled' && Array.isArray(resHl.value?.highlights) ? resHl.value.highlights : [];
     const dsYt = dsPhong.filter(p => p.loai === 'video');
-    const dsMusic = dsPhong.filter(p => p.loai === 'nhac' || p.loai === 'focus');
 
     const khung = e('div');
     khung.append(tieuDeTrang(
@@ -2408,24 +2407,25 @@ async function trangCampus() {
       'Giám sát phòng trực tuyến, không gian học tập YouTube, đấu trường Game Caro và Tiêu điểm trường học.'
     ));
 
-    // Nav Subtabs
+    // Nav Subtabs (Hoạt động, YouTube, Game, Tiêu điểm)
     const subtabs = e('div');
     subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
-    const taoNutSubtab = (nhan, href) => {
-      const a = e('a', 'nut nut-vien nut-nho', nhan);
+    const taoNutSubtab = (nhan, href, laChinh = false) => {
+      const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
       a.href = href;
       a.style.cssText = 'border-radius: 12px; font-weight: 700;';
       return a;
     };
     subtabs.append(
-      taoNutSubtab('🏠 Giám sát phòng', '#/phong-campus'),
+      taoNutSubtab('🏠 Giám sát phòng', '#/phong-campus', true),
+      taoNutSubtab('▶️ YouTube Study', '#/phong-campus'),
       taoNutSubtab('✨ Tiêu điểm Campus', '#/campus-highlights')
     );
     khung.append(subtabs);
 
     // Cards Grid
     const luoi = e('div');
-    luoi.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;';
+    luoi.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;';
 
     // Helper to build room item
     const taoMucPhong = (p) => {
@@ -2450,7 +2450,7 @@ async function trangCampus() {
     dauYt.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
     const tieuDeYt = e('div');
     tieuDeYt.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeYt.append(Object.assign(e('span', null, '▶️'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'YouTube Study Rooms'), { style: 'color: #FFFFFF; font-size: 15px;' }));
+    tieuDeYt.append(Object.assign(e('span', null, '▶️'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Học Tập / YouTube Study'), { style: 'color: #FFFFFF; font-size: 15px;' }));
     const badgeYt = Object.assign(e('span', null, dsYt.length + ' phòng'), { style: 'background: rgba(239,68,68,0.15); color: #EF4444; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
     dauYt.append(tieuDeYt, badgeYt);
     const moTaYt = Object.assign(e('p', null, 'Phòng chiếu video học tập và thảo luận nhóm đang trực tuyến.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
@@ -2495,28 +2495,39 @@ async function trangCampus() {
     linkCampusGame.style.cssText = 'width: 100%; text-align: center; display: block;';
     cardGame.append(dauGame, moTaGame, luoiGameStats, linkCampusGame);
 
-    // 3. Card Music / Focus
-    const cardMusic = e('div', 'the');
-    cardMusic.style.cssText = 'background: #121620; border: 1px solid rgba(139,92,246,0.3); border-radius: 18px; padding: 20px;';
-    const dauMusic = e('div');
-    dauMusic.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
-    const tieuDeMusic = e('div');
-    tieuDeMusic.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeMusic.append(Object.assign(e('span', null, '🎧'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Music & Focus Study'), { style: 'color: #FFFFFF; font-size: 15px;' }));
-    const badgeMusic = Object.assign(e('span', null, dsMusic.length + ' phòng'), { style: 'background: rgba(139,92,246,0.15); color: #8B5CF6; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
-    dauMusic.append(tieuDeMusic, badgeMusic);
+    // 3. Card Tiêu Điểm Campus
+    const cardHl = e('div', 'the');
+    cardHl.style.cssText = 'background: #121620; border: 1px solid rgba(0,242,254,0.3); border-radius: 18px; padding: 20px;';
+    const dauHl = e('div');
+    dauHl.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
+    const tieuDeHl = e('div');
+    tieuDeHl.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeHl.append(Object.assign(e('span', null, '✨'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Tiêu Điểm Campus'), { style: 'color: #FFFFFF; font-size: 15px;' }));
+    const badgeHl = Object.assign(e('span', null, dsHl.length + '/4 thẻ'), { style: 'background: rgba(0,242,254,0.15); color: #00F2FE; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
+    dauHl.append(tieuDeHl, badgeHl);
 
-    const moTaMusic = Object.assign(e('p', null, 'Không gian nghe nhạc Lofi và tự học tập trung cá nhân / nhóm.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
-    const dsMusicDiv = e('div');
-    dsMusicDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
-    if (dsMusic.length === 0) {
-      dsMusicDiv.append(Object.assign(e('div', null, 'Chưa có phòng Music nào đang mở.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
+    const moTaHl = Object.assign(e('p', null, 'Điều phối nội dung nổi bật xuất hiện tại cột trái Digital Campus.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    const dsHlDiv = e('div');
+    dsHlDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    if (dsHl.length === 0) {
+      dsHlDiv.append(Object.assign(e('div', null, 'Chưa có thẻ tiêu điểm nào.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
     } else {
-      dsMusic.forEach(p => dsMusicDiv.append(taoMucPhong(p)));
+      dsHl.slice(0, 4).forEach(h => {
+        const row = e('div');
+        row.style.cssText = 'display: flex; align-items: center; gap: 8px; background: #0B0E14; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);';
+        row.append(
+          Object.assign(e('span', null, h.icon || '⭐'), { style: 'font-size: 16px;' }),
+          Object.assign(e('span', null, h.title || h.tieuDe || 'Tiêu điểm'), { style: 'color: #FFFFFF; font-size: 12px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' })
+        );
+        dsHlDiv.append(row);
+      });
     }
-    cardMusic.append(dauMusic, moTaMusic, dsMusicDiv);
+    const linkBienTapHl = e('a', 'nut nut-chinh nut-nho', 'Chỉnh sửa Tiêu điểm →');
+    linkBienTapHl.href = '#/campus-highlights';
+    linkBienTapHl.style.cssText = 'width: 100%; text-align: center; display: block; margin-top: 12px;';
+    cardHl.append(dauHl, moTaHl, dsHlDiv, linkBienTapHl);
 
-    luoi.append(cardYt, cardGame, cardMusic);
+    luoi.append(cardYt, cardGame, cardHl);
     khung.append(luoi);
     datNoiDung(KHUNG, khung);
   } catch (err) {

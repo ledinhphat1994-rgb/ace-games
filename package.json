@@ -35,6 +35,8 @@
     "qa:phase4d1": "node cong-cu/qa-phase4d1.mjs",
     "qa:phase4e": "node cong-cu/qa-phase4e.mjs",
     "qa:phase4f": "node cong-cu/qa-phase4f.mjs",
+    "qa:phase4g": "node cong-cu/qa-phase4g.mjs",
+    "qa:youtube-lobby": "node cong-cu/qa-youtube-lobby.mjs",
     "deploy": "node deploy.js",
     "dev": "node build.js && wrangler pages dev --compatibility-date=2026-05-03",
     "log": "wrangler pages deployment tail --project-name lop-10a7",
