@@ -77,7 +77,7 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 /* ---------- Thanh tab dưới (điện thoại) ---------- */
 .tab-duoi {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
-  display: grid; grid-template-columns: repeat(6, 1fr);
+  display: grid; grid-template-columns: repeat(7, 1fr);
   background: color-mix(in srgb, var(--nen-noi) 96%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -142,6 +142,70 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .hang-viec-icon { flex: none; font-size: 12px; }
 .hang-viec-chu { flex: 1; min-width: 0; }
 .hang-viec-nut { flex: none; color: var(--mau-qt, var(--chinh)); font-weight: 800; font-size: 12px; }
+
+/* ---------- Bảng quản trị dùng chung (Người dùng, Phòng Campus, Nhật ký...) — Admin IA v1 ---------- */
+.bang-qt-boc { overflow-x: auto; border: 1px solid var(--vien); border-radius: var(--r); }
+.bang-qt { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.bang-qt th {
+  text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em; color: var(--chu-nhat);
+  border-bottom: 1px solid var(--vien); background: var(--nen); position: sticky; top: 0;
+}
+.bang-qt td { padding: 9px 14px; border-bottom: 1px solid var(--vien); vertical-align: middle; color: var(--chu); }
+.bang-qt tbody tr:last-child td { border-bottom: none; }
+.bang-qt tbody tr { cursor: pointer; transition: background .12s; }
+.bang-qt tbody tr:hover td { background: color-mix(in srgb, var(--chinh) 6%, transparent); }
+.bang-qt-rong { padding: 28px; text-align: center; color: var(--chu-nhat); font-size: 13px; }
+
+/* Huy hiệu trạng thái (tái dùng công thức của .nhan nhưng cho phép đổi màu theo trạng thái) */
+.nhan-tt {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: 11px; font-weight: 700; padding: 2.5px 9px; border-radius: 99px;
+  background: color-mix(in srgb, var(--mau-tt, var(--chu-nhat)) 15%, transparent);
+  color: var(--mau-tt, var(--chu-nhat));
+  border: 1px solid color-mix(in srgb, var(--mau-tt, var(--chu-nhat)) 30%, transparent);
+}
+
+/* Menu "⋯" hành động dùng chung */
+.o-menu-hd { position: relative; display: inline-block; }
+.nut-menu-hd {
+  width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--vien);
+  background: var(--nen-noi); color: var(--chu-nhat); font-weight: 900; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
+}
+.nut-menu-hd:hover { color: var(--chu); border-color: var(--chinh); }
+.bang-menu-hd {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 70; min-width: 170px;
+  background: var(--nen-noi); border: 1px solid var(--vien); border-radius: var(--r-nho);
+  box-shadow: var(--bong-2); overflow: hidden; text-align: left;
+}
+.muc-menu-hd {
+  display: block; width: 100%; padding: 9px 14px; font-size: 12.5px; font-weight: 600;
+  color: var(--chu); background: none; border: none; cursor: pointer; text-align: left;
+  white-space: nowrap;
+}
+.muc-menu-hd:hover { background: var(--nen); }
+.muc-menu-hd.nguy-hiem { color: #f43f5e; }
+
+/* Drawer chi tiết trượt từ phải — khác .hop-thoai (modal giữa màn hình) */
+.man-drawer-qt { position: fixed; inset: 0; background: rgba(3,6,12,.55); backdrop-filter: blur(2px); z-index: 80; }
+.drawer-qt {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); z-index: 81;
+  background: var(--nen-noi); border-left: 1px solid var(--vien); overflow-y: auto;
+  box-shadow: -24px 0 60px rgba(0,0,0,.35); animation: truotVaoDrawerQt .18s ease-out;
+}
+@keyframes truotVaoDrawerQt { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.drawer-qt-dau {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 16px 18px; border-bottom: 1px solid var(--vien);
+  position: sticky; top: 0; background: var(--nen-noi); z-index: 1;
+}
+.drawer-qt-than { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.drawer-qt-nhom-nhan { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--chu-nhat); margin: 0 0 8px; }
+.drawer-qt-dong { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--vien); font-size: 12.5px; }
+.drawer-qt-dong:last-child { border-bottom: none; }
+.drawer-qt-dong span:first-child { color: var(--chu-nhat); }
+.drawer-qt-dong span:last-child { color: var(--chu); font-weight: 600; text-align: right; }
 
 /* ---------- Nội dung & Tiêu đề nổi bật ---------- */
 .noi-dung {
