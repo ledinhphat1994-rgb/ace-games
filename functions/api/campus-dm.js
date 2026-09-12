@@ -54,7 +54,8 @@ export async function onRequestGet({ request, env }) {
     // 3. Lấy thông tin cơ bản của bạn bè
     const friendInfo = await db.prepare(`
       SELECT tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName,
-             tk.vai_tro AS role, l.ten AS classBadge
+             tk.vai_tro AS role,
+             CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
       FROM tai_khoan_campus tk
       LEFT JOIN lop l ON l.id = tk.lop_id
       WHERE tk.id = ?1
@@ -197,7 +198,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // --- GỬI TIN NHẮN RIÊNG (DM SENDING) ---
-  const receiverAccountId = Number(body.receiverAccountId || body.toAccountId);
+  const receiverAccountId = Number(body.receiverAccountId || body.toAccountId || body.recipientAccountId);
   if (!receiverAccountId || receiverAccountId === myId) {
     return loi('Người nhận tin nhắn không hợp lệ.', 400);
   }

@@ -1,18 +1,21 @@
 // Real-time Chat Stream using Server-Sent Events (SSE)
 // Cung cấp streaming real-time cho chat không độ trễ
 import { bocXuLy, json, loi } from '../_lib/api.js';
+import { requireVerifiedClassMembership } from '../_lib/social.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const sauId = Math.max(0, parseInt(url.searchParams.get('sauId') || '0', 10));
-  const laGiaoVien = phien.role === 'teacher';
-
-  // Lớp ID: Giáo viên có thể chuyển đổi linh hoạt qua param ?lopId=...
-  let lopId = phien.lopId || 1;
   const reqLopId = parseInt(url.searchParams.get('lopId') || '', 10);
-  if (laGiaoVien && reqLopId > 0) {
-    lopId = reqLopId;
+
+  // Xác thực quyền thành viên lớp học — TUYỆT ĐỐI KHÔNG fallback lopId || 1
+  const classAuth = await requireVerifiedClassMembership(env, phien || request, reqLopId > 0 ? reqLopId : null);
+  if (!classAuth.ok) {
+    return json({ ok: false, loi: classAuth.loi, code: classAuth.code }, classAuth.status || 403);
   }
+
+  const lopId = classAuth.lopId;
+  const laGiaoVien = classAuth.isVerifiedTeacher;
 
   // Kiểm tra phòng chat có mở không
   const caiDat = await env.DB.prepare(
@@ -49,8 +52,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     async start(controller) {
       const encoder = new TextEncoder();
       let lastId = sauId;
-      let keepAliveInterval;
-      let checkInterval;
 
       // Function to send SSE message
       const sendEvent = (data, event = 'message') => {
@@ -74,8 +75,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
               let laTinCuaToi = false;
               if (laGiaoVien) {
                 laTinCuaToi = (t.vaiTro === 'giao_vien');
-              } else if (phien.hocSinhId) {
-                laTinCuaToi = (t.hocSinhId === phien.hocSinhId);
+              } else if (classAuth.hocSinhId) {
+                laTinCuaToi = (t.hocSinhId === classAuth.hocSinhId);
               }
 
               let noiDungHienThi;
@@ -131,10 +132,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       sendEvent({ connected: true, lopId, lastId }, 'connected');
 
       // Check for new messages every 2 seconds
-      checkInterval = setInterval(checkForNewMessages, 2000);
+      const checkInterval = setInterval(checkForNewMessages, 2000);
 
       // Send keep-alive every 30 seconds
-      keepAliveInterval = setInterval(() => {
+      const keepAliveInterval = setInterval(() => {
         sendEvent({ type: 'keep-alive' }, 'keepalive');
       }, 30000);
 

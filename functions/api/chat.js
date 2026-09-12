@@ -2,18 +2,22 @@
 // Dùng chung cho cả Học sinh và Giáo viên, phân quyền theo phiên đăng nhập.
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
+import { requireVerifiedClassMembership } from '../_lib/social.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const sauId = Math.max(0, parseInt(url.searchParams.get('sauId') || '0', 10));
-  const laGiaoVien = phien.role === 'teacher';
-
-  // Lớp ID: Giáo viên có thể chuyển đổi linh hoạt qua param ?lopId=..., mặc định là lớp của phiên hoặc lớp 1
-  let lopId = phien.lopId || 1;
   const reqLopId = parseInt(url.searchParams.get('lopId') || '', 10);
-  if (laGiaoVien && reqLopId > 0) {
-    lopId = reqLopId;
+
+  // Xác thực quyền thành viên lớp học — TUYỆT ĐỐI KHÔNG fallback lopId || 1
+  const classAuth = await requireVerifiedClassMembership(env, phien || request, reqLopId > 0 ? reqLopId : null);
+  if (!classAuth.ok) {
+    return json({ ok: false, loi: classAuth.loi, code: classAuth.code }, classAuth.status || 403);
   }
+
+  const lopId = classAuth.lopId;
+  const tenLop = classAuth.tenLop;
+  const laGiaoVien = classAuth.isVerifiedTeacher;
 
   // Danh sách các lớp học đang hoạt động (cho giáo viên chuyển đổi nhanh giữa các lớp)
   let cacLop = [];
@@ -21,10 +25,6 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     const rsLop = await env.DB.prepare('SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC').all().catch(() => ({ results: [] }));
     cacLop = (rsLop.results || []).map((l) => ({ id: l.id, ten: l.ten }));
   }
-
-  // Lấy tên lớp để hiển thị rõ ràng trên tiêu đề phòng chat
-  const lopRow = await env.DB.prepare('SELECT ten FROM lop WHERE id = ?1').bind(lopId).first().catch(() => null);
-  const tenLop = lopRow ? lopRow.ten : `Lớp ${lopId}`;
 
   // 1. Đọc cài đặt phòng chat (mặc định: mở, 5 giây giãn cách)
   let caiDat = await env.DB.prepare(
@@ -40,10 +40,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   let lyDoCam = '';
   let denLucCam = null;
 
-  if (!laGiaoVien && phien.hocSinhId) {
+  if (!laGiaoVien && classAuth.hocSinhId) {
     const cam = await env.DB.prepare(
       'SELECT ly_do AS lyDo, den_luc AS denLuc FROM chat_cam_hoc_sinh WHERE hoc_sinh_id = ?1 AND lop_id = ?2'
-    ).bind(phien.hocSinhId, lopId).first();
+    ).bind(classAuth.hocSinhId, lopId).first();
 
     if (cam) {
       if (!cam.denLuc) {
@@ -58,7 +58,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         } else {
           // Đã hết thời gian cấm -> tự động gỡ
           await env.DB.prepare('DELETE FROM chat_cam_hoc_sinh WHERE hoc_sinh_id = ?1 AND lop_id = ?2')
-            .bind(phien.hocSinhId, lopId).run().catch(() => {});
+            .bind(classAuth.hocSinhId, lopId).run().catch(() => {});
         }
       }
     }
@@ -89,24 +89,20 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   let tenNguoiDungHienTai = 'Học sinh';
   if (laGiaoVien) {
     tenNguoiDungHienTai = 'Giáo viên chủ nhiệm';
-  } else if (phien.hocSinhId) {
+  } else if (classAuth.hocSinhId) {
     const hs = await env.DB.prepare(
       'SELECT ho_ten AS hoTen, chuc_vu AS chucVu FROM hoc_sinh WHERE id = ?1'
-    ).bind(phien.hocSinhId).first().catch(() => null);
+    ).bind(classAuth.hocSinhId).first().catch(() => null);
     if (hs && hs.hoTen) {
       tenNguoiDungHienTai = hs.hoTen;
       if (hs.chucVu && hs.chucVu !== 'Học sinh') {
         tenNguoiDungHienTai += ` (${hs.chucVu})`;
       }
     } else {
-      tenNguoiDungHienTai = phien.ten || phien.hoTen || 'Học sinh';
+      tenNguoiDungHienTai = classAuth.displayName || 'Học sinh';
     }
-  } else if (phien.ten || phien.hoTen) {
-    tenNguoiDungHienTai = phien.ten || phien.hoTen;
-    const cv = phien.chucVu || phien.vaiTro;
-    if (cv && cv !== 'Học sinh' && cv !== 'student') {
-      tenNguoiDungHienTai += ` (${cv})`;
-    }
+  } else if (classAuth.displayName) {
+    tenNguoiDungHienTai = classAuth.displayName;
   }
 
   // Tin đã xoá sẽ hiển thị nội dung thông báo đã xoá, tính sẵn laTinCuaToi
@@ -115,8 +111,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     let laTinCuaToi = false;
     if (laGiaoVien) {
       laTinCuaToi = (t.vaiTro === 'giao_vien');
-    } else if (phien.hocSinhId) {
-      laTinCuaToi = (t.hocSinhId === phien.hocSinhId);
+    } else if (classAuth.hocSinhId) {
+      laTinCuaToi = (t.hocSinhId === classAuth.hocSinhId);
     } else if (phien.phuId || phien.role === 'phu') {
       laTinCuaToi = (t.vaiTro === 'phu' || t.tenNguoiGui === tenNguoiDungHienTai);
     }
@@ -147,33 +143,39 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     tenLop,
     lopId,
     cacLop,
-    hocSinhIdHienTai: phien.hocSinhId || null,
+    hocSinhIdHienTai: classAuth.hocSinhId || null,
     tenHienTai: tenNguoiDungHienTai,
-    vaiTroHienTai: phien.role || (laGiaoVien ? 'teacher' : 'student'),
+    vaiTroHienTai: classAuth.role || (laGiaoVien ? 'teacher' : 'student'),
     tinNhan: danhSachTin,
     daXoaIds,
   });
 }, { canGiaoVien: false });
 
-// Thu hồi tin nhắn: học sinh chỉ được thu hồi tin của chính mình; giáo viên dùng API riêng
+// Thu hồi tin nhắn: học sinh chỉ được thu hồi tin của chính mình trong lớp; giáo viên dùng API riêng
 export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
-  const laGiaoVien = phien.role === 'teacher';
   const than = await docThan(request);
   const tinId = Number(than.tinId);
 
   if (!tinId) return loi('Thiếu mã tin nhắn.');
 
+  const classAuth = await requireVerifiedClassMembership(env, phien || request, null);
+  if (!classAuth.ok) {
+    return json({ ok: false, loi: classAuth.loi, code: classAuth.code }, classAuth.status || 403);
+  }
+
+  const laGiaoVien = classAuth.isVerifiedTeacher;
+
   // Lấy thông tin tin nhắn cần thu hồi
   const tin = await env.DB.prepare(
-    'SELECT id, hoc_sinh_id AS hocSinhId, da_xoa AS daXoa FROM chat_tin_nhan WHERE id = ?1'
+    'SELECT id, lop_id AS lopId, hoc_sinh_id AS hocSinhId, da_xoa AS daXoa FROM chat_tin_nhan WHERE id = ?1'
   ).bind(tinId).first();
 
   if (!tin) return loi('Tin nhắn không tồn tại.');
   if (tin.daXoa) return loi('Tin nhắn này đã được thu hồi rồi.');
 
-  // Học sinh chỉ được thu hồi tin của chính mình
+  // Học sinh chỉ được thu hồi tin của chính mình trong lớp mình
   if (!laGiaoVien) {
-    if (!phien.hocSinhId || tin.hocSinhId !== phien.hocSinhId) {
+    if (!classAuth.hocSinhId || tin.hocSinhId !== classAuth.hocSinhId || tin.lopId !== classAuth.lopId) {
       return loi('Bạn không có quyền thu hồi tin nhắn này.', 403);
     }
   }
@@ -185,16 +187,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 }, { canGiaoVien: false });
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) => {
-  const laGiaoVien = phien.role === 'teacher';
   const than = await docThan(request);
-  let noiDung = String(than.noiDung || '').trim();
-
-  // Giáo viên có thể chỉ định gửi vào lớp mong muốn, mặc định là lớp của phiên hoặc lớp 1
-  let lopId = phien.lopId || 1;
   const reqLopId = parseInt(than.lopId || '', 10);
-  if (laGiaoVien && reqLopId > 0) {
-    lopId = reqLopId;
+
+  // Xác thực quyền thành viên lớp học — TUYỆT ĐỐI KHÔNG fallback lopId || 1
+  const classAuth = await requireVerifiedClassMembership(env, phien || request, reqLopId > 0 ? reqLopId : null);
+  if (!classAuth.ok) {
+    return json({ ok: false, loi: classAuth.loi, code: classAuth.code }, classAuth.status || 403);
   }
+
+  const lopId = classAuth.lopId;
+  const laGiaoVien = classAuth.isVerifiedTeacher;
+  const noiDung = String(than.noiDung || '').trim();
 
   if (!noiDung) return loi('Tin nhắn không được để trống.');
   if (noiDung.length > 300) return loi('Tin nhắn tối đa 300 ký tự.');
@@ -214,10 +218,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
   }
 
   // 2. Kiểm tra học sinh có bị cấm chat không
-  if (!laGiaoVien && phien.hocSinhId) {
+  if (!laGiaoVien && classAuth.hocSinhId) {
     const cam = await env.DB.prepare(
       'SELECT ly_do AS lyDo, den_luc AS denLuc FROM chat_cam_hoc_sinh WHERE hoc_sinh_id = ?1 AND lop_id = ?2'
-    ).bind(phien.hocSinhId, lopId).first();
+    ).bind(classAuth.hocSinhId, lopId).first();
 
     if (cam) {
       if (!cam.denLuc || new Date(cam.denLuc).getTime() > Date.now()) {
@@ -225,16 +229,16 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       }
       // Đã qua thời hạn cấm
       await env.DB.prepare('DELETE FROM chat_cam_hoc_sinh WHERE hoc_sinh_id = ?1 AND lop_id = ?2')
-        .bind(phien.hocSinhId, lopId).run().catch(() => {});
+        .bind(classAuth.hocSinhId, lopId).run().catch(() => {});
     }
   }
 
   // 3. Kiểm tra Rate Limit (giãn cách gửi tin của học sinh)
   const gianCach = Math.max(1, caiDat.gianCachGiay || 5);
-  if (!laGiaoVien && phien.hocSinhId) {
+  if (!laGiaoVien && classAuth.hocSinhId) {
     const tinCuoi = await env.DB.prepare(
       'SELECT tao_luc AS taoLuc FROM chat_tin_nhan WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY id DESC LIMIT 1'
-    ).bind(phien.hocSinhId, lopId).first();
+    ).bind(classAuth.hocSinhId, lopId).first();
 
     if (tinCuoi && tinCuoi.taoLuc) {
       const isoStr = tinCuoi.taoLuc.replace(' ', 'T') + 'Z';
@@ -253,7 +257,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
   // 4. Xác định tên và vai trò người gửi
   let tenNguoiGui = 'Học sinh';
   let vaiTro = 'hoc_sinh';
-  let hocSinhId = phien.hocSinhId || null;
+  let hocSinhId = classAuth.hocSinhId || null;
 
   if (laGiaoVien) {
     tenNguoiGui = 'Giáo viên chủ nhiệm';
@@ -271,24 +275,10 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
         tenNguoiGui += ` (${hs.chucVu})`;
       }
     } else {
-      tenNguoiGui = phien.ten || phien.hoTen || 'Học sinh';
-      const cv = phien.chucVu || phien.vaiTro;
-      if (cv && cv !== 'Học sinh' && cv !== 'student') {
-        tenNguoiGui += ` (${cv})`;
-      }
+      tenNguoiGui = classAuth.displayName || 'Học sinh';
     }
-  } else if (phien.phuId || phien.role === 'phu') {
-    tenNguoiGui = phien.ten || 'Quản trị viên';
-    vaiTro = 'phu';
-    if (phien.vaiTro && phien.vaiTro !== 'Học sinh' && phien.vaiTro !== 'student') {
-      tenNguoiGui += ` (${phien.vaiTro})`;
-    }
-  } else if (phien.ten || phien.hoTen) {
-    tenNguoiGui = phien.ten || phien.hoTen;
-    const cv = phien.chucVu || phien.vaiTro;
-    if (cv && cv !== 'Học sinh' && cv !== 'student') {
-      tenNguoiGui += ` (${cv})`;
-    }
+  } else if (classAuth.displayName) {
+    tenNguoiGui = classAuth.displayName;
   }
 
   // 5. Lưu tin nhắn vào DB

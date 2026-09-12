@@ -20,7 +20,7 @@ export async function onRequestGet({ request, env }) {
         tk.ten_dang_nhap AS username,
         tk.ten_hien_thi AS displayName,
         tk.vai_tro AS role,
-        l.ten AS classBadge
+        CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
       FROM campus_friendship f
       JOIN tai_khoan_campus tk ON tk.id = (CASE WHEN f.requester_account_id = ?1 THEN f.addressee_account_id ELSE f.requester_account_id END)
       LEFT JOIN lop l ON l.id = tk.lop_id
@@ -44,7 +44,7 @@ export async function onRequestGet({ request, env }) {
         tk.ten_dang_nhap AS username,
         tk.ten_hien_thi AS displayName,
         tk.vai_tro AS role,
-        l.ten AS classBadge
+        CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
       FROM campus_friendship f
       JOIN tai_khoan_campus tk ON tk.id = f.requester_account_id
       LEFT JOIN lop l ON l.id = tk.lop_id
@@ -67,7 +67,7 @@ export async function onRequestGet({ request, env }) {
         tk.ten_dang_nhap AS username,
         tk.ten_hien_thi AS displayName,
         tk.vai_tro AS role,
-        l.ten AS classBadge
+        CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
       FROM campus_friendship f
       JOIN tai_khoan_campus tk ON tk.id = f.addressee_account_id
       LEFT JOIN lop l ON l.id = tk.lop_id
@@ -158,12 +158,13 @@ export async function onRequestPost({ request, env }) {
       if (isExactOnly) {
         searchQuery = `
           SELECT tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName,
-                 tk.vai_tro AS role, l.ten AS classBadge
+                 tk.vai_tro AS role,
+                 CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
           FROM tai_khoan_campus tk
           LEFT JOIN lop l ON l.id = tk.lop_id
           WHERE tk.id != ?1
             AND tk.dang_hoat_dong = 1
-            AND (tk.hoc_sinh_id IS NOT NULL OR (tk.vai_tro = 'teacher' AND tk.teacher_pending = 0))
+            AND (tk.teacher_pending = 0 OR tk.teacher_pending IS NULL)
             AND LOWER(tk.ten_dang_nhap) = ?2
           LIMIT 10
         `;
@@ -171,12 +172,13 @@ export async function onRequestPost({ request, env }) {
       } else {
         searchQuery = `
           SELECT tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName,
-                 tk.vai_tro AS role, l.ten AS classBadge
+                 tk.vai_tro AS role,
+                 CASE WHEN tk.hoc_sinh_id IS NOT NULL AND tk.lop_id IS NOT NULL THEN l.ten ELSE '' END AS classBadge
           FROM tai_khoan_campus tk
           LEFT JOIN lop l ON l.id = tk.lop_id
           WHERE tk.id != ?1
             AND tk.dang_hoat_dong = 1
-            AND (tk.hoc_sinh_id IS NOT NULL OR (tk.vai_tro = 'teacher' AND tk.teacher_pending = 0))
+            AND (tk.teacher_pending = 0 OR tk.teacher_pending IS NULL)
             AND LOWER(tk.ten_dang_nhap) LIKE ?2
           LIMIT 10
         `;
@@ -259,10 +261,10 @@ export async function onRequestPost({ request, env }) {
     try {
       // 1. Kiểm tra đối phương có tồn tại và hợp lệ không
       const target = await db.prepare(
-        "SELECT id, dang_hoat_dong FROM tai_khoan_campus WHERE id = ?1 AND (hoc_sinh_id IS NOT NULL OR vai_tro = 'teacher')"
+        "SELECT id, dang_hoat_dong, vai_tro, teacher_pending FROM tai_khoan_campus WHERE id = ?1"
       ).bind(targetAccountId).first();
 
-      if (!target || !target.dang_hoat_dong) {
+      if (!target || !target.dang_hoat_dong || (target.vai_tro === 'teacher' && target.teacher_pending === 1)) {
         return loi('Tài khoản không tồn tại hoặc không đủ điều kiện kết bạn.', 404);
       }
 

@@ -50,8 +50,8 @@ async function run() {
   ok('Top header có nút trực tiếp mở Khu Quản Trị (#btn-header-khu-quan-tri)',
     html.includes('id="btn-header-khu-quan-tri"') && html.includes('href="/giao-vien/"'), 'dropdown');
 
-  ok('User dropdown đã dọn dẹp gọn gàng cho Giáo viên (có liên kết trực tiếp vào Khu quản trị)',
-    html.includes('id="btn-dropdown-khu-quan-tri"') && html.includes('href="/giao-vien/"'), 'dropdown');
+  ok('User dropdown đã dọn dẹp gọn gàng cho Giáo viên (loại bỏ nút trùng lặp btn-dropdown-khu-quan-tri)',
+    !html.includes('id="btn-dropdown-khu-quan-tri"'), 'dropdown');
 
   ok('Flagship cards có keyframe animation cao cấp cinemaRayBreath, arenaGlowBreath, chatDotPulse',
     html.includes('cinemaRayBreath') && html.includes('arenaGlowBreath') && html.includes('chatDotPulse'), 'animations');

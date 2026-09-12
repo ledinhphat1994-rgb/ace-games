@@ -31,6 +31,7 @@
     "qa:refinement": "node cong-cu/qa-refinement-pass.mjs",
     "qa:refinement-hardening": "node cong-cu/qa-refinement-hardening.mjs",
     "qa:pre-scale-gate": "node cong-cu/qa-pre-scale-gate.mjs",
+    "qa:phase4d": "node cong-cu/qa-phase4d.mjs",
     "deploy": "node deploy.js",
     "dev": "node build.js && wrangler pages dev --compatibility-date=2026-05-03",
     "log": "wrangler pages deployment tail --project-name lop-10a7",

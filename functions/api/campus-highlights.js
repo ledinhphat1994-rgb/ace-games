@@ -13,7 +13,8 @@ export async function onRequestGet({ request, env }) {
     const phien = await layPhien(request, env);
     const isVerifiedTeacher = Boolean(phien?.role === 'teacher' && !phien?.teacherPending);
     const isLinkedStudent = Boolean((phien?.hocSinhId || phien?.role === 'student') && phien?.lopId);
-    const isSchoolMember = isVerifiedTeacher || isLinkedStudent;
+    const isCampusAccount = Boolean(phien?.accountId);
+    const isSchoolMember = isVerifiedTeacher || isLinkedStudent || isCampusAccount;
 
     const highlights = [];
     const NHIP_HIEU_LUC = '-2 minutes';

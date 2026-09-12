@@ -176,10 +176,10 @@ async function run() {
   await teacherPage.waitForTimeout(500);
 
   const dropdownContent = await teacherPage.locator('#user-profile-dropdown-popover').innerText();
-  ok('Dropdown của Giáo viên hiển thị huy hiệu Giáo Viên Chủ Nhiệm',
-    dropdownContent.includes('Giáo Viên Chủ Nhiệm'), 'dropdown_and_header');
-  ok('Dropdown của Giáo viên có nút vào Khu Quản Trị (#btn-dropdown-khu-quan-tri)',
-    await teacherPage.locator('#btn-dropdown-khu-quan-tri').isVisible(), 'dropdown_and_header');
+  ok('Dropdown của Giáo viên hiển thị huy hiệu GVCN',
+    dropdownContent.includes('GVCN'), 'dropdown_and_header');
+  ok('Dropdown của Giáo viên ĐÃ LOẠI BỎ nút trùng lặp (#btn-dropdown-khu-quan-tri)',
+    (await teacherPage.locator('#btn-dropdown-khu-quan-tri').count()) === 0, 'dropdown_and_header');
 
   // Assert Teacher dropdown does NOT have redundant management rows
   ok('Dropdown Giáo viên ĐÃ LOẠI BỎ mục "Chuyên cần & Điểm danh của em"',

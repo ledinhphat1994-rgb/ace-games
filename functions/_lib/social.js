@@ -176,18 +176,6 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     };
   }
 
-  const isVerifiedTeacherClaim = Boolean(phien.role === 'teacher' && !phien.teacherPending);
-  const isLinkedStudentClaim = Boolean(phien.hocSinhId && phien.lopId);
-
-  if (!isVerifiedTeacherClaim && !isLinkedStudentClaim) {
-    return {
-      ok: false,
-      status: 403,
-      loi: 'Tính năng giao lưu và kết bạn chỉ dành cho học sinh và giáo viên đã liên kết.',
-      code: 'school_member_required',
-    };
-  }
-
   const db = env.DB;
   if (!db) {
     return { ok: false, status: 500, loi: 'Chưa gắn cơ sở dữ liệu D1.' };
@@ -254,12 +242,12 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     };
   }
 
-  // 6. Lấy thông tin lớp
+  // 6. Ranh giới định danh lớp: CHỈ gắn classBadge khi học sinh ĐÃ liên kết hợp lệ qua mã GVCN
+  const isLinkedStudent = Boolean(accountRecord.hoc_sinh_id && accountRecord.lop_id);
   let lopTen = '';
-  const lopId = accountRecord.lop_id || phien.lopId;
-  if (lopId) {
+  if (isLinkedStudent && accountRecord.lop_id) {
     try {
-      const l = await db.prepare('SELECT ten FROM lop WHERE id = ?1').bind(lopId).first();
+      const l = await db.prepare('SELECT ten FROM lop WHERE id = ?1').bind(accountRecord.lop_id).first();
       if (l?.ten) lopTen = l.ten;
     } catch {}
   }
@@ -271,9 +259,98 @@ export async function kiemTraQuyenSocial(env, requestOrPhien) {
     displayName: accountRecord.ten_hien_thi || phien.ten || 'Thành viên',
     role: isRealTeacher ? 'teacher' : 'student',
     classBadge: lopTen,
-    lopId,
+    lopId: isRealTeacher ? (accountRecord.lop_id || phien.lopId || null) : (isLinkedStudent ? accountRecord.lop_id : null),
+    hocSinhId: isLinkedStudent ? accountRecord.hoc_sinh_id : null,
     isVerifiedTeacher: isRealTeacher,
-    isLinkedStudent: Boolean(accountRecord.hoc_sinh_id && lopId),
+    isLinkedStudent,
+  };
+}
+
+/**
+ * Tên định danh chuẩn hoá cho việc yêu cầu tài khoản Campus đang hoạt động
+ */
+export const requireActiveCampusAccount = kiemTraQuyenSocial;
+
+/**
+ * Yêu cầu quyền thành viên lớp học đã được xác minh (Class Membership Auth)
+ * - Học sinh PHẢI có canonical hoc_sinh_id & lop_id từ luồng nhập mã do Giáo viên cấp
+ * - Tuyệt đối không tự ý gán bừa lopId = 1 khi chưa liên kết
+ * - Học sinh không được phép truy cập trái phép lớp khác (chống IDOR)
+ * - Giáo viên được phép truy cập lớp được phân quyền hoặc lớp chỉ định hợp lệ
+ * @param {object} env
+ * @param {object} requestOrPhien
+ * @param {number|string|null} requestedLopId
+ * @returns {Promise<object>}
+ */
+export async function requireVerifiedClassMembership(env, requestOrPhien, requestedLopId = null) {
+  const auth = await kiemTraQuyenSocial(env, requestOrPhien);
+  if (!auth.ok) {
+    return auth;
+  }
+
+  const db = env.DB;
+  const reqLopId = requestedLopId ? parseInt(String(requestedLopId), 10) : 0;
+
+  // Trường hợp 1: Giáo viên đã xác minh
+  if (auth.isVerifiedTeacher) {
+    const targetLopId = reqLopId > 0 ? reqLopId : (auth.lopId || 1);
+    const lopRow = await db.prepare(
+      'SELECT id, ten FROM lop WHERE id = ?1 AND dang_hoat_dong = 1'
+    ).bind(targetLopId).first().catch(() => null);
+
+    if (!lopRow) {
+      // Nếu không tìm thấy target, thử lấy lớp hoạt động đầu tiên
+      const firstLop = await db.prepare(
+        'SELECT id, ten FROM lop WHERE dang_hoat_dong = 1 ORDER BY id ASC LIMIT 1'
+      ).first().catch(() => null);
+      if (!firstLop) {
+        return { ok: false, status: 404, loi: 'Chưa có lớp học nào khả dụng.', code: 'no_class_available' };
+      }
+      return {
+        ok: true,
+        ...auth,
+        lopId: firstLop.id,
+        tenLop: firstLop.ten,
+      };
+    }
+
+    return {
+      ok: true,
+      ...auth,
+      lopId: lopRow.id,
+      tenLop: lopRow.ten,
+    };
+  }
+
+  // Trường hợp 2: Học sinh thông thường chưa xác minh liên kết lớp
+  if (!auth.isLinkedStudent || !auth.lopId || !auth.hocSinhId) {
+    return {
+      ok: false,
+      status: 403,
+      loi: 'Tính năng Chat lớp yêu cầu mã tham gia lớp do Giáo viên cấp.',
+      code: 'class_membership_required',
+    };
+  }
+
+  // Trường hợp 3: Học sinh đã liên kết lớp — Kiểm tra chống IDOR
+  if (reqLopId > 0 && reqLopId !== auth.lopId) {
+    return {
+      ok: false,
+      status: 403,
+      loi: 'Học sinh chỉ được phép truy cập Chat lớp của mình.',
+      code: 'class_access_denied',
+    };
+  }
+
+  const lopRow = await db.prepare(
+    'SELECT id, ten FROM lop WHERE id = ?1'
+  ).bind(auth.lopId).first().catch(() => null);
+
+  return {
+    ok: true,
+    ...auth,
+    lopId: auth.lopId,
+    tenLop: lopRow?.ten || `Lớp ${auth.lopId}`,
   };
 }
 

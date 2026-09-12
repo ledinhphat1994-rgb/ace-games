@@ -3,9 +3,11 @@ import { bocXuLy, json } from '../_lib/api.js';
 import { coQuyenThanhVien } from '../_lib/community.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
-  // Tên lớp hiện tại — giáo viên có thể chủ nhiệm nhiều lớp bằng nhiều mã khác nhau, hiển thị
-  // rõ đang ở đúng lớp nào để tránh nhầm lẫn (dù dữ liệu đã tách biệt tuyệt đối ở tầng máy chủ).
-  const lop = await env.DB.prepare('SELECT ten, nam_hoc AS namHoc FROM lop WHERE id = ?1').bind(phien.lopId).first().catch(() => null);
+  const isVerifiedTeacher = Boolean(phien.role === 'teacher' && !phien.teacherPending);
+  const isLinkedStudent = Boolean(phien.hocSinhId && phien.lopId);
+  const lop = (phien.lopId && (isVerifiedTeacher || isLinkedStudent))
+    ? await env.DB.prepare('SELECT ten, nam_hoc AS namHoc FROM lop WHERE id = ?1').bind(phien.lopId).first().catch(() => null)
+    : null;
 
   const coQuyenCongDong = await coQuyenThanhVien(env, phien);
   let laBienTapVien = false;
