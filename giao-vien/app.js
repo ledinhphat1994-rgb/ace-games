@@ -2402,7 +2402,6 @@ async function trangCampus() {
     };
     subtabs.append(
       taoNutSubtab('🏠 Giám sát phòng', '#/phong-campus', true),
-      taoNutSubtab('▶️ YouTube Study', '#/phong-campus'),
       taoNutSubtab('✨ Tiêu điểm Campus', '#/campus-highlights')
     );
     khung.append(subtabs);

@@ -7059,7 +7059,6 @@ function DigitalCampusApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tieuDe: text.length > 80 ? `${text.slice(0, 77)}…` : text,
           noiDung: text,
           ngay: new Date().toISOString().slice(0, 10)
         })
@@ -8365,13 +8364,10 @@ function DigitalCampusApp() {
                 10A7
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm text-white tracking-tight">Lớp 10A7</span>
-                <span className="text-[#00F2FE] text-xs">✦</span>
-                <span className="text-xs text-slate-300 font-medium">2026 – 2027</span>
-              </div>
-              <p className="text-[10px] text-slate-400">Trung tâm GDNN - GDTX Huyện Định Quán</p>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm text-white tracking-tight">Lớp 10A7</span>
+              <span className="text-[#00F2FE] text-xs">✦</span>
+              <span className="text-xs text-slate-300 font-medium">2026 – 2027</span>
             </div>
           </div>
 
