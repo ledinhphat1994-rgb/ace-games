@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env }) {
 
   if (!slug) {
     const { results } = await env.DB.prepare(
-      'SELECT slug, ten, truong FROM lop WHERE dang_hoat_dong = 1 AND slug IS NOT NULL ORDER BY id'
+      'SELECT id, slug, ten, truong FROM lop WHERE dang_hoat_dong = 1 AND slug IS NOT NULL ORDER BY id'
     ).all();
     return tra({ ok: true, danhSach: results });
   }

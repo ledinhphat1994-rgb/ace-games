@@ -130,15 +130,18 @@ body.ung-dung { padding-bottom: calc(var(--cao-tab) + env(safe-area-inset-bottom
 .the-qt-so b { color: var(--mau-qt, var(--chinh)); font-weight: 800; font-variant-numeric: tabular-nums; }
 .the.the-qt:hover { border-color: color-mix(in srgb, var(--mau-qt, var(--chinh)) 48%, transparent); }
 
-.canh-bao-qt {
-  display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 18px;
+/* ---------- Tổng quan: hàng "Việc cần xử lý" (Operations Home, Admin IA v1) ---------- */
+.hang-viec {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
   border-radius: var(--r-nho); text-decoration: none; color: var(--chu);
-  background: color-mix(in srgb, #f43f5e 12%, transparent);
-  border: 1px solid color-mix(in srgb, #f43f5e 32%, transparent);
-  font-size: 13.5px; font-weight: 700;
+  background: color-mix(in srgb, var(--mau-qt, var(--chinh)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mau-qt, var(--chinh)) 28%, transparent);
+  font-size: 13px; font-weight: 600; transition: border-color .15s;
 }
-.canh-bao-qt b { color: #f43f5e; }
-.canh-bao-qt span.mui-ten { margin-left: auto; color: #f43f5e; font-weight: 900; }
+.hang-viec:hover { border-color: color-mix(in srgb, var(--mau-qt, var(--chinh)) 50%, transparent); }
+.hang-viec-icon { flex: none; font-size: 12px; }
+.hang-viec-chu { flex: 1; min-width: 0; }
+.hang-viec-nut { flex: none; color: var(--mau-qt, var(--chinh)); font-weight: 800; font-size: 12px; }
 
 /* ---------- Nội dung & Tiêu đề nổi bật ---------- */
 .noi-dung {

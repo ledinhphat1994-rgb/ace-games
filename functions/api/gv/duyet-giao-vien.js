@@ -1,6 +1,7 @@
 // API duyệt tài khoản Giáo viên (Teacher Account Approvals)
 // Chỉ Giáo viên đã được xác thực (verified Teacher) mới có quyền truy cập endpoint này.
 import { bocXuLy, docThan, json, loi } from '../../_lib/api.js';
+import { ghiNhatKyQuanTri } from '../../_lib/audit.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   if (phien.role !== 'teacher' || phien.teacherPending) {
@@ -22,7 +23,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   });
 }, { canGiaoVien: true });
 
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
+export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) => {
   if (phien.role !== 'teacher' || phien.teacherPending) {
     return loi('Chỉ giáo viên đã xác thực mới có quyền phê duyệt.', 403);
   }
@@ -56,6 +57,13 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         WHERE id = ?2`
     ).bind(nguoiDuyetKhoa, accountId).run();
 
+    ghiNhatKyQuanTri(env, waitUntil, {
+      tacNhanId: phien.accountId, tacNhanTen: phien.ten,
+      hanhDong: 'duyet_giao_vien', doiTuongLoai: 'tai_khoan', doiTuongId: String(accountId),
+      chiTiet: `Phê duyệt quyền Giáo viên cho ${target.ten_dang_nhap} (${target.ten_hien_thi})`,
+      lopId: phien.lopId,
+    });
+
     return json({
       ok: true,
       message: `Đã phê duyệt quyền Giáo viên cho tài khoản ${target.ten_dang_nhap} (${target.ten_hien_thi}).`,
@@ -73,6 +81,13 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
               cap_nhat_luc = CURRENT_TIMESTAMP
         WHERE id = ?2`
     ).bind(nguoiDuyetKhoa, accountId).run();
+
+    ghiNhatKyQuanTri(env, waitUntil, {
+      tacNhanId: phien.accountId, tacNhanTen: phien.ten,
+      hanhDong: 'tu_choi_giao_vien', doiTuongLoai: 'tai_khoan', doiTuongId: String(accountId),
+      chiTiet: `Từ chối yêu cầu quyền Giáo viên của ${target.ten_dang_nhap}`,
+      lopId: phien.lopId,
+    });
 
     return json({
       ok: true,
