@@ -58,6 +58,11 @@ const QUYEN_THEO_TUYEN = {
   'thoi-khoa-bieu-xem': 'thoi-khoa-bieu',
   'thoi-khoa-bieu-khoi-phuc': 'thoi-khoa-bieu',
   'tong-quan': null,
+  'campus-quan-tri': null,
+  'bang-tin-quan-tri': null,
+  'lop-quan-tri': null,
+  'kiem-duyet-quan-tri': null,
+  'he-thong-quan-tri': null,
   'campus-highlights': null,
   'ho-so-gv': null,
   'phong-campus': null,
@@ -2270,191 +2275,367 @@ function taoOThongKe(tieuDe, so, moTa, mauSo = '#00F2FE') {
 }
 
 async function trangTongQuan() {
-  datNoiDung(KHUNG, khoiDangTai('Đang tải dữ liệu tổng quan quản trị...'));
+  datNoiDung(KHUNG, khoiDangTai('Đang tải dữ liệu điều hành trường học...'));
   try {
-    const [resPhong, resGame, resBaoCao, resGv, resHs, resTb, resHl, resLop] = await Promise.allSettled([
+    const [resPhong, resGame, resBaoCao, resGv, resTb, resHl, resLop] = await Promise.allSettled([
       api('/api/phong?phamVi=truong'),
       api('/api/game?action=danh_sach'),
       api('/api/gv/bao-cao?status=pending'),
       api('/api/gv/duyet-giao-vien'),
-      api('/api/gv/hoc-sinh'),
       api('/api/thong-bao'),
       api('/api/campus-highlights'),
-      PHIEN.isSchoolAdmin ? api('/api/lop') : Promise.resolve({ ok: true, danhSach: [] })
+      PHIEN.isSchoolAdmin ? api('/api/lop-cong-khai') : Promise.resolve({ ok: true, danhSach: [] })
     ]);
 
     const dsPhong = resPhong.status === 'fulfilled' && Array.isArray(resPhong.value?.phong) ? resPhong.value.phong : [];
     const dsGame = resGame.status === 'fulfilled' && Array.isArray(resGame.value?.danhSach) ? resGame.value.danhSach : [];
     const pendingReports = resBaoCao.status === 'fulfilled' && Array.isArray(resBaoCao.value?.reports) ? resBaoCao.value.reports : [];
     const pendingTeachers = resGv.status === 'fulfilled' && Array.isArray(resGv.value?.pendingTeachers) ? resGv.value.pendingTeachers : [];
-    const dsHs = resHs.status === 'fulfilled' && Array.isArray(resHs.value?.danhSach) ? resHs.value.danhSach : [];
     const dsTb = resTb.status === 'fulfilled' && Array.isArray(resTb.value?.danhSach) ? resTb.value.danhSach : [];
     const dsHl = resHl.status === 'fulfilled' && Array.isArray(resHl.value?.highlights) ? resHl.value.highlights : [];
     const dsLop = resLop.status === 'fulfilled' && Array.isArray(resLop.value?.danhSach) ? resLop.value.danhSach : [];
 
     const activeCaro = dsGame.filter((b) => b.trangThai === 'dang_choi').length;
     const waitingCaro = dsGame.filter((b) => b.trangThai === 'cho_nguoi').length;
+    const totalCaro = activeCaro + waitingCaro;
+
+    const ytRooms = dsPhong.filter(p => p.loai === 'video').length;
+    const musicRooms = dsPhong.filter(p => p.loai === 'nhac' || p.loai === 'focus').length;
+    const totalOnline = dsPhong.reduce((s, p) => s + (p.soNguoi || 0), 0) + (activeCaro * 2) + waitingCaro;
+    const classesManaged = PHIEN.isSchoolAdmin ? (dsLop.length || 1) : 1;
 
     const khung = e('div');
     khung.append(tieuDeTrang(
-      '📊 Tổng Quan Quản Trị Campus',
-      'Trung tâm điều hành và tóm tắt hoạt động Campus, Lớp học, Nội dung và Kiểm duyệt.'
+      '📊 Tổng Quan Quản Trị Campus · Digital Campus Control Center',
+      'Trung tâm điều hành trường học: Giám sát thời gian thực toàn bộ Campus, Bảng Tin, Lớp học và Kiểm duyệt an toàn.'
     ));
 
-    const luoi = e('div');
-    luoi.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 16px;';
+    // KPI Summary Grid (10 Real Metrics - No Fake Marketing Copy, No Large Attendance Card)
+    const luoiKPI = e('div');
+    luoiKPI.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 18px;';
 
-    // 1. CAMPUS
-    const theCampus = e('div', 'the');
-    theCampus.style.cssText = 'background: #121620; border: 1px solid rgba(0,242,254,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
+    const taoTheKPI = (tieuDe, giaTri, phu, mau, linkHref) => {
+      const the = e(linkHref ? 'a' : 'div', 'the');
+      the.style.cssText = `background: #121620; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; transition: transform 0.15s, border-color 0.15s;`;
+      if (linkHref) {
+        the.href = linkHref;
+        the.onmouseenter = () => { the.style.borderColor = mau; the.style.transform = 'translateY(-2px)'; };
+        the.onmouseleave = () => { the.style.borderColor = 'rgba(255,255,255,0.08)'; the.style.transform = 'none'; };
+      }
+      const topRow = e('div');
+      topRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
+      const label = Object.assign(e('b', null, tieuDe), { style: 'font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em;' });
+      topRow.append(label);
 
-    const dauCampus = e('div');
-    dauCampus.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
-    const tieuDeCampus = e('div');
-    tieuDeCampus.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeCampus.append(Object.assign(e('span', null, '🏛️'), { style: 'font-size: 20px;' }));
-    tieuDeCampus.append(Object.assign(e('b', null, 'Campus Trực Tuyến'), { style: 'font-size: 15px; color: #FFFFFF;' }));
-    const nhanCampus = e('span', 'nhan', 'Thời gian thực');
-    nhanCampus.style.cssText = 'background: rgba(0,242,254,0.15); color: #00F2FE; font-weight: 700;';
-    dauCampus.append(tieuDeCampus, nhanCampus);
+      const val = Object.assign(e('div', null, String(giaTri)), { style: `font-size: 24px; font-weight: 900; color: ${mau}; font-family: monospace;` });
+      const sub = Object.assign(e('div', null, phu), { style: 'font-size: 11px; color: #64748B;' });
 
-    const luoiCampus = e('div');
-    luoiCampus.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
-    luoiCampus.append(
-      taoOThongKe('Phòng hoạt động', dsPhong.length, 'Xem chung & Học tập', '#00F2FE'),
-      taoOThongKe('Đấu trường Game', activeCaro + waitingCaro, activeCaro + ' đang đấu · ' + waitingCaro + ' chờ', '#FFB800')
+      the.append(topRow, val, sub);
+      return the;
+    };
+
+    luoiKPI.append(
+      taoTheKPI('Campus Trực Tuyến', totalOnline, 'Người dùng đang hoạt động', '#00F2FE', '#/campus-quan-tri'),
+      taoTheKPI('Phòng Hoạt Động', dsPhong.length, 'Tổng phòng mở trên Campus', '#38BDF8', '#/campus-quan-tri'),
+      taoTheKPI('Đấu Trường Game', totalCaro, `${activeCaro} đang đấu · ${waitingCaro} chờ`, '#FFB800', '#/campus-quan-tri'),
+      taoTheKPI('Phòng YouTube', ytRooms, 'Học tập & xem video nhóm', '#EF4444', '#/campus-quan-tri'),
+      taoTheKPI('Phòng Music', musicRooms, 'Không gian tự học Lofi', '#A855F7', '#/campus-quan-tri'),
+      taoTheKPI('Nội Dung & Bản Tin', dsTb.length, 'Bài viết & bản tin đã đăng', '#34D399', '#/bang-tin-quan-tri'),
+      taoTheKPI('Tiêu Điểm Campus', `${dsHl.length}/4`, 'Thẻ bài nổi bật toàn trường', '#F472B6', '#/campus-highlights'),
+      taoTheKPI('Kiểm Duyệt & An Toàn', pendingReports.length, pendingReports.length > 0 ? '⚠️ Cần kiểm duyệt ngay' : 'Đang an toàn', pendingReports.length > 0 ? '#F43F5E' : '#94A3B8', '#/kiem-duyet-quan-tri'),
+      taoTheKPI('Duyệt Giáo Viên', pendingTeachers.length, pendingTeachers.length > 0 ? 'Hồ sơ mới chờ duyệt' : 'Đã duyệt toàn bộ', pendingTeachers.length > 0 ? '#F59E0B' : '#94A3B8', '#/duyet-giao-vien'),
+      taoTheKPI('Lớp Học Quản Lý', classesManaged, PHIEN.isSchoolAdmin ? 'Phạm vi toàn trường' : (PHIEN.tenLop || '1 lớp'), '#60A5FA', '#/lop-quan-tri')
     );
 
-    const nutCampus = e('div');
-    nutCampus.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
-    const aPhong = e('a', 'nut nut-vien nut-nho', 'Giám sát phòng →');
-    aPhong.href = '#/phong-campus';
-    aPhong.style.cssText = 'flex: 1; text-align: center;';
-    const aHl = e('a', 'nut nut-phu nut-nho', 'Tiêu điểm →');
-    aHl.href = '#/campus-highlights';
-    aHl.style.cssText = 'flex: 1; text-align: center;';
-    nutCampus.append(aPhong, aHl);
+    khung.append(luoiKPI);
 
-    theCampus.append(dauCampus, luoiCampus, nutCampus);
-    luoi.append(theCampus);
+    // Fast Shortcuts Hub Grid
+    const tieuDePhimTat = Object.assign(e('h3', null, '⚡ Lối Tắt Điều Hành'), {
+      style: 'font-size: 14px; font-weight: 800; color: #CBD5E1; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: 0.05em;'
+    });
+    khung.append(tieuDePhimTat);
 
-    // 2. LỚP HỌC
-    const theLop = e('div', 'the');
-    theLop.style.cssText = 'background: #121620; border: 1px solid rgba(16,185,129,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
-    const tenLopHien = PHIEN.tenLop || 'Lớp 10A7';
-    const moTaLop = PHIEN.isSchoolAdmin
-      ? ('Quản trị trường học · ' + (dsLop.length > 0 ? dsLop.length + ' lớp' : 'Đa lớp'))
-      : ('GVCN · ' + (PHIEN.namHoc || '2026–2027'));
+    const luoiHub = e('div');
+    luoiHub.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;';
 
-    const dauLop = e('div');
-    dauLop.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
-    const tieuDeLop = e('div');
-    tieuDeLop.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeLop.append(Object.assign(e('span', null, '👥'), { style: 'font-size: 20px;' }));
-    tieuDeLop.append(Object.assign(e('b', null, tenLopHien), { style: 'font-size: 15px; color: #FFFFFF;' }));
-    const nhanLop = e('span', 'nhan', moTaLop);
-    nhanLop.style.cssText = 'background: rgba(16,185,129,0.15); color: #10B981; font-weight: 700;';
-    dauLop.append(tieuDeLop, nhanLop);
+    const taoTheHub = (icon, ten, moTa, href, mauVien) => {
+      const a = e('a', 'the');
+      a.href = href;
+      a.style.cssText = `background: #121620; border: 1px solid ${mauVien}; border-radius: 16px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; text-decoration: none; transition: transform 0.15s, background 0.15s;`;
+      a.onmouseenter = () => { a.style.transform = 'translateY(-2px)'; a.style.background = '#151A23'; };
+      a.onmouseleave = () => { a.style.transform = 'none'; a.style.background = '#121620'; };
 
-    const luoiLop = e('div');
-    luoiLop.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
-    luoiLop.append(
-      taoOThongKe('Sĩ số học sinh', dsHs.length, 'Học sinh chính thức', '#10B981'),
-      taoOThongKe('Chuyên cần', 'Điểm danh', 'Module chuyên cần', '#FFFFFF')
+      const ico = Object.assign(e('span', null, icon), { style: 'font-size: 24px; line-height: 1;' });
+      const right = e('div');
+      right.append(
+        Object.assign(e('b', null, ten), { style: 'color: #FFFFFF; font-size: 13px; display: block; margin-bottom: 2px;' }),
+        Object.assign(e('p', null, moTa), { style: 'color: #94A3B8; font-size: 11px; margin: 0; line-height: 1.4;' })
+      );
+      a.append(ico, right);
+      return a;
+    };
+
+    luoiHub.append(
+      taoTheHub('🏛️', 'Campus Trực Tuyến & Hoạt Động', 'Quản lý phòng hoạt động, YouTube Study và Game', '#/campus-quan-tri', 'rgba(0,242,254,0.25)'),
+      taoTheHub('📢', 'Nội Dung & Bảng Tin', 'Soạn thảo thông báo và phân quyền ban biên tập', '#/bang-tin-quan-tri', 'rgba(52,211,153,0.25)'),
+      taoTheHub('👥', 'Lớp Học & Thành Viên', 'Quản lý học sinh, điểm danh, quỹ và thời khóa biểu', '#/lop-quan-tri', 'rgba(96,165,250,0.25)'),
+      taoTheHub('🛡️', 'Kiểm Duyệt & An Toàn', 'Xử lý báo cáo vi phạm và phê duyệt giáo viên', '#/kiem-duyet-quan-tri', 'rgba(244,63,94,0.25)'),
+      taoTheHub('⚙️', 'Cấu Hình Hệ Thống', 'Hồ sơ giáo viên, xuất file báo cáo và reset', '#/he-thong-quan-tri', 'rgba(168,85,247,0.25)')
     );
 
-    const nutLop = e('div');
-    nutLop.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
-    const aDiemDanh = e('a', 'nut nut-chinh nut-nho', 'Điểm danh →');
-    aDiemDanh.href = '#/diem-danh';
-    aDiemDanh.style.cssText = 'flex: 1; text-align: center;';
-    const aHs = e('a', 'nut nut-vien nut-nho', 'Học sinh →');
-    aHs.href = '#/hoc-sinh';
-    aHs.style.cssText = 'flex: 1; text-align: center;';
-    const aQuy = e('a', 'nut nut-phu nut-nho', 'Quỹ →');
-    aQuy.href = '#/quy';
-    aQuy.style.cssText = 'flex: 1; text-align: center;';
-    nutLop.append(aDiemDanh, aHs, aQuy);
-
-    theLop.append(dauLop, luoiLop, nutLop);
-    luoi.append(theLop);
-
-    // 3. NỘI DUNG & TRUYỀN THÔNG
-    const theNoiDung = e('div', 'the');
-    theNoiDung.style.cssText = 'background: #121620; border: 1px solid rgba(139,92,246,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
-    const dauNoiDung = e('div');
-    dauNoiDung.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
-    const tieuDeNoiDung = e('div');
-    tieuDeNoiDung.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeNoiDung.append(Object.assign(e('span', null, '📢'), { style: 'font-size: 20px;' }));
-    tieuDeNoiDung.append(Object.assign(e('b', null, 'Nội Dung & Truyền Thông'), { style: 'font-size: 15px; color: #FFFFFF;' }));
-    const nhanNoiDung = e('span', 'nhan', 'Campus Feed');
-    nhanNoiDung.style.cssText = 'background: rgba(139,92,246,0.15); color: #8B5CF6; font-weight: 700;';
-    dauNoiDung.append(tieuDeNoiDung, nhanNoiDung);
-
-    const luoiNoiDung = e('div');
-    luoiNoiDung.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
-    luoiNoiDung.append(
-      taoOThongKe('Thông báo', dsTb.length, 'Bài viết & Ticker', '#8B5CF6'),
-      taoOThongKe('Tiêu điểm Campus', dsHl.length + '/4', 'Thẻ nổi bật đang hiện', '#FFFFFF')
-    );
-
-    const nutNoiDung = e('div');
-    nutNoiDung.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
-    const aTb = e('a', 'nut nut-vien nut-nho', 'Đăng thông báo →');
-    aTb.href = '#/thong-bao';
-    aTb.style.cssText = 'flex: 1; text-align: center;';
-    const aHlSua = e('a', 'nut nut-phu nut-nho', 'Sửa tiêu điểm →');
-    aHlSua.href = '#/campus-highlights';
-    aHlSua.style.cssText = 'flex: 1; text-align: center;';
-    nutNoiDung.append(aTb, aHlSua);
-
-    theNoiDung.append(dauNoiDung, luoiNoiDung, nutNoiDung);
-    luoi.append(theNoiDung);
-
-    // 4. KIỂM DUYỆT & AN TOÀN
-    const theKiemDuyet = e('div', 'the');
-    theKiemDuyet.style.cssText = 'background: #121620; border: 1px solid rgba(244,63,94,0.25); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px;';
-    const dauKiemDuyet = e('div');
-    dauKiemDuyet.style.cssText = 'display: flex; align-items: center; justify-content: space-between;';
-    const tieuDeKiemDuyet = e('div');
-    tieuDeKiemDuyet.style.cssText = 'display: flex; align-items: center; gap: 8px;';
-    tieuDeKiemDuyet.append(Object.assign(e('span', null, '🛡️'), { style: 'font-size: 20px;' }));
-    tieuDeKiemDuyet.append(Object.assign(e('b', null, 'Kiểm Duyệt & An Toàn'), { style: 'font-size: 15px; color: #FFFFFF;' }));
-    const nhanKiemDuyet = e('span', 'nhan', 'Bảo mật');
-    nhanKiemDuyet.style.cssText = 'background: rgba(244,63,94,0.15); color: #F43F5E; font-weight: 700;';
-    dauKiemDuyet.append(tieuDeKiemDuyet, nhanKiemDuyet);
-
-    const luoiKiemDuyet = e('div');
-    luoiKiemDuyet.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
-    luoiKiemDuyet.append(
-      taoOThongKe('Báo cáo vi phạm', pendingReports.length, pendingReports.length > 0 ? 'Cần xem xét' : 'Đang an toàn', pendingReports.length > 0 ? '#F43F5E' : '#FFFFFF'),
-      taoOThongKe('Duyệt Giáo viên', pendingTeachers.length, pendingTeachers.length > 0 ? 'Chờ phê duyệt' : 'Đã duyệt hết', pendingTeachers.length > 0 ? '#FFB800' : '#FFFFFF')
-    );
-
-    const nutKiemDuyet = e('div');
-    nutKiemDuyet.style.cssText = 'display: flex; gap: 8px; margin-top: auto; padding-top: 8px;';
-    const aBaoCao = e('a', 'nut nut-vien nut-nho', 'Xử lý báo cáo →');
-    aBaoCao.href = '#/bao-cao-vi-pham';
-    aBaoCao.style.cssText = 'flex: 1; text-align: center;';
-    nutKiemDuyet.append(aBaoCao);
-
-    if (PHIEN.isSchoolAdmin || PHIEN.role === 'teacher') {
-      const aDuyet = e('a', 'nut nut-phu nut-nho', 'Duyệt GV →');
-      aDuyet.href = '#/duyet-giao-vien';
-      aDuyet.style.cssText = 'flex: 1; text-align: center;';
-      nutKiemDuyet.append(aDuyet);
-    }
-
-    theKiemDuyet.append(dauKiemDuyet, luoiKiemDuyet, nutKiemDuyet);
-    luoi.append(theKiemDuyet);
-
-    khung.append(luoi);
+    khung.append(luoiHub);
     datNoiDung(KHUNG, khung);
   } catch (err) {
     datNoiDung(KHUNG, khoiLoi('Lỗi khi tải tổng quan quản trị: ' + err.message));
   }
 }
+
+async function trangCampus() {
+  datNoiDung(KHUNG, khoiDangTai('Đang tải dữ liệu hoạt động Campus...'));
+  try {
+    const [resPhong, resGame] = await Promise.allSettled([
+      api('/api/phong?phamVi=truong'),
+      api('/api/game?action=danh_sach')
+    ]);
+    const dsPhong = resPhong.status === 'fulfilled' && Array.isArray(resPhong.value?.phong) ? resPhong.value.phong : [];
+    const dsGame = resGame.status === 'fulfilled' && Array.isArray(resGame.value?.danhSach) ? resGame.value.danhSach : [];
+    const dsYt = dsPhong.filter(p => p.loai === 'video');
+    const dsMusic = dsPhong.filter(p => p.loai === 'nhac' || p.loai === 'focus');
+
+    const khung = e('div');
+    khung.append(tieuDeTrang(
+      '🏛️ Quản Trị Hoạt Động Campus',
+      'Giám sát phòng trực tuyến, không gian học tập YouTube, đấu trường Game Caro và Tiêu điểm trường học.'
+    ));
+
+    // Nav Subtabs
+    const subtabs = e('div');
+    subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
+    const taoNutSubtab = (nhan, href) => {
+      const a = e('a', 'nut nut-vien nut-nho', nhan);
+      a.href = href;
+      a.style.cssText = 'border-radius: 12px; font-weight: 700;';
+      return a;
+    };
+    subtabs.append(
+      taoNutSubtab('🏠 Giám sát phòng', '#/phong-campus'),
+      taoNutSubtab('✨ Tiêu điểm Campus', '#/campus-highlights')
+    );
+    khung.append(subtabs);
+
+    // Cards Grid
+    const luoi = e('div');
+    luoi.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;';
+
+    // Helper to build room item
+    const taoMucPhong = (p) => {
+      const item = e('div');
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: #0B0E14; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);';
+      const trai = e('div');
+      const ten = Object.assign(e('div', null, p.ten || 'Phòng học'), { style: 'color: #FFFFFF; font-size: 12px; font-weight: 700;' });
+      const phu = Object.assign(e('div', null, 'Chủ phòng: ' + (p.chuPhongTen || 'Học sinh') + ' · ' + (p.soNguoi || 0) + ' người'), { style: 'color: #64748B; font-size: 10px;' });
+      trai.append(ten, phu);
+
+      const aGiamSat = e('a', 'nut nut-phu nut-nho', 'Giám sát');
+      aGiamSat.href = '#/phong-campus';
+      aGiamSat.style.cssText = 'font-size: 10px;';
+      item.append(trai, aGiamSat);
+      return item;
+    };
+
+    // 1. Card YouTube
+    const cardYt = e('div', 'the');
+    cardYt.style.cssText = 'background: #121620; border: 1px solid rgba(239,68,68,0.3); border-radius: 18px; padding: 20px;';
+    const dauYt = e('div');
+    dauYt.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
+    const tieuDeYt = e('div');
+    tieuDeYt.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeYt.append(Object.assign(e('span', null, '▶️'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'YouTube Study Rooms'), { style: 'color: #FFFFFF; font-size: 15px;' }));
+    const badgeYt = Object.assign(e('span', null, dsYt.length + ' phòng'), { style: 'background: rgba(239,68,68,0.15); color: #EF4444; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
+    dauYt.append(tieuDeYt, badgeYt);
+    const moTaYt = Object.assign(e('p', null, 'Phòng chiếu video học tập và thảo luận nhóm đang trực tuyến.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    const dsYtDiv = e('div');
+    dsYtDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    if (dsYt.length === 0) {
+      dsYtDiv.append(Object.assign(e('div', null, 'Chưa có phòng YouTube nào đang mở.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
+    } else {
+      dsYt.forEach(p => dsYtDiv.append(taoMucPhong(p)));
+    }
+    cardYt.append(dauYt, moTaYt, dsYtDiv);
+
+    // 2. Card Game Caro
+    const cardGame = e('div', 'the');
+    cardGame.style.cssText = 'background: #121620; border: 1px solid rgba(245,158,11,0.3); border-radius: 18px; padding: 20px;';
+    const activeCaro = dsGame.filter(b => b.trangThai === 'dang_choi').length;
+    const waitingCaro = dsGame.filter(b => b.trangThai === 'cho_nguoi').length;
+
+    const dauGame = e('div');
+    dauGame.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
+    const tieuDeGame = e('div');
+    tieuDeGame.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeGame.append(Object.assign(e('span', null, '🎮'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Đấu Trường Caro'), { style: 'color: #FFFFFF; font-size: 15px;' }));
+    const badgeGame = Object.assign(e('span', null, (activeCaro + waitingCaro) + ' bàn'), { style: 'background: rgba(245,158,11,0.15); color: #F59E0B; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
+    dauGame.append(tieuDeGame, badgeGame);
+
+    const moTaGame = Object.assign(e('p', null, 'Trận đấu cờ Caro 15x15 thời gian thực giữa học sinh.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    const luoiGameStats = e('div');
+    luoiGameStats.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;';
+    const oStat1 = e('div');
+    oStat1.style.cssText = 'background: #0B0E14; padding: 10px; border-radius: 10px; text-align: center;';
+    oStat1.append(Object.assign(e('div', null, String(activeCaro)), { style: 'color: #F59E0B; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang thi đấu'), { style: 'color: #64748B; font-size: 11px;' }));
+
+    const oStat2 = e('div');
+    oStat2.style.cssText = 'background: #0B0E14; padding: 10px; border-radius: 10px; text-align: center;';
+    oStat2.append(Object.assign(e('div', null, String(waitingCaro)), { style: 'color: #10B981; font-size: 18px; font-weight: 900;' }), Object.assign(e('div', null, 'Đang chờ đối thủ'), { style: 'color: #64748B; font-size: 11px;' }));
+    luoiGameStats.append(oStat1, oStat2);
+
+    const linkCampusGame = e('a', 'nut nut-vien nut-nho', 'Xem trực tiếp trên Campus →');
+    linkCampusGame.href = '/';
+    linkCampusGame.target = '_blank';
+    linkCampusGame.style.cssText = 'width: 100%; text-align: center; display: block;';
+    cardGame.append(dauGame, moTaGame, luoiGameStats, linkCampusGame);
+
+    // 3. Card Music / Focus
+    const cardMusic = e('div', 'the');
+    cardMusic.style.cssText = 'background: #121620; border: 1px solid rgba(139,92,246,0.3); border-radius: 18px; padding: 20px;';
+    const dauMusic = e('div');
+    dauMusic.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
+    const tieuDeMusic = e('div');
+    tieuDeMusic.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    tieuDeMusic.append(Object.assign(e('span', null, '🎧'), { style: 'font-size: 22px;' }), Object.assign(e('b', null, 'Music & Focus Study'), { style: 'color: #FFFFFF; font-size: 15px;' }));
+    const badgeMusic = Object.assign(e('span', null, dsMusic.length + ' phòng'), { style: 'background: rgba(139,92,246,0.15); color: #8B5CF6; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;' });
+    dauMusic.append(tieuDeMusic, badgeMusic);
+
+    const moTaMusic = Object.assign(e('p', null, 'Không gian nghe nhạc Lofi và tự học tập trung cá nhân / nhóm.'), { style: 'color: #94A3B8; font-size: 12px; margin-bottom: 14px;' });
+    const dsMusicDiv = e('div');
+    dsMusicDiv.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    if (dsMusic.length === 0) {
+      dsMusicDiv.append(Object.assign(e('div', null, 'Chưa có phòng Music nào đang mở.'), { style: 'color: #64748B; font-size: 12px; text-align: center; padding: 12px;' }));
+    } else {
+      dsMusic.forEach(p => dsMusicDiv.append(taoMucPhong(p)));
+    }
+    cardMusic.append(dauMusic, moTaMusic, dsMusicDiv);
+
+    luoi.append(cardYt, cardGame, cardMusic);
+    khung.append(luoi);
+    datNoiDung(KHUNG, khung);
+  } catch (err) {
+    datNoiDung(KHUNG, khoiLoi('Lỗi khi tải quản trị Campus: ' + err.message));
+  }
+}
+
+async function trangBangTin() {
+  const khung = e('div');
+  khung.append(tieuDeTrang(
+    '📢 Quản Trị Bảng Tin & Truyền Thông',
+    'Soạn thảo thông báo trường học, tin tức bảng tin lớp, phân quyền ban biên tập và quản lý thư viện media.'
+  ));
+
+  const subtabs = e('div');
+  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
+  const taoNut = (nhan, href, laChinh = false) => {
+    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
+    a.href = href;
+    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
+    return a;
+  };
+  subtabs.append(
+    taoNut('📢 Thông báo', '#/thong-bao', true),
+    taoNut('✍️ Ban biên tập', '#/bien-tap-vien'),
+    taoNut('🖼️ Thư viện Ảnh', '#/hinh-anh'),
+    taoNut('🎵 Thư viện Âm thanh', '#/thu-vien-am-thanh'),
+    taoNut('🎬 Thư viện Video', '#/thu-vien-video')
+  );
+  khung.append(subtabs);
+
+  // Directly load announcements
+  const vungNoiDung = e('div');
+  khung.append(vungNoiDung);
+  datNoiDung(KHUNG, khung);
+  await trangThongBao();
+}
+
+async function trangLopThanhVien() {
+  const khung = e('div');
+  khung.append(tieuDeTrang(
+    '👥 Quản Trị Lớp Học & Thành Viên',
+    'Danh sách học sinh, sổ chuyên cần điểm danh, thủ quỹ lớp, thời khóa biểu và mã truy cập cộng đồng.'
+  ));
+
+  const subtabs = e('div');
+  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
+  const taoNut = (nhan, href, laChinh = false) => {
+    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
+    a.href = href;
+    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
+    return a;
+  };
+  subtabs.append(
+    taoNut('👥 Học sinh', '#/hoc-sinh', true),
+    taoNut('📋 Điểm danh', '#/diem-danh'),
+    taoNut('💰 Thủ quỹ lớp', '#/quy'),
+    taoNut('📅 Thời khóa biểu', '#/thoi-khoa-bieu'),
+    taoNut('🔑 Mã cộng đồng', '#/ma-cong-dong'),
+    taoNut('🔐 Cán sự lớp', '#/ma-ca-nhan')
+  );
+  khung.append(subtabs);
+
+  datNoiDung(KHUNG, khung);
+  await trangHocSinh();
+}
+
+async function trangKiemDuyet() {
+  const khung = e('div');
+  khung.append(tieuDeTrang(
+    '🛡️ Trung Tâm Kiểm Duyệt & An Toàn',
+    'Xử lý báo cáo vi phạm nội dung Campus / Tin nhắn riêng và phê duyệt tài khoản giáo viên đăng ký.'
+  ));
+
+  const subtabs = e('div');
+  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
+  const taoNut = (nhan, href, laChinh = false) => {
+    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
+    a.href = href;
+    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
+    return a;
+  };
+  subtabs.append(
+    taoNut('🚩 Báo cáo vi phạm', '#/bao-cao-vi-pham', true),
+    taoNut('🛡️ Duyệt giáo viên', '#/duyet-giao-vien')
+  );
+  khung.append(subtabs);
+
+  datNoiDung(KHUNG, khung);
+  await trangBaoCaoViPham('all');
+}
+
+async function trangHeThong() {
+  const khung = e('div');
+  khung.append(tieuDeTrang(
+    '⚙️ Quản Trị Hệ Thống',
+    'Cập nhật hồ sơ cá nhân giáo viên, xuất file báo cáo tổng hợp, kiểm tra nhật ký đăng nhập và reset dữ liệu.'
+  ));
+
+  const subtabs = e('div');
+  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
+  const taoNut = (nhan, href, laChinh = false) => {
+    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
+    a.href = href;
+    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
+    return a;
+  };
+  subtabs.append(
+    taoNut('👤 Hồ sơ giáo viên', '#/ho-so-gv', true),
+    taoNut('📑 Báo cáo & Xuất file', '#/bao-cao'),
+    taoNut('📋 Nhật ký đăng nhập', '#/nhat-ky-dang-nhap'),
+    taoNut('⚠️ Reset dữ liệu', '#/reset-du-lieu')
+  );
+  khung.append(subtabs);
+
+  datNoiDung(KHUNG, khung);
+  await trangHoSoGiaoVien();
+}
+
 
 async function trangBaoCaoViPham(trangThaiLoc = 'all') {
   datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách báo cáo vi phạm...'));
@@ -2867,6 +3048,11 @@ async function trangBienTapVien() {
 
 const TRANG = {
   '/tong-quan': trangTongQuan,
+  '/campus-quan-tri': trangCampus,
+  '/bang-tin-quan-tri': trangBangTin,
+  '/lop-quan-tri': trangLopThanhVien,
+  '/kiem-duyet-quan-tri': trangKiemDuyet,
+  '/he-thong-quan-tri': trangHeThong,
   '/diem-danh': trangDiemDanh,
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,
@@ -2902,19 +3088,16 @@ const TRANG = {
 
 function danhDauMenu(duong) {
   $$('.cot-trai a, .tab-duoi a').forEach((a) => {
-    const trongMucThem = ['/thong-ke', '/thong-bao', '/bao-cao', '/ma-ca-nhan', '/reset-du-lieu', '/hinh-anh', '/thu-vien-am-thanh', '/thu-vien-video', '/hoat-dong-lop', '/thoi-khoa-bieu'].includes(duong);
-    const khop = a.getAttribute('href') === '#' + duong
-      || ((duong === '/tong-quan' || !duong) && a.getAttribute('href') === '#/tong-quan')
-      || (duong.startsWith('/hoc-sinh') && a.getAttribute('href') === '#/hoc-sinh')
-      || (duong === '/diem-danh-lich-su' && a.getAttribute('href') === '#/diem-danh')
-      || (duong === '/quy-lich-su' && a.getAttribute('href') === '#/quy')
-      || (duong === '/thong-bao-khoi-phuc' && a.getAttribute('href') === '#/thong-bao')
-      || (duong === '/hoat-dong-lop-khoi-phuc' && a.getAttribute('href') === '#/hoat-dong-lop')
-      || (duong === '/thoi-khoa-bieu-khoi-phuc' && a.getAttribute('href') === '#/thoi-khoa-bieu')
-      || (duong === '/hinh-anh-thung-rac' && a.getAttribute('href') === '#/hinh-anh')
-      || (duong === '/thu-vien-am-thanh-thung-rac' && a.getAttribute('href') === '#/thu-vien-am-thanh')
-      || (duong === '/thu-vien-video-thung-rac' && a.getAttribute('href') === '#/thu-vien-video')
-      || (trongMucThem && a.dataset.nhom === 'them');
+    const href = a.getAttribute('href') || '';
+    let khop = false;
+    if (href === '#/tong-quan' && (duong === '/tong-quan' || !duong || duong === '')) khop = true;
+    else if (href === '#/campus-quan-tri' && (duong === '/campus-quan-tri' || duong === '/phong-campus' || duong === '/campus-highlights')) khop = true;
+    else if (href === '#/bang-tin-quan-tri' && (duong === '/bang-tin-quan-tri' || duong === '/thong-bao' || duong === '/thong-bao-khoi-phuc' || duong === '/bien-tap-vien' || duong === '/hinh-anh' || duong === '/hinh-anh-thung-rac' || duong === '/thu-vien-am-thanh' || duong === '/thu-vien-am-thanh-thung-rac' || duong === '/thu-vien-video' || duong === '/thu-vien-video-thung-rac')) khop = true;
+    else if (href === '#/lop-quan-tri' && (duong === '/lop-quan-tri' || duong === '/hoc-sinh' || duong.startsWith('/hoc-sinh/') || duong === '/diem-danh' || duong === '/diem-danh-lich-su' || duong === '/quy' || duong === '/quy-lich-su' || duong === '/thoi-khoa-bieu' || duong === '/thoi-khoa-bieu-lich-su' || duong === '/thoi-khoa-bieu-khoi-phuc' || duong.startsWith('/thoi-khoa-bieu-xem') || duong === '/ma-cong-dong' || duong === '/ma-ca-nhan')) khop = true;
+    else if (href === '#/kiem-duyet-quan-tri' && (duong === '/kiem-duyet-quan-tri' || duong === '/bao-cao-vi-pham' || duong === '/duyet-giao-vien')) khop = true;
+    else if (href === '#/he-thong-quan-tri' && (duong === '/he-thong-quan-tri' || duong === '/ho-so-gv' || duong === '/bao-cao' || duong === '/nhat-ky-dang-nhap' || duong === '/reset-du-lieu' || duong === '/thong-ke')) khop = true;
+    else if (href === '#' + duong) khop = true;
+
     if (khop) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
@@ -2963,9 +3146,46 @@ async function dieuHuong() {
   // tách ra một cột RIÊNG (không nhồi vào đầu dòng 1) để dòng 1 và dòng 2 luôn căn thẳng lề trái.
   const hieuPhu = document.querySelector('.hieu-phu');
   if (hieuPhu) {
-    const { icon, dong } = layCacDongTaiKhoan(PHIEN);
-    const boc = datNoiDung(e('span', 'hieu-phu-dong-boc'), ...dong.map((d) => e('span', 'hieu-phu-dong', d)));
-    datNoiDung(hieuPhu, e('span', 'hieu-phu-icon', icon), boc);
+    hieuPhu.textContent = PHIEN.isSchoolAdmin ? 'Quản trị viên trường' : (PHIEN.ten || 'Giáo viên');
+  }
+
+  // Populate scope selector
+  const scopeSelect = document.getElementById('adminScopeSelect');
+  if (scopeSelect) {
+    if (PHIEN.isSchoolAdmin) {
+      try {
+        const resLop = await api('/api/lop-cong-khai');
+        const dsLop = Array.isArray(resLop?.danhSach) ? resLop.danhSach : [];
+        scopeSelect.textContent = '';
+        const optAll = document.createElement('option');
+        optAll.value = 'all';
+        optAll.textContent = 'Toàn trường';
+        optAll.style.cssText = 'background: #151A23; color: #FFFFFF;';
+        scopeSelect.appendChild(optAll);
+        for (const l of dsLop) {
+          const opt = document.createElement('option');
+          opt.value = String(l.slug || l.id);
+          opt.textContent = l.ten || ('Lớp ' + (l.slug || l.id));
+          opt.style.cssText = 'background: #151A23; color: #FFFFFF;';
+          scopeSelect.appendChild(opt);
+        }
+      } catch {
+        scopeSelect.textContent = '';
+        const optAll = document.createElement('option');
+        optAll.value = 'all';
+        optAll.textContent = 'Toàn trường';
+        optAll.style.cssText = 'background: #151A23; color: #FFFFFF;';
+        scopeSelect.appendChild(optAll);
+      }
+    } else {
+      scopeSelect.textContent = '';
+      const opt = document.createElement('option');
+      opt.value = 'lop';
+      opt.textContent = PHIEN.tenLop || 'Lớp 10A7';
+      opt.style.cssText = 'background: #151A23; color: #FFFFFF;';
+      scopeSelect.appendChild(opt);
+      scopeSelect.disabled = true;
+    }
   }
   if (PHIEN.tenLop) {
     document.title = `Quản lý ${PHIEN.tenLop}`;

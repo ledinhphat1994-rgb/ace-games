@@ -300,8 +300,8 @@ async function run() {
     const gameText = await page1440.locator('#campus-space-game').innerText();
     const musicText = await page1440.locator('#campus-space-music').innerText();
 
-    ok('E.2: Chữ Xem chung được lồng vào trung tâm khối orb/lens',
-      cinemaText.toUpperCase().includes('XEM CHUNG'), 'group_e');
+    ok('E.2: Chữ YouTube/Xem chung được lồng vào trung tâm khối orb/lens',
+      cinemaText.toUpperCase().includes('YOUTUBE') || cinemaText.toUpperCase().includes('XEM CHUNG'), 'group_e');
     ok('E.3: Chữ GAME được lồng vào trung tâm khối Arena',
       gameText.includes('GAME'), 'group_e');
     ok('E.4: Chữ MUSIC được lồng vào trung tâm khối Disc/Core',

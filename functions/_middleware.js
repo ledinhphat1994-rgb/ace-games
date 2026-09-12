@@ -22,6 +22,7 @@ const PUBLIC_PATHS = new Set([
   '/api/campus', '/api/su-kien',
   '/api/campus-thong-bao', '/api/campus-highlights', '/api/kiem-tra-ma-cong-dong',
   '/api/campus-chat', '/api/campus-friends', '/api/campus-dm',
+  '/api/youtube-search',
 ]);
 
 function isPublic(pathname) {

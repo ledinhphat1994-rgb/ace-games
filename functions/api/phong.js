@@ -116,7 +116,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const khoa = actorKey(phien);
 
   // ── TẠO PHÒNG — mọi học sinh/GV đăng nhập đều được ──
-  if (hanhDong === 'tao') {
+  if (hanhDong === 'tao' || (!hanhDong && than.ten && !than.phongId)) {
     const ten = chuoi(than.ten, 80);
     const moTa = chuoi(than.moTa, 300);
     if (than.loai === 'game') {
@@ -158,7 +158,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     }
 
     if (loai === 'video') {
-      const u = chuanUrlMedia(than.videoUrl);
+      const u = chuanUrlMedia(than.videoUrl || than.linkNgoai);
       if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https:// (YouTube, Drive, mp4...).');
       if (!u) return loi('Phòng xem video cần dán link video (YouTube / Google Drive / mp4).');
       cauHinh.videoUrl = u;

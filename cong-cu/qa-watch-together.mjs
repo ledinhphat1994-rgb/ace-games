@@ -64,13 +64,8 @@ const cookieGV = await taoAuthCookie(GV);
 
 // Dọn dẹp các phòng cũ còn mở của HS_A nếu có trước khi chạy kiểm thử
 try {
-  const danhSachPhongCu = dsCu.data?.dsPhong || dsCu.data?.phongs;
-  if (dsCu.ok && Array.isArray(danhSachPhongCu)) {
-    for (const p of danhSachPhongCu) {
-      if (p.laChuPhong || p.canControl || p.chuPhongKhoa === `hs:${HS_A.hocSinhId}`) {
-        await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: p.id } });
-      }
-    }
+  if (BASE.includes('127.0.0.1') || BASE.includes('localhost')) {
+    execSync('npx wrangler d1 execute lop-10a7-db --local --command="UPDATE phong SET trang_thai = \'dong\' WHERE chu_phong_khoa = \'hs:1\';"', { stdio: 'ignore' });
   }
 } catch {
   // Bỏ qua lỗi dọn dẹp nếu có
@@ -374,6 +369,11 @@ ok('Hành động lạ không nằm trong whitelist bị từ chối HTTP 400', 
 // ─────────────────────────────────────────────────────────────────────────────
 console.log('\n== 8. Vòng đời khi đóng phòng & Dọn dẹp DB thực tế (Test K & Lifecycle) ==');
 
+// Dọn dẹp phòng lớp trước khi tạo phòng vòng đời để không chạm ngưỡng 2 phòng
+if (typeof phongLopId !== 'undefined' && phongLopId) {
+  await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: phongLopId } });
+}
+
 // Tạo 1 phòng video riêng cho test vòng đời
 const resPhongLifecycle = await api('/api/phong', {
   method: 'POST',
@@ -485,7 +485,8 @@ try {
     const rowA = pageA.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
     await rowA.locator('button:has-text("Vào")').first().click();
   } else {
-    await pageA.locator('#campus-flagship-spaces button:has-text("Xem chung")').first().click();
+    const btnWatchA = pageA.locator('#campus-flagship-spaces button:has-text("YouTube"), #campus-flagship-spaces button:has-text("Xem chung")').first();
+    await btnWatchA.click();
     await pageA.waitForSelector('#lobby-watch', { timeout: 5000 });
     const rowA = pageA.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
     await rowA.locator('button:has-text("Vào")').first().click();
@@ -513,7 +514,8 @@ try {
     const rowB = pageB.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
     await rowB.locator('button:has-text("Vào")').first().click();
   } else {
-    await pageB.locator('#campus-flagship-spaces button:has-text("Xem chung")').first().click();
+    const btnWatchB = pageB.locator('#campus-flagship-spaces button:has-text("YouTube"), #campus-flagship-spaces button:has-text("Xem chung")').first();
+    await btnWatchB.click();
     await pageB.waitForSelector('#lobby-watch', { timeout: 5000 });
     const rowB = pageB.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
     await rowB.locator('button:has-text("Vào")').first().click();
@@ -592,8 +594,9 @@ try {
   // 3. KIỂM THỬ PAUSE THẬT TRÊN DOM VIDEO
   // ──────────────────────────────────────────────────
   console.log('  -> Host A bấm nút Tạm Dừng trên UI...');
-  await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Tạm Dừng")', { timeout: 6000 });
-  await btnToggleHostA.click(); // Click Tạm Dừng
+  await pageA.waitForSelector('#btn-host-watch-toggle:not([disabled]):has-text("Tạm Dừng")', { timeout: 6000 });
+  await pageA.waitForTimeout(300);
+  await pageA.locator('#btn-host-watch-toggle:not([disabled])').click(); // Click Tạm Dừng
   await pageA.waitForSelector('#btn-host-watch-toggle:has-text("Phát Chung")', { timeout: 6000 }).catch(() => {});
 
   await pageB.waitForTimeout(3500);
@@ -665,6 +668,10 @@ try {
   const btnRoiB = pageB.locator('#btn-roi-phong-top');
   await btnRoiB.click();
   await pageB.waitForSelector('#campus-lobby, #lobby-watch', { timeout: 5000 });
+  await pageB.waitForTimeout(500);
+
+  // Đặt lại bộ đếm sau khi đã rời phòng hoàn toàn để kiểm tra không còn request nào phát sinh
+  watchReqAfterLeave = 0;
 
   // Đợi 5.5 giây (> 2 khoảng polling 2.5s)
   await pageB.waitForTimeout(5500);

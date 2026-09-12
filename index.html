@@ -172,11 +172,49 @@
     .portal-scan-ripple   { animation: scanRipple 3.5s cubic-bezier(0, 0.2, 0.8, 1) infinite; transform-origin: center; }
     .portal-drift         { animation: particleDrift 8s ease-in-out infinite; }
 
+    @keyframes floatDriftYouTube {
+      0%   { transform: translate3d(0, 0, 0); }
+      25%  { transform: translate3d(10px, -14px, 0); }
+      50%  { transform: translate3d(-8px, -16px, 0); }
+      75%  { transform: translate3d(-12px, 8px, 0); }
+      100% { transform: translate3d(0, 0, 0); }
+    }
+    @keyframes floatDriftGame {
+      0%   { transform: translate3d(0, 0, 0); }
+      25%  { transform: translate3d(-12px, 12px, 0); }
+      50%  { transform: translate3d(8px, 14px, 0); }
+      75%  { transform: translate3d(14px, -10px, 0); }
+      100% { transform: translate3d(0, 0, 0); }
+    }
+    @keyframes floatDriftMusic {
+      0%   { transform: translate3d(0, 0, 0); }
+      33%  { transform: translate3d(8px, 12px, 0); }
+      66%  { transform: translate3d(-10px, -8px, 0); }
+      100% { transform: translate3d(0, 0, 0); }
+    }
+
+    .portal-float-youtube { animation: floatDriftYouTube 16s ease-in-out infinite; will-change: transform; }
+    .portal-float-game    { animation: floatDriftGame 18s ease-in-out infinite; will-change: transform; }
+    .portal-float-music   { animation: floatDriftMusic 14s ease-in-out infinite; will-change: transform; }
+
+    .portal-float-youtube:hover,
+    .portal-float-game:hover,
+    .portal-float-music:hover,
+    .group:hover .portal-float-youtube,
+    .group:hover .portal-float-game,
+    .group:hover .portal-float-music,
+    .group:focus-within .portal-float-youtube,
+    .group:focus-within .portal-float-game,
+    .group:focus-within .portal-float-music {
+      animation-play-state: paused;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .danmaku-bullet, .ticker-track, .eq-bar,
       .cinema-ray, .arena-glow, .caro-piece-o, .caro-piece-x,
       .chat-dot-1, .chat-dot-2, .chat-dot-3,
       .portal-orbit-slow, .portal-orbit-rev, .portal-pulse-glow, .portal-scan-ripple, .portal-drift,
+      .portal-float-youtube, .portal-float-game, .portal-float-music,
       .animate-fadeIn, .animate-scaleIn, .animate-pulse {
         animation: none !important;
         transform: none !important;
@@ -581,7 +619,7 @@ const CAMPUS_GAMES = [
 
 function CampusSpaceCard({
   id,
-  theme = 'cyan',
+  theme = 'youtube',
   title,
   metric,
   onAction,
@@ -591,33 +629,63 @@ function CampusSpaceCard({
   const dataId = (sceneType === 'arena' || sceneType === 'game') ? 'space-game' : (sceneType === 'cinema' ? 'space-cinema' : (sceneType === 'music' ? 'space-music' : 'space-chat'));
 
   const portalStyles = {
-    cyan: {
-      bg: 'radial-gradient(circle at 50% 35%, rgba(0, 242, 254, 0.18) 0%, rgba(7, 19, 36, 0.95) 60%, #0c1420 100%)',
-      glow: 'rgba(0, 242, 254, 0.35)',
-      primary: '#00F2FE',
-      accent: 'text-[#00F2FE]',
-      orbBg: 'radial-gradient(circle, rgba(0, 242, 254, 0.25) 0%, rgba(7, 26, 46, 0.85) 70%, rgba(0, 0, 0, 0.9) 100%)',
-      ringColor: '#00F2FE'
+    youtube: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(239, 68, 68, 0.22) 0%, rgba(24, 7, 7, 0.96) 60%, #110606 100%)',
+      glow: 'rgba(239, 68, 68, 0.4)',
+      primary: '#EF4444',
+      accent: 'text-[#EF4444]',
+      orbBg: 'radial-gradient(circle, rgba(239, 68, 68, 0.32) 0%, rgba(45, 10, 10, 0.9) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#EF4444',
+      floatClass: 'portal-float-youtube'
     },
-    amber: {
-      bg: 'radial-gradient(circle at 50% 35%, rgba(255, 184, 0, 0.18) 0%, rgba(28, 18, 4, 0.95) 60%, #15120a 100%)',
+    cyan: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(239, 68, 68, 0.22) 0%, rgba(24, 7, 7, 0.96) 60%, #110606 100%)',
+      glow: 'rgba(239, 68, 68, 0.4)',
+      primary: '#EF4444',
+      accent: 'text-[#EF4444]',
+      orbBg: 'radial-gradient(circle, rgba(239, 68, 68, 0.32) 0%, rgba(45, 10, 10, 0.9) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#EF4444',
+      floatClass: 'portal-float-youtube'
+    },
+    game: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(255, 184, 0, 0.18) 0%, rgba(28, 18, 4, 0.96) 60%, #15120a 100%)',
       glow: 'rgba(255, 184, 0, 0.35)',
       primary: '#FFB800',
       accent: 'text-[#FFB800]',
-      orbBg: 'radial-gradient(circle, rgba(255, 184, 0, 0.25) 0%, rgba(42, 26, 6, 0.85) 70%, rgba(0, 0, 0, 0.9) 100%)',
-      ringColor: '#FFB800'
+      orbBg: 'radial-gradient(circle, rgba(255, 184, 0, 0.25) 0%, rgba(42, 26, 6, 0.85) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#FFB800',
+      floatClass: 'portal-float-game'
     },
-    violet: {
-      bg: 'radial-gradient(circle at 50% 35%, rgba(139, 92, 246, 0.18) 0%, rgba(22, 10, 43, 0.95) 60%, #120924 100%)',
+    amber: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(255, 184, 0, 0.18) 0%, rgba(28, 18, 4, 0.96) 60%, #15120a 100%)',
+      glow: 'rgba(255, 184, 0, 0.35)',
+      primary: '#FFB800',
+      accent: 'text-[#FFB800]',
+      orbBg: 'radial-gradient(circle, rgba(255, 184, 0, 0.25) 0%, rgba(42, 26, 6, 0.85) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#FFB800',
+      floatClass: 'portal-float-game'
+    },
+    music: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(139, 92, 246, 0.18) 0%, rgba(22, 10, 43, 0.96) 60%, #120924 100%)',
       glow: 'rgba(139, 92, 246, 0.35)',
       primary: '#8B5CF6',
       accent: 'text-[#8B5CF6]',
-      orbBg: 'radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(32, 13, 61, 0.85) 70%, rgba(0, 0, 0, 0.9) 100%)',
-      ringColor: '#8B5CF6'
+      orbBg: 'radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(32, 13, 61, 0.85) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#8B5CF6',
+      floatClass: 'portal-float-music'
+    },
+    violet: {
+      bg: 'radial-gradient(circle at 50% 35%, rgba(139, 92, 246, 0.18) 0%, rgba(22, 10, 43, 0.96) 60%, #120924 100%)',
+      glow: 'rgba(139, 92, 246, 0.35)',
+      primary: '#8B5CF6',
+      accent: 'text-[#8B5CF6]',
+      orbBg: 'radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, rgba(32, 13, 61, 0.85) 70%, rgba(0, 0, 0, 0.95) 100%)',
+      ringColor: '#8B5CF6',
+      floatClass: 'portal-float-music'
     }
   };
 
-  const st = portalStyles[theme] || portalStyles.cyan;
+  const st = portalStyles[theme] || portalStyles.youtube;
 
   return (
     <button
@@ -626,7 +694,7 @@ function CampusSpaceCard({
       type="button"
       onClick={onAction}
       aria-label={metric ? `${title}, ${metric}` : title}
-      className="group relative w-full rounded-[32px] overflow-hidden flex flex-col items-center justify-between p-6 sm:p-7 min-h-[390px] sm:min-h-[430px] transition-all duration-300 hover:scale-[1.03] cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#00F2FE]/50 shadow-[0_12px_36px_rgba(0,0,0,0.5)]"
+      className="group relative w-full rounded-[32px] overflow-hidden flex flex-col items-center justify-between p-6 sm:p-7 min-h-[390px] sm:min-h-[430px] transition-all duration-300 hover:scale-[1.02] cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#00F2FE]/50 shadow-[0_12px_36px_rgba(0,0,0,0.5)]"
       style={{
         background: st.bg,
         boxShadow: `0 16px 48px -12px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.12), 0 0 28px -8px ${st.glow}`
@@ -639,48 +707,48 @@ function CampusSpaceCard({
         aria-hidden="true"
       />
 
-      {/* Top Visual: Large Orbital Scene */}
+      {/* Top Visual: Large Floating Orbital Scene (Stable Click Target, Moving Visual Inside) */}
       <div className="relative w-full flex-1 flex flex-col items-center justify-center pointer-events-none" aria-hidden="true">
         {sceneType === 'cinema' && (
-          <div className="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
+          <div className={`relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center ${st.floatClass}`}>
             {/* Circular ripple scan */}
-            <div className="absolute inset-0 rounded-full border border-cyan-400/30 portal-scan-ripple" />
-            <div className="absolute inset-4 rounded-full border border-cyan-400/20 portal-scan-ripple" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute inset-0 rounded-full border border-red-500/30 portal-scan-ripple" />
+            <div className="absolute inset-4 rounded-full border border-red-500/20 portal-scan-ripple" style={{ animationDelay: '1.5s' }} />
 
-            {/* Orbiting dashed ring */}
+            {/* Orbiting dashed playback ring */}
             <svg className="absolute inset-2 w-40 h-40 sm:w-44 sm:h-44 portal-orbit-slow" viewBox="0 0 180 180" fill="none">
-              <circle cx="90" cy="90" r="82" stroke="#00F2FE" strokeWidth="1.5" strokeOpacity="0.4" strokeDasharray="6 8" />
-              <circle cx="90" cy="8" r="5" fill="#00F2FE" className="drop-shadow-[0_0_8px_#00F2FE]" />
+              <circle cx="90" cy="90" r="82" stroke="#EF4444" strokeWidth="1.5" strokeOpacity="0.45" strokeDasharray="6 8" />
+              <circle cx="90" cy="8" r="5.5" fill="#EF4444" className="drop-shadow-[0_0_10px_#EF4444]" />
             </svg>
 
             {/* Light Cone behind orb */}
             <svg className="absolute top-0 w-36 h-28 cinema-ray pointer-events-none" viewBox="0 0 180 120" fill="none">
               <defs>
-                <linearGradient id="cinemaLightBeam" x1="90" y1="0" x2="90" y2="120" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#00F2FE" stopOpacity="0.3" />
-                  <stop offset="1" stopColor="#00F2FE" stopOpacity="0" />
+                <linearGradient id="ytLightBeam" x1="90" y1="0" x2="90" y2="120" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#EF4444" stopOpacity="0.35" />
+                  <stop offset="1" stopColor="#EF4444" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <polygon points="90,10 20,110 160,110" fill="url(#cinemaLightBeam)" />
+              <polygon points="90,10 20,110 160,110" fill="url(#ytLightBeam)" />
             </svg>
 
-            {/* Central Orb / Lens */}
+            {/* Central YouTube Orb */}
             <div
               className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center shadow-[inset_0_2px_12px_rgba(255,255,255,0.2)] transition-transform duration-500 group-hover:scale-105"
-              style={{ background: st.orbBg, border: '1.5px solid rgba(0, 242, 254, 0.45)' }}
+              style={{ background: st.orbBg, border: '1.5px solid rgba(239, 68, 68, 0.55)' }}
             >
-              <div className="w-10 h-10 rounded-full bg-cyan-400/20 border border-cyan-400/40 flex items-center justify-center pl-1 text-cyan-300 text-lg shadow-[0_0_16px_rgba(0,242,254,0.6)]">
+              <div className="w-10 h-10 rounded-full bg-red-500/25 border border-red-400/50 flex items-center justify-center pl-0.5 text-red-300 text-lg shadow-[0_0_18px_rgba(239,68,68,0.7)]">
                 ▶
               </div>
-              <span className="mt-2 text-xs font-black tracking-wider text-white uppercase group-hover:text-cyan-300 transition-colors">
-                Xem chung
+              <span className="mt-1.5 text-xs font-black tracking-widest text-white uppercase group-hover:text-red-300 transition-colors">
+                YouTube
               </span>
             </div>
           </div>
         )}
 
         {sceneType === 'game' && (
-          <div className="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
+          <div className={`relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center ${st.floatClass}`}>
             {/* Outer rotating dashed ring */}
             <svg className="absolute inset-2 w-40 h-40 sm:w-44 sm:h-44 portal-orbit-rev" viewBox="0 0 180 180" fill="none">
               <circle cx="90" cy="90" r="82" stroke="#FFB800" strokeWidth="1.5" strokeOpacity="0.4" strokeDasharray="8 6" />
@@ -716,7 +784,7 @@ function CampusSpaceCard({
         )}
 
         {sceneType === 'music' && (
-          <div className="relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
+          <div className={`relative w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center ${st.floatClass}`}>
             {/* Rotating dashed ring */}
             <svg className="absolute inset-2 w-40 h-40 sm:w-44 sm:h-44 portal-orbit-slow" viewBox="0 0 180 180" fill="none">
               <circle cx="90" cy="90" r="82" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.4" strokeDasharray="5 7" />
@@ -1130,6 +1198,741 @@ function dinhDangGiayPhut(s) {
   const m = Math.floor(t / 60);
   const sec = t % 60;
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+// ─── STUDY DOCK: KHÔNG GIAN CỘNG TÁC PHÒNG YOUTUBE (PHASE 4F) ────────────────
+function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPhongChat }) {
+  const [dockTab, setDockTab] = React.useState('chat'); // 'chat' | 'notes' | 'whiteboard' | 'sheet' | 'voice'
+
+  // 1. Room Chat State
+  const [chatInput, setChatInput] = React.useState('');
+  const [chatSending, setChatSending] = React.useState(false);
+  const chatComposingRef = React.useRef(false);
+  const chatEndRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (dockTab === 'chat' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [phongChat.length, dockTab]);
+
+  const handleSendRoomChat = (e) => {
+    e?.preventDefault();
+    const txt = chatInput.trim();
+    if (!txt || chatSending) return;
+    setChatInput('');
+    setChatSending(true);
+    if (onSendPhongChat) {
+      Promise.resolve(onSendPhongChat(txt)).catch(() => {
+        setChatInput(cur => cur ? cur : txt);
+      }).finally(() => {
+        setChatSending(false);
+      });
+    } else {
+      setChatSending(false);
+    }
+  };
+
+  // 2. Shared Notes State
+  const [notesText, setNotesText] = React.useState('');
+  const [notesVersion, setNotesVersion] = React.useState(0);
+  const [notesUpdatedBy, setNotesUpdatedBy] = React.useState('');
+  const [notesSaving, setNotesSaving] = React.useState(false);
+  const [notesNotice, setNotesNotice] = React.useState('');
+  const notesSaveTimerRef = React.useRef(null);
+  const notesVersionRef = React.useRef(notesVersion);
+  notesVersionRef.current = notesVersion;
+
+  React.useEffect(() => {
+    if (dockTab !== 'notes') return;
+    let active = true;
+    const fetchNotes = async () => {
+      try {
+        const res = await fetch(`/api/phong-collab?phongId=${phong.id}&resource=notes`);
+        const d = await res.json();
+        if (active && d.ok && d.version > notesVersionRef.current) {
+          setNotesText(d.payload?.text || '');
+          setNotesVersion(d.version);
+          setNotesUpdatedBy(d.updatedBy || '');
+        }
+      } catch {}
+    };
+    fetchNotes();
+    const interval = setInterval(fetchNotes, 3000);
+    return () => { active = false; clearInterval(interval); };
+  }, [phong.id, dockTab]);
+
+  const handleNotesChange = (val) => {
+    setNotesText(val);
+    if (notesSaveTimerRef.current) clearTimeout(notesSaveTimerRef.current);
+    notesSaveTimerRef.current = setTimeout(async () => {
+      setNotesSaving(true);
+      setNotesNotice('');
+      try {
+        const res = await fetch('/api/phong-collab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phongId: phong.id,
+            resource: 'notes',
+            payload: { text: val },
+            expectedVersion: notesVersionRef.current
+          })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          setNotesVersion(d.version);
+          setNotesUpdatedBy('Bạn');
+          setNotesNotice('✓ Đã lưu tự động');
+        } else if (d.conflict) {
+          setNotesVersion(d.currentVersion);
+          setNotesUpdatedBy(d.updatedBy);
+          setNotesNotice('⚠️ ' + (d.loi || 'Xung đột phiên bản'));
+        }
+      } catch {
+        setNotesNotice('Lỗi kết nối lưu ghi chú.');
+      } finally {
+        setNotesSaving(false);
+      }
+    }, 1200);
+  };
+
+  // 3. Shared Whiteboard State
+  const canvasRef = React.useRef(null);
+  const [wbStrokes, setWbStrokes] = React.useState([]);
+  const [wbColor, setWbColor] = React.useState('#00F2FE');
+  const [wbWidth, setWbWidth] = React.useState(3);
+  const [wbTool, setWbTool] = React.useState('pen');
+  const isDrawingRef = React.useRef(false);
+  const currentStrokeRef = React.useRef(null);
+  const wbVersionRef = React.useRef(0);
+
+  const redrawCanvas = React.useCallback((strokes) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokes.forEach(s => {
+      if (!s.points || s.points.length < 2) return;
+      ctx.beginPath();
+      ctx.strokeStyle = s.tool === 'eraser' ? '#0B0E14' : (s.color || '#00F2FE');
+      ctx.lineWidth = s.width || 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (let i = 1; i < s.points.length; i++) {
+        ctx.lineTo(s.points[i].x, s.points[i].y);
+      }
+      ctx.stroke();
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (dockTab !== 'whiteboard') return;
+    let active = true;
+    const fetchWb = async () => {
+      try {
+        const res = await fetch(`/api/phong-collab?phongId=${phong.id}&resource=whiteboard`);
+        const d = await res.json();
+        if (active && d.ok && d.version > wbVersionRef.current) {
+          wbVersionRef.current = d.version;
+          const strokes = Array.isArray(d.payload?.strokes) ? d.payload.strokes : [];
+          setWbStrokes(strokes);
+          redrawCanvas(strokes);
+        }
+      } catch {}
+    };
+    fetchWb();
+    const interval = setInterval(fetchWb, 3000);
+    return () => { active = false; clearInterval(interval); };
+  }, [phong.id, dockTab, redrawCanvas]);
+
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    isDrawingRef.current = true;
+    currentStrokeRef.current = {
+      tool: wbTool,
+      color: wbColor,
+      width: wbTool === 'eraser' ? 16 : wbWidth,
+      points: [{ x, y }]
+    };
+  };
+
+  const drawMove = (e) => {
+    if (!isDrawingRef.current || !currentStrokeRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    currentStrokeRef.current.points.push({ x, y });
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath();
+    ctx.strokeStyle = currentStrokeRef.current.tool === 'eraser' ? '#0B0E14' : currentStrokeRef.current.color;
+    ctx.lineWidth = currentStrokeRef.current.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const pts = currentStrokeRef.current.points;
+    if (pts.length >= 2) {
+      ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
+      ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      ctx.stroke();
+    }
+  };
+
+  const stopDrawing = async () => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    if (currentStrokeRef.current && currentStrokeRef.current.points.length > 1) {
+      const nextStrokes = [...wbStrokes, currentStrokeRef.current];
+      setWbStrokes(nextStrokes);
+      currentStrokeRef.current = null;
+      try {
+        const res = await fetch('/api/phong-collab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phongId: phong.id,
+            resource: 'whiteboard',
+            payload: { strokes: nextStrokes },
+            expectedVersion: wbVersionRef.current
+          })
+        });
+        const d = await res.json();
+        if (d.ok) wbVersionRef.current = d.version;
+      } catch {}
+    }
+  };
+
+  const clearWhiteboard = async () => {
+    if (!confirm('Bạn có chắc muốn xóa sạch bảng vẽ?')) return;
+    setWbStrokes([]);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    try {
+      const res = await fetch('/api/phong-collab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phongId: phong.id,
+          resource: 'whiteboard',
+          payload: { strokes: [] },
+          expectedVersion: wbVersionRef.current
+        })
+      });
+      const d = await res.json();
+      if (d.ok) wbVersionRef.current = d.version;
+    } catch {}
+  };
+
+  // 4. Shared Sheet State (8 cols x 10 rows)
+  const COLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const ROWS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const [sheetCells, setSheetCells] = React.useState({});
+  const sheetVersionRef = React.useRef(0);
+  const sheetSaveTimerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (dockTab !== 'sheet') return;
+    let active = true;
+    const fetchSheet = async () => {
+      try {
+        const res = await fetch(`/api/phong-collab?phongId=${phong.id}&resource=sheet`);
+        const d = await res.json();
+        if (active && d.ok && d.version > sheetVersionRef.current) {
+          sheetVersionRef.current = d.version;
+          setSheetCells(d.payload?.cells || {});
+        }
+      } catch {}
+    };
+    fetchSheet();
+    const interval = setInterval(fetchSheet, 3000);
+    return () => { active = false; clearInterval(interval); };
+  }, [phong.id, dockTab]);
+
+  const handleCellChange = (cellKey, val) => {
+    const nextCells = { ...sheetCells, [cellKey]: val };
+    setSheetCells(nextCells);
+    if (sheetSaveTimerRef.current) clearTimeout(sheetSaveTimerRef.current);
+    sheetSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/phong-collab', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phongId: phong.id,
+            resource: 'sheet',
+            payload: { cells: nextCells, rows: 10, cols: 8 },
+            expectedVersion: sheetVersionRef.current
+          })
+        });
+        const d = await res.json();
+        if (d.ok) sheetVersionRef.current = d.version;
+      } catch {}
+    }, 1000);
+  };
+
+  // 5. 1-to-1 WebRTC Voice Chat
+  const [voiceJoined, setVoiceJoined] = React.useState(false);
+  const [micMuted, setMicMuted] = React.useState(true); // Default OFF
+  const [voiceState, setVoiceState] = React.useState('disconnected');
+  const [voiceNotice, setVoiceNotice] = React.useState('');
+  const pcRef = React.useRef(null);
+  const localStreamRef = React.useRef(null);
+  const remoteAudioRef = React.useRef(null);
+  const lastSignalIdRef = React.useRef(0);
+  const voicePollTimerRef = React.useRef(null);
+
+  const joinVoice = async () => {
+    setVoiceNotice('Đang khởi tạo đàm thoại P2P...');
+    setVoiceState('connecting');
+    setVoiceJoined(true);
+    try {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      pcRef.current = pc;
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          fetch('/api/phong-collab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phongId: phong.id,
+              action: 'voice_signal',
+              signalType: 'candidate',
+              payload: event.candidate
+            })
+          }).catch(() => {});
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (remoteAudioRef.current && event.streams[0]) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        const s = pc.connectionState;
+        if (s === 'connected') {
+          setVoiceState('connected');
+          setVoiceNotice('✓ Đang kết nối thoại 1-1 trực tiếp.');
+          if (voicePollTimerRef.current) clearInterval(voicePollTimerRef.current);
+        } else if (s === 'failed' || s === 'disconnected') {
+          setVoiceState('disconnected');
+          setVoiceNotice('Mất kết nối thoại (mạng chặn P2P nếu không có TURN).');
+          if (voicePollTimerRef.current) clearInterval(voicePollTimerRef.current);
+        }
+      };
+
+      const joinRes = await fetch('/api/phong-collab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action: 'voice_signal', signalType: 'join', payload: {} })
+      });
+      const joinData = await joinRes.json();
+      if (!joinData.ok) {
+        setVoiceNotice(joinData.loi || 'Không thể tham gia voice');
+        setVoiceJoined(false);
+        setVoiceState('disconnected');
+        return;
+      }
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await fetch('/api/phong-collab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action: 'voice_signal', signalType: 'offer', payload: offer })
+      });
+
+      voicePollTimerRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/phong-collab?phongId=${phong.id}&action=voice_poll&sauId=${lastSignalIdRef.current}`);
+          const d = await res.json();
+          if (d.ok && Array.isArray(d.signals)) {
+            for (const sig of d.signals) {
+              lastSignalIdRef.current = Math.max(lastSignalIdRef.current, sig.id);
+              if (sig.signalType === 'offer' && !pc.remoteDescription) {
+                await pc.setRemoteDescription(new RTCSessionDescription(sig.payload));
+                const ans = await pc.createAnswer();
+                await pc.setLocalDescription(ans);
+                await fetch('/api/phong-collab', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phongId: phong.id, action: 'voice_signal', signalType: 'answer', payload: ans })
+                });
+              } else if (sig.signalType === 'answer' && !pc.remoteDescription) {
+                await pc.setRemoteDescription(new RTCSessionDescription(sig.payload));
+              } else if (sig.signalType === 'candidate' && pc.remoteDescription) {
+                await pc.addIceCandidate(new RTCIceCandidate(sig.payload)).catch(() => {});
+              } else if (sig.signalType === 'leave') {
+                setVoiceNotice('Bạn cùng phòng đã ngắt kết nối voice.');
+                setVoiceState('disconnected');
+              }
+            }
+          }
+        } catch {}
+      }, 1500);
+
+    } catch (err) {
+      setVoiceNotice('Lỗi kết nối voice: ' + err.message);
+      setVoiceState('disconnected');
+    }
+  };
+
+  const toggleMic = async () => {
+    if (micMuted) {
+      try {
+        if (!localStreamRef.current) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          localStreamRef.current = stream;
+          if (pcRef.current) {
+            stream.getTracks().forEach(track => pcRef.current.addTrack(track, stream));
+          }
+        } else {
+          localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = true; });
+        }
+        setMicMuted(false);
+      } catch (err) {
+        alert('Không thể mở micro: ' + err.message);
+      }
+    } else {
+      if (localStreamRef.current) {
+        localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = false; });
+      }
+      setMicMuted(true);
+    }
+  };
+
+  const leaveVoice = () => {
+    if (voicePollTimerRef.current) clearInterval(voicePollTimerRef.current);
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    fetch('/api/phong-collab', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phongId: phong.id, action: 'voice_signal', signalType: 'leave', payload: {} })
+    }).catch(() => {});
+    setVoiceJoined(false);
+    setMicMuted(true);
+    setVoiceState('disconnected');
+    setVoiceNotice('Đã ngắt voice.');
+  };
+
+  return (
+    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[380px] shadow-xl">
+      {/* Study Dock Tab Navigation */}
+      <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            id="tab-study-chat"
+            type="button"
+            onClick={() => setDockTab('chat')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'chat' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            <span>💬</span>
+            <span>Chat phòng</span>
+          </button>
+          <button
+            id="tab-study-notes"
+            type="button"
+            onClick={() => setDockTab('notes')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'notes' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            <span>📝</span>
+            <span>Ghi chú</span>
+          </button>
+          <button
+            id="tab-study-whiteboard"
+            type="button"
+            onClick={() => setDockTab('whiteboard')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'whiteboard' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            <span>🎨</span>
+            <span>Bảng vẽ</span>
+          </button>
+          <button
+            id="tab-study-sheet"
+            type="button"
+            onClick={() => setDockTab('sheet')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'sheet' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            <span>📊</span>
+            <span>Bảng tính</span>
+          </button>
+          <button
+            id="tab-study-voice"
+            type="button"
+            onClick={() => setDockTab('voice')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'voice' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            <span>🎙️</span>
+            <span>Voice (1-1)</span>
+          </button>
+        </div>
+        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider hidden sm:inline">
+          Study Workspace
+        </span>
+      </div>
+
+      {/* Dock Content Body */}
+      <div className="flex-1 flex flex-col pt-3 min-h-[300px]">
+        {/* TAB 1: CHAT PHÒNG */}
+        {dockTab === 'chat' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72 text-xs">
+              {phongChat.length === 0 ? (
+                <p className="text-[11px] text-slate-500 text-center py-8">Chưa có tin nhắn — hãy gửi câu hỏi hoặc trao đổi về bài giảng!</p>
+              ) : (
+                phongChat.map((m, idx) => (
+                  <div key={m.id || idx} className="text-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-slate-300 text-[11px]">{m.tenNguoiGui}</span>
+                      {m.vaiTro === 'giao_vien' ? (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">GVCN</span>
+                      ) : m.lopTen ? (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/20">{m.lopTen}</span>
+                      ) : null}
+                      <span className="text-[10px] text-slate-500">
+                        {m.taoLuc ? new Date(m.taoLuc.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
+                    </div>
+                    <p className="bg-[#0B0E14] border border-white/5 rounded-xl px-3 py-2 text-slate-200 text-xs leading-relaxed break-words">
+                      {m.noiDung}
+                    </p>
+                  </div>
+                ))
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <form onSubmit={handleSendRoomChat} className="pt-3 border-t border-white/10 flex items-center gap-2 mt-auto">
+              <textarea
+                id="input-phong-chat"
+                rows={1}
+                placeholder="Nhắn tin trong phòng học..."
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onCompositionStart={() => { chatComposingRef.current = true; }}
+                onCompositionEnd={() => { chatComposingRef.current = false; }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.nativeEvent?.isComposing || chatComposingRef.current) return;
+                    e.preventDefault();
+                    handleSendRoomChat();
+                  }
+                }}
+                maxLength={500}
+                className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/60 resize-none min-h-[38px] max-h-24"
+              />
+              <button
+                type="submit"
+                id="btn-send-phong-chat"
+                disabled={!chatInput.trim() || chatSending}
+                className="px-4 py-2 rounded-xl bg-[#00F2FE] hover:bg-[#00e1ec] text-black text-xs font-black transition-all disabled:opacity-30 shrink-0">
+                Gửi
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 2: GHI CHÚ CỘNG TÁC (SHARED NOTES) */}
+        {dockTab === 'notes' && (
+          <div className="flex-1 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>Ghi chép thảo luận chung (Lưu tự động)</span>
+              <div className="flex items-center gap-2">
+                {notesUpdatedBy && <span>Người sửa gần nhất: <strong className="text-slate-200">{notesUpdatedBy}</strong> (v{notesVersion})</span>}
+                {notesNotice && <span className="text-[#00F2FE] font-bold">{notesNotice}</span>}
+              </div>
+            </div>
+            <textarea
+              id="study-notes-editor"
+              value={notesText}
+              onChange={e => handleNotesChange(e.target.value)}
+              placeholder="Ghi chú kiến thức trọng tâm bài học..."
+              className="flex-1 min-h-[220px] bg-[#0B0E14] border border-white/10 focus:border-[#00F2FE]/50 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none leading-relaxed resize-none font-mono"
+            />
+          </div>
+        )}
+
+        {/* TAB 3: BẢNG VẼ CỘNG TÁC (SHARED WHITEBOARD) */}
+        {dockTab === 'whiteboard' && (
+          <div className="flex-1 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap text-xs pb-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-wb-pen"
+                  onClick={() => setWbTool('pen')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${wbTool === 'pen' ? 'bg-[#00F2FE] text-black' : 'bg-white/10 text-slate-300'}`}>
+                  ✏️ Bút vẽ
+                </button>
+                <button
+                  type="button"
+                  id="btn-wb-eraser"
+                  onClick={() => setWbTool('eraser')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${wbTool === 'eraser' ? 'bg-rose-500 text-white' : 'bg-white/10 text-slate-300'}`}>
+                  🧹 Tẩy
+                </button>
+                <div className="flex items-center gap-1 ml-2">
+                  {['#00F2FE', '#FFB800', '#F43F5E', '#FFFFFF'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => { setWbColor(c); setWbTool('pen'); }}
+                      className={`w-5 h-5 rounded-full border ${wbColor === c && wbTool === 'pen' ? 'scale-110 border-white ring-2 ring-cyan-400' : 'border-transparent'}`}
+                      style={{ background: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-wb-clear"
+                onClick={clearWhiteboard}
+                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-300 border border-white/10 text-xs font-bold">
+                Xóa bảng
+              </button>
+            </div>
+            <div className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl overflow-hidden flex items-center justify-center relative touch-none min-h-[220px]">
+              <canvas
+                id="study-whiteboard-canvas"
+                ref={canvasRef}
+                width={640}
+                height={320}
+                onMouseDown={startDrawing}
+                onMouseMove={drawMove}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={drawMove}
+                onTouchEnd={stopDrawing}
+                className="w-full h-full cursor-crosshair"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: BẢNG TÍNH CỘNG TÁC (SHARED SHEET 8x10) */}
+        {dockTab === 'sheet' && (
+          <div className="flex-1 flex flex-col gap-2 overflow-x-auto">
+            <div className="text-[11px] text-slate-400">
+              Bảng tính phân tích số liệu / mốc thời gian học tập (Lưu tự động)
+            </div>
+            <div className="flex-1 overflow-auto max-h-72 border border-white/10 rounded-xl bg-[#0B0E14]">
+              <table id="study-sheet-table" className="w-full text-xs text-slate-300 border-collapse">
+                <thead>
+                  <tr className="bg-white/5 text-slate-400 border-b border-white/10 font-mono">
+                    <th className="w-8 p-1 text-center border-r border-white/10 text-[10px]">#</th>
+                    {COLS.map(c => (
+                      <th key={c} className="p-1.5 text-center border-r border-white/10 min-w-[70px] text-[11px] font-bold text-cyan-300">
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROWS.map(r => (
+                    <tr key={r} className="border-b border-white/5 hover:bg-white/[0.02]">
+                      <td className="p-1 text-center bg-white/5 text-slate-500 font-mono text-[10px] border-r border-white/10">
+                        {r}
+                      </td>
+                      {COLS.map(c => {
+                        const cellKey = `${c}${r}`;
+                        return (
+                          <td key={cellKey} className="p-0 border-r border-white/5">
+                            <input
+                              type="text"
+                              data-cell={cellKey}
+                              value={sheetCells[cellKey] || ''}
+                              onChange={e => handleCellChange(cellKey, e.target.value)}
+                              className="w-full bg-transparent px-2 py-1 text-xs text-white focus:bg-[#151A23] focus:outline-none focus:ring-1 focus:ring-[#00F2FE]"
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: 1-TO-1 WEBRTC VOICE CHAT */}
+        {dockTab === 'voice' && (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-4">
+            <audio ref={remoteAudioRef} autoPlay />
+            <div className="w-16 h-16 rounded-3xl bg-amber-400/15 border border-amber-400/30 text-amber-400 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+              🎙️
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-white">Thoại Trực Tiếp 1-1 Trong Phòng</h4>
+              <p className="text-xs text-slate-400 max-w-xs mt-1">
+                Trao đổi âm thanh trực tiếp hai chiều bằng công nghệ WebRTC Peer-to-Peer. Micro mặc định tắt khi chưa bật.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {!voiceJoined ? (
+                <button
+                  type="button"
+                  id="btn-voice-join"
+                  onClick={joinVoice}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-black font-black text-xs shadow-lg hover:opacity-90 active:scale-95 transition-all">
+                  Tham gia voice
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    id="btn-voice-toggle-mic"
+                    onClick={toggleMic}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${micMuted ? 'bg-white/10 text-slate-300 hover:bg-white/15' : 'bg-emerald-500 text-black'}`}>
+                    <span>{micMuted ? '🔇 Bật Mic' : '🎙️ Mic Đang Bật'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-voice-leave"
+                    onClick={leaveVoice}
+                    className="px-4 py-2.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 transition-all">
+                    Rời voice
+                  </button>
+                </>
+              )}
+            </div>
+
+            {voiceNotice && (
+              <p id="voice-status-notice" className="text-xs text-slate-300 font-mono bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                {voiceNotice}
+              </p>
+            )}
+            <p className="text-[10px] text-slate-500 max-w-xs">
+              * Ghi chú: Kết nối thoại P2P yêu cầu mạng không chặn UDP. Restrictive NAT có thể cần relay TURN.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CampusWatchTogether({
@@ -2066,6 +2869,22 @@ function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVaoSuKien 
 function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }) {
   const [tab, setTab] = React.useState('campus'); // 'campus' | 'class' | 'me'
 
+  // Attention & Unread state (Phase 4F)
+  const [unreadCampus, setUnreadCampus] = React.useState(0);
+  const [unreadClass, setUnreadClass] = React.useState(0);
+  const [unreadDms, setUnreadDms] = React.useState({});
+  const [totalDms, setTotalDms] = React.useState(0);
+  const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = React.useState(0);
+
+  const isCampusComposingRef = React.useRef(false);
+  const isClassComposingRef = React.useRef(false);
+  const isDmComposingRef = React.useRef(false);
+
+  const formatBadge = (num) => {
+    if (!num || num <= 0) return null;
+    return num > 99 ? '99+' : String(num);
+  };
+
   // Campus Chat state
   const [campusMessages, setCampusMessages] = React.useState([]);
   const [campusInput, setCampusInput] = React.useState('');
@@ -2129,6 +2948,58 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
       setTab('campus');
     }
   }, [hasClassAccess, tab]);
+
+  // Tải trạng thái tin nhắn chưa đọc (Phase 4F)
+  const taiUnreadState = React.useCallback(async () => {
+    if (!isActiveCampusAccount) return;
+    try {
+      const res = await fetch('/api/chat-read-state');
+      const d = await res.json();
+      if (d.ok) {
+        setUnreadCampus(d.campus || 0);
+        setUnreadClass(d.class || 0);
+        setUnreadDms(d.dms || {});
+        setTotalDms(d.totalDms || 0);
+        setPendingFriendRequestsCount(d.pendingFriendRequests || 0);
+      }
+    } catch {}
+  }, [isActiveCampusAccount]);
+
+  const markCampusRead = React.useCallback(async (maxId = 0) => {
+    setUnreadCampus(0);
+    if (!isActiveCampusAccount) return;
+    try {
+      await fetch('/api/chat-read-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelType: 'campus', channelKey: 'campus', lastReadId: maxId })
+      });
+    } catch {}
+  }, [isActiveCampusAccount]);
+
+  const markClassRead = React.useCallback(async (lopId, maxId = 0) => {
+    setUnreadClass(0);
+    if (!isActiveCampusAccount || !lopId) return;
+    try {
+      await fetch('/api/chat-read-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelType: 'class', channelKey: 'lop:' + lopId, lastReadId: maxId })
+      });
+    } catch {}
+  }, [isActiveCampusAccount]);
+
+  const markDmRead = React.useCallback(async (friendId, maxId = 0) => {
+    setUnreadDms(prev => ({ ...prev, [friendId]: 0 }));
+    if (!isActiveCampusAccount || !friendId) return;
+    try {
+      await fetch('/api/chat-read-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelType: 'dm', channelKey: 'peer:' + friendId, lastReadId: maxId })
+      });
+    } catch {}
+  }, [isActiveCampusAccount]);
 
   // 1. Tải Campus Chat incremental
   const taiCampusChat = React.useCallback(async (sauId = 0) => {
@@ -2255,10 +3126,14 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
       }
     }
 
+    taiUnreadState();
+
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       const currentTab = tabRef.current;
       const currentFriend = activeFriendRef.current;
+
+      taiUnreadState();
 
       if (currentTab === 'campus') {
         taiCampusChat(lastCampusMessageIdRef.current);
@@ -2271,7 +3146,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
           taiFriends();
         }
       }
-    }, 4000);
+    }, 3500);
 
     return () => clearInterval(interval);
   }, [isActiveCampusAccount, hasClassAccess, isActive, tab, activeFriend?.accountId, classLopId, taiCampusChat, taiClassChat, taiFriends, taiDmMessages]);
@@ -2295,11 +3170,13 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
     }
   }, [dmMessages.length, tab, activeFriend]);
 
-  // Gửi Campus Chat
+  // Gửi Campus Chat (Phase 4F: Safe Clear + IME Guard)
   const handleSendCampus = async (e) => {
     e?.preventDefault();
     const text = campusInput.trim();
     if (!text || campusSending) return;
+    // Optimistically clear input immediately so user can type next message
+    setCampusInput('');
     setCampusSending(true);
     setCampusNotice('');
     try {
@@ -2310,17 +3187,20 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
       });
       const data = await res.json();
       if (data.ok && data.message) {
-        setCampusInput('');
         setCampusMessages(prev => {
           const next = [...prev, data.message];
           lastCampusMessageIdRef.current = Math.max(lastCampusMessageIdRef.current, data.message.id || 0);
           return next;
         });
+        markCampusRead(data.message.id);
       } else {
         setCampusNotice(data.loi || 'Không gửi được tin nhắn.');
+        // Restore ONLY if user hasn't started typing a new message
+        setCampusInput(cur => cur ? cur : text);
       }
     } catch {
       setCampusNotice('Lỗi kết nối khi gửi tin nhắn.');
+      setCampusInput(cur => cur ? cur : text);
     } finally {
       setCampusSending(false);
     }
@@ -2342,11 +3222,12 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
     }
   };
 
-  // Gửi Class Chat
+  // Gửi Class Chat (Phase 4F: Safe Clear + IME Guard)
   const handleSendClass = async (e) => {
     e?.preventDefault();
     const text = classInput.trim();
     if (!text || classSending) return;
+    setClassInput('');
     setClassSending(true);
     setClassNotice('');
     try {
@@ -2359,27 +3240,30 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
       });
       const data = await res.json();
       if (data.ok && data.tinNhan) {
-        setClassInput('');
         setClassMessages(prev => {
           const next = [...prev, data.tinNhan];
           lastClassMessageIdRef.current = Math.max(lastClassMessageIdRef.current, data.tinNhan.id || 0);
           return next;
         });
+        markClassRead(classLopId, data.tinNhan.id);
       } else {
         setClassNotice(data.loi || 'Không gửi được tin nhắn.');
+        setClassInput(cur => cur ? cur : text);
       }
     } catch {
       setClassNotice('Lỗi kết nối khi gửi tin nhắn.');
+      setClassInput(cur => cur ? cur : text);
     } finally {
       setClassSending(false);
     }
   };
 
-  // Gửi tin nhắn riêng (DM)
+  // Gửi tin nhắn riêng (DM - Phase 4F: Safe Clear + IME Guard)
   const handleSendDm = async (e) => {
     e?.preventDefault();
     const text = dmInput.trim();
     if (!text || !activeFriend || dmSending) return;
+    setDmInput('');
     setDmSending(true);
     setDmNotice('');
     try {
@@ -2390,17 +3274,19 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
       });
       const data = await res.json();
       if (data.ok && data.message) {
-        setDmInput('');
         setDmMessages(prev => {
           const next = [...prev, data.message];
           lastDmMessageIdRef.current = Math.max(lastDmMessageIdRef.current, data.message.id || 0);
           return next;
         });
+        markDmRead(activeFriend.accountId, data.message.id);
       } else {
         setDmNotice(data.loi || 'Không thể gửi tin nhắn.');
+        setDmInput(cur => cur ? cur : text);
       }
     } catch {
       setDmNotice('Lỗi kết nối khi gửi tin nhắn riêng.');
+      setDmInput(cur => cur ? cur : text);
     } finally {
       setDmSending(false);
     }
@@ -2562,18 +3448,36 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
           <button
             type="button"
             id="chat-tab-campus"
-            onClick={() => { setTab('campus'); setActiveFriend(null); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${tab === 'campus' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
-            Campus
+            onClick={() => {
+              setTab('campus');
+              setActiveFriend(null);
+              markCampusRead(lastCampusMessageIdRef.current);
+            }}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 ${tab === 'campus' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+            <span>Campus</span>
+            {unreadCampus > 0 && (
+              <span id="badge-unread-campus" className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white animate-pulse">
+                {formatBadge(unreadCampus)}
+              </span>
+            )}
           </button>
 
           {hasClassAccess && (
             <button
               type="button"
               id="chat-tab-class"
-              onClick={() => { setTab('class'); setActiveFriend(null); }}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center ${tab === 'class' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
-              Lớp
+              onClick={() => {
+                setTab('class');
+                setActiveFriend(null);
+                markClassRead(classLopId, lastClassMessageIdRef.current);
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 ${tab === 'class' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+              <span>Lớp</span>
+              {unreadClass > 0 && (
+                <span id="badge-unread-class" className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-cyan-400 text-black">
+                  {formatBadge(unreadClass)}
+                </span>
+              )}
             </button>
           )}
 
@@ -2581,11 +3485,11 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
             type="button"
             id="chat-tab-me"
             onClick={() => { setTab('me'); taiFriends(); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center relative ${tab === 'me' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 relative ${tab === 'me' ? 'bg-[#00F2FE] text-black shadow-sm' : 'text-slate-400 hover:text-white'}`}>
             <span>Tôi</span>
-            {pendingIncoming.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-black">
-                {pendingIncoming.length}
+            {(totalDms + pendingIncoming.length + pendingFriendRequestsCount) > 0 && (
+              <span id="badge-unread-me" className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-400 text-black">
+                {formatBadge(totalDms + Math.max(pendingIncoming.length, pendingFriendRequestsCount))}
               </span>
             )}
           </button>
@@ -2649,15 +3553,23 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
 
           {/* Composer */}
           <form onSubmit={handleSendCampus} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0">
-            <input
-              type="text"
+            <textarea
               id="input-campus-chat"
-              placeholder="Nhắn tin toàn Campus..."
+              rows={1}
+              placeholder="Nhắn tin toàn Campus... (Enter để gửi, Shift+Enter xuống dòng)"
               value={campusInput}
               onChange={e => setCampusInput(e.target.value)}
+              onCompositionStart={() => { isCampusComposingRef.current = true; }}
+              onCompositionEnd={() => { isCampusComposingRef.current = false; }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.nativeEvent?.isComposing || isCampusComposingRef.current) return;
+                  e.preventDefault();
+                  handleSendCampus();
+                }
+              }}
               maxLength={500}
-              disabled={campusSending}
-              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/60 disabled:opacity-50"
+              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/60 resize-none min-h-[38px] max-h-24"
             />
             <button
               type="submit"
@@ -2727,15 +3639,23 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
 
           {/* Composer */}
           <form onSubmit={handleSendClass} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0">
-            <input
-              type="text"
+            <textarea
               id="input-class-chat"
-              placeholder="Nhắn tin với lớp..."
+              rows={1}
+              placeholder="Nhắn tin với lớp... (Enter để gửi, Shift+Enter xuống dòng)"
               value={classInput}
               onChange={e => setClassInput(e.target.value)}
+              onCompositionStart={() => { isClassComposingRef.current = true; }}
+              onCompositionEnd={() => { isClassComposingRef.current = false; }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.nativeEvent?.isComposing || isClassComposingRef.current) return;
+                  e.preventDefault();
+                  handleSendClass();
+                }
+              }}
               maxLength={300}
-              disabled={classSending}
-              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/60 disabled:opacity-50"
+              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400/60 resize-none min-h-[38px] max-h-24"
             />
             <button
               type="submit"
@@ -2801,7 +3721,7 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
                 ) : (
                   friends.map(f => (
                     <button key={f.friendshipId} type="button"
-                      onClick={() => { setActiveFriend(f); taiDmMessages(f.accountId); }}
+                      onClick={() => { setActiveFriend(f); markDmRead(f.accountId); taiDmMessages(f.accountId); }}
                       className="w-full flex items-center justify-between p-2 rounded-xl bg-[#0B0E14]/60 hover:bg-[#00F2FE]/10 border border-white/5 hover:border-[#00F2FE]/30 transition-all text-left group">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#00F2FE]/30 to-[#8B5CF6]/30 flex items-center justify-center font-bold text-xs text-white shrink-0">
@@ -2812,7 +3732,14 @@ function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }
                           <p className="text-[10px] text-slate-400 truncate">@{f.username} {f.classBadge ? `• ${f.classBadge}` : ''}</p>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-400 group-hover:text-white transition-colors">›</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {Boolean(unreadDms[f.accountId]) && (
+                          <span className="px-1.5 py-0.2 rounded-full bg-cyan-400 text-black font-black text-[9px]">
+                            {formatBadge(unreadDms[f.accountId])}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400 group-hover:text-white transition-colors">›</span>
+                      </div>
                     </button>
                   ))
                 )}
@@ -3473,9 +4400,63 @@ function ActivityLobby({
 }) {
   const [search, setSearch] = React.useState('');
   const [roomFilter, setRoomFilter] = React.useState('ALL'); // 'ALL' | 'public' | 'private'
+  const [ytQuery, setYtQuery] = React.useState('');
+  const [ytResults, setYtResults] = React.useState([]);
+  const [ytLoading, setYtLoading] = React.useState(false);
+  const [ytConfigured, setYtConfigured] = React.useState(true);
+  const [ytError, setYtError] = React.useState('');
+
+  React.useEffect(() => {
+    if (lobbyId !== 'CINEMA') return;
+    fetch('/api/youtube-search')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.configured === false) setYtConfigured(false);
+      })
+      .catch(() => {});
+  }, [lobbyId]);
+
+  React.useEffect(() => {
+    if (lobbyId !== 'CINEMA') return;
+    const trimmed = ytQuery.trim();
+    if (trimmed.length < 2) {
+      setYtResults([]);
+      setYtLoading(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setYtLoading(true);
+      setYtError('');
+      try {
+        const res = await fetch('/api/youtube-search?q=' + encodeURIComponent(trimmed));
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          if (data.configured === false) {
+            setYtConfigured(false);
+            setYtResults([]);
+          } else {
+            setYtConfigured(true);
+            setYtResults(Array.isArray(data.items) ? data.items : []);
+          }
+        } else {
+          if (data.configured === false) {
+            setYtConfigured(false);
+            setYtResults([]);
+          } else {
+            setYtError(data.error || 'Lỗi tìm kiếm YouTube');
+          }
+        }
+      } catch (err) {
+        setYtError('Lỗi kết nối mạng');
+      } finally {
+        setYtLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [ytQuery, lobbyId]);
 
   const meta = {
-    CINEMA: { id: 'lobby-watch', title: 'Xem chung', icon: '🎬', loai: 'video', desc: 'Phòng chiếu phim & xem video YouTube cùng bạn bè' },
+    CINEMA: { id: 'lobby-watch', title: 'YouTube', icon: '▶️', loai: 'video', desc: 'Không gian học tập và xem video YouTube cùng bạn bè' },
     GAME: { id: 'lobby-game', title: 'Game', icon: '🎮', loai: 'game', desc: 'Đấu trường trí tuệ Caro 15×15 thời gian thực' },
     LOFI: { id: 'lobby-music', title: 'Music', icon: '🎧', loai: 'nhac', desc: 'Không gian nghe nhạc Lofi & tự học tập trung' },
     CHAT: { id: 'lobby-chat', title: 'Chat', icon: '💬', loai: 'chat', desc: 'Sảnh trò chuyện và giao lưu toàn trường' }
@@ -3535,6 +4516,16 @@ function ActivityLobby({
         </div>
 
         <div className="flex items-center gap-2">
+          {lobbyId === 'CINEMA' && (
+            <button
+              type="button"
+              id="btn-create-youtube-room"
+              onClick={() => onOpenTaoPhong && onOpenTaoPhong('video')}
+              className="h-11 px-5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold text-xs shadow-[0_0_16px_rgba(239,68,68,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 shrink-0">
+              <span>+</span>
+              <span>Tạo phòng YouTube</span>
+            </button>
+          )}
           {lobbyId === 'GAME' ? (
             <>
               <button
@@ -3617,6 +4608,88 @@ function ActivityLobby({
           </div>
         </div>
       </div>
+
+      {lobbyId === 'CINEMA' && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#151A23] border border-white/10 shadow-xl flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <input
+                id="yt-search-input"
+                type="text"
+                value={ytQuery}
+                onChange={e => setYtQuery(e.target.value)}
+                placeholder="🔍 Tìm video trên YouTube để học tập hoặc xem cùng bạn bè..."
+                className="w-full bg-[#0B0E14] border border-white/10 focus:border-red-500 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+              />
+              <span className="absolute left-3 top-2.5 text-xs text-red-500">▶</span>
+              {ytQuery && (
+                <button type="button" onClick={() => { setYtQuery(''); setYtResults([]); }} className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white">
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              id="btn-paste-youtube-url"
+              onClick={() => {
+                const url = prompt('Dán liên kết video YouTube (ví dụ: https://www.youtube.com/watch?v=...):');
+                if (url && url.trim()) {
+                  if (onOpenTaoPhong) onOpenTaoPhong('video', url.trim(), 'Phòng học YouTube');
+                }
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5 shrink-0">
+              <span>🔗</span>
+              <span>Dán liên kết YouTube</span>
+            </button>
+          </div>
+
+          {ytLoading && (
+            <div className="text-xs text-slate-400 py-1 flex items-center gap-2">
+              <span className="animate-spin">⏳</span>
+              <span>Đang tìm kiếm video học tập trên YouTube...</span>
+            </div>
+          )}
+
+          {!ytConfigured && (
+            <div id="yt-search-not-configured" className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Tìm kiếm YouTube chưa được cấu hình. Bạn có thể dùng nút <strong>Dán liên kết YouTube</strong> để tạo phòng.</span>
+            </div>
+          )}
+
+          {ytError && <div className="text-xs text-rose-400">{ytError}</div>}
+
+          {ytResults.length > 0 && (
+            <div id="yt-search-results" className="flex flex-col gap-2 pt-2 border-t border-white/5">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Kết quả tìm kiếm ({ytResults.length})</span>
+                <span className="text-[10px] text-slate-500">Bấm "Xem" để tạo phòng học với video đã chọn</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ytResults.map(v => (
+                  <div key={v.videoId} className="p-3 rounded-xl bg-[#0B0E14] border border-white/10 hover:border-red-500/50 flex gap-3 items-center transition-all group">
+                    <img src={v.thumbnail} alt={v.title} className="w-24 h-16 object-cover rounded-lg shrink-0 group-hover:scale-105 transition-transform" />
+                    <div className="flex-1 min-w-0">
+                      <h5 className="text-xs font-bold text-white line-clamp-2 leading-snug">{v.title}</h5>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{v.channelTitle}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onOpenTaoPhong) {
+                            onOpenTaoPhong('video', 'https://www.youtube.com/watch?v=' + v.videoId, v.title);
+                          }
+                        }}
+                        className="mt-2 px-3 py-1 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white text-[10px] font-black transition-all">
+                        Xem & Học tập →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {lobbyId === 'GAME' ? (
         filteredCaroRooms.length === 0 ? (
@@ -6982,7 +8055,6 @@ function DigitalCampusApp() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#00F2FE] font-bold">Digital Campus · GDTX Định Quán</span>
               </div>
-              <p className="text-[10px] text-slate-400">Trung tâm GDNN - GDTX Huyện Định Quán · Toàn Trường</p>
             </div>
           </div>
 
@@ -7535,8 +8607,23 @@ function DigitalCampusApp() {
                     </>
                   )}
 
-                  {/* Chat của phòng — ẩn khi bật Focus Mode */}
-                  {!(isFocusMode && p.loai === 'nhac') && (
+                  {/* Study Dock (YouTube) OR Standard Room Chat */}
+                  {p.loai === 'video' ? (
+                    <StudyDock
+                      phong={p}
+                      phongMinhKhoa={phongMinhKhoa}
+                      auth={auth}
+                      phongChat={phongChat}
+                      onSendPhongChat={async (noiDung) => {
+                        await fetch('/api/phong-chat', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ phongId: p.id, noiDung })
+                        });
+                        taiTinNhanPhong(p.id);
+                      }}
+                    />
+                  ) : !(isFocusMode && p.loai === 'nhac') && (
                     <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[320px]">
                       <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3 pb-2 border-b border-white/10">
                         Chat phòng{p.phamVi === 'truong' ? ' — liên lớp' : ''}
@@ -7602,10 +8689,15 @@ function DigitalCampusApp() {
                 <ActivityLobby
                   lobbyId={currentLobby}
                   onBack={() => setCurrentLobby(null)}
-                  onOpenTaoPhong={(loai) => {
+                  onOpenTaoPhong={(loai, url, title) => {
                     if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
                     setTpLoi('');
-                    setTpForm(f => ({ ...f, loai, ten: '' }));
+                    setTpForm(f => ({
+                      ...f,
+                      loai: loai || 'chat',
+                      ten: title ? title.slice(0, 40) : (loai === 'video' ? 'Phòng học YouTube' : ''),
+                      videoUrl: url || f.videoUrl || ''
+                    }));
                     setShowTaoPhong(true);
                   }}
                   dsPhong={phongCongDong || []}
@@ -7640,26 +8732,26 @@ function DigitalCampusApp() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
-                      {/* Card 1: Xem chung */}
+                      {/* Card 1: YouTube */}
                       <CampusSpaceCard
-                        theme="cyan"
+                        theme="youtube"
                         sceneType="cinema"
-                        title="Xem chung"
+                        title="YouTube"
                         metric={(() => {
-                          const pv = (phongCongDong || []).find(p => p.loai === 'video');
-                          return pv && (pv.soNguoi || 0) > 0 ? `${pv.soNguoi} đang xem` : null;
+                          const pv = (phongCongDong || []).filter(p => p.loai === 'video').length;
+                          return pv > 0 ? `● ${pv} phòng` : null;
                         })()}
                         onAction={() => setCurrentLobby('CINEMA')}
                       />
 
                       {/* Card 2: Game */}
                       <CampusSpaceCard
-                        theme="amber"
+                        theme="game"
                         sceneType="game"
                         title="Game"
                         metric={(() => {
                           const activeCaro = (caroRooms || []).filter(b => b.trangThai === 'dang_choi').length;
-                          return activeCaro > 0 ? `${activeCaro} trận đấu` : null;
+                          return activeCaro > 0 ? `● ${activeCaro} trận đấu` : null;
                         })()}
                         onAction={() => {
                           setCurrentLobby('GAME');
@@ -7669,12 +8761,12 @@ function DigitalCampusApp() {
 
                       {/* Card 3: Music */}
                       <CampusSpaceCard
-                        theme="violet"
+                        theme="music"
                         sceneType="music"
                         title="Music"
                         metric={(() => {
                           const pn = (phongCongDong || []).find(p => p.loai === 'nhac' || p.loai === 'focus');
-                          return pn && (pn.soNguoi || 0) > 0 ? `${pn.soNguoi} đang nghe` : null;
+                          return pn && (pn.soNguoi || 0) > 0 ? `● ${pn.soNguoi} đang nghe` : null;
                         })()}
                         onAction={() => setCurrentLobby('LOFI')}
                       />
