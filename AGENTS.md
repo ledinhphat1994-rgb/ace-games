@@ -8,3 +8,4 @@
 - Không xóa/tắt endpoint để "vá" lỗi bảo mật — phải sửa query.
 - Trước khi commit: dùng skill `kiem-tra-truoc-khi-push`. Khi sửa UI: dùng skill `so-khop-giao-dien`.
 - Commit message tiếng Việt/Anh dạng conventional (`feat:`, `fix:`, `security:`); 1 việc = 1 commit. Không `--force`.
+- QUY TẮC COMMIT, PUSH & DEPLOY TỰ ĐỘNG (BẮT BUỘC): Bất cứ khi nào hoàn tất xong công việc, sau khi kiểm thử và verify đạt chuẩn 100%, agent PHẢI tự động hoàn thành trọn vẹn: commit → git push origin main → nạp migration D1 remote (nếu có tệp SQL mới) → chạy `npm run deploy` lên Cloudflare Pages. Không dừng lại ở giữa chừng bắt người dùng phải tự deploy thủ công.

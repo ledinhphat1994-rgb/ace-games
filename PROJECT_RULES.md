@@ -13,7 +13,8 @@
 - UI/UX: Dark SaaS aesthetic (Background: `#090d16`, Surface: `#0f172a`, Hairline 1px border `white/10`). Mobile touch target >= 44px.
 - OUTPUT INTEGRITY: Output production-ready, 100% complete code. No placeholders, no `// TODO`, no omitted implementation.
 
-## 3. VERIFICATION PIPELINE
+## 3. VERIFICATION & AUTO-DEPLOY PIPELINE
 Before finalizing any changes, ensure:
 1. `node cong-cu/kiem-tra-du-lieu.js` (or `npm run kiem-tra-du-lieu`) passes with 0 syntax/security issues.
 2. `node build.js` (or `npm run build`) builds cleanly into `dist/`.
+3. AUTOMATIC COMMIT, PUSH & DEPLOY: Once verification passes, always execute the full pipeline automatically: commit → `git push origin main` → remote D1 migration (if SQL changed) → `npm run deploy` to Cloudflare Pages. Never leave shipping unfinished.
