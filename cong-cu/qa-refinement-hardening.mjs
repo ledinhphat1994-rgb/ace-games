@@ -8,6 +8,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { createToken, COOKIE_NAME } from '../functions/_lib/auth.js';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8788';
@@ -53,8 +54,15 @@ async function run() {
   console.log(`Target Server: ${BASE}`);
   console.log('================================================================\n');
 
+  try {
+    execSync('npx wrangler d1 execute lop-10a7-db --local --file="cong-cu/seed-qa-prescale.sql" -y', { stdio: 'ignore' });
+  } catch (e) {
+    console.warn('  Cảnh báo seed D1:', e.message);
+  }
+
   // Prepare test cookies
   const teacherCookieStr = await taoSessionCookie({
+    accountId: 92136,
     role: 'teacher',
     username: 'gv_chu_nhiem',
     ten: 'Thầy Lê Đình Phát',
@@ -64,9 +72,11 @@ async function run() {
   });
 
   const studentCookieStr = await taoSessionCookie({
+    accountId: 99804,
     role: 'student',
     username: 'hs_hoc_sinh',
     ten: 'Nguyễn Văn An',
+    hocSinhId: 1,
     lopId: 1,
     toSo: 1
   });

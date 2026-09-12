@@ -1,29 +1,50 @@
-// API Quản lý Hồ sơ Hiển thị Giáo viên (Safe Presentation Fields)
+// API Quản lý Hồ sơ Hiển thị Giáo viên (Safe Presentation Fields Only)
 import { bocXuLy, json, loi, docThan, chuoi, chuanUrlMedia } from '../../_lib/api.js';
 
 export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const db = env.DB;
+
+  // BẢO MẬT: Bắt buộc tài khoản Campus chính thức — Không chấp nhận session không định danh
+  if (!phien.accountId) {
+    return json({
+      ok: false,
+      loi: 'account_link_required',
+      message: 'Yêu cầu liên kết tài khoản Campus chính thức trước khi truy cập hồ sơ.'
+    }, 409);
+  }
+
+  // Tra cứu tài khoản chính xác theo accountId (Canonical Account Lookup)
   const tk = await db.prepare(`
     SELECT id, ten_dang_nhap AS tenDangNhap, ten_hien_thi AS tenHienThi,
-           avatar, tieu_de_ho_so AS tieuDeHoSo, vai_tro AS vaiTro, lop_id AS lopId
+           avatar, tieu_de_ho_so AS tieuDeHoSo, vai_tro AS vaiTro,
+           teacher_pending AS teacherPending, dang_hoat_dong AS dangHoatDong, lop_id AS lopId
     FROM tai_khoan_campus
-    WHERE id = ?1 OR ten_dang_nhap = ?2
-    LIMIT 1
-  `).bind(phien.accountId || -1, phien.username || '').first().catch(() => null);
+    WHERE id = ?1
+  `).bind(phien.accountId).first().catch(() => null);
 
-  const lop = await db.prepare('SELECT ten, nam_hoc AS namHoc FROM lop WHERE id = ?1').bind(phien.lopId).first().catch(() => null);
+  if (!tk || !tk.dangHoatDong) {
+    return loi('Tài khoản không tồn tại hoặc đã bị khoá.', 403);
+  }
+
+  // Chặn giáo viên chờ duyệt (teacherPending === 1) hoặc không phải role teacher
+  if (tk.vaiTro !== 'teacher' || Number(tk.teacherPending) !== 0) {
+    return loi('Chỉ giáo viên đã được phê duyệt xác minh mới có quyền truy cập hồ sơ giáo viên.', 403);
+  }
+
+  const lopId = tk.lopId || phien.lopId || 1;
+  const lop = await db.prepare('SELECT ten, nam_hoc AS namHoc FROM lop WHERE id = ?1').bind(lopId).first().catch(() => null);
 
   return json({
     ok: true,
     hoSo: {
-      id: tk?.id || phien.accountId || null,
-      tenDangNhap: tk?.tenDangNhap || phien.username || '',
-      tenHienThi: tk?.tenHienThi || phien.ten || 'Giáo viên',
-      avatar: tk?.avatar || null,
-      tieuDeHoSo: tk?.tieuDeHoSo || 'Giáo viên Chủ nhiệm',
+      id: tk.id,
+      tenDangNhap: tk.tenDangNhap,
+      tenHienThi: tk.tenHienThi || phien.ten || 'Giáo viên',
+      avatar: tk.avatar || null,
+      tieuDeHoSo: tk.tieuDeHoSo || 'Giáo viên Chủ nhiệm',
       vaiTro: 'teacher',
-      isVerifiedTeacher: Boolean(phien.role === 'teacher' && !phien.teacherPending),
-      lopId: phien.lopId || null,
+      isVerifiedTeacher: true,
+      lopId,
       tenLop: lop?.ten || '',
       namHoc: lop?.namHoc || ''
     }
@@ -32,6 +53,33 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 
 export const onRequestPost = bocXuLy(async ({ env, phien, request }) => {
   const db = env.DB;
+
+  // BẢO MẬT: Bắt buộc tài khoản Campus chính thức
+  if (!phien.accountId) {
+    return json({
+      ok: false,
+      loi: 'account_link_required',
+      message: 'Yêu cầu liên kết tài khoản Campus chính thức trước khi chỉnh sửa hồ sơ.'
+    }, 409);
+  }
+
+  // Tra cứu tài khoản chính xác theo accountId
+  const tk = await db.prepare(`
+    SELECT id, ten_dang_nhap AS tenDangNhap, ten_hien_thi AS tenHienThi,
+           vai_tro AS vaiTro, teacher_pending AS teacherPending, dang_hoat_dong AS dangHoatDong
+    FROM tai_khoan_campus
+    WHERE id = ?1
+  `).bind(phien.accountId).first().catch(() => null);
+
+  if (!tk || !tk.dangHoatDong) {
+    return loi('Tài khoản không tồn tại hoặc đã bị khoá.', 403);
+  }
+
+  // Chặn giáo viên chờ duyệt hoặc tài khoản không mang quyền giáo viên thực tế
+  if (tk.vaiTro !== 'teacher' || Number(tk.teacherPending) !== 0) {
+    return loi('Chỉ giáo viên đã được phê duyệt xác minh mới có quyền chỉnh sửa hồ sơ giáo viên.', 403);
+  }
+
   const than = await docThan(request);
 
   const tenHienThi = chuoi(than.tenHienThi, 60);
@@ -39,35 +87,34 @@ export const onRequestPost = bocXuLy(async ({ env, phien, request }) => {
     return loi('Tên hiển thị không được để trống.', 400);
   }
 
-  const rawAvatar = String(than.avatar || '').trim();
+  // KIỂM TRA TÍNH HỢP LỆ CỦA URL AVATAR (AVATAR URL SECURITY VALIDATION)
+  // Chỉ chấp nhận https:// hoặc link nội bộ /...
+  // Tuyệt đối từ chối javascript:, data:, http://, //evil...
   let avatar = null;
-  if (rawAvatar) {
-    avatar = chuanUrlMedia(rawAvatar) || chuoi(rawAvatar, 300);
+  if (than.avatar !== undefined && than.avatar !== null) {
+    const rawAvatar = String(than.avatar).trim();
+    if (rawAvatar) {
+      const normalized = chuanUrlMedia(rawAvatar);
+      if (normalized === false) {
+        return loi('URL avatar không hợp lệ. Chỉ hỗ trợ liên kết bảo mật HTTPS hoặc đường dẫn nội bộ.', 400);
+      }
+      avatar = normalized;
+    }
   }
 
-  const tieuDeHoSo = chuoi(than.tieuDeHoSo, 100);
+  const tieuDeHoSo = chuoi(than.tieuDeHoSo, 100) || null;
 
   // BẢO MẬT HỆ THỐNG:
-  // Tuyệt đối chỉ cập nhật các trường trình bày (presentation fields).
-  // Không cho phép chỉnh sửa vai_tro, teacher_pending, lop_id, accountId.
-  const daCo = await db.prepare('SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = ?1 OR id = ?2')
-    .bind(phien.username || '', phien.accountId || -1).first().catch(() => null);
-
-  if (daCo) {
-    await db.prepare(`
-      UPDATE tai_khoan_campus
-      SET ten_hien_thi = ?1,
-          avatar = ?2,
-          tieu_de_ho_so = ?3,
-          cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?4
-    `).bind(tenHienThi, avatar || null, tieuDeHoSo || null, daCo.id).run();
-  } else {
-    await db.prepare(`
-      INSERT INTO tai_khoan_campus (ten_dang_nhap, mat_khau_hash, salt, ten_hien_thi, vai_tro, teacher_pending, lop_id, avatar, tieu_de_ho_so)
-      VALUES (?1, 'LOCAL_AUTH', 'LOCAL_SALT', ?2, 'teacher', 0, ?3, ?4, ?5)
-    `).bind(phien.username || 'gv_chu_nhiem', tenHienThi, phien.lopId || 1, avatar || null, tieuDeHoSo || null).run();
-  }
+  // Chỉ UPDATE các trường trình bày (presentation fields).
+  // TUYỆT ĐỐI KHÔNG INSERT để tự provision tài khoản giáo viên mới.
+  await db.prepare(`
+    UPDATE tai_khoan_campus
+    SET ten_hien_thi = ?1,
+        avatar = ?2,
+        tieu_de_ho_so = ?3,
+        cap_nhat_luc = CURRENT_TIMESTAMP
+    WHERE id = ?4
+  `).bind(tenHienThi, avatar, tieuDeHoSo, tk.id).run();
 
   return json({
     ok: true,

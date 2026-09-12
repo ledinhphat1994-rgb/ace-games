@@ -1827,15 +1827,27 @@ async function trangCampusHighlights() {
   datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách Tiêu điểm Campus...'));
   try {
     const data = await api('/api/campus-highlights');
-    const items = Array.isArray(data.highlights) && data.highlights.length > 0 ? data.highlights : [
-      { id: 'arena-curated', badge: 'ARENA', category: 'game', title: 'Đấu Trường Cờ Caro Đỉnh Cao', subtitle: 'Thách đấu bạn bè toàn trường, tích lũy XP leo BXH', icon: '⚔️', action_type: 'game' },
-      { id: 'focus-curated', badge: 'FOCUS', category: 'music', title: 'Phòng Tập Trung Lofi 24/7', subtitle: 'Âm nhạc thư giãn, bấm giờ Pomodoro cùng học tập', icon: '🎧', action_type: 'music' },
-      { id: 'watch-curated', badge: 'WATCH', category: 'cinema', title: 'Phòng Xem Phim Tài Liệu Chung', subtitle: 'Trải nghiệm rạp chiếu trực tuyến cùng lớp 10A7', icon: '🎬', action_type: 'cinema' },
-      { id: 'feed-curated', badge: 'BẢNG TIN', category: 'feed', title: 'Tin Tức & Sự Kiện Mới Nhất', subtitle: 'Cập nhật bảng tin sinh hoạt và phong trào đoàn', icon: '📢', action_type: 'feed' },
-    ];
+    const isCurated = Boolean(data.isCurated);
+    const items = isCurated && Array.isArray(data.highlights) && data.highlights.length > 0 ? [...data.highlights] : [];
 
     const khung = e('div');
     khung.append(tieuDeTrang('✨ Biên Tập Tiêu Điểm Campus (Highlights)', 'Điều phối các thẻ nội dung nổi bật xuất hiện trên cột trái Digital Campus cho toàn trường. Dữ liệu lưu trữ máy chủ (Server-authoritative).'));
+
+    // Status banner
+    const banner = e('div');
+    banner.style.cssText = 'padding: 10px 16px; border-radius: 12px; margin-bottom: 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 12px;';
+    if (isCurated) {
+      banner.style.background = 'rgba(0, 242, 254, 0.1)';
+      banner.style.border = '1px solid rgba(0, 242, 254, 0.3)';
+      banner.style.color = '#00F2FE';
+      banner.textContent = '⚡ Đang hiển thị bản Curation do Giáo viên xuất bản.';
+    } else {
+      banner.style.background = 'rgba(168, 85, 247, 0.1)';
+      banner.style.border = '1px solid rgba(168, 85, 247, 0.3)';
+      banner.style.color = '#C084FC';
+      banner.textContent = '🤖 Đang dùng nguồn tự động từ dữ liệu hoạt động thực tế của trường.';
+    }
+    khung.append(banner);
 
     // Live preview container
     const vungPreview = e('div', 'the');
@@ -1853,17 +1865,25 @@ async function trangCampusHighlights() {
 
     function vePreview() {
       danhSachThePreview.innerHTML = '';
+      if (items.length === 0) {
+        const trong = e('div');
+        trong.id = 'preview-empty-text';
+        trong.style.cssText = 'grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--chu-nhat); font-size: 13px; font-style: italic;';
+        trong.textContent = 'Chưa có tiêu điểm nào. Bấm "+ Thêm Spotlight" hoặc "Dùng nguồn tự động" để khởi tạo.';
+        danhSachThePreview.append(trong);
+        return;
+      }
       items.forEach((it) => {
         const the = e('div');
         the.style.cssText = 'background: #151A23; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; display: flex; align-items: center; gap: 12px;';
         the.innerHTML = `
-          <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(0,242,254,0.15); border: 1px solid rgba(0,242,254,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; shrink: 0;">${it.icon || '⭐'}</div>
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(0,242,254,0.15); border: 1px solid rgba(0,242,254,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; shrink: 0;">${it.icon || it.bieuTuong || '⭐'}</div>
           <div style="flex: 1; min-width: 0;">
             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
               <span style="font-size: 9px; font-weight: 900; padding: 1px 6px; border-radius: 9999px; background: rgba(0,242,254,0.2); color: #00F2FE; text-transform: uppercase;">${it.badge || 'NỔI BẬT'}</span>
             </div>
-            <div style="font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.title || 'Tiêu đề'}</div>
-            <div style="font-size: 11px; color: var(--chu-nhat); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.subtitle || 'Mô tả chi tiết'}</div>
+            <div style="font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.title || it.tieuDe || 'Chưa có tiêu đề'}</div>
+            <div style="font-size: 11px; color: var(--chu-nhat); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${it.subtitle || it.sub || it.chiTiet || 'Mô tả'}</div>
           </div>
         `;
         danhSachThePreview.append(the);
@@ -1873,53 +1893,121 @@ async function trangCampusHighlights() {
     vePreview();
     khung.append(vungPreview);
 
-    // Editor list
+    // Editor container
     const vungEditor = e('div', 'the');
     vungEditor.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+
+    const editorHeader = e('div');
+    editorHeader.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;';
     const tieuDeEditor = e('h3');
-    tieuDeEditor.style.cssText = 'font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 16px;';
-    tieuDeEditor.textContent = 'Danh sách 4 Tiêu điểm';
-    vungEditor.append(tieuDeEditor);
+    tieuDeEditor.style.cssText = 'font-size: 15px; font-weight: 800; color: #fff; margin: 0;';
+    tieuDeEditor.id = 'editor-highlights-title';
+    tieuDeEditor.textContent = `Danh sách tiêu điểm (${items.length}/4)`;
+    editorHeader.append(tieuDeEditor);
+
+    const nutThem = nut('+ Thêm Spotlight', 'nut-phu', () => {
+      if (items.length >= 4) {
+        nhac('Tối đa 4 tiêu điểm nổi bật.', 'canh-bao');
+        return;
+      }
+      items.push({
+        id: 'spotlight-' + Date.now(),
+        badge: 'SPOTLIGHT',
+        category: 'Hoạt động',
+        title: '',
+        subtitle: '',
+        icon: '✨',
+        actionType: 'spotlight',
+        loai: 'spotlight',
+        sourceType: 'manual',
+        audience: 'school'
+      });
+      veFormVaPreview();
+    });
+    nutThem.id = 'btn-them-spotlight';
+    editorHeader.append(nutThem);
+    vungEditor.append(editorHeader);
 
     const danhSachForm = e('div');
+    danhSachForm.id = 'danh-sach-form-highlights';
     danhSachForm.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
 
-    items.forEach((it, idx) => {
-      const hang = e('div');
-      hang.style.cssText = 'background: #151A23; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;';
+    function veFormVaPreview() {
+      tieuDeEditor.textContent = `Danh sách tiêu điểm (${items.length}/4)`;
+      danhSachForm.innerHTML = '';
 
-      const hangTieuDe = e('div');
-      hangTieuDe.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;';
-      hangTieuDe.innerHTML = `<span style="font-size: 12px; font-weight: 800; color: #8B5CF6;">#${idx + 1} • Tiêu điểm ${idx + 1}</span>`;
-      hang.append(hangTieuDe);
+      if (items.length === 0) {
+        const emptyBox = e('div');
+        emptyBox.id = 'empty-highlights-state';
+        emptyBox.style.cssText = 'padding: 32px; text-align: center; background: #0B0E14; border: 1px dashed rgba(255,255,255,0.15); border-radius: 14px;';
+        emptyBox.innerHTML = `
+          <div style="font-size: 32px; margin-bottom: 8px;">✨</div>
+          <p style="font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px;">Chưa có tiêu điểm</p>
+          <p style="font-size: 12px; color: var(--chu-nhat); margin-bottom: 16px;">Bấm nút "+ Thêm Spotlight" để tự biên soạn hoặc dùng nguồn dữ liệu tự động từ hệ thống.</p>
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="nut nut-chinh" id="btn-empty-them-spotlight">+ Thêm Spotlight</button>
+            <button type="button" class="nut nut-phu" id="btn-empty-dung-tu-dong">🔄 Dùng nguồn tự động</button>
+          </div>
+        `;
+        const bThem = emptyBox.querySelector('#btn-empty-them-spotlight');
+        if (bThem) bThem.onclick = () => nutThem.click();
+        const bTuDong = emptyBox.querySelector('#btn-empty-dung-tu-dong');
+        if (bTuDong) bTuDong.onclick = () => nutReset.click();
+        danhSachForm.append(emptyBox);
+        vePreview();
+        return;
+      }
 
-      const luoi = e('div');
-      luoi.style.cssText = 'display: grid; grid-template-columns: 80px 140px 1fr 1fr; gap: 10px;';
+      items.forEach((it, idx) => {
+        const hang = e('div');
+        hang.className = 'item-highlight-card';
+        hang.style.cssText = 'background: #151A23; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;';
 
-      const nhapIcon = oNhap(`icon_${idx}`, 'text', it.icon || '⭐', 'Icon');
-      nhapIcon.style.textAlign = 'center';
-      nhapIcon.oninput = (ev) => { it.icon = ev.target.value; vePreview(); };
+        const hangTieuDe = e('div');
+        hangTieuDe.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;';
+        hangTieuDe.innerHTML = `
+          <span style="font-size: 12px; font-weight: 800; color: #8B5CF6;">#${idx + 1} • ${it.sourceType === 'manual' ? 'Teacher Spotlight' : 'Tiêu điểm hoạt động'}</span>
+        `;
+        const nutXoa = nut('Xóa', 'nut-phu', () => {
+          items.splice(idx, 1);
+          veFormVaPreview();
+        });
+        nutXoa.style.padding = '4px 10px';
+        nutXoa.style.fontSize = '11px';
+        hangTieuDe.append(nutXoa);
+        hang.append(hangTieuDe);
 
-      const nhapBadge = oNhap(`badge_${idx}`, 'text', it.badge || '', 'Huy hiệu');
-      nhapBadge.oninput = (ev) => { it.badge = ev.target.value; vePreview(); };
+        const luoi = e('div');
+        luoi.style.cssText = 'display: grid; grid-template-columns: 80px 130px 1fr 1fr; gap: 10px;';
 
-      const nhapTitle = oNhap(`title_${idx}`, 'text', it.title || '', 'Tiêu đề ngắn');
-      nhapTitle.oninput = (ev) => { it.title = ev.target.value; vePreview(); };
+        const nhapIcon = oNhap(`icon_${idx}`, 'text', it.icon || it.bieuTuong || '⭐', 'Icon');
+        nhapIcon.style.textAlign = 'center';
+        nhapIcon.oninput = (ev) => { it.icon = ev.target.value; it.bieuTuong = ev.target.value; vePreview(); };
 
-      const nhapSubtitle = oNhap(`sub_${idx}`, 'text', it.subtitle || '', 'Mô tả ngắn (1 dòng)');
-      nhapSubtitle.oninput = (ev) => { it.subtitle = ev.target.value; vePreview(); };
+        const nhapBadge = oNhap(`badge_${idx}`, 'text', it.badge || '', 'Huy hiệu');
+        nhapBadge.oninput = (ev) => { it.badge = ev.target.value; vePreview(); };
 
-      luoi.append(
-        truong('Icon', nhapIcon),
-        truong('Badge', nhapBadge),
-        truong('Tiêu đề', nhapTitle),
-        truong('Mô tả', nhapSubtitle)
-      );
+        const nhapTitle = oNhap(`title_${idx}`, 'text', it.title || it.tieuDe || '', 'Tiêu đề ngắn');
+        nhapTitle.oninput = (ev) => { it.title = ev.target.value; it.tieuDe = ev.target.value; vePreview(); };
 
-      hang.append(luoi);
-      danhSachForm.append(hang);
-    });
+        const nhapSubtitle = oNhap(`sub_${idx}`, 'text', it.subtitle || it.sub || it.chiTiet || '', 'Mô tả ngắn');
+        nhapSubtitle.oninput = (ev) => { it.subtitle = ev.target.value; it.sub = ev.target.value; it.chiTiet = ev.target.value; vePreview(); };
 
+        luoi.append(
+          truong('Icon', nhapIcon),
+          truong('Badge', nhapBadge),
+          truong('Tiêu đề', nhapTitle),
+          truong('Mô tả', nhapSubtitle)
+        );
+
+        hang.append(luoi);
+        danhSachForm.append(hang);
+      });
+
+      vePreview();
+    }
+
+    veFormVaPreview();
     vungEditor.append(danhSachForm);
 
     // Actions
@@ -1927,6 +2015,10 @@ async function trangCampusHighlights() {
     hangNut.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-top: 20px; flex-wrap: wrap;';
 
     const nutLuu = nut('🚀 Lưu & Xuất bản Server', 'nut-chinh', async () => {
+      if (items.length === 0) {
+        nhac('Vui lòng thêm tối thiểu 1 tiêu điểm trước khi xuất bản.', 'canh-bao');
+        return;
+      }
       nutLuu.disabled = true;
       nutLuu.textContent = 'Đang xuất bản...';
       try {
@@ -1935,10 +2027,10 @@ async function trangCampusHighlights() {
           body: JSON.stringify({ action: 'publish', items })
         });
         if (kq.ok) {
-          nhac('Đã xuất bản Tiêu điểm Campus thành công lên Server!', 'tot');
+          nhac('Đã xuất bản Tiêu điểm Campus thành công lên Server (Nguyên tử)!', 'tot');
           await trangCampusHighlights();
         } else {
-          nhac('Không thể lưu: ' + (kq.message || kq.error), 'xau');
+          nhac('Không thể lưu: ' + (kq.message || kq.error || kq.loi), 'xau');
         }
       } catch (err) {
         nhac('Lỗi xuất bản: ' + err.message, 'xau');
@@ -1948,7 +2040,7 @@ async function trangCampusHighlights() {
       }
     });
 
-    const nutReset = nut('🔄 Khôi phục gốc (Dữ liệu thật)', 'nut-phu', async () => {
+    const nutReset = nut('🔄 Dùng nguồn tự động (Khôi phục gốc)', 'nut-phu', async () => {
       if (!confirm('Khôi phục danh sách Tiêu điểm về mặc định tự động từ dữ liệu hoạt động thực tế?')) return;
       nutReset.disabled = true;
       nutReset.textContent = 'Đang khôi phục...';
@@ -1958,26 +2050,26 @@ async function trangCampusHighlights() {
           body: JSON.stringify({ action: 'reset' })
         });
         if (kq.ok) {
-          nhac('Đã khôi phục Tiêu điểm Campus gốc!', 'tot');
+          nhac('Đã chuyển sang nguồn dữ liệu tự động thời gian thực!', 'tot');
           await trangCampusHighlights();
         } else {
-          nhac('Không thể khôi phục: ' + (kq.message || kq.error), 'xau');
+          nhac('Lỗi khôi phục: ' + (kq.message || kq.error || kq.loi), 'xau');
         }
       } catch (err) {
-        nhac('Lỗi khôi phục: ' + err.message, 'xau');
+        nhac('Lỗi: ' + err.message, 'xau');
       } finally {
         nutReset.disabled = false;
-        nutReset.textContent = '🔄 Khôi phục gốc (Dữ liệu thật)';
+        nutReset.textContent = '🔄 Dùng nguồn tự động (Khôi phục gốc)';
       }
     });
 
     hangNut.append(nutLuu, nutReset);
     vungEditor.append(hangNut);
-
     khung.append(vungEditor);
+
     datNoiDung(KHUNG, khung);
   } catch (err) {
-    datNoiDung(KHUNG, khoiLoi('Lỗi khi tải Tiêu điểm Campus: ' + err.message));
+    datNoiDung(KHUNG, khoiLoi('Không thể tải trang Tiêu điểm Campus: ' + err.message));
   }
 }
 

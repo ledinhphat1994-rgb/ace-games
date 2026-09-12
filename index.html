@@ -586,7 +586,7 @@ function CampusSpaceCard({
     }
   };
   const t = themes[theme] || themes.cyan;
-  const cardId = id || (sceneType === 'arena' ? 'campus-space-game' : (sceneType === 'cinema' ? 'campus-space-cinema' : (sceneType === 'music' ? 'campus-space-music' : 'campus-space-chat')));
+  const cardId = id || ((sceneType === 'arena' || sceneType === 'game') ? 'campus-space-game' : (sceneType === 'cinema' ? 'campus-space-cinema' : (sceneType === 'music' ? 'campus-space-music' : 'campus-space-chat')));
 
   return (
     <button
@@ -6407,6 +6407,8 @@ function DigitalCampusApp() {
       const d = await res.json();
       if (d.ok && d.phong) {
         setCaroPhong(d.phong);
+        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+        setCurrentView('ROOM_ACTIVE');
         setQuickState('GAME_ACTIVE');
         setShowTaoBanModal(false);
         setTaoBanTen('');
