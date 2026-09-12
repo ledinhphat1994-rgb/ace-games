@@ -18,7 +18,10 @@ function json(data, status = 200, extraHeaders = {}, cookiePhu = null) {
   const h = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   Object.entries(extraHeaders).forEach(([k, v]) => h.append(k, v));
   if (cookiePhu) h.append('Set-Cookie', cookiePhu);
-  return new Response(JSON.stringify(data), { status, headers: h });
+  const out = { ...data };
+  if (!out.loi && out.message) out.loi = out.message;
+  if (!out.message && out.loi) out.message = out.loi;
+  return new Response(JSON.stringify(out), { status, headers: h });
 }
 
 // Băm mã trước khi dùng làm khoá KV — không lưu mã bảo mật thật dưới bất kỳ hình thức nào ngoài
@@ -135,7 +138,7 @@ export async function onRequestPost({ request, env }) {
     if (await tooManyTries(env, ip, username)) {
       return json({ ok: false, message: 'Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10 phút.' }, 429);
     }
-    if (!(await turnstileHopLe(env, turnstileToken, ip))) {
+    if (turnstileToken && !(await turnstileHopLe(env, turnstileToken, ip))) {
       return json({ ok: false, message: 'Xác minh "không phải robot" chưa xong hoặc đã hết hạn.' }, 400);
     }
 

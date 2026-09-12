@@ -2083,7 +2083,7 @@ function AuthModal({ isOpen, initialTab = 'login', onClose, onSuccess }) {
         if (onSuccess) await onSuccess(d);
         onClose();
       } else {
-        setLoi(d.loi || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
+        setLoi(d.loi || d.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.');
       }
     } catch {
       setLoi('Lỗi kết nối máy chủ. Thử lại sau.');
