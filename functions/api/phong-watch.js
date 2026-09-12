@@ -2,11 +2,11 @@
 // Server-authoritative playback synchronization với optimistic concurrency control.
 // Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển (play/pause/seek/set_rate).
 // Thành viên khác chỉ đọc và đồng bộ timeline theo máy chủ.
-import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
-import { kiemTraTruyCapPhong } from '../_lib/rooms.js';
+import { bocXuLy, docThan, json, loi, chuoi, chuanUrlMedia } from '../_lib/api.js';
+import { kiemTraTruyCapPhong, kiemTraQuyenPhong, taiQuyenCuaToi, CAPABILITY } from '../_lib/rooms.js';
 
 const CAC_TOC_DO = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-const CAC_HANH_DONG = ['play', 'pause', 'seek', 'set_rate'];
+const CAC_HANH_DONG = ['play', 'pause', 'seek', 'set_rate', 'set_video'];
 
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
 
@@ -28,7 +28,8 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
   if (check.loi) return loi(check.loi, check.status || 403);
   const p = check.phong;
-  const canControl = check.canControl;
+  // canControl = quyền điều khiển video theo capability (staff hoặc member được cấp).
+  const canControl = (await kiemTraQuyenPhong(db, check, CAPABILITY.VIDEO_CONTROL)).ok;
 
   let row = await db.prepare(
     `SELECT phong_id AS phongId, trang_thai AS trangThai, vi_tri_giay AS viTriGiay,
@@ -78,6 +79,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       updatedBy: row?.nguoiCapNhatTen || null
     },
     canControl,
+    caps: await taiQuyenCuaToi(db, check),
     provider,
     phong: {
       id: p.id,
@@ -95,13 +97,49 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(than.phongId || '', 10);
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
-  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true, requireHostOrTeacher: true });
+  const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
   if (check.loi) return loi(check.loi, check.status || 403);
   const khoa = check.actorKey;
 
   const action = chuoi(than.action, 20);
   if (!CAC_HANH_DONG.includes(action)) {
-    return loi('Hành động không hợp lệ (chỉ nhận play, pause, seek, set_rate).', 400);
+    return loi('Hành động không hợp lệ (chỉ nhận play, pause, seek, set_rate, set_video).', 400);
+  }
+
+  // Capability server-authoritative: play/pause/seek/set_rate → video_control; set_video → video_change.
+  const capCan = action === 'set_video' ? CAPABILITY.VIDEO_CHANGE : CAPABILITY.VIDEO_CONTROL;
+  const quyen = await kiemTraQuyenPhong(db, check, capCan);
+  if (!quyen.ok) return json({ ok: false, loi: quyen.loi, code: quyen.code }, quyen.status);
+
+  // ── ĐỔI VIDEO (set_video): cập nhật cau_hinh.videoUrl + reset dòng đồng bộ ──
+  if (action === 'set_video') {
+    const u = chuanUrlMedia(than.videoUrl || than.url);
+    if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https:// (YouTube, Drive, mp4...).');
+    if (!u) return loi('Thiếu link video mới.', 400);
+
+    let cauHinh = {};
+    try { cauHinh = check.phong.cauHinh ? JSON.parse(check.phong.cauHinh) : {}; } catch { /* bỏ qua */ }
+    cauHinh.videoUrl = u;
+    await db.prepare(
+      `UPDATE phong SET cau_hinh = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2`
+    ).bind(JSON.stringify(cauHinh), phongId).run();
+    await db.prepare(
+      `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
+       VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
+       ON CONFLICT(phong_id) DO UPDATE SET
+         trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
+         revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
+         nguoi_cap_nhat_khoa = ?2, nguoi_cap_nhat_ten = ?3`
+    ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
+
+    // Đánh dấu item queue đang phát thành 'played' nếu đổi bằng tay
+    const qid = parseInt(than.queueId || '0', 10);
+    if (qid > 0) {
+      await db.prepare(
+        `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?1 AND phong_id = ?2`
+      ).bind(qid, phongId).run().catch(() => {});
+    }
+    return json({ ok: true, videoUrl: u });
   }
 
   const expectedRev = parseInt(than.expectedRevision || '0', 10);

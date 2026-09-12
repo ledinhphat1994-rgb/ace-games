@@ -400,6 +400,7 @@ CREATE TABLE IF NOT EXISTS phong_thanh_vien (
   hoc_sinh_id     INTEGER,
   ten             TEXT NOT NULL,
   vai_tro         TEXT NOT NULL DEFAULT 'hoc_sinh',
+  vai_tro_phong   TEXT NOT NULL DEFAULT 'member',  -- 'member' | 'co_host' (host/teacher suy ra, không lưu)
   lop_id          INTEGER,
   hoat_dong_luc   TEXT NOT NULL,
   vao_luc         TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -416,6 +417,8 @@ CREATE TABLE IF NOT EXISTS phong_tin_nhan (
   vai_tro         TEXT NOT NULL DEFAULT 'hoc_sinh',
   lop_id          INTEGER,
   noi_dung        TEXT NOT NULL,
+  da_xoa          INTEGER NOT NULL DEFAULT 0,
+  video_time_sec  REAL,
   tao_luc         TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_ptn_phong ON phong_tin_nhan(phong_id, id);
@@ -652,3 +655,121 @@ CREATE INDEX IF NOT EXISTS idx_game_arena_lobby ON game_phong(pham_vi, loai_game
 CREATE UNIQUE INDEX IF NOT EXISTS uq_quick_match_waiting_khoa
 ON game_phong(chu_phong_khoa, loai_game)
 WHERE pham_vi = 'truong' AND kieu_ghep = 'nhanh' AND trang_thai = 'cho_nguoi';
+
+-- 40. TRẠNG THÁI ĐÃ ĐỌC TIN NHẮN & COLLAB/VOICE PHÒNG (PHASE 4F)
+CREATE TABLE IF NOT EXISTS chat_read_state (
+  account_id            INTEGER NOT NULL,
+  channel_type          TEXT NOT NULL,
+  channel_key           TEXT NOT NULL,
+  last_read_message_id  INTEGER NOT NULL DEFAULT 0,
+  updated_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (account_id, channel_type, channel_key)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_read_state_acc ON chat_read_state(account_id);
+
+CREATE TABLE IF NOT EXISTS watch_room_collab (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id               INTEGER NOT NULL,
+  resource_type         TEXT NOT NULL,
+  payload_json          TEXT NOT NULL DEFAULT '{}',
+  version               INTEGER NOT NULL DEFAULT 1,
+  updated_by            TEXT,
+  updated_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (room_id, resource_type)
+);
+CREATE INDEX IF NOT EXISTS idx_watch_room_collab ON watch_room_collab(room_id, resource_type);
+
+CREATE TABLE IF NOT EXISTS watch_room_voice_signal (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_id               INTEGER NOT NULL,
+  sender_key            TEXT NOT NULL,
+  sender_name           TEXT,
+  signal_type           TEXT NOT NULL,
+  payload_json          TEXT NOT NULL DEFAULT '{}',
+  created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_voice_signal_room ON watch_room_voice_signal(room_id, id);
+
+-- 41. STUDY ROOM GOVERNANCE (PHASE 4G — AUDIT STUDY_ROOM_FUNCTIONAL_AUDIT.md)
+CREATE TABLE IF NOT EXISTS phong_policy (
+  phong_id    INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  capability  TEXT NOT NULL,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  access_mode TEXT NOT NULL DEFAULT 'staff_only',
+  cap_nhat_luc TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (phong_id, capability)
+);
+
+CREATE TABLE IF NOT EXISTS phong_grant (
+  phong_id   INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa       TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  trang_thai TEXT NOT NULL DEFAULT 'granted',
+  tao_luc    TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (phong_id, khoa, capability)
+);
+
+CREATE TABLE IF NOT EXISTS phong_ban (
+  phong_id INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa     TEXT NOT NULL,
+  ten      TEXT,
+  boi_khoa TEXT,
+  tao_luc  TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (phong_id, khoa)
+);
+
+CREATE TABLE IF NOT EXISTS phong_video_queue (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  phong_id   INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  video_url  TEXT NOT NULL,
+  video_id   TEXT,
+  title      TEXT,
+  thumb      TEXT,
+  added_by_khoa TEXT NOT NULL,
+  added_by_ten  TEXT,
+  ord        REAL NOT NULL,
+  trang_thai TEXT NOT NULL DEFAULT 'queued',
+  tao_luc    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pvq_phong ON phong_video_queue(phong_id, trang_thai, ord);
+
+CREATE TABLE IF NOT EXISTS phong_voice_pair (
+  phong_id      INTEGER PRIMARY KEY REFERENCES phong(id) ON DELETE CASCADE,
+  a_khoa        TEXT NOT NULL,
+  a_ten         TEXT,
+  b_khoa        TEXT,
+  b_ten         TEXT,
+  trang_thai    TEXT NOT NULL DEFAULT 'ringing',
+  tao_luc       TEXT DEFAULT CURRENT_TIMESTAMP,
+  cap_nhat_luc  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS phong_note (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  phong_id      INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa          TEXT NOT NULL,
+  ten           TEXT NOT NULL,
+  noi_dung      TEXT NOT NULL,
+  video_time_sec REAL,
+  da_xoa        INTEGER NOT NULL DEFAULT 0,
+  tao_luc       TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pn_phong ON phong_note(phong_id, id);
+
+CREATE TABLE IF NOT EXISTS phong_wb_op (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  phong_id INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  khoa     TEXT NOT NULL,
+  op_json  TEXT NOT NULL,
+  tao_luc  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pwbo_phong ON phong_wb_op(phong_id, id);
+
+CREATE TABLE IF NOT EXISTS phong_sheet_cell (
+  phong_id   INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
+  cell       TEXT NOT NULL,
+  gia_tri    TEXT NOT NULL DEFAULT '',
+  updated_by TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (phong_id, cell)
+);

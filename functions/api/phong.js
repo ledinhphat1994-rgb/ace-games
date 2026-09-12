@@ -6,7 +6,13 @@ import { bocXuLy, docThan, json, loi, chuoi, chuanUrlMedia } from '../_lib/api.j
 import { ghiNhanHoatDong } from './gamification.js';
 import { bamMatKhau, taoSalt, xacMinhMatKhau } from '../_lib/passwords.js';
 import { actorKey } from '../_lib/auth.js';
-import { kiemTraTruyCapPhong, lamSachPhong, NHIP_HOAT_DONG, NHIP_HIEU_LUC } from '../_lib/rooms.js';
+import {
+  kiemTraTruyCapPhong, lamSachPhong, NHIP_HOAT_DONG, NHIP_HIEU_LUC,
+  STUDY_CAP, PHONG_CAP, CAPABILITY, ACCESS_MODES, STAFF_LOCKED_CAPS,
+  seedChinhSachPhong, taiToanBoChinhSach, taiQuyenCuaToi,
+} from '../_lib/rooms.js';
+
+const CAC_CAPABILITY = Object.values(CAPABILITY);
 
 const LOAI_PHONG = ['chat', 'video', 'nhac']; // Caro Game sử dụng Game Arena riêng
 const SO_PHONG_TOI_DA = 3; // mỗi người mở tối đa 3 phòng cùng lúc — chống spam
@@ -59,23 +65,45 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       });
     }
 
+    // Staff (host/GV/co-host) được thấy khoá thành viên để quản trị (kick, cấp quyền, co-host);
+    // member thường không nhận khoá nội bộ của người khác.
     const tv = await db.prepare(
-      `SELECT v.ten, v.vai_tro AS vaiTro, v.lop_id AS lopId, l.ten AS lopTen,
+      `SELECT v.ten, v.vai_tro AS vaiTro, v.vai_tro_phong AS vaiTroPhong, v.lop_id AS lopId, l.ten AS lopTen,
               (v.khoa = ?2) AS laChuPhong
+              ${check.isStaff ? ', v.khoa AS khoa' : ''}
          FROM phong_thanh_vien v LEFT JOIN lop l ON l.id = v.lop_id
         WHERE v.phong_id = ?1 AND datetime(v.hoat_dong_luc) > datetime('now', ?3)
         ORDER BY v.vao_luc ASC LIMIT 60`
     ).bind(phongId, p.chuPhongKhoa, NHIP_HOAT_DONG).all();
 
-    return json({
+    const phongSach = lamSachPhong(p, { isAdmitted: check.isAdmitted, canControl: check.canControl });
+    phongSach.vaiTroPhong = check.vaiTroPhong;
+
+    const traVe = {
       ok: true,
-      phong: lamSachPhong(p, { isAdmitted: check.isAdmitted, canControl: check.canControl }),
+      phong: phongSach,
       thanhVien: tv.results || [],
       isAdmitted: check.isAdmitted,
       canControl: check.canControl,
+      isStaff: check.isStaff,
+      vaiTroPhong: check.vaiTroPhong,
       laChuPhong: check.isHost,
       minhKhoa: actorKey(phien),
-    });
+    };
+
+    // Study Room: trả capability của chính mình (render UI) + policy đầy đủ cho staff.
+    if (p.loai === 'video') {
+      traVe.myCaps = await taiQuyenCuaToi(db, check);
+      if (check.isStaff) {
+        traVe.policies = await taiToanBoChinhSach(db, phongId);
+        const gr = await db.prepare(
+          `SELECT khoa, capability, trang_thai AS trangThai FROM phong_grant WHERE phong_id = ?1`
+        ).bind(phongId).all().catch(() => ({ results: [] }));
+        traVe.grants = gr.results || [];
+      }
+    }
+
+    return json(traVe);
   }
 
   // Danh sách phòng đang mở: toàn bộ phòng 'truong' + phòng 'lop' của lớp mình.
@@ -146,9 +174,13 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       matKhauHash = await bamMatKhau(pass, matKhauSalt);
     }
 
-    // Sức chứa tối đa (Capacity)
+    // Sức chứa tối đa (Capacity): Study Room (video) giới hạn cứng 2..12, mặc định 8;
+    // các loại phòng khác giữ nguyên 2..50, mặc định 20.
+    const capRule = loai === 'video' ? STUDY_CAP : PHONG_CAP;
     const rawSucChua = parseInt(than.sucChua || than.capacity, 10);
-    const sucChua = !isNaN(rawSucChua) ? Math.min(50, Math.max(2, rawSucChua)) : 20;
+    const sucChua = !isNaN(rawSucChua)
+      ? Math.min(capRule.MAX, Math.max(capRule.MIN, rawSucChua))
+      : capRule.DEFAULT;
 
     const cauHinh = {};
     if (loai === 'nhac' && than.nhacUrl) {
@@ -189,6 +221,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
          VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)`
       ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
+      await seedChinhSachPhong(db, phongId);
     }
     if (loai === 'nhac' && phongId > 0) {
       await db.prepare(
@@ -208,7 +241,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const phongId = parseInt(than.phongId || '', 10);
   if (!(phongId > 0)) return loi('Thiếu phòng.', 400);
   const check = await kiemTraTruyCapPhong(db, phongId, phien);
-  if (check.loi) return loi(check.loi, check.status || 400);
+  if (check.loi) return json({ ok: false, loi: check.loi, ...(check.code ? { code: check.code } : {}) }, check.status || 400);
   const p = check.phong;
 
   // ── VÀO PHÒNG / NHỊP heartbeat (giữ chỗ trong phòng) ──
@@ -237,20 +270,33 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const updatedCheck = await kiemTraTruyCapPhong(db, phongId, phien);
     return json({
       ok: true,
-      phong: lamSachPhong(updatedCheck.phong, { isAdmitted: true, canControl: check.canControl }),
+      phong: lamSachPhong(updatedCheck.phong, { isAdmitted: true, canControl: updatedCheck.canControl }),
       isAdmitted: true,
-      canControl: check.canControl,
-      laChuPhong: check.isHost,
+      canControl: updatedCheck.canControl,
+      isStaff: updatedCheck.isStaff,
+      vaiTroPhong: updatedCheck.vaiTroPhong,
+      laChuPhong: updatedCheck.isHost,
     });
   }
 
   // ── RỜI PHÒNG ──
   if (hanhDong === 'roi') {
     await db.prepare('DELETE FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2').bind(phongId, khoa).run();
+    // Nhả slot voice nếu đang trong cặp 1-1
+    await db.prepare(
+      `UPDATE phong_voice_pair
+          SET b_khoa = CASE WHEN b_khoa = ?2 THEN NULL ELSE b_khoa END,
+              b_ten  = CASE WHEN b_khoa = ?2 THEN NULL ELSE b_ten END,
+              cap_nhat_luc = CURRENT_TIMESTAMP
+        WHERE phong_id = ?1 AND (a_khoa = ?2 OR b_khoa = ?2)`
+    ).bind(phongId, khoa).run().catch(() => {});
+    await db.prepare(
+      `DELETE FROM phong_voice_pair WHERE phong_id = ?1 AND a_khoa = ?2`
+    ).bind(phongId, khoa).run().catch(() => {});
     return json({ ok: true });
   }
 
-  // ── ĐÓNG PHÒNG — chỉ chủ phòng hoặc giáo viên ──
+  // ── ĐÓNG PHÒNG — chỉ chủ phòng hoặc giáo viên (co-host KHÔNG được đóng) ──
   if (hanhDong === 'dong') {
     if (!check.canControl) {
       return loi('Chỉ chủ phòng hoặc giáo viên mới đóng được phòng.', 403);
@@ -260,6 +306,144 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     await db.prepare('DELETE FROM phong_dong_bo_video WHERE phong_id = ?1').bind(phongId).run().catch(() => {});
     await db.prepare('DELETE FROM phong_focus_state WHERE phong_id = ?1').bind(phongId).run().catch(() => {});
     return json({ ok: true });
+  }
+
+  // ══ STUDY ROOM GOVERNANCE — các hành động quản trị (chỉ phòng video) ══
+
+  // ── ĐỔI MẬT KHẨU PHÒNG — chỉ host/GV ──
+  if (hanhDong === 'doi_mat_khau') {
+    if (!check.canControl) {
+      return loi('Chỉ chủ phòng hoặc giáo viên mới đổi được mật khẩu phòng.', 403);
+    }
+    const mk = String(than.matKhauMoi || than.password || '').trim();
+    if (mk.length < 1) return loi('Mật khẩu mới không được trống.', 400);
+    const salt = taoSalt(16);
+    const hash = await bamMatKhau(mk, salt);
+    await db.prepare(
+      `UPDATE phong SET access_mode = 'password', mat_khau_hash = ?1, mat_khau_salt = ?2, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?3`
+    ).bind(hash, salt, phongId).run();
+    return json({ ok: true });
+  }
+
+  // ── BỎ MẬT KHẨU (chuyển phòng về công khai) — chỉ host/GV ──
+  if (hanhDong === 'bo_mat_khau') {
+    if (!check.canControl) {
+      return loi('Chỉ chủ phòng hoặc giáo viên mới bỏ được mật khẩu phòng.', 403);
+    }
+    await db.prepare(
+      `UPDATE phong SET access_mode = 'public', mat_khau_hash = NULL, mat_khau_salt = NULL, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1`
+    ).bind(phongId).run();
+    return json({ ok: true });
+  }
+
+  // ── CẤP / THU CO-HOST — chỉ host/GV (co-host không tự thăng ai lên co-host) ──
+  if (hanhDong === 'set_co_host') {
+    if (!check.canControl) {
+      return loi('Chỉ chủ phòng hoặc giáo viên mới cấp được co-host.', 403);
+    }
+    const khoaTV = chuoi(than.khoaTV || than.khoaThanhVien, 120);
+    if (!khoaTV) return loi('Thiếu thành viên.', 400);
+    if (khoaTV === p.chuPhongKhoa) return loi('Chủ phòng đã là host sẵn.', 400);
+    // Không cấp co-host cho giáo viên (teacher đã là quyền cao nhất)
+    const tvDich = await db.prepare(
+      `SELECT vai_tro AS vaiTro, vai_tro_phong AS vaiTroPhong FROM phong_thanh_vien
+        WHERE phong_id = ?1 AND khoa = ?2 AND datetime(hoat_dong_luc) > datetime('now', ?3)`
+    ).bind(phongId, khoaTV, NHIP_HOAT_DONG).first();
+    if (!tvDich) return loi('Thành viên không còn trong phòng.', 404);
+    if (tvDich.vaiTro === 'giao_vien') return loi('Giáo viên đã có quyền cao nhất — không cần co-host.', 400);
+    const bat = than.on !== false && than.on !== 0;
+    await db.prepare(
+      `UPDATE phong_thanh_vien SET vai_tro_phong = ?1 WHERE phong_id = ?2 AND khoa = ?3`
+    ).bind(bat ? 'co_host' : 'member', phongId, khoaTV).run();
+    return json({ ok: true, vaiTroPhong: bat ? 'co_host' : 'member' });
+  }
+
+  // ── KICK thành viên (ban trong phòng) — staff; co-host chỉ kick member ──
+  if (hanhDong === 'kick') {
+    if (!check.isStaff) {
+      return loi('Chỉ quản trị phòng mới kick được thành viên.', 403);
+    }
+    const khoaTV = chuoi(than.khoaTV || than.khoaThanhVien, 120);
+    if (!khoaTV) return loi('Thiếu thành viên.', 400);
+    if (khoaTV === p.chuPhongKhoa) return loi('Không thể kick chủ phòng.', 400);
+    if (khoaTV === khoa) return loi('Không thể tự kick chính mình — hãy bấm Rời phòng.', 400);
+    const tvDich = await db.prepare(
+      `SELECT ten, vai_tro AS vaiTro, vai_tro_phong AS vaiTroPhong FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2`
+    ).bind(phongId, khoaTV).first();
+    // Teacher không bao giờ bị kick (quyền cao nhất không thể bị thu).
+    if (tvDich?.vaiTro === 'giao_vien') return loi('Không thể kick giáo viên.', 403);
+    // Co-host chỉ kick member thường; kick co-host khác chỉ host/GV làm được.
+    if (check.isCoHost && tvDich?.vaiTroPhong === 'co_host') {
+      return loi('Co-host không kick được co-host khác.', 403);
+    }
+    await db.prepare('DELETE FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2').bind(phongId, khoaTV).run();
+    await db.prepare(
+      `INSERT OR REPLACE INTO phong_ban (phong_id, khoa, ten, boi_khoa) VALUES (?1, ?2, ?3, ?4)`
+    ).bind(phongId, khoaTV, tvDich?.ten || null, khoa).run();
+    // Nhả slot voice nếu người bị kick đang trong cặp
+    await db.prepare(
+      `UPDATE phong_voice_pair
+          SET b_khoa = CASE WHEN b_khoa = ?2 THEN NULL ELSE b_khoa END,
+              b_ten  = CASE WHEN b_khoa = ?2 THEN NULL ELSE b_ten END,
+              cap_nhat_luc = CURRENT_TIMESTAMP
+        WHERE phong_id = ?1 AND b_khoa = ?2`
+    ).bind(phongId, khoaTV).run().catch(() => {});
+    await db.prepare('DELETE FROM phong_voice_pair WHERE phong_id = ?1 AND a_khoa = ?2').bind(phongId, khoaTV).run().catch(() => {});
+    return json({ ok: true });
+  }
+
+  // ── BỎ BAN — staff ──
+  if (hanhDong === 'bo_chan' || hanhDong === 'bo_cam') {
+    if (!check.isStaff) return loi('Chỉ quản trị phòng mới bỏ chặn được.', 403);
+    const khoaTV = chuoi(than.khoaTV || than.khoaThanhVien, 120);
+    if (!khoaTV) return loi('Thiếu thành viên.', 400);
+    await db.prepare('DELETE FROM phong_ban WHERE phong_id = ?1 AND khoa = ?2').bind(phongId, khoaTV).run();
+    return json({ ok: true });
+  }
+
+  // ── ĐỔI POLICY CAPABILITY — staff ──
+  if (hanhDong === 'policy') {
+    if (!check.isStaff) return loi('Chỉ quản trị phòng mới đổi được chính sách.', 403);
+    if (p.loai !== 'video') return loi('Chính sách capability chỉ áp dụng cho Study Room (phòng video).', 400);
+    const capability = chuoi(than.capability, 30);
+    if (!CAC_CAPABILITY.includes(capability)) return loi('Capability không hợp lệ.', 400);
+    let accessMode = chuoi(than.accessMode || than.access_mode, 20);
+    const enabled = than.enabled === undefined ? 1 : (than.enabled ? 1 : 0);
+    if (!ACCESS_MODES.includes(accessMode)) accessMode = null;
+    // STAFF_LOCKED_CAPS (moderation): không cho mở rộng quá staff_only, không cấp member.
+    if (STAFF_LOCKED_CAPS.includes(capability)) accessMode = 'staff_only';
+    const hienTai = await taiToanBoChinhSach(db, phongId);
+    const pol = hienTai[capability] || { enabled: 1, access_mode: 'staff_only' };
+    await db.prepare(
+      `INSERT INTO phong_policy (phong_id, capability, enabled, access_mode, cap_nhat_luc)
+       VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+       ON CONFLICT(phong_id, capability) DO UPDATE SET
+         enabled = excluded.enabled, access_mode = excluded.access_mode, cap_nhat_luc = CURRENT_TIMESTAMP`
+    ).bind(phongId, capability, enabled, accessMode || pol.access_mode).run();
+    return json({ ok: true, capability, enabled, accessMode: accessMode || pol.access_mode });
+  }
+
+  // ── CẤP / THU QUYỀN CHO MEMBER (selected_members) — staff ──
+  if (hanhDong === 'grant') {
+    if (!check.isStaff) return loi('Chỉ quản trị phòng mới cấp quyền được.', 403);
+    const capability = chuoi(than.capability, 30);
+    if (!CAC_CAPABILITY.includes(capability) || STAFF_LOCKED_CAPS.includes(capability)) {
+      return loi('Capability này không cấp cho thành viên được.', 400);
+    }
+    const khoaTV = chuoi(than.khoaTV || than.khoaThanhVien, 120);
+    if (!khoaTV) return loi('Thiếu thành viên.', 400);
+    const bat = than.on !== false && than.on !== 0;
+    if (bat) {
+      await db.prepare(
+        `INSERT INTO phong_grant (phong_id, khoa, capability, trang_thai) VALUES (?1, ?2, ?3, 'granted')
+         ON CONFLICT(phong_id, khoa, capability) DO UPDATE SET trang_thai = 'granted'`
+      ).bind(phongId, khoaTV, capability).run();
+    } else {
+      await db.prepare(
+        `DELETE FROM phong_grant WHERE phong_id = ?1 AND khoa = ?2 AND capability = ?3`
+      ).bind(phongId, khoaTV, capability).run();
+    }
+    return json({ ok: true, capability, granted: bat });
   }
 
   return loi('Hành động không hợp lệ.', 400);

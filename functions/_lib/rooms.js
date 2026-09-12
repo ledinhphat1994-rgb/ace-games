@@ -5,6 +5,118 @@ import { actorKey } from './auth.js';
 export const NHIP_HOAT_DONG = '-90 seconds';
 export const NHIP_HIEU_LUC = '-15 minutes';
 
+// ─── STUDY ROOM GOVERNANCE (Phase 4G) ────────────────────────────────────────
+// Sức chứa Study Room (loai='video'): mặc định 8, cứng tối đa 12 (v1).
+// Phòng loại khác giữ nguyên giới hạn generic 2..50 / mặc định 20.
+export const STUDY_CAP = { MIN: 2, DEFAULT: 8, MAX: 12 };
+export const PHONG_CAP = { MIN: 2, DEFAULT: 20, MAX: 50 };
+
+export const CAPABILITY = {
+  VIDEO_CONTROL: 'video_control',
+  VIDEO_CHANGE: 'video_change',
+  QUEUE: 'queue',
+  CHAT: 'chat',
+  NOTES: 'notes',
+  WHITEBOARD: 'whiteboard',
+  SHEET: 'sheet',
+  VOICE: 'voice',
+  INVITE: 'invite',
+  MODERATION: 'moderation',
+};
+
+export const ACCESS_MODES = ['staff_only', 'selected_members', 'everyone'];
+
+// Chính sách mặc định khi Study Room mới tạo — theo mô hình đã chốt:
+// điều khiển video/đổi video/queue: staff_only; chat/notes/whiteboard/sheet/invite: everyone;
+// voice: selected_members (request → staff duyệt); moderation: luôn staff.
+export const DEFAULT_STUDY_POLICY = {
+  video_control: { enabled: 1, access_mode: 'staff_only' },
+  video_change:  { enabled: 1, access_mode: 'staff_only' },
+  queue:         { enabled: 1, access_mode: 'staff_only' },
+  chat:          { enabled: 1, access_mode: 'everyone' },
+  notes:         { enabled: 1, access_mode: 'everyone' },
+  whiteboard:    { enabled: 1, access_mode: 'everyone' },
+  sheet:         { enabled: 1, access_mode: 'everyone' },
+  voice:         { enabled: 1, access_mode: 'selected_members' },
+  invite:        { enabled: 1, access_mode: 'everyone' },
+  moderation:    { enabled: 1, access_mode: 'staff_only' },
+};
+
+// Capability không bao giờ mở cho member: moderation luôn staff_only.
+export const STAFF_LOCKED_CAPS = ['moderation'];
+
+// Seed chính sách mặc định cho Study Room mới tạo.
+export async function seedChinhSachPhong(db, phongId) {
+  const stmts = Object.entries(DEFAULT_STUDY_POLICY).map(([cap, pol]) =>
+    db.prepare(
+      `INSERT OR IGNORE INTO phong_policy (phong_id, capability, enabled, access_mode) VALUES (?1, ?2, ?3, ?4)`
+    ).bind(phongId, cap, pol.enabled, pol.access_mode)
+  );
+  await db.batch(stmts).catch(() => {});
+}
+
+// Đọc 1 policy (fallback về mặc định nếu phòng chưa seed).
+export async function taiChinhSach(db, phongId, capability) {
+  const row = await db.prepare(
+    `SELECT enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1 AND capability = ?2`
+  ).bind(phongId, capability).first().catch(() => null);
+  const macDinh = DEFAULT_STUDY_POLICY[capability] || { enabled: 1, access_mode: 'staff_only' };
+  if (!row) return { ...macDinh };
+  // STAFF_LOCKED_CAPS không bao giờ được mở rộng quá staff_only.
+  if (STAFF_LOCKED_CAPS.includes(capability) && row.accessMode !== 'staff_only') {
+    return { enabled: row.enabled, access_mode: 'staff_only' };
+  }
+  return { enabled: row.enabled, access_mode: row.accessMode };
+}
+
+// Toàn bộ policy của phòng (cho staff UI + tính myCaps).
+export async function taiToanBoChinhSach(db, phongId) {
+  const rs = await db.prepare(
+    `SELECT capability, enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1`
+  ).bind(phongId).all().catch(() => ({ results: [] }));
+  const map = {};
+  for (const [cap, macDinh] of Object.entries(DEFAULT_STUDY_POLICY)) map[cap] = { ...macDinh };
+  for (const r of rs.results || []) {
+    map[r.capability] = { enabled: r.enabled, access_mode: r.accessMode };
+  }
+  for (const cap of STAFF_LOCKED_CAPS) {
+    if (map[cap]) map[cap].access_mode = 'staff_only';
+  }
+  return map;
+}
+
+// Kiểm tra quyền capability server-authoritative.
+// check = kết quả kiemTraTruyCapPhong (đã có isHost/isTeacher/isCoHost/actorKey).
+// Trả { ok:true } hoặc { ok:false, loi, status, code }.
+export async function kiemTraQuyenPhong(db, check, capability) {
+  const p = check.phong;
+  if (check.isHost || check.isTeacher || check.isCoHost) return { ok: true };
+
+  const pol = await taiChinhSach(db, p.id, capability);
+  if (!pol.enabled) {
+    return { ok: false, loi: 'Tính năng này đang bị quản trị phòng tắt.', status: 403, code: 'capability_off' };
+  }
+  if (pol.access_mode === 'everyone') return { ok: true };
+  if (pol.access_mode === 'staff_only') {
+    return { ok: false, loi: 'Chỉ quản trị phòng mới dùng được tính năng này.', status: 403, code: 'staff_only' };
+  }
+  // selected_members: cần grant 'granted'
+  const g = await db.prepare(
+    `SELECT 1 FROM phong_grant WHERE phong_id = ?1 AND khoa = ?2 AND capability = ?3 AND trang_thai = 'granted'`
+  ).bind(p.id, check.actorKey, capability).first().catch(() => null);
+  if (g) return { ok: true };
+  return { ok: false, loi: 'Cần được quản trị phòng cấp quyền cho tính năng này.', status: 403, code: 'grant_required' };
+}
+
+// Tính map capability → boolean cho 1 actor (để client render UI đúng quyền).
+export async function taiQuyenCuaToi(db, check) {
+  const caps = {};
+  for (const cap of Object.keys(DEFAULT_STUDY_POLICY)) {
+    caps[cap] = (await kiemTraQuyenPhong(db, check, cap)).ok;
+  }
+  return caps;
+}
+
 // Làm sạch đối tượng phòng trước khi gửi về client:
 // - Luôn xóa matKhauHash, matKhauSalt, chuPhongKhoa
 // - Nếu phòng có mật khẩu và người dùng CHƯA được duyệt vào phòng (chưa nhập pass / không phải host/GV):
@@ -85,22 +197,39 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
   const actor = actorKey(phien);
   const isHost = Boolean(p.chuPhongKhoa && p.chuPhongKhoa === actor);
   const isTeacher = Boolean(phien.role === 'teacher');
+
+  // Vai trò trong phòng: host/teacher suy ra từ phiên + chủ phòng; co_host lưu trong bản ghi thành viên.
+  // Bản ghi chỉ còn hiệu lực khi heartbeat tươi (NHIP_HIEU_LUC) — hết hạn thì coi như đã rời phòng.
+  const tvRow = await db.prepare(
+    `SELECT vai_tro_phong AS vaiTroPhong FROM phong_thanh_vien
+      WHERE phong_id = ?1 AND khoa = ?2 AND datetime(hoat_dong_luc) > datetime('now', ?3)`
+  ).bind(p.id, actor, NHIP_HIEU_LUC).first().catch(() => null);
+  const isCoHost = !isHost && !isTeacher && tvRow?.vaiTroPhong === 'co_host';
+  const vaiTroPhong = isHost ? 'host' : isTeacher ? 'teacher' : isCoHost ? 'co_host' : 'member';
+
+  // canControl: quyền cao nhất (đóng phòng, đổi mật khẩu, hành động chỉ host/GV).
+  // isStaff: quản trị phòng gồm cả co_host (điều hành cộng tác, kick member, set policy...).
   const canControl = isHost || isTeacher;
+  const isStaff = canControl || isCoHost;
+
+  // 2b. Bị ban trong phòng này → chặn mọi truy cập tài nguyên (host/GV không thể bị ban).
+  if (!canControl) {
+    const biBan = await db.prepare(
+      `SELECT 1 FROM phong_ban WHERE phong_id = ?1 AND khoa = ?2`
+    ).bind(p.id, actor).first().catch(() => null);
+    if (biBan) return { loi: 'Bạn đã bị quản trị phòng chặn khỏi phòng này.', status: 403, code: 'room_banned' };
+  }
 
   // 3. Xác định trạng thái đã được duyệt vào phòng (isAdmitted)
   let isAdmitted;
-  if (canControl) {
+  if (isStaff) {
     isAdmitted = true;
   } else if (p.accessMode !== 'password') {
     // Phòng công khai: người dùng thỏa mãn phạm vi lớp/trường mặc nhiên được tham gia xem/nghe/chat
     isAdmitted = true;
   } else {
     // Phòng có mật khẩu: bắt buộc phải có bản ghi tham gia hợp lệ trong phong_thanh_vien
-    const tv = await db.prepare(`
-      SELECT 1 FROM phong_thanh_vien
-      WHERE phong_id = ?1 AND khoa = ?2 AND datetime(hoat_dong_luc) > datetime('now', ?3)
-    `).bind(p.id, actor, NHIP_HIEU_LUC).first().catch(() => null);
-    isAdmitted = Boolean(tv);
+    isAdmitted = Boolean(tvRow);
   }
 
   // 4. Kiểm tra yêu cầu quyền điều khiển (Host / Teacher)
@@ -117,6 +246,9 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
     phong: p,
     isHost,
     isTeacher,
+    isCoHost,
+    isStaff,
+    vaiTroPhong,
     canControl,
     isAdmitted,
     actorKey: actor,
