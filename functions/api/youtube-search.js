@@ -4,14 +4,66 @@
 import { json, loi } from '../_lib/api.js';
 import { checkRateLimit } from '../_lib/social.js';
 
-// Fallback: Tìm kiếm video YouTube công khai lọc theo định dạng video
+// Fallback: Tìm kiếm video YouTube qua InnerTube API (không cần API key, tương thích Cloudflare Workers)
 async function searchYoutubePublic(q) {
+  // 1. Thử InnerTube API chính thức của YouTube Web Client
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'X-YouTube-Client-Name': '1',
+        'X-YouTube-Client-Version': '2.20231201.00.00'
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20231201.00.00',
+            hl: 'vi',
+            gl: 'VN'
+          }
+        },
+        query: q
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const sections = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+      const items = [];
+      for (const s of sections) {
+        const list = s?.itemSectionRenderer?.contents || [];
+        for (const it of list) {
+          const vr = it?.videoRenderer;
+          if (vr && vr.videoId) {
+            items.push({
+              videoId: vr.videoId,
+              title: vr.title?.runs?.map(r => r.text).join('') || vr.title?.simpleText || 'Video YouTube',
+              channelTitle: vr.ownerText?.runs?.map(r => r.text).join('') || '',
+              thumbnail: vr.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || `https://i.ytimg.com/vi/${vr.videoId}/hqdefault.jpg`,
+              publishedAt: vr.publishedTimeText?.simpleText || ''
+            });
+            if (items.length >= 12) break;
+          }
+        }
+        if (items.length >= 12) break;
+      }
+      if (items.length > 0) return items;
+    }
+  } catch {
+    // Thử cách 2 bên dưới
+  }
+
+  // 2. Thử tìm kiếm qua HTML với cookie chấp thuận SOCS
   try {
     const endpoint = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAQ%253D%253D`;
     const res = await fetch(endpoint, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8'
+        'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
+        'Cookie': 'SOCS=CAESEwgDEgk2MTQ5MDUzMjQaAnZpIAEaBgiA_LyaBg; CONSENT=YES+cb.20230531-04-p0.en+FX+999; PREF=hl=vi&gl=VN'
       }
     });
     if (!res.ok) return [];
