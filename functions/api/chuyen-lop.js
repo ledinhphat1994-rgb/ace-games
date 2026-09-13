@@ -2,6 +2,7 @@
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 import { COOKIE_NAME, createToken } from '../_lib/auth.js';
 import { layPhamViQuanTri } from '../_lib/quan-tri.js';
+import { coQuyenThanhVien } from '../_lib/community.js';
 
 const SESSION_TTL = 30 * 24 * 60 * 60; // 30 ngày
 
@@ -35,16 +36,28 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const laAdmin = pham.isSchoolAdmin || phien.role === 'admin' || phien.vaiTro === 'school_admin';
   const laGiaoVien = phien.role === 'teacher';
 
-  // Học sinh cố định không được tự ý đổi lớp của người khác nếu đã gán hocSinhId
-  if (!laAdmin && !laGiaoVien && phien.hocSinhId && phien.lopId && phien.lopId !== lop.id) {
-    return loi('Tài khoản học sinh được liên kết cố định với lớp của mình.', 403);
+  if (!laAdmin) {
+    if (laGiaoVien) {
+      if (!pham.lopIds || !pham.lopIds.includes(lop.id)) {
+        return loi('Bạn không có quyền quản lý nhóm lớp này.', 403);
+      }
+    } else {
+      // Học sinh / Phụ huynh: BẮT BUỘC phải có quyền thành viên vào bảng tin lớp này
+      const coQuyen = await coQuyenThanhVien(env, phien, lop.id);
+      if (!coQuyen) {
+        return loi(`Bạn chưa được cấp quyền truy cập bảng tin nhóm “${lop.ten}”. Vui lòng liên hệ giáo viên để được cấp quyền.`, 403);
+      }
+    }
   }
 
-  // Nếu là tài khoản Campus (có accountId), cập nhật lớp mặc định trong CSDL
+  // Nếu là tài khoản Campus (có accountId) và tài khoản chưa có lop_id thì lưu lớp đầu tiên
   if (phien.accountId) {
-    await env.DB.prepare(
-      'UPDATE tai_khoan_campus SET lop_id = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2'
-    ).bind(lop.id, phien.accountId).run().catch(() => {});
+    const acc = await env.DB.prepare('SELECT lop_id FROM tai_khoan_campus WHERE id = ?1').bind(phien.accountId).first().catch(() => null);
+    if (!acc?.lop_id) {
+      await env.DB.prepare(
+        'UPDATE tai_khoan_campus SET lop_id = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2'
+      ).bind(lop.id, phien.accountId).run().catch(() => {});
+    }
   }
 
   // Cấp lại cookie phiên c10a7_session chứa lopId mới

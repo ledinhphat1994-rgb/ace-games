@@ -12,8 +12,8 @@ export const onRequestGet = bocXuLy(async ({ env, waitUntil, phien }) => {
   const homNay = ngayVNHomNay();
   const hocSinhIdPhien = phien.hocSinhId || null;
 
-  // Bảo vệ máy chủ cho Bảng Tin Cộng Đồng: Học sinh bắt buộc phải có quyền thành viên
-  if (!(await coQuyenThanhVien(env, phien))) {
+  // Bảo vệ máy chủ cho Bảng Tin Cộng Đồng: Học sinh bắt buộc phải có quyền thành viên của đúng lớp này
+  if (!lopId || !(await coQuyenThanhVien(env, phien, lopId))) {
       return json({
         ok: false,
         error: 'community_membership_required',

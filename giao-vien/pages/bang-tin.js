@@ -112,7 +112,7 @@ export async function trangBangTin() {
         const sec1 = e('section', 'tk-excel-section');
         const sec1Head = e('div', 'tk-excel-header');
         sec1Head.append(
-          e('h2', 'tk-excel-title', `1. Danh sách thành viên trong nhóm (${res.thanhVien.length} học sinh)`),
+          e('h2', 'tk-excel-title', `1. Danh sách thành viên được cấp quyền trong nhóm (${res.thanhVien.length} học sinh)`),
           e('span', 'tk-badge-members', `👥 Sĩ số: ${res.thanhVien.length}`)
         );
         sec1.append(sec1Head);
@@ -183,8 +183,8 @@ export async function trangBangTin() {
         const sec2Head = e('div', 'tk-excel-header');
         const titBox2 = e('div');
         titBox2.append(
-          e('h2', 'tk-excel-title', '+ Cấp quyền học sinh vào nhóm (Không cần nhập mã)'),
-          e('p', 'tk-muted', 'Chọn tài khoản học sinh đã đăng ký trên Digital Campus để cấp quyền trực tiếp.')
+          e('h2', 'tk-excel-title', `+ Cấp quyền học sinh vào nhóm: ${lopItem.ten} (Có chọn lọc theo từng nhóm/lớp)`),
+          e('p', 'tk-muted', 'Cấp quyền có chọn lọc: Học sinh chỉ được vào đúng bảng tin của nhóm được cấp, không thể tự ý truy cập các bảng tin khác.')
         );
         sec2Head.append(titBox2);
         sec2.append(sec2Head);
@@ -247,7 +247,7 @@ export async function trangBangTin() {
             tdLop.append(e('span', 'tk-muted', cand.lopTen ? `Đang ở: ${cand.lopTen}` : 'Chưa có lớp'));
 
             const tdAction = e('td');
-            const nutCap = taoNut('+ Cấp quyền', 'nut-chinh', async () => {
+            const nutCap = taoNut('+ Cấp quyền vào nhóm', 'nut-chinh', async () => {
               nutCap.disabled = true;
               try {
                 await api('/api/gv/bang-tin', {

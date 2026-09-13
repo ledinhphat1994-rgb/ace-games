@@ -32,14 +32,15 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
     if (!lop) return loi('Không tìm thấy nhóm lớp.', 404);
 
-    // Thành viên học sinh hiện có trong nhóm
+    // Thành viên học sinh hiện có trong nhóm (lop_id trực tiếp hoặc qua community_membership chưa bị thu hồi)
     const { results: thanhVien } = await env.DB.prepare(
-      `SELECT tc.id, tc.ten_dang_nhap AS tenDangNhap, tc.ten_hien_thi AS ten,
+      `SELECT DISTINCT tc.id, tc.ten_dang_nhap AS tenDangNhap, tc.ten_hien_thi AS ten,
               tc.vai_tro AS vaiTro, tc.dang_hoat_dong AS dangHoatDong,
               tc.tao_luc AS taoLuc, tc.cap_nhat_luc AS capNhatLuc,
               tc.hoc_sinh_id AS hocSinhId
        FROM tai_khoan_campus tc
-       WHERE tc.lop_id = ?1 AND tc.vai_tro = 'student'
+       LEFT JOIN community_membership cm ON cm.hoc_sinh_id = tc.hoc_sinh_id AND cm.lop_id = ?1 AND cm.revoked_at IS NULL
+       WHERE tc.vai_tro = 'student' AND (tc.lop_id = ?1 OR cm.id IS NOT NULL)
        ORDER BY tc.ten_hien_thi ASC`
     ).bind(lopId).all();
 
@@ -49,7 +50,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
               tc.lop_id AS lopId, l.ten AS lopTen
        FROM tai_khoan_campus tc
        LEFT JOIN lop l ON l.id = tc.lop_id
-       WHERE tc.vai_tro = 'student' AND (tc.lop_id IS NULL OR tc.lop_id != ?1) AND tc.dang_hoat_dong = 1
+       WHERE tc.vai_tro = 'student' AND tc.dang_hoat_dong = 1
+         AND (tc.lop_id IS NULL OR tc.lop_id != ?1)
+         AND NOT EXISTS (
+           SELECT 1 FROM community_membership cm
+           WHERE cm.hoc_sinh_id = tc.hoc_sinh_id AND cm.lop_id = ?1 AND cm.revoked_at IS NULL
+         )
        ORDER BY tc.ten_hien_thi ASC LIMIT 100`
     ).bind(lopId).all();
 
@@ -67,7 +73,9 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     const { results } = await env.DB.prepare(
       `SELECT l.id, l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
               l.dang_hoat_dong AS dangHoatDong, l.tao_luc AS taoLuc,
-              (SELECT COUNT(1) FROM tai_khoan_campus tc WHERE tc.lop_id = l.id AND tc.dang_hoat_dong = 1 AND tc.vai_tro = 'student') AS soThanhVien
+              (SELECT COUNT(DISTINCT tc.id) FROM tai_khoan_campus tc
+               LEFT JOIN community_membership cm ON cm.hoc_sinh_id = tc.hoc_sinh_id AND cm.lop_id = l.id AND cm.revoked_at IS NULL
+               WHERE tc.dang_hoat_dong = 1 AND tc.vai_tro = 'student' AND (tc.lop_id = l.id OR cm.id IS NOT NULL)) AS soThanhVien
        FROM lop l
        WHERE l.dang_hoat_dong = 1
        ORDER BY l.id ASC`
@@ -79,7 +87,9 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       const { results } = await env.DB.prepare(
         `SELECT l.id, l.ten, l.nam_hoc AS namHoc, l.truong, l.gioi_thieu AS gioiThieu,
                 l.dang_hoat_dong AS dangHoatDong, l.tao_luc AS taoLuc,
-                (SELECT COUNT(1) FROM tai_khoan_campus tc WHERE tc.lop_id = l.id AND tc.dang_hoat_dong = 1 AND tc.vai_tro = 'student') AS soThanhVien
+                (SELECT COUNT(DISTINCT tc.id) FROM tai_khoan_campus tc
+                 LEFT JOIN community_membership cm ON cm.hoc_sinh_id = tc.hoc_sinh_id AND cm.lop_id = l.id AND cm.revoked_at IS NULL
+                 WHERE tc.dang_hoat_dong = 1 AND tc.vai_tro = 'student' AND (tc.lop_id = l.id OR cm.id IS NOT NULL)) AS soThanhVien
          FROM lop l
          WHERE l.id IN (${ids.map(() => '?').join(',')}) AND l.dang_hoat_dong = 1
          ORDER BY l.id ASC`
@@ -166,14 +176,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       hocSinhId = resHs.meta?.last_row_id;
     }
 
-    // Cập nhật tài khoản campus
+    // Cập nhật tài khoản campus: gán hoc_sinh_id; nếu chưa có lớp chính thì gán lớp này
     await env.DB.prepare(
       `UPDATE tai_khoan_campus
-       SET lop_id = ?1, hoc_sinh_id = COALESCE(hoc_sinh_id, ?2), cap_nhat_luc = CURRENT_TIMESTAMP
+       SET lop_id = COALESCE(lop_id, ?1), hoc_sinh_id = COALESCE(hoc_sinh_id, ?2), cap_nhat_luc = CURRENT_TIMESTAMP
        WHERE id = ?3`
     ).bind(lopId, hocSinhId, accountId).run();
 
-    // Cập nhật community_membership để xác nhận quyền truy cập bảng tin
+    // Cập nhật community_membership để xác nhận quyền truy cập bảng tin có chọn lọc cho đúng nhóm này
     if (hocSinhId) {
       await env.DB.prepare(
         `INSERT INTO community_membership (hoc_sinh_id, lop_id, granted_by, granted_at, revoked_at)
@@ -191,7 +201,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       hanhDong: 'cap_quyen_hoc_sinh',
       doiTuongLoai: 'tai_khoan',
       doiTuongId: String(accountId),
-      chiTiet: `Cấp quyền học sinh ${tk.tenDangNhap} vào lớp ${lopId}`,
+      chiTiet: `Cấp quyền học sinh ${tk.tenDangNhap} vào bảng tin nhóm ${lopId}`,
       lopId
     });
 
@@ -208,20 +218,29 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     }
 
     const tk = await env.DB.prepare(
-      `SELECT id, ten_dang_nhap AS tenDangNhap, hoc_sinh_id AS hocSinhId
-       FROM tai_khoan_campus WHERE id = ?1 AND lop_id = ?2`
-    ).bind(accountId, lopId).first();
+      `SELECT id, ten_dang_nhap AS tenDangNhap, hoc_sinh_id AS hocSinhId, lop_id AS lopId
+       FROM tai_khoan_campus WHERE id = ?1`
+    ).bind(accountId).first();
 
-    if (!tk) return loi('Tài khoản không thuộc nhóm lớp này.', 404);
-
-    await env.DB.prepare(
-      `UPDATE tai_khoan_campus SET lop_id = NULL, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1`
-    ).bind(accountId).run();
+    if (!tk) return loi('Không tìm thấy tài khoản học sinh.', 404);
 
     if (tk.hocSinhId) {
       await env.DB.prepare(
         `UPDATE community_membership SET revoked_at = CURRENT_TIMESTAMP WHERE hoc_sinh_id = ?1 AND lop_id = ?2`
       ).bind(tk.hocSinhId, lopId).run();
+    }
+
+    // Nếu lop_id chính của tài khoản đang trỏ vào nhóm này, chuyển sang nhóm hợp lệ khác hoặc gán null
+    if (tk.lopId === lopId) {
+      let altLop = null;
+      if (tk.hocSinhId) {
+        altLop = await env.DB.prepare(
+          `SELECT lop_id FROM community_membership WHERE hoc_sinh_id = ?1 AND lop_id != ?2 AND revoked_at IS NULL LIMIT 1`
+        ).bind(tk.hocSinhId, lopId).first();
+      }
+      await env.DB.prepare(
+        `UPDATE tai_khoan_campus SET lop_id = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2`
+      ).bind(altLop?.lop_id || null, accountId).run();
     }
 
     ghiNhatKyQuanTri(env, waitUntil, {
@@ -230,7 +249,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       hanhDong: 'go_quyen_hoc_sinh',
       doiTuongLoai: 'tai_khoan',
       doiTuongId: String(accountId),
-      chiTiet: `Gỡ quyền học sinh ${tk.tenDangNhap} khỏi lớp ${lopId}`,
+      chiTiet: `Gỡ quyền học sinh ${tk.tenDangNhap} khỏi nhóm ${lopId}`,
       lopId
     });
 

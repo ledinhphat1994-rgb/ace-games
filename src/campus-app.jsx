@@ -313,6 +313,7 @@ function DigitalCampusApp() {
               isVerifiedTeacher: Boolean(data.isVerifiedTeacher || isT),
               isLinkedStudent: Boolean(data.isLinkedStudent || (data.role === 'student' && data.hocSinhId && data.lopId)),
               coQuyenCongDong: data.coQuyenCongDong === true,
+              cacLopCoQuyen: Array.isArray(data.cacLopCoQuyen) ? data.cacLopCoQuyen : [],
               isAuthorizedStudent: !isT && isBCS
             }
           });
@@ -349,6 +350,18 @@ function DigitalCampusApp() {
             if (d.nhacNen && d.nhacNen.tenBai) setRadioTitle(d.nhacNen.tenBai);
             return;
           }
+        } else if (res.status === 403) {
+          // Chưa có quyền thành viên ở lớp này: xóa các dữ liệu nội bộ
+          setClassData(prev => ({
+            ...prev,
+            hocSinh: [],
+            thongBao: [],
+            hoatDongLop: [],
+            quyKhoan: [],
+            quyChi: [],
+            quyDong: [],
+            thuQuy: null
+          }));
         }
       } catch {}
     }
@@ -617,13 +630,13 @@ function DigitalCampusApp() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, [attendance.loaded, fetchAttendance]);
 
-  // Load public class list on mount
+  // Load public class list on mount (chỉ dùng làm fallback khi chưa đăng nhập)
   useEffect(() => {
     fetch('/api/lop-cong-khai')
       .then(r => r.json())
       .then(d => {
         if (d.ok && Array.isArray(d.danhSach) && d.danhSach.length > 0) {
-          setDsLop(d.danhSach);
+          setDsLop(prev => (prev.length > 0 ? prev : d.danhSach));
         }
       })
       .catch(() => {});
@@ -1041,7 +1054,13 @@ function DigitalCampusApp() {
       setShowAuthModal(true);
       return;
     }
-    if (auth.user?.coQuyenCongDong || auth.user?.isTeacher) {
+    const currentClassId = classData.lop?.id || auth.user?.lopId;
+    const coQuyenHienTai = auth.user?.isTeacher ||
+      (Array.isArray(auth.user?.cacLopCoQuyen) && auth.user.cacLopCoQuyen.length > 0
+        ? auth.user.cacLopCoQuyen.includes(currentClassId)
+        : auth.user?.coQuyenCongDong);
+
+    if (coQuyenHienTai) {
       navigateTab('feed', 'ban-tin');
       return;
     }
@@ -1049,11 +1068,19 @@ function DigitalCampusApp() {
   };
 
   useEffect(() => {
-    if (!auth.loaded || activeTab !== 'feed' || auth.user?.coQuyenCongDong) return;
-    navigateTab('campus');
-    if (auth.isGuest) setShowAuthGate(true);
-    else setShowCommunityGate(true);
-  }, [auth.loaded, auth.isGuest, auth.user?.coQuyenCongDong, activeTab, navigateTab]);
+    if (!auth.loaded || activeTab !== 'feed') return;
+    const currentClassId = classData.lop?.id || auth.user?.lopId;
+    const coQuyenHienTai = auth.user?.isTeacher ||
+      (Array.isArray(auth.user?.cacLopCoQuyen) && auth.user.cacLopCoQuyen.length > 0
+        ? auth.user.cacLopCoQuyen.includes(currentClassId)
+        : auth.user?.coQuyenCongDong);
+
+    if (!coQuyenHienTai) {
+      navigateTab('campus');
+      if (auth.isGuest) setShowAuthGate(true);
+      else setShowCommunityGate(true);
+    }
+  }, [auth.loaded, auth.isGuest, auth.user, classData.lop?.id, activeTab, navigateTab]);
 
   useEffect(() => {
     if (activeTab !== 'campus') return;
@@ -1947,8 +1974,10 @@ function DigitalCampusApp() {
             {showClassDropdown && (
               <div className="absolute left-0 top-full mt-2 w-64 bg-[#151A23] border border-white/15 rounded-2xl p-2.5 shadow-2xl z-50 animate-scaleIn backdrop-blur-xl">
                 <div className="px-2.5 py-1.5 border-b border-white/10 flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Chuyển lớp học</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/15 text-[#00F2FE] font-bold">{dsLop.length || 1} lớp</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {auth.user?.isTeacher ? 'Quản lý nhóm lớp' : 'Bảng tin được cấp quyền'}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/15 text-[#00F2FE] font-bold">{dsLop.length || 1} nhóm</span>
                 </div>
                 <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
                   {dsLop.map(l => {

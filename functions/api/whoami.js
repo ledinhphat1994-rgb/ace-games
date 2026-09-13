@@ -46,13 +46,41 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
 
   let dsLop = [];
   try {
-    const { results } = await env.DB.prepare(
-      'SELECT id, slug, ten, nam_hoc AS namHoc, truong FROM lop WHERE dang_hoat_dong = 1 ORDER BY id'
-    ).all();
-    dsLop = results || [];
+    if (isSchoolAdmin) {
+      const { results } = await env.DB.prepare(
+        'SELECT id, slug, ten, nam_hoc AS namHoc, truong FROM lop WHERE dang_hoat_dong = 1 ORDER BY id'
+      ).all();
+      dsLop = results || [];
+    } else if (isVerifiedTeacher) {
+      const { layPhamViQuanTri } = await import('../_lib/quan-tri.js').catch(() => ({}));
+      const pham = layPhamViQuanTri ? await layPhamViQuanTri(env, phien).catch(() => null) : null;
+      if (pham?.isSchoolAdmin) {
+        const { results } = await env.DB.prepare(
+          'SELECT id, slug, ten, nam_hoc AS namHoc, truong FROM lop WHERE dang_hoat_dong = 1 ORDER BY id'
+        ).all();
+        dsLop = results || [];
+      } else if (pham?.lopIds?.length) {
+        const ids = pham.lopIds;
+        const { results } = await env.DB.prepare(
+          `SELECT id, slug, ten, nam_hoc AS namHoc, truong FROM lop WHERE id IN (${ids.map(() => '?').join(',')}) AND dang_hoat_dong = 1 ORDER BY id`
+        ).bind(...ids).all();
+        dsLop = results || [];
+      }
+    } else if (currentHocSinhId || currentLopId) {
+      // Học sinh: CHỈ lấy danh sách các bảng tin / lớp ĐÃ ĐƯỢC CẤP QUYỀN
+      const { results } = await env.DB.prepare(`
+        SELECT DISTINCT l.id, l.slug, l.ten, l.nam_hoc AS namHoc, l.truong
+        FROM lop l
+        LEFT JOIN community_membership cm ON cm.lop_id = l.id AND cm.revoked_at IS NULL AND cm.hoc_sinh_id = ?1
+        WHERE l.dang_hoat_dong = 1 AND (l.id = ?2 OR cm.id IS NOT NULL)
+        ORDER BY l.id
+      `).bind(currentHocSinhId || -1, currentLopId || -1).all();
+      dsLop = results || [];
+    }
   } catch {}
 
-  const coQuyenCongDong = await coQuyenThanhVien(env, phien);
+  const cacLopCoQuyen = dsLop.map(l => l.id);
+  const coQuyenCongDong = await coQuyenThanhVien(env, phien, currentLopId);
   let laBienTapVien = false;
 
   if (['student', 'phu'].includes(currentRole) && currentHocSinhId && currentLopId) {
@@ -84,6 +112,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
     namHoc: lop?.namHoc || '',
     lop,
     dsLop,
+    cacLopCoQuyen,
     toSo: phien.toSo || null,
     chucVu: phien.chucVu || '',
     coQuyenCongDong,
