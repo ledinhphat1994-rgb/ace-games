@@ -51,6 +51,13 @@ console.log('CHẠY BỘ KIỂM THỬ ĐỒNG BỘ WATCH TOGETHER CORE (PHASE 3C
 console.log(`Target: ${BASE}`);
 console.log('================================================================\n');
 
+// Fixture: session hocSinhId cần hoc_sinh + ma_ca_nhan row trong LOCAL D1
+if (BASE.includes('127.0.0.1') || BASE.includes('localhost')) {
+  const sqlLocal = (cau) => execSync(`npx wrangler d1 execute lop-10a7-db --local --json --command "${cau}"`, { encoding: 'utf8' });
+  sqlLocal(`INSERT OR IGNORE INTO hoc_sinh (id, ho_ten, lop_id, so_thu_tu) VALUES (1,'QA HS-A',1,1),(2,'QA HS-B',1,2),(39,'QA HS-C',2,39)`);
+  sqlLocal(`INSERT OR IGNORE INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (1,'qa-hs1',1),(2,'qa-hs2',1),(39,'qa-hs39',2)`);
+}
+
 // Danh tính giả lập
 const HS_A = { hocSinhId: 1, lopId: 1, role: 'student', ten: 'Học sinh 10A7-A (Chủ phòng)' };
 const HS_B = { hocSinhId: 2, lopId: 1, role: 'student', ten: 'Học sinh 10A7-B (Người xem cùng lớp)' };
@@ -422,13 +429,24 @@ ok('Sau khi đóng: API Write /api/phong-watch trả về HTTP 404', resLcWriteA
 
 // 3. Kiểm tra DB thực tế: bản ghi phong_dong_bo_video thực sự bị xóa khỏi bảng (không chỉ bị ẩn)
 if (BASE.includes('127.0.0.1') || BASE.includes('localhost')) {
-  try {
-    const rawSqlOut = execSync(`npx wrangler d1 execute lop-10a7-db --local --command="SELECT count(1) as total FROM phong_dong_bo_video WHERE phong_id = ${lcId};"`, { encoding: 'utf8' });
+  // wrangler d1 execute tranh lock SQLite với pages dev đang chạy → SQLITE_BUSY thoáng qua.
+  // Retry tối đa 4 lần, nghỉ 1.5s mỗi lần.
+  let rawSqlOut = '';
+  for (let thu = 0; thu < 4; thu++) {
+    try {
+      rawSqlOut = execSync(`npx wrangler d1 execute lop-10a7-db --local --command="SELECT count(1) as total FROM phong_dong_bo_video WHERE phong_id = ${lcId};"`, { encoding: 'utf8' });
+      break;
+    } catch (err) {
+      if (thu === 3) {
+        ok('Lifecycle DB Cleanup: Lỗi khi truy vấn trực tiếp DB local', false, 'api', err.message);
+      }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  if (rawSqlOut) {
     const match = rawSqlOut.match(/"total":\s*(\d+)/);
     const dbCount = match ? parseInt(match[1], 10) : -1;
     ok('Lifecycle DB Cleanup: Bản ghi trong phong_dong_bo_video đã bị xóa hoàn toàn khỏi DB (count = 0)', dbCount === 0, 'api');
-  } catch (err) {
-    ok('Lifecycle DB Cleanup: Lỗi khi truy vấn trực tiếp DB local', false, 'api', err.message);
   }
 } else {
   console.log('  ℹ️ [REMOTE DB] Bỏ qua truy vấn CLI cục bộ, đã xác thực qua HTTP 404.');
@@ -490,7 +508,9 @@ try {
   // #world-hoc-tap nằm trong container orbit animation vô hạn → force:true để bỏ qua stability check.
   const SEL_VIDEO = '[data-testid="study-video-player"]';
   const vaoPhongQuaUI = async (page, phongId) => {
-    await page.locator('#world-hoc-tap').click({ force: true });
+    // #world-hoc-tap orbit quanh container — tâm nút có thể trượt ra sau panel bên cạnh
+    // tuỳ pha animation, nên dispatch click trực tiếp vào element thay vì click theo toạ độ.
+    await page.evaluate(() => document.querySelector('#world-hoc-tap')?.click());
     await page.waitForSelector('#lobby-watch', { timeout: 8000 });
     const btnVao = page.locator(`[data-testid="study-room-enter"][data-phong-id="${phongId}"]`);
     await btnVao.waitFor({ state: 'visible', timeout: 15000 });
@@ -667,8 +687,9 @@ try {
     }
   });
 
-  const btnRoiB = pageB.locator('#btn-roi-phong-top');
-  await btnRoiB.click();
+  // #btn-room-fullscreen che mất con trỏ tại điểm click của #btn-roi-phong-top
+  // (hai nút overlap trong topbar) — dispatch click trực tiếp vào element.
+  await pageB.evaluate(() => document.querySelector('#btn-roi-phong-top')?.click());
   await pageB.waitForSelector('#campus-lobby, #lobby-watch', { timeout: 5000 });
   await pageB.waitForTimeout(500);
 

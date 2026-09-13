@@ -26,7 +26,16 @@ async function cookie(user) {
 async function api(path, { method = 'GET', body = null, ck = null } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (ck) headers['Cookie'] = ck;
-  const res = await fetch(`${BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let res;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      res = await fetch(`${BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      break;
+    } catch (err) {
+      if (attempt === 2) throw err;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
   const data = await res.json().catch(() => ({}));
   return { status: res.status, data };
 }
@@ -58,6 +67,21 @@ try {
     { stdio: 'pipe' }
   );
 } catch { obs('fixture', 'khong seed duoc admin 990001 — nhom D-admin co the fail'); }
+
+// Fixture học sinh QA: session hocSinhId cần hoc_sinh + ma_ca_nhan row (kiemTraPhienHieuLuc).
+// wrangler --command chỉ chạy 1 statement/lần → tách riêng.
+try {
+  execSync(
+    `npx wrangler d1 execute lop-10a7-db --local --command "INSERT OR IGNORE INTO hoc_sinh (id, ho_ten, lop_id, so_thu_tu) VALUES (90001,'HS-A ChuPhong',1,901),(90002,'HS-B Member',1,902),(90003,'HS-C KhacLop',2,903),(90004,'HS-D CoHost',1,904),(90005,'HS-E Ngoai',1,905)"`,
+    { stdio: 'pipe' }
+  );
+  for (const [id, lop] of [[90001, 1], [90002, 1], [90003, 2], [90004, 1], [90005, 1]]) {
+    execSync(
+      `npx wrangler d1 execute lop-10a7-db --local --command "INSERT OR IGNORE INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (${id},'qa-${id}',${lop})"`,
+      { stdio: 'pipe' }
+    );
+  }
+} catch { obs('fixture', 'khong seed duoc hoc sinh QA 90001-90005 — cac test co the fail'); }
 
 // Dọn phòng còn sót từ lần chạy trước (mỗi host tối đa 3 phòng mở — sót phòng làm tạo mới bị 429).
 // Mọi cookie đều thử đóng — chỉ chủ phòng/GV mới đóng được, request thừa trả 403 vô hại.
@@ -693,7 +717,13 @@ console.log('\n=== K5. REAL SYSTEM CHAT LOBBY — van mo khong can join ===');
 {
   // Sảnh hệ thống là fixture từ migration 61; lần chạy trước (hoặc test admin) có thể đã
   // đóng nó — mở lại về đúng trạng thái production ('mo') trước khi kiểm chứng.
+  // Nếu sảnh chat bị XOÁ hẳn (vd DB reset), re-seed theo đúng shape migration 61 —
+  // phải scope NOT EXISTS theo loai='chat' vì phòng video K6 cũng mang chu_phong_khoa 'he-thong'.
   let sanh = sqlLocal(`SELECT id, loai, pham_vi AS phamVi, trang_thai AS trangThai FROM phong WHERE chu_phong_khoa='he-thong' AND loai='chat' ORDER BY id LIMIT 1`)[0];
+  if (!sanh) {
+    sqlLocal(`INSERT INTO phong (loai, ten, mo_ta, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, trang_thai) SELECT 'chat', 'Sanh Chinh Toan Truong', 'Phong chat chung cho hoc sinh moi lop.', 'truong', NULL, 'he-thong', 'Hệ thống', 'mo' WHERE NOT EXISTS (SELECT 1 FROM phong WHERE chu_phong_khoa='he-thong' AND loai='chat')`);
+    sanh = sqlLocal(`SELECT id, loai, pham_vi AS phamVi, trang_thai AS trangThai FROM phong WHERE chu_phong_khoa='he-thong' AND loai='chat' ORDER BY id LIMIT 1`)[0];
+  }
   if (sanh && sanh.trangThai !== 'mo') {
     sqlLocal(`UPDATE phong SET trang_thai='mo' WHERE id=${sanh.id}`);
     sanh.trangThai = 'mo';

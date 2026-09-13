@@ -4,6 +4,7 @@ import { CampusChatRail } from './features/chat-rail.js';
 import { ActivityLobby, CampusActivityUniverse, RoomPasswordModal } from './features/lobby.js';
 import { AuthModal, CommunityBoardGateModal } from './features/modals.js';
 import { CampusFocusRoom, CampusWatchTogether, StudyDock } from './features/study.js';
+import { BanCoGame, MiniGameOverlay, GAME_TYPE_INFO, gameTen } from './features/games.js';
 import { CAMPUS_GAMES, PRESET_AVATARS, dinhDangNgayGioVN, formatDateVN, formatTimeOnly, formatVND, idGoogleDrive, idYoutube, laVideoTrucTiepFe, normalizeCampusRoom, thoiGianTruoc, urlMediaFe } from './lib/helpers.js';
 import { Ic } from './lib/icons.js';
 
@@ -81,6 +82,10 @@ function DigitalCampusApp() {
   const [viewAllCat, setViewAllCat] = useState(null); // 'CINEMA' | 'GAME' | 'LOFI' | 'CHAT' | null
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isRoomWide, setIsRoomWide] = useState(false);
+  const [layoutRatio, setLayoutRatioRaw] = useState(() => {
+    try { return localStorage.getItem('campusLayoutRatio') || '6:4'; } catch { return '6:4'; }
+  });
+  const setLayoutRatio = (r) => { setLayoutRatioRaw(r); try { localStorage.setItem('campusLayoutRatio', r); } catch {} };
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -184,6 +189,8 @@ function DigitalCampusApp() {
   const [showTaoBanModal, setShowTaoBanModal] = useState(false);
   const [taoBanScope, setTaoBanScope] = useState('truong'); // 'truong' | 'lop'
   const [taoBanTen, setTaoBanTen] = useState('');
+  const [taoBanLoai, setTaoBanLoai] = useState('co_caro'); // loại game đối kháng
+  const [miniGameId, setMiniGameId] = useState(null); // mini game 1 mình đang mở
   const [taoBanDangGui, setTaoBanDangGui] = useState(false);
 
   // 9. DJ Radio State — tên bài THẬT từ /api/lop (nhacNen) / /api/nhac-nen-info
@@ -683,7 +690,7 @@ function DigitalCampusApp() {
   const taiDanhSachBanCaro = useCallback(async (tab = arenaTab) => {
     if (auth.isGuest) return;
     try {
-      const res = await fetch(`/api/game?loai=co_caro&phamVi=${tab}`);
+      const res = await fetch(`/api/game?loai=tat_ca&phamVi=${tab}`);
       const d = await res.json();
       if (d.ok) setCaroRooms(d.danhSachBan || []);
       else setCaroLoi(d.loi || '');
@@ -856,7 +863,7 @@ function DigitalCampusApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           hanhDong: 'tao_ban',
-          loaiGame: 'co_caro',
+          loaiGame: taoBanLoai,
           phamVi: taoBanScope,
           tenBan: taoBanTen.trim() || undefined
         })
@@ -864,7 +871,7 @@ function DigitalCampusApp() {
       const d = await res.json();
       if (d.ok && d.phong) {
         setCaroPhong(d.phong);
-        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: `⚔️ ${gameTen(d.phong.loaiGame)}` });
         setCurrentView('ROOM_ACTIVE');
         setQuickState('GAME_ACTIVE');
         setShowTaoBanModal(false);
@@ -891,8 +898,8 @@ function DigitalCampusApp() {
       });
       const d = await res.json();
       if (d.ok) {
-        await taiPhongCaro(phongId);
-        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: '⚔️ Đấu Trường Cờ Caro 15x15' });
+        const p = await taiPhongCaro(phongId);
+        setActiveRoom({ id: 'caro-arena', type: 'GAME_CARO', title: `⚔️ ${gameTen(p?.loaiGame)}` });
         setCurrentView('ROOM_ACTIVE');
         setQuickState('GAME_ACTIVE');
       } else {
@@ -906,7 +913,9 @@ function DigitalCampusApp() {
   const danhCoCaro = async (r, c) => {
     if (!caroPhong || caroPhong.trangThai !== 'dang_choi') return;
     if (caroPhong.luotDiId !== nguoiChoiIdCuaToi) return;
-    if (caroPhong.banCo?.[r]?.[c]) return;
+    const loai = caroPhong.loaiGame || 'co_caro';
+    // c4: server tự tìm hàng rơi theo cột — không chặn ô đã có quân phía client
+    if (loai !== 'c4' && caroPhong.banCo?.[r]?.[c]) return;
     try {
       const res = await fetch('/api/game', {
         method: 'POST',
@@ -2063,6 +2072,19 @@ function DigitalCampusApp() {
                         title="Quay lại sảnh">
                         <span>‹</span> <span>Sảnh</span>
                       </button>
+                      <button
+                        id="btn-roi-phong-top"
+                        data-id="btn-roi-phong-top"
+                        onClick={() => {
+                          if (activeRoom.type === 'PHONG') roiPhongHienTai();
+                          else if (activeRoom.type === 'GAME_CARO') thoatPhongGameArena();
+                          setIsRoomWide(false);
+                          setCurrentView('LOBBY');
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                        title={activeRoom.type === 'PHONG' ? 'Rời phòng học' : 'Thoát bàn đấu'}>
+                        <span>✕</span> <span className="hidden xs:inline">Rời phòng</span>
+                      </button>
                       <div className="h-4 w-[1px] bg-white/15 hidden sm:block"></div>
                       <div className="flex items-center gap-2 min-w-0">
                         <h2 className="text-sm font-black text-white truncate max-w-[140px] sm:max-w-xs md:max-w-sm">{activeRoom.title}</h2>
@@ -2073,7 +2095,7 @@ function DigitalCampusApp() {
                         )}
                         {/* Badge Chủ phòng — chỉ hiện khi là chủ phòng */}
                         {activeRoom.type === 'PHONG' && (activeRoom.phong?.laChuPhong || activeRoom.phong?.canControl || auth.user?.isTeacher) && (
-                          <span id="host-badge-topbar" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
+                          <span id="host-badge" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
                             <span>★</span><span>Chủ phòng</span>
                           </span>
                         )}
@@ -2096,6 +2118,26 @@ function DigitalCampusApp() {
                         <span className="text-sm">{isRoomWide ? '🗗' : '⛶'}</span>
                         <span>{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
                       </button>
+
+                      {/* Ratio presets — chỉ hiện cho phòng video */}
+                      {activeRoom.type === 'PHONG' && activeRoom.phong?.loai === 'video' && (
+                        <div className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+                          {['7:3','6:4','5:5','4:6','3:7'].map(r => (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => setLayoutRatio(r)}
+                              title={`Video : Chat = ${r}`}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                                layoutRatio === r
+                                  ? 'bg-[#00F2FE] text-black shadow-sm'
+                                  : 'text-slate-400 hover:text-white hover:bg-white/10'
+                              }`}>
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 shrink-0 pl-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -2233,7 +2275,7 @@ function DigitalCampusApp() {
                         <p className="text-xs font-bold text-white truncate">{caroPhong.chuPhongTen} {caroPhong.chuPhongId === nguoiChoiIdCuaToi ? '(Bạn)' : ''}</p>
                         <p className="text-[10px] text-slate-400 truncate">Lớp {caroPhong.lopTen || '10A7'}</p>
                       </div>
-                      <span className="w-7 h-7 rounded-lg bg-[#00F2FE]/20 text-[#00F2FE] font-black text-sm flex items-center justify-center shrink-0">X</span>
+                      <span className="w-7 h-7 rounded-lg bg-[#00F2FE]/20 text-[#00F2FE] font-black text-sm flex items-center justify-center shrink-0">{(GAME_TYPE_INFO[caroPhong.loaiGame] || GAME_TYPE_INFO.co_caro).mauChu}</span>
                     </div>
 
                     <div className={`p-2.5 rounded-xl border flex items-center justify-between ${caroPhong.khachId && caroPhong.luotDiId === caroPhong.khachId && caroPhong.trangThai === 'dang_choi' ? 'bg-[#FFB800]/10 border-[#FFB800]/50 shadow-[0_0_10px_rgba(255,184,0,0.15)]' : 'bg-[#0B0E14] border-white/5'}`}>
@@ -2241,7 +2283,7 @@ function DigitalCampusApp() {
                         <p className="text-xs font-bold text-white truncate">{caroPhong.khachTen ? `${caroPhong.khachTen} ${caroPhong.khachId === nguoiChoiIdCuaToi ? '(Bạn)' : ''}` : 'Đang chờ đối thủ…'}</p>
                         <p className="text-[10px] text-slate-400 truncate">{caroPhong.khachLopTen ? `Lớp ${caroPhong.khachLopTen}` : '—'}</p>
                       </div>
-                      <span className="w-7 h-7 rounded-lg bg-[#FFB800]/20 text-[#FFB800] font-black text-sm flex items-center justify-center shrink-0">O</span>
+                      <span className="w-7 h-7 rounded-lg bg-[#FFB800]/20 text-[#FFB800] font-black text-sm flex items-center justify-center shrink-0">{(GAME_TYPE_INFO[caroPhong.loaiGame] || GAME_TYPE_INFO.co_caro).mauKhach}</span>
                     </div>
                   </div>
 
@@ -2257,18 +2299,7 @@ function DigitalCampusApp() {
 
                   {caroLoi && <p className="text-xs text-rose-400 mb-2 w-full text-center">{caroLoi}</p>}
 
-                  <div className="grid gap-0.5 p-2 bg-[#0B0E14] border border-white/15 rounded-2xl shadow-inner max-w-[520px] w-full aspect-square"
-                       style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }}>
-                    {(caroPhong.banCo || Array(15).fill(null).map(() => Array(15).fill(null))).map((row, r) => (
-                      row.map((cell, c) => (
-                        <button key={`${r}-${c}`} onClick={() => danhCoCaro(r, c)}
-                          disabled={!caroPhong || caroPhong.trangThai !== 'dang_choi' || caroPhong.luotDiId !== nguoiChoiIdCuaToi || Boolean(cell)}
-                          className={`aspect-square rounded-[3px] flex items-center justify-center font-black text-[10px] sm:text-xs transition-colors ${!cell ? 'bg-[#151A23]/60 hover:bg-white/10' : cell === 'X' ? 'bg-[#00F2FE]/20 text-[#00F2FE]' : 'bg-[#FFB800]/20 text-[#FFB800]'}`}>
-                          {cell}
-                        </button>
-                      ))
-                    ))}
-                  </div>
+                  <BanCoGame phong={caroPhong} nguoiChoiIdCuaToi={nguoiChoiIdCuaToi} onDanh={danhCoCaro} />
                 </div>
               ) : (
                 /* SẢNH ĐẤU TRƯỜNG HYBRID: QUICK MATCH HERO CTA + OPEN LOBBY DISCOVERY */
@@ -2278,10 +2309,10 @@ function DigitalCampusApp() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg">⚔️</span>
-                          <h3 className="text-base font-black text-white">GAME ARENA — CARO 15×15</h3>
+                          <h3 className="text-base font-black text-white">GAME ARENA</h3>
                         </div>
                         <p className="text-xs text-slate-400">
-                          Đấu trường trí tuệ đối kháng trực tiếp. Ghép trận tức thì toàn trường hoặc mở bàn thách đấu.
+                          Đấu trường trí tuệ đối kháng trực tiếp — Caro 15×15 · Caro 9×9 · Thả Quân 4 · Reversi. Ghép trận tức thì hoặc mở bàn thách đấu.
                         </p>
                       </div>
                       <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
@@ -2341,6 +2372,9 @@ function DigitalCampusApp() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-xs font-bold text-white truncate">{ban.tenBan || `Bàn #${ban.id}`}</p>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border bg-white/5 text-slate-300 border-white/10">
+                                {(GAME_TYPE_INFO[ban.loaiGame] || GAME_TYPE_INFO.co_caro).icon} {(GAME_TYPE_INFO[ban.loaiGame] || GAME_TYPE_INFO.co_caro).ten}
+                              </span>
                               <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${ban.phamVi === 'truong' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-blue-500/15 text-blue-300 border-blue-500/30'}`}>
                                 {ban.phamVi === 'truong' ? 'Toàn trường' : `Lớp ${ban.lopTen || ''}`}
                               </span>
@@ -2390,11 +2424,25 @@ function DigitalCampusApp() {
             return (
               <div className={
                 isFocusMode && p.loai === 'nhac'
-                  ? "max-w-2xl mx-auto w-full"
-                  : "grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start"
+                  ? 'max-w-2xl mx-auto w-full'
+                  : p.loai === 'video'
+                  ? 'flex flex-col lg:flex-row gap-5 w-full items-start'
+                  : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
                 {/* VÙNG 1 (CỘT TRÁI): Nội dung theo loại phòng (Player/Video) */}
-                <div className="flex flex-col gap-4 min-w-0 w-full">
+                {(() => {
+                  const ratioFlex = {
+                    '7:3': ['7 1 0%', '3 1 0%'],
+                    '6:4': ['6 1 0%', '4 1 0%'],
+                    '5:5': ['5 1 0%', '5 1 0%'],
+                    '4:6': ['4 1 0%', '6 1 0%'],
+                    '3:7': ['3 1 0%', '7 1 0%']
+                  };
+                  const [vFlex, cFlex] = isRoomWide ? ['7.2 1 0%', '2.8 1 0%'] : (ratioFlex[layoutRatio] || ['6 1 0%', '4 1 0%']);
+                  const videoStyle = p.loai === 'video' ? { flex: vFlex, minWidth: 0 } : {};
+                  const chatStyle  = p.loai === 'video' ? { flex: cFlex, minWidth: 0 } : {};
+                  return (<>
+                <div className="flex flex-col gap-4 min-w-0" style={videoStyle}>
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
@@ -2453,7 +2501,7 @@ function DigitalCampusApp() {
                 </div>
 
                 {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
-                <div className="flex flex-col gap-4 min-w-0 w-full">
+                <div className="flex flex-col gap-4 min-w-0" style={chatStyle}>
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}
@@ -2468,6 +2516,8 @@ function DigitalCampusApp() {
                       grants={phongGrants}
                       videoTimeRef={phongVideoTimeRef}
                       hanhDongPhong={hanhDongPhong}
+                      canControl={Boolean(laChuPhong || phongMyCaps?.video_control || phongMyCaps?.video_change || auth.user?.isTeacher)}
+                      dongPhongHienTai={dongPhongHienTai}
                       onSendPhongChat={async (noiDung) => {
                         const res = await fetch('/api/phong-chat', {
                           method: 'POST',
@@ -2523,6 +2573,8 @@ function DigitalCampusApp() {
                     </div>
                   )}
                 </div>
+                  </>);
+                })()}
               </div>
             );
           })()}
@@ -2569,7 +2621,12 @@ function DigitalCampusApp() {
                   taoBanCtl={{
                     show: showTaoBanModal, ten: taoBanTen, setTen: setTaoBanTen,
                     scope: taoBanScope, setScope: setTaoBanScope,
+                    loai: taoBanLoai, setLoai: setTaoBanLoai,
                     loi: caroLoi, dangTao: taoBanDangGui, submit: taoBanCaro, setShow: setShowTaoBanModal
+                  }}
+                  onMiniGame={id => {
+                    if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
+                    setMiniGameId(id);
                   }}
                 />
               ) : (
@@ -3693,13 +3750,16 @@ function DigitalCampusApp() {
       {/* ══════════════════════════════════════════════════════════════════════
            MODAL: TẠO BÀN ĐẤU CARO 15x15 (CHỌN TOÀN TRƯỜNG / LỚP TÔI)
       ══════════════════════════════════════════════════════════════════════ */}
+      {/* MINI GAME 1 MÌNH — overlay mount engine local, không đụng server */}
+      {miniGameId && <MiniGameOverlay gameId={miniGameId} onClose={() => setMiniGameId(null)} />}
+
       {showTaoBanModal && currentLobby !== 'GAME' && (
         <div id="modal-tao-ban-caro" className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#151A23] border border-[#00F2FE]/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-xl">⚔️</span>
-                <h3 className="text-base font-extrabold text-white">Tạo Bàn Đấu Caro 15×15</h3>
+                <h3 className="text-base font-extrabold text-white">Tạo Bàn Đấu — {gameTen(taoBanLoai)}</h3>
               </div>
               <button onClick={() => setShowTaoBanModal(false)}
                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all">
@@ -3708,6 +3768,21 @@ function DigitalCampusApp() {
             </div>
 
             <div className="flex flex-col gap-3.5">
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+                  Loại game *
+                </label>
+                <div className="grid grid-cols-2 gap-2" data-testid="tao-ban-loai">
+                  {Object.entries(GAME_TYPE_INFO).map(([id, g]) => (
+                    <button key={id} type="button" onClick={() => setTaoBanLoai(id)}
+                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${taoBanLoai === id ? 'bg-amber-400/15 text-amber-300 border-amber-400/50 shadow-sm' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                      {g.icon} {g.ten}
+                      <span className="block text-[9px] font-normal opacity-70 mt-0.5">{g.moTa}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
                   Tên bàn đấu (Tùy chọn)

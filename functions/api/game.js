@@ -4,6 +4,7 @@ import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
 import { bamMatKhau, taoSalt, xacMinhMatKhau } from '../_lib/passwords.js';
 import { actorKey } from '../_lib/auth.js';
+import { banCoKhoiTao, apDungNuocDi, GAME_TYPES, LOAI_GAME_HOP_LE } from '../_lib/game-engines.js';
 
 // Sinh mã số người chơi tương thích ngược (Deterministic numeric player ID)
 // Đảm bảo không đụng độ giữa học sinh (1-1000), tài khoản phụ (800000+), giáo viên (900000+), và tài khoản Campus (2000000+)
@@ -105,47 +106,11 @@ function formatPhong(phong, phien = null) {
   };
 }
 
-// Kiểm tra thắng 5 quân liên tiếp cho bàn cờ Caro 15x15
-function kiemTraThangCaro(board, r, c, val) {
-  if (!val) return false;
-  const huong = [
-    [0, 1],   // Ngang
-    [1, 0],   // Dọc
-    [1, 1],   // Chéo chính
-    [1, -1],  // Chéo phụ
-  ];
-
-  for (const [dr, dc] of huong) {
-    let count = 1;
-    // Đi tới
-    for (let step = 1; step < 5; step++) {
-      const nr = r + dr * step;
-      const nc = c + dc * step;
-      if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === val) {
-        count++;
-      } else {
-        break;
-      }
-    }
-    // Đi lui
-    for (let step = 1; step < 5; step++) {
-      const nr = r - dr * step;
-      const nc = c - dc * step;
-      if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] === val) {
-        count++;
-      } else {
-        break;
-      }
-    }
-    if (count >= 5) return true;
-  }
-  return false;
-}
-
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('phongId') || '0', 10);
   const loaiGame = url.searchParams.get('loai') || 'co_caro';
+  const tatCaLoai = loaiGame === 'tat_ca'; // 'tat_ca' = liệt kê mọi loại game
   const phamVi = url.searchParams.get('phamVi') || 'lop'; // 'lop' | 'truong'
   const lopId = lopIdCuaPhien(phien, url.searchParams.get('lopId'));
 
@@ -195,10 +160,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
              g.tao_luc AS taoLuc, g.cap_nhat_luc AS capNhatLuc
       FROM game_phong g
       LEFT JOIN lop l ON g.lop_id = l.id
-      WHERE g.pham_vi = 'truong' AND g.loai_game = ?1 AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
+      WHERE g.pham_vi = 'truong' ${tatCaLoai ? '' : 'AND g.loai_game = ?1'} AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
       ORDER BY g.id DESC
       LIMIT 30
-    `).bind(loaiGame).all();
+    `).bind(...(tatCaLoai ? [] : [loaiGame])).all();
 
     // Sảnh toàn trường: không để lộ id học sinh nội bộ hay thông tin nhạy cảm
     return json({
@@ -239,10 +204,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
            g.tao_luc AS taoLuc, g.cap_nhat_luc AS capNhatLuc
     FROM game_phong g
     LEFT JOIN lop l ON g.lop_id = l.id
-    WHERE g.lop_id = ?1 AND g.pham_vi = 'lop' AND g.loai_game = ?2 AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
+    WHERE g.lop_id = ?1 AND g.pham_vi = 'lop' ${tatCaLoai ? '' : 'AND g.loai_game = ?2'} AND g.trang_thai IN ('cho_nguoi', 'dang_choi')
     ORDER BY g.id DESC
     LIMIT 20
-  `).bind(lopId, loaiGame).all();
+  `).bind(lopId, ...(tatCaLoai ? [] : [loaiGame])).all();
 
   return json({
     ok: true,
@@ -282,6 +247,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
   // 1. TẠO BÀN MỚI THỦ CÔNG (Manual Table Creation)
   if (hanhDong === 'tao_ban') {
     const loaiGame = String(than.loaiGame || 'co_caro').trim();
+    if (!LOAI_GAME_HOP_LE.includes(loaiGame)) {
+      return loi('Loại game không được hỗ trợ.', 400);
+    }
     const phamVi = than.phamVi === 'truong' ? 'truong' : 'lop';
     const kieuGhep = than.kieuGhep === 'nhanh' ? 'nhanh' : 'thu_cong';
 
@@ -307,8 +275,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       matKhauHash = await bamMatKhau(pass, matKhauSalt);
     }
 
-    // Tạo bàn cờ rỗng 15x15
-    const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
+    // Bàn cờ khởi tạo theo loại game (caro 15/9 ô trống, c4 6x7 số 0, reversi 4 quân giữa)
+    const banCoRong = banCoKhoiTao(loaiGame);
 
     // Bàn toàn trường của tài khoản chưa liên kết lớp KHÔNG gán lopId bừa bãi
     const originLopId = phamVi === 'truong'
@@ -434,6 +402,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     }
 
     const loaiGame = String(than.loaiGame || 'co_caro').trim();
+    if (!LOAI_GAME_HOP_LE.includes(loaiGame)) {
+      return loi('Loại game không được hỗ trợ.', 400);
+    }
     const originLopId = (phien.hocSinhId && phien.lopId) ? phien.lopId : null;
 
     // BƯỚC 2 — RESUME EXISTING ACTIVE MATCH: Tiếp tục trận đấu đang diễn ra nếu có
@@ -527,7 +498,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     }
 
     // BƯỚC 6 — CREATE WAITING ROW: Không claim được đối thủ -> tạo bàn chờ Quick Match
-    const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
+    const banCoRong = banCoKhoiTao(loaiGame);
     const tenBan = `Quick Match - ${tenNguoiChoi}`;
 
     try {
@@ -599,8 +570,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     const r = parseInt(than.r, 10);
     const c = parseInt(than.c, 10);
 
-    if (!phongId || r < 0 || r >= 15 || c < 0 || c >= 15) {
-      return loi('Nước đi không hợp lệ.');
+    if (!phongId) {
+      return loi('Thiếu mã bàn chơi.');
     }
 
     const phong = await env.DB.prepare('SELECT * FROM game_phong WHERE id = ?1').bind(phongId).first();
@@ -638,36 +609,39 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     try {
       board = JSON.parse(phong.du_lieu_ban_co || '[]');
     } catch {
-      board = Array(15).fill(null).map(() => Array(15).fill(null));
+      board = banCoKhoiTao(phong.loai_game);
+    }
+    if (!Array.isArray(board) || !Array.isArray(board[0])) {
+      board = banCoKhoiTao(phong.loai_game);
     }
 
-    if (board[r] && board[r][c] !== null) {
-      return loi('Ô này đã được đánh.');
+    // Engine dùng chung: quanIdx 0 = chủ bàn, 1 = khách — luật theo loai_game
+    const quanIdx = laChuPhong ? 0 : 1;
+    const ketQua = apDungNuocDi(phong.loai_game, board, { r, c }, quanIdx);
+    if (!ketQua.ok) {
+      return loi(ketQua.loi || 'Nước đi không hợp lệ.', 400);
     }
+    board = ketQua.board;
+    const quanCo = (GAME_TYPES[phong.loai_game] || GAME_TYPES.co_caro).quan[quanIdx];
 
-    // Xác định quân cờ: Chủ bàn = 'X', Khách = 'O'
-    const quanCo = laChuPhong ? 'X' : 'O';
-    board[r][c] = quanCo;
-
-    // Kiểm tra thắng
-    const daThang = kiemTraThangCaro(board, r, c, quanCo);
     let trangThaiMoi = 'dang_choi';
     let nguoiThangId = null;
     let nguoiThangKhoa = null;
-    const luotTiepTheoId = laChuPhong ? phong.khach_id : phong.chu_phong_id;
-    const luotTiepTheoKhoa = laChuPhong ? phong.khach_khoa : phong.chu_phong_khoa;
+    // Reversi có thể "đi tiếp" khi đối thủ hết nước hợp lệ
+    const luotTiepTheoId = ketQua.luotLai ? nguoiChoiId : (laChuPhong ? phong.khach_id : phong.chu_phong_id);
+    const luotTiepTheoKhoa = ketQua.luotLai ? currentActorKey : (laChuPhong ? phong.khach_khoa : phong.chu_phong_khoa);
 
-    if (daThang) {
+    if (ketQua.ketThuc === 'thang') {
       trangThaiMoi = 'ket_thuc';
-      nguoiThangId = nguoiChoiId;
-      nguoiThangKhoa = currentActorKey;
-    } else {
-      // Kiểm tra bàn đầy (hoà)
-      const conOTrong = board.some((hang) => hang.some((o) => o === null));
-      if (!conOTrong) {
-        trangThaiMoi = 'hoa';
-      }
+      // Reversi: người thắng quyết theo số quân, có thể là đối thủ của người vừa đi
+      const thangIdx = ketQua.nguoiThangIdx != null ? ketQua.nguoiThangIdx : quanIdx;
+      nguoiThangId = thangIdx === 0 ? phong.chu_phong_id : phong.khach_id;
+      nguoiThangKhoa = thangIdx === 0 ? phong.chu_phong_khoa : phong.khach_khoa;
+    } else if (ketQua.ketThuc === 'hoa') {
+      trangThaiMoi = 'hoa';
     }
+
+    const daThang = trangThaiMoi === 'ket_thuc' && nguoiThangKhoa === currentActorKey;
 
     // GHI NƯỚC ĐI NGUYÊN TỬ (Optimistic Concurrency Control):
     // Phải đúng id, đang trong trạng thái 'dang_choi', VÀ luot_di_khoa (hoặc luot_di_id) đúng là người chơi này.
@@ -701,11 +675,12 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
 
     // Ghi nhận thành tích học sinh thắng ván (chỉ ghi nhận khi là học sinh chính thức có hocSinhId)
     if (daThang && phien.hocSinhId && phong.lop_id) {
+      const tenGame = (GAME_TYPES[phong.loai_game] || GAME_TYPES.co_caro).ten;
       const ghiDiem = ghiNhanHoatDong(env, {
         hocSinhId: phien.hocSinhId,
         lopId: phong.lop_id,
         loaiHoatDong: 'game',
-        moTa: phong.pham_vi === 'truong' ? 'Thắng ván Cờ Caro Đấu Trường Toàn Trường' : 'Thắng ván Cờ Caro lớp',
+        moTa: phong.pham_vi === 'truong' ? `Thắng ván ${tenGame} Đấu Trường Toàn Trường` : `Thắng ván ${tenGame} lớp`,
       }).catch(() => {});
       if (waitUntil) waitUntil(ghiDiem);
     }
@@ -720,6 +695,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       nguoiThangKhoa,
       luotDiId: luotTiepTheoId,
       luotDiKhoa: luotTiepTheoKhoa,
+      luotLai: Boolean(ketQua.luotLai),
+      diemSo: ketQua.diemSo || null,
+      winLine: ketQua.winLine || null,
     });
   }
 
@@ -742,8 +720,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
       return loi('Bạn không ở trong bàn cờ này.', 403);
     }
 
-    // Bàn cờ rỗng 15x15
-    const banCoRong = Array(15).fill(null).map(() => Array(15).fill(null));
+    // Bàn cờ khởi tạo lại theo đúng loại game của bàn
+    const banCoRong = banCoKhoiTao(phong.loai_game);
     const luotMoiId = phong.chu_phong_id;
     const luotMoiKhoa = phong.chu_phong_khoa;
 

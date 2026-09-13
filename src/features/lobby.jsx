@@ -1,5 +1,6 @@
 import { idYoutube } from '../lib/helpers.js';
 import { Ic } from '../lib/icons.js';
+import { GAME_TYPE_INFO, MiniGameDock, gameTen } from './games.js';
 
 
 // ─── CAMPUS ACTIVITY UNIVERSE (PHASE 4G: TWO LIVING ACTIVITY WORLDS) ───────────────────
@@ -453,11 +454,20 @@ export function QuickTaoBanForm({ ctl }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-black text-white flex items-center gap-2"><span>⚔️</span> Tạo bàn đấu Caro 15×15</h3>
+        <h3 className="text-sm font-black text-white flex items-center gap-2"><span>⚔️</span> Tạo bàn đấu — {gameTen(ctl.loai)}</h3>
         <button type="button" onClick={() => ctl.setShow(false)} aria-label="Đóng"
           className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all">
           <Ic name="x" className="w-4 h-4" />
         </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="tao-ban-loai">
+        {Object.entries(GAME_TYPE_INFO).map(([id, g]) => (
+          <button key={id} type="button" onClick={() => ctl.setLoai(id)}
+            className={`px-2.5 py-2 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1.5 ${ctl.loai === id ? 'bg-amber-400/15 text-amber-300 border-amber-400/50' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+            <span>{g.icon}</span><span className="truncate">{g.ten}</span>
+          </button>
+        ))}
       </div>
 
       <input type="text" value={ctl.ten} onChange={e => ctl.setTen(e.target.value)} autoFocus
@@ -498,13 +508,14 @@ export function ActivityLobby({
   onQuickMatch,
   auth = {},
   taoPhongCtl,
-  taoBanCtl
+  taoBanCtl,
+  onMiniGame
 }) {
   const [roomFilter, setRoomFilter] = React.useState('ALL'); // 'ALL' | 'public' | 'private'
 
   const meta = {
     CINEMA: { id: 'lobby-watch', title: 'Học tập / YouTube', icon: '🎓', loai: 'video', desc: 'Không gian học tập, xem video bài giảng và thảo luận cùng bạn bè' },
-    GAME: { id: 'lobby-game', title: 'Đấu Trường Game', icon: '🎮', loai: 'game', desc: 'Đấu trường trí tuệ Caro 15×15 thời gian thực' }
+    GAME: { id: 'lobby-game', title: 'Đấu Trường Game', icon: '🎮', loai: 'game', desc: 'Đấu trường trí tuệ đối kháng + mini game 1 mình' }
   }[lobbyId] || { id: 'lobby-activity', title: 'Hoạt động', icon: '✨', loai: 'chat', desc: '' };
 
   const roomsForCat = (dsPhong || []).filter(p => {
@@ -669,6 +680,9 @@ export function ActivityLobby({
                           {isDangChoi ? 'Đang đấu' : 'Chờ người'}
                         </span>
                       </div>
+                      <div className="text-[10px] font-bold text-amber-300/90 mb-1">
+                        {(GAME_TYPE_INFO[b.loaiGame] || GAME_TYPE_INFO.co_caro).icon} {(GAME_TYPE_INFO[b.loaiGame] || GAME_TYPE_INFO.co_caro).ten}
+                      </div>
                       <div className="text-xs text-slate-300 font-medium">
                         {b.nguoiChoi1Ten || 'Kỳ thủ 1'} {b.nguoiChoi2Ten ? `vs ${b.nguoiChoi2Ten}` : '• chờ đối thủ'}
                       </div>
@@ -766,6 +780,11 @@ export function ActivityLobby({
           )
         )}
       </div>
+
+      {/* ─── MINI GAME 1 MÌNH — chỉ ở lobby Game, engine chạy local trong overlay ─── */}
+      {lobbyId === 'GAME' && onMiniGame && (
+        <MiniGameDock onChon={onMiniGame} />
+      )}
     </div>
   );
 }

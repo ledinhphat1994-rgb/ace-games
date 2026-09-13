@@ -1785,8 +1785,9 @@ export function CampusWatchTogether({
 
   // Áp dụng trạng thái đồng bộ từ server
   const apDungDongBo = (st, ctrl, prov) => {
+    if (!st) return;
     const nowMs = Date.now();
-    const serverTimeMs = st.serverNow ? new Date(st.serverNow).getTime() : nowMs;
+    const _serverTimeMs = st.serverNow ? new Date(st.serverNow).getTime() : nowMs;
     const updateTimeMs = st.updatedAt ? new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
     const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
 
@@ -2044,9 +2045,19 @@ export function CampusWatchTogether({
               }
             }}
             onSeeked={() => {
-              if (canControl && !dangGuiLenh && !isSeekingRef.current) {
-                guiLenh('seek', videoRef.current?.currentTime);
-              }
+              if (!canControl || dangGuiLenh || isSeekingRef.current) return;
+              const cur = videoRef.current?.currentTime;
+              if (cur === undefined) return;
+              // Chống vòng lặp: mọi gán currentTime nội bộ (optimistic seek, drift-correction
+              // của apDungDongBo) đều bắn 'seeked'. Chỉ gửi lệnh khi vị trí lệch khỏi
+              // vị trí server kỳ vọng >1.5s — tức người dùng thật sự tua qua thanh controls.
+              const st = watchState;
+              const updMs = st?.updatedAt ? new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime() : Date.now();
+              const elapsed = Math.max(0, (Date.now() - updMs) / 1000);
+              const kyVong = st?.playing
+                ? Number(st.basePositionSeconds || 0) + elapsed * (st.playbackRate || 1)
+                : Number(st?.positionSeconds || 0);
+              if (Math.abs(cur - kyVong) > 1.5) guiLenh('seek', cur);
             }}
           />
         ) : (
