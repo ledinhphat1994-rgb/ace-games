@@ -9,6 +9,18 @@ import { Ic } from './lib/icons.js';
 
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
+// ─── TẠM THỜI: chẩn đoán request-storm (whoami/chat/gamification/lop lặp liên tục, ăn quota
+// Cloudflare) — ghi lại MỖI lần 1 trong 4 API này thực sự được gọi, kèm mã phiên-tải-trang
+// (moduleInstanceId, sinh 1 lần khi file JS này được nạp) để phân biệt "lặp trong CÙNG 1 lần
+// tải trang" (bug JS thật) với "trang bị tải lại nhiều lần" (mỗi lần tải là 1 mã khác nhau).
+// Gỡ khối này (và các lời gọi logApiCall bên dưới) sau khi xác định xong nguyên nhân.
+const moduleInstanceId = Math.random().toString(36).slice(2, 8);
+let apiCallCounter = 0;
+function logApiCall(endpoint, caller) {
+  apiCallCounter += 1;
+  console.log(`[API_CALL] #${apiCallCounter} ${endpoint} caller=${caller} instance=${moduleInstanceId} t=${new Date().toISOString()}`);
+}
+
 // ─── Main Application Component ─────────────────────────────────────────────
 function DigitalCampusApp() {
   // 1. Authentication State & Role Tiers
@@ -246,6 +258,7 @@ function DigitalCampusApp() {
   // ─── AUTHENTICATION CHECK ─────────────────────────────────────────────────
   const fetchAuth = useCallback(async () => {
     try {
+      logApiCall('/api/whoami', 'fetchAuth');
       const res = await fetch('/api/whoami');
       if (res.ok) {
         const data = await res.json();
@@ -304,6 +317,7 @@ function DigitalCampusApp() {
   const fetchClassData = useCallback(async (isLoggedIn, customSlug = null) => {
     if (isLoggedIn) {
       try {
+        logApiCall('/api/lop', 'fetchClassData');
         const res = await fetch('/api/lop');
         if (res.ok) {
           const d = await res.json();
@@ -404,6 +418,7 @@ function DigitalCampusApp() {
   // ─── FETCH LIVE CHAT ──────────────────────────────────────────────────────
   const fetchChat = useCallback(async () => {
     try {
+      logApiCall('/api/chat', 'fetchChat');
       const res = await fetch('/api/chat');
       if (res.ok) {
         const d = await res.json();
@@ -489,6 +504,7 @@ function DigitalCampusApp() {
   // ─── FETCH REAL GAMIFICATION & ACHIEVEMENTS ───────────────────────────────
   const fetchGamification = useCallback(async () => {
     try {
+      logApiCall('/api/gamification', 'fetchGamification');
       const res = await fetch('/api/gamification');
       if (res.ok) {
         const d = await res.json();
@@ -510,6 +526,7 @@ function DigitalCampusApp() {
 
   // ─── INITIAL LIFECYCLE ────────────────────────────────────────────────────
   useEffect(() => {
+    console.log(`[API_CALL] INITIAL_LIFECYCLE_EFFECT_FIRED instance=${moduleInstanceId} t=${new Date().toISOString()}`);
     fetchAuth().then(isLoggedIn => {
       if (isLoggedIn) {
         fetchClassData(true);

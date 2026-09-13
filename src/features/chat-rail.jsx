@@ -252,6 +252,8 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
     try {
       const lopParam = auth?.user?.isTeacher && classLopId ? `&lopId=${classLopId}` : '';
       const url = sauId > 0 ? `/api/chat?sauId=${sauId}${lopParam}` : `/api/chat${lopParam ? '?' + lopParam.slice(1) : ''}`;
+      // TẠM THỜI: chẩn đoán request-storm /api/chat — gỡ dòng log này cùng lúc với campus-app.jsx.
+      console.log(`[API_CALL] /api/chat caller=taiClassChat(chat-rail) sauId=${sauId} t=${new Date().toISOString()}`);
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       const data = await res.json();
       if (data.ok) {
