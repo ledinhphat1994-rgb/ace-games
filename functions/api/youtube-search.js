@@ -1,32 +1,79 @@
 // API Tìm kiếm YouTube qua server proxy bảo mật (Phase 4G - Campus Media Studio)
-// API key YOUTUBE_DATA_API_KEY chỉ lưu tại biến môi trường máy chủ (Cloudflare secret).
+// Hỗ trợ cả Google Data API v3 (khi có YOUTUBE_DATA_API_KEY) lẫn fallback tìm kiếm công khai trực tiếp.
 // Tuyệt đối không để lộ key ra client hoặc repo.
 import { json, loi } from '../_lib/api.js';
 import { checkRateLimit } from '../_lib/social.js';
+
+// Fallback: Tìm kiếm video YouTube công khai lọc theo định dạng video
+async function searchYoutubePublic(q) {
+  try {
+    const endpoint = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAQ%253D%253D`;
+    const res = await fetch(endpoint, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8'
+      }
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    let jsonText = '';
+    const idx = html.indexOf('ytInitialData = ');
+    if (idx !== -1) {
+      const start = idx + 'ytInitialData = '.length;
+      const end = html.indexOf(';</script>', start);
+      if (end !== -1) jsonText = html.slice(start, end);
+    }
+    if (!jsonText) {
+      const m = html.match(/ytInitialData\s*=\s*({.+?});/s);
+      if (m) jsonText = m[1];
+    }
+    if (!jsonText) return [];
+
+    const data = JSON.parse(jsonText);
+    const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+    const items = [];
+
+    for (const section of contents) {
+      const list = section?.itemSectionRenderer?.contents || [];
+      for (const item of list) {
+        const vr = item?.videoRenderer;
+        if (vr && vr.videoId) {
+          const title = vr.title?.runs?.map(r => r.text).join('') || vr.title?.simpleText || 'Video YouTube';
+          const channelTitle = vr.ownerText?.runs?.map(r => r.text).join('') || '';
+          const thumbnail = vr.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || `https://i.ytimg.com/vi/${vr.videoId}/hqdefault.jpg`;
+          const publishedAt = vr.publishedTimeText?.simpleText || '';
+          items.push({
+            videoId: vr.videoId,
+            title,
+            channelTitle,
+            thumbnail,
+            publishedAt
+          });
+          if (items.length >= 12) break;
+        }
+      }
+      if (items.length >= 12) break;
+    }
+
+    return items;
+  } catch {
+    return [];
+  }
+}
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') || '').trim();
 
   const apiKey = (env.YOUTUBE_DATA_API_KEY || '').trim();
-  const isConfigured = Boolean(apiKey);
 
+  // Kiểm tra cấu hình: hệ thống luôn khả dụng qua Google API hoặc public fallback
   if (!q || q.length < 2) {
     return json({
       ok: true,
-      configured: isConfigured,
+      configured: true,
       items: [],
       message: 'Vui lòng nhập tối thiểu 2 ký tự để tìm kiếm.'
-    });
-  }
-
-  if (!isConfigured) {
-    return json({
-      ok: true,
-      configured: false,
-      code: 'youtube_unconfigured',
-      items: [],
-      message: 'Tìm kiếm YouTube hiện chưa khả dụng. Bạn vẫn có thể dán liên kết.'
     });
   }
 
@@ -38,56 +85,38 @@ export async function onRequestGet({ request, env }) {
   }
 
   try {
-    const endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=12&q=${encodeURIComponent(q)}&key=${encodeURIComponent(apiKey)}`;
-    const response = await fetch(endpoint, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    let items = [];
 
-    if (!response.ok) {
-      let safeCode = 'youtube_upstream_error';
-      let safeMsg = 'Không thể tải kết quả tìm kiếm từ YouTube.';
-
+    // 1. Thử dùng Google Data API nếu có API key
+    if (apiKey) {
       try {
-        const errJson = await response.json();
-        const errReason = errJson?.error?.errors?.[0]?.reason || errJson?.error?.status || '';
-        if (errReason === 'quotaExceeded' || errReason === 'rateLimitExceeded') {
-          safeCode = 'youtube_quota_exceeded';
-          safeMsg = 'Hạn mức tìm kiếm YouTube tạm thời đạt giới hạn.';
-        } else if (errReason === 'keyInvalid' || errReason === 'API_KEY_INVALID') {
-          safeCode = 'youtube_invalid_key';
-          safeMsg = 'Khóa API YouTube không hợp lệ.';
-        } else if (errReason === 'accessNotConfigured' || errReason === 'SERVICE_DISABLED') {
-          safeCode = 'youtube_api_disabled';
-          safeMsg = 'Dịch vụ YouTube API chưa được kích hoạt.';
+        const endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=12&q=${encodeURIComponent(q)}&key=${encodeURIComponent(apiKey)}`;
+        const response = await fetch(endpoint, {
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const rawItems = Array.isArray(data.items) ? data.items : [];
+          items = rawItems
+            .filter((it) => it && it.id && it.id.videoId)
+            .map((it) => ({
+              videoId: it.id.videoId,
+              title: String(it.snippet?.title || 'Video YouTube'),
+              channelTitle: String(it.snippet?.channelTitle || ''),
+              thumbnail: it.snippet?.thumbnails?.medium?.url || it.snippet?.thumbnails?.high?.url || it.snippet?.thumbnails?.default?.url || '',
+              publishedAt: it.snippet?.publishedAt || ''
+            }));
         }
       } catch {
-        // Ignore json parse error on upstream failure
+        // Tiếp tục thử fallback công khai bên dưới
       }
-
-      return json({
-        ok: false,
-        configured: true,
-        code: safeCode,
-        items: [],
-        message: safeMsg
-      }, 502);
     }
 
-    const data = await response.json();
-    const rawItems = Array.isArray(data.items) ? data.items : [];
-
-    // Chỉ trích xuất các trường an toàn tối thiểu theo yêu cầu UI
-    const items = rawItems
-      .filter((it) => it && it.id && it.id.videoId)
-      .map((it) => ({
-        videoId: it.id.videoId,
-        title: String(it.snippet?.title || 'Video YouTube'),
-        channelTitle: String(it.snippet?.channelTitle || ''),
-        thumbnail: it.snippet?.thumbnails?.medium?.url || it.snippet?.thumbnails?.high?.url || it.snippet?.thumbnails?.default?.url || '',
-        publishedAt: it.snippet?.publishedAt || ''
-      }));
+    // 2. Nếu chưa có API key hoặc Google API không trả về kết quả, dùng fallback công khai
+    if (items.length === 0) {
+      items = await searchYoutubePublic(q);
+    }
 
     return json({
       ok: true,
@@ -98,4 +127,3 @@ export async function onRequestGet({ request, env }) {
     return loi('Lỗi khi tìm kiếm video YouTube.', 500);
   }
 }
-

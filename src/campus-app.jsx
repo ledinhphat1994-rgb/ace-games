@@ -190,6 +190,7 @@ function DigitalCampusApp() {
   // 10. Phòng hoạt động động LIÊN LỚP — dữ liệu THẬT từ /api/phong + /api/phong-chat
   const [dsPhong, setDsPhong] = useState(null); // null = chưa tải
   const [showTaoPhong, setShowTaoPhong] = useState(false);
+  const [showInlineTaoPhong, setShowInlineTaoPhong] = useState(false);
   const [tpForm, setTpForm] = useState({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '', nhacUrl: '', access_mode: 'public', matKhau: '', sucChua: 8 });
   const [tpDangTao, setTpDangTao] = useState(false);
   const [tpLoi, setTpLoi] = useState('');
@@ -1048,6 +1049,7 @@ function DigitalCampusApp() {
       const d = await res.json();
       if (d.ok && d.phong) {
         setShowTaoPhong(false);
+        setShowInlineTaoPhong(false);
         const pass = tpForm.access_mode === 'password' ? tpForm.matKhau : null;
         setTpForm({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '', nhacUrl: '', access_mode: 'public', matKhau: '', sucChua: 8 });
         taiDanhSachPhong();
@@ -2501,7 +2503,13 @@ function DigitalCampusApp() {
               ) : currentLobby ? (
                 <ActivityLobby
                   lobbyId={currentLobby}
-                  onBack={() => setCurrentLobby(null)}
+                  onBack={() => {
+                    setShowInlineTaoPhong(false);
+                    setShowTaoPhong(false);
+                    setShowTaoBanModal(false);
+                    setCurrentLobby(null);
+                    navigateTab('campus');
+                  }}
                   onOpenTaoPhong={(loai, url, title) => {
                     if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
                     setTpLoi('');
@@ -2509,9 +2517,13 @@ function DigitalCampusApp() {
                       ...f,
                       loai: loai || 'chat',
                       ten: title ? title.slice(0, 40) : (loai === 'video' ? 'Phòng học YouTube' : ''),
-                      videoUrl: url || f.videoUrl || ''
+                      videoUrl: url || f.videoUrl || '',
+                      access_mode: 'public',
+                      matKhau: '',
+                      sucChua: 8,
+                      phamVi: 'truong'
                     }));
-                    setShowTaoPhong(true);
+                    setShowInlineTaoPhong(true);
                   }}
                   dsPhong={phongCongDong || []}
                   caroRooms={caroRooms || []}
@@ -2524,8 +2536,8 @@ function DigitalCampusApp() {
                   onQuickMatch={handleQuickMatch}
                   auth={auth}
                   taoPhongCtl={{
-                    show: showTaoPhong, form: tpForm, setForm: setTpForm,
-                    loi: tpLoi, dangTao: tpDangTao, submit: taoPhongMoi, setShow: setShowTaoPhong
+                    show: showInlineTaoPhong, form: tpForm, setForm: setTpForm,
+                    loi: tpLoi, dangTao: tpDangTao, submit: taoPhongMoi, setShow: setShowInlineTaoPhong
                   }}
                   taoBanCtl={{
                     show: showTaoBanModal, ten: taoBanTen, setTen: setTaoBanTen,
@@ -2649,22 +2661,6 @@ function DigitalCampusApp() {
 
           {/* ─── CENTER COLUMN: PINNED POST, COMPOSER, FEED OR MODULES ─── */}
           <main className="flex flex-col gap-5 min-w-0 w-full">
-            {/* Nút quay lại Bảng tin khi đang ở màn Điểm danh hoặc Quỹ lớp */}
-            {feedSubTab !== 'ban-tin' && (
-              <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl px-4 py-2.5 shadow-md">
-                <button
-                  type="button"
-                  id="btn-back-to-ban-tin"
-                  onClick={() => navigateTab('feed', 'ban-tin')}
-                  className="inline-flex items-center gap-2 text-xs font-bold text-[#00F2FE] hover:underline transition-all">
-                  <span>←</span>
-                  <span>Quay về Bảng tin của {tenLopHienTai}</span>
-                </button>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {feedSubTab === 'diem-danh' ? '📋 Sổ Điểm Danh' : '💰 Quỹ Lớp'}
-                </span>
-              </div>
-            )}
 
             {feedSubTab === 'ban-tin' && (
               <>
@@ -3560,7 +3556,7 @@ function DigitalCampusApp() {
       {/* ══════════════════════════════════════════════════════════════════════
            MODAL: TẠO PHÒNG HOẠT ĐỘNG (mọi thành viên đăng nhập đều mở được)
       ══════════════════════════════════════════════════════════════════════ */}
-      {showTaoPhong && currentLobby !== 'CINEMA' && (
+      {showTaoPhong && !currentLobby && activeTab === 'campus' && currentView === 'LOBBY' && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#151A23] border border-[#00F2FE]/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
             <div className="flex items-center justify-between mb-4">
