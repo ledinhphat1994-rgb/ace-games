@@ -2047,7 +2047,7 @@ function DigitalCampusApp() {
               {currentView === 'ROOM_ACTIVE' && activeRoom ? (
                 /* ACTIVE ROOM CENTER EXPERIENCE — PERSISTENT 3-COLUMN CAMPUS SHELL */
                 <div className="flex flex-col gap-5 w-full animate-fadeIn" id="campus-active-room-container">
-                  {/* Top Bar inside Active Room — Gọn gàng, Nổi bật, Không nút thừa */}
+                  {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
                   <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
                     <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                       <button
@@ -2060,22 +2060,8 @@ function DigitalCampusApp() {
                           setCurrentView('LOBBY');
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all hover:scale-105 active:scale-95 shrink-0"
-                        title="Quay lại sảnh hoạt động">
+                        title="Quay lại sảnh">
                         <span>‹</span> <span>Sảnh</span>
-                      </button>
-                      <button
-                        id="btn-roi-phong-top"
-                        data-id="btn-roi-phong-top"
-                        onClick={() => {
-                          if (activeRoom.type === 'PHONG') roiPhongHienTai();
-                          else if (activeRoom.type === 'GAME_CARO') thoatPhongGameArena();
-                          setIsRoomWide(false);
-                          setCurrentView('LOBBY');
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-xs font-bold text-rose-300 border border-rose-500/30 transition-all hover:scale-105 active:scale-95 shrink-0"
-                        title={activeRoom.type === 'PHONG' ? 'Rời phòng học' : 'Thoát bàn đấu'}>
-                        <Ic name="left" className="w-3.5 h-3.5" />
-                        <span className="hidden xs:inline">{activeRoom.type === 'PHONG' ? 'Rời phòng' : 'Thoát bàn'}</span>
                       </button>
                       <div className="h-4 w-[1px] bg-white/15 hidden sm:block"></div>
                       <div className="flex items-center gap-2 min-w-0">
@@ -2085,67 +2071,17 @@ function DigitalCampusApp() {
                             {activeRoom.phong.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 Lớp ${activeRoom.phong.lopTen || ''}`}
                           </span>
                         )}
+                        {/* Badge Chủ phòng — chỉ hiện khi là chủ phòng */}
+                        {activeRoom.type === 'PHONG' && (activeRoom.phong?.laChuPhong || activeRoom.phong?.canControl || auth.user?.isTeacher) && (
+                          <span id="host-badge-topbar" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
+                            <span>★</span><span>Chủ phòng</span>
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Dropdown người trong phòng */}
-                      {activeRoom.type === 'PHONG' && (
-                        <div className="relative">
-                          <button
-                            id="btn-room-members-dropdown"
-                            type="button"
-                            onClick={() => setShowMembersDropdown(prev => !prev)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${showMembersDropdown ? 'bg-[#00F2FE]/20 text-[#00F2FE] border-[#00F2FE]/50' : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'}`}
-                            title="Danh sách thành viên đang trong phòng">
-                            <span>👥</span>
-                            <span>Trong phòng ({phongThanhVien.length})</span>
-                            <span className="text-[10px] opacity-60">▾</span>
-                          </button>
-                          {showMembersDropdown && (
-                            <div className="absolute right-0 top-full mt-2 w-64 bg-[#151A23] border border-white/15 rounded-2xl p-3 shadow-2xl z-40 animate-scaleIn">
-                              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Trong phòng ({phongThanhVien.length})</span>
-                                <button onClick={() => setShowMembersDropdown(false)} className="text-slate-400 hover:text-white text-xs px-1">✕</button>
-                              </div>
-                              <div className="flex flex-col gap-1 max-h-60 overflow-y-auto pr-1">
-                                {phongThanhVien.map(tv => (
-                                  <div key={tv.khoa} className="flex items-center gap-2 text-xs py-1 px-2 rounded-lg hover:bg-white/5">
-                                    <span className={`w-2 h-2 rounded-full shrink-0 ${tv.vaiTro === 'giao_vien' ? 'bg-[#00F2FE]' : 'bg-emerald-400'}`}></span>
-                                    <span className="text-slate-200 font-semibold truncate">{tv.ten}</span>
-                                    {Boolean(tv.laChuPhong) && <span className="text-[9px] text-amber-400 font-bold shrink-0">★ chủ phòng</span>}
-                                    {tv.lopTen && <span className="text-[9px] text-slate-500 ml-auto shrink-0">{tv.lopTen}</span>}
-                                  </div>
-                                ))}
-                                {phongThanhVien.length === 0 && (
-                                  <p className="text-[11px] text-slate-500 text-center py-2">Đang tải thành viên…</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Sao chép link mời */}
-                      {activeRoom.type === 'PHONG' && (
-                        <button
-                          type="button"
-                          id="btn-copy-room-link-header"
-                          onClick={() => {
-                            const url = `${window.location.origin}/#/campus?phong=${activeRoom.id}`;
-                            navigator.clipboard?.writeText(url).then(() => {
-                              setLinkCopied(true);
-                              setTimeout(() => setLinkCopied(false), 2000);
-                            });
-                          }}
-                          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all"
-                          title="Sao chép liên kết mời vào phòng">
-                          <span>🔗</span>
-                          <span>{linkCopied ? 'Đã chép' : 'Mời'}</span>
-                        </button>
-                      )}
-
-                      {/* Nút TOÀN MÀN HÌNH / THU GỌN — RẤT NỔI BẬT */}
+                      {/* Nút TOÀN MÀN HÌNH / THU GỌN */}
                       <button
                         id="btn-room-fullscreen"
                         data-id="btn-room-fullscreen"
@@ -2156,7 +2092,7 @@ function DigitalCampusApp() {
                             ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110'
                             : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_18px_rgba(0,242,254,0.4)] hover:brightness-110 hover:scale-105'
                         }`}
-                        title={isRoomWide ? "Thu gọn về giao diện 3 cột" : "Toàn màn hình (ẩn cột trái & phải)"}>
+                        title={isRoomWide ? "Thu gọn" : "Toàn màn hình"}>
                         <span className="text-sm">{isRoomWide ? '🗗' : '⛶'}</span>
                         <span>{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
                       </button>
@@ -2468,6 +2404,7 @@ function DigitalCampusApp() {
                       soNguoi={phongThanhVien.length}
                       myCaps={phongMyCaps}
                       videoTimeRef={phongVideoTimeRef}
+                      isRoomWide={isRoomWide}
                     />
                   ) : p.loai === 'nhac' ? (
                     <CampusFocusRoom

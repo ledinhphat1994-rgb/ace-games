@@ -1248,7 +1248,8 @@ export function CampusWatchTogether({
   dongPhongHienTai,
   soNguoi,
   myCaps,
-  videoTimeRef
+  videoTimeRef,
+  isRoomWide
 }) {
   const [watchState, setWatchState] = useState({
     playing: false,
@@ -1683,51 +1684,20 @@ export function CampusWatchTogether({
         </div>
       )}
 
-      {/* Thanh trạng thái phòng & Điều khiển Host — Gọn gàng, thẩm mỹ, tối ưu không gian */}
+      {/* Thanh điều khiển Host — ẩn khi fullscreen */}
+      {!isRoomWide && (
       <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col gap-3 shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {/* Sync State Badge */}
-            {provider !== 'GOOGLE_DRIVE' && provider !== 'UNSUPPORTED' ? (
+            {/* Chỉ hiện trạng thái phát cho host */}
+            {canControl && provider !== 'GOOGLE_DRIVE' && provider !== 'UNSUPPORTED' && (
               <span id="sync-state-badge" className={`text-xs font-black flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]' : 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'}`}>
                 <span className={`w-2 h-2 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-                <span>{watchState.playing ? (canControl ? 'Đang phát chung' : 'Đang phát cùng phòng') : (canControl ? 'Tạm dừng' : 'Tạm dừng theo chủ phòng')}</span>
-              </span>
-            ) : (
-              <span id="sync-state-badge" className="text-xs text-slate-400 font-bold px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
-                Xem độc lập
-              </span>
-            )}
-
-            {canControl && (
-              <span id="host-badge" className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm flex items-center gap-1">
-                <span>★</span>
-                <span>Chủ phòng</span>
-              </span>
-            )}
-
-            {!canControl && (
-              <span className="text-xs text-slate-400 hidden sm:inline-flex items-center gap-1.5">
-                <span className="text-slate-600">•</span>
-                <span>Chủ phòng:</span>
-                <strong className="text-slate-200 font-bold">{phong.chuPhongTen}</strong>
+                <span>{watchState.playing ? 'Đang phát chung' : 'Tạm dừng'}</span>
               </span>
             )}
           </div>
-
           <div className="flex items-center gap-2 shrink-0 ml-auto">
-            {caps.invite !== false && (
-              <button
-                type="button"
-                id="btn-copy-room-link"
-                onClick={saoChepLinkPhong}
-                title="Sao chép link mời vào phòng"
-                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
-                <span>🔗</span>
-                <span>{linkCopied ? '✓ Đã chép' : 'Mời'}</span>
-              </button>
-            )}
-
             {(canControl || auth.user?.isTeacher) && phong.chuPhongKhoa !== 'he-thong' && (
               <button
                 type="button"
@@ -1879,7 +1849,9 @@ export function CampusWatchTogether({
           </div>
         )}
       </div>
+      )}
     </div>
+
   );
 }
 
