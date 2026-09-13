@@ -41,8 +41,16 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const isVerifiedTeacher = Boolean(isSchoolAdmin || (currentRole === 'teacher' && !currentTeacherPending));
   const isLinkedStudent = Boolean(currentHocSinhId && currentLopId);
   const lop = (currentLopId && (isVerifiedTeacher || isLinkedStudent))
-    ? await env.DB.prepare('SELECT ten, nam_hoc AS namHoc FROM lop WHERE id = ?1').bind(currentLopId).first().catch(() => null)
+    ? await env.DB.prepare('SELECT id, ten, slug, nam_hoc AS namHoc, truong FROM lop WHERE id = ?1').bind(currentLopId).first().catch(() => null)
     : null;
+
+  let dsLop = [];
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT id, slug, ten, nam_hoc AS namHoc, truong FROM lop WHERE dang_hoat_dong = 1 ORDER BY id'
+    ).all();
+    dsLop = results || [];
+  } catch {}
 
   const coQuyenCongDong = await coQuyenThanhVien(env, phien);
   let laBienTapVien = false;
@@ -74,6 +82,8 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
     phuId: phien.phuId || phien.taiKhoanPhuId || null,
     tenLop: lop?.ten || '',
     namHoc: lop?.namHoc || '',
+    lop,
+    dsLop,
     toSo: phien.toSo || null,
     chucVu: phien.chucVu || '',
     coQuyenCongDong,

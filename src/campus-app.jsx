@@ -119,6 +119,14 @@ function DigitalCampusApp() {
     phienBanTkb: null
   });
 
+  // 4.1 Class Selector & Switching State
+  const classDropdownRef = useRef(null);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
+  const [dsLop, setDsLop] = useState([
+    { id: 1, ten: 'Lớp 10A7', slug: '10a7', namHoc: '2026 – 2027' },
+    { id: 2, ten: 'Lớp 11A1', slug: '11a1', namHoc: '2026 – 2027' }
+  ]);
+
   // 5. Live Chat State — tin nhắn THẬT từ /api/chat + /api/chat-stream (SSE)
   const [chatMessages, setChatMessages] = useState([]);
   const [onlineCount, setOnlineCount] = useState(null); // số người online thật từ SSE presence
@@ -242,6 +250,21 @@ function DigitalCampusApp() {
           const hasQuyen = Array.isArray(data.quyen) && data.quyen.length > 0;
           const isBCS = Boolean(data.chucVu) || hasQuyen;
 
+          if (Array.isArray(data.dsLop) && data.dsLop.length > 0) {
+            setDsLop(data.dsLop);
+          }
+          if (data.lop) {
+            setClassData(prev => ({
+              ...prev,
+              lop: {
+                ...prev.lop,
+                ...data.lop,
+                ten: data.lop.ten || prev.lop?.ten || 'Lớp 10A7',
+                namHoc: data.lop.namHoc || prev.lop?.namHoc || '2026 – 2027'
+              }
+            }));
+          }
+
           setAuth({
             loaded: true,
             isGuest: false,
@@ -254,9 +277,11 @@ function DigitalCampusApp() {
               toSo: data.toSo || null,
               hocSinhId: data.hocSinhId || null,
               phuId: data.phuId || null,
-              tenLop: (data.isLinkedStudent || (data.role === 'student' && data.hocSinhId && data.lopId)) ? (data.tenLop || '') : '',
-              namHoc: data.namHoc || '2026 – 2027',
+              lopId: data.lopId || (data.lop?.id || null),
+              tenLop: (data.isLinkedStudent || (data.role === 'student' && data.hocSinhId && data.lopId) || isT) ? (data.tenLop || data.lop?.ten || '') : '',
+              namHoc: data.namHoc || (data.lop?.namHoc || '2026 – 2027'),
               isTeacher: isT,
+              isSchoolAdmin: Boolean(data.isSchoolAdmin),
               isVerifiedTeacher: Boolean(data.isVerifiedTeacher || isT),
               isLinkedStudent: Boolean(data.isLinkedStudent || (data.role === 'student' && data.hocSinhId && data.lopId)),
               coQuyenCongDong: data.coQuyenCongDong === true,
@@ -272,16 +297,17 @@ function DigitalCampusApp() {
   }, []);
 
   // ─── FETCH REAL CLASS DATA ────────────────────────────────────────────────
-  const fetchClassData = useCallback(async (isLoggedIn) => {
+  const fetchClassData = useCallback(async (isLoggedIn, customSlug = null) => {
     if (isLoggedIn) {
       try {
         const res = await fetch('/api/lop');
         if (res.ok) {
           const d = await res.json();
           if (d.ok) {
-            setClassData({
+            setClassData(prev => ({
+              ...prev,
               loaded: true,
-              lop: d.lop || { ten: 'Lớp 10A7', namHoc: '2026 – 2027', truong: 'Trung tâm GDNN - GDTX Huyện Định Quán' },
+              lop: d.lop || prev.lop || { ten: 'Lớp 10A7', namHoc: '2026 – 2027', truong: 'Trung tâm GDNN - GDTX Huyện Định Quán' },
               hocSinh: d.hocSinh || [],
               thongBao: d.thongBao || [],
               hoatDongLop: d.hoatDongLop || [],
@@ -291,7 +317,7 @@ function DigitalCampusApp() {
               thuQuy: d.thuQuy || null,
               nhacNen: d.nhacNen || null,
               phienBanTkb: d.phienBanTkb || null
-            });
+            }));
             if (d.nhacNen && d.nhacNen.tenBai) setRadioTitle(d.nhacNen.tenBai);
             return;
           }
@@ -301,7 +327,8 @@ function DigitalCampusApp() {
 
     // Guest fallback
     try {
-      const res = await fetch('/api/lop-cong-khai?lop=10a7');
+      const slug = customSlug || (classData.lop?.slug) || '10a7';
+      const res = await fetch(`/api/lop-cong-khai?lop=${encodeURIComponent(slug)}`);
       if (res.ok) {
         const d = await res.json();
         if (d.ok && d.lop) {
@@ -309,6 +336,7 @@ function DigitalCampusApp() {
             ...prev,
             loaded: true,
             lop: {
+              ...d.lop,
               ten: d.lop.ten || 'Lớp 10A7',
               namHoc: d.lop.namHoc || '2026 – 2027',
               truong: d.lop.truong || 'Trung tâm GDNN - GDTX Huyện Định Quán'
@@ -320,7 +348,7 @@ function DigitalCampusApp() {
     } catch {}
 
     setClassData(prev => ({ ...prev, loaded: true }));
-  }, []);
+  }, [classData.lop?.slug]);
 
   // ─── FETCH REAL ATTENDANCE ────────────────────────────────────────────────
   const fetchAttendance = useCallback(async (customNgay, customBuoi, customLoai) => {
@@ -554,6 +582,70 @@ function DigitalCampusApp() {
     onHashChange();
     return () => window.removeEventListener('hashchange', onHashChange);
   }, [attendance.loaded, fetchAttendance]);
+
+  // Load public class list on mount
+  useEffect(() => {
+    fetch('/api/lop-cong-khai')
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && Array.isArray(d.danhSach) && d.danhSach.length > 0) {
+          setDsLop(d.danhSach);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close class dropdown on click outside
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (classDropdownRef.current && !classDropdownRef.current.contains(e.target)) {
+        setShowClassDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, []);
+
+  // ─── SWITCH ACTIVE CLASS ──────────────────────────────────────────────────
+  const handleSwitchClass = useCallback(async (targetLop) => {
+    if (!targetLop) return;
+    setShowClassDropdown(false);
+    if (classData.lop?.id && targetLop.id && classData.lop.id === targetLop.id) return;
+
+    try {
+      const res = await fetch('/api/chuyen-lop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lopId: targetLop.id, slug: targetLop.slug })
+      });
+      const d = await res.json();
+      if (d.ok && d.lop) {
+        setClassData(prev => ({
+          ...prev,
+          lop: d.lop
+        }));
+        setAuth(prev => ({
+          ...prev,
+          user: prev.user ? {
+            ...prev.user,
+            lopId: d.lop.id,
+            tenLop: d.lop.ten,
+            namHoc: d.lop.namHoc
+          } : null
+        }));
+        await fetchClassData(!auth.isGuest, d.lop.slug);
+        setAttendance(prev => ({ ...prev, loaded: false, danhSach: [] }));
+        if (!auth.isGuest) {
+          await fetchAttendance();
+        }
+        navigateTab('feed', 'ban-tin');
+      } else {
+        alert(d.loi || d.message || 'Không thể chuyển lớp.');
+      }
+    } catch (e) {
+      console.error('Lỗi khi chuyển lớp:', e);
+    }
+  }, [classData.lop?.id, auth.isGuest, fetchClassData, fetchAttendance, navigateTab]);
 
   // ─── DJ RADIO AUDIO CONTROL ───────────────────────────────────────────────
   const toggleRadio = () => {
@@ -1690,6 +1782,10 @@ function DigitalCampusApp() {
     </div>
   );
 
+  const tenLopHienTai = classData.lop?.ten || auth.user?.tenLop || 'Lớp 10A7';
+  const maLopHienTai = (tenLopHienTai || '').replace(/^Lớp\s*/i, '') || '10A7';
+  const namHocHienTai = classData.lop?.namHoc || auth.user?.namHoc || '2026 – 2027';
+
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-100 font-sans antialiased flex flex-col selection:bg-[#00F2FE] selection:text-black">
 
@@ -1777,20 +1873,65 @@ function DigitalCampusApp() {
           </div>
         </header>
       ) : (
-        /* SCREENSHOT 1 HEADER: BẢNG TIN CỘNG ĐỒNG LỚP 10A7 */
+        /* SCREENSHOT 1 HEADER: BẢNG TIN CỘNG ĐỒNG LỚP */
         <header className="sticky top-0 z-40 bg-[#0B0E14]/95 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
-          {/* Logo Branding */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] p-[1.5px] shadow-[0_0_14px_rgba(0,242,254,0.35)] flex items-center justify-center">
-              <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center font-black text-xs text-[#00F2FE]">
-                10A7
+          {/* Logo Branding & Class Switcher Dropdown */}
+          <div className="relative" ref={classDropdownRef}>
+            <button
+              type="button"
+              id="btn-class-switcher"
+              onClick={() => setShowClassDropdown(prev => !prev)}
+              className="flex items-center gap-2.5 sm:gap-3 p-1 -ml-1 rounded-xl hover:bg-white/5 transition-all text-left group"
+              title="Bấm để chuyển lớp học khác">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] p-[1.5px] shadow-[0_0_14px_rgba(0,242,254,0.35)] flex items-center justify-center shrink-0">
+                <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center font-black text-xs text-[#00F2FE]">
+                  {maLopHienTai}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm text-white tracking-tight">Lớp 10A7</span>
-              <span className="text-[#00F2FE] text-xs">✦</span>
-              <span className="text-xs text-slate-300 font-medium">2026 – 2027</span>
-            </div>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-extrabold text-sm text-white tracking-tight group-hover:text-[#00F2FE] transition-colors">{tenLopHienTai}</span>
+                <span className="text-[#00F2FE] text-xs">✦</span>
+                <span className="text-xs text-slate-300 font-medium hidden sm:inline">{namHocHienTai}</span>
+                <span className="text-slate-400 group-hover:text-white text-xs transition-transform duration-200">▾</span>
+              </div>
+            </button>
+
+            {/* Dropdown danh sách lớp học */}
+            {showClassDropdown && (
+              <div className="absolute left-0 top-full mt-2 w-64 bg-[#151A23] border border-white/15 rounded-2xl p-2.5 shadow-2xl z-50 animate-scaleIn backdrop-blur-xl">
+                <div className="px-2.5 py-1.5 border-b border-white/10 flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Chuyển lớp học</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00F2FE]/15 text-[#00F2FE] font-bold">{dsLop.length || 1} lớp</span>
+                </div>
+                <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+                  {dsLop.map(l => {
+                    const isCurrent = (classData.lop?.id && l.id ? classData.lop.id === l.id : (classData.lop?.ten === l.ten || (classData.lop?.slug && classData.lop.slug === l.slug)));
+                    return (
+                      <button
+                        key={l.id || l.slug}
+                        type="button"
+                        onClick={() => handleSwitchClass(l)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          isCurrent
+                            ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30'
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                        }`}>
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-bold text-[10px] text-[#00F2FE]">
+                            {(l.ten || '').replace(/^Lớp\s*/i, '')}
+                          </span>
+                          <div className="text-left">
+                            <p className="font-bold text-white text-xs leading-tight">{l.ten}</p>
+                            <p className="text-[10px] text-slate-400 leading-tight">{l.namHoc || namHocHienTai}</p>
+                          </div>
+                        </div>
+                        {isCurrent && <span className="text-[#00F2FE] text-xs font-bold">✓ Đang xem</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Controls: Digital Campus 🚀 | Search Bar | Online Counter | Bell | Student Profile */}
@@ -1826,7 +1967,7 @@ function DigitalCampusApp() {
             </div>
 
             {/* Bell Notification */}
-            <button onClick={() => setShowNotifModal(true)} title="Thông báo lớp 10A7"
+            <button onClick={() => setShowNotifModal(true)} title={`Thông báo ${tenLopHienTai}`}
               className="relative p-2 rounded-full bg-[#151A23] border border-white/10 text-slate-300 hover:text-white hover:border-[#00F2FE]/40 transition-all">
               <Ic name="bell" className="w-4 h-4" />
               <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500"></span>
@@ -2467,22 +2608,40 @@ function DigitalCampusApp() {
               <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-2 mb-2">Tiện ích</p>
               <div className="flex flex-col gap-1.5">
                 <button
+                  id="btn-feed-subtab-ban-tin"
                   onClick={() => {
-                    setActiveChannel('📋 Điểm danh');
-                    setFeedSubTab('diem-danh');
-                    if (!attendance.loaded) fetchAttendance();
+                    navigateTab('feed', 'ban-tin');
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${feedSubTab === 'diem-danh' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
-                  <span>📋 Điểm danh</span>
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${feedSubTab === 'ban-tin' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 shadow-[0_0_12px_rgba(0,242,254,0.15)]' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                  <span className="flex items-center gap-2">
+                    <span>📢</span>
+                    <span>Bảng tin lớp</span>
+                  </span>
                 </button>
 
                 <button
+                  id="btn-feed-subtab-diem-danh"
                   onClick={() => {
-                    setActiveChannel('💰 Quỹ lớp');
-                    setFeedSubTab('thu-quy');
+                    navigateTab('feed', 'diem-danh');
+                    if (!attendance.loaded) fetchAttendance();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${feedSubTab === 'thu-quy' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
-                  <span>💰 Quỹ lớp</span>
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${feedSubTab === 'diem-danh' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 shadow-[0_0_12px_rgba(0,242,254,0.15)]' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                  <span className="flex items-center gap-2">
+                    <span>📋</span>
+                    <span>Điểm danh</span>
+                  </span>
+                </button>
+
+                <button
+                  id="btn-feed-subtab-thu-quy"
+                  onClick={() => {
+                    navigateTab('feed', 'thu-quy');
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${feedSubTab === 'thu-quy' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 shadow-[0_0_12px_rgba(0,242,254,0.15)]' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                  <span className="flex items-center gap-2">
+                    <span>💰</span>
+                    <span>Quỹ lớp</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -2490,6 +2649,22 @@ function DigitalCampusApp() {
 
           {/* ─── CENTER COLUMN: PINNED POST, COMPOSER, FEED OR MODULES ─── */}
           <main className="flex flex-col gap-5 min-w-0 w-full">
+            {/* Nút quay lại Bảng tin khi đang ở màn Điểm danh hoặc Quỹ lớp */}
+            {feedSubTab !== 'ban-tin' && (
+              <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl px-4 py-2.5 shadow-md">
+                <button
+                  type="button"
+                  id="btn-back-to-ban-tin"
+                  onClick={() => navigateTab('feed', 'ban-tin')}
+                  className="inline-flex items-center gap-2 text-xs font-bold text-[#00F2FE] hover:underline transition-all">
+                  <span>←</span>
+                  <span>Quay về Bảng tin của {tenLopHienTai}</span>
+                </button>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {feedSubTab === 'diem-danh' ? '📋 Sổ Điểm Danh' : '💰 Quỹ Lớp'}
+                </span>
+              </div>
+            )}
 
             {feedSubTab === 'ban-tin' && (
               <>
@@ -2502,11 +2677,11 @@ function DigitalCampusApp() {
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden border border-[#00F2FE]/40">
-                            <img src={PRESET_AVATARS[7].url} alt="10A7" className="w-full h-full object-cover" />
+                            <img src={PRESET_AVATARS[7].url} alt={maLopHienTai} className="w-full h-full object-cover" />
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-bold text-white">Bảng Tin 10A7</span>
+                              <span className="text-sm font-bold text-white">Bảng Tin {maLopHienTai}</span>
                               <span className="text-[#00F2FE] text-xs">✓</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 font-bold">
                                 Thông báo lớp
@@ -2585,7 +2760,7 @@ function DigitalCampusApp() {
               <div id="khuDiemDanh" className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
                   <div>
-                    <h3 className="text-base font-extrabold text-white">Sổ Điểm Danh & Chuyên Cần Lớp 10A7</h3>
+                    <h3 className="text-base font-extrabold text-white">Sổ Điểm Danh & Chuyên Cần {tenLopHienTai}</h3>
                   </div>
                   <div id="ddTabLoai" className="flex items-center gap-1 bg-[#0B0E14] p-1 rounded-xl border border-white/10">
                     <button onClick={() => setDdTabSub('ngay')}
@@ -2718,7 +2893,7 @@ function DigitalCampusApp() {
               <div id="thu-quy" className="bg-[#151A23] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-white/10">
                   <div>
-                    <h3 className="text-base font-extrabold text-white">Thủ Quỹ Lớp 10A7</h3>
+                    <h3 className="text-base font-extrabold text-white">Thủ Quỹ {tenLopHienTai}</h3>
 
                   </div>
                   <div className="flex items-center gap-2">
@@ -2787,7 +2962,7 @@ function DigitalCampusApp() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                   <span>🏆</span>
-                  <span>Bảng Vàng Tuần 10A7</span>
+                  <span>Bảng Vàng Tuần {maLopHienTai}</span>
                 </div>
                 <button onClick={() => setShowGamificationModal(true)}
                   className="text-[10px] text-amber-400 font-bold hover:underline">Top BXH</button>
@@ -2842,7 +3017,7 @@ function DigitalCampusApp() {
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
                 <span>🎨</span>
-                <span>Tùy Biến Avatar & Hồ Sơ Lớp 10A7</span>
+                <span>Tùy Biến Avatar & Hồ Sơ {tenLopHienTai}</span>
               </h3>
               <button onClick={() => setShowAvatarModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white">
                 <Ic name="x" className="w-5 h-5" />
@@ -2855,7 +3030,7 @@ function DigitalCampusApp() {
                 <img src={currentAvatar} alt="Current" className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">{auth.user?.name || 'Học sinh 10A7'}</p>
+                <p className="text-sm font-bold text-white">{auth.user?.name || ('Học sinh ' + maLopHienTai)}</p>
                 <p className="text-xs text-[#00F2FE] font-medium">{auth.user?.chucVu || (auth.user?.isTeacher ? 'Giáo viên chủ nhiệm' : 'Thành viên lớp')}</p>
                 <p className="text-[10px] text-slate-400 mt-0.5">Avatar hiển thị trên Bảng Tin & Chat</p>
               </div>
@@ -2897,7 +3072,7 @@ function DigitalCampusApp() {
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
                 <Ic name="bell" className="w-5 h-5 text-[#00F2FE]" />
-                <span>Thông Báo Lớp 10A7</span>
+                <span>Thông Báo {tenLopHienTai}</span>
               </h3>
               <button onClick={() => setShowNotifModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white">
                 <Ic name="x" className="w-5 h-5" />
@@ -2937,7 +3112,7 @@ function DigitalCampusApp() {
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
                 <span>📜</span>
-                <span>Sổ Tay Nội Quy & Văn Hóa Lớp 10A7</span>
+                <span>Sổ Tay Nội Quy & Văn Hóa {tenLopHienTai}</span>
               </h3>
               <button onClick={() => setShowNoiQuyModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white">
                 <Ic name="x" className="w-5 h-5" />
@@ -3027,7 +3202,7 @@ function DigitalCampusApp() {
                     Đấu Trường Thành Tựu & Bảng Vinh Danh
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Cộng đồng học tập & thi đua tích cực Lớp 10A7
+                    Cộng đồng học tập & thi đua tích cực {tenLopHienTai}
                   </p>
                 </div>
               </div>
@@ -3186,7 +3361,7 @@ function DigitalCampusApp() {
                             </span>
                             <div>
                               <h4 className="text-xs font-extrabold text-white">{item.hoTen}</h4>
-                              <p className="text-[10px] text-slate-400">Học sinh Lớp 10A7</p>
+                              <p className="text-[10px] text-slate-400">Học sinh {tenLopHienTai}</p>
                             </div>
                           </div>
                           <span className="text-xs font-black text-[#FFB800] font-mono">
