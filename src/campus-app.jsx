@@ -82,10 +82,27 @@ function DigitalCampusApp() {
   const [viewAllCat, setViewAllCat] = useState(null); // 'CINEMA' | 'GAME' | 'LOFI' | 'CHAT' | null
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isRoomWide, setIsRoomWide] = useState(false);
+  const fullscreenHistoryRef = useRef(false);
   const [layoutRatio, setLayoutRatioRaw] = useState(() => {
     try { return localStorage.getItem('campusLayoutRatio') || '6:4'; } catch { return '6:4'; }
   });
   const setLayoutRatio = (r) => { setLayoutRatioRaw(r); try { localStorage.setItem('campusLayoutRatio', r); } catch {} };
+  // Vùng 5: bấm ratio luôn kích hoạt chế độ toàn màn hình, ESC / back thoát
+  const enterFullscreen = (r) => { setIsRoomWide(true); if (r) setLayoutRatio(r); };
+  const exitFullscreen = () => setIsRoomWide(false);
+
+  useEffect(() => {
+    if (!isRoomWide) { fullscreenHistoryRef.current = false; return; }
+    if (!fullscreenHistoryRef.current) {
+      fullscreenHistoryRef.current = true;
+      try { window.history.pushState({ campusFs: true }, ''); } catch { }
+    }
+    const onKey = (e) => { if (e.key === 'Escape') exitFullscreen(); };
+    const onPop = () => { fullscreenHistoryRef.current = false; exitFullscreen(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('popstate', onPop);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('popstate', onPop); };
+  }, [isRoomWide]);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -2058,6 +2075,7 @@ function DigitalCampusApp() {
                 <div className="flex flex-col gap-5 w-full animate-fadeIn" id="campus-active-room-container">
                   {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
                   <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
+                    {/* VÙNG 4: Điều hướng trái — Sảnh, Rời phòng, tiêu đề, badges */}
                     <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                       <button
                         id="btn-back-to-lobby"
@@ -2102,42 +2120,26 @@ function DigitalCampusApp() {
                       </div>
                     </div>
 
+                    {/* VÙNG 5: Ratio (= fullscreen modes) + Toggle fullscreen + ONLINE */}
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Nút TOÀN MÀN HÌNH / THU GỌN */}
-                      <button
-                        id="btn-room-fullscreen"
-                        data-id="btn-room-fullscreen"
-                        type="button"
-                        onClick={() => setIsRoomWide(prev => !prev)}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
-                          isRoomWide
-                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110'
-                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_18px_rgba(0,242,254,0.4)] hover:brightness-110 hover:scale-105'
-                        }`}
-                        title={isRoomWide ? "Thu gọn" : "Toàn màn hình"}>
-                        <span className="text-sm">{isRoomWide ? '🗗' : '⛶'}</span>
-                        <span>{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
-                      </button>
-
-                      {/* Ratio presets — chỉ hiện cho phòng video */}
                       {activeRoom.type === 'PHONG' && activeRoom.phong?.loai === 'video' && (
                         <div className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
                           {[
-                            { r: '10:0', label: '⬛', title: 'Video toàn màn hình' },
+                            { r: '10:0', label: '■', title: 'Video toàn màn hình' },
                             { r: '7:3', label: '7:3', title: 'Video 70% · Bảng 30%' },
                             { r: '6:4', label: '6:4', title: 'Video 60% · Bảng 40%' },
                             { r: '5:5', label: '5:5', title: 'Video 50% · Bảng 50%' },
                             { r: '4:6', label: '4:6', title: 'Video 40% · Bảng 60%' },
                             { r: '3:7', label: '3:7', title: 'Video 30% · Bảng 70%' },
-                            { r: '0:10', label: '⬜', title: 'Bảng học toàn màn hình' },
+                            { r: '0:10', label: '□', title: 'Bảng học toàn màn hình' },
                           ].map(({ r, label, title }) => (
                             <button
                               key={r}
                               type="button"
-                              onClick={() => setLayoutRatio(r)}
+                              onClick={() => enterFullscreen(r)}
                               title={title}
                               className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
-                                layoutRatio === r
+                                isRoomWide && layoutRatio === r
                                   ? 'bg-[#00F2FE] text-black shadow-sm'
                                   : 'text-slate-400 hover:text-white hover:bg-white/10'
                               }`}>
@@ -2146,7 +2148,20 @@ function DigitalCampusApp() {
                           ))}
                         </div>
                       )}
-
+                      <button
+                        id="btn-room-fullscreen"
+                        data-id="btn-room-fullscreen"
+                        type="button"
+                        onClick={() => isRoomWide ? exitFullscreen() : enterFullscreen(null)}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                          isRoomWide
+                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_18px_rgba(0,242,254,0.4)] hover:brightness-110 hover:scale-105'
+                        }`}
+                        title={isRoomWide ? 'Thu gọn (Esc)' : 'Toàn màn hình'}>
+                        <span className="text-sm">{isRoomWide ? '🗷' : '⛶'}</span>
+                        <span>{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
+                      </button>
                       <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 shrink-0 pl-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         <span className="hidden sm:inline">ONLINE</span>
@@ -2437,22 +2452,29 @@ function DigitalCampusApp() {
                   ? 'flex flex-col lg:flex-row gap-5 w-full items-start'
                   : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
-                {/* VÙNG 1 (CỘT TRÁI): Nội dung theo loại phòng (Player/Video) */}
+                {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
                 {(() => {
                   const ratioFlex = {
-                    '10:0': ['1 0 100%', '0 0 0px'],
-                    '7:3': ['7 1 0%', '3 1 0%'],
-                    '6:4': ['6 1 0%', '4 1 0%'],
-                    '5:5': ['5 1 0%', '5 1 0%'],
-                    '4:6': ['4 1 0%', '6 1 0%'],
-                    '3:7': ['3 1 0%', '7 1 0%'],
-                    '0:10': ['0 0 0px', '1 0 100%'],
+                    '10:0': ['full', 'none'],
+                    '7:3':  ['7 1 0%', '3 1 0%'],
+                    '6:4':  ['6 1 0%', '4 1 0%'],
+                    '5:5':  ['5 1 0%', '5 1 0%'],
+                    '4:6':  ['4 1 0%', '6 1 0%'],
+                    '3:7':  ['3 1 0%', '7 1 0%'],
+                    '0:10': ['none', 'full'],
                   };
-                  const [vFlex, cFlex] = isRoomWide ? ['7.2 1 0%', '2.8 1 0%'] : (ratioFlex[layoutRatio] || ['6 1 0%', '4 1 0%']);
-                  const videoStyle = p.loai === 'video' ? { flex: vFlex, minWidth: 0 } : {};
-                  const chatStyle  = p.loai === 'video' ? { flex: cFlex, minWidth: 0 } : {};
+                  // Khi không fullscreen dùng 6:4 cố định, khi fullscreen dùng ratio đã chọn
+                  const [vToken, cToken] = isRoomWide
+                    ? (ratioFlex[layoutRatio] || ['6 1 0%', '4 1 0%'])
+                    : ['6 1 0%', '4 1 0%'];
+                  const vStyle = p.loai === 'video'
+                    ? (vToken === 'none' ? { display: 'none' } : vToken === 'full' ? { flex: '1 1 0%', minWidth: 0 } : { flex: vToken, minWidth: 0 })
+                    : {};
+                  const cStyle = p.loai === 'video'
+                    ? (cToken === 'none' ? { display: 'none' } : cToken === 'full' ? { flex: '1 1 0%', minWidth: 0 } : { flex: cToken, minWidth: 0 })
+                    : {};
                   return (<>
-                <div className="flex flex-col gap-4 min-w-0" style={videoStyle}>
+                <div className="flex flex-col gap-4 min-w-0" style={vStyle}>
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
@@ -2463,7 +2485,6 @@ function DigitalCampusApp() {
                       myCaps={phongMyCaps}
                       videoTimeRef={phongVideoTimeRef}
                       isRoomWide={isRoomWide}
-                      canControlExternal={Boolean(laChuPhong || phongMyCaps?.video_control || phongMyCaps?.video_change || auth.user?.isTeacher)}
                     />
                   ) : p.loai === 'nhac' ? (
                     <CampusFocusRoom
@@ -2512,7 +2533,7 @@ function DigitalCampusApp() {
                 </div>
 
                 {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
-                <div className="flex flex-col gap-4 min-w-0" style={chatStyle}>
+                <div className="flex flex-col gap-4 min-w-0" style={cStyle}>
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}
