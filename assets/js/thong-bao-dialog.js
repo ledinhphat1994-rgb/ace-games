@@ -11,6 +11,9 @@ import { nut, truong, oNhap, oChon, moHopThoai, dongHopThoai, khoiChonNguon } fr
 import { khoiSoanThaoDinhDang } from './soan-thao.js';
 
 const LOAI_THONG_BAO = [['Chủ nhiệm', 'Chủ nhiệm'], ['Nhà trường', 'Nhà trường'], ['Học tập', 'Học tập'], ['Hoạt động', 'Hoạt động']];
+// Vòng đời biên tập (Admin IA v1 Phase 4 — domain Nội dung) — KHÁC với "Ghim"/"Hiện": đây là
+// bước TRƯỚC khi thông báo lên trang lớp, không phải bật/tắt 1 thông báo đã xuất bản.
+const TRANG_THAI_THONG_BAO = [['xuat_ban', '✅ Xuất bản ngay'], ['nhap', '📝 Lưu nháp (chưa hiện học sinh)'], ['luu_tru', '🗄 Lưu trữ (đã ẩn, giữ tham khảo)']];
 
 function hangTich(id, nhanChu, daChon) {
   const o = e('input');
@@ -190,7 +193,7 @@ async function khoiDinhKemVideo(tb) {
   return { khung, oTep, oUrlVideo, oXoa, oChonThuVien };
 }
 
-export async function moHopThoaiSoanThongBao(tb, lamMoi) {
+export async function moHopThoaiSoanThongBao(tb, lamMoi, lopId) {
   const oNgay = oNhap('tbNgay', 'date', tb ? tb.ngay : homNay());
   // Tiêu đề + Nội dung dùng chung hộp soạn thảo có định dạng (giống hệt Hoạt động lớp) — Tiêu đề
   // là biến thể MỘT DÒNG. Nếu đang sửa thông báo cũ đã có bản HTML thì nạp lại đúng định dạng cũ.
@@ -200,6 +203,7 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
   if (tb && tb.noiDungHtml) oNd.dat(tb.noiDungHtml); else if (tb) oNd.oSoan.textContent = tb.noiDung || '';
   const oLoai = oChon('tbLoai', LOAI_THONG_BAO, tb ? tb.loai : 'Chủ nhiệm');
   const oMucDo = oChon('tbMucDo', MUC_DO_THONG_BAO, tb ? (tb.mucDo || '') : '');
+  const oTrangThai = oChon('tbTrangThai', TRANG_THAI_THONG_BAO, tb ? (tb.trangThai || 'xuat_ban') : 'xuat_ban');
 
   const [oGhim, hangGhim] = hangTich('tbGhim', 'Ghim lên đầu trang lớp', tb && tb.ghim);
   const [oNoiBat, hangNoiBat] = hangTich('tbNoiBat', 'Hiện trong băng điểm nhấn ở trang chủ', tb && tb.noiBat);
@@ -254,6 +258,7 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
     truong('Tiêu đề', oTd.khung),
     truong('Loại', oLoai),
     truong('Mức độ quan trọng', oMucDo, 'Quyết định màu nhãn hiển thị cho học sinh — từ Bình thường, Quan trọng, Rất quan trọng đến Khẩn cấp.'),
+    truong('Trạng thái', oTrangThai, 'Lưu nháp để soạn tiếp sau, không hiện học sinh cho tới khi bạn chọn Xuất bản.'),
     truong('Nội dung', oNd.khung),
     hangGhim,
     hangNoiBat,
@@ -280,8 +285,9 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
         const than = {
           ngay: oNgay.value, tieuDe: tieuDeThuong, tieuDeHtml: oTd.layHtml(),
           noiDung: noiDungThuong, noiDungHtml: oNd.layHtml(), loai: oLoai.value,
-          ghim: oGhim.checked, noiBat: oNoiBat.checked, mucDo: oMucDo.value,
+          ghim: oGhim.checked, noiBat: oNoiBat.checked, mucDo: oMucDo.value, trangThai: oTrangThai.value,
           videoUrl: coQuyenVideo ? ((oXoaVideo && oXoaVideo.checked) ? '' : (oUrlVideo?.value?.trim() || '')) : undefined,
+          lopId,
         };
 
         // Ảnh: nếu có quyền mới gửi
@@ -308,22 +314,23 @@ export async function moHopThoaiSoanThongBao(tb, lamMoi) {
         if (tb) await api('/api/gv/thong-bao', { method: 'PATCH', than: { id, ...than } });
         else { const kq = await api('/api/gv/thong-bao', { method: 'POST', than }); id = kq.id; }
 
+        const thamSoLop = lopId ? '&lopId=' + lopId : '';
         // Tải file MỚI (nếu có quyền và có file)
         if (coQuyenAnh && oTepHinh?.files?.[0]) {
           const blob = await nenAnhThanhBlob(oTepHinh.files[0]);
-          await api(`/api/gv/thong-bao-tep?id=${id}&loai=hinh`, {
+          await api(`/api/gv/thong-bao-tep?id=${id}&loai=hinh${thamSoLop}`, {
             method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob,
           });
         }
         if (coQuyenNhac && tepNhac) {
           const duLieu = await tepNhac.arrayBuffer();
-          await api(`/api/gv/thong-bao-tep?id=${id}&loai=nhac`, {
+          await api(`/api/gv/thong-bao-tep?id=${id}&loai=nhac${thamSoLop}`, {
             method: 'POST', headers: { 'Content-Type': 'audio/mpeg' }, body: duLieu,
           });
         }
         if (coQuyenVideo && tepVideo) {
           const duLieu = await tepVideo.arrayBuffer();
-          await api(`/api/gv/thong-bao-tep?id=${id}&loai=video`, {
+          await api(`/api/gv/thong-bao-tep?id=${id}&loai=video${thamSoLop}`, {
             method: 'POST', headers: { 'Content-Type': tepVideo.type || 'video/mp4' }, body: duLieu,
           });
         }

@@ -1,23 +1,37 @@
 // Thông báo hiện trên trang lớp — soạn ngay trên web, không phải sửa tệp nữa.
-//   GET    /api/gv/thong-bao
-//   POST   /api/gv/thong-bao   { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, videoUrl }
-//   PATCH  /api/gv/thong-bao   { id, ...trường cần sửa }
-//   DELETE /api/gv/thong-bao?id=
+//   GET    /api/gv/thong-bao[?lopId=][&trangThai=nhap|xuat_ban|luu_tru]
+//   POST   /api/gv/thong-bao   { ngay, tieuDe, noiDung, loai, ghim, noiBat, mucDo, trangThai, videoUrl, lopId }
+//   PATCH  /api/gv/thong-bao   { id, lopId, ...trường cần sửa }
+//   DELETE /api/gv/thong-bao?id=&lopId=
 //
 // "ghim": đẩy lên đầu danh sách Thông báo. "noiBat": có đưa vào băng điểm nhấn ở trang chủ
 // hay không — HAI cờ TÁCH BIỆT NHAU, một thông báo có thể ghim mà không nổi bật, hoặc ngược lại.
 // "mucDo": mức độ quan trọng ('', 'ok', 'warn', 'danger') — quyết định màu nhãn hiển thị cho
 // học sinh dễ nhận biết, thay cho việc gán cứng "Quan trọng" theo cờ ghim như trước. Đây cũng
 // là chức năng thay thế cho "Kế hoạch năm học" cũ (đã gộp vào đây, không dùng bảng ke_hoach nữa).
+// "trangThai" (Admin IA v1 Phase 4 — domain Nội dung): 'nhap' (chưa hiện học sinh, kể cả hien=1)
+// | 'xuat_ban' (mặc định, hiện như trước giờ) | 'luu_tru' (đã ẩn, giữ lại để tham khảo). Đây LÀ
+// vòng đời biên tập, KHÁC với cờ "hien" (bật/tắt nhanh 1 thông báo đã xuất bản) — 2 khái niệm
+// tách biệt, xem functions/api/lop.js đã lọc cả hai khi trả cho học sinh.
 // Ảnh/nhạc đính kèm tải lên qua /api/gv/thong-bao-tep (thân nhị phân riêng, xem tệp đó) vì vượt
 // giới hạn thân JSON ở đây; videoUrl chỉ là một đường dẫn văn bản (dán link YouTube…).
 import { bocXuLy, json, loi, docThan, ngayHopLe, chuoi, chuanUrlMedia } from '../../_lib/api.js';
 import { locHtmlNoiDung } from '../../_lib/html-an-toan.js';
 import { chupCheckpointChung } from '../../_lib/checkpoint-chung.js';
+import { layPhamViQuanTri, xacDinhLopIdApDung } from '../../_lib/quan-tri.js';
 
 const MUC_DO_HOP_LE = new Set(['', 'ok', 'warn', 'danger']);
+const TRANG_THAI_HOP_LE = new Set(['nhap', 'xuat_ban', 'luu_tru']);
 
-export const onRequestGet = bocXuLy(async ({ env, phien }) => {
+export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
+  const pham = await layPhamViQuanTri(env, phien);
+  const url = new URL(request.url);
+  const lopId = xacDinhLopIdApDung(pham, parseInt(url.searchParams.get('lopId'), 10) || null, phien.lopId);
+  if (!lopId) return loi('Không có quyền truy cập lớp này.', 403);
+
+  const trangThaiYeuCau = url.searchParams.get('trangThai');
+  const locTrangThai = TRANG_THAI_HOP_LE.has(trangThaiYeuCau) ? trangThaiYeuCau : null;
+
   // Trả cả mã tham chiếu thư viện (anhId/amThanhId/videoId) THẬT lẫn khoá/kiểu đã tra sẵn để
   // xem trước ngay trong hộp thoại sửa, không cần gọi thêm API thư viện.
   const { results } = await env.DB.prepare(
@@ -25,7 +39,7 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
             COALESCE(tb.luot_xem, 0) AS luotXem,
             tb.tieu_de AS tieuDe, tb.tieu_de_html AS tieuDeHtml,
             tb.noi_dung AS noiDung, tb.noi_dung_html AS noiDungHtml, tb.loai, tb.ghim, tb.hien,
-            tb.noi_bat AS noiBat, tb.muc_do AS mucDo,
+            tb.noi_bat AS noiBat, tb.muc_do AS mucDo, tb.trang_thai AS trangThai,
             tb.anh_id AS anhId, ha.khoa AS hinhKhoa, ha.kieu AS hinhKieu, tb.hinh_url AS hinhUrl,
             tb.am_thanh_id AS amThanhId, at.khoa AS nhacKhoa, at.kieu AS nhacKieu, tb.nhac_url AS nhacUrl,
             tb.video_id AS videoId, v.khoa AS videoKhoa, v.kieu AS videoKieu, tb.video_url AS videoUrl
@@ -33,10 +47,10 @@ export const onRequestGet = bocXuLy(async ({ env, phien }) => {
        LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
        LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
        LEFT JOIN video v ON v.id = tb.video_id
-      WHERE tb.lop_id = ?1
+      WHERE tb.lop_id = ?1 ${locTrangThai ? 'AND tb.trang_thai = ?2' : ''}
       ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 200`
-  ).bind(phien.lopId).all();
-  return json({ ok: true, danhSach: results });
+  ).bind(...(locTrangThai ? [lopId, locTrangThai] : [lopId])).all();
+  return json({ ok: true, danhSach: results, lopId });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 // Kiểm tra id thư viện (ảnh/âm thanh/video) đính kèm THẬT SỰ thuộc lớp đang đăng nhập — chặn
@@ -49,7 +63,11 @@ async function xacThucThuVien(db, lopId, bang, id) {
 }
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { ngay, tieuDe, tieuDeHtml, noiDung, noiDungHtml, loai, ghim, noiBat, mucDo, videoUrl, anhId, hinhUrl, amThanhId, nhacUrl, videoId } = await docThan(request);
+  const { ngay, tieuDe, tieuDeHtml, noiDung, noiDungHtml, loai, ghim, noiBat, mucDo, trangThai, videoUrl, anhId, hinhUrl, amThanhId, nhacUrl, videoId, lopId: lopIdYeuCau } = await docThan(request);
+
+  const pham = await layPhamViQuanTri(env, phien);
+  const lopId = xacDinhLopIdApDung(pham, Number(lopIdYeuCau) || null, phien.lopId);
+  if (!lopId) return loi('Không có quyền đăng thông báo vào lớp này.', 403);
 
   if (!ngayHopLe(ngay)) return loi('Ngày không hợp lệ.');
   const td = chuoi(tieuDe, 200);
@@ -57,6 +75,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!td) return loi('Chưa nhập tiêu đề.');
   if (!nd) return loi('Chưa nhập nội dung.');
   if (mucDo !== undefined && !MUC_DO_HOP_LE.has(mucDo)) return loi('Mức độ không hợp lệ.');
+  if (trangThai !== undefined && !TRANG_THAI_HOP_LE.has(trangThai)) return loi('Trạng thái không hợp lệ.');
   // Không tin vào việc lọc HTML đã làm ở trình duyệt (hộp soạn thảo) — lọc lại lần nữa ở đây
   // trước khi lưu, vì API này gọi trực tiếp được (không bắt buộc phải qua giao diện).
   const tdHtml = tieuDeHtml ? (locHtmlNoiDung(tieuDeHtml, 300) || null) : null;
@@ -76,9 +95,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     }
   }
 
-  if (!(await xacThucThuVien(env.DB, phien.lopId, 'hinh_anh', anhId))) return loi('Ảnh đính kèm không hợp lệ.');
-  if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
-  if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
+  if (!(await xacThucThuVien(env.DB, lopId, 'hinh_anh', anhId))) return loi('Ảnh đính kèm không hợp lệ.');
+  if (!(await xacThucThuVien(env.DB, lopId, 'am_thanh', amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
+  if (!(await xacThucThuVien(env.DB, lopId, 'video', videoId))) return loi('Video đính kèm không hợp lệ.');
 
   // Chặn URL media nguy hiểm (javascript:, data:, http://) trước khi lưu — các trường này
   // được gán thẳng vào src/href ở trang lớp.
@@ -91,14 +110,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: đăng thông báo "${td}"`, phien);
   const kq = await env.DB.prepare(
-    `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id, tao_luc)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, datetime('now'))`
+    `INSERT INTO thong_bao (ngay, tieu_de, tieu_de_html, noi_dung, noi_dung_html, loai, ghim, noi_bat, muc_do, trang_thai, video_url, anh_id, hinh_url, am_thanh_id, nhac_url, video_id, lop_id, tao_luc)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, datetime('now'))`
   ).bind(
     ngay, td, tdHtml, nd, ndHtml, chuoi(loai, 50) || 'Chủ nhiệm', ghim ? 1 : 0, noiBat ? 1 : 0,
-    mucDo || '', urlVideo,
+    mucDo || '', trangThai || 'xuat_ban', urlVideo,
     Number.isInteger(anhId) ? anhId : null, urlHinh,
     Number.isInteger(amThanhId) ? amThanhId : null, urlNhac,
-    Number.isInteger(videoId) ? videoId : null, phien.lopId
+    Number.isInteger(videoId) ? videoId : null, lopId
   ).run();
 
   return json({ ok: true, id: kq.meta.last_row_id });
@@ -109,7 +128,11 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
   const id = Number(than.id);
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
-  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+  const pham = await layPhamViQuanTri(env, phien);
+  const lopId = xacDinhLopIdApDung(pham, Number(than.lopId) || null, phien.lopId);
+  if (!lopId) return loi('Không có quyền truy cập lớp này.', 403);
+
+  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, lopId).first();
   if (!tb) return loi('Không tìm thấy thông báo này.', 404);
 
   const dat = [];
@@ -143,6 +166,10 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if (!MUC_DO_HOP_LE.has(than.mucDo)) return loi('Mức độ không hợp lệ.');
     them('muc_do', than.mucDo);
   }
+  if (than.trangThai !== undefined) {
+    if (!TRANG_THAI_HOP_LE.has(than.trangThai)) return loi('Trạng thái không hợp lệ.');
+    them('trang_thai', than.trangThai);
+  }
   if (than.videoUrl !== undefined) {
     const u = chuanUrlMedia(than.videoUrl, 500);
     if (u === false) return loi('Đường dẫn video không hợp lệ — chỉ nhận link https://.');
@@ -158,7 +185,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if ((giaTriAnh || giaTriUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('hinh-anh')) {
       return loi('Tài khoản chưa được cấp quyền Thư viện Ảnh để đính kèm hình.', 403);
     }
-    if (!(await xacThucThuVien(env.DB, phien.lopId, 'hinh_anh', than.anhId))) return loi('Ảnh đính kèm không hợp lệ.');
+    if (!(await xacThucThuVien(env.DB, lopId, 'hinh_anh', than.anhId))) return loi('Ảnh đính kèm không hợp lệ.');
     them('anh_id', giaTriAnh);
     them('hinh_url', giaTriUrl);
   }
@@ -169,7 +196,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if ((giaTriAmThanh || giaTriNhacUrl) && phien.role === 'phu' && !(phien.quyen || []).includes('am-thanh')) {
       return loi('Tài khoản chưa được cấp quyền Thư viện Âm thanh để đính kèm bài hát.', 403);
     }
-    if (!(await xacThucThuVien(env.DB, phien.lopId, 'am_thanh', than.amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
+    if (!(await xacThucThuVien(env.DB, lopId, 'am_thanh', than.amThanhId))) return loi('Âm thanh đính kèm không hợp lệ.');
     them('am_thanh_id', giaTriAmThanh);
     them('nhac_url', giaTriNhacUrl);
   }
@@ -178,7 +205,7 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
     if (giaTriVideo && phien.role === 'phu' && !(phien.quyen || []).includes('video')) {
       return loi('Tài khoản chưa được cấp quyền Thư viện Video để đính kèm video.', 403);
     }
-    if (!(await xacThucThuVien(env.DB, phien.lopId, 'video', than.videoId))) return loi('Video đính kèm không hợp lệ.');
+    if (!(await xacThucThuVien(env.DB, lopId, 'video', than.videoId))) return loi('Video đính kèm không hợp lệ.');
     them('video_id', giaTriVideo);
   }
 
@@ -193,13 +220,18 @@ export const onRequestPatch = bocXuLy(async ({ request, env, phien }) => {
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });
 
 export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
-  const id = Number(new URL(request.url).searchParams.get('id'));
+  const url = new URL(request.url);
+  const id = Number(url.searchParams.get('id'));
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
+
+  const pham = await layPhamViQuanTri(env, phien);
+  const lopId = xacDinhLopIdApDung(pham, parseInt(url.searchParams.get('lopId'), 10) || null, phien.lopId);
+  if (!lopId) return loi('Không có quyền truy cập lớp này.', 403);
 
   // Đính kèm giờ tham chiếu vào thư viện (anh_id/am_thanh_id/video_id) DÙNG CHUNG — xoá thông
   // báo KHÔNG xoá file trong thư viện (mục đó có thể còn dùng cho thông báo khác).
   await chupCheckpointChung(env.DB, 'thong-bao', `Trước khi: xoá thông báo #${id}`, phien);
-  const kq = await env.DB.prepare('DELETE FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).run();
+  const kq = await env.DB.prepare('DELETE FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, lopId).run();
   if (!kq.meta.changes) return loi('Không tìm thấy thông báo này.', 404);
   return json({ ok: true });
 }, { canGiaoVien: true, quyenCan: 'thong-bao' });

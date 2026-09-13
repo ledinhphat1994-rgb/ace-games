@@ -1640,11 +1640,18 @@ function suaHoSo(h) {
 
 /* ================= Trang: Thông báo ================= */
 
+const TAB_TRANG_THAI_NOI_DUNG = [
+  { id: 'nhap', nhan: '📝 Nháp' },
+  { id: 'xuat_ban', nhan: '✅ Đã xuất bản' },
+  { id: 'luu_tru', nhan: '🗄 Đã lưu trữ' },
+];
+
 async function trangThongBao() {
   datNoiDung(KHUNG, khoiDangTai());
+  let trangThaiLoc = 'xuat_ban';
 
   async function ve() {
-    const d = await api('/api/gv/thong-bao');
+    const d = await api(apiTheoPhamVi('/api/gv/thong-bao?trangThai=' + trangThaiLoc));
     const khung = e('div');
 
     const dau = e('div', 'tieu-de-trang');
@@ -1658,8 +1665,19 @@ async function trangThongBao() {
     dau.append(trai, phai);
     khung.append(dau);
 
+    const thanhTab = e('div');
+    thanhTab.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0;';
+    TAB_TRANG_THAI_NOI_DUNG.forEach((tab) => {
+      thanhTab.append(nut(tab.nhan, tab.id === trangThaiLoc ? 'nut-chinh nut-nho' : 'nut-vien nut-nho', () => {
+        trangThaiLoc = tab.id;
+        ve();
+      }));
+    });
+    khung.append(thanhTab);
+
     if (!d.danhSach.length) {
-      khung.append(e('p', 'trong', 'Chưa có thông báo nào.'));
+      const nhanTab = (TAB_TRANG_THAI_NOI_DUNG.find((t) => t.id === trangThaiLoc) || {}).nhan || '';
+      khung.append(e('p', 'trong', `Chưa có thông báo nào ở ${nhanTab}.`));
     } else {
       const ds = e('div', 'ds-nhat-ky');
       d.danhSach.forEach((t) => {
@@ -1679,7 +1697,7 @@ async function trangThongBao() {
           nut('✎', 'nut-nhe nut-nho', () => soanThongBao(t, ve), 'Sửa thông báo: ' + t.tieuDe),
           nut(t.hien ? '🙈' : '👁', 'nut-nhe nut-nho', async () => {
             try {
-              await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: t.id, hien: !t.hien } });
+              await api('/api/gv/thong-bao', { method: 'PATCH', than: { id: t.id, hien: !t.hien, lopId: PHAM_VI_LOP_ID || undefined } });
               ve();
             } catch (err) { nhac(err.message, 'xau'); }
           }, (t.hien ? 'Ẩn thông báo: ' : 'Hiện thông báo: ') + t.tieuDe),
@@ -1688,7 +1706,7 @@ async function trangThongBao() {
               nut('Huỷ', 'nut-nhe', dongHopThoai),
               nut('Xoá', 'nut-xau', async () => {
                 try {
-                  await api('/api/gv/thong-bao?id=' + t.id, { method: 'DELETE' });
+                  await api(apiTheoPhamVi('/api/gv/thong-bao?id=' + t.id), { method: 'DELETE' });
                   dongHopThoai();
                   nhac('Đã xoá', 'tot');
                   ve();
@@ -1712,7 +1730,7 @@ async function trangThongBao() {
 }
 
 function soanThongBao(tb, taiLai) {
-  moHopThoaiSoanThongBao(tb, taiLai);
+  moHopThoaiSoanThongBao(tb, taiLai, PHAM_VI_LOP_ID || undefined);
 }
 
 /* ================= Trang: Thêm (menu phụ trên điện thoại) ================= */
@@ -2890,7 +2908,7 @@ async function trangCampus() {
 async function trangBangTin() {
   const khung = e('div');
   khung.append(tieuDeTrang(
-    '📢 Quản Trị Bảng Tin & Truyền Thông',
+    '📢 Quản Trị Nội Dung',
     'Soạn thảo thông báo trường học, tin tức bảng tin lớp, phân quyền ban biên tập và quản lý thư viện media.'
   ));
 

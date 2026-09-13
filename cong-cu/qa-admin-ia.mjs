@@ -11,7 +11,7 @@ const BASE = process.argv[2] || 'http://127.0.0.1:8788';
 const devSessionSecret = process.env.SESSION_SECRET || 'khoa-ky-cookie-chi-de-chay-thu-tren-may-1234567890';
 
 let pass = 0, fail = 0;
-const resultsByGroup = { seed: { pass: 0, fail: 0 }, scope: { pass: 0, fail: 0 }, audit: { pass: 0, fail: 0 }, users: { pass: 0, fail: 0 }, lop: { pass: 0, fail: 0 }, campus: { pass: 0, fail: 0 }, browser: { pass: 0, fail: 0 } };
+const resultsByGroup = { seed: { pass: 0, fail: 0 }, scope: { pass: 0, fail: 0 }, audit: { pass: 0, fail: 0 }, users: { pass: 0, fail: 0 }, lop: { pass: 0, fail: 0 }, campus: { pass: 0, fail: 0 }, noidung: { pass: 0, fail: 0 }, browser: { pass: 0, fail: 0 } };
 
 function ok(ten, dk, group = 'scope', chiTiet = '') {
   if (dk) {
@@ -259,8 +259,63 @@ async function run() {
   const rDongLop2 = await api('/api/gv/phong-quan-tri', { method: 'POST', cookie: cookieGvMotLop, body: { phongId: 99912 } });
   ok('GVCN đóng được phòng đúng lớp mình phụ trách (lớp 2)', rDongLop2.status === 200 && rDongLop2.data.ok === true, 'campus');
 
+  // ---------- GROUP: NỘI DUNG (/api/gv/thong-bao — trạng thái Nháp/Xuất bản/Lưu trữ, Phase 4) ----------
+  console.log('\n--- 6. NỘI DUNG (thong-bao: trạng thái + phạm vi) ---');
+  const homNayIso = new Date().toISOString().slice(0, 10);
+
+  const rTaoNhap = await api('/api/gv/thong-bao', {
+    method: 'POST', cookie: cookieAdmin,
+    body: { ngay: homNayIso, tieuDe: 'QA Thông báo nháp', noiDung: 'Nội dung QA', trangThai: 'nhap' },
+  });
+  ok('Tạo thông báo ở trạng thái Nháp thành công', rTaoNhap.status === 200 && rTaoNhap.data.ok === true, 'noidung', JSON.stringify(rTaoNhap.data));
+  const idNhap = rTaoNhap.data.id;
+
+  const rDsNhap = await api('/api/gv/thong-bao?trangThai=nhap', { cookie: cookieAdmin });
+  ok('Thông báo vừa tạo xuất hiện đúng ở tab Nháp', (rDsNhap.data.danhSach || []).some((t) => t.id === idNhap), 'noidung');
+
+  const rDsXuatBan1 = await api('/api/gv/thong-bao?trangThai=xuat_ban', { cookie: cookieAdmin });
+  ok('Thông báo Nháp KHÔNG xuất hiện ở tab Đã xuất bản', !(rDsXuatBan1.data.danhSach || []).some((t) => t.id === idNhap), 'noidung');
+
+  const rXuatBan = await api('/api/gv/thong-bao', { method: 'PATCH', cookie: cookieAdmin, body: { id: idNhap, trangThai: 'xuat_ban' } });
+  ok('Chuyển Nháp → Xuất bản thành công', rXuatBan.status === 200 && rXuatBan.data.ok === true, 'noidung', JSON.stringify(rXuatBan.data));
+
+  const rDsXuatBan2 = await api('/api/gv/thong-bao?trangThai=xuat_ban', { cookie: cookieAdmin });
+  ok('Sau khi xuất bản, thông báo chuyển đúng sang tab Đã xuất bản', (rDsXuatBan2.data.danhSach || []).some((t) => t.id === idNhap), 'noidung');
+
+  const rLopCoBai = await api('/api/lop', { cookie: cookieAdmin });
+  ok('Thông báo đã xuất bản (hien=1) hiện đúng trong /api/lop (trang công khai)',
+    (rLopCoBai.data.thongBao || []).some((t) => t.id === idNhap), 'noidung');
+
+  const rLuuTru = await api('/api/gv/thong-bao', { method: 'PATCH', cookie: cookieAdmin, body: { id: idNhap, trangThai: 'luu_tru' } });
+  ok('Chuyển Xuất bản → Lưu trữ thành công', rLuuTru.status === 200 && rLuuTru.data.ok === true, 'noidung');
+
+  const rLopKhongCoBai = await api('/api/lop', { cookie: cookieAdmin });
+  ok('Thông báo đã lưu trữ KHÔNG còn hiện trong /api/lop (trang công khai)',
+    !(rLopKhongCoBai.data.thongBao || []).some((t) => t.id === idNhap), 'noidung');
+
+  const rTrangThaiSai = await api('/api/gv/thong-bao', { method: 'PATCH', cookie: cookieAdmin, body: { id: idNhap, trangThai: 'khong-hop-le' } });
+  ok('Trạng thái không hợp lệ bị từ chối (400)', rTrangThaiSai.status === 400, 'noidung');
+
+  const rTaoCheoLop = await api('/api/gv/thong-bao', {
+    method: 'POST', cookie: cookieGvMotLop,
+    body: { ngay: homNayIso, tieuDe: 'QA ngoài phạm vi', noiDung: 'x', lopId: 1 },
+  });
+  ok('GVCN chỉ phụ trách lớp 2 bị chặn đăng thông báo vào lớp 1 (403)', rTaoCheoLop.status === 403, 'noidung', JSON.stringify(rTaoCheoLop.data));
+
+  const rTaoDungLop = await api('/api/gv/thong-bao', {
+    method: 'POST', cookie: cookieGvMotLop,
+    body: { ngay: homNayIso, tieuDe: 'QA đúng phạm vi lớp 2', noiDung: 'x', lopId: 2, trangThai: 'nhap' },
+  });
+  ok('GVCN đăng thông báo đúng lớp mình phụ trách (lớp 2) thành công', rTaoDungLop.status === 200 && rTaoDungLop.data.ok === true, 'noidung');
+
+  const rXoaDon = await api('/api/gv/thong-bao?id=' + idNhap, { method: 'DELETE', cookie: cookieAdmin });
+  ok('Dọn dữ liệu test: xoá thông báo QA (lớp 1) thành công', rXoaDon.status === 200 && rXoaDon.data.ok === true, 'noidung', JSON.stringify(rXoaDon.data));
+
+  const rXoaDon2 = await api('/api/gv/thong-bao?id=' + rTaoDungLop.data.id + '&lopId=2', { method: 'DELETE', cookie: cookieGvMotLop });
+  ok('Dọn dữ liệu test: xoá thông báo QA (lớp 2) thành công', rXoaDon2.status === 200 && rXoaDon2.data.ok === true, 'noidung', JSON.stringify(rXoaDon2.data));
+
   // ---------- GROUP: TRÌNH DUYỆT THẬT (Playwright) — trang Người dùng ----------
-  console.log('\n--- 6. TRÌNH DUYỆT THẬT: TRANG NGƯỜI DÙNG ---');
+  console.log('\n--- 7. TRÌNH DUYỆT THẬT: TRANG NGƯỜI DÙNG ---');
   let browser = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -347,6 +402,32 @@ async function run() {
       chuDrawerPhong.includes('QA Chủ Phòng L1'), 'campus', chuDrawerPhong.slice(0, 200));
 
     await ctxCampus.close();
+
+    // Trang "Nội dung" (đổi tên từ Bảng Tin) — 3 tab Nháp/Đã xuất bản/Đã lưu trữ, mặc định vào
+    // đúng tab "Đã xuất bản" (giữ nguyên trải nghiệm cũ cho dữ liệu có sẵn).
+    const ctxNoiDung = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctxNoiDung.addCookies([
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pageNoiDung = await ctxNoiDung.newPage();
+    await pageNoiDung.goto(`${BASE}/giao-vien/#/thong-bao`, { waitUntil: 'domcontentloaded' });
+    await pageNoiDung.waitForTimeout(1200);
+
+    ok('Mục sidebar đổi tên thành "Nội dung" (không còn "Bảng Tin")',
+      (await pageNoiDung.locator('#navBangTin').innerText()).includes('Nội dung'), 'noidung');
+
+    const tabNhap = pageNoiDung.locator('button:has-text("📝 Nháp")');
+    ok('Trang Thông báo hiện đủ 3 tab Nháp/Đã xuất bản/Đã lưu trữ',
+      (await tabNhap.count()) > 0 && (await pageNoiDung.locator('button:has-text("✅ Đã xuất bản")').count()) > 0 && (await pageNoiDung.locator('button:has-text("🗄 Đã lưu trữ")').count()) > 0,
+      'noidung');
+
+    await tabNhap.first().click();
+    await pageNoiDung.waitForTimeout(500);
+    ok('Chuyển sang tab Nháp không lỗi (danh sách rỗng hoặc có dữ liệu, không crash)',
+      (await pageNoiDung.locator('.trong, .ds-nhat-ky').count()) > 0, 'noidung');
+
+    await ctxNoiDung.close();
 
     // Thanh tab dưới di động — vừa tăng từ 6 lên 7 mục, kiểm tra không bị vỡ layout
     const ctxMobile = await browser.newContext({ viewport: { width: 390, height: 844 } });

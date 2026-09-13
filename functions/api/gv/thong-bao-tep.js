@@ -8,6 +8,7 @@
 // videoId = null, xem assets/js/thong-bao-dialog.js.
 import { bocXuLy, json, loi } from '../../_lib/api.js';
 import { themTepVaoThuVien } from '../../_lib/thu-vien.js';
+import { layPhamViQuanTri, xacDinhLopIdApDung } from '../../_lib/quan-tri.js';
 
 const LOAI_THU_VIEN = { hinh: 'anh', nhac: 'am-thanh', video: 'video' };
 const COT_ID = { hinh: 'anh_id', nhac: 'am_thanh_id', video: 'video_id' };
@@ -17,15 +18,20 @@ function docThamSo(request) {
   const url = new URL(request.url);
   const id = Number(url.searchParams.get('id'));
   const loaiTep = url.searchParams.get('loai');
-  return { id, loaiTep };
+  const lopIdYeuCau = parseInt(url.searchParams.get('lopId'), 10) || null;
+  return { id, loaiTep, lopIdYeuCau };
 }
 
 const QUYEN_THU_VIEN = { hinh: 'hinh-anh', nhac: 'am-thanh', video: 'video' };
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { id, loaiTep } = docThamSo(request);
+  const { id, loaiTep, lopIdYeuCau } = docThamSo(request);
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
   if (!LOAI_THU_VIEN[loaiTep]) return loi('Loại tệp không hợp lệ.');
+
+  const pham = await layPhamViQuanTri(env, phien);
+  const lopId = xacDinhLopIdApDung(pham, lopIdYeuCau, phien.lopId);
+  if (!lopId) return loi('Không có quyền truy cập lớp này.', 403);
 
   // Đính kèm mục CÓ SẴN (chọn từ thư viện, dán link) chỉ cần quyền "thong-bao" — nhưng TẢI FILE
   // MỚI là hành động khác hẳn: tự thêm hẳn một mục mới vào thư viện Ảnh/Âm thanh/Video DÙNG
@@ -36,13 +42,13 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     return loi('Bạn chưa được cấp quyền thêm tệp mới vào thư viện này — nhờ giáo viên chủ nhiệm cấp quyền, hoặc chọn mục có sẵn/dán link thay vì tải file mới.', 403);
   }
 
-  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, phien.lopId).first();
+  const tb = await env.DB.prepare('SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2').bind(id, lopId).first();
   if (!tb) return loi('Không tìm thấy thông báo.', 404);
 
   const kieu = (request.headers.get('Content-Type') || '').split(';')[0].trim();
   const duLieu = await request.arrayBuffer();
 
-  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`, phien.lopId, phien);
+  const { loi: thongBaoLoi, dong } = await themTepVaoThuVien(env, LOAI_THU_VIEN[loaiTep], duLieu, kieu, `Đính kèm — thông báo #${id}`, lopId, phien);
   if (thongBaoLoi) return loi(thongBaoLoi);
 
   const cotId = COT_ID[loaiTep];

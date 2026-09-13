@@ -8,11 +8,15 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien, waitUntil }) =
   if (!Number.isInteger(id)) return loi('Thiếu mã thông báo.');
 
   const tb = await env.DB.prepare(
-    `SELECT v.khoa, v.kieu
+    `SELECT v.khoa, v.kieu, tb.trang_thai AS trangThai
        FROM thong_bao tb LEFT JOIN video v ON v.id = tb.video_id
       WHERE tb.id = ?1 AND tb.lop_id = ?2`
   ).bind(id, phien.lopId).first();
   if (!tb) return loi('Không tìm thấy thông báo.', 404);
+  // Nháp/lưu trữ: chỉ tác giả (giáo viên/cán sự) xem trước được, học sinh chưa được thấy.
+  if (tb.trangThai !== 'xuat_ban' && phien.role !== 'teacher' && phien.role !== 'phu') {
+    return loi('Không tìm thấy thông báo.', 404);
+  }
   if (!tb.khoa) return loi('Thông báo này chưa có video đính kèm.', 404);
 
   return phucVuTepR2(env, tb.khoa, tb.kieu || 'video/mp4', request, phien.lopId, waitUntil);

@@ -51,7 +51,7 @@ import { coQuyenThanhVien } from '../../_lib/community.js';
 async function baiThuocLop(db, id, lopId) {
   return Boolean(await db.prepare(`
     SELECT id FROM hoat_dong_lop WHERE id = ?1 AND lop_id = ?2
-    UNION ALL SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2 AND hien = 1
+    UNION ALL SELECT id FROM thong_bao WHERE id = ?1 AND lop_id = ?2 AND hien = 1 AND trang_thai = 'xuat_ban'
     LIMIT 1
   `).bind(id, lopId).first());
 }

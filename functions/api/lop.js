@@ -76,7 +76,7 @@ export const onRequestGet = bocXuLy(async ({ env, waitUntil, phien }) => {
          LEFT JOIN hinh_anh ha ON ha.id = tb.anh_id
          LEFT JOIN am_thanh at ON at.id = tb.am_thanh_id
          LEFT JOIN video v ON v.id = tb.video_id
-        WHERE tb.hien = 1 AND tb.lop_id = ?1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
+        WHERE tb.hien = 1 AND tb.trang_thai = 'xuat_ban' AND tb.lop_id = ?1 ORDER BY tb.ghim DESC, tb.ngay DESC LIMIT 50`
     ).bind(lopId, (phien.role === 'teacher' ? 999999 : (phien.hocSinhId || (phien.role === 'phu' ? 800000 + (phien.phuId || 1) : 100001)))).all(),
     db.prepare(
       `SELECT id, ten, ngay_bat_dau AS ngayBatDau, ghi_chu AS ghiChu FROM tkb_phien_ban
