@@ -2439,9 +2439,13 @@ function DigitalCampusApp() {
             const trucTiep = cauHinh.videoUrl && !yt && !drv && laVideoTrucTiepFe(cauHinh.videoUrl) ? urlMediaFe(cauHinh.videoUrl) : '';
             const laChuPhong = Boolean(p.laChuPhong || p.canControl || (phongMinhKhoa && p.chuPhongKhoa === phongMinhKhoa));
             return (
-              <div className={isFocusMode && p.loai === 'nhac' ? "max-w-2xl mx-auto w-full" : "flex flex-col gap-5 w-full"}>
-                <div className="flex flex-col gap-5 min-w-0 w-full">
-                  {/* VÙNG 1: Nội dung theo loại phòng (Player/Video) */}
+              <div className={
+                isFocusMode && p.loai === 'nhac'
+                  ? "max-w-2xl mx-auto w-full"
+                  : "grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start"
+              }>
+                {/* VÙNG 1 (CỘT TRÁI): Nội dung theo loại phòng (Player/Video) */}
+                <div className="flex flex-col gap-4 min-w-0 w-full">
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
@@ -2496,8 +2500,10 @@ function DigitalCampusApp() {
                       )}
                     </>
                   )}
+                </div>
 
-                  {/* VÙNG 2: Study Dock (YouTube Workspace) OR Standard Room Chat */}
+                {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
+                <div className="flex flex-col gap-4 min-w-0 w-full">
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}
@@ -2532,11 +2538,11 @@ function DigitalCampusApp() {
                       onXoaTinPhong={(tinId) => setPhongChat(prev => prev.filter(t => t.id !== tinId))}
                     />
                   ) : !(isFocusMode && p.loai === 'nhac') && (
-                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[320px]">
+                    <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[380px] shadow-xl">
                       <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3 pb-2 border-b border-white/10">
                         Chat phòng{p.phamVi === 'truong' ? ' — liên lớp' : ''}
                       </p>
-                      <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-80">
+                      <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[340px]">
                         {phongChat.length === 0 && (
                           <p className="text-[11px] text-slate-500 text-center py-6">Chưa có tin nhắn — gửi lời chào đầu tiên!</p>
                         )}

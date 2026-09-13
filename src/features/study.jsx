@@ -603,7 +603,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   };
 
   return (
-    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[380px] shadow-xl">
+    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[420px] lg:min-h-[480px] shadow-xl">
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -695,7 +695,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
         {/* TAB 1: CHAT PHÒNG */}
         {dockTab === 'chat' && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72 text-xs">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72 lg:max-h-[380px] xl:max-h-[440px] text-xs">
               {phongChat.length === 0 ? (
                 <p className="text-[11px] text-slate-500 text-center py-8">Chưa có tin nhắn — hãy gửi câu hỏi hoặc trao đổi về bài giảng!</p>
               ) : (
