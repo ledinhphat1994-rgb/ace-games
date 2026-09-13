@@ -2,7 +2,7 @@
 // Dùng chung cho cả Học sinh và Giáo viên, phân quyền theo phiên đăng nhập.
 import { bocXuLy, docThan, json, loi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
-import { requireVerifiedClassMembership } from '../_lib/social.js';
+import { requireVerifiedClassMembership, checkRateLimit } from '../_lib/social.js';
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const url = new URL(request.url);
@@ -240,24 +240,15 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien, waitUntil }) 
     }
   }
 
-  // 3. Kiểm tra Rate Limit (giãn cách gửi tin của học sinh)
+  // 3. Kiểm tra Rate Limit (giãn cách gửi tin của học sinh) — qua checkRateLimit (KV) thay vì tự
+  // SELECT tin gần nhất rồi so sánh giờ trong JS, đỡ 1 lượt đọc D1 mỗi tin nhắn (giống mẫu
+  // campus-chat.js/campus-dm.js đang dùng). gianCach đọc từ cấu hình TỪNG LỚP (chat_cai_dat) nên
+  // truyền windowMs ĐỘNG — không hard-code như phong-chat.js (khoảng cách cố định).
   const gianCach = Math.max(1, caiDat.gianCachGiay || 5);
   if (!laGiaoVien && classAuth.hocSinhId) {
-    const tinCuoi = await env.DB.prepare(
-      'SELECT tao_luc AS taoLuc FROM chat_tin_nhan WHERE hoc_sinh_id = ?1 AND lop_id = ?2 ORDER BY id DESC LIMIT 1'
-    ).bind(classAuth.hocSinhId, lopId).first();
-
-    if (tinCuoi && tinCuoi.taoLuc) {
-      const isoStr = tinCuoi.taoLuc.replace(' ', 'T') + 'Z';
-      const thoiGianTinCuoi = new Date(isoStr).getTime();
-      if (!Number.isNaN(thoiGianTinCuoi)) {
-        const hienTai = Date.now();
-        const giayTroiQua = (hienTai - thoiGianTinCuoi) / 1000;
-        if (giayTroiQua < gianCach) {
-          const conLai = Math.ceil(gianCach - giayTroiQua);
-          return loi(`Bạn đang gửi quá nhanh. Vui lòng chờ ${conLai} giây nữa.`, 429);
-        }
-      }
+    const duocGui = await checkRateLimit(env, `chat:${classAuth.hocSinhId}-${lopId}`, 1, gianCach * 1000);
+    if (!duocGui) {
+      return loi('Bạn đang gửi quá nhanh. Vui lòng chờ một chút rồi gửi lại.', 429);
     }
   }
 

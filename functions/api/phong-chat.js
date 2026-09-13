@@ -5,6 +5,7 @@
 import { bocXuLy, docThan, json, loi, chuoi } from '../_lib/api.js';
 import { ghiNhanHoatDong } from './gamification.js';
 import { actorKey } from '../_lib/auth.js';
+import { checkRateLimit } from '../_lib/social.js';
 import { kiemTraTruyCapPhong, kiemTraQuyenPhong, taiChinhSach, CAPABILITY } from '../_lib/rooms.js';
 
 const GIAN_CACH_TIN_GIAY = 3; // chống spam: tối thiểu 3 giây giữa 2 tin của 1 người
@@ -66,13 +67,13 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     }
   }
 
-  // Chống spam: cách tối thiểu GIAN_CACH_TIN_GIAY giây giữa 2 tin của 1 người.
-  const gan = await db.prepare(
-    `SELECT tao_luc AS luc FROM phong_tin_nhan
-      WHERE phong_id = ?1 AND khoa = ?2
-      ORDER BY id DESC LIMIT 1`
-  ).bind(phongId, khoa).first();
-  if (gan && Date.now() - new Date(String(gan.luc).replace(' ', 'T') + 'Z').getTime() < GIAN_CACH_TIN_GIAY * 1000) {
+  // Chống spam: cách tối thiểu GIAN_CACH_TIN_GIAY giây giữa 2 tin của 1 người — qua checkRateLimit
+  // (KV) thay vì tự SELECT tin gần nhất rồi so sánh giờ trong JS mỗi tin nhắn (giống mẫu
+  // campus-chat.js). Khoá theo (phongId, khoa) gộp bằng dấu "_"/"-" — checkRateLimit chỉ lấy
+  // ĐÚNG đoạn thứ 2 sau dấu ":" đầu tiên làm định danh, còn "khoa" (vd "hs:5:xyz") tự nó có dấu
+  // ":" nên phải thay hết bằng "-" trước khi ghép, không thì bị cắt mất phần lớp.
+  const duocGui = await checkRateLimit(env, `phong-chat:${phongId}_${khoa.replace(/:/g, '-')}`, 1, GIAN_CACH_TIN_GIAY * 1000);
+  if (!duocGui) {
     return loi('Gửi chậm lại một chút nhé!', 429);
   }
 
@@ -97,12 +98,20 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     await ghiNhanHoatDong(env, { hocSinhId: phien.hocSinhId, lopId: phien.lopId, loaiHoatDong: 'chat', moTa: 'Chat phòng campus', quaHuyHieu: false }).catch(() => {});
   }
 
-  const tinMoi = await db.prepare(
-    `SELECT t.id, t.ten_nguoi_gui AS tenNguoiGui, t.vai_tro AS vaiTro, t.noi_dung AS noiDung,
-            t.tao_luc AS taoLuc, t.lop_id AS lopId, l.ten AS lopTen, t.video_time_sec AS videoTimeSec
-       FROM phong_tin_nhan t LEFT JOIN lop l ON l.id = t.lop_id
-      WHERE t.id = ?1`
-  ).bind(kq.meta?.last_row_id).first();
+  // Dựng thẳng từ giá trị đã biết thay vì SELECT lại đúng dòng vừa ghi (bớt 1 round-trip D1 mỗi
+  // tin nhắn). lopTen chỉ lấy từ check.phong khi phòng CHÍNH LÀ phòng của lớp đó (pham_vi='lop')
+  // — lúc đó kiemTraTruyCapPhong đã đảm bảo check.phong.lopId === phien.lopId nên chắc chắn đúng
+  // tên lớp NGƯỜI GỬI, không suy luận nhầm cho phòng toàn trường (thành viên nhiều lớp khác nhau).
+  const tinMoi = {
+    id: kq.meta?.last_row_id,
+    tenNguoiGui: ten,
+    vaiTro,
+    noiDung,
+    taoLuc: new Date().toISOString().slice(0, 19).replace('T', ' '),
+    lopId: phien.lopId || null,
+    lopTen: check.phong.phamVi === 'lop' ? (check.phong.lopTen || null) : null,
+    videoTimeSec,
+  };
 
   return json({ ok: true, tinNhan: tinMoi });
 });
