@@ -12,22 +12,43 @@ function layIdYoutube(u) {
   return m ? m[1] : null;
 }
 
-async function doiVideoDangPhat(db, phongId, videoUrl, khoa, ten) {
+// Chuyển video đang phát theo 1 mục queue — NGUYÊN TỬ qua db.batch:
+// mọi write đều gác bởi EXISTS(item còn 'queued') → hoặc toàn bộ áp dụng, hoặc không gì đổi.
+// Trả 'ok' | 'gone' (item đã bị người khác dùng/xoá giữa chừng — caller trả 409).
+async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
+  const item = await db.prepare(
+    `SELECT video_url AS videoUrl FROM phong_video_queue WHERE id = ?1 AND phong_id = ?2 AND trang_thai = 'queued'`
+  ).bind(itemId, phongId).first();
+  if (!item) return 'gone';
+
   const p = await db.prepare(`SELECT cau_hinh AS cauHinh FROM phong WHERE id = ?1`).bind(phongId).first();
   let cauHinh = {};
   try { cauHinh = p?.cauHinh ? JSON.parse(p.cauHinh) : {}; } catch { /* bỏ qua */ }
-  cauHinh.videoUrl = videoUrl;
-  await db.prepare(
-    `UPDATE phong SET cau_hinh = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2`
-  ).bind(JSON.stringify(cauHinh), phongId).run();
-  await db.prepare(
-    `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
-     VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
-     ON CONFLICT(phong_id) DO UPDATE SET
-       trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
-       revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
-       nguoi_cap_nhat_khoa = ?2, nguoi_cap_nhat_ten = ?3`
-  ).bind(phongId, khoa, ten).run().catch(() => {});
+  cauHinh.videoUrl = item.videoUrl;
+
+  // ?3 = itemId dùng trong guard EXISTS của các write đầu; ?4/?5 trong upsert sync.
+  const guard = `EXISTS(SELECT 1 FROM phong_video_queue WHERE id = ?3 AND phong_id = ?1 AND trang_thai = 'queued')`;
+  const rs = await db.batch([
+    db.prepare(
+      `UPDATE phong_video_queue SET trang_thai = 'played' WHERE phong_id = ?1 AND trang_thai = 'playing' AND ${guard}`
+    ).bind(phongId, 0, itemId),
+    db.prepare(
+      `UPDATE phong SET cau_hinh = ?2, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1 AND ${guard}`
+    ).bind(phongId, JSON.stringify(cauHinh), itemId),
+    db.prepare(
+      `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
+       SELECT ?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?4, ?5
+       WHERE ${guard}
+       ON CONFLICT(phong_id) DO UPDATE SET
+         trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
+         revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
+         nguoi_cap_nhat_khoa = ?4, nguoi_cap_nhat_ten = ?5`
+    ).bind(phongId, 0, itemId, khoa, ten),
+    db.prepare(
+      `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?3 AND phong_id = ?1 AND trang_thai = 'queued'`
+    ).bind(phongId, 0, itemId),
+  ]);
+  return (rs[3]?.meta?.changes ?? 0) > 0 ? 'ok' : 'gone';
 }
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
@@ -37,7 +58,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
 
   const rs = await db.prepare(
     `SELECT id, video_url AS videoUrl, video_id AS videoId, title, thumb,
@@ -64,7 +85,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const khoa = check.actorKey;
   const ten = tenCua(phien);
 
@@ -77,7 +98,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const quyen = await kiemTraQuyenPhong(db, check, capCan);
   if (!quyen.ok) return json({ ok: false, loi: quyen.loi, code: quyen.code }, quyen.status);
 
-  // ── THÊM VIDEO VÀO HÀNG ĐỢI ──
+  // ── THÊM VIDEO VÀO HÀNG ĐỢI — INSERT...SELECT nguyên tử: cap 30 và tính ord trong
+  //    cùng 1 statement, không race COUNT→INSERT. ?8: 1 = add_next (chèn đầu), 0 = cuối. ──
   if (action === 'enqueue' || action === 'add_next') {
     const u = chuanUrlMedia(than.videoUrl || than.url);
     if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https://.');
@@ -86,29 +108,19 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const thumb = chuoi(than.thumb, 500) || null;
     const videoId = layIdYoutube(u);
 
-    const dem = await db.prepare(
-      `SELECT COUNT(*) AS n FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'`
-    ).bind(phongId).first();
-    if ((dem?.n || 0) >= 30) return loi('Hàng đợi đã đầy (tối đa 30 video).', 429);
-
-    let ord;
-    if (action === 'add_next') {
-      const dau = await db.prepare(
-        `SELECT MIN(ord) AS o FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'`
-      ).bind(phongId).first();
-      ord = dau?.o != null ? dau.o - 1 : 10;
-    } else {
-      const cuoi = await db.prepare(
-        `SELECT MAX(ord) AS o FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'`
-      ).bind(phongId).first();
-      ord = cuoi?.o != null ? cuoi.o + 10 : 10;
-    }
-
     const kq = await db.prepare(
       `INSERT INTO phong_video_queue (phong_id, video_url, video_id, title, thumb, added_by_khoa, added_by_ten, ord)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
-    ).bind(phongId, u, videoId, title, thumb, khoa, ten, ord).run();
-    return json({ ok: true, id: kq.meta?.last_row_id, ord });
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7,
+         CASE WHEN ?8 = 1
+           THEN COALESCE((SELECT MIN(ord) FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'), 20) - 10
+           ELSE COALESCE((SELECT MAX(ord) FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'), 0) + 10
+         END
+       WHERE (SELECT COUNT(*) FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued') < 30`
+    ).bind(phongId, u, videoId, title, thumb, khoa, ten, action === 'add_next' ? 1 : 0).run();
+    if (!((kq.meta?.changes ?? 0) > 0)) {
+      return loi('Hàng đợi đã đầy (tối đa 30 video).', 429);
+    }
+    return json({ ok: true, id: kq.meta?.last_row_id });
   }
 
   // ── XÓA KHỎI HÀNG ĐỢI (người thêm được xóa của mình; staff xóa được tất cả) ──
@@ -128,10 +140,19 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     return json({ ok: true });
   }
 
-  // ── SẮP XẾP LẠI — nhận toàn bộ thứ tự id mới ──
+  // ── SẮP XẾP LẠI — yêu cầu ĐÚNG một hoán vị đầy đủ của các item đang 'queued':
+  //    từ chối id lạ/trùng/thiếu. Không cho partial reorder (dễ làm hỏng thứ tự). ──
   if (action === 'reorder') {
     const ids = Array.isArray(than.ids) ? than.ids.map((x) => parseInt(x, 10)).filter((x) => x > 0) : [];
     if (!ids.length) return loi('Thiếu thứ tự mới.', 400);
+    if (new Set(ids).size !== ids.length) return loi('Danh sách thứ tự có id trùng.', 400);
+    const hienCo = await db.prepare(
+      `SELECT id FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'`
+    ).bind(phongId).all();
+    const tapHop = new Set((hienCo.results || []).map((r) => r.id));
+    if (ids.length !== tapHop.size || !ids.every((id) => tapHop.has(id))) {
+      return loi('Thứ tự mới phải chứa đúng toàn bộ mục đang chờ của phòng.', 400);
+    }
     const stmts = ids.map((id, i) =>
       db.prepare(
         `UPDATE phong_video_queue SET ord = ?1 WHERE id = ?2 AND phong_id = ?3 AND trang_thai = 'queued'`
@@ -141,7 +162,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     return json({ ok: true });
   }
 
-  // ── PHÁT NGAY ──
+  // ── PHÁT NGAY — chuyển trạng thái nguyên tử qua batch có guard ──
   if (action === 'play_now') {
     const id = parseInt(than.id || '0', 10);
     if (!(id > 0)) return loi('Thiếu mục hàng đợi.', 400);
@@ -149,33 +170,27 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       `SELECT video_url AS videoUrl FROM phong_video_queue WHERE id = ?1 AND phong_id = ?2 AND trang_thai = 'queued'`
     ).bind(id, phongId).first();
     if (!item) return loi('Mục không tồn tại trong hàng đợi.', 404);
-    await db.prepare(
-      `UPDATE phong_video_queue SET trang_thai = 'played' WHERE phong_id = ?1 AND trang_thai = 'playing'`
-    ).bind(phongId).run();
-    await doiVideoDangPhat(db, phongId, item.videoUrl, khoa, ten);
-    await db.prepare(
-      `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?1 AND phong_id = ?2`
-    ).bind(id, phongId).run();
+    const kq = await chuyenVideoTheoQueueItem(db, phongId, id, khoa, ten);
+    if (kq === 'gone') return loi('Mục không còn trong hàng đợi — hàng đợi vừa thay đổi.', 409);
     return json({ ok: true, videoUrl: item.videoUrl });
   }
 
-  // ── PHÁT VIDEO TIẾP THEO TRONG HÀNG ĐỢI ──
+  // ── PHÁT VIDEO TIẾP THEO — đọc item đầu rồi chuyển nguyên tử; nếu item vừa bị
+  //    người khác chiếm thì đọc lại 1 lần (2 lệnh skip cạnh tranh = bỏ qua 2 video). ──
   if (action === 'skip') {
-    const tiep = await db.prepare(
-      `SELECT id, video_url AS videoUrl FROM phong_video_queue
-        WHERE phong_id = ?1 AND trang_thai = 'queued' ORDER BY ord ASC, id ASC LIMIT 1`
-    ).bind(phongId).first();
-    await db.prepare(
-      `UPDATE phong_video_queue SET trang_thai = 'played' WHERE phong_id = ?1 AND trang_thai = 'playing'`
-    ).bind(phongId).run();
-    if (!tiep) {
-      return json({ ok: true, empty: true, loi: 'Hàng đợi đã hết video.' });
+    for (let lan = 0; lan < 2; lan++) {
+      const tiep = await db.prepare(
+        `SELECT id, video_url AS videoUrl FROM phong_video_queue
+          WHERE phong_id = ?1 AND trang_thai = 'queued' ORDER BY ord ASC, id ASC LIMIT 1`
+      ).bind(phongId).first();
+      if (!tiep) {
+        return json({ ok: true, empty: true, loi: 'Hàng đợi đã hết video.' });
+      }
+      const kq = await chuyenVideoTheoQueueItem(db, phongId, tiep.id, khoa, ten);
+      if (kq === 'ok') return json({ ok: true, videoUrl: tiep.videoUrl });
+      // 'gone': item vừa bị claim — vòng lặp đọc lại item đầu mới.
     }
-    await doiVideoDangPhat(db, phongId, tiep.videoUrl, khoa, ten);
-    await db.prepare(
-      `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?1 AND phong_id = ?2`
-    ).bind(tiep.id, phongId).run();
-    return json({ ok: true, videoUrl: tiep.videoUrl });
+    return loi('Hàng đợi đang thay đổi — thử lại.', 409);
   }
 
   // ── GỬI LINK VIDEO VÀO CHAT PHÒNG ──
@@ -193,7 +208,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       `INSERT INTO phong_tin_nhan (phong_id, khoa, hoc_sinh_id, ten_nguoi_gui, vai_tro, lop_id, noi_dung)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
     ).bind(phongId, khoa, phien.hocSinhId || null, ten,
-      phien.role === 'teacher' ? 'giao_vien' : 'hoc_sinh', phien.lopId || null, noiDung).run();
+      (phien.role === 'teacher' || phien.role === 'admin') ? 'giao_vien' : 'hoc_sinh', phien.lopId || null, noiDung).run();
     return json({ ok: true });
   }
 

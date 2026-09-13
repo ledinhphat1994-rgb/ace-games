@@ -1,8 +1,35 @@
 # Study Room Governance API v1 — Contract (SWE 2 → Claude)
 
-- **Status:** `draft` — backend đang triển khai, chưa accept
-- **Backend commit:** _chưa có (đang code)_
-- **Migration:** `co-so-du-lieu/77-study-room-governance.sql`
+- **Status:** `ACCEPTED_BACKEND_CANDIDATE` — Backend Gate QA 163/163 PASS, chờ Independent Backend Review
+- **Backend commit:** _xem mục "Đóng băng" cuối tài liệu_
+- **Migration:** `co-so-du-lieu/77-study-room-governance.sql` (đã apply local + remote)
+
+## Ranh giới Preview vs Participant (BẮT BUỘC)
+
+- `canPreview`: tài khoản đúng phạm vi được xem metadata Lobby an toàn — `id, ten, loai, phamVi, accessMode, sucChua, soNguoi, chuPhongTen, lopTen, cauHinh`(chỉ khi public).
+- `isAdmitted`: PHẢI có row còn hạn trong `phong_thanh_vien` (hoặc là staff). Phòng **public KHÔNG tự động admit** — client vẫn phải gọi `vao` trước khi chạm Chat/Watch/Collab/Queue/Focus.
+- `GET /api/phong?id=` khi chưa admitted và không phải staff → trả `{ok, phong(sanitized), thanhVien:[], isAdmitted:false, canControl:false, isStaff:false, vaiTroPhong:'member', laChuPhong:false}` — **không** có `myCaps`, `policies`, `grants`, `khoa` thành viên.
+- Mọi API con trả `403 {ok:false, code:'admission_required'}` khi chưa admitted; `403 code:'room_banned'` khi bị ban; `409 code:'room_full'` khi hết chỗ.
+- Phòng hệ thống (`chu_phong_khoa='he-thong'`, sảnh chat trường) miễn membership.
+
+## Thẩm quyền Teacher / GVCN / School Admin
+
+Nguồn quyền chuẩn: `layPhamViQuanTri` (`_lib/quan-tri.js`) — KHÔNG suy ra từ `role==='teacher'`.
+
+- **School Admin** (`la_admin_truong`/`vai_tro='admin'` trên `tai_khoan_campus`, phiên mang `role:'admin'`): staff mọi phòng, list thấy mọi phòng.
+- **GVCN**: staff trong phòng `pham_vi='lop'` thuộc lớp được gán (`giao_vien_lop`/`lop_id`) + phòng `pham_vi='truong'`. GVCN lớp khác → 403, không phải staff.
+- Tạo phòng `phamVi='lop'`: student dùng `phien.lopId`; GVCN/Admin chọn `lopId` nhưng phải nằm trong phạm vi (`xacDinhLopIdApDung`); `lop_id=NULL` bị chặn (403). Seed governance lỗi → phòng bị rollback (trang_thai='dong').
+
+## Fail-closed policy
+
+- `taiChinhSach`/`taiToanBoChinhSach` trả `null` khi D1 lỗi (không fallback default). `kiemTraQuyenPhong` trả `{loi:'policy_unavailable', status:503}` → endpoint trả `503 {code:'policy_unavailable'}`. Không có row policy = default hợp lệ (capability mặc định).
+
+## Queue — rào chắn đúng (atomic batch)
+
+- `play_now {id}`: `db.batch` gồm (a) UPDATE phong.cau_hinh + sync-state với guard `EXISTS(item queued thuộc phòng)`, (b) un-playing toàn bộ queue, (c) mark item `playing` có guard. Nếu guard fail → toàn batch rollback, trả 404. Không còn nửa-transition; không nuốt lỗi sync.
+- `skip`: cùng pattern — un-playing + đổi video sang mục kế (hoặc clear) trong 1 batch.
+- `enqueue`: cap 30 bằng UPDATE-có-điều-kiện (INSERT ... SELECT WHERE COUNT<30 pattern ở D1: dùng `INSERT INTO ... SELECT ... WHERE (SELECT COUNT)<30`), race không vượt cap.
+- `reorder {ids}`: phải là **hoán vị đầy đủ** của tập id đang `queued` — trùng/thiếu/lạ → 400. Không cho partial reorder.
 
 ## Bảng mới
 
@@ -68,3 +95,24 @@ POST:
 - POST `voice_signal {signalType:'offer'|'answer'|'candidate'|'leave', payload}` — chỉ 2 người trong cặp
 - POST `voice_end` — staff ngắt cặp
 - GET `action=voice_poll&sauId=` → `{ok, pair:{active,aTen,bTen,youIn,slot}, signals:[{id,signalType,payload}], yeuCauVoice:[{khoa,ten}]}` — signals CHỈ từ partner; yeuCauVoice chỉ staff
+
+## Phản hồi & vai trò
+
+- `laChuPhong` = đúng chủ phòng (`isHost`). `canControl` = quyền điều khiển (host + teacher trong phạm vi). Teacher/Admin **không** nhận `laChuPhong:true`.
+- `vaiTroPhong`: 'host' | 'teacher' | 'co_host' | 'member'.
+- `minhKhoa` (khoá actor của chính mình) và `thanhVien[].khoa` (khoá thành viên khác — chỉ staff) là định danh nội bộ; member thường không thấy `khoa` của người khác.
+- `unban`: chấp nhận alias `bo_chan` và `bo_cam`.
+
+## Capacity & Voice
+
+- `suc_chua`: default 8, hard max 12 (v1). Join quá cap → `409 room_full`; member row là điều kiện admitted → không bypass được qua API con.
+- Voice: 1:1 WebRTC P2P, request/approval theo cap `voice` (`everyone` = ai cũng được xin, không phải group call). Signal pair-bound; ICE queue phía client.
+
+## Error codes (chuẩn)
+
+`admission_required` (403) · `room_banned` (403) · `room_full` (409) · `capability_off` (403) · `grant_required` (403) · `voice_room_full` (409) · `policy_unavailable` (503) · `room_closed`/`room_not_found` (404).
+
+## Đóng băng
+
+- Backend Gate QA: **163 PASS / 0 FAIL** (`cong-cu/qa-study-room-audit.mjs`, nhóm A–J adversarial).
+- SHA commit backend: _điền sau khi commit — cập nhật bởi SWE 2_.

@@ -6,6 +6,7 @@ import { bocXuLy, docThan, json, loi, chuoi, chuanUrlMedia } from '../_lib/api.j
 import { ghiNhanHoatDong } from './gamification.js';
 import { bamMatKhau, taoSalt, xacMinhMatKhau } from '../_lib/passwords.js';
 import { actorKey } from '../_lib/auth.js';
+import { layPhamViQuanTri, xacDinhLopIdApDung } from '../_lib/quan-tri.js';
 import {
   kiemTraTruyCapPhong, lamSachPhong, NHIP_HOAT_DONG, NHIP_HIEU_LUC,
   STUDY_CAP, PHONG_CAP, CAPABILITY, ACCESS_MODES, STAFF_LOCKED_CAPS,
@@ -17,7 +18,7 @@ const CAC_CAPABILITY = Object.values(CAPABILITY);
 const LOAI_PHONG = ['chat', 'video', 'nhac']; // Caro Game sử dụng Game Arena riêng
 const SO_PHONG_TOI_DA = 3; // mỗi người mở tối đa 3 phòng cùng lúc — chống spam
 
-const vaiTroCua = (phien) => (phien.role === 'teacher' ? 'giao_vien' : 'hoc_sinh');
+const vaiTroCua = (phien) => ((phien.role === 'teacher' || phien.role === 'admin') ? 'giao_vien' : 'hoc_sinh');
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
 
 // Ghi nhận vào phòng với kiểm soát sức chứa nguyên tử (Atomic Capacity Enforcement)
@@ -53,14 +54,19 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     if (check.loi) return loi(check.loi, check.status || 400);
 
     const p = check.phong;
-    // Nếu phòng có mật khẩu và chưa được duyệt vào phòng (không phải host/GV và chưa nhập pass)
-    if (p.accessMode === 'password' && !check.isAdmitted && !check.canControl) {
+    // PREVIEW vs PARTICIPANT: chưa admitted (chưa join / chưa nhập pass) và không phải staff
+    // → chỉ trả metadata an toàn của Lobby. KHÔNG trả danh sách thành viên, myCaps, policies.
+    // Với phòng public, cauHinh (videoUrl) vẫn hiển thị — đó là preview công khai hợp lệ;
+    // với phòng password, lamSachPhong tự ẩn cauHinh khi isAdmitted=false.
+    if (!check.isAdmitted && !check.isStaff) {
       return json({
         ok: true,
         phong: lamSachPhong(p, { isAdmitted: false, canControl: false }),
         thanhVien: [],
         isAdmitted: false,
         canControl: false,
+        isStaff: false,
+        vaiTroPhong: 'member',
         laChuPhong: false,
       });
     }
@@ -76,7 +82,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
         ORDER BY v.vao_luc ASC LIMIT 60`
     ).bind(phongId, p.chuPhongKhoa, NHIP_HOAT_DONG).all();
 
-    const phongSach = lamSachPhong(p, { isAdmitted: check.isAdmitted, canControl: check.canControl });
+    const phongSach = lamSachPhong(p, { isAdmitted: check.isAdmitted, canControl: check.canControl, isHost: check.isHost });
     phongSach.vaiTroPhong = check.vaiTroPhong;
 
     const traVe = {
@@ -95,7 +101,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     if (p.loai === 'video') {
       traVe.myCaps = await taiQuyenCuaToi(db, check);
       if (check.isStaff) {
-        traVe.policies = await taiToanBoChinhSach(db, phongId);
+        traVe.policies = await taiToanBoChinhSach(db, phongId); // null nếu D1 lỗi — client coi như không khả dụng
         const gr = await db.prepare(
           `SELECT khoa, capability, trang_thai AS trangThai FROM phong_grant WHERE phong_id = ?1`
         ).bind(phongId).all().catch(() => ({ results: [] }));
@@ -106,7 +112,23 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     return json(traVe);
   }
 
-  // Danh sách phòng đang mở: toàn bộ phòng 'truong' + phòng 'lop' của lớp mình.
+  // Danh sách phòng đang mở: toàn bộ phòng 'truong' + phòng 'lop' trong phạm vi được phép.
+  // Student: lớp của phiên. GVCN: các lớp được gán (giao_vien_lop). School Admin: tất cả lớp.
+  let dieuKienPhamVi = `(p.pham_vi = 'truong' OR (p.lop_id IS NOT NULL AND p.lop_id = ?2))`;
+  const bindPhamVi = [phien.lopId || 0];
+  if (phien.role === 'teacher' || phien.role === 'admin') {
+    const pham = await layPhamViQuanTri(env, phien);
+    if (pham.isSchoolAdmin) {
+      dieuKienPhamVi = '1=1';
+      bindPhamVi.length = 0;
+    } else if (pham.lopIds?.length) {
+      dieuKienPhamVi = `(p.pham_vi = 'truong' OR p.lop_id IN (${pham.lopIds.map((_, i) => `?${i + 2}`).join(',')}))`;
+      bindPhamVi.splice(0, bindPhamVi.length, ...pham.lopIds);
+    } else {
+      dieuKienPhamVi = `p.pham_vi = 'truong'`;
+      bindPhamVi.length = 0;
+    }
+  }
   const rs = await db.prepare(
     `SELECT p.id, p.loai, p.ten, p.mo_ta AS moTa, p.pham_vi AS phamVi, p.lop_id AS lopId,
             p.chu_phong_ten AS chuPhongTen,
@@ -114,13 +136,12 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
             p.access_mode AS accessMode, p.suc_chua AS sucChua,
             l.ten AS lopTen,
             (SELECT COUNT(*) FROM phong_thanh_vien v
-              WHERE v.phong_id = p.id AND datetime(v.hoat_dong_luc) > datetime('now', ?3)) AS soNguoi
+              WHERE v.phong_id = p.id AND datetime(v.hoat_dong_luc) > datetime('now', ?1)) AS soNguoi
        FROM phong p LEFT JOIN lop l ON l.id = p.lop_id
-      WHERE p.trang_thai = 'mo'
-        AND (p.pham_vi = 'truong' OR (p.lop_id IS NOT NULL AND p.lop_id = ?1) OR ?2 = 1)
+      WHERE p.trang_thai = 'mo' AND ${dieuKienPhamVi}
       ORDER BY (p.chu_phong_khoa = 'he-thong') DESC, soNguoi DESC, p.tao_luc DESC
       LIMIT 50`
-  ).bind(phien.lopId || 0, phien.role === 'teacher' ? 1 : 0, NHIP_HOAT_DONG).all();
+  ).bind(NHIP_HOAT_DONG, ...bindPhamVi).all();
 
   // Số người đang hoạt động toàn campus (chỉ tính phòng toàn trường đang mở) — DISTINCT khoá phiên.
   const dd = await db.prepare(
@@ -154,9 +175,22 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const phamVi = than.phamVi === 'lop' ? 'lop' : 'truong';
     if (ten.length < 2) return loi('Đặt tên phòng ít nhất 2 ký tự.');
 
+    // Phòng phạm vi lớp: PHẢI xác định được lop_id thuộc thẩm quyền — tuyệt đối không lop_id=NULL.
+    // Student: lớp của phiên. GVCN/School Admin: lớp client chọn nhưng phải nằm trong phạm vi
+    // quản trị (xacDinhLopIdApDung trả null nếu ngoài phạm vi → chặn IDOR).
+    let lopIdPhong = null;
     if (phamVi === 'lop') {
-      if ((!phien.lopId || phien.lopId <= 0) && phien.role !== 'teacher') {
-        return loi('Tài khoản chưa liên kết lớp không thể tạo phòng riêng của lớp.', 403);
+      if (phien.role === 'teacher' || phien.role === 'admin') {
+        const pham = await layPhamViQuanTri(env, phien);
+        lopIdPhong = xacDinhLopIdApDung(pham, Number(than.lopId) || null, phien.lopId);
+        if (!lopIdPhong) {
+          return loi('Không xác định được lớp trong phạm vi quản trị — chọn lớp được gán.', 403);
+        }
+      } else {
+        if (!phien.lopId || phien.lopId <= 0) {
+          return loi('Tài khoản chưa liên kết lớp không thể tạo phòng riêng của lớp.', 403);
+        }
+        lopIdPhong = phien.lopId;
       }
     }
 
@@ -203,7 +237,6 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       return loi(`Mỗi người chỉ mở tối đa ${SO_PHONG_TOI_DA} phòng cùng lúc — đóng bớt phòng cũ rồi tạo lại.`, 429);
     }
 
-    const lopIdPhong = phamVi === 'lop' ? (phien.lopId || null) : null;
     const kq = await db.prepare(
       `INSERT INTO phong (
          loai, ten, mo_ta, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten,
@@ -221,7 +254,15 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
          VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)`
       ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
-      await seedChinhSachPhong(db, phongId);
+      // Governance bắt buộc cho Study Room — seed lỗi thì đóng phòng ngay, không để phòng
+      // "mở nhưng không có policy" (sẽ fail-closed ở mọi capability → phòng vô dụng).
+      try {
+        await seedChinhSachPhong(db, phongId);
+      } catch (e) {
+        console.error('seedChinhSachPhong that bai:', e);
+        await db.prepare(`UPDATE phong SET trang_thai = 'dong' WHERE id = ?1`).bind(phongId).run().catch(() => {});
+        return loi('Không khởi tạo được chính sách phòng — thử tạo lại.', 503);
+      }
     }
     if (loai === 'nhac' && phongId > 0) {
       await db.prepare(
@@ -235,7 +276,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       await ghiNhanHoatDong(env, { hocSinhId: phien.hocSinhId, lopId: phien.lopId, loaiHoatDong: 'chat', moTa: `Tạo phòng "${ten}"` }).catch(() => {});
     }
     const checkTao = await kiemTraTruyCapPhong(db, phongId, phien);
-    return json({ ok: true, phong: lamSachPhong(checkTao.phong, { isAdmitted: true, canControl: true }), canControl: true, isAdmitted: true, laChuPhong: true });
+    return json({ ok: true, phong: lamSachPhong(checkTao.phong, { isAdmitted: true, canControl: true, isHost: true }), canControl: true, isAdmitted: true, laChuPhong: true });
   }
 
   const phongId = parseInt(than.phongId || '', 10);
@@ -270,7 +311,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const updatedCheck = await kiemTraTruyCapPhong(db, phongId, phien);
     return json({
       ok: true,
-      phong: lamSachPhong(updatedCheck.phong, { isAdmitted: true, canControl: updatedCheck.canControl }),
+      phong: lamSachPhong(updatedCheck.phong, { isAdmitted: true, canControl: updatedCheck.canControl, isHost: updatedCheck.isHost }),
       isAdmitted: true,
       canControl: updatedCheck.canControl,
       isStaff: updatedCheck.isStaff,
@@ -413,6 +454,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     // STAFF_LOCKED_CAPS (moderation): không cho mở rộng quá staff_only, không cấp member.
     if (STAFF_LOCKED_CAPS.includes(capability)) accessMode = 'staff_only';
     const hienTai = await taiToanBoChinhSach(db, phongId);
+    if (!hienTai) return loi('Chính sách phòng tạm không khả dụng — thử lại sau.', 503);
     const pol = hienTai[capability] || { enabled: 1, access_mode: 'staff_only' };
     await db.prepare(
       `INSERT INTO phong_policy (phong_id, capability, enabled, access_mode, cap_nhat_luc)

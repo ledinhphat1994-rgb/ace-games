@@ -23,8 +23,8 @@ export function json(duLieu, status = 200, headers = {}) {
   });
 }
 
-export function loi(thongDiep, status = 400) {
-  return json({ ok: false, loi: thongDiep }, status);
+export function loi(thongDiep, status = 400, extra = null) {
+  return json({ ok: false, loi: thongDiep, ...(extra || {}) }, status);
 }
 
 // Lấy phiên đăng nhập; trả về null nếu không hợp lệ.

@@ -114,4 +114,51 @@ PASS  H7a host dong phong
 PASS  H7b phong dong -> collab 404
 PASS  H7c phong dong -> queue 404
 PASS  H7d phong dong -> chat 404
-TOTAL: 116 PASS 0 FAIL
+PASS  IA0 tao phong public ok
+PASS  IA1 GET watch chua join -> 403 admission_required
+PASS  IA2 POST watch play chua join -> 403 admission_required
+PASS  IA3 GET chat chua join -> 403 admission_required
+PASS  IA4 POST chat chua join -> 403 admission_required
+PASS  IA5 GET notes chua join -> 403 admission_required
+PASS  IA6 POST notes chua join -> 403 admission_required
+PASS  IA7 GET whiteboard chua join -> 403 admission_required
+PASS  IA8 POST whiteboard chua join -> 403 admission_required
+PASS  IA9 GET sheet chua join -> 403 admission_required
+PASS  IA10 POST sheet chua join -> 403 admission_required
+PASS  IA11 GET queue chua join -> 403 admission_required
+PASS  IA12 POST queue chua join -> 403 admission_required
+PASS  IA13 preview: thanhVien rong + isAdmitted=false
+PASS  IA14 preview: khong myCaps/policies
+PASS  IA15 E vao phong ok
+PASS  IA16 sau join doc chat duoc
+PASS  IA17 sau roi -> chat 403 admission_required
+PASS  IB0 tao phong cap=2
+PASS  IB1 member thu 2 vao duoc
+PASS  IB2 member thu 3 bi chan 409
+PASS  IB3 full-room: E khong bypass watch
+PASS  IB4 full-room: E khong bypass chat
+PASS  IB5 full-room: E khong bypass queue
+PASS  ID0 tao phong lop 1 ok
+PASS  ID1 GVCN lop khac khong xem duoc phong lop 1
+PASS  ID2 GVCN lop khac khong vao duoc
+PASS  ID3 GVCN dung lop la staff
+PASS  ID3b GVCN dung lop KHONG phai chu phong
+PASS  ID4 School Admin staff phong lop 1
+PASS  ID5 GVCN tao phong lop ngoai pham vi -> 403
+PASS  ID6 GVCN tao phong lop cua minh ok (lop_id=2, khong NULL)
+PASS  IE1 taiChinhSach DB loi -> fail flag (khong default everyone)
+PASS  IE2 kiemTraQuyenPhong DB loi -> 503 policy_unavailable
+PASS  IE3 khong co row -> dung default (khong fail)
+PASS  IF1 host laChuPhong=true
+PASS  IF2 teacher laChuPhong=false nhung canControl=true
+PASS  IG0 enqueue 3 item ok
+PASS  IH1 reorder id trung -> 400
+PASS  IH2 reorder id la/thieu -> 400
+PASS  IH3 reorder hoan vi day du -> ok
+PASS  IG1 concurrent play_now: dung 1 item playing
+PASS  IG2 video dang phat khop item playing
+PASS  IH4 race enqueue tai boundary: khong vuot 30
+PASS  IJ1 host kick E
+PASS  IJ2 E bi ban -> watch 403 room_banned
+PASS  IJ3 bo ban -> vao lai duoc
+TOTAL: 163 PASS 0 FAIL

@@ -16,7 +16,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
 
   // Chat bị tắt (policy enabled=0) → member không đọc được; staff vẫn đọc để kiểm duyệt.
   const polChat = await taiChinhSach(db, phongId, CAPABILITY.CHAT);
@@ -45,14 +45,14 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!noiDung) return loi('Tin nhắn trống.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
 
   // Capability 'chat' server-authoritative (tắt / staff_only / selected / everyone).
   const quyenChat = await kiemTraQuyenPhong(db, check, CAPABILITY.CHAT);
   if (!quyenChat.ok) return json({ ok: false, loi: quyenChat.loi, code: quyenChat.code }, quyenChat.status);
 
   const khoa = actorKey(phien);
-  const vaiTro = phien.role === 'teacher' ? 'giao_vien' : 'hoc_sinh';
+  const vaiTro = (phien.role === 'teacher' || phien.role === 'admin') ? 'giao_vien' : 'hoc_sinh';
   const ten = phien.ten || phien.vaiTro || 'Thành viên';
 
   // Học sinh đang bị GVCN cấm chat (trong lớp mình) thì không chat được trong phòng.
@@ -116,7 +116,7 @@ export const onRequestDelete = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0) || !(tinId > 0)) return loi('Thiếu phòng hoặc tin nhắn.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   if (!check.isStaff) return loi('Chỉ quản trị phòng mới xóa được tin nhắn.', 403);
 
   await db.prepare(

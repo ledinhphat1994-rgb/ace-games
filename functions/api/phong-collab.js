@@ -39,7 +39,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const myKey = check.actorKey;
 
   const action = url.searchParams.get('action') || 'get_collab';
@@ -161,7 +161,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const myKey = check.actorKey;
   const myName = tenCua(phien);
 

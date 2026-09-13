@@ -26,7 +26,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const p = check.phong;
   // canControl = quyền điều khiển video theo capability (staff hoặc member được cấp).
   const canControl = (await kiemTraQuyenPhong(db, check, CAPABILITY.VIDEO_CONTROL)).ok;
@@ -98,7 +98,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'video', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const khoa = check.actorKey;
 
   const action = chuoi(than.action, 20);
@@ -120,25 +120,34 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     let cauHinh = {};
     try { cauHinh = check.phong.cauHinh ? JSON.parse(check.phong.cauHinh) : {}; } catch { /* bỏ qua */ }
     cauHinh.videoUrl = u;
-    await db.prepare(
-      `UPDATE phong SET cau_hinh = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2`
-    ).bind(JSON.stringify(cauHinh), phongId).run();
-    await db.prepare(
-      `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
-       VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
-       ON CONFLICT(phong_id) DO UPDATE SET
-         trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
-         revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
-         nguoi_cap_nhat_khoa = ?2, nguoi_cap_nhat_ten = ?3`
-    ).bind(phongId, khoa, tenCua(phien)).run().catch(() => {});
-
-    // Đánh dấu item queue đang phát thành 'played' nếu đổi bằng tay
+    // cau_hinh + dòng đồng bộ phải cùng commit (batch nguyên tử) — không nuốt lỗi:
+    // lỗi giữa chừng sẽ để state lệch video, lúc đó trả 500 chứ không giả vờ thành công.
     const qid = parseInt(than.queueId || '0', 10);
+    const stmts = [
+      db.prepare(
+        `UPDATE phong SET cau_hinh = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2`
+      ).bind(JSON.stringify(cauHinh), phongId),
+      db.prepare(
+        `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
+         VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
+         ON CONFLICT(phong_id) DO UPDATE SET
+           trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
+           revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
+           nguoi_cap_nhat_khoa = ?2, nguoi_cap_nhat_ten = ?3`
+      ).bind(phongId, khoa, tenCua(phien)),
+    ];
     if (qid > 0) {
-      await db.prepare(
-        `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?1 AND phong_id = ?2`
-      ).bind(qid, phongId).run().catch(() => {});
+      // Đổi theo mục queue: dọn 'playing' cũ + gắn 'playing' cho item trong cùng batch.
+      stmts.push(
+        db.prepare(
+          `UPDATE phong_video_queue SET trang_thai = 'played' WHERE phong_id = ?1 AND trang_thai = 'playing'`
+        ).bind(phongId),
+        db.prepare(
+          `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?1 AND phong_id = ?2 AND trang_thai = 'queued'`
+        ).bind(qid, phongId)
+      );
     }
+    await db.batch(stmts);
     return json({ ok: true, videoUrl: u });
   }
 

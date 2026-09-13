@@ -19,7 +19,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'nhac', requireAdmitted: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const p = check.phong;
   const canControl = check.canControl;
 
@@ -102,7 +102,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   if (!(phongId > 0)) return loi('Thiếu mã phòng.', 400);
 
   const check = await kiemTraTruyCapPhong(db, phongId, phien, { loai: 'nhac', requireAdmitted: true, requireHostOrTeacher: true });
-  if (check.loi) return loi(check.loi, check.status || 403);
+  if (check.loi) return loi(check.loi, check.status || 403, check.code ? { code: check.code } : null);
   const khoa = check.actorKey;
 
   const action = chuoi(than.action, 20);

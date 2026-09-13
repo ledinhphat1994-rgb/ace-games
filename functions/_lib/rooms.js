@@ -1,6 +1,7 @@
 // functions/_lib/rooms.js
 // Quản trị kiểm tra quyền truy cập và rào chắn phòng (Room Admission & Scope Security)
 import { actorKey } from './auth.js';
+import { layPhamViQuanTri } from './quan-tri.js';
 
 export const NHIP_HOAT_DONG = '-90 seconds';
 export const NHIP_HIEU_LUC = '-15 minutes';
@@ -45,21 +46,30 @@ export const DEFAULT_STUDY_POLICY = {
 // Capability không bao giờ mở cho member: moderation luôn staff_only.
 export const STAFF_LOCKED_CAPS = ['moderation'];
 
-// Seed chính sách mặc định cho Study Room mới tạo.
+// Seed chính sách mặc định cho Study Room mới tạo. KHÔNG nuốt lỗi — nếu seed thất bại,
+// caller phải đóng/huỷ phòng (governance chưa được khởi tạo thì phòng chưa an toàn).
 export async function seedChinhSachPhong(db, phongId) {
   const stmts = Object.entries(DEFAULT_STUDY_POLICY).map(([cap, pol]) =>
     db.prepare(
       `INSERT OR IGNORE INTO phong_policy (phong_id, capability, enabled, access_mode) VALUES (?1, ?2, ?3, ?4)`
     ).bind(phongId, cap, pol.enabled, pol.access_mode)
   );
-  await db.batch(stmts).catch(() => {});
+  await db.batch(stmts);
 }
 
-// Đọc 1 policy (fallback về mặc định nếu phòng chưa seed).
+// Đọc 1 policy. Phân biệt rõ 2 trường hợp:
+// - KHÔNG có row trong DB → dùng mặc định (phòng cũ chưa seed).
+// - Query D1 THẤT BẠI → trả { fail:true } — fail-closed, KHÔNG coi như "mặc định enabled".
 export async function taiChinhSach(db, phongId, capability) {
-  const row = await db.prepare(
-    `SELECT enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1 AND capability = ?2`
-  ).bind(phongId, capability).first().catch(() => null);
+  let row;
+  try {
+    row = await db.prepare(
+      `SELECT enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1 AND capability = ?2`
+    ).bind(phongId, capability).first();
+  } catch (e) {
+    console.error('taiChinhSach loi D1:', e);
+    return { fail: true };
+  }
   const macDinh = DEFAULT_STUDY_POLICY[capability] || { enabled: 1, access_mode: 'staff_only' };
   if (!row) return { ...macDinh };
   // STAFF_LOCKED_CAPS không bao giờ được mở rộng quá staff_only.
@@ -69,11 +79,18 @@ export async function taiChinhSach(db, phongId, capability) {
   return { enabled: row.enabled, access_mode: row.accessMode };
 }
 
-// Toàn bộ policy của phòng (cho staff UI + tính myCaps).
+// Toàn bộ policy của phòng (cho staff UI + tính myCaps). Trả null nếu query D1 lỗi —
+// caller phải coi như "policy không khả dụng", KHÔNG dùng mặc định fail-open.
 export async function taiToanBoChinhSach(db, phongId) {
-  const rs = await db.prepare(
-    `SELECT capability, enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1`
-  ).bind(phongId).all().catch(() => ({ results: [] }));
+  let rs;
+  try {
+    rs = await db.prepare(
+      `SELECT capability, enabled, access_mode AS accessMode FROM phong_policy WHERE phong_id = ?1`
+    ).bind(phongId).all();
+  } catch (e) {
+    console.error('taiToanBoChinhSach loi D1:', e);
+    return null;
+  }
   const map = {};
   for (const [cap, macDinh] of Object.entries(DEFAULT_STUDY_POLICY)) map[cap] = { ...macDinh };
   for (const r of rs.results || []) {
@@ -93,6 +110,10 @@ export async function kiemTraQuyenPhong(db, check, capability) {
   if (check.isHost || check.isTeacher || check.isCoHost) return { ok: true };
 
   const pol = await taiChinhSach(db, p.id, capability);
+  if (pol.fail) {
+    // D1 lỗi khi đọc policy → fail-closed: không cho member dùng capability lúc không xác định policy.
+    return { ok: false, loi: 'Chính sách phòng tạm không khả dụng — thử lại sau.', status: 503, code: 'policy_unavailable' };
+  }
   if (!pol.enabled) {
     return { ok: false, loi: 'Tính năng này đang bị quản trị phòng tắt.', status: 403, code: 'capability_off' };
   }
@@ -121,7 +142,7 @@ export async function taiQuyenCuaToi(db, check) {
 // - Luôn xóa matKhauHash, matKhauSalt, chuPhongKhoa
 // - Nếu phòng có mật khẩu và người dùng CHƯA được duyệt vào phòng (chưa nhập pass / không phải host/GV):
 //   ẩn toàn bộ cauHinh (videoUrl, nhacUrl) và các thông tin nội bộ.
-export function lamSachPhong(p, { isAdmitted = true, canControl = false } = {}) {
+export function lamSachPhong(p, { isAdmitted = true, canControl = false, isHost = false } = {}) {
   if (!p) return null;
   const clone = { ...p };
   delete clone.matKhauHash;
@@ -134,7 +155,9 @@ export function lamSachPhong(p, { isAdmitted = true, canControl = false } = {}) 
   clone.access_mode = clone.accessMode || clone.access_mode || 'public';
   clone.accessMode = clone.access_mode;
   clone.canControl = Boolean(canControl);
-  clone.laChuPhong = Boolean(canControl);
+  // laChuPhong = đúng chủ phòng (isHost), KHÔNG phải "có quyền điều khiển" —
+  // Teacher/Admin có canControl nhưng không phải chủ phòng.
+  clone.laChuPhong = Boolean(isHost);
 
   const soNguoi = clone.soNguoi || 0;
   const sucChua = clone.sucChua || 20;
@@ -186,17 +209,33 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
     return { loi: `Phòng này không phải phòng ${loai}.`, status: 400 };
   }
 
-  // 1. Kiểm tra phạm vi lớp (Class Scope Boundary)
-  if (p.phamVi !== 'truong' && phien.role !== 'teacher') {
+  // 2. Xác định định danh phiên chuẩn tắc + thẩm quyền Teacher THEO PHẠM VI QUẢN TRỊ
+  //    (quan-tri.js — nguồn quyền chuẩn của hệ thống):
+  //    - School Admin (la_admin_truong/vai_tro admin trên tai_khoan_campus): thẩm quyền toàn trường.
+  //    - GVCN: staff trong phòng thuộc lớp được gán + phòng pham_vi='truong' (không gian chung).
+  //    - GVCN KHÔNG tự động là staff/phá vỡ boundary của phòng lớp ngoài phạm vi.
+  const actor = actorKey(phien);
+  const isHost = Boolean(p.chuPhongKhoa && p.chuPhongKhoa === actor);
+  // Phiên accountId qua middleware sẽ mang role='admin' cho School Admin (vai_tro trên
+  // tai_khoan_campus) — cả 'teacher' lẫn 'admin' đều đi qua layPhamViQuanTri để xác định
+  // thẩm quyền THẬT, không suy ra quyền từ chuỗi role.
+  let isTeacher = false;
+  if (!isHost && (phien.role === 'teacher' || phien.role === 'admin')) {
+    const pham = await layPhamViQuanTri({ DB: db }, phien);
+    isTeacher = Boolean(
+      pham.isSchoolAdmin
+      || p.phamVi === 'truong'
+      || (p.lopId && (pham.lopIds || []).includes(p.lopId))
+    );
+  }
+
+  // 1. Kiểm tra phạm vi lớp (Class Scope Boundary) — KHÔNG ngoại lệ cho GVCN ngoài phạm vi;
+  //    chỉ Teacher CÓ thẩm quyền với lớp này (đã xác định ở trên) mới được qua.
+  if (p.phamVi !== 'truong' && !isTeacher) {
     if (!phien.lopId || p.lopId !== phien.lopId) {
       return { loi: 'Phòng này chỉ dành cho lớp ' + (p.lopTen || 'khác') + '.', status: 403 };
     }
   }
-
-  // 2. Xác định định danh phiên chuẩn tắc
-  const actor = actorKey(phien);
-  const isHost = Boolean(p.chuPhongKhoa && p.chuPhongKhoa === actor);
-  const isTeacher = Boolean(phien.role === 'teacher');
 
   // Vai trò trong phòng: host/teacher suy ra từ phiên + chủ phòng; co_host lưu trong bản ghi thành viên.
   // Bản ghi chỉ còn hiệu lực khi heartbeat tươi (NHIP_HIEU_LUC) — hết hạn thì coi như đã rời phòng.
@@ -220,26 +259,25 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
     if (biBan) return { loi: 'Bạn đã bị quản trị phòng chặn khỏi phòng này.', status: 403, code: 'room_banned' };
   }
 
-  // 3. Xác định trạng thái đã được duyệt vào phòng (isAdmitted)
-  let isAdmitted;
-  if (isStaff) {
-    isAdmitted = true;
-  } else if (p.accessMode !== 'password') {
-    // Phòng công khai: người dùng thỏa mãn phạm vi lớp/trường mặc nhiên được tham gia xem/nghe/chat
-    isAdmitted = true;
-  } else {
-    // Phòng có mật khẩu: bắt buộc phải có bản ghi tham gia hợp lệ trong phong_thanh_vien
-    isAdmitted = Boolean(tvRow);
-  }
+  // 3. Participant boundary — TÁCH preview khỏi admitted:
+  //    - Staff (host/teacher trong phạm vi/co_host): quản trị không cần member row.
+  //    - Phòng hệ thống 'he-thong' (sảnh chat trường): mở cho mọi tài khoản đăng nhập —
+  //      không ai "join" sảnh, membership không áp dụng.
+  //    - Mọi trường hợp còn lại (kể cả phòng PUBLIC): BẮT BUỘC member row còn hạn trong
+  //      phong_thanh_vien — được tạo bởi hanhDong 'vao' (atomic capacity) hoặc 'nhip'.
+  //      Public chỉ nới PHẠM VI được tham gia, không tự động admit.
+  const laPhongHeThong = p.chuPhongKhoa === 'he-thong';
+  const isAdmitted = isStaff || laPhongHeThong || Boolean(tvRow);
 
   // 4. Kiểm tra yêu cầu quyền điều khiển (Host / Teacher)
   if (requireHostOrTeacher && !canControl) {
     return { loi: 'Chỉ chủ phòng hoặc giáo viên mới có quyền thực hiện.', status: 403 };
   }
 
-  // 5. Rào chắn phòng mật khẩu cho các tài nguyên bên trong (Chat, Video, Focus, Detail)
+  // 5. Rào chắn participant cho các tài nguyên bên trong (Chat, Video, Collab, Queue, Focus):
+  //    chưa join (hoặc chưa nhập mật khẩu với phòng password) → không chạm tài nguyên trong phòng.
   if (requireAdmitted && !isAdmitted) {
-    return { loi: 'Cần nhập mật khẩu phòng trước khi truy cập.', status: 403, code: 'admission_required' };
+    return { loi: 'Cần vào phòng trước khi truy cập tài nguyên này.', status: 403, code: 'admission_required' };
   }
 
   return {
