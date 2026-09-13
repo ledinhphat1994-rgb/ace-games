@@ -11,7 +11,7 @@ const BASE = process.argv[2] || 'http://127.0.0.1:8788';
 const devSessionSecret = process.env.SESSION_SECRET || 'khoa-ky-cookie-chi-de-chay-thu-tren-may-1234567890';
 
 let pass = 0, fail = 0;
-const resultsByGroup = { seed: { pass: 0, fail: 0 }, scope: { pass: 0, fail: 0 }, audit: { pass: 0, fail: 0 }, users: { pass: 0, fail: 0 }, browser: { pass: 0, fail: 0 } };
+const resultsByGroup = { seed: { pass: 0, fail: 0 }, scope: { pass: 0, fail: 0 }, audit: { pass: 0, fail: 0 }, users: { pass: 0, fail: 0 }, lop: { pass: 0, fail: 0 }, campus: { pass: 0, fail: 0 }, browser: { pass: 0, fail: 0 } };
 
 function ok(ten, dk, group = 'scope', chiTiet = '') {
   if (dk) {
@@ -168,8 +168,99 @@ async function run() {
   const rMoKhoa = await api('/api/gv/nguoi-dung', { method: 'POST', cookie: cookieAdmin, body: { id: 'tk:99823', hanhDong: 'mo_khoa' } });
   ok('Mở khoá lại tài khoản 99823 thành công (dọn trạng thái test)', rMoKhoa.status === 200 && rMoKhoa.data.ok === true, 'users');
 
+  // ---------- GROUP: LỚP HỌC (/api/gv/rieng/hoc-sinh scope-aware — Phase 3) ----------
+  console.log('\n--- 4. LỚP HỌC (hoc-sinh đọc/ghi đúng theo lopId đang chọn) ---');
+
+  const rHsMacDinh = await api('/api/gv/rieng/hoc-sinh', { cookie: cookieAdmin });
+  const coHsL1 = (rHsMacDinh.data.danhSach || []).some((h) => h.id === 99901);
+  ok('Không truyền lopId → School Admin thấy đúng lớp mặc định của phiên (lopId=1)',
+    rHsMacDinh.status === 200 && rHsMacDinh.data.lopId === 1 && coHsL1, 'lop', JSON.stringify(rHsMacDinh.data.lopId));
+
+  const rHsL2Admin = await api('/api/gv/rieng/hoc-sinh?lopId=2', { cookie: cookieAdmin });
+  const coHsL2 = (rHsL2Admin.data.danhSach || []).some((h) => h.id === 99902);
+  ok('School Admin xem chéo ?lopId=2 thấy đúng danh sách lớp 2', rHsL2Admin.status === 200 && rHsL2Admin.data.lopId === 2 && coHsL2, 'lop');
+
+  const rHsCam = await api('/api/gv/rieng/hoc-sinh?lopId=1', { cookie: cookieGvMotLop });
+  ok('GVCN chỉ phụ trách lớp 2 (99823) bị chặn khi xin ?lopId=1 (403, chống IDOR)', rHsCam.status === 403, 'lop', JSON.stringify(rHsCam.data));
+
+  const rChiTietCheo = await api('/api/gv/rieng/hoc-sinh?id=99902&lopId=2', { cookie: cookieAdmin });
+  ok('School Admin xem hồ sơ chi tiết học sinh lớp 2 khi truyền đúng ?lopId=2',
+    rChiTietCheo.status === 200 && rChiTietCheo.data.hocSinh?.hoTen === 'QA Học Sinh Lớp 2', 'lop', JSON.stringify(rChiTietCheo.data));
+
+  const rChiTietThieuLopId = await api('/api/gv/rieng/hoc-sinh?id=99902', { cookie: cookieAdmin });
+  ok('Thiếu ?lopId= khi xem chéo lớp → rơi về lớp mặc định (1), KHÔNG tự lộ hồ sơ lớp khác (404)',
+    rChiTietThieuLopId.status === 404, 'lop', JSON.stringify(rChiTietThieuLopId.data));
+
+  const rThemHs = await api('/api/gv/rieng/hoc-sinh', {
+    method: 'POST', cookie: cookieGvMotLop, body: { hoTen: 'QA Học Sinh Mới', lopId: 2 },
+  });
+  ok('GVCN thêm học sinh vào đúng lớp mình phụ trách (lopId=2) thành công', rThemHs.status === 200 && rThemHs.data.ok === true, 'lop', JSON.stringify(rThemHs.data));
+  const idHsMoi = rThemHs.data.id;
+
+  const rThemHsCam = await api('/api/gv/rieng/hoc-sinh', {
+    method: 'POST', cookie: cookieGvMotLop, body: { hoTen: 'QA Học Sinh Ngoài Phạm Vi', lopId: 1 },
+  });
+  ok('GVCN bị chặn thêm học sinh vào lớp mình KHÔNG phụ trách (lopId=1, 403)', rThemHsCam.status === 403, 'lop', JSON.stringify(rThemHsCam.data));
+
+  const rSuaHs = await api('/api/gv/rieng/hoc-sinh', {
+    method: 'PATCH', cookie: cookieGvMotLop, body: { id: idHsMoi, hoTen: 'QA Học Sinh Đã Sửa', lopId: 2 },
+  });
+  ok('Sửa hồ sơ học sinh vừa thêm (đúng lopId=2) thành công', rSuaHs.status === 200 && rSuaHs.data.ok === true, 'lop', JSON.stringify(rSuaHs.data));
+
+  const rXacNhanSua = await api(`/api/gv/rieng/hoc-sinh?id=${idHsMoi}&lopId=2`, { cookie: cookieGvMotLop });
+  ok('Hồ sơ phản ánh đúng tên đã sửa', rXacNhanSua.data.hocSinh?.hoTen === 'QA Học Sinh Đã Sửa', 'lop');
+
+  const rXoaHs = await api(`/api/gv/rieng/hoc-sinh?id=${idHsMoi}&lopId=2`, { method: 'DELETE', cookie: cookieGvMotLop });
+  ok('Xoá học sinh vừa thêm (dọn dữ liệu test) thành công', rXoaHs.status === 200 && rXoaHs.data.ok === true, 'lop', JSON.stringify(rXoaHs.data));
+
+  const rXacNhanXoa = await api('/api/gv/rieng/hoc-sinh?lopId=2', { cookie: cookieGvMotLop });
+  const conKhong = (rXacNhanXoa.data.danhSach || []).some((h) => h.id === idHsMoi);
+  ok('Sau khi xoá, học sinh không còn trong danh sách lớp 2', !conKhong, 'lop');
+
+  // ---------- GROUP: CAMPUS (/api/gv/phong-quan-tri — Phase 3) ----------
+  console.log('\n--- 5. CAMPUS (phong-quan-tri: danh sách/chi tiết/đóng phòng theo phạm vi) ---');
+
+  const rPhongAdmin = await api('/api/gv/phong-quan-tri', { cookie: cookieAdmin });
+  const idsPhongAdmin = (rPhongAdmin.data.danhSach || []).map((p) => p.id);
+  ok('School Admin thấy CẢ 3 phòng cố định (lớp 1, lớp 2, toàn trường)',
+    rPhongAdmin.status === 200 && [99911, 99912, 99913].every((id) => idsPhongAdmin.includes(id)), 'campus', JSON.stringify(idsPhongAdmin));
+
+  const rPhongLoc = await api('/api/gv/phong-quan-tri?loai=video', { cookie: cookieAdmin });
+  const idsPhongLoc = (rPhongLoc.data.danhSach || []).map((p) => p.id);
+  ok('Lọc ?loai=video chỉ trả phòng loại video (có 99912, không có 99911/99913)',
+    rPhongLoc.status === 200 && idsPhongLoc.includes(99912) && !idsPhongLoc.includes(99911) && !idsPhongLoc.includes(99913), 'campus');
+
+  const rPhongGv1 = await api('/api/gv/phong-quan-tri', { cookie: cookieGvMotLop });
+  const idsPhongGv1 = (rPhongGv1.data.danhSach || []).map((p) => p.id);
+  ok('GVCN chỉ phụ trách lớp 2 thấy phòng lớp 2 + phòng toàn trường, KHÔNG thấy phòng lớp 1',
+    rPhongGv1.status === 200 && idsPhongGv1.includes(99912) && idsPhongGv1.includes(99913) && !idsPhongGv1.includes(99911), 'campus', JSON.stringify(idsPhongGv1));
+
+  const rPhongChiTietCam = await api('/api/gv/phong-quan-tri?id=99911', { cookie: cookieGvMotLop });
+  ok('GVCN lớp 2 bị chặn xem chi tiết phòng lớp 1 (403, chống IDOR)', rPhongChiTietCam.status === 403, 'campus', JSON.stringify(rPhongChiTietCam.data));
+
+  const rPhongChiTiet = await api('/api/gv/phong-quan-tri?id=99911', { cookie: cookieAdmin });
+  ok('School Admin xem chi tiết phòng lớp 1 thấy đúng 1 thành viên (chủ phòng)',
+    rPhongChiTiet.status === 200 && (rPhongChiTiet.data.thanhVien || []).length === 1 && rPhongChiTiet.data.thanhVien[0].laChuPhong === 1,
+    'campus', JSON.stringify(rPhongChiTiet.data));
+
+  const rDongCam = await api('/api/gv/phong-quan-tri', { method: 'POST', cookie: cookieGvMotLop, body: { phongId: 99911 } });
+  ok('GVCN lớp 2 bị chặn đóng phòng lớp 1 (403, chống phá hoại chéo lớp)', rDongCam.status === 403, 'campus', JSON.stringify(rDongCam.data));
+
+  const rDongTruong = await api('/api/gv/phong-quan-tri', { method: 'POST', cookie: cookieGvMotLop, body: { phongId: 99913 } });
+  ok('GVCN đóng được phòng toàn trường (mọi giáo viên đều có quyền, giống mức mở hiện có)', rDongTruong.status === 200 && rDongTruong.data.ok === true, 'campus', JSON.stringify(rDongTruong.data));
+
+  const rDongLai = await api('/api/gv/phong-quan-tri', { method: 'POST', cookie: cookieAdmin, body: { phongId: 99913 } });
+  ok('Đóng lại phòng đã đóng bị từ chối (400, tránh ghi trùng nhật ký)', rDongLai.status === 400, 'campus', JSON.stringify(rDongLai.data));
+
+  const rPhongSauDong = await api('/api/gv/phong-quan-tri', { cookie: cookieAdmin });
+  const conPhong913 = (rPhongSauDong.data.danhSach || []).some((p) => p.id === 99913);
+  ok('Phòng đã đóng không còn xuất hiện trong danh sách "đang mở"', !conPhong913, 'campus');
+
+  const rDongLop2 = await api('/api/gv/phong-quan-tri', { method: 'POST', cookie: cookieGvMotLop, body: { phongId: 99912 } });
+  ok('GVCN đóng được phòng đúng lớp mình phụ trách (lớp 2)', rDongLop2.status === 200 && rDongLop2.data.ok === true, 'campus');
+
   // ---------- GROUP: TRÌNH DUYỆT THẬT (Playwright) — trang Người dùng ----------
-  console.log('\n--- 4. TRÌNH DUYỆT THẬT: TRANG NGƯỜI DÙNG ---');
+  console.log('\n--- 6. TRÌNH DUYỆT THẬT: TRANG NGƯỜI DÙNG ---');
   let browser = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -208,6 +299,54 @@ async function run() {
     ok('Click 1 dòng mở được drawer chi tiết (.drawer-qt)', (await drawer.count()) > 0, 'browser');
 
     await page.screenshot({ path: 'docs/qa-phase4g/admin-nguoi-dung.png' }).catch(() => {});
+
+    // Bộ chọn lớp tường minh ở "Lớp học" — School Admin phiên mới (Toàn trường, chưa chọn lớp
+    // nào) phải thấy lưới chọn lớp trước khi vào Học sinh/Điểm danh..., không được coi ngầm 1 lớp.
+    const ctxLop = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctxLop.addCookies([
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pageLop = await ctxLop.newPage();
+    await pageLop.goto(`${BASE}/giao-vien/#/lop-quan-tri`, { waitUntil: 'domcontentloaded' });
+    await pageLop.waitForTimeout(1500);
+
+    const theChonLop = pageLop.locator('.luoi-qt .the-qt');
+    const soThe = await theChonLop.count();
+    ok(`School Admin ở "Toàn trường" thấy lưới chọn lớp (>= 2 lớp, đang có ${soThe})`, soThe >= 2, 'lop');
+
+    await theChonLop.first().click();
+    await pageLop.waitForTimeout(700);
+    ok('Chọn 1 lớp xong thì vào thẳng trang Học sinh (ẩn lưới chọn lớp, hiện subtab)',
+      (await pageLop.locator('.luoi-qt .the-qt').count()) === 0 && (await pageLop.locator('a:has-text("Học sinh")').count()) > 0, 'lop');
+
+    const giaTriScope = await pageLop.locator('#adminScopeSelect').inputValue().catch(() => '');
+    ok(`Chọn lớp trong "Lớp học" đồng bộ ngược lại ô "Phạm vi" ở top bar (đang là "${giaTriScope}")`, giaTriScope !== 'all' && giaTriScope !== '', 'lop');
+
+    await ctxLop.close();
+
+    // Trang "Giám sát phòng Campus" — bảng thật thay danh sách đơn giản cũ. Phòng 99911 (lớp 1)
+    // không bị đóng ở bất kỳ test nào phía trên nên vẫn còn "mở" để kiểm tra render + drawer.
+    const ctxCampus = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctxCampus.addCookies([
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pageCampus = await ctxCampus.newPage();
+    await pageCampus.goto(`${BASE}/giao-vien/#/phong-campus`, { waitUntil: 'domcontentloaded' });
+    await pageCampus.waitForTimeout(1500);
+
+    ok('Bảng phòng Campus render được (.bang-qt) và thấy phòng cố định "QA Phòng Lớp 1"',
+      (await pageCampus.locator('.bang-qt').count()) > 0 && (await pageCampus.locator('.bang-qt tbody').innerText()).includes('QA Phòng Lớp 1'), 'campus');
+
+    await pageCampus.locator('.bang-qt tbody tr', { hasText: 'QA Phòng Lớp 1' }).first().click();
+    await pageCampus.waitForTimeout(500);
+    const drawerPhong = pageCampus.locator('.drawer-qt');
+    const chuDrawerPhong = (await drawerPhong.count()) > 0 ? await drawerPhong.innerText() : '';
+    ok('Click dòng phòng mở drawer chi tiết, thấy tên thành viên "QA Chủ Phòng L1"',
+      chuDrawerPhong.includes('QA Chủ Phòng L1'), 'campus', chuDrawerPhong.slice(0, 200));
+
+    await ctxCampus.close();
 
     // Thanh tab dưới di động — vừa tăng từ 6 lên 7 mục, kiểm tra không bị vỡ layout
     const ctxMobile = await browser.newContext({ viewport: { width: 390, height: 844 } });

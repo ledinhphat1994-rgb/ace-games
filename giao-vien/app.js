@@ -1143,6 +1143,7 @@ function themHocSinh(taiLai) {
           than: {
             hoTen: oHoTen.value, gioiTinh: oGioiTinh.value, ngaySinh: oNgaySinh.value || null,
             lopNghe: oLopNghe.value, toHop: oToHop.value, toSo: oTo.value,
+            lopId: PHAM_VI_LOP_ID || undefined,
           },
         });
         dongHopThoai();
@@ -1168,7 +1169,7 @@ function xoaHocSinh(h, taiLai) {
     nut('Xoá vĩnh viễn', 'nut-xau', async (ev) => {
       ev.currentTarget.disabled = true;
       try {
-        await api('/api/gv/rieng/hoc-sinh?id=' + h.id, { method: 'DELETE' });
+        await api(apiTheoPhamVi('/api/gv/rieng/hoc-sinh?id=' + h.id), { method: 'DELETE' });
         dongHopThoai();
         nhac(`Đã xoá học sinh ${h.hoTen}`, 'tot');
         if (taiLai) taiLai();
@@ -1221,7 +1222,7 @@ function moCauHinhHienThiHocSinh() {
 
 async function trangHocSinh() {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/rieng/hoc-sinh');
+  const d = await api(apiTheoPhamVi('/api/gv/rieng/hoc-sinh'));
   let tim = '';
 
   function ve() {
@@ -1305,7 +1306,7 @@ const CAC_TAB_HO_SO = [
 
 async function trangHoSo(id, tabMacDinh) {
   datNoiDung(KHUNG, khoiDangTai());
-  const d = await api('/api/gv/rieng/hoc-sinh?id=' + encodeURIComponent(id));
+  const d = await api(apiTheoPhamVi('/api/gv/rieng/hoc-sinh?id=' + encodeURIComponent(id)));
   const h = d.hocSinh;
   let tab = tabMacDinh || sessionStorage.getItem('hs-tab') || 'chuyen-can';
   if (!CAC_TAB_HO_SO.some(([ma]) => ma === tab)) tab = 'chuyen-can';
@@ -1364,7 +1365,7 @@ async function trangHoSo(id, tabMacDinh) {
         nut('Huỷ', 'nut-nhe', dongHopThoai),
         nut('Xác nhận', 'nut-xau', async () => {
           try {
-            await api('/api/gv/rieng/hoc-sinh', { method: 'PATCH', than: { id: h.id, dangHoc: false } });
+            await api('/api/gv/rieng/hoc-sinh', { method: 'PATCH', than: { id: h.id, dangHoc: false, lopId: PHAM_VI_LOP_ID || undefined } });
             dongHopThoai();
             nhac('Đã đánh dấu nghỉ/chuyển trường', 'tot');
             location.hash = '#/hoc-sinh';
@@ -1623,6 +1624,7 @@ function suaHoSo(h) {
           than: {
             id: h.id, hoTen: oHoTen.value.trim(), chucVu: oChuc.value, toSo: oTo.value,
             dienThoaiHs: oSdtHs.value, dienThoaiPh: oSdt.value, hoanCanh: oHc.value, ghiChu: oGc.value,
+            lopId: PHAM_VI_LOP_ID || undefined,
           },
         });
         dongHopThoai();
@@ -2199,79 +2201,144 @@ async function trangHoSoGiaoVien() {
   }
 }
 
-async function trangPhongCampus() {
-  datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách phòng hoạt động Campus...'));
+const NHAN_LOAI_PHONG = { chat: '💬 Chat', video: '▶️ Video', nhac: '🎵 Nhạc' };
+const NHAN_VAI_TRO_PHONG = { giao_vien: 'Giáo viên', hoc_sinh: 'Học sinh' };
+
+async function thucHienDongPhong(p, veLai) {
+  if (!confirm(`Đóng phòng "${p.ten}"? Toàn bộ thành viên đang trong phòng sẽ bị đưa ra ngoài.`)) return;
   try {
-    const res = await api('/api/phong?phamVi=truong');
-    const dsPhong = Array.isArray(res.phong) ? res.phong : [];
+    await api('/api/gv/phong-quan-tri', { method: 'POST', than: { phongId: p.id } });
+    nhac('Đã đóng phòng.', 'tot');
+    dongDrawerChiTiet();
+    if (veLai) veLai();
+  } catch (err) {
+    nhac('Không thực hiện được: ' + err.message, 'loi');
+  }
+}
 
+async function moChiTietPhong(p, veLai) {
+  let d;
+  try {
+    d = await api('/api/gv/phong-quan-tri?id=' + p.id);
+  } catch (err) {
+    nhac('Không tải được chi tiết: ' + err.message, 'loi');
+    return;
+  }
+  const ph = d.phong;
+  const than = e('div');
+  than.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  const nhomChinh = e('div');
+  nhomChinh.append(e('p', 'drawer-qt-nhom-nhan', 'Thông tin'));
+  nhomChinh.append(dongDrawerDong('Loại phòng', NHAN_LOAI_PHONG[ph.loai] || ph.loai));
+  nhomChinh.append(dongDrawerDong('Phạm vi', ph.phamVi === 'lop' ? ('Lớp ' + (ph.lopTen || ph.lopId || '')) : 'Toàn trường'));
+  nhomChinh.append(dongDrawerDong('Chủ phòng', ph.chuPhongTen));
+  nhomChinh.append(dongDrawerDong('Chế độ truy cập', ph.accessMode === 'password' ? 'Có mật khẩu' : 'Công khai'));
+  nhomChinh.append(dongDrawerDong('Sức chứa', ph.sucChua));
+  nhomChinh.append(dongDrawerDong('Tạo lúc', gioNgayVN(ph.taoLuc)));
+  than.append(nhomChinh);
+
+  const nhomTv = e('div');
+  nhomTv.append(e('p', 'drawer-qt-nhom-nhan', `Thành viên đang trong phòng (${(d.thanhVien || []).length})`));
+  if ((d.thanhVien || []).length === 0) {
+    nhomTv.append(Object.assign(e('p', null, 'Hiện không có ai trong phòng.'), { style: 'color: var(--chu-nhat); font-size: 12.5px; margin: 0;' }));
+  } else {
+    d.thanhVien.forEach((tv) => {
+      const dong = e('div', 'drawer-qt-dong');
+      dong.append(
+        e('span', null, tv.ten + (tv.laChuPhong ? ' (chủ phòng)' : '')),
+        e('span', null, NHAN_VAI_TRO_PHONG[tv.vaiTro] || tv.vaiTro)
+      );
+      nhomTv.append(dong);
+    });
+  }
+  than.append(nhomTv);
+
+  const nutDong = e('button', 'nut nut-xau nut-nho', '🚫 Đóng phòng');
+  nutDong.type = 'button';
+  nutDong.style.cssText = 'width: 100%;';
+  nutDong.onclick = () => thucHienDongPhong(ph, veLai);
+  than.append(nutDong);
+
+  moDrawerChiTiet(ph.ten, than);
+}
+
+async function trangPhongCampus() {
+  let loaiLoc = 'tat-ca';
+  const BO_LOC = [
+    { id: 'tat-ca', nhan: 'Tất cả' },
+    { id: 'chat', nhan: '💬 Chat' },
+    { id: 'video', nhan: '▶️ Video' },
+    { id: 'nhac', nhan: '🎵 Nhạc' },
+  ];
+
+  function ve(danhSach) {
     const khung = e('div');
-    khung.append(tieuDeTrang('🏛️ Sảnh Phòng Campus Đang Hoạt Động', 'Giám sát và quản lý các phòng xem chung, phòng học tập, lofi đang mở trong trường.'));
+    khung.append(tieuDeTrang('🏛️ Giám Sát Phòng Campus', 'Phòng đang mở trong phạm vi quản trị — xem thành viên hoặc đóng phòng vi phạm.'));
 
-    const the = e('div', 'the');
-    the.style.cssText = 'background: #121620; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px;';
+    const thanhLoc = e('div');
+    thanhLoc.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;';
+    BO_LOC.forEach((f) => {
+      thanhLoc.append(nut(f.nhan, f.id === loaiLoc ? 'nut-chinh nut-nho' : 'nut-vien nut-nho', () => {
+        loaiLoc = f.id;
+        taiVaVe();
+      }));
+    });
+    khung.append(thanhLoc);
 
-    if (dsPhong.length === 0) {
-      the.innerHTML = '<p style="text-align: center; color: var(--chu-nhat); padding: 32px 0;">Hiện chưa có phòng cộng đồng nào đang mở.</p>';
-    } else {
-      const bang = e('table', 'khung-bang');
-      bang.innerHTML = `
-        <thead>
-          <tr>
-            <th>Tên phòng</th>
-            <th>Loại phòng</th>
-            <th>Người tạo</th>
-            <th>Thành viên</th>
-            <th>Trạng thái</th>
-            <th style="text-align: right;">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${dsPhong.map(p => `
-            <tr>
-              <td><b>${p.ten || p.title || 'Phòng không tên'}</b></td>
-              <td><span class="nhan" style="background: rgba(0,242,254,0.15); color: #00F2FE;">${p.loai || 'hoat-dong'}</span></td>
-              <td>${p.nguoiTaoTen || p.nguoiTao || '—'}</td>
-              <td><b>${p.soNguoi || 0}</b> trực tuyến</td>
-              <td><span class="nhan-tot">Đang mở</span></td>
-              <td style="text-align: right;">
-                <button type="button" class="nut nut-phu nut-nho" data-phong-id="${p.id}" data-action="dong">Đóng phòng</button>
-                <a href="/?phong=${p.id}" target="_blank" class="nut nut-vien nut-nho" style="margin-left: 6px;">Vào xem</a>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      `;
-
-      bang.querySelectorAll('button[data-action="dong"]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const pId = btn.getAttribute('data-phong-id');
-          if (!confirm('Đóng phòng hoạt động này?')) return;
-          try {
-            const kq = await api('/api/phong', {
-              method: 'POST',
-              body: JSON.stringify({ hanhDong: 'dong', phongId: pId })
-            });
-            if (kq.ok) {
-              nhac('Đã đóng phòng hoạt động!', 'tot');
-              await trangPhongCampus();
-            } else {
-              nhac('Lỗi: ' + (kq.message || kq.error), 'xau');
-            }
-          } catch (err) {
-            nhac('Lỗi: ' + err.message, 'xau');
-          }
-        });
-      });
-
-      the.append(bang);
+    if (danhSach.length === 0) {
+      const rong = e('div', 'the', 'Không có phòng nào đang mở khớp bộ lọc hiện tại.');
+      rong.style.cssText = 'padding: 28px; text-align:center; color: var(--chu-nhat); font-size: 13px;';
+      khung.append(rong);
+      datNoiDung(KHUNG, khung);
+      return;
     }
 
-    khung.append(the);
+    const bocBang = e('div', 'bang-qt-boc');
+    const bang = e('table', 'bang-qt');
+    const trHead = e('tr');
+    ['Tên phòng', 'Loại', 'Phạm vi', 'Chủ phòng', 'Thành viên', ''].forEach((c) => trHead.append(e('th', null, c)));
+    const thead = e('thead');
+    thead.append(trHead);
+    const tbody = e('tbody');
+
+    danhSach.forEach((p) => {
+      const tr = e('tr');
+      tr.append(
+        e('td', null, p.ten || 'Phòng không tên'),
+        e('td', null, NHAN_LOAI_PHONG[p.loai] || p.loai),
+        e('td', null, p.phamVi === 'lop' ? ('Lớp ' + (p.lopTen || p.lopId || '')) : 'Toàn trường'),
+        e('td', null, p.chuPhongTen || '—'),
+        e('td', null, String(p.soNguoi || 0))
+      );
+      const tdHd = e('td');
+      tdHd.append(taoNutMenuHanhDong([
+        { nhan: 'Xem chi tiết', onClick: () => moChiTietPhong(p, taiVaVe) },
+        { nhan: 'Đóng phòng', onClick: () => thucHienDongPhong(p, taiVaVe), nguyHiem: true },
+      ]));
+      tr.append(tdHd);
+      tr.onclick = () => moChiTietPhong(p, taiVaVe);
+      tbody.append(tr);
+    });
+
+    bang.append(thead, tbody);
+    bocBang.append(bang);
+    khung.append(bocBang);
     datNoiDung(KHUNG, khung);
-  } catch (err) {
-    datNoiDung(KHUNG, khoiLoi('Lỗi tải phòng Campus: ' + err.message));
   }
+
+  async function taiVaVe() {
+    datNoiDung(KHUNG, khoiDangTai('Đang tải danh sách phòng Campus...'));
+    try {
+      const qs = loaiLoc !== 'tat-ca' ? ('?loai=' + loaiLoc) : '';
+      const d = await api('/api/gv/phong-quan-tri' + qs);
+      ve(d.danhSach || []);
+    } catch (err) {
+      datNoiDung(KHUNG, khoiLoi('Không tải được danh sách phòng: ' + err.message));
+    }
+  }
+
+  await taiVaVe();
 }
 
 
@@ -2851,7 +2918,72 @@ async function trangBangTin() {
   await trangThongBao();
 }
 
+// Admin IA v1 — School Admin đang ở "Toàn trường" (chưa chọn lớp cụ thể) thì Lớp học không có
+// dữ liệu tường minh để hiện (Học sinh/Điểm danh/Quỹ... vốn là dữ liệu riêng từng lớp) — bắt chọn
+// 1 lớp trước, dùng chung PHAM_VI_LOP_ID/datPhamVi với bộ chọn "Phạm vi" ở top bar (1 khái niệm
+// scope duy nhất toàn khu quản trị, không tách riêng cho từng domain).
+async function trangChonLopHoc() {
+  datNoiDung(KHUNG, khoiDangTai());
+  let dsLop = [];
+  let loiTai = '';
+  try {
+    const res = await api('/api/gv/lop-can-chu-y');
+    dsLop = Array.isArray(res?.danhSach) ? res.danhSach : [];
+  } catch (err) {
+    loiTai = err.message;
+  }
+
+  const khung = e('div');
+  khung.append(tieuDeTrang(
+    '👥 Quản Trị Lớp Học & Thành Viên',
+    'Chọn một lớp để xem học sinh, điểm danh, thủ quỹ lớp, thời khóa biểu và mã truy cập.'
+  ));
+
+  if (loiTai) {
+    khung.append(khoiLoi(loiTai));
+    datNoiDung(KHUNG, khung);
+    return;
+  }
+
+  const luoi = e('div', 'luoi-qt');
+  if (!dsLop.length) {
+    luoi.append(e('div', 'the', 'Chưa có lớp nào trong hệ thống.'));
+  }
+  dsLop.forEach((l) => {
+    const the = e('div', 'the the-qt');
+    the.style.cssText = 'cursor: pointer;';
+    the.style.setProperty('--mau-qt', '#38BDF8');
+
+    const boxChu = e('div');
+    boxChu.append(
+      e('h3', 'the-qt-ten', l.ten || ('Lớp ' + l.lopId)),
+      e('p', 'the-qt-mota', 'Học sinh · Điểm danh · Thủ quỹ · Thời khóa biểu · Mã truy cập')
+    );
+    const dau = e('div', 'the-qt-dau');
+    dau.append(e('span', 'the-qt-icon', '🏫'), boxChu);
+    the.append(dau);
+
+    const so = e('div', 'the-qt-so');
+    if (l.chuaDiemDanhHomNay) so.append(e('b', null, '⚠️ Chưa điểm danh'), e('span', null, ' hôm nay'));
+    else so.append(e('span', null, '✅ Đã điểm danh hôm nay'));
+    the.append(so);
+
+    the.onclick = () => {
+      datPhamVi(l.lopId);
+      const sel = document.getElementById('adminScopeSelect');
+      if (sel && Array.from(sel.options).some((o) => o.value === String(l.lopId))) sel.value = String(l.lopId);
+      dieuHuong();
+    };
+    luoi.append(the);
+  });
+  khung.append(luoi);
+
+  datNoiDung(KHUNG, khung);
+}
+
 async function trangLopThanhVien() {
+  if (PHIEN.isSchoolAdmin && !PHAM_VI_LOP_ID) return trangChonLopHoc();
+
   const khung = e('div');
   khung.append(tieuDeTrang(
     '👥 Quản Trị Lớp Học & Thành Viên',

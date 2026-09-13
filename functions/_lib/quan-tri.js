@@ -36,3 +36,15 @@ export async function layPhamViQuanTri(env, phien) {
 
   return { isSchoolAdmin: false, lopIds };
 }
+
+// Xác định lop_id THỰC SỰ áp dụng cho 1 yêu cầu, dùng chung cho mọi API cần "xem theo lớp đang
+// chọn" (Học sinh, Điểm danh, Quỹ...): nếu client truyền lopId và nó nằm trong phạm vi được phép
+// (pham) thì dùng đúng lopId đó; không truyền gì thì dùng lopId mặc định của phiên. TUYỆT ĐỐI
+// không tự ý dùng lopId client truyền khi nó ngoài phạm vi — trả về null để API tự chặn (403/404),
+// chống IDOR (GVCN đoán lopId lớp khác rồi xem trộm).
+export function xacDinhLopIdApDung(pham, lopIdYeuCau, lopIdMacDinh) {
+  if (!lopIdYeuCau) return lopIdMacDinh || null;
+  if (pham.isSchoolAdmin) return lopIdYeuCau;
+  if (pham.lopIds && pham.lopIds.includes(lopIdYeuCau)) return lopIdYeuCau;
+  return null;
+}

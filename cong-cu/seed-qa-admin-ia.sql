@@ -13,3 +13,23 @@ DELETE FROM nhat_ky_quan_tri WHERE tac_nhan_id IN (99820, 99821, 99823);
 DELETE FROM tai_khoan_campus WHERE id = 99825;
 INSERT INTO tai_khoan_campus (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, dang_hoat_dong, lop_id, la_admin_truong, tieu_de_ho_so)
 VALUES (99825, 'gv_cho_duyet_qa', 'Thầy Chờ Duyệt QA', 'hash123', 'salt123', 100000, 'student', 1, 1, null, 0, 'Đang chờ duyệt quyền Giáo viên');
+
+-- Học sinh cố định (id dành riêng 99901/99902, không đụng sổ lớp thật) để test
+-- /api/gv/rieng/hoc-sinh đọc/ghi đúng theo lopId truyền vào (Phase 3 — Lớp học).
+DELETE FROM diem_danh WHERE hoc_sinh_id IN (99901, 99902);
+DELETE FROM theo_doi WHERE hoc_sinh_id IN (99901, 99902);
+DELETE FROM hoc_sinh WHERE id IN (99901, 99902);
+INSERT INTO hoc_sinh (id, lop_id, so_thu_tu, ho_ten, dang_hoc) VALUES
+  (99901, 1, 900, 'QA Học Sinh Lớp 1', 1),
+  (99902, 2, 900, 'QA Học Sinh Lớp 2', 1);
+
+-- Phòng Campus cố định (id 99911-99913) để test /api/gv/phong-quan-tri (Phase 3 — Campus):
+-- 1 phòng riêng lớp 1, 1 phòng riêng lớp 2, 1 phòng toàn trường — đủ để test ranh giới phạm vi.
+DELETE FROM phong_thanh_vien WHERE phong_id IN (99911, 99912, 99913);
+DELETE FROM phong WHERE id IN (99911, 99912, 99913);
+INSERT INTO phong (id, loai, ten, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, trang_thai, access_mode, suc_chua) VALUES
+  (99911, 'chat', 'QA Phòng Lớp 1', 'lop', 1, 'gv:1:qa', 'QA Chủ Phòng L1', 'mo', 'public', 20),
+  (99912, 'video', 'QA Phòng Lớp 2', 'lop', 2, 'gv:2:qa', 'QA Chủ Phòng L2', 'mo', 'public', 20),
+  (99913, 'nhac', 'QA Phòng Toàn Trường', 'truong', NULL, 'hs:1:qa', 'QA Học Sinh Toàn Trường', 'mo', 'public', 20);
+INSERT INTO phong_thanh_vien (phong_id, khoa, ten, vai_tro, lop_id, hoat_dong_luc) VALUES
+  (99911, 'gv:1:qa', 'QA Chủ Phòng L1', 'giao_vien', 1, datetime('now'));
