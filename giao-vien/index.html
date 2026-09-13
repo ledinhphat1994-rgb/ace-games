@@ -2,161 +2,26 @@
 <html lang="vi" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0B0E14">
-<title>Digital Campus · Khu Quản Trị</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏛️</text></svg>">
+<title>Quản lý tài khoản · Digital Campus</title>
+<link rel="icon" href="/assets/img/bieu-tuong-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap">
-<link rel="stylesheet" href="/assets/css/style.css?v=20260912_01">
-<link rel="stylesheet" href="/assets/css/quan-ly.css?v=20260912_01">
-<link rel="stylesheet" href="/assets/css/chat-widget.css?v=20260912_01">
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Khu Quản Trị">
-<link rel="apple-touch-icon" href="/assets/img/bieu-tuong-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="/assets/css/tai-khoan.css">
 </head>
-<body class="ung-dung">
-
-<header class="thanh-tren">
-  <div class="wrap">
-    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-      <a class="hieu" href="/" title="Về Digital Campus" style="text-decoration: none;">
-        <span class="hieu-o-boc">
-          <span class="hieu-o" id="hieuMaLop">🏛️</span>
-          <span class="hieu-nam-hoc" id="hieuNamHoc" style="display:none;"></span>
-        </span>
-        <span class="hieu-ten">
-          <b style="font-size: 15px; letter-spacing: -0.01em; color: #FFFFFF;">Digital Campus · Khu Quản Trị</b>
-          <span class="hieu-phu"></span>
-        </span>
-      </a>
-
-      <!-- Scope Selector -->
-      <div id="adminScopeWrapper" style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 4px 10px; border-radius: 10px;">
-        <span style="font-size: 11px; color: #94A3B8; font-weight: 600;">Phạm vi:</span>
-        <select id="adminScopeSelect" style="background: transparent; border: none; color: #FFFFFF; font-size: 12px; font-weight: 700; outline: none; cursor: pointer;">
-          <option value="all" style="background: #151A23; color: #FFFFFF;">Toàn trường</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="thanh-phai">
-      <a class="nut-header-link" id="nutVeCampus" href="/" title="Về Digital Campus">
-        <svg class="bieu-tuong-svg" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <span>Campus</span>
-      </a>
-
-      <a class="nut-header-link" id="nutVeBangTin" href="/#/bang-tin-lop" title="Về Bảng Tin Lớp">
-        <svg class="bieu-tuong-svg" style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span>Bảng Tin</span>
-      </a>
-
-      <button class="nut-tron" id="nutNhac" aria-label="Bật nhạc nền" aria-pressed="false" title="Nhạc nền" hidden><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
-      <button class="nut-tron nut-theme-bg" id="nutThemeBg" aria-label="Tùy chỉnh hình nền & chủ đề" title="Đổi màu nền & chủ đề">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-      </button>
-      <button class="nut-tron" id="doiGiaoDien" aria-label="Đổi giao diện sáng tối" title="Sáng / tối"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-      <a class="nut-tron" id="nutDoiLop" href="/api/logout" onclick="return confirm('Đăng xuất khỏi lớp đang quản lý, rồi chọn lớp khác và nhập mã của lớp đó?');" title="Đổi lớp chủ nhiệm" aria-label="Đổi lớp chủ nhiệm" hidden>
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-      </a>
-      <a class="nut-tron nut-dang-xuat" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');" title="Đăng xuất tài khoản" aria-label="Đăng xuất tài khoản">
-        <svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-      </a>
-      <button class="nut-menu" id="moMenu" aria-expanded="false" aria-controls="menuDayDu">
-        <span class="nut-menu-vach" aria-hidden="true"></span>
-        <span class="nut-menu-chu">Menu</span>
-      </button>
-    </div>
-  </div>
-
-  <div class="menu-day" id="menuDayDu" hidden>
-    <div class="wrap menu-day-trong">
-      <div class="menu-luoi">
-        <a class="menu-muc" href="#/tong-quan">
-          <span class="menu-icon">📊</span>
-          <span class="menu-chu"><b>Tổng quan</b><small>Trung tâm điều hành và tóm tắt hoạt động</small></span>
-        </a>
-        <a class="menu-muc" href="#/nguoi-dung">
-          <span class="menu-icon">👤</span>
-          <span class="menu-chu"><b>Người dùng</b><small>Học sinh, giáo viên & tài khoản Campus</small></span>
-        </a>
-        <a class="menu-muc" href="#/campus-quan-tri">
-          <span class="menu-icon">🏛️</span>
-          <span class="menu-chu"><b>Campus</b><small>Phòng hoạt động, YouTube, Game, Nội dung & Tiêu điểm</small></span>
-        </a>
-        <a class="menu-muc" href="#/cai-dat">
-          <span class="menu-icon">⚙️</span>
-          <span class="menu-chu"><b>Cài đặt</b><small>Hồ sơ giáo viên, Báo cáo, Nhật ký & Reset dữ liệu</small></span>
-        </a>
-        <a class="menu-muc" href="/">
-          <span class="menu-icon">🌐</span>
-          <span class="menu-chu"><b>Về Campus</b><small>Trang hoạt động trường học</small></span>
-        </a>
-        <a class="menu-muc menu-muc-ra" href="/api/logout" onclick="return confirm('Bạn có muốn đăng xuất khỏi tài khoản không?');">
-          <span class="menu-icon"><svg class="bieu-tuong-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg></span>
-          <span class="menu-chu"><b>Đăng xuất</b><small>Thoát khỏi khu quản trị trên máy này</small></span>
-        </a>
-      </div>
-    </div>
-  </div>
+<body class="quan-tri-tai-khoan">
+<header class="tk-header">
+<a class="tk-brand" href="/">Digital Campus <span>Quản trị</span></a>
+<div class="tk-session"><span id="tenQuanTri"></span><a class="nut nut-vien" href="/api/logout">Đăng xuất</a></div>
 </header>
-
-<div class="khung-ung-dung">
-
-  <nav class="cot-trai" id="cotTrai">
-    <div class="nhom-dieu-huong">
-      <a href="#/tong-quan" id="navTongQuan">
-        <span class="bieu-tuong">📊</span> Tổng quan
-      </a>
-      <a href="#/nguoi-dung" id="navNguoiDung">
-        <span class="bieu-tuong">👤</span> Người dùng
-      </a>
-      <a href="#/campus-quan-tri" id="navCampus">
-        <span class="bieu-tuong">🏛️</span> Campus
-      </a>
-    </div>
-  </nav>
-
-  <main class="noi-dung" id="noiDung">
-    <div class="dang-tai"><span class="quay"></span>Đang tải…</div>
-  </main>
-</div>
-
-<nav class="tab-duoi" id="tabDuoi">
-  <a href="#/tong-quan">
-    <span class="bieu-tuong">📊</span>Tổng quan
-  </a>
-  <a href="#/nguoi-dung">
-    <span class="bieu-tuong">👤</span>Người dùng
-  </a>
-  <a href="#/campus-quan-tri">
-    <span class="bieu-tuong">🏛️</span>Campus
-  </a>
-</nav>
-
-<dialog class="hop-thoai" id="hopThoai">
-  <form method="dialog" id="hopThoaiForm">
-    <div class="hop-thoai-dau">
-      <h2 id="hopThoaiTieuDe">…</h2>
-      <button class="nut-tron" value="dong" style="margin-left:auto" aria-label="Đóng">✕</button>
-    </div>
-    <div class="hop-thoai-than" id="hopThoaiThan"></div>
-    <div class="hop-thoai-chan" id="hopThoaiChan"></div>
-  </form>
-</dialog>
-
-<audio id="nhacNenAudio" loop preload="none"></audio>
-
-<script type="module" src="/giao-vien/app.js?v=20260912_01"></script>
-<script src="/assets/js/chat-widget.js?v=20260912_01"></script>
-<script>
-  // Cho phép cài lên màn hình chính và mở được khi mạng chập chờn.
-  if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20260912_01').catch(() => {}));
-  }
-</script>
+<main class="tk-main">
+<p class="tk-eyebrow" id="phamViQuanTri">Quản lý tài khoản web</p>
+<div id="noiDung" aria-live="polite"><p>Đang tải danh sách tài khoản…</p></div>
+</main>
+<script type="module" src="/giao-vien/app.js"></script>
 </body>
 </html>

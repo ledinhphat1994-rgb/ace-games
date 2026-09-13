@@ -56,7 +56,7 @@ export async function onRequest(context) {
   }
 
   const laApi = url.pathname.startsWith('/api/');
-  const session = await verifyToken(secret, readCookie(request, COOKIE_NAME));
+  let session = await verifyToken(secret, readCookie(request, COOKIE_NAME));
 
   if (!session) {
     // Với API thì trả lỗi JSON, vì chuyển hướng sẽ làm hỏng lệnh gọi từ trang.
@@ -106,11 +106,13 @@ export async function onRequest(context) {
     });
   }
 
+  if (checkPhien.phienMoi) session = checkPhien.phienMoi;
+
   // Khu vực giáo viên: trang /giao-vien và các API /api/gv/.
   // Vai trò "phu" (tài khoản đặc biệt: lớp trưởng, thủ quỹ...) cũng được mở khu vực này ở đây;
   // từng API bên trong tự kiểm tra tiếp xem mã đó có ĐÚNG quyền cho việc cụ thể hay không.
   const laKhuGiaoVien = url.pathname.startsWith('/giao-vien') || url.pathname.startsWith('/api/gv/');
-  if (laKhuGiaoVien && session.role !== 'teacher' && session.role !== 'phu') {
+  if (laKhuGiaoVien && (session.role !== 'teacher' || session.teacherPending)) {
     const thongDiep = 'Khu vực này chỉ dành cho giáo viên chủ nhiệm.';
     return laApi
       ? new Response(JSON.stringify({ ok: false, loi: thongDiep }), {

@@ -1,10 +1,9 @@
 // API Sự kiện Digital Campus — sự kiện TOÀN TRƯỜNG do giáo viên tạo.
 // GET là công khai (khách vãng lai xem được): chỉ trả các trường an toàn,
 // không lộ danh tính học sinh, lớp hay dữ liệu riêng của lớp.
-// POST/PUT/DELETE chỉ giáo viên (canGiaoVien).
-import { bocXuLy, docThan, json, loi, chuoi, ngayVNHomNay } from '../_lib/api.js';
+// Khu quản trị hiện chỉ có quản lý tài khoản; endpoint này chỉ đọc.
+import { json, loi, ngayVNHomNay } from '../_lib/api.js';
 
-const LOAI_SU_KIEN = ['chung', 'chat', 'video', 'nhac', 'game', 'hoc-tap', 'cuoc-thi'];
 const GIO_KET_THUC_CON_HIEN = '-2 hours'; // sự kiện vừa kết thúc vẫn hiện một lát
 
 // Chỉ SELECT các trường an toàn cho public — không có khoá phiên, không có lop_id.
@@ -72,85 +71,3 @@ export async function onRequestGet({ env }) {
     return loi('Không đọc được sự kiện.', 500);
   }
 }
-
-// Kiểm tra + chuẩn hoá dữ liệu sự kiện từ body. Trả {loi} hoặc {dl}.
-async function kiemTraSuKien(db, than) {
-  const tieuDe = chuoi(than.tieuDe, 120);
-  const moTa = chuoi(than.moTa, 500);
-  const loai = LOAI_SU_KIEN.includes(than.loai) ? than.loai : 'chung';
-  if (tieuDe.length < 3) return { loi: 'Tên sự kiện ít nhất 3 ký tự.' };
-
-  const ISO_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
-  const batDauRaw = typeof than.batDau === 'string' ? than.batDau.trim() : '';
-  const ketThucRaw = typeof than.ketThuc === 'string' ? than.ketThuc.trim() : '';
-  if (!batDauRaw || !ISO_REGEX.test(batDauRaw) || !ketThucRaw || !ISO_REGEX.test(ketThucRaw)) {
-    return { loi: 'Giờ bắt đầu và kết thúc phải là chuỗi định dạng ISO 8601 hợp lệ (VD: 2026-09-11T19:00:00.000Z).' };
-  }
-
-  const bd = Date.parse(batDauRaw);
-  const kt = Date.parse(ketThucRaw);
-  if (isNaN(bd) || isNaN(kt)) return { loi: 'Giờ bắt đầu / kết thúc không hợp lệ.' };
-  if (kt <= bd) return { loi: 'Giờ kết thúc phải sau giờ bắt đầu.' };
-
-  let phongId = null;
-  if (than.phongId) {
-    const pid = parseInt(than.phongId, 10);
-    const p = await db.prepare(
-      `SELECT id FROM phong WHERE id = ?1 AND trang_thai = 'mo' AND pham_vi = 'truong'`
-    ).bind(pid).first();
-    if (!p) return { loi: 'Phòng gắn với sự kiện phải là phòng toàn trường đang mở.' };
-    phongId = pid;
-  }
-
-  return {
-    dl: {
-      tieuDe, moTa: moTa || null, loai,
-      batDau: new Date(bd).toISOString(), ketThuc: new Date(kt).toISOString(),
-      phongId, noiBat: than.noiBat ? 1 : 0
-    }
-  };
-}
-
-// Chỉ giáo viên tạo sự kiện campus.
-export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const db = env.DB;
-  await damBaoBang(db);
-  const k = await kiemTraSuKien(db, await docThan(request));
-  if (k.loi) return loi(k.loi);
-  const d = k.dl;
-  const kq = await db.prepare(
-    `INSERT INTO su_kien_campus (tieu_de, mo_ta, loai, bat_dau, ket_thuc, phong_id, noi_bat, tao_boi, tao_boi_ten)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
-  ).bind(d.tieuDe, d.moTa, d.loai, d.batDau, d.ketThuc, d.phongId, d.noiBat,
-         `gv:${phien.lopId || 1}`, phien.ten || phien.vaiTro || 'Giáo viên').run();
-  return json({ ok: true, id: kq.meta?.last_row_id });
-}, { canGiaoVien: true });
-
-// Chỉ giáo viên sửa sự kiện.
-export const onRequestPut = bocXuLy(async ({ request, env }) => {
-  const db = env.DB;
-  const than = await docThan(request);
-  const id = parseInt(than.id || '', 10);
-  if (!(id > 0)) return loi('Thiếu sự kiện.', 400);
-  const k = await kiemTraSuKien(db, than);
-  if (k.loi) return loi(k.loi);
-  const d = k.dl;
-  await db.prepare(
-    `UPDATE su_kien_campus
-        SET tieu_de = ?1, mo_ta = ?2, loai = ?3, bat_dau = ?4, ket_thuc = ?5,
-            phong_id = ?6, noi_bat = ?7, cap_nhat_luc = CURRENT_TIMESTAMP
-      WHERE id = ?8`
-  ).bind(d.tieuDe, d.moTa, d.loai, d.batDau, d.ketThuc, d.phongId, d.noiBat, id).run();
-  return json({ ok: true });
-}, { canGiaoVien: true });
-
-// Chỉ giáo viên huỷ sự kiện (xoá mềm).
-export const onRequestDelete = bocXuLy(async ({ request, env }) => {
-  const than = await docThan(request);
-  const id = parseInt(than.id || '', 10);
-  if (!(id > 0)) return loi('Thiếu sự kiện.', 400);
-  await env.DB.prepare(
-    `UPDATE su_kien_campus SET trang_thai = 'huy', cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?1`
-  ).bind(id).run();
-  return json({ ok: true });
-}, { canGiaoVien: true });

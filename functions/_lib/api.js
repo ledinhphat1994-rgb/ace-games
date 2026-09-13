@@ -63,13 +63,15 @@ export async function kiemTraPhienHieuLuc(phien, env) {
             ten: tk.ten || phien.ten,
             role: tk.vaiTro || phien.role,
             teacherPending: Boolean(tk.teacherPending),
-            hocSinhId: tk.hocSinhId || phien.hocSinhId || null,
-            lopId: tk.lopId || phien.lopId || null,
+            hocSinhId: tk.hocSinhId || null,
+            lopId: tk.lopId || null,
           },
         };
       }
+      return { hopLe: false, lyDo: 'tai_khoan_khong_con', thongBao: 'Tài khoản không còn tồn tại.' };
     } catch (e) {
       console.error('Không làm mới được quyền tài khoản campus (accountId=' + phien.accountId + '):', e);
+      return { hopLe: false, lyDo: 'khong_xac_minh_duoc', thongBao: 'Không xác minh được phiên đăng nhập.' };
     }
   }
 
@@ -103,8 +105,10 @@ export async function kiemTraPhienHieuLuc(phien, env) {
           },
         };
       }
+      return { hopLe: false, lyDo: 'tai_khoan_khong_con', thongBao: 'Tài khoản không còn tồn tại.' };
     } catch (e) {
       console.error('Không làm mới được quyền tài khoản phụ (phuId=' + phien.phuId + '):', e);
+      return { hopLe: false, lyDo: 'khong_xac_minh_duoc' };
     }
   }
 
@@ -130,8 +134,10 @@ export async function kiemTraPhienHieuLuc(phien, env) {
         }
         return { hopLe: true, phienMoi };
       }
+      return { hopLe: false, lyDo: 'ma_ca_nhan_khong_con', thongBao: 'Mã cá nhân không còn hiệu lực.' };
     } catch (e) {
       console.error('Không làm mới được quyền mã cá nhân (hocSinhId=' + phien.hocSinhId + '):', e);
+      return { hopLe: false, lyDo: 'khong_xac_minh_duoc' };
     }
   }
 

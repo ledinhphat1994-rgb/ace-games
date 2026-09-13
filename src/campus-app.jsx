@@ -2,9 +2,9 @@ import { CampusHighlights } from './components/cards.js';
 import { AnnouncementTicker, TheBaiDang } from './components/feed.js';
 import { CampusChatRail } from './features/chat-rail.js';
 import { ActivityLobby, CampusActivityUniverse, RoomPasswordModal } from './features/lobby.js';
-import { AuthModal, CommunityBoardGateModal, ContentEditorModal, TeacherAccessCodeModal, TeacherEditorModal } from './features/modals.js';
+import { AuthModal, CommunityBoardGateModal } from './features/modals.js';
 import { CampusFocusRoom, CampusWatchTogether, StudyDock } from './features/study.js';
-import { CAMPUS_GAMES, PRESET_AVATARS, SK_LOAI_UI, canManageCampusEvents, dinhDangNgayGioVN, formatDateVN, formatTimeOnly, formatVND, idGoogleDrive, idYoutube, laVideoTrucTiepFe, normalizeCampusRoom, thoiGianTruoc, urlMediaFe } from './lib/helpers.js';
+import { CAMPUS_GAMES, PRESET_AVATARS, dinhDangNgayGioVN, formatDateVN, formatTimeOnly, formatVND, idGoogleDrive, idYoutube, laVideoTrucTiepFe, normalizeCampusRoom, thoiGianTruoc, urlMediaFe } from './lib/helpers.js';
 import { Ic } from './lib/icons.js';
 
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
@@ -84,12 +84,7 @@ function DigitalCampusApp() {
   // 2.5 Phase 4A Digital Campus Architecture States
   const [campusHighlights, setCampusHighlights] = useState([]);
   const [teacherAnnouncements, setTeacherAnnouncements] = useState([]);
-  const [announcementPermissions, setAnnouncementPermissions] = useState({ laGiaoVien: false, laBienTapVien: false, duocPhepDang: false });
   const [showCommunityGate, setShowCommunityGate] = useState(false);
-  const [showEditorModal, setShowEditorModal] = useState(false);
-  const [showAccessCodes, setShowAccessCodes] = useState(false);
-  const [showStudentEditors, setShowStudentEditors] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   // Mobile Navigation State
@@ -217,18 +212,10 @@ function DigitalCampusApp() {
   // 12. Sự kiện campus toàn trường (/api/su-kien — public) + occupancy duy nhất
   const [dsSuKien, setDsSuKien] = useState([]);
   const [dangHoatDong, setDangHoatDong] = useState(0);
-  const [showTaoSuKien, setShowTaoSuKien] = useState(false);
-  const [skForm, setSkForm] = useState({ tieuDe: '', loai: 'chung', moTa: '', batDau: '', ketThuc: '', phongId: '', noiBat: false });
-  const [skDangTao, setSkDangTao] = useState(false);
-  const [skLoi, setSkLoi] = useState('');
 
   // 10. Notifications Center
   const [showNotifModal, setShowNotifModal] = useState(false);
 
-  // 11. Feed Post Composer — đăng bài THẬT qua /api/gv/hoat-dong-lop (GVCN/cán sự được cấp)
-  const [composerText, setComposerText] = useState('');
-  const [composerSending, setComposerSending] = useState(false);
-  const [composerError, setComposerError] = useState('');
 
   // Mã thiết bị bền vững để định danh lượt cảm xúc/bình luận khi đăng nhập bằng mã lớp
   // chung (không có hocSinhId). Chỉ là gợi ý — máy chủ vẫn trộn thêm phienId từ cookie
@@ -362,7 +349,7 @@ function DigitalCampusApp() {
           const vangCoPhep = list.filter(s => s.trangThai === 'phep' || s.trangThai === 'vang_phep').length;
           const vangKhongPhep = list.filter(s => s.trangThai === 'khong_phep' || s.trangThai === 'vang_khong_phep').length;
           const tre = list.filter(s => s.trangThai === 'tre').length;
-          const tong = list.length || classData.hocSinh?.length || 39;
+          const tong = list.length || classData.hocSinh?.length || 0;
           const daGhi = coMat + vangCoPhep + vangKhongPhep + tre;
           const chuyenCan = daGhi > 0 ? ((coMat / daGhi) * 100).toFixed(1) : '100';
 
@@ -381,79 +368,6 @@ function DigitalCampusApp() {
       console.warn('fetchAttendance error:', err);
     }
   }, [auth.isGuest, attendance.ngay, attendance.buoi, attendance.loai, classData.hocSinh]);
-
-  // Attendance Toggle (Teachers & Authorized BCS)
-  const canMarkAttendance = auth.user?.isTeacher || (auth.user?.quyen && auth.user.quyen.includes('diem-danh'));
-
-  const handleToggleAttendanceStatus = (studentId, statusKey) => {
-    if (!canMarkAttendance) return;
-    setAttendance(prev => {
-      const nextList = prev.danhSach.map(s => {
-        if (s.id !== studentId) return s;
-        if (statusKey === 'bo_tiet') {
-          return { ...s, trangThai: 'khong_phep', lyDo: 'Bỏ tiết' };
-        }
-        const newStatus = s.trangThai === statusKey ? null : statusKey;
-        return { ...s, trangThai: newStatus };
-      });
-      const coMat = nextList.filter(s => s.trangThai === 'co_mat').length;
-      const vangCoPhep = nextList.filter(s => s.trangThai === 'phep' || s.trangThai === 'vang_phep').length;
-      const vangKhongPhep = nextList.filter(s => s.trangThai === 'khong_phep' || s.trangThai === 'vang_khong_phep').length;
-      const tre = nextList.filter(s => s.trangThai === 'tre').length;
-      const tong = nextList.length || 39;
-      const daGhi = coMat + vangCoPhep + vangKhongPhep + tre;
-      const chuyenCan = daGhi > 0 ? ((coMat / daGhi) * 100).toFixed(1) : '100';
-      return {
-        ...prev,
-        danhSach: nextList,
-        stats: { tong, coMat, vangCoPhep, vangKhongPhep, tre, chuyenCan }
-      };
-    });
-
-    const normalizedStatus = statusKey === 'bo_tiet' ? 'vang_khong_phep' :
-      (statusKey === 'phep' ? 'vang_phep' : (statusKey === 'khong_phep' ? 'vang_khong_phep' : statusKey));
-    const note = statusKey === 'bo_tiet' ? 'Bỏ tiết' : undefined;
-    fetch('/api/gv/diem-danh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ngay: attendance.ngay,
-        buoi: attendance.buoi,
-        loai: attendance.loai,
-        ghiNhan: [{ hocSinhId: studentId, trangThai: normalizedStatus, lyDo: note }]
-      })
-    }).catch(() => {});
-  };
-
-  const handleBatchMarkAllPresent = () => {
-    if (!canMarkAttendance) return;
-    setAttendance(prev => {
-      const nextList = prev.danhSach.map(s => ({ ...s, trangThai: 'co_mat' }));
-      const coMat = nextList.length;
-      const tong = nextList.length;
-      return {
-        ...prev,
-        danhSach: nextList,
-        stats: { tong, coMat, vangCoPhep: 0, vangKhongPhep: 0, tre: 0, chuyenCan: '100' }
-      };
-    });
-
-    const ghiNhan = attendance.danhSach.map(s => ({
-      hocSinhId: s.id,
-      trangThai: 'co_mat',
-      lyDo: ''
-    }));
-    fetch('/api/gv/diem-danh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ngay: attendance.ngay,
-        buoi: attendance.buoi,
-        loai: attendance.loai,
-        ghiNhan
-      })
-    }).catch(() => {});
-  };
 
   // ─── FETCH LIVE CHAT ──────────────────────────────────────────────────────
   const fetchChat = useCallback(async () => {
@@ -657,43 +571,6 @@ function DigitalCampusApp() {
         console.warn('Playback blocked or no audio source:', err);
         setRadioPlaying(false);
       });
-    }
-  };
-
-  // ─── SEND CHAT & DANMAKU ──────────────────────────────────────────────────
-  // ─── ĐĂNG BÀI LÊN BẢNG TIN — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' ──
-
-  // ─── ĐĂNG BÀI LÊN BẢNG TIN — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' ──
-  const canPostFeed = auth.user?.isTeacher || (auth.user?.quyen || []).includes('hoat-dong-lop');
-
-  const handleCreatePost = async (e) => {
-    e.preventDefault();
-    const text = composerText.trim();
-    if (!text || composerSending) return;
-    if (auth.isGuest) { setShowAuthGate(true); return; }
-
-    setComposerSending(true);
-    setComposerError('');
-    try {
-      const res = await fetch('/api/gv/hoat-dong-lop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          noiDung: text,
-          ngay: new Date().toISOString().slice(0, 10)
-        })
-      });
-      const d = await res.json();
-      if (d.ok) {
-        setComposerText('');
-        fetchClassData(true); // tải lại để bài mới xuất hiện trên feed
-      } else {
-        setComposerError(d.loi || 'Không đăng được bài. Thử lại sau.');
-      }
-    } catch {
-      setComposerError('Mất kết nối máy chủ — bài chưa được đăng.');
-    } finally {
-      setComposerSending(false);
     }
   };
 
@@ -1021,53 +898,13 @@ function DigitalCampusApp() {
   // Phase 4A: Teacher Announcements — dữ liệu THẬT từ /api/campus-thong-bao
   const taiTeacherAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch('/api/campus-thong-bao?tat_ca=1');
+      const res = await fetch('/api/campus-thong-bao');
       const d = await res.json();
       if (d.ok && Array.isArray(d.thongBao)) {
         setTeacherAnnouncements(d.thongBao);
-        if (d.quyen) {
-          setAnnouncementPermissions(d.quyen);
-        }
       }
     } catch { /* giữ nguyên dữ liệu cũ nếu lỗi mạng */ }
   }, []);
-
-  const xoaThongBao = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xoá thông báo này không?')) return;
-    try {
-      const res = await fetch('/api/campus-thong-bao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hanhDong: 'xoa', id })
-      });
-      const d = await res.json();
-      if (d.ok) {
-        taiTeacherAnnouncements();
-      } else {
-        alert(d.loi || 'Không thể xoá thông báo.');
-      }
-    } catch {
-      alert('Lỗi kết nối máy chủ.');
-    }
-  };
-
-  const duyetThongBao = async (id) => {
-    try {
-      const res = await fetch('/api/campus-thong-bao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hanhDong: 'duyet_bai', id })
-      });
-      const d = await res.json();
-      if (d.ok) {
-        taiTeacherAnnouncements();
-      } else {
-        alert(d.loi || 'Không thể duyệt thông báo.');
-      }
-    } catch {
-      alert('Lỗi kết nối máy chủ.');
-    }
-  };
 
   const moBangTinCongDong = () => {
     if (auth.isGuest) {
@@ -1417,33 +1254,6 @@ function DigitalCampusApp() {
     hotKhacGanDay.forEach(p => ds.push({ kieu: 'phong', phong: p }));
     return ds.slice(0, 6);
   })();
-
-  // Giáo viên tạo sự kiện campus.
-  const taoSuKien = async () => {
-    if (skDangTao) return;
-    setSkDangTao(true); setSkLoi('');
-    try {
-      const res = await fetch('/api/su-kien', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...skForm,
-          batDau: skForm.batDau ? new Date(skForm.batDau).toISOString() : '',
-          ketThuc: skForm.ketThuc ? new Date(skForm.ketThuc).toISOString() : '',
-          phongId: skForm.phongId || null
-        })
-      });
-      const d = await res.json();
-      if (d.ok) {
-        setShowTaoSuKien(false);
-        setSkForm({ tieuDe: '', loai: 'chung', moTa: '', batDau: '', ketThuc: '', phongId: '', noiBat: false });
-        taiSuKien();
-      } else {
-        setSkLoi(d.loi || 'Không tạo được sự kiện.');
-      }
-    } catch { setSkLoi('Mất kết nối máy chủ.'); }
-    finally { setSkDangTao(false); }
-  };
 
   // Điều hướng bàn phím cho tab rail (WAI-ARIA tabs: ←/→ chuyển tab).
   const RAIL_TABS = ['chat', 'nhac', 'su-kien'];
@@ -1855,35 +1665,6 @@ function DigitalCampusApp() {
               </>
             )}
 
-            {/* Giáo viên: Tuỳ chọn chỉnh sửa hồ sơ (không trùng lặp Khu quản trị) */}
-            {auth.user?.isTeacher && (
-              <a
-                href="/giao-vien/#/ho-so-gv"
-                id="btn-dropdown-ho-so-gv"
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-all text-xs text-slate-200 group">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-sm text-purple-400">👤</span>
-                  <span className="font-semibold text-white group-hover:text-purple-300 transition-colors">Hồ sơ giáo viên</span>
-                </div>
-                <span className="text-xs text-slate-500 group-hover:text-slate-300">›</span>
-              </a>
-            )}
-
-            {/* Ban cán sự lớp */}
-            {auth.user?.isAuthorizedStudent && (
-              <div className="pt-1.5 border-t border-white/10 space-y-1">
-                <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider px-2.5 mb-0.5">
-                  CÔNG CỤ BAN CÁN SỰ
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { navigateTab('feed', 'diem-danh'); setDdTabSub('ngay'); setShowUserMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-bold text-cyan-300 transition-all">
-                  <span>📋</span>
-                  <span>Chấm điểm danh sĩ số lớp</span>
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
@@ -2761,31 +2542,6 @@ function DigitalCampusApp() {
                 })()}
 
                 {/* 2. POST COMPOSER — chỉ GVCN / cán sự được cấp quyền 'hoat-dong-lop' */}
-                {canPostFeed && (
-                  <form onSubmit={handleCreatePost} className="bg-[#151A23] border border-white/10 rounded-2xl p-4 shadow-xl">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10 shrink-0">
-                        <img src={currentAvatar}
-                          alt="Me" className="w-full h-full object-cover" />
-                      </div>
-                      <input type="text" value={composerText} onChange={e => setComposerText(e.target.value)}
-                        placeholder="Đăng thông báo / hoạt động mới cho lớp 10A7..."
-                        maxLength={2000}
-                        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-                    </div>
-
-                    {composerError && <p className="text-[11px] text-rose-400 mb-2">{composerError}</p>}
-
-                    <div className="flex items-center justify-end pt-2 border-t border-white/5 flex-wrap gap-2 text-xs">
-                      <button type="submit" disabled={!composerText.trim() || composerSending}
-                        className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-[0_0_12px_rgba(0,242,254,0.3)] hover:opacity-90 transition-all flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span>🚀</span>
-                        <span>{composerSending ? 'Đang đăng…' : 'Đăng bài'}</span>
-                      </button>
-                    </div>
-                  </form>
-                )}
-
                 {/* 3. FEED POSTS — dữ liệu THẬT từ /api/lop (hoat_dong_lop + thong_bao, đã trừ mục ghim) */}
                 {(() => {
                   const tbGhimId = (classData.thongBao || []).find(t => t.ghim)?.id;
@@ -2811,7 +2567,7 @@ function DigitalCampusApp() {
                           {tuKhoa ? 'Thử từ khoá khác ngắn gọn hơn.'
                             : auth.isGuest
                               ? 'Đăng nhập để xem các bài đăng và hoạt động của lớp.'
-                              : 'Khi GVCN hoặc ban cán sự đăng bài, nội dung sẽ hiện tại đây.'}
+                              : 'Chưa có nội dung trong bảng tin lớp.'}
                         </p>
                       </div>
                     );
@@ -2842,19 +2598,6 @@ function DigitalCampusApp() {
                     </button>
                   </div>
                 </div>
-
-                {canMarkAttendance && (
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleBatchMarkAllPresent}
-                      className="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30">
-                      ✅ Có mặt hết lớp
-                    </button>
-                    <button onClick={() => fetchAttendance()}
-                      className="px-4 py-2 rounded-xl bg-white/5 text-slate-300 border border-white/10 text-xs font-bold hover:bg-white/10">
-                      🔄 Làm mới
-                    </button>
-                  </div>
-                )}
 
                 {ddTabSub === 'ca_nhan' && (
                   <div className="rounded-xl border border-white/10 p-4 bg-[#0B0E14]/40">
@@ -2913,7 +2656,6 @@ function DigitalCampusApp() {
                         <th className="py-2 px-3">Họ và Tên</th>
                         <th className="py-2 px-3">Lớp Nghề</th>
                         <th className="py-2 px-3 text-center">Trạng Thái</th>
-                        {canMarkAttendance && <th className="py-2 px-3">1-Touch</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -2928,24 +2670,6 @@ function DigitalCampusApp() {
                             {hs.trangThai === 'khong_phep' && <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 text-[10px] font-bold">K.Phép</span>}
                             {!hs.trangThai && <span className="text-slate-500 text-[10px]">—</span>}
                           </td>
-                          {canMarkAttendance && (
-                            <td className="py-2 px-3">
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => handleToggleAttendanceStatus(hs.id, 'co_mat')}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${hs.trangThai === 'co_mat' ? 'bg-emerald-500 text-black' : 'bg-white/5 text-slate-300'}`}>
-                                  Mặt
-                                </button>
-                                <button onClick={() => handleToggleAttendanceStatus(hs.id, 'phep')}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${hs.trangThai === 'phep' ? 'bg-amber-500 text-black' : 'bg-white/5 text-slate-300'}`}>
-                                  Phép
-                                </button>
-                                <button onClick={() => handleToggleAttendanceStatus(hs.id, 'khong_phep')}
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${hs.trangThai === 'khong_phep' ? 'bg-rose-500 text-black' : 'bg-white/5 text-slate-300'}`}>
-                                  K.Phép
-                                </button>
-                              </div>
-                            </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -3196,7 +2920,7 @@ function DigitalCampusApp() {
                 <div className="text-center py-8">
                   <p className="text-2xl mb-2">🔔</p>
                   <p className="text-sm font-bold text-white mb-1">Chưa có thông báo nào</p>
-                  <p className="text-xs text-slate-400">Khi GVCN đăng thông báo mới, nội dung sẽ hiện tại đây.</p>
+                  <p className="text-xs text-slate-400">Chưa có thông báo trong bảng tin lớp.</p>
                 </div>
               )}
             </div>
@@ -3831,77 +3555,6 @@ function DigitalCampusApp() {
       )}
 
       {/* ─── MODAL TẠO SỰ KIỆN CAMPUS — chỉ giáo viên thấy (API cũng chặn) ─── */}
-      {showTaoSuKien && canManageCampusEvents(auth) && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#151A23] border border-purple-500/30 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-extrabold text-white">Tạo Sự Kiện Campus</h3>
-              <button onClick={() => setShowTaoSuKien(false)} aria-label="Đóng"
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400">
-                <Ic name="x" className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Tên sự kiện *</label>
-                <input type="text" value={skForm.tieuDe} onChange={e => setSkForm(f => ({ ...f, tieuDe: e.target.value }))}
-                  placeholder="VD: Đêm nhạc Campus, Quiz Battle toàn trường..." maxLength={120}
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Loại sự kiện</label>
-                <select value={skForm.loai} onChange={e => setSkForm(f => ({ ...f, loai: e.target.value }))}
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
-                  {Object.entries(SK_LOAI_UI).map(([id, ui]) => (
-                    <option key={id} value={id}>{ui.icon} {ui.nhan}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Bắt đầu *</label>
-                  <input type="datetime-local" value={skForm.batDau} onChange={e => setSkForm(f => ({ ...f, batDau: e.target.value }))}
-                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]" />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Kết thúc *</label>
-                  <input type="datetime-local" value={skForm.ketThuc} onChange={e => setSkForm(f => ({ ...f, ketThuc: e.target.value }))}
-                    className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-2.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Mô tả</label>
-                <input type="text" value={skForm.moTa} onChange={e => setSkForm(f => ({ ...f, moTa: e.target.value }))}
-                  placeholder="Nội dung sự kiện..." maxLength={500}
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-              </div>
-              <div>
-                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Gắn phòng campus (tuỳ chọn)</label>
-                <select value={skForm.phongId} onChange={e => setSkForm(f => ({ ...f, phongId: e.target.value }))}
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-[#00F2FE]">
-                  <option value="">— Không gắn phòng —</option>
-                  {phongCongDong.filter(p => p.phamVi === 'truong').map(p => (
-                    <option key={p.id} value={p.id}>{p.ten}</option>
-                  ))}
-                </select>
-              </div>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input type="checkbox" checked={skForm.noiBat} onChange={e => setSkForm(f => ({ ...f, noiBat: e.target.checked }))} />
-                <span>⭐ Ghim lên Hero campus</span>
-              </label>
-              {skLoi && <p className="text-[11px] text-rose-400">{skLoi}</p>}
-              <button onClick={taoSuKien} disabled={skDangTao || skForm.tieuDe.trim().length < 3 || !skForm.batDau || !skForm.ketThuc}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#8B5CF6] to-[#00F2FE] text-black font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                {skDangTao ? 'Đang tạo…' : '📅 Tạo sự kiện'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-           MODAL 3: AUTH GATE
-      ══════════════════════════════════════════════════════════════════════ */}
       {showAuthGate && (
         <div id="modal-auth-gate" className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-[#151A23] border border-[#8B5CF6]/40 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center animate-scaleIn">
@@ -3955,25 +3608,6 @@ function DigitalCampusApp() {
         onClose={() => { setShowRoomPasswordModal(false); setSelectedPasswordRoom(null); }}
         onJoin={async (r, pwd) => {
           return await vaoPhong(r, pwd);
-        }}
-      />
-
-      <TeacherAccessCodeModal isOpen={showAccessCodes} onClose={() => setShowAccessCodes(false)} hocSinhList={classData.hocSinh} />
-      <TeacherEditorModal isOpen={showStudentEditors} onClose={() => { setShowStudentEditors(false); taiTeacherAnnouncements(); }} hocSinhList={classData.hocSinh} />
-
-      {/* MODAL: SOẠN & XEM TRƯỚC THÔNG BÁO (TEACHER & STUDENT EDITOR) */}
-      <ContentEditorModal
-        isOpen={showEditorModal}
-        onClose={() => {
-          setShowEditorModal(false);
-          setEditingAnnouncement(null);
-        }}
-        initialData={editingAnnouncement}
-        isTeacher={announcementPermissions.laGiaoVien}
-        onSuccess={() => {
-          setShowEditorModal(false);
-          setEditingAnnouncement(null);
-          taiTeacherAnnouncements();
         }}
       />
 

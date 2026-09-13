@@ -1,0 +1,49 @@
+.quan-tri-tai-khoan { margin: 0; background: #0b0e14; color: #e2e8f0; min-height: 100vh; }
+.tk-header { min-height: 80px; padding: 18px max(24px, calc((100vw - 1240px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #ffffff14; background: #121620; }
+.tk-brand { color: #fff; font-size: 18px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.tk-brand span { display: block; color: #00f2fe; font-size: 11px; font-weight: 600; margin-top: 2px; }
+.tk-session { display: flex; align-items: center; gap: 18px; font-size: 13px; }
+.tk-main { max-width: 1240px; margin: 44px auto; padding: 0 24px; }
+.tk-eyebrow { color: #00f2fe; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+.tk-title { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
+.tk-title h1 { font-size: clamp(24px, 3vw, 32px); line-height: 1.3; margin: 0 0 10px; color: #fff; }
+.tk-muted { font-size: 13px; color: #94a3b8; line-height: 1.7; margin: 0; }
+.tk-toolbar { display: flex; gap: 16px; padding: 22px; background: #121620; border: 1px solid #ffffff14; border-radius: 16px; }
+.tk-toolbar label { font-size: 12px; font-weight: 600; display: grid; gap: 8px; }
+.tk-search { flex: 1; } .tk-filter { min-width: 230px; }
+.tk-toolbar input, .tk-toolbar select { width: 100%; box-sizing: border-box; min-height: 46px; background: #0b0e14; color: #fff; border: 1px solid #ffffff24; border-radius: 9px; padding: 10px 12px; font: inherit; }
+.tk-count { color: #94a3b8; font-size: 12px; margin: 20px 0 12px; }
+.tk-table-wrap { overflow-x: auto; border: 1px solid #ffffff14; border-radius: 16px; background: #121620; }
+.tk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tk-table th { color: #94a3b8; text-align: left; font-size: 11px; font-weight: 600; background: #151a23; }
+.tk-table td, .tk-table th { padding: 18px 20px; border-bottom: 1px solid #ffffff0d; }
+.tk-table tr:last-child td { border-bottom: 0; } .tk-table tbody tr:hover { background: #ffffff03; }
+.tk-table strong { display: block; color: #f8fafc; font-weight: 600; overflow-wrap: anywhere; }
+.tk-username { display: block; color: #94a3b8; font-size: 12px; margin-top: 6px; overflow-wrap: anywhere; }
+.tk-date { color: #94a3b8; font-size: 12px; }
+.tk-status { display: inline-block; padding: 5px 9px; font-size: 11px; border-radius: 6px; white-space: nowrap; background: #34d39912; color: #6ee7b7; }
+.tk-status.cho-xac-minh { background: #f59e0b12; color: #fbbf24; } .tk-status.bi-khoa { background: #f43f5e12; color: #fda4af; }
+.quan-tri-tai-khoan .nut { min-height: 44px; border-radius: 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.quan-tri-tai-khoan .nut-chinh { background: #00f2fe; color: #071014; border-color: #00f2fe; }
+.quan-tri-tai-khoan :focus-visible { outline: 2px solid #00f2fe; outline-offset: 3px; }
+.tk-empty { padding: 60px 24px; text-align: center; background: #121620; border: 1px solid #ffffff14; border-radius: 16px; color: #94a3b8; font-size: 14px; }
+.tk-dialog { box-sizing: border-box; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow: auto; border: 1px solid #ffffff24; border-radius: 20px; padding: 28px; background: #121620; color: #e2e8f0; }
+.tk-dialog::backdrop { background: #000a; backdrop-filter: blur(5px); }
+.tk-dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.tk-dialog h2 { margin: 0; font-size: 21px; overflow-wrap: anywhere; }
+.tk-details { margin: 24px 0; } .tk-details > div { display: grid; grid-template-columns: 42% 1fr; gap: 12px; padding: 14px 0; border-bottom: 1px solid #ffffff0d; font-size: 13px; }
+.tk-details dt { color: #94a3b8; } .tk-details dd { margin: 0; overflow-wrap: anywhere; }
+.tk-actions { display: flex; flex-wrap: wrap; gap: 10px; } .tk-danger { color: #fda4af; border-color: #f43f5e55; }
+.tk-results[aria-busy] { opacity: .65; }
+.tk-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (max-width: 640px) {
+  .tk-header { padding: 16px; gap: 12px; } .tk-session { gap: 10px; } #tenQuanTri { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tk-brand { font-size: 15px; } .tk-main { margin: 28px auto; padding: 0 16px; } .tk-title { align-items: flex-start; gap: 10px; }
+  .tk-toolbar { flex-direction: column; padding: 16px; } .tk-filter { min-width: 0; } .tk-table th, .tk-table td { padding: 14px 12px; }
+  .tk-table, .tk-table tbody { display: block; width: 100%; } .tk-table thead { display: none; }
+  .tk-table tbody tr { display: grid; grid-template-columns: 1fr 1fr; padding: 16px; gap: 12px; border-bottom: 1px solid #ffffff14; }
+  .tk-table tbody tr:last-child { border-bottom: 0; } .tk-table td { padding: 0; border: 0; }
+  .tk-table td:first-child, .tk-table td:last-child { grid-column: 1 / -1; }
+  .tk-table td:nth-child(4) { display: none; } .tk-table td:last-child .nut { width: 100%; }
+  .tk-dialog { padding: 20px; } .tk-details > div { font-size: 12px; }
+}

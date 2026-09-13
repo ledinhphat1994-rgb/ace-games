@@ -23,33 +23,29 @@ Browser → Cloudflare Pages (dist/ tĩnh) → /api/* → functions/api/*.js →
 | `src/features/study.jsx` | **StudyDock** (chat/notes/whiteboard/sheet/voice), **CampusWatchTogether**, QueueInput, CampusFocusRoom | mọi thứ Study Room / Watch Together |
 | `src/features/lobby.jsx` | ActivityLobby, CampusActivityUniverse, RoomPasswordModal, QuickTaoPhong/Ban, YoutubeSearchPanel | sảnh, tạo phòng, tìm YouTube |
 | `src/features/chat-rail.jsx` | CampusChatRail | rail chat phải lobby |
-| `src/features/modals.jsx` | AuthModal, CommunityBoardGateModal, TeacherAccessCode/Editor/ContentEditor, TeacherAnnouncements, PersonalQuickAccess | modal đăng nhập / GV / soạn nội dung |
+| `src/features/modals.jsx` | AuthModal, CommunityBoardGateModal | modal đăng nhập / cổng Bảng tin |
 | `src/campus-app.jsx` | DigitalCampusApp (root) + mount | routing hash ↔ tab, state toàn cục, bảng tin lớp |
 
 Quy ước: import specifier luôn ghi đuôi `.js` (trỏ file đã compile), ESM native —
 KHÔNG bundle. File `.jsx` mới trong `src/` tự được `compile:jsx` + `build` nhặt.
 
-## Khu quản trị giáo viên (`giao-vien/`)
+## Khu quản trị tài khoản (`giao-vien/`)
 
-`giao-vien/index.html` + `app.js` (ESM, `type="module"`).
+Từ 13/09/2026, khu quản trị chỉ còn danh sách tài khoản Campus theo yêu cầu owner.
 
 | File | Vai trò |
 |---|---|
-| `giao-vien/app.js` (210d) | Router `dieuHuong()` + TRANG map + `khoiDong()` init — CHỈ thêm route ở đây |
-| `giao-vien/lib.js` | State chia sẻ: `PHIEN`, `PHAM_VI_LOP_ID` (export let + `datPhien`/`datPhamVi`), `apiTheoPhamVi`, `duocVaoTuyen`, menu helpers, `KHUNG`, `gioNgayVN` |
-| `giao-vien/pages/diem-danh.js` | Điểm danh + lịch sử inline + quick tab |
-| `giao-vien/pages/hoc-sinh.js` | DS học sinh, hồ sơ, liên hệ PH |
-| `giao-vien/pages/noi-dung.js` | Thông báo, hoạt động lớp, trang "Thêm" |
-| `giao-vien/pages/campus.js` | Highlights, hồ sơ GV, phòng campus, campus, bảng tin |
-| `giao-vien/pages/tong-quan.js` | Tổng quan dashboard |
-| `giao-vien/pages/nguoi-dung.js` | Người dùng + drawer chi tiết + menu hành động (helpers `moDrawerChiTiet`, `taoNutMenuHanhDong` dùng lại được) |
-| `giao-vien/pages/admin.js` | Lớp & thành viên, kiểm duyệt, hệ thống, báo cáo VP, duyệt GV, mã cộng đồng, biên tập viên |
-| `giao-vien/trang-{hoc-tap,quy,lich,diem-danh-lich-su,reset-du-lieu}.js` | Các trang đã tách sẵn từ trước (thống kê/báo cáo/quỹ/TKB/lịch sử ĐD/reset) |
+| `giao-vien/index.html` | Shell độc lập: thương hiệu, tài khoản đăng nhập, nút đăng xuất |
+| `giao-vien/app.js` | Xác minh phiên, đưa mọi hash cũ về `#/nguoi-dung` |
+| `giao-vien/lib.js` | DOM root và định dạng giờ Việt Nam |
+| `giao-vien/pages/nguoi-dung.js` | Tìm/lọc, bảng tài khoản, dialog chi tiết và thao tác |
+| `assets/css/tai-khoan.css` | Giao diện desktop và các thẻ tài khoản trên mobile |
+| `functions/api/gv/nguoi-dung.js` | Danh sách/chi tiết và thay đổi trạng thái có kiểm tra phạm vi |
+| `functions/api/gv/duyet-giao-vien.js` | URL duyệt tài khoản tương thích |
 
-Shared JS dùng chung ngoài admin: `assets/js/chung.js` ($/$$/e/api/nhac/...),
-`giao-dien.js` (tieuDeTrang/nut/truong/moHopThoai/...), `hang-doi.js` (offline queue),
-`soan-thao.js`, `thong-bao-dialog.js`, `hoat-dong-lop-dialog.js`, `html-an-toan.js`,
-`chat-widget.js` (chat nổi — IIFE self-contained, load riêng trong admin).
+Không còn trang/API quản trị lớp/điểm danh/quỹ/TKB/nội dung/thư viện/cài đặt.
+`assets/js/chung.js` vẫn cung cấp DOM API, client API và theo dõi phiên.
+Hợp đồng API: `docs/contracts/account-administration-v1.md`.
 
 ## Backend — `functions/`
 
@@ -98,13 +94,13 @@ bổ sung object đó vào `SCHEMA_MONG_DOI` trong `cong-cu/migrate.mjs`.
 - `npm run deploy` — build + `wrangler pages deploy dist`
 - QA theo domain: `cong-cu/qa-*.mjs` (xem package.json scripts, prefix `qa:`)
 - `cong-cu/qa-study-room-audit.mjs` — gate Study Room (188 test: A–J + K1–K6 lease)
+- `npm run qa:tai-khoan` — API + browser quản lý tài khoản (thay qa-admin-ia cũ)
+- `cong-cu/qa-reset-tai-khoan.py <D1-export>` — kiểm chứng migration 79 trong SQLite RAM
 - `cong-cu/kiem-tra-du-lieu.js` — soát an toàn dữ liệu/JSON/SQL
 - Mockups bắt buộc đối chiếu khi sửa UI: `docs/mockups/1.png` (lobby), `2.png` (bảng tin)
 
 ## Chỗ còn nợ kỹ thuật (đã biết, chưa đụng)
 
-- `chat-widget.js` (92KB): IIFE self-contained — tách module cần refactor state,
-  không phải split cơ học. Làm khi có nhu cầu sửa chat widget.
 - `src/campus-app.jsx` (4042d): root app — tách tiếp cần thiết kế context/state,
   không cơ học được.
 - `functions/api/` phẳng 100 file: KHÔNG dời vào subdir (đổi URL). Nhóm theo prefix.
