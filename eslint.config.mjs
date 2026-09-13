@@ -21,7 +21,7 @@ const quyTacChung = {
 
 export default [
   {
-    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**', 'assets/gen/**'],
+    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**', 'assets/gen/**', '.claude/**'],
   },
 
   // API và cổng bảo vệ: ES module chạy trên Cloudflare Workers.
