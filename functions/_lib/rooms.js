@@ -114,11 +114,13 @@ export async function taiToanBoChinhSach(db, phongId) {
 // Kiểm tra quyền capability server-authoritative.
 // check = kết quả kiemTraTruyCapPhong (đã có isHost/isTeacher/isCoHost/actorKey).
 // Trả { ok:true } hoặc { ok:false, loi, status, code }.
-export async function kiemTraQuyenPhong(db, check, capability) {
+// policyDaTai (optional): policy đã tải sẵn từ nơi khác (vd taiChinhSach gọi trước đó trong cùng
+// request) — truyền vào để khỏi query D1 lại lần 2 y hệt. Không truyền thì tự tải như cũ.
+export async function kiemTraQuyenPhong(db, check, capability, policyDaTai = null) {
   const p = check.phong;
   if (check.isHost || check.isTeacher || check.isCoHost) return { ok: true };
 
-  const pol = await taiChinhSach(db, p.id, capability);
+  const pol = policyDaTai || await taiChinhSach(db, p.id, capability);
   if (pol.fail) {
     // D1 lỗi khi đọc policy → fail-closed: không cho member dùng capability lúc không xác định policy.
     return { ok: false, loi: 'Chính sách phòng tạm không khả dụng — thử lại sau.', status: 503, code: 'policy_unavailable' };
@@ -138,11 +140,30 @@ export async function kiemTraQuyenPhong(db, check, capability) {
   return { ok: false, loi: 'Cần được quản trị phòng cấp quyền cho tính năng này.', status: 403, code: 'grant_required' };
 }
 
-// Tính map capability → boolean cho 1 actor (để client render UI đúng quyền).
+// Tính map capability → boolean cho 1 actor (để client render UI đúng quyền). Trước đây lặp
+// kiemTraQuyenPhong() riêng cho từng capability (tới 10 query/request) — giờ tải 1 lần TOÀN BỘ
+// policy (taiToanBoChinhSach, đã dùng sẵn cho staff) + TOÀN BỘ grant của actor này, rồi tính
+// trong JS. Giữ đúng ngữ nghĩa fail-closed: D1 lỗi (policies === null) → mọi quyền = false,
+// khớp nhánh pol.fail của kiemTraQuyenPhong ở trên.
 export async function taiQuyenCuaToi(db, check) {
   const caps = {};
+  if (check.isHost || check.isTeacher || check.isCoHost) {
+    for (const cap of Object.keys(DEFAULT_STUDY_POLICY)) caps[cap] = true;
+    return caps;
+  }
+
+  const [policies, myGrantsRs] = await Promise.all([
+    taiToanBoChinhSach(db, check.phong.id),
+    db.prepare(
+      `SELECT capability FROM phong_grant WHERE phong_id = ?1 AND khoa = ?2 AND trang_thai = 'granted'`
+    ).bind(check.phong.id, check.actorKey).all().catch(() => ({ results: [] })),
+  ]);
+  const grantedSet = new Set((myGrantsRs.results || []).map((r) => r.capability));
+
   for (const cap of Object.keys(DEFAULT_STUDY_POLICY)) {
-    caps[cap] = (await kiemTraQuyenPhong(db, check, cap)).ok;
+    if (!policies) { caps[cap] = false; continue; }
+    const pol = policies[cap];
+    caps[cap] = Boolean(pol.enabled) && (pol.access_mode === 'everyone' || (pol.access_mode === 'selected_members' && grantedSet.has(cap)));
   }
   return caps;
 }

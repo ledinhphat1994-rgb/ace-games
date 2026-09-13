@@ -113,7 +113,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ok: true, resource,
       payload: { notes },
       version: notes.length ? notes[notes.length - 1].id : 0,
-      canWrite: (await kiemTraQuyenPhong(db, check, cap)).ok,
+      canWrite: (await kiemTraQuyenPhong(db, check, cap, pol)).ok,
     });
   }
 
@@ -134,7 +134,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       ok: true, resource,
       payload: { ops },
       version: max?.m || 0,
-      canWrite: (await kiemTraQuyenPhong(db, check, cap)).ok,
+      canWrite: (await kiemTraQuyenPhong(db, check, cap, pol)).ok,
     });
   }
 
@@ -149,7 +149,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     ok: true, resource,
     payload: { cells, rows: 10, cols: 8 },
     version: (rs.results || []).length,
-    canWrite: (await kiemTraQuyenPhong(db, check, cap)).ok,
+    canWrite: (await kiemTraQuyenPhong(db, check, cap, pol)).ok,
   });
 });
 

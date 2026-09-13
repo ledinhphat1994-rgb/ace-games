@@ -6,63 +6,51 @@
 import { bocXuLy, json } from '../_lib/api.js';
 
 // Lấy gamification data của user hiện tại và bảng xếp hạng lớp
-export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
-  const url = new URL(request.url);
+export const onRequestGet = bocXuLy(async ({ env, phien }) => {
   const lopId = phien?.lopId || 1;
+  const currentWeek = getWeekNumber(new Date());
 
-  // Lấy danh sách tất cả achievements đang có
-  const allAchievements = await env.DB.prepare(`
-    SELECT id, ma, ten, mo_ta, icon, diem, loai
-    FROM achievements
-    WHERE active = 1
-    ORDER BY diem ASC
-  `).all().catch(() => ({ results: [] }));
-
-  let userAchievements = { results: [] };
-  let userStreaks = { results: [] };
-  let userPoints = { diemHienTai: 0, diemTong: 0, capDo: 1 };
-
-  if (phien?.hocSinhId) {
-    // Lấy achievements của user
-    userAchievements = await env.DB.prepare(`
+  // Mọi truy vấn dưới đây độc lập với nhau (không cái nào cần kết quả của cái khác) — chạy
+  // song song bằng Promise.all thay vì nối đuôi tuần tự, giống mẫu đã áp dụng ở functions/api/lop.js.
+  // Giữ nguyên ngữ nghĩa cũ: 4 câu đầu chỉ thật sự chạy khi có phien.hocSinhId, còn không thì
+  // Promise.resolve trả thẳng giá trị rỗng y hệt nhánh "if" cũ.
+  const [allAchievements, userAchievements, userStreaks, userPoints, weeklyStudy, topGamers, mostHelpful, attendanceStars] = await Promise.all([
+    env.DB.prepare(`
+      SELECT id, ma, ten, mo_ta, icon, diem, loai
+      FROM achievements
+      WHERE active = 1
+      ORDER BY diem ASC
+    `).all().catch(() => ({ results: [] })),
+    phien?.hocSinhId ? env.DB.prepare(`
       SELECT a.ma, a.ten, a.mo_ta, a.icon, a.diem, a.loai, ua.ngay_moc AS ngayMoc
       FROM user_achievements ua
       JOIN achievements a ON ua.achievement_id = a.id
       WHERE ua.hoc_sinh_id = ?1 AND ua.lop_id = ?2
       ORDER BY ua.ngay_moc DESC
-    `).bind(phien.hocSinhId, lopId).all().catch(() => ({ results: [] }));
-
-    // Lấy streaks của user
-    userStreaks = await env.DB.prepare(`
+    `).bind(phien.hocSinhId, lopId).all().catch(() => ({ results: [] })) : Promise.resolve({ results: [] }),
+    phien?.hocSinhId ? env.DB.prepare(`
       SELECT loai_streak AS loaiStreak, streak_hien_tai AS streakHienTai, streak_lon_nhat AS streakLonNhat, ngay_cuoi AS ngayCuoi
       FROM user_streaks
       WHERE hoc_sinh_id = ?1 AND lop_id = ?2
-    `).bind(phien.hocSinhId, lopId).all().catch(() => ({ results: [] }));
-
-    // Lấy điểm của user
-    userPoints = await env.DB.prepare(`
+    `).bind(phien.hocSinhId, lopId).all().catch(() => ({ results: [] })) : Promise.resolve({ results: [] }),
+    phien?.hocSinhId ? env.DB.prepare(`
       SELECT diem_hien_tai AS diemHienTai, diem_tong AS diemTong, cap_do AS capDo
       FROM user_points
       WHERE hoc_sinh_id = ?1 AND lop_id = ?2
-    `).bind(phien.hocSinhId, lopId).first().catch(() => null) || { diemHienTai: 0, diemTong: 0, capDo: 1 };
-  }
-
-  // Lấy leaderboard
-  const currentWeek = getWeekNumber(new Date());
-  const leaderboards = {
-    weeklyStudy: await getLeaderboard(env, 'weekly_study', currentWeek, lopId).catch(() => []),
-    topGamers: await getLeaderboard(env, 'top_gamers', currentWeek, lopId).catch(() => []),
-    mostHelpful: await getLeaderboard(env, 'most_helpful', currentWeek, lopId).catch(() => []),
-    attendanceStars: await getLeaderboard(env, 'attendance_stars', currentWeek, lopId).catch(() => [])
-  };
+    `).bind(phien.hocSinhId, lopId).first().catch(() => null) : Promise.resolve(null),
+    getLeaderboard(env, 'weekly_study', currentWeek, lopId).catch(() => []),
+    getLeaderboard(env, 'top_gamers', currentWeek, lopId).catch(() => []),
+    getLeaderboard(env, 'most_helpful', currentWeek, lopId).catch(() => []),
+    getLeaderboard(env, 'attendance_stars', currentWeek, lopId).catch(() => []),
+  ]);
 
   return json({
     ok: true,
     allAchievements: allAchievements.results || [],
     achievements: userAchievements.results || [],
     streaks: userStreaks.results || [],
-    points: userPoints,
-    leaderboards
+    points: userPoints || { diemHienTai: 0, diemTong: 0, capDo: 1 },
+    leaderboards: { weeklyStudy, topGamers, mostHelpful, attendanceStars },
   });
 }, { canGiaoVien: false });
 
@@ -179,17 +167,16 @@ async function updateStreak(env, hocSinhId, loaiHoatDong, lopId) {
 async function checkAchievements(env, hocSinhId, lopId) {
   const newAchievements = [];
 
-  // Kiểm tra từng achievement
-  const achievements = await env.DB.prepare('SELECT * FROM achievements WHERE active = 1').all();
+  // Lấy 1 lần TOÀN BỘ achievement + TOÀN BỘ achievement_id học sinh này đã có (thay vì lặp query
+  // "đã có chưa" cho từng achievement — trước đây tới ~15 query/lần ghi nhận hoạt động, giờ còn 2).
+  const [achievements, daCoRs] = await Promise.all([
+    env.DB.prepare('SELECT * FROM achievements WHERE active = 1').all(),
+    env.DB.prepare('SELECT achievement_id FROM user_achievements WHERE hoc_sinh_id = ?1').bind(hocSinhId).all(),
+  ]);
+  const daCo = new Set((daCoRs.results || []).map((r) => r.achievement_id));
 
   for (const achievement of achievements.results || []) {
-    // Kiểm tra user đã có achievement này chưa
-    const hasAchievement = await env.DB.prepare(`
-      SELECT 1 FROM user_achievements
-      WHERE hoc_sinh_id = ?1 AND achievement_id = ?2
-    `).bind(hocSinhId, achievement.id).first();
-
-    if (hasAchievement) continue;
+    if (daCo.has(achievement.id)) continue;
 
     // Kiểm tra điều kiện (simplified logic)
     let unlocked = false;
