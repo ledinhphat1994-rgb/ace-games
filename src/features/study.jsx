@@ -42,6 +42,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   policies = null, grants = [], videoTimeRef, seekVideo, hanhDongPhong,
   canControl = false, dongPhongHienTai }) {
   const [dockTab, setDockTab] = React.useState('chat'); // 'chat' | 'notes' | 'whiteboard' | 'sheet' | 'voice' | 'quan-tri'
+  const [showEmoji, setShowEmoji] = React.useState(false);
 
   // Capability phía client chỉ để ẩn/hiện UI — mọi quyền thật do server quyết.
   const coQuyen = (cap) => myCaps[cap] !== false;
@@ -704,7 +705,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   };
 
   return (
-    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[420px] lg:min-h-[480px] shadow-xl">
+    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col h-full min-h-[420px] lg:min-h-[480px] shadow-xl">
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -857,37 +858,61 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSendRoomChat} className="pt-2 border-t border-white/8 flex items-center gap-2 mt-auto">
-              <div className="relative flex-1">
-                <textarea
-                  id="input-phong-chat"
-                  rows={1}
-                  placeholder={coQuyen('chat') ? 'Nhắn tin phòng học...' : 'Chat đang bị khóa'}
-                  value={chatInput}
+            <form onSubmit={handleSendRoomChat} className="pt-2 border-t border-white/8 flex flex-col gap-2 mt-auto">
+              {/* Emoji panel */}
+              {showEmoji && (
+                <div className="flex flex-wrap gap-1 p-2 bg-[#0B0E14] border border-white/10 rounded-2xl">
+                  {['😊','😂','🥰','😎','🤔','😅','😭','🔥','❤️','👍','🙏','🎉','✅','💯','👋','📚','✏️','🎯','🌟','💡','⚡','🏆','🤝','💪','🤩'].map(em => (
+                    <button key={em} type="button"
+                      onClick={() => { setChatInput(v => v + em); setShowEmoji(false); }}
+                      className="text-lg hover:scale-125 transition-transform active:scale-95 px-1">{em}</button>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <textarea
+                    id="input-phong-chat"
+                    rows={1}
+                    placeholder={coQuyen('chat') ? 'Nhắn tin phòng học...' : 'Chat đang bị khóa'}
+                    value={chatInput}
+                    disabled={!coQuyen('chat')}
+                    onChange={e => setChatInput(e.target.value)}
+                    onCompositionStart={() => { chatComposingRef.current = true; }}
+                    onCompositionEnd={() => { chatComposingRef.current = false; }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        if (e.nativeEvent?.isComposing || chatComposingRef.current) return;
+                        e.preventDefault();
+                        handleSendRoomChat();
+                      }
+                    }}
+                    maxLength={500}
+                    className="w-full bg-[#0B0E14] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50 focus:shadow-[0_0_12px_rgba(0,242,254,0.12)] resize-none min-h-[38px] max-h-24 disabled:opacity-40 transition-all"
+                  />
+                </div>
+                {/* Emoji button */}
+                <button
+                  type="button"
                   disabled={!coQuyen('chat')}
-                  onChange={e => setChatInput(e.target.value)}
-                  onCompositionStart={() => { chatComposingRef.current = true; }}
-                  onCompositionEnd={() => { chatComposingRef.current = false; }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      if (e.nativeEvent?.isComposing || chatComposingRef.current) return;
-                      e.preventDefault();
-                      handleSendRoomChat();
-                    }
-                  }}
-                  maxLength={500}
-                  className="w-full bg-[#0B0E14] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50 focus:shadow-[0_0_12px_rgba(0,242,254,0.12)] resize-none min-h-[38px] max-h-24 disabled:opacity-40 transition-all"
-                />
+                  onClick={() => setShowEmoji(v => !v)}
+                  className={`w-9 h-9 rounded-2xl flex items-center justify-center text-base transition-all disabled:opacity-30 shrink-0 active:scale-90 ${
+                    showEmoji ? 'bg-[#00F2FE]/20 border border-[#00F2FE]/40 text-[#00F2FE]' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Chọn emoji">
+                  😊
+                </button>
+                {/* Send button */}
+                <button
+                  type="submit"
+                  id="btn-send-phong-chat"
+                  disabled={!chatInput.trim() || chatSending || !coQuyen('chat')}
+                  className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#00F2FE] to-[#3B82F6] text-black flex items-center justify-center font-black transition-all disabled:opacity-30 shrink-0 hover:brightness-110 active:scale-90 shadow-[0_0_12px_rgba(0,242,254,0.3)]">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                  </svg>
+                </button>
               </div>
-              <button
-                type="submit"
-                id="btn-send-phong-chat"
-                disabled={!chatInput.trim() || chatSending || !coQuyen('chat')}
-                className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#00F2FE] to-[#3B82F6] text-black flex items-center justify-center font-black transition-all disabled:opacity-30 shrink-0 hover:brightness-110 active:scale-90 shadow-[0_0_12px_rgba(0,242,254,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                </svg>
-              </button>
             </form>
           </div>
         )}

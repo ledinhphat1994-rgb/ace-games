@@ -2085,24 +2085,9 @@ function DigitalCampusApp() {
                       )}
                     </div>
 
-                    {/* PHẢI: Zone 3 (Toàn màn hình + Ratio) + Sảnh button (Zone 2 đã chuyển sang đây) */}
+                    {/* PHẢI: ratio FIRST, rồi ■ fullscreen, rồi Xóa phòng (host), rồi Sảnh */}
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* ZONE 3: Toàn màn hình trước, rồi ratio buttons */}
-                      <button
-                        id="btn-room-fullscreen"
-                        data-id="btn-room-fullscreen"
-                        type="button"
-                        onClick={() => isRoomWide ? exitFullscreen() : enterFullscreen(null)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
-                          isRoomWide
-                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.35)] hover:brightness-110'
-                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_14px_rgba(0,242,254,0.35)] hover:brightness-110'
-                        }`}
-                        title={isRoomWide ? 'Thu gọn (Esc)' : 'Toàn màn hình'}>
-                        <span className="text-sm">{isRoomWide ? '🗷' : '⛶'}</span>
-                        <span className="hidden sm:inline">{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
-                      </button>
-
+                      {/* Ratio buttons — trước fullscreen toggle */}
                       {activeRoom.type === 'PHONG' && activeRoom.phong?.loai === 'video' && (
                         <div className="hidden lg:flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-1">
                           {[
@@ -2130,7 +2115,43 @@ function DigitalCampusApp() {
                         </div>
                       )}
 
-                      {/* Zone 2 chuyển sang phải: nút Sảnh */}
+                      {/* ■ Fullscreen toggle */}
+                      <button
+                        id="btn-room-fullscreen"
+                        data-id="btn-room-fullscreen"
+                        type="button"
+                        onClick={() => isRoomWide ? exitFullscreen() : enterFullscreen(null)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                          isRoomWide
+                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.35)] hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_14px_rgba(0,242,254,0.35)] hover:brightness-110'
+                        }`}
+                        title={isRoomWide ? 'Thu gọn (Esc)' : 'Toàn màn hình'}>
+                        <span className="text-sm">{isRoomWide ? '🗷' : '⛶'}</span>
+                        <span className="hidden sm:inline">{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
+                      </button>
+
+                      {/* Nút Xóa phòng cho chủ phòng (PHONG) hoặc Đóng bàn đấu (GAME_CARO) */}
+                      {activeRoom.type === 'PHONG' && (activeRoom.phong?.laChuPhong || activeRoom.phong?.canControl || auth.user?.isTeacher) && activeRoom.phong?.chuPhongKhoa !== 'he-thong' && (
+                        <button
+                          type="button"
+                          onClick={async () => { if (confirm('Xóa phòng học này?')) await dongPhongHienTai(); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                          title="Xóa phòng học">
+                          <span>🗑</span><span className="hidden sm:inline">Xóa phòng</span>
+                        </button>
+                      )}
+                      {activeRoom.type === 'GAME_CARO' && auth.user?.isTeacher && (
+                        <button
+                          type="button"
+                          onClick={() => { if (confirm('Đóng bàn đấu này?')) thoatPhongGameArena(); setCurrentView('LOBBY'); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                          title="Đóng bàn đấu">
+                          <span>🗑</span><span className="hidden sm:inline">Đóng bàn</span>
+                        </button>
+                      )}
+
+                      {/* Sảnh button — zone 2 đã chuyển sang phải */}
                       <button
                         id="btn-back-to-lobby"
                         data-id="btn-back-to-lobby"
@@ -2427,7 +2448,7 @@ function DigitalCampusApp() {
                 isFocusMode && p.loai === 'nhac'
                   ? 'max-w-2xl mx-auto w-full'
                   : p.loai === 'video'
-                  ? 'flex flex-col lg:flex-row gap-5 w-full items-start'
+                  ? 'flex flex-col lg:flex-row gap-5 w-full items-stretch'
                   : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
@@ -2511,7 +2532,7 @@ function DigitalCampusApp() {
                 </div>
 
                 {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
-                <div className="flex flex-col gap-4 min-w-0" style={cStyle}>
+                <div className="flex flex-col gap-4 min-w-0 self-stretch" style={cStyle}>
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}
