@@ -1,7 +1,7 @@
 # Study Room Governance API v1 — Contract (SWE 2 → Claude)
 
 - **Status:** `ACCEPTED_BACKEND_CANDIDATE` — Backend Gate QA 163/163 PASS, chờ Independent Backend Review
-- **Backend commit:** _xem mục "Đóng băng" cuối tài liệu_
+- **Backend commit:** `ac1b879a192b7fb747a87537af61f43469391102`
 - **Migration:** `co-so-du-lieu/77-study-room-governance.sql` (đã apply local + remote)
 
 ## Ranh giới Preview vs Participant (BẮT BUỘC)
@@ -115,4 +115,4 @@ POST:
 ## Đóng băng
 
 - Backend Gate QA: **163 PASS / 0 FAIL** (`cong-cu/qa-study-room-audit.mjs`, nhóm A–J adversarial).
-- SHA commit backend: _điền sau khi commit — cập nhật bởi SWE 2_.
+- SHA commit backend: `ac1b879a192b7fb747a87537af61f43469391102`.
