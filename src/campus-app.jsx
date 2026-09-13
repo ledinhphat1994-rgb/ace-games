@@ -2075,55 +2075,36 @@ function DigitalCampusApp() {
                 <div className="flex flex-col gap-5 w-full animate-fadeIn" id="campus-active-room-container">
                   {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
                   <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
-                    {/* VÙNG 4: Điều hướng trái — Sảnh, Rời phòng, tiêu đề, badges */}
-                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                      <button
-                        id="btn-back-to-lobby"
-                        data-id="btn-back-to-lobby"
-                        onClick={() => {
-                          if (activeRoom.type === 'PHONG') roiPhongHienTai();
-                          else if (activeRoom.type === 'GAME_CARO') thoatPhongGameArena();
-                          setIsRoomWide(false);
-                          setCurrentView('LOBBY');
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all hover:scale-105 active:scale-95 shrink-0"
-                        title="Quay lại sảnh">
-                        <span>‹</span> <span>Sảnh</span>
-                      </button>
-                      <button
-                        id="btn-roi-phong-top"
-                        data-id="btn-roi-phong-top"
-                        onClick={() => {
-                          if (activeRoom.type === 'PHONG') roiPhongHienTai();
-                          else if (activeRoom.type === 'GAME_CARO') thoatPhongGameArena();
-                          setIsRoomWide(false);
-                          setCurrentView('LOBBY');
-                        }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
-                        title={activeRoom.type === 'PHONG' ? 'Rời phòng học' : 'Thoát bàn đấu'}>
-                        <span>✕</span> <span className="hidden xs:inline">Rời phòng</span>
-                      </button>
-                      <div className="h-4 w-[1px] bg-white/15 hidden sm:block"></div>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h2 className="text-sm font-black text-white truncate max-w-[140px] sm:max-w-xs md:max-w-sm">{activeRoom.title}</h2>
-                        {activeRoom.phong?.phamVi && (
-                          <span className={`hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${activeRoom.phong.phamVi === 'truong' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
-                            {activeRoom.phong.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 Lớp ${activeRoom.phong.lopTen || ''}`}
-                          </span>
-                        )}
-                        {/* Badge Chủ phòng — chỉ hiện khi là chủ phòng */}
-                        {activeRoom.type === 'PHONG' && (activeRoom.phong?.laChuPhong || activeRoom.phong?.canControl || auth.user?.isTeacher) && (
-                          <span id="host-badge" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
-                            <span>★</span><span>Chủ phòng</span>
-                          </span>
-                        )}
-                      </div>
+                    {/* TRÁI: Tiêu đề + Badge chủ phòng */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h2 className="text-sm font-black text-white truncate max-w-[160px] sm:max-w-xs md:max-w-sm">{activeRoom.title}</h2>
+                      {activeRoom.type === 'PHONG' && (activeRoom.phong?.laChuPhong || activeRoom.phong?.canControl || auth.user?.isTeacher) && (
+                        <span id="host-badge" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
+                          <span>★</span><span>Chủ phòng</span>
+                        </span>
+                      )}
                     </div>
 
-                    {/* VÙNG 5: Ratio (= fullscreen modes) + Toggle fullscreen + ONLINE */}
+                    {/* PHẢI: Zone 3 (Toàn màn hình + Ratio) + Sảnh button (Zone 2 đã chuyển sang đây) */}
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* ZONE 3: Toàn màn hình trước, rồi ratio buttons */}
+                      <button
+                        id="btn-room-fullscreen"
+                        data-id="btn-room-fullscreen"
+                        type="button"
+                        onClick={() => isRoomWide ? exitFullscreen() : enterFullscreen(null)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
+                          isRoomWide
+                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.35)] hover:brightness-110'
+                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_14px_rgba(0,242,254,0.35)] hover:brightness-110'
+                        }`}
+                        title={isRoomWide ? 'Thu gọn (Esc)' : 'Toàn màn hình'}>
+                        <span className="text-sm">{isRoomWide ? '🗷' : '⛶'}</span>
+                        <span className="hidden sm:inline">{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
+                      </button>
+
                       {activeRoom.type === 'PHONG' && activeRoom.phong?.loai === 'video' && (
-                        <div className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+                        <div className="hidden lg:flex items-center gap-0.5 bg-white/5 border border-white/10 rounded-xl p-1">
                           {[
                             { r: '10:0', label: '■', title: 'Video toàn màn hình' },
                             { r: '7:3', label: '7:3', title: 'Video 70% · Bảng 30%' },
@@ -2148,24 +2129,21 @@ function DigitalCampusApp() {
                           ))}
                         </div>
                       )}
+
+                      {/* Zone 2 chuyển sang phải: nút Sảnh */}
                       <button
-                        id="btn-room-fullscreen"
-                        data-id="btn-room-fullscreen"
-                        type="button"
-                        onClick={() => isRoomWide ? exitFullscreen() : enterFullscreen(null)}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer ${
-                          isRoomWide
-                            ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110'
-                            : 'bg-gradient-to-r from-[#00F2FE] via-[#00c6ff] to-[#3B82F6] text-black border border-[#00F2FE]/60 shadow-[0_0_18px_rgba(0,242,254,0.4)] hover:brightness-110 hover:scale-105'
-                        }`}
-                        title={isRoomWide ? 'Thu gọn (Esc)' : 'Toàn màn hình'}>
-                        <span className="text-sm">{isRoomWide ? '🗷' : '⛶'}</span>
-                        <span>{isRoomWide ? 'Thu gọn' : 'Toàn màn hình'}</span>
+                        id="btn-back-to-lobby"
+                        data-id="btn-back-to-lobby"
+                        onClick={() => {
+                          if (activeRoom.type === 'PHONG') roiPhongHienTai();
+                          else if (activeRoom.type === 'GAME_CARO') thoatPhongGameArena();
+                          setIsRoomWide(false);
+                          setCurrentView('LOBBY');
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-slate-300 border border-white/10 transition-all hover:scale-105 active:scale-95 shrink-0"
+                        title="Rời phòng về sảnh">
+                        <span>‹</span> <span>Sảnh</span>
                       </button>
-                      <span className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 shrink-0 pl-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span className="hidden sm:inline">ONLINE</span>
-                      </span>
                     </div>
                   </div>
 

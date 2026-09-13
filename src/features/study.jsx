@@ -832,15 +832,6 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
                       <span className="text-[10px] text-slate-500">
                         {m.taoLuc ? new Date(m.taoLuc.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
-                      {m.videoTimeSec != null && m.videoTimeSec > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => yeuCauTua(m.videoTimeSec)}
-                          title={myCaps.video_control ? 'Tua video cả phòng tới mốc này' : 'Tua video của bạn tới mốc này'}
-                          className="px-1.5 py-0.2 rounded text-[9px] font-black bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30">
-                          ▶ {dinhDangGiayPhut(m.videoTimeSec)}
-                        </button>
-                      )}
                       {isStaff && (
                         <button
                           type="button"
@@ -866,32 +857,36 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSendRoomChat} className="pt-3 border-t border-white/10 flex items-center gap-2 mt-auto">
-              <textarea
-                id="input-phong-chat"
-                rows={1}
-                placeholder={coQuyen('chat') ? 'Nhắn tin trong phòng học... (tin nhắn tự gắn mốc video hiện tại)' : 'Chat đang bị quản trị phòng khóa'}
-                value={chatInput}
-                disabled={!coQuyen('chat')}
-                onChange={e => setChatInput(e.target.value)}
-                onCompositionStart={() => { chatComposingRef.current = true; }}
-                onCompositionEnd={() => { chatComposingRef.current = false; }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    if (e.nativeEvent?.isComposing || chatComposingRef.current) return;
-                    e.preventDefault();
-                    handleSendRoomChat();
-                  }
-                }}
-                maxLength={500}
-                className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/60 resize-none min-h-[38px] max-h-24 disabled:opacity-40"
-              />
+            <form onSubmit={handleSendRoomChat} className="pt-2 border-t border-white/8 flex items-center gap-2 mt-auto">
+              <div className="relative flex-1">
+                <textarea
+                  id="input-phong-chat"
+                  rows={1}
+                  placeholder={coQuyen('chat') ? 'Nhắn tin phòng học...' : 'Chat đang bị khóa'}
+                  value={chatInput}
+                  disabled={!coQuyen('chat')}
+                  onChange={e => setChatInput(e.target.value)}
+                  onCompositionStart={() => { chatComposingRef.current = true; }}
+                  onCompositionEnd={() => { chatComposingRef.current = false; }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.nativeEvent?.isComposing || chatComposingRef.current) return;
+                      e.preventDefault();
+                      handleSendRoomChat();
+                    }
+                  }}
+                  maxLength={500}
+                  className="w-full bg-[#0B0E14] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50 focus:shadow-[0_0_12px_rgba(0,242,254,0.12)] resize-none min-h-[38px] max-h-24 disabled:opacity-40 transition-all"
+                />
+              </div>
               <button
                 type="submit"
                 id="btn-send-phong-chat"
                 disabled={!chatInput.trim() || chatSending || !coQuyen('chat')}
-                className="px-4 py-2 rounded-xl bg-[#00F2FE] hover:bg-[#00e1ec] text-black text-xs font-black transition-all disabled:opacity-30 shrink-0">
-                Gửi
+                className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#00F2FE] to-[#3B82F6] text-black flex items-center justify-center font-black transition-all disabled:opacity-30 shrink-0 hover:brightness-110 active:scale-90 shadow-[0_0_12px_rgba(0,242,254,0.3)]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
               </button>
             </form>
           </div>
@@ -2084,34 +2079,7 @@ export function CampusWatchTogether({
       {/* Thanh điều khiển Host — ẩn khi fullscreen */}
       {!isRoomWide && (
       <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col gap-3 shadow-xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {/* Chỉ hiện trạng thái phát cho host */}
-            {canControl && provider !== 'GOOGLE_DRIVE' && provider !== 'UNSUPPORTED' && (
-              <span id="sync-state-badge" className={`text-xs font-black flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]' : 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'}`}>
-                <span className={`w-2 h-2 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-                <span>{watchState.playing ? 'Đang phát chung' : 'Tạm dừng'}</span>
-              </span>
-            )}
 
-            {canControl && (
-              <span id="host-badge" className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm flex items-center gap-1">
-                <span>★</span>
-                <span>Chủ phòng</span>
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
-            {(canControl || auth.user?.isTeacher) && phong.chuPhongKhoa !== 'he-thong' && (
-              <button
-                type="button"
-                onClick={dongPhongHienTai}
-                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all hover:scale-105 active:scale-95">
-                Đóng phòng
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* Thanh công cụ phát chung (chỉ hiển thị cho Host / Teacher khi dùng provider có thể điều khiển) */}
         {canControl && (provider === 'NATIVE_HTML5' || provider === 'YOUTUBE') && (
