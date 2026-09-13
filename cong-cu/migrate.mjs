@@ -74,6 +74,14 @@ const SCHEMA_MONG_DOI = {
   '78-noi-dung-trang-thai.sql': {
     columns: { thong_bao: ['trang_thai'] },
   },
+  '80-index-hieu-nang-gamification-campus.sql': {
+    indexes: [
+      'idx_tkc_hoc_sinh_id',
+      'idx_user_streaks_streak_hien_tai',
+      'idx_leaderboard_bang_tuan_lop',
+      'idx_user_achievements_hs_lop',
+    ],
+  },
 };
 
 const lenh = process.argv[2] || 'status';

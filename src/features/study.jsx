@@ -1653,7 +1653,23 @@ export function CampusWatchTogether({
   });
   const [canControl, setCanControl] = useState(Boolean(auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
   const [watchCaps, setWatchCaps] = useState({});
-  const [provider, setProvider] = useState('UNSUPPORTED');
+  const getInitialVideoUrl = () => {
+    let c = {};
+    try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
+    return c.videoUrl || phong?.videoUrl || '';
+  };
+
+  const getInitialProvider = (u) => {
+    if (!u) return 'UNSUPPORTED';
+    if (idYoutube(u)) return 'YOUTUBE';
+    if (idGoogleDrive(u)) return 'GOOGLE_DRIVE';
+    if (laVideoTrucTiepFe(u)) return 'NATIVE_HTML5';
+    return 'UNSUPPORTED';
+  };
+
+  const initUrl = getInitialVideoUrl();
+  const [activeVideoUrl, setActiveVideoUrl] = useState(initUrl);
+  const [provider, setProvider] = useState(() => getInitialProvider(initUrl));
   const [hasInteracted, setHasInteracted] = useState(false);
   const [localTime, setLocalTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -1672,17 +1688,15 @@ export function CampusWatchTogether({
   const isSeekingRef = useRef(false);
   const hasInteractedRef = useRef(false);
 
-  const [activeVideoUrl, setActiveVideoUrl] = useState(() => {
-    let c = {};
-    try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
-    return c.videoUrl || '';
-  });
-
   useEffect(() => {
     let c = {};
     try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
-    if (c.videoUrl) setActiveVideoUrl(c.videoUrl);
-  }, [phong?.cauHinh]);
+    const nextUrl = c.videoUrl || phong?.videoUrl || '';
+    if (nextUrl && nextUrl !== activeVideoUrl) {
+      setActiveVideoUrl(nextUrl);
+      setProvider(getInitialProvider(nextUrl));
+    }
+  }, [phong?.cauHinh, phong?.videoUrl]);
 
   const videoUrl = activeVideoUrl;
   const ytId = videoUrl ? idYoutube(videoUrl) : null;
@@ -2061,6 +2075,13 @@ export function CampusWatchTogether({
               <span id="sync-state-badge" className={`text-xs font-black flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]' : 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'}`}>
                 <span className={`w-2 h-2 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
                 <span>{watchState.playing ? 'Đang phát chung' : 'Tạm dừng'}</span>
+              </span>
+            )}
+
+            {canControl && (
+              <span id="host-badge" className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm flex items-center gap-1">
+                <span>★</span>
+                <span>Chủ phòng</span>
               </span>
             )}
           </div>
