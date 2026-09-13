@@ -482,11 +482,6 @@ export function CampusHighlights({ highlights = [], onVaoGame, onVaoPhong, onVao
           </div>
         )}
       </div>
-
-      <div className="pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-500 mt-3">
-        <span>GDTX Định Quán</span>
-        <span className="text-cyan-400 font-mono">2026–2027</span>
-      </div>
     </div>
   );
 }

@@ -1,7 +1,89 @@
 
+const EMOJI_CATEGORIES = [
+  {
+    name: 'Mặt cười',
+    icon: '😊',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '😎', '🥳', '🤩', '🤔', '🤫', '😴', '😷', '🤯', '🤠']
+  },
+  {
+    name: 'Cảm xúc & Tay',
+    icon: '❤️',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '💖', '🔥', '💯', '✨', '🌟', '⭐', '💥', '💬', '👍', '👎', '👏', '🙌', '🤝', '👊', '✌️', '🤞', '🤟', '👌', '👋', '🙏']
+  },
+  {
+    name: 'Trường học & Vui',
+    icon: '🎓',
+    emojis: ['📚', '📖', '📕', '📗', '📘', '🎓', '🏫', '🎒', '📝', '✏️', '🎯', '🎮', '🎲', '🏆', '🥇', '☕', '🍕', '🍰', '🎂', '🚀', '💡', '🎉', '🎈', '🎵', '🎶', '🐱', '🐶', '🌸', '🍀']
+  }
+];
+
+function EmojiPickerPopup({ onSelect, onClose }) {
+  const [activeCat, setActiveCat] = React.useState(0);
+  const popupRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleOutside = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={popupRef}
+      className="absolute bottom-full mb-2 right-0 left-0 z-50 bg-[#151A23] border border-cyan-500/30 rounded-2xl p-2.5 shadow-2xl backdrop-blur-xl animate-scaleIn max-w-[320px] mx-auto sm:ml-auto sm:mr-0">
+      <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {EMOJI_CATEGORIES.map((cat, idx) => (
+            <button
+              key={cat.name}
+              type="button"
+              onClick={() => setActiveCat(idx)}
+              className={`px-2 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${activeCat === idx ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'text-slate-400 hover:text-white'}`}>
+              <span className="mr-1">{cat.icon}</span>
+              <span>{cat.name}</span>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-white text-xs px-1 shrink-0">
+          ✕
+        </button>
+      </div>
+      <div className="grid grid-cols-6 gap-1 max-h-40 overflow-y-auto p-1">
+        {EMOJI_CATEGORIES[activeCat].emojis.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onSelect(emoji)}
+            className="w-9 h-9 flex items-center justify-center text-lg rounded-xl hover:bg-white/10 active:scale-90 transition-transform">
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── CAMPUS CHAT & SOCIAL RAIL (PHASE 4D: CAMPUS | LỚP | TÔI) ───────────────────────────
 export function CampusChatRail({ auth, onRequireAuth, className = '', isActive = true }) {
   const [tab, setTab] = React.useState('campus'); // 'campus' | 'class' | 'me'
+  const [showEmojiPicker, setShowEmojiPicker] = React.useState(null); // 'campus' | 'class' | 'dm' | null
+
+  const handleInsertEmoji = (emoji, target) => {
+    if (target === 'campus') {
+      setCampusInput(prev => prev + emoji);
+    } else if (target === 'class') {
+      setClassInput(prev => prev + emoji);
+    } else if (target === 'dm') {
+      setDmInput(prev => prev + emoji);
+    }
+  };
 
   // Attention & Unread state (Phase 4F)
   const [unreadCampus, setUnreadCampus] = React.useState(0);
@@ -686,11 +768,24 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
           )}
 
           {/* Composer */}
-          <form onSubmit={handleSendCampus} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0">
+          <form onSubmit={handleSendCampus} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0 relative">
+            {showEmojiPicker === 'campus' && (
+              <EmojiPickerPopup
+                onSelect={(emoji) => handleInsertEmoji(emoji, 'campus')}
+                onClose={() => setShowEmojiPicker(null)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(showEmojiPicker === 'campus' ? null : 'campus')}
+              className="p-2 rounded-xl text-slate-400 hover:text-yellow-300 hover:bg-white/5 text-base transition-colors shrink-0"
+              title="Thêm biểu tượng cảm xúc">
+              😊
+            </button>
             <textarea
               id="input-campus-chat"
               rows={1}
-              placeholder="Nhắn tin toàn Campus... (Enter để gửi, Shift+Enter xuống dòng)"
+              placeholder="Nhắn tin toàn Campus..."
               value={campusInput}
               onChange={e => setCampusInput(e.target.value)}
               onCompositionStart={() => { isCampusComposingRef.current = true; }}
@@ -772,11 +867,24 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
           )}
 
           {/* Composer */}
-          <form onSubmit={handleSendClass} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0">
+          <form onSubmit={handleSendClass} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0 relative">
+            {showEmojiPicker === 'class' && (
+              <EmojiPickerPopup
+                onSelect={(emoji) => handleInsertEmoji(emoji, 'class')}
+                onClose={() => setShowEmojiPicker(null)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(showEmojiPicker === 'class' ? null : 'class')}
+              className="p-2 rounded-xl text-slate-400 hover:text-yellow-300 hover:bg-white/5 text-base transition-colors shrink-0"
+              title="Thêm biểu tượng cảm xúc">
+              😊
+            </button>
             <textarea
               id="input-class-chat"
               rows={1}
-              placeholder="Nhắn tin với lớp... (Enter để gửi, Shift+Enter xuống dòng)"
+              placeholder="Nhắn tin với lớp..."
               value={classInput}
               onChange={e => setClassInput(e.target.value)}
               onCompositionStart={() => { isClassComposingRef.current = true; }}
@@ -951,11 +1059,24 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
               )}
 
               {/* DM Composer */}
-              <form onSubmit={handleSendDm} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0">
+              <form onSubmit={handleSendDm} className="p-2 border-t border-white/10 bg-[#111620]/80 flex items-center gap-2 shrink-0 relative">
+                {showEmojiPicker === 'dm' && (
+                  <EmojiPickerPopup
+                    onSelect={(emoji) => handleInsertEmoji(emoji, 'dm')}
+                    onClose={() => setShowEmojiPicker(null)}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(showEmojiPicker === 'dm' ? null : 'dm')}
+                  className="p-2 rounded-xl text-slate-400 hover:text-yellow-300 hover:bg-white/5 text-base transition-colors shrink-0"
+                  title="Thêm biểu tượng cảm xúc">
+                  😊
+                </button>
                 <textarea
                   id="input-dm-chat"
                   rows={1}
-                  placeholder={`Nhắn cho ${activeFriend.displayName}... (Enter để gửi, Shift+Enter xuống dòng)`}
+                  placeholder={`Nhắn cho ${activeFriend.displayName}...`}
                   value={dmInput}
                   onChange={e => setDmInput(e.target.value)}
                   onCompositionStart={() => { isDmComposingRef.current = true; }}

@@ -1797,19 +1797,7 @@ function DigitalCampusApp() {
       {activeTab === 'campus' ? (
         /* SCREENSHOT 2 HEADER: DIGITAL CAMPUS HUB */
         <header className="sticky top-0 z-40 bg-[#0B0E14]/95 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
-          {/* Logo Branding */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] p-[1.5px] shadow-[0_0_14px_rgba(0,242,254,0.35)] flex items-center justify-center">
-              <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center font-black text-lg text-[#00F2FE]">
-                🏫
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#00F2FE] font-bold">Digital Campus · GDTX Định Quán</span>
-              </div>
-            </div>
-          </div>
+          <div className="flex items-center gap-3" />
 
           {/* Right Controls: Bảng Tin Cộng Đồng 📢 | Guest Login/Register OR Campus Live + Bell + Profile */}
           <div className="flex items-center gap-2 sm:gap-3">

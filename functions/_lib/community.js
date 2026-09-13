@@ -7,14 +7,18 @@ export async function coQuyenThanhVien(env, phien) {
   let hocSinhId = phien.hocSinhId;
   let lopId = phien.lopId;
 
-  // Nếu session chưa kịp sync hocSinhId/lopId nhưng có accountId, tra cứu D1 authoritative
-  if ((!hocSinhId || !lopId) && phien.accountId && env.DB) {
+  // Nếu có accountId, tra cứu D1 authoritative
+  if (phien.accountId && env.DB) {
     const acc = await env.DB.prepare(
       'SELECT hoc_sinh_id, lop_id FROM tai_khoan_campus WHERE id = ?1 AND dang_hoat_dong = 1'
     ).bind(phien.accountId).first().catch(() => null);
-    if (acc?.hoc_sinh_id && acc?.lop_id) {
-      hocSinhId = acc.hoc_sinh_id;
-      lopId = acc.lop_id;
+    if (acc) {
+      if (acc.hoc_sinh_id) hocSinhId = acc.hoc_sinh_id;
+      if (acc.lop_id) lopId = acc.lop_id;
+      // Học sinh đã được gán vào lớp này trực tiếp: có quyền thành viên ngay lập tức
+      if (acc.lop_id && (!phien.lopId || acc.lop_id === phien.lopId)) {
+        return true;
+      }
     }
   }
 

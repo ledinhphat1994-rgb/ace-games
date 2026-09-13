@@ -47,3 +47,27 @@
   .tk-table td:nth-child(4) { display: none; } .tk-table td:last-child .nut { width: 100%; }
   .tk-dialog { padding: 20px; } .tk-details > div { font-size: 12px; }
 }
+
+.tk-btn-campus { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #00f2fe; border-color: #00f2fe44; padding: 8px 16px; border-radius: 10px; transition: all .2s; }
+.tk-btn-campus:hover { background: #00f2fe18; border-color: #00f2fe; transform: translateY(-1px); }
+
+.tk-tabs { display: flex; gap: 10px; margin-bottom: 28px; border-bottom: 1px solid #ffffff14; padding-bottom: 14px; }
+.tk-tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; color: #94a3b8; text-decoration: none; background: #121620; border: 1px solid #ffffff14; transition: all .2s; }
+.tk-tab:hover { color: #fff; background: #ffffff0d; border-color: #ffffff2a; }
+.tk-tab.active { color: #071014; background: #00f2fe; border-color: #00f2fe; box-shadow: 0 0 16px rgba(0,242,254,0.3); }
+
+.tk-grid-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; margin-top: 10px; }
+.tk-card-group { background: #121620; border: 1px solid #ffffff14; border-radius: 18px; padding: 24px; display: flex; flex-col; justify-content: space-between; gap: 16px; transition: all .2s; }
+.tk-card-group:hover { border-color: #00f2fe44; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.tk-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tk-card-title { margin: 0; font-size: 18px; color: #fff; font-weight: 800; }
+.tk-badge-members { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; background: #00f2fe14; color: #00f2fe; font-size: 11px; font-weight: 700; border: 1px solid #00f2fe33; }
+.tk-card-desc { font-size: 12px; color: #94a3b8; margin: 8px 0 0; line-height: 1.6; }
+.tk-card-footer { display: flex; items-center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid #ffffff0d; }
+
+.tk-member-list { max-height: 280px; overflow-y: auto; margin: 16px 0; display: flex; flex-direction: column; gap: 8px; }
+.tk-member-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: #0b0e14; border: 1px solid #ffffff0d; border-radius: 10px; }
+.tk-member-info strong { font-size: 12px; color: #fff; display: block; }
+.tk-member-info span { font-size: 11px; color: #94a3b8; }
+.tk-grant-box { margin-top: 20px; padding-top: 16px; border-top: 1px solid #ffffff14; }
+.tk-grant-box h3 { font-size: 13px; color: #00f2fe; margin: 0 0 10px; font-weight: 700; }
