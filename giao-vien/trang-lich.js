@@ -5,6 +5,7 @@ import { $, e, datNoiDung, api, homNay, ngayVN, nhac, khoiDangTai } from '/asset
 import {
   tieuDeTrang, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
+import { canhBaoPhamViKhongApDung, renderThanhDieuHuongLop } from './lib.js';
 
 /* ================= Thời khoá biểu (có phiên bản, sáng + chiều) ================= */
 
@@ -31,6 +32,10 @@ export async function trangThoiKhoaBieu(KHUNG, phienBanXem) {
   let oGhiChuSua = null;     // input ghi chú khi đang "Sửa nhanh"
 
   const khung = e('div');
+  if (!chiXem) {
+    renderThanhDieuHuongLop(khung, '#/thoi-khoa-bieu');
+    canhBaoPhamViKhongApDung(khung);
+  }
 
   if (chiXem) {
     // Đi thẳng bằng hash thay vì history.back() — nút này LUÔN quay về đúng một chỗ cố định

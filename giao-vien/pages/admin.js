@@ -1,10 +1,40 @@
 import { dieuHuong } from '../app.js';
-import { KHUNG, PHAM_VI_LOP_ID, PHIEN, datPhamVi } from '../lib.js';
-import { trangHoSoGiaoVien } from './campus.js';
-import { trangHocSinh } from './hoc-sinh.js';
-import { api, datNoiDung, e, khoiDangTai, khoiLoi, nhac } from '/assets/js/chung.js';
-import { nut, tieuDeTrang } from '/assets/js/giao-dien.js';
+import { KHUNG, PHAM_VI_LOP_ID, PHIEN, apiTheoPhamVi, canhBaoPhamViKhongApDung, datPhamVi } from '../lib.js';
+import { api, datNoiDung, e, khoiDangTai, khoiLoi, nhac, tienVN } from '/assets/js/chung.js';
+import { nut, oThongKe, theDieuHuong, tieuDeTrang } from '/assets/js/giao-dien.js';
 
+
+/** Thẻ chọn 1 lớp cụ thể — icon + tên + trạng thái điểm danh hôm nay, bấm gọi onChon(lopId).
+    Dùng chung cho trangChonLopHoc (School Admin chưa chọn lớp) và khối "Lớp phụ trách" ở Tổng
+    quan (thường trực, mọi tài khoản) — cả 2 nơi cùng liệt kê đúng lớp trong phạm vi tài khoản. */
+export function theLopChon(l, onChon) {
+  const the = e('div', 'the the-qt');
+  the.style.cssText = 'cursor: pointer;';
+  the.style.setProperty('--mau-qt', '#38BDF8');
+
+  const boxChu = e('div');
+  boxChu.append(
+    e('h3', 'the-qt-ten', l.ten || ('Lớp ' + l.lopId)),
+    e('p', 'the-qt-mota', 'Học sinh · Điểm danh · Thủ quỹ · Thời khóa biểu · Mã truy cập')
+  );
+  const dau = e('div', 'the-qt-dau');
+  dau.append(e('span', 'the-qt-icon', '🏫'), boxChu);
+  the.append(dau);
+
+  const so = e('div', 'the-qt-so');
+  if (l.chuaDiemDanhHomNay) so.append(e('b', null, '⚠️ Chưa điểm danh'), e('span', null, ' hôm nay'));
+  else so.append(e('span', null, '✅ Đã điểm danh hôm nay'));
+  the.append(so);
+
+  the.onclick = () => onChon(l.lopId);
+  return the;
+}
+
+function chonLopOTopBar(lopId) {
+  datPhamVi(lopId);
+  const sel = document.getElementById('adminScopeSelect');
+  if (sel && Array.from(sel.options).some((o) => o.value === String(lopId))) sel.value = String(lopId);
+}
 
 // Admin IA v1 — School Admin đang ở "Toàn trường" (chưa chọn lớp cụ thể) thì Lớp học không có
 // dữ liệu tường minh để hiện (Học sinh/Điểm danh/Quỹ... vốn là dữ liệu riêng từng lớp) — bắt chọn
@@ -37,33 +67,7 @@ export async function trangChonLopHoc() {
   if (!dsLop.length) {
     luoi.append(e('div', 'the', 'Chưa có lớp nào trong hệ thống.'));
   }
-  dsLop.forEach((l) => {
-    const the = e('div', 'the the-qt');
-    the.style.cssText = 'cursor: pointer;';
-    the.style.setProperty('--mau-qt', '#38BDF8');
-
-    const boxChu = e('div');
-    boxChu.append(
-      e('h3', 'the-qt-ten', l.ten || ('Lớp ' + l.lopId)),
-      e('p', 'the-qt-mota', 'Học sinh · Điểm danh · Thủ quỹ · Thời khóa biểu · Mã truy cập')
-    );
-    const dau = e('div', 'the-qt-dau');
-    dau.append(e('span', 'the-qt-icon', '🏫'), boxChu);
-    the.append(dau);
-
-    const so = e('div', 'the-qt-so');
-    if (l.chuaDiemDanhHomNay) so.append(e('b', null, '⚠️ Chưa điểm danh'), e('span', null, ' hôm nay'));
-    else so.append(e('span', null, '✅ Đã điểm danh hôm nay'));
-    the.append(so);
-
-    the.onclick = () => {
-      datPhamVi(l.lopId);
-      const sel = document.getElementById('adminScopeSelect');
-      if (sel && Array.from(sel.options).some((o) => o.value === String(l.lopId))) sel.value = String(l.lopId);
-      dieuHuong();
-    };
-    luoi.append(the);
-  });
+  dsLop.forEach((l) => luoi.append(theLopChon(l, (lopId) => { chonLopOTopBar(lopId); dieuHuong(); })));
   khung.append(luoi);
 
   datNoiDung(KHUNG, khung);
@@ -72,84 +76,52 @@ export async function trangChonLopHoc() {
 export async function trangLopThanhVien() {
   if (PHIEN.isSchoolAdmin && !PHAM_VI_LOP_ID) return trangChonLopHoc();
 
+  datNoiDung(KHUNG, khoiDangTai());
+  const [resLop, resQuy, resTkb] = await Promise.allSettled([
+    api(apiTheoPhamVi('/api/gv/lop-can-chu-y')),
+    api('/api/gv/quy'),
+    api('/api/gv/thoi-khoa-bieu'),
+  ]);
+  const dsLop = resLop.status === 'fulfilled' && Array.isArray(resLop.value?.danhSach) ? resLop.value.danhSach : [];
+  const lopHienTai = dsLop[0] || null;
+  const tonQuy = resQuy.status === 'fulfilled' ? resQuy.value?.tonQuy : null;
+  const dsTkb = resTkb.status === 'fulfilled' && Array.isArray(resTkb.value?.o) ? resTkb.value.o : [];
+  // Thứ VN: 2 (thứ Hai) .. 7 (thứ Bảy) — Date.getDay() 0=CN..6=Thứ Bảy, CN không có tiết nên null.
+  const thuHomNay = (() => { const d = new Date().getDay(); return d === 0 ? null : d + 1; })();
+  const soTietHomNay = new Set(dsTkb.filter((x) => x.thu === thuHomNay).map((x) => x.tiet)).size;
+
   const khung = e('div');
   khung.append(tieuDeTrang(
-    '👥 Quản Trị Lớp Học & Thành Viên',
-    'Danh sách học sinh, sổ chuyên cần điểm danh, thủ quỹ lớp, thời khóa biểu và mã truy cập cộng đồng.'
+    '👥 ' + (lopHienTai?.ten || 'Lớp học'),
+    'Học sinh, điểm danh, thủ quỹ, thời khóa biểu và mã truy cập của lớp.'
   ));
 
-  const subtabs = e('div');
-  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
-  const taoNut = (nhan, href, laChinh = false) => {
-    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
-    a.href = href;
-    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
-    return a;
-  };
-  subtabs.append(
-    taoNut('👥 Học sinh', '#/hoc-sinh', true),
-    taoNut('📋 Điểm danh', '#/diem-danh'),
-    taoNut('💰 Thủ quỹ lớp', '#/quy'),
-    taoNut('📅 Thời khóa biểu', '#/thoi-khoa-bieu'),
-    taoNut('🔑 Mã cộng đồng', '#/ma-cong-dong'),
-    taoNut('🔐 Cán sự lớp', '#/ma-ca-nhan')
+  // Quỹ/TKB dưới đây tính theo lớp chủ nhiệm của PHIÊN đăng nhập (xem canhBaoPhamViKhongApDung ở
+  // lib.js) — School Admin/GVCN kiêm nhiệm đang xem CHÉO sang lớp khác cần biết trước khi tin số.
+  canhBaoPhamViKhongApDung(khung);
+
+  const day = e('div', 'day-so');
+  day.append(
+    oThongKe(lopHienTai ? (lopHienTai.chuaDiemDanhHomNay ? 'Chưa' : 'Đã') : '—', 'Điểm danh hôm nay', lopHienTai?.chuaDiemDanhHomNay ? 'xau' : 'tot'),
+    oThongKe(tonQuy != null ? tienVN(tonQuy) : '—', 'Tồn quỹ', 'thu'),
+    oThongKe(String(soTietHomNay), 'Tiết học hôm nay', 'khoan')
   );
-  khung.append(subtabs);
+  khung.append(day);
+
+  const luoi = e('div', 'luoi-qt');
+  luoi.style.marginTop = '18px';
+  luoi.append(
+    theDieuHuong('👥', 'Học sinh', 'Danh sách, hồ sơ, liên hệ phụ huynh.', '#/hoc-sinh', '#38BDF8'),
+    theDieuHuong('📋', 'Điểm danh', 'Điểm danh hằng ngày, lịch sử & khôi phục.', '#/diem-danh', '#34D399'),
+    theDieuHuong('📈', 'Thống kê chuyên cần', 'Biểu đồ theo tuần, cảnh báo em có nguy cơ.', '#/thong-ke', '#34D399'),
+    theDieuHuong('💰', 'Thủ quỹ lớp', 'Khoản thu, khoản chi, tồn quỹ.', '#/quy', '#F59E0B'),
+    theDieuHuong('📅', 'Thời khóa biểu', 'Xếp lịch học theo buổi, theo thứ.', '#/thoi-khoa-bieu', '#8B5CF6'),
+    theDieuHuong('🔑', 'Mã cộng đồng', 'Cấp mã mời học sinh vào bảng tin cộng đồng.', '#/ma-cong-dong', '#00F2FE'),
+    theDieuHuong('🔐', 'Cán sự lớp', 'Cấp mã & phân quyền quản lý cho cán sự.', '#/ma-ca-nhan', '#F43F5E')
+  );
+  khung.append(luoi);
 
   datNoiDung(KHUNG, khung);
-  await trangHocSinh();
-}
-
-export async function trangKiemDuyet() {
-  const khung = e('div');
-  khung.append(tieuDeTrang(
-    '🛡️ Trung Tâm Kiểm Duyệt & An Toàn',
-    'Xử lý báo cáo vi phạm nội dung Campus / Tin nhắn riêng và phê duyệt tài khoản giáo viên đăng ký.'
-  ));
-
-  const subtabs = e('div');
-  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
-  const taoNut = (nhan, href, laChinh = false) => {
-    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
-    a.href = href;
-    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
-    return a;
-  };
-  subtabs.append(
-    taoNut('🚩 Báo cáo vi phạm', '#/bao-cao-vi-pham', true),
-    taoNut('🛡️ Duyệt giáo viên', '#/duyet-giao-vien')
-  );
-  khung.append(subtabs);
-
-  datNoiDung(KHUNG, khung);
-  await trangBaoCaoViPham('all');
-}
-
-export async function trangHeThong() {
-  const khung = e('div');
-  khung.append(tieuDeTrang(
-    '⚙️ Quản Trị Hệ Thống',
-    'Cập nhật hồ sơ cá nhân giáo viên, xuất file báo cáo tổng hợp, kiểm tra nhật ký đăng nhập và reset dữ liệu.'
-  ));
-
-  const subtabs = e('div');
-  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
-  const taoNut = (nhan, href, laChinh = false) => {
-    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
-    a.href = href;
-    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
-    return a;
-  };
-  subtabs.append(
-    taoNut('👤 Hồ sơ giáo viên', '#/ho-so-gv', true),
-    taoNut('📑 Báo cáo & Xuất file', '#/bao-cao'),
-    taoNut('📋 Nhật ký đăng nhập', '#/nhat-ky-dang-nhap'),
-    taoNut('⚠️ Reset dữ liệu', '#/reset-du-lieu')
-  );
-  khung.append(subtabs);
-
-  datNoiDung(KHUNG, khung);
-  await trangHoSoGiaoVien();
 }
 
 

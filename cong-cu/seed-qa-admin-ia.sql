@@ -14,6 +14,18 @@ DELETE FROM tai_khoan_campus WHERE id = 99825;
 INSERT INTO tai_khoan_campus (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, dang_hoat_dong, lop_id, la_admin_truong, tieu_de_ho_so)
 VALUES (99825, 'gv_cho_duyet_qa', 'Thầy Chờ Duyệt QA', 'hash123', 'salt123', 100000, 'student', 1, 1, null, 0, 'Đang chờ duyệt quyền Giáo viên');
 
+-- Hồ sơ chờ duyệt THỨ 2 (Khu Quản Trị v2) — riêng cho test duyệt/từ chối qua UI drawer "Người
+-- dùng" (99825 ở trên đã bị TIÊU THỤ bởi test API duyệt ở nhóm AUDIT LOG phía trên rồi).
+DELETE FROM tai_khoan_campus WHERE id = 99826;
+INSERT INTO tai_khoan_campus (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, dang_hoat_dong, lop_id, la_admin_truong, tieu_de_ho_so)
+VALUES (99826, 'gv_cho_duyet_qa2', 'Cô Chờ Duyệt QA2', 'hash123', 'salt123', 100000, 'student', 1, 1, null, 0, 'Đang chờ duyệt quyền Giáo viên');
+
+-- Hồ sơ chờ duyệt THỨ 3 — riêng cho test bug #2 (GVCN THƯỜNG, không phải School Admin, phải THẤY
+-- và DUYỆT được hồ sơ này qua API dù lop_id NULL không khớp phạm vi lớp thông thường của họ).
+DELETE FROM tai_khoan_campus WHERE id = 99827;
+INSERT INTO tai_khoan_campus (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, dang_hoat_dong, lop_id, la_admin_truong, tieu_de_ho_so)
+VALUES (99827, 'gv_cho_duyet_qa3', 'Thầy Chờ Duyệt QA3', 'hash123', 'salt123', 100000, 'student', 1, 1, null, 0, 'Đang chờ duyệt quyền Giáo viên');
+
 -- Học sinh cố định (id dành riêng 99901/99902, không đụng sổ lớp thật) để test
 -- /api/gv/rieng/hoc-sinh đọc/ghi đúng theo lopId truyền vào (Phase 3 — Lớp học).
 DELETE FROM diem_danh WHERE hoc_sinh_id IN (99901, 99902);

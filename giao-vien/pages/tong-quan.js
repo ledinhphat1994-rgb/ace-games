@@ -1,6 +1,7 @@
-import { KHUNG, PHAM_VI_LOP_ID, PHIEN, apiTheoPhamVi, gioNgayVN } from '../lib.js';
+import { KHUNG, PHAM_VI_LOP_ID, PHIEN, apiTheoPhamVi, datPhamVi, gioNgayVN } from '../lib.js';
+import { theLopChon } from './admin.js';
 import { api, datNoiDung, e, khoiDangTai, khoiLoi } from '/assets/js/chung.js';
-import { nut, tieuDeTrang, truong } from '/assets/js/giao-dien.js';
+import { tieuDeTrang } from '/assets/js/giao-dien.js';
 
 
 export function taoOThongKe(tieuDe, so, moTa, mauSo = '#00F2FE') {
@@ -71,7 +72,13 @@ export async function trangTongQuan() {
     const dsViec = [];
     if (pendingReports.length > 0) dsViec.push(dongViec('#F43F5E', '🔴', `${pendingReports.length} báo cáo vi phạm đang chờ xử lý`, '#/bao-cao-vi-pham'));
     if (pendingTeachers.length > 0) dsViec.push(dongViec('#F59E0B', '🟠', `${pendingTeachers.length} hồ sơ giáo viên đang chờ duyệt`, '#/duyet-giao-vien'));
-    dsLopChuaDiemDanh.forEach((l) => dsViec.push(dongViec('#FBBF24', '🟡', `${l.ten} chưa điểm danh hôm nay`, '#/diem-danh')));
+    dsLopChuaDiemDanh.forEach((l) => {
+      const a = dongViec('#FBBF24', '🟡', `${l.ten} chưa điểm danh hôm nay`, '#/diem-danh');
+      // Tài khoản kiêm nhiều lớp bấm vào đây phải chuyển đúng phạm vi sang lớp NÀY trước — nếu
+      // không, #/diem-danh vẫn thao tác trên lớp mặc định của phiên đăng nhập, có thể là lớp khác.
+      a.addEventListener('click', () => datPhamVi(l.lopId));
+      dsViec.push(a);
+    });
 
     const khoiViec = e('div', 'the');
     khoiViec.style.cssText = 'margin-top: 18px; padding: 18px;';
@@ -89,6 +96,24 @@ export async function trangTongQuan() {
       khoiViec.append(dsViecBoc);
     }
     khung.append(khoiViec);
+
+    // ---------- Lớp phụ trách (lối vào chính cho nghiệp vụ lớp: Học sinh/Điểm danh/Quỹ/TKB) ----------
+    if (dsLop.length) {
+      const khoiLop = e('div', 'the');
+      khoiLop.style.cssText = 'margin-top: 14px; padding: 18px;';
+      khoiLop.append(Object.assign(e('h3', null, '👥 Lớp phụ trách'), {
+        style: 'font-size: 13px; font-weight: 800; color: var(--chu); margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.04em;',
+      }));
+      const luoiLop = e('div', 'luoi-qt');
+      dsLop.forEach((l) => luoiLop.append(theLopChon(l, (lopId) => {
+        datPhamVi(lopId);
+        const sel = document.getElementById('adminScopeSelect');
+        if (sel && Array.from(sel.options).some((o) => o.value === String(lopId))) sel.value = String(lopId);
+        location.hash = '#/lop-quan-tri';
+      })));
+      khoiLop.append(luoiLop);
+      khung.append(khoiLop);
+    }
 
     // ---------- Tình trạng hôm nay (1 dòng gọn) ----------
     const dongSo = (...capSo) => {

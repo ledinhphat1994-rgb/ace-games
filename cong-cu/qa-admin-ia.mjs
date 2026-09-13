@@ -58,6 +58,9 @@ async function run() {
   // KHÔNG accountId, KHÔNG username — đúng y hệt phiên đăng nhập TRUYỀN THỐNG bằng mã giáo viên
   // riêng từng lớp (ma_dang_nhap / TEACHER_CODE) mà giáo viên chủ nhiệm thật đang dùng hằng ngày.
   const cookieTruyenThong = await taoSessionCookie({ role: 'teacher', lopId: 1, ten: 'Giáo Viên Đăng Nhập Truyền Thống' });
+  // Tài khoản cán sự (role 'phu') quyền hẹp — chỉ 'thong-bao' + 'quy' — để test Khu Quản Trị v2
+  // không phá vỡ trải nghiệm cán sự: hamburger/tab-duoi lọc đúng quyền, KHÔNG vào được /cai-dat.
+  const cookiePhu = await taoSessionCookie({ role: 'phu', lopId: 1, ten: 'QA Cán Sự Quyền Hẹp', vaiTro: 'Lớp phó', quyen: ['thong-bao', 'quy'] });
 
   // ---------- GROUP: PHIÊN ĐĂNG NHẬP TRUYỀN THỐNG (không có accountId) ----------
   // Bug nghiêm trọng đã phát hiện & sửa: layPhamViQuanTri() trước đây CHỈ nhận diện được tài khoản
@@ -167,6 +170,27 @@ async function run() {
 
   const rMoKhoa = await api('/api/gv/nguoi-dung', { method: 'POST', cookie: cookieAdmin, body: { id: 'tk:99823', hanhDong: 'mo_khoa' } });
   ok('Mở khoá lại tài khoản 99823 thành công (dọn trạng thái test)', rMoKhoa.status === 200 && rMoKhoa.data.ok === true, 'users');
+
+  // ---------- Khu Quản Trị v2 — bug #1/#2 đã sửa: GVCN THƯỜNG (không phải School Admin) phải
+  // THẤY và DUYỆT được hồ sơ chờ (lop_id NULL không khớp phạm vi lớp thông thường của họ), và hồ
+  // sơ đó phải hiện đúng loai='giao-vien' + trangThai='cho-xac-minh' (trước đây không bao giờ
+  // đúng vì điều kiện vaiTro==='teacher' && teacherPending===1 không thể cùng đúng). ----------
+  const rGv1ThayChoXacMinh = await api('/api/gv/nguoi-dung?loai=giao-vien', { cookie: cookieGvMotLop });
+  const hoSo99827 = (rGv1ThayChoXacMinh.data.danhSach || []).find((n) => n.id === 'tk:99827');
+  ok('Bug #2: GVCN thường (99823, không phải School Admin) THẤY được hồ sơ chờ duyệt 99827 dù lop_id NULL',
+    rGv1ThayChoXacMinh.status === 200 && Boolean(hoSo99827), 'users', JSON.stringify(rGv1ThayChoXacMinh.data.danhSach?.map((n) => n.id)));
+  ok('Bug #1: hồ sơ chờ duyệt hiện đúng trangThai="cho-xac-minh" (trước đây không bao giờ đạt được)',
+    hoSo99827?.trangThai === 'cho-xac-minh', 'users', JSON.stringify(hoSo99827));
+
+  const rChiTiet99827 = await api('/api/gv/nguoi-dung?id=tk:99827', { cookie: cookieGvMotLop });
+  ok('GVCN thường xem được chi tiết hồ sơ chờ duyệt 99827 (không bị 404 dù ngoài phạm vi lớp thường)',
+    rChiTiet99827.status === 200 && rChiTiet99827.data.chiTiet?.trangThai === 'cho-xac-minh', 'users', JSON.stringify(rChiTiet99827.data));
+
+  const rGv1DuyetXongDuoc = await api('/api/gv/duyet-giao-vien', {
+    method: 'POST', cookie: cookieGvMotLop, body: { accountId: 99827, action: 'approve' },
+  });
+  ok('GVCN thường (không phải School Admin) duyệt được hồ sơ 99827 (đúng thiết kế: mọi GV xác thực đều duyệt được)',
+    rGv1DuyetXongDuoc.status === 200 && rGv1DuyetXongDuoc.data.ok === true, 'users', JSON.stringify(rGv1DuyetXongDuoc.data));
 
   // ---------- GROUP: LỚP HỌC (/api/gv/rieng/hoc-sinh scope-aware — Phase 3) ----------
   console.log('\n--- 4. LỚP HỌC (hoc-sinh đọc/ghi đúng theo lopId đang chọn) ---');
@@ -372,11 +396,22 @@ async function run() {
 
     await theChonLop.first().click();
     await pageLop.waitForTimeout(700);
-    ok('Chọn 1 lớp xong thì vào thẳng trang Học sinh (ẩn lưới chọn lớp, hiện subtab)',
-      (await pageLop.locator('.luoi-qt .the-qt').count()) === 0 && (await pageLop.locator('a:has-text("Học sinh")').count()) > 0, 'lop');
+    // Khu Quản Trị v2: chọn 1 lớp không còn vào thẳng Học sinh — vào HUB "Lớp học" (số liệu nhanh
+    // + lưới thẻ điều hướng con), tự nó cũng là .luoi-qt .the-qt nên KHÔNG còn dùng số thẻ để phân
+    // biệt "đã chọn lớp hay chưa" được nữa — kiểm tra bằng tiêu đề trang + số liệu nhanh render.
+    const dsSoLieuNhanh = pageLop.locator('.day-so .o-thong-ke');
+    ok('Chọn 1 lớp xong vào HUB "Lớp học" — hiện đủ 3 số liệu nhanh (Điểm danh/Tồn quỹ/Tiết học)',
+      (await dsSoLieuNhanh.count()) === 3, 'lop');
+    const theHocSinhHub = pageLop.locator('.luoi-qt a.the-qt:has-text("Học sinh")');
+    ok('HUB "Lớp học" có đủ thẻ dẫn vào Học sinh', (await theHocSinhHub.count()) > 0, 'lop');
 
     const giaTriScope = await pageLop.locator('#adminScopeSelect').inputValue().catch(() => '');
     ok(`Chọn lớp trong "Lớp học" đồng bộ ngược lại ô "Phạm vi" ở top bar (đang là "${giaTriScope}")`, giaTriScope !== 'all' && giaTriScope !== '', 'lop');
+
+    await theHocSinhHub.first().click();
+    await pageLop.waitForTimeout(700);
+    ok('Bấm thẻ "Học sinh" trong HUB vào đúng trang danh sách học sinh (dải pill điều hướng con hiện ra)',
+      (await pageLop.locator('a.nut[href="#/hoc-sinh"]').count()) > 0, 'lop');
 
     await ctxLop.close();
 
@@ -414,10 +449,14 @@ async function run() {
     await pageNoiDung.goto(`${BASE}/giao-vien/#/thong-bao`, { waitUntil: 'domcontentloaded' });
     await pageNoiDung.waitForTimeout(1200);
 
-    // Sidebar chính đã gọn còn Tổng quan/Người dùng/Campus (d76ee30) — mục "Nội dung"
-    // giờ nằm trong menu hamburger (.menu-muc ẩn → đọc textContent, không innerText).
-    ok('Mục menu đổi tên thành "Nội dung" (không còn "Bảng Tin")',
-      ((await pageNoiDung.locator('a.menu-muc[href="#/bang-tin-quan-tri"]').textContent()) || '').includes('Nội dung'), 'noidung');
+    // Khu Quản Trị v2: domain "Nội dung" không còn mục hamburger RIÊNG nữa — gộp hẳn vào Campus,
+    // là subtab thứ 3 của trang Campus (#/campus-quan-tri → #/bang-tin-quan-tri).
+    const pageCampusSub = await ctxNoiDung.newPage();
+    await pageCampusSub.goto(`${BASE}/giao-vien/#/campus-quan-tri`, { waitUntil: 'domcontentloaded' });
+    await pageCampusSub.waitForTimeout(1000);
+    ok('Trang Campus có subtab thứ 3 dẫn vào "Nội dung & Bảng tin" (#/bang-tin-quan-tri)',
+      (await pageCampusSub.locator('a[href="#/bang-tin-quan-tri"]').count()) > 0, 'noidung');
+    await pageCampusSub.close();
 
     const tabNhap = pageNoiDung.locator('button:has-text("📝 Nháp")');
     ok('Trang Thông báo hiện đủ 3 tab Nháp/Đã xuất bản/Đã lưu trữ',
@@ -430,6 +469,95 @@ async function run() {
       (await pageNoiDung.locator('.trong, .ds-nhat-ky').count()) > 0, 'noidung');
 
     await ctxNoiDung.close();
+
+    // ---------- Khu Quản Trị v2: hamburger rút còn 6 mục, Cài đặt hub, route đã gỡ fallback ----------
+    const ctxV2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctxV2.addCookies([
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pageV2 = await ctxV2.newPage();
+    await pageV2.goto(`${BASE}/giao-vien/#/tong-quan`, { waitUntil: 'domcontentloaded' });
+    await pageV2.waitForTimeout(1200);
+
+    const soMucHamburger = await pageV2.locator('#menuDayDu a.menu-muc').count();
+    ok(`Hamburger rút gọn còn đúng 6 mục (đang có ${soMucHamburger})`, soMucHamburger === 6, 'browser');
+    ok('Hamburger có mục "Cài đặt" mới (#/cai-dat)', (await pageV2.locator('#menuDayDu a[href="#/cai-dat"]').count()) > 0, 'browser');
+    ok('Hamburger KHÔNG còn mục "Kiểm duyệt"/"Hệ thống" đã gỡ',
+      (await pageV2.locator('#menuDayDu a[href="#/kiem-duyet-quan-tri"], #menuDayDu a[href="#/he-thong-quan-tri"]').count()) === 0, 'browser');
+
+    const theLopPhuTrach = pageV2.locator('.the-qt-ten');
+    ok('Tổng quan có khối "Lớp phụ trách" thường trực (thẻ .the-qt-ten render được)', (await theLopPhuTrach.count()) > 0, 'browser');
+
+    await pageV2.goto(`${BASE}/giao-vien/#/cai-dat`, { waitUntil: 'domcontentloaded' });
+    await pageV2.waitForTimeout(1000);
+    ok('Trang "Cài đặt" render đủ 3 thẻ (Hồ sơ GV/Báo cáo/Nhật ký đăng nhập)',
+      (await pageV2.locator('.luoi-qt a.the-qt').count()) === 3, 'browser');
+    ok('Trang "Cài đặt" có khu vực nguy hiểm dẫn tới Reset dữ liệu', (await pageV2.locator('a[href="#/reset-du-lieu"]').count()) > 0, 'browser');
+
+    await pageV2.goto(`${BASE}/giao-vien/#/kiem-duyet-quan-tri`, { waitUntil: 'domcontentloaded' });
+    await pageV2.waitForTimeout(1000);
+    ok('Route đã gỡ (#/kiem-duyet-quan-tri) không crash — rơi về Tổng quan cho giáo viên',
+      (await pageV2.locator('.the-qt-ten').count()) > 0, 'browser');
+
+    // Nút liên kết "🚩 Báo cáo vi phạm" ở trang Người dùng (thay cho mục hamburger "Kiểm duyệt" đã gỡ)
+    await pageV2.goto(`${BASE}/giao-vien/#/nguoi-dung`, { waitUntil: 'domcontentloaded' });
+    await pageV2.waitForTimeout(1000);
+    ok('Trang "Người dùng" có nút liên kết "🚩 Báo cáo vi phạm"', (await pageV2.locator('a[href="#/bao-cao-vi-pham"]').count()) > 0, 'browser');
+    await ctxV2.close();
+
+    // ---------- Duyệt/từ chối giáo viên NGAY trong drawer "Người dùng" (School Admin, hồ sơ 99826) ----------
+    const ctxDuyet = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await ctxDuyet.addCookies([
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pageDuyet = await ctxDuyet.newPage();
+    await pageDuyet.goto(`${BASE}/giao-vien/#/nguoi-dung`, { waitUntil: 'domcontentloaded' });
+    await pageDuyet.waitForTimeout(1200);
+    await pageDuyet.locator('button:has-text("Chờ xác minh")').first().click();
+    await pageDuyet.waitForTimeout(600);
+    await pageDuyet.locator('.bang-qt tbody tr', { hasText: 'Cô Chờ Duyệt QA2' }).first().click();
+    await pageDuyet.waitForTimeout(500);
+    const nutDuyetDrawer = pageDuyet.locator('.drawer-qt button:has-text("Phê duyệt giáo viên")');
+    ok('Drawer chi tiết hồ sơ chờ duyệt có nút "Phê duyệt giáo viên" ngay trong đó (không cần trang riêng)',
+      (await nutDuyetDrawer.count()) > 0, 'users');
+    pageDuyet.once('dialog', (d) => d.accept());
+    await nutDuyetDrawer.click();
+    await pageDuyet.waitForTimeout(800);
+    const rXacNhan99826 = await api('/api/gv/nguoi-dung?id=tk:99826', { cookie: cookieAdmin });
+    ok('Sau khi bấm "Phê duyệt giáo viên" trong drawer, tài khoản 99826 thật sự đổi thành giáo viên đã xác thực',
+      rXacNhan99826.data.chiTiet?.trangThai === 'binh-thuong', 'users', JSON.stringify(rXacNhan99826.data));
+    await ctxDuyet.close();
+
+    // ---------- Tài khoản cán sự quyền hẹp — Khu Quản Trị v2 không được phá vỡ trải nghiệm này ----------
+    const ctxPhu = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctxPhu.addCookies([
+      { name: COOKIE_NAME, value: cookiePhu.split('=')[1], domain: '127.0.0.1', path: '/' },
+      { name: COOKIE_NAME, value: cookiePhu.split('=')[1], domain: 'localhost', path: '/' },
+    ]);
+    const pagePhu = await ctxPhu.newPage();
+    await pagePhu.goto(`${BASE}/giao-vien/`, { waitUntil: 'domcontentloaded' });
+    await pagePhu.waitForTimeout(1200);
+    ok('Cán sự (chưa chỉ định #hash) mặc định vào "Khu quản lý" (/them), không phải Tổng quan',
+      (await pagePhu.locator('h1:has-text("Khu quản lý")').count()) > 0, 'browser');
+
+    const soTabDuoiPhu = await pagePhu.locator('#tabDuoi a').count();
+    ok(`Tab dưới của cán sự KHÔNG trống (đang có ${soTabDuoiPhu} tab: lối tắt Thông báo/Thủ quỹ + Khu quản lý)`, soTabDuoiPhu >= 2, 'browser');
+    ok('Tab dưới của cán sự có lối tắt "Thủ quỹ" (quyền "quy" được cấp)', (await pagePhu.locator('#tabDuoi a[href="#/quy"]').count()) > 0, 'browser');
+    ok('Tab dưới của cán sự có mục cuối đổi tên thành "Khu quản lý" (không phải "Thêm")',
+      (await pagePhu.locator('#tabDuoi a[href="#/them"]:has-text("Khu quản lý")').count()) > 0, 'browser');
+
+    await pagePhu.goto(`${BASE}/giao-vien/#/cai-dat`, { waitUntil: 'domcontentloaded' });
+    await pagePhu.waitForTimeout(800);
+    ok('Cán sự KHÔNG vào được "/cai-dat" (route giáo-viên-only, hiện thông báo không có quyền)',
+      (await pagePhu.locator('.luoi-qt a.the-qt').count()) === 0, 'browser');
+
+    await pagePhu.goto(`${BASE}/giao-vien/#/quy`, { waitUntil: 'domcontentloaded' });
+    await pagePhu.waitForTimeout(800);
+    ok('Cán sự được cấp quyền "quy" vào được trang Thủ quỹ bình thường',
+      (await pagePhu.locator('h1:has-text("Thủ quỹ")').count()) > 0, 'browser');
+    await ctxPhu.close();
 
     // Thanh tab dưới di động — đã gọn còn 3 mục chính (Tổng quan/Người dùng/Campus,
     // commit d76ee30); các mục còn lại truy cập qua menu hamburger. Kiểm tra không vỡ layout.

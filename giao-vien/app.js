@@ -21,8 +21,9 @@ import { trangThoiKhoaBieu, trangThoiKhoaBieuLichSu } from './trang-lich.js';
 import { trangDiemDanhLichSu } from './trang-diem-danh-lich-su.js';
 import { trangResetDuLieu } from './trang-reset-du-lieu.js';
 import { KHUNG, PHAM_VI_LOP_ID, PHIEN, danhDauMenu, datPhamVi, datPhien, duocVaoTuyen, locMenuTheoQuyen } from './lib.js';
-import { trangBaoCaoViPham, trangBienTapVien, trangDuyetGiaoVien, trangHeThong, trangKiemDuyet, trangLopThanhVien, trangMaCongDong } from './pages/admin.js';
+import { trangBaoCaoViPham, trangBienTapVien, trangDuyetGiaoVien, trangLopThanhVien, trangMaCongDong } from './pages/admin.js';
 import { trangBangTin, trangCampus, trangCampusHighlights, trangHoSoGiaoVien, trangPhongCampus } from './pages/campus.js';
+import { trangCaiDat } from './pages/cai-dat.js';
 import { trangDiemDanh } from './pages/diem-danh.js';
 import { trangHoSo, trangHocSinh } from './pages/hoc-sinh.js';
 import { trangNguoiDung } from './pages/nguoi-dung.js';
@@ -40,8 +41,7 @@ const TRANG = {
   '/campus-quan-tri': trangCampus,
   '/bang-tin-quan-tri': trangBangTin,
   '/lop-quan-tri': trangLopThanhVien,
-  '/kiem-duyet-quan-tri': trangKiemDuyet,
-  '/he-thong-quan-tri': trangHeThong,
+  '/cai-dat': trangCaiDat,
   '/diem-danh': trangDiemDanh,
   '/diem-danh-lich-su': () => trangDiemDanhLichSu(KHUNG),
   '/hoc-sinh': trangHocSinh,

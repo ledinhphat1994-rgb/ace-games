@@ -41,6 +41,21 @@ export function oThongKe(conSo, ten, kieu = '', bieuTuong = '') {
   return o;
 }
 
+/** Thẻ điều hướng lớn dùng cho các trang "hub" của Khu quản trị (Lớp học, Nội dung, Cài đặt...) —
+    icon glow màu + tên + mô tả ngắn, cả thẻ là 1 link. Dùng chung .the/.the-qt đã có sẵn (xem
+    quan-ly.css) để mọi hub trong khu quản trị cùng một ngôn ngữ hình ảnh. */
+export function theDieuHuong(icon, ten, moTa, href, mau) {
+  const the = e('a', 'the the-qt');
+  the.href = href;
+  the.style.setProperty('--mau-qt', mau);
+  const boxChu = e('div');
+  boxChu.append(e('h3', 'the-qt-ten', ten), e('p', 'the-qt-mota', moTa));
+  const dau = e('div', 'the-qt-dau');
+  dau.append(e('span', 'the-qt-icon', icon), boxChu);
+  the.append(dau);
+  return the;
+}
+
 // nhan (không bắt buộc): tên cho trình đọc màn hình — bắt buộc dùng khi "chu" chỉ là
 // icon (✎ 🗑 ✓ ✕...), vì khi đó văn bản hiển thị không mô tả được hành động.
 export function nut(chu, kieu, khiBam, nhan) {

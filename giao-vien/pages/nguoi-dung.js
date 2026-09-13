@@ -1,4 +1,4 @@
-import { KHUNG, apiTheoPhamVi, gioNgayVN } from '../lib.js';
+import { KHUNG, apiTheoPhamVi, datPhamVi, gioNgayVN } from '../lib.js';
 import { $$, api, datNoiDung, e, khoiDangTai, khoiLoi, nhac } from '/assets/js/chung.js';
 import { nut, oNhap, tieuDeTrang } from '/assets/js/giao-dien.js';
 
@@ -118,7 +118,35 @@ export async function moChiTietNguoiDung(id, veLai) {
   Object.entries(nd.thongTin || {}).forEach(([k, v]) => nhomChinh.append(dongDrawerDong(k, v)));
   than.append(nhomChinh);
 
-  if (nd.id.startsWith('tk:') && nd.loai !== 'giao-vien' && !nd.taiKhoan?.laAdminTruong) {
+  if (nd.trangThai === 'cho-xac-minh') {
+    const idSo = parseInt(String(nd.id).split(':')[1], 10);
+    const dongNut = e('div');
+    dongNut.style.cssText = 'display: flex; gap: 8px;';
+    const nutDuyet = e('button', 'nut nut-chinh nut-nho', '✓ Phê duyệt giáo viên');
+    nutDuyet.type = 'button';
+    nutDuyet.style.cssText = 'flex: 1;';
+    nutDuyet.onclick = async () => {
+      if (!confirm(`Phê duyệt quyền giáo viên cho "${nd.ten}"?`)) return;
+      try {
+        const res = await api('/api/gv/duyet-giao-vien', { method: 'POST', than: { accountId: idSo, action: 'approve' } });
+        if (res.ok) { nhac('Đã phê duyệt.', 'tot'); dongDrawerChiTiet(); veLai(); }
+        else nhac('Lỗi: ' + (res.loi || res.error), 'xau');
+      } catch (err) { nhac('Lỗi: ' + err.message, 'xau'); }
+    };
+    const nutTuChoi = e('button', 'nut nut-vien nut-nho', '✕ Từ chối');
+    nutTuChoi.type = 'button';
+    nutTuChoi.style.cssText = 'flex: 1;';
+    nutTuChoi.onclick = async () => {
+      if (!confirm(`Từ chối yêu cầu quyền giáo viên của "${nd.ten}"?`)) return;
+      try {
+        const res = await api('/api/gv/duyet-giao-vien', { method: 'POST', than: { accountId: idSo, action: 'reject' } });
+        if (res.ok) { nhac('Đã từ chối.', 'tot'); dongDrawerChiTiet(); veLai(); }
+        else nhac('Lỗi: ' + (res.loi || res.error), 'xau');
+      } catch (err) { nhac('Lỗi: ' + err.message, 'xau'); }
+    };
+    dongNut.append(nutDuyet, nutTuChoi);
+    than.append(dongNut);
+  } else if (nd.id.startsWith('tk:') && nd.loai !== 'giao-vien' && !nd.taiKhoan?.laAdminTruong) {
     const dangKhoa = nd.trangThai === 'bi-khoa';
     const nutKhoa = e('button', dangKhoa ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', dangKhoa ? '🔓 Mở khoá tài khoản' : '🔒 Khoá tài khoản');
     nutKhoa.type = 'button';
@@ -151,6 +179,7 @@ export async function trangNguoiDung() {
   let loaiLoc = 'tat-ca';
   let tuKhoa = '';
   let henTimKiem = null;
+  let soBaoCaoCho = 0;
 
   const BO_LOC = [
     { id: 'tat-ca', nhan: 'Tất cả' },
@@ -164,6 +193,11 @@ export async function trangNguoiDung() {
   function ve(danhSach) {
     const khung = e('div');
     khung.append(tieuDeTrang('👤 Người Dùng', 'Học sinh, giáo viên và tài khoản Campus trong phạm vi quản trị.'));
+
+    const nutBaoCao = e('a', 'nut nut-vien nut-nho', soBaoCaoCho > 0 ? `🚩 Báo cáo vi phạm (${soBaoCaoCho} đang chờ)` : '🚩 Báo cáo vi phạm');
+    nutBaoCao.href = '#/bao-cao-vi-pham';
+    nutBaoCao.style.cssText = 'display: inline-flex; border-radius: 12px; font-weight: 700; margin-bottom: 14px;' + (soBaoCaoCho > 0 ? ' border-color: #F43F5E; color: #F43F5E;' : '');
+    khung.append(nutBaoCao);
 
     const thanhLoc = e('div');
     thanhLoc.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;';
@@ -214,7 +248,32 @@ export async function trangNguoiDung() {
 
       const tdHd = e('td');
       const dsHanhDong = [{ nhan: 'Xem chi tiết', onClick: () => moChiTietNguoiDung(nd.id, taiVaVe) }];
-      if (nd.id.startsWith('tk:') && nd.loai !== 'giao-vien') {
+      if ((nd.loai === 'hoc-sinh' || nd.loai === 'hoc-sinh-chua-lien-ket') && nd.lopId) {
+        dsHanhDong.push({ nhan: 'Vào quản lý lớp', onClick: () => { datPhamVi(nd.lopId); location.hash = '#/lop-quan-tri'; } });
+      }
+      if (nd.trangThai === 'cho-xac-minh') {
+        const idSo = parseInt(String(nd.id).split(':')[1], 10);
+        dsHanhDong.push({
+          nhan: 'Phê duyệt giáo viên', onClick: async () => {
+            if (!confirm(`Phê duyệt quyền giáo viên cho "${nd.ten}"?`)) return;
+            try {
+              const res = await api('/api/gv/duyet-giao-vien', { method: 'POST', than: { accountId: idSo, action: 'approve' } });
+              if (res.ok) { nhac('Đã phê duyệt.', 'tot'); taiVaVe(); }
+              else nhac('Lỗi: ' + (res.loi || res.error), 'xau');
+            } catch (err) { nhac('Lỗi: ' + err.message, 'xau'); }
+          },
+        });
+        dsHanhDong.push({
+          nhan: 'Từ chối giáo viên', nguyHiem: true, onClick: async () => {
+            if (!confirm(`Từ chối yêu cầu quyền giáo viên của "${nd.ten}"?`)) return;
+            try {
+              const res = await api('/api/gv/duyet-giao-vien', { method: 'POST', than: { accountId: idSo, action: 'reject' } });
+              if (res.ok) { nhac('Đã từ chối.', 'tot'); taiVaVe(); }
+              else nhac('Lỗi: ' + (res.loi || res.error), 'xau');
+            } catch (err) { nhac('Lỗi: ' + err.message, 'xau'); }
+          },
+        });
+      } else if (nd.id.startsWith('tk:') && nd.loai !== 'giao-vien') {
         dsHanhDong.push(nd.trangThai === 'bi-khoa'
           ? { nhan: 'Mở khoá tài khoản', onClick: () => thucHienKhoaMoTaiKhoan(nd.id, nd.ten, 'mo_khoa', taiVaVe) }
           : { nhan: 'Khoá tài khoản', onClick: () => thucHienKhoaMoTaiKhoan(nd.id, nd.ten, 'khoa', taiVaVe), nguyHiem: true });
@@ -237,7 +296,11 @@ export async function trangNguoiDung() {
       const qs = new URLSearchParams();
       if (loaiLoc !== 'tat-ca') qs.set('loai', loaiLoc);
       if (tuKhoa.trim()) qs.set('q', tuKhoa.trim());
-      const d = await api(apiTheoPhamVi('/api/gv/nguoi-dung?' + qs.toString()));
+      const [d, resBaoCao] = await Promise.all([
+        api(apiTheoPhamVi('/api/gv/nguoi-dung?' + qs.toString())),
+        api('/api/gv/bao-cao?status=pending').catch(() => ({ reports: [] })),
+      ]);
+      soBaoCaoCho = Array.isArray(resBaoCao?.reports) ? resBaoCao.reports.length : 0;
       ve(d.danhSach || []);
     } catch (err) {
       datNoiDung(KHUNG, khoiLoi('Không tải được danh sách người dùng: ' + err.message));

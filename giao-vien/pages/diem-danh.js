@@ -1,4 +1,4 @@
-import { KHUNG } from '../lib.js';
+import { KHUNG, canhBaoPhamViKhongApDung, renderThanhDieuHuongLop } from '../lib.js';
 import { api, datNoiDung, e, giuViTriCuonKhiVe, homNay, khoiDangTai, ngayDayDu, ngayVN, nhac } from '/assets/js/chung.js';
 import { boiNgayVN, dongHopThoai, moHopThoai, nut, oChon, oNhap, oThongKe, tieuDeTrang, truong } from '/assets/js/giao-dien.js';
 import { dongBo, soChoGui, themVaoHangDoi } from '/assets/js/hang-doi.js';
@@ -595,6 +595,8 @@ export async function trangDiemDanh() {
 
   function ve() {
     const khung = e('div');
+    renderThanhDieuHuongLop(khung, '#/diem-danh');
+    canhBaoPhamViKhongApDung(khung);
 
     const oNgay = e('input', 'o-nhap');
     oNgay.type = 'date';

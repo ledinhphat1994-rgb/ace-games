@@ -1,8 +1,7 @@
 import { KHUNG, gioNgayVN } from '../lib.js';
 import { dongDrawerChiTiet, dongDrawerDong, moDrawerChiTiet, taoNutMenuHanhDong } from './nguoi-dung.js';
-import { trangThongBao } from './noi-dung.js';
 import { api, datNoiDung, e, khoiDangTai, khoiLoi, nhac } from '/assets/js/chung.js';
-import { nut, oNhap, tieuDeTrang, truong } from '/assets/js/giao-dien.js';
+import { nut, oNhap, theDieuHuong, tieuDeTrang, truong } from '/assets/js/giao-dien.js';
 
 
 export async function trangCampusHighlights() {
@@ -524,7 +523,8 @@ export async function trangCampus() {
     };
     subtabs.append(
       taoNutSubtab('🏠 Giám sát phòng', '#/phong-campus', true),
-      taoNutSubtab('✨ Tiêu điểm Campus', '#/campus-highlights')
+      taoNutSubtab('✨ Tiêu điểm Campus', '#/campus-highlights'),
+      taoNutSubtab('📢 Nội dung & Bảng tin', '#/bang-tin-quan-tri')
     );
     khung.append(subtabs);
 
@@ -641,26 +641,15 @@ export async function trangBangTin() {
     'Soạn thảo thông báo trường học, tin tức bảng tin lớp, phân quyền ban biên tập và quản lý thư viện media.'
   ));
 
-  const subtabs = e('div');
-  subtabs.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;';
-  const taoNut = (nhan, href, laChinh = false) => {
-    const a = e('a', laChinh ? 'nut nut-chinh nut-nho' : 'nut nut-vien nut-nho', nhan);
-    a.href = href;
-    a.style.cssText = 'border-radius: 12px; font-weight: 700;';
-    return a;
-  };
-  subtabs.append(
-    taoNut('📢 Thông báo', '#/thong-bao', true),
-    taoNut('✍️ Ban biên tập', '#/bien-tap-vien'),
-    taoNut('🖼️ Thư viện Ảnh', '#/hinh-anh'),
-    taoNut('🎵 Thư viện Âm thanh', '#/thu-vien-am-thanh'),
-    taoNut('🎬 Thư viện Video', '#/thu-vien-video')
+  const luoi = e('div', 'luoi-qt');
+  luoi.append(
+    theDieuHuong('📢', 'Thông báo', 'Soạn & đăng bài lên bảng tin lớp, xem lịch sử khôi phục.', '#/thong-bao', '#38BDF8'),
+    theDieuHuong('✍️', 'Ban biên tập', 'Phân quyền học sinh cán sự được đăng bài lên bảng tin.', '#/bien-tap-vien', '#8B5CF6'),
+    theDieuHuong('🖼️', 'Thư viện Ảnh', 'Album ảnh hoạt động lớp, quản lý & thùng rác.', '#/hinh-anh', '#F59E0B'),
+    theDieuHuong('🎵', 'Thư viện Âm thanh', 'Nhạc nền và audio dùng chung của lớp.', '#/thu-vien-am-thanh', '#10B981'),
+    theDieuHuong('🎬', 'Thư viện Video', 'Video hoạt động, tư liệu lớp.', '#/thu-vien-video', '#F43F5E')
   );
-  khung.append(subtabs);
+  khung.append(luoi);
 
-  // Directly load announcements
-  const vungNoiDung = e('div');
-  khung.append(vungNoiDung);
   datNoiDung(KHUNG, khung);
-  await trangThongBao();
 }

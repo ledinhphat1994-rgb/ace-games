@@ -18,6 +18,7 @@ import { chupCheckpoint, khoiPhucCheckpoint } from '../../../_lib/quy-checkpoint
 import { chupCheckpointDiemDanh, khoiPhucCheckpointDiemDanh } from '../../../_lib/diem-danh-checkpoint.js';
 import { chupCheckpointChung, khoiPhucCheckpointChung } from '../../../_lib/checkpoint-chung.js';
 import { xoaNhieuKhoiThuVien, khoiPhucKhoiThuVien } from '../../../_lib/thu-vien.js';
+import { layPhamViQuanTri, xacDinhLopIdApDung } from '../../../_lib/quan-tri.js';
 
 const TEN_MUC = {
   'diem-danh': 'Điểm danh',
@@ -41,19 +42,23 @@ const LOAI_THU_VIEN = { 'hinh-anh': 'anh', 'am-thanh': 'am-thanh', video: 'video
 const BANG_THU_VIEN = { anh: 'hinh_anh', 'am-thanh': 'am_thanh', video: 'video' };
 const CAC_MUC_HOP_LE = new Set(Object.keys(TEN_MUC));
 
-async function resetMotMuc(env, phien, muc) {
+async function resetMotMuc(env, phien, muc, lopId) {
   const db = env.DB;
-  const lopId = phien.lopId;
   const hanhDong = `Trước khi: reset toàn bộ ${TEN_MUC[muc]}`;
+  // Các hàm chupCheckpoint*/chupCheckpointChung tự đọc phien.lopId bên trong — School Admin/GVCN
+  // kiêm nhiệm xem theo lớp KHÁC lớp mặc định của phiên thì phải giả một "phiên" mang đúng lopId
+  // đang thao tác, nếu không sẽ chụp nhầm lớp mặc định trong khi xoá đúng lớp đang chọn (hỏng cả
+  // dữ liệu lẫn khả năng hoàn tác).
+  const phienTheoLop = lopId === phien.lopId ? phien : { ...phien, lopId };
 
   if (muc === 'diem-danh') {
-    const checkpointId = await chupCheckpointDiemDanh(db, hanhDong, phien);
+    const checkpointId = await chupCheckpointDiemDanh(db, hanhDong, phienTheoLop);
     await db.prepare('DELETE FROM diem_danh WHERE lop_id = ?1').bind(lopId).run();
     return { muc, loaiKhoiPhuc: 'diem-danh', checkpointId };
   }
 
   if (muc === 'quy') {
-    const checkpointId = await chupCheckpoint(db, hanhDong, phien);
+    const checkpointId = await chupCheckpoint(db, hanhDong, phienTheoLop);
     await db.batch([
       db.prepare('DELETE FROM quy_dong WHERE lop_id = ?1').bind(lopId),
       db.prepare('DELETE FROM quy_khoan WHERE lop_id = ?1').bind(lopId),
@@ -63,7 +68,7 @@ async function resetMotMuc(env, phien, muc) {
   }
 
   if (BANG_CHECKPOINT_CHUNG[muc]) {
-    const checkpointId = await chupCheckpointChung(db, muc, hanhDong, phien);
+    const checkpointId = await chupCheckpointChung(db, muc, hanhDong, phienTheoLop);
     await db.prepare(`DELETE FROM ${BANG_CHECKPOINT_CHUNG[muc]} WHERE lop_id = ?1`).bind(lopId).run();
     return { muc, loaiKhoiPhuc: 'checkpoint-chung', tinhNang: muc, checkpointId };
   }
@@ -71,7 +76,7 @@ async function resetMotMuc(env, phien, muc) {
   if (muc === 'thoi-khoa-bieu') {
     // Chỉ xoá TIẾT của phiên bản ĐANG DÙNG (về trống để xếp lại) — GIỮ NGUYÊN lịch sử các phiên
     // bản khác. "Đang dùng" xác định giống hệt công thức ở functions/api/lop.js.
-    const checkpointId = await chupCheckpointChung(db, 'thoi-khoa-bieu', hanhDong, phien);
+    const checkpointId = await chupCheckpointChung(db, 'thoi-khoa-bieu', hanhDong, phienTheoLop);
     const homNay = new Date().toISOString().slice(0, 10);
     const pb = await db.prepare(
       `SELECT id FROM tkb_phien_ban WHERE lop_id = ?1
@@ -110,9 +115,8 @@ async function resetMotMuc(env, phien, muc) {
   throw new Error('Mục không hợp lệ: ' + muc);
 }
 
-async function hoanTacMotMuc(env, phien, kq) {
+async function hoanTacMotMuc(env, phien, kq, lopId) {
   const db = env.DB;
-  const lopId = phien.lopId;
   // 'khong-khoi-phuc' (Tương tác/Lịch sử đăng nhập) không khớp nhánh nào bên dưới — cố ý không
   // làm gì, giao diện đã không gửi các mục này lên đây (xem trang-reset-du-lieu.js).
   if (kq.loaiKhoiPhuc === 'diem-danh') {
@@ -131,11 +135,15 @@ async function hoanTacMotMuc(env, phien, kq) {
 }
 
 export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
-  const { hanhDong, mucs, ketQua } = await docThan(request);
+  const than = await docThan(request);
+  const { hanhDong, mucs, ketQua } = than;
+  const pham = await layPhamViQuanTri(env, phien);
+  const lopId = xacDinhLopIdApDung(pham, Number(than.lopId) || null, phien.lopId);
+  if (!lopId) return loi('Không có quyền truy cập lớp này.', 403);
 
   if (hanhDong === 'hoanTac') {
     if (!Array.isArray(ketQua) || !ketQua.length) return loi('Không có gì để hoàn tác.');
-    for (const kq of ketQua) await hoanTacMotMuc(env, phien, kq);
+    for (const kq of ketQua) await hoanTacMotMuc(env, phien, kq, lopId);
     return json({ ok: true });
   }
 
@@ -143,7 +151,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const dsMuc = Array.isArray(mucs) ? [...new Set(mucs)].filter((m) => CAC_MUC_HOP_LE.has(m)) : [];
     if (!dsMuc.length) return loi('Chưa chọn mục nào để reset.');
     const ketQuaMoi = [];
-    for (const muc of dsMuc) ketQuaMoi.push(await resetMotMuc(env, phien, muc));
+    for (const muc of dsMuc) ketQuaMoi.push(await resetMotMuc(env, phien, muc, lopId));
     return json({ ok: true, ketQua: ketQuaMoi });
   }
 

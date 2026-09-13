@@ -1,4 +1,4 @@
-import { KHUNG, PHAM_VI_LOP_ID, PHIEN, apiTheoPhamVi } from '../lib.js';
+import { KHUNG, PHAM_VI_LOP_ID, PHIEN, apiTheoPhamVi, renderThanhDieuHuongLop } from '../lib.js';
 import { DIEM_DANH, TEN_BUOI } from './diem-danh.js';
 import { $, api, datNoiDung, e, giuViTriCuonKhiVe, homNay, khoiDangTai, ngayVN, nhac } from '/assets/js/chung.js';
 import { dongHopThoai, moHopThoai, nut, oChon, oNhap, oThongKe, tieuDeTrang, truong } from '/assets/js/giao-dien.js';
@@ -117,6 +117,7 @@ export async function trangHocSinh() {
 
   function ve() {
     const khung = e('div');
+    renderThanhDieuHuongLop(khung, '#/hoc-sinh');
     const cacNutPhai = [nut('+ Thêm học sinh', 'nut-vien nut-nho', () => themHocSinh(() => trangHocSinh()))];
     if (PHIEN.role === 'teacher') {
       cacNutPhai.unshift(nut('⚙ Tuỳ chỉnh hiển thị', 'nut-vien nut-nho', moCauHinhHienThiHocSinh));

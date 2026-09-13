@@ -21,8 +21,19 @@ function dieuKienPhamVi(pham, cotLopId, lopIdLoc) {
 
 function trangThaiTaiKhoan(tk) {
   if (tk.dangHoatDong === 0) return 'bi-khoa';
-  if (tk.vaiTro === 'teacher' && tk.teacherPending === 1) return 'cho-xac-minh';
+  // Tài khoản đang XIN quyền giáo viên vẫn có vai_tro='student' (chỉ đổi thành 'teacher' SAU khi
+  // được duyệt — xem functions/api/gv/duyet-giao-vien.js nhánh approve) — không được điều kiện
+  // theo vai_tro==='teacher' ở đây, nếu không 'cho-xac-minh' không bao giờ xảy ra được.
+  if (tk.teacherPending === 1) return 'cho-xac-minh';
   return 'binh-thuong';
+}
+
+// Đang xin quyền giáo viên (chưa duyệt) thì coi là loại 'giao-vien' luôn (đang trong hàng chờ trở
+// thành giáo viên), không để lẫn vào 'tai-khoan-campus' tự do — nếu không Người dùng sẽ không có
+// cách nào phân biệt "tài khoản tự do thật" với "hồ sơ đang chờ duyệt giáo viên".
+function loaiNguoiTuTaiKhoan(tk) {
+  if (tk.vaiTro === 'teacher' || tk.teacherPending === 1) return 'giao-vien';
+  return tk.hocSinhId ? 'hoc-sinh' : 'tai-khoan-campus';
 }
 
 async function layChiTiet(env, phien, id) {
@@ -64,8 +75,11 @@ async function layChiTiet(env, phien, id) {
     if (!tk) return loi('Không tìm thấy tài khoản.', 404);
 
     // Phạm vi: GVCN không phải School Admin chỉ xem được chi tiết trong đúng lớp mình phụ trách.
+    // Hồ sơ đang xin quyền giáo viên (teacher_pending=1) thì MỌI giáo viên đã xác thực đều xem/
+    // duyệt được (giống hệt functions/api/gv/duyet-giao-vien.js — không giới hạn School Admin),
+    // vì tài khoản đó thường chưa có lop_id nên không match được phạm vi lớp thông thường.
     const pham = await layPhamViQuanTri(env, phien);
-    if (!pham.isSchoolAdmin) {
+    if (!pham.isSchoolAdmin && tk.teacherPending !== 1) {
       if (!tk.lopId || !pham.lopIds.includes(tk.lopId)) return loi('Không tìm thấy tài khoản.', 404);
     }
 
@@ -75,7 +89,7 @@ async function layChiTiet(env, phien, id) {
         ORDER BY tao_luc DESC LIMIT 10`
     ).bind(String(tk.id)).all();
 
-    const loaiNguoi = tk.vaiTro === 'teacher' ? 'giao-vien' : (tk.hocSinhId ? 'hoc-sinh' : 'tai-khoan-campus');
+    const loaiNguoi = loaiNguoiTuTaiKhoan(tk);
     return json({
       ok: true,
       chiTiet: {
@@ -113,12 +127,19 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const dkTaiKhoan = dieuKienPhamVi(pham, 'tc.lop_id', lopIdLoc);
   const dkHocSinh = dieuKienPhamVi(pham, 'hs.lop_id', lopIdLoc);
 
+  // Hồ sơ đang xin quyền giáo viên thường CHƯA có lop_id nên không lọt được qua điều kiện phạm vi
+  // lớp thông thường — nhưng functions/api/gv/duyet-giao-vien.js cho phép MỌI giáo viên đã xác
+  // thực duyệt (không riêng School Admin), nên ở đây cũng phải thấy được, không chỉ School Admin.
+  const dkTaiKhoanSql = pham.isSchoolAdmin
+    ? dkTaiKhoan.sql
+    : `(${dkTaiKhoan.sql}) OR (tc.teacher_pending = 1 AND tc.vai_tro != 'teacher')`;
+
   const { results: dsTaiKhoan } = await env.DB.prepare(
     `SELECT tc.id, tc.ten_dang_nhap AS tenDangNhap, tc.ten_hien_thi AS tenHienThi, tc.vai_tro AS vaiTro,
             tc.teacher_pending AS teacherPending, tc.dang_hoat_dong AS dangHoatDong, tc.hoc_sinh_id AS hocSinhId,
             tc.lop_id AS lopId, tc.cap_nhat_luc AS capNhatLuc, l.ten AS lopTen
        FROM tai_khoan_campus tc LEFT JOIN lop l ON l.id = tc.lop_id
-      WHERE ${dkTaiKhoan.sql}`
+      WHERE ${dkTaiKhoanSql}`
   ).bind(...dkTaiKhoan.params).all();
 
   const { results: dsHocSinh } = await env.DB.prepare(
@@ -130,7 +151,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   let danhSach = [
     ...(dsTaiKhoan || []).map((tk) => ({
       id: `tk:${tk.id}`,
-      loai: tk.vaiTro === 'teacher' ? 'giao-vien' : (tk.hocSinhId ? 'hoc-sinh' : 'tai-khoan-campus'),
+      loai: loaiNguoiTuTaiKhoan(tk),
       ten: tk.tenHienThi, tenDangNhap: tk.tenDangNhap,
       trangThai: trangThaiTaiKhoan(tk),
       lopId: tk.lopId, lopTen: tk.lopTen, hoatDongCuoi: tk.capNhatLuc,

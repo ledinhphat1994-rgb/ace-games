@@ -2,6 +2,7 @@ import { e, datNoiDung, api, homNay, ngayVN, ngayDayDu, tienVN, nhac, khoiDangTa
 import {
   tieuDeTrang, oThongKe, nut, truong, oNhap, oChon, moHopThoai, dongHopThoai,
 } from '/assets/js/giao-dien.js';
+import { canhBaoPhamViKhongApDung, renderThanhDieuHuongLop } from './lib.js';
 
 /* Helper tạo biểu tượng SVG sắc nét, chuẩn vector */
 function taoSvgIcon(pathD, w = 14, h = 14) {
@@ -805,6 +806,8 @@ export async function trangQuy(KHUNG) {
 
   function ve() {
     const khung = e('div');
+    renderThanhDieuHuongLop(khung, '#/quy');
+    canhBaoPhamViKhongApDung(khung);
     // Chỉ còn 1 lối tắt CHUNG cho cả trang: "🛡️ Lịch sử & khôi phục" — đã gộp cả lịch sử
     // khoản thu, khoản chi và các đợt thu cố định vào chung trang lịch sử này (xem
     // trangQuyLichSu), không còn trang "#/quy-dinh-ky" riêng dễ bị lạc ở cuối danh sách nữa.

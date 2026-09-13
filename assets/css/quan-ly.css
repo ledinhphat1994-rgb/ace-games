@@ -1647,8 +1647,12 @@ dialog.hop-thoai::backdrop { background: rgba(8, 16, 28, .55); backdrop-filter: 
 }
 
 /* =========================================================================
-   Dark Premium Architecture for Khu Quản Trị (Teacher Admin Center)
-   Aligns with Digital Campus Dark Identity (#0B0E14, #121620, #151A23, #00F2FE, #8B5CF6)
+   Khu Quản Trị (Teacher Admin Center) — bề mặt riêng của khu quản trị, ĐÈ lên .the/.o-thong-ke
+   gốc (kính mờ, xem style.css) bằng bề mặt ĐẶC (khu quản trị không có ảnh nền phía sau nên kính
+   mờ không cần thiết). Toàn bộ dùng biến CSS (:root[data-theme="dark"]/[data-bg-theme] ở
+   style.css) — KHÔNG hard-code hex — để đổi theme/chủ đề màu ở thanh trên cũng đổi đúng ở đây,
+   không lệch với phần còn lại của Digital Campus. Tím #8B5CF6 (gradient mục đang chọn) là màu
+   phối cố định, không đổi theo theme, nên vẫn giữ nguyên giá trị.
    ========================================================================= */
 body.ung-dung {
   background-color: var(--nen, #0B0E14);
@@ -1657,10 +1661,10 @@ body.ung-dung {
 }
 
 header.thanh-tren {
-  background: rgba(11, 14, 20, 0.88);
+  background: color-mix(in srgb, var(--nen-noi) 88%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--vien);
 }
 
 .nut-header-link {
@@ -1670,48 +1674,48 @@ header.thanh-tren {
   padding: 6px 14px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #E2E8F0;
+  border: 1px solid var(--vien);
+  color: var(--chu);
   font-size: 12.5px;
   font-weight: 700;
   text-decoration: none;
   transition: all 0.2s ease;
 }
 .nut-header-link:hover {
-  background: rgba(0, 242, 254, 0.12);
-  border-color: rgba(0, 242, 254, 0.35);
-  color: #00F2FE;
+  background: color-mix(in srgb, var(--chinh) 12%, transparent);
+  border-color: color-mix(in srgb, var(--chinh) 35%, transparent);
+  color: var(--chinh);
   transform: translateY(-1px);
 }
 
 .cot-trai {
-  background: #121620;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
   border-radius: 20px;
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
 }
 
 .cot-trai a {
-  color: #94A3B8;
+  color: var(--chu-nhat);
   border-radius: 12px;
   transition: all 0.2s ease;
 }
 
 .cot-trai a:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #FFFFFF;
+  color: var(--chu);
   transform: translateX(3px);
 }
 
 .cot-trai a[aria-current="page"] {
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.16) 0%, rgba(139, 92, 246, 0.16) 100%);
-  border: 1px solid rgba(0, 242, 254, 0.4);
-  color: #00F2FE;
-  box-shadow: 0 4px 16px -2px rgba(0, 242, 254, 0.25);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--chinh) 16%, transparent) 0%, rgba(139, 92, 246, 0.16) 100%);
+  border: 1px solid color-mix(in srgb, var(--chinh) 40%, transparent);
+  color: var(--chinh);
+  box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--chinh) 25%, transparent);
 }
 
 .cot-trai .nhom-nhan {
-  color: #00F2FE;
+  color: var(--chinh);
   font-weight: 800;
   letter-spacing: 0.08em;
   font-size: 10.5px;
@@ -1719,7 +1723,7 @@ header.thanh-tren {
 }
 
 .the, .o-thong-ke, .khung-bang {
-  background: #151A23;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--nen-noi);
+  border: 1px solid var(--vien);
   border-radius: 18px;
 }

@@ -47,18 +47,18 @@
   :root:not([data-theme="light"]) {
     /* Bề mặt kiểu "SaaS tối tối giản" (Linear/Raycast/Vercel): nền sâu, 2 tầng bề mặt rõ rệt,
        viền chỉ còn là hairline mờ thay vì viền xanh sáng như trước. */
-    --nen: #090d16;
-    --nen-noi: #0f172a;
-    --nen-chim: #162032;
+    --nen: #0B0E14;
+    --nen-noi: #121620;
+    --nen-chim: #151A23;
     --chu: #f1f5f9;
     --chu-nhat: #94a3b8;
     --chu-mo: #64748b;
     --vien: rgba(255, 255, 255, 0.07);
     --vien-dam: rgba(255, 255, 255, 0.12);
 
-    --chinh: #38bdf8;
-    --chinh-sang: #7dd3fc;
-    --chinh-nen: rgba(56, 189, 248, 0.14);
+    --chinh: #00F2FE;
+    --chinh-sang: #66F7FE;
+    --chinh-nen: rgba(0, 242, 254, 0.14);
     --chinh-2: #2dd4bf;
     --chinh-2-nen: rgba(45, 212, 191, 0.14);
 
@@ -69,32 +69,32 @@
     --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
     --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
     --tieu-de: #ffffff;
-    --tieu-de-phu: #38bdf8;
+    --tieu-de-phu: #00F2FE;
 
     --bong-1: 0 1px 3px rgba(0, 0, 0, .5);
     --bong-2: 0 4px 14px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
     --bong-3: 0 24px 64px rgba(0, 0, 0, .60);
-    --bong-mau: 0 10px 26px -6px rgba(56, 189, 248, 0.45);
+    --bong-mau: 0 10px 26px -6px rgba(0, 242, 254, 0.45);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --nen: #090d16; --nen-noi: #0f172a; --nen-chim: #162032;
+  --nen: #0B0E14; --nen-noi: #121620; --nen-chim: #151A23;
   --chu: #f1f5f9; --chu-nhat: #94a3b8; --chu-mo: #64748b;
   --vien: rgba(255, 255, 255, 0.07); --vien-dam: rgba(255, 255, 255, 0.12);
-  --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.14);
+  --chinh: #00F2FE; --chinh-sang: #66F7FE; --chinh-nen: rgba(0, 242, 254, 0.14);
   --chinh-2: #2dd4bf; --chinh-2-nen: rgba(45, 212, 191, 0.14);
   --tot: #10b981;    --tot-nen: rgba(16, 185, 129, 0.14);
   --luu-y: #f59e0b;  --luu-y-nen: rgba(245, 158, 11, 0.14);
   --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
   --nhan: #c084fc;   --nhan-nen: rgba(192, 132, 252, 0.16);
   --tieu-de: #ffffff;
-  --tieu-de-phu: #38bdf8;
+  --tieu-de-phu: #00F2FE;
   --bong-1: 0 1px 3px rgba(0, 0, 0, .5);
   --bong-2: 0 4px 14px rgba(0, 0, 0, .45), 0 14px 34px rgba(0, 0, 0, .40);
   --bong-3: 0 24px 64px rgba(0, 0, 0, .60);
-  --bong-mau: 0 10px 26px -6px rgba(56, 189, 248, 0.45);
+  --bong-mau: 0 10px 26px -6px rgba(0, 242, 254, 0.45);
 }
 
 /* ── 6 Chủ đề hình nền & phong cách giao diện (Theme Switcher) ── */
@@ -104,15 +104,15 @@
   /* Đây là theme MẶC ĐỊNH thật sự (xem ganDoiMauNen() trong chung.js) — bề mặt "SaaS tối tối
      giản": nền sâu, 2 tầng bề mặt tách bạch rõ, viền chỉ còn hairline mờ thay cho viền xanh
      sáng nổi bật như trước. */
-  --nen: #090d16; --nen-noi: #0f172a; --nen-chim: #162032;
+  --nen: #0B0E14; --nen-noi: #121620; --nen-chim: #151A23;
   --chu: #f8fafc; --chu-nhat: #94a3b8; --chu-mo: #64748b;
   --vien: rgba(255, 255, 255, 0.07); --vien-dam: rgba(255, 255, 255, 0.12);
-  --chinh: #38bdf8; --chinh-sang: #7dd3fc; --chinh-nen: rgba(56, 189, 248, 0.16);
+  --chinh: #00F2FE; --chinh-sang: #66F7FE; --chinh-nen: rgba(0, 242, 254, 0.16);
   --tot: #10b981;    --tot-nen: rgba(16, 185, 129, 0.14);
   --luu-y: #f59e0b;  --luu-y-nen: rgba(245, 158, 11, 0.14);
   --xau: #f43f5e;    --xau-nen: rgba(244, 63, 94, 0.14);
-  --tieu-de: #ffffff; --tieu-de-phu: #38bdf8;
-  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(56, 189, 248, 0.10), transparent 70%),
+  --tieu-de: #ffffff; --tieu-de-phu: #00F2FE;
+  --bg-gradient: radial-gradient(1100px 600px at 10% 0%, rgba(0, 242, 254, 0.10), transparent 70%),
                  radial-gradient(900px 700px at 90% 20%, rgba(99, 102, 241, 0.08), transparent 70%),
                  radial-gradient(1000px 800px at 50% 100%, rgba(16, 185, 129, 0.05), transparent 70%),
                  rgba(9, 13, 22, 0.82);
