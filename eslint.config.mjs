@@ -21,7 +21,7 @@ const quyTacChung = {
 
 export default [
   {
-    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**'],
+    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**', 'assets/gen/**'],
   },
 
   // API và cổng bảo vệ: ES module chạy trên Cloudflare Workers.
@@ -54,6 +54,18 @@ export default [
         },
       ],
     },
+  },
+
+  // Nguồn JSX frontend: chạy trên trình duyệt, React/ReactDOM toàn cục qua CDN.
+  {
+    files: ['src/**/*.jsx', 'src/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      parserOptions: { ecmaFeatures: { jsx: true } },
+      globals: { ...globals.browser, React: 'readonly', ReactDOM: 'readonly' },
+    },
+    rules: quyTacChung,
   },
 
   // Service worker: script thuần, không import.

@@ -6,6 +6,11 @@ const path = require('path');
 const ROOT = __dirname;
 const OUT = path.join(ROOT, 'dist');
 
+// Bước 0: compile JSX (src/**/*.jsx) → assets/gen/**/*.js TRƯỚC khi gom dist —
+// index.html chỉ tham chiếu file đã compile, không còn Babel runtime.
+const { execFileSync } = require('child_process');
+execFileSync(process.execPath, [path.join(ROOT, 'cong-cu', 'compile-jsx.js')], { stdio: 'inherit' });
+
 // Chỉ những mục có tên dưới đây mới được đăng lên.
 const DANH_SACH_DANG = [
   'index.html', 'login.html', 'robots.txt',

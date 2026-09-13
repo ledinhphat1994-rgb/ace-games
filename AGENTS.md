@@ -1,5 +1,6 @@
 # lop-10a7 — quy tắc bắt buộc
 - Đọc PROJECT_RULES.md trước khi sửa. Stack: Cloudflare Pages + Functions + D1/KV/R2, vanilla HTML/JS + React qua CDN. CẤM Webpack/Vite/Next/bundler.
+- Frontend JSX sống trong `src/**/*.jsx`, compile bằng `npm run compile:jsx` (esbuild) → `assets/gen/*.js` (file gen, commit kèm, KHÔNG sửa tay). `index.html` chỉ còn shell HTML; không viết JSX inline trong HTML. `npm run build` tự compile trước khi gom `dist/`.
 - Product contract đã khóa: `docs/product/CURRENT_PRODUCT_CONTRACT.md`; API contracts: `docs/contracts/`. Một agent chịu trách nhiệm trọn vẹn từ backend tới frontend trong một task — không chia vai theo model.
 - CẤM mock data / mảng dữ liệu mẫu trong UI. Mọi dữ liệu qua /api/*. Ô rỗng thì hiện empty-state.
 - Mọi query D1 đọc/ghi dữ liệu lớp PHẢI có `lop_id = phien.lopId`. Không tin id từ client.
