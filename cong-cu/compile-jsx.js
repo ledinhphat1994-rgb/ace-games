@@ -17,7 +17,7 @@ function lietKeJsx(thuMuc, goc = thuMuc) {
   for (const item of fs.readdirSync(thuMuc, { withFileTypes: true })) {
     const p = path.join(thuMuc, item.name);
     if (item.isDirectory()) ds.push(...lietKeJsx(p, goc));
-    else if (item.name.endsWith('.jsx')) ds.push(p);
+    else if (/\.(jsx|js)$/.test(item.name)) ds.push(p);
   }
   return ds;
 }
@@ -26,7 +26,7 @@ function compileMotTep(duongDan, ghi = true) {
   const code = fs.readFileSync(duongDan, 'utf8');
   const rel = path.relative(SRC, duongDan);
   const res = esbuild.transformSync(code, {
-    loader: 'jsx',
+    loader: duongDan.endsWith('.jsx') ? 'jsx' : 'js',
     jsx: 'transform', // React.createElement — React vẫn tải qua CDN
     target: 'es2020',
     sourcefile: rel.split(path.sep).join('/'),
@@ -35,6 +35,7 @@ function compileMotTep(duongDan, ghi = true) {
   });
   if (ghi) {
     const ra = path.join(OUT, rel.replace(/\.jsx$/, '.js'));
+    // .js giữ nguyên tên — ESM import './x.js' resolve đúng cả 2 loại
     fs.mkdirSync(path.dirname(ra), { recursive: true });
     fs.writeFileSync(ra, '// GEN TU src/' + rel.split(path.sep).join('/') + ' — KHONG SUA TAY\n' + res.code, 'utf8');
     return ra;
