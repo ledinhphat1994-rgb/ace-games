@@ -12,7 +12,8 @@ export async function trangBangTin() {
     e('h1', null, 'Danh sách bảng tin & Nhóm lớp'),
     e('p', 'tk-muted', 'Quản lý các nhóm lớp, tạo bảng tin và cấp quyền trực tiếp cho học sinh tham gia không cần nhập mã.')
   );
-  dau.append(tieuDe, taoNut('+ Tạo nhóm mới', 'nut-chinh', () => moTaoNhomModal()));
+  const nutTaoNhom = taoNut('+ Tạo nhóm mới', 'nut-chinh', () => moTaoNhomModal());
+  dau.append(tieuDe, nutTaoNhom);
 
   const ketQua = e('div', 'tk-results');
   KHUNG.replaceChildren(dau, ketQua);
@@ -80,45 +81,79 @@ export async function trangBangTin() {
     dialog.showModal();
   }
 
+  // Quản lý thành viên & Cấp quyền: KHÔNG DÙNG POPUP, DÙNG BẢNG DẠNG EXCEL TRỰC TIẾP TRÊN TRANG (VÙNG 2)
   async function quanLyThanhVien(lopItem) {
-    const dialog = e('dialog', 'tk-dialog');
-    dialog.style.width = 'min(640px, calc(100vw - 32px))';
-    dialog.setAttribute('aria-labelledby', 'tkQLTVTitle');
+    nutTaoNhom.style.display = 'none';
 
-    const title = e('h2', null, `Quản lý: ${lopItem.ten}`);
-    title.id = 'tkQLTVTitle';
-    const dong = taoNut('Đóng', 'nut-vien', () => dialog.close());
-    const header = e('div', 'tk-dialog-header');
-    header.append(title, dong);
+    const btnBack = taoNut('← Quay lại danh sách nhóm lớp', 'nut-vien tk-btn-back', () => {
+      nutTaoNhom.style.display = '';
+      tieuDe.replaceChildren(
+        e('h1', null, 'Danh sách bảng tin & Nhóm lớp'),
+        e('p', 'tk-muted', 'Quản lý các nhóm lớp, tạo bảng tin và cấp quyền trực tiếp cho học sinh tham gia không cần nhập mã.')
+      );
+      tai();
+    });
 
-    const contentBox = e('div');
-    contentBox.append(e('p', 'tk-muted', 'Đang tải thông tin thành viên…'));
-    dialog.append(header, contentBox);
-    dialog.addEventListener('close', () => dialog.remove(), { once: true });
-    document.body.append(dialog);
-    dialog.showModal();
+    tieuDe.replaceChildren(
+      btnBack,
+      e('h1', null, `Quản lý thành viên: ${lopItem.ten}`),
+      e('p', 'tk-muted', `${lopItem.namHoc ? 'Niên khóa: ' + lopItem.namHoc + ' · ' : ''}${lopItem.gioiThieu || 'Nhóm bảng tin lớp học.'}`)
+    );
+
+    ketQua.setAttribute('aria-busy', 'true');
+    ketQua.replaceChildren(e('p', 'tk-muted', 'Đang tải dữ liệu thành viên…'));
 
     async function loadData() {
       try {
         const res = await api(`/api/gv/bang-tin?lopId=${lopItem.id}`);
-        contentBox.replaceChildren();
+        ketQua.replaceChildren();
 
-        // 1. Danh sách học sinh trong nhóm
-        const subTitle1 = e('h3', null, `Thành viên trong nhóm (${res.thanhVien.length})`);
-        subTitle1.style.fontSize = '14px'; subTitle1.style.color = '#fff'; subTitle1.style.margin = '16px 0 10px';
-        contentBox.append(subTitle1);
+        // 1. DANH SÁCH THÀNH VIÊN HIỆN TẠI (DẠNG BẢNG EXCEL)
+        const sec1 = e('section', 'tk-excel-section');
+        const sec1Head = e('div', 'tk-excel-header');
+        sec1Head.append(
+          e('h2', 'tk-excel-title', `1. Danh sách thành viên trong nhóm (${res.thanhVien.length} học sinh)`),
+          e('span', 'tk-badge-members', `👥 Sĩ số: ${res.thanhVien.length}`)
+        );
+        sec1.append(sec1Head);
 
+        const wrap1 = e('div', 'tk-table-wrap tk-excel-wrap');
+        const tbl1 = e('table', 'tk-table tk-excel-table');
+        const thead1 = e('thead'), tr1 = e('tr');
+        ['STT', 'Họ và tên', 'Tên đăng nhập', 'Vai trò', 'Thao tác'].forEach((col, idx) => {
+          const th = e('th', null, col);
+          if (idx === 0) th.style.width = '55px';
+          if (idx === 0) th.style.textAlign = 'center';
+          tr1.append(th);
+        });
+        thead1.append(tr1);
+
+        const tbody1 = e('tbody');
         if (!res.thanhVien.length) {
-          contentBox.append(e('p', 'tk-muted', 'Nhóm này hiện chưa có học sinh nào. Hãy cấp quyền bên dưới.'));
+          const emptyRow = e('tr');
+          const td = e('td', 'tk-muted');
+          td.colSpan = 5;
+          td.style.textAlign = 'center';
+          td.style.padding = '24px';
+          td.textContent = 'Nhóm này hiện chưa có học sinh nào. Hãy cấp quyền cho học sinh ở bảng bên dưới.';
+          emptyRow.append(td);
+          tbody1.append(emptyRow);
         } else {
-          const mList = e('div', 'tk-member-list');
-          res.thanhVien.forEach(tv => {
-            const item = e('div', 'tk-member-item');
-            const info = e('div', 'tk-member-info');
-            info.append(
-              e('strong', null, tv.ten),
-              e('span', null, `@${tv.tenDangNhap}`)
-            );
+          res.thanhVien.forEach((tv, idx) => {
+            const row = e('tr');
+            const tdSTT = e('td', 'tk-excel-stt', String(idx + 1));
+            tdSTT.style.textAlign = 'center';
+            tdSTT.style.fontWeight = '600';
+
+            const tdTen = e('td');
+            tdTen.append(e('strong', null, tv.ten));
+
+            const tdUsername = e('td', null, `@${tv.tenDangNhap}`);
+
+            const tdRole = e('td');
+            tdRole.append(e('span', 'tk-status', 'Học sinh'));
+
+            const tdAction = e('td');
             const nutGo = taoNut('Gỡ khỏi nhóm', 'tk-danger nut-vien', async () => {
               if (!confirm(`Gỡ học sinh “${tv.ten}” khỏi nhóm ${lopItem.ten}?`)) return;
               nutGo.disabled = true;
@@ -126,55 +161,93 @@ export async function trangBangTin() {
                 await api('/api/gv/bang-tin', { method: 'POST', than: { action: 'go_quyen', lopId: lopItem.id, id: tv.id } });
                 nhac(`Đã gỡ ${tv.ten} khỏi nhóm.`, 'tot');
                 await loadData();
-                await tai();
               } catch (err) {
                 nhac(err.message, 'loi');
                 nutGo.disabled = false;
               }
             });
-            item.append(info, nutGo);
-            mList.append(item);
-          });
-          contentBox.append(mList);
-        }
+            tdAction.append(nutGo);
 
-        // 2. Cấp quyền học sinh mới vào nhóm
-        const grantBox = e('div', 'tk-grant-box');
-        grantBox.append(
-          e('h3', null, '+ Cấp quyền học sinh vào nhóm (Không cần nhập mã)'),
+            row.append(tdSTT, tdTen, tdUsername, tdRole, tdAction);
+            tbody1.append(row);
+          });
+        }
+        tbl1.append(thead1, tbody1);
+        wrap1.append(tbl1);
+        sec1.append(wrap1);
+
+        // 2. CẤP QUYỀN HỌC SINH VÀO NHÓM (DẠNG BẢNG EXCEL)
+        const sec2 = e('section', 'tk-excel-section');
+        sec2.style.marginTop = '36px';
+
+        const sec2Head = e('div', 'tk-excel-header');
+        const titBox2 = e('div');
+        titBox2.append(
+          e('h2', 'tk-excel-title', '+ Cấp quyền học sinh vào nhóm (Không cần nhập mã)'),
           e('p', 'tk-muted', 'Chọn tài khoản học sinh đã đăng ký trên Digital Campus để cấp quyền trực tiếp.')
         );
+        sec2Head.append(titBox2);
+        sec2.append(sec2Head);
 
+        const filterBox = e('div', 'tk-excel-toolbar');
         const searchInp = e('input');
-        searchInp.placeholder = 'Tìm học sinh theo tên hoặc @username...';
-        searchInp.style.width = '100%';
-        searchInp.style.marginBottom = '12px';
-        searchInp.style.boxSizing = 'border-box';
-        grantBox.append(searchInp);
+        searchInp.type = 'search';
+        searchInp.placeholder = '🔍 Tìm kiếm theo tên hoặc @username học sinh để cấp quyền...';
+        searchInp.className = 'tk-excel-search';
+        filterBox.append(searchInp);
+        sec2.append(filterBox);
 
-        const candidateList = e('div', 'tk-member-list');
-        candidateList.style.maxHeight = '200px';
+        const wrap2 = e('div', 'tk-table-wrap tk-excel-wrap');
+        const tbl2 = e('table', 'tk-table tk-excel-table');
+        const thead2 = e('thead'), tr2 = e('tr');
+        ['STT', 'Họ và tên', 'Tên đăng nhập', 'Lớp hiện tại', 'Thao tác'].forEach((col, idx) => {
+          const th = e('th', null, col);
+          if (idx === 0) th.style.width = '55px';
+          if (idx === 0) th.style.textAlign = 'center';
+          tr2.append(th);
+        });
+        thead2.append(tr2);
+
+        const tbody2 = e('tbody');
+        tbl2.append(thead2, tbody2);
+        wrap2.append(tbl2);
+        sec2.append(wrap2);
 
         function renderCandidates(filterText = '') {
-          candidateList.replaceChildren();
-          const q = filterText.toLowerCase();
+          tbody2.replaceChildren();
+          const q = filterText.toLowerCase().trim();
           const filtered = (res.hocSinhKhaDung || []).filter(c =>
             !q || `${c.ten} ${c.tenDangNhap}`.toLowerCase().includes(q)
           );
 
           if (!filtered.length) {
-            candidateList.append(e('p', 'tk-muted', 'Không có tài khoản học sinh phù hợp.'));
+            const emptyRow = e('tr');
+            const td = e('td', 'tk-muted');
+            td.colSpan = 5;
+            td.style.textAlign = 'center';
+            td.style.padding = '24px';
+            td.textContent = q ? 'Không tìm thấy tài khoản học sinh phù hợp.' : 'Hiện không có tài khoản học sinh khả dụng cần cấp quyền.';
+            emptyRow.append(td);
+            tbody2.append(emptyRow);
             return;
           }
 
-          filtered.forEach(cand => {
-            const item = e('div', 'tk-member-item');
-            const info = e('div', 'tk-member-info');
-            info.append(
-              e('strong', null, cand.ten),
-              e('span', null, `@${cand.tenDangNhap}${cand.lopTen ? ` (Đang ở: ${cand.lopTen})` : ' (Chưa có lớp)'}`)
-            );
-            const nutCap = taoNut('Cấp quyền', 'nut-chinh', async () => {
+          filtered.forEach((cand, idx) => {
+            const row = e('tr');
+            const tdSTT = e('td', 'tk-excel-stt', String(idx + 1));
+            tdSTT.style.textAlign = 'center';
+            tdSTT.style.fontWeight = '600';
+
+            const tdTen = e('td');
+            tdTen.append(e('strong', null, cand.ten));
+
+            const tdUsername = e('td', null, `@${cand.tenDangNhap}`);
+
+            const tdLop = e('td');
+            tdLop.append(e('span', 'tk-muted', cand.lopTen ? `Đang ở: ${cand.lopTen}` : 'Chưa có lớp'));
+
+            const tdAction = e('td');
+            const nutCap = taoNut('+ Cấp quyền', 'nut-chinh', async () => {
               nutCap.disabled = true;
               try {
                 await api('/api/gv/bang-tin', {
@@ -183,30 +256,33 @@ export async function trangBangTin() {
                 });
                 nhac(`Đã cấp quyền cho ${cand.ten} vào nhóm ${lopItem.ten}!`, 'tot');
                 await loadData();
-                await tai();
               } catch (err) {
                 nhac(err.message, 'loi');
                 nutCap.disabled = false;
               }
             });
-            item.append(info, nutCap);
-            candidateList.append(item);
+            tdAction.append(nutCap);
+
+            row.append(tdSTT, tdTen, tdUsername, tdLop, tdAction);
+            tbody2.append(row);
           });
         }
 
         searchInp.oninput = () => renderCandidates(searchInp.value);
         renderCandidates();
-        grantBox.append(candidateList);
-        contentBox.append(grantBox);
 
+        ketQua.append(sec1, sec2);
       } catch (err) {
-        contentBox.replaceChildren(e('p', 'tk-muted', 'Lỗi: ' + err.message));
+        ketQua.replaceChildren(e('p', 'tk-muted', 'Lỗi: ' + err.message));
+      } finally {
+        ketQua.removeAttribute('aria-busy');
       }
     }
 
     await loadData();
   }
 
+  // TẢI DANH SÁCH NHÓM LỚP (VÙNG 3) - DẠNG BẢNG EXCEL
   async function tai() {
     ketQua.setAttribute('aria-busy', 'true');
     try {
@@ -218,30 +294,47 @@ export async function trangBangTin() {
         return;
       }
 
-      const grid = e('div', 'tk-grid-groups');
-      d.dsLop.forEach(lopItem => {
-        const card = e('div', 'tk-card-group');
-        const cardHeader = e('div', 'tk-card-header');
-        const titleBox = e('div');
-        titleBox.append(
-          e('h3', 'tk-card-title', lopItem.ten),
-          e('p', 'tk-muted', lopItem.namHoc ? `Niên khóa: ${lopItem.namHoc}` : '')
-        );
-        const badge = e('span', 'tk-badge-members', `👥 ${lopItem.soThanhVien || 0} học sinh`);
-        cardHeader.append(titleBox, badge);
+      const wrap = e('div', 'tk-table-wrap tk-excel-wrap');
+      const bang = e('table', 'tk-table tk-excel-table');
+      const thead = e('thead'), hr = e('tr');
+      ['STT', 'Tên nhóm / Lớp', 'Niên khóa', 'Thông tin & Giới thiệu', 'Sĩ số', 'Thao tác'].forEach((t, idx) => {
+        const th = e('th', null, t);
+        th.scope = 'col';
+        if (idx === 0) th.style.width = '55px';
+        if (idx === 0) th.style.textAlign = 'center';
+        hr.append(th);
+      });
+      thead.append(hr);
 
-        const desc = e('p', 'tk-card-desc', lopItem.gioiThieu || lopItem.truong || 'Nhóm bảng tin lớp học.');
+      const tbody = e('tbody');
+      d.dsLop.forEach((lopItem, idx) => {
+        const row = e('tr');
 
-        const cardFooter = e('div', 'tk-card-footer');
+        const tdSTT = e('td', 'tk-excel-stt', String(idx + 1));
+        tdSTT.style.textAlign = 'center';
+        tdSTT.style.fontWeight = '600';
+
+        const tdTen = e('td');
+        tdTen.append(e('strong', null, lopItem.ten));
+
+        const tdNam = e('td', null, lopItem.namHoc || '—');
+
+        const tdMota = e('td', 'tk-muted', lopItem.gioiThieu || lopItem.truong || 'Nhóm bảng tin lớp học');
+
+        const tdSiso = e('td');
+        tdSiso.append(e('span', 'tk-badge-members', `👥 ${lopItem.soThanhVien || 0} học sinh`));
+
+        const tdThaoTac = e('td');
         const nutQL = taoNut('Quản lý thành viên & Cấp quyền', 'nut-vien', () => quanLyThanhVien(lopItem));
-        nutQL.style.width = '100%';
-        cardFooter.append(nutQL);
+        tdThaoTac.append(nutQL);
 
-        card.append(cardHeader, desc, cardFooter);
-        grid.append(card);
+        row.append(tdSTT, tdTen, tdNam, tdMota, tdSiso, tdThaoTac);
+        tbody.append(row);
       });
 
-      ketQua.append(grid);
+      bang.append(thead, tbody);
+      wrap.append(bang);
+      ketQua.append(wrap);
     } catch (err) {
       const loi = e('div', 'tk-empty');
       loi.append(e('p', null, 'Không tải được danh sách bảng tin: ' + err.message), taoNut('Thử lại', 'nut-chinh', tai));

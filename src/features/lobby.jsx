@@ -439,7 +439,7 @@ export function QuickTaoPhongForm({ ctl }) {
 
       {ctl.loi && <p className="text-[11px] text-rose-400">{ctl.loi}</p>}
 
-      <button onClick={ctl.submit} disabled={ctl.dangTao || f.ten.trim().length < 2 || !f.videoUrl?.trim()}
+      <button type="button" onClick={ctl.submit} disabled={ctl.dangTao || f.ten.trim().length < 2 || !f.videoUrl?.trim()}
         className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
         {ctl.dangTao ? 'Đang tạo…' : '🚀 Mở phòng ngay'}
       </button>
@@ -535,15 +535,6 @@ export function ActivityLobby({
       {/* ─── LOBBY HEADER: SINGLE CREATE CTA ─── */}
       <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <button
-            id="btn-back-to-campus"
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all border border-white/10">
-            <span>‹</span>
-            <span>Campus</span>
-          </button>
-          <div className="h-4 w-px bg-white/10" />
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">{meta.icon}</span>
             <div>
@@ -555,6 +546,14 @@ export function ActivityLobby({
 
         {/* SINGLE Header CTA */}
         <div className="flex items-center gap-2">
+          <button
+            id="btn-back-to-campus"
+            type="button"
+            onClick={onBack}
+            className="h-10 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all border border-white/10 shrink-0">
+            <span>‹</span>
+            <span>Campus</span>
+          </button>
           {lobbyId === 'CINEMA' && (
             <button
               type="button"
@@ -749,7 +748,12 @@ export function ActivityLobby({
                         type="button"
                         data-testid="study-room-enter"
                         data-phong-id={p.id}
-                        onClick={() => onVaoPhong && onVaoPhong(p)}
+                        onClick={async () => {
+                          if (onVaoPhong) {
+                            const err = await onVaoPhong(p);
+                            if (err) alert(err);
+                          }
+                        }}
                         disabled={isFull}
                         className={`px-4 py-1.5 rounded-xl font-bold text-xs transition-all ${isFull ? 'bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-[#00F2FE] hover:bg-[#00e1ec] text-black shadow-sm active:scale-95'}`}>
                         {isFull ? 'Đầy' : (p.access_mode === 'password' ? 'Nhập pass' : 'Vào phòng')}

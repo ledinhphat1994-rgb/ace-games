@@ -146,7 +146,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   }
   const rs = await db.prepare(
     `SELECT p.id, p.loai, p.ten, p.mo_ta AS moTa, p.pham_vi AS phamVi, p.lop_id AS lopId,
-            p.chu_phong_ten AS chuPhongTen,
+            p.chu_phong_ten AS chuPhongTen, p.cau_hinh AS cauHinh,
             p.trang_thai AS trangThai, p.tao_luc AS taoLuc,
             p.access_mode AS accessMode, p.suc_chua AS sucChua,
             l.ten AS lopTen,

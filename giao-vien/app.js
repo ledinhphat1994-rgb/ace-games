@@ -10,7 +10,10 @@ async function khoiDong() {
       datNoiDung(KHUNG, khoiLoi('Tài khoản này chưa có quyền quản lý tài khoản web.'));
       return;
     }
-    $('#tenQuanTri').textContent = phien.ten || phien.username || 'Quản trị viên';
+    const vaiTro = phien.isSchoolAdmin ? 'Quản trị viên' : 'Giáo viên';
+    const hoTen = phien.ten || phien.username || '';
+    const elTen = $('#tenQuanTri');
+    if (elTen) elTen.textContent = hoTen ? `${vaiTro} ${hoTen}` : vaiTro;
     $('#phamViQuanTri').textContent = phien.isSchoolAdmin ? 'Quản trị toàn trường' : 'Tài khoản trong phạm vi được phân quyền';
 
     const capNhatTab = (hash) => {

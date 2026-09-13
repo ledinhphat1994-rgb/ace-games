@@ -71,3 +71,31 @@
 .tk-member-info span { font-size: 11px; color: #94a3b8; }
 .tk-grant-box { margin-top: 20px; padding-top: 16px; border-top: 1px solid #ffffff14; }
 .tk-grant-box h3 { font-size: 13px; color: #00f2fe; margin: 0 0 10px; font-weight: 700; }
+
+/* Excel Table Styling (Vùng 2 & Vùng 3) */
+.tk-excel-wrap { border: 1px solid #ffffff1c; border-radius: 12px; background: #0f131c; box-shadow: 0 4px 24px rgba(0,0,0,0.35); overflow-x: auto; margin-top: 12px; }
+.tk-excel-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }
+.tk-excel-table th { background: #151b26; color: #94a3b8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 12px 14px; border-bottom: 2px solid #00f2fe33; border-right: 1px solid #ffffff12; white-space: nowrap; }
+.tk-excel-table th:last-child { border-right: 0; }
+.tk-excel-table td { padding: 12px 14px; border-bottom: 1px solid #ffffff0d; border-right: 1px solid #ffffff0a; vertical-align: middle; }
+.tk-excel-table td:last-child { border-right: 0; }
+.tk-excel-table tbody tr:nth-child(even) { background: #121722; }
+.tk-excel-table tbody tr:hover { background: #1a2334; }
+.tk-excel-stt { color: #00f2fe; font-weight: 700; }
+
+.tk-excel-section { background: #121620; border: 1px solid #ffffff14; border-radius: 16px; padding: 22px; }
+.tk-excel-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.tk-excel-title { font-size: 15px; font-weight: 700; color: #fff; margin: 0; }
+.tk-excel-toolbar { margin-bottom: 12px; }
+.tk-excel-search { width: 100%; box-sizing: border-box; min-height: 44px; background: #0b0e14; color: #fff; border: 1px solid #ffffff24; border-radius: 9px; padding: 10px 14px; font: inherit; font-size: 13px; }
+.tk-excel-search:focus { border-color: #00f2fe; outline: none; box-shadow: 0 0 10px #00f2fe33; }
+.tk-btn-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 12px; padding: 8px 14px; cursor: pointer; }
+
+@media (max-width: 640px) {
+  #tenQuanTri { max-width: none !important; white-space: normal !important; }
+  .tk-excel-table { display: table !important; width: 100% !important; min-width: 620px; }
+  .tk-excel-table thead { display: table-header-group !important; }
+  .tk-excel-table tbody { display: table-row-group !important; }
+  .tk-excel-table tr { display: table-row !important; }
+  .tk-excel-table th, .tk-excel-table td { display: table-cell !important; padding: 10px 12px !important; }
+}

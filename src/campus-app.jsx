@@ -1050,10 +1050,25 @@ function DigitalCampusApp() {
       if (d.ok && d.phong) {
         setShowTaoPhong(false);
         setShowInlineTaoPhong(false);
-        const pass = tpForm.access_mode === 'password' ? tpForm.matKhau : null;
         setTpForm({ ten: '', loai: 'chat', phamVi: 'truong', moTa: '', videoUrl: '', nhacUrl: '', access_mode: 'public', matKhau: '', sucChua: 8 });
+        setPhongChat([]);
+        phongSauIdRef.current = 0;
+        setPhongThanhVien([{
+          ten: auth.user?.ten || d.phong.chuPhongTen || 'Chủ phòng',
+          vaiTro: (auth.user?.role === 'teacher' || auth.user?.role === 'admin') ? 'giao_vien' : 'hoc_sinh',
+          vaiTroPhong: 'host',
+          laChuPhong: 1
+        }]);
+        setPhongLoi('');
+        setPhongInput('');
+        try {
+          const cu = JSON.parse(localStorage.getItem('phong_gan_day') || '[]');
+          const ds = [{ id: d.phong.id, ten: d.phong.ten }, ...(Array.isArray(cu) ? cu : []).filter(x => x && x.id !== d.phong.id)].slice(0, 5);
+          localStorage.setItem('phong_gan_day', JSON.stringify(ds));
+        } catch { }
+        setActiveRoom({ id: d.phong.id, type: 'PHONG', title: d.phong.ten, phong: d.phong });
+        setCurrentView('ROOM_ACTIVE');
         taiDanhSachPhong();
-        vaoPhong(d.phong, pass);
       } else {
         setTpLoi(d.loi || 'Không tạo được phòng. Thử lại sau.');
       }
@@ -1190,7 +1205,7 @@ function DigitalCampusApp() {
           if (d.policies) setPhongPolicies(d.policies);
           if (d.grants) setPhongGrants(d.grants);
           setActiveRoom(prev => (prev && prev.type === 'PHONG' && prev.id === phongId ? { ...prev, phong: d.phong, title: d.phong.ten } : prev));
-        } else {
+        } else if (res.status === 404 || d.code === 'room_banned') {
           setCurrentView('LOBBY');
           taiDanhSachPhong();
         }
