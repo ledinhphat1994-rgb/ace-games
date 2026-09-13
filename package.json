@@ -15,6 +15,7 @@
   "scripts": {
     "check:jsx": "node cong-cu/kiem-tra-jsx.js",
     "compile:jsx": "node cong-cu/compile-jsx.js",
+    "verify:gen": "node cong-cu/compile-jsx.js --verify",
     "kiem-tra": "node kiem-tra-tai-khoan.js",
     "kiem-tra-du-lieu": "node cong-cu/kiem-tra-du-lieu.js",
     "lint": "eslint .",
@@ -49,7 +50,7 @@
   },
   "lint-staged": {
     "*.{js,mjs}": "eslint --no-warn-ignored",
-    "src/**/*.jsx": [
+    "src/**/*.{js,jsx}": [
       "eslint --no-warn-ignored",
       "node cong-cu/compile-jsx.js"
     ]

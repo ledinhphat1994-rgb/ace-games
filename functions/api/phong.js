@@ -21,19 +21,34 @@ const SO_PHONG_TOI_DA = 3; // mỗi người mở tối đa 3 phòng cùng lúc 
 const vaiTroCua = (phien) => ((phien.role === 'teacher' || phien.role === 'admin') ? 'giao_vien' : 'hoc_sinh');
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
 
-// Ghi nhận vào phòng với kiểm soát sức chứa nguyên tử (Atomic Capacity Enforcement)
+// Ghi nhận vào phòng với kiểm soát sức chứa nguyên tử (Atomic Capacity Enforcement).
+// MỘT lease duy nhất (NHIP_HIEU_LUC) cho cả 2 nhánh:
+//  - Member row còn trong lease → refresh miễn phí (đang chiếm chỗ sẵn, không cần check sức chứa).
+//  - Member row hết lease / chưa có → coi như VÀO MỚI: phải qua capacity check.
+//    Row cũ còn sót (cleanup chưa chạy) KHÔNG được dùng để bypass sức chứa — EXISTS phải
+//    kèm điều kiện tươi, nếu không thành viên cũ "hồi sinh" khi phòng đã đầy.
+// UPSERT: khi rejoin sau hết hạn, vai_tro_phong reset về 'member' — co-host cũ không tự
+// hồi sinh quyền staff; chỉ giữ role nếu row còn trong lease (heartbeat bình thường).
 async function ghiNhanVao(db, phongId, phien, sucChua = 20) {
   const khoa = actorKey(phien);
   const res = await db.prepare(
     `INSERT INTO phong_thanh_vien (phong_id, khoa, hoc_sinh_id, ten, vai_tro, lop_id, hoat_dong_luc)
      SELECT ?1, ?2, ?3, ?4, ?5, ?6, datetime('now')
       WHERE (
-        EXISTS (SELECT 1 FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2)
+        EXISTS (SELECT 1 FROM phong_thanh_vien
+                 WHERE phong_id = ?1 AND khoa = ?2
+                   AND datetime(hoat_dong_luc) > datetime('now', ?7))
         OR
-        (SELECT COUNT(*) FROM phong_thanh_vien WHERE phong_id = ?1 AND datetime(hoat_dong_luc) > datetime('now', ?7)) < ?8
+        (SELECT COUNT(*) FROM phong_thanh_vien
+          WHERE phong_id = ?1 AND datetime(hoat_dong_luc) > datetime('now', ?7)) < ?8
       )
-      ON CONFLICT(phong_id, khoa) DO UPDATE SET hoat_dong_luc = datetime('now'), ten = ?4`
-  ).bind(phongId, khoa, phien.hocSinhId || null, tenCua(phien), vaiTroCua(phien), phien.lopId || null, NHIP_HOAT_DONG, sucChua).run();
+      ON CONFLICT(phong_id, khoa) DO UPDATE SET
+        hoat_dong_luc = datetime('now'),
+        ten = ?4,
+        vai_tro_phong = CASE
+          WHEN datetime(phong_thanh_vien.hoat_dong_luc) > datetime('now', ?7)
+          THEN phong_thanh_vien.vai_tro_phong ELSE 'member' END`
+  ).bind(phongId, khoa, phien.hocSinhId || null, tenCua(phien), vaiTroCua(phien), phien.lopId || null, NHIP_HIEU_LUC, sucChua).run();
 
   return (res.meta?.changes ?? 0) > 0;
 }
@@ -80,7 +95,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
          FROM phong_thanh_vien v LEFT JOIN lop l ON l.id = v.lop_id
         WHERE v.phong_id = ?1 AND datetime(v.hoat_dong_luc) > datetime('now', ?3)
         ORDER BY v.vao_luc ASC LIMIT 60`
-    ).bind(phongId, p.chuPhongKhoa, NHIP_HOAT_DONG).all();
+    ).bind(phongId, p.chuPhongKhoa, NHIP_HIEU_LUC).all();
 
     const phongSach = lamSachPhong(p, { isAdmitted: check.isAdmitted, canControl: check.canControl, isHost: check.isHost });
     phongSach.vaiTroPhong = check.vaiTroPhong;
@@ -141,7 +156,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       WHERE p.trang_thai = 'mo' AND ${dieuKienPhamVi}
       ORDER BY (p.chu_phong_khoa = 'he-thong') DESC, soNguoi DESC, p.tao_luc DESC
       LIMIT 50`
-  ).bind(NHIP_HOAT_DONG, ...bindPhamVi).all();
+  ).bind(NHIP_HIEU_LUC, ...bindPhamVi).all();
 
   // Số người đang hoạt động toàn campus (chỉ tính phòng toàn trường đang mở) — DISTINCT khoá phiên.
   const dd = await db.prepare(
@@ -287,11 +302,15 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
 
   // ── VÀO PHÒNG / NHỊP heartbeat (giữ chỗ trong phòng) ──
   if (hanhDong === 'vao' || hanhDong === 'nhip') {
-    // Kiểm tra mật khẩu nếu phòng ở chế độ password và chưa phải là chủ phòng hay giáo viên
+    // Kiểm tra mật khẩu nếu phòng ở chế độ password và chưa phải là chủ phòng hay giáo viên.
+    // Bypass chỉ dành cho member row CÒN TRONG LEASE (NHIP_HIEU_LUC) — row cũ đã hết hạn
+    // không được dùng để bỏ qua mật khẩu hiện tại (password rotation phải có hiệu lực
+    // ngay với thành viên đã "rời" theo lease, dù row vật lý chưa bị cleanup xoá).
     if (p.accessMode === 'password' && !check.canControl) {
       const daTrongPhong = await db.prepare(
-        'SELECT 1 FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2'
-      ).bind(phongId, khoa).first();
+        `SELECT 1 FROM phong_thanh_vien WHERE phong_id = ?1 AND khoa = ?2
+          AND datetime(hoat_dong_luc) > datetime('now', ?3)`
+      ).bind(phongId, khoa, NHIP_HIEU_LUC).first();
 
       if (!daTrongPhong) {
         const pass = String(than.password || than.matKhau || '').trim();
@@ -305,7 +324,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const sucChua = p.sucChua || 20;
     const ghiNhanOk = await ghiNhanVao(db, phongId, phien, sucChua);
     if (!ghiNhanOk) {
-      return loi('Phòng đã đầy (đạt giới hạn người tham gia).', 409);
+      // Contract ổn định cho mọi đường từ chối vì hết chỗ — client/QA bắt theo code,
+      // không phụ thuộc chuỗi thông báo.
+      return loi('Phòng đã đầy (đạt giới hạn người tham gia).', 409, { code: 'room_full' });
     }
 
     const updatedCheck = await kiemTraTruyCapPhong(db, phongId, phien);
@@ -389,7 +410,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     const tvDich = await db.prepare(
       `SELECT vai_tro AS vaiTro, vai_tro_phong AS vaiTroPhong FROM phong_thanh_vien
         WHERE phong_id = ?1 AND khoa = ?2 AND datetime(hoat_dong_luc) > datetime('now', ?3)`
-    ).bind(phongId, khoaTV, NHIP_HOAT_DONG).first();
+    ).bind(phongId, khoaTV, NHIP_HIEU_LUC).first();
     if (!tvDich) return loi('Thành viên không còn trong phòng.', 404);
     if (tvDich.vaiTro === 'giao_vien') return loi('Giáo viên đã có quyền cao nhất — không cần co-host.', 400);
     const bat = than.on !== false && than.on !== 0;

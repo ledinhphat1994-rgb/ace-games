@@ -111,7 +111,14 @@ const phongLopId = resTaoLop.data.phong?.id;
 // ─────────────────────────────────────────────────────────────────────────────
 console.log('\n== 2. Đọc trạng thái phòng Watch Together (Test A, H & Privacy) ==');
 
-// Test A: Người xem cùng lớp (HS_B) đọc được trạng thái
+// Test A: Người xem cùng lớp (HS_B) đọc được trạng thái — admission boundary (4G):
+// tài nguyên trong phòng yêu cầu member row; viewer phải 'vao' trước khi đọc.
+const resJoinB = await api('/api/phong', {
+  method: 'POST',
+  cookie: cookieB,
+  body: { hanhDong: 'vao', phongId: phongTruongId }
+});
+ok('Test A: Người xem cùng lớp (HS_B) vào phòng toàn trường thành công', resJoinB.ok, 'api');
 const resReadB = await api(`/api/phong-watch?phongId=${phongTruongId}`, { cookie: cookieB });
 ok('Test A: Người xem cùng lớp (HS_B) đọc được trạng thái phòng', resReadB.ok && resReadB.data.state, 'api');
 ok('Trạng thái khởi tạo mặc định là paused với revision = 1', resReadB.data.state?.playing === false && resReadB.data.state?.revision === 1, 'api');

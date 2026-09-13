@@ -75,21 +75,29 @@ class membership), `quan-tri.js` (phạm vi quản trị School Admin/GVCN), `db
 Migrations đánh số `NN-ten.sql`, nạp theo thứ tự tên. Tracker:
 
 ```
-npm run migrate -- status [--local|--remote]   # đã nạp / chờ / drift
+npm run migrate -- status  [--local|--remote]  # đã nạp / chờ / drift (bookkeeping)
 npm run migrate -- apply   [--local|--remote]  # nạp file còn thiếu
 npm run migrate -- baseline [--local|--remote] # 1 lần/môi trường đã-có-schema
+npm run migrate -- verify  [--local|--remote]  # READ-ONLY: đối chiếu schema thật
 ```
 
 `_migrations` (ten, sha256, ap_dung_luc, baseline) nằm trong chính DB. File đã nạp
 mà hash đổi → `status` báo DRIFT (không tự chạy lại — phải tạo file migration mới).
+`status`/`baseline` chỉ là bookkeeping — "đã nạp 81/81" KHÔNG chứng minh bảng/cột/index
+tồn tại. `verify` mới là bằng chứng schema: nó đọc `sqlite_master` + `PRAGMA table_info`
+và đối chiếu manifest các object mà migration quan trọng (61/64/65/68/75/76/77/78)
+phải tạo — thiếu cái nào báo cái đó, exit 1. Migration mới tạo bảng/cột/index thì
+bổ sung object đó vào `SCHEMA_MONG_DOI` trong `cong-cu/migrate.mjs`.
 
 ## Build & QA
 
-- `npm run compile:jsx` — esbuild src → assets/gen (lint-staged tự chạy khi stage .jsx)
+- `npm run compile:jsx` — esbuild src → assets/gen (lint-staged tự chạy khi stage `src/**/*.{js,jsx}`)
+- `npm run verify:gen` — compile trong RAM + so sánh assets/gen trên đĩa; lệch → exit 1
+  (chạy trong pre-commit sau lint-staged — commit không thể chứa gen cũ hơn src)
 - `npm run build` — compile JSX + gom `dist/` + minify
 - `npm run deploy` — build + `wrangler pages deploy dist`
 - QA theo domain: `cong-cu/qa-*.mjs` (xem package.json scripts, prefix `qa:`)
-- `cong-cu/qa-study-room-audit.mjs` — gate Study Room (163 test adversarial)
+- `cong-cu/qa-study-room-audit.mjs` — gate Study Room (188 test: A–J + K1–K6 lease)
 - `cong-cu/kiem-tra-du-lieu.js` — soát an toàn dữ liệu/JSON/SQL
 - Mockups bắt buộc đối chiếu khi sửa UI: `docs/mockups/1.png` (lobby), `2.png` (bảng tin)
 

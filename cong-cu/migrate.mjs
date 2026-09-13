@@ -10,8 +10,14 @@
 //   node cong-cu/migrate.mjs apply   [--local|--remote]  — nạp các file còn thiếu theo thứ tự
 //   node cong-cu/migrate.mjs baseline [--local|--remote] — CHỈ CHẠY 1 LẦN trên môi trường
 //        đã có schema sẵn: đánh dấu toàn bộ file hiện có là "đã nạp" mà không chạy lại.
+//   node cong-cu/migrate.mjs verify  [--local|--remote]  — READ-ONLY, KHÔNG ghi gì:
+//        đối chiếu schema THẬT (sqlite_master + PRAGMA table_info) với manifest các
+//        object quan trọng mà migration phải tạo. `baseline`/`status` chỉ là bookkeeping
+//        ("file đã được ghi nhận nạp") — KHÔNG chứng minh bảng/cột/index tồn tại;
+//        muốn kết luận schema đủ thì phải chạy `verify`.
 //
-// Mặc định: --local. --remote cần xác nhận gõ "CO" vì ghi lên CSDL thật.
+// Mặc định: --local. --remote cần xác nhận gõ "CO" cho lệnh GHI (apply/baseline);
+// verify là read-only nên chạy remote không cần xác nhận.
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -22,6 +28,53 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const THU_MUC_SQL = path.join(ROOT, 'co-so-du-lieu');
 const DB = 'lop-10a7-db';
+
+// Manifest schema tối thiểu mà các migration quan trọng phải tạo — verify đối chiếu
+// sqlite_master + PRAGMA table_info. Phủ các migration gần nhất của hệ thống phòng
+// (61/64/65), campus hardening (68), collab/voice (75), admin IA (76), study-room
+// governance (77) và noi-dung (78). Khi thêm migration mới tạo object mới, BỔ SUNG
+// object đó vào đây để verify luôn bắt được thiếu sót.
+const SCHEMA_MONG_DOI = {
+  '61-phong-lien-lop.sql': {
+    tables: ['phong', 'phong_thanh_vien', 'phong_tin_nhan'],
+    indexes: ['idx_phong_mo', 'idx_ptv_phong', 'idx_ptn_phong'],
+  },
+  '64-phong-dong-bo-video.sql': {
+    tables: ['phong_dong_bo_video'],
+    indexes: ['idx_pdbv_phong'],
+  },
+  '65-phong-focus-state.sql': {
+    tables: ['phong_focus_state'],
+    indexes: ['idx_pfs_phong'],
+  },
+  '68-phase4b-campus-architecture.sql': {
+    tables: ['tai_khoan_campus'],
+    indexes: ['idx_tkc_ten_dn', 'idx_tkc_role_pending', 'idx_phong_access'],
+    columns: { phong: ['access_mode', 'mat_khau_hash', 'mat_khau_salt', 'suc_chua'] },
+  },
+  '75-phase4f-collab-notifications-and-voice.sql': {
+    tables: ['chat_read_state', 'watch_room_collab', 'watch_room_voice_signal'],
+    indexes: ['idx_chat_read_state_acc', 'idx_watch_room_collab', 'idx_voice_signal_room'],
+  },
+  '76-admin-ia-v1-nen-tang.sql': {
+    tables: ['giao_vien_lop', 'nhat_ky_quan_tri'],
+    indexes: ['idx_gvl_giao_vien', 'idx_gvl_lop', 'idx_nkqt_tao_luc', 'idx_nkqt_lop'],
+  },
+  '77-study-room-governance.sql': {
+    tables: [
+      'phong_policy', 'phong_grant', 'phong_ban', 'phong_video_queue',
+      'phong_voice_pair', 'phong_note', 'phong_wb_op', 'phong_sheet_cell',
+    ],
+    indexes: ['idx_pvq_phong', 'idx_pn_phong', 'idx_pwbo_phong'],
+    columns: {
+      phong_thanh_vien: ['vai_tro_phong'],
+      phong_tin_nhan: ['da_xoa', 'video_time_sec'],
+    },
+  },
+  '78-noi-dung-trang-thai.sql': {
+    columns: { thong_bao: ['trang_thai'] },
+  },
+};
 
 const lenh = process.argv[2] || 'status';
 const remote = process.argv.includes('--remote');
@@ -78,7 +131,47 @@ async function main() {
       else if (sha !== f.sha) { drift++; console.log(`  DRIFT  ${f.ten} (file đã đổi sau khi nạp)`); }
     }
     console.log(`\nTổng: ${ds.length} file | đã nạp ${daNap.size} | chờ ${cho} | drift ${drift}`);
+    console.log('Lưu ý: "đã nạp" chỉ là bookkeeping trong _migrations — chạy "verify" để kiểm chứng schema thật.');
     if (daNap.size === 0) console.log('Mẹo: môi trường đã có schema sẵn thì chạy "baseline" một lần trước.');
+    return;
+  }
+
+  if (lenh === 'verify') {
+    // READ-ONLY: đối chiếu schema thật với manifest — không ghi, không cần xác nhận remote.
+    const master = truyVan(`SELECT type, name FROM sqlite_master WHERE type IN ('table','index')`);
+    const coBang = new Set(master.filter(r => r.type === 'table').map(r => r.name));
+    const coIndex = new Set(master.filter(r => r.type === 'index').map(r => r.name));
+    let thieu = 0;
+    for (const [tep, mong] of Object.entries(SCHEMA_MONG_DOI)) {
+      const loiCua = [];
+      for (const t of mong.tables || []) {
+        if (!coBang.has(t)) loiCua.push(`thiếu bảng ${t}`);
+      }
+      for (const i of mong.indexes || []) {
+        if (!coIndex.has(i)) loiCua.push(`thiếu index ${i}`);
+      }
+      for (const [bang, cots] of Object.entries(mong.columns || {})) {
+        if (!coBang.has(bang)) { loiCua.push(`thiếu bảng ${bang} (nên có cột ${cots.join(', ')})`); continue; }
+        const info = truyVan(`PRAGMA table_info(${bang})`);
+        const coCot = new Set(info.map(r => r.name));
+        for (const c of cots) {
+          if (!coCot.has(c)) loiCua.push(`thiếu cột ${bang}.${c}`);
+        }
+      }
+      if (loiCua.length) {
+        thieu += loiCua.length;
+        console.log(`  ✗ ${tep}:`);
+        loiCua.forEach(l => console.log(`      - ${l}`));
+      } else {
+        console.log(`  ✓ ${tep}`);
+      }
+    }
+    if (thieu) {
+      console.log(`\nVERIFY THẤT BẠI: ${thieu} object thiếu trên ${remote ? 'REMOTE' : 'LOCAL'} ${DB}.`);
+      console.log('Bookkeeping _migrations chỉ ghi nhận file đã chạy — nó KHÔNG chứng minh schema đủ.');
+      process.exit(1);
+    }
+    console.log(`\nVERIFY OK: toàn bộ schema mong đợi hiện diện trên ${remote ? 'REMOTE' : 'LOCAL'} ${DB}.`);
     return;
   }
 
@@ -117,7 +210,7 @@ async function main() {
     return;
   }
 
-  console.log(`Lệnh không biết: ${lenh}. Dùng: status | apply | baseline [--local|--remote]`);
+  console.log(`Lệnh không biết: ${lenh}. Dùng: status | apply | baseline | verify [--local|--remote]`);
   process.exit(1);
 }
 

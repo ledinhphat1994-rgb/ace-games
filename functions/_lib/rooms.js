@@ -3,6 +3,15 @@
 import { actorKey } from './auth.js';
 import { layPhamViQuanTri } from './quan-tri.js';
 
+// NHIP_HOAT_DONG ('-90 seconds'): cửa sổ "đang online NGAY" — CHỈ dùng cho chỉ báo presence
+// (đếm người hoạt động toàn campus). TUYỆT ĐỐI không dùng cho membership/capacity/admission.
+//
+// NHIP_HIEU_LUC ('-15 minutes'): LEASE THÀNH VIÊN DUY NHẤT — một cửa sổ cho mọi ngữ nghĩa
+// "đang là thành viên phòng": đếm sức chứa (soNguoi), isAdmitted, vai trò co-host,
+// danh sách thành viên, và bypass mật khẩu khi rejoin. Row còn trong lease = chiếm chỗ
+// VÀ được admit; hết lease = đã rời (không chiếm chỗ, không admit — phải 'vao' lại qua
+// kiểm tra sức chứa). Frontend heartbeat 20s; tab ẩn bị trình duyệt throttle nên lease
+// phải đủ dài để không đá người dùng oan, nhưng ngắn hơn thời gian cleanup chạy định kỳ.
 export const NHIP_HOAT_DONG = '-90 seconds';
 export const NHIP_HIEU_LUC = '-15 minutes';
 
@@ -199,7 +208,7 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
              WHERE v.phong_id = p.id AND datetime(v.hoat_dong_luc) > datetime('now', ?2)) AS soNguoi
       FROM phong p LEFT JOIN lop l ON l.id = p.lop_id
      WHERE p.id = ?1
-  `).bind(id, NHIP_HOAT_DONG).first();
+  `).bind(id, NHIP_HIEU_LUC).first();
 
   if (!p || p.trangThai !== 'mo') {
     return { loi: 'Phòng không tồn tại hoặc đã đóng.', status: 404 };
@@ -261,12 +270,14 @@ export async function kiemTraTruyCapPhong(db, phongId, phien, {
 
   // 3. Participant boundary — TÁCH preview khỏi admitted:
   //    - Staff (host/teacher trong phạm vi/co_host): quản trị không cần member row.
-  //    - Phòng hệ thống 'he-thong' (sảnh chat trường): mở cho mọi tài khoản đăng nhập —
-  //      không ai "join" sảnh, membership không áp dụng.
+  //    - SẢNH CHAT HỆ THỐNG duy nhất (migration 61: chu_phong_khoa='he-thong' + loai='chat'
+  //      + pham_vi='truong'): mở cho mọi tài khoản đăng nhập — không ai "join" sảnh,
+  //      membership không áp dụng. Ngoại lệ này KHÔNG lan sang loại phòng khác:
+  //      phòng video/nhạc do 'he-thong' sở hữu vẫn bắt buộc member row như phòng thường.
   //    - Mọi trường hợp còn lại (kể cả phòng PUBLIC): BẮT BUỘC member row còn hạn trong
   //      phong_thanh_vien — được tạo bởi hanhDong 'vao' (atomic capacity) hoặc 'nhip'.
   //      Public chỉ nới PHẠM VI được tham gia, không tự động admit.
-  const laPhongHeThong = p.chuPhongKhoa === 'he-thong';
+  const laPhongHeThong = p.chuPhongKhoa === 'he-thong' && p.loai === 'chat' && p.phamVi === 'truong';
   const isAdmitted = isStaff || laPhongHeThong || Boolean(tvRow);
 
   // 4. Kiểm tra yêu cầu quyền điều khiển (Host / Teacher)

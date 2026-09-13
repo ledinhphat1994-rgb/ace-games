@@ -414,8 +414,10 @@ async function run() {
     await pageNoiDung.goto(`${BASE}/giao-vien/#/thong-bao`, { waitUntil: 'domcontentloaded' });
     await pageNoiDung.waitForTimeout(1200);
 
-    ok('Mục sidebar đổi tên thành "Nội dung" (không còn "Bảng Tin")',
-      (await pageNoiDung.locator('#navBangTin').innerText()).includes('Nội dung'), 'noidung');
+    // Sidebar chính đã gọn còn Tổng quan/Người dùng/Campus (d76ee30) — mục "Nội dung"
+    // giờ nằm trong menu hamburger (.menu-muc ẩn → đọc textContent, không innerText).
+    ok('Mục menu đổi tên thành "Nội dung" (không còn "Bảng Tin")',
+      ((await pageNoiDung.locator('a.menu-muc[href="#/bang-tin-quan-tri"]').textContent()) || '').includes('Nội dung'), 'noidung');
 
     const tabNhap = pageNoiDung.locator('button:has-text("📝 Nháp")');
     ok('Trang Thông báo hiện đủ 3 tab Nháp/Đã xuất bản/Đã lưu trữ',
@@ -429,7 +431,8 @@ async function run() {
 
     await ctxNoiDung.close();
 
-    // Thanh tab dưới di động — vừa tăng từ 6 lên 7 mục, kiểm tra không bị vỡ layout
+    // Thanh tab dưới di động — đã gọn còn 3 mục chính (Tổng quan/Người dùng/Campus,
+    // commit d76ee30); các mục còn lại truy cập qua menu hamburger. Kiểm tra không vỡ layout.
     const ctxMobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await ctxMobile.addCookies([
       { name: COOKIE_NAME, value: cookieAdmin.split('=')[1], domain: '127.0.0.1', path: '/' },
@@ -441,8 +444,8 @@ async function run() {
     const tabDuoi = pageMobile.locator('#tabDuoi a');
     const soTab = await tabDuoi.count();
     const rongTab = (await pageMobile.locator('#tabDuoi').boundingBox())?.width || 0;
-    ok(`Thanh tab dưới di động có đủ 7 mục, không tràn màn hình (rộng ${rongTab.toFixed(0)}px / viewport 390px)`,
-      soTab === 7 && rongTab <= 390, 'browser', `soTab=${soTab}`);
+    ok(`Thanh tab dưới di động có đủ 3 mục chính, không tràn màn hình (rộng ${rongTab.toFixed(0)}px / viewport 390px)`,
+      soTab === 3 && rongTab <= 390, 'browser', `soTab=${soTab}`);
     await pageMobile.screenshot({ path: 'docs/qa-phase4g/admin-mobile-tab-duoi.png' }).catch(() => {});
     await ctxMobile.close();
   } catch (err) {

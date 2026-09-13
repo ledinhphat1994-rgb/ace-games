@@ -3,8 +3,10 @@
 // TUYỆT ĐỐI KHÔNG trả: tên học sinh, khoá phiên, lop_id, danh sách thành viên,
 // phòng riêng của lớp, hay bất kỳ dữ liệu riêng tư nào của lớp.
 import { json, loi, ngayVNHomNay } from '../_lib/api.js';
+import { NHIP_HIEU_LUC } from '../_lib/rooms.js';
 
-const NHIP_HIEU_LUC = '-90 seconds';
+// Chỉ báo "đang hoạt động ngay" toàn campus — presence, KHÔNG phải membership lease.
+const NHIP_HIEN_DIEN = '-90 seconds';
 
 function trangThaiSuKien(batDau, ketThuc, bayGio) {
   const bd = Date.parse(batDau), kt = Date.parse(ketThuc);
@@ -36,7 +38,7 @@ export async function onRequestGet({ env }) {
         WHERE p.trang_thai = 'mo'
           AND p.pham_vi = 'truong'
           AND datetime(v.hoat_dong_luc) > datetime('now', ?1)`
-    ).bind(NHIP_HIEU_LUC).first();
+    ).bind(NHIP_HIEN_DIEN).first();
 
     // Sự kiện campus — chỉ trường an toàn.
     const suKienRs = await db.prepare(

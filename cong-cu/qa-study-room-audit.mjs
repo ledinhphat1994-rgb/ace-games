@@ -60,14 +60,25 @@ try {
 } catch { obs('fixture', 'khong seed duoc admin 990001 — nhom D-admin co the fail'); }
 
 // Dọn phòng còn sót từ lần chạy trước (mỗi host tối đa 3 phòng mở — sót phòng làm tạo mới bị 429).
+// Mọi cookie đều thử đóng — chỉ chủ phòng/GV mới đóng được, request thừa trả 403 vô hại.
 {
   const ds = await api('/api/phong', { ck: ckA });
   for (const p of ds.data.phongs || []) {
-    for (const ck of [ckA, ckB]) {
+    for (const ck of [ckA, ckB, ckD, ckE]) {
       await api('/api/phong', { method: 'POST', ck, body: { hanhDong: 'dong', phongId: p.id } });
     }
   }
 }
+
+// Helper chỉnh CSDL LOCAL D1 trực tiếp — mô phỏng lease hết hạn / chuyển ownership cho
+// fixture mà không phải chờ thời gian thật. Chỉ dùng trong QA, không phải code chạy thật.
+const sqlLocal = (cauLenh) => {
+  const out = execSync(
+    `npx wrangler d1 execute lop-10a7-db --local --json --command "${cauLenh.replace(/"/g, '\\"')}"`,
+    { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+  );
+  return JSON.parse(out.slice(out.indexOf('[')))[0]?.results || [];
+};
 
 console.log('=== A. LIFECYCLE + CAPACITY 8/12 ===');
 
@@ -600,6 +611,120 @@ r = await api('/api/phong', { method: 'POST', ck: ckA, body: { hanhDong: 'bo_cha
 r = await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'vao', phongId: admId } });
 ok('IJ3 bo ban -> vao lai duoc', r.status === 200, `status=${r.status}`);
 await api('/api/phong', { method: 'POST', ck: ckA, body: { hanhDong: 'dong', phongId: admId } });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// K. MEMBERSHIP LEASE CONSISTENCY — correctness gate
+// Một lease duy nhất (NHIP_HIEU_LUC = 15 phút) chi phối: capacity count, isAdmitted,
+// co-host, bypass password khi rejoin. "Trong lease" = chiếm chỗ + admitted;
+// "hết lease" = đã rời (mất cả hai, phải vao lại qua capacity check).
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n=== K1. LEASE CONSISTENCY — cùng một cửa sổ cho capacity + admission ===');
+{
+  // Phòng cap=2 của D. B vào → full (D+B).
+  r = await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'tao', ten: 'QA K1 Lease', loai: 'video', phamVi: 'truong', videoUrl: 'https://www.youtube.com/watch?v=k1x', sucChua: 2 } });
+  const k1Id = r.data.phong?.id;
+  ok('K1a tao phong cap=2 boi D', r.status === 200 && k1Id > 0, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k1Id } });
+  ok('K1b B vao (phong day: D+B)', r.status === 200, `status=${r.status}`);
+  // Nâng B lên co-host trước — để K2 kiểm chứng role reset khi rejoin sau hết hạn.
+  await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'set_co_host', phongId: k1Id, khoaTV: KHOA_B } });
+
+  // B "stale-in-lease" (-10 phút): còn trong lease 15' → vẫn admitted VÀ vẫn chiếm chỗ.
+  sqlLocal(`UPDATE phong_thanh_vien SET hoat_dong_luc = datetime('now','-10 minutes') WHERE phong_id=${k1Id} AND khoa='${KHOA_B}'`);
+  r = await api(`/api/phong-chat?phongId=${k1Id}`, { ck: ckB });
+  ok('K1c stale-in-lease van admitted (chat 200)', r.status === 200, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'vao', phongId: k1Id } });
+  ok('K1d stale-in-lease van chiem slot -> E 409 room_full', r.status === 409 && r.data.ok === false && r.data.code === 'room_full', `status=${r.status} code=${r.data.code || ''}`);
+
+  // B "expired" (-20 phút): hết lease → mất admission VÀ giải phóng chỗ.
+  sqlLocal(`UPDATE phong_thanh_vien SET hoat_dong_luc = datetime('now','-20 minutes') WHERE phong_id=${k1Id} AND khoa='${KHOA_B}'`);
+  r = await api(`/api/phong-chat?phongId=${k1Id}`, { ck: ckB });
+  ok('K1e het lease -> mat admission (403 admission_required)', r.status === 403 && r.data.code === 'admission_required', `status=${r.status} code=${r.data.code || ''}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'vao', phongId: k1Id } });
+  ok('K1f het lease -> giai phong slot, E vao duoc', r.status === 200, `status=${r.status}`);
+
+  console.log('\n=== K2. CAPACITY CANNOT BE REVIVED/BYPASSED ===');
+  // Phòng hiện = D + E (2/2). Member row cũ của B (hết hạn / hoặc đã bị cleanup)
+  // TUYỆT ĐỐI không được dùng để vào lại khi phòng đầy.
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k1Id } });
+  ok('K2a row cu khong revive qua vao khi phong day', r.status === 409 && r.data.code === 'room_full', `status=${r.status} code=${r.data.code || ''}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'nhip', phongId: k1Id } });
+  ok('K2b nhip cung khong revive qua capacity', r.status === 409 && r.data.code === 'room_full', `status=${r.status} code=${r.data.code || ''}`);
+  // Có slot trống → B vào lại được nhưng vai_tro_phong reset về member (co-host cũ không hồi sinh).
+  await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'roi', phongId: k1Id } });
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k1Id } });
+  ok('K2c rejoin sau het han -> vaiTroPhong reset ve member', r.status === 200 && r.data.vaiTroPhong === 'member', `status=${r.status} vaiTroPhong=${r.data.vaiTroPhong}`);
+  await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'dong', phongId: k1Id } });
+}
+
+console.log('\n=== K3. STALE PASSWORD MEMBERSHIP — row cũ không bypass mật khẩu mới ===');
+{
+  r = await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'tao', ten: 'QA K3 PW', loai: 'video', phamVi: 'truong', videoUrl: 'https://www.youtube.com/watch?v=k3x', accessMode: 'password', password: 'pw-cu', sucChua: 4 } });
+  const k3Id = r.data.phong?.id;
+  ok('K3a tao phong password', r.status === 200 && k3Id > 0, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k3Id, matKhau: 'pw-cu' } });
+  ok('K3b vao bang mat khau cu', r.status === 200, `status=${r.status}`);
+  // Membership B hết hạn, rồi host đổi mật khẩu — rotation phải có hiệu lực ngay.
+  sqlLocal(`UPDATE phong_thanh_vien SET hoat_dong_luc = datetime('now','-20 minutes') WHERE phong_id=${k3Id} AND khoa='${KHOA_B}'`);
+  r = await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'doi_mat_khau', phongId: k3Id, matKhauMoi: 'pw-moi' } });
+  ok('K3c host doi mat khau', r.status === 200, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k3Id } });
+  ok('K3d stale row -> vao khong pass BI CHAN (403)', r.status === 403, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k3Id, matKhau: 'pw-cu' } });
+  ok('K3e mat khau cu bi tu choi', r.status === 403, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k3Id, matKhau: 'pw-moi' } });
+  ok('K3f mat khau moi thanh cong', r.status === 200, `status=${r.status}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k3Id } });
+  ok('K3g member con trong lease -> rejoin khong hoi lai pass', r.status === 200, `status=${r.status}`);
+  await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'dong', phongId: k3Id } });
+}
+
+console.log('\n=== K4. room_full ERROR CONTRACT ===');
+{
+  r = await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'tao', ten: 'QA K4 Full', loai: 'video', phamVi: 'truong', videoUrl: 'https://www.youtube.com/watch?v=k4x', sucChua: 2 } });
+  const k4Id = r.data.phong?.id;
+  await api('/api/phong', { method: 'POST', ck: ckB, body: { hanhDong: 'vao', phongId: k4Id } });
+  r = await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'vao', phongId: k4Id } });
+  ok('K4 phong day -> HTTP 409 + { ok:false, code:"room_full" }', r.status === 409 && r.data.ok === false && r.data.code === 'room_full', `status=${r.status} body=${JSON.stringify(r.data)}`);
+  await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'dong', phongId: k4Id } });
+}
+
+console.log('\n=== K5. REAL SYSTEM CHAT LOBBY — van mo khong can join ===');
+{
+  // Sảnh hệ thống là fixture từ migration 61; lần chạy trước (hoặc test admin) có thể đã
+  // đóng nó — mở lại về đúng trạng thái production ('mo') trước khi kiểm chứng.
+  let sanh = sqlLocal(`SELECT id, loai, pham_vi AS phamVi, trang_thai AS trangThai FROM phong WHERE chu_phong_khoa='he-thong' AND loai='chat' ORDER BY id LIMIT 1`)[0];
+  if (sanh && sanh.trangThai !== 'mo') {
+    sqlLocal(`UPDATE phong SET trang_thai='mo' WHERE id=${sanh.id}`);
+    sanh.trangThai = 'mo';
+  }
+  ok('K5a sanh he-thong ton tai (chat/truong/mo)', sanh && sanh.loai === 'chat' && sanh.phamVi === 'truong' && sanh.trangThai === 'mo', `sanh=${JSON.stringify(sanh || null)}`);
+  if (sanh) {
+    r = await api(`/api/phong-chat?phongId=${sanh.id}`, { ck: ckE });
+    ok('K5b E chua join van doc duoc chat sanh', r.status === 200, `status=${r.status} code=${r.data.code || ''}`);
+    r = await api(`/api/phong?id=${sanh.id}`, { ck: ckE });
+    ok('K5c GET detail sanh: isAdmitted=true khong can member row', r.status === 200 && r.data.isAdmitted === true, `status=${r.status} isAdmitted=${r.data.isAdmitted}`);
+  }
+}
+
+console.log('\n=== K6. SYSTEM-OWNED VIDEO — van bat buoc admission ===');
+{
+  r = await api('/api/phong', { method: 'POST', ck: ckD, body: { hanhDong: 'tao', ten: 'QA K6 SysVideo', loai: 'video', phamVi: 'truong', videoUrl: 'https://www.youtube.com/watch?v=k6x' } });
+  const k6Id = r.data.phong?.id;
+  ok('K6a tao phong video', r.status === 200 && k6Id > 0, `status=${r.status}`);
+  // Chuyển ownership sang 'he-thong' — mô phỏng phòng video do hệ thống sở hữu.
+  sqlLocal(`UPDATE phong SET chu_phong_khoa='he-thong' WHERE id=${k6Id}`);
+  r = await api(`/api/phong?id=${k6Id}`, { ck: ckE });
+  ok('K6b video he-thong: E chua join -> chi preview (isAdmitted=false)', r.status === 200 && r.data.isAdmitted === false, `status=${r.status} isAdmitted=${r.data.isAdmitted}`);
+  r = await api(`/api/phong-chat?phongId=${k6Id}`, { ck: ckE });
+  ok('K6c video he-thong: chat van can admission', r.status === 403 && r.data.code === 'admission_required', `status=${r.status} code=${r.data.code || ''}`);
+  r = await api('/api/phong', { method: 'POST', ck: ckE, body: { hanhDong: 'vao', phongId: k6Id } });
+  ok('K6d public truong -> E vao binh thuong duoc', r.status === 200, `status=${r.status}`);
+  r = await api(`/api/phong-chat?phongId=${k6Id}`, { ck: ckE });
+  ok('K6e sau vao: chat 200', r.status === 200, `status=${r.status}`);
+  // Chủ phòng đã chuyển thành he-thong → D không còn quyền đóng; dọn bằng SQL trực tiếp.
+  sqlLocal(`UPDATE phong SET trang_thai='dong' WHERE id=${k6Id}`);
+}
 
 console.log(`\n=== TỔNG: ${pass} PASS, ${fail} FAIL ===`);
 import fs from 'fs';

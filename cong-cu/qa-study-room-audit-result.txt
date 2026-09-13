@@ -161,4 +161,29 @@ PASS  IH4 race enqueue tai boundary: khong vuot 30
 PASS  IJ1 host kick E
 PASS  IJ2 E bi ban -> watch 403 room_banned
 PASS  IJ3 bo ban -> vao lai duoc
-TOTAL: 163 PASS 0 FAIL
+PASS  K1a tao phong cap=2 boi D
+PASS  K1b B vao (phong day: D+B)
+PASS  K1c stale-in-lease van admitted (chat 200)
+PASS  K1d stale-in-lease van chiem slot -> E 409 room_full
+PASS  K1e het lease -> mat admission (403 admission_required)
+PASS  K1f het lease -> giai phong slot, E vao duoc
+PASS  K2a row cu khong revive qua vao khi phong day
+PASS  K2b nhip cung khong revive qua capacity
+PASS  K2c rejoin sau het han -> vaiTroPhong reset ve member
+PASS  K3a tao phong password
+PASS  K3b vao bang mat khau cu
+PASS  K3c host doi mat khau
+PASS  K3d stale row -> vao khong pass BI CHAN (403)
+PASS  K3e mat khau cu bi tu choi
+PASS  K3f mat khau moi thanh cong
+PASS  K3g member con trong lease -> rejoin khong hoi lai pass
+PASS  K4 phong day -> HTTP 409 + { ok:false, code:"room_full" }
+PASS  K5a sanh he-thong ton tai (chat/truong/mo)
+PASS  K5b E chua join van doc duoc chat sanh
+PASS  K5c GET detail sanh: isAdmitted=true khong can member row
+PASS  K6a tao phong video
+PASS  K6b video he-thong: E chua join -> chi preview (isAdmitted=false)
+PASS  K6c video he-thong: chat van can admission
+PASS  K6d public truong -> E vao binh thuong duoc
+PASS  K6e sau vao: chat 200
+TOTAL: 188 PASS 0 FAIL

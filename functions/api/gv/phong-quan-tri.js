@@ -9,11 +9,11 @@
 import { bocXuLy, json, loi, docThan } from '../../_lib/api.js';
 import { layPhamViQuanTri } from '../../_lib/quan-tri.js';
 import { ghiNhatKyQuanTri } from '../../_lib/audit.js';
+import { NHIP_HIEU_LUC } from '../../_lib/rooms.js';
 
 const CAC_LOAI_PHONG = ['chat', 'video', 'nhac'];
-// Trùng giá trị NHIP_HOAT_DONG đang chạy thật ở _lib/rooms.js — không import trực tiếp file đó vì
-// đang có nhánh Study Room governance khác sửa đổi song song, tránh phụ thuộc chéo giữa 2 việc.
-const NHIP_HOAT_DONG = '-90 seconds';
+// Đếm/danh sách thành viên trong view quản trị phải dùng ĐÚNG lease thành viên
+// (NHIP_HIEU_LUC — cùng cửa sổ với capacity/admission), không phải cửa sổ presence 90s.
 
 // Phòng toàn trường thì ai có quyền vào Khu quản trị cũng xem/đóng được (giống mức mở hiện có ở
 // functions/api/phong.js — bất kỳ giáo viên nào cũng đóng được mọi phòng); phòng riêng 1 lớp thì
@@ -41,7 +41,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
       `SELECT ten, vai_tro AS vaiTro, lop_id AS lopId, (khoa = ?2) AS laChuPhong
          FROM phong_thanh_vien WHERE phong_id = ?1 AND datetime(hoat_dong_luc) > datetime('now', ?3)
          ORDER BY vao_luc ASC LIMIT 60`
-    ).bind(phongId, p.chuPhongKhoa, NHIP_HOAT_DONG).all();
+    ).bind(phongId, p.chuPhongKhoa, NHIP_HIEU_LUC).all();
 
     return json({ ok: true, phong: p, thanhVien: thanhVien || [] });
   }
@@ -61,7 +61,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     dieuKien.push(`(p.pham_vi = 'truong' OR p.lop_id IN (${cho}))`);
     thamSo.push(...lopIds);
   }
-  thamSo.push(NHIP_HOAT_DONG);
+  thamSo.push(NHIP_HIEU_LUC);
 
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.loai, p.ten, p.mo_ta AS moTa, p.pham_vi AS phamVi, p.lop_id AS lopId, l.ten AS lopTen,
