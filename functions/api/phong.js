@@ -72,7 +72,7 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   // Chi tiết 1 phòng + danh sách thành viên đang trong phòng.
   if (phongId > 0) {
     const check = await kiemTraTruyCapPhong(db, phongId, phien);
-    if (check.loi) return loi(check.loi, check.status || 400);
+    if (check.loi) return loi(check.loi, check.status || 400, check.code ? { code: check.code } : null);
 
     const p = check.phong;
     // PREVIEW vs PARTICIPANT: chưa admitted (chưa join / chưa nhập pass) và không phải staff

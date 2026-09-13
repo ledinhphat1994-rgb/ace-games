@@ -158,7 +158,7 @@ await pageB.reload();
 await pageB.waitForSelector('#world-game', { timeout: 20000 });
 await pageB.locator('#world-game').click({ force: true });
 await pageB.waitForSelector('#lobby-game');
-const cardC4 = pageB.locator('#lobby-game div:has-text("QA C4 Browser")').first();
+const cardC4 = pageB.locator('#lobby-game div.rounded-2xl', { hasText: 'QA C4 Browser' }).first();
 await cardC4.waitFor({ timeout: 15000 });
 ok('B thấy bàn c4 trong lobby + badge loại game', await pageB.locator('#lobby-game:has-text("Thả Quân 4")').count() > 0);
 await cardC4.locator('button:has-text("Vào bàn")').click();
