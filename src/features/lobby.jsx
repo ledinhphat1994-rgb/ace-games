@@ -236,6 +236,69 @@ export function RoomPasswordModal({ room, isOpen, onClose, onJoin }) {
 export function QuickTaoPhongForm({ ctl }) {
   const f = ctl.form;
   const dat = (patch) => ctl.setForm(truoc => ({ ...truoc, ...patch }));
+
+  const [ytQuery, setYtQuery] = React.useState('');
+  const [ytResults, setYtResults] = React.useState([]);
+  const [ytLoading, setYtLoading] = React.useState(false);
+  const [ytConfigured, setYtConfigured] = React.useState(true);
+  const [ytError, setYtError] = React.useState('');
+  const searchSeqRef = React.useRef(0);
+  const abortCtrlRef = React.useRef(null);
+
+  React.useEffect(() => {
+    fetch('/api/youtube-search')
+      .then(r => r.json())
+      .then(d => { if (d && d.configured === false) setYtConfigured(false); })
+      .catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    const trimmed = ytQuery.trim();
+    if (trimmed.length < 2) { setYtResults([]); setYtLoading(false); return; }
+    const timer = setTimeout(async () => {
+      if (abortCtrlRef.current) abortCtrlRef.current.abort();
+      const ctrl = new AbortController();
+      abortCtrlRef.current = ctrl;
+      searchSeqRef.current += 1;
+      const curSeq = searchSeqRef.current;
+      setYtLoading(true);
+      setYtError('');
+      try {
+        const res = await fetch('/api/youtube-search?q=' + encodeURIComponent(trimmed), { signal: ctrl.signal });
+        const data = await res.json().catch(() => ({}));
+        if (curSeq !== searchSeqRef.current) return;
+        if (res.ok) {
+          if (data.configured === false) { setYtConfigured(false); setYtResults([]); }
+          else { setYtConfigured(true); setYtResults(Array.isArray(data.items) ? data.items : []); }
+        } else if (data.configured === false) {
+          setYtConfigured(false); setYtResults([]);
+        } else {
+          setYtError(data.message || data.error || 'Lỗi tìm kiếm YouTube');
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        if (curSeq !== searchSeqRef.current) return;
+        setYtError('Lỗi kết nối mạng');
+      } finally {
+        if (curSeq === searchSeqRef.current) setYtLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [ytQuery]);
+
+  // Chọn video xong thì gán THẲNG vào form đang mở, không mở lại/điều hướng đi đâu khác — tìm
+  // video giờ LÀ một bước của việc tạo phòng, không phải tính năng đứng riêng ngoài khung 1 nữa.
+  const chonVideo = (url, title) => {
+    dat({ videoUrl: url, ten: f.ten.trim() ? f.ten : (title || f.ten) });
+    setYtQuery('');
+    setYtResults([]);
+  };
+
+  const danLink = () => {
+    const url = prompt('Dán liên kết video YouTube (ví dụ: https://www.youtube.com/watch?v=...):');
+    if (url && url.trim()) chonVideo(url.trim(), 'Phòng học YouTube');
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -250,9 +313,63 @@ export function QuickTaoPhongForm({ ctl }) {
         placeholder="Tên phòng (VD: Góc ôn thi Toán)" maxLength={80}
         className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500" />
 
-      <input type="text" value={f.videoUrl} onChange={e => dat({ videoUrl: e.target.value })}
-        placeholder="Link video YouTube, Drive..." maxLength={1000}
-        className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500" />
+      {f.videoUrl ? (
+        <div className="p-3 rounded-xl bg-[#0B0E14] border border-red-500/30 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-red-400 mb-0.5">Video đã chọn</p>
+            <p className="text-xs text-slate-300 truncate">{f.videoUrl}</p>
+          </div>
+          <button type="button" onClick={() => dat({ videoUrl: '' })}
+            className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all shrink-0">
+            Đổi video
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={ytQuery}
+                onChange={e => setYtQuery(e.target.value)}
+                placeholder="🔍 Tìm video, bài giảng, nhạc học tập trên YouTube..."
+                className="w-full bg-[#0B0E14] border border-white/15 focus:border-red-500 rounded-xl pl-3 pr-8 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all" />
+              {ytQuery && (
+                <button type="button" onClick={() => { setYtQuery(''); setYtResults([]); }}
+                  className="absolute right-2.5 top-2.5 text-xs text-slate-400 hover:text-white">✕</button>
+              )}
+            </div>
+            <button type="button" onClick={danLink}
+              className="px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 hover:text-white transition-all shrink-0">
+              🔗 Dán link
+            </button>
+          </div>
+
+          {!ytConfigured && (
+            <p className="text-[11px] text-slate-400">ℹ️ Tìm kiếm YouTube hiện chưa khả dụng — dùng "Dán link" ở trên.</p>
+          )}
+          {ytLoading && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[1, 2, 3].map(i => <div key={i} className="aspect-video bg-white/5 rounded-lg animate-pulse" />)}
+            </div>
+          )}
+          {ytError && <p className="text-[11px] text-rose-400">{ytError}</p>}
+          {!ytLoading && ytResults.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-0.5">
+              {ytResults.map(v => (
+                <button key={v.videoId} type="button"
+                  onClick={() => chonVideo('https://www.youtube.com/watch?v=' + v.videoId, v.title)}
+                  className="p-1.5 rounded-lg bg-[#0B0E14] border border-white/10 hover:border-red-500/50 flex flex-col gap-1 transition-all text-left">
+                  <div className="relative w-full aspect-video rounded overflow-hidden bg-black/40">
+                    <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" />
+                  </div>
+                  <p className="text-[10px] font-bold text-white line-clamp-2 leading-tight">{v.title}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => dat({ phamVi: 'truong' })}
@@ -327,159 +444,6 @@ export function QuickTaoBanForm({ ctl }) {
   );
 }
 
-/* Khối tìm YouTube + xem trước video đã chọn — nội dung MẶC ĐỊNH của khung 1 lobby Học tập khi
-   không có form tạo phòng nào đang mở. Tách riêng component để khung 1 chỉ còn 1 ternary đơn
-   giản (form tạo phòng HOẶC khối này), không lồng nhiều JSX phức tạp ngay trong ActivityLobby. */
-export function YoutubeSearchPanel({
-  ytQuery, setYtQuery, ytResults, setYtResults, selectedYtVideo, setSelectedYtVideo,
-  ytLoading, ytConfigured, ytError, onOpenTaoPhong
-}) {
-  return (
-    <React.Fragment>
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1">
-          <input
-            id="yt-search-input"
-            type="text"
-            value={ytQuery}
-            onChange={e => setYtQuery(e.target.value)}
-            placeholder="🔍 Tìm video, bài giảng, nhạc học tập trên YouTube..."
-            className="w-full bg-[#0B0E14] border border-white/15 focus:border-red-500 rounded-2xl pl-10 pr-9 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner"
-          />
-          <span className="absolute left-3.5 top-3.5 text-xs text-red-500">▶</span>
-          {ytQuery && (
-            <button
-              type="button"
-              onClick={() => { setYtQuery(''); setYtResults([]); setSelectedYtVideo(null); }}
-              className="absolute right-3.5 top-3.5 text-xs text-slate-400 hover:text-white">
-              ✕
-            </button>
-          )}
-        </div>
-
-        <button
-          type="button"
-          id="btn-paste-youtube-url"
-          onClick={() => {
-            const url = prompt('Dán liên kết video YouTube (ví dụ: https://www.youtube.com/watch?v=...):');
-            if (url && url.trim()) {
-              if (onOpenTaoPhong) onOpenTaoPhong('video', url.trim(), 'Phòng học YouTube');
-            }
-          }}
-          className="px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5 shrink-0">
-          <span>🔗</span>
-          <span>Dán link</span>
-        </button>
-      </div>
-
-      {!ytConfigured && (
-        <div id="yt-search-not-configured" className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 text-slate-300 text-xs flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400">ℹ️</span>
-            <span>Tìm kiếm YouTube hiện chưa khả dụng. Bạn vẫn có thể dán liên kết.</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const url = prompt('Dán liên kết video YouTube (ví dụ: https://www.youtube.com/watch?v=...):');
-              if (url && url.trim() && onOpenTaoPhong) {
-                onOpenTaoPhong('video', url.trim(), 'Phòng học YouTube');
-              }
-            }}
-            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/15 transition-all">
-            Dán link
-          </button>
-        </div>
-      )}
-
-      {ytLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="p-3 rounded-2xl bg-[#0B0E14] border border-white/5 flex flex-col gap-2.5 animate-pulse">
-              <div className="w-full aspect-video bg-white/5 rounded-xl" />
-              <div className="h-3 bg-white/10 rounded w-3/4" />
-              <div className="h-2.5 bg-white/5 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {ytError && <div className="text-xs text-rose-400 py-1">{ytError}</div>}
-
-      {selectedYtVideo && (
-        <div id="yt-selected-preview" className="p-4 rounded-2xl bg-gradient-to-r from-red-950/30 via-[#0B0E14] to-purple-950/20 border border-red-500/40 flex flex-col sm:flex-row items-center gap-4 animate-scaleIn">
-          <img src={selectedYtVideo.thumbnail} alt={selectedYtVideo.title} className="w-full sm:w-48 aspect-video object-cover rounded-xl border border-white/10 shrink-0" />
-          <div className="flex-1 min-w-0 text-center sm:text-left">
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-300 border border-red-500/30">
-              Video đã chọn
-            </span>
-            <h4 className="text-sm font-black text-white mt-1 line-clamp-2 leading-snug">
-              {selectedYtVideo.title}
-            </h4>
-            <p className="text-xs text-slate-400 mt-0.5">{selectedYtVideo.channelTitle}</p>
-            <div className="flex items-center justify-center sm:justify-start gap-2.5 mt-3">
-              <button
-                type="button"
-                id="btn-create-room-with-video"
-                data-id="btn-create-room-with-video"
-                onClick={() => {
-                  if (onOpenTaoPhong) {
-                    onOpenTaoPhong('video', 'https://www.youtube.com/watch?v=' + selectedYtVideo.videoId, selectedYtVideo.title);
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs shadow-md hover:opacity-95 active:scale-95 transition-all flex items-center gap-1.5">
-                <span>+</span>
-                <span>Tạo phòng với video này</span>
-              </button>
-              <button
-                type="button"
-                id="btn-change-video"
-                data-id="btn-change-video"
-                onClick={() => setSelectedYtVideo(null)}
-                className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-bold transition-all">
-                Đổi video
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!selectedYtVideo && ytResults.length > 0 && (
-        <div id="yt-search-results" className="flex flex-col gap-3 pt-2 border-t border-white/5">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Kết quả tìm kiếm ({ytResults.length})</span>
-            <span className="text-[10px] text-slate-500">Bấm "Chọn video" để xem trước và tạo phòng</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ytResults.map(v => (
-              <div key={v.videoId} className="yt-result-card p-3 rounded-2xl bg-[#0B0E14] border border-white/10 hover:border-red-500/50 flex flex-col gap-2.5 transition-all group shadow-sm">
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/40">
-                  <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/80 text-white">YouTube</span>
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div>
-                    <h5 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-red-300 transition-colors" title={v.title}>{v.title}</h5>
-                    <p className="text-[10px] text-slate-400 truncate mt-1">{v.channelTitle}</p>
-                  </div>
-                  <button
-                    type="button"
-                    id={`btn-choose-video-${v.videoId}`}
-                    data-id="btn-choose-video"
-                    onClick={() => setSelectedYtVideo(v)}
-                    className="mt-2.5 w-full py-1.5 rounded-xl bg-red-600/20 text-red-300 hover:bg-red-600 hover:text-white border border-red-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5">
-                    <span>Chọn video</span>
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </React.Fragment>
-  );
-}
 
 export function ActivityLobby({
   lobbyId,
@@ -496,77 +460,6 @@ export function ActivityLobby({
   taoBanCtl
 }) {
   const [roomFilter, setRoomFilter] = React.useState('ALL'); // 'ALL' | 'public' | 'private'
-  const [ytQuery, setYtQuery] = React.useState('');
-  const [ytResults, setYtResults] = React.useState([]);
-  const [selectedYtVideo, setSelectedYtVideo] = React.useState(null);
-  const [ytLoading, setYtLoading] = React.useState(false);
-  const [ytConfigured, setYtConfigured] = React.useState(true);
-  const [ytError, setYtError] = React.useState('');
-
-  const searchSeqRef = React.useRef(0);
-  const abortCtrlRef = React.useRef(null);
-
-  React.useEffect(() => {
-    if (lobbyId !== 'CINEMA') return;
-    fetch('/api/youtube-search')
-      .then(r => r.json())
-      .then(d => {
-        if (d && d.configured === false) setYtConfigured(false);
-      })
-      .catch(() => {});
-  }, [lobbyId]);
-
-  React.useEffect(() => {
-    if (lobbyId !== 'CINEMA') return;
-    const trimmed = ytQuery.trim();
-    if (trimmed.length < 2) {
-      setYtResults([]);
-      setYtLoading(false);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      if (abortCtrlRef.current) {
-        abortCtrlRef.current.abort();
-      }
-      const ctrl = new AbortController();
-      abortCtrlRef.current = ctrl;
-      searchSeqRef.current += 1;
-      const curSeq = searchSeqRef.current;
-
-      setYtLoading(true);
-      setYtError('');
-      try {
-        const res = await fetch('/api/youtube-search?q=' + encodeURIComponent(trimmed), { signal: ctrl.signal });
-        const data = await res.json().catch(() => ({}));
-        if (curSeq !== searchSeqRef.current) return;
-        if (res.ok) {
-          if (data.configured === false) {
-            setYtConfigured(false);
-            setYtResults([]);
-          } else {
-            setYtConfigured(true);
-            setYtResults(Array.isArray(data.items) ? data.items : []);
-          }
-        } else {
-          if (data.configured === false) {
-            setYtConfigured(false);
-            setYtResults([]);
-          } else {
-            setYtError(data.message || data.error || 'Lỗi tìm kiếm YouTube');
-          }
-        }
-      } catch (err) {
-        if (err.name === 'AbortError') return;
-        if (curSeq !== searchSeqRef.current) return;
-        setYtError('Lỗi kết nối mạng');
-      } finally {
-        if (curSeq === searchSeqRef.current) {
-          setYtLoading(false);
-        }
-      }
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [ytQuery, lobbyId]);
 
   const meta = {
     CINEMA: { id: 'lobby-watch', title: 'Học tập / YouTube', icon: '🎓', loai: 'video', desc: 'Không gian học tập, xem video bài giảng và thảo luận cùng bạn bè' },
@@ -663,23 +556,14 @@ export function ActivityLobby({
         </div>
       </div>
 
-      {/* ─── KHUNG 1: TẠO PHÒNG (khi đang tạo) hoặc TÌM YOUTUBE (mặc định) ─── */}
-      {lobbyId === 'CINEMA' && (
-        <div className="p-4 sm:p-6 rounded-3xl bg-[#121620] border border-white/10 shadow-xl flex flex-col gap-4">
-          {(taoPhongCtl && taoPhongCtl.show) ? (
-            <QuickTaoPhongForm ctl={taoPhongCtl} />
-          ) : (
-            <YoutubeSearchPanel
-              ytQuery={ytQuery} setYtQuery={setYtQuery}
-              ytResults={ytResults} setYtResults={setYtResults}
-              selectedYtVideo={selectedYtVideo} setSelectedYtVideo={setSelectedYtVideo}
-              ytLoading={ytLoading} ytConfigured={ytConfigured} ytError={ytError}
-              onOpenTaoPhong={onOpenTaoPhong}
-            />
-          )}
+      {/* ─── KHUNG 1: TẠO PHÒNG — chỉ hiện khi đang tạo, giữ sảnh Học tập gọn khi rảnh
+           (giống hệt lobby Game) — tìm/chọn YouTube giờ nằm NGAY trong form, không còn ô tìm
+           kiếm thường trực tách rời khỏi việc tạo phòng. ─── */}
+      {lobbyId === 'CINEMA' && taoPhongCtl?.show && (
+        <div className="p-4 sm:p-6 rounded-3xl bg-[#121620] border border-white/10 shadow-xl">
+          <QuickTaoPhongForm ctl={taoPhongCtl} />
         </div>
       )}
-
 
       {/* ─── KHUNG 1: TẠO BÀN — chỉ hiện khi đang tạo, giữ sảnh Game gọn khi rảnh ─── */}
       {lobbyId === 'GAME' && taoBanCtl?.show && (
