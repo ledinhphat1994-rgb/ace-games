@@ -604,14 +604,18 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
 
   return (
     <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[380px] shadow-xl">
-      {/* Study Dock Tab Navigation */}
+      {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             id="tab-study-chat"
             type="button"
             onClick={() => setDockTab('chat')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'chat' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'chat'
+                ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] border border-[#00F2FE]/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
             <span>💬</span>
             <span>Chat phòng</span>
           </button>
@@ -619,7 +623,11 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             id="tab-study-notes"
             type="button"
             onClick={() => setDockTab('notes')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'notes' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'notes'
+                ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] border border-[#00F2FE]/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
             <span>📝</span>
             <span>Ghi chú</span>
           </button>
@@ -627,7 +635,11 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             id="tab-study-whiteboard"
             type="button"
             onClick={() => setDockTab('whiteboard')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'whiteboard' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'whiteboard'
+                ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] border border-[#00F2FE]/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
             <span>🎨</span>
             <span>Bảng vẽ</span>
           </button>
@@ -635,7 +647,11 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             id="tab-study-sheet"
             type="button"
             onClick={() => setDockTab('sheet')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'sheet' ? 'bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'sheet'
+                ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] border border-[#00F2FE]/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
             <span>📊</span>
             <span>Bảng tính</span>
           </button>
@@ -643,7 +659,11 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             id="tab-study-voice"
             type="button"
             onClick={() => setDockTab('voice')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'voice' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'voice'
+                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.35)] border border-amber-400/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
             <span>🎙️</span>
             <span>Voice (1-1)</span>
           </button>
@@ -652,15 +672,22 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
               id="tab-study-quan-tri"
               type="button"
               onClick={() => setDockTab('quan-tri')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${dockTab === 'quan-tri' ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                dockTab === 'quan-tri'
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-[0_0_15px_rgba(139,92,246,0.35)] border border-violet-500/50'
+                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+              }`}>
               <span>⚙️</span>
               <span>Quyền</span>
             </button>
           )}
         </div>
-        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider hidden sm:inline">
-          Study Workspace{vaiTroPhong !== 'member' ? ` · ${vaiTroPhong === 'host' ? 'Chủ phòng' : vaiTroPhong === 'teacher' ? 'Giáo viên' : 'Co-host'}` : ''}
-        </span>
+        {vaiTroPhong && vaiTroPhong !== 'member' && (
+          <span className="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/25 hidden sm:inline-flex items-center gap-1">
+            <span>🛡️</span>
+            <span>{vaiTroPhong === 'host' ? 'Chủ phòng' : vaiTroPhong === 'teacher' ? 'Giáo viên' : 'Đồng chủ phòng'}</span>
+          </span>
+        )}
       </div>
 
       {/* Dock Content Body */}
@@ -1662,46 +1689,48 @@ export function CampusWatchTogether({
         </div>
       )}
 
-      {/* Thanh trạng thái phòng & Điều khiển Host */}
-      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-white/10">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${phong.phamVi === 'truong' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-slate-400 border-white/10'}`}>
-              {phong.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 Chỉ lớp ${phong.lopTen || ''}`}
-            </span>
-            <span className="text-xs text-slate-200 font-bold truncate max-w-[200px] sm:max-w-xs">{phong.ten}</span>
-            <span className="text-[11px] text-slate-400">
-              • Chủ phòng: <strong className="text-slate-200">{phong.chuPhongTen}</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2.5">
+      {/* Thanh trạng thái phòng & Điều khiển Host — Gọn gàng, thẩm mỹ, tối ưu không gian */}
+      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col gap-3 shadow-xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             {/* Sync State Badge */}
             {provider !== 'GOOGLE_DRIVE' && provider !== 'UNSUPPORTED' ? (
-              <span id="sync-state-badge" className={`text-[11px] font-bold flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+              <span id="sync-state-badge" className={`text-xs font-black flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${watchState.playing ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]' : 'bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'}`}>
+                <span className={`w-2 h-2 rounded-full ${watchState.playing ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
                 <span>{watchState.playing ? (canControl ? 'Đang phát chung' : 'Đang phát cùng phòng') : (canControl ? 'Tạm dừng' : 'Tạm dừng theo chủ phòng')}</span>
               </span>
             ) : (
-              <span id="sync-state-badge" className="text-[11px] text-slate-400 font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+              <span id="sync-state-badge" className="text-xs text-slate-400 font-bold px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
                 Xem độc lập
               </span>
             )}
 
             {canControl && (
-              <span id="host-badge" className="text-[10px] font-black px-2 py-0.5 rounded-md bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30">
-                Chủ phòng
+              <span id="host-badge" className="text-[11px] font-black px-2.5 py-1 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm flex items-center gap-1">
+                <span>★</span>
+                <span>Chủ phòng</span>
               </span>
             )}
 
+            {!canControl && (
+              <span className="text-xs text-slate-400 hidden sm:inline-flex items-center gap-1.5">
+                <span className="text-slate-600">•</span>
+                <span>Chủ phòng:</span>
+                <strong className="text-slate-200 font-bold">{phong.chuPhongTen}</strong>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {caps.invite !== false && (
               <button
                 type="button"
                 id="btn-copy-room-link"
                 onClick={saoChepLinkPhong}
                 title="Sao chép link mời vào phòng"
-                className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-[10px] font-bold border border-white/10 transition-all">
-                {linkCopied ? '✓ Đã copy' : '🔗 Mời'}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
+                <span>🔗</span>
+                <span>{linkCopied ? '✓ Đã chép' : 'Mời'}</span>
               </button>
             )}
 
@@ -1709,7 +1738,7 @@ export function CampusWatchTogether({
               <button
                 type="button"
                 onClick={dongPhongHienTai}
-                className="px-3 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all">
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all hover:scale-105 active:scale-95">
                 Đóng phòng
               </button>
             )}
@@ -1718,13 +1747,17 @@ export function CampusWatchTogether({
 
         {/* Thanh công cụ phát chung (chỉ hiển thị cho Host / Teacher khi dùng provider có thể điều khiển) */}
         {canControl && (provider === 'NATIVE_HTML5' || provider === 'YOUTUBE') && (
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-white/10">
             <button
               id="btn-host-watch-toggle"
               type="button"
               onClick={() => guiLenh(watchState.playing ? 'pause' : 'play')}
               disabled={dangGuiLenh}
-              className={`w-full sm:w-auto px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 ${watchState.playing ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30' : 'bg-[#00F2FE] text-black hover:bg-[#00e1ec]'}`}>
+              className={`w-full sm:w-auto px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer disabled:opacity-50 ${
+                watchState.playing
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                  : 'bg-gradient-to-r from-[#00F2FE] to-[#00c6ff] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] hover:brightness-110'
+              }`}>
               <span>{watchState.playing ? '⏸' : '▶'}</span>
               <span>{watchState.playing ? 'Tạm Dừng Cả Phòng' : 'Phát Chung Cả Phòng'}</span>
             </button>
