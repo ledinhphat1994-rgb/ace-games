@@ -484,24 +484,23 @@ try {
   await pageB.goto(`${BASE}/`);
   await pageB.waitForSelector('#campus-lobby', { timeout: 10000 });
 
-  // Chủ phòng A vào phòng qua Watch Lobby (Phase 4B) hoặc Left Navigator
-  const navCinemaA = pageA.locator('#cat-nav-CINEMA');
-  if (await navCinemaA.count()) {
-    await navCinemaA.click();
-    await pageA.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
-    const rowA = pageA.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
-    await rowA.locator('button:has-text("Vào")').first().click();
-  } else {
-    const btnWatchA = pageA.locator('#campus-flagship-spaces button:has-text("YouTube"), #campus-flagship-spaces button:has-text("Xem chung")').first();
-    await btnWatchA.click();
-    await pageA.waitForSelector('#lobby-watch', { timeout: 5000 });
-    const rowA = pageA.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
-    await rowA.locator('button:has-text("Vào")').first().click();
-  }
+  // Vào phòng qua luồng sản phẩm THẬT hiện tại:
+  //   Campus lobby (#campus-lobby) → world HỌC TẬP (#world-hoc-tap) → CINEMA lobby (#lobby-watch)
+  //   → thẻ phòng [data-testid=study-room-enter][data-phong-id] → ROOM_ACTIVE (#btn-roi-phong-top).
+  // #world-hoc-tap nằm trong container orbit animation vô hạn → force:true để bỏ qua stability check.
+  const SEL_VIDEO = '[data-testid="study-video-player"]';
+  const vaoPhongQuaUI = async (page, phongId) => {
+    await page.locator('#world-hoc-tap').click({ force: true });
+    await page.waitForSelector('#lobby-watch', { timeout: 8000 });
+    const btnVao = page.locator(`[data-testid="study-room-enter"][data-phong-id="${phongId}"]`);
+    await btnVao.waitFor({ state: 'visible', timeout: 15000 });
+    await btnVao.click();
+    await page.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
+    await page.waitForTimeout(1000);
+  };
 
-  // Đợi màn hình ROOM_ACTIVE xuất hiện trên A
-  await pageA.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
-  await pageA.waitForTimeout(1000);
+  // Chủ phòng A vào phòng qua UI thật
+  await vaoPhongQuaUI(pageA, livePhongId);
 
   // Xác thực Host UI (Bắt buộc tồn tại, KHÔNG CÓ FALLBACK API)
   const hostBadgeA = pageA.locator('#host-badge');
@@ -513,24 +512,8 @@ try {
   const sliderHostA = pageA.locator('#host-seek-slider');
   ok('Browser A: Thanh trượt seek (#host-seek-slider) TỒN TẠI trên UI', (await sliderHostA.count()) > 0, 'browser');
 
-  // Người xem B vào phòng qua Watch Lobby (Phase 4B) hoặc Left Navigator
-  const navCinemaB = pageB.locator('#cat-nav-CINEMA');
-  if (await navCinemaB.count()) {
-    await navCinemaB.click();
-    await pageB.waitForSelector('#room-nav-list-CINEMA', { timeout: 5000 });
-    const rowB = pageB.locator('#room-nav-list-CINEMA div:has-text("Rạp Phim E2E Sync Hardened")').first();
-    await rowB.locator('button:has-text("Vào")').first().click();
-  } else {
-    const btnWatchB = pageB.locator('#campus-flagship-spaces button:has-text("YouTube"), #campus-flagship-spaces button:has-text("Xem chung")').first();
-    await btnWatchB.click();
-    await pageB.waitForSelector('#lobby-watch', { timeout: 5000 });
-    const rowB = pageB.locator('#lobby-watch div:has-text("Rạp Phim E2E Sync Hardened")').first();
-    await rowB.locator('button:has-text("Vào")').first().click();
-  }
-
-  // Đợi màn hình ROOM_ACTIVE xuất hiện trên B
-  await pageB.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
-  await pageB.waitForTimeout(1000);
+  // Người xem B vào phòng qua cùng luồng UI thật
+  await vaoPhongQuaUI(pageB, livePhongId);
 
   // Xác thực Viewer UI: Nút điều khiển của Host bị ẩn hoàn toàn
   const btnToggleViewerB = pageB.locator('#btn-host-watch-toggle');
@@ -546,6 +529,18 @@ try {
     await pageB.waitForTimeout(500);
   }
 
+  // Member không có quyền → <video> không có controls; host (canControl) có controls
+  const controlsB = await pageB.evaluate(() => {
+    const v = document.querySelector('[data-testid="study-video-player"]');
+    return v ? v.hasAttribute('controls') : null;
+  });
+  ok('Browser B: member không có quyền → <video> KHÔNG có thuộc tính controls', controlsB === false, 'browser');
+  const controlsA = await pageA.evaluate(() => {
+    const v = document.querySelector('[data-testid="study-video-player"]');
+    return v ? v.hasAttribute('controls') : null;
+  });
+  ok('Browser A: host có quyền → <video> CÓ thuộc tính controls', controlsA === true, 'browser');
+
   // ──────────────────────────────────────────────────
   // 1. KIỂM THỬ PLAY THẬT TRÊN DOM VIDEO
   // ──────────────────────────────────────────────────
@@ -554,12 +549,12 @@ try {
 
   // Chờ Browser B sync và bắt đầu phát video (chu kỳ poll 2.5s)
   await pageB.waitForFunction(() => {
-    const v = document.querySelector('video');
+    const v = document.querySelector('[data-testid="study-video-player"]');
     return v && !v.paused;
   }, { timeout: 8000 }).catch(() => {});
 
   const isPausedB = await pageB.evaluate(() => {
-    const v = document.querySelector('video');
+    const v = document.querySelector('[data-testid="study-video-player"]');
     return v ? v.paused : null;
   });
   ok('Actual player PLAY: Browser B video.paused === false sau khi Host bấm Phát Chung', isPausedB === false, 'browser');
@@ -589,7 +584,7 @@ try {
   await pageB.waitForTimeout(3500);
 
   const curTimeB = await pageB.evaluate(() => {
-    const v = document.querySelector('video');
+    const v = document.querySelector('[data-testid="study-video-player"]');
     return v ? v.currentTime : -1;
   });
   // Với playback 1.0x sau 3.5s từ mốc 25s, vị trí dự kiến là ~28.5s. Dung sai <= 3.5s
@@ -609,14 +604,14 @@ try {
   await pageB.waitForTimeout(3500);
 
   const isPausedB_after = await pageB.evaluate(() => {
-    const v = document.querySelector('video');
+    const v = document.querySelector('[data-testid="study-video-player"]');
     return v ? v.paused : null;
   });
   ok('Actual player PAUSE: Browser B video.paused === true sau khi Host bấm Tạm Dừng', isPausedB_after === true, 'browser');
 
-  const pausePos1 = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
+  const pausePos1 = await pageB.evaluate(() => document.querySelector('[data-testid="study-video-player"]')?.currentTime || 0);
   await pageB.waitForTimeout(1500);
-  const pausePos2 = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
+  const pausePos2 = await pageB.evaluate(() => document.querySelector('[data-testid="study-video-player"]')?.currentTime || 0);
   const timelineStopped = Math.abs(pausePos2 - pausePos1) < 0.2;
   ok('Actual player PAUSE: timeline dừng hẳn, không tiếp tục chạy thêm', timelineStopped, 'browser');
   resultsByGroup.detailed['Actual player PAUSE'] = (isPausedB_after === true && timelineStopped) ? 'PASS' : 'FAIL';
@@ -626,10 +621,10 @@ try {
   // ──────────────────────────────────────────────────
   console.log('  -> Cố tình làm lệch currentTime của Browser B +8 giây...');
   await pageB.evaluate(() => {
-    const v = document.querySelector('video');
+    const v = document.querySelector('[data-testid="study-video-player"]');
     if (v) v.currentTime += 8.0;
   });
-  const perturbedTime = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
+  const perturbedTime = await pageB.evaluate(() => document.querySelector('[data-testid="study-video-player"]')?.currentTime || 0);
 
   // Host phát tiếp tại mốc 35.0s
   await pageA.waitForSelector('#btn-host-watch-toggle:not([disabled])', { timeout: 5000 }).catch(() => {});
@@ -655,7 +650,7 @@ try {
   // Đợi 2 chu kỳ poll (5.0s) để cơ chế bù trôi phát hiện drift > 1.5s và kéo về mốc đúng
   await pageB.waitForTimeout(5000);
 
-  const correctedTimeB = await pageB.evaluate(() => document.querySelector('video')?.currentTime || 0);
+  const correctedTimeB = await pageB.evaluate(() => document.querySelector('[data-testid="study-video-player"]')?.currentTime || 0);
   // Dự kiến: mốc 35s + 5.0s phát = ~40.0s. Nếu KHÔNG bù trôi sẽ là 35 + 8 + 5.0 = 48.0s.
   const driftCorrected = Math.abs(correctedTimeB - 40.0) <= 3.0;
   ok(`Drift correction: Video Browser B tự động kéo về mốc phòng (${correctedTimeB.toFixed(1)}s, dự kiến ~40.0s, không bị trôi 48s)`, driftCorrected, 'browser');

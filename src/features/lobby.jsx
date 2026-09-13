@@ -779,7 +779,7 @@ export function ActivityLobby({
               <h4 className="text-xs font-bold text-white">Chưa có phòng đang mở.</h4>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="study-room-list">
               {roomsForCat.map(p => {
                 const count = p.soNguoi || 0;
                 const cap = p.sucChua || 20;
@@ -822,6 +822,8 @@ export function ActivityLobby({
                       </span>
                       <button
                         type="button"
+                        data-testid="study-room-enter"
+                        data-phong-id={p.id}
                         onClick={() => onVaoPhong && onVaoPhong(p)}
                         disabled={isFull}
                         className={`px-4 py-1.5 rounded-xl font-bold text-xs transition-all ${isFull ? 'bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-[#00F2FE] hover:bg-[#00e1ec] text-black shadow-sm active:scale-95'}`}>

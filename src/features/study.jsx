@@ -1624,6 +1624,7 @@ export function CampusWatchTogether({
             ref={videoRef}
             src={trucTiepUrl}
             playsInline
+            data-testid="study-video-player"
             controls={canControl}
             className="w-full h-full object-contain"
             onLoadedMetadata={e => {

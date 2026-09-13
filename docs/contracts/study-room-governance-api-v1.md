@@ -1,16 +1,24 @@
 # Study Room Governance API v1 — Contract (backend → frontend handoff)
 
-- **Status:** `ACCEPTED_BACKEND_CANDIDATE` — Backend Gate QA 163/163 PASS, chờ Independent Backend Review
-- **Backend commit:** `ac1b879a192b7fb747a87537af61f43469391102`
+- **Status:** `ACCEPTED_BACKEND` — Correctness Gate QA 188/188 PASS (A–J + K1–K6), reviewer đã chấp nhận.
+- **Backend commit:** `6872653d80eef4f7ee280fb6b4864301585b6df7`
 - **Migration:** `co-so-du-lieu/77-study-room-governance.sql` (đã apply local + remote)
 
 ## Ranh giới Preview vs Participant (BẮT BUỘC)
 
 - `canPreview`: tài khoản đúng phạm vi được xem metadata Lobby an toàn — `id, ten, loai, phamVi, accessMode, sucChua, soNguoi, chuPhongTen, lopTen, cauHinh`(chỉ khi public).
-- `isAdmitted`: PHẢI có row còn hạn trong `phong_thanh_vien` (hoặc là staff). Phòng **public KHÔNG tự động admit** — client vẫn phải gọi `vao` trước khi chạm Chat/Watch/Collab/Queue/Focus.
+- `isAdmitted`: PHẢI có row còn trong lease `NHIP_HIEU_LUC` trong `phong_thanh_vien` (hoặc là staff). Phòng **public KHÔNG tự động admit** — client vẫn phải gọi `vao` trước khi chạm Chat/Watch/Collab/Queue/Focus.
 - `GET /api/phong?id=` khi chưa admitted và không phải staff → trả `{ok, phong(sanitized), thanhVien:[], isAdmitted:false, canControl:false, isStaff:false, vaiTroPhong:'member', laChuPhong:false}` — **không** có `myCaps`, `policies`, `grants`, `khoa` thành viên.
-- Mọi API con trả `403 {ok:false, code:'admission_required'}` khi chưa admitted; `403 code:'room_banned'` khi bị ban; `409 code:'room_full'` khi hết chỗ.
-- Phòng hệ thống (`chu_phong_khoa='he-thong'`, sảnh chat trường) miễn membership.
+- Mọi API con trả `403 {ok:false, code:'admission_required'}` khi chưa admitted; `403 code:'room_banned'` khi bị ban; `409 {ok:false, code:'room_full'}` khi hết chỗ.
+- Chỉ **sảnh chat hệ thống** miễn membership — điều kiện đầy đủ: `chu_phong_khoa='he-thong' AND loai='chat' AND pham_vi='truong'`. Phòng video/nhạc do `he-thong` sở hữu **KHÔNG** được miễn — vẫn qua `vao` + capacity như phòng thường.
+
+## Membership lease (authoritative)
+
+- **`NHIP_HIEU_LUC = '-15 minutes'`** — cửa sổ DUY NHẤT dùng cho mọi quyết định membership: capacity reservation (`soNguoi`/đếm chỗ), `isAdmitted`, danh sách thành viên, vai trò `co_host`, và bypass password khi rejoin.
+- **`NHIP_HOAT_DONG = '-90 seconds'`** — CHỈ là presence (chấm "đang online" / campus metrics). KHÔNG được dùng cho admission hay capacity.
+- Row hết lease (`hoat_dong_luc` quá 15 phút): không giữ chỗ, không còn admitted, không bypass password. Rejoin phải qua `vao` với capacity check, và `vai_tro_phong` cũ bị reset về `'member'`.
+- `ghiNhanVao` atomic: row còn lease → `UPDATE` refresh không chiếm thêm slot; row hết lease / chưa có → `INSERT ... SELECT` kèm `COUNT(member trong lease) < suc_chua`.
+- Trade-off đã chấp nhận: tab chết đột ngột giữ chỗ tối đa 15 phút (heartbeat 20s bị throttle nền nên không thể dùng cửa sổ 90s cho admission). Đo thực tế ở multi-user gate trước khi quyết định rút xuống 3–5 phút.
 
 ## Thẩm quyền Teacher / GVCN / School Admin
 
@@ -22,7 +30,9 @@ Nguồn quyền chuẩn: `layPhamViQuanTri` (`_lib/quan-tri.js`) — KHÔNG suy 
 
 ## Fail-closed policy
 
-- `taiChinhSach`/`taiToanBoChinhSach` trả `null` khi D1 lỗi (không fallback default). `kiemTraQuyenPhong` trả `{loi:'policy_unavailable', status:503}` → endpoint trả `503 {code:'policy_unavailable'}`. Không có row policy = default hợp lệ (capability mặc định).
+- `taiChinhSach(phongId)`: D1 read lỗi → `{ fail: true }` (KHÔNG trả `null`, không fallback default).
+- `taiToanBoChinhSach(phongId)`: D1 read lỗi → `null`.
+- `kiemTraQuyenPhong` khi policy read lỗi → `{ loi: 'policy_unavailable', status: 503 }` → endpoint trả `503 {code:'policy_unavailable'}`. Không có row policy = default hợp lệ (capability mặc định).
 
 ## Queue — rào chắn đúng (atomic batch)
 
@@ -105,7 +115,7 @@ POST:
 
 ## Capacity & Voice
 
-- `suc_chua`: default 8, hard max 12 (v1). Join quá cap → `409 room_full`; member row là điều kiện admitted → không bypass được qua API con.
+- `suc_chua`: default 8, hard max 12 (v1). Join quá cap → `409 {ok:false, code:'room_full'}`; member row còn lease `NHIP_HIEU_LUC` là điều kiện admitted → không bypass được qua API con.
 - Voice: 1:1 WebRTC P2P, request/approval theo cap `voice` (`everyone` = ai cũng được xin, không phải group call). Signal pair-bound; ICE queue phía client.
 
 ## Error codes (chuẩn)
@@ -114,5 +124,5 @@ POST:
 
 ## Đóng băng
 
-- Backend Gate QA: **163 PASS / 0 FAIL** (`cong-cu/qa-study-room-audit.mjs`, nhóm A–J adversarial).
-- SHA commit backend: `ac1b879a192b7fb747a87537af61f43469391102`.
+- Backend Gate QA: **188 PASS / 0 FAIL** (`cong-cu/qa-study-room-audit.mjs`, nhóm A–J adversarial + K1–K6 lease/password/room_full/system-exemption).
+- SHA commit backend: `6872653d80eef4f7ee280fb6b4864301585b6df7`.
