@@ -9,18 +9,6 @@ import { Ic } from './lib/icons.js';
 
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-// ─── TẠM THỜI: chẩn đoán request-storm (whoami/chat/gamification/lop lặp liên tục, ăn quota
-// Cloudflare) — ghi lại MỖI lần 1 trong 4 API này thực sự được gọi, kèm mã phiên-tải-trang
-// (moduleInstanceId, sinh 1 lần khi file JS này được nạp) để phân biệt "lặp trong CÙNG 1 lần
-// tải trang" (bug JS thật) với "trang bị tải lại nhiều lần" (mỗi lần tải là 1 mã khác nhau).
-// Gỡ khối này (và các lời gọi logApiCall bên dưới) sau khi xác định xong nguyên nhân.
-const moduleInstanceId = Math.random().toString(36).slice(2, 8);
-let apiCallCounter = 0;
-function logApiCall(endpoint, caller) {
-  apiCallCounter += 1;
-  console.log(`[API_CALL] #${apiCallCounter} ${endpoint} caller=${caller} instance=${moduleInstanceId} t=${new Date().toISOString()}`);
-}
-
 // ─── Main Application Component ─────────────────────────────────────────────
 function DigitalCampusApp() {
   // 1. Authentication State & Role Tiers
@@ -258,7 +246,6 @@ function DigitalCampusApp() {
   // ─── AUTHENTICATION CHECK ─────────────────────────────────────────────────
   const fetchAuth = useCallback(async () => {
     try {
-      logApiCall('/api/whoami', 'fetchAuth');
       const res = await fetch('/api/whoami');
       if (res.ok) {
         const data = await res.json();
@@ -317,7 +304,6 @@ function DigitalCampusApp() {
   const fetchClassData = useCallback(async (isLoggedIn, customSlug = null) => {
     if (isLoggedIn) {
       try {
-        logApiCall('/api/lop', 'fetchClassData');
         const res = await fetch('/api/lop');
         if (res.ok) {
           const d = await res.json();
@@ -418,7 +404,6 @@ function DigitalCampusApp() {
   // ─── FETCH LIVE CHAT ──────────────────────────────────────────────────────
   const fetchChat = useCallback(async () => {
     try {
-      logApiCall('/api/chat', 'fetchChat');
       const res = await fetch('/api/chat');
       if (res.ok) {
         const d = await res.json();
@@ -479,15 +464,15 @@ function DigitalCampusApp() {
             eventSourceRef.current = null;
           }
           if (!pollInterval) {
-            pollInterval = setInterval(fetchChat, 4000);
+            pollInterval = setInterval(() => { if (document.visibilityState === 'visible') fetchChat(); }, 4000);
           }
         });
       } else {
-        pollInterval = setInterval(fetchChat, 4000);
+        pollInterval = setInterval(() => { if (document.visibilityState === 'visible') fetchChat(); }, 4000);
       }
     } catch (error) {
       console.warn('SSE fallback to polling:', error);
-      pollInterval = setInterval(fetchChat, 4000);
+      pollInterval = setInterval(() => { if (document.visibilityState === 'visible') fetchChat(); }, 4000);
     }
 
     return () => {
@@ -504,7 +489,6 @@ function DigitalCampusApp() {
   // ─── FETCH REAL GAMIFICATION & ACHIEVEMENTS ───────────────────────────────
   const fetchGamification = useCallback(async () => {
     try {
-      logApiCall('/api/gamification', 'fetchGamification');
       const res = await fetch('/api/gamification');
       if (res.ok) {
         const d = await res.json();
@@ -525,8 +509,13 @@ function DigitalCampusApp() {
   }, []);
 
   // ─── INITIAL LIFECYCLE ────────────────────────────────────────────────────
+  // daTaiLanDau chặn việc gọi lại whoami/lop/chat/gamification nếu effect này vô tình chạy
+  // thêm lần nữa (StrictMode double-invoke lúc phát triển, hoặc component bị remount vì lý do
+  // nào đó) — mỗi lần TẢI TRANG THẬT (mount JS mới hoàn toàn) vẫn luôn gọi đúng 1 lần như cũ.
+  const daTaiLanDau = useRef(false);
   useEffect(() => {
-    console.log(`[API_CALL] INITIAL_LIFECYCLE_EFFECT_FIRED instance=${moduleInstanceId} t=${new Date().toISOString()}`);
+    if (daTaiLanDau.current) return;
+    daTaiLanDau.current = true;
     fetchAuth().then(isLoggedIn => {
       if (isLoggedIn) {
         fetchClassData(true);
@@ -792,6 +781,7 @@ function DigitalCampusApp() {
     }, 1000);
 
     const pollIv = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
       try {
         const res = await fetch(`/api/game?phongId=${quickWaitPhongId}`);
         const d = await res.json();
@@ -839,7 +829,7 @@ function DigitalCampusApp() {
   useEffect(() => {
     if (!caroPhong || !caroPhong.id) return;
     if (caroPhong.trangThai === 'ket_thuc' || caroPhong.trangThai === 'hoa') return;
-    const iv = setInterval(() => taiPhongCaro(caroPhong.id), 1800);
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') taiPhongCaro(caroPhong.id); }, 1800);
     return () => clearInterval(iv);
   }, [caroPhong?.id, caroPhong?.trangThai, taiPhongCaro]);
 
@@ -1045,10 +1035,13 @@ function DigitalCampusApp() {
     taiSuKien();
     taiCampusHighlights();
     taiTeacherAnnouncements();
-    const iv = setInterval(taiDanhSachPhong, 15000);
-    const iv2 = setInterval(taiSuKien, 60000);
-    const iv3 = setInterval(taiCampusHighlights, 30000);
-    const iv4 = setInterval(taiTeacherAnnouncements, 30000);
+    // Bỏ qua khi tab đang ở NỀN (học sinh mở nhiều tab, hoặc để trình duyệt chạy ngầm) — không
+    // ai xem thì không cần gọi API, tránh cộng dồn hàng chục nghìn request/ngày vô ích.
+    const neu = (fn) => () => { if (document.visibilityState === 'visible') fn(); };
+    const iv = setInterval(neu(taiDanhSachPhong), 15000);
+    const iv2 = setInterval(neu(taiSuKien), 60000);
+    const iv3 = setInterval(neu(taiCampusHighlights), 30000);
+    const iv4 = setInterval(neu(taiTeacherAnnouncements), 30000);
     return () => { clearInterval(iv); clearInterval(iv2); clearInterval(iv3); clearInterval(iv4); };
   }, [activeTab, taiDanhSachPhong, taiSuKien, taiCampusHighlights, taiTeacherAnnouncements]);
 
@@ -1247,8 +1240,11 @@ function DigitalCampusApp() {
       body: JSON.stringify({ hanhDong: 'nhip', phongId })
     }).catch(() => {});
     taiChiTiet(); taiTin(); nhip();
-    const iv1 = setInterval(taiChiTiet, 10000);
-    const iv2 = setInterval(taiTin, 3000);
+    // nhip() (heartbeat giữ trạng thái "đang có mặt" trong phòng) KHÔNG dừng khi tab ẩn — dừng
+    // sẽ khiến người dùng bị coi là đã rời phòng chỉ vì lỡ chuyển tab một lúc. taiChiTiet/taiTin
+    // chỉ cập nhật những gì đang HIỂN THỊ nên dừng khi ẩn là an toàn, đỡ tốn request vô ích.
+    const iv1 = setInterval(() => { if (document.visibilityState === 'visible') taiChiTiet(); }, 10000);
+    const iv2 = setInterval(() => { if (document.visibilityState === 'visible') taiTin(); }, 3000);
     const iv3 = setInterval(nhip, 20000);
     return () => { alive = false; clearInterval(iv1); clearInterval(iv2); clearInterval(iv3); };
   }, [currentView, activeRoom?.type, activeRoom?.id, taiDanhSachPhong, phongDetailTick]);
@@ -1274,7 +1270,7 @@ function DigitalCampusApp() {
       } catch { /* bỏ qua lỗi mạng */ }
     };
     taiTinSanh();
-    const iv = setInterval(taiTinSanh, 4000);
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') taiTinSanh(); }, 4000);
     return () => { alive = false; clearInterval(iv); };
   }, [activeTab, auth.isGuest, sanhId]);
 
@@ -3842,17 +3838,11 @@ function DigitalCampusApp() {
         </div>
       )}
 
-      {/* MODAL: MÃ TRUY CẬP BẢNG TIN CỘNG ĐỒNG */}
+      {/* MODAL: THÔNG BÁO QUYỀN TRUY CẬP BẢNG TIN */}
       <CommunityBoardGateModal
         isOpen={showCommunityGate}
         onClose={() => setShowCommunityGate(false)}
         onDirectLogin={() => { setAuthModalTab('login'); setShowAuthModal(true); setShowCommunityGate(false); }}
-        onSuccess={async () => {
-          await fetchAuth();
-          await fetchClassData(true);
-          setShowCommunityGate(false);
-          navigateTab('feed', 'ban-tin');
-        }}
       />
 
       {/* PHASE 4B MODALS */}

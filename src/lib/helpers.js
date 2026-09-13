@@ -43,10 +43,12 @@ export const PRESET_AVATARS = [
 export function idYoutube(url) {
   const s = String(url || '').trim();
   if (!s) return null;
-  let m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:shorts|live|embed)\/)([\w-]{11})/i);
+  if (/^[\w-]{11}$/.test(s)) return s;
+  let m = s.match(/[?&]v=([\w-]{11})/i);
   if (m) return m[1];
-  m = s.match(/youtube\.com\/watch\?[^#]*[?&]v=([\w-]{11})/i);
-  return m ? m[1] : null;
+  m = s.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:shorts|live|embed|v)\/)([\w-]{11})/i);
+  if (m) return m[1];
+  return null;
 }
 export function idGoogleDrive(url) {
   const m = String(url || '').match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?id=)([\w-]+)/i);

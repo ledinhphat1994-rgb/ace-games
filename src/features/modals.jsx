@@ -257,86 +257,41 @@ export function AuthModal({ isOpen, initialTab = 'login', onClose, onSuccess }) 
   );
 }
 
-export function CommunityBoardGateModal({ isOpen, onClose, onSuccess, onDirectLogin }) {
-  const [maCode, setMaCode] = useState('');
-  const [dangKiemTra, setDangKiemTra] = useState(false);
-  const [loi, setLoi] = useState('');
-
+export function CommunityBoardGateModal({ isOpen, onClose, onDirectLogin }) {
   if (!isOpen) return null;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!maCode.trim() || dangKiemTra) return;
-    setDangKiemTra(true);
-    setLoi('');
-
-    try {
-      const res = await fetch('/api/kiem-tra-ma-cong-dong', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maCode: maCode.trim() })
-      });
-      const d = await res.json();
-      if (d.ok && d.daThanhVien) {
-        await onSuccess(d);
-      } else {
-        setLoi(d.loi || 'Mã truy cập không chính xác hoặc không thuộc tài khoản của em.');
-      }
-    } catch {
-      setLoi('Không thể kiểm tra mã lúc này. Thử lại sau.');
-    } finally {
-      setDangKiemTra(false);
-    }
-  };
 
   return (
     <div id="modal-community-gate" className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[#151A23] border border-cyan-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#00F2FE] to-[#8B5CF6] flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg">
-          🔐
+      <div className="bg-[#151A23] border border-cyan-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-scaleIn text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center text-2xl mx-auto mb-3 shadow-lg">
+          🔒
         </div>
-        <h3 className="text-base font-black text-white text-center mb-1">Truy Cập Bảng Tin Cộng Đồng</h3>
-        <p className="text-xs text-slate-300 text-center mb-5 leading-relaxed">
-          Bảng tin cộng đồng lớp 10A7 là không gian nội bộ dành riêng cho lớp. Vui lòng nhập mã truy cập do giáo viên cấp riêng để kích hoạt quyền thành viên.
-        </p>
+        <h3 className="text-base font-black text-white text-center mb-2">Truy Cập Bảng Tin Lớp</h3>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div>
-            <label className="text-[11px] font-bold text-slate-300 block mb-1">Mã truy cập giáo viên cấp riêng:</label>
-            <input
-              type="text"
-              id="input-community-gate-code"
-              data-id="input-ma-truy-cap"
-              value={maCode}
-              onChange={e => { setMaCode(e.target.value.toUpperCase()); setLoi(''); }}
-              placeholder="VD: A7-K9QP-X4T2"
-              className="w-full bg-[#0B0E14] border border-white/15 focus:border-[#00F2FE] rounded-xl px-4 py-2.5 text-sm text-white font-mono uppercase tracking-wider focus:outline-none"
-              autoFocus
-            />
-          </div>
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-center mb-5">
+          <p className="text-sm font-black text-rose-300 mb-1">
+            Bạn không có quyền truy cập vào bảng tin.
+          </p>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Bảng tin này là không gian nội bộ dành riêng cho lớp. Bạn chưa được giáo viên cấp quyền truy cập. Vui lòng liên hệ giáo viên để được cấp quyền.
+          </p>
+        </div>
 
-          {loi && (
-            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl p-2.5 text-center">
-              {loi}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            id="btn-submit-community-gate"
-            data-id="btn-xac-nhan-ma-cong-dong"
-            disabled={dangKiemTra || !maCode.trim()}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg hover:opacity-95 active:scale-95 transition-all disabled:opacity-40"
-          >
-            {dangKiemTra ? 'Đang kích hoạt...' : 'Kích hoạt quyền thành viên →'}
-          </button>
-        </form>
+        <button
+          type="button"
+          id="btn-submit-community-gate"
+          data-id="btn-xac-nhan-ma-cong-dong"
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black font-extrabold text-xs shadow-lg hover:opacity-95 active:scale-95 transition-all"
+        >
+          Đã hiểu
+        </button>
 
         <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-          <button onClick={onDirectLogin} className="text-[#00F2FE] hover:underline font-bold">
-            Đăng nhập tài khoản
+          <button type="button" onClick={onDirectLogin} className="text-[#00F2FE] hover:underline font-bold">
+            Đăng nhập tài khoản khác
           </button>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white">
             Đóng
           </button>
         </div>

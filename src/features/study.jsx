@@ -682,12 +682,6 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             </button>
           )}
         </div>
-        {vaiTroPhong && vaiTroPhong !== 'member' && (
-          <span className="text-[10px] px-2.5 py-1 rounded-full font-bold bg-[#00F2FE]/10 text-[#00F2FE] border border-[#00F2FE]/25 hidden sm:inline-flex items-center gap-1">
-            <span>🛡️</span>
-            <span>{vaiTroPhong === 'host' ? 'Chủ phòng' : vaiTroPhong === 'teacher' ? 'Giáo viên' : 'Đồng chủ phòng'}</span>
-          </span>
-        )}
       </div>
 
       {/* Dock Content Body */}
