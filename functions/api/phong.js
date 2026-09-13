@@ -55,10 +55,16 @@ async function ghiNhanVao(db, phongId, phien, sucChua = 20) {
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
   const db = env.DB;
-  // Dọn thành viên đã "chết" heartbeat (rời phòng không bấm nút / đóng tab).
-  await db.prepare(
-    `DELETE FROM phong_thanh_vien WHERE datetime(hoat_dong_luc) < datetime('now', ?1)`
-  ).bind(NHIP_HIEU_LUC).run().catch(() => {});
+  // Dọn thành viên đã "chết" heartbeat (rời phòng không bấm nút / đóng tab). Chỉ cần chạy
+  // NGẪU NHIÊN ~1/10 lượt GET thay vì mọi lần — đây là dọn rác định kỳ, không ảnh hưởng tính
+  // đúng của bất kỳ lượt đọc nào (mọi nơi đếm thành viên đều đã tự lọc theo NHIP_HIEU_LUC),
+  // lease tới 15 phút nên chậm dọn vài chục giây không đáng kể — đổi lại giảm ~90% lượt ghi D1
+  // này trên endpoint bị poll liên tục.
+  if (Math.random() < 0.1) {
+    await db.prepare(
+      `DELETE FROM phong_thanh_vien WHERE datetime(hoat_dong_luc) < datetime('now', ?1)`
+    ).bind(NHIP_HIEU_LUC).run().catch(() => {});
+  }
 
   const url = new URL(request.url);
   const phongId = parseInt(url.searchParams.get('id') || '', 10);

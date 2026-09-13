@@ -22,81 +22,49 @@ export async function onRequestGet({ request, env }) {
     let gameDoiKhang = { soBan: 0, dangDau: 0 };
     const thongKe = { tongOnline: 0, tongPhong: 0 };
 
-    // 0. KIỂM TRA BẢN BIÊN TẬP / CURATION CỦA GIÁO VIÊN ĐÃ LƯU TRÊN MÁY CHỦ (D1)
+    // 0-4. Curation + 4 thống kê tổng hợp + đếm phòng — độc lập nhau, chạy song song bằng
+    // Promise.all thay vì nối đuôi tuần tự (mẫu đã áp dụng ở functions/api/lop.js), mỗi câu tự
+    // .catch() về giá trị mặc định y hệt nhánh try/catch cũ để giữ nguyên hành vi khi lỗi D1.
     let curatedRows = [];
-    try {
-      if (isSchoolMember) {
-        // Thành viên trường: đọc toàn bộ tiêu điểm đang kích hoạt
-        const q = await db.prepare(`
-          SELECT id, source_type AS sourceType, source_id AS sourceId,
-                 title, subtitle, icon, badge, category, action_type AS actionType,
-                 audience, sort_order AS sortOrder
-          FROM campus_highlight_curation
-          WHERE active = 1
-          ORDER BY sort_order ASC, id ASC
-          LIMIT 4
-        `).all();
-        if (q && Array.isArray(q.results) && q.results.length > 0) {
-          curatedRows = q.results;
-        }
-      } else {
-        // Khách vãng lai / ngoài trường: CHỈ đọc tiêu điểm có audience = 'public'
-        const q = await db.prepare(`
-          SELECT id, source_type AS sourceType, source_id AS sourceId,
-                 title, subtitle, icon, badge, category, action_type AS actionType,
-                 audience, sort_order AS sortOrder
-          FROM campus_highlight_curation
-          WHERE active = 1 AND audience = 'public'
-          ORDER BY sort_order ASC, id ASC
-          LIMIT 4
-        `).all();
-        if (q && Array.isArray(q.results) && q.results.length > 0) {
-          curatedRows = q.results;
-        }
-      }
-    } catch {
-      // Nếu chưa có bảng campus_highlight_curation hoặc lỗi truy vấn, tiếp tục fallback
-    }
-
-    // 1. GAME ARENA STATS
-    try {
-      const gameStats = await db.prepare(`
+    const [curatedQ, gameStats, rsStreak, watchStats, focusStats, rTongPhong] = await Promise.all([
+      (isSchoolMember
+        ? db.prepare(`
+            SELECT id, source_type AS sourceType, source_id AS sourceId,
+                   title, subtitle, icon, badge, category, action_type AS actionType,
+                   audience, sort_order AS sortOrder
+            FROM campus_highlight_curation
+            WHERE active = 1
+            ORDER BY sort_order ASC, id ASC
+            LIMIT 4
+          `)
+        : db.prepare(`
+            SELECT id, source_type AS sourceType, source_id AS sourceId,
+                   title, subtitle, icon, badge, category, action_type AS actionType,
+                   audience, sort_order AS sortOrder
+            FROM campus_highlight_curation
+            WHERE active = 1 AND audience = 'public'
+            ORDER BY sort_order ASC, id ASC
+            LIMIT 4
+          `)
+      ).all().catch(() => ({ results: [] })),
+      // 1. GAME ARENA STATS
+      db.prepare(`
         SELECT COUNT(*) AS soBan,
                SUM(CASE WHEN trang_thai = 'dang_choi' THEN 1 ELSE 0 END) AS dangDau
         FROM game_phong
         WHERE trang_thai IN ('cho_nguoi', 'dang_choi')
           AND pham_vi = 'truong'
           AND datetime(cap_nhat_luc) > datetime('now', '-30 minutes')
-      `).first();
-
-      if (gameStats && Number(gameStats.soBan) > 0) {
-        gameDoiKhang = {
-          soBan: Number(gameStats.soBan) || 0,
-          dangDau: Number(gameStats.dangDau) || 0
-        };
-      }
-    } catch {}
-
-    // 2. TOP STREAKS STATS
-    try {
-      const rsStreak = await db.prepare(`
+      `).first().catch(() => null),
+      // 2. TOP STREAKS STATS
+      db.prepare(`
         SELECT COUNT(DISTINCT s.hoc_sinh_id) AS soHocSinh,
                MAX(s.streak_hien_tai) AS maxStreak
         FROM user_streaks s
         WHERE s.streak_hien_tai > 0
-      `).first();
-
-      if (rsStreak && Number(rsStreak.maxStreak) > 0) {
-        topStreaks = [{
-          soHocSinh: Number(rsStreak.soHocSinh) || 0,
-          maxStreak: Number(rsStreak.maxStreak) || 0
-        }];
-      }
-    } catch {}
-
-    // 3. WATCH STATS (Tự động tổng hợp phòng Xem Chung)
-    try {
-      const watchStats = await db.prepare(`
+      `).first().catch(() => null),
+      // 3. WATCH STATS (Tự động tổng hợp phòng Xem Chung)
+      db.prepare(`
         SELECT COUNT(DISTINCT v.khoa) AS soNguoi, p.ten AS tenPhong, p.id AS phongId
         FROM phong_thanh_vien v
         JOIN phong p ON p.id = v.phong_id
@@ -107,20 +75,9 @@ export async function onRequestGet({ request, env }) {
         GROUP BY p.id
         ORDER BY soNguoi DESC
         LIMIT 1
-      `).bind(NHIP_HIEU_LUC).first();
-
-      if (watchStats && Number(watchStats.soNguoi) > 0) {
-        watchTongQuan = {
-          soNguoi: Number(watchStats.soNguoi) || 0,
-          tenPhong: watchStats.tenPhong,
-          phongId: watchStats.phongId
-        };
-      }
-    } catch {}
-
-    // 4. FOCUS STATS
-    try {
-      const focusStats = await db.prepare(`
+      `).bind(NHIP_HIEU_LUC).first().catch(() => null),
+      // 4. FOCUS STATS
+      db.prepare(`
         SELECT COUNT(DISTINCT v.khoa) AS soNguoi, p.ten AS tenPhong, p.id AS phongId
         FROM phong_thanh_vien v
         JOIN phong p ON p.id = v.phong_id
@@ -131,15 +88,43 @@ export async function onRequestGet({ request, env }) {
         GROUP BY p.id
         ORDER BY soNguoi DESC
         LIMIT 1
-      `).bind(NHIP_HIEU_LUC).first();
+      `).bind(NHIP_HIEU_LUC).first().catch(() => null),
+      // Tổng hợp số phòng toàn trường đang mở (trước đây tự query riêng ở cuối hàm)
+      db.prepare("SELECT COUNT(*) AS c FROM phong WHERE trang_thai = 'mo' AND pham_vi = 'truong'").first().catch(() => null),
+    ]);
 
-      if (focusStats && Number(focusStats.soNguoi) > 0) {
-        focusTongQuan = {
-          soNguoi: Number(focusStats.soNguoi) || 0,
-          tenPhong: focusStats.tenPhong
-        };
-      }
-    } catch {}
+    if (curatedQ.results?.length > 0) curatedRows = curatedQ.results;
+
+    if (gameStats && Number(gameStats.soBan) > 0) {
+      gameDoiKhang = {
+        soBan: Number(gameStats.soBan) || 0,
+        dangDau: Number(gameStats.dangDau) || 0
+      };
+    }
+
+    if (rsStreak && Number(rsStreak.maxStreak) > 0) {
+      topStreaks = [{
+        soHocSinh: Number(rsStreak.soHocSinh) || 0,
+        maxStreak: Number(rsStreak.maxStreak) || 0
+      }];
+    }
+
+    if (watchStats && Number(watchStats.soNguoi) > 0) {
+      watchTongQuan = {
+        soNguoi: Number(watchStats.soNguoi) || 0,
+        tenPhong: watchStats.tenPhong,
+        phongId: watchStats.phongId
+      };
+    }
+
+    if (focusStats && Number(focusStats.soNguoi) > 0) {
+      focusTongQuan = {
+        soNguoi: Number(focusStats.soNguoi) || 0,
+        tenPhong: focusStats.tenPhong
+      };
+    }
+
+    thongKe.tongPhong = Number(rTongPhong?.c) || 0;
 
     // 5. SINH DANH SÁCH DỮ LIỆU TỰ ĐỘNG (AUTOMATIC AGGREGATE HIGHLIGHTS)
     if (gameDoiKhang.soBan > 0) {
@@ -313,12 +298,6 @@ export async function onRequestGet({ request, env }) {
     } else {
       finalHighlights = highlights.slice(0, 4);
     }
-
-    // Tổng hợp số phòng toàn trường đang mở
-    try {
-      const rTongPhong = await db.prepare("SELECT COUNT(*) AS c FROM phong WHERE trang_thai = 'mo' AND pham_vi = 'truong'").first();
-      thongKe.tongPhong = Number(rTongPhong?.c) || 0;
-    } catch {}
 
     return json({
       ok: true,

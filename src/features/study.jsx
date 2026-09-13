@@ -1,6 +1,11 @@
 const { useState, useEffect, useRef } = React;
 import { dinhDangGiayPhut, idGoogleDrive, idYoutube, laVideoTrucTiepFe, napYouTubeIframeApi, urlMediaFe } from '../lib/helpers.js';
 
+// Bỏ qua tick khi tab đang ở NỀN — tránh cộng dồn request Cloudflare vô ích khi không ai xem.
+// Không dùng cho poll tín hiệu thời gian thực (vd voice signaling) vì bỏ lỡ tick có thể làm treo
+// bắt tay kết nối hoặc trễ tín hiệu "rời voice" của người kia.
+const khiHienThi = (fn) => () => { if (document.visibilityState === 'visible') fn(); };
+
 
 // Ô nhập link thêm vào hàng đợi — dùng chung cho StudyDock và CampusWatchTogether
 export function QueueInput({ onAdd, onAddNext }) {
@@ -104,7 +109,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
       } catch {}
     };
     fetchNotes();
-    const interval = setInterval(fetchNotes, 3000);
+    const interval = setInterval(khiHienThi(fetchNotes), 3000);
     return () => { active = false; clearInterval(interval); };
   }, [phong.id, dockTab]);
 
@@ -219,7 +224,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
       } catch {}
     };
     fetchWb();
-    const interval = setInterval(fetchWb, 3000);
+    const interval = setInterval(khiHienThi(fetchWb), 3000);
     return () => { active = false; clearInterval(interval); };
   }, [phong.id, dockTab, redrawCanvas]);
 
@@ -344,7 +349,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
       } catch {}
     };
     fetchSheet();
-    const interval = setInterval(fetchSheet, 3000);
+    const interval = setInterval(khiHienThi(fetchSheet), 3000);
     return () => { active = false; clearInterval(interval); };
   }, [phong.id, dockTab]);
 
@@ -650,7 +655,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   React.useEffect(() => {
     if (dockTab === 'config') {
       taiQueue();
-      const timer = setInterval(taiQueue, 4000);
+      const timer = setInterval(khiHienThi(taiQueue), 4000);
       return () => clearInterval(timer);
     }
   }, [dockTab, phong.id]);
@@ -1865,7 +1870,7 @@ export function CampusWatchTogether({
     };
 
     fetchWatch();
-    const timer = setInterval(fetchWatch, 2500);
+    const timer = setInterval(khiHienThi(fetchWatch), 2500);
     return () => {
       active = false;
       clearInterval(timer);
