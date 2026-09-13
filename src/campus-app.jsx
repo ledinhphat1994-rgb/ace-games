@@ -1116,7 +1116,7 @@ function DigitalCampusApp() {
         setShowRoomPasswordModal(false);
         setSelectedPasswordRoom(null);
         setPhongChat([]); phongSauIdRef.current = 0;
-        setPhongThanhVien([]); setPhongLoi(''); setPhongInput('');
+        setPhongThanhVien(d.thanhVien || []); setPhongLoi(''); setPhongInput('');
         try {
           const cu = JSON.parse(localStorage.getItem('phong_gan_day') || '[]');
           const ds = [{ id: p.id, ten: p.ten }, ...(Array.isArray(cu) ? cu : []).filter(x => x && x.id !== p.id)].slice(0, 5);
@@ -2122,18 +2122,26 @@ function DigitalCampusApp() {
                       {/* Ratio presets — chỉ hiện cho phòng video */}
                       {activeRoom.type === 'PHONG' && activeRoom.phong?.loai === 'video' && (
                         <div className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
-                          {['7:3','6:4','5:5','4:6','3:7'].map(r => (
+                          {[
+                            { r: '10:0', label: '⬛', title: 'Video toàn màn hình' },
+                            { r: '7:3', label: '7:3', title: 'Video 70% · Bảng 30%' },
+                            { r: '6:4', label: '6:4', title: 'Video 60% · Bảng 40%' },
+                            { r: '5:5', label: '5:5', title: 'Video 50% · Bảng 50%' },
+                            { r: '4:6', label: '4:6', title: 'Video 40% · Bảng 60%' },
+                            { r: '3:7', label: '3:7', title: 'Video 30% · Bảng 70%' },
+                            { r: '0:10', label: '⬜', title: 'Bảng học toàn màn hình' },
+                          ].map(({ r, label, title }) => (
                             <button
                               key={r}
                               type="button"
                               onClick={() => setLayoutRatio(r)}
-                              title={`Video : Chat = ${r}`}
+                              title={title}
                               className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
                                 layoutRatio === r
                                   ? 'bg-[#00F2FE] text-black shadow-sm'
                                   : 'text-slate-400 hover:text-white hover:bg-white/10'
                               }`}>
-                              {r}
+                              {label}
                             </button>
                           ))}
                         </div>
@@ -2432,11 +2440,13 @@ function DigitalCampusApp() {
                 {/* VÙNG 1 (CỘT TRÁI): Nội dung theo loại phòng (Player/Video) */}
                 {(() => {
                   const ratioFlex = {
+                    '10:0': ['1 0 100%', '0 0 0px'],
                     '7:3': ['7 1 0%', '3 1 0%'],
                     '6:4': ['6 1 0%', '4 1 0%'],
                     '5:5': ['5 1 0%', '5 1 0%'],
                     '4:6': ['4 1 0%', '6 1 0%'],
-                    '3:7': ['3 1 0%', '7 1 0%']
+                    '3:7': ['3 1 0%', '7 1 0%'],
+                    '0:10': ['0 0 0px', '1 0 100%'],
                   };
                   const [vFlex, cFlex] = isRoomWide ? ['7.2 1 0%', '2.8 1 0%'] : (ratioFlex[layoutRatio] || ['6 1 0%', '4 1 0%']);
                   const videoStyle = p.loai === 'video' ? { flex: vFlex, minWidth: 0 } : {};
@@ -2453,6 +2463,7 @@ function DigitalCampusApp() {
                       myCaps={phongMyCaps}
                       videoTimeRef={phongVideoTimeRef}
                       isRoomWide={isRoomWide}
+                      canControlExternal={Boolean(laChuPhong || phongMyCaps?.video_control || phongMyCaps?.video_change || auth.user?.isTeacher)}
                     />
                   ) : p.loai === 'nhac' ? (
                     <CampusFocusRoom

@@ -330,9 +330,18 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     }
 
     const updatedCheck = await kiemTraTruyCapPhong(db, phongId, phien);
+    // Query thành viên ngay khi join để frontend hiển thị ngay (không đợi poll 10s)
+    const tvJoin = await db.prepare(
+      `SELECT v.ten, v.vai_tro AS vaiTro, v.vai_tro_phong AS vaiTroPhong, v.lop_id AS lopId, l.ten AS lopTen,
+              (v.khoa = ?2) AS laChuPhong
+         FROM phong_thanh_vien v LEFT JOIN lop l ON l.id = v.lop_id
+        WHERE v.phong_id = ?1 AND datetime(v.hoat_dong_luc) > datetime('now', ?3)
+        ORDER BY v.vao_luc ASC LIMIT 60`
+    ).bind(phongId, p.chuPhongKhoa, NHIP_HIEU_LUC).all().catch(() => ({ results: [] }));
     return json({
       ok: true,
       phong: lamSachPhong(updatedCheck.phong, { isAdmitted: true, canControl: updatedCheck.canControl, isHost: updatedCheck.isHost }),
+      thanhVien: tvJoin.results || [],
       isAdmitted: true,
       canControl: updatedCheck.canControl,
       isStaff: updatedCheck.isStaff,

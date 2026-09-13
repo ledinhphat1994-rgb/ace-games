@@ -1639,7 +1639,8 @@ export function CampusWatchTogether({
   soNguoi,
   myCaps,
   videoTimeRef,
-  isRoomWide
+  isRoomWide,
+  canControlExternal,
 }) {
   const [watchState, setWatchState] = useState({
     playing: false,
@@ -1651,8 +1652,65 @@ export function CampusWatchTogether({
     serverNow: '',
     updatedBy: ''
   });
-  const [canControl, setCanControl] = useState(Boolean(auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
+  const [canControl, setCanControl] = useState(Boolean(canControlExternal || auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
   const [watchCaps, setWatchCaps] = useState({});
+
+  // Zone 3 mini config state (đổi video + queue) — chỉ dùng khi canControl
+  const [z3VideoMoi, setZ3VideoMoi] = useState('');
+  const [z3DangDoi, setZ3DangDoi] = useState(false);
+  const [z3Loi, setZ3Loi] = useState('');
+  const [z3QueueList, setZ3QueueList] = useState([]);
+  const [z3QueueBusy, setZ3QueueBusy] = useState(false);
+  const [z3ShowQueue, setZ3ShowQueue] = useState(false);
+
+  const z3TaiQueue = async () => {
+    try {
+      const res = await fetch(`/api/phong-queue?phongId=${phong.id}&action=list`);
+      const d = await res.json();
+      if (d.ok) setZ3QueueList(d.queue || []);
+    } catch { }
+  };
+
+  const z3DoiVideo = async (url) => {
+    const u = String(url || z3VideoMoi || '').trim();
+    if (!u || z3DangDoi) return;
+    setZ3DangDoi(true); setZ3Loi('');
+    try {
+      const res = await fetch('/api/phong-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u })
+      });
+      const d = await res.json();
+      if (!d.ok) setZ3Loi(d.loi || 'Không đổi được video.');
+      else setZ3VideoMoi('');
+    } catch { setZ3Loi('Mất kết nối máy chủ.'); }
+    finally { setZ3DangDoi(false); }
+  };
+
+  const z3HanhDongQueue = async (action, extra = {}) => {
+    if (z3QueueBusy) return;
+    setZ3QueueBusy(true);
+    try {
+      const res = await fetch('/api/phong-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action, ...extra })
+      });
+      const d = await res.json();
+      if (!d.ok) setZ3Loi(d.loi || 'Thao tác hàng đợi thất bại.');
+      else await z3TaiQueue();
+    } catch { setZ3Loi('Mất kết nối máy chủ.'); }
+    finally { setZ3QueueBusy(false); }
+  };
+
+  // Tải queue khi mở queue panel
+  useEffect(() => {
+    if (!z3ShowQueue || !canControl) return;
+    z3TaiQueue();
+    const timer = setInterval(z3TaiQueue, 4000);
+    return () => clearInterval(timer);
+  }, [z3ShowQueue, phong.id, canControl]);
   const getInitialVideoUrl = () => {
     let c = {};
     try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
@@ -1677,10 +1735,10 @@ export function CampusWatchTogether({
   const [loi, setLoi] = useState('');
 
   useEffect(() => {
-    if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher) {
+    if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher || canControlExternal) {
       setCanControl(true);
     }
-  }, [phong?.canControl, phong?.laChuPhong, auth?.user?.isTeacher]);
+  }, [phong?.canControl, phong?.laChuPhong, auth?.user?.isTeacher, canControlExternal]);
 
   const videoRef = useRef(null);
   const ytPlayerRef = useRef(null);
@@ -2158,6 +2216,106 @@ export function CampusWatchTogether({
 
         {loi && <p className="text-xs text-rose-400">{loi}</p>}
         {phong.moTa && <p className="text-[11px] text-slate-400 leading-relaxed pt-1">{phong.moTa}</p>}
+
+        {/* VÙNG 3 MINI CONFIG: Đổi video + Hàng đợi (chỉ host/staff) */}
+        {canControl && (
+          <div className="border-t border-white/10 pt-3 flex flex-col gap-2.5">
+            {/* Đổi video đang phát */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1">
+                <span>🎬</span>
+                <span>Đổi video đang phát</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  id="z3-input-video-moi"
+                  type="url"
+                  value={z3VideoMoi}
+                  onChange={e => setZ3VideoMoi(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && z3VideoMoi.trim()) { e.preventDefault(); z3DoiVideo(); } }}
+                  placeholder="Dán link YouTube / video mới..."
+                  className="flex-1 bg-[#0B0E14] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
+                />
+                <button
+                  type="button"
+                  id="z3-btn-doi-video"
+                  onClick={() => z3DoiVideo()}
+                  disabled={!z3VideoMoi.trim() || z3DangDoi}
+                  className="px-3 py-1.5 rounded-lg bg-[#00F2FE] text-black font-black text-xs hover:bg-[#00e1ec] active:scale-95 disabled:opacity-30 shrink-0">
+                  {z3DangDoi ? '...' : '▶ Phát'}
+                </button>
+              </div>
+            </div>
+
+            {/* Toggle hàng đợi */}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                id="z3-btn-toggle-queue"
+                onClick={() => { setZ3ShowQueue(v => !v); }}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-white transition-colors">
+                <span>📋</span>
+                <span>Hàng đợi video{z3QueueList.filter(q => q.trangThai === 'queued').length > 0 ? ` (${z3QueueList.filter(q => q.trangThai === 'queued').length})` : ''}</span>
+                <span className="text-[10px]">{z3ShowQueue ? '▲' : '▼'}</span>
+              </button>
+              {z3ShowQueue && z3QueueList.some(q => q.trangThai === 'queued') && (
+                <button
+                  type="button"
+                  onClick={() => z3HanhDongQueue('skip')}
+                  disabled={z3QueueBusy}
+                  className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 disabled:opacity-40">
+                  ⏭ Tiếp theo
+                </button>
+              )}
+            </div>
+
+            {/* Queue panel mở rộng */}
+            {z3ShowQueue && (
+              <div className="flex flex-col gap-2">
+                <QueueInput
+                  onAdd={(u) => z3HanhDongQueue('enqueue', { videoUrl: u })}
+                  onAddNext={(u) => z3HanhDongQueue('add_next', { videoUrl: u })}
+                />
+                {z3QueueList.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 py-1 text-center">Hàng đợi trống — thêm link video để phát lần lượt.</p>
+                ) : (
+                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                    {z3QueueList.map((q, idx) => (
+                      <div key={q.id || idx} className="flex items-center gap-2 bg-[#0B0E14] border border-white/5 rounded-lg p-1.5">
+                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shrink-0 ${
+                          q.trangThai === 'playing' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-400'
+                        }`}>
+                          {q.trangThai === 'playing' ? '▶' : idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-slate-200 truncate">{q.title || q.videoUrl}</p>
+                        </div>
+                        {q.trangThai === 'queued' && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button type="button" title="Phát ngay"
+                              onClick={() => z3HanhDongQueue('play_now', { id: q.id })}
+                              disabled={z3QueueBusy}
+                              className="w-5 h-5 rounded bg-[#00F2FE]/15 text-[#00F2FE] text-[9px] font-black hover:bg-[#00F2FE]/25">
+                              ▶
+                            </button>
+                            <button type="button" title="Xóa"
+                              onClick={() => z3HanhDongQueue('remove', { id: q.id })}
+                              disabled={z3QueueBusy}
+                              className="w-5 h-5 rounded bg-rose-500/15 text-rose-300 text-[9px] font-black hover:bg-rose-500/25">
+                              ✕
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {z3Loi && <p className="text-[11px] text-rose-400">{z3Loi}</p>}
+          </div>
+        )}
 
       </div>
       )}
