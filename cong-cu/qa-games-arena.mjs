@@ -170,7 +170,7 @@ const tha = async (page, c) => page.locator(`[data-testid="c4-5-${c}"]`).click()
 await tha(pageA, 0); await pageA.waitForTimeout(300);
 await pageB.waitForTimeout(2200); // poll 1.8s
 const bThayQuanA = await pageB.locator('[data-testid="c4-5-0"]').getAttribute('class');
-ok('B thấy quân A ở (5,0) sau poll', bThayQuanA.includes('bg-cyan-400'), bThayQuanA);
+ok('B thấy quân A ở (5,0) sau poll', bThayQuanA.includes('p1'), bThayQuanA);
 await tha(pageB, 1); await tha(pageA, 0); await pageA.waitForTimeout(200);
 await tha(pageB, 2); await tha(pageA, 0); await pageA.waitForTimeout(200);
 await tha(pageB, 3); await tha(pageA, 0); await pageA.waitForTimeout(400);
@@ -181,9 +181,9 @@ await pageB.waitForTimeout(2200);
 ok('B cũng thấy kết quả thắng', await pageB.locator('text=chiến thắng').count() > 0);
 
 // Bấm lại sau khi thắng không thêm quân (cell disabled vì !luotToi)
-const quanTruoc = await pageA.locator('[data-testid="board-c4"] button.bg-cyan-400, [data-testid="board-c4"] button.bg-rose-400').count();
+const quanTruoc = await pageA.locator('[data-testid="board-c4"] .gc4-cell.p1, [data-testid="board-c4"] .gc4-cell.p2').count();
 await pageA.locator('[data-testid="c4-4-4"]').click({ force: true }).catch(() => {});
-ok('Sau ket_thuc bàn không đổi', (await pageA.locator('[data-testid="board-c4"] button.bg-cyan-400, [data-testid="board-c4"] button.bg-rose-400').count()) === quanTruoc);
+ok('Sau ket_thuc bàn không đổi', (await pageA.locator('[data-testid="board-c4"] .gc4-cell.p1, [data-testid="board-c4"] .gc4-cell.p2').count()) === quanTruoc);
 
 console.log('\n== BROWSER: MINI GAME 1 MÌNH ==');
 await pageA.locator('#btn-back-to-lobby').click();

@@ -504,7 +504,7 @@ try {
 
   // Vào phòng qua luồng sản phẩm THẬT hiện tại:
   //   Campus lobby (#campus-lobby) → world HỌC TẬP (#world-hoc-tap) → CINEMA lobby (#lobby-watch)
-  //   → thẻ phòng [data-testid=study-room-enter][data-phong-id] → ROOM_ACTIVE (#btn-roi-phong-top).
+  //   → thẻ phòng [data-testid=study-room-enter][data-phong-id] → ROOM_ACTIVE (#btn-back-to-lobby).
   // #world-hoc-tap nằm trong container orbit animation vô hạn → force:true để bỏ qua stability check.
   const SEL_VIDEO = '[data-testid="study-video-player"]';
   const vaoPhongQuaUI = async (page, phongId) => {
@@ -515,7 +515,7 @@ try {
     const btnVao = page.locator(`[data-testid="study-room-enter"][data-phong-id="${phongId}"]`);
     await btnVao.waitFor({ state: 'visible', timeout: 15000 });
     await btnVao.click();
-    await page.waitForSelector('#btn-roi-phong-top', { timeout: 8000 });
+    await page.waitForSelector('#btn-back-to-lobby', { timeout: 8000 });
     await page.waitForTimeout(1000);
   };
 
@@ -687,9 +687,9 @@ try {
     }
   });
 
-  // #btn-room-fullscreen che mất con trỏ tại điểm click của #btn-roi-phong-top
-  // (hai nút overlap trong topbar) — dispatch click trực tiếp vào element.
-  await pageB.evaluate(() => document.querySelector('#btn-roi-phong-top')?.click());
+  // Dispatch click trực tiếp vào element — nút "‹ Sảnh" (#btn-back-to-lobby)
+  // có thể bị control bar che tại điểm click theo toạ độ.
+  await pageB.evaluate(() => document.querySelector('#btn-back-to-lobby')?.click());
   await pageB.waitForSelector('#campus-lobby, #lobby-watch', { timeout: 5000 });
   await pageB.waitForTimeout(500);
 
