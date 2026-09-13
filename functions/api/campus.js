@@ -59,12 +59,14 @@ export async function onRequestGet({ env }) {
       homNay: new Date(Date.parse(r.batDau) + 7 * 3600 * 1000).toISOString().slice(0, 10) === homNayVN
     }));
 
+    // Công khai, giống hệt nhau cho mọi người gọi (không đụng request/phien) — cache ngắn để đỡ
+    // tải Cloudflare Functions khi bị poll mỗi 15s (xem src/campus-app.jsx).
     return json({
       ok: true,
       phongs: phongs.results || [],
       dangHoatDong: dd?.n || 0,
       suKien
-    });
+    }, 200, { 'Cache-Control': 'public, max-age=10' });
   } catch (e) {
     console.error('campus GET:', e);
     return loi('Không đọc được dữ liệu campus.', 500);

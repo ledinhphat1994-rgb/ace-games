@@ -157,25 +157,32 @@ export function bocXuLy(xuLy, { canGiaoVien = false, quyenCan = null, choPhepXoa
     const { request, env } = context;
     if (!env.DB) return loi('Chưa gắn cơ sở dữ liệu D1 vào project.', 500);
 
-    let phien = await layPhien(request, env);
-    if (!phien) return loi('Chưa đăng nhập.', 401);
+    // functions/_middleware.js CHẠY TRƯỚC route nào cũng có (mọi path không nằm trong
+    // PUBLIC_PATHS) và đã tự làm đúng 2 bước bên dưới rồi, ghi kết quả vào context.data —
+    // dùng lại thẳng, khỏi query D1 lần 2 y hệt cho MỌI request có xác thực. Chỉ tự kiểm tra lại
+    // từ đầu (y hệt logic cũ) nếu vì lý do gì đó thiếu (vd định tuyến sau này đổi khác) — không
+    // bao giờ tin tưởng mù việc thiếu context.data mà bỏ qua kiểm tra.
+    let phien = context.data?.phienDaXacThuc;
+    if (!phien) {
+      phien = await layPhien(request, env);
+      if (!phien) return loi('Chưa đăng nhập.', 401);
 
-    // Kiểm tra tính hợp lệ của phiên (1 tài khoản chỉ 1 thiết bị đăng nhập đồng thời)
-    const check = await kiemTraPhienHieuLuc(phien, env);
-    if (!check.hopLe) {
-      const h = new Headers({
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store',
-        'Set-Cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
-      });
-      return new Response(JSON.stringify({
-        ok: false,
-        biDangXuat: true,
-        lyDo: check.lyDo,
-        loi: check.thongBao || 'Phiên đăng nhập không còn hiệu lực.',
-      }), { status: 401, headers: h });
+      const check = await kiemTraPhienHieuLuc(phien, env);
+      if (!check.hopLe) {
+        const h = new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'Set-Cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+        });
+        return new Response(JSON.stringify({
+          ok: false,
+          biDangXuat: true,
+          lyDo: check.lyDo,
+          loi: check.thongBao || 'Phiên đăng nhập không còn hiệu lực.',
+        }), { status: 401, headers: h });
+      }
+      if (check.phienMoi) phien = check.phienMoi;
     }
-    if (check.phienMoi) phien = check.phienMoi;
 
     if (canGiaoVien) {
       const laGiaoVien = phien.role === 'teacher';

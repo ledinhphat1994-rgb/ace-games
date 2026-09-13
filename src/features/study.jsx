@@ -2,10 +2,40 @@ const { useState, useEffect, useRef } = React;
 import { dinhDangGiayPhut, idGoogleDrive, idYoutube, laVideoTrucTiepFe, napYouTubeIframeApi, urlMediaFe } from '../lib/helpers.js';
 
 
+// Ô nhập link thêm vào hàng đợi — dùng chung cho StudyDock và CampusWatchTogether
+export function QueueInput({ onAdd, onAddNext }) {
+  const [v, setV] = React.useState('');
+  const ok = v.trim().length > 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        id="input-queue-add"
+        type="url"
+        value={v}
+        onChange={e => setV(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && ok) { e.preventDefault(); onAdd(v.trim()); setV(''); } }}
+        placeholder="Thêm link video vào hàng đợi…"
+        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
+      />
+      <button type="button" id="btn-queue-add-next" disabled={!ok}
+        onClick={() => { onAddNext(v.trim()); setV(''); }}
+        className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 border border-violet-500/30 text-[10px] font-bold hover:bg-violet-500/25 disabled:opacity-30 whitespace-nowrap">
+        +Phát kế
+      </button>
+      <button type="button" id="btn-queue-enqueue" disabled={!ok}
+        onClick={() => { onAdd(v.trim()); setV(''); }}
+        className="px-2.5 py-1.5 rounded-lg bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 text-[10px] font-bold hover:bg-[#00F2FE]/25 disabled:opacity-30 whitespace-nowrap">
+        +Cuối hàng
+      </button>
+    </div>
+  );
+}
+
 // ─── STUDY DOCK: KHÔNG GIAN CỘNG TÁC PHÒNG YOUTUBE (PHASE 4F) ────────────────
 export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPhongChat, onXoaTinPhong,
   myCaps = {}, isStaff = false, vaiTroPhong = 'member', thanhVien = [],
-  policies = null, grants = [], videoTimeRef, seekVideo, hanhDongPhong }) {
+  policies = null, grants = [], videoTimeRef, seekVideo, hanhDongPhong,
+  canControl = false, dongPhongHienTai }) {
   const [dockTab, setDockTab] = React.useState('chat'); // 'chat' | 'notes' | 'whiteboard' | 'sheet' | 'voice' | 'quan-tri'
 
   // Capability phía client chỉ để ẩn/hiện UI — mọi quyền thật do server quyết.
@@ -602,6 +632,72 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
     setVoiceNotice('Đã ngắt voice.');
   };
 
+  // 6. Video & Queue Config State (Tab config)
+  const [videoMoi, setVideoMoi] = React.useState('');
+  const [dangDoiVideo, setDangDoiVideo] = React.useState(false);
+  const [configLoi, setConfigLoi] = React.useState('');
+  const [queueList, setQueueList] = React.useState([]);
+  const [queueBusy, setQueueBusy] = React.useState(false);
+
+  const taiQueue = async () => {
+    try {
+      const res = await fetch(`/api/phong-queue?phongId=${phong.id}&action=list`);
+      const d = await res.json();
+      if (d.ok) setQueueList(d.queue || []);
+    } catch { }
+  };
+
+  React.useEffect(() => {
+    if (dockTab === 'config') {
+      taiQueue();
+      const timer = setInterval(taiQueue, 4000);
+      return () => clearInterval(timer);
+    }
+  }, [dockTab, phong.id]);
+
+  const doiVideo = async (url) => {
+    const u = String(url || videoMoi || '').trim();
+    if (!u || dangDoiVideo) return;
+    setDangDoiVideo(true);
+    setConfigLoi('');
+    try {
+      const res = await fetch('/api/phong-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u })
+      });
+      const d = await res.json();
+      if (!d.ok) {
+        setConfigLoi(d.loi || 'Không đổi được video.');
+      } else {
+        setVideoMoi('');
+      }
+    } catch {
+      setConfigLoi('Mất kết nối máy chủ.');
+    } finally {
+      setDangDoiVideo(false);
+    }
+  };
+
+  const hanhDongQueue = async (action, extra = {}) => {
+    if (queueBusy) return;
+    setQueueBusy(true);
+    try {
+      const res = await fetch('/api/phong-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action, ...extra })
+      });
+      const d = await res.json();
+      if (!d.ok) setConfigLoi(d.loi || 'Thao tác hàng đợi thất bại.');
+      else await taiQueue();
+    } catch {
+      setConfigLoi('Mất kết nối máy chủ.');
+    } finally {
+      setQueueBusy(false);
+    }
+  };
+
   return (
     <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col min-h-[420px] lg:min-h-[480px] shadow-xl">
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
@@ -667,6 +763,32 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             <span>🎙️</span>
             <span>Voice (1-1)</span>
           </button>
+          <button
+            id="tab-study-members"
+            type="button"
+            onClick={() => setDockTab('members')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              dockTab === 'members'
+                ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-black shadow-[0_0_15px_rgba(52,211,153,0.35)] border border-emerald-400/50'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+            }`}>
+            <span>👥</span>
+            <span>Thành viên{thanhVien.length > 0 ? ` (${thanhVien.length})` : ''}</span>
+          </button>
+          {(canControl || isStaff) && (
+            <button
+              id="tab-study-config"
+              type="button"
+              onClick={() => setDockTab('config')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                dockTab === 'config'
+                  ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_0_15px_rgba(139,92,246,0.35)] border border-violet-500/50'
+                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
+              }`}>
+              <span>🎥</span>
+              <span>Video</span>
+            </button>
+          )}
           {isStaff && (
             <button
               id="tab-study-quan-tri"
@@ -1079,6 +1201,274 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
           </div>
         )}
 
+        {/* TAB 7: THÀNH VIÊN TRONG PHÒNG */}
+        {dockTab === 'members' && (
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-80 lg:max-h-[420px] pr-1">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-xs font-black text-white flex items-center gap-1.5">
+                <span>👥</span>
+                <span>Thành viên trong phòng ({thanhVien.length})</span>
+              </span>
+              <span className="text-[10px] text-slate-400">
+                Đang trực tuyến
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {thanhVien.map((tv, idx) => {
+                const laHost = tv.laChuPhong === 1 || tv.vaiTroPhong === 'host';
+                const laGV = tv.vaiTro === 'giao_vien';
+                const laCoHost = tv.vaiTroPhong === 'cohost';
+                const grantVoice = grants.some(g => g.khoaTV === tv.khoa && g.capability === 'voice');
+                const grantVideo = grants.some(g => g.khoaTV === tv.khoa && g.capability === 'video_control');
+
+                return (
+                  <div
+                    key={tv.khoa || tv.ten || idx}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center text-xs font-black text-teal-300 shrink-0">
+                      {tv.avatar ? (
+                        <img src={tv.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        (tv.ten || '?').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-200 truncate">{tv.ten}</span>
+                        {laHost && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                            👑 Host
+                          </span>
+                        )}
+                        {laGV && !laHost && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/30 shrink-0">
+                            🎓 Giáo viên
+                          </span>
+                        )}
+                        {laCoHost && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0">
+                            ⭐ Co-host
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500 block truncate">
+                        {tv.lopTen ? `Lớp ${tv.lopTen}` : (laGV ? 'Giáo viên trường' : 'Học sinh')}
+                      </span>
+                    </div>
+
+                    {/* Member actions nếu là host/GV */}
+                    {(vaiTroPhong === 'host' || auth.user?.isTeacher) && !laHost && tv.khoa && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => hanhDongPhong?.('set_co_host', { khoaTV: tv.khoa, on: !laCoHost })}
+                          title={laCoHost ? 'Thu quyền co-host' : 'Cấp co-host'}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all ${
+                            laCoHost
+                              ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
+                              : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                          }`}>
+                          co-host
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => hanhDongPhong?.('grant', { khoaTV: tv.khoa, capability: 'voice', on: !grantVoice })}
+                          title="Cấp/thu quyền mic"
+                          className={`w-6 h-6 rounded flex items-center justify-center text-[10px] border transition-all ${
+                            grantVoice
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                          }`}>
+                          🎙️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => hanhDongPhong?.('grant', { khoaTV: tv.khoa, capability: 'video_control', on: !grantVideo })}
+                          title="Cấp/thu quyền video"
+                          className={`w-6 h-6 rounded flex items-center justify-center text-[10px] border transition-all ${
+                            grantVideo
+                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                              : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                          }`}>
+                          🎥
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (confirm(`Kick ${tv.ten} khỏi phòng?`)) {
+                              const d = await hanhDongPhong?.('kick', { khoaTV: tv.khoa });
+                              if (d && !d.ok) alert(d.loi || 'Không kick được.');
+                            }
+                          }}
+                          title="Kick khỏi phòng"
+                          className="w-6 h-6 rounded flex items-center justify-center text-[10px] border bg-rose-500/10 text-rose-300 border-rose-500/25 hover:bg-rose-500/25">
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {thanhVien.length === 0 && (
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  Chưa có thành viên nào trong phòng.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 8: CẤU HÌNH VIDEO & HÀNG ĐỢI (Host / Staff) */}
+        {dockTab === 'config' && (canControl || isStaff) && (
+          <div className="flex-1 flex flex-col gap-3.5 overflow-y-auto max-h-80 lg:max-h-[420px] pr-1 text-xs">
+            {/* 1. Đổi video đang phát */}
+            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                <span>🎥</span>
+                <span>Đổi video đang phát ngay</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  id="input-config-video-moi"
+                  type="url"
+                  value={videoMoi}
+                  onChange={e => setVideoMoi(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && videoMoi.trim()) { e.preventDefault(); doiVideo(); } }}
+                  placeholder="Dán link YouTube / video mới..."
+                  className="flex-1 bg-[#151A23] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
+                />
+                <button
+                  type="button"
+                  id="btn-config-doi-video"
+                  onClick={() => doiVideo()}
+                  disabled={!videoMoi.trim() || dangDoiVideo}
+                  className="px-3 py-1.5 rounded-lg bg-[#00F2FE] text-black font-black text-xs hover:bg-[#00e1ec] active:scale-95 disabled:opacity-30 shrink-0">
+                  {dangDoiVideo ? '...' : '▶ Phát'}
+                </button>
+              </div>
+              {configLoi && <p className="text-[11px] text-rose-400">{configLoi}</p>}
+            </div>
+
+            {/* 2. Hàng đợi video (Queue) */}
+            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <span>📋</span>
+                  <span>Hàng đợi video ({queueList.filter(q => q.trangThai === 'queued').length})</span>
+                </span>
+                {queueList.some(q => q.trangThai === 'queued') && (
+                  <button
+                    type="button"
+                    onClick={() => hanhDongQueue('skip')}
+                    disabled={queueBusy}
+                    className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 disabled:opacity-40">
+                    ⏭ Bỏ qua / Tiếp theo
+                  </button>
+                )}
+              </div>
+
+              {/* Ô thêm video vào queue */}
+              <QueueInput
+                onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
+                onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })}
+              />
+
+              {/* Danh sách queue */}
+              {queueList.length === 0 ? (
+                <p className="text-[11px] text-slate-500 py-2 text-center">Hàng đợi trống — thêm link video để phát lần lượt.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {queueList.map((q, idx) => (
+                    <div key={q.id || idx} className="flex items-center gap-2 bg-[#151A23] border border-white/5 rounded-lg p-2">
+                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${q.trangThai === 'playing' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-400'}`}>
+                        {q.trangThai === 'playing' ? '▶' : idx + 1}
+                      </span>
+                      {q.thumb && <img src={q.thumb} alt="" className="w-10 h-6 rounded object-cover shrink-0" loading="lazy" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-slate-200 font-medium truncate">{q.title || q.videoUrl}</p>
+                        <p className="text-[9px] text-slate-500 truncate">thêm bởi {q.addedBy || '—'}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {q.trangThai === 'queued' && (
+                          <button
+                            type="button"
+                            title="Phát ngay"
+                            onClick={() => hanhDongQueue('play_now', { id: q.id })}
+                            disabled={queueBusy}
+                            className="w-6 h-6 rounded bg-[#00F2FE]/15 text-[#00F2FE] text-[10px] font-black hover:bg-[#00F2FE]/25">
+                            ▶
+                          </button>
+                        )}
+                        {q.trangThai === 'queued' && (
+                          <button
+                            type="button"
+                            title="Xóa khỏi hàng đợi"
+                            onClick={() => hanhDongQueue('remove', { id: q.id })}
+                            disabled={queueBusy}
+                            className="w-6 h-6 rounded bg-rose-500/15 text-rose-300 text-[10px] font-black hover:bg-rose-500/25">
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Tùy chọn phòng & Đóng phòng */}
+            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2.5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                ⚙️ Thao tác phòng
+              </span>
+
+              {/* Đổi/bỏ mật khẩu */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="password"
+                  placeholder="Mật khẩu mới (để trống = bỏ)"
+                  id="input-config-mat-khau-moi"
+                  maxLength={100}
+                  className="flex-1 bg-[#151A23] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const el = document.getElementById('input-config-mat-khau-moi');
+                    const mk = el?.value || '';
+                    const d = mk.trim()
+                      ? await hanhDongPhong?.('doi_mat_khau', { matKhauMoi: mk.trim() })
+                      : await hanhDongPhong?.('bo_mat_khau', {});
+                    if (d && !d.ok) alert(d.loi || 'Không đổi được mật khẩu.');
+                    else alert('Đã cập nhật mật khẩu phòng thành công.');
+                    if (el) el.value = '';
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 shrink-0">
+                  Đổi MK
+                </button>
+              </div>
+
+              {/* Nút đóng phòng */}
+              {dongPhongHienTai && phong.chuPhongKhoa !== 'he-thong' && (
+                <button
+                  type="button"
+                  id="btn-config-dong-phong"
+                  onClick={() => {
+                    if (confirm('Bạn có chắc chắn muốn đóng phòng học này không?')) {
+                      dongPhongHienTai();
+                    }
+                  }}
+                  className="w-full py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all flex items-center justify-center gap-1.5">
+                  <span>🛑</span>
+                  <span>Đóng phòng học này</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TAB 6: QUẢN TRỊ PHÒNG (staff only) — policy matrix + member actions */}
         {dockTab === 'quan-tri' && isStaff && (
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-80 pr-1">
@@ -1262,21 +1652,13 @@ export function CampusWatchTogether({
     updatedBy: ''
   });
   const [canControl, setCanControl] = useState(Boolean(auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
-  const [watchCaps, setWatchCaps] = useState(null);
+  const [watchCaps, setWatchCaps] = useState({});
   const [provider, setProvider] = useState('UNSUPPORTED');
   const [hasInteracted, setHasInteracted] = useState(false);
   const [localTime, setLocalTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [dangGuiLenh, setDangGuiLenh] = useState(false);
   const [loi, setLoi] = useState('');
-  const [videoMoi, setVideoMoi] = useState('');
-  const [queueList, setQueueList] = useState([]);
-  const [queueBusy, setQueueBusy] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const caps = watchCaps || myCaps || {};
-  const duocDoiVideo = canControl || caps.video_change === true;
-  const duocQueue = canControl || caps.queue === true;
-  const duocChat = caps.chat !== false;
 
   useEffect(() => {
     if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher) {
@@ -1290,19 +1672,46 @@ export function CampusWatchTogether({
   const isSeekingRef = useRef(false);
   const hasInteractedRef = useRef(false);
 
-  let cauHinh = {};
-  try { cauHinh = phong.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
-  const videoUrl = cauHinh.videoUrl || '';
+  const [activeVideoUrl, setActiveVideoUrl] = useState(() => {
+    let c = {};
+    try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
+    return c.videoUrl || '';
+  });
+
+  useEffect(() => {
+    let c = {};
+    try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
+    if (c.videoUrl) setActiveVideoUrl(c.videoUrl);
+  }, [phong?.cauHinh]);
+
+  const videoUrl = activeVideoUrl;
   const ytId = videoUrl ? idYoutube(videoUrl) : null;
   const drvId = videoUrl ? idGoogleDrive(videoUrl) : null;
   const trucTiepUrl = videoUrl && !ytId && !drvId && laVideoTrucTiepFe(videoUrl) ? urlMediaFe(videoUrl) : '';
 
-  // Khởi tạo YouTube IFrame Player khi provider là YouTube
+  // Khởi tạo YouTube IFrame Player khi ytId có giá trị (hỗ trợ retry khi DOM đang render)
   useEffect(() => {
     if (!ytId) return;
     let destroyed = false;
-    napYouTubeIframeApi(() => {
-      if (destroyed || !document.getElementById(ytContainerId)) return;
+    let retryTimer = null;
+    let attempts = 0;
+
+    const khoiTaoPlayer = () => {
+      if (destroyed) return;
+      const el = document.getElementById(ytContainerId);
+      if (!el) {
+        if (attempts++ < 25) {
+          retryTimer = setTimeout(khoiTaoPlayer, 80);
+        }
+        return;
+      }
+
+      // Destroy player cũ nếu có
+      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
+        try { ytPlayerRef.current.destroy(); } catch {}
+        ytPlayerRef.current = null;
+      }
+
       try {
         ytPlayerRef.current = new window.YT.Player(ytContainerId, {
           width: '100%',
@@ -1323,6 +1732,12 @@ export function CampusWatchTogether({
                 const d = event.target.getDuration();
                 if (d > 0) setDuration(d);
               }
+              if (watchState.playing && event.target.playVideo) {
+                try { event.target.playVideo(); } catch {}
+              }
+              if (watchState.positionSeconds > 0 && event.target.seekTo) {
+                try { event.target.seekTo(watchState.positionSeconds, true); } catch {}
+              }
             },
             onStateChange: (event) => {
               if (canControl && !dangGuiLenh && !isSeekingRef.current) {
@@ -1335,17 +1750,24 @@ export function CampusWatchTogether({
             }
           }
         });
-      } catch { }
+      } catch (err) {
+        console.warn('Lỗi khởi tạo YT Player:', err);
+      }
+    };
+
+    napYouTubeIframeApi(() => {
+      setTimeout(khoiTaoPlayer, 50);
     });
 
     return () => {
       destroyed = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
         try { ytPlayerRef.current.destroy(); } catch { }
         ytPlayerRef.current = null;
       }
     };
-  }, [ytId, phong.id]);
+  }, [ytId, phong.id, canControl]);
 
   // Áp dụng trạng thái đồng bộ từ server
   const apDungDongBo = (st, ctrl, prov) => {
@@ -1419,6 +1841,9 @@ export function CampusWatchTogether({
           setCanControl(Boolean(d.canControl));
           if (d.caps) setWatchCaps(d.caps);
           setProvider(d.provider || 'UNSUPPORTED');
+          if (d.phong?.videoUrl && d.phong.videoUrl !== activeVideoUrl) {
+            setActiveVideoUrl(d.phong.videoUrl);
+          }
           apDungDongBo(d.state, Boolean(d.canControl), d.provider || 'UNSUPPORTED');
         }
       } catch { }
@@ -1507,65 +1932,7 @@ export function CampusWatchTogether({
     if (videoTimeRef) videoTimeRef.current = localTime;
   }, [localTime, videoTimeRef]);
 
-  // Đổi video đang phát (capability video_change)
-  const doiVideo = async (url) => {
-    const u = String(url || videoMoi || '').trim();
-    if (!u || dangGuiLenh) return;
-    setDangGuiLenh(true);
-    setLoi('');
-    try {
-      const res = await fetch('/api/phong-watch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u, expectedRevision: watchState.revision })
-      });
-      const d = await res.json();
-      if (!d.ok) setLoi(d.loi || 'Không đổi được video.');
-      else setVideoMoi('');
-    } catch { setLoi('Mất kết nối máy chủ.'); }
-    finally { setDangGuiLenh(false); }
-  };
 
-  // Hàng đợi video — poll 5s
-  const taiQueue = async () => {
-    try {
-      const res = await fetch(`/api/phong-queue?phongId=${phong.id}&action=list`);
-      const d = await res.json();
-      if (d.ok) {
-        setQueueList(d.queue || []);
-        if (d.caps) setWatchCaps(prev => ({ ...(prev || {}), ...d.caps }));
-      }
-    } catch { /* bỏ qua */ }
-  };
-  useEffect(() => {
-    taiQueue();
-    const t = setInterval(taiQueue, 5000);
-    return () => clearInterval(t);
-  }, [phong.id]);
-
-  const hanhDongQueue = async (action, extra = {}) => {
-    if (queueBusy) return;
-    setQueueBusy(true);
-    try {
-      const res = await fetch('/api/phong-queue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phongId: phong.id, action, ...extra })
-      });
-      const d = await res.json();
-      if (!d.ok) setLoi(d.loi || 'Thao tác hàng đợi thất bại.');
-      else await taiQueue();
-    } catch { setLoi('Mất kết nối máy chủ.'); }
-    finally { setQueueBusy(false); }
-  };
-
-  const saoChepLinkPhong = async () => {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}${location.pathname}#/phong/${phong.id}`);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch { /* clipboard bị chặn */ }
-  };
 
   // Nhận yêu cầu tua từ StudyDock (bấm mốc video trong chat/ghi chú).
   // Có quyền điều khiển → phát lệnh seek chung; không → chỉ tua cục bộ player của mình.
@@ -1630,7 +1997,7 @@ export function CampusWatchTogether({
 
         {/* Video elements theo provider */}
         {ytId ? (
-          <div className="w-full h-full flex items-center justify-center">
+          <div key={`yt-wrap-${phong.id}-${ytId}`} className="w-full h-full flex items-center justify-center">
             <div id={ytContainerId} className="w-full h-full" />
           </div>
         ) : drvId ? (
@@ -1760,94 +2127,6 @@ export function CampusWatchTogether({
         {loi && <p className="text-xs text-rose-400">{loi}</p>}
         {phong.moTa && <p className="text-[11px] text-slate-400 leading-relaxed pt-1">{phong.moTa}</p>}
 
-        {/* Đổi video — capability video_change */}
-        {duocDoiVideo && (
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              id="input-video-moi"
-              type="url"
-              value={videoMoi}
-              onChange={e => setVideoMoi(e.target.value)}
-              placeholder="Dán link YouTube / video mới để phát ngay…"
-              className="flex-1 bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/60"
-            />
-            <button
-              type="button"
-              id="btn-doi-video"
-              onClick={() => doiVideo()}
-              disabled={!videoMoi.trim() || dangGuiLenh}
-              className="px-3.5 py-2 rounded-xl bg-[#00F2FE] text-black text-xs font-black hover:bg-[#00e1ec] disabled:opacity-30 shrink-0">
-              ▶ Phát video này
-            </button>
-          </div>
-        )}
-
-        {/* Hàng đợi video — capability queue */}
-        {(duocQueue || queueList.length > 0) && (
-          <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                📋 Hàng đợi ({queueList.filter(q => q.trangThai === 'queued').length})
-              </p>
-              {duocDoiVideo && queueList.some(q => q.trangThai === 'queued') && (
-                <button
-                  type="button"
-                  onClick={() => hanhDongQueue('skip')}
-                  disabled={queueBusy}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 disabled:opacity-40">
-                  ⏭ Phát tiếp theo
-                </button>
-              )}
-            </div>
-
-            {duocQueue && (
-              <QueueInput onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
-                onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })} />
-            )}
-
-            {queueList.length === 0 ? (
-              <p className="text-[11px] text-slate-500">Hàng đợi trống — thêm link video để phát lần lượt.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {queueList.map((q, idx) => (
-                  <div key={q.id} className="flex items-center gap-2 bg-[#0B0E14] border border-white/10 rounded-xl px-2.5 py-1.5">
-                    <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${q.trangThai === 'playing' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-400'}`}>
-                      {q.trangThai === 'playing' ? '▶' : idx + 1}
-                    </span>
-                    {q.thumb && <img src={q.thumb} alt="" className="w-10 h-6 rounded object-cover shrink-0" loading="lazy" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-slate-200 font-semibold truncate">{q.title || q.videoUrl}</p>
-                      <p className="text-[9px] text-slate-500 truncate">thêm bởi {q.addedBy || '—'}</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {q.trangThai === 'queued' && duocDoiVideo && (
-                        <button type="button" title="Phát ngay" onClick={() => hanhDongQueue('play_now', { id: q.id })} disabled={queueBusy}
-                          className="w-6 h-6 rounded-lg bg-[#00F2FE]/15 text-[#00F2FE] text-[10px] font-black hover:bg-[#00F2FE]/25">▶</button>
-                      )}
-                      {q.trangThai === 'queued' && duocQueue && idx > 0 && (
-                        <button type="button" title="Đưa lên đầu" onClick={() => {
-                          const ids = queueList.filter(x => x.trangThai === 'queued').map(x => x.id);
-                          ids.splice(ids.indexOf(q.id), 1);
-                          ids.unshift(q.id);
-                          hanhDongQueue('reorder', { ids });
-                        }} disabled={queueBusy}
-                          className="w-6 h-6 rounded-lg bg-white/10 text-slate-300 text-[10px] font-black hover:bg-white/15">↑</button>
-                      )}
-                      {duocChat && (
-                        <button type="button" title="Gửi vào chat phòng" onClick={() => hanhDongQueue('send_to_chat', { id: q.id })} disabled={queueBusy}
-                          className="w-6 h-6 rounded-lg bg-white/10 text-slate-300 text-[10px] font-black hover:bg-white/15">💬</button>
-                      )}
-                      {(duocQueue || q.addedByKhoa === phongMinhKhoa) && q.trangThai === 'queued' && (
-                        <button type="button" title="Xóa khỏi hàng đợi" onClick={() => hanhDongQueue('remove', { id: q.id })} disabled={queueBusy}
-                          className="w-6 h-6 rounded-lg bg-rose-500/10 text-rose-300 text-[10px] font-black hover:bg-rose-500/20">✕</button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
       )}
     </div>
@@ -1855,34 +2134,6 @@ export function CampusWatchTogether({
   );
 }
 
-// Ô nhập link thêm vào hàng đợi — tách nhỏ để không re-render toàn panel
-export function QueueInput({ onAdd, onAddNext }) {
-  const [v, setV] = React.useState('');
-  const ok = v.trim().length > 0;
-  return (
-    <div className="flex items-center gap-1.5">
-      <input
-        id="input-queue-add"
-        type="url"
-        value={v}
-        onChange={e => setV(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter' && ok) { e.preventDefault(); onAdd(v.trim()); setV(''); } }}
-        placeholder="Thêm link video vào hàng đợi…"
-        className="flex-1 bg-[#0B0E14] border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
-      />
-      <button type="button" id="btn-queue-add-next" disabled={!ok}
-        onClick={() => { onAddNext(v.trim()); setV(''); }}
-        className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 border border-violet-500/30 text-[10px] font-bold hover:bg-violet-500/25 disabled:opacity-30 whitespace-nowrap">
-        +Phát kế
-      </button>
-      <button type="button" id="btn-queue-enqueue" disabled={!ok}
-        onClick={() => { onAdd(v.trim()); setV(''); }}
-        className="px-2.5 py-1.5 rounded-lg bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 text-[10px] font-bold hover:bg-[#00F2FE]/25 disabled:opacity-30 whitespace-nowrap">
-        +Cuối hàng
-      </button>
-    </div>
-  );
-}
 
 // ─── Component: Campus Focus Room (Study Café & Pomodoro Session) ─────────────
 export function CampusFocusRoom({

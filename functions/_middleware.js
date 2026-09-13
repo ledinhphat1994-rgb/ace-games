@@ -108,6 +108,12 @@ export async function onRequest(context) {
 
   if (checkPhien.phienMoi) session = checkPhien.phienMoi;
 
+  // Đã xác thực xong ở đây (kiemTraPhienHieuLuc) — truyền thẳng cho bocXuLy() dùng lại qua
+  // context.data, khỏi phải query D1 lần 2 y hệt cho MỌI request có xác thực (functions/_lib/
+  // api.js:bocXuLy tự kiểm tra lại nếu thiếu, nên không phá gì nếu sau này có middleware khác
+  // ghi đè hoặc route không đi qua đây).
+  context.data.phienDaXacThuc = session;
+
   // Khu vực giáo viên: trang /giao-vien và các API /api/gv/.
   // Vai trò "phu" (tài khoản đặc biệt: lớp trưởng, thủ quỹ...) cũng được mở khu vực này ở đây;
   // từng API bên trong tự kiểm tra tiếp xem mã đó có ĐÚNG quyền cho việc cụ thể hay không.

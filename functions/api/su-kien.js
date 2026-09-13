@@ -13,24 +13,6 @@ const SELECT_AN_TOAN = `
          tao_boi_ten AS taoBoiTen, tao_luc AS taoLuc
     FROM su_kien_campus`;
 
-async function damBaoBang(db) {
-  await db.prepare(`CREATE TABLE IF NOT EXISTS su_kien_campus (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tieu_de TEXT NOT NULL,
-    mo_ta TEXT,
-    loai TEXT NOT NULL DEFAULT 'chung',
-    bat_dau TEXT NOT NULL,
-    ket_thuc TEXT NOT NULL,
-    phong_id INTEGER REFERENCES phong(id),
-    noi_bat INTEGER NOT NULL DEFAULT 0,
-    tao_boi TEXT NOT NULL,
-    tao_boi_ten TEXT NOT NULL,
-    trang_thai TEXT NOT NULL DEFAULT 'hoat_dong',
-    tao_luc TEXT DEFAULT CURRENT_TIMESTAMP,
-    cap_nhat_luc TEXT DEFAULT CURRENT_TIMESTAMP
-  )`).run().catch(() => {});
-}
-
 // Trạng thái suy ra từ mốc giờ — không lưu thừa trong DB.
 function trangThaiSuKien(batDau, ketThuc, bayGio) {
   const bd = Date.parse(batDau), kt = Date.parse(ketThuc);
@@ -59,13 +41,14 @@ function themTrangThai(rows) {
 export async function onRequestGet({ env }) {
   try {
     const db = env.DB;
-    await damBaoBang(db);
     const rs = await db.prepare(
       `${SELECT_AN_TOAN}
         WHERE trang_thai = 'hoat_dong' AND datetime(ket_thuc) > datetime('now', ?1)
         ORDER BY noi_bat DESC, bat_dau ASC LIMIT 20`
     ).bind(GIO_KET_THUC_CON_HIEN).all();
-    return json({ ok: true, suKien: themTrangThai(rs.results || []) });
+    // Công khai, giống hệt nhau cho mọi người gọi (không đụng request/phien) — cache ngắn để đỡ
+    // tải Cloudflare Functions khi bị poll mỗi 60s (xem src/campus-app.jsx).
+    return json({ ok: true, suKien: themTrangThai(rs.results || []) }, 200, { 'Cache-Control': 'public, max-age=30' });
   } catch (e) {
     console.error('su-kien GET:', e);
     return loi('Không đọc được sự kiện.', 500);
