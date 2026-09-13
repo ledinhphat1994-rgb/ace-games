@@ -44,7 +44,8 @@
     "log": "wrangler pages deployment tail --project-name lop-10a7",
     "d1-cuc-bo": "wrangler d1 execute lop-10a7-db --local",
     "d1-that": "wrangler d1 execute lop-10a7-db --remote",
-    "prepare": "husky"
+    "prepare": "husky",
+    "migrate": "node cong-cu/migrate.mjs"
   },
   "lint-staged": {
     "*.{js,mjs}": "eslint --no-warn-ignored",

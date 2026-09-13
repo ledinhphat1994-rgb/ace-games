@@ -2,6 +2,7 @@
 - Đọc PROJECT_RULES.md trước khi sửa. Stack: Cloudflare Pages + Functions + D1/KV/R2, vanilla HTML/JS + React qua CDN. CẤM Webpack/Vite/Next/bundler.
 - Frontend JSX sống trong `src/**/*.jsx`, compile bằng `npm run compile:jsx` (esbuild) → `assets/gen/*.js` (file gen, commit kèm, KHÔNG sửa tay). `index.html` chỉ còn shell HTML; không viết JSX inline trong HTML. `npm run build` tự compile trước khi gom `dist/`.
 - Cấu trúc `src/`: `lib/` (helpers thuần + icons), `components/` (UI trình bày), `features/` (domain lớn: study, lobby, chat-rail, modals), `campus-app.jsx` (entry + DigitalCampusApp). Module ESM native — import specifier luôn ghi đuôi `.js` (vd `from '../lib/helpers.js'`) vì browser resolve file đã compile; KHÔNG bundle.
+- Bản đồ domain → file chi tiết: `docs/ARCHITECTURE.md`. Migration D1: `npm run migrate -- status|apply|baseline [--local|--remote]` — KHÔNG nạp file SQL tay nữa, tracker `_migrations` ghi nhận + báo drift.
 - Product contract đã khóa: `docs/product/CURRENT_PRODUCT_CONTRACT.md`; API contracts: `docs/contracts/`. Một agent chịu trách nhiệm trọn vẹn từ backend tới frontend trong một task — không chia vai theo model.
 - CẤM mock data / mảng dữ liệu mẫu trong UI. Mọi dữ liệu qua /api/*. Ô rỗng thì hiện empty-state.
 - Mọi query D1 đọc/ghi dữ liệu lớp PHẢI có `lop_id = phien.lopId`. Không tin id từ client.
