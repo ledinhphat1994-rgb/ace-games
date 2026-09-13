@@ -1,4 +1,4 @@
-# Study Room Governance API v1 — Contract (SWE 2 → Claude)
+# Study Room Governance API v1 — Contract (backend → frontend handoff)
 
 - **Status:** `ACCEPTED_BACKEND_CANDIDATE` — Backend Gate QA 163/163 PASS, chờ Independent Backend Review
 - **Backend commit:** `ac1b879a192b7fb747a87537af61f43469391102`
