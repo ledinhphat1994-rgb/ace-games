@@ -4,7 +4,7 @@ import { CampusChatRail } from './features/chat-rail.js';
 import { ActivityLobby, CampusActivityUniverse, RoomPasswordModal } from './features/lobby.js';
 import { AuthModal, CommunityBoardGateModal } from './features/modals.js';
 import { CampusFocusRoom, CampusWatchTogether, StudyDock } from './features/study.js';
-import { BanCoGame, MiniGameOverlay, GAME_TYPE_INFO, gameTen } from './features/games.js';
+import { BanCoGame, MiniGameOverlay, GameArenaLobby, GAME_TYPE_INFO, gameTen } from './features/games.js';
 import { CAMPUS_GAMES, PRESET_AVATARS, dinhDangNgayGioVN, formatDateVN, formatTimeOnly, formatVND, idGoogleDrive, idYoutube, laVideoTrucTiepFe, normalizeCampusRoom, thoiGianTruoc, urlMediaFe } from './lib/helpers.js';
 import { Ic } from './lib/icons.js';
 
@@ -2460,112 +2460,27 @@ function DigitalCampusApp() {
                   <BanCoGame phong={caroPhong} nguoiChoiIdCuaToi={nguoiChoiIdCuaToi} onDanh={danhCoCaro} />
                 </div>
               ) : (
-                /* SẢNH ĐẤU TRƯỜNG HYBRID: QUICK MATCH HERO CTA + OPEN LOBBY DISCOVERY */
-                <div className="w-full max-w-[620px] flex flex-col gap-4">
-                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#151A23] via-[#10141D] to-[#1E1735] border border-white/10 p-5 shadow-2xl">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg">⚔️</span>
-                          <h3 className="text-base font-black text-white">GAME ARENA</h3>
-                        </div>
-                        <p className="text-xs text-slate-400">
-                          Đấu trường trí tuệ đối kháng trực tiếp — Caro 15×15 · Caro 9×9 · Thả Quân 4 · Reversi. Ghép trận tức thì hoặc mở bàn thách đấu.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                        <button onClick={batDauTimTranNhanh}
-                          className="flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 text-black font-black text-xs shadow-[0_0_18px_rgba(245,158,11,0.3)] hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-1.5">
-                          <span className="animate-pulse">⚡</span>
-                          <span>TÌM TRẬN NHANH</span>
-                        </button>
-                        <button onClick={() => setShowTaoBanModal(true)}
-                          className="px-3.5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs border border-white/10 transition-all flex items-center gap-1">
-                          <span>+</span> Tạo bàn
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {caroLoi && <p className="text-xs text-rose-400 text-center">{caroLoi}</p>}
-
-                  <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setArenaTab('truong'); taiDanhSachBanCaro('truong'); }}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${arenaTab === 'truong' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
-                        <span>🌐</span>
-                        <span>Toàn trường</span>
-                      </button>
-                      <button onClick={() => { setArenaTab('lop'); taiDanhSachBanCaro('lop'); }}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${arenaTab === 'lop' ? 'bg-amber-400/15 text-amber-300 border border-amber-400/40 shadow-sm' : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'}`}>
-                        <span>🔒</span>
-                        <span>Lớp tôi</span>
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-400">{caroRooms?.length || 0} bàn đang mở</span>
-                      <button onClick={() => taiDanhSachBanCaro(arenaTab)}
-                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs transition-all"
-                        title="Làm mới danh sách">
-                        🔄
-                      </button>
-                    </div>
-                  </div>
-
-                  {caroRooms === null ? (
-                    <p className="text-xs text-slate-500 text-center py-8">Đang tải danh sách bàn…</p>
-                  ) : caroRooms.length === 0 ? (
-                    <div className="text-center py-10 bg-[#0B0E14] rounded-2xl border border-white/5 p-6">
-                      <p className="text-2xl mb-2">🎲</p>
-                      <p className="text-sm font-bold text-slate-300 mb-1">Chưa có bàn nào đang mở ở chế độ này</p>
-                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        Bấm <strong className="text-amber-400">"Tìm trận nhanh"</strong> để hệ thống tự ghép cặp hoặc bấm <strong className="text-[#00F2FE]">"+ Tạo bàn"</strong> để mở sảnh thách đấu nhé!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      {caroRooms.map(ban => (
-                        <div key={ban.id} className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0B0E14] border border-white/10 hover:border-[#00F2FE]/40 transition-all">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <p className="text-xs font-bold text-white truncate">{ban.tenBan || `Bàn #${ban.id}`}</p>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold border bg-white/5 text-slate-300 border-white/10">
-                                {(GAME_TYPE_INFO[ban.loaiGame] || GAME_TYPE_INFO.co_caro).icon} {(GAME_TYPE_INFO[ban.loaiGame] || GAME_TYPE_INFO.co_caro).ten}
-                              </span>
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${ban.phamVi === 'truong' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-blue-500/15 text-blue-300 border-blue-500/30'}`}>
-                                {ban.phamVi === 'truong' ? 'Toàn trường' : `Lớp ${ban.lopTen || ''}`}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-400">
-                              Chủ bàn: <strong className="text-slate-300">{ban.chuPhongTen}</strong> ({ban.lopTen || '10A7'})
-                              {ban.khachTen ? ` vs ${ban.khachTen} (${ban.khachLopTen || 'Khác'})` : ' • đang chờ đối thủ'}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {ban.trangThai === 'cho_nguoi' ? (
-                              <>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                                  ⏳ Chờ người
-                                </span>
-                                <button onClick={() => vaoBanCaro(ban.id)}
-                                  className="px-3.5 py-1.5 rounded-xl bg-[#00F2FE] text-black font-black text-xs hover:bg-[#00e1ec] active:scale-95 transition-all shadow-sm flex items-center gap-1">
-                                  <span>⚔️</span>
-                                  <span>Thách đấu</span>
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-[10px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <span>Đang thi đấu</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                /* SẢNH ĐẤU TRƯỜNG HIỆN ĐẠI: GAME SELECTION + LIVE BOARD PREVIEW + LOBBY DISCOVERY */
+                <GameArenaLobby
+                  caroRooms={caroRooms}
+                  taiDanhSachBanCaro={taiDanhSachBanCaro}
+                  arenaTab={arenaTab}
+                  setArenaTab={setArenaTab}
+                  batDauTimTranNhanh={batDauTimTranNhanh}
+                  taoBanCaro={taoBanCaro}
+                  vaoBanCaro={vaoBanCaro}
+                  taoBanDangGui={taoBanDangGui}
+                  caroLoi={caroLoi}
+                  setMiniGameId={setMiniGameId}
+                  taoBanLoai={taoBanLoai}
+                  setTaoBanLoai={setTaoBanLoai}
+                  taoBanTen={taoBanTen}
+                  setTaoBanTen={setTaoBanTen}
+                  taoBanAccessMode={taoBanAccessMode}
+                  setTaoBanAccessMode={setTaoBanAccessMode}
+                  taoBanPassword={taoBanPassword}
+                  setTaoBanPassword={setTaoBanPassword}
+                />
               )}
             </div>
           )}
