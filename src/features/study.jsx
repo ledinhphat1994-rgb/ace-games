@@ -1784,10 +1784,10 @@ export function CampusWatchTogether({
     }
 
     if (canControl) {
-      // Chủ phòng: Gửi lệnh pause lên server tại finalDur
-      if (watchStateRef.current?.playing) {
-        guiLenhRef.current?.('pause', finalDur > 0 ? finalDur : undefined);
-      }
+      // Chủ phòng: Luôn gửi lệnh pause tại finalDur lên máy chủ
+      // Bỏ qua điều kiện watchState.playing để đảm bảo vị trí lưu trên server luôn là giây kết thúc
+      const targetPos = finalDur > 0 ? Number(finalDur.toFixed(2)) : undefined;
+      guiLenhRef.current?.('pause', targetPos);
     } else {
       // Người tham gia: Đánh dấu đã dừng, không tự chạy tiếp nếu không có lệnh bật lại
       setViewerIsPaused(true);
@@ -1845,7 +1845,12 @@ export function CampusWatchTogether({
     }
     const maxDur = durationRef.current || duration;
     if (maxDur > 0) {
-      targetPos = Math.min(targetPos, maxDur);
+      // Nếu máy chủ đang pause và vị trí ở sát cuối video (còn < 2.5s) -> coi như video đã hết
+      if (!st?.playing && targetPos >= maxDur - 2.5) {
+        targetPos = maxDur;
+      } else {
+        targetPos = Math.min(targetPos, maxDur);
+      }
     }
     return Math.max(0, Number(targetPos.toFixed(2)));
   };
@@ -1902,8 +1907,14 @@ export function CampusWatchTogether({
           console.log('Vùng 2: Chủ phòng bấm Play trên YouTube -> đồng bộ cả phòng');
           guiLenhRef.current?.('play', curTime);
         } else if (pState === 2 && watchStateRef.current.playing) {
-          console.log('Vùng 2: Chủ phòng bấm Pause trên YouTube -> đồng bộ cả phòng');
-          guiLenhRef.current?.('pause', curTime);
+          const maxDur = durationRef.current || duration;
+          if (maxDur > 5 && curTime !== undefined && curTime >= maxDur - 2.5) {
+            console.log('Video chạm ngưỡng cuối -> kích hoạt handleVideoEnded thay vì pause lửng lơ');
+            handleVideoEnded();
+          } else {
+            console.log('Vùng 2: Chủ phòng bấm Pause trên YouTube -> đồng bộ cả phòng');
+            guiLenhRef.current?.('pause', curTime);
+          }
         }
 
         // 2. Bắt thao tác tua (Seek) trên thanh tiến trình đỏ YouTube (0:29 / 2:41:32)
@@ -2069,8 +2080,14 @@ export function CampusWatchTogether({
                   console.log('YT Player onStateChange === 1 -> đồng bộ Play cả phòng');
                   guiLenhRef.current?.('play', curPos);
                 } else if (event.data === 2 && watchStateRef.current.playing) {
-                  console.log('YT Player onStateChange === 2 -> đồng bộ Pause cả phòng');
-                  guiLenhRef.current?.('pause', curPos);
+                  const maxDur = durationRef.current || duration;
+                  if (maxDur > 5 && curPos !== undefined && curPos >= maxDur - 2.5) {
+                    console.log('YT onStateChange === 2 chạm ngưỡng cuối -> kích hoạt handleVideoEnded');
+                    handleVideoEnded();
+                  } else {
+                    console.log('YT Player onStateChange === 2 -> đồng bộ Pause cả phòng');
+                    guiLenhRef.current?.('pause', curPos);
+                  }
                 }
               } else if (!canControl && !isProgrammaticActionRef.current && (Date.now() - lastGoLiveClickTimeRef.current > 3500)) {
                 if (event.data === 2 && watchStateRef.current.playing) {
@@ -2113,7 +2130,11 @@ export function CampusWatchTogether({
     }
     const maxDur = durationRef.current || duration;
     if (maxDur > 0) {
-      targetPos = Math.min(targetPos, maxDur);
+      if (!st.playing && targetPos >= maxDur - 2.5) {
+        targetPos = maxDur;
+      } else {
+        targetPos = Math.min(targetPos, maxDur);
+      }
     }
 
     // ─── NGUYÊN TẮC VÀNG: CHỦ PHÒNG LÀ NGUỒN PHÁT (SOURCE OF TRUTH) ───
@@ -2138,14 +2159,19 @@ export function CampusWatchTogether({
     }
 
     // Nếu video đã chạm đến điểm cuối (targetPos >= maxDur) và maxDur > 0:
-    // Người xem phải dừng lại tại điểm cuối, không được tiếp tục chạy hay trôi thời gian
+    // Người xem phải dừng lại tại điểm cuối VÀ TUA ĐẾN HẾT VIDEO y chang chủ phòng
     if (maxDur > 0 && targetPos >= maxDur) {
       setLocalTime(Math.floor(maxDur));
       if (prov === 'NATIVE_HTML5' && videoRef.current) {
-        try { videoRef.current.pause(); } catch {}
+        try {
+          videoRef.current.currentTime = maxDur;
+          videoRef.current.pause();
+        } catch {}
       } else if (prov === 'YOUTUBE') {
         const p = ytPlayerRef.current;
         const ifr = document.getElementById(ytContainerId);
+        if (p?.seekTo) { try { p.seekTo(maxDur, true); } catch {} }
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [maxDur, true] }), '*');
         if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
         ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
       }
@@ -2408,9 +2434,14 @@ export function CampusWatchTogether({
     return () => clearInterval(tick);
   }, [watchState.playing, viewerIsPaused, isLiveWithHost, provider, duration, localTime, canControl]);
 
+  const pendingGuiLenhRef = useRef(null);
+
   // Gửi lệnh điều khiển (Play / Pause / Seek)
   const guiLenh = async (action, customPos) => {
-    if (dangGuiLenhRef.current) return;
+    if (dangGuiLenhRef.current) {
+      pendingGuiLenhRef.current = { action, customPos };
+      return;
+    }
     setDangGuiLenh(true);
     dangGuiLenhRef.current = true;
     setLoi('');
@@ -2458,6 +2489,7 @@ export function CampusWatchTogether({
     }
 
     try {
+      const currentRev = watchStateRef.current?.revision || watchState.revision || 1;
       const res = await fetch('/api/phong-watch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2465,8 +2497,8 @@ export function CampusWatchTogether({
           phongId: phong.id,
           action,
           position: pos,
-          expectedRevision: watchState.revision,
-          playbackRate: watchState.playbackRate || 1.0
+          expectedRevision: currentRev,
+          playbackRate: watchStateRef.current?.playbackRate || watchState.playbackRate || 1.0
         })
       });
       const d = await res.json();
@@ -2485,6 +2517,11 @@ export function CampusWatchTogether({
     } finally {
       setDangGuiLenh(false);
       dangGuiLenhRef.current = false;
+      if (pendingGuiLenhRef.current) {
+        const next = pendingGuiLenhRef.current;
+        pendingGuiLenhRef.current = null;
+        guiLenh(next.action, next.customPos);
+      }
     }
   };
 
@@ -2592,19 +2629,22 @@ export function CampusWatchTogether({
 
     let targetPos = getHostCurrentPos();
     const maxDur = durationRef.current || duration;
-    if (maxDur > 0 && targetPos >= maxDur - 1) {
-      targetPos = Math.max(0, maxDur - 1);
+    const isVideoEnded = maxDur > 0 && (targetPos >= maxDur - 1.5 || (!watchState.playing && targetPos >= maxDur - 3.0));
+    if (isVideoEnded) {
+      targetPos = maxDur;
+    } else if (maxDur > 0 && targetPos > maxDur) {
+      targetPos = maxDur;
     }
 
     setLocalTime(Math.floor(targetPos));
     isLiveWithHostRef.current = true;
     setIsLiveWithHost(true);
-    setViewerIsPaused(!watchState.playing);
+    setViewerIsPaused(!watchState.playing || isVideoEnded);
     lastAppliedRevisionRef.current = watchState.revision;
 
     if (provider === 'NATIVE_HTML5' && videoRef.current) {
       videoRef.current.currentTime = targetPos;
-      if (watchState.playing) {
+      if (watchState.playing && !isVideoEnded) {
         videoRef.current.play().catch(() => {});
       } else {
         videoRef.current.pause();
@@ -2616,7 +2656,7 @@ export function CampusWatchTogether({
       const ifr = document.getElementById(ytContainerId);
       ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
 
-      if (watchState.playing) {
+      if (watchState.playing && !isVideoEnded) {
         if (ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
