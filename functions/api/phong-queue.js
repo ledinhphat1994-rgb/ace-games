@@ -17,7 +17,7 @@ function layIdYoutube(u) {
 // Trả 'ok' | 'gone' (item đã bị người khác dùng/xoá giữa chừng — caller trả 409).
 async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
   const item = await db.prepare(
-    `SELECT video_url AS videoUrl FROM phong_video_queue WHERE id = ?1 AND phong_id = ?2 AND trang_thai = 'queued'`
+    `SELECT video_url AS videoUrl FROM phong_video_queue WHERE id = ?1 AND phong_id = ?2 AND trang_thai IN ('queued', 'suggested')`
   ).bind(itemId, phongId).first();
   if (!item) return 'gone';
 
@@ -27,7 +27,7 @@ async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
   cauHinh.videoUrl = item.videoUrl;
 
   // ?3 = itemId dùng trong guard EXISTS của các write đầu; ?4/?5 trong upsert sync.
-  const guard = `EXISTS(SELECT 1 FROM phong_video_queue WHERE id = ?3 AND phong_id = ?1 AND trang_thai = 'queued')`;
+  const guard = `EXISTS(SELECT 1 FROM phong_video_queue WHERE id = ?3 AND phong_id = ?1 AND trang_thai IN ('queued', 'suggested'))`;
   const rs = await db.batch([
     db.prepare(
       `UPDATE phong_video_queue SET trang_thai = 'played' WHERE phong_id = ?1 AND trang_thai = 'playing' AND ${guard}`
@@ -45,7 +45,7 @@ async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
          nguoi_cap_nhat_khoa = ?4, nguoi_cap_nhat_ten = ?5`
     ).bind(phongId, 0, itemId, khoa, ten),
     db.prepare(
-      `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?3 AND phong_id = ?1 AND trang_thai = 'queued'`
+      `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?3 AND phong_id = ?1 AND trang_thai IN ('queued', 'suggested')`
     ).bind(phongId, 0, itemId),
   ]);
   if (!((rs[3]?.meta?.changes ?? 0) > 0)) return { status: 'gone' };
@@ -82,10 +82,10 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
 
   const rs = await db.prepare(
     `SELECT id, video_url AS videoUrl, video_id AS videoId, title, thumb,
-            added_by_ten AS addedBy, ord, trang_thai AS trangThai, tao_luc AS taoLuc
+            added_by_khoa AS addedByKhoa, added_by_ten AS addedBy, ord, trang_thai AS trangThai, tao_luc AS taoLuc
        FROM phong_video_queue
-      WHERE phong_id = ?1 AND trang_thai IN ('queued', 'playing')
-      ORDER BY CASE trang_thai WHEN 'playing' THEN 0 ELSE 1 END, ord ASC, id ASC
+      WHERE phong_id = ?1 AND trang_thai IN ('queued', 'playing', 'suggested')
+      ORDER BY CASE trang_thai WHEN 'playing' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END, ord ASC, id ASC
       LIMIT 50`
   ).bind(phongId).all().catch(() => ({ results: [] }));
 
@@ -109,18 +109,99 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   const khoa = check.actorKey;
   const ten = tenCua(phien);
 
-  const action = chuoi(than.action, 20);
-  const ACTIONS = ['enqueue', 'add_next', 'remove', 'reorder', 'play_now', 'skip', 'send_to_chat'];
+  const action = chuoi(than.action, 25);
+  const ACTIONS = ['enqueue', 'add_next', 'remove', 'reorder', 'play_now', 'skip', 'send_to_chat', 'suggest', 'approve_suggestion', 'reject_suggestion'];
   if (!ACTIONS.includes(action)) return loi('Hành động queue không hợp lệ.', 400);
 
   // play_now / skip đổi video đang phát → cần video_change; còn lại cần queue.
   const capCan = (action === 'play_now' || action === 'skip') ? CAPABILITY.VIDEO_CHANGE : CAPABILITY.QUEUE;
   const quyen = await kiemTraQuyenPhong(db, check, capCan);
-  if (!quyen.ok) return json({ ok: false, loi: quyen.loi, code: quyen.code }, quyen.status);
+  if (action !== 'suggest' && action !== 'reject_suggestion' && !quyen.ok) {
+    return json({ ok: false, loi: quyen.loi, code: quyen.code }, quyen.status);
+  }
 
-  // ── THÊM VIDEO VÀO HÀNG ĐỢI — INSERT...SELECT nguyên tử: cap 30 và tính ord trong
-  //    cùng 1 statement, không race COUNT→INSERT. ?8: 1 = add_next (chèn đầu), 0 = cuối. ──
+  // ── ĐỀ XUẤT VIDEO (Thành viên gửi đề xuất cho chủ phòng duyệt) ──
+  if (action === 'suggest') {
+    const u = chuanUrlMedia(than.videoUrl || than.url);
+    if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https://.');
+    if (!u) return loi('Thiếu link video.', 400);
+    const title = chuoi(than.title, 150) || null;
+    const thumb = chuoi(than.thumb, 500) || null;
+    const videoId = layIdYoutube(u);
+
+    const dem = await db.prepare(
+      `SELECT COUNT(*) AS c FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'suggested'`
+    ).bind(phongId).first();
+    if ((dem?.c || 0) >= 20) {
+      return loi('Danh sách đề xuất đang đầy (tối đa 20 video chờ duyệt).', 429);
+    }
+
+    const kq = await db.prepare(
+      `INSERT INTO phong_video_queue (phong_id, video_url, video_id, title, thumb, added_by_khoa, added_by_ten, ord, trang_thai)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 9999, 'suggested')`
+    ).bind(phongId, u, videoId, title, thumb, khoa, ten).run();
+
+    const noiDung = `💡 ${ten} đề xuất video: ${title || u}\n${u}`.slice(0, 500);
+    await db.prepare(
+      `INSERT INTO phong_tin_nhan (phong_id, khoa, hoc_sinh_id, ten_nguoi_gui, vai_tro, lop_id, noi_dung)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+    ).bind(phongId, khoa, phien.hocSinhId || null, ten,
+      (phien.role === 'teacher' || phien.role === 'admin') ? 'giao_vien' : 'hoc_sinh', phien.lopId || null, noiDung).run().catch(() => {});
+
+    return json({ ok: true, id: kq.meta?.last_row_id });
+  }
+
+  // ── DUYỆT ĐỀ XUẤT (Chỉ chủ phòng / staff có quyền điều khiển) ──
+  if (action === 'approve_suggestion') {
+    const quyenControl = await kiemTraQuyenPhong(db, check, CAPABILITY.VIDEO_CONTROL);
+    if (!quyenControl.ok) {
+      return json({ ok: false, loi: 'Chỉ chủ phòng mới có quyền duyệt video đề xuất.', code: 'FORBIDDEN' }, 403);
+    }
+    const id = parseInt(than.id || '0', 10);
+    if (!(id > 0)) return loi('Thiếu mục đề xuất.', 400);
+
+    const playNow = Boolean(than.playNow);
+    if (playNow) {
+      const kq = await chuyenVideoTheoQueueItem(db, phongId, id, khoa, ten);
+      if (kq.status === 'gone') return loi('Mục đề xuất không còn tồn tại.', 409);
+      return json({ ok: true, videoUrl: kq.videoUrl, state: kq.state });
+    } else {
+      const maxOrdRow = await db.prepare(
+        `SELECT COALESCE(MAX(ord), 0) + 10 AS nextOrd FROM phong_video_queue WHERE phong_id = ?1 AND trang_thai = 'queued'`
+      ).bind(phongId).first();
+      const nextOrd = Number(maxOrdRow?.nextOrd || 10);
+      await db.prepare(
+        `UPDATE phong_video_queue SET trang_thai = 'queued', ord = ?1 WHERE id = ?2 AND phong_id = ?3 AND trang_thai = 'suggested'`
+      ).bind(nextOrd, id, phongId).run();
+      return json({ ok: true });
+    }
+  }
+
+  // ── TỪ CHỐI HOẶC HỦY ĐỀ XUẤT ──
+  if (action === 'reject_suggestion') {
+    const id = parseInt(than.id || '0', 10);
+    if (!(id > 0)) return loi('Thiếu mục đề xuất.', 400);
+    const item = await db.prepare(
+      `SELECT added_by_khoa AS addedBy FROM phong_video_queue WHERE id = ?1 AND phong_id = ?2 AND trang_thai = 'suggested'`
+    ).bind(id, phongId).first();
+    if (!item) return loi('Mục không tồn tại trong danh sách đề xuất.', 404);
+
+    const quyenControl = await kiemTraQuyenPhong(db, check, CAPABILITY.VIDEO_CONTROL);
+    if (!quyenControl.ok && item.addedBy !== khoa) {
+      return loi('Chỉ chủ phòng hoặc người đề xuất mới được hủy mục này.', 403);
+    }
+    await db.prepare(
+      `UPDATE phong_video_queue SET trang_thai = 'skipped' WHERE id = ?1 AND phong_id = ?2`
+    ).bind(id, phongId).run();
+    return json({ ok: true });
+  }
+
+  // ── THÊM VIDEO VÀO HÀNG ĐỢI (Chỉ chủ phòng mới được trực tiếp thêm vào hàng chờ) ──
   if (action === 'enqueue' || action === 'add_next') {
+    const quyenControl = await kiemTraQuyenPhong(db, check, CAPABILITY.VIDEO_CONTROL);
+    if (!quyenControl.ok) {
+      return json({ ok: false, loi: 'Người tham gia chỉ được đề xuất video cho chủ phòng duyệt.', code: 'FORBIDDEN' }, 403);
+    }
     const u = chuanUrlMedia(than.videoUrl || than.url);
     if (u === false) return loi('Link video không hợp lệ — chỉ nhận link https://.');
     if (!u) return loi('Thiếu link video.', 400);
