@@ -1727,7 +1727,7 @@ function DigitalCampusApp() {
         <div
           id="popover-thong-bao-lop"
           style={{ overflowAnchor: 'none', backgroundColor: '#151A23' }}
-          className="absolute right-0 top-full mt-2 w-80 sm:w-96 z-50 bg-[#151A23] border border-white/20 rounded-3xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] animate-scaleIn flex flex-col max-h-[80vh]">
+          className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] z-50 bg-[#151A23] border border-white/20 rounded-3xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] animate-scaleIn flex flex-col max-h-[80vh]">
           
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
