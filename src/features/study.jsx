@@ -51,8 +51,8 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   // (có video_control → tua chung cả phòng; không → tua cục bộ player của mình).
   const yeuCauTua = (sec) => {
     if (sec == null || !(sec >= 0)) return;
-    if (seekVideo) { seekVideo(sec, myCaps.video_control === true); return; }
-    window.dispatchEvent(new CustomEvent('sr-seek', { detail: { phongId: phong.id, sec } }));
+    if (seekVideo) { seekVideo(Number(sec), myCaps.video_control === true); return; }
+    window.dispatchEvent(new CustomEvent('sr-seek', { detail: { phongId: phong?.id, sec: Number(sec) } }));
   };
 
   // 1. Room Chat State
@@ -807,7 +807,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
                             : 'rounded-2xl rounded-tl-xs bg-[#0B0E14] border border-white/10 hover:border-white/20 text-slate-200'
                         }`}>
                         <p className="whitespace-pre-wrap">{m.noiDung}</p>
-                        {m.videoTimeSec != null && m.videoTimeSec > 0 && (
+                        {m.videoTimeSec != null && m.videoTimeSec >= 0 && (
                           <button
                             type="button"
                             onClick={() => yeuCauTua(m.videoTimeSec)}
@@ -1757,6 +1757,7 @@ export function CampusWatchTogether({
   const ytReadyRef = useRef(false);
   const currentYtIdRef = useRef(null);
   const hasSeekedInitRef = useRef(false);
+  const lastHostSyncTimeRef = useRef(0);
 
   // ── TẦNG 1: Lắng nghe trực tiếp tin nhắn postMessage từ YouTube IFrame ──
   // YouTube IFrame luôn phát các sự kiện onStateChange & infoDelivery ra parent window
@@ -1892,13 +1893,21 @@ export function CampusWatchTogether({
                 }
               }
 
-              // Chỉ seek 1 lần duy nhất lúc khởi tạo nếu phòng đang ở vị trí > 0
-              if (!hasSeekedInitRef.current && watchState.positionSeconds > 0 && event.target.seekTo) {
-                hasSeekedInitRef.current = true;
-                try { event.target.seekTo(watchState.positionSeconds, true); } catch {}
+              // Tính vị trí thời gian hiện tại của phòng để seek ngay lúc khởi tạo
+              const nowMs = Date.now();
+              const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
+              const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+              let tPos = Number(watchState.positionSeconds || 0);
+              if (watchState.playing) {
+                tPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
               }
 
-              if (watchState.playing && event.target.playVideo) {
+              if (tPos > 0 && event.target.seekTo) {
+                hasSeekedInitRef.current = true;
+                try { event.target.seekTo(tPos, true); } catch {}
+              }
+
+              if (watchState.playing && (canControl || hasInteractedRef.current || hasInteracted) && event.target.playVideo) {
                 try { event.target.playVideo(); } catch {}
               }
             },
@@ -1954,7 +1963,7 @@ export function CampusWatchTogether({
 
     let targetPos = Number(st.positionSeconds || 0);
     if (st.playing) {
-      targetPos = Number(st.basePositionSeconds || 0) + (elapsedSec * (st.playbackRate || 1.0));
+      targetPos = Number(st.basePositionSeconds != null ? st.basePositionSeconds : st.positionSeconds) + (elapsedSec * (st.playbackRate || 1.0));
     }
 
     // ─── NGUYÊN TẮC VÀNG: CHỦ PHÒNG LÀ NGUỒN PHÁT (SOURCE OF TRUTH) ───
@@ -1976,9 +1985,13 @@ export function CampusWatchTogether({
 
     if (prov === 'NATIVE_HTML5' && videoRef.current) {
       const v = videoRef.current;
+      if (!hasSeekedInitRef.current && targetPos > 0) {
+        hasSeekedInitRef.current = true;
+        v.currentTime = targetPos;
+      }
       if (st.playing) {
         const drift = Math.abs(v.currentTime - targetPos);
-        if (drift > 4.0) {
+        if (drift > 3.0) {
           v.currentTime = targetPos;
         }
         if (v.paused && (hasInteracted || hasInteractedRef.current)) {
@@ -1992,29 +2005,53 @@ export function CampusWatchTogether({
         }
       }
     } else if (prov === 'YOUTUBE') {
-      if (ytPlayerRef.current && ytPlayerRef.current.getPlayerState) {
-        const p = ytPlayerRef.current;
-        try {
-          const cur = p.getCurrentTime() || 0;
-          const drift = Math.abs(cur - targetPos);
-          if (st.playing) {
-            // Chỉ seek nếu lệch quá 5 giây (tránh giật hình liên tục do lệch clock)
-            if (drift > 5.0) {
-              p.seekTo(targetPos, true);
-            }
-            const ps = p.getPlayerState();
-            // CHỈ gọi playVideo khi player đang THỰC SỰ bị tạm dừng (ps === 2) hoặc cued (ps === 5)
-            if ((ps === 2 || ps === 5) && (hasInteracted || hasInteractedRef.current)) {
-              p.playVideo();
-            }
-          } else {
-            const ps = p.getPlayerState();
-            if (ps === 1) p.pauseVideo();
-            if (Math.abs(cur - st.positionSeconds) > 3.0) {
-              p.seekTo(st.positionSeconds, true);
-            }
+      const ifr = document.getElementById(ytContainerId);
+      const p = ytPlayerRef.current;
+      let cur = null;
+      let ps = null;
+      if (p && typeof p.getCurrentTime === 'function') {
+        try { cur = p.getCurrentTime(); } catch {}
+      }
+      if (p && typeof p.getPlayerState === 'function') {
+        try { ps = p.getPlayerState(); } catch {}
+      }
+
+      // Initial seek nếu người xem chưa từng tua đến mốc của chủ phòng
+      if (!hasSeekedInitRef.current && targetPos > 0) {
+        hasSeekedInitRef.current = true;
+        if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
+      }
+
+      if (cur !== null && !isNaN(cur)) {
+        const drift = Math.abs(cur - targetPos);
+        if (st.playing) {
+          if (drift > 4.0) {
+            if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
+            ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
           }
-        } catch { }
+          if ((ps === 2 || ps === 5) && (hasInteracted || hasInteractedRef.current)) {
+            if (p?.playVideo) { try { p.playVideo(); } catch {} }
+            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          }
+        } else {
+          if (ps === 1) {
+            if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
+            ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          }
+          if (drift > 2.0) {
+            if (p?.seekTo) { try { p.seekTo(st.positionSeconds, true); } catch {} }
+            ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [st.positionSeconds, true] }), '*');
+          }
+        }
+      } else {
+        // Player wrapper chưa có currentTime, gửi trực tiếp postMessage vào iframe nếu người xem đã tương tác
+        if (targetPos > 0 && (hasInteracted || hasInteractedRef.current)) {
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
+          if (st.playing) {
+            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          }
+        }
       }
     }
   };
@@ -2090,6 +2127,19 @@ export function CampusWatchTogether({
           console.log(`Positional Watchdog: currentPos (${currentPos.toFixed(1)}s) >= duration (${maxDur}s) -> tự động chuyển tiếp`);
           hanhDongQueue('skip');
           return;
+        }
+      }
+
+      if (canControl && curTime !== null && curTime > 0 && !dangGuiLenh && !isSeekingRef.current) {
+        const nowMs = Date.now();
+        const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
+        const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+        const expectedServerPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
+        const hostDrift = Math.abs(curTime - expectedServerPos);
+
+        if (hostDrift > 4.0 || (nowMs - lastHostSyncTimeRef.current > 20000 && hostDrift > 2.0)) {
+          lastHostSyncTimeRef.current = nowMs;
+          guiLenh('seek', curTime);
         }
       }
 
@@ -2188,39 +2238,77 @@ export function CampusWatchTogether({
   // Có quyền điều khiển → phát lệnh seek chung; không → chỉ tua cục bộ player của mình.
   useEffect(() => {
     const onSeekReq = (e) => {
-      if (e.detail?.phongId !== phong.id) return;
-      const sec = Math.max(0, Number(e.detail.sec) || 0);
+      if (e.detail?.phongId && String(e.detail.phongId) !== String(phong?.id)) return;
+      const sec = Math.max(0, Number(e.detail?.sec) || 0);
+
+      if (!hasInteractedRef.current) {
+        hasInteractedRef.current = true;
+        setHasInteracted(true);
+      }
+
+      setLocalTime(Math.floor(sec));
+
+      if (provider === 'NATIVE_HTML5' && videoRef.current) {
+        videoRef.current.currentTime = sec;
+      } else if (provider === 'YOUTUBE') {
+        if (ytPlayerRef.current?.seekTo) {
+          try { ytPlayerRef.current.seekTo(sec, true); } catch {}
+        }
+        const ifr = document.getElementById(ytContainerId);
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [sec, true] }), '*');
+      }
+
       if (canControl) {
         guiLenh('seek', sec);
-      } else {
-        if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.currentTime = sec;
-        else if (provider === 'YOUTUBE' && ytPlayerRef.current?.seekTo) ytPlayerRef.current.seekTo(sec, true);
-        setLocalTime(Math.floor(sec));
       }
     };
     window.addEventListener('sr-seek', onSeekReq);
     return () => window.removeEventListener('sr-seek', onSeekReq);
-  }, [phong.id, canControl, provider, watchState.revision]);
+  }, [phong?.id, canControl, provider, watchState?.revision]);
 
   const handleStartViewing = () => {
     hasInteractedRef.current = true;
     setHasInteracted(true);
+
+    const nowMs = Date.now();
+    const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
+    const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+    let targetPos = Number(watchState.positionSeconds || 0);
+    if (watchState.playing) {
+      targetPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
+    }
+    targetPos = Math.max(0, Number(targetPos.toFixed(2)));
+
+    hasSeekedInitRef.current = true;
+    setLocalTime(Math.floor(targetPos));
+
     if (provider === 'NATIVE_HTML5' && videoRef.current) {
       const v = videoRef.current;
-      const p = v.play();
-      if (p && typeof p.then === 'function') {
-        p.then(() => {
-          if (!watchState.playing) {
-            v.pause();
-          }
-        }).catch(() => {});
+      if (targetPos > 0) v.currentTime = targetPos;
+      if (watchState.playing) {
+        v.play().catch(() => {});
+      } else {
+        v.pause();
       }
     } else if (provider === 'YOUTUBE') {
-      if (ytPlayerRef.current?.playVideo) {
-        try { ytPlayerRef.current.playVideo(); } catch {}
-      }
       const ifr = document.getElementById(ytContainerId);
-      ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      if (targetPos > 0) {
+        if (ytPlayerRef.current?.seekTo) {
+          try { ytPlayerRef.current.seekTo(targetPos, true); } catch {}
+        }
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
+      }
+      if (watchState.playing) {
+        if (ytPlayerRef.current?.playVideo) {
+          try { ytPlayerRef.current.playVideo(); } catch {}
+        }
+        ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      } else {
+        if (ytPlayerRef.current?.pauseVideo) {
+          try { ytPlayerRef.current.pauseVideo(); } catch {}
+        }
+        ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      }
     }
   };
 
@@ -2255,7 +2343,7 @@ export function CampusWatchTogether({
             <iframe
               id={ytContainerId}
               key={`yt-frame-${phong.id}`}
-              src={`https://www.youtube.com/embed/${ytId}?autoplay=${watchState.playing ? 1 : 0}&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}&widget_referrer=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}&rel=0&modestbranding=1&playsinline=1`}
+              src={`https://www.youtube.com/embed/${ytId}?enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}&widget_referrer=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}&rel=0&modestbranding=1&playsinline=1`}
               title={phong.ten || 'YouTube Video'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
@@ -2440,9 +2528,19 @@ export function CampusWatchTogether({
               <button
                 type="button"
                 id="btn-toggle-studio"
-                onClick={() => setDaMoRongStudio(!daMoRongStudio)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const curY = window.scrollY;
+                  setDaMoRongStudio(prev => !prev);
+                  requestAnimationFrame(() => {
+                    if (window.scrollY !== curY) {
+                      window.scrollTo({ top: curY, behavior: 'instant' });
+                    }
+                  });
+                }}
                 title={daMoRongStudio ? 'Thu gọn' : 'Mở rộng'}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center text-xs font-bold transition-all">
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center text-xs font-bold transition-all cursor-pointer">
                 {daMoRongStudio ? '▲' : '▼'}
               </button>
             </div>
@@ -2462,8 +2560,12 @@ export function CampusWatchTogether({
             </div>
           )}
 
-          {daMoRongStudio && (
-            <div className="h-[340px] flex flex-col min-h-0 overflow-hidden">
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden flex flex-col min-h-0 ${
+              daMoRongStudio ? 'max-h-[380px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+            }`}
+            style={{ overflowAnchor: 'none' }}>
+            <div className="h-[340px] flex flex-col min-h-0 overflow-hidden shrink-0">
               {/* TAB 1: TÌM KIẾM YOUTUBE & ĐỔI VIDEO */}
               {mediaTab === 'search' && (
                 <div className="h-full flex flex-col gap-2.5 min-h-0">
@@ -2774,7 +2876,7 @@ export function CampusWatchTogether({
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

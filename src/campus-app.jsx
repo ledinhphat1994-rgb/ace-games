@@ -2538,7 +2538,7 @@ function DigitalCampusApp() {
                     ? (cToken === 'none' ? { display: 'none' } : cToken === 'full' ? { flex: '1 1 0%', minWidth: 0 } : { flex: cToken, minWidth: 0 })
                     : {};
                   return (<>
-                <div className={`flex flex-col gap-4 min-w-0 ${isRoomWide ? 'h-full flex-1' : ''}`} style={vStyle}>
+                <div className={`flex flex-col gap-4 min-w-0 ${isRoomWide ? 'h-full flex-1' : 'self-start'}`} style={vStyle}>
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
