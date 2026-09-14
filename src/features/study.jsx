@@ -1546,6 +1546,8 @@ export function CampusWatchTogether({
 
   // Queue State
   const [queueList, setQueueList] = useState([]);
+  const queueListRef = useRef(queueList);
+  queueListRef.current = queueList;
   const [queueBusy, setQueueBusy] = useState(false);
   const [daMoRongStudio, setDaMoRongStudio] = useState(true);
 
@@ -1701,9 +1703,9 @@ export function CampusWatchTogether({
         } else if (action === 'play_now' || action === 'skip') {
           hasTriggeredSkipRef.current = false;
           isSkippingRef.current = false;
-          durationRef.current = 0;
-          setDuration(0);
           if (d.videoUrl) {
+            durationRef.current = 0;
+            setDuration(0);
             setActiveVideoUrl(d.videoUrl);
             setProvider(getInitialProvider(d.videoUrl));
             if (d.state) {
@@ -1720,8 +1722,16 @@ export function CampusWatchTogether({
             setThongBaoVideo('Đang chuyển video tiếp theo...');
             setTimeout(() => setThongBaoVideo(''), 3000);
           } else if (d.empty) {
+            // Hàng đợi hết video: TUYỆT ĐỐI KHÔNG XÓA DURATION
             hasTriggeredSkipRef.current = true;
             isSkippingRef.current = false;
+            const finalDur = durationRef.current || duration || localTime;
+            if (finalDur > 0) setLocalTime(Math.floor(finalDur));
+            if (d.state) {
+              setWatchState(d.state);
+            } else {
+              setWatchState(prev => ({ ...prev, playing: false, positionSeconds: finalDur }));
+            }
             setThongBaoVideo('Hàng đợi đã hết video.');
             setTimeout(() => setThongBaoVideo(''), 3000);
           }
@@ -1738,6 +1748,51 @@ export function CampusWatchTogether({
       if (action !== 'skip') {
         setQueueBusy(false);
       }
+    }
+  };
+
+  // Xử lý khi video kết thúc (Ended hoặc chạm duration cuối)
+  const handleVideoEnded = () => {
+    // 1. Nếu có video tiếp theo trong hàng đợi -> Tự động chuyển bài
+    const hasNextInQueue = queueListRef.current && queueListRef.current.length > 0;
+    if (canControl && hasNextInQueue) {
+      if (!isSkippingRef.current && !hasTriggeredSkipRef.current) {
+        console.log('Video kết thúc -> tự động chuyển tiếp hàng đợi');
+        hanhDongQueue('skip');
+      }
+      return;
+    }
+
+    // 2. Không còn video trong hàng đợi -> DỪNG PHÁT VÀ KHÓA TẠI ĐIỂM CUỐI VIDEO
+    console.log('Video kết thúc -> Tạm dừng phát video tại điểm cuối cho toàn bộ phòng');
+    hasTriggeredSkipRef.current = true;
+    isSkippingRef.current = false;
+    const finalDur = durationRef.current || duration || localTime;
+    if (finalDur > 0) {
+      setLocalTime(Math.floor(finalDur));
+    }
+
+    // Dừng player YouTube/HTML5 cục bộ
+    if (provider === 'YOUTUBE') {
+      if (ytPlayerRef.current?.pauseVideo) {
+        try { ytPlayerRef.current.pauseVideo(); } catch {}
+      }
+      const ifr = document.getElementById(ytContainerId);
+      ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+    } else if (provider === 'NATIVE_HTML5' && videoRef.current) {
+      try { videoRef.current.pause(); } catch {}
+    }
+
+    if (canControl) {
+      // Chủ phòng: Gửi lệnh pause lên server tại finalDur
+      if (watchStateRef.current?.playing) {
+        guiLenhRef.current?.('pause', finalDur > 0 ? finalDur : undefined);
+      }
+    } else {
+      // Người tham gia: Đánh dấu đã dừng, không tự chạy tiếp nếu không có lệnh bật lại
+      setViewerIsPaused(true);
+      isLiveWithHostRef.current = false;
+      setIsLiveWithHost(false);
     }
   };
 
@@ -1828,10 +1883,12 @@ export function CampusWatchTogether({
         setDuration(prev => (prev > 0 ? prev : d));
       }
 
-      // Cập nhật thời gian thực tế
+      // Cập nhật thời gian thực tế (kẹp không vượt quá độ dài video)
       const cur = Number(data.info?.currentTime);
       if (!isNaN(cur) && cur >= 0 && !isSeekingRef.current) {
-        setLocalTime(Math.floor(cur));
+        const maxDur = durationRef.current || duration;
+        const clampedCur = maxDur > 0 ? Math.min(cur, maxDur) : cur;
+        setLocalTime(Math.floor(clampedCur));
       }
 
       // ── VÙNG 2: ĐỒNG BỘ THAO TÁC CỦA CHỦ PHÒNG HOẶC CHẾ ĐỘ XEM CỦA NGƯỜI THAM GIA ──
@@ -1887,10 +1944,7 @@ export function CampusWatchTogether({
                       (data.info && data.info.playerState === 0);
 
       if (isEnded) {
-        if (canControl && !isSkippingRef.current && !hasTriggeredSkipRef.current) {
-          console.log('YouTube iframe postMessage: Video kết thúc -> tự động chuyển tiếp video tiếp theo');
-          hanhDongQueue('skip');
-        }
+        handleVideoEnded();
       }
     };
 
@@ -2005,13 +2059,10 @@ export function CampusWatchTogether({
                 }
               }
 
-              // Video kết thúc: kích hoạt chuyển bài ngay lập tức
+              // Video kết thúc: kích hoạt chuyển bài hoặc dừng cả phòng
               if (event.data === 0) {
-                if (canControl && !isSkippingRef.current && !hasTriggeredSkipRef.current) {
-                  console.log('YT Player onStateChange === 0 (ENDED) -> tự động chuyển tiếp hàng đợi');
-                  hanhDongQueue('skip');
-                  return;
-                }
+                handleVideoEnded();
+                return;
               }
 
               if (canControl && !dangGuiLenhRef.current && !isSeekingRef.current) {
@@ -2283,34 +2334,32 @@ export function CampusWatchTogether({
             const cur = p.getCurrentTime();
             if (cur !== undefined && cur !== null && !isNaN(cur)) {
               curTime = cur;
-              setLocalTime(Math.floor(cur));
+              const maxDur = durationRef.current || duration;
+              const clampedCur = maxDur > 0 ? Math.min(cur, maxDur) : cur;
+              setLocalTime(Math.floor(clampedCur));
             }
           }
           if (p.getPlayerState && p.getPlayerState() === 0) {
-            if (canControl && !isSkippingRef.current && !hasTriggeredSkipRef.current) {
-              console.log('PlayerState === 0 -> tự động chuyển tiếp hàng đợi');
-              hanhDongQueue('skip');
-              return;
-            }
+            handleVideoEnded();
+            return;
           }
         } catch {}
       } else if (provider === 'NATIVE_HTML5' && videoRef.current) {
         const cur = videoRef.current.currentTime;
         if (!isNaN(cur)) {
           curTime = cur;
-          setLocalTime(Math.floor(cur));
+          const maxDur = durationRef.current || duration;
+          const clampedCur = maxDur > 0 ? Math.min(cur, maxDur) : cur;
+          setLocalTime(Math.floor(clampedCur));
         }
       }
 
       // Giám sát vị trí: nếu video đã phát đến giây cuối cùng hoặc quá duration
       const maxDur = durationRef.current || duration;
       const currentPos = curTime !== null ? curTime : localTime;
-      if (canControl && maxDur > 5 && (currentPos >= maxDur - 1.2 || localTime >= maxDur)) {
-        if (!isSkippingRef.current && !hasTriggeredSkipRef.current) {
-          console.log(`Positional Watchdog: currentPos (${currentPos.toFixed(1)}s) >= duration (${maxDur}s) -> tự động chuyển tiếp`);
-          hanhDongQueue('skip');
-          return;
-        }
+      if (maxDur > 5 && (currentPos >= maxDur - 1.0 || localTime >= maxDur)) {
+        handleVideoEnded();
+        return;
       }
 
       if (canControl && curTime !== null && curTime > 0 && !dangGuiLenhRef.current && !isSeekingRef.current) {
@@ -2329,7 +2378,13 @@ export function CampusWatchTogether({
       }
 
       if (curTime === null) {
-        setLocalTime(t => (maxDur > 0 ? Math.min(t + 1, Math.floor(maxDur)) : t + 1));
+        setLocalTime(t => {
+          if (maxDur > 0) {
+            if (t >= maxDur) return Math.floor(maxDur);
+            return Math.min(t + 1, Math.floor(maxDur));
+          }
+          return t + 1;
+        });
       }
     }, 1000);
     return () => clearInterval(tick);
@@ -2561,6 +2616,25 @@ export function CampusWatchTogether({
     }, 3500);
   };
 
+  // Chủ phòng bấm Phát / Tạm dừng / Phát lại
+  const handleHostTogglePlay = () => {
+    if (watchState.playing) {
+      guiLenh('pause');
+    } else {
+      const maxDur = durationRef.current || duration;
+      hasTriggeredSkipRef.current = false;
+      isSkippingRef.current = false;
+      if (maxDur > 0 && localTime >= maxDur - 1.5) {
+        // Video đã kết thúc -> Bấm phát lại từ đầu
+        setLocalTime(0);
+        guiLenh('seek', 0);
+        setTimeout(() => guiLenh('play', 0), 100);
+      } else {
+        guiLenh('play');
+      }
+    }
+  };
+
   // Người tham gia tự bấm Tạm dừng / Tiếp tục cục bộ
   const handleViewerTogglePlay = () => {
     if (!hasInteractedRef.current) {
@@ -2569,10 +2643,22 @@ export function CampusWatchTogether({
     }
     if (viewerIsPaused) {
       // Tiếp tục phát
+      const maxDur = durationRef.current || duration;
+      let startSec = localTime;
+      if (maxDur > 0 && localTime >= maxDur - 1.5) {
+        startSec = 0;
+        setLocalTime(0);
+      }
       setViewerIsPaused(false);
       if (provider === 'NATIVE_HTML5' && videoRef.current) {
+        if (startSec === 0) videoRef.current.currentTime = 0;
         videoRef.current.play().catch(() => {});
       } else if (provider === 'YOUTUBE') {
+        if (startSec === 0) {
+          if (ytPlayerRef.current?.seekTo) { try { ytPlayerRef.current.seekTo(0, true); } catch {} }
+          const ifr = document.getElementById(ytContainerId);
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [0, true] }), '*');
+        }
         if (ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
@@ -2709,7 +2795,7 @@ export function CampusWatchTogether({
               }
             }}
             onEnded={() => {
-              if (canControl) hanhDongQueue('skip');
+              handleVideoEnded();
             }}
             onSeeked={() => {
               if (isProgrammaticActionRef.current) return;
@@ -2764,7 +2850,7 @@ export function CampusWatchTogether({
             <button
               id="btn-host-watch-toggle"
               type="button"
-              onClick={() => guiLenh(watchState.playing ? 'pause' : 'play')}
+              onClick={handleHostTogglePlay}
               disabled={dangGuiLenh}
               className={`w-full sm:w-auto px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer disabled:opacity-50 ${
                 watchState.playing
@@ -2772,7 +2858,17 @@ export function CampusWatchTogether({
                   : 'bg-gradient-to-r from-[#00F2FE] to-[#00c6ff] text-black shadow-[0_0_15px_rgba(0,242,254,0.35)] hover:brightness-110'
               }`}>
               <span>{watchState.playing ? '⏸' : '▶'}</span>
-              <span>{watchState.playing ? 'Tạm Dừng Cả Phòng' : 'Phát Chung Cả Phòng'}</span>
+              <span>
+                {watchState.playing
+                  ? 'Tạm Dừng Cả Phòng'
+                  : (() => {
+                      const maxDur = durationRef.current || duration;
+                      if (maxDur > 0 && localTime >= maxDur - 1.5) {
+                        return 'Phát Lại Cả Phòng';
+                      }
+                      return 'Phát Chung Cả Phòng';
+                    })()}
+              </span>
             </button>
 
             <div className="flex-1 flex items-center gap-2.5 w-full">
@@ -2783,7 +2879,7 @@ export function CampusWatchTogether({
                 id="host-seek-slider"
                 type="range"
                 min="0"
-                max={duration > 0 ? duration : Math.max(localTime, 300)}
+                max={duration > 0 ? duration : (durationRef.current > 0 ? durationRef.current : Math.max(localTime, 300))}
                 step="1"
                 value={localTime}
                 onMouseDown={() => { isSeekingRef.current = true; }}
@@ -2791,16 +2887,18 @@ export function CampusWatchTogether({
                 onChange={e => setLocalTime(Number(e.target.value))}
                 onMouseUp={e => {
                   isSeekingRef.current = false;
+                  hasTriggeredSkipRef.current = false;
                   guiLenh('seek', Number(e.target.value));
                 }}
                 onTouchEnd={e => {
                   isSeekingRef.current = false;
+                  hasTriggeredSkipRef.current = false;
                   guiLenh('seek', Number(e.target.value));
                 }}
                 className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#00F2FE]"
               />
               <span className="text-[11px] font-mono text-slate-400 shrink-0">
-                {duration > 0 ? dinhDangGiayPhut(duration) : '--:--'}
+                {duration > 0 ? dinhDangGiayPhut(duration) : (durationRef.current > 0 ? dinhDangGiayPhut(durationRef.current) : '--:--')}
               </span>
             </div>
           </div>
@@ -2820,7 +2918,15 @@ export function CampusWatchTogether({
                     : 'bg-white/10 text-white border border-white/15 hover:bg-white/15'
                 }`}>
                 <span>{viewerIsPaused ? '▶' : '⏸'}</span>
-                <span>{viewerIsPaused ? 'Tiếp Tục Xem' : 'Tạm Dừng Video'}</span>
+                <span>
+                  {viewerIsPaused
+                    ? (() => {
+                        const maxDur = durationRef.current || duration;
+                        if (maxDur > 0 && localTime >= maxDur - 1.5) return 'Phát Lại Video';
+                        return 'Tiếp Tục Xem';
+                      })()
+                    : 'Tạm Dừng Video'}
+                </span>
               </button>
 
               <button
@@ -2861,7 +2967,7 @@ export function CampusWatchTogether({
                 id="viewer-seek-slider"
                 type="range"
                 min="0"
-                max={duration > 0 ? duration : Math.max(localTime, 300)}
+                max={duration > 0 ? duration : (durationRef.current > 0 ? durationRef.current : Math.max(localTime, 300))}
                 step="1"
                 value={localTime}
                 onMouseDown={() => { isSeekingRef.current = true; }}
@@ -2872,7 +2978,7 @@ export function CampusWatchTogether({
                 className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#00F2FE]"
               />
               <span className="text-[11px] font-mono text-slate-400 shrink-0">
-                {duration > 0 ? dinhDangGiayPhut(duration) : '--:--'}
+                {duration > 0 ? dinhDangGiayPhut(duration) : (durationRef.current > 0 ? dinhDangGiayPhut(durationRef.current) : '--:--')}
               </span>
             </div>
           </div>

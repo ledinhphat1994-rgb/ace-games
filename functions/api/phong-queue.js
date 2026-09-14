@@ -204,7 +204,38 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
           WHERE phong_id = ?1 AND trang_thai = 'queued' ORDER BY ord ASC, id ASC LIMIT 1`
       ).bind(phongId).first();
       if (!tiep) {
-        return json({ ok: true, empty: true, loi: 'Hàng đợi đã hết video.' });
+        // Hàng đợi đã hết video -> Tự động chuyển phòng sang paused đồng bộ
+        await db.prepare(
+          `UPDATE phong_dong_bo_video
+             SET trang_thai = 'paused',
+                 revision = revision + 1,
+                 cap_nhat_luc = CURRENT_TIMESTAMP,
+                 nguoi_cap_nhat_khoa = ?2,
+                 nguoi_cap_nhat_ten = ?3
+           WHERE phong_id = ?1`
+        ).bind(phongId, khoa, ten).run();
+
+        const st = await db.prepare(
+          `SELECT phong_id AS phongId, trang_thai AS trangThai, vi_tri_giay AS viTriGiay,
+                  toc_do AS tocDo, revision, cap_nhat_luc AS capNhatLuc,
+                  nguoi_cap_nhat_khoa AS nguoiCapNhatKhoa, nguoi_cap_nhat_ten AS nguoiCapNhatTen
+             FROM phong_dong_bo_video WHERE phong_id = ?1`
+        ).bind(phongId).first();
+
+        return json({
+          ok: true,
+          empty: true,
+          loi: 'Hàng đợi đã hết video.',
+          state: {
+            playing: false,
+            positionSeconds: Number(st?.viTriGiay || 0),
+            basePositionSeconds: Number(st?.viTriGiay || 0),
+            playbackRate: Number(st?.tocDo || 1.0),
+            revision: Number(st?.revision || 1),
+            updatedAt: st?.capNhatLuc || new Date().toISOString(),
+            updatedBy: ten
+          }
+        });
       }
       const kq = await chuyenVideoTheoQueueItem(db, phongId, tiep.id, khoa, ten);
       if (kq.status === 'ok') return json({ ok: true, videoUrl: kq.videoUrl, state: kq.state });
