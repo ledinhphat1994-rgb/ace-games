@@ -1770,6 +1770,7 @@ export function CampusWatchTogether({
   const lastHostSyncTimeRef = useRef(0);
   const lastAppliedRevisionRef = useRef(null);
   const lastHostTrackTimeRef = useRef({ time: 0, stamp: Date.now() });
+  const lastGoLiveClickTimeRef = useRef(0);
 
   const watchStateRef = useRef(watchState);
   watchStateRef.current = watchState;
@@ -1777,7 +1778,7 @@ export function CampusWatchTogether({
   dangGuiLenhRef.current = dangGuiLenh;
   const guiLenhRef = useRef(null);
 
-  // Tính vị trí thời gian trực tiếp hiện tại của chủ phòng
+  // Tính vị trí thời gian trực tiếp hiện tại của chủ phòng (giới hạn không vượt quá độ dài video)
   const getHostCurrentPos = () => {
     const st = watchStateRef.current || watchState;
     const nowMs = Date.now();
@@ -1788,6 +1789,10 @@ export function CampusWatchTogether({
     let targetPos = Number(st?.positionSeconds || 0);
     if (st?.playing) {
       targetPos = Number(st.basePositionSeconds != null ? st.basePositionSeconds : st.positionSeconds) + (elapsedSec * (st.playbackRate || 1.0));
+    }
+    const maxDur = durationRef.current || duration;
+    if (maxDur > 0) {
+      targetPos = Math.min(targetPos, maxDur);
     }
     return Math.max(0, Number(targetPos.toFixed(2)));
   };
@@ -1864,8 +1869,8 @@ export function CampusWatchTogether({
             lastHostTrackTimeRef.current = { time: cur, stamp: now };
           }
         }
-      } else if (!canControl && !isProgrammaticActionRef.current) {
-        // NGƯỜI THAM GIA: Tự do tạm dừng hoặc tua xem riêng
+      } else if (!canControl && !isProgrammaticActionRef.current && (Date.now() - lastGoLiveClickTimeRef.current > 3500)) {
+        // NGƯỜI THAM GIA: Tự do tạm dừng hoặc tiếp tục xem (chỉ nhận sự kiện pause sau khi hết thời gian grace period Go Live)
         if (pState === 2 && watchStateRef.current.playing) {
           console.log('onMsg: Người xem tự bấm Tạm dừng trên YouTube -> chuyển sang xem riêng');
           isLiveWithHostRef.current = false;
@@ -1873,17 +1878,6 @@ export function CampusWatchTogether({
           setViewerIsPaused(true);
         } else if (pState === 1) {
           setViewerIsPaused(false);
-        }
-
-        // Nếu người xem tự tua lệch khỏi chủ phòng > 3.5s
-        if (isLiveWithHostRef.current && !isNaN(cur) && cur >= 0) {
-          const hostPos = getHostCurrentPos();
-          const drift = Math.abs(cur - hostPos);
-          if (drift > 3.5) {
-            console.log(`onMsg: Người xem tự tua lệch khỏi chủ phòng (${drift.toFixed(1)}s) -> chuyển sang xem riêng`);
-            isLiveWithHostRef.current = false;
-            setIsLiveWithHost(false);
-          }
         }
       }
 
@@ -2029,7 +2023,7 @@ export function CampusWatchTogether({
                   console.log('YT Player onStateChange === 2 -> đồng bộ Pause cả phòng');
                   guiLenhRef.current?.('pause', curPos);
                 }
-              } else if (!canControl && !isProgrammaticActionRef.current) {
+              } else if (!canControl && !isProgrammaticActionRef.current && (Date.now() - lastGoLiveClickTimeRef.current > 3500)) {
                 if (event.data === 2 && watchStateRef.current.playing) {
                   console.log('YT Player onStateChange === 2: Người xem tạm dừng YouTube -> chuyển sang xem riêng');
                   isLiveWithHostRef.current = false;
@@ -2067,6 +2061,10 @@ export function CampusWatchTogether({
     let targetPos = Number(st.positionSeconds || 0);
     if (st.playing) {
       targetPos = Number(st.basePositionSeconds != null ? st.basePositionSeconds : st.positionSeconds) + (elapsedSec * (st.playbackRate || 1.0));
+    }
+    const maxDur = durationRef.current || duration;
+    if (maxDur > 0) {
+      targetPos = Math.min(targetPos, maxDur);
     }
 
     // ─── NGUYÊN TẮC VÀNG: CHỦ PHÒNG LÀ NGUỒN PHÁT (SOURCE OF TRUTH) ───
@@ -2156,7 +2154,7 @@ export function CampusWatchTogether({
         if (!st.playing) {
           // Chủ phòng bấm Tạm dừng: Lập tức tạm dừng và tua về đúng vị trí chủ phòng đã dừng
           if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
-          ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
           const pSec = Number(st.positionSeconds || 0);
           if (p?.seekTo) { try { p.seekTo(pSec, true); } catch {} }
           ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [pSec, true] }), '*');
@@ -2167,7 +2165,7 @@ export function CampusWatchTogether({
           ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
           if (hasInteracted || hasInteractedRef.current) {
             if (p?.playVideo) { try { p.playVideo(); } catch {} }
-            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
           }
           setLocalTime(Math.floor(targetPos));
         }
@@ -2186,13 +2184,13 @@ export function CampusWatchTogether({
           }
           if ((ps === 2 || ps === 5) && (hasInteracted || hasInteractedRef.current)) {
             if (p?.playVideo) { try { p.playVideo(); } catch {} }
-            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
           }
         } else {
           // Khi server báo pause, luôn gửi pause nếu player đang phát
           if (ps === 1 || ps === 3) {
             if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
-            ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
           }
           if (drift > 1.8) {
             if (p?.seekTo) { try { p.seekTo(st.positionSeconds, true); } catch {} }
@@ -2202,10 +2200,10 @@ export function CampusWatchTogether({
       } else {
         if (st.playing && (hasInteracted || hasInteractedRef.current) && ps !== 1) {
           if (p?.playVideo) { try { p.playVideo(); } catch {} }
-          ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
         } else if (!st.playing) {
           if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
-          ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
         }
       }
     }
@@ -2242,6 +2240,26 @@ export function CampusWatchTogether({
       clearInterval(timer);
     };
   }, [phong.id, hasInteracted]);
+
+  // Tự động tạm dừng phòng khi chủ phòng đóng tab trình duyệt
+  useEffect(() => {
+    const onUnload = () => {
+      if (canControl && watchStateRef.current?.playing) {
+        try {
+          const payload = JSON.stringify({
+            phongId: phong.id,
+            action: 'pause',
+            position: localTime,
+            expectedRevision: watchStateRef.current.revision,
+            playbackRate: 1.0
+          });
+          navigator.sendBeacon('/api/phong-watch', new Blob([payload], { type: 'application/json' }));
+        } catch {}
+      }
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [canControl, phong.id, localTime]);
 
   // ── TẦNG 3 & 4: Positional Watchdog & Cập nhật localTime mượt mà ──
   useEffect(() => {
@@ -2303,7 +2321,8 @@ export function CampusWatchTogether({
         const expectedServerPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
         const hostDrift = Math.abs(curTime - expectedServerPos);
 
-        if (hostDrift > 3.0 && (nowMs - lastHostSyncTimeRef.current > 4000)) {
+        const daQua15s = (nowMs - lastHostSyncTimeRef.current > 15000);
+        if ((hostDrift > 3.0 || daQua15s) && (nowMs - lastHostSyncTimeRef.current > 4000)) {
           lastHostSyncTimeRef.current = nowMs;
           guiLenh('seek', curTime);
         }
@@ -2343,7 +2362,7 @@ export function CampusWatchTogether({
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
         const ifr = document.getElementById(ytContainerId);
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
       }
     } else if (action === 'pause') {
       if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.pause();
@@ -2352,7 +2371,7 @@ export function CampusWatchTogether({
           try { ytPlayerRef.current.pauseVideo(); } catch {}
         }
         const ifr = document.getElementById(ytContainerId);
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
       }
     } else if (action === 'seek') {
       if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.currentTime = pos;
@@ -2479,12 +2498,12 @@ export function CampusWatchTogether({
         if (ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
       } else {
         if (ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo(); } catch {}
         }
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
       }
     }
   };
@@ -2496,7 +2515,14 @@ export function CampusWatchTogether({
       setHasInteracted(true);
     }
     isProgrammaticActionRef.current = true;
-    const targetPos = getHostCurrentPos();
+    lastGoLiveClickTimeRef.current = Date.now();
+
+    let targetPos = getHostCurrentPos();
+    const maxDur = durationRef.current || duration;
+    if (maxDur > 0 && targetPos >= maxDur - 1) {
+      targetPos = Math.max(0, maxDur - 1);
+    }
+
     setLocalTime(Math.floor(targetPos));
     isLiveWithHostRef.current = true;
     setIsLiveWithHost(true);
@@ -2521,18 +2547,18 @@ export function CampusWatchTogether({
         if (ytPlayerRef.current?.playVideo) {
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
       } else {
         if (ytPlayerRef.current?.pauseVideo) {
           try { ytPlayerRef.current.pauseVideo(); } catch {}
         }
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
       }
     }
 
     setTimeout(() => {
       isProgrammaticActionRef.current = false;
-    }, 800);
+    }, 3500);
   };
 
   // Người tham gia tự bấm Tạm dừng / Tiếp tục cục bộ
@@ -2551,7 +2577,7 @@ export function CampusWatchTogether({
           try { ytPlayerRef.current.playVideo(); } catch {}
         }
         const ifr = document.getElementById(ytContainerId);
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
       }
     } else {
       // Tạm dừng
@@ -2565,7 +2591,7 @@ export function CampusWatchTogether({
           try { ytPlayerRef.current.pauseVideo(); } catch {}
         }
         const ifr = document.getElementById(ytContainerId);
-        ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
       }
     }
   };
@@ -2631,37 +2657,6 @@ export function CampusWatchTogether({
               <span>▶</span>
               <span>Bắt đầu xem cùng phòng</span>
             </button>
-          </div>
-        )}
-
-        {/* Floating Live Badge & Sync Button (hiển thị trực tiếp trên góc video cả thường lẫn fullscreen) */}
-        {provider !== 'UNSUPPORTED' && (
-          <div className="absolute top-3.5 right-3.5 z-10 pointer-events-auto flex items-center gap-2">
-            {canControl ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-[#00F2FE]/30 text-[#00F2FE] text-xs font-black shadow-lg">
-                <span className="w-2 h-2 rounded-full bg-[#00F2FE] animate-pulse" />
-                <span>CHỦ PHÒNG TRỰC TIẾP</span>
-              </div>
-            ) : isLiveWithHost ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-rose-500/40 text-rose-400 text-xs font-black shadow-lg">
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                <span>TRỰC TIẾP</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                id="btn-viewer-go-live-float"
-                onClick={handleGoLive}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-black shadow-[0_0_20px_rgba(244,63,94,0.7)] animate-pulse cursor-pointer active:scale-95 transition-all"
-                title="Bấm để chuyển đến video trực tiếp đang phát của chủ phòng">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                <span>🔴 Xem cùng chủ phòng {(() => {
-                  const hPos = getHostCurrentPos();
-                  const d = Math.round(hPos - localTime);
-                  return d > 2 ? `(-${d > 60 ? dinhDangGiayPhut(d) : d + 's'})` : '';
-                })()}</span>
-              </button>
-            )}
           </div>
         )}
 
@@ -2842,11 +2837,18 @@ export function CampusWatchTogether({
                 <span>
                   {isLiveWithHost
                     ? 'Trực Tiếp'
-                    : `Trực Tiếp ${(() => {
+                    : (() => {
+                        if (!watchState.playing) {
+                          return 'Trực Tiếp (Chủ phòng tạm dừng)';
+                        }
+                        const maxDur = durationRef.current || duration;
                         const hPos = getHostCurrentPos();
+                        if (maxDur > 0 && hPos >= maxDur - 1) {
+                          return 'Trực Tiếp (Hết video)';
+                        }
                         const d = Math.round(hPos - localTime);
-                        return d > 2 ? `(Chậm ${d > 60 ? dinhDangGiayPhut(d) : d + 's'})` : '';
-                      })()}`}
+                        return d > 2 ? `Trực Tiếp (Chậm ${d > 60 ? dinhDangGiayPhut(d) : d + 's'})` : 'Vào Trực Tiếp';
+                      })()}
                 </span>
               </button>
             </div>
