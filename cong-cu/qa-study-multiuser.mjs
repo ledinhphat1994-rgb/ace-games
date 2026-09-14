@@ -14,6 +14,8 @@ const BASE = process.argv[2] || 'http://127.0.0.1:8788';
 const devSessionSecret = process.env.SESSION_SECRET || 'khoa-ky-cookie-chi-de-chay-thu-tren-may-1234567890';
 const VIDEO_1 = 'https://vjs.zencdn.net/v/oceans.webm';
 const VIDEO_2 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+const VIDEO_3 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
+const VIDEO_4 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
 
 let pass = 0, fail = 0;
 function ok(ten, dk, chiTiet = '') {
@@ -42,14 +44,15 @@ console.log('================================================================\n'
 // ── Fixture local D1: session hocSinhId cần hoc_sinh + ma_ca_nhan ─────────────
 if (BASE.includes('127.0.0.1') || BASE.includes('localhost')) {
   const sqlLocal = (cau) => execSync(`npx wrangler d1 execute lop-10a7-db --local --json --command "${cau}"`, { encoding: 'utf8' });
-  sqlLocal(`INSERT OR IGNORE INTO hoc_sinh (id, ho_ten, lop_id, so_thu_tu) VALUES (1,'QA HS-A',1,1),(2,'QA HS-B',1,2),(3,'QA HS-C',1,3)`);
-  sqlLocal(`INSERT OR IGNORE INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (1,'qa-hs1',1),(2,'qa-hs2',1),(3,'qa-hs3',1)`);
+  sqlLocal(`INSERT OR IGNORE INTO hoc_sinh (id, ho_ten, lop_id, so_thu_tu) VALUES (1,'QA HS-A',1,1),(2,'QA HS-B',1,2),(3,'QA HS-C',1,3),(4,'QA HS-D',1,4)`);
+  sqlLocal(`INSERT OR IGNORE INTO ma_ca_nhan (hoc_sinh_id, ma, lop_id) VALUES (1,'qa-hs1',1),(2,'qa-hs2',1),(3,'qa-hs3',1),(4,'qa-hs4',1)`);
   try { execSync(`npx wrangler d1 execute lop-10a7-db --local --command="UPDATE phong SET trang_thai='dong' WHERE chu_phong_khoa='hs:1';"`, { stdio: 'ignore' }); } catch {}
 }
 
 const HS_A = { hocSinhId: 1, lopId: 1, role: 'student', ten: 'QA HS-A' };
 const HS_B = { hocSinhId: 2, lopId: 1, role: 'student', ten: 'QA HS-B' };
 const HS_C = { hocSinhId: 3, lopId: 1, role: 'student', ten: 'QA HS-C' };
+const HS_D = { hocSinhId: 4, lopId: 1, role: 'student', ten: 'QA HS-D' };
 const cookieA = await taoAuthCookie(HS_A);
 const cookieB = await taoAuthCookie(HS_B);
 const cookieC = await taoAuthCookie(HS_C);
@@ -162,6 +165,32 @@ try {
   const vb3 = await videoInfo(pageB);
   ok('B: video member đổi theo queue (sync URL)', vb3 && vb3.src.includes('ForBiggerBlazes'), vb3?.src);
 
+  // Queue nâng: add_next lên đầu + skip + remove — tất cả qua UI
+  await pageA.locator('#input-queue-add').fill(VIDEO_3);
+  await pageA.locator('#btn-queue-enqueue').click();
+  await pageA.waitForTimeout(700);
+  await pageA.locator('#input-queue-add').fill(VIDEO_4);
+  await pageA.locator('#btn-queue-add-next').click();
+  await pageA.waitForTimeout(1200);
+  const txtQueue = await pageA.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+  ok('Queue: +Phát kế đưa VIDEO_4 lên TRƯỚC VIDEO_3', txtQueue.indexOf('ElephantsDream') > -1 && txtQueue.indexOf('ForBiggerEscapes') > -1 && txtQueue.indexOf('ElephantsDream') < txtQueue.indexOf('ForBiggerEscapes'), txtQueue.slice(0, 200));
+
+  // Skip → đầu hàng (VIDEO_4) thành đang phát trên cả 2 phía
+  await pageA.locator('button:has-text("Bỏ qua")').click();
+  await pageA.waitForFunction(() => (document.querySelector('[data-testid="study-video-player"]')?.currentSrc || '').includes('ElephantsDream'), { timeout: 8000 }).catch(() => {});
+  const va3 = await videoInfo(pageA);
+  ok('A: ⏭ skip → đang phát VIDEO_4 (đầu hàng)', va3 && va3.src.includes('ElephantsDream'), va3?.src);
+  await pageB.waitForFunction(() => (document.querySelector('[data-testid="study-video-player"]')?.currentSrc || '').includes('ElephantsDream'), { timeout: 8000 }).catch(() => {});
+  const vb4 = await videoInfo(pageB);
+  ok('B: skip đồng bộ sang member (VIDEO_4)', vb4 && vb4.src.includes('ElephantsDream'), vb4?.src);
+
+  // Remove VIDEO_3 khỏi hàng đợi
+  const rowV3 = pageA.locator('div.rounded-lg', { hasText: 'ForBiggerEscapes' }).first();
+  await rowV3.locator('button[title="Xóa khỏi hàng đợi"]').click();
+  await pageA.waitForTimeout(1200);
+  const txtQueue2 = await pageA.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+  ok('Queue: ✕ remove xoá VIDEO_3 khỏi hàng', !txtQueue2.includes('ForBiggerEscapes'));
+
   // ═══ SECTION D — NOTES + MỐC THỜI GIAN ════════════════════════════════════
   console.log('== D. Ghi chú + timestamp ==');
   await moTab(pageB, 'tab-study-notes');
@@ -243,6 +272,19 @@ try {
     ok('B: join voice → nút Rời voice/Mic xuất hiện', (await pageB.locator('#btn-voice-leave').count()) > 0);
   } else { ok('B: join voice → nút Rời voice/Mic xuất hiện', false, 'không có nút join'); }
 
+  // A (host có quyền voice sẵn) join → cặp 1-1 hình thành, cả 2 phía thấy "A ↔ B"
+  await moTab(pageA, 'tab-study-voice');
+  const joinA = pageA.locator('#btn-voice-join');
+  if ((await joinA.count()) > 0) {
+    await joinA.click();
+    await pageA.waitForTimeout(2500);
+    const txtVoiceA = await pageA.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+    ok('A join voice → cặp hình thành (thấy dấu ↔)', txtVoiceA.includes('↔'), txtVoiceA.slice(0, 160));
+    await pageB.waitForTimeout(2000); // voice poll 1.5s
+    const txtVoiceB = await pageB.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+    ok('B thấy cặp voice đã đủ 2 người (↔)', txtVoiceB.includes('↔'), txtVoiceB.slice(0, 160));
+  } else { ok('A join voice → cặp hình thành', false, 'A không có nút join (đang trong cặp?)'); }
+
   // ═══ SECTION H — CO-HOST, LATE-JOIN, KICK/BAN ═════════════════════════════
   console.log('== H. Co-host, late-join, kick ==');
   await moTab(pageA, 'tab-study-members');
@@ -251,12 +293,13 @@ try {
   await pageB.waitForTimeout(11000); // detail poll 10s
   ok('B được cấp co-host → thấy tab quản trị (#tab-study-quan-tri)', (await pageB.locator('#tab-study-quan-tri').count()) > 0);
 
-  // C late-join — phải thấy lịch sử chat + video hiện tại
+  // C late-join — phải thấy lịch sử chat + đúng URL video đang phát (queue đã skip → lấy mốc động từ A)
+  const urlDangPhat = (await videoInfo(pageA))?.src || '';
   ({ ctx: ctxC, page: pageC } = await moContext(HS_C));
   await vaoPhongQuaUI(pageC, phongId);
   ok('C late-join: thấy lịch sử chat "chào cả nhóm QA"', await choThayText(pageC, 'chào cả nhóm QA', 8000));
   const vc = await videoInfo(pageC);
-  ok('C late-join: video đang phát đúng URL hiện tại', vc && vc.src.includes('ForBiggerBlazes'), vc?.src);
+  ok('C late-join: video đúng URL đang phát của phòng', vc && urlDangPhat && vc.src === urlDangPhat, `C=${vc?.src} vs A=${urlDangPhat}`);
 
   // A kick C (C là member, A là host) — confirm() auto-accept
   await moTab(pageA, 'tab-study-members');
@@ -288,6 +331,35 @@ try {
   await vaoPhongQuaUI(pageB, phongId);
   ok('B reload → vào lại được phòng (lease còn hiệu lực)', (await pageB.locator('#btn-back-to-lobby').count()) > 0);
   ok('B reload → vẫn thấy lịch sử chat', await choThayText(pageB, 'chào cả nhóm QA', 8000));
+
+  // ═══ SECTION K — PHÒNG MẬT KHẨU E2E (user D) ═════════════════════════════
+  console.log('== K. Phòng mật khẩu E2E ==');
+  const resPhongMK = await api('/api/phong', {
+    method: 'POST', cookie: cookieA,
+    body: { hanhDong: 'tao', ten: 'QA Phòng MK', loai: 'video', phamVi: 'lop', accessMode: 'password', matKhau: 'qa-mk-123', videoUrl: VIDEO_1 }
+  });
+  const phongMK = resPhongMK.data.phong?.id;
+  ok('Tạo phòng mật khẩu qua API', phongMK > 0, JSON.stringify(resPhongMK.data).slice(0, 120));
+  if (phongMK) {
+    const { page: pageD } = await moContext(HS_D);
+    await pageD.evaluate(() => document.querySelector('#world-hoc-tap')?.click());
+    await pageD.waitForSelector('#lobby-watch', { timeout: 10000 });
+    await pageD.locator(`[data-testid="study-room-enter"][data-phong-id="${phongMK}"]`).click();
+    const modalMK = pageD.locator('#modal-room-password');
+    ok('D bấm vào phòng MK → modal nhập mật khẩu hiện', (await modalMK.count()) > 0);
+    // Sai mật khẩu → lỗi + không vào được
+    await pageD.locator('#input-room-password').fill('sai-mat-khau');
+    await pageD.locator('#btn-submit-room-password').click();
+    await pageD.waitForTimeout(2000);
+    const loiMK = await modalMK.innerText().catch(() => '');
+    ok('Sai mật khẩu → modal báo lỗi, D chưa vào phòng', (await pageD.locator('#btn-back-to-lobby').count()) === 0 && /không chính xác|không đúng|sai|lỗi/i.test(loiMK), loiMK.slice(0, 150));
+    // Đúng mật khẩu → vào phòng
+    await pageD.locator('#input-room-password').fill('qa-mk-123');
+    await pageD.locator('#btn-submit-room-password').click();
+    await pageD.waitForSelector('#btn-back-to-lobby', { timeout: 10000 }).catch(() => {});
+    ok('Đúng mật khẩu → D vào được phòng', (await pageD.locator('#btn-back-to-lobby').count()) > 0);
+    await api('/api/phong', { method: 'POST', cookie: cookieA, body: { hanhDong: 'dong', phongId: phongMK } });
+  }
 
   // ═══ SECTION J — ĐO LEASE 15' (hoat_dong_luc + NHIP_HIEU_LUC) ═════════════
   // Lease không phải cột — là cửa sổ datetime(hoat_dong_luc) > now-15'.
