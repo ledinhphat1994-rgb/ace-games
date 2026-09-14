@@ -1,5 +1,5 @@
 const { useState, useEffect, useRef } = React;
-import { dinhDangGiayPhut, idGoogleDrive, idYoutube, laVideoTrucTiepFe, napYouTubeIframeApi, urlMediaFe } from '../lib/helpers.js';
+import { dinhDangGiayPhut, giuNguyenViTriCuon, idGoogleDrive, idYoutube, laVideoTrucTiepFe, napYouTubeIframeApi, urlMediaFe } from '../lib/helpers.js';
 
 // Bỏ qua tick khi tab đang ở NỀN — tránh cộng dồn request Cloudflare vô ích khi không ai xem.
 // Không dùng cho poll tín hiệu thời gian thực (vd voice signaling) vì bỏ lỡ tick có thể làm treo
@@ -1758,6 +1758,14 @@ export function CampusWatchTogether({
   const currentYtIdRef = useRef(null);
   const hasSeekedInitRef = useRef(false);
   const lastHostSyncTimeRef = useRef(0);
+  const lastAppliedRevisionRef = useRef(null);
+  const lastHostTrackTimeRef = useRef({ time: 0, stamp: Date.now() });
+
+  const watchStateRef = useRef(watchState);
+  watchStateRef.current = watchState;
+  const dangGuiLenhRef = useRef(dangGuiLenh);
+  dangGuiLenhRef.current = dangGuiLenh;
+  const guiLenhRef = useRef(null);
 
   // ── TẦNG 1: Lắng nghe trực tiếp tin nhắn postMessage từ YouTube IFrame ──
   // YouTube IFrame luôn phát các sự kiện onStateChange & infoDelivery ra parent window
@@ -1794,6 +1802,43 @@ export function CampusWatchTogether({
       const cur = Number(data.info?.currentTime);
       if (!isNaN(cur) && cur >= 0 && !isSeekingRef.current) {
         setLocalTime(Math.floor(cur));
+      }
+
+      // ── VÙNG 2: ĐỒNG BỘ THAO TÁC CỦA CHỦ PHÒNG TRỰC TIẾP TRÊN MÀN HÌNH YOUTUBE ──
+      if (canControl && !dangGuiLenhRef.current && !isSeekingRef.current) {
+        // 1. Bắt Play / Pause trực tiếp từ màn hình video YouTube
+        const pState = data.event === 'onStateChange'
+          ? (typeof data.info === 'number' ? data.info : data.info?.playerState)
+          : (data.event === 'infoDelivery' ? data.info?.playerState : undefined);
+
+        const curTime = !isNaN(cur) && cur >= 0 ? cur : undefined;
+
+        if (pState === 1 && !watchStateRef.current.playing) {
+          console.log('Vùng 2: Chủ phòng bấm Play trên YouTube -> đồng bộ cả phòng');
+          guiLenhRef.current?.('play', curTime);
+        } else if (pState === 2 && watchStateRef.current.playing) {
+          console.log('Vùng 2: Chủ phòng bấm Pause trên YouTube -> đồng bộ cả phòng');
+          guiLenhRef.current?.('pause', curTime);
+        }
+
+        // 2. Bắt thao tác tua (Seek) trên thanh tiến trình đỏ YouTube (0:29 / 2:41:32)
+        if (!isNaN(cur) && cur >= 0) {
+          const now = Date.now();
+          const prev = lastHostTrackTimeRef.current;
+          const dt = Math.max(0, (now - prev.stamp) / 1000);
+          const expected = watchStateRef.current.playing ? (prev.time + dt) : prev.time;
+          const delta = Math.abs(cur - expected);
+
+          // Nếu thời gian nhảy lệch > 1.8 giây trong khoảng thời gian ngắn (dt < 4s)
+          // chứng tỏ chủ phòng vừa click hoặc kéo thanh đỏ trên video YouTube
+          if (dt > 0.25 && dt < 4.0 && delta > 1.8) {
+            console.log(`Vùng 2: Chủ phòng tua trên thanh đỏ YouTube (${cur.toFixed(1)}s, lệch ${delta.toFixed(1)}s) -> đồng bộ cả phòng`);
+            lastHostTrackTimeRef.current = { time: cur, stamp: now };
+            guiLenhRef.current?.('seek', cur);
+          } else if (dt >= 0.5) {
+            lastHostTrackTimeRef.current = { time: cur, stamp: now };
+          }
+        }
       }
 
       // Nhận diện trạng thái kết thúc video: 0 = ENDED
@@ -1929,11 +1974,14 @@ export function CampusWatchTogether({
                 }
               }
 
-              if (canControl && !dangGuiLenh && !isSeekingRef.current) {
-                if (event.data === 1 && !watchState.playing) {
-                  guiLenh('play', event.target.getCurrentTime());
-                } else if (event.data === 2 && watchState.playing) {
-                  guiLenh('pause', event.target.getCurrentTime());
+              if (canControl && !dangGuiLenhRef.current && !isSeekingRef.current) {
+                const curPos = typeof event.target?.getCurrentTime === 'function' ? event.target.getCurrentTime() : undefined;
+                if (event.data === 1 && !watchStateRef.current.playing) {
+                  console.log('YT Player onStateChange === 1 -> đồng bộ Play cả phòng');
+                  guiLenhRef.current?.('play', curPos);
+                } else if (event.data === 2 && watchStateRef.current.playing) {
+                  console.log('YT Player onStateChange === 2 -> đồng bộ Pause cả phòng');
+                  guiLenhRef.current?.('pause', curPos);
                 }
               }
             }
@@ -1980,8 +2028,11 @@ export function CampusWatchTogether({
       return;
     }
 
-    // ─── ĐỐI VỚI HỌC SINH / NGƯỜI XEM TRONG PHÒNG ───
-    setLocalTime(Math.max(0, Math.floor(targetPos)));
+    // ─── ĐỐI VỚI HỌC SINH / NGƯỜI XEM TRONG PHÒNG (Y CHANG CHỦ PHÒNG) ───
+    const isNewRevision = lastAppliedRevisionRef.current !== null && st.revision !== lastAppliedRevisionRef.current;
+    if (lastAppliedRevisionRef.current === null) {
+      lastAppliedRevisionRef.current = st.revision;
+    }
 
     if (prov === 'NATIVE_HTML5' && videoRef.current) {
       const v = videoRef.current;
@@ -1989,6 +2040,21 @@ export function CampusWatchTogether({
         hasSeekedInitRef.current = true;
         v.currentTime = targetPos;
       }
+      if (isNewRevision) {
+        lastAppliedRevisionRef.current = st.revision;
+        if (st.playing) {
+          v.currentTime = targetPos;
+          if (hasInteracted || hasInteractedRef.current) v.play().catch(() => {});
+          setLocalTime(Math.floor(targetPos));
+        } else {
+          v.pause();
+          v.currentTime = Number(st.positionSeconds || 0);
+          setLocalTime(Math.floor(Number(st.positionSeconds || 0)));
+        }
+        return;
+      }
+
+      setLocalTime(Math.max(0, Math.floor(targetPos)));
       if (st.playing) {
         const drift = Math.abs(v.currentTime - targetPos);
         if (drift > 3.0) {
@@ -2023,11 +2089,37 @@ export function CampusWatchTogether({
         ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
       }
 
+      // Khi phát hiện thao tác mới từ chủ phòng (Revision thay đổi do chủ phòng bấm Vùng 1 hoặc Vùng 2)
+      if (isNewRevision) {
+        lastAppliedRevisionRef.current = st.revision;
+        if (!st.playing) {
+          // Chủ phòng bấm Tạm dừng: Lập tức tạm dừng và tua về đúng vị trí chủ phòng đã dừng
+          if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
+          ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          const pSec = Number(st.positionSeconds || 0);
+          if (p?.seekTo) { try { p.seekTo(pSec, true); } catch {} }
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [pSec, true] }), '*');
+          setLocalTime(Math.floor(pSec));
+        } else {
+          // Chủ phòng bấm Phát tiếp hoặc vừa Tua thời gian: Lập tức tua và phát y chang chủ phòng
+          if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
+          if (hasInteracted || hasInteractedRef.current) {
+            if (p?.playVideo) { try { p.playVideo(); } catch {} }
+            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          }
+          setLocalTime(Math.floor(targetPos));
+        }
+        return;
+      }
+
+      // Giữ nhịp phát ổn định trong các chu kỳ poll định kỳ
+      setLocalTime(Math.max(0, Math.floor(targetPos)));
+
       if (cur !== null && !isNaN(cur)) {
         const drift = Math.abs(cur - targetPos);
         if (st.playing) {
-          // Chỉ seek lại nếu lệch quá lớn (> 8 giây) để không làm gián đoạn luồng video đang xem mượt mà 60fps
-          if (drift > 8.0) {
+          if (drift > 3.5) {
             if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
           }
@@ -2036,26 +2128,29 @@ export function CampusWatchTogether({
             ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
           }
         } else {
-          if (ps === 1) {
+          // Khi server báo pause, luôn gửi pause nếu player đang phát
+          if (ps === 1 || ps === 3) {
             if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
             ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
           }
-          if (drift > 2.5) {
+          if (drift > 1.8) {
             if (p?.seekTo) { try { p.seekTo(st.positionSeconds, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [st.positionSeconds, true] }), '*');
           }
         }
       } else {
-        // Player wrapper chưa trả về currentTime: chỉ gọi playVideo nếu đang playing và bị pause/cued, KHÔNG seek liên tục
         if (st.playing && (hasInteracted || hasInteractedRef.current) && ps !== 1) {
           if (p?.playVideo) { try { p.playVideo(); } catch {} }
           ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        } else if (!st.playing) {
+          if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
+          ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
         }
       }
     }
   };
 
-  // Poll trạng thái máy chủ mỗi 2.5s
+  // Poll trạng thái máy chủ mỗi 1.2s để người tham gia bắt kịp tức thì thao tác của chủ phòng
   useEffect(() => {
     let active = true;
     const fetchWatch = async () => {
@@ -2077,7 +2172,7 @@ export function CampusWatchTogether({
     };
 
     fetchWatch();
-    const timer = setInterval(khiHienThi(fetchWatch), 2500);
+    const timer = setInterval(khiHienThi(fetchWatch), 1200);
     return () => {
       active = false;
       clearInterval(timer);
@@ -2129,7 +2224,7 @@ export function CampusWatchTogether({
         }
       }
 
-      if (canControl && curTime !== null && curTime > 0 && !dangGuiLenh && !isSeekingRef.current) {
+      if (canControl && curTime !== null && curTime > 0 && !dangGuiLenhRef.current && !isSeekingRef.current) {
         const nowMs = Date.now();
         if (!lastHostSyncTimeRef.current) lastHostSyncTimeRef.current = nowMs;
         const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
@@ -2137,7 +2232,7 @@ export function CampusWatchTogether({
         const expectedServerPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
         const hostDrift = Math.abs(curTime - expectedServerPos);
 
-        if (hostDrift > 8.0 && (nowMs - lastHostSyncTimeRef.current > 15000)) {
+        if (hostDrift > 3.0 && (nowMs - lastHostSyncTimeRef.current > 4000)) {
           lastHostSyncTimeRef.current = nowMs;
           guiLenh('seek', curTime);
         }
@@ -2152,8 +2247,9 @@ export function CampusWatchTogether({
 
   // Gửi lệnh điều khiển (Play / Pause / Seek)
   const guiLenh = async (action, customPos) => {
-    if (dangGuiLenh) return;
+    if (dangGuiLenhRef.current) return;
     setDangGuiLenh(true);
+    dangGuiLenhRef.current = true;
     setLoi('');
 
     let pos = customPos;
@@ -2212,6 +2308,7 @@ export function CampusWatchTogether({
       });
       const d = await res.json();
       if (d.ok && d.state) {
+        lastAppliedRevisionRef.current = d.state.revision;
         setWatchState(d.state);
         setLocalTime(Math.floor(d.state.positionSeconds || pos));
       } else if (d.conflict && d.state) {
@@ -2224,8 +2321,11 @@ export function CampusWatchTogether({
       setLoi('Mất kết nối máy chủ.');
     } finally {
       setDangGuiLenh(false);
+      dangGuiLenhRef.current = false;
     }
   };
+
+  guiLenhRef.current = guiLenh;
 
   // Đồng bộ vị trí video hiện tại ra ngoài để chat gắn timestamp
   useEffect(() => {
@@ -2501,7 +2601,11 @@ export function CampusWatchTogether({
                 <button
                   type="button"
                   id="btn-media-tab-search"
-                  onClick={() => setMediaTab('search')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    giuNguyenViTriCuon(() => setMediaTab('search'));
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
                     mediaTab === 'search'
                       ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-md'
@@ -2513,7 +2617,11 @@ export function CampusWatchTogether({
                 <button
                   type="button"
                   id="btn-media-tab-queue"
-                  onClick={() => setMediaTab('queue')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    giuNguyenViTriCuon(() => setMediaTab('queue'));
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
                     mediaTab === 'queue'
                       ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md'
@@ -2531,7 +2639,9 @@ export function CampusWatchTogether({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setDaMoRongStudio(prev => !prev);
+                  giuNguyenViTriCuon(() => {
+                    setDaMoRongStudio(prev => !prev);
+                  });
                 }}
                 title={daMoRongStudio ? 'Thu gọn' : 'Mở rộng'}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center text-xs font-bold transition-all cursor-pointer">

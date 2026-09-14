@@ -2509,13 +2509,15 @@ function DigitalCampusApp() {
             const trucTiep = cauHinh.videoUrl && !yt && !drv && laVideoTrucTiepFe(cauHinh.videoUrl) ? urlMediaFe(cauHinh.videoUrl) : '';
             const laChuPhong = Boolean(p.laChuPhong || p.canControl || (phongMinhKhoa && p.chuPhongKhoa === phongMinhKhoa));
             return (
-              <div className={
-                isFocusMode && p.loai === 'nhac'
-                  ? 'max-w-2xl mx-auto w-full'
-                  : p.loai === 'video'
-                  ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start min-h-[calc(100vh+360px)] pb-32'}`
-                  : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
-              }>
+              <div
+                style={{ overflowAnchor: 'none' }}
+                className={
+                  isFocusMode && p.loai === 'nhac'
+                    ? 'max-w-2xl mx-auto w-full'
+                    : p.loai === 'video'
+                    ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start min-h-[calc(100vh+360px)] pb-32'}`
+                    : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
+                }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
                 {(() => {
                   const ratioFlex = {

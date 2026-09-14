@@ -1,5 +1,5 @@
 const { useState } = React;
-import { EMOJI_CAM_XUC, PRESET_AVATARS, formatDateVN, idGoogleDrive, idYoutube, laVideoNhungFe, laVideoTrucTiepFe, thoiGianTruoc, urlMediaFe, xuLyLinkHinhFe, xuLyLinkNhacFe } from '../lib/helpers.js';
+import { EMOJI_CAM_XUC, PRESET_AVATARS, formatDateVN, giuNguyenViTriCuon, idGoogleDrive, idYoutube, laVideoNhungFe, laVideoTrucTiepFe, thoiGianTruoc, urlMediaFe, xuLyLinkHinhFe, xuLyLinkNhacFe } from '../lib/helpers.js';
 import { Ic } from '../lib/icons.js';
 
 
@@ -53,10 +53,16 @@ export function TheBaiDang({ bai, thietBiId, auth, onCanDangNhap }) {
     } catch { /* giữ nguyên */ }
   };
 
-  const batBinhLuan = () => {
-    const mo = !moBinhLuan;
-    setMoBinhLuan(mo);
-    if (mo && binhLuan === null) taiBinhLuan();
+  const batBinhLuan = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    giuNguyenViTriCuon(() => {
+      const mo = !moBinhLuan;
+      setMoBinhLuan(mo);
+      if (mo && binhLuan === null) taiBinhLuan();
+    });
   };
 
   const guiBinhLuan = async (e) => {
@@ -161,7 +167,7 @@ export function TheBaiDang({ bai, thietBiId, auth, onCanDangNhap }) {
             😂
           </button>
         </div>
-        <button onClick={batBinhLuan} className="text-xs text-[#00F2FE] hover:underline font-bold">
+        <button type="button" onClick={batBinhLuan} className="text-xs text-[#00F2FE] hover:underline font-bold cursor-pointer">
           {(bai.tongBinhLuan || 0) + (binhLuan ? Math.max(0, binhLuan.length - (bai.tongBinhLuan || 0)) : 0)} phản hồi {moBinhLuan ? '▲' : '▼'}
         </button>
       </div>
@@ -169,7 +175,7 @@ export function TheBaiDang({ bai, thietBiId, auth, onCanDangNhap }) {
       {loiTt && <p className="text-[11px] text-rose-400 mt-2">{loiTt}</p>}
 
       {moBinhLuan && (
-        <div className="pt-3 mt-3 border-t border-white/5 space-y-2">
+        <div style={{ overflowAnchor: 'none' }} className="pt-3 mt-3 border-t border-white/5 space-y-2">
           {binhLuan === null ? (
             <p className="text-[11px] text-slate-500">Đang tải bình luận…</p>
           ) : binhLuan.length === 0 ? (

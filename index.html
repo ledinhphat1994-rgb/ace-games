@@ -47,9 +47,14 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      overflow-anchor: none;
+    }
+    html, body {
+      overflow-anchor: none !important;
+    }
     html {
-      scroll-behavior: smooth;
       scrollbar-gutter: stable;
     }
     body {

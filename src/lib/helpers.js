@@ -228,3 +228,28 @@ export function dinhDangGiayPhut(s) {
   const sec = t % 60;
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
+
+/**
+ * Khóa cứng vị trí cuộn màn hình khi thực hiện thao tác thu gọn / mở rộng.
+ * Đảm bảo màn hình đứng im tuyệt đối 100%, không bị giật hay dịch chuyển scroll.
+ */
+export function giuNguyenViTriCuon(thaoTac) {
+  if (typeof window === 'undefined') {
+    if (typeof thaoTac === 'function') thaoTac();
+    return;
+  }
+  const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  if (typeof thaoTac === 'function') {
+    thaoTac();
+  }
+  if (window.requestAnimationFrame) {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollY, behavior: 'instant' });
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollY, behavior: 'instant' });
+      });
+    });
+  } else {
+    window.scrollTo({ top: scrollY, behavior: 'instant' });
+  }
+}
