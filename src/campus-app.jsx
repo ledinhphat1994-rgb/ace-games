@@ -97,11 +97,17 @@ function DigitalCampusApp() {
       fullscreenHistoryRef.current = true;
       try { window.history.pushState({ campusFs: true }, ''); } catch { }
     }
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const onKey = (e) => { if (e.key === 'Escape') exitFullscreen(); };
     const onPop = () => { fullscreenHistoryRef.current = false; exitFullscreen(); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('popstate', onPop);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('popstate', onPop); };
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('popstate', onPop);
+    };
   }, [isRoomWide]);
   const [showMembersDropdown, setShowMembersDropdown] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1982,6 +1988,7 @@ function DigitalCampusApp() {
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'campus' ? (
         /* SCREENSHOT 2 HEADER: DIGITAL CAMPUS HUB */
+        !(currentView === 'ROOM_ACTIVE' && isRoomWide) && (
         <header className="sticky top-0 z-40 bg-[#0B0E14]/95 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3" />
 
@@ -2044,6 +2051,7 @@ function DigitalCampusApp() {
             )}
           </div>
         </header>
+        )
       ) : (
         /* SCREENSHOT 1 HEADER: BẢNG TIN CỘNG ĐỒNG LỚP */
         <header className="sticky top-0 z-40 bg-[#0B0E14]/95 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 h-16 flex items-center justify-between gap-4">
@@ -2155,7 +2163,7 @@ function DigitalCampusApp() {
            MAIN VIEW 1: DIGITAL CAMPUS HUB (MATCHING SCREENSHOT 2)
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'campus' && (
-        <div className={`w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'px-2 sm:px-4 lg:px-6' : 'px-4 sm:px-6 lg:px-7 2xl:px-8'} py-5 flex-1 flex flex-col gap-5 animate-fadeIn`} id="campus-lobby">
+        <div className={`w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'px-2 sm:px-4 lg:px-6 py-2 h-screen max-h-screen overflow-hidden' : 'px-4 sm:px-6 lg:px-7 2xl:px-8 py-5 flex-1'} flex flex-col gap-2 animate-fadeIn`} id="campus-lobby">
           {/* Region 5: Horizontal Teacher Announcement Ticker */}
           {!(currentView === 'ROOM_ACTIVE' && isRoomWide) && (
             <div className="w-full">
@@ -2168,7 +2176,7 @@ function DigitalCampusApp() {
 
           <div className={
             currentView === 'ROOM_ACTIVE' && isRoomWide
-              ? "w-full flex-1 flex flex-col gap-5"
+              ? "w-full flex-1 flex flex-col gap-2 min-h-0 overflow-hidden"
               : "grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_340px] 2xl:grid-cols-[330px_minmax(0,1fr)_340px] lg:grid-cols-[300px_minmax(0,1fr)] gap-5 2xl:gap-6 items-start w-full"
           }>
             {/* Left Column: Highlights Rail (Vùng 3 — ẩn khi bật Toàn màn hình) */}
@@ -2193,12 +2201,12 @@ function DigitalCampusApp() {
             )}
 
             {/* Center Column: 4 Flagship Destinations OR Activity Lobby */}
-            <main id="campus-main-content" className={`flex flex-col gap-6 min-w-0 w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'order-1 flex-1' : 'order-1 lg:order-2'}`}>
+            <main id="campus-main-content" className={`flex flex-col gap-2 min-w-0 w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'order-1 flex-1 h-full min-h-0 overflow-hidden' : 'order-1 lg:order-2'}`}>
               {currentView === 'ROOM_ACTIVE' && activeRoom ? (
                 /* ACTIVE ROOM CENTER EXPERIENCE — PERSISTENT 3-COLUMN CAMPUS SHELL */
-                <div className={`flex flex-col gap-5 w-full animate-fadeIn ${isRoomWide ? 'flex-1' : ''}`} id="campus-active-room-container">
+                <div className={`flex flex-col ${isRoomWide ? 'gap-2 flex-1 h-full min-h-0 overflow-hidden' : 'gap-5'} w-full animate-fadeIn`} id="campus-active-room-container">
                   {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
-                  <div className="flex items-center justify-between bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center justify-between bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap shrink-0">
                     {/* TRÁI: Tiêu đề + Badge chủ phòng */}
                     <div className="flex items-center gap-2 min-w-0">
                       <h2 className="text-sm font-black text-white truncate max-w-[160px] sm:max-w-xs md:max-w-sm">{activeRoom.title}</h2>
@@ -2578,7 +2586,7 @@ function DigitalCampusApp() {
                   isFocusMode && p.loai === 'nhac'
                     ? 'max-w-2xl mx-auto w-full'
                     : p.loai === 'video'
-                    ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start min-h-[calc(100vh+360px)] pb-32'}`
+                    ? `flex flex-col lg:flex-row ${isRoomWide ? 'gap-2 items-stretch flex-1 min-h-0 h-full overflow-hidden' : 'gap-5 items-start min-h-[calc(100vh+360px)] pb-32'} w-full`
                     : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
                 }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
@@ -2603,7 +2611,7 @@ function DigitalCampusApp() {
                     ? (cToken === 'none' ? { display: 'none' } : cToken === 'full' ? { flex: '1 1 0%', minWidth: 0 } : { flex: cToken, minWidth: 0 })
                     : {};
                   return (<>
-                <div className={`flex flex-col gap-4 min-w-0 ${isRoomWide ? 'h-full flex-1' : 'self-start'}`} style={vStyle}>
+                <div className={`flex flex-col min-w-0 ${isRoomWide ? 'h-full flex-1 min-h-0 items-center justify-center' : 'gap-4 self-start'}`} style={vStyle}>
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
@@ -2614,6 +2622,7 @@ function DigitalCampusApp() {
                       myCaps={phongMyCaps}
                       videoTimeRef={phongVideoTimeRef}
                       isRoomWide={isRoomWide}
+                      layoutRatio={layoutRatio}
                       hanhDongPhong={hanhDongPhong}
                       isStaff={phongIsStaff}
                     />

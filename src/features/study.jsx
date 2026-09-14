@@ -1484,6 +1484,7 @@ export function CampusWatchTogether({
   myCaps,
   videoTimeRef,
   isRoomWide,
+  layoutRatio = '6:4',
   hanhDongPhong: _hanhDongPhong,
   isStaff = false,
 }) {
@@ -2413,9 +2414,31 @@ export function CampusWatchTogether({
   };
 
   return (
-    <div className="flex flex-col gap-4 min-w-0 w-full">
+    <div className={`flex flex-col min-w-0 w-full ${isRoomWide ? 'h-full flex-1 min-h-0 items-center justify-center' : 'gap-4'}`}>
       {/* Khung phát video chính — khung neon mờ đồng bộ hệ game arena */}
-      <div className="relative w-full aspect-video bg-gradient-to-b from-[#05070b] to-black rounded-2xl overflow-hidden border border-[#00F2FE]/15 ring-1 ring-white/5 shadow-[0_0_60px_rgba(0,242,254,0.07),0_30px_60px_-15px_rgba(0,0,0,0.7)]">
+      <div
+        style={
+          isRoomWide && layoutRatio === '10:0'
+            ? {
+                maxHeight: 'calc(100vh - 76px)',
+                maxWidth: 'calc((100vh - 76px) * 16 / 9)',
+                aspectRatio: '16 / 9',
+                width: '100%',
+                height: 'auto',
+                margin: '0 auto',
+              }
+            : isRoomWide
+            ? {
+                maxHeight: 'calc(100vh - 84px)',
+                aspectRatio: '16 / 9',
+                width: '100%',
+                height: 'auto',
+                margin: '0 auto',
+              }
+            : undefined
+        }
+        className="relative w-full aspect-video bg-gradient-to-b from-[#05070b] to-black rounded-2xl overflow-hidden border border-[#00F2FE]/15 ring-1 ring-white/5 shadow-[0_0_60px_rgba(0,242,254,0.07),0_30px_60px_-15px_rgba(0,0,0,0.7)]"
+      >
         {/* Overlay Autoplay / Gesture cho người xem */}
         {!hasInteracted && !canControl && (provider === 'YOUTUBE' || provider === 'NATIVE_HTML5') && (
           <div className="absolute inset-0 z-20 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-fadeIn">
