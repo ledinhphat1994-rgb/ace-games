@@ -2513,7 +2513,7 @@ function DigitalCampusApp() {
                 isFocusMode && p.loai === 'nhac'
                   ? 'max-w-2xl mx-auto w-full'
                   : p.loai === 'video'
-                  ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start'}`
+                  ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start min-h-[calc(100vh+360px)] pb-32'}`
                   : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}

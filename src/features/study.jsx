@@ -2026,7 +2026,8 @@ export function CampusWatchTogether({
       if (cur !== null && !isNaN(cur)) {
         const drift = Math.abs(cur - targetPos);
         if (st.playing) {
-          if (drift > 4.0) {
+          // Chỉ seek lại nếu lệch quá lớn (> 8 giây) để không làm gián đoạn luồng video đang xem mượt mà 60fps
+          if (drift > 8.0) {
             if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
           }
@@ -2039,18 +2040,16 @@ export function CampusWatchTogether({
             if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
             ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
           }
-          if (drift > 2.0) {
+          if (drift > 2.5) {
             if (p?.seekTo) { try { p.seekTo(st.positionSeconds, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [st.positionSeconds, true] }), '*');
           }
         }
       } else {
-        // Player wrapper chưa có currentTime, gửi trực tiếp postMessage vào iframe nếu người xem đã tương tác
-        if (targetPos > 0 && (hasInteracted || hasInteractedRef.current)) {
-          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
-          if (st.playing) {
-            ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-          }
+        // Player wrapper chưa trả về currentTime: chỉ gọi playVideo nếu đang playing và bị pause/cued, KHÔNG seek liên tục
+        if (st.playing && (hasInteracted || hasInteractedRef.current) && ps !== 1) {
+          if (p?.playVideo) { try { p.playVideo(); } catch {} }
+          ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
         }
       }
     }
@@ -2132,12 +2131,13 @@ export function CampusWatchTogether({
 
       if (canControl && curTime !== null && curTime > 0 && !dangGuiLenh && !isSeekingRef.current) {
         const nowMs = Date.now();
+        if (!lastHostSyncTimeRef.current) lastHostSyncTimeRef.current = nowMs;
         const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
         const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
         const expectedServerPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
         const hostDrift = Math.abs(curTime - expectedServerPos);
 
-        if (hostDrift > 4.0 || (nowMs - lastHostSyncTimeRef.current > 20000 && hostDrift > 2.0)) {
+        if (hostDrift > 8.0 && (nowMs - lastHostSyncTimeRef.current > 15000)) {
           lastHostSyncTimeRef.current = nowMs;
           guiLenh('seek', curTime);
         }
@@ -2531,13 +2531,7 @@ export function CampusWatchTogether({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  const curY = window.scrollY;
                   setDaMoRongStudio(prev => !prev);
-                  requestAnimationFrame(() => {
-                    if (window.scrollY !== curY) {
-                      window.scrollTo({ top: curY, behavior: 'instant' });
-                    }
-                  });
                 }}
                 title={daMoRongStudio ? 'Thu gọn' : 'Mở rộng'}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center text-xs font-bold transition-all cursor-pointer">
