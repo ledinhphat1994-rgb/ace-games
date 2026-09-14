@@ -203,7 +203,7 @@ function DigitalCampusApp() {
   const [quickWaitPhongId, setQuickWaitPhongId] = useState(null);
   const [matchFoundData, setMatchFoundData] = useState(null); // { doiThu: { ten, lopTen } }
   const [matchCountdown, setMatchCountdown] = useState(3);
-  const [showTaoBanModal, setShowTaoBanModal] = useState(true);
+  const [showTaoBanModal, setShowTaoBanModal] = useState(false);
   const [taoBanScope, setTaoBanScope] = useState('truong'); // 'truong' | 'lop'
   const [taoBanAccessMode, setTaoBanAccessMode] = useState('public'); // 'public' | 'password'
   const [taoBanPassword, setTaoBanPassword] = useState('');
