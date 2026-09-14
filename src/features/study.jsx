@@ -63,7 +63,12 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
 
   React.useEffect(() => {
     if (dockTab === 'chat' && chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      const p = chatEndRef.current.parentElement;
+      if (p && p.scrollHeight > p.clientHeight) {
+        p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
+      } else {
+        chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
     }
   }, [phongChat.length, dockTab]);
 
@@ -639,7 +644,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   };
 
   return (
-    <div id="study-dock-container" className={`bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full flex-1 shadow-xl ${isRoomWide ? 'min-h-[calc(100vh-160px)]' : 'min-h-[580px] lg:min-h-[640px]'}`}>
+    <div id="study-dock-container" className={`bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col shadow-xl ${isRoomWide ? 'min-h-[calc(100vh-160px)] h-full flex-1' : 'h-[620px] lg:h-[680px]'}`}>
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -2460,12 +2465,12 @@ export function CampusWatchTogether({
           )}
 
           {daMoRongStudio && (
-            <>
+            <div className="h-[340px] flex flex-col min-h-0 overflow-hidden">
               {/* TAB 1: TÌM KIẾM YOUTUBE & ĐỔI VIDEO */}
               {mediaTab === 'search' && (
-                <div className="flex flex-col gap-3">
+                <div className="h-full flex flex-col gap-2.5 min-h-0">
                   {/* Ô tìm kiếm / dán link đa năng */}
-                  <form onSubmit={(e) => timKiemYouTube(e)} className="flex flex-col gap-2">
+                  <form onSubmit={(e) => timKiemYouTube(e)} className="flex flex-col gap-2 shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
@@ -2534,7 +2539,7 @@ export function CampusWatchTogether({
 
                   {/* Trạng thái lỗi tìm kiếm */}
                   {searchLoi && (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between shrink-0">
                       <span>⚠️ {searchLoi}</span>
                       <button type="button" onClick={() => setSearchLoi('')} className="text-amber-400 font-bold hover:underline">Đóng</button>
                     </div>
@@ -2542,8 +2547,8 @@ export function CampusWatchTogether({
 
                   {/* Kết quả tìm kiếm YouTube */}
                   {ytResults.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex-1 flex flex-col gap-1.5 min-h-0 overflow-hidden">
+                      <div className="flex items-center justify-between text-xs text-slate-400 shrink-0">
                         <span className="font-bold text-slate-300 flex items-center gap-1.5">
                           <span>📺</span>
                           <span>Kết quả YouTube ({ytResults.length} video):</span>
@@ -2552,12 +2557,12 @@ export function CampusWatchTogether({
                           type="button"
                           id="btn-vung1-dong-ket-qua"
                           onClick={() => { setYtResults([]); setSearchLoi(''); }}
-                          className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] font-bold">
+                          className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] font-bold cursor-pointer">
                           ✕ Đóng kết quả
                         </button>
                       </div>
 
-                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      <div className="flex-1 space-y-2 overflow-y-auto pr-1 min-h-0">
                         {ytResults.map((item, idx) => {
                           const vUrl = `https://www.youtube.com/watch?v=${item.videoId}`;
                           return (
@@ -2595,7 +2600,7 @@ export function CampusWatchTogether({
                                   title="Chạy video này ngay lập tức cho cả phòng"
                                   onClick={() => doiVideo(vUrl, item.title)}
                                   disabled={dangDoiVideo}
-                                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00F2FE] to-[#00c6ff] text-black font-black text-[11px] shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00F2FE] to-[#00c6ff] text-black font-black text-[11px] shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer">
                                   ▶ Phát ngay
                                 </button>
                                 <button
@@ -2603,7 +2608,7 @@ export function CampusWatchTogether({
                                   title="Thêm vào cuối hàng đợi"
                                   onClick={() => hanhDongQueue('enqueue', { videoUrl: vUrl, title: item.title })}
                                   disabled={queueBusy}
-                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 text-[11px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 text-[11px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer">
                                   + Hàng chờ
                                 </button>
                                 <button
@@ -2611,7 +2616,7 @@ export function CampusWatchTogether({
                                   title="Thêm để phát kế tiếp sau video hiện tại"
                                   onClick={() => hanhDongQueue('add_next', { videoUrl: vUrl, title: item.title })}
                                   disabled={queueBusy}
-                                  className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 text-[10px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 text-[10px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer">
                                   + Kế tiếp
                                 </button>
                               </div>
@@ -2621,27 +2626,37 @@ export function CampusWatchTogether({
                       </div>
                     </div>
                   ) : (
-                    /* Gợi ý từ khóa tìm kiếm nhanh khi chưa search */
-                    <div className="flex flex-col gap-1.5 pt-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Gợi ý chủ đề học tập & thư giãn:
-                      </span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {[
-                          { label: '🎧 Lofi học tập', q: 'lofi hip hop radio beats to relax study to' },
-                          { label: '🌧️ Tiếng mưa & Piano', q: 'rain sounds relaxing piano study focus' },
-                          { label: '☕ Nhạc quán cà phê', q: 'coffee shop jazz piano chill study' },
-                          { label: '📚 Tập trung ôn thi', q: 'study music alpha waves concentration' },
-                          { label: '🔬 Thí nghiệm Hóa học', q: 'thí nghiệm hóa học thú vị' },
-                        ].map((chip) => (
-                          <button
-                            key={chip.q}
-                            type="button"
-                            onClick={(e) => timKiemYouTube(e, chip.q)}
-                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-[#00F2FE] border border-white/10 text-[11px] transition-all cursor-pointer">
-                            {chip.label}
-                          </button>
-                        ))}
+                    /* Gợi ý từ khóa tìm kiếm nhanh + khung thông tin giữ chiều cao cố định */
+                    <div className="flex-1 flex flex-col justify-between gap-2 min-h-0">
+                      <div className="flex flex-col gap-1.5 shrink-0">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          Gợi ý chủ đề học tập & thư giãn:
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[
+                            { label: '🎧 Lofi học tập', q: 'lofi hip hop radio beats to relax study to' },
+                            { label: '🌧️ Tiếng mưa & Piano', q: 'rain sounds relaxing piano study focus' },
+                            { label: '☕ Nhạc quán cà phê', q: 'coffee shop jazz piano chill study' },
+                            { label: '📚 Tập trung ôn thi', q: 'study music alpha waves concentration' },
+                            { label: '🔬 Thí nghiệm Hóa học', q: 'thí nghiệm hóa học thú vị' },
+                          ].map((chip) => (
+                            <button
+                              key={chip.q}
+                              type="button"
+                              onClick={(e) => timKiemYouTube(e, chip.q)}
+                              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-[#00F2FE] border border-white/10 text-[11px] transition-all cursor-pointer">
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col items-center justify-center p-3 bg-[#0B0E14]/60 border border-white/5 rounded-xl text-center text-xs text-slate-400 gap-1 min-h-0">
+                        <span className="text-xl">📺</span>
+                        <p className="font-bold text-slate-300">Tìm kiếm & Phát video YouTube</p>
+                        <p className="text-[11px] text-slate-500 max-w-sm">
+                          Nhập từ khóa bài học hoặc dán liên kết YouTube ở trên để tìm kiếm và phát đồng bộ cho tất cả thành viên trong phòng.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -2650,8 +2665,8 @@ export function CampusWatchTogether({
 
               {/* TAB 2: QUẢN LÝ HÀNG ĐỢI (QUEUE) */}
               {mediaTab === 'queue' && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="h-full flex flex-col gap-2.5 min-h-0">
+                  <div className="flex items-center justify-between flex-wrap gap-2 shrink-0">
                     <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                       <span>📋</span>
                       <span>Hàng đợi video ({queueList.filter(q => q.trangThai === 'queued').length} chờ)</span>
@@ -2680,22 +2695,24 @@ export function CampusWatchTogether({
                   </div>
 
                   {/* Thêm link nhanh vào queue */}
-                  <QueueInput
-                    onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
-                    onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })}
-                  />
+                  <div className="shrink-0">
+                    <QueueInput
+                      onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
+                      onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })}
+                    />
+                  </div>
 
                   {/* Danh sách video trong hàng đợi */}
                   {queueList.length === 0 ? (
-                    <div className="p-5 rounded-xl bg-[#0B0E14] border border-white/5 text-center text-xs text-slate-400 flex flex-col items-center gap-1.5">
+                    <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[#0B0E14]/60 border border-white/5 rounded-xl text-center text-xs text-slate-400 gap-1.5 min-h-0">
                       <span className="text-2xl">📋</span>
                       <p className="font-bold text-slate-300">Hàng đợi hiện đang trống</p>
                       <p className="text-[11px] text-slate-500 max-w-sm">
-                        Chuyển sang tab <strong>Tìm YouTube</strong> hoặc dán liên kết vào ô trên để phát lần lượt các bài học & video giải trí.
+                        Chuyển sang tab <strong>Tìm YouTube</strong> hoặc dán liên kết vào ô trên để đưa video vào danh sách phát liên tục.
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    <div className="flex-1 space-y-1.5 overflow-y-auto pr-1 min-h-0">
                       {queueList.map((q, idx) => (
                         <div
                           key={q.id || idx}
@@ -2758,7 +2775,7 @@ export function CampusWatchTogether({
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}

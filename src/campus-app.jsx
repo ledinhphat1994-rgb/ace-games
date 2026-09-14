@@ -1302,9 +1302,17 @@ function DigitalCampusApp() {
     return () => { alive = false; clearInterval(iv1); clearInterval(iv2); clearInterval(iv3); };
   }, [currentView, activeRoom?.type, activeRoom?.id, taiDanhSachPhong, phongDetailTick]);
 
-  // Cuộn chat phòng xuống cuối khi có tin mới.
+  // Cuộn chat phòng xuống cuối khi có tin mới (an toàn, không giật trang).
   useEffect(() => {
-    phongChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = phongChatEndRef.current;
+    if (el) {
+      const p = el.parentElement;
+      if (p && p.scrollHeight > p.clientHeight) {
+        p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
   }, [phongChat]);
 
   // Chat sảnh TOÀN TRƯỜNG (phòng hệ thống 'he-thong') — poll tin mới mỗi 4s.
@@ -1328,7 +1336,15 @@ function DigitalCampusApp() {
   }, [activeTab, auth.isGuest, sanhId]);
 
   useEffect(() => {
-    sanhChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = sanhChatEndRef.current;
+    if (el) {
+      const p = el.parentElement;
+      if (p && p.scrollHeight > p.clientHeight) {
+        p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
   }, [sanhChat]);
 
   const guiTinSanh = async (e) => {
@@ -2477,7 +2493,7 @@ function DigitalCampusApp() {
                 isFocusMode && p.loai === 'nhac'
                   ? 'max-w-2xl mx-auto w-full'
                   : p.loai === 'video'
-                  ? `flex flex-col lg:flex-row gap-5 w-full items-stretch ${isRoomWide ? 'flex-1 min-h-[calc(100vh-140px)]' : ''}`
+                  ? `flex flex-col lg:flex-row gap-5 w-full ${isRoomWide ? 'items-stretch flex-1 min-h-[calc(100vh-140px)]' : 'items-start'}`
                   : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
