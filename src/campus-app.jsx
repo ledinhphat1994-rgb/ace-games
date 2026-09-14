@@ -1702,6 +1702,77 @@ function DigitalCampusApp() {
     );
   };
 
+  // ─── NOTIFICATION BELL DROPDOWN POPOVER (KHÔNG LÀM ẨN XUNG QUANH) ───────
+  const renderNotificationBell = (title = 'Thông báo') => (
+    <div className="relative">
+      <button
+        type="button"
+        id="btn-header-notif-bell"
+        onClick={() => setShowNotifModal(prev => !prev)}
+        title={title}
+        className="relative p-2 rounded-full bg-[#151A23] border border-white/10 text-slate-300 hover:text-white hover:border-[#00F2FE]/40 transition-all focus:outline-none cursor-pointer">
+        <Ic name="bell" className="w-4 h-4" />
+        {classData.thongBao && classData.thongBao.length > 0 && (
+          <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+        )}
+      </button>
+
+      {/* Backdrop trong suốt bắt sự kiện click-away (hoàn toàn không che tối hay làm ẩn xung quanh) */}
+      {showNotifModal && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowNotifModal(false)}></div>
+      )}
+
+      {/* Dropdown Popover neo ngay tại vị trí nút bấm chuông */}
+      {showNotifModal && (
+        <div
+          id="popover-thong-bao-lop"
+          style={{ overflowAnchor: 'none', backgroundColor: '#151A23' }}
+          className="absolute right-0 top-full mt-2 w-80 sm:w-96 z-50 bg-[#151A23] border border-white/20 rounded-3xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] animate-scaleIn flex flex-col max-h-[80vh]">
+          
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+            <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 flex items-center justify-center text-xs">
+                🔔
+              </span>
+              <span>Thông Báo {tenLopHienTai}</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowNotifModal(false)}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
+              <Ic name="x" className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 max-h-[60vh]">
+            {classData.thongBao && classData.thongBao.length > 0 ? (
+              classData.thongBao.map((tb, idx) => (
+                <div key={tb.id || idx} className="bg-[#0B0E14] border border-white/5 hover:border-white/15 rounded-2xl p-3.5 transition-all">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[11px] font-bold text-[#00F2FE]">{formatDateVN(tb.ngay)}</span>
+                    {tb.ghim && (
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 text-[#FFB800] border border-amber-500/30 font-bold">
+                        Ghim
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-xs font-bold text-white mb-1 leading-snug">{tb.tieuDe}</h4>
+                  <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line">{tb.noiDung}</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-2xl mb-2">🔔</p>
+                <p className="text-xs font-bold text-white mb-1">Chưa có thông báo nào</p>
+                <p className="text-[11px] text-slate-400">Chưa có thông báo trong bảng tin lớp.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // ─── USER PROFILE DROPDOWN (STUDENT / TEACHER PORTAL) ─────────────────────
   const renderUserProfileDropdown = () => (
     <div className="relative">
@@ -1964,12 +2035,8 @@ function DigitalCampusApp() {
                   <span className="text-slate-400">Campus Live</span>
                 </div>
 
-                {/* Bell Notification */}
-                <button onClick={() => setShowNotifModal(true)} title="Thông báo Campus"
-                  className="relative p-2 rounded-full bg-[#151A23] border border-white/10 text-slate-300 hover:text-white hover:border-[#00F2FE]/40 transition-all">
-                  <Ic name="bell" className="w-4 h-4" />
-                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500"></span>
-                </button>
+                {/* Bell Notification Popover (ngay tại vị trí bấm, không làm ẩn xung quanh) */}
+                {renderNotificationBell('Thông báo Campus')}
 
                 {/* Student Avatar & Dropdown Menu */}
                 {renderUserProfileDropdown()}
@@ -2073,12 +2140,8 @@ function DigitalCampusApp() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             </div>
 
-            {/* Bell Notification */}
-            <button onClick={() => setShowNotifModal(true)} title={`Thông báo ${tenLopHienTai}`}
-              className="relative p-2 rounded-full bg-[#151A23] border border-white/10 text-slate-300 hover:text-white hover:border-[#00F2FE]/40 transition-all">
-              <Ic name="bell" className="w-4 h-4" />
-              <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-rose-500"></span>
-            </button>
+            {/* Bell Notification Popover (ngay tại vị trí bấm, không làm ẩn xung quanh) */}
+            {renderNotificationBell(`Thông báo ${tenLopHienTai}`)}
 
             {/* Student Avatar & Dropdown Menu */}
             {renderUserProfileDropdown()}
@@ -3278,42 +3341,7 @@ function DigitalCampusApp() {
       {/* ══════════════════════════════════════════════════════════════════════
            MODAL 2: THÔNG BÁO LỚP 10A7
       ══════════════════════════════════════════════════════════════════════ */}
-      {showNotifModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#151A23] border border-white/15 rounded-3xl p-6 max-w-lg w-full shadow-2xl animate-scaleIn max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <Ic name="bell" className="w-5 h-5 text-[#00F2FE]" />
-                <span>Thông Báo {tenLopHienTai}</span>
-              </h3>
-              <button onClick={() => setShowNotifModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-white">
-                <Ic name="x" className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="overflow-y-auto flex-1 space-y-3 pr-1">
-              {classData.thongBao && classData.thongBao.length > 0 ? (
-                classData.thongBao.map((tb, idx) => (
-                  <div key={tb.id || idx} className="bg-[#0B0E14] border border-white/5 rounded-2xl p-4">
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-xs font-bold text-[#00F2FE]">{formatDateVN(tb.ngay)}</span>
-                      {tb.ghim && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-[#FFB800] font-bold">Ghim</span>}
-                    </div>
-                    <h4 className="text-sm font-bold text-white mb-2">{tb.tieuDe}</h4>
-                    <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-line">{tb.noiDung}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-2xl mb-2">🔔</p>
-                  <p className="text-sm font-bold text-white mb-1">Chưa có thông báo nào</p>
-                  <p className="text-xs text-slate-400">Chưa có thông báo trong bảng tin lớp.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
            MODAL 2.5: SỔ TAY NỘI QUY & VĂN HÓA LỚP 10A7
