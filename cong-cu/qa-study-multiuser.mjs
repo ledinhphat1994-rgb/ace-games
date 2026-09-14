@@ -172,7 +172,7 @@ try {
   await pageA.locator('#input-queue-add').fill(VIDEO_4);
   await pageA.locator('#btn-queue-add-next').click();
   await pageA.waitForTimeout(1200);
-  const txtQueue = await pageA.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+  const txtQueue = await pageA.evaluate(() => (document.getElementById('vung1-youtube-studio')?.innerText || document.body.innerText) || '');
   ok('Queue: +Phát kế đưa VIDEO_4 lên TRƯỚC VIDEO_3', txtQueue.indexOf('ElephantsDream') > -1 && txtQueue.indexOf('ForBiggerEscapes') > -1 && txtQueue.indexOf('ElephantsDream') < txtQueue.indexOf('ForBiggerEscapes'), txtQueue.slice(0, 200));
 
   // Skip → đầu hàng (VIDEO_4) thành đang phát trên cả 2 phía
@@ -185,10 +185,10 @@ try {
   ok('B: skip đồng bộ sang member (VIDEO_4)', vb4 && vb4.src.includes('ElephantsDream'), vb4?.src);
 
   // Remove VIDEO_3 khỏi hàng đợi
-  const rowV3 = pageA.locator('div.rounded-lg', { hasText: 'ForBiggerEscapes' }).first();
+  const rowV3 = pageA.locator('div.rounded-xl', { hasText: 'ForBiggerEscapes' }).first();
   await rowV3.locator('button[title="Xóa khỏi hàng đợi"]').click();
   await pageA.waitForTimeout(1200);
-  const txtQueue2 = await pageA.evaluate(() => document.getElementById('study-dock-container')?.innerText || '');
+  const txtQueue2 = await pageA.evaluate(() => (document.getElementById('vung1-youtube-studio')?.innerText || document.body.innerText) || '');
   ok('Queue: ✕ remove xoá VIDEO_3 khỏi hàng', !txtQueue2.includes('ForBiggerEscapes'));
 
   // ═══ SECTION D — NOTES + MỐC THỜI GIAN ════════════════════════════════════

@@ -37,10 +37,10 @@ export function QueueInput({ onAdd, onAddNext }) {
 }
 
 // ─── STUDY DOCK: KHÔNG GIAN CỘNG TÁC PHÒNG YOUTUBE (PHASE 4F) ────────────────
-export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPhongChat, onXoaTinPhong,
+export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongChat = [], onSendPhongChat, onXoaTinPhong,
   myCaps = {}, isStaff = false, vaiTroPhong = 'member', thanhVien = [],
   policies = null, grants = [], videoTimeRef, seekVideo, hanhDongPhong,
-  canControl = false, dongPhongHienTai }) {
+  canControl: _canControl = false, dongPhongHienTai: _dongPhongHienTai }) {
   const [dockTab, setDockTab] = React.useState('chat'); // 'chat' | 'notes' | 'whiteboard' | 'sheet' | 'voice' | 'quan-tri'
   const [showEmoji, setShowEmoji] = React.useState(false);
 
@@ -638,72 +638,6 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
     setVoiceNotice('Đã ngắt voice.');
   };
 
-  // 6. Video & Queue Config State (Tab config)
-  const [videoMoi, setVideoMoi] = React.useState('');
-  const [dangDoiVideo, setDangDoiVideo] = React.useState(false);
-  const [configLoi, setConfigLoi] = React.useState('');
-  const [queueList, setQueueList] = React.useState([]);
-  const [queueBusy, setQueueBusy] = React.useState(false);
-
-  const taiQueue = async () => {
-    try {
-      const res = await fetch(`/api/phong-queue?phongId=${phong.id}&action=list`);
-      const d = await res.json();
-      if (d.ok) setQueueList(d.queue || []);
-    } catch { }
-  };
-
-  React.useEffect(() => {
-    if (dockTab === 'config') {
-      taiQueue();
-      const timer = setInterval(khiHienThi(taiQueue), 4000);
-      return () => clearInterval(timer);
-    }
-  }, [dockTab, phong.id]);
-
-  const doiVideo = async (url) => {
-    const u = String(url || videoMoi || '').trim();
-    if (!u || dangDoiVideo) return;
-    setDangDoiVideo(true);
-    setConfigLoi('');
-    try {
-      const res = await fetch('/api/phong-watch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u })
-      });
-      const d = await res.json();
-      if (!d.ok) {
-        setConfigLoi(d.loi || 'Không đổi được video.');
-      } else {
-        setVideoMoi('');
-      }
-    } catch {
-      setConfigLoi('Mất kết nối máy chủ.');
-    } finally {
-      setDangDoiVideo(false);
-    }
-  };
-
-  const hanhDongQueue = async (action, extra = {}) => {
-    if (queueBusy) return;
-    setQueueBusy(true);
-    try {
-      const res = await fetch('/api/phong-queue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phongId: phong.id, action, ...extra })
-      });
-      const d = await res.json();
-      if (!d.ok) setConfigLoi(d.loi || 'Thao tác hàng đợi thất bại.');
-      else await taiQueue();
-    } catch {
-      setConfigLoi('Mất kết nối máy chủ.');
-    } finally {
-      setQueueBusy(false);
-    }
-  };
-
   return (
     <div id="study-dock-container" className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full min-h-[420px] lg:min-h-[480px] shadow-xl">
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
@@ -781,20 +715,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
             <span>👥</span>
             <span>Thành viên{thanhVien.length > 0 ? ` (${thanhVien.length})` : ''}</span>
           </button>
-          {(canControl || isStaff) && (
-            <button
-              id="tab-study-config"
-              type="button"
-              onClick={() => setDockTab('config')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                dockTab === 'config'
-                  ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-[0_0_15px_rgba(139,92,246,0.35)] border border-violet-500/50'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 hover:scale-105'
-              }`}>
-              <span>🎥</span>
-              <span>Video</span>
-            </button>
-          )}
+
           {isStaff && (
             <button
               id="tab-study-quan-tri"
@@ -1345,154 +1266,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
           </div>
         )}
 
-        {/* TAB 8: CẤU HÌNH VIDEO & HÀNG ĐỢI (Host / Staff) */}
-        {dockTab === 'config' && (canControl || isStaff) && (
-          <div className="flex-1 flex flex-col gap-3.5 overflow-y-auto max-h-80 lg:max-h-[420px] pr-1 text-xs">
-            {/* 1. Đổi video đang phát */}
-            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-                <span>🎥</span>
-                <span>Đổi video đang phát ngay</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <input
-                  id="input-config-video-moi"
-                  type="url"
-                  value={videoMoi}
-                  onChange={e => setVideoMoi(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && videoMoi.trim()) { e.preventDefault(); doiVideo(); } }}
-                  placeholder="Dán link YouTube / video mới..."
-                  className="flex-1 bg-[#151A23] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
-                />
-                <button
-                  type="button"
-                  id="btn-config-doi-video"
-                  onClick={() => doiVideo()}
-                  disabled={!videoMoi.trim() || dangDoiVideo}
-                  className="px-3 py-1.5 rounded-lg bg-[#00F2FE] text-black font-black text-xs hover:bg-[#00e1ec] active:scale-95 disabled:opacity-30 shrink-0">
-                  {dangDoiVideo ? '...' : '▶ Phát'}
-                </button>
-              </div>
-              {configLoi && <p className="text-[11px] text-rose-400">{configLoi}</p>}
-            </div>
 
-            {/* 2. Hàng đợi video (Queue) */}
-            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <span>📋</span>
-                  <span>Hàng đợi video ({queueList.filter(q => q.trangThai === 'queued').length})</span>
-                </span>
-                {queueList.some(q => q.trangThai === 'queued') && (
-                  <button
-                    type="button"
-                    onClick={() => hanhDongQueue('skip')}
-                    disabled={queueBusy}
-                    className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 disabled:opacity-40">
-                    ⏭ Bỏ qua / Tiếp theo
-                  </button>
-                )}
-              </div>
-
-              {/* Ô thêm video vào queue */}
-              <QueueInput
-                onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
-                onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })}
-              />
-
-              {/* Danh sách queue */}
-              {queueList.length === 0 ? (
-                <p className="text-[11px] text-slate-500 py-2 text-center">Hàng đợi trống — thêm link video để phát lần lượt.</p>
-              ) : (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {queueList.map((q, idx) => (
-                    <div key={q.id || idx} className={`flex items-center gap-2 bg-[#151A23] border rounded-lg p-2 transition-all ${q.trangThai === 'playing' ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.12)]' : 'border-white/5'}`}>
-                      <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${q.trangThai === 'playing' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-400'}`}>
-                        {q.trangThai === 'playing' ? '▶' : idx + 1}
-                      </span>
-                      {q.thumb && <img src={q.thumb} alt="" className="w-10 h-6 rounded object-cover shrink-0" loading="lazy" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-slate-200 font-medium truncate">{q.title || q.videoUrl}</p>
-                        <p className="text-[9px] text-slate-500 truncate">thêm bởi {q.addedBy || '—'}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {q.trangThai === 'queued' && (
-                          <button
-                            type="button"
-                            title="Phát ngay"
-                            onClick={() => hanhDongQueue('play_now', { id: q.id })}
-                            disabled={queueBusy}
-                            className="w-6 h-6 rounded bg-[#00F2FE]/15 text-[#00F2FE] text-[10px] font-black hover:bg-[#00F2FE]/25">
-                            ▶
-                          </button>
-                        )}
-                        {q.trangThai === 'queued' && (
-                          <button
-                            type="button"
-                            title="Xóa khỏi hàng đợi"
-                            onClick={() => hanhDongQueue('remove', { id: q.id })}
-                            disabled={queueBusy}
-                            className="w-6 h-6 rounded bg-rose-500/15 text-rose-300 text-[10px] font-black hover:bg-rose-500/25">
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Tùy chọn phòng & Đóng phòng */}
-            <div className="bg-[#0B0E14] border border-white/10 rounded-xl p-3 flex flex-col gap-2.5">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                ⚙️ Thao tác phòng
-              </span>
-
-              {/* Đổi/bỏ mật khẩu */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="password"
-                  placeholder="Mật khẩu mới (để trống = bỏ)"
-                  id="input-config-mat-khau-moi"
-                  maxLength={100}
-                  className="flex-1 bg-[#151A23] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]/50"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const el = document.getElementById('input-config-mat-khau-moi');
-                    const mk = el?.value || '';
-                    const d = mk.trim()
-                      ? await hanhDongPhong?.('doi_mat_khau', { matKhauMoi: mk.trim() })
-                      : await hanhDongPhong?.('bo_mat_khau', {});
-                    if (d && !d.ok) alert(d.loi || 'Không đổi được mật khẩu.');
-                    else alert('Đã cập nhật mật khẩu phòng thành công.');
-                    if (el) el.value = '';
-                  }}
-                  className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/25 shrink-0">
-                  Đổi MK
-                </button>
-              </div>
-
-              {/* Nút đóng phòng */}
-              {dongPhongHienTai && phong.chuPhongKhoa !== 'he-thong' && (
-                <button
-                  type="button"
-                  id="btn-config-dong-phong"
-                  onClick={() => {
-                    if (confirm('Bạn có chắc chắn muốn đóng phòng học này không?')) {
-                      dongPhongHienTai();
-                    }
-                  }}
-                  className="w-full py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all flex items-center justify-center gap-1.5">
-                  <span>🛑</span>
-                  <span>Đóng phòng học này</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* TAB 6: QUẢN TRỊ PHÒNG (staff only) — policy matrix + member actions */}
         {dockTab === 'quan-tri' && isStaff && (
@@ -1658,13 +1432,15 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
 
 export function CampusWatchTogether({
   phong,
-  phongMinhKhoa,
+  phongMinhKhoa: _phongMinhKhoa,
   auth,
-  dongPhongHienTai,
-  soNguoi,
+  dongPhongHienTai: _dongPhongHienTai,
+  soNguoi: _soNguoi,
   myCaps,
   videoTimeRef,
   isRoomWide,
+  hanhDongPhong: _hanhDongPhong,
+  isStaff = false,
 }) {
   const [watchState, setWatchState] = useState({
     playing: false,
@@ -1676,8 +1452,10 @@ export function CampusWatchTogether({
     serverNow: '',
     updatedBy: ''
   });
-  const [canControl, setCanControl] = useState(Boolean(auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong));
-  const [watchCaps, setWatchCaps] = useState({});
+  const [canControl, setCanControl] = useState(Boolean(
+    auth?.user?.isTeacher || phong?.canControl || phong?.laChuPhong || myCaps?.video_control || myCaps?.video_change || isStaff
+  ));
+  const [_watchCaps, setWatchCaps] = useState({});
   const getInitialVideoUrl = () => {
     let c = {};
     try { c = phong?.cauHinh ? JSON.parse(phong.cauHinh) : {}; } catch { }
@@ -1701,11 +1479,152 @@ export function CampusWatchTogether({
   const [dangGuiLenh, setDangGuiLenh] = useState(false);
   const [loi, setLoi] = useState('');
 
+  // ─── CẤU HÌNH VIDEO, TÌM KIẾM YOUTUBE & HÀNG ĐỢI TẠI VÙNG 1 ───
+  const [mediaTab, setMediaTab] = useState('search'); // 'search' | 'queue'
+  const [videoMoi, setVideoMoi] = useState('');
+  const [dangDoiVideo, setDangDoiVideo] = useState(false);
+  const [loiVideo, setLoiVideo] = useState('');
+  const [thongBaoVideo, setThongBaoVideo] = useState('');
+
+  // YouTube Search State
+  const [ytQuery, setYtQuery] = useState('');
+  const [ytResults, setYtResults] = useState([]);
+  const [searchingYt, setSearchingYt] = useState(false);
+  const [searchLoi, setSearchLoi] = useState('');
+
+  // Queue State
+  const [queueList, setQueueList] = useState([]);
+  const [queueBusy, setQueueBusy] = useState(false);
+  const [daMoRongStudio, setDaMoRongStudio] = useState(true);
+
   useEffect(() => {
-    if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher) {
+    if (phong?.canControl || phong?.laChuPhong || auth?.user?.isTeacher || myCaps?.video_control || myCaps?.video_change || isStaff) {
       setCanControl(true);
     }
-  }, [phong?.canControl, phong?.laChuPhong, auth?.user?.isTeacher]);
+  }, [phong?.canControl, phong?.laChuPhong, auth?.user?.isTeacher, myCaps, isStaff]);
+
+  // Tải danh sách hàng đợi từ server
+  const taiQueue = async () => {
+    try {
+      const res = await fetch(`/api/phong-queue?phongId=${phong.id}&action=list`);
+      const d = await res.json();
+      if (d.ok) setQueueList(d.queue || []);
+    } catch {}
+  };
+
+  useEffect(() => {
+    taiQueue();
+    const timer = setInterval(khiHienThi(taiQueue), 4000);
+    return () => clearInterval(timer);
+  }, [phong.id]);
+
+  // Đổi video đang phát
+  const doiVideo = async (url, title) => {
+    const u = String(url || videoMoi || ytQuery || '').trim();
+    if (!u || dangDoiVideo) return;
+    setDangDoiVideo(true);
+    setLoiVideo('');
+    try {
+      const res = await fetch('/api/phong-watch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u })
+      });
+      const d = await res.json();
+      if (!d.ok) {
+        setLoiVideo(d.loi || 'Không đổi được video.');
+      } else {
+        setActiveVideoUrl(u);
+        setProvider(getInitialProvider(u));
+        setVideoMoi('');
+        setThongBaoVideo(`Đang phát: ${title || u}`);
+        setTimeout(() => setThongBaoVideo(''), 4000);
+        taiQueue();
+      }
+    } catch {
+      setLoiVideo('Mất kết nối máy chủ.');
+    } finally {
+      setDangDoiVideo(false);
+    }
+  };
+
+  // Tìm kiếm YouTube
+  const timKiemYouTube = async (e, tuKhoa) => {
+    e?.preventDefault();
+    const q = String(tuKhoa || ytQuery || '').trim();
+    if (!q || searchingYt) return;
+    if (tuKhoa) setYtQuery(tuKhoa);
+
+    // Nếu người dùng dán liên kết video YouTube
+    const idYt = idYoutube(q);
+    if (idYt) {
+      setYtResults([{
+        videoId: idYt,
+        title: 'Video YouTube (từ liên kết đã dán)',
+        channelTitle: 'YouTube',
+        thumbnail: `https://i.ytimg.com/vi/${idYt}/hqdefault.jpg`,
+        publishedAt: 'Trực tiếp'
+      }]);
+      setSearchLoi('');
+      setMediaTab('search');
+      return;
+    }
+
+    setSearchingYt(true);
+    setSearchLoi('');
+    try {
+      const res = await fetch(`/api/youtube-search?q=${encodeURIComponent(q)}`);
+      const d = await res.json();
+      if (d.ok && Array.isArray(d.items)) {
+        if (d.items.length === 0) {
+          setSearchLoi('Không tìm thấy video nào phù hợp với từ khóa này.');
+        } else {
+          setYtResults(d.items);
+          setMediaTab('search');
+        }
+      } else {
+        setSearchLoi(d.loi || 'Không thể tìm kiếm video lúc này.');
+      }
+    } catch {
+      setSearchLoi('Lỗi kết nối khi tìm kiếm YouTube.');
+    } finally {
+      setSearchingYt(false);
+    }
+  };
+
+  // Thao tác hàng đợi (enqueue, add_next, play_now, skip, remove)
+  const hanhDongQueue = async (action, extra = {}) => {
+    if (queueBusy) return;
+    setQueueBusy(true);
+    setLoiVideo('');
+    try {
+      const res = await fetch('/api/phong-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phongId: phong.id, action, ...extra })
+      });
+      const d = await res.json();
+      if (!d.ok) {
+        setLoiVideo(d.loi || 'Thao tác hàng đợi thất bại.');
+      } else {
+        if (action === 'enqueue') {
+          setThongBaoVideo(`Đã thêm vào cuối hàng đợi: ${extra.title || 'Video'}`);
+          setTimeout(() => setThongBaoVideo(''), 3500);
+        } else if (action === 'add_next') {
+          setThongBaoVideo(`Đã thêm phát kế tiếp: ${extra.title || 'Video'}`);
+          setTimeout(() => setThongBaoVideo(''), 3500);
+        } else if (action === 'play_now' || action === 'skip') {
+          setThongBaoVideo('Đang chuyển video...');
+          setTimeout(() => setThongBaoVideo(''), 3000);
+        }
+        await taiQueue();
+      }
+    } catch {
+      setLoiVideo('Mất kết nối máy chủ.');
+    } finally {
+      setQueueBusy(false);
+    }
+  };
 
   const videoRef = useRef(null);
   const ytPlayerRef = useRef(null);
@@ -1784,6 +1703,9 @@ export function CampusWatchTogether({
                   guiLenh('play', event.target.getCurrentTime());
                 } else if (event.data === 2 && watchState.playing) {
                   guiLenh('pause', event.target.getCurrentTime());
+                } else if (event.data === 0) {
+                  // Video YouTube kết thúc -> tự động chuyển sang video tiếp theo trong hàng đợi
+                  hanhDongQueue('skip');
                 }
               }
             }
@@ -2069,6 +1991,9 @@ export function CampusWatchTogether({
                 guiLenh('pause', videoRef.current?.currentTime);
               }
             }}
+            onEnded={() => {
+              if (canControl) hanhDongQueue('skip');
+            }}
             onSeeked={() => {
               if (!canControl || dangGuiLenh || isSeekingRef.current) return;
               const cur = videoRef.current?.currentTime;
@@ -2158,6 +2083,387 @@ export function CampusWatchTogether({
         {phong.moTa && <p className="text-[11px] text-slate-400 leading-relaxed pt-1">{phong.moTa}</p>}
 
       </div>
+      )}
+
+      {/* ─── VÙNG 1: TRUNG TÂM CẤU HÌNH VIDEO & HÀNG ĐỢI YOUTUBE TRỰC TIẾP ─── */}
+      {!isRoomWide && (
+        <div id="vung1-youtube-studio" className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-xl">
+          {/* Header trung tâm */}
+          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00F2FE]/20 to-violet-500/20 text-[#00F2FE] border border-[#00F2FE]/30 flex items-center justify-center text-sm shadow-[0_0_12px_rgba(0,242,254,0.25)]">
+                🎬
+              </span>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
+                  <span>Cấu hình Video & Hàng đợi YouTube</span>
+                  {queueList.filter(q => q.trangThai === 'queued').length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/30 text-[10px] font-bold">
+                      {queueList.filter(q => q.trangThai === 'queued').length} đang chờ
+                    </span>
+                  )}
+                </h4>
+                <p className="text-[10px] text-slate-400">Tìm kiếm video, đưa vào hàng chờ và chạy video khác đồng bộ cả phòng</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Tab selector */}
+              <div className="flex items-center bg-[#0B0E14] p-1 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  id="btn-media-tab-search"
+                  onClick={() => setMediaTab('search')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
+                    mediaTab === 'search'
+                      ? 'bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}>
+                  <span>🔍</span>
+                  <span>Tìm YouTube</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-media-tab-queue"
+                  onClick={() => setMediaTab('queue')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
+                    mediaTab === 'queue'
+                      ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}>
+                  <span>📋</span>
+                  <span>Hàng đợi ({queueList.filter(q => q.trangThai === 'queued').length})</span>
+                </button>
+              </div>
+
+              {/* Toggle thu gọn */}
+              <button
+                type="button"
+                id="btn-toggle-studio"
+                onClick={() => setDaMoRongStudio(!daMoRongStudio)}
+                title={daMoRongStudio ? 'Thu gọn' : 'Mở rộng'}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center text-xs font-bold transition-all">
+                {daMoRongStudio ? '▲' : '▼'}
+              </button>
+            </div>
+          </div>
+
+          {/* Toast thông báo / Lỗi */}
+          {thongBaoVideo && (
+            <div className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+              <span>✨</span>
+              <span>{thongBaoVideo}</span>
+            </div>
+          )}
+          {loiVideo && (
+            <div className="px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+              <span>⚠️</span>
+              <span>{loiVideo}</span>
+            </div>
+          )}
+
+          {daMoRongStudio && (
+            <>
+              {/* TAB 1: TÌM KIẾM YOUTUBE & ĐỔI VIDEO */}
+              {mediaTab === 'search' && (
+                <div className="flex flex-col gap-3">
+                  {/* Ô tìm kiếm / dán link đa năng */}
+                  <form onSubmit={(e) => timKiemYouTube(e)} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                        <input
+                          id="input-vung1-youtube-search"
+                          type="text"
+                          value={ytQuery}
+                          onChange={e => setYtQuery(e.target.value)}
+                          placeholder="Nhập từ khóa tìm kiếm YouTube (vd: lofi học bài...) hoặc dán link video..."
+                          className="w-full bg-[#0B0E14] border border-white/10 focus:border-[#00F2FE]/60 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        id="btn-vung1-tim-kiem"
+                        disabled={!ytQuery.trim() || searchingYt}
+                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#38bdf8] text-black font-black text-xs hover:brightness-110 active:scale-95 transition-all shadow-md disabled:opacity-40 whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                        {searchingYt ? (
+                          <>
+                            <span className="animate-spin">⏳</span>
+                            <span>Đang tìm...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🔍</span>
+                            <span>Tìm kiếm</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Action buttons phụ khi ô input là 1 link video trực tiếp */}
+                    {Boolean(ytQuery.trim().startsWith('http://') || ytQuery.trim().startsWith('https://') || ytQuery.includes('youtu')) && (
+                      <div className="flex items-center gap-2 p-2 rounded-xl bg-[#0B0E14]/80 border border-[#00F2FE]/20 flex-wrap animate-fadeIn">
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <span>🔗</span>
+                          <span>Phát hiện liên kết video:</span>
+                        </span>
+                        <button
+                          type="button"
+                          id="btn-vung1-phat-ngay-link"
+                          onClick={() => doiVideo(ytQuery.trim(), 'Video từ liên kết')}
+                          disabled={dangDoiVideo}
+                          className="px-2.5 py-1 rounded-lg bg-[#00F2FE] text-black text-xs font-black hover:bg-[#00e1ec] active:scale-95 shadow-sm">
+                          ▶ Phát ngay cả phòng
+                        </button>
+                        <button
+                          type="button"
+                          id="btn-vung1-enqueue-link"
+                          onClick={() => hanhDongQueue('enqueue', { videoUrl: ytQuery.trim(), title: 'Video từ liên kết' })}
+                          disabled={queueBusy}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/30">
+                          + Thêm vào cuối hàng đợi
+                        </button>
+                        <button
+                          type="button"
+                          id="btn-vung1-add-next-link"
+                          onClick={() => hanhDongQueue('add_next', { videoUrl: ytQuery.trim(), title: 'Video từ liên kết' })}
+                          disabled={queueBusy}
+                          className="px-2.5 py-1 rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-bold hover:bg-violet-500/30">
+                          + Phát kế tiếp
+                        </button>
+                      </div>
+                    )}
+                  </form>
+
+                  {/* Trạng thái lỗi tìm kiếm */}
+                  {searchLoi && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                      <span>⚠️ {searchLoi}</span>
+                      <button type="button" onClick={() => setSearchLoi('')} className="text-amber-400 font-bold hover:underline">Đóng</button>
+                    </div>
+                  )}
+
+                  {/* Kết quả tìm kiếm YouTube */}
+                  {ytResults.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                          <span>📺</span>
+                          <span>Kết quả YouTube ({ytResults.length} video):</span>
+                        </span>
+                        <button
+                          type="button"
+                          id="btn-vung1-dong-ket-qua"
+                          onClick={() => { setYtResults([]); setSearchLoi(''); }}
+                          className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] font-bold">
+                          ✕ Đóng kết quả
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {ytResults.map((item, idx) => {
+                          const vUrl = `https://www.youtube.com/watch?v=${item.videoId}`;
+                          return (
+                            <div
+                              key={item.videoId || idx}
+                              className="group bg-[#0B0E14] hover:bg-[#121721] border border-white/10 hover:border-[#00F2FE]/30 rounded-xl p-2.5 flex items-center gap-3 transition-all">
+                              {/* Thumbnail */}
+                              <div className="relative w-24 sm:w-28 aspect-video rounded-lg overflow-hidden bg-black shrink-0 border border-white/5">
+                                <img
+                                  src={item.thumbnail}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                                <span className="absolute bottom-1 right-1 bg-black/80 px-1 py-0.2 rounded text-[9px] font-mono text-white">
+                                  YouTube
+                                </span>
+                              </div>
+
+                              {/* Thông tin video */}
+                              <div className="flex-1 min-w-0">
+                                <h5 className="text-xs font-bold text-slate-200 line-clamp-2 group-hover:text-[#00F2FE] transition-colors" title={item.title}>
+                                  {item.title}
+                                </h5>
+                                <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 truncate">
+                                  <span>{item.channelTitle || 'Kênh YouTube'}</span>
+                                  {item.publishedAt && <span>• {item.publishedAt}</span>}
+                                </div>
+                              </div>
+
+                              {/* Bộ 3 nút thao tác */}
+                              <div className="flex flex-col sm:flex-row items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  title="Chạy video này ngay lập tức cho cả phòng"
+                                  onClick={() => doiVideo(vUrl, item.title)}
+                                  disabled={dangDoiVideo}
+                                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00F2FE] to-[#00c6ff] text-black font-black text-[11px] shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  ▶ Phát ngay
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Thêm vào cuối hàng đợi"
+                                  onClick={() => hanhDongQueue('enqueue', { videoUrl: vUrl, title: item.title })}
+                                  disabled={queueBusy}
+                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 text-[11px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  + Hàng chờ
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Thêm để phát kế tiếp sau video hiện tại"
+                                  onClick={() => hanhDongQueue('add_next', { videoUrl: vUrl, title: item.title })}
+                                  disabled={queueBusy}
+                                  className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-violet-500/25 text-[10px] font-bold active:scale-95 disabled:opacity-40 whitespace-nowrap">
+                                  + Kế tiếp
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Gợi ý từ khóa tìm kiếm nhanh khi chưa search */
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        Gợi ý chủ đề học tập & thư giãn:
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[
+                          { label: '🎧 Lofi học tập', q: 'lofi hip hop radio beats to relax study to' },
+                          { label: '🌧️ Tiếng mưa & Piano', q: 'rain sounds relaxing piano study focus' },
+                          { label: '☕ Nhạc quán cà phê', q: 'coffee shop jazz piano chill study' },
+                          { label: '📚 Tập trung ôn thi', q: 'study music alpha waves concentration' },
+                          { label: '🔬 Thí nghiệm Hóa học', q: 'thí nghiệm hóa học thú vị' },
+                        ].map((chip) => (
+                          <button
+                            key={chip.q}
+                            type="button"
+                            onClick={(e) => timKiemYouTube(e, chip.q)}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-[#00F2FE] border border-white/10 text-[11px] transition-all cursor-pointer">
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 2: QUẢN LÝ HÀNG ĐỢI (QUEUE) */}
+              {mediaTab === 'queue' && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <span>📋</span>
+                      <span>Hàng đợi video ({queueList.filter(q => q.trangThai === 'queued').length} chờ)</span>
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {queueList.some(q => q.trangThai === 'queued') && (
+                        <button
+                          type="button"
+                          id="btn-vung1-queue-skip"
+                          onClick={() => hanhDongQueue('skip')}
+                          disabled={queueBusy}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold hover:bg-amber-500/25 disabled:opacity-40 flex items-center gap-1 cursor-pointer">
+                          <span>⏭</span>
+                          <span>Bỏ qua / Bài tiếp</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={taiQueue}
+                        title="Làm mới hàng đợi"
+                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs border border-white/10 cursor-pointer">
+                        🔄
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Thêm link nhanh vào queue */}
+                  <QueueInput
+                    onAdd={(u, t) => hanhDongQueue('enqueue', { videoUrl: u, title: t })}
+                    onAddNext={(u, t) => hanhDongQueue('add_next', { videoUrl: u, title: t })}
+                  />
+
+                  {/* Danh sách video trong hàng đợi */}
+                  {queueList.length === 0 ? (
+                    <div className="p-5 rounded-xl bg-[#0B0E14] border border-white/5 text-center text-xs text-slate-400 flex flex-col items-center gap-1.5">
+                      <span className="text-2xl">📋</span>
+                      <p className="font-bold text-slate-300">Hàng đợi hiện đang trống</p>
+                      <p className="text-[11px] text-slate-500 max-w-sm">
+                        Chuyển sang tab <strong>Tìm YouTube</strong> hoặc dán liên kết vào ô trên để phát lần lượt các bài học & video giải trí.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {queueList.map((q, idx) => (
+                        <div
+                          key={q.id || idx}
+                          className={`flex items-center gap-2.5 bg-[#0B0E14] border rounded-xl p-2 transition-all ${
+                            q.trangThai === 'playing'
+                              ? 'border-emerald-500/40 shadow-[0_0_15px_rgba(52,211,153,0.15)] bg-emerald-950/20'
+                              : 'border-white/5 hover:border-white/15'
+                          }`}>
+                          <span
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black shrink-0 ${
+                              q.trangThai === 'playing'
+                                ? 'bg-emerald-500 text-black shadow-[0_0_10px_rgba(52,211,153,0.4)]'
+                                : 'bg-white/10 text-slate-400'
+                            }`}>
+                            {q.trangThai === 'playing' ? '▶' : idx + 1}
+                          </span>
+
+                          {q.thumb && (
+                            <img src={q.thumb} alt="" className="w-12 h-7 rounded-md object-cover shrink-0 border border-white/10" loading="lazy" />
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-slate-200 font-bold truncate">
+                              {q.title || q.videoUrl}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {q.trangThai === 'playing' ? (
+                                <span className="text-emerald-400 font-bold">● Đang phát</span>
+                              ) : (
+                                <span>Thêm bởi: {q.addedBy || 'Thành viên'}</span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {q.trangThai === 'queued' && (
+                              <button
+                                type="button"
+                                title="Phát video này ngay"
+                                onClick={() => hanhDongQueue('play_now', { id: q.id })}
+                                disabled={queueBusy}
+                                className="px-2.5 py-1 rounded-lg bg-[#00F2FE]/20 text-[#00F2FE] hover:bg-[#00F2FE]/30 text-xs font-black active:scale-95 cursor-pointer">
+                                ▶ Phát
+                              </button>
+                            )}
+                            {q.trangThai === 'queued' && (
+                              <button
+                                type="button"
+                                title="Xóa khỏi hàng đợi"
+                                onClick={() => hanhDongQueue('remove', { id: q.id })}
+                                disabled={queueBusy}
+                                className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 text-xs font-black flex items-center justify-center active:scale-95 cursor-pointer">
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
 

@@ -2513,6 +2513,8 @@ function DigitalCampusApp() {
                       myCaps={phongMyCaps}
                       videoTimeRef={phongVideoTimeRef}
                       isRoomWide={isRoomWide}
+                      hanhDongPhong={hanhDongPhong}
+                      isStaff={phongIsStaff}
                     />
                   ) : p.loai === 'nhac' ? (
                     <CampusFocusRoom
