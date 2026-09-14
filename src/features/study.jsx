@@ -1791,8 +1791,6 @@ export function CampusWatchTogether({
     } else {
       // Người tham gia: Đánh dấu đã dừng, không tự chạy tiếp nếu không có lệnh bật lại
       setViewerIsPaused(true);
-      isLiveWithHostRef.current = false;
-      setIsLiveWithHost(false);
     }
   };
 
@@ -2139,6 +2137,22 @@ export function CampusWatchTogether({
       return;
     }
 
+    // Nếu video đã chạm đến điểm cuối (targetPos >= maxDur) và maxDur > 0:
+    // Người xem phải dừng lại tại điểm cuối, không được tiếp tục chạy hay trôi thời gian
+    if (maxDur > 0 && targetPos >= maxDur) {
+      setLocalTime(Math.floor(maxDur));
+      if (prov === 'NATIVE_HTML5' && videoRef.current) {
+        try { videoRef.current.pause(); } catch {}
+      } else if (prov === 'YOUTUBE') {
+        const p = ytPlayerRef.current;
+        const ifr = document.getElementById(ytContainerId);
+        if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
+        ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+      }
+      setViewerIsPaused(true);
+      return;
+    }
+
     const isNewRevision = lastAppliedRevisionRef.current !== null && st.revision !== lastAppliedRevisionRef.current;
     if (lastAppliedRevisionRef.current === null) {
       lastAppliedRevisionRef.current = st.revision;
@@ -2156,10 +2170,12 @@ export function CampusWatchTogether({
           v.currentTime = targetPos;
           if (hasInteracted || hasInteractedRef.current) v.play().catch(() => {});
           setLocalTime(Math.floor(targetPos));
+          setViewerIsPaused(false);
         } else {
           v.pause();
           v.currentTime = Number(st.positionSeconds || 0);
           setLocalTime(Math.floor(Number(st.positionSeconds || 0)));
+          setViewerIsPaused(true);
         }
         return;
       }
@@ -2210,6 +2226,7 @@ export function CampusWatchTogether({
           if (p?.seekTo) { try { p.seekTo(pSec, true); } catch {} }
           ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [pSec, true] }), '*');
           setLocalTime(Math.floor(pSec));
+          setViewerIsPaused(true);
         } else {
           // Chủ phòng bấm Phát tiếp hoặc vừa Tua thời gian: Lập tức tua và phát y chang chủ phòng
           if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
@@ -2219,6 +2236,7 @@ export function CampusWatchTogether({
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
           }
           setLocalTime(Math.floor(targetPos));
+          setViewerIsPaused(false);
         }
         return;
       }
