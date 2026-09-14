@@ -37,10 +37,10 @@ export function QueueInput({ onAdd, onAddNext }) {
 }
 
 // ─── STUDY DOCK: KHÔNG GIAN CỘNG TÁC PHÒNG YOUTUBE (PHASE 4F) ────────────────
-export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongChat = [], onSendPhongChat, onXoaTinPhong,
+export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPhongChat, onXoaTinPhong,
   myCaps = {}, isStaff = false, vaiTroPhong = 'member', thanhVien = [],
   policies = null, grants = [], videoTimeRef, seekVideo, hanhDongPhong,
-  canControl: _canControl = false, dongPhongHienTai: _dongPhongHienTai }) {
+  canControl: _canControl = false, dongPhongHienTai: _dongPhongHienTai, isRoomWide = false }) {
   const [dockTab, setDockTab] = React.useState('chat'); // 'chat' | 'notes' | 'whiteboard' | 'sheet' | 'voice' | 'quan-tri'
   const [showEmoji, setShowEmoji] = React.useState(false);
 
@@ -639,9 +639,9 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
   };
 
   return (
-    <div id="study-dock-container" className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full min-h-[420px] lg:min-h-[480px] shadow-xl">
+    <div id="study-dock-container" className={`bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full flex-1 shadow-xl ${isRoomWide ? 'min-h-[calc(100vh-160px)]' : 'min-h-[580px] lg:min-h-[640px]'}`}>
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
-      <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
+      <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           <button
             id="tab-study-chat"
@@ -734,52 +734,94 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
       </div>
 
       {/* Dock Content Body */}
-      <div className="flex-1 flex flex-col pt-3 min-h-[300px]">
+      <div className="flex-1 flex flex-col pt-3 min-h-0 h-full overflow-hidden">
         {/* TAB 1: CHAT PHÒNG */}
         {dockTab === 'chat' && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-72 lg:max-h-[380px] xl:max-h-[440px] text-xs">
+          <div className="flex-1 flex flex-col min-h-0 h-full">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0 text-xs">
               {phongChat.length === 0 ? (
                 <p className="text-[11px] text-slate-500 text-center py-8">Chưa có tin nhắn — hãy gửi câu hỏi hoặc trao đổi về bài giảng!</p>
               ) : (
-                phongChat.map((m, idx) => (
-                  <div key={m.id || idx} className="text-xs group">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-bold text-slate-300 text-[11px]">{m.tenNguoiGui}</span>
-                      {m.vaiTro === 'giao_vien' ? (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">GVCN</span>
-                      ) : m.lopTen ? (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/20">{m.lopTen}</span>
-                      ) : null}
-                      <span className="text-[10px] text-slate-500">
-                        {m.taoLuc ? new Date(m.taoLuc.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                      {isStaff && (
-                        <button
-                          type="button"
-                          title="Xoá tin nhắn này (quản trị phòng)"
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/phong-chat?phongId=${phong.id}&id=${m.id}`, { method: 'DELETE' });
-                              const d = await res.json();
-                              if (d.ok && onXoaTinPhong) onXoaTinPhong(m.id);
-                            } catch { /* bỏ qua */ }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 px-1 text-[9px] text-slate-500 hover:text-rose-400 transition-all">
-                          ✕
-                        </button>
-                      )}
+                phongChat.map((m, idx) => {
+                  const myName = String(auth?.user?.hoTen || auth?.user?.name || auth?.user?.ten || '').trim();
+                  const laChinhMinh = Boolean(
+                    m.cuaToi ||
+                    (m.khoa && phongMinhKhoa && m.khoa === phongMinhKhoa) ||
+                    (myName && m.tenNguoiGui && m.tenNguoiGui.trim().toLowerCase() === myName.toLowerCase())
+                  );
+                  const timeStr = m.taoLuc ? new Date(m.taoLuc.replace(' ', 'T') + (m.taoLuc.includes('T') ? '' : 'Z')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                  return (
+                    <div
+                      key={m.id || idx}
+                      className={`flex flex-col group w-full ${
+                        laChinhMinh ? 'items-end' : 'items-start'
+                      }`}>
+                      {/* Header thông tin người gửi */}
+                      <div className={`flex items-center gap-1.5 mb-1 text-[11px] ${laChinhMinh ? 'flex-row-reverse' : ''}`}>
+                        <span className={`font-extrabold ${laChinhMinh ? 'text-[#00F2FE]' : 'text-slate-200'}`}>
+                          {m.tenNguoiGui}
+                        </span>
+                        {laChinhMinh && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm">
+                            Bạn
+                          </span>
+                        )}
+                        {m.vaiTro === 'giao_vien' ? (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            GVCN
+                          </span>
+                        ) : m.lopTen ? (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#00F2FE]/15 text-[#00F2FE] border border-[#00F2FE]/20">
+                            {m.lopTen}
+                          </span>
+                        ) : null}
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {timeStr}
+                        </span>
+                        {isStaff && (
+                          <button
+                            type="button"
+                            title="Xoá tin nhắn này (quản trị phòng)"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/phong-chat?phongId=${phong.id}&id=${m.id}`, { method: 'DELETE' });
+                                const d = await res.json();
+                                if (d.ok && onXoaTinPhong) onXoaTinPhong(m.id);
+                              } catch { /* bỏ qua */ }
+                            }}
+                            className="opacity-0 group-hover:opacity-100 px-1 text-[9px] text-slate-500 hover:text-rose-400 transition-all cursor-pointer">
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Bubble tin nhắn */}
+                      <div
+                        className={`max-w-[85%] sm:max-w-[78%] px-3.5 py-2 text-xs leading-relaxed break-words shadow-md transition-all ${
+                          laChinhMinh
+                            ? 'rounded-2xl rounded-tr-xs bg-gradient-to-r from-[#00b4d8]/25 via-[#0077b6]/30 to-[#00F2FE]/20 border border-[#00F2FE]/40 text-white shadow-[0_0_15px_rgba(0,242,254,0.12)]'
+                            : 'rounded-2xl rounded-tl-xs bg-[#0B0E14] border border-white/10 hover:border-white/20 text-slate-200'
+                        }`}>
+                        <p className="whitespace-pre-wrap">{m.noiDung}</p>
+                        {m.videoTimeSec != null && m.videoTimeSec > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => yeuCauTua(m.videoTimeSec)}
+                            className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-cyan-400/20 text-[#00F2FE] border border-[#00F2FE]/30 hover:bg-[#00F2FE]/30 transition-all cursor-pointer">
+                            <span>▶</span>
+                            <span>{dinhDangGiayPhut(m.videoTimeSec)}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <p className="bg-[#0B0E14] border border-white/5 hover:border-[#00F2FE]/15 rounded-xl px-3 py-2 text-slate-200 text-xs leading-relaxed break-words transition-colors">
-                      {m.noiDung}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSendRoomChat} className="pt-2 border-t border-white/8 flex flex-col gap-2 mt-auto">
+            <form onSubmit={handleSendRoomChat} className="pt-2 border-t border-white/8 flex flex-col gap-2 mt-auto shrink-0">
               {/* Emoji panel */}
               {showEmoji && (
                 <div className="flex flex-wrap gap-1 p-2 bg-[#0B0E14] border border-white/10 rounded-2xl">
@@ -840,12 +882,12 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
 
         {/* TAB 2: GHI CHÚ CỘNG TÁC — entry append, có gắn mốc video */}
         {dockTab === 'notes' && (
-          <div className="flex-1 flex flex-col gap-2">
-            <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex-1 flex flex-col gap-2 min-h-0 h-full">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 shrink-0">
               <span>Ghi chú chung của phòng — mỗi người thêm một dòng, có thể gắn mốc video</span>
               {notesNotice && <span className="text-rose-300 font-bold">{notesNotice}</span>}
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-64 min-h-[180px] bg-[#0B0E14] border border-white/10 rounded-xl p-2.5">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0 bg-[#0B0E14] border border-white/10 rounded-xl p-2.5">
               {notesList.length === 0 ? (
                 <p className="text-[11px] text-slate-500 text-center py-8">Chưa có ghi chú — thêm dòng đầu tiên cho cả phòng.</p>
               ) : (
@@ -923,7 +965,7 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
 
         {/* TAB 3: BẢNG VẼ CỘNG TÁC (SHARED WHITEBOARD) */}
         {dockTab === 'whiteboard' && (
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-2 min-h-0 h-full">
             <div className="flex items-center justify-between gap-2 flex-wrap text-xs pb-1">
               <div className="flex items-center gap-2">
                 <button
@@ -992,11 +1034,11 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
 
         {/* TAB 4: BẢNG TÍNH CỘNG TÁC (SHARED SHEET 8x10) */}
         {dockTab === 'sheet' && (
-          <div className="flex-1 flex flex-col gap-2 overflow-x-auto">
-            <div className="text-[11px] text-slate-400">
+          <div className="flex-1 flex flex-col gap-2 overflow-x-auto min-h-0 h-full">
+            <div className="text-[11px] text-slate-400 shrink-0">
               Bảng tính phân tích số liệu / mốc thời gian học tập (Lưu tự động)
             </div>
-            <div className="flex-1 overflow-auto max-h-72 border border-white/10 rounded-xl bg-[#0B0E14]">
+            <div className="flex-1 overflow-auto border border-white/10 rounded-xl bg-[#0B0E14] min-h-0">
               <table id="study-sheet-table" className="w-full text-xs text-slate-300 border-collapse">
                 <thead>
                   <tr className="bg-white/5 text-slate-400 border-b border-white/10 font-mono">
@@ -1149,7 +1191,7 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
 
         {/* TAB 7: THÀNH VIÊN TRONG PHÒNG */}
         {dockTab === 'members' && (
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-80 lg:max-h-[420px] pr-1">
+          <div className="flex-1 flex flex-col gap-3 min-h-0 h-full">
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <span>👥</span>
@@ -1160,7 +1202,7 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
               </span>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 min-h-0">
               {thanhVien.map((tv, idx) => {
                 const laHost = tv.laChuPhong === 1 || tv.vaiTroPhong === 'host';
                 const laGV = tv.vaiTro === 'giao_vien';
@@ -1270,7 +1312,7 @@ export function StudyDock({ phong, phongMinhKhoa: _phongMinhKhoa, auth, phongCha
 
         {/* TAB 6: QUẢN TRỊ PHÒNG (staff only) — policy matrix + member actions */}
         {dockTab === 'quan-tri' && isStaff && (
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto max-h-80 pr-1">
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-h-0 pr-1 h-full">
             {/* Quick actions theo mô hình đã chốt */}
             <div className="flex items-center gap-2 flex-wrap">
               <button

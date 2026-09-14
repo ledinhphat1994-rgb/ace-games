@@ -2074,7 +2074,7 @@ function DigitalCampusApp() {
 
           <div className={
             currentView === 'ROOM_ACTIVE' && isRoomWide
-              ? "w-full flex flex-col gap-5"
+              ? "w-full flex-1 flex flex-col gap-5"
               : "grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_340px] 2xl:grid-cols-[330px_minmax(0,1fr)_340px] lg:grid-cols-[300px_minmax(0,1fr)] gap-5 2xl:gap-6 items-start w-full"
           }>
             {/* Left Column: Highlights Rail (Vùng 3 — ẩn khi bật Toàn màn hình) */}
@@ -2098,10 +2098,10 @@ function DigitalCampusApp() {
             )}
 
             {/* Center Column: 4 Flagship Destinations OR Activity Lobby */}
-            <main id="campus-main-content" className={`flex flex-col gap-6 min-w-0 w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'order-1' : 'order-1 lg:order-2'}`}>
+            <main id="campus-main-content" className={`flex flex-col gap-6 min-w-0 w-full ${currentView === 'ROOM_ACTIVE' && isRoomWide ? 'order-1 flex-1' : 'order-1 lg:order-2'}`}>
               {currentView === 'ROOM_ACTIVE' && activeRoom ? (
                 /* ACTIVE ROOM CENTER EXPERIENCE — PERSISTENT 3-COLUMN CAMPUS SHELL */
-                <div className="flex flex-col gap-5 w-full animate-fadeIn" id="campus-active-room-container">
+                <div className={`flex flex-col gap-5 w-full animate-fadeIn ${isRoomWide ? 'flex-1' : ''}`} id="campus-active-room-container">
                   {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
                   <div className="flex items-center justify-between bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
                     {/* TRÁI: Tiêu đề + Badge chủ phòng */}
@@ -2477,7 +2477,7 @@ function DigitalCampusApp() {
                 isFocusMode && p.loai === 'nhac'
                   ? 'max-w-2xl mx-auto w-full'
                   : p.loai === 'video'
-                  ? 'flex flex-col lg:flex-row gap-5 w-full items-stretch'
+                  ? `flex flex-col lg:flex-row gap-5 w-full items-stretch ${isRoomWide ? 'flex-1 min-h-[calc(100vh-140px)]' : ''}`
                   : 'grid grid-cols-1 lg:grid-cols-2 gap-5 w-full items-start'
               }>
                 {/* VÙNG 1 + VÙNG 2: với ratio-flex; 10:0 ẩn dock, 0:10 ẩn video */}
@@ -2502,7 +2502,7 @@ function DigitalCampusApp() {
                     ? (cToken === 'none' ? { display: 'none' } : cToken === 'full' ? { flex: '1 1 0%', minWidth: 0 } : { flex: cToken, minWidth: 0 })
                     : {};
                   return (<>
-                <div className="flex flex-col gap-4 min-w-0" style={vStyle}>
+                <div className={`flex flex-col gap-4 min-w-0 ${isRoomWide ? 'h-full flex-1' : ''}`} style={vStyle}>
                   {p.loai === 'video' ? (
                     <CampusWatchTogether
                       phong={p}
@@ -2563,7 +2563,7 @@ function DigitalCampusApp() {
                 </div>
 
                 {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
-                <div className="flex flex-col gap-4 min-w-0 self-stretch" style={cStyle}>
+                <div className={`flex flex-col gap-4 min-w-0 self-stretch ${isRoomWide ? 'h-full flex-1' : ''}`} style={cStyle}>
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}
@@ -2580,6 +2580,7 @@ function DigitalCampusApp() {
                       hanhDongPhong={hanhDongPhong}
                       canControl={Boolean(laChuPhong || phongMyCaps?.video_control || phongMyCaps?.video_change || auth.user?.isTeacher)}
                       dongPhongHienTai={dongPhongHienTai}
+                      isRoomWide={isRoomWide}
                       onSendPhongChat={async (noiDung) => {
                         const res = await fetch('/api/phong-chat', {
                           method: 'POST',
@@ -2608,18 +2609,42 @@ function DigitalCampusApp() {
                         {phongChat.length === 0 && (
                           <p className="text-[11px] text-slate-500 text-center py-6">Chưa có tin nhắn — gửi lời chào đầu tiên!</p>
                         )}
-                        {phongChat.map((m, idx) => (
-                          <div key={m.id || idx} className="text-xs">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`font-bold ${m.vaiTro === 'giao_vien' ? 'text-[#00F2FE]' : 'text-slate-200'}`}>
-                                {m.tenNguoiGui || 'Thành viên'}
-                              </span>
-                              {m.lopTen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-slate-500 border border-white/10">{m.lopTen}</span>}
-                              <span className="text-[10px] text-slate-500 font-mono ml-auto">{formatTimeOnly(m.taoLuc)}</span>
+                        {phongChat.map((m, idx) => {
+                          const myName = String(auth?.user?.name || auth?.user?.hoTen || auth?.user?.ten || '').trim();
+                          const laChinhMinh = Boolean(
+                            m.cuaToi ||
+                            (m.khoa && phongMinhKhoa && m.khoa === phongMinhKhoa) ||
+                            (myName && m.tenNguoiGui && m.tenNguoiGui.trim().toLowerCase() === myName.toLowerCase())
+                          );
+                          return (
+                            <div key={m.id || idx} className={`text-xs flex flex-col ${laChinhMinh ? 'items-end' : 'items-start'}`}>
+                              <div className={`flex items-center gap-1.5 mb-1 ${laChinhMinh ? 'flex-row-reverse' : ''}`}>
+                                <span className={`font-bold ${laChinhMinh ? 'text-[#00F2FE]' : (m.vaiTro === 'giao_vien' ? 'text-[#00F2FE]' : 'text-slate-200')}`}>
+                                  {m.tenNguoiGui || 'Thành viên'}
+                                </span>
+                                {laChinhMinh && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-[#00F2FE]/20 text-[#00F2FE] border border-[#00F2FE]/40 shadow-sm">
+                                    Bạn
+                                  </span>
+                                )}
+                                {m.vaiTro === 'giao_vien' && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    GVCN
+                                  </span>
+                                )}
+                                {m.lopTen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/10">{m.lopTen}</span>}
+                                <span className="text-[10px] text-slate-500 font-mono">{formatTimeOnly(m.taoLuc)}</span>
+                              </div>
+                              <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-sm ${
+                                laChinhMinh
+                                  ? 'rounded-tr-xs bg-gradient-to-r from-[#00b4d8]/25 via-[#0077b6]/30 to-[#00F2FE]/20 border border-[#00F2FE]/40 text-white'
+                                  : 'rounded-tl-xs bg-[#0B0E14] border border-white/10 text-slate-200'
+                              }`}>
+                                <p className="whitespace-pre-wrap">{m.noiDung}</p>
+                              </div>
                             </div>
-                            <p className="text-slate-300 leading-relaxed break-words">{m.noiDung}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                         <div ref={phongChatEndRef} />
                       </div>
                       {phongLoi && <p className="text-[11px] text-rose-400 mt-2">{phongLoi}</p>}

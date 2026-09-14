@@ -25,14 +25,16 @@ export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
     return json({ ok: false, loi: 'Chat phòng đang bị tắt.', code: 'capability_off' }, 403);
   }
 
+  const khoa = actorKey(phien);
   const sauId = Math.max(0, parseInt(url.searchParams.get('sauId') || '0', 10));
   const rs = await db.prepare(
-    `SELECT t.id, t.ten_nguoi_gui AS tenNguoiGui, t.vai_tro AS vaiTro, t.noi_dung AS noiDung,
-            t.tao_luc AS taoLuc, t.lop_id AS lopId, l.ten AS lopTen, t.video_time_sec AS videoTimeSec
+    `SELECT t.id, t.khoa AS khoa, t.ten_nguoi_gui AS tenNguoiGui, t.vai_tro AS vaiTro, t.noi_dung AS noiDung,
+            t.tao_luc AS taoLuc, t.lop_id AS lopId, l.ten AS lopTen, t.video_time_sec AS videoTimeSec,
+            CASE WHEN t.khoa = ?3 THEN 1 ELSE 0 END AS cuaToi
        FROM phong_tin_nhan t LEFT JOIN lop l ON l.id = t.lop_id
       WHERE t.phong_id = ?1 AND t.id > ?2 AND t.da_xoa = 0
       ORDER BY t.id ASC LIMIT 100`
-  ).bind(phongId, sauId).all();
+  ).bind(phongId, sauId, khoa).all();
 
   return json({ ok: true, tinNhan: rs.results || [] });
 });
@@ -104,6 +106,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
   // tên lớp NGƯỜI GỬI, không suy luận nhầm cho phòng toàn trường (thành viên nhiều lớp khác nhau).
   const tinMoi = {
     id: kq.meta?.last_row_id,
+    khoa,
+    cuaToi: 1,
     tenNguoiGui: ten,
     vaiTro,
     noiDung,
