@@ -1610,16 +1610,15 @@ export function CampusWatchTogether({
   const guiLenhRef = useRef(null);
 
   // Tính vị trí thời gian trực tiếp hiện tại của chủ phòng (giới hạn không vượt quá độ dài video)
+  // Sử dụng _receivedAt để loại bỏ hoàn toàn clock skew giữa máy chủ và trình duyệt
   const getHostCurrentPos = () => {
     const st = watchStateRef.current || watchState;
-    const nowMs = Date.now();
-    const updateTimeMs = st?.updatedAt
-      ? new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime()
-      : nowMs;
-    const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+    const elapsedSec = st?.playing && st?._receivedAt
+      ? Math.max(0, (Date.now() - st._receivedAt) / 1000)
+      : 0;
     let targetPos = Number(st?.positionSeconds || 0);
     if (st?.playing) {
-      targetPos = Number(st.basePositionSeconds != null ? st.basePositionSeconds : st.positionSeconds) + (elapsedSec * (st.playbackRate || 1.0));
+      targetPos += elapsedSec * (st?.playbackRate || 1.0);
     }
     const maxDur = durationRef.current || duration;
     if (maxDur > 0) {
@@ -1713,12 +1712,9 @@ export function CampusWatchTogether({
             lastHostTrackTimeRef.current = { time: cur, stamp: now };
           }
         }
-      } else if (!canControl && !isProgrammaticActionRef.current && (Date.now() - lastGoLiveClickTimeRef.current > 3500)) {
-        // NGƯỜI THAM GIA: Tự do tạm dừng hoặc tiếp tục xem (chỉ nhận sự kiện pause sau khi hết thời gian grace period Go Live)
-        if (pState === 2 && watchStateRef.current.playing) {
-          console.log('onMsg: Người xem tự bấm Tạm dừng trên YouTube -> chuyển sang xem riêng');
-          isLiveWithHostRef.current = false;
-          setIsLiveWithHost(false);
+      } else if (!canControl && !isProgrammaticActionRef.current) {
+        // NGƯỜI THAM GIA: Chỉ cập nhật trạng thái UI khi đang xem riêng, không tự động hủy đồng bộ Trực tiếp do buffering
+        if (!isLiveWithHostRef.current && pState === 2) {
           setViewerIsPaused(true);
         } else if (pState === 1) {
           setViewerIsPaused(false);
@@ -1820,13 +1816,7 @@ export function CampusWatchTogether({
               }
 
               // Tính vị trí thời gian hiện tại của phòng để seek ngay lúc khởi tạo
-              const nowMs = Date.now();
-              const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
-              const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
-              let tPos = Number(watchState.positionSeconds || 0);
-              if (watchState.playing) {
-                tPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
-              }
+              const tPos = getHostCurrentPos();
 
               if (tPos > 0 && event.target.seekTo) {
                 hasSeekedInitRef.current = true;
@@ -1867,11 +1857,8 @@ export function CampusWatchTogether({
                     guiLenhRef.current?.('pause', curPos);
                   }
                 }
-              } else if (!canControl && !isProgrammaticActionRef.current && (Date.now() - lastGoLiveClickTimeRef.current > 3500)) {
-                if (event.data === 2 && watchStateRef.current.playing) {
-                  console.log('YT Player onStateChange === 2: Người xem tạm dừng YouTube -> chuyển sang xem riêng');
-                  isLiveWithHostRef.current = false;
-                  setIsLiveWithHost(false);
+              } else if (!canControl && !isProgrammaticActionRef.current) {
+                if (!isLiveWithHostRef.current && event.data === 2) {
                   setViewerIsPaused(true);
                 } else if (event.data === 1) {
                   setViewerIsPaused(false);
@@ -1898,13 +1885,13 @@ export function CampusWatchTogether({
   // Áp dụng trạng thái đồng bộ từ server (chống giật chập chờn cho cả Host lẫn Người xem)
   const apDungDongBo = (st, ctrl, prov) => {
     if (!st) return;
-    const nowMs = Date.now();
-    const updateTimeMs = st.updatedAt ? new Date(String(st.updatedAt).replace(' ', 'T') + (String(st.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
-    const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
+    const elapsedSec = st.playing && st._receivedAt
+      ? Math.max(0, (Date.now() - st._receivedAt) / 1000)
+      : 0;
 
     let targetPos = Number(st.positionSeconds || 0);
     if (st.playing) {
-      targetPos = Number(st.basePositionSeconds != null ? st.basePositionSeconds : st.positionSeconds) + (elapsedSec * (st.playbackRate || 1.0));
+      targetPos += elapsedSec * (st.playbackRate || 1.0);
     }
     const maxDur = durationRef.current || duration;
     if (maxDur > 0) {
@@ -2051,11 +2038,12 @@ export function CampusWatchTogether({
       if (cur !== null && !isNaN(cur)) {
         const drift = Math.abs(cur - targetPos);
         if (st.playing) {
-          if (drift > 3.5) {
+          // Chỉ tua khi độ lệch thời gian > 2.5s để giữ playback mượt mà, không micro-seek
+          if (drift > 2.5) {
             if (p?.seekTo) { try { p.seekTo(targetPos, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetPos, true] }), '*');
           }
-          if ((ps === 2 || ps === 5) && (hasInteracted || hasInteractedRef.current)) {
+          if ((ps === 2 || ps === 5 || ps === -1) && (hasInteracted || hasInteractedRef.current)) {
             if (p?.playVideo) { try { p.playVideo(); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
           }
@@ -2065,7 +2053,7 @@ export function CampusWatchTogether({
             if (p?.pauseVideo) { try { p.pauseVideo(); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
           }
-          if (drift > 1.8) {
+          if (drift > 1.5) {
             if (p?.seekTo) { try { p.seekTo(st.positionSeconds, true); } catch {} }
             ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [st.positionSeconds, true] }), '*');
           }
@@ -2091,7 +2079,8 @@ export function CampusWatchTogether({
         const d = await res.json();
         if (!active) return;
         if (d.ok && d.state) {
-          setWatchState(d.state);
+          const st = { ...d.state, _receivedAt: Date.now() };
+          setWatchState(st);
           setCanControl(Boolean(d.canControl));
           if (d.caps) setWatchCaps(d.caps);
           setProvider(d.provider || 'UNSUPPORTED');
@@ -2101,7 +2090,7 @@ export function CampusWatchTogether({
             setIsLiveWithHost(true);
             setViewerIsPaused(false);
           }
-          apDungDongBo(d.state, Boolean(d.canControl), d.provider || 'UNSUPPORTED');
+          apDungDongBo(st, Boolean(d.canControl), d.provider || 'UNSUPPORTED');
         }
       } catch { }
     };
@@ -2187,15 +2176,19 @@ export function CampusWatchTogether({
       if (canControl && curTime !== null && curTime > 0 && !dangGuiLenhRef.current && !isSeekingRef.current) {
         const nowMs = Date.now();
         if (!lastHostSyncTimeRef.current) lastHostSyncTimeRef.current = nowMs;
-        const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
-        const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
-        const expectedServerPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
-        const hostDrift = Math.abs(curTime - expectedServerPos);
-
-        const daQua15s = (nowMs - lastHostSyncTimeRef.current > 15000);
-        if ((hostDrift > 3.0 || daQua15s) && (nowMs - lastHostSyncTimeRef.current > 4000)) {
+        // Chủ phòng định kỳ gửi mốc thời gian thực tế lên máy chủ qua sync_pos
+        // Tuyệt đối KHÔNG gọi guiLenh('seek') vì seek sẽ ép seekTo lên host player và bump revision làm giật tất cả người xem!
+        if (watchState.playing && (nowMs - lastHostSyncTimeRef.current >= 4000)) {
           lastHostSyncTimeRef.current = nowMs;
-          guiLenh('seek', curTime);
+          fetch('/api/phong-watch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phongId: phong.id,
+              action: 'sync_pos',
+              position: Math.max(0, Number(curTime.toFixed(2)))
+            })
+          }).catch(() => {});
         }
       }
 
@@ -2281,12 +2274,14 @@ export function CampusWatchTogether({
       });
       const d = await res.json();
       if (d.ok && d.state) {
+        const st = { ...d.state, _receivedAt: Date.now() };
         lastAppliedRevisionRef.current = d.state.revision;
-        setWatchState(d.state);
+        setWatchState(st);
         setLocalTime(Math.floor(d.state.positionSeconds || pos));
       } else if (d.conflict && d.state) {
-        setWatchState(d.state);
-        apDungDongBo(d.state, canControl, provider);
+        const st = { ...d.state, _receivedAt: Date.now() };
+        setWatchState(st);
+        apDungDongBo(st, canControl, provider);
       } else {
         setLoi(d.loi || 'Lỗi cập nhật phát video.');
       }
@@ -2354,15 +2349,7 @@ export function CampusWatchTogether({
     setIsLiveWithHost(true);
     setViewerIsPaused(false);
 
-    const nowMs = Date.now();
-    const updateTimeMs = watchState.updatedAt ? new Date(String(watchState.updatedAt).replace(' ', 'T') + (String(watchState.updatedAt).includes('T') ? '' : 'Z')).getTime() : nowMs;
-    const elapsedSec = Math.max(0, (nowMs - updateTimeMs) / 1000);
-    let targetPos = Number(watchState.positionSeconds || 0);
-    if (watchState.playing) {
-      targetPos = Number(watchState.basePositionSeconds != null ? watchState.basePositionSeconds : watchState.positionSeconds) + (elapsedSec * (watchState.playbackRate || 1.0));
-    }
-    targetPos = Math.max(0, Number(targetPos.toFixed(2)));
-
+    const targetPos = getHostCurrentPos();
     hasSeekedInitRef.current = true;
     setLocalTime(Math.floor(targetPos));
 

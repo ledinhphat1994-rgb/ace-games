@@ -6,7 +6,7 @@ import { bocXuLy, docThan, json, loi, chuoi, chuanUrlMedia } from '../_lib/api.j
 import { kiemTraTruyCapPhong, kiemTraQuyenPhong, taiQuyenCuaToi, CAPABILITY } from '../_lib/rooms.js';
 
 const CAC_TOC_DO = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-const CAC_HANH_DONG = ['play', 'pause', 'seek', 'set_rate', 'set_video'];
+const CAC_HANH_DONG = ['play', 'pause', 'seek', 'set_rate', 'set_video', 'sync_pos'];
 
 const tenCua = (phien) => phien.ten || phien.vaiTro || 'Thành viên';
 
@@ -172,6 +172,23 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         updatedBy: rowMoi?.nguoiCapNhatTen || null
       }
     });
+  }
+
+  // ── ĐỒNG BỘ VỊ TRÍ ĐỊNH KỲ (sync_pos): Chủ phòng cập nhật mốc thời gian thực tế mà không bump revision ──
+  if (action === 'sync_pos') {
+    const rawPos = Number(than.position);
+    if (isNaN(rawPos) || !isFinite(rawPos) || rawPos < 0 || rawPos > 86400) {
+      return loi('Vị trí video không hợp lệ.', 400);
+    }
+    const targetPos = Math.max(0, Number(rawPos.toFixed(2)));
+    await db.prepare(
+      `UPDATE phong_dong_bo_video
+          SET vi_tri_giay = ?1,
+              cap_nhat_luc = CURRENT_TIMESTAMP
+        WHERE phong_id = ?2 AND trang_thai = 'playing'`
+    ).bind(targetPos, phongId).run();
+
+    return json({ ok: true, position: targetPos });
   }
 
   const expectedRev = parseInt(than.expectedRevision || '0', 10);
