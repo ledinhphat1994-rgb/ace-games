@@ -21,7 +21,8 @@ const quyTacChung = {
 
 export default [
   {
-    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**', 'assets/gen/**', '.claude/**'],
+    // v2/ là bản rebuild TypeScript, tự kiểm bằng tsc + eslint riêng trong thư mục đó.
+    ignores: ['dist/**', '.wrangler/**', 'node_modules/**', '.playwright-mcp/**', 'assets/gen/**', '.claude/**', 'v2/**'],
   },
 
   // API và cổng bảo vệ: ES module chạy trên Cloudflare Workers.

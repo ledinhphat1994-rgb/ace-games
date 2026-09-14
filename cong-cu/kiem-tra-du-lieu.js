@@ -11,7 +11,8 @@ const os = require('os');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const BO_QUA_THU_MUC = new Set(['node_modules', '.git', '.wrangler', 'dist', '.playwright-mcp', '.claude']);
+// v2/: bản rebuild TypeScript — tsconfig dạng JSONC (có comment) nên JSON.parse sẽ báo sai; v2 tự kiểm riêng.
+const BO_QUA_THU_MUC = new Set(['node_modules', '.git', '.wrangler', 'dist', '.playwright-mcp', '.claude', 'v2']);
 
 // Không đọc .dev.vars: tệp đó chứa mã dùng thử, không cần soát và cũng không nên mở.
 const BO_QUA_TEP = new Set(['.dev.vars', '.dev.vars.example', 'package-lock.json', 'cong-cu/kiem-tra-du-lieu.js']);
