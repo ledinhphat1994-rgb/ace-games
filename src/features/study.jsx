@@ -705,7 +705,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   };
 
   return (
-    <div id="study-dock-container" className="bg-[#151A23] border border-white/10 rounded-2xl p-4 flex flex-col h-full min-h-[420px] lg:min-h-[480px] shadow-xl">
+    <div id="study-dock-container" className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col h-full min-h-[420px] lg:min-h-[480px] shadow-xl">
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -849,7 +849,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
                         </button>
                       )}
                     </div>
-                    <p className="bg-[#0B0E14] border border-white/5 rounded-xl px-3 py-2 text-slate-200 text-xs leading-relaxed break-words">
+                    <p className="bg-[#0B0E14] border border-white/5 hover:border-[#00F2FE]/15 rounded-xl px-3 py-2 text-slate-200 text-xs leading-relaxed break-words transition-colors">
                       {m.noiDung}
                     </p>
                   </div>
@@ -1250,7 +1250,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
                 return (
                   <div
                     key={tv.khoa || tv.ten || idx}
-                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all">
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-teal-500/25 transition-all">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center text-xs font-black text-teal-300 shrink-0">
                       {tv.avatar ? (
                         <img src={tv.avatar} alt="" className="w-full h-full rounded-full object-cover" />
@@ -1406,7 +1406,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
               ) : (
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                   {queueList.map((q, idx) => (
-                    <div key={q.id || idx} className="flex items-center gap-2 bg-[#151A23] border border-white/5 rounded-lg p-2">
+                    <div key={q.id || idx} className={`flex items-center gap-2 bg-[#151A23] border rounded-lg p-2 transition-all ${q.trangThai === 'playing' ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(52,211,153,0.12)]' : 'border-white/5'}`}>
                       <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0 ${q.trangThai === 'playing' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-slate-400'}`}>
                         {q.trangThai === 'playing' ? '▶' : idx + 1}
                       </span>
@@ -2012,8 +2012,8 @@ export function CampusWatchTogether({
 
   return (
     <div className="flex flex-col gap-4 min-w-0 w-full">
-      {/* Khung phát video chính */}
-      <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+      {/* Khung phát video chính — khung neon mờ đồng bộ hệ game arena */}
+      <div className="relative w-full aspect-video bg-gradient-to-b from-[#05070b] to-black rounded-2xl overflow-hidden border border-[#00F2FE]/15 ring-1 ring-white/5 shadow-[0_0_60px_rgba(0,242,254,0.07),0_30px_60px_-15px_rgba(0,0,0,0.7)]">
         {/* Overlay Autoplay / Gesture cho người xem */}
         {!hasInteracted && !canControl && (provider === 'YOUTUBE' || provider === 'NATIVE_HTML5') && (
           <div className="absolute inset-0 z-20 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center animate-fadeIn">
@@ -2103,7 +2103,7 @@ export function CampusWatchTogether({
 
       {/* Thanh điều khiển Host — ẩn khi fullscreen */}
       {!isRoomWide && (
-      <div className="bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col gap-3 shadow-xl">
+      <div className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-[#00F2FE]/10 rounded-2xl p-3 sm:p-3.5 flex flex-col gap-3 shadow-xl">
 
 
         {/* Thanh công cụ phát chung (chỉ hiển thị cho Host / Teacher khi dùng provider có thể điều khiển) */}

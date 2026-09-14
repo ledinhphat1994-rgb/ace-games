@@ -2103,7 +2103,7 @@ function DigitalCampusApp() {
                 /* ACTIVE ROOM CENTER EXPERIENCE — PERSISTENT 3-COLUMN CAMPUS SHELL */
                 <div className="flex flex-col gap-5 w-full animate-fadeIn" id="campus-active-room-container">
                   {/* Top Bar inside Active Room — Gọn gàng, Nổi bật */}
-                  <div className="flex items-center justify-between bg-[#151A23] border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center justify-between bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-3 sm:p-3.5 shadow-xl gap-2 flex-wrap sm:flex-nowrap">
                     {/* TRÁI: Tiêu đề + Badge chủ phòng */}
                     <div className="flex items-center gap-2 min-w-0">
                       <h2 className="text-sm font-black text-white truncate max-w-[160px] sm:max-w-xs md:max-w-sm">{activeRoom.title}</h2>
