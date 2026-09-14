@@ -448,49 +448,286 @@ export function QuickTaoPhongForm({ ctl }) {
   );
 }
 
-/* Form tạo bàn Caro rút gọn — hiện NGAY trong khung 1 của lobby Game (khung này vốn không tồn
-   tại lúc rảnh, chỉ xuất hiện khi bấm "+ Tạo bàn"), thay modal phủ kín màn hình cũ. */
-export function QuickTaoBanForm({ ctl }) {
+/* Bảng preview đồ họa trực quan cho từng loại game đấu trường */
+function GamePreviewBoard({ loaiGame }) {
+  if (loaiGame === 'c4') {
+    const sampleC4 = [
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 1, 0, 0, 0],
+      [0, 0, 2, 1, 0, 0, 0],
+      [0, 2, 1, 2, 1, 0, 0],
+      [2, 1, 2, 1, 2, 0, 0],
+    ];
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-gradient-to-b from-blue-950/80 to-slate-900/90 border border-blue-500/30 shadow-md">
+          <div className="grid grid-cols-7 gap-1.5">
+            {sampleC4.map((row, r) => row.map((val, c) => (
+              <div key={`${r}-${c}`} className="aspect-square rounded-full bg-[#060a12] border border-white/5 flex items-center justify-center shadow-inner">
+                {val === 1 && <span className="w-4/5 h-4/5 rounded-full bg-gradient-to-br from-cyan-300 to-cyan-600 shadow-[0_0_8px_rgba(0,242,254,0.6)]" />}
+                {val === 2 && <span className="w-4/5 h-4/5 rounded-full bg-gradient-to-br from-pink-300 to-rose-600 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />}
+              </div>
+            )))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Bàn đứng 6 hàng × 7 cột</span>
+          <span className="text-cyan-300 font-bold">Nối 4 đĩa thẳng hàng để thắng</span>
+        </div>
+      </div>
+    );
+  }
+  if (loaiGame === 'reversi') {
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#143d22] border border-emerald-600/40 shadow-md">
+          <div className="grid grid-cols-8 gap-0.5">
+            {Array.from({ length: 64 }).map((_, idx) => {
+              const r = Math.floor(idx / 8);
+              const c = idx % 8;
+              const isW = (r === 3 && c === 3) || (r === 4 && c === 4) || (r === 2 && c === 3);
+              const isB = (r === 3 && c === 4) || (r === 4 && c === 3);
+              const isHint = (r === 2 && c === 4) || (r === 5 && c === 3);
+              return (
+                <div key={idx} className="aspect-square bg-[#1b4d2b] border border-black/20 flex items-center justify-center">
+                  {isW && <span className="w-4/5 h-4/5 rounded-full bg-slate-100 shadow-md border border-slate-300" />}
+                  {isB && <span className="w-4/5 h-4/5 rounded-full bg-slate-900 shadow-md border border-slate-700" />}
+                  {isHint && <span className="w-1.5 h-1.5 rounded-full bg-emerald-300/40 animate-pulse" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Bàn nỉ xanh 8×8 Othello</span>
+          <span className="text-emerald-300 font-bold">Kẹp & lật màu, chiếm đa số</span>
+        </div>
+      </div>
+    );
+  }
+  if (loaiGame === 'caro9') {
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#0e1420] border border-amber-500/20 shadow-md">
+          <div className="grid grid-cols-9 gap-0.5">
+            {Array.from({ length: 81 }).map((_, idx) => {
+              const r = Math.floor(idx / 9);
+              const c = idx % 9;
+              const isX = (r === 3 && c === 3) || (r === 4 && c === 4) || (r === 5 && c === 5);
+              const isO = (r === 3 && c === 4) || (r === 4 && c === 3);
+              return (
+                <div key={idx} className="aspect-square bg-[#151d2c] border border-white/5 flex items-center justify-center text-[10px] font-black">
+                  {isX && <span className="text-[#00F2FE] drop-shadow-[0_0_4px_rgba(0,242,254,0.6)]">✕</span>}
+                  {isO && <span className="text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]">◯</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Bàn tốc độ 9×9</span>
+          <span className="text-amber-300 font-bold">Nối 5 quân liên tiếp siêu tốc</span>
+        </div>
+      </div>
+    );
+  }
+  // Mặc định: co_caro 15x15
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-black text-white flex items-center gap-2"><span>⚔️</span> Tạo bàn đấu — {gameTen(ctl.loai)}</h3>
-        <button type="button" onClick={() => ctl.setShow(false)} aria-label="Đóng"
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all">
+    <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+      <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#0e1420] border border-[#00F2FE]/20 shadow-md">
+        <div className="grid grid-cols-11 gap-0.5">
+          {Array.from({ length: 121 }).map((_, idx) => {
+            const r = Math.floor(idx / 11);
+            const c = idx % 11;
+            const isX = (r === 4 && c === 4) || (r === 5 && c === 5) || (r === 6 && c === 6) || (r === 7 && c === 7);
+            const isO = (r === 4 && c === 5) || (r === 5 && c === 4) || (r === 6 && c === 5);
+            return (
+              <div key={idx} className="aspect-square bg-[#151d2c] border border-white/5 flex items-center justify-center text-[9px] font-black">
+                {isX && <span className="text-[#00F2FE] drop-shadow-[0_0_4px_rgba(0,242,254,0.6)]">✕</span>}
+                {isO && <span className="text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]">◯</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+        <span className="font-bold text-slate-300">🎯 Bàn thi đấu chuẩn 15×15</span>
+        <span className="text-[#00F2FE] font-bold">Nối 5 quân liên tiếp để thắng</span>
+      </div>
+    </div>
+  );
+}
+
+/* Form tạo bàn Caro rút gọn — hiện NGAY trong khung 1 của lobby Game */
+export function QuickTaoBanForm({ ctl }) {
+  const isPrivate = ctl.accessMode === 'password';
+
+  return (
+    <div className="flex flex-col gap-3.5">
+      <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+        <h3 className="text-sm font-black text-white flex items-center gap-2">
+          <span>⚔️</span>
+          <span>Tạo bàn đấu — {gameTen(ctl.loai)}</span>
+        </h3>
+        <button
+          type="button"
+          onClick={() => ctl.setShow(false)}
+          aria-label="Đóng"
+          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer">
           <Ic name="x" className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" data-testid="tao-ban-loai">
-        {Object.entries(GAME_TYPE_INFO).map(([id, g]) => (
-          <button key={id} type="button" onClick={() => ctl.setLoai(id)}
-            className={`px-2.5 py-2 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1.5 ${ctl.loai === id ? 'bg-amber-400/15 text-amber-300 border-amber-400/50' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
-            <span>{g.icon}</span><span className="truncate">{g.ten}</span>
+      {/* Main 2-column layout */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+        {/* VÙNG 4: DANH SÁCH GAME THÀNH 1 CỘT THEO LIST TỪ TRÊN XUỐNG BÊN TRÁI */}
+        <div className="md:col-span-5 flex flex-col gap-2" data-testid="tao-ban-loai">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">
+            Danh sách trò chơi
+          </label>
+          <div className="flex flex-col gap-2">
+            {Object.entries(GAME_TYPE_INFO).map(([id, g]) => {
+              const isSelected = ctl.loai === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => ctl.setLoai(id)}
+                  className={`px-3 py-2.5 rounded-xl text-left border transition-all flex items-center justify-between gap-2.5 cursor-pointer active:scale-95 ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/15 border-amber-400/60 text-white shadow-md'
+                      : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/5'
+                  }`}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xl shrink-0">{g.icon}</span>
+                    <div className="min-w-0">
+                      <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                        {g.ten}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {g.moTa}
+                      </p>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CỘT PHẢI: VÙNG 2 & 3 TRÊN BẢNG PREVIEW GAME */}
+        <div className="md:col-span-7 flex flex-col gap-3 min-w-0 bg-[#0B0E14]/70 p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-lg">
+          {/* VÙNG 2 & 3: CÔNG KHAI VÀ RIÊNG TƯ */}
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              Chế độ phòng đấu
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                id="btn-tao-ban-cong-khai"
+                onClick={() => {
+                  ctl.setAccessMode?.('public');
+                  ctl.setPassword?.('');
+                }}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                  !isPrivate
+                    ? 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border-purple-500/50 shadow-sm'
+                    : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
+                }`}>
+                <span className="text-sm">🌐</span>
+                <div className="min-w-0">
+                  <p className="font-bold text-white">Công khai</p>
+                  <p className="text-[9px] text-slate-400 font-normal">Mọi người đều vào được</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-tao-ban-rieng-tu"
+                onClick={() => ctl.setAccessMode?.('password')}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                  isPrivate
+                    ? 'bg-gradient-to-r from-amber-500/20 to-rose-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                    : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
+                }`}>
+                <span className="text-sm">🔒</span>
+                <div className="min-w-0">
+                  <p className="font-bold text-white">Riêng tư</p>
+                  <p className="text-[9px] text-slate-400 font-normal">Cần mật khẩu để vào</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Khi chọn riêng tư thì có tạo mật khẩu phòng */}
+            {isPrivate && (
+              <div className="flex flex-col gap-1 p-2.5 bg-[#151A23] border border-amber-500/30 rounded-xl animate-fadeIn">
+                <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>🔑</span>
+                  <span>Tạo mật khẩu phòng *</span>
+                </label>
+                <input
+                  type="password"
+                  id="input-tao-mat-khau-phong"
+                  value={ctl.password || ''}
+                  onChange={e => ctl.setPassword?.(e.target.value)}
+                  placeholder="Nhập mật khẩu cho phòng đấu (VD: 1234)..."
+                  maxLength={30}
+                  className="w-full bg-[#0B0E14] border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* BẢNG PREVIEW GAME */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              Xem trước bàn cờ — {gameTen(ctl.loai)}
+            </label>
+            <GamePreviewBoard loaiGame={ctl.loai} />
+          </div>
+
+          {/* Tên bàn đấu */}
+          <div>
+            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+              Tên bàn đấu (Tùy chọn)
+            </label>
+            <input
+              type="text"
+              value={ctl.ten}
+              onChange={e => ctl.setTen(e.target.value)}
+              placeholder="VD: Giao lưu cờ caro, Đấu trí cuối tuần..."
+              maxLength={60}
+              className="w-full bg-[#151A23] border border-white/10 focus:border-[#00F2FE] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+            />
+          </div>
+
+          {ctl.loi && <p className="text-[11px] text-rose-400">{ctl.loi}</p>}
+
+          {/* Nút Tạo bàn ngay */}
+          <button
+            type="button"
+            onClick={ctl.submit}
+            disabled={ctl.dangTao || (isPrivate && !ctl.password?.trim())}
+            className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] via-[#38bdf8] to-[#8B5CF6] text-black font-black text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5">
+            {ctl.dangTao ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>Đang tạo…</span>
+              </>
+            ) : (
+              <>
+                <span>🚀</span>
+                <span>Tạo bàn ngay</span>
+              </>
+            )}
           </button>
-        ))}
+        </div>
       </div>
-
-      <input type="text" value={ctl.ten} onChange={e => ctl.setTen(e.target.value)}
-        placeholder="Tên bàn đấu (tuỳ chọn)" maxLength={60}
-        className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
-
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => ctl.setScope('truong')}
-          className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${ctl.scope === 'truong' ? 'bg-purple-500/15 text-purple-300 border-purple-500/50' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
-          🌐 Toàn trường
-        </button>
-        <button type="button" onClick={() => ctl.setScope('lop')}
-          className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all ${ctl.scope === 'lop' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/50' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
-          🔒 Lớp tôi
-        </button>
-      </div>
-
-      {ctl.loi && <p className="text-[11px] text-rose-400">{ctl.loi}</p>}
-
-      <button onClick={ctl.submit} disabled={ctl.dangTao}
-        className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] to-[#8B5CF6] text-black font-extrabold text-xs shadow-lg hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-        {ctl.dangTao ? 'Đang tạo…' : '🚀 Tạo bàn ngay'}
-      </button>
     </div>
   );
 }

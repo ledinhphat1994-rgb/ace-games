@@ -205,6 +205,8 @@ function DigitalCampusApp() {
   const [matchCountdown, setMatchCountdown] = useState(3);
   const [showTaoBanModal, setShowTaoBanModal] = useState(false);
   const [taoBanScope, setTaoBanScope] = useState('truong'); // 'truong' | 'lop'
+  const [taoBanAccessMode, setTaoBanAccessMode] = useState('public'); // 'public' | 'password'
+  const [taoBanPassword, setTaoBanPassword] = useState('');
   const [taoBanTen, setTaoBanTen] = useState('');
   const [taoBanLoai, setTaoBanLoai] = useState('co_caro'); // loại game đối kháng
   const [miniGameId, setMiniGameId] = useState(null); // mini game 1 mình đang mở
@@ -885,6 +887,10 @@ function DigitalCampusApp() {
 
   const taoBanCaro = async () => {
     if (auth.isGuest) { setShowAuthGate(true); return; }
+    if (taoBanAccessMode === 'password' && !taoBanPassword.trim()) {
+      setCaroLoi('Vui lòng nhập mật khẩu khi tạo phòng riêng tư.');
+      return;
+    }
     setCaroLoi('');
     setTaoBanDangGui(true);
     try {
@@ -895,6 +901,8 @@ function DigitalCampusApp() {
           hanhDong: 'tao_ban',
           loaiGame: taoBanLoai,
           phamVi: taoBanScope,
+          accessMode: taoBanAccessMode,
+          password: taoBanAccessMode === 'password' ? taoBanPassword.trim() : undefined,
           tenBan: taoBanTen.trim() || undefined
         })
       });
@@ -906,6 +914,7 @@ function DigitalCampusApp() {
         setQuickState('GAME_ACTIVE');
         setShowTaoBanModal(false);
         setTaoBanTen('');
+        setTaoBanPassword('');
         taiDanhSachBanCaro();
       } else {
         setCaroLoi(d.loi || 'Không tạo được bàn.');
@@ -917,14 +926,20 @@ function DigitalCampusApp() {
     }
   };
 
-  const vaoBanCaro = async (phongId) => {
+  const vaoBanCaro = async (phongId, password = '') => {
     if (auth.isGuest) { setShowAuthGate(true); return; }
     setCaroLoi('');
+    const targetBan = (caroRooms || []).find(b => b.id === phongId);
+    if ((targetBan?.accessMode === 'password' || targetBan?.access_mode === 'password') && !password) {
+      const passPrompt = prompt('Bàn chơi này ở chế độ Riêng tư. Vui lòng nhập mật khẩu:');
+      if (passPrompt === null) return;
+      password = passPrompt.trim();
+    }
     try {
       const res = await fetch('/api/game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hanhDong: 'vao_ban', phongId })
+        body: JSON.stringify({ hanhDong: 'vao_ban', phongId, password })
       });
       const d = await res.json();
       if (d.ok) {
@@ -2182,13 +2197,20 @@ function DigitalCampusApp() {
                           <span>🗑</span><span className="hidden sm:inline">Xóa phòng</span>
                         </button>
                       )}
-                      {activeRoom.type === 'GAME_CARO' && auth.user?.isTeacher && (
+                      {/* Nút Hủy phòng ở vùng 1 (GAME_CARO) */}
+                      {activeRoom.type === 'GAME_CARO' && (
                         <button
+                          id="btn-cancel-game-room"
                           type="button"
-                          onClick={() => { if (confirm('Đóng bàn đấu này?')) thoatPhongGameArena(); setCurrentView('LOBBY'); }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
-                          title="Đóng bàn đấu">
-                          <span>🗑</span><span className="hidden sm:inline">Đóng bàn</span>
+                          onClick={async () => {
+                            if (confirm('Bạn có chắc muốn hủy phòng đấu này?')) {
+                              await roiBanCaro();
+                              setCurrentView('LOBBY');
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs font-bold border border-rose-500/30 transition-all hover:scale-105 active:scale-95 shrink-0 shadow-sm cursor-pointer"
+                          title="Hủy phòng đấu">
+                          <span>🗑️</span><span>Hủy phòng</span>
                         </button>
                       )}
 
@@ -2308,9 +2330,6 @@ function DigitalCampusApp() {
                   <div className="flex items-center justify-between w-full mb-3 flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-extrabold text-white truncate max-w-[200px]">{caroPhong.tenBan || `Bàn #${caroPhong.id}`}</span>
-                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border ${caroPhong.phamVi === 'truong' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-blue-500/15 text-blue-300 border-blue-500/30'}`}>
-                        {caroPhong.phamVi === 'truong' ? '🌐 Toàn trường' : `🔒 Chỉ lớp ${caroPhong.lopTen || ''}`}
-                      </span>
                       <span className={`px-2.5 py-0.5 rounded-full font-black text-xs border ${caroPhong.trangThai === 'cho_nguoi' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : caroPhong.trangThai === 'dang_choi' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/40' : 'bg-slate-500/15 text-slate-400 border-slate-500/30'}`}>
                         {caroPhong.trangThai === 'cho_nguoi' ? '⏳ Chờ đối thủ…'
                           : caroPhong.trangThai === 'dang_choi'
@@ -2720,6 +2739,8 @@ function DigitalCampusApp() {
                   taoBanCtl={{
                     show: showTaoBanModal, ten: taoBanTen, setTen: setTaoBanTen,
                     scope: taoBanScope, setScope: setTaoBanScope,
+                    accessMode: taoBanAccessMode, setAccessMode: setTaoBanAccessMode,
+                    password: taoBanPassword, setPassword: setTaoBanPassword,
                     loai: taoBanLoai, setLoai: setTaoBanLoai,
                     loi: caroLoi, dangTao: taoBanDangGui, submit: taoBanCaro, setShow: setShowTaoBanModal
                   }}
@@ -3893,20 +3914,30 @@ function DigitalCampusApp() {
 
               <div>
                 <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
-                  Phạm vi bàn đấu *
+                  Chế độ phòng đấu *
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setTaoBanScope('truong')}
-                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${taoBanScope === 'truong' ? 'bg-purple-500/15 text-purple-300 border-purple-500/50 shadow-sm' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
-                    🌐 Toàn trường
-                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Mọi học sinh trong trường</span>
+                  <button type="button" onClick={() => { setTaoBanAccessMode('public'); setTaoBanPassword(''); }}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${taoBanAccessMode === 'public' ? 'bg-purple-500/15 text-purple-300 border-purple-500/50 shadow-sm' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                    🌐 Công khai
+                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Mọi người đều vào được</span>
                   </button>
-                  <button type="button" onClick={() => setTaoBanScope('lop')}
-                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${taoBanScope === 'lop' ? 'bg-[#00F2FE]/15 text-[#00F2FE] border-[#00F2FE]/50 shadow-sm' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
-                    🔒 Chỉ lớp tôi
-                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Chỉ bạn cùng lớp vào được</span>
+                  <button type="button" onClick={() => setTaoBanAccessMode('password')}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all ${taoBanAccessMode === 'password' ? 'bg-amber-500/15 text-amber-300 border-amber-500/50 shadow-sm' : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/25'}`}>
+                    🔒 Riêng tư
+                    <span className="block text-[9px] font-normal opacity-70 mt-0.5">Cần mật khẩu để vào</span>
                   </button>
                 </div>
+                {taoBanAccessMode === 'password' && (
+                  <div className="mt-2 animate-fadeIn">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-amber-300 block mb-1">
+                      Tạo mật khẩu phòng *
+                    </label>
+                    <input type="password" value={taoBanPassword} onChange={e => setTaoBanPassword(e.target.value)}
+                      placeholder="Nhập mật khẩu cho phòng đấu..." maxLength={30}
+                      className="w-full bg-[#0B0E14] border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+                  </div>
+                )}
               </div>
 
               {caroLoi && <p className="text-[11px] text-rose-400">{caroLoi}</p>}

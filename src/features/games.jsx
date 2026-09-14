@@ -146,27 +146,6 @@ function rvFlips(board, r, c, v) {
   return all;
 }
 
-/* ── Nút fullscreen nhỏ góc bàn ── */
-function NubFullscreen({ wrapRef }) {
-  const [full, setFull] = useState(false);
-  useEffect(() => {
-    const f = () => setFull(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', f);
-    return () => document.removeEventListener('fullscreenchange', f);
-  }, []);
-  return (
-    <button type="button" className="gfs-btn" data-testid="btn-game-fullscreen"
-      title={full ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
-      onClick={() => {
-        const el = wrapRef.current;
-        if (!el) return;
-        if (document.fullscreenElement) document.exitFullscreen?.();
-        else el.requestFullscreen?.();
-      }}>
-      {full ? '✕' : '⛶'}
-    </button>
-  );
-}
 
 /* ── BanCoGame: render bàn theo loai_game ── */
 export function BanCoGame({ phong, nguoiChoiIdCuaToi, onDanh }) {
@@ -207,7 +186,6 @@ export function BanCoGame({ phong, nguoiChoiIdCuaToi, onDanh }) {
     }
     return (
       <div ref={wrapRef} className="gwrap">
-        <NubFullscreen wrapRef={wrapRef} />
         <div className="gc4-board" style={{ gridTemplateColumns: `repeat(${C}, minmax(0,1fr))` }}
           data-testid="board-c4" onMouseLeave={() => setHoverCol(null)}>
           {board.map((row, r) => row.map((v, c) => {
@@ -244,7 +222,6 @@ export function BanCoGame({ phong, nguoiChoiIdCuaToi, onDanh }) {
     }
     return (
       <div ref={wrapRef} className="gwrap">
-        <NubFullscreen wrapRef={wrapRef} />
         <div className="flex flex-col items-center gap-3 w-full">
           <span className="px-3 py-1 rounded-full bg-[#0B0E14] border border-white/10 text-[11px] font-black text-slate-300" data-testid="rv-score">
             ⚫ {b} — {w} ⚪
@@ -285,7 +262,6 @@ export function BanCoGame({ phong, nguoiChoiIdCuaToi, onDanh }) {
   }
   return (
     <div ref={wrapRef} className="gwrap">
-      <NubFullscreen wrapRef={wrapRef} />
       <div className={`gxo-wrap n${n <= 9 ? 9 : 15}`} data-testid={`board-caro-${n}`}>
         <div className="gxo-grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0,1fr))` }}>
           {board.map((row, r) => row.map((cell, c) => {
