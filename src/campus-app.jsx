@@ -203,7 +203,7 @@ function DigitalCampusApp() {
   const [quickWaitPhongId, setQuickWaitPhongId] = useState(null);
   const [matchFoundData, setMatchFoundData] = useState(null); // { doiThu: { ten, lopTen } }
   const [matchCountdown, setMatchCountdown] = useState(3);
-  const [showTaoBanModal, setShowTaoBanModal] = useState(false);
+  const [showTaoBanModal, setShowTaoBanModal] = useState(true);
   const [taoBanScope, setTaoBanScope] = useState('truong'); // 'truong' | 'lop'
   const [taoBanAccessMode, setTaoBanAccessMode] = useState('public'); // 'public' | 'password'
   const [taoBanPassword, setTaoBanPassword] = useState('');
@@ -887,6 +887,10 @@ function DigitalCampusApp() {
 
   const taoBanCaro = async () => {
     if (auth.isGuest) { setShowAuthGate(true); return; }
+    if (['g48', 'mem', 'snk'].includes(taoBanLoai)) {
+      setMiniGameId(taoBanLoai);
+      return;
+    }
     if (taoBanAccessMode === 'password' && !taoBanPassword.trim()) {
       setCaroLoi('Vui lòng nhập mật khẩu khi tạo phòng riêng tư.');
       return;
@@ -2111,6 +2115,7 @@ function DigitalCampusApp() {
                   highlights={campusHighlights}
                   onVaoGame={() => {
                     setCurrentLobby('GAME');
+                    setShowTaoBanModal(true);
                     if (!auth.isGuest) taiDanhSachBanCaro();
                   }}
                   onVaoPhong={(phongId) => {
@@ -2742,7 +2747,11 @@ function DigitalCampusApp() {
                     accessMode: taoBanAccessMode, setAccessMode: setTaoBanAccessMode,
                     password: taoBanPassword, setPassword: setTaoBanPassword,
                     loai: taoBanLoai, setLoai: setTaoBanLoai,
-                    loi: caroLoi, dangTao: taoBanDangGui, submit: taoBanCaro, setShow: setShowTaoBanModal
+                    loi: caroLoi, dangTao: taoBanDangGui, submit: taoBanCaro, setShow: setShowTaoBanModal,
+                    onMiniGame: id => {
+                      if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
+                      setMiniGameId(id);
+                    }
                   }}
                   onMiniGame={id => {
                     if (auth.isGuest) { setAuthModalTab('login'); setShowAuthModal(true); return; }
@@ -2766,6 +2775,7 @@ function DigitalCampusApp() {
                     onVaoHocTap={() => setCurrentLobby('CINEMA')}
                     onVaoGame={() => {
                       setCurrentLobby('GAME');
+                      setShowTaoBanModal(true);
                       if (!auth.isGuest) taiDanhSachBanCaro();
                     }}
                     soPhongHocTap={(phongCongDong || []).filter(p => p.loai === 'video').length}

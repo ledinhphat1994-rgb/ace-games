@@ -1,6 +1,7 @@
 import { idYoutube } from '../lib/helpers.js';
 import { Ic } from '../lib/icons.js';
-import { GAME_TYPE_INFO, MiniGameDock, gameTen } from './games.js';
+import { MINI_GAMES } from '../lib/minigames.js';
+import { GAME_TYPE_INFO, gameTen } from './games.js';
 
 
 // ─── CAMPUS ACTIVITY UNIVERSE (PHASE 4G: TWO LIVING ACTIVITY WORLDS) ───────────────────
@@ -450,6 +451,98 @@ export function QuickTaoPhongForm({ ctl }) {
 
 /* Bảng preview đồ họa trực quan cho từng loại game đấu trường */
 function GamePreviewBoard({ loaiGame }) {
+  if (loaiGame === 'g48') {
+    const previewTiles = [
+      { v: 2, c: 'bg-slate-700 text-slate-200' },
+      { v: 4, c: 'bg-slate-600 text-white' },
+      { v: 8, c: 'bg-cyan-800 text-cyan-100' },
+      { v: 16, c: 'bg-cyan-700 text-white' },
+      { v: 32, c: 'bg-cyan-600 text-black font-black' },
+      { v: 64, c: 'bg-cyan-400 text-black font-black shadow-[0_0_8px_rgba(34,211,238,0.4)]' },
+      { v: 128, c: 'bg-purple-600 text-white font-black' },
+      { v: 256, c: 'bg-pink-600 text-white font-black' },
+      { v: 512, c: 'bg-orange-600 text-white font-black' },
+      { v: 1024, c: 'bg-rose-600 text-white font-black' },
+      { v: 2048, c: 'bg-amber-400 text-black font-black shadow-[0_0_14px_rgba(251,191,36,0.8)]' },
+      { v: 0, c: 'bg-white/5' },
+      { v: 0, c: 'bg-white/5' },
+      { v: 2, c: 'bg-slate-700 text-slate-200' },
+      { v: 4, c: 'bg-slate-600 text-white' },
+      { v: 8, c: 'bg-cyan-800 text-cyan-100' }
+    ];
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#111827] border border-cyan-500/20 shadow-md">
+          <div className="grid grid-cols-4 gap-1.5">
+            {previewTiles.map((t, idx) => (
+              <div key={idx} className={`aspect-square rounded-lg flex items-center justify-center text-[10px] font-bold ${t.c}`}>
+                {t.v > 0 ? t.v : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Trượt gộp số: Mũi tên / WASD</span>
+          <span className="text-cyan-300 font-bold">Gộp đến 2048 để thắng</span>
+        </div>
+      </div>
+    );
+  }
+  if (loaiGame === 'mem') {
+    const cards = [
+      { icon: '🍎', up: true }, { icon: '🍎', up: true }, { icon: '🍌', up: true }, { icon: '🍌', up: true },
+      { icon: '🍇', up: true }, { icon: '❓', up: false }, { icon: '❓', up: false }, { icon: '🍇', up: true },
+      { icon: '💎', up: true }, { icon: '💎', up: true }, { icon: '⭐', up: true }, { icon: '⭐', up: true },
+      { icon: '❓', up: false }, { icon: '❓', up: false }, { icon: '🔥', up: true }, { icon: '🔥', up: true }
+    ];
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#131b2e] border border-purple-500/20 shadow-md">
+          <div className="grid grid-cols-4 gap-1.5">
+            {cards.map((c, idx) => (
+              <div key={idx} className={`aspect-square rounded-lg flex items-center justify-center text-sm border transition-all ${
+                c.up ? 'bg-[#1e293b] border-purple-500/40 shadow-sm' : 'bg-white/5 border-white/10 text-slate-500'
+              }`}>
+                {c.up ? c.icon : '❓'}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Lật thẻ tìm cặp giống nhau</span>
+          <span className="text-purple-300 font-bold">Ghi nhớ vị trí để thắng</span>
+        </div>
+      </div>
+    );
+  }
+  if (loaiGame === 'snk') {
+    return (
+      <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#090d16] border border-white/10 shadow-inner">
+        <div className="w-full max-w-[260px] p-2 rounded-xl bg-[#0a1810] border border-emerald-500/30 shadow-md">
+          <div className="grid grid-cols-8 gap-0.5">
+            {Array.from({ length: 64 }).map((_, idx) => {
+              const r = Math.floor(idx / 8);
+              const c = idx % 8;
+              const isHead = r === 3 && c === 5;
+              const isBody = (r === 3 && (c === 4 || c === 3 || c === 2)) || (r === 4 && c === 2);
+              const isFood = r === 5 && c === 6;
+              return (
+                <div key={idx} className="aspect-square bg-[#052e16]/50 border border-emerald-900/40 rounded-sm flex items-center justify-center">
+                  {isHead && <span className="w-3/4 h-3/4 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />}
+                  {isBody && <span className="w-2/3 h-2/3 rounded-sm bg-emerald-500" />}
+                  {isFood && <span className="text-[10px]">🍎</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center justify-between w-full mt-2 text-[10px] text-slate-400">
+          <span className="font-bold text-slate-300">🎯 Điều khiển rắn săn mồi</span>
+          <span className="text-emerald-300 font-bold">Ăn mồi dài ra, né đâm tường</span>
+        </div>
+      </div>
+    );
+  }
   if (loaiGame === 'c4') {
     const sampleC4 = [
       [0, 0, 0, 0, 0, 0, 0],
@@ -559,16 +652,26 @@ function GamePreviewBoard({ loaiGame }) {
   );
 }
 
-/* Form tạo bàn Caro rút gọn — hiện NGAY trong khung 1 của lobby Game */
-export function QuickTaoBanForm({ ctl }) {
+/* Form tạo bàn Caro & Chọn Game Arena — chia 2 cột (Đối kháng & Chơi 1 mình) bên trái, preview bên phải */
+export function QuickTaoBanForm({ ctl, onMiniGame }) {
   const isPrivate = ctl.accessMode === 'password';
+  const isSolo = MINI_GAMES.some(g => g.id === ctl.loai);
+  const soloGame = MINI_GAMES.find(g => g.id === ctl.loai);
+
+  const handleKichHoatSolo = (gameId) => {
+    if (ctl.onMiniGame) {
+      ctl.onMiniGame(gameId);
+    } else if (onMiniGame) {
+      onMiniGame(gameId);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
         <h3 className="text-sm font-black text-white flex items-center gap-2">
-          <span>⚔️</span>
-          <span>Tạo bàn đấu — {gameTen(ctl.loai)}</span>
+          <span>{isSolo ? '🧩' : '⚔️'}</span>
+          <span>{isSolo ? `Trò chơi — ${gameTen(ctl.loai)}` : `Tạo bàn đấu — ${gameTen(ctl.loai)}`}</span>
         </h3>
         <button
           type="button"
@@ -579,153 +682,264 @@ export function QuickTaoBanForm({ ctl }) {
         </button>
       </div>
 
-      {/* Main 2-column layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-        {/* VÙNG 4: DANH SÁCH GAME THÀNH 1 CỘT THEO LIST TỪ TRÊN XUỐNG BÊN TRÁI */}
-        <div className="md:col-span-5 flex flex-col gap-2" data-testid="tao-ban-loai">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-0.5">
-            Danh sách trò chơi
-          </label>
-          <div className="flex flex-col gap-2">
-            {Object.entries(GAME_TYPE_INFO).map(([id, g]) => {
-              const isSelected = ctl.loai === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => ctl.setLoai(id)}
-                  className={`px-3 py-2.5 rounded-xl text-left border transition-all flex items-center justify-between gap-2.5 cursor-pointer active:scale-95 ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/15 border-amber-400/60 text-white shadow-md'
-                      : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/5'
-                  }`}>
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-xl shrink-0">{g.icon}</span>
-                    <div className="min-w-0">
-                      <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-300' : 'text-white'}`}>
-                        {g.ten}
-                      </p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {g.moTa}
-                      </p>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] shrink-0" />
-                  )}
-                </button>
-              );
-            })}
+      {/* Main layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        {/* VÙNG 2: DANH SÁCH GAME CHIA 2 CỘT (1 CỘT ĐỐI KHÁNG, 1 CỘT CHƠI 1 MÌNH) */}
+        <div className="xl:col-span-7 flex flex-col gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* CỘT 1: ĐỐI KHÁNG */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+                <label className="text-[10px] uppercase font-black tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <span>⚔️</span>
+                  <span>Đối kháng</span>
+                </label>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-bold border border-amber-500/30">
+                  2 người
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5" data-testid="tao-ban-loai">
+                {Object.entries(GAME_TYPE_INFO).map(([id, g]) => {
+                  const isSelected = ctl.loai === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => ctl.setLoai(id)}
+                      className={`px-3 py-2.5 rounded-xl text-left border transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-95 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/15 border-amber-400/60 text-white shadow-md'
+                          : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/5'
+                      }`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xl shrink-0">{g.icon}</span>
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                            {g.ten}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {g.moTa}
+                          </p>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* CỘT 2: CHƠI 1 MÌNH */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+                <label className="text-[10px] uppercase font-black tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <span>🧩</span>
+                  <span>Chơi 1 mình</span>
+                </label>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30">
+                  Không cần chờ
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5" data-testid="minigame-dock">
+                {MINI_GAMES.map(g => {
+                  const isSelected = ctl.loai === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      data-testid={`mini-${g.id}`}
+                      onClick={() => ctl.setLoai(g.id)}
+                      className={`px-3 py-2.5 rounded-xl text-left border transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-95 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/15 border-emerald-400/60 text-white shadow-md'
+                          : 'bg-[#0B0E14] text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/5'
+                      }`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xl shrink-0">{g.icon}</span>
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-300' : 'text-white'}`}>
+                            {g.ten}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {g.moTa}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isSelected ? (
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]" />
+                        ) : (
+                          <span
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleKichHoatSolo(g.id);
+                            }}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 border border-white/10 transition-all"
+                            title="Chơi ngay">
+                            ▶
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                <div className="p-2.5 rounded-xl bg-[#0B0E14]/60 border border-dashed border-white/10 text-center">
+                  <p className="text-[10px] text-slate-400 leading-snug">
+                    ⚡ Chơi tức thì không cần đợi người khác tham gia
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* CỘT PHẢI: VÙNG 2 & 3 TRÊN BẢNG PREVIEW GAME */}
-        <div className="md:col-span-7 flex flex-col gap-3 min-w-0 bg-[#0B0E14]/70 p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-lg">
-          {/* VÙNG 2 & 3: CÔNG KHAI VÀ RIÊNG TƯ */}
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-              Chế độ phòng đấu
-            </label>
-            <div className="grid grid-cols-2 gap-2">
+        {/* CỘT PHẢI: XEM TRƯỚC BÀN CỜ / GAME & THIẾT LẬP */}
+        <div className="xl:col-span-5 flex flex-col gap-3 min-w-0 bg-[#0B0E14]/70 p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-lg">
+          {/* NẾU LÀ GAME SOLO (CHƠI 1 MÌNH) */}
+          {isSolo ? (
+            <>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{soloGame?.icon}</span>
+                  <div>
+                    <p className="text-xs font-bold text-white">{soloGame?.ten}</p>
+                    <p className="text-[9px] text-emerald-300">Chế độ chơi đơn — Không cần đối thủ</p>
+                  </div>
+                </div>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                  Tức thì
+                </span>
+              </div>
+
+              {/* BẢNG PREVIEW GAME */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                  Xem trước trò chơi — {soloGame?.ten}
+                </label>
+                <GamePreviewBoard loaiGame={ctl.loai} />
+              </div>
+
+              {/* Nút Bắt đầu chơi ngay */}
               <button
                 type="button"
-                id="btn-tao-ban-cong-khai"
-                onClick={() => {
-                  ctl.setAccessMode?.('public');
-                  ctl.setPassword?.('');
-                }}
-                className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                  !isPrivate
-                    ? 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border-purple-500/50 shadow-sm'
-                    : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
-                }`}>
-                <span className="text-sm">🌐</span>
-                <div className="min-w-0">
-                  <p className="font-bold text-white">Công khai</p>
-                  <p className="text-[9px] text-slate-400 font-normal">Mọi người đều vào được</p>
-                </div>
+                onClick={() => handleKichHoatSolo(ctl.loai)}
+                className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-[#00F2FE] text-black font-black text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2">
+                <span className="text-sm">🎮</span>
+                <span>Bắt đầu chơi {soloGame?.ten || ''} ngay</span>
               </button>
+            </>
+          ) : (
+            /* NẾU LÀ GAME ĐỐI KHÁNG (2 NGƯỜI) */
+            <>
+              {/* VÙNG 2 & 3: CÔNG KHAI VÀ RIÊNG TƯ */}
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                  Chế độ phòng đấu
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    id="btn-tao-ban-cong-khai"
+                    onClick={() => {
+                      ctl.setAccessMode?.('public');
+                      ctl.setPassword?.('');
+                    }}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                      !isPrivate
+                        ? 'bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 border-purple-500/50 shadow-sm'
+                        : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
+                    }`}>
+                    <span className="text-sm">🌐</span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-white">Công khai</p>
+                      <p className="text-[9px] text-slate-400 font-normal">Mọi người đều vào được</p>
+                    </div>
+                  </button>
 
-              <button
-                type="button"
-                id="btn-tao-ban-rieng-tu"
-                onClick={() => ctl.setAccessMode?.('password')}
-                className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                  isPrivate
-                    ? 'bg-gradient-to-r from-amber-500/20 to-rose-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                    : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
-                }`}>
-                <span className="text-sm">🔒</span>
-                <div className="min-w-0">
-                  <p className="font-bold text-white">Riêng tư</p>
-                  <p className="text-[9px] text-slate-400 font-normal">Cần mật khẩu để vào</p>
+                  <button
+                    type="button"
+                    id="btn-tao-ban-rieng-tu"
+                    onClick={() => ctl.setAccessMode?.('password')}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-bold border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                      isPrivate
+                        ? 'bg-gradient-to-r from-amber-500/20 to-rose-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                        : 'bg-[#151A23] text-slate-400 border-white/10 hover:border-white/20 hover:text-white'
+                    }`}>
+                    <span className="text-sm">🔒</span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-white">Riêng tư</p>
+                      <p className="text-[9px] text-slate-400 font-normal">Cần mật khẩu để vào</p>
+                    </div>
+                  </button>
                 </div>
-              </button>
-            </div>
 
-            {/* Khi chọn riêng tư thì có tạo mật khẩu phòng */}
-            {isPrivate && (
-              <div className="flex flex-col gap-1 p-2.5 bg-[#151A23] border border-amber-500/30 rounded-xl animate-fadeIn">
-                <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                  <span>🔑</span>
-                  <span>Tạo mật khẩu phòng *</span>
+                {/* Khi chọn riêng tư thì có tạo mật khẩu phòng */}
+                {isPrivate && (
+                  <div className="flex flex-col gap-1 p-2.5 bg-[#151A23] border border-amber-500/30 rounded-xl animate-fadeIn">
+                    <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                      <span>🔑</span>
+                      <span>Tạo mật khẩu phòng *</span>
+                    </label>
+                    <input
+                      type="password"
+                      id="input-tao-mat-khau-phong"
+                      value={ctl.password || ''}
+                      onChange={e => ctl.setPassword?.(e.target.value)}
+                      placeholder="Nhập mật khẩu cho phòng đấu (VD: 1234)..."
+                      maxLength={30}
+                      className="w-full bg-[#0B0E14] border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* BẢNG PREVIEW GAME */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                  Xem trước bàn cờ — {gameTen(ctl.loai)}
+                </label>
+                <GamePreviewBoard loaiGame={ctl.loai} />
+              </div>
+
+              {/* Tên bàn đấu */}
+              <div>
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+                  Tên bàn đấu (Tùy chọn)
                 </label>
                 <input
-                  type="password"
-                  id="input-tao-mat-khau-phong"
-                  value={ctl.password || ''}
-                  onChange={e => ctl.setPassword?.(e.target.value)}
-                  placeholder="Nhập mật khẩu cho phòng đấu (VD: 1234)..."
-                  maxLength={30}
-                  className="w-full bg-[#0B0E14] border border-amber-500/40 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                  type="text"
+                  value={ctl.ten}
+                  onChange={e => ctl.setTen(e.target.value)}
+                  placeholder="VD: Giao lưu cờ caro, Đấu trí cuối tuần..."
+                  maxLength={60}
+                  className="w-full bg-[#151A23] border border-white/10 focus:border-[#00F2FE] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
                 />
               </div>
-            )}
-          </div>
 
-          {/* BẢNG PREVIEW GAME */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-              Xem trước bàn cờ — {gameTen(ctl.loai)}
-            </label>
-            <GamePreviewBoard loaiGame={ctl.loai} />
-          </div>
+              {ctl.loi && <p className="text-[11px] text-rose-400">{ctl.loi}</p>}
 
-          {/* Tên bàn đấu */}
-          <div>
-            <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
-              Tên bàn đấu (Tùy chọn)
-            </label>
-            <input
-              type="text"
-              value={ctl.ten}
-              onChange={e => ctl.setTen(e.target.value)}
-              placeholder="VD: Giao lưu cờ caro, Đấu trí cuối tuần..."
-              maxLength={60}
-              className="w-full bg-[#151A23] border border-white/10 focus:border-[#00F2FE] rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
-            />
-          </div>
-
-          {ctl.loi && <p className="text-[11px] text-rose-400">{ctl.loi}</p>}
-
-          {/* Nút Tạo bàn ngay */}
-          <button
-            type="button"
-            onClick={ctl.submit}
-            disabled={ctl.dangTao || (isPrivate && !ctl.password?.trim())}
-            className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] via-[#38bdf8] to-[#8B5CF6] text-black font-black text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5">
-            {ctl.dangTao ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                <span>Đang tạo…</span>
-              </>
-            ) : (
-              <>
-                <span>🚀</span>
-                <span>Tạo bàn ngay</span>
-              </>
-            )}
-          </button>
+              {/* Nút Tạo bàn ngay */}
+              <button
+                type="button"
+                onClick={ctl.submit}
+                disabled={ctl.dangTao || (isPrivate && !ctl.password?.trim())}
+                className="w-full py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#00F2FE] via-[#38bdf8] to-[#8B5CF6] text-black font-black text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5">
+                {ctl.dangTao ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Đang tạo…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    <span>Tạo bàn ngay</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -856,7 +1070,7 @@ export function ActivityLobby({
       {/* ─── KHUNG 1: TẠO BÀN — chỉ hiện khi đang tạo, giữ sảnh Game gọn khi rảnh ─── */}
       {lobbyId === 'GAME' && taoBanCtl?.show && (
         <div className="p-4 sm:p-6 rounded-3xl bg-[#121620] border border-white/10 shadow-xl">
-          <QuickTaoBanForm ctl={taoBanCtl} />
+          <QuickTaoBanForm ctl={taoBanCtl} onMiniGame={onMiniGame} />
         </div>
       )}
 
@@ -1017,11 +1231,6 @@ export function ActivityLobby({
           )
         )}
       </div>
-
-      {/* ─── MINI GAME 1 MÌNH — chỉ ở lobby Game, engine chạy local trong overlay ─── */}
-      {lobbyId === 'GAME' && onMiniGame && (
-        <MiniGameDock onChon={onMiniGame} />
-      )}
     </div>
   );
 }

@@ -14,7 +14,12 @@ export const GAME_TYPE_INFO = {
   reversi: { ten: 'Reversi 8×8',    icon: '⚫', moTa: 'Lật quân chiếm bàn',    mauChu: '⚫', mauKhach: '⚪' },
 };
 export const GAME_TYPE_IDS = Object.keys(GAME_TYPE_INFO);
-export const gameTen = loai => (GAME_TYPE_INFO[loai] || GAME_TYPE_INFO.co_caro).ten;
+export const gameTen = loai => {
+  if (GAME_TYPE_INFO[loai]) return GAME_TYPE_INFO[loai].ten;
+  const solo = MINI_GAMES.find(g => g.id === loai);
+  if (solo) return solo.ten;
+  return GAME_TYPE_INFO.co_caro.ten;
+};
 
 /* ── CSS bàn cờ + fullscreen — inject 1 lần ── */
 const ARENA_STYLE_ID = 'arena-games-css';
