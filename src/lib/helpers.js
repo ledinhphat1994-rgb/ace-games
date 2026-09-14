@@ -179,19 +179,39 @@ export const CAMPUS_GAMES = [
 
 // ─── Phase 3C.1: Watch Together Component (Campus Cinema) ───────────────────
 export function napYouTubeIframeApi(cb) {
-  if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
+  if (typeof window === 'undefined') return;
+  if (window.YT && window.YT.Player) {
     if (cb) cb();
     return;
   }
   if (!window._ytCallbacks) window._ytCallbacks = [];
   if (cb) window._ytCallbacks.push(cb);
-  if (window._ytLoading) return;
+
+  // Nếu script đã hoặc đang được nạp: chạy interval kiểm tra để đảm bảo callback không bao giờ bị bỏ rơi
+  if (window._ytLoading || window._ytReady || document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+    const checkTimer = setInterval(() => {
+      if (window.YT && window.YT.Player) {
+        clearInterval(checkTimer);
+        while (window._ytCallbacks && window._ytCallbacks.length) {
+          const fn = window._ytCallbacks.shift();
+          try { fn(); } catch { }
+        }
+      }
+    }, 50);
+    setTimeout(() => clearInterval(checkTimer), 10000);
+    return;
+  }
+
   window._ytLoading = true;
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
   tag.async = true;
+  const prevReady = window.onYouTubeIframeAPIReady;
   window.onYouTubeIframeAPIReady = () => {
     window._ytReady = true;
+    if (typeof prevReady === 'function') {
+      try { prevReady(); } catch { }
+    }
     if (window._ytCallbacks) {
       while (window._ytCallbacks.length) {
         const fn = window._ytCallbacks.shift();

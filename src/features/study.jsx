@@ -1528,7 +1528,7 @@ export function CampusWatchTogether({
       const res = await fetch('/api/phong-watch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u })
+        body: JSON.stringify({ phongId: phong.id, action: 'set_video', videoUrl: u, autoPlay: true })
       });
       const d = await res.json();
       if (!d.ok) {
@@ -1537,6 +1537,17 @@ export function CampusWatchTogether({
         setActiveVideoUrl(u);
         setProvider(getInitialProvider(u));
         setVideoMoi('');
+        if (d.state) {
+          setWatchState(d.state);
+          setLocalTime(0);
+        }
+        const newYtId = idYoutube(u);
+        if (newYtId && ytPlayerRef.current && ytReadyRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
+          try {
+            ytPlayerRef.current.loadVideoById({ videoId: newYtId, startSeconds: 0 });
+            ytPlayerRef.current.playVideo();
+          } catch {}
+        }
         setThongBaoVideo(`Đang phát: ${title || u}`);
         setTimeout(() => setThongBaoVideo(''), 4000);
         taiQueue();
@@ -1614,6 +1625,21 @@ export function CampusWatchTogether({
           setThongBaoVideo(`Đã thêm phát kế tiếp: ${extra.title || 'Video'}`);
           setTimeout(() => setThongBaoVideo(''), 3500);
         } else if (action === 'play_now' || action === 'skip') {
+          if (d.videoUrl) {
+            setActiveVideoUrl(d.videoUrl);
+            setProvider(getInitialProvider(d.videoUrl));
+            if (d.state) {
+              setWatchState(d.state);
+              setLocalTime(0);
+            }
+            const newYtId = idYoutube(d.videoUrl);
+            if (newYtId && ytPlayerRef.current && ytReadyRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
+              try {
+                ytPlayerRef.current.loadVideoById({ videoId: newYtId, startSeconds: 0 });
+                ytPlayerRef.current.playVideo();
+              } catch {}
+            }
+          }
           setThongBaoVideo('Đang chuyển video...');
           setTimeout(() => setThongBaoVideo(''), 3000);
         }
@@ -1647,54 +1673,114 @@ export function CampusWatchTogether({
   const drvId = videoUrl ? idGoogleDrive(videoUrl) : null;
   const trucTiepUrl = videoUrl && !ytId && !drvId && laVideoTrucTiepFe(videoUrl) ? urlMediaFe(videoUrl) : '';
 
-  // Khởi tạo YouTube IFrame Player khi ytId có giá trị (hỗ trợ retry khi DOM đang render)
+  const [ytApiFailed, setYtApiFailed] = useState(false);
+  const [_ytPlayerReady, setYtPlayerReady] = useState(false);
+  const ytReadyRef = useRef(false);
+  const currentYtIdRef = useRef(null);
+
+  // Khởi tạo và quản lý YouTube IFrame Player (hỗ trợ tái sử dụng loadVideoById & fallback trực tiếp)
   useEffect(() => {
     if (!ytId) return;
     let destroyed = false;
     let retryTimer = null;
+    let fallbackTimer = null;
     let attempts = 0;
+
+    // Nếu player đã tồn tại và đã sẵn sàng: chuyển video trực tiếp qua loadVideoById (tránh destroy DOM gây lỗi mất khung)
+    if (ytPlayerRef.current && ytReadyRef.current && typeof ytPlayerRef.current.loadVideoById === 'function') {
+      try {
+        if (currentYtIdRef.current !== ytId) {
+          currentYtIdRef.current = ytId;
+          const startSec = Number(watchState.positionSeconds || 0);
+          ytPlayerRef.current.loadVideoById({
+            videoId: ytId,
+            startSeconds: startSec
+          });
+          if (watchState.playing) {
+            ytPlayerRef.current.playVideo();
+          }
+        }
+        return;
+      } catch (e) {
+        console.warn('Lỗi khi loadVideoById, khởi tạo lại player:', e);
+      }
+    }
+
+    currentYtIdRef.current = ytId;
+
+    // Fallback: nếu sau 3.2s mà YouTube API chưa sẵn sàng hoặc bị chặn bởi adblock/mạng, kích hoạt iframe trực tiếp
+    fallbackTimer = setTimeout(() => {
+      if (!destroyed && !ytReadyRef.current) {
+        console.warn('YouTube IFrame API không phản hồi sau 3.2s -> kích hoạt fallback iframe trực tiếp.');
+        setYtApiFailed(true);
+      }
+    }, 3200);
 
     const khoiTaoPlayer = () => {
       if (destroyed) return;
       const el = document.getElementById(ytContainerId);
       if (!el) {
-        if (attempts++ < 25) {
+        if (attempts++ < 30) {
           retryTimer = setTimeout(khoiTaoPlayer, 80);
+        } else {
+          setYtApiFailed(true);
         }
         return;
       }
 
-      // Destroy player cũ nếu có
+      // Destroy player cũ nếu có trước khi tạo mới trên container
       if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
         try { ytPlayerRef.current.destroy(); } catch {}
         ytPlayerRef.current = null;
+        ytReadyRef.current = false;
+        setYtPlayerReady(false);
       }
 
       try {
+        if (!window.YT || !window.YT.Player) {
+          if (attempts++ < 30) {
+            retryTimer = setTimeout(khoiTaoPlayer, 100);
+          } else {
+            setYtApiFailed(true);
+          }
+          return;
+        }
+
+        const originUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
         ytPlayerRef.current = new window.YT.Player(ytContainerId, {
           width: '100%',
           height: '100%',
           videoId: ytId,
           playerVars: {
-            autoplay: 0,
+            autoplay: watchState.playing ? 1 : 0,
             controls: canControl ? 1 : 0,
             disablekb: canControl ? 0 : 1,
+            enablejsapi: 1,
+            origin: originUrl,
+            widget_referrer: typeof window !== 'undefined' ? window.location.href : '',
             modestbranding: 1,
             rel: 0,
-            playsinline: 1
+            playsinline: 1,
+            fs: 1
           },
           events: {
             onReady: (event) => {
               if (destroyed) return;
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+              ytReadyRef.current = true;
+              setYtPlayerReady(true);
+              setYtApiFailed(false);
+
               if (event.target.getDuration) {
                 const d = event.target.getDuration();
                 if (d > 0) setDuration(d);
               }
-              if (watchState.playing && event.target.playVideo) {
-                try { event.target.playVideo(); } catch {}
-              }
               if (watchState.positionSeconds > 0 && event.target.seekTo) {
                 try { event.target.seekTo(watchState.positionSeconds, true); } catch {}
+              }
+              if (watchState.playing && event.target.playVideo) {
+                try { event.target.playVideo(); } catch {}
               }
             },
             onStateChange: (event) => {
@@ -1708,25 +1794,28 @@ export function CampusWatchTogether({
                   hanhDongQueue('skip');
                 }
               }
+            },
+            onError: (err) => {
+              console.warn('YouTube Player báo lỗi mã:', err?.data);
+              // Nếu gặp lỗi cấm nhúng (101, 150) hoặc lỗi player, kích hoạt fallback trực tiếp
+              setYtApiFailed(true);
             }
           }
         });
       } catch (err) {
         console.warn('Lỗi khởi tạo YT Player:', err);
+        setYtApiFailed(true);
       }
     };
 
     napYouTubeIframeApi(() => {
-      setTimeout(khoiTaoPlayer, 50);
+      setTimeout(khoiTaoPlayer, 60);
     });
 
     return () => {
       destroyed = true;
       if (retryTimer) clearTimeout(retryTimer);
-      if (ytPlayerRef.current && ytPlayerRef.current.destroy) {
-        try { ytPlayerRef.current.destroy(); } catch { }
-        ytPlayerRef.current = null;
-      }
+      if (fallbackTimer) clearTimeout(fallbackTimer);
     };
   }, [ytId, phong.id, canControl]);
 
@@ -1766,27 +1855,40 @@ export function CampusWatchTogether({
           v.currentTime = st.positionSeconds;
         }
       }
-    } else if (prov === 'YOUTUBE' && ytPlayerRef.current && ytPlayerRef.current.getPlayerState) {
-      const p = ytPlayerRef.current;
-      try {
-        const cur = p.getCurrentTime() || 0;
-        const drift = Math.abs(cur - targetPos);
-        if (st.playing) {
-          if (drift > 1.5) {
-            p.seekTo(targetPos, true);
+    } else if (prov === 'YOUTUBE') {
+      if (ytPlayerRef.current && ytPlayerRef.current.getPlayerState) {
+        const p = ytPlayerRef.current;
+        try {
+          const cur = p.getCurrentTime() || 0;
+          const drift = Math.abs(cur - targetPos);
+          if (st.playing) {
+            if (drift > 1.5) {
+              p.seekTo(targetPos, true);
+            }
+            const ps = p.getPlayerState();
+            if (ps !== 1 && ps !== 3 && (hasInteracted || ctrl)) {
+              p.playVideo();
+            }
+          } else {
+            const ps = p.getPlayerState();
+            if (ps === 1) p.pauseVideo();
+            if (Math.abs(cur - st.positionSeconds) > 0.8) {
+              p.seekTo(st.positionSeconds, true);
+            }
           }
-          const ps = p.getPlayerState();
-          if (ps !== 1 && ps !== 3 && (hasInteracted || ctrl)) {
-            p.playVideo();
-          }
-        } else {
-          const ps = p.getPlayerState();
-          if (ps === 1) p.pauseVideo();
-          if (Math.abs(cur - st.positionSeconds) > 0.8) {
-            p.seekTo(st.positionSeconds, true);
-          }
+        } catch { }
+      } else if (ytApiFailed) {
+        const ifr = document.querySelector(`iframe#yt-fallback-${phong.id}`);
+        if (ifr && ifr.contentWindow) {
+          try {
+            if (st.playing) {
+              ifr.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            } else {
+              ifr.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            }
+          } catch {}
         }
-      } catch { }
+      }
     }
   };
 
@@ -1851,13 +1953,37 @@ export function CampusWatchTogether({
     // Cập nhật lạc quan trên local player
     if (action === 'play') {
       if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.play().catch(() => {});
-      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.playVideo) ytPlayerRef.current.playVideo();
+      else if (provider === 'YOUTUBE') {
+        if (ytPlayerRef.current?.playVideo) {
+          try { ytPlayerRef.current.playVideo(); } catch {}
+        }
+        if (ytApiFailed) {
+          const ifr = document.querySelector(`iframe#yt-fallback-${phong.id}`);
+          ifr?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        }
+      }
     } else if (action === 'pause') {
       if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.pause();
-      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
+      else if (provider === 'YOUTUBE') {
+        if (ytPlayerRef.current?.pauseVideo) {
+          try { ytPlayerRef.current.pauseVideo(); } catch {}
+        }
+        if (ytApiFailed) {
+          const ifr = document.querySelector(`iframe#yt-fallback-${phong.id}`);
+          ifr?.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        }
+      }
     } else if (action === 'seek') {
       if (provider === 'NATIVE_HTML5' && videoRef.current) videoRef.current.currentTime = pos;
-      else if (provider === 'YOUTUBE' && ytPlayerRef.current?.seekTo) ytPlayerRef.current.seekTo(pos, true);
+      else if (provider === 'YOUTUBE') {
+        if (ytPlayerRef.current?.seekTo) {
+          try { ytPlayerRef.current.seekTo(pos, true); } catch {}
+        }
+        if (ytApiFailed) {
+          const ifr = document.querySelector(`iframe#yt-fallback-${phong.id}`);
+          ifr?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [pos, true] }), '*');
+        }
+      }
     }
 
     try {
@@ -1959,9 +2085,27 @@ export function CampusWatchTogether({
 
         {/* Video elements theo provider */}
         {ytId ? (
-          <div key={`yt-wrap-${phong.id}-${ytId}`} className="w-full h-full flex items-center justify-center">
-            <div id={ytContainerId} className="w-full h-full" />
-          </div>
+          ytApiFailed ? (
+            <div key={`yt-fallback-wrap-${phong.id}-${ytId}`} className="w-full h-full relative">
+              <iframe
+                id={`yt-fallback-${phong.id}`}
+                key={`yt-iframe-${ytId}`}
+                src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=${watchState.playing ? 1 : 0}&start=${Math.floor(localTime || 0)}&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}&rel=0&modestbranding=1&playsinline=1`}
+                title={phong.ten || 'YouTube Video'}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="w-full h-full border-0"
+              />
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur border border-white/10 text-[10px] text-slate-300 pointer-events-none flex items-center gap-1 shadow">
+                <span>⚡</span>
+                <span>Phát trực tiếp YouTube</span>
+              </div>
+            </div>
+          ) : (
+            <div key={`yt-wrap-${phong.id}`} className="w-full h-full flex items-center justify-center">
+              <div id={ytContainerId} className="w-full h-full" />
+            </div>
+          )
         ) : drvId ? (
           <iframe
             src={`https://drive.google.com/file/d/${drvId}/preview`}

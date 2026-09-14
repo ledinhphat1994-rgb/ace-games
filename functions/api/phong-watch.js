@@ -120,8 +120,9 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     let cauHinh = {};
     try { cauHinh = check.phong.cauHinh ? JSON.parse(check.phong.cauHinh) : {}; } catch { /* bỏ qua */ }
     cauHinh.videoUrl = u;
-    // cau_hinh + dòng đồng bộ phải cùng commit (batch nguyên tử) — không nuốt lỗi:
-    // lỗi giữa chừng sẽ để state lệch video, lúc đó trả 500 chứ không giả vờ thành công.
+
+    // Trạng thái phát: mặc định là 'playing' (phát ngay) trừ khi yêu cầu tạm dừng rõ ràng
+    const trangThaiMoi = than.autoPlay === false ? 'paused' : 'playing';
     const qid = parseInt(than.queueId || '0', 10);
     const stmts = [
       db.prepare(
@@ -129,12 +130,12 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       ).bind(JSON.stringify(cauHinh), phongId),
       db.prepare(
         `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
-         VALUES (?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
+         VALUES (?1, ?4, 0, 1.0, 1, CURRENT_TIMESTAMP, ?2, ?3)
          ON CONFLICT(phong_id) DO UPDATE SET
-           trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
+           trang_thai = ?4, vi_tri_giay = 0, toc_do = 1.0,
            revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
            nguoi_cap_nhat_khoa = ?2, nguoi_cap_nhat_ten = ?3`
-      ).bind(phongId, khoa, tenCua(phien)),
+      ).bind(phongId, khoa, tenCua(phien), trangThaiMoi),
     ];
     if (qid > 0) {
       // Đổi theo mục queue: dọn 'playing' cũ + gắn 'playing' cho item trong cùng batch.
@@ -148,7 +149,29 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
       );
     }
     await db.batch(stmts);
-    return json({ ok: true, videoUrl: u });
+
+    // Đọc lại row mới nhất vừa cập nhật để trả về đầy đủ state + revision cho client
+    const rowMoi = await db.prepare(
+      `SELECT phong_id AS phongId, trang_thai AS trangThai, vi_tri_giay AS viTriGiay,
+              toc_do AS tocDo, revision, cap_nhat_luc AS capNhatLuc,
+              nguoi_cap_nhat_khoa AS nguoiCapNhatKhoa, nguoi_cap_nhat_ten AS nguoiCapNhatTen
+         FROM phong_dong_bo_video WHERE phong_id = ?1`
+    ).bind(phongId).first();
+
+    return json({
+      ok: true,
+      videoUrl: u,
+      state: {
+        playing: rowMoi?.trangThai === 'playing',
+        positionSeconds: 0,
+        basePositionSeconds: 0,
+        playbackRate: Number(rowMoi?.tocDo || 1.0),
+        revision: Number(rowMoi?.revision || 1),
+        updatedAt: rowMoi?.capNhatLuc || new Date().toISOString(),
+        serverNow: new Date().toISOString(),
+        updatedBy: rowMoi?.nguoiCapNhatTen || null
+      }
+    });
   }
 
   const expectedRev = parseInt(than.expectedRevision || '0', 10);

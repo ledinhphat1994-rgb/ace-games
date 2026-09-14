@@ -37,10 +37,10 @@ async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
     ).bind(phongId, JSON.stringify(cauHinh), itemId),
     db.prepare(
       `INSERT INTO phong_dong_bo_video (phong_id, trang_thai, vi_tri_giay, toc_do, revision, cap_nhat_luc, nguoi_cap_nhat_khoa, nguoi_cap_nhat_ten)
-       SELECT ?1, 'paused', 0, 1.0, 1, CURRENT_TIMESTAMP, ?4, ?5
+       SELECT ?1, 'playing', 0, 1.0, 1, CURRENT_TIMESTAMP, ?4, ?5
        WHERE ${guard}
        ON CONFLICT(phong_id) DO UPDATE SET
-         trang_thai = 'paused', vi_tri_giay = 0, toc_do = 1.0,
+         trang_thai = 'playing', vi_tri_giay = 0, toc_do = 1.0,
          revision = revision + 1, cap_nhat_luc = CURRENT_TIMESTAMP,
          nguoi_cap_nhat_khoa = ?4, nguoi_cap_nhat_ten = ?5`
     ).bind(phongId, 0, itemId, khoa, ten),
@@ -48,7 +48,27 @@ async function chuyenVideoTheoQueueItem(db, phongId, itemId, khoa, ten) {
       `UPDATE phong_video_queue SET trang_thai = 'playing' WHERE id = ?3 AND phong_id = ?1 AND trang_thai = 'queued'`
     ).bind(phongId, 0, itemId),
   ]);
-  return (rs[3]?.meta?.changes ?? 0) > 0 ? 'ok' : 'gone';
+  if (!((rs[3]?.meta?.changes ?? 0) > 0)) return { status: 'gone' };
+
+  const rowMoi = await db.prepare(
+    `SELECT trang_thai AS trangThai, vi_tri_giay AS viTriGiay, toc_do AS tocDo, revision, cap_nhat_luc AS capNhatLuc, nguoi_cap_nhat_ten AS nguoiCapNhatTen
+       FROM phong_dong_bo_video WHERE phong_id = ?1`
+  ).bind(phongId).first();
+
+  return {
+    status: 'ok',
+    videoUrl: item.videoUrl,
+    state: {
+      playing: rowMoi?.trangThai === 'playing',
+      positionSeconds: 0,
+      basePositionSeconds: 0,
+      playbackRate: Number(rowMoi?.tocDo || 1.0),
+      revision: Number(rowMoi?.revision || 1),
+      updatedAt: rowMoi?.capNhatLuc || new Date().toISOString(),
+      serverNow: new Date().toISOString(),
+      updatedBy: rowMoi?.nguoiCapNhatTen || null
+    }
+  };
 }
 
 export const onRequestGet = bocXuLy(async ({ request, env, phien }) => {
@@ -171,8 +191,8 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
     ).bind(id, phongId).first();
     if (!item) return loi('Mục không tồn tại trong hàng đợi.', 404);
     const kq = await chuyenVideoTheoQueueItem(db, phongId, id, khoa, ten);
-    if (kq === 'gone') return loi('Mục không còn trong hàng đợi — hàng đợi vừa thay đổi.', 409);
-    return json({ ok: true, videoUrl: item.videoUrl });
+    if (kq.status === 'gone') return loi('Mục không còn trong hàng đợi — hàng đợi vừa thay đổi.', 409);
+    return json({ ok: true, videoUrl: kq.videoUrl, state: kq.state });
   }
 
   // ── PHÁT VIDEO TIẾP THEO — đọc item đầu rồi chuyển nguyên tử; nếu item vừa bị
@@ -187,7 +207,7 @@ export const onRequestPost = bocXuLy(async ({ request, env, phien }) => {
         return json({ ok: true, empty: true, loi: 'Hàng đợi đã hết video.' });
       }
       const kq = await chuyenVideoTheoQueueItem(db, phongId, tiep.id, khoa, ten);
-      if (kq === 'ok') return json({ ok: true, videoUrl: tiep.videoUrl });
+      if (kq.status === 'ok') return json({ ok: true, videoUrl: kq.videoUrl, state: kq.state });
       // 'gone': item vừa bị claim — vòng lặp đọc lại item đầu mới.
     }
     return loi('Hàng đợi đang thay đổi — thử lại.', 409);
