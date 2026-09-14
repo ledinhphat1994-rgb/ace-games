@@ -316,7 +316,7 @@ export function QuickTaoPhongForm({ ctl }) {
         <h3 className="text-sm font-black text-white flex items-center gap-2"><span>🍿</span> Tạo phòng học tập</h3>
       </div>
 
-      <input type="text" value={f.ten} onChange={e => dat({ ten: e.target.value })} autoFocus
+      <input type="text" value={f.ten} onChange={e => dat({ ten: e.target.value })}
         placeholder="Tên phòng (VD: Góc ôn thi Toán)" maxLength={80}
         className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500" />
 
@@ -470,7 +470,7 @@ export function QuickTaoBanForm({ ctl }) {
         ))}
       </div>
 
-      <input type="text" value={ctl.ten} onChange={e => ctl.setTen(e.target.value)} autoFocus
+      <input type="text" value={ctl.ten} onChange={e => ctl.setTen(e.target.value)}
         placeholder="Tên bàn đấu (tuỳ chọn)" maxLength={60}
         className="w-full bg-[#0B0E14] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00F2FE]" />
 

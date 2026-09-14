@@ -1302,15 +1302,13 @@ function DigitalCampusApp() {
     return () => { alive = false; clearInterval(iv1); clearInterval(iv2); clearInterval(iv3); };
   }, [currentView, activeRoom?.type, activeRoom?.id, taiDanhSachPhong, phongDetailTick]);
 
-  // Cuộn chat phòng xuống cuối khi có tin mới (an toàn, không giật trang).
+  // Cuộn chat phòng xuống cuối khi có tin mới (an toàn, chỉ cuộn nội bộ container, không giật màn hình).
   useEffect(() => {
     const el = phongChatEndRef.current;
     if (el) {
       const p = el.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [phongChat]);
@@ -1341,8 +1339,6 @@ function DigitalCampusApp() {
       const p = el.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [sanhChat]);
@@ -1457,7 +1453,7 @@ function DigitalCampusApp() {
     const i = RAIL_TABS.indexOf(railTab);
     const ke = RAIL_TABS[(i + (e.key === 'ArrowRight' ? 1 : RAIL_TABS.length - 1)) % RAIL_TABS.length];
     setRailTab(ke);
-    document.getElementById(`railtab-${ke}`)?.focus();
+    document.getElementById(`railtab-${ke}`)?.focus({ preventScroll: true });
   };
 
   // ─── ACTIVITY ROOM NAVIGATOR HELPER (REGION 2) ───────────────────────────
@@ -2579,7 +2575,7 @@ function DigitalCampusApp() {
                 </div>
 
                 {/* VÙNG 2 (CỘT PHẢI): Study Dock (YouTube Workspace) OR Standard Room Chat */}
-                <div className={`flex flex-col gap-4 min-w-0 self-stretch ${isRoomWide ? 'h-full flex-1' : ''}`} style={cStyle}>
+                <div className={`flex flex-col gap-4 min-w-0 ${isRoomWide ? 'h-full flex-1 self-stretch' : 'self-start'}`} style={cStyle}>
                   {p.loai === 'video' ? (
                     <StudyDock
                       phong={p}

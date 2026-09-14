@@ -367,14 +367,12 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
     return () => clearInterval(interval);
   }, [isActiveCampusAccount, hasClassAccess, isActive, tab, activeFriend?.accountId, classLopId, taiCampusChat, taiClassChat, taiFriends, taiDmMessages]);
 
-  // Auto scroll - an toàn không giật trang
+  // Auto scroll - an toàn không giật trang, chỉ cuộn trong nội bộ container chat
   React.useEffect(() => {
     if (tab === 'campus' && campusEndRef.current) {
       const p = campusEndRef.current.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        campusEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [campusMessages.length, tab]);
@@ -384,8 +382,6 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
       const p = classEndRef.current.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        classEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [classMessages.length, tab]);
@@ -395,8 +391,6 @@ export function CampusChatRail({ auth, onRequireAuth, className = '', isActive =
       const p = dmEndRef.current.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        dmEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [dmMessages.length, tab, activeFriend]);

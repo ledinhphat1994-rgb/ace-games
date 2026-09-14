@@ -12,4 +12,6 @@
 - Không xóa/tắt endpoint để "vá" lỗi bảo mật — phải sửa query.
 - Trước khi commit: dùng skill `kiem-tra-truoc-khi-push`. Khi sửa UI: dùng skill `so-khop-giao-dien`.
 - Commit message tiếng Việt/Anh dạng conventional (`feat:`, `fix:`, `security:`); 1 việc = 1 commit. Không `--force`.
+- QUY TẮC CHỐNG GIẬT MÀN HÌNH & TRẢI NGHIỆM NGƯỜI DÙNG (BẮT BUỘC): Không bao giờ được phép làm giật, rung lắc hoặc tự ý dịch chuyển thanh cuộn màn hình (`window`). Cấm gọi `scrollIntoView()` trên DOM con; mọi cuộn tự động (chat, danh sách) chỉ được cuộn nội bộ trong container cha (`container.scrollTo`). Khi gọi `.focus()` phải luôn kèm `{ preventScroll: true }`. Cấm đặt `autoFocus` trên input nội tuyến. Mọi tab/sub-view song song phải khóa chiều cao (Zero CLS) và có empty-state lấp đầy để không làm sụt lún layout. Bố cục 2 cột cạnh nhau phải độc lập (`items-start`, `self-start`), không được dùng `self-stretch` kéo giật lẫn nhau.
 - QUY TẮC COMMIT, PUSH & DEPLOY TỰ ĐỘNG (BẮT BUỘC): Bất cứ khi nào hoàn tất xong công việc, sau khi kiểm thử và verify đạt chuẩn 100%, agent PHẢI tự động hoàn thành trọn vẹn: commit → git push origin main → nạp migration D1 remote (nếu có tệp SQL mới) → chạy `npm run deploy` lên Cloudflare Pages. Không dừng lại ở giữa chừng bắt người dùng phải tự deploy thủ công.
+

@@ -66,8 +66,6 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
       const p = chatEndRef.current.parentElement;
       if (p && p.scrollHeight > p.clientHeight) {
         p.scrollTo({ top: p.scrollHeight, behavior: 'smooth' });
-      } else {
-        chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }
   }, [phongChat.length, dockTab]);
@@ -644,7 +642,7 @@ export function StudyDock({ phong, phongMinhKhoa, auth, phongChat = [], onSendPh
   };
 
   return (
-    <div id="study-dock-container" className={`bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col shadow-xl ${isRoomWide ? 'min-h-[calc(100vh-160px)] h-full flex-1' : 'h-[620px] lg:h-[680px]'}`}>
+    <div id="study-dock-container" style={{ overflowAnchor: 'none' }} className={`bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/[0.08] rounded-2xl p-4 flex flex-col shadow-xl ${isRoomWide ? 'min-h-[calc(100vh-160px)] h-full flex-1' : 'h-[620px] lg:h-[680px]'}`}>
       {/* Study Dock Tab Navigation — Gọn gàng, thẩm mỹ, nút nổi bật */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -2389,7 +2387,7 @@ export function CampusWatchTogether({
 
       {/* ─── VÙNG 1: TRUNG TÂM CẤU HÌNH VIDEO & HÀNG ĐỢI YOUTUBE TRỰC TIẾP ─── */}
       {!isRoomWide && (
-        <div id="vung1-youtube-studio" className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-xl">
+        <div id="vung1-youtube-studio" style={{ overflowAnchor: 'none' }} className="bg-gradient-to-b from-[#161b26] to-[#0f141d] border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-xl">
           {/* Header trung tâm */}
           <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10 flex-wrap">
             <div className="flex items-center gap-2">
