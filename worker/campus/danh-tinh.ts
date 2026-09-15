@@ -45,5 +45,11 @@ export function thayPhong(
   dt: Pick<DanhTinhCampus, 'xemTatCaLop' | 'lopXem'>,
   phong: Pick<PhongSanh, 'phamVi' | 'lopId'>,
 ): boolean {
-  return phong.phamVi === 'truong' || dt.xemTatCaLop || (phong.lopId !== null && dt.lopXem.includes(phong.lopId))
+  if (phong.phamVi === 'truong') return true
+  if (phong.phamVi === 'lop') {
+    const lopId = Number(phong.lopId)
+    if (!Number.isInteger(lopId) || lopId <= 0) return false
+    return dt.xemTatCaLop || dt.lopXem.includes(lopId)
+  }
+  return false
 }

@@ -1,6 +1,8 @@
 import { DurableObject } from 'cloudflare:workers'
 import {
   LenhPhong,
+  canonicalMediaPosition,
+  YOUTUBE_VIDEO_ID_REGEX,
   type GoiPhong,
   type MediaState,
   type PomodoroState,
@@ -693,31 +695,43 @@ export class RoomDO extends DurableObject<Env> {
       case 'media.action': {
         const d = goi.data
         if (this.media.hostOnlyControl && !laQuanTri) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển video.' }))
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển video.' }))
           return
         }
 
         const now = Date.now()
         if (d.action === 'play') {
-          this.media = { ...this.media, status: 'playing', time: d.time, updatedAt: now }
+          const targetTime = typeof d.time === 'number' && Number.isFinite(d.time) && d.time >= 0
+            ? Math.min(86400, Math.max(0, d.time))
+            : canonicalMediaPosition(this.media, now)
+          this.media = { ...this.media, status: 'playing', time: targetTime, updatedAt: now }
         } else if (d.action === 'pause') {
-          this.media = { ...this.media, status: 'paused', time: d.time, updatedAt: now }
+          const canonicalPos = canonicalMediaPosition(this.media, now)
+          this.media = { ...this.media, status: 'paused', time: canonicalPos, updatedAt: now }
         } else if (d.action === 'seek') {
-          this.media = { ...this.media, time: d.time, updatedAt: now }
+          const targetTime = Math.min(86400, Math.max(0, d.time))
+          this.media = { ...this.media, time: targetTime, updatedAt: now }
         } else if (d.action === 'rate') {
-          this.media = { ...this.media, playbackRate: d.rate, updatedAt: now }
+          const currentCanonicalTime = canonicalMediaPosition(this.media, now)
+          const validRate = Number.isFinite(d.rate) && d.rate > 0 && d.rate <= 3 ? d.rate : 1
+          this.media = { ...this.media, time: currentCanonicalTime, playbackRate: validRate, updatedAt: now }
         } else if (d.action === 'load') {
+          if (!YOUTUBE_VIDEO_ID_REGEX.test(d.videoId)) {
+            ws.send(JSON.stringify({ type: 'error', message: 'ID video YouTube không hợp lệ.' }))
+            return
+          }
           this.media = {
             ...this.media,
             videoId: d.videoId,
             title: d.title || 'Video bài học',
             status: 'paused',
             time: 0,
+            playbackRate: 1,
             updatedAt: now,
           }
         } else if (d.action === 'set_host_only') {
           if (!laQuanTri) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền đổi chế độ điều khiển.' }))
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền đổi chế độ điều khiển.' }))
             return
           }
           this.media = { ...this.media, hostOnlyControl: d.enabled }
@@ -818,6 +832,10 @@ export class RoomDO extends DurableObject<Env> {
       case 'queue.action': {
         const d = goi.data
         if (d.action === 'add') {
+          if (typeof d.videoId !== 'string' || d.videoId.length < 1 || d.videoId.length > 64) {
+            ws.send(JSON.stringify({ type: 'error', message: 'ID video trong hàng đợi không hợp lệ.' }))
+            return
+          }
           const queue = this.layQueue()
           const pos = queue.length + 1
           const item: QueueItem = {
@@ -855,12 +873,16 @@ export class RoomDO extends DurableObject<Env> {
           this.broadcast({ type: 'queue.sync', queue: this.layQueue() })
         } else if (d.action === 'play') {
           if (this.media.hostOnlyControl && !laQuanTri) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền phát video từ danh sách chờ.' }))
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền phát video từ danh sách chờ.' }))
             return
           }
           const queue = this.layQueue()
           const target = queue.find((q) => q.id === d.id)
           if (target) {
+            if (!YOUTUBE_VIDEO_ID_REGEX.test(target.videoId)) {
+              ws.send(JSON.stringify({ type: 'error', message: 'ID video YouTube trong hàng đợi không hợp lệ.' }))
+              return
+            }
             try {
               this.ctx.storage.sql.exec('DELETE FROM playlist_queue WHERE id = ?1', d.id)
             } catch {}
@@ -871,6 +893,7 @@ export class RoomDO extends DurableObject<Env> {
               title: target.title,
               status: 'playing',
               time: 0,
+              playbackRate: 1,
               updatedAt: now,
             }
             this.luuMeta('media', this.media)
@@ -988,6 +1011,7 @@ export class RoomDO extends DurableObject<Env> {
           mic: att.mic,
           // isHost = CANONICAL owner only; teacher/admin không xuất hiện như host
           isHost: att.key === this.hostKey,
+          canModerate: Boolean(att.canModerate),
         })
       }
     }

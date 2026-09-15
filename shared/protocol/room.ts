@@ -54,20 +54,35 @@ export interface RoomChatMessage {
   taoLuc: number
 }
 
+export const YOUTUBE_VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/
+
+export function canonicalMediaPosition(state: MediaState | null | undefined, serverNow: number): number {
+  if (!state || typeof state.time !== 'number' || !Number.isFinite(state.time)) return 0
+  const baseTime = Math.max(0, state.time)
+  if (state.status !== 'playing') {
+    return baseTime
+  }
+  const updatedAt = typeof state.updatedAt === 'number' && Number.isFinite(state.updatedAt) ? state.updatedAt : serverNow
+  const elapsedSec = Math.max(0, (serverNow - updatedAt) / 1000)
+  const rate = typeof state.playbackRate === 'number' && Number.isFinite(state.playbackRate) && state.playbackRate > 0 ? state.playbackRate : 1
+  return Math.max(0, baseTime + elapsedSec * rate)
+}
+
 export interface ThanhVienPhong {
   key: string
   ten: string
   soKetNoi: number
   mic?: boolean
   isHost?: boolean
+  canModerate?: boolean
 }
 
 export const LenhPhongMedia = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('play'), time: z.number().nonnegative() }),
-  z.object({ action: z.literal('pause'), time: z.number().nonnegative() }),
-  z.object({ action: z.literal('seek'), time: z.number().nonnegative() }),
-  z.object({ action: z.literal('rate'), rate: z.number().positive().max(3) }),
-  z.object({ action: z.literal('load'), videoId: z.string().min(1).max(64), title: z.string().max(200).optional() }),
+  z.object({ action: z.literal('play'), time: z.number().finite().nonnegative().max(86400).optional() }),
+  z.object({ action: z.literal('pause'), time: z.number().finite().nonnegative().max(86400).optional() }),
+  z.object({ action: z.literal('seek'), time: z.number().finite().nonnegative().max(86400) }),
+  z.object({ action: z.literal('rate'), rate: z.number().finite().positive().max(3) }),
+  z.object({ action: z.literal('load'), videoId: z.string().regex(YOUTUBE_VIDEO_ID_REGEX, 'ID video YouTube phải đúng 11 ký tự'), title: z.string().max(200).optional() }),
   z.object({ action: z.literal('set_host_only'), enabled: z.boolean() }),
 ])
 export type LenhPhongMedia = z.infer<typeof LenhPhongMedia>

@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type {
-  GoiPhong,
-  LenhPhongMedia,
-  LenhPhongPomodoro,
-  MediaState,
-  PomodoroState,
-  QueueItem,
-  RoomChatMessage,
-  SharedNotes,
-  ThanhVienPhong,
-  WhiteboardStroke,
-  SlideState,
+import {
+  type GoiPhong,
+  type LenhPhongMedia,
+  type LenhPhongPomodoro,
+  type MediaState,
+  type PomodoroState,
+  type QueueItem,
+  type RoomChatMessage,
+  type SharedNotes,
+  type ThanhVienPhong,
+  type WhiteboardStroke,
+  type SlideState,
+  canonicalMediaPosition,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
+
+function tinhMedian(arr: number[]): number {
+  if (arr.length === 0) return 0
+  const sorted = [...arr].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
 
 export type TrangThaiKetNoiPhong = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
 
@@ -56,19 +64,36 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
   const [slideState, setSlideState] = useState<SlideState | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
+  const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const [myMic, setMyMic] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
-  const lucGuiPingRef = useRef<number | null>(null)
+  const pingInfoRef = useRef<{ clientWall: number; clientPerf: number } | null>(null)
+  const serverClockOffsetRef = useRef<number>(0)
+  const offsetSamplesRef = useRef<number[]>([])
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
   const ketNoiRef = useRef<() => void>(() => {})
 
+  const me = useMemo(() => {
+    if (!myActorKey) return null
+    return members.find((m) => m.key === myActorKey) || null
+  }, [members, myActorKey])
+
   const isHost = useMemo(() => {
     if (!myActorKey || !hostKey) return false
     return myActorKey === hostKey
   }, [myActorKey, hostKey])
+
+  const canModerate = useMemo(() => {
+    return Boolean(me?.canModerate)
+  }, [me])
+
+  const canControlMedia = useMemo(() => {
+    if (!mediaState.hostOnlyControl) return true
+    return isHost || canModerate
+  }, [mediaState.hostOnlyControl, isHost, canModerate])
 
   const ketNoi = useCallback(() => {
     if (daHuyRef.current || !roomId) return
@@ -111,6 +136,11 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
+          if (offsetSamplesRef.current.length === 0 && typeof goi.serverNow === 'number') {
+            const initialOffset = goi.serverNow - Date.now()
+            serverClockOffsetRef.current = initialOffset
+            setServerClockOffset(initialOffset)
+          }
           break
 
         case 'presence':
@@ -159,9 +189,16 @@ export function useRoom(roomId: string, myActorKey?: string) {
         }
 
         case 'pong':
-          if (lucGuiPingRef.current !== null) {
-            setLatencyMs(Math.round(performance.now() - lucGuiPingRef.current))
-            lucGuiPingRef.current = null
+          if (pingInfoRef.current !== null) {
+            const rtt = performance.now() - pingInfoRef.current.clientPerf
+            const clientMidpoint = pingInfoRef.current.clientWall + rtt / 2
+            const sampleOffset = goi.serverNow - clientMidpoint
+            offsetSamplesRef.current = [...offsetSamplesRef.current, sampleOffset].slice(-7)
+            const medianOffset = Math.round(tinhMedian(offsetSamplesRef.current))
+            serverClockOffsetRef.current = medianOffset
+            setServerClockOffset(medianOffset)
+            setLatencyMs(Math.round(rtt))
+            pingInfoRef.current = null
           }
           break
       }
@@ -219,33 +256,41 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const doDoTre = useCallback(() => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    lucGuiPingRef.current = performance.now()
-    ws.send(JSON.stringify({ type: 'ping', t: Date.now() }))
+    const nowWall = Date.now()
+    const nowPerf = performance.now()
+    pingInfoRef.current = { clientWall: nowWall, clientPerf: nowPerf }
+    ws.send(JSON.stringify({ type: 'ping', t: nowWall }))
   }, [])
 
-  // Thuật toán Server-Authoritative tính toán vị trí video mục tiêu tại client
+  // Auto refresh clock offset and latency every 10s
+  useEffect(() => {
+    if (trangThai !== 'da_ket_noi') return
+    doDoTre()
+    const timer = setInterval(() => {
+      doDoTre()
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [trangThai, doDoTre])
+
+  // Thuật toán Server-Authoritative tính toán vị trí video mục tiêu tại client với Server Clock Offset
   const calculateTargetTime = useCallback(() => {
-    if (mediaState.status !== 'playing') return mediaState.time
-    const now = Date.now()
-    const elapsed = (now - mediaState.updatedAt) / 1000
-    const rttAdjustment = (latencyMs ? latencyMs / 2 : 0) / 1000
-    return Math.max(0, mediaState.time + elapsed * mediaState.playbackRate + rttAdjustment)
-  }, [mediaState, latencyMs])
+    const estimatedServerNow = Date.now() + (serverClockOffsetRef.current || 0)
+    return canonicalMediaPosition(mediaState, estimatedServerNow)
+  }, [mediaState])
 
   // Kiểm tra độ lệch giữa player cục bộ và server
   const checkDrift = useCallback((localTime: number) => {
     const target = calculateTargetTime()
     const delta = target - localTime
 
-    if (Math.abs(delta) < 0.3) {
+    if (Math.abs(delta) < 0.35) {
       return { action: 'ok' as const, targetTime: target, rate: 1 }
     }
     if (Math.abs(delta) < 1.5) {
-      // Điều chỉnh nhẹ tốc độ phát (1.05x hoặc 0.95x) để bắt kịp mà không giật audio
       return {
         action: delta > 0 ? ('nudge_up' as const) : ('nudge_down' as const),
         targetTime: target,
-        rate: delta > 0 ? 1.05 : 0.95,
+        rate: delta > 0 ? 1.25 : 0.75,
       }
     }
     // Độ lệch >= 1.5s -> bắt buộc nhảy seekTo
@@ -344,6 +389,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     members,
     hostKey,
     isHost,
+    canModerate,
+    canControlMedia,
+    serverClockOffset,
     mediaState,
     pomodoroState,
     whiteboardStrokes,

@@ -95,6 +95,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     members,
     hostKey,
     isHost,
+    canModerate,
+    canControlMedia,
     mediaState,
     pomodoroState,
     whiteboardStrokes,
@@ -240,17 +242,24 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     e.preventDefault()
     const vid = trichXuatYoutubeId(directYtInput)
     if (!vid) { toast.error('Link YouTube không hợp lệ.'); return }
-    addToQueue(vid, `Bài giảng (${vid})`)
-    playFromQueue(`queue_${vid}`)
+    syncMedia({ action: 'load', videoId: vid, title: `Bài giảng (${vid})` })
     syncMedia({ action: 'play', time: 0 })
     setDirectYtInput('')
     setShowYtPanel(false)
     setShowYoutube(true)
-    toast.success('Đã mở video YouTube lên bảng đen!')
+    toast.success('Đã nạp video YouTube lên bảng học chung!')
   }
 
-  const handleSyncMedia = (action: 'play' | 'pause' | 'seek', time: number) => {
-    syncMedia({ action, time })
+  const handleSyncMedia = (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => {
+    if (action === 'play') {
+      syncMedia({ action: 'play', time: typeof time === 'number' ? time : undefined })
+    } else if (action === 'pause') {
+      syncMedia({ action: 'pause', time: typeof time === 'number' ? time : undefined })
+    } else if (action === 'seek') {
+      syncMedia({ action: 'seek', time: Math.max(0, time || 0) })
+    } else if (action === 'rate') {
+      syncMedia({ action: 'rate', rate: Math.min(3, Math.max(0.25, rate || 1)) })
+    }
   }
 
   const handleLoadSlide = (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => {
@@ -445,6 +454,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           <FloatingVideoPlayer
             mediaState={mediaState}
             isHost={isHost}
+            canModerate={canModerate}
+            canControlMedia={canControlMedia}
             volume={volume}
             onVolumeChange={setVolume}
             onSyncMedia={handleSyncMedia}

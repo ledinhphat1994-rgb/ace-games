@@ -631,4 +631,93 @@ describe('Admission Gate — Security Matrix', () => {
     await admitRes.body?.cancel()
     expect(admitRes.status).toBe(403)
   })
+
+  // 28. Unknown pham_vi → FAIL CLOSED 403 cho cả WS và admit API
+  it('(28) unknown pham_vi → denied 403 cho cả WS và admit API', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Unknown Scope', 'garbage', NULL, 'acc:1', 'Host', 'public', NULL, NULL, NULL, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const wsRes = await moPhongId(id, cookie)
+    await wsRes.body?.cancel()
+    expect(wsRes.status).toBe(403)
+
+    const admitRes = await admitPhong(id, cookie, 'pass')
+    await admitRes.body?.cancel()
+    expect(admitRes.status).toBe(403)
+  })
+
+  // 29. pham_vi = 'lop' nhưng lop_id = NULL → FAIL CLOSED 503 (không bao giờ fallback về toàn trường)
+  it('(29) pham_vi = lop nhưng lop_id = NULL → denied 503 cho cả WS và admit API', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Lop Null', 'lop', NULL, 'acc:1', 'Host', 'public', NULL, NULL, NULL, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const wsRes = await moPhongId(id, cookie)
+    await wsRes.body?.cancel()
+    expect(wsRes.status).toBe(503)
+
+    const admitRes = await admitPhong(id, cookie, 'pass')
+    await admitRes.body?.cancel()
+    expect(admitRes.status).toBe(503)
+  })
+
+  // 30. pham_vi = 'lop' nhưng lop_id không hợp lệ (<= 0) → FAIL CLOSED 503
+  it('(30) pham_vi = lop nhưng lop_id <= 0 → denied 503 cho cả WS và admit API', async () => {
+    // Chèn lớp có id = 0 để thỏa mãn Foreign Key nhưng vi phạm điều kiện positive integer của room scope
+    await env.DB.prepare("INSERT INTO lop (id, ten) VALUES (0, 'Lop 0 Dummy')").run()
+    let id: number | null = null
+    try {
+      const res = await env.DB.prepare(
+        `INSERT INTO phong (loai, ten, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+         VALUES ('video', 'P Lop Invalid', 'lop', 0, 'acc:1', 'Host', 'public', NULL, NULL, NULL, 20, 'mo') RETURNING id`,
+      ).first<{ id: number }>()
+      id = res!.id
+      const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+      const wsRes = await moPhongId(id, cookie)
+      await wsRes.body?.cancel()
+      expect(wsRes.status).toBe(503)
+
+      const admitRes = await admitPhong(id, cookie, 'pass')
+      await admitRes.body?.cancel()
+      expect(admitRes.status).toBe(503)
+    } finally {
+      if (id) await env.DB.prepare('DELETE FROM phong WHERE id = ?1').bind(id).run().catch(() => {})
+      await env.DB.prepare('DELETE FROM lop WHERE id = 0').run().catch(() => {})
+    }
+  })
+
+  // 31. Canonical scopes hoạt động chuẩn xác: truong được vào, lop kiểm tra đúng lớp
+  it('(31) canonical scopes: truong được vào, lop kiểm tra đúng lớp', async () => {
+    const idTruong = await chenPhong('P Toan Truong Valid', 'truong', null)
+    const idLop = await chenPhong('P Lop 1 Valid', 'lop', 1)
+
+    const c1 = await dangNhapLayCookie('qa.v2.thu1') // hs lop 1
+    const c2 = await dangNhapLayCookie('qa.v2.thu3') // hs lop 2
+
+    // Phòng trường: cả 2 hs đều vào được
+    const wsT1 = await moPhongId(idTruong, c1)
+    await wsT1.body?.cancel()
+    expect(wsT1.status).toBe(101)
+
+    const wsT2 = await moPhongId(idTruong, c2)
+    await wsT2.body?.cancel()
+    expect(wsT2.status).toBe(101)
+
+    // Phòng lớp 1: hs lớp 1 vào được, hs lớp 2 bị 403
+    const wsL1 = await moPhongId(idLop, c1)
+    await wsL1.body?.cancel()
+    expect(wsL1.status).toBe(101)
+
+    const wsL2 = await moPhongId(idLop, c2)
+    await wsL2.body?.cancel()
+    expect(wsL2.status).toBe(403)
+  })
 })

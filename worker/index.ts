@@ -321,20 +321,33 @@ async function kiemTraPhamVi(
   taiKhoan: TaiKhoan,
   phong: DongPhong,
 ): Promise<Response | null> {
-  if (phong.pham_vi !== 'lop' || phong.lop_id === null) return null
-  if (laQuanTriTruong(taiKhoan)) return null
-
-  if (laGiaoVienDaDuyet(taiKhoan)) {
-    const gvl = await env.DB.prepare(
-      'SELECT 1 FROM giao_vien_lop WHERE giao_vien_id = ?1 AND lop_id = ?2 LIMIT 1',
-    ).bind(taiKhoan.id, phong.lop_id).first<{ 1: number }>()
-    if (!gvl) return loi('Bạn không phụ trách lớp học này.', 403)
+  if (phong.pham_vi === 'truong') {
     return null
   }
 
-  if (!taiKhoan.lopId || taiKhoan.lopId !== phong.lop_id)
-    return loi('Bạn không thuộc lớp học này.', 403)
-  return null
+  if (phong.pham_vi === 'lop') {
+    const lopId = Number(phong.lop_id)
+    if (!Number.isInteger(lopId) || lopId <= 0) {
+      return loi('Cấu hình phạm vi lớp học không hợp lệ.', 503)
+    }
+
+    if (laQuanTriTruong(taiKhoan)) return null
+
+    if (laGiaoVienDaDuyet(taiKhoan)) {
+      const gvl = await env.DB.prepare(
+        'SELECT 1 FROM giao_vien_lop WHERE giao_vien_id = ?1 AND lop_id = ?2 LIMIT 1',
+      ).bind(taiKhoan.id, lopId).first<{ 1: number }>()
+      if (!gvl) return loi('Bạn không phụ trách lớp học này.', 403)
+      return null
+    }
+
+    if (!taiKhoan.lopId || taiKhoan.lopId !== lopId) {
+      return loi('Bạn không thuộc lớp học này.', 403)
+    }
+    return null
+  }
+
+  return loi('Phạm vi phòng không được hỗ trợ.', 403)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -494,6 +507,11 @@ app.post('/api/rooms/:id/admit', async (c) => {
 
   if (!phongRow) return loi('Không tìm thấy phòng học.', 404)
   if (phongRow.trang_thai !== 'mo') return loi('Phòng đã đóng.', 403)
+
+  // Scope check — FAIL CLOSED
+  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, phongRow)
+  if (loiPhamVi) return loiPhamVi
+
   if (!CANONICAL_ACCESS_MODES.has(phongRow.access_mode)) {
     return loi('Chế độ truy cập phòng không được hỗ trợ.', 403)
   }
@@ -505,10 +523,6 @@ app.post('/api/rooms/:id/admit', async (c) => {
       return loi('Cấu hình bảo mật của phòng không hợp lệ. Vui lòng liên hệ quản trị viên.', 503)
     }
   }
-
-  // Scope check
-  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, phongRow)
-  if (loiPhamVi) return loiPhamVi
 
   // Ban check — fail closed
   try {

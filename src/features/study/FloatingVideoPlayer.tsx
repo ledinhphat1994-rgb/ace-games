@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { MediaState } from '@shared/protocol/room'
 import {
+  AlertCircle,
   Crown,
   Expand,
   GripHorizontal,
@@ -9,18 +10,24 @@ import {
   Pause,
   Play,
   Volume2,
+  VolumeX,
   X,
+  ShieldAlert,
+  Sparkles,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useId } from 'react'
+import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 
 export type VideoSizePreset = 'pip' | 'medium' | 'large' | 'full'
 
 interface FloatingVideoPlayerProps {
   mediaState: MediaState
   isHost: boolean
+  canModerate?: boolean
+  canControlMedia?: boolean
   volume: number
   onVolumeChange: (vol: number) => void
-  onSyncMedia: (action: 'play' | 'pause' | 'seek', time: number) => void
+  onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   onClose: () => void
   calculateTargetTime: () => number
@@ -35,7 +42,8 @@ function YoutubeIcon({ className }: { className?: string }) {
 }
 
 function dinhDangGiayPhut(s: number): string {
-  const sec = Math.max(0, Math.floor(s))
+  if (!Number.isFinite(s) || s < 0) return '00:00'
+  const sec = Math.floor(s)
   const m = Math.floor(sec / 60)
   const rem = sec % 60
   return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`
@@ -44,6 +52,8 @@ function dinhDangGiayPhut(s: number): string {
 export function FloatingVideoPlayer({
   mediaState,
   isHost,
+  canModerate = false,
+  canControlMedia = true,
   volume,
   onVolumeChange,
   onSyncMedia,
@@ -62,13 +72,36 @@ export function FloatingVideoPlayer({
     startY: 0,
   })
 
-  const [currentTime, setCurrentTime] = useState(mediaState.time)
-  const duration = 214 // default ~3:34
+  const rawId = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const containerId = `floating_yt_${rawId}`
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const effectiveCanControl = canControlMedia && (!mediaState.hostOnlyControl || isHost || canModerate)
+
+  const {
+    isReady,
+    currentTime,
+    duration,
+    playbackRate,
+    isAutoplayBlocked,
+    errorMessage,
+    handleUserPlay,
+    handleUserPause,
+    handleUserSeek,
+    handleUserRate,
+    handleDismissAutoplayBlock,
+  } = useYouTubePlayer({
+    containerId,
+    mediaState,
+    calculateTargetTime,
+    onUserIntent: onSyncMedia,
+    volume,
+    canControlMedia: effectiveCanControl,
+  })
 
   // Dragging logic
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return
     setIsDragging(true)
     dragStartRef.current = {
       mouseX: e.clientX,
@@ -101,19 +134,6 @@ export function FloatingVideoPlayer({
     }
   }, [isDragging])
 
-  // Periodic target time ticker
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (mediaState.status === 'playing') {
-        const target = calculateTargetTime()
-        setCurrentTime(target)
-      } else {
-        setCurrentTime(mediaState.time)
-      }
-    }, 500)
-    return () => clearInterval(interval)
-  }, [mediaState, calculateTargetTime])
-
   // Preset dimensions
   const getPresetStyles = (): React.CSSProperties => {
     if (sizePreset === 'full') {
@@ -144,17 +164,6 @@ export function FloatingVideoPlayer({
     }
   }
 
-  const handlePlayPause = () => {
-    const nextStatus = mediaState.status === 'playing' ? 'pause' : 'play'
-    const target = mediaState.status === 'playing' ? calculateTargetTime() : mediaState.time
-    onSyncMedia(nextStatus, target)
-  }
-
-  const handleSeek = (newTime: number) => {
-    setCurrentTime(newTime)
-    onSyncMedia('seek', newTime)
-  }
-
   // Minimized Floating Pill Mode
   if (isMinimized) {
     return (
@@ -164,7 +173,7 @@ export function FloatingVideoPlayer({
       >
         <div
           onMouseDown={handleMouseDown}
-          className="flex cursor-move items-center gap-2 pr-2 border-r border-white/10"
+          className="flex cursor-move items-center gap-2 pr-2 border-r border-white/10 select-none"
         >
           <GripHorizontal className="h-4 w-4 text-slate-400" />
           <YoutubeIcon className="h-4 w-4 text-red-500" />
@@ -176,8 +185,9 @@ export function FloatingVideoPlayer({
         <Button
           variant="ghost"
           size="sm"
-          onClick={handlePlayPause}
-          className="h-7 w-7 rounded-full p-0 text-cyan-400 hover:bg-cyan-500/20"
+          disabled={!effectiveCanControl}
+          onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
+          className="h-7 w-7 rounded-full p-0 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-40"
         >
           {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </Button>
@@ -226,9 +236,20 @@ export function FloatingVideoPlayer({
           <span className="truncate text-xs font-semibold text-slate-200">
             {mediaState.title || 'Video học tập chung'}
           </span>
+
           {isHost ? (
             <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300">
-              <Crown className="h-2.5 w-2.5" /> Bạn chủ trì
+              <Crown className="h-2.5 w-2.5" /> Chủ phòng
+            </span>
+          ) : canModerate ? (
+            <span className="inline-flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300">
+              <ShieldAlert className="h-2.5 w-2.5" /> Điều hành
+            </span>
+          ) : null}
+
+          {mediaState.hostOnlyControl && !effectiveCanControl ? (
+            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] text-rose-300">
+              Chỉ host điều khiển
             </span>
           ) : null}
         </div>
@@ -290,28 +311,55 @@ export function FloatingVideoPlayer({
         </div>
       </div>
 
-      {/* 2. Video Player Frame */}
-      <div className="relative flex-1 bg-black overflow-hidden">
-        <iframe
-          src={`https://www.youtube.com/embed/${mediaState.videoId}?autoplay=${
-            mediaState.status === 'playing' ? 1 : 0
-          }&enablejsapi=1&controls=0&modestbranding=1&rel=0`}
-          title="YouTube Video Player"
-          className="absolute inset-0 h-full w-full border-0 pointer-events-none"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
+      {/* 2. Video Player Area */}
+      <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
+        {/* The DOM element where YT.Player is instantiated */}
+        <div id={containerId} className="absolute inset-0 h-full w-full" />
 
-        {/* Overlay click to play/pause */}
-        <div
-          onClick={handlePlayPause}
-          className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-black/10 hover:bg-black/25 transition-colors"
-        >
-          {mediaState.status === 'paused' ? (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/90 text-black shadow-2xl hover:scale-110 transition-transform">
-              <Play className="h-7 w-7 fill-current ml-1" />
+        {/* Loading state before YT.Player is ready */}
+        {!isReady && !errorMessage ? (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070b12]/90 backdrop-blur-sm gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <span className="text-xs text-slate-400 font-mono">Đang khởi tạo YouTube Player...</span>
+          </div>
+        ) : null}
+
+        {/* Error state */}
+        {errorMessage ? (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#0c121e]/95 p-6 text-center gap-3">
+            <AlertCircle className="h-8 w-8 text-rose-400" />
+            <p className="text-sm font-medium text-rose-200 max-w-sm">{errorMessage}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenSearchQueue}
+              className="border-white/20 bg-white/5 text-cyan-300 hover:bg-white/10"
+            >
+              Chọn video khác từ hàng đợi
+            </Button>
+          </div>
+        ) : null}
+
+        {/* Autoplay Blocked Overlay */}
+        {isAutoplayBlocked ? (
+          <div className="absolute inset-0 z-25 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm p-4 text-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 ring-1 ring-cyan-500/40">
+              <Sparkles className="h-6 w-6" />
             </div>
-          ) : null}
-        </div>
+            <div>
+              <p className="text-sm font-bold text-white">Trình duyệt chặn tự phát video</p>
+              <p className="text-xs text-slate-300 mt-0.5">Nhấn để mở âm thanh và đồng bộ cùng phòng ngay</p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleDismissAutoplayBlock}
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-lg"
+            >
+              <Play className="h-4 w-4 fill-current mr-1.5" />
+              Đồng bộ & Phát ngay
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {/* 3. Bottom Control Bar */}
@@ -320,36 +368,70 @@ export function FloatingVideoPlayer({
           <Button
             variant="ghost"
             size="sm"
-            onClick={handlePlayPause}
-            className="h-7 w-7 p-0 text-cyan-400 hover:bg-white/10"
+            disabled={!effectiveCanControl}
+            onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
+            className="h-7 w-7 p-0 text-cyan-400 hover:bg-white/10 disabled:opacity-40"
+            title={effectiveCanControl ? (mediaState.status === 'playing' ? 'Tạm dừng' : 'Phát') : 'Chỉ chủ phòng hoặc điều hành mới có quyền phát/dừng'}
           >
             {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
 
-          <span className="text-[11px] font-mono text-slate-300">
-            {dinhDangGiayPhut(currentTime)}
+          <span className="text-[11px] font-mono text-slate-300 shrink-0">
+            {dinhDangGiayPhut(currentTime)} / {dinhDangGiayPhut(duration)}
           </span>
         </div>
 
-        {/* Seek Bar */}
+        {/* Real Seek Bar */}
         <input
           type="range"
           min={0}
-          max={duration}
-          value={Math.min(currentTime, duration)}
-          onChange={(e) => handleSeek(Number(e.target.value))}
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400"
+          max={duration > 0 ? duration : 100}
+          step={1}
+          value={Math.min(currentTime, duration > 0 ? duration : 100)}
+          disabled={!effectiveCanControl || duration <= 0}
+          onChange={(e) => handleUserSeek(Number(e.target.value))}
+          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          title={effectiveCanControl ? 'Tua đến vị trí' : 'Bạn không có quyền tua video'}
         />
 
+        {/* Speed / Rate control */}
+        {effectiveCanControl ? (
+          <select
+            value={playbackRate}
+            onChange={(e) => handleUserRate(Number(e.target.value))}
+            className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono text-cyan-300 border border-white/10 focus:outline-none"
+            title="Tốc độ phát chung"
+          >
+            <option value={0.5}>0.5x</option>
+            <option value={0.75}>0.75x</option>
+            <option value={1}>1.0x</option>
+            <option value={1.25}>1.25x</option>
+            <option value={1.5}>1.5x</option>
+            <option value={2}>2.0x</option>
+          </select>
+        ) : (
+          <span className="text-[10px] font-mono text-slate-400">
+            {playbackRate}x
+          </span>
+        )}
+
         <div className="flex items-center gap-2">
-          <Volume2 className="h-3.5 w-3.5 text-slate-400" />
+          {/* Local Volume (never broadcast to room) */}
+          <button
+            onClick={() => onVolumeChange(volume > 0 ? 0 : 80)}
+            className="text-slate-400 hover:text-white"
+            title={volume === 0 ? 'Bật tiếng' : 'Tắt tiếng'}
+          >
+            {volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
           <input
             type="range"
             min={0}
             max={100}
             value={volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400"
+            className="h-1.5 w-14 cursor-pointer appearance-none rounded-full bg-white/20 accent-cyan-400"
+            title={`Âm lượng cá nhân: ${volume}%`}
           />
 
           <Button
@@ -358,7 +440,7 @@ export function FloatingVideoPlayer({
             onClick={onOpenSearchQueue}
             className="h-6 px-2 text-[10px] text-cyan-300 hover:bg-cyan-500/20 font-medium"
           >
-            Đổi video / Hàng đợi
+            Hàng đợi
           </Button>
         </div>
       </div>
