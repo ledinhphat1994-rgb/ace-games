@@ -8,8 +8,10 @@ chạy trên Cloudflare Workers + static assets + Durable Objects (SQLite, gói 
 
 ## Yêu cầu
 
-- Máy hiện dùng Node 20.20 → `wrangler` ghim **4.86.0** và `@cloudflare/vite-plugin` ghim **1.34.0**
-  (bản mới hơn đòi Node 22). Chỉ nâng 2 gói này sau khi đã nâng Node lên 22.
+- Node **24 LTS** ghim riêng cho dự án: gói npm `node` (devDependencies) + file `.node-version`. Node hệ
+  thống của máy vẫn là Node 20 cho dự án khác — **không** nâng Node hệ thống.
+- Trong thư mục `v2/`, mọi lệnh chạy qua `npm run ...`, `npm exec -- ...` hoặc `npx ...` đều dùng Node 24
+  của dự án. Gõ thẳng `node` ngoài npm thì vẫn là Node 20 của máy.
 - Chạy `npm install` khi đang đứng trong thư mục `v2/`. Không dùng `npm install --prefix ...` để thêm
   gói — npm từng tự thêm nhầm cả repo chính thành dependency `file:`.
 
@@ -28,8 +30,11 @@ chạy trên Cloudflare Workers + static assets + Durable Objects (SQLite, gói 
 
 ## Kiểm tra
 
-- `npm run typecheck` — sinh type cho Worker rồi chạy `tsc -b`.
+- `npm run typecheck` — sinh type cho Worker rồi chạy `tsc -b` (cả giao diện, Worker và thư mục test).
 - `npm run lint` — Oxlint.
+- `npm test` — Vitest chạy ngay trong Workers runtime (`@cloudflare/vitest-plugin`): tương thích mật khẩu/token
+  với bản cũ, API đăng nhập, phòng real-time. Schema + tài khoản thử nằm trong `test/`, không đụng D1 thật.
+- CI GitHub Actions (`.github/workflows/v2-ci.yml`) chạy đủ 4 bước trên mỗi lần đổi `v2/`.
 
 ## Cấu trúc
 

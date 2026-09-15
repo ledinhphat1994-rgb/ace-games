@@ -4,8 +4,8 @@
   // Ghim tài khoản giống deploy.js của bản cũ (ledinhphat1994) để không deploy nhầm tài khoản.
   "account_id": "bfc647e65d847f61ca386b7f11c27173",
   "main": "./worker/index.ts",
-  // Ngày tối đa mà workerd đi kèm wrangler 4.86.0 (bản cuối chạy được trên Node 20) hỗ trợ.
-  "compatibility_date": "2026-04-26",
+  // Khớp bản workerd đi kèm wrangler đang dùng (1.20260911.x); nâng wrangler thì nâng ngày này theo.
+  "compatibility_date": "2026-09-11",
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",

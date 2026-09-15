@@ -25,10 +25,10 @@ jobs:
       - name: Lấy mã nguồn
         uses: actions/checkout@v4
 
-      - name: Cài Node.js 24 LTS
+      - name: Cài Node.js theo v2/.node-version
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: v2/.node-version
           cache: npm
           cache-dependency-path: v2/package-lock.json
 
@@ -40,6 +40,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Test (Vitest trong Workers runtime)
+        run: npm test
 
       - name: Build
         run: npm run build
