@@ -232,13 +232,15 @@ export class RoomDO extends DurableObject<Env> {
         video_id: string
         title: string
         added_by: string
+        added_by_key: string | null
         added_at: number
-      }>('SELECT id, video_id, title, added_by, added_at FROM playlist_queue ORDER BY position ASC LIMIT 50')]
+      }>('SELECT id, video_id, title, added_by, added_by_key, added_at FROM playlist_queue ORDER BY position ASC LIMIT 50')]
       return rows.map((r) => ({
         id: r.id,
         videoId: r.video_id,
         title: r.title,
         addedBy: r.added_by,
+        addedByKey: r.added_by_key ?? undefined,
         addedAt: r.added_at,
       }))
     } catch {
@@ -294,38 +296,39 @@ export class RoomDO extends DurableObject<Env> {
 
     this.nạpDuLieuNeuCan()
 
-    // ── Capacity Gate (server-authoritative) ──
-    // Đọc sức chứa từ header do Worker admission gate forward vào (chỉ có khi phòng đăng ký trong D1).
+    // ── Capacity Gate (server-authoritative, unique actor) ──
+    // Cho phép cùng một actor mở nhiều tab mà không tốn thêm slot.
     const capacityStr = request.headers.get('X-Room-Capacity')
     if (capacityStr) {
       const capacity = parseInt(capacityStr, 10)
       if (Number.isFinite(capacity) && capacity > 0) {
-        // Đếm số người dùng UNIQUE đang kết nối (không đếm tab thừa cùng tài khoản).
         const uniqueActors = new Set(
           this.ctx.getWebSockets().map((ws) => {
             const a = ws.deserializeAttachment() as AttachmentKetNoi | null
             return a?.key ?? ''
           }).filter(Boolean),
         )
-        if (uniqueActors.size >= capacity) {
-          return new Response('Phòng đã đủ sức chứa.', { status: 403 })
+        // Chỉ từ chối nếu actor này CHƯA có slot (multi-tab của actor đã có slot luôn được vào)
+        if (!uniqueActors.has(key) && uniqueActors.size >= capacity) {
+          return new Response(JSON.stringify({ type: 'error', code: 'room_full', message: 'Phòng đã đủ sức chứa.' }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          })
         }
       }
     }
 
-    // ── Canonical Host Resolution ──
-    // Thứ tự ưu tiên: (1) canonical host từ D1 (chu_phong_khoa), (2) giáo viên/admin nhận quyền quản trị,
-    // (3) người đầu tiên vào làm host (ad-hoc room không có D1).
+    // ── Canonical Host Resolution — STRICT D1 only ──
+    // Host key LUÔN là chu_phong_khoa từ D1; Teacher/Admin KHÔNG override hostKey.
     const canonicalHostKey = request.headers.get('X-Room-Host-Key') ?? null
-    const canModerate = isTeacher || isAdmin
+    const canModerate = request.headers.get('X-Actor-Can-Moderate') === '1'
     if (canonicalHostKey) {
-      // Phòng có canonical host từ D1: đặt cứng, không cho phép override.
       if (!this.hostKey || this.hostKey !== canonicalHostKey) {
         this.hostKey = canonicalHostKey
         this.luuMeta('host_key', canonicalHostKey)
       }
-    } else if (!this.hostKey || isTeacher || isAdmin) {
-      // Ad-hoc room: giáo viên/admin chiếm host, hoặc người đầu tiên vào làm host.
+    } else if (!this.hostKey) {
+      // Game room / legacy: người đầu tiên vào làm host.
       this.hostKey = key
       this.luuMeta('host_key', key)
     }
@@ -822,15 +825,17 @@ export class RoomDO extends DurableObject<Env> {
             videoId: d.videoId,
             title: d.title,
             addedBy: att.ten,
+            addedByKey: att.key,
             addedAt: Date.now(),
           }
           try {
             this.ctx.storage.sql.exec(
-              'INSERT INTO playlist_queue (id, video_id, title, added_by, added_at, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+              'INSERT INTO playlist_queue (id, video_id, title, added_by, added_by_key, added_at, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
               item.id,
               item.videoId,
               item.title,
               item.addedBy,
+              att.key,
               item.addedAt,
               pos,
             )
@@ -839,7 +844,8 @@ export class RoomDO extends DurableObject<Env> {
         } else if (d.action === 'remove') {
           const queue = this.layQueue()
           const target = queue.find((q) => q.id === d.id)
-          if (target && !laQuanTri && target.addedBy !== att.ten) {
+          // So sánh bằng actorKey; display name trùng nhau không gây nhầm ownership
+          if (target && !laQuanTri && (target.addedByKey ?? null) !== att.key) {
             ws.send(JSON.stringify({ type: 'error', message: 'Bạn không thể xóa bài hát của người khác.' }))
             return
           }
@@ -958,7 +964,9 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private coQuyenDieuKhien(att: AttachmentKetNoi): boolean {
-    return att.key === this.hostKey || att.isTeacher || att.isAdmin
+    // Host canonical từ D1 HOẶC actor có canModerate (teacher đã duyệt / admin trường).
+    // KHÔNG dùng isTeacher/isAdmin trực tiếp để tránh identity = authorization leak.
+    return att.key === this.hostKey || att.canModerate
   }
 
   private layDanhSachThanhVien(boQua?: WebSocket): ThanhVienPhong[] {
@@ -978,7 +986,8 @@ export class RoomDO extends DurableObject<Env> {
           ten: att.ten,
           soKetNoi: 1,
           mic: att.mic,
-          isHost: att.key === this.hostKey || att.isTeacher || att.isAdmin,
+          // isHost = CANONICAL owner only; teacher/admin không xuất hiện như host
+          isHost: att.key === this.hostKey,
         })
       }
     }
