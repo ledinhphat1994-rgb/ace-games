@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "gdtxdinhquan-v2",
+  // Ghim tài khoản giống deploy.js của bản cũ (ledinhphat1994) để không deploy nhầm tài khoản.
+  "account_id": "bfc647e65d847f61ca386b7f11c27173",
   "main": "./worker/index.ts",
   // Ngày tối đa mà workerd đi kèm wrangler 4.86.0 (bản cuối chạy được trên Node 20) hỗ trợ.
   "compatibility_date": "2026-04-26",
@@ -13,16 +15,18 @@
     {
       "binding": "DB",
       "database_name": "lop-10a7-db-staging",
-      // Id giả chỉ dùng cho D1 local. Thay bằng id D1 staging trước khi deploy preview —
-      // TUYỆT ĐỐI không đặt id D1 production (lop-10a7-db) vào đây.
-      "database_id": "00000000-0000-4000-8000-000000000000"
+      // D1 staging riêng của v2. TUYỆT ĐỐI không đặt id D1 production (lop-10a7-db) vào đây.
+      "database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f",
+      // Dev local tiếp tục dùng bản sao local đã nạp sẵn.
+      "preview_database_id": "00000000-0000-4000-8000-000000000000"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",
-      // Id giả chỉ dùng local. Thay bằng KV riêng của v2 trước khi deploy preview.
-      "id": "00000000000000000000000000000000"
+      // KV riêng của v2 (gdtxdinhquan-v2-rate-limit), không dùng chung KV của web thật.
+      "id": "d8cd90e018eb4da3ba697aaba555115c",
+      "preview_id": "00000000000000000000000000000000"
     }
   ],
   "durable_objects": {

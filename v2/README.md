@@ -48,7 +48,14 @@ chạy trên Cloudflare Workers + static assets + Durable Objects (SQLite, gói 
 
 ## Deploy preview
 
-`wrangler.jsonc` đang để id giả cho D1 và KV. Trước khi `npm run deploy`: tạo D1 staging + KV riêng cho
-v2 rồi thay id — **không bao giờ** đặt id của D1 production `lop-10a7-db` vào đây.
-Lệnh `wrangler d1 export --remote` chặn truy vấn của web thật trong lúc chạy → chỉ xuất dữ liệu vào lúc
-ít người dùng (đêm khuya).
+- Bản preview: https://gdtxdinhquan-v2.ledinhphat1994.workers.dev (Worker `gdtxdinhquan-v2`, tài khoản
+  Cloudflare ghim trong `wrangler.jsonc`).
+- Dữ liệu: D1 `lop-10a7-db-staging` + KV `gdtxdinhquan-v2-rate-limit`, riêng cho v2. Hiện chỉ có cấu trúc
+  73 bảng, 2 lớp và 3 tài khoản thử `qa.v2.*` — chưa có tài khoản thật.
+- `npm run deploy` = build + `wrangler deploy`. `SESSION_SECRET` của preview đã lưu trên Cloudflare (khác
+  web thật) và được giữ qua các lần deploy; muốn đổi thì dùng `npx wrangler secret put SESSION_SECRET`.
+- Bảng binding in ra khi deploy hiển thị `preview_database_id` cho D1, nhưng binding thật là
+  `database_id` — kiểm tra trong `dist/gdtxdinhquan_v2/wrangler.json` nếu nghi ngờ.
+- **Không bao giờ** đặt id của D1 production `lop-10a7-db` vào `wrangler.jsonc`.
+- Chép tài khoản thật sang staging phải được owner đồng ý (dữ liệu cá nhân + hash mật khẩu). Không dùng
+  `wrangler d1 export --remote` trong giờ học: lệnh này chặn truy vấn của web thật trong lúc chạy.
