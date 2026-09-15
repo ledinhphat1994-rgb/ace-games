@@ -1,4 +1,6 @@
 -- Test mirror of migrations/0005_phong_ban.sql
+DROP TABLE IF EXISTS phong_ban;
+
 CREATE TABLE IF NOT EXISTS phong_ban (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   phong_id     INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
@@ -8,5 +10,6 @@ CREATE TABLE IF NOT EXISTS phong_ban (
   tao_luc      TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(phong_id, tai_khoan_id)
 );
-CREATE INDEX idx_phong_ban_phong ON phong_ban(phong_id);
-CREATE INDEX idx_phong_ban_tk    ON phong_ban(tai_khoan_id);
+
+CREATE INDEX IF NOT EXISTS idx_phong_ban_phong ON phong_ban(phong_id);
+CREATE INDEX IF NOT EXISTS idx_phong_ban_tk    ON phong_ban(tai_khoan_id);

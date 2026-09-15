@@ -57,24 +57,34 @@ const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
 
 /**
  * PPTX ZIP Inspection:
- * Validates that a ZIP archive actually contains PowerPoint-specific entries.
- * Reads the ZIP End-of-Central-Directory record to find the Central Directory,
- * then walks entries looking for:
- *   [Content_Types].xml  (required in all OOXML packages)
- *   ppt/presentation.xml (PowerPoint-specific)
+ * Validates that an uploaded archive is a genuine PowerPoint (.pptx) OOXML package.
  *
- * ZIP-bomb protection:
- *   - cap entry count at 5000
- *   - cap inspected filename bytes
- *   - reject if EOCD not found within last 64KB
+ * Security & Integrity guarantees:
+ * 1. Read EOCD record backwards from end of file (capped at last 64KB).
+ * 2. Walk Central Directory entries:
+ *    - Cap entry count <= 500 (anti-DoS).
+ *    - Sum declared uncompressed sizes of all entries; reject if > 100 MiB (ZIP bomb protection).
+ *    - Locate '[Content_Types].xml' and 'ppt/presentation.xml'.
+ *    - Validate offsets and entry boundaries.
+ * 3. Safely decompress ONLY the small '[Content_Types].xml' entry:
+ *    - Read local file header at offset from Central Directory.
+ *    - Supports compression 0 (stored) and 8 (deflated).
+ *    - Stream decompress via DecompressionStream('deflate-raw') with strict byte cap <= 1 MiB.
+ * 4. Verify that the decompressed XML explicitly declares the PowerPoint presentation content type
+ *    ('application/vnd.openxmlformats-officedocument.presentationml' or 'presentationml').
+ *
+ * NOTE for legacy .ppt:
+ * Only OLE compound-file container signature is verified; individual streams not parsed.
  */
 async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reason?: string }> {
   const MAX_EOCD_SCAN = 65536
-  const MAX_ENTRIES = 5000
+  const MAX_ENTRIES = 500
+  const MAX_TOTAL_UNCOMPRESSED = 100 * 1024 * 1024 // 100 MiB
+  const MAX_CONTENT_TYPES_BYTES = 1024 * 1024       // 1 MiB
 
   if (fileBytes.length < 22) return { ok: false, reason: 'Tệp quá nhỏ.' }
 
-  // Find EOCD signature (PK\x05\x06) scanning backwards from end
+  // 1. Find EOCD signature (PK\x05\x06) scanning backwards from end
   const scanStart = Math.max(0, fileBytes.length - MAX_EOCD_SCAN)
   let eocdOffset = -1
   for (let i = fileBytes.length - 22; i >= scanStart; i--) {
@@ -91,32 +101,124 @@ async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reaso
   const cdSize      = dv.getUint32(eocdOffset + 12, true)
   const cdOffset    = dv.getUint32(eocdOffset + 16, true)
 
-  if (entryCount > MAX_ENTRIES) return { ok: false, reason: 'ZIP có quá nhiều entry.' }
+  if (entryCount > MAX_ENTRIES) return { ok: false, reason: 'ZIP có quá nhiều entry (tối đa 500).' }
   if (cdOffset + cdSize > fileBytes.length) return { ok: false, reason: 'Cấu trúc ZIP không hợp lệ.' }
 
-  // Walk Central Directory
-  const required = new Set(['[Content_Types].xml', 'ppt/presentation.xml'])
-  const found = new Set<string>()
+  // 2. Walk Central Directory
+  let hasPresentationXml = false
+  let contentTypesHeaderOffset: number | null = null
+  let totalUncompressed = 0
   let pos = cdOffset
+
   for (let i = 0; i < entryCount; i++) {
     if (pos + 46 > cdOffset + cdSize) break
     const sig = dv.getUint32(pos, true)
     if (sig !== 0x02014b50) break // PK\x01\x02
+
+    const uncompSize = dv.getUint32(pos + 24, true)
     const fnLen = dv.getUint16(pos + 28, true)
     const extraLen = dv.getUint16(pos + 30, true)
     const commentLen = dv.getUint16(pos + 32, true)
+    const localHeaderOffset = dv.getUint32(pos + 42, true)
+
+    totalUncompressed += uncompSize
+    if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED) {
+      return { ok: false, reason: 'Tổng dung lượng giải nén vượt quá giới hạn 100MB.' }
+    }
+
     if (pos + 46 + fnLen > fileBytes.length) break
     const fnBytes = fileBytes.slice(pos + 46, pos + 46 + fnLen)
     const name = new TextDecoder().decode(fnBytes)
-    if (required.has(name)) found.add(name)
-    if (found.size === required.size) break
+
+    if (name === '[Content_Types].xml') {
+      contentTypesHeaderOffset = localHeaderOffset
+    } else if (name === 'ppt/presentation.xml') {
+      hasPresentationXml = true
+    }
+
     pos += 46 + fnLen + extraLen + commentLen
   }
 
-  if (!found.has('[Content_Types].xml'))
+  if (contentTypesHeaderOffset === null) {
     return { ok: false, reason: 'Không phải file OOXML hợp lệ (thiếu [Content_Types].xml).' }
-  if (!found.has('ppt/presentation.xml'))
+  }
+  if (!hasPresentationXml) {
     return { ok: false, reason: 'Không phải PPTX hợp lệ (thiếu ppt/presentation.xml).' }
+  }
+
+  // 3. Read and decompress ONLY [Content_Types].xml from local file header
+  if (contentTypesHeaderOffset + 30 > fileBytes.length) {
+    return { ok: false, reason: 'Header của [Content_Types].xml bị cắt ngắn.' }
+  }
+  const locSig = dv.getUint32(contentTypesHeaderOffset, true)
+  if (locSig !== 0x04034b50) { // PK\x03\x04
+    return { ok: false, reason: 'Chữ ký local header của [Content_Types].xml không hợp lệ.' }
+  }
+
+  const compMethod = dv.getUint16(contentTypesHeaderOffset + 8, true)
+  const compSize = dv.getUint32(contentTypesHeaderOffset + 18, true)
+  const locFnLen = dv.getUint16(contentTypesHeaderOffset + 26, true)
+  const locExtraLen = dv.getUint16(contentTypesHeaderOffset + 28, true)
+  const dataStart = contentTypesHeaderOffset + 30 + locFnLen + locExtraLen
+
+  if (dataStart + compSize > fileBytes.length) {
+    return { ok: false, reason: 'Dữ liệu của [Content_Types].xml bị cắt ngắn.' }
+  }
+
+  let xmlText = ''
+  if (compMethod === 0) {
+    // Stored (uncompressed)
+    if (compSize > MAX_CONTENT_TYPES_BYTES) {
+      return { ok: false, reason: '[Content_Types].xml vượt quá 1MB.' }
+    }
+    xmlText = new TextDecoder().decode(fileBytes.slice(dataStart, dataStart + compSize))
+  } else if (compMethod === 8) {
+    // Deflated
+    try {
+      const compressedSlice = fileBytes.slice(dataStart, dataStart + compSize)
+      const ds = new DecompressionStream('deflate-raw')
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(compressedSlice)
+          controller.close()
+        },
+      }).pipeThrough(ds)
+
+      const reader = stream.getReader()
+      const chunks: Uint8Array[] = []
+      let bytesRead = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) {
+          bytesRead += value.byteLength
+          if (bytesRead > MAX_CONTENT_TYPES_BYTES) {
+            await reader.cancel()
+            return { ok: false, reason: '[Content_Types].xml vượt quá 1MB sau khi giải nén.' }
+          }
+          chunks.push(value)
+        }
+      }
+
+      const merged = new Uint8Array(bytesRead)
+      let off = 0
+      for (const chunk of chunks) {
+        merged.set(chunk, off)
+        off += chunk.byteLength
+      }
+      xmlText = new TextDecoder().decode(merged)
+    } catch {
+      return { ok: false, reason: 'Không thể giải nén [Content_Types].xml.' }
+    }
+  } else {
+    return { ok: false, reason: `Phương thức nén ${compMethod} của [Content_Types].xml không được hỗ trợ.` }
+  }
+
+  // 4. Validate PowerPoint presentation MIME / ContentType in [Content_Types].xml
+  if (!xmlText.includes('presentationml')) {
+    return { ok: false, reason: '[Content_Types].xml không khai báo kiểu nội dung PowerPoint (presentationml).' }
+  }
 
   return { ok: true }
 }

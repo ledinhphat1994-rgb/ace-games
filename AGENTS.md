@@ -1,5 +1,14 @@
 # Digital Campus v2 — Quy tắc bắt buộc
 
+> **Nguyên tắc khởi đầu (Mandatory Pre-implementation Gate):**
+> Trước khi thực hiện bất kỳ nhiệm vụ cốt lõi hoặc tính năng mới nào:
+> 1. Đọc kĩ [docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md](file:///e:/phát/Việc làm nhà nước GDTX/2026-2027/Lớp 10A7 2026-2027/web lớp 10A7/docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md).
+> 2. Xác định rõ task thuộc về **Platform Core** hay **Activity**.
+> 3. Tuyệt đối giữ vững ranh giới Platform / Activity (không duplicate tính năng nền tảng vào activity).
+> 4. Không bao giờ thu hẹp kiến trúc thành một website lớp học hay LMS đơn lẻ.
+> 5. Không tin tưởng báo cáo lý thuyết hơn bằng chứng mã nguồn và runtime thực tế.
+> 6. Độ chính xác chức năng & sự tin cậy luôn đi trước vẻ bóng bẩy giao diện.
+
 ## 1. Kiến trúc hệ thống chính thức
 - **Runtime & Deployment:** Cloudflare Workers + Static Assets + Durable Objects (SQLite, WebSocket Hibernation API) + D1 Database + KV (Rate Limit) + R2 (Lưu trữ ảnh & media).
 - **Frontend:** Vite 8 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui (Base UI) + Lucide Icons + TanStack Query.

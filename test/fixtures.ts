@@ -11,6 +11,7 @@ export interface TaiKhoanThu {
   vaiTro: 'student' | 'teacher'
   lopId: number | null
   laAdminTruong?: boolean
+  teacherPending?: boolean
   /** Lớp được gán qua giao_vien_lop (chỉ giáo viên). */
   lopPhuTrach?: number[]
 }
@@ -22,5 +23,6 @@ export const TAI_KHOAN_THU: readonly TaiKhoanThu[] = [
   { username: 'qa.v2.thu3', ten: 'QA Học sinh lớp 2', hoatDong: 1, vaiTro: 'student', lopId: 2 },
   { username: 'qa.v2.tudo', ten: 'QA Chưa có lớp', hoatDong: 1, vaiTro: 'student', lopId: null },
   { username: 'qa.v2.gv', ten: 'QA Giáo viên lớp 1', hoatDong: 1, vaiTro: 'teacher', lopId: 1, lopPhuTrach: [1] },
+  { username: 'qa.v2.gv_pending', ten: 'QA Giáo viên chờ duyệt', hoatDong: 1, vaiTro: 'teacher', teacherPending: true, lopId: 1 },
   { username: 'qa.v2.admin', ten: 'QA Quản trị trường', hoatDong: 1, vaiTro: 'teacher', lopId: null, laAdminTruong: true },
 ]

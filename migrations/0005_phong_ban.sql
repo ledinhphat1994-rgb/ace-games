@@ -1,5 +1,7 @@
--- Bảng cấm thành viên vào phòng học cụ thể.
--- Được áp dụng tại cổng WebSocket admission; không có tính năng này thì tắt bằng cách không chèn row.
+-- Bảng cấm thành viên vào phòng học cụ thể (Digital Campus v2).
+-- Nâng cấp từ schema cũ (v1 dùng khoa) sang v2 gắn với tài khoản Campus (tai_khoan_id).
+DROP TABLE IF EXISTS phong_ban;
+
 CREATE TABLE IF NOT EXISTS phong_ban (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   phong_id     INTEGER NOT NULL REFERENCES phong(id) ON DELETE CASCADE,
@@ -9,5 +11,6 @@ CREATE TABLE IF NOT EXISTS phong_ban (
   tao_luc      TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(phong_id, tai_khoan_id)
 );
-CREATE INDEX idx_phong_ban_phong ON phong_ban(phong_id);
-CREATE INDEX idx_phong_ban_tk    ON phong_ban(tai_khoan_id);
+
+CREATE INDEX IF NOT EXISTS idx_phong_ban_phong ON phong_ban(phong_id);
+CREATE INDEX IF NOT EXISTS idx_phong_ban_tk    ON phong_ban(tai_khoan_id);

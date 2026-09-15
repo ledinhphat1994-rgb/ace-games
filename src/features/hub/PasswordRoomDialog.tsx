@@ -100,11 +100,6 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSubmit(e)
-    if (e.key === 'Escape') handleClose()
-  }
-
   const handleClose = () => {
     if (loading) return
     setPassword('')
@@ -116,7 +111,6 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
     <Dialog open={!!room} onOpenChange={(open) => { if (!open) handleClose() }}>
       <DialogContent
         className="sm:max-w-sm"
-        onKeyDown={handleKeyDown}
         aria-describedby="pw-dialog-desc"
       >
         <DialogHeader>
@@ -148,9 +142,8 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
               />
               <button
                 type="button"
-                tabIndex={-1}
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-0.5"
                 aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

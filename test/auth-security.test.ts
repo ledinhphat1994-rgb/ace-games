@@ -44,13 +44,13 @@ const resetPassword = (username: string, otp: string, newPassword: string) =>
 describe('Auth Security Regression', () => {
   // ── A: Giáo viên đang chờ duyệt → reset-code 403 ──
   it('A: giáo viên pending → reset-code 403', async () => {
-    // qa.v2.gv là teacher đã được duyệt; không có pending-teacher trong fixture
-    // Test bằng cách dùng tài khoản student cố gọi reset-code
-    const res1 = await dangNhap('qa.v2.thu1')
+    // qa.v2.gv_pending là giáo viên có teacherPending = true trong fixture
+    const res1 = await dangNhap('qa.v2.gv_pending')
+    expect(res1.status).toBe(200)
     const cookie = layCookie(res1)
     await res1.body?.cancel()
 
-    const res = await resetCode(cookie, 'qa.v2.thu2')
+    const res = await resetCode(cookie, 'qa.v2.thu1')
     expect(res.status).toBe(403)
   })
 
@@ -195,9 +195,21 @@ describe('Auth Security Regression', () => {
     const body = await json(resCode)
     const otp = body.code as string
 
-    // Nhập sai 1 lần
-    const resBad = await resetPassword('qa.v2.thu1', 'WRONG-OTP', MAT_KHAU)
+    // Đọc record ban đầu từ KV
+    const rawBefore = await env.RATE_LIMIT.get('pwd_reset:qa.v2.thu1')
+    expect(rawBefore).toBeTruthy()
+    const recordBefore = JSON.parse(rawBefore!) as { attempts: number; expiresAt: number }
+
+    // Nhập sai 1 lần với OTP sai và mật khẩu đúng độ dài
+    const resBad = await resetPassword('qa.v2.thu1', '999999', MAT_KHAU)
     expect(resBad.status).toBeGreaterThanOrEqual(400)
+
+    // Đọc lại record từ KV: expiresAt tuyệt đối không đổi; attempts tăng 1
+    const rawAfter = await env.RATE_LIMIT.get('pwd_reset:qa.v2.thu1')
+    expect(rawAfter).toBeTruthy()
+    const recordAfter = JSON.parse(rawAfter!) as { attempts: number; expiresAt: number }
+    expect(recordAfter.attempts).toBe(1)
+    expect(recordAfter.expiresAt).toBe(recordBefore.expiresAt)
 
     // OTP đúng vẫn phải dùng được (sai 1 lần chưa hết hạn)
     const resGood = await resetPassword('qa.v2.thu1', otp, MAT_KHAU)
@@ -285,22 +297,28 @@ describe('Auth Security Regression', () => {
       body: JSON.stringify({
         username: randUser,
         password: MAT_KHAU,
-        ten: 'QA New Account Test',
-        classCode: 'INVALID_CODE', // sai mã lớp → lop_id phải là null
+        tenHienThi: 'QA New Account Test',
       }),
     })
-    // Đăng ký sẽ fail (mã lớp sai) hoặc thành công tuỳ implementation
-    // Điểm chính: nếu thành công, lop_id phải là null khi truy vấn whoami
-    if (res.status === 200) {
-      const cookie = layCookie(res)
-      await res.body?.cancel()
-      const wRes = await whoami(cookie)
-      const wBody = await json(wRes)
-      // lop_id không được tự gán từ mã lớp sai
-      expect(wBody.lopId ?? null).toBeNull()
-    } else {
-      // Đăng ký thất bại với mã lớp sai — đây là hành vi đúng
-      expect(res.status).toBeGreaterThanOrEqual(400)
-    }
+    // Đăng ký thành công
+    expect(res.status).toBe(200)
+
+    // 1. Kiểm tra trực tiếp bảng D1: lop_id BẮT BUỘC là NULL
+    const d1Row = await env.DB.prepare('SELECT lop_id FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
+      .bind(randUser)
+      .first<{ lop_id: number | null }>()
+    expect(d1Row).not.toBeNull()
+    expect(d1Row!.lop_id).toBeNull()
+
+    // 2. Đăng nhập và kiểm tra whoami: lopId BẮT BUỘC là null
+    const logRes = await dangNhap(randUser)
+    expect(logRes.status).toBe(200)
+    const cookie = layCookie(logRes)
+    await logRes.body?.cancel()
+
+    const whoRes = await whoami(cookie)
+    expect(whoRes.status).toBe(200)
+    const whoBody = await json(whoRes)
+    expect(whoBody.lopId).toBeNull()
   })
 })

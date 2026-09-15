@@ -15,8 +15,8 @@ if (!daCo?.n) {
     const salt = taoSalt()
     const kq = await env.DB.prepare(
       `INSERT INTO tai_khoan_campus
-         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, lop_id, la_admin_truong, dang_hoat_dong)
-       VALUES (?1, ?2, ?3, ?4, 100000, ?5, ?6, ?7, ?8)`,
+         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, lop_id, la_admin_truong, dang_hoat_dong)
+       VALUES (?1, ?2, ?3, ?4, 100000, ?5, ?6, ?7, ?8, ?9)`,
     )
       .bind(
         tk.username,
@@ -24,6 +24,7 @@ if (!daCo?.n) {
         await bamMatKhau(MAT_KHAU, salt, 100000),
         salt,
         tk.vaiTro,
+        tk.teacherPending ? 1 : 0,
         tk.lopId,
         tk.laAdminTruong ? 1 : 0,
         tk.hoatDong,

@@ -232,7 +232,7 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
   })
 })
 
-// ── Security Matrix (22 tests) ────────────────────────────────────────────────
+// ── Security Matrix (23 tests) ────────────────────────────────────────────────
 describe('Admission Gate — Security Matrix', () => {
 
   // 1. Phòng không tồn tại → 404 (FAIL CLOSED)
@@ -518,5 +518,28 @@ describe('Admission Gate — Security Matrix', () => {
     const res = await admitPhong(id, cookie, 'mk-ban-1')
     await res.body?.cancel()
     expect(res.status).toBe(403)
+  })
+
+  // 23. Lỗi tra cứu phong_ban (DB error) → FAIL CLOSED 503 cho cả WS và admit API
+  it('(23) lỗi tra cứu phong_ban (DB error) → FAIL CLOSED 503 cho cả WS và admit API', async () => {
+    const id = await chenPhong('Phòng ban fail-closed', 'truong', null, { accessMode: 'password', matKhau: 'mk-fc-1' })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Tạm thời đổi tên bảng phong_ban để mô phỏng lỗi truy vấn D1
+    await env.DB.exec('ALTER TABLE phong_ban RENAME TO phong_ban_temp_test')
+    try {
+      // 1. WebSocket admission gate gặp lỗi D1 query ban → BẮT BUỘC trả về 503
+      const wsRes = await moPhongId(id, cookie)
+      await wsRes.body?.cancel()
+      expect(wsRes.status).toBe(503)
+
+      // 2. Password admit API gặp lỗi D1 query ban → BẮT BUỘC trả về 503
+      const admitRes = await admitPhong(id, cookie, 'mk-fc-1')
+      await admitRes.body?.cancel()
+      expect(admitRes.status).toBe(503)
+    } finally {
+      // Khôi phục lại bảng phong_ban sau khi test xong
+      await env.DB.exec('ALTER TABLE phong_ban_temp_test RENAME TO phong_ban')
+    }
   })
 })
