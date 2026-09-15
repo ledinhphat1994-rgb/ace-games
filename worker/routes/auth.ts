@@ -248,10 +248,12 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
 }
 
 async function bamMaOtp(secret: string, username: string, code: string): Promise<string> {
+  // Fail closed: không có SESSION_SECRET thì không thể ký OTP.
+  if (!secret) throw new Error('SESSION_SECRET chưa được cấu hình — không thể tạo/xác minh OTP.')
   const enc = new TextEncoder()
   const key = await crypto.subtle.importKey(
     'raw',
-    enc.encode(secret || 'digital_campus_v2_otp_secret_key_2026'),
+    enc.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign'],
