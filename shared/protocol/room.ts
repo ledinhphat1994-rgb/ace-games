@@ -42,6 +42,7 @@ export interface QueueItem {
   videoId: string
   title: string
   addedBy: string
+  addedByKey?: string
   addedAt: number
 }
 

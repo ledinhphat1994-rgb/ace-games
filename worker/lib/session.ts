@@ -69,10 +69,10 @@ export async function kiemTraPhien(phien: Phien | null, env: Env): Promise<KetQu
 
   if (!tk) return tuChoi('tai_khoan_khong_con', 'Tài khoản không còn tồn tại.', true)
   if (!tk.dangHoatDong) return tuChoi('tai_khoan_khoa', 'Tài khoản này đã bị khoá.', true)
-  if (tk.thietBi && phien.phienId && tk.thietBi !== phien.phienId) {
+  if (tk.thietBi && (!phien.phienId || tk.thietBi !== phien.phienId)) {
     return tuChoi(
       'da_dang_nhap_noi_khac',
-      'Tài khoản của bạn đã được đăng nhập trên một thiết bị khác. Bạn đã bị đăng xuất.',
+      'Tài khoản của bạn đã được đăng nhập trên một thiết bị khác hoặc phiên đã bị hủy. Bạn đã bị đăng xuất.',
       true,
     )
   }

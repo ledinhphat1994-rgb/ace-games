@@ -1,6 +1,8 @@
 import { exports } from 'cloudflare:workers'
+import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import type { GoiPhong, WhiteboardStroke } from '../shared/protocol/room'
+import { bamMatKhau, taoSalt } from '../worker/lib/passwords'
 import { GOC, MAT_KHAU } from './fixtures'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
@@ -218,5 +220,192 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
 
     a.dong()
     b.dong()
+  })
+})
+
+// ── Helper: chèn phòng có slug vào D1 ──────────────────────────────────────
+async function chenPhongCoSlug(
+  ten: string,
+  slug: string,
+  phamVi: 'truong' | 'lop',
+  lopId: number | null,
+  tuyChon: {
+    trangThai?: string
+    accessMode?: string
+    matKhau?: string
+    sucChua?: number
+    chuPhongKhoa?: string
+  } = {},
+): Promise<void> {
+  let hashHex: string | null = null
+  let saltHex: string | null = null
+  let iterations: number | null = null
+  if (tuyChon.matKhau) {
+    saltHex = taoSalt()
+    iterations = 100000
+    hashHex = await bamMatKhau(tuyChon.matKhau, saltHex, iterations)
+  }
+  await env.DB.prepare(
+    `INSERT INTO phong
+       (loai, ten, slug, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten,
+        access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations,
+        suc_chua, trang_thai)
+     VALUES ('video', ?1, ?2, ?3, ?4, ?5, 'Host', ?6, ?7, ?8, ?9, ?10, ?11)`,
+  )
+    .bind(
+      ten,
+      slug,
+      phamVi,
+      lopId,
+      tuyChon.chuPhongKhoa ?? 'acc:1',
+      tuyChon.accessMode ?? 'public',
+      hashHex,
+      saltHex,
+      iterations,
+      tuyChon.sucChua ?? 20,
+      tuyChon.trangThai ?? 'mo',
+    )
+    .run()
+}
+
+const moPhongCoSlug = (slug: string, cookie: string, pw?: string) => {
+  const qs = pw ? `?pw=${encodeURIComponent(pw)}` : ''
+  return exports.default.fetch(`${GOC}/ws/room/${slug}${qs}`, {
+    headers: { Upgrade: 'websocket', Cookie: cookie, Origin: GOC },
+  }) as Promise<Response>
+}
+
+describe('Admission Gate — kiểm tra cổng vào phòng học (D1 backed)', () => {
+  it('phòng đóng (trang_thai=dong) → 403', async () => {
+    const slug = `dong-${Date.now()}`
+    await chenPhongCoSlug('Phòng đã đóng', slug, 'truong', null, { trangThai: 'dong' })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await moPhongCoSlug(slug, cookie)
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('phòng lớp 1 → học sinh lớp 2 bị từ chối (403)', async () => {
+    const slug = `lop1-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 1 riêng', slug, 'lop', 1)
+    const cookie = await dangNhapLayCookie('qa.v2.thu3') // lopId = 2
+    const res = await moPhongCoSlug(slug, cookie)
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('phòng lớp 1 → học sinh lớp 1 được vào (101)', async () => {
+    const slug = `lop1-ok-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 1 OK', slug, 'lop', 1)
+    const cookie = await dangNhapLayCookie('qa.v2.thu1') // lopId = 1
+    const res = await moPhongCoSlug(slug, cookie)
+    expect(res.status).toBe(101)
+    res.webSocket?.accept()
+    res.webSocket?.close(1000, 'xong')
+    await res.body?.cancel()
+  })
+
+  it('phòng lớp 1 → giáo viên lớp 2 bị từ chối (403)', async () => {
+    const slug = `gv-sai-lop-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 1 riêng GV', slug, 'lop', 1)
+    // qa.v2.gv phụ trách lớp 1 — ta tạo phòng lớp 2 thay vào
+    const slug2 = `gv-sai-lop2-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 2 riêng GV', slug2, 'lop', 2)
+    const cookie = await dangNhapLayCookie('qa.v2.gv') // phụ trách lớp 1
+    const res = await moPhongCoSlug(slug2, cookie)
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('phòng lớp 1 → giáo viên lớp 1 được vào (101)', async () => {
+    const slug = `gv-ok-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 1 GV OK', slug, 'lop', 1)
+    const cookie = await dangNhapLayCookie('qa.v2.gv') // phụ trách lớp 1
+    const res = await moPhongCoSlug(slug, cookie)
+    expect(res.status).toBe(101)
+    res.webSocket?.accept()
+    res.webSocket?.close(1000, 'xong')
+    await res.body?.cancel()
+  })
+
+  it('admin vào phòng lớp bất kỳ (101)', async () => {
+    const slug = `admin-bypass-${Date.now()}`
+    await chenPhongCoSlug('Phòng lớp 2 admin bypass', slug, 'lop', 2)
+    const cookie = await dangNhapLayCookie('qa.v2.admin')
+    const res = await moPhongCoSlug(slug, cookie)
+    expect(res.status).toBe(101)
+    res.webSocket?.accept()
+    res.webSocket?.close(1000, 'xong')
+    await res.body?.cancel()
+  })
+
+  it('phòng có mật khẩu → không cung cấp mật khẩu → 403', async () => {
+    const slug = `pw-missing-${Date.now()}`
+    await chenPhongCoSlug('Phòng có mật khẩu', slug, 'truong', null, {
+      accessMode: 'password',
+      matKhau: 'bi-mat-123',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await moPhongCoSlug(slug, cookie) // không truyền pw
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('phòng có mật khẩu → mật khẩu sai → 403', async () => {
+    const slug = `pw-wrong-${Date.now()}`
+    await chenPhongCoSlug('Phòng mật khẩu sai', slug, 'truong', null, {
+      accessMode: 'password',
+      matKhau: 'bi-mat-123',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await moPhongCoSlug(slug, cookie, 'sai-mat-khau')
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('phòng có mật khẩu → mật khẩu đúng → 101', async () => {
+    const slug = `pw-ok-${Date.now()}`
+    await chenPhongCoSlug('Phòng mật khẩu đúng', slug, 'truong', null, {
+      accessMode: 'password',
+      matKhau: 'bi-mat-123',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await moPhongCoSlug(slug, cookie, 'bi-mat-123')
+    expect(res.status).toBe(101)
+    res.webSocket?.accept()
+    res.webSocket?.close(1000, 'xong')
+    await res.body?.cancel()
+  })
+
+  it('phòng đầy sức chứa (suc_chua=1) → người thứ 2 nhận 403', async () => {
+    const slug = `cap-${Date.now()}`
+    await chenPhongCoSlug('Phòng sức chứa 1', slug, 'truong', null, { sucChua: 1 })
+    const c1 = await dangNhapLayCookie('qa.v2.thu1')
+    const c2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    const r1 = await moPhongCoSlug(slug, c1)
+    expect(r1.status).toBe(101)
+    r1.webSocket?.accept() // accept trước khi dùng
+
+    const r2 = await moPhongCoSlug(slug, c2)
+    await r2.body?.cancel()
+    expect(r2.status).toBe(403)
+
+    r1.webSocket?.close(1000, 'xong')
+  })
+
+  it('canonical hostKey từ D1 (chu_phong_khoa) xuất hiện trong snapshot', async () => {
+    const slug = `host-canon-${Date.now()}`
+    // chu_phong_khoa = acc:99 (tài khoản giả, không cần thật cho test này)
+    await chenPhongCoSlug('Phòng canonical host', slug, 'truong', null, {
+      chuPhongKhoa: 'acc:99',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const kn = await moKetNoi<GoiPhong>(`/ws/room/${slug}`, cookie)
+    expect(kn.status).toBe(101)
+    const snap = await kn.cho('room.snapshot')
+    // hostKey phải là canonical từ D1, không phải acc:ID của thu1
+    expect(snap.hostKey).toBe('acc:99')
+    kn.dong()
   })
 })

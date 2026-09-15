@@ -1,2 +1,5 @@
-# Chép thành .dev.vars (không commit) rồi điền một chuỗi ngẫu nhiên dài.
+# Chép thành .dev.vars (không commit) rồi điền các giá trị bí mật phục vụ phát triển cục bộ.
 SESSION_SECRET=
+TEACHER_CODE=
+CLASS_CODE=
+TURNSTILE_SECRET_KEY=

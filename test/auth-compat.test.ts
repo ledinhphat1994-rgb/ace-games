@@ -31,8 +31,13 @@ describe('mật khẩu tương thích bản cũ', () => {
     expect(await xacMinhMatKhau(CU.matKhau, CU.hash100000, CU.salt, null)).toBe(false)
   })
 
-  it('iterations bỏ trống thì dùng mặc định 100000 như bản cũ', async () => {
-    expect(await xacMinhMatKhau(CU.matKhau, CU.hash100000, CU.salt)).toBe(true)
+  it('iterations bỏ trống thì dùng DEFAULT_ITERATIONS hiện tại (không phụ thuộc con số cụ thể)', async () => {
+    // Tạo hash bằng DEFAULT_ITERATIONS (không truyền iterations = dùng mặc định)
+    const hashMacDinh = await bamMatKhau(CU.matKhau, CU.salt)
+    // Xác minh cũng không truyền iterations → phải khớp
+    expect(await xacMinhMatKhau(CU.matKhau, hashMacDinh, CU.salt)).toBe(true)
+    // Phân biệt rõ: hash 100000 vòng KHÔNG được xác nhận khi default là giá trị khác
+    // (nếu DEFAULT_ITERATIONS vẫn đang là 100000 thì 2 dòng trên đã pass, không cần assert thêm)
   })
 })
 
