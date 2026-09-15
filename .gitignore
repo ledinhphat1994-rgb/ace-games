@@ -8,7 +8,9 @@ server-*.js
 _worker.bundle
 
 # Mã bí mật để chạy thử trên máy — không bao giờ đưa lên GitHub.
-.dev.vars
+.dev.vars*
+!.dev.vars.example
+worker-configuration.d.ts
 
 # Kết quả chạy thử trình duyệt (Playwright).
 .playwright-mcp/

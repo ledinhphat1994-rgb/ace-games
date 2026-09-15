@@ -1,0 +1,83 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gdtxdinhquan",
+  // Ghim tài khoản giống deploy.js của bản cũ (ledinhphat1994) để không deploy nhầm tài khoản.
+  "account_id": "bfc647e65d847f61ca386b7f11c27173",
+  "main": "./worker/index.ts",
+  // Khớp bản workerd đi kèm wrangler đang dùng (1.20260911.x); nâng wrangler thì nâng ngày này theo.
+  "compatibility_date": "2026-09-11",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/ws/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lop-10a7-db",
+      // D1 production chính thức
+      "database_id": "a12de014-e9d2-4d6d-994f-dcb36c481432",
+      // Staging / preview database id
+      "preview_database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      // KV production chính thức
+      "id": "e2529ac570cb4d77a246f38953dcbc9f",
+      // Staging / preview KV id
+      "preview_id": "d8cd90e018eb4da3ba697aaba555115c"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ANH",
+      // R2 bucket lưu trữ ảnh và tài nguyên của trường
+      "bucket_name": "lop-10a7-anh",
+      "preview_bucket_name": "lop-10a7-anh"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomDO" },
+      // Một object duy nhất cho toàn trường: người online, chat toàn trường, danh bạ phòng của sảnh.
+      { "name": "CAMPUS", "class_name": "CampusDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["CampusDO"] }
+  ],
+  "observability": { "enabled": true },
+  "env": {
+    "staging": {
+      "name": "gdtxdinhquan-v2",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "lop-10a7-db-staging",
+          "database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT",
+          "id": "d8cd90e018eb4da3ba697aaba555115c"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ANH",
+          "bucket_name": "lop-10a7-anh"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "ROOMS", "class_name": "RoomDO" },
+          { "name": "CAMPUS", "class_name": "CampusDO" }
+        ]
+      }
+    }
+  }
+}

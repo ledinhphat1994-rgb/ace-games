@@ -1,16 +1,2 @@
-# Mẫu khai báo biến để CHẠY THỬ TRÊN MÁY.
-#
-# Sao chép tệp này thành .dev.vars rồi điền giá trị dùng thử.
-# .dev.vars đã bị .gitignore nên không bao giờ lên GitHub.
-#
-# TUYỆT ĐỐI KHÔNG điền mã thật của lớp vào đây — tệp này có trong Git.
-# Mã thật chỉ khai báo trên Cloudflare: Pages -> Settings -> Variables and Secrets.
-
-# Khoá ký cookie phiên đăng nhập. Khi chạy thử, đặt chuỗi gì cũng được.
+# Chép thành .dev.vars (không commit) rồi điền một chuỗi ngẫu nhiên dài.
 SESSION_SECRET=
-
-# Mã học sinh dùng để vào trang lớp khi chạy thử.
-CLASS_CODE=
-
-# Mã giáo viên, mở thêm khu /giao-vien khi chạy thử.
-TEACHER_CODE=
