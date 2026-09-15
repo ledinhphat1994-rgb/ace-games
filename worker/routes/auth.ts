@@ -97,6 +97,26 @@ export async function dangNhap(
     .run()
     .catch(() => {})
 
+  // Opportunistic password hash upgrade:
+  // Nếu tài khoản có iterations < DEFAULT_ITERATIONS, nâng cấp lên DEFAULT_ITERATIONS bằng CAS
+  // Tuyệt đối không hạ cấp tài khoản có work factor cao hơn.
+  const currentIters = Number(user.iterations)
+  if (Number.isInteger(currentIters) && currentIters > 0 && currentIters < DEFAULT_ITERATIONS) {
+    try {
+      const newSalt = taoSalt()
+      const newHash = await bamMatKhau(password, newSalt, DEFAULT_ITERATIONS)
+      await env.DB.prepare(
+        `UPDATE tai_khoan_campus
+            SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, cap_nhat_luc = CURRENT_TIMESTAMP
+          WHERE id = ?4 AND iterations = ?5`,
+      )
+        .bind(newHash, newSalt, DEFAULT_ITERATIONS, user.id, user.iterations)
+        .run()
+    } catch (e) {
+      console.error('Opportunistic upgrade: lỗi cập nhật hash mật khẩu:', e)
+    }
+  }
+
   // Đóng ngay kết nối Campus của phiên cũ; bản cũ chỉ phát hiện ở lần gọi API kế tiếp.
   const baoCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
     .dangNhapMoi(user.id, phienId)

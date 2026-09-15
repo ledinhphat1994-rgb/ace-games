@@ -63,4 +63,4 @@ Toàn bộ 63 assertions đã vượt qua kiểm tra trên môi trường Produc
 ## 4. Tệp báo cáo tự thân dành cho Reviewer
 
 Reviewer có thể mở trực tiếp tệp HTML đơn lẻ có nhúng toàn bộ ảnh Base64:
-- [BAO-CAO-PHASE-3A1.html](file:///e:/ph%C3%A1t/Vi%E1%BB%87c%20l%C3%A0m%20nh%C3%A0%20n%C6%B0%E1%BB%9Bc%20GDTX/2026-2027/L%E1%BB%9Bp%2010A7%202026-2027/web%20l%E1%BB%9Bp%2010A7/docs/BAO-CAO-PHASE-3A1.html) (2.5 MB, tự thân hoàn toàn, mở offline trên mọi trình duyệt).
+- [BAO-CAO-PHASE-3A1.html](BAO-CAO-PHASE-3A1.html) (2.5 MB, tự thân hoàn toàn, mở offline trên mọi trình duyệt).

@@ -2,7 +2,7 @@
 
 > **Nguyên tắc khởi đầu (Mandatory Pre-implementation Gate):**
 > Trước khi thực hiện bất kỳ nhiệm vụ cốt lõi hoặc tính năng mới nào:
-> 1. Đọc kĩ [docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md](file:///e:/phát/Việc làm nhà nước GDTX/2026-2027/Lớp 10A7 2026-2027/web lớp 10A7/docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md).
+> 1. Đọc kĩ [docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md](docs/PRODUCT_AND_ARCHITECTURE_NORTH_STAR.md).
 > 2. Xác định rõ task thuộc về **Platform Core** hay **Activity**.
 > 3. Tuyệt đối giữ vững ranh giới Platform / Activity (không duplicate tính năng nền tảng vào activity).
 > 4. Không bao giờ thu hẹp kiến trúc thành một website lớp học hay LMS đơn lẻ.
@@ -36,8 +36,12 @@ Trước khi commit hoặc push:
 - **Bố cục 2 cột độc lập:** Bố cục 2 cột cạnh nhau phải sử dụng `items-start` và `self-start`, không dùng `self-stretch` gây giằng co kéo giật chiều cao giữa các cột.
 
 ## 5. Quy tắc Migration & Deploy
+- **Tính bất biến của Migration (Migration Immutability Policy):**
+  * File migration đã áp dụng lên môi trường từ xa/production là bất biến (immutable). Tuyệt đối không sửa lại nội dung file migration cũ hoặc re-run migration cũ.
+  * Mọi thay đổi schema mới BẮT BUỘC tạo file migration đánh số thứ tự tiếp theo (`migrations/0006_...sql`).
+  * Tuyệt đối không dùng `DROP TABLE` đối với các bảng chứa dữ liệu người dùng, bảo mật hoặc quản trị (`phong_ban`, `tai_khoan_campus`, `phong`, ...) nếu không có chiến lược sao lưu (backup), sao chép/chuyển đổi (copy/backfill), xác minh dữ liệu và kế hoạch hoàn tác (rollback).
 - **Thứ tự Deploy khi có Migration (Mandatory Order):** Khi có file migration mới trong `migrations/`, BẮT BUỘC chạy apply migration trên D1 production TRƯỚC:
-  `npx wrangler d1 migrations apply c10a7-db --remote`
+  `npx wrangler d1 migrations apply lop-10a7-db --remote`
   Sau khi D1 đã cập nhật schema thành công, mới deploy Worker (`npm run deploy`). Tuyệt đối không deploy Worker trước migration vì các chốt bảo mật fail-closed (như `phong_ban`) sẽ ngắt kết nối với mã 503 nếu bảng chưa tồn tại.
 - **Chính sách kiểm duyệt & Cấm vào phòng (Fail-Closed Moderation):** Thành viên có bản ghi trong `phong_ban` sẽ bị chặn 403 tức thì ở cả cổng WebSocket admission lẫn API cấp cookie `/api/rooms/:id/admit`. Nếu truy vấn D1 gặp sự cố, hệ thống trả về 503 thay vì bỏ qua lỗi (nguyên tắc Fail-Closed).
 - Mọi thay đổi hoàn tất phải tự động kiểm thử toàn diện (`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`), commit với thông điệp rõ ràng chuẩn conventional, push lên nhánh làm việc và sẵn sàng deploy lên domain chính thức.

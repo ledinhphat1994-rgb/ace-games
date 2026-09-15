@@ -175,4 +175,24 @@ describe('PPTX Deep Inspection & Safe Decompression', () => {
     expect(body.ok).toBe(true)
     expect(body.key).toContain('slides/')
   })
+
+  // 5. ZIP có presentationml trong Content_Types nhưng không khai báo cho /ppt/presentation.xml → từ chối 400
+  it('5. ZIP có presentationml cho file khác nhưng không khai báo cho /ppt/presentation.xml → bị từ chối 400', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.gv')
+    const decoyTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/other/file.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+</Types>`
+
+    const decoyPptx = createZip([
+      { name: '[Content_Types].xml', content: decoyTypes },
+      { name: 'ppt/presentation.xml', content: '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>' },
+    ])
+
+    const res = await uploadFile('presentation_decoy.pptx', decoyPptx, cookie)
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { ok?: boolean; loi?: string }
+    expect(body.loi).toContain('presentation.main+xml')
+  })
 })

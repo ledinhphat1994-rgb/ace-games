@@ -542,4 +542,93 @@ describe('Admission Gate — Security Matrix', () => {
       await env.DB.exec('ALTER TABLE phong_ban_temp_test RENAME TO phong_ban')
     }
   })
+
+  // 24. Password mode + null hash → FAIL CLOSED 503 (không bao giờ coi là public)
+  it('(24) password mode + null hash → denied 503 cho cả WS và admit API', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Null Hash', 'truong', 'acc:1', 'Host', 'password', NULL, 'salt123', 100000, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const wsRes = await moPhongId(id, cookie)
+    await wsRes.body?.cancel()
+    expect(wsRes.status).toBe(503)
+
+    const admitRes = await admitPhong(id, cookie, 'any-pass')
+    await admitRes.body?.cancel()
+    expect(admitRes.status).toBe(503)
+  })
+
+  // 25. Password mode + null salt → FAIL CLOSED 503
+  it('(25) password mode + null salt → denied 503 cho cả WS và admit API', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Null Salt', 'truong', 'acc:1', 'Host', 'password', 'hash123', NULL, 100000, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const wsRes = await moPhongId(id, cookie)
+    await wsRes.body?.cancel()
+    expect(wsRes.status).toBe(503)
+
+    const admitRes = await admitPhong(id, cookie, 'any-pass')
+    await admitRes.body?.cancel()
+    expect(admitRes.status).toBe(503)
+  })
+
+  // 26. Password mode + null/invalid iterations → FAIL CLOSED 503
+  it('(26) password mode + null/invalid iterations → denied 503 cho cả WS và admit API', async () => {
+    const res1 = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Null Iter', 'truong', 'acc:1', 'Host', 'password', 'hash123', 'salt123', NULL, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id1 = res1!.id
+
+    const res2 = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Zero Iter', 'truong', 'acc:1', 'Host', 'password', 'hash123', 'salt123', 0, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id2 = res2!.id
+
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Null iterations
+    const ws1 = await moPhongId(id1, cookie)
+    await ws1.body?.cancel()
+    expect(ws1.status).toBe(503)
+
+    const admit1 = await admitPhong(id1, cookie, 'any-pass')
+    await admit1.body?.cancel()
+    expect(admit1.status).toBe(503)
+
+    // 0 iterations
+    const ws2 = await moPhongId(id2, cookie)
+    await ws2.body?.cancel()
+    expect(ws2.status).toBe(503)
+
+    const admit2 = await admitPhong(id2, cookie, 'any-pass')
+    await admit2.body?.cancel()
+    expect(admit2.status).toBe(503)
+  })
+
+  // 27. Unknown access_mode → FAIL CLOSED 403 (không bao giờ coi là public)
+  it('(27) unknown access_mode → denied 403 cho cả WS và admit API', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Unknown Mode', 'truong', 'acc:1', 'Host', 'invite_only', NULL, NULL, NULL, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const wsRes = await moPhongId(id, cookie)
+    await wsRes.body?.cancel()
+    expect(wsRes.status).toBe(403)
+
+    const admitRes = await admitPhong(id, cookie, 'any-pass')
+    await admitRes.body?.cancel()
+    expect(admitRes.status).toBe(403)
+  })
 })

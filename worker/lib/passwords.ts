@@ -22,6 +22,7 @@ export function taoSalt(bytesLength = 16): string {
 }
 
 export const DEFAULT_ITERATIONS = 100000
+export const TARGET_ITERATIONS = DEFAULT_ITERATIONS
 
 export async function bamMatKhau(matKhau: string, saltHex: string, iterations = DEFAULT_ITERATIONS): Promise<string> {
   const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(matKhau), { name: 'PBKDF2' }, false, [

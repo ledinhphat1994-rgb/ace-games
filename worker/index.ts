@@ -69,9 +69,8 @@ const MAGIC: Record<string, (b: Uint8Array) => boolean> = {
  * 3. Safely decompress ONLY the small '[Content_Types].xml' entry:
  *    - Read local file header at offset from Central Directory.
  *    - Supports compression 0 (stored) and 8 (deflated).
- *    - Stream decompress via DecompressionStream('deflate-raw') with strict byte cap <= 1 MiB.
- * 4. Verify that the decompressed XML explicitly declares the PowerPoint presentation content type
- *    ('application/vnd.openxmlformats-officedocument.presentationml' or 'presentationml').
+ * 4. Verify that the decompressed XML explicitly declares the PowerPoint main presentation content type
+ *    ('application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml' for '/ppt/presentation.xml').
  *
  * NOTE for legacy .ppt:
  * Only OLE compound-file container signature is verified; individual streams not parsed.
@@ -216,8 +215,15 @@ async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reaso
   }
 
   // 4. Validate PowerPoint presentation MIME / ContentType in [Content_Types].xml
-  if (!xmlText.includes('presentationml')) {
-    return { ok: false, reason: '[Content_Types].xml không khai báo kiểu nội dung PowerPoint (presentationml).' }
+  // Require explicit declaration of PowerPoint main presentation content type for /ppt/presentation.xml
+  const pptMainContentTypePattern =
+    /<Override\b[^>]*(?:PartName=["']\/ppt\/presentation\.xml["'][^>]*ContentType=["']application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation\.main\+xml["']|ContentType=["']application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation\.main\+xml["'][^>]*PartName=["']\/ppt\/presentation\.xml["'])[^>]*\/?>/i
+  if (!pptMainContentTypePattern.test(xmlText)) {
+    return {
+      ok: false,
+      reason:
+        '[Content_Types].xml không khai báo kiểu nội dung PowerPoint chính thức (presentationml/presentation.main+xml) cho /ppt/presentation.xml.',
+    }
   }
 
   return { ok: true }
@@ -295,6 +301,16 @@ interface DongPhong {
   mat_khau_iterations: number | null
   suc_chua: number
   chu_phong_khoa: string
+}
+
+const CANONICAL_ACCESS_MODES = new Set(['public', 'password'])
+
+function kiemTraCauHinhMatKhauPhong(phong: DongPhong): boolean {
+  if (!phong.mat_khau_hash || !phong.mat_khau_salt || !phong.mat_khau_iterations) {
+    return false
+  }
+  const iters = Number(phong.mat_khau_iterations)
+  return Number.isInteger(iters) && iters > 0
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -376,8 +392,16 @@ async function vaoPhong(request: Request, env: Env, maPhong: string): Promise<Re
     return loi('Không thể xác minh trạng thái thành viên. Vui lòng thử lại.', 503)
   }
 
-  // 4. Mật khẩu phòng — xác minh qua signed HttpOnly cookie (KHÔNG chấp nhận KV hoặc ?pw=)
-  if (phongRow.access_mode === 'password' && phongRow.mat_khau_hash) {
+  // 4. Chế độ truy cập phòng (access_mode) — FAIL CLOSED
+  if (!CANONICAL_ACCESS_MODES.has(phongRow.access_mode)) {
+    return loi('Chế độ truy cập phòng không được hỗ trợ.', 403)
+  }
+
+  if (phongRow.access_mode === 'password') {
+    if (!kiemTraCauHinhMatKhauPhong(phongRow)) {
+      return loi('Cấu hình bảo mật của phòng không hợp lệ. Vui lòng liên hệ quản trị viên.', 503)
+    }
+
     const admitToken = readAdmitCookie(request, phongRow.id)
     const hopLe = await verifyAdmitToken(env.SESSION_SECRET, admitToken, {
       roomId: phongRow.id,
@@ -470,8 +494,17 @@ app.post('/api/rooms/:id/admit', async (c) => {
 
   if (!phongRow) return loi('Không tìm thấy phòng học.', 404)
   if (phongRow.trang_thai !== 'mo') return loi('Phòng đã đóng.', 403)
-  if (phongRow.access_mode !== 'password' || !phongRow.mat_khau_hash)
+  if (!CANONICAL_ACCESS_MODES.has(phongRow.access_mode)) {
+    return loi('Chế độ truy cập phòng không được hỗ trợ.', 403)
+  }
+  if (phongRow.access_mode === 'public') {
     return loi('Phòng này không yêu cầu mật khẩu.', 400)
+  }
+  if (phongRow.access_mode === 'password') {
+    if (!kiemTraCauHinhMatKhauPhong(phongRow)) {
+      return loi('Cấu hình bảo mật của phòng không hợp lệ. Vui lòng liên hệ quản trị viên.', 503)
+    }
+  }
 
   // Scope check
   const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, phongRow)

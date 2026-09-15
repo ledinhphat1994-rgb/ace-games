@@ -10,6 +10,7 @@
  */
 import { env, exports } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
+import { bamMatKhau, DEFAULT_ITERATIONS, taoSalt } from '../worker/lib/passwords'
 import { GOC, MAT_KHAU } from './fixtures'
 
 const app = exports.default
@@ -320,5 +321,91 @@ describe('Auth Security Regression', () => {
     expect(whoRes.status).toBe(200)
     const whoBody = await json(whoRes)
     expect(whoBody.lopId).toBeNull()
+  })
+
+  // ── R: Opportunistic password upgrade (iterations < 100k → nâng cấp 100k) ──
+  it('R: tài khoản cũ có iterations < 100k → đăng nhập thành công và được tự động nâng cấp lên 100k', async () => {
+    const userLow = `qa.low.${Date.now().toString(36)}`
+    const oldSalt = taoSalt()
+    const oldIters = 50000
+    const oldHash = await bamMatKhau(MAT_KHAU, oldSalt, oldIters)
+
+    await env.DB.prepare(
+      `INSERT INTO tai_khoan_campus
+         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, lop_id, la_admin_truong, dang_hoat_dong)
+       VALUES (?1, 'Low Iter User', ?2, ?3, ?4, 'student', 0, NULL, 0, 1)`,
+    )
+      .bind(userLow, oldHash, oldSalt, oldIters)
+      .run()
+
+    // 1. Đăng nhập thành công với mật khẩu thật
+    const logRes = await dangNhap(userLow, MAT_KHAU)
+    expect(logRes.status).toBe(200)
+    await logRes.body?.cancel()
+
+    // 2. Kiểm tra bản ghi D1: iterations đã được nâng cấp lên DEFAULT_ITERATIONS (100000), salt/hash đã đổi mới
+    const row = await env.DB.prepare('SELECT mat_khau_hash, salt, iterations FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
+      .bind(userLow)
+      .first<{ mat_khau_hash: string; salt: string; iterations: number }>()
+
+    expect(row).not.toBeNull()
+    expect(row!.iterations).toBe(DEFAULT_ITERATIONS)
+    expect(row!.salt).not.toBe(oldSalt)
+    expect(row!.mat_khau_hash).not.toBe(oldHash)
+
+    // 3. Đăng nhập lại tiếp tục thành công với hash mới 100k
+    const logRes2 = await dangNhap(userLow, MAT_KHAU)
+    expect(logRes2.status).toBe(200)
+    await logRes2.body?.cancel()
+  })
+
+  // ── S: Tài khoản có work factor cao hơn (>= 100k) KHÔNG bị hạ cấp ──
+  it('S: tài khoản có iterations >= 100k (ví dụ 120k) KHÔNG bị hạ cấp khi đăng nhập', async () => {
+    const userHigh = `qa.high.${Date.now().toString(36)}`
+    const highSalt = taoSalt()
+    const highIters = 120000
+    const highHash = await bamMatKhau(MAT_KHAU, highSalt, highIters)
+
+    await env.DB.prepare(
+      `INSERT INTO tai_khoan_campus
+         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, teacher_pending, lop_id, la_admin_truong, dang_hoat_dong)
+       VALUES (?1, 'High Iter User', ?2, ?3, ?4, 'student', 0, NULL, 0, 1)`,
+    )
+      .bind(userHigh, highHash, highSalt, highIters)
+      .run()
+
+    const logRes = await dangNhap(userHigh, MAT_KHAU)
+    expect(logRes.status).toBe(200)
+    await logRes.body?.cancel()
+
+    const row = await env.DB.prepare('SELECT mat_khau_hash, salt, iterations FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
+      .bind(userHigh)
+      .first<{ mat_khau_hash: string; salt: string; iterations: number }>()
+
+    expect(row).not.toBeNull()
+    expect(row!.iterations).toBe(120000)
+    expect(row!.salt).toBe(highSalt)
+    expect(row!.mat_khau_hash).toBe(highHash)
+  })
+
+  // ── T: Tài khoản mới tạo qua /api/register sử dụng đúng DEFAULT_ITERATIONS = 100k ──
+  it('T: tài khoản mới tạo qua /api/register sử dụng đúng DEFAULT_ITERATIONS (100k)', async () => {
+    const newUser = `qa.reg.${Date.now().toString(36)}`
+    const regRes = await goi('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: newUser,
+        password: MAT_KHAU,
+        tenHienThi: 'Reg User Test',
+      }),
+    })
+    expect(regRes.status).toBe(200)
+
+    const row = await env.DB.prepare('SELECT iterations FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
+      .bind(newUser)
+      .first<{ iterations: number }>()
+    expect(row).not.toBeNull()
+    expect(row!.iterations).toBe(DEFAULT_ITERATIONS)
   })
 })
