@@ -1,6 +1,15 @@
 import { Button } from '@/components/ui/button'
 import type { SlideState } from '@shared/protocol/room'
-import { ChevronLeft, ChevronRight, FileSpreadsheet, FileText, GripHorizontal, Minimize2, X } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  FileText,
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 /** Build the correct iframe src depending on the URL type */
@@ -23,23 +32,22 @@ function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image'): str
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(docUrl)}`
 }
 
-type Corner = 'nw' | 'ne' | 'sw' | 'se'
+type ResizeDir = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w'
 
-const CORNER_CURSORS: Record<Corner, string> = {
-  nw: 'nwse-resize', ne: 'nesw-resize',
-  sw: 'nesw-resize', se: 'nwse-resize',
-}
-
-const CORNER_POS: Record<Corner, string> = {
-  nw: 'top-0 left-0',
-  ne: 'top-0 right-0',
-  sw: 'bottom-0 left-0',
-  se: 'bottom-0 right-0',
+const RESIZE_CURSORS: Record<ResizeDir, string> = {
+  nw: 'nwse-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+  se: 'nwse-resize',
+  n: 'ns-resize',
+  s: 'ns-resize',
+  e: 'ew-resize',
+  w: 'ew-resize',
 }
 
 interface Interaction {
   type: 'drag' | 'resize'
-  corner?: Corner
+  dir?: ResizeDir
   startMouseX: number
   startMouseY: number
   startX: number
@@ -68,10 +76,14 @@ export function FloatingSlidePanel({
   const [position, setPosition] = useState({ x: 340, y: 70 })
   const [size, setSize] = useState({ w: 640, h: 430 })
   const [isMinimized, setIsMinimized] = useState(false)
+  const [isMaximized, setIsMaximized] = useState(false)
+  const [prevBounds, setPrevBounds] = useState<{ pos: { x: number; y: number }; size: { w: number; h: number } } | null>(null)
+  const [isInteracting, setIsInteracting] = useState(false)
+  const [activeCursor, setActiveCursor] = useState<string>('default')
 
   const interRef = useRef<Interaction | null>(null)
 
-  // Single always-mounted effect — no dependency on state booleans
+  // Single always-mounted mouse listener on window
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const ref = interRef.current
@@ -83,25 +95,32 @@ export function FloatingSlidePanel({
           x: Math.max(0, ref.startX + dx),
           y: Math.max(0, ref.startY + dy),
         })
-      } else if (ref.type === 'resize' && ref.corner) {
-        const c = ref.corner
-        let newW = ref.startW, newH = ref.startH
-        let newX = ref.startX, newY = ref.startY
-        if (c.includes('e')) newW = Math.max(320, ref.startW + dx)
+      } else if (ref.type === 'resize' && ref.dir) {
+        const c = ref.dir
+        let newW = ref.startW
+        let newH = ref.startH
+        let newX = ref.startX
+        let newY = ref.startY
+        if (c.includes('e')) newW = Math.max(340, ref.startW + dx)
         if (c.includes('w')) {
-          newW = Math.max(320, ref.startW - dx)
-          newX = Math.max(0, ref.startX + Math.min(dx, ref.startW - 320))
+          newW = Math.max(340, ref.startW - dx)
+          newX = Math.max(0, ref.startX + Math.min(dx, ref.startW - 340))
         }
-        if (c.includes('s')) newH = Math.max(220, ref.startH + dy)
+        if (c.includes('s')) newH = Math.max(240, ref.startH + dy)
         if (c.includes('n')) {
-          newH = Math.max(220, ref.startH - dy)
-          newY = Math.max(0, ref.startY + Math.min(dy, ref.startH - 220))
+          newH = Math.max(240, ref.startH - dy)
+          newY = Math.max(0, ref.startY + Math.min(dy, ref.startH - 240))
         }
         setSize({ w: newW, h: newH })
         setPosition({ x: newX, y: newY })
       }
     }
-    const up = () => { interRef.current = null }
+    const up = () => {
+      if (interRef.current) {
+        interRef.current = null
+        setIsInteracting(false)
+      }
+    }
     window.addEventListener('mousemove', move)
     window.addEventListener('mouseup', up)
     return () => {
@@ -112,28 +131,60 @@ export function FloatingSlidePanel({
 
   const startDrag = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return
+    if (isMaximized) return
     onFocus()
+    setActiveCursor('move')
+    setIsInteracting(true)
     interRef.current = {
       type: 'drag',
-      startMouseX: e.clientX, startMouseY: e.clientY,
-      startX: position.x, startY: position.y,
-      startW: size.w, startH: size.h,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startX: position.x,
+      startY: position.y,
+      startW: size.w,
+      startH: size.h,
     }
   }
 
-  const startResize = (corner: Corner, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const startResize = (dir: ResizeDir, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (isMaximized) return
     onFocus()
+    setActiveCursor(RESIZE_CURSORS[dir])
+    setIsInteracting(true)
     interRef.current = {
-      type: 'resize', corner,
-      startMouseX: e.clientX, startMouseY: e.clientY,
-      startX: position.x, startY: position.y,
-      startW: size.w, startH: size.h,
+      type: 'resize',
+      dir,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startX: position.x,
+      startY: position.y,
+      startW: size.w,
+      startH: size.h,
     }
   }
 
-  const TITLE_H = 36
-  const FOOTER_H = 36
+  const toggleMaximize = () => {
+    if (isMaximized) {
+      if (prevBounds) {
+        setPosition(prevBounds.pos)
+        setSize(prevBounds.size)
+      }
+      setIsMaximized(false)
+    } else {
+      setPrevBounds({ pos: position, size })
+      setPosition({ x: 20, y: 20 })
+      setSize({
+        w: Math.max(640, window.innerWidth - 40),
+        h: Math.max(480, window.innerHeight - 100),
+      })
+      setIsMaximized(true)
+    }
+  }
+
+  const TITLE_H = 38
+  const FOOTER_H = 38
   const bodyH = Math.max(140, size.h - TITLE_H - FOOTER_H)
 
   // ── Minimized pill ────────────────────────────────────────────────────────
@@ -156,12 +207,14 @@ export function FloatingSlidePanel({
         <button
           onClick={(e) => { e.stopPropagation(); setIsMinimized(false) }}
           className="rounded p-0.5 text-slate-400 hover:text-white"
+          title="Mở rộng"
         >
           <ChevronRight className="h-3 w-3" />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onClose() }}
           className="rounded p-0.5 text-slate-400 hover:text-red-400"
+          title="Đóng"
         >
           <X className="h-3 w-3" />
         </button>
@@ -171,116 +224,194 @@ export function FloatingSlidePanel({
 
   // ── Full panel ────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{ left: position.x, top: position.y, width: size.w, height: size.h, zIndex }}
-      className="absolute flex flex-col overflow-hidden rounded-2xl border border-orange-500/25 bg-[#0a0f18]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-orange-500/15 select-none"
-      onClick={onFocus}
-    >
-      {/* ── Title bar ── */}
-      <div
-        onMouseDown={startDrag}
-        className="flex shrink-0 cursor-move items-center justify-between border-b border-white/10 bg-white/5 px-3"
-        style={{ height: TITLE_H }}
-      >
-        <div className="flex items-center gap-2 truncate pr-2">
-          <GripHorizontal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-          <FileText className="h-4 w-4 text-orange-400 shrink-0" />
-          <span className="truncate text-xs font-semibold text-slate-200">
-            {slideState.docName || 'Bài giảng'}
-          </span>
-          {isHost && (
-            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 shrink-0">
-              Chủ tọa
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[9px] font-mono text-slate-600 select-none">
-            {size.w}×{size.h}
-          </span>
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="ml-1 rounded p-1 text-slate-400 hover:text-white transition-colors"
-            title="Thu nhỏ"
-          >
-            <Minimize2 className="h-3 w-3" />
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:text-red-400 transition-colors"
-            title="Đóng"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
+    <>
+      {/* Global transparent overlay during drag/resize to prevent iframe from swallowing mouse events */}
+      {isInteracting && (
+        <div
+          className="fixed inset-0 z-[99999] select-none"
+          style={{ cursor: activeCursor }}
+        />
+      )}
 
-      {/* ── Slide body ── */}
       <div
-        className="relative bg-[#060b12] overflow-hidden flex items-center justify-center"
-        style={{ height: bodyH }}
+        style={{ left: position.x, top: position.y, width: size.w, height: size.h, zIndex }}
+        className="absolute flex flex-col rounded-2xl border border-orange-500/25 bg-[#0a0f18]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-orange-500/15 select-none transition-shadow"
+        onClick={onFocus}
       >
-        {slideState.fileType === 'image' ? (
-          <img
-            src={slideState.docUrl}
-            alt={slideState.docName}
-            className="max-h-full max-w-full object-contain"
-          />
-        ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
-          <iframe
-            src={buildIframeSrc(slideState.docUrl, slideState.fileType)}
-            title="Slide Viewer"
-            className="h-full w-full border-0 bg-white"
-            allow="fullscreen"
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
-            <FileSpreadsheet className="h-12 w-12 text-orange-400 mb-2 opacity-80" />
-            <p className="text-sm font-semibold text-slate-200">{slideState.docName}</p>
-            <p className="text-xs text-slate-400 mt-1">Trang {slideState.currentPage}</p>
-          </div>
-        )}
-
-        {/* Corner resize handles */}
-        {(['nw', 'ne', 'sw', 'se'] as Corner[]).map((corner) => (
+        {/* Inner container with rounded corners and overflow hidden */}
+        <div className="flex flex-col h-full w-full overflow-hidden rounded-2xl">
+          {/* ── Title bar ── */}
           <div
-            key={corner}
-            onMouseDown={(e) => startResize(corner, e)}
-            style={{ cursor: CORNER_CURSORS[corner] }}
-            className={`absolute z-20 h-5 w-5 ${CORNER_POS[corner]}`}
-          />
-        ))}
+            onMouseDown={startDrag}
+            className="flex shrink-0 cursor-move items-center justify-between border-b border-white/10 bg-white/5 px-3 select-none"
+            style={{ height: TITLE_H }}
+          >
+            <div className="flex items-center gap-2 truncate pr-2">
+              <GripHorizontal className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <FileText className="h-4 w-4 text-orange-400 shrink-0" />
+              <span className="truncate text-xs font-semibold text-slate-200">
+                {slideState.docName || 'Bài giảng'}
+              </span>
+              {isHost && (
+                <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 shrink-0">
+                  Chủ tọa
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[9px] font-mono text-slate-500 select-none mr-1">
+                {size.w}×{size.h}
+              </span>
+              <button
+                onClick={toggleMaximize}
+                className="rounded p-1 text-slate-400 hover:text-white transition-colors"
+                title={isMaximized ? 'Thu về kích thước ban đầu' : 'Phóng to toàn màn hình'}
+              >
+                <Maximize2 className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="rounded p-1 text-slate-400 hover:text-white transition-colors"
+                title="Thu nhỏ thành thanh nổi"
+              >
+                <Minimize2 className="h-3 w-3" />
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded p-1 text-slate-400 hover:text-red-400 transition-colors"
+                title="Đóng trình chiếu"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Slide body ── */}
+          <div
+            className="relative bg-[#060b12] overflow-hidden flex items-center justify-center flex-1"
+            style={{ height: bodyH }}
+          >
+            {slideState.fileType === 'image' ? (
+              <img
+                src={slideState.docUrl}
+                alt={slideState.docName}
+                className="max-h-full max-w-full object-contain select-none"
+                draggable={false}
+              />
+            ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
+              <iframe
+                src={buildIframeSrc(slideState.docUrl, slideState.fileType)}
+                title="Slide Viewer"
+                className={`h-full w-full border-0 bg-white ${isInteracting ? 'pointer-events-none' : ''}`}
+                allow="fullscreen"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                <FileSpreadsheet className="h-12 w-12 text-orange-400 mb-2 opacity-80" />
+                <p className="text-sm font-semibold text-slate-200">{slideState.docName}</p>
+                <p className="text-xs text-slate-400 mt-1">Trang {slideState.currentPage}</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Navigation footer ── */}
+          <div
+            className="flex shrink-0 items-center justify-between border-t border-white/10 bg-[#0c1420]/90 px-3 select-none"
+            style={{ height: FOOTER_H }}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={slideState.currentPage <= 1}
+              onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
+              className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Trang trước
+            </Button>
+
+            <span className="text-xs font-mono font-bold text-orange-300">
+              {slideState.currentPage} / {slideState.totalPages}
+            </span>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={slideState.currentPage >= slideState.totalPages}
+              onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
+              className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
+            >
+              Trang sau
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* ── Outer 4 Corner Resize Handles ── */}
+        {!isMaximized && (
+          <>
+            {/* Top-Left Corner (NW) */}
+            <div
+              onMouseDown={(e) => startResize('nw', e)}
+              style={{ cursor: RESIZE_CURSORS.nw }}
+              className="absolute -top-1 -left-1 z-40 h-5 w-5 rounded-tl-xl hover:bg-orange-400/30 transition-colors"
+              title="Kéo góc trên-trái để chỉnh kích thước"
+            />
+            {/* Top-Right Corner (NE) */}
+            <div
+              onMouseDown={(e) => startResize('ne', e)}
+              style={{ cursor: RESIZE_CURSORS.ne }}
+              className="absolute -top-1 -right-1 z-40 h-5 w-5 rounded-tr-xl hover:bg-orange-400/30 transition-colors"
+              title="Kéo góc trên-phải để chỉnh kích thước"
+            />
+            {/* Bottom-Left Corner (SW) */}
+            <div
+              onMouseDown={(e) => startResize('sw', e)}
+              style={{ cursor: RESIZE_CURSORS.sw }}
+              className="absolute -bottom-1 -left-1 z-40 h-5 w-5 rounded-bl-xl hover:bg-orange-400/30 transition-colors"
+              title="Kéo góc dưới-trái để chỉnh kích thước"
+            />
+            {/* Bottom-Right Corner (SE) */}
+            <div
+              onMouseDown={(e) => startResize('se', e)}
+              style={{ cursor: RESIZE_CURSORS.se }}
+              className="absolute -bottom-1 -right-1 z-40 h-6 w-6 rounded-br-xl hover:bg-orange-400/40 transition-colors flex items-end justify-end p-0.5"
+              title="Kéo góc dưới-phải để chỉnh kích thước"
+            >
+              {/* Visible corner resize grip affordance */}
+              <svg width="10" height="10" viewBox="0 0 10 10" className="text-orange-400/60 pointer-events-none mb-0.5 mr-0.5">
+                <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+
+            {/* ── Outer 4 Edge Resize Handles ── */}
+            {/* Top Edge (N) */}
+            <div
+              onMouseDown={(e) => startResize('n', e)}
+              style={{ cursor: RESIZE_CURSORS.n }}
+              className="absolute top-0 left-5 right-5 z-30 h-1.5 -translate-y-0.5 hover:bg-orange-400/20 transition-colors"
+            />
+            {/* Bottom Edge (S) */}
+            <div
+              onMouseDown={(e) => startResize('s', e)}
+              style={{ cursor: RESIZE_CURSORS.s }}
+              className="absolute bottom-0 left-5 right-5 z-30 h-1.5 translate-y-0.5 hover:bg-orange-400/20 transition-colors"
+            />
+            {/* Left Edge (W) */}
+            <div
+              onMouseDown={(e) => startResize('w', e)}
+              style={{ cursor: RESIZE_CURSORS.w }}
+              className="absolute left-0 top-5 bottom-5 z-30 w-1.5 -translate-x-0.5 hover:bg-orange-400/20 transition-colors"
+            />
+            {/* Right Edge (E) */}
+            <div
+              onMouseDown={(e) => startResize('e', e)}
+              style={{ cursor: RESIZE_CURSORS.e }}
+              className="absolute right-0 top-5 bottom-5 z-30 w-1.5 translate-x-0.5 hover:bg-orange-400/20 transition-colors"
+            />
+          </>
+        )}
       </div>
-
-      {/* ── Navigation footer ── */}
-      <div
-        className="flex shrink-0 items-center justify-between border-t border-white/10 bg-[#0c1420]/90 px-3"
-        style={{ height: FOOTER_H }}
-      >
-        <Button
-          variant="ghost" size="sm"
-          disabled={slideState.currentPage <= 1}
-          onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
-          className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Trang trước
-        </Button>
-
-        <span className="text-xs font-mono font-bold text-orange-300">
-          {slideState.currentPage} / {slideState.totalPages}
-        </span>
-
-        <Button
-          variant="ghost" size="sm"
-          disabled={slideState.currentPage >= slideState.totalPages}
-          onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
-          className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
-        >
-          Trang sau
-          <ChevronRight className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    </div>
+    </>
   )
 }
