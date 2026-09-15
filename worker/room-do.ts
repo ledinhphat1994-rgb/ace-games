@@ -9,6 +9,7 @@ import type {
   SharedNotes,
   ThanhVienPhong,
   WhiteboardStroke,
+  SlideState,
 } from '../shared/protocol/room'
 import {
   type BoardCell,
@@ -80,6 +81,7 @@ export class RoomDO extends DurableObject<Env> {
   private media: MediaState = { ...DEFAULT_MEDIA }
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
   private notes: SharedNotes = { ...DEFAULT_NOTES }
+  private slide: SlideState | null = null
   private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
   private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
   private hostKey: string | null = null
@@ -142,6 +144,8 @@ export class RoomDO extends DurableObject<Env> {
           try { this.pomodoro = JSON.parse(r.value) as PomodoroState } catch {}
         } else if (r.key === 'notes') {
           try { this.notes = JSON.parse(r.value) as SharedNotes } catch {}
+        } else if (r.key === 'slide') {
+          try { this.slide = JSON.parse(r.value) as SlideState } catch {}
         } else if (r.key === 'host_key') {
           this.hostKey = r.value
         }
@@ -311,6 +315,7 @@ export class RoomDO extends DurableObject<Env> {
         strokes: this.layStrokes(),
         queue: this.layQueue(),
         chat: this.layChat(),
+        slide: this.slide,
         serverNow: Date.now(),
       }
       try {
@@ -773,6 +778,31 @@ export class RoomDO extends DurableObject<Env> {
             this.broadcast({ type: 'queue.sync', queue: this.layQueue() })
           }
         }
+        break
+      }
+
+      case 'slide.action': {
+        const d = goi.data
+        if (d.action === 'change_page') {
+          if (this.slide) {
+            this.slide = {
+              ...this.slide,
+              currentPage: Math.min(Math.max(1, d.page), this.slide.totalPages),
+            }
+          }
+        } else if (d.action === 'load_doc') {
+          this.slide = {
+            docUrl: d.docUrl,
+            docName: d.docName,
+            fileType: d.fileType,
+            currentPage: 1,
+            totalPages: Math.max(1, d.totalPages),
+          }
+        } else if (d.action === 'close_doc') {
+          this.slide = null
+        }
+        this.luuMeta('slide', this.slide)
+        this.broadcast({ type: 'slide.sync', slide: this.slide })
         break
       }
 

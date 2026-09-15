@@ -1,16 +1,16 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useRoom } from '@/hooks/use-room'
 import type { NguoiDung } from '@/lib/api'
-import type { WhiteboardStroke } from '@shared/protocol/room'
 import {
   ArrowLeft,
   Calculator as CalcIcon,
   Crown,
+  FileSpreadsheet,
   FileText,
   ListVideo,
+  MessageSquare,
   Mic,
   MicOff,
   Pause,
@@ -19,14 +19,25 @@ import {
   RotateCcw,
   Send,
   Trash2,
+  Upload,
   Users,
   Volume2,
   Wifi,
   WifiOff,
-  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+
+function YoutubeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+    </svg>
+  )
+}
+import { ChalkboardCanvas } from './ChalkboardCanvas'
+import { FloatingVideoPlayer } from './FloatingVideoPlayer'
+import { SlideUploadModal } from './SlideUploadModal'
 import { StudyCalculatorModal } from './StudyCalculatorModal'
 
 interface StudyRoomViewProps {
@@ -49,6 +60,8 @@ function trichXuatYoutubeId(linkHoacId: string): string {
   if (/^[\w-]{11}$/.test(trimmed)) return trimmed
   return ''
 }
+
+export type RightRailTab = 'chat' | 'members' | 'youtube' | 'slides' | 'notes' | 'queue'
 
 export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewProps) {
   const {
@@ -76,14 +89,34 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     playFromQueue,
     sendRoomChat,
     toggleMic,
+    slideState,
+    changeSlidePage,
+    loadSlideDoc,
+    closeSlideDoc,
   } = useRoom(roomId, nguoiDung.actorKey)
 
-  // Sub-drawers & Tool Dock State
-  const [activeTool, setActiveTool] = useState<'none' | 'calculator' | 'whiteboard' | 'notes' | 'queue'>('none')
+  // Vùng 1 (Right Rail) Active Tab
+  const [activeTab, setActiveTab] = useState<RightRailTab>('chat')
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+
+  // Floating Video Frame Visibility
+  const [showVideo, setShowVideo] = useState(Boolean(mediaState.videoId))
+  const [prevVideoId, setPrevVideoId] = useState(mediaState.videoId)
+  if (mediaState.videoId !== prevVideoId) {
+    setPrevVideoId(mediaState.videoId)
+    if (mediaState.videoId) {
+      setShowVideo(true)
+    }
+  }
+
   const [volume, setVolume] = useState(80)
   const [chatInput, setChatInput] = useState('')
   const [queueInput, setQueueInput] = useState('')
   const [queueTitle, setQueueTitle] = useState('')
+  const [directYtInput, setDirectYtInput] = useState('')
+
+  // Shared Notes
   const [localNotes, setLocalNotes] = useState(sharedNotes.content)
   const [prevNotesTime, setPrevNotesTime] = useState(sharedNotes.updatedAt)
   if (sharedNotes.updatedAt !== prevNotesTime) {
@@ -91,6 +124,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setLocalNotes(sharedNotes.content)
   }
 
+  // Pomodoro
   const [pomoRemaining, setPomoRemaining] = useState(pomodoroState.remaining)
   const [prevPomoState, setPrevPomoState] = useState(pomodoroState)
   if (
@@ -102,13 +136,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setPomoRemaining(pomodoroState.remaining)
   }
 
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [brushColor, setBrushColor] = useState('#00F2FE')
-  const [brushSize, setBrushSize] = useState(3)
-  const [currentPoints, setCurrentPoints] = useState<[number, number][]>([])
-
   // Refs
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement | null>(null)
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -137,7 +165,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       const conLai = Math.max(0, Math.round((pomodoroState.endsAt - now) / 1000))
       setPomoRemaining(conLai)
       if (conLai <= 0 && isHost) {
-        // Hết giờ Pomodoro -> tự động đổi mode
         const nextMode = pomodoroState.mode === 'focus' ? 'break' : 'focus'
         togglePomodoro({ action: 'switch_mode', mode: nextMode })
         toast.info(nextMode === 'focus' ? 'Bắt đầu phiên tập trung mới!' : 'Đến giờ nghỉ ngơi 5 phút rồi!')
@@ -148,43 +175,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     return () => clearInterval(timer)
   }, [pomodoroState.running, pomodoroState.endsAt, pomodoroState.mode, isHost, togglePomodoro])
 
-  // Render Whiteboard Canvas
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-
-    // Vẽ toàn bộ strokes đã lưu
-    for (const stroke of whiteboardStrokes) {
-      if (stroke.points.length < 2) continue
-      ctx.beginPath()
-      ctx.strokeStyle = stroke.color
-      ctx.lineWidth = stroke.size
-      ctx.moveTo(stroke.points[0][0], stroke.points[0][1])
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i][0], stroke.points[i][1])
-      }
-      ctx.stroke()
-    }
-
-    // Vẽ nét đang vẽ dở
-    if (currentPoints.length >= 2) {
-      ctx.beginPath()
-      ctx.strokeStyle = brushColor
-      ctx.lineWidth = brushSize
-      ctx.moveTo(currentPoints[0][0], currentPoints[0][1])
-      for (let i = 1; i < currentPoints.length; i++) {
-        ctx.lineTo(currentPoints[i][0], currentPoints[i][1])
-      }
-      ctx.stroke()
-    }
-  }, [whiteboardStrokes, currentPoints, brushColor, brushSize])
-
   // Xử lý gửi chat phòng
   const handleSendChat = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -194,13 +184,29 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setChatInput('')
   }
 
-  // Xử lý cập nhật ghi chú có throttle
+  // Xử lý cập nhật ghi chú có debounce
   const handleNotesChange = (text: string) => {
     setLocalNotes(text)
     if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
     notesTimerRef.current = setTimeout(() => {
       updateNotes(text)
     }, 600)
+  }
+
+  // Xử lý phát trực tiếp link YouTube
+  const handlePlayDirectVideo = (e: React.FormEvent) => {
+    e.preventDefault()
+    const vid = trichXuatYoutubeId(directYtInput)
+    if (!vid) {
+      toast.error('Vui lòng nhập link YouTube hoặc mã video hợp lệ.')
+      return
+    }
+    syncMedia({ action: 'play', time: 0 })
+    addToQueue(vid, `Bài giảng (${vid})`)
+    playFromQueue(`queue_${vid}`)
+    setDirectYtInput('')
+    setShowVideo(true)
+    toast.success('Đã mở khung hình video YouTube lên bảng đen!')
   }
 
   // Xử lý thêm vào hàng đợi
@@ -218,51 +224,15 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     toast.success('Đã thêm bài giảng vào hàng đợi!')
   }
 
-  // Xử lý vẽ bảng
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    setIsDrawing(true)
-    setCurrentPoints([[x, y]])
-  }
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    setCurrentPoints((prev) => [...prev, [x, y]])
-  }
-
-  const handleMouseUp = () => {
-    if (!isDrawing) return
-    setIsDrawing(false)
-    if (currentPoints.length >= 2) {
-      const stroke: WhiteboardStroke = {
-        id: `st_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        points: currentPoints,
-        color: brushColor,
-        size: brushSize,
-      }
-      sendStroke(stroke)
-    }
-    setCurrentPoints([])
-  }
-
   return (
-    <div className="flex min-h-svh flex-col bg-[#0b0e14] text-slate-100">
+    <div className="flex h-svh w-full flex-col overflow-hidden bg-[#070a10] text-slate-100 select-none">
       {/* 1. Header Bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-white/10 bg-[#0b0e14]/90 px-4 backdrop-blur-md">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#090d16]/95 px-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1 px-2.5 text-xs text-slate-400 hover:text-white"
+            className="h-8 gap-1.5 px-2.5 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
             onClick={onLeaveRoom}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -270,8 +240,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </Button>
 
           <div className="flex items-center gap-2 border-l border-white/10 pl-3">
-            <h1 className="max-w-[200px] truncate text-sm font-bold text-white sm:max-w-xs">
-              {mediaState.title || roomId}
+            <h1 className="max-w-[180px] truncate text-sm font-bold text-white sm:max-w-xs">
+              {slideState?.docName || mediaState.title || roomId}
             </h1>
             <Badge
               variant="outline"
@@ -284,7 +254,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Pomodoro Pill Badge */}
+          {/* Pomodoro Timer Badge */}
           <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs">
             <span
               className={`h-2 w-2 rounded-full ${
@@ -325,7 +295,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
 
           {/* Volume Control */}
-          <div className="hidden items-center gap-1.5 sm:flex">
+          <div className="hidden items-center gap-1.5 md:flex">
             <Volume2 className="h-3.5 w-3.5 text-slate-400" />
             <input
               type="range"
@@ -369,402 +339,541 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         </div>
       </header>
 
-      {/* 2. Main Workspace Layout */}
-      <div className="relative grid flex-1 grid-cols-1 items-start gap-4 p-4 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]">
-        {/* Left Column: Hero Focus Area & Video Player */}
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
-            {mediaState.videoId ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${mediaState.videoId}?autoplay=1&enablejsapi=1&controls=1&rel=0`}
-                title={mediaState.title}
-                className="h-full w-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center text-slate-500">
-                <ListVideo className="h-12 w-12 stroke-[1.5] text-slate-600" />
-                <p className="mt-2 text-sm font-medium">Chưa chọn video bài giảng nào.</p>
-                <p className="text-xs text-slate-600">Thêm link YouTube vào Hàng đợi để phát cùng phòng.</p>
-              </div>
-            )}
+      {/* 2. Main Teaching Workspace: Vùng 2 (Center Canvas) & Vùng 1 (Right Tool Rail) */}
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* VÙNG 2: Bảng đen kỹ thuật số trung tâm (Digital Blackboard) */}
+        <main className="relative flex flex-1 flex-col overflow-hidden bg-[#162721]">
+          {/* Canvas Bảng đen kết hợp trình chiếu Slide PowerPoint/PDF */}
+          <ChalkboardCanvas
+            strokes={whiteboardStrokes}
+            slideState={slideState}
+            isHost={isHost}
+            onSendStroke={sendStroke}
+            onClearWhiteboard={clearWhiteboard}
+            onChangeSlidePage={changeSlidePage}
+            onCloseSlide={closeSlideDoc}
+            onOpenUploadModal={() => setIsUploadModalOpen(true)}
+          />
 
-            {/* Live Sync Status Overlay */}
-            <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] backdrop-blur-md">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="font-semibold text-cyan-300">
-                {mediaState.status === 'playing' ? 'Đang phát đồng bộ' : 'Tạm dừng'}
-              </span>
-            </div>
-          </div>
+          {/* Khung hình Video YouTube chèn nổi trên bảng (Floating, Resizable & Draggable) */}
+          {showVideo && mediaState.videoId ? (
+            <FloatingVideoPlayer
+              mediaState={mediaState}
+              isHost={isHost}
+              volume={volume}
+              onVolumeChange={setVolume}
+              onSyncMedia={(action, time) => syncMedia({ action, time })}
+              onOpenSearchQueue={() => setActiveTab('youtube')}
+              onClose={() => setShowVideo(false)}
+              calculateTargetTime={calculateTargetTime}
+            />
+          ) : null}
+        </main>
 
-          {/* Video Host Playback Control Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#121824]/80 p-3">
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500"
-                onClick={() => {
-                  const targetTime = calculateTargetTime()
-                  syncMedia({
-                    action: mediaState.status === 'playing' ? 'pause' : 'play',
-                    time: targetTime,
-                  })
-                }}
-              >
-                {mediaState.status === 'playing' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                {mediaState.status === 'playing' ? 'Tạm dừng cả phòng' : 'Phát chung'}
-              </Button>
-
-              <div className="text-xs font-mono text-slate-400">
-                {dinhDangGiayPhut(calculateTargetTime())}
-              </div>
-            </div>
-
-            {/* Playback speed presets */}
-            <div className="flex items-center gap-1 text-xs">
-              <span className="mr-1 text-[11px] text-slate-400">Tốc độ:</span>
-              {[1, 1.25, 1.5].map((rate) => (
-                <button
-                  key={rate}
-                  type="button"
-                  onClick={() => syncMedia({ action: 'rate', rate })}
-                  className={`rounded px-2 py-0.5 font-mono text-xs font-semibold transition-colors ${
-                    mediaState.playbackRate === rate
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {rate}x
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Voice Strip & Room Chat Feed */}
-        <aside className="flex flex-col gap-4 self-start">
-          {/* Member Voice Strip */}
-          <Card className="border-white/10 bg-[#121824]/90 text-slate-100 shadow-md">
-            <CardHeader className="border-b border-white/5 px-4 py-2.5">
-              <CardTitle className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-cyan-400" />
-                  Thành viên ({members.length})
+        {/* VÙNG 1: Toàn bộ Thanh Công Cụ & Khay điều khiển bên phải (Right Tools Dock) */}
+        <aside className="relative flex h-full shrink-0 border-l border-white/10 bg-[#0d121c]">
+          {/* Sub-panel content for active tool */}
+          <div className="flex w-72 flex-col border-r border-white/10 bg-[#0e1422] sm:w-80">
+            {/* Header của Tab đang mở */}
+            <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-3">
+              <div className="flex items-center gap-2">
+                {activeTab === 'chat' && <MessageSquare className="h-4 w-4 text-cyan-400" />}
+                {activeTab === 'members' && <Users className="h-4 w-4 text-indigo-400" />}
+                {activeTab === 'youtube' && <YoutubeIcon className="h-4 w-4 text-red-400" />}
+                {activeTab === 'slides' && <FileSpreadsheet className="h-4 w-4 text-orange-400" />}
+                {activeTab === 'notes' && <FileText className="h-4 w-4 text-amber-400" />}
+                {activeTab === 'queue' && <ListVideo className="h-4 w-4 text-emerald-400" />}
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                  {activeTab === 'chat' && 'Trò chuyện phòng'}
+                  {activeTab === 'members' && `Thành viên (${members.length})`}
+                  {activeTab === 'youtube' && 'Video YouTube'}
+                  {activeTab === 'slides' && 'Trình chiếu Bài giảng'}
+                  {activeTab === 'notes' && 'Ghi chú chung'}
+                  {activeTab === 'queue' && `Hàng đợi (${queue.length})`}
                 </span>
-                <span className="text-[11px] text-slate-500">Giọng nói</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3">
-              <div className="flex flex-wrap gap-2">
+              </div>
+
+              {activeTab === 'youtube' && mediaState.videoId ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300"
+                  onClick={() => setShowVideo((v) => !v)}
+                >
+                  {showVideo ? 'Ẩn video' : 'Hiện video'}
+                </Button>
+              ) : null}
+            </div>
+
+            {/* TAB 1: TRÒ CHUYỆN PHÒNG */}
+            {activeTab === 'chat' ? (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div ref={chatContainerRef} className="flex-1 space-y-2.5 overflow-y-auto p-3 text-xs">
+                  {chatMessages.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-center text-slate-500">
+                      Chưa có tin nhắn trong phòng.
+                    </div>
+                  ) : (
+                    chatMessages.map((msg) => (
+                      <div key={msg.id} className="rounded-lg border border-white/5 bg-white/5 p-2 leading-relaxed">
+                        <div className="mb-0.5 flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="font-bold text-slate-200">{msg.ten}</span>
+                          <span>{new Date(msg.taoLuc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p className="text-slate-100 break-words">{msg.text}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <form onSubmit={handleSendChat} className="flex items-center gap-1.5 border-t border-white/10 p-2.5">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Nhắn tin với cả phòng…"
+                    className="h-8 border-white/10 bg-black/40 text-xs text-white placeholder-slate-500"
+                  />
+                  <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-cyan-600 hover:bg-cyan-500">
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                </form>
+              </div>
+            ) : null}
+
+            {/* TAB 2: THÀNH VIÊN & GIỌNG NÓI */}
+            {activeTab === 'members' ? (
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                <p className="text-[11px] font-medium text-slate-400 mb-2">Đang tham gia sảnh ({members.length}):</p>
                 {members.map((m) => (
                   <div
                     key={m.key}
-                    className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+                    className={`flex items-center justify-between rounded-xl border p-2.5 text-xs ${
                       m.mic
                         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                        : 'border-white/10 bg-white/5 text-slate-400'
+                        : 'border-white/5 bg-white/5 text-slate-300'
                     }`}
                   >
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span className="font-medium text-slate-200">{m.ten}</span>
-                    {m.key === hostKey ? <Crown className="h-3 w-3 text-amber-400" /> : null}
-                    {m.mic ? <Mic className="h-3 w-3 text-emerald-400 animate-pulse" /> : null}
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="font-semibold text-white">{m.ten}</span>
+                      {m.key === hostKey ? (
+                        <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-[9px] text-amber-300 py-0">
+                          Chủ phòng
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {m.mic ? <Mic className="h-4 w-4 text-emerald-400 animate-pulse" /> : <MicOff className="h-3.5 w-3.5 text-slate-500" />}
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            ) : null}
 
-          {/* In-room Chat Feed */}
-          <Card className="flex h-[420px] flex-col border-white/10 bg-[#121824]/90 text-slate-100 shadow-md">
-            <CardHeader className="border-b border-white/5 px-4 py-2.5">
-              <CardTitle className="text-xs font-bold text-slate-300">
-                Trò chuyện phòng học 💬
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent ref={chatContainerRef} className="flex-1 space-y-2.5 overflow-y-auto p-3 text-xs">
-              {chatMessages.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-center text-slate-500">
-                  Chưa có tin nhắn trong phòng.
-                </div>
-              ) : (
-                chatMessages.map((msg) => (
-                  <div key={msg.id} className="rounded-lg border border-white/5 bg-white/5 p-2 leading-relaxed">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                      <span className="font-bold text-slate-200">{msg.ten}</span>
-                      <span>{new Date(msg.taoLuc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <p className="text-slate-100 break-words">{msg.text}</p>
+            {/* TAB 3: YOUTUBE & ĐIỀU KHIỂN VIDEO */}
+            {activeTab === 'youtube' ? (
+              <div className="flex flex-1 flex-col overflow-y-auto p-3 space-y-4">
+                {/* Form chèn nhanh link YouTube */}
+                <form onSubmit={handlePlayDirectVideo} className="space-y-2 rounded-xl border border-red-500/20 bg-red-950/20 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-300">
+                    <YoutubeIcon className="h-4 w-4" />
+                    Chèn Video YouTube lên bảng
                   </div>
-                ))
-              )}
-            </CardContent>
+                  <p className="text-[11px] text-slate-400 leading-tight">
+                    Dán đường dẫn hoặc ID video YouTube để mở khung hình điều chỉnh kích thước phóng to/thu nhỏ trên bảng đen.
+                  </p>
+                  <Input
+                    value={directYtInput}
+                    onChange={(e) => setDirectYtInput(e.target.value)}
+                    placeholder="https://youtu.be/dQw4w9WgXcQ..."
+                    className="h-8 border-white/10 bg-black/50 text-xs text-white"
+                  />
+                  <Button type="submit" size="sm" className="w-full h-8 bg-red-600 hover:bg-red-500 text-xs font-semibold">
+                    Chèn Video Vào Bảng Đen
+                  </Button>
+                </form>
 
-            <form onSubmit={handleSendChat} className="flex items-center gap-1.5 border-t border-white/5 p-2">
-              <Input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Nhắn tin với cả phòng…"
-                className="h-8 border-white/10 bg-black/40 text-xs text-white placeholder-slate-500"
-              />
-              <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-cyan-600 hover:bg-cyan-500">
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </form>
-          </Card>
+                {/* Trạng thái phát video hiện tại */}
+                {mediaState.videoId ? (
+                  <div className="rounded-xl border border-white/10 bg-black/40 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200 truncate max-w-[180px]">
+                        {mediaState.title || 'Video đang phát'}
+                      </span>
+                      <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-300">
+                        {mediaState.status === 'playing' ? 'Đang phát' : 'Tạm dừng'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500"
+                        onClick={() => {
+                          const targetTime = calculateTargetTime()
+                          syncMedia({
+                            action: mediaState.status === 'playing' ? 'pause' : 'play',
+                            time: targetTime,
+                          })
+                        }}
+                      >
+                        {mediaState.status === 'playing' ? <Pause className="h-3.5 w-3.5 mr-1" /> : <Play className="h-3.5 w-3.5 mr-1" />}
+                        {mediaState.status === 'playing' ? 'Tạm dừng cả phòng' : 'Phát chung'}
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 border-white/15 text-xs text-slate-300 hover:text-white"
+                        onClick={() => setShowVideo((v) => !v)}
+                      >
+                        {showVideo ? 'Thu nhỏ' : 'Mở video'}
+                      </Button>
+                    </div>
+
+                    {/* Tốc độ phát */}
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+                      <span>Tốc độ:</span>
+                      <div className="flex items-center gap-1">
+                        {[1, 1.25, 1.5].map((rate) => (
+                          <button
+                            key={rate}
+                            type="button"
+                            onClick={() => syncMedia({ action: 'rate', rate })}
+                            className={`rounded px-1.5 py-0.5 font-mono text-xs font-semibold transition-colors ${
+                              mediaState.playbackRate === rate
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {rate}x
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-slate-500">
+                    Chưa có video bài giảng nào đang được chèn.
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* TAB 4: TRÌNH CHIẾU BÀI GIẢNG (POWERPOINT / PDF / FILE) */}
+            {activeTab === 'slides' ? (
+              <div className="flex flex-1 flex-col overflow-y-auto p-3 space-y-4">
+                <div className="rounded-xl border border-orange-500/20 bg-orange-950/20 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-orange-300">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Tích hợp PowerPoint & PDF
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-tight">
+                    Mở file bài giảng thuyết trình trực tiếp trên nền bảng đen. Giáo viên và học sinh có thể vừa xem slide vừa dùng phấn vẽ, khoanh đáp án và giải bài tập trực tiếp.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="w-full h-8 bg-orange-600 hover:bg-orange-500 text-xs font-semibold"
+                    onClick={() => setIsUploadModalOpen(true)}
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                    Tải Bài Giảng (.pptx, .pdf, ảnh)
+                  </Button>
+                </div>
+
+                {slideState ? (
+                  <div className="rounded-xl border border-white/10 bg-black/40 p-3 space-y-3">
+                    <div>
+                      <span className="text-[10px] uppercase text-orange-400 font-bold tracking-wider">
+                        Đang trình chiếu:
+                      </span>
+                      <p className="font-semibold text-xs text-white truncate mt-0.5">{slideState.docName}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-white/5 p-2 text-xs">
+                      <span className="text-slate-400">Trang:</span>
+                      <span className="font-mono font-bold text-amber-300">
+                        {slideState.currentPage} / {slideState.totalPages}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={slideState.currentPage <= 1}
+                        className="flex-1 h-8 text-xs border-white/10"
+                        onClick={() => changeSlidePage(slideState.currentPage - 1)}
+                      >
+                        Trang trước
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={slideState.currentPage >= slideState.totalPages}
+                        className="flex-1 h-8 text-xs border-white/10"
+                        onClick={() => changeSlidePage(slideState.currentPage + 1)}
+                      >
+                        Trang sau
+                      </Button>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full h-7 text-xs text-destructive hover:bg-destructive/10"
+                      onClick={closeSlideDoc}
+                    >
+                      Đóng trình chiếu slide
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-slate-500">
+                    Chưa mở bài giảng nào. Nhấn &quot;Tải Bài Giảng&quot; để chọn file PowerPoint hoặc PDF.
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* TAB 5: GHI CHÚ CHUNG */}
+            {activeTab === 'notes' ? (
+              <div className="flex flex-1 flex-col overflow-hidden p-3">
+                <textarea
+                  value={localNotes}
+                  onChange={(e) => handleNotesChange(e.target.value)}
+                  placeholder="Ghi chú bài học tại đây (hỗ trợ định dạng Markdown)..."
+                  className="flex-1 resize-none rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-xs leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                />
+                <div className="pt-2 text-[10px] text-slate-500 truncate">
+                  Sửa bởi {sharedNotes.lastEditedBy} lúc{' '}
+                  {new Date(sharedNotes.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* TAB 6: HÀNG ĐỢI BÀI GIẢNG */}
+            {activeTab === 'queue' ? (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <form onSubmit={handleAddToQueue} className="border-b border-white/10 p-3 space-y-2">
+                  <Input
+                    value={queueInput}
+                    onChange={(e) => setQueueInput(e.target.value)}
+                    placeholder="Link video YouTube..."
+                    className="h-8 border-white/10 bg-black/40 text-xs text-white"
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={queueTitle}
+                      onChange={(e) => setQueueTitle(e.target.value)}
+                      placeholder="Tiêu đề..."
+                      className="h-8 border-white/10 bg-black/40 text-xs text-white"
+                    />
+                    <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-500 text-xs">
+                      + Thêm
+                    </Button>
+                  </div>
+                </form>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  {queue.length === 0 ? (
+                    <div className="flex h-32 items-center justify-center text-center text-xs text-slate-500">
+                      Hàng đợi trống.
+                    </div>
+                  ) : (
+                    queue.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-2 text-xs"
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <p className="truncate font-semibold text-slate-200">
+                            #{idx + 1} {item.title}
+                          </p>
+                          <p className="text-[10px] text-slate-500">Bởi {item.addedBy}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-cyan-400 hover:text-cyan-300"
+                            onClick={() => {
+                              playFromQueue(item.id)
+                              setShowVideo(true)
+                            }}
+                            title="Phát ngay"
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-slate-500 hover:text-destructive"
+                            onClick={() => removeFromQueue(item.id)}
+                            title="Xoá"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Vertical Icon Dock (Cột nút chuyển công cụ nhanh bên phải) */}
+          <div className="flex w-14 flex-col items-center justify-between border-l border-white/10 bg-[#090d16] py-3">
+            <div className="flex flex-col items-center gap-3">
+              {/* Nút YouTube */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('youtube')
+                  if (!showVideo && mediaState.videoId) setShowVideo(true)
+                }}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'youtube'
+                    ? 'bg-red-600/30 text-red-400 ring-2 ring-red-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Video YouTube (Chèn khung hình video lên bảng)"
+              >
+                <YoutubeIcon className="h-5 w-5" />
+                {mediaState.videoId ? (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                ) : null}
+              </button>
+
+              {/* Nút Slide PowerPoint & PDF */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('slides')}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'slides'
+                    ? 'bg-orange-600/30 text-orange-400 ring-2 ring-orange-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Bài giảng PowerPoint / PDF / File"
+              >
+                <FileSpreadsheet className="h-5 w-5" />
+                {slideState ? (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-orange-400" />
+                ) : null}
+              </button>
+
+              {/* Nút Bảng phấn (quay về canvas) */}
+              <button
+                type="button"
+                onClick={() => {
+                  toast.info('Công cụ vẽ phấn đang sẵn sàng trên bảng đen!')
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-emerald-400 hover:bg-white/10 hover:text-emerald-300"
+                title="Bảng đen kỹ thuật số"
+              >
+                <PenTool className="h-5 w-5" />
+              </button>
+
+              {/* Nút Máy tính FX */}
+              <button
+                type="button"
+                onClick={() => setIsCalculatorOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-cyan-400 hover:bg-white/10 hover:text-cyan-300"
+                title="Máy tính khoa học Casio FX"
+              >
+                <CalcIcon className="h-5 w-5" />
+              </button>
+
+              {/* Nút Trò chuyện */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('chat')}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'chat'
+                    ? 'bg-cyan-600/30 text-cyan-400 ring-2 ring-cyan-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Trò chuyện phòng học"
+              >
+                <MessageSquare className="h-5 w-5" />
+                {chatMessages.length > 0 ? (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-500 px-1 text-[9px] font-bold text-black">
+                    {chatMessages.length}
+                  </span>
+                ) : null}
+              </button>
+
+              {/* Nút Thành viên */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('members')}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'members'
+                    ? 'bg-indigo-600/30 text-indigo-400 ring-2 ring-indigo-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Thành viên phòng học"
+              >
+                <Users className="h-5 w-5" />
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[9px] font-bold text-white">
+                  {members.length}
+                </span>
+              </button>
+
+              {/* Nút Ghi chú chung */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('notes')}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'notes'
+                    ? 'bg-amber-600/30 text-amber-400 ring-2 ring-amber-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Ghi chú bài học chung"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+
+              {/* Nút Hàng đợi Video */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('queue')}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  activeTab === 'queue'
+                    ? 'bg-emerald-600/30 text-emerald-400 ring-2 ring-emerald-500/50'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+                title="Hàng đợi video bài giảng"
+              >
+                <ListVideo className="h-5 w-5" />
+                {queue.length > 0 ? (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold text-black">
+                    {queue.length}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+
+            {/* Bottom info or quick toggle */}
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-[10px] font-mono text-slate-500">v2.0</span>
+            </div>
+          </div>
         </aside>
       </div>
 
-      {/* 3. Floating Bottom Tool Dock (Pill Bar) */}
-      <div className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2">
-        <div className="flex items-center gap-2 rounded-full border border-white/15 bg-[#121824]/95 p-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 gap-1.5 rounded-full px-3 text-xs font-semibold ${
-              activeTool === 'calculator' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-400 hover:text-white'
-            }`}
-            onClick={() => setActiveTool((prev) => (prev === 'calculator' ? 'none' : 'calculator'))}
-          >
-            <CalcIcon className="h-4 w-4 text-cyan-400" />
-            <span className="hidden sm:inline">Máy tính FX</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 gap-1.5 rounded-full px-3 text-xs font-semibold ${
-              activeTool === 'whiteboard' ? 'bg-purple-500/20 text-purple-300' : 'text-slate-400 hover:text-white'
-            }`}
-            onClick={() => setActiveTool((prev) => (prev === 'whiteboard' ? 'none' : 'whiteboard'))}
-          >
-            <PenTool className="h-4 w-4 text-purple-400" />
-            <span className="hidden sm:inline">Bảng vẽ</span>
-            {whiteboardStrokes.length > 0 ? (
-              <span className="rounded-full bg-purple-500/30 px-1 text-[10px] text-purple-300">
-                {whiteboardStrokes.length}
-              </span>
-            ) : null}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 gap-1.5 rounded-full px-3 text-xs font-semibold ${
-              activeTool === 'notes' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'
-            }`}
-            onClick={() => setActiveTool((prev) => (prev === 'notes' ? 'none' : 'notes'))}
-          >
-            <FileText className="h-4 w-4 text-amber-400" />
-            <span className="hidden sm:inline">Ghi chú chung</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-9 gap-1.5 rounded-full px-3 text-xs font-semibold ${
-              activeTool === 'queue' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'
-            }`}
-            onClick={() => setActiveTool((prev) => (prev === 'queue' ? 'none' : 'queue'))}
-          >
-            <ListVideo className="h-4 w-4 text-emerald-400" />
-            <span className="hidden sm:inline">Hàng đợi</span>
-            {queue.length > 0 ? (
-              <span className="rounded-full bg-emerald-500/30 px-1.5 text-[10px] text-emerald-300">
-                {queue.length}
-              </span>
-            ) : null}
-          </Button>
-        </div>
-      </div>
-
-      {/* 4. Drawers & Modals */}
+      {/* Modals */}
       <StudyCalculatorModal
-        open={activeTool === 'calculator'}
-        onOpenChange={(open) => setActiveTool(open ? 'calculator' : 'none')}
+        open={isCalculatorOpen}
+        onOpenChange={setIsCalculatorOpen}
       />
 
-      {/* Shared Whiteboard Drawer / Overlay */}
-      {activeTool === 'whiteboard' ? (
-        <div className="fixed inset-x-4 bottom-20 top-16 z-50 flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0d121c]/95 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
-                <PenTool className="h-4 w-4" />
-                Bảng vẽ nháp nhóm
-              </span>
-              <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
-                {['#00F2FE', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#FFFFFF'].map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    style={{ backgroundColor: color }}
-                    onClick={() => setBrushColor(color)}
-                    className={`h-5 w-5 rounded-full border ${
-                      brushColor === color ? 'ring-2 ring-white scale-110' : 'border-black/50'
-                    }`}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1 pl-2">
-                {[2, 4, 8].map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setBrushSize(size)}
-                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
-                      brushSize === size ? 'bg-white/20 text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    {size}px
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
-                onClick={clearWhiteboard}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Xoá bảng
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => setActiveTool('none')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex-1 cursor-crosshair bg-[#06090e] p-2">
-            <canvas
-              ref={canvasRef}
-              width={1600}
-              height={900}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              className="h-full w-full rounded-xl border border-white/5 touch-none"
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Shared Notes Drawer */}
-      {activeTool === 'notes' ? (
-        <div className="fixed inset-y-16 right-4 z-50 flex w-96 flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0d121c]/95 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
-              <FileText className="h-4 w-4" />
-              Ghi chú chung (Markdown)
-            </span>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setActiveTool('none')}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex-1 p-3">
-            <textarea
-              value={localNotes}
-              onChange={(e) => handleNotesChange(e.target.value)}
-              placeholder="Ghi chú bài học tại đây (hỗ trợ định dạng Markdown)..."
-              className="h-full w-full resize-none rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-xs leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
-            />
-          </div>
-
-          <div className="border-t border-white/10 px-4 py-2 text-[11px] text-slate-500">
-            Sửa lần cuối bởi {sharedNotes.lastEditedBy} lúc{' '}
-            {new Date(sharedNotes.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Playlist Queue Drawer */}
-      {activeTool === 'queue' ? (
-        <div className="fixed inset-y-16 right-4 z-50 flex w-96 flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0d121c]/95 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-300">
-              <ListVideo className="h-4 w-4" />
-              Hàng đợi video bài giảng ({queue.length})
-            </span>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setActiveTool('none')}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <form onSubmit={handleAddToQueue} className="border-b border-white/10 p-3 space-y-2">
-            <Input
-              value={queueInput}
-              onChange={(e) => setQueueInput(e.target.value)}
-              placeholder="Dán link YouTube (URL hoặc ID)..."
-              className="h-8 border-white/10 bg-black/40 text-xs text-white"
-            />
-            <div className="flex gap-2">
-              <Input
-                value={queueTitle}
-                onChange={(e) => setQueueTitle(e.target.value)}
-                placeholder="Tiêu đề video..."
-                className="h-8 border-white/10 bg-black/40 text-xs text-white"
-              />
-              <Button type="submit" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-500 text-xs">
-                + Thêm
-              </Button>
-            </div>
-          </form>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {queue.length === 0 ? (
-              <div className="flex h-40 items-center justify-center text-center text-xs text-slate-500">
-                Hàng đợi đang trống. Thêm video để phát nối tiếp!
-              </div>
-            ) : (
-              queue.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 p-2.5 text-xs"
-                >
-                  <div className="min-w-0 flex-1 pr-2">
-                    <p className="truncate font-semibold text-slate-200">
-                      #{idx + 1} {item.title}
-                    </p>
-                    <p className="text-[10px] text-slate-500">Thêm bởi {item.addedBy}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-cyan-400 hover:text-cyan-300"
-                      onClick={() => playFromQueue(item.id)}
-                      title="Phát ngay"
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-slate-500 hover:text-destructive"
-                      onClick={() => removeFromQueue(item.id)}
-                      title="Xoá"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
+      <SlideUploadModal
+        open={isUploadModalOpen}
+        onOpenChange={setIsUploadModalOpen}
+        onLoadSlide={(docUrl, docName, fileType, totalPages) => {
+          loadSlideDoc(docUrl, docName, fileType, totalPages)
+          toast.success(`Đã mở bài giảng: ${docName}`)
+        }}
+      />
     </div>
   )
 }

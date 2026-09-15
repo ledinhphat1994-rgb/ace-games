@@ -10,6 +10,7 @@ import type {
   SharedNotes,
   ThanhVienPhong,
   WhiteboardStroke,
+  SlideState,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 
@@ -53,6 +54,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [sharedNotes, setSharedNotes] = useState<SharedNotes>(DEFAULT_NOTES)
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
+  const [slideState, setSlideState] = useState<SlideState | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [myMic, setMyMic] = useState(false)
 
@@ -108,6 +110,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setWhiteboardStrokes(goi.strokes)
           setQueue(goi.queue)
           setChatMessages(goi.chat)
+          setSlideState(goi.slide ?? null)
           break
 
         case 'presence':
@@ -140,6 +143,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
         case 'queue.sync':
           setQueue(goi.queue)
+          break
+
+        case 'slide.sync':
+          setSlideState(goi.slide ?? null)
           break
 
         case 'room.chat': {
@@ -311,6 +318,27 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'voice.mic', mic: next }))
   }, [myMic])
 
+  const changeSlidePage = useCallback((page: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page } }))
+  }, [])
+
+  const loadSlideDoc = useCallback((docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages = 1) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({
+      type: 'slide.action',
+      data: { action: 'load_doc', docUrl, docName, fileType, totalPages }
+    }))
+  }, [])
+
+  const closeSlideDoc = useCallback(() => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'close_doc' } }))
+  }, [])
+
   return {
     trangThai,
     members,
@@ -337,5 +365,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     playFromQueue,
     sendRoomChat,
     toggleMic,
+    slideState,
+    changeSlidePage,
+    loadSlideDoc,
+    closeSlideDoc,
   }
 }

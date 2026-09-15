@@ -106,6 +106,27 @@ export const LenhPhongQueue = z.discriminatedUnion('action', [
 ])
 export type LenhPhongQueue = z.infer<typeof LenhPhongQueue>
 
+export interface SlideState {
+  docUrl: string
+  docName: string
+  fileType: 'pptx' | 'pdf' | 'image'
+  currentPage: number
+  totalPages: number
+}
+
+export const LenhPhongSlide = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('change_page'), page: z.number().int().positive() }),
+  z.object({
+    action: z.literal('load_doc'),
+    docUrl: z.string().min(1),
+    docName: z.string().max(200),
+    fileType: z.enum(['pptx', 'pdf', 'image']),
+    totalPages: z.number().int().positive().default(1),
+  }),
+  z.object({ action: z.literal('close_doc') }),
+])
+export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
+
 export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping'), t: z.number() }),
   z.object({ type: z.literal('media.action'), data: LenhPhongMedia }),
@@ -113,6 +134,7 @@ export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('whiteboard.action'), data: LenhPhongWhiteboard }),
   z.object({ type: z.literal('notes.action'), data: LenhPhongNotes }),
   z.object({ type: z.literal('queue.action'), data: LenhPhongQueue }),
+  z.object({ type: z.literal('slide.action'), data: LenhPhongSlide }),
   z.object({ type: z.literal('chat.send'), reqId: z.string().max(50).optional(), text: z.string().max(1000) }),
   z.object({ type: z.literal('voice.mic'), mic: z.boolean() }),
 ])
@@ -130,6 +152,7 @@ export type GoiPhong =
       strokes: WhiteboardStroke[]
       queue: QueueItem[]
       chat: RoomChatMessage[]
+      slide: SlideState | null
       serverNow: number
     }
   | { type: 'presence'; members: ThanhVienPhong[] }
@@ -142,6 +165,7 @@ export type GoiPhong =
     }
   | { type: 'notes.sync'; notes: SharedNotes }
   | { type: 'queue.sync'; queue: QueueItem[] }
+  | { type: 'slide.sync'; slide: SlideState | null }
   | { type: 'room.chat'; message: RoomChatMessage }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
