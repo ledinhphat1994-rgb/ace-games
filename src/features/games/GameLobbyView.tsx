@@ -1,388 +1,360 @@
-import { useCallback, useState } from 'react'
-import type { GameType } from '@shared/protocol/game'
+import { useCallback, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   Crown,
   Gamepad2,
   Play,
   Plus,
-  RefreshCw,
-  Sparkles,
+  Search,
   Swords,
+  Trophy,
   Users,
   Zap,
 } from 'lucide-react'
+import type { BanSanh, GameType } from '@shared/protocol/game'
+import { useGameRooms } from '../../hooks/use-game-rooms'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { BoardPreviewSheet } from './BoardPreviewSheet'
+import { CAC_GAME_1V1, GAME_CATALOG, type GameDefinition } from './game-catalog'
+import { GameLeaderboard } from './GameLeaderboard'
+import { GameTableCard } from './GameTableCard'
 import { SoloGameModal, type SoloGameType } from './SoloGameModal'
 
 interface GameLobbyViewProps {
   onBackToHub: () => void
-  onJoinRoom: (roomId: string, gameType: GameType) => void
+  onCreateRoom: (roomId: string, gameType: GameType, turnSeconds: number) => void
+  onJoinExisting: (roomId: string) => void
 }
 
-interface GameDefinition {
-  id: GameType
-  title: string
-  subtitle: string
-  category: '1v1' | 'solo'
-  badge: string
-  badgeColor: string
-  icon: string
-  description: string
-  minPlayers: number
-  maxPlayers: number
-}
+type Category = 'all' | '1v1' | 'solo' | 'leaderboard'
+type TableFilter = 'all' | 'waiting' | 'playing'
 
-const GAME_CATALOG: GameDefinition[] = [
-  {
-    id: 'caro_15',
-    title: 'Cờ Caro 15×15',
-    subtitle: 'Đấu trí đỉnh cao',
-    category: '1v1',
-    badge: '1v1 Cổ Điển',
-    badgeColor: 'from-cyan-500 to-blue-600',
-    icon: '⚔️',
-    description: 'Bàn cờ chuẩn 15×15, 5 quân thẳng hàng chặn 2 đầu hoặc tự do để chiến thắng.',
-    minPlayers: 2,
-    maxPlayers: 2,
-  },
-  {
-    id: 'caro_9',
-    title: 'Caro Nhanh 9×9',
-    subtitle: 'Tốc chiến tốc thắng',
-    category: '1v1',
-    badge: 'Siêu Tốc',
-    badgeColor: 'from-amber-500 to-orange-600',
-    icon: '⚡',
-    description: 'Bàn cờ 9×9 nhịp độ cực nhanh, mỗi lượt đi chớp nhoáng 15s kịch tính.',
-    minPlayers: 2,
-    maxPlayers: 2,
-  },
-  {
-    id: 'connect4',
-    title: 'Connect 4',
-    subtitle: 'Thả quân trọng lực',
-    category: '1v1',
-    badge: 'Chiến Thuật',
-    badgeColor: 'from-rose-500 to-pink-600',
-    icon: '🔴',
-    description: 'Thả quân theo cột, xếp 4 quân đồng màu liên tiếp (ngang, dọc, chéo) để thắng.',
-    minPlayers: 2,
-    maxPlayers: 2,
-  },
-  {
-    id: 'reversi',
-    title: 'Reversi (Othello)',
-    subtitle: 'Lật ngược thế cờ',
-    category: '1v1',
-    badge: 'Trí Tuệ',
-    badgeColor: 'from-emerald-500 to-teal-600',
-    icon: '⚪',
-    description: 'Kẹp quân đối phương ở 8 hướng để lật cờ. Ăn nhiều quân nhất khi kín bàn để thắng.',
-    minPlayers: 2,
-    maxPlayers: 2,
-  },
-  {
-    id: 'solo_2048',
-    title: '2048 Siêu Cấp',
-    subtitle: 'Ghép số kinh điển',
-    category: 'solo',
-    badge: 'Solo Logic',
-    badgeColor: 'from-yellow-500 to-amber-600',
-    icon: '🔢',
-    description: 'Trượt các ô để hợp nhất các số bằng nhau, chinh phục mốc điểm 2048 huyền thoại.',
-    minPlayers: 1,
-    maxPlayers: 1,
-  },
-  {
-    id: 'solo_memory',
-    title: 'Lật Thẻ Trí Nhớ',
-    subtitle: 'Thử thách trí nhớ',
-    category: 'solo',
-    badge: 'Solo Trí Nhớ',
-    badgeColor: 'from-purple-500 to-indigo-600',
-    icon: '🃏',
-    description: 'Lật tìm 8 cặp biểu tượng tương ứng với số lượt ít nhất để lọt top bảng vàng.',
-    minPlayers: 1,
-    maxPlayers: 1,
-  },
-  {
-    id: 'solo_snake',
-    title: 'Rắn Săn Mồi Retro',
-    subtitle: 'Vui nhộn giải lao',
-    category: 'solo',
-    badge: 'Solo Phản Xạ',
-    badgeColor: 'from-green-500 to-emerald-600',
-    icon: '🐍',
-    description: 'Điều khiển chú rắn ăn táo, tránh va vào tường hoặc cắn vào thân mình.',
-    minPlayers: 1,
-    maxPlayers: 1,
-  },
-]
+const maBanNgauNhien = (gameType: GameType) => `${gameType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
-export function GameLobbyView({ onBackToHub, onJoinRoom }: GameLobbyViewProps) {
-  const [activeCategory, setActiveCategory] = useState<'all' | '1v1' | 'solo'>('all')
+export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: GameLobbyViewProps) {
+  const [activeCategory, setActiveCategory] = useState<Category>('all')
+  const [tableFilter, setTableFilter] = useState<TableFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedSoloGame, setSelectedSoloGame] = useState<SoloGameType | null>(null)
+  const [previewGameType, setPreviewGameType] = useState<GameType | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedGameType, setSelectedGameType] = useState<GameType>('caro_15')
   const [turnTimerSeconds, setTurnTimerSeconds] = useState<number>(30)
 
-  // Interactive Live Board Preview State (15x15)
-  const [previewBoard, setPreviewBoard] = useState<(string | null)[][]>(() =>
-    Array.from({ length: 15 }, () => Array.from({ length: 15 }, () => null)),
+  const { data: tablesData, isPending: tablesPending, isError: tablesError } = useGameRooms()
+  const tables = useMemo<BanSanh[]>(() => tablesData ?? [], [tablesData])
+
+  const waitingCounts = useMemo(() => {
+    const dem: Partial<Record<GameType, number>> = {}
+    for (const t of tables) {
+      if (t.trangThai === 'waiting') dem[t.gameType] = (dem[t.gameType] ?? 0) + 1
+    }
+    return dem
+  }, [tables])
+
+  const soDangChoi = useMemo(() => tables.filter((t) => t.trangThai === 'playing').length, [tables])
+  const tongNguoiXem = useMemo(() => tables.reduce((sum, t) => sum + t.soNguoiXem, 0), [tables])
+
+  const openExisting = useCallback(
+    (gameType: GameType): boolean => {
+      // Ưu tiên ghép vào bàn đang chờ sẵn cùng loại thay vì luôn mở bàn mới — đúng nghĩa "matchmaking".
+      const banCho = tables
+        .filter((t) => t.gameType === gameType && t.trangThai === 'waiting')
+        .sort((a, b) => b.soNguoiXem - a.soNguoiXem)[0]
+      if (banCho) {
+        onJoinExisting(banCho.id)
+        return true
+      }
+      return false
+    },
+    [tables, onJoinExisting],
   )
-  const [previewTurn, setPreviewTurn] = useState<'X' | 'O'>('X')
-
-  const handlePreviewCellClick = (x: number, y: number) => {
-    if (previewBoard[y][x] !== null) return
-    setPreviewBoard((prev) => {
-      const next = prev.map((r) => [...r])
-      next[y][x] = previewTurn
-      return next
-    })
-    setPreviewTurn((t) => (t === 'X' ? 'O' : 'X'))
-  }
-
-  const resetPreviewBoard = () => {
-    setPreviewBoard(Array.from({ length: 15 }, () => Array.from({ length: 15 }, () => null)))
-    setPreviewTurn('X')
-  }
 
   const handleQuickMatch = useCallback(() => {
-    // Ghép nhanh: chọn ngẫu nhiên 1 phòng caro nhanh
-    const quickRoomId = `caro-quick-${Math.random().toString(36).slice(2, 7)}`
-    onJoinRoom(quickRoomId, 'caro_15')
-  }, [onJoinRoom])
+    const banBatKyDangCho = tables
+      .filter((t) => t.trangThai === 'waiting')
+      .sort((a, b) => b.soNguoiXem - a.soNguoiXem)[0]
+    if (banBatKyDangCho) {
+      onJoinExisting(banBatKyDangCho.id)
+      return
+    }
+    onCreateRoom(maBanNgauNhien('caro_15'), 'caro_15', 30)
+  }, [tables, onJoinExisting, onCreateRoom])
 
   const handleCreateGameRoom = useCallback(() => {
-    const customId = `room-${selectedGameType}-${Math.random().toString(36).slice(2, 7)}`
     setShowCreateModal(false)
-    onJoinRoom(customId, selectedGameType)
-  }, [onJoinRoom, selectedGameType])
+    onCreateRoom(maBanNgauNhien(selectedGameType), selectedGameType, turnTimerSeconds)
+  }, [onCreateRoom, selectedGameType, turnTimerSeconds])
 
-  const handleCardClick = useCallback((game: GameDefinition) => {
-    if (game.category === 'solo') {
-      setSelectedSoloGame(game.id as SoloGameType)
-    } else {
-      const customId = `match-${game.id}-${Math.random().toString(36).slice(2, 7)}`
-      onJoinRoom(customId, game.id)
-    }
-  }, [onJoinRoom])
+  const handleCardClick = useCallback(
+    (game: GameDefinition) => {
+      if (game.category === 'solo') {
+        setSelectedSoloGame(game.id as SoloGameType)
+        return
+      }
+      if (openExisting(game.id)) return
+      onCreateRoom(maBanNgauNhien(game.id), game.id, 30)
+    },
+    [openExisting, onCreateRoom],
+  )
 
+  const tuKhoa = searchQuery.trim().toLowerCase()
   const filteredGames = GAME_CATALOG.filter((g) => {
-    if (activeCategory === 'all') return true
-    return g.category === activeCategory
+    if (activeCategory === '1v1' && g.category !== '1v1') return false
+    if (activeCategory === 'solo' && g.category !== 'solo') return false
+    if (tuKhoa && !g.title.toLowerCase().includes(tuKhoa)) return false
+    return true
   })
 
+  const filteredTables = tables
+    .filter((t) => tableFilter === 'all' || t.trangThai === tableFilter)
+    .filter((t) => !tuKhoa || t.tenChu?.toLowerCase().includes(tuKhoa) || t.tenKhach?.toLowerCase().includes(tuKhoa))
+
+  const hienFeedBan = activeCategory !== 'solo' && activeCategory !== 'leaderboard'
+
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-y-auto relative font-sans">
+    <div className="relative flex h-full flex-col overflow-y-auto bg-slate-950 font-sans text-slate-100">
       {/* Glow ambient background */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-[500px] h-[350px] bg-fuchsia-600/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="pointer-events-none absolute top-0 left-1/4 h-[300px] w-[600px] rounded-full bg-cyan-600/10 blur-[120px]" />
+      <div className="pointer-events-none absolute top-1/3 right-10 h-[350px] w-[500px] rounded-full bg-fuchsia-600/10 blur-[140px]" />
 
       {/* Top Header */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-5 py-3.5 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800/80 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 bg-slate-900/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onBackToHub}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-slate-700/50"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700/50 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-700/80 hover:text-white"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="size-3.5" />
             <span>Sảnh chính</span>
           </button>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🎮</span>
-            <div>
-              <h1 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-                Đấu Trường Game
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                  Arena v2
-                </span>
-              </h1>
-            </div>
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-base font-extrabold tracking-tight text-white">
+              <span className="text-xl">🎮</span>
+              Đấu Trường Game
+            </h1>
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+              {tablesPending
+                ? 'Đang tải dữ liệu…'
+                : `${tables.length} bàn đang mở · ${soDangChoi} trận trực tiếp · ${tongNguoiXem} người đang xem`}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
+        <div className="flex items-center gap-2">
+          <Button
             type="button"
             onClick={handleQuickMatch}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-transform active:scale-95 cursor-pointer"
+            className="h-9 gap-1.5 bg-gradient-to-r from-amber-500 to-orange-600 px-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-orange-500"
           >
-            <Zap className="w-3.5 h-3.5 fill-slate-950" />
-            <span>⚡ Ghép Nhanh</span>
-          </button>
-
-          <button
+            <Zap className="size-3.5 fill-slate-950" />
+            <span className="hidden sm:inline">⚡ Ghép Nhanh</span>
+            <span className="sm:hidden">Ghép nhanh</span>
+          </Button>
+          <Button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-600/25 transition-transform active:scale-95 cursor-pointer"
+            className="h-9 gap-1.5 bg-cyan-600 px-3.5 font-bold text-white shadow-lg shadow-cyan-600/25 hover:bg-cyan-500"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Tạo bàn</span>
-          </button>
+            <Plus className="size-3.5" />
+            <span className="hidden sm:inline">Tạo Bàn Đấu</span>
+            <span className="sm:hidden">Tạo bàn</span>
+          </Button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6">
-        {/* Category Filter Pills & Hero Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-900/90 border border-slate-800 w-fit">
-            <button
-              type="button"
-              onClick={() => setActiveCategory('all')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                activeCategory === 'all'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Tất cả trò chơi
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveCategory('1v1')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeCategory === '1v1'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Swords className="w-3 h-3" /> Đối kháng (1v1)
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveCategory('solo')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeCategory === 'solo'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Gamepad2 className="w-3 h-3" /> Chơi đơn (Solo)
-            </button>
-          </div>
-
-          <div className="text-xs text-slate-400 flex items-center gap-2">
-            <Users className="w-4 h-4 text-cyan-400" />
-            <span>Phân khu giải trí sau giờ học môn Toán & Khoa học</span>
-          </div>
-        </div>
-
-        {/* 2-Column Responsive Layout: Game Cards Grid (Left) + Interactive Live Board Preview (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Game Catalog Grid */}
-          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {filteredGames.map((game) => (
-              <div
-                key={game.id}
-                onClick={() => handleCardClick(game)}
-                className="group relative flex flex-col justify-between p-5 rounded-3xl bg-slate-900/70 hover:bg-slate-900/95 border border-slate-800/80 hover:border-cyan-500/50 transition-all duration-300 shadow-lg hover:shadow-cyan-500/10 cursor-pointer overflow-hidden"
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-8">
+        {/* Category tabs + search */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex w-fit flex-wrap items-center gap-1 rounded-2xl border border-slate-800 bg-slate-900/90 p-1">
+            {(
+              [
+                { id: 'all', label: 'Tất cả trò chơi', icon: null },
+                { id: '1v1', label: 'Đối kháng (1v1)', icon: Swords },
+                { id: 'solo', label: 'Chơi đơn (Solo)', icon: Gamepad2 },
+                { id: 'leaderboard', label: 'Bảng xếp hạng', icon: Trophy },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveCategory(tab.id)}
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  activeCategory === tab.id
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                {/* Glow on hover */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 group-hover:bg-cyan-500/15 rounded-full blur-2xl transition-all" />
-
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-3xl p-2 rounded-2xl bg-slate-800/60 border border-slate-700/40 shadow-inner group-hover:scale-110 transition-transform">
-                      {game.icon}
-                    </span>
-                    <span
-                      className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full text-white bg-gradient-to-r ${game.badgeColor} shadow-md`}
-                    >
-                      {game.badge}
-                    </span>
-                  </div>
-
-                  <h3 className="font-extrabold text-base text-white group-hover:text-cyan-300 transition-colors">
-                    {game.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                    {game.description}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">
-                    {game.category === '1v1' ? '2 người chơi' : 'Điểm xếp hạng'}
-                  </span>
-                  <span className="flex items-center gap-1 text-cyan-400 font-bold group-hover:translate-x-1 transition-transform">
-                    <span>{game.category === '1v1' ? 'Vào đấu' : 'Chơi ngay'}</span>
-                    <Play className="w-3 h-3 fill-cyan-400" />
-                  </span>
-                </div>
-              </div>
+                {tab.icon ? <tab.icon className="size-3" /> : null}
+                {tab.label}
+              </button>
             ))}
           </div>
 
-          {/* Interactive Live Mini-Board Preview Widget */}
-          <div className="lg:col-span-4 flex flex-col gap-3 p-5 rounded-3xl bg-slate-900/80 border border-slate-800/90 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-bold text-sm text-white">Thử nước cờ (Live Preview)</h3>
-              </div>
-              <button
-                type="button"
-                onClick={resetPreviewBoard}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700/50"
-                title="Đặt lại bàn thử"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
+          {activeCategory !== 'leaderboard' && (
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-slate-500" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm trò chơi hoặc người chơi…"
+                className="h-9 border-slate-800 bg-slate-900/90 pl-9 text-xs text-white placeholder:text-slate-500"
+              />
             </div>
-
-            <p className="text-[11px] text-slate-400 leading-normal">
-              Bấm trực tiếp vào các ô để thử cảm giác đánh cờ với hiệu ứng Neon Cyan & Fuchsia.
-            </p>
-
-            {/* 15x15 Dark Neon Preview Grid */}
-            <div className="flex justify-center p-2 rounded-2xl bg-slate-950 border border-slate-800/80 shadow-inner">
-              <div className="grid grid-cols-15 gap-[1.5px] bg-slate-800/60 p-[2px] rounded-lg">
-                {previewBoard.map((row, y) =>
-                  row.map((cell, x) => (
-                    <button
-                      key={`prev-${x}-${y}`}
-                      type="button"
-                      onClick={() => handlePreviewCellClick(x, y)}
-                      className={`
-                        w-4 h-4 sm:w-5 sm:h-5 rounded-[2px] flex items-center justify-center text-[9px] font-black transition-colors
-                        ${cell === null ? 'bg-slate-900/90 hover:bg-slate-800 cursor-pointer' : ''}
-                        ${cell === 'X' ? 'bg-cyan-950 text-cyan-400 shadow-[0_0_4px_rgba(6,182,212,0.8)]' : ''}
-                        ${cell === 'O' ? 'bg-fuchsia-950 text-fuchsia-400 shadow-[0_0_4px_rgba(217,70,239,0.8)]' : ''}
-                      `}
-                    >
-                      {cell}
-                    </button>
-                  )),
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] px-1 text-slate-400">
-              <span>Lượt thử kế tiếp:</span>
-              <span className={`font-black ${previewTurn === 'X' ? 'text-cyan-400' : 'text-fuchsia-400'}`}>
-                {previewTurn === 'X' ? 'Quân X (Cyan)' : 'Quân O (Fuchsia)'}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
+
+        {activeCategory === 'leaderboard' ? (
+          <GameLeaderboard />
+        ) : (
+          <>
+            {/* Featured Game Showcase Grid */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredGames.map((game) => {
+                const soCho = waitingCounts[game.id] ?? 0
+                return (
+                  <div
+                    key={game.id}
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/70 p-5 shadow-lg transition-all duration-300 hover:border-cyan-500/50 hover:bg-slate-900/95 hover:shadow-cyan-500/10"
+                  >
+                    <div className="pointer-events-none absolute top-0 right-0 h-32 w-32 rounded-full bg-cyan-500/5 blur-2xl transition-all group-hover:bg-cyan-500/15" />
+
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="rounded-2xl border border-slate-700/40 bg-slate-800/60 p-2 text-3xl shadow-inner transition-transform group-hover:scale-110">
+                          {game.icon}
+                        </span>
+                        <span
+                          className={`rounded-full bg-gradient-to-r px-2.5 py-1 text-[10px] font-extrabold text-white uppercase shadow-md ${game.badgeColor}`}
+                        >
+                          {game.badge}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-extrabold text-white transition-colors group-hover:text-cyan-300">
+                        {game.title}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-relaxed text-slate-400">
+                        {game.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3 text-xs">
+                      <span className="font-medium text-slate-400">
+                        {game.category === '1v1' ? (
+                          soCho > 0 ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-cyan-400">
+                              <span className="size-1.5 animate-pulse rounded-full bg-cyan-400" />⚡ {soCho} bàn chờ
+                            </span>
+                          ) : (
+                            '2 người chơi'
+                          )
+                        ) : (
+                          'Điểm xếp hạng'
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {game.category === '1v1' && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewGameType(game.id)}
+                            className="text-[11px] font-semibold text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                          >
+                            Xem thử
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleCardClick(game)}
+                          className="flex items-center gap-1 font-bold text-cyan-400 transition-transform group-hover:translate-x-1"
+                        >
+                          <span>{game.category === '1v1' ? 'Vào đấu' : 'Chơi ngay'}</span>
+                          <Play className="size-3 fill-cyan-400" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Real-time Active Tables Feed */}
+            {hienFeedBan && (
+              <div className="flex flex-col gap-3 rounded-3xl border border-slate-800/90 bg-slate-900/60 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="size-4 text-cyan-400" />
+                    <h3 className="text-sm font-bold text-white">Bàn Đấu Đang Mở</h3>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {(
+                      [
+                        { id: 'all', label: 'Tất cả bàn' },
+                        { id: 'waiting', label: 'Đang chờ đối thủ' },
+                        { id: 'playing', label: 'Đang thi đấu' },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setTableFilter(f.id)}
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                          tableFilter === f.id
+                            ? 'bg-cyan-600 text-white'
+                            : 'bg-slate-800/70 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex min-h-24 flex-col gap-2" style={{ overflowAnchor: 'none' }}>
+                  {tablesError ? (
+                    <div className="flex h-24 items-center justify-center text-xs text-rose-400">
+                      Không tải được danh sách bàn, thử lại sau.
+                    </div>
+                  ) : filteredTables.length > 0 ? (
+                    filteredTables.map((t) => (
+                      <GameTableCard key={t.id} table={t} onEnter={() => onJoinExisting(t.id)} />
+                    ))
+                  ) : (
+                    <div className="flex h-24 flex-col items-center justify-center gap-1 text-center text-xs text-slate-500">
+                      <Swords className="size-5 text-slate-700" />
+                      {tablesPending
+                        ? 'Đang tải…'
+                        : tableFilter === 'waiting'
+                          ? 'Chưa có bàn nào đang chờ đối thủ — mở bàn mới hoặc bấm Ghép Nhanh!'
+                          : tableFilter === 'playing'
+                            ? 'Chưa có trận nào đang diễn ra.'
+                            : 'Chưa có bàn nào đang mở — hãy là người đầu tiên!'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
 
       {/* Create Room Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl text-slate-100 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="flex w-full max-w-sm flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-950 p-6 text-slate-100 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-cyan-400" />
-                <h3 className="font-bold text-base text-white">Tạo bàn đấu mới</h3>
+                <Crown className="size-5 text-cyan-400" />
+                <h3 className="text-base font-bold text-white">Tạo bàn đấu mới</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+                className="rounded-lg bg-slate-800 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"
               >
                 ✕
               </button>
@@ -390,31 +362,35 @@ export function GameLobbyView({ onBackToHub, onJoinRoom }: GameLobbyViewProps) {
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-400 block mb-1.5">Chọn trò chơi:</label>
+                <label htmlFor="chon-tro-choi" className="mb-1.5 block text-xs font-semibold text-slate-400">
+                  Chọn trò chơi:
+                </label>
                 <select
+                  id="chon-tro-choi"
                   value={selectedGameType}
                   onChange={(e) => setSelectedGameType(e.target.value as GameType)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-white focus:border-cyan-500 focus:outline-none"
                 >
-                  <option value="caro_15">Cờ Caro 15×15</option>
-                  <option value="caro_9">Cờ Caro Nhanh 9×9</option>
-                  <option value="connect4">Connect 4</option>
-                  <option value="reversi">Reversi (Othello) 8×8</option>
+                  {CAC_GAME_1V1.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title} ({g.boardLabel})
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-400 block mb-1.5">Thời gian mỗi lượt đi:</label>
+                <span className="mb-1.5 block text-xs font-semibold text-slate-400">Thời gian mỗi lượt đi:</span>
                 <div className="grid grid-cols-3 gap-2">
                   {[15, 30, 60].map((sec) => (
                     <button
                       key={sec}
                       type="button"
                       onClick={() => setTurnTimerSeconds(sec)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      className={`rounded-xl border py-2 text-xs font-bold transition-colors ${
                         turnTimerSeconds === sec
-                          ? 'bg-cyan-600 text-white border-cyan-500'
-                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                          ? 'border-cyan-500 bg-cyan-600 text-white'
+                          : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800'
                       }`}
                     >
                       {sec}s
@@ -424,21 +400,20 @@ export function GameLobbyView({ onBackToHub, onJoinRoom }: GameLobbyViewProps) {
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={handleCreateGameRoom}
-              className="mt-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-cyan-500/25 transition-transform active:scale-95"
+              className="mt-2 w-full gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 py-2.5 font-extrabold text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-blue-500"
             >
               Vào bàn đấu ngay ⚔️
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Solo Game Popup Modal */}
-      {selectedSoloGame && (
-        <SoloGameModal gameType={selectedSoloGame} onClose={() => setSelectedSoloGame(null)} />
-      )}
+      <BoardPreviewSheet gameType={previewGameType} onOpenChange={(open) => !open && setPreviewGameType(null)} />
+
+      {selectedSoloGame && <SoloGameModal gameType={selectedSoloGame} onClose={() => setSelectedSoloGame(null)} />}
     </div>
   )
 }

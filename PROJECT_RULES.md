@@ -24,5 +24,5 @@
 ## 4. QUY TRÌNH KIỂM THỬ TRƯỚC KHI DEPLOY
 1. `npm run typecheck` — 0 lỗi TypeScript & Cloudflare types.
 2. `npm run lint` — 0 lỗi linter (oxlint).
-3. `npm test` — Toàn bộ 51/51 tests xanh 100%.
+3. `npm test` — Toàn bộ test xanh 100%.
 4. `npm run build` — Build production bundle thành công.

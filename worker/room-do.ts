@@ -12,12 +12,14 @@ import type {
   SlideState,
 } from '../shared/protocol/room'
 import {
+  type BanSanh,
   type BoardCell,
   type GameMetaState,
   type GoiGame,
   LenhGame,
   type PlayerSide,
 } from '../shared/protocol/game'
+import { TEN_GAME_LOBBY } from './games/game-lobby-do'
 import {
   coNuocDiHopLeReversi,
   demQuanReversi,
@@ -87,6 +89,8 @@ export class RoomDO extends DurableObject<Env> {
   private hostKey: string | null = null
   private isGameRoom = false
   private khoiTaoXong = false
+  // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
+  private gameRoomId: string | null = null
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -285,6 +289,9 @@ export class RoomDO extends DurableObject<Env> {
     const laGame = mode === 'game' || this.isGameRoom
     if (laGame) {
       this.isGameRoom = true
+      if (!this.gameRoomId) {
+        this.gameRoomId = new URL(request.url).pathname.match(/^\/ws\/game\/([^/]+)$/)?.[1] ?? null
+      }
     }
 
     const { 0: client, 1: server } = new WebSocketPair()
@@ -380,6 +387,7 @@ export class RoomDO extends DurableObject<Env> {
           }
           this.gameBoard = taoBanMoi(gameType)
           this.luuGameState()
+          this.baoLobby()
           this.broadcastGame({
             type: 'game.sync',
             meta: this.gameMeta,
@@ -421,6 +429,7 @@ export class RoomDO extends DurableObject<Env> {
           }
 
           this.luuGameState()
+          this.baoLobby()
           this.broadcastGame({
             type: 'game.sync',
             meta: this.gameMeta,
@@ -540,6 +549,7 @@ export class RoomDO extends DurableObject<Env> {
           }
 
           this.luuGameState()
+          this.baoLobby()
           this.broadcastGame({
             type: 'game.sync',
             meta: this.gameMeta,
@@ -561,6 +571,7 @@ export class RoomDO extends DurableObject<Env> {
           if (winner === 'X') this.gameMeta.scoreX++
           else this.gameMeta.scoreO++
           this.luuGameState()
+          this.baoLobby()
           this.broadcastGame({
             type: 'game.sync',
             meta: this.gameMeta,
@@ -587,6 +598,7 @@ export class RoomDO extends DurableObject<Env> {
             this.gameMeta.status = 'waiting'
           }
           this.luuGameState()
+          this.baoLobby()
           this.broadcastGame({
             type: 'game.sync',
             meta: this.gameMeta,
@@ -851,10 +863,12 @@ export class RoomDO extends DurableObject<Env> {
       ws.close(code, reason)
     } catch {}
     this.phatDanhSach(ws)
+    this.baoRoiLobbyNeuTrong(ws)
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
     this.phatDanhSach(ws)
+    this.baoRoiLobbyNeuTrong(ws)
   }
 
   private layDanhSachThanhVien(boQua?: WebSocket): ThanhVienPhong[] {
@@ -880,6 +894,35 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     return [...map.values()]
+  }
+
+  // Báo GameLobbyDO bàn đang chờ/đang chơi (upsert) hoặc đã kết thúc (gỡ khỏi sảnh) — không chờ kết quả,
+  // lỗi báo cáo không được phép làm hỏng phản hồi nước đi thật cho người chơi.
+  private baoLobby(): void {
+    if (!this.isGameRoom || !this.gameRoomId) return
+    const ban: BanSanh = {
+      id: this.gameRoomId,
+      gameType: this.gameMeta.gameType,
+      tenChu: this.gameMeta.playerXName,
+      tenKhach: this.gameMeta.playerOName,
+      trangThai: this.gameMeta.status,
+      soNguoiXem: this.layDanhSachThanhVien().length,
+      turnTimerSeconds: this.gameMeta.turnTimerSeconds,
+      capNhatLuc: Date.now(),
+    }
+    const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+    const rpc = ban.trangThai === 'ended' ? lobby.xoaBan(ban.id) : lobby.capNhatBan(ban)
+    this.ctx.waitUntil(rpc.catch((err: unknown) => console.error('Không báo được GameLobbyDO:', err)))
+  }
+
+  // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — gỡ khỏi sảnh dù ván chưa kết thúc.
+  private baoRoiLobbyNeuTrong(vuaRoi: WebSocket): void {
+    if (!this.isGameRoom || !this.gameRoomId) return
+    if (this.layDanhSachThanhVien(vuaRoi).length > 0) return
+    const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+    this.ctx.waitUntil(
+      lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
+    )
   }
 
   private phatDanhSach(boQua?: WebSocket): void {

@@ -73,3 +73,18 @@ export type GoiGame =
     }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'error'; message: string }
+
+/** Một bàn đối kháng đang mở, hiển thị trên sảnh Đấu Trường Game (Real-time Active Tables Feed). */
+export interface BanSanh {
+  id: string
+  gameType: GameType
+  tenChu: string | null
+  tenKhach: string | null
+  trangThai: GameStatus
+  soNguoiXem: number
+  turnTimerSeconds: number
+  capNhatLuc: number
+}
+
+/** 4 trò chơi đối kháng 1v1 có bàn hiển thị trên sảnh — trò chơi solo không tạo bàn. */
+export const CAC_GAME_1V1: GameType[] = ['caro_15', 'caro_9', 'connect4', 'reversi']

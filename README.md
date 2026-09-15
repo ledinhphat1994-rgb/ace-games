@@ -25,7 +25,8 @@ Hệ thống Digital Campus trường GDTX Định Quán: Vite + React 19 + Type
 - `worker/index.ts` — router chính Hono, định tuyến `/api/*`, `/ws/campus`, `/ws/room/:id`.
 - `worker/campus/campus-do.ts` — Durable Object cho sảnh toàn trường (danh sách online, danh bạ phòng, chat toàn trường).
 - `worker/room-do.ts` — Durable Object cho từng phòng học (đồng bộ YouTube, bảng vẽ nháp, ghi chú, Game Arena đối kháng).
-- `worker/game-engine.ts` — engine cờ Caro 9x9 và Connect 4 xử lý lượt đi và trọng tài trong phòng game.
+- `worker/game-engine.ts` — engine cờ Caro, Connect 4 và Reversi xử lý lượt đi và trọng tài trong phòng game.
+- `worker/games/game-lobby-do.ts` — Durable Object danh bạ các bàn đối kháng đang mở (RoomDO báo qua RPC), phục vụ `GET /api/game/rooms` cho sảnh Đấu Trường Game.
 - `worker/lib/` — thư viện xác thực phiên HMAC, kiểm tra mật khẩu PBKDF2, phân quyền scope.
 - `src/` — frontend React 19 SPA: `features/` (hub, study, games, auth), `components/ui/` (shadcn), `hooks/`.
 - `shared/` — giao thức WebSocket và types dùng chung giữa frontend và Worker (`protocol/`, `rooms/`).

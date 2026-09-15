@@ -43,12 +43,15 @@
     "bindings": [
       { "name": "ROOMS", "class_name": "RoomDO" },
       // Một object duy nhất cho toàn trường: người online, chat toàn trường, danh bạ phòng của sảnh.
-      { "name": "CAMPUS", "class_name": "CampusDO" }
+      { "name": "CAMPUS", "class_name": "CampusDO" },
+      // Một object duy nhất: danh bạ các bàn Đấu Trường Game đang mở (RoomDO báo qua RPC).
+      { "name": "GAME_LOBBY", "class_name": "GameLobbyDO" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["RoomDO"] },
-    { "tag": "v2", "new_sqlite_classes": ["CampusDO"] }
+    { "tag": "v2", "new_sqlite_classes": ["CampusDO"] },
+    { "tag": "v3", "new_sqlite_classes": ["GameLobbyDO"] }
   ],
   "observability": { "enabled": true },
   "env": {
@@ -76,7 +79,8 @@
       "durable_objects": {
         "bindings": [
           { "name": "ROOMS", "class_name": "RoomDO" },
-          { "name": "CAMPUS", "class_name": "CampusDO" }
+          { "name": "CAMPUS", "class_name": "CampusDO" },
+          { "name": "GAME_LOBBY", "class_name": "GameLobbyDO" }
         ]
       }
     }

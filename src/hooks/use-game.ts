@@ -24,7 +24,12 @@ const DEFAULT_META: GameMetaState = {
   scoreO: 0,
 }
 
-export function useGame(gameId: string, myActorKey?: string) {
+export function useGame(
+  gameId: string,
+  myActorKey?: string,
+  intendedGameType?: GameType,
+  intendedTurnSeconds?: number,
+) {
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiGame>('dang_ket_noi')
   const [meta, setMeta] = useState<GameMetaState>(DEFAULT_META)
   const [board, setBoard] = useState<BoardCell[][]>(() => taoBanMoi('caro_15'))
@@ -102,6 +107,23 @@ export function useGame(gameId: string, myActorKey?: string) {
           setMeta(goi.meta)
           setBoard(goi.board)
           setSpectators(goi.spectators)
+          // Bàn vừa tạo, còn nguyên trạng mặc định và chưa ai nhận X/O: áp đúng trò chơi/thời gian lượt
+          // người tạo đã chọn ở sảnh (chỉ mình người tạo gửi lệnh này — người vào bàn có sẵn không đụng tới).
+          if (
+            intendedGameType &&
+            goi.meta.gameType !== intendedGameType &&
+            goi.meta.status === 'waiting' &&
+            !goi.meta.playerX &&
+            !goi.meta.playerO
+          ) {
+            ws.send(
+              JSON.stringify({
+                type: 'game.init',
+                gameType: intendedGameType,
+                turnSeconds: intendedTurnSeconds ?? 30,
+              }),
+            )
+          }
           break
         }
         case 'game.sync': {
@@ -159,7 +181,7 @@ export function useGame(gameId: string, myActorKey?: string) {
     ws.onerror = () => {
       // ws.onclose sẽ kích hoạt và xử lý backoff
     }
-  }, [gameId])
+  }, [gameId, intendedGameType, intendedTurnSeconds])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi

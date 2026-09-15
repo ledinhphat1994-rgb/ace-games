@@ -10,7 +10,7 @@
 Trước khi commit hoặc push:
 1. `npm run typecheck` — Tạo kiểu Cloudflare (`wrangler types`) và kiểm tra TypeScript (`tsc -b`). Phải đạt 0 lỗi.
 2. `npm run lint` — Chạy `oxlint`. Phải đạt 0 lỗi.
-3. `npm test` — Chạy toàn bộ Vitest suite (`vitest run`) trên môi trường giả lập Workers runtime (`@cloudflare/vitest-plugin`). Đảm bảo 100% test xanh (51/51 tests).
+3. `npm test` — Chạy toàn bộ Vitest suite (`vitest run`) trên môi trường giả lập Workers runtime (`@cloudflare/vitest-plugin`). Đảm bảo 100% test xanh.
 4. `npm run build` — Đóng gói production bundle cho cả Worker và Client. Phải build thành công không lỗi.
 
 ## 3. Quy tắc bảo toàn dữ liệu & Tương thích hệ thống (Data Invariants)

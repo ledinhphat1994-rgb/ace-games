@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
+import { TEN_GAME_LOBBY } from './games/game-lobby-do'
 import { actorKey } from './lib/auth'
 import { loi } from './lib/http'
 import { kiemTraPhien, layPhien } from './lib/session'
@@ -7,6 +8,7 @@ import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from '.
 import { dangNhap, dangXuat, whoami } from './routes/auth'
 
 export { CampusDO } from './campus/campus-do'
+export { GameLobbyDO } from './games/game-lobby-do'
 export { RoomDO } from './room-do'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -109,6 +111,15 @@ app.post('/api/game/highscore', async (c) => {
 
 app.all('/api/game/highscores', saiPhuongThuc)
 app.all('/api/game/highscore', saiPhuongThuc)
+
+// Danh sách bàn đối kháng đang mở (Real-time Active Tables Feed của Đấu Trường Game).
+app.get('/api/game/rooms', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const lobby = c.env.GAME_LOBBY.get(c.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+  return c.json({ ok: true, rooms: await lobby.danhSach() })
+})
+app.all('/api/game/rooms', saiPhuongThuc)
 
 // ── YouTube search proxy (server-side → no CORS) ────────────────────────────
 app.get('/api/yt-search', async (c) => {

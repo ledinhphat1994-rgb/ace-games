@@ -13,6 +13,7 @@ import {
   WifiOff,
   Zap,
 } from 'lucide-react'
+import type { GameType } from '@shared/protocol/game'
 import { useGame } from '../../hooks/use-game'
 
 interface GameBoardViewProps {
@@ -20,11 +21,21 @@ interface GameBoardViewProps {
   myActorKey?: string
   myActorName?: string
   onLeave: () => void
+  /** Chỉ có khi VỪA tạo bàn từ sảnh — áp trò chơi/thời gian lượt đã chọn cho bàn còn trống. */
+  intendedGameType?: GameType
+  intendedTurnSeconds?: number
 }
 
 const EMOTE_LIST = ['🔥', '👏', '😱', '🤔', '😎', 'GG', 'Nước hay!', 'Nhanh lên bạn ơi!']
 
-export function GameBoardView({ gameId, myActorKey, myActorName: _myActorName, onLeave }: GameBoardViewProps) {
+export function GameBoardView({
+  gameId,
+  myActorKey,
+  myActorName: _myActorName,
+  onLeave,
+  intendedGameType,
+  intendedTurnSeconds,
+}: GameBoardViewProps) {
   const {
     trangThai,
     meta,
@@ -40,7 +51,7 @@ export function GameBoardView({ gameId, myActorKey, myActorName: _myActorName, o
     surrender,
     rematch,
     sendEmote,
-  } = useGame(gameId, myActorKey)
+  } = useGame(gameId, myActorKey, intendedGameType, intendedTurnSeconds)
 
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [hoverCol, setHoverCol] = useState<number | null>(null)
