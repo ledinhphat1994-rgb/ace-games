@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import { Medal, Trophy } from 'lucide-react'
-import { CAC_GAME_SOLO } from './game-catalog'
+import type { GameType } from '@shared/protocol/game'
+import { GAME_CATALOG_BY_ID } from './game-catalog'
 
 interface HighScoreRecord {
   id: number
@@ -28,50 +28,31 @@ async function layBangXepHang(gameType: string): Promise<HighScoreRecord[]> {
 
 const MAU_HANG = ['text-yellow-400', 'text-slate-300', 'text-amber-600']
 
-export function GameLeaderboard() {
-  const [gameType, setGameType] = useState(CAC_GAME_SOLO[0].id)
+// Cột 4: bảng xếp hạng CHO ĐÚNG trò chơi đang chọn ở cột 1 — trò đối kháng chưa có điểm tích luỹ toàn
+// trường nên hiện empty-state thật (không bịa số liệu), trò chơi đơn có điểm thật từ /api/game/highscore.
+export function GameLeaderboard({ gameType }: { gameType: GameType }) {
+  const info = GAME_CATALOG_BY_ID[gameType]
   const { data, isPending, isError } = useQuery({
     queryKey: ['game-highscores', gameType],
     queryFn: () => layBangXepHang(gameType),
   })
 
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-slate-800/80 bg-slate-900/70 p-5">
-      <div className="flex items-center gap-2">
-        <Trophy className="size-4 text-amber-400" />
-        <h3 className="text-sm font-bold text-white">Bảng Xếp Hạng Solo</h3>
-      </div>
+    <div className="flex h-full flex-col gap-3">
+      <h3 className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-white">
+        <Trophy className="size-4 text-amber-400" /> Xếp hạng {info.shortTitle}
+      </h3>
 
-      <div className="flex flex-wrap gap-2">
-        {CAC_GAME_SOLO.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            onClick={() => setGameType(g.id)}
-            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${
-              gameType === g.id
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                : 'bg-slate-800/70 text-slate-400 hover:text-white'
-            }`}
-          >
-            {g.icon} {g.shortTitle}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex min-h-52 flex-col gap-1.5 overflow-y-auto" style={{ overflowAnchor: 'none' }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto" style={{ overflowAnchor: 'none' }}>
         {isPending ? (
-          <div className="flex h-52 items-center justify-center text-xs text-slate-500">Đang tải…</div>
+          <div className="flex h-40 items-center justify-center text-xs text-slate-500">Đang tải…</div>
         ) : isError ? (
-          <div className="flex h-52 items-center justify-center text-xs text-rose-400">
+          <div className="flex h-40 items-center justify-center text-center text-xs text-rose-400">
             Không tải được bảng xếp hạng, thử lại sau.
           </div>
         ) : data && data.length > 0 ? (
           data.map((row, i) => (
-            <div
-              key={row.id}
-              className="flex items-center gap-3 rounded-xl bg-slate-800/40 px-3 py-2 text-sm"
-            >
+            <div key={row.id} className="flex items-center gap-2.5 rounded-xl bg-slate-800/40 px-3 py-2 text-sm">
               <span className={`w-5 shrink-0 text-center font-black ${MAU_HANG[i] ?? 'text-slate-500'}`}>
                 {i < 3 ? <Medal className="size-4" /> : i + 1}
               </span>
@@ -80,9 +61,11 @@ export function GameLeaderboard() {
             </div>
           ))
         ) : (
-          <div className="flex h-52 flex-col items-center justify-center gap-1 text-center text-xs text-slate-500">
+          <div className="flex h-40 flex-col items-center justify-center gap-1 text-center text-xs text-slate-500">
             <Trophy className="size-6 text-slate-700" />
-            Chưa có điểm nào cho trò này — chơi thử để lập kỷ lục đầu tiên!
+            {info.category === '1v1'
+              ? 'Đối kháng chưa tích luỹ điểm toàn trường — đang phát triển.'
+              : 'Chưa có điểm nào cho trò này — chơi thử để lập kỷ lục đầu tiên!'}
           </div>
         )}
       </div>

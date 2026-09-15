@@ -7,9 +7,11 @@ import { GAME_CATALOG_BY_ID } from './game-catalog'
 interface GameTableCardProps {
   table: BanSanh
   onEnter: () => void
+  /** Ẩn badge tên trò chơi khi thẻ đã nằm trong ngữ cảnh chỉ 1 trò chơi (cột sảnh theo game đang chọn). */
+  hideGameBadge?: boolean
 }
 
-export function GameTableCard({ table, onEnter }: GameTableCardProps) {
+export function GameTableCard({ table, onEnter, hideGameBadge = false }: GameTableCardProps) {
   const info = GAME_CATALOG_BY_ID[table.gameType]
   const dangCho = table.trangThai === 'waiting'
   const tenKhach = table.tenKhach ?? (dangCho ? 'Đang chờ đối thủ…' : 'Ẩn danh')
@@ -27,9 +29,11 @@ export function GameTableCard({ table, onEnter }: GameTableCardProps) {
           <span className="truncate text-sm font-semibold text-slate-300">{tenKhach}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
-          <Badge variant="outline" className="h-4.5 border-slate-700 bg-slate-800/60 px-1.5 text-[10px] text-slate-300">
-            {info.shortTitle}
-          </Badge>
+          {!hideGameBadge && (
+            <Badge variant="outline" className="h-4.5 border-slate-700 bg-slate-800/60 px-1.5 text-[10px] text-slate-300">
+              {info.shortTitle}
+            </Badge>
+          )}
           <span className="inline-flex items-center gap-0.5">
             <Clock className="size-3" />
             {table.turnTimerSeconds}s/lượt
