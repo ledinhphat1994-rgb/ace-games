@@ -3,6 +3,7 @@ import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
 import { TEN_GAME_LOBBY } from './games/game-lobby-do'
 import { actorKey } from './lib/auth'
 import { loi } from './lib/http'
+import { xacMinhMatKhau } from './lib/passwords'
 import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
 import {
@@ -38,6 +39,18 @@ async function vaoCampus(request: Request, env: Env): Promise<Response> {
   return env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS)).fetch(new Request(request, { headers }))
 }
 
+interface DongPhong {
+  trang_thai: string
+  pham_vi: string
+  lop_id: number | null
+  access_mode: string
+  mat_khau_hash: string | null
+  mat_khau_salt: string | null
+  mat_khau_iterations: number | null
+  suc_chua: number
+  chu_phong_khoa: string
+}
+
 async function vaoPhong(request: Request, env: Env, maPhong: string, isGame = false): Promise<Response> {
   if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
   if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
@@ -58,6 +71,80 @@ async function vaoPhong(request: Request, env: Env, maPhong: string, isGame = fa
   if (isGame) {
     headers.set('X-Room-Mode', 'game')
   }
+
+  // ── Admission Gate: D1 lookup (chỉ áp dụng cho phòng học thường, không phải game) ──
+  // Phòng không có slug trong D1 (ad-hoc) = không giới hạn (backward compat cho test).
+  if (!isGame) {
+    let phongRow: DongPhong | null = null
+    try {
+      phongRow = await env.DB.prepare(
+        `SELECT trang_thai, pham_vi, lop_id, access_mode, mat_khau_hash, mat_khau_salt,
+                mat_khau_iterations, suc_chua, chu_phong_khoa
+           FROM phong WHERE slug = ?1 AND loai = 'video'`,
+      )
+        .bind(maPhong)
+        .first<DongPhong>()
+    } catch (e) {
+      console.error('Admission gate: lỗi tra cứu phòng D1:', e)
+      return loi('Không thể xác minh thông tin phòng.', 500)
+    }
+
+    if (phongRow) {
+      // 1. Phòng phải đang mở
+      if (phongRow.trang_thai !== 'mo') {
+        return loi('Phòng đã đóng hoặc tạm dừng hoạt động.', 403)
+      }
+
+      // 2. Phạm vi lớp
+      if (phongRow.pham_vi === 'lop' && phongRow.lop_id !== null) {
+        const laAdmin = kq.taiKhoan.laAdminTruong
+        const laGV = kq.taiKhoan.role === 'teacher' && !kq.taiKhoan.teacherPending
+        if (!laAdmin) {
+          if (laGV) {
+            // Giáo viên phải phụ trách lớp đó
+            const gvl = await env.DB.prepare(
+              'SELECT 1 FROM giao_vien_lop WHERE giao_vien_id = ?1 AND lop_id = ?2 LIMIT 1',
+            )
+              .bind(kq.taiKhoan.id, phongRow.lop_id)
+              .first<{ 1: number }>()
+            if (!gvl) {
+              return loi('Bạn không phụ trách lớp học này.', 403)
+            }
+          } else {
+            // Học sinh phải thuộc lớp đó
+            if (kq.taiKhoan.lopId !== phongRow.lop_id) {
+              return loi('Bạn không thuộc lớp học này.', 403)
+            }
+          }
+        }
+      }
+
+      // 3. Mật khẩu phòng
+      if (phongRow.access_mode === 'password' && phongRow.mat_khau_hash) {
+        const matKhau =
+          new URL(request.url).searchParams.get('pw') ??
+          request.headers.get('X-Room-Password') ??
+          ''
+        if (!matKhau) {
+          return loi('Phòng này yêu cầu mật khẩu.', 403)
+        }
+        const hopLe = await xacMinhMatKhau(
+          matKhau,
+          phongRow.mat_khau_hash,
+          phongRow.mat_khau_salt,
+          phongRow.mat_khau_iterations,
+        )
+        if (!hopLe) {
+          return loi('Mật khẩu phòng không đúng.', 403)
+        }
+      }
+
+      // Forward metadata cho RoomDO để kiểm tra capacity và lấy canonical hostKey
+      headers.set('X-Room-Host-Key', phongRow.chu_phong_khoa)
+      headers.set('X-Room-Capacity', String(phongRow.suc_chua))
+    }
+  }
+
   const doId = isGame ? env.ROOMS.idFromName('game_' + maPhong) : env.ROOMS.idFromName(maPhong)
   return env.ROOMS.get(doId).fetch(new Request(request, { headers }))
 }

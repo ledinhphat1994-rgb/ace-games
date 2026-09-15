@@ -21,7 +21,9 @@ export function taoSalt(bytesLength = 16): string {
   return bytesToHex(buf)
 }
 
-export async function bamMatKhau(matKhau: string, saltHex: string, iterations = 100000): Promise<string> {
+export const DEFAULT_ITERATIONS = 600000
+
+export async function bamMatKhau(matKhau: string, saltHex: string, iterations = DEFAULT_ITERATIONS): Promise<string> {
   const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(matKhau), { name: 'PBKDF2' }, false, [
     'deriveBits',
   ])
@@ -33,7 +35,7 @@ export async function bamMatKhau(matKhau: string, saltHex: string, iterations = 
   return bytesToHex(new Uint8Array(bits))
 }
 
-// Như bản cũ: iterations = null trong CSDL phải bị từ chối, không được rơi về mặc định 100.000.
+// Như bản cũ: iterations = null trong CSDL phải bị từ chối, không được rơi về mặc định.
 export async function xacMinhMatKhau(
   matKhau: string,
   storedHashHex: string | null,
@@ -41,7 +43,7 @@ export async function xacMinhMatKhau(
   iterations?: number | string | null,
 ): Promise<boolean> {
   if (!matKhau || !storedHashHex || !saltHex) return false
-  const vong = iterations === undefined ? 100000 : iterations === null ? 0 : Number(iterations)
+  const vong = iterations === undefined ? DEFAULT_ITERATIONS : iterations === null ? 0 : Number(iterations)
   if (!Number.isInteger(vong) || vong <= 0) return false
   try {
     return safeEqual(await bamMatKhau(matKhau, saltHex, vong), storedHashHex)

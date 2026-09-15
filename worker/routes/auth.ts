@@ -1,8 +1,8 @@
 import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { actorKey, cookiePhien, cookieXoa, createToken, SESSION_TTL, type Phien } from '../lib/auth'
 import { json, loi } from '../lib/http'
-import { xacMinhMatKhau } from '../lib/passwords'
-import { laGiaoVienDaDuyet, laQuanTriTruong } from '../lib/scope'
+import { bamMatKhau, DEFAULT_ITERATIONS, taoSalt, xacMinhMatKhau } from '../lib/passwords'
+import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/scope'
 import { kiemTraPhien, layPhien } from '../lib/session'
 
 // Cùng ngưỡng và cùng dạng khoá KV với functions/api/login.js của bản cũ.
@@ -223,27 +223,20 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
     }
   }
 
-  const { taoSalt, bamMatKhau } = await import('../lib/passwords')
   const salt = taoSalt()
-  const matKhauHash = await bamMatKhau(password, salt, 100000)
+  const matKhauHash = await bamMatKhau(password, salt, DEFAULT_ITERATIONS)
 
   // Identity invariant: Campus account != verified class member.
-  // lop_id mặc định là NULL. Chỉ gán khi cung cấp mã mời lớp hợp lệ.
-  let lopId: number | null = null
-  if (body.classCode && env.CLASS_CODE && body.classCode.trim() === env.CLASS_CODE.trim()) {
-    const lopDefault = await env.DB.prepare('SELECT id FROM lop LIMIT 1')
-      .first<{ id: number }>()
-      .catch(() => null)
-    lopId = lopDefault?.id ?? null
-  }
+  // lop_id mặc định luôn là NULL. Không gán tự động hoặc fallback lớp đầu tiên.
+  const lopId: number | null = null
 
   await env.DB.prepare(`
     INSERT INTO tai_khoan_campus (
       ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations,
       vai_tro, teacher_pending, lop_id, dang_hoat_dong
-    ) VALUES (?1, ?2, ?3, ?4, 100000, ?5, ?6, ?7, 1)
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
   `)
-    .bind(username, tenHienThi, matKhauHash, salt, vaiTro, teacherPending, lopId)
+    .bind(username, tenHienThi, matKhauHash, salt, DEFAULT_ITERATIONS, vaiTro, teacherPending, lopId)
     .run()
 
   return json({
@@ -254,7 +247,31 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
   })
 }
 
-/** Yêu cầu mã khôi phục mật khẩu (OWASP compliant: single-use, 15-phút TTL, generic response) */
+async function bamMaOtp(secret: string, username: string, code: string): Promise<string> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret || 'digital_campus_v2_otp_secret_key_2026'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    enc.encode(`${username.toLowerCase().trim()}:${code.trim()}`),
+  )
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+interface RecordResetKV {
+  accountId: number
+  codeDigest: string
+  attempts: number
+  expiresAt: number
+}
+
+/** Yêu cầu mã khôi phục mật khẩu (OWASP: generic response, không để lộ mã ra public khi chưa xác thực) */
 export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Response> {
   let body: { username?: string }
   try {
@@ -275,38 +292,21 @@ export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Res
   }
   await env.RATE_LIMIT.put(ipRateKey, String(ipCount + 1), { expirationTtl: 900 })
 
-  const user = await env.DB.prepare('SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
-    .bind(username)
-    .first<{ id: number }>()
-    .catch(() => null)
-
-  const genericMsg = 'Nếu tài khoản tồn tại, mã xác nhận 6 số đã được kích hoạt (hạn 15 phút). Hãy liên hệ Giáo viên/Quản trị viên để nhận mã.'
-
-  if (!user) {
-    return json({ ok: true, message: genericMsg })
-  }
-
-  // Tạo mã ngẫu nhiên 6 chữ số
-  const array = new Uint32Array(1)
-  crypto.getRandomValues(array)
-  const code = (100000 + (array[0] % 900000)).toString()
-
-  // Lưu vào KV RATE_LIMIT với TTL 15 phút (900 giây)
-  await env.RATE_LIMIT.put(
-    `pwd_reset:${username}`,
-    JSON.stringify({ code, accountId: user.id, attempts: 0 }),
-    { expirationTtl: 900 }
-  )
-
-  return json({ ok: true, message: genericMsg })
+  return json({
+    ok: true,
+    message:
+      'Nếu tài khoản tồn tại, yêu cầu khôi phục đã được ghi nhận. Vui lòng liên hệ trực tiếp Giáo viên chủ nhiệm hoặc Ban Giám Hiệu tại trường để nhận mã xác nhận 6 số.',
+  })
 }
 
-/** Giáo viên / Admin tạo mã khôi phục cho học sinh trực tiếp */
+/** Giáo viên / Admin tạo mã khôi phục cho học sinh trực tiếp (Scope & Privilege Enforced) */
 export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<Response> {
   const kq = await kiemTraPhien(await layPhien(request, env), env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
-  if (kq.taiKhoan.role !== 'teacher' && !kq.taiKhoan.laAdminTruong) {
-    return loi('Chỉ giáo viên hoặc quản trị viên mới có quyền tạo mã khôi phục cho học sinh.', 403)
+
+  // 1. Kiểm tra actor: Không cho pending teacher hoặc học sinh
+  if (!laGiaoVienDaDuyet(kq.taiKhoan)) {
+    return loi('Chỉ giáo viên đã được duyệt hoặc ban quản trị mới có quyền tạo mã khôi phục.', 403)
   }
 
   let body: { username?: string }
@@ -318,29 +318,59 @@ export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<
   const username = String(body.username || '').trim().toLowerCase()
   if (!username) return loi('Thiếu tên đăng nhập.', 400)
 
-  const user = await env.DB.prepare('SELECT id, ten_hien_thi FROM tai_khoan_campus WHERE ten_dang_nhap = ?1')
+  // 2. Tìm tài khoản mục tiêu
+  const target = await env.DB.prepare(
+    'SELECT id, ten_dang_nhap, ten_hien_thi, vai_tro, lop_id, la_admin_truong FROM tai_khoan_campus WHERE ten_dang_nhap = ?1',
+  )
     .bind(username)
-    .first<{ id: number; ten_hien_thi: string }>()
+    .first<{
+      id: number
+      ten_dang_nhap: string
+      ten_hien_thi: string
+      vai_tro: string
+      lop_id: number | null
+      la_admin_truong: number | null
+    }>()
     .catch(() => null)
-  if (!user) return loi('Không tìm thấy học sinh này.', 404)
+  if (!target) return loi('Không tìm thấy học sinh này.', 404)
 
+  // 3. Không cho phép reset tài khoản Giáo viên hoặc Admin từ endpoint học sinh này
+  if (target.vai_tro === 'teacher' || target.la_admin_truong === 1) {
+    return loi('Không được phép cấp mã khôi phục cho tài khoản giáo viên hoặc quản trị viên từ cổng này.', 403)
+  }
+
+  // 4. Kiểm tra phạm vi lớp của giáo viên (GVCN chỉ được reset học sinh thuộc lớp mình)
+  if (!laQuanTriTruong(kq.taiKhoan)) {
+    const phamVi = await layPhamViQuanTri(env.DB, kq.taiKhoan)
+    if (!target.lop_id || !phamVi.lopIds || !phamVi.lopIds.includes(target.lop_id)) {
+      return loi('Giáo viên chỉ được cấp mã khôi phục cho học sinh thuộc lớp mình phụ trách.', 403)
+    }
+  }
+
+  // 5. Sinh mã OTP 6 số ngẫu nhiên cryptographically
   const array = new Uint32Array(1)
   crypto.getRandomValues(array)
   const code = (100000 + (array[0] % 900000)).toString()
 
-  await env.RATE_LIMIT.put(
-    `pwd_reset:${username}`,
-    JSON.stringify({ code, accountId: user.id, attempts: 0 }),
-    { expirationTtl: 900 }
-  )
+  // 6. Lưu HMAC digest vào KV, tuyệt đối không lưu plaintext
+  const codeDigest = await bamMaOtp(env.SESSION_SECRET, target.ten_dang_nhap, code)
+  const now = Date.now()
+  const record: RecordResetKV = {
+    accountId: target.id,
+    codeDigest,
+    attempts: 0,
+    expiresAt: now + 900 * 1000,
+  }
+
+  await env.RATE_LIMIT.put(`pwd_reset:${target.ten_dang_nhap}`, JSON.stringify(record), { expirationTtl: 900 })
 
   return json({
     ok: true,
     code,
-    username,
-    studentName: user.ten_hien_thi,
+    username: target.ten_dang_nhap,
+    studentName: target.ten_hien_thi,
     expiresIn: '15 phút',
-    message: `Mã khôi phục cho ${user.ten_hien_thi} là: ${code} (hiệu lực 15 phút).`,
+    message: `Mã khôi phục cho học sinh ${target.ten_hien_thi} là: ${code} (hiệu lực 15 phút, dùng 1 lần).`,
   })
 }
 
@@ -360,53 +390,77 @@ export async function quenMatKhau(request: Request, env: Env): Promise<Response>
   if (!maXacNhan) return loi('Vui lòng nhập mã xác nhận 6 chữ số.', 400)
   if (!matKhauMoi || matKhauMoi.length < 6) return loi('Mật khẩu mới phải từ 6 ký tự trở lên.', 400)
 
-  // Lấy dữ liệu token đặt lại từ KV
+  // Rate limit theo IP và theo target account
+  const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0'
+  const ipRateKey = `rate:qmk_try_ip:${ip}`
+  const ipTries = parseInt((await env.RATE_LIMIT.get(ipRateKey)) || '0', 10)
+  if (ipTries >= 15) {
+    return loi('Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429)
+  }
+  await env.RATE_LIMIT.put(ipRateKey, String(ipTries + 1), { expirationTtl: 900 })
+
   const kvKey = `pwd_reset:${username}`
   const rawData = await env.RATE_LIMIT.get(kvKey)
   if (!rawData) {
-    return loi('Mã xác nhận không hợp lệ hoặc đã hết hạn (15 phút). Vui lòng bấm Lấy mã mới.', 400)
+    return loi('Mã xác nhận không hợp lệ hoặc đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã.', 400)
   }
 
-  let record: { code: string; accountId: number; attempts: number }
+  let record: RecordResetKV
   try {
     record = JSON.parse(rawData)
   } catch {
     await env.RATE_LIMIT.delete(kvKey)
-    return loi('Dữ liệu xác nhận lỗi. Vui lòng yêu cầu lại mã.', 400)
+    return loi('Dữ liệu xác nhận không hợp lệ. Vui lòng liên hệ giáo viên.', 400)
   }
 
-  // Chống brute-force: tối đa 5 lần thử sai cho 1 mã
+  const now = Date.now()
+  if (record.expiresAt <= now) {
+    await env.RATE_LIMIT.delete(kvKey)
+    return loi('Mã xác nhận đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã mới.', 400)
+  }
+
+  // Chống brute-force: tối đa 5 lần thử sai
   if (record.attempts >= 5) {
     await env.RATE_LIMIT.delete(kvKey)
-    return loi('Mã xác nhận đã bị nhập sai quá 5 lần. Vui lòng tạo yêu cầu mã mới.', 429)
+    return loi('Mã xác nhận đã bị khóa do nhập sai quá 5 lần. Vui lòng liên hệ giáo viên.', 429)
   }
 
-  if (record.code !== maXacNhan) {
+  // Đối chiếu HMAC digest của mã nhập vào
+  const testDigest = await bamMaOtp(env.SESSION_SECRET, username, maXacNhan)
+  if (testDigest !== record.codeDigest) {
     record.attempts += 1
-    await env.RATE_LIMIT.put(kvKey, JSON.stringify(record), { expirationTtl: 900 })
+    const ttlRemaining = Math.max(1, Math.round((record.expiresAt - now) / 1000))
+    if (record.attempts >= 5) {
+      await env.RATE_LIMIT.delete(kvKey)
+      return loi('Mã xác nhận đã bị hủy do nhập sai 5 lần. Vui lòng liên hệ giáo viên để xin cấp mã mới.', 429)
+    }
+    // Cập nhật số lần thử sai nhưng KHÔNG được gia hạn thêm TTL gốc
+    await env.RATE_LIMIT.put(kvKey, JSON.stringify(record), { expirationTtl: ttlRemaining })
     return loi(`Mã xác nhận không chính xác (còn ${5 - record.attempts} lần thử).`, 400)
   }
 
   // Mã đúng: Xóa ngay lập tức (Single-use)
   await env.RATE_LIMIT.delete(kvKey)
 
-  const { taoSalt, bamMatKhau } = await import('../lib/passwords')
   const salt = taoSalt()
-  const matKhauHash = await bamMatKhau(matKhauMoi, salt, 100000)
+  const matKhauHash = await bamMatKhau(matKhauMoi, salt, DEFAULT_ITERATIONS)
 
-  // Cập nhật mật khẩu và hủy phiên đăng nhập cũ (thiet_bi = NULL) để đá mọi phiên nghi vấn ra ngoài
+  // Gán session marker ngẫu nhiên mới mà không token cũ nào có để vô hiệu hóa 100% phiên cũ
+  const markerHuyPhien = `revoked_${crypto.randomUUID()}`
   await env.DB.prepare(`
     UPDATE tai_khoan_campus
-       SET mat_khau_hash = ?1, salt = ?2, iterations = 100000, thiet_bi = NULL, cap_nhat_luc = CURRENT_TIMESTAMP
-     WHERE id = ?3
+       SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP
+     WHERE id = ?5
   `)
-    .bind(matKhauHash, salt, record.accountId)
+    .bind(matKhauHash, salt, DEFAULT_ITERATIONS, markerHuyPhien, record.accountId)
     .run()
 
-  return json({
-    ok: true,
-    message: 'Đặt lại mật khẩu thành công! Tất cả phiên cũ đã được đăng xuất an toàn. Hãy đăng nhập bằng mật khẩu mới.',
-  })
+  // Báo CampusDO đá kết nối WebSocket của phiên cũ
+  env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    .dangNhapMoi(record.accountId, markerHuyPhien)
+    .catch(() => {})
+
+  return json({ ok: true, message: 'Đặt lại mật khẩu thành công! Toàn bộ phiên cũ đã được đăng xuất. Vui lòng đăng nhập lại.' })
 }
 
 export async function doiAvatar(request: Request, env: Env): Promise<Response> {
@@ -492,13 +546,14 @@ export async function doiMatKhau(request: Request, env: Env): Promise<Response> 
   }
 
   const newSalt = taoSalt()
-  const newHash = await bamMatKhau(matKhauMoi, newSalt, 100000)
+  const newHash = await bamMatKhau(matKhauMoi, newSalt, DEFAULT_ITERATIONS)
+  const markerHuyPhien = `revoked_${crypto.randomUUID()}`
 
   await env.DB.prepare(
-    'UPDATE tai_khoan_campus SET mat_khau_hash = ?1, salt = ?2, iterations = 100000, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?3'
+    'UPDATE tai_khoan_campus SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?5'
   )
-    .bind(newHash, newSalt, kq.taiKhoan.id)
+    .bind(newHash, newSalt, DEFAULT_ITERATIONS, markerHuyPhien, kq.taiKhoan.id)
     .run()
 
-  return json({ ok: true, message: 'Đổi mật khẩu thành công!' })
+  return json({ ok: true, message: 'Đổi mật khẩu thành công! Toàn bộ phiên khác đã được đăng xuất an toàn.' })
 }

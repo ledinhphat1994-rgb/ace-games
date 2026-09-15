@@ -37,6 +37,7 @@ interface AttachmentKetNoi {
   role: string
   isAdmin: boolean
   isTeacher: boolean
+  canModerate: boolean
   lopId: number | null
   mic: boolean
   isGame?: boolean
@@ -118,6 +119,7 @@ export class RoomDO extends DurableObject<Env> {
           video_id TEXT NOT NULL,
           title TEXT NOT NULL,
           added_by TEXT NOT NULL,
+          added_by_key TEXT,
           added_at INTEGER NOT NULL,
           position INTEGER NOT NULL
         );
@@ -134,6 +136,9 @@ export class RoomDO extends DurableObject<Env> {
           board TEXT NOT NULL
         );
       `)
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE playlist_queue ADD COLUMN added_by_key TEXT')
+      } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
     }
@@ -289,8 +294,38 @@ export class RoomDO extends DurableObject<Env> {
 
     this.nạpDuLieuNeuCan()
 
-    // Host resolution: người đầu tiên vào làm Host; nếu có Giáo viên hoặc Admin vào, họ luôn nhận quyền Host/Moderator
-    if (!this.hostKey || isTeacher || isAdmin) {
+    // ── Capacity Gate (server-authoritative) ──
+    // Đọc sức chứa từ header do Worker admission gate forward vào (chỉ có khi phòng đăng ký trong D1).
+    const capacityStr = request.headers.get('X-Room-Capacity')
+    if (capacityStr) {
+      const capacity = parseInt(capacityStr, 10)
+      if (Number.isFinite(capacity) && capacity > 0) {
+        // Đếm số người dùng UNIQUE đang kết nối (không đếm tab thừa cùng tài khoản).
+        const uniqueActors = new Set(
+          this.ctx.getWebSockets().map((ws) => {
+            const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+            return a?.key ?? ''
+          }).filter(Boolean),
+        )
+        if (uniqueActors.size >= capacity) {
+          return new Response('Phòng đã đủ sức chứa.', { status: 403 })
+        }
+      }
+    }
+
+    // ── Canonical Host Resolution ──
+    // Thứ tự ưu tiên: (1) canonical host từ D1 (chu_phong_khoa), (2) giáo viên/admin nhận quyền quản trị,
+    // (3) người đầu tiên vào làm host (ad-hoc room không có D1).
+    const canonicalHostKey = request.headers.get('X-Room-Host-Key') ?? null
+    const canModerate = isTeacher || isAdmin
+    if (canonicalHostKey) {
+      // Phòng có canonical host từ D1: đặt cứng, không cho phép override.
+      if (!this.hostKey || this.hostKey !== canonicalHostKey) {
+        this.hostKey = canonicalHostKey
+        this.luuMeta('host_key', canonicalHostKey)
+      }
+    } else if (!this.hostKey || isTeacher || isAdmin) {
+      // Ad-hoc room: giáo viên/admin chiếm host, hoặc người đầu tiên vào làm host.
       this.hostKey = key
       this.luuMeta('host_key', key)
     }
@@ -313,6 +348,7 @@ export class RoomDO extends DurableObject<Env> {
       role,
       isAdmin,
       isTeacher,
+      canModerate,
       lopId,
       mic: false,
       isGame: laGame,
