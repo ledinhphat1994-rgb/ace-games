@@ -4,6 +4,7 @@ import type { NguoiDung } from '@/lib/api'
 export interface GiaTriPhien {
   nguoiDung: NguoiDung
   dangXuat: () => Promise<void>
+  lamMoiPhien: () => Promise<void>
 }
 
 export const KHOA_PHIEN = ['phien'] as const

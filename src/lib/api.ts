@@ -69,3 +69,60 @@ export function dangNhap(username: string, password: string): Promise<unknown> {
 export function dangXuat(): Promise<unknown> {
   return goiApi('/api/logout', { method: 'POST' })
 }
+
+export function dangKy(duLieu: {
+  username: string
+  password: string
+  tenHienThi?: string
+  vaiTro?: string
+  teacherCode?: string
+  classCode?: string
+}): Promise<{ ok: boolean; message: string }> {
+  return goiApi('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(duLieu),
+  })
+}
+
+export function quenMatKhau(duLieu: {
+  username: string
+  maXacNhan: string
+  matKhauMoi: string
+}): Promise<{ ok: boolean; message: string }> {
+  return goiApi('/api/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(duLieu),
+  })
+}
+
+export function doiAvatar(avatarUrl: string): Promise<{ ok: boolean; avatar: string }> {
+  return goiApi('/api/profile/avatar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ avatarUrl }),
+  })
+}
+
+export function capNhatHoSo(duLieu: {
+  tenHienThi?: string
+  tieuDeHoSo?: string
+}): Promise<{ ok: boolean }> {
+  return goiApi('/api/profile/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(duLieu),
+  })
+}
+
+export function doiMatKhau(duLieu: {
+  matKhauCu: string
+  matKhauMoi: string
+}): Promise<{ ok: boolean; message: string }> {
+  return goiApi('/api/profile/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(duLieu),
+  })
+}

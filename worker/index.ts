@@ -5,7 +5,16 @@ import { actorKey } from './lib/auth'
 import { loi } from './lib/http'
 import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
-import { dangNhap, dangXuat, whoami } from './routes/auth'
+import {
+  capNhatHoSo,
+  dangKy,
+  dangNhap,
+  dangXuat,
+  doiAvatar,
+  doiMatKhau,
+  quenMatKhau,
+  whoami,
+} from './routes/auth'
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
@@ -68,12 +77,86 @@ async function damBaoBangHighScore(env: Env): Promise<void> {
 const saiPhuongThuc = () => loi('Phương thức không được hỗ trợ.', 405)
 
 app.post('/api/login', (c) => dangNhap(c.req.raw, c.env, c.executionCtx))
+app.post('/api/register', (c) => dangKy(c.req.raw, c.env))
+app.post('/api/forgot-password', (c) => quenMatKhau(c.req.raw, c.env))
 app.get('/api/whoami', (c) => whoami(c.req.raw, c.env))
 app.post('/api/logout', (c) => dangXuat(c.req.raw))
+
+// Quản lý thông tin tài khoản & avatar
+app.post('/api/profile/avatar', (c) => doiAvatar(c.req.raw, c.env))
+app.post('/api/profile/update', (c) => capNhatHoSo(c.req.raw, c.env))
+app.post('/api/profile/password', (c) => doiMatKhau(c.req.raw, c.env))
+
 // Đường dẫn có thật nhưng sai phương thức phải trả 405, không rơi xuống 404.
 app.all('/api/login', saiPhuongThuc)
+app.all('/api/register', saiPhuongThuc)
+app.all('/api/forgot-password', saiPhuongThuc)
 app.all('/api/whoami', saiPhuongThuc)
 app.all('/api/logout', saiPhuongThuc)
+app.all('/api/profile/avatar', saiPhuongThuc)
+app.all('/api/profile/update', saiPhuongThuc)
+app.all('/api/profile/password', saiPhuongThuc)
+
+// ── R2 File Upload & Public Serving (cho slide PPTX, PDF, ảnh) ─────────────
+app.post('/api/upload', async (c) => {
+  try {
+    const formData = await c.req.formData()
+    const file = formData.get('file') as File | null
+    if (!file) return loi('Vui lòng chọn tệp để tải lên.', 400)
+
+    // Giới hạn kích thước 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      return loi('Kích thước tệp vượt quá giới hạn cho phép (tối đa 50MB).', 400)
+    }
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const key = `slides/${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`
+
+    await c.env.ANH.put(key, file.stream(), {
+      httpMetadata: {
+        contentType: file.type || 'application/octet-stream',
+      },
+      customMetadata: {
+        originalName: encodeURIComponent(file.name),
+        size: String(file.size),
+      },
+    })
+
+    const origin = new URL(c.req.url).origin
+    const fileUrl = `${origin}/api/files/${key}`
+
+    return c.json({
+      ok: true,
+      key,
+      url: fileUrl,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    })
+  } catch (err) {
+    console.error('Lỗi khi tải tệp lên R2:', err)
+    return loi('Không thể tải tệp lên máy chủ lưu trữ.', 500)
+  }
+})
+app.all('/api/upload', saiPhuongThuc)
+
+app.get('/api/files/:key{.+}', async (c) => {
+  const key = c.req.param('key')
+  if (!key) return loi('Thiếu tên tệp.', 400)
+
+  const object = await c.env.ANH.get(key)
+  if (!object) return loi('Không tìm thấy tệp.', 404)
+
+  const headers = new Headers()
+  headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream')
+  const originalName = object.customMetadata?.originalName ? decodeURIComponent(object.customMetadata.originalName) : key.split('/').pop() || 'file'
+  headers.set('Content-Disposition', `inline; filename="${originalName}"`)
+  headers.set('Access-Control-Allow-Origin', '*')
+  headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+  headers.set('Cache-Control', 'public, max-age=86400')
+
+  return new Response(object.body, { headers })
+})
 
 app.get('/api/game/highscores', async (c) => {
   const gameType = c.req.query('gameType')
@@ -121,28 +204,58 @@ app.get('/api/game/rooms', async (c) => {
 })
 app.all('/api/game/rooms', saiPhuongThuc)
 
-// ── YouTube search proxy (server-side → no CORS) ────────────────────────────
+// ── YouTube search proxy (Server-side Scraper → Real YouTube Results, No CORS) ──
 app.get('/api/yt-search', async (c) => {
   const q = (c.req.query('q') ?? '').trim()
   if (!q || q.length > 200) return c.json([])
-  const INSTANCES = [
-    'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
-    'https://iv.ggtyler.dev',
-  ]
-  for (const base of INSTANCES) {
-    try {
-      const res = await fetch(
-        `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author&page=1`,
-        { signal: AbortSignal.timeout(6000) },
-      )
-      if (res.ok) {
-        const data = await res.json() as unknown[]
-        return c.json(Array.isArray(data) ? data.slice(0, 9) : [])
-      }
-    } catch { continue }
+  try {
+    const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'vi,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(6000),
+    })
+    if (!res.ok) return c.json([])
+    const html = await res.text()
+    const match = html.match(/ytInitialData\s*=\s*({.+?});<\/script>/)
+    if (match) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = JSON.parse(match[1]) as any
+        const contents =
+          data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || []
+        const results: { videoId: string; title: string; author: string }[] = []
+        for (const item of contents) {
+          const v = item?.videoRenderer
+          if (v && typeof v.videoId === 'string') {
+            results.push({
+              videoId: v.videoId,
+              title: v.title?.runs?.[0]?.text || 'Video YouTube',
+              author: v.ownerText?.runs?.[0]?.text || '',
+            })
+            if (results.length >= 9) break
+          }
+        }
+        if (results.length > 0) return c.json(results)
+      } catch {}
+    }
+
+    // Fallback: extract unique video IDs directly from HTML links
+    const videoMatches = [...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)]
+    const uniqueIds = [...new Set(videoMatches.map((m) => m[1]))].slice(0, 9)
+    return c.json(
+      uniqueIds.map((id) => ({
+        videoId: id,
+        title: `Video YouTube (${id})`,
+        author: 'YouTube',
+      }))
+    )
+  } catch (err) {
+    console.error('Lỗi tìm kiếm YouTube:', err)
+    return c.json([])
   }
-  return c.json([])
 })
 app.all('/api/yt-search', saiPhuongThuc)
 

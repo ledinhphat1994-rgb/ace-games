@@ -42,6 +42,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
   const [glName, setGlName] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [isDetecting, setIsDetecting] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
@@ -52,8 +53,31 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
 
     setFileType(type)
     setDocName(file.name)
-    const blobUrl = URL.createObjectURL(file)
-    setDocUrl(blobUrl)
+
+    // Tải lên server R2 để có public URL (Microsoft Office Live và Google Docs Viewer có thể xem được)
+    setIsUploading(true)
+    let uploadedUrl = ''
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { ok?: boolean; url?: string }
+        if (data.ok && data.url) {
+          uploadedUrl = data.url
+        }
+      }
+    } catch (err) {
+      console.warn('Không thể tải lên R2, sử dụng blob cục bộ:', err)
+    } finally {
+      setIsUploading(false)
+    }
+
+    const finalUrl = uploadedUrl || URL.createObjectURL(file)
+    setDocUrl(finalUrl)
 
     if (type === 'pdf') {
       setIsDetecting(true)
@@ -63,13 +87,13 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
       toast.success(`Đã nạp PDF "${file.name}" — phát hiện ${pages} trang!`)
     } else {
       setTotalPages(type === 'image' ? 1 : 12)
-      toast.success(`Đã nạp tệp "${file.name}"!`)
+      toast.success(uploadedUrl ? `Đã tải lên máy chủ "${file.name}"!` : `Đã nạp tệp "${file.name}"!`)
     }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) processFile(file)
+    if (file) void processFile(file)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -82,7 +106,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
       toast.error('Định dạng không hỗ trợ. Hãy chọn .pptx, .pdf hoặc ảnh.')
       return
     }
-    processFile(file)
+    void processFile(file)
   }
 
   const handleConfirm = () => {
@@ -149,13 +173,15 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
                 <Upload className="h-5 w-5" />
               </div>
               <span className="text-xs font-semibold text-slate-200">
-                {isDetecting
-                  ? '⏳ Đang phát hiện số trang PDF...'
-                  : docName
-                    ? `✅ Đã chọn: ${docName}`
-                    : isDragOver
-                      ? '🎯 Thả tệp vào đây!'
-                      : 'Kéo thả hoặc bấm để chọn tệp'}
+                {isUploading
+                  ? '☁️ Đang tải tệp lên máy chủ lưu trữ...'
+                  : isDetecting
+                    ? '⏳ Đang phát hiện số trang PDF...'
+                    : docName
+                      ? `✅ Đã chọn: ${docName}`
+                      : isDragOver
+                        ? '🎯 Thả tệp vào đây!'
+                        : 'Kéo thả hoặc bấm để chọn tệp'}
               </span>
               <span className="text-[11px] text-slate-400">
                 Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)

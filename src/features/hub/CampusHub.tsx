@@ -12,7 +12,6 @@ import {
   Gamepad2,
   GraduationCap,
   Landmark,
-  LogOut,
   Radio,
   RefreshCw,
   Search,
@@ -24,19 +23,7 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { CampusChatDrawer } from './CampusChatDrawer'
 import { RoomCard } from './RoomCard'
-
-const TEN_VAI_TRO: Record<string, string> = {
-  teacher: 'Giáo viên',
-  student: 'Học sinh',
-  admin: 'Quản trị',
-  school_admin: 'Quản trị trường',
-}
-
-function nhanVaiTro(nd: NguoiDung): string {
-  if (nd.isSchoolAdmin) return 'Quản trị trường'
-  if (nd.role === 'teacher' && nd.teacherPending) return 'Giáo viên (chờ duyệt)'
-  return TEN_VAI_TRO[nd.role ?? ''] ?? 'Thành viên'
-}
+import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
 type NodeHub = 'tat_ca' | 'hoc_tap' | 'game' | 'sinh_hoat'
@@ -44,9 +31,10 @@ type NodeHub = 'tat_ca' | 'hoc_tap' | 'game' | 'sinh_hoat'
 interface CampusHubProps {
   nguoiDung: NguoiDung
   onDangXuat: () => void
+  onLamMoiPhien?: () => Promise<void>
 }
 
-export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
+export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubProps) {
   const navigate = useNavigate()
   const {
     trangThai,
@@ -187,24 +175,13 @@ export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
               </Button>
             ) : null}
 
-            {/* Thông tin người dùng & Đăng xuất */}
-            <div className="flex items-center gap-2 pl-1 border-l border-border/60">
-              <div className="hidden sm:block text-right min-w-0">
-                <p className="truncate text-xs font-semibold text-foreground">{nguoiDung.ten || nguoiDung.username}</p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {nhanVaiTro(nguoiDung)}
-                  {nguoiDung.lop ? ` · ${nguoiDung.lop.ten}` : ''}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 px-3 text-xs border-border/80"
-                onClick={onDangXuat}
-              >
-                <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="hidden xs:inline">Đăng xuất</span>
-              </Button>
+            {/* User Avatar Menu */}
+            <div className="flex items-center pl-1 border-l border-border/60">
+              <UserAvatarMenu
+                nguoiDung={nguoiDung}
+                onDangXuat={onDangXuat}
+                onLamMoiPhien={onLamMoiPhien}
+              />
             </div>
           </div>
         </div>

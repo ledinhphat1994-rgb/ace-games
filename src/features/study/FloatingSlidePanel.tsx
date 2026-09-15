@@ -8,28 +8,39 @@ import {
   GripHorizontal,
   Maximize2,
   Minimize2,
+  Pin,
+  PinOff,
+  RefreshCw,
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 /** Build the correct iframe src depending on the URL type */
-function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image'): string {
+export function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image', useGoogleViewer = false): string {
+  // Convert relative /api/files/... to absolute URL so cloud viewers can reach it
+  let fullUrl = docUrl
+  if (typeof window !== 'undefined' && docUrl.startsWith('/')) {
+    fullUrl = `${window.location.origin}${docUrl}`
+  }
+
   // Google Slides — convert any share variant to embed
-  if (docUrl.includes('docs.google.com/presentation')) {
-    return docUrl.replace(/\/(edit|pub|preview)(\?.*)?$/, '/embed').replace(/(embed)(\?.*)?$/, 'embed')
+  if (fullUrl.includes('docs.google.com/presentation')) {
+    return fullUrl.replace(/\/(edit|pub|preview)(\?.*)?$/, '/embed').replace(/(embed)(\?.*)?$/, 'embed')
   }
-  // Already a viewer URL — pass through as-is
-  if (docUrl.includes('docs.google.com/viewer') || docUrl.includes('view.officeapps.live.com')) {
-    return docUrl
+  // Already an embedded viewer URL — pass through as-is
+  if (fullUrl.includes('docs.google.com/viewer') || fullUrl.includes('view.officeapps.live.com')) {
+    return fullUrl
   }
-  // Local blob / data URI
-  if (docUrl.startsWith('blob:') || docUrl.startsWith('data:')) return docUrl
-  // PDF → Google Docs viewer
-  if (fileType === 'pdf' || docUrl.toLowerCase().endsWith('.pdf')) {
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`
+  // Local blob / data URI: only for direct image or pdf
+  if (fullUrl.startsWith('blob:') || fullUrl.startsWith('data:')) {
+    return fullUrl
   }
-  // Raw PPTX / DOCX / XLSX
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(docUrl)}`
+  // Forced Google Viewer or PDF fallback
+  if (useGoogleViewer || fileType === 'pdf' || fullUrl.toLowerCase().endsWith('.pdf')) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`
+  }
+  // Raw PPTX / DOCX / XLSX -> Microsoft Office Live Viewer
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`
 }
 
 type ResizeDir = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w'
@@ -63,6 +74,7 @@ interface FloatingSlidePanelProps {
   onFocus: () => void
   onClose: () => void
   onChangeSlidePage: (page: number) => void
+  onPin?: () => void
 }
 
 export function FloatingSlidePanel({
@@ -72,11 +84,13 @@ export function FloatingSlidePanel({
   onFocus,
   onClose,
   onChangeSlidePage,
+  onPin,
 }: FloatingSlidePanelProps) {
   const [position, setPosition] = useState({ x: 340, y: 70 })
   const [size, setSize] = useState({ w: 640, h: 430 })
   const [isMinimized, setIsMinimized] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+  const [useGoogleViewer, setUseGoogleViewer] = useState(false)
   const [prevBounds, setPrevBounds] = useState<{ pos: { x: number; y: number }; size: { w: number; h: number } } | null>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const [activeCursor, setActiveCursor] = useState<string>('default')
@@ -262,6 +276,29 @@ export function FloatingSlidePanel({
               <span className="text-[9px] font-mono text-slate-500 select-none mr-1">
                 {size.w}×{size.h}
               </span>
+
+              {/* Pin to blackboard background */}
+              {onPin && (
+                <button
+                  onClick={onPin}
+                  className="rounded p-1 text-slate-400 hover:text-amber-400 transition-colors"
+                  title="Ghim slide làm nền bảng vẽ (để viết vẽ trực tiếp lên slide)"
+                >
+                  <Pin className="h-3 w-3" />
+                </button>
+              )}
+
+              {/* Switch viewer for PPTX */}
+              {slideState.fileType === 'pptx' && (
+                <button
+                  onClick={() => setUseGoogleViewer((v) => !v)}
+                  className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"
+                  title={useGoogleViewer ? 'Đang dùng Google Docs Viewer (bấm đổi Office Live)' : 'Đang dùng Office Live (bấm đổi Google Docs Viewer)'}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </button>
+              )}
+
               <button
                 onClick={toggleMaximize}
                 className="rounded p-1 text-slate-400 hover:text-white transition-colors"
@@ -300,7 +337,7 @@ export function FloatingSlidePanel({
               />
             ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
               <iframe
-                src={buildIframeSrc(slideState.docUrl, slideState.fileType)}
+                src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
                 title="Slide Viewer"
                 className={`h-full w-full border-0 bg-white ${isInteracting ? 'pointer-events-none' : ''}`}
                 allow="fullscreen"
@@ -413,5 +450,115 @@ export function FloatingSlidePanel({
         )}
       </div>
     </>
+  )
+}
+
+interface PinnedSlideViewProps {
+  slideState: SlideState
+  isHost: boolean
+  onChangeSlidePage: (page: number) => void
+  onUnpin: () => void
+  onClose: () => void
+}
+
+export function PinnedSlideView({
+  slideState,
+  isHost: _isHost,
+  onChangeSlidePage,
+  onUnpin,
+  onClose,
+}: PinnedSlideViewProps) {
+  const [useGoogleViewer, setUseGoogleViewer] = useState(false)
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center p-3 md:p-6 pointer-events-none select-none z-[2]">
+      {/* Pinned slide presentation frame directly on blackboard */}
+      <div className="relative w-full h-full max-w-[94%] max-h-[88%] rounded-2xl overflow-hidden border border-orange-500/35 bg-[#060b12] shadow-2xl pointer-events-auto flex items-center justify-center ring-1 ring-orange-500/20">
+        {slideState.fileType === 'image' ? (
+          <img
+            src={slideState.docUrl}
+            alt={slideState.docName}
+            className="max-h-full max-w-full object-contain"
+            draggable={false}
+          />
+        ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
+          <iframe
+            src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
+            title="Slide Viewer (Pinned)"
+            className="h-full w-full border-0 bg-white"
+            allow="fullscreen"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+            <FileSpreadsheet className="h-14 w-14 text-orange-400 mb-2 opacity-80" />
+            <p className="text-base font-semibold text-slate-200">{slideState.docName}</p>
+            <p className="text-xs text-slate-400 mt-1">Trang {slideState.currentPage}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Floating mini controller bar for pinned slide */}
+      <div className="absolute top-14 left-6 z-30 pointer-events-auto flex items-center gap-2 rounded-full border border-amber-500/30 bg-[#0a0f18]/95 px-3 py-1.5 shadow-2xl backdrop-blur-xl ring-1 ring-amber-500/20">
+        <Pin className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+        <span className="max-w-[140px] truncate text-xs font-semibold text-slate-200">
+          {slideState.docName}
+        </span>
+        <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+          Nền bảng vẽ
+        </span>
+
+        <div className="flex items-center gap-1 border-l border-white/10 pl-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={slideState.currentPage <= 1}
+            onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
+            className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
+            title="Trang trước"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </Button>
+          <span className="text-xs font-mono font-bold text-orange-300 px-1">
+            {slideState.currentPage}/{slideState.totalPages}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={slideState.currentPage >= slideState.totalPages}
+            onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
+            className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
+            title="Trang sau"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {slideState.fileType === 'pptx' && (
+          <button
+            onClick={() => setUseGoogleViewer((v) => !v)}
+            className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"
+            title={useGoogleViewer ? 'Đang dùng Google Docs Viewer (bấm đổi Office Live)' : 'Đang dùng Office Live (bấm đổi Google Docs Viewer)'}
+          >
+            <RefreshCw className="h-3 w-3" />
+          </button>
+        )}
+
+        <button
+          onClick={onUnpin}
+          className="rounded p-1 text-slate-400 hover:text-amber-300 transition-colors ml-1"
+          title="Bỏ ghim (chuyển sang cửa sổ nổi)"
+        >
+          <PinOff className="h-3.5 w-3.5" />
+        </button>
+
+        <button
+          onClick={onClose}
+          className="rounded p-1 text-slate-400 hover:text-red-400 transition-colors"
+          title="Đóng slide"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
   )
 }

@@ -26,9 +26,11 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { usePhien } from '@/app/phien'
+import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ChalkboardCanvas } from './ChalkboardCanvas'
 import { FloatingCalculator } from './FloatingCalculator'
-import { FloatingSlidePanel } from './FloatingSlidePanel'
+import { FloatingSlidePanel, PinnedSlideView } from './FloatingSlidePanel'
 import { FloatingVideoPlayer } from './FloatingVideoPlayer'
 import { SlideUploadModal } from './SlideUploadModal'
 
@@ -116,6 +118,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     calculateTargetTime,
   } = useRoom(roomId, nguoiDung.actorKey)
 
+  const { lamMoiPhien } = usePhien()
+
   // ── Chalk tool state (lifted from canvas, controlled by bottom dock) ──────
   const [selectedColor, setSelectedColor] = useState('#FFFFFF')
   const [selectedSize, setSelectedSize] = useState(6)
@@ -129,6 +133,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [showYoutube, setShowYoutube] = useState(false)
   const [showSlide, setShowSlide] = useState(false)
   const [showCalc, setShowCalc] = useState(false)
+  const [isSlidePinned, setIsSlidePinned] = useState(false)
 
   // ── Drawers ──────────────────────────────────────────────────────────────
   const [showChat, setShowChat] = useState(false)
@@ -251,6 +256,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const handleLoadSlide = (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => {
     loadSlideDoc(docUrl, docName, fileType, totalPages)
     setShowSlide(true)
+    setIsSlidePinned(false)
     setShowUploadModal(false)
   }
 
@@ -294,7 +300,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="relative h-svh w-full overflow-hidden select-none">
-      {/* ══ LAYER 0: Full-screen blackboard canvas ══ */}
+      {/* ══ LAYER 0: Full-screen blackboard canvas with optional pinned slide layer ══ */}
       <div className="absolute inset-0">
         <ChalkboardCanvas
           strokes={whiteboardStrokes}
@@ -302,7 +308,21 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           selectedSize={selectedSize}
           isEraser={isEraser}
           onSendStroke={sendStroke}
-        />
+        >
+          {showSlide && slideState && isSlidePinned && (
+            <PinnedSlideView
+              slideState={slideState}
+              isHost={isHost}
+              onUnpin={() => setIsSlidePinned(false)}
+              onClose={() => {
+                setIsSlidePinned(false)
+                setShowSlide(false)
+                closeSlideDoc()
+              }}
+              onChangeSlidePage={changeSlidePage}
+            />
+          )}
+        </ChalkboardCanvas>
       </div>
 
       {/* ══ LAYER 1: Top header bar ══ */}
@@ -380,7 +400,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
         </div>
 
-        {/* Right: Members count + Mic */}
+        {/* Right: Members count + Mic + Host + Avatar Menu */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setShowMembers(v => !v); setShowChat(false) }}
@@ -405,6 +425,14 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               HOST
             </span>
           )}
+
+          <div className="border-l border-white/10 pl-2">
+            <UserAvatarMenu
+              nguoiDung={nguoiDung}
+              onDangXuat={onLeaveRoom}
+              onLamMoiPhien={lamMoiPhien}
+            />
+          </div>
         </div>
       </header>
 
@@ -426,8 +454,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         </div>
       ) : null}
 
-      {/* Slide floating panel */}
-      {showSlide && slideState ? (
+      {/* Slide floating panel (only shown if not pinned to background) */}
+      {showSlide && slideState && !isSlidePinned ? (
         <FloatingSlidePanel
           slideState={slideState}
           isHost={isHost}
@@ -435,6 +463,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           onFocus={bringSlideToFront}
           onClose={() => { setShowSlide(false); closeSlideDoc() }}
           onChangeSlidePage={changeSlidePage}
+          onPin={() => setIsSlidePinned(true)}
         />
       ) : null}
 
@@ -762,11 +791,17 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
           {/* Slide button */}
           <button
-            onClick={() => setShowUploadModal(true)}
+            onClick={() => {
+              if (slideState && !showSlide) {
+                setShowSlide(true)
+              } else {
+                setShowUploadModal(true)
+              }
+            }}
             className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
               showSlide ? 'bg-orange-600/80 text-white' : 'text-orange-400 hover:bg-orange-600/20'
             }`}
-            title="Tải bài giảng Slide / PDF"
+            title={slideState ? (showSlide ? 'Đổi hoặc tải slide khác' : 'Hiện bài giảng slide') : 'Tải bài giảng Slide / PDF'}
           >
             <Upload className="h-3.5 w-3.5" />
             <FileText className="h-3.5 w-3.5" />

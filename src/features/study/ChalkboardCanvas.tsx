@@ -8,6 +8,7 @@ interface ChalkboardCanvasProps {
   selectedSize: number
   isEraser: boolean
   onSendStroke: (stroke: WhiteboardStroke) => void
+  children?: React.ReactNode
 }
 
 function getSvgPathFromStroke(stroke: number[][]): string {
@@ -30,6 +31,7 @@ export function ChalkboardCanvas({
   selectedSize,
   isEraser,
   onSendStroke,
+  children,
 }: ChalkboardCanvasProps) {
   const [currentPoints, setCurrentPoints] = useState<[number, number][]>([])
   const svgRef = useRef<SVGSVGElement>(null)
@@ -75,6 +77,9 @@ export function ChalkboardCanvas({
           backgroundSize: '48px 48px',
         }}
       />
+
+      {/* Pinned background content (e.g. pinned presentation slide) */}
+      {children}
 
       {/* SVG drawing layer — fills the entire surface */}
       <svg

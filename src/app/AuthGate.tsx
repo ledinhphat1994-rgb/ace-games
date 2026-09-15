@@ -15,10 +15,14 @@ export function AuthGate() {
     queryClient.setQueryData(KHOA_PHIEN, { nguoiDung: null })
   }, [queryClient])
 
+  const lamMoiPhien = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })
+  }, [queryClient])
+
   const nguoiDung = phien.data?.nguoiDung ?? null
   const giaTri = useMemo(
-    () => (nguoiDung ? { nguoiDung, dangXuat: xuLyDangXuat } : null),
-    [nguoiDung, xuLyDangXuat],
+    () => (nguoiDung ? { nguoiDung, dangXuat: xuLyDangXuat, lamMoiPhien } : null),
+    [nguoiDung, xuLyDangXuat, lamMoiPhien],
   )
 
   if (phien.isPending) {
