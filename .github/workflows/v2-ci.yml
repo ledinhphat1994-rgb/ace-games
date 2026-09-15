@@ -1,36 +1,31 @@
-# Kiểm tra tự động cho bản rebuild v2 — chỉ kiểm tra, không deploy, không cần secret.
-name: v2 CI
+# CI tự động kiểm tra chất lượng mã nguồn: Typecheck -> Lint -> Vitest -> Vite Build.
+name: CI Quality Gates
 
 on:
   push:
-    branches: [rebuild-v2]
-    paths: ['v2/**', '.github/workflows/v2-ci.yml']
+    branches: [main]
   pull_request:
-    paths: ['v2/**', '.github/workflows/v2-ci.yml']
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: v2-ci-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   kiem-tra:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: v2
     steps:
       - name: Lấy mã nguồn
         uses: actions/checkout@v4
 
-      - name: Cài Node.js theo v2/.node-version
+      - name: Cài Node.js theo .node-version
         uses: actions/setup-node@v4
         with:
-          node-version-file: v2/.node-version
+          node-version-file: .node-version
           cache: npm
-          cache-dependency-path: v2/package-lock.json
 
       - name: Cài thư viện
         run: npm ci
@@ -44,5 +39,5 @@ jobs:
       - name: Test (Vitest trong Workers runtime)
         run: npm test
 
-      - name: Build
+      - name: Build Production Bundle
         run: npm run build

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { dangKy, dangNhap, quenMatKhau } from '@/lib/api'
+import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
 import { GraduationCap, KeyRound, LogIn, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -31,6 +31,27 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
   const [qmkCode, setQmkCode] = useState('')
   const [qmkNewPassword, setQmkNewPassword] = useState('')
   const [qmkConfirmPassword, setQmkConfirmPassword] = useState('')
+  const [dangLayMa, setDangLayMa] = useState(false)
+  const [thongBaoMa, setThongBaoMa] = useState('')
+
+  async function handleLayMa() {
+    if (!qmkUsername.trim()) {
+      setLoi('Vui lòng nhập tên tài khoản trước.')
+      return
+    }
+    setDangLayMa(true)
+    setLoi('')
+    setThongBaoMa('')
+    try {
+      const res = await yeuCauQuenMatKhau(qmkUsername.trim())
+      setThongBaoMa(res.message || 'Mã xác nhận 6 số đã được tạo (có hiệu lực 15 phút).')
+      toast.info(res.message || 'Đã tạo yêu cầu khôi phục mật khẩu.')
+    } catch (err) {
+      setLoi(err instanceof Error ? err.message : 'Không gửi được yêu cầu tạo mã.')
+    } finally {
+      setDangLayMa(false)
+    }
+  }
 
   async function guiDangNhap(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -87,6 +108,10 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
     e.preventDefault()
     if (dangGui) return
 
+    if (!qmkCode.trim()) {
+      setLoi('Vui lòng nhập mã khôi phục 6 chữ số.')
+      return
+    }
     if (qmkNewPassword.length < 6) {
       setLoi('Mật khẩu mới phải có ít nhất 6 ký tự.')
       return
@@ -176,7 +201,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
         {mode === 'quen_mat_khau' && (
           <>
             <CardTitle className="text-xl font-bold">Khôi phục mật khẩu</CardTitle>
-            <CardDescription>Nhập tài khoản và mã bảo mật trường/lớp để đặt mật khẩu mới.</CardDescription>
+            <CardDescription>Nhập tài khoản để nhận mã OTP hoặc liên hệ giáo viên cấp mã trực tiếp.</CardDescription>
           </>
         )}
       </CardHeader>
@@ -253,7 +278,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
                 id="dk-username"
                 className="h-9"
                 autoComplete="username"
-                placeholder="Chữ cái, số, không dấu (ví dụ: nguyenan)"
+                placeholder="Từ 3–32 ký tự viết liền (chữ, số, _, -)"
                 value={dkUsername}
                 onChange={(e) => setDkUsername(e.target.value)}
                 required
@@ -261,57 +286,63 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="dk-hoten">Họ và tên hiển thị *</Label>
+              <Label htmlFor="dk-hoten">Họ và tên hiển thị</Label>
               <Input
                 id="dk-hoten"
                 className="h-9"
-                placeholder="Ví dụ: Nguyễn Văn An"
+                placeholder="Ví dụ: Lê Đình Phát"
                 value={dkHoTen}
                 onChange={(e) => setDkHoTen(e.target.value)}
-                required
               />
             </div>
 
             {/* Vai trò */}
             <div className="flex flex-col gap-1">
-              <Label>Vai trò của bạn</Label>
+              <Label>Vai trò mong muốn</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setDkVaiTro('student')}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-2 rounded-lg border p-2 text-xs font-semibold transition-all ${
                     dkVaiTro === 'student'
-                      ? 'border-primary bg-primary/10 text-primary font-bold'
-                      : 'border-white/10 text-muted-foreground hover:bg-muted/40'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/60 hover:border-border'
                   }`}
                 >
-                  <GraduationCap className="h-3.5 w-3.5" />
+                  <GraduationCap className="h-4 w-4" />
                   <span>Học sinh</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setDkVaiTro('teacher')}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-center gap-2 rounded-lg border p-2 text-xs font-semibold transition-all ${
                     dkVaiTro === 'teacher'
-                      ? 'border-amber-500 bg-amber-500/10 text-amber-400 font-bold'
-                      : 'border-white/10 text-muted-foreground hover:bg-muted/40'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/60 hover:border-border'
                   }`}
                 >
-                  <span>👨‍🏫 Giáo viên</span>
+                  <UserPlus className="h-4 w-4" />
+                  <span>Giáo viên</span>
                 </button>
               </div>
             </div>
 
             {dkVaiTro === 'teacher' && (
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="dk-teachercode">Mã kích hoạt Giáo viên (tùy chọn)</Label>
+              <div className="flex flex-col gap-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
+                <Label htmlFor="dk-teachercode" className="text-amber-500 text-xs font-semibold">
+                  Mã xác minh giáo viên (nếu có)
+                </Label>
                 <Input
                   id="dk-teachercode"
-                  className="h-9"
-                  placeholder="Nhập nếu được BGH cấp, hoặc để trống duyệt sau"
+                  type="password"
+                  className="h-8 text-xs border-amber-500/30"
+                  placeholder="Nhập mã do trường cung cấp"
                   value={dkTeacherCode}
                   onChange={(e) => setDkTeacherCode(e.target.value)}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Nếu chưa có mã, tài khoản giáo viên sẽ ở trạng thái chờ BGH duyệt.
+                </p>
               </div>
             )}
 
@@ -322,6 +353,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
                   id="dk-password"
                   type="password"
                   className="h-9"
+                  autoComplete="new-password"
                   placeholder="Tối thiểu 6 ký tự"
                   value={dkPassword}
                   onChange={(e) => setDkPassword(e.target.value)}
@@ -370,25 +402,43 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
           <form onSubmit={guiQuenMatKhau} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor="qmk-username">Tên đăng nhập cần khôi phục *</Label>
-              <Input
-                id="qmk-username"
-                className="h-9"
-                placeholder="Ví dụ: ledinhphat"
-                value={qmkUsername}
-                onChange={(e) => setQmkUsername(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="qmk-username"
+                  className="h-9 flex-1"
+                  placeholder="Ví dụ: ledinhphat"
+                  value={qmkUsername}
+                  onChange={(e) => setQmkUsername(e.target.value)}
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs shrink-0"
+                  disabled={dangLayMa || !qmkUsername.trim()}
+                  onClick={handleLayMa}
+                >
+                  {dangLayMa ? 'Đang gửi…' : 'Lấy mã OTP'}
+                </Button>
+              </div>
+              {thongBaoMa && (
+                <p className="text-[11px] text-primary font-medium mt-0.5">
+                  {thongBaoMa}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <Label htmlFor="qmk-code">Mã bảo mật lớp / trường *</Label>
-                <span className="text-[11px] text-muted-foreground">Ví dụ: 10a7 hoặc gdtxdinhquan</span>
+                <Label htmlFor="qmk-code">Mã khôi phục (6 số) *</Label>
+                <span className="text-[11px] text-muted-foreground">Hiệu lực 15 phút / Do GV cấp</span>
               </div>
               <Input
                 id="qmk-code"
-                className="h-9"
-                placeholder="Nhập mã lớp (10A7) hoặc mã trường (gdtxdinhquan)"
+                className="h-9 tracking-widest font-mono text-center text-base"
+                maxLength={8}
+                placeholder="Ví dụ: 123456"
                 value={qmkCode}
                 onChange={(e) => setQmkCode(e.target.value)}
                 required

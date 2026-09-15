@@ -1,106 +1,81 @@
-# ARCHITECTURE — bản đồ domain → file
+# ARCHITECTURE — Digital Campus v2
 
-Mục đích: biết NGAY file nào cần mở khi debug/sửa/thêm tính năng. Không liệt kê API
-chi tiết (đã có `docs/contracts/`); chỉ bản đồ tổ chức.
+Tài liệu kiến trúc chính thức của Digital Campus v2 (GDTX Định Quán). Cập nhật 09/2026.
 
-## Luồng request
+## 1. Tổng quan Kiến trúc
 
-```
-Browser → Cloudflare Pages (dist/ tĩnh) → /api/* → functions/api/*.js → D1/KV/R2
-```
-
-## Frontend chính — Digital Campus (`index.html` + `src/`)
-
-`index.html` chỉ là shell (367 dòng). React qua CDN; JSX compile bằng esbuild
-(`npm run compile:jsx`) → `assets/gen/**` (file GEN — không sửa tay).
-
-| Thư mục | Chứa | Khi nào sửa |
-|---|---|---|
-| `src/lib/helpers.js` | format tiền/ngày, media URL, const trạng thái, normalizeCampusRoom, YouTube iframe API | helper dùng chung |
-| `src/lib/icons.jsx` | `ICONS` + `Ic` | thêm/sửa icon SVG |
-| `src/components/cards.jsx` | TheHoatDong, CampusSpaceCard, HeroStage, PulseStatus, CampusHighlights | card/hero lobby |
-| `src/components/feed.jsx` | TheBaiDang, AnnouncementTicker, AnnouncementDetailModal | bài đăng, ticker, chi tiết TB |
-| `src/features/study.jsx` | **StudyDock** (chat/notes/whiteboard/sheet/voice), **CampusWatchTogether**, QueueInput, CampusFocusRoom | mọi thứ Study Room / Watch Together |
-| `src/features/lobby.jsx` | ActivityLobby, CampusActivityUniverse, RoomPasswordModal, QuickTaoPhong/Ban, YoutubeSearchPanel | sảnh, tạo phòng, tìm YouTube |
-| `src/features/chat-rail.jsx` | CampusChatRail | rail chat phải lobby |
-| `src/features/modals.jsx` | AuthModal, CommunityBoardGateModal | modal đăng nhập / cổng Bảng tin |
-| `src/campus-app.jsx` | DigitalCampusApp (root) + mount | routing hash ↔ tab, state toàn cục, bảng tin lớp |
-
-Quy ước: import specifier luôn ghi đuôi `.js` (trỏ file đã compile), ESM native —
-KHÔNG bundle. File `.jsx` mới trong `src/` tự được `compile:jsx` + `build` nhặt.
-
-## Khu quản trị tài khoản (`giao-vien/`)
-
-Từ 13/09/2026, khu quản trị chỉ còn danh sách tài khoản Campus theo yêu cầu owner.
-
-| File | Vai trò |
-|---|---|
-| `giao-vien/index.html` | Shell độc lập: thương hiệu, tài khoản đăng nhập, nút đăng xuất |
-| `giao-vien/app.js` | Xác minh phiên, đưa mọi hash cũ về `#/nguoi-dung` |
-| `giao-vien/lib.js` | DOM root và định dạng giờ Việt Nam |
-| `giao-vien/pages/nguoi-dung.js` | Tìm/lọc, bảng tài khoản, dialog chi tiết và thao tác |
-| `assets/css/tai-khoan.css` | Giao diện desktop và các thẻ tài khoản trên mobile |
-| `functions/api/gv/nguoi-dung.js` | Danh sách/chi tiết và thay đổi trạng thái có kiểm tra phạm vi |
-| `functions/api/gv/duyet-giao-vien.js` | URL duyệt tài khoản tương thích |
-
-Không còn trang/API quản trị lớp/điểm danh/quỹ/TKB/nội dung/thư viện/cài đặt.
-`assets/js/chung.js` vẫn cung cấp DOM API, client API và theo dõi phiên.
-Hợp đồng API: `docs/contracts/account-administration-v1.md`.
-
-## Backend — `functions/`
-
-Pages Functions: `functions/api/<tên>.js` ↔ `GET/POST /api/<tên>`. **Không di chuyển
-file vào subdir** — đổi URL. Nhóm domain theo TIỀN TỐ tên file:
-
-| Prefix/file | Domain |
-|---|---|
-| `phong*.js` (`phong`, `phong-watch`, `phong-chat`, `phong-collab`, `phong-queue`, `phong-focus`) | Study Room — contract: `docs/contracts/study-room-governance-api-v1.md` |
-| `gv/**` | API riêng giáo viên/admin (phân quyền qua `giao_vien_lop`) |
-| `campus-*`, `chat*`, `dm*`, `friend*` | Social campus |
-| `game*` / `arena*` | Game |
-| `login`, `whoami`, `logout` | Auth |
-
-`_lib/` chia theo vai trò:
-`auth.js` (session/token), `api.js` (`loi()` chuẩn + code), `rooms.js` (admission/
-policy/capability — nguồn quyền Study Room), `social.js` (quyền social + verified
-class membership), `quan-tri.js` (phạm vi quản trị School Admin/GVCN), `db*.js`,
-`html-an-toan.js`.
-
-## Database — `co-so-du-lieu/`
-
-Migrations đánh số `NN-ten.sql`, nạp theo thứ tự tên. Tracker:
+Hệ thống hoạt động theo mô hình Edge-native hiện đại trên Cloudflare Workers & Durable Objects:
 
 ```
-npm run migrate -- status  [--local|--remote]  # đã nạp / chờ / drift (bookkeeping)
-npm run migrate -- apply   [--local|--remote]  # nạp file còn thiếu
-npm run migrate -- baseline [--local|--remote] # 1 lần/môi trường đã-có-schema
-npm run migrate -- verify  [--local|--remote]  # READ-ONLY: đối chiếu schema thật
+[Browser / Client]
+  │
+  ├─ HTTP/REST ──► Cloudflare Workers (Hono Router: worker/index.ts)
+  │                  ├── Auth & Sessions (worker/routes/auth.ts, KV + D1)
+  │                  ├── R2 File Uploads (worker/index.ts, Allowlist & Quota)
+  │                  ├── Social Feed & Campus (worker/routes/campus.ts, D1)
+  │                  └── Highscore Leaderboards (worker/index.ts, D1)
+  │
+  └─ WebSocket ──► Durable Objects (Realtime Engine with SQLite & Hibernation API)
+                     ├── RoomDO (Study Room & 2-Player Arena: caro, connect4, reversi)
+                     ├── CampusDO (Sảnh toàn trường, Chat trực tiếp & Hiện diện)
+                     └── GameLobbyDO (Danh sách bàn cờ & matchmaking)
 ```
 
-`_migrations` (ten, sha256, ap_dung_luc, baseline) nằm trong chính DB. File đã nạp
-mà hash đổi → `status` báo DRIFT (không tự chạy lại — phải tạo file migration mới).
-`status`/`baseline` chỉ là bookkeeping — "đã nạp 81/81" KHÔNG chứng minh bảng/cột/index
-tồn tại. `verify` mới là bằng chứng schema: nó đọc `sqlite_master` + `PRAGMA table_info`
-và đối chiếu manifest các object mà migration quan trọng (61/64/65/68/75/76/77/78)
-phải tạo — thiếu cái nào báo cái đó, exit 1. Migration mới tạo bảng/cột/index thì
-bổ sung object đó vào `SCHEMA_MONG_DOI` trong `cong-cu/migrate.mjs`.
+## 2. Bản đồ Thư mục (Domain ↔ File)
 
-## Build & QA
+### 2.1. Backend (`worker/`)
+- `worker/index.ts`: Worker entrypoint, Hono router, middleware xác thực (`kiemTraPhien`), WebSocket gateway `/ws/room/:maPhong`, `/ws/game/:maPhong`, `/ws/campus`, R2 upload endpoint `/api/upload` (kiểm tra auth, quota 20/10p, MIME allowlist).
+- `worker/room-do.ts`: Durable Object quản lý phòng học (Study Room) và sàn đấu cờ (Arena). Tích hợp SQLite cục bộ, kiểm tra luật chơi server-authoritative, runtime validation qua `LenhPhong.safeParse()` & `LenhGame.safeParse()`, phân quyền Host / Giáo viên / Admin điều khiển video, slide, xóa nét vẽ.
+- `worker/campus-do.ts`: Durable Object quản lý sảnh trường học và chat toàn trường.
+- `worker/games/game-lobby-do.ts`: Quản lý danh sách bàn cờ thời gian thực trong sảnh game.
+- `worker/game-engine.ts`: Logic luật cờ chuẩn xác (Caro 15x15, Connect 4, Reversi 8x8) và khởi tạo bàn cờ.
+- `worker/routes/auth.ts`: Xác thực PBKDF2-SHA256, session token HMAC-SHA256, luồng quên mật khẩu OWASP (mã OTP ngẫu nhiên 6 số, TTL 15 phút, lưu KV), không tự động gán lớp khi đăng ký tự do.
+- `worker/routes/campus.ts`: API bài đăng, bình luận, bảng tin trường lớp trên D1.
 
-- `npm run compile:jsx` — esbuild src → assets/gen (lint-staged tự chạy khi stage `src/**/*.{js,jsx}`)
-- `npm run verify:gen` — compile trong RAM + so sánh assets/gen trên đĩa; lệch → exit 1
-  (chạy trong pre-commit sau lint-staged — commit không thể chứa gen cũ hơn src)
-- `npm run build` — compile JSX + gom `dist/` + minify
-- `npm run deploy` — build + `wrangler pages deploy dist`
-- QA theo domain: `cong-cu/qa-*.mjs` (xem package.json scripts, prefix `qa:`)
-- `cong-cu/qa-study-room-audit.mjs` — gate Study Room (188 test: A–J + K1–K6 lease)
-- `npm run qa:tai-khoan` — API + browser quản lý tài khoản (thay qa-admin-ia cũ)
-- `cong-cu/qa-reset-tai-khoan.py <D1-export>` — kiểm chứng migration 79 trong SQLite RAM
-- `cong-cu/kiem-tra-du-lieu.js` — soát an toàn dữ liệu/JSON/SQL
-- Mockups bắt buộc đối chiếu khi sửa UI: `docs/mockups/1.png` (lobby), `2.png` (bảng tin)
+### 2.2. Giao thức Dùng chung (`shared/protocol/`)
+Hợp đồng dữ liệu được chia sẻ giữa Frontend và Backend, định nghĩa kiểu và Zod runtime validation:
+- `shared/protocol/room.ts`: Schema tin nhắn phòng học `LenhPhong` (media, pomodoro, whiteboard, notes, queue, slide, chat, mic).
+- `shared/protocol/game.ts`: Schema game cờ `LenhGame` (init, join, move, surrender, rematch, emote).
+- `shared/protocol/campus.ts`: Schema sảnh và chat campus.
+- `shared/protocol/common.ts`: Tiện ích làm sạch chuỗi `lamSachVanBan`.
 
-## Chỗ còn nợ kỹ thuật (đã biết, chưa đụng)
+### 2.3. Frontend (`src/`)
+- `src/main.tsx`: Entrypoint React 19, React Router, QueryClientProvider.
+- `src/app/routes.tsx`: Cấu trúc định tuyến (`/` Sảnh Hub, `/room/:roomId` Phòng học, `/arena` Sảnh đấu cờ, `/game/:gameId` Bàn cờ).
+- `src/features/auth/`: Đăng nhập, Đăng ký (học sinh / giáo viên), Khôi phục mật khẩu (2-bước OTP an toàn).
+- `src/features/hub/`: Sảnh trường, Bảng tin, Danh sách phòng học và mini-app.
+- `src/features/study/`:
+  - `StudyRoomView.tsx`: Blackboard canvas toàn màn hình, thanh công cụ dock.
+  - `FloatingVideoPlayer.tsx`: Trình phát YouTube đồng bộ thời gian thực.
+  - `FloatingSlidePanel.tsx` & `SlideUploadModal.tsx`: Trình chiếu Slide PowerPoint / PDF / Ảnh.
+  - `Fx580Calculator.tsx`: Máy tính khoa học bỏ túi.
+- `src/features/games/`: Sảnh cờ và bàn đấu Caro, Connect4, Reversi, 2048.
+- `src/features/profile/`: Modal xem hồ sơ, đổi avatar, đổi mật khẩu cá nhân.
+- `src/lib/api.ts`: Client fetcher có typing và xử lý lỗi đồng bộ.
 
-- `src/campus-app.jsx` (4042d): root app — tách tiếp cần thiết kế context/state,
-  không cơ học được.
-- `functions/api/` phẳng 100 file: KHÔNG dời vào subdir (đổi URL). Nhóm theo prefix.
+## 3. Quy tắc Bảo mật & Dữ liệu Bắt buộc (Security Invariants)
+
+1. **Identity & Class Scope:**
+   - Tài khoản Campus tự do không mặc định là học sinh của bất kỳ lớp nào (`lop_id = NULL`).
+   - Chỉ học sinh có mã lớp hợp lệ hoặc được giáo viên phê duyệt mới được gán `lop_id`.
+2. **Password Recovery:**
+   - Không dùng mã tĩnh hay mã chung của trường/lớp để reset mật khẩu.
+   - Mã khôi phục gồm 6 chữ số ngẫu nhiên do hệ thống tạo (hoặc do GVCN/Admin cấp trực tiếp), có thời hạn 15 phút, dùng 1 lần (single-use), giới hạn 5 lần thử sai.
+3. **Upload Security:**
+   - Tuyệt đối yêu cầu đăng nhập trước khi tải tệp (`kiemTraPhien`).
+   - Giới hạn quota 20 tệp / 10 phút qua Cloudflare KV.
+   - Kiểm tra chặt chẽ phần mở rộng và MIME type (`.pptx`, `.ppt`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`).
+   - Tên tệp lưu trữ trên R2 dùng UUID ngẫu nhiên, không để lộ đường dẫn gốc.
+4. **Study Room Governance:**
+   - Mặc định bảo vệ video học tập và trình chiếu (`hostOnlyControl = true`).
+   - Chỉ Host hoặc Giáo viên / Quản trị viên trường mới có quyền đổi video, xóa toàn bộ nét vẽ trên bảng, đổi slide hoặc phát nhạc từ hàng đợi.
+5. **No Request-path DDL:**
+   - Không chạy `CREATE TABLE` / `CREATE INDEX` trong request path của API. Mọi cấu trúc dữ liệu được quản lý bởi migration.
+
+## 4. Kiểm tra Chất lượng (Quality Gates)
+
+Trước khi commit và deploy:
+1. `npm run typecheck` — `wrangler types && tsc -b` (0 lỗi)
+2. `npm run lint` — `oxlint` (0 lỗi)
+3. `npm test` — `vitest run` (Toàn bộ test trong Workers runtime pass)
+4. `npm run build` — Đóng gói production bundle cho cả Worker và Client Vite

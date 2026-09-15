@@ -415,7 +415,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             className={`rounded-full p-2 transition-colors ${
               myMic ? 'bg-emerald-600/80 text-white hover:bg-emerald-500' : 'bg-white/5 text-slate-400 hover:bg-white/10'
             }`}
-            title={myMic ? 'Tắt mic' : 'Bật mic'}
+            title={myMic ? 'Trạng thái Micro: Đang bật (Hiển thị)' : 'Trạng thái Micro: Đang tắt (Hiển thị)'}
+            aria-label={myMic ? 'Trạng thái Micro: Đang bật (Hiển thị)' : 'Trạng thái Micro: Đang tắt (Hiển thị)'}
           >
             {myMic ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
           </button>
@@ -557,7 +558,14 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Nhắn tin..."
                 className="flex-1 h-8 border-white/15 bg-white/8 text-xs text-white placeholder:text-slate-600 focus-visible:ring-indigo-500/40"
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); setShowEmoji(false) } }}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendChat()
+                    setShowEmoji(false)
+                  }
+                }}
               />
               <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500">
                 <Send className="h-3.5 w-3.5" />

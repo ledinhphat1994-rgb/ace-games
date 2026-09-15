@@ -1,53 +1,38 @@
-# Tự động đăng trang lên Cloudflare Pages mỗi khi có thay đổi được đẩy lên nhánh main.
+# Tự động/thủ công deploy lên Cloudflare Workers + Static Assets.
 #
-# Cần khai báo MỘT LẦN trong repo (Settings -> Secrets and variables -> Actions):
-#   CLOUDFLARE_API_TOKEN   — token tạo ở dash.cloudflare.com, mẫu "Edit Cloudflare Workers"
-#   CLOUDFLARE_ACCOUNT_ID  — bfc647e65d847f61ca386b7f11c27173
-#
-# Xem hướng dẫn từng bước ở mục 10 trong HUONG-DAN.md.
-
-# Tự động đăng trang lên Cloudflare Pages (Đã tắt kích hoạt tự động khi push để không spam email).
-# Chỉ kích hoạt thủ công khi cần qua nút 'Run workflow' trên giao diện GitHub Actions.
-# Nếu muốn bật lại tự động: cần khai báo CLOUDFLARE_API_TOKEN trong GitHub Secrets trước.
-
-name: Đăng lên Cloudflare Pages
+# Cần khai báo trong repo Settings -> Secrets and variables -> Actions:
+#   CLOUDFLARE_API_TOKEN   — token Cloudflare Workers
+#   CLOUDFLARE_ACCOUNT_ID  — Account ID
+name: Deploy lên Cloudflare
 
 on:
-  workflow_dispatch:      # chỉ cho phép bấm chạy tay trên GitHub khi cần
-  # Đã tắt tự động khi push để không báo lỗi về Gmail:
-  # push:
-  #   branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  dang-trang:
+  trien-khai:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
       - name: Lấy mã nguồn
         uses: actions/checkout@v4
 
-      - name: Cài Node.js
+      - name: Cài Node.js theo .node-version
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .node-version
+          cache: npm
 
       - name: Cài thư viện
-        run: npm ci || npm install
+        run: npm ci
 
-      - name: Lint mã nguồn
-        run: npm run lint
+      - name: Build Production
+        run: npm run build
 
-      - name: Kiểm tra dữ liệu
-        run: npm run kiem-tra-du-lieu
-
-      - name: Gom tệp cần đăng vào dist/
-        run: node build.js
-
-      - name: Đăng lên Cloudflare Pages
+      - name: Deploy qua Cloudflare Wrangler
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name gdtxdinhquan --branch main --commit-dirty=true
+          command: deploy

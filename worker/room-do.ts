@@ -1,15 +1,15 @@
 import { DurableObject } from 'cloudflare:workers'
-import type {
-  GoiPhong,
+import {
   LenhPhong,
-  MediaState,
-  PomodoroState,
-  QueueItem,
-  RoomChatMessage,
-  SharedNotes,
-  ThanhVienPhong,
-  WhiteboardStroke,
-  SlideState,
+  type GoiPhong,
+  type MediaState,
+  type PomodoroState,
+  type QueueItem,
+  type RoomChatMessage,
+  type SharedNotes,
+  type ThanhVienPhong,
+  type WhiteboardStroke,
+  type SlideState,
 } from '../shared/protocol/room'
 import {
   type BanSanh,
@@ -34,6 +34,10 @@ interface AttachmentKetNoi {
   key: string
   ten: string
   accountId: number
+  role: string
+  isAdmin: boolean
+  isTeacher: boolean
+  lopId: number | null
   mic: boolean
   isGame?: boolean
 }
@@ -45,7 +49,7 @@ const DEFAULT_MEDIA: MediaState = {
   time: 0,
   updatedAt: Date.now(),
   playbackRate: 1,
-  hostOnlyControl: false,
+  hostOnlyControl: true, // P0 Governance: Mặc định bảo vệ video khỏi thao tác tùy tiện của thành viên
 }
 
 const DEFAULT_POMODORO: PomodoroState = {
@@ -277,10 +281,16 @@ export class RoomDO extends DurableObject<Env> {
       accountId = parseInt(key.slice(4), 10) || 0
     }
 
+    const role = request.headers.get('X-Actor-Role') || 'student'
+    const isAdmin = request.headers.get('X-Actor-Is-Admin') === '1'
+    const isTeacher = request.headers.get('X-Actor-Is-Teacher') === '1'
+    const lopIdStr = request.headers.get('X-Actor-Lop-Id')
+    const lopId = lopIdStr ? parseInt(lopIdStr, 10) || null : null
+
     this.nạpDuLieuNeuCan()
 
-    // Nếu chưa có chủ phòng thì người đầu tiên vào làm chủ phòng
-    if (!this.hostKey) {
+    // Host resolution: người đầu tiên vào làm Host; nếu có Giáo viên hoặc Admin vào, họ luôn nhận quyền Host/Moderator
+    if (!this.hostKey || isTeacher || isAdmin) {
       this.hostKey = key
       this.luuMeta('host_key', key)
     }
@@ -296,7 +306,17 @@ export class RoomDO extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server)
-    server.serializeAttachment({ key, ten, accountId, mic: false, isGame: laGame } satisfies AttachmentKetNoi)
+    server.serializeAttachment({
+      key,
+      ten,
+      accountId,
+      role,
+      isAdmin,
+      isTeacher,
+      lopId,
+      mic: false,
+      isGame: laGame,
+    } satisfies AttachmentKetNoi)
 
     if (laGame) {
       const snapshot: GoiGame = {
@@ -621,20 +641,20 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // Xử lý các lệnh phòng học thường (LenhPhong)
-    let goi: LenhPhong
-    try {
-      goi = raw as LenhPhong
-    } catch {
+    const parseRes = LenhPhong.safeParse(raw)
+    if (!parseRes.success) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Lệnh phòng không hợp lệ.' }))
       return
     }
-    const laHost = att.key === this.hostKey
+    const goi = parseRes.data
+    const laQuanTri = this.coQuyenDieuKhien(att)
 
     switch (goi.type) {
 
       case 'media.action': {
         const d = goi.data
-        if (this.media.hostOnlyControl && !laHost) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng mới có quyền điều khiển video.' }))
+        if (this.media.hostOnlyControl && !laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển video.' }))
           return
         }
 
@@ -656,7 +676,11 @@ export class RoomDO extends DurableObject<Env> {
             time: 0,
             updatedAt: now,
           }
-        } else if (d.action === 'set_host_only' && laHost) {
+        } else if (d.action === 'set_host_only') {
+          if (!laQuanTri) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền đổi chế độ điều khiển.' }))
+            return
+          }
           this.media = { ...this.media, hostOnlyControl: d.enabled }
         }
 
@@ -667,6 +691,10 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'pomodoro.action': {
         const d = goi.data
+        if (this.media.hostOnlyControl && !laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển Pomodoro.' }))
+          return
+        }
         const now = Date.now()
 
         if (d.action === 'start') {
@@ -720,6 +748,10 @@ export class RoomDO extends DurableObject<Env> {
           }
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: d.stroke })
         } else if (d.action === 'stroke.clear') {
+          if (!laQuanTri) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền xóa toàn bộ bảng vẽ.' }))
+            return
+          }
           try {
             this.ctx.storage.sql.exec('DELETE FROM whiteboard_strokes')
           } catch {}
@@ -729,6 +761,10 @@ export class RoomDO extends DurableObject<Env> {
       }
 
       case 'notes.action': {
+        if (this.media.hostOnlyControl && !laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền chỉnh sửa ghi chú chung.' }))
+          return
+        }
         const text = goi.data.content ?? ''
         this.notes = {
           content: text,
@@ -765,11 +801,21 @@ export class RoomDO extends DurableObject<Env> {
           } catch {}
           this.broadcast({ type: 'queue.sync', queue: this.layQueue() })
         } else if (d.action === 'remove') {
+          const queue = this.layQueue()
+          const target = queue.find((q) => q.id === d.id)
+          if (target && !laQuanTri && target.addedBy !== att.ten) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Bạn không thể xóa bài hát của người khác.' }))
+            return
+          }
           try {
             this.ctx.storage.sql.exec('DELETE FROM playlist_queue WHERE id = ?1', d.id)
           } catch {}
           this.broadcast({ type: 'queue.sync', queue: this.layQueue() })
         } else if (d.action === 'play') {
+          if (this.media.hostOnlyControl && !laQuanTri) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền phát video từ danh sách chờ.' }))
+            return
+          }
           const queue = this.layQueue()
           const target = queue.find((q) => q.id === d.id)
           if (target) {
@@ -795,6 +841,10 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'slide.action': {
         const d = goi.data
+        if (this.media.hostOnlyControl && !laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển tài liệu trình chiếu.' }))
+          return
+        }
         if (d.action === 'change_page') {
           if (this.slide) {
             this.slide = {
@@ -871,6 +921,10 @@ export class RoomDO extends DurableObject<Env> {
     this.baoRoiLobbyNeuTrong(ws)
   }
 
+  private coQuyenDieuKhien(att: AttachmentKetNoi): boolean {
+    return att.key === this.hostKey || att.isTeacher || att.isAdmin
+  }
+
   private layDanhSachThanhVien(boQua?: WebSocket): ThanhVienPhong[] {
     const dsKetNoi = this.ctx.getWebSockets().filter((ws) => ws !== boQua)
     const map = new Map<string, ThanhVienPhong>()
@@ -888,7 +942,7 @@ export class RoomDO extends DurableObject<Env> {
           ten: att.ten,
           soKetNoi: 1,
           mic: att.mic,
-          isHost: att.key === this.hostKey,
+          isHost: att.key === this.hostKey || att.isTeacher || att.isAdmin,
         })
       }
     }

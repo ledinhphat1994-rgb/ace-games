@@ -85,6 +85,14 @@ export function dangKy(duLieu: {
   })
 }
 
+export function yeuCauQuenMatKhau(username: string): Promise<{ ok: boolean; message: string }> {
+  return goiApi('/api/forgot-password/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  })
+}
+
 export function quenMatKhau(duLieu: {
   username: string
   maXacNhan: string

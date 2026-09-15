@@ -13,7 +13,9 @@ import {
   doiAvatar,
   doiMatKhau,
   quenMatKhau,
+  taoMaResetChoHocSinh,
   whoami,
+  yeuCauQuenMatKhau,
 } from './routes/auth'
 
 export { CampusDO } from './campus/campus-do'
@@ -47,6 +49,12 @@ async function vaoPhong(request: Request, env: Env, maPhong: string, isGame = fa
   const headers = new Headers(request.headers)
   headers.set('X-Actor-Key', actorKey(kq.phien))
   headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
+  headers.set('X-Actor-Role', kq.taiKhoan.role || 'student')
+  headers.set('X-Actor-Is-Admin', kq.taiKhoan.laAdminTruong ? '1' : '0')
+  headers.set('X-Actor-Is-Teacher', kq.taiKhoan.role === 'teacher' && !kq.taiKhoan.teacherPending ? '1' : '0')
+  if (kq.taiKhoan.lopId) {
+    headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
+  }
   if (isGame) {
     headers.set('X-Room-Mode', 'game')
   }
@@ -54,31 +62,13 @@ async function vaoPhong(request: Request, env: Env, maPhong: string, isGame = fa
   return env.ROOMS.get(doId).fetch(new Request(request, { headers }))
 }
 
-async function damBaoBangHighScore(env: Env): Promise<void> {
-  try {
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS game_high_scores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        game_type TEXT NOT NULL,
-        account_id INTEGER NOT NULL DEFAULT 0,
-        player_name TEXT NOT NULL,
-        score INTEGER NOT NULL,
-        created_at INTEGER NOT NULL
-      )
-    `).run()
-    await env.DB.prepare(`
-      CREATE INDEX IF NOT EXISTS idx_game_high_scores ON game_high_scores(game_type, score DESC)
-    `).run()
-  } catch (err) {
-    console.error('Lỗi đảm bảo bảng game_high_scores:', err)
-  }
-}
-
 const saiPhuongThuc = () => loi('Phương thức không được hỗ trợ.', 405)
 
 app.post('/api/login', (c) => dangNhap(c.req.raw, c.env, c.executionCtx))
 app.post('/api/register', (c) => dangKy(c.req.raw, c.env))
+app.post('/api/forgot-password/request', (c) => yeuCauQuenMatKhau(c.req.raw, c.env))
 app.post('/api/forgot-password', (c) => quenMatKhau(c.req.raw, c.env))
+app.post('/api/admin/reset-code', (c) => taoMaResetChoHocSinh(c.req.raw, c.env))
 app.get('/api/whoami', (c) => whoami(c.req.raw, c.env))
 app.post('/api/logout', (c) => dangXuat(c.req.raw))
 
@@ -90,27 +80,92 @@ app.post('/api/profile/password', (c) => doiMatKhau(c.req.raw, c.env))
 // Đường dẫn có thật nhưng sai phương thức phải trả 405, không rơi xuống 404.
 app.all('/api/login', saiPhuongThuc)
 app.all('/api/register', saiPhuongThuc)
+app.all('/api/forgot-password/request', saiPhuongThuc)
 app.all('/api/forgot-password', saiPhuongThuc)
+app.all('/api/admin/reset-code', saiPhuongThuc)
 app.all('/api/whoami', saiPhuongThuc)
 app.all('/api/logout', saiPhuongThuc)
 app.all('/api/profile/avatar', saiPhuongThuc)
 app.all('/api/profile/update', saiPhuongThuc)
 app.all('/api/profile/password', saiPhuongThuc)
 
-// ── R2 File Upload & Public Serving (cho slide PPTX, PDF, ảnh) ─────────────
+// ── R2 File Upload & Public Serving (Bảo vệ bởi Auth, Quota & Extension Allowlist) ─────────────
+const ALLOWED_UPLOAD_EXTS: Record<string, { maxBytes: number; folder: string; allowedMimes: string[] }> = {
+  pptx: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: [
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/octet-stream',
+      'application/zip',
+    ],
+  },
+  ppt: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: ['application/vnd.ms-powerpoint', 'application/octet-stream'],
+  },
+  pdf: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: ['application/pdf', 'application/octet-stream'],
+  },
+  png: {
+    maxBytes: 5 * 1024 * 1024,
+    folder: 'images',
+    allowedMimes: ['image/png'],
+  },
+  jpg: {
+    maxBytes: 5 * 1024 * 1024,
+    folder: 'images',
+    allowedMimes: ['image/jpeg', 'image/pjpeg'],
+  },
+  jpeg: {
+    maxBytes: 5 * 1024 * 1024,
+    folder: 'images',
+    allowedMimes: ['image/jpeg', 'image/pjpeg'],
+  },
+  webp: {
+    maxBytes: 5 * 1024 * 1024,
+    folder: 'images',
+    allowedMimes: ['image/webp'],
+  },
+}
+
 app.post('/api/upload', async (c) => {
+  // P0 Security: Yêu cầu phiên đăng nhập hợp lệ
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  // P0 Security: Rate-limit upload (tối đa 20 lượt tải / 10 phút mỗi tài khoản)
+  const rateKey = `rate:upload:${kq.taiKhoan.id}`
+  const count = parseInt((await c.env.RATE_LIMIT.get(rateKey)) || '0', 10)
+  if (count >= 20) {
+    return loi('Bạn đã tải lên quá nhiều tệp trong thời gian ngắn. Vui lòng đợi 10 phút.', 429)
+  }
+  await c.env.RATE_LIMIT.put(rateKey, String(count + 1), { expirationTtl: 600 })
+
   try {
     const formData = await c.req.formData()
     const file = formData.get('file') as File | null
     if (!file) return loi('Vui lòng chọn tệp để tải lên.', 400)
 
-    // Giới hạn kích thước 50MB
-    if (file.size > 50 * 1024 * 1024) {
-      return loi('Kích thước tệp vượt quá giới hạn cho phép (tối đa 50MB).', 400)
+    const rawExt = file.name.includes('.') ? file.name.toLowerCase().split('.').pop() || '' : ''
+    const rule = ALLOWED_UPLOAD_EXTS[rawExt]
+    if (!rule) {
+      return loi('Định dạng tệp không được hỗ trợ. Chỉ chấp nhận .pptx, .ppt, .pdf, .png, .jpg, .jpeg, .webp.', 400)
     }
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const key = `slides/${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`
+    if (file.size > rule.maxBytes) {
+      return loi(`Kích thước tệp vượt quá giới hạn (${Math.round(rule.maxBytes / (1024 * 1024))}MB).`, 400)
+    }
+
+    if (file.type && !rule.allowedMimes.includes(file.type)) {
+      return loi('Kiểu tệp (MIME type) không khớp với định dạng cho phép.', 400)
+    }
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50)
+    const key = `${rule.folder}/${Date.now()}_${crypto.randomUUID()}_${safeName}`
 
     await c.env.ANH.put(key, file.stream(), {
       httpMetadata: {
@@ -119,6 +174,7 @@ app.post('/api/upload', async (c) => {
       customMetadata: {
         originalName: encodeURIComponent(file.name),
         size: String(file.size),
+        uploaderId: String(kq.taiKhoan.id),
       },
     })
 
@@ -161,7 +217,6 @@ app.get('/api/files/:key{.+}', async (c) => {
 app.get('/api/game/highscores', async (c) => {
   const gameType = c.req.query('gameType')
   if (!gameType) return loi('Thiếu gameType.', 400)
-  await damBaoBangHighScore(c.env)
   const { results } = await c.env.DB.prepare(
     'SELECT id, game_type as gameType, player_name as playerName, score, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 ORDER BY score DESC LIMIT 10'
   ).bind(gameType).all<{ id: number; gameType: string; playerName: string; score: number; createdAt: number }>()
@@ -182,7 +237,6 @@ app.post('/api/game/highscore', async (c) => {
   if (!gameType || typeof score !== 'number' || score < 0 || !Number.isFinite(score)) {
     return loi('Thông tin điểm không hợp lệ.', 400)
   }
-  await damBaoBangHighScore(c.env)
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
   const now = Date.now()
   await c.env.DB.prepare(
