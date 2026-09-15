@@ -1,3 +1,4 @@
+import { Hono } from 'hono'
 import { actorKey } from './lib/auth'
 import { loi } from './lib/http'
 import { kiemTraPhien, layPhien } from './lib/session'
@@ -5,13 +6,7 @@ import { dangNhap, dangXuat, whoami } from './routes/auth'
 
 export { RoomDO } from './room-do'
 
-type XuLy = (request: Request, env: Env) => Promise<Response> | Response
-
-const TUYEN: Record<string, Partial<Record<string, XuLy>>> = {
-  '/api/login': { POST: dangNhap },
-  '/api/whoami': { GET: whoami },
-  '/api/logout': { POST: (request) => dangXuat(request) },
-}
+const app = new Hono<{ Bindings: Env }>()
 
 const MA_PHONG = /^[a-z0-9-]{1,64}$/
 
@@ -40,20 +35,27 @@ async function vaoPhong(request: Request, env: Env, maPhong: string): Promise<Re
   return env.ROOMS.get(env.ROOMS.idFromName(maPhong)).fetch(new Request(request, { headers }))
 }
 
-export default {
-  async fetch(request, env) {
-    const { pathname } = new URL(request.url)
+const saiPhuongThuc = () => loi('Phương thức không được hỗ trợ.', 405)
 
-    const tuyen = TUYEN[pathname]
-    if (tuyen) {
-      const xuLy = tuyen[request.method]
-      return xuLy ? xuLy(request, env) : loi('Phương thức không được hỗ trợ.', 405)
-    }
+app.post('/api/login', (c) => dangNhap(c.req.raw, c.env))
+app.get('/api/whoami', (c) => whoami(c.req.raw, c.env))
+app.post('/api/logout', (c) => dangXuat(c.req.raw))
+// Đường dẫn có thật nhưng sai phương thức phải trả 405, không rơi xuống 404.
+app.all('/api/login', saiPhuongThuc)
+app.all('/api/whoami', saiPhuongThuc)
+app.all('/api/logout', saiPhuongThuc)
 
-    const phong = pathname.match(/^\/ws\/room\/([^/]+)$/)
-    if (phong) return vaoPhong(request, env, phong[1])
+app.get('/ws/room/:maPhong', (c) => vaoPhong(c.req.raw, c.env, c.req.param('maPhong')))
 
-    if (pathname.startsWith('/api/') || pathname.startsWith('/ws/')) return loi('Không tìm thấy.', 404)
-    return env.ASSETS.fetch(request)
-  },
-} satisfies ExportedHandler<Env>
+app.notFound((c) => {
+  const { pathname } = new URL(c.req.url)
+  if (pathname.startsWith('/api/') || pathname.startsWith('/ws/')) return loi('Không tìm thấy.', 404)
+  return c.env.ASSETS.fetch(c.req.raw)
+})
+
+app.onError((err, c) => {
+  console.error(`Lỗi khi xử lý ${c.req.method} ${new URL(c.req.url).pathname}:`, err)
+  return loi('Máy chủ gặp lỗi, vui lòng thử lại.', 500)
+})
+
+export default app

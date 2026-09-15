@@ -7,6 +7,6 @@
     { "path": "./test/tsconfig.json" }
   ],
   "compilerOptions": {
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./src/*"], "@shared/*": ["./shared/*"] }
   }
 }

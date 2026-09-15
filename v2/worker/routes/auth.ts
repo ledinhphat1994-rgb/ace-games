@@ -1,6 +1,7 @@
 import { actorKey, cookiePhien, cookieXoa, createToken, SESSION_TTL, type Phien } from '../lib/auth'
 import { json, loi } from '../lib/http'
 import { xacMinhMatKhau } from '../lib/passwords'
+import { laGiaoVienDaDuyet, laQuanTriTruong } from '../lib/scope'
 import { kiemTraPhien, layPhien } from '../lib/session'
 
 // Cùng ngưỡng và cùng dạng khoá KV với functions/api/login.js của bản cũ.
@@ -127,8 +128,8 @@ export async function whoami(request: Request, env: Env): Promise<Response> {
   }
 
   const { taiKhoan: tk, phien } = kq
-  const isSchoolAdmin = tk.laAdminTruong || tk.role === 'admin' || tk.role === 'school_admin'
-  const isVerifiedTeacher = isSchoolAdmin || (tk.role === 'teacher' && !tk.teacherPending)
+  const isSchoolAdmin = laQuanTriTruong(tk)
+  const isVerifiedTeacher = laGiaoVienDaDuyet(tk)
   const isLinkedStudent = Boolean(tk.hocSinhId && tk.lopId)
   const lop =
     tk.lopId && (isVerifiedTeacher || isLinkedStudent)
