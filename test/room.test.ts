@@ -232,7 +232,7 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
   })
 })
 
-// ── Security Matrix (23 tests) ────────────────────────────────────────────────
+// ── Security Matrix (22 tests) ────────────────────────────────────────────────
 describe('Admission Gate — Security Matrix', () => {
 
   // 1. Phòng không tồn tại → 404 (FAIL CLOSED)
@@ -356,9 +356,10 @@ describe('Admission Gate — Security Matrix', () => {
 
     const admitRes = await admitPhong(id, cookie, 'bí-mật-3')
     expect(admitRes.status).toBe(200)
+    const admitCookie = (admitRes.headers.get('Set-Cookie') ?? '').split(';')[0]
     await admitRes.body?.cancel()
 
-    const wsRes = await moPhongId(id, cookie)
+    const wsRes = await moPhongId(id, `${cookie}; ${admitCookie}`)
     expect(wsRes.status).toBe(101)
     wsRes.webSocket?.accept(); wsRes.webSocket?.close(1000, 'xong')
     await wsRes.body?.cancel()
@@ -495,5 +496,27 @@ describe('Admission Gate — Security Matrix', () => {
     const errPkt = await kn.cho('error', () => true, 1000)
     expect(errPkt.type).toBe('error')
     kn.dong()
+  })
+
+  // 21. Thành viên bị ban (phong_ban) → WS bị từ chối 403
+  it('(21) thành viên bị ban → WS bị từ chối 403', async () => {
+    const id = await chenPhong('Phòng ban test WS', 'truong', null)
+    await env.DB.prepare('INSERT INTO phong_ban (phong_id, tai_khoan_id) VALUES (?1, 1)').bind(id).run()
+
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await moPhongId(id, cookie)
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  // 22. Thành viên bị ban (phong_ban) → gọi admit API 403
+  it('(22) thành viên bị ban → gọi admit API 403', async () => {
+    const id = await chenPhong('Phòng ban test Admit', 'truong', null, { accessMode: 'password', matKhau: 'mk-ban-1' })
+    await env.DB.prepare('INSERT INTO phong_ban (phong_id, tai_khoan_id) VALUES (?1, 1)').bind(id).run()
+
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await admitPhong(id, cookie, 'mk-ban-1')
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
   })
 })

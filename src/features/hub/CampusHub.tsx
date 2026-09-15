@@ -22,8 +22,10 @@ import {
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { CampusChatDrawer } from './CampusChatDrawer'
+import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { RoomCard } from './RoomCard'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
+
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
 type NodeHub = 'tat_ca' | 'hoc_tap' | 'game' | 'sinh_hoat'
@@ -52,6 +54,9 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
   const [tabPhamVi, setTabPhamVi] = useState<TabPhamVi>('tat_ca')
   const [nodeDangChon, setNodeDangChon] = useState<NodeHub>('tat_ca')
   const [tuKhoa, setTuKhoa] = useState('')
+  // Phòng học đang hiện dialog mật khẩu (null = đóng)
+  const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
+
 
   // Thống kê động cho 3 Interactive Canvas Orbs / Hub Nodes
   const soPhongHocTap = useMemo(() => rooms.length, [rooms.length])
@@ -102,8 +107,14 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
       toast.error('Phòng học đã đầy số lượng người tham gia!')
       return
     }
+    // Phòng có mật khẩu → mở dialog xác thực trước khi điều hướng
+    if (room.coMatKhau) {
+      setPhongCanMatKhau(room)
+      return
+    }
     navigate(`/room/phong-${room.id}`)
   }
+
 
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
@@ -391,6 +402,16 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
           </aside>
         </div>
       </main>
+
+      {/* Dialog mật khẩu phòng học — render ngoài flow chính để tránh CLS */}
+      <PasswordRoomDialog
+        room={phongCanMatKhau}
+        onClose={() => setPhongCanMatKhau(null)}
+        onSuccess={(room) => {
+          setPhongCanMatKhau(null)
+          navigate(`/room/phong-${room.id}`)
+        }}
+      />
     </div>
   )
 }
