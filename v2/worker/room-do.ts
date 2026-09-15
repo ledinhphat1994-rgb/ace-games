@@ -10,6 +10,21 @@ import type {
   ThanhVienPhong,
   WhiteboardStroke,
 } from '../shared/protocol/room'
+import {
+  type BoardCell,
+  type GameMetaState,
+  type GoiGame,
+  LenhGame,
+  type PlayerSide,
+} from '../shared/protocol/game'
+import {
+  coNuocDiHopLeReversi,
+  demQuanReversi,
+  kiemTraThangCaro,
+  kiemTraThangConnect4,
+  kiemTraVaLatReversi,
+  taoBanMoi,
+} from './game-engine'
 import { lamSachVanBan } from '../shared/protocol/common'
 
 interface AttachmentKetNoi {
@@ -17,6 +32,7 @@ interface AttachmentKetNoi {
   ten: string
   accountId: number
   mic: boolean
+  isGame?: boolean
 }
 
 const DEFAULT_MEDIA: MediaState = {
@@ -44,11 +60,30 @@ const DEFAULT_NOTES: SharedNotes = {
   updatedAt: Date.now(),
 }
 
+const DEFAULT_GAME_META: GameMetaState = {
+  gameType: 'caro_15',
+  playerX: null,
+  playerXName: null,
+  playerO: null,
+  playerOName: null,
+  currentTurn: 'X',
+  status: 'waiting',
+  winner: null,
+  winLine: null,
+  turnTimerSeconds: 30,
+  turnTimerEndsAt: 0,
+  scoreX: 0,
+  scoreO: 0,
+}
+
 export class RoomDO extends DurableObject<Env> {
   private media: MediaState = { ...DEFAULT_MEDIA }
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
   private notes: SharedNotes = { ...DEFAULT_NOTES }
+  private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
+  private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
   private hostKey: string | null = null
+  private isGameRoom = false
   private khoiTaoXong = false
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -83,6 +118,11 @@ export class RoomDO extends DurableObject<Env> {
           content TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS game_state (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          meta TEXT NOT NULL,
+          board TEXT NOT NULL
+        );
       `)
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -106,11 +146,42 @@ export class RoomDO extends DurableObject<Env> {
           this.hostKey = r.value
         }
       }
+
+      // Đọc game_state
+      const gameRow = [...this.ctx.storage.sql.exec<{ meta: string; board: string }>('SELECT meta, board FROM game_state WHERE id = 1')][0]
+      if (gameRow) {
+        try {
+          this.gameMeta = JSON.parse(gameRow.meta) as GameMetaState
+          this.gameBoard = JSON.parse(gameRow.board) as BoardCell[][]
+        } catch {}
+      }
     } catch (err) {
-      console.error('Lỗi nạp room_meta:', err)
+      console.error('Lỗi nạp room_meta / game_state:', err)
     }
 
     this.khoiTaoXong = true
+  }
+
+  private luuGameState(): void {
+    try {
+      this.ctx.storage.sql.exec(
+        'INSERT INTO game_state (id, meta, board) VALUES (1, ?1, ?2) ON CONFLICT(id) DO UPDATE SET meta = ?1, board = ?2',
+        JSON.stringify(this.gameMeta),
+        JSON.stringify(this.gameBoard),
+      )
+    } catch (err) {
+      console.error('Lỗi lưu game_state:', err)
+    }
+  }
+
+  private broadcastGame(packet: GoiGame, boQua?: WebSocket): void {
+    const json = JSON.stringify(packet)
+    const dsKetNoi = this.ctx.getWebSockets().filter((ws) => ws !== boQua)
+    for (const ws of dsKetNoi) {
+      try {
+        ws.send(json)
+      } catch {}
+    }
   }
 
   private luuMeta(key: string, val: unknown): void {
@@ -206,27 +277,46 @@ export class RoomDO extends DurableObject<Env> {
       this.luuMeta('host_key', key)
     }
 
+    const mode = request.headers.get('X-Room-Mode')
+    const laGame = mode === 'game' || this.isGameRoom
+    if (laGame) {
+      this.isGameRoom = true
+    }
+
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server)
-    server.serializeAttachment({ key, ten, accountId, mic: false } satisfies AttachmentKetNoi)
+    server.serializeAttachment({ key, ten, accountId, mic: false, isGame: laGame } satisfies AttachmentKetNoi)
 
-    // Gửi snapshot ngay cho người mới vào
-    const snapshot: GoiPhong = {
-      type: 'room.snapshot',
-      roomId: this.ctx.id.toString(),
-      hostKey: this.hostKey,
-      members: this.layDanhSachThanhVien(),
-      media: this.media,
-      pomodoro: this.pomodoro,
-      notes: this.notes,
-      strokes: this.layStrokes(),
-      queue: this.layQueue(),
-      chat: this.layChat(),
-      serverNow: Date.now(),
+    if (laGame) {
+      const snapshot: GoiGame = {
+        type: 'game.snapshot',
+        meta: this.gameMeta,
+        board: this.gameBoard,
+        spectators: this.layDanhSachThanhVien().length,
+        serverNow: Date.now(),
+      }
+      try {
+        server.send(JSON.stringify(snapshot))
+      } catch {}
+    } else {
+      // Gửi snapshot ngay cho người mới vào phòng học
+      const snapshot: GoiPhong = {
+        type: 'room.snapshot',
+        roomId: this.ctx.id.toString(),
+        hostKey: this.hostKey,
+        members: this.layDanhSachThanhVien(),
+        media: this.media,
+        pomodoro: this.pomodoro,
+        notes: this.notes,
+        strokes: this.layStrokes(),
+        queue: this.layQueue(),
+        chat: this.layChat(),
+        serverNow: Date.now(),
+      }
+      try {
+        server.send(JSON.stringify(snapshot))
+      } catch {}
     }
-    try {
-      server.send(JSON.stringify(snapshot))
-    } catch {}
 
     // Broadcast presence cho toàn phòng
     this.phatDanhSach()
@@ -236,25 +326,293 @@ export class RoomDO extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string' || message.length > 65536) return
-    let goi: LenhPhong
+    let raw: { type?: string; [k: string]: unknown }
     try {
-      const raw = JSON.parse(message) as unknown
-      if (!raw || typeof raw !== 'object' || !('type' in raw)) return
-      goi = raw as LenhPhong
+      const parsed = JSON.parse(message) as unknown
+      if (!parsed || typeof parsed !== 'object' || !('type' in parsed)) return
+      raw = parsed as { type?: string; [k: string]: unknown }
     } catch {
       return
     }
 
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (!att) return
+    const type = String(raw.type || '')
+
+    if (type === 'ping') {
+      const t = typeof raw.t === 'number' ? raw.t : Date.now()
+      ws.send(JSON.stringify({ type: 'pong', t, serverNow: Date.now() }))
+      return
+    }
+
+    if (type.startsWith('game.')) {
+      const parseRes = LenhGame.safeParse(raw)
+      if (!parseRes.success) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Lệnh game không hợp lệ.' }))
+        return
+      }
+      const goi = parseRes.data
+      const now = Date.now()
+
+      switch (goi.type) {
+        case 'game.init': {
+          const gameType = goi.gameType
+          const turnSeconds = goi.turnSeconds ?? 30
+          this.gameMeta = {
+            gameType,
+            playerX: att.key,
+            playerXName: att.ten,
+            playerO: null,
+            playerOName: null,
+            currentTurn: 'X',
+            status: 'waiting',
+            winner: null,
+            winLine: null,
+            turnTimerSeconds: turnSeconds,
+            turnTimerEndsAt: 0,
+            scoreX: 0,
+            scoreO: 0,
+          }
+          this.gameBoard = taoBanMoi(gameType)
+          this.luuGameState()
+          this.broadcastGame({
+            type: 'game.sync',
+            meta: this.gameMeta,
+            board: this.gameBoard,
+            serverNow: now,
+          })
+          break
+        }
+
+        case 'game.join': {
+          const desiredSide = goi.side
+          if (this.gameMeta.playerX === att.key || this.gameMeta.playerO === att.key) {
+            this.broadcastGame({
+              type: 'game.sync',
+              meta: this.gameMeta,
+              board: this.gameBoard,
+              serverNow: now,
+            })
+            break
+          }
+          if (desiredSide === 'X' && !this.gameMeta.playerX) {
+            this.gameMeta.playerX = att.key
+            this.gameMeta.playerXName = att.ten
+          } else if (desiredSide === 'O' && !this.gameMeta.playerO) {
+            this.gameMeta.playerO = att.key
+            this.gameMeta.playerOName = att.ten
+          } else if (!this.gameMeta.playerX) {
+            this.gameMeta.playerX = att.key
+            this.gameMeta.playerXName = att.ten
+          } else if (!this.gameMeta.playerO) {
+            this.gameMeta.playerO = att.key
+            this.gameMeta.playerOName = att.ten
+          }
+
+          if (this.gameMeta.playerX && this.gameMeta.playerO && this.gameMeta.status === 'waiting') {
+            this.gameMeta.status = 'playing'
+            this.gameMeta.currentTurn = 'X'
+            this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+          }
+
+          this.luuGameState()
+          this.broadcastGame({
+            type: 'game.sync',
+            meta: this.gameMeta,
+            board: this.gameBoard,
+            serverNow: now,
+          })
+          break
+        }
+
+        case 'game.move': {
+          if (this.gameMeta.status !== 'playing') {
+            ws.send(JSON.stringify({ type: 'error', message: 'Ván đấu chưa bắt đầu hoặc đã kết thúc.' }))
+            return
+          }
+          const side: PlayerSide | null =
+            att.key === this.gameMeta.playerX ? 'X' : (att.key === this.gameMeta.playerO ? 'O' : null)
+          if (!side || side !== this.gameMeta.currentTurn) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chưa tới lượt của bạn.' }))
+            return
+          }
+
+          const { x } = goi
+          let { y } = goi
+
+          if (this.gameMeta.gameType === 'caro_15' || this.gameMeta.gameType === 'caro_9') {
+            const H = this.gameBoard.length
+            const W = this.gameBoard[0].length
+            if (x < 0 || x >= W || y < 0 || y >= H || this.gameBoard[y][x] !== null) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Nước đi không hợp lệ.' }))
+              return
+            }
+            this.gameBoard[y][x] = side
+            const winLine = kiemTraThangCaro(this.gameBoard, x, y, side)
+            if (winLine) {
+              this.gameMeta.status = 'ended'
+              this.gameMeta.winner = side
+              this.gameMeta.winLine = winLine
+              if (side === 'X') this.gameMeta.scoreX++
+              else this.gameMeta.scoreO++
+            } else {
+              const hetO = this.gameBoard.every((row) => row.every((c) => c !== null))
+              if (hetO) {
+                this.gameMeta.status = 'ended'
+                this.gameMeta.winner = 'draw'
+              } else {
+                this.gameMeta.currentTurn = side === 'X' ? 'O' : 'X'
+                this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+              }
+            }
+          } else if (this.gameMeta.gameType === 'connect4') {
+            const H = this.gameBoard.length
+            const W = this.gameBoard[0].length
+            if (x < 0 || x >= W) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Cột không hợp lệ.' }))
+              return
+            }
+            let dropY = -1
+            for (let r = H - 1; r >= 0; r--) {
+              if (this.gameBoard[r][x] === null) {
+                dropY = r
+                break
+              }
+            }
+            if (dropY === -1) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Cột này đã đầy.' }))
+              return
+            }
+            y = dropY
+            this.gameBoard[y][x] = side
+            const winLine = kiemTraThangConnect4(this.gameBoard, x, y, side)
+            if (winLine) {
+              this.gameMeta.status = 'ended'
+              this.gameMeta.winner = side
+              this.gameMeta.winLine = winLine
+              if (side === 'X') this.gameMeta.scoreX++
+              else this.gameMeta.scoreO++
+            } else {
+              const hetO = this.gameBoard.every((row) => row.every((c) => c !== null))
+              if (hetO) {
+                this.gameMeta.status = 'ended'
+                this.gameMeta.winner = 'draw'
+              } else {
+                this.gameMeta.currentTurn = side === 'X' ? 'O' : 'X'
+                this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+              }
+            }
+          } else if (this.gameMeta.gameType === 'reversi') {
+            const { hopLe, flipped } = kiemTraVaLatReversi(this.gameBoard, x, y, side)
+            if (!hopLe) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Nước đi Reversi không hợp lệ.' }))
+              return
+            }
+            this.gameBoard[y][x] = side
+            for (const [fx, fy] of flipped) {
+              this.gameBoard[fy][fx] = side
+            }
+            const { scoreX, scoreO } = demQuanReversi(this.gameBoard)
+            this.gameMeta.scoreX = scoreX
+            this.gameMeta.scoreO = scoreO
+
+            const opponent: PlayerSide = side === 'X' ? 'O' : 'X'
+            const opponentHasMoves = coNuocDiHopLeReversi(this.gameBoard, opponent)
+            const currentHasMoves = coNuocDiHopLeReversi(this.gameBoard, side)
+
+            if (opponentHasMoves) {
+              this.gameMeta.currentTurn = opponent
+              this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+            } else if (currentHasMoves) {
+              this.gameMeta.currentTurn = side
+              this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+            } else {
+              this.gameMeta.status = 'ended'
+              if (scoreX > scoreO) this.gameMeta.winner = 'X'
+              else if (scoreO > scoreX) this.gameMeta.winner = 'O'
+              else this.gameMeta.winner = 'draw'
+            }
+          }
+
+          this.luuGameState()
+          this.broadcastGame({
+            type: 'game.sync',
+            meta: this.gameMeta,
+            board: this.gameBoard,
+            lastMove: { player: side, x, y },
+            serverNow: now,
+          })
+          break
+        }
+
+        case 'game.surrender': {
+          if (this.gameMeta.status !== 'playing') return
+          const side: PlayerSide | null =
+            att.key === this.gameMeta.playerX ? 'X' : (att.key === this.gameMeta.playerO ? 'O' : null)
+          if (!side) return
+          const winner: PlayerSide = side === 'X' ? 'O' : 'X'
+          this.gameMeta.status = 'ended'
+          this.gameMeta.winner = winner
+          if (winner === 'X') this.gameMeta.scoreX++
+          else this.gameMeta.scoreO++
+          this.luuGameState()
+          this.broadcastGame({
+            type: 'game.sync',
+            meta: this.gameMeta,
+            board: this.gameBoard,
+            serverNow: now,
+          })
+          break
+        }
+
+        case 'game.rematch': {
+          this.gameBoard = taoBanMoi(this.gameMeta.gameType)
+          this.gameMeta.winner = null
+          this.gameMeta.winLine = null
+          if (this.gameMeta.gameType === 'reversi') {
+            const { scoreX, scoreO } = demQuanReversi(this.gameBoard)
+            this.gameMeta.scoreX = scoreX
+            this.gameMeta.scoreO = scoreO
+          }
+          if (this.gameMeta.playerX && this.gameMeta.playerO) {
+            this.gameMeta.status = 'playing'
+            this.gameMeta.currentTurn = 'X'
+            this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+          } else {
+            this.gameMeta.status = 'waiting'
+          }
+          this.luuGameState()
+          this.broadcastGame({
+            type: 'game.sync',
+            meta: this.gameMeta,
+            board: this.gameBoard,
+            serverNow: now,
+          })
+          break
+        }
+
+        case 'game.emote': {
+          this.broadcastGame({
+            type: 'game.emote',
+            sender: att.ten,
+            emote: goi.emote,
+          })
+          break
+        }
+      }
+      return
+    }
+
+    // Xử lý các lệnh phòng học thường (LenhPhong)
+    let goi: LenhPhong
+    try {
+      goi = raw as LenhPhong
+    } catch {
+      return
+    }
     const laHost = att.key === this.hostKey
 
     switch (goi.type) {
-      case 'ping': {
-        const t = typeof (goi as { t?: number }).t === 'number' ? (goi as { t: number }).t : Date.now()
-        ws.send(JSON.stringify({ type: 'pong', t, serverNow: Date.now() }))
-        break
-      }
 
       case 'media.action': {
         const d = goi.data

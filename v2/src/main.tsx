@@ -9,6 +9,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { HubPage } from '@/features/hub/HubPage'
 import { RoomPage } from '@/features/study/RoomPage'
+import { GameArenaPage } from '@/features/games/GameArenaPage'
+import { GameRoomPage } from '@/features/games/GameRoomPage'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -21,6 +23,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HubPage /> },
       { path: 'room/:roomId', element: <RoomPage /> },
+      { path: 'arena', element: <GameArenaPage /> },
+      { path: 'game/:gameId', element: <GameRoomPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

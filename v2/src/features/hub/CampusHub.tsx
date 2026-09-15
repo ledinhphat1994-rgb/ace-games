@@ -266,9 +266,7 @@ export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
 
           {/* Node 2: Game */}
           <Card
-            onClick={() => {
-              toast.info('Đấu Trường Game (Caro, Connect 4, Reversi, 2048) sẽ ra mắt ở Phase 4!')
-            }}
+            onClick={() => navigate('/arena')}
             className="cursor-pointer border border-border/70 bg-card transition-all hover:scale-[1.01] hover:border-emerald-500/50 hover:shadow-lg"
           >
             <CardContent className="flex items-center gap-3.5 p-4">
