@@ -145,6 +145,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
   // ── Form state ───────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('')
+  const [showEmoji, setShowEmoji] = useState(false)
   const [directYtInput, setDirectYtInput] = useState('')
   const [localNotes, setLocalNotes] = useState(sharedNotes.content)
 
@@ -257,33 +258,20 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     if (!q.trim()) return
     setYtSearching(true)
     setYtResults([])
-    const INSTANCES = [
-      'https://inv.nadeko.net',
-      'https://invidious.fdn.fr',
-      'https://iv.ggtyler.dev',
-    ]
-    let found = false
-    for (const base of INSTANCES) {
-      try {
-        const ctrl = new AbortController()
-        const timer = setTimeout(() => ctrl.abort(), 5000)
-        const res = await fetch(
-          `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author`,
-          { signal: ctrl.signal },
-        )
-        clearTimeout(timer)
-        if (res.ok) {
-          const data = await res.json() as { videoId: string; title: string; author: string }[]
-          setYtResults(data.slice(0, 9))
-          found = true
-          break
-        }
-      } catch {
-        continue
+    try {
+      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(q.trim())}`)
+      if (res.ok) {
+        const data = await res.json() as { videoId: string; title: string; author: string }[]
+        setYtResults(Array.isArray(data) ? data : [])
+        if (!data.length) toast.error('Không tìm thấy kết quả. Thử từ khóa khác.')
+      } else {
+        toast.error('Không tìm được kết quả. Hãy dán link video trực tiếp.')
       }
+    } catch {
+      toast.error('Lỗi kết nối tìm kiếm. Hãy dán link video trực tiếp.')
+    } finally {
+      setYtSearching(false)
     }
-    if (!found) toast.error('Không tìm được kết quả. Hãy dán link video trực tiếp.')
-    setYtSearching(false)
   }
 
   const handlePickYtVideo = (videoId: string, title: string) => {
@@ -498,21 +486,55 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             )}
           </div>
 
-          <form
-            onSubmit={handleSendChat}
-            className="flex items-center gap-2 border-t border-white/10 p-3"
-          >
-            <Input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Nhắn tin..."
-              className="flex-1 h-8 border-white/15 bg-white/8 text-xs text-white placeholder:text-slate-600 focus-visible:ring-indigo-500/40"
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat() } }}
-            />
-            <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500">
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          </form>
+          <div className="relative">
+            {showEmoji && (
+              <div className="absolute bottom-full right-0 mb-1 z-10 w-72 rounded-xl border border-white/15 bg-[#0d1422]/98 p-2 shadow-2xl backdrop-blur-2xl">
+                <div className="grid grid-cols-10 gap-0.5">
+                  {[
+                    '😊','😄','😆','🤣','😢','😭','😅','😍','😂','🙂',
+                    '👍','👎','👋','🙌','🤝','💪','🤦','🙏','✌️','👏',
+                    '❤️','💙','💚','💛','💜','🔥','⭐','🌟','💯','🎉',
+                    '📚','📖','✏️','📝','🎯','💡','🏫','🎒','📊','🧩',
+                    '😎','🤓','🥳','🎁','🏆','🥇','😜','🤔','😴','🤪',
+                  ].map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setChatInput((prev) => prev + em)}
+                      className="rounded p-1 text-base leading-none hover:bg-white/10 transition-colors"
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <form
+              onSubmit={(e) => { handleSendChat(e); setShowEmoji(false) }}
+              className="flex items-center gap-2 border-t border-white/10 p-3"
+            >
+              <button
+                type="button"
+                onClick={() => setShowEmoji((v) => !v)}
+                className={`h-8 w-8 shrink-0 rounded-lg text-lg leading-none transition-colors ${
+                  showEmoji ? 'bg-indigo-600/60 ring-1 ring-indigo-500/50' : 'hover:bg-white/10'
+                }`}
+                title="Chèn emoji"
+              >
+                😊
+              </button>
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Nhắn tin..."
+                className="flex-1 h-8 border-white/15 bg-white/8 text-xs text-white placeholder:text-slate-600 focus-visible:ring-indigo-500/40"
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); setShowEmoji(false) } }}
+              />
+              <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500">
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            </form>
+          </div>
         </div>
       ) : null}
 

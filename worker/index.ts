@@ -110,6 +110,31 @@ app.post('/api/game/highscore', async (c) => {
 app.all('/api/game/highscores', saiPhuongThuc)
 app.all('/api/game/highscore', saiPhuongThuc)
 
+// ── YouTube search proxy (server-side → no CORS) ────────────────────────────
+app.get('/api/yt-search', async (c) => {
+  const q = (c.req.query('q') ?? '').trim()
+  if (!q || q.length > 200) return c.json([])
+  const INSTANCES = [
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://iv.ggtyler.dev',
+  ]
+  for (const base of INSTANCES) {
+    try {
+      const res = await fetch(
+        `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author&page=1`,
+        { signal: AbortSignal.timeout(6000) },
+      )
+      if (res.ok) {
+        const data = await res.json() as unknown[]
+        return c.json(Array.isArray(data) ? data.slice(0, 9) : [])
+      }
+    } catch { continue }
+  }
+  return c.json([])
+})
+app.all('/api/yt-search', saiPhuongThuc)
+
 app.get('/ws/campus', (c) => vaoCampus(c.req.raw, c.env))
 app.get('/ws/room/:maPhong', (c) => vaoPhong(c.req.raw, c.env, c.req.param('maPhong'), false))
 app.get('/ws/game/:maPhong', (c) => vaoPhong(c.req.raw, c.env, c.req.param('maPhong'), true))

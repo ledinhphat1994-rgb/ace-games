@@ -17,6 +17,21 @@ interface SlideUploadModalProps {
   onLoadSlide: (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => void
 }
 
+/** Lightweight PDF page count using regex on binary content — no external deps */
+async function countPdfPages(file: File): Promise<number> {
+  try {
+    const buf = await file.arrayBuffer()
+    const text = new TextDecoder('latin1').decode(buf)
+    // PDF stores the page count in /Pages dictionary as /Count N
+    const m = text.match(/\/Count\s+(\d+)/)
+    if (m) return Math.max(1, parseInt(m[1], 10))
+    // Fallback: count individual /Type /Page objects (not /Pages)
+    const pages = text.match(/\/Type\s*\/Page[^s]/g)
+    return pages ? Math.max(1, pages.length) : 1
+  } catch {
+    return 1
+  }
+}
 
 export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploadModalProps) {
   const [docName, setDocName] = useState('')
@@ -25,11 +40,10 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
   const [fileType, setFileType] = useState<'pptx' | 'pdf' | 'image'>('pptx')
   const [glUrl, setGlUrl] = useState('')
   const [glName, setGlName] = useState('')
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [isDetecting, setIsDetecting] = useState(false)
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
     let type: 'pptx' | 'pdf' | 'image' = 'pptx'
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) type = 'image'
@@ -38,12 +52,37 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
 
     setFileType(type)
     setDocName(file.name)
-
-    // Create a local blob URL for immediate viewing
     const blobUrl = URL.createObjectURL(file)
     setDocUrl(blobUrl)
-    setTotalPages(12) // estimated initial slide count
-    toast.success(`Đã nạp tệp "${file.name}"!`)
+
+    if (type === 'pdf') {
+      setIsDetecting(true)
+      const pages = await countPdfPages(file)
+      setTotalPages(pages)
+      setIsDetecting(false)
+      toast.success(`Đã nạp PDF "${file.name}" — phát hiện ${pages} trang!`)
+    } else {
+      setTotalPages(type === 'image' ? 1 : 12)
+      toast.success(`Đã nạp tệp "${file.name}"!`)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    if (!['pptx', 'ppt', 'pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+      toast.error('Định dạng không hỗ trợ. Hãy chọn .pptx, .pdf hoặc ảnh.')
+      return
+    }
+    processFile(file)
   }
 
   const handleConfirm = () => {
@@ -84,27 +123,44 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          {/* File Upload Box */}
-          <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-center hover:border-cyan-500/50 transition-colors">
+          {/* Drag-and-drop / click upload box */}
+          <div
+            className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors cursor-pointer ${
+              isDragOver
+                ? 'border-cyan-400 bg-cyan-500/10'
+                : 'border-white/20 bg-white/5 hover:border-cyan-500/50'
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById('slide-file-input')?.click()}
+          >
             <input
               type="file"
               id="slide-file-input"
-              accept=".pptx,.ppt,.pdf,.png,.jpg,.jpeg"
-              onChange={handleFileUpload}
+              accept=".pptx,.ppt,.pdf,.png,.jpg,.jpeg,.webp"
+              onChange={handleFileChange}
               className="hidden"
             />
-            <label
-              htmlFor="slide-file-input"
-              className="flex cursor-pointer flex-col items-center justify-center gap-2"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400">
+            <div className="flex flex-col items-center justify-center gap-2 pointer-events-none">
+              <div className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                isDragOver ? 'bg-cyan-500/30 text-cyan-300' : 'bg-cyan-500/20 text-cyan-400'
+              }`}>
                 <Upload className="h-5 w-5" />
               </div>
               <span className="text-xs font-semibold text-slate-200">
-                {docName ? `Đã chọn: ${docName}` : 'Bấm để tải tệp PowerPoint (.pptx), PDF hoặc Ảnh bài tập'}
+                {isDetecting
+                  ? '⏳ Đang phát hiện số trang PDF...'
+                  : docName
+                    ? `✅ Đã chọn: ${docName}`
+                    : isDragOver
+                      ? '🎯 Thả tệp vào đây!'
+                      : 'Kéo thả hoặc bấm để chọn tệp'}
               </span>
-              <span className="text-[11px] text-slate-400">Hỗ trợ tối đa các định dạng trình chiếu học đường</span>
-            </label>
+              <span className="text-[11px] text-slate-400">
+                Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)
+              </span>
+            </div>
           </div>
 
           {/* Form inputs */}
@@ -121,11 +177,14 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-slate-300">Tổng số trang slide</label>
+                <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
+                  Tổng số trang
+                  {isDetecting && <span className="text-[10px] text-cyan-400 animate-pulse">đang phát hiện…</span>}
+                </label>
                 <Input
                   type="number"
                   min={1}
-                  max={200}
+                  max={500}
                   value={totalPages}
                   onChange={(e) => setTotalPages(parseInt(e.target.value, 10) || 1)}
                   className="h-8 border-white/10 bg-black/40 text-xs text-white"
@@ -136,7 +195,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
                 <label className="text-[11px] font-semibold text-slate-300">Loại tài liệu</label>
                 <select
                   value={fileType}
-                  onChange={(e) => setFileType(e.target.value as any)}
+                  onChange={(e) => setFileType(e.target.value as 'pptx' | 'pdf' | 'image')}
                   className="h-8 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white"
                 >
                   <option value="pptx">PowerPoint (.pptx)</option>
@@ -191,6 +250,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
             <Button
               size="sm"
               onClick={handleConfirm}
+              disabled={isDetecting}
               className="bg-cyan-600 hover:bg-cyan-500 text-xs font-bold px-4"
             >
               Chèn Lên Bảng
