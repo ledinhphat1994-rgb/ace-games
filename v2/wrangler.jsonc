@@ -30,8 +30,15 @@
     }
   ],
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "RoomDO" }]
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomDO" },
+      // Một object duy nhất cho toàn trường: người online, chat toàn trường, danh bạ phòng của sảnh.
+      { "name": "CAMPUS", "class_name": "CampusDO" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomDO"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["CampusDO"] }
+  ],
   "observability": { "enabled": true }
 }

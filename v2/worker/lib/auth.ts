@@ -21,13 +21,13 @@ export interface Phien {
   exp?: number
 }
 
-function b64urlEncode(bytes: Uint8Array): string {
+export function b64urlEncode(bytes: Uint8Array): string {
   let s = ''
   for (const b of bytes) s += String.fromCharCode(b)
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function b64urlDecode(str: string): Uint8Array<ArrayBuffer> {
+export function b64urlDecode(str: string): Uint8Array<ArrayBuffer> {
   const s = str.replace(/-/g, '+').replace(/_/g, '/')
   const bin = atob(s + '='.repeat((4 - (s.length % 4)) % 4))
   const out = new Uint8Array(bin.length)

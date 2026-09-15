@@ -1,3 +1,4 @@
+import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { actorKey, cookiePhien, cookieXoa, createToken, SESSION_TTL, type Phien } from '../lib/auth'
 import { json, loi } from '../lib/http'
 import { xacMinhMatKhau } from '../lib/passwords'
@@ -52,7 +53,11 @@ interface DongDangNhap {
   dang_hoat_dong: number | null
 }
 
-export async function dangNhap(request: Request, env: Env): Promise<Response> {
+export async function dangNhap(
+  request: Request,
+  env: Env,
+  ctx?: { waitUntil(promise: Promise<unknown>): void },
+): Promise<Response> {
   if (!env.SESSION_SECRET) return loi('Máy chủ chưa được cấu hình.', 500)
 
   let username = ''
@@ -91,6 +96,13 @@ export async function dangNhap(request: Request, env: Env): Promise<Response> {
     .bind(phienId, user.id)
     .run()
     .catch(() => {})
+
+  // Đóng ngay kết nối Campus của phiên cũ; bản cũ chỉ phát hiện ở lần gọi API kế tiếp.
+  const baoCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    .dangNhapMoi(user.id, phienId)
+    .catch((e: unknown) => console.error('Không báo được CampusDO về lần đăng nhập mới:', e))
+  if (ctx) ctx.waitUntil(baoCampus)
+  else await baoCampus
 
   const payload: Phien = {
     accountId: user.id,
