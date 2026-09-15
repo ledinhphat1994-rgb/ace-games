@@ -3,6 +3,26 @@ import type { SlideState } from '@shared/protocol/room'
 import { ChevronLeft, ChevronRight, FileSpreadsheet, FileText, GripHorizontal, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+/** Build the correct iframe src depending on the URL type */
+function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image'): string {
+  // Google Slides — convert any share variant to embed
+  if (docUrl.includes('docs.google.com/presentation')) {
+    return docUrl.replace(/\/(edit|pub|preview)(\?.*)?$/, '/embed').replace(/(embed)(\?.*)?$/, 'embed')
+  }
+  // Already a viewer URL — pass through as-is
+  if (docUrl.includes('docs.google.com/viewer') || docUrl.includes('view.officeapps.live.com')) {
+    return docUrl
+  }
+  // Local blob / data URI
+  if (docUrl.startsWith('blob:') || docUrl.startsWith('data:')) return docUrl
+  // PDF → Google Docs viewer (renders inline, no Office needed)
+  if (fileType === 'pdf' || docUrl.toLowerCase().endsWith('.pdf')) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`
+  }
+  // Raw PPTX / DOCX / XLSX file URL
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(docUrl)}`
+}
+
 interface FloatingSlidePanelProps {
   slideState: SlideState
   isHost: boolean
@@ -135,11 +155,12 @@ export function FloatingSlidePanel({
             alt={slideState.docName}
             className="max-h-full max-w-full rounded object-contain"
           />
-        ) : slideState.docUrl.startsWith('http') ? (
+        ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
           <iframe
-            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(slideState.docUrl)}`}
-            title="Office Viewer"
+            src={buildIframeSrc(slideState.docUrl, slideState.fileType)}
+            title="Slide Viewer"
             className="h-full w-full border-0 bg-white"
+            allow="fullscreen"
           />
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">

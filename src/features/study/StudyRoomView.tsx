@@ -8,12 +8,14 @@ import {
   Crown,
   Eraser,
   FileText,
+  Loader2,
   Mic,
   MicOff,
   Pause,
   PenTool,
   Play,
   RotateCcw,
+  Search,
   Send,
   Trash2,
   Upload,
@@ -146,6 +148,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [directYtInput, setDirectYtInput] = useState('')
   const [localNotes, setLocalNotes] = useState(sharedNotes.content)
 
+  // ── YouTube search state ──────────────────────────────────────────────────────
+  const [ytTab, setYtTab] = useState<'paste' | 'search'>('paste')
+  const [ytSearch, setYtSearch] = useState('')
+  const [ytSearching, setYtSearching] = useState(false)
+  const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string }[]>([])
+
   // ── Pomodoro countdown ───────────────────────────────────────────────────
   const [pomoRemaining, setPomoRemaining] = useState(pomodoroState.remaining)
   const [prevPomo, setPrevPomo] = useState(pomodoroState)
@@ -243,6 +251,49 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     loadSlideDoc(docUrl, docName, fileType, totalPages)
     setShowSlide(true)
     setShowUploadModal(false)
+  }
+
+  const doYtSearch = async (q: string) => {
+    if (!q.trim()) return
+    setYtSearching(true)
+    setYtResults([])
+    const INSTANCES = [
+      'https://inv.nadeko.net',
+      'https://invidious.fdn.fr',
+      'https://iv.ggtyler.dev',
+    ]
+    let found = false
+    for (const base of INSTANCES) {
+      try {
+        const ctrl = new AbortController()
+        const timer = setTimeout(() => ctrl.abort(), 5000)
+        const res = await fetch(
+          `${base}/api/v1/search?q=${encodeURIComponent(q)}&type=video&fields=videoId,title,author`,
+          { signal: ctrl.signal },
+        )
+        clearTimeout(timer)
+        if (res.ok) {
+          const data = await res.json() as { videoId: string; title: string; author: string }[]
+          setYtResults(data.slice(0, 9))
+          found = true
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+    if (!found) toast.error('Không tìm được kết quả. Hãy dán link video trực tiếp.')
+    setYtSearching(false)
+  }
+
+  const handlePickYtVideo = (videoId: string, title: string) => {
+    addToQueue(videoId, title)
+    playFromQueue(`queue_${videoId}`)
+    syncMedia({ action: 'play', time: 0 })
+    setShowYoutube(true)
+    setShowYtPanel(false)
+    setYtResults([])
+    toast.success(`Đang phát: ${title.slice(0, 40)}…`)
   }
 
   const bringYoutubeToFront = () => setYoutubeZ(nextZIndex())
@@ -504,33 +555,107 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         </div>
       ) : null}
 
-      {/* ══ YouTube URL panel (above dock) ══ */}
+      {/* ══ YouTube search/paste panel (above dock) ══ */}
       {showYtPanel ? (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 w-96 rounded-2xl border border-white/15 bg-[#0d1424]/97 p-4 shadow-2xl backdrop-blur-2xl">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 w-[460px] rounded-2xl border border-red-500/20 bg-[#0d1424]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-red-500/10">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10">
             <div className="flex items-center gap-2">
               <YoutubeIcon className="h-5 w-5 text-red-500" />
-              <span className="text-sm font-bold text-slate-200">Chèn Video YouTube</span>
+              <span className="text-sm font-bold text-white">YouTube</span>
             </div>
             <button onClick={() => setShowYtPanel(false)} className="rounded p-1 text-slate-400 hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <form onSubmit={handlePlayVideo} className="flex gap-2">
-            <Input
-              value={directYtInput}
-              onChange={(e) => setDirectYtInput(e.target.value)}
-              placeholder="Dán link YouTube hoặc mã video..."
-              className="flex-1 h-9 border-white/15 bg-white/8 text-sm text-white placeholder:text-slate-600 focus-visible:ring-red-500/40"
-
-            />
-            <Button type="submit" className="h-9 bg-red-600 hover:bg-red-500 px-4 font-bold">
-              Chèn
-            </Button>
-          </form>
-          <p className="mt-2 text-[10px] text-slate-600">
-            Video sẽ đồng bộ phát/dừng cho toàn bộ học sinh trong phòng.
-          </p>
+          {/* Tabs */}
+          <div className="flex border-b border-white/10">
+            <button
+              onClick={() => setYtTab('paste')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${
+                ytTab === 'paste' ? 'border-b-2 border-red-500 text-white' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              🔗 Dán link
+            </button>
+            <button
+              onClick={() => setYtTab('search')}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors ${
+                ytTab === 'search' ? 'border-b-2 border-red-500 text-white' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              🔍 Tìm kiếm
+            </button>
+          </div>
+          {/* Paste tab */}
+          {ytTab === 'paste' && (
+            <form onSubmit={handlePlayVideo} className="p-3 flex gap-2">
+              <Input
+                value={directYtInput}
+                onChange={(e) => setDirectYtInput(e.target.value)}
+                placeholder="Dán link YouTube hoặc mã video..."
+                className="flex-1 h-9 border-white/15 bg-white/8 text-sm text-white placeholder:text-slate-600 focus-visible:ring-red-500/40"
+              />
+              <Button type="submit" className="h-9 bg-red-600 hover:bg-red-500 px-4 font-bold text-xs">
+                Chèn
+              </Button>
+            </form>
+          )}
+          {/* Search tab */}
+          {ytTab === 'search' && (
+            <div className="p-3 space-y-2">
+              <form
+                onSubmit={(e) => { e.preventDefault(); doYtSearch(ytSearch) }}
+                className="flex gap-2"
+              >
+                <Input
+                  value={ytSearch}
+                  onChange={(e) => setYtSearch(e.target.value)}
+                  placeholder="Nhập từ khóa tìm bài giảng..."
+                  className="flex-1 h-9 border-white/15 bg-white/8 text-sm text-white placeholder:text-slate-600 focus-visible:ring-red-500/40"
+                />
+                <Button type="submit" disabled={ytSearching} className="h-9 bg-red-600 hover:bg-red-500 px-3">
+                  {ytSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </form>
+              {ytSearching && (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Đang tìm kiếm...
+                </div>
+              )}
+              {!ytSearching && ytResults.length > 0 && (
+                <div className="max-h-60 overflow-y-auto space-y-0.5 pr-0.5">
+                  {ytResults.map((v) => (
+                    <button
+                      key={v.videoId}
+                      onClick={() => handlePickYtVideo(v.videoId, v.title)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/8 text-left transition-colors"
+                    >
+                      <img
+                        src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
+                        alt=""
+                        className="h-11 w-[78px] rounded object-cover shrink-0 bg-slate-800"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-200 line-clamp-2 leading-snug">{v.title}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{v.author}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!ytSearching && ytResults.length === 0 && ytSearch && (
+                <p className="text-center text-xs text-slate-500 py-4">
+                  Không có kết quả. Thử từ khóa khác hoặc dán link.
+                </p>
+              )}
+              {!ytSearching && !ytSearch && (
+                <p className="text-center text-xs text-slate-500 py-3">
+                  Nhập từ khóa để tìm video bài giảng.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       ) : null}
 

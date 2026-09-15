@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { FileSpreadsheet, FileText, Upload } from 'lucide-react'
+import { FileSpreadsheet, Link, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -17,32 +17,14 @@ interface SlideUploadModalProps {
   onLoadSlide: (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => void
 }
 
-const SAMPLE_PRESENTATIONS = [
-  {
-    name: 'Toán 10: Mệnh đề & Tập hợp (Bài giảng chuẩn)',
-    type: 'pptx' as const,
-    pages: 18,
-    url: 'https://view.officeapps.live.com/op/view.aspx?src=sample_math_10.pptx',
-  },
-  {
-    name: 'Vật lý 10: Chuyển động thẳng biến đổi đều',
-    type: 'pptx' as const,
-    pages: 15,
-    url: 'https://view.officeapps.live.com/op/view.aspx?src=sample_physics_10.pptx',
-  },
-  {
-    name: 'Tiếng Anh 10: Unit 1 - Family Life (Slides)',
-    type: 'pdf' as const,
-    pages: 12,
-    url: 'https://view.officeapps.live.com/op/view.aspx?src=sample_english_10.pdf',
-  },
-]
 
 export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploadModalProps) {
   const [docName, setDocName] = useState('')
   const [docUrl, setDocUrl] = useState('')
   const [totalPages, setTotalPages] = useState<number>(10)
   const [fileType, setFileType] = useState<'pptx' | 'pdf' | 'image'>('pptx')
+  const [glUrl, setGlUrl] = useState('')
+  const [glName, setGlName] = useState('')
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -75,11 +57,18 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
     toast.success(`Đã chèn bài giảng "${docName}" lên bảng đen!`)
   }
 
-  const handlePickSample = (sample: typeof SAMPLE_PRESENTATIONS[0]) => {
-    onLoadSlide(sample.url, sample.name, sample.type, sample.pages)
+  const handlePickGoogleSlides = () => {
+    if (!glUrl.trim()) { toast.error('Vui lòng dán link Google Slides.'); return }
+    if (!glUrl.includes('docs.google.com/presentation')) {
+      toast.error('Link không phải Google Slides. Vui lòng kiểm tra lại.')
+      return
+    }
+    const name = glName.trim() || 'Bài giảng Google Slides'
+    onLoadSlide(glUrl.trim(), name, 'pptx', 30)
     onOpenChange(false)
-    toast.success(`Đã mở bài giảng mẫu: ${sample.name}!`)
+    toast.success(`Đã mở: ${name}!`)
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -158,24 +147,36 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
             </div>
           </div>
 
-          {/* Sample Presentations */}
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400">Hoặc chọn nhanh bài giảng mẫu:</span>
-            <div className="mt-1.5 space-y-1.5">
-              {SAMPLE_PRESENTATIONS.map((sample) => (
-                <button
-                  key={sample.name}
-                  onClick={() => handlePickSample(sample)}
-                  className="flex w-full items-center justify-between rounded-lg border border-white/5 bg-white/5 p-2 text-left text-xs text-slate-300 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-colors"
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <FileText className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-                    <span className="truncate">{sample.name}</span>
-                  </span>
-                  <span className="text-[10px] text-slate-500 shrink-0">{sample.pages} trang</span>
-                </button>
-              ))}
+          {/* Google Slides section */}
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Link className="h-3.5 w-3.5 text-blue-400" />
+              <span className="text-[11px] font-bold text-blue-300">Chèn Google Slides (khuyên dùng)</span>
             </div>
+            <div className="space-y-2">
+              <Input
+                value={glUrl}
+                onChange={(e) => setGlUrl(e.target.value)}
+                placeholder="Dán link Google Slides (share/edit/pub)..."
+                className="h-8 border-white/10 bg-black/40 text-xs text-white"
+              />
+              <Input
+                value={glName}
+                onChange={(e) => setGlName(e.target.value)}
+                placeholder="Tên bài giảng (tùy chọn)..."
+                className="h-8 border-white/10 bg-black/40 text-xs text-white"
+              />
+              <Button
+                size="sm"
+                onClick={handlePickGoogleSlides}
+                className="w-full h-8 bg-blue-600 hover:bg-blue-500 text-xs font-bold"
+              >
+                Mở Google Slides
+              </Button>
+            </div>
+            <p className="mt-2 text-[10px] text-blue-400/70">
+              Hướng dẫn: Google Slides → File → Share → Publish to web → Copy link, dán vào đây.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
