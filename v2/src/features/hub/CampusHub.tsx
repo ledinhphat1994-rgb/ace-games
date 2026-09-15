@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { useCampus } from '@/hooks/use-campus'
 import type { NguoiDung } from '@/lib/api'
 import type { PhongSanh } from '@shared/protocol/campus'
+import { useNavigate } from 'react-router'
 import {
   AlertTriangle,
   BookOpen,
@@ -46,6 +47,7 @@ interface CampusHubProps {
 }
 
 export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
+  const navigate = useNavigate()
   const {
     trangThai,
     onlineCount,
@@ -112,7 +114,7 @@ export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
       toast.error('Phòng học đã đầy số lượng người tham gia!')
       return
     }
-    toast.info(`Phòng "${room.ten}" sẽ kích hoạt không gian âm thanh & bảng học tại Phase 2.2 / Phase 3.`)
+    navigate(`/room/phong-${room.id}`)
   }
 
   return (
@@ -386,7 +388,7 @@ export function CampusHub({ nguoiDung, onDangXuat }: CampusHubProps) {
                   size="sm"
                   className="mt-4 h-9 gap-1.5 text-xs font-semibold"
                   onClick={() => {
-                    toast.info('Tính năng Tạo phòng học sẽ mở ở Phase 2.2!')
+                    navigate(`/room/phong-${Date.now().toString(36)}`)
                   }}
                 >
                   <BookOpen className="h-3.5 w-3.5" />

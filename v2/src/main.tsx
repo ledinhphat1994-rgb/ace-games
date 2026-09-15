@@ -8,6 +8,7 @@ import { NotFoundPage } from '@/app/NotFoundPage'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { HubPage } from '@/features/hub/HubPage'
+import { RoomPage } from '@/features/study/RoomPage'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
     element: <AuthGate />,
     children: [
       { index: true, element: <HubPage /> },
+      { path: 'room/:roomId', element: <RoomPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
