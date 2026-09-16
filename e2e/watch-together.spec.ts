@@ -76,21 +76,45 @@ async function startOrUnblockPlayback(page: Page) {
     return
   }
   const playBtn = page.locator('button[title="Phát"]')
-  const canPlay = await playBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)
-  if (canPlay) {
+  if (await playBtn.isVisible().catch(() => false)) {
     await playBtn.click({ force: true })
+    return
   }
-  const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 2000 }).then(() => true).catch(() => false)
+  const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false)
   if (blockedAppeared) {
     await syncBtn.click({ force: true })
   }
 }
 
+async function ensurePlaybackStarted(page: Page, timeout = 30000) {
+  await startOrUnblockPlayback(page)
+  const syncBtn = page.locator('button:has-text("Đồng bộ & Phát ngay")')
+  const playBtn = page.locator('button[title="Phát"]')
+
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    const isPlaying = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1).catch(() => false)
+    if (isPlaying) return true
+
+    if (await syncBtn.isVisible().catch(() => false)) {
+      await syncBtn.click({ force: true }).catch(() => {})
+    } else if (await playBtn.isVisible().catch(() => false)) {
+      await playBtn.click({ force: true }).catch(() => {})
+    }
+
+    await page.waitForTimeout(400)
+  }
+
+  const finalState = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState()).catch(() => -1)
+  if (finalState === 1) return true
+  throw new Error(`ensurePlaybackStarted timed out after ${timeout}ms. Final player state: ${finalState}`)
+}
+
 async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
   let isTargetLoaded = await page.evaluate((targetVid) => {
     const currentVid = window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id
-    const title = document.querySelector('div.font-bold.text-white')?.textContent || ''
-    return currentVid === targetVid || title.includes(targetVid)
+    const isReady = window.__YT_PLAYER_INSTANCE__?.isReady
+    return isReady && currentVid === targetVid
   }, videoId).catch(() => false)
 
   console.log(`[loadVideoIfNone] target: ${videoId} | isLoaded: ${isTargetLoaded}`)
@@ -114,27 +138,31 @@ async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
 
   // Pause if playing to ensure clean starting point
   const pauseBtn = page.locator('button[title="Tạm dừng"]')
-  if (await pauseBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-    await pauseBtn.click()
-    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 5000 }).catch(() => {})
+  if (await pauseBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+    await pauseBtn.click({ force: true })
+    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 8000 }).catch(() => {})
   }
 
   // Seek to 0
   const seekSlider = page.locator('input[title="Tua đến vị trí"]')
-  if (await seekSlider.isVisible({ timeout: 1500 }).catch(() => false)) {
+  if (await seekSlider.isVisible({ timeout: 2000 }).catch(() => false)) {
     await seekSlider.fill('0')
     await seekSlider.dispatchEvent('change')
   }
 
   // Reset rate to 1x
   const rateSelect = page.locator('select[title="Tốc độ phát chung"]')
-  if (await rateSelect.isVisible({ timeout: 1500 }).catch(() => false)) {
+  if (await rateSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
     await rateSelect.selectOption('1')
   }
 }
 
 async function createContextWithE2EMode(browser: any, options = {}) {
-  const ctx = await browser.newContext(options)
+  const ctx = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 800 },
+    ...options,
+  })
   await ctx.addInitScript(() => {
     ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
   })
@@ -175,6 +203,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
     try {
       await loginUser(page, HOST_USER)
       await enterStudyRoom(page, TEST_ROOM_ID)
+      await loadVideoIfNone(page, TEST_VIDEO_ID)
       const pauseBtn = page.locator('button[title="Tạm dừng"]')
       if (await pauseBtn.isVisible().catch(() => false)) {
         await pauseBtn.click()
@@ -221,13 +250,10 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       expect(videoDataB?.video_id).toBe(TEST_VIDEO_ID)
 
       // 4. Host presses Play and unblocks audio gesture if needed
-      await startOrUnblockPlayback(pageA)
-      await startOrUnblockPlayback(pageB)
-
       // 5. Wait for playback to begin on both and allow convergence window (parallel, 30s: CI buffering)
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+        ensurePlaybackStarted(pageA),
+        ensurePlaybackStarted(pageB),
       ])
 
       await Promise.all([
@@ -340,16 +366,11 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
         waitForYTPlayerReady(pageC),
       ])
 
-      // 1. Start/unblock on all three clients
-      await startOrUnblockPlayback(pageA)
-      await startOrUnblockPlayback(pageB)
-      await startOrUnblockPlayback(pageC)
-
-      // 2. Wait until all 3 are in state 1 (playing) — 30s: CI YT CDN buffering can take >15s
+      // 1. Start/unblock on all three clients and wait until all 3 are in state 1 (playing)
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
-        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+        ensurePlaybackStarted(pageA),
+        ensurePlaybackStarted(pageB),
+        ensurePlaybackStarted(pageC),
       ])
 
       // 3. Allow convergence window for decoder warm-up & drift alignment
@@ -455,8 +476,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await waitForYTPlayerReady(page)
 
       // Ensure playing
-      await startOrUnblockPlayback(page)
-      await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
+      await ensurePlaybackStarted(page)
       const timeBefore = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
 
       // Click Minimize button

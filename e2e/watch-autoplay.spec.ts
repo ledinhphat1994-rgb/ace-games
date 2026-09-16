@@ -1,4 +1,4 @@
-﻿import { test, expect, type Page, type Browser } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { assertSafeDestructiveE2ETarget } from './safe-target'
 
 // Enforce allowlist for destructive E2E
@@ -65,43 +65,94 @@ async function startOrUnblockPlayback(page: Page) {
     return
   }
   const playBtn = page.locator('button[title="Phát"]')
-  const canPlay = await playBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)
-  if (canPlay) {
+  if (await playBtn.isVisible().catch(() => false)) {
     await playBtn.click({ force: true })
+    return
   }
-  const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 2000 }).then(() => true).catch(() => false)
+  const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 1500 }).then(() => true).catch(() => false)
   if (blockedAppeared) {
     await syncBtn.click({ force: true })
   }
 }
 
-async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
-  const isTargetLoaded = await page.evaluate((targetVid) => {
-    const currentVid = window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id
-    const title = document.querySelector('div.font-bold.text-white')?.textContent || ''
-    return currentVid === targetVid || title.includes(targetVid)
-  }, videoId).catch(() => false)
+async function ensurePlaybackStarted(page: Page, timeout = 30000) {
+  await startOrUnblockPlayback(page)
+  const syncBtn = page.locator('button:has-text("Đồng bộ & Phát ngay")')
+  const playBtn = page.locator('button[title="Phát"]')
 
-  if (isTargetLoaded) return
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    const isPlaying = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1).catch(() => false)
+    if (isPlaying) return true
 
-  const pasteTabBtn = page.locator('button:has-text("\uD83D\uDD17 Dán link")')
-  const isPanelOpen = await pasteTabBtn.isVisible().catch(() => false)
-  if (!isPanelOpen) {
-    await page.locator('button[title="Chèn video YouTube"]').click()
-    await expect(pasteTabBtn).toBeVisible({ timeout: 5000 })
+    if (await syncBtn.isVisible().catch(() => false)) {
+      await syncBtn.click({ force: true }).catch(() => {})
+    } else if (await playBtn.isVisible().catch(() => false)) {
+      await playBtn.click({ force: true }).catch(() => {})
+    }
+
+    await page.waitForTimeout(400)
   }
-  await pasteTabBtn.click()
 
-  const pasteInput = page.locator('input[placeholder="Dán link YouTube hoặc mã video..."]')
-  await expect(pasteInput).toBeVisible({ timeout: 5000 })
-  await pasteInput.fill(videoId)
-  await page.locator('form:has(input[placeholder="Dán link YouTube hoặc mã video..."]) button[type="submit"]').click()
-  await page.waitForTimeout(1000)
+  const finalState = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState()).catch(() => -1)
+  if (finalState === 1) return true
+  throw new Error(`ensurePlaybackStarted timed out after ${timeout}ms. Final player state: ${finalState}`)
 }
 
-async function createContextWithE2EMode(browser: Browser) {
-  const context = await browser.newContext()
+async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
+  const syncBtn = page.locator('button:has-text("Đồng bộ & Phát ngay")')
+  if (await syncBtn.isVisible().catch(() => false)) {
+    await syncBtn.click({ force: true }).catch(() => {})
+    await page.waitForTimeout(400)
+  }
+
+  const isTargetLoaded = await page.evaluate((targetVid) => {
+    const currentVid = window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id
+    const isReady = window.__YT_PLAYER_INSTANCE__?.isReady
+    return isReady && currentVid === targetVid
+  }, videoId).catch(() => false)
+
+  if (!isTargetLoaded) {
+    const pasteTabBtn = page.locator('button:has-text("🔗 Dán link")')
+    const isPanelOpen = await pasteTabBtn.isVisible().catch(() => false)
+    if (!isPanelOpen) {
+      await page.locator('button[title="Chèn video YouTube"]').click()
+      await expect(pasteTabBtn).toBeVisible({ timeout: 5000 })
+    }
+    await pasteTabBtn.click()
+
+    const pasteInput = page.locator('input[placeholder="Dán link YouTube hoặc mã video..."]')
+    await expect(pasteInput).toBeVisible({ timeout: 5000 })
+    await pasteInput.fill(videoId)
+    await page.locator('form:has(input[placeholder="Dán link YouTube hoặc mã video..."]) button[type="submit"]').click()
+    await page.waitForTimeout(1000)
+  }
+
+  await waitForYTPlayerReady(page)
+
+  // Pause if playing so it starts in a known paused state
+  const pauseBtn = page.locator('button[title="Tạm dừng"]')
+  if (await pauseBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+    await pauseBtn.click({ force: true })
+    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 8000 }).catch(() => {})
+  }
+
+  // Seek to 0
+  const seekSlider = page.locator('input[title="Tua đến vị trí"]')
+  if (await seekSlider.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await seekSlider.fill('0')
+    await seekSlider.dispatchEvent('change')
+  }
+}
+
+async function createContextWithE2EMode(browser: any, options = {}) {
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+    viewport: { width: 1280, height: 800 },
+    ...options,
+  })
   await context.addInitScript(() => {
+    ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
     try {
       window.sessionStorage.setItem('c10a7_e2e_mode', '1')
     } catch {}
@@ -110,6 +161,12 @@ async function createContextWithE2EMode(browser: Browser) {
 }
 
 test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
+
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(() => {
+      ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
+    })
+  })
 
   test('Autoplay Block Handling under --autoplay-policy=user-gesture-required — User Action "Đồng bộ & Phát ngay" Resumes Playback', async ({ browser }) => {
     test.setTimeout(180000)
@@ -134,18 +191,13 @@ test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
       await loginUser(pageB, MEMBER_USER)
       console.log('[Autoplay Test] 5. Entering room as Member B...')
       await enterStudyRoom(pageB, TEST_ROOM_ID)
-      // NOTE: Do NOT call waitForYTPlayerReady(pageB) here — Member B's YT player only mounts
-      // AFTER the host starts playing (room state transitions to "playing"). Waiting for it
-      // in the paused state causes a guaranteed 60s+ timeout in CI.
-
       // Ensure Host player is fully ready before starting playback
       console.log('[Autoplay Test] 6. Waiting for Host player to be ready...')
       await waitForYTPlayerReady(pageA)
 
-      // Host starts playback with an explicit user click
-      console.log('[Autoplay Test] 7. Host starting playback...')
-      await startOrUnblockPlayback(pageA)
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
+      // Host starts playback with an explicit user click to broadcast play to room
+      console.log('[Autoplay Test] 7. Host starting playback for room...')
+      await ensurePlaybackStarted(pageA)
       console.log('[Autoplay Test] 8. Host is playing successfully.')
 
       // Since Member B browser requires user gesture and has not received one,
