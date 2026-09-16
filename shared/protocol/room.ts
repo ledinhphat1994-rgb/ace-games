@@ -157,6 +157,21 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
 ])
 export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
 
+export interface VoiceParticipantState {
+  actorKey: string
+  ten: string
+  status: 'connecting' | 'live' | 'muted'
+  sessionId: string
+  audioTrackId: string
+  generation: number
+  updatedAt: number
+}
+
+export const LenhPhongVoice = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('set_status'), status: z.enum(['live', 'muted']) }),
+])
+export type LenhPhongVoice = z.infer<typeof LenhPhongVoice>
+
 export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping'), t: z.number() }),
   z.object({ type: z.literal('media.action'), data: LenhPhongMedia }),
@@ -166,6 +181,7 @@ export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('queue.action'), data: LenhPhongQueue }),
   z.object({ type: z.literal('slide.action'), data: LenhPhongSlide }),
   z.object({ type: z.literal('chat.send'), reqId: z.string().min(1).max(50), text: z.string().max(1000) }),
+  z.object({ type: z.literal('voice.action'), data: LenhPhongVoice }),
   z.object({ type: z.literal('voice.mic'), mic: z.boolean() }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
@@ -184,6 +200,7 @@ export type GoiPhong =
       queue: QueueItem[]
       chat: RoomChatMessage[]
       slide: SlideState | null
+      voiceRegistry?: VoiceParticipantState[]
       serverNow: number
     }
   | { type: 'presence'; members: ThanhVienPhong[] }
@@ -204,6 +221,10 @@ export type GoiPhong =
   | { type: 'queue.sync'; queue: QueueItem[] }
   | { type: 'slide.sync'; slide: SlideState | null }
   | { type: 'room.chat'; message: RoomChatMessage }
+  | { type: 'voice.registry'; registry: VoiceParticipantState[] }
+  | { type: 'voice.updated'; participant: VoiceParticipantState }
+  | { type: 'voice.removed'; actorKey: string }
+  | { type: 'voice.force_muted'; targetKey: string; by: string }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }

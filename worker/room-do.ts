@@ -12,6 +12,7 @@ import {
   type ThanhVienPhong,
   type WhiteboardStroke,
   type SlideState,
+  type VoiceParticipantState,
 } from '../shared/protocol/room'
 import {
   type BanSanh,
@@ -101,6 +102,9 @@ export class RoomDO extends DurableObject<Env> {
   private khoiTaoXong = false
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   private gameRoomId: string | null = null
+  private voiceRegistry = new Map<string, VoiceParticipantState>()
+  private voiceGeneration = new Map<string, number>()
+  private voiceSessions = new Map<string, { actorKey: string; createdAt: number; tracks: Set<string> }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -321,6 +325,11 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    if (url.pathname.startsWith('/internal/')) {
+      return this.xuLyYeuCauNoiBo(request, url)
+    }
+
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Cần kết nối WebSocket.', { status: 426 })
     }
@@ -437,6 +446,7 @@ export class RoomDO extends DurableObject<Env> {
         queue: this.layQueue(),
         chat: this.layChat(),
         slide: this.slide,
+        voiceRegistry: this.getVoiceRegistry(),
         serverNow: Date.now(),
       }
       try {
@@ -1142,10 +1152,21 @@ export class RoomDO extends DurableObject<Env> {
         break
       }
 
+      case 'voice.action': {
+        if (goi.data.action === 'set_status') {
+          this.updateVoiceStatus(att.key, goi.data.status)
+        }
+        break
+      }
+
       case 'voice.mic': {
         att.mic = Boolean(goi.mic)
         ws.serializeAttachment(att)
-        this.phatDanhSach()
+        if (this.voiceRegistry.has(att.key)) {
+          this.updateVoiceStatus(att.key, att.mic ? 'live' : 'muted')
+        } else {
+          this.phatDanhSach()
+        }
         break
       }
     }
@@ -1155,6 +1176,17 @@ export class RoomDO extends DurableObject<Env> {
     try {
       ws.close(code, reason)
     } catch {}
+    const att = ws.deserializeAttachment() as AttachmentKetNoi | null
+    if (att) {
+      const conLai = this.ctx.getWebSockets().filter((w) => {
+        if (w === ws) return false
+        const a = w.deserializeAttachment() as AttachmentKetNoi | null
+        return a?.key === att.key
+      })
+      if (conLai.length === 0) {
+        this.removeVoicePublication(att.key)
+      }
+    }
     this.phatDanhSach(ws)
     this.baoRoiLobbyNeuTrong(ws)
   }
@@ -1177,16 +1209,17 @@ export class RoomDO extends DurableObject<Env> {
     for (const ws of dsKetNoi) {
       const att = ws.deserializeAttachment() as AttachmentKetNoi | null
       if (!att) continue
+      const isVoiceLive = this.voiceRegistry.get(att.key)?.status === 'live'
       const cu = map.get(att.key)
       if (cu) {
         cu.soKetNoi++
-        if (att.mic) cu.mic = true
+        if (att.mic || isVoiceLive) cu.mic = true
       } else {
         map.set(att.key, {
           key: att.key,
           ten: att.ten,
           soKetNoi: 1,
-          mic: att.mic,
+          mic: att.mic || isVoiceLive,
           // isHost = CANONICAL owner only; teacher/admin không xuất hiện như host
           isHost: att.key === this.hostKey,
           canModerate: Boolean(att.canModerate),
@@ -1247,5 +1280,248 @@ export class RoomDO extends DurableObject<Env> {
         ws.send(json)
       } catch {}
     }
+  }
+
+  // ── Voice Registry & WebRTC Media Session Coordination ──
+
+  getVoiceRegistry(): VoiceParticipantState[] {
+    return Array.from(this.voiceRegistry.values())
+  }
+
+  getVoiceParticipant(actorKey: string): VoiceParticipantState | null {
+    return this.voiceRegistry.get(actorKey) ?? null
+  }
+
+  bindVoiceSession(sessionId: string, actorKey: string): void {
+    const existing = this.voiceSessions.get(sessionId)
+    if (existing) {
+      existing.actorKey = actorKey
+    } else {
+      this.voiceSessions.set(sessionId, {
+        actorKey,
+        createdAt: Date.now(),
+        tracks: new Set(),
+      })
+    }
+  }
+
+  getVoiceSessionOwner(sessionId: string): string | null {
+    return this.voiceSessions.get(sessionId)?.actorKey ?? null
+  }
+
+  addTrackToSession(sessionId: string, trackName: string): void {
+    const s = this.voiceSessions.get(sessionId)
+    if (s) {
+      s.tracks.add(trackName)
+    }
+  }
+
+  getActorRoleInfo(actorKey: string): { isHost: boolean; canModerate: boolean; ten: string } | null {
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a?.key === actorKey) {
+        return {
+          isHost: a.key === this.hostKey,
+          canModerate: Boolean(a.canModerate),
+          ten: a.ten,
+        }
+      }
+    }
+    return null
+  }
+
+  registerVoicePublication(participant: Omit<VoiceParticipantState, 'updatedAt'>): {
+    ok: boolean
+    participant?: VoiceParticipantState
+    reason?: string
+  } {
+    const currentGen = this.voiceGeneration.get(participant.actorKey) ?? 0
+    if (participant.generation < currentGen) {
+      return { ok: false, reason: 'stale_generation' }
+    }
+
+    const state: VoiceParticipantState = {
+      ...participant,
+      updatedAt: Date.now(),
+    }
+    this.voiceRegistry.set(participant.actorKey, state)
+    this.voiceGeneration.set(participant.actorKey, participant.generation)
+
+    this.addTrackToSession(participant.sessionId, participant.audioTrackId)
+
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a && a.key === participant.actorKey) {
+        a.mic = participant.status === 'live'
+        ws.serializeAttachment(a)
+      }
+    }
+
+    this.broadcast({
+      type: 'voice.updated',
+      participant: state,
+    })
+    this.phatDanhSach()
+    return { ok: true, participant: state }
+  }
+
+  updateVoiceStatus(actorKey: string, status: 'live' | 'muted'): boolean {
+    const p = this.voiceRegistry.get(actorKey)
+    if (!p) return false
+    p.status = status
+    p.updatedAt = Date.now()
+
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a && a.key === actorKey) {
+        a.mic = status === 'live'
+        ws.serializeAttachment(a)
+      }
+    }
+
+    this.broadcast({
+      type: 'voice.updated',
+      participant: p,
+    })
+    this.phatDanhSach()
+    return true
+  }
+
+  removeVoicePublication(actorKey: string, generation?: number): boolean {
+    if (typeof generation === 'number') {
+      const currentGen = this.voiceGeneration.get(actorKey) ?? 0
+      if (generation < currentGen) {
+        return false
+      }
+    }
+    const existed = this.voiceRegistry.delete(actorKey)
+    if (!existed) return false
+
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a && a.key === actorKey) {
+        a.mic = false
+        ws.serializeAttachment(a)
+      }
+    }
+
+    this.broadcast({
+      type: 'voice.removed',
+      actorKey,
+    })
+    this.phatDanhSach()
+    return true
+  }
+
+  forceMute(targetActorKey: string, byActorName: string): boolean {
+    const p = this.voiceRegistry.get(targetActorKey)
+    if (p) {
+      p.status = 'muted'
+      p.updatedAt = Date.now()
+    }
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a && a.key === targetActorKey) {
+        a.mic = false
+        ws.serializeAttachment(a)
+      }
+    }
+    this.broadcast({
+      type: 'voice.force_muted',
+      targetKey: targetActorKey,
+      by: byActorName,
+    })
+    if (p) {
+      this.broadcast({
+        type: 'voice.updated',
+        participant: p,
+      })
+    }
+    this.phatDanhSach()
+    return true
+  }
+
+  private async xuLyYeuCauNoiBo(request: Request, url: URL): Promise<Response> {
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+    if (request.method === 'GET' && url.pathname === '/internal/voice/registry') {
+      return json({ ok: true, registry: this.getVoiceRegistry() })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/session/bind') {
+      try {
+        const body = (await request.json()) as { sessionId: string; actorKey: string }
+        if (!body.sessionId || !body.actorKey) return json({ ok: false, message: 'Thiếu dữ liệu' }, 400)
+        this.bindVoiceSession(body.sessionId, body.actorKey)
+        return json({ ok: true })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/session/verify') {
+      try {
+        const body = (await request.json()) as { sessionId: string; actorKey: string }
+        const owner = this.getVoiceSessionOwner(body.sessionId)
+        if (!owner || owner !== body.actorKey) {
+          return json({ ok: false, message: 'Không phải chủ sở hữu phiên' }, 403)
+        }
+        return json({ ok: true })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/publish') {
+      try {
+        const body = (await request.json()) as Omit<VoiceParticipantState, 'updatedAt'>
+        const res = this.registerVoicePublication(body)
+        return json(res, res.ok ? 200 : 409)
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/status') {
+      try {
+        const body = (await request.json()) as { actorKey: string; status: 'live' | 'muted' }
+        const ok = this.updateVoiceStatus(body.actorKey, body.status)
+        return json({ ok })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/remove') {
+      try {
+        const body = (await request.json()) as { actorKey: string; generation?: number }
+        const ok = this.removeVoicePublication(body.actorKey, body.generation)
+        return json({ ok })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/force-mute') {
+      try {
+        const body = (await request.json()) as { targetActorKey: string; byActorName: string }
+        const ok = this.forceMute(body.targetActorKey, body.byActorName)
+        return json({ ok })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/internal/actor/role') {
+      const actorKey = url.searchParams.get('actorKey') || ''
+      const info = this.getActorRoleInfo(actorKey)
+      return json({ ok: true, info })
+    }
+
+    return new Response('Không tìm thấy endpoint nội bộ.', { status: 404 })
   }
 }

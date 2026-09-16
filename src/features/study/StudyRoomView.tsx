@@ -118,6 +118,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     updateNotes,
     sendRoomChat,
     toggleMic,
+    forceMuteMember,
+    voiceState,
     slideState,
     changeSlidePage,
     loadSlideDoc,
@@ -518,14 +520,36 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </button>
 
           <button
-            onClick={toggleMic}
+            onClick={() => {
+              if (voiceState.blockedReason) {
+                toast.warning(voiceState.blockedReason)
+              }
+              toggleMic().catch((err) => {
+                toast.error(err.message || 'Lỗi bật/tắt micro.')
+              })
+            }}
+            disabled={voiceState.isConnecting}
             className={`rounded-full p-2 transition-colors ${
               myMic ? 'bg-emerald-600/80 text-white hover:bg-emerald-500' : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
-            title={myMic ? 'Trạng thái Micro: Đang bật (Hiển thị)' : 'Trạng thái Micro: Đang tắt (Hiển thị)'}
-            aria-label={myMic ? 'Trạng thái Micro: Đang bật (Hiển thị)' : 'Trạng thái Micro: Đang tắt (Hiển thị)'}
+            } ${voiceState.isConnecting ? 'opacity-60 cursor-wait' : ''}`}
+            title={
+              voiceState.isConnecting
+                ? 'Đang kết nối âm thanh...'
+                : voiceState.blockedReason
+                ? `Chưa cấu hình Realtime SFU: ${voiceState.blockedReason}`
+                : myMic
+                ? 'Micro đang bật. Nhấn để tắt'
+                : 'Micro đang tắt. Nhấn để bật'
+            }
+            aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
           >
-            {myMic ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+            {voiceState.isConnecting ? (
+              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+            ) : myMic ? (
+              <Mic className="h-4 w-4" />
+            ) : (
+              <MicOff className="h-4 w-4" />
+            )}
           </button>
 
           {isHost && (
@@ -703,14 +727,41 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {members.map((m) => (
-              <div key={m.key} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600/60 text-sm font-bold text-white">
+              <div key={m.key} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/5 group">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600/60 text-sm font-bold text-white relative">
                   {m.ten.charAt(0).toUpperCase()}
+                  {m.mic && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-[#090e18]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-200">{m.ten}</p>
                   {m.key === hostKey && (
                     <p className="text-[10px] text-amber-400">Chủ phòng</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <span
+                    className={`rounded-full p-1 text-xs ${
+                      m.mic ? 'text-emerald-400' : 'text-slate-500'
+                    }`}
+                    title={m.mic ? 'Đang bật micro' : 'Đang tắt micro'}
+                  >
+                    {m.mic ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
+                  </span>
+                  {(isHost || canModerate) && m.key !== nguoiDung.actorKey && m.mic && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        forceMuteMember(m.key).catch((err) => toast.error(err.message))
+                      }}
+                      className="rounded p-1 text-slate-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                      title="Tắt micro của thành viên này"
+                    >
+                      <span className="text-[10px] font-bold text-red-400">Tắt mic</span>
+                    </button>
                   )}
                 </div>
               </div>

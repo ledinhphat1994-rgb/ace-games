@@ -12,7 +12,7 @@ import {
 import { loi } from './lib/http'
 import { xacMinhMatKhau } from './lib/passwords'
 import { laGiaoVienDaDuyet, laQuanTriTruong } from './lib/scope'
-import { kiemTraPhien, layPhien, type TaiKhoan } from './lib/session'
+import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
 import {
   capNhatHoSo,
@@ -26,6 +26,21 @@ import {
   whoami,
   yeuCauQuenMatKhau,
 } from './routes/auth'
+import {
+  CANONICAL_ACCESS_MODES,
+  type DongPhong,
+  kiemTraCauHinhMatKhauPhong,
+  kiemTraPhamVi,
+} from './lib/room-gate'
+import {
+  dangKyPublishVoice,
+  dangKySubscribeVoice,
+  dongTrackVoice,
+  forceMuteVoice,
+  layVoiceRegistry,
+  renegotiateVoiceSession,
+  taoVoiceSession,
+} from './routes/voice-api'
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
@@ -285,69 +300,6 @@ async function vaoCampus(request: Request, env: Env): Promise<Response> {
   const headers = new Headers(request.headers)
   headers.set(HEADER_DANH_TINH, maHoaDanhTinh(await taoDanhTinhCampus(env, kq.phien, kq.taiKhoan)))
   return env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS)).fetch(new Request(request, { headers }))
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// D1 row shape for Study Room gate
-// ─────────────────────────────────────────────────────────────────────────────
-interface DongPhong {
-  id: number
-  trang_thai: string
-  pham_vi: string
-  lop_id: number | null
-  access_mode: string
-  mat_khau_hash: string | null
-  mat_khau_salt: string | null
-  mat_khau_iterations: number | null
-  suc_chua: number
-  chu_phong_khoa: string
-}
-
-const CANONICAL_ACCESS_MODES = new Set(['public', 'password'])
-
-function kiemTraCauHinhMatKhauPhong(phong: DongPhong): boolean {
-  if (!phong.mat_khau_hash || !phong.mat_khau_salt || !phong.mat_khau_iterations) {
-    return false
-  }
-  const iters = Number(phong.mat_khau_iterations)
-  return Number.isInteger(iters) && iters > 0
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared scope checker (reused in WS gate and admit API)
-// ─────────────────────────────────────────────────────────────────────────────
-async function kiemTraPhamVi(
-  env: Env,
-  taiKhoan: TaiKhoan,
-  phong: DongPhong,
-): Promise<Response | null> {
-  if (phong.pham_vi === 'truong') {
-    return null
-  }
-
-  if (phong.pham_vi === 'lop') {
-    const lopId = Number(phong.lop_id)
-    if (!Number.isInteger(lopId) || lopId <= 0) {
-      return loi('Cấu hình phạm vi lớp học không hợp lệ.', 503)
-    }
-
-    if (laQuanTriTruong(taiKhoan)) return null
-
-    if (laGiaoVienDaDuyet(taiKhoan)) {
-      const gvl = await env.DB.prepare(
-        'SELECT 1 FROM giao_vien_lop WHERE giao_vien_id = ?1 AND lop_id = ?2 LIMIT 1',
-      ).bind(taiKhoan.id, lopId).first<{ 1: number }>()
-      if (!gvl) return loi('Bạn không phụ trách lớp học này.', 403)
-      return null
-    }
-
-    if (!taiKhoan.lopId || taiKhoan.lopId !== lopId) {
-      return loi('Bạn không thuộc lớp học này.', 403)
-    }
-    return null
-  }
-
-  return loi('Phạm vi phòng không được hỗ trợ.', 403)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -651,6 +603,16 @@ app.post('/api/rooms/:id/admit/revoke', async (c) => {
 app.all('/api/rooms/:id/admit', saiPhuongThuc)
 app.all('/api/rooms/:id/admit/revoke', saiPhuongThuc)
 app.all('/api/rooms/:id/admission-status', saiPhuongThuc)
+
+// ── Authenticated Real Voice API ──
+app.post('/api/rooms/:id/voice/session', taoVoiceSession)
+app.post('/api/rooms/:id/voice/publish', dangKyPublishVoice)
+app.post('/api/rooms/:id/voice/subscribe', dangKySubscribeVoice)
+app.post('/api/rooms/:id/voice/renegotiate', renegotiateVoiceSession)
+app.post('/api/rooms/:id/voice/close-track', dongTrackVoice)
+app.post('/api/rooms/:id/voice/force-mute', forceMuteVoice)
+app.get('/api/rooms/:id/voice/registry', layVoiceRegistry)
+app.all('/api/rooms/:id/voice/*', saiPhuongThuc)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth routes

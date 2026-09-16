@@ -11,10 +11,12 @@ import {
   type ThanhVienPhong,
   type WhiteboardStroke,
   type SlideState,
+  type VoiceParticipantState,
   canonicalMediaPosition,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
+import { VoiceClient, type VoiceClientState } from '@/lib/voice-client'
 
 export type TrangThaiKetNoiPhong =
   | 'dang_ket_noi'
@@ -70,9 +72,21 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const [myMic, setMyMic] = useState(false)
+  const [voiceRegistry, setVoiceRegistry] = useState<VoiceParticipantState[]>([])
+  const [voiceState, setVoiceState] = useState<VoiceClientState>({
+    isSupported: true,
+    isConnecting: false,
+    isPublishing: false,
+    isMuted: false,
+    hasError: false,
+    errorMessage: null,
+    blockedReason: null,
+    activeSpeakers: [],
+  })
   const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
+  const voiceClientRef = useRef<VoiceClient | null>(null)
   const clockSyncRef = useRef<ClockSyncManager>(new ClockSyncManager())
   const serverClockOffsetRef = useRef<number>(0)
   const whiteboardEpochRef = useRef<number>(1)
@@ -152,6 +166,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
+          if (Array.isArray(goi.voiceRegistry)) {
+            setVoiceRegistry(goi.voiceRegistry)
+            voiceClientRef.current?.syncRegistry(goi.voiceRegistry)
+          }
           if (clockSyncRef.current.getSamples().length === 0 && typeof goi.serverNow === 'number') {
             clockSyncRef.current = new ClockSyncManager([goi.serverNow - Date.now()])
             const initialOffset = clockSyncRef.current.getMedianOffset()
@@ -221,6 +239,30 @@ export function useRoom(roomId: string, myActorKey?: string) {
         case 'slide.sync':
           setSlideState(goi.slide ?? null)
           break
+
+        case 'voice.updated': {
+          const p = goi.participant
+          setVoiceRegistry((prev) => {
+            const next = prev.filter((item) => item.actorKey !== p.actorKey)
+            if (p.status === 'live') {
+              next.push(p)
+            }
+            voiceClientRef.current?.syncRegistry(next)
+            return next
+          })
+          if (p.actorKey === myActorKey) {
+            setMyMic(p.status === 'live')
+          }
+          break
+        }
+
+        case 'voice.force_muted': {
+          if (goi.targetKey === myActorKey) {
+            voiceClientRef.current?.mute()
+            setMyMic(false)
+          }
+          break
+        }
 
         case 'room.chat': {
           const msg = goi.message
@@ -307,7 +349,32 @@ export function useRoom(roomId: string, myActorKey?: string) {
     }
 
     ws.onerror = () => {}
-  }, [roomId])
+  }, [roomId, myActorKey])
+
+  useEffect(() => {
+    const idMatch = roomId.match(/(\d+)$/)
+    const numericRoomId = idMatch ? parseInt(idMatch[1], 10) : 0
+    if (!numericRoomId || !myActorKey) return
+
+    const client = new VoiceClient({
+      roomId: numericRoomId,
+      currentActorKey: myActorKey,
+      onStateChange: (state) => {
+        setVoiceState(state)
+        if (state.isPublishing && !state.isMuted) {
+          setMyMic(true)
+        } else {
+          setMyMic(false)
+        }
+      },
+    })
+    voiceClientRef.current = client
+
+    return () => {
+      client.destroy()
+      voiceClientRef.current = null
+    }
+  }, [roomId, myActorKey])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi
@@ -460,13 +527,30 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'chat.send', reqId, text: cleaned }))
   }, [])
 
-  const toggleMic = useCallback(() => {
-    const next = !myMic
-    setMyMic(next)
+  const toggleMic = useCallback(async () => {
+    if (!voiceClientRef.current) return
+    const nextActive = await voiceClientRef.current.toggleMic()
+    setMyMic(nextActive)
     const ws = wsRef.current
-    if (!ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'voice.mic', mic: next }))
-  }, [myMic])
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'voice.mic', mic: nextActive }))
+    }
+  }, [])
+
+  const forceMuteMember = useCallback(async (targetActorKey: string) => {
+    const idMatch = roomId.match(/(\d+)$/)
+    if (!idMatch) return
+    const res = await fetch(`/api/rooms/${idMatch[1]}/voice/force-mute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ targetActorKey }),
+    })
+    const json = (await res.json().catch(() => null)) as any
+    if (!res.ok || !json?.ok) {
+      throw new Error(json?.loi || 'Không thể tắt micro của thành viên.')
+    }
+  }, [roomId])
 
   const changeSlidePage = useCallback((page: number) => {
     const ws = wsRef.current
@@ -522,6 +606,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     playFromQueue,
     sendRoomChat,
     toggleMic,
+    forceMuteMember,
+    voiceRegistry,
+    voiceState,
     slideState,
     changeSlidePage,
     loadSlideDoc,
