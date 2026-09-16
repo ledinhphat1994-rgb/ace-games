@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Browser } from '@playwright/test'
+﻿import { test, expect, type Page, type Browser } from '@playwright/test'
 import { assertSafeDestructiveE2ETarget } from './safe-target'
 
 // Enforce allowlist for destructive E2E
@@ -52,7 +52,7 @@ declare global {
   }
 }
 
-async function waitForYTPlayerReady(page: Page, timeout = 25000) {
+async function waitForYTPlayerReady(page: Page, timeout = 60000) {
   await page.waitForFunction(() => {
     return window.__YT_PLAYER_INSTANCE__ && window.__YT_PLAYER_INSTANCE__.isReady
   }, undefined, { timeout })

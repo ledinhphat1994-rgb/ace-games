@@ -63,7 +63,7 @@ declare global {
   }
 }
 
-async function waitForYTPlayerReady(page: Page, timeout = 25000) {
+async function waitForYTPlayerReady(page: Page, timeout = 60000) {
   await page.waitForFunction(() => {
     return window.__YT_PLAYER_INSTANCE__ && window.__YT_PLAYER_INSTANCE__.isReady
   }, undefined, { timeout })
@@ -224,13 +224,15 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await startOrUnblockPlayback(pageA)
       await startOrUnblockPlayback(pageB)
 
-      // 5. Wait for playback to begin on both and allow convergence window
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
-      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
+      // 5. Wait for playback to begin on both and allow convergence window (parallel, 30s: CI buffering)
+      await Promise.all([
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+      ])
 
       await Promise.all([
-        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 15000 }),
-        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 15000 }),
+        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 25000 }),
+        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 25000 }),
       ])
 
       // 6. Measure real player drift
@@ -331,20 +333,23 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       // Host ensures video is loaded
       await loadVideoIfNone(pageA)
 
-      await waitForYTPlayerReady(pageA)
-      await waitForYTPlayerReady(pageB)
-      await waitForYTPlayerReady(pageC)
+      // Parallel player ready — sequential 60s×3 would exhaust 240s budget
+      await Promise.all([
+        waitForYTPlayerReady(pageA),
+        waitForYTPlayerReady(pageB),
+        waitForYTPlayerReady(pageC),
+      ])
 
       // 1. Start/unblock on all three clients
       await startOrUnblockPlayback(pageA)
       await startOrUnblockPlayback(pageB)
       await startOrUnblockPlayback(pageC)
 
-      // 2. Wait until all 3 are in state 1 (playing)
+      // 2. Wait until all 3 are in state 1 (playing) — 30s: CI YT CDN buffering can take >15s
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
-        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 30000 }),
       ])
 
       // 3. Allow convergence window for decoder warm-up & drift alignment
