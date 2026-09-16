@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Production config — explicitly uses production D1 (a12de014 = lop-10a7-db)
+  "name": "gdtxdinhquan",
+  "account_id": "bfc647e65d847f61ca386b7f11c27173",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-11",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/ws/*"]
+  },
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lop-10a7-db",
+      "database_id": "a12de014-e9d2-4d6d-994f-dcb36c481432"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "e2529ac570cb4d77a246f38953dcbc9f"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ANH",
+      "bucket_name": "lop-10a7-anh"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomDO" },
+      { "name": "CAMPUS", "class_name": "CampusDO" },
+      { "name": "GAME_LOBBY", "class_name": "GameLobbyDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["CampusDO"] },
+    { "tag": "v3", "new_sqlite_classes": ["GameLobbyDO"] }
+  ],
+  "observability": { "enabled": true }
+}
