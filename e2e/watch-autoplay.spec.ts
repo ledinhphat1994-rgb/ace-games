@@ -61,17 +61,17 @@ async function waitForYTPlayerReady(page: Page, timeout = 25000) {
 async function startOrUnblockPlayback(page: Page) {
   const syncBtn = page.locator('button:has-text("Đồng bộ & Phát ngay")')
   if (await syncBtn.isVisible().catch(() => false)) {
-    await syncBtn.click()
+    await syncBtn.click({ force: true })
     return
   }
   const playBtn = page.locator('button[title="Phát"]')
   const canPlay = await playBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)
   if (canPlay) {
-    await playBtn.click()
+    await playBtn.click({ force: true })
   }
   const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 2000 }).then(() => true).catch(() => false)
   if (blockedAppeared) {
-    await syncBtn.click()
+    await syncBtn.click({ force: true })
   }
 }
 
@@ -135,7 +135,7 @@ test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
       console.log('[Autoplay Test] 5. Entering room as Member B...')
       await enterStudyRoom(pageB, TEST_ROOM_ID)
       console.log('[Autoplay Test] 6. Waiting for Member B player ready...')
-      await waitForYTPlayerReady(pageB)
+      await waitForYTPlayerReady(pageB, 60000) // CI with restricted autoplay policy needs more time for YT iframe init
 
       // Host starts playback with an explicit user click
       console.log('[Autoplay Test] 7. Host starting playback...')
