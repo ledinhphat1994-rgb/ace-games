@@ -16,7 +16,9 @@
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts --project=chromium-watch",
     "preview": "vite preview",
     "preview:worker": "wrangler dev --config wrangler.jsonc --assets ./dist/client --persist-to .wrangler/state --port 8787",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && npx wrangler deploy --config wrangler.production.jsonc",
+    "deploy:staging": "npm run build && npx wrangler deploy --config wrangler.staging.jsonc",
+    "deploy:production": "npm run build && npx wrangler deploy --config wrangler.production.jsonc"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
