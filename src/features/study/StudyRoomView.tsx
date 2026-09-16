@@ -212,7 +212,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }
   }, [mediaState.videoId])
 
-  const prevSlideUrlRef = useRef(slideState?.docUrl)
+  const prevSlideUrlRef = useRef<string | null>(null)
   useEffect(() => {
     if (slideState?.docUrl && slideState?.docUrl !== prevSlideUrlRef.current) {
       prevSlideUrlRef.current = slideState.docUrl
@@ -228,7 +228,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     if (chatRef.current) {
       chatRef.current.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
     }
-  }, [chatMessages.length])
+  }, [chatMessages.length, showChat])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
@@ -316,27 +316,40 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const bringCalcToFront = () => setCalcZ(nextZIndex())
 
   const isOnline = trangThai === 'da_ket_noi'
-  const [lastReadTime, setLastReadTime] = useState<number>(() => Date.now())
+  const [lastReadMessageId, setLastReadMessageId] = useState<number>(0)
+  const hasInitializedReadRef = useRef(false)
+
+  const highestMessageId = useMemo(() => {
+    if (chatMessages.length === 0) return 0
+    return Math.max(...chatMessages.map((m) => parseInt(m.id, 10) || 0))
+  }, [chatMessages])
+
+  useEffect(() => {
+    if (!hasInitializedReadRef.current && chatMessages.length > 0) {
+      hasInitializedReadRef.current = true
+      setLastReadMessageId(Math.max(...chatMessages.map((m) => parseInt(m.id, 10) || 0)))
+    }
+  }, [chatMessages])
 
   const unreadChat = useMemo(() => {
     if (showChat) return 0
-    return chatMessages.filter((m) => m.taoLuc > lastReadTime).length
-  }, [chatMessages, showChat, lastReadTime])
+    return chatMessages.filter((m) => (parseInt(m.id, 10) || 0) > lastReadMessageId).length
+  }, [chatMessages, showChat, lastReadMessageId])
 
   const handleToggleChat = () => {
     setShowChat((v) => {
       const next = !v
       if (next) {
         setShowMembers(false)
+        setLastReadMessageId(highestMessageId)
       }
-      setLastReadTime(Date.now())
       return next
     })
   }
 
   const handleCloseChat = () => {
     setShowChat(false)
-    setLastReadTime(Date.now())
+    setLastReadMessageId(highestMessageId)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -355,11 +368,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             <PinnedSlideView
               slideState={slideState}
               isHost={isHost}
+              canModerate={canModerate}
               onUnpin={() => setIsSlidePinned(false)}
               onClose={() => {
                 setIsSlidePinned(false)
                 setShowSlide(false)
-                closeSlideDoc()
+                if (isHost || canModerate) closeSlideDoc()
               }}
               onChangeSlidePage={changeSlidePage}
             />
@@ -407,13 +421,18 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                 : 'border-sky-500/40 bg-sky-900/30'
             }`}
           >
-            <span
-              className={`text-[10px] font-bold uppercase tracking-widest ${
+            <button
+              type="button"
+              onClick={() => (isHost || canModerate) && togglePomodoro({ action: 'switch_mode', mode: pomodoroState.mode === 'focus' ? 'break' : 'focus' })}
+              className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${
+                (isHost || canModerate) ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'
+              } ${
                 pomodoroState.mode === 'focus' ? 'text-emerald-300' : 'text-sky-300'
               }`}
+              title={(isHost || canModerate) ? 'Bấm để đổi chế độ Tập trung / Nghỉ ngơi' : undefined}
             >
               {pomodoroState.mode === 'focus' ? 'Tập trung' : 'Nghỉ ngơi'}
-            </span>
+            </button>
             <span
               className={`font-mono text-base font-black tabular-nums ${
                 pomodoroState.mode === 'focus' ? 'text-emerald-200' : 'text-sky-200'
@@ -421,7 +440,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             >
               {dinhDangGiayPhut(pomoRemaining)}
             </span>
-            {isHost && (
+            {(isHost || canModerate) && (
               <div className="flex items-center gap-0.5 border-l border-white/10 pl-2">
                 <button
                   onClick={() => togglePomodoro({ action: pomodoroState.running ? 'pause' : 'start' })}
@@ -504,9 +523,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         <FloatingSlidePanel
           slideState={slideState}
           isHost={isHost}
+          canModerate={canModerate}
           zIndex={slideZ}
           onFocus={bringSlideToFront}
-          onClose={() => { setShowSlide(false); closeSlideDoc() }}
+          onClose={() => {
+            setShowSlide(false)
+            if (isHost || canModerate) closeSlideDoc()
+          }}
           onChangeSlidePage={changeSlidePage}
           onPin={() => setIsSlidePinned(true)}
         />
@@ -611,7 +634,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   }
                 }}
               />
-              <Button type="submit" size="sm" className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500">
+              <Button
+                type="submit"
+                size="sm"
+                onClick={() => handleSendChat()}
+                className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500"
+              >
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </form>
@@ -680,7 +708,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                     onClick={() => resolveNotesConflict('force_client')}
                     className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-500 transition-colors"
                   >
-                    Ghi đè bản này
+                    Thử lưu bản của tôi
                   </button>
                 </div>
               </div>
@@ -958,14 +986,18 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             onClick={() => {
               if (slideState && !showSlide) {
                 setShowSlide(true)
-              } else {
+              } else if (isHost || canModerate) {
                 setShowUploadModal(true)
+              } else if (slideState) {
+                setShowSlide((v) => !v)
+              } else {
+                toast.info('Chưa có bài giảng nào được tải lên.')
               }
             }}
             className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
               showSlide ? 'bg-orange-600/80 text-white' : 'text-orange-400 hover:bg-orange-600/20'
             }`}
-            title={slideState ? (showSlide ? 'Đổi hoặc tải slide khác' : 'Hiện bài giảng slide') : 'Tải bài giảng Slide / PDF'}
+            title={slideState ? (showSlide ? 'Đổi hoặc tải slide khác' : 'Hiện bài giảng slide') : (isHost || canModerate ? 'Tải bài giảng Slide / PDF' : 'Xem bài giảng slide')}
           >
             <Upload className="h-3.5 w-3.5" />
             <FileText className="h-3.5 w-3.5" />
@@ -996,7 +1028,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             title="Chat phòng học"
           >
             <span className="text-base leading-none">💬</span>
-            {chatMessages.length > 0 && !showChat && (
+            {unreadChat > 0 && !showChat && (
               <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[9px] font-black text-white">
                 {Math.min(unreadChat, 99)}
               </span>

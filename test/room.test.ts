@@ -202,7 +202,7 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
     await a.cho('room.snapshot')
     await b.cho('room.snapshot')
 
-    a.gui({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke: { id: 'st_1', points: [[0,0],[1,1]], color: '#fff', size: 2 } } })
+    a.gui({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke: { id: 'st_1', points: [[0,0],[1,1]], color: '#fff', size: 2, epoch: 1 } } })
     const gAdd = await b.cho('whiteboard.sync', (g) => g.action === 'stroke.add')
     expect(gAdd.stroke?.id).toBe('st_1')
 
@@ -222,7 +222,7 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
     await a.cho('room.snapshot')
     await b.cho('room.snapshot')
 
-    a.gui({ type: 'notes.action', data: { action: 'update', content: '# Công thức' } })
+    a.gui({ type: 'notes.action', data: { action: 'update', content: '# Công thức', baseRevision: 1 } })
     const gN = await b.cho('notes.sync', (g) => g.notes.content === '# Công thức')
     expect(gN.notes.lastEditedBy).toBe('QA Thử nghiệm 1')
 

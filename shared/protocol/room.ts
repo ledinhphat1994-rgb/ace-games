@@ -30,7 +30,7 @@ export interface WhiteboardStroke {
   points: [number, number][]
   color: string
   size: number
-  epoch?: number
+  epoch: number
 }
 
 export interface SharedNotes {
@@ -112,10 +112,10 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
     action: z.literal('stroke.add'),
     stroke: z.object({
       id: z.string().min(1).max(64),
-      points: z.array(z.tuple([z.number(), z.number()])).max(2000),
+      points: z.array(z.tuple([z.number(), z.number()])).min(1).max(500),
       color: z.string().max(30),
       size: z.number().positive().max(100),
-      epoch: z.number().int().nonnegative().optional(),
+      epoch: z.number().int().nonnegative(),
     }),
   }),
   z.object({ action: z.literal('stroke.clear') }),
@@ -125,7 +125,7 @@ export type LenhPhongWhiteboard = z.infer<typeof LenhPhongWhiteboard>
 export const LenhPhongNotes = z.object({
   action: z.literal('update'),
   content: z.string().max(20000),
-  baseRevision: z.number().int().nonnegative().optional(),
+  baseRevision: z.number().int().nonnegative(),
 })
 export type LenhPhongNotes = z.infer<typeof LenhPhongNotes>
 
@@ -165,7 +165,7 @@ export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('notes.action'), data: LenhPhongNotes }),
   z.object({ type: z.literal('queue.action'), data: LenhPhongQueue }),
   z.object({ type: z.literal('slide.action'), data: LenhPhongSlide }),
-  z.object({ type: z.literal('chat.send'), reqId: z.string().max(50).optional(), text: z.string().max(1000) }),
+  z.object({ type: z.literal('chat.send'), reqId: z.string().min(1).max(50), text: z.string().max(1000) }),
   z.object({ type: z.literal('voice.mic'), mic: z.boolean() }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>

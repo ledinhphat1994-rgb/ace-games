@@ -76,6 +76,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const clockSyncRef = useRef<ClockSyncManager>(new ClockSyncManager())
   const serverClockOffsetRef = useRef<number>(0)
   const whiteboardEpochRef = useRef<number>(1)
+  const sharedNotesRef = useRef<SharedNotes>(DEFAULT_NOTES)
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
@@ -112,6 +113,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
     const ws = new WebSocket(`${giaoThuc}//${host}/ws/room/${encodeURIComponent(roomId)}`)
     wsRef.current = ws
+    if (typeof window !== 'undefined') {
+      ;(window as unknown as { __roomWs?: WebSocket }).__roomWs = ws
+    }
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return
@@ -136,6 +140,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setMembers(goi.members)
           setMediaState(goi.media)
           setPomodoroState(goi.pomodoro)
+          sharedNotesRef.current = goi.notes
           setSharedNotes(goi.notes)
           setWhiteboardStrokes(goi.strokes)
           if (typeof goi.whiteboardEpoch === 'number') {
@@ -183,11 +188,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
           break
 
         case 'notes.sync':
+          sharedNotesRef.current = goi.notes
           setSharedNotes(goi.notes)
-          setNotesConflict(null)
+          setNotesConflict((prev) => {
+            if (!prev) return null
+            // If the incoming update was from THIS user successfully saving their content:
+            if (goi.notes.content === prev.rejectedContent) {
+              return null
+            }
+            // Otherwise, an unrelated update arrived: preserve rejectedContent!
+            return {
+              currentNotes: goi.notes,
+              rejectedContent: prev.rejectedContent,
+            }
+          })
           break
 
         case 'notes.conflict':
+          sharedNotesRef.current = goi.currentNotes
           setNotesConflict({
             currentNotes: goi.currentNotes,
             rejectedContent: goi.rejectedContent,
@@ -304,6 +322,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
         henGioKetNoiLaiRef.current = null
       }
       if (wsRef.current) {
+        if (typeof window !== 'undefined' && (window as unknown as { __roomWs?: WebSocket }).__roomWs === wsRef.current) {
+          ;(window as unknown as { __roomWs?: WebSocket }).__roomWs = undefined
+        }
         wsRef.current.onclose = null
         wsRef.current.close(1000, 'roi_phong')
         wsRef.current = null
@@ -366,12 +387,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'pomodoro.action', data }))
   }, [])
 
-  const sendStroke = useCallback((stroke: WhiteboardStroke) => {
+  const sendStroke = useCallback((stroke: Omit<WhiteboardStroke, 'epoch'> | WhiteboardStroke) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     const strokeWithEpoch: WhiteboardStroke = {
       ...stroke,
-      epoch: whiteboardEpochRef.current,
+      epoch: 'epoch' in stroke && typeof stroke.epoch === 'number' ? stroke.epoch : whiteboardEpochRef.current,
     }
     ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke: strokeWithEpoch } }))
   }, [])
@@ -390,10 +411,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
       data: {
         action: 'update',
         content,
-        baseRevision: typeof baseRevision === 'number' ? baseRevision : sharedNotes.revision,
+        baseRevision: typeof baseRevision === 'number' ? baseRevision : sharedNotesRef.current.revision,
       },
     }))
-  }, [sharedNotes.revision])
+  }, [])
 
   const resolveNotesConflict = useCallback((choice: 'keep_server' | 'force_client') => {
     if (!notesConflict) return
@@ -402,9 +423,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     } else if (choice === 'force_client') {
       const contentToForce = notesConflict.rejectedContent
       setNotesConflict(null)
-      updateNotes(contentToForce, sharedNotes.revision)
+      updateNotes(contentToForce, sharedNotesRef.current.revision)
     }
-  }, [notesConflict, sharedNotes.revision, updateNotes])
+  }, [notesConflict, updateNotes])
 
   const addToQueue = useCallback((videoId: string, title: string) => {
     const ws = wsRef.current

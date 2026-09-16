@@ -14,6 +14,7 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react'
+import { PdfCanvasViewer } from './PdfCanvasViewer'
 import { useEffect, useRef, useState } from 'react'
 
 /** Build the correct iframe src depending on the URL type */
@@ -71,6 +72,7 @@ interface Interaction {
 interface FloatingSlidePanelProps {
   slideState: SlideState
   isHost: boolean
+  canModerate?: boolean
   zIndex: number
   onFocus: () => void
   onClose: () => void
@@ -81,12 +83,14 @@ interface FloatingSlidePanelProps {
 export function FloatingSlidePanel({
   slideState,
   isHost,
+  canModerate,
   zIndex,
   onFocus,
   onClose,
   onChangeSlidePage,
   onPin,
 }: FloatingSlidePanelProps) {
+  const canControl = isHost || Boolean(canModerate)
   const [position, setPosition] = useState({ x: 340, y: 70 })
   const [size, setSize] = useState({ w: 640, h: 430 })
   const [isMinimized, setIsMinimized] = useState(false)
@@ -269,11 +273,15 @@ export function FloatingSlidePanel({
               <span className="truncate text-xs font-semibold text-slate-200">
                 {slideState.docName || 'Bài giảng'}
               </span>
-              {isHost && (
+              {isHost ? (
                 <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 shrink-0">
                   Chủ tọa
                 </span>
-              )}
+              ) : canModerate ? (
+                <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[9px] font-bold text-indigo-300 shrink-0">
+                  Điều hành
+                </span>
+              ) : null}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[9px] font-mono text-slate-500 select-none mr-1">
@@ -319,7 +327,7 @@ export function FloatingSlidePanel({
               <button
                 onClick={onClose}
                 className="rounded p-1 text-slate-400 hover:text-red-400 transition-colors"
-                title="Đóng trình chiếu"
+                title={canControl ? 'Đóng trình chiếu cho cả phòng' : 'Ẩn cửa sổ trình chiếu'}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -352,6 +360,12 @@ export function FloatingSlidePanel({
                   </Button>
                 </div>
               </div>
+            ) : slideState.fileType === 'pdf' ? (
+              <PdfCanvasViewer
+                docUrl={slideState.docUrl}
+                pageNumber={slideState.currentPage}
+                onError={() => setLastFailedDocUrl(slideState.docUrl)}
+              />
             ) : slideState.fileType === 'image' ? (
               <img
                 src={slideState.docUrl}
@@ -361,12 +375,17 @@ export function FloatingSlidePanel({
                 draggable={false}
               />
             ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
-              <iframe
-                src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
-                title="Slide Viewer"
-                className={`h-full w-full border-0 bg-white ${isInteracting ? 'pointer-events-none' : ''}`}
-                allow="fullscreen"
-              />
+              <div className="relative h-full w-full">
+                <div className="absolute top-2 left-2 z-10 rounded bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold text-amber-200 backdrop-blur">
+                  Chế độ xem ngoài (Chưa hỗ trợ đồng bộ từng trang PPTX)
+                </div>
+                <iframe
+                  src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
+                  title="Slide Viewer"
+                  className={`h-full w-full border-0 bg-white ${isInteracting ? 'pointer-events-none' : ''}`}
+                  allow="fullscreen"
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
                 <FileSpreadsheet className="h-12 w-12 text-orange-400 mb-2 opacity-80" />
@@ -381,31 +400,42 @@ export function FloatingSlidePanel({
             className="flex shrink-0 items-center justify-between border-t border-white/10 bg-[#0c1420]/90 px-3 select-none"
             style={{ height: FOOTER_H }}
           >
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={slideState.currentPage <= 1}
-              onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
-              className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Trang trước
-            </Button>
+            {slideState.fileType === 'pptx' ? (
+              <div className="w-full flex items-center justify-between text-slate-400 text-xs">
+                <span className="text-[11px] text-amber-400/90 font-medium">Chế độ xem ngoài — lướt trang trực tiếp trong khung</span>
+                <span className="text-[10px] text-slate-500">Độc lập từng người xem</span>
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!canControl || slideState.currentPage <= 1}
+                  onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
+                  className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
+                  title={canControl ? 'Trang trước' : 'Chỉ chủ phòng hoặc người điều hành mới có quyền chuyển trang'}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Trang trước
+                </Button>
 
-            <span className="text-xs font-mono font-bold text-orange-300">
-              {slideState.currentPage} / {slideState.totalPages}
-            </span>
+                <span className="text-xs font-mono font-bold text-orange-300">
+                  {slideState.currentPage} / {slideState.totalPages}
+                </span>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={slideState.currentPage >= slideState.totalPages}
-              onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
-              className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
-            >
-              Trang sau
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!canControl || slideState.currentPage >= slideState.totalPages}
+                  onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
+                  className="h-6 px-2 text-xs gap-1 text-slate-300 hover:text-white"
+                  title={canControl ? 'Trang sau' : 'Chỉ chủ phòng hoặc người điều hành mới có quyền chuyển trang'}
+                >
+                  Trang sau
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -481,6 +511,7 @@ export function FloatingSlidePanel({
 interface PinnedSlideViewProps {
   slideState: SlideState
   isHost: boolean
+  canModerate?: boolean
   onChangeSlidePage: (page: number) => void
   onUnpin: () => void
   onClose: () => void
@@ -488,11 +519,13 @@ interface PinnedSlideViewProps {
 
 export function PinnedSlideView({
   slideState,
-  isHost: _isHost,
+  isHost,
+  canModerate,
   onChangeSlidePage,
   onUnpin,
   onClose,
 }: PinnedSlideViewProps) {
+  const canControl = isHost || Boolean(canModerate)
   const [useGoogleViewer, setUseGoogleViewer] = useState(false)
   const [lastFailedDocUrl, setLastFailedDocUrl] = useState<string | null>(null)
   const hasRenderError = Boolean(lastFailedDocUrl && lastFailedDocUrl === slideState.docUrl)
@@ -522,6 +555,12 @@ export function PinnedSlideView({
               </Button>
             </div>
           </div>
+        ) : slideState.fileType === 'pdf' ? (
+          <PdfCanvasViewer
+            docUrl={slideState.docUrl}
+            pageNumber={slideState.currentPage}
+            onError={() => setLastFailedDocUrl(slideState.docUrl)}
+          />
         ) : slideState.fileType === 'image' ? (
           <img
             src={slideState.docUrl}
@@ -531,12 +570,17 @@ export function PinnedSlideView({
             draggable={false}
           />
         ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
-          <iframe
-            src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
-            title="Slide Viewer (Pinned)"
-            className="h-full w-full border-0 bg-white"
-            allow="fullscreen"
-          />
+          <div className="relative h-full w-full">
+            <div className="absolute top-2 left-2 z-10 rounded bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold text-amber-200 backdrop-blur">
+              Chế độ xem ngoài (Chưa hỗ trợ đồng bộ từng trang PPTX)
+            </div>
+            <iframe
+              src={buildIframeSrc(slideState.docUrl, slideState.fileType, useGoogleViewer)}
+              title="Slide Viewer (Pinned)"
+              className="h-full w-full border-0 bg-white"
+              allow="fullscreen"
+            />
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <FileSpreadsheet className="h-14 w-14 text-orange-400 mb-2 opacity-80" />
@@ -556,31 +600,37 @@ export function PinnedSlideView({
           Nền bảng vẽ
         </span>
 
-        <div className="flex items-center gap-1 border-l border-white/10 pl-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={slideState.currentPage <= 1}
-            onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
-            className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
-            title="Trang trước"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
-          <span className="text-xs font-mono font-bold text-orange-300 px-1">
-            {slideState.currentPage}/{slideState.totalPages}
+        {slideState.fileType === 'pptx' ? (
+          <span className="text-[10px] text-amber-300/80 border-l border-white/10 pl-2">
+            Chế độ xem ngoài (lướt độc lập)
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={slideState.currentPage >= slideState.totalPages}
-            onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
-            className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
-            title="Trang sau"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1 border-l border-white/10 pl-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canControl || slideState.currentPage <= 1}
+              onClick={() => onChangeSlidePage(slideState.currentPage - 1)}
+              className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
+              title={canControl ? 'Trang trước' : 'Chỉ chủ phòng hoặc người điều hành mới có quyền chuyển trang'}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-xs font-mono font-bold text-orange-300 px-1">
+              {slideState.currentPage}/{slideState.totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canControl || slideState.currentPage >= slideState.totalPages}
+              onClick={() => onChangeSlidePage(slideState.currentPage + 1)}
+              className="h-6 px-1.5 text-xs text-slate-300 hover:text-white"
+              title={canControl ? 'Trang sau' : 'Chỉ chủ phòng hoặc người điều hành mới có quyền chuyển trang'}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
 
         {slideState.fileType === 'pptx' && (
           <button
