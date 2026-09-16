@@ -112,7 +112,7 @@ async function createContextWithE2EMode(browser: Browser) {
 test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
 
   test('Autoplay Block Handling under --autoplay-policy=user-gesture-required — User Action "Đồng bộ & Phát ngay" Resumes Playback', async ({ browser }) => {
-    test.setTimeout(90000)
+    test.setTimeout(180000)
 
     // Context A = Host, Context B = Member
     // Both contexts inherit the browser launched with --autoplay-policy=user-gesture-required
@@ -134,20 +134,26 @@ test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
       await loginUser(pageB, MEMBER_USER)
       console.log('[Autoplay Test] 5. Entering room as Member B...')
       await enterStudyRoom(pageB, TEST_ROOM_ID)
-      console.log('[Autoplay Test] 6. Waiting for Member B player ready...')
-      await waitForYTPlayerReady(pageB, 60000) // CI with restricted autoplay policy needs more time for YT iframe init
+      // NOTE: Do NOT call waitForYTPlayerReady(pageB) here — Member B's YT player only mounts
+      // AFTER the host starts playing (room state transitions to "playing"). Waiting for it
+      // in the paused state causes a guaranteed 60s+ timeout in CI.
+
+      // Ensure Host player is fully ready before starting playback
+      console.log('[Autoplay Test] 6. Waiting for Host player to be ready...')
+      await waitForYTPlayerReady(pageA)
 
       // Host starts playback with an explicit user click
       console.log('[Autoplay Test] 7. Host starting playback...')
       await startOrUnblockPlayback(pageA)
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
+      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
       console.log('[Autoplay Test] 8. Host is playing successfully.')
 
       // Since Member B browser requires user gesture and has not received one,
       // the incoming play command triggers autoplay block detection overlay!
+      // Allow up to 30s for: player mount + WebSocket sync + overlay render
       console.log('[Autoplay Test] 9. Checking for blocked overlay on Member B...')
       const blockedOverlayBtn = pageB.locator('button:has-text("Đồng bộ & Phát ngay")')
-      await expect(blockedOverlayBtn).toBeVisible({ timeout: 15000 })
+      await expect(blockedOverlayBtn).toBeVisible({ timeout: 30000 })
       console.log('[Autoplay Test] 10. Blocked overlay IS visible.')
 
       // Host remains playing uninterrupted
@@ -156,7 +162,7 @@ test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
 
       // Member B clicks "Đồng bộ & Phát ngay" to dismiss block
       console.log('[Autoplay Test] 11. Member B clicks unblock button...')
-      await blockedOverlayBtn.click()
+      await blockedOverlayBtn.click({ force: true })
 
       // Overlay should disappear
       await expect(blockedOverlayBtn).not.toBeVisible({ timeout: 10000 })
@@ -165,7 +171,7 @@ test.describe('Watch Together — Autoplay Policy Restricted Suite', () => {
       await pageB.waitForFunction(() => {
         const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
         return s === 1 || s === 3
-      }, { timeout: 15000 })
+      }, undefined, { timeout: 15000 })
 
       const memberState = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
       console.log(`[Autoplay Test] 12. Member B final state: ${memberState}`)

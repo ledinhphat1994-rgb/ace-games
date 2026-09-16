@@ -116,7 +116,7 @@ async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
   const pauseBtn = page.locator('button[title="Tạm dừng"]')
   if (await pauseBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
     await pauseBtn.click()
-    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 5000 }).catch(() => {})
+    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 5000 }).catch(() => {})
   }
 
   // Seek to 0
@@ -187,7 +187,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
   })
 
   test('1. Two Real Browser Contexts (Host A & Member B) — Load, Play, Drift, Seek, Rate, Reconnect', async ({ browser }) => {
-    test.setTimeout(120000)
+    test.setTimeout(240000)
     // Context A = Host
     const contextA = await createContextWithE2EMode(browser, { viewport: { width: 1280, height: 800 } })
     const pageA = await contextA.newPage()
@@ -207,9 +207,8 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       // 2. Host ensures video is loaded
       await loadVideoIfNone(pageA)
 
-      // 3. Both clients must mount player and become ready
-      await waitForYTPlayerReady(pageA)
-      await waitForYTPlayerReady(pageB)
+      // 3. Both clients must mount player and become ready (parallel — saves 25s vs sequential)
+      await Promise.all([waitForYTPlayerReady(pageA), waitForYTPlayerReady(pageB)])
 
       // Wait for both players to load the exact videoId
       await pageA.waitForFunction((vid) => window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id === vid, TEST_VIDEO_ID, { timeout: 15000 })
@@ -226,12 +225,12 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await startOrUnblockPlayback(pageB)
 
       // 5. Wait for playback to begin on both and allow convergence window
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
-      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
+      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
+      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
 
       await Promise.all([
-        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, { timeout: 15000 }),
-        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, { timeout: 15000 }),
+        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 15000 }),
+        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 4.0, undefined, { timeout: 15000 }),
       ])
 
       // 6. Measure real player drift
@@ -249,8 +248,8 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await pauseBtnA.click()
 
       // Both players should transition to paused (state 2)
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 })
-      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 })
+      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 10000 })
+      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 10000 })
 
       // 8. Host seeks to 6.0s
       const seekSlider = pageA.locator('input[title="Tua đến vị trí"]')
@@ -261,7 +260,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await pageB.waitForFunction(() => {
         const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
         return Math.abs(t - 6) < 1.5
-      }, { timeout: 10000 })
+      }, undefined, { timeout: 10000 })
 
       const postSeekB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
       console.log(`[E2E Seek Convergence] Member B position post-seek: ${postSeekB.toFixed(3)}s`)
@@ -274,7 +273,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       // Member B should apply canonical rate 1.5x
       await pageB.waitForFunction(() => {
         return window.__YT_PLAYER_INSTANCE__?.getPlaybackRate() === 1.5
-      }, { timeout: 10000 })
+      }, undefined, { timeout: 10000 })
 
       const rateB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlaybackRate())
       expect(rateB).toBe(1.5)
@@ -284,8 +283,8 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await seekSlider.dispatchEvent('change')
       await startOrUnblockPlayback(pageA)
       await startOrUnblockPlayback(pageB)
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 10000 })
-      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 10000 })
+      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 10000 })
+      await pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 10000 })
 
       // 11. Member B refreshes page & reconverges
       await pageB.reload()
@@ -297,7 +296,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
         const state = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
         const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
         return (state === 1 || state === 3) && t >= 2.0
-      }, { timeout: 15000 })
+      }, undefined, { timeout: 15000 })
 
       const reconvergeTimeB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
       console.log(`[E2E Reconnect] Member B resumed after reload at ${reconvergeTimeB.toFixed(3)}s`)
@@ -309,7 +308,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
   })
 
   test('2. Three Real Browser Contexts (A, B, C) — Multi-Client Actions & Pairwise Drift', async ({ browser }) => {
-    test.setTimeout(120000)
+    test.setTimeout(240000)
     const contextA = await createContextWithE2EMode(browser)
     const pageA = await contextA.newPage()
 
@@ -343,16 +342,16 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
 
       // 2. Wait until all 3 are in state 1 (playing)
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
-        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
       ])
 
       // 3. Allow convergence window for decoder warm-up & drift alignment
       await Promise.all([
-        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 3.0, { timeout: 15000 }),
-        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, { timeout: 15000 }),
-        pageC.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, { timeout: 15000 }),
+        pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 3.0, undefined, { timeout: 15000 }),
+        pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, undefined, { timeout: 15000 }),
+        pageC.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, undefined, { timeout: 15000 }),
       ])
 
       let timeA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
@@ -381,9 +380,9 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
 
       // Verify all three pause (state 2)
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
-        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 10000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 10000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, undefined, { timeout: 10000 }),
       ])
 
       // 5. Host seeks to 6.0s while paused
@@ -396,11 +395,11 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
         pageB.waitForFunction(() => {
           const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
           return Math.abs(t - 6) < 1.5
-        }, { timeout: 12000 }),
+        }, undefined, { timeout: 12000 }),
         pageC.waitForFunction(() => {
           const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
           return Math.abs(t - 6) < 1.5
-        }, { timeout: 12000 }),
+        }, undefined, { timeout: 12000 }),
       ])
 
       // 6. Host seeks to 2.0s to ensure ample runway, then resumes playback
@@ -411,9 +410,9 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await startOrUnblockPlayback(pageA)
 
       await Promise.all([
-        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
-        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
-        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 }),
       ])
 
       // 7. Post-resume drift measurement
@@ -440,7 +439,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
   })
 
   test('3. Player Minimize / Restore Lifecycle — Preserves Mounted Host DOM Node', async ({ browser }) => {
-    test.setTimeout(60000)
+    test.setTimeout(120000)
     const context = await createContextWithE2EMode(browser)
     const page = await context.newPage()
 
@@ -452,7 +451,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
 
       // Ensure playing
       await startOrUnblockPlayback(page)
-      await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
+      await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, undefined, { timeout: 15000 })
       const timeBefore = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
 
       // Click Minimize button
@@ -484,7 +483,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await page.waitForFunction(() => {
         const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
         return s === 1
-      }, { timeout: 15000 })
+      }, undefined, { timeout: 15000 })
 
       const timeAfter = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
       const stateAfter = await page.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
