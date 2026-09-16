@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Browser, type Page } from '@playwright/test'
 import { assertSafeDestructiveE2ETarget } from './safe-target'
 
 // Production Refusal Guard: E2E tests MUST NEVER run against production
@@ -23,6 +23,17 @@ const TEST_ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
 
 if (!HOST_USER.password || !MEMBER_USER.password || !MEMBER_C_USER.password) {
   throw new Error('Missing E2E credentials in environment or .env.e2e. Please check .env.e2e.')
+}
+
+/** Create a browser context with optional E2E mode for internal WS inspection */
+async function createE2EContext(browser: Browser, enableE2E = true) {
+  const context = await browser.newContext()
+  if (enableE2E) {
+    await context.addInitScript(() => {
+      ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
+    })
+  }
+  return context
 }
 
 async function loginUser(page: Page, user: { username: string; password: string }) {
@@ -68,14 +79,41 @@ async function enterStudyRoom(page: Page, roomId = TEST_ROOM_ID) {
   }
 }
 
+/** Upload real PDF via the standard modal file-input flow (POST /api/upload -> load_doc) */
+async function uploadSlidePdf(page: Page, filePath: string) {
+  const modalTitle = page.locator('text=Chèn Bài Giảng PowerPoint / PDF')
+  if (!await modalTitle.isVisible().catch(() => false)) {
+    await page.locator('button:has-text("Slide")').click()
+    await expect(modalTitle).toBeVisible({ timeout: 10000 })
+  }
+  await page.setInputFiles('#slide-file-input', filePath)
+  // Wait for upload and page detection to succeed
+  await expect(page.locator('text=✅ Đã chọn:')).toBeVisible({ timeout: 30000 })
+  await page.locator('button:has-text("Chèn Lên Bảng")').click()
+  await expect(modalTitle).not.toBeVisible({ timeout: 10000 })
+}
+
 test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliability Suite', () => {
   test.setTimeout(180000)
 
   // ── Scenario 1: Whiteboard Drawing Convergence & Epoch Clear ──────────────
   test('1. Whiteboard: Concurrent drawing convergence, Host clear, and stale-epoch rejection', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
-    const contextC = await browser.newContext()
+    // 1. Verify production privacy: normal user has NO window.__roomWs
+    const contextNormal = await createE2EContext(browser, false)
+    const pageNormal = await contextNormal.newPage()
+    try {
+      await loginUser(pageNormal, HOST_USER)
+      await enterStudyRoom(pageNormal)
+      const normalWs = await pageNormal.evaluate(() => (window as unknown as { __roomWs?: unknown }).__roomWs)
+      expect(normalWs).toBeUndefined()
+    } finally {
+      await contextNormal.close()
+    }
+
+    // 2. Setup 3 test contexts with E2E mode enabled
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
+    const contextC = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -150,7 +188,9 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       await expect(pageMember.locator('svg.touch-none path')).toHaveCount(0, { timeout: 10000 })
       await expect(pageC.locator('svg.touch-none path')).toHaveCount(0, { timeout: 10000 })
 
-      // Inject a stale-epoch stroke (epoch = 0) via WebSocket protocol helper
+      // Inject a VALID protocol packet with stale epoch (epoch = 0)
+      // Must have valid id and tuple coordinates [[number, number], ...] so Zod passes
+      // and RoomDO epoch guard is specifically tested
       await pageMember.evaluate(() => {
         const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -159,7 +199,8 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
             data: {
               action: 'stroke.add',
               stroke: {
-                points: [{ x: 200, y: 500 }],
+                id: `stale-stroke-${Date.now()}`,
+                points: [[200, 500], [220, 520]],
                 color: '#FFFFFF',
                 size: 6,
                 epoch: 0,
@@ -170,7 +211,7 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       })
       await pageMember.waitForTimeout(600)
 
-      // Stale-epoch stroke is rejected by RoomDO and does NOT appear on Member C
+      // Stale-epoch stroke is rejected by RoomDO epoch guard and does NOT appear on Member C
       await expect(pageC.locator('svg.touch-none path')).toHaveCount(0)
     } finally {
       await contextHost.close()
@@ -181,8 +222,8 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
 
   // ── Scenario 2: Shared Notes OCC & Conflict Survival UX ───────────────────
   test('2. Shared Notes: OCC conflict banner preserves rejected draft across subsequent syncs and allows manual retry', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -208,49 +249,78 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       // Host writes baseline note
       const baseNote = `Baseline note ${Date.now()}`
       await hostNotesArea.fill(baseNote)
-      await pageHost.waitForTimeout(800)
+      await pageHost.waitForTimeout(1000)
       await expect(memberNotesArea).toHaveValue(baseNote, { timeout: 15000 })
 
-      // Trigger conflict: member prepares a local draft
+      // Member B prepares draft in textarea (starts 600ms debounce timer with current rev)
       const memberDraft = `Member conflicting draft ${Date.now()}`
       await memberNotesArea.fill(memberDraft)
 
-      // Host rapidly sends a new update
-      const hostUpdate2 = `Host update rev 2 ${Date.now()}`
-      await hostNotesArea.fill(hostUpdate2)
-      await pageHost.waitForTimeout(800)
+      // Before Member B's 600ms debounce fires, Host commits a newer revision directly to server
+      const hostWinningUpdate = `Host winning update ${Date.now()}`
+      await pageHost.evaluate((content) => {
+        const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
+        const notesRef = (window as unknown as { __roomNotesRef?: { current: { revision: number } } }).__roomNotesRef
+        const rev = notesRef?.current?.revision ?? 1
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          // Send update without waiting for debounce, preempting Member B on server
+          ws.send(JSON.stringify({
+            type: 'notes.action',
+            data: {
+              action: 'update',
+              content,
+              baseRevision: rev, // Dynamically matches server revision
+            },
+          }))
+        }
+      }, hostWinningUpdate)
 
-      // Member receives sync, but memberDraft remains or conflict banner appears
-      const conflictBanner = pageMember.locator('text=Phát hiện xung đột nội dung')
-      const isConflictVisible = await conflictBanner.waitFor({ state: 'visible', timeout: 6000 }).then(() => true).catch(() => false)
+      // When Member B's 600ms debounce fires, its baseRevision is now stale!
+      // Conflict banner MUST appear unconditionally on Member B
+      const conflictBanner = pageMember.locator('[data-testid="notes-conflict-banner"]')
+      await expect(conflictBanner).toBeVisible({ timeout: 15000 })
+      await expect(pageMember.locator('text=Xung đột chỉnh sửa!')).toBeVisible()
 
-      if (isConflictVisible) {
-        // Host sends another update 3 while Member has unresolved conflict banner
-        const hostUpdate3 = `Host update rev 3 ${Date.now()}`
-        await hostNotesArea.fill(hostUpdate3)
-        await pageHost.waitForTimeout(800)
+      // B's local textarea retains the rejected draft
+      await expect(memberNotesArea).toHaveValue(memberDraft)
 
-        // Conflict banner and retry button MUST SURVIVE the second remote sync!
-        await expect(conflictBanner).toBeVisible({ timeout: 5000 })
-        const retryBtn = pageMember.locator('button:has-text("Thử lưu bản của tôi")')
-        await expect(retryBtn).toBeVisible({ timeout: 5000 })
+      // Host sends subsequent remote update while Member B is in conflict
+      const hostUpdate2 = `Host subsequent rev ${Date.now()}`
+      await pageHost.evaluate((content) => {
+        const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
+        const notesRef = (window as unknown as { __roomNotesRef?: { current: { revision: number } } }).__roomNotesRef
+        const rev = notesRef?.current?.revision ?? 1
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'notes.action',
+            data: { action: 'update', content, baseRevision: rev },
+          }))
+        }
+      }, hostUpdate2)
+      await pageHost.waitForTimeout(1000)
 
-        // Member clicks retry
-        await retryBtn.click()
-      }
+      // Invariant: Conflict banner and rejected draft MUST SURVIVE remote sync!
+      await expect(conflictBanner).toBeVisible({ timeout: 5000 })
+      await expect(memberNotesArea).toHaveValue(memberDraft)
 
-      // Notes are functional and show author
-      await expect(pageHost.locator('text=Sửa bởi:')).toBeVisible({ timeout: 5000 })
+      // Member clicks "Thử lưu bản của tôi"
+      const retryBtn = pageMember.locator('[data-testid="notes-conflict-retry"]')
+      await expect(retryBtn).toBeVisible({ timeout: 5000 })
+      await retryBtn.click()
+
+      // Server accepts B's forced draft: banner clears and Host receives B's content!
+      await expect(conflictBanner).not.toBeVisible({ timeout: 15000 })
+      await expect(hostNotesArea).toHaveValue(memberDraft, { timeout: 15000 })
     } finally {
       await contextHost.close()
       await contextMember.close()
     }
   })
 
-  // ── Scenario 3: Room Chat Durable Dedup & Unread Monotonic Boundary ───────
-  test('3. Room Chat: Accurate unread badge count, message delivery, and toggle reset', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
+  // ── Scenario 3: Room Chat Durable Dedup & Submission Paths ────────────────
+  test('3. Room Chat: Accurate unread badge count, single-click dedup, Enter submission, and delivery', async ({ browser }) => {
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -263,27 +333,34 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       await enterStudyRoom(pageHost)
       await enterStudyRoom(pageMember)
 
-      // Ensure Host's chat drawer is CLOSED
+      // Open chat on both sides
+      await pageHost.locator('button[title="Chat phòng học"]').click()
+      await pageMember.locator('button[title="Chat phòng học"]').click()
       const hostChatInput = pageHost.locator('input[placeholder="Nhắn tin..."]')
-      if (await hostChatInput.isVisible()) {
-        await pageHost.locator('button[title="Chat phòng học"]').click()
-        await expect(hostChatInput).not.toBeVisible({ timeout: 5000 })
-      }
-
-      // Member opens chat and sends message
       const memberChatInput = pageMember.locator('input[placeholder="Nhắn tin..."]')
-      if (!await memberChatInput.isVisible()) {
-        await pageMember.locator('button[title="Chat phòng học"]').click()
-        await expect(memberChatInput).toBeVisible({ timeout: 10000 })
-      }
+      await expect(hostChatInput).toBeVisible({ timeout: 10000 })
+      await expect(memberChatInput).toBeVisible({ timeout: 10000 })
 
-      const chatContent = `Tin nhắn thử nghiệm ${Date.now()}`
-      await memberChatInput.fill(chatContent)
+      // 1. Test click send button once -> exactly one message delivered
+      const clickMsg = `Msg click send ${Date.now()}`
+      await hostChatInput.fill(clickMsg)
+      await pageHost.locator('form:has(input[placeholder="Nhắn tin..."]) button[type="submit"]').click()
+      await expect(pageMember.locator(`text=${clickMsg}`)).toHaveCount(1, { timeout: 15000 })
+
+      // 2. Test press Enter once -> exactly one message delivered
+      const enterMsg = `Msg enter key ${Date.now()}`
+      await hostChatInput.fill(enterMsg)
+      await hostChatInput.press('Enter')
+      await expect(pageMember.locator(`text=${enterMsg}`)).toHaveCount(1, { timeout: 15000 })
+
+      // 3. Test unread badge logic: Host closes chat drawer
+      await pageHost.locator('button[title="Chat phòng học"]').click()
+      await expect(hostChatInput).not.toBeVisible({ timeout: 5000 })
+
+      // Member sends message
+      const unreadMsg = `Tin nhắn unread test ${Date.now()}`
+      await memberChatInput.fill(unreadMsg)
       await memberChatInput.press('Enter')
-      await pageMember.waitForTimeout(400)
-
-      // Member sees own message
-      await expect(pageMember.locator(`text=${chatContent}`)).toBeVisible({ timeout: 15000 })
 
       // Host sees unread badge
       const unreadBadge = pageHost.locator('button[title="Chat phòng học"] span.bg-indigo-500')
@@ -292,7 +369,7 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       // Host clicks chat button -> drawer opens and unread badge disappears
       await pageHost.locator('button[title="Chat phòng học"]').click()
       await expect(unreadBadge).not.toBeVisible({ timeout: 5000 })
-      await expect(pageHost.locator(`text=${chatContent}`)).toBeVisible({ timeout: 5000 })
+      await expect(pageHost.locator(`text=${unreadMsg}`)).toBeVisible({ timeout: 5000 })
     } finally {
       await contextHost.close()
       await contextMember.close()
@@ -301,9 +378,9 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
 
   // ── Scenario 4: Real PDF Page Synchronization with Canvas Rendering ───────
   test('4. Slide: Real PDF page synchronization with actual canvas page rendering', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
-    const contextC = await browser.newContext()
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
+    const contextC = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -324,34 +401,20 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
         await pageHost.waitForTimeout(400)
       }
 
-      // Host opens Slide modal
-      const modalTitle = pageHost.locator('text=Chèn Bài Giảng PowerPoint / PDF')
-      if (!await modalTitle.isVisible().catch(() => false)) {
-        await pageHost.locator('button:has-text("Slide")').click()
-      }
-      if (!await modalTitle.isVisible().catch(() => false)) {
-        await pageHost.locator('button:has-text("Slide")').click()
-      }
-      await expect(modalTitle).toBeVisible({ timeout: 10000 })
+      // Host uploads real PDF fixture through the standard UI upload flow
+      await uploadSlidePdf(pageHost, 'test/fixtures/sample.pdf')
 
-      // Click "Hoặc chọn nhanh tệp mẫu QA (2 trang)"
-      const sampleBtn = pageHost.locator('[data-testid="load-sample-qa-pdf"]')
-      await sampleBtn.click()
-
-      // Confirm load slide
-      await pageHost.locator('button:has-text("Chèn Lên Bảng")').click()
-
-      // Host and Member both see rendered PDF page 1 canvas
-      await expect(pageHost.locator('[data-testid="rendered-pdf-page"][data-page="1"]')).toBeVisible({ timeout: 20000 })
-      await expect(pageMember.locator('[data-testid="rendered-pdf-page"][data-page="1"]')).toBeVisible({ timeout: 20000 })
+      // Host and Member both render actual PDF page 1 canvas
+      await expect(pageHost.locator('canvas[data-rendered-page="1"]')).toBeVisible({ timeout: 25000 })
+      await expect(pageMember.locator('canvas[data-rendered-page="1"]')).toBeVisible({ timeout: 25000 })
       await expect(pageMember.locator('span.font-mono:has-text("1 / 2")')).toBeVisible({ timeout: 10000 })
 
       // Host clicks "Trang sau"
       await pageHost.locator('button:has-text("Trang sau")').click()
 
-      // Host and Member both see rendered PDF page 2 canvas!
-      await expect(pageHost.locator('[data-testid="rendered-pdf-page"][data-page="2"]')).toBeVisible({ timeout: 20000 })
-      await expect(pageMember.locator('[data-testid="rendered-pdf-page"][data-page="2"]')).toBeVisible({ timeout: 20000 })
+      // Host and Member both render actual PDF page 2 canvas!
+      await expect(pageHost.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 20000 })
+      await expect(pageMember.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 20000 })
       await expect(pageMember.locator('span.font-mono:has-text("2 / 2")')).toBeVisible({ timeout: 10000 })
 
       // Member C connects late
@@ -359,8 +422,13 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       await enterStudyRoom(pageC)
 
       // Member C snapshot renders actual PDF page 2 canvas immediately!
-      await expect(pageC.locator('[data-testid="rendered-pdf-page"][data-page="2"]')).toBeVisible({ timeout: 20000 })
+      await expect(pageC.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 25000 })
       await expect(pageC.locator('span.font-mono:has-text("2 / 2")')).toBeVisible({ timeout: 10000 })
+
+      // Assert no PDF render error UI on any client
+      await expect(pageHost.locator('text=Không thể tải trang PDF')).not.toBeVisible()
+      await expect(pageMember.locator('text=Không thể tải trang PDF')).not.toBeVisible()
+      await expect(pageC.locator('text=Không thể tải trang PDF')).not.toBeVisible()
 
       // Clean up slide at end of test
       if (await closeSlideBtn.isVisible().catch(() => false)) {
@@ -376,8 +444,8 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
 
   // ── Scenario 5: Pomodoro Server Authority & Reload Drift Verification ────
   test('5. Pomodoro: Server-authoritative countdown preserves elapsed wall-clock time across reload', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -425,7 +493,7 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       await expect(pageMember.locator('header span.tabular-nums')).toBeVisible({ timeout: 20000 })
       const reloadedDigits = await pageMember.locator('header span.tabular-nums').textContent()
 
-      // Ensure timer did not reset or stay frozen
+      // Ensure timer did not reset to 25:00 or stay frozen
       expect(reloadedDigits).not.toBe(initialDigits)
     } finally {
       await contextHost.close()
@@ -433,52 +501,63 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
     }
   })
 
-  // ── Scenario 6: Full 5-Subsystem Late Join Convergence ───────────────────
-  // Strategy: re-use room state left by tests 1-5 (whiteboard strokes, notes,
-  // slide at page 2, pomodoro). Host only sends a beacon chat message then
-  // pageC joins and verifies all 5 subsystems from the snapshot. No PDF
-  // upload/render in this test → runs well within 120 s.
+  // ── Scenario 6: Full 5-Subsystem Late Join Convergence (Self-contained) ───
   test('6. Convergence: Simultaneous 3-browser session proves late joiner receives all 5 subsystems converged in snapshot', async ({ browser }) => {
-    test.setTimeout(120000) // 2 min – no PDF prep in this test
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
-    const contextC = await browser.newContext()
+    test.setTimeout(300000)
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
+    const contextC = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
     const pageC = await contextC.newPage()
 
     try {
-      // ── Login all 3 in parallel ───────────────────────────────────────────
       await Promise.all([
         loginUser(pageHost, HOST_USER),
         loginUser(pageMember, MEMBER_USER),
         loginUser(pageC, MEMBER_C_USER),
       ])
 
-      // ── Host + Member B enter room ────────────────────────────────────────
       await Promise.all([
         enterStudyRoom(pageHost),
         enterStudyRoom(pageMember),
       ])
 
-      // ── Host draws ONE stroke so whiteboard is non-empty ─────────────────
-      // Draw at bottom-left corner to avoid floating slide/chat panels that
-      // may be open from previous test state (slide panel covers center).
+      // ── Clean slate on Host ────────────────────────────────────────────────
       pageHost.on('dialog', (dialog) => dialog.accept())
+      const clearBtn = pageHost.locator('button[aria-label="Xóa toàn bộ bảng vẽ"]')
+      if (await clearBtn.isVisible().catch(() => false)) {
+        await clearBtn.click().catch(() => {})
+        await pageHost.waitForTimeout(300)
+      }
+      const closeSlideBtn = pageHost.locator('button[title="Đóng trình chiếu cho cả phòng"]')
+      if (await closeSlideBtn.isVisible().catch(() => false)) {
+        await closeSlideBtn.click().catch(() => {})
+        await pageHost.waitForTimeout(300)
+      }
+
+      // ── 1. Whiteboard: Host draws a known stroke ───────────────────────────
       const hostCanvas = pageHost.locator('svg.touch-none')
       const box = await hostCanvas.boundingBox()
       if (box) {
-        const sx = box.x + 100                  // 100 px from left edge
-        const sy = box.y + box.height - 150      // 150 px from bottom
+        const sx = box.x + 120
+        const sy = box.y + box.height - 160
         await pageHost.mouse.move(sx, sy)
         await pageHost.mouse.down()
         await pageHost.mouse.move(sx + 60, sy - 40)
         await pageHost.mouse.up()
-        await pageHost.waitForTimeout(600)       // allow WS message to reach server
       }
+      await expect(pageMember.locator('svg.touch-none path').first()).toBeVisible({ timeout: 15000 })
 
-      // ── Host sends a unique beacon chat message ───────────────────────────
+      // ── 2. Shared Notes: Host saves known unique text ───────────────────────
+      await pageHost.locator('button[title="Thành viên"]').click()
+      const convNote = `Ghi chú hội tụ ${Date.now()}`
+      const hostNotes = pageHost.locator('textarea[placeholder="Viết ghi chú chung cho cả lớp..."]')
+      await hostNotes.fill(convNote)
+      await pageHost.locator('button[title="Thành viên"]').click() // close drawer
+
+      // ── 3. Chat: Host sends known unique beacon message ─────────────────────
       const beaconMsg = `Beacon hội tụ ${Date.now()}`
       const hostChatInput = pageHost.locator('input[placeholder="Nhắn tin..."]')
       if (!await hostChatInput.isVisible()) {
@@ -486,52 +565,57 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       }
       await hostChatInput.fill(beaconMsg)
       await hostChatInput.press('Enter')
-      // Confirm Member B sees the beacon (proves live WS delivery)
-      if (!await pageMember.locator('input[placeholder="Nhắn tin..."]').isVisible()) {
-        await pageMember.locator('button[title="Chat phòng học"]').click()
-      }
+      await pageMember.locator('button[title="Chat phòng học"]').click()
       await expect(pageMember.getByText(beaconMsg)).toBeVisible({ timeout: 15000 })
 
-      // ── Setup: Ensure slide state is persisted on server ─────────────────
-      // Between tests the DO may hibernate and lose in-memory slide state.
-      // If not visible, open upload modal and insert sample PDF — no canvas
-      // render wait needed; we only need the server to record the docUrl.
-      const hostSlideHeader = pageHost.locator('text=Tài liệu mẫu QA (PDF)')
-      if (!await hostSlideHeader.isVisible().catch(() => false)) {
-        await pageHost.locator('button:has-text("Slide")').click()
-        const modal = pageHost.locator('text=Chèn Bài Giảng PowerPoint / PDF')
-        if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await pageHost.locator('[data-testid="load-sample-qa-pdf"]').click()
-          await pageHost.locator('button:has-text("Chèn Lên Bảng")').click()
-          await pageHost.waitForTimeout(1500) // allow server to record slide state
-        }
-        // else: clicking Slide toggled the existing panel open (state was intact)
+      // ── 4. Slide: Host uploads real PDF and sets to page 2 ─────────────────
+      await uploadSlidePdf(pageHost, 'test/fixtures/sample.pdf')
+      await expect(pageHost.locator('canvas[data-rendered-page="1"]')).toBeVisible({ timeout: 25000 })
+      await pageHost.locator('button:has-text("Trang sau")').click()
+      await expect(pageHost.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 20000 })
+      await expect(pageMember.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 20000 })
+
+      // ── 5. Pomodoro: Host resets and starts Pomodoro ───────────────────────
+      const resetPomo = pageHost.locator('header button[title="Đặt lại"]')
+      if (await resetPomo.isVisible().catch(() => false)) {
+        await resetPomo.click().catch(() => {})
+        await pageHost.waitForTimeout(300)
+      }
+      const startPomo = pageHost.locator('header button[title="Bắt đầu"]')
+      if (await startPomo.isVisible().catch(() => false)) {
+        await startPomo.click().catch(() => {})
+        await pageHost.waitForTimeout(400)
       }
 
       // ── Late Joiner C connects ────────────────────────────────────────────
+      // C must receive all 5 subsystems strictly from snapshot with NO events from A/B
       await enterStudyRoom(pageC)
 
-      // Subsystem 1: Whiteboard — at least one stroke in snapshot
+      // Subsystem 1: Whiteboard stroke rendered on C
       await expect(pageC.locator('svg.touch-none path').first()).toBeVisible({ timeout: 15000 })
 
-      // Subsystem 2: Shared Notes — textarea is accessible (notes exist from prior tests)
+      // Subsystem 2: Shared Notes exact content
       await pageC.locator('button[title="Thành viên"]').click()
-      await expect(pageC.locator('textarea[placeholder="Viết ghi chú chung cho cả lớp..."]')).toBeVisible({ timeout: 15000 })
+      await expect(pageC.locator('textarea[placeholder="Viết ghi chú chung cho cả lớp..."]')).toHaveValue(convNote, { timeout: 15000 })
+      await pageC.locator('button[title="Thành viên"]').click()
 
-      // Subsystem 3: Chat beacon message arrives on late joiner C
-      if (!await pageC.locator('input[placeholder="Nhắn tin..."]').isVisible()) {
-        await pageC.locator('button[title="Chat phòng học"]').click()
-      }
+      // Subsystem 3: Chat beacon visible on C
+      await pageC.locator('button[title="Chat phòng học"]').click()
       await expect(pageC.getByText(beaconMsg)).toBeVisible({ timeout: 15000 })
 
-      // Subsystem 4: Slide panel auto-opens on late joiner C — proves slideState delivered in snapshot.
-      // Header text appears immediately when the panel mounts (no canvas render wait).
-      // Canvas rendering correctness is covered by Scenario 4.
-      await expect(pageC.locator('text=Tài liệu mẫu QA (PDF)')).toBeVisible({ timeout: 15000 })
+      // Subsystem 4: Slide actual rendered page 2 canvas visible on C
+      await expect(pageC.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 25000 })
 
-      // Subsystem 5: Pomodoro timer is visible in header
-      await expect(pageC.locator('header span.tabular-nums')).toBeVisible({ timeout: 15000 })
+      // Subsystem 5: Pomodoro countdown visible and running on C
+      const pomoC = pageC.locator('header span.tabular-nums')
+      await expect(pomoC).toBeVisible({ timeout: 15000 })
+      const textC = await pomoC.textContent()
+      expect(textC).not.toBe('00:00')
 
+      // Clean up slide
+      if (await closeSlideBtn.isVisible().catch(() => false)) {
+        await closeSlideBtn.click().catch(() => {})
+      }
     } finally {
       await contextHost.close().catch(() => {})
       await contextMember.close().catch(() => {})
@@ -539,11 +623,11 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
     }
   })
 
-
-  // ── Scenario 7: Network Interruption Across Subsystems ────────────────────
+  // ── Scenario 7: Real All-Five Network Interruption ────────────────────────
   test('7. Network Interruption: Client offline reconnect converges to all 5 subsystems canonical state', async ({ browser }) => {
-    const contextHost = await browser.newContext()
-    const contextMember = await browser.newContext()
+    test.setTimeout(300000)
+    const contextHost = await createE2EContext(browser, true)
+    const contextMember = await createE2EContext(browser, true)
 
     const pageHost = await contextHost.newPage()
     const pageMember = await contextMember.newPage()
@@ -556,29 +640,89 @@ test.describe('Digital Campus v2 — Study Collaboration Multi-Client Reliabilit
       await enterStudyRoom(pageHost)
       await enterStudyRoom(pageMember)
 
+      // Initial converged baseline with PDF loaded at page 1
+      const closeSlideBtn = pageHost.locator('button[title="Đóng trình chiếu cho cả phòng"]')
+      if (await closeSlideBtn.isVisible().catch(() => false)) {
+        await closeSlideBtn.click().catch(() => {})
+        await pageHost.waitForTimeout(300)
+      }
+      await uploadSlidePdf(pageHost, 'test/fixtures/sample.pdf')
+      await expect(pageHost.locator('canvas[data-rendered-page="1"]')).toBeVisible({ timeout: 25000 })
+      await expect(pageMember.locator('canvas[data-rendered-page="1"]')).toBeVisible({ timeout: 25000 })
+
       // Take Member B offline
       await contextMember.setOffline(true)
 
-      // While Member B is offline, Host sends chat and updates whiteboard
+      // While Member B is offline, Host performs ALL FIVE mutations:
+      // 1. Whiteboard: draw an offline stroke
+      const hostCanvas = pageHost.locator('svg.touch-none')
+      const box = await hostCanvas.boundingBox()
+      if (box) {
+        const sx = box.x + 130
+        const sy = box.y + box.height - 170
+        await pageHost.mouse.move(sx, sy)
+        await pageHost.mouse.down()
+        await pageHost.mouse.move(sx + 50, sy - 30)
+        await pageHost.mouse.up()
+      }
+
+      // 2. Notes: save offline note
+      const offlineNote = `Ghi chú khi B offline ${Date.now()}`
+      await pageHost.locator('button[title="Thành viên"]').click()
+      await pageHost.locator('textarea[placeholder="Viết ghi chú chung cho cả lớp..."]').fill(offlineNote)
+      await pageHost.waitForTimeout(800)
+      await pageHost.locator('button[title="Thành viên"]').click()
+
+      // 3. Chat: send offline message
+      const offlineMsg = `Tin nhắn khi B offline ${Date.now()}`
       const hostChatInput = pageHost.locator('input[placeholder="Nhắn tin..."]')
       if (!await hostChatInput.isVisible()) {
         await pageHost.locator('button[title="Chat phòng học"]').click()
       }
-      const offlineMsg = `Tin nhắn khi B offline ${Date.now()}`
       await hostChatInput.fill(offlineMsg)
-      await pageHost.locator('form:has(input[placeholder="Nhắn tin..."]) button[type="submit"]').click()
+      await hostChatInput.press('Enter')
       await expect(pageHost.locator(`text=${offlineMsg}`)).toBeVisible({ timeout: 10000 })
 
-      // Bring Member B online and reload to reconnect
+      // 4. Slide: advance to page 2
+      await pageHost.locator('button:has-text("Trang sau")').click()
+      await expect(pageHost.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 20000 })
+
+      // 5. Pomodoro: ensure running
+      const startPomo = pageHost.locator('header button[title="Bắt đầu"]')
+      if (await startPomo.isVisible().catch(() => false)) {
+        await startPomo.click().catch(() => {})
+      }
+
+      // Bring Member B online and reconnect
       await contextMember.setOffline(false)
       await pageMember.reload()
       await enterStudyRoom(pageMember)
 
-      // Member B receives latest chat message
-      if (!await pageMember.locator('input[placeholder="Nhắn tin..."]').isVisible()) {
-        await pageMember.locator('button[title="Chat phòng học"]').click()
+      // Assert ALL FIVE converged subsystems on Member B:
+      // 1. Whiteboard stroke present
+      await expect(pageMember.locator('svg.touch-none path').first()).toBeVisible({ timeout: 15000 })
+
+      // 2. Notes exact content present
+      await pageMember.locator('button[title="Thành viên"]').click()
+      await expect(pageMember.locator('textarea[placeholder="Viết ghi chú chung cho cả lớp..."]')).toHaveValue(offlineNote, { timeout: 15000 })
+
+      // 3. Chat exact message present
+      await pageMember.locator('button[title="Chat phòng học"]').click()
+      await expect(pageMember.locator(`text=${offlineMsg}`)).toBeVisible({ timeout: 15000 })
+
+      // 4. Slide actual rendered page 2 canvas present
+      await expect(pageMember.locator('canvas[data-rendered-page="2"]')).toBeVisible({ timeout: 25000 })
+
+      // 5. Pomodoro active countdown running
+      const pomoMember = pageMember.locator('header span.tabular-nums')
+      await expect(pomoMember).toBeVisible({ timeout: 15000 })
+      const textMember = await pomoMember.textContent()
+      expect(textMember).not.toBe('00:00')
+
+      // Clean up
+      if (await closeSlideBtn.isVisible().catch(() => false)) {
+        await closeSlideBtn.click().catch(() => {})
       }
-      await expect(pageMember.locator(`text=${offlineMsg}`)).toBeVisible({ timeout: 20000 })
     } finally {
       await contextHost.close()
       await contextMember.close()
