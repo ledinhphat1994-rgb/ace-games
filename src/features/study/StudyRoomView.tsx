@@ -194,14 +194,37 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }
   }, [pomodoroState.mode])
 
-  // ── Sync notes (Safe useEffect, no render-time setState) ──────────────────
+  // ── Sync notes (Safe useEffect, preserves local draft during conflict) ───
   const lastNotesRevRef = useRef(sharedNotes.revision)
+  // Tracks content sent to server but not yet confirmed to guard against a
+  // racing notes.sync broadcast overwriting localNotes before notes.conflict arrives.
+  const notesInFlightContentRef = useRef<string | null>(null)
   useEffect(() => {
     if (sharedNotes.revision !== lastNotesRevRef.current) {
       lastNotesRevRef.current = sharedNotes.revision
-      setLocalNotes(sharedNotes.content)
+      if (!notesConflict && notesInFlightContentRef.current === null) {
+        // No conflict, no in-flight update: safe to sync textarea with server
+        // oxlint-disable-next-line react/set-state-in-effect
+        setLocalNotes(sharedNotes.content)
+      } else if (notesInFlightContentRef.current !== null && !notesConflict) {
+        // Our update is in-flight. If the server echoed back our exact content,
+        // our save succeeded — clear the in-flight guard (no setLocalNotes needed,
+        // textarea already shows that content). Otherwise keep the guard: a
+        // different update arrived and notes.conflict will follow shortly.
+        if (sharedNotes.content === notesInFlightContentRef.current) {
+          notesInFlightContentRef.current = null
+        }
+      }
+      // When notesConflict is active: never overwrite the preserved local draft.
     }
-  }, [sharedNotes.revision, sharedNotes.content])
+  }, [sharedNotes.revision, sharedNotes.content, notesConflict])
+
+  // Clear the in-flight guard when conflict resolves (keep_server or force_client accepted)
+  useEffect(() => {
+    if (!notesConflict) {
+      notesInFlightContentRef.current = null
+    }
+  }, [notesConflict])
 
   // ── Auto-show youtube & slide window safely on genuine remote change ─────
   const prevVideoIdRef = useRef(mediaState.videoId)
@@ -223,6 +246,21 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   // ── Refs ─────────────────────────────────────────────────────────────────
   const chatRef = useRef<HTMLDivElement | null>(null)
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editingBaseRevRef = useRef(sharedNotes.revision)
+
+  useEffect(() => {
+    if (!notesTimerRef.current) {
+      editingBaseRevRef.current = sharedNotes.revision
+    }
+  }, [sharedNotes.revision])
+
+  // When in conflict, abort any pending debounced timers to prevent accidental overwrite
+  useEffect(() => {
+    if (notesConflict && notesTimerRef.current) {
+      clearTimeout(notesTimerRef.current)
+      notesTimerRef.current = null
+    }
+  }, [notesConflict])
 
   useEffect(() => {
     if (chatRef.current) {
@@ -243,8 +281,16 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
   const handleNotesChange = (text: string) => {
     setLocalNotes(text)
+    if (notesConflict) return
+    const baseRev = editingBaseRevRef.current
     if (notesTimerRef.current) clearTimeout(notesTimerRef.current)
-    notesTimerRef.current = setTimeout(() => updateNotes(text), 600)
+    notesTimerRef.current = setTimeout(() => {
+      notesTimerRef.current = null
+      // Mark in-flight BEFORE sending so the racing notes.sync cannot
+      // overwrite localNotes while we await server acknowledgement.
+      notesInFlightContentRef.current = text
+      updateNotes(text, baseRev)
+    }, 600)
   }
 
   const handlePlayVideo = (e: React.FormEvent) => {
@@ -629,15 +675,14 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   if (e.nativeEvent.isComposing) return
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    handleSendChat()
-                    setShowEmoji(false)
+                    // Use requestSubmit so form.onSubmit fires once (closes emoji too)
+                    e.currentTarget.closest('form')?.requestSubmit()
                   }
                 }}
               />
               <Button
                 type="submit"
                 size="sm"
-                onClick={() => handleSendChat()}
                 className="h-8 w-8 shrink-0 p-0 bg-indigo-600 hover:bg-indigo-500"
               >
                 <Send className="h-3.5 w-3.5" />
@@ -684,7 +729,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             </div>
 
             {notesConflict && (
-              <div className="mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+              <div data-testid="notes-conflict-banner" className="mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
                 <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-300">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   <span>Xung đột chỉnh sửa!</span>
@@ -695,6 +740,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                 <div className="mt-2 flex items-center gap-1.5">
                   <button
                     type="button"
+                    data-testid="notes-conflict-keep-server"
                     onClick={() => {
                       setLocalNotes(notesConflict.currentNotes.content)
                       resolveNotesConflict('keep_server')
@@ -705,6 +751,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   </button>
                   <button
                     type="button"
+                    data-testid="notes-conflict-retry"
                     onClick={() => resolveNotesConflict('force_client')}
                     className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-500 transition-colors"
                   >

@@ -268,7 +268,7 @@ export class RoomDO extends DurableObject<Env> {
   private layStrokes(): WhiteboardStroke[] {
     try {
       const rows = [...this.ctx.storage.sql.exec<{ stroke_data: string }>(
-        'SELECT stroke_data FROM whiteboard_strokes ORDER BY created_at ASC LIMIT 500',
+        'SELECT stroke_data FROM whiteboard_strokes ORDER BY created_at ASC LIMIT 200',
       )]
       return rows.map((r) => JSON.parse(r.stroke_data) as WhiteboardStroke)
     } catch {
@@ -889,8 +889,8 @@ export class RoomDO extends DurableObject<Env> {
             // Stale epoch (e.g. from previous board before clear) -> dropped
             return
           }
-          if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 500) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ vượt quá giới hạn (tối đa 500 điểm).' }))
+          if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 200) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ vượt quá giới hạn (tối đa 200 điểm).' }))
             return
           }
           const strokeWithEpoch: WhiteboardStroke = {
@@ -904,9 +904,9 @@ export class RoomDO extends DurableObject<Env> {
               JSON.stringify(strokeWithEpoch),
               Date.now(),
             )
-            // Giới hạn lịch sử tối đa 500 nét vẽ gần nhất
+            // Giới hạn lịch sử tối đa 200 nét vẽ gần nhất
             this.ctx.storage.sql.exec(
-              'DELETE FROM whiteboard_strokes WHERE id NOT IN (SELECT id FROM whiteboard_strokes ORDER BY created_at DESC LIMIT 500)',
+              'DELETE FROM whiteboard_strokes WHERE id NOT IN (SELECT id FROM whiteboard_strokes ORDER BY created_at DESC LIMIT 200)',
             )
           } catch (err) {
             console.error('Lỗi lưu nét vẽ whiteboard:', err)
@@ -1050,16 +1050,23 @@ export class RoomDO extends DurableObject<Env> {
           }
         } else if (d.action === 'load_doc') {
           const rawUrl = d.docUrl.trim()
-          const isR2Asset = /^\/api\/files\/[a-zA-Z0-9_.-]+$/.test(rawUrl) || /^\/api\/slides\/[a-zA-Z0-9_.-]+$/.test(rawUrl)
+          let pathname = rawUrl
+          if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+            try {
+              pathname = new URL(rawUrl).pathname
+            } catch {
+              pathname = rawUrl
+            }
+          }
+          const isR2Asset = !pathname.includes('..') && (/^\/api\/files\/[a-zA-Z0-9_./-]+$/.test(pathname) || /^\/api\/slides\/[a-zA-Z0-9_./-]+$/.test(pathname))
           const isGoogleSlide = /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+(\/.*)?$/.test(rawUrl)
-          const isLocalSample = rawUrl === '/sample.pdf' || rawUrl === 'sample.pdf'
-          if (!isR2Asset && !isGoogleSlide && !isLocalSample) {
+          if (!isR2Asset && !isGoogleSlide) {
             ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ. Chỉ chấp nhận tệp tải lên (/api/files/...) hoặc Google Slides.' }))
             return
           }
           const totalPages = d.fileType === 'image' ? 1 : Math.max(1, Math.min(500, d.totalPages))
           this.slide = {
-            docUrl: rawUrl,
+            docUrl: isR2Asset ? pathname : rawUrl,
             docName: lamSachVanBan(d.docName) || 'Tài liệu trình chiếu',
             fileType: d.fileType,
             currentPage: 1,

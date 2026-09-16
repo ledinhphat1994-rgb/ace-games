@@ -113,8 +113,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
     const ws = new WebSocket(`${giaoThuc}//${host}/ws/room/${encodeURIComponent(roomId)}`)
     wsRef.current = ws
-    if (typeof window !== 'undefined') {
+    // Expose WebSocket and shared notes ref for E2E tests ONLY — never in normal production
+    if (typeof window !== 'undefined' && (window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ === true) {
       ;(window as unknown as { __roomWs?: WebSocket }).__roomWs = ws
+      ;(window as unknown as { __roomNotesRef?: typeof sharedNotesRef }).__roomNotesRef = sharedNotesRef
     }
 
     ws.onopen = () => {
@@ -421,9 +423,13 @@ export function useRoom(roomId: string, myActorKey?: string) {
     if (choice === 'keep_server') {
       setNotesConflict(null)
     } else if (choice === 'force_client') {
-      const contentToForce = notesConflict.rejectedContent
-      setNotesConflict(null)
-      updateNotes(contentToForce, sharedNotesRef.current.revision)
+      // Do NOT clear conflict here prematurely.
+      // The server will send notes.sync once it accepts the content, and the
+      // existing notes.sync handler clears the conflict only when
+      // goi.notes.content === prev.rejectedContent (line ~196).
+      // If the WebSocket is offline, updateNotes returns without sending and
+      // the conflict (including the rejected draft) remains preserved.
+      updateNotes(notesConflict.rejectedContent, sharedNotesRef.current.revision)
     }
   }, [notesConflict, updateNotes])
 

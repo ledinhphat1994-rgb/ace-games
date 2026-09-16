@@ -68,6 +68,11 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
         const data = (await res.json()) as { ok?: boolean; url?: string }
         if (data.ok && data.url) {
           uploadedUrl = data.url
+          if (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://')) {
+            try {
+              uploadedUrl = new URL(uploadedUrl).pathname
+            } catch {}
+          }
         }
       }
     } catch (err) {
@@ -194,21 +199,6 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
               <span className="text-[11px] text-slate-400">
                 Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)
               </span>
-              <button
-                type="button"
-                data-testid="load-sample-qa-pdf"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setDocName('Tài liệu mẫu QA (PDF)')
-                  setDocUrl('/sample.pdf')
-                  setFileType('pdf')
-                  setTotalPages(2)
-                  toast.success('Đã nạp tệp mẫu QA (2 trang)! Bấm "Chèn Lên Bảng" để bắt đầu.')
-                }}
-                className="mt-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline pointer-events-auto"
-              >
-                📄 Hoặc chọn nhanh tệp mẫu QA (2 trang)
-              </button>
             </div>
           </div>
 

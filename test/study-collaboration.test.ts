@@ -346,7 +346,7 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
       type: 'slide.action',
       data: {
         action: 'load_doc',
-        docUrl: '/sample.pdf',
+        docUrl: '/api/files/test-lecture.pdf',
         docName: 'Canonical Lecture',
         fileType: 'pdf',
         totalPages: 2,
@@ -422,8 +422,8 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
     })
     await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'no_epoch_stroke', 300)
 
-    // Whiteboard stroke with > 500 points -> schema rejection
-    const hugePoints: [number, number][] = Array.from({ length: 501 }, (_, i) => [i, i])
+    // Whiteboard stroke with > 200 points -> schema rejection
+    const hugePoints: [number, number][] = Array.from({ length: 201 }, (_, i) => [i, i])
     member.gui({
       type: 'whiteboard.action',
       data: {
@@ -492,7 +492,7 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
       type: 'slide.action',
       data: {
         action: 'load_doc',
-        docUrl: '/sample.pdf',
+        docUrl: '/api/files/unauthorized.pdf',
         docName: 'Unauthorized Slide',
         fileType: 'pdf',
         totalPages: 2,

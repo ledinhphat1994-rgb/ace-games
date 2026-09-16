@@ -112,7 +112,7 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
     action: z.literal('stroke.add'),
     stroke: z.object({
       id: z.string().min(1).max(64),
-      points: z.array(z.tuple([z.number(), z.number()])).min(1).max(500),
+      points: z.array(z.tuple([z.number(), z.number()])).min(1).max(200),
       color: z.string().max(30),
       size: z.number().positive().max(100),
       epoch: z.number().int().nonnegative(),
