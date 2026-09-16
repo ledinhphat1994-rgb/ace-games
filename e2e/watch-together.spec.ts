@@ -66,7 +66,7 @@ declare global {
 async function waitForYTPlayerReady(page: Page, timeout = 25000) {
   await page.waitForFunction(() => {
     return window.__YT_PLAYER_INSTANCE__ && window.__YT_PLAYER_INSTANCE__.isReady
-  }, { timeout })
+  }, undefined, { timeout })
 }
 
 async function startOrUnblockPlayback(page: Page) {

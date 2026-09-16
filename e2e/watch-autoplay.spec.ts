@@ -55,7 +55,7 @@ declare global {
 async function waitForYTPlayerReady(page: Page, timeout = 25000) {
   await page.waitForFunction(() => {
     return window.__YT_PLAYER_INSTANCE__ && window.__YT_PLAYER_INSTANCE__.isReady
-  }, { timeout })
+  }, undefined, { timeout })
 }
 
 async function startOrUnblockPlayback(page: Page) {
@@ -84,15 +84,19 @@ async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
 
   if (isTargetLoaded) return
 
-  const insertBtn = page.locator('button[title="Chèn video YouTube"]')
-  await insertBtn.click()
+  const pasteTabBtn = page.locator('button:has-text("\uD83D\uDD17 Dán link")')
+  const isPanelOpen = await pasteTabBtn.isVisible().catch(() => false)
+  if (!isPanelOpen) {
+    await page.locator('button[title="Chèn video YouTube"]').click()
+    await expect(pasteTabBtn).toBeVisible({ timeout: 5000 })
+  }
+  await pasteTabBtn.click()
 
-  const input = page.locator('input[placeholder*="youtube.com/watch"]')
-  await expect(input).toBeVisible({ timeout: 5000 })
-  await input.fill(`https://www.youtube.com/watch?v=${videoId}`)
-
-  const submitBtn = page.locator('button:has-text("Phát video")')
-  await submitBtn.click()
+  const pasteInput = page.locator('input[placeholder="Dán link YouTube hoặc mã video..."]')
+  await expect(pasteInput).toBeVisible({ timeout: 5000 })
+  await pasteInput.fill(videoId)
+  await page.locator('form:has(input[placeholder="Dán link YouTube hoặc mã video..."]) button[type="submit"]').click()
+  await page.waitForTimeout(1000)
 }
 
 async function createContextWithE2EMode(browser: Browser) {
