@@ -94,7 +94,6 @@ export class RoomDO extends DurableObject<Env> {
   private notes: SharedNotes = { ...DEFAULT_NOTES }
   private slide: SlideState | null = null
   private whiteboardEpoch = 1
-  private seenChatReqIds = new Set<string>()
   private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
   private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
   private hostKey: string | null = null
@@ -132,6 +131,7 @@ export class RoomDO extends DurableObject<Env> {
         CREATE TABLE IF NOT EXISTS room_chat (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           account_id INTEGER NOT NULL,
+          req_id TEXT,
           sender_name TEXT NOT NULL,
           content TEXT NOT NULL,
           created_at INTEGER NOT NULL
@@ -144,6 +144,14 @@ export class RoomDO extends DurableObject<Env> {
       `)
       try {
         this.ctx.storage.sql.exec('ALTER TABLE playlist_queue ADD COLUMN added_by_key TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_chat ADD COLUMN req_id TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_room_chat_actor_req ON room_chat(account_id, req_id) WHERE req_id IS NOT NULL',
+        )
       } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -260,7 +268,7 @@ export class RoomDO extends DurableObject<Env> {
   private layStrokes(): WhiteboardStroke[] {
     try {
       const rows = [...this.ctx.storage.sql.exec<{ stroke_data: string }>(
-        'SELECT stroke_data FROM whiteboard_strokes ORDER BY created_at ASC LIMIT 1000',
+        'SELECT stroke_data FROM whiteboard_strokes ORDER BY created_at ASC LIMIT 500',
       )]
       return rows.map((r) => JSON.parse(r.stroke_data) as WhiteboardStroke)
     } catch {
@@ -787,12 +795,16 @@ export class RoomDO extends DurableObject<Env> {
       case 'pomodoro.action': {
         const d = goi.data
         if (!laQuanTri) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển Pomodoro.' }))
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển Pomodoro.' }))
           return
         }
         const now = Date.now()
 
         if (d.action === 'start') {
+          if (this.pomodoro.running) {
+            // Idempotent: already running, do not extend endsAt or change timeline
+            return
+          }
           const endsAt = now + this.pomodoro.remaining * 1000
           this.pomodoro = {
             ...this.pomodoro,
@@ -806,6 +818,10 @@ export class RoomDO extends DurableObject<Env> {
             console.error('Lỗi đặt DO alarm cho pomodoro:', err)
           }
         } else if (d.action === 'pause') {
+          if (!this.pomodoro.running) {
+            // Idempotent: already paused
+            return
+          }
           try {
             this.ctx.storage.deleteAlarm()
           } catch {}
@@ -823,7 +839,8 @@ export class RoomDO extends DurableObject<Env> {
           try {
             this.ctx.storage.deleteAlarm()
           } catch {}
-          const dur = d.duration || (this.pomodoro.mode === 'focus' ? 1500 : 300)
+          const rawDur = d.duration || (this.pomodoro.mode === 'focus' ? 1500 : 300)
+          const dur = Math.min(7200, Math.max(1, Math.round(rawDur)))
           this.pomodoro = {
             ...this.pomodoro,
             running: false,
@@ -833,11 +850,15 @@ export class RoomDO extends DurableObject<Env> {
             revision: (this.pomodoro.revision || 1) + 1,
           }
         } else if (d.action === 'switch_mode') {
+          if (this.pomodoro.mode === d.mode && !this.pomodoro.running) {
+            // Idempotent: already in this mode and paused
+            return
+          }
           try {
             this.ctx.storage.deleteAlarm()
           } catch {}
           const dur = d.mode === 'focus' ? 1500 : 300
-          const round = d.mode === 'focus' ? this.pomodoro.round + 1 : this.pomodoro.round
+          const round = (d.mode === 'focus' && this.pomodoro.mode !== 'focus') ? this.pomodoro.round + 1 : this.pomodoro.round
           this.pomodoro = {
             ...this.pomodoro,
             mode: d.mode,
@@ -859,8 +880,17 @@ export class RoomDO extends DurableObject<Env> {
         const d = goi.data
         if (d.action === 'stroke.add') {
           const st = d.stroke
-          // Epoch guard: loại bỏ các nét vẽ mang epoch cũ hơn epoch hiện tại của bảng (chống hồi sinh sau khi xóa)
-          if (typeof st.epoch === 'number' && st.epoch < this.whiteboardEpoch) {
+          // Epoch guard: stroke.epoch is mandatory and must match current whiteboardEpoch
+          if (typeof st.epoch !== 'number' || st.epoch < 0) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ thiếu epoch hợp lệ.' }))
+            return
+          }
+          if (st.epoch !== this.whiteboardEpoch) {
+            // Stale epoch (e.g. from previous board before clear) -> dropped
+            return
+          }
+          if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 500) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ vượt quá giới hạn (tối đa 500 điểm).' }))
             return
           }
           const strokeWithEpoch: WhiteboardStroke = {
@@ -874,9 +904,9 @@ export class RoomDO extends DurableObject<Env> {
               JSON.stringify(strokeWithEpoch),
               Date.now(),
             )
-            // Giới hạn lịch sử tối đa 1000 nét vẽ gần nhất
+            // Giới hạn lịch sử tối đa 500 nét vẽ gần nhất
             this.ctx.storage.sql.exec(
-              'DELETE FROM whiteboard_strokes WHERE id NOT IN (SELECT id FROM whiteboard_strokes ORDER BY created_at DESC LIMIT 1000)',
+              'DELETE FROM whiteboard_strokes WHERE id NOT IN (SELECT id FROM whiteboard_strokes ORDER BY created_at DESC LIMIT 500)',
             )
           } catch (err) {
             console.error('Lỗi lưu nét vẽ whiteboard:', err)
@@ -884,7 +914,7 @@ export class RoomDO extends DurableObject<Env> {
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: strokeWithEpoch })
         } else if (d.action === 'stroke.clear') {
           if (!laQuanTri) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền xóa toàn bộ bảng vẽ.' }))
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền xóa toàn bộ bảng vẽ.' }))
             return
           }
           this.whiteboardEpoch++
@@ -898,15 +928,16 @@ export class RoomDO extends DurableObject<Env> {
       }
 
       case 'notes.action': {
-        if (this.media.hostOnlyControl && !laQuanTri) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền chỉnh sửa ghi chú chung.' }))
-          return
-        }
+        // Shared notes is open to all admitted room members, protected by Optimistic Concurrency Control (OCC)
         const text = goi.data.content ?? ''
         const baseRev = goi.data.baseRevision
+        if (typeof baseRev !== 'number' || baseRev < 0) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Thiếu baseRevision hợp lệ cho ghi chú.' }))
+          return
+        }
 
         // Optimistic Concurrency Control: Kiểm tra conflict revision tránh silent lost updates
-        if (typeof baseRev === 'number' && baseRev !== this.notes.revision) {
+        if (baseRev !== this.notes.revision) {
           ws.send(
             JSON.stringify({
               type: 'notes.conflict',
@@ -1006,8 +1037,8 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'slide.action': {
         const d = goi.data
-        if (this.media.hostOnlyControl && !laQuanTri) {
-          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển tài liệu trình chiếu.' }))
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển tài liệu trình chiếu.' }))
           return
         }
         if (d.action === 'change_page') {
@@ -1019,21 +1050,20 @@ export class RoomDO extends DurableObject<Env> {
           }
         } else if (d.action === 'load_doc') {
           const rawUrl = d.docUrl.trim()
-          const isSafeUrl =
-            rawUrl.startsWith('/') ||
-            rawUrl.startsWith('https://') ||
-            rawUrl === 'local_presentation' ||
-            (d.fileType === 'image' && rawUrl.startsWith('data:image/'))
-          if (!isSafeUrl) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ hoặc không an toàn.' }))
+          const isR2Asset = /^\/api\/files\/[a-zA-Z0-9_.-]+$/.test(rawUrl) || /^\/api\/slides\/[a-zA-Z0-9_.-]+$/.test(rawUrl)
+          const isGoogleSlide = /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+(\/.*)?$/.test(rawUrl)
+          const isLocalSample = rawUrl === '/sample.pdf' || rawUrl === 'sample.pdf'
+          if (!isR2Asset && !isGoogleSlide && !isLocalSample) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ. Chỉ chấp nhận tệp tải lên (/api/files/...) hoặc Google Slides.' }))
             return
           }
+          const totalPages = d.fileType === 'image' ? 1 : Math.max(1, Math.min(500, d.totalPages))
           this.slide = {
             docUrl: rawUrl,
             docName: lamSachVanBan(d.docName) || 'Tài liệu trình chiếu',
             fileType: d.fileType,
             currentPage: 1,
-            totalPages: Math.max(1, d.totalPages),
+            totalPages,
           }
         } else if (d.action === 'close_doc') {
           this.slide = null
@@ -1046,33 +1076,52 @@ export class RoomDO extends DurableObject<Env> {
       case 'chat.send': {
         const text = lamSachVanBan(goi.text)
         if (!text) return
+        const reqId = goi.reqId?.trim()
+        if (!reqId) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Thiếu reqId tin nhắn.' }))
+          return
+        }
 
-        // Idempotent deduplication theo reqId
-        if (goi.reqId) {
-          if (this.seenChatReqIds.has(goi.reqId)) {
-            ws.send(JSON.stringify({ type: 'ack', reqId: goi.reqId }))
+        // Durable deduplication by (account_id, req_id) in SQLite
+        try {
+          const existing = [...this.ctx.storage.sql.exec<{ id: number }>(
+            'SELECT id FROM room_chat WHERE account_id = ?1 AND req_id = ?2 LIMIT 1',
+            att.accountId,
+            reqId,
+          )]
+          if (existing.length > 0) {
+            ws.send(JSON.stringify({ type: 'ack', reqId }))
             return
           }
-          this.seenChatReqIds.add(goi.reqId)
-          if (this.seenChatReqIds.size > 100) {
-            const first = this.seenChatReqIds.values().next().value
-            if (first) this.seenChatReqIds.delete(first)
-          }
+        } catch (err) {
+          console.error('Lỗi kiểm tra chat dedup:', err)
         }
 
         const now = Date.now()
         let id = now
         try {
           const res = this.ctx.storage.sql.exec(
-            'INSERT INTO room_chat (account_id, sender_name, content, created_at) VALUES (?1, ?2, ?3, ?4) RETURNING id',
+            'INSERT INTO room_chat (account_id, req_id, sender_name, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5) RETURNING id',
             att.accountId,
+            reqId,
             att.ten,
             text,
             now,
           )
           const row = [...res][0] as { id: number } | undefined
           if (row) id = row.id
-        } catch {}
+
+          // Giữ tối đa 200 tin nhắn gần nhất trong SQLite
+          this.ctx.storage.sql.exec(
+            'DELETE FROM room_chat WHERE id NOT IN (SELECT id FROM room_chat ORDER BY id DESC LIMIT 200)',
+          )
+        } catch (err: any) {
+          if (String(err).includes('UNIQUE') || String(err).includes('constraint')) {
+            ws.send(JSON.stringify({ type: 'ack', reqId }))
+            return
+          }
+          console.error('Lỗi lưu chat vào SQLite:', err)
+        }
 
         const msg: RoomChatMessage = {
           id: String(id),
@@ -1081,9 +1130,7 @@ export class RoomDO extends DurableObject<Env> {
           text,
           taoLuc: now,
         }
-        if (goi.reqId) {
-          ws.send(JSON.stringify({ type: 'ack', reqId: goi.reqId }))
-        }
+        ws.send(JSON.stringify({ type: 'ack', reqId }))
         this.broadcast({ type: 'room.chat', message: msg })
         break
       }

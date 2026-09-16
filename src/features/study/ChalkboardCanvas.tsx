@@ -7,7 +7,7 @@ interface ChalkboardCanvasProps {
   selectedColor: string
   selectedSize: number
   isEraser: boolean
-  onSendStroke: (stroke: WhiteboardStroke) => void
+  onSendStroke: (stroke: Omit<WhiteboardStroke, 'epoch'> | WhiteboardStroke) => void
   children?: React.ReactNode
 }
 
@@ -33,35 +33,44 @@ export function ChalkboardCanvas({
   onSendStroke,
   children,
 }: ChalkboardCanvasProps) {
-  const [currentPoints, setCurrentPoints] = useState<[number, number][]>([])
+  const isDrawingRef = useRef(false)
+  const currentPointsRef = useRef<[number, number][]>([])
+  const [activePoints, setActivePoints] = useState<[number, number][]>([])
   const svgRef = useRef<SVGSVGElement>(null)
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     if ((e.target as HTMLElement).closest('.interactive-control')) return
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
-    setCurrentPoints([[Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top)]])
+    isDrawingRef.current = true
+    const pt: [number, number] = [Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top)]
+    currentPointsRef.current = [pt]
+    setActivePoints([pt])
   }
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (currentPoints.length === 0) return
+    if (!isDrawingRef.current) return
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
-    setCurrentPoints((prev) => [
-      ...prev,
-      [Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top)],
-    ])
+    const pt: [number, number] = [Math.round(e.clientX - rect.left), Math.round(e.clientY - rect.top)]
+    currentPointsRef.current.push(pt)
+    setActivePoints([...currentPointsRef.current])
   }
 
   const handlePointerUp = () => {
-    if (currentPoints.length < 2) { setCurrentPoints([]); return }
-    onSendStroke({
-      id: `str_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      points: currentPoints,
-      color: isEraser ? '#0d1c16' : selectedColor,
-      size: isEraser ? selectedSize * 3 : selectedSize,
-    })
-    setCurrentPoints([])
+    if (!isDrawingRef.current) return
+    isDrawingRef.current = false
+    const pts = currentPointsRef.current
+    if (pts.length >= 2) {
+      onSendStroke({
+        id: `str_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        points: pts,
+        color: isEraser ? '#0d1c16' : selectedColor,
+        size: isEraser ? selectedSize * 3 : selectedSize,
+      })
+    }
+    currentPointsRef.current = []
+    setActivePoints([])
   }
 
   return (
@@ -87,6 +96,9 @@ export function ChalkboardCanvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onMouseDown={handlePointerDown as any}
+        onMouseMove={handlePointerMove as any}
+        onMouseUp={handlePointerUp as any}
         className="absolute inset-0 h-full w-full touch-none"
         style={{ cursor: isEraser ? 'cell' : 'crosshair', zIndex: 10 }}
       >
@@ -100,10 +112,10 @@ export function ChalkboardCanvas({
             opacity={0.93}
           />
         ))}
-        {currentPoints.length > 1 && (
+        {activePoints.length > 1 && (
           <path
             d={getSvgPathFromStroke(
-              getStroke(currentPoints, {
+              getStroke(activePoints, {
                 size: isEraser ? selectedSize * 3 : selectedSize,
                 thinning: 0.5,
                 smoothing: 0.5,

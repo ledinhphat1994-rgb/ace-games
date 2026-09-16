@@ -209,7 +209,7 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
       },
     })
     const err = await host.cho('error')
-    expect(err.message).toContain('không an toàn')
+    expect(err.message).toContain('không hợp lệ')
 
     // Member should not receive any slide.sync
     await member.khongNhan('slide.sync', () => true, 300)
@@ -346,33 +346,207 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
       type: 'slide.action',
       data: {
         action: 'load_doc',
-        docUrl: '/api/slides/canon-presentation.pdf',
+        docUrl: '/sample.pdf',
         docName: 'Canonical Lecture',
         fileType: 'pdf',
-        totalPages: 15,
+        totalPages: 2,
       },
     })
     await host.cho('slide.sync', (g) => g.slide !== null)
     host.gui({
       type: 'slide.action',
-      data: { action: 'change_page', page: 7 },
+      data: { action: 'change_page', page: 2 },
     })
-    await host.cho('slide.sync', (g) => g.slide?.currentPage === 7)
+    await host.cho('slide.sync', (g) => g.slide?.currentPage === 2)
 
-    // 5. Connect Late Joiner C
+    // 5. Set Pomodoro (running with 1500s focus)
+    host.gui({
+      type: 'pomodoro.action',
+      data: { action: 'reset', duration: 1500 },
+    })
+    await host.cho('pomodoro.sync', (g) => g.state.duration === 1500)
+    host.gui({
+      type: 'pomodoro.action',
+      data: { action: 'start' },
+    })
+    const hostPomo = await host.cho('pomodoro.sync', (g) => g.state.running)
+    expect(hostPomo.state.running).toBe(true)
+    expect(hostPomo.state.mode).toBe('focus')
+
+    // 6. Connect Late Joiner C
     const cLate = await dangNhapLayCookie('qa.v2.thu3')
     const late = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cLate)
     const snap = await late.cho('room.snapshot')
 
     // Verify all 5 subsystems converged in snapshot
+    // 1. Whiteboard
     expect(snap.whiteboardEpoch).toBe(2)
     expect(snap.strokes.some((s) => s.id === 'st_canon')).toBe(true)
+    // 2. Shared Notes
     expect(snap.notes.revision).toBe(2)
     expect(snap.notes.content).toBe('# Canonical Notes Convergence')
+    // 3. Room Chat
     expect(snap.chat.some((m) => m.text === 'Canonical Chat History Message')).toBe(true)
+    // 4. Shared Slides
     expect(snap.slide?.docName).toBe('Canonical Lecture')
-    expect(snap.slide?.currentPage).toBe(7)
-    expect(snap.slide?.totalPages).toBe(15)
+    expect(snap.slide?.currentPage).toBe(2)
+    expect(snap.slide?.totalPages).toBe(2)
+    // 5. Server Pomodoro
+    expect(snap.pomodoro.running).toBe(true)
+    expect(snap.pomodoro.mode).toBe('focus')
+    expect(snap.pomodoro.endsAt).toBe(hostPomo.state.endsAt)
+    expect(snap.pomodoro.endsAt! - Date.now()).toBeGreaterThan(1400 * 1000)
+
+    host.dong()
+    late.dong()
+  })
+
+  // ── 7. Mandatory Correctness Tokens & Budget Enforcement ─────────────────
+  it('Tokens & Budget: rejects missing epoch, rejects over-limit strokes, rejects missing baseRevision', async () => {
+    const roomId = await chenPhong('Phòng Correctness Tokens')
+    const cHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cMember = await dangNhapLayCookie('qa.v2.thu2')
+
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+    const member = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cMember)
+    await host.cho('room.snapshot')
+    await member.cho('room.snapshot')
+
+    // Whiteboard stroke without epoch -> schema rejection or server drop
+    member.gui({
+      type: 'whiteboard.action',
+      data: {
+        action: 'stroke.add',
+        stroke: { id: 'no_epoch_stroke', points: [[10, 10]], color: '#FFFFFF', size: 2 } as any,
+      },
+    })
+    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'no_epoch_stroke', 300)
+
+    // Whiteboard stroke with > 500 points -> schema rejection
+    const hugePoints: [number, number][] = Array.from({ length: 501 }, (_, i) => [i, i])
+    member.gui({
+      type: 'whiteboard.action',
+      data: {
+        action: 'stroke.add',
+        stroke: { id: 'huge_stroke', points: hugePoints, color: '#FFFFFF', size: 2, epoch: 1 },
+      },
+    })
+    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'huge_stroke', 300)
+
+    // Notes action without baseRevision -> schema rejection
+    member.gui({
+      type: 'notes.action',
+      data: {
+        action: 'update',
+        content: 'Malicious missing baseRevision edit',
+      } as any,
+    })
+    await host.khongNhan('notes.sync', (g) => g.notes.content === 'Malicious missing baseRevision edit', 300)
+
+    // Chat send without reqId -> schema rejection
+    member.gui({
+      type: 'chat.send',
+      text: 'Chat missing reqId',
+    } as any)
+    await host.khongNhan('room.chat', (g) => g.message.text === 'Chat missing reqId', 300)
+
+    host.dong()
+    member.dong()
+  })
+
+  // ── 8. Decoupled Permissions ──────────────────────────────────────────────
+  it('Permissions: Notes are editable by members regardless of media.hostOnlyControl', async () => {
+    const roomId = await chenPhong('Phòng Decoupled Permissions')
+    const cHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cMember = await dangNhapLayCookie('qa.v2.thu2')
+
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+    const member = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cMember)
+    await host.cho('room.snapshot')
+    await member.cho('room.snapshot')
+
+    // Host explicitly turns ON media.hostOnlyControl = true (for video)
+    host.gui({
+      type: 'media.action',
+      data: { action: 'set_host_only', enabled: true },
+    })
+    await member.cho('media.sync', (g) => g.state.hostOnlyControl === true)
+
+    // Member can STILL edit Notes because Notes permission is decoupled from video hostOnlyControl!
+    member.gui({
+      type: 'notes.action',
+      data: { action: 'update', content: 'Member edit under hostOnly video', baseRevision: 1 },
+    })
+    const gSync = await host.cho('notes.sync', (g) => g.notes.revision === 2)
+    expect(gSync.notes.content).toBe('Member edit under hostOnly video')
+
+    // However, Member CANNOT control Slides even if media.hostOnlyControl were false!
+    host.gui({
+      type: 'media.action',
+      data: { action: 'set_host_only', enabled: false },
+    })
+    await member.cho('media.sync', (g) => g.state.hostOnlyControl === false)
+
+    // Member attempts to load slide -> rejected by slide server gate
+    member.gui({
+      type: 'slide.action',
+      data: {
+        action: 'load_doc',
+        docUrl: '/sample.pdf',
+        docName: 'Unauthorized Slide',
+        fileType: 'pdf',
+        totalPages: 2,
+      },
+    })
+    const err = await member.cho('error')
+    expect(err.message).toContain('quyền')
+
+    host.dong()
+    member.dong()
+  })
+
+  // ── 9. Pomodoro Command Idempotency ───────────────────────────────────────
+  it('Pomodoro: repeated start commands do not extend endsAt timeline', async () => {
+    const roomId = await chenPhong('Phòng Pomodoro Idempotency')
+    const cHost = await dangNhapLayCookie('qa.v2.thu1')
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+    await host.cho('room.snapshot')
+
+    // Reset to 1200 seconds
+    host.gui({
+      type: 'pomodoro.action',
+      data: { action: 'reset', duration: 1200 },
+    })
+    await host.cho('pomodoro.sync', (g) => g.state.duration === 1200)
+
+    // First start
+    host.gui({
+      type: 'pomodoro.action',
+      data: { action: 'start' },
+    })
+    const start1 = await host.cho('pomodoro.sync', (g) => g.state.running)
+    const initialEndsAt = start1.state.endsAt!
+    expect(initialEndsAt).toBeGreaterThan(0)
+
+    // Wait 500ms
+    await new Promise((r) => setTimeout(r, 500))
+
+    // Second start (e.g. duplicate click or second host tab)
+    host.gui({
+      type: 'pomodoro.action',
+      data: { action: 'start' },
+    })
+
+    // Server must be idempotent: endsAt must NOT be extended!
+    // Give time for any unexpected broadcast
+    await new Promise((r) => setTimeout(r, 200))
+
+    // Connect another client to read snapshot and verify endsAt remained identical
+    const cLate = await dangNhapLayCookie('qa.v2.thu2')
+    const late = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cLate)
+    const snap = await late.cho('room.snapshot')
+    expect(snap.pomodoro.running).toBe(true)
+    expect(snap.pomodoro.endsAt).toBe(initialEndsAt)
 
     host.dong()
     late.dong()

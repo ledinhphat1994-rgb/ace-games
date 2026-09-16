@@ -54,7 +54,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
     setFileType(type)
     setDocName(file.name)
 
-    // Tải lên server R2 để có public URL (Microsoft Office Live và Google Docs Viewer có thể xem được)
+    // Tải lên server R2 để có URL dùng chung cho cả phòng học
     setIsUploading(true)
     let uploadedUrl = ''
     try {
@@ -71,13 +71,18 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
         }
       }
     } catch (err) {
-      console.warn('Không thể tải lên R2, sử dụng blob cục bộ:', err)
+      console.error('Lỗi tải tệp lên máy chủ R2:', err)
     } finally {
       setIsUploading(false)
     }
 
-    const finalUrl = uploadedUrl || URL.createObjectURL(file)
-    setDocUrl(finalUrl)
+    if (!uploadedUrl) {
+      setDocUrl('')
+      toast.error('Không thể tải tệp lên máy chủ lưu trữ. Vui lòng thử lại.')
+      return
+    }
+
+    setDocUrl(uploadedUrl)
 
     if (type === 'pdf') {
       setIsDetecting(true)
@@ -87,7 +92,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
       toast.success(`Đã nạp PDF "${file.name}" — phát hiện ${pages} trang!`)
     } else {
       setTotalPages(type === 'image' ? 1 : 12)
-      toast.success(uploadedUrl ? `Đã tải lên máy chủ "${file.name}"!` : `Đã nạp tệp "${file.name}"!`)
+      toast.success(`Đã tải lên máy chủ "${file.name}"!`)
     }
   }
 
@@ -114,8 +119,11 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
       toast.error('Vui lòng nhập tên tài liệu hoặc tải lên tệp.')
       return
     }
-    const finalUrl = docUrl.trim() || 'local_presentation'
-    onLoadSlide(finalUrl, docName.trim(), fileType, Math.max(1, totalPages))
+    if (!docUrl.trim()) {
+      toast.error('Tệp chưa được tải lên máy chủ lưu trữ. Vui lòng chọn tệp để tải lên.')
+      return
+    }
+    onLoadSlide(docUrl.trim(), docName.trim(), fileType, Math.max(1, totalPages))
     onOpenChange(false)
     toast.success(`Đã chèn bài giảng "${docName}" lên bảng đen!`)
   }
@@ -186,6 +194,21 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
               <span className="text-[11px] text-slate-400">
                 Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)
               </span>
+              <button
+                type="button"
+                data-testid="load-sample-qa-pdf"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setDocName('Tài liệu mẫu QA (PDF)')
+                  setDocUrl('/sample.pdf')
+                  setFileType('pdf')
+                  setTotalPages(2)
+                  toast.success('Đã nạp tệp mẫu QA (2 trang)! Bấm "Chèn Lên Bảng" để bắt đầu.')
+                }}
+                className="mt-1 text-[11px] text-cyan-400 hover:text-cyan-300 underline pointer-events-auto"
+              >
+                📄 Hoặc chọn nhanh tệp mẫu QA (2 trang)
+              </button>
             </div>
           </div>
 
