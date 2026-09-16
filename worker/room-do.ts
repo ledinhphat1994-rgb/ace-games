@@ -62,12 +62,14 @@ const DEFAULT_POMODORO: PomodoroState = {
   endsAt: 0,
   remaining: 1500,
   round: 1,
+  revision: 1,
 }
 
 const DEFAULT_NOTES: SharedNotes = {
   content: '# Ghi chú bài học 📝\n\n- Thảo luận và ghi lại các công thức quan trọng tại đây.',
   lastEditedBy: 'Hệ thống',
   updatedAt: Date.now(),
+  revision: 1,
 }
 
 const DEFAULT_GAME_META: GameMetaState = {
@@ -91,6 +93,8 @@ export class RoomDO extends DurableObject<Env> {
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
   private notes: SharedNotes = { ...DEFAULT_NOTES }
   private slide: SlideState | null = null
+  private whiteboardEpoch = 1
+  private seenChatReqIds = new Set<string>()
   private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
   private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
   private hostKey: string | null = null
@@ -156,9 +160,18 @@ export class RoomDO extends DurableObject<Env> {
         if (r.key === 'media') {
           try { this.media = JSON.parse(r.value) as MediaState } catch {}
         } else if (r.key === 'pomodoro') {
-          try { this.pomodoro = JSON.parse(r.value) as PomodoroState } catch {}
+          try {
+            const p = JSON.parse(r.value) as PomodoroState
+            this.pomodoro = { ...p, revision: typeof p.revision === 'number' ? p.revision : 1 }
+          } catch {}
         } else if (r.key === 'notes') {
-          try { this.notes = JSON.parse(r.value) as SharedNotes } catch {}
+          try {
+            const n = JSON.parse(r.value) as SharedNotes
+            this.notes = { ...n, revision: typeof n.revision === 'number' ? n.revision : 1 }
+          } catch {}
+        } else if (r.key === 'whiteboard_epoch') {
+          const ep = parseInt(r.value, 10)
+          if (Number.isFinite(ep) && ep > 0) this.whiteboardEpoch = ep
         } else if (r.key === 'slide') {
           try { this.slide = JSON.parse(r.value) as SlideState } catch {}
         } else if (r.key === 'host_key') {
@@ -179,6 +192,34 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     this.khoiTaoXong = true
+  }
+
+  private kiemTraVaCapNhatPomodoro(now: number): boolean {
+    if (!this.pomodoro.running || this.pomodoro.endsAt <= 0 || now < this.pomodoro.endsAt) {
+      return false
+    }
+    const nextMode: 'focus' | 'break' = this.pomodoro.mode === 'focus' ? 'break' : 'focus'
+    const nextDuration = nextMode === 'focus' ? 1500 : 300
+    const nextRound = nextMode === 'focus' ? this.pomodoro.round + 1 : this.pomodoro.round
+    this.pomodoro = {
+      ...this.pomodoro,
+      mode: nextMode,
+      running: false,
+      duration: nextDuration,
+      remaining: nextDuration,
+      endsAt: 0,
+      round: nextRound,
+      revision: (this.pomodoro.revision || 1) + 1,
+    }
+    this.luuMeta('pomodoro', this.pomodoro)
+    return true
+  }
+
+  override async alarm(): Promise<void> {
+    const now = Date.now()
+    if (this.kiemTraVaCapNhatPomodoro(now)) {
+      this.broadcast({ type: 'pomodoro.sync', state: this.pomodoro, serverNow: now })
+    }
   }
 
   private luuGameState(): void {
@@ -371,6 +412,9 @@ export class RoomDO extends DurableObject<Env> {
         server.send(JSON.stringify(snapshot))
       } catch {}
     } else {
+      // Đảm bảo Pomodoro được cập nhật trạng thái mới nhất nếu đã hết giờ trước khi gửi snapshot
+      this.kiemTraVaCapNhatPomodoro(Date.now())
+
       // Gửi snapshot ngay cho người mới vào phòng học
       const snapshot: GoiPhong = {
         type: 'room.snapshot',
@@ -381,6 +425,7 @@ export class RoomDO extends DurableObject<Env> {
         pomodoro: this.pomodoro,
         notes: this.notes,
         strokes: this.layStrokes(),
+        whiteboardEpoch: this.whiteboardEpoch,
         queue: this.layQueue(),
         chat: this.layChat(),
         slide: this.slide,
@@ -741,7 +786,7 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'pomodoro.action': {
         const d = goi.data
-        if (this.media.hostOnlyControl && !laQuanTri) {
+        if (!laQuanTri) {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển Pomodoro.' }))
           return
         }
@@ -749,13 +794,35 @@ export class RoomDO extends DurableObject<Env> {
 
         if (d.action === 'start') {
           const endsAt = now + this.pomodoro.remaining * 1000
-          this.pomodoro = { ...this.pomodoro, running: true, endsAt }
+          this.pomodoro = {
+            ...this.pomodoro,
+            running: true,
+            endsAt,
+            revision: (this.pomodoro.revision || 1) + 1,
+          }
+          try {
+            this.ctx.storage.setAlarm(endsAt)
+          } catch (err) {
+            console.error('Lỗi đặt DO alarm cho pomodoro:', err)
+          }
         } else if (d.action === 'pause') {
+          try {
+            this.ctx.storage.deleteAlarm()
+          } catch {}
           const remaining = this.pomodoro.endsAt > now
             ? Math.max(0, Math.round((this.pomodoro.endsAt - now) / 1000))
             : 0
-          this.pomodoro = { ...this.pomodoro, running: false, endsAt: 0, remaining }
+          this.pomodoro = {
+            ...this.pomodoro,
+            running: false,
+            endsAt: 0,
+            remaining,
+            revision: (this.pomodoro.revision || 1) + 1,
+          }
         } else if (d.action === 'reset') {
+          try {
+            this.ctx.storage.deleteAlarm()
+          } catch {}
           const dur = d.duration || (this.pomodoro.mode === 'focus' ? 1500 : 300)
           this.pomodoro = {
             ...this.pomodoro,
@@ -763,8 +830,12 @@ export class RoomDO extends DurableObject<Env> {
             duration: dur,
             remaining: dur,
             endsAt: 0,
+            revision: (this.pomodoro.revision || 1) + 1,
           }
         } else if (d.action === 'switch_mode') {
+          try {
+            this.ctx.storage.deleteAlarm()
+          } catch {}
           const dur = d.mode === 'focus' ? 1500 : 300
           const round = d.mode === 'focus' ? this.pomodoro.round + 1 : this.pomodoro.round
           this.pomodoro = {
@@ -775,6 +846,7 @@ export class RoomDO extends DurableObject<Env> {
             remaining: dur,
             endsAt: 0,
             round,
+            revision: (this.pomodoro.revision || 1) + 1,
           }
         }
 
@@ -786,26 +858,41 @@ export class RoomDO extends DurableObject<Env> {
       case 'whiteboard.action': {
         const d = goi.data
         if (d.action === 'stroke.add') {
+          const st = d.stroke
+          // Epoch guard: loại bỏ các nét vẽ mang epoch cũ hơn epoch hiện tại của bảng (chống hồi sinh sau khi xóa)
+          if (typeof st.epoch === 'number' && st.epoch < this.whiteboardEpoch) {
+            return
+          }
+          const strokeWithEpoch: WhiteboardStroke = {
+            ...st,
+            epoch: this.whiteboardEpoch,
+          }
           try {
             this.ctx.storage.sql.exec(
-              'INSERT INTO whiteboard_strokes (id, stroke_data, created_at) VALUES (?1, ?2, ?3)',
-              d.stroke.id,
-              JSON.stringify(d.stroke),
+              'INSERT OR IGNORE INTO whiteboard_strokes (id, stroke_data, created_at) VALUES (?1, ?2, ?3)',
+              st.id,
+              JSON.stringify(strokeWithEpoch),
               Date.now(),
+            )
+            // Giới hạn lịch sử tối đa 1000 nét vẽ gần nhất
+            this.ctx.storage.sql.exec(
+              'DELETE FROM whiteboard_strokes WHERE id NOT IN (SELECT id FROM whiteboard_strokes ORDER BY created_at DESC LIMIT 1000)',
             )
           } catch (err) {
             console.error('Lỗi lưu nét vẽ whiteboard:', err)
           }
-          this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: d.stroke })
+          this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: strokeWithEpoch })
         } else if (d.action === 'stroke.clear') {
           if (!laQuanTri) {
             ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền xóa toàn bộ bảng vẽ.' }))
             return
           }
+          this.whiteboardEpoch++
+          this.luuMeta('whiteboard_epoch', String(this.whiteboardEpoch))
           try {
             this.ctx.storage.sql.exec('DELETE FROM whiteboard_strokes')
           } catch {}
-          this.broadcast({ type: 'whiteboard.sync', action: 'stroke.clear' })
+          this.broadcast({ type: 'whiteboard.sync', action: 'stroke.clear', epoch: this.whiteboardEpoch })
         }
         break
       }
@@ -816,13 +903,29 @@ export class RoomDO extends DurableObject<Env> {
           return
         }
         const text = goi.data.content ?? ''
+        const baseRev = goi.data.baseRevision
+
+        // Optimistic Concurrency Control: Kiểm tra conflict revision tránh silent lost updates
+        if (typeof baseRev === 'number' && baseRev !== this.notes.revision) {
+          ws.send(
+            JSON.stringify({
+              type: 'notes.conflict',
+              currentNotes: this.notes,
+              rejectedContent: text,
+            }),
+          )
+          return
+        }
+
         this.notes = {
           content: text,
           lastEditedBy: att.ten || 'Thành viên',
           updatedAt: Date.now(),
+          revision: (this.notes.revision || 1) + 1,
         }
         this.luuMeta('notes', this.notes)
-        this.broadcast({ type: 'notes.sync', notes: this.notes }, ws)
+        // Broadcast tới mọi người (bao gồm cả người gửi để client nhận được revision mới nhất)
+        this.broadcast({ type: 'notes.sync', notes: this.notes })
         break
       }
 
@@ -915,9 +1018,19 @@ export class RoomDO extends DurableObject<Env> {
             }
           }
         } else if (d.action === 'load_doc') {
+          const rawUrl = d.docUrl.trim()
+          const isSafeUrl =
+            rawUrl.startsWith('/') ||
+            rawUrl.startsWith('https://') ||
+            rawUrl === 'local_presentation' ||
+            (d.fileType === 'image' && rawUrl.startsWith('data:image/'))
+          if (!isSafeUrl) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ hoặc không an toàn.' }))
+            return
+          }
           this.slide = {
-            docUrl: d.docUrl,
-            docName: d.docName,
+            docUrl: rawUrl,
+            docName: lamSachVanBan(d.docName) || 'Tài liệu trình chiếu',
             fileType: d.fileType,
             currentPage: 1,
             totalPages: Math.max(1, d.totalPages),
@@ -933,6 +1046,20 @@ export class RoomDO extends DurableObject<Env> {
       case 'chat.send': {
         const text = lamSachVanBan(goi.text)
         if (!text) return
+
+        // Idempotent deduplication theo reqId
+        if (goi.reqId) {
+          if (this.seenChatReqIds.has(goi.reqId)) {
+            ws.send(JSON.stringify({ type: 'ack', reqId: goi.reqId }))
+            return
+          }
+          this.seenChatReqIds.add(goi.reqId)
+          if (this.seenChatReqIds.size > 100) {
+            const first = this.seenChatReqIds.values().next().value
+            if (first) this.seenChatReqIds.delete(first)
+          }
+        }
+
         const now = Date.now()
         let id = now
         try {

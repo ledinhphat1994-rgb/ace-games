@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import type { SlideState } from '@shared/protocol/room'
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
@@ -16,7 +17,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 /** Build the correct iframe src depending on the URL type */
-export function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image', useGoogleViewer = false): string {
+function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image', useGoogleViewer = false): string {
   // Convert relative /api/files/... to absolute URL so cloud viewers can reach it
   let fullUrl = docUrl
   if (typeof window !== 'undefined' && docUrl.startsWith('/')) {
@@ -91,6 +92,8 @@ export function FloatingSlidePanel({
   const [isMinimized, setIsMinimized] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [useGoogleViewer, setUseGoogleViewer] = useState(false)
+  const [lastFailedDocUrl, setLastFailedDocUrl] = useState<string | null>(null)
+  const hasRenderError = Boolean(lastFailedDocUrl && lastFailedDocUrl === slideState.docUrl)
   const [prevBounds, setPrevBounds] = useState<{ pos: { x: number; y: number }; size: { w: number; h: number } } | null>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const [activeCursor, setActiveCursor] = useState<string>('default')
@@ -328,10 +331,32 @@ export function FloatingSlidePanel({
             className="relative bg-[#060b12] overflow-hidden flex items-center justify-center flex-1"
             style={{ height: bodyH }}
           >
-            {slideState.fileType === 'image' ? (
+            {hasRenderError ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2">
+                <AlertTriangle className="h-8 w-8 text-amber-400 opacity-90" />
+                <p className="text-xs font-semibold text-slate-200">Không thể tải tài liệu này</p>
+                <p className="text-[11px] text-slate-500 max-w-[280px]">
+                  Tài liệu có thể không tồn tại hoặc viewer từ chối hiển thị.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-white/20 text-slate-200 hover:bg-white/10"
+                    onClick={() => {
+                      setLastFailedDocUrl(null)
+                      setUseGoogleViewer((v) => !v)
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> Thử lại / Đổi viewer
+                  </Button>
+                </div>
+              </div>
+            ) : slideState.fileType === 'image' ? (
               <img
                 src={slideState.docUrl}
                 alt={slideState.docName}
+                onError={() => setLastFailedDocUrl(slideState.docUrl)}
                 className="max-h-full max-w-full object-contain select-none"
                 draggable={false}
               />
@@ -469,15 +494,39 @@ export function PinnedSlideView({
   onClose,
 }: PinnedSlideViewProps) {
   const [useGoogleViewer, setUseGoogleViewer] = useState(false)
+  const [lastFailedDocUrl, setLastFailedDocUrl] = useState<string | null>(null)
+  const hasRenderError = Boolean(lastFailedDocUrl && lastFailedDocUrl === slideState.docUrl)
 
   return (
     <div className="absolute inset-0 flex items-center justify-center p-3 md:p-6 pointer-events-none select-none z-[2]">
       {/* Pinned slide presentation frame directly on blackboard */}
       <div className="relative w-full h-full max-w-[94%] max-h-[88%] rounded-2xl overflow-hidden border border-orange-500/35 bg-[#060b12] shadow-2xl pointer-events-auto flex items-center justify-center ring-1 ring-orange-500/20">
-        {slideState.fileType === 'image' ? (
+        {hasRenderError ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
+            <AlertTriangle className="h-10 w-10 text-amber-400 opacity-90" />
+            <p className="text-sm font-semibold text-slate-200">Không thể tải tài liệu này</p>
+            <p className="text-xs text-slate-500 max-w-[320px]">
+              Tài liệu có thể không tồn tại hoặc viewer từ chối hiển thị.
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-white/20 text-slate-200 hover:bg-white/10"
+                onClick={() => {
+                  setLastFailedDocUrl(null)
+                  setUseGoogleViewer((v) => !v)
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Thử lại / Đổi viewer
+              </Button>
+            </div>
+          </div>
+        ) : slideState.fileType === 'image' ? (
           <img
             src={slideState.docUrl}
             alt={slideState.docName}
+            onError={() => setLastFailedDocUrl(slideState.docUrl)}
             className="max-h-full max-w-full object-contain"
             draggable={false}
           />

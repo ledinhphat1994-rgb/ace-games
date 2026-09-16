@@ -44,12 +44,14 @@ const DEFAULT_POMODORO: PomodoroState = {
   endsAt: 0,
   remaining: 1500,
   round: 1,
+  revision: 1,
 }
 
 const DEFAULT_NOTES: SharedNotes = {
   content: '# Ghi chú bài học 📝\n\n- Thảo luận và ghi lại các công thức quan trọng tại đây.',
   lastEditedBy: 'Hệ thống',
   updatedAt: Date.now(),
+  revision: 1,
 }
 
 export function useRoom(roomId: string, myActorKey?: string) {
@@ -59,7 +61,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [mediaState, setMediaState] = useState<MediaState>(DEFAULT_MEDIA)
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(DEFAULT_POMODORO)
   const [whiteboardStrokes, setWhiteboardStrokes] = useState<WhiteboardStroke[]>([])
+  const [whiteboardEpoch, setWhiteboardEpoch] = useState<number>(1)
   const [sharedNotes, setSharedNotes] = useState<SharedNotes>(DEFAULT_NOTES)
+  const [notesConflict, setNotesConflict] = useState<{ currentNotes: SharedNotes; rejectedContent: string } | null>(null)
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
   const [slideState, setSlideState] = useState<SlideState | null>(null)
@@ -71,6 +75,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const wsRef = useRef<WebSocket | null>(null)
   const clockSyncRef = useRef<ClockSyncManager>(new ClockSyncManager())
   const serverClockOffsetRef = useRef<number>(0)
+  const whiteboardEpochRef = useRef<number>(1)
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
@@ -133,6 +138,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setPomodoroState(goi.pomodoro)
           setSharedNotes(goi.notes)
           setWhiteboardStrokes(goi.strokes)
+          if (typeof goi.whiteboardEpoch === 'number') {
+            setWhiteboardEpoch(goi.whiteboardEpoch)
+            whiteboardEpochRef.current = goi.whiteboardEpoch
+          }
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
@@ -159,17 +168,30 @@ export function useRoom(roomId: string, myActorKey?: string) {
         case 'whiteboard.sync':
           if (goi.action === 'stroke.add' && goi.stroke) {
             const st = goi.stroke
+            if (typeof st.epoch === 'number' && st.epoch < whiteboardEpochRef.current) return
             setWhiteboardStrokes((prev) => {
               if (prev.some((s) => s.id === st.id)) return prev
               return [...prev, st].slice(-1000)
             })
           } else if (goi.action === 'stroke.clear') {
+            if (typeof goi.epoch === 'number') {
+              setWhiteboardEpoch(goi.epoch)
+              whiteboardEpochRef.current = goi.epoch
+            }
             setWhiteboardStrokes([])
           }
           break
 
         case 'notes.sync':
           setSharedNotes(goi.notes)
+          setNotesConflict(null)
+          break
+
+        case 'notes.conflict':
+          setNotesConflict({
+            currentNotes: goi.currentNotes,
+            rejectedContent: goi.rejectedContent,
+          })
           break
 
         case 'queue.sync':
@@ -347,7 +369,11 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const sendStroke = useCallback((stroke: WhiteboardStroke) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke } }))
+    const strokeWithEpoch: WhiteboardStroke = {
+      ...stroke,
+      epoch: whiteboardEpochRef.current,
+    }
+    ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.add', stroke: strokeWithEpoch } }))
   }, [])
 
   const clearWhiteboard = useCallback(() => {
@@ -356,11 +382,29 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.clear' } }))
   }, [])
 
-  const updateNotes = useCallback((content: string) => {
+  const updateNotes = useCallback((content: string, baseRevision?: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'notes.action', data: { action: 'update', content } }))
-  }, [])
+    ws.send(JSON.stringify({
+      type: 'notes.action',
+      data: {
+        action: 'update',
+        content,
+        baseRevision: typeof baseRevision === 'number' ? baseRevision : sharedNotes.revision,
+      },
+    }))
+  }, [sharedNotes.revision])
+
+  const resolveNotesConflict = useCallback((choice: 'keep_server' | 'force_client') => {
+    if (!notesConflict) return
+    if (choice === 'keep_server') {
+      setNotesConflict(null)
+    } else if (choice === 'force_client') {
+      const contentToForce = notesConflict.rejectedContent
+      setNotesConflict(null)
+      updateNotes(contentToForce, sharedNotes.revision)
+    }
+  }, [notesConflict, sharedNotes.revision, updateNotes])
 
   const addToQueue = useCallback((videoId: string, title: string) => {
     const ws = wsRef.current
@@ -430,7 +474,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
     mediaState,
     pomodoroState,
     whiteboardStrokes,
+    whiteboardEpoch,
     sharedNotes,
+    notesConflict,
+    resolveNotesConflict,
     queue,
     chatMessages,
     latencyMs,

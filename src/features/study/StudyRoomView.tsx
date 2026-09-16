@@ -4,6 +4,7 @@ import { useRoom } from '@/hooks/use-room'
 import type { NguoiDung } from '@/lib/api'
 import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/protocol/room'
 import {
+  AlertCircle,
   ArrowLeft,
   Calculator as CalcIcon,
   Crown,
@@ -100,10 +101,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     isHost,
     canModerate,
     canControlMedia,
+    serverClockOffset,
     mediaState,
     pomodoroState,
     whiteboardStrokes,
     sharedNotes,
+    notesConflict,
+    resolveNotesConflict,
     chatMessages,
     latencyMs,
     myMic,
@@ -127,6 +131,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [selectedColor, setSelectedColor] = useState('#FFFFFF')
   const [selectedSize, setSelectedSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
+  const [showColorPopover, setShowColorPopover] = useState(false)
+  const [showSizePopover, setShowSizePopover] = useState(false)
 
   // ── Window visibility & z-index ──────────────────────────────────────────
   const [youtubeZ, setYoutubeZ] = useState(41)
@@ -163,38 +169,56 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [ytSearching, setYtSearching] = useState(false)
   const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string }[]>([])
 
-  // ── Pomodoro countdown ───────────────────────────────────────────────────
-  const [pomoRemaining, setPomoRemaining] = useState(pomodoroState.remaining)
-  const [prevPomo, setPrevPomo] = useState(pomodoroState)
-  if (
-    pomodoroState.endsAt !== prevPomo.endsAt ||
-    pomodoroState.remaining !== prevPomo.remaining ||
-    pomodoroState.running !== prevPomo.running
-  ) {
-    setPrevPomo(pomodoroState)
-    setPomoRemaining(pomodoroState.remaining)
-  }
+  // ── Pomodoro countdown (Server-Authoritative derived state, 0 render-time setState) ─
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    if (!pomodoroState.running || pomodoroState.endsAt <= 0) return
+    const t = setInterval(() => setNowMs(Date.now()), 500)
+    return () => clearInterval(t)
+  }, [pomodoroState.running, pomodoroState.endsAt])
 
-  // ── Sync notes ───────────────────────────────────────────────────────────
-  const [prevNotesTime, setPrevNotesTime] = useState(sharedNotes.updatedAt)
-  if (sharedNotes.updatedAt !== prevNotesTime) {
-    setPrevNotesTime(sharedNotes.updatedAt)
-    setLocalNotes(sharedNotes.content)
-  }
+  const pomoRemaining = useMemo(() => {
+    if (!pomodoroState.running || pomodoroState.endsAt <= 0) {
+      return pomodoroState.remaining
+    }
+    const estimatedServerNow = nowMs + (serverClockOffset || 0)
+    return Math.max(0, Math.round((pomodoroState.endsAt - estimatedServerNow) / 1000))
+  }, [pomodoroState.running, pomodoroState.endsAt, pomodoroState.remaining, serverClockOffset, nowMs])
 
-  // ── Auto-show youtube window when a video starts ─────────────────────────
-  const [prevVideoId, setPrevVideoId] = useState(mediaState.videoId)
-  if (mediaState.videoId !== prevVideoId) {
-    setPrevVideoId(mediaState.videoId)
-    if (mediaState.videoId) setShowYoutube(true)
-  }
+  // Toast notification when pomodoro mode switches on server
+  const prevModeRef = useRef(pomodoroState.mode)
+  useEffect(() => {
+    if (pomodoroState.mode !== prevModeRef.current) {
+      prevModeRef.current = pomodoroState.mode
+      toast.info(pomodoroState.mode === 'focus' ? 'Bắt đầu phiên tập trung mới!' : 'Đến giờ nghỉ ngơi rồi!')
+    }
+  }, [pomodoroState.mode])
 
-  // ── Auto-show slide window when slide loads ───────────────────────────────
-  const [prevSlideId, setPrevSlideId] = useState(slideState?.docUrl)
-  if (slideState?.docUrl !== prevSlideId) {
-    setPrevSlideId(slideState?.docUrl)
-    if (slideState) setShowSlide(true)
-  }
+  // ── Sync notes (Safe useEffect, no render-time setState) ──────────────────
+  const lastNotesRevRef = useRef(sharedNotes.revision)
+  useEffect(() => {
+    if (sharedNotes.revision !== lastNotesRevRef.current) {
+      lastNotesRevRef.current = sharedNotes.revision
+      setLocalNotes(sharedNotes.content)
+    }
+  }, [sharedNotes.revision, sharedNotes.content])
+
+  // ── Auto-show youtube & slide window safely on genuine remote change ─────
+  const prevVideoIdRef = useRef(mediaState.videoId)
+  useEffect(() => {
+    if (mediaState.videoId && mediaState.videoId !== prevVideoIdRef.current) {
+      prevVideoIdRef.current = mediaState.videoId
+      setShowYoutube(true)
+    }
+  }, [mediaState.videoId])
+
+  const prevSlideUrlRef = useRef(slideState?.docUrl)
+  useEffect(() => {
+    if (slideState?.docUrl && slideState?.docUrl !== prevSlideUrlRef.current) {
+      prevSlideUrlRef.current = slideState.docUrl
+      setShowSlide(true)
+    }
+  }, [slideState?.docUrl])
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const chatRef = useRef<HTMLDivElement | null>(null)
@@ -205,29 +229,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       chatRef.current.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
     }
   }, [chatMessages.length])
-
-  // Tự động mở khung video khi phòng đang có video bài giảng
-  useEffect(() => {
-    if (mediaState.videoId) {
-      setShowYoutube(true)
-    }
-  }, [mediaState.videoId])
-
-  useEffect(() => {
-    if (!pomodoroState.running || pomodoroState.endsAt <= 0) return
-    const update = () => {
-      const now = Date.now()
-      const remaining = Math.max(0, Math.round((pomodoroState.endsAt - now) / 1000))
-      setPomoRemaining(remaining)
-      if (remaining <= 0 && isHost) {
-        const next = pomodoroState.mode === 'focus' ? 'break' : 'focus'
-        togglePomodoro({ action: 'switch_mode', mode: next })
-        toast.info(next === 'focus' ? 'Bắt đầu phiên tập trung mới!' : 'Đến giờ nghỉ ngơi rồi!')
-      }
-    }
-    const t = setInterval(update, 500)
-    return () => clearInterval(t)
-  }, [pomodoroState.running, pomodoroState.endsAt, pomodoroState.mode, isHost, togglePomodoro])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
@@ -315,7 +316,28 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const bringCalcToFront = () => setCalcZ(nextZIndex())
 
   const isOnline = trangThai === 'da_ket_noi'
-  const unreadChat = chatMessages.length > 0 ? chatMessages.length : 0
+  const [lastReadTime, setLastReadTime] = useState<number>(() => Date.now())
+
+  const unreadChat = useMemo(() => {
+    if (showChat) return 0
+    return chatMessages.filter((m) => m.taoLuc > lastReadTime).length
+  }, [chatMessages, showChat, lastReadTime])
+
+  const handleToggleChat = () => {
+    setShowChat((v) => {
+      const next = !v
+      if (next) {
+        setShowMembers(false)
+      }
+      setLastReadTime(Date.now())
+      return next
+    })
+  }
+
+  const handleCloseChat = () => {
+    setShowChat(false)
+    setLastReadTime(Date.now())
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -423,7 +445,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         {/* Right: Members count + Mic + Host + Avatar Menu */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setShowMembers(v => !v); setShowChat(false) }}
+            onClick={() => { setShowMembers(v => !v); handleCloseChat() }}
             className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors"
           >
             <Users className="h-3.5 w-3.5 text-indigo-400" />
@@ -505,7 +527,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         <div className="absolute right-0 top-12 bottom-20 z-50 flex w-80 flex-col overflow-hidden border-l border-white/10 bg-[#090e18]/97 backdrop-blur-2xl shadow-2xl">
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
             <span className="text-sm font-bold text-slate-200">💬 Chat phòng học</span>
-            <button onClick={() => setShowChat(false)} className="rounded p-1 text-slate-400 hover:text-white">
+            <button onClick={handleCloseChat} className="rounded p-1 text-slate-400 hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -624,7 +646,46 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
           {/* Shared notes */}
           <div className="border-t border-white/10 p-3">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">📝 Ghi chú chung</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">📝 Ghi chú chung</p>
+              {sharedNotes.lastEditedBy && (
+                <span className="text-[9px] text-slate-500 truncate max-w-[120px]">
+                  Sửa bởi: {sharedNotes.lastEditedBy}
+                </span>
+              )}
+            </div>
+
+            {notesConflict && (
+              <div className="mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+                <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-300">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Xung đột chỉnh sửa!</span>
+                </div>
+                <p className="mt-1 text-[10px] text-amber-300/80 leading-snug">
+                  Ghi chú đã được cập nhật bởi {notesConflict.currentNotes.lastEditedBy}. Nội dung bạn gõ không bị mất nhưng chưa được lưu vào văn bản chung.
+                </p>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalNotes(notesConflict.currentNotes.content)
+                      resolveNotesConflict('keep_server')
+                    }}
+                    className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200 hover:bg-white/20 transition-colors"
+                  >
+                    Xem bản mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resolveNotesConflict('force_client')}
+                    className="rounded bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-500 transition-colors"
+                  >
+                    Ghi đè bản này
+                  </button>
+                </div>
+              </div>
+            )}
+
             <textarea
               value={localNotes}
               onChange={(e) => handleNotesChange(e.target.value)}
@@ -745,61 +806,133 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
         <div className="flex items-center gap-1 rounded-full border border-white/15 bg-[#0b1020]/92 px-2 py-1.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/8">
 
-          {/* Chalk tool indicator */}
-          <div className="flex items-center gap-0.5 pr-1">
-            <PenTool className={`h-4 w-4 ${isEraser ? 'text-slate-600' : 'text-emerald-400'}`} />
+          {/* Chalk Color Picker (Single control + Popover progressive disclosure) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowColorPopover((v) => !v)
+                setShowSizePopover(false)
+                if (isEraser) setIsEraser(false)
+              }}
+              className={`flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                !isEraser ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }`}
+              aria-label="Màu phấn vẽ. Bấm để chọn màu khác."
+              title="Màu phấn vẽ"
+            >
+              <span
+                className="h-4 w-4 rounded-full border border-white/40 shadow-sm transition-transform hover:scale-110"
+                style={{ backgroundColor: selectedColor }}
+              />
+              <span className="hidden sm:inline text-[11px]">Màu</span>
+            </button>
+
+            {showColorPopover && (
+              <div className="absolute bottom-full left-0 mb-3 flex items-center gap-1.5 rounded-2xl border border-white/15 bg-[#0b1020]/95 p-2 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {CHALK_COLORS.map((c) => (
+                  <button
+                    key={c.color}
+                    type="button"
+                    onClick={() => {
+                      setSelectedColor(c.color)
+                      setIsEraser(false)
+                      setShowColorPopover(false)
+                    }}
+                    style={{ backgroundColor: c.color }}
+                    className={`h-6 w-6 rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                      !isEraser && selectedColor === c.color
+                        ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0b1020]'
+                        : 'opacity-70 hover:opacity-100 hover:scale-110'
+                    }`}
+                    aria-label={`Chọn màu ${c.name}`}
+                    title={c.name}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Chalk colors */}
-          {CHALK_COLORS.map((c) => (
+          {/* Chalk Size Picker (Single control + Popover progressive disclosure) */}
+          <div className="relative">
             <button
-              key={c.color}
-              onClick={() => { setSelectedColor(c.color); setIsEraser(false) }}
-              style={{ backgroundColor: c.color }}
-              className={`h-5 w-5 rounded-full transition-all duration-150 ${
-                !isEraser && selectedColor === c.color
-                  ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-[#0b1020]'
-                  : 'opacity-60 hover:opacity-90 hover:scale-110'
+              type="button"
+              onClick={() => {
+                setShowSizePopover((v) => !v)
+                setShowColorPopover(false)
+                if (isEraser) setIsEraser(false)
+              }}
+              className={`flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                !isEraser ? 'text-emerald-300 hover:bg-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`}
-              title={c.name}
-            />
-          ))}
+              aria-label="Cỡ nét vẽ. Bấm để đổi cỡ nét."
+              title="Cỡ nét vẽ"
+            >
+              <PenTool className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[11px] font-bold">Nét</span>
+            </button>
 
-          {/* Chalk sizes */}
-          <div className="flex items-center gap-0.5 border-l border-white/10 pl-1 ml-0.5">
-            {CHALK_SIZES.map((s) => (
-              <button
-                key={s.size}
-                onClick={() => { setSelectedSize(s.size); setIsEraser(false) }}
-                className={`h-7 min-w-[24px] rounded-lg px-1.5 text-[10px] font-bold transition-colors ${
-                  !isEraser && selectedSize === s.size
-                    ? 'bg-emerald-500/90 text-black'
-                    : 'text-emerald-400 hover:bg-white/8'
-                }`}
-                title={s.label}
-              >
-                {s.label}
-              </button>
-            ))}
+            {showSizePopover && (
+              <div className="absolute bottom-full left-0 mb-3 flex items-center gap-1 rounded-2xl border border-white/15 bg-[#0b1020]/95 p-1.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {CHALK_SIZES.map((s) => (
+                  <button
+                    key={s.size}
+                    type="button"
+                    onClick={() => {
+                      setSelectedSize(s.size)
+                      setIsEraser(false)
+                      setShowSizePopover(false)
+                    }}
+                    className={`flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                      !isEraser && selectedSize === s.size
+                        ? 'bg-emerald-500 text-black font-bold shadow-sm'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    }`}
+                    aria-label={`Chọn cỡ nét ${s.label}`}
+                    title={`${s.label} (${s.size}px)`}
+                  >
+                    <span
+                      className="rounded-full bg-current inline-block"
+                      style={{ width: Math.max(3, Math.min(8, s.size)), height: Math.max(3, Math.min(8, s.size)) }}
+                    />
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Eraser */}
           <button
-            onClick={() => setIsEraser(v => !v)}
-            className={`ml-0.5 flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors ${
-              isEraser ? 'bg-amber-500 text-black' : 'text-slate-400 hover:bg-white/8 hover:text-white'
+            type="button"
+            onClick={() => {
+              setIsEraser((v) => !v)
+              setShowColorPopover(false)
+              setShowSizePopover(false)
+            }}
+            className={`flex h-8 items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+              isEraser ? 'bg-amber-500 text-black shadow-sm font-bold' : 'text-slate-400 hover:bg-white/8 hover:text-white'
             }`}
+            aria-pressed={isEraser}
+            aria-label="Tẩy phấn"
             title="Tẩy phấn"
           >
             <Eraser className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Tẩy</span>
           </button>
 
           {/* Clear board */}
-          {isHost && (
+          {(isHost || canModerate) && (
             <button
-              onClick={clearWhiteboard}
-              className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs text-slate-500 hover:bg-red-500/20 hover:text-red-400 transition-colors"
-              title="Xóa toàn bộ bảng"
+              type="button"
+              onClick={() => {
+                if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ nét vẽ trên bảng đen không?')) {
+                  clearWhiteboard()
+                }
+              }}
+              className="flex h-8 items-center gap-1 rounded-xl px-2 text-xs text-slate-500 hover:bg-red-500/20 hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              aria-label="Xóa toàn bộ bảng vẽ"
+              title="Xóa toàn bộ bảng vẽ"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -856,7 +989,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
           {/* Chat button */}
           <button
-            onClick={() => { setShowChat(v => !v); setShowMembers(false) }}
+            onClick={handleToggleChat}
             className={`relative flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
               showChat ? 'bg-indigo-600/80 text-white' : 'text-indigo-400 hover:bg-indigo-600/20'
             }`}
@@ -873,7 +1006,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
           {/* Members button */}
           <button
-            onClick={() => { setShowMembers(v => !v); setShowChat(false) }}
+            onClick={() => { setShowMembers(v => !v); handleCloseChat() }}
             className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
               showMembers ? 'bg-violet-600/80 text-white' : 'text-violet-400 hover:bg-violet-600/20'
             }`}

@@ -22,6 +22,7 @@ export interface PomodoroState {
   /** Số giây còn lại khi tạm dừng */
   remaining: number
   round: number
+  revision: number
 }
 
 export interface WhiteboardStroke {
@@ -29,12 +30,14 @@ export interface WhiteboardStroke {
   points: [number, number][]
   color: string
   size: number
+  epoch?: number
 }
 
 export interface SharedNotes {
   content: string
   lastEditedBy: string
   updatedAt: number
+  revision: number
 }
 
 export interface QueueItem {
@@ -112,6 +115,7 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
       points: z.array(z.tuple([z.number(), z.number()])).max(2000),
       color: z.string().max(30),
       size: z.number().positive().max(100),
+      epoch: z.number().int().nonnegative().optional(),
     }),
   }),
   z.object({ action: z.literal('stroke.clear') }),
@@ -121,6 +125,7 @@ export type LenhPhongWhiteboard = z.infer<typeof LenhPhongWhiteboard>
 export const LenhPhongNotes = z.object({
   action: z.literal('update'),
   content: z.string().max(20000),
+  baseRevision: z.number().int().nonnegative().optional(),
 })
 export type LenhPhongNotes = z.infer<typeof LenhPhongNotes>
 
@@ -175,6 +180,7 @@ export type GoiPhong =
       pomodoro: PomodoroState
       notes: SharedNotes
       strokes: WhiteboardStroke[]
+      whiteboardEpoch?: number
       queue: QueueItem[]
       chat: RoomChatMessage[]
       slide: SlideState | null
@@ -187,8 +193,14 @@ export type GoiPhong =
       type: 'whiteboard.sync'
       action: 'stroke.add' | 'stroke.clear'
       stroke?: WhiteboardStroke
+      epoch?: number
     }
   | { type: 'notes.sync'; notes: SharedNotes }
+  | {
+      type: 'notes.conflict'
+      currentNotes: SharedNotes
+      rejectedContent: string
+    }
   | { type: 'queue.sync'; queue: QueueItem[] }
   | { type: 'slide.sync'; slide: SlideState | null }
   | { type: 'room.chat'; message: RoomChatMessage }

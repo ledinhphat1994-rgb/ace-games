@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:watch": "playwright test e2e/watch-together.spec.ts e2e/watch-autoplay.spec.ts",
     "test:e2e:watch:ui": "playwright test e2e/watch-together.spec.ts e2e/watch-autoplay.spec.ts --ui",
+    "test:e2e:collab": "playwright test e2e/study-collaboration.spec.ts --project=chromium-watch",
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts --project=chromium-watch",
     "preview": "vite preview",
     "preview:worker": "wrangler dev --config wrangler.jsonc --assets ./dist/client --persist-to .wrangler/state --port 8787",
