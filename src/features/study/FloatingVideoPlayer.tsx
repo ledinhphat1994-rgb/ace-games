@@ -15,7 +15,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from 'lucide-react'
-import { useEffect, useRef, useState, useId } from 'react'
+import { useEffect, useRef, useState, useId, useMemo } from 'react'
 import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 
 export type VideoSizePreset = 'pip' | 'medium' | 'large' | 'full'
@@ -83,6 +83,8 @@ export function FloatingVideoPlayer({
     currentTime,
     duration,
     playbackRate,
+    availableRates,
+    rateWarning,
     isAutoplayBlocked,
     errorMessage,
     handleUserPlay,
@@ -98,6 +100,11 @@ export function FloatingVideoPlayer({
     volume,
     canControlMedia: effectiveCanControl,
   })
+
+  const selectableRates = useMemo(() => {
+    if (!isReady || availableRates.length === 0) return SUPPORTED_PLAYBACK_RATES
+    return SUPPORTED_PLAYBACK_RATES.filter((r) => availableRates.includes(r))
+  }, [isReady, availableRates])
 
   // Dragging logic
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -169,7 +176,20 @@ export function FloatingVideoPlayer({
       {/* 1. Main Floating Window (ALWAYS mounted in DOM, hidden when minimized to preserve player instance) */}
       <div
         ref={containerRef}
-        style={isMinimized ? { display: 'none' } : getPresetStyles()}
+        style={
+          isMinimized
+            ? {
+                position: 'fixed',
+                top: '-9999px',
+                left: '-9999px',
+                width: '1px',
+                height: '1px',
+                opacity: 0,
+                pointerEvents: 'none',
+                zIndex: -1,
+              }
+            : getPresetStyles()
+        }
         className="flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0a0f18]/95 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 transition-all duration-150"
       >
       {/* 1. Header with Drag Handle & Size Controls */}
@@ -359,15 +379,19 @@ export function FloatingVideoPlayer({
             className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono text-cyan-300 border border-white/10 focus:outline-none"
             title="Tốc độ phát chung"
           >
-            {SUPPORTED_PLAYBACK_RATES.map((r) => (
+            {selectableRates.map((r: number) => (
               <option key={r} value={r}>
                 {r}x
               </option>
             ))}
           </select>
         ) : (
-          <span className="text-[10px] font-mono text-slate-400">
+          <span
+            className="text-[10px] font-mono text-slate-400"
+            title={rateWarning || `Tốc độ hiện tại: ${playbackRate}x`}
+          >
             {playbackRate}x
+            {rateWarning && <span className="ml-1 text-amber-400 font-bold" title={rateWarning}>⚠️</span>}
           </span>
         )}
 

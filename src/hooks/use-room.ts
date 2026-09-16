@@ -16,7 +16,7 @@ import {
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
 
-export type TrangThaiKetNoiPhong = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
+export type TrangThaiKetNoiPhong = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay' | 'can_xac_thuc_lai'
 
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
@@ -68,6 +68,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
   const ketNoiRef = useRef<() => void>(() => {})
+  const daTungKetNoiRef = useRef<boolean>(false)
 
   const me = useMemo(() => {
     if (!myActorKey) return null
@@ -105,6 +106,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
       if (wsRef.current !== ws) return
       setTrangThai('da_ket_noi')
       soLanThuRef.current = 0
+      daTungKetNoiRef.current = true
     }
 
     ws.onmessage = (e) => {
@@ -196,7 +198,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
       }
     }
 
-    ws.onclose = (e) => {
+    ws.onclose = async (e) => {
       if (wsRef.current !== ws) return
       wsRef.current = null
       clockSyncRef.current.reset()
@@ -207,6 +209,22 @@ export function useRoom(roomId: string, myActorKey?: string) {
       }
 
       if (daHuyRef.current) return
+
+      // Handle admission expiration gracefully for password rooms
+      const idMatch = roomId.match(/(\d+)$/)
+      if (idMatch) {
+        try {
+          const res = await fetch(`/api/rooms/${idMatch[1]}/admission-status`)
+          if (res.ok) {
+            const statusData = (await res.json()) as { accessMode?: string; admitted?: boolean }
+            if (statusData.accessMode === 'password' && statusData.admitted === false) {
+              setTrangThai('can_xac_thuc_lai')
+              return
+            }
+          }
+        } catch {}
+      }
+
       setTrangThai('mat_ket_noi')
 
       const soLan = soLanThuRef.current

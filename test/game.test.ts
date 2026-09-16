@@ -157,6 +157,7 @@ describe('Game Room Real-time WebSocket Flow', () => {
 
     p1.dong()
     p2.dong()
+    await new Promise((r) => setTimeout(r, 100))
   })
 
   it('lưu và truy vấn bảng điểm cao Solo mini-games (D1 Staging)', async () => {

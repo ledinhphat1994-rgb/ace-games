@@ -10,6 +10,8 @@ _worker.bundle
 # Mã bí mật để chạy thử trên máy — không bao giờ đưa lên GitHub.
 .dev.vars*
 !.dev.vars.example
+.env.e2e
+!.env.e2e.example
 worker-configuration.d.ts
 
 # Kết quả chạy thử trình duyệt (Playwright).

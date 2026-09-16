@@ -69,7 +69,7 @@ export async function verifyAdmitToken(
   const p = token.slice(0, dot)
   const s = token.slice(dot + 1)
   try {
-    const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), fromB64u(s), enc.encode(p))
+    const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), fromB64u(s) as BufferSource, enc.encode(p))
     if (!ok) return false
     const data = JSON.parse(new TextDecoder().decode(fromB64u(p))) as AdmitPayload
     if (!data.exp || data.exp < Math.floor(Date.now() / 1000)) return false
@@ -87,19 +87,20 @@ export function admitCookieSet(
   roomId: number,
   token: string,
   isHttps: boolean,
+  path?: string,
 ): string {
   const name = admitCookieName(roomId)
   const secure = isHttps ? '; Secure' : ''
-  // SameSite=Lax: WS upgrade từ same-origin vẫn gửi cookie được.
-  // Path=/ws/room/phong-<id> giới hạn cookie đúng endpoint.
-  return `${name}=${encodeURIComponent(token)}; Path=/ws/room/phong-${roomId}; HttpOnly${secure}; SameSite=Lax; Max-Age=${ADMIT_COOKIE_TTL}`
+  const cookiePath = path ?? `/ws/room/phong-${roomId}`
+  return `${name}=${encodeURIComponent(token)}; Path=${cookiePath}; HttpOnly${secure}; SameSite=Lax; Max-Age=${ADMIT_COOKIE_TTL}`
 }
 
 /** Tạo Set-Cookie xóa admission cookie. */
-export function admitCookieClear(roomId: number, isHttps: boolean): string {
+export function admitCookieClear(roomId: number, isHttps: boolean, path?: string): string {
   const name = admitCookieName(roomId)
   const secure = isHttps ? '; Secure' : ''
-  return `${name}=; Path=/ws/room/phong-${roomId}; HttpOnly${secure}; SameSite=Lax; Max-Age=0`
+  const cookiePath = path ?? `/ws/room/phong-${roomId}`
+  return `${name}=; Path=${cookiePath}; HttpOnly${secure}; SameSite=Lax; Max-Age=0`
 }
 
 /** Đọc admission cookie từ request headers. */

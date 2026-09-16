@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Search,
   Send,
+  ShieldAlert,
   Trash2,
   Upload,
   Users,
@@ -110,7 +111,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     sendStroke,
     clearWhiteboard,
     updateNotes,
-    addToQueue,
     sendRoomChat,
     toggleMic,
     slideState,
@@ -205,6 +205,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }
   }, [chatMessages.length])
 
+  // Tự động mở khung video khi phòng đang có video bài giảng
+  useEffect(() => {
+    if (mediaState.videoId) {
+      setShowYoutube(true)
+    }
+  }, [mediaState.videoId])
+
   useEffect(() => {
     if (!pomodoroState.running || pomodoroState.endsAt <= 0) return
     const update = () => {
@@ -296,7 +303,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const handlePickYtVideo = (videoId: string, title: string) => {
     syncMedia({ action: 'load', videoId, title })
     syncMedia({ action: 'play' })
-    addToQueue(videoId, title)
     setShowYoutube(true)
     setShowYtPanel(false)
     setYtResults([])
@@ -702,6 +708,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   {ytResults.map((v) => (
                     <button
                       key={v.videoId}
+                      data-video-id={v.videoId}
                       onClick={() => handlePickYtVideo(v.videoId, v.title)}
                       className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/8 text-left transition-colors"
                     >
@@ -876,6 +883,27 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </button>
         </div>
       </div>
+
+      {/* ══ Re-admission modal on password admission expiry ══ */}
+      {trangThai === 'can_xac_thuc_lai' && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="max-w-md w-full rounded-2xl border border-red-500/30 bg-[#0d1422] p-6 shadow-2xl text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <h2 className="text-lg font-bold text-white">Phiên vào phòng đã hết hạn.</h2>
+            <p className="text-sm text-slate-400">
+              Mã xác thực vào phòng có mật khẩu của bạn đã hết hạn hoặc không còn hiệu lực. Vui lòng quay lại sảnh để nhập lại mật khẩu.
+            </p>
+            <Button
+              onClick={onLeaveRoom}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-500/20"
+            >
+              Quay lại sảnh để nhập lại mật khẩu
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ══ Slide upload modal ══ */}
       <SlideUploadModal

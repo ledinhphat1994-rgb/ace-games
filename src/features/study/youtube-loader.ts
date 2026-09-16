@@ -2,6 +2,8 @@ import type { YTNamespace } from './youtube-types'
 
 let apiPromise: Promise<YTNamespace> | null = null
 
+export const APP_OWNED_ATTR = 'data-campus-owned'
+
 export function resetYouTubeLoaderForTesting(): void {
   apiPromise = null
 }
@@ -23,14 +25,49 @@ export function loadYouTubeIframeAPI(): Promise<YTNamespace> {
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let settled = false
 
+    const prevOnReady = window.onYouTubeIframeAPIReady
+
+    // Check if script already exists in document
+    let script = document.querySelector('script[src*="youtube.com/iframe_api"]') as HTMLScriptElement | null
+    let isAppOwned = false
+
+    if (!script) {
+      script = document.createElement('script')
+      script.src = 'https://www.youtube.com/iframe_api'
+      script.async = true
+      script.setAttribute(APP_OWNED_ATTR, 'true')
+      isAppOwned = true
+    } else {
+      isAppOwned = script.getAttribute(APP_OWNED_ATTR) === 'true'
+    }
+
+    const onErrorHandler = () => {
+      cleanupAndReject(new Error('Không thể tải YouTube Iframe API. Kiểm tra kết nối mạng.'))
+    }
+
+    script.addEventListener('error', onErrorHandler)
+
     const cleanupAndReject = (err: Error) => {
       if (settled) return
       settled = true
+
       if (timeoutId) {
         clearTimeout(timeoutId)
         timeoutId = null
       }
-      // Reset apiPromise on failure so future callers can retry
+
+      // Detach handler
+      script?.removeEventListener('error', onErrorHandler)
+
+      // Restore previous callback
+      window.onYouTubeIframeAPIReady = prevOnReady
+
+      // Remove only failed app-owned script node from DOM
+      if (isAppOwned && script && script.parentNode) {
+        script.parentNode.removeChild(script)
+      }
+
+      // Reset apiPromise so future callers perform a fresh load
       apiPromise = null
       reject(err)
     }
@@ -38,14 +75,18 @@ export function loadYouTubeIframeAPI(): Promise<YTNamespace> {
     const cleanupAndResolve = (yt: YTNamespace) => {
       if (settled) return
       settled = true
+
       if (timeoutId) {
         clearTimeout(timeoutId)
         timeoutId = null
       }
+
+      script?.removeEventListener('error', onErrorHandler)
+      window.onYouTubeIframeAPIReady = prevOnReady
+
       resolve(yt)
     }
 
-    const prevOnReady = window.onYouTubeIframeAPIReady
     window.onYouTubeIframeAPIReady = () => {
       if (prevOnReady && typeof prevOnReady === 'function' && prevOnReady !== window.onYouTubeIframeAPIReady) {
         try { prevOnReady() } catch {}
@@ -57,31 +98,14 @@ export function loadYouTubeIframeAPI(): Promise<YTNamespace> {
       }
     }
 
-    // Check if script already exists in document
-    let script = document.querySelector('script[src*="youtube.com/iframe_api"]') as HTMLScriptElement | null
-    if (!script) {
-      script = document.createElement('script')
-      script.src = 'https://www.youtube.com/iframe_api'
-      script.async = true
-      script.onerror = () => {
-        cleanupAndReject(new Error('Không thể tải YouTube Iframe API. Kiểm tra kết nối mạng.'))
-      }
-      document.head.appendChild(script)
-    } else {
-      const origOnError = script.onerror
-      script.onerror = (e) => {
-        if (origOnError && typeof origOnError === 'function') {
-          try { origOnError.call(script, e) } catch {}
-        }
-        cleanupAndReject(new Error('Không thể tải YouTube Iframe API. Kiểm tra kết nối mạng.'))
-      }
+    if (isAppOwned && !script.parentNode) {
+      const target = document.head || document.body
+      target.appendChild(script)
     }
 
     // Safety timeout (15s) in case network or script hangs
     timeoutId = setTimeout(() => {
-      if (!window.YT || !window.YT.Player) {
-        cleanupAndReject(new Error('Hết thời gian chờ nạp YouTube Iframe API (timeout 15s).'))
-      }
+      cleanupAndReject(new Error('Quá thời gian tải YouTube Iframe API (15s). Vui lòng thử lại.'))
     }, 15000)
   })
 

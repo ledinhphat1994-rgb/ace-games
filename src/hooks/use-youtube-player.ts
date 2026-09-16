@@ -17,6 +17,8 @@ export interface UseYouTubePlayerReturn {
   currentTime: number
   duration: number
   playbackRate: number
+  availableRates: number[]
+  rateWarning: string | null
   isAutoplayBlocked: boolean
   errorMessage: string | null
   handleUserPlay: () => void
@@ -44,6 +46,8 @@ export function useYouTubePlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
+  const [availableRates, setAvailableRates] = useState<number[]>([0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2])
+  const [rateWarning, setRateWarning] = useState<string | null>(null)
   const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [playerState, setPlayerState] = useState<number>(YT_PLAYER_STATE.UNSTARTED)
@@ -112,6 +116,15 @@ export function useYouTubePlayer({
               const cur = p.getCurrentTime()
               if (Number.isFinite(cur)) {
                 setCurrentTime(cur)
+              }
+
+              if (p.getAvailablePlaybackRates) {
+                try {
+                  const rates = p.getAvailablePlaybackRates()
+                  if (Array.isArray(rates) && rates.length > 0) {
+                    setAvailableRates(rates)
+                  }
+                } catch {}
               }
 
               // Test-only read interface in DEV / E2E mode (read-only, no mutation/backdoors)
@@ -192,10 +205,9 @@ export function useYouTubePlayer({
       setErrorMessage(null)
       isRemoteApplyRef.current = true
       try {
-        if (mediaState.status === 'playing') {
-          p.loadVideoById(mediaState.videoId, Math.max(0, mediaState.time))
-        } else {
-          p.cueVideoById(mediaState.videoId, Math.max(0, mediaState.time))
+        p.loadVideoById(mediaState.videoId, Math.max(0, mediaState.time))
+        if (mediaState.status !== 'playing') {
+          p.pauseVideo()
         }
       } catch {}
       setTimeout(() => {
@@ -212,8 +224,12 @@ export function useYouTubePlayer({
     try {
       const canonicalRate = mediaState.playbackRate
       const available = p.getAvailablePlaybackRates?.() || [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+      if (Array.isArray(available) && available.length > 0) {
+        setAvailableRates(available)
+      }
       if (available.includes(canonicalRate)) {
         p.setPlaybackRate(canonicalRate)
+        setRateWarning(null)
         queueMicrotask(() => {
           if (isMountedRef.current) setPlaybackRate(canonicalRate)
         })
@@ -223,6 +239,7 @@ export function useYouTubePlayer({
           1
         )
         p.setPlaybackRate(nearest)
+        setRateWarning(`Tốc độ ${canonicalRate}x không được hỗ trợ trên video này; tự động dùng ${nearest}x.`)
         queueMicrotask(() => {
           if (isMountedRef.current) setPlaybackRate(nearest)
         })
@@ -389,10 +406,22 @@ export function useYouTubePlayer({
     if (p) {
       isRemoteApplyRef.current = true
       try {
-        p.unMute()
         p.seekTo(calculateTargetTime(), true)
         p.playVideo()
       } catch {}
+      // Fallback: If strict browser autoplay policy rejects unmuted playback from an external overlay gesture,
+      // mute and trigger playback so the video starts playing and syncs with the room immediately.
+      setTimeout(() => {
+        if (p) {
+          const s = p.getPlayerState()
+          if (s !== YT_PLAYER_STATE.PLAYING && s !== YT_PLAYER_STATE.BUFFERING) {
+            try {
+              p.mute()
+              p.playVideo()
+            } catch {}
+          }
+        }
+      }, 150)
       setTimeout(() => {
         isRemoteApplyRef.current = false
       }, 500)
@@ -405,6 +434,8 @@ export function useYouTubePlayer({
     currentTime,
     duration,
     playbackRate,
+    availableRates,
+    rateWarning,
     isAutoplayBlocked,
     errorMessage,
     handleUserPlay,

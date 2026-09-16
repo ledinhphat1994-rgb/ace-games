@@ -1,42 +1,60 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, chromium, type Page } from '@playwright/test'
+
+// Production Refusal Guard: Destructive Watch Together tests MUST NEVER run against production
+const targetBaseURL = process.env.PLAYWRIGHT_BASE_URL || ''
+if (
+  targetBaseURL.includes('gdtxdinhquan.ledinhphat1994.workers.dev') ||
+  targetBaseURL.includes('lop10a7.vn')
+) {
+  throw new Error(
+    `[SECURITY GUARD] Destructive Watch Together E2E tests are strictly prohibited on production (${targetBaseURL}). Please point PLAYWRIGHT_BASE_URL to staging or local environment.`,
+  )
+}
 
 const HOST_USER = {
-  username: 'qa.v2.thu1',
-  password: 'ThuNghiem@v2-2026',
+  username: process.env.E2E_HOST_USERNAME || 'qa.v2.thu1',
+  password: process.env.E2E_HOST_PASSWORD || '',
 }
 
 const MEMBER_USER = {
-  username: 'qa.v2.thu2',
-  password: 'ThuNghiem@v2-2026',
+  username: process.env.E2E_MEMBER_B_USERNAME || 'qa.v2.thu2',
+  password: process.env.E2E_MEMBER_B_PASSWORD || '',
 }
 
 const MEMBER_C_USER = {
-  username: 'qa.v2.thu3',
-  password: 'ThuNghiem@v2-2026',
+  username: process.env.E2E_MEMBER_C_USERNAME || 'qa.v2.thu3',
+  password: process.env.E2E_MEMBER_C_PASSWORD || '',
+}
+
+const TEST_ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
+const PASSWORD_ROOM_ID = process.env.E2E_PASSWORD_ROOM_ID || 'phong-8'
+const PASSWORD_ROOM_PASSWORD = process.env.E2E_PASSWORD_ROOM_PASSWORD || ''
+
+// Fail-fast on missing credentials
+if (!HOST_USER.password || !MEMBER_USER.password || !MEMBER_C_USER.password) {
+  throw new Error('Missing E2E credentials in environment or .env.e2e. Please check .env.e2e.example.')
 }
 
 // "Me at the zoo" - First YouTube video, universally embeddable without region/copyright blocks (19s)
 const TEST_VIDEO_ID = 'jNQXAC9IVRw'
-const TEST_ROOM_ID = 'phong-7'
-const PASSWORD_ROOM_ID = 'phong-8'
 
 async function loginUser(page: Page, user: { username: string; password: string }) {
   await page.goto('/')
   const loginInput = page.locator('#ten-dang-nhap')
-  try {
-    await loginInput.waitFor({ state: 'visible', timeout: 15000 })
+  const isLoginFormVisible = await loginInput.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)
+  if (isLoginFormVisible) {
     await loginInput.fill(user.username)
     await page.locator('#mat-khau').fill(user.password)
     await page.locator('button[type="submit"]:has-text("Đăng nhập")').click()
     await expect(loginInput).not.toBeVisible({ timeout: 15000 })
-  } catch {
-    // Already logged in or login card did not appear
   }
 }
 
 async function enterStudyRoom(page: Page, roomId = TEST_ROOM_ID) {
   await page.goto(`/room/${roomId}`)
   await expect(page.locator('button[title="Chèn video YouTube"]')).toBeVisible({ timeout: 20000 })
+  // Wait for WebSocket connection to be fully established and online
+  await expect(page.locator('svg.text-emerald-400')).toBeVisible({ timeout: 15000 })
 }
 
 declare global {
@@ -65,29 +83,47 @@ async function startOrUnblockPlayback(page: Page) {
     return
   }
   const playBtn = page.locator('button[title="Phát"]')
-  if (await playBtn.isVisible().catch(() => false)) {
+  const canPlay = await playBtn.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)
+  if (canPlay) {
     await playBtn.click()
   }
-  try {
-    await syncBtn.waitFor({ state: 'visible', timeout: 2500 })
+  const blockedAppeared = await syncBtn.waitFor({ state: 'visible', timeout: 2000 }).then(() => true).catch(() => false)
+  if (blockedAppeared) {
     await syncBtn.click()
-  } catch {}
+  }
 }
 
 async function loadVideoIfNone(page: Page, videoId = TEST_VIDEO_ID) {
-  const ytBtn = page.locator('button[title="Chèn video YouTube"]')
-  await ytBtn.click()
+  let isTargetLoaded = await page.evaluate((targetVid) => {
+    const currentVid = window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id
+    const title = document.querySelector('div.font-bold.text-white')?.textContent || ''
+    return currentVid === targetVid || title.includes(targetVid)
+  }, videoId).catch(() => false)
 
-  const pasteInput = page.locator('input[placeholder="Dán link YouTube hoặc mã video..."]')
-  await expect(pasteInput).toBeVisible({ timeout: 5000 })
-  await pasteInput.fill(videoId)
-  await page.locator('button:has-text("Chèn")').click()
+  console.log(`[loadVideoIfNone] target: ${videoId} | isLoaded: ${isTargetLoaded}`)
+  if (!isTargetLoaded) {
+    const pasteTabBtn = page.locator('button:has-text("🔗 Dán link")')
+    const isPanelOpen = await pasteTabBtn.isVisible().catch(() => false)
+    if (!isPanelOpen) {
+      await page.locator('button[title="Chèn video YouTube"]').click()
+      await expect(pasteTabBtn).toBeVisible({ timeout: 5000 })
+    }
+    await pasteTabBtn.click()
+
+    const pasteInput = page.locator('input[placeholder="Dán link YouTube hoặc mã video..."]')
+    await expect(pasteInput).toBeVisible({ timeout: 5000 })
+    await pasteInput.fill(videoId)
+    await page.locator('form:has(input[placeholder="Dán link YouTube hoặc mã video..."]) button[type="submit"]').click()
+    await page.waitForTimeout(1000)
+  }
+
   await waitForYTPlayerReady(page)
 
   // Pause if playing to ensure clean starting point
   const pauseBtn = page.locator('button[title="Tạm dừng"]')
   if (await pauseBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
     await pauseBtn.click()
+    await page.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 5000 }).catch(() => {})
   }
 
   // Seek to 0
@@ -144,6 +180,10 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       // 3. Both clients must mount player and become ready
       await waitForYTPlayerReady(pageA)
       await waitForYTPlayerReady(pageB)
+
+      // Wait for both players to load the exact videoId
+      await pageA.waitForFunction((vid) => window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id === vid, TEST_VIDEO_ID, { timeout: 15000 })
+      await pageB.waitForFunction((vid) => window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id === vid, TEST_VIDEO_ID, { timeout: 15000 })
 
       // Check both players loaded the exact videoId
       const videoDataA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getVideoData())
@@ -209,7 +249,9 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       const rateB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlaybackRate())
       expect(rateB).toBe(1.5)
 
-      // 10. Host resumes play
+      // 10. Host seeks to 2.0s to ensure ample playback runway and resumes play
+      await seekSlider.fill('2')
+      await seekSlider.dispatchEvent('change')
       await startOrUnblockPlayback(pageA)
       await startOrUnblockPlayback(pageB)
       await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 10000 })
@@ -224,19 +266,19 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await pageB.waitForFunction(() => {
         const state = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
         const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
-        return (state === 1 || state === 3) && t >= 4
+        return (state === 1 || state === 3) && t >= 2.0
       }, { timeout: 15000 })
 
       const reconvergeTimeB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
       console.log(`[E2E Reconnect] Member B resumed after reload at ${reconvergeTimeB.toFixed(3)}s`)
-      expect(reconvergeTimeB).toBeGreaterThanOrEqual(4)
+      expect(reconvergeTimeB).toBeGreaterThanOrEqual(2.0)
     } finally {
       await contextA.close().catch(() => {})
       await contextB.close().catch(() => {})
     }
   })
 
-  test('2. Three Real Browser Contexts (A, B, C) — Multi-Client Pairwise Drift', async ({ browser }) => {
+  test('2. Three Real Browser Contexts (A, B, C) — Multi-Client Actions & Pairwise Drift', async ({ browser }) => {
     test.setTimeout(120000)
     const contextA = await createContextWithE2EMode(browser)
     const pageA = await contextA.newPage()
@@ -264,40 +306,98 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       await waitForYTPlayerReady(pageB)
       await waitForYTPlayerReady(pageC)
 
-      // Start/unblock on all three clients
+      // 1. Start/unblock on all three clients
       await startOrUnblockPlayback(pageA)
       await startOrUnblockPlayback(pageB)
       await startOrUnblockPlayback(pageC)
 
-      // Wait until all 3 are in state 1 (playing)
+      // 2. Wait until all 3 are in state 1 (playing)
       await Promise.all([
         pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
         pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
         pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
       ])
 
-      // Allow convergence window for decoder warm-up & drift alignment
+      // 3. Allow convergence window for decoder warm-up & drift alignment
       await Promise.all([
         pageA.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 3.0, { timeout: 15000 }),
         pageB.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, { timeout: 15000 }),
         pageC.waitForFunction(() => (window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0) >= 2.5, { timeout: 15000 }),
       ])
 
-      const timeA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
-      const timeB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
-      const timeC = await pageC.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+      let timeA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+      let timeB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+      let timeC = await pageC.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
 
-      const driftAB = Math.abs(timeA - timeB)
-      const driftAC = Math.abs(timeA - timeC)
-      const driftBC = Math.abs(timeB - timeC)
+      let driftAB = Math.abs(timeA - timeB)
+      let driftAC = Math.abs(timeA - timeC)
+      let driftBC = Math.abs(timeB - timeC)
 
-      console.log(`[E2E 3-Browser Triplet Metrics]`)
+      console.log(`[E2E 3-Browser Triplet Metrics — Phase 1: Play]`)
       console.log(`  Client A (Host):     ${timeA.toFixed(3)}s`)
       console.log(`  Client B (Member 1): ${timeB.toFixed(3)}s`)
       console.log(`  Client C (Member 2): ${timeC.toFixed(3)}s`)
       console.log(`  Drift A-B:           ${driftAB.toFixed(3)}s`)
       console.log(`  Drift A-C:           ${driftAC.toFixed(3)}s`)
       console.log(`  Drift B-C:           ${driftBC.toFixed(3)}s`)
+
+      expect(driftAB).toBeLessThanOrEqual(1.0)
+      expect(driftAC).toBeLessThanOrEqual(1.0)
+      expect(driftBC).toBeLessThanOrEqual(1.0)
+
+      // 4. Host pauses
+      const pauseBtnA = pageA.locator('button[title="Tạm dừng"]')
+      await pauseBtnA.click()
+
+      // Verify all three pause (state 2)
+      await Promise.all([
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 2, { timeout: 10000 }),
+      ])
+
+      // 5. Host seeks to 6.0s while paused
+      const seekSlider = pageA.locator('input[title="Tua đến vị trí"]')
+      await seekSlider.fill('6')
+      await seekSlider.dispatchEvent('change')
+
+      // Wait for both B and C to converge near 6.0s
+      await Promise.all([
+        pageB.waitForFunction(() => {
+          const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
+          return Math.abs(t - 6) < 1.5
+        }, { timeout: 12000 }),
+        pageC.waitForFunction(() => {
+          const t = window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0
+          return Math.abs(t - 6) < 1.5
+        }, { timeout: 12000 }),
+      ])
+
+      // 6. Host seeks to 2.0s to ensure ample runway, then resumes playback
+      await seekSlider.fill('2')
+      await seekSlider.dispatchEvent('change')
+      await pageA.waitForTimeout(500)
+
+      await startOrUnblockPlayback(pageA)
+
+      await Promise.all([
+        pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
+        pageB.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
+        pageC.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 }),
+      ])
+
+      // 7. Post-resume drift measurement
+      await pageA.waitForTimeout(2000)
+      timeA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+      timeB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+      timeC = await pageC.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getCurrentTime() || 0)
+
+      driftAB = Math.abs(timeA - timeB)
+      driftAC = Math.abs(timeA - timeC)
+      driftBC = Math.abs(timeB - timeC)
+
+      console.log(`[E2E 3-Browser Triplet Metrics — Phase 2: Post-Resume]`)
+      console.log(`  Drift A-B: ${driftAB.toFixed(3)}s | Drift A-C: ${driftAC.toFixed(3)}s | Drift B-C: ${driftBC.toFixed(3)}s`)
 
       expect(driftAB).toBeLessThanOrEqual(1.0)
       expect(driftAC).toBeLessThanOrEqual(1.0)
@@ -367,82 +467,152 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
     }
   })
 
-  test('4. YouTube Search to Play Flow — Authoritative Load + Play', async ({ browser }) => {
-    test.setTimeout(60000)
-    const context = await createContextWithE2EMode(browser)
-    const page = await context.newPage()
+  test('4. YouTube Search to Play Flow — Authoritative Load + Play on Host & Member', async ({ browser }) => {
+    test.setTimeout(90000)
+    const contextA = await createContextWithE2EMode(browser)
+    const pageA = await contextA.newPage()
+
+    const contextB = await createContextWithE2EMode(browser)
+    const pageB = await contextB.newPage()
 
     try {
-      await loginUser(page, HOST_USER)
-      await enterStudyRoom(page, TEST_ROOM_ID)
+      await loginUser(pageA, HOST_USER)
+      await enterStudyRoom(pageA, TEST_ROOM_ID)
 
-      // Open YouTube panel
-      await page.locator('button[title="Chèn video YouTube"]').click()
+      await loginUser(pageB, MEMBER_USER)
+      await enterStudyRoom(pageB, TEST_ROOM_ID)
+
+      // Open YouTube panel on Host
+      await pageA.locator('button[title="Chèn video YouTube"]').click()
 
       // Switch to search tab
-      await page.locator('button:has-text("🔍 Tìm kiếm")').click()
+      await pageA.locator('button:has-text("🔍 Tìm kiếm")').click()
 
       // Search for query
-      const searchInput = page.locator('input[placeholder="Nhập từ khóa tìm bài giảng..."]')
+      const searchInput = pageA.locator('input[placeholder="Nhập từ khóa tìm bài giảng..."]')
       await expect(searchInput).toBeVisible({ timeout: 5000 })
       await searchInput.fill('toán 10')
-      await page.locator('form:has(input[placeholder="Nhập từ khóa tìm bài giảng..."]) button[type="submit"]').click()
+      await pageA.locator('form:has(input[placeholder="Nhập từ khóa tìm bài giảng..."]) button[type="submit"]').click()
 
       // Wait for search results
-      const firstResult = page.locator('div.max-h-60 button').first()
+      const firstResult = pageA.locator('div.max-h-60 button[data-video-id]').first()
       await expect(firstResult).toBeVisible({ timeout: 15000 })
 
-      // Click first search result
+      // Capture actual videoId from the search result card
+      const selectedVideoId = await firstResult.getAttribute('data-video-id')
+      expect(selectedVideoId).toBeTruthy()
+      console.log(`[E2E Search to Play] Selected Video ID: ${selectedVideoId}`)
+
+      // Click selected search result
       await firstResult.click()
 
-      // Verify that player immediately loads the selected video
-      await waitForYTPlayerReady(page)
-      await startOrUnblockPlayback(page)
-      await page.waitForFunction(() => {
-        const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
-        return s === 1 || s === 3
-      }, { timeout: 15000 })
+      // Wait for player ready on both Host and Member B
+      await waitForYTPlayerReady(pageA)
+      await waitForYTPlayerReady(pageB)
+
+      await startOrUnblockPlayback(pageA)
+      await startOrUnblockPlayback(pageB)
+
+      // Verify both Host and Member B player loaded the authoritative search videoId
+      await pageA.waitForFunction((vid) => {
+        return window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id === vid
+      }, selectedVideoId, { timeout: 20000 })
+
+      await pageB.waitForFunction((vid) => {
+        return window.__YT_PLAYER_INSTANCE__?.getVideoData()?.video_id === vid
+      }, selectedVideoId, { timeout: 20000 })
+
+      const videoDataA = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getVideoData())
+      const videoDataB = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getVideoData())
+
+      expect(videoDataA?.video_id).toBe(selectedVideoId)
+      expect(videoDataB?.video_id).toBe(selectedVideoId)
     } finally {
-      await context.close().catch(() => {})
+      await contextA.close().catch(() => {})
+      await contextB.close().catch(() => {})
     }
   })
 
   test('5. Autoplay Block Handling — User Action "Đồng bộ & Phát ngay" Resumes Playback', async ({ browser }) => {
-    test.setTimeout(60000)
-    const context = await createContextWithE2EMode(browser)
-    const page = await context.newPage()
+    test.setTimeout(90000)
+
+    // Context A = Host (normal context)
+    const contextA = await createContextWithE2EMode(browser)
+    const pageA = await contextA.newPage()
+
+    // Context B = Member in dedicated restricted browser where autoplay requires user gesture
+    const restrictedBrowser = await chromium.launch({
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--autoplay-policy=user-gesture-required',
+      ],
+    })
+    const contextB = await createContextWithE2EMode(restrictedBrowser)
+    const pageB = await contextB.newPage()
 
     try {
-      await loginUser(page, HOST_USER)
-      await enterStudyRoom(page, TEST_ROOM_ID)
-      await loadVideoIfNone(page)
-      await waitForYTPlayerReady(page)
+      console.log('[Test 5] 1. Logging in Host...')
+      await loginUser(pageA, HOST_USER)
+      console.log('[Test 5] 2. Entering room as Host...')
+      await enterStudyRoom(pageA, TEST_ROOM_ID)
+      console.log('[Test 5] 3. Loading video as Host...')
+      await loadVideoIfNone(pageA)
 
-      // Trigger play
-      const playBtn = page.locator('button[title="Phát"]')
-      if (await playBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await playBtn.click()
-      }
+      // Member B logs in and joins room FIRST, while Host is still paused at 0s
+      console.log('[Test 5] 4. Logging in Member B...')
+      await loginUser(pageB, MEMBER_USER)
+      console.log('[Test 5] 5. Entering room as Member B...')
+      await enterStudyRoom(pageB, TEST_ROOM_ID)
+      console.log('[Test 5] 6. Waiting for Member B player ready...')
+      await waitForYTPlayerReady(pageB)
 
-      // Check if blocked overlay appears
-      const blockedOverlayBtn = page.locator('button:has-text("Đồng bộ & Phát ngay")')
-      if (await blockedOverlayBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await blockedOverlayBtn.click()
-        await expect(blockedOverlayBtn).not.toBeVisible({ timeout: 5000 })
-        await page.waitForFunction(() => {
-          const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
-          return s === 1 || s === 3
-        }, { timeout: 10000 })
-      } else {
-        expect(true).toBe(true)
-      }
+      // Now Host starts playback
+      console.log('[Test 5] 7. Host starting playback...')
+      await startOrUnblockPlayback(pageA)
+      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
+      console.log('[Test 5] 8. Host is playing successfully.')
+
+      // Since member's browser has --autoplay-policy=user-gesture-required and hasn't received a user click,
+      // the incoming play command triggers autoplay block detection!
+      console.log('[Test 5] 10. Checking for blocked overlay on Member B...')
+      const blockedOverlayBtn = pageB.locator('button:has-text("Đồng bộ & Phát ngay")')
+      await expect(blockedOverlayBtn).toBeVisible({ timeout: 15000 })
+      console.log('[Test 5] 11. Blocked overlay IS visible.')
+
+      // Host should remain playing uninterrupted
+      const hostState = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
+      expect(hostState).toBe(1)
+      console.log('[Test 5] 12. Host verified still playing.')
+
+      // User performs explicit gesture: clicks "Đồng bộ & Phát ngay"
+      console.log('[Test 5] 13. Member B clicking "Đồng bộ & Phát ngay"...')
+      await blockedOverlayBtn.click()
+
+      // Overlay should disappear
+      console.log('[Test 5] 14. Waiting for overlay to disappear...')
+      await expect(blockedOverlayBtn).not.toBeVisible({ timeout: 5000 })
+      console.log('[Test 5] 15. Overlay disappeared.')
+
+      // Member player should now successfully transition to playing
+      console.log('[Test 5] 16. Waiting for Member B playerState 1 or 3...')
+      await pageB.waitForFunction(() => {
+        const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
+        return s === 1 || s === 3
+      }, { timeout: 15000 })
+
+      const memberState = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
+      console.log(`[Test 5] 17. Member B final state: ${memberState}`)
+      expect(memberState === 1 || memberState === 3).toBe(true)
     } finally {
-      await context.close().catch(() => {})
+      await contextA.close().catch(() => {})
+      await contextB.close().catch(() => {})
+      await restrictedBrowser.close().catch(() => {})
     }
   })
 
-  test('6. Password Room Reconnect — Valid Cookie Admits Automatically', async ({ browser }) => {
-    test.setTimeout(60000)
+  test('6. Password Room Admission — Reconnect with Valid Cookie vs Graceful Expiry UX', async ({ browser }) => {
+    test.setTimeout(90000)
     const context = await createContextWithE2EMode(browser)
     const page = await context.newPage()
 
@@ -456,18 +626,39 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       const pwInput = page.locator('input[type="password"]')
       try {
         await pwInput.waitFor({ state: 'visible', timeout: 5000 })
-        await pwInput.fill('ThuNghiem@v2-2026')
+        await pwInput.fill(PASSWORD_ROOM_PASSWORD)
         await page.locator('button:has-text("Vào phòng")').click()
       } catch {
-        // No password prompt needed
+        // No password prompt needed (already admitted)
       }
 
       // Should enter room successfully
       await expect(page.locator('button[title="Chèn video YouTube"]')).toBeVisible({ timeout: 15000 })
 
-      // Reload page — should automatically admit without prompting password again because admission cookie is valid
+      // 1. Reload page with VALID cookie — should automatically admit without password prompt
       await page.reload()
       await expect(page.locator('button[title="Chèn video YouTube"]')).toBeVisible({ timeout: 15000 })
+
+      // 2. Clear ONLY the admission cookie, keeping session cookie intact
+      const cookies = await context.cookies()
+      const sessionCookies = cookies.filter((c) => !c.name.startsWith('room_admit_'))
+      await context.clearCookies()
+      for (const c of sessionCookies) {
+        await context.addCookies([c])
+      }
+
+      // 3. Reload page — admission is now expired / missing
+      await page.reload()
+
+      // The admission-status check should discover admitted=false, stopping the reconnect loop
+      // and rendering "Phiên vào phòng đã hết hạn." modal with action button
+      await expect(page.locator('text=Phiên vào phòng đã hết hạn.')).toBeVisible({ timeout: 15000 })
+      const backToLobbyBtn = page.locator('button:has-text("Quay lại sảnh để nhập lại mật khẩu")')
+      await expect(backToLobbyBtn).toBeVisible({ timeout: 5000 })
+
+      // Click button and verify clean return to lobby
+      await backToLobbyBtn.click()
+      await expect(page).toHaveURL(/\/(study)?$/)
     } finally {
       await context.close().catch(() => {})
     }

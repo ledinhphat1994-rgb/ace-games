@@ -554,7 +554,7 @@ app.post('/api/rooms/:id/admit', async (c) => {
     phienId: kq.phien.phienId!,
   })
 
-  const cookieHeader = admitCookieSet(phongRow.id, token, laHttps(c.req.raw))
+  const cookieHeader = admitCookieSet(phongRow.id, token, laHttps(c.req.raw), '/')
   return c.json(
     { ok: true, roomId: phongRow.id, maPhong: `phong-${phongRow.id}` },
     200,
@@ -562,17 +562,63 @@ app.post('/api/rooms/:id/admit', async (c) => {
   )
 })
 
+// Check admission status for room (used to verify admission expiry on reconnect)
+app.get('/api/rooms/:id/admission-status', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const idParam = c.req.param('id')
+  const phongId = parseInt(idParam || '', 10)
+  if (!phongId || phongId <= 0) return loi('ID phòng không hợp lệ.', 400)
+
+  let phongRow: DongPhong | null = null
+  try {
+    phongRow = await c.env.DB.prepare(
+      `SELECT id, trang_thai, pham_vi, lop_id, access_mode, mat_khau_hash, mat_khau_salt,
+              mat_khau_iterations, suc_chua, chu_phong_khoa
+         FROM phong WHERE id = ?1 AND loai = 'video'`,
+    ).bind(phongId).first<DongPhong>()
+  } catch {
+    return loi('Không thể xác minh thông tin phòng.', 500)
+  }
+
+  if (!phongRow) return loi('Không tìm thấy phòng học.', 404)
+  if (phongRow.trang_thai !== 'mo') {
+    return c.json({ accessMode: phongRow.access_mode === 'password' ? 'password' : 'public', admitted: false }, 200)
+  }
+
+  // Public room: always admitted (subject to normal room access rules)
+  if (phongRow.access_mode !== 'password') {
+    return c.json({ accessMode: 'public', admitted: true }, 200)
+  }
+
+  // Password room: read and verify HttpOnly admission cookie
+  const token = readAdmitCookie(c.req.raw, phongRow.id)
+  if (!token || !c.env.SESSION_SECRET) {
+    return c.json({ accessMode: 'password', admitted: false }, 200)
+  }
+
+  const isValid = await verifyAdmitToken(c.env.SESSION_SECRET, token, {
+    roomId: phongRow.id,
+    accountId: kq.taiKhoan.id,
+    phienId: kq.phien.phienId!,
+  })
+
+  return c.json({ accessMode: 'password', admitted: isValid }, 200)
+})
+
 // Invalidate admission cookie (logout from password room)
 app.post('/api/rooms/:id/admit/revoke', async (c) => {
   const idParam = c.req.param('id')
   const phongId = parseInt(idParam || '', 10)
   if (!phongId) return loi('ID phòng không hợp lệ.', 400)
-  const cookieClear = admitCookieClear(phongId, laHttps(c.req.raw))
+  const cookieClear = admitCookieClear(phongId, laHttps(c.req.raw), '/')
   return c.json({ ok: true }, 200, { 'Set-Cookie': cookieClear })
 })
 
 app.all('/api/rooms/:id/admit', saiPhuongThuc)
 app.all('/api/rooms/:id/admit/revoke', saiPhuongThuc)
+app.all('/api/rooms/:id/admission-status', saiPhuongThuc)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth routes

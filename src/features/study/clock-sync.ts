@@ -10,6 +10,12 @@ export function tinhMedian(arr: number[]): number {
   return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
+/**
+ * NTP-style RTT midpoint clock-offset estimator.
+ * Measures round-trip time (RTT) between client and server via ping/pong,
+ * calculates estimated offset at RTT midpoint: serverNow - (clientWall + rtt / 2),
+ * filters abnormal samples, and computes a rolling 7-sample median offset.
+ */
 export class ClockSyncManager {
   private outstandingPings = new Map<number, PingRecord>()
   private samples: number[] = []

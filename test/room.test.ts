@@ -722,4 +722,78 @@ describe('Admission Gate — Security Matrix', () => {
     await wsL2.body?.cancel()
     expect(wsL2.status).toBe(403)
   })
+
+  // 32-35. GET /api/rooms/:id/admission-status
+  it('(32) admission-status: chưa đăng nhập → 401', async () => {
+    const id = await chenPhong('P Public Status Check', 'truong', null)
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Origin: GOC },
+    }) as Response
+    expect(res.status).toBe(401)
+  })
+
+  it('(33) admission-status: phòng public → accessMode=public, admitted=true', async () => {
+    const id = await chenPhong('P Public Status Check 2', 'truong', null)
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    expect(res.status).toBe(200)
+    const data = await res.json() as { accessMode: string; admitted: boolean }
+    expect(data.accessMode).toBe('public')
+    expect(data.admitted).toBe(true)
+  })
+
+  it('(34) admission-status: phòng mật khẩu có admission cookie hợp lệ → accessMode=password, admitted=true', async () => {
+    const id = await chenPhong('P Password Status Check 1', 'truong', null, {
+      accessMode: 'password',
+      matKhau: 'MatKhauDung@123',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Admit successfully
+    const admitRes = await admitPhong(id, cookie, 'MatKhauDung@123')
+    expect(admitRes.status).toBe(200)
+    const setCookie = admitRes.headers.get('Set-Cookie') || ''
+    const match = setCookie.match(/room_admit_\d+=[^;]+/)
+    expect(match).toBeTruthy()
+    const admitCookie = match![0]
+
+    // Query status with both session cookie and admission cookie
+    const combinedCookie = `${cookie}; ${admitCookie}`
+    const statusRes = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: combinedCookie, Origin: GOC },
+    }) as Response
+    expect(statusRes.status).toBe(200)
+    const data = await statusRes.json() as { accessMode: string; admitted: boolean }
+    expect(data.accessMode).toBe('password')
+    expect(data.admitted).toBe(true)
+  })
+
+  it('(35) admission-status: phòng mật khẩu KHÔNG có cookie hoặc cookie sai/hết hạn → accessMode=password, admitted=false', async () => {
+    const id = await chenPhong('P Password Status Check 2', 'truong', null, {
+      accessMode: 'password',
+      matKhau: 'MatKhauDung@123',
+    })
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // 1. No admission cookie provided
+    const resNoCookie = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    expect(resNoCookie.status).toBe(200)
+    const data1 = await resNoCookie.json() as { accessMode: string; admitted: boolean }
+    expect(data1.accessMode).toBe('password')
+    expect(data1.admitted).toBe(false)
+
+    // 2. Invalid admission cookie
+    const fakeAdmitCookie = `room_admit_${id}=invalid.token.here`
+    const resFakeCookie = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: `${cookie}; ${fakeAdmitCookie}`, Origin: GOC },
+    }) as Response
+    expect(resFakeCookie.status).toBe(200)
+    const data2 = await resFakeCookie.json() as { accessMode: string; admitted: boolean }
+    expect(data2.accessMode).toBe('password')
+    expect(data2.admitted).toBe(false)
+  })
 })

@@ -104,7 +104,7 @@ function createZip(files: { name: string; content: string | Uint8Array }[]): Uin
 
 async function uploadFile(filename: string, fileBytes: Uint8Array, cookie: string): Promise<Response> {
   const form = new FormData()
-  const blob = new Blob([fileBytes], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+  const blob = new Blob([fileBytes as unknown as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
   form.append('file', blob, filename)
 
   return app.fetch(`${GOC}/api/upload`, {
