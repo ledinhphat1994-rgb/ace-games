@@ -1,15 +1,8 @@
-import { test, expect, chromium, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { assertSafeDestructiveE2ETarget } from './safe-target'
 
 // Production Refusal Guard: Destructive Watch Together tests MUST NEVER run against production
-const targetBaseURL = process.env.PLAYWRIGHT_BASE_URL || ''
-if (
-  targetBaseURL.includes('gdtxdinhquan.ledinhphat1994.workers.dev') ||
-  targetBaseURL.includes('lop10a7.vn')
-) {
-  throw new Error(
-    `[SECURITY GUARD] Destructive Watch Together E2E tests are strictly prohibited on production (${targetBaseURL}). Please point PLAYWRIGHT_BASE_URL to staging or local environment.`,
-  )
-}
+assertSafeDestructiveE2ETarget(process.env.PLAYWRIGHT_BASE_URL)
 
 const HOST_USER = {
   username: process.env.E2E_HOST_USERNAME || 'qa.v2.thu1',
@@ -154,6 +147,43 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
     await context.addInitScript(() => {
       ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
     })
+  })
+
+  test.beforeAll(async ({ browser }) => {
+    // Media State Hygiene: establish known deterministic baseline at suite start
+    const context = await createContextWithE2EMode(browser)
+    const page = await context.newPage()
+    try {
+      await loginUser(page, HOST_USER)
+      await enterStudyRoom(page, TEST_ROOM_ID)
+      await loadVideoIfNone(page, TEST_VIDEO_ID)
+      const pauseBtn = page.locator('button[title="Tạm dừng"]')
+      if (await pauseBtn.isVisible().catch(() => false)) {
+        await pauseBtn.click()
+      }
+    } catch (e) {
+      console.warn('[Suite Hygiene] beforeAll media baseline error:', e)
+    } finally {
+      await context.close().catch(() => {})
+    }
+  })
+
+  test.afterAll(async ({ browser }) => {
+    // Media State Hygiene: leave room in deterministic state (paused, time=0, rate=1)
+    const context = await createContextWithE2EMode(browser)
+    const page = await context.newPage()
+    try {
+      await loginUser(page, HOST_USER)
+      await enterStudyRoom(page, TEST_ROOM_ID)
+      const pauseBtn = page.locator('button[title="Tạm dừng"]')
+      if (await pauseBtn.isVisible().catch(() => false)) {
+        await pauseBtn.click()
+      }
+    } catch (e) {
+      console.warn('[Suite Hygiene] afterAll media reset error:', e)
+    } finally {
+      await context.close().catch(() => {})
+    }
   })
 
   test('1. Two Real Browser Contexts (Host A & Member B) — Load, Play, Drift, Seek, Rate, Reconnect', async ({ browser }) => {
@@ -533,85 +563,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
     }
   })
 
-  test('5. Autoplay Block Handling — User Action "Đồng bộ & Phát ngay" Resumes Playback', async ({ browser }) => {
-    test.setTimeout(90000)
-
-    // Context A = Host (normal context)
-    const contextA = await createContextWithE2EMode(browser)
-    const pageA = await contextA.newPage()
-
-    // Context B = Member in dedicated restricted browser where autoplay requires user gesture
-    const restrictedBrowser = await chromium.launch({
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--autoplay-policy=user-gesture-required',
-      ],
-    })
-    const contextB = await createContextWithE2EMode(restrictedBrowser)
-    const pageB = await contextB.newPage()
-
-    try {
-      console.log('[Test 5] 1. Logging in Host...')
-      await loginUser(pageA, HOST_USER)
-      console.log('[Test 5] 2. Entering room as Host...')
-      await enterStudyRoom(pageA, TEST_ROOM_ID)
-      console.log('[Test 5] 3. Loading video as Host...')
-      await loadVideoIfNone(pageA)
-
-      // Member B logs in and joins room FIRST, while Host is still paused at 0s
-      console.log('[Test 5] 4. Logging in Member B...')
-      await loginUser(pageB, MEMBER_USER)
-      console.log('[Test 5] 5. Entering room as Member B...')
-      await enterStudyRoom(pageB, TEST_ROOM_ID)
-      console.log('[Test 5] 6. Waiting for Member B player ready...')
-      await waitForYTPlayerReady(pageB)
-
-      // Now Host starts playback
-      console.log('[Test 5] 7. Host starting playback...')
-      await startOrUnblockPlayback(pageA)
-      await pageA.waitForFunction(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState() === 1, { timeout: 15000 })
-      console.log('[Test 5] 8. Host is playing successfully.')
-
-      // Since member's browser has --autoplay-policy=user-gesture-required and hasn't received a user click,
-      // the incoming play command triggers autoplay block detection!
-      console.log('[Test 5] 10. Checking for blocked overlay on Member B...')
-      const blockedOverlayBtn = pageB.locator('button:has-text("Đồng bộ & Phát ngay")')
-      await expect(blockedOverlayBtn).toBeVisible({ timeout: 15000 })
-      console.log('[Test 5] 11. Blocked overlay IS visible.')
-
-      // Host should remain playing uninterrupted
-      const hostState = await pageA.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
-      expect(hostState).toBe(1)
-      console.log('[Test 5] 12. Host verified still playing.')
-
-      // User performs explicit gesture: clicks "Đồng bộ & Phát ngay"
-      console.log('[Test 5] 13. Member B clicking "Đồng bộ & Phát ngay"...')
-      await blockedOverlayBtn.click()
-
-      // Overlay should disappear
-      console.log('[Test 5] 14. Waiting for overlay to disappear...')
-      await expect(blockedOverlayBtn).not.toBeVisible({ timeout: 5000 })
-      console.log('[Test 5] 15. Overlay disappeared.')
-
-      // Member player should now successfully transition to playing
-      console.log('[Test 5] 16. Waiting for Member B playerState 1 or 3...')
-      await pageB.waitForFunction(() => {
-        const s = window.__YT_PLAYER_INSTANCE__?.getPlayerState()
-        return s === 1 || s === 3
-      }, { timeout: 15000 })
-
-      const memberState = await pageB.evaluate(() => window.__YT_PLAYER_INSTANCE__?.getPlayerState())
-      console.log(`[Test 5] 17. Member B final state: ${memberState}`)
-      expect(memberState === 1 || memberState === 3).toBe(true)
-    } finally {
-      await contextA.close().catch(() => {})
-      await contextB.close().catch(() => {})
-      await restrictedBrowser.close().catch(() => {})
-    }
-  })
-
-  test('6. Password Room Admission — Reconnect with Valid Cookie vs Graceful Expiry UX', async ({ browser }) => {
+  test('5. Password Room Admission — Reconnect with Valid Cookie, Expiry UX & Permanent Denial Handling', async ({ browser }) => {
     test.setTimeout(90000)
     const context = await createContextWithE2EMode(browser)
     const page = await context.newPage()
@@ -619,7 +571,7 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
     try {
       await loginUser(page, HOST_USER)
 
-      // Visit password room phong-8
+      // ── Scenario A: Valid admission cookie reconnects smoothly ─────────────
       await page.goto(`/room/${PASSWORD_ROOM_ID}`)
 
       // If password modal appears, enter password
@@ -635,11 +587,11 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
       // Should enter room successfully
       await expect(page.locator('button[title="Chèn video YouTube"]')).toBeVisible({ timeout: 15000 })
 
-      // 1. Reload page with VALID cookie — should automatically admit without password prompt
+      // Reload page with VALID cookie — should automatically admit without password prompt
       await page.reload()
       await expect(page.locator('button[title="Chèn video YouTube"]')).toBeVisible({ timeout: 15000 })
 
-      // 2. Clear ONLY the admission cookie, keeping session cookie intact
+      // ── Scenario B: Expired admission cookie stops reconnect and shows clean modal ──
       const cookies = await context.cookies()
       const sessionCookies = cookies.filter((c) => !c.name.startsWith('room_admit_'))
       await context.clearCookies()
@@ -647,17 +599,22 @@ test.describe('Real Watch Together — Multi-Browser Acceptance Suite', () => {
         await context.addCookies([c])
       }
 
-      // 3. Reload page — admission is now expired / missing
+      // Reload page — admission is now expired / missing
       await page.reload()
 
-      // The admission-status check should discover admitted=false, stopping the reconnect loop
+      // The admission-status check discovers admitted=false, stopping the reconnect loop
       // and rendering "Phiên vào phòng đã hết hạn." modal with action button
       await expect(page.locator('text=Phiên vào phòng đã hết hạn.')).toBeVisible({ timeout: 15000 })
       const backToLobbyBtn = page.locator('button:has-text("Quay lại sảnh để nhập lại mật khẩu")')
       await expect(backToLobbyBtn).toBeVisible({ timeout: 5000 })
 
-      // Click button and verify clean return to lobby
-      await backToLobbyBtn.click()
+      // ── Scenario C: Permanent room denial (e.g. non-existent room) stops reconnect ──
+      await page.goto('/room/phong-999999')
+      // Room does not exist -> admission-status returns 404 -> triggers permanent denial modal without infinite retry
+      await expect(page.locator('text=Không thể truy cập phòng học')).toBeVisible({ timeout: 15000 })
+      const backBtn = page.locator('button:has-text("Quay lại Sảnh")')
+      await expect(backBtn).toBeVisible({ timeout: 5000 })
+      await backBtn.click()
       await expect(page).toHaveURL(/\/(study)?$/)
     } finally {
       await context.close().catch(() => {})

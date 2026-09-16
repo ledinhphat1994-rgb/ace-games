@@ -796,4 +796,101 @@ describe('Admission Gate — Security Matrix', () => {
     expect(data2.accessMode).toBe('password')
     expect(data2.admitted).toBe(false)
   })
+
+  it('(36) admission-status: học sinh sai lớp → 403 (permanent denial)', async () => {
+    // Phòng lớp 1; qa.v2.thu3 thuộc lớp 2 → bị từ chối scope
+    const id = await chenPhong('P Lop Scope Status Check', 'lop', 1)
+    const cookie3 = await dangNhapLayCookie('qa.v2.thu3') // lop_id=2 student
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie3, Origin: GOC },
+    }) as Response
+    expect(res.status).toBe(403)
+  })
+
+  it('(37) admission-status: tài khoản bị ban → 403 (permanent denial)', async () => {
+    const id = await chenPhong('P Ban Status Check', 'truong', null)
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Get account id for qa.v2.thu1
+    const acc = await env.DB.prepare('SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = ?1').bind('qa.v2.thu1').first<{ id: number }>()
+    const accountId = acc!.id
+    await env.DB.prepare('INSERT INTO phong_ban (phong_id, tai_khoan_id) VALUES (?1, ?2)').bind(id, accountId).run()
+
+    try {
+      const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+        headers: { Cookie: cookie, Origin: GOC },
+      }) as Response
+      expect(res.status).toBe(403)
+    } finally {
+      await env.DB.prepare('DELETE FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2').bind(id, accountId).run()
+    }
+  })
+
+  it('(38) admission-status: access_mode không xác định (garbage) → 403 (không bao giờ trả về public)', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Garbage Mode Status', 'truong', 'acc:1', 'Host', 'garbage_mode', NULL, NULL, NULL, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const statusRes = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    await statusRes.body?.cancel()
+    expect(statusRes.status).toBe(403)
+  })
+
+  it('(39) admission-status: password mode, cấu hình mật khẩu không hợp lệ (null hash) → 503 fail closed', async () => {
+    const res = await env.DB.prepare(
+      `INSERT INTO phong (loai, ten, pham_vi, chu_phong_khoa, chu_phong_ten, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations, suc_chua, trang_thai)
+       VALUES ('video', 'P Null Hash Status', 'truong', 'acc:1', 'Host', 'password', NULL, 'salt123', 100000, 20, 'mo') RETURNING id`,
+    ).first<{ id: number }>()
+    const id = res!.id
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const statusRes = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    await statusRes.body?.cancel()
+    expect(statusRes.status).toBe(503)
+  })
+
+  it('(40) admission-status: lỗi D1 khi truy vấn phong_ban → 503 fail closed', async () => {
+    const id = await chenPhong('P Ban D1 Error Status', 'truong', null)
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    await env.DB.exec('ALTER TABLE phong_ban RENAME TO phong_ban_temp_status_test')
+    try {
+      const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+        headers: { Cookie: cookie, Origin: GOC },
+      }) as Response
+      await res.body?.cancel()
+      expect(res.status).toBe(503)
+    } finally {
+      await env.DB.exec('ALTER TABLE phong_ban_temp_status_test RENAME TO phong_ban')
+    }
+  })
+
+  it('(41) admission-status: phòng đã đóng → 403', async () => {
+    const id = await chenPhong('P Closed Status Check', 'truong', null)
+    await env.DB.prepare(`UPDATE phong SET trang_thai = 'dong' WHERE id = ?1`).bind(id).run()
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${id}/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    await res.body?.cancel()
+    expect(res.status).toBe(403)
+  })
+
+  it('(42) admission-status: phòng không tồn tại → 404', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/999999/admission-status`, {
+      headers: { Cookie: cookie, Origin: GOC },
+    }) as Response
+    await res.body?.cancel()
+    expect(res.status).toBe(404)
+  })
 })

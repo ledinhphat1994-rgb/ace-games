@@ -16,7 +16,13 @@ import {
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
 
-export type TrangThaiKetNoiPhong = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay' | 'can_xac_thuc_lai'
+export type TrangThaiKetNoiPhong =
+  | 'dang_ket_noi'
+  | 'da_ket_noi'
+  | 'mat_ket_noi'
+  | 'phien_bi_thay'
+  | 'can_xac_thuc_lai'
+  | 'bi_tu_choi'
 
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
@@ -60,6 +66,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const [myMic, setMyMic] = useState(false)
+  const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const clockSyncRef = useRef<ClockSyncManager>(new ClockSyncManager())
@@ -68,7 +75,6 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
   const ketNoiRef = useRef<() => void>(() => {})
-  const daTungKetNoiRef = useRef<boolean>(false)
 
   const me = useMemo(() => {
     if (!myActorKey) return null
@@ -106,7 +112,6 @@ export function useRoom(roomId: string, myActorKey?: string) {
       if (wsRef.current !== ws) return
       setTrangThai('da_ket_noi')
       soLanThuRef.current = 0
-      daTungKetNoiRef.current = true
     }
 
     ws.onmessage = (e) => {
@@ -210,19 +215,39 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
       if (daHuyRef.current) return
 
-      // Handle admission expiration gracefully for password rooms
+      // Classify disconnection reason against canonical admission status endpoint
       const idMatch = roomId.match(/(\d+)$/)
       if (idMatch) {
         try {
           const res = await fetch(`/api/rooms/${idMatch[1]}/admission-status`)
+          if (res.status === 401) {
+            // Campus session is invalid
+            setTrangThai('phien_bi_thay')
+            return
+          }
+          if (res.status === 403 || res.status === 404) {
+            // Permanent room access denial: banned, wrong class, room closed/deleted, or invalid access mode
+            const errData = (await res.json().catch(() => ({}))) as { error?: string }
+            setThongBaoLoiPhong(errData.error || 'Bạn không có quyền truy cập vào phòng học này.')
+            setTrangThai('bi_tu_choi')
+            return
+          }
           if (res.ok) {
-            const statusData = (await res.json()) as { accessMode?: string; admitted?: boolean }
+            const statusData = (await res.json().catch(() => ({}))) as {
+              accessMode?: string
+              admitted?: boolean
+              reason?: string
+            }
             if (statusData.accessMode === 'password' && statusData.admitted === false) {
+              // Password admission token expired or missing -> show re-admission UX, stop reconnect loop
               setTrangThai('can_xac_thuc_lai')
               return
             }
           }
-        } catch {}
+          // Note: 5xx errors are treated as temporary server issues -> retry with backoff below
+        } catch {
+          // Network fetch error -> treat as temporary network failure -> retry with backoff below
+        }
       }
 
       setTrangThai('mat_ket_noi')
@@ -395,6 +420,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
   return {
     trangThai,
+    thongBaoLoiPhong,
     members,
     hostKey,
     isHost,

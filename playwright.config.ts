@@ -18,8 +18,13 @@ export default defineConfig({
     timeout: 20000,
   },
   fullyParallel: false,
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+  ],
+  outputDir: 'test-results',
   use: {
     baseURL,
     trace: 'on-first-retry',
@@ -28,7 +33,9 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'chromium-watch',
+      testMatch: /watch-together\.spec\.ts|smoke\.spec\.ts/,
+      testIgnore: /watch-autoplay\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
@@ -42,6 +49,7 @@ export default defineConfig({
     },
     {
       name: 'chromium-autoplay-restricted',
+      testMatch: /watch-autoplay\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {

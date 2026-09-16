@@ -562,7 +562,7 @@ app.post('/api/rooms/:id/admit', async (c) => {
   )
 })
 
-// Check admission status for room (used to verify admission expiry on reconnect)
+// Check admission status for room (canonicalized to match vaoPhong 1:1)
 app.get('/api/rooms/:id/admission-status', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
@@ -578,33 +578,65 @@ app.get('/api/rooms/:id/admission-status', async (c) => {
               mat_khau_iterations, suc_chua, chu_phong_khoa
          FROM phong WHERE id = ?1 AND loai = 'video'`,
     ).bind(phongId).first<DongPhong>()
-  } catch {
+  } catch (e) {
+    console.error('Admission status: lỗi truy vấn phòng:', e)
     return loi('Không thể xác minh thông tin phòng.', 500)
   }
 
+  // Unknown room → ALWAYS 404
   if (!phongRow) return loi('Không tìm thấy phòng học.', 404)
+
+  // 1. Phòng phải đang mở
   if (phongRow.trang_thai !== 'mo') {
-    return c.json({ accessMode: phongRow.access_mode === 'password' ? 'password' : 'public', admitted: false }, 200)
+    return loi('Phòng đã đóng hoặc tạm dừng hoạt động.', 403)
   }
 
-  // Public room: always admitted (subject to normal room access rules)
-  if (phongRow.access_mode !== 'password') {
-    return c.json({ accessMode: 'public', admitted: true }, 200)
+  // 2. Phạm vi lớp (scope check)
+  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, phongRow)
+  if (loiPhamVi) return loiPhamVi
+
+  // 3. Kiểm tra ban — FAIL CLOSED: D1 lỗi → 503
+  try {
+    const ban = await c.env.DB.prepare(
+      'SELECT 1 FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2 LIMIT 1',
+    ).bind(phongRow.id, kq.taiKhoan.id).first<{ 1: number }>()
+    if (ban) return loi('Bạn đã bị cấm vào phòng này.', 403)
+  } catch (e) {
+    console.error('Admission status: lỗi kiểm tra ban:', e)
+    return loi('Không thể xác minh trạng thái thành viên. Vui lòng thử lại.', 503)
   }
 
-  // Password room: read and verify HttpOnly admission cookie
-  const token = readAdmitCookie(c.req.raw, phongRow.id)
-  if (!token || !c.env.SESSION_SECRET) {
-    return c.json({ accessMode: 'password', admitted: false }, 200)
+  // 4. Chế độ truy cập phòng (access_mode) — FAIL CLOSED
+  if (!CANONICAL_ACCESS_MODES.has(phongRow.access_mode)) {
+    return loi('Chế độ truy cập phòng không được hỗ trợ.', 403)
   }
 
-  const isValid = await verifyAdmitToken(c.env.SESSION_SECRET, token, {
-    roomId: phongRow.id,
-    accountId: kq.taiKhoan.id,
-    phienId: kq.phien.phienId!,
-  })
+  // 5. Password room
+  if (phongRow.access_mode === 'password') {
+    if (!kiemTraCauHinhMatKhauPhong(phongRow)) {
+      return loi('Cấu hình bảo mật của phòng không hợp lệ. Vui lòng liên hệ quản trị viên.', 503)
+    }
 
-  return c.json({ accessMode: 'password', admitted: isValid }, 200)
+    const token = readAdmitCookie(c.req.raw, phongRow.id)
+    if (!token || !c.env.SESSION_SECRET) {
+      return c.json({ accessMode: 'password', admitted: false, reason: 'admission_required' }, 200)
+    }
+
+    const isValid = await verifyAdmitToken(c.env.SESSION_SECRET, token, {
+      roomId: phongRow.id,
+      accountId: kq.taiKhoan.id,
+      phienId: kq.phien.phienId!,
+    })
+
+    if (!isValid) {
+      return c.json({ accessMode: 'password', admitted: false, reason: 'admission_required' }, 200)
+    }
+
+    return c.json({ accessMode: 'password', admitted: true }, 200)
+  }
+
+  // 6. Public room (all checks passed)
+  return c.json({ accessMode: 'public', admitted: true }, 200)
 })
 
 // Invalidate admission cookie (logout from password room)

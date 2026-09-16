@@ -94,6 +94,7 @@ interface StudyRoomViewProps {
 export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewProps) {
   const {
     trangThai,
+    thongBaoLoiPhong,
     members,
     hostKey,
     isHost,
@@ -900,6 +901,27 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-500/20"
             >
               Quay lại sảnh để nhập lại mật khẩu
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Permanent room denial modal (banned / wrong class / room closed) ══ */}
+      {trangThai === 'bi_tu_choi' && (
+        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="max-w-md w-full rounded-2xl border border-orange-500/30 bg-[#0d1422] p-6 shadow-2xl text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10 text-orange-400">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <h2 className="text-lg font-bold text-white">Không thể truy cập phòng học</h2>
+            <p className="text-sm text-slate-400">
+              {thongBaoLoiPhong || 'Bạn không có quyền truy cập vào phòng học này.'}
+            </p>
+            <Button
+              onClick={onLeaveRoom}
+              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-orange-500/20"
+            >
+              Quay lại Sảnh
             </Button>
           </div>
         </div>
