@@ -183,7 +183,9 @@ describe('Active Study Room Phase 3 (Media Sync, Pomodoro, Whiteboard, Notes, Qu
     const gLoad = await member.cho('media.sync', (g) => g.state.videoId === 'dQw4w9WgXcQ')
     expect(gLoad.state.status).toBe('paused')
 
-    host.gui({ type: 'media.action', data: { action: 'play', time: 15 } })
+    host.gui({ type: 'media.action', data: { action: 'seek', time: 15 } })
+    await member.cho('media.sync', (g) => g.state.time === 15)
+    host.gui({ type: 'media.action', data: { action: 'play' } })
     const gPlay = await member.cho('media.sync', (g) => g.state.status === 'playing')
     expect(gPlay.state.time).toBe(15)
 

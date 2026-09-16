@@ -77,11 +77,20 @@ export interface ThanhVienPhong {
   canModerate?: boolean
 }
 
+export const SUPPORTED_PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
+export type SupportedPlaybackRate = (typeof SUPPORTED_PLAYBACK_RATES)[number]
+
 export const LenhPhongMedia = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('play'), time: z.number().finite().nonnegative().max(86400).optional() }),
-  z.object({ action: z.literal('pause'), time: z.number().finite().nonnegative().max(86400).optional() }),
+  z.object({ action: z.literal('play') }),
+  z.object({ action: z.literal('pause') }),
   z.object({ action: z.literal('seek'), time: z.number().finite().nonnegative().max(86400) }),
-  z.object({ action: z.literal('rate'), rate: z.number().finite().positive().max(3) }),
+  z.object({
+    action: z.literal('rate'),
+    rate: z.number().refine(
+      (r): r is SupportedPlaybackRate => (SUPPORTED_PLAYBACK_RATES as readonly number[]).includes(r),
+      'Tốc độ phát không được YouTube hỗ trợ',
+    ),
+  }),
   z.object({ action: z.literal('load'), videoId: z.string().regex(YOUTUBE_VIDEO_ID_REGEX, 'ID video YouTube phải đúng 11 ký tự'), title: z.string().max(200).optional() }),
   z.object({ action: z.literal('set_host_only'), enabled: z.boolean() }),
 ])

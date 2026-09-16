@@ -113,31 +113,31 @@ export function useYouTubePlayer({
               if (Number.isFinite(cur)) {
                 setCurrentTime(cur)
               }
+
+              // Test-only read interface in DEV / E2E mode (read-only, no mutation/backdoors)
+              if (import.meta.env.DEV || (typeof window !== 'undefined' && (window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__)) {
+                ;(window as unknown as { __YT_PLAYER_INSTANCE__?: unknown }).__YT_PLAYER_INSTANCE__ = {
+                  getPlayerState: () => p.getPlayerState?.() ?? -1,
+                  getCurrentTime: () => p.getCurrentTime?.() ?? 0,
+                  getDuration: () => p.getDuration?.() ?? 0,
+                  getPlaybackRate: () => p.getPlaybackRate?.() ?? 1,
+                  getAvailablePlaybackRates: () => p.getAvailablePlaybackRates?.() ?? [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2],
+                  getVideoData: () => (p as unknown as { getVideoData?: () => unknown }).getVideoData?.() ?? null,
+                  isReady: true,
+                }
+              }
             },
             onStateChange: (event) => {
               if (!isMountedRef.current || destroyed) return
               setPlayerState(event.data)
 
               const p = event.target
-              const dur = p.getDuration()
-              if (Number.isFinite(dur) && dur > 0) {
-                setDuration(dur)
-              }
-
-              // Feedback loop suppression:
-              // If remote sync or automated convergence triggered this state change, do NOT broadcast
-              if (isRemoteApplyRef.current) {
-                return
-              }
-
-              // If state changed due to local user direct interaction inside iframe
-              if (canControlMediaRef.current) {
-                if (event.data === YT_PLAYER_STATE.PLAYING) {
-                  onUserIntentRef.current('play', p.getCurrentTime())
-                } else if (event.data === YT_PLAYER_STATE.PAUSED) {
-                  onUserIntentRef.current('pause', p.getCurrentTime())
+              try {
+                const dur = p.getDuration()
+                if (Number.isFinite(dur) && dur > 0) {
+                  setDuration(dur)
                 }
-              }
+              } catch {}
             },
             onError: (event) => {
               if (!isMountedRef.current || destroyed) return
@@ -164,6 +164,9 @@ export function useYouTubePlayer({
           playerRef.current.destroy()
         } catch {}
         playerRef.current = null
+      }
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __YT_PLAYER_INSTANCE__?: unknown }).__YT_PLAYER_INSTANCE__
       }
       setIsReady(false)
     }
@@ -200,6 +203,32 @@ export function useYouTubePlayer({
       }, 500)
     }
   }, [mediaState.videoId, mediaState.status, mediaState.time, isReady])
+
+  // ── 3.5. Handle Playback Rate Changes Immediately ──────────────────────────
+  useEffect(() => {
+    const p = playerRef.current
+    if (!isReady || !p) return
+
+    try {
+      const canonicalRate = mediaState.playbackRate
+      const available = p.getAvailablePlaybackRates?.() || [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+      if (available.includes(canonicalRate)) {
+        p.setPlaybackRate(canonicalRate)
+        queueMicrotask(() => {
+          if (isMountedRef.current) setPlaybackRate(canonicalRate)
+        })
+      } else {
+        const nearest = available.reduce((prev, curr) =>
+          Math.abs(curr - canonicalRate) < Math.abs(prev - canonicalRate) ? curr : prev,
+          1
+        )
+        p.setPlaybackRate(nearest)
+        queueMicrotask(() => {
+          if (isMountedRef.current) setPlaybackRate(nearest)
+        })
+      }
+    } catch {}
+  }, [mediaState.playbackRate, isReady])
 
   // ── 4. Player Convergence Loop ─────────────────────────────────────────────
   useEffect(() => {
@@ -335,17 +364,13 @@ export function useYouTubePlayer({
   // ── 5. User Intent Handlers ────────────────────────────────────────────────
   const handleUserPlay = useCallback(() => {
     if (!canControlMedia) return
-    const p = playerRef.current
-    const cur = p ? p.getCurrentTime() : currentTime
-    onUserIntent('play', cur)
-  }, [canControlMedia, currentTime, onUserIntent])
+    onUserIntent('play')
+  }, [canControlMedia, onUserIntent])
 
   const handleUserPause = useCallback(() => {
     if (!canControlMedia) return
-    const p = playerRef.current
-    const cur = p ? p.getCurrentTime() : currentTime
-    onUserIntent('pause', cur)
-  }, [canControlMedia, currentTime, onUserIntent])
+    onUserIntent('pause')
+  }, [canControlMedia, onUserIntent])
 
   const handleUserSeek = useCallback((targetSec: number) => {
     if (!canControlMedia) return

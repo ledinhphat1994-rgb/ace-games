@@ -10,6 +10,8 @@
     "build": "wrangler types && tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:watch": "playwright test --ui",
     "preview": "vite preview",
     "preview:worker": "wrangler dev --config wrangler.jsonc --assets ./dist/client --persist-to .wrangler/state --port 8787",
     "deploy": "npm run build && wrangler deploy"
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.54.9",
     "@cloudflare/vitest-plugin": "1.1.9",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",

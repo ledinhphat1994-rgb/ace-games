@@ -701,10 +701,8 @@ export class RoomDO extends DurableObject<Env> {
 
         const now = Date.now()
         if (d.action === 'play') {
-          const targetTime = typeof d.time === 'number' && Number.isFinite(d.time) && d.time >= 0
-            ? Math.min(86400, Math.max(0, d.time))
-            : canonicalMediaPosition(this.media, now)
-          this.media = { ...this.media, status: 'playing', time: targetTime, updatedAt: now }
+          const canonicalPos = canonicalMediaPosition(this.media, now)
+          this.media = { ...this.media, status: 'playing', time: canonicalPos, updatedAt: now }
         } else if (d.action === 'pause') {
           const canonicalPos = canonicalMediaPosition(this.media, now)
           this.media = { ...this.media, status: 'paused', time: canonicalPos, updatedAt: now }
@@ -713,8 +711,7 @@ export class RoomDO extends DurableObject<Env> {
           this.media = { ...this.media, time: targetTime, updatedAt: now }
         } else if (d.action === 'rate') {
           const currentCanonicalTime = canonicalMediaPosition(this.media, now)
-          const validRate = Number.isFinite(d.rate) && d.rate > 0 && d.rate <= 3 ? d.rate : 1
-          this.media = { ...this.media, time: currentCanonicalTime, playbackRate: validRate, updatedAt: now }
+          this.media = { ...this.media, time: currentCanonicalTime, playbackRate: d.rate, updatedAt: now }
         } else if (d.action === 'load') {
           if (!YOUTUBE_VIDEO_ID_REGEX.test(d.videoId)) {
             ws.send(JSON.stringify({ type: 'error', message: 'ID video YouTube không hợp lệ.' }))

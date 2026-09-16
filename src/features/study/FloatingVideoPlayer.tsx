@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import type { MediaState } from '@shared/protocol/room'
+import { SUPPORTED_PLAYBACK_RATES, type MediaState } from '@shared/protocol/room'
 import {
   AlertCircle,
   Crown,
@@ -164,67 +164,14 @@ export function FloatingVideoPlayer({
     }
   }
 
-  // Minimized Floating Pill Mode
-  if (isMinimized) {
-    return (
-      <div
-        style={{ left: `${position.x}px`, top: `${position.y}px` }}
-        className="absolute z-40 flex items-center gap-3 rounded-full border border-white/20 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-xl ring-1 ring-cyan-500/30"
-      >
-        <div
-          onMouseDown={handleMouseDown}
-          className="flex cursor-move items-center gap-2 pr-2 border-r border-white/10 select-none"
-        >
-          <GripHorizontal className="h-4 w-4 text-slate-400" />
-          <YoutubeIcon className="h-4 w-4 text-red-500" />
-          <span className="max-w-[150px] truncate text-xs font-semibold text-slate-200">
-            {mediaState.title || 'YouTube Video'}
-          </span>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={!effectiveCanControl}
-          onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
-          className="h-7 w-7 rounded-full p-0 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-40"
-        >
-          {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </Button>
-
-        <span className="text-[11px] font-mono text-slate-400">
-          {dinhDangGiayPhut(currentTime)}
-        </span>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsMinimized(false)}
-          className="h-7 w-7 rounded-full p-0 text-slate-300 hover:text-white"
-          title="Mở rộng khung video"
-        >
-          <Expand className="h-3.5 w-3.5" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="h-7 w-7 rounded-full p-0 text-slate-400 hover:text-red-400"
-          title="Tắt video"
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    )
-  }
-
   return (
-    <div
-      ref={containerRef}
-      style={getPresetStyles()}
-      className="flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0a0f18]/95 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 transition-all duration-150"
-    >
+    <>
+      {/* 1. Main Floating Window (ALWAYS mounted in DOM, hidden when minimized to preserve player instance) */}
+      <div
+        ref={containerRef}
+        style={isMinimized ? { display: 'none' } : getPresetStyles()}
+        className="flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0a0f18]/95 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 transition-all duration-150"
+      >
       {/* 1. Header with Drag Handle & Size Controls */}
       <div
         onMouseDown={handleMouseDown}
@@ -314,7 +261,17 @@ export function FloatingVideoPlayer({
       {/* 2. Video Player Area */}
       <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
         {/* The DOM element where YT.Player is instantiated */}
-        <div id={containerId} className="absolute inset-0 h-full w-full" />
+        <div id={containerId} data-testid="yt-player-host" className="absolute inset-0 h-full w-full" />
+
+        {/* Authoritative click layer over player so direct clicks route to explicit controls */}
+        <div
+          className="absolute inset-0 z-10 cursor-pointer"
+          onClick={() => {
+            if (!effectiveCanControl) return
+            if (mediaState.status === 'playing') handleUserPause()
+            else handleUserPlay()
+          }}
+        />
 
         {/* Loading state before YT.Player is ready */}
         {!isReady && !errorMessage ? (
@@ -402,12 +359,11 @@ export function FloatingVideoPlayer({
             className="rounded bg-black/40 px-1 py-0.5 text-[10px] font-mono text-cyan-300 border border-white/10 focus:outline-none"
             title="Tốc độ phát chung"
           >
-            <option value={0.5}>0.5x</option>
-            <option value={0.75}>0.75x</option>
-            <option value={1}>1.0x</option>
-            <option value={1.25}>1.25x</option>
-            <option value={1.5}>1.5x</option>
-            <option value={2}>2.0x</option>
+            {SUPPORTED_PLAYBACK_RATES.map((r) => (
+              <option key={r} value={r}>
+                {r}x
+              </option>
+            ))}
           </select>
         ) : (
           <span className="text-[10px] font-mono text-slate-400">
@@ -445,5 +401,59 @@ export function FloatingVideoPlayer({
         </div>
       </div>
     </div>
+
+    {/* 2. Minimized Floating Pill Mode (rendered alongside when isMinimized is true) */}
+    {isMinimized && (
+      <div
+        style={{ left: `${position.x}px`, top: `${position.y}px` }}
+        className="absolute z-40 flex items-center gap-3 rounded-full border border-white/20 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-xl ring-1 ring-cyan-500/30"
+      >
+        <div
+          onMouseDown={handleMouseDown}
+          className="flex cursor-move items-center gap-2 pr-2 border-r border-white/10 select-none"
+        >
+          <GripHorizontal className="h-4 w-4 text-slate-400" />
+          <YoutubeIcon className="h-4 w-4 text-red-500" />
+          <span className="max-w-[150px] truncate text-xs font-semibold text-slate-200">
+            {mediaState.title || 'YouTube Video'}
+          </span>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!effectiveCanControl}
+          onClick={mediaState.status === 'playing' ? handleUserPause : handleUserPlay}
+          className="h-7 w-7 rounded-full p-0 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-40"
+        >
+          {mediaState.status === 'playing' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        </Button>
+
+        <span className="text-[11px] font-mono text-slate-400">
+          {dinhDangGiayPhut(currentTime)}
+        </span>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsMinimized(false)}
+          className="h-7 w-7 rounded-full p-0 text-slate-300 hover:text-white"
+          title="Mở rộng khung video"
+        >
+          <Expand className="h-3.5 w-3.5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="h-7 w-7 rounded-full p-0 text-slate-400 hover:text-red-400"
+          title="Tắt video"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    )}
+  </>
   )
 }

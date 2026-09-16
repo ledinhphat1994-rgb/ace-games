@@ -143,10 +143,18 @@ describe('Media Authority & Realtime Convergence (Multi-Client)', () => {
       expect(loadSyncHost.state.status).toBe('paused')
       expect(loadSyncHost.state.time).toBe(0)
 
-      // 2. Host phát video từ t=10s
+      // 2. Host seek đến t=10s và phát video
       hostWs.gui({
         type: 'media.action',
-        data: { action: 'play', time: 10 },
+        data: { action: 'seek', time: 10 },
+      })
+      await hostWs.cho('media.sync')
+      const seekSyncMember = await memberWs.cho('media.sync')
+      expect(seekSyncMember.state.time).toBe(10)
+
+      hostWs.gui({
+        type: 'media.action',
+        data: { action: 'play' },
       })
       const playSync = await memberWs.cho('media.sync')
       expect(playSync.state.status).toBe('playing')
@@ -202,7 +210,7 @@ describe('Media Authority & Realtime Convergence (Multi-Client)', () => {
       // Thành viên cố phát video -> Server phải từ chối lỗi
       memberWs.gui({
         type: 'media.action',
-        data: { action: 'play', time: 5 },
+        data: { action: 'play' },
       })
       const err = await memberWs.cho('error')
       expect(err.message).toContain('quyền điều khiển video')
@@ -210,7 +218,7 @@ describe('Media Authority & Realtime Convergence (Multi-Client)', () => {
       // Host phát video -> Thành công
       hostWs.gui({
         type: 'media.action',
-        data: { action: 'play', time: 5 },
+        data: { action: 'play' },
       })
       const playOk = await memberWs.cho('media.sync')
       expect(playOk.state.status).toBe('playing')
@@ -239,7 +247,13 @@ describe('Media Authority & Realtime Convergence (Multi-Client)', () => {
 
       hostWs.gui({
         type: 'media.action',
-        data: { action: 'play', time: 5 },
+        data: { action: 'seek', time: 5 },
+      })
+      await hostWs.cho('media.sync')
+
+      hostWs.gui({
+        type: 'media.action',
+        data: { action: 'play' },
       })
       await hostWs.cho('media.sync')
 
@@ -296,7 +310,7 @@ describe('Media Authority & Realtime Convergence (Multi-Client)', () => {
       // A plays
       wsA.gui({
         type: 'media.action',
-        data: { action: 'play', time: 0 },
+        data: { action: 'play' },
       })
       const playB = await wsB.cho('media.sync')
       const playC = await wsC.cho('media.sync')

@@ -14,13 +14,7 @@ import {
   canonicalMediaPosition,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
-
-function tinhMedian(arr: number[]): number {
-  if (arr.length === 0) return 0
-  const sorted = [...arr].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
-  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
-}
+import { ClockSyncManager } from '@/features/study/clock-sync'
 
 export type TrangThaiKetNoiPhong = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
 
@@ -68,9 +62,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [myMic, setMyMic] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
-  const pingInfoRef = useRef<{ clientWall: number; clientPerf: number } | null>(null)
+  const clockSyncRef = useRef<ClockSyncManager>(new ClockSyncManager())
   const serverClockOffsetRef = useRef<number>(0)
-  const offsetSamplesRef = useRef<number[]>([])
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
@@ -136,8 +129,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
-          if (offsetSamplesRef.current.length === 0 && typeof goi.serverNow === 'number') {
-            const initialOffset = goi.serverNow - Date.now()
+          if (clockSyncRef.current.getSamples().length === 0 && typeof goi.serverNow === 'number') {
+            clockSyncRef.current = new ClockSyncManager([goi.serverNow - Date.now()])
+            const initialOffset = clockSyncRef.current.getMedianOffset()
             serverClockOffsetRef.current = initialOffset
             setServerClockOffset(initialOffset)
           }
@@ -188,25 +182,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
           break
         }
 
-        case 'pong':
-          if (pingInfoRef.current !== null) {
-            const rtt = performance.now() - pingInfoRef.current.clientPerf
-            const clientMidpoint = pingInfoRef.current.clientWall + rtt / 2
-            const sampleOffset = goi.serverNow - clientMidpoint
-            offsetSamplesRef.current = [...offsetSamplesRef.current, sampleOffset].slice(-7)
-            const medianOffset = Math.round(tinhMedian(offsetSamplesRef.current))
-            serverClockOffsetRef.current = medianOffset
-            setServerClockOffset(medianOffset)
-            setLatencyMs(Math.round(rtt))
-            pingInfoRef.current = null
+        case 'pong': {
+          const res = clockSyncRef.current.processPong(goi.t, goi.serverNow)
+          if (res.accepted) {
+            serverClockOffsetRef.current = res.medianOffset
+            setServerClockOffset(res.medianOffset)
+            if (typeof res.rtt === 'number') {
+              setLatencyMs(Math.round(res.rtt))
+            }
           }
           break
+        }
       }
     }
 
     ws.onclose = (e) => {
       if (wsRef.current !== ws) return
       wsRef.current = null
+      clockSyncRef.current.reset()
 
       if (e.code === MA_DONG_SOCKET.PHIEN_BI_THAY || e.reason === 'da_dang_nhap_noi_khac') {
         setTrangThai('phien_bi_thay')
@@ -256,10 +249,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const doDoTre = useCallback(() => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    const nowWall = Date.now()
-    const nowPerf = performance.now()
-    pingInfoRef.current = { clientWall: nowWall, clientPerf: nowPerf }
-    ws.send(JSON.stringify({ type: 'ping', t: nowWall }))
+    const pingT = clockSyncRef.current.createPing()
+    ws.send(JSON.stringify({ type: 'ping', t: pingT }))
   }, [])
 
   // Auto refresh clock offset and latency every 10s

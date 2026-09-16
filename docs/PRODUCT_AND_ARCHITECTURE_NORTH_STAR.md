@@ -303,10 +303,11 @@ Before any new Activity (Study, Watch, Game, Whiteboard, Voice, etc.) is conside
 1. Its design must answer: **"What meaningful progress can the user achieve through this Activity?"**
 2. Real functionality must precede gamification: **DO NOT implement progression or XP hooks before the Activity has a real, server-verifiable completion event.** Real mechanics come first; rewards follow.
 
-#### 10.1 Activity Verified Event Contract: `watch.session.completed` (Design Specification)
+#### 10.1 Activity Verified Event Contract: `watch.session.completed` [VERSIONED DRAFT POLICY — NOT YET ACTIVE]
 
-As part of Phase 1 (Real Watch Together), we formally define the future event contract without awarding XP or modifying database tables.
+As part of the Watch Together foundation, we define the future event contract without awarding XP, creating tables, or mutating progression state.
 
+- **Status:** Versioned Draft Policy (Specification Only, No Runtime XP Implementation in this phase).
 - **Event Name:** `watch.session.completed`
 - **Emitted By:** Server-authoritative `RoomDO` (never client-reported).
 - **Payload Schema Concept:**
@@ -321,13 +322,13 @@ As part of Phase 1 (Real Watch Together), we formally define the future event co
     endedAt: number;                // Epoch ms
     participantCount: number;       // Number of concurrent synchronized participants
     participantUserIds: number[];    // Verified campus user IDs
-    averageDriftSec: number;        // Measured peer synchronization drift
+    averageDriftSec: number;        // Estimated synchronization drift
   }
   ```
 - **Prerequisite Verification Evidence Required (Before any future reward eligibility):**
   1. **Minimum Meaningful Watch Duration:** At least 5 continuous minutes (or $\ge 80\%$ of shorter educational videos) of active playback.
-  2. **Multi-User Co-presence:** Minimum $\ge 2$ unique authenticated participants actively connected and synchronized throughout the window.
-  3. **Verified Convergence:** Participants must maintain synchronized playback with average drift $\le 2.0$s (confirmed via server authoritative media state).
+  2. **Multi-User Co-presence:** Minimum $\ge 2$ unique authenticated participants actively connected throughout the window.
+  3. **Verification Boundary Note on `averageDriftSec`:** Current `RoomDO` canonical state tracks server timeline authority and connected membership. However, `averageDriftSec` cannot be treated as server-verified without trustworthy client evidence or a consensus attestation mechanism. In this phase, `averageDriftSec` is a design metric target, not an authenticated proof.
   4. **Anti-Idle & Anti-Farming Guard:** Zero XP for tab backgrounded/muted with no interaction, zero XP for pause-farming, zero XP for looped 5-second clips.
   5. **Strict Idempotency:** The `idempotencyKey` prevents duplicate settlement if a room experiences network reconnection or multiple room splits.
 - **Progression Policy Invariant:** In Phase 1, **NO XP tables exist, NO XP values are awarded, and NO progression state is mutated**. This contract serves as the architectural foundation for subsequent progression integration.

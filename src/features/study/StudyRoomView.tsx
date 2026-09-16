@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRoom } from '@/hooks/use-room'
 import type { NguoiDung } from '@/lib/api'
+import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/protocol/room'
 import {
   ArrowLeft,
   Calculator as CalcIcon,
@@ -110,7 +111,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     clearWhiteboard,
     updateNotes,
     addToQueue,
-    playFromQueue,
     sendRoomChat,
     toggleMic,
     slideState,
@@ -243,7 +243,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     const vid = trichXuatYoutubeId(directYtInput)
     if (!vid) { toast.error('Link YouTube không hợp lệ.'); return }
     syncMedia({ action: 'load', videoId: vid, title: `Bài giảng (${vid})` })
-    syncMedia({ action: 'play', time: 0 })
+    syncMedia({ action: 'play' })
     setDirectYtInput('')
     setShowYtPanel(false)
     setShowYoutube(true)
@@ -252,13 +252,17 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
   const handleSyncMedia = (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => {
     if (action === 'play') {
-      syncMedia({ action: 'play', time: typeof time === 'number' ? time : undefined })
+      syncMedia({ action: 'play' })
     } else if (action === 'pause') {
-      syncMedia({ action: 'pause', time: typeof time === 'number' ? time : undefined })
+      syncMedia({ action: 'pause' })
     } else if (action === 'seek') {
       syncMedia({ action: 'seek', time: Math.max(0, time || 0) })
     } else if (action === 'rate') {
-      syncMedia({ action: 'rate', rate: Math.min(3, Math.max(0.25, rate || 1)) })
+      const validRate: SupportedPlaybackRate =
+        rate && (SUPPORTED_PLAYBACK_RATES as readonly number[]).includes(rate)
+          ? (rate as SupportedPlaybackRate)
+          : 1
+      syncMedia({ action: 'rate', rate: validRate })
     }
   }
 
@@ -290,9 +294,9 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   }
 
   const handlePickYtVideo = (videoId: string, title: string) => {
+    syncMedia({ action: 'load', videoId, title })
+    syncMedia({ action: 'play' })
     addToQueue(videoId, title)
-    playFromQueue(`queue_${videoId}`)
-    syncMedia({ action: 'play', time: 0 })
     setShowYoutube(true)
     setShowYtPanel(false)
     setYtResults([])
