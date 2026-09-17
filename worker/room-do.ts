@@ -156,6 +156,7 @@ export class RoomDO extends DurableObject<Env> {
           actor_key TEXT PRIMARY KEY,
           session_id TEXT NOT NULL,
           track_name TEXT NOT NULL,
+          mid TEXT,
           generation INTEGER NOT NULL,
           status TEXT NOT NULL,
           updated_at INTEGER NOT NULL
@@ -170,6 +171,9 @@ export class RoomDO extends DurableObject<Env> {
       } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE room_chat ADD COLUMN req_id TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE voice_publications ADD COLUMN mid TEXT')
       } catch {}
       try {
         this.ctx.storage.sql.exec(
@@ -260,10 +264,11 @@ export class RoomDO extends DurableObject<Env> {
           actor_key: string
           session_id: string
           track_name: string
+          mid: string | null
           generation: number
           status: string
           updated_at: number
-        }>('SELECT actor_key, session_id, track_name, generation, status, updated_at FROM voice_publications')]
+        }>('SELECT actor_key, session_id, track_name, mid, generation, status, updated_at FROM voice_publications')]
         for (const pr of pubRows) {
           if (now - pr.updated_at < SESSION_TTL_MS && (pr.status === 'live' || pr.status === 'muted')) {
             this.voiceRegistry.set(pr.actor_key, {
@@ -272,6 +277,7 @@ export class RoomDO extends DurableObject<Env> {
               status: pr.status as 'live' | 'muted',
               sessionId: pr.session_id,
               audioTrackId: pr.track_name,
+              mid: pr.mid ?? undefined,
               generation: pr.generation,
               updatedAt: pr.updated_at,
             })
@@ -1561,10 +1567,11 @@ export class RoomDO extends DurableObject<Env> {
 
     try {
       this.ctx.storage.sql.exec(
-        'INSERT INTO voice_publications (actor_key, session_id, track_name, generation, status, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(actor_key) DO UPDATE SET session_id = ?2, track_name = ?3, generation = ?4, status = ?5, updated_at = ?6',
+        'INSERT INTO voice_publications (actor_key, session_id, track_name, mid, generation, status, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(actor_key) DO UPDATE SET session_id = ?2, track_name = ?3, mid = ?4, generation = ?5, status = ?6, updated_at = ?7',
         state.actorKey,
         state.sessionId,
         state.audioTrackId,
+        state.mid ?? null,
         state.generation,
         state.status,
         state.updatedAt,
