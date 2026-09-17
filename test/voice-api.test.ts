@@ -501,13 +501,15 @@ describe('Authenticated Real Voice API & RoomDO Control Plane — Invariant Suit
     const json = (await res.json()) as any
     expect(json.ok).toBe(true)
 
-    // WebSocket của hs1 nhận được packet voice.force_muted
+    // WebSocket của hs1 nhận được packet voice.force_muted và voice.removed
     const goiMute = await wsHs1.cho('voice.force_muted')
     expect(goiMute.targetKey).toBe('acc:1')
+    const goiRemoved = await wsHs1.cho('voice.removed')
+    expect(goiRemoved.actorKey).toBe('acc:1')
 
-    // Trạng thái trong RoomDO chuyển thành muted
+    // Trạng thái publication trong RoomDO bị xóa hoàn toàn (media-truthful)
     const pub = await roomStub.getVoiceParticipant('acc:1')
-    expect(pub?.status).toBe('muted')
+    expect(pub).toBeNull()
 
     // Thử gọi force-mute với generation cũ = 1 khi target đã republish lên generation 2
     await roomStub.bindVoiceSession('sess_hs1_gen2', 'acc:1', 2)
@@ -971,5 +973,138 @@ describe('Authenticated Real Voice API & RoomDO Control Plane — Invariant Suit
     expect(remaining500?.generation).toBe(2)
 
     ws.dong()
+  })
+
+  it('24. Exact CAS Race: Same-generation delayed self-close (T1) cannot remove newer publication (T2) and returns 409', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const phongId = await taoPhongTest('Phòng Voice Same-Gen Close Race')
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookie)
+    await ws.cho('room.snapshot')
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    // 1. Initial canonical publication: Actor A, Session S1, Gen G1, Track T1, MID 1
+    await roomStub.bindVoiceSession('sess_same_gen', 'acc:1', 1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_same_gen',
+      audioTrackId: 'track_T1',
+      mid: '1',
+      generation: 1,
+    })
+
+    // 2. Start close-track for T1. While Cloudflare close is in-flight,
+    // 2. Target legitimately republishes T2 on the same session & generation (G1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_same_gen',
+      audioTrackId: 'track_T2',
+      mid: '2',
+      generation: 1,
+    })
+
+    // 3. Stale completion of T1 close attempts to remove using exact CAS:
+    const staleRemove = await roomStub.removeVoicePublicationExact({
+      actorKey: 'acc:1',
+      sessionId: 'sess_same_gen',
+      audioTrackId: 'track_T1',
+      generation: 1,
+      mid: '1',
+    })
+    expect(staleRemove).toBe(false)
+
+    // 4. Stale close-track request to HTTP endpoint with T1 parameters also fails with 409
+    let cloudflareCalls = 0
+    setCloudflareRealtimeFetchForTesting(async () => {
+      cloudflareCalls++
+      return new Response(JSON.stringify({ tracks: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/close-track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        sessionId: 'sess_same_gen',
+        trackName: 'track_T1',
+        generation: 1,
+      }),
+    })
+
+    expect(res.status).toBe(409)
+    expect(cloudflareCalls).toBe(0) // Pre-upstream check rejects before calling SFU!
+
+    // T2 MUST survive and remain live!
+    const activePub = await roomStub.getVoiceParticipant('acc:1')
+    expect(activePub).not.toBeNull()
+    expect(activePub?.audioTrackId).toBe('track_T2')
+    expect(activePub?.status).toBe('live')
+    expect(activePub?.generation).toBe(1)
+
+    ws.dong()
+  })
+
+  it('25. Exact CAS Race: Same-generation delayed force-mute (T1) cannot remove newer publication (T2) and returns 409', async () => {
+    const cookieHs1 = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieGv = await dangNhapLayCookie('qa.v2.gv')
+    const phongId = await taoPhongTest('Phòng Voice Same-Gen Force-Mute Race')
+
+    const wsHs1 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieHs1)
+    const wsGv = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieGv)
+    await wsHs1.cho('room.snapshot')
+    await wsGv.cho('room.snapshot')
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    // 1. Initial canonical publication: Member has S1, Gen G1, Track T1, MID 1
+    await roomStub.bindVoiceSession('sess_fm_same_gen', 'acc:1', 1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_fm_same_gen',
+      audioTrackId: 'track_FM_T1',
+      mid: '1',
+      generation: 1,
+    })
+
+    // 2. Target legitimately republishes T2 on same generation G1
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_fm_same_gen',
+      audioTrackId: 'track_FM_T2',
+      mid: '2',
+      generation: 1,
+    })
+
+    // 3. Stale completion of T1 force-mute attempts to execute exact CAS:
+    const staleForceMute = await roomStub.forceMute({
+      targetActorKey: 'acc:1',
+      byActorName: 'Giáo viên',
+      sessionId: 'sess_fm_same_gen',
+      trackName: 'track_FM_T1',
+      generation: 1,
+      mid: '1',
+    })
+    expect(staleForceMute).toBe(false)
+
+    // T2 MUST survive, must NOT be muted and must NOT be removed!
+    const activePub = await roomStub.getVoiceParticipant('acc:1')
+    expect(activePub).not.toBeNull()
+    expect(activePub?.audioTrackId).toBe('track_FM_T2')
+    expect(activePub?.status).toBe('live')
+    expect(activePub?.generation).toBe(1)
+
+    wsHs1.dong()
+    wsGv.dong()
   })
 })

@@ -573,8 +573,14 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     )
   }
 
-  // Invariant 8: Close result must match canonical mutation
-  const removed = await (roomStub as any).removeVoicePublication(userKey, body.generation)
+  // Invariant 8: Close result must match canonical mutation with exact CAS
+  const removed = await (roomStub as any).removeVoicePublicationExact({
+    actorKey: userKey,
+    sessionId: body.sessionId,
+    audioTrackId: body.trackName,
+    generation: body.generation,
+    mid: existing.mid ?? null,
+  })
   if (!removed) {
     return loi('Ấn phẩm thoại đã bị thay đổi hoặc không còn tồn tại.', 409)
   }
@@ -638,27 +644,37 @@ export async function forceMuteVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Thành viên không có luồng âm thanh đang phát.', 404)
   }
 
-  // Invariant 12: Record exact generation to prevent race condition if target republished
+  // Exact CAS capture: Record all identity fields before calling upstream close
   const targetGen = targetVoice.generation
+  const targetSessionId = targetVoice.sessionId
+  const targetTrackName = targetVoice.audioTrackId
+  const targetMid = targetVoice.mid ?? null
 
   // Invariant 6: Upstream confirmation check — send only { mid } when known (correct Cloudflare format)
-  const trackMid = targetVoice.mid ?? null
-  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = trackMid
-    ? [{ mid: trackMid }]
-    : [{ trackName: targetVoice.audioTrackId }]
-  const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${targetVoice.sessionId}/tracks/close`, 'PUT', {
+  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = targetMid
+    ? [{ mid: targetMid }]
+    : [{ trackName: targetTrackName }]
+  const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${targetSessionId}/tracks/close`, 'PUT', {
     tracks: sfuPayloadTracks,
     force: true,
   })
 
-  if (!sfuRes.ok) {
+  const isAlreadyClosed = sfuRes.status === 404 || sfuRes.status === 410
+  if (!sfuRes.ok && !isAlreadyClosed) {
     return loi(`Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
   }
 
-  // Invariant 12: Ensure target has not republished a newer generation while SFU call was in flight
-  const forceMuted = await (roomStub as any).forceMute(targetActorKey, gate.taiKhoan.ten || gate.taiKhoan.username, targetGen)
+  // Invariant 16: Ensure target publication has not changed while SFU call was in flight (Exact CAS)
+  const forceMuted = await (roomStub as any).forceMute({
+    targetActorKey,
+    byActorName: gate.taiKhoan.ten || gate.taiKhoan.username,
+    sessionId: targetSessionId,
+    trackName: targetTrackName,
+    generation: targetGen,
+    mid: targetMid,
+  })
   if (!forceMuted) {
-    return loi('Thành viên đã đổi thế hệ âm thanh trong lúc xử lý; không thể tắt phiên cũ.', 409)
+    return loi('Ấn phẩm thoại của thành viên đã bị thay đổi hoặc đã đóng trong lúc xử lý.', 409)
   }
 
   return c.json({

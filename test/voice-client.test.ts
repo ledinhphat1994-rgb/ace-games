@@ -549,4 +549,122 @@ describe('VoiceClient — Deterministic Device Replacement (replaceTrack) Invari
       ;(globalThis as any).MediaStream = originalMediaStream
     }
   })
+
+  it('handleForceMuted(): stops local track, replaces sender with null, invalidates publishing, preserves listening', async () => {
+    const trackStop = vi.fn()
+    const mockTrack = {
+      id: 'local-mic-track',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: trackStop,
+    } as unknown as MediaStreamTrack
+
+    const replaceTrackMock = vi.fn().mockResolvedValue(undefined)
+    const mockSender = {
+      replaceTrack: replaceTrackMock,
+    } as unknown as RTCRtpSender
+
+    let latestState: any = null
+    const client = new VoiceClient({
+      roomId: 101,
+      currentActorKey: 'acc:target',
+      onStateChange: (state) => {
+        latestState = state
+      },
+    })
+
+    // Setup active publishing state
+    ;(client as any).sessionId = 'session-101'
+    ;(client as any).pc = {
+      connectionState: 'connected',
+    } as unknown as RTCPeerConnection
+    ;(client as any).localTrack = mockTrack
+    ;(client as any).localStream = {
+      getTracks: () => [mockTrack],
+      getAudioTracks: () => [mockTrack],
+    } as unknown as MediaStream
+    ;(client as any).localSender = mockSender
+    ;(client as any).isPublishing = true
+    ;(client as any).intendedPublishing = true
+    ;(client as any).connectionState = 'connected'
+
+    await client.handleForceMuted()
+
+    expect((client as any).isPublishing).toBe(false)
+    expect((client as any).intendedPublishing).toBe(false)
+    expect((client as any).isMuted).toBe(false)
+    expect(trackStop).toHaveBeenCalled()
+    expect(replaceTrackMock).toHaveBeenCalledWith(null)
+    expect((client as any).localTrack).toBeNull()
+    expect((client as any).localSender).toBeNull()
+    expect((client as any).localStream).toBeNull()
+    expect(client.state.connectionState).toBe('listening')
+    expect(latestState?.isPublishing).toBe(false)
+    // Derived local mic must be false!
+    const derivedMic = Boolean(latestState?.isPublishing && !latestState?.isMuted)
+    expect(derivedMic).toBe(false)
+
+    client.destroy()
+  })
+
+  it('Local media state authority: self-mute sets track disabled, and server syncRegistry cannot overwrite local mic', async () => {
+    const mockTrack = {
+      id: 'mic-track-1',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack
+
+    let latestState: any = null
+    const client = new VoiceClient({
+      roomId: 101,
+      currentActorKey: 'acc:me',
+      onStateChange: (state) => {
+        latestState = state
+      },
+    })
+
+    ;(client as any).localTrack = mockTrack
+    ;(client as any).isPublishing = true
+    ;(client as any).generation = 5
+    ;(client as any).connectionState = 'connected'
+
+    // User mutes
+    const resMute = client.mute()
+    expect(resMute.muted).toBe(true)
+    expect(resMute.generation).toBe(5)
+    expect(mockTrack.enabled).toBe(false)
+    expect(latestState.isMuted).toBe(true)
+    expect(Boolean(latestState.isPublishing && !latestState.isMuted)).toBe(false)
+
+    // Delayed server sync arrives containing a stale 'live' publication for this actor
+    await client.syncRegistry([
+      {
+        actorKey: 'acc:me',
+        ten: 'Me',
+        status: 'live',
+        sessionId: 'sess',
+        audioTrackId: 'track',
+        generation: 5,
+        updatedAt: Date.now(),
+      },
+    ])
+
+    // Local media state MUST stay muted!
+    expect(client.state.isMuted).toBe(true)
+    expect(mockTrack.enabled).toBe(false)
+    expect(Boolean(client.state.isPublishing && !client.state.isMuted)).toBe(false)
+
+    // User unmutes
+    const resUnmute = client.unmute()
+    expect(resUnmute.muted).toBe(false)
+    expect(resUnmute.generation).toBe(5)
+    expect(mockTrack.enabled).toBe(true)
+    expect(latestState.isMuted).toBe(false)
+    expect(Boolean(latestState.isPublishing && !latestState.isMuted)).toBe(true)
+
+    client.destroy()
+  })
 })

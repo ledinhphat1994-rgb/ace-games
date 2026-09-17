@@ -72,7 +72,6 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [slideState, setSlideState] = useState<SlideState | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
-  const [myMic, setMyMic] = useState(false)
   const [voiceRegistry, setVoiceRegistry] = useState<VoiceParticipantState[]>([])
   const [voiceState, setVoiceState] = useState<VoiceClientState>({
     isSupported: true,
@@ -87,6 +86,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     speakingActors: [],
     isAudioAutoplayBlocked: false,
   })
+  const myMic = Boolean(voiceState.isPublishing && !voiceState.isMuted)
   const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -257,9 +257,6 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setMembers((prev) =>
             prev.map((m) => (m.key === p.actorKey ? { ...m, mic: p.status === 'live' } : m))
           )
-          if (p.actorKey === myActorKey) {
-            setMyMic(p.status === 'live')
-          }
           break
         }
 
@@ -272,16 +269,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setMembers((prev) =>
             prev.map((m) => (m.key === goi.actorKey ? { ...m, mic: false } : m))
           )
-          if (goi.actorKey === myActorKey) {
-            setMyMic(false)
-          }
           break
         }
 
         case 'voice.force_muted': {
           if (goi.targetKey === myActorKey) {
-            voiceClientRef.current?.mute()
-            setMyMic(false)
+            voiceClientRef.current?.handleForceMuted()
           }
           setMembers((prev) =>
             prev.map((m) => (m.key === goi.targetKey ? { ...m, mic: false } : m))
@@ -386,11 +379,6 @@ export function useRoom(roomId: string, myActorKey?: string) {
       currentActorKey: myActorKey,
       onStateChange: (state) => {
         setVoiceState(state)
-        if (state.isPublishing && !state.isMuted) {
-          setMyMic(true)
-        } else {
-          setMyMic(false)
-        }
       },
       onError: (err) => {
         toast.error(err.message || 'Không thể bật micro.')
@@ -557,18 +545,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
   const toggleMic = useCallback(async () => {
     if (!voiceClientRef.current) return
+    const beforeState = voiceClientRef.current.state
     const nextActive = await voiceClientRef.current.toggleMic()
-    setMyMic(nextActive)
-    if (!nextActive && voiceClientRef.current.state.errorMessage) {
-      toast.error(voiceClientRef.current.state.errorMessage)
+    const afterState = voiceClientRef.current.state
+    if (!nextActive && afterState.errorMessage) {
+      toast.error(afterState.errorMessage)
     }
     const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN && voiceClientRef.current) {
+    if (
+      ws &&
+      ws.readyState === WebSocket.OPEN &&
+      beforeState.isPublishing &&
+      afterState.isPublishing
+    ) {
       ws.send(
         JSON.stringify({
           type: 'voice.self_state',
           generation: voiceClientRef.current.getGeneration() || 1,
-          muted: !nextActive,
+          muted: afterState.isMuted,
         }),
       )
     }

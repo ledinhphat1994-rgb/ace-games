@@ -233,6 +233,7 @@ export class VoiceClient {
       getPeerConnectionState: () => this.pc?.connectionState ?? (this.lastPcConnectionState as any) ?? 'none',
       getIceConnectionState: () => this.pc?.iceConnectionState ?? (this.lastPcConnectionState === 'closed' ? 'closed' : 'none'),
       getSessionId: () => this.sessionId,
+      getActorKey: () => this.currentActorKey,
       getServerGeneration: () => this.generation,
       getPcGeneration: () => this.pcGeneration,
       isPublishing: () => this.isPublishing,
@@ -896,7 +897,8 @@ export class VoiceClient {
     }
     this.isMuted = true
     this.speakingActors.delete('local')
-    this.setConnectionState('muted')
+    this.connectionState = 'muted'
+    this.emitState()
     return { generation: this.generation, muted: true }
   }
 
@@ -908,8 +910,54 @@ export class VoiceClient {
       this.localTrack.enabled = true
     }
     this.isMuted = false
-    this.setConnectionState(this.isPublishing ? 'connected' : 'listening')
+    this.connectionState = this.isPublishing ? 'connected' : 'listening'
+    this.emitState()
     return { generation: this.generation, muted: false }
+  }
+
+  /**
+   * Xử lý khi bị cưỡng chế tắt micro bởi người điều hành (Host / Moderator).
+   * SFU track đã bị server đóng. Vô hiệu hóa và giải phóng hoàn toàn publication cục bộ,
+   * dừng track micro để bảo vệ quyền riêng tư, giữ lại khả năng nghe từ phòng.
+   */
+  async handleForceMuted(): Promise<void> {
+    this.intendedPublishing = false
+    this.isPublishing = false
+    this.isMuted = false
+    this.canonicalTrackName = null
+    this.speakingActors.delete('local')
+
+    if (this.localSender) {
+      try {
+        await this.localSender.replaceTrack(null)
+      } catch {}
+      this.localSender = null
+    }
+
+    if (this.localTrack) {
+      try {
+        this.localTrack.enabled = false
+        this.localTrack.stop()
+      } catch {}
+      this.localTrack = null
+    }
+
+    if (this.localStream) {
+      try {
+        this.localStream.getTracks().forEach((t) => {
+          t.enabled = false
+          t.stop()
+        })
+      } catch {}
+      this.localStream = null
+    }
+
+    if (this.pc && this.sessionId) {
+      this.connectionState = 'listening'
+    } else {
+      this.connectionState = 'idle'
+    }
+    this.emitState()
   }
 
   /**
