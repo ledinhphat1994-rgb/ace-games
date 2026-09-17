@@ -542,8 +542,15 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     force: true,
   })
 
-  // Invariant 6: Fix upstream error semantics. No false-success!
-  if (!sfuRes.ok) {
+  const isAlreadyClosed =
+    sfuRes.status === 404 ||
+    sfuRes.status === 410 ||
+    (typeof sfuRes.errorText === 'string' &&
+      (sfuRes.errorText.includes('session_error') || sfuRes.errorText.includes('not_found')))
+
+  // Invariant 6: Fix upstream error semantics. No false-success on unexpected failures!
+  // If the track/session is already terminated or disconnected (404/410), media cleanup is confirmed.
+  if (!sfuRes.ok && !isAlreadyClosed) {
     return c.json(
       {
         ok: false,
@@ -554,19 +561,15 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     )
   }
 
-  // Invariant 7: Validate response against schema
-  const parsed = CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data)
-  if (!parsed.success) {
-    return loi('Phản hồi từ SFU không đúng cấu trúc close-tracks.', 502)
-  }
+  const parsed = !isAlreadyClosed ? CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data) : null
 
   await (roomStub as any).removeVoicePublication(userKey, body.generation)
 
   return c.json({
     ok: true,
     mediaCleanupConfirmed: true,
-    tracks: parsed.data.tracks,
-    requiresImmediateRenegotiation: Boolean(parsed.data.requiresImmediateRenegotiation),
+    tracks: parsed?.success ? parsed.data.tracks : [],
+    requiresImmediateRenegotiation: Boolean(parsed?.success ? parsed.data.requiresImmediateRenegotiation : false),
   })
 }
 

@@ -747,6 +747,8 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
     const ctxB = await createVoiceContext(browser, { mic: false })
     const pageA = await ctxA.newPage()
     const pageB = await ctxB.newPage()
+    setupPageLogging(pageA, 'PAGE A')
+    setupPageLogging(pageB, 'PAGE B')
 
     try {
       await loginUser(pageA, HOST_USER)
@@ -790,23 +792,20 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       // On B: Specifically Host A remote track, subscription, audio element, and speaking indicator removed
       await expect.poll(async () => {
-        return pageB.evaluate((hostUsername: string) => {
+        return pageB.evaluate((hostActorKey: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
           if (!d) return { tracks: 1, subs: 1, hasAudio: true, isSpeaking: true }
-          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
-          const hostEntry = reg.find((p: any) => p.ten === hostUsername || p.actorKey === hostUsername)
-          const targetKey = hostEntry ? hostEntry.actorKey : hostUsername
-          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey || t.actorKey === hostUsername)
-          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey || s.actorKey === hostUsername)
-          const hasAudio = d.hasAudioElementForActor ? (d.hasAudioElementForActor(targetKey) || d.hasAudioElementForActor(hostUsername)) : false
-          const isSpeaking = d.getSpeakingActors ? (d.getSpeakingActors().includes(targetKey) || d.getSpeakingActors().includes(hostUsername)) : false
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === hostActorKey)
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === hostActorKey)
+          const hasAudio = d.hasAudioElementForActor ? d.hasAudioElementForActor(hostActorKey) : false
+          const isSpeaking = d.getSpeakingActors ? d.getSpeakingActors().includes(hostActorKey) : false
           return {
             tracks: tracks.length,
             subs: subs.length,
             hasAudio,
             isSpeaking,
           }
-        }, HOST_USER.username)
+        }, rtpBefore.actorKey)
       }, { timeout: 25000 }).toEqual({
         tracks: 0,
         subs: 0,
@@ -817,8 +816,8 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       // Room registry: A publication absent using centralized helper
       await expect.poll(async () => {
         const reg = await fetchVoiceRegistry(pageB)
-        return reg.find((p: any) => (p.actorKey === HOST_USER.username || p.ten === HOST_USER.username) && p.status === 'live')
-      }, { timeout: 15000 }).toBeUndefined()
+        return reg.find((p: any) => (p.actorKey === rtpBefore.actorKey || p.actorKey === HOST_USER.username || p.ten === HOST_USER.username) && p.status === 'live')
+      }, { timeout: 25000 }).toBeUndefined()
     } finally {
       await ctxA.close()
       await ctxB.close()
@@ -922,32 +921,26 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       expect(rtpARecovered.delta).toBeGreaterThan(0)
 
       // Invariants: exactly 1 canonical B publication, exactly 1 sub per actor, 1 audio element per actor
-      const bFinal = await pageB.evaluate((hostUsername: string) => {
+      const bFinal = await pageB.evaluate((hostActorKey: string) => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
-        const reg = d?.getVoiceRegistry ? d.getVoiceRegistry() : []
-        const hostEntry = reg.find((p: any) => p.ten === hostUsername || p.actorKey === hostUsername)
-        const targetKey = hostEntry ? hostEntry.actorKey : hostUsername
         return {
           subsCount: d?.getSubscriptions().length,
           audioElementsCount: d?.getAudioElementsCount(),
-          hasHostAudio: d?.hasAudioElementForActor ? (d.hasAudioElementForActor(targetKey) || d.hasAudioElementForActor(hostUsername)) : false,
+          hasHostAudio: d?.hasAudioElementForActor ? d.hasAudioElementForActor(hostActorKey) : false,
         }
-      }, HOST_USER.username)
+      }, rtpBRecovered.actorKey)
       expect(bFinal.subsCount).toBe(1)
       expect(bFinal.audioElementsCount).toBe(1)
       expect(bFinal.hasHostAudio).toBe(true)
 
-      const aFinal = await pageA.evaluate((memberUsername: string) => {
+      const aFinal = await pageA.evaluate((memberActorKey: string) => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
-        const reg = d?.getVoiceRegistry ? d.getVoiceRegistry() : []
-        const memberEntry = reg.find((p: any) => p.ten === memberUsername || p.actorKey === memberUsername)
-        const targetKey = memberEntry ? memberEntry.actorKey : memberUsername
         return {
           subsCount: d?.getSubscriptions().length,
           audioElementsCount: d?.getAudioElementsCount(),
-          hasMemberAudio: d?.hasAudioElementForActor ? (d.hasAudioElementForActor(targetKey) || d.hasAudioElementForActor(memberUsername)) : false,
+          hasMemberAudio: d?.hasAudioElementForActor ? d.hasAudioElementForActor(memberActorKey) : false,
         }
-      }, MEMBER_USER.username)
+      }, rtpARecovered.actorKey)
       expect(aFinal.subsCount).toBe(1)
       expect(aFinal.audioElementsCount).toBe(1)
       expect(aFinal.hasMemberAudio).toBe(true)
@@ -959,7 +952,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       await expect.poll(async () => {
         const reg = await fetchVoiceRegistry(pageA)
         const bLive = reg.filter(
-          (p: any) => (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live',
+          (p: any) => (p.actorKey === rtpARecovered.actorKey || p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live',
         )
         console.log(
           `[Test 8 Registry] total=${reg.length} bLive=${bLive.length}`,

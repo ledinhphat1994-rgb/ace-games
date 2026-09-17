@@ -1292,7 +1292,7 @@ export class RoomDO extends DurableObject<Env> {
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws) return false
+        if (w === ws || w.readyState !== WebSocket.OPEN) return false
         const a = w.deserializeAttachment() as AttachmentKetNoi | null
         return a?.key === att.key
       })
@@ -1308,7 +1308,7 @@ export class RoomDO extends DurableObject<Env> {
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws) return false
+        if (w === ws || w.readyState !== WebSocket.OPEN) return false
         const a = w.deserializeAttachment() as AttachmentKetNoi | null
         return a?.key === att.key
       })
@@ -1327,7 +1327,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private layDanhSachThanhVien(boQua?: WebSocket): ThanhVienPhong[] {
-    const dsKetNoi = this.ctx.getWebSockets().filter((ws) => ws !== boQua)
+    const dsKetNoi = this.ctx.getWebSockets().filter((ws) => (boQua ? ws !== boQua : true) && ws.readyState === WebSocket.OPEN)
     const map = new Map<string, ThanhVienPhong>()
 
     for (const ws of dsKetNoi) {
@@ -1409,6 +1409,7 @@ export class RoomDO extends DurableObject<Env> {
 
   hasConnectedActor(actorKey: string): boolean {
     for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState !== WebSocket.OPEN) continue
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
       if (a?.key === actorKey) {
         return true
