@@ -518,8 +518,15 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Dữ liệu yêu cầu không hợp lệ.', 400)
   }
 
-  if (!body.sessionId || !body.trackName) {
-    return loi('Thiếu sessionId hoặc trackName.', 400)
+  // Invariant 4: Require sessionId, trackName, and positive integer generation
+  if (
+    !body.sessionId ||
+    !body.trackName ||
+    typeof body.generation !== 'number' ||
+    !Number.isInteger(body.generation) ||
+    body.generation <= 0
+  ) {
+    return loi('Thiếu hoặc sai định dạng sessionId, trackName hoặc generation.', 400)
   }
 
   // Invariant 3: Validate session ownership
@@ -528,28 +535,33 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
-  // Invariant 6: Use canonical persisted MID; never guess '0'
+  // Invariant 4: Exact match against current canonical publication before touching Cloudflare
   const existing = await (roomStub as any).getVoiceParticipant(userKey)
-  const canonicalMid: string | null =
-    typeof (body as any).mid === 'string' && (body as any).mid.trim() ? (body as any).mid.trim() : (existing?.mid ?? null)
+  if (
+    !existing ||
+    existing.actorKey !== userKey ||
+    existing.sessionId !== body.sessionId ||
+    existing.audioTrackId !== body.trackName ||
+    existing.generation !== body.generation
+  ) {
+    return loi('Thông tin track hoặc generation không khớp với ấn phẩm hiện tại.', 409)
+  }
 
-  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = canonicalMid
-    ? [{ mid: canonicalMid }]
-    : [{ trackName: body.trackName }]
+  // Invariant 5: Server owns the MID — use ONLY existing.mid from canonical RoomDO/SQLite state
+  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = existing.mid
+    ? [{ mid: existing.mid }]
+    : [{ trackName: existing.audioTrackId }]
 
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/close`, 'PUT', {
     tracks: sfuPayloadTracks,
     force: true,
   })
 
-  const isAlreadyClosed =
-    sfuRes.status === 404 ||
-    sfuRes.status === 410 ||
-    (typeof sfuRes.errorText === 'string' &&
-      (sfuRes.errorText.includes('session_error') || sfuRes.errorText.includes('not_found')))
+  // Invariant 7: Tighten already-closed semantics. Real staging case was HTTP 410.
+  // Only explicitly understood terminal upstream status codes (404/410) are treated as terminal media teardown.
+  const isAlreadyClosed = sfuRes.status === 404 || sfuRes.status === 410
 
   // Invariant 6: Fix upstream error semantics. No false-success on unexpected failures!
-  // If the track/session is already terminated or disconnected (404/410), media cleanup is confirmed.
   if (!sfuRes.ok && !isAlreadyClosed) {
     return c.json(
       {
@@ -561,9 +573,13 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     )
   }
 
-  const parsed = !isAlreadyClosed ? CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data) : null
+  // Invariant 8: Close result must match canonical mutation
+  const removed = await (roomStub as any).removeVoicePublication(userKey, body.generation)
+  if (!removed) {
+    return loi('Ấn phẩm thoại đã bị thay đổi hoặc không còn tồn tại.', 409)
+  }
 
-  await (roomStub as any).removeVoicePublication(userKey, body.generation)
+  const parsed = !isAlreadyClosed ? CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data) : null
 
   return c.json({
     ok: true,

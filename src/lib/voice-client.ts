@@ -145,7 +145,12 @@ export class VoiceClient {
         clearTimeout(this.reconnectTimer)
         this.reconnectTimer = null
       }
-      this.rebuildConnection().catch(() => {})
+      this.rebuildConnection().catch((err) => {
+        console.error('Lỗi khi phục hồi kết nối sau online:', err)
+        if (this.recoveryPending && !this.isDestroyed) {
+          this.handleConnectionFailure('retry')
+        }
+      })
     }
   }
 

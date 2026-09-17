@@ -345,4 +345,208 @@ describe('VoiceClient — Deterministic Device Replacement (replaceTrack) Invari
       ;(globalThis as any).MediaStream = originalMediaStream
     }
   })
+
+  it('Deterministic Reconnect: Online recovery first rebuild fails, schedules retry, second rebuild succeeds', async () => {
+    let sessionCallCount = 0
+    let publishCallCount = 0
+    let shouldFailFirstRecovery = false
+
+    const originalFetch = globalThis.fetch
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const urlStr = String(url)
+      if (urlStr.includes('/voice/session')) {
+        sessionCallCount++
+        if (shouldFailFirstRecovery) {
+          shouldFailFirstRecovery = false
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ ok: false, loi: 'SFU temporary failure' }),
+          }
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            sessionId: `session-id-${sessionCallCount}`,
+            generation: sessionCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+          }),
+        }
+      }
+      if (urlStr.includes('/voice/publish')) {
+        publishCallCount++
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            canonicalTrackName: `track-pub-${publishCallCount}`,
+            generation: publishCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+            tracks: [{ mid: '1', trackName: `track-pub-${publishCallCount}` }],
+          }),
+        }
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      }
+    })
+    ;(globalThis as any).fetch = fetchMock
+
+    const originalRTCPeerConnection = (globalThis as any).RTCPeerConnection
+    class MockRTCPeerConnection {
+      signalingState = 'stable'
+      connectionState = 'connected'
+      iceConnectionState = 'connected'
+      localDescription = { type: 'offer', sdp: 'v=0...' }
+      remoteDescription: any = null
+      private transceivers: any[] = []
+
+      addTransceiver(trackOrKind: any, init?: any) {
+        const mid = init?.direction === 'sendonly' ? '1' : '0'
+        const transceiver = {
+          mid,
+          direction: init?.direction || 'recvonly',
+          sender: { track: typeof trackOrKind === 'object' ? trackOrKind : null },
+          receiver: { track: { id: 'remote-track-id', kind: 'audio', readyState: 'live' } },
+        }
+        this.transceivers.push(transceiver)
+        return transceiver
+      }
+
+      getTransceivers() {
+        return this.transceivers
+      }
+
+      async createOffer() {
+        return { type: 'offer', sdp: 'v=0...' }
+      }
+
+      async createAnswer() {
+        return { type: 'answer', sdp: 'v=0...' }
+      }
+
+      async setLocalDescription(desc: any) {
+        this.localDescription = desc
+      }
+
+      async setRemoteDescription(desc: any) {
+        this.remoteDescription = desc
+      }
+
+      close() {
+        this.connectionState = 'closed'
+        this.signalingState = 'closed'
+      }
+
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    ;(globalThis as any).RTCPeerConnection = MockRTCPeerConnection
+    ;(globalThis as any).RTCSessionDescription = class {
+      init: any
+      constructor(init: any) {
+        this.init = init
+      }
+    }
+
+    const originalMediaStream = (globalThis as any).MediaStream
+    ;(globalThis as any).MediaStream = class MockMediaStream {
+      tracks: any[]
+      constructor(tracks: any[] = []) {
+        this.tracks = tracks
+      }
+      getTracks() { return this.tracks }
+      getAudioTracks() { return this.tracks.filter((t: any) => t.kind === 'audio') }
+    }
+
+    const liveTrackStop = vi.fn()
+    const liveTrack = {
+      id: 'mic-track-retry',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: liveTrackStop,
+    } as unknown as MediaStreamTrack
+
+    const liveStream = {
+      getTracks: () => [liveTrack],
+      getAudioTracks: () => [liveTrack],
+    } as unknown as MediaStream
+
+    ;(globalThis as any).navigator = {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue(liveStream),
+      },
+    }
+
+    const client = new VoiceClient({
+      roomId: 7,
+      currentActorKey: 'member.user',
+    })
+
+    try {
+      // 1. Publisher starts publishing
+      const publishOk = await client.startPublishing()
+      expect(publishOk).toBe(true)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      expect(client.getSessionId()).toBe('session-id-1')
+      expect(client.getGeneration()).toBe(1)
+      expect(publishCallCount).toBe(1)
+
+      // 2. Network outage occurs
+      ;(client as any).handleConnectionFailure('network_offline')
+      expect(client.state.connectionState).toBe('reconnecting')
+      expect(client.state.isPublishing).toBe(false)
+      expect((client as any).recoveryPending).toBe(true)
+      expect((client as any).intendedPublishing).toBe(true)
+
+      // 3. Online fires, but first recovery attempt encounters an upstream failure
+      shouldFailFirstRecovery = true
+      ;(client as any).handleOnline()
+
+      // Wait for the first recovery attempt to fail and exit the mutex
+      await (client as any).signalingMutex.runExclusive(async () => {})
+
+      // CRITICAL INVARIANT ASSERTIONS:
+      // First recovery attempt failed, but Voice is NOT permanently stranded!
+      // - recoveryPending remains true
+      // - rebuildInFlight was properly reset to false (no leaked lock)
+      // - reconnectTimer was scheduled via handleConnectionFailure('retry')
+      // - reconnectAttempts incremented to 1
+      expect((client as any).recoveryPending).toBe(true)
+      expect((client as any).rebuildInFlight).toBe(false)
+      expect((client as any).reconnectTimer).not.toBeNull()
+      expect((client as any).reconnectAttempts).toBe(2)
+      expect(client.state.isPublishing).toBe(false)
+      expect(client.state.connectionState).toBe('reconnecting')
+
+      // 4. Wait for scheduled retry timer to fire and execute second rebuild attempt (delay is 1500ms at attempt 2)
+      await new Promise((resolve) => setTimeout(resolve, 1650))
+      // Wait for second rebuild to complete through the mutex
+      await (client as any).signalingMutex.runExclusive(async () => {})
+
+      // 5. Final State: Second attempt succeeds completely!
+      expect((client as any).recoveryPending).toBe(false)
+      expect((client as any).rebuildInFlight).toBe(false)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      expect(client.getSessionId()).toBe('session-id-3')
+      expect(client.getGeneration()).toBe(2)
+      expect(client.getGeneration()).toBeGreaterThan(1)
+      expect((client as any).reconnectTimer).toBeNull()
+      expect(publishCallCount).toBe(2)
+      expect(liveTrackStop).not.toHaveBeenCalled()
+    } finally {
+      client.destroy()
+      globalThis.fetch = originalFetch
+      ;(globalThis as any).RTCPeerConnection = originalRTCPeerConnection
+      ;(globalThis as any).MediaStream = originalMediaStream
+    }
+  })
 })

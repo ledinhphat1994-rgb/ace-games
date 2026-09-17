@@ -701,24 +701,31 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       })
       expect(isMutedB).toBe(true)
 
-      // A: B remote publication disappears or remote track stops/ends, B subscription no longer active
+      // A: B remote publication disappears or remote track stops/ends, B subscription no longer active, audio element absent
       await expect.poll(async () => {
-        return pageA.evaluate((targetUsername: string) => {
+        return pageA.evaluate((bActorKey: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
-          if (!d) return 1
-          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
-          const bEntry = reg.find((p: any) => p.ten === targetUsername || p.actorKey === targetUsername)
-          const targetKey = bEntry ? bEntry.actorKey : targetUsername
-          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey)
-          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey && t.readyState === 'live')
-          return subs.length + tracks.length
-        }, MEMBER_USER.username)
-      }, { timeout: 25000 }).toBe(0)
+          if (!d) return { subs: 1, tracks: 1, hasAudio: true }
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === bActorKey)
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === bActorKey && t.readyState === 'live')
+          const hasAudio = d.hasAudioElementForActor ? d.hasAudioElementForActor(bActorKey) : false
+          return {
+            subs: subs.length,
+            tracks: tracks.length,
+            hasAudio,
+          }
+        }, rtpBefore.actorKey)
+      }, { timeout: 25000 }).toEqual({
+        subs: 0,
+        tracks: 0,
+        hasAudio: false,
+      })
 
-      // RoomDO: B is not canonical live publication
-      const regAfterMute = await fetchVoiceRegistry(pageA)
-      const bLiveAfterMute = regAfterMute.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
-      expect(bLiveAfterMute).toBeUndefined()
+      // RoomDO: B canonical live publication for rtpBefore.actorKey absent
+      await expect.poll(async () => {
+        const regAfterMute = await fetchVoiceRegistry(pageA)
+        return regAfterMute.find((p: any) => p.status === 'live' && p.actorKey === rtpBefore.actorKey)
+      }, { timeout: 25000 }).toBeUndefined()
 
       // Adversarial attack: assert window.__roomWs exists and is OPEN, then send legacy invalid packet
       const wsStatus = await pageB.evaluate(() => {
@@ -734,7 +741,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       // Canonical publication must NOT return to live state
       const regAfterAttack = await fetchVoiceRegistry(pageA)
-      const bLiveAfterAttack = regAfterAttack.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
+      const bLiveAfterAttack = regAfterAttack.find((p: any) => p.status === 'live' && p.actorKey === rtpBefore.actorKey)
       expect(bLiveAfterAttack).toBeUndefined()
     } finally {
       await ctxA.close()
