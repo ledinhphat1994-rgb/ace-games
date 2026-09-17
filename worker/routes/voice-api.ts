@@ -295,6 +295,7 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     return loi('Phản hồi từ SFU thiếu thông tin track được chấp nhận.', 502)
   }
   const canonicalTrackName = acceptedTrack.trackName || body.trackName
+  const canonicalMid = acceptedTrack.mid || body.mid
 
   // Invariant 4 & 10: Register canonical publication in RoomDO
   const regRes = await (roomStub as any).registerVoicePublication({
@@ -303,6 +304,7 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     status: 'live',
     sessionId: body.sessionId,
     audioTrackId: canonicalTrackName,
+    mid: canonicalMid,
     generation: session.generation,
   })
 
@@ -356,8 +358,8 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
     return loi('Dữ liệu yêu cầu không hợp lệ.', 400)
   }
 
-  if (!body.sessionId || !body.remoteSessionId || !body.remoteTrackName || !body.sessionDescription?.sdp) {
-    return loi('Thiếu thông tin subscribe (sessionId, remoteSessionId, remoteTrackName, sessionDescription).', 400)
+  if (!body.sessionId || !body.remoteSessionId || !body.remoteTrackName) {
+    return loi('Thiếu thông tin subscribe (sessionId, remoteSessionId, remoteTrackName).', 400)
   }
 
   // Invariant 3: Validate session ownership
@@ -375,8 +377,7 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
     return loi('Luồng âm thanh từ xa không tồn tại hoặc đã dừng phát.', 404)
   }
 
-  const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/new`, 'POST', {
-    sessionDescription: body.sessionDescription,
+  const sfuPayload: any = {
     tracks: [
       {
         location: 'remote',
@@ -384,7 +385,12 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
         trackName: body.remoteTrackName,
       },
     ],
-  })
+  }
+  if (body.sessionDescription?.sdp) {
+    sfuPayload.sessionDescription = body.sessionDescription
+  }
+
+  const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/new`, 'POST', sfuPayload)
 
   if (!sfuRes.ok) {
     if (sfuRes.errorText === 'BLOCKED_EXTERNAL_REALTIME_CREDENTIALS') {
@@ -522,8 +528,15 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
+  let trackMid = (body as any).mid
+  if (!trackMid) {
+    const existing = await (roomStub as any).getVoiceParticipant(userKey)
+    trackMid = existing?.mid || '0'
+  }
+
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/close`, 'PUT', {
-    tracks: [{ trackName: body.trackName }],
+    tracks: [{ trackName: body.trackName, mid: trackMid }],
+    force: true,
   })
 
   // Invariant 6: Fix upstream error semantics. No false-success!
@@ -607,12 +620,21 @@ export async function forceMuteVoice(c: Context<{ Bindings: Env }>): Promise<Res
   const targetGen = targetVoice.generation
 
   // Invariant 6: Upstream confirmation check
+  const trackMid = targetVoice.mid ?? null
+  const sfuPayloadTracks: Array<{ trackName: string; mid?: string } | { mid: string }> = trackMid
+    ? [{ mid: trackMid }]
+    : [{ trackName: targetVoice.audioTrackId }]
+  console.error(
+    `[FORCE-MUTE] sessionId=${targetVoice.sessionId} audioTrackId=${targetVoice.audioTrackId} mid=${targetVoice.mid ?? 'undefined'} trackMid=${trackMid ?? 'null'}`,
+  )
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${targetVoice.sessionId}/tracks/close`, 'PUT', {
-    tracks: [{ trackName: targetVoice.audioTrackId }],
+    tracks: sfuPayloadTracks,
+    force: true,
   })
 
   if (!sfuRes.ok) {
-    return loi(`Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
+    const loi_msg = `Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'} [debug: mid=${trackMid ?? 'null'}, audioTrackId=${targetVoice.audioTrackId}]`
+    return loi(loi_msg, sfuRes.status as any)
   }
 
   // Invariant 12: Ensure target has not republished a newer generation while SFU call was in flight
