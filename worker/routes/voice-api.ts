@@ -619,22 +619,18 @@ export async function forceMuteVoice(c: Context<{ Bindings: Env }>): Promise<Res
   // Invariant 12: Record exact generation to prevent race condition if target republished
   const targetGen = targetVoice.generation
 
-  // Invariant 6: Upstream confirmation check
+  // Invariant 6: Upstream confirmation check — send only { mid } when known (correct Cloudflare format)
   const trackMid = targetVoice.mid ?? null
-  const sfuPayloadTracks: Array<{ trackName: string; mid?: string } | { mid: string }> = trackMid
+  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = trackMid
     ? [{ mid: trackMid }]
     : [{ trackName: targetVoice.audioTrackId }]
-  console.error(
-    `[FORCE-MUTE] sessionId=${targetVoice.sessionId} audioTrackId=${targetVoice.audioTrackId} mid=${targetVoice.mid ?? 'undefined'} trackMid=${trackMid ?? 'null'}`,
-  )
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${targetVoice.sessionId}/tracks/close`, 'PUT', {
     tracks: sfuPayloadTracks,
     force: true,
   })
 
   if (!sfuRes.ok) {
-    const loi_msg = `Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'} [debug: mid=${trackMid ?? 'null'}, audioTrackId=${targetVoice.audioTrackId}]`
-    return loi(loi_msg, sfuRes.status as any)
+    return loi(`Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
   }
 
   // Invariant 12: Ensure target has not republished a newer generation while SFU call was in flight
