@@ -17,6 +17,7 @@ import {
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
 import { VoiceClient, type VoiceClientState } from '@/lib/voice-client'
+import { toast } from 'sonner'
 
 export type TrangThaiKetNoiPhong =
   | 'dang_ket_noi'
@@ -75,6 +76,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [voiceRegistry, setVoiceRegistry] = useState<VoiceParticipantState[]>([])
   const [voiceState, setVoiceState] = useState<VoiceClientState>({
     isSupported: true,
+    connectionState: 'idle',
     isConnecting: false,
     isPublishing: false,
     isMuted: false,
@@ -82,6 +84,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     errorMessage: null,
     blockedReason: null,
     activeSpeakers: [],
+    speakingActors: [],
+    isAudioAutoplayBlocked: false,
   })
   const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
 
@@ -250,8 +254,26 @@ export function useRoom(roomId: string, myActorKey?: string) {
             voiceClientRef.current?.syncRegistry(next)
             return next
           })
+          setMembers((prev) =>
+            prev.map((m) => (m.key === p.actorKey ? { ...m, mic: p.status === 'live' } : m))
+          )
           if (p.actorKey === myActorKey) {
             setMyMic(p.status === 'live')
+          }
+          break
+        }
+
+        case 'voice.removed': {
+          setVoiceRegistry((prev) => {
+            const next = prev.filter((item) => item.actorKey !== goi.actorKey)
+            voiceClientRef.current?.syncRegistry(next)
+            return next
+          })
+          setMembers((prev) =>
+            prev.map((m) => (m.key === goi.actorKey ? { ...m, mic: false } : m))
+          )
+          if (goi.actorKey === myActorKey) {
+            setMyMic(false)
           }
           break
         }
@@ -261,6 +283,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
             voiceClientRef.current?.mute()
             setMyMic(false)
           }
+          setMembers((prev) =>
+            prev.map((m) => (m.key === goi.targetKey ? { ...m, mic: false } : m))
+          )
           break
         }
 
@@ -366,6 +391,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
         } else {
           setMyMic(false)
         }
+      },
+      onError: (err) => {
+        toast.error(err.message || 'Không thể bật micro.')
       },
     })
     voiceClientRef.current = client
@@ -531,10 +559,31 @@ export function useRoom(roomId: string, myActorKey?: string) {
     if (!voiceClientRef.current) return
     const nextActive = await voiceClientRef.current.toggleMic()
     setMyMic(nextActive)
-    const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'voice.mic', mic: nextActive }))
+    if (!nextActive && voiceClientRef.current.state.errorMessage) {
+      toast.error(voiceClientRef.current.state.errorMessage)
     }
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN && voiceClientRef.current) {
+      ws.send(
+        JSON.stringify({
+          type: 'voice.self_state',
+          generation: voiceClientRef.current.getGeneration() || 1,
+          muted: !nextActive,
+        }),
+      )
+    }
+  }, [])
+
+  const unblockVoiceAutoplay = useCallback(async () => {
+    return voiceClientRef.current?.unblockAutoplay() ?? false
+  }, [])
+
+  const setAudioInputDevice = useCallback(async (deviceId: string) => {
+    return voiceClientRef.current?.setAudioInputDevice(deviceId) ?? false
+  }, [])
+
+  const setAudioOutputDevice = useCallback(async (deviceId: string) => {
+    return voiceClientRef.current?.setAudioOutputDevice(deviceId) ?? false
   }, [])
 
   const forceMuteMember = useCallback(async (targetActorKey: string) => {
@@ -609,6 +658,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     forceMuteMember,
     voiceRegistry,
     voiceState,
+    unblockVoiceAutoplay,
+    setAudioInputDevice,
+    setAudioOutputDevice,
     slideState,
     changeSlidePage,
     loadSlideDoc,

@@ -20,6 +20,7 @@ import {
   Search,
   Send,
   ShieldAlert,
+  SlidersHorizontal,
   Trash2,
   Upload,
   Users,
@@ -27,10 +28,11 @@ import {
   WifiOff,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { usePhien } from '@/app/phien'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ChalkboardCanvas } from './ChalkboardCanvas'
 import { FloatingCalculator } from './FloatingCalculator'
 import { FloatingSlidePanel, PinnedSlideView } from './FloatingSlidePanel'
@@ -120,6 +122,9 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     toggleMic,
     forceMuteMember,
     voiceState,
+    unblockVoiceAutoplay,
+    setAudioInputDevice,
+    setAudioOutputDevice,
     slideState,
     changeSlidePage,
     loadSlideDoc,
@@ -128,6 +133,36 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   } = useRoom(roomId, nguoiDung.actorKey)
 
   const { lamMoiPhien } = usePhien()
+
+  // ── Voice devices state & refresh ─────────────────────────────────────────
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
+  const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([])
+  const [isSinkIdSupported] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return typeof (new Audio() as unknown as { setSinkId?: unknown }).setSinkId === 'function'
+    }
+    return false
+  })
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false)
+
+  const refreshDevices = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices()
+        setAudioInputs(devs.filter((d) => d.kind === 'audioinput'))
+        setAudioOutputs(devs.filter((d) => d.kind === 'audiooutput'))
+      } catch {}
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', refreshDevices)
+      return () => {
+        navigator.mediaDevices.removeEventListener('devicechange', refreshDevices)
+      }
+    }
+  }, [refreshDevices])
 
   // ── Chalk tool state (lifted from canvas, controlled by bottom dock) ──────
   const [selectedColor, setSelectedColor] = useState('#FFFFFF')
@@ -519,38 +554,137 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             <span className="font-semibold">{members.length}</span>
           </button>
 
-          <button
-            onClick={() => {
-              if (voiceState.blockedReason) {
-                toast.warning(voiceState.blockedReason)
+          <div className="flex items-center rounded-full border border-white/10 bg-white/5 p-0.5">
+            <button
+              onClick={() => {
+                if (voiceState.blockedReason) {
+                  toast.warning(voiceState.blockedReason)
+                }
+                toggleMic().catch((err) => {
+                  toast.error(err.message || 'Lỗi bật/tắt micro.')
+                })
+              }}
+              disabled={voiceState.isConnecting}
+              className={`rounded-full p-2 transition-all ${
+                myMic ? 'bg-emerald-600/80 text-white hover:bg-emerald-500' : 'text-slate-400 hover:bg-white/10'
+              } ${voiceState.isConnecting ? 'opacity-60 cursor-wait' : ''} ${
+                voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.6)]' : ''
+              }`}
+              title={
+                voiceState.isConnecting
+                  ? 'Đang kết nối âm thanh...'
+                  : voiceState.blockedReason
+                  ? `Chưa cấu hình Realtime SFU: ${voiceState.blockedReason}`
+                  : myMic
+                  ? 'Micro đang bật. Nhấn để tắt'
+                  : 'Micro đang tắt. Nhấn để bật'
               }
-              toggleMic().catch((err) => {
-                toast.error(err.message || 'Lỗi bật/tắt micro.')
-              })
-            }}
-            disabled={voiceState.isConnecting}
-            className={`rounded-full p-2 transition-colors ${
-              myMic ? 'bg-emerald-600/80 text-white hover:bg-emerald-500' : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            } ${voiceState.isConnecting ? 'opacity-60 cursor-wait' : ''}`}
-            title={
-              voiceState.isConnecting
-                ? 'Đang kết nối âm thanh...'
-                : voiceState.blockedReason
-                ? `Chưa cấu hình Realtime SFU: ${voiceState.blockedReason}`
-                : myMic
-                ? 'Micro đang bật. Nhấn để tắt'
-                : 'Micro đang tắt. Nhấn để bật'
-            }
-            aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
-          >
-            {voiceState.isConnecting ? (
-              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-            ) : myMic ? (
-              <Mic className="h-4 w-4" />
-            ) : (
-              <MicOff className="h-4 w-4" />
-            )}
-          </button>
+              aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
+            >
+              {voiceState.isConnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+              ) : myMic ? (
+                <Mic className="h-4 w-4" />
+              ) : (
+                <MicOff className="h-4 w-4" />
+              )}
+            </button>
+
+            <Popover open={showVoiceSettings} onOpenChange={(open) => { setShowVoiceSettings(open); if (open) refreshDevices() }}>
+              <PopoverTrigger
+                type="button"
+                className="rounded-full p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"
+                title="Cài đặt âm thanh"
+                aria-label="Cài đặt âm thanh"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-72 border border-white/15 bg-[#0a0f1d]/95 p-3.5 text-slate-200 backdrop-blur-xl shadow-2xl rounded-2xl"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">Cài đặt âm thanh</span>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {voiceState.connectionState === 'connected'
+                        ? 'Đã kết nối'
+                        : voiceState.connectionState === 'listening'
+                        ? 'Đang nghe'
+                        : voiceState.connectionState === 'reconnecting'
+                        ? 'Đang kết nối lại'
+                        : voiceState.connectionState === 'muted'
+                        ? 'Đã tắt mic'
+                        : 'Sẵn sàng'}
+                    </span>
+                  </div>
+
+                  {/* Microphone selection */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="voice-mic-select" className="text-[11px] font-semibold text-slate-300">
+                      Microphone
+                    </label>
+                    <select
+                      id="voice-mic-select"
+                      aria-label="Chọn thiết bị micro"
+                      value={voiceState.currentInputDeviceId || ''}
+                      onChange={(e) => {
+                        setAudioInputDevice(e.target.value).catch(() => {})
+                      }}
+                      className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    >
+                      {audioInputs.length === 0 ? (
+                        <option value="" className="bg-slate-900 text-slate-300">
+                          Mặc định hệ thống
+                        </option>
+                      ) : (
+                        audioInputs.map((d, idx) => (
+                          <option key={d.deviceId || idx} value={d.deviceId} className="bg-slate-900 text-white">
+                            {d.label || `Microphone ${idx + 1}`}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Speaker selection (only if setSinkId is supported) */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="voice-speaker-select" className="text-[11px] font-semibold text-slate-300">
+                      Loa / Tai nghe
+                    </label>
+                    {isSinkIdSupported ? (
+                      <select
+                        id="voice-speaker-select"
+                        aria-label="Chọn thiết bị phát loa"
+                        value={voiceState.currentOutputDeviceId || ''}
+                        onChange={(e) => {
+                          setAudioOutputDevice(e.target.value).catch(() => {})
+                        }}
+                        className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        {audioOutputs.length === 0 ? (
+                          <option value="" className="bg-slate-900 text-slate-300">
+                            Mặc định hệ thống
+                          </option>
+                        ) : (
+                          audioOutputs.map((d, idx) => (
+                            <option key={d.deviceId || idx} value={d.deviceId} className="bg-slate-900 text-white">
+                              {d.label || `Loa ${idx + 1}`}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 italic">
+                        Trình duyệt không hỗ trợ chọn đầu ra âm thanh riêng biệt.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
           {isHost && (
             <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
@@ -567,6 +701,25 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
         </div>
       </header>
+
+      {/* ══ Autoplay unblock notification banner ══ */}
+      {voiceState.isAudioAutoplayBlocked && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-md">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-amber-200">
+            Trình duyệt đang chặn âm thanh tự động của phòng học.
+          </span>
+          <Button
+            size="sm"
+            onClick={() => {
+              unblockVoiceAutoplay().catch(() => {})
+            }}
+            className="h-7 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 rounded-xl shadow-md"
+          >
+            Bật âm thanh
+          </Button>
+        </div>
+      )}
 
       {/* ══ LAYER 2: Floating windows ══ */}
 
@@ -744,8 +897,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                 </div>
                 <div className="flex items-center gap-1">
                   <span
-                    className={`rounded-full p-1 text-xs ${
+                    className={`rounded-full p-1 text-xs transition-all ${
                       m.mic ? 'text-emerald-400' : 'text-slate-500'
+                    } ${
+                      voiceState.speakingActors.includes(m.key) ||
+                      (m.key === nguoiDung.actorKey && voiceState.speakingActors.includes('local'))
+                        ? 'ring-2 ring-emerald-400 animate-pulse bg-emerald-500/20 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                        : ''
                     }`}
                     title={m.mic ? 'Đang bật micro' : 'Đang tắt micro'}
                   >
