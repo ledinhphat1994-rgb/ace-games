@@ -815,6 +815,8 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
     const ctxB = await createVoiceContext(browser, { mic: true })
     const pageA = await ctxA.newPage()
     const pageB = await ctxB.newPage()
+    setupPageLogging(pageA, 'PAGE A')
+    setupPageLogging(pageB, 'PAGE B')
 
     try {
       await loginUser(pageA, HOST_USER)
@@ -926,13 +928,24 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       expect(aFinal.audioElementsCount).toBe(1)
 
       // Room registry: exactly one live publication for B
-      const reg = await pageA.evaluate(async () => {
-        const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
-        const data = await res.json()
-        return data.registry || []
-      })
-      const bLive = reg.filter((p: any) => (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live')
-      expect(bLive.length).toBe(1)
+      // Poll for eventual consistency — voice-client sets connectionState='connected' after
+      // /voice/publish HTTP response, but the server-side registry broadcast may still be
+      // in-flight when we reach this assertion.
+      await expect.poll(async () => {
+        const reg = await pageA.evaluate(async () => {
+          const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
+          const data = await res.json()
+          return data.registry || []
+        })
+        const bLive = (reg as any[]).filter(
+          (p: any) => (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live',
+        )
+        console.log(
+          `[Test 8 Registry] total=${(reg as any[]).length} bLive=${bLive.length}`,
+          (reg as any[]).map((p: any) => ({ key: p.actorKey, ten: p.ten, status: p.status })),
+        )
+        return bLive.length
+      }, { timeout: 20000, intervals: [500, 1000] }).toBe(1)
     } finally {
       await ctxA.close()
       await ctxB.close()
