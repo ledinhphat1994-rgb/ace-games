@@ -102,6 +102,8 @@ export class VoiceClient {
   private isMuted = false
   private isConnecting = false
   private intendedPublishing = false
+  private recoveryPending = false
+  private rebuildInFlight = false
   private isDestroyed = false
   private generation = 0
   private blockedReason: string | null = null
@@ -131,8 +133,21 @@ export class VoiceClient {
   private analysers = new Map<string, AudioAnalyserEntry>()
   private speakingActors = new Set<string>()
   private speakingDetectorInterval: ReturnType<typeof setInterval> | null = null
-  private handleOffline: (() => void) | null = null
-  private handleOnline: (() => void) | null = null
+  handleOffline = (): void => {
+    if (!this.isDestroyed) {
+      this.handleConnectionFailure('network_offline')
+    }
+  }
+
+  handleOnline = (): void => {
+    if (!this.isDestroyed && this.recoveryPending && !this.rebuildInFlight) {
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer)
+        this.reconnectTimer = null
+      }
+      this.rebuildConnection().catch(() => {})
+    }
+  }
 
   constructor(options: VoiceClientOptions) {
     this.roomId = options.roomId
@@ -143,20 +158,6 @@ export class VoiceClient {
     this.onError = options.onError
 
     if (typeof window !== 'undefined') {
-      this.handleOffline = () => {
-        if (!this.isDestroyed) {
-          this.handleConnectionFailure('network_offline')
-        }
-      }
-      this.handleOnline = () => {
-        if (!this.isDestroyed && (this.connectionState === 'reconnecting' || this.connectionState === 'failed')) {
-          if (this.reconnectTimer) {
-            clearTimeout(this.reconnectTimer)
-            this.reconnectTimer = null
-          }
-          this.rebuildConnection().catch(() => {})
-        }
-      }
       window.addEventListener('offline', this.handleOffline)
       window.addEventListener('online', this.handleOnline)
     }
@@ -262,6 +263,11 @@ export class VoiceClient {
           ...v,
         })),
       getAudioElementsCount: () => this.audioElements.size,
+      hasAudioElementForActor: (actorKey: string) => this.audioElements.has(actorKey),
+      getAudioElementActorKeys: () => Array.from(this.audioElements.keys()),
+      isRecoveryPending: () => this.recoveryPending,
+      isRebuildInFlight: () => this.rebuildInFlight,
+      getIntendedPublishing: () => this.intendedPublishing,
       getSpeakingActors: () => Array.from(this.speakingActors),
       isAudioAutoplayBlocked: () => this.isAudioAutoplayBlocked,
       getVoiceRegistry: () => [...this.currentRegistry],
@@ -355,13 +361,15 @@ export class VoiceClient {
           clearTimeout(this.disconnectGraceTimer)
           this.disconnectGraceTimer = null
         }
-        this.reconnectAttempts = 0
-        if (this.isMuted) {
-          this.setConnectionState('muted')
-        } else if (this.isPublishing) {
-          this.setConnectionState('connected')
-        } else {
-          this.setConnectionState('listening')
+        if (!this.recoveryPending) {
+          this.reconnectAttempts = 0
+          if (this.isMuted) {
+            this.setConnectionState('muted')
+          } else if (this.isPublishing) {
+            this.setConnectionState('connected')
+          } else {
+            this.setConnectionState('listening')
+          }
         }
       } else if (state === 'disconnected') {
         // Short grace timer before triggering rebuild
@@ -383,25 +391,33 @@ export class VoiceClient {
   }
 
   private handleConnectionFailure(reason: string): void {
-    if (this.isDestroyed || this.connectionState === 'reconnecting') return
+    if (this.isDestroyed) return
 
     console.warn(`WebRTC kết nối gặp sự cố (${reason}). Đang tự động kết nối lại...`)
+    this.recoveryPending = true
+    this.isPublishing = false
     this.setConnectionState('reconnecting')
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
+    if (this.reconnectAttempts >= 5) {
+      this.errorMessage = 'Không thể phục hồi kết nối âm thanh sau nhiều lần thử.'
+      this.setConnectionState('failed')
+      return
+    }
 
     const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 8000)
     this.reconnectAttempts++
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-    }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
+      if (this.isDestroyed || !this.recoveryPending || this.rebuildInFlight) return
       this.rebuildConnection().catch((err) => {
         console.error('Lỗi khi tái tạo kết nối thoại:', err)
-        if (this.reconnectAttempts >= 5) {
-          this.errorMessage = 'Không thể phục hồi kết nối âm thanh sau nhiều lần thử.'
-          this.setConnectionState('failed')
-        } else {
+        if (this.recoveryPending && !this.isDestroyed) {
           this.handleConnectionFailure('retry')
         }
       })
@@ -412,11 +428,23 @@ export class VoiceClient {
    * Tái tạo SFU session và resubscribe sau khi rớt mạng
    */
   private async rebuildConnection(): Promise<void> {
-    return this.signalingMutex.runExclusive(() => this.executeRebuildConnection())
+    if (this.isDestroyed || !this.recoveryPending || this.rebuildInFlight) return
+    this.rebuildInFlight = true
+    try {
+      await this.signalingMutex.runExclusive(() => this.executeRebuildConnection())
+    } finally {
+      this.rebuildInFlight = false
+    }
   }
 
   private async executeRebuildConnection(): Promise<void> {
-    if (this.isDestroyed) return
+    if (this.isDestroyed || !this.recoveryPending) return
+
+    const shouldRepublish = this.intendedPublishing
+    const wasMuted = this.isMuted
+
+    // Invalidate old media authority
+    this.isPublishing = false
 
     // Đóng PC cũ và dọn dẹp map/audio phần tử cũ
     if (this.pc) {
@@ -432,6 +460,7 @@ export class VoiceClient {
     this.midToActorMap.clear()
     this.trackToActorMap.clear()
     this.inFlightSubscriptions.clear()
+    this.localSender = null
 
     for (const audio of this.audioElements.values()) {
       audio.pause()
@@ -441,21 +470,45 @@ export class VoiceClient {
     this.audioElements.clear()
     this.remoteStreams.clear()
 
-    // Khởi tạo lại Listener SFU session
+    // Khởi tạo lại Listener SFU session (do NOT stop still-live local mic track)
     const ok = await this.executeInitSession()
-    if (!ok) {
+    if (!ok || !this.sessionId || !this.pc) {
       throw new Error('Không thể khởi tạo session mới khi reconnect.')
     }
 
-    // Đăng ký nghe lại các track hiện có trong danh bạ
+    // Đăng ký nghe lại các track hiện có trong danh bạ mới nhất
     if (this.currentRegistry.length > 0) {
-      await this.executeSyncRegistry(this.currentRegistry)
+      for (const p of this.currentRegistry) {
+        if (p.actorKey !== this.currentActorKey && p.status === 'live') {
+          await this.executeSubscribeToParticipant(p)
+        }
+      }
     }
 
     // Nếu người dùng trước đó đang bật mic (trên cùng trang) -> tự động republish
-    if (this.intendedPublishing) {
-      this.isPublishing = false
-      await this.executeStartPublishing()
+    if (shouldRepublish) {
+      const pubOk = await this.executeStartPublishing()
+      if (!pubOk) {
+        throw new Error('Không thể tái phát micro sau khi reconnect.')
+      }
+      if (wasMuted) {
+        this.mute()
+      }
+    }
+
+    // Toàn bộ recovery thành công!
+    this.recoveryPending = false
+    this.reconnectAttempts = 0
+    this.errorMessage = null
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
+    if (this.isPublishing) {
+      this.setConnectionState(this.isMuted ? 'muted' : 'connected')
+    } else {
+      this.setConnectionState('listening')
     }
   }
 
@@ -480,6 +533,7 @@ export class VoiceClient {
   }
 
   private attachAudioElement(actorKey: string, stream: MediaStream): void {
+    if (typeof document === 'undefined') return
     let audio = this.audioElements.get(actorKey)
     if (!audio) {
       audio = document.createElement('audio')
@@ -550,7 +604,9 @@ export class VoiceClient {
 
     this.isConnecting = true
     this.errorMessage = null
-    this.setConnectionState('negotiating')
+    if (!this.recoveryPending) {
+      this.setConnectionState('negotiating')
+    }
 
     try {
       const pc = await this.ensurePeerConnection()
@@ -607,13 +663,17 @@ export class VoiceClient {
       }
 
       this.isConnecting = false
-      this.setConnectionState(this.isPublishing ? 'connected' : 'listening')
+      if (!this.recoveryPending) {
+        this.setConnectionState(this.isPublishing ? 'connected' : 'listening')
+      }
       return true
     } catch (err: unknown) {
       this.isConnecting = false
       this.errorMessage = (err as Error)?.message || 'Không thể kết nối đến máy chủ âm thanh.'
       this.onError?.(err as Error)
-      this.setConnectionState('failed')
+      if (!this.recoveryPending) {
+        this.setConnectionState('failed')
+      }
       return false
     }
   }
@@ -643,7 +703,9 @@ export class VoiceClient {
     this.intendedPublishing = true
     this.isConnecting = true
     this.errorMessage = null
-    this.setConnectionState('requesting_media')
+    if (!this.recoveryPending) {
+      this.setConnectionState('requesting_media')
+    }
 
     try {
       const sessionOk = await this.executeInitSession()
@@ -677,7 +739,9 @@ export class VoiceClient {
 
       const activeStream: MediaStream = stream
 
-      this.setConnectionState('negotiating')
+      if (!this.recoveryPending) {
+        this.setConnectionState('negotiating')
+      }
 
       await this.waitForSignalingStateStable()
 
@@ -755,13 +819,17 @@ export class VoiceClient {
       this.isPublishing = true
       this.isMuted = false
       this.isConnecting = false
-      this.setConnectionState('connected')
+      if (!this.recoveryPending) {
+        this.setConnectionState('connected')
+      }
       return true
     } catch (err: unknown) {
       this.isConnecting = false
       this.errorMessage = (err as Error)?.message || 'Không thể bật micro.'
       this.onError?.(err as Error)
-      this.setConnectionState('failed')
+      if (!this.recoveryPending) {
+        this.setConnectionState('failed')
+      }
       return false
     }
   }
@@ -866,6 +934,12 @@ export class VoiceClient {
     if (this.isDestroyed) return
     if (!registry || !Array.isArray(registry)) return
     this.currentRegistry = registry
+
+    // If recovery is pending or rebuild is in-flight, do NOT opportunistically
+    // initialize a listener session. Store currentRegistry and let recovery owner handle it.
+    if (this.recoveryPending || this.rebuildInFlight) {
+      return
+    }
 
     const liveParticipants = registry.filter(
       (p) => p.actorKey !== this.currentActorKey && p.status === 'live',
@@ -1211,6 +1285,8 @@ export class VoiceClient {
   destroy(): void {
     this.isDestroyed = true
     this.intendedPublishing = false
+    this.recoveryPending = false
+    this.rebuildInFlight = false
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
@@ -1223,14 +1299,8 @@ export class VoiceClient {
     }
 
     if (typeof window !== 'undefined') {
-      if (this.handleOffline) {
-        window.removeEventListener('offline', this.handleOffline)
-        this.handleOffline = null
-      }
-      if (this.handleOnline) {
-        window.removeEventListener('online', this.handleOnline)
-        this.handleOnline = null
-      }
+      window.removeEventListener('offline', this.handleOffline)
+      window.removeEventListener('online', this.handleOnline)
     }
 
     if (this.speakingDetectorInterval) {
