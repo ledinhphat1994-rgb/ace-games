@@ -163,6 +163,7 @@ export interface VoiceParticipantState {
   status: 'live' | 'muted'
   sessionId: string
   audioTrackId: string
+  mid?: string
   generation: number
   updatedAt: number
 }

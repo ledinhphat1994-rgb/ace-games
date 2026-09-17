@@ -15,9 +15,11 @@
     "test:e2e:watch:ui": "playwright test e2e/watch-together.spec.ts e2e/watch-autoplay.spec.ts --ui",
     "test:e2e:collab": "playwright test e2e/study-collaboration.spec.ts --project=chromium-watch",
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts --project=chromium-watch",
+    "test:e2e:voice": "playwright test e2e/voice-webrtc.spec.ts --project=chromium-voice",
+    "test:e2e:voice:autoplay": "playwright test e2e/voice-webrtc.spec.ts --project=chromium-voice-autoplay-restricted",
     "preview": "vite preview",
     "preview:worker": "wrangler dev --config wrangler.jsonc --assets ./dist/client --persist-to .wrangler/state --port 8787",
-    "deploy": "npm run build && npx wrangler deploy --config wrangler.production.jsonc",
+    "deploy": "node -e \"console.error('ERROR: Use npm run deploy:staging or npm run deploy:production explicitly.'); process.exit(1)\"",
     "deploy:staging": "npm run build && npx wrangler deploy --config wrangler.staging.jsonc",
     "deploy:production": "npm run build && npx wrangler deploy --config wrangler.production.jsonc"
   },

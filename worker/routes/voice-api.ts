@@ -528,14 +528,17 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
-  let trackMid = (body as any).mid
-  if (!trackMid) {
-    const existing = await (roomStub as any).getVoiceParticipant(userKey)
-    trackMid = existing?.mid || '0'
-  }
+  // Invariant 6: Use canonical persisted MID; never guess '0'
+  const existing = await (roomStub as any).getVoiceParticipant(userKey)
+  const canonicalMid: string | null =
+    typeof (body as any).mid === 'string' && (body as any).mid.trim() ? (body as any).mid.trim() : (existing?.mid ?? null)
+
+  const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = canonicalMid
+    ? [{ mid: canonicalMid }]
+    : [{ trackName: body.trackName }]
 
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/close`, 'PUT', {
-    tracks: [{ trackName: body.trackName, mid: trackMid }],
+    tracks: sfuPayloadTracks,
     force: true,
   })
 

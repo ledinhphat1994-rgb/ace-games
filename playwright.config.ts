@@ -34,8 +34,8 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-watch',
-      testMatch: /study-collaboration\.spec\.ts|watch-together\.spec\.ts|smoke\.spec\.ts|voice-webrtc\.spec\.ts/,
-      testIgnore: /watch-autoplay\.spec\.ts/,
+      testMatch: /study-collaboration\.spec\.ts|watch-together\.spec\.ts|smoke\.spec\.ts/,
+      testIgnore: /watch-autoplay\.spec\.ts|voice-webrtc\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
@@ -43,6 +43,41 @@ export default defineConfig({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--autoplay-policy=no-user-gesture-required',
+            '--disable-blink-features=AutomationControlled',
+          ],
+        },
+      },
+    },
+    {
+      name: 'chromium-voice',
+      testMatch: /voice-webrtc\.spec\.ts/,
+      testIgnore: /watch-autoplay\.spec\.ts/,
+      grepInvert: /@autoplay/,
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--autoplay-policy=no-user-gesture-required',
+            '--disable-blink-features=AutomationControlled',
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-stream',
+          ],
+        },
+      },
+    },
+    {
+      name: 'chromium-voice-autoplay-restricted',
+      testMatch: /voice-webrtc\.spec\.ts/,
+      grep: /@autoplay/,
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--autoplay-policy=user-gesture-required',
             '--disable-blink-features=AutomationControlled',
             '--use-fake-ui-for-media-stream',
             '--use-fake-device-for-media-stream',

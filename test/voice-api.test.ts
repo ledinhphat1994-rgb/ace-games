@@ -625,4 +625,160 @@ describe('Authenticated Real Voice API & RoomDO Control Plane — Invariant Suit
 
     ws.dong()
   })
+
+  it('19. Regression: Self close-track sử dụng canonical MID "1" đã lưu, không hardcode "0"', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const phongId = await taoPhongTest('Phòng Voice Self Close MID 1')
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookie)
+    await ws.cho('room.snapshot')
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+    await roomStub.bindVoiceSession('sess_self_mid1', 'acc:1', 1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_self_mid1',
+      audioTrackId: 'track_self_mid1',
+      mid: '1',
+      generation: 1,
+    })
+
+    let capturedPayload: any = null
+    setCloudflareRealtimeFetchForTesting(async (_url, init) => {
+      capturedPayload = JSON.parse(init?.body as string)
+      return new Response(JSON.stringify({ tracks: [{ trackName: 'track_self_mid1' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/close-track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        sessionId: 'sess_self_mid1',
+        trackName: 'track_self_mid1',
+        generation: 1,
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as any
+    expect(json.ok).toBe(true)
+    expect(json.mediaCleanupConfirmed).toBe(true)
+    // Payload phải gửi chính xác mid: "1", KHÔNG được đoán "0" hay gửi cả trackName
+    expect(capturedPayload).toEqual({
+      tracks: [{ mid: '1' }],
+      force: true,
+    })
+
+    ws.dong()
+  })
+
+  it('20. Regression: MID persisted qua SQLite và force-mute gửi đúng MID "1"', async () => {
+    const cookieHs1 = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieGv = await dangNhapLayCookie('qa.v2.gv')
+    const phongId = await taoPhongTest('Phòng Voice Persist MID 1')
+
+    const wsHs1 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieHs1)
+    const wsGv = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieGv)
+    await wsHs1.cho('room.snapshot')
+    await wsGv.cho('room.snapshot')
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+    await roomStub.bindVoiceSession('sess_hs1_p1', 'acc:1', 1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_hs1_p1',
+      audioTrackId: 'track_hs1_p1',
+      mid: '1',
+      generation: 1,
+    })
+
+    // Kiểm tra getVoiceParticipant trả về mid = "1"
+    const pub = await roomStub.getVoiceParticipant('acc:1')
+    expect(pub?.mid).toBe('1')
+
+    let capturedPayload: any = null
+    setCloudflareRealtimeFetchForTesting(async (_url, init) => {
+      capturedPayload = JSON.parse(init?.body as string)
+      return new Response(JSON.stringify({ tracks: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/force-mute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieGv },
+      body: JSON.stringify({ targetActorKey: 'acc:1' }),
+    })
+
+    expect(res.status).toBe(200)
+    // Cloudflare close tracks payload phải gửi đúng mid: "1", không hardcode "0"
+    expect(capturedPayload).toEqual({
+      tracks: [{ mid: '1' }],
+      force: true,
+    })
+
+    wsHs1.dong()
+    wsGv.dong()
+  })
+
+  it('21. Regression: Missing MID không bao giờ đoán "0", và upstream failure không báo false-cleanup', async () => {
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const phongId = await taoPhongTest('Phòng Voice Missing MID Fallback')
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookie)
+    await ws.cho('room.snapshot')
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+    await roomStub.bindVoiceSession('sess_no_mid', 'acc:1', 1)
+    await roomStub.registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      status: 'live',
+      sessionId: 'sess_no_mid',
+      audioTrackId: 'track_no_mid',
+      generation: 1,
+    })
+
+    let capturedPayload: any = null
+    // Giả lập SFU upstream lỗi
+    setCloudflareRealtimeFetchForTesting(async (_url, init) => {
+      capturedPayload = JSON.parse(init?.body as string)
+      return new Response('Cloudflare SFU error 500', { status: 500 })
+    })
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/close-track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({
+        sessionId: 'sess_no_mid',
+        trackName: 'track_no_mid',
+        generation: 1,
+      }),
+    })
+
+    expect(res.status).toBe(500)
+    const json = (await res.json()) as any
+    expect(json.ok).toBe(false)
+    expect(json.mediaCleanupConfirmed).toBe(false)
+    // Khi thiếu MID, payload phải dùng trackName, TUYỆT ĐỐI không đoán mid: "0"
+    expect(capturedPayload).toEqual({
+      tracks: [{ trackName: 'track_no_mid' }],
+      force: true,
+    })
+    expect(capturedPayload.tracks[0].mid).toBeUndefined()
+
+    // Publication trong RoomDO vẫn chưa bị xóa khi upstream SFU lỗi
+    const remainingPub = await roomStub.getVoiceParticipant('acc:1')
+    expect(remainingPub).not.toBeNull()
+
+    ws.dong()
+  })
 })
