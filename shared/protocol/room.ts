@@ -160,15 +160,23 @@ export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
 export interface VoiceParticipantState {
   actorKey: string
   ten: string
-  status: 'connecting' | 'live' | 'muted'
+  status: 'live' | 'muted'
   sessionId: string
   audioTrackId: string
   generation: number
   updatedAt: number
 }
 
+export interface VoiceTrackMetadata {
+  location: 'local' | 'remote'
+  mid?: string
+  trackName?: string
+  sessionId?: string
+  status?: string
+}
+
 export const LenhPhongVoice = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('set_status'), status: z.enum(['live', 'muted']) }),
+  z.object({ action: z.literal('set_status'), generation: z.number().int().positive(), status: z.enum(['live', 'muted']) }),
 ])
 export type LenhPhongVoice = z.infer<typeof LenhPhongVoice>
 
@@ -182,7 +190,11 @@ export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('slide.action'), data: LenhPhongSlide }),
   z.object({ type: z.literal('chat.send'), reqId: z.string().min(1).max(50), text: z.string().max(1000) }),
   z.object({ type: z.literal('voice.action'), data: LenhPhongVoice }),
-  z.object({ type: z.literal('voice.mic'), mic: z.boolean() }),
+  z.object({
+    type: z.literal('voice.self_state'),
+    generation: z.number().int().positive(),
+    muted: z.boolean(),
+  }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -228,3 +240,20 @@ export type GoiPhong =
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }
+
+export interface VoiceSubscribeResponse {
+  tracks: VoiceTrackMetadata[]
+  sessionDescription?: { type: 'offer' | 'answer'; sdp: string }
+  requiresImmediateRenegotiation?: boolean
+}
+
+export interface VoiceRenegotiateResponse {
+  sessionDescription?: { type: 'offer' | 'answer'; sdp: string }
+}
+
+export interface VoiceForceMuteResponse {
+  success: boolean
+  targetKey: string
+  audioTrackId: string
+  generation: number
+}

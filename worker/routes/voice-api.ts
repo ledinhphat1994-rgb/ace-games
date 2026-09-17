@@ -1,10 +1,65 @@
 import type { Context } from 'hono'
+import { z } from 'zod'
 import { actorKey } from '../lib/auth'
 import { loi } from '../lib/http'
 import { laGiaoVienDaDuyet, laQuanTriTruong } from '../lib/scope'
 import { kiemTraQuyenTruyCapPhong } from '../lib/room-gate'
 
 const CALLS_API_BASE = 'https://rtc.live.cloudflare.com/v1'
+
+// ── Strict Cloudflare Connection API Response Schemas ──
+
+export const CloudflareNewSessionResponseSchema = z.object({
+  sessionId: z.string().min(1),
+  sessionDescription: z.object({
+    type: z.enum(['offer', 'answer']),
+    sdp: z.string().min(1),
+  }),
+})
+
+export const CloudflareTrackMetadataSchema = z.object({
+  location: z.enum(['local', 'remote']).optional(),
+  mid: z.string().optional(),
+  trackName: z.string().min(1).optional(),
+  sessionId: z.string().optional(),
+  status: z.string().optional(),
+  error: z.string().optional(),
+})
+
+export const CloudflareNewTracksResponseSchema = z.object({
+  sessionDescription: z.object({
+    type: z.enum(['offer', 'answer']),
+    sdp: z.string().min(1),
+  }).optional(),
+  tracks: z.array(CloudflareTrackMetadataSchema).min(1),
+  requiresImmediateRenegotiation: z.boolean().optional(),
+})
+
+export const CloudflareRenegotiateResponseSchema = z.object({
+  sessionDescription: z.object({
+    type: z.enum(['offer', 'answer']),
+    sdp: z.string().min(1),
+  }).optional(),
+})
+
+export const CloudflareCloseTracksResponseSchema = z.object({
+  sessionDescription: z.object({
+    type: z.enum(['offer', 'answer']),
+    sdp: z.string().min(1),
+  }).optional(),
+  tracks: z.array(CloudflareTrackMetadataSchema).optional(),
+  requiresImmediateRenegotiation: z.boolean().optional(),
+})
+
+// ── Test Hook for Realtime Fetch Mocking ──
+
+export type CloudflareRealtimeFetchFn = (url: string, init?: RequestInit) => Promise<Response>
+
+let realtimeFetchMock: CloudflareRealtimeFetchFn | null = null
+
+export function setCloudflareRealtimeFetchForTesting(mock: CloudflareRealtimeFetchFn | null): void {
+  realtimeFetchMock = mock
+}
 
 export async function callCloudflareRealtime(
   env: Env,
@@ -24,8 +79,9 @@ export async function callCloudflareRealtime(
   }
 
   const url = `${CALLS_API_BASE}/apps/${appId}${endpoint}`
+  const fetcher = realtimeFetchMock || fetch
   try {
-    const res = await fetch(url, {
+    const res = await fetcher(url, {
       method,
       headers: {
         'Authorization': `Bearer ${appSecret}`,
@@ -48,10 +104,16 @@ export async function callCloudflareRealtime(
   }
 }
 
-async function kiemTraRateLimitVoice(env: Env, roomId: number, accountId: number): Promise<boolean> {
-  const key = `rate:voice:${roomId}:${accountId}`
+async function kiemTraRateLimitVoice(
+  env: Env,
+  type: 'session' | 'media',
+  roomId: number,
+  accountId: number,
+): Promise<boolean> {
+  const max = type === 'session' ? 20 : 120
+  const key = `rate:voice:${type}:${roomId}:${accountId}`
   const count = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10)
-  if (count >= 30) return false
+  if (count >= max) return false
   await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 60 })
   return true
 }
@@ -74,8 +136,17 @@ export async function taoVoiceSession(c: Context<{ Bindings: Env }>): Promise<Re
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
-  if (!(await kiemTraRateLimitVoice(c.env, phongId, gate.taiKhoan.id))) {
-    return loi('Bạn đang gửi quá nhiều yêu cầu kết nối thoại. Vui lòng thử lại sau 1 phút.', 429)
+  if (!(await kiemTraRateLimitVoice(c.env, 'session', phongId, gate.taiKhoan.id))) {
+    return loi('Bạn đang gửi quá nhiều yêu cầu khởi tạo phiên thoại. Vui lòng thử lại sau 1 phút.', 429)
+  }
+
+  const userKey = actorKey(gate.phien)
+  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
+
+  // Invariant 1: Bắt buộc có kết nối WebSocket sống trong phòng
+  const isConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!isConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
   }
 
   let body: { sessionDescription?: { type?: string; sdp?: string } }
@@ -107,20 +178,25 @@ export async function taoVoiceSession(c: Context<{ Bindings: Env }>): Promise<Re
     return loi(`Lỗi từ Cloudflare Realtime SFU: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
   }
 
-  const sessionId = sfuRes.data?.sessionId
-  const sessionDescription = sfuRes.data?.sessionDescription
-  if (!sessionId || !sessionDescription) {
-    return loi('Phản hồi từ SFU thiếu sessionId hoặc sessionDescription.', 502)
+  // Invariant 7: Validate response against schema
+  const parsed = CloudflareNewSessionResponseSchema.safeParse(sfuRes.data)
+  if (!parsed.success) {
+    return loi('Phản hồi từ SFU không đúng cấu trúc (thiếu sessionId hoặc sessionDescription).', 502)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  await (roomStub as any).bindVoiceSession(sessionId, userKey)
+  const { sessionId, sessionDescription } = parsed.data
+
+  // Invariant 2: Server owns generation
+  const generation = await (roomStub as any).issueVoiceGeneration(userKey)
+
+  // Invariant 3: Session ownership includes room + actor + generation
+  await (roomStub as any).bindVoiceSession(sessionId, userKey, generation)
 
   return c.json({
     ok: true,
     sessionId,
     sessionDescription,
+    generation,
   })
 }
 
@@ -135,8 +211,17 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
-  if (!(await kiemTraRateLimitVoice(c.env, phongId, gate.taiKhoan.id))) {
+  if (!(await kiemTraRateLimitVoice(c.env, 'media', phongId, gate.taiKhoan.id))) {
     return loi('Thao tác quá thường xuyên. Vui lòng thử lại sau 1 phút.', 429)
+  }
+
+  const userKey = actorKey(gate.phien)
+  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
+
+  // Invariant 1: Bắt buộc có kết nối WebSocket sống trong phòng
+  const isConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!isConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
   }
 
   let body: {
@@ -152,18 +237,27 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     return loi('Dữ liệu yêu cầu không hợp lệ.', 400)
   }
 
-  if (!body.sessionId || !body.trackName || !body.sessionDescription?.sdp) {
-    return loi('Thiếu thông tin publish (sessionId, trackName, sessionDescription).', 400)
+  if (!body.sessionId || !body.trackName || !body.mid || !body.sessionDescription?.sdp) {
+    return loi('Thiếu thông tin publish (sessionId, trackName, mid, sessionDescription).', 400)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  const owner = await (roomStub as any).getVoiceSessionOwner(body.sessionId)
-
-  if (!owner || owner !== userKey) {
-    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn.', 403)
+  // Invariant 5: MID must be distinct from trackName
+  if (body.mid === body.trackName) {
+    return loi('Giá trị transceiver mid không hợp lệ (trùng với trackName).', 400)
   }
 
+  // Invariant 3: Validate session ownership
+  const session = await (roomStub as any).getVoiceSession(body.sessionId)
+  if (!session || session.actorKey !== userKey) {
+    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
+  }
+
+  // Invariant 2: Client cannot forge generation
+  if (body.generation !== undefined && Number(body.generation) !== session.generation) {
+    return loi('Generation không hợp lệ hoặc đã cũ.', 409)
+  }
+
+  // Invariant 4: Call Cloudflare first
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/new`, 'POST', {
     sessionDescription: body.sessionDescription,
     tracks: [
@@ -189,20 +283,40 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     return loi(`Lỗi từ Cloudflare Realtime SFU: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
   }
 
-  await (roomStub as any).registerVoicePublication({
+  // Invariant 7: Validate response against schema
+  const parsed = CloudflareNewTracksResponseSchema.safeParse(sfuRes.data)
+  if (!parsed.success) {
+    return loi('Phản hồi từ SFU không đúng cấu trúc tracks.', 502)
+  }
+
+  // Invariant 5: Extract canonical track metadata from confirmed SFU response
+  const acceptedTrack = parsed.data.tracks[0]
+  if (!acceptedTrack) {
+    return loi('Phản hồi từ SFU thiếu thông tin track được chấp nhận.', 502)
+  }
+  const canonicalTrackName = acceptedTrack.trackName || body.trackName
+
+  // Invariant 4 & 10: Register canonical publication in RoomDO
+  const regRes = await (roomStub as any).registerVoicePublication({
     actorKey: userKey,
     ten: gate.taiKhoan.ten || gate.taiKhoan.username,
     status: 'live',
     sessionId: body.sessionId,
-    audioTrackId: body.trackName,
-    generation: Number(body.generation) || 1,
+    audioTrackId: canonicalTrackName,
+    generation: session.generation,
   })
+
+  if (!regRes.ok) {
+    return loi(`Không thể đăng ký canonical publication: ${regRes.reason || 'lỗi server'}`, 409)
+  }
 
   return c.json({
     ok: true,
-    sessionDescription: sfuRes.data?.sessionDescription,
-    tracks: sfuRes.data?.tracks,
-    requiresImmediateRenegotiation: Boolean(sfuRes.data?.requiresImmediateRenegotiation),
+    sessionDescription: parsed.data.sessionDescription,
+    tracks: parsed.data.tracks,
+    canonicalTrackName,
+    generation: session.generation,
+    requiresImmediateRenegotiation: Boolean(parsed.data.requiresImmediateRenegotiation),
   })
 }
 
@@ -217,8 +331,17 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
-  if (!(await kiemTraRateLimitVoice(c.env, phongId, gate.taiKhoan.id))) {
+  if (!(await kiemTraRateLimitVoice(c.env, 'media', phongId, gate.taiKhoan.id))) {
     return loi('Thao tác quá thường xuyên. Vui lòng thử lại sau 1 phút.', 429)
+  }
+
+  const userKey = actorKey(gate.phien)
+  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
+
+  // Invariant 1: Bắt buộc có kết nối WebSocket sống trong phòng
+  const isConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!isConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
   }
 
   let body: {
@@ -237,12 +360,10 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
     return loi('Thiếu thông tin subscribe (sessionId, remoteSessionId, remoteTrackName, sessionDescription).', 400)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  const owner = await (roomStub as any).getVoiceSessionOwner(body.sessionId)
-
-  if (!owner || owner !== userKey) {
-    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn.', 403)
+  // Invariant 3: Validate session ownership
+  const isSessionOwner = await (roomStub as any).verifyVoiceSession(body.sessionId, userKey)
+  if (!isSessionOwner) {
+    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
   // Kiểm tra remote track có nằm trong canonical voice registry của RoomDO hay không
@@ -279,11 +400,17 @@ export async function dangKySubscribeVoice(c: Context<{ Bindings: Env }>): Promi
     return loi(`Lỗi từ Cloudflare Realtime SFU: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
   }
 
+  // Invariant 7: Validate response against schema
+  const parsed = CloudflareNewTracksResponseSchema.safeParse(sfuRes.data)
+  if (!parsed.success) {
+    return loi('Phản hồi từ SFU không đúng cấu trúc tracks.', 502)
+  }
+
   return c.json({
     ok: true,
-    sessionDescription: sfuRes.data?.sessionDescription,
-    tracks: sfuRes.data?.tracks,
-    requiresImmediateRenegotiation: Boolean(sfuRes.data?.requiresImmediateRenegotiation),
+    sessionDescription: parsed.data.sessionDescription,
+    tracks: parsed.data.tracks,
+    requiresImmediateRenegotiation: Boolean(parsed.data.requiresImmediateRenegotiation),
   })
 }
 
@@ -298,8 +425,17 @@ export async function renegotiateVoiceSession(c: Context<{ Bindings: Env }>): Pr
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
-  if (!(await kiemTraRateLimitVoice(c.env, phongId, gate.taiKhoan.id))) {
+  if (!(await kiemTraRateLimitVoice(c.env, 'media', phongId, gate.taiKhoan.id))) {
     return loi('Thao tác quá thường xuyên. Vui lòng thử lại sau 1 phút.', 429)
+  }
+
+  const userKey = actorKey(gate.phien)
+  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
+
+  // Invariant 1: Bắt buộc có kết nối WebSocket sống trong phòng
+  const isConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!isConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
   }
 
   let body: { sessionId?: string; sessionDescription?: { type?: string; sdp?: string } }
@@ -313,12 +449,10 @@ export async function renegotiateVoiceSession(c: Context<{ Bindings: Env }>): Pr
     return loi('Thiếu sessionId hoặc sessionDescription.', 400)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  const owner = await (roomStub as any).getVoiceSessionOwner(body.sessionId)
-
-  if (!owner || owner !== userKey) {
-    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn.', 403)
+  // Invariant 3: Validate session ownership
+  const isSessionOwner = await (roomStub as any).verifyVoiceSession(body.sessionId, userKey)
+  if (!isSessionOwner) {
+    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/renegotiate`, 'PUT', {
@@ -336,12 +470,18 @@ export async function renegotiateVoiceSession(c: Context<{ Bindings: Env }>): Pr
         503,
       )
     }
-    return loi(`Lỗi từ Cloudflare Realtime SFU: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
+    return loi(`Lỗi tái đàm phán từ Cloudflare Realtime SFU: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
+  }
+
+  // Invariant 7: Validate response against schema
+  const parsed = CloudflareRenegotiateResponseSchema.safeParse(sfuRes.data)
+  if (!parsed.success) {
+    return loi('Phản hồi từ SFU không đúng cấu trúc renegotiate.', 502)
   }
 
   return c.json({
     ok: true,
-    sessionDescription: sfuRes.data?.sessionDescription,
+    sessionDescription: parsed.data.sessionDescription,
   })
 }
 
@@ -356,6 +496,15 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
+  const userKey = actorKey(gate.phien)
+  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
+
+  // Invariant 1: Bắt buộc có kết nối WebSocket sống trong phòng
+  const isConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!isConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
+  }
+
   let body: { sessionId?: string; trackName?: string; generation?: number }
   try {
     body = await c.req.json()
@@ -367,24 +516,41 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Thiếu sessionId hoặc trackName.', 400)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  const owner = await (roomStub as any).getVoiceSessionOwner(body.sessionId)
-
-  if (!owner || owner !== userKey) {
-    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn.', 403)
+  // Invariant 3: Validate session ownership
+  const isSessionOwner = await (roomStub as any).verifyVoiceSession(body.sessionId, userKey)
+  if (!isSessionOwner) {
+    return loi('Phiên WebRTC không thuộc quyền sở hữu của bạn trong phòng này.', 403)
   }
 
   const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${body.sessionId}/tracks/close`, 'PUT', {
     tracks: [{ trackName: body.trackName }],
   })
 
+  // Invariant 6: Fix upstream error semantics. No false-success!
+  if (!sfuRes.ok) {
+    return c.json(
+      {
+        ok: false,
+        mediaCleanupConfirmed: false,
+        error: sfuRes.errorText || 'Lỗi đóng track từ Cloudflare SFU',
+      },
+      sfuRes.status >= 400 && sfuRes.status < 600 ? (sfuRes.status as any) : 502,
+    )
+  }
+
+  // Invariant 7: Validate response against schema
+  const parsed = CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data)
+  if (!parsed.success) {
+    return loi('Phản hồi từ SFU không đúng cấu trúc close-tracks.', 502)
+  }
+
   await (roomStub as any).removeVoicePublication(userKey, body.generation)
 
   return c.json({
     ok: true,
-    tracks: sfuRes.data?.tracks,
-    requiresImmediateRenegotiation: Boolean(sfuRes.data?.requiresImmediateRenegotiation),
+    mediaCleanupConfirmed: true,
+    tracks: parsed.data.tracks,
+    requiresImmediateRenegotiation: Boolean(parsed.data.requiresImmediateRenegotiation),
   })
 }
 
@@ -399,6 +565,14 @@ export async function forceMuteVoice(c: Context<{ Bindings: Env }>): Promise<Res
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, phongId)
   if (!gate.ok) return gate.response
 
+  const userKey = actorKey(gate.phien)
+  const isHost = gate.phongRow.chu_phong_khoa === userKey
+  const canModerate = isHost || laGiaoVienDaDuyet(gate.taiKhoan) || laQuanTriTruong(gate.taiKhoan)
+
+  if (!canModerate) {
+    return loi('Bạn không có quyền tắt micro của thành viên khác.', 403)
+  }
+
   let body: { targetActorKey?: string }
   try {
     body = await c.req.json()
@@ -411,33 +585,47 @@ export async function forceMuteVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Thiếu targetActorKey.', 400)
   }
 
-  const userKey = actorKey(gate.taiKhoan)
-  const isHost = gate.phongRow.chu_phong_khoa === userKey
-  const canModerate = isHost || laGiaoVienDaDuyet(gate.taiKhoan) || laQuanTriTruong(gate.taiKhoan)
-
-  if (!canModerate) {
-    return loi('Bạn không có quyền tắt micro của thành viên khác.', 403)
-  }
-
   const roomStub = c.env.ROOMS.get(c.env.ROOMS.idFromName(`phong-${phongId}`))
-  const targetVoice = await (roomStub as any).getVoiceParticipant(targetActorKey)
 
-  if (targetVoice?.sessionId && targetVoice?.audioTrackId) {
-    // Thử đóng track trên SFU nếu có thông tin session
-    try {
-      await callCloudflareRealtime(c.env, `/sessions/${targetVoice.sessionId}/tracks/close`, 'PUT', {
-        tracks: [{ trackName: targetVoice.audioTrackId }],
-      })
-    } catch (err) {
-      console.warn('Không thể đóng track SFU từ xa khi force-mute:', err)
-    }
+  // Invariant 1: Cả người điều hành và target đều phải có kết nối sống trong phòng
+  const moderatorConnected = await (roomStub as any).hasConnectedActor(userKey)
+  if (!moderatorConnected) {
+    return loi('Bạn cần có kết nối trực tiếp trong phòng để điều hành thoại.', 403)
   }
 
-  await (roomStub as any).forceMute(targetActorKey, gate.taiKhoan.ten || gate.taiKhoan.username)
+  const targetConnected = await (roomStub as any).hasConnectedActor(targetActorKey)
+  if (!targetConnected) {
+    return loi('Thành viên mục tiêu không có kết nối trực tiếp trong phòng.', 403)
+  }
+
+  const targetVoice = await (roomStub as any).getVoiceParticipant(targetActorKey)
+  if (!targetVoice || !targetVoice.sessionId || !targetVoice.audioTrackId) {
+    return loi('Thành viên không có luồng âm thanh đang phát.', 404)
+  }
+
+  // Invariant 12: Record exact generation to prevent race condition if target republished
+  const targetGen = targetVoice.generation
+
+  // Invariant 6: Upstream confirmation check
+  const sfuRes = await callCloudflareRealtime(c.env, `/sessions/${targetVoice.sessionId}/tracks/close`, 'PUT', {
+    tracks: [{ trackName: targetVoice.audioTrackId }],
+  })
+
+  if (!sfuRes.ok) {
+    return loi(`Lỗi từ Cloudflare Realtime SFU khi cưỡng chế tắt micro: ${sfuRes.errorText || 'Không xác định'}`, sfuRes.status as any)
+  }
+
+  // Invariant 12: Ensure target has not republished a newer generation while SFU call was in flight
+  const forceMuted = await (roomStub as any).forceMute(targetActorKey, gate.taiKhoan.ten || gate.taiKhoan.username, targetGen)
+  if (!forceMuted) {
+    return loi('Thành viên đã đổi thế hệ âm thanh trong lúc xử lý; không thể tắt phiên cũ.', 409)
+  }
 
   return c.json({
     ok: true,
     message: 'Đã tắt micro của thành viên.',
+    targetKey: targetActorKey,
+    generation: targetGen,
   })
 }
 

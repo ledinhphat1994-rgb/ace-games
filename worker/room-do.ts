@@ -104,7 +104,7 @@ export class RoomDO extends DurableObject<Env> {
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
   private voiceGeneration = new Map<string, number>()
-  private voiceSessions = new Map<string, { actorKey: string; createdAt: number; tracks: Set<string> }>()
+  private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -144,6 +144,25 @@ export class RoomDO extends DurableObject<Env> {
           id INTEGER PRIMARY KEY CHECK (id = 1),
           meta TEXT NOT NULL,
           board TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS voice_sessions (
+          session_id TEXT PRIMARY KEY,
+          actor_key TEXT NOT NULL,
+          generation INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS voice_publications (
+          actor_key TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          track_name TEXT NOT NULL,
+          generation INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS voice_generations (
+          actor_key TEXT PRIMARY KEY,
+          generation INTEGER NOT NULL
         );
       `)
       try {
@@ -199,8 +218,94 @@ export class RoomDO extends DurableObject<Env> {
           this.gameBoard = JSON.parse(gameRow.board) as BoardCell[][]
         } catch {}
       }
+
+      // Đọc voice_generations
+      try {
+        const genRows = [...this.ctx.storage.sql.exec<{ actor_key: string; generation: number }>(
+          'SELECT actor_key, generation FROM voice_generations',
+        )]
+        for (const gr of genRows) {
+          this.voiceGeneration.set(gr.actor_key, gr.generation)
+        }
+      } catch {}
+
+      // Đọc voice_sessions & voice_publications có giới hạn TTL (2 giờ)
+      const now = Date.now()
+      const SESSION_TTL_MS = 2 * 60 * 60 * 1000
+      try {
+        const sesRows = [...this.ctx.storage.sql.exec<{
+          session_id: string
+          actor_key: string
+          generation: number
+          created_at: number
+          updated_at: number
+        }>('SELECT session_id, actor_key, generation, created_at, updated_at FROM voice_sessions')]
+        for (const sr of sesRows) {
+          if (now - sr.updated_at < SESSION_TTL_MS) {
+            this.voiceSessions.set(sr.session_id, {
+              actorKey: sr.actor_key,
+              generation: sr.generation,
+              createdAt: sr.created_at,
+              updatedAt: sr.updated_at,
+              tracks: new Set(),
+            })
+          } else {
+            this.ctx.storage.sql.exec('DELETE FROM voice_sessions WHERE session_id = ?1', sr.session_id)
+          }
+        }
+      } catch {}
+
+      try {
+        const pubRows = [...this.ctx.storage.sql.exec<{
+          actor_key: string
+          session_id: string
+          track_name: string
+          generation: number
+          status: string
+          updated_at: number
+        }>('SELECT actor_key, session_id, track_name, generation, status, updated_at FROM voice_publications')]
+        for (const pr of pubRows) {
+          if (now - pr.updated_at < SESSION_TTL_MS && (pr.status === 'live' || pr.status === 'muted')) {
+            this.voiceRegistry.set(pr.actor_key, {
+              actorKey: pr.actor_key,
+              ten: pr.actor_key,
+              status: pr.status as 'live' | 'muted',
+              sessionId: pr.session_id,
+              audioTrackId: pr.track_name,
+              generation: pr.generation,
+              updatedAt: pr.updated_at,
+            })
+          } else {
+            this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', pr.actor_key)
+          }
+        }
+      } catch {}
+
+      // Đối soát với các kết nối WebSocket đang hoạt động (prune mọi publication không có kết nối sống)
+      const activeSockets = this.ctx.getWebSockets()
+      const activeActorKeys = new Set<string>()
+      for (const ws of activeSockets) {
+        const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+        if (a?.key) {
+          activeActorKeys.add(a.key)
+          const pub = this.voiceRegistry.get(a.key)
+          if (pub) {
+            pub.ten = a.ten
+            a.mic = pub.status === 'live'
+            ws.serializeAttachment(a)
+          }
+        }
+      }
+      for (const [actorKey] of this.voiceRegistry) {
+        if (!activeActorKeys.has(actorKey)) {
+          this.voiceRegistry.delete(actorKey)
+          try {
+            this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
+          } catch {}
+        }
+      }
     } catch (err) {
-      console.error('Lỗi nạp room_meta / game_state:', err)
+      console.error('Lỗi nạp room_meta / game_state / voice_state:', err)
     }
 
     this.khoiTaoXong = true
@@ -1154,19 +1259,21 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'voice.action': {
         if (goi.data.action === 'set_status') {
-          this.updateVoiceStatus(att.key, goi.data.status)
+          this.updateVoiceStatus(att.key, goi.data.status, goi.data.generation)
         }
         break
       }
 
-      case 'voice.mic': {
-        att.mic = Boolean(goi.mic)
-        ws.serializeAttachment(att)
-        if (this.voiceRegistry.has(att.key)) {
-          this.updateVoiceStatus(att.key, att.mic ? 'live' : 'muted')
-        } else {
-          this.phatDanhSach()
+      case 'voice.self_state': {
+        const pub = this.voiceRegistry.get(att.key)
+        if (!pub) {
+          break
         }
+        if (typeof goi.generation === 'number' && pub.generation !== goi.generation) {
+          break
+        }
+        const nextStatus = goi.muted ? 'muted' : 'live'
+        this.updateVoiceStatus(att.key, nextStatus, goi.generation)
         break
       }
     }
@@ -1192,6 +1299,17 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
+    const att = ws.deserializeAttachment() as AttachmentKetNoi | null
+    if (att) {
+      const conLai = this.ctx.getWebSockets().filter((w) => {
+        if (w === ws) return false
+        const a = w.deserializeAttachment() as AttachmentKetNoi | null
+        return a?.key === att.key
+      })
+      if (conLai.length === 0) {
+        this.removeVoicePublication(att.key)
+      }
+    }
     this.phatDanhSach(ws)
     this.baoRoiLobbyNeuTrong(ws)
   }
@@ -1219,8 +1337,7 @@ export class RoomDO extends DurableObject<Env> {
           key: att.key,
           ten: att.ten,
           soKetNoi: 1,
-          mic: att.mic || isVoiceLive,
-          // isHost = CANONICAL owner only; teacher/admin không xuất hiện như host
+          mic: Boolean(att.mic || isVoiceLive),
           isHost: att.key === this.hostKey,
           canModerate: Boolean(att.canModerate),
         })
@@ -1284,6 +1401,36 @@ export class RoomDO extends DurableObject<Env> {
 
   // ── Voice Registry & WebRTC Media Session Coordination ──
 
+  hasConnectedActor(actorKey: string): boolean {
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a?.key === actorKey) {
+        return true
+      }
+    }
+    return false
+  }
+
+  issueVoiceGeneration(actorKey: string): number {
+    const current = this.voiceGeneration.get(actorKey) ?? 0
+    const next = current + 1
+    this.voiceGeneration.set(actorKey, next)
+    try {
+      this.ctx.storage.sql.exec(
+        'INSERT INTO voice_generations (actor_key, generation) VALUES (?1, ?2) ON CONFLICT(actor_key) DO UPDATE SET generation = ?2',
+        actorKey,
+        next,
+      )
+    } catch (err) {
+      console.error('Lỗi lưu voice_generations:', err)
+    }
+    return next
+  }
+
+  getVoiceGeneration(actorKey: string): number {
+    return this.voiceGeneration.get(actorKey) ?? 0
+  }
+
   getVoiceRegistry(): VoiceParticipantState[] {
     return Array.from(this.voiceRegistry.values())
   }
@@ -1292,17 +1439,68 @@ export class RoomDO extends DurableObject<Env> {
     return this.voiceRegistry.get(actorKey) ?? null
   }
 
-  bindVoiceSession(sessionId: string, actorKey: string): void {
+  bindVoiceSession(sessionId: string, actorKey: string, generation?: number): void {
+    const now = Date.now()
+    let gen = generation
+    if (typeof gen !== 'number') {
+      gen = this.voiceGeneration.get(actorKey) ?? 1
+    }
+    const current = this.voiceGeneration.get(actorKey) ?? 0
+    if (gen > current) {
+      this.voiceGeneration.set(actorKey, gen)
+      try {
+        this.ctx.storage.sql.exec(
+          'INSERT INTO voice_generations (actor_key, generation) VALUES (?1, ?2) ON CONFLICT(actor_key) DO UPDATE SET generation = ?2',
+          actorKey,
+          gen,
+        )
+      } catch {}
+    }
     const existing = this.voiceSessions.get(sessionId)
     if (existing) {
       existing.actorKey = actorKey
+      existing.generation = gen
+      existing.updatedAt = now
     } else {
       this.voiceSessions.set(sessionId, {
         actorKey,
-        createdAt: Date.now(),
+        generation: gen,
+        createdAt: now,
+        updatedAt: now,
         tracks: new Set(),
       })
     }
+    try {
+      this.ctx.storage.sql.exec(
+        'INSERT INTO voice_sessions (session_id, actor_key, generation, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(session_id) DO UPDATE SET actor_key = ?2, generation = ?3, updated_at = ?5',
+        sessionId,
+        actorKey,
+        gen,
+        now,
+        now,
+      )
+    } catch (err) {
+      console.error('Lỗi lưu voice_sessions:', err)
+    }
+  }
+
+  getVoiceSession(sessionId: string): { actorKey: string; generation: number; createdAt: number; updatedAt: number } | null {
+    const s = this.voiceSessions.get(sessionId)
+    if (!s) return null
+    return {
+      actorKey: s.actorKey,
+      generation: s.generation,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+    }
+  }
+
+  verifyVoiceSession(sessionId: string, actorKey: string, generation?: number): boolean {
+    const s = this.voiceSessions.get(sessionId)
+    if (!s) return false
+    if (s.actorKey !== actorKey) return false
+    if (typeof generation === 'number' && s.generation !== generation) return false
+    return true
   }
 
   getVoiceSessionOwner(sessionId: string): string | null {
@@ -1335,9 +1533,22 @@ export class RoomDO extends DurableObject<Env> {
     participant?: VoiceParticipantState
     reason?: string
   } {
+    // 1. Kiểm tra session ownership và generation khớp
+    const session = this.voiceSessions.get(participant.sessionId)
+    if (!session || session.actorKey !== participant.actorKey) {
+      return { ok: false, reason: 'unauthorized_session' }
+    }
+    if (session.generation !== participant.generation) {
+      return { ok: false, reason: 'generation_mismatch' }
+    }
+
+    // 2. Kiểm tra monotonic generation do server cấp
     const currentGen = this.voiceGeneration.get(participant.actorKey) ?? 0
     if (participant.generation < currentGen) {
       return { ok: false, reason: 'stale_generation' }
+    }
+    if (participant.generation > currentGen) {
+      return { ok: false, reason: 'invalid_generation' }
     }
 
     const state: VoiceParticipantState = {
@@ -1345,9 +1556,22 @@ export class RoomDO extends DurableObject<Env> {
       updatedAt: Date.now(),
     }
     this.voiceRegistry.set(participant.actorKey, state)
-    this.voiceGeneration.set(participant.actorKey, participant.generation)
 
     this.addTrackToSession(participant.sessionId, participant.audioTrackId)
+
+    try {
+      this.ctx.storage.sql.exec(
+        'INSERT INTO voice_publications (actor_key, session_id, track_name, generation, status, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(actor_key) DO UPDATE SET session_id = ?2, track_name = ?3, generation = ?4, status = ?5, updated_at = ?6',
+        state.actorKey,
+        state.sessionId,
+        state.audioTrackId,
+        state.generation,
+        state.status,
+        state.updatedAt,
+      )
+    } catch (err) {
+      console.error('Lỗi lưu voice_publications:', err)
+    }
 
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -1365,11 +1589,25 @@ export class RoomDO extends DurableObject<Env> {
     return { ok: true, participant: state }
   }
 
-  updateVoiceStatus(actorKey: string, status: 'live' | 'muted'): boolean {
+  updateVoiceStatus(actorKey: string, status: 'live' | 'muted', generation?: number): boolean {
     const p = this.voiceRegistry.get(actorKey)
     if (!p) return false
+    if (typeof generation === 'number' && p.generation !== generation) {
+      return false
+    }
     p.status = status
     p.updatedAt = Date.now()
+
+    try {
+      this.ctx.storage.sql.exec(
+        'UPDATE voice_publications SET status = ?1, updated_at = ?2 WHERE actor_key = ?3',
+        status,
+        p.updatedAt,
+        actorKey,
+      )
+    } catch (err) {
+      console.error('Lỗi cập nhật voice_publications:', err)
+    }
 
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -1388,14 +1626,21 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   removeVoicePublication(actorKey: string, generation?: number): boolean {
-    if (typeof generation === 'number') {
-      const currentGen = this.voiceGeneration.get(actorKey) ?? 0
-      if (generation < currentGen) {
-        return false
-      }
+    const p = this.voiceRegistry.get(actorKey)
+    if (!p) return false
+    if (typeof generation === 'number' && p.generation !== generation) {
+      return false
     }
-    const existed = this.voiceRegistry.delete(actorKey)
-    if (!existed) return false
+    this.voiceRegistry.delete(actorKey)
+    try {
+      if (typeof generation === 'number') {
+        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1 AND generation = ?2', actorKey, generation)
+      } else {
+        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
+      }
+    } catch (err) {
+      console.error('Lỗi xóa voice_publications:', err)
+    }
 
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -1413,11 +1658,23 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
-  forceMute(targetActorKey: string, byActorName: string): boolean {
+  forceMute(targetActorKey: string, byActorName: string, expectedGeneration?: number): boolean {
     const p = this.voiceRegistry.get(targetActorKey)
-    if (p) {
-      p.status = 'muted'
-      p.updatedAt = Date.now()
+    if (!p) return false
+    if (typeof expectedGeneration === 'number' && p.generation !== expectedGeneration) {
+      return false
+    }
+    p.status = 'muted'
+    p.updatedAt = Date.now()
+    try {
+      this.ctx.storage.sql.exec(
+        'UPDATE voice_publications SET status = ?1, updated_at = ?2 WHERE actor_key = ?3',
+        'muted',
+        p.updatedAt,
+        targetActorKey,
+      )
+    } catch (err) {
+      console.error('Lỗi cập nhật forceMute voice_publications:', err)
     }
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -1431,12 +1688,10 @@ export class RoomDO extends DurableObject<Env> {
       targetKey: targetActorKey,
       by: byActorName,
     })
-    if (p) {
-      this.broadcast({
-        type: 'voice.updated',
-        participant: p,
-      })
-    }
+    this.broadcast({
+      type: 'voice.updated',
+      participant: p,
+    })
     this.phatDanhSach()
     return true
   }
@@ -1452,23 +1707,55 @@ export class RoomDO extends DurableObject<Env> {
       return json({ ok: true, registry: this.getVoiceRegistry() })
     }
 
+    if (request.method === 'GET' && url.pathname === '/internal/voice/has-connected-actor') {
+      const actorKey = url.searchParams.get('actorKey') || ''
+      return json({ ok: true, hasConnected: this.hasConnectedActor(actorKey) })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/voice/generation/issue') {
+      try {
+        const body = (await request.json()) as { actorKey: string }
+        if (!body.actorKey) return json({ ok: false, message: 'Thiếu actorKey' }, 400)
+        const generation = this.issueVoiceGeneration(body.actorKey)
+        return json({ ok: true, generation })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/internal/voice/generation/get') {
+      const actorKey = url.searchParams.get('actorKey') || ''
+      return json({ ok: true, generation: this.getVoiceGeneration(actorKey) })
+    }
+
+    if (request.method === 'GET' && url.pathname === '/internal/voice/participant/get') {
+      const actorKey = url.searchParams.get('actorKey') || ''
+      return json({ ok: true, participant: this.getVoiceParticipant(actorKey) })
+    }
+
     if (request.method === 'POST' && url.pathname === '/internal/voice/session/bind') {
       try {
-        const body = (await request.json()) as { sessionId: string; actorKey: string }
+        const body = (await request.json()) as { sessionId: string; actorKey: string; generation?: number }
         if (!body.sessionId || !body.actorKey) return json({ ok: false, message: 'Thiếu dữ liệu' }, 400)
-        this.bindVoiceSession(body.sessionId, body.actorKey)
+        this.bindVoiceSession(body.sessionId, body.actorKey, body.generation)
         return json({ ok: true })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }
     }
 
+    if (request.method === 'GET' && url.pathname === '/internal/voice/session/get') {
+      const sessionId = url.searchParams.get('sessionId') || ''
+      const session = this.getVoiceSession(sessionId)
+      return json({ ok: true, session })
+    }
+
     if (request.method === 'POST' && url.pathname === '/internal/voice/session/verify') {
       try {
-        const body = (await request.json()) as { sessionId: string; actorKey: string }
-        const owner = this.getVoiceSessionOwner(body.sessionId)
-        if (!owner || owner !== body.actorKey) {
-          return json({ ok: false, message: 'Không phải chủ sở hữu phiên' }, 403)
+        const body = (await request.json()) as { sessionId: string; actorKey: string; generation?: number }
+        const ok = this.verifyVoiceSession(body.sessionId, body.actorKey, body.generation)
+        if (!ok) {
+          return json({ ok: false, message: 'Phiên thoại không hợp lệ hoặc sai generation' }, 403)
         }
         return json({ ok: true })
       } catch {
@@ -1488,8 +1775,8 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'POST' && url.pathname === '/internal/voice/status') {
       try {
-        const body = (await request.json()) as { actorKey: string; status: 'live' | 'muted' }
-        const ok = this.updateVoiceStatus(body.actorKey, body.status)
+        const body = (await request.json()) as { actorKey: string; status: 'live' | 'muted'; generation?: number }
+        const ok = this.updateVoiceStatus(body.actorKey, body.status, body.generation)
         return json({ ok })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
@@ -1508,8 +1795,8 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'POST' && url.pathname === '/internal/voice/force-mute') {
       try {
-        const body = (await request.json()) as { targetActorKey: string; byActorName: string }
-        const ok = this.forceMute(body.targetActorKey, body.byActorName)
+        const body = (await request.json()) as { targetActorKey: string; byActorName: string; generation?: number }
+        const ok = this.forceMute(body.targetActorKey, body.byActorName, body.generation)
         return json({ ok })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)

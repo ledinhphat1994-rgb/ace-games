@@ -120,6 +120,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     toggleMic,
     forceMuteMember,
     voiceState,
+    unblockVoiceAutoplay,
     slideState,
     changeSlidePage,
     loadSlideDoc,
@@ -529,9 +530,11 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               })
             }}
             disabled={voiceState.isConnecting}
-            className={`rounded-full p-2 transition-colors ${
+            className={`rounded-full p-2 transition-all ${
               myMic ? 'bg-emerald-600/80 text-white hover:bg-emerald-500' : 'bg-white/5 text-slate-400 hover:bg-white/10'
-            } ${voiceState.isConnecting ? 'opacity-60 cursor-wait' : ''}`}
+            } ${voiceState.isConnecting ? 'opacity-60 cursor-wait' : ''} ${
+              voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400 animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.6)]' : ''
+            }`}
             title={
               voiceState.isConnecting
                 ? 'Đang kết nối âm thanh...'
@@ -567,6 +570,25 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
         </div>
       </header>
+
+      {/* ══ Autoplay unblock notification banner ══ */}
+      {voiceState.isAudioAutoplayBlocked && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-md">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-amber-200">
+            Trình duyệt đang chặn âm thanh tự động của phòng học.
+          </span>
+          <Button
+            size="sm"
+            onClick={() => {
+              unblockVoiceAutoplay().catch(() => {})
+            }}
+            className="h-7 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 rounded-xl shadow-md"
+          >
+            Bật âm thanh
+          </Button>
+        </div>
+      )}
 
       {/* ══ LAYER 2: Floating windows ══ */}
 
@@ -744,8 +766,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                 </div>
                 <div className="flex items-center gap-1">
                   <span
-                    className={`rounded-full p-1 text-xs ${
+                    className={`rounded-full p-1 text-xs transition-all ${
                       m.mic ? 'text-emerald-400' : 'text-slate-500'
+                    } ${
+                      voiceState.speakingActors.includes(m.key) ||
+                      (m.key === nguoiDung.actorKey && voiceState.speakingActors.includes('local'))
+                        ? 'ring-2 ring-emerald-400 animate-pulse bg-emerald-500/20 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                        : ''
                     }`}
                     title={m.mic ? 'Đang bật micro' : 'Đang tắt micro'}
                   >

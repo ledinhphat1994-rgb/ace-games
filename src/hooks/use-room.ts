@@ -82,6 +82,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     errorMessage: null,
     blockedReason: null,
     activeSpeakers: [],
+    speakingActors: [],
+    isAudioAutoplayBlocked: false,
   })
   const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
 
@@ -532,9 +534,27 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const nextActive = await voiceClientRef.current.toggleMic()
     setMyMic(nextActive)
     const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'voice.mic', mic: nextActive }))
+    if (ws && ws.readyState === WebSocket.OPEN && voiceClientRef.current) {
+      ws.send(
+        JSON.stringify({
+          type: 'voice.self_state',
+          generation: voiceClientRef.current.getGeneration() || 1,
+          muted: !nextActive,
+        }),
+      )
     }
+  }, [])
+
+  const unblockVoiceAutoplay = useCallback(async () => {
+    return voiceClientRef.current?.unblockAutoplay() ?? false
+  }, [])
+
+  const setAudioInputDevice = useCallback(async (deviceId: string) => {
+    return voiceClientRef.current?.setAudioInputDevice(deviceId) ?? false
+  }, [])
+
+  const setAudioOutputDevice = useCallback(async (deviceId: string) => {
+    return voiceClientRef.current?.setAudioOutputDevice(deviceId) ?? false
   }, [])
 
   const forceMuteMember = useCallback(async (targetActorKey: string) => {
@@ -609,6 +629,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     forceMuteMember,
     voiceRegistry,
     voiceState,
+    unblockVoiceAutoplay,
+    setAudioInputDevice,
+    setAudioOutputDevice,
     slideState,
     changeSlidePage,
     loadSlideDoc,
