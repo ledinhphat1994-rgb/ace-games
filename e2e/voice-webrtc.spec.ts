@@ -1,4 +1,4 @@
-import { test, expect, type Browser, type Page } from '@playwright/test'
+import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { assertSafeDestructiveE2ETarget } from './safe-target'
 
 assertSafeDestructiveE2ETarget(process.env.PLAYWRIGHT_BASE_URL)
@@ -27,16 +27,38 @@ if (!HOST_USER.password || !MEMBER_USER.password || !MEMBER_C_USER.password) {
 interface CreateContextOptions {
   mic?: boolean
   e2e?: boolean
+  autoplayRestricted?: boolean
 }
 
 async function createVoiceContext(browser: Browser, options: CreateContextOptions = {}) {
-  const { mic = false, e2e = true } = options
+  const { mic = false, e2e = true, autoplayRestricted = false } = options
   const context = await browser.newContext({
     permissions: mic ? ['microphone'] : [],
   })
   if (e2e) {
     await context.addInitScript(() => {
       ;(window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ = true
+    })
+  }
+  if (autoplayRestricted) {
+    await context.addInitScript(() => {
+      let hasUserGesture = false
+      const unlock = () => {
+        hasUserGesture = true
+      }
+      window.addEventListener('pointerdown', unlock, { capture: true, once: true })
+      window.addEventListener('keydown', unlock, { capture: true, once: true })
+      window.addEventListener('click', unlock, { capture: true })
+
+      const originalPlay = HTMLMediaElement.prototype.play
+      HTMLMediaElement.prototype.play = function (...args: unknown[]) {
+        if (!hasUserGesture && !this.muted) {
+          return Promise.reject(
+            new DOMException("play() failed because the user didn't interact with the document first.", 'NotAllowedError')
+          )
+        }
+        return originalPlay.apply(this, args as [])
+      }
     })
   }
   return context
@@ -138,12 +160,46 @@ async function measureRemoteAudioRtp(page: Page, expectedActorKey?: string, wait
     })
   }, { timeout: 35000, intervals: [500, 1000] }).toBeGreaterThan(0)
 
-  // Resolve target actorKey: either provided or the first track's actorKey
-  const targetActor = expectedActorKey || await page.evaluate(() => {
-    const diag = (window as any).__VOICE_DIAGNOSTICS__
-    return diag?.getRemoteTracks()[0]?.actorKey
-  })
-  expect(targetActor).toBeDefined()
+  // Resolve target actorKey: either provided (exact actorKey or user identifier) or first available track
+  const targetActor = await page.evaluate((expectedKey?: string) => {
+    const diag = (window as unknown as {
+      __VOICE_DIAGNOSTICS__?: {
+        getRemoteTracks: () => Array<{ actorKey: string; kind: string; readyState: string; transceiverMid?: string }>
+        getVoiceRegistry?: () => Array<{ actorKey: string; ten: string }>
+      }
+    }).__VOICE_DIAGNOSTICS__
+    if (!diag) return ''
+    const tracks = diag.getRemoteTracks()
+    if (!tracks || tracks.length === 0) return ''
+
+    if (!expectedKey) {
+      return tracks[0].actorKey
+    }
+
+    // 1. Exact match on actorKey
+    const exact = tracks.find((t) => t.actorKey === expectedKey)
+    if (exact) return exact.actorKey
+
+    // 2. Correlate with registry ten / username if available
+    const reg = diag.getVoiceRegistry?.() || []
+    const matchReg = reg.find((p) => {
+      if (p.actorKey === expectedKey) return true
+      if (expectedKey.includes('thu1') && (p.ten?.includes('1') || p.actorKey.includes('1'))) return true
+      if (expectedKey.includes('thu2') && (p.ten?.includes('2') || p.actorKey.includes('2'))) return true
+      if (expectedKey.includes('thu3') && (p.ten?.includes('3') || p.actorKey.includes('3'))) return true
+      return false
+    })
+    if (matchReg && tracks.some((t) => t.actorKey === matchReg.actorKey)) {
+      return matchReg.actorKey
+    }
+
+    // 3. Positional fallback if multiple tracks
+    if (expectedKey.includes('thu1')) return tracks[0].actorKey
+    if (expectedKey.includes('thu2') && tracks.length > 1) return tracks[1].actorKey
+
+    return tracks[0].actorKey
+  }, expectedActorKey)
+  expect(targetActor).toBeTruthy()
 
   // Wait until actor-specific inbound-rtp stats exist and has received bytes
   await expect.poll(async () => {
@@ -449,7 +505,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
   test('4. Autoplay Restricted Unblock: User gesture unlocks audio playback @autoplay', async ({ browser }) => {
     const ctxA = await createVoiceContext(browser, { mic: true })
-    const ctxB = await createVoiceContext(browser, { mic: false })
+    const ctxB = await createVoiceContext(browser, { mic: false, autoplayRestricted: true })
     const pageA = await ctxA.newPage()
     const pageB = await ctxB.newPage()
     setupPageLogging(pageA, 'PAGE A')

@@ -264,6 +264,7 @@ export class VoiceClient {
       getAudioElementsCount: () => this.audioElements.size,
       getSpeakingActors: () => Array.from(this.speakingActors),
       isAudioAutoplayBlocked: () => this.isAudioAutoplayBlocked,
+      getVoiceRegistry: () => [...this.currentRegistry],
       getInboundStatsForActor: async (actorKey: string) => {
         if (!this.pc) return null
         const stream = this.remoteStreams.get(actorKey)
