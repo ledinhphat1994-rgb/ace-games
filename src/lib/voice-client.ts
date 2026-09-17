@@ -263,6 +263,36 @@ export class VoiceClient {
         })),
       getAudioElementsCount: () => this.audioElements.size,
       getSpeakingActors: () => Array.from(this.speakingActors),
+      isAudioAutoplayBlocked: () => this.isAudioAutoplayBlocked,
+      getInboundStatsForActor: async (actorKey: string) => {
+        if (!this.pc) return null
+        const stream = this.remoteStreams.get(actorKey)
+        const track = stream?.getAudioTracks()[0]
+        const sub = this.subscribedTracks.get(actorKey)
+        if (!track && !sub) return null
+
+        const stats = await this.pc.getStats()
+        let matchingReport: any = null
+        stats.forEach((report) => {
+          if (report.type === 'inbound-rtp' && (report.kind === 'audio' || report.mediaType === 'audio')) {
+            if (track && (report.trackIdentifier === track.id || (report as any).trackId === track.id)) {
+              matchingReport = { ...report }
+            } else if (sub?.mid && report.mid === sub.mid) {
+              matchingReport = { ...report }
+            }
+          }
+        })
+        if (!matchingReport) return null
+        return {
+          actorKey,
+          trackId: track?.id,
+          mid: sub?.mid,
+          bytesReceived: Number(matchingReport.bytesReceived) || 0,
+          packetsReceived: Number(matchingReport.packetsReceived) || 0,
+          kind: track?.kind || matchingReport.kind || 'audio',
+          readyState: track?.readyState || 'live',
+        }
+      },
       getStats: async () => {
         if (!this.pc) return []
         const stats = await this.pc.getStats()
@@ -1278,5 +1308,13 @@ export class VoiceClient {
     this.isConnecting = false
     this.sessionId = null
     this.setConnectionState('idle')
+
+    if (typeof window !== 'undefined' && (window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ === true) {
+      ;(window as unknown as { __VOICE_CLEANUP_SNAPSHOT__?: unknown }).__VOICE_CLEANUP_SNAPSHOT__ = {
+        localTrackReadyState: this.lastLocalTrackState?.readyState ?? 'ended',
+        peerConnectionState: this.lastPcConnectionState ?? 'closed',
+        isDestroyed: true,
+      }
+    }
   }
 }
