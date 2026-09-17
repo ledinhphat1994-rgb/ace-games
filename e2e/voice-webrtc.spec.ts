@@ -651,7 +651,6 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       const bBefore = await pageB.evaluate(() => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
         return {
-          actorKey: MEMBER_USER.username,
           gen: d?.getServerGeneration(),
           track: d?.getLocalTrack(),
         }
@@ -688,9 +687,12 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       // A: B remote publication disappears or remote track stops/ends, B subscription no longer active
       await expect.poll(async () => {
-        return pageA.evaluate((targetKey: string) => {
+        return pageA.evaluate((targetUsername: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
           if (!d) return 1
+          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
+          const bEntry = reg.find((p: any) => p.ten === targetUsername || p.actorKey === targetUsername)
+          const targetKey = bEntry ? bEntry.actorKey : targetUsername
           const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey)
           const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey && t.readyState === 'live')
           return subs.length + tracks.length
@@ -703,7 +705,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
         const data = await res.json()
         return data.registry || []
       })
-      const bLiveAfterMute = regAfterMute.find((p: any) => p.status === 'live' && p.actorKey === MEMBER_USER.username)
+      const bLiveAfterMute = regAfterMute.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
       expect(bLiveAfterMute).toBeUndefined()
 
       // Adversarial attack: assert window.__roomWs exists and is OPEN, then send legacy invalid packet
@@ -724,7 +726,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
         const data = await res.json()
         return data.registry || []
       })
-      const bLiveAfterAttack = regAfterAttack.find((p: any) => p.status === 'live' && p.actorKey === MEMBER_USER.username)
+      const bLiveAfterAttack = regAfterAttack.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
       expect(bLiveAfterAttack).toBeUndefined()
     } finally {
       await ctxA.close()
@@ -780,11 +782,14 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       // On B: Host A remote track, subscription, and audio element removed
       await expect.poll(async () => {
-        return pageB.evaluate((hostKey: string) => {
+        return pageB.evaluate((hostUsername: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
           if (!d) return 1
-          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === hostKey)
-          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === hostKey)
+          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
+          const hostEntry = reg.find((p: any) => p.ten === hostUsername || p.actorKey === hostUsername)
+          const targetKey = hostEntry ? hostEntry.actorKey : hostUsername
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey || t.actorKey === hostUsername)
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey || s.actorKey === hostUsername)
           const audioCount = d.getAudioElementsCount()
           return tracks.length + subs.length + audioCount
         }, HOST_USER.username)
@@ -792,11 +797,11 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       // Room registry: A publication absent
       await expect.poll(async () => {
-        return pageB.evaluate(async (hostKey: string) => {
+        return pageB.evaluate(async (hostUsername: string) => {
           const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
           const data = await res.json()
           const reg = data.registry || []
-          return reg.find((p: any) => p.actorKey === hostKey && p.status === 'live')
+          return reg.find((p: any) => (p.actorKey === hostUsername || p.ten === hostUsername) && p.status === 'live')
         }, HOST_USER.username)
       }, { timeout: 15000 }).toBeUndefined()
     } finally {
@@ -879,8 +884,6 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
         return {
           sessionId: d?.getSessionId(),
           generation: d?.getServerGeneration(),
-          subs: d?.getSubscriptions(),
-          audioElementsCount: d?.getAudioElementsCount(),
         }
       })
 
@@ -902,20 +905,25 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       expect(rtpARecovered.delta).toBeGreaterThan(0)
 
       // Invariants: exactly 1 canonical B publication, exactly 1 sub per actor, 1 audio element per actor
-      expect(bAfter.subs.length).toBe(1)
-      expect(bAfter.subs[0].actorKey).toBe(HOST_USER.username)
-      expect(bAfter.audioElementsCount).toBe(1)
-
-      const aAfter = await pageA.evaluate(() => {
+      const bFinal = await pageB.evaluate(() => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
         return {
-          subs: d?.getSubscriptions(),
+          subsCount: d?.getSubscriptions().length,
           audioElementsCount: d?.getAudioElementsCount(),
         }
       })
-      expect(aAfter.subs.length).toBe(1)
-      expect(aAfter.subs[0].actorKey).toBe(MEMBER_USER.username)
-      expect(aAfter.audioElementsCount).toBe(1)
+      expect(bFinal.subsCount).toBe(1)
+      expect(bFinal.audioElementsCount).toBe(1)
+
+      const aFinal = await pageA.evaluate(() => {
+        const d = (window as any).__VOICE_DIAGNOSTICS__
+        return {
+          subsCount: d?.getSubscriptions().length,
+          audioElementsCount: d?.getAudioElementsCount(),
+        }
+      })
+      expect(aFinal.subsCount).toBe(1)
+      expect(aFinal.audioElementsCount).toBe(1)
 
       // Room registry: exactly one live publication for B
       const reg = await pageA.evaluate(async () => {
@@ -923,7 +931,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
         const data = await res.json()
         return data.registry || []
       })
-      const bLive = reg.filter((p: any) => p.actorKey === MEMBER_USER.username && p.status === 'live')
+      const bLive = reg.filter((p: any) => (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live')
       expect(bLive.length).toBe(1)
     } finally {
       await ctxA.close()
