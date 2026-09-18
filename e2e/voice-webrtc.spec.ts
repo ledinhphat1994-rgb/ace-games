@@ -739,7 +739,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       console.log('TEST 6: Host A opening members drawer...')
       // Host A opens members drawer and clicks "Tắt mic" on Member B
-      await pageA.locator('header button:has(svg.lucide-users)').click()
+      await pageA.locator('button[title="Thành viên"]').first().click()
       const forceMuteBtn = pageA.locator('button[title="Tắt micro của thành viên này"]')
       console.log('TEST 6: Waiting for forceMuteBtn to be visible...')
       await expect(forceMuteBtn).toBeVisible({ timeout: 15000 })
