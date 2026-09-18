@@ -4,6 +4,30 @@ import type { FriendPresence, SocialState, UserActivity } from '@shared/protocol
 import { lamSachVanBan, MA_DONG_SOCKET, PING_GIU_KET_NOI } from '@shared/protocol/common'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
+// ─── Notification System ────────────────────────────────────────────────────
+export type NotificationType = 'friend_request' | 'friend_online' | 'friend_in_room'
+
+export interface AppNotification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string
+  timestamp: number
+  read: boolean
+  meta?: {
+    requestId?: number
+    accountId?: number
+    roomId?: number
+    roomTitle?: string
+  }
+}
+
+const MAX_NOTIFICATIONS = 50
+
+function makeId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export type TrangThaiKetNoiCampus = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
 
 export interface KetQuaThaoTac {
@@ -52,6 +76,12 @@ export interface CampusContextValue {
   datTrangThaiAway: (away: boolean) => void
   datHoatDong: (activity: UserActivity | null) => void
 
+  // Notifications v1
+  notifications: AppNotification[]
+  unreadCount: number
+  dismissNotification: (id: string) => void
+  markAllRead: () => void
+
   // Aliases
   sendFriendRequest: (targetAccountId: number) => Promise<KetQuaThaoTac>
   acceptFriendRequest: (requestId: number) => Promise<KetQuaThaoTac>
@@ -78,6 +108,9 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [socialState, setSocialState] = useState<SocialState | null>(null)
   const [presenceMap, setPresenceMap] = useState<Record<number, FriendPresence>>({})
 
+  // Notifications v1
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
+
   const wsRef = useRef<WebSocket | null>(null)
   const choPhanHoiRef = useRef<Map<string, ChoPhanHoi>>(new Map())
   const lucGuiPingRef = useRef<number | null>(null)
@@ -87,6 +120,15 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const daHuyRef = useRef<boolean>(false)
   const hoatDongRef = useRef<UserActivity | null>(null)
   const awayRef = useRef<boolean>(false)
+  // Track previous presence to guard against flicker spam
+  const prevPresenceRef = useRef<Record<number, FriendPresence>>({})
+
+  const pushNotification = useCallback((n: Omit<AppNotification, 'id' | 'read' | 'timestamp'>) => {
+    setNotifications((prev) => [
+      { ...n, id: makeId(), read: false, timestamp: Date.now() },
+      ...prev,
+    ].slice(0, MAX_NOTIFICATIONS))
+  }, [])
 
   // Tải social state từ API
   const lamMoiSocialState = useCallback(async () => {
@@ -212,12 +254,50 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           for (const f of goi.friends) {
             map[f.accountId] = f
           }
+          // Seed prevPresenceRef without triggering notifications (snapshot is initial state)
+          prevPresenceRef.current = map
           setPresenceMap(map)
           break
         }
 
         case 'social.presence_update': {
           const p = goi.presence
+          const prev = prevPresenceRef.current[p.accountId]
+
+          // Trigger: friend came online (was offline before)
+          if (
+            (p.state === 'online' || p.state === 'away') &&
+            (!prev || prev.state === 'offline')
+          ) {
+            pushNotification({
+              type: 'friend_online',
+              title: 'Bạn bè trực tuyến',
+              body: `Một người bạn vừa online.`,
+              meta: { accountId: p.accountId },
+            })
+          }
+
+          // Trigger: friend joined a room (activity changed to a new room)
+          if (
+            p.activity?.type === 'room' &&
+            p.activity.roomId != null &&
+            p.activity.roomId !== prev?.activity?.roomId
+          ) {
+            pushNotification({
+              type: 'friend_in_room',
+              title: 'Bạn bè đang học nhóm',
+              body: p.activity.roomTitle
+                ? `Vừa vào phòng "${p.activity.roomTitle}".`
+                : 'Vừa vào một phòng học.',
+              meta: {
+                accountId: p.accountId,
+                roomId: p.activity.roomId,
+                roomTitle: p.activity.roomTitle,
+              },
+            })
+          }
+
+          prevPresenceRef.current = { ...prevPresenceRef.current, [p.accountId]: p }
           setPresenceMap((prev) => ({
             ...prev,
             [p.accountId]: p,
@@ -234,6 +314,15 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
               ...prev,
               incomingRequests: [req, ...prev.incomingRequests],
             }
+          })
+          // Notification: incoming friend request
+          pushNotification({
+            type: 'friend_request',
+            title: 'Lời mời kết bạn',
+            body: req.sender
+              ? `${req.sender.displayName || req.sender.username} muốn kết bạn với bạn.`
+              : 'Bạn có một lời mời kết bạn mới.',
+            meta: { requestId: req.id, accountId: req.sender?.id },
           })
           break
         }
@@ -620,6 +709,16 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     (p) => p.state === 'online' || p.state === 'away',
   ).length
 
+  const unreadCount = notifications.filter((n) => !n.read).length
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  }, [])
+
+  const markAllRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }, [])
+
   const value: CampusContextValue = {
     trangThai,
     onlineCount,
@@ -657,6 +756,12 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     boChanNguoiDung,
     datTrangThaiAway,
     datHoatDong,
+
+    // Notifications v1
+    notifications,
+    unreadCount,
+    dismissNotification,
+    markAllRead,
 
     // Aliases
     sendFriendRequest: guiLoiMoiKetBan,

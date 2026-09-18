@@ -26,6 +26,7 @@ import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { RoomCard } from './RoomCard'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
+import { NotificationCenter } from '@/components/NotificationCenter'
 
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
@@ -186,6 +187,9 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 {latencyMs !== null ? `${latencyMs} ms` : 'Đo ping'}
               </Button>
             ) : null}
+
+              {/* Notification Center */}
+              <NotificationCenter />
 
               {/* Friends Drawer */}
               <FriendsDrawer />
