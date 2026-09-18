@@ -1,6 +1,6 @@
 import { applyD1Migrations } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
-import { beforeEach } from 'vitest'
+import { beforeEach, afterEach } from 'vitest'
 import { bamMatKhau, taoSalt } from '../worker/lib/passwords'
 import { LOP_THU, MAT_KHAU, TAI_KHOAN_THU } from './fixtures'
 
@@ -48,6 +48,11 @@ beforeEach(() => {
   uploadLimiterMock.reset()
   loginLimiterMock.reset()
   admitLimiterMock.reset()
+})
+
+afterEach(async () => {
+  // Cho phép workerd event loop hoàn tất các handshake đóng WebSocket và DO lifecycle
+  await new Promise((r) => setTimeout(r, 60))
 })
 
 // Storage được tách riêng cho từng file test, nên mỗi file cần nạp lại lớp và tài khoản thử.

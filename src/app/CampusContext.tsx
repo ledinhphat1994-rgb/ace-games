@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { GoiCampus, PhongSanh, TinCampus } from '@shared/protocol/campus'
-import type { FriendPresence, SocialState, UserActivity } from '@shared/protocol/social'
+import type { FriendPresence, FriendRequestItem, SocialState, UserActivity } from '@shared/protocol/social'
 import { lamSachVanBan, MA_DONG_SOCKET, PING_GIU_KET_NOI } from '@shared/protocol/common'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
@@ -43,6 +43,13 @@ interface ChoPhanHoi {
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
 const TIMEOUT_LENH_MS = 5000
+
+const RONG_SOCIAL_STATE: SocialState = {
+  friends: [],
+  incomingRequests: [],
+  outgoingRequests: [],
+  blockedUsers: [],
+}
 
 export interface CampusContextValue {
   trangThai: TrangThaiKetNoiCampus
@@ -105,7 +112,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
 
   // Social state & presence map
-  const [socialState, setSocialState] = useState<SocialState | null>(null)
+  const [socialState, setSocialState] = useState<SocialState>(RONG_SOCIAL_STATE)
   const [presenceMap, setPresenceMap] = useState<Record<number, FriendPresence>>({})
 
   // Notifications v1
@@ -137,7 +144,15 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const json = (await res.json()) as { ok: boolean; state: SocialState }
         if (json.ok && json.state) {
-          setSocialState(json.state)
+          setSocialState((prev) => {
+            const incomingMap = new Map<number, FriendRequestItem>()
+            for (const item of json.state.incomingRequests) incomingMap.set(item.id, item)
+            for (const item of prev.incomingRequests) incomingMap.set(item.id, item)
+            return {
+              ...json.state,
+              incomingRequests: Array.from(incomingMap.values()),
+            }
+          })
         }
       }
     } catch {
@@ -308,11 +323,11 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'social.request_received': {
           const req = goi.request
           setSocialState((prev) => {
-            if (!prev) return prev
-            if (prev.incomingRequests.some((r) => r.id === req.id)) return prev
+            const cur = prev ?? RONG_SOCIAL_STATE
+            if (cur.incomingRequests.some((r) => r.id === req.id)) return cur
             return {
-              ...prev,
-              incomingRequests: [req, ...prev.incomingRequests],
+              ...cur,
+              incomingRequests: [req, ...cur.incomingRequests],
             }
           })
           // Notification: incoming friend request
@@ -330,11 +345,11 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'social.request_resolved': {
           const id = goi.requestId
           setSocialState((prev) => {
-            if (!prev) return prev
+            const cur = prev ?? RONG_SOCIAL_STATE
             return {
-              ...prev,
-              incomingRequests: prev.incomingRequests.filter((r) => r.id !== id),
-              outgoingRequests: prev.outgoingRequests.filter((r) => r.id !== id),
+              ...cur,
+              incomingRequests: cur.incomingRequests.filter((r) => r.id !== id),
+              outgoingRequests: cur.outgoingRequests.filter((r) => r.id !== id),
             }
           })
           break
@@ -344,13 +359,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           const friend = goi.friend
           const presence = goi.presence
           setSocialState((prev) => {
-            if (!prev) return prev
-            if (prev.friends.some((f) => f.id === friend.id)) return prev
+            const cur = prev ?? RONG_SOCIAL_STATE
+            if (cur.friends.some((f) => f.id === friend.id)) return cur
             return {
-              ...prev,
-              friends: [friend, ...prev.friends],
-              incomingRequests: prev.incomingRequests.filter((r) => r.sender?.id !== friend.id),
-              outgoingRequests: prev.outgoingRequests.filter((r) => r.receiver?.id !== friend.id),
+              ...cur,
+              friends: [friend, ...cur.friends],
+              incomingRequests: cur.incomingRequests.filter((r) => r.sender?.id !== friend.id),
+              outgoingRequests: cur.outgoingRequests.filter((r) => r.receiver?.id !== friend.id),
             }
           })
           setPresenceMap((prev) => ({
@@ -363,10 +378,10 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'social.friend_removed': {
           const fid = goi.friendId
           setSocialState((prev) => {
-            if (!prev) return prev
+            const cur = prev ?? RONG_SOCIAL_STATE
             return {
-              ...prev,
-              friends: prev.friends.filter((f) => f.id !== fid),
+              ...cur,
+              friends: cur.friends.filter((f) => f.id !== fid),
             }
           })
           setPresenceMap((prev) => {
@@ -380,13 +395,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         case 'social.blocked': {
           const tid = goi.targetId
           setSocialState((prev) => {
-            if (!prev) return prev
+            const cur = prev ?? RONG_SOCIAL_STATE
             return {
-              ...prev,
-              friends: prev.friends.filter((f) => f.id !== tid),
-              incomingRequests: prev.incomingRequests.filter((r) => r.sender?.id !== tid),
-              outgoingRequests: prev.outgoingRequests.filter((r) => r.receiver?.id !== tid),
-              blockedUsers: [{ id: tid, username: '', displayName: '', blockedAt: Date.now() }, ...prev.blockedUsers],
+              ...cur,
+              friends: cur.friends.filter((f) => f.id !== tid),
+              incomingRequests: cur.incomingRequests.filter((r) => r.sender?.id !== tid),
+              outgoingRequests: cur.outgoingRequests.filter((r) => r.receiver?.id !== tid),
+              blockedUsers: [{ id: tid, username: '', displayName: '', blockedAt: Date.now() }, ...cur.blockedUsers],
             }
           })
           setPresenceMap((prev) => {

@@ -237,7 +237,10 @@ export class CampusDO extends DurableObject<Env> {
   }
 
   /** Worker gọi khi tài khoản vừa đăng nhập hoặc đổi mật khẩu: đóng ngay kết nối Campus và Room của phiên cũ (luật 1 thiết bị). */
-  async dangNhapMoi(accountId: number, phienId: string): Promise<void> {
+  async dangNhapMoi(
+    accountId: number,
+    phienId: string,
+  ): Promise<{ successfulRooms: string[]; failedRooms: string[] }> {
     const daDong: WebSocket[] = []
     for (const ws of this.ctx.getWebSockets(theTaiKhoan(accountId))) {
       const dt = ws.deserializeAttachment() as DanhTinhCampus | null
@@ -266,23 +269,71 @@ export class CampusDO extends DurableObject<Env> {
       for (const r of rows) activeRooms.add(r.room_name)
     } catch {}
 
-    const promises: Promise<any>[] = []
+    const successfulRooms: string[] = []
+    const failedRooms: string[] = []
+
     for (const roomName of activeRooms) {
       try {
         const doId = this.env.ROOMS.idFromName(roomName)
-        promises.push(
-          (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId).catch((err: any) => {
-            console.warn(`[dangNhapMoi] Lỗi gọi huyPhienCu tới room ${roomName}:`, err)
-          }),
+        await (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId)
+        successfulRooms.push(roomName)
+      } catch (err: any) {
+        console.warn(`[dangNhapMoi] Lỗi gọi huyPhienCu tới room ${roomName}:`, err)
+        failedRooms.push(roomName)
+      }
+    }
+
+    // Chỉ xóa các phòng đã thu hồi thành công khỏi storage
+    for (const r of successfulRooms) {
+      try {
+        this.ctx.storage.sql.exec(
+          'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
+          accountId,
+          r,
         )
       } catch {}
+      this.phongCuaTaiKhoan.get(accountId)?.delete(r)
     }
-    await Promise.allSettled(promises)
 
-    try {
-      this.ctx.storage.sql.exec('DELETE FROM phong_tai_khoan WHERE account_id = ?', accountId)
-    } catch {}
-    this.phongCuaTaiKhoan.delete(accountId)
+    // Nếu còn phòng thất bại: GIỮ LẠI trong storage để retry, không xóa nhầm
+    if (failedRooms.length > 0) {
+      this.ctx.waitUntil(this.retryFailedRoomRevocations(accountId, phienId, failedRooms))
+    } else {
+      if (this.phongCuaTaiKhoan.get(accountId)?.size === 0) {
+        this.phongCuaTaiKhoan.delete(accountId)
+      }
+    }
+
+    return { successfulRooms, failedRooms }
+  }
+
+  private async retryFailedRoomRevocations(
+    accountId: number,
+    phienId: string,
+    failedRooms: string[],
+  ): Promise<void> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await new Promise((r) => setTimeout(r, attempt * 500))
+      const remaining: string[] = []
+      for (const roomName of failedRooms) {
+        try {
+          const doId = this.env.ROOMS.idFromName(roomName)
+          await (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId)
+          try {
+            this.ctx.storage.sql.exec(
+              'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
+              accountId,
+              roomName,
+            )
+          } catch {}
+          this.phongCuaTaiKhoan.get(accountId)?.delete(roomName)
+        } catch {
+          remaining.push(roomName)
+        }
+      }
+      if (remaining.length === 0) break
+      failedRooms = remaining
+    }
   }
 
   /** RoomDO báo trạng thái phòng để sảnh cập nhật tức thì. */

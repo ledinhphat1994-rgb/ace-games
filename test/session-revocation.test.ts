@@ -1,7 +1,9 @@
 import { env, exports } from 'cloudflare:workers'
+import { evictDurableObject } from 'cloudflare:test'
 import { describe, expect, it } from 'vitest'
 import { GOC, MAT_KHAU } from './fixtures'
 import { moKetNoi } from './ws'
+import { setCloudflareRealtimeFetchForTesting } from '../worker/routes/voice-api'
 import type { GoiCampus } from '../shared/protocol/campus'
 import type { GoiPhong } from '../shared/protocol/room'
 import type { GoiGame } from '../shared/protocol/game'
@@ -358,5 +360,149 @@ describe('PRV7 — Transactional Reset Commit & Global Session Revocation Suite'
     const restoreCodeRes = await resetCode(adminCookie, 'qa.v2.thu1')
     const restoreCodeData = await json(restoreCodeRes)
     await resetPassword('qa.v2.thu1', restoreCodeData.code as string, MAT_KHAU)
+  })
+
+  // ── 6. Adversarial Tier-2 Fail-Closed Session Validation under RPC & D1 Failure ──
+  it('6. Tier-2 Fail-Closed: Stale socket mutation rejected & socket closed 4001 when proactive RPC failed', async () => {
+    // 1. Học sinh đăng nhập
+    const studentRes = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(studentRes.status).toBe(200)
+    const studentCookie = layCookie(studentRes)
+    await studentRes.body?.cancel()
+
+    // 2. Mở kết nối Room WebSocket
+    const phongId = await chenPhong('Phòng Test Stale Mutation', 'acc:3')
+    const roomConn = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, studentCookie)
+    expect(roomConn.status).toBe(101)
+    await roomConn.cho('room.snapshot')
+
+    // 3. Giả lập: Mật khẩu được đổi và marker thiet_bi mới được ghi bền vững vào D1,
+    // nhưng proactive RPC CampusDO -> RoomDO bị đứt (hoặc chưa chạy).
+    const markerMoi = `dev_adversarial_${Date.now()}`
+    await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = ?1 WHERE ten_dang_nhap = ?2')
+      .bind(markerMoi, 'qa.v2.thu3')
+      .run()
+
+    // 4. Socket cũ lập tức gửi lệnh thay đổi trạng thái (state mutation: room.chat)
+    roomConn.gui({ type: 'room.chat', content: 'Tin nhắn độc hại từ stale socket' })
+
+    // 5. Kết quả bắt buộc: Lệnh không được thi hành, socket bị đóng với mã 4001
+    const closeEvt = await roomConn.choDong(2000)
+    expect(closeEvt.code).toBe(4001)
+
+    // 6. Kiểm tra trạng thái thực tế của RoomDO: KHÔNG có tin nhắn nào được lưu!
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+    const chatHistory = await (roomStub as any).layChat()
+    const foundAdversarial = chatHistory.some((m: any) => m.text === 'Tin nhắn độc hại từ stale socket')
+    expect(foundAdversarial).toBe(false)
+
+    // ── Kịch bản 2: Khi tra cứu D1 xác thực phiên gặp row không hợp lệ (null/deleted marker) ──
+    // Đăng nhập lại để có phiên hợp lệ
+    const reLoginRes = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    const newCookie = layCookie(reLoginRes)
+    await reLoginRes.body?.cancel()
+
+    const roomConn2 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, newCookie)
+    expect(roomConn2.status).toBe(101)
+    await roomConn2.cho('room.snapshot')
+
+    // Cố ý set thiet_bi = NULL trong D1 (mô phỏng tài khoản bị thu hồi toàn diện trong D1)
+    await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = NULL WHERE ten_dang_nhap = ?1')
+      .bind('qa.v2.thu3')
+      .run()
+
+    roomConn2.gui({ type: 'room.chat', content: 'Tin nhắn khi session marker bị null' })
+    const closeEvt2 = await roomConn2.choDong(2000)
+    expect(closeEvt2.code).toBe(4001)
+
+    const chatHistory2 = await (roomStub as any).layChat()
+    expect(chatHistory2.some((m: any) => m.text === 'Tin nhắn khi session marker bị null')).toBe(false)
+  })
+
+  // ── 7. Durable Voice Revocation with Injected SFU Failure & Restart Durability ──
+  it('7. Durable Voice Revocation: Failed SFU close retains durable metadata, survives DO restart, and clears on retry', async () => {
+    ;(env as any).CLOUDFLARE_REALTIME_APP_ID = 'test-app-id'
+    ;(env as any).CLOUDFLARE_REALTIME_APP_SECRET = 'test-secret'
+
+    const studentRes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    const studentCookie = layCookie(studentRes)
+    await studentRes.body?.cancel()
+
+    const phongId = await chenPhong('Phòng Test Voice Retry Durability', 'acc:1')
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    // Kết nối WS
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, studentCookie)
+    await ws.cho('room.snapshot')
+
+    // Thiết lập session và publication
+    await (roomStub as any).bindVoiceSession('sess_fail_retry_1', 'acc:1', 1)
+    await (roomStub as any).registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      audioTrackId: 'track_fail_1',
+      mid: 'mid_0',
+      sessionId: 'sess_fail_retry_1',
+      generation: 1,
+      status: 'live',
+    })
+
+    expect(await (roomStub as any).getVoiceParticipant('acc:1')).not.toBeNull()
+
+    // Cài đặt mock SFU: Lần đóng đầu tiên trả về HTTP 502 / lỗi mạng
+    let sfuCloseAttempts = 0
+    setCloudflareRealtimeFetchForTesting(async (url) => {
+      if (url.includes('/tracks/close')) {
+        sfuCloseAttempts++
+        if (sfuCloseAttempts === 1) {
+          return new Response(JSON.stringify({ error: 'SFU Gateway Timeout' }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    try {
+      // Gọi thu hồi voice cho actor
+      await (roomStub as any).revokeVoiceForActor('acc:1')
+
+      // 1. Quyền hạn địa phương (local authority) biến mất NGAY LẬP TỨC
+      expect(await (roomStub as any).getVoiceParticipant('acc:1')).toBeNull()
+
+      // 2. Metadata thu hồi từ xa được lưu BỀN VỮNG trong SQLite do lần 1 thất bại
+      let pendingList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+      expect(pendingList[0].sessionId).toBe('sess_fail_retry_1')
+      expect(pendingList[0].mid).toBe('mid_0')
+
+      // 3. Giả lập RoomDO bị evict / restart
+      await evictDurableObject(roomStub)
+
+      // Sau khi restart, metadata pending vẫn còn nguyên trong SQLite
+      const reloadedStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+      pendingList = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+
+      // 4. Thực hiện retry (lần 2 SFU trả về 200)
+      const cleared = await (reloadedStub as any).retryPendingVoiceRevocations()
+      expect(cleared).toBe(1)
+
+      // 5. Metadata pending đã được dọn sạch sau khi retry thành công
+      const emptyPending = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(emptyPending.length).toBe(0)
+    } finally {
+      setCloudflareRealtimeFetchForTesting(null)
+      delete (env as any).CLOUDFLARE_REALTIME_APP_ID
+      delete (env as any).CLOUDFLARE_REALTIME_APP_SECRET
+      ws.dong()
+    }
   })
 })

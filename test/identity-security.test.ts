@@ -224,13 +224,13 @@ describe('PRV6 — Identity Recovery & Authentication Security Closure', () => {
       )
     }
     const results = await Promise.all(attempts)
-    const statuses = results.map((r) => r.status)
 
     // Các request đầu trả về 401 (hoặc 400 nếu user không tồn tại), request thứ 11 trả về 429
-    expect(statuses).toContain(429)
-    const res429 = results.find((r) => r.status === 429)
-    const body429 = await json(res429!)
-    expect(body429.error || body429.loi).toContain('quá nhanh')
+    const res429List = results.filter((r) => r.status === 429)
+    expect(res429List.length).toBeGreaterThan(0)
+    const bodies = await Promise.all(res429List.map((r) => json(r)))
+    const hasBurstLimit = bodies.some((b: any) => (b.error || b.loi || '').includes('quá nhanh'))
+    expect(hasBurstLimit).toBe(true)
   })
 
   // ── 6. Native Room Admission Burst Limiter Threshold (ADMIT_LIMITER) ──
