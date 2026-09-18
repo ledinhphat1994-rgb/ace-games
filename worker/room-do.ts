@@ -355,6 +355,7 @@ export class RoomDO extends DurableObject<Env> {
       try {
         const pending = this.getPendingVoiceRevocations()
         if (pending.length > 0) {
+          this.scheduleVoiceRevocationAlarm(1000).catch(() => {})
           this.ctx.waitUntil(this.retryPendingVoiceRevocations().catch(() => {}))
         }
       } catch {}
@@ -391,7 +392,17 @@ export class RoomDO extends DurableObject<Env> {
     if (this.kiemTraVaCapNhatPomodoro(now)) {
       this.broadcast({ type: 'pomodoro.sync', state: this.pomodoro, serverNow: now })
     }
-    await this.retryPendingVoiceRevocations(now).catch(() => {})
+    try {
+      await this.retryPendingVoiceRevocations(now)
+    } catch (err) {
+      console.error('[RoomDO.alarm] Lỗi xử lý retry pending voice revocations:', err)
+      try {
+        const remaining = this.getPendingVoiceRevocations()
+        if (remaining.length > 0) {
+          await this.scheduleVoiceRevocationAlarm(5000)
+        }
+      } catch {}
+    }
   }
 
   private luuGameState(): void {
@@ -1825,6 +1836,31 @@ export class RoomDO extends DurableObject<Env> {
     return this.removeVoicePublicationExact({ actorKey, generation })
   }
 
+  tinhVoiceBackoffDelay(attempts: number): number {
+    const safe = Math.max(1, attempts || 1)
+    return Math.min(1000 * Math.pow(2, safe - 1), 60000)
+  }
+
+  async scheduleVoiceRevocationAlarm(delayMs: number): Promise<void> {
+    try {
+      const targetTime = Date.now() + Math.max(500, delayMs)
+      const currentAlarm = await this.ctx.storage.getAlarm()
+      if (!currentAlarm || currentAlarm > targetTime) {
+        await this.ctx.storage.setAlarm(targetTime)
+      }
+    } catch (err) {
+      console.error('[RoomDO] Lỗi scheduleVoiceRevocationAlarm:', err)
+    }
+  }
+
+  async getVoiceRevocationAlarmTime(): Promise<number | null> {
+    try {
+      return await this.ctx.storage.getAlarm()
+    } catch {
+      return null
+    }
+  }
+
   async revokeVoiceForActor(actorKey: string): Promise<void> {
     const p = this.voiceRegistry.get(actorKey)
     if (!p) {
@@ -1841,12 +1877,10 @@ export class RoomDO extends DurableObject<Env> {
     const targetMid = p.mid ?? null
     const generation = p.generation
 
-    // 1. Immediately revoke LOCAL authority (remove from in-memory registry & voice_publications)
-    this.removeVoicePublicationExact({ actorKey, generation })
-
-    // 2. Durably record pending remote close in SQLite BEFORE external call
+    // 1 & 2. Atomic SQLite transaction: revoke local publication authority and persist pending remote close
     if (targetSessionId && (targetMid || targetTrackId)) {
-      try {
+      this.ctx.storage.transactionSync(() => {
+        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
         this.ctx.storage.sql.exec(
           `INSERT INTO pending_voice_revocations
            (actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text)
@@ -1864,11 +1898,30 @@ export class RoomDO extends DurableObject<Env> {
           generation,
           Date.now(),
         )
-      } catch (dbErr) {
-        console.error(`[revokeVoiceForActor] Lỗi lưu pending_voice_revocations cho ${actorKey}:`, dbErr)
-      }
+      })
+    } else {
+      this.ctx.storage.transactionSync(() => {
+        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
+      })
+    }
 
-      // 3. Attempt external Cloudflare Calls /tracks/close
+    // Update in-memory registry and websocket attachments
+    this.voiceRegistry.delete(actorKey)
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a && a.key === actorKey) {
+        a.mic = false
+        ws.serializeAttachment(a)
+      }
+    }
+    this.broadcast({
+      type: 'voice.removed',
+      actorKey,
+    })
+    this.phatDanhSach()
+
+    // 3. Attempt external Cloudflare Calls /tracks/close
+    if (targetSessionId && (targetMid || targetTrackId)) {
       await this.attemptSfuCloseWithTracking(actorKey, targetSessionId, targetMid, targetTrackId)
     }
   }
@@ -1899,6 +1952,7 @@ export class RoomDO extends DurableObject<Env> {
 
       // Transient or non-terminal failure
       console.warn(`[revokeVoiceForActor] SFU close thất bại (${res.status}): ${res.errorText || 'lỗi'}`)
+      let attempts = 1
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
@@ -1908,19 +1962,23 @@ export class RoomDO extends DurableObject<Env> {
           res.errorText || `HTTP_${res.status}`,
           actorKey,
         )
+        const row = this.getPendingVoiceRevocation(actorKey)
+        if (row) attempts = row.attempts
       } catch {}
 
-      // Schedule retry via alarm if not already scheduled
-      try {
-        const currentAlarm = await this.ctx.storage.getAlarm()
-        if (!currentAlarm || currentAlarm > Date.now() + 1000) {
-          await this.ctx.storage.setAlarm(Date.now() + 1000)
-        }
-      } catch {}
+      if (attempts >= 5) {
+        console.warn(
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
+        )
+      }
+
+      // Schedule retry via alarm with bounded backoff
+      await this.scheduleVoiceRevocationAlarm(this.tinhVoiceBackoffDelay(attempts))
 
       return res
     } catch (err: any) {
       console.warn(`[revokeVoiceForActor] Ngoại lệ khi gọi SFU close:`, err)
+      let attempts = 1
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
@@ -1930,7 +1988,19 @@ export class RoomDO extends DurableObject<Env> {
           err?.message || 'exception',
           actorKey,
         )
+        const row = this.getPendingVoiceRevocation(actorKey)
+        if (row) attempts = row.attempts
       } catch {}
+
+      if (attempts >= 5) {
+        console.warn(
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} session=${sessionId} gặp ngoại lệ lần thứ ${attempts}: ${err?.message || 'exception'}`,
+        )
+      }
+
+      // Fix PRV8.1: Thrown exception MUST schedule alarm retry with bounded backoff
+      await this.scheduleVoiceRevocationAlarm(this.tinhVoiceBackoffDelay(attempts))
+
       return { ok: false, status: 502, errorText: err?.message || 'exception' }
     }
   }
@@ -2021,10 +2091,9 @@ export class RoomDO extends DurableObject<Env> {
     attempts: number
   }): Promise<boolean> {
     if (pending.attempts >= 5) {
-      try {
-        this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE actor_key = ?1', pending.actorKey)
-      } catch {}
-      return false
+      console.warn(
+        `[OPERATIONAL_ALERT] Pending voice revocation cho actor=${pending.actorKey} session=${pending.sessionId} đã đạt ${pending.attempts} lần thử nhưng chưa đóng authoritative. Tiếp tục retry theo chu kỳ capped backoff.`,
+      )
     }
     const res = await this.attemptSfuCloseWithTracking(
       pending.actorKey,
@@ -2038,9 +2107,18 @@ export class RoomDO extends DurableObject<Env> {
   async retryPendingVoiceRevocations(_now = Date.now()): Promise<number> {
     const pendingList = this.getPendingVoiceRevocations()
     let cleared = 0
+    let minNextDelay = Infinity
     for (const row of pendingList) {
       const ok = await this.retrySingleVoiceRevocation(row)
-      if (ok) cleared++
+      if (ok) {
+        cleared++
+      } else {
+        const nextDelay = this.tinhVoiceBackoffDelay(row.attempts + 1)
+        if (nextDelay < minNextDelay) minNextDelay = nextDelay
+      }
+    }
+    if (pendingList.length > cleared && Number.isFinite(minNextDelay)) {
+      await this.scheduleVoiceRevocationAlarm(minNextDelay)
     }
     return cleared
   }

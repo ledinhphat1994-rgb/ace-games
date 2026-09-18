@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { GOC, MAT_KHAU } from './fixtures'
 import { moKetNoi } from './ws'
 import { setCloudflareRealtimeFetchForTesting } from '../worker/routes/voice-api'
+import { CampusDO } from '../worker/campus/campus-do'
+import { TEN_CAMPUS } from '../worker/campus/danh-tinh'
 import type { GoiCampus } from '../shared/protocol/campus'
 import type { GoiPhong } from '../shared/protocol/room'
 import type { GoiGame } from '../shared/protocol/game'
@@ -504,5 +506,320 @@ describe('PRV7 — Transactional Reset Commit & Global Session Revocation Suite'
       delete (env as any).CLOUDFLARE_REALTIME_APP_SECRET
       ws.dong()
     }
+  })
+
+  // ── 8. Injected Thrown Exception on SFU close: retains pending row & alarm, survives DO restart, clears on recovery ──
+  it('8. Thrown Network Exception on SFU close: retains durable metadata, schedules alarm, survives DO restart, and clears on 200 OK', async () => {
+    ;(env as any).CLOUDFLARE_REALTIME_APP_ID = 'test-app-id'
+    ;(env as any).CLOUDFLARE_REALTIME_APP_SECRET = 'test-secret'
+
+    const studentRes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    const studentCookie = layCookie(studentRes)
+    await studentRes.body?.cancel()
+
+    const phongId = await chenPhong('Phòng Test Thrown Exception Durability', 'acc:1')
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, studentCookie)
+    await ws.cho('room.snapshot')
+
+    await (roomStub as any).bindVoiceSession('sess_throw_test_1', 'acc:1', 1)
+    await (roomStub as any).registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      audioTrackId: 'track_throw_1',
+      mid: 'mid_throw_0',
+      sessionId: 'sess_throw_test_1',
+      generation: 1,
+      status: 'live',
+    })
+
+    expect(await (roomStub as any).getVoiceParticipant('acc:1')).not.toBeNull()
+
+    // Cài đặt mock SFU: Ném ngoại lệ mạng (thrown network failure)
+    let sfuCalls = 0
+    setCloudflareRealtimeFetchForTesting(async (url) => {
+      if (url.includes('/tracks/close')) {
+        sfuCalls++
+        if (sfuCalls === 1) {
+          throw new Error('INJECTED_NETWORK_FAILURE')
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    try {
+      await (roomStub as any).revokeVoiceForActor('acc:1')
+
+      // 1. Local authority bị thu hồi ngay lập tức
+      expect(await (roomStub as any).getVoiceParticipant('acc:1')).toBeNull()
+
+      // 2. Pending metadata tồn tại và lưu thông tin ngoại lệ mạng
+      let pendingList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+      expect(pendingList[0].sessionId).toBe('sess_throw_test_1')
+      expect(pendingList[0].errorText).toContain('INJECTED_NETWORK_FAILURE')
+
+      // 3. Alarm ĐÃ ĐƯỢC LÊN LỊCH chủ động (Fix PRV8.1 gap: thrown exception must schedule alarm)
+      const alarmTime = await (roomStub as any).getVoiceRevocationAlarmTime()
+      expect(alarmTime).not.toBeNull()
+      expect(alarmTime!).toBeGreaterThan(Date.now() - 100)
+
+      // 4. DO restart / eviction
+      await evictDurableObject(roomStub)
+
+      const reloadedStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+      pendingList = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+
+      // 5. Retry thành công khi SFU hồi phục (trả về 200)
+      const cleared = await (reloadedStub as any).retryPendingVoiceRevocations()
+      expect(cleared).toBe(1)
+
+      // 6. Pending row chỉ bị xóa sau khi xác nhận authoritative 200 OK
+      const emptyPending = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(emptyPending.length).toBe(0)
+    } finally {
+      setCloudflareRealtimeFetchForTesting(null)
+      delete (env as any).CLOUDFLARE_REALTIME_APP_ID
+      delete (env as any).CLOUDFLARE_REALTIME_APP_SECRET
+      ws.dong()
+    }
+  })
+
+  // ── 9. Retry-Exhaustion Beyond 5 Attempts: Metadata retained, capped backoff, stale cannot republish ──
+  it('9. Retry-Exhaustion (>5 failures): Metadata retained, alarm scheduled with capped backoff, stale session blocked, clears on recovery', async () => {
+    ;(env as any).CLOUDFLARE_REALTIME_APP_ID = 'test-app-id'
+    ;(env as any).CLOUDFLARE_REALTIME_APP_SECRET = 'test-secret'
+
+    const studentRes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    const studentCookie = layCookie(studentRes)
+    await studentRes.body?.cancel()
+
+    const phongId = await chenPhong('Phòng Test Retry Exhaustion', 'acc:1')
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, studentCookie)
+    await ws.cho('room.snapshot')
+
+    await (roomStub as any).bindVoiceSession('sess_exhaust_test_1', 'acc:1', 1)
+    await (roomStub as any).registerVoicePublication({
+      actorKey: 'acc:1',
+      ten: 'QA Thử nghiệm 1',
+      audioTrackId: 'track_exhaust_1',
+      mid: 'mid_exhaust_0',
+      sessionId: 'sess_exhaust_test_1',
+      generation: 1,
+      status: 'live',
+    })
+
+    // Mock SFU: 6 lần gọi đầu tiên đều thất bại (HTTP 502 / throw)
+    let sfuAttempts = 0
+    setCloudflareRealtimeFetchForTesting(async (url) => {
+      if (url.includes('/tracks/close')) {
+        sfuAttempts++
+        if (sfuAttempts <= 6) {
+          if (sfuAttempts % 2 === 0) {
+            throw new Error(`INJECTED_SFU_FAIL_${sfuAttempts}`)
+          }
+          return new Response(JSON.stringify({ error: `Transient failure ${sfuAttempts}` }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    try {
+      // 1. Initial revoke -> attempt 1 fails
+      await (roomStub as any).revokeVoiceForActor('acc:1')
+
+      // 2. Chạy tiếp 5 lần retry thủ công mô phỏng 5 lần alarm tiếp nối
+      for (let i = 2; i <= 6; i++) {
+        await (roomStub as any).retryPendingVoiceRevocations()
+      }
+
+      // Xác nhận đã qua 6 lần thất bại
+      expect(sfuAttempts).toBe(6)
+
+      // 3. INVARIANT CHECK: pending_voice_revocations KHÔNG ĐƯỢC BỊ XÓA khi attempts >= 5!
+      const pendingList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+      expect(pendingList[0].attempts).toBeGreaterThanOrEqual(6)
+
+      // 4. Alarm vẫn được lên lịch theo capped backoff (<= 60s)
+      const alarmTime = await (roomStub as any).getVoiceRevocationAlarmTime()
+      expect(alarmTime).not.toBeNull()
+      expect(alarmTime!).toBeGreaterThan(Date.now() - 100)
+
+      // 5. Stale session KHÔNG thể đăng ký lại voice publication
+      const stalePubRes = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({
+          sessionId: 'sess_exhaust_test_1',
+          trackName: 'mic_stale_repub',
+          mid: 'mid_stale_repub',
+          generation: 1,
+          sessionDescription: { type: 'offer', sdp: 'v=0\r\no=...' },
+        }),
+      })
+      // Stale publication bị chặn (401/403/502)
+      expect(stalePubRes.ok).toBe(false)
+      expect([401, 403, 502]).toContain(stalePubRes.status)
+
+      // 6. Cho phép SFU hồi phục (lần thứ 7 trả về 200 OK)
+      const cleared = await (roomStub as any).retryPendingVoiceRevocations()
+      expect(cleared).toBe(1)
+
+      // Metadata pending đã được dọn sạch hoàn toàn sau khi thành công
+      const clearedList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(clearedList.length).toBe(0)
+    } finally {
+      setCloudflareRealtimeFetchForTesting(null)
+      delete (env as any).CLOUDFLARE_REALTIME_APP_ID
+      delete (env as any).CLOUDFLARE_REALTIME_APP_SECRET
+      ws.dong()
+    }
+  })
+
+  // ── 10. Passive Stale Socket Test: Broadcast interception window & eviction via CampusDO alarm ──
+  it('10. Passive Stale Socket: Passive socket evicted 4001 via CampusDO alarm retry after initial RoomDO RPC outage', async () => {
+    // 1. User B (qa.v2.thu3) đăng nhập phiên 1
+    const userBRes = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(userBRes.status).toBe(200)
+    const userBCookie = layCookie(userBRes)
+    await userBRes.body?.cancel()
+
+    const stu3 = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu3'").first<{ id: number }>()
+    const accountId3 = stu3!.id
+
+    const phongId = await chenPhong('Phòng Test Passive Socket Eviction', `acc:${accountId3}`)
+
+    // User B vào phòng bằng WebSocket và NHẬN snapshot, KHÔNG gửi bất kỳ lệnh nào (passive socket)
+    const wsB = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, userBCookie)
+    expect(wsB.status).toBe(101)
+    await wsB.cho('room.snapshot')
+
+    // 2. Kích hoạt lỗi giả lập RPC từ CampusDO tới RoomDO
+    CampusDO.setSimulateRoomRpcFailure(true)
+
+    // 3. User B đăng nhập thiết bị mới (phiên 2) -> kích hoạt dangNhapMoi trong CampusDO
+    const userBNewRes = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(userBNewRes.status).toBe(200)
+    await userBNewRes.body?.cancel()
+
+    const campusStub = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+
+    // 4. Xác nhận RPC ban đầu thất bại -> CampusDO lưu bền vững vào pending_room_revocations và schedule alarm
+    const pendingRooms = await (campusStub as any).getPendingRoomRevocations()
+    expect(pendingRooms.some((r: any) => r.accountId === accountId3 && r.roomName === `phong-${phongId}`)).toBe(true)
+
+    const campusAlarmTime = await (campusStub as any).getRoomRevocationAlarmTime()
+    expect(campusAlarmTime).not.toBeNull()
+
+    // 5. User A (qa.v2.thu1) vào phòng gửi tin nhắn broadcast
+    const userARes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    expect(userARes.status).toBe(200)
+    const userACookie = layCookie(userARes)
+    await userARes.body?.cancel()
+
+    const wsA = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, userACookie)
+    await wsA.cho('room.snapshot')
+
+    wsA.gui({ type: 'chat.send', reqId: 'req_chat_1', text: 'Tin nhắn gửi khi RoomDO RPC tạm đứt' })
+
+    // Socket B nhận tin broadcast trong khi chưa bị revoke
+    const chatNhan = await wsB.cho('room.chat')
+    expect(chatNhan.message.text).toBe('Tin nhắn gửi khi RoomDO RPC tạm đứt')
+
+    // 6. Khôi phục kết nối RPC giữa CampusDO và RoomDO
+    CampusDO.setSimulateRoomRpcFailure(false)
+
+    // 7. Kích hoạt retry / alarm của CampusDO (không cần bất kỳ thao tác nào từ socket B)
+    const cleared = await (campusStub as any).retryPendingRoomRevocations()
+    expect(cleared).toBeGreaterThanOrEqual(1)
+
+    // 8. Socket B bị đóng bởi server với mã 4001 (da_dang_nhap_noi_khac)
+    const closeEvt = await wsB.choDong(2000)
+    expect(closeEvt.code).toBe(4001)
+
+    // 9. User A gửi tiếp tin nhắn thứ 2 -> Socket B KHÔNG THỂ nhận được nữa
+    wsA.gui({ type: 'chat.send', reqId: 'req_chat_2', text: 'Tin nhắn sau khi socket B đã bị thu hồi' })
+    await wsB.khongNhan('room.chat')
+
+    // 10. CampusDO pending_room_revocations đã được dọn sạch hoàn toàn
+    const remainingPending = await (campusStub as any).getPendingRoomRevocations()
+    expect(remainingPending.some((r: any) => r.accountId === accountId3 && r.roomName === `phong-${phongId}`)).toBe(false)
+
+    wsA.dong()
+  })
+
+  // ── 11. CampusDO Restart Durability for Room Revocation ──
+  it('11. CampusDO Restart Durability: Pending room revocations survive DO restart and clear when RoomDO recovers', async () => {
+    // 1. User qa.v2.tudo đăng nhập và vào phòng
+    const userRes = await dangNhap('qa.v2.tudo', MAT_KHAU)
+    expect(userRes.status).toBe(200)
+    const userCookie = layCookie(userRes)
+    await userRes.body?.cancel()
+
+    const stuRow = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.tudo'").first<{ id: number }>()
+    const accountId = stuRow!.id
+
+    const phongId = await chenPhong('Phòng Test CampusDO Restart', `acc:${accountId}`)
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, userCookie)
+    expect(ws.status).toBe(101)
+    await ws.cho('room.snapshot')
+
+    // 2. Giả lập RPC tới RoomDO thất bại
+    CampusDO.setSimulateRoomRpcFailure(true)
+
+    // 3. Đăng nhập mới kích hoạt dangNhapMoi
+    const newRes = await dangNhap('qa.v2.tudo', MAT_KHAU)
+    expect(newRes.status).toBe(200)
+    await newRes.body?.cancel()
+
+    const campusStub = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+
+    // Kiểm tra pending trong SQLite CampusDO
+    let pendingList = await (campusStub as any).getPendingRoomRevocations()
+    expect(pendingList.some((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)).toBe(true)
+
+    // 4. Giả lập CampusDO bị evict / restart
+    await evictDurableObject(campusStub)
+
+    // 5. Sau khi restart: pending record vẫn còn nguyên trong SQLite của CampusDO!
+    const reloadedCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    pendingList = await (reloadedCampus as any).getPendingRoomRevocations()
+    expect(pendingList.some((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)).toBe(true)
+
+    // 6. Alarm vẫn được duy trì trên CampusDO
+    const alarmTime = await (reloadedCampus as any).getRoomRevocationAlarmTime()
+    expect(alarmTime).not.toBeNull()
+
+    // 7. Khôi phục RoomDO RPC và kích hoạt retry
+    CampusDO.setSimulateRoomRpcFailure(false)
+    const cleared = await (reloadedCampus as any).retryPendingRoomRevocations()
+    expect(cleared).toBeGreaterThanOrEqual(1)
+
+    // 8. Pending records đã được dọn sạch hoàn toàn
+    const emptyPending = await (reloadedCampus as any).getPendingRoomRevocations()
+    expect(emptyPending.some((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)).toBe(false)
+
+    // 9. Socket cũ của qa.v2.tudo đã bị đóng 4001
+    const closeEvt = await ws.choDong(2000)
+    expect(closeEvt.code).toBe(4001)
   })
 })

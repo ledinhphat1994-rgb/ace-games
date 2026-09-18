@@ -123,6 +123,28 @@ export class CampusDO extends DurableObject<Env> {
     ctx.storage.sql.exec(
       'CREATE TABLE IF NOT EXISTS phong_tai_khoan (account_id INTEGER, room_name TEXT, phien_id TEXT, updated_at INTEGER, PRIMARY KEY (account_id, room_name))',
     )
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS pending_room_revocations (
+        account_id INTEGER NOT NULL,
+        room_name TEXT NOT NULL,
+        phien_id TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 1,
+        last_attempt_at INTEGER NOT NULL,
+        error_text TEXT,
+        PRIMARY KEY (account_id, room_name, phien_id)
+      )`,
+    )
+    try {
+      const pendingRows = [
+        ...ctx.storage.sql.exec<{ count: number }>(
+          'SELECT COUNT(*) as count FROM pending_room_revocations',
+        ),
+      ]
+      if (pendingRows[0]?.count > 0) {
+        this.scheduleRoomRevocationAlarm(1000).catch(() => {})
+        ctx.waitUntil(this.retryPendingRoomRevocations().catch(() => {}))
+      }
+    } catch {}
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -236,6 +258,12 @@ export class CampusDO extends DurableObject<Env> {
     }
   }
 
+  public static simulateRoomRpcFailure = false
+
+  static setSimulateRoomRpcFailure(val: boolean): void {
+    CampusDO.simulateRoomRpcFailure = val
+  }
+
   /** Worker gọi khi tài khoản vừa đăng nhập hoặc đổi mật khẩu: đóng ngay kết nối Campus và Room của phiên cũ (luật 1 thiết bị). */
   async dangNhapMoi(
     accountId: number,
@@ -274,6 +302,9 @@ export class CampusDO extends DurableObject<Env> {
 
     for (const roomName of activeRooms) {
       try {
+        if (CampusDO.simulateRoomRpcFailure) {
+          throw new Error('INJECTED_ROOM_RPC_FAILURE')
+        }
         const doId = this.env.ROOMS.idFromName(roomName)
         await (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId)
         successfulRooms.push(roomName)
@@ -295,9 +326,26 @@ export class CampusDO extends DurableObject<Env> {
       this.phongCuaTaiKhoan.get(accountId)?.delete(r)
     }
 
-    // Nếu còn phòng thất bại: GIỮ LẠI trong storage để retry, không xóa nhầm
+    // Nếu còn phòng thất bại: GIỮ LẠI trong storage để retry và lưu vào pending_room_revocations + schedule alarm
     if (failedRooms.length > 0) {
-      this.ctx.waitUntil(this.retryFailedRoomRevocations(accountId, phienId, failedRooms))
+      for (const roomName of failedRooms) {
+        try {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO pending_room_revocations (account_id, room_name, phien_id, attempts, last_attempt_at, error_text)
+             VALUES (?, ?, ?, 1, ?, 'initial_rpc_failed')
+             ON CONFLICT(account_id, room_name, phien_id) DO UPDATE SET
+               attempts = attempts + 1,
+               last_attempt_at = excluded.last_attempt_at,
+               error_text = excluded.error_text`,
+            accountId,
+            roomName,
+            phienId,
+            Date.now(),
+          )
+        } catch {}
+      }
+      await this.scheduleRoomRevocationAlarm(1000)
+      this.ctx.waitUntil(this.retryPendingRoomRevocations().catch(() => {}))
     } else {
       if (this.phongCuaTaiKhoan.get(accountId)?.size === 0) {
         this.phongCuaTaiKhoan.delete(accountId)
@@ -307,32 +355,141 @@ export class CampusDO extends DurableObject<Env> {
     return { successfulRooms, failedRooms }
   }
 
-  private async retryFailedRoomRevocations(
-    accountId: number,
-    phienId: string,
-    failedRooms: string[],
-  ): Promise<void> {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      await new Promise((r) => setTimeout(r, attempt * 500))
-      const remaining: string[] = []
-      for (const roomName of failedRooms) {
-        try {
-          const doId = this.env.ROOMS.idFromName(roomName)
-          await (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId)
-          try {
-            this.ctx.storage.sql.exec(
-              'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
-              accountId,
-              roomName,
-            )
-          } catch {}
-          this.phongCuaTaiKhoan.get(accountId)?.delete(roomName)
-        } catch {
-          remaining.push(roomName)
-        }
+  tinhRoomBackoffDelay(attempts: number): number {
+    const safe = Math.max(1, attempts || 1)
+    return Math.min(1000 * Math.pow(2, safe - 1), 60000)
+  }
+
+  async scheduleRoomRevocationAlarm(delayMs: number): Promise<void> {
+    try {
+      const targetTime = Date.now() + Math.max(500, delayMs)
+      const currentAlarm = await this.ctx.storage.getAlarm()
+      if (!currentAlarm || currentAlarm > targetTime) {
+        await this.ctx.storage.setAlarm(targetTime)
       }
-      if (remaining.length === 0) break
-      failedRooms = remaining
+    } catch (err) {
+      console.error('[CampusDO] Lỗi scheduleRoomRevocationAlarm:', err)
+    }
+  }
+
+  getPendingRoomRevocations(): Array<{
+    accountId: number
+    roomName: string
+    phienId: string
+    attempts: number
+    lastAttemptAt: number
+    errorText: string | null
+  }> {
+    try {
+      return [...this.ctx.storage.sql.exec<{
+        account_id: number
+        room_name: string
+        phien_id: string
+        attempts: number
+        last_attempt_at: number
+        error_text: string | null
+      }>(
+        'SELECT account_id, room_name, phien_id, attempts, last_attempt_at, error_text FROM pending_room_revocations',
+      )].map((r) => ({
+        accountId: r.account_id,
+        roomName: r.room_name,
+        phienId: r.phien_id,
+        attempts: r.attempts,
+        lastAttemptAt: r.last_attempt_at,
+        errorText: r.error_text,
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  async getRoomRevocationAlarmTime(): Promise<number | null> {
+    try {
+      return await this.ctx.storage.getAlarm()
+    } catch {
+      return null
+    }
+  }
+
+  async retryPendingRoomRevocations(_now = Date.now()): Promise<number> {
+    const pendingList = this.getPendingRoomRevocations()
+    let cleared = 0
+    let minNextDelay = Infinity
+
+    for (const item of pendingList) {
+      try {
+        if (CampusDO.simulateRoomRpcFailure) {
+          throw new Error('INJECTED_ROOM_RPC_FAILURE')
+        }
+        const doId = this.env.ROOMS.idFromName(item.roomName)
+        await (this.env.ROOMS.get(doId) as any).huyPhienCu(item.accountId, item.phienId)
+
+        // Authoritative success from RoomDO
+        try {
+          this.ctx.storage.sql.exec(
+            'DELETE FROM pending_room_revocations WHERE account_id = ? AND room_name = ? AND phien_id = ?',
+            item.accountId,
+            item.roomName,
+            item.phienId,
+          )
+          this.ctx.storage.sql.exec(
+            'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
+            item.accountId,
+            item.roomName,
+          )
+        } catch {}
+        this.phongCuaTaiKhoan.get(item.accountId)?.delete(item.roomName)
+        if (this.phongCuaTaiKhoan.get(item.accountId)?.size === 0) {
+          this.phongCuaTaiKhoan.delete(item.accountId)
+        }
+        cleared++
+      } catch (err: any) {
+        const nextAttempts = item.attempts + 1
+        console.warn(
+          `[retryPendingRoomRevocations] Thất bại lần ${nextAttempts} cho account=${item.accountId} room=${item.roomName}:`,
+          err,
+        )
+        try {
+          this.ctx.storage.sql.exec(
+            `UPDATE pending_room_revocations
+             SET attempts = attempts + 1, last_attempt_at = ?, error_text = ?
+             WHERE account_id = ? AND room_name = ? AND phien_id = ?`,
+            Date.now(),
+            err?.message || 'rpc_failure',
+            item.accountId,
+            item.roomName,
+            item.phienId,
+          )
+        } catch {}
+
+        if (nextAttempts >= 5) {
+          console.warn(
+            `[OPERATIONAL_ALERT] Pending room revocation cho account=${item.accountId} room=${item.roomName} phien=${item.phienId} đã đạt ${nextAttempts} lần thử nhưng chưa thu hồi được. Tiếp tục retry theo chu kỳ capped backoff.`,
+          )
+        }
+
+        const nextDelay = this.tinhRoomBackoffDelay(nextAttempts)
+        if (nextDelay < minNextDelay) minNextDelay = nextDelay
+      }
+    }
+
+    if (pendingList.length > cleared && Number.isFinite(minNextDelay)) {
+      await this.scheduleRoomRevocationAlarm(minNextDelay)
+    }
+    return cleared
+  }
+
+  override async alarm(): Promise<void> {
+    try {
+      await this.retryPendingRoomRevocations()
+    } catch (err) {
+      console.error('[CampusDO.alarm] Lỗi xử lý retry pending room revocations:', err)
+      try {
+        const remaining = this.getPendingRoomRevocations()
+        if (remaining.length > 0) {
+          await this.scheduleRoomRevocationAlarm(5000)
+        }
+      } catch {}
     }
   }
 
