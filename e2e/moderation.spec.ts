@@ -60,6 +60,12 @@ async function cleanupBans(page: Page) {
           })
         }
       }
+      // Đồng thời đảm bảo xóa cooldown nếu có cho tài khoản test B (id 3)
+      await fetch(`/api/rooms/${roomNum}/unban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetAccountId: 3 }),
+      }).catch(() => {})
     } catch {}
   }, ROOM_NUM)
 }

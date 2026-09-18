@@ -572,6 +572,24 @@ app.get('/api/rooms/:id/admission-status', async (c) => {
     return loi('Không thể xác minh trạng thái thành viên. Vui lòng thử lại.', 503)
   }
 
+  // 3.5. Kiểm tra kick cooldown từ RoomDO SQLite (durable cooldown)
+  try {
+    const doId = c.env.ROOMS.idFromName(`phong-${phongRow.id}`)
+    const roomStub = c.env.ROOMS.get(doId)
+    const cdRes = await roomStub.fetch(
+      `http://internal/internal/moderation/cooldown?actorKey=${encodeURIComponent(actorKey(kq.phien))}`,
+    )
+    if (cdRes.ok) {
+      const cdJson = (await cdRes.json().catch(() => null)) as { active?: boolean; remainingMs?: number } | null
+      if (cdJson?.active) {
+        const phut = Math.ceil((cdJson.remainingMs || 300000) / 60000)
+        return loi(`Bạn vừa bị mời ra khỏi phòng. Vui lòng thử lại sau ${phut} phút.`, 403)
+      }
+    }
+  } catch (err) {
+    console.warn('Admission status: lỗi kiểm tra kick cooldown từ RoomDO:', err)
+  }
+
   // 4. Chế độ truy cập phòng (access_mode) — FAIL CLOSED
   if (!CANONICAL_ACCESS_MODES.has(phongRow.access_mode)) {
     return loi('Chế độ truy cập phòng không được hỗ trợ.', 403)

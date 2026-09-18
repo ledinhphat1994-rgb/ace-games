@@ -362,6 +362,39 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     .first<{ id: number; ban_boi: number | null }>()
 
   if (!banRecord) {
+    // Nếu không nằm trong phong_ban, kiểm tra xem có kick cooldown trong RoomDO để ân xá sớm không
+    try {
+      const doId = c.env.ROOMS.idFromName('phong-' + phongId)
+      const roomStub = c.env.ROOMS.get(doId)
+      const cdRes = await roomStub.fetch(
+        `http://internal/internal/moderation/cooldown?actorKey=acc:${targetAccountId}`,
+      )
+      if (cdRes.ok) {
+        const cdData = (await cdRes.json().catch(() => null)) as { active?: boolean } | null
+        if (cdData?.active) {
+          await roomStub.fetch(
+            new Request('http://internal/internal/moderation/cooldown/clear', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ actorKey: `acc:${targetAccountId}` }),
+            }),
+          )
+          await ghiAuditLog(c.env, {
+            actorId: gate.taiKhoan.id,
+            targetId: targetAccountId,
+            roomId: phongId,
+            action: 'unban',
+            metadata: {
+              authorityRank: modQuyen.authorityRank,
+              role: gate.taiKhoan.role,
+              type: 'cooldown_cleared',
+            },
+          })
+          return c.json({ ok: true, unbanned: true, cooldownCleared: true })
+        }
+      }
+    } catch {}
+
     return loi('Thành viên này không nằm trong danh sách cấm.', 404)
   }
 
