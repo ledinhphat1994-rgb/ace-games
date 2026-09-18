@@ -290,6 +290,14 @@ export const RoomBanPayloadSchema = z.object({
 })
 export type RoomBanPayload = z.infer<typeof RoomBanPayloadSchema>
 
+export const RoomUnbanPayloadSchema = z.object({
+  targetAccountId: z.number().int().positive('ID tài khoản phải là số nguyên dương'),
+  expectedBanId: z.number().int().positive().optional(),
+  expectedRevision: z.number().int().positive().optional(),
+  expectedCooldownId: z.string().trim().min(1).max(64).optional(),
+})
+export type RoomUnbanPayload = z.infer<typeof RoomUnbanPayloadSchema>
+
 export type AuditLogAction = 'kick' | 'ban' | 'unban' | 'voice_mute' | 'report_resolved'
 
 export interface BannedMemberItem {

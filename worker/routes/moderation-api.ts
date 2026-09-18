@@ -7,6 +7,7 @@ import { kiemTraQuyenTruyCapPhong, xacDinhQuyenModeratorPhong } from '../lib/roo
 import {
   RoomKickPayloadSchema,
   RoomBanPayloadSchema,
+  RoomUnbanPayloadSchema,
   ReportPayloadSchema,
   type BannedMemberItem,
 } from '../../shared/protocol/room'
@@ -14,7 +15,9 @@ import {
 function parsePhongId(c: Context): number | null {
   const param = c.req.param('id')
   if (!param) return null
-  const num = parseInt(param.replace(/^phong-/, ''), 10)
+  const match = /^(?:phong-)?(\d+)$/.exec(param.trim())
+  if (!match) return null
+  const num = parseInt(match[1], 10)
   return Number.isFinite(num) && num > 0 ? num : null
 }
 
@@ -27,9 +30,14 @@ async function ghiAuditLog(
     action: string
     reason?: string | null
     metadata?: Record<string, unknown> | null
+    requestId?: string
   },
 ): Promise<{ ok: boolean; error?: unknown }> {
   try {
+    const metaObj = {
+      ...(params.metadata || {}),
+      ...(params.requestId ? { requestId: params.requestId } : {}),
+    }
     await env.DB.prepare(
       `INSERT INTO moderation_audit_logs (actor_id, target_id, room_id, action, reason, metadata, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
@@ -40,7 +48,7 @@ async function ghiAuditLog(
         params.roomId,
         params.action,
         params.reason ?? null,
-        params.metadata ? JSON.stringify(params.metadata) : null,
+        Object.keys(metaObj).length > 0 ? JSON.stringify(metaObj) : null,
         Date.now(),
       )
       .run()
@@ -49,6 +57,33 @@ async function ghiAuditLog(
     console.error('CRITICAL: Lỗi ghi moderation_audit_logs:', err)
     return { ok: false, error: err }
   }
+}
+
+/**
+ * Kiểm tra rate limit per-actor theo KV.
+ * Key: `rate:<action>:<actorId>` — tối đa `limit` lần trong cửa sổ `ttlSeconds`.
+ * Trả về null nếu được phép, hoặc Response 429 nếu vượt giới hạn.
+ */
+async function kiemTraRateLimit(
+  kv: KVNamespace,
+  actorId: number,
+  action: string,
+  limit: number,
+  ttlSeconds: number,
+): Promise<{ limited: true; response: Response } | { limited: false }> {
+  const key = `rate:mod:${action}:${actorId}`
+  const tries = parseInt((await kv.get(key)) || '0', 10)
+  if (tries >= limit) {
+    return {
+      limited: true,
+      response: new Response(
+        JSON.stringify({ ok: false, message: `Quá nhiều thao tác ${action}. Vui lòng thử lại sau.` }),
+        { status: 429, headers: { 'Content-Type': 'application/json' } },
+      ),
+    }
+  }
+  await kv.put(key, String(tries + 1), { expirationTtl: ttlSeconds })
+  return { limited: false }
 }
 
 async function layTargetRank(
@@ -213,6 +248,10 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
   if (!modQuyen.canModerate) {
     return loi('Bạn không có quyền mời thành viên ra khỏi phòng học này.', 403)
   }
+
+  // Per-actor rate limit: tối đa 20 kick / 60 giây
+  const rlKick = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'kick', 20, 60)
+  if (rlKick.limited) return rlKick.response
 
   let rawBody: unknown
   try {
@@ -478,6 +517,10 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     return loi('Bạn không có quyền cấm thành viên vào phòng học này.', 403)
   }
 
+  // Per-actor rate limit: tối đa 20 ban / 60 giây
+  const rlBan = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'ban', 20, 60)
+  if (rlBan.limited) return rlBan.response
+
   let rawBody: unknown
   try {
     rawBody = await c.req.json()
@@ -627,26 +670,23 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('Bạn không có quyền gỡ cấm cho phòng này.', 403)
   }
 
-  let body: {
-    targetAccountId?: number
-    expectedBanId?: number
-    expectedRevision?: number
-    expectedCooldownId?: string
-  }
+  // Per-actor rate limit: tối đa 20 unban / 60 giây
+  const rlUnban = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'unban', 20, 60)
+  if (rlUnban.limited) return rlUnban.response
+
+  let rawBody: unknown
   try {
-    body = await c.req.json()
+    rawBody = await c.req.json()
   } catch {
     return loi('Dữ liệu không hợp lệ.', 400)
   }
 
-  const targetAccountId = Number(body.targetAccountId)
-  if (!Number.isInteger(targetAccountId) || targetAccountId <= 0) {
-    return loi('ID tài khoản không hợp lệ.', 400)
+  const parsed = RoomUnbanPayloadSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return loi(parsed.error.issues[0]?.message || 'Dữ liệu không hợp lệ.', 400)
   }
 
-  const expectedBanId = body.expectedBanId != null ? Number(body.expectedBanId) : undefined
-  const expectedRevision = body.expectedRevision != null ? Number(body.expectedRevision) : undefined
-  const expectedCooldownId = body.expectedCooldownId?.trim() || undefined
+  const { targetAccountId, expectedBanId, expectedRevision, expectedCooldownId } = parsed.data
 
   // 1. Fetch ban record to determine banning actor, authority rank, and revision
   const banRecord = await c.env.DB.prepare(

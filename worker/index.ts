@@ -58,7 +58,33 @@ export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
 export { RoomDO } from './room-do'
 
-const app = new Hono<{ Bindings: Env }>()
+export type AppEnv = {
+  Bindings: Env
+  Variables: {
+    requestId: string
+  }
+}
+
+const app = new Hono<AppEnv>()
+
+// ── Global Middleware: Request Correlation ID & Production Security Headers ──
+app.use('*', async (c, next) => {
+  const reqId =
+    c.req.header('x-request-id')?.trim() ||
+    c.req.header('cf-ray')?.trim() ||
+    crypto.randomUUID()
+  c.set('requestId', reqId)
+  await next()
+  // WebSocket 101 upgrade responses have immutable headers; skip gracefully.
+  try {
+    c.res.headers.set('X-Request-Id', reqId)
+    c.res.headers.set('X-Content-Type-Options', 'nosniff')
+    c.res.headers.set('X-Frame-Options', 'SAMEORIGIN')
+    c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  } catch {
+    // Immutable response (e.g. WebSocket upgrade 101) — headers cannot be modified; ignore.
+  }
+})
 
 // Canonical Study Room key pattern: phong-<positive integer>
 const RE_PHONG_ID = /^phong-(\d+)$/
@@ -862,7 +888,8 @@ app.notFound((c) => {
 })
 
 app.onError((err, c) => {
-  console.error(`Lỗi khi xử lý ${c.req.method} ${new URL(c.req.url).pathname}:`, err)
+  const reqId = c.get('requestId') || 'no-req-id'
+  console.error(`[${reqId}] Lỗi khi xử lý ${c.req.method} ${new URL(c.req.url).pathname}:`, err)
   return loi('Máy chủ gặp lỗi, vui lòng thử lại.', 500)
 })
 
