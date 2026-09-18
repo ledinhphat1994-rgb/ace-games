@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PhongSanh } from '@shared/protocol/campus'
+import type { RoomFriendInfo } from './room-discovery'
 import { BookOpen, Lock, Play, Users } from 'lucide-react'
 
 const TEN_MON_HOC: Record<string, string> = {
@@ -19,15 +20,19 @@ const TEN_MON_HOC: Record<string, string> = {
 
 interface RoomCardProps {
   room: PhongSanh
+  friends?: RoomFriendInfo[]
   onVaoPhong?: (room: PhongSanh) => void
 }
 
-export function RoomCard({ room, onVaoPhong }: RoomCardProps) {
+export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
   const tenMon = room.monHoc ? (TEN_MON_HOC[room.monHoc] ?? room.monHoc) : 'Học tập'
   const dayPhong = room.soNguoi >= room.sucChua
 
   return (
-    <Card className="flex flex-col justify-between overflow-hidden border-border/70 transition-all hover:border-border hover:shadow-md">
+    <Card
+      data-testid={`room-card-${room.id}`}
+      className="flex flex-col justify-between overflow-hidden border-border/70 transition-all hover:border-border hover:shadow-md"
+    >
       <CardHeader className="gap-2 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
           <Badge variant="outline" className="gap-1 px-2 py-0.5 text-xs font-semibold">
@@ -66,7 +71,7 @@ export function RoomCard({ room, onVaoPhong }: RoomCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-2 pb-3 pt-0">
+      <CardContent className="space-y-2.5 pb-3 pt-0">
         {room.dangPhat ? (
           <div className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
             <Play className="h-3 w-3 shrink-0 text-emerald-400" />
@@ -77,6 +82,31 @@ export function RoomCard({ room, onVaoPhong }: RoomCardProps) {
             {room.moTa || 'Phòng học tập tự do, trao đổi bài và thảo luận nhóm.'}
           </p>
         )}
+
+        {friends && friends.length > 0 ? (
+          <div
+            data-testid={`room-friends-indicator-${room.id}`}
+            onClick={() => onVaoPhong?.(room)}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-300 transition-colors hover:bg-indigo-500/20"
+            aria-label={`${friends.length} bạn bè đang ở đây: ${friends.map((f) => f.displayName).join(', ')}`}
+            title={friends.map((f) => f.displayName).join(', ')}
+          >
+            <div className="flex -space-x-1.5 overflow-hidden">
+              {friends.slice(0, 3).map((f) => (
+                <div
+                  key={f.id}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-background bg-indigo-600 text-[10px] font-bold text-white uppercase shadow-sm"
+                  title={f.displayName}
+                >
+                  {f.displayName.slice(0, 1)}
+                </div>
+              ))}
+            </div>
+            <span className="truncate font-medium">
+              {friends.length === 1 ? '1 bạn đang ở đây' : `${friends.length} bạn đang ở đây`}
+            </span>
+          </div>
+        ) : null}
       </CardContent>
 
       <CardFooter className="flex items-center justify-between border-t border-border/50 bg-muted/20 px-4 py-2.5">

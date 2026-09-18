@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 import { CampusChatDrawer } from './CampusChatDrawer'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { RoomCard } from './RoomCard'
+import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { NotificationCenter } from '@/components/NotificationCenter'
@@ -51,14 +52,25 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
     guiChat,
     xoaChat,
     ketNoiLai,
+    socialState,
+    presenceMap,
   } = useCampus()
 
   const [tabPhamVi, setTabPhamVi] = useState<TabPhamVi>('tat_ca')
   const [nodeDangChon, setNodeDangChon] = useState<NodeHub>('tat_ca')
   const [tuKhoa, setTuKhoa] = useState('')
+  const [chiHienCoBanBe, setChiHienCoBanBe] = useState(false)
   // Phòng học đang hiện dialog mật khẩu (null = đóng)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
 
+  // Memoized room-to-friends projection (O(rooms + visible friends), no N+1, no extra API)
+  const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
+  const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
+
+  const roomFriendsMap = useMemo(
+    () => buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers),
+    [rooms, friends, presenceMap, blockedUsers],
+  )
 
   // Thống kê động cho 3 Interactive Canvas Orbs / Hub Nodes
   const soPhongHocTap = useMemo(() => rooms.length, [rooms.length])
@@ -71,38 +83,24 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
     () => rooms.reduce((tong, r) => tong + r.soNguoi, 0),
     [rooms],
   )
+  const soPhongCoBanBe = useMemo(() => {
+    let dem = 0
+    for (const ds of roomFriendsMap.values()) {
+      if (ds.length > 0) dem++
+    }
+    return dem
+  }, [roomFriendsMap])
 
-  // Lọc danh sách phòng theo tab phạm vi, node được chọn và từ khoá tìm kiếm
+  // Lọc danh sách phòng theo tab phạm vi, node, từ khoá và bộ lọc bạn bè
   const danhSachPhongLoc = useMemo(() => {
-    let ketQua = rooms
-
-    // Lọc theo phạm vi
-    if (tabPhamVi === 'truong') {
-      ketQua = ketQua.filter((r) => r.phamVi === 'truong')
-    } else if (tabPhamVi === 'lop') {
-      ketQua = ketQua.filter((r) => {
-        if (nguoiDung.lopId) return r.lopId === nguoiDung.lopId
-        return r.phamVi === 'lop'
-      })
-    }
-
-    // Lọc theo Hub Node
-    if (nodeDangChon === 'sinh_hoat') {
-      ketQua = ketQua.filter((r) => r.phamVi === 'truong')
-    }
-
-    // Lọc theo từ khoá
-    const q = tuKhoa.trim().toLowerCase()
-    if (q) {
-      ketQua = ketQua.filter((r) =>
-        r.ten.toLowerCase().includes(q) ||
-        (r.chuPhongTen && r.chuPhongTen.toLowerCase().includes(q)) ||
-        (r.lopTen && r.lopTen.toLowerCase().includes(q)),
-      )
-    }
-
-    return ketQua
-  }, [rooms, tabPhamVi, nodeDangChon, tuKhoa, nguoiDung.lopId])
+    return filterDiscoveryRooms(rooms, roomFriendsMap, {
+      tabPhamVi,
+      nodeDangChon,
+      tuKhoa,
+      chiHienCoBanBe,
+      userLopId: nguoiDung.lopId,
+    })
+  }, [rooms, roomFriendsMap, tabPhamVi, nodeDangChon, tuKhoa, chiHienCoBanBe, nguoiDung.lopId])
 
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
@@ -348,6 +346,33 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 </button>
               </div>
 
+              {/* Bộ lọc "Có bạn bè" */}
+              <button
+                type="button"
+                data-testid="filter-co-ban-be"
+                onClick={() => setChiHienCoBanBe((prev) => !prev)}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
+                  chiHienCoBanBe
+                    ? 'border-indigo-500/60 bg-indigo-600 text-white shadow-sm'
+                    : 'border-border/70 bg-background/60 text-muted-foreground hover:border-border hover:text-foreground'
+                }`}
+                aria-pressed={chiHienCoBanBe}
+                aria-label="Lọc phòng có bạn bè đang tham gia"
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>Có bạn bè</span>
+                {soPhongCoBanBe > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className={`ml-0.5 px-1.5 py-0 text-[10px] ${
+                      chiHienCoBanBe ? 'bg-white/20 text-white' : ''
+                    }`}
+                  >
+                    {soPhongCoBanBe}
+                  </Badge>
+                )}
+              </button>
+
               {/* Tìm kiếm phòng */}
               <div className="relative flex-1 min-w-[180px] max-w-xs">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -374,8 +399,8 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 </div>
                 <h4 className="text-sm font-semibold text-foreground">Chưa có phòng học nào đang mở</h4>
                 <p className="mt-1.5 max-w-sm text-xs text-muted-foreground leading-relaxed">
-                  {tuKhoa
-                    ? `Không tìm thấy phòng học khớp với từ khoá "${tuKhoa}". Thử xoá bộ lọc xem sao!`
+                  {tuKhoa || chiHienCoBanBe
+                    ? 'Không tìm thấy phòng học phù hợp với bộ lọc hiện tại. Thử tắt bớt bộ lọc xem sao!'
                     : 'Hãy tạo phòng học đầu tiên để cùng các bạn giải đề, trao đổi bài và học tập hiệu quả.'}
                 </p>
                 <Button
@@ -392,7 +417,12 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
                 {danhSachPhongLoc.map((room) => (
-                  <RoomCard key={room.id} room={room} onVaoPhong={xuLyVaoPhong} />
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    friends={roomFriendsMap.get(room.id)}
+                    onVaoPhong={xuLyVaoPhong}
+                  />
                 ))}
               </div>
             )}
