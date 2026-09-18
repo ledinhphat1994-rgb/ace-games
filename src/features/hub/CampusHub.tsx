@@ -25,6 +25,7 @@ import { CampusChatDrawer } from './CampusChatDrawer'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { RoomCard } from './RoomCard'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
+import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
@@ -186,14 +187,17 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
               </Button>
             ) : null}
 
-            {/* User Avatar Menu */}
-            <div className="flex items-center pl-1 border-l border-border/60">
-              <UserAvatarMenu
-                nguoiDung={nguoiDung}
-                onDangXuat={onDangXuat}
-                onLamMoiPhien={onLamMoiPhien}
-              />
-            </div>
+              {/* Friends Drawer */}
+              <FriendsDrawer />
+
+              {/* User Avatar Menu */}
+              <div className="flex items-center pl-1 border-l border-border/60">
+                <UserAvatarMenu
+                  nguoiDung={nguoiDung}
+                  onDangXuat={onDangXuat}
+                  onLamMoiPhien={onLamMoiPhien}
+                />
+              </div>
           </div>
         </div>
       </header>

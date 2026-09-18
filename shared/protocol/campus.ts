@@ -2,10 +2,13 @@ import { z } from 'zod'
 import type { MonHoc } from '../rooms/constants'
 import { MaYeuCau, type GoiAck, type GoiLoi, type GoiPong } from './common'
 
+import { LenhSocial, type GoiSocial } from './social'
+
 export const LenhCampus = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping'), t: z.number() }),
   z.object({ type: z.literal('chat.send'), reqId: MaYeuCau.optional(), text: z.string().max(4000) }),
   z.object({ type: z.literal('chat.delete'), reqId: MaYeuCau.optional(), id: z.number().int().positive() }),
+  ...LenhSocial.options,
 ])
 export type LenhCampus = z.infer<typeof LenhCampus>
 
@@ -58,3 +61,4 @@ export type GoiCampus =
   | GoiAck
   | GoiLoi
   | GoiPong
+  | GoiSocial

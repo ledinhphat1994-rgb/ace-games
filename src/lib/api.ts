@@ -134,3 +134,9 @@ export function doiMatKhau(duLieu: {
     body: JSON.stringify(duLieu),
   })
 }
+
+export async function timKiemNguoiDung(tuKhoa: string): Promise<import('@shared/protocol/social').SearchResultItem[]> {
+  const params = new URLSearchParams({ q: tuKhoa })
+  const res = await goiApi<{ ok: boolean; results: import('@shared/protocol/social').SearchResultItem[] }>(`/api/social/search?${params}`)
+  return res.results || []
+}
