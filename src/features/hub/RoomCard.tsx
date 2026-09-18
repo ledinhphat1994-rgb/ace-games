@@ -86,8 +86,7 @@ export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
         {friends && friends.length > 0 ? (
           <div
             data-testid={`room-friends-indicator-${room.id}`}
-            onClick={() => onVaoPhong?.(room)}
-            className="flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-300 transition-colors hover:bg-indigo-500/20"
+            className="flex items-center gap-2 rounded-lg border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs text-indigo-300"
             aria-label={`${friends.length} bạn bè đang ở đây: ${friends.map((f) => f.displayName).join(', ')}`}
             title={friends.map((f) => f.displayName).join(', ')}
           >

@@ -153,6 +153,13 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       await expect(room7Indicator).toBeVisible({ timeout: 15000 })
       await expect(room7Indicator).toContainText('1 bạn đang ở đây')
 
+      // Assert presentational semantics: not exposed as interactive button/control, no button role, no tabindex
+      await expect(room7Indicator).not.toHaveRole('button')
+      await expect(room7Indicator).not.toHaveAttribute('tabindex')
+      const room7JoinBtn = pageA.locator('[data-testid="room-card-7"] button:has-text("Vào phòng")')
+      await expect(room7JoinBtn).toBeVisible()
+      await expect(room7JoinBtn).toBeEnabled()
+
       // 5. A activates "Có bạn bè" filter
       const filterBtn = pageA.locator('[data-testid="filter-co-ban-be"]')
       await expect(filterBtn).toBeVisible()
