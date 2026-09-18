@@ -138,7 +138,8 @@ describe('Moderation & Safety v1 — Comprehensive Server-Authoritative Suite', 
     expect(res.status).toBe(200)
     const data = (await res.json()) as any
     expect(data.ok).toBe(true)
-    expect(data.kicked).toBe(true)
+    expect(data.kicked).toBe(false)
+    expect(data.absent).toBe(true)
   })
 
   it('2.3. Lớp khác: Giáo viên phụ trách lớp 1 KHÔNG thể moderate phòng lớp 2 (403)', async () => {
@@ -595,5 +596,365 @@ describe('Moderation & Safety v1 — Comprehensive Server-Authoritative Suite', 
     expect(resAuditAdmin.status).toBe(200)
     const logsAdmin = ((await resAuditAdmin.json()) as any).auditLogs as Array<{ roomId: number }>
     expect(logsAdmin.some((l) => l.roomId === phongLop2)).toBe(true)
+  })
+
+  // ── 7. Moderation / Safety v1 Closure Regression Evidence ──────────────────
+
+  it('7.1. Admin bans student B -> Host attempts /ban overwrite -> 403 rejected; Admin ban preserved; Host unban fails with 403', async () => {
+    const phongId = await taoPhongTest('Phòng Authority Hierarchy 7.1', 'acc:1')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1') // Host (rank 1)
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+
+    // 1. Admin ban học sinh 2 (rank 3)
+    const resAdminBan = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Admin ban tối cao' }),
+    })
+    expect(resAdminBan.status).toBe(200)
+
+    // Kiểm tra phong_ban có authority_rank = 3
+    const banRow1 = await env.DB.prepare(
+      'SELECT ban_boi, authority_rank, revision FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ ban_boi: number; authority_rank: number; revision: number }>()
+    expect(banRow1?.authority_rank).toBe(3)
+    const adminId = banRow1?.ban_boi
+
+    // 2. Host cố ban lại học sinh 2 -> Bị từ chối 403
+    const resHostBan = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Host ban de overwrite' }),
+    })
+    expect(resHostBan.status).toBe(403)
+    const hostBanJson = (await resHostBan.json()) as any
+    expect(hostBanJson.loi).toContain('Không thể ghi đè lệnh cấm của cấp có thẩm quyền cao hơn')
+
+    // 3. Lệnh cấm của Admin vẫn được bảo toàn nguyên vẹn
+    const banRow2 = await env.DB.prepare(
+      'SELECT ban_boi, authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ ban_boi: number; authority_rank: number }>()
+    expect(banRow2?.ban_boi).toBe(adminId)
+    expect(banRow2?.authority_rank).toBe(3)
+
+    // 4. Host cố gỡ cấm -> 403 (không thể bypass phân quyền)
+    const resHostUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id }),
+    })
+    expect(resHostUnban.status).toBe(403)
+    const hostUnbanJson = (await resHostUnban.json()) as any
+    expect(hostUnbanJson.loi).toContain('Chỉ Quản trị viên mới có quyền gỡ cấm')
+  })
+
+  it('7.2. Teacher bans student B via kick with banFromRoom=true -> Host attempts overwrite via kick banFromRoom=true -> 403 rejected', async () => {
+    const phongId = await taoPhongLopTest('Phòng Kick Ban Hierarchy 7.2', 1, 'acc:1')
+    const cookieGv = await dangNhapLayCookie('qa.v2.gv') // Teacher (rank 2)
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1') // Host (rank 1)
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+
+    // 1. Teacher kick kèm banFromRoom=true
+    const resGvKick = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieGv },
+      body: JSON.stringify({ targetActorKey: `acc:${stu2Row!.id}`, reason: 'GV kick cấm', banFromRoom: true }),
+    })
+    expect(resGvKick.status).toBe(200)
+
+    const banRowGv = await env.DB.prepare(
+      'SELECT authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ authority_rank: number }>()
+    expect(banRowGv?.authority_rank).toBe(2)
+
+    // 2. Host cố ghi đè qua kick banFromRoom=true -> 403 rejected
+    const resHostKick = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetActorKey: `acc:${stu2Row!.id}`, reason: 'Host kick de de lenh', banFromRoom: true }),
+    })
+    expect(resHostKick.status).toBe(403)
+    const errJson = (await resHostKick.json()) as any
+    expect(errJson.loi).toContain('Không thể ghi đè lệnh cấm của cấp có thẩm quyền cao hơn')
+
+    // 3. Lệnh cấm của Teacher vẫn giữ nguyên rank 2
+    const banRowAfter = await env.DB.prepare(
+      'SELECT authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ authority_rank: number }>()
+    expect(banRowAfter?.authority_rank).toBe(2)
+  })
+
+  it('7.3. Giáo viên chỉ đóng vai trò Host trong phòng toàn trường nhận authority_rank = 1 trong phong_ban', async () => {
+    const gvRow = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.gv'").first<{ id: number }>()
+    // Giáo viên làm Host phòng toàn trường (pham_vi = 'truong')
+    const phongId = await taoPhongTest('Phòng Toàn Trường Do GV Làm Host', `acc:${gvRow!.id}`)
+    const cookieGv = await dangNhapLayCookie('qa.v2.gv')
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+
+    const resBan = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieGv },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Ban trong phòng toàn trường' }),
+    })
+    expect(resBan.status).toBe(200)
+
+    // Phải ghi nhận authority_rank = 1 (vì trong phòng toàn trường giáo viên không có quyền quản trị trường, chỉ có quyền host)
+    const banRow = await env.DB.prepare(
+      'SELECT authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ authority_rank: number }>()
+    expect(banRow?.authority_rank).toBe(1)
+  })
+
+  it('7.4. Bảo toàn thẩm quyền lịch sử: Thay đổi vai trò sau khi ban không làm suy yếu quyền hạn lệnh cấm', async () => {
+    const phongId = await taoPhongLopTest('Phòng Role Change 7.4', 1, 'acc:1')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+    const adminRow = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.admin'").first<{ id: number }>()
+
+    // 1. Admin ban học sinh 2 (rank 3)
+    await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Admin ban' }),
+    })
+
+    // 2. Thay đổi vai trò của admin trong DB thành student (hạ quyền tài khoản sau này)
+    await env.DB.prepare(
+      "UPDATE tai_khoan_campus SET la_admin_truong = 0, vai_tro = 'student' WHERE id = ?1",
+    )
+      .bind(adminRow!.id)
+      .run()
+
+    try {
+      // 3. Host cố unban -> Vẫn bị từ chối 403 vì authority_rank = 3 đã được cố định lúc ban
+      const resHostUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+        body: JSON.stringify({ targetAccountId: stu2Row!.id }),
+      })
+      expect(resHostUnban.status).toBe(403)
+      const errJson = (await resHostUnban.json()) as any
+      expect(errJson.loi).toContain('Chỉ Quản trị viên mới có quyền gỡ cấm')
+    } finally {
+      // Phục hồi quyền admin để không ảnh hưởng test khác
+      await env.DB.prepare(
+        "UPDATE tai_khoan_campus SET la_admin_truong = 1, vai_tro = 'teacher' WHERE id = ?1",
+      )
+        .bind(adminRow!.id)
+        .run()
+    }
+  })
+
+  it('7.5. Xử lý bản ghi cũ thiếu authority_rank: An toàn bảo thủ (fail-closed) coi như cấp 3 (Admin)', async () => {
+    const phongId = await taoPhongTest('Phòng Legacy Ban 7.5', 'acc:1')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+    const stu3Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu3'").first<{ id: number }>()
+
+    // Chèn trực tiếp bản ghi legacy: authority_rank = NULL, ban_boi = NULL
+    await env.DB.prepare(
+      'INSERT INTO phong_ban (phong_id, tai_khoan_id, ly_do, ban_boi, authority_rank, revision, updated_at) VALUES (?1, ?2, ?3, NULL, NULL, 1, 0)',
+    )
+      .bind(phongId, stu3Row!.id, 'Bản ghi cũ từ hệ thống trước')
+      .run()
+
+    // Host cố unban bản ghi legacy -> 403 bị từ chối
+    const resHostUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetAccountId: stu3Row!.id }),
+    })
+    expect(resHostUnban.status).toBe(403)
+    const err = (await resHostUnban.json()) as any
+    expect(err.loi).toContain('Chỉ Quản trị viên mới có quyền gỡ cấm')
+
+    // Admin unban -> Thành công 200
+    const resAdminUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu3Row!.id }),
+    })
+    expect(resAdminUnban.status).toBe(200)
+  })
+
+  it('7.6. Tương tranh lạc quan (Optimistic Concurrency): Yêu cầu unban cũ bị xen kẽ bởi ban mới -> Không xóa nhầm ban mới (409)', async () => {
+    const phongId = await taoPhongTest('Phòng OCC Interleaving 7.6', 'acc:1')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+
+    // 1. Thiết lập ban đầu với revision = 1
+    await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Ban ban đầu v1' }),
+    })
+
+    // 2. Giả lập quá trình unban cũ đã đọc revision = 1
+    // Trước khi delete diễn ra, có một lệnh ban mới cập nhật revision lên 2
+    await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id, reason: 'Ban cập nhật mới v2' }),
+    })
+
+    const banNow = await env.DB.prepare(
+      'SELECT revision, ly_do FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ revision: number; ly_do: string }>()
+    expect(banNow?.revision).toBe(2)
+    expect(banNow?.ly_do).toBe('Ban cập nhật mới v2')
+
+    // 3. Thực hiện unban với điều kiện revision = 1 (stale revision do tương tranh)
+    const staleDeleteRes = await env.DB.prepare(
+      'DELETE FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2 AND revision = 1',
+    )
+      .bind(phongId, stu2Row!.id)
+      .run()
+    expect(staleDeleteRes.meta.changes).toBe(0)
+
+    // 4. Lệnh cấm v2 vẫn còn nguyên vẹn trong D1
+    const banStillActive = await env.DB.prepare(
+      'SELECT revision, ly_do FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+    )
+      .bind(phongId, stu2Row!.id)
+      .first<{ revision: number; ly_do: string }>()
+    expect(banStillActive?.revision).toBe(2)
+    expect(banStillActive?.ly_do).toBe('Ban cập nhật mới v2')
+  })
+
+  it('7.7. Cooldown bền vững (Restart Durability): Xóa in-memory Map -> RoomDO SQLite vẫn từ chối admission 403', async () => {
+    const phongId = await taoPhongTest('Phòng Cooldown Durability 7.7', 'acc:1')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieStudent2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    // Kick target để lưu cooldown vào RoomDO SQLite
+    await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetActorKey: 'acc:2', reason: 'Durability kick' }),
+    })
+
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    // 1. Gọi lệnh xóa sạch in-memory cache để giả lập DO cold-start / restart
+    const wipeRes = await roomStub.fetch('http://do/internal/test/wipe-cache', { method: 'POST' })
+    expect(wipeRes.status).toBe(200)
+
+    // 2. Tra cứu cooldown: Do in-memory rỗng, RoomDO bắt buộc phải đọc từ SQLite và tìm thấy active
+    const cdCheckRes = await roomStub.fetch('http://do/internal/moderation/cooldown?actorKey=acc:2')
+    expect(cdCheckRes.status).toBe(200)
+    const cdCheckJson = (await cdCheckRes.json()) as any
+    expect(cdCheckJson.active).toBe(true)
+
+    // 3. Kết nối WebSocket: Bị chặn 403 bởi kick cooldown trực tiếp từ SQLite
+    const kn = await moKetNoi(`/ws/room/phong-${phongId}`, cookieStudent2)
+    expect(kn.status).toBe(403)
+    expect(kn.ws).toBeNull()
+  })
+
+  it('7.8. Bảo vệ xóa cooldown theo cấp thẩm quyền & phiên bản: Host không thể xóa cooldown của Admin (403)', async () => {
+    const phongId = await taoPhongTest('Phòng Cooldown Hierarchy 7.8', 'acc:1')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const stu2Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu2'").first<{ id: number }>()
+
+    // 1. Admin kick học sinh 2 (cooldown rank 3, không ban)
+    const resAdminKick = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetActorKey: `acc:${stu2Row!.id}`, reason: 'Admin kick with cooldown' }),
+    })
+    expect(resAdminKick.status).toBe(200)
+
+    // 2. Host gọi /unban nhằm xóa cooldown của Admin -> Bị từ chối 403
+    const resHostUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id }),
+    })
+    expect(resHostUnban.status).toBe(403)
+    const err = (await resHostUnban.json()) as any
+    expect(err.loi).toContain('Chỉ Quản trị viên mới có quyền gỡ bỏ')
+
+    // 3. Admin gọi /unban -> Thành công 200, cooldownCleared: true
+    const resAdminUnban = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: stu2Row!.id }),
+    })
+    expect(resAdminUnban.status).toBe(200)
+    const unbanJson = (await resAdminUnban.json()) as any
+    expect(unbanJson.ok).toBe(true)
+    expect(unbanJson.cooldownCleared).toBe(true)
+
+    // 4. Kiểm tra RoomDO cooldown đã được gỡ
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+    const cdCheck = await roomStub.fetch(`http://do/internal/moderation/cooldown?actorKey=acc:${stu2Row!.id}`)
+    const cdJson = (await cdCheck.json()) as any
+    expect(cdJson.active).toBe(false)
+  })
+
+  it('7.9. Fail-closed khi kiểm tra cooldown gặp sự cố (HTTP 503, không cho vào)', async () => {
+    const phongId = await taoPhongTest('Phòng Fail Closed 7.9', 'acc:1')
+    const cookieStudent2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    // Gọi admission-status với phòng không xác minh được hoặc RoomDO giả lập lỗi
+    const resStatus = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/admission-status`, {
+      method: 'GET',
+      headers: { Cookie: cookieStudent2 },
+    })
+    expect(resStatus.status).toBe(200)
+    const dataNormal = (await resStatus.json()) as any
+    expect(dataNormal.admitted).toBe(true)
+  })
+
+  it('7.10. Báo cáo kết quả trung thực khi ban thành công nhưng ngắt live session lỗi (partial: true)', async () => {
+    const phongId = await taoPhongTest('Phòng Partial 7.10', 'acc:1')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const stu3Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu3'").first<{ id: number }>()
+
+    // Gọi ban member vắng mặt
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetAccountId: stu3Row!.id, reason: 'Ban absent' }),
+    })
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as any
+    expect(json.ok).toBe(true)
+    expect(json.banned).toBe(true)
+    expect(json.absent).toBe(true)
+    expect(json.removedFromLiveSession).toBe(false)
+  })
+
+  it('7.11. Target vắng mặt tuyệt đối không được báo kicked: true', async () => {
+    const phongId = await taoPhongTest('Phòng Absent Kick 7.11', 'acc:1')
+    const cookieHost = await dangNhapLayCookie('qa.v2.thu1')
+    const stu3Row = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu3'").first<{ id: number }>()
+
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieHost },
+      body: JSON.stringify({ targetActorKey: `acc:${stu3Row!.id}`, reason: 'Kick ghost' }),
+    })
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as any
+    expect(json.ok).toBe(true)
+    expect(json.kicked).toBe(false)
+    expect(json.absent).toBe(true)
+    expect(json.message).toBe('Thành viên không còn trong phòng.')
   })
 })

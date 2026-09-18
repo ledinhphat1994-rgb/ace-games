@@ -105,7 +105,7 @@ export class RoomDO extends DurableObject<Env> {
   private voiceRegistry = new Map<string, VoiceParticipantState>()
   private voiceGeneration = new Map<string, number>()
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
-  private kickCooldowns = new Map<string, number>()
+  private kickCooldowns = new Map<string, { expiresAt: number; authorityRank: number; revision: number }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -168,7 +168,10 @@ export class RoomDO extends DurableObject<Env> {
         );
         CREATE TABLE IF NOT EXISTS kick_cooldowns (
           actor_key TEXT PRIMARY KEY,
-          expires_at INTEGER NOT NULL
+          expires_at INTEGER NOT NULL,
+          authority_rank INTEGER NOT NULL DEFAULT 1,
+          issuer_key TEXT,
+          revision INTEGER NOT NULL DEFAULT 1
         );
       `)
       try {
@@ -184,6 +187,15 @@ export class RoomDO extends DurableObject<Env> {
         this.ctx.storage.sql.exec(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_room_chat_actor_req ON room_chat(account_id, req_id) WHERE req_id IS NOT NULL',
         )
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN authority_rank INTEGER NOT NULL DEFAULT 1')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN issuer_key TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN revision INTEGER NOT NULL DEFAULT 1')
       } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -472,10 +484,23 @@ export class RoomDO extends DurableObject<Env> {
 
     this.nạpDuLieuNeuCan()
 
-    // ── Kick Cooldown Gate (server-authoritative durable storage) ──
-    const cooldownUntil = this.kiemTraKickCooldown(key)
-    if (cooldownUntil && Date.now() < cooldownUntil) {
-      const remainingSec = Math.ceil((cooldownUntil - Date.now()) / 1000)
+    // ── Kick Cooldown Gate (server-authoritative durable storage, fail-closed) ──
+    const cdResult = this.kiemTraKickCooldown(key)
+    if (cdResult.status === 'error') {
+      return new Response(
+        JSON.stringify({
+          type: 'error',
+          code: 'storage_error',
+          message: 'Không thể xác minh trạng thái kết nối phòng. Vui lòng thử lại sau.',
+        }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
+    if (cdResult.status === 'active') {
+      const remainingSec = Math.ceil(cdResult.remainingMs / 1000)
       return new Response(
         JSON.stringify({
           type: 'error',
@@ -1778,49 +1803,118 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
-  private luuKickCooldown(actorKey: string, expiresAt: number): void {
-    this.kickCooldowns.set(actorKey, expiresAt)
+  private luuKickCooldown(
+    actorKey: string,
+    expiresAt: number,
+    authorityRank: number = 1,
+    issuerKey: string = '',
+  ): { ok: boolean; revision?: number; error?: string } {
+    const now = Date.now()
+    // 1. Kiểm tra cooldown hiện hữu: cấp thấp hơn không được phép ghi đè cấp cao hơn
+    try {
+      const rows = [
+        ...this.ctx.storage.sql.exec<{
+          actor_key: string
+          expires_at: number
+          authority_rank: number
+          revision: number
+        }>(
+          'SELECT actor_key, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
+          actorKey,
+        ),
+      ]
+      if (rows.length > 0 && rows[0].expires_at > now) {
+        if ((rows[0].authority_rank ?? 1) > authorityRank) {
+          return { ok: false, error: 'higher_authority' }
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi kiểm tra kick_cooldowns trước khi ghi:', err)
+      return { ok: false, error: 'storage_error' }
+    }
+
+    // 2. Ghi trực tiếp xuống SQLite trước (Authoritative Storage)
     try {
       this.ctx.storage.sql.exec(
-        `INSERT INTO kick_cooldowns (actor_key, expires_at)
-         VALUES (?1, ?2)
-         ON CONFLICT(actor_key) DO UPDATE SET expires_at = ?2`,
+        `INSERT INTO kick_cooldowns (actor_key, expires_at, authority_rank, issuer_key, revision)
+         VALUES (?1, ?2, ?3, ?4, 1)
+         ON CONFLICT(actor_key) DO UPDATE SET
+           expires_at = ?2,
+           authority_rank = ?3,
+           issuer_key = ?4,
+           revision = kick_cooldowns.revision + 1`,
         actorKey,
         expiresAt,
+        authorityRank,
+        issuerKey,
       )
+
+      const updated = [
+        ...this.ctx.storage.sql.exec<{ revision: number }>(
+          'SELECT revision FROM kick_cooldowns WHERE actor_key = ?1',
+          actorKey,
+        ),
+      ][0]
+      const rev = updated?.revision ?? 1
+
+      // 3. Chỉ cập nhật in-memory Map khi lưu storage thành công
+      this.kickCooldowns.set(actorKey, { expiresAt, authorityRank, revision: rev })
+      return { ok: true, revision: rev }
     } catch (err) {
       console.error('Lỗi lưu kick_cooldowns SQLite:', err)
+      // Tuyệt đối không cập nhật in-memory Map nếu SQLite lỗi
+      return { ok: false, error: 'storage_error' }
     }
   }
 
-  private kiemTraKickCooldown(actorKey: string): number | null {
+  private kiemTraKickCooldown(actorKey: string):
+    | { status: 'active'; expiresAt: number; remainingMs: number; authorityRank: number; revision: number }
+    | { status: 'inactive' }
+    | { status: 'error'; message: string } {
     const now = Date.now()
     try {
       const rows = [
-        ...this.ctx.storage.sql.exec<{ actor_key: string; expires_at: number }>(
-          'SELECT actor_key, expires_at FROM kick_cooldowns WHERE actor_key = ?1',
+        ...this.ctx.storage.sql.exec<{
+          actor_key: string
+          expires_at: number
+          authority_rank: number
+          revision: number
+        }>(
+          'SELECT actor_key, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
           actorKey,
         ),
       ]
       if (rows.length > 0) {
-        const expiresAt = rows[0].expires_at
-        if (expiresAt > now) {
-          this.kickCooldowns.set(actorKey, expiresAt)
-          return expiresAt
+        const row = rows[0]
+        if (row.expires_at > now) {
+          const authRank = row.authority_rank ?? 1
+          const rev = row.revision ?? 1
+          this.kickCooldowns.set(actorKey, {
+            expiresAt: row.expires_at,
+            authorityRank: authRank,
+            revision: rev,
+          })
+          return {
+            status: 'active',
+            expiresAt: row.expires_at,
+            remainingMs: row.expires_at - now,
+            authorityRank: authRank,
+            revision: rev,
+          }
         } else {
-          // Expired: prune row
+          // Hết hạn: dọn dẹp hàng
           this.ctx.storage.sql.exec('DELETE FROM kick_cooldowns WHERE actor_key = ?1', actorKey)
           this.kickCooldowns.delete(actorKey)
-          return null
+          return { status: 'inactive' }
         }
       }
+      this.kickCooldowns.delete(actorKey)
+      return { status: 'inactive' }
     } catch (err) {
       console.error('Lỗi đọc kick_cooldowns SQLite:', err)
+      // In-memory Map không được phép cấp quyền khi authoritative storage gặp lỗi (fail-closed)
+      return { status: 'error', message: 'Không thể truy vấn cơ sở dữ liệu cooldown' }
     }
-
-    const cached = this.kickCooldowns.get(actorKey)
-    if (cached && cached > now) return cached
-    return null
   }
 
   kickMemberInternal(params: {
@@ -1828,10 +1922,19 @@ export class RoomDO extends DurableObject<Env> {
     reason?: string
     byActorName: string
     byActorKey: string
-  }): { ok: boolean; removed: boolean; absent?: boolean; message?: string } {
+    authorityRank?: number
+  }): { ok: boolean; removed: boolean; absent?: boolean; message?: string; cooldownSaved?: boolean } {
     // 1. Luôn thiết lập durable cooldown 5 phút (300_000 ms) trong RoomDO SQLite
     const cooldownUntil = Date.now() + 5 * 60 * 1000
-    this.luuKickCooldown(params.targetActorKey, cooldownUntil)
+    const cdRes = this.luuKickCooldown(
+      params.targetActorKey,
+      cooldownUntil,
+      params.authorityRank ?? 1,
+      params.byActorKey,
+    )
+    if (!cdRes.ok) {
+      console.warn('Lưu kick cooldown không thành công:', cdRes.error)
+    }
 
     const targetSockets = this.ctx.getWebSockets().filter((ws) => {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
@@ -1839,7 +1942,13 @@ export class RoomDO extends DurableObject<Env> {
     })
 
     if (targetSockets.length === 0) {
-      return { ok: true, removed: false, absent: true, message: 'Thành viên không còn trong phòng.' }
+      return {
+        ok: true,
+        removed: false,
+        absent: true,
+        message: 'Thành viên không còn trong phòng.',
+        cooldownSaved: cdRes.ok,
+      }
     }
 
     // 2. Force mute if target has voice publication
@@ -1868,7 +1977,7 @@ export class RoomDO extends DurableObject<Env> {
     // 5. Broadcast presence update to remaining members
     this.phatDanhSach()
 
-    return { ok: true, removed: true }
+    return { ok: true, removed: true, cooldownSaved: cdRes.ok }
   }
 
   private async xuLyYeuCauNoiBo(request: Request, url: URL): Promise<Response> {
@@ -1880,25 +1989,44 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'GET' && url.pathname === '/internal/moderation/cooldown') {
       const actorKey = url.searchParams.get('actorKey') || ''
-      const expiresAt = this.kiemTraKickCooldown(actorKey)
-      const now = Date.now()
-      const active = typeof expiresAt === 'number' && expiresAt > now
+      const cdResult = this.kiemTraKickCooldown(actorKey)
+      if (cdResult.status === 'error') {
+        return json({ ok: false, error: 'storage_error', message: cdResult.message }, 503)
+      }
       return json({
         ok: true,
-        active,
-        expiresAt,
-        remainingMs: active ? Math.max(0, expiresAt - now) : 0,
+        active: cdResult.status === 'active',
+        expiresAt: cdResult.status === 'active' ? cdResult.expiresAt : null,
+        remainingMs: cdResult.status === 'active' ? cdResult.remainingMs : 0,
+        authorityRank: cdResult.status === 'active' ? cdResult.authorityRank : 0,
+        revision: cdResult.status === 'active' ? cdResult.revision : 0,
       })
     }
 
     if (request.method === 'POST' && url.pathname === '/internal/moderation/cooldown/set') {
       try {
-        const body = (await request.json()) as { actorKey: string; expiresAt: number }
+        const body = (await request.json()) as {
+          actorKey: string
+          expiresAt: number
+          authorityRank?: number
+          issuerKey?: string
+        }
         if (!body.actorKey || typeof body.expiresAt !== 'number') {
           return json({ ok: false, message: 'Thiếu dữ liệu' }, 400)
         }
-        this.luuKickCooldown(body.actorKey, body.expiresAt)
-        return json({ ok: true })
+        const res = this.luuKickCooldown(
+          body.actorKey,
+          body.expiresAt,
+          body.authorityRank ?? 1,
+          body.issuerKey ?? '',
+        )
+        if (!res.ok) {
+          if (res.error === 'higher_authority') {
+            return json({ ok: false, message: 'Không thể ghi đè cooldown cấp cao hơn' }, 403)
+          }
+          return json({ ok: false, message: 'Lỗi lưu cooldown' }, 500)
+        }
+        return json({ ok: true, revision: res.revision })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }
@@ -1906,15 +2034,70 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'POST' && url.pathname === '/internal/moderation/cooldown/clear') {
       try {
-        const body = (await request.json()) as { actorKey: string }
-        if (body.actorKey) {
-          this.kickCooldowns.delete(body.actorKey)
-          this.ctx.storage.sql.exec('DELETE FROM kick_cooldowns WHERE actor_key = ?1', body.actorKey)
+        const body = (await request.json()) as {
+          actorKey: string
+          callerAuthorityRank?: number
+          expectedRevision?: number
         }
-        return json({ ok: true })
+        if (!body.actorKey) {
+          return json({ ok: false, message: 'Thiếu actorKey' }, 400)
+        }
+
+        const callerRank = body.callerAuthorityRank ?? 1
+        const cdResult = this.kiemTraKickCooldown(body.actorKey)
+
+        if (cdResult.status === 'error') {
+          return json({ ok: false, message: cdResult.message }, 503)
+        }
+
+        if (cdResult.status === 'active') {
+          // Phân cấp thẩm quyền: Cấp thấp hơn không thể xóa cooldown cấp cao hơn
+          if (callerRank < cdResult.authorityRank) {
+            return json(
+              {
+                ok: false,
+                error: 'forbidden',
+                message: 'Không thể xóa thời gian chờ của cấp có thẩm quyền cao hơn',
+              },
+              403,
+            )
+          }
+
+          // Kiểm soát phiên bản (Optimistic Concurrency Control): Chống xóa nhầm cooldown mới hơn
+          if (body.expectedRevision != null && cdResult.revision !== body.expectedRevision) {
+            return json(
+              {
+                ok: false,
+                error: 'stale_revision',
+                message: 'Thời gian chờ đã bị thay đổi bởi thao tác khác',
+              },
+              409,
+            )
+          }
+
+          try {
+            this.ctx.storage.sql.exec(
+              'DELETE FROM kick_cooldowns WHERE actor_key = ?1 AND revision = ?2',
+              body.actorKey,
+              cdResult.revision,
+            )
+            this.kickCooldowns.delete(body.actorKey)
+            return json({ ok: true, cleared: true })
+          } catch (err) {
+            console.error('Lỗi xóa kick_cooldowns SQLite:', err)
+            return json({ ok: false, message: 'Lỗi cơ sở dữ liệu khi xóa cooldown' }, 500)
+          }
+        }
+
+        return json({ ok: true, cleared: false, message: 'Không có cooldown hoạt động' })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/test/wipe-cache') {
+      this.kickCooldowns.clear()
+      return json({ ok: true, clearedMemory: true })
     }
 
     if (request.method === 'GET' && url.pathname === '/internal/voice/registry') {
@@ -1933,6 +2116,7 @@ export class RoomDO extends DurableObject<Env> {
           reason?: string
           byActorName: string
           byActorKey: string
+          authorityRank?: number
         }
         if (!body.targetActorKey) {
           return json({ ok: false, message: 'Thiếu targetActorKey' }, 400)

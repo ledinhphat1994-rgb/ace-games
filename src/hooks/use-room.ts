@@ -638,7 +638,15 @@ export function useRoom(roomId: string, myActorKey?: string) {
         if (!res.ok || !json?.ok) {
           return { ok: false, loi: json?.loi || 'Không thể mời thành viên ra khỏi phòng.' }
         }
-        return { ok: true }
+        return {
+          ok: true,
+          kicked: json.kicked,
+          absent: json.absent,
+          banned: json.banned,
+          partial: json.partial,
+          liveRemovalError: json.liveRemovalError,
+          message: json.message,
+        }
       } catch (err: any) {
         return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
       }
@@ -661,7 +669,14 @@ export function useRoom(roomId: string, myActorKey?: string) {
         if (!res.ok || !json?.ok) {
           return { ok: false, loi: json?.loi || 'Không thể cấm thành viên vào phòng.' }
         }
-        return { ok: true }
+        return {
+          ok: true,
+          banned: json.banned,
+          removedFromLiveSession: json.removedFromLiveSession,
+          absent: json.absent,
+          partial: json.partial,
+          liveRemovalError: json.liveRemovalError,
+        }
       } catch (err: any) {
         return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
       }

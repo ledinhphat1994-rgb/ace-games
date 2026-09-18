@@ -16,17 +16,17 @@ const USER_B = {
 
 const USER_TEACHER = {
   username: process.env.E2E_TEACHER_USERNAME || 'qa.v2.gv',
-  password: process.env.E2E_TEACHER_PASSWORD || process.env.E2E_HOST_PASSWORD || 'Q4#Th1!Watch_2026',
+  password: process.env.E2E_TEACHER_PASSWORD || '',
 }
 
 const ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
-const ROOM_NUM = 7
+const ROOM_NUM = parseInt(ROOM_ID.replace(/\D+/g, ''), 10) || 7
 
-if (!USER_A.password || !USER_B.password) {
+if (!USER_A.password || !USER_B.password || !USER_TEACHER.password) {
   throw new Error('Missing credentials for E2E users in environment or .env.e2e.')
 }
 
-async function login(page: Page, user: { username: string; password: string }) {
+async function login(page: Page, user: { username: string; password: string }): Promise<{ accountId?: number }> {
   await page.goto('/')
   const loginInput = page.locator('#ten-dang-nhap')
   const isLoginFormVisible = await loginInput
@@ -34,40 +34,40 @@ async function login(page: Page, user: { username: string; password: string }) {
     .then(() => true)
     .catch(() => false)
 
+  let accountId: number | undefined
   if (isLoginFormVisible) {
     await loginInput.fill(user.username)
     await page.locator('#mat-khau').fill(user.password)
-    await Promise.all([
+    const [loginRes] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/login') && r.status() === 200, { timeout: 15000 }).catch(() => null),
       page.locator('button[type="submit"]:has-text("Đăng nhập")').click(),
     ])
+    if (loginRes) {
+      const data = (await loginRes.json().catch(() => null)) as { user?: { id?: number } } | null
+      if (data?.user?.id) {
+        accountId = data.user.id
+      }
+    }
     await expect(loginInput).not.toBeVisible({ timeout: 20000 })
   }
+  return { accountId }
 }
 
-/** Đảm bảo gỡ ban trước khi chạy test để trạng thái clean */
-async function cleanupBans(page: Page) {
-  await page.evaluate(async (roomNum) => {
-    try {
-      const res = await fetch(`/api/rooms/${roomNum}/banned-members`)
-      const data = await res.json()
-      if (data && Array.isArray(data.bannedMembers)) {
-        for (const b of data.bannedMembers) {
-          await fetch(`/api/rooms/${roomNum}/unban`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ targetAccountId: b.accountId }),
-          })
-        }
-      }
-      // Đồng thời đảm bảo xóa cooldown nếu có cho tài khoản test B (id 3)
-      await fetch(`/api/rooms/${roomNum}/unban`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetAccountId: 3 }),
-      }).catch(() => {})
-    } catch {}
-  }, ROOM_NUM)
+/** Đảm bảo gỡ ban chỉ cho tài khoản kiểm thử B để không ảnh hưởng dữ liệu khác */
+async function cleanupBans(page: Page, targetAccountId?: number) {
+  if (!targetAccountId) return
+  await page.evaluate(
+    async ({ roomNum, accountId }) => {
+      try {
+        await fetch(`/api/rooms/${roomNum}/unban`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetAccountId: accountId }),
+        }).catch(() => {})
+      } catch {}
+    },
+    { roomNum: ROOM_NUM, accountId: targetAccountId },
+  )
 }
 
 async function enterStudyRoom(page: Page, roomId = ROOM_ID) {
@@ -86,10 +86,10 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
 
     try {
       // 1. Đăng nhập cả 2 người dùng
+      const userB = await login(pageB, USER_B)
       await login(pageA, USER_A)
-      await login(pageB, USER_B)
 
-      await cleanupBans(pageA)
+      await cleanupBans(pageA, userB.accountId)
 
       // 2. Cả 2 cùng vào phòng học phong-7 và chờ kết nối WebSocket ổn định
       await enterStudyRoom(pageA, ROOM_ID)
@@ -143,10 +143,10 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
     const pageB = await contextB.newPage()
 
     try {
+      const userB = await login(pageB, USER_B)
       await login(pageA, USER_A)
-      await login(pageB, USER_B)
 
-      await cleanupBans(pageA)
+      await cleanupBans(pageA, userB.accountId)
 
       // Cả 2 cùng vào phòng học phong-7
       await enterStudyRoom(pageA, ROOM_ID)
@@ -200,9 +200,9 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
     const pageB = await contextB.newPage()
 
     try {
+      const userB = await login(pageB, USER_B)
       await login(pageA, USER_A)
-      await login(pageB, USER_B)
-      await cleanupBans(pageA)
+      await cleanupBans(pageA, userB.accountId)
 
       // 1. Host A và Member B cùng vào phòng
       await enterStudyRoom(pageA, ROOM_ID)

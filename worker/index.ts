@@ -572,22 +572,33 @@ app.get('/api/rooms/:id/admission-status', async (c) => {
     return loi('Không thể xác minh trạng thái thành viên. Vui lòng thử lại.', 503)
   }
 
-  // 3.5. Kiểm tra kick cooldown từ RoomDO SQLite (durable cooldown)
+  // 3.5. Kiểm tra kick cooldown từ RoomDO SQLite (durable cooldown, fail-closed)
   try {
     const doId = c.env.ROOMS.idFromName(`phong-${phongRow.id}`)
     const roomStub = c.env.ROOMS.get(doId)
     const cdRes = await roomStub.fetch(
       `http://internal/internal/moderation/cooldown?actorKey=${encodeURIComponent(actorKey(kq.phien))}`,
     )
-    if (cdRes.ok) {
-      const cdJson = (await cdRes.json().catch(() => null)) as { active?: boolean; remainingMs?: number } | null
-      if (cdJson?.active) {
-        const phut = Math.ceil((cdJson.remainingMs || 300000) / 60000)
-        return loi(`Bạn vừa bị mời ra khỏi phòng. Vui lòng thử lại sau ${phut} phút.`, 403)
-      }
+    if (!cdRes.ok) {
+      console.error('Admission status: lỗi phản hồi kiểm tra cooldown từ RoomDO:', cdRes.status)
+      return loi('Không thể xác minh trạng thái kết nối phòng. Vui lòng thử lại sau.', 503)
+    }
+    const cdJson = (await cdRes.json().catch(() => null)) as {
+      ok?: boolean
+      active?: boolean
+      remainingMs?: number
+    } | null
+    if (!cdJson || typeof cdJson.ok !== 'boolean') {
+      console.error('Admission status: dữ liệu cooldown từ RoomDO không hợp lệ')
+      return loi('Không thể xác minh trạng thái kết nối phòng. Vui lòng thử lại sau.', 503)
+    }
+    if (cdJson.active) {
+      const phut = Math.ceil((cdJson.remainingMs || 300000) / 60000)
+      return loi(`Bạn vừa bị mời ra khỏi phòng. Vui lòng thử lại sau ${phut} phút.`, 403)
     }
   } catch (err) {
-    console.warn('Admission status: lỗi kiểm tra kick cooldown từ RoomDO:', err)
+    console.error('Admission status: lỗi RPC kiểm tra kick cooldown từ RoomDO:', err)
+    return loi('Không thể xác minh trạng thái kết nối phòng. Vui lòng thử lại sau.', 503)
   }
 
   // 4. Chế độ truy cập phòng (access_mode) — FAIL CLOSED

@@ -299,4 +299,6 @@ export interface BannedMemberItem {
   bannedBy: number | null
   bannedByName: string | null
   createdAt: string
+  authorityRank?: number
+  revision?: number
 }

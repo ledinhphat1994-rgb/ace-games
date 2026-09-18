@@ -157,7 +157,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     async (targetActorKey: string, reason: string, banFromRoom: boolean) => {
       const res = await kickMember(targetActorKey, reason, banFromRoom)
       if (res.ok) {
-        toast.success(banFromRoom ? 'Đã mời và cấm thành viên vào phòng.' : 'Đã mời thành viên ra khỏi phòng.')
+        if (res.absent) {
+          toast.info(res.banned ? 'Đã cấm thành viên (thành viên hiện không có trong phòng).' : 'Thành viên không còn trong phòng.')
+        } else if (res.partial) {
+          toast.warning('Đã thiết lập cấm nhưng chưa thể ngắt kết nối trực tiếp khỏi phòng.')
+        } else {
+          toast.success(banFromRoom ? 'Đã mời và cấm thành viên vào phòng.' : 'Đã mời thành viên ra khỏi phòng.')
+        }
       } else {
         toast.error(res.loi || 'Không thể mời thành viên ra.')
         throw new Error(res.loi)
