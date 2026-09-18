@@ -85,6 +85,8 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
+  const hoatDongRef = useRef<UserActivity | null>(null)
+  const awayRef = useRef<boolean>(false)
 
   // Tải social state từ API
   const lamMoiSocialState = useCallback(async () => {
@@ -132,6 +134,17 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return
       setTrangThai('da_ket_noi')
       soLanThuRef.current = 0
+
+      if (awayRef.current) {
+        try {
+          ws.send(JSON.stringify({ type: 'presence.away', away: true }))
+        } catch {}
+      }
+      if (hoatDongRef.current) {
+        try {
+          ws.send(JSON.stringify({ type: 'activity.set', activity: hoatDongRef.current }))
+        } catch {}
+      }
     }
 
     ws.onmessage = (e) => {
@@ -583,6 +596,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   }, [lamMoiSocialState])
 
   const datTrangThaiAway = useCallback((away: boolean) => {
+    awayRef.current = away
     const ws = wsRef.current
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
@@ -592,6 +606,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const datHoatDong = useCallback((activity: UserActivity | null) => {
+    hoatDongRef.current = activity
     const ws = wsRef.current
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
