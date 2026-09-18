@@ -37,9 +37,17 @@ const modLimiterMock = createRateLimitMock(20, 60000)
 const uploadLimiterMock = createRateLimitMock(10, 60000)
 ;(env as any).UPLOAD_LIMITER = uploadLimiterMock.binding
 
+const loginLimiterMock = createRateLimitMock(10, 60000)
+;(env as any).LOGIN_LIMITER = loginLimiterMock.binding
+
+const admitLimiterMock = createRateLimitMock(10, 60000)
+;(env as any).ADMIT_LIMITER = admitLimiterMock.binding
+
 beforeEach(() => {
   modLimiterMock.reset()
   uploadLimiterMock.reset()
+  loginLimiterMock.reset()
+  admitLimiterMock.reset()
 })
 
 // Storage được tách riêng cho từng file test, nên mỗi file cần nạp lại lớp và tài khoản thử.

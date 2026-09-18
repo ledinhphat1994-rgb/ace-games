@@ -87,6 +87,19 @@ export async function dangNhap(
   if (!username || !password) return loi('Vui lòng nhập tên đăng nhập và mật khẩu.')
 
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0'
+  // Layer 1: Native Workers Rate Limiting edge burst protection (10 attempts / 60s per IP + username hash)
+  if (env.LOGIN_LIMITER) {
+    try {
+      const outcome = await env.LOGIN_LIMITER.limit({ key: `${ip}:${await bamNgan(username)}` })
+      if (!outcome.success) {
+        return loi('Bạn đã thử đăng nhập quá nhanh. Vui lòng thử lại sau giây lát.', 429)
+      }
+    } catch (limiterErr) {
+      console.warn('[login] Lỗi native LOGIN_LIMITER:', limiterErr)
+    }
+  }
+
+  // Layer 2: Secondary approximate KV quota (8 attempts / 10m per username, 30 attempts / 10m per IP)
   if (await thuQuaNhieu(env, ip, username)) {
     return loi('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10 phút.', 429)
   }
@@ -301,12 +314,7 @@ async function bamMaOtp(secret: string, username: string, code: string): Promise
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-interface RecordResetKV {
-  accountId: number
-  codeDigest: string
-  attempts: number
-  expiresAt: number
-}
+
 
 /** Yêu cầu mã khôi phục mật khẩu (OWASP: generic response, không để lộ mã ra public khi chưa xác thực) */
 export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Response> {
@@ -399,17 +407,23 @@ export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<
   crypto.getRandomValues(array)
   const code = (100000 + (array[0] % 900000)).toString()
 
-  // 6. Lưu HMAC digest vào KV, tuyệt đối không lưu plaintext
+  // 6. Lưu HMAC digest vào CSDL D1 (password_reset_tokens), tuyệt đối không lưu plaintext code
   const codeDigest = await bamMaOtp(env.SESSION_SECRET, target.ten_dang_nhap, code)
   const now = Date.now()
-  const record: RecordResetKV = {
-    accountId: target.id,
-    codeDigest,
-    attempts: 0,
-    expiresAt: now + 900 * 1000,
-  }
+  const expiresAt = now + 900 * 1000 // 15 phút
+  const tokenId = crypto.randomUUID()
 
-  await env.RATE_LIMIT.put(`pwd_reset:${target.ten_dang_nhap}`, JSON.stringify(record), { expirationTtl: 900 })
+  // Invalidate previous active tokens for this student (ABA Protection)
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active'",
+    ).bind(target.id),
+    env.DB.prepare(
+      `INSERT INTO password_reset_tokens (
+         token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status, created_at, created_by
+       ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
+    ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, kq.taiKhoan.id),
+  ])
 
   return json({
     ok: true,
@@ -437,7 +451,7 @@ export async function quenMatKhau(request: Request, env: Env): Promise<Response>
   if (!maXacNhan) return loi('Vui lòng nhập mã xác nhận 6 chữ số.', 400)
   if (!matKhauMoi || matKhauMoi.length < 6) return loi('Mật khẩu mới phải từ 6 ký tự trở lên.', 400)
 
-  // Rate limit theo IP và theo target account
+  // Rate limit theo IP
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0'
   const ipRateKey = `rate:qmk_try_ip:${ip}`
   if (env.RATE_LIMIT) {
@@ -456,68 +470,151 @@ export async function quenMatKhau(request: Request, env: Env): Promise<Response>
     }
   }
 
-  const kvKey = `pwd_reset:${username}`
-  const rawData = await env.RATE_LIMIT.get(kvKey)
-  if (!rawData) {
+  // 1. Tính toán HMAC digest của mã người dùng nhập
+  const testDigest = await bamMaOtp(env.SESSION_SECRET, username, maXacNhan)
+  const now = Date.now()
+
+  // 2. Tra cứu token khớp với mã nhập (Token Identity / ABA Protection)
+  const matchedToken = await env.DB.prepare(`
+    SELECT id, token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status
+      FROM password_reset_tokens
+     WHERE username = ?1 AND code_digest = ?2
+     ORDER BY id DESC LIMIT 1
+  `)
+    .bind(username, testDigest)
+    .first<{
+      id: number
+      token_id: string
+      account_id: number
+      username: string
+      code_digest: string
+      attempts: number
+      max_attempts: number
+      expires_at: number
+      status: string
+    }>()
+    .catch(() => null)
+
+  if (matchedToken) {
+    // 2a. Nếu mã thuộc về token đã bị thu hồi (ABA Protection: mã cũ A sau khi đã cấp mã B)
+    if (matchedToken.status === 'revoked') {
+      return loi('Mã xác nhận đã bị hủy do giáo viên đã cấp mã mới. Vui lòng sử dụng mã mới nhất.', 400)
+    }
+    // 2b. Nếu mã đã từng được sử dụng
+    if (matchedToken.status === 'consumed') {
+      return loi('Mã xác nhận đã được sử dụng. Vui lòng liên hệ giáo viên để xin mã mới.', 400)
+    }
+    // 2c. Nếu mã đã bị khóa do nhập sai quá số lần
+    if (matchedToken.status === 'locked' || matchedToken.attempts >= matchedToken.max_attempts) {
+      return loi('Mã xác nhận đã bị khóa do nhập sai quá 5 lần. Vui lòng liên hệ giáo viên.', 429)
+    }
+    // 2d. Nếu mã đã hết hạn 15 phút
+    if (matchedToken.expires_at <= now) {
+      return loi('Mã xác nhận đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã mới.', 400)
+    }
+
+    // 2e. Mã ĐÚNG và HỢP LỆ: Tính toán hash mật khẩu mới trước
+    const salt = taoSalt()
+    const matKhauHash = await bamMatKhau(matKhauMoi, salt, DEFAULT_ITERATIONS)
+    const markerHuyPhien = `revoked_${crypto.randomUUID()}`
+
+    // Chuyển đổi trạng thái sang 'consumed' một cách nguyên tử (Single-use Invariant)
+    const consumeRes = await env.DB.prepare(`
+      UPDATE password_reset_tokens
+         SET status = 'consumed',
+             consumed_at = ?1
+       WHERE id = ?2
+         AND status = 'active'
+         AND attempts < max_attempts
+         AND expires_at > ?1
+    `)
+      .bind(now, matchedToken.id)
+      .run()
+      .catch(() => null)
+
+    if (!consumeRes || consumeRes.meta.changes === 0) {
+      return loi('Mã xác nhận không hợp lệ hoặc đã được sử dụng. Vui lòng liên hệ giáo viên.', 400)
+    }
+
+    // Cập nhật mật khẩu và gán session marker mới để vô hiệu hoá toàn bộ phiên cũ
+    await env.DB.prepare(`
+      UPDATE tai_khoan_campus
+         SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP
+       WHERE id = ?5
+    `)
+      .bind(matKhauHash, salt, DEFAULT_ITERATIONS, markerHuyPhien, matchedToken.account_id)
+      .run()
+
+    // Báo CampusDO ngắt kết nối WebSocket của mọi phiên cũ
+    env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+      .dangNhapMoi(matchedToken.account_id, markerHuyPhien)
+      .catch(() => {})
+
+    return json({ ok: true, message: 'Đặt lại mật khẩu thành công! Toàn bộ phiên cũ đã được đăng xuất. Vui lòng đăng nhập lại.' })
+  }
+
+  // 3. Nếu mã KHÔNG khớp bất kỳ token nào (Mã SAI hoàn toàn):
+  // Tìm token mới nhất của tài khoản để tính số lần thử sai
+  const activeToken = await env.DB.prepare(`
+    SELECT id, token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status
+      FROM password_reset_tokens
+     WHERE username = ?1
+     ORDER BY id DESC LIMIT 1
+  `)
+    .bind(username)
+    .first<{
+      id: number
+      token_id: string
+      account_id: number
+      username: string
+      code_digest: string
+      attempts: number
+      max_attempts: number
+      expires_at: number
+      status: string
+    }>()
+    .catch(() => null)
+
+  if (!activeToken) {
     return loi('Mã xác nhận không hợp lệ hoặc đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã.', 400)
   }
 
-  let record: RecordResetKV
-  try {
-    record = JSON.parse(rawData)
-  } catch {
-    await env.RATE_LIMIT.delete(kvKey)
-    return loi('Dữ liệu xác nhận không hợp lệ. Vui lòng liên hệ giáo viên.', 400)
+  if (activeToken.status === 'locked' || activeToken.attempts >= activeToken.max_attempts) {
+    return loi('Mã xác nhận đã bị khóa do nhập sai quá 5 lần. Vui lòng liên hệ giáo viên.', 429)
   }
-
-  const now = Date.now()
-  if (record.expiresAt <= now) {
-    await env.RATE_LIMIT.delete(kvKey)
+  if (activeToken.status !== 'active') {
+    return loi('Mã xác nhận không hợp lệ hoặc đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã.', 400)
+  }
+  if (activeToken.expires_at <= now) {
     return loi('Mã xác nhận đã hết hạn (15 phút). Vui lòng liên hệ giáo viên để nhận mã mới.', 400)
   }
 
-  // Chống brute-force: tối đa 5 lần thử sai
-  if (record.attempts >= 5) {
-    await env.RATE_LIMIT.delete(kvKey)
+  // Tăng attempts nguyên tử trong D1 (SQLite single-threaded serialization)
+  const updateRes = await env.DB.prepare(`
+    UPDATE password_reset_tokens
+       SET attempts = attempts + 1,
+           status = CASE WHEN attempts + 1 >= max_attempts THEN 'locked' ELSE status END
+     WHERE id = ?1 AND status = 'active' AND expires_at > ?2
+  `)
+    .bind(activeToken.id, now)
+    .run()
+    .catch(() => null)
+
+  if (!updateRes || updateRes.meta.changes === 0) {
     return loi('Mã xác nhận đã bị khóa do nhập sai quá 5 lần. Vui lòng liên hệ giáo viên.', 429)
   }
 
-  // Đối chiếu HMAC digest của mã nhập vào
-  const testDigest = await bamMaOtp(env.SESSION_SECRET, username, maXacNhan)
-  if (testDigest !== record.codeDigest) {
-    record.attempts += 1
-    const ttlRemaining = Math.max(1, Math.round((record.expiresAt - now) / 1000))
-    if (record.attempts >= 5) {
-      await env.RATE_LIMIT.delete(kvKey)
-      return loi('Mã xác nhận đã bị hủy do nhập sai 5 lần. Vui lòng liên hệ giáo viên để xin cấp mã mới.', 429)
-    }
-    // Cập nhật số lần thử sai nhưng KHÔNG được gia hạn thêm TTL gốc
-    await env.RATE_LIMIT.put(kvKey, JSON.stringify(record), { expirationTtl: ttlRemaining })
-    return loi(`Mã xác nhận không chính xác (còn ${5 - record.attempts} lần thử).`, 400)
+  const current = await env.DB.prepare('SELECT attempts, max_attempts, status FROM password_reset_tokens WHERE id = ?1')
+    .bind(activeToken.id)
+    .first<{ attempts: number; max_attempts: number; status: string }>()
+    .catch(() => null)
+
+  if (current && (current.attempts >= current.max_attempts || current.status === 'locked')) {
+    return loi('Mã xác nhận đã bị hủy do nhập sai 5 lần. Vui lòng liên hệ giáo viên để xin cấp mã mới.', 429)
   }
 
-  // Mã đúng: Xóa ngay lập tức (Single-use)
-  await env.RATE_LIMIT.delete(kvKey)
-
-  const salt = taoSalt()
-  const matKhauHash = await bamMatKhau(matKhauMoi, salt, DEFAULT_ITERATIONS)
-
-  // Gán session marker ngẫu nhiên mới mà không token cũ nào có để vô hiệu hóa 100% phiên cũ
-  const markerHuyPhien = `revoked_${crypto.randomUUID()}`
-  await env.DB.prepare(`
-    UPDATE tai_khoan_campus
-       SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP
-     WHERE id = ?5
-  `)
-    .bind(matKhauHash, salt, DEFAULT_ITERATIONS, markerHuyPhien, record.accountId)
-    .run()
-
-  // Báo CampusDO đá kết nối WebSocket của phiên cũ
-  env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
-    .dangNhapMoi(record.accountId, markerHuyPhien)
-    .catch(() => {})
-
-  return json({ ok: true, message: 'Đặt lại mật khẩu thành công! Toàn bộ phiên cũ đã được đăng xuất. Vui lòng đăng nhập lại.' })
+  const conLai = current ? Math.max(0, current.max_attempts - current.attempts) : 0
+  return loi(`Mã xác nhận không chính xác (còn ${conLai} lần thử).`, 400)
 }
 
 export async function doiAvatar(request: Request, env: Env): Promise<Response> {

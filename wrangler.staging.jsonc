@@ -41,6 +41,22 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      "name": "LOGIN_LIMITER",
+      "namespace_id": "2003",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "ADMIT_LIMITER",
+      "namespace_id": "2004",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
     }
   ],
   "r2_buckets": [

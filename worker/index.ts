@@ -507,7 +507,19 @@ app.post('/api/rooms/:id/admit', async (c) => {
   const password = String(body.password || '').trim()
   if (!password) return loi('Thiếu mật khẩu.', 400)
 
-  // Rate-limit password attempts: 10 lần / 5 phút / tài khoản (anti-brute-force)
+  // Layer 1: Native Workers Rate Limiting edge burst protection (10 attempts / 60s per account + room)
+  if (c.env.ADMIT_LIMITER) {
+    try {
+      const outcome = await c.env.ADMIT_LIMITER.limit({ key: `${phongId}:${kq.taiKhoan.id}` })
+      if (!outcome.success) {
+        return loi('Bạn đang thử mật khẩu phòng quá nhanh. Vui lòng thử lại sau giây lát.', 429)
+      }
+    } catch (limiterErr) {
+      console.warn('[admit] Lỗi native ADMIT_LIMITER:', limiterErr)
+    }
+  }
+
+  // Layer 2: Secondary approximate KV counter: 10 lần / 5 phút / tài khoản
   const rlKey = `rate:admit:${phongId}:${kq.taiKhoan.id}`
   if (c.env.RATE_LIMIT) {
     try {
@@ -737,7 +749,11 @@ app.get('/api/moderation/audit-logs', listAuditLogs)
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth routes
 // ─────────────────────────────────────────────────────────────────────────────
-app.post('/api/login', (c) => dangNhap(c.req.raw, c.env, c.executionCtx))
+app.post('/api/login', (c) => {
+  let ctx: { waitUntil(promise: Promise<unknown>): void } | undefined
+  try { ctx = c.executionCtx } catch {}
+  return dangNhap(c.req.raw, c.env, ctx)
+})
 app.post('/api/register', (c) => dangKy(c.req.raw, c.env))
 app.post('/api/forgot-password/request', (c) => yeuCauQuenMatKhau(c.req.raw, c.env))
 app.post('/api/forgot-password', (c) => quenMatKhau(c.req.raw, c.env))

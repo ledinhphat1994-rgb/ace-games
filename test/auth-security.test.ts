@@ -138,10 +138,11 @@ describe('Auth Security Regression', () => {
     const plainOtp = body.code as string
     expect(plainOtp.length).toBe(6)
 
-    // Record lưu trữ trong KV tuyệt đối không chứa plaintext OTP (phải băm HMAC)
-    const raw = await env.RATE_LIMIT.get('pwd_reset:qa.v2.thu1')
-    expect(raw).toBeTruthy()
-    expect(raw).not.toContain(plainOtp)
+    // Record lưu trữ trong CSDL tuyệt đối không chứa plaintext OTP (phải băm HMAC)
+    const tokenRow = await env.DB.prepare('SELECT code_digest FROM password_reset_tokens WHERE username = ?1 AND status = ?2')
+      .bind('qa.v2.thu1', 'active').first<{ code_digest: string }>()
+    expect(tokenRow).toBeTruthy()
+    expect(tokenRow!.code_digest).not.toContain(plainOtp)
 
     // Dùng OTP hợp lệ để reset → phải thành công (chứng minh OTP băm đúng)
     const NEW_PW = 'TestNewPw!2026'
@@ -196,21 +197,21 @@ describe('Auth Security Regression', () => {
     const body = await json(resCode)
     const otp = body.code as string
 
-    // Đọc record ban đầu từ KV
-    const rawBefore = await env.RATE_LIMIT.get('pwd_reset:qa.v2.thu1')
-    expect(rawBefore).toBeTruthy()
-    const recordBefore = JSON.parse(rawBefore!) as { attempts: number; expiresAt: number }
+    // Đọc record ban đầu từ CSDL D1
+    const tokenBefore = await env.DB.prepare('SELECT attempts, expires_at FROM password_reset_tokens WHERE username = ?1 AND status = ?2')
+      .bind('qa.v2.thu1', 'active').first<{ attempts: number; expires_at: number }>()
+    expect(tokenBefore).toBeTruthy()
 
     // Nhập sai 1 lần với OTP sai và mật khẩu đúng độ dài
     const resBad = await resetPassword('qa.v2.thu1', '999999', MAT_KHAU)
     expect(resBad.status).toBeGreaterThanOrEqual(400)
 
-    // Đọc lại record từ KV: expiresAt tuyệt đối không đổi; attempts tăng 1
-    const rawAfter = await env.RATE_LIMIT.get('pwd_reset:qa.v2.thu1')
-    expect(rawAfter).toBeTruthy()
-    const recordAfter = JSON.parse(rawAfter!) as { attempts: number; expiresAt: number }
-    expect(recordAfter.attempts).toBe(1)
-    expect(recordAfter.expiresAt).toBe(recordBefore.expiresAt)
+    // Đọc lại record từ CSDL D1: expires_at tuyệt đối không đổi; attempts tăng 1
+    const tokenAfter = await env.DB.prepare('SELECT attempts, expires_at FROM password_reset_tokens WHERE username = ?1 AND status = ?2')
+      .bind('qa.v2.thu1', 'active').first<{ attempts: number; expires_at: number }>()
+    expect(tokenAfter).toBeTruthy()
+    expect(tokenAfter!.attempts).toBe(1)
+    expect(tokenAfter!.expires_at).toBe(tokenBefore!.expires_at)
 
     // OTP đúng vẫn phải dùng được (sai 1 lần chưa hết hạn)
     const resGood = await resetPassword('qa.v2.thu1', otp, MAT_KHAU)
