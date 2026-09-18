@@ -41,6 +41,7 @@ import {
   renegotiateVoiceSession,
   taoVoiceSession,
 } from './routes/voice-api'
+import { socialApp } from './routes/social'
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
@@ -786,6 +787,11 @@ app.get('/api/yt-search', async (c) => {
   } catch { return c.json([]) }
 })
 app.all('/api/yt-search', saiPhuongThuc)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Social Graph & Presence APIs
+// ─────────────────────────────────────────────────────────────────────────────
+app.route('/api/social', socialApp)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket routes

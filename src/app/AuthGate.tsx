@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { Outlet } from 'react-router'
+import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { LoginCard } from '@/features/auth/LoginCard'
@@ -59,7 +60,9 @@ export function AuthGate() {
 
   return (
     <PhienContext value={giaTri}>
-      <Outlet />
+      <CampusProvider>
+        <Outlet />
+      </CampusProvider>
     </PhienContext>
   )
 }

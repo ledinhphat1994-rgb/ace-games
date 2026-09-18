@@ -31,6 +31,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { usePhien } from '@/app/phien'
+import { useCampusContext } from '@/app/CampusContext'
+import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ChalkboardCanvas } from './ChalkboardCanvas'
@@ -307,6 +309,26 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
+
+  // ── Social & Campus Presence Activity ──────────────────────────────────────
+  const { setActivity } = useCampusContext()
+  const numericRoomId = useMemo(() => {
+    const num = parseInt(roomId.replace('phong-', ''), 10)
+    return isNaN(num) ? undefined : num
+  }, [roomId])
+
+  useEffect(() => {
+    if (numericRoomId) {
+      setActivity({
+        type: 'room',
+        roomId: numericRoomId,
+        roomTitle: tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId}`,
+      })
+    }
+    return () => {
+      setActivity(null)
+    }
+  }, [numericRoomId, tenChuPhong, setActivity])
 
   const handleSendChat = (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -692,7 +714,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             </span>
           )}
 
-          <div className="border-l border-white/10 pl-2">
+          <div className="border-l border-white/10 pl-2 flex items-center gap-1.5">
+            <FriendsDrawer />
             <UserAvatarMenu
               nguoiDung={nguoiDung}
               onDangXuat={onLeaveRoom}

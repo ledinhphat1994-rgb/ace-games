@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { LenhCampus, type GoiCampus, type PhongSanh, type TinCampus } from '../../shared/protocol/campus'
+import type { FriendPresence, PresenceState, UserActivity } from '../../shared/protocol/social'
 import {
   lamSachVanBan,
   MA_DONG_SOCKET,
@@ -17,6 +18,14 @@ const KHUNG_TOI_DA_KY_TU = 4096
 const LENH_TOI_DA = 30
 const CUA_SO_LENH_MS = 10_000
 const PHONG_GUI_KEM = 100
+export const DISCONNECT_GRACE_MS = 5000
+
+interface TrangThaiNguoiDung {
+  state: PresenceState
+  lastSeen: number
+  activity: UserActivity | null
+  timerDisconnect?: ReturnType<typeof setTimeout>
+}
 
 interface DongTinD1 {
   id: number
@@ -99,6 +108,9 @@ export class CampusDO extends DurableObject<Env> {
   private tinGanDay: TinCampus[] | null = null
   private guiChatGanNhat = new Map<number, { luc: number; batDauPhut: number; demPhut: number }>()
   private demLenh = new WeakMap<WebSocket, { batDau: number; dem: number }>()
+  private presenceMap = new Map<number, TrangThaiNguoiDung>()
+  private friendMap = new Map<number, Set<number>>()
+  private blockMap = new Map<number, Set<number>>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -120,6 +132,8 @@ export class CampusDO extends DurableObject<Env> {
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server, [theTaiKhoan(dt.accountId)])
     server.serializeAttachment(dt)
+    await this.dangKyKetNoi(server, dt)
+
     const online = this.demOnline()
     this.gui(server, {
       type: 'snapshot',
@@ -160,6 +174,10 @@ export class CampusDO extends DurableObject<Env> {
         return this.guiChat(ws, dt, lenh.data.text, reqId)
       case 'chat.delete':
         return this.xoaChat(ws, dt, lenh.data.id, reqId)
+      case 'presence.away':
+        return this.capNhatAway(dt.accountId, lenh.data.away)
+      case 'activity.set':
+        return this.capNhatHoatDong(dt.accountId, lenh.data.activity)
     }
   }
 
@@ -169,10 +187,12 @@ export class CampusDO extends DurableObject<Env> {
     } catch {
       // Mã đóng dành riêng (1005/1006) hoặc kết nối đã đóng.
     }
+    this.huyKetNoi(ws)
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
+    this.huyKetNoi(ws)
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
   }
 
@@ -438,6 +458,311 @@ export class CampusDO extends DurableObject<Env> {
         ws.send(chuoi)
       } catch {
         // Kết nối đang đóng dở.
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Presence & Social Graph Logic
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  private async dangKyKetNoi(ws: WebSocket, dt: DanhTinhCampus): Promise<void> {
+    await this.napSocialGraph(dt.accountId)
+
+    let entry = this.presenceMap.get(dt.accountId)
+    const wasOffline = !entry || entry.state === 'offline'
+
+    if (entry?.timerDisconnect) {
+      clearTimeout(entry.timerDisconnect)
+      entry.timerDisconnect = undefined
+    }
+
+    if (!entry) {
+      entry = {
+        state: 'online',
+        lastSeen: Date.now(),
+        activity: null,
+      }
+      this.presenceMap.set(dt.accountId, entry)
+    } else {
+      entry.state = 'online'
+      entry.lastSeen = Date.now()
+    }
+
+    // Gửi snapshot presence bạn bè cho WebSocket mới
+    const snapshot = this.laySnapshotBanBe(dt)
+    this.gui(ws, { type: 'social.presence_snapshot', friends: snapshot })
+
+    // Nếu vừa online (từ offline), phát sóng tới bạn bè
+    if (wasOffline) {
+      this.phatPresenceBanBe(dt.accountId)
+    }
+  }
+
+  private huyKetNoi(ws: WebSocket): void {
+    const dt = ws.deserializeAttachment() as DanhTinhCampus | null
+    if (!dt) return
+
+    // Kiểm tra các WebSocket còn lại của accountId này (multi-tab/device)
+    const conLai = this.ctx.getWebSockets(theTaiKhoan(dt.accountId)).filter((s) => s !== ws)
+    if (conLai.length > 0) {
+      // Vẫn còn tab/thiết bị khác kết nối -> Giữ online!
+      return
+    }
+
+    // Kết nối cuối cùng vừa đóng -> bắt đầu Bounded Disconnect Grace Period (5 giây)
+    const entry = this.presenceMap.get(dt.accountId)
+    if (!entry) return
+
+    if (entry.timerDisconnect) clearTimeout(entry.timerDisconnect)
+    entry.timerDisconnect = setTimeout(() => {
+      // Sau grace period kiểm tra lại: nếu vẫn 0 kết nối -> offline
+      const recheck = this.ctx.getWebSockets(theTaiKhoan(dt.accountId))
+      if (recheck.length > 0) return
+
+      entry.state = 'offline'
+      entry.lastSeen = Date.now()
+      entry.activity = null
+      entry.timerDisconnect = undefined
+      this.phatPresenceBanBe(dt.accountId)
+    }, DISCONNECT_GRACE_MS)
+  }
+
+  private capNhatAway(accountId: number, away: boolean): void {
+    const entry = this.presenceMap.get(accountId)
+    if (entry && this.ctx.getWebSockets(theTaiKhoan(accountId)).length > 0) {
+      entry.state = away ? 'away' : 'online'
+      entry.lastSeen = Date.now()
+      this.phatPresenceBanBe(accountId)
+    }
+  }
+
+  private capNhatHoatDong(accountId: number, activity: UserActivity | null): void {
+    const entry = this.presenceMap.get(accountId)
+    if (entry && this.ctx.getWebSockets(theTaiKhoan(accountId)).length > 0) {
+      entry.activity = activity
+      entry.lastSeen = Date.now()
+      this.phatPresenceBanBe(accountId)
+    }
+  }
+
+  private phatPresenceBanBe(accountId: number): void {
+    const entry = this.presenceMap.get(accountId)
+    if (!entry) return
+
+    const friendIds = this.friendMap.get(accountId)
+    if (!friendIds || friendIds.size === 0) return
+
+    const blocked = this.blockMap.get(accountId) ?? new Set()
+    const danhBa = this.docTatCaPhong()
+
+    for (const friendId of friendIds) {
+      if (blocked.has(friendId)) continue
+
+      const sockets = this.ctx.getWebSockets(theTaiKhoan(friendId))
+      if (sockets.length === 0) continue
+
+      for (const ws of sockets) {
+        const friendDt = ws.deserializeAttachment() as DanhTinhCampus | null
+        if (!friendDt) continue
+
+        const sanitized = this.locHoatDong(friendDt, entry.activity, danhBa)
+        this.gui(ws, {
+          type: 'social.presence_update',
+          presence: {
+            accountId,
+            state: entry.state,
+            lastSeen: entry.lastSeen,
+            activity: sanitized,
+          },
+        })
+      }
+    }
+  }
+
+  private laySnapshotBanBe(dt: DanhTinhCampus): FriendPresence[] {
+    const friendIds = this.friendMap.get(dt.accountId)
+    if (!friendIds || friendIds.size === 0) return []
+    const blocked = this.blockMap.get(dt.accountId) ?? new Set()
+    const danhBa = this.docTatCaPhong()
+
+    const results: FriendPresence[] = []
+    for (const fid of friendIds) {
+      if (blocked.has(fid)) continue
+      const entry = this.presenceMap.get(fid)
+      results.push({
+        accountId: fid,
+        state: entry?.state ?? 'offline',
+        lastSeen: entry?.lastSeen ?? 0,
+        activity: entry ? this.locHoatDong(dt, entry.activity, danhBa) : null,
+      })
+    }
+    return results
+  }
+
+  private locHoatDong(
+    nguoiXem: DanhTinhCampus,
+    activity: UserActivity | null,
+    danhBa: PhongSanh[],
+  ): UserActivity | null {
+    if (!activity) return null
+    if (activity.type === 'room' && activity.roomId) {
+      const phong = danhBa.find((p) => p.id === activity.roomId)
+      if (!phong) {
+        return { type: 'room', roomTitle: 'Đang học nhóm' }
+      }
+      const duocXem = thayPhong(nguoiXem, phong)
+      if (!duocXem) {
+        return { type: 'room', roomTitle: 'Đang học nhóm' }
+      }
+      return {
+        type: 'room',
+        roomId: phong.id,
+        roomTitle: phong.ten,
+      }
+    }
+    return activity
+  }
+
+  private async napSocialGraph(accountId: number): Promise<void> {
+    if (this.friendMap.has(accountId) && this.blockMap.has(accountId)) return
+    try {
+      const [friendsDb, blocksDb] = await Promise.all([
+        this.env.DB.prepare(
+          `SELECT CASE WHEN account_low_id = ?1 THEN account_high_id ELSE account_low_id END as friendId
+             FROM friendships
+            WHERE account_low_id = ?1 OR account_high_id = ?1`,
+        )
+          .bind(accountId)
+          .all<{ friendId: number }>(),
+        this.env.DB.prepare(
+          `SELECT CASE WHEN blocker_id = ?1 THEN blocked_id ELSE blocker_id END as blockedId
+             FROM blocks
+            WHERE blocker_id = ?1 OR blocked_id = ?1`,
+        )
+          .bind(accountId)
+          .all<{ blockedId: number }>(),
+      ])
+      const friends = new Set((friendsDb.results ?? []).map((r) => r.friendId))
+      const blocks = new Set((blocksDb.results ?? []).map((r) => r.blockedId))
+      this.friendMap.set(accountId, friends)
+      this.blockMap.set(accountId, blocks)
+    } catch (e) {
+      console.error('Lỗi khi nạp social graph vào CampusDO:', e)
+      if (!this.friendMap.has(accountId)) this.friendMap.set(accountId, new Set())
+      if (!this.blockMap.has(accountId)) this.blockMap.set(accountId, new Set())
+    }
+  }
+
+  async layTrangThaiPresence(accountId: number): Promise<FriendPresence> {
+    const entry = this.presenceMap.get(accountId)
+    return {
+      accountId,
+      state: entry?.state ?? 'offline',
+      lastSeen: entry?.lastSeen ?? 0,
+      activity: entry?.activity ?? null,
+    }
+  }
+
+  async thongBaoSocial(suKien: any): Promise<void> {
+    if (!suKien || typeof suKien !== 'object') return
+
+    switch (suKien.type) {
+      case 'social.request_received': {
+        const sockets = this.ctx.getWebSockets(theTaiKhoan(suKien.receiverId))
+        for (const ws of sockets) {
+          this.gui(ws, { type: 'social.request_received', request: suKien.request })
+        }
+        break
+      }
+      case 'social.request_resolved': {
+        for (const aid of suKien.accountIds ?? []) {
+          const sockets = this.ctx.getWebSockets(theTaiKhoan(aid))
+          for (const ws of sockets) {
+            this.gui(ws, { type: 'social.request_resolved', requestId: suKien.requestId })
+          }
+        }
+        break
+      }
+      case 'social.friend_added': {
+        const [idA, idB] = suKien.accountIds as [number, number]
+        if (!this.friendMap.has(idA)) this.friendMap.set(idA, new Set())
+        if (!this.friendMap.has(idB)) this.friendMap.set(idB, new Set())
+        this.friendMap.get(idA)!.add(idB)
+        this.friendMap.get(idB)!.add(idA)
+
+        this.blockMap.get(idA)?.delete(idB)
+        this.blockMap.get(idB)?.delete(idA)
+
+        const entryA = this.presenceMap.get(idA)
+        const entryB = this.presenceMap.get(idB)
+
+        const socketsA = this.ctx.getWebSockets(theTaiKhoan(idA))
+        const socketsB = this.ctx.getWebSockets(theTaiKhoan(idB))
+
+        for (const ws of socketsA) {
+          this.gui(ws, {
+            type: 'social.friend_added',
+            friend: suKien.friendB,
+            presence: {
+              accountId: idB,
+              state: entryB?.state ?? 'offline',
+              lastSeen: entryB?.lastSeen ?? 0,
+              activity: entryB?.activity ?? null,
+            },
+          })
+        }
+        for (const ws of socketsB) {
+          this.gui(ws, {
+            type: 'social.friend_added',
+            friend: suKien.friendA,
+            presence: {
+              accountId: idA,
+              state: entryA?.state ?? 'offline',
+              lastSeen: entryA?.lastSeen ?? 0,
+              activity: entryA?.activity ?? null,
+            },
+          })
+        }
+        break
+      }
+      case 'social.friend_removed': {
+        const { userA, userB } = suKien
+        this.friendMap.get(userA)?.delete(userB)
+        this.friendMap.get(userB)?.delete(userA)
+
+        for (const ws of this.ctx.getWebSockets(theTaiKhoan(userA))) {
+          this.gui(ws, { type: 'social.friend_removed', friendId: userB })
+        }
+        for (const ws of this.ctx.getWebSockets(theTaiKhoan(userB))) {
+          this.gui(ws, { type: 'social.friend_removed', friendId: userA })
+        }
+        break
+      }
+      case 'social.blocked': {
+        const { blockerId, blockedId } = suKien
+        this.friendMap.get(blockerId)?.delete(blockedId)
+        this.friendMap.get(blockedId)?.delete(blockerId)
+
+        if (!this.blockMap.has(blockerId)) this.blockMap.set(blockerId, new Set())
+        if (!this.blockMap.has(blockedId)) this.blockMap.set(blockedId, new Set())
+        this.blockMap.get(blockerId)!.add(blockedId)
+        this.blockMap.get(blockedId)!.add(blockerId)
+
+        for (const ws of this.ctx.getWebSockets(theTaiKhoan(blockerId))) {
+          this.gui(ws, { type: 'social.blocked', targetId: blockedId })
+          this.gui(ws, { type: 'social.friend_removed', friendId: blockedId })
+        }
+        for (const ws of this.ctx.getWebSockets(theTaiKhoan(blockedId))) {
+          this.gui(ws, { type: 'social.friend_removed', friendId: blockerId })
+        }
+        break
+      }
+      case 'social.unblocked': {
+        const { blockerId, blockedId } = suKien
+        this.blockMap.get(blockerId)?.delete(blockedId)
+        this.blockMap.get(blockedId)?.delete(blockerId)
+        break
       }
     }
   }
