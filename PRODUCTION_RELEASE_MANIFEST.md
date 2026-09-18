@@ -1,48 +1,46 @@
 # Digital Campus v2 — Production Release Manifest
 
-**Milestone:** PRV6 — Identity Recovery & Authentication Security Closure
+**Milestone:** PRV7 — Transactional Reset Commit + Global Session Revocation Closure
 **Release Candidate Branch:** `fix/moderation-safety-v1-closure`
 **Documentation HEAD Git Commit SHA:** Will be populated on commit (documentation only)
-**Executable Candidate Git Commit SHA:** `730588439df61a8f9064c91a329ef3109ecf205c`
-**Staging-Verified Executable SHA:** `730588439df61a8f9064c91a329ef3109ecf205c`
-**Verified Staging Deployment Version ID:** `91d7658f-4e2d-4308-b2ed-25660d1752e2`
+**Executable Candidate Git Commit SHA:** `0d27848b931376bf06e3dff4dc3883a7eea40b1b`
+**Staging-Verified Executable SHA:** `0d27848b931376bf06e3dff4dc3883a7eea40b1b`
+**Verified Staging Deployment Version ID:** `27fa35a5-bce8-4f8a-a889-3ac68bc8a6f0`
 **Verified Staging URL:** `https://gdtxdinhquan-v2.ledinhphat1994.workers.dev`
 **Target Production Worker Service:** `gdtxdinhquan`
 **Target Production Domain:** `gdtxdinhquan.workers.dev` / Custom Domain  
 
-*Note on SHA Parity:* Executable Candidate SHA matches the Staging-Verified SHA (`730588439df61a8f9064c91a329ef3109ecf205c`) byte-for-byte. The Documentation HEAD differs from the Executable Candidate SHA solely by updates to documentation files (`PRODUCTION_RELEASE_MANIFEST.md`), with zero executable code or configuration diffs.
+*Note on SHA Parity:* Executable Candidate SHA matches the Staging-Verified SHA (`0d27848b931376bf06e3dff4dc3883a7eea40b1b`) byte-for-byte. The Documentation HEAD differs from the Executable Candidate SHA solely by updates to documentation files (`PRODUCTION_RELEASE_MANIFEST.md`), with zero executable code or configuration diffs.
 
 ---
 
 ## 1. Code Delta from `origin/main`
 
-- **Branch Range:** `origin/main..7305884` (12 commits)
+- **Branch Range:** `origin/main..0d27848` (13 commits)
 - **Key Modules & Enhancements:**
-  - `worker/room-do.ts`: Cooldown versioning (`cooldown_id`), atomic SQLite OCC locks, authority hierarchy.
-  - `worker/routes/moderation-api.ts`:
-    - Restriction identity across delete/recreate (ABA protection).
-    - Edge Workers Rate Limiting binding integration (`MODERATION_LIMITER`: 20 req / 60s per actor).
-    - `/api/reports` rate limit migrated to **D1 persistence boundary conditional atomic insert** (5 reports / 10 min / reporter; zero KV writes, zero lost increments).
-    - Strict Zod schemas and room ID parsing.
   - `worker/routes/auth.ts`:
-    - **Password Reset State Machine migrated from Workers KV to D1 (`password_reset_tokens`)**:
-      * Invariant A: Atomic 5-attempt lockout enforced via single-query SQLite conditional update (`UPDATE ... SET attempts = attempts + 1, status = CASE ...`). Concurrent wrong attempts cannot exceed ceiling or lose increments.
-      * Invariant B: Atomic single-use credential consumption (`UPDATE ... SET status = 'consumed' WHERE id = ? AND status = 'active' AND attempts < max_attempts`). Exactly 1 concurrent request can succeed; siblings receive 0 modified rows and fail closed with HTTP 400.
-      * ABA Protection: Token issuance revokes previous active tokens (`status = 'revoked'`). Delayed requests with Token A cannot mutate, consume, or reset password on Token B.
-      * Password Hash & Update Atomicity: PBKDF2 hash calculated prior to atomic conditional update; password update immediately invalidates all active sessions (`thiet_bi = 'revoked_' + UUID`, code 4001 eviction).
-    - **Login Dual-Layer Abuse Defense**:
-      * Layer 1: Native Cloudflare Workers Rate Limiting edge binding (`LOGIN_LIMITER`: 10 req / 60s per IP + username) providing burst and credential-stuffing resistance.
-      * Layer 2: Fail-open KV secondary sliding window (8 attempts / 10 min per username, 30 attempts / 10 min per IP) with graceful try-catch error handling.
+    - **Blocker 1 Resolved — Atomic D1 Batch Transaction (`env.DB.batch`)**:
+      * Converted credential update and token consumption into a single atomic D1 SQL transaction.
+      * Statement 1 (`UPDATE tai_khoan_campus`): Updates `mat_khau_hash`, `salt`, `iterations`, and new `thiet_bi` session marker with an explicit SQL `EXISTS` subquery verifying the exact token row is `status = 'active'`, `attempts < max_attempts`, and unexpired.
+      * Statement 2 (`UPDATE password_reset_tokens`): Conditionally transitions status to `'consumed'` with `consumed_at = now`.
+      * Strict assertion: Both statements MUST return `meta.changes === 1`. If either statement fails or a constraint/trigger aborts, D1 rolls back the entire batch atomically. Verified via SQLite trigger fault-injection test (`test/session-revocation.test.ts`).
+    - **Blocker 2 Coordination**: `quenMatKhau` awaits `CampusDO.dangNhapMoi` to trigger cross-system session eviction across all registered WebSockets and voice media tracks.
+  - `worker/campus/campus-do.ts`:
+    - Added durable SQLite table `phong_tai_khoan (account_id, room_name, phien_id, updated_at)` and in-memory registry `phongCuaTaiKhoan: Map<number, Set<string>>`.
+    - Added RPC methods `dangKyPhong(accountId, roomName, phienId)` and `roiPhong(accountId, roomName)`.
+    - `dangNhapMoi` now proactively closes Campus WebSockets with code `4001` AND invokes `RoomDO.huyPhienCu(accountId, currentPhienId)` across all rooms registered to that account.
+  - `worker/room-do.ts`:
+    - Added `phienId` to `AttachmentKetNoi` and WebSocket connection tags (`[theTaiKhoan(accountId), 'phien:' + phienId]`).
+    - Added `revokeVoiceForActor(actorKey)` which cleans up voice registry/SQLite state and calls Cloudflare Calls SFU `/sessions/:id/tracks/close` upstream.
+    - Added `huyPhienCu(accountId, currentPhienId)` which closes matching stale WebSockets with code `4001` (`da_dang_nhap_noi_khac`) and automatically revokes active voice publications.
+    - Added **Tier 2 In-Flight Session Validation**: On every incoming `webSocketMessage`, validates `att.phienId` against cached D1 `thiet_bi` (5s TTL cache). Stale sockets are immediately force-closed with code `4001`, their voice tracks revoked, and messages dropped.
+    - Added HTTP internal endpoint `/internal/session/revoke`.
   - `worker/index.ts`:
-    - Server-trusted Request ID generation (`crypto.randomUUID()`), client correlation header sanitization.
-    - Global security response headers (`nosniff`, `SAMEORIGIN`, `strict-origin-when-cross-origin`).
-    - `/api/upload` dual-layer defense: native edge `UPLOAD_LIMITER` (10 req / 60s per actor) + fail-open KV quota (20 uploads / 10 min).
-    - `/api/rooms/:id/admit` room admission dual-layer defense: native edge `ADMIT_LIMITER` (10 req / 60s per account + room) + fail-open KV quota.
-  - `worker/routes/voice-api.ts`: Voice signaling rate limiter hardened with fail-open try-catch.
-  - `wrangler.jsonc`, `wrangler.staging.jsonc`, `wrangler.production.jsonc`:
-    - Added native `ratelimits` bindings for `LOGIN_LIMITER` (staging: `2003`, prod: `1003`) and `ADMIT_LIMITER` (staging: `2004`, prod: `1004`) alongside `MODERATION_LIMITER` and `UPLOAD_LIMITER`.
-  - `test/identity-security.test.ts`: Added 7 comprehensive adversarial tests verifying Invariant A (10 concurrent wrong OTPs), Invariant B (concurrent valid OTPs single-use), ABA protection, teacher/admin scope enforcement, login limiter burst, admit limiter burst, and post-reset session revocation.
-  - All test suites: 303/303 unit/integration tests passing (100% pass) including 40 security hardening tests, 8 abuse-control tests, and 7 identity-security tests.
+    - In `vaoPhong` and `vaoPhongGame`: sets `X-Actor-Phien-Id`, `X-Room-Id`, and registers room membership with `CampusDO.dangKyPhong` (works independently of `/ws/campus`).
+  - `test/session-revocation.test.ts`:
+    - 5 dedicated tests verifying: (1) D1 Batch transactional rollback with SQLite trigger fault-injection, (2) Global WebSocket session revocation (Campus + Study Room + Game Room), (3) Direct Room connection without Campus WS, (4) Multi-room simultaneous revocation, (5) Active voice publication and registry eviction. All 5 pass 100%.
+  - Full local test suite: **28 test files, 308/308 tests PASSING (100% pass)**.
+  - Staging verification: 100% PASS on live Cloudflare Workers staging deployment (`27fa35a5-bce8-4f8a-a889-3ac68bc8a6f0`).
 
 ---
 
