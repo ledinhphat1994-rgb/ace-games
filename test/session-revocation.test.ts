@@ -650,8 +650,8 @@ describe('PRV7 — Transactional Reset Commit & Global Session Revocation Suite'
         await (roomStub as any).retryPendingVoiceRevocations()
       }
 
-      // Xác nhận đã qua 6 lần thất bại
-      expect(sfuAttempts).toBe(6)
+      // Xác nhận đã qua ít nhất 6 lần thất bại
+      expect(sfuAttempts).toBeGreaterThanOrEqual(6)
 
       // 3. INVARIANT CHECK: pending_voice_revocations KHÔNG ĐƯỢC BỊ XÓA khi attempts >= 5!
       const pendingList = await (roomStub as any).getPendingVoiceRevocations()

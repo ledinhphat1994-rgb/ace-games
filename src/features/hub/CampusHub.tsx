@@ -8,6 +8,7 @@ import type { PhongSanh } from '@shared/protocol/campus'
 import { useNavigate } from 'react-router'
 import {
   AlertTriangle,
+  BarChart3,
   BookOpen,
   Gamepad2,
   GraduationCap,
@@ -185,6 +186,20 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 {latencyMs !== null ? `${latencyMs} ms` : 'Đo ping'}
               </Button>
             ) : null}
+
+            {/* Analytics button for school admin */}
+            {nguoiDung.isSchoolAdmin ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin/analytics')}
+                  className="h-8 border-primary/40 bg-primary/10 px-2.5 text-xs text-primary hover:bg-primary/20"
+                  title="Xem bảng điều khiển số liệu phân tích và hiệu năng hệ thống"
+                >
+                  <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+                  Analytics
+                </Button>
+              ) : null}
 
               {/* Notification Center */}
               <NotificationCenter />

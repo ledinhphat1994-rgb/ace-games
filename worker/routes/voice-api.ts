@@ -4,6 +4,7 @@ import { actorKey } from '../lib/auth'
 import { loi } from '../lib/http'
 import { laGiaoVienDaDuyet, laQuanTriTruong } from '../lib/scope'
 import { kiemTraQuyenTruyCapPhong } from '../lib/room-gate'
+import { recordAnalyticsEvent } from '../lib/analytics'
 
 const CALLS_API_BASE = 'https://rtc.live.cloudflare.com/v1'
 
@@ -320,8 +321,26 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
   })
 
   if (!regRes.ok) {
+    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+      event: 'voice.publish_failed',
+      actorId: gate.taiKhoan.id,
+      roomId: phongId,
+      properties: {
+        reason: regRes.reason || 'REG_ERROR',
+      },
+    })
     return loi(`Không thể đăng ký canonical publication: ${regRes.reason || 'lỗi server'}`, 409)
   }
+
+  recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+    event: 'voice.publish_started',
+    actorId: gate.taiKhoan.id,
+    roomId: phongId,
+    sessionId: body.sessionId,
+    properties: {
+      mid: canonicalMid,
+    },
+  })
 
   return c.json({
     ok: true,
@@ -595,6 +614,13 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
   if (!removed) {
     return loi('Ấn phẩm thoại đã bị thay đổi hoặc không còn tồn tại.', 409)
   }
+
+  recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+    event: 'voice.publish_ended',
+    actorId: gate.taiKhoan.id,
+    roomId: phongId,
+    sessionId: body.sessionId,
+  })
 
   const parsed = !isAlreadyClosed ? CloudflareCloseTracksResponseSchema.safeParse(sfuRes.data) : null
 

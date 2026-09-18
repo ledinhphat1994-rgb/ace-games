@@ -4,6 +4,7 @@ import { actorKey } from '../lib/auth'
 import { kiemTraPhien, layPhien } from '../lib/session'
 import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/scope'
 import { kiemTraQuyenTruyCapPhong, xacDinhQuyenModeratorPhong } from '../lib/room-gate'
+import { recordAnalyticsEvent } from '../lib/analytics'
 import {
   RoomKickPayloadSchema,
   RoomBanPayloadSchema,
@@ -1088,6 +1089,15 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
       return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
     }
 
+    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+      event: 'report.submitted',
+      actorId: kq.taiKhoan.id,
+      roomId: roomId ?? null,
+      properties: {
+        category,
+      },
+    })
+
     return c.json({
       ok: true,
       reportId: res.meta.last_row_id,
@@ -1253,6 +1263,15 @@ export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Resp
         reportedLopId: report.reportedLopId,
         roomLopId: report.roomLopId,
         authorityRole: isAdmin ? 'admin' : 'teacher',
+      },
+    })
+
+    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+      event: 'moderation.action_completed',
+      actorId: kq.taiKhoan.id,
+      roomId: report.roomId ?? null,
+      properties: {
+        action: body.status,
       },
     })
 

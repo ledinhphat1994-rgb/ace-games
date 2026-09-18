@@ -11,7 +11,8 @@ import {
 } from './lib/admission'
 import { loi } from './lib/http'
 import { xacMinhMatKhau } from './lib/passwords'
-import { laGiaoVienDaDuyet } from './lib/scope'
+import { laGiaoVienDaDuyet, laQuanTriTruong } from './lib/scope'
+import { recordAnalyticsEvent, computeAnalyticsOverview } from './lib/analytics'
 import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
 import {
@@ -99,7 +100,47 @@ app.use('*', async (c, next) => {
   const cfRay = c.req.header('cf-ray')?.trim() || null
   const echoId = sanitized ?? cfRay ?? internalId
 
-  await next()
+  const startMs = Date.now()
+  try {
+    await next()
+  } finally {
+    const durationMs = Date.now() - startMs
+    // Asynchronous non-blocking HTTP telemetry for API endpoints
+    const { pathname } = new URL(c.req.url)
+    if (c.env?.DB && pathname.startsWith('/api/') && !pathname.startsWith('/api/files/')) {
+      const status = c.res ? c.res.status : 500
+      let errorClass: string | null = null
+      if (status >= 400) {
+        errorClass =
+          status >= 500
+            ? 'SERVER_ERROR'
+            : status === 401
+              ? 'UNAUTHORIZED'
+              : status === 403
+                ? 'FORBIDDEN'
+                : status === 404
+                  ? 'NOT_FOUND'
+                  : status === 429
+                    ? 'RATE_LIMITED'
+                    : 'BAD_REQUEST'
+      }
+      let ctx: { waitUntil(promise: Promise<unknown>): void } | undefined
+      try {
+        ctx = c.executionCtx
+      } catch {}
+      recordAnalyticsEvent(c.env.DB, ctx, {
+        event: 'http.request',
+        route: pathname,
+        statusCode: status,
+        durationMs,
+        errorClass,
+        properties: {
+          method: c.req.method,
+        },
+      })
+    }
+  }
+
   // WebSocket 101 upgrade responses have immutable headers; skip gracefully.
   try {
     c.res.headers.set('X-Request-Id', echoId)
@@ -795,6 +836,31 @@ app.post('/api/profile/password', (c) => doiMatKhau(c.req.raw, c.env))
 app.all('/api/profile/avatar', saiPhuongThuc)
 app.all('/api/profile/update', saiPhuongThuc)
 app.all('/api/profile/password', saiPhuongThuc)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Product Analytics & Observability Overview (School Admin authority only)
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/admin/analytics/overview', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  if (!laQuanTriTruong(kq.taiKhoan)) {
+    return loi('Chỉ quản trị viên trường mới có quyền truy cập số liệu phân tích.', 403)
+  }
+
+  const rawWindow = c.req.query('window')
+  const window: 'today' | '7d' | '30d' =
+    rawWindow === '7d' || rawWindow === '30d' ? rawWindow : 'today'
+
+  try {
+    const analytics = await computeAnalyticsOverview(c.env.DB, window)
+    return c.json({ ok: true, analytics })
+  } catch (err) {
+    console.error('Lỗi tính toán analytics overview:', err)
+    return loi('Không thể tải số liệu phân tích.', 500)
+  }
+})
+app.all('/api/admin/analytics/overview', saiPhuongThuc)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // R2 File Upload (Auth + Quota + Extension + MIME + Magic Bytes + PPTX ZIP inspect)

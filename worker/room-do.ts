@@ -34,6 +34,7 @@ import {
 import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
 import { TEN_CAMPUS } from './campus/danh-tinh'
 import { callCloudflareRealtime } from './routes/voice-api'
+import { recordAnalyticsEvent } from './lib/analytics'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -49,6 +50,7 @@ interface AttachmentKetNoi {
   lopId: number | null
   mic: boolean
   isGame?: boolean
+  _joinedAt?: number
 }
 
 const DEFAULT_MEDIA: MediaState = {
@@ -108,6 +110,12 @@ export class RoomDO extends DurableObject<Env> {
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
+
+  private parseNumericRoomId(): number | null {
+    if (!this.roomName) return null
+    const m = /^phong-(\d+)$/.exec(this.roomName)
+    return m ? parseInt(m[1], 10) : null
+  }
   private voiceGeneration = new Map<string, number>()
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
   private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
@@ -671,6 +679,7 @@ export class RoomDO extends DurableObject<Env> {
       lopId,
       mic: false,
       isGame: laGame,
+      _joinedAt: Date.now(),
     } satisfies AttachmentKetNoi)
 
     if (laGame) {
@@ -712,6 +721,19 @@ export class RoomDO extends DurableObject<Env> {
 
     // Broadcast presence cho toàn phòng
     this.phatDanhSach()
+
+    if (this.env?.DB) {
+      recordAnalyticsEvent(this.env.DB, this.ctx, {
+        event: 'room.joined',
+        actorId: accountId || null,
+        sessionId: phienId || null,
+        roomId: this.parseNumericRoomId(),
+        properties: {
+          mode: laGame ? 'game' : 'study',
+          role,
+        },
+      })
+    }
 
     return new Response(null, { status: 101, webSocket: client })
   }
@@ -848,6 +870,17 @@ export class RoomDO extends DurableObject<Env> {
             this.gameMeta.status = 'playing'
             this.gameMeta.currentTurn = 'X'
             this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
+            if (this.env?.DB) {
+              recordAnalyticsEvent(this.env.DB, this.ctx, {
+                event: 'game.session_started',
+                actorId: att.accountId || null,
+                sessionId: att.phienId || null,
+                roomId: this.parseNumericRoomId(),
+                properties: {
+                  gameType: this.gameMeta.gameType,
+                },
+              })
+            }
           }
 
           this.luuGameState()
@@ -1097,6 +1130,14 @@ export class RoomDO extends DurableObject<Env> {
 
         this.luuMeta('media', this.media)
         this.broadcast({ type: 'media.sync', state: this.media, serverNow: now })
+        if (this.env?.DB && (d.action === 'play' || d.action === 'load')) {
+          recordAnalyticsEvent(this.env.DB, this.ctx, {
+            event: 'media.playback_started',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
         break
       }
 
@@ -1220,6 +1261,14 @@ export class RoomDO extends DurableObject<Env> {
             console.error('Lỗi lưu nét vẽ whiteboard:', err)
           }
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: strokeWithEpoch })
+          if (this.env?.DB) {
+            recordAnalyticsEvent(this.env.DB, this.ctx, {
+              event: 'whiteboard.updated',
+              actorId: att.accountId || null,
+              sessionId: att.phienId || null,
+              roomId: this.parseNumericRoomId(),
+            })
+          }
         } else if (d.action === 'stroke.clear') {
           if (!laQuanTri) {
             ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền xóa toàn bộ bảng vẽ.' }))
@@ -1265,6 +1314,14 @@ export class RoomDO extends DurableObject<Env> {
         this.luuMeta('notes', this.notes)
         // Broadcast tới mọi người (bao gồm cả người gửi để client nhận được revision mới nhất)
         this.broadcast({ type: 'notes.sync', notes: this.notes })
+        if (this.env?.DB) {
+          recordAnalyticsEvent(this.env.DB, this.ctx, {
+            event: 'notes.updated',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
         break
       }
 
@@ -1447,6 +1504,17 @@ export class RoomDO extends DurableObject<Env> {
         }
         ws.send(JSON.stringify({ type: 'ack', reqId }))
         this.broadcast({ type: 'room.chat', message: msg })
+        if (this.env?.DB) {
+          recordAnalyticsEvent(this.env.DB, this.ctx, {
+            event: 'chat.message_sent',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+            properties: {
+              scope: 'room',
+            },
+          })
+        }
         break
       }
 
@@ -1471,6 +1539,19 @@ export class RoomDO extends DurableObject<Env> {
     } catch {}
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
+      if (this.env?.DB) {
+        const durationMs = att._joinedAt ? Date.now() - att._joinedAt : null
+        recordAnalyticsEvent(this.env.DB, this.ctx, {
+          event: 'room.left',
+          actorId: att.accountId || null,
+          sessionId: att.phienId || null,
+          roomId: this.parseNumericRoomId(),
+          durationMs,
+          properties: {
+            closeCode: code,
+          },
+        })
+      }
       const conLai = this.ctx.getWebSockets().filter((w) => {
         if (w === ws || w.readyState !== WebSocket.OPEN) return false
         const a = w.deserializeAttachment() as AttachmentKetNoi | null
@@ -2026,6 +2107,13 @@ export class RoomDO extends DurableObject<Env> {
         console.warn(
           `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
         )
+        if (this.env?.DB) {
+          recordAnalyticsEvent(this.env.DB, this.ctx, {
+            event: 'do.sfu_close_failed',
+            errorClass: 'SFU_CLOSE_FAILED',
+            properties: { attempts },
+          })
+        }
       }
 
       // Schedule retry via alarm with bounded backoff
@@ -2209,6 +2297,13 @@ export class RoomDO extends DurableObject<Env> {
       console.warn(
         `[OPERATIONAL_ALERT] Pending voice revocation ${pending.revocationId} cho actor=${pending.actorKey} session=${pending.sessionId} đã đạt ${pending.attempts} lần thử nhưng chưa đóng authoritative. Tiếp tục retry theo chu kỳ capped backoff.`,
       )
+      if (this.env?.DB) {
+        recordAnalyticsEvent(this.env.DB, this.ctx, {
+          event: 'do.revocation_retry',
+          errorClass: 'VOICE_REVOCATION_RETRY',
+          properties: { attempts: pending.attempts },
+        })
+      }
     }
     const res = await this.attemptSfuCloseWithTracking(
       pending.revocationId,

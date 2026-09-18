@@ -12,6 +12,7 @@ import { CHAT_CAMPUS, MON_HOC, type MonHoc } from '../../shared/rooms/constants'
 import { msTuD1 } from '../lib/thoi-gian'
 import { giaiMaDanhTinh, HEADER_DANH_TINH, laYeuCauWebSocket } from '../lib/ws'
 import { thayPhong, type DanhTinhCampus } from './danh-tinh'
+import { recordAnalyticsEvent } from '../lib/analytics'
 
 const DOI_SOAT_MOI_MS = 10 * 1000
 const KHUNG_TOI_DA_KY_TU = 4096
@@ -189,8 +190,16 @@ export class CampusDO extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server, [theTaiKhoan(dt.accountId)])
-    server.serializeAttachment(dt)
+    server.serializeAttachment({ ...dt, _joinedAt: Date.now() })
     await this.dangKyKetNoi(server, dt)
+
+    if (this.env?.DB) {
+      recordAnalyticsEvent(this.env.DB, this.ctx, {
+        event: 'campus.session_started',
+        actorId: dt.accountId,
+        sessionId: dt.phienId,
+      })
+    }
 
     const online = this.demOnline()
     this.gui(server, {
@@ -244,6 +253,19 @@ export class CampusDO extends DurableObject<Env> {
       ws.close(code, reason)
     } catch {
       // Mã đóng dành riêng (1005/1006) hoặc kết nối đã đóng.
+    }
+    const dt = ws.deserializeAttachment() as (DanhTinhCampus & { _joinedAt?: number }) | null
+    if (dt && this.env?.DB) {
+      const durationMs = dt._joinedAt ? Date.now() - dt._joinedAt : null
+      recordAnalyticsEvent(this.env.DB, this.ctx, {
+        event: 'campus.session_ended',
+        actorId: dt.accountId,
+        sessionId: dt.phienId,
+        durationMs,
+        properties: {
+          closeCode: code,
+        },
+      })
     }
     this.huyKetNoi(ws)
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
@@ -517,6 +539,17 @@ export class CampusDO extends DurableObject<Env> {
           console.warn(
             `[OPERATIONAL_ALERT] Pending room revocation cho account=${item.accountId} room=${item.roomName} đã đạt ${nextAttempts} lần thử nhưng chưa thu hồi được. Tiếp tục retry theo chu kỳ capped backoff.`,
           )
+          if (this.env?.DB) {
+            recordAnalyticsEvent(this.env.DB, this.ctx, {
+              event: 'do.revocation_retry',
+              actorId: item.accountId,
+              errorClass: 'ROOM_REVOCATION_RETRY',
+              properties: {
+                attempts: nextAttempts,
+                roomName: item.roomName,
+              },
+            })
+          }
         }
 
         const nextDelay = this.tinhRoomBackoffDelay(nextAttempts)
@@ -609,6 +642,17 @@ export class CampusDO extends DurableObject<Env> {
     if (this.tinGanDay) this.tinGanDay = [...this.tinGanDay, tin].slice(-CHAT_CAMPUS.GUI_KEM)
     this.gui(ws, { type: 'ack', reqId })
     this.phatTatCa({ type: 'chat.msg', message: tin })
+
+    if (this.env?.DB) {
+      recordAnalyticsEvent(this.env.DB, this.ctx, {
+        event: 'chat.message_sent',
+        actorId: dt.accountId,
+        sessionId: dt.phienId,
+        properties: {
+          scope: 'campus',
+        },
+      })
+    }
   }
 
   private async xoaChat(ws: WebSocket, dt: DanhTinhCampus, id: number, reqId?: string): Promise<void> {

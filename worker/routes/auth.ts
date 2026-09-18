@@ -4,6 +4,7 @@ import { json, loi } from '../lib/http'
 import { bamMatKhau, DEFAULT_ITERATIONS, taoSalt, xacMinhMatKhau } from '../lib/passwords'
 import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/scope'
 import { kiemTraPhien, layPhien } from '../lib/session'
+import { recordAnalyticsEvent } from '../lib/analytics'
 
 // Cùng ngưỡng và cùng dạng khoá KV với functions/api/login.js của bản cũ.
 const MAX_TRIES_IP = 30
@@ -116,7 +117,15 @@ export async function dangNhap(
   const hopLe = user?.dang_hoat_dong
     ? await xacMinhMatKhau(password, user.mat_khau_hash, user.salt, user.iterations)
     : false
-  if (!user || !hopLe) return loi('Tên đăng nhập hoặc mật khẩu không chính xác.', 401)
+  if (!user || !hopLe) {
+    recordAnalyticsEvent(env.DB, ctx, {
+      event: 'auth.login_failed',
+      properties: {
+        reason: !user ? 'USER_NOT_FOUND' : !user.dang_hoat_dong ? 'ACCOUNT_INACTIVE' : 'INVALID_CREDENTIALS',
+      },
+    })
+    return loi('Tên đăng nhập hoặc mật khẩu không chính xác.', 401)
+  }
 
   await xoaDemThu(env, ip, username)
   const phienId = crypto.randomUUID()
@@ -163,6 +172,16 @@ export async function dangNhap(
     phienId,
   }
   const token = await createToken(env.SESSION_SECRET, payload, SESSION_TTL)
+
+  recordAnalyticsEvent(env.DB, ctx, {
+    event: 'auth.login_succeeded',
+    actorId: user.id,
+    sessionId: phienId,
+    properties: {
+      role: user.vai_tro,
+      isLinked: Boolean(user.hoc_sinh_id && user.lop_id),
+    },
+  })
 
   return json(
     {

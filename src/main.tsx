@@ -11,6 +11,7 @@ import { HubPage } from '@/features/hub/HubPage'
 import { RoomPage } from '@/features/study/RoomPage'
 import { GameArenaPage } from '@/features/games/GameArenaPage'
 import { GameRoomPage } from '@/features/games/GameRoomPage'
+import { AnalyticsDashboardPage } from '@/features/admin/AnalyticsDashboardPage'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
       { path: 'room/:roomId', element: <RoomPage /> },
       { path: 'arena', element: <GameArenaPage /> },
       { path: 'game/:gameId', element: <GameRoomPage /> },
+      { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
