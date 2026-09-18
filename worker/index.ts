@@ -68,16 +68,41 @@ export type AppEnv = {
 const app = new Hono<AppEnv>()
 
 // ── Global Middleware: Request Correlation ID & Production Security Headers ──
+//
+// Trust model:
+//   internalId  = crypto.randomUUID() — always server-generated, used in logs/audit
+//   externalId  = client-supplied x-request-id after strict sanitisation, OR cf-ray,
+//                 OR internalId when none is provided.
+//
+// The value stored in c.Variables.requestId is ALWAYS the internalId so that
+// structured logs/audit metadata cannot be polluted by crafted client headers.
+// The X-Request-Id response header echoes externalId (sanitised), allowing
+// clients to correlate with their own IDs without trusting them internally.
+
+/** Accept only printable ASCII (0x20–0x7E), max 128 chars. Returns null if invalid. */
+function sanitizeExternalRequestId(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed.length === 0 || trimmed.length > 128) return null
+  // Reject any character outside printable ASCII (block newlines, tabs, Unicode, etc.)
+  if (!/^[\x20-\x7E]+$/.test(trimmed)) return null
+  return trimmed
+}
+
 app.use('*', async (c, next) => {
-  const reqId =
-    c.req.header('x-request-id')?.trim() ||
-    c.req.header('cf-ray')?.trim() ||
-    crypto.randomUUID()
-  c.set('requestId', reqId)
+  // Internal trusted ID — always server-generated
+  const internalId = crypto.randomUUID()
+  c.set('requestId', internalId)
+
+  // External ID — sanitised or fall back to cf-ray / internalId
+  const rawExternal = c.req.header('x-request-id') ?? ''
+  const sanitized = rawExternal ? sanitizeExternalRequestId(rawExternal) : null
+  const cfRay = c.req.header('cf-ray')?.trim() || null
+  const echoId = sanitized ?? cfRay ?? internalId
+
   await next()
   // WebSocket 101 upgrade responses have immutable headers; skip gracefully.
   try {
-    c.res.headers.set('X-Request-Id', reqId)
+    c.res.headers.set('X-Request-Id', echoId)
     c.res.headers.set('X-Content-Type-Options', 'nosniff')
     c.res.headers.set('X-Frame-Options', 'SAMEORIGIN')
     c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
