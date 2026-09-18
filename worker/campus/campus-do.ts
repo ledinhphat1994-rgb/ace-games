@@ -171,7 +171,9 @@ export class CampusDO extends DurableObject<Env> {
         ),
       ]
       if (pendingRows[0]?.count > 0) {
-        this.scheduleRoomRevocationAlarm(1000).catch(() => {})
+        ctx.blockConcurrencyWhile(async () => {
+          await this.scheduleRoomRevocationAlarm(1000)
+        })
         ctx.waitUntil(this.retryPendingRoomRevocations().catch(() => {}))
       }
     } catch {}

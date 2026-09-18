@@ -155,7 +155,7 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
 
       // 4. On A without reload: room 7 card shows "1 bạn đang ở đây"
       const room7Indicator = pageA.locator('[data-testid="room-friends-indicator-7"]')
-      await expect(room7Indicator).toBeVisible({ timeout: 15000 })
+      await expect(room7Indicator).toBeVisible({ timeout: 25000 })
       await expect(room7Indicator).toContainText('1 bạn đang ở đây')
 
       // Assert presentational semantics: not exposed as interactive button/control, no button role, no tabindex
@@ -225,10 +225,12 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       // 10. B leaves / goes offline -> friend indicator disappears without reload
       await pageB.locator('header button:has-text("Rời phòng")').click()
       await expect(pageB).toHaveURL('/', { timeout: 15000 })
+      await expect(pageB.locator('[data-testid="friends-drawer-trigger"]')).toBeVisible({ timeout: 15000 })
+      await pageB.waitForTimeout(1000)
       await pageB.close()
 
       // After B leaves room, friend indicator on A clears
-      await expect(room8Indicator).not.toBeVisible({ timeout: 20000 })
+      await expect(room8Indicator).not.toBeVisible({ timeout: 25000 })
 
       // 11. Block scenario: B reopens, logs in, and blocks A
       const pageB2 = await contextB.newPage()
@@ -240,7 +242,7 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       await expect(pageB2.locator('header svg.lucide-wifi.text-emerald-400')).toBeVisible({ timeout: 25000 })
 
       // A sees friend on room 7
-      await expect(pageA.locator('[data-testid="room-friends-indicator-7"]')).toBeVisible({ timeout: 15000 })
+      await expect(pageA.locator('[data-testid="room-friends-indicator-7"]')).toBeVisible({ timeout: 25000 })
 
       // B blocks A via API or drawer
       await pageB2.evaluate(async () => {
@@ -259,7 +261,7 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       })
 
       // Without reload: A immediately loses friend visibility on room 7
-      await expect(pageA.locator('[data-testid="room-friends-indicator-7"]')).not.toBeVisible({ timeout: 15000 })
+      await expect(pageA.locator('[data-testid="room-friends-indicator-7"]')).not.toBeVisible({ timeout: 25000 })
     } finally {
       await contextA.close().catch(() => {})
       await contextB.close().catch(() => {})

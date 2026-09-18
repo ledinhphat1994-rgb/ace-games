@@ -401,7 +401,9 @@ export class RoomDO extends DurableObject<Env> {
       try {
         const pending = this.getPendingVoiceRevocations()
         if (pending.length > 0) {
-          this.scheduleVoiceRevocationAlarm(1000).catch(() => {})
+          this.ctx.blockConcurrencyWhile(async () => {
+            await this.scheduleVoiceRevocationAlarm(1000)
+          })
           this.ctx.waitUntil(this.retryPendingVoiceRevocations().catch(() => {}))
         }
       } catch {}

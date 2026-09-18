@@ -1,61 +1,70 @@
 # Digital Campus v2 — Production Release Manifest
 
-**Milestone:** PRV8.1 — Surgical Release Hotfix: SFU Exception Alarm & Durable Cross-DO Room Revocation Closure<br/>
+**Milestone:** PRV8.2 — Multi-Generation Identity Closure: Voice Revocation Incarnation & Room Reconciliation State Machines<br/>
 **Release Candidate Branch:** `fix/moderation-safety-v1-closure`<br/>
-**Executable Candidate Git Commit SHA:** `237525b410526fe9bb2ec10ee156d9beebf6f691`<br/>
-**Staging-Verified Executable SHA:** `237525b410526fe9bb2ec10ee156d9beebf6f691`<br/>
-**Verified Staging Deployment Version ID:** `72b7c695-81a3-4deb-809a-3db335ce8f6f`<br/>
+**Executable Candidate Git Commit SHA:** `de78883298815267690f27ddfd3a4e97cf5a3ec7`<br/>
+**Staging-Verified Executable SHA:** `de78883298815267690f27ddfd3a4e97cf5a3ec7`<br/>
+**Verified Staging Deployment Version ID:** `4acf1b1e-f819-4f79-aee7-35af37cae10c`<br/>
 **Verified Staging URL:** `https://gdtxdinhquan-v2.ledinhphat1994.workers.dev`<br/>
 **Target Production Worker Service:** `gdtxdinhquan`<br/>
 **Target Production Domain:** `gdtxdinhquan.workers.dev` / Custom Domain
 
-*Note on SHA Parity:* The Executable Candidate SHA matches the Staging-Verified SHA (`237525b410526fe9bb2ec10ee156d9beebf6f691`) byte-for-byte.
+*Note on SHA Parity:* The Executable Candidate SHA matches the Staging-Verified SHA (`de78883298815267690f27ddfd3a4e97cf5a3ec7`) byte-for-byte.
 
 ---
 
-## 1. Summary of PRV8.1 Hotfix Closures
+## 1. Summary of PRV8.2 Multi-Generation Identity Closures
 
-PRV8.1 addresses exactly the two implementation mismatches confirmed by source inspection:
+PRV8.2 surgically resolves the two generation/identity race conditions identified in PRV8.1:
 
-### 1. Gap 1 Resolved — SFU Voice Revocation Exception Path & Non-Deletion Invariant (`worker/room-do.ts`)
-1. **Network Exception Alarm Scheduling:**
-   - In `RoomDO.attemptSfuCloseWithTracking()`, thrown exceptions (e.g. network failure, fetch rejection, timeout exception, runtime exception) now update `pending_voice_revocations` attempts and last error, and **explicitly schedule a future Durable Object alarm** via `this.scheduleVoiceRevocationAlarm(tinhVoiceBackoffDelay(attempts))`.
-   - Bounded exponential backoff policy: $1\text{s}, 2\text{s}, 4\text{s}, 8\text{s}, 16\text{s}, 32\text{s}$, capped at $60\text{s}$ (`Math.min(60000, 1000 * Math.pow(2, attempts - 1))`).
-2. **Terminal-Condition Only Deletion (Never Delete at N Attempts):**
-   - In `RoomDO.retrySingleVoiceRevocation()`, removed the clause that deleted rows when `attempts >= 5`.
-   - Pending remote revocation rows are **NEVER deleted merely because an attempt counter reaches 5**.
-   - Pending rows are only deleted upon authoritative terminal confirmation from Cloudflare Calls SFU: HTTP 200 OK (closed) or HTTP 404/410 (track already gone).
-   - For attempts $\ge 5$, the system retains the durable row, emits an operational warning `[OPERATIONAL_ALERT]`, and continues retrying at the capped interval ($60\text{s}$).
-3. **Crash-Safe Transactional Storage Transition:**
-   - In `RoomDO.revokeVoiceForActor(actorKey)`, the local publication deletion (`voice_publications`) and remote pending insertion (`pending_voice_revocations`) are atomically bound inside `this.ctx.storage.transactionSync(() => { ... })`.
-   - No external HTTP calls are performed inside the synchronous storage transaction. Local publication authority is completely revoked and pending remote revocation metadata is committed to SQLite before initiating the external SFU call.
+### 1. Release Blocker A Resolved — Immutable Incarnation Identity for Voice Revocation (`worker/room-do.ts`)
+1. **Schema Upgrade to Immutable Primary Key:**
+   - Migrated `pending_voice_revocations` from `actor_key TEXT PRIMARY KEY` to `revocation_id TEXT PRIMARY KEY`.
+   - Added schema columns: `revocation_id TEXT PRIMARY KEY`, `actor_key TEXT NOT NULL`, `session_id TEXT NOT NULL`, `track_name TEXT NOT NULL`, `mid TEXT NOT NULL`, `generation INTEGER NOT NULL`, `attempts INTEGER NOT NULL DEFAULT 1`, `last_attempt_at INTEGER NOT NULL`, `error_text TEXT`, `created_at INTEGER NOT NULL`.
+   - Index on `actor_key` for high-speed actor lookups without primary key collision.
+2. **Elimination of `ON CONFLICT(actor_key)` Overwrites:**
+   - In `RoomDO.revokeVoiceForActor()`, each publication revocation now generates an immutable `revocationId = 'rev_' + crypto.randomUUID()`.
+   - Insertion into `pending_voice_revocations` uses direct `INSERT`, eliminating `ON CONFLICT(actor_key) DO UPDATE`.
+   - Multiple unresolved historical remote tracks from the same actor (e.g. Generation A and Generation B) coexist simultaneously in durable storage without overwrite.
+3. **Exact Revocation Identity Tracking & Reverse-Order Safety:**
+   - `attemptSfuCloseWithTracking` and `retrySingleVoiceRevocation` accept and operate strictly on `revocationId`.
+   - Updates and deletions execute strictly `WHERE revocation_id = ?`.
+   - Retrying Generation B never deletes Generation A; retrying Generation A never deletes Generation B. Remote closures complete safely in any arbitrary order.
+4. **Idempotent SQLite Internal Upgrade:**
+   - `RoomDO.khoiTaoSqlite()` inspects table schema via `PRAGMA table_info(pending_voice_revocations)`.
+   - If the legacy table has `actor_key` as primary key, it creates `pending_voice_revocations_v2`, migrates legacy pending rows with synthesized `rev_legacy_<actor_key>` IDs, drops the old table, and renames `v2` to `pending_voice_revocations`.
+   - Safe across repeated constructor invocations, DO evictions, and DO restarts.
 
-### 2. Gap 2 Resolved — Durable Cross-DO Room Revocation State Machine (`worker/campus/campus-do.ts`)
-1. **Durable SQLite Table in CampusDO:**
-   - Created table `pending_room_revocations (account_id INTEGER, room_name TEXT, phien_id TEXT, attempts INTEGER, last_attempt_at INTEGER, error_text TEXT, PRIMARY KEY(account_id, room_name))`.
-2. **Persistent Alarm Retries:**
-   - In `CampusDO.dangNhapMoi()`, replaced the unpersisted 3-attempt `waitUntil` loop with insertion into `pending_room_revocations` and scheduling `this.scheduleRoomRevocationAlarm(1000)`.
-   - `CampusDO.alarm()` implements bounded backoff retry (`tinhRoomBackoffDelay(attempts)`, capped at 60s) for all failed room revocations.
-   - Deletion occurs ONLY upon authoritative RPC confirmation (`huyPhienCu` returns `{ ok: true }`).
-   - If attempts $\ge 5$, the row remains persisted and emits `[OPERATIONAL_ALERT]`.
-   - Survives DO eviction/restart: CampusDO constructor queries `pending_room_revocations` on boot and reschedules alarms if pending rows remain.
-3. **Passive Stale Socket Eviction:**
-   - Even if a stale WebSocket in RoomDO sends no mutating commands, proactive revocation continuously retried via CampusDO alarm contacts RoomDO once connectivity recovers, evicting the passive socket with 4001 and stopping all future broadcast reception.
+### 2. Release Blocker B Resolved — Room Revocation Reconciliation Obligation (`worker/campus/campus-do.ts`)
+1. **Reconciliation Obligation without Stale `phien_id`:**
+   - Migrated `CampusDO.pending_room_revocations` to `PRIMARY KEY (account_id, room_name)`, dropping the historical `phien_id` snapshot.
+   - Pending state no longer represents an obsolete snapshot command to replay, but a **convergence obligation**: *"This account in this room must converge to its authoritative D1 session."*
+2. **Generational Collapse & Deduping:**
+   - In `CampusDO.dangNhapMoi()`, multiple rapid logins ($S_1 \to S_2 \to S_3$) collapse into a single reconciliation row via `ON CONFLICT(account_id, room_name) DO UPDATE SET attempts = attempts + 1`.
+   - Prevents stale queue accumulation that could replay outdated authority.
+3. **Runtime D1 Authoritative Truth Fetch:**
+   - In `CampusDO.retryPendingRoomRevocations()`, CampusDO fetches the current authoritative `tai_khoan_campus.thiet_bi` from D1 at the moment of retry execution.
+   - If D1 read fails: fails-closed by keeping the pending row and rescheduling the alarm without calling RoomDO with unverified state.
+4. **Idempotent Room Reconciliation RPC (`dongBoPhienTaiKhoan`):**
+   - RoomDO implements `dongBoPhienTaiKhoan(accountId, authoritativePhienId)`:
+     * Closes all WebSockets for `accountId` whose `phienId !== authoritativePhienId` with 4001 (`da_dang_nhap_noi_khac`).
+     * Preserves the active socket matching `authoritativePhienId`.
+     * If `authoritativePhienId` is `null` (disabled/deleted account), closes all sockets for that account.
+   - Completely immune to ABA / out-of-order alarm execution: replaying an old retry obligation queries current D1 truth ($S_3$) and NEVER closes the newest legitimate session.
 
 ---
 
 ## 2. Independent Success Auditor — Falsification Checks
 
-| Falsification Check | PRV8 Vulnerability | PRV8.1 Verifiable Behavior | Falsification Result |
+| Falsification Check | PRV8.1 Vulnerability | PRV8.2 Verifiable Behavior | Falsification Result |
 |---|---|---|---|
-| **1. Network THROW during SFU close leaves no scheduled retry** | Catch block updated DB and returned `{ ok: false }` without `scheduleAlarm`. | Thrown exceptions catch block calls `scheduleVoiceRevocationAlarm(tinhVoiceBackoffDelay(attempts))`. | **FALSIFIED** (Alarm scheduled on throw) |
-| **2. Retry threshold silently deletes unresolved remote-track metadata** | `if (attempts >= 5) DELETE ...` deleted row. | Row is retained indefinitely with capped 60s retry; logged as `[OPERATIONAL_ALERT]`. | **FALSIFIED** (Row preserved indefinitely) |
-| **3. Crash between local publication deletion and pending persistence** | Unprotected sequential storage operations. | Bound atomically inside `this.ctx.storage.transactionSync(...)`. | **FALSIFIED** (Atomic SQLite transition) |
-| **4. RoomDO restart loses pending voice close** | Pending rows survived restart in PRV8, but exceptions didn't schedule alarm on reboot. | RoomDO initialization queries `pending_voice_revocations` and schedules alarm on boot. | **FALSIFIED** (Resumed on DO boot) |
-| **5. CampusDO restart loses pending room revocation** | CampusDO had no persistent table; retried 3 times in `waitUntil` then dropped. | Persisted in `pending_room_revocations`; CampusDO constructor queries table on boot. | **FALSIFIED** (Durable cross-DO persistence) |
-| **6. 3 failed RoomDO RPCs permanently stop proactive revocation** | Stopped permanently after 3 `waitUntil` attempts. | CampusDO alarm continues retrying with bounded backoff until authoritative 200/OK. | **FALSIFIED** (Continuous alarm retry) |
-| **7. Passive stale socket continues receiving room broadcasts indefinitely** | Tier-2 D1 check only guarded mutations; passive socket kept receiving broadcasts. | CampusDO alarm retries `huyPhienCu`; RoomDO closes passive socket with 4001; broadcasts blocked. | **FALSIFIED** (Passive socket server-closed 4001) |
-| **8. Strict test runner suppression reappears** | `dangerouslyIgnoreUnhandledErrors` might be re-added. | Verified absent; all 314 tests pass with strict `--dangerouslyIgnoreUnhandledErrors=false`. | **FALSIFIED** (0 suppression, 314/314 strict) |
+| **1. Voice revocation identity keyed by actor overwrites prior generation** | `actor_key` was PK; Generation B revoked while A pending overwrote row A. | `revocation_id` is PK; Generations A and B coexist simultaneously in SQLite. | **FALSIFIED** (Generations A & B coexist) |
+| **2. Reverse-order voice closure deletes newer or older obligation** | Actor-keyed queries could mutate or delete wrong row. | All queries keyed strictly `WHERE revocation_id = ?`. B closes without affecting A; A closes without affecting B. | **FALSIFIED** (Arbitrary closure order safe) |
+| **3. Stale session republish during multi-generation pending** | Stale generation A could restore while pending. | Server-authoritative generation check rejects stale publication ($A < B$). | **FALSIFIED** (Stale republish blocked 403) |
+| **4. Rapid session replacement ($S_1 \to S_2 \to S_3$) stores stale snapshot** | `pending_room_revocations` stored $S_2$; replaying $P_2$ after $P_3$ closed valid $S_3$. | Pending row stores only `(account_id, room_name)`; retry queries current D1 ($S_3$); $S_3$ remains open. | **FALSIFIED** (ABA race eliminated) |
+| **5. Dangerous out-of-order room retry closes newest valid session** | Retrying $P_3$ then $P_2$ closed $S_3$. | Both retry orders converge to current D1 truth ($S_3$ open, $S_1/S_2$ closed). | **FALSIFIED** (Out-of-order retry idempotent) |
+| **6. Multi-generation transitions ($S_1 \to S_2 \to S_3 \to S_4$) accumulate obsolete rows** | Multiple rows for same account/room accumulated. | Upsert collapses into single reconciliation row; persists across DO eviction; converges idempotently. | **FALSIFIED** (Collapsed & DO restart-safe) |
+| **7. Duplicate alarm delivery / at-least-once execution breaks session state** | Retried alarm could misinterpret session state. | Duplicate alarm execution is an idempotent no-op; valid current session untouched. | **FALSIFIED** (Idempotent at-least-once safe) |
 
 ---
 
@@ -64,39 +73,41 @@ PRV8.1 addresses exactly the two implementation mismatches confirmed by source i
 ### Strict Local Test Suite
 - `npm run typecheck`: **0 errors**.
 - `npm run lint`: **0 errors** (12 React Compiler warnings).
-- `npx vitest run test/session-revocation.test.ts --dangerouslyIgnoreUnhandledErrors=false`: **11/11 PASSED**.
-  * Test 8: Thrown network exception during SFU close schedules alarm, survives DO restart, clears on 200 OK.
-  * Test 9: Retry exhaustion (>5 failures) preserves metadata, maintains alarm, blocks stale republish, clears on recovery.
-  * Test 10: Passive stale room socket evicted with 4001 via CampusDO alarm retry after initial RPC outage; broadcasts blocked.
-  * Test 11: Pending room revocations in CampusDO survive DO restart and clear when RoomDO recovers.
-- `npm test`: **28 test files, 314/314 tests PASSED (100% pass)**.
+- `npx vitest run test/session-revocation.test.ts --dangerouslyIgnoreUnhandledErrors=false`: **14/14 PASSED**.
+  * Test 12: Voice Multi-Generation Retention & Reverse-Order Close (Generations A & B coexist, survive DO restart, close out-of-order, stale cannot republish).
+  * Test 13: Rapid Session Replacement ($S_1 \to S_2 \to S_3$) & Dangerous Out-of-Order Retry ($S_1$ closed 4001, $S_3$ survives and functions).
+  * Test 14: Multi-Generation Transitions ($S_1 \to S_2 \to S_3 \to S_4$), DO restart durability, and duplicate alarm idempotency.
+- `npx vitest run test/identity-security.test.ts test/security-hardening.test.ts test/abuse-control.test.ts test/auth-security.test.ts --dangerouslyIgnoreUnhandledErrors=false`: **71/71 PASSED**.
+- `npm test`: **28 test files, 317/317 tests PASSED (100% pass)**.
 - `npm run build`: Production bundle for Worker and Client built cleanly.
 - `git diff --check`: Clean, zero trailing whitespace.
 
-### Staging Regression Gate (Cloudflare Staging Version ID: `72b7c695-81a3-4deb-809a-3db335ce8f6f`)
-- **Smoke Suite:** `e2e/smoke.spec.ts` — **3/3 PASSED** (19.8s).
-- **Room Discovery Suite:** `e2e/room-discovery.spec.ts` — **1/1 PASSED** (1.4m).
-- **Moderation Suite:** `e2e/moderation.spec.ts` — **4/4 PASSED** (2.1m).
-- **Voice Force-Mute:** `e2e/voice-webrtc.spec.ts -g "Force-Mute"` — **1/1 PASSED** (1.1m).
-- **Voice Session Revocation:** `e2e/voice-webrtc.spec.ts -g "Session Revocation"` — **1/1 PASSED** (1.7m).
+### Staging Regression Gate (Cloudflare Staging Version ID: `4acf1b1e-f819-4f79-aee7-35af37cae10c`)
+- **Smoke Suite:** `e2e/smoke.spec.ts` — **3/3 PASSED** (11.0s).
+- **Room Discovery Suite:** `e2e/room-discovery.spec.ts` — **1/1 PASSED** (1.1m).
+- **Moderation Suite:** `e2e/moderation.spec.ts` — **4/4 PASSED** (1.4m).
+- **Voice Force-Mute:** `e2e/voice-webrtc.spec.ts -g "Force-Mute"` — **1/1 PASSED** (1.0m).
+- **Voice Session Revocation:** `e2e/voice-webrtc.spec.ts -g "Session Revocation"` — **1/1 PASSED** (1.6m).
 
 ---
 
 ## 4. Production Preflight Non-Destructive Check
 
 - Command: `npx wrangler d1 migrations list lop-10a7-db --remote`
-- Result:
-  ```
-  Migrations to be applied:
-  ┌────────────────────────────────────────┐
-  │ Name                                   │
-  ├────────────────────────────────────────┤
-  │ 0008_ban_authority_and_concurrency.sql │
-  ├────────────────────────────────────────┤
-  │ 0009_password_reset_tokens.sql         │
-  └────────────────────────────────────────┘
-  ```
-- **Zero production mutations performed.**
-- **Zero production deployments performed.**
-- **Zero production secrets modified.**
-- **Status:** READY FOR PRODUCTION AUTHORIZATION PROTOCOL.
+- Target Database: `lop-10a7-db` (`a12de014-e9d2-4d6d-994f-dcb36c481432`)
+- Status:
+  * Pending migrations remain exactly: `0008_ban_authority_and_concurrency.sql` and `0009_password_reset_tokens.sql`.
+  * **Zero new D1 migrations created** (schema upgrades were internal to Durable Object SQLite storage).
+  * **Zero production database mutations performed.**
+  * **Zero production deployments performed.**
+  * **Zero production secrets modified.**
+
+---
+
+## 5. Release Authorization Status
+
+```
+READY FOR PRODUCTION AUTHORIZATION
+```
+
+Awaiting explicit human production authorization before initiating the Production Authorization Protocol.
