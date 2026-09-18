@@ -110,6 +110,8 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       // Ensure Campus websocket connects on both clients
       await expect(pageA.locator('[data-testid="friends-drawer-trigger"]')).toBeVisible({ timeout: 15000 })
       await expect(pageB.locator('[data-testid="friends-drawer-trigger"]')).toBeVisible({ timeout: 15000 })
+      await expect(pageA.locator('text=trực tuyến')).toBeVisible({ timeout: 15000 })
+      await expect(pageB.locator('text=trực tuyến')).toBeVisible({ timeout: 15000 })
 
       // 2. Establish friendship through canonical flow: A requests, B accepts
       await pageA.locator('[data-testid="friends-drawer-trigger"]').click()
@@ -132,7 +134,10 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
 
       const acceptBtn = pageB.locator(`[data-testid="accept-request-btn-${USER_A.username}"]`)
       await expect(acceptBtn).toBeVisible({ timeout: 5000 })
-      await acceptBtn.click()
+      await Promise.all([
+        pageB.waitForResponse((r) => r.url().includes('/api/social/accept') && r.status() === 200, { timeout: 10000 }),
+        acceptBtn.click(),
+      ])
 
       // Close drawers
       await pageA.keyboard.press('Escape')
@@ -218,10 +223,11 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       await pageA.keyboard.press('Escape')
 
       // 10. B leaves / goes offline -> friend indicator disappears without reload
-      await pageB.goto('/')
+      await pageB.locator('header button:has-text("Rời phòng")').click()
+      await expect(pageB).toHaveURL('/', { timeout: 15000 })
       await pageB.close()
 
-      // After B closes tab and grace period expires, friend indicator on A clears
+      // After B leaves room, friend indicator on A clears
       await expect(room8Indicator).not.toBeVisible({ timeout: 20000 })
 
       // 11. Block scenario: B reopens, logs in, and blocks A
