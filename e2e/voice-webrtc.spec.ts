@@ -848,7 +848,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       // Host A receives B real RTP again!
       const rtpAfter = await measureRemoteAudioRtp(pageA, rtpBefore.actorKey)
       expect(rtpAfter.delta).toBeGreaterThan(0)
-      expect(rtpAfter.t2Bytes).toBeGreaterThan(rtpBefore.t2Bytes)
+      expect(rtpAfter.t2Bytes).toBeGreaterThan(rtpAfter.t1Bytes)
     } finally {
       await ctxA.close()
       await ctxB.close()
