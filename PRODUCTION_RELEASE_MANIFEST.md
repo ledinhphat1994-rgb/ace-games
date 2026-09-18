@@ -91,23 +91,75 @@ PRV8.2 surgically resolves the two generation/identity race conditions identifie
 
 ---
 
-## 4. Production Preflight Non-Destructive Check
+## 4. Production Execution & Migration Record
 
-- Command: `npx wrangler d1 migrations list lop-10a7-db --remote`
-- Target Database: `lop-10a7-db` (`a12de014-e9d2-4d6d-994f-dcb36c481432`)
-- Status:
-  * Pending migrations remain exactly: `0008_ban_authority_and_concurrency.sql` and `0009_password_reset_tokens.sql`.
-  * **Zero new D1 migrations created** (schema upgrades were internal to Durable Object SQLite storage).
-  * **Zero production database mutations performed.**
-  * **Zero production deployments performed.**
-  * **Zero production secrets modified.**
+- **Production Target Worker:** `gdtxdinhquan`
+- **Production Target D1:** `lop-10a7-db` (`a12de014-e9d2-4d6d-994f-dcb36c481432`)
+- **D1 Recovery Bookmark (Pre-migration):** `00000370-00000000-000050ea-44e2d4a4548b68084460fd4460f6e49e`
+- **Production Migrations Applied:**
+  * `0008_ban_authority_and_concurrency.sql`: Applied successfully (additive columns `authority_rank`, `revision`, `updated_at` on `phong_ban`).
+  * `0009_password_reset_tokens.sql`: Applied successfully (created table `password_reset_tokens` with 3 indexes).
+  * Post-migration verification: `wrangler d1 migrations list` returned `✅ No migrations to apply!`.
+- **Production Deployment Details:**
+  * Command: `npm run deploy:production`
+  * Deployed Service: `gdtxdinhquan` (`https://gdtxdinhquan.ledinhphat1994.workers.dev`)
+  * Production Release Git SHA: `d12506f8997709472a43c86e2afa6db8dd09f772`
+  * Production Worker Version ID: `5c4f01af-92d0-4e18-ac39-2301391bc0fe`
+  * Release Timestamp: `2026-09-19T06:12:46+07:00` (UTC: `2026-09-18T23:12:46Z`)
+  * Binding Verification: Confirmed active bindings for `ROOMS`, `CAMPUS`, `GAME_LOBBY`, `DB`, `RATE_LIMIT`, `ANH`, `MODERATION_LIMITER`, `UPLOAD_LIMITER`, `LOGIN_LIMITER`, `ADMIT_LIMITER`, `ASSETS`.
 
 ---
 
-## 5. Release Authorization Status
+## 5. Production Health, Smoke & Canary Verification
+
+### Immediate Health Gate
+- `/api/whoami` unauthenticated: **401 Unauthorized** (Zero 5xx).
+- Security headers present: `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`, `referrer-policy: strict-origin-when-cross-origin`, `x-request-id`.
+- Root HTML asset status: **200 OK**.
+
+### Production Smoke Test Suite (`e2e/smoke.spec.ts`)
+- **Homepage & Login Form:** **PASSED**
+- **Public Room Route Clean Mount:** **PASSED**
+- **API Gateway Alive:** **PASSED**
+- **Result:** **3/3 PASSED (5.7s)**
+
+### Comprehensive Headless Browser Smoke (`production-smoke.mjs`)
+- Authenticated login with QA fixture: **200 OK**
+- Campus Lobby & WebSocket connection: **Connected & Ready**
+- Room Discovery cards & "Có bạn bè" filter: **Rendered & Active**
+- Room admission & WebSocket live wifi: **200 OK (green wifi active)**
+- Password room admission security gate: **Password modal enforced**
+- Realtime occupancy sync across clients: **PASSED**
+- Total 5xx count: **0**
+
+### Security-Critical Production Canaries
+- **Session Replacement Canary:**
+  * Context 1 active in room `phong-7`.
+  * Context 2 logs in with same QA account.
+  * Context 1 Room WebSocket server-closed with exact code **4001** (`da_dang_nhap_noi_khac`).
+  * Context 2 enters room `phong-7` and remains fully functional.
+  * **Result: PASSED**
+- **Moderation Authority Canary:**
+  * Unauthorized student kick attempt in room 7: Denied with **403 Forbidden**.
+  * Authorized student report violation: Accepted with **200 OK (Report recorded)**.
+  * **Result: PASSED**
+- **Password Reset State Machine Canary:**
+  * Unauthorized student reset-code issuance: Denied with **403 Forbidden**.
+  * Invalid token reset attempt: Rejected with **400 Bad Request**.
+  * **Result: PASSED**
+- **Voice Realtime Canary:**
+  * Unjoined caller voice session request: Denied with **403 Forbidden** (requires active RoomDO socket).
+  * Room voice registry query: **200 OK** (`registry: []`).
+  * **Result: PASSED**
+
+### Observability Probes
+- 12 critical API/Asset endpoints probed: **100% healthy, 0 5xx errors (Latencies: 60ms - 300ms)**.
+- Rollback Evaluation: **NOT TRIGGERED**.
+
+---
+
+## 6. Release Status
 
 ```
-READY FOR PRODUCTION AUTHORIZATION
+PRODUCTION RELEASE SUCCESSFUL
 ```
-
-Awaiting explicit human production authorization before initiating the Production Authorization Protocol.
