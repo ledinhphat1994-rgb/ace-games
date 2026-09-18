@@ -822,4 +822,292 @@ describe('PRV7 — Transactional Reset Commit & Global Session Revocation Suite'
     const closeEvt = await ws.choDong(2000)
     expect(closeEvt.code).toBe(4001)
   })
+
+  // ── 12. Voice Multi-Generation Retention & Reverse-Order Close ──
+  it('12. Voice Multi-Generation: Retains multiple pending incarnations for same actor, survives restart, closes out-of-order', async () => {
+    ;(env as any).CLOUDFLARE_REALTIME_APP_ID = 'test-app-id'
+    ;(env as any).CLOUDFLARE_REALTIME_APP_SECRET = 'test-secret'
+
+    const studentRes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    const studentCookie = layCookie(studentRes)
+    await studentRes.body?.cancel()
+
+    const phongId = await chenPhong('Phòng Test Multi-Generation Voice', 'acc:1')
+    const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+
+    const ws = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, studentCookie)
+    await ws.cho('room.snapshot')
+
+    // Track SFU calls and simulate persistent failures initially
+    let sfuCanSucceed = false
+    const closedTracks: string[] = []
+    setCloudflareRealtimeFetchForTesting(async (url, init) => {
+      if (url.includes('/tracks/close')) {
+        const body = JSON.parse((init?.body as string) || '{}')
+        const trackIdentifier = body.tracks?.[0]?.mid || body.tracks?.[0]?.trackName
+        if (!sfuCanSucceed) {
+          return new Response(JSON.stringify({ error: 'SFU temporary outage' }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        closedTracks.push(trackIdentifier)
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    try {
+      // 1. Generation A (Session A, Track A) publishes
+      await (roomStub as any).bindVoiceSession('sess_gen_A', 'acc:1', 1)
+      await (roomStub as any).registerVoicePublication({
+        actorKey: 'acc:1',
+        ten: 'QA Thử nghiệm 1',
+        audioTrackId: 'track_A',
+        mid: 'mid_A',
+        sessionId: 'sess_gen_A',
+        generation: 1,
+        status: 'live',
+      })
+
+      // Revoke Generation A -> fails remotely
+      await (roomStub as any).revokeVoiceForActor('acc:1')
+
+      let pendingList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(1)
+      expect(pendingList[0].actorKey).toBe('acc:1')
+      expect(pendingList[0].sessionId).toBe('sess_gen_A')
+      expect(pendingList[0].mid).toBe('mid_A')
+      expect(pendingList[0].generation).toBe(1)
+
+      // 2. Generation B (Session B, Track B) publishes for same actor
+      await (roomStub as any).bindVoiceSession('sess_gen_B', 'acc:1', 2)
+      await (roomStub as any).registerVoicePublication({
+        actorKey: 'acc:1',
+        ten: 'QA Thử nghiệm 1',
+        audioTrackId: 'track_B',
+        mid: 'mid_B',
+        sessionId: 'sess_gen_B',
+        generation: 2,
+        status: 'live',
+      })
+
+      // Revoke Generation B -> also fails remotely
+      await (roomStub as any).revokeVoiceForActor('acc:1')
+
+      // INVARIANT CHECK: Both pending obligations MUST coexist simultaneously!
+      // Revoking B must NOT overwrite A!
+      pendingList = await (roomStub as any).getPendingVoiceRevocations()
+      expect(pendingList.length).toBe(2)
+      const rowA = pendingList.find((r: any) => r.sessionId === 'sess_gen_A')
+      const rowB = pendingList.find((r: any) => r.sessionId === 'sess_gen_B')
+      expect(rowA).toBeDefined()
+      expect(rowB).toBeDefined()
+      expect(rowA.revocationId).not.toBe(rowB.revocationId)
+      expect(rowA.mid).toBe('mid_A')
+      expect(rowB.mid).toBe('mid_B')
+
+      // 3. Evict / Restart RoomDO: Both pending obligations survive DO reboot!
+      await evictDurableObject(roomStub)
+      const reloadedStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${phongId}`))
+      const restartedPending = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(restartedPending.length).toBe(2)
+
+      // 4. Recover SFU
+      sfuCanSucceed = true
+
+      // 5. Process retries in REVERSE ORDER (B first, then A)
+      const reloadedB = restartedPending.find((r: any) => r.sessionId === 'sess_gen_B')!
+      const reloadedA = restartedPending.find((r: any) => r.sessionId === 'sess_gen_A')!
+
+      // Retry B first
+      const okB = await (reloadedStub as any).retrySingleVoiceRevocation(reloadedB)
+      expect(okB).toBe(true)
+
+      // B is cleared, but A REMAINS untouched!
+      const intermediatePending = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(intermediatePending.length).toBe(1)
+      expect(intermediatePending[0].sessionId).toBe('sess_gen_A')
+      expect(intermediatePending[0].revocationId).toBe(reloadedA.revocationId)
+
+      // Now retry A
+      const okA = await (reloadedStub as any).retrySingleVoiceRevocation(reloadedA)
+      expect(okA).toBe(true)
+
+      // Pending table is now completely empty
+      const finalPending = await (reloadedStub as any).getPendingVoiceRevocations()
+      expect(finalPending.length).toBe(0)
+
+      // Both tracks were closed remotely on SFU in reverse order
+      expect(closedTracks).toEqual(['mid_B', 'mid_A'])
+
+      // 6. Stale generation A cannot republish
+      const stalePubRes = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/voice/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: studentCookie },
+        body: JSON.stringify({
+          sessionId: 'sess_gen_A',
+          trackName: 'track_A_stale',
+          mid: 'mid_A_stale',
+          generation: 1,
+          sessionDescription: { type: 'offer', sdp: 'v=0\r\no=...' },
+        }),
+      })
+      expect(stalePubRes.ok).toBe(false)
+    } finally {
+      setCloudflareRealtimeFetchForTesting(null)
+      delete (env as any).CLOUDFLARE_REALTIME_APP_ID
+      delete (env as any).CLOUDFLARE_REALTIME_APP_SECRET
+      ws.dong()
+    }
+  })
+
+  // ── 13. Rapid S1 -> S2 -> S3 Room Session Replacement & Dangerous Out-of-Order Retry ──
+  it('13. Rapid Session Replacement (S1 -> S2 -> S3): Reconciles to current D1 truth, preserves newest, closes stale', async () => {
+    // 1. User qa.v2.thu3 (Account ID 4) logs in with S1 and joins room
+    const resS1 = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(resS1.status).toBe(200)
+    const cookieS1 = layCookie(resS1)
+    await resS1.body?.cancel()
+
+    const stuRow = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.thu3'").first<{ id: number }>()
+    const accountId = stuRow!.id
+
+    const phongId = await chenPhong('Phòng Test ABA S1 S2 S3', `acc:${accountId}`)
+
+    const wsS1 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieS1)
+    expect(wsS1.status).toBe(101)
+    await wsS1.cho('room.snapshot')
+
+    // 2. Inject RoomDO RPC failure to accumulate pending obligations
+    CampusDO.setSimulateRoomRpcFailure(true)
+
+    // 3. User logs in with S2 (RPC fails -> pending obligation recorded)
+    const resS2 = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(resS2.status).toBe(200)
+    await resS2.body?.cancel()
+
+    // 4. User logs in with S3 (RPC fails -> pending obligation collapses/updates)
+    const resS3 = await dangNhap('qa.v2.thu3', MAT_KHAU)
+    expect(resS3.status).toBe(200)
+    const cookieS3 = layCookie(resS3)
+    await resS3.body?.cancel()
+
+    // Connect WebSocket wsS3 into the room with valid session S3
+    const wsS3 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieS3)
+    expect(wsS3.status).toBe(101)
+    await wsS3.cho('room.snapshot')
+
+    const campusStub = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    const pendingRooms = await (campusStub as any).getPendingRoomRevocations()
+    // Invariant: Exactly ONE collapsed reconciliation obligation per (account, room)
+    const accountPending = pendingRooms.filter((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)
+    expect(accountPending.length).toBe(1)
+
+    // 5. Recover RoomDO RPC
+    CampusDO.setSimulateRoomRpcFailure(false)
+
+    // 6. Deliberately trigger reconciliation (re-running twice to prove idempotency)
+    const cleared1 = await (campusStub as any).retryPendingRoomRevocations()
+    expect(cleared1).toBeGreaterThanOrEqual(1)
+
+    // Second call simulates duplicate alarm delivery
+    const cleared2 = await (campusStub as any).retryPendingRoomRevocations()
+    expect(cleared2).toBe(0) // Already cleared, no-op
+
+    // 7. INVARIANT: S1 MUST BE CLOSED 4001, S3 MUST REMAIN OPEN!
+    const closeS1 = await wsS1.choDong(2000)
+    expect(closeS1.code).toBe(4001)
+
+    // wsS3 remains open and functional
+    // User qa.v2.thu1 sends a broadcast message in the room
+    const userARes = await dangNhap('qa.v2.thu1', MAT_KHAU)
+    const userACookie = layCookie(userARes)
+    await userARes.body?.cancel()
+
+    const wsA = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, userACookie)
+    await wsA.cho('room.snapshot')
+
+    wsA.gui({ type: 'chat.send', reqId: 'req_aba_chat', text: 'Xin chao S3!' })
+
+    // S3 receives broadcast
+    const chatS3 = await wsS3.cho('room.chat')
+    expect(chatS3.message.text).toBe('Xin chao S3!')
+
+    // S1 cannot receive
+    await wsS1.khongNhan('room.chat')
+
+    // Clean up
+    wsA.dong()
+    wsS3.dong()
+  })
+
+  // ── 14. CampusDO Multi-Generation Transitions During Outage, Restart Durability & Idempotency ──
+  it('14. Multi-Generation Transitions (S1->S2->S3->S4): Collapses obligations, survives restart, converges idempotently', async () => {
+    // 1. User qa.v2.tudo logs in S1 and enters room
+    const resS1 = await dangNhap('qa.v2.tudo', MAT_KHAU)
+    const cookieS1 = layCookie(resS1)
+    await resS1.body?.cancel()
+
+    const stuRow = await env.DB.prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'qa.v2.tudo'").first<{ id: number }>()
+    const accountId = stuRow!.id
+
+    const phongId = await chenPhong('Phòng Test S1-S4 Durability', `acc:${accountId}`)
+    const wsS1 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieS1)
+    await wsS1.cho('room.snapshot')
+
+    // 2. Break RoomDO RPC
+    CampusDO.setSimulateRoomRpcFailure(true)
+
+    // Rapid successive logins S2 -> S3 -> S4
+    await (await dangNhap('qa.v2.tudo', MAT_KHAU)).body?.cancel()
+    await (await dangNhap('qa.v2.tudo', MAT_KHAU)).body?.cancel()
+    const resS4 = await dangNhap('qa.v2.tudo', MAT_KHAU)
+    const cookieS4 = layCookie(resS4)
+    await resS4.body?.cancel()
+
+    const campusStub = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    let pendingList = await (campusStub as any).getPendingRoomRevocations()
+    const rows = pendingList.filter((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)
+    expect(rows.length).toBe(1)
+    expect(rows[0].attempts).toBeGreaterThanOrEqual(3)
+
+    // 3. Evict CampusDO during multi-generation outage
+    await evictDurableObject(campusStub)
+
+    // 4. Reload CampusDO
+    const reloadedCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    pendingList = await (reloadedCampus as any).getPendingRoomRevocations()
+    const reloadedRows = pendingList.filter((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)
+    expect(reloadedRows.length).toBe(1)
+
+    // 5. Connect S4 socket into the room
+    const wsS4 = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, cookieS4)
+    await wsS4.cho('room.snapshot')
+
+    // 6. Recover RPC
+    CampusDO.setSimulateRoomRpcFailure(false)
+
+    // 7. Alarm / retry triggers
+    const cleared = await (reloadedCampus as any).retryPendingRoomRevocations()
+    expect(cleared).toBeGreaterThanOrEqual(1)
+
+    // 8. Invariant: S1 closed with 4001, S4 remains open!
+    const closeEvt = await wsS1.choDong(2000)
+    expect(closeEvt.code).toBe(4001)
+
+    // wsS4 remains open and can interact
+    wsS4.gui({ type: 'chat.send', reqId: 'chat_s4', text: 'S4 is alive and active' })
+    const chatMsg = await wsS4.cho('room.chat')
+    expect(chatMsg.message.text).toBe('S4 is alive and active')
+
+    // Duplicate retry call is completely idempotent
+    const clearedAgain = await (reloadedCampus as any).retryPendingRoomRevocations()
+    expect(clearedAgain).toBe(0)
+
+    wsS4.dong()
+  })
 })

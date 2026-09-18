@@ -180,17 +180,63 @@ export class RoomDO extends DurableObject<Env> {
           issuer_key TEXT,
           revision INTEGER NOT NULL DEFAULT 1
         );
-        CREATE TABLE IF NOT EXISTS pending_voice_revocations (
-          actor_key TEXT PRIMARY KEY,
-          session_id TEXT NOT NULL,
-          track_name TEXT,
-          mid TEXT,
-          generation INTEGER NOT NULL,
-          attempts INTEGER NOT NULL DEFAULT 1,
-          last_attempt_at INTEGER NOT NULL,
-          error_text TEXT
-        );
       `)
+      // PRV8.2: Upgrade pending_voice_revocations schema to immutable revocation_id PRIMARY KEY
+      try {
+        const voiceCols = [
+          ...this.ctx.storage.sql.exec<{ name: string }>(
+            "PRAGMA table_info(pending_voice_revocations)",
+          ),
+        ]
+        const hasRevocationId = voiceCols.some((c) => c.name === 'revocation_id')
+        if (voiceCols.length > 0 && !hasRevocationId) {
+          // Table exists with old actor_key PRIMARY KEY schema -> upgrade atomically
+          this.ctx.storage.transactionSync(() => {
+            this.ctx.storage.sql.exec(
+              `CREATE TABLE IF NOT EXISTS pending_voice_revocations_v2 (
+                revocation_id TEXT PRIMARY KEY,
+                actor_key TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                track_name TEXT,
+                mid TEXT,
+                generation INTEGER NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 1,
+                last_attempt_at INTEGER NOT NULL,
+                error_text TEXT,
+                created_at INTEGER NOT NULL
+              )`,
+            )
+            this.ctx.storage.sql.exec(
+              `INSERT INTO pending_voice_revocations_v2
+               (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at)
+               SELECT 'legacy_' || actor_key || '_' || session_id || '_' || generation,
+                      actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, last_attempt_at
+               FROM pending_voice_revocations`,
+            )
+            this.ctx.storage.sql.exec('DROP TABLE pending_voice_revocations')
+            this.ctx.storage.sql.exec('ALTER TABLE pending_voice_revocations_v2 RENAME TO pending_voice_revocations')
+            this.ctx.storage.sql.exec('CREATE INDEX IF NOT EXISTS idx_pending_voice_actor ON pending_voice_revocations(actor_key)')
+          })
+        } else if (voiceCols.length === 0) {
+          this.ctx.storage.sql.exec(
+            `CREATE TABLE IF NOT EXISTS pending_voice_revocations (
+              revocation_id TEXT PRIMARY KEY,
+              actor_key TEXT NOT NULL,
+              session_id TEXT NOT NULL,
+              track_name TEXT,
+              mid TEXT,
+              generation INTEGER NOT NULL,
+              attempts INTEGER NOT NULL DEFAULT 1,
+              last_attempt_at INTEGER NOT NULL,
+              error_text TEXT,
+              created_at INTEGER NOT NULL
+            )`,
+          )
+          this.ctx.storage.sql.exec('CREATE INDEX IF NOT EXISTS idx_pending_voice_actor ON pending_voice_revocations(actor_key)')
+        }
+      } catch (e) {
+        console.warn('[khoiTaoSqlite] pending_voice_revocations init error:', e)
+      }
       try {
         this.ctx.storage.sql.exec('ALTER TABLE playlist_queue ADD COLUMN added_by_key TEXT')
       } catch {}
@@ -1877,26 +1923,25 @@ export class RoomDO extends DurableObject<Env> {
     const targetMid = p.mid ?? null
     const generation = p.generation
 
+    let targetRevocationId: string | null = null
+    const now = Date.now()
+
     // 1 & 2. Atomic SQLite transaction: revoke local publication authority and persist pending remote close
     if (targetSessionId && (targetMid || targetTrackId)) {
+      targetRevocationId = 'rev_' + crypto.randomUUID()
       this.ctx.storage.transactionSync(() => {
         this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
         this.ctx.storage.sql.exec(
           `INSERT INTO pending_voice_revocations
-           (actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text)
-           VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, NULL)
-           ON CONFLICT(actor_key) DO UPDATE SET
-             session_id = excluded.session_id,
-             track_name = excluded.track_name,
-             mid = excluded.mid,
-             generation = excluded.generation,
-             last_attempt_at = excluded.last_attempt_at`,
+           (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, NULL, ?7)`,
+          targetRevocationId,
           actorKey,
           targetSessionId,
           targetTrackId || null,
           targetMid || null,
           generation,
-          Date.now(),
+          now,
         )
       })
     } else {
@@ -1921,16 +1966,25 @@ export class RoomDO extends DurableObject<Env> {
     this.phatDanhSach()
 
     // 3. Attempt external Cloudflare Calls /tracks/close
-    if (targetSessionId && (targetMid || targetTrackId)) {
-      await this.attemptSfuCloseWithTracking(actorKey, targetSessionId, targetMid, targetTrackId)
+    if (targetRevocationId && targetSessionId && (targetMid || targetTrackId)) {
+      await this.attemptSfuCloseWithTracking(
+        targetRevocationId,
+        actorKey,
+        targetSessionId,
+        targetMid,
+        targetTrackId,
+        generation,
+      )
     }
   }
 
   async attemptSfuCloseWithTracking(
+    revocationId: string,
     actorKey: string,
     sessionId: string,
     mid: string | null,
     trackName: string | null,
+    _generation?: number,
   ): Promise<{ ok: boolean; status: number; errorText?: string }> {
     try {
       const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = mid
@@ -1945,30 +1999,30 @@ export class RoomDO extends DurableObject<Env> {
       // Invariant: Success (200/201) OR authoritative already-closed (404/410) clears pending
       if (res.ok || res.status === 404 || res.status === 410) {
         try {
-          this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE actor_key = ?1', actorKey)
+          this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE revocation_id = ?1', revocationId)
         } catch {}
         return res
       }
 
       // Transient or non-terminal failure
-      console.warn(`[revokeVoiceForActor] SFU close thất bại (${res.status}): ${res.errorText || 'lỗi'}`)
+      console.warn(`[attemptSfuCloseWithTracking] SFU close thất bại (${res.status}): ${res.errorText || 'lỗi'}`)
       let attempts = 1
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
            SET attempts = attempts + 1, last_attempt_at = ?1, error_text = ?2
-           WHERE actor_key = ?3`,
+           WHERE revocation_id = ?3`,
           Date.now(),
           res.errorText || `HTTP_${res.status}`,
-          actorKey,
+          revocationId,
         )
-        const row = this.getPendingVoiceRevocation(actorKey)
+        const row = this.getPendingVoiceRevocation(revocationId)
         if (row) attempts = row.attempts
       } catch {}
 
       if (attempts >= 5) {
         console.warn(
-          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
         )
       }
 
@@ -1977,24 +2031,24 @@ export class RoomDO extends DurableObject<Env> {
 
       return res
     } catch (err: any) {
-      console.warn(`[revokeVoiceForActor] Ngoại lệ khi gọi SFU close:`, err)
+      console.warn(`[attemptSfuCloseWithTracking] Ngoại lệ khi gọi SFU close:`, err)
       let attempts = 1
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
            SET attempts = attempts + 1, last_attempt_at = ?1, error_text = ?2
-           WHERE actor_key = ?3`,
+           WHERE revocation_id = ?3`,
           Date.now(),
           err?.message || 'exception',
-          actorKey,
+          revocationId,
         )
-        const row = this.getPendingVoiceRevocation(actorKey)
+        const row = this.getPendingVoiceRevocation(revocationId)
         if (row) attempts = row.attempts
       } catch {}
 
       if (attempts >= 5) {
         console.warn(
-          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} session=${sessionId} gặp ngoại lệ lần thứ ${attempts}: ${err?.message || 'exception'}`,
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} gặp ngoại lệ lần thứ ${attempts}: ${err?.message || 'exception'}`,
         )
       }
 
@@ -2005,7 +2059,8 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
-  getPendingVoiceRevocation(actorKey: string): {
+  getPendingVoiceRevocation(idOrActorKey: string): {
+    revocationId: string
     actorKey: string
     sessionId: string
     trackName: string | null
@@ -2014,9 +2069,15 @@ export class RoomDO extends DurableObject<Env> {
     attempts: number
     lastAttemptAt: number
     errorText: string | null
+    createdAt: number
   } | null {
     try {
+      const isRevocationId = idOrActorKey.startsWith('rev_') || idOrActorKey.startsWith('legacy_')
+      const query = isRevocationId
+        ? 'SELECT revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at FROM pending_voice_revocations WHERE revocation_id = ?1'
+        : 'SELECT revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at FROM pending_voice_revocations WHERE actor_key = ?1 ORDER BY created_at DESC LIMIT 1'
       const rows = [...this.ctx.storage.sql.exec<{
+        revocation_id: string
         actor_key: string
         session_id: string
         track_name: string | null
@@ -2025,13 +2086,12 @@ export class RoomDO extends DurableObject<Env> {
         attempts: number
         last_attempt_at: number
         error_text: string | null
-      }>(
-        'SELECT actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text FROM pending_voice_revocations WHERE actor_key = ?1',
-        actorKey,
-      )]
+        created_at: number
+      }>(query, idOrActorKey)]
       if (rows.length === 0) return null
       const r = rows[0]
       return {
+        revocationId: r.revocation_id,
         actorKey: r.actor_key,
         sessionId: r.session_id,
         trackName: r.track_name,
@@ -2040,13 +2100,15 @@ export class RoomDO extends DurableObject<Env> {
         attempts: r.attempts,
         lastAttemptAt: r.last_attempt_at,
         errorText: r.error_text,
+        createdAt: r.created_at,
       }
     } catch {
       return null
     }
   }
 
-  getPendingVoiceRevocations(): Array<{
+  getPendingVoiceRevocationsForActor(actorKey: string): Array<{
+    revocationId: string
     actorKey: string
     sessionId: string
     trackName: string | null
@@ -2055,9 +2117,11 @@ export class RoomDO extends DurableObject<Env> {
     attempts: number
     lastAttemptAt: number
     errorText: string | null
+    createdAt: number
   }> {
     try {
       return [...this.ctx.storage.sql.exec<{
+        revocation_id: string
         actor_key: string
         session_id: string
         track_name: string | null
@@ -2066,9 +2130,12 @@ export class RoomDO extends DurableObject<Env> {
         attempts: number
         last_attempt_at: number
         error_text: string | null
+        created_at: number
       }>(
-        'SELECT actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text FROM pending_voice_revocations',
+        'SELECT revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at FROM pending_voice_revocations WHERE actor_key = ?1 ORDER BY created_at ASC',
+        actorKey,
       )].map((r) => ({
+        revocationId: r.revocation_id,
         actorKey: r.actor_key,
         sessionId: r.session_id,
         trackName: r.track_name,
@@ -2077,6 +2144,50 @@ export class RoomDO extends DurableObject<Env> {
         attempts: r.attempts,
         lastAttemptAt: r.last_attempt_at,
         errorText: r.error_text,
+        createdAt: r.created_at,
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  getPendingVoiceRevocations(): Array<{
+    revocationId: string
+    actorKey: string
+    sessionId: string
+    trackName: string | null
+    mid: string | null
+    generation: number
+    attempts: number
+    lastAttemptAt: number
+    errorText: string | null
+    createdAt: number
+  }> {
+    try {
+      return [...this.ctx.storage.sql.exec<{
+        revocation_id: string
+        actor_key: string
+        session_id: string
+        track_name: string | null
+        mid: string | null
+        generation: number
+        attempts: number
+        last_attempt_at: number
+        error_text: string | null
+        created_at: number
+      }>(
+        'SELECT revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at FROM pending_voice_revocations ORDER BY created_at ASC',
+      )].map((r) => ({
+        revocationId: r.revocation_id,
+        actorKey: r.actor_key,
+        sessionId: r.session_id,
+        trackName: r.track_name,
+        mid: r.mid,
+        generation: r.generation,
+        attempts: r.attempts,
+        lastAttemptAt: r.last_attempt_at,
+        errorText: r.error_text,
+        createdAt: r.created_at,
       }))
     } catch {
       return []
@@ -2084,22 +2195,26 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async retrySingleVoiceRevocation(pending: {
+    revocationId: string
     actorKey: string
     sessionId: string
     trackName: string | null
     mid: string | null
+    generation?: number
     attempts: number
   }): Promise<boolean> {
     if (pending.attempts >= 5) {
       console.warn(
-        `[OPERATIONAL_ALERT] Pending voice revocation cho actor=${pending.actorKey} session=${pending.sessionId} đã đạt ${pending.attempts} lần thử nhưng chưa đóng authoritative. Tiếp tục retry theo chu kỳ capped backoff.`,
+        `[OPERATIONAL_ALERT] Pending voice revocation ${pending.revocationId} cho actor=${pending.actorKey} session=${pending.sessionId} đã đạt ${pending.attempts} lần thử nhưng chưa đóng authoritative. Tiếp tục retry theo chu kỳ capped backoff.`,
       )
     }
     const res = await this.attemptSfuCloseWithTracking(
+      pending.revocationId,
       pending.actorKey,
       pending.sessionId,
       pending.mid,
       pending.trackName,
+      pending.generation,
     )
     return res.ok || res.status === 404 || res.status === 410
   }
@@ -2123,13 +2238,19 @@ export class RoomDO extends DurableObject<Env> {
     return cleared
   }
 
-  async huyPhienCu(accountId: number, currentPhienId: string): Promise<number> {
+  async dongBoPhienTaiKhoan(
+    accountId: number,
+    authoritativePhienId: string | null,
+  ): Promise<{ ok: boolean; closedCount: number }> {
     const daDong: WebSocket[] = []
     const targetActorKey = theTaiKhoan(accountId)
 
     for (const ws of this.ctx.getWebSockets(targetActorKey)) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
-      if (!a?.phienId || a.phienId === currentPhienId) continue
+      // Sockets matching authoritative session are PRESERVED!
+      if (authoritativePhienId && a?.phienId === authoritativePhienId) {
+        continue
+      }
       try {
         ws.send(JSON.stringify({ type: 'session.replaced' }))
       } catch {}
@@ -2148,7 +2269,19 @@ export class RoomDO extends DurableObject<Env> {
       }
       this.phatDanhSach()
     }
-    return daDong.length
+    return { ok: true, closedCount: daDong.length }
+  }
+
+  async reconcileAccountSession(
+    accountId: number,
+    authoritativePhienId: string | null,
+  ): Promise<{ ok: boolean; closedCount: number }> {
+    return this.dongBoPhienTaiKhoan(accountId, authoritativePhienId)
+  }
+
+  async huyPhienCu(accountId: number, currentPhienId: string): Promise<number> {
+    const res = await this.dongBoPhienTaiKhoan(accountId, currentPhienId)
+    return res.closedCount
   }
 
   forceMute(
@@ -2720,6 +2853,16 @@ export class RoomDO extends DurableObject<Env> {
         const body = (await request.json()) as { accountId: number; currentPhienId: string }
         const count = await this.huyPhienCu(body.accountId, body.currentPhienId)
         return json({ ok: true, closedCount: count })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/session/reconcile') {
+      try {
+        const body = (await request.json()) as { accountId: number; authoritativePhienId: string | null }
+        const res = await this.dongBoPhienTaiKhoan(body.accountId, body.authoritativePhienId ?? null)
+        return json(res)
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }

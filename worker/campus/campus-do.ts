@@ -123,17 +123,47 @@ export class CampusDO extends DurableObject<Env> {
     ctx.storage.sql.exec(
       'CREATE TABLE IF NOT EXISTS phong_tai_khoan (account_id INTEGER, room_name TEXT, phien_id TEXT, updated_at INTEGER, PRIMARY KEY (account_id, room_name))',
     )
-    ctx.storage.sql.exec(
-      `CREATE TABLE IF NOT EXISTS pending_room_revocations (
-        account_id INTEGER NOT NULL,
-        room_name TEXT NOT NULL,
-        phien_id TEXT NOT NULL,
-        attempts INTEGER NOT NULL DEFAULT 1,
-        last_attempt_at INTEGER NOT NULL,
-        error_text TEXT,
-        PRIMARY KEY (account_id, room_name, phien_id)
-      )`,
-    )
+    try {
+      const cols = [
+        ...ctx.storage.sql.exec<{ name: string }>(
+          "PRAGMA table_info(pending_room_revocations)",
+        ),
+      ]
+      const hasPhienId = cols.some((c) => c.name === 'phien_id')
+      if (hasPhienId) {
+        ctx.storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS pending_room_revocations_v2 (
+            account_id INTEGER NOT NULL,
+            room_name TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 1,
+            last_attempt_at INTEGER NOT NULL,
+            error_text TEXT,
+            PRIMARY KEY (account_id, room_name)
+          )`,
+        )
+        ctx.storage.sql.exec(
+          `INSERT OR REPLACE INTO pending_room_revocations_v2 (account_id, room_name, attempts, last_attempt_at, error_text)
+           SELECT account_id, room_name, MAX(attempts), MAX(last_attempt_at), 'migrated'
+           FROM pending_room_revocations
+           GROUP BY account_id, room_name`,
+        )
+        ctx.storage.sql.exec('DROP TABLE pending_room_revocations')
+        ctx.storage.sql.exec('ALTER TABLE pending_room_revocations_v2 RENAME TO pending_room_revocations')
+      } else if (cols.length === 0) {
+        ctx.storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS pending_room_revocations (
+            account_id INTEGER NOT NULL,
+            room_name TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 1,
+            last_attempt_at INTEGER NOT NULL,
+            error_text TEXT,
+            PRIMARY KEY (account_id, room_name)
+          )`,
+        )
+      }
+    } catch (e) {
+      console.warn('[CampusDO.taoBangNeuChuaCo] pending_room_revocations init error:', e)
+    }
     try {
       const pendingRows = [
         ...ctx.storage.sql.exec<{ count: number }>(
@@ -306,10 +336,10 @@ export class CampusDO extends DurableObject<Env> {
           throw new Error('INJECTED_ROOM_RPC_FAILURE')
         }
         const doId = this.env.ROOMS.idFromName(roomName)
-        await (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId)
+        await (this.env.ROOMS.get(doId) as any).dongBoPhienTaiKhoan(accountId, phienId)
         successfulRooms.push(roomName)
       } catch (err: any) {
-        console.warn(`[dangNhapMoi] Lỗi gọi huyPhienCu tới room ${roomName}:`, err)
+        console.warn(`[dangNhapMoi] Lỗi gọi dongBoPhienTaiKhoan tới room ${roomName}:`, err)
         failedRooms.push(roomName)
       }
     }
@@ -331,15 +361,14 @@ export class CampusDO extends DurableObject<Env> {
       for (const roomName of failedRooms) {
         try {
           this.ctx.storage.sql.exec(
-            `INSERT INTO pending_room_revocations (account_id, room_name, phien_id, attempts, last_attempt_at, error_text)
-             VALUES (?, ?, ?, 1, ?, 'initial_rpc_failed')
-             ON CONFLICT(account_id, room_name, phien_id) DO UPDATE SET
-               attempts = attempts + 1,
+            `INSERT INTO pending_room_revocations (account_id, room_name, attempts, last_attempt_at, error_text)
+             VALUES (?, ?, 1, ?, 'initial_rpc_failed')
+             ON CONFLICT(account_id, room_name) DO UPDATE SET
+               attempts = pending_room_revocations.attempts + 1,
                last_attempt_at = excluded.last_attempt_at,
                error_text = excluded.error_text`,
             accountId,
             roomName,
-            phienId,
             Date.now(),
           )
         } catch {}
@@ -375,7 +404,6 @@ export class CampusDO extends DurableObject<Env> {
   getPendingRoomRevocations(): Array<{
     accountId: number
     roomName: string
-    phienId: string
     attempts: number
     lastAttemptAt: number
     errorText: string | null
@@ -384,16 +412,14 @@ export class CampusDO extends DurableObject<Env> {
       return [...this.ctx.storage.sql.exec<{
         account_id: number
         room_name: string
-        phien_id: string
         attempts: number
         last_attempt_at: number
         error_text: string | null
       }>(
-        'SELECT account_id, room_name, phien_id, attempts, last_attempt_at, error_text FROM pending_room_revocations',
+        'SELECT account_id, room_name, attempts, last_attempt_at, error_text FROM pending_room_revocations',
       )].map((r) => ({
         accountId: r.account_id,
         roomName: r.room_name,
-        phienId: r.phien_id,
         attempts: r.attempts,
         lastAttemptAt: r.last_attempt_at,
         errorText: r.error_text,
@@ -421,16 +447,40 @@ export class CampusDO extends DurableObject<Env> {
         if (CampusDO.simulateRoomRpcFailure) {
           throw new Error('INJECTED_ROOM_RPC_FAILURE')
         }
+
+        // PRV8.2 Invariant: DO NOT TRUST STORED "CURRENT SESSION" SNAPSHOT.
+        // Fetch current authoritative session from D1 at execution time!
+        let authoritativePhienId: string | null = null
+        try {
+          const row = await this.env.DB.prepare(
+            'SELECT thiet_bi, dang_hoat_dong FROM tai_khoan_campus WHERE id = ?1',
+          )
+            .bind(item.accountId)
+            .first<{ thiet_bi: string | null; dang_hoat_dong: number }>()
+
+          if (!row || row.dang_hoat_dong === 0) {
+            authoritativePhienId = null
+          } else {
+            authoritativePhienId = row.thiet_bi ?? null
+          }
+        } catch (d1Err) {
+          console.warn(
+            `[retryPendingRoomRevocations] Không thể tra cứu D1 cho account=${item.accountId}, hoãn retry:`,
+            d1Err,
+          )
+          // FAIL-CLOSED: D1 lookup error -> DO NOT call RoomDO with stale state. Keep pending row and reschedule.
+          throw d1Err
+        }
+
         const doId = this.env.ROOMS.idFromName(item.roomName)
-        await (this.env.ROOMS.get(doId) as any).huyPhienCu(item.accountId, item.phienId)
+        await (this.env.ROOMS.get(doId) as any).dongBoPhienTaiKhoan(item.accountId, authoritativePhienId)
 
         // Authoritative success from RoomDO
         try {
           this.ctx.storage.sql.exec(
-            'DELETE FROM pending_room_revocations WHERE account_id = ? AND room_name = ? AND phien_id = ?',
+            'DELETE FROM pending_room_revocations WHERE account_id = ? AND room_name = ?',
             item.accountId,
             item.roomName,
-            item.phienId,
           )
           this.ctx.storage.sql.exec(
             'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
@@ -453,18 +503,17 @@ export class CampusDO extends DurableObject<Env> {
           this.ctx.storage.sql.exec(
             `UPDATE pending_room_revocations
              SET attempts = attempts + 1, last_attempt_at = ?, error_text = ?
-             WHERE account_id = ? AND room_name = ? AND phien_id = ?`,
+             WHERE account_id = ? AND room_name = ?`,
             Date.now(),
             err?.message || 'rpc_failure',
             item.accountId,
             item.roomName,
-            item.phienId,
           )
         } catch {}
 
         if (nextAttempts >= 5) {
           console.warn(
-            `[OPERATIONAL_ALERT] Pending room revocation cho account=${item.accountId} room=${item.roomName} phien=${item.phienId} đã đạt ${nextAttempts} lần thử nhưng chưa thu hồi được. Tiếp tục retry theo chu kỳ capped backoff.`,
+            `[OPERATIONAL_ALERT] Pending room revocation cho account=${item.accountId} room=${item.roomName} đã đạt ${nextAttempts} lần thử nhưng chưa thu hồi được. Tiếp tục retry theo chu kỳ capped backoff.`,
           )
         }
 
