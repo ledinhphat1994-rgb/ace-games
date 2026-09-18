@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Security Hardening Regression Tests â€” Production Readiness Verification v2
  *
  * Covers commit 3bca35b changes:
@@ -275,6 +275,102 @@ describe('PRV2-D: KV Rate Limiting â€” APPROXIMATE abuse mitigation', () =>
       expect(typeof data.message).toBe('string')
       expect(data.message.toLowerCase()).toContain('ban')
     }
+  })
+
+  it('D6. Policy A: Unified quota across all moderation actions (kick + ban + unban = 20 total)', async () => {
+    const phongId = await taoPhongTruong('RL Unified Test D6', 'acc:8')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+
+    // Perform 10 kicks + 10 bans (total 20 moderation operations)
+    for (let i = 0; i < 10; i++) {
+      const r = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/kick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+        body: JSON.stringify({ targetActorKey: `acc:${20 + i}`, reason: 'kick quota' }),
+      })
+      expect(r.status).not.toBe(429)
+    }
+
+    for (let i = 0; i < 10; i++) {
+      const r = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+        body: JSON.stringify({ targetAccountId: 30 + i, reason: 'ban quota' }),
+      })
+      expect(r.status).not.toBe(429)
+    }
+
+    // The 21st moderation request (unban) MUST receive 429 because total moderation quota is exhausted
+    const res21 = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: 2 }),
+    })
+    expect(res21.status).toBe(429)
+  })
+
+  it('D7. Limiter backend failure follows fail-open policy', async () => {
+    const phongId = await taoPhongTruong('RL Fail-Open Test D7', 'acc:8')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+
+    // Temporarily inject a throwing mock on MODERATION_LIMITER
+    const originalLimit = (env as any).MODERATION_LIMITER?.limit
+    ;(env as any).MODERATION_LIMITER = {
+      limit: async () => {
+        throw new Error('Simulated Cloudflare RateLimit binding edge outage')
+      },
+    }
+
+    try {
+      const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+        body: JSON.stringify({ targetAccountId: 2 }),
+      })
+      // Fail-open guarantees: infrastructure outage does NOT return 500 or 429 to the user
+      expect([200, 404, 503]).toContain(res.status)
+      expect(res.status).not.toBe(429)
+      expect(res.status).not.toBe(500)
+    } finally {
+      if (originalLimit) {
+        ;(env as any).MODERATION_LIMITER = { limit: originalLimit }
+      }
+    }
+  })
+
+  it('D8. Target account and client body cannot determine or alter limiter key', async () => {
+    const phongId = await taoPhongTruong('RL Key Identity Test D8', 'acc:8')
+    const cookieAdmin = await dangNhapLayCookie('qa.v2.admin')
+
+    // Exhaust quota for admin using targetAccountId: 2
+    for (let i = 0; i < 20; i++) {
+      await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+        body: JSON.stringify({ targetAccountId: 2 }),
+      })
+    }
+
+    // Changing targetAccountId to 999 cannot bypass the limit because the key is strictly actorId
+    const resDifferentTarget = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/unban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieAdmin },
+      body: JSON.stringify({ targetAccountId: 999 }),
+    })
+    expect(resDifferentTarget.status).toBe(429)
+  })
+
+  it('D9. Authorization runs strictly and independently of rate limiting', async () => {
+    const phongId = await taoPhongTruong('RL Auth Independence Test D9', 'acc:1') // Host is acc:1
+    const cookieStudent = await dangNhapLayCookie('qa.v2.thu3') // Student has no mod permission
+
+    // Fresh quota: 0 requests made. But student still receives 403 Forbidden!
+    const res = await exports.default.fetch(`${GOC}/api/rooms/${phongId}/ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookieStudent },
+      body: JSON.stringify({ targetAccountId: 2 }),
+    })
+    expect(res.status).toBe(403)
   })
 })
 

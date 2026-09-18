@@ -25,6 +25,16 @@
       "id": "e2529ac570cb4d77a246f38953dcbc9f"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "MODERATION_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "ANH",

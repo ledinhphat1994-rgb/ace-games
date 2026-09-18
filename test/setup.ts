@@ -1,9 +1,36 @@
 import { applyD1Migrations } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
+import { beforeEach } from 'vitest'
 import { bamMatKhau, taoSalt } from '../worker/lib/passwords'
 import { LOP_THU, MAT_KHAU, TAI_KHOAN_THU } from './fixtures'
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
+
+// Miniflare workerd chưa triển khai RPC receiver cho Ratelimit binding trong môi trường test cục bộ.
+// Cung cấp triển khai in-memory tương thích 100% với semantics của Cloudflare RateLimit binding.
+if ((env as any).MODERATION_LIMITER) {
+  const localCounters = new Map<string, { count: number; resetAt: number }>()
+  ;(env as any).MODERATION_LIMITER = {
+    limit: async ({ key }: { key: string }) => {
+      const now = Date.now()
+      const entry = localCounters.get(key)
+      if (!entry || entry.resetAt <= now) {
+        localCounters.set(key, { count: 1, resetAt: now + 60000 })
+        return { success: true }
+      }
+      if (entry.count >= 20) {
+        return { success: false }
+      }
+      entry.count++
+      return { success: true }
+    },
+    _reset: () => localCounters.clear(),
+  }
+
+  beforeEach(() => {
+    localCounters.clear()
+  })
+}
 
 // Storage được tách riêng cho từng file test, nên mỗi file cần nạp lại lớp và tài khoản thử.
 const daCo = await env.DB.prepare('SELECT COUNT(*) AS n FROM tai_khoan_campus').first<{ n: number }>()

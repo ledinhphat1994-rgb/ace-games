@@ -32,6 +32,16 @@
       "preview_id": "d8cd90e018eb4da3ba697aaba555115c"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "MODERATION_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "ANH",
@@ -69,6 +79,16 @@
         {
           "binding": "RATE_LIMIT",
           "id": "d8cd90e018eb4da3ba697aaba555115c"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "MODERATION_LIMITER",
+          "namespace_id": "2001",
+          "simple": {
+            "limit": 20,
+            "period": 60
+          }
         }
       ],
       "r2_buckets": [

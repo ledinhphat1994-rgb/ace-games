@@ -60,42 +60,72 @@ async function ghiAuditLog(
 }
 
 /**
- * Kiểm tra rate limit per-actor theo KV.
- * Key: `rate:<action>:<actorId>` — tối đa `limit` lần trong cửa sổ `ttlSeconds`.
- * Trả về null nếu được phép, hoặc Response 429 nếu vượt giới hạn.
+ * Kiểm tra rate limit per-actor cho các thao tác kiểm duyệt (/kick, /ban, /unban).
+ * Chính sách: Tối đa 20 thao tác moderation tổng cộng / actor / 60 giây (TOTAL PER ACTOR across kick, ban, unban).
+ *
+ * Ưu tiên: Cloudflare Workers Rate Limiting native binding (MODERATION_LIMITER).
+ * - Hoạt động trực tiếp tại edge colocation, loại bỏ triệt để nút thắt 1 write/giây và lost increments của KV.
+ * - Key chuẩn: `mod:${actorId}` (sử dụng danh tính máy chủ đã xác thực từ phiên, miễn nhiễm với giả mạo client).
+ *
+ * Fallback: KV rate limit nếu native binding chưa sẵn sàng trong môi trường chạy.
+ *
+ * Chính sách lỗi (Failure Policy): FAIL-OPEN
+ * Nếu service rate limit ném ngoại lệ hoặc gặp sự cố, hệ thống ghi log cảnh báo và cho phép request tiếp tục
+ * để bảo đảm tính sẵn sàng cho giáo viên khi điều hành lớp học trực tiếp.
  */
 async function kiemTraRateLimit(
-  kv: KVNamespace,
+  env: Env,
   actorId: number,
   action: string,
-  limit: number,
-  ttlSeconds: number,
 ): Promise<{ limited: true; response: Response } | { limited: false }> {
-  const key = `rate:mod:${action}:${actorId}`
-  try {
-    const raw = await kv.get(key)
-    const tries = parseInt(raw || '0', 10)
-    if (Number.isFinite(tries) && tries >= limit) {
-      return {
-        limited: true,
-        response: new Response(
-          JSON.stringify({ ok: false, message: `Quá nhiều thao tác ${action}. Vui lòng thử lại sau.` }),
-          { status: 429, headers: { 'Content-Type': 'application/json' } },
-        ),
-      }
-    }
-    // Ghi tăng số lần thử. Nếu KV gặp lỗi (ví dụ giới hạn 1 write/giây của KV hoặc lỗi mạng),
-    // ghi log cảnh báo và cho phép tiếp tục (fail-open) để không phá vỡ thao tác quản trị hợp lệ.
+  // 1. Native Cloudflare Workers Rate Limiting binding
+  if (env.MODERATION_LIMITER && typeof env.MODERATION_LIMITER.limit === 'function') {
     try {
-      await kv.put(key, String(tries + 1), { expirationTtl: ttlSeconds })
-    } catch (putErr) {
-      console.warn(`[kiemTraRateLimit] Lỗi kv.put cho key ${key} (giới hạn 1 write/giây):`, putErr)
+      const res = await env.MODERATION_LIMITER.limit({ key: `mod:${actorId}` })
+      if (!res.success) {
+        return {
+          limited: true,
+          response: new Response(
+            JSON.stringify({ ok: false, message: `Quá nhiều thao tác kiểm duyệt (${action}). Vui lòng thử lại sau 1 phút.` }),
+            { status: 429, headers: { 'Content-Type': 'application/json' } },
+          ),
+        }
+      }
+      return { limited: false }
+    } catch (rlErr) {
+      console.warn(`[kiemTraRateLimit] Lỗi MODERATION_LIMITER cho actor ${actorId}:`, rlErr)
+      return { limited: false } // Fail-open
     }
-    return { limited: false }
-  } catch (getErr) {
-    console.warn(`[kiemTraRateLimit] Lỗi kv.get cho key ${key}:`, getErr)
-    return { limited: false }
   }
+
+  // 2. Resilient KV Fallback
+  if (env.RATE_LIMIT) {
+    const key = `rate:mod:${actorId}`
+    try {
+      const raw = await env.RATE_LIMIT.get(key)
+      const tries = parseInt(raw || '0', 10)
+      if (Number.isFinite(tries) && tries >= 20) {
+        return {
+          limited: true,
+          response: new Response(
+            JSON.stringify({ ok: false, message: `Quá nhiều thao tác kiểm duyệt (${action}). Vui lòng thử lại sau 1 phút.` }),
+            { status: 429, headers: { 'Content-Type': 'application/json' } },
+          ),
+        }
+      }
+      try {
+        await env.RATE_LIMIT.put(key, String(tries + 1), { expirationTtl: 60 })
+      } catch (putErr) {
+        console.warn(`[kiemTraRateLimit] Lỗi kv.put cho key ${key}:`, putErr)
+      }
+      return { limited: false }
+    } catch (getErr) {
+      console.warn(`[kiemTraRateLimit] Lỗi kv.get cho key ${key}:`, getErr)
+      return { limited: false } // Fail-open
+    }
+  }
+
+  return { limited: false }
 }
 
 async function layTargetRank(
@@ -261,8 +291,8 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
     return loi('Bạn không có quyền mời thành viên ra khỏi phòng học này.', 403)
   }
 
-  // Per-actor rate limit: tối đa 20 kick / 60 giây
-  const rlKick = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'kick', 20, 60)
+  // Per-actor rate limit: tối đa 20 thao tác kiểm duyệt / 60 giây (TOTAL PER ACTOR)
+  const rlKick = await kiemTraRateLimit(c.env, gate.taiKhoan.id, 'kick')
   if (rlKick.limited) return rlKick.response
 
   let rawBody: unknown
@@ -529,8 +559,8 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     return loi('Bạn không có quyền cấm thành viên vào phòng học này.', 403)
   }
 
-  // Per-actor rate limit: tối đa 20 ban / 60 giây
-  const rlBan = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'ban', 20, 60)
+  // Per-actor rate limit: tối đa 20 thao tác kiểm duyệt / 60 giây (TOTAL PER ACTOR)
+  const rlBan = await kiemTraRateLimit(c.env, gate.taiKhoan.id, 'ban')
   if (rlBan.limited) return rlBan.response
 
   let rawBody: unknown
@@ -682,8 +712,8 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('Bạn không có quyền gỡ cấm cho phòng này.', 403)
   }
 
-  // Per-actor rate limit: tối đa 20 unban / 60 giây
-  const rlUnban = await kiemTraRateLimit(c.env.RATE_LIMIT, gate.taiKhoan.id, 'unban', 20, 60)
+  // Per-actor rate limit: tối đa 20 thao tác kiểm duyệt / 60 giây (TOTAL PER ACTOR)
+  const rlUnban = await kiemTraRateLimit(c.env, gate.taiKhoan.id, 'unban')
   if (rlUnban.limited) return rlUnban.response
 
   let rawBody: unknown
