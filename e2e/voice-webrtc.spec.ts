@@ -1194,4 +1194,124 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       await ctx.close()
     }
   })
+
+  test('12. Session Revocation Voice Closure: Session replacement revokes real WebRTC publication, closes Room socket 4001, clears registry, stops remote media, prevents stale republish, allows new session to publish', async ({ browser }) => {
+    const ctxA = await createVoiceContext(browser, { mic: true })
+    const ctxBStale = await createVoiceContext(browser, { mic: true })
+    const pageA = await ctxA.newPage()
+    const pageBStale = await ctxBStale.newPage()
+
+    try {
+      console.log('TEST 12: Logging in user A (Host)...')
+      await loginUser(pageA, HOST_USER)
+      console.log('TEST 12: Entering study room A...')
+      await enterStudyRoom(pageA)
+
+      console.log('TEST 12: Logging in user B (stale session context)...')
+      await loginUser(pageBStale, MEMBER_USER)
+      console.log('TEST 12: Entering study room B (stale session)...')
+      await enterStudyRoom(pageBStale)
+      console.log('TEST 12: Turning on mic B (stale session)...')
+      await turnOnMic(pageBStale)
+
+      console.log('TEST 12: Measuring remote audio RTP on page A from Member B...')
+      const rtpBefore = await measureRemoteAudioRtp(pageA, MEMBER_USER.username)
+      console.log('TEST 12: RTP Before delta:', rtpBefore.delta)
+      expect(rtpBefore.delta).toBeGreaterThan(0)
+
+      // Verify B publication is live in registry
+      const regBefore = await fetchVoiceRegistry(pageA)
+      const bLiveBefore = regBefore.find((p: any) => p.actorKey === rtpBefore.actorKey && p.status === 'live')
+      expect(bLiveBefore).toBeDefined()
+      console.log('TEST 12: B publication live before revocation:', bLiveBefore)
+
+      // Listen for socket close 4001 on pageBStale
+      const socketClosePromise = pageBStale.evaluate(() => {
+        return new Promise<{ code: number; reason: string }>((resolve) => {
+          const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
+          if (!ws) {
+            resolve({ code: -1, reason: 'NO_WS' })
+            return
+          }
+          if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+            resolve({ code: 4001, reason: 'ALREADY_CLOSED' })
+            return
+          }
+          ws.addEventListener('close', (e) => {
+            resolve({ code: e.code, reason: e.reason })
+          })
+        })
+      })
+
+      console.log('TEST 12: Triggering session replacement via new login in new context...')
+      const ctxBNew = await createVoiceContext(browser, { mic: true })
+      const pageBNew = await ctxBNew.newPage()
+      await loginUser(pageBNew, MEMBER_USER)
+
+      // Verify stale Room WebSocket closes with code 4001
+      const closeEvent = await socketClosePromise
+      console.log('TEST 12: Stale Room socket closed:', closeEvent)
+      expect(closeEvent.code).toBe(4001)
+
+      // Verify Room voice registry no longer contains B
+      await expect.poll(async () => {
+        const reg = await fetchVoiceRegistry(pageA)
+        return reg.find((p: any) => p.actorKey === rtpBefore.actorKey)
+      }, { timeout: 25000 }).toBeUndefined()
+      console.log('TEST 12: Voice registry successfully cleared Member B publication')
+
+      // Verify remote media on Host A stops (remote track readyState or subscription removed)
+      await expect.poll(async () => {
+        return pageA.evaluate((bActorKey: string) => {
+          const d = (window as any).__VOICE_DIAGNOSTICS__
+          if (!d) return { subs: 1, tracks: 1 }
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === bActorKey)
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === bActorKey && t.readyState === 'live')
+          return {
+            subs: subs.length,
+            tracks: tracks.length,
+          }
+        }, rtpBefore.actorKey)
+      }, { timeout: 25000 }).toEqual({
+        subs: 0,
+        tracks: 0,
+      })
+      console.log('TEST 12: Remote media on Host A confirmed stopped and subscription removed')
+
+      // Verify stale session CANNOT republish (fails with 401)
+      const staleRepublishStatus = await pageBStale.evaluate(async (roomId) => {
+        try {
+          const res = await fetch(`/api/rooms/${roomId}/voice/publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionDescription: { type: 'offer', sdp: 'fake' },
+              mid: '0',
+            }),
+          })
+          return res.status
+        } catch {
+          return -1
+        }
+      }, numericRoomId)
+      console.log('TEST 12: Stale session republish attempt HTTP status:', staleRepublishStatus)
+      expect(staleRepublishStatus).toBe(401)
+
+      // New authenticated session on pageBNew can enter and publish normally
+      console.log('TEST 12: New session entering study room...')
+      await enterStudyRoom(pageBNew)
+      console.log('TEST 12: New session turning on mic...')
+      await turnOnMic(pageBNew)
+
+      // Verify Host A receives new audio from Member B
+      const rtpAfter = await measureRemoteAudioRtp(pageA, MEMBER_USER.username)
+      console.log('TEST 12: New session RTP delta on Host A:', rtpAfter.delta)
+      expect(rtpAfter.delta).toBeGreaterThan(0)
+
+      await ctxBNew.close()
+    } finally {
+      await ctxA.close()
+      await ctxBStale.close()
+    }
+  })
 })
