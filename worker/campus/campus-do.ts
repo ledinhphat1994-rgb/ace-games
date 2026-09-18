@@ -13,7 +13,7 @@ import { msTuD1 } from '../lib/thoi-gian'
 import { giaiMaDanhTinh, HEADER_DANH_TINH, laYeuCauWebSocket } from '../lib/ws'
 import { thayPhong, type DanhTinhCampus } from './danh-tinh'
 
-const DOI_SOAT_MOI_MS = 10 * 60 * 1000
+const DOI_SOAT_MOI_MS = 10 * 1000
 const KHUNG_TOI_DA_KY_TU = 4096
 const LENH_TOI_DA = 30
 const CUA_SO_LENH_MS = 10_000
@@ -607,7 +607,10 @@ export class CampusDO extends DurableObject<Env> {
   ): UserActivity | null {
     if (!activity) return null
     if (activity.type === 'room' && activity.roomId) {
-      const phong = danhBa.find((p) => p.id === activity.roomId)
+      let phong = danhBa.find((p) => p.id === activity.roomId)
+      if (!phong) {
+        phong = this.docTatCaPhong().find((p) => p.id === activity.roomId)
+      }
       if (!phong) {
         return { type: 'room', roomTitle: 'Đang học nhóm' }
       }
