@@ -21,22 +21,37 @@ async function bamNgan(chuoi: string): Promise<string> {
 }
 
 async function thuQuaNhieu(env: Env, ip: string, ten: string): Promise<boolean> {
+  if (!env.RATE_LIMIT) return false
   const keyIp = `login:ip:${ip}`
-  const nIp = parseInt((await env.RATE_LIMIT.get(keyIp)) || '0', 10)
-  if (nIp >= MAX_TRIES_IP) return true
-
   const keyTen = `login:ma:${await bamNgan(ten)}`
-  const nTen = parseInt((await env.RATE_LIMIT.get(keyTen)) || '0', 10)
-  if (nTen >= MAX_TRIES_TEN) return true
+  try {
+    const nIp = parseInt((await env.RATE_LIMIT.get(keyIp)) || '0', 10)
+    if (Number.isFinite(nIp) && nIp >= MAX_TRIES_IP) return true
 
-  await env.RATE_LIMIT.put(keyIp, String(nIp + 1), { expirationTtl: WINDOW })
-  await env.RATE_LIMIT.put(keyTen, String(nTen + 1), { expirationTtl: WINDOW })
-  return false
+    const nTen = parseInt((await env.RATE_LIMIT.get(keyTen)) || '0', 10)
+    if (Number.isFinite(nTen) && nTen >= MAX_TRIES_TEN) return true
+
+    try {
+      await env.RATE_LIMIT.put(keyIp, String(nIp + 1), { expirationTtl: WINDOW })
+      await env.RATE_LIMIT.put(keyTen, String(nTen + 1), { expirationTtl: WINDOW })
+    } catch (putErr) {
+      console.warn(`[login] Lỗi kv.put rate limit cho login:`, putErr)
+    }
+    return false
+  } catch (getErr) {
+    console.warn(`[login] Lỗi kv.get rate limit cho login:`, getErr)
+    return false // Fail-open: không chặn đăng nhập nếu KV gặp sự cố
+  }
 }
 
 async function xoaDemThu(env: Env, ip: string, ten: string): Promise<void> {
-  await env.RATE_LIMIT.delete(`login:ip:${ip}`)
-  await env.RATE_LIMIT.delete(`login:ma:${await bamNgan(ten)}`)
+  if (!env.RATE_LIMIT) return
+  try {
+    await env.RATE_LIMIT.delete(`login:ip:${ip}`)
+    await env.RATE_LIMIT.delete(`login:ma:${await bamNgan(ten)}`)
+  } catch {
+    // Bỏ qua lỗi xóa cache rate limit
+  }
 }
 
 interface DongDangNhap {
@@ -308,11 +323,21 @@ export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Res
   // Rate limit: tối đa 5 yêu cầu / 15 phút từ 1 IP
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0'
   const ipRateKey = `rate:qmk_req:${ip}`
-  const ipCount = parseInt((await env.RATE_LIMIT.get(ipRateKey)) || '0', 10)
-  if (ipCount >= 5) {
-    return loi('Bạn đã yêu cầu tạo mã quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429)
+  if (env.RATE_LIMIT) {
+    try {
+      const ipCount = parseInt((await env.RATE_LIMIT.get(ipRateKey)) || '0', 10)
+      if (Number.isFinite(ipCount) && ipCount >= 5) {
+        return loi('Bạn đã yêu cầu tạo mã quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429)
+      }
+      try {
+        await env.RATE_LIMIT.put(ipRateKey, String(ipCount + 1), { expirationTtl: 900 })
+      } catch (putErr) {
+        console.warn(`[qmk_req] Lỗi kv.put rate limit cho key ${ipRateKey}:`, putErr)
+      }
+    } catch (getErr) {
+      console.warn(`[qmk_req] Lỗi kv.get rate limit cho key ${ipRateKey}:`, getErr)
+    }
   }
-  await env.RATE_LIMIT.put(ipRateKey, String(ipCount + 1), { expirationTtl: 900 })
 
   return json({
     ok: true,
@@ -415,11 +440,21 @@ export async function quenMatKhau(request: Request, env: Env): Promise<Response>
   // Rate limit theo IP và theo target account
   const ip = request.headers.get('CF-Connecting-IP') || '0.0.0.0'
   const ipRateKey = `rate:qmk_try_ip:${ip}`
-  const ipTries = parseInt((await env.RATE_LIMIT.get(ipRateKey)) || '0', 10)
-  if (ipTries >= 15) {
-    return loi('Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429)
+  if (env.RATE_LIMIT) {
+    try {
+      const ipTries = parseInt((await env.RATE_LIMIT.get(ipRateKey)) || '0', 10)
+      if (Number.isFinite(ipTries) && ipTries >= 15) {
+        return loi('Bạn đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.', 429)
+      }
+      try {
+        await env.RATE_LIMIT.put(ipRateKey, String(ipTries + 1), { expirationTtl: 900 })
+      } catch (putErr) {
+        console.warn(`[qmk_try_ip] Lỗi kv.put rate limit cho key ${ipRateKey}:`, putErr)
+      }
+    } catch (getErr) {
+      console.warn(`[qmk_try_ip] Lỗi kv.get rate limit cho key ${ipRateKey}:`, getErr)
+    }
   }
-  await env.RATE_LIMIT.put(ipRateKey, String(ipTries + 1), { expirationTtl: 900 })
 
   const kvKey = `pwd_reset:${username}`
   const rawData = await env.RATE_LIMIT.get(kvKey)

@@ -110,12 +110,23 @@ async function kiemTraRateLimitVoice(
   roomId: number,
   accountId: number,
 ): Promise<boolean> {
+  if (!env.RATE_LIMIT) return true
   const max = type === 'session' ? 20 : 120
   const key = `rate:voice:${type}:${roomId}:${accountId}`
-  const count = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10)
-  if (count >= max) return false
-  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 60 })
-  return true
+  try {
+    const count = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10)
+    if (Number.isFinite(count) && count >= max) return false
+    try {
+      await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 60 })
+    } catch (putErr) {
+      console.warn(`[voice-ratelimit] Lỗi kv.put cho key ${key}:`, putErr)
+      // Fail-open: không làm sập phiên WebRTC khi KV gặp lỗi write burst
+    }
+    return true
+  } catch (getErr) {
+    console.warn(`[voice-ratelimit] Lỗi kv.get cho key ${key}:`, getErr)
+    return true // Fail-open: cho phép tiếp tục nếu KV tạm thời không sẵn sàng
+  }
 }
 
 function parsePhongId(c: Context<{ Bindings: Env }>): number | null {

@@ -33,6 +33,14 @@
         "limit": 20,
         "period": 60
       }
+    },
+    {
+      "name": "UPLOAD_LIMITER",
+      "namespace_id": "2002",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
     }
   ],
   "r2_buckets": [

@@ -8,29 +8,39 @@ await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
 
 // Miniflare workerd chưa triển khai RPC receiver cho Ratelimit binding trong môi trường test cục bộ.
 // Cung cấp triển khai in-memory tương thích 100% với semantics của Cloudflare RateLimit binding.
-if ((env as any).MODERATION_LIMITER) {
+function createRateLimitMock(limit: number, periodMs = 60000) {
   const localCounters = new Map<string, { count: number; resetAt: number }>()
-  ;(env as any).MODERATION_LIMITER = {
-    limit: async ({ key }: { key: string }) => {
-      const now = Date.now()
-      const entry = localCounters.get(key)
-      if (!entry || entry.resetAt <= now) {
-        localCounters.set(key, { count: 1, resetAt: now + 60000 })
+  return {
+    binding: {
+      limit: async ({ key }: { key: string }) => {
+        const now = Date.now()
+        const entry = localCounters.get(key)
+        if (!entry || entry.resetAt <= now) {
+          localCounters.set(key, { count: 1, resetAt: now + periodMs })
+          return { success: true }
+        }
+        if (entry.count >= limit) {
+          return { success: false }
+        }
+        entry.count++
         return { success: true }
-      }
-      if (entry.count >= 20) {
-        return { success: false }
-      }
-      entry.count++
-      return { success: true }
+      },
+      _reset: () => localCounters.clear(),
     },
-    _reset: () => localCounters.clear(),
+    reset: () => localCounters.clear(),
   }
-
-  beforeEach(() => {
-    localCounters.clear()
-  })
 }
+
+const modLimiterMock = createRateLimitMock(20, 60000)
+;(env as any).MODERATION_LIMITER = modLimiterMock.binding
+
+const uploadLimiterMock = createRateLimitMock(10, 60000)
+;(env as any).UPLOAD_LIMITER = uploadLimiterMock.binding
+
+beforeEach(() => {
+  modLimiterMock.reset()
+  uploadLimiterMock.reset()
+})
 
 // Storage được tách riêng cho từng file test, nên mỗi file cần nạp lại lớp và tài khoản thử.
 const daCo = await env.DB.prepare('SELECT COUNT(*) AS n FROM tai_khoan_campus').first<{ n: number }>()

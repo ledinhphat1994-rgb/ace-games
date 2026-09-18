@@ -1039,22 +1039,6 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  // Rate-limit: Tối đa 5 báo cáo / 10 phút / tài khoản để chống flood
-  const rlKey = `rate:report:${kq.taiKhoan.id}`
-  try {
-    const tries = parseInt((await c.env.RATE_LIMIT.get(rlKey)) || '0', 10)
-    if (Number.isFinite(tries) && tries >= 5) {
-      return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
-    }
-    try {
-      await c.env.RATE_LIMIT.put(rlKey, String(tries + 1), { expirationTtl: 600 })
-    } catch (putErr) {
-      console.warn(`[createReport] Lỗi kv.put rate limit cho key ${rlKey}:`, putErr)
-    }
-  } catch (getErr) {
-    console.warn(`[createReport] Lỗi kv.get rate limit cho key ${rlKey}:`, getErr)
-  }
-
   let rawBody: unknown
   try {
     rawBody = await c.req.json()
@@ -1073,10 +1057,20 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
     return loi('Không thể tự báo cáo chính mình.', 400)
   }
 
+  // Rate-limit: Tối đa 5 báo cáo / 10 phút / tài khoản để chống flood
+  // Thực thi atomic tại D1 persistence boundary (SQLite single-writer serializable)
+  // để loại bỏ 100% rủi ro race condition, lost increments, hoặc fail-open burst leak của KV.
+  const now = Date.now()
+  const windowStart = now - 600_000
+
   try {
     const res = await c.env.DB.prepare(
       `INSERT INTO reports (reporter_id, reported_id, room_id, category, reason, content_snippet, status, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', ?7)`,
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, 'pending', ?7
+       WHERE (
+         SELECT COUNT(*) FROM reports
+         WHERE reporter_id = ?1 AND created_at >= ?8
+       ) < 5`,
     )
       .bind(
         kq.taiKhoan.id,
@@ -1085,9 +1079,14 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
         category,
         reason,
         contentSnippet ?? null,
-        Date.now(),
+        now,
+        windowStart,
       )
       .run()
+
+    if (res.meta.changes === 0) {
+      return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
+    }
 
     return c.json({
       ok: true,

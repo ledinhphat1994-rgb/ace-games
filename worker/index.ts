@@ -509,9 +509,21 @@ app.post('/api/rooms/:id/admit', async (c) => {
 
   // Rate-limit password attempts: 10 lần / 5 phút / tài khoản (anti-brute-force)
   const rlKey = `rate:admit:${phongId}:${kq.taiKhoan.id}`
-  const tries = parseInt((await c.env.RATE_LIMIT.get(rlKey)) || '0', 10)
-  if (tries >= 10) return loi('Bạn đã thử sai quá nhiều lần. Vui lòng thử lại sau 5 phút.', 429)
-  await c.env.RATE_LIMIT.put(rlKey, String(tries + 1), { expirationTtl: 300 })
+  if (c.env.RATE_LIMIT) {
+    try {
+      const tries = parseInt((await c.env.RATE_LIMIT.get(rlKey)) || '0', 10)
+      if (Number.isFinite(tries) && tries >= 10) {
+        return loi('Bạn đã thử sai quá nhiều lần. Vui lòng thử lại sau 5 phút.', 429)
+      }
+      try {
+        await c.env.RATE_LIMIT.put(rlKey, String(tries + 1), { expirationTtl: 300 })
+      } catch (putErr) {
+        console.warn(`[admit] Lỗi kv.put rate limit cho key ${rlKey}:`, putErr)
+      }
+    } catch (getErr) {
+      console.warn(`[admit] Lỗi kv.get rate limit cho key ${rlKey}:`, getErr)
+    }
+  }
 
   let phongRow: DongPhong | null = null
   try {
@@ -561,7 +573,11 @@ app.post('/api/rooms/:id/admit', async (c) => {
   if (!hopLe) return loi('Mật khẩu không đúng.', 403)
 
   // Success: clear rate-limit, issue signed HttpOnly admission cookie
-  await c.env.RATE_LIMIT.delete(rlKey)
+  try {
+    await c.env.RATE_LIMIT?.delete(rlKey)
+  } catch {
+    // Không block admission nếu delete KV gặp lỗi
+  }
 
   if (!c.env.SESSION_SECRET) return loi('Máy chủ chưa được cấu hình bảo mật.', 500)
 
@@ -751,10 +767,38 @@ app.post('/api/upload', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  const rateKey = `rate:upload:${kq.taiKhoan.id}`
-  const count = parseInt((await c.env.RATE_LIMIT.get(rateKey)) || '0', 10)
-  if (count >= 20) return loi('Bạn đã tải lên quá nhiều tệp trong thời gian ngắn. Vui lòng đợi 10 phút.', 429)
-  await c.env.RATE_LIMIT.put(rateKey, String(count + 1), { expirationTtl: 600 })
+  // 1. Edge burst anti-abuse limiter (Workers Rate Limiting binding): 10 uploads / 60s per actor
+  if (c.env.UPLOAD_LIMITER) {
+    try {
+      const rlRes = await c.env.UPLOAD_LIMITER.limit({ key: `up:${kq.taiKhoan.id}` })
+      if (!rlRes.success) {
+        return loi('Bạn đã tải lên quá nhiều tệp trong thời gian ngắn. Vui lòng đợi 1 phút.', 429)
+      }
+    } catch (rlErr) {
+      console.warn(`[upload] Lỗi UPLOAD_LIMITER cho actor ${kq.taiKhoan.id}:`, rlErr)
+      // Fail-open for edge limiter error
+    }
+  }
+
+  // 2. Long-window user quota: 20 uploads / 10 phút (600s) với fail-open KV handling
+  if (c.env.RATE_LIMIT) {
+    const rateKey = `rate:upload:${kq.taiKhoan.id}`
+    try {
+      const count = parseInt((await c.env.RATE_LIMIT.get(rateKey)) || '0', 10)
+      if (Number.isFinite(count) && count >= 20) {
+        return loi('Bạn đã tải lên quá nhiều tệp trong thời gian ngắn. Vui lòng đợi 10 phút.', 429)
+      }
+      try {
+        await c.env.RATE_LIMIT.put(rateKey, String(count + 1), { expirationTtl: 600 })
+      } catch (putErr) {
+        console.warn(`[upload] Lỗi kv.put rate limit cho key ${rateKey}:`, putErr)
+        // Fail-open: không crash 500 khi KV đụng ngưỡng 1 write/s hoặc lỗi mạng
+      }
+    } catch (getErr) {
+      console.warn(`[upload] Lỗi kv.get rate limit cho key ${rateKey}:`, getErr)
+      // Fail-open: tiếp tục cho phép upload hợp lệ nếu KV tạm thời không sẵn sàng
+    }
+  }
 
   try {
     const formData = await c.req.formData()
