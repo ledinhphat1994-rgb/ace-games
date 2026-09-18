@@ -53,6 +53,7 @@ export function KickMemberDialog({
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setReason('')
       setBanFromRoom(false)
       setSubmitting(false)
@@ -190,6 +191,7 @@ export function ReportUserDialog({
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setCategory('harassment')
       setReason('')
       setSubmitting(false)
@@ -332,6 +334,7 @@ export function BannedMembersDialog({
 
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setLoading(true)
       onLoadBanned()
         .then((res) => {

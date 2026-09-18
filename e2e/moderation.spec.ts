@@ -14,7 +14,8 @@ const USER_B = {
   password: process.env.E2E_MEMBER_B_PASSWORD || '',
 }
 
-const ROOM_ID = 'phong-1'
+const ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
+const ROOM_NUM = 7
 
 if (!USER_A.password || !USER_B.password) {
   throw new Error('Missing credentials for E2E users in environment or .env.e2e.')
@@ -41,13 +42,13 @@ async function login(page: Page, user: { username: string; password: string }) {
 
 /** Đảm bảo gỡ ban trước khi chạy test để trạng thái clean */
 async function cleanupBans(page: Page) {
-  await page.evaluate(async () => {
+  await page.evaluate(async (roomNum) => {
     try {
-      const res = await fetch('/api/rooms/1/banned-members')
+      const res = await fetch(`/api/rooms/${roomNum}/banned-members`)
       const data = await res.json()
       if (data && Array.isArray(data.bannedMembers)) {
         for (const b of data.bannedMembers) {
-          await fetch('/api/rooms/1/unban', {
+          await fetch(`/api/rooms/${roomNum}/unban`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ targetAccountId: b.accountId }),
@@ -55,7 +56,14 @@ async function cleanupBans(page: Page) {
         }
       }
     } catch {}
-  })
+  }, ROOM_NUM)
+}
+
+async function enterStudyRoom(page: Page, roomId = ROOM_ID) {
+  await page.goto(`/room/${roomId}`)
+  await expect(page.locator('button[title="Chat phòng học"]')).toBeVisible({ timeout: 25000 })
+  await expect(page.locator('header svg.lucide-wifi.text-emerald-400')).toBeVisible({ timeout: 40000 })
+  await page.waitForTimeout(500)
 }
 
 test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () => {
@@ -72,35 +80,32 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
 
       await cleanupBans(pageA)
 
-      // 2. Cả 2 cùng vào phòng học phong-1
-      await pageA.goto(`/room/${ROOM_ID}`)
-      await pageB.goto(`/room/${ROOM_ID}`)
+      // 2. Cả 2 cùng vào phòng học phong-7 và chờ kết nối WebSocket ổn định
+      await enterStudyRoom(pageA, ROOM_ID)
+      await enterStudyRoom(pageB, ROOM_ID)
 
-      // Chờ vào phòng thành công
-      await expect(pageA.locator('header').first()).toBeVisible({ timeout: 20000 })
-      await expect(pageB.locator('header').first()).toBeVisible({ timeout: 20000 })
+      // 3. Mở chat cả 2 bên
+      await pageA.locator('button[title="Chat phòng học"]').click()
+      await pageB.locator('button[title="Chat phòng học"]').click()
 
-      // 3. Người B mở chat và gửi tin nhắn
-      const chatBtnB = pageB.locator('button:has-text("Chat")').first()
-      await chatBtnB.click()
       const chatInputB = pageB.locator('input[placeholder="Nhắn tin..."]')
       await expect(chatInputB).toBeVisible({ timeout: 10000 })
-      await chatInputB.fill('Tin nhắn kiểm tra báo cáo vi phạm E2E')
-      await chatInputB.press('Enter')
 
-      // 4. Người A mở chat và nhìn thấy tin nhắn của B
-      const chatBtnA = pageA.locator('button:has-text("Chat")').first()
-      await chatBtnA.click()
-      const msgItem = pageA.locator('text=Tin nhắn kiểm tra báo cáo vi phạm E2E').first()
+      const testMsg = `Tin nhắn kiểm tra báo cáo vi phạm E2E ${Date.now()}`
+      await chatInputB.fill(testMsg)
+      await pageB.locator('form:has(input[placeholder="Nhắn tin..."]) button[type="submit"]').click()
+
+      // 4. Người A nhìn thấy tin nhắn của B
+      const msgItem = pageA.locator(`text=${testMsg}`).first()
       await expect(msgItem).toBeVisible({ timeout: 15000 })
 
       // 5. Người A hover vào tin nhắn và bấm nút Flag báo cáo
       const msgContainer = msgItem.locator('..')
       const flagBtn = msgContainer.locator('button[title="Báo cáo tin nhắn này"]')
-      await flagBtn.click()
+      await flagBtn.click({ force: true })
 
       // 6. Modal Báo cáo vi phạm xuất hiện
-      await expect(pageA.locator('text=Báo cáo vi phạm').first()).toBeVisible({ timeout: 10000 })
+      await expect(pageA.locator('#report-category-select')).toBeVisible({ timeout: 10000 })
       await expect(pageA.locator('text=Nội dung tin nhắn vi phạm:').first()).toBeVisible()
 
       // Chọn loại vi phạm và nhập lý do
@@ -113,7 +118,7 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
       await submitReportBtn.click()
 
       // 7. Modal đóng lại và thông báo thành công
-      await expect(pageA.locator('text=Báo cáo vi phạm').first()).not.toBeVisible({ timeout: 10000 })
+      await expect(pageA.locator('#report-category-select')).not.toBeVisible({ timeout: 10000 })
     } finally {
       await contextA.close()
       await contextB.close()
@@ -132,17 +137,17 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
 
       await cleanupBans(pageA)
 
-      // Cả 2 cùng vào phòng học phong-1
-      await pageA.goto(`/room/${ROOM_ID}`)
-      await pageB.goto(`/room/${ROOM_ID}`)
-
-      await expect(pageA.locator('header').first()).toBeVisible({ timeout: 20000 })
-      await expect(pageB.locator('header').first()).toBeVisible({ timeout: 20000 })
+      // Cả 2 cùng vào phòng học phong-7
+      await enterStudyRoom(pageA, ROOM_ID)
+      await enterStudyRoom(pageB, ROOM_ID)
 
       // Host A mở drawer thành viên
       const membersBtnA = pageA.locator('button[title="Thành viên"]').first()
       await membersBtnA.click()
       await expect(pageA.locator('text=👥 Thành viên').first()).toBeVisible({ timeout: 10000 })
+
+      // Chờ Member B xuất hiện trong danh sách thành viên của Host A
+      await expect(pageA.locator('text=QA Thử nghiệm 2').first()).toBeVisible({ timeout: 15000 })
 
       // Host A tìm nút mời ra ngoài (UserX)
       const kickBtn = pageA.locator('button[title="Mời thành viên này ra khỏi phòng"]').first()
@@ -180,8 +185,7 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
       await login(pageA, USER_A)
       await cleanupBans(pageA)
 
-      await pageA.goto(`/room/${ROOM_ID}`)
-      await expect(pageA.locator('header').first()).toBeVisible({ timeout: 20000 })
+      await enterStudyRoom(pageA, ROOM_ID)
 
       // Mở drawer thành viên
       const membersBtnA = pageA.locator('button[title="Thành viên"]').first()
