@@ -2,14 +2,14 @@
 
 **Milestone:** PRV8.2 — Multi-Generation Identity Closure: Voice Revocation Incarnation & Room Reconciliation State Machines<br/>
 **Release Candidate Branch:** `fix/moderation-safety-v1-closure`<br/>
-**Executable Candidate Git Commit SHA:** `de78883298815267690f27ddfd3a4e97cf5a3ec7`<br/>
-**Staging-Verified Executable SHA:** `de78883298815267690f27ddfd3a4e97cf5a3ec7`<br/>
-**Verified Staging Deployment Version ID:** `4acf1b1e-f819-4f79-aee7-35af37cae10c`<br/>
+**Executable Candidate Git Commit SHA:** `d635f82e32d61780c635709d14cf90595aacdbb7`<br/>
+**Staging-Verified Executable SHA:** `d635f82e32d61780c635709d14cf90595aacdbb7`<br/>
+**Verified Staging Deployment Version ID:** `e90f2542-d763-43b6-a1d5-9d7038b157c8`<br/>
 **Verified Staging URL:** `https://gdtxdinhquan-v2.ledinhphat1994.workers.dev`<br/>
 **Target Production Worker Service:** `gdtxdinhquan`<br/>
 **Target Production Domain:** `gdtxdinhquan.workers.dev` / Custom Domain
 
-*Note on SHA Parity:* The Executable Candidate SHA matches the Staging-Verified SHA (`de78883298815267690f27ddfd3a4e97cf5a3ec7`) byte-for-byte.
+*Note on SHA Parity:* The Executable Candidate SHA matches the Staging-Verified SHA (`d635f82e32d61780c635709d14cf90595aacdbb7`) byte-for-byte.
 
 ---
 
@@ -82,12 +82,12 @@ PRV8.2 surgically resolves the two generation/identity race conditions identifie
 - `npm run build`: Production bundle for Worker and Client built cleanly.
 - `git diff --check`: Clean, zero trailing whitespace.
 
-### Staging Regression Gate (Cloudflare Staging Version ID: `4acf1b1e-f819-4f79-aee7-35af37cae10c`)
-- **Smoke Suite:** `e2e/smoke.spec.ts` — **3/3 PASSED** (11.0s).
-- **Room Discovery Suite:** `e2e/room-discovery.spec.ts` — **1/1 PASSED** (1.1m).
-- **Moderation Suite:** `e2e/moderation.spec.ts` — **4/4 PASSED** (1.4m).
-- **Voice Force-Mute:** `e2e/voice-webrtc.spec.ts -g "Force-Mute"` — **1/1 PASSED** (1.0m).
-- **Voice Session Revocation:** `e2e/voice-webrtc.spec.ts -g "Session Revocation"` — **1/1 PASSED** (1.6m).
+### Staging Regression Gate (Cloudflare Staging Version ID: `e90f2542-d763-43b6-a1d5-9d7038b157c8`)
+- **Smoke Suite:** `e2e/smoke.spec.ts` — **3/3 PASSED** (14.7s).
+- **Room Discovery Suite:** `e2e/room-discovery.spec.ts` — **1/1 PASSED** (1.2m).
+- **Moderation Suite:** `e2e/moderation.spec.ts` — **4/4 PASSED** (2.3m).
+- **Voice Force-Mute:** `e2e/voice-webrtc.spec.ts -g "Force-Mute"` — **1/1 PASSED** (1.6m).
+- **Voice Session Revocation:** `e2e/voice-webrtc.spec.ts -g "Session Revocation"` — **1/1 PASSED** (1.4m).
 
 ---
 

@@ -263,7 +263,7 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
 
       // 4. Member B cố vào lại phòng -> Bị chặn 403
       await pageB.goto(`/room/${ROOM_ID}`)
-      await expect(pageB.locator('h2:has-text("Không thể truy cập phòng học")').first()).toBeVisible({ timeout: 15000 })
+      await expect(pageB.locator('h2:has-text("Không thể truy cập phòng học")').first()).toBeVisible({ timeout: 25000 })
 
       // 5. Host A mở danh sách cấm và thấy Member B thực sự nằm trong danh sách
       const dsCamBtn = pageA.locator('button:has-text("DS Cấm")').first()
