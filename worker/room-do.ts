@@ -32,11 +32,16 @@ import {
   taoBanMoi,
 } from './game-engine'
 import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
+import { TEN_CAMPUS } from './campus/danh-tinh'
+import { callCloudflareRealtime } from './routes/voice-api'
+
+const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
 interface AttachmentKetNoi {
   key: string
   ten: string
   accountId: number
+  phienId: string
   role: string
   isAdmin: boolean
   isTeacher: boolean
@@ -106,6 +111,8 @@ export class RoomDO extends DurableObject<Env> {
   private voiceGeneration = new Map<string, number>()
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
   private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
+  private roomName: string = ''
+  private sessionCache = new Map<number, { thietBi: string; checkedAt: number }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -558,6 +565,12 @@ export class RoomDO extends DurableObject<Env> {
       this.luuMeta('host_key', key)
     }
 
+    const phienId = request.headers.get('X-Actor-Phien-Id') || ''
+    const roomIdHeader = request.headers.get('X-Room-Id') || ''
+    if (roomIdHeader && !this.roomName) {
+      this.roomName = roomIdHeader
+    }
+
     const mode = request.headers.get('X-Room-Mode')
     const laGame = mode === 'game' || this.isGameRoom
     if (laGame) {
@@ -568,11 +581,12 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     const { 0: client, 1: server } = new WebSocketPair()
-    this.ctx.acceptWebSocket(server)
+    this.ctx.acceptWebSocket(server, [theTaiKhoan(accountId), 'phien:' + phienId])
     server.serializeAttachment({
       key,
       ten,
       accountId,
+      phienId,
       role,
       isAdmin,
       isTeacher,
@@ -638,6 +652,41 @@ export class RoomDO extends DurableObject<Env> {
 
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (!att) return
+
+    // ── Tier 2 Session Invariant: Authoritative in-flight session validation ──
+    if (att.phienId && att.accountId) {
+      const now = Date.now()
+      let cached = this.sessionCache.get(att.accountId)
+      if (!cached || now - cached.checkedAt > 5000) {
+        try {
+          const row = await this.env.DB.prepare(
+            'SELECT thiet_bi FROM tai_khoan_campus WHERE id = ?1',
+          )
+            .bind(att.accountId)
+            .first<{ thiet_bi: string | null }>()
+          if (row?.thiet_bi) {
+            cached = { thietBi: row.thiet_bi, checkedAt: now }
+            this.sessionCache.set(att.accountId, cached)
+          }
+        } catch (dbErr) {
+          console.warn('[RoomDO] Lỗi tra cứu session D1 fallback:', dbErr)
+        }
+      }
+
+      if (cached && cached.thietBi !== att.phienId) {
+        // Stale socket detected! Force-close socket immediately and drop message
+        try {
+          ws.send(JSON.stringify({ type: 'session.replaced' }))
+        } catch {}
+        try {
+          ws.close(MA_DONG_SOCKET.PHIEN_BI_THAY, 'da_dang_nhap_noi_khac')
+        } catch {}
+        await this.revokeVoiceForActor(att.key)
+        this.phatDanhSach(ws)
+        return
+      }
+    }
+
     const type = String(raw.type || '')
 
     if (type === 'ping') {
@@ -1345,6 +1394,19 @@ export class RoomDO extends DurableObject<Env> {
       })
       if (conLai.length === 0) {
         this.removeVoicePublication(att.key)
+        if (this.roomName && att.accountId) {
+          try {
+            this.ctx.waitUntil(
+              this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+                .roiPhong(att.accountId, this.roomName)
+                .catch(() => {}),
+            )
+          } catch {
+            this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+              .roiPhong(att.accountId, this.roomName)
+              .catch(() => {})
+          }
+        }
       }
     }
     this.phatDanhSach(ws)
@@ -1361,6 +1423,19 @@ export class RoomDO extends DurableObject<Env> {
       })
       if (conLai.length === 0) {
         this.removeVoicePublication(att.key)
+        if (this.roomName && att.accountId) {
+          try {
+            this.ctx.waitUntil(
+              this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+                .roiPhong(att.accountId, this.roomName)
+                .catch(() => {}),
+            )
+          } catch {
+            this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+              .roiPhong(att.accountId, this.roomName)
+              .catch(() => {})
+          }
+        }
       }
     }
     this.phatDanhSach(ws)
@@ -1737,6 +1812,60 @@ export class RoomDO extends DurableObject<Env> {
 
   removeVoicePublication(actorKey: string, generation?: number): boolean {
     return this.removeVoicePublicationExact({ actorKey, generation })
+  }
+
+  async revokeVoiceForActor(actorKey: string): Promise<void> {
+    const p = this.voiceRegistry.get(actorKey)
+    if (!p) return
+
+    const targetSessionId = p.sessionId
+    const targetTrackId = p.audioTrackId
+    const targetMid = p.mid ?? null
+
+    this.removeVoicePublicationExact({ actorKey })
+
+    if (targetSessionId && (targetMid || targetTrackId)) {
+      try {
+        const sfuPayloadTracks: Array<{ trackName: string } | { mid: string }> = targetMid
+          ? [{ mid: targetMid }]
+          : [{ trackName: targetTrackId }]
+        await callCloudflareRealtime(this.env, `/sessions/${targetSessionId}/tracks/close`, 'PUT', {
+          tracks: sfuPayloadTracks,
+          force: true,
+        })
+      } catch (sfuErr) {
+        console.warn(`[revokeVoiceForActor] Lỗi đóng SFU track cho ${actorKey}:`, sfuErr)
+      }
+    }
+  }
+
+  async huyPhienCu(accountId: number, currentPhienId: string): Promise<number> {
+    const daDong: WebSocket[] = []
+    const targetActorKey = theTaiKhoan(accountId)
+
+    for (const ws of this.ctx.getWebSockets(targetActorKey)) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (!a?.phienId || a.phienId === currentPhienId) continue
+      try {
+        ws.send(JSON.stringify({ type: 'session.replaced' }))
+      } catch {}
+      try {
+        ws.close(MA_DONG_SOCKET.PHIEN_BI_THAY, 'da_dang_nhap_noi_khac')
+      } catch {}
+      daDong.push(ws)
+    }
+
+    if (daDong.length > 0) {
+      this.sessionCache.delete(accountId)
+      const conLai = this.ctx.getWebSockets(targetActorKey).filter(
+        (w) => !daDong.includes(w) && w.readyState === WebSocket.OPEN,
+      )
+      if (conLai.length === 0) {
+        await this.revokeVoiceForActor(targetActorKey)
+      }
+      this.phatDanhSach()
+    }
+    return daDong.length
   }
 
   forceMute(
@@ -2289,6 +2418,16 @@ export class RoomDO extends DurableObject<Env> {
         }
         const ok = this.forceMute(body)
         return json({ ok })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/session/revoke') {
+      try {
+        const body = (await request.json()) as { accountId: number; currentPhienId: string }
+        const count = await this.huyPhienCu(body.accountId, body.currentPhienId)
+        return json({ ok: true, closedCount: count })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }

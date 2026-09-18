@@ -518,37 +518,50 @@ export async function quenMatKhau(request: Request, env: Env): Promise<Response>
     const matKhauHash = await bamMatKhau(matKhauMoi, salt, DEFAULT_ITERATIONS)
     const markerHuyPhien = `revoked_${crypto.randomUUID()}`
 
-    // Chuyển đổi trạng thái sang 'consumed' một cách nguyên tử (Single-use Invariant)
-    const consumeRes = await env.DB.prepare(`
-      UPDATE password_reset_tokens
-         SET status = 'consumed',
-             consumed_at = ?1
-       WHERE id = ?2
-         AND status = 'active'
-         AND attempts < max_attempts
-         AND expires_at > ?1
-    `)
-      .bind(now, matchedToken.id)
-      .run()
-      .catch(() => null)
+    // Thực thi giao dịch nguyên tử (D1 batch) cập nhật mật khẩu VÀ tiêu thụ token trong cùng 1 transaction
+    let batchResults: D1Result[]
+    try {
+      batchResults = await env.DB.batch([
+        env.DB.prepare(`
+          UPDATE tai_khoan_campus
+             SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP
+           WHERE id = ?5
+             AND EXISTS (
+               SELECT 1 FROM password_reset_tokens
+                WHERE id = ?6
+                  AND status = 'active'
+                  AND attempts < max_attempts
+                  AND expires_at > ?7
+             )
+        `).bind(matKhauHash, salt, DEFAULT_ITERATIONS, markerHuyPhien, matchedToken.account_id, matchedToken.id, now),
+        env.DB.prepare(`
+          UPDATE password_reset_tokens
+             SET status = 'consumed',
+                 consumed_at = ?1
+           WHERE id = ?2
+             AND status = 'active'
+             AND attempts < max_attempts
+             AND expires_at > ?1
+        `).bind(now, matchedToken.id),
+      ])
+    } catch (batchErr) {
+      console.error('[quenMatKhau] Lỗi giao dịch D1 batch cập nhật mật khẩu / tiêu thụ token:', batchErr)
+      return loi('Lỗi hệ thống khi cập nhật mật khẩu. Vui lòng thử lại sau.', 500)
+    }
 
-    if (!consumeRes || consumeRes.meta.changes === 0) {
+    const updateAccRes = batchResults[0]
+    const consumeRes = batchResults[1]
+
+    if (!updateAccRes || updateAccRes.meta.changes !== 1 || !consumeRes || consumeRes.meta.changes !== 1) {
       return loi('Mã xác nhận không hợp lệ hoặc đã được sử dụng. Vui lòng liên hệ giáo viên.', 400)
     }
 
-    // Cập nhật mật khẩu và gán session marker mới để vô hiệu hoá toàn bộ phiên cũ
-    await env.DB.prepare(`
-      UPDATE tai_khoan_campus
-         SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP
-       WHERE id = ?5
-    `)
-      .bind(matKhauHash, salt, DEFAULT_ITERATIONS, markerHuyPhien, matchedToken.account_id)
-      .run()
-
-    // Báo CampusDO ngắt kết nối WebSocket của mọi phiên cũ
-    env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    // Báo CampusDO ngắt kết nối WebSocket của mọi phiên cũ (Campus + RoomDO)
+    await env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
       .dangNhapMoi(matchedToken.account_id, markerHuyPhien)
-      .catch(() => {})
+      .catch((err) => {
+        console.warn('[quenMatKhau] Lỗi thông báo dangNhapMoi tới CampusDO:', err)
+      })
 
     return json({ ok: true, message: 'Đặt lại mật khẩu thành công! Toàn bộ phiên cũ đã được đăng xuất. Vui lòng đăng nhập lại.' })
   }

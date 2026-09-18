@@ -111,6 +111,7 @@ export class CampusDO extends DurableObject<Env> {
   private presenceMap = new Map<number, TrangThaiNguoiDung>()
   private friendMap = new Map<number, Set<number>>()
   private blockMap = new Map<number, Set<number>>()
+  private phongCuaTaiKhoan = new Map<number, Set<string>>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -119,6 +120,9 @@ export class CampusDO extends DurableObject<Env> {
       'CREATE TABLE IF NOT EXISTS phong (id INTEGER PRIMARY KEY, du_lieu TEXT NOT NULL, pham_vi TEXT NOT NULL, lop_id INTEGER)',
     )
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS meta (khoa TEXT PRIMARY KEY, gia_tri TEXT NOT NULL)')
+    ctx.storage.sql.exec(
+      'CREATE TABLE IF NOT EXISTS phong_tai_khoan (account_id INTEGER, room_name TEXT, phien_id TEXT, updated_at INTEGER, PRIMARY KEY (account_id, room_name))',
+    )
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -196,7 +200,43 @@ export class CampusDO extends DurableObject<Env> {
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
   }
 
-  /** Worker gọi khi tài khoản vừa đăng nhập: đóng ngay kết nối Campus của phiên cũ (luật 1 thiết bị). */
+  /** Worker gọi khi WebSocket kết nối vào một RoomDO bất kỳ (phòng học hoặc phòng game). */
+  async dangKyPhong(accountId: number, roomName: string, phienId: string): Promise<void> {
+    try {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO phong_tai_khoan (account_id, room_name, phien_id, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(account_id, room_name) DO UPDATE SET phien_id = excluded.phien_id, updated_at = excluded.updated_at`,
+        accountId,
+        roomName,
+        phienId,
+        Date.now(),
+      )
+    } catch {}
+    let rooms = this.phongCuaTaiKhoan.get(accountId)
+    if (!rooms) {
+      rooms = new Set()
+      this.phongCuaTaiKhoan.set(accountId, rooms)
+    }
+    rooms.add(roomName)
+  }
+
+  /** Worker hoặc RoomDO gọi khi WebSocket rời khỏi RoomDO. */
+  async roiPhong(accountId: number, roomName: string): Promise<void> {
+    try {
+      this.ctx.storage.sql.exec(
+        'DELETE FROM phong_tai_khoan WHERE account_id = ? AND room_name = ?',
+        accountId,
+        roomName,
+      )
+    } catch {}
+    const rooms = this.phongCuaTaiKhoan.get(accountId)
+    if (rooms) {
+      rooms.delete(roomName)
+      if (rooms.size === 0) this.phongCuaTaiKhoan.delete(accountId)
+    }
+  }
+
+  /** Worker gọi khi tài khoản vừa đăng nhập hoặc đổi mật khẩu: đóng ngay kết nối Campus và Room của phiên cũ (luật 1 thiết bị). */
   async dangNhapMoi(accountId: number, phienId: string): Promise<void> {
     const daDong: WebSocket[] = []
     for (const ws of this.ctx.getWebSockets(theTaiKhoan(accountId))) {
@@ -211,6 +251,38 @@ export class CampusDO extends DurableObject<Env> {
       daDong.push(ws)
     }
     if (daDong.length) this.phatTatCa({ type: 'online', count: this.demOnline(...daDong) }, ...daDong)
+
+    // Thu hồi phiên trên tất cả các RoomDO mà account đã tham gia
+    const activeRooms = new Set<string>()
+    const memRooms = this.phongCuaTaiKhoan.get(accountId)
+    if (memRooms) {
+      for (const r of memRooms) activeRooms.add(r)
+    }
+    try {
+      const rows = [...this.ctx.storage.sql.exec<{ room_name: string }>(
+        'SELECT room_name FROM phong_tai_khoan WHERE account_id = ?',
+        accountId,
+      )]
+      for (const r of rows) activeRooms.add(r.room_name)
+    } catch {}
+
+    const promises: Promise<any>[] = []
+    for (const roomName of activeRooms) {
+      try {
+        const doId = this.env.ROOMS.idFromName(roomName)
+        promises.push(
+          (this.env.ROOMS.get(doId) as any).huyPhienCu(accountId, phienId).catch((err: any) => {
+            console.warn(`[dangNhapMoi] Lỗi gọi huyPhienCu tới room ${roomName}:`, err)
+          }),
+        )
+      } catch {}
+    }
+    await Promise.allSettled(promises)
+
+    try {
+      this.ctx.storage.sql.exec('DELETE FROM phong_tai_khoan WHERE account_id = ?', accountId)
+    } catch {}
+    this.phongCuaTaiKhoan.delete(accountId)
   }
 
   /** RoomDO báo trạng thái phòng để sảnh cập nhật tức thì. */

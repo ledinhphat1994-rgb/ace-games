@@ -458,8 +458,18 @@ async function vaoPhong(request: Request, env: Env, maPhong: string): Promise<Re
   headers.set('X-Actor-Can-Moderate', modQuyen.canModerate ? '1' : '0')
   headers.set('X-Actor-Authority-Rank', String(modQuyen.authorityRank))
   if (kq.taiKhoan.lopId) headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
+  headers.set('X-Actor-Phien-Id', kq.phien.phienId || '')
+  headers.set('X-Room-Id', maPhong)
   headers.set('X-Room-Host-Key', phongRow.chu_phong_khoa)
   headers.set('X-Room-Capacity', String(phongRow.suc_chua))
+
+  // Đăng ký phòng với CampusDO để hỗ trợ thu hồi phiên tập trung (chạy độc lập với /ws/campus)
+  if (kq.phien.phienId) {
+    try {
+      await env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+        .dangKyPhong(kq.taiKhoan.id, maPhong, kq.phien.phienId)
+    } catch {}
+  }
 
   const doId = env.ROOMS.idFromName(maPhong)
   return env.ROOMS.get(doId).fetch(new Request(request, { headers }))
@@ -484,7 +494,17 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
   headers.set('X-Actor-Is-Teacher', laGiaoVienDaDuyet(kq.taiKhoan) ? '1' : '0')
   headers.set('X-Actor-Can-Moderate', '0')
   if (kq.taiKhoan.lopId) headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
+  headers.set('X-Actor-Phien-Id', kq.phien.phienId || '')
+  headers.set('X-Room-Id', 'game_' + maPhong)
   headers.set('X-Room-Mode', 'game')
+
+  // Đăng ký phòng game với CampusDO để hỗ trợ thu hồi phiên tập trung
+  if (kq.phien.phienId) {
+    try {
+      await env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+        .dangKyPhong(kq.taiKhoan.id, 'game_' + maPhong, kq.phien.phienId)
+    } catch {}
+  }
 
   const doId = env.ROOMS.idFromName('game_' + maPhong)
   return env.ROOMS.get(doId).fetch(new Request(request, { headers }))
