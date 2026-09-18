@@ -1,46 +1,54 @@
 # Digital Campus v2 — Production Release Manifest
 
-**Milestone:** PRV7 — Transactional Reset Commit + Global Session Revocation Closure
+**Milestone:** PRV8 — Test Integrity + Fail-Closed Session Revocation + Durable Voice Revocation + Final Staging Gate
 **Release Candidate Branch:** `fix/moderation-safety-v1-closure`
 **Documentation HEAD Git Commit SHA:** Will be populated on commit (documentation only)
-**Executable Candidate Git Commit SHA:** `0d27848b931376bf06e3dff4dc3883a7eea40b1b`
-**Staging-Verified Executable SHA:** `0d27848b931376bf06e3dff4dc3883a7eea40b1b`
-**Verified Staging Deployment Version ID:** `27fa35a5-bce8-4f8a-a889-3ac68bc8a6f0`
+**Executable Candidate Git Commit SHA:** `83b070aeb4f60dddb016058c41595ac0f32738df`
+**Staging-Verified Executable SHA:** `83b070aeb4f60dddb016058c41595ac0f32738df`
+**Verified Staging Deployment Version ID:** `a203af78-c277-441c-9c9d-a686cb251696`
 **Verified Staging URL:** `https://gdtxdinhquan-v2.ledinhphat1994.workers.dev`
 **Target Production Worker Service:** `gdtxdinhquan`
 **Target Production Domain:** `gdtxdinhquan.workers.dev` / Custom Domain  
 
-*Note on SHA Parity:* Executable Candidate SHA matches the Staging-Verified SHA (`0d27848b931376bf06e3dff4dc3883a7eea40b1b`) byte-for-byte. The Documentation HEAD differs from the Executable Candidate SHA solely by updates to documentation files (`PRODUCTION_RELEASE_MANIFEST.md`), with zero executable code or configuration diffs.
+*Note on SHA Parity:* Executable Candidate SHA matches the Staging-Verified SHA (`83b070aeb4f60dddb016058c41595ac0f32738df`) byte-for-byte. The Documentation HEAD differs from the Executable Candidate SHA solely by updates to documentation files (`PRODUCTION_RELEASE_MANIFEST.md`), with zero executable code or configuration diffs.
 
 ---
 
 ## 1. Code Delta from `origin/main`
 
-- **Branch Range:** `origin/main..0d27848` (13 commits)
-- **Key Modules & Enhancements:**
-  - `worker/routes/auth.ts`:
-    - **Blocker 1 Resolved — Atomic D1 Batch Transaction (`env.DB.batch`)**:
-      * Converted credential update and token consumption into a single atomic D1 SQL transaction.
-      * Statement 1 (`UPDATE tai_khoan_campus`): Updates `mat_khau_hash`, `salt`, `iterations`, and new `thiet_bi` session marker with an explicit SQL `EXISTS` subquery verifying the exact token row is `status = 'active'`, `attempts < max_attempts`, and unexpired.
-      * Statement 2 (`UPDATE password_reset_tokens`): Conditionally transitions status to `'consumed'` with `consumed_at = now`.
-      * Strict assertion: Both statements MUST return `meta.changes === 1`. If either statement fails or a constraint/trigger aborts, D1 rolls back the entire batch atomically. Verified via SQLite trigger fault-injection test (`test/session-revocation.test.ts`).
-    - **Blocker 2 Coordination**: `quenMatKhau` awaits `CampusDO.dangNhapMoi` to trigger cross-system session eviction across all registered WebSockets and voice media tracks.
-  - `worker/campus/campus-do.ts`:
-    - Added durable SQLite table `phong_tai_khoan (account_id, room_name, phien_id, updated_at)` and in-memory registry `phongCuaTaiKhoan: Map<number, Set<string>>`.
-    - Added RPC methods `dangKyPhong(accountId, roomName, phienId)` and `roiPhong(accountId, roomName)`.
-    - `dangNhapMoi` now proactively closes Campus WebSockets with code `4001` AND invokes `RoomDO.huyPhienCu(accountId, currentPhienId)` across all rooms registered to that account.
-  - `worker/room-do.ts`:
-    - Added `phienId` to `AttachmentKetNoi` and WebSocket connection tags (`[theTaiKhoan(accountId), 'phien:' + phienId]`).
-    - Added `revokeVoiceForActor(actorKey)` which cleans up voice registry/SQLite state and calls Cloudflare Calls SFU `/sessions/:id/tracks/close` upstream.
-    - Added `huyPhienCu(accountId, currentPhienId)` which closes matching stale WebSockets with code `4001` (`da_dang_nhap_noi_khac`) and automatically revokes active voice publications.
-    - Added **Tier 2 In-Flight Session Validation**: On every incoming `webSocketMessage`, validates `att.phienId` against cached D1 `thiet_bi` (5s TTL cache). Stale sockets are immediately force-closed with code `4001`, their voice tracks revoked, and messages dropped.
-    - Added HTTP internal endpoint `/internal/session/revoke`.
-  - `worker/index.ts`:
-    - In `vaoPhong` and `vaoPhongGame`: sets `X-Actor-Phien-Id`, `X-Room-Id`, and registers room membership with `CampusDO.dangKyPhong` (works independently of `/ws/campus`).
-  - `test/session-revocation.test.ts`:
-    - 5 dedicated tests verifying: (1) D1 Batch transactional rollback with SQLite trigger fault-injection, (2) Global WebSocket session revocation (Campus + Study Room + Game Room), (3) Direct Room connection without Campus WS, (4) Multi-room simultaneous revocation, (5) Active voice publication and registry eviction. All 5 pass 100%.
-  - Full local test suite: **28 test files, 308/308 tests PASSING (100% pass)**.
-  - Staging verification: 100% PASS on live Cloudflare Workers staging deployment (`27fa35a5-bce8-4f8a-a889-3ac68bc8a6f0`).
+- **Branch Range:** `origin/main..83b070a` (15 commits)
+- **Key Modules & Enhancements Closed in PRV8:**
+  - **Blocker 1 Resolved — Removal of Global Test Error Suppression (`vitest.config.ts`)**:
+    * Removed `dangerouslyIgnoreUnhandledErrors: true` completely from `vitest.config.ts`.
+    * Resolved underlying workerd teardown race condition by introducing a 60ms flush tick in `test/setup.ts` (`afterEach`), allowing in-flight Miniflare RPC teardowns and Durable Object hibernation close frames to settle cleanly before worker environment destruction.
+    * Tested and proved strict test runner gate: intentionally injected an unhandled rejection, confirmed Vitest exited non-zero with unhandled rejection failure, then removed the temporary test.
+    * Full local test suite: **28 test files, 310/310 tests PASSING (100% pass)** with strict `--dangerouslyIgnoreUnhandledErrors=false` and zero unhandled errors.
+  - **Blocker 2 Resolved — Strictly Fail-Closed Session Mutation Validation (`worker/room-do.ts` & `worker/campus/campus-do.ts`)**:
+    * Eliminated the 5-second `sessionCache` window in `RoomDO.webSocketMessage`.
+    * For every incoming state-mutating WebSocket command (chat, media sync, pomodoro, whiteboard, notes, playlist, game, moderation, voice state), `RoomDO` executes an authoritative check against D1 `tai_khoan_campus.thiet_bi`:
+      - If `phienId` does not match the durable D1 session marker: socket is immediately closed with code `4001` (`da_dang_nhap_noi_khac`), active voice tracks revoked, and the mutation is dropped.
+      - If D1 query fails (transient error / network outage): socket is closed with code `1011` (`loi_may_chu`), and the mutation is strictly DROPPED (Fail-Closed).
+      - Non-mutating keepalives (`ping`) remain fast and handled in-memory without D1 queries.
+    * Improved proactive revocation accounting in `CampusDO.dangNhapMoi`: records `successfulRooms` and `failedRooms`. Only successfully contacted rooms are removed from `phong_tai_khoan`, retaining failed rooms for bounded retries instead of silently deleting evidence.
+    * Verified via adversarial test (`test/session-revocation.test.ts` Test 6): simulated proactive cross-DO RPC failure, stale socket sent a chat mutation, proved mutation was dropped, room state had 0 mutations, and socket was closed 4001.
+  - **Blocker 3 Resolved — Durable Voice Revocation State Machine (`worker/room-do.ts`)**:
+    * Created SQLite table `pending_voice_revocations` in `RoomDO` (`id, actor_key, session_id, track_name, generation, attempts, last_attempt_at, last_error, created_at`).
+    * On `revokeVoiceForActor(actorKey)`:
+      1. Immediately marks local voice publication as revoked and purges it from memory/SQLite registry (denying all local authority, mic permissions, and republishing).
+      2. Persists the remote track metadata (`sessionId`, `trackName`, `generation`) to `pending_voice_revocations` *before* initiating the external HTTP call.
+      3. Attempts Cloudflare Calls SFU `/sessions/:id/tracks/close`.
+      4. On success (200) or terminal state (404/410 already closed): deletes the pending revocation record.
+      5. On transient error (500/502/503/network failure): logs warning, retains the pending record in SQLite, and schedules bounded exponential retry via RoomDO alarm. Pending revocations survive Durable Object restarts and resume automatically on startup.
+    * Verified via adversarial test (`test/session-revocation.test.ts` Test 7): injected 502 gateway timeout on first SFU close, verified local authority revoked immediately, pending record survived DO restart (`evictDurableObject`), and successful retry cleared metadata.
+    * Verified via live Staging WebRTC proof (`e2e/voice-webrtc.spec.ts` Test 12): Member B joined room, published real WebRTC audio to Cloudflare Calls SFU, Host A received live RTP (+9153 bytes). Session replacement triggered via new login in new context: stale Room socket closed 4001, voice registry cleared Member B, remote media on Host A stopped (0 subscriptions, 0 tracks), stale session received 401 on republish, and new session published normally with live RTP (+9068 bytes).
+  - **Blocker 4 Resolved — Full Staging Regression Gate Passed**:
+    * Executed full staging Playwright suites against staging Worker `a203af78-c277-441c-9c9d-a686cb251696`:
+      - `e2e/smoke.spec.ts`: **3/3 passed** (9.9s)
+      - `e2e/room-discovery.spec.ts`: **1/1 passed** (1.6m)
+      - `e2e/moderation.spec.ts`: **4/4 passed** (2.1m)
+      - `e2e/voice-webrtc.spec.ts` (Force-Mute): **1/1 passed** (1.7m)
+      - `e2e/voice-webrtc.spec.ts` (Session Revocation Voice Closure): **1/1 passed** (1.6m)
+    * Non-destructive preflight verified: production D1 has exactly pending migrations `0008` and `0009`. Zero production mutations performed.
 
 ---
 
@@ -50,6 +58,7 @@
   - Migrations `0001` through `0007`: **Already applied**.
   - Pending Migration 1: **`0008_ban_authority_and_concurrency.sql`** (verified via `npx wrangler d1 migrations list lop-10a7-db --remote`).
   - Pending Migration 2: **`0009_password_reset_tokens.sql`** (new in PRV6, verified applied on staging).
+  - New Migrations in PRV8: **NONE (0 new migrations)**. RoomDO SQLite internal tables evolved within DO boundary.
 - **Migration Impact & Safety Analysis:**
   - `0008_ban_authority_and_concurrency.sql`:
     ```sql
@@ -79,7 +88,7 @@
   - **Zero Data Loss & Backwards Compatibility:**
     * Both migrations are 100% additive (adding columns and creating a new dedicated table). No existing tables, columns, or data are dropped, renamed, or altered destructively.
     * Automatic Rollback: Cloudflare D1 guarantees automatic transaction rollback if a migration statement fails.
-    * Point-in-Time Recovery: Cloudflare D1 Time Travel point-in-time recovery retention is **up to 30 days on Workers Paid, up to 7 days on Workers Free (7 or 30 days depending on Cloudflare plan)**.
+    * Point-in-Time Recovery: Cloudflare D1 Time Travel point-in-time recovery retention is **up to 30 days on Workers Paid, up to 7 days on Workers Free**.
 
 ---
 
