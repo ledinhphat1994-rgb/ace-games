@@ -176,11 +176,6 @@ export interface VoiceTrackMetadata {
   status?: string
 }
 
-export const LenhPhongVoice = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('set_status'), generation: z.number().int().positive(), status: z.enum(['live', 'muted']) }),
-])
-export type LenhPhongVoice = z.infer<typeof LenhPhongVoice>
-
 export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping'), t: z.number() }),
   z.object({ type: z.literal('media.action'), data: LenhPhongMedia }),
@@ -190,7 +185,6 @@ export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('queue.action'), data: LenhPhongQueue }),
   z.object({ type: z.literal('slide.action'), data: LenhPhongSlide }),
   z.object({ type: z.literal('chat.send'), reqId: z.string().min(1).max(50), text: z.string().max(1000) }),
-  z.object({ type: z.literal('voice.action'), data: LenhPhongVoice }),
   z.object({
     type: z.literal('voice.self_state'),
     generation: z.number().int().positive(),

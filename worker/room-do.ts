@@ -1263,13 +1263,6 @@ export class RoomDO extends DurableObject<Env> {
         break
       }
 
-      case 'voice.action': {
-        if (goi.data.action === 'set_status') {
-          this.updateVoiceStatus(att.key, goi.data.status, goi.data.generation)
-        }
-        break
-      }
-
       case 'voice.self_state': {
         const pub = this.voiceRegistry.get(att.key)
         if (!pub) {
@@ -1292,7 +1285,7 @@ export class RoomDO extends DurableObject<Env> {
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws) return false
+        if (w === ws || w.readyState !== WebSocket.OPEN) return false
         const a = w.deserializeAttachment() as AttachmentKetNoi | null
         return a?.key === att.key
       })
@@ -1308,7 +1301,7 @@ export class RoomDO extends DurableObject<Env> {
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
-        if (w === ws) return false
+        if (w === ws || w.readyState !== WebSocket.OPEN) return false
         const a = w.deserializeAttachment() as AttachmentKetNoi | null
         return a?.key === att.key
       })
@@ -1327,7 +1320,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private layDanhSachThanhVien(boQua?: WebSocket): ThanhVienPhong[] {
-    const dsKetNoi = this.ctx.getWebSockets().filter((ws) => ws !== boQua)
+    const dsKetNoi = this.ctx.getWebSockets().filter((ws) => (boQua ? ws !== boQua : true) && ws.readyState === WebSocket.OPEN)
     const map = new Map<string, ThanhVienPhong>()
 
     for (const ws of dsKetNoi) {
@@ -1409,6 +1402,7 @@ export class RoomDO extends DurableObject<Env> {
 
   hasConnectedActor(actorKey: string): boolean {
     for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState !== WebSocket.OPEN) continue
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
       if (a?.key === actorKey) {
         return true
@@ -1632,18 +1626,40 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
-  removeVoicePublication(actorKey: string, generation?: number): boolean {
-    const p = this.voiceRegistry.get(actorKey)
+  removeVoicePublicationExact(params: {
+    actorKey: string
+    sessionId?: string
+    audioTrackId?: string
+    trackName?: string
+    generation?: number
+    mid?: string | null
+  }): boolean {
+    const p = this.voiceRegistry.get(params.actorKey)
     if (!p) return false
-    if (typeof generation === 'number' && p.generation !== generation) {
+    if (typeof params.generation === 'number' && p.generation !== params.generation) {
       return false
     }
-    this.voiceRegistry.delete(actorKey)
+    if (params.sessionId && p.sessionId !== params.sessionId) {
+      return false
+    }
+    const expectedTrackId = params.audioTrackId || params.trackName
+    if (expectedTrackId && p.audioTrackId !== expectedTrackId) {
+      return false
+    }
+    if (typeof params.mid === 'string' && p.mid && p.mid !== params.mid) {
+      return false
+    }
+
+    this.voiceRegistry.delete(params.actorKey)
     try {
-      if (typeof generation === 'number') {
-        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1 AND generation = ?2', actorKey, generation)
+      if (typeof params.generation === 'number') {
+        this.ctx.storage.sql.exec(
+          'DELETE FROM voice_publications WHERE actor_key = ?1 AND generation = ?2',
+          params.actorKey,
+          params.generation,
+        )
       } else {
-        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
+        this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', params.actorKey)
       }
     } catch (err) {
       console.error('Lỗi xóa voice_publications:', err)
@@ -1651,7 +1667,7 @@ export class RoomDO extends DurableObject<Env> {
 
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
-      if (a && a.key === actorKey) {
+      if (a && a.key === params.actorKey) {
         a.mic = false
         ws.serializeAttachment(a)
       }
@@ -1659,45 +1675,82 @@ export class RoomDO extends DurableObject<Env> {
 
     this.broadcast({
       type: 'voice.removed',
-      actorKey,
+      actorKey: params.actorKey,
     })
     this.phatDanhSach()
     return true
   }
 
-  forceMute(targetActorKey: string, byActorName: string, expectedGeneration?: number): boolean {
-    const p = this.voiceRegistry.get(targetActorKey)
+  removeVoicePublication(actorKey: string, generation?: number): boolean {
+    return this.removeVoicePublicationExact({ actorKey, generation })
+  }
+
+  forceMute(
+    targetOrParams:
+      | {
+          targetActorKey: string
+          byActorName: string
+          sessionId?: string
+          trackName?: string
+          audioTrackId?: string
+          generation?: number
+          mid?: string | null
+        }
+      | string,
+    byActorNameLegacy?: string,
+    expectedGenerationLegacy?: number,
+  ): boolean {
+    const params =
+      typeof targetOrParams === 'string'
+        ? {
+            targetActorKey: targetOrParams,
+            byActorName: byActorNameLegacy || 'Người điều hành',
+            generation: expectedGenerationLegacy,
+          }
+        : targetOrParams
+
+    const p = this.voiceRegistry.get(params.targetActorKey)
     if (!p) return false
-    if (typeof expectedGeneration === 'number' && p.generation !== expectedGeneration) {
+    if (typeof params.generation === 'number' && p.generation !== params.generation) {
       return false
     }
-    p.status = 'muted'
-    p.updatedAt = Date.now()
+    if (params.sessionId && p.sessionId !== params.sessionId) {
+      return false
+    }
+    const expectedTrackId = params.audioTrackId || params.trackName
+    if (expectedTrackId && p.audioTrackId !== expectedTrackId) {
+      return false
+    }
+    if (typeof params.mid === 'string' && p.mid && p.mid !== params.mid) {
+      return false
+    }
+
+    this.voiceRegistry.delete(params.targetActorKey)
     try {
       this.ctx.storage.sql.exec(
-        'UPDATE voice_publications SET status = ?1, updated_at = ?2 WHERE actor_key = ?3',
-        'muted',
-        p.updatedAt,
-        targetActorKey,
+        'DELETE FROM voice_publications WHERE actor_key = ?1',
+        params.targetActorKey,
       )
     } catch (err) {
-      console.error('Lỗi cập nhật forceMute voice_publications:', err)
+      console.error('Lỗi xóa forceMute voice_publications:', err)
     }
+
     for (const ws of this.ctx.getWebSockets()) {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
-      if (a && a.key === targetActorKey) {
+      if (a && a.key === params.targetActorKey) {
         a.mic = false
         ws.serializeAttachment(a)
       }
     }
+
     this.broadcast({
       type: 'voice.force_muted',
-      targetKey: targetActorKey,
-      by: byActorName,
+      targetKey: params.targetActorKey,
+      by: params.byActorName,
     })
     this.broadcast({
-      type: 'voice.updated',
-      participant: p,
+      type: 'voice.removed',
+      actorKey: params.targetActorKey,
     })
     this.phatDanhSach()
     return true
@@ -1792,8 +1845,15 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'POST' && url.pathname === '/internal/voice/remove') {
       try {
-        const body = (await request.json()) as { actorKey: string; generation?: number }
-        const ok = this.removeVoicePublication(body.actorKey, body.generation)
+        const body = (await request.json()) as {
+          actorKey: string
+          sessionId?: string
+          trackName?: string
+          audioTrackId?: string
+          generation?: number
+          mid?: string | null
+        }
+        const ok = this.removeVoicePublicationExact(body)
         return json({ ok })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
@@ -1802,8 +1862,16 @@ export class RoomDO extends DurableObject<Env> {
 
     if (request.method === 'POST' && url.pathname === '/internal/voice/force-mute') {
       try {
-        const body = (await request.json()) as { targetActorKey: string; byActorName: string; generation?: number }
-        const ok = this.forceMute(body.targetActorKey, body.byActorName, body.generation)
+        const body = (await request.json()) as {
+          targetActorKey: string
+          byActorName: string
+          sessionId?: string
+          trackName?: string
+          audioTrackId?: string
+          generation?: number
+          mid?: string | null
+        }
+        const ok = this.forceMute(body)
         return json({ ok })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)

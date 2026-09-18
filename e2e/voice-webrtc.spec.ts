@@ -19,6 +19,22 @@ const MEMBER_C_USER = {
 }
 
 const TEST_ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
+const numericRoomId = Number(TEST_ROOM_ID.match(/(\d+)$/)?.[1] || TEST_ROOM_ID)
+
+async function fetchVoiceRegistry(page: Page): Promise<any[]> {
+  const result = await page.evaluate(async (roomId) => {
+    const res = await fetch(`/api/rooms/${roomId}/voice/registry`)
+    if (!res.ok) {
+      throw new Error(`voice registry HTTP ${res.status}: ${await res.text()}`)
+    }
+    const data = await res.json()
+    if (!data?.ok || !Array.isArray(data.registry)) {
+      throw new Error(`Invalid voice registry response: ${JSON.stringify(data)}`)
+    }
+    return data.registry
+  }, numericRoomId)
+  return result
+}
 
 if (!HOST_USER.password || !MEMBER_USER.password || !MEMBER_C_USER.password) {
   throw new Error('Missing E2E credentials in environment or .env.e2e.')
@@ -127,13 +143,6 @@ async function turnOnMic(page: Page) {
   await expect(activeBtn).toBeVisible({ timeout: 25000 })
 }
 
-async function turnOffMic(page: Page) {
-  const activeBtn = page.locator('header button[aria-label="Tắt micro"]')
-  await expect(activeBtn).toBeVisible({ timeout: 15000 })
-  await activeBtn.click()
-  const micBtn = page.locator('header button[aria-label="Bật micro"]')
-  await expect(micBtn).toBeVisible({ timeout: 25000 })
-}
 
 interface RtpMeasurement {
   t1Bytes: number
@@ -444,59 +453,130 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       await loginUser(pageB, MEMBER_USER)
       await enterStudyRoom(pageB)
 
-      // Record canonical publication generation
-      const gen1 = await pageA.evaluate(() => {
-        const d = (window as unknown as { __VOICE_DIAGNOSTICS__?: { getServerGeneration: () => number } }).__VOICE_DIAGNOSTICS__!
-        return d.getServerGeneration()
-      })
-      expect(gen1).toBeGreaterThanOrEqual(1)
-
-      // A mutes
-      await turnOffMic(pageA)
-
-      const mutedDiagA = await pageA.evaluate(() => {
+      // 1. Establish real preconditions before clicking "Tắt micro"
+      const preMuteDiagA = await pageA.evaluate(() => {
         const d = (window as unknown as {
           __VOICE_DIAGNOSTICS__?: {
-            getLocalTrack: () => any
-            getServerGeneration: () => number
+            isPublishing: () => boolean
             isMuted: () => boolean
+            getLocalTrack: () => any
+            getSessionId: () => string | null
+            getServerGeneration: () => number
+            getActorKey: () => string
+          }
+        }).__VOICE_DIAGNOSTICS__!
+        return {
+          isPublishing: d.isPublishing(),
+          isMuted: d.isMuted(),
+          track: d.getLocalTrack(),
+          sessionId: d.getSessionId(),
+          generation: d.getServerGeneration(),
+          actorKey: d.getActorKey(),
+        }
+      })
+
+      expect(preMuteDiagA.isPublishing).toBe(true)
+      expect(preMuteDiagA.isMuted).toBe(false)
+      expect(preMuteDiagA.track?.kind).toBe('audio')
+      expect(preMuteDiagA.track?.readyState).toBe('live')
+      expect(preMuteDiagA.track?.enabled).toBe(true)
+      expect(preMuteDiagA.sessionId).toBeTruthy()
+      expect(preMuteDiagA.generation).toBeGreaterThanOrEqual(1)
+
+      const activeBtn = pageA.locator('header button[aria-label="Tắt micro"]')
+      await expect(activeBtn).toBeVisible({ timeout: 15000 })
+
+      // 2. Click normally to self-mute (no force:true)
+      await activeBtn.click()
+
+      // Require: button changes to "Bật micro"
+      const micBtn = pageA.locator('header button[aria-label="Bật micro"]')
+      await expect(micBtn).toBeVisible({ timeout: 25000 })
+
+      // Require: local track enabled is false, isMuted is true, session & generation unchanged
+      const postMuteDiagA = await pageA.evaluate(() => {
+        const d = (window as unknown as {
+          __VOICE_DIAGNOSTICS__?: {
+            isPublishing: () => boolean
+            isMuted: () => boolean
+            getLocalTrack: () => any
+            getSessionId: () => string | null
+            getServerGeneration: () => number
             getSpeakingActors: () => string[]
           }
         }).__VOICE_DIAGNOSTICS__!
         return {
-          track: d.getLocalTrack(),
-          gen: d.getServerGeneration(),
+          isPublishing: d.isPublishing(),
           isMuted: d.isMuted(),
+          track: d.getLocalTrack(),
+          sessionId: d.getSessionId(),
+          generation: d.getServerGeneration(),
           speaking: d.getSpeakingActors(),
         }
       })
 
-      expect(mutedDiagA.isMuted).toBe(true)
-      expect(mutedDiagA.track.enabled).toBe(false)
-      expect(mutedDiagA.gen).toBe(gen1) // Same generation preserved!
-      expect(mutedDiagA.speaking.includes('local')).toBe(false) // Speaking detector stopped!
+      expect(postMuteDiagA.isPublishing).toBe(true)
+      expect(postMuteDiagA.isMuted).toBe(true)
+      expect(postMuteDiagA.track?.enabled).toBe(false)
+      expect(postMuteDiagA.sessionId).toBe(preMuteDiagA.sessionId)
+      expect(postMuteDiagA.generation).toBe(preMuteDiagA.generation)
+      expect(postMuteDiagA.speaking.includes('local')).toBe(false)
 
-      // A unmutes
-      await turnOnMic(pageA)
+      // Require: canonical RoomDO publication has same actor, same session, same generation, status === 'muted'
+      await expect.poll(async () => {
+        const reg = await fetchVoiceRegistry(pageA)
+        const pub = reg.find((p: any) => p.actorKey === preMuteDiagA.actorKey)
+        if (!pub) return null
+        return {
+          actorKey: pub.actorKey,
+          sessionId: pub.sessionId,
+          generation: pub.generation,
+          status: pub.status,
+        }
+      }, { timeout: 25000 }).toEqual({
+        actorKey: preMuteDiagA.actorKey,
+        sessionId: preMuteDiagA.sessionId,
+        generation: preMuteDiagA.generation,
+        status: 'muted',
+      })
 
-      const unmutedDiagA = await pageA.evaluate(() => {
+      // 3. Click normally to unmute
+      await micBtn.click()
+
+      // Require: button changes to "Tắt micro"
+      await expect(activeBtn).toBeVisible({ timeout: 25000 })
+
+      const postUnmuteDiagA = await pageA.evaluate(() => {
         const d = (window as unknown as {
           __VOICE_DIAGNOSTICS__?: {
-            getLocalTrack: () => any
-            getServerGeneration: () => number
+            isPublishing: () => boolean
             isMuted: () => boolean
+            getLocalTrack: () => any
+            getSessionId: () => string | null
+            getServerGeneration: () => number
           }
         }).__VOICE_DIAGNOSTICS__!
         return {
-          track: d.getLocalTrack(),
-          gen: d.getServerGeneration(),
+          isPublishing: d.isPublishing(),
           isMuted: d.isMuted(),
+          track: d.getLocalTrack(),
+          sessionId: d.getSessionId(),
+          generation: d.getServerGeneration(),
         }
       })
 
-      expect(unmutedDiagA.isMuted).toBe(false)
-      expect(unmutedDiagA.track.enabled).toBe(true)
-      expect(unmutedDiagA.gen).toBe(gen1) // Same generation resumed!
+      expect(postUnmuteDiagA.isPublishing).toBe(true)
+      expect(postUnmuteDiagA.isMuted).toBe(false)
+      expect(postUnmuteDiagA.track?.enabled).toBe(true)
+      expect(postUnmuteDiagA.sessionId).toBe(preMuteDiagA.sessionId)
+      expect(postUnmuteDiagA.generation).toBe(preMuteDiagA.generation)
+
+      // Require: canonical status returns to 'live'
+      await expect.poll(async () => {
+        const reg = await fetchVoiceRegistry(pageA)
+        const pub = reg.find((p: any) => p.actorKey === preMuteDiagA.actorKey)
+        return pub?.status
+      }, { timeout: 25000 }).toBe('live')
     } finally {
       await ctxA.close()
       await ctxB.close()
@@ -678,56 +758,97 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       // Member B local mic turns OFF
       await expect(pageB.locator('header button[aria-label="Bật micro"]')).toBeVisible({ timeout: 15000 })
 
-      // Verify Member B local track is disabled/muted
-      const isMutedB = await pageB.evaluate(() => {
-        const d = (window as unknown as { __VOICE_DIAGNOSTICS__?: { isMuted: () => boolean; getLocalTrack: () => any } }).__VOICE_DIAGNOSTICS__!
-        return d.isMuted() && d.getLocalTrack()?.enabled === false
+      // Verify Member B local track is stopped/disabled and publishing is invalidated
+      const bPostForceState = await pageB.evaluate(() => {
+        const d = (window as unknown as {
+          __VOICE_DIAGNOSTICS__?: {
+            isPublishing: () => boolean
+            isMuted: () => boolean
+            getLocalTrack: () => any
+          }
+        }).__VOICE_DIAGNOSTICS__!
+        return {
+          isPublishing: d.isPublishing(),
+          isMuted: d.isMuted(),
+          track: d.getLocalTrack(),
+        }
       })
-      expect(isMutedB).toBe(true)
+      expect(bPostForceState.isPublishing).toBe(false)
+      expect(bPostForceState.track === null || bPostForceState.track?.enabled === false).toBe(true)
 
-      // A: B remote publication disappears or remote track stops/ends, B subscription no longer active
+      // A: B remote publication disappears, B subscription no longer active, audio element absent
       await expect.poll(async () => {
-        return pageA.evaluate((targetUsername: string) => {
+        return pageA.evaluate((bActorKey: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
-          if (!d) return 1
-          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
-          const bEntry = reg.find((p: any) => p.ten === targetUsername || p.actorKey === targetUsername)
-          const targetKey = bEntry ? bEntry.actorKey : targetUsername
-          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey)
-          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey && t.readyState === 'live')
-          return subs.length + tracks.length
-        }, MEMBER_USER.username)
-      }, { timeout: 25000 }).toBe(0)
-
-      // RoomDO: B is not canonical live publication
-      const regAfterMute = await pageA.evaluate(async () => {
-        const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
-        const data = await res.json()
-        return data.registry || []
+          if (!d) return { subs: 1, tracks: 1, hasAudio: true }
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === bActorKey)
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === bActorKey && t.readyState === 'live')
+          const hasAudio = d.hasAudioElementForActor ? d.hasAudioElementForActor(bActorKey) : false
+          return {
+            subs: subs.length,
+            tracks: tracks.length,
+            hasAudio,
+          }
+        }, rtpBefore.actorKey)
+      }, { timeout: 25000 }).toEqual({
+        subs: 0,
+        tracks: 0,
+        hasAudio: false,
       })
-      const bLiveAfterMute = regAfterMute.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
-      expect(bLiveAfterMute).toBeUndefined()
 
-      // Adversarial attack: assert window.__roomWs exists and is OPEN, then send legacy invalid packet
-      const wsStatus = await pageB.evaluate(() => {
+      // RoomDO: B canonical publication completely removed from registry (media-truthful)
+      await expect.poll(async () => {
+        const regAfterMute = await fetchVoiceRegistry(pageA)
+        return regAfterMute.find((p: any) => p.actorKey === rtpBefore.actorKey)
+      }, { timeout: 25000 }).toBeUndefined()
+
+      // Adversarial Attack 1: Send current valid-looking voice.self_state with old generation
+      const selfStateAttackStatus = await pageB.evaluate((oldGen: number) => {
         const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
-        if (!ws) return 'MISSING'
-        if (ws.readyState !== WebSocket.OPEN) return `NOT_OPEN_${ws.readyState}`
+        if (!ws || ws.readyState !== WebSocket.OPEN) return 'NOT_OPEN'
+        ws.send(JSON.stringify({ type: 'voice.self_state', generation: oldGen, muted: false }))
+        return 'SENT'
+      }, bBefore.gen)
+      expect(selfStateAttackStatus).toBe('SENT')
+
+      await pageB.waitForTimeout(1000)
+
+      // Publication MUST NOT be restored by voice.self_state!
+      const regAfterAttack1 = await fetchVoiceRegistry(pageA)
+      expect(regAfterAttack1.find((p: any) => p.actorKey === rtpBefore.actorKey)).toBeUndefined()
+
+      // Adversarial Attack 2: Send legacy voice.mic
+      const legacyAttackStatus = await pageB.evaluate(() => {
+        const ws = (window as unknown as { __roomWs?: WebSocket }).__roomWs
+        if (!ws || ws.readyState !== WebSocket.OPEN) return 'NOT_OPEN'
         ws.send(JSON.stringify({ type: 'voice.mic', mic: true }))
         return 'SENT'
       })
-      expect(wsStatus).toBe('SENT')
+      expect(legacyAttackStatus).toBe('SENT')
 
-      await pageB.waitForTimeout(1500)
+      await pageB.waitForTimeout(1000)
 
-      // Canonical publication must NOT return to live state
-      const regAfterAttack = await pageA.evaluate(async () => {
-        const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
-        const data = await res.json()
-        return data.registry || []
-      })
-      const bLiveAfterAttack = regAfterAttack.find((p: any) => p.status === 'live' && (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username))
-      expect(bLiveAfterAttack).toBeUndefined()
+      // Publication MUST NOT be restored by legacy voice.mic!
+      const regAfterAttack2 = await fetchVoiceRegistry(pageA)
+      expect(regAfterAttack2.find((p: any) => p.actorKey === rtpBefore.actorKey)).toBeUndefined()
+
+      // Legitimate Re-enable: Member B explicitly clicks "Bật micro" -> requires real /voice/publish
+      const [pubRes] = await Promise.all([
+        pageB.waitForResponse((r) => r.url().includes('/voice/publish') && r.status() === 200),
+        turnOnMic(pageB),
+      ])
+      expect(pubRes.ok()).toBe(true)
+
+      // Real canonical publication recreated with status='live'
+      await expect.poll(async () => {
+        const reg = await fetchVoiceRegistry(pageA)
+        return reg.find((p: any) => p.status === 'live' && p.actorKey === rtpBefore.actorKey)
+      }, { timeout: 25000 }).toBeDefined()
+
+      // Host A receives B real RTP again!
+      const rtpAfter = await measureRemoteAudioRtp(pageA, rtpBefore.actorKey)
+      expect(rtpAfter.delta).toBeGreaterThan(0)
+      expect(rtpAfter.t2Bytes).toBeGreaterThan(rtpAfter.t1Bytes)
     } finally {
       await ctxA.close()
       await ctxB.close()
@@ -739,6 +860,8 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
     const ctxB = await createVoiceContext(browser, { mic: false })
     const pageA = await ctxA.newPage()
     const pageB = await ctxB.newPage()
+    setupPageLogging(pageA, 'PAGE A')
+    setupPageLogging(pageB, 'PAGE B')
 
     try {
       await loginUser(pageA, HOST_USER)
@@ -780,30 +903,34 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
         destroyed: true,
       })
 
-      // On B: Host A remote track, subscription, and audio element removed
+      // On B: Specifically Host A remote track, subscription, audio element, and speaking indicator removed
       await expect.poll(async () => {
-        return pageB.evaluate((hostUsername: string) => {
+        return pageB.evaluate((hostActorKey: string) => {
           const d = (window as any).__VOICE_DIAGNOSTICS__
-          if (!d) return 1
-          const reg = d.getVoiceRegistry ? d.getVoiceRegistry() : []
-          const hostEntry = reg.find((p: any) => p.ten === hostUsername || p.actorKey === hostUsername)
-          const targetKey = hostEntry ? hostEntry.actorKey : hostUsername
-          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === targetKey || t.actorKey === hostUsername)
-          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === targetKey || s.actorKey === hostUsername)
-          const audioCount = d.getAudioElementsCount()
-          return tracks.length + subs.length + audioCount
-        }, HOST_USER.username)
-      }, { timeout: 25000 }).toBe(0)
+          if (!d) return { tracks: 1, subs: 1, hasAudio: true, isSpeaking: true }
+          const tracks = d.getRemoteTracks().filter((t: any) => t.actorKey === hostActorKey)
+          const subs = d.getSubscriptions().filter((s: any) => s.actorKey === hostActorKey)
+          const hasAudio = d.hasAudioElementForActor ? d.hasAudioElementForActor(hostActorKey) : false
+          const isSpeaking = d.getSpeakingActors ? d.getSpeakingActors().includes(hostActorKey) : false
+          return {
+            tracks: tracks.length,
+            subs: subs.length,
+            hasAudio,
+            isSpeaking,
+          }
+        }, rtpBefore.actorKey)
+      }, { timeout: 25000 }).toEqual({
+        tracks: 0,
+        subs: 0,
+        hasAudio: false,
+        isSpeaking: false,
+      })
 
-      // Room registry: A publication absent
+      // Room registry: A publication absent using centralized helper
       await expect.poll(async () => {
-        return pageB.evaluate(async (hostUsername: string) => {
-          const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
-          const data = await res.json()
-          const reg = data.registry || []
-          return reg.find((p: any) => (p.actorKey === hostUsername || p.ten === hostUsername) && p.status === 'live')
-        }, HOST_USER.username)
-      }, { timeout: 15000 }).toBeUndefined()
+        const reg = await fetchVoiceRegistry(pageB)
+        return reg.find((p: any) => (p.actorKey === rtpBefore.actorKey || p.actorKey === HOST_USER.username || p.ten === HOST_USER.username) && p.status === 'live')
+      }, { timeout: 25000 }).toBeUndefined()
     } finally {
       await ctxA.close()
       await ctxB.close()
@@ -907,42 +1034,42 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       expect(rtpARecovered.delta).toBeGreaterThan(0)
 
       // Invariants: exactly 1 canonical B publication, exactly 1 sub per actor, 1 audio element per actor
-      const bFinal = await pageB.evaluate(() => {
+      const bFinal = await pageB.evaluate((hostActorKey: string) => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
         return {
           subsCount: d?.getSubscriptions().length,
           audioElementsCount: d?.getAudioElementsCount(),
+          hasHostAudio: d?.hasAudioElementForActor ? d.hasAudioElementForActor(hostActorKey) : false,
         }
-      })
+      }, rtpBRecovered.actorKey)
       expect(bFinal.subsCount).toBe(1)
       expect(bFinal.audioElementsCount).toBe(1)
+      expect(bFinal.hasHostAudio).toBe(true)
 
-      const aFinal = await pageA.evaluate(() => {
+      const aFinal = await pageA.evaluate((memberActorKey: string) => {
         const d = (window as any).__VOICE_DIAGNOSTICS__
         return {
           subsCount: d?.getSubscriptions().length,
           audioElementsCount: d?.getAudioElementsCount(),
+          hasMemberAudio: d?.hasAudioElementForActor ? d.hasAudioElementForActor(memberActorKey) : false,
         }
-      })
+      }, rtpARecovered.actorKey)
       expect(aFinal.subsCount).toBe(1)
       expect(aFinal.audioElementsCount).toBe(1)
+      expect(aFinal.hasMemberAudio).toBe(true)
 
       // Room registry: exactly one live publication for B
       // Poll for eventual consistency — voice-client sets connectionState='connected' after
       // /voice/publish HTTP response, but the server-side registry broadcast may still be
       // in-flight when we reach this assertion.
       await expect.poll(async () => {
-        const reg = await pageA.evaluate(async () => {
-          const res = await fetch(window.location.pathname.replace('/room/', '/api/rooms/') + '/voice/registry')
-          const data = await res.json()
-          return data.registry || []
-        })
-        const bLive = (reg as any[]).filter(
-          (p: any) => (p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live',
+        const reg = await fetchVoiceRegistry(pageA)
+        const bLive = reg.filter(
+          (p: any) => (p.actorKey === rtpARecovered.actorKey || p.actorKey === MEMBER_USER.username || p.ten === MEMBER_USER.username) && p.status === 'live',
         )
         console.log(
-          `[Test 8 Registry] total=${(reg as any[]).length} bLive=${bLive.length}`,
-          (reg as any[]).map((p: any) => ({ key: p.actorKey, ten: p.ten, status: p.status })),
+          `[Test 8 Registry] total=${reg.length} bLive=${bLive.length}`,
+          reg.map((p: any) => ({ key: p.actorKey, ten: p.ten, status: p.status })),
         )
         return bLive.length
       }, { timeout: 20000, intervals: [500, 1000] }).toBe(1)

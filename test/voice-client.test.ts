@@ -135,4 +135,536 @@ describe('VoiceClient — Deterministic Device Replacement (replaceTrack) Invari
 
     client.destroy()
   })
+
+  it('Deterministic Reconnect: Snapshot before online must NOT cancel recovery; online executes rebuild and republishes with new generation', async () => {
+    let sessionCallCount = 0
+    let publishCallCount = 0
+
+    // Setup global fetch mock
+    const originalFetch = globalThis.fetch
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const urlStr = String(url)
+      if (urlStr.includes('/voice/session')) {
+        sessionCallCount++
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            sessionId: `session-id-${sessionCallCount}`,
+            generation: sessionCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+          }),
+        }
+      }
+      if (urlStr.includes('/voice/publish')) {
+        publishCallCount++
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            canonicalTrackName: `track-pub-${publishCallCount}`,
+            generation: publishCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+            tracks: [{ mid: '1', trackName: `track-pub-${publishCallCount}` }],
+          }),
+        }
+      }
+      if (urlStr.includes('/voice/subscribe')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            tracks: [{ mid: '0' }],
+            sessionDescription: { type: 'offer', sdp: 'v=0...' },
+          }),
+        }
+      }
+      if (urlStr.includes('/voice/renegotiate')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true }),
+        }
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      }
+    })
+    ;(globalThis as any).fetch = fetchMock
+
+    // Setup mock RTCPeerConnection
+    const originalRTCPeerConnection = (globalThis as any).RTCPeerConnection
+    class MockRTCPeerConnection {
+      signalingState = 'stable'
+      connectionState = 'connected'
+      iceConnectionState = 'connected'
+      localDescription = { type: 'offer', sdp: 'v=0...' }
+      remoteDescription: any = null
+      private transceivers: any[] = []
+
+      addTransceiver(trackOrKind: any, init?: any) {
+        const mid = init?.direction === 'sendonly' ? '1' : '0'
+        const transceiver = {
+          mid,
+          direction: init?.direction || 'recvonly',
+          sender: { track: typeof trackOrKind === 'object' ? trackOrKind : null },
+          receiver: { track: { id: 'remote-track-id', kind: 'audio', readyState: 'live' } },
+        }
+        this.transceivers.push(transceiver)
+        return transceiver
+      }
+
+      getTransceivers() {
+        return this.transceivers
+      }
+
+      async createOffer() {
+        return { type: 'offer', sdp: 'v=0...' }
+      }
+
+      async createAnswer() {
+        return { type: 'answer', sdp: 'v=0...' }
+      }
+
+      async setLocalDescription(desc: any) {
+        this.localDescription = desc
+      }
+
+      async setRemoteDescription(desc: any) {
+        this.remoteDescription = desc
+      }
+
+      close() {
+        this.connectionState = 'closed'
+        this.signalingState = 'closed'
+      }
+
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    ;(globalThis as any).RTCPeerConnection = MockRTCPeerConnection
+    ;(globalThis as any).RTCSessionDescription = class {
+      init: any
+      constructor(init: any) {
+        this.init = init
+      }
+    }
+    const originalMediaStream = (globalThis as any).MediaStream
+    ;(globalThis as any).MediaStream = class MockMediaStream {
+      tracks: any[]
+      constructor(tracks: any[] = []) {
+        this.tracks = tracks
+      }
+      getTracks() { return this.tracks }
+      getAudioTracks() { return this.tracks.filter((t: any) => t.kind === 'audio') }
+    }
+
+    const liveTrackStop = vi.fn()
+    const liveTrack = {
+      id: 'mic-track-1',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: liveTrackStop,
+    } as unknown as MediaStreamTrack
+
+    const liveStream = {
+      getTracks: () => [liveTrack],
+      getAudioTracks: () => [liveTrack],
+    } as unknown as MediaStream
+
+    ;(globalThis as any).navigator = {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue(liveStream),
+      },
+    }
+
+    const client = new VoiceClient({
+      roomId: 7,
+      currentActorKey: 'member.user',
+    })
+
+    try {
+      // 1. Client starts publishing initially
+      const publishOk = await client.startPublishing()
+      expect(publishOk).toBe(true)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      expect(client.getSessionId()).toBe('session-id-1')
+      expect(client.getGeneration()).toBe(1)
+      expect(publishCallCount).toBe(1)
+
+      // 2. Network outage occurs -> failure entry semantics
+      ;(client as any).handleConnectionFailure('network_offline')
+      expect(client.state.connectionState).toBe('reconnecting')
+      expect(client.state.isPublishing).toBe(false)
+      expect((client as any).recoveryPending).toBe(true)
+      expect((client as any).intendedPublishing).toBe(true)
+      // Track is preserved (not stopped)
+      expect(liveTrackStop).not.toHaveBeenCalled()
+
+      // 3. RACE SCENARIO: Room WebSocket reconnects FIRST and sends snapshot -> syncRegistry() called BEFORE online handler
+      await client.syncRegistry([
+        { actorKey: 'host.user', ten: 'Host', status: 'live', sessionId: 'host-session', audioTrackId: 'host-track', generation: 1, updatedAt: Date.now() },
+      ])
+
+      // CRITICAL ASSERTION: Snapshot MUST NOT steal recovery ownership!
+      // In the old bug, syncRegistry would create a listener session and flip connectionState to 'listening'
+      // With the fix: recoveryPending remains true, connectionState remains 'reconnecting', and no premature listener session is created
+      expect((client as any).recoveryPending).toBe(true)
+      expect(client.state.connectionState).toBe('reconnecting')
+      expect(client.state.isPublishing).toBe(false)
+      expect(sessionCallCount).toBe(1) // Still old session, NOT opportunistically created
+
+      // 4. Online event fires -> recovery owner executes rebuild
+      ;(client as any).handleOnline()
+
+      // Await completion of in-flight recovery
+      await (client as any).signalingMutex.runExclusive(async () => {})
+
+      // 5. Verification after recovery completes
+      expect((client as any).recoveryPending).toBe(false)
+      expect(client.getSessionId()).toBe('session-id-2')
+      expect(client.getGeneration()).toBe(2)
+      expect(client.getGeneration()).toBeGreaterThan(1)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      // Publish was called again for the new session
+      expect(publishCallCount).toBe(2)
+      // Local track still live and never stopped
+      expect(liveTrackStop).not.toHaveBeenCalled()
+    } finally {
+      client.destroy()
+      globalThis.fetch = originalFetch
+      ;(globalThis as any).RTCPeerConnection = originalRTCPeerConnection
+      ;(globalThis as any).MediaStream = originalMediaStream
+    }
+  })
+
+  it('Deterministic Reconnect: Online recovery first rebuild fails, schedules retry, second rebuild succeeds', async () => {
+    let sessionCallCount = 0
+    let publishCallCount = 0
+    let shouldFailFirstRecovery = false
+
+    const originalFetch = globalThis.fetch
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const urlStr = String(url)
+      if (urlStr.includes('/voice/session')) {
+        sessionCallCount++
+        if (shouldFailFirstRecovery) {
+          shouldFailFirstRecovery = false
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ ok: false, loi: 'SFU temporary failure' }),
+          }
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            sessionId: `session-id-${sessionCallCount}`,
+            generation: sessionCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+          }),
+        }
+      }
+      if (urlStr.includes('/voice/publish')) {
+        publishCallCount++
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            canonicalTrackName: `track-pub-${publishCallCount}`,
+            generation: publishCallCount,
+            sessionDescription: { type: 'answer', sdp: 'v=0...' },
+            tracks: [{ mid: '1', trackName: `track-pub-${publishCallCount}` }],
+          }),
+        }
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      }
+    })
+    ;(globalThis as any).fetch = fetchMock
+
+    const originalRTCPeerConnection = (globalThis as any).RTCPeerConnection
+    class MockRTCPeerConnection {
+      signalingState = 'stable'
+      connectionState = 'connected'
+      iceConnectionState = 'connected'
+      localDescription = { type: 'offer', sdp: 'v=0...' }
+      remoteDescription: any = null
+      private transceivers: any[] = []
+
+      addTransceiver(trackOrKind: any, init?: any) {
+        const mid = init?.direction === 'sendonly' ? '1' : '0'
+        const transceiver = {
+          mid,
+          direction: init?.direction || 'recvonly',
+          sender: { track: typeof trackOrKind === 'object' ? trackOrKind : null },
+          receiver: { track: { id: 'remote-track-id', kind: 'audio', readyState: 'live' } },
+        }
+        this.transceivers.push(transceiver)
+        return transceiver
+      }
+
+      getTransceivers() {
+        return this.transceivers
+      }
+
+      async createOffer() {
+        return { type: 'offer', sdp: 'v=0...' }
+      }
+
+      async createAnswer() {
+        return { type: 'answer', sdp: 'v=0...' }
+      }
+
+      async setLocalDescription(desc: any) {
+        this.localDescription = desc
+      }
+
+      async setRemoteDescription(desc: any) {
+        this.remoteDescription = desc
+      }
+
+      close() {
+        this.connectionState = 'closed'
+        this.signalingState = 'closed'
+      }
+
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    ;(globalThis as any).RTCPeerConnection = MockRTCPeerConnection
+    ;(globalThis as any).RTCSessionDescription = class {
+      init: any
+      constructor(init: any) {
+        this.init = init
+      }
+    }
+
+    const originalMediaStream = (globalThis as any).MediaStream
+    ;(globalThis as any).MediaStream = class MockMediaStream {
+      tracks: any[]
+      constructor(tracks: any[] = []) {
+        this.tracks = tracks
+      }
+      getTracks() { return this.tracks }
+      getAudioTracks() { return this.tracks.filter((t: any) => t.kind === 'audio') }
+    }
+
+    const liveTrackStop = vi.fn()
+    const liveTrack = {
+      id: 'mic-track-retry',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: liveTrackStop,
+    } as unknown as MediaStreamTrack
+
+    const liveStream = {
+      getTracks: () => [liveTrack],
+      getAudioTracks: () => [liveTrack],
+    } as unknown as MediaStream
+
+    ;(globalThis as any).navigator = {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockResolvedValue(liveStream),
+      },
+    }
+
+    const client = new VoiceClient({
+      roomId: 7,
+      currentActorKey: 'member.user',
+    })
+
+    try {
+      // 1. Publisher starts publishing
+      const publishOk = await client.startPublishing()
+      expect(publishOk).toBe(true)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      expect(client.getSessionId()).toBe('session-id-1')
+      expect(client.getGeneration()).toBe(1)
+      expect(publishCallCount).toBe(1)
+
+      // 2. Network outage occurs
+      ;(client as any).handleConnectionFailure('network_offline')
+      expect(client.state.connectionState).toBe('reconnecting')
+      expect(client.state.isPublishing).toBe(false)
+      expect((client as any).recoveryPending).toBe(true)
+      expect((client as any).intendedPublishing).toBe(true)
+
+      // 3. Online fires, but first recovery attempt encounters an upstream failure
+      shouldFailFirstRecovery = true
+      ;(client as any).handleOnline()
+
+      // Wait for the first recovery attempt to fail and exit the mutex
+      await (client as any).signalingMutex.runExclusive(async () => {})
+
+      // CRITICAL INVARIANT ASSERTIONS:
+      // First recovery attempt failed, but Voice is NOT permanently stranded!
+      // - recoveryPending remains true
+      // - rebuildInFlight was properly reset to false (no leaked lock)
+      // - reconnectTimer was scheduled via handleConnectionFailure('retry')
+      // - reconnectAttempts incremented to 1
+      expect((client as any).recoveryPending).toBe(true)
+      expect((client as any).rebuildInFlight).toBe(false)
+      expect((client as any).reconnectTimer).not.toBeNull()
+      expect((client as any).reconnectAttempts).toBe(2)
+      expect(client.state.isPublishing).toBe(false)
+      expect(client.state.connectionState).toBe('reconnecting')
+
+      // 4. Wait for scheduled retry timer to fire and execute second rebuild attempt (delay is 1500ms at attempt 2)
+      await new Promise((resolve) => setTimeout(resolve, 1650))
+      // Wait for second rebuild to complete through the mutex
+      await (client as any).signalingMutex.runExclusive(async () => {})
+
+      // 5. Final State: Second attempt succeeds completely!
+      expect((client as any).recoveryPending).toBe(false)
+      expect((client as any).rebuildInFlight).toBe(false)
+      expect(client.state.isPublishing).toBe(true)
+      expect(client.state.connectionState).toBe('connected')
+      expect(client.getSessionId()).toBe('session-id-3')
+      expect(client.getGeneration()).toBe(2)
+      expect(client.getGeneration()).toBeGreaterThan(1)
+      expect((client as any).reconnectTimer).toBeNull()
+      expect(publishCallCount).toBe(2)
+      expect(liveTrackStop).not.toHaveBeenCalled()
+    } finally {
+      client.destroy()
+      globalThis.fetch = originalFetch
+      ;(globalThis as any).RTCPeerConnection = originalRTCPeerConnection
+      ;(globalThis as any).MediaStream = originalMediaStream
+    }
+  })
+
+  it('handleForceMuted(): stops local track, replaces sender with null, invalidates publishing, preserves listening', async () => {
+    const trackStop = vi.fn()
+    const mockTrack = {
+      id: 'local-mic-track',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: trackStop,
+    } as unknown as MediaStreamTrack
+
+    const replaceTrackMock = vi.fn().mockResolvedValue(undefined)
+    const mockSender = {
+      replaceTrack: replaceTrackMock,
+    } as unknown as RTCRtpSender
+
+    let latestState: any = null
+    const client = new VoiceClient({
+      roomId: 101,
+      currentActorKey: 'acc:target',
+      onStateChange: (state) => {
+        latestState = state
+      },
+    })
+
+    // Setup active publishing state
+    ;(client as any).sessionId = 'session-101'
+    ;(client as any).pc = {
+      connectionState: 'connected',
+    } as unknown as RTCPeerConnection
+    ;(client as any).localTrack = mockTrack
+    ;(client as any).localStream = {
+      getTracks: () => [mockTrack],
+      getAudioTracks: () => [mockTrack],
+    } as unknown as MediaStream
+    ;(client as any).localSender = mockSender
+    ;(client as any).isPublishing = true
+    ;(client as any).intendedPublishing = true
+    ;(client as any).connectionState = 'connected'
+
+    await client.handleForceMuted()
+
+    expect((client as any).isPublishing).toBe(false)
+    expect((client as any).intendedPublishing).toBe(false)
+    expect((client as any).isMuted).toBe(false)
+    expect(trackStop).toHaveBeenCalled()
+    expect(replaceTrackMock).toHaveBeenCalledWith(null)
+    expect((client as any).localTrack).toBeNull()
+    expect((client as any).localSender).toBeNull()
+    expect((client as any).localStream).toBeNull()
+    expect(client.state.connectionState).toBe('listening')
+    expect(latestState?.isPublishing).toBe(false)
+    // Derived local mic must be false!
+    const derivedMic = Boolean(latestState?.isPublishing && !latestState?.isMuted)
+    expect(derivedMic).toBe(false)
+
+    client.destroy()
+  })
+
+  it('Local media state authority: self-mute sets track disabled, and server syncRegistry cannot overwrite local mic', async () => {
+    const mockTrack = {
+      id: 'mic-track-1',
+      kind: 'audio',
+      readyState: 'live',
+      enabled: true,
+      stop: vi.fn(),
+    } as unknown as MediaStreamTrack
+
+    let latestState: any = null
+    const client = new VoiceClient({
+      roomId: 101,
+      currentActorKey: 'acc:me',
+      onStateChange: (state) => {
+        latestState = state
+      },
+    })
+
+    ;(client as any).localTrack = mockTrack
+    ;(client as any).isPublishing = true
+    ;(client as any).generation = 5
+    ;(client as any).connectionState = 'connected'
+
+    // User mutes
+    const resMute = client.mute()
+    expect(resMute.muted).toBe(true)
+    expect(resMute.generation).toBe(5)
+    expect(mockTrack.enabled).toBe(false)
+    expect(latestState.isMuted).toBe(true)
+    expect(Boolean(latestState.isPublishing && !latestState.isMuted)).toBe(false)
+
+    // Delayed server sync arrives containing a stale 'live' publication for this actor
+    await client.syncRegistry([
+      {
+        actorKey: 'acc:me',
+        ten: 'Me',
+        status: 'live',
+        sessionId: 'sess',
+        audioTrackId: 'track',
+        generation: 5,
+        updatedAt: Date.now(),
+      },
+    ])
+
+    // Local media state MUST stay muted!
+    expect(client.state.isMuted).toBe(true)
+    expect(mockTrack.enabled).toBe(false)
+    expect(Boolean(client.state.isPublishing && !client.state.isMuted)).toBe(false)
+
+    // User unmutes
+    const resUnmute = client.unmute()
+    expect(resUnmute.muted).toBe(false)
+    expect(resUnmute.generation).toBe(5)
+    expect(mockTrack.enabled).toBe(true)
+    expect(latestState.isMuted).toBe(false)
+    expect(Boolean(latestState.isPublishing && !latestState.isMuted)).toBe(true)
+
+    client.destroy()
+  })
 })
