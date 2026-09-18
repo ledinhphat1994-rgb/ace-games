@@ -187,16 +187,15 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       await pageA.goto('/')
       await expect(pageA.locator('[data-testid="room-card-7"]')).toBeVisible({ timeout: 15000 })
 
-      // B enters password room (phong-8)
+      // B enters password room (phong-8) via canonical admit API
+      await pageB.evaluate(async (pw) => {
+        await fetch('/api/rooms/8/admit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        })
+      }, PASSWORD_ROOM_PASSWORD)
       await pageB.goto('/room/phong-8')
-      const pwInputB = pageB.locator('#room-password-input, input[type="password"]')
-      try {
-        await pwInputB.waitFor({ state: 'visible', timeout: 5000 })
-        await pwInputB.fill(PASSWORD_ROOM_PASSWORD)
-        await pageB.locator('button[type="submit"]:has-text("Vào phòng")').click()
-      } catch {
-        // Already admitted
-      }
       await expect(pageB.locator('header svg.lucide-wifi.text-emerald-400')).toBeVisible({ timeout: 25000 })
 
       // On A's lobby: Room 8 shows friend indicator
