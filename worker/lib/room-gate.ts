@@ -1,7 +1,7 @@
 import { loi } from './http'
 import type { Phien } from './auth'
 import { kiemTraPhien, layPhien, type TaiKhoan } from './session'
-import { laGiaoVienDaDuyet, laQuanTriTruong } from './scope'
+import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from './scope'
 import { readAdmitCookie, verifyAdmitToken } from './admission'
 
 export interface DongPhong {
@@ -125,4 +125,79 @@ export async function kiemTraQuyenTruyCapPhong(
   }
 
   return { ok: true, taiKhoan: kq.taiKhoan, phien: kq.phien, phongRow }
+}
+
+export interface QuyenModeratorPhong {
+  canModerate: boolean
+  isHost: boolean
+  isTeacher: boolean
+  isAdmin: boolean
+  authorityRank: number // 3: Admin, 2: Scoped Teacher, 1: Host, 0: None
+}
+
+/**
+ * XÁC ĐỊNH QUYỀN MODERATOR TRONG PHÒNG HỌC (Server-Authoritative Canonical Helper)
+ * Invariant: Host != Moderator != Teacher != Admin
+ * - School Admin (rank 3): Toàn quyền kiểm duyệt mọi phòng học.
+ * - Approved Teacher (rank 2): Chỉ kiểm duyệt phòng phạm vi 'lop' khi phòng đó thuộc lớp được phân công.
+ *   KHÔNG tự động là moderator trong phòng toàn trường hoặc phòng của lớp khác.
+ * - Room Host (rank 1): Có quyền điều hành trong chính phòng của mình (không thể ghi đè cấp cao hơn).
+ * - Student/Member (rank 0): Không có quyền điều hành.
+ */
+export async function xacDinhQuyenModeratorPhong(
+  db: D1Database,
+  taiKhoan: TaiKhoan,
+  phong: DongPhong,
+  callerKey: string,
+): Promise<QuyenModeratorPhong> {
+  const isAdmin = laQuanTriTruong(taiKhoan)
+  const isHost = phong.chu_phong_khoa === callerKey
+
+  if (isAdmin) {
+    return {
+      canModerate: true,
+      isHost,
+      isTeacher: true,
+      isAdmin: true,
+      authorityRank: 3,
+    }
+  }
+
+  let isScopedTeacher = false
+  if (laGiaoVienDaDuyet(taiKhoan)) {
+    if (phong.pham_vi === 'lop' && phong.lop_id != null && phong.lop_id > 0) {
+      const phamVi = await layPhamViQuanTri(db, taiKhoan)
+      if (phamVi.lopIds?.includes(phong.lop_id)) {
+        isScopedTeacher = true
+      }
+    }
+  }
+
+  if (isScopedTeacher) {
+    return {
+      canModerate: true,
+      isHost,
+      isTeacher: true,
+      isAdmin: false,
+      authorityRank: 2,
+    }
+  }
+
+  if (isHost) {
+    return {
+      canModerate: true,
+      isHost: true,
+      isTeacher: false,
+      isAdmin: false,
+      authorityRank: 1,
+    }
+  }
+
+  return {
+    canModerate: false,
+    isHost: false,
+    isTeacher: false,
+    isAdmin: false,
+    authorityRank: 0,
+  }
 }

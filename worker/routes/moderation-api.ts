@@ -2,8 +2,8 @@ import type { Context } from 'hono'
 import { loi } from '../lib/http'
 import { actorKey } from '../lib/auth'
 import { kiemTraPhien, layPhien } from '../lib/session'
-import { laGiaoVienDaDuyet, laQuanTriTruong } from '../lib/scope'
-import { kiemTraQuyenTruyCapPhong } from '../lib/room-gate'
+import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/scope'
+import { kiemTraQuyenTruyCapPhong, xacDinhQuyenModeratorPhong } from '../lib/room-gate'
 import {
   RoomKickPayloadSchema,
   RoomBanPayloadSchema,
@@ -28,7 +28,7 @@ async function ghiAuditLog(
     reason?: string | null
     metadata?: Record<string, unknown> | null
   },
-): Promise<void> {
+): Promise<{ ok: boolean; error?: unknown }> {
   try {
     await env.DB.prepare(
       `INSERT INTO moderation_audit_logs (actor_id, target_id, room_id, action, reason, metadata, created_at)
@@ -44,14 +44,38 @@ async function ghiAuditLog(
         Date.now(),
       )
       .run()
+    return { ok: true }
   } catch (err) {
-    console.error('Lỗi ghi moderation_audit_logs:', err)
+    console.error('CRITICAL: Lỗi ghi moderation_audit_logs:', err)
+    return { ok: false, error: err }
   }
+}
+
+async function layTargetRank(
+  db: D1Database,
+  targetAccountId: number | null,
+  targetActorKey: string,
+  chuPhongKhoa: string,
+): Promise<number> {
+  if (!targetAccountId) {
+    return targetActorKey === chuPhongKhoa ? 1 : 0
+  }
+
+  const targetUser = await db.prepare(
+    'SELECT id, vai_tro, la_admin_truong, teacher_pending FROM tai_khoan_campus WHERE id = ?1',
+  )
+    .bind(targetAccountId)
+    .first<{ id: number; vai_tro: string; la_admin_truong: number; teacher_pending: number }>()
+
+  if (targetUser?.la_admin_truong === 1) return 3 // Admin
+  if (targetUser?.vai_tro === 'teacher' && targetUser?.teacher_pending === 0) return 2 // Teacher
+  if (targetActorKey === chuPhongKhoa) return 1 // Host
+  return 0 // Student / Member
 }
 
 /**
  * POST /api/rooms/:id/kick
- * Mời một thành viên ra khỏi phòng học (Server-Authoritative)
+ * Mời một thành viên ra khỏi phòng học (Server-Authoritative, Scoped Authority)
  */
 export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const phongId = parsePhongId(c)
@@ -61,13 +85,9 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
   if (!gate.ok) return gate.response
 
   const callerKey = actorKey(gate.phien)
-  const isHost = gate.phongRow.chu_phong_khoa === callerKey
-  const isTeacher = laGiaoVienDaDuyet(gate.taiKhoan)
-  const isAdmin = laQuanTriTruong(gate.taiKhoan)
-  const canModerate = isHost || isTeacher || isAdmin
-
-  if (!canModerate) {
-    return loi('Bạn không có quyền mời thành viên ra khỏi phòng.', 403)
+  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, gate.taiKhoan, gate.phongRow, callerKey)
+  if (!modQuyen.canModerate) {
+    return loi('Bạn không có quyền mời thành viên ra khỏi phòng học này.', 403)
   }
 
   let rawBody: unknown
@@ -88,33 +108,19 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
     return loi('Không thể tự mời bản thân ra khỏi phòng.', 400)
   }
 
-  // Phân cấp bảo vệ: Kiểm tra danh tính và vai trò target
   let targetAccountId: number | null = null
   if (targetActorKey.startsWith('acc:')) {
     targetAccountId = parseInt(targetActorKey.slice(4), 10) || null
   }
 
-  if (targetAccountId) {
-    const targetUser = await c.env.DB.prepare(
-      'SELECT id, vai_tro, la_admin_truong, teacher_pending FROM tai_khoan_campus WHERE id = ?1',
-    )
-      .bind(targetAccountId)
-      .first<{ id: number; vai_tro: string; la_admin_truong: number; teacher_pending: number }>()
+  const targetRank = await layTargetRank(c.env.DB, targetAccountId, targetActorKey, gate.phongRow.chu_phong_khoa)
 
-    if (targetUser) {
-      const targetIsAdmin = targetUser.la_admin_truong === 1
-      const targetIsTeacher = targetUser.vai_tro === 'teacher' && targetUser.teacher_pending === 0
-
-      if (targetIsAdmin && !isAdmin) {
-        return loi('Không thể mời quản trị viên ra khỏi phòng.', 403)
-      }
-      if (targetIsTeacher && !isAdmin) {
-        return loi('Chủ phòng không thể mời giáo viên ra khỏi phòng.', 403)
-      }
-      if (targetActorKey === gate.phongRow.chu_phong_khoa && !isTeacher && !isAdmin) {
-        return loi('Không thể mời chủ phòng ra khỏi phòng.', 403)
-      }
-    }
+  // Invariant hierarchy: caller must strictly outrank target
+  if (modQuyen.authorityRank <= targetRank) {
+    if (targetRank === 3) return loi('Không thể mời quản trị viên ra khỏi phòng.', 403)
+    if (targetRank === 2) return loi('Chủ phòng không thể mời giáo viên ra khỏi phòng.', 403)
+    if (targetRank === 1) return loi('Không thể mời chủ phòng ra khỏi phòng.', 403)
+    return loi('Bạn không có đủ thẩm quyền đối với thành viên này.', 403)
   }
 
   // Nếu chọn cấm vào phòng luôn (banFromRoom)
@@ -128,13 +134,21 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
         .bind(phongId, targetAccountId, reason || 'Bị cấm bởi người điều hành', gate.taiKhoan.id)
         .run()
 
-      await ghiAuditLog(c.env, {
+      const auditBanRes = await ghiAuditLog(c.env, {
         actorId: gate.taiKhoan.id,
         targetId: targetAccountId,
         roomId: phongId,
         action: 'ban',
         reason,
+        metadata: {
+          authorityRank: modQuyen.authorityRank,
+          role: gate.taiKhoan.role,
+          banFromKick: true,
+        },
       })
+      if (!auditBanRes.ok) {
+        console.warn('Lưu ý: Audit log ban ghi thất bại nhưng phong_ban đã được lưu.')
+      }
     } catch (err) {
       console.error('Lỗi ghi phong_ban khi kick:', err)
       return loi('Lỗi khi thiết lập cấm phòng.', 500)
@@ -159,7 +173,13 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
       }),
     )
 
-    const kickJson = (await kickRes.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+    const kickJson = (await kickRes.json().catch(() => null)) as {
+      ok?: boolean
+      removed?: boolean
+      absent?: boolean
+      message?: string
+    } | null
+
     if (!kickRes.ok || !kickJson?.ok) {
       return loi(kickJson?.message || 'Không thể mời thành viên ra khỏi phòng.', 400)
     }
@@ -168,14 +188,19 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
     return loi('Lỗi kết nối máy chủ phòng.', 502)
   }
 
-  // Ghi audit log hành động kick
+  // Ghi audit log hành động kick kèm role/rank snapshot
   await ghiAuditLog(c.env, {
     actorId: gate.taiKhoan.id,
     targetId: targetAccountId,
     roomId: phongId,
     action: 'kick',
     reason,
-    metadata: { targetActorKey, banFromRoom: Boolean(banFromRoom) },
+    metadata: {
+      targetActorKey,
+      banFromRoom: Boolean(banFromRoom),
+      authorityRank: modQuyen.authorityRank,
+      role: gate.taiKhoan.role,
+    },
   })
 
   return c.json({ ok: true, kicked: true, banned: Boolean(banFromRoom) })
@@ -183,7 +208,7 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
 
 /**
  * POST /api/rooms/:id/ban
- * Cấm một tài khoản vào phòng học vĩnh viễn (phong_ban)
+ * Cấm một tài khoản vào phòng học vĩnh viễn (phong_ban, Scoped Authority, Live-Session Consistency)
  */
 export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const phongId = parsePhongId(c)
@@ -193,13 +218,9 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
   if (!gate.ok) return gate.response
 
   const callerKey = actorKey(gate.phien)
-  const isHost = gate.phongRow.chu_phong_khoa === callerKey
-  const isTeacher = laGiaoVienDaDuyet(gate.taiKhoan)
-  const isAdmin = laQuanTriTruong(gate.taiKhoan)
-  const canModerate = isHost || isTeacher || isAdmin
-
-  if (!canModerate) {
-    return loi('Bạn không có quyền cấm thành viên vào phòng này.', 403)
+  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, gate.taiKhoan, gate.phongRow, callerKey)
+  if (!modQuyen.canModerate) {
+    return loi('Bạn không có quyền cấm thành viên vào phòng học này.', 403)
   }
 
   let rawBody: unknown
@@ -220,23 +241,14 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     return loi('Không thể tự cấm chính mình.', 400)
   }
 
-  // Kiểm tra vai trò của target
-  const targetUser = await c.env.DB.prepare(
-    'SELECT id, vai_tro, la_admin_truong, teacher_pending FROM tai_khoan_campus WHERE id = ?1',
-  )
-    .bind(targetAccountId)
-    .first<{ id: number; vai_tro: string; la_admin_truong: number; teacher_pending: number }>()
+  const targetActorKey = `acc:${targetAccountId}`
+  const targetRank = await layTargetRank(c.env.DB, targetAccountId, targetActorKey, gate.phongRow.chu_phong_khoa)
 
-  if (targetUser) {
-    const targetIsAdmin = targetUser.la_admin_truong === 1
-    const targetIsTeacher = targetUser.vai_tro === 'teacher' && targetUser.teacher_pending === 0
-
-    if (targetIsAdmin && !isAdmin) {
-      return loi('Không thể cấm quản trị viên.', 403)
-    }
-    if (targetIsTeacher && !isAdmin) {
-      return loi('Chủ phòng không thể cấm giáo viên.', 403)
-    }
+  if (modQuyen.authorityRank <= targetRank) {
+    if (targetRank === 3) return loi('Không thể cấm quản trị viên trường.', 403)
+    if (targetRank === 2) return loi('Không thể cấm giáo viên.', 403)
+    if (targetRank === 1) return loi('Không thể cấm chủ phòng.', 403)
+    return loi('Bạn không có đủ thẩm quyền để cấm thành viên này.', 403)
   }
 
   try {
@@ -252,12 +264,15 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     return loi('Lỗi khi lưu lệnh cấm phòng.', 500)
   }
 
-  // Nếu target đang trong phòng, kick ra lập tức
-  const targetActorKey = `acc:${targetAccountId}`
+  // Handle live session removal explicitly:
+  let removedFromLiveSession = false
+  let liveSessionAbsent = false
+  let liveRemovalError: string | null = null
+
   const doId = c.env.ROOMS.idFromName('phong-' + phongId)
   const roomStub = c.env.ROOMS.get(doId)
   try {
-    await roomStub.fetch(
+    const kickRes = await roomStub.fetch(
       new Request('http://internal/internal/moderation/kick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -269,7 +284,21 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
         }),
       }),
     )
-  } catch {}
+    const kickJson = (await kickRes.json().catch(() => null)) as {
+      ok?: boolean
+      removed?: boolean
+      absent?: boolean
+    } | null
+
+    if (kickJson?.removed) {
+      removedFromLiveSession = true
+    } else if (kickJson?.absent) {
+      liveSessionAbsent = true
+    }
+  } catch (err) {
+    console.warn('Lưu ý: Không thể ngắt kết nối trực tiếp mục tiêu (RoomDO offline hoặc không phản hồi):', err)
+    liveRemovalError = 'Lỗi gửi lệnh ngắt kết nối trực tiếp'
+  }
 
   await ghiAuditLog(c.env, {
     actorId: gate.taiKhoan.id,
@@ -277,14 +306,28 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     roomId: phongId,
     action: 'ban',
     reason,
+    metadata: {
+      authorityRank: modQuyen.authorityRank,
+      role: gate.taiKhoan.role,
+      removedFromLiveSession,
+      liveSessionAbsent,
+      liveRemovalError,
+    },
   })
 
-  return c.json({ ok: true, banned: true })
+  return c.json({
+    ok: true,
+    banned: true,
+    removedFromLiveSession,
+    targetWasPresent: removedFromLiveSession,
+    absent: liveSessionAbsent,
+    liveRemovalError: liveRemovalError ?? undefined,
+  })
 }
 
 /**
  * POST /api/rooms/:id/unban
- * Gỡ cấm cho một tài khoản
+ * Gỡ cấm cho một tài khoản (Enforces Authority Hierarchy: lower cannot undo higher)
  */
 export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<Response> {
   const phongId = parsePhongId(c)
@@ -294,12 +337,8 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
   if (!gate.ok) return gate.response
 
   const callerKey = actorKey(gate.phien)
-  const isHost = gate.phongRow.chu_phong_khoa === callerKey
-  const isTeacher = laGiaoVienDaDuyet(gate.taiKhoan)
-  const isAdmin = laQuanTriTruong(gate.taiKhoan)
-  const canModerate = isHost || isTeacher || isAdmin
-
-  if (!canModerate) {
+  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, gate.taiKhoan, gate.phongRow, callerKey)
+  if (!modQuyen.canModerate) {
     return loi('Bạn không có quyền gỡ cấm cho phòng này.', 403)
   }
 
@@ -315,6 +354,50 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('ID tài khoản không hợp lệ.', 400)
   }
 
+  // 1. Fetch ban record to determine banning actor and authority hierarchy
+  const banRecord = await c.env.DB.prepare(
+    'SELECT id, ban_boi FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+  )
+    .bind(phongId, targetAccountId)
+    .first<{ id: number; ban_boi: number | null }>()
+
+  if (!banRecord) {
+    return loi('Thành viên này không nằm trong danh sách cấm.', 404)
+  }
+
+  // 2. Determine banner's authority rank
+  let bannerRank = 1 // Default Host
+  if (banRecord.ban_boi === null) {
+    // Unknown / null banner: fail-closed, only School Admin may unban
+    bannerRank = 3
+  } else {
+    const bannerUser = await c.env.DB.prepare(
+      'SELECT id, vai_tro, la_admin_truong, teacher_pending FROM tai_khoan_campus WHERE id = ?1',
+    )
+      .bind(banRecord.ban_boi)
+      .first<{ id: number; vai_tro: string; la_admin_truong: number; teacher_pending: number }>()
+
+    if (bannerUser?.la_admin_truong === 1) {
+      bannerRank = 3 // Admin ban
+    } else if (bannerUser?.vai_tro === 'teacher' && bannerUser?.teacher_pending === 0) {
+      bannerRank = 2 // Teacher ban
+    } else {
+      bannerRank = 1 // Host ban
+    }
+  }
+
+  // 3. Unban hierarchy check: caller must have authority rank >= bannerRank
+  if (modQuyen.authorityRank < bannerRank) {
+    if (bannerRank === 3) {
+      return loi('Lệnh cấm này được thiết lập bởi Quản trị viên trường. Chỉ Quản trị viên mới có quyền gỡ cấm.', 403)
+    }
+    if (bannerRank === 2) {
+      return loi('Lệnh cấm này được thiết lập bởi Giáo viên. Chủ phòng không có quyền gỡ cấm.', 403)
+    }
+    return loi('Bạn không có đủ thẩm quyền để gỡ lệnh cấm này.', 403)
+  }
+
+  // 4. Delete ban record
   try {
     const res = await c.env.DB.prepare(
       'DELETE FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
@@ -335,14 +418,33 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     targetId: targetAccountId,
     roomId: phongId,
     action: 'unban',
+    metadata: {
+      authorityRank: modQuyen.authorityRank,
+      role: gate.taiKhoan.role,
+      bannerId: banRecord.ban_boi,
+      bannerRank,
+    },
   })
+
+  // 5. Xóa kick cooldown trong RoomDO (nếu có) để thành viên có thể vào lại ngay sau khi được gỡ cấm
+  try {
+    const doId = c.env.ROOMS.idFromName('phong-' + phongId)
+    const roomStub = c.env.ROOMS.get(doId)
+    await roomStub.fetch(
+      new Request('http://internal/internal/moderation/cooldown/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorKey: `acc:${targetAccountId}` }),
+      }),
+    )
+  } catch {}
 
   return c.json({ ok: true, unbanned: true })
 }
 
 /**
  * GET /api/rooms/:id/banned-members
- * Xem danh sách bị cấm của phòng
+ * Xem danh sách bị cấm của phòng (Scoped Moderator Only)
  */
 export async function listBannedMembers(c: Context<{ Bindings: Env }>): Promise<Response> {
   const phongId = parsePhongId(c)
@@ -352,13 +454,9 @@ export async function listBannedMembers(c: Context<{ Bindings: Env }>): Promise<
   if (!gate.ok) return gate.response
 
   const callerKey = actorKey(gate.phien)
-  const isHost = gate.phongRow.chu_phong_khoa === callerKey
-  const isTeacher = laGiaoVienDaDuyet(gate.taiKhoan)
-  const isAdmin = laQuanTriTruong(gate.taiKhoan)
-  const canModerate = isHost || isTeacher || isAdmin
-
-  if (!canModerate) {
-    return loi('Bạn không có quyền xem danh sách cấm của phòng.', 403)
+  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, gate.taiKhoan, gate.phongRow, callerKey)
+  if (!modQuyen.canModerate) {
+    return loi('Bạn không có quyền xem danh sách cấm của phòng học này.', 403)
   }
 
   try {
@@ -446,25 +544,26 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
 
 /**
  * GET /api/reports
- * Xem danh sách báo cáo (Chỉ dành cho Giáo viên / Admin)
+ * Xem danh sách báo cáo (Chỉ dành cho Giáo viên trong phạm vi lớp hoặc School Admin)
  */
 export async function listReports(c: Context<{ Bindings: Env }>): Promise<Response> {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
   const isAdmin = laQuanTriTruong(kq.taiKhoan)
-  if (!isTeacher && !isAdmin) {
+  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
+  if (!isAdmin && !isTeacher) {
     return loi('Chỉ giáo viên và quản trị viên mới có quyền xem danh sách báo cáo.', 403)
   }
 
   const statusFilter = c.req.query('status') || null
 
   try {
-    let query = `
+    let baseQuery = `
       SELECT r.id, r.reporter_id as reporterId, COALESCE(rep.ten_hien_thi, rep.ten_dang_nhap) as reporterName,
              r.reported_id as reportedId, tgt.ten_dang_nhap as reportedUsername, COALESCE(tgt.ten_hien_thi, tgt.ten_dang_nhap) as reportedName,
-             r.room_id as roomId, p.ten as roomTitle,
+             tgt.lop_id as reportedLopId,
+             r.room_id as roomId, p.ten as roomTitle, p.lop_id as roomLopId,
              r.category, r.reason, r.content_snippet as contentSnippet,
              r.status, r.resolved_by as resolvedBy, COALESCE(res.ten_hien_thi, res.ten_dang_nhap) as resolvedByName,
              r.resolution_note as resolutionNote, r.created_at as createdAt, r.resolved_at as resolvedAt
@@ -475,15 +574,35 @@ export async function listReports(c: Context<{ Bindings: Env }>): Promise<Respon
       LEFT JOIN tai_khoan_campus res ON r.resolved_by = res.id
     `
 
+    const whereClauses: string[] = []
+    const bindings: unknown[] = []
+
     if (statusFilter) {
-      query += ' WHERE r.status = ?1 ORDER BY r.id DESC LIMIT 100'
-      const rows = await c.env.DB.prepare(query).bind(statusFilter).all()
-      return c.json({ ok: true, reports: rows.results || [] })
-    } else {
-      query += ' ORDER BY r.id DESC LIMIT 100'
-      const rows = await c.env.DB.prepare(query).all()
-      return c.json({ ok: true, reports: rows.results || [] })
+      bindings.push(statusFilter)
+      whereClauses.push(`r.status = ?${bindings.length}`)
     }
+
+    if (!isAdmin) {
+      // Teacher: scoped strictly to assigned classes
+      const phamVi = await layPhamViQuanTri(c.env.DB, kq.taiKhoan)
+      const lopIds = phamVi.lopIds || []
+      if (lopIds.length === 0) {
+        return c.json({ ok: true, reports: [] })
+      }
+
+      const placeholders = lopIds.map((_, i) => `?${bindings.length + i + 1}`).join(', ')
+      bindings.push(...lopIds)
+      whereClauses.push(`(tgt.lop_id IN (${placeholders}) OR p.lop_id IN (${placeholders}))`)
+    }
+
+    if (whereClauses.length > 0) {
+      baseQuery += ' WHERE ' + whereClauses.join(' AND ')
+    }
+
+    baseQuery += ' ORDER BY r.id DESC LIMIT 100'
+    const stmt = c.env.DB.prepare(baseQuery)
+    const rows = bindings.length > 0 ? await stmt.bind(...bindings).all() : await stmt.all()
+    return c.json({ ok: true, reports: rows.results || [] })
   } catch (err) {
     console.error('Lỗi lấy reports:', err)
     return loi('Không thể truy xuất danh sách báo cáo.', 500)
@@ -492,15 +611,15 @@ export async function listReports(c: Context<{ Bindings: Env }>): Promise<Respon
 
 /**
  * POST /api/reports/:id/resolve
- * Xử lý hoặc đóng báo cáo vi phạm (Chỉ dành cho Giáo viên / Admin)
+ * Xử lý hoặc đóng báo cáo vi phạm (Chỉ dành cho Giáo viên được phân công hoặc School Admin - Anti-IDOR)
  */
 export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Response> {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
   const isAdmin = laQuanTriTruong(kq.taiKhoan)
-  if (!isTeacher && !isAdmin) {
+  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
+  if (!isAdmin && !isTeacher) {
     return loi('Chỉ giáo viên và quản trị viên mới có quyền xử lý báo cáo.', 403)
   }
 
@@ -519,6 +638,39 @@ export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Resp
     return loi('Trạng thái xử lý không hợp lệ.', 400)
   }
 
+  // Anti-IDOR: Fetch the exact report and verify scope
+  const report = await c.env.DB.prepare(
+    `SELECT r.id, r.reported_id as reportedId, r.room_id as roomId,
+            tgt.lop_id as reportedLopId, p.lop_id as roomLopId
+     FROM reports r
+     LEFT JOIN tai_khoan_campus tgt ON r.reported_id = tgt.id
+     LEFT JOIN phong p ON r.room_id = p.id
+     WHERE r.id = ?1`,
+  )
+    .bind(reportId)
+    .first<{
+      id: number
+      reportedId: number | null
+      roomId: number | null
+      reportedLopId: number | null
+      roomLopId: number | null
+    }>()
+
+  if (!report) {
+    return loi('Không tìm thấy báo cáo vi phạm.', 404)
+  }
+
+  if (!isAdmin) {
+    const phamVi = await layPhamViQuanTri(c.env.DB, kq.taiKhoan)
+    const lopIds = phamVi.lopIds || []
+    const matchTarget = report.reportedLopId != null && lopIds.includes(report.reportedLopId)
+    const matchRoom = report.roomLopId != null && lopIds.includes(report.roomLopId)
+
+    if (!matchTarget && !matchRoom) {
+      return loi('Bạn không có quyền xử lý báo cáo này (ngoài phạm vi lớp được phân công).', 403)
+    }
+  }
+
   try {
     const updateRes = await c.env.DB.prepare(
       `UPDATE reports
@@ -534,11 +686,17 @@ export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Resp
 
     await ghiAuditLog(c.env, {
       actorId: kq.taiKhoan.id,
-      targetId: null,
-      roomId: null,
+      targetId: report.reportedId,
+      roomId: report.roomId,
       action: 'report_resolved',
       reason: body.resolutionNote,
-      metadata: { reportId, status: body.status },
+      metadata: {
+        reportId,
+        status: body.status,
+        reportedLopId: report.reportedLopId,
+        roomLopId: report.roomLopId,
+        authorityRole: isAdmin ? 'admin' : 'teacher',
+      },
     })
 
     return c.json({ ok: true, resolved: true })
@@ -550,30 +708,47 @@ export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Resp
 
 /**
  * GET /api/moderation/audit-logs
- * Xem nhật ký kiểm duyệt (Chỉ dành cho Giáo viên / Admin)
+ * Xem nhật ký kiểm duyệt (Chỉ dành cho Giáo viên trong phạm vi lớp hoặc School Admin)
  */
 export async function listAuditLogs(c: Context<{ Bindings: Env }>): Promise<Response> {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
   const isAdmin = laQuanTriTruong(kq.taiKhoan)
-  if (!isTeacher && !isAdmin) {
+  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
+  if (!isAdmin && !isTeacher) {
     return loi('Chỉ giáo viên và quản trị viên mới có quyền xem nhật ký kiểm duyệt.', 403)
   }
 
   try {
-    const rows = await c.env.DB.prepare(
-      `SELECT a.id, a.actor_id as actorId, COALESCE(act.ten_hien_thi, act.ten_dang_nhap) as actorName, act.ten_dang_nhap as actorUsername,
-              a.target_id as targetId, COALESCE(tgt.ten_hien_thi, tgt.ten_dang_nhap) as targetName, tgt.ten_dang_nhap as targetUsername,
-              a.room_id as roomId, p.ten as roomTitle,
-              a.action, a.reason, a.metadata, a.created_at as createdAt
-       FROM moderation_audit_logs a
-       LEFT JOIN tai_khoan_campus act ON a.actor_id = act.id
-       LEFT JOIN tai_khoan_campus tgt ON a.target_id = tgt.id
-       LEFT JOIN phong p ON a.room_id = p.id
-       ORDER BY a.id DESC LIMIT 100`,
-    ).all()
+    let baseQuery = `
+      SELECT a.id, a.actor_id as actorId, COALESCE(act.ten_hien_thi, act.ten_dang_nhap) as actorName, act.ten_dang_nhap as actorUsername,
+             a.target_id as targetId, COALESCE(tgt.ten_hien_thi, tgt.ten_dang_nhap) as targetName, tgt.ten_dang_nhap as targetUsername,
+             tgt.lop_id as targetLopId,
+             a.room_id as roomId, p.ten as roomTitle, p.lop_id as roomLopId,
+             a.action, a.reason, a.metadata, a.created_at as createdAt
+      FROM moderation_audit_logs a
+      LEFT JOIN tai_khoan_campus act ON a.actor_id = act.id
+      LEFT JOIN tai_khoan_campus tgt ON a.target_id = tgt.id
+      LEFT JOIN phong p ON a.room_id = p.id
+    `
+
+    const bindings: unknown[] = []
+
+    if (!isAdmin) {
+      const phamVi = await layPhamViQuanTri(c.env.DB, kq.taiKhoan)
+      const lopIds = phamVi.lopIds || []
+      if (lopIds.length === 0) {
+        return c.json({ ok: true, auditLogs: [] })
+      }
+      const placeholders = lopIds.map((_, i) => `?${i + 1}`).join(', ')
+      bindings.push(...lopIds)
+      baseQuery += ` WHERE (tgt.lop_id IN (${placeholders}) OR p.lop_id IN (${placeholders}))`
+    }
+
+    baseQuery += ' ORDER BY a.id DESC LIMIT 100'
+    const stmt = c.env.DB.prepare(baseQuery)
+    const rows = bindings.length > 0 ? await stmt.bind(...bindings).all() : await stmt.all()
 
     return c.json({ ok: true, auditLogs: rows.results || [] })
   } catch (err) {

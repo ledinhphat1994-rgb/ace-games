@@ -11,7 +11,7 @@ import {
 } from './lib/admission'
 import { loi } from './lib/http'
 import { xacMinhMatKhau } from './lib/passwords'
-import { laGiaoVienDaDuyet, laQuanTriTruong } from './lib/scope'
+import { laGiaoVienDaDuyet } from './lib/scope'
 import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
 import {
@@ -31,6 +31,7 @@ import {
   type DongPhong,
   kiemTraCauHinhMatKhauPhong,
   kiemTraPhamVi,
+  xacDinhQuyenModeratorPhong,
 } from './lib/room-gate'
 import {
   dangKyPublishVoice,
@@ -392,17 +393,19 @@ async function vaoPhong(request: Request, env: Env, maPhong: string): Promise<Re
     }
   }
 
-  // ── Tính canModerate server-side ──────────────────────────────────────────
-  const canModerate = laQuanTriTruong(kq.taiKhoan) || laGiaoVienDaDuyet(kq.taiKhoan)
+  // ── Tính canModerate server-side (Scoped canonical helper) ──
+  const callerKey = actorKey(kq.phien)
+  const modQuyen = await xacDinhQuyenModeratorPhong(env.DB, kq.taiKhoan, phongRow, callerKey)
 
   // ── Forward headers to RoomDO ──────────────────────────────────────────────
   const headers = new Headers(request.headers)
-  headers.set('X-Actor-Key', actorKey(kq.phien))
+  headers.set('X-Actor-Key', callerKey)
   headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
   headers.set('X-Actor-Role', kq.taiKhoan.role || 'student')
-  headers.set('X-Actor-Is-Admin', kq.taiKhoan.laAdminTruong ? '1' : '0')
-  headers.set('X-Actor-Is-Teacher', laGiaoVienDaDuyet(kq.taiKhoan) ? '1' : '0')
-  headers.set('X-Actor-Can-Moderate', canModerate ? '1' : '0')
+  headers.set('X-Actor-Is-Admin', modQuyen.isAdmin ? '1' : '0')
+  headers.set('X-Actor-Is-Teacher', modQuyen.isTeacher ? '1' : '0')
+  headers.set('X-Actor-Can-Moderate', modQuyen.canModerate ? '1' : '0')
+  headers.set('X-Actor-Authority-Rank', String(modQuyen.authorityRank))
   if (kq.taiKhoan.lopId) headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
   headers.set('X-Room-Host-Key', phongRow.chu_phong_khoa)
   headers.set('X-Room-Capacity', String(phongRow.suc_chua))

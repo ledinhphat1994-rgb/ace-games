@@ -166,6 +166,10 @@ export class RoomDO extends DurableObject<Env> {
           actor_key TEXT PRIMARY KEY,
           generation INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS kick_cooldowns (
+          actor_key TEXT PRIMARY KEY,
+          expires_at INTEGER NOT NULL
+        );
       `)
       try {
         this.ctx.storage.sql.exec('ALTER TABLE playlist_queue ADD COLUMN added_by_key TEXT')
@@ -468,8 +472,8 @@ export class RoomDO extends DurableObject<Env> {
 
     this.nạpDuLieuNeuCan()
 
-    // ── Kick Cooldown Gate (server-authoritative) ──
-    const cooldownUntil = this.kickCooldowns.get(key)
+    // ── Kick Cooldown Gate (server-authoritative durable storage) ──
+    const cooldownUntil = this.kiemTraKickCooldown(key)
     if (cooldownUntil && Date.now() < cooldownUntil) {
       const remainingSec = Math.ceil((cooldownUntil - Date.now()) / 1000)
       return new Response(
@@ -1774,31 +1778,77 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
+  private luuKickCooldown(actorKey: string, expiresAt: number): void {
+    this.kickCooldowns.set(actorKey, expiresAt)
+    try {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO kick_cooldowns (actor_key, expires_at)
+         VALUES (?1, ?2)
+         ON CONFLICT(actor_key) DO UPDATE SET expires_at = ?2`,
+        actorKey,
+        expiresAt,
+      )
+    } catch (err) {
+      console.error('Lỗi lưu kick_cooldowns SQLite:', err)
+    }
+  }
+
+  private kiemTraKickCooldown(actorKey: string): number | null {
+    const now = Date.now()
+    try {
+      const rows = [
+        ...this.ctx.storage.sql.exec<{ actor_key: string; expires_at: number }>(
+          'SELECT actor_key, expires_at FROM kick_cooldowns WHERE actor_key = ?1',
+          actorKey,
+        ),
+      ]
+      if (rows.length > 0) {
+        const expiresAt = rows[0].expires_at
+        if (expiresAt > now) {
+          this.kickCooldowns.set(actorKey, expiresAt)
+          return expiresAt
+        } else {
+          // Expired: prune row
+          this.ctx.storage.sql.exec('DELETE FROM kick_cooldowns WHERE actor_key = ?1', actorKey)
+          this.kickCooldowns.delete(actorKey)
+          return null
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi đọc kick_cooldowns SQLite:', err)
+    }
+
+    const cached = this.kickCooldowns.get(actorKey)
+    if (cached && cached > now) return cached
+    return null
+  }
+
   kickMemberInternal(params: {
     targetActorKey: string
     reason?: string
     byActorName: string
     byActorKey: string
-  }): { ok: boolean; message?: string } {
+  }): { ok: boolean; removed: boolean; absent?: boolean; message?: string } {
+    // 1. Luôn thiết lập durable cooldown 5 phút (300_000 ms) trong RoomDO SQLite
+    const cooldownUntil = Date.now() + 5 * 60 * 1000
+    this.luuKickCooldown(params.targetActorKey, cooldownUntil)
+
     const targetSockets = this.ctx.getWebSockets().filter((ws) => {
       const a = ws.deserializeAttachment() as AttachmentKetNoi | null
       return a?.key === params.targetActorKey
     })
 
     if (targetSockets.length === 0) {
-      return { ok: false, message: 'Thành viên không còn trong phòng.' }
+      return { ok: true, removed: false, absent: true, message: 'Thành viên không còn trong phòng.' }
     }
 
-    // 1. Force mute if target has voice publication
+    // 2. Force mute if target has voice publication
     try {
       this.forceMute({
         targetActorKey: params.targetActorKey,
         byActorName: params.byActorName,
       })
     } catch {}
-
-    // 2. Set cooldown for 5 minutes (300_000 ms)
-    this.kickCooldowns.set(params.targetActorKey, Date.now() + 5 * 60 * 1000)
 
     // 3. Broadcast room.kicked packet to all connected sockets
     this.broadcast({
@@ -1818,7 +1868,7 @@ export class RoomDO extends DurableObject<Env> {
     // 5. Broadcast presence update to remaining members
     this.phatDanhSach()
 
-    return { ok: true }
+    return { ok: true, removed: true }
   }
 
   private async xuLyYeuCauNoiBo(request: Request, url: URL): Promise<Response> {
@@ -1827,6 +1877,45 @@ export class RoomDO extends DurableObject<Env> {
         status,
         headers: { 'Content-Type': 'application/json' },
       })
+
+    if (request.method === 'GET' && url.pathname === '/internal/moderation/cooldown') {
+      const actorKey = url.searchParams.get('actorKey') || ''
+      const expiresAt = this.kiemTraKickCooldown(actorKey)
+      const now = Date.now()
+      const active = typeof expiresAt === 'number' && expiresAt > now
+      return json({
+        ok: true,
+        active,
+        expiresAt,
+        remainingMs: active ? Math.max(0, expiresAt - now) : 0,
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/moderation/cooldown/set') {
+      try {
+        const body = (await request.json()) as { actorKey: string; expiresAt: number }
+        if (!body.actorKey || typeof body.expiresAt !== 'number') {
+          return json({ ok: false, message: 'Thiếu dữ liệu' }, 400)
+        }
+        this.luuKickCooldown(body.actorKey, body.expiresAt)
+        return json({ ok: true })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/moderation/cooldown/clear') {
+      try {
+        const body = (await request.json()) as { actorKey: string }
+        if (body.actorKey) {
+          this.kickCooldowns.delete(body.actorKey)
+          this.ctx.storage.sql.exec('DELETE FROM kick_cooldowns WHERE actor_key = ?1', body.actorKey)
+        }
+        return json({ ok: true })
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
+    }
 
     if (request.method === 'GET' && url.pathname === '/internal/voice/registry') {
       return json({ ok: true, registry: this.getVoiceRegistry() })
