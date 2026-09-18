@@ -588,8 +588,8 @@ app.get('/api/rooms/:id/admission-status', async (c) => {
       active?: boolean
       remainingMs?: number
     } | null
-    if (!cdJson || typeof cdJson.ok !== 'boolean') {
-      console.error('Admission status: dữ liệu cooldown từ RoomDO không hợp lệ')
+    if (!cdJson || cdJson.ok !== true || typeof cdJson.active !== 'boolean') {
+      console.error('Admission status: dữ liệu cooldown từ RoomDO không hợp lệ:', cdJson)
       return loi('Không thể xác minh trạng thái kết nối phòng. Vui lòng thử lại sau.', 503)
     }
     if (cdJson.active) {

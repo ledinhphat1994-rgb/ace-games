@@ -285,6 +285,8 @@ export type RoomKickPayload = z.infer<typeof RoomKickPayloadSchema>
 export const RoomBanPayloadSchema = z.object({
   targetAccountId: z.number().int().positive(),
   reason: z.string().trim().max(200).optional(),
+  expectedBanId: z.number().int().positive().optional(),
+  expectedRevision: z.number().int().positive().optional(),
 })
 export type RoomBanPayload = z.infer<typeof RoomBanPayloadSchema>
 

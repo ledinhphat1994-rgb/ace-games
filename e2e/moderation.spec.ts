@@ -19,14 +19,22 @@ const USER_TEACHER = {
   password: process.env.E2E_TEACHER_PASSWORD || '',
 }
 
-const ROOM_ID = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
-const ROOM_NUM = parseInt(ROOM_ID.replace(/\D+/g, ''), 10) || 7
+const rawRoomId = process.env.E2E_PUBLIC_ROOM_ID || 'phong-7'
+const match = rawRoomId.match(/^phong-(\d+)$/)
+if (!match) {
+  throw new Error(`Invalid E2E_PUBLIC_ROOM_ID configuration: "${rawRoomId}". Must match format "phong-<number>".`)
+}
+const ROOM_ID = rawRoomId
+const ROOM_NUM = parseInt(match[1], 10)
+if (!Number.isInteger(ROOM_NUM) || ROOM_NUM <= 0) {
+  throw new Error(`Invalid room number parsed from E2E_PUBLIC_ROOM_ID: ${match[1]}`)
+}
 
 if (!USER_A.password || !USER_B.password || !USER_TEACHER.password) {
   throw new Error('Missing credentials for E2E users in environment or .env.e2e.')
 }
 
-async function login(page: Page, user: { username: string; password: string }): Promise<{ accountId?: number }> {
+async function login(page: Page, user: { username: string; password: string }): Promise<{ accountId: number }> {
   await page.goto('/')
   const loginInput = page.locator('#ten-dang-nhap')
   const isLoginFormVisible = await loginInput
@@ -50,24 +58,35 @@ async function login(page: Page, user: { username: string; password: string }): 
     }
     await expect(loginInput).not.toBeVisible({ timeout: 20000 })
   }
+
+  if (!accountId) {
+    const meRes = await page.request.get('/api/campus/user')
+    if (meRes.ok()) {
+      const data = (await meRes.json().catch(() => null)) as { user?: { id?: number }; id?: number } | null
+      accountId = data?.user?.id || data?.id
+    }
+  }
+
+  if (!accountId || !Number.isInteger(accountId) || accountId <= 0) {
+    throw new Error(`Failed to resolve account ID for user ${user.username}`)
+  }
+
   return { accountId }
 }
 
 /** Đảm bảo gỡ ban chỉ cho tài khoản kiểm thử B để không ảnh hưởng dữ liệu khác */
-async function cleanupBans(page: Page, targetAccountId?: number) {
-  if (!targetAccountId) return
-  await page.evaluate(
-    async ({ roomNum, accountId }) => {
-      try {
-        await fetch(`/api/rooms/${roomNum}/unban`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetAccountId: accountId }),
-        }).catch(() => {})
-      } catch {}
-    },
-    { roomNum: ROOM_NUM, accountId: targetAccountId },
-  )
+async function cleanupBans(page: Page, targetAccountId: number) {
+  if (!targetAccountId || !Number.isInteger(targetAccountId) || targetAccountId <= 0) {
+    throw new Error(`targetAccountId is required for cleanup: received ${targetAccountId}`)
+  }
+  const res = await page.request.post(`/api/rooms/${ROOM_NUM}/unban`, {
+    data: { targetAccountId },
+  })
+  // 200 (unbanned / cooldown cleared) or 404 (not banned) are valid cleanup results
+  if (res.status() !== 200 && res.status() !== 404) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Cleanup unban failed for target account ${targetAccountId}: HTTP ${res.status()} - ${text}`)
+  }
 }
 
 async function enterStudyRoom(page: Page, roomId = ROOM_ID) {

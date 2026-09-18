@@ -319,7 +319,18 @@ interface BannedMembersDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onLoadBanned: () => Promise<{ bannedMembers: BannedMemberItem[] }>
-  onUnban: (accountId: number) => Promise<{ ok: boolean; loi?: string }>
+  onUnban: (
+    accountId: number,
+    opts?: { expectedBanId?: number; expectedRevision?: number },
+  ) => Promise<{
+    ok: boolean
+    loi?: string
+    unbanned?: boolean
+    cooldownCleared?: boolean
+    cooldownClearError?: string
+    partial?: boolean
+    message?: string
+  }>
 }
 
 export function BannedMembersDialog({
@@ -349,13 +360,20 @@ export function BannedMembersDialog({
     }
   }, [open, onLoadBanned])
 
-  const handleUnban = async (accountId: number) => {
-    setUnbanningId(accountId)
+  const handleUnban = async (item: BannedMemberItem) => {
+    setUnbanningId(item.accountId)
     try {
-      const res = await onUnban(accountId)
+      const res = await onUnban(item.accountId, {
+        expectedBanId: item.id,
+        expectedRevision: item.revision,
+      })
       if (res.ok) {
-        toast.success('Đã gỡ cấm thành viên.')
-        setBannedList((prev) => prev.filter((m) => m.accountId !== accountId))
+        if (res.partial) {
+          toast.warning(res.message || 'Đã gỡ cấm nhưng thời gian chờ tạm thời vẫn chưa được gỡ.')
+        } else {
+          toast.success('Đã gỡ cấm thành viên.')
+        }
+        setBannedList((prev) => prev.filter((m) => m.accountId !== item.accountId))
       } else {
         toast.error(res.loi || 'Không thể gỡ cấm.')
       }
@@ -424,7 +442,7 @@ export function BannedMembersDialog({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => handleUnban(item.accountId)}
+                  onClick={() => handleUnban(item)}
                   disabled={unbanningId === item.accountId}
                   className="h-7 border-rose-500/30 text-rose-300 hover:bg-rose-500/20 text-[11px] px-2.5 shrink-0"
                 >

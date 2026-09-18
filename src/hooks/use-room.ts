@@ -685,7 +685,18 @@ export function useRoom(roomId: string, myActorKey?: string) {
   )
 
   const unbanMember = useCallback(
-    async (targetAccountId: number) => {
+    async (
+      targetAccountId: number,
+      opts?: { expectedBanId?: number; expectedRevision?: number; expectedCooldownId?: string },
+    ): Promise<{
+      ok: boolean
+      loi?: string
+      unbanned?: boolean
+      cooldownCleared?: boolean
+      cooldownClearError?: string
+      partial?: boolean
+      message?: string
+    }> => {
       const idMatch = roomId.match(/(\d+)$/)
       if (!idMatch) return { ok: false, loi: 'ID phòng không hợp lệ.' }
       try {
@@ -693,13 +704,25 @@ export function useRoom(roomId: string, myActorKey?: string) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
-          body: JSON.stringify({ targetAccountId }),
+          body: JSON.stringify({
+            targetAccountId,
+            expectedBanId: opts?.expectedBanId,
+            expectedRevision: opts?.expectedRevision,
+            expectedCooldownId: opts?.expectedCooldownId,
+          }),
         })
         const json = (await res.json().catch(() => null)) as any
         if (!res.ok || !json?.ok) {
           return { ok: false, loi: json?.loi || 'Không thể gỡ cấm thành viên.' }
         }
-        return { ok: true }
+        return {
+          ok: true,
+          unbanned: Boolean(json.unbanned),
+          cooldownCleared: Boolean(json.cooldownCleared),
+          cooldownClearError: json.cooldownClearError,
+          partial: Boolean(json.partial),
+          message: json.message,
+        }
       } catch (err: any) {
         return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
       }

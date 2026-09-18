@@ -105,7 +105,7 @@ export class RoomDO extends DurableObject<Env> {
   private voiceRegistry = new Map<string, VoiceParticipantState>()
   private voiceGeneration = new Map<string, number>()
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
-  private kickCooldowns = new Map<string, { expiresAt: number; authorityRank: number; revision: number }>()
+  private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -168,8 +168,9 @@ export class RoomDO extends DurableObject<Env> {
         );
         CREATE TABLE IF NOT EXISTS kick_cooldowns (
           actor_key TEXT PRIMARY KEY,
+          cooldown_id TEXT NOT NULL,
           expires_at INTEGER NOT NULL,
-          authority_rank INTEGER NOT NULL DEFAULT 1,
+          authority_rank INTEGER DEFAULT 3,
           issuer_key TEXT,
           revision INTEGER NOT NULL DEFAULT 1
         );
@@ -189,13 +190,19 @@ export class RoomDO extends DurableObject<Env> {
         )
       } catch {}
       try {
-        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN authority_rank INTEGER NOT NULL DEFAULT 1')
+        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN cooldown_id TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN authority_rank INTEGER DEFAULT 3')
       } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN issuer_key TEXT')
       } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE kick_cooldowns ADD COLUMN revision INTEGER NOT NULL DEFAULT 1')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec("UPDATE kick_cooldowns SET cooldown_id = hex(randomblob(16)) WHERE cooldown_id IS NULL")
       } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -1808,23 +1815,27 @@ export class RoomDO extends DurableObject<Env> {
     expiresAt: number,
     authorityRank: number = 1,
     issuerKey: string = '',
-  ): { ok: boolean; revision?: number; error?: string } {
+  ): { ok: true; revision: number; cooldownId: string } | { ok: false; error: 'higher_authority' | 'storage_error' } {
     const now = Date.now()
-    // 1. Kiểm tra cooldown hiện hữu: cấp thấp hơn không được phép ghi đè cấp cao hơn
+    const cooldownId = crypto.randomUUID()
+    // 1. Kiểm tra cooldown hiện hữu trong SQLite: cấp thấp hơn không được phép ghi đè cấp cao hơn
+    // Bản ghi legacy cũ thiếu authority_rank được xử lý an toàn bảo thủ (fail-closed) coi như cấp 3 (Admin)
     try {
       const rows = [
         ...this.ctx.storage.sql.exec<{
           actor_key: string
+          cooldown_id: string | null
           expires_at: number
-          authority_rank: number
+          authority_rank: number | null
           revision: number
         }>(
-          'SELECT actor_key, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
+          'SELECT actor_key, cooldown_id, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
           actorKey,
         ),
       ]
       if (rows.length > 0 && rows[0].expires_at > now) {
-        if ((rows[0].authority_rank ?? 1) > authorityRank) {
+        const existingAuth = rows[0].authority_rank ?? 3
+        if (existingAuth > authorityRank) {
           return { ok: false, error: 'higher_authority' }
         }
       }
@@ -1836,14 +1847,16 @@ export class RoomDO extends DurableObject<Env> {
     // 2. Ghi trực tiếp xuống SQLite trước (Authoritative Storage)
     try {
       this.ctx.storage.sql.exec(
-        `INSERT INTO kick_cooldowns (actor_key, expires_at, authority_rank, issuer_key, revision)
-         VALUES (?1, ?2, ?3, ?4, 1)
+        `INSERT INTO kick_cooldowns (actor_key, cooldown_id, expires_at, authority_rank, issuer_key, revision)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1)
          ON CONFLICT(actor_key) DO UPDATE SET
-           expires_at = ?2,
-           authority_rank = ?3,
-           issuer_key = ?4,
+           cooldown_id = ?2,
+           expires_at = ?3,
+           authority_rank = ?4,
+           issuer_key = ?5,
            revision = kick_cooldowns.revision + 1`,
         actorKey,
+        cooldownId,
         expiresAt,
         authorityRank,
         issuerKey,
@@ -1858,8 +1871,8 @@ export class RoomDO extends DurableObject<Env> {
       const rev = updated?.revision ?? 1
 
       // 3. Chỉ cập nhật in-memory Map khi lưu storage thành công
-      this.kickCooldowns.set(actorKey, { expiresAt, authorityRank, revision: rev })
-      return { ok: true, revision: rev }
+      this.kickCooldowns.set(actorKey, { cooldownId, expiresAt, authorityRank, revision: rev })
+      return { ok: true, revision: rev, cooldownId }
     } catch (err) {
       console.error('Lỗi lưu kick_cooldowns SQLite:', err)
       // Tuyệt đối không cập nhật in-memory Map nếu SQLite lỗi
@@ -1868,7 +1881,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private kiemTraKickCooldown(actorKey: string):
-    | { status: 'active'; expiresAt: number; remainingMs: number; authorityRank: number; revision: number }
+    | { status: 'active'; cooldownId: string; expiresAt: number; remainingMs: number; authorityRank: number; revision: number }
     | { status: 'inactive' }
     | { status: 'error'; message: string } {
     const now = Date.now()
@@ -1876,26 +1889,30 @@ export class RoomDO extends DurableObject<Env> {
       const rows = [
         ...this.ctx.storage.sql.exec<{
           actor_key: string
+          cooldown_id: string | null
           expires_at: number
-          authority_rank: number
+          authority_rank: number | null
           revision: number
         }>(
-          'SELECT actor_key, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
+          'SELECT actor_key, cooldown_id, expires_at, authority_rank, revision FROM kick_cooldowns WHERE actor_key = ?1',
           actorKey,
         ),
       ]
       if (rows.length > 0) {
         const row = rows[0]
         if (row.expires_at > now) {
-          const authRank = row.authority_rank ?? 1
+          const authRank = row.authority_rank ?? 3
           const rev = row.revision ?? 1
+          const cooldownId = row.cooldown_id || 'legacy'
           this.kickCooldowns.set(actorKey, {
+            cooldownId,
             expiresAt: row.expires_at,
             authorityRank: authRank,
             revision: rev,
           })
           return {
             status: 'active',
+            cooldownId,
             expiresAt: row.expires_at,
             remainingMs: row.expires_at - now,
             authorityRank: authRank,
@@ -1923,7 +1940,15 @@ export class RoomDO extends DurableObject<Env> {
     byActorName: string
     byActorKey: string
     authorityRank?: number
-  }): { ok: boolean; removed: boolean; absent?: boolean; message?: string; cooldownSaved?: boolean } {
+  }): {
+    ok: boolean
+    removed: boolean
+    absent?: boolean
+    message?: string
+    cooldownSaved: boolean
+    cooldownError?: string
+    cooldownId?: string
+  } {
     // 1. Luôn thiết lập durable cooldown 5 phút (300_000 ms) trong RoomDO SQLite
     const cooldownUntil = Date.now() + 5 * 60 * 1000
     const cdRes = this.luuKickCooldown(
@@ -1943,11 +1968,13 @@ export class RoomDO extends DurableObject<Env> {
 
     if (targetSockets.length === 0) {
       return {
-        ok: true,
+        ok: cdRes.ok,
         removed: false,
         absent: true,
         message: 'Thành viên không còn trong phòng.',
         cooldownSaved: cdRes.ok,
+        cooldownError: cdRes.ok ? undefined : cdRes.error,
+        cooldownId: cdRes.ok ? cdRes.cooldownId : undefined,
       }
     }
 
@@ -1977,7 +2004,14 @@ export class RoomDO extends DurableObject<Env> {
     // 5. Broadcast presence update to remaining members
     this.phatDanhSach()
 
-    return { ok: true, removed: true, cooldownSaved: cdRes.ok }
+    return {
+      ok: true,
+      removed: true,
+      absent: false,
+      cooldownSaved: cdRes.ok,
+      cooldownError: cdRes.ok ? undefined : cdRes.error,
+      cooldownId: cdRes.ok ? cdRes.cooldownId : undefined,
+    }
   }
 
   private async xuLyYeuCauNoiBo(request: Request, url: URL): Promise<Response> {
@@ -1996,6 +2030,7 @@ export class RoomDO extends DurableObject<Env> {
       return json({
         ok: true,
         active: cdResult.status === 'active',
+        cooldownId: cdResult.status === 'active' ? cdResult.cooldownId : null,
         expiresAt: cdResult.status === 'active' ? cdResult.expiresAt : null,
         remainingMs: cdResult.status === 'active' ? cdResult.remainingMs : 0,
         authorityRank: cdResult.status === 'active' ? cdResult.authorityRank : 0,
@@ -2026,7 +2061,7 @@ export class RoomDO extends DurableObject<Env> {
           }
           return json({ ok: false, message: 'Lỗi lưu cooldown' }, 500)
         }
-        return json({ ok: true, revision: res.revision })
+        return json({ ok: true, revision: res.revision, cooldownId: res.cooldownId })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }
@@ -2037,6 +2072,7 @@ export class RoomDO extends DurableObject<Env> {
         const body = (await request.json()) as {
           actorKey: string
           callerAuthorityRank?: number
+          expectedCooldownId?: string
           expectedRevision?: number
         }
         if (!body.actorKey) {
@@ -2063,7 +2099,17 @@ export class RoomDO extends DurableObject<Env> {
             )
           }
 
-          // Kiểm soát phiên bản (Optimistic Concurrency Control): Chống xóa nhầm cooldown mới hơn
+          // Kiểm soát định danh & phiên bản (Incarnation & OCC): Chống xóa nhầm cooldown mới hơn hoặc khác incarnation
+          if (body.expectedCooldownId != null && cdResult.cooldownId !== body.expectedCooldownId) {
+            return json(
+              {
+                ok: false,
+                error: 'stale_cooldown',
+                message: 'Thời gian chờ đã bị thay đổi bởi thao tác khác hoặc không còn tồn tại',
+              },
+              409,
+            )
+          }
           if (body.expectedRevision != null && cdResult.revision !== body.expectedRevision) {
             return json(
               {
@@ -2076,11 +2122,19 @@ export class RoomDO extends DurableObject<Env> {
           }
 
           try {
-            this.ctx.storage.sql.exec(
-              'DELETE FROM kick_cooldowns WHERE actor_key = ?1 AND revision = ?2',
-              body.actorKey,
-              cdResult.revision,
-            )
+            if (body.expectedCooldownId) {
+              this.ctx.storage.sql.exec(
+                'DELETE FROM kick_cooldowns WHERE actor_key = ?1 AND cooldown_id = ?2',
+                body.actorKey,
+                body.expectedCooldownId,
+              )
+            } else {
+              this.ctx.storage.sql.exec(
+                'DELETE FROM kick_cooldowns WHERE actor_key = ?1 AND revision = ?2',
+                body.actorKey,
+                cdResult.revision,
+              )
+            }
             this.kickCooldowns.delete(body.actorKey)
             return json({ ok: true, cleared: true })
           } catch (err) {
@@ -2089,15 +2143,21 @@ export class RoomDO extends DurableObject<Env> {
           }
         }
 
+        if (body.expectedCooldownId) {
+          return json(
+            {
+              ok: false,
+              error: 'not_found',
+              message: 'Thời gian chờ dự kiến không còn tồn tại',
+            },
+            409,
+          )
+        }
+
         return json({ ok: true, cleared: false, message: 'Không có cooldown hoạt động' })
       } catch {
         return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
       }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/internal/test/wipe-cache') {
-      this.kickCooldowns.clear()
-      return json({ ok: true, clearedMemory: true })
     }
 
     if (request.method === 'GET' && url.pathname === '/internal/voice/registry') {

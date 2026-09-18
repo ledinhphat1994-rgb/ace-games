@@ -84,7 +84,9 @@ async function luuPhongBan(
   reason: string,
   callerId: number,
   callerAuthorityRank: number,
-): Promise<{ ok: true; revision: number } | { ok: false; status: 403 | 500; error: string }> {
+  expectedBanId?: number,
+  expectedRevision?: number,
+): Promise<{ ok: true; revision: number; banId: number } | { ok: false; status: 403 | 409 | 500; error: string }> {
   try {
     const existing = await db.prepare(
       'SELECT id, ban_boi, authority_rank, revision FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
@@ -95,6 +97,23 @@ async function luuPhongBan(
     const nowMs = Date.now()
 
     if (existing) {
+      if (expectedBanId != null && existing.id !== expectedBanId) {
+        return {
+          ok: false,
+          status: 409,
+          error: 'Lệnh cấm đã bị thay đổi bởi thao tác khác hoặc không còn tồn tại.',
+        }
+      }
+
+      const prevRevision = existing.revision != null ? existing.revision : 1
+      if (expectedRevision != null && prevRevision !== expectedRevision) {
+        return {
+          ok: false,
+          status: 409,
+          error: 'Lệnh cấm đã bị thay đổi bởi thao tác khác.',
+        }
+      }
+
       // Bản ghi cũ thiếu authority_rank được xử lý an toàn (fail-closed) coi như cấp 3 (Admin)
       const existingRank = existing.authority_rank != null ? existing.authority_rank : 3
       if (callerAuthorityRank < existingRank) {
@@ -105,7 +124,7 @@ async function luuPhongBan(
         }
       }
 
-      const prevRevision = existing.revision != null ? existing.revision : 1
+      // Ràng buộc chính xác theo ID bản ghi và revision (ngăn chặn hoàn toàn ABA race qua delete & recreate)
       const updateRes = await db.prepare(
         `UPDATE phong_ban
          SET ly_do = ?3,
@@ -113,36 +132,46 @@ async function luuPhongBan(
              authority_rank = ?5,
              revision = revision + 1,
              updated_at = ?6
-         WHERE phong_id = ?1 AND tai_khoan_id = ?2 AND (revision = ?7 OR revision IS NULL)`,
+         WHERE id = ?1 AND (revision = ?2 OR revision IS NULL)`,
       )
-        .bind(phongId, targetAccountId, reason, callerId, callerAuthorityRank, nowMs, prevRevision)
+        .bind(existing.id, prevRevision, reason, callerId, callerAuthorityRank, nowMs)
         .run()
 
       if (updateRes.meta.changes === 0) {
         return {
           ok: false,
-          status: 403,
-          error: 'Lệnh cấm đã bị thay đổi đồng thời bởi một thao tác khác.',
+          status: 409,
+          error: 'Lệnh cấm đã bị thay đổi đồng thời bởi một thao tác khác hoặc không còn tồn tại.',
         }
       }
 
-      return { ok: true, revision: prevRevision + 1 }
+      return { ok: true, revision: prevRevision + 1, banId: existing.id }
     } else {
+      if (expectedBanId != null) {
+        return {
+          ok: false,
+          status: 409,
+          error: 'Lệnh cấm dự kiến không còn tồn tại.',
+        }
+      }
       try {
-        await db.prepare(
+        const insertRes = await db.prepare(
           `INSERT INTO phong_ban (phong_id, tai_khoan_id, ly_do, ban_boi, authority_rank, revision, updated_at, tao_luc)
-           VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, datetime('now'))`,
+           VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, datetime('now'))
+           RETURNING id`,
         )
           .bind(phongId, targetAccountId, reason, callerId, callerAuthorityRank, nowMs)
-          .run()
-        return { ok: true, revision: 1 }
+          .first<{ id: number }>()
+
+        const newId = insertRes?.id ?? 0
+        return { ok: true, revision: 1, banId: newId }
       } catch (insertErr) {
         // Kiểm tra trường hợp race condition ghi đè trùng lặp đồng thời
         const raceExisting = await db.prepare(
-          'SELECT authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
+          'SELECT id, authority_rank FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
         )
           .bind(phongId, targetAccountId)
-          .first<{ authority_rank: number | null }>()
+          .first<{ id: number; authority_rank: number | null }>()
 
         if (raceExisting) {
           const raceRank = raceExisting.authority_rank != null ? raceExisting.authority_rank : 3
@@ -152,6 +181,11 @@ async function luuPhongBan(
               status: 403,
               error: 'Không thể ghi đè lệnh cấm của cấp có thẩm quyền cao hơn.',
             }
+          }
+          return {
+            ok: false,
+            status: 409,
+            error: 'Lệnh cấm đã bị thay đổi đồng thời bởi một thao tác khác.',
           }
         }
         throw insertErr
@@ -260,6 +294,8 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
     absent?: boolean
     message?: string
     cooldownSaved?: boolean
+    cooldownError?: string
+    cooldownId?: string
   }
   let kickJson: RoomKickInternalResponse | null = null
   let kickOk = false
@@ -332,6 +368,69 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
 
   const isRemoved = Boolean(kickJson?.removed)
   const isAbsent = Boolean(kickJson?.absent)
+  const cooldownSaved = Boolean(kickJson?.cooldownSaved)
+
+  if (!cooldownSaved) {
+    if (banPersisted) {
+      await ghiAuditLog(c.env, {
+        actorId: gate.taiKhoan.id,
+        targetId: targetAccountId,
+        roomId: phongId,
+        action: 'kick',
+        reason,
+        metadata: {
+          targetActorKey,
+          banFromRoom: true,
+          authorityRank: modQuyen.authorityRank,
+          role: gate.taiKhoan.role,
+          removed: isRemoved,
+          absent: isAbsent,
+          cooldownSaved: false,
+          partial: true,
+        },
+      })
+      return c.json({
+        ok: true,
+        kicked: isRemoved,
+        absent: isAbsent,
+        banned: true,
+        cooldownSaved: false,
+        partial: true,
+        liveRemovalError: isRemoved ? undefined : 'Lỗi ngắt kết nối trực tiếp',
+        cooldownError: kickJson?.cooldownError || 'Không thể lưu thời gian chờ vào bộ lưu trữ.',
+        message: 'Đã lưu lệnh cấm nhưng không thể lưu thời gian chờ vào bộ lưu trữ.',
+      })
+    } else if (isRemoved) {
+      await ghiAuditLog(c.env, {
+        actorId: gate.taiKhoan.id,
+        targetId: targetAccountId,
+        roomId: phongId,
+        action: 'kick',
+        reason,
+        metadata: {
+          targetActorKey,
+          banFromRoom: false,
+          authorityRank: modQuyen.authorityRank,
+          role: gate.taiKhoan.role,
+          removed: true,
+          cooldownSaved: false,
+          partial: true,
+        },
+      })
+      return c.json({
+        ok: true,
+        kicked: true,
+        absent: false,
+        banned: false,
+        cooldownSaved: false,
+        partial: true,
+        cooldownError: kickJson?.cooldownError || 'Không thể lưu thời gian chờ vào bộ lưu trữ.',
+        message: 'Đã mời thành viên ra khỏi phòng nhưng không thể lưu thời gian chờ.',
+      })
+    } else {
+      return loi('Không thể lưu thời gian chờ vào bộ lưu trữ.', 500)
+    }
+  }
 
   // Ghi audit log hành động kick kèm role/rank snapshot
   await ghiAuditLog(c.env, {
@@ -347,6 +446,7 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
       role: gate.taiKhoan.role,
       removed: isRemoved,
       absent: isAbsent,
+      cooldownSaved: true,
     },
   })
 
@@ -356,6 +456,7 @@ export async function kickMemberFromRoom(c: Context<{ Bindings: Env }>): Promise
     kicked: isRemoved,
     absent: isAbsent,
     banned: Boolean(banFromRoom),
+    cooldownSaved: true,
     message: isAbsent ? 'Thành viên không còn trong phòng.' : undefined,
   })
 }
@@ -389,7 +490,7 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     return loi(parsed.error.issues[0]?.message || 'Dữ liệu không hợp lệ.', 400)
   }
 
-  const { targetAccountId, reason } = parsed.data
+  const { targetAccountId, reason, expectedBanId, expectedRevision } = parsed.data
 
   if (targetAccountId === gate.taiKhoan.id) {
     return loi('Không thể tự cấm chính mình.', 400)
@@ -412,6 +513,8 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     reason || 'Bị cấm bởi người điều hành',
     gate.taiKhoan.id,
     modQuyen.authorityRank,
+    expectedBanId,
+    expectedRevision,
   )
   if (!banRes.ok) {
     return loi(banRes.error, banRes.status)
@@ -421,6 +524,8 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
   let removedFromLiveSession = false
   let liveSessionAbsent = false
   let liveRemovalError: string | null = null
+  let cooldownSaved = false
+  let cooldownError: string | null = null
 
   const doId = c.env.ROOMS.idFromName('phong-' + phongId)
   const roomStub = c.env.ROOMS.get(doId)
@@ -443,25 +548,29 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
       removed?: boolean
       absent?: boolean
       message?: string
+      cooldownSaved?: boolean
+      cooldownError?: string
     } | null
 
     if (!kickRes.ok) {
       liveRemovalError = `Lỗi máy chủ phòng (HTTP ${kickRes.status})`
     } else if (!kickJson || typeof kickJson.ok !== 'boolean') {
       liveRemovalError = 'Phản hồi từ máy chủ phòng không hợp lệ'
-    } else if (!kickJson.ok) {
+    } else if (!kickJson.ok && !kickJson.removed && !kickJson.absent) {
       liveRemovalError = kickJson.message || 'Không thể ngắt kết nối trực tiếp'
-    } else if (kickJson.removed) {
-      removedFromLiveSession = true
-    } else if (kickJson.absent) {
-      liveSessionAbsent = true
+    } else {
+      if (kickJson.removed) removedFromLiveSession = true
+      if (kickJson.absent) liveSessionAbsent = true
     }
+    cooldownSaved = kickJson ? Boolean(kickJson.cooldownSaved) : false
+    cooldownError = kickJson?.cooldownError ?? null
   } catch (err) {
     console.warn('Lưu ý: Không thể ngắt kết nối trực tiếp mục tiêu (RoomDO offline hoặc không phản hồi):', err)
     liveRemovalError = 'Lỗi gửi lệnh ngắt kết nối trực tiếp'
+    cooldownError = 'Không thể kết nối máy chủ phòng để lưu thời gian chờ'
   }
 
-  const isPartial = Boolean(liveRemovalError)
+  const isPartial = Boolean(liveRemovalError || (!cooldownSaved && !liveSessionAbsent))
 
   await ghiAuditLog(c.env, {
     actorId: gate.taiKhoan.id,
@@ -473,9 +582,12 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
       authorityRank: modQuyen.authorityRank,
       role: gate.taiKhoan.role,
       revision: banRes.revision,
+      banId: banRes.banId,
       removedFromLiveSession,
       liveSessionAbsent,
       liveRemovalError,
+      cooldownSaved,
+      cooldownError,
       partial: isPartial,
     },
   })
@@ -484,11 +596,17 @@ export async function banMemberFromRoom(c: Context<{ Bindings: Env }>): Promise<
     ok: true,
     banned: true,
     revision: banRes.revision,
+    banId: banRes.banId,
     removedFromLiveSession,
     targetWasPresent: removedFromLiveSession,
     absent: liveSessionAbsent,
     liveRemovalError: liveRemovalError ?? undefined,
+    cooldownSaved,
+    cooldownError: cooldownError ?? (cooldownSaved ? undefined : 'Không thể lưu thời gian chờ vào bộ lưu trữ.'),
     partial: isPartial,
+    message: isPartial
+      ? 'Đã lưu lệnh cấm vĩnh viễn nhưng một số tác vụ phòng gặp lỗi.'
+      : undefined,
   })
 }
 
@@ -509,7 +627,12 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('Bạn không có quyền gỡ cấm cho phòng này.', 403)
   }
 
-  let body: { targetAccountId?: number }
+  let body: {
+    targetAccountId?: number
+    expectedBanId?: number
+    expectedRevision?: number
+    expectedCooldownId?: string
+  }
   try {
     body = await c.req.json()
   } catch {
@@ -521,6 +644,10 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('ID tài khoản không hợp lệ.', 400)
   }
 
+  const expectedBanId = body.expectedBanId != null ? Number(body.expectedBanId) : undefined
+  const expectedRevision = body.expectedRevision != null ? Number(body.expectedRevision) : undefined
+  const expectedCooldownId = body.expectedCooldownId?.trim() || undefined
+
   // 1. Fetch ban record to determine banning actor, authority rank, and revision
   const banRecord = await c.env.DB.prepare(
     'SELECT id, ban_boi, authority_rank, revision FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2',
@@ -529,79 +656,117 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     .first<{ id: number; ban_boi: number | null; authority_rank: number | null; revision: number | null }>()
 
   if (!banRecord) {
-    // Nếu không nằm trong phong_ban, kiểm tra xem có kick cooldown trong RoomDO để ân xá sớm không
-    try {
-      const doId = c.env.ROOMS.idFromName('phong-' + phongId)
-      const roomStub = c.env.ROOMS.get(doId)
-      const cdRes = await roomStub.fetch(
-        `http://internal/internal/moderation/cooldown?actorKey=acc:${targetAccountId}`,
-      )
-      if (cdRes.ok) {
-        const cdData = (await cdRes.json().catch(() => null)) as {
-          ok?: boolean
-          active?: boolean
-          authorityRank?: number
-          revision?: number
-        } | null
-
-        if (cdData?.active) {
-          const cooldownRank = cdData.authorityRank ?? 1
-          if (modQuyen.authorityRank < cooldownRank) {
-            if (cooldownRank === 3) {
-              return loi('Thời gian chờ này được thiết lập bởi Quản trị viên trường. Chỉ Quản trị viên mới có quyền gỡ bỏ.', 403)
-            }
-            if (cooldownRank === 2) {
-              return loi('Thời gian chờ này được thiết lập bởi Giáo viên. Chủ phòng không có quyền gỡ bỏ.', 403)
-            }
-            return loi('Bạn không có đủ thẩm quyền để gỡ bỏ thời gian chờ này.', 403)
-          }
-
-          const clearRes = await roomStub.fetch(
-            new Request('http://internal/internal/moderation/cooldown/clear', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                actorKey: `acc:${targetAccountId}`,
-                callerAuthorityRank: modQuyen.authorityRank,
-                expectedRevision: cdData.revision,
-              }),
-            }),
-          )
-          const clearJson = (await clearRes.json().catch(() => null)) as {
-            ok?: boolean
-            error?: string
-            message?: string
-          } | null
-
-          if (!clearRes.ok || !clearJson?.ok) {
-            if (clearRes.status === 403) {
-              return loi('Bạn không có đủ thẩm quyền để gỡ bỏ thời gian chờ này.', 403)
-            }
-            if (clearRes.status === 409) {
-              return loi('Thời gian chờ đã bị thay đổi hoặc đã hết hạn.', 409)
-            }
-            return loi('Không thể gỡ bỏ thời gian chờ.', 500)
-          }
-
-          await ghiAuditLog(c.env, {
-            actorId: gate.taiKhoan.id,
-            targetId: targetAccountId,
-            roomId: phongId,
-            action: 'unban',
-            metadata: {
-              authorityRank: modQuyen.authorityRank,
-              role: gate.taiKhoan.role,
-              type: 'cooldown_cleared',
-            },
-          })
-          return c.json({ ok: true, unbanned: true, cooldownCleared: true })
-        }
-      }
-    } catch (err) {
-      console.warn('Lỗi kiểm tra cooldown khi unban:', err)
+    // Nếu có expectedBanId nhưng không có banRecord trong D1 -> Lệnh cấm dự kiến không còn tồn tại
+    if (expectedBanId != null) {
+      return loi('Lệnh cấm dự kiến không còn tồn tại.', 409)
     }
 
-    return loi('Thành viên này không nằm trong danh sách cấm.', 404)
+    // Nếu không nằm trong phong_ban, kiểm tra xem có kick cooldown trong RoomDO để ân xá sớm không
+    const doId = c.env.ROOMS.idFromName('phong-' + phongId)
+    const roomStub = c.env.ROOMS.get(doId)
+    let cdRes: Response
+    try {
+      cdRes = await roomStub.fetch(
+        `http://internal/internal/moderation/cooldown?actorKey=acc:${targetAccountId}`,
+      )
+    } catch (err) {
+      console.error('Lỗi kết nối kiểm tra cooldown khi unban:', err)
+      return loi('Không thể kết nối máy chủ phòng để kiểm tra thời gian chờ.', 503)
+    }
+
+    if (!cdRes.ok) {
+      return loi(`Không thể kiểm tra trạng thái thời gian chờ (HTTP ${cdRes.status}).`, 503)
+    }
+
+    const cdData = (await cdRes.json().catch(() => null)) as {
+      ok?: boolean
+      active?: boolean
+      cooldownId?: string | null
+      authorityRank?: number
+      revision?: number
+    } | null
+
+    if (!cdData || cdData.ok !== true || typeof cdData.active !== 'boolean') {
+      return loi('Dữ liệu trạng thái thời gian chờ không hợp lệ.', 503)
+    }
+
+    if (!cdData.active || !cdData.cooldownId) {
+      return loi('Thành viên này không nằm trong danh sách cấm hoặc thời gian chờ.', 404)
+    }
+
+    if (expectedCooldownId && cdData.cooldownId !== expectedCooldownId) {
+      return loi('Thời gian chờ đã bị thay đổi bởi thao tác khác hoặc không còn tồn tại.', 409)
+    }
+    if (expectedRevision != null && cdData.revision !== expectedRevision) {
+      return loi('Thời gian chờ đã bị thay đổi bởi thao tác khác.', 409)
+    }
+
+    const cooldownRank = cdData.authorityRank ?? 3
+    if (modQuyen.authorityRank < cooldownRank) {
+      if (cooldownRank === 3) {
+        return loi('Thời gian chờ này được thiết lập bởi Quản trị viên trường. Chỉ Quản trị viên mới có quyền gỡ bỏ.', 403)
+      }
+      if (cooldownRank === 2) {
+        return loi('Thời gian chờ này được thiết lập bởi Giáo viên. Chủ phòng không có quyền gỡ bỏ.', 403)
+      }
+      return loi('Bạn không có đủ thẩm quyền để gỡ bỏ thời gian chờ này.', 403)
+    }
+
+    try {
+      const clearRes = await roomStub.fetch(
+        new Request('http://internal/internal/moderation/cooldown/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actorKey: `acc:${targetAccountId}`,
+            callerAuthorityRank: modQuyen.authorityRank,
+            expectedCooldownId: cdData.cooldownId,
+            expectedRevision: cdData.revision,
+          }),
+        }),
+      )
+      const clearJson = (await clearRes.json().catch(() => null)) as {
+        ok?: boolean
+        cleared?: boolean
+        error?: string
+        message?: string
+      } | null
+
+      if (clearRes.status === 403) {
+        return loi('Bạn không có đủ thẩm quyền để gỡ bỏ thời gian chờ này.', 403)
+      }
+      if (clearRes.status === 409) {
+        return loi('Thời gian chờ đã bị thay đổi hoặc không còn tồn tại.', 409)
+      }
+      if (!clearRes.ok || !clearJson || clearJson.ok !== true || clearJson.cleared !== true) {
+        return loi(clearJson?.message || 'Không thể gỡ bỏ thời gian chờ.', 500)
+      }
+
+      await ghiAuditLog(c.env, {
+        actorId: gate.taiKhoan.id,
+        targetId: targetAccountId,
+        roomId: phongId,
+        action: 'unban',
+        metadata: {
+          authorityRank: modQuyen.authorityRank,
+          role: gate.taiKhoan.role,
+          type: 'cooldown_cleared',
+          cooldownId: cdData.cooldownId,
+        },
+      })
+      return c.json({ ok: true, unbanned: true, cooldownCleared: true, partial: false })
+    } catch (err) {
+      console.error('Lỗi khi gửi RPC xóa cooldown:', err)
+      return loi('Lỗi kết nối khi gỡ thời gian chờ.', 500)
+    }
+  }
+
+  // Kiểm tra Optimistic Concurrency Control trên ban record trước
+  if (expectedBanId != null && banRecord.id !== expectedBanId) {
+    return loi('Lệnh cấm đã bị thay đổi bởi thao tác khác hoặc không còn tồn tại.', 409)
+  }
+  if (expectedRevision != null && banRecord.revision !== expectedRevision) {
+    return loi('Lệnh cấm đã bị thay đổi bởi thao tác khác.', 409)
   }
 
   // 2. Xác định cấp thẩm quyền hiệu lực tại thời điểm cấm (không tái lập từ role hiện tại của tài khoản)
@@ -619,14 +784,53 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('Bạn không có đủ thẩm quyền để gỡ lệnh cấm này.', 403)
   }
 
-  // 4. Xóa ban record có điều kiện chính xác theo phiên bản đã được duyệt (Optimistic Concurrency Control)
+  // 4. BẮT BUỘC: Thu thập danh tính cooldown hiện tại TRƯỚC khi thực hiện tác vụ bất đồng bộ xóa D1
+  // Ngăn ngừa xóa nhầm cooldown mới hơn được tạo sau đó
+  let targetCooldownId: string | null = null
+  let targetCooldownRevision: number | null = null
+  let cooldownLookupError: string | null = null
+
+  const doId = c.env.ROOMS.idFromName('phong-' + phongId)
+  const roomStub = c.env.ROOMS.get(doId)
+  try {
+    const cdRes = await roomStub.fetch(
+      `http://internal/internal/moderation/cooldown?actorKey=acc:${targetAccountId}`,
+    )
+    if (cdRes.ok) {
+      const cdData = (await cdRes.json().catch(() => null)) as {
+        ok?: boolean
+        active?: boolean
+        cooldownId?: string | null
+        authorityRank?: number
+        revision?: number
+      } | null
+      if (cdData && cdData.ok === true && typeof cdData.active === 'boolean') {
+        if (cdData.active && cdData.cooldownId) {
+          const cdRank = cdData.authorityRank ?? 3
+          if (modQuyen.authorityRank < cdRank) {
+            return loi('Không có đủ thẩm quyền để gỡ bỏ thời gian chờ của thành viên này.', 403)
+          }
+          targetCooldownId = cdData.cooldownId
+          targetCooldownRevision = cdData.revision ?? null
+        }
+      } else {
+        cooldownLookupError = 'Phản hồi kiểm tra thời gian chờ không hợp lệ'
+      }
+    } else {
+      cooldownLookupError = `Không thể kết nối máy chủ phòng (HTTP ${cdRes.status})`
+    }
+  } catch (err) {
+    cooldownLookupError = 'Lỗi kết nối kiểm tra thời gian chờ'
+  }
+
+  // 5. Xóa ban record có điều kiện chính xác theo ID bản ghi và phiên bản đã được duyệt (OCC & Restriction Identity)
   const targetRevision = banRecord.revision != null ? banRecord.revision : 1
   try {
     const res = await c.env.DB.prepare(
       `DELETE FROM phong_ban
-       WHERE phong_id = ?1 AND tai_khoan_id = ?2 AND (revision = ?3 OR revision IS NULL)`,
+       WHERE id = ?1 AND (revision = ?2 OR revision IS NULL)`,
     )
-      .bind(phongId, targetAccountId, targetRevision)
+      .bind(banRecord.id, targetRevision)
       .run()
 
     if (res.meta.changes === 0) {
@@ -637,34 +841,43 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
     return loi('Lỗi khi gỡ cấm phòng.', 500)
   }
 
-  // 5. Xóa kick cooldown trong RoomDO (nếu có)
-  // Bảo vệ authority: Cấp người gỡ được gửi sang để RoomDO từ chối nếu cooldown có cấp cao hơn
+  // 6. Xóa kick cooldown trong RoomDO CHỈ KHI đã xác định được targetCooldownId ban đầu
   let cooldownCleared = false
-  let cooldownClearError: string | null = null
-  try {
-    const doId = c.env.ROOMS.idFromName('phong-' + phongId)
-    const roomStub = c.env.ROOMS.get(doId)
-    const clearRes = await roomStub.fetch(
-      new Request('http://internal/internal/moderation/cooldown/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          actorKey: `acc:${targetAccountId}`,
-          callerAuthorityRank: modQuyen.authorityRank,
+  let cooldownClearError: string | null = cooldownLookupError
+
+  if (targetCooldownId) {
+    try {
+      const clearRes = await roomStub.fetch(
+        new Request('http://internal/internal/moderation/cooldown/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actorKey: `acc:${targetAccountId}`,
+            callerAuthorityRank: modQuyen.authorityRank,
+            expectedCooldownId: targetCooldownId,
+            expectedRevision: targetCooldownRevision,
+          }),
         }),
-      }),
-    )
-    if (clearRes.ok) {
-      const clearJson = (await clearRes.json().catch(() => null)) as { ok?: boolean; cleared?: boolean } | null
-      cooldownCleared = Boolean(clearJson?.cleared)
-    } else {
-      cooldownClearError = `HTTP ${clearRes.status}`
-      console.warn('Lưu ý: Không thể xóa cooldown trong RoomDO khi unban:', clearRes.status)
+      )
+      const clearJson = (await clearRes.json().catch(() => null)) as {
+        ok?: boolean
+        cleared?: boolean
+        error?: string
+        message?: string
+      } | null
+
+      if (clearRes.ok && clearJson && clearJson.ok === true && clearJson.cleared === true) {
+        cooldownCleared = true
+        cooldownClearError = null
+      } else {
+        cooldownClearError = clearJson?.message || `Lỗi xóa thời gian chờ (HTTP ${clearRes.status})`
+      }
+    } catch (err) {
+      cooldownClearError = 'Lỗi kết nối khi xóa thời gian chờ'
     }
-  } catch (err) {
-    cooldownClearError = 'RPC error'
-    console.warn('Lỗi RPC xóa cooldown trong RoomDO:', err)
   }
+
+  const isPartial = Boolean(cooldownClearError)
 
   await ghiAuditLog(c.env, {
     actorId: gate.taiKhoan.id,
@@ -677,12 +890,23 @@ export async function unbanMemberFromRoom(c: Context<{ Bindings: Env }>): Promis
       bannerId: banRecord.ban_boi,
       bannerRank,
       revision: targetRevision,
+      banId: banRecord.id,
       cooldownCleared,
       cooldownClearError,
+      partial: isPartial,
     },
   })
 
-  return c.json({ ok: true, unbanned: true, cooldownCleared })
+  return c.json({
+    ok: true,
+    unbanned: true,
+    cooldownCleared,
+    cooldownClearError: cooldownClearError ?? undefined,
+    partial: isPartial,
+    message: isPartial
+      ? 'Đã gỡ lệnh cấm vĩnh viễn nhưng không thể gỡ thời gian chờ tạm thời.'
+      : undefined,
+  })
 }
 
 /**
