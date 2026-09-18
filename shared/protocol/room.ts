@@ -232,6 +232,7 @@ export type GoiPhong =
   | { type: 'voice.updated'; participant: VoiceParticipantState }
   | { type: 'voice.removed'; actorKey: string }
   | { type: 'voice.force_muted'; targetKey: string; by: string }
+  | { type: 'room.kicked'; targetKey: string; reason?: string; by: string }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }
@@ -251,4 +252,51 @@ export interface VoiceForceMuteResponse {
   targetKey: string
   audioTrackId: string
   generation: number
+}
+
+// ── Moderation & Safety v1 Schemas ──────────────────────────────────────────
+
+export const REPORT_CATEGORIES = [
+  'harassment',
+  'spam',
+  'inappropriate_content',
+  'cheating',
+  'disruptive',
+  'other',
+] as const
+export type ReportCategory = (typeof REPORT_CATEGORIES)[number]
+
+export const ReportPayloadSchema = z.object({
+  reportedAccountId: z.number().int().positive().optional(),
+  roomId: z.number().int().positive().optional(),
+  category: z.enum(REPORT_CATEGORIES),
+  reason: z.string().trim().min(1, 'Vui lòng nhập lý do báo cáo').max(1000, 'Lý do tối đa 1000 ký tự'),
+  contentSnippet: z.string().max(2000).optional(),
+})
+export type ReportPayload = z.infer<typeof ReportPayloadSchema>
+
+export const RoomKickPayloadSchema = z.object({
+  targetActorKey: z.string().min(1).max(64),
+  reason: z.string().trim().max(200).optional(),
+  banFromRoom: z.boolean().optional(),
+})
+export type RoomKickPayload = z.infer<typeof RoomKickPayloadSchema>
+
+export const RoomBanPayloadSchema = z.object({
+  targetAccountId: z.number().int().positive(),
+  reason: z.string().trim().max(200).optional(),
+})
+export type RoomBanPayload = z.infer<typeof RoomBanPayloadSchema>
+
+export type AuditLogAction = 'kick' | 'ban' | 'unban' | 'voice_mute' | 'report_resolved'
+
+export interface BannedMemberItem {
+  id: number
+  accountId: number
+  username: string
+  displayName: string
+  reason: string | null
+  bannedBy: number | null
+  bannedByName: string | null
+  createdAt: string
 }

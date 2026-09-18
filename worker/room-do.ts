@@ -31,7 +31,7 @@ import {
   kiemTraVaLatReversi,
   taoBanMoi,
 } from './game-engine'
-import { lamSachVanBan } from '../shared/protocol/common'
+import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
 
 interface AttachmentKetNoi {
   key: string
@@ -105,6 +105,7 @@ export class RoomDO extends DurableObject<Env> {
   private voiceRegistry = new Map<string, VoiceParticipantState>()
   private voiceGeneration = new Map<string, number>()
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
+  private kickCooldowns = new Map<string, number>()
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -466,6 +467,23 @@ export class RoomDO extends DurableObject<Env> {
     const lopId = lopIdStr ? parseInt(lopIdStr, 10) || null : null
 
     this.nạpDuLieuNeuCan()
+
+    // ── Kick Cooldown Gate (server-authoritative) ──
+    const cooldownUntil = this.kickCooldowns.get(key)
+    if (cooldownUntil && Date.now() < cooldownUntil) {
+      const remainingSec = Math.ceil((cooldownUntil - Date.now()) / 1000)
+      return new Response(
+        JSON.stringify({
+          type: 'error',
+          code: 'kicked_cooldown',
+          message: `Bạn vừa bị mời ra khỏi phòng. Vui lòng chờ ${remainingSec} giây trước khi vào lại.`,
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     // ── Capacity Gate (server-authoritative, unique actor) ──
     // Cho phép cùng một actor mở nhiều tab mà không tốn thêm slot.
@@ -1756,6 +1774,53 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
+  kickMemberInternal(params: {
+    targetActorKey: string
+    reason?: string
+    byActorName: string
+    byActorKey: string
+  }): { ok: boolean; message?: string } {
+    const targetSockets = this.ctx.getWebSockets().filter((ws) => {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      return a?.key === params.targetActorKey
+    })
+
+    if (targetSockets.length === 0) {
+      return { ok: false, message: 'Thành viên không còn trong phòng.' }
+    }
+
+    // 1. Force mute if target has voice publication
+    try {
+      this.forceMute({
+        targetActorKey: params.targetActorKey,
+        byActorName: params.byActorName,
+      })
+    } catch {}
+
+    // 2. Set cooldown for 5 minutes (300_000 ms)
+    this.kickCooldowns.set(params.targetActorKey, Date.now() + 5 * 60 * 1000)
+
+    // 3. Broadcast room.kicked packet to all connected sockets
+    this.broadcast({
+      type: 'room.kicked',
+      targetKey: params.targetActorKey,
+      reason: params.reason || undefined,
+      by: params.byActorName,
+    })
+
+    // 4. Close all target sockets with close code 4003 (BI_CHAN)
+    for (const ws of targetSockets) {
+      try {
+        ws.close(MA_DONG_SOCKET.BI_CHAN, params.reason || 'Bị mời ra khỏi phòng')
+      } catch {}
+    }
+
+    // 5. Broadcast presence update to remaining members
+    this.phatDanhSach()
+
+    return { ok: true }
+  }
+
   private async xuLyYeuCauNoiBo(request: Request, url: URL): Promise<Response> {
     const json = (data: unknown, status = 200) =>
       new Response(JSON.stringify(data), {
@@ -1770,6 +1835,24 @@ export class RoomDO extends DurableObject<Env> {
     if (request.method === 'GET' && url.pathname === '/internal/voice/has-connected-actor') {
       const actorKey = url.searchParams.get('actorKey') || ''
       return json({ ok: true, hasConnected: this.hasConnectedActor(actorKey) })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/moderation/kick') {
+      try {
+        const body = (await request.json()) as {
+          targetActorKey: string
+          reason?: string
+          byActorName: string
+          byActorKey: string
+        }
+        if (!body.targetActorKey) {
+          return json({ ok: false, message: 'Thiếu targetActorKey' }, 400)
+        }
+        const result = this.kickMemberInternal(body)
+        return json(result)
+      } catch {
+        return json({ ok: false, message: 'Dữ liệu không hợp lệ' }, 400)
+      }
     }
 
     if (request.method === 'POST' && url.pathname === '/internal/voice/generation/issue') {
