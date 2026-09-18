@@ -358,27 +358,29 @@ socialApp.post('/request', async (c) => {
     .bind(myId, targetId, now)
     .first<{ id: number }>()
 
-  const requestId = insertRes?.id
+  if (!insertRes?.id) {
+    return c.json({ ok: false, loi: 'Đã gửi lời mời trước đó.' }, 409)
+  }
+
+  const requestId = insertRes.id
 
   // Báo CampusDO gửi realtime push tới người nhận
-  if (requestId) {
-    await thongBaoCampusDO(c.env, {
-      type: 'social.request_received',
-      receiverId: targetId,
-      request: {
-        id: requestId,
-        createdAt: now,
-        sender: {
-          id: myId,
-          username: kq.taiKhoan.username,
-          displayName: kq.taiKhoan.ten || kq.taiKhoan.username,
-          avatar: kq.taiKhoan.avatar,
-          role: kq.taiKhoan.role,
-          lopTen: null,
-        },
+  await thongBaoCampusDO(c.env, {
+    type: 'social.request_received',
+    receiverId: targetId,
+    request: {
+      id: requestId,
+      createdAt: now,
+      sender: {
+        id: myId,
+        username: kq.taiKhoan.username,
+        displayName: kq.taiKhoan.ten || kq.taiKhoan.username,
+        avatar: kq.taiKhoan.avatar,
+        role: kq.taiKhoan.role,
+        lopTen: null,
       },
-    })
-  }
+    },
+  })
 
   return c.json({ ok: true, requestId })
 })

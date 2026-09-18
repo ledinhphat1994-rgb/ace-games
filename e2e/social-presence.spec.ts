@@ -39,45 +39,44 @@ async function login(page: Page, user: { username: string; password: string }) {
 
 /** Reset any existing relationship between A and B via direct authenticated API */
 async function resetSocialRelationship(pageA: Page, pageB: Page) {
-  await pageA.evaluate(async (targetUsername) => {
-    try {
-      const searchRes = await fetch(`/api/social/search?q=${targetUsername}`)
-      const searchData = await searchRes.json()
-      const target = searchData.results?.find((r: { username: string }) => r.username === targetUsername)
-      if (target) {
-        await fetch('/api/social/unblock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetAccountId: target.id }),
-        })
-        await fetch('/api/social/unfriend', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ friendAccountId: target.id }),
-        })
-      }
-    } catch {}
-  }, USER_B.username)
-
-  await pageB.evaluate(async (targetUsername) => {
-    try {
-      const searchRes = await fetch(`/api/social/search?q=${targetUsername}`)
-      const searchData = await searchRes.json()
-      const target = searchData.results?.find((r: { username: string }) => r.username === targetUsername)
-      if (target) {
-        await fetch('/api/social/unblock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetAccountId: target.id }),
-        })
-        await fetch('/api/social/unfriend', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ friendAccountId: target.id }),
-        })
-      }
-    } catch {}
-  }, USER_A.username)
+  for (const page of [pageA, pageB]) {
+    await page.evaluate(async () => {
+      try {
+        const stateRes = await fetch('/api/social/state')
+        const stateData = await stateRes.json()
+        if (stateData.ok && stateData.state) {
+          for (const req of stateData.state.incomingRequests || []) {
+            await fetch('/api/social/reject', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ requestId: req.id }),
+            })
+          }
+          for (const req of stateData.state.outgoingRequests || []) {
+            await fetch('/api/social/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ requestId: req.id }),
+            })
+          }
+          for (const f of stateData.state.friends || []) {
+            await fetch('/api/social/unfriend', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ friendAccountId: f.id }),
+            })
+          }
+          for (const b of stateData.state.blockedUsers || []) {
+            await fetch('/api/social/unblock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetAccountId: b.id }),
+            })
+          }
+        }
+      } catch {}
+    })
+  }
 }
 
 test.describe('Digital Campus v2 — Campus Presence & Social Layer v1 Acceptance Suite', () => {
