@@ -34,7 +34,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-watch',
-      testMatch: /study-collaboration\.spec\.ts|watch-together\.spec\.ts|smoke\.spec\.ts|social-presence\.spec\.ts|room-discovery\.spec\.ts/,
+      testMatch: /study-collaboration\.spec\.ts|watch-together\.spec\.ts|smoke\.spec\.ts|social-presence\.spec\.ts|room-discovery\.spec\.ts|moderation\.spec\.ts/,
       testIgnore: /watch-autoplay\.spec\.ts|voice-webrtc\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],

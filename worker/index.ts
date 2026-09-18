@@ -42,6 +42,16 @@ import {
   taoVoiceSession,
 } from './routes/voice-api'
 import { socialApp } from './routes/social'
+import {
+  kickMemberFromRoom,
+  banMemberFromRoom,
+  unbanMemberFromRoom,
+  listBannedMembers,
+  createReport,
+  listReports,
+  resolveReport,
+  listAuditLogs,
+} from './routes/moderation-api'
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
@@ -614,6 +624,16 @@ app.post('/api/rooms/:id/voice/close-track', dongTrackVoice)
 app.post('/api/rooms/:id/voice/force-mute', forceMuteVoice)
 app.get('/api/rooms/:id/voice/registry', layVoiceRegistry)
 app.all('/api/rooms/:id/voice/*', saiPhuongThuc)
+
+// ── Moderation & Safety API ──
+app.post('/api/rooms/:id/kick', kickMemberFromRoom)
+app.post('/api/rooms/:id/ban', banMemberFromRoom)
+app.post('/api/rooms/:id/unban', unbanMemberFromRoom)
+app.get('/api/rooms/:id/banned-members', listBannedMembers)
+app.post('/api/reports', createReport)
+app.get('/api/reports', listReports)
+app.post('/api/reports/:id/resolve', resolveReport)
+app.get('/api/moderation/audit-logs', listAuditLogs)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth routes

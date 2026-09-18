@@ -6,10 +6,12 @@ import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/pr
 import {
   AlertCircle,
   ArrowLeft,
+  Ban,
   Calculator as CalcIcon,
   Crown,
   Eraser,
   FileText,
+  Flag,
   Loader2,
   Mic,
   MicOff,
@@ -24,6 +26,7 @@ import {
   Trash2,
   Upload,
   Users,
+  UserX,
   Wifi,
   WifiOff,
   X,
@@ -40,6 +43,11 @@ import { FloatingCalculator } from './FloatingCalculator'
 import { FloatingSlidePanel, PinnedSlideView } from './FloatingSlidePanel'
 import { FloatingVideoPlayer } from './FloatingVideoPlayer'
 import { SlideUploadModal } from './SlideUploadModal'
+import {
+  KickMemberDialog,
+  ReportUserDialog,
+  BannedMembersDialog,
+} from './ModerationDialogs'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CHALK_COLORS = [
@@ -123,6 +131,10 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     sendRoomChat,
     toggleMic,
     forceMuteMember,
+    kickMember,
+    unbanMember,
+    listBannedMembers,
+    submitReport,
     voiceState,
     unblockVoiceAutoplay,
     setAudioInputDevice,
@@ -135,6 +147,42 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   } = useRoom(roomId, nguoiDung.actorKey)
 
   const { lamMoiPhien } = usePhien()
+
+  // ── Moderation & Safety v1 state ──────────────────────────────────────────
+  const [kickTarget, setKickTarget] = useState<{ actorKey: string; name: string } | null>(null)
+  const [reportTarget, setReportTarget] = useState<{ accountId: number; name: string; contentSnippet?: string } | null>(null)
+  const [showBannedModal, setShowBannedModal] = useState(false)
+
+  const handleConfirmKick = useCallback(
+    async (targetActorKey: string, reason: string, banFromRoom: boolean) => {
+      const res = await kickMember(targetActorKey, reason, banFromRoom)
+      if (res.ok) {
+        toast.success(banFromRoom ? 'Đã mời và cấm thành viên vào phòng.' : 'Đã mời thành viên ra khỏi phòng.')
+      } else {
+        toast.error(res.loi || 'Không thể mời thành viên ra.')
+        throw new Error(res.loi)
+      }
+    },
+    [kickMember],
+  )
+
+  const handleConfirmReport = useCallback(
+    async (reportedAccountId: number, category: string, reason: string, contentSnippet?: string) => {
+      const res = await submitReport({
+        reportedAccountId,
+        category,
+        reason,
+        contentSnippet,
+      })
+      if (res.ok) {
+        toast.success('Báo cáo vi phạm đã được ghi nhận và chuyển tới ban quản lý.')
+      } else {
+        toast.error(res.loi || 'Không thể gửi báo cáo.')
+        throw new Error(res.loi)
+      }
+    },
+    [submitReport],
+  )
 
   // ── Voice devices state & refresh ─────────────────────────────────────────
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
@@ -814,14 +862,33 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                     {!isMe && (
                       <span className="mb-0.5 text-[10px] font-semibold text-slate-500">{msg.ten}</span>
                     )}
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${
-                        isMe
-                          ? 'rounded-tr-sm bg-indigo-600/90 text-white'
-                          : 'rounded-tl-sm bg-white/8 text-slate-200'
-                      }`}
-                    >
-                      {msg.text}
+                    <div className="group/chatmsg relative flex items-center gap-1.5">
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-sm ${
+                          isMe
+                            ? 'rounded-tr-sm bg-indigo-600/90 text-white'
+                            : 'rounded-tl-sm bg-white/8 text-slate-200'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                      {!isMe && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReportTarget({
+                              accountId: msg.accountId,
+                              name: msg.ten,
+                              contentSnippet: msg.text,
+                            })
+                          }}
+                          className="opacity-0 group-hover/chatmsg:opacity-100 transition-opacity p-1 text-slate-500 hover:text-amber-400"
+                          title="Báo cáo tin nhắn này"
+                          aria-label="Báo cáo tin nhắn này"
+                        >
+                          <Flag className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -897,9 +964,22 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         <div className="absolute right-0 top-12 bottom-20 z-50 flex w-72 flex-col overflow-hidden border-l border-white/10 bg-[#090e18]/97 backdrop-blur-2xl shadow-2xl">
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
             <span className="text-sm font-bold text-slate-200">👥 Thành viên ({members.length})</span>
-            <button onClick={() => setShowMembers(false)} className="rounded p-1 text-slate-400 hover:text-white">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {(isHost || canModerate) && (
+                <button
+                  type="button"
+                  onClick={() => setShowBannedModal(true)}
+                  className="flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/20 transition-colors"
+                  title="Xem và quản lý danh sách cấm"
+                >
+                  <Ban className="h-3 w-3" />
+                  <span className="hidden sm:inline">DS Cấm</span>
+                </button>
+              )}
+              <button onClick={() => setShowMembers(false)} className="rounded p-1 text-slate-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {members.map((m) => (
@@ -932,6 +1012,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   >
                     {m.mic ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
                   </span>
+
+                  {/* Force mute */}
                   {(isHost || canModerate) && m.key !== nguoiDung.actorKey && m.mic && (
                     <button
                       type="button"
@@ -944,6 +1026,37 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                       <span className="text-[10px] font-bold text-red-400">Tắt mic</span>
                     </button>
                   )}
+
+                  {/* Kick member */}
+                  {(isHost || canModerate) && m.key !== nguoiDung.actorKey && (
+                    <button
+                      type="button"
+                      onClick={() => setKickTarget({ actorKey: m.key, name: m.ten })}
+                      className="rounded p-1 text-slate-500 hover:bg-rose-500/20 hover:text-rose-400 transition-colors"
+                      title="Mời thành viên này ra khỏi phòng"
+                      aria-label={`Mời ${m.ten} ra khỏi phòng`}
+                    >
+                      <UserX className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
+                  {/* Report user */}
+                  {m.key !== nguoiDung.actorKey && (() => {
+                    let accId = 0
+                    if (m.key.startsWith('acc:')) accId = parseInt(m.key.slice(4), 10) || 0
+                    if (!accId) return null
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setReportTarget({ accountId: accId, name: m.ten })}
+                        className="rounded p-1 text-slate-500 hover:bg-amber-500/20 hover:text-amber-400 transition-colors"
+                        title="Báo cáo vi phạm"
+                        aria-label={`Báo cáo ${m.ten}`}
+                      >
+                        <Flag className="h-3.5 w-3.5" />
+                      </button>
+                    )
+                  })()}
                 </div>
               </div>
             ))}
@@ -1376,6 +1489,28 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         open={showUploadModal}
         onOpenChange={setShowUploadModal}
         onLoadSlide={handleLoadSlide}
+      />
+
+      {/* ══ Moderation & Safety Dialogs ══ */}
+      <KickMemberDialog
+        open={Boolean(kickTarget)}
+        onOpenChange={(open) => { if (!open) setKickTarget(null) }}
+        target={kickTarget}
+        onConfirmKick={handleConfirmKick}
+      />
+
+      <ReportUserDialog
+        open={Boolean(reportTarget)}
+        onOpenChange={(open) => { if (!open) setReportTarget(null) }}
+        target={reportTarget}
+        onConfirmReport={handleConfirmReport}
+      />
+
+      <BannedMembersDialog
+        open={showBannedModal}
+        onOpenChange={setShowBannedModal}
+        onLoadBanned={listBannedMembers}
+        onUnban={unbanMember}
       />
     </div>
   )

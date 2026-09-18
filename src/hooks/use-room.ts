@@ -12,6 +12,7 @@ import {
   type WhiteboardStroke,
   type SlideState,
   type VoiceParticipantState,
+  type BannedMemberItem,
   canonicalMediaPosition,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
@@ -95,6 +96,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const serverClockOffsetRef = useRef<number>(0)
   const whiteboardEpochRef = useRef<number>(1)
   const sharedNotesRef = useRef<SharedNotes>(DEFAULT_NOTES)
+  const membersRef = useRef<ThanhVienPhong[]>([])
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
@@ -157,6 +159,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
       switch (goi.type) {
         case 'room.snapshot':
           setHostKey(goi.hostKey)
+          membersRef.current = goi.members
           setMembers(goi.members)
           setMediaState(goi.media)
           setPomodoroState(goi.pomodoro)
@@ -183,6 +186,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           break
 
         case 'presence':
+          membersRef.current = goi.members
           setMembers(goi.members)
           break
 
@@ -291,6 +295,20 @@ export function useRoom(roomId: string, myActorKey?: string) {
           break
         }
 
+        case 'room.kicked': {
+          if (goi.targetKey === myActorKey) {
+            const reasonText = goi.reason ? `: ${goi.reason}` : ''
+            toast.error(`Bạn đã bị mời ra khỏi phòng${reasonText}`)
+            setThongBaoLoiPhong(`Bạn đã bị mời ra khỏi phòng${reasonText}`)
+            setTrangThai('bi_tu_choi')
+          } else {
+            const targetName = membersRef.current.find((m) => m.key === goi.targetKey)?.ten || 'Một thành viên'
+            toast.info(`${targetName} đã bị mời ra khỏi phòng.`)
+            setMembers((prev) => prev.filter((m) => m.key !== goi.targetKey))
+          }
+          break
+        }
+
         case 'pong': {
           const res = clockSyncRef.current.processPong(goi.t, goi.serverNow)
           if (res.accepted) {
@@ -312,6 +330,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
       if (e.code === MA_DONG_SOCKET.PHIEN_BI_THAY || e.reason === 'da_dang_nhap_noi_khac') {
         setTrangThai('phien_bi_thay')
+        return
+      }
+
+      if (e.code === MA_DONG_SOCKET.BI_CHAN || e.reason === 'bi_kick' || e.reason === 'bi_cam') {
+        setThongBaoLoiPhong('Bạn đã bị mời ra khỏi phòng học này.')
+        setTrangThai('bi_tu_choi')
         return
       }
 
@@ -395,6 +419,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
   useEffect(() => {
     ketNoiRef.current = ketNoi
   }, [ketNoi])
+
+  useEffect(() => {
+    membersRef.current = members
+  }, [members])
 
   useEffect(() => {
     daHuyRef.current = false
@@ -595,6 +623,127 @@ export function useRoom(roomId: string, myActorKey?: string) {
     }
   }, [roomId])
 
+  const kickMember = useCallback(
+    async (targetActorKey: string, reason?: string, banFromRoom = false) => {
+      const idMatch = roomId.match(/(\d+)$/)
+      if (!idMatch) return { ok: false, loi: 'ID phòng không hợp lệ.' }
+      try {
+        const res = await fetch(`/api/rooms/${idMatch[1]}/kick`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ targetActorKey, reason, banFromRoom }),
+        })
+        const json = (await res.json().catch(() => null)) as any
+        if (!res.ok || !json?.ok) {
+          return { ok: false, loi: json?.loi || 'Không thể mời thành viên ra khỏi phòng.' }
+        }
+        return { ok: true }
+      } catch (err: any) {
+        return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
+      }
+    },
+    [roomId],
+  )
+
+  const banMember = useCallback(
+    async (targetAccountId: number, reason?: string) => {
+      const idMatch = roomId.match(/(\d+)$/)
+      if (!idMatch) return { ok: false, loi: 'ID phòng không hợp lệ.' }
+      try {
+        const res = await fetch(`/api/rooms/${idMatch[1]}/ban`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ targetAccountId, reason }),
+        })
+        const json = (await res.json().catch(() => null)) as any
+        if (!res.ok || !json?.ok) {
+          return { ok: false, loi: json?.loi || 'Không thể cấm thành viên vào phòng.' }
+        }
+        return { ok: true }
+      } catch (err: any) {
+        return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
+      }
+    },
+    [roomId],
+  )
+
+  const unbanMember = useCallback(
+    async (targetAccountId: number) => {
+      const idMatch = roomId.match(/(\d+)$/)
+      if (!idMatch) return { ok: false, loi: 'ID phòng không hợp lệ.' }
+      try {
+        const res = await fetch(`/api/rooms/${idMatch[1]}/unban`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ targetAccountId }),
+        })
+        const json = (await res.json().catch(() => null)) as any
+        if (!res.ok || !json?.ok) {
+          return { ok: false, loi: json?.loi || 'Không thể gỡ cấm thành viên.' }
+        }
+        return { ok: true }
+      } catch (err: any) {
+        return { ok: false, loi: err?.message || 'Lỗi mạng khi thực hiện thao tác.' }
+      }
+    },
+    [roomId],
+  )
+
+  const listBannedMembers = useCallback(async (): Promise<{ bannedMembers: BannedMemberItem[] }> => {
+    const idMatch = roomId.match(/(\d+)$/)
+    if (!idMatch) return { bannedMembers: [] }
+    try {
+      const res = await fetch(`/api/rooms/${idMatch[1]}/banned-members`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+      })
+      const json = (await res.json().catch(() => null)) as any
+      if (!res.ok || !Array.isArray(json?.bannedMembers)) {
+        return { bannedMembers: [] }
+      }
+      return { bannedMembers: json.bannedMembers as BannedMemberItem[] }
+    } catch {
+      return { bannedMembers: [] }
+    }
+  }, [roomId])
+
+  const submitReport = useCallback(
+    async (payload: {
+      reportedAccountId: number
+      category: string
+      reason: string
+      contentSnippet?: string
+    }) => {
+      const idMatch = roomId.match(/(\d+)$/)
+      const numericRoomId = idMatch ? parseInt(idMatch[1], 10) : undefined
+      try {
+        const res = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            reportedAccountId: payload.reportedAccountId,
+            roomId: numericRoomId,
+            category: payload.category,
+            reason: payload.reason,
+            contentSnippet: payload.contentSnippet,
+          }),
+        })
+        const json = (await res.json().catch(() => null)) as any
+        if (!res.ok || !json?.ok) {
+          return { ok: false, loi: json?.loi || 'Không thể gửi báo cáo vi phạm.' }
+        }
+        return { ok: true, reportId: json.reportId }
+      } catch (err: any) {
+        return { ok: false, loi: err?.message || 'Lỗi kết nối khi gửi báo cáo.' }
+      }
+    },
+    [roomId],
+  )
+
   const changeSlidePage = useCallback((page: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
@@ -650,6 +799,11 @@ export function useRoom(roomId: string, myActorKey?: string) {
     sendRoomChat,
     toggleMic,
     forceMuteMember,
+    kickMember,
+    banMember,
+    unbanMember,
+    listBannedMembers,
+    submitReport,
     voiceRegistry,
     voiceState,
     unblockVoiceAutoplay,
