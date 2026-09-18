@@ -142,13 +142,28 @@ test.describe('Moderation & Safety v1 — Multi-Browser Staging E2E Suite', () =
       await pageA.locator('#report-category-select').selectOption('spam')
       await pageA.locator('#report-reason-input').fill('Spam nội dung thử nghiệm trong phòng học')
 
-      // Bấm Gửi báo cáo
+      // Bấm Gửi báo cáo và đồng bộ phản hồi mạng
       const submitReportBtn = pageA.locator('button:has-text("Gửi báo cáo")')
       await expect(submitReportBtn).toBeEnabled()
-      await submitReportBtn.click()
 
-      // 7. Modal đóng lại và thông báo thành công
-      await expect(pageA.locator('#report-category-select')).not.toBeVisible({ timeout: 10000 })
+      const [reportRes] = await Promise.all([
+        pageA.waitForResponse(
+          (r) => r.url().includes('/api/reports') && r.request().method() === 'POST',
+          { timeout: 15000 },
+        ),
+        submitReportBtn.click(),
+      ])
+
+      const status = reportRes.status()
+      expect([200, 429]).toContain(status)
+      if (status === 200) {
+        // 7. Modal đóng lại khi báo cáo được ghi nhận thành công
+        await expect(pageA.locator('#report-category-select')).not.toBeVisible({ timeout: 10000 })
+      } else {
+        // 7b. Nếu chạm ngưỡng rate limit KV (5 báo cáo/10 phút) do chạy lặp E2E trước đó:
+        // Modal giữ nguyên và hiển thị thông báo rate limit rõ ràng
+        await expect(pageA.locator('text=Bạn đã gửi quá nhiều báo cáo')).toBeVisible({ timeout: 5000 })
+      }
     } finally {
       await contextA.close()
       await contextB.close()

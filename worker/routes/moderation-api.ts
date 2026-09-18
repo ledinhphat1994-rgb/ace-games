@@ -72,18 +72,30 @@ async function kiemTraRateLimit(
   ttlSeconds: number,
 ): Promise<{ limited: true; response: Response } | { limited: false }> {
   const key = `rate:mod:${action}:${actorId}`
-  const tries = parseInt((await kv.get(key)) || '0', 10)
-  if (tries >= limit) {
-    return {
-      limited: true,
-      response: new Response(
-        JSON.stringify({ ok: false, message: `Quá nhiều thao tác ${action}. Vui lòng thử lại sau.` }),
-        { status: 429, headers: { 'Content-Type': 'application/json' } },
-      ),
+  try {
+    const raw = await kv.get(key)
+    const tries = parseInt(raw || '0', 10)
+    if (Number.isFinite(tries) && tries >= limit) {
+      return {
+        limited: true,
+        response: new Response(
+          JSON.stringify({ ok: false, message: `Quá nhiều thao tác ${action}. Vui lòng thử lại sau.` }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } },
+        ),
+      }
     }
+    // Ghi tăng số lần thử. Nếu KV gặp lỗi (ví dụ giới hạn 1 write/giây của KV hoặc lỗi mạng),
+    // ghi log cảnh báo và cho phép tiếp tục (fail-open) để không phá vỡ thao tác quản trị hợp lệ.
+    try {
+      await kv.put(key, String(tries + 1), { expirationTtl: ttlSeconds })
+    } catch (putErr) {
+      console.warn(`[kiemTraRateLimit] Lỗi kv.put cho key ${key} (giới hạn 1 write/giây):`, putErr)
+    }
+    return { limited: false }
+  } catch (getErr) {
+    console.warn(`[kiemTraRateLimit] Lỗi kv.get cho key ${key}:`, getErr)
+    return { limited: false }
   }
-  await kv.put(key, String(tries + 1), { expirationTtl: ttlSeconds })
-  return { limited: false }
 }
 
 async function layTargetRank(
@@ -999,11 +1011,19 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
 
   // Rate-limit: Tối đa 5 báo cáo / 10 phút / tài khoản để chống flood
   const rlKey = `rate:report:${kq.taiKhoan.id}`
-  const tries = parseInt((await c.env.RATE_LIMIT.get(rlKey)) || '0', 10)
-  if (tries >= 5) {
-    return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
+  try {
+    const tries = parseInt((await c.env.RATE_LIMIT.get(rlKey)) || '0', 10)
+    if (Number.isFinite(tries) && tries >= 5) {
+      return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
+    }
+    try {
+      await c.env.RATE_LIMIT.put(rlKey, String(tries + 1), { expirationTtl: 600 })
+    } catch (putErr) {
+      console.warn(`[createReport] Lỗi kv.put rate limit cho key ${rlKey}:`, putErr)
+    }
+  } catch (getErr) {
+    console.warn(`[createReport] Lỗi kv.get rate limit cho key ${rlKey}:`, getErr)
   }
-  await c.env.RATE_LIMIT.put(rlKey, String(tries + 1), { expirationTtl: 600 })
 
   let rawBody: unknown
   try {

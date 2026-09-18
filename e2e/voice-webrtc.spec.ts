@@ -91,6 +91,8 @@ function setupPageLogging(page: Page, name: string) {
 }
 
 async function loginUser(page: Page, user: { username: string; password: string }) {
+  // Xác thực phiên trực tiếp vào context cookie jar để loại bỏ race condition khi render form DOM
+  await loginUserViaApi(page.context(), user)
   try {
     await page.goto('/')
   } catch {
@@ -98,7 +100,7 @@ async function loginUser(page: Page, user: { username: string; password: string 
     await page.goto('/')
   }
   const loginInput = page.locator('#ten-dang-nhap')
-  const isLoginFormVisible = await loginInput.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false)
+  const isLoginFormVisible = await loginInput.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false)
   if (isLoginFormVisible) {
     await loginInput.fill(user.username)
     await page.locator('#mat-khau').fill(user.password)

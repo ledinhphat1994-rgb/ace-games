@@ -218,6 +218,7 @@ test.describe('Digital Campus v2 — Activity / Room Discovery v1 Acceptance Sui
       await pageA.keyboard.press('Escape')
 
       // 10. B leaves / goes offline -> friend indicator disappears without reload
+      await pageB.goto('/')
       await pageB.close()
 
       // After B closes tab and grace period expires, friend indicator on A clears
