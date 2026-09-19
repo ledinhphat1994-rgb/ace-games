@@ -24,6 +24,7 @@ import {
   Shield,
   Zap,
   Server,
+  GraduationCap,
 } from 'lucide-react'
 
 export interface AnalyticsOverviewData {
@@ -131,6 +132,7 @@ export function AnalyticsDashboardPage() {
     friends: UserCheck,
     games: Gamepad2,
     moderation: Shield,
+    learningSession: GraduationCap,
   }
 
   const featureLabels: Record<string, string> = {
@@ -143,6 +145,7 @@ export function AnalyticsDashboardPage() {
     friends: 'Kết nối bạn bè & Xã hội',
     games: 'Đấu trường trò chơi trí tuệ',
     moderation: 'Báo cáo & Kiểm duyệt an toàn',
+    learningSession: 'Phiên học nhóm có cấu trúc',
   }
 
   if (error && (!nguoiDung.isSchoolAdmin || error.includes('quyền'))) {
@@ -197,7 +200,7 @@ export function AnalyticsDashboardPage() {
                     D1 Cô lập
                   </Badge>
                   <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-400">
-                    25 Sự kiện
+                    {data?.totalTaxonomyEvents ?? 32} Sự kiện
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">Digital Campus v2 · Số liệu thực tế người dùng & hệ thống</p>

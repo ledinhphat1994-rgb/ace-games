@@ -137,6 +137,7 @@ export class RoomDO extends DurableObject<Env> {
   private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
   private roomName: string = ''
   // Learning Session v1
+  private activeLearningSession: { sessionId: string; startedAt: number } | null = null
   private sessionGoal: SessionGoal | null = null
   private sessionTasks: SessionTask[] = []
   /** taskId → Set<accountId> */
@@ -146,6 +147,7 @@ export class RoomDO extends DurableObject<Env> {
   /** pollId → (accountId → optionId) */
   private pollVotes = new Map<string, Map<number, string>>()
   private sessionStartedAt: number | null = null
+  private voiceAlarmTarget: number | null = null
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -236,15 +238,16 @@ export class RoomDO extends DurableObject<Env> {
                 generation INTEGER NOT NULL,
                 attempts INTEGER NOT NULL DEFAULT 1,
                 last_attempt_at INTEGER NOT NULL,
+                next_retry_at INTEGER NOT NULL DEFAULT 0,
                 error_text TEXT,
                 created_at INTEGER NOT NULL
               )`,
             )
             this.ctx.storage.sql.exec(
               `INSERT INTO pending_voice_revocations_v2
-               (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at)
+               (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, next_retry_at, error_text, created_at)
                SELECT 'legacy_' || actor_key || '_' || session_id || '_' || generation,
-                      actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, last_attempt_at
+                      actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, 0, error_text, last_attempt_at
                FROM pending_voice_revocations`,
             )
             this.ctx.storage.sql.exec('DROP TABLE pending_voice_revocations')
@@ -262,6 +265,7 @@ export class RoomDO extends DurableObject<Env> {
               generation INTEGER NOT NULL,
               attempts INTEGER NOT NULL DEFAULT 1,
               last_attempt_at INTEGER NOT NULL,
+              next_retry_at INTEGER NOT NULL DEFAULT 0,
               error_text TEXT,
               created_at INTEGER NOT NULL
             )`,
@@ -271,6 +275,9 @@ export class RoomDO extends DurableObject<Env> {
       } catch (e) {
         console.warn('[khoiTaoSqlite] pending_voice_revocations init error:', e)
       }
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE pending_voice_revocations ADD COLUMN next_retry_at INTEGER NOT NULL DEFAULT 0')
+      } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE playlist_queue ADD COLUMN added_by_key TEXT')
       } catch {}
@@ -353,6 +360,15 @@ export class RoomDO extends DurableObject<Env> {
           started_at INTEGER NOT NULL,
           ended_at INTEGER NOT NULL,
           summary_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pending_session_summary_sync (
+          session_id TEXT PRIMARY KEY,
+          room_id INTEGER NOT NULL,
+          summary_json TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          last_attempt_at INTEGER NOT NULL DEFAULT 0,
+          next_retry_at INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL
         );
       `)
@@ -487,26 +503,25 @@ export class RoomDO extends DurableObject<Env> {
         }
       }
 
-      // Khôi phục và xử lý các voice revocation còn tồn đọng sau khi restart
-      try {
-        const pending = this.getPendingVoiceRevocations()
-        if (pending.length > 0) {
-          this.ctx.blockConcurrencyWhile(async () => {
-            await this.scheduleVoiceRevocationAlarm(1000)
-          })
-          this.ctx.waitUntil(this.retryPendingVoiceRevocations().catch(() => {}))
-        }
-      } catch {}
-
       // Hydrate Learning Session v1 data
       try {
         const stateRows = [...this.ctx.storage.sql.exec<{ key: string; value: string }>('SELECT key, value FROM session_state')]
         for (const r of stateRows) {
           if (r.key === 'goal') {
             try { this.sessionGoal = JSON.parse(r.value) as SessionGoal } catch {}
-          } else if (r.key === 'started_at') {
+          } else if (r.key === 'active_session') {
+            try {
+              this.activeLearningSession = JSON.parse(r.value) as { sessionId: string; startedAt: number }
+              if (this.activeLearningSession && this.activeLearningSession.startedAt) {
+                this.sessionStartedAt = this.activeLearningSession.startedAt
+              }
+            } catch {}
+          } else if (r.key === 'started_at' && !this.activeLearningSession) {
             const st = parseInt(r.value, 10)
-            if (Number.isFinite(st) && st > 0) this.sessionStartedAt = st
+            if (Number.isFinite(st) && st > 0) {
+              this.sessionStartedAt = st
+              this.activeLearningSession = { sessionId: 'migrated_' + st, startedAt: st }
+            }
           }
         }
       } catch {}
@@ -604,6 +619,26 @@ export class RoomDO extends DurableObject<Env> {
           vm.set(vr.account_id, vr.option_id)
         }
       } catch {}
+
+      // Khôi phục và đối soát các nghĩa vụ alarm bền vững (voice, summary sync, timers) sau khi restart
+      try {
+        const pendingVoice = this.getPendingVoiceRevocations()
+        const pendingSummary = this.getPendingSessionSummaries()
+        const hasActiveTimer = (this.sessionTimer.running && this.sessionTimer.endsAt > 0) || (this.pomodoro.running && this.pomodoro.endsAt > 0)
+        if (pendingVoice.length > 0 || pendingSummary.length > 0 || hasActiveTimer) {
+          this.ctx.blockConcurrencyWhile(async () => {
+            await this.reconcileRoomAlarm()
+          })
+          if (pendingVoice.length > 0) {
+            this.ctx.waitUntil(this.retryPendingVoiceRevocations().catch(() => {}))
+          }
+          if (pendingSummary.length > 0) {
+            this.ctx.waitUntil(this.xuLyPendingSummarySync().catch(() => {}))
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi khôi phục alarm obligations sau restart:', err)
+      }
     } catch (err) {
       console.error('Lỗi nạp room_meta / game_state / voice_state / session_state:', err)
     }
@@ -647,44 +682,120 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
-  private async updateTimerAlarm(): Promise<void> {
-    const candidates: number[] = []
+  getEarliestPendingVoiceRetryTime(_now = Date.now()): number | null {
+    try {
+      const rows = [...this.ctx.storage.sql.exec<{
+        attempts: number
+        last_attempt_at: number
+        next_retry_at: number
+        created_at: number
+      }>('SELECT attempts, last_attempt_at, next_retry_at, created_at FROM pending_voice_revocations')]
+      if (rows.length === 0) return null
+      let earliest = Infinity
+      for (const r of rows) {
+        const dueAt = r.next_retry_at > 0
+          ? r.next_retry_at
+          : (r.last_attempt_at > 0 ? r.last_attempt_at + this.tinhVoiceBackoffDelay(r.attempts) : r.created_at)
+        if (dueAt < earliest) earliest = dueAt
+      }
+      return Number.isFinite(earliest) ? earliest : null
+    } catch {
+      return null
+    }
+  }
+
+  getEarliestPendingSummaryRetryTime(): number | null {
+    try {
+      const rows = [...this.ctx.storage.sql.exec<{
+        next_retry_at: number
+        last_attempt_at: number
+        attempts: number
+        created_at: number
+      }>('SELECT next_retry_at, last_attempt_at, attempts, created_at FROM pending_session_summary_sync')]
+      if (rows.length === 0) return null
+      let earliest = Infinity
+      for (const r of rows) {
+        const dueAt = r.next_retry_at > 0
+          ? r.next_retry_at
+          : (r.last_attempt_at > 0 ? r.last_attempt_at + Math.min(1000 * Math.pow(2, Math.max(0, r.attempts - 1)), 60000) : r.created_at)
+        if (dueAt < earliest) earliest = dueAt
+      }
+      return Number.isFinite(earliest) ? earliest : null
+    } catch {
+      return null
+    }
+  }
+
+  async reconcileRoomAlarm(): Promise<void> {
+    const deadlines: number[] = []
+    const now = Date.now()
+
+    // 1. Pomodoro deadline
     if (this.pomodoro.running && this.pomodoro.endsAt > 0) {
-      candidates.push(this.pomodoro.endsAt)
+      deadlines.push(this.pomodoro.endsAt)
     }
+
+    // 2. Learning session timer deadline
     if (this.sessionTimer.running && this.sessionTimer.endsAt > 0) {
-      candidates.push(this.sessionTimer.endsAt)
+      deadlines.push(this.sessionTimer.endsAt)
     }
-    if (candidates.length > 0) {
-      const earliest = Math.min(...candidates)
+
+    // 3. Earliest pending voice revocation retry
+    const voiceDue = this.getEarliestPendingVoiceRetryTime(now)
+    if (voiceDue !== null) {
+      const effectiveVoice = this.voiceAlarmTarget !== null ? Math.min(voiceDue, this.voiceAlarmTarget) : voiceDue
+      deadlines.push(effectiveVoice)
+    } else if (this.voiceAlarmTarget !== null) {
+      deadlines.push(this.voiceAlarmTarget)
+    }
+
+    // 4. Earliest pending session summary sync retry
+    const summaryDue = this.getEarliestPendingSummaryRetryTime()
+    if (summaryDue !== null) {
+      deadlines.push(summaryDue)
+    }
+
+    if (deadlines.length > 0) {
+      const earliest = Math.min(...deadlines)
+      const scheduledTime = Math.max(now + 50, earliest)
       try {
-        await this.ctx.storage.setAlarm(earliest)
+        await this.ctx.storage.setAlarm(scheduledTime)
       } catch (err) {
-        console.error('Lỗi setAlarm cho timers:', err)
+        console.error('[RoomDO] Lỗi setAlarm trong reconcileRoomAlarm:', err)
+      }
+    } else {
+      try {
+        await this.ctx.storage.deleteAlarm()
+      } catch (err) {
+        console.error('[RoomDO] Lỗi deleteAlarm trong reconcileRoomAlarm:', err)
       }
     }
   }
 
+  private async updateTimerAlarm(): Promise<void> {
+    await this.reconcileRoomAlarm()
+  }
+
   override async alarm(): Promise<void> {
     const now = Date.now()
+    this.voiceAlarmTarget = null
     if (this.kiemTraVaCapNhatPomodoro(now)) {
       this.broadcast({ type: 'pomodoro.sync', state: this.pomodoro, serverNow: now })
     }
     if (this.kiemTraVaCapNhatSessionTimer(now)) {
       this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
     }
-    await this.updateTimerAlarm()
     try {
       await this.retryPendingVoiceRevocations(now)
     } catch (err) {
       console.error('[RoomDO.alarm] Lỗi xử lý retry pending voice revocations:', err)
-      try {
-        const remaining = this.getPendingVoiceRevocations()
-        if (remaining.length > 0) {
-          await this.scheduleVoiceRevocationAlarm(5000)
-        }
-      } catch {}
     }
+    try {
+      await this.xuLyPendingSummarySync(now)
+    } catch (err) {
+      console.error('[RoomDO.alarm] Lỗi xử lý pending summary sync:', err)
+    }
+    await this.reconcileRoomAlarm()
   }
 
   private luuGameState(): void {
@@ -1400,19 +1511,12 @@ export class RoomDO extends DurableObject<Env> {
             endsAt,
             revision: (this.pomodoro.revision || 1) + 1,
           }
-          try {
-            this.ctx.storage.setAlarm(endsAt)
-          } catch (err) {
-            console.error('Lỗi đặt DO alarm cho pomodoro:', err)
-          }
+          await this.reconcileRoomAlarm()
         } else if (d.action === 'pause') {
           if (!this.pomodoro.running) {
             // Idempotent: already paused
             return
           }
-          try {
-            this.ctx.storage.deleteAlarm()
-          } catch {}
           const remaining = this.pomodoro.endsAt > now
             ? Math.max(0, Math.round((this.pomodoro.endsAt - now) / 1000))
             : 0
@@ -1423,10 +1527,8 @@ export class RoomDO extends DurableObject<Env> {
             remaining,
             revision: (this.pomodoro.revision || 1) + 1,
           }
+          await this.reconcileRoomAlarm()
         } else if (d.action === 'reset') {
-          try {
-            this.ctx.storage.deleteAlarm()
-          } catch {}
           const rawDur = d.duration || (this.pomodoro.mode === 'focus' ? 1500 : 300)
           const dur = Math.min(7200, Math.max(1, Math.round(rawDur)))
           this.pomodoro = {
@@ -1437,14 +1539,12 @@ export class RoomDO extends DurableObject<Env> {
             endsAt: 0,
             revision: (this.pomodoro.revision || 1) + 1,
           }
+          await this.reconcileRoomAlarm()
         } else if (d.action === 'switch_mode') {
           if (this.pomodoro.mode === d.mode && !this.pomodoro.running) {
             // Idempotent: already in this mode and paused
             return
           }
-          try {
-            this.ctx.storage.deleteAlarm()
-          } catch {}
           const dur = d.mode === 'focus' ? 1500 : 300
           const round = (d.mode === 'focus' && this.pomodoro.mode !== 'focus') ? this.pomodoro.round + 1 : this.pomodoro.round
           this.pomodoro = {
@@ -1457,6 +1557,7 @@ export class RoomDO extends DurableObject<Env> {
             round,
             revision: (this.pomodoro.revision || 1) + 1,
           }
+          await this.reconcileRoomAlarm()
         }
 
         this.luuMeta('pomodoro', this.pomodoro)
@@ -2360,19 +2461,27 @@ export class RoomDO extends DurableObject<Env> {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền bắt đầu phiên học.' }))
           return
         }
-        this.sessionStartedAt = Date.now()
+        if (this.activeLearningSession) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Phiên học đã bắt đầu từ trước đó.' }))
+          return
+        }
+        const now = Date.now()
+        const sessionId = crypto.randomUUID()
+        this.activeLearningSession = { sessionId, startedAt: now }
+        this.sessionStartedAt = now
         try {
           this.ctx.storage.sql.exec(
-            "INSERT INTO session_state (key, value) VALUES ('started_at', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1",
-            String(this.sessionStartedAt),
+            "INSERT INTO session_state (key, value) VALUES ('active_session', ?1), ('started_at', ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            JSON.stringify(this.activeLearningSession),
+            String(now),
           )
         } catch (err) {
-          console.error('Lỗi lưu sessionStartedAt:', err)
+          console.error('Lỗi lưu activeLearningSession:', err)
         }
         this.broadcast({
           type: 'session.timer.sync',
           state: this.sessionTimer,
-          serverNow: this.sessionStartedAt,
+          serverNow: now,
         })
         break
       }
@@ -2382,8 +2491,12 @@ export class RoomDO extends DurableObject<Env> {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền kết thúc phiên học.' }))
           return
         }
+        if (!this.activeLearningSession) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Không có phiên học nào đang diễn ra để kết thúc.' }))
+          return
+        }
         const now = Date.now()
-        const startedAt = this.sessionStartedAt || now
+        const { sessionId, startedAt } = this.activeLearningSession
         const endedAt = now
         const durationSeconds = Math.max(0, Math.round((endedAt - startedAt) / 1000))
 
@@ -2409,7 +2522,7 @@ export class RoomDO extends DurableObject<Env> {
           : []
 
         const summary: SessionSummary = {
-          sessionId: crypto.randomUUID(),
+          sessionId,
           roomId: this.parseNumericRoomId() ?? 0,
           goal: this.sessionGoal?.text || null,
           startedAt,
@@ -2421,57 +2534,80 @@ export class RoomDO extends DurableObject<Env> {
           pollResults,
         }
 
-        // Lưu vào SQLite DO
+        // 1. Transaction in SQLite: insert session_summaries, enqueue outbox, and wipe session working state
         try {
-          this.ctx.storage.sql.exec(
-            'INSERT INTO session_summaries (id, room_id, started_at, ended_at, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
-            summary.sessionId,
-            summary.roomId,
-            summary.startedAt,
-            summary.endedAt,
-            JSON.stringify(summary),
-            now,
-          )
-        } catch (err) {
-          console.error('Lỗi lưu session_summaries vào SQLite:', err)
-        }
-
-        // Lưu vào D1 (Layer 3: hoc_session_summary) nếu có DB
-        if (this.env?.DB && summary.roomId > 0) {
-          const d1 = this.env.DB
-          this.ctx.waitUntil(
-            d1.prepare(
-              'INSERT INTO hoc_session_summary (id, phong_id, started_at, ended_at, duration_seconds, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime(?7, \'unixepoch\'))',
+          this.ctx.storage.transactionSync(() => {
+            this.ctx.storage.sql.exec(
+              'INSERT INTO session_summaries (id, room_id, started_at, ended_at, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+              summary.sessionId,
+              summary.roomId,
+              summary.startedAt,
+              summary.endedAt,
+              JSON.stringify(summary),
+              now,
             )
-              .bind(
+            if (summary.roomId > 0) {
+              this.ctx.storage.sql.exec(
+                `INSERT OR IGNORE INTO pending_session_summary_sync
+                 (session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at)
+                 VALUES (?1, ?2, ?3, 0, 0, 0, ?4)`,
                 summary.sessionId,
                 summary.roomId,
-                summary.startedAt,
-                summary.endedAt,
-                summary.durationSeconds,
                 JSON.stringify(summary),
-                Math.floor(now / 1000),
+                now,
               )
-              .run()
-              .catch((err: unknown) => console.error('Lỗi ghi hoc_session_summary vào D1:', err)),
-          )
+            }
+            this.ctx.storage.sql.exec("DELETE FROM session_state WHERE key IN ('active_session', 'started_at', 'goal')")
+            this.ctx.storage.sql.exec('DELETE FROM session_tasks')
+            this.ctx.storage.sql.exec('DELETE FROM session_task_completions')
+            this.ctx.storage.sql.exec('DELETE FROM session_polls')
+            this.ctx.storage.sql.exec('DELETE FROM session_poll_votes')
+            this.ctx.storage.sql.exec('DELETE FROM session_activity')
+            this.ctx.storage.sql.exec(
+              'UPDATE session_timer SET running = 0, started_at = 0, ends_at = 0, remaining = duration_seconds, revision = revision + 1 WHERE id = 1',
+            )
+          })
+        } catch (err) {
+          console.error('Lỗi transaction lưu summary và xóa working state:', err)
         }
 
-        // Broadcast summary cho toàn phòng
-        this.broadcast({ type: 'session.summary', summary })
-
-        // Dọn dẹp session sau khi kết thúc
+        // 2. Clear in-memory working state (Blocker 3)
+        this.activeLearningSession = null
         this.sessionStartedAt = null
-        try {
-          this.ctx.storage.sql.exec("DELETE FROM session_state WHERE key = 'started_at'")
-        } catch {}
+        this.sessionGoal = null
+        this.sessionTasks = []
+        this.sessionTaskCompletions.clear()
+        this.activePoll = null
+        this.pollVotes.clear()
+        this.sessionTimer = {
+          running: false,
+          durationSeconds: this.sessionTimer.durationSeconds || 1800,
+          startedAt: 0,
+          endsAt: 0,
+          remaining: this.sessionTimer.durationSeconds || 1800,
+          revision: (this.sessionTimer.revision || 1) + 1,
+        }
 
-        // Emit analytics
+        // 3. Reconcile alarm (timer is stopped)
+        await this.reconcileRoomAlarm()
+
+        // 4. Broadcast summary & clean working state to all clients
+        this.broadcast({ type: 'session.summary', summary })
+        this.broadcast({ type: 'session.goal.sync', goal: null })
+        this.broadcast({ type: 'session.tasks.sync', tasks: [], completionMap: {} })
+        this.broadcast({ type: 'session.poll.sync', poll: null, voteCounts: null })
+        this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
+        this.broadcast({ type: 'session.participation', activeKeys: [] })
+
+        // 5. Asynchronously deliver D1 outbox summary
+        this.ctx.waitUntil(this.xuLyPendingSummarySync(now).catch(() => {}))
+
+        // 6. Record analytics event
         if (this.env?.ANALYTICS_DB) {
           const avgCompletionRate =
-            this.sessionTasks.length > 0
+            summary.taskCount > 0
               ? Math.round(
-                  Object.values(taskCompletionRates).reduce((a, b) => a + b, 0) / this.sessionTasks.length,
+                  Object.values(taskCompletionRates).reduce((a, b) => a + b, 0) / summary.taskCount,
                 )
               : 0
           recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
@@ -2490,6 +2626,167 @@ export class RoomDO extends DurableObject<Env> {
         break
       }
     }
+  }
+
+  getActiveLearningSession(): { sessionId: string; startedAt: number } | null {
+    return this.activeLearningSession
+  }
+
+  getPendingSessionSummaries(): Array<{
+    sessionId: string
+    roomId: number
+    summaryJson: string
+    attempts: number
+    lastAttemptAt: number
+    nextRetryAt: number
+    createdAt: number
+  }> {
+    try {
+      return [...this.ctx.storage.sql.exec<{
+        session_id: string
+        room_id: number
+        summary_json: string
+        attempts: number
+        last_attempt_at: number
+        next_retry_at: number
+        created_at: number
+      }>(
+        'SELECT session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at FROM pending_session_summary_sync ORDER BY created_at ASC',
+      )].map((r) => ({
+        sessionId: r.session_id,
+        roomId: r.room_id,
+        summaryJson: r.summary_json,
+        attempts: r.attempts,
+        lastAttemptAt: r.last_attempt_at,
+        nextRetryAt: r.next_retry_at,
+        createdAt: r.created_at,
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  async xuLyPendingSummarySync(now = Date.now()): Promise<number> {
+    if (!this.env?.DB) return 0
+    const pending = this.getPendingSessionSummaries()
+    if (pending.length === 0) return 0
+
+    let delivered = 0
+    const d1 = this.env.DB
+
+    for (const item of pending) {
+      if (item.nextRetryAt > now) continue
+      try {
+        const summary = JSON.parse(item.summaryJson) as SessionSummary
+        await d1
+          .prepare(
+            `INSERT OR IGNORE INTO hoc_session_summary
+             (id, phong_id, started_at, ended_at, duration_seconds, summary_json, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime(?7, 'unixepoch'))`,
+          )
+          .bind(
+            summary.sessionId,
+            summary.roomId,
+            summary.startedAt,
+            summary.endedAt,
+            summary.durationSeconds,
+            item.summaryJson,
+            Math.floor(item.createdAt / 1000),
+          )
+          .run()
+
+        // Thành công: xóa khỏi outbox RoomDO SQLite
+        try {
+          this.ctx.storage.sql.exec('DELETE FROM pending_session_summary_sync WHERE session_id = ?1', item.sessionId)
+        } catch {}
+        delivered++
+      } catch (err) {
+        console.error(`[xuLyPendingSummarySync] Ghi D1 thất bại cho session=${item.sessionId}:`, err)
+        const nextAttempts = item.attempts + 1
+        const backoffDelay = Math.min(1000 * Math.pow(2, Math.max(0, nextAttempts - 1)), 60000)
+        const nextRetryAt = now + backoffDelay
+        try {
+          this.ctx.storage.sql.exec(
+            'UPDATE pending_session_summary_sync SET attempts = ?1, last_attempt_at = ?2, next_retry_at = ?3 WHERE session_id = ?4',
+            nextAttempts,
+            now,
+            nextRetryAt,
+            item.sessionId,
+          )
+        } catch {}
+      }
+    }
+
+    await this.reconcileRoomAlarm()
+    return delivered
+  }
+
+  // ── Testing & Adversarial Invariant Helpers (RPC exposed for vitest) ──
+
+  async testSetTimer(running: boolean, endsAt: number, remaining: number): Promise<void> {
+    this.sessionTimer = {
+      ...this.sessionTimer,
+      running,
+      endsAt,
+      remaining,
+      revision: (this.sessionTimer.revision || 1) + 1,
+    }
+    this.luuSessionTimer()
+    await this.reconcileRoomAlarm()
+  }
+
+  async testAddPendingVoiceRevocation(
+    revocationId: string,
+    actorKey: string,
+    sessionId: string,
+    nextRetryAt: number,
+  ): Promise<void> {
+    const now = Date.now()
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pending_voice_revocations
+       (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, next_retry_at, created_at)
+       VALUES (?1, ?2, ?3, 'audio', NULL, 1, 1, ?4, ?5, ?4)`,
+      revocationId,
+      actorKey,
+      sessionId,
+      now,
+      nextRetryAt,
+    )
+    await this.reconcileRoomAlarm()
+  }
+
+  async testDeletePendingVoiceRevocation(revocationId: string): Promise<void> {
+    this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE revocation_id = ?1', revocationId)
+    await this.reconcileRoomAlarm()
+  }
+
+  async testAddPendingSummarySync(
+    sessionId: string,
+    roomId: number,
+    summaryJson: string,
+    nextRetryAt: number,
+  ): Promise<void> {
+    const now = Date.now()
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pending_session_summary_sync
+       (session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at)
+       VALUES (?1, ?2, ?3, 1, ?4, ?5, ?4)`,
+      sessionId,
+      roomId,
+      summaryJson,
+      now,
+      nextRetryAt,
+    )
+    await this.reconcileRoomAlarm()
+  }
+
+  async testTriggerAlarm(): Promise<void> {
+    await this.alarm()
+  }
+
+  async testGetSessionSummariesCount(): Promise<number> {
+    const rows = [...this.ctx.storage.sql.exec<{ cnt: number }>('SELECT count(*) as cnt FROM session_summaries')]
+    return rows[0]?.cnt ?? 0
   }
 
   // Báo GameLobbyDO bàn đang chờ/đang chơi (upsert) hoặc đã kết thúc (gỡ khỏi sảnh) — không chờ kết quả,
@@ -2839,10 +3136,14 @@ export class RoomDO extends DurableObject<Env> {
   async scheduleVoiceRevocationAlarm(delayMs: number): Promise<void> {
     try {
       const targetTime = Date.now() + Math.max(500, delayMs)
-      const currentAlarm = await this.ctx.storage.getAlarm()
-      if (!currentAlarm || currentAlarm > targetTime) {
-        await this.ctx.storage.setAlarm(targetTime)
-      }
+      this.voiceAlarmTarget = this.voiceAlarmTarget === null ? targetTime : Math.min(this.voiceAlarmTarget, targetTime)
+      try {
+        this.ctx.storage.sql.exec(
+          'UPDATE pending_voice_revocations SET next_retry_at = ?1 WHERE next_retry_at = 0 OR next_retry_at > ?1',
+          targetTime,
+        )
+      } catch {}
+      await this.reconcileRoomAlarm()
     } catch (err) {
       console.error('[RoomDO] Lỗi scheduleVoiceRevocationAlarm:', err)
     }
@@ -2882,8 +3183,8 @@ export class RoomDO extends DurableObject<Env> {
         this.ctx.storage.sql.exec('DELETE FROM voice_publications WHERE actor_key = ?1', actorKey)
         this.ctx.storage.sql.exec(
           `INSERT INTO pending_voice_revocations
-           (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, error_text, created_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, NULL, ?7)`,
+           (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, next_retry_at, error_text, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7, NULL, ?7)`,
           targetRevocationId,
           actorKey,
           targetSessionId,
@@ -2956,12 +3257,15 @@ export class RoomDO extends DurableObject<Env> {
       // Transient or non-terminal failure
       console.warn(`[attemptSfuCloseWithTracking] SFU close thất bại (${res.status}): ${res.errorText || 'lỗi'}`)
       let attempts = 1
+      const backoffDelay = this.tinhVoiceBackoffDelay(attempts)
+      const nextRetryAt = Date.now() + backoffDelay
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
-           SET attempts = attempts + 1, last_attempt_at = ?1, error_text = ?2
-           WHERE revocation_id = ?3`,
+           SET attempts = attempts + 1, last_attempt_at = ?1, next_retry_at = ?2, error_text = ?3
+           WHERE revocation_id = ?4`,
           Date.now(),
+          nextRetryAt,
           res.errorText || `HTTP_${res.status}`,
           revocationId,
         )
@@ -2989,12 +3293,15 @@ export class RoomDO extends DurableObject<Env> {
     } catch (err: any) {
       console.warn(`[attemptSfuCloseWithTracking] Ngoại lệ khi gọi SFU close:`, err)
       let attempts = 1
+      const backoffDelay = this.tinhVoiceBackoffDelay(attempts)
+      const nextRetryAt = Date.now() + backoffDelay
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
-           SET attempts = attempts + 1, last_attempt_at = ?1, error_text = ?2
-           WHERE revocation_id = ?3`,
+           SET attempts = attempts + 1, last_attempt_at = ?1, next_retry_at = ?2, error_text = ?3
+           WHERE revocation_id = ?4`,
           Date.now(),
+          nextRetryAt,
           err?.message || 'exception',
           revocationId,
         )

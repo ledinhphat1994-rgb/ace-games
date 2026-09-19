@@ -572,6 +572,15 @@ export async function computeAnalyticsOverview(
     friends: ['friend.request_sent', 'friend.request_accepted'],
     moderation: ['report.submitted', 'moderation.action_completed'],
     games: ['game.session_started'],
+    learningSession: [
+      'session.goal_set',
+      'session.task_added',
+      'session.task_completed',
+      'session.timer_started',
+      'session.poll_created',
+      'session.poll_voted',
+      'session.ended',
+    ],
   }
 
   const featureAdoption: Record<string, { eventCount: number; uniqueActors: number }> = {}

@@ -853,7 +853,7 @@ app.get('/api/rooms/:id/sessions', async (c) => {
     return c.json({ sessions, total: sessions.length })
   } catch (err) {
     console.error('Lỗi truy vấn hoc_session_summary:', err)
-    return c.json({ sessions: [], total: 0 })
+    return loi('Dịch vụ lịch sử buổi học tạm thời không khả dụng.', 503)
   }
 })
 app.post('/api/reports', createReport)
