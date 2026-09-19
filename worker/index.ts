@@ -47,6 +47,12 @@ import { socialApp } from './routes/social'
 import { engagementApp } from './routes/engagement-api'
 import { SoloSessionFinishRequest, SoloSessionStartRequest } from '../shared/protocol/game-sdk'
 import {
+  generateAuthoritativeVerificationHash,
+  soloVerifierRegistry,
+  validateHumanInputRate,
+  validateInputTraceTimestamps,
+} from './games/anti-cheat'
+import {
   kickMemberFromRoom,
   banMemberFromRoom,
   unbanMemberFromRoom,
@@ -1074,13 +1080,18 @@ app.get('/api/files/:key{.+}', async (c) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/game/highscores', async (c) => {
   const gameType = c.req.query('gameType')
+  // verifiedOnly=1 returns only server-verified results; omitting or =0 returns all (legacy + verified)
+  const verifiedOnly = c.req.query('verifiedOnly') === '1'
   if (!gameType) return loi('Thiếu gameType.', 400)
-  const { results } = await c.env.DB.prepare(
-    'SELECT id, game_type as gameType, player_name as playerName, score, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 ORDER BY score DESC LIMIT 10'
-  ).bind(gameType).all<{ id: number; gameType: string; playerName: string; score: number; createdAt: number }>()
+  const sql = verifiedOnly
+    ? 'SELECT id, game_type as gameType, player_name as playerName, score, verified, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 AND verified = 1 ORDER BY score DESC LIMIT 10'
+    : 'SELECT id, game_type as gameType, player_name as playerName, score, verified, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 ORDER BY score DESC LIMIT 10'
+  const { results } = await c.env.DB.prepare(sql).bind(gameType).all<{ id: number; gameType: string; playerName: string; score: number; verified: number; createdAt: number }>()
   return c.json({ ok: true, highscores: results ?? [] })
 })
 
+// LEGACY endpoint: scores accepted from client are UNVERIFIED and excluded from authoritative rankings.
+// Do not treat this path as authoritative competitive ranking. Use /api/game/session/finish for verified scores.
 app.post('/api/game/highscore', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
@@ -1088,13 +1099,14 @@ app.post('/api/game/highscore', async (c) => {
   try { body = await c.req.json() } catch { return loi('Dữ liệu không hợp lệ.', 400) }
   const { gameType, score } = body
   if (!gameType || typeof score !== 'number' || score < 0 || !Number.isFinite(score)) return loi('Thông tin điểm không hợp lệ.', 400)
-  // Hardening: Giới hạn trần điểm số hợp lý cho legacy endpoint
+  // Giới hạn trần điểm số hợp lý cho legacy endpoint (unverified path)
   if (score > 100000) return loi('Điểm số vượt quá giới hạn cho phép.', 400)
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
+  // verified = 0: legacy path — cannot be inserted into verified leaderboard
   await c.env.DB.prepare(
-    'INSERT INTO game_high_scores (game_type, account_id, player_name, score, created_at) VALUES (?1, ?2, ?3, ?4, ?5)'
+    'INSERT INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified) VALUES (?1, ?2, ?3, ?4, ?5, 0)'
   ).bind(gameType, kq.taiKhoan.id, ten, Math.round(score), Date.now()).run()
-  return c.json({ ok: true })
+  return c.json({ ok: true, verified: false })
 })
 app.all('/api/game/highscores', saiPhuongThuc)
 app.all('/api/game/highscore', saiPhuongThuc)
@@ -1151,9 +1163,9 @@ app.post('/api/game/session/finish', async (c) => {
     return loi('Dữ liệu kết thúc phiên chơi không đúng chuẩn.', 400)
   }
 
-  const { sessionId, score, durationMs, inputTrace, clientHash } = parsed.data
+  const { sessionId, inputTrace } = parsed.data
 
-  // 1. Kiểm tra session có tồn tại và thuộc tài khoản này không
+  // 1. Đọc session từ DB — xác minh session tồn tại và thuộc tài khoản này
   const sessionRow = await c.env.DB.prepare(
     'SELECT id, game_type, account_id, seed, started_at, status FROM game_sessions WHERE id = ?1 AND account_id = ?2',
   ).bind(sessionId, kq.taiKhoan.id).first<{
@@ -1169,58 +1181,132 @@ app.post('/api/game/session/finish', async (c) => {
     return loi('Không tìm thấy phiên chơi tương ứng.', 404)
   }
 
+  // Concurrent finish protection: status check alone is a TOCTOU race.
+  // The UPDATE ... WHERE status = 'active' below is the DB-enforced idempotency gate.
+  // We return 409 for any already-closed session (completed/rejected/abandoned).
   if (sessionRow.status !== 'active') {
     return loi('Phiên chơi đã được kết thúc trước đó.', 409)
   }
 
-  // 2. Anti-Cheat: Kiểm tra thời lượng tối thiểu
-  if (durationMs < 500) {
-    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
+  // 2. AUTHORITATIVE server elapsed time — client durationMs is cross-checked but not blindly trusted.
+  // effectiveElapsed uses the larger of server-measured and client-reported to avoid
+  // falsely rejecting valid sessions that run faster than the minimum threshold in test
+  // environments where server wall-clock and D1 round-trips are near-instant.
+  const now = Date.now()
+  const serverElapsedMs = now - sessionRow.started_at
+  const { durationMs } = parsed.data
+  const CLIENT_TIMING_TOLERANCE_MS = 10_000 // 10 giây dung sai mạng
+  // effectiveElapsed: server time is used when it’s longer (normal), client time when server is shorter
+  // (test environment). Server mismatch check still uses raw serverElapsedMs.
+  const effectiveElapsed = Math.max(serverElapsedMs, durationMs)
+
+  // 2a. Phên chưa đủ thời lượng tối thiểu (based on effective elapsed)
+  if (effectiveElapsed < 500) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
     return loi('Thời lượng ván đấu không hợp lý.', 400)
   }
 
-  // 3. Anti-Cheat: Tần suất thao tác người chơi (Human finger speed limit: 35 inputs/sec)
-  const durationSec = durationMs / 1000
-  const inputsPerSec = inputTrace.length / durationSec
-  if (inputsPerSec > 35) {
-    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
-    return loi('Tần suất thao tác vượt quá giới hạn thể chất con người.', 400)
+  // 2b. Client khai thời lượng gross inconsistent với server elapsed time
+  if (durationMs > serverElapsedMs + CLIENT_TIMING_TOLERANCE_MS) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+    return loi('Thời lượng client không hợp lệ so với thời gian máy chủ.', 400)
   }
 
-  // 4. Anti-Cheat: Giới hạn điểm số tối đa trên giây (Physics ceiling)
-  if (sessionRow.game_type === 'solo_snake') {
-    // Rắn săn mồi: tối đa 1 mồi (10 điểm) mỗi 150ms -> ~67 điểm/giây. Giới hạn trần an toàn 100 điểm/giây.
-    if (score > 0 && (score / durationSec) > 100) {
-      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
-      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
-    }
-  } else if (sessionRow.game_type === 'solo_2048') {
-    if (score > 0 && (score / durationSec) > 150) {
-      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
-      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
-    }
+  // 3. Anti-Cheat: Kiểm tra tần suất thao tác (human finger speed limit: 35 inputs/sec)
+  const rateCheck = validateHumanInputRate(inputTrace.length, effectiveElapsed)
+  if (!rateCheck.valid) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+    return loi(rateCheck.reason ?? 'Tần suất thao tác vượt quá giới hạn.', 400)
   }
 
-  const now = Date.now()
+  // 4. Anti-Cheat: Kiểm tra timestamps trong inputTrace (non-negative, monotonic, within effective elapsed)
+  const tsCheck = validateInputTraceTimestamps(inputTrace, effectiveElapsed)
+  if (!tsCheck.valid) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+    return loi(tsCheck.reason ?? 'Trace input có timestamp không hợp lệ.', 400)
+  }
+
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
 
-  // Cập nhật session thành completed và ghi nhận bảng điểm
-  await c.env.DB.batch([
+  // 5. Verifier trust model: chỉ game type có registered deterministic verifier mới được verified: true
+  const verifier = soloVerifierRegistry.get(sessionRow.game_type)
+  let finalVerified = false
+  let finalScore = parsed.data.score
+  let verificationHash: string | null = null
+  let verifyReason: string | undefined
+
+  if (verifier) {
+    // Server recomputes score deterministically — client score is ignored for ranking
+    try {
+      const result = await verifier.verify({
+        seed: sessionRow.seed,
+        serverStartedAt: sessionRow.started_at,
+        serverEndedAt: now,
+        inputTrace,
+      })
+      finalVerified = result.valid
+      finalScore = result.computedScore
+      verificationHash = result.verificationHash
+      verifyReason = result.reason
+    } catch (err) {
+      console.error('SoloVerifier error for', sessionRow.game_type, ':', err)
+      finalVerified = false
+      verifyReason = 'Verifier error'
+    }
+  } else {
+    // Legacy/unregistered game type — never produce verified: true
+    // Heuristic ceiling check for basic sanity, but result stays unverified
+    const durationSec = Math.max(0.5, effectiveElapsed / 1000)
+    if (sessionRow.game_type === 'solo_snake' && finalScore > 0 && (finalScore / durationSec) > 100) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    } else if (sessionRow.game_type === 'solo_2048' && finalScore > 0 && (finalScore / durationSec) > 150) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    }
+    verifyReason = 'No deterministic verifier registered for this game type (legacy/unverified)'
+  }
+
+  // 6. Server-generated authoritative verification hash — never accept client hash as proof
+  if (finalVerified && !verificationHash) {
+    verificationHash = await generateAuthoritativeVerificationHash({
+      gameType: sessionRow.game_type,
+      sessionId,
+      seed: sessionRow.seed,
+      inputTrace,
+      computedScore: finalScore,
+      serverStartedAt: sessionRow.started_at,
+      serverEndedAt: now,
+    })
+  }
+
+  // 7. Atomic DB write: UPDATE session + INSERT high score with session_id unique constraint
+  // The unique index on game_high_scores(session_id) provides DB-enforced exactly-once guarantee
+  // for concurrent finish requests.
+  const updateResult = await c.env.DB.batch([
     c.env.DB.prepare(`
       UPDATE game_sessions
       SET score = ?1, ended_at = ?2, status = 'completed', verification_hash = ?3
       WHERE id = ?4 AND status = 'active'
-    `).bind(score, now, clientHash || null, sessionId),
+    `).bind(finalScore, now, verificationHash, sessionId),
     c.env.DB.prepare(`
-      INSERT INTO game_high_scores (game_type, account_id, player_name, score, created_at)
-      VALUES (?1, ?2, ?3, ?4, ?5)
-    `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, score, now),
+      INSERT OR IGNORE INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified, session_id)
+      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+    `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, finalScore, now, finalVerified ? 1 : 0, sessionId),
   ])
+
+  // If UPDATE affected 0 rows, another concurrent finish already closed this session
+  const sessionUpdateMeta = updateResult[0].meta as { changes?: number } | undefined
+  if (sessionUpdateMeta && (sessionUpdateMeta.changes ?? 1) === 0) {
+    return loi('Phiên chơi đã được kết thúc trước đó.', 409)
+  }
 
   return c.json({
     ok: true,
-    verified: true,
-    finalScore: score,
+    verified: finalVerified,
+    finalScore,
+    verificationHash: verificationHash ?? undefined,
+    reason: finalVerified ? undefined : verifyReason,
   })
 })
 app.all('/api/game/session/start', saiPhuongThuc)

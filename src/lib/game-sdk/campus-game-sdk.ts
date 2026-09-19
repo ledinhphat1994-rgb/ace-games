@@ -22,6 +22,7 @@ import type {
   SoloSessionFinishResponse,
   SoloSessionStartResponse,
 } from '../../../shared/protocol/game-sdk'
+import { MAX_INPUT_TRACE_EVENTS } from '../../../shared/protocol/game-sdk'
 
 export interface CampusGameSDKOptions {
   container: HTMLElement
@@ -46,6 +47,7 @@ export class CampusGameSDK {
   private sessionSeed: number = 0
   private sessionStartTime: number = 0
   private inputTrace: GameInputEvent[] = []
+  private traceOverflow: boolean = false
 
   // Viewport
   private resizeObserver: ResizeObserver | null = null
@@ -64,13 +66,17 @@ export class CampusGameSDK {
     muted: false,
   }
 
-  // Adaptive Quality & Performance
+  // Adaptive Quality & Performance — with hysteresis to prevent oscillation
   private qualityLevel: GameQualityLevel = 'high'
   private frameCount: number = 0
   private lastFpsCheck: number = 0
   private currentFps: number = 60
   private animFrameId: number | null = null
   private isTabHidden: boolean = false
+
+  // Listener references — stored for deterministic cleanup in destroy()
+  private visibilityListener: (() => void) | null = null
+  private fullscreenListener: (() => void) | null = null
 
   // Callbacks
   private onLifecycleChange?: (event: GameLifecycleEvent) => void
@@ -174,7 +180,8 @@ export class CampusGameSDK {
             sessionId: this.sessionId,
             score: Math.round(this.currentScore),
             durationMs,
-            inputTrace: this.inputTrace.slice(0, 2000), // Cap payload trace
+            // Trace is already bounded at recordInput; no extra slice needed
+            inputTrace: this.inputTrace,
           }),
         })
 
@@ -196,6 +203,18 @@ export class CampusGameSDK {
       this.resizeObserver.disconnect()
       this.resizeObserver = null
     }
+    // Remove visibility listener
+    if (this.visibilityListener && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityListener)
+      this.visibilityListener = null
+    }
+    // Remove fullscreen listener
+    if (this.fullscreenListener && typeof document !== 'undefined') {
+      document.removeEventListener('fullscreenchange', this.fullscreenListener)
+      this.fullscreenListener = null
+    }
+    this.inputTrace = []
+    this.traceOverflow = false
     this.setLifecycle('destroy')
   }
 
@@ -204,12 +223,24 @@ export class CampusGameSDK {
   // ─────────────────────────────────────────────────────────────────────────
 
   recordInput(actionCode: string, payload?: unknown): void {
+    if (this.traceOverflow) return
     const elapsed = this.sessionStartTime ? Date.now() - this.sessionStartTime : 0
+    if (this.inputTrace.length >= MAX_INPUT_TRACE_EVENTS) {
+      this.traceOverflow = true
+      console.warn(`CampusGameSDK: inputTrace hit MAX (${MAX_INPUT_TRACE_EVENTS}). Further inputs not recorded.`)
+      return
+    }
     this.inputTrace.push({
       t: elapsed,
       k: actionCode,
-      p: payload,
+      // Cast: payload conforms to GameInputPayloadSchema at runtime; SDK accepts any game value
+      p: payload as GameInputEvent['p'],
     })
+  }
+
+  /** Whether input trace overflowed. Server will note this in verification. */
+  isTraceOverflow(): boolean {
+    return this.traceOverflow
   }
 
   updateScore(score: number): void {
@@ -297,14 +328,22 @@ export class CampusGameSDK {
   private setupVisibilityListener(): void {
     if (typeof document === 'undefined') return
 
-    document.addEventListener('visibilitychange', () => {
+    this.visibilityListener = () => {
       this.isTabHidden = document.visibilityState === 'hidden'
-      if (this.isTabHidden) {
-        if (this.lifecycle === 'start') {
-          this.pause()
-        }
+      if (this.isTabHidden && this.lifecycle === 'start') {
+        this.pause()
       }
-    })
+    }
+    document.addEventListener('visibilitychange', this.visibilityListener)
+
+    // Fullscreen change — deterministic viewport sync via event, not polling
+    this.fullscreenListener = () => {
+      this.viewportState = {
+        ...this.viewportState,
+        isFullscreen: Boolean(document.fullscreenElement),
+      }
+    }
+    document.addEventListener('fullscreenchange', this.fullscreenListener)
   }
 
   private startPerfMonitoring(): void {
@@ -319,11 +358,19 @@ export class CampusGameSDK {
         this.frameCount = 0
         this.lastFpsCheck = now
 
-        // Check for degradation
+        // Adaptive quality with hysteresis to avoid oscillation:
+        // Degrade: fps < 30 → low, fps < 45 → medium
+        // Recover: fps >= 55 → high, fps >= 40 → medium
         if (this.currentFps < 30 && this.qualityLevel !== 'low') {
           this.qualityLevel = 'low'
           this.onQualityChange?.('low')
-        } else if (this.currentFps >= 50 && this.qualityLevel !== 'high') {
+        } else if (this.currentFps >= 30 && this.currentFps < 45 && this.qualityLevel === 'high') {
+          this.qualityLevel = 'medium'
+          this.onQualityChange?.('medium')
+        } else if (this.currentFps >= 40 && this.qualityLevel === 'low') {
+          this.qualityLevel = 'medium'
+          this.onQualityChange?.('medium')
+        } else if (this.currentFps >= 55 && this.qualityLevel !== 'high') {
           this.qualityLevel = 'high'
           this.onQualityChange?.('high')
         }
