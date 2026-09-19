@@ -39,6 +39,47 @@ const SETTLEMENT_RETRY_BASE_MS = 5_000
 const SETTLEMENT_MAX_ATTEMPTS = 5
 const SETTLEMENT_WARN_THRESHOLD = 3
 
+/**
+ * Operational Load State Thresholds & Hysteresis Guards
+ *
+ * Evaluated locally within GameSessionDO to protect DO memory & CPU:
+ * - NORMAL: Full features, emotes enabled, normal spectator freshness.
+ * - CONSERVATIVE: Emotes throttled/dropped, spectator broadcasts throttled.
+ * - LOAD_SHED: New spectators rejected with 429, non-essential broadcasts dropped,
+ *              authoritative player moves & settlement preserved 100%.
+ */
+export const LOAD_STATE_THRESHOLDS = {
+  CONSERVATIVE_ENTER: {
+    activeSockets: 20,
+    spectators: 15,
+    msgRatePerSec: 15,
+    outboxDepth: 3,
+    invalidRatePerSec: 5,
+  },
+  LOAD_SHED_ENTER: {
+    activeSockets: 30,
+    spectators: 25,
+    msgRatePerSec: 35,
+    outboxDepth: 6,
+    invalidRatePerSec: 10,
+  },
+  LOAD_SHED_EXIT: {
+    activeSockets: 22,
+    spectators: 18,
+    msgRatePerSec: 25,
+    outboxDepth: 4,
+    invalidRatePerSec: 6,
+  },
+  CONSERVATIVE_EXIT: {
+    activeSockets: 14,
+    spectators: 10,
+    msgRatePerSec: 10,
+    outboxDepth: 1,
+    invalidRatePerSec: 2,
+  },
+  MIN_STATE_DWELL_MS: 5000,
+}
+
 interface AttachmentKetNoi {
   actorKey: string
   accountId: number
@@ -70,6 +111,10 @@ export class GameSessionDO extends DurableObject<Env> {
   private gameType: GameType = 'caro_15'
   private status: MatchStateSnapshot['status'] = 'waiting'
   private operationalState: OperationalLoadState = 'NORMAL'
+  private lastStateTransitionAt: number = 0
+  private recentMessages: number[] = []
+  private recentInvalidMessages: number[] = []
+  private lastStateEvaluationAt: number = 0
   private hostAccountId: number = 0
   private currentTurn: PlayerSide | null = null
   private turnTimerSeconds: number = 30
@@ -568,8 +613,8 @@ export class GameSessionDO extends DurableObject<Env> {
 
       role = 'spectator'
       this.ctx.storage.sql.exec(
-        'INSERT INTO session_players (actor_key, account_id, name, role, side, ready, connected) VALUES (?, ?, ?, NULL, NULL, 0, 1)',
-        actorKey, accountId, ten, role,
+        "INSERT INTO session_players (actor_key, account_id, name, role, side, ready, connected) VALUES (?, ?, ?, 'spectator', NULL, 0, 1)",
+        actorKey, accountId, ten,
       )
     }
 
@@ -641,6 +686,9 @@ export class GameSessionDO extends DurableObject<Env> {
 
     // 3. Per-socket token bucket rate limiter
     const now = Date.now()
+    this.recentMessages.push(now)
+    this.danhGiaOperationalState(now)
+
     const elapsedSec = Math.max(0, (now - att.lastTokenRefill) / 1000)
     att.tokens = Math.min(WS_RATE_LIMIT_BURST, att.tokens + elapsedSec * WS_RATE_LIMIT_TOKENS_PER_SEC)
     att.lastTokenRefill = now
@@ -770,6 +818,7 @@ export class GameSessionDO extends DurableObject<Env> {
       this.persistObligation('cleanup', 'cleanup', now + CLEANUP_DELAY_MS)
       void this.baoLobbyRong()
     }
+    this.danhGiaOperationalState(now)
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
@@ -1154,6 +1203,10 @@ export class GameSessionDO extends DurableObject<Env> {
   // ─── Overload & Abusive Packet Handling ─────────────────────────────────────
 
   private xuLyGoiLoi(ws: WebSocket, att: AttachmentKetNoi, lyDo: string): void {
+    const now = Date.now()
+    this.recentInvalidMessages.push(now)
+    this.danhGiaOperationalState(now)
+
     att.invalidPacketCount++
     if (att.invalidPacketCount >= MAX_CONSECUTIVE_INVALID_PACKETS) {
       try {
@@ -1181,7 +1234,105 @@ export class GameSessionDO extends DurableObject<Env> {
     } catch {}
   }
 
+  // ─── Local Operational State Evaluation & Hysteresis ─────────────────────────
+
+  danhGiaOperationalState(now: number): void {
+    if (now - this.lastStateEvaluationAt < 500) return
+    this.lastStateEvaluationAt = now
+
+    // Clean sliding window (last 5000ms)
+    const cutoff = now - 5000
+    this.recentMessages = this.recentMessages.filter((t) => t >= cutoff)
+    this.recentInvalidMessages = this.recentInvalidMessages.filter((t) => t >= cutoff)
+
+    const activeSockets = this.ctx.getWebSockets().filter((w) => w.readyState === WebSocket.OPEN).length
+    const spectatorCount = this.ctx.storage.sql
+      .exec<{ c: number }>("SELECT COUNT(*) as c FROM session_players WHERE role = 'spectator' AND connected = 1")
+      .toArray()[0]?.c ?? 0
+    const outboxDepth = this.getSettlementOutboxDepth()
+    const msgRatePerSec = this.recentMessages.length / 5
+    const invalidRatePerSec = this.recentInvalidMessages.length / 5
+
+    const enterLoadShed =
+      activeSockets >= LOAD_STATE_THRESHOLDS.LOAD_SHED_ENTER.activeSockets ||
+      spectatorCount >= LOAD_STATE_THRESHOLDS.LOAD_SHED_ENTER.spectators ||
+      msgRatePerSec >= LOAD_STATE_THRESHOLDS.LOAD_SHED_ENTER.msgRatePerSec ||
+      outboxDepth >= LOAD_STATE_THRESHOLDS.LOAD_SHED_ENTER.outboxDepth ||
+      invalidRatePerSec >= LOAD_STATE_THRESHOLDS.LOAD_SHED_ENTER.invalidRatePerSec
+
+    const enterConservative =
+      activeSockets >= LOAD_STATE_THRESHOLDS.CONSERVATIVE_ENTER.activeSockets ||
+      spectatorCount >= LOAD_STATE_THRESHOLDS.CONSERVATIVE_ENTER.spectators ||
+      msgRatePerSec >= LOAD_STATE_THRESHOLDS.CONSERVATIVE_ENTER.msgRatePerSec ||
+      outboxDepth >= LOAD_STATE_THRESHOLDS.CONSERVATIVE_ENTER.outboxDepth ||
+      invalidRatePerSec >= LOAD_STATE_THRESHOLDS.CONSERVATIVE_ENTER.invalidRatePerSec
+
+    const exitLoadShed =
+      activeSockets < LOAD_STATE_THRESHOLDS.LOAD_SHED_EXIT.activeSockets &&
+      spectatorCount < LOAD_STATE_THRESHOLDS.LOAD_SHED_EXIT.spectators &&
+      msgRatePerSec < LOAD_STATE_THRESHOLDS.LOAD_SHED_EXIT.msgRatePerSec &&
+      outboxDepth < LOAD_STATE_THRESHOLDS.LOAD_SHED_EXIT.outboxDepth &&
+      invalidRatePerSec < LOAD_STATE_THRESHOLDS.LOAD_SHED_EXIT.invalidRatePerSec
+
+    const exitConservative =
+      activeSockets < LOAD_STATE_THRESHOLDS.CONSERVATIVE_EXIT.activeSockets &&
+      spectatorCount < LOAD_STATE_THRESHOLDS.CONSERVATIVE_EXIT.spectators &&
+      msgRatePerSec < LOAD_STATE_THRESHOLDS.CONSERVATIVE_EXIT.msgRatePerSec &&
+      outboxDepth < LOAD_STATE_THRESHOLDS.CONSERVATIVE_EXIT.outboxDepth &&
+      invalidRatePerSec < LOAD_STATE_THRESHOLDS.CONSERVATIVE_EXIT.invalidRatePerSec
+
+    const timeInState = now - this.lastStateTransitionAt
+    let nextState: OperationalLoadState = this.operationalState
+
+    if (this.operationalState === 'NORMAL') {
+      if (enterLoadShed) {
+        nextState = 'LOAD_SHED'
+      } else if (enterConservative) {
+        nextState = 'CONSERVATIVE'
+      }
+    } else if (this.operationalState === 'CONSERVATIVE') {
+      if (enterLoadShed) {
+        nextState = 'LOAD_SHED'
+      } else if (exitConservative && timeInState >= LOAD_STATE_THRESHOLDS.MIN_STATE_DWELL_MS) {
+        nextState = 'NORMAL'
+      }
+    } else if (this.operationalState === 'LOAD_SHED') {
+      if (exitLoadShed && timeInState >= LOAD_STATE_THRESHOLDS.MIN_STATE_DWELL_MS) {
+        nextState = 'CONSERVATIVE'
+      }
+    }
+
+    if (nextState !== this.operationalState) {
+      this.operationalState = nextState
+      this.lastStateTransitionAt = now
+    }
+  }
+
   // ─── Test & Metrics Inspection API ──────────────────────────────────────────
+
+  getOperationalMetrics(): {
+    state: OperationalLoadState
+    activeSockets: number
+    spectators: number
+    msgRatePerSec: number
+    invalidRatePerSec: number
+    outboxDepth: number
+    lastStateTransitionAt: number
+  } {
+    const activeSockets = this.ctx.getWebSockets().filter((w) => w.readyState === WebSocket.OPEN).length
+    const spectators = this.ctx.storage.sql
+      .exec<{ c: number }>("SELECT COUNT(*) as c FROM session_players WHERE role = 'spectator' AND connected = 1")
+      .toArray()[0]?.c ?? 0
+    return {
+      state: this.operationalState,
+      activeSockets,
+      spectators,
+      msgRatePerSec: this.recentMessages.length / 5,
+      invalidRatePerSec: this.recentInvalidMessages.length / 5,
+      outboxDepth: this.getSettlementOutboxDepth(),
+      lastStateTransitionAt: this.lastStateTransitionAt,
+    }
+  }
 
   getSettlementOutboxDepth(): number {
     return (
