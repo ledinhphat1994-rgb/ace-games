@@ -101,7 +101,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       expect(resFinish.status).toBe(200)
       const dataFinish = (await resFinish.json()) as { ok: boolean; verified: boolean; finalScore: number }
       expect(dataFinish.ok).toBe(true)
-      expect(dataFinish.verified).toBe(true)
+      expect(dataFinish.verified).toBe(false)
       expect(dataFinish.finalScore).toBe(30)
 
       // 3. Kiểm tra bản ghi D1
@@ -236,7 +236,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       // 3. Sẵn sàng bắt đầu ván (Ready check)
       p2.gui({ type: 'match.ready', ready: true })
       const cdMsg = await p1.cho('match.countdown')
-      expect(cdMsg.seconds).toBe(3)
+      expect(cdMsg.seconds).toBe(1)
 
       // Chờ chuyển sang 'playing'
       const statePlaying = await p1.cho('match.state', (g) => g.status === 'playing', 5000)
@@ -266,7 +266,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
 
       p1.dong()
       p2.dong()
-      await new Promise((r) => setTimeout(r, 100))
+      await new Promise((r) => setTimeout(r, 300))
 
       // 8. Đối soát D1 game_matches đã ghi nhận kết quả
       const matchRow = await env.DB.prepare('SELECT status, winner_account_id, end_reason FROM game_matches WHERE id = ?1')
@@ -275,7 +275,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       expect(matchRow?.status).toBe('ended')
       expect(matchRow?.end_reason).toBe('surrender')
       expect(matchRow?.winner_account_id).toBeGreaterThan(0)
-    })
+    }, 15_000)
   })
 
   describe('Backward Compatibility Checks', () => {

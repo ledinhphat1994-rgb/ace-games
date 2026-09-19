@@ -42,10 +42,39 @@ export interface GameUserIdentity {
   avatarUrl?: string
 }
 
-export interface GameInputEvent {
-  t: number // Milliseconds since session start
-  k: string // Input key / action code ('up', 'down', 'move', etc.)
-  p?: unknown // Optional parameters (coordinates, angle, etc.)
+export const MAX_INPUT_TRACE_EVENTS = 2000
+
+export const GameInputPayloadSchema = z
+  .union([
+    z.string().max(128),
+    z.number().finite(),
+    z.boolean(),
+    z.record(z.string().max(32), z.union([z.string().max(64), z.number().finite(), z.boolean()])),
+  ])
+  .optional()
+
+export const GameInputEventSchema = z.object({
+  t: z.number().int().nonnegative(),
+  k: z.string().min(1).max(32),
+  p: GameInputPayloadSchema,
+})
+export type GameInputEvent = z.infer<typeof GameInputEventSchema>
+
+export interface SoloGameVerifierResult {
+  valid: boolean
+  computedScore: number
+  verificationHash: string
+  reason?: string
+}
+
+export interface SoloGameVerifier {
+  gameType: string
+  verify(input: {
+    seed: number
+    serverStartedAt: number
+    serverEndedAt: number
+    inputTrace: readonly GameInputEvent[]
+  }): Promise<SoloGameVerifierResult>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,13 +112,7 @@ export const SoloSessionFinishRequest = z.object({
   sessionId: z.string().uuid(),
   score: z.number().int().nonnegative(),
   durationMs: z.number().int().positive(),
-  inputTrace: z.array(
-    z.object({
-      t: z.number().int().nonnegative(),
-      k: z.string().min(1).max(32),
-      p: z.unknown().optional(),
-    }),
-  ),
+  inputTrace: z.array(GameInputEventSchema).max(MAX_INPUT_TRACE_EVENTS),
   clientHash: z.string().max(128).optional(),
 })
 export type SoloSessionFinishRequest = z.infer<typeof SoloSessionFinishRequest>
@@ -98,6 +121,8 @@ export const SoloSessionFinishResponse = z.object({
   ok: z.boolean(),
   verified: z.boolean(),
   finalScore: z.number(),
+  verificationHash: z.string().optional(),
+  reason: z.string().optional(),
   rank: z.number().optional(),
   xpAwarded: z.number().optional(),
   error: z.string().optional(),
@@ -124,6 +149,8 @@ export interface MatchPlayerInfo {
 
 export interface MatchStateSnapshot {
   matchId: string
+  roundSeq?: number
+  roundId?: string
   gameType: GameType | string
   status: 'waiting' | 'countdown' | 'playing' | 'ended'
   hostAccountId: number

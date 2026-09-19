@@ -70,7 +70,7 @@ describe('Campus Game SDK & Engine Loader Unit Tests', () => {
 
   it('GameEngineLoader phát hiện trạng thái tải Phaser', () => {
     // Trong môi trường worker/Nodejs, window.Phaser chưa được tải
-    const isLoaded = GameEngineLoader.isPhaserLoaded()
+    const isLoaded = GameEngineLoader.isLoaded()
     expect(typeof isLoaded).toBe('boolean')
   })
 })
