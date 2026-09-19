@@ -22,8 +22,7 @@
     {
       "binding": "ANALYTICS_DB",
       "database_name": "lop-10a7-analytics",
-      // KHÓA PHÁT HÀNH: Thay thế bằng UUID của lop-10a7-analytics sau khi được cấp phép tạo D1 production
-      "database_id": "UNPROVISIONED_PRODUCTION_ANALYTICS_DB_ID",
+      "database_id": "96f70f96-e129-4e28-be53-45b672883053",
       "migrations_dir": "analytics-migrations"
     }
   ],
