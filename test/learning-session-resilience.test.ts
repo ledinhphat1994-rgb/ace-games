@@ -380,7 +380,7 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
           activeMembers: ['Test Member'],
           pollResults: [],
         }),
-        Date.now(),
+        Date.now() - 1000,
       )
 
       // Verify it is in outbox
