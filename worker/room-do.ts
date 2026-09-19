@@ -43,6 +43,7 @@ import { TEN_CAMPUS } from './campus/danh-tinh'
 import { callCloudflareRealtime } from './routes/voice-api'
 import { recordAnalyticsEvent } from './lib/analytics'
 import { processLearningSessionSummaryEngagement } from './lib/engagement'
+import type { SessionEngagementFacts } from '../shared/protocol/engagement'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -375,6 +376,9 @@ export class RoomDO extends DurableObject<Env> {
           created_at INTEGER NOT NULL
         );
       `)
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE pending_session_summary_sync ADD COLUMN facts_json TEXT')
+      } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
     }
@@ -2548,6 +2552,36 @@ export class RoomDO extends DurableObject<Env> {
           pollResults,
         }
 
+        const taskCompletions: Array<{ taskId: string; accountId: number }> = []
+        for (const [taskId, accSet] of this.sessionTaskCompletions.entries()) {
+          for (const accId of accSet) {
+            taskCompletions.push({ taskId, accountId: accId })
+          }
+        }
+
+        const pollVotes: Array<{ pollId: string; accountId: number }> = []
+        for (const [pollId, voteMap] of this.pollVotes.entries()) {
+          for (const accId of voteMap.keys()) {
+            pollVotes.push({ pollId, accountId: accId })
+          }
+        }
+
+        const participantAccountIds: number[] = []
+        for (const m of activeMembers) {
+          const rawId = m.startsWith('acc:') ? m.slice(4) : m
+          const idNum = parseInt(rawId, 10)
+          if (Number.isFinite(idNum) && idNum > 0) {
+            participantAccountIds.push(idNum)
+          }
+        }
+
+        const facts: SessionEngagementFacts = {
+          participantAccountIds,
+          taskCompletions,
+          pollVotes,
+        }
+        const factsJson = JSON.stringify(facts)
+
         // 1. Authoritative SQLite transaction (Linearization Point):
         // Archive summary + enqueue outbox + clear active session + wipe session working tables
         try {
@@ -2567,11 +2601,12 @@ export class RoomDO extends DurableObject<Env> {
             if (summary.roomId > 0) {
               this.ctx.storage.sql.exec(
                 `INSERT OR IGNORE INTO pending_session_summary_sync
-                 (session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at)
-                 VALUES (?1, ?2, ?3, 0, 0, 0, ?4)`,
+                 (session_id, room_id, summary_json, facts_json, attempts, last_attempt_at, next_retry_at, created_at)
+                 VALUES (?1, ?2, ?3, ?4, 0, 0, 0, ?5)`,
                 summary.sessionId,
                 summary.roomId,
                 JSON.stringify(summary),
+                factsJson,
                 now,
               )
             }
@@ -2661,6 +2696,7 @@ export class RoomDO extends DurableObject<Env> {
     sessionId: string
     roomId: number
     summaryJson: string
+    factsJson: string | null
     attempts: number
     lastAttemptAt: number
     nextRetryAt: number
@@ -2671,16 +2707,18 @@ export class RoomDO extends DurableObject<Env> {
         session_id: string
         room_id: number
         summary_json: string
+        facts_json: string | null
         attempts: number
         last_attempt_at: number
         next_retry_at: number
         created_at: number
       }>(
-        'SELECT session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at FROM pending_session_summary_sync ORDER BY created_at ASC',
+        'SELECT session_id, room_id, summary_json, facts_json, attempts, last_attempt_at, next_retry_at, created_at FROM pending_session_summary_sync ORDER BY created_at ASC',
       )].map((r) => ({
         sessionId: r.session_id,
         roomId: r.room_id,
         summaryJson: r.summary_json,
+        factsJson: r.facts_json || null,
         attempts: r.attempts,
         lastAttemptAt: r.last_attempt_at,
         nextRetryAt: r.next_retry_at,
@@ -2703,6 +2741,14 @@ export class RoomDO extends DurableObject<Env> {
       if (item.nextRetryAt > now) continue
       try {
         const summary = JSON.parse(item.summaryJson) as SessionSummary
+        let facts: SessionEngagementFacts | undefined
+        if (item.factsJson) {
+          try {
+            facts = JSON.parse(item.factsJson)
+          } catch {}
+        }
+
+        // 1. Authoritative persistence in D1
         await d1
           .prepare(
             `INSERT OR IGNORE INTO hoc_session_summary
@@ -2720,20 +2766,17 @@ export class RoomDO extends DurableObject<Env> {
           )
           .run()
 
-        // Thành công: xóa khỏi outbox RoomDO SQLite
+        // 2. Authoritative engagement reward delivery (throws if any participant/operation fails)
+        await processLearningSessionSummaryEngagement(d1, summary, this.env.ANALYTICS_DB, this.ctx, facts)
+
+        // 3. ONLY after BOTH D1 summary persistence AND engagement delivery succeed:
+        // Delete from RoomDO durable outbox
         try {
           this.ctx.storage.sql.exec('DELETE FROM pending_session_summary_sync WHERE session_id = ?1', item.sessionId)
         } catch {}
         delivered++
-
-        // Tự động trao thưởng và xử lý Engagement Layer v1 một cách bền vững & idempotent
-        try {
-          await processLearningSessionSummaryEngagement(d1, summary, this.env.ANALYTICS_DB, this.ctx)
-        } catch (engErr) {
-          console.error(`[xuLyPendingSummarySync] Lỗi trao thưởng engagement cho session=${item.sessionId}:`, engErr)
-        }
       } catch (err) {
-        console.error(`[xuLyPendingSummarySync] Ghi D1 thất bại cho session=${item.sessionId}:`, err)
+        console.error(`[xuLyPendingSummarySync] Outbox processing failed for session=${item.sessionId}:`, err)
         const nextAttempts = item.attempts + 1
         if (nextAttempts >= 5) {
           console.warn(
@@ -2814,15 +2857,17 @@ export class RoomDO extends DurableObject<Env> {
     roomId: number,
     summaryJson: string,
     nextRetryAt: number,
+    factsJson?: string,
   ): Promise<void> {
     const now = Date.now()
     this.ctx.storage.sql.exec(
-      `INSERT INTO pending_session_summary_sync
-       (session_id, room_id, summary_json, attempts, last_attempt_at, next_retry_at, created_at)
-       VALUES (?1, ?2, ?3, 1, ?4, ?5, ?4)`,
+      `INSERT OR REPLACE INTO pending_session_summary_sync
+       (session_id, room_id, summary_json, facts_json, attempts, last_attempt_at, next_retry_at, created_at)
+       VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?5)`,
       sessionId,
       roomId,
       summaryJson,
+      factsJson || null,
       now,
       nextRetryAt,
     )

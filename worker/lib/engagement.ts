@@ -12,11 +12,12 @@
  * 5. Isolation: core engagement tables live strictly in Core D1 (DB), telemetry in ANALYTICS_DB.
  */
 
-import { isConsecutiveDay, SCHOOL_TIMEZONE, studyDate, studyWeek } from '../../shared/study-date'
+import { isConsecutiveDay, SCHOOL_TIMEZONE, studyDate, studyWeek, getStudyWeekDateRange } from '../../shared/study-date'
 import type {
   AchievementDefinition,
   ClassChallenge,
   EngagementProfile,
+  SessionEngagementFacts,
 } from '../../shared/protocol/engagement'
 import type { SessionSummary } from '../../shared/protocol/room'
 import { recordAnalyticsEvent } from './analytics'
@@ -183,6 +184,28 @@ export async function getOrCreateEngagementProfile(
   }
 }
 
+/**
+ * Reconciles profile total_xp directly from authoritative sum of xp_ledger.
+ */
+export async function reconcileProfileXpFromLedger(
+  db: D1Database,
+  accountId: number,
+  now = Date.now(),
+): Promise<number> {
+  const res = await db
+    .prepare(
+      `UPDATE user_engagement_profile
+       SET total_xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_ledger WHERE account_id = ?1),
+           updated_at = ?2
+       WHERE account_id = ?1
+       RETURNING total_xp`,
+    )
+    .bind(accountId, now)
+    .first<{ total_xp: number }>()
+
+  return res?.total_xp ?? 0
+}
+
 // ─── Idempotent XP Awarding ───────────────────────────────────────────────────
 
 export interface AwardXpParams {
@@ -192,7 +215,6 @@ export interface AwardXpParams {
   sourceKey: string
   studyDateStr?: string
   timestamp?: number
-  bypassDailyCap?: boolean
 }
 
 export interface AwardXpResult {
@@ -221,6 +243,9 @@ export async function awardXp(db: D1Database, params: AwardXpParams): Promise<Aw
     }
   }
 
+  // Ensure profile row exists
+  await getOrCreateEngagementProfile(db, params.accountId, ts)
+
   // Check if this reward source key was already processed (Idempotency Guard)
   const existingReward = await db
     .prepare(`SELECT amount FROM xp_ledger WHERE source_key = ?1`)
@@ -228,6 +253,7 @@ export async function awardXp(db: D1Database, params: AwardXpParams): Promise<Aw
     .first<{ amount: number }>()
 
   if (existingReward) {
+    await reconcileProfileXpFromLedger(db, params.accountId, ts)
     const profile = await getOrCreateEngagementProfile(db, params.accountId, ts)
     return {
       awarded: false,
@@ -239,18 +265,38 @@ export async function awardXp(db: D1Database, params: AwardXpParams): Promise<Aw
     }
   }
 
-  // Check daily cap
-  let effectiveAmount = params.amount
-  if (!params.bypassDailyCap) {
-    const todayXpRow = await db
-      .prepare(`SELECT COALESCE(SUM(amount), 0) as todayXp FROM xp_ledger WHERE account_id = ?1 AND study_date = ?2`)
-      .bind(params.accountId, dateStr)
-      .first<{ todayXp: number }>()
+  // Atomic conditional insertion + profile update via D1 ACID batch transaction.
+  // Calculates remaining daily quota within SQLite write serialization so concurrent
+  // requests with distinct source keys cannot exceed MAX_DAILY_XP (120).
+  const insertStmt = db
+    .prepare(
+      `INSERT INTO xp_ledger (account_id, amount, reason, source_key, study_date, created_at)
+       SELECT
+         ?1,
+         MIN(?2, MAX(0, ?3 - COALESCE((SELECT SUM(amount) FROM xp_ledger WHERE account_id = ?1 AND study_date = ?4), 0))),
+         ?5,
+         ?6,
+         ?4,
+         ?7
+       WHERE (SELECT COALESCE(SUM(amount), 0) FROM xp_ledger WHERE account_id = ?1 AND study_date = ?4) < ?3
+         AND MIN(?2, MAX(0, ?3 - COALESCE((SELECT SUM(amount) FROM xp_ledger WHERE account_id = ?1 AND study_date = ?4), 0))) > 0`,
+    )
+    .bind(params.accountId, params.amount, MAX_DAILY_XP, dateStr, params.reason, params.sourceKey, ts)
 
-    const currentDailyXp = todayXpRow?.todayXp || 0
-    const remainingQuota = Math.max(0, MAX_DAILY_XP - currentDailyXp)
+  const updateProfileStmt = db
+    .prepare(
+      `UPDATE user_engagement_profile
+       SET total_xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_ledger WHERE account_id = ?1),
+           updated_at = ?2
+       WHERE account_id = ?1`,
+    )
+    .bind(params.accountId, ts)
 
-    if (remainingQuota <= 0) {
+  try {
+    const batchRes = await db.batch([insertStmt, updateProfileStmt])
+    const insertRes = batchRes[0]
+
+    if (!insertRes.meta?.changes || insertRes.meta.changes === 0) {
       const profile = await getOrCreateEngagementProfile(db, params.accountId, ts)
       return {
         awarded: false,
@@ -262,42 +308,26 @@ export async function awardXp(db: D1Database, params: AwardXpParams): Promise<Aw
         reason: 'daily_cap_reached',
       }
     }
-    effectiveAmount = Math.min(params.amount, remainingQuota)
-  }
 
-  // Ensure profile exists
-  await getOrCreateEngagementProfile(db, params.accountId, ts)
+    const insertedRow = await db
+      .prepare(`SELECT amount FROM xp_ledger WHERE source_key = ?1`)
+      .bind(params.sourceKey)
+      .first<{ amount: number }>()
 
-  // Insert into ledger (atomically enforcing source_key uniqueness)
-  try {
-    await db
-      .prepare(
-        `INSERT INTO xp_ledger (account_id, amount, reason, source_key, study_date, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-      )
-      .bind(params.accountId, effectiveAmount, params.reason, params.sourceKey, dateStr, ts)
-      .run()
-
-    // Update aggregate total_xp
-    const updateRes = await db
-      .prepare(
-        `UPDATE user_engagement_profile
-         SET total_xp = total_xp + ?1, updated_at = ?2
-         WHERE account_id = ?3
-         RETURNING total_xp`,
-      )
-      .bind(effectiveAmount, ts, params.accountId)
-      .first<{ total_xp: number }>()
+    const amountAwarded = insertedRow?.amount ?? 0
+    const profile = await getOrCreateEngagementProfile(db, params.accountId, ts)
 
     return {
       awarded: true,
-      amount: effectiveAmount,
-      amountAwarded: effectiveAmount,
+      amount: amountAwarded,
+      amountAwarded,
       alreadyAwarded: false,
-      newTotalXp: updateRes?.total_xp ?? effectiveAmount,
+      capped: amountAwarded < params.amount,
+      newTotalXp: profile.totalXp,
     }
   } catch (err: any) {
     if (String(err?.message || '').includes('UNIQUE constraint')) {
+      await reconcileProfileXpFromLedger(db, params.accountId, ts)
       const profile = await getOrCreateEngagementProfile(db, params.accountId, ts)
       return {
         awarded: false,
@@ -348,7 +378,6 @@ export async function updateStudyStreak(
     newStreak = profile.currentStreak + 1
     extended = true
   } else {
-    // Either first study day or missed day -> reset to 1
     newStreak = 1
     reset = profile.currentStreak > 0
   }
@@ -373,6 +402,58 @@ export async function updateStudyStreak(
   }
 }
 
+// ─── Centralized Achievement Unlocking ───────────────────────────────────────
+
+export interface UnlockAchievementResult {
+  unlocked: boolean
+  alreadyUnlocked: boolean
+  rewardResult?: AwardXpResult
+}
+
+export async function unlockAchievement(
+  db: D1Database,
+  accountId: number,
+  key: string,
+  sourceKey: string,
+  now = Date.now(),
+): Promise<UnlockAchievementResult> {
+  const achDef = ACHIEVEMENT_CATALOG.find((a) => a.key === key)
+  if (!achDef) {
+    return { unlocked: false, alreadyUnlocked: false }
+  }
+
+  // 1. Idempotently insert unlock record
+  const res = await db
+    .prepare(
+      `INSERT OR IGNORE INTO achievement_unlocks (account_id, achievement_key, source_key, unlocked_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    )
+    .bind(accountId, key, sourceKey, now)
+    .run()
+
+  const newlyInserted = !!(res.meta?.changes && res.meta.changes > 0)
+
+  // 2. Authoritative reward delivery (strictly respecting MAX_DAILY_XP)
+  // Even if unlock row previously existed from a failed run, awardXp with unique
+  // ach_reward source key delivers missing reward idempotently.
+  let rewardResult: AwardXpResult | undefined
+  if (achDef.rewardXp > 0) {
+    rewardResult = await awardXp(db, {
+      accountId,
+      amount: achDef.rewardXp,
+      reason: `achievement_${key}`,
+      sourceKey: `ach_reward:${key}:acc:${accountId}`,
+      timestamp: now,
+    })
+  }
+
+  return {
+    unlocked: newlyInserted,
+    alreadyUnlocked: !newlyInserted,
+    rewardResult,
+  }
+}
+
 // ─── Achievement Evaluation ───────────────────────────────────────────────────
 
 export async function evaluateAchievements(
@@ -382,7 +463,6 @@ export async function evaluateAchievements(
 ): Promise<string[]> {
   const profile = await getOrCreateEngagementProfile(db, accountId, now)
 
-  // Get already unlocked achievements
   const unlockedRows = await db
     .prepare(`SELECT achievement_key FROM achievement_unlocks WHERE account_id = ?1`)
     .bind(accountId)
@@ -391,37 +471,16 @@ export async function evaluateAchievements(
   const unlockedSet = new Set((unlockedRows.results || []).map((r) => r.achievement_key))
   const newlyUnlocked: string[] = []
 
-  // Helper unlock function
   const tryUnlock = async (key: string, sourceKey: string) => {
     if (unlockedSet.has(key)) return
     try {
-      const res = await db
-        .prepare(
-          `INSERT OR IGNORE INTO achievement_unlocks (account_id, achievement_key, source_key, unlocked_at)
-           VALUES (?1, ?2, ?3, ?4)`,
-        )
-        .bind(accountId, key, sourceKey, now)
-        .run()
-
-      if (res.meta?.changes && res.meta.changes > 0) {
+      const res = await unlockAchievement(db, accountId, key, sourceKey, now)
+      if (res.unlocked) {
         unlockedSet.add(key)
         newlyUnlocked.push(key)
-
-        // Award bonus XP for achievement unlock
-        const achDef = ACHIEVEMENT_CATALOG.find((a) => a.key === key)
-        if (achDef && achDef.rewardXp > 0) {
-          await awardXp(db, {
-            accountId,
-            amount: achDef.rewardXp,
-            reason: `achievement_${key}`,
-            sourceKey: `ach_reward:${key}:acc:${accountId}`,
-            timestamp: now,
-            bypassDailyCap: true, // Achievement rewards are bonus and exempt from daily cap
-          })
-        }
       }
     } catch {
-      // ignore concurrent unlock
+      // ignore concurrent unlock error
     }
   }
 
@@ -439,7 +498,7 @@ export async function evaluateAchievements(
   if (profile.currentStreak >= 3) await tryUnlock('streak_3', `streak:3:acc:${accountId}`)
   if (profile.currentStreak >= 7) await tryUnlock('streak_7', `streak:7:acc:${accountId}`)
 
-  // 3. Task Completions
+  // 3. Task Completions (authoritative from ledger)
   const taskCountRow = await db
     .prepare(`SELECT COUNT(*) as cnt FROM xp_ledger WHERE account_id = ?1 AND reason = 'task_completed'`)
     .bind(accountId)
@@ -447,7 +506,7 @@ export async function evaluateAchievements(
 
   if ((taskCountRow?.cnt || 0) >= 5) await tryUnlock('task_finisher_5', `task_count:5:acc:${accountId}`)
 
-  // 4. Poll Votes
+  // 4. Poll Votes (authoritative from ledger)
   const pollCountRow = await db
     .prepare(`SELECT COUNT(*) as cnt FROM xp_ledger WHERE account_id = ?1 AND reason = 'poll_voted'`)
     .bind(accountId)
@@ -474,7 +533,7 @@ export async function ensureActiveWeeklyChallenge(
   now = Date.now(),
 ): Promise<ClassChallenge | null> {
   const currentWk = studyWeek(now, SCHOOL_TIMEZONE)
-  const today = studyDate(now, SCHOOL_TIMEZONE)
+  const { startDate, endDate } = getStudyWeekDateRange(currentWk)
 
   // Find existing active or completed challenge for this week
   const existing = await db
@@ -514,7 +573,7 @@ export async function ensureActiveWeeklyChallenge(
     }
   }
 
-  // Create default weekly challenge for class
+  // Create default weekly challenge for class spanning canonical Monday -> Sunday
   const challengeId = `ch_lop${lopId}_${currentWk}`
   const title = `Thử thách học tập Tuần ${currentWk.split('-W')[1]}`
   const description = `Cùng lớp hoàn thành 20 phiên học tập chất lượng trong tuần này`
@@ -528,7 +587,7 @@ export async function ensureActiveWeeklyChallenge(
        (id, lop_id, title, description, target_type, target_value, current_value, reward_xp, start_date, end_date, status, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, 'active', ?10)`,
     )
-    .bind(challengeId, lopId, title, description, targetType, targetValue, rewardXp, today, today, now)
+    .bind(challengeId, lopId, title, description, targetType, targetValue, rewardXp, startDate, endDate, now)
     .run()
 
   return {
@@ -540,8 +599,8 @@ export async function ensureActiveWeeklyChallenge(
     targetValue,
     currentValue: 0,
     rewardXp,
-    startDate: today,
-    endDate: today,
+    startDate,
+    endDate,
     status: 'active',
   }
 }
@@ -571,28 +630,38 @@ export async function contributeToClassChallenge(
   }
 
   try {
-    // 1. Idempotent contribution record
-    await db
+    // 1. Authoritative insert or ignore contribution record
+    const insertContribRes = await db
       .prepare(
-        `INSERT INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at)
+        `INSERT OR IGNORE INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at)
          VALUES (?1, ?2, ?3, 1, ?4)`,
       )
       .bind(challenge.id, params.accountId, params.sourceKey, ts)
       .run()
 
-    // 2. Increment challenge current_value
+    const isNewContribution = !!(insertContribRes.meta?.changes && insertContribRes.meta.changes > 0)
+
+    // 2. Authoritative reconciliation of current_value from contributions aggregate
     const updateRes = await db
       .prepare(
         `UPDATE class_challenges
-         SET current_value = current_value + 1
+         SET current_value = (
+           SELECT COALESCE(SUM(contribution_value), 0)
+           FROM class_challenge_contributions
+           WHERE challenge_id = ?1
+         )
          WHERE id = ?1
          RETURNING current_value, target_value, reward_xp`,
       )
       .bind(challenge.id)
       .first<{ current_value: number; target_value: number; reward_xp: number }>()
 
+    const currentValue = updateRes?.current_value ?? challenge.currentValue
+    const targetValue = updateRes?.target_value ?? challenge.targetValue
+    const rewardXpAmount = updateRes?.reward_xp ?? challenge.rewardXp
+
     let completed = false
-    if (updateRes && updateRes.current_value >= updateRes.target_value) {
+    if (currentValue >= targetValue) {
       await db
         .prepare(`UPDATE class_challenges SET status = 'completed' WHERE id = ?1 AND status = 'active'`)
         .bind(challenge.id)
@@ -600,7 +669,7 @@ export async function contributeToClassChallenge(
 
       completed = true
 
-      // Bonus XP to all contributors
+      // Bonus XP to all contributors (strictly respecting MAX_DAILY_XP, no bypass)
       const contributors = await db
         .prepare(`SELECT DISTINCT account_id FROM class_challenge_contributions WHERE challenge_id = ?1`)
         .bind(challenge.id)
@@ -609,21 +678,20 @@ export async function contributeToClassChallenge(
       for (const c of contributors.results || []) {
         await awardXp(db, {
           accountId: c.account_id,
-          amount: updateRes.reward_xp,
+          amount: rewardXpAmount,
           reason: 'challenge_completed_bonus',
           sourceKey: `challenge_bonus:${challenge.id}:acc:${c.account_id}`,
           timestamp: ts,
-          bypassDailyCap: true,
         })
       }
     }
 
     return {
-      contributed: true,
+      contributed: isNewContribution,
       completed,
-      alreadyContributed: false,
+      alreadyContributed: !isNewContribution,
       challengeId: challenge.id,
-      newCurrentValue: updateRes?.current_value ?? 1,
+      newCurrentValue: currentValue,
     }
   } catch (err: any) {
     if (String(err?.message || '').includes('UNIQUE constraint')) {
@@ -646,10 +714,11 @@ export async function processLearningSessionSummaryEngagement(
   summary: SessionSummary,
   analyticsDb?: D1Database,
   ctx?: { waitUntil: (promise: Promise<unknown>) => void },
+  facts?: SessionEngagementFacts,
 ): Promise<void> {
   const now = summary.endedAt || Date.now()
 
-  // Extract account IDs from activeMembers (format "acc:123" or "123")
+  // Extract account IDs from activeMembers ("acc:123" or "123") + facts.participantAccountIds
   const participantAccountIds = new Set<number>()
   for (const m of summary.activeMembers || []) {
     const rawId = m.startsWith('acc:') ? m.slice(4) : m
@@ -658,15 +727,22 @@ export async function processLearningSessionSummaryEngagement(
       participantAccountIds.add(idNum)
     }
   }
+  for (const accId of facts?.participantAccountIds || []) {
+    if (Number.isFinite(accId) && accId > 0) {
+      participantAccountIds.add(accId)
+    }
+  }
 
   const isMultiParticipant = participantAccountIds.size >= 2
+  const processingFailures: Array<{ accountId: number; error: any }> = []
 
+  // 1. Process per-participant rewards (Streak, Session XP, study_together, Challenge, Achievements)
   for (const accountId of participantAccountIds) {
     try {
-      // 1. Update Study Streak
+      // 1.1. Update Study Streak
       const streakRes = await updateStudyStreak(db, accountId, now)
 
-      // 2. Award Session Completion XP (+20 XP)
+      // 1.2. Award Session Completion XP (+20 XP)
       const sessionSourceKey = `session:${summary.sessionId}:acc:${accountId}`
       const xpRes = await awardXp(db, {
         accountId,
@@ -676,27 +752,24 @@ export async function processLearningSessionSummaryEngagement(
         timestamp: now,
       })
 
-      // 3. If multi-participant session, try unlock 'study_together' achievement
+      // 1.3. Multi-participant: centralized unlock 'study_together' (+15 XP)
       if (isMultiParticipant) {
-        try {
-          await db
-            .prepare(
-              `INSERT OR IGNORE INTO achievement_unlocks (account_id, achievement_key, source_key, unlocked_at)
-               VALUES (?1, 'study_together', ?2, ?3)`,
-            )
-            .bind(accountId, `study_together:session:${summary.sessionId}:acc:${accountId}`, now)
-            .run()
-        } catch {}
+        await unlockAchievement(
+          db,
+          accountId,
+          'study_together',
+          `study_together:session:${summary.sessionId}:acc:${accountId}`,
+          now,
+        )
       }
 
-      // 4. Query student's class (lop_id) for class challenges
+      // 1.4. Query student's class (lop_id) for class challenges
       const studentClass = await db
         .prepare(`SELECT lop_id FROM tai_khoan_campus WHERE id = ?1`)
         .bind(accountId)
         .first<{ lop_id: number | null }>()
 
       if (studentClass?.lop_id) {
-        // Contribute to class session challenge
         await contributeToClassChallenge(db, {
           lopId: studentClass.lop_id,
           accountId,
@@ -706,10 +779,10 @@ export async function processLearningSessionSummaryEngagement(
         })
       }
 
-      // 5. Evaluate achievements
+      // 1.5. Evaluate achievements
       const newlyUnlocked = await evaluateAchievements(db, accountId, now)
 
-      // 6. Record analytics events (non-blocking)
+      // 1.6. Telemetry (non-blocking)
       if (analyticsDb) {
         if (xpRes.awarded) {
           recordAnalyticsEvent(analyticsDb, ctx, {
@@ -735,7 +808,69 @@ export async function processLearningSessionSummaryEngagement(
         }
       }
     } catch (err) {
-      console.error(`[processLearningSessionSummaryEngagement] Lỗi xử lý cho accountId=${accountId}:`, err)
+      console.error(`[processLearningSessionSummaryEngagement] Participant error for accountId=${accountId}:`, err)
+      processingFailures.push({ accountId, error: err })
     }
+  }
+
+  // 2. Authoritative Task Completions (+5 XP each)
+  const evaluatedTaskAccounts = new Set<number>()
+  for (const tc of facts?.taskCompletions || []) {
+    if (!Number.isFinite(tc.accountId) || tc.accountId <= 0 || !tc.taskId) continue
+    try {
+      await awardXp(db, {
+        accountId: tc.accountId,
+        amount: XP_TASK_COMPLETE,
+        reason: 'task_completed',
+        sourceKey: `task:${summary.sessionId}:${tc.taskId}:acc:${tc.accountId}`,
+        timestamp: now,
+      })
+      evaluatedTaskAccounts.add(tc.accountId)
+    } catch (taskErr) {
+      console.error(`[processLearningSessionSummaryEngagement] Task award error for accountId=${tc.accountId}:`, taskErr)
+      processingFailures.push({ accountId: tc.accountId, error: taskErr })
+    }
+  }
+  for (const accId of evaluatedTaskAccounts) {
+    try {
+      await evaluateAchievements(db, accId, now)
+    } catch (evalErr) {
+      console.error(`[processLearningSessionSummaryEngagement] Task eval error for accountId=${accId}:`, evalErr)
+      processingFailures.push({ accountId: accId, error: evalErr })
+    }
+  }
+
+  // 3. Authoritative Poll Votes (+2 XP each, unique per poll/account)
+  const evaluatedPollAccounts = new Set<number>()
+  for (const pv of facts?.pollVotes || []) {
+    if (!Number.isFinite(pv.accountId) || pv.accountId <= 0 || !pv.pollId) continue
+    try {
+      await awardXp(db, {
+        accountId: pv.accountId,
+        amount: XP_POLL_VOTE,
+        reason: 'poll_voted',
+        sourceKey: `poll:${summary.sessionId}:${pv.pollId}:acc:${pv.accountId}`,
+        timestamp: now,
+      })
+      evaluatedPollAccounts.add(pv.accountId)
+    } catch (pollErr) {
+      console.error(`[processLearningSessionSummaryEngagement] Poll award error for accountId=${pv.accountId}:`, pollErr)
+      processingFailures.push({ accountId: pv.accountId, error: pollErr })
+    }
+  }
+  for (const accId of evaluatedPollAccounts) {
+    try {
+      await evaluateAchievements(db, accId, now)
+    } catch (evalErr) {
+      console.error(`[processLearningSessionSummaryEngagement] Poll eval error for accountId=${accId}:`, evalErr)
+      processingFailures.push({ accountId: accId, error: evalErr })
+    }
+  }
+
+  // If any participant or fact processing failed, throw retryable error so RoomDO retains outbox
+  if (processingFailures.length > 0) {
+    throw new Error(
+      `[processLearningSessionSummaryEngagement] Incomplete engagement delivery for session=${summary.sessionId}: ${processingFailures.length} operations failed. (Accounts: ${processingFailures.map((f) => f.accountId).join(', ')})`,
+    )
   }
 }

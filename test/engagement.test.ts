@@ -5,13 +5,17 @@ import {
   awardXp,
   updateStudyStreak,
   evaluateAchievements,
+  unlockAchievement,
   ensureActiveWeeklyChallenge,
   contributeToClassChallenge,
   processLearningSessionSummaryEngagement,
+  reconcileProfileXpFromLedger,
+  MAX_DAILY_XP,
   XP_SESSION_COMPLETE,
 } from '../worker/lib/engagement'
-import { studyDate } from '../shared/study-date'
+import { SCHOOL_TIMEZONE, studyDate } from '../shared/study-date'
 import type { SessionSummary } from '../shared/protocol/room'
+import type { SessionEngagementFacts } from '../shared/protocol/engagement'
 
 const goi = (duongDan: string, init?: RequestInit) => exports.default.fetch(`${GOC}${duongDan}`, init)
 const layCookie = (res: Response) => (res.headers.get('Set-Cookie') ?? '').split(';')[0]
@@ -34,6 +38,29 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
     await db.prepare('DELETE FROM class_challenge_contributions').run().catch(() => {})
     await db.prepare('DELETE FROM class_challenges').run().catch(() => {})
     await db.prepare('DELETE FROM study_invitations').run().catch(() => {})
+
+    // Ensure valid room 1 exists in D1
+    await db
+      .prepare(
+        `INSERT OR IGNORE INTO phong
+         (id, loai, ten, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten, access_mode, suc_chua, trang_thai)
+         VALUES (1, 'video', 'Phòng Toán 10', 'truong', NULL, 'acc:1', 'Host', 'public', 20, 'mo')`,
+      )
+      .run()
+      .catch(() => {})
+
+    // Ensure dedicated test accounts exist in tai_khoan_campus for foreign key constraints
+    for (const id of [101, 102, 103, 104, 105, 106, 107, 201, 202, 210, 211]) {
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO tai_khoan_campus
+           (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, lop_id, dang_hoat_dong)
+           VALUES (?1, ?2, ?3, 'dummy_hash', 'dummy_salt', 100000, 'student', 1, 1)`,
+        )
+        .bind(id, `test_acc_${id}`, `Test User ${id}`)
+        .run()
+        .catch(() => {})
+    }
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -166,6 +193,104 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
         .first<{ total_xp: number }>()
       expect(profile?.total_xp).toBe(20)
     })
+
+    it('strict daily cap: seed at 110 XP, fire 3 concurrent +20 XP distinct sources -> final XP strictly 120', async () => {
+      const accountId = 101
+      const now = Date.now()
+
+      // Seed profile & ledger to 110 XP
+      await awardXp(db, {
+        accountId,
+        amount: 110,
+        reason: 'seed_progress',
+        sourceKey: `seed:${accountId}`,
+        timestamp: now,
+      })
+
+      // Fire 3 concurrent awards with distinct source keys
+      const [resA, resB, resC] = await Promise.all([
+        awardXp(db, { accountId, amount: 20, reason: 'concurrent_A', sourceKey: `conc:A:${accountId}`, timestamp: now }),
+        awardXp(db, { accountId, amount: 20, reason: 'concurrent_B', sourceKey: `conc:B:${accountId}`, timestamp: now }),
+        awardXp(db, { accountId, amount: 20, reason: 'concurrent_C', sourceKey: `conc:C:${accountId}`, timestamp: now }),
+      ])
+
+      const today = studyDate(now, SCHOOL_TIMEZONE)
+      const ledgerSumRow = await db
+        .prepare('SELECT SUM(amount) as total FROM xp_ledger WHERE account_id = ?1 AND study_date = ?2')
+        .bind(accountId, today)
+        .first<{ total: number }>()
+
+      // STRICT INVARIANT: Total daily XP must NEVER exceed MAX_DAILY_XP (120)
+      expect(ledgerSumRow?.total).toBe(MAX_DAILY_XP)
+      expect(ledgerSumRow?.total).toBe(120)
+
+      const profile = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ total_xp: number }>()
+      expect(profile?.total_xp).toBe(120)
+
+      // Total awarded across the 3 concurrent requests must equal exactly 10 (the remaining quota)
+      const totalAwarded = resA.amountAwarded + resB.amountAwarded + resC.amountAwarded
+      expect(totalAwarded).toBe(10)
+    })
+
+    it('achievement and challenge bonus cannot bypass daily cap when cap is reached', async () => {
+      const accountId = 102
+      const now = Date.now()
+
+      // Fill daily quota to 120 XP
+      await awardXp(db, {
+        accountId,
+        amount: MAX_DAILY_XP,
+        reason: 'fill_cap',
+        sourceKey: `cap:full:${accountId}`,
+        timestamp: now,
+      })
+
+      // Try unlock first_session achievement (catalog reward: 15 XP)
+      const achRes = await unlockAchievement(db, accountId, 'first_session', `ach_test:${accountId}`, now)
+      expect(achRes.unlocked).toBe(true)
+      expect(achRes.rewardResult?.awarded).toBe(false)
+      expect(achRes.rewardResult?.amountAwarded).toBe(0)
+      expect(achRes.rewardResult?.capped).toBe(true)
+
+      // Verify ledger sum remains strictly capped at 120
+      const today = studyDate(now, SCHOOL_TIMEZONE)
+      const sum = await db
+        .prepare('SELECT SUM(amount) as s FROM xp_ledger WHERE account_id = ?1 AND study_date = ?2')
+        .bind(accountId, today)
+        .first<{ s: number }>()
+      expect(sum?.s).toBe(MAX_DAILY_XP)
+    })
+
+    it('reconciles profile total_xp deterministically to SUM(xp_ledger.amount) after injected divergence', async () => {
+      const accountId = 103
+      const now = Date.now()
+
+      await awardXp(db, {
+        accountId,
+        amount: 35,
+        reason: 'test_ledger_source',
+        sourceKey: `reconcile:1:${accountId}`,
+        timestamp: now,
+      })
+
+      // Manually corrupt profile total_xp to simulate desync/injected failure
+      await db
+        .prepare('UPDATE user_engagement_profile SET total_xp = 9999 WHERE account_id = ?1')
+        .bind(accountId)
+        .run()
+
+      const reconciledXp = await reconcileProfileXpFromLedger(db, accountId, now)
+      expect(reconciledXp).toBe(35)
+
+      const profile = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ total_xp: number }>()
+      expect(profile?.total_xp).toBe(35)
+    })
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -278,6 +403,58 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       const unlocked = await evaluateAchievements(db, accountId, now)
       expect(unlocked).toContain('streak_3')
     })
+
+    it('study_together unlocks on multi-participant session and awards +15 XP consistently', async () => {
+      const accountId1 = 104
+      const accountId2 = 105
+      const now = Date.now()
+      const sessionId = 'session-multi-participant-test'
+
+      const mockSummary: SessionSummary = {
+        sessionId,
+        roomId: 1,
+        startedAt: now - 1800_000,
+        endedAt: now,
+        durationSeconds: 1800,
+        goal: 'Học nhóm đa người',
+        taskCount: 1,
+        taskCompletionRates: {},
+        pollResults: [],
+        activeMembers: [`acc:${accountId1}`, `acc:${accountId2}`],
+      }
+
+      await processLearningSessionSummaryEngagement(db, mockSummary)
+
+      // Verify study_together unlocked for both
+      const unlock1 = await db
+        .prepare('SELECT achievement_key FROM achievement_unlocks WHERE account_id = ?1 AND achievement_key = ?2')
+        .bind(accountId1, 'study_together')
+        .first<{ achievement_key: string }>()
+      expect(unlock1?.achievement_key).toBe('study_together')
+
+      // Verify study_together reward +15 XP was recorded in ledger
+      const reward1 = await db
+        .prepare('SELECT amount FROM xp_ledger WHERE account_id = ?1 AND reason = ?2')
+        .bind(accountId1, 'achievement_study_together')
+        .first<{ amount: number }>()
+      expect(reward1?.amount).toBe(15)
+
+      // Total XP for accountId1: 20 (session) + 15 (first_session) + 30 (challenge_contributor) + 15 (study_together) = 80 XP
+      const profile = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId1)
+        .first<{ total_xp: number }>()
+      expect(profile?.total_xp).toBe(80)
+
+      // Replay does not duplicate study_together badge or reward
+      await processLearningSessionSummaryEngagement(db, mockSummary)
+
+      const rewardCount = await db
+        .prepare('SELECT COUNT(*) as cnt FROM xp_ledger WHERE account_id = ?1 AND reason = ?2')
+        .bind(accountId1, 'achievement_study_together')
+        .first<{ cnt: number }>()
+      expect(rewardCount?.cnt).toBe(1)
+    })
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -316,6 +493,50 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       expect(replay.contributed).toBe(false)
       expect(replay.alreadyContributed).toBe(true)
       expect(replay.newCurrentValue).toBe(1)
+    })
+
+    it('class challenge reconciles current_value from authoritative contributions even after prior failure/desync', async () => {
+      const lopId = 1
+      const now = Date.now()
+      const challenge = await ensureActiveWeeklyChallenge(db, lopId, now)
+      expect(challenge).toBeDefined()
+
+      // Seed 2 contributions directly
+      await db
+        .prepare(
+          `INSERT INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at)
+           VALUES (?1, 1, 'src-desync-1', 1, ?2), (?1, 2, 'src-desync-2', 1, ?2)`,
+        )
+        .bind(challenge!.id, now)
+        .run()
+
+      // Artificially desync challenge counter to 0 (simulating interrupted write)
+      await db.prepare('UPDATE class_challenges SET current_value = 0 WHERE id = ?1').bind(challenge!.id).run()
+
+      // Contribute via normal flow (even with already-contributed source key)
+      const res = await contributeToClassChallenge(db, {
+        lopId,
+        accountId: 1,
+        targetType: 'sessions_count',
+        sourceKey: 'src-desync-1',
+        now,
+      })
+
+      // Counter is repaired to 2 based on authoritative aggregate
+      expect(res.newCurrentValue).toBe(2)
+
+      const chRow = await db.prepare('SELECT current_value FROM class_challenges WHERE id = ?1').bind(challenge!.id).first<{ current_value: number }>()
+      expect(chRow?.current_value).toBe(2)
+    })
+
+    it('weekly challenge canonical Monday -> Sunday date range (Wednesday-created represents full week)', async () => {
+      // 2026-09-16 is a Wednesday (ISO week 2026-W38: Monday 2026-09-14 -> Sunday 2026-09-20)
+      const wednesdayTs = Date.UTC(2026, 8, 16, 10, 0, 0)
+      const challenge = await ensureActiveWeeklyChallenge(db, 2, wednesdayTs)
+
+      expect(challenge).toBeDefined()
+      expect(challenge?.startDate).toBe('2026-09-14') // Monday
+      expect(challenge?.endDate).toBe('2026-09-20') // Sunday
     })
   })
 
@@ -411,6 +632,20 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       const data2 = (await res2.json()) as { ok: boolean; loi: string }
       expect(data2.loi).toContain('chờ ít phút')
     })
+
+    it('POST /api/engagement/invites: Rejects invite for nonexistent room with 404', async () => {
+      const loginRes = await dangNhap('qa.v2.thu1')
+      const cookie = layCookie(loginRes)
+
+      const res = await goi('/api/engagement/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ recipientId: 2, roomId: 999999, roomTitle: 'Tên Phòng Giả' }),
+      })
+      expect(res.status).toBe(404)
+      const data = (await res.json()) as { ok: boolean; loi: string }
+      expect(data.loi).toContain('không tồn tại')
+    })
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -451,6 +686,238 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
         .first<{ total_xp: number; current_streak: number }>()
       expect(profile2?.total_xp).toBe(profile1?.total_xp) // Exactly unchanged on replay!
       expect(profile2?.current_streak).toBe(1)
+    })
+
+    it('awards authoritative task completions (+5 XP) and unlocks task_finisher_5 after 5 completions', async () => {
+      const accountId = 106
+      const now = Date.now()
+
+      const facts: SessionEngagementFacts = {
+        participantAccountIds: [accountId],
+        taskCompletions: [
+          { taskId: 'task-1', accountId },
+          { taskId: 'task-2', accountId },
+          { taskId: 'task-3', accountId },
+          { taskId: 'task-4', accountId },
+          { taskId: 'task-5', accountId },
+        ],
+      }
+
+      const mockSummary: SessionSummary = {
+        sessionId: 'session-tasks-test',
+        roomId: 1,
+        startedAt: now - 1800_000,
+        endedAt: now,
+        durationSeconds: 1800,
+        goal: 'Hoàn thành 5 tasks',
+        taskCount: 5,
+        taskCompletionRates: {},
+        pollResults: [],
+        activeMembers: [`acc:${accountId}`],
+      }
+
+      await processLearningSessionSummaryEngagement(db, mockSummary, undefined, undefined, facts)
+
+      // Ledger has 5 task_completed rows of 5 XP each
+      const taskRows = await db
+        .prepare("SELECT COUNT(*) as c, SUM(amount) as s FROM xp_ledger WHERE account_id = ?1 AND reason = 'task_completed'")
+        .bind(accountId)
+        .first<{ c: number; s: number }>()
+      expect(taskRows?.c).toBe(5)
+      expect(taskRows?.s).toBe(25) // 5 * 5 XP
+
+      // task_finisher_5 achievement is unlocked!
+      const ach = await db
+        .prepare("SELECT achievement_key FROM achievement_unlocks WHERE account_id = ?1 AND achievement_key = 'task_finisher_5'")
+        .bind(accountId)
+        .first<{ achievement_key: string }>()
+      expect(ach?.achievement_key).toBe('task_finisher_5')
+
+      // Replaying the session does not duplicate task XP
+      await processLearningSessionSummaryEngagement(db, mockSummary, undefined, undefined, facts)
+      const taskRowsAfter = await db
+        .prepare("SELECT COUNT(*) as c FROM xp_ledger WHERE account_id = ?1 AND reason = 'task_completed'")
+        .bind(accountId)
+        .first<{ c: number }>()
+      expect(taskRowsAfter?.c).toBe(5)
+    })
+
+    it('awards authoritative poll participation (+2 XP) and unlocks poll_voter_3 after 3 votes', async () => {
+      const accountId = 107
+      const now = Date.now()
+
+      const facts: SessionEngagementFacts = {
+        participantAccountIds: [accountId],
+        pollVotes: [
+          { pollId: 'poll-1', accountId },
+          { pollId: 'poll-2', accountId },
+          { pollId: 'poll-3', accountId },
+        ],
+      }
+
+      const mockSummary: SessionSummary = {
+        sessionId: 'session-polls-test',
+        roomId: 1,
+        startedAt: now - 1800_000,
+        endedAt: now,
+        durationSeconds: 1800,
+        goal: 'Bình chọn 3 polls',
+        taskCount: 0,
+        taskCompletionRates: {},
+        pollResults: [],
+        activeMembers: [`acc:${accountId}`],
+      }
+
+      await processLearningSessionSummaryEngagement(db, mockSummary, undefined, undefined, facts)
+
+      const pollRows = await db
+        .prepare("SELECT COUNT(*) as c, SUM(amount) as s FROM xp_ledger WHERE account_id = ?1 AND reason = 'poll_voted'")
+        .bind(accountId)
+        .first<{ c: number; s: number }>()
+      expect(pollRows?.c).toBe(3)
+      expect(pollRows?.s).toBe(6) // 3 * 2 XP
+
+      // poll_voter_3 achievement is unlocked!
+      const ach = await db
+        .prepare("SELECT achievement_key FROM achievement_unlocks WHERE account_id = ?1 AND achievement_key = 'poll_voter_3'")
+        .bind(accountId)
+        .first<{ achievement_key: string }>()
+      expect(ach?.achievement_key).toBe('poll_voter_3')
+    })
+
+    it('RoomDO outbox: retains outbox row when engagement fails, completes without duplicate on retry', async () => {
+      const roomId = 1
+      const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${roomId}`))
+      const mockSessionId = 'outbox-retention-test-' + crypto.randomUUID()
+      const now = Date.now()
+      const failingAccountId = 999901
+
+      const summaryObj = {
+        sessionId: mockSessionId,
+        roomId,
+        goal: 'Thử nghiệm outbox retention',
+        startedAt: now - 30000,
+        endedAt: now,
+        durationSeconds: 30,
+        taskCount: 0,
+        taskCompletionRates: {},
+        activeMembers: [`acc:${failingAccountId}`], // Non-existent account causes engagement D1 failure
+        pollResults: [],
+      }
+
+      // 1. Add outbox row directly to RoomDO SQLite
+      await (roomStub as any).testAddPendingSummarySync(
+        mockSessionId,
+        roomId,
+        JSON.stringify(summaryObj),
+        now,
+      )
+
+      const pendingBefore = await (roomStub as any).getPendingSessionSummaries()
+      expect(pendingBefore.some((p: any) => p.sessionId === mockSessionId)).toBe(true)
+
+      // 2. Execute outbox sync during failure: summary persists in D1, but engagement fails
+      const deliveredFail = await (roomStub as any).xuLyPendingSummarySync(now)
+      expect(deliveredFail).toBe(0) // Failed -> delivered is 0
+
+      // D1 summary row was already written
+      const d1Summary = await env.DB.prepare('SELECT id FROM hoc_session_summary WHERE id = ?1')
+        .bind(mockSessionId)
+        .first<{ id: string }>()
+      expect(d1Summary?.id).toBe(mockSessionId)
+
+      // CRITICAL INVARIANT: Outbox row REMAINS because engagement was incomplete!
+      const pendingDuringFailure = await (roomStub as any).getPendingSessionSummaries()
+      expect(pendingDuringFailure.some((p: any) => p.sessionId === mockSessionId)).toBe(true)
+
+      // 3. Recovery: Account is registered
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO tai_khoan_campus
+         (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, lop_id, dang_hoat_dong)
+         VALUES (?1, 'recovered_user', 'Recovered User', 'hash', 'salt', 100000, 'student', 1, 1)`,
+      ).bind(failingAccountId).run()
+
+      // Reset nextRetryAt so retry executes immediately
+      await (roomStub as any).testAddPendingSummarySync(
+        mockSessionId,
+        roomId,
+        JSON.stringify(summaryObj),
+        now - 1000,
+      )
+
+      // 4. Retry outbox sync after recovery
+      const deliveredRetry = await (roomStub as any).xuLyPendingSummarySync(now + 1000)
+      expect(deliveredRetry).toBe(1)
+
+      // Summary in D1 is STILL exactly one row (idempotent INSERT OR IGNORE)
+      const summaryCount = await env.DB.prepare('SELECT COUNT(*) as c FROM hoc_session_summary WHERE id = ?1')
+        .bind(mockSessionId)
+        .first<{ c: number }>()
+      expect(summaryCount?.c).toBe(1)
+
+      // Engagement XP awarded exactly once (20 session + 15 first_session + 30 challenge_contributor = 65 XP)
+      const profile = await env.DB.prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(failingAccountId)
+        .first<{ total_xp: number }>()
+      expect(profile?.total_xp).toBe(65)
+
+      // Outbox row is deleted after full convergence!
+      const pendingAfter = await (roomStub as any).getPendingSessionSummaries()
+      expect(pendingAfter.some((p: any) => p.sessionId === mockSessionId)).toBe(false)
+    })
+
+    it('partial participant failure retains outbox, retry converges without double-awarding successful participant', async () => {
+      const studentA = 210 // valid
+      const studentB = 999902 // initially non-existent
+      const sessionId = 'partial-fail-test-' + crypto.randomUUID()
+      const now = Date.now()
+
+      const summary: SessionSummary = {
+        sessionId,
+        roomId: 1,
+        startedAt: now - 1800_000,
+        endedAt: now,
+        durationSeconds: 1800,
+        goal: 'Test partial failure',
+        taskCount: 0,
+        taskCompletionRates: {},
+        pollResults: [],
+        activeMembers: [`acc:${studentA}`, `acc:${studentB}`],
+      }
+
+      // First run: Student A succeeds, Student B fails -> throws incomplete error
+      await expect(processLearningSessionSummaryEngagement(db, summary)).rejects.toThrow('Incomplete engagement delivery')
+
+      // Student A's XP was already committed to D1
+      const xpA1 = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(studentA)
+        .first<{ total_xp: number }>()
+      expect(xpA1?.total_xp).toBeGreaterThanOrEqual(20)
+
+      // Recovery: Register student B
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO tai_khoan_campus
+         (id, ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, lop_id, dang_hoat_dong)
+         VALUES (?1, 'student_b', 'Student B', 'hash', 'salt', 100000, 'student', 1, 1)`,
+      ).bind(studentB).run()
+
+      // Retry run: Should succeed completely without throwing
+      await processLearningSessionSummaryEngagement(db, summary)
+
+      // Student A must NOT be double-awarded (idempotent source keys!)
+      const xpA2 = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(studentA)
+        .first<{ total_xp: number }>()
+      expect(xpA2?.total_xp).toBe(xpA1?.total_xp)
+
+      // Student B completed and received XP
+      const xpB = await db
+        .prepare('SELECT total_xp FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(studentB)
+        .first<{ total_xp: number }>()
+      expect(xpB?.total_xp).toBeGreaterThanOrEqual(20)
     })
   })
 })

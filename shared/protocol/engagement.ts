@@ -82,3 +82,9 @@ export const SendStudyInviteSchema = z.object({
   roomTitle: z.string().min(1).max(100),
 })
 export type SendStudyInviteInput = z.infer<typeof SendStudyInviteSchema>
+
+export interface SessionEngagementFacts {
+  participantAccountIds?: number[]
+  taskCompletions?: Array<{ taskId: string; accountId: number }>
+  pollVotes?: Array<{ pollId: string; accountId: number }>
+}

@@ -264,11 +264,21 @@ engagementApp.post('/invites', async (c) => {
 
   const recipientId = Number(body.recipientId)
   const roomId = Number(body.roomId)
-  const roomTitle = String(body.roomTitle || 'Phòng học nhóm').trim().slice(0, 100)
 
   if (!Number.isInteger(recipientId) || recipientId <= 0) return loi('Mã người nhận không hợp lệ.', 400)
   if (!Number.isInteger(roomId) || roomId <= 0) return loi('Mã phòng không hợp lệ.', 400)
   if (recipientId === myId) return loi('Bạn không thể tự gửi lời mời học tập cho chính mình.', 400)
+
+  // Verify room existence and derive authoritative roomTitle server-side
+  const roomRow = await c.env.DB.prepare('SELECT id, ten FROM phong WHERE id = ?1')
+    .bind(roomId)
+    .first<{ id: number; ten: string }>()
+
+  if (!roomRow) {
+    return loi('Phòng học không tồn tại.', 404)
+  }
+
+  const roomTitle = (roomRow.ten || 'Phòng học nhóm').trim().slice(0, 100)
 
   // 1. Verify Friendship & Blocks
   const low = Math.min(myId, recipientId)
