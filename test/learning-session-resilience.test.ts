@@ -486,4 +486,252 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
       expect(overview.featureAdoption.learningSession.uniqueActors).toBe(12)
     })
   })
+
+  // ─────────────────────────────────────────────────────────────
+  // FINAL BLOCKER: FAIL-CLOSED LIFECYCLE DURABILITY ON SQLITE FAILURE
+  // ─────────────────────────────────────────────────────────────
+  describe('Final Blocker: Fail-Closed Lifecycle Durability on SQLite Failure', () => {
+    it('Test A — Start persistence failure: Rejects start, keeps active session null, retries cleanly after recovery', async () => {
+      const roomId = await chenPhong('Phòng Test Fail-Closed Start')
+      const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${roomId}`))
+
+      const cHost = await dangNhapLayCookie('qa.v2.thu1')
+      const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+      await host.cho('room.snapshot')
+
+      // 1. Injected SQLite failure during session.start
+      await (roomStub as any).testSetFailSessionStartSql(true)
+
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.start' },
+      })
+
+      // Must receive operational error
+      const errStart = await host.cho('error', (g: any) => g.message.includes('Không thể lưu trạng thái bắt đầu'))
+      expect(errStart.message).toContain('Không thể lưu trạng thái bắt đầu')
+
+      // Must NOT have active session in memory or SQLite
+      const activeSessionFailed = await (roomStub as any).getActiveLearningSession()
+      expect(activeSessionFailed).toBeNull()
+
+      // Must NOT have received session.timer.sync with serverNow
+      await host.khongNhan('session.timer.sync', (g) => g.serverNow !== undefined, 200)
+
+      // 2. Storage recovers: retry session.start succeeds
+      await (roomStub as any).testSetFailSessionStartSql(false)
+
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.start' },
+      })
+
+      const gTimerSync = await host.cho('session.timer.sync', (g) => g.serverNow !== undefined)
+      expect(gTimerSync).toBeDefined()
+
+      const activeSessionRecovered = await (roomStub as any).getActiveLearningSession()
+      expect(activeSessionRecovered).not.toBeNull()
+      expect(typeof activeSessionRecovered.sessionId).toBe('string')
+      expect(typeof activeSessionRecovered.startedAt).toBe('number')
+
+      host.dong()
+    })
+
+    it('Test B — End transaction failure: State remains intact, zero summary/outbox, retries with original sessionId', async () => {
+      const roomId = await chenPhong('Phòng Test Fail-Closed End')
+      const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${roomId}`))
+
+      const cHost = await dangNhapLayCookie('qa.v2.thu1')
+      const cMember = await dangNhapLayCookie('qa.v2.thu2')
+
+      const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+      const member = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cMember)
+      await host.cho('room.snapshot')
+      await member.cho('room.snapshot')
+
+      // 1. Setup goal, task, poll
+      host.gui({
+        type: 'session.action',
+        data: { action: 'goal.set', text: 'Mục tiêu kiểm tra lỗi SQLite' },
+      })
+      await member.cho('session.goal.sync', (g) => g.goal?.text === 'Mục tiêu kiểm tra lỗi SQLite')
+
+      host.gui({
+        type: 'session.action',
+        data: { action: 'task.add', text: 'Nhiệm vụ kiểm tra lỗi SQLite' },
+      })
+      const gTask = await member.cho('session.tasks.sync', (g) => g.tasks.length === 1)
+      const taskId = gTask.tasks[0].id
+
+      member.gui({
+        type: 'session.action',
+        data: { action: 'task.tick', taskId },
+      })
+      await host.cho('session.tasks.sync', (g) => (g.completionMap[taskId] ?? []).length > 0)
+
+      // 2. Start session
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.start' },
+      })
+      await host.cho('session.timer.sync', (g) => g.serverNow !== undefined)
+      const activeSession = await (roomStub as any).getActiveLearningSession()
+      expect(activeSession).not.toBeNull()
+      const originalSessionId = activeSession.sessionId
+      const originalStartedAt = activeSession.startedAt
+
+      // 3. Inject SQLite transaction failure during session.end
+      await (roomStub as any).testSetFailSessionEndSql(true)
+
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.end' },
+      })
+
+      // Must receive operational error
+      const errEnd = await host.cho('error', (g: any) => g.message.includes('Không thể kết thúc phiên học do lỗi lưu trữ'))
+      expect(errEnd.message).toContain('Không thể kết thúc phiên học do lỗi lưu trữ')
+
+      // INVARIANTS on failure:
+      // - Active session remains intact in memory
+      const activeSessionAfterFail = await (roomStub as any).getActiveLearningSession()
+      expect(activeSessionAfterFail).not.toBeNull()
+      expect(activeSessionAfterFail.sessionId).toBe(originalSessionId)
+      expect(activeSessionAfterFail.startedAt).toBe(originalStartedAt)
+
+      // - Zero session summaries created
+      const summariesCount = await (roomStub as any).testGetSessionSummariesCount()
+      expect(summariesCount).toBe(0)
+
+      // - Zero pending summary outbox rows created
+      const outboxCount = await (roomStub as any).testGetPendingSummaryCount()
+      expect(outboxCount).toBe(0)
+
+      // - No session.summary broadcast to member
+      await member.khongNhan('session.summary', undefined, 200)
+
+      // 4. Restore storage and retry session.end
+      await (roomStub as any).testSetFailSessionEndSql(false)
+
+      // Temporarily mock D1 to prevent immediate background delivery so we can assert the durable outbox obligation
+      const origPrepare = env.DB.prepare
+      env.DB.prepare = ((query: string) => {
+        if (query.includes('hoc_session_summary')) {
+          return {
+            bind: () => ({
+              run: async () => { throw new Error('SIMULATED_D1_OFFLINE_FOR_OUTBOX_INSPECTION') },
+            }),
+          } as any
+        }
+        return origPrepare.call(env.DB, query)
+      }) as any
+
+      try {
+        host.gui({
+          type: 'session.action',
+          data: { action: 'session.end' },
+        })
+
+        // Summary must be broadcast now
+        const gSummary = await member.cho('session.summary')
+        expect(gSummary.summary.sessionId).toBe(originalSessionId)
+        expect(gSummary.summary.startedAt).toBe(originalStartedAt)
+        expect(gSummary.summary.goal).toBe('Mục tiêu kiểm tra lỗi SQLite')
+        expect(gSummary.summary.taskCount).toBe(1)
+
+        // Exactly ONE local summary in SQLite
+        const finalSummariesCount = await (roomStub as any).testGetSessionSummariesCount()
+        expect(finalSummariesCount).toBe(1)
+
+        // Exactly ONE outbox obligation
+        const finalOutboxCount = await (roomStub as any).testGetPendingSummaryCount()
+        expect(finalOutboxCount).toBe(1)
+
+        // Working state cleared only after successful commit
+        const gCleanGoal = await member.cho('session.goal.sync', (g) => g.goal === null)
+        expect(gCleanGoal.goal).toBeNull()
+
+        const activeSessionAfterSuccess = await (roomStub as any).getActiveLearningSession()
+        expect(activeSessionAfterSuccess).toBeNull()
+      } finally {
+        env.DB.prepare = origPrepare
+      }
+
+      // Verify outbox retry delivers once D1 recovers
+      await (roomStub as any).xuLyPendingSummarySync(Date.now() + 10000)
+      const drainedOutbox = await (roomStub as any).testGetPendingSummaryCount()
+      expect(drainedOutbox).toBe(0)
+
+      const d1Summary = await env.DB.prepare('SELECT id FROM hoc_session_summary WHERE id = ?1')
+        .bind(originalSessionId)
+        .first<{ id: string }>()
+      expect(d1Summary?.id).toBe(originalSessionId)
+
+      host.dong()
+      member.dong()
+    })
+
+    it('Test C — Restart after failed end: SQLite restores active session, state intact, subsequent end converges', async () => {
+      const roomId = await chenPhong('Phòng Test Restart After Failed End')
+      const roomStub = env.ROOMS.get(env.ROOMS.idFromName(`phong-${roomId}`))
+
+      const cHost = await dangNhapLayCookie('qa.v2.thu1')
+      const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+      await host.cho('room.snapshot')
+
+      // 1. Setup and start session
+      host.gui({
+        type: 'session.action',
+        data: { action: 'goal.set', text: 'Mục tiêu trước khi crash' },
+      })
+      await host.cho('session.goal.sync', (g) => g.goal?.text === 'Mục tiêu trước khi crash')
+
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.start' },
+      })
+      await host.cho('session.timer.sync', (g) => g.serverNow !== undefined)
+
+      const activeSession = await (roomStub as any).getActiveLearningSession()
+      const originalSessionId = activeSession.sessionId
+      const originalStartedAt = activeSession.startedAt
+
+      // 2. Failed end attempt
+      await (roomStub as any).testSetFailSessionEndSql(true)
+      host.gui({
+        type: 'session.action',
+        data: { action: 'session.end' },
+      })
+      await host.cho('error', (g: any) => g.message.includes('Không thể kết thúc phiên học do lỗi lưu trữ'))
+
+      // 3. Simulate Durable Object eviction / restart
+      host.dong()
+      await evictDurableObject(roomStub)
+
+      // 4. Reconnect to revived RoomDO
+      const host2 = await moKetNoi<GoiPhong>(`/ws/room/phong-${roomId}`, cHost)
+      await host2.cho('room.snapshot')
+
+      // Invariant: active session restored from durable SQLite after restart
+      const restoredSession = await (roomStub as any).getActiveLearningSession()
+      expect(restoredSession).not.toBeNull()
+      expect(restoredSession.sessionId).toBe(originalSessionId)
+      expect(restoredSession.startedAt).toBe(originalStartedAt)
+
+      // Storage is normal now: subsequent session.end succeeds and converges normally
+      await (roomStub as any).testSetFailSessionEndSql(false)
+      host2.gui({
+        type: 'session.action',
+        data: { action: 'session.end' },
+      })
+      const gSummary = await host2.cho('session.summary')
+      expect(gSummary.summary.sessionId).toBe(originalSessionId)
+      expect(gSummary.summary.goal).toBe('Mục tiêu trước khi crash')
+
+      const finalCount = await (roomStub as any).testGetSessionSummariesCount()
+      expect(finalCount).toBe(1)
+
+      host2.dong()
+    })
+  })
 })

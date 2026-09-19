@@ -148,6 +148,8 @@ export class RoomDO extends DurableObject<Env> {
   private pollVotes = new Map<string, Map<number, string>>()
   private sessionStartedAt: number | null = null
   private voiceAlarmTarget: number | null = null
+  private testFailSessionStartSql: boolean = false
+  private testFailSessionEndSql: boolean = false
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -2466,18 +2468,29 @@ export class RoomDO extends DurableObject<Env> {
           return
         }
         const now = Date.now()
-        const sessionId = crypto.randomUUID()
-        this.activeLearningSession = { sessionId, startedAt: now }
-        this.sessionStartedAt = now
+        const candidateSession = { sessionId: crypto.randomUUID(), startedAt: now }
         try {
+          if (this.testFailSessionStartSql) {
+            throw new Error('Simulated SQLite disk I/O error during session.start')
+          }
           this.ctx.storage.sql.exec(
             "INSERT INTO session_state (key, value) VALUES ('active_session', ?1), ('started_at', ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            JSON.stringify(this.activeLearningSession),
+            JSON.stringify(candidateSession),
             String(now),
           )
         } catch (err) {
           console.error('Lỗi lưu activeLearningSession:', err)
+          ws.send(
+            JSON.stringify({
+              type: 'error',
+              message: 'Không thể lưu trạng thái bắt đầu phiên học vào cơ sở dữ liệu. Vui lòng thử lại.',
+            }),
+          )
+          return
         }
+
+        this.activeLearningSession = candidateSession
+        this.sessionStartedAt = now
         this.broadcast({
           type: 'session.timer.sync',
           state: this.sessionTimer,
@@ -2534,9 +2547,13 @@ export class RoomDO extends DurableObject<Env> {
           pollResults,
         }
 
-        // 1. Transaction in SQLite: insert session_summaries, enqueue outbox, and wipe session working state
+        // 1. Authoritative SQLite transaction (Linearization Point):
+        // Archive summary + enqueue outbox + clear active session + wipe session working tables
         try {
           this.ctx.storage.transactionSync(() => {
+            if (this.testFailSessionEndSql) {
+              throw new Error('Simulated SQLite disk I/O error during session.end transaction')
+            }
             this.ctx.storage.sql.exec(
               'INSERT INTO session_summaries (id, room_id, started_at, ended_at, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
               summary.sessionId,
@@ -2569,9 +2586,16 @@ export class RoomDO extends DurableObject<Env> {
           })
         } catch (err) {
           console.error('Lỗi transaction lưu summary và xóa working state:', err)
+          ws.send(
+            JSON.stringify({
+              type: 'error',
+              message: 'Không thể kết thúc phiên học do lỗi lưu trữ. Vui lòng thử lại.',
+            }),
+          )
+          return
         }
 
-        // 2. Clear in-memory working state (Blocker 3)
+        // 2. Only after SQLite transaction succeeds: Clear in-memory working state (Blocker 3)
         this.activeLearningSession = null
         this.sessionStartedAt = null
         this.sessionGoal = null
@@ -2703,6 +2727,11 @@ export class RoomDO extends DurableObject<Env> {
       } catch (err) {
         console.error(`[xuLyPendingSummarySync] Ghi D1 thất bại cho session=${item.sessionId}:`, err)
         const nextAttempts = item.attempts + 1
+        if (nextAttempts >= 5) {
+          console.warn(
+            `[xuLyPendingSummarySync] CẢNH BÁO VẬN HÀNH: summary sync cho session=${item.sessionId} đã thử thất bại ${nextAttempts} lần. Tiếp tục duy trì outbox và retry với backoff tối đa.`,
+          )
+        }
         const backoffDelay = Math.min(1000 * Math.pow(2, Math.max(0, nextAttempts - 1)), 60000)
         const nextRetryAt = now + backoffDelay
         try {
@@ -2722,6 +2751,18 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   // ── Testing & Adversarial Invariant Helpers (RPC exposed for vitest) ──
+
+  async testSetFailSessionStartSql(fail: boolean): Promise<void> {
+    this.testFailSessionStartSql = fail
+  }
+
+  async testSetFailSessionEndSql(fail: boolean): Promise<void> {
+    this.testFailSessionEndSql = fail
+  }
+
+  async testGetPendingSummaryCount(): Promise<number> {
+    return this.getPendingSessionSummaries().length
+  }
 
   async testSetTimer(running: boolean, endsAt: number, remaining: number): Promise<void> {
     this.sessionTimer = {
