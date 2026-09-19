@@ -352,37 +352,74 @@ export interface UpdateStreakResult {
   alreadyRecordedToday: boolean
 }
 
-export async function updateStudyStreak(
+/**
+ * Idempotently records a verified study activity day for the given account.
+ * Only meaningful study activity should qualify.
+ */
+export async function recordStudyActivityDay(
   db: D1Database,
   accountId: number,
-  timestamp = Date.now(),
-): Promise<UpdateStreakResult> {
-  const today = studyDate(timestamp, SCHOOL_TIMEZONE)
-  const profile = await getOrCreateEngagementProfile(db, accountId, timestamp)
+  dateStr: string,
+  sourceKey: string,
+  now = Date.now(),
+): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `INSERT OR IGNORE INTO study_activity_days (account_id, study_date, source_key, created_at)
+       VALUES (?1, ?2, ?3, ?4)`,
+    )
+    .bind(accountId, dateStr, sourceKey, now)
+    .run()
 
-  if (profile.lastStudyDate === today) {
-    return {
-      currentStreak: profile.currentStreak,
-      longestStreak: profile.longestStreak,
-      extended: false,
-      reset: false,
-      alreadyRecordedToday: true,
+  return !!(res.meta?.changes && res.meta.changes > 0)
+}
+
+/**
+ * Deterministically reconciles streak metrics (current_streak, longest_streak, last_study_date)
+ * from authoritative unique study days, independent of processing order.
+ */
+export async function reconcileStudyStreak(
+  db: D1Database,
+  accountId: number,
+  now = Date.now(),
+): Promise<{ currentStreak: number; longestStreak: number; lastStudyDate: string | null }> {
+  await getOrCreateEngagementProfile(db, accountId, now)
+
+  const rows = await db
+    .prepare(
+      `SELECT study_date
+       FROM study_activity_days
+       WHERE account_id = ?1
+       ORDER BY study_date ASC`,
+    )
+    .bind(accountId)
+    .all<{ study_date: string }>()
+
+  const dates = (rows.results || []).map((r) => r.study_date)
+  if (dates.length === 0) {
+    return { currentStreak: 0, longestStreak: 0, lastStudyDate: null }
+  }
+
+  let longestStreak = 0
+  let streak = 0
+  let prevDate: string | null = null
+
+  for (const d of dates) {
+    if (prevDate === null) {
+      streak = 1
+    } else if (isConsecutiveDay(prevDate, d)) {
+      streak += 1
+    } else {
+      streak = 1
     }
+    if (streak > longestStreak) {
+      longestStreak = streak
+    }
+    prevDate = d
   }
 
-  let newStreak = 1
-  let extended = false
-  let reset = false
-
-  if (profile.lastStudyDate && isConsecutiveDay(profile.lastStudyDate, today)) {
-    newStreak = profile.currentStreak + 1
-    extended = true
-  } else {
-    newStreak = 1
-    reset = profile.currentStreak > 0
-  }
-
-  const newLongest = Math.max(profile.longestStreak, newStreak)
+  const currentStreak = streak
+  const lastStudyDate = dates[dates.length - 1]
 
   await db
     .prepare(
@@ -390,15 +427,32 @@ export async function updateStudyStreak(
        SET current_streak = ?1, longest_streak = ?2, last_study_date = ?3, updated_at = ?4
        WHERE account_id = ?5`,
     )
-    .bind(newStreak, newLongest, today, timestamp, accountId)
+    .bind(currentStreak, longestStreak, lastStudyDate, now, accountId)
     .run()
 
+  return { currentStreak, longestStreak, lastStudyDate }
+}
+
+export async function updateStudyStreak(
+  db: D1Database,
+  accountId: number,
+  timestamp = Date.now(),
+  sourceKey?: string,
+  studyDateStr?: string,
+): Promise<UpdateStreakResult> {
+  const today = studyDateStr || studyDate(timestamp, SCHOOL_TIMEZONE)
+  const sKey = sourceKey || `session_study_day:${today}:acc:${accountId}`
+
+  const initialProfile = await getOrCreateEngagementProfile(db, accountId, timestamp)
+  const isNewDay = await recordStudyActivityDay(db, accountId, today, sKey, timestamp)
+  const reconciled = await reconcileStudyStreak(db, accountId, timestamp)
+
   return {
-    currentStreak: newStreak,
-    longestStreak: newLongest,
-    extended,
-    reset,
-    alreadyRecordedToday: false,
+    currentStreak: reconciled.currentStreak,
+    longestStreak: reconciled.longestStreak,
+    extended: isNewDay && reconciled.currentStreak > initialProfile.currentStreak,
+    reset: isNewDay && reconciled.currentStreak === 1 && initialProfile.currentStreak > 1,
+    alreadyRecordedToday: !isNewDay,
   }
 }
 
@@ -463,24 +517,45 @@ export async function evaluateAchievements(
 ): Promise<string[]> {
   const profile = await getOrCreateEngagementProfile(db, accountId, now)
 
+  // Fetch all existing unlocks
   const unlockedRows = await db
-    .prepare(`SELECT achievement_key FROM achievement_unlocks WHERE account_id = ?1`)
+    .prepare(`SELECT achievement_key, source_key FROM achievement_unlocks WHERE account_id = ?1`)
     .bind(accountId)
-    .all<{ achievement_key: string }>()
+    .all<{ achievement_key: string; source_key: string }>()
 
   const unlockedSet = new Set((unlockedRows.results || []).map((r) => r.achievement_key))
   const newlyUnlocked: string[] = []
 
-  const tryUnlock = async (key: string, sourceKey: string) => {
-    if (unlockedSet.has(key)) return
-    try {
+  // Check which achievements already have their reward recorded in xp_ledger
+  const existingLedgerKeys = await db
+    .prepare(`SELECT source_key FROM xp_ledger WHERE account_id = ?1 AND source_key LIKE 'ach_reward:%'`)
+    .bind(accountId)
+    .all<{ source_key: string }>()
+  const existingRewardSet = new Set((existingLedgerKeys.results || []).map((r) => r.source_key))
+
+  // Invariant: Ensure any unlocked achievement with missing reward is reconciled.
+  // Never skip reward reconciliation merely because badge was already unlocked!
+  for (const row of unlockedRows.results || []) {
+    const achDef = ACHIEVEMENT_CATALOG.find((a) => a.key === row.achievement_key)
+    const expectedRewardKey = `ach_reward:${row.achievement_key}:acc:${accountId}`
+    if (achDef && achDef.rewardXp > 0 && !existingRewardSet.has(expectedRewardKey)) {
+      await unlockAchievement(db, accountId, row.achievement_key, row.source_key, now)
+      existingRewardSet.add(expectedRewardKey)
+    }
+  }
+
+  const checkAndUnlock = async (key: string, sourceKey: string) => {
+    const expectedRewardKey = `ach_reward:${key}:acc:${accountId}`
+    const needsUnlock = !unlockedSet.has(key)
+    const needsReward = !existingRewardSet.has(expectedRewardKey)
+
+    if (needsUnlock || needsReward) {
       const res = await unlockAchievement(db, accountId, key, sourceKey, now)
       if (res.unlocked) {
         unlockedSet.add(key)
         newlyUnlocked.push(key)
       }
-    } catch {
-      // ignore concurrent unlock error
+      existingRewardSet.add(expectedRewardKey)
     }
   }
 
@@ -491,12 +566,12 @@ export async function evaluateAchievements(
     .first<{ cnt: number }>()
 
   const sessionCount = sessionCountRow?.cnt || 0
-  if (sessionCount >= 1) await tryUnlock('first_session', `session_count:1:acc:${accountId}`)
-  if (sessionCount >= 5) await tryUnlock('study_regular_5', `session_count:5:acc:${accountId}`)
+  if (sessionCount >= 1) await checkAndUnlock('first_session', `session_count:1:acc:${accountId}`)
+  if (sessionCount >= 5) await checkAndUnlock('study_regular_5', `session_count:5:acc:${accountId}`)
 
   // 2. Streaks
-  if (profile.currentStreak >= 3) await tryUnlock('streak_3', `streak:3:acc:${accountId}`)
-  if (profile.currentStreak >= 7) await tryUnlock('streak_7', `streak:7:acc:${accountId}`)
+  if (profile.currentStreak >= 3) await checkAndUnlock('streak_3', `streak:3:acc:${accountId}`)
+  if (profile.currentStreak >= 7) await checkAndUnlock('streak_7', `streak:7:acc:${accountId}`)
 
   // 3. Task Completions (authoritative from ledger)
   const taskCountRow = await db
@@ -504,7 +579,7 @@ export async function evaluateAchievements(
     .bind(accountId)
     .first<{ cnt: number }>()
 
-  if ((taskCountRow?.cnt || 0) >= 5) await tryUnlock('task_finisher_5', `task_count:5:acc:${accountId}`)
+  if ((taskCountRow?.cnt || 0) >= 5) await checkAndUnlock('task_finisher_5', `task_count:5:acc:${accountId}`)
 
   // 4. Poll Votes (authoritative from ledger)
   const pollCountRow = await db
@@ -512,7 +587,7 @@ export async function evaluateAchievements(
     .bind(accountId)
     .first<{ cnt: number }>()
 
-  if ((pollCountRow?.cnt || 0) >= 3) await tryUnlock('poll_voter_3', `poll_count:3:acc:${accountId}`)
+  if ((pollCountRow?.cnt || 0) >= 3) await checkAndUnlock('poll_voter_3', `poll_count:3:acc:${accountId}`)
 
   // 5. Challenge Contributions
   const contribCountRow = await db
@@ -520,7 +595,7 @@ export async function evaluateAchievements(
     .bind(accountId)
     .first<{ cnt: number }>()
 
-  if ((contribCountRow?.cnt || 0) >= 1) await tryUnlock('challenge_contributor', `challenge_contrib:1:acc:${accountId}`)
+  if ((contribCountRow?.cnt || 0) >= 1) await checkAndUnlock('challenge_contributor', `challenge_contrib:1:acc:${accountId}`)
 
   return newlyUnlocked
 }
@@ -613,6 +688,83 @@ export interface ContributeChallengeParams {
   now?: number
 }
 
+/**
+ * Authoritatively reconciles completion bonus rewards for all contributors of a completed challenge.
+ * Safe and idempotent to retry: uses stable key `challenge_bonus:<challengeId>:acc:<accountId>`.
+ * Does NOT swallow D1 failures.
+ */
+export async function reconcileChallengeCompletionRewards(
+  db: D1Database,
+  challengeId: string,
+  rewardXp: number,
+  now = Date.now(),
+): Promise<void> {
+  const contributors = await db
+    .prepare(`SELECT DISTINCT account_id FROM class_challenge_contributions WHERE challenge_id = ?1`)
+    .bind(challengeId)
+    .all<{ account_id: number }>()
+
+  for (const c of contributors.results || []) {
+    await awardXp(db, {
+      accountId: c.account_id,
+      amount: rewardXp,
+      reason: 'challenge_completed_bonus',
+      sourceKey: `challenge_bonus:${challengeId}:acc:${c.account_id}`,
+      timestamp: now,
+    })
+  }
+}
+
+/**
+ * Authoritatively reconciles class challenge progress from the sum of contribution rows.
+ * If target is met, marks completed and reconciles completion bonus rewards for all contributors.
+ */
+export async function reconcileChallengeProgress(
+  db: D1Database,
+  challengeId: string,
+  now = Date.now(),
+): Promise<{ currentValue: number; targetValue: number; rewardXp: number; completed: boolean }> {
+  // Authoritative update of current_value from contributions aggregate
+  const updateRes = await db
+    .prepare(
+      `UPDATE class_challenges
+       SET current_value = (
+         SELECT COALESCE(SUM(contribution_value), 0)
+         FROM class_challenge_contributions
+         WHERE challenge_id = ?1
+       )
+       WHERE id = ?1
+       RETURNING current_value, target_value, reward_xp, status`,
+    )
+    .bind(challengeId)
+    .first<{ current_value: number; target_value: number; reward_xp: number; status: string }>()
+
+  if (!updateRes) {
+    throw new Error(`[reconcileChallengeProgress] Challenge not found: id=${challengeId}`)
+  }
+
+  const currentValue = updateRes.current_value
+  const targetValue = updateRes.target_value
+  const rewardXp = updateRes.reward_xp
+  const wasAlreadyCompleted = updateRes.status === 'completed'
+
+  let completed = wasAlreadyCompleted
+
+  if (currentValue >= targetValue) {
+    if (!wasAlreadyCompleted) {
+      await db
+        .prepare(`UPDATE class_challenges SET status = 'completed' WHERE id = ?1 AND status = 'active'`)
+        .bind(challengeId)
+        .run()
+      completed = true
+    }
+    // Reconcile completion rewards for all contributors idempotently
+    await reconcileChallengeCompletionRewards(db, challengeId, rewardXp, now)
+  }
+
+  return { currentValue, targetValue, rewardXp, completed }
+}
+
 export async function contributeToClassChallenge(
   db: D1Database,
   params: ContributeChallengeParams,
@@ -625,85 +777,42 @@ export async function contributeToClassChallenge(
 }> {
   const ts = params.now || Date.now()
   const challenge = await ensureActiveWeeklyChallenge(db, params.lopId, ts)
-  if (!challenge || challenge.status !== 'active' || challenge.targetType !== params.targetType) {
+  if (!challenge || challenge.targetType !== params.targetType) {
     return { contributed: false, completed: false, alreadyContributed: false }
   }
 
-  try {
-    // 1. Authoritative insert or ignore contribution record
-    const insertContribRes = await db
-      .prepare(
-        `INSERT OR IGNORE INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at)
-         VALUES (?1, ?2, ?3, 1, ?4)`,
-      )
-      .bind(challenge.id, params.accountId, params.sourceKey, ts)
-      .run()
-
-    const isNewContribution = !!(insertContribRes.meta?.changes && insertContribRes.meta.changes > 0)
-
-    // 2. Authoritative reconciliation of current_value from contributions aggregate
-    const updateRes = await db
-      .prepare(
-        `UPDATE class_challenges
-         SET current_value = (
-           SELECT COALESCE(SUM(contribution_value), 0)
-           FROM class_challenge_contributions
-           WHERE challenge_id = ?1
-         )
-         WHERE id = ?1
-         RETURNING current_value, target_value, reward_xp`,
-      )
-      .bind(challenge.id)
-      .first<{ current_value: number; target_value: number; reward_xp: number }>()
-
-    const currentValue = updateRes?.current_value ?? challenge.currentValue
-    const targetValue = updateRes?.target_value ?? challenge.targetValue
-    const rewardXpAmount = updateRes?.reward_xp ?? challenge.rewardXp
-
-    let completed = false
-    if (currentValue >= targetValue) {
-      await db
-        .prepare(`UPDATE class_challenges SET status = 'completed' WHERE id = ?1 AND status = 'active'`)
-        .bind(challenge.id)
-        .run()
-
-      completed = true
-
-      // Bonus XP to all contributors (strictly respecting MAX_DAILY_XP, no bypass)
-      const contributors = await db
-        .prepare(`SELECT DISTINCT account_id FROM class_challenge_contributions WHERE challenge_id = ?1`)
-        .bind(challenge.id)
-        .all<{ account_id: number }>()
-
-      for (const c of contributors.results || []) {
-        await awardXp(db, {
-          accountId: c.account_id,
-          amount: rewardXpAmount,
-          reason: 'challenge_completed_bonus',
-          sourceKey: `challenge_bonus:${challenge.id}:acc:${c.account_id}`,
-          timestamp: ts,
-        })
-      }
-    }
-
+  // If challenge is already completed, reconcile any missing contributor rewards and return
+  if (challenge.status === 'completed') {
+    await reconcileChallengeCompletionRewards(db, challenge.id, challenge.rewardXp, ts)
     return {
-      contributed: isNewContribution,
-      completed,
-      alreadyContributed: !isNewContribution,
+      contributed: false,
+      completed: true,
+      alreadyContributed: false,
       challengeId: challenge.id,
-      newCurrentValue: currentValue,
+      newCurrentValue: challenge.currentValue,
     }
-  } catch (err: any) {
-    if (String(err?.message || '').includes('UNIQUE constraint')) {
-      return {
-        contributed: false,
-        completed: false,
-        alreadyContributed: true,
-        challengeId: challenge.id,
-        newCurrentValue: challenge.currentValue,
-      }
-    }
-    return { contributed: false, completed: false }
+  }
+
+  // 1. Authoritative insert or ignore contribution record
+  const insertContribRes = await db
+    .prepare(
+      `INSERT OR IGNORE INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at)
+       VALUES (?1, ?2, ?3, 1, ?4)`,
+    )
+    .bind(challenge.id, params.accountId, params.sourceKey, ts)
+    .run()
+
+  const isNewContribution = !!(insertContribRes.meta?.changes && insertContribRes.meta.changes > 0)
+
+  // 2. Reconcile progress and completion rewards
+  const progress = await reconcileChallengeProgress(db, challenge.id, ts)
+
+  return {
+    contributed: isNewContribution,
+    completed: progress.completed,
+    alreadyContributed: !isNewContribution,
+    challengeId: challenge.id,
+    newCurrentValue: progress.currentValue,
   }
 }
 

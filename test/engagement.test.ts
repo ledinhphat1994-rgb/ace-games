@@ -4,16 +4,20 @@ import { GOC, MAT_KHAU } from './fixtures'
 import {
   awardXp,
   updateStudyStreak,
+  reconcileStudyStreak,
+  recordStudyActivityDay,
   evaluateAchievements,
   unlockAchievement,
   ensureActiveWeeklyChallenge,
   contributeToClassChallenge,
+  reconcileChallengeCompletionRewards,
+  reconcileChallengeProgress,
   processLearningSessionSummaryEngagement,
   reconcileProfileXpFromLedger,
   MAX_DAILY_XP,
   XP_SESSION_COMPLETE,
 } from '../worker/lib/engagement'
-import { SCHOOL_TIMEZONE, studyDate } from '../shared/study-date'
+import { SCHOOL_TIMEZONE, studyDate, studyWeek } from '../shared/study-date'
 import type { SessionSummary } from '../shared/protocol/room'
 import type { SessionEngagementFacts } from '../shared/protocol/engagement'
 
@@ -38,6 +42,7 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
     await db.prepare('DELETE FROM class_challenge_contributions').run().catch(() => {})
     await db.prepare('DELETE FROM class_challenges').run().catch(() => {})
     await db.prepare('DELETE FROM study_invitations').run().catch(() => {})
+    await db.prepare('DELETE FROM study_activity_days').run().catch(() => {})
 
     // Ensure valid room 1 exists in D1
     await db
@@ -50,7 +55,7 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       .catch(() => {})
 
     // Ensure dedicated test accounts exist in tai_khoan_campus for foreign key constraints
-    for (const id of [101, 102, 103, 104, 105, 106, 107, 201, 202, 210, 211]) {
+    for (const id of [101, 102, 103, 104, 105, 106, 107, 201, 202, 210, 211, 301, 302, 303, 304, 305]) {
       await db
         .prepare(
           `INSERT OR IGNORE INTO tai_khoan_campus
@@ -353,6 +358,138 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       expect(r4.currentStreak).toBe(1)
       expect(r4.longestStreak).toBe(2)
     })
+
+    it('deterministic streak: chronological Sep 19 -> Sep 20 -> Sep 21 yields streak 3', async () => {
+      const accountId = 301
+      const t1 = Date.UTC(2026, 8, 19, 3, 0, 0)
+      const t2 = Date.UTC(2026, 8, 20, 3, 0, 0)
+      const t3 = Date.UTC(2026, 8, 21, 3, 0, 0)
+
+      await updateStudyStreak(db, accountId, t1)
+      await updateStudyStreak(db, accountId, t2)
+      const r3 = await updateStudyStreak(db, accountId, t3)
+
+      expect(r3.currentStreak).toBe(3)
+      expect(r3.longestStreak).toBe(3)
+
+      const profile = await db
+        .prepare('SELECT current_streak, longest_streak, last_study_date FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ current_streak: number; longest_streak: number; last_study_date: string }>()
+
+      expect(profile?.current_streak).toBe(3)
+      expect(profile?.longest_streak).toBe(3)
+      expect(profile?.last_study_date).toBe('2026-09-21')
+    })
+
+    it('deterministic streak: out-of-order delivery (Sep 20, Sep 19, Sep 21) converges to streak 3', async () => {
+      const accountId = 302
+      const tSep20 = Date.UTC(2026, 8, 20, 3, 0, 0)
+      const tSep19 = Date.UTC(2026, 8, 19, 3, 0, 0)
+      const tSep21 = Date.UTC(2026, 8, 21, 3, 0, 0)
+
+      // Arrives out of order: Sep 20 first, then delayed Sep 19, then Sep 21
+      await updateStudyStreak(db, accountId, tSep20)
+      await updateStudyStreak(db, accountId, tSep19)
+      const finalRes = await updateStudyStreak(db, accountId, tSep21)
+
+      expect(finalRes.currentStreak).toBe(3)
+      expect(finalRes.longestStreak).toBe(3)
+
+      const profile = await db
+        .prepare('SELECT current_streak, longest_streak, last_study_date FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ current_streak: number; longest_streak: number; last_study_date: string }>()
+
+      expect(profile?.current_streak).toBe(3)
+      expect(profile?.longest_streak).toBe(3)
+      expect(profile?.last_study_date).toBe('2026-09-21')
+    })
+
+    it('deterministic streak: delayed old retry does not regress current streak or last_study_date', async () => {
+      const accountId = 303
+      const tSep19 = Date.UTC(2026, 8, 19, 3, 0, 0)
+      const tSep20 = Date.UTC(2026, 8, 20, 3, 0, 0)
+      const tSep21 = Date.UTC(2026, 8, 21, 3, 0, 0)
+
+      // Current state reaches Sep 21 with streak 3
+      await updateStudyStreak(db, accountId, tSep19)
+      await updateStudyStreak(db, accountId, tSep20)
+      await updateStudyStreak(db, accountId, tSep21)
+
+      // Outbox retries an old Sep 19 event
+      const retryOld = await updateStudyStreak(db, accountId, tSep19)
+
+      expect(retryOld.currentStreak).toBe(3)
+      expect(retryOld.longestStreak).toBe(3)
+      expect(retryOld.alreadyRecordedToday).toBe(true)
+
+      const profile = await db
+        .prepare('SELECT current_streak, longest_streak, last_study_date FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ current_streak: number; longest_streak: number; last_study_date: string }>()
+
+      expect(profile?.current_streak).toBe(3)
+      expect(profile?.longest_streak).toBe(3)
+      expect(profile?.last_study_date).toBe('2026-09-21')
+    })
+
+    it('deterministic streak: duplicate sessions on same study day count as exactly one study day', async () => {
+      const accountId = 304
+      const t1 = Date.UTC(2026, 8, 19, 2, 0, 0)
+      const t2 = Date.UTC(2026, 8, 19, 4, 0, 0)
+      const t3 = Date.UTC(2026, 8, 19, 8, 0, 0)
+
+      await updateStudyStreak(db, accountId, t1, 'session:1')
+      await updateStudyStreak(db, accountId, t2, 'session:2')
+      await updateStudyStreak(db, accountId, t3, 'session:3')
+
+      const count = await db
+        .prepare('SELECT COUNT(*) as c FROM study_activity_days WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ c: number }>()
+
+      expect(count?.c).toBe(1)
+
+      const profile = await db
+        .prepare('SELECT current_streak, longest_streak FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ current_streak: number; longest_streak: number }>()
+
+      expect(profile?.current_streak).toBe(1)
+      expect(profile?.longest_streak).toBe(1)
+    })
+
+    it('deterministic streak: gap day (Sep 19, Sep 20, Sep 22) yields current streak 1, longest streak 2', async () => {
+      const accountId = 305
+      const tSep19 = Date.UTC(2026, 8, 19, 3, 0, 0)
+      const tSep20 = Date.UTC(2026, 8, 20, 3, 0, 0)
+      const tSep22 = Date.UTC(2026, 8, 22, 3, 0, 0) // Sep 21 missed!
+
+      await updateStudyStreak(db, accountId, tSep19)
+      await updateStudyStreak(db, accountId, tSep20)
+      const r3 = await updateStudyStreak(db, accountId, tSep22)
+
+      expect(r3.currentStreak).toBe(1)
+      expect(r3.longestStreak).toBe(2)
+
+      const profile = await db
+        .prepare('SELECT current_streak, longest_streak, last_study_date FROM user_engagement_profile WHERE account_id = ?1')
+        .bind(accountId)
+        .first<{ current_streak: number; longest_streak: number; last_study_date: string }>()
+
+      expect(profile?.current_streak).toBe(1)
+      expect(profile?.longest_streak).toBe(2)
+      expect(profile?.last_study_date).toBe('2026-09-22')
+    })
+
+    it('directly tests recordStudyActivityDay and reconcileStudyStreak helpers', async () => {
+      const accountId = 301
+      const isNew = await recordStudyActivityDay(db, accountId, '2026-09-19', 'test_key', Date.now())
+      expect(typeof isNew).toBe('boolean')
+      const streak = await reconcileStudyStreak(db, accountId, Date.now())
+      expect(streak.currentStreak).toBeGreaterThanOrEqual(1)
+    })
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -537,6 +674,18 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
       expect(challenge).toBeDefined()
       expect(challenge?.startDate).toBe('2026-09-14') // Monday
       expect(challenge?.endDate).toBe('2026-09-20') // Sunday
+    })
+
+    it('directly tests reconcileChallengeProgress and reconcileChallengeCompletionRewards', async () => {
+      const lopId = 1
+      const now = Date.now()
+      const challenge = await ensureActiveWeeklyChallenge(db, lopId, now)
+      expect(challenge).toBeDefined()
+      if (challenge) {
+        const progress = await reconcileChallengeProgress(db, challenge.id, now)
+        expect(progress.currentValue).toBeDefined()
+        await reconcileChallengeCompletionRewards(db, challenge.id, 30, now)
+      }
     })
   })
 
@@ -918,6 +1067,126 @@ describe('Engagement Layer v1 — Comprehensive Functional & Security Test Suite
         .bind(studentB)
         .first<{ total_xp: number }>()
       expect(xpB?.total_xp).toBeGreaterThanOrEqual(20)
+    })
+
+    it('Issue 1: Achievement unlock persists on transient reward failure, retry recovers reward with exactly one badge and one reward row', async () => {
+      const accountId = 201
+      const now = Date.now()
+
+      // Seed 1 existing session in xp_ledger so first_session qualifies
+      await db
+        .prepare(`INSERT INTO xp_ledger (account_id, amount, reason, source_key, study_date, created_at) VALUES (?1, 20, 'session_completed', ?2, ?3, ?4)`)
+        .bind(accountId, 'seed_session_1', studyDate(now), now)
+        .run()
+
+      // Step 1: Simulate achievement_unlocks row already exists (inserted previously),
+      // but its reward in xp_ledger is missing (e.g. transient failure during awardXp)
+      await db
+        .prepare(`INSERT INTO achievement_unlocks (account_id, achievement_key, source_key, unlocked_at) VALUES (?1, ?2, ?3, ?4)`)
+        .bind(accountId, 'first_session', `session_count:1:acc:${accountId}`, now)
+        .run()
+
+      // Verify badge row exists, but reward row in xp_ledger does NOT exist yet
+      const badgeBefore = await db.prepare('SELECT COUNT(*) as c FROM achievement_unlocks WHERE account_id = ?1 AND achievement_key = ?2')
+        .bind(accountId, 'first_session').first<{ c: number }>()
+      expect(badgeBefore?.c).toBe(1)
+
+      const rewardBefore = await db.prepare('SELECT COUNT(*) as c FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(accountId, `ach_reward:first_session:acc:${accountId}`).first<{ c: number }>()
+      expect(rewardBefore?.c).toBe(0)
+
+      // Step 2 & 3: Evaluate achievements
+      // evaluateAchievements MUST NOT skip the unlocked badge! It must reconcile the missing reward.
+      await evaluateAchievements(db, accountId, now)
+
+      // Step 4, 5, 6: Verify badge row remains exactly 1 row (no duplicate)
+      const badgeAfter = await db.prepare('SELECT COUNT(*) as c FROM achievement_unlocks WHERE account_id = ?1 AND achievement_key = ?2')
+        .bind(accountId, 'first_session').first<{ c: number }>()
+      expect(badgeAfter?.c).toBe(1)
+
+      // Reward is now delivered exactly once
+      const rewardAfter = await db.prepare('SELECT COUNT(*) as c, amount FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(accountId, `ach_reward:first_session:acc:${accountId}`).first<{ c: number; amount: number }>()
+      expect(rewardAfter?.c).toBe(1)
+      expect(rewardAfter?.amount).toBe(15)
+
+      // Subsequent evaluations remain idempotent
+      await evaluateAchievements(db, accountId, now)
+      const rewardIdempotent = await db.prepare('SELECT COUNT(*) as c FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(accountId, `ach_reward:first_session:acc:${accountId}`).first<{ c: number }>()
+      expect(rewardIdempotent?.c).toBe(1)
+    })
+
+    it('Issue 2: Challenge at boundary completes, partial contributor bonus failure retains outbox, retry resolves missing bonus without duplicating', async () => {
+      const studentA = 201
+      const studentB = 202
+      const lopId = 1
+      const now = Date.now()
+      const currentWk = studyWeek(now, SCHOOL_TIMEZONE)
+      const challengeId = `ch_lop${lopId}_${currentWk}`
+
+      // Create challenge with target_value = 2, currently at 1
+      await ensureActiveWeeklyChallenge(db, lopId, now)
+      await db.prepare('UPDATE class_challenges SET current_value = 1, target_value = 2 WHERE id = ?1')
+        .bind(challengeId).run()
+
+      // Seed prior contribution for student A
+      await db.prepare('INSERT INTO class_challenge_contributions (challenge_id, account_id, source_key, contribution_value, created_at) VALUES (?1, ?2, ?3, 1, ?4)')
+        .bind(challengeId, studentA, `contrib:${challengeId}:${studentA}`, now - 1000).run()
+
+      // Now student B contributes, reaching target (1 + 1 = 2)
+      const result = await contributeToClassChallenge(db, {
+        lopId,
+        accountId: studentB,
+        targetType: 'sessions_count',
+        sourceKey: `contrib:${challengeId}:${studentB}`,
+        now,
+      })
+
+      expect(result.completed).toBe(true)
+      expect(result.newCurrentValue).toBe(2)
+
+      // Challenge is marked completed in DB
+      const chRow = await db.prepare('SELECT status, current_value FROM class_challenges WHERE id = ?1')
+        .bind(challengeId).first<{ status: string; current_value: number }>()
+      expect(chRow?.status).toBe('completed')
+      expect(chRow?.current_value).toBe(2)
+
+      // Both student A and B have bonus in xp_ledger
+      const bonusA = await db.prepare('SELECT amount FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(studentA, `challenge_bonus:${challengeId}:acc:${studentA}`).first<{ amount: number }>()
+      expect(bonusA?.amount).toBe(30)
+
+      const bonusB = await db.prepare('SELECT amount FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(studentB, `challenge_bonus:${challengeId}:acc:${studentB}`).first<{ amount: number }>()
+      expect(bonusB?.amount).toBe(30)
+
+      // Now simulate retry on already-completed challenge where student B had failed and its bonus was missing:
+      // Delete student B's bonus to simulate failure
+      await db.prepare('DELETE FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(studentB, `challenge_bonus:${challengeId}:acc:${studentB}`).run()
+
+      // Retry contributeToClassChallenge on already-completed challenge
+      const retryResult = await contributeToClassChallenge(db, {
+        lopId,
+        accountId: studentB,
+        targetType: 'sessions_count',
+        sourceKey: `contrib:${challengeId}:${studentB}:retry`,
+        now: now + 5000,
+      })
+
+      expect(retryResult.completed).toBe(true)
+
+      // Student A was NOT duplicated (still exactly 1 record)
+      const countA = await db.prepare('SELECT COUNT(*) as c FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(studentA, `challenge_bonus:${challengeId}:acc:${studentA}`).first<{ c: number }>()
+      expect(countA?.c).toBe(1)
+
+      // Student B's missing bonus was recovered!
+      const recoveredB = await db.prepare('SELECT COUNT(*) as c, amount FROM xp_ledger WHERE account_id = ?1 AND source_key = ?2')
+        .bind(studentB, `challenge_bonus:${challengeId}:acc:${studentB}`).first<{ c: number; amount: number }>()
+      expect(recoveredB?.c).toBe(1)
+      expect(recoveredB?.amount).toBe(30)
     })
   })
 })
