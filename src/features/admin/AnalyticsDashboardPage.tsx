@@ -25,6 +25,7 @@ import {
   Zap,
   Server,
   GraduationCap,
+  Flame,
 } from 'lucide-react'
 
 export interface AnalyticsOverviewData {
@@ -133,6 +134,7 @@ export function AnalyticsDashboardPage() {
     games: Gamepad2,
     moderation: Shield,
     learningSession: GraduationCap,
+    engagement: Flame,
   }
 
   const featureLabels: Record<string, string> = {
@@ -146,6 +148,7 @@ export function AnalyticsDashboardPage() {
     games: 'Đấu trường trò chơi trí tuệ',
     moderation: 'Báo cáo & Kiểm duyệt an toàn',
     learningSession: 'Phiên học nhóm có cấu trúc',
+    engagement: 'Tương tác & Chuỗi học tập',
   }
 
   if (error && (!nguoiDung.isSchoolAdmin || error.includes('quyền'))) {

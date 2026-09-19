@@ -30,8 +30,8 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
   })
 
   describe('1. Taxonomy & Architecture Alignment', () => {
-    it('Taxonomy contains exactly 32 authoritative events', () => {
-      expect(ALL_ANALYTICS_EVENTS).toHaveLength(32)
+    it('Taxonomy contains exactly 38 authoritative events', () => {
+      expect(ALL_ANALYTICS_EVENTS).toHaveLength(38)
       expect(ALL_ANALYTICS_EVENTS).toContain('auth.login_succeeded')
       expect(ALL_ANALYTICS_EVENTS).toContain('auth.login_failed')
       expect(ALL_ANALYTICS_EVENTS).toContain('campus.session_started')
@@ -511,7 +511,7 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
       const data = (await res.json()) as { ok: boolean; analytics: any }
       expect(data.ok).toBe(true)
       expect(data.analytics.databaseIsolated).toBe(true)
-      expect(data.analytics.totalTaxonomyEvents).toBe(32)
+      expect(data.analytics.totalTaxonomyEvents).toBe(38)
       expect(data.analytics).toHaveProperty('funnel')
       expect(data.analytics).toHaveProperty('activeUsers')
       expect(data.analytics).toHaveProperty('retention')

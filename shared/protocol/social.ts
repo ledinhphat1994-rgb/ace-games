@@ -78,3 +78,15 @@ export type GoiSocial =
   | { type: 'social.friend_added'; friend: FriendItem; presence: FriendPresence }
   | { type: 'social.friend_removed'; friendId: number }
   | { type: 'social.blocked'; targetId: number }
+  | {
+      type: 'social.study_invite'
+      invitation: {
+        id: string
+        senderId: number
+        senderName: string
+        senderAvatar: string | null
+        roomId: number
+        roomTitle: string
+        expiresAt: number
+      }
+    }

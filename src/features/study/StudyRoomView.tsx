@@ -28,6 +28,7 @@ import {
   Upload,
   Users,
   UserX,
+  UserPlus,
   Wifi,
   WifiOff,
   X,
@@ -54,6 +55,7 @@ import {
   SessionSummaryModal,
   SessionTimerWidget,
 } from './LearningSession'
+import { StudyInviteDialog } from '@/features/engagement/StudyInviteDialog'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CHALK_COLORS = [
@@ -194,6 +196,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [kickTarget, setKickTarget] = useState<{ actorKey: string; name: string } | null>(null)
   const [reportTarget, setReportTarget] = useState<{ accountId: number; name: string; contentSnippet?: string } | null>(null)
   const [showBannedModal, setShowBannedModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   const handleConfirmKick = useCallback(
     async (targetActorKey: string, reason: string, banFromRoom: boolean) => {
@@ -1056,6 +1059,15 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
             <span className="text-sm font-bold text-slate-200">👥 Thành viên ({members.length})</span>
             <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(true)}
+                className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                title="Mời bạn bè vào phòng học"
+              >
+                <UserPlus className="h-3 w-3" />
+                <span className="hidden sm:inline">Mời bạn</span>
+              </button>
               {(isHost || canModerate) && (
                 <button
                   type="button"
@@ -1640,6 +1652,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         summary={sessionSummary}
         open={sessionSummaryOpen}
         onOpenChange={setSessionSummaryOpen}
+      />
+
+      <StudyInviteDialog
+        open={showInviteModal}
+        onOpenChange={setShowInviteModal}
+        roomId={numericRoomId || 1}
+        roomTitle={tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId || 1}`}
       />
     </div>
   )

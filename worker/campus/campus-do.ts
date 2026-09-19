@@ -1053,6 +1053,13 @@ export class CampusDO extends DurableObject<Env> {
         }
         break
       }
+      case 'social.study_invite': {
+        const sockets = this.ctx.getWebSockets(theTaiKhoan(suKien.receiverId))
+        for (const ws of sockets) {
+          this.gui(ws, { type: 'social.study_invite', invitation: suKien.invitation })
+        }
+        break
+      }
       case 'social.request_resolved': {
         for (const aid of suKien.accountIds ?? []) {
           const sockets = this.ctx.getWebSockets(theTaiKhoan(aid))

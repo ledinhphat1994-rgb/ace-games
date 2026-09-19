@@ -479,7 +479,7 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
       } as unknown as D1Database
 
       const overview = await computeAnalyticsOverview(mockAnalyticsDb, '7d')
-      expect(overview.totalTaxonomyEvents).toBe(32)
+      expect(overview.totalTaxonomyEvents).toBe(38)
       expect(overview.featureAdoption).toBeDefined()
       expect(overview.featureAdoption.learningSession).toBeDefined()
       expect(overview.featureAdoption.learningSession.eventCount).toBe(82)

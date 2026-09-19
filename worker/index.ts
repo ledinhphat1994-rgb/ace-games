@@ -44,6 +44,7 @@ import {
   taoVoiceSession,
 } from './routes/voice-api'
 import { socialApp } from './routes/social'
+import { engagementApp } from './routes/engagement-api'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -1121,6 +1122,7 @@ app.all('/api/yt-search', saiPhuongThuc)
 // Social Graph & Presence APIs
 // ─────────────────────────────────────────────────────────────────────────────
 app.route('/api/social', socialApp)
+app.route('/api/engagement', engagementApp)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket routes

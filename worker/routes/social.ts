@@ -651,7 +651,7 @@ socialApp.post('/unblock', async (c) => {
   return c.json({ ok: true })
 })
 
-async function thongBaoCampusDO(env: Env, payload: any): Promise<void> {
+export async function thongBaoCampusDO(env: Env, payload: any): Promise<void> {
   try {
     const campus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS)) as any
     if (typeof campus.thongBaoSocial === 'function') {

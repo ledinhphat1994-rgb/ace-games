@@ -42,6 +42,7 @@ import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
 import { TEN_CAMPUS } from './campus/danh-tinh'
 import { callCloudflareRealtime } from './routes/voice-api'
 import { recordAnalyticsEvent } from './lib/analytics'
+import { processLearningSessionSummaryEngagement } from './lib/engagement'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -2724,6 +2725,13 @@ export class RoomDO extends DurableObject<Env> {
           this.ctx.storage.sql.exec('DELETE FROM pending_session_summary_sync WHERE session_id = ?1', item.sessionId)
         } catch {}
         delivered++
+
+        // Tự động trao thưởng và xử lý Engagement Layer v1 một cách bền vững & idempotent
+        try {
+          await processLearningSessionSummaryEngagement(d1, summary, this.env.ANALYTICS_DB, this.ctx)
+        } catch (engErr) {
+          console.error(`[xuLyPendingSummarySync] Lỗi trao thưởng engagement cho session=${item.sessionId}:`, engErr)
+        }
       } catch (err) {
         console.error(`[xuLyPendingSummarySync] Ghi D1 thất bại cho session=${item.sessionId}:`, err)
         const nextAttempts = item.attempts + 1

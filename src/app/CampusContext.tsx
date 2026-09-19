@@ -5,7 +5,13 @@ import { lamSachVanBan, MA_DONG_SOCKET, PING_GIU_KET_NOI } from '@shared/protoco
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
 // ─── Notification System ────────────────────────────────────────────────────
-export type NotificationType = 'friend_request' | 'friend_online' | 'friend_in_room'
+export type NotificationType =
+  | 'friend_request'
+  | 'friend_online'
+  | 'friend_in_room'
+  | 'study_invite'
+  | 'achievement_unlocked'
+  | 'challenge_completed'
 
 export interface AppNotification {
   id: string
@@ -19,6 +25,8 @@ export interface AppNotification {
     accountId?: number
     roomId?: number
     roomTitle?: string
+    invitationId?: string
+    achievementKey?: string
   }
 }
 
@@ -342,6 +350,23 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           break
         }
 
+        case 'social.study_invite': {
+          const inv = (goi as any).invitation
+          if (inv) {
+            pushNotification({
+              type: 'study_invite',
+              title: 'Lời mời học nhóm',
+              body: `${inv.senderName} mời bạn vào học cùng tại "${inv.roomTitle}".`,
+              meta: {
+                roomId: inv.roomId,
+                roomTitle: inv.roomTitle,
+                invitationId: inv.id,
+              },
+            })
+          }
+          break
+        }
+
         case 'social.request_resolved': {
           const id = goi.requestId
           setSocialState((prev) => {
@@ -474,7 +499,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
     }
-  }, [donDepChoPhanHoi])
+  }, [donDepChoPhanHoi, pushNotification])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi

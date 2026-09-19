@@ -7,6 +7,9 @@ import {
   Radio,
   UserPlus,
   X,
+  GraduationCap,
+  Trophy,
+  Flame,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -43,6 +46,27 @@ function NotificationIcon({ type }: { type: AppNotification['type'] }) {
     return (
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
         <Radio className="h-4 w-4" />
+      </div>
+    )
+  }
+  if (type === 'study_invite') {
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400">
+        <GraduationCap className="h-4 w-4" />
+      </div>
+    )
+  }
+  if (type === 'achievement_unlocked') {
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400">
+        <Trophy className="h-4 w-4" />
+      </div>
+    )
+  }
+  if (type === 'challenge_completed') {
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400">
+        <Flame className="h-4 w-4" />
       </div>
     )
   }
@@ -90,11 +114,45 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
     }
   }, [n.meta?.requestId, n.id, rejectFriendRequest, onDismiss])
 
+  const roomId = n.meta?.roomId
+  const invitationId = n.meta?.invitationId
+  const nid = n.id
+
   const handleRoomClick = useCallback(() => {
-    if (n.meta?.roomId) {
-      navigate(`/room/phong-${n.meta.roomId}`)
+    if (roomId) {
+      navigate(`/room/phong-${roomId}`)
     }
-  }, [n.meta?.roomId, navigate])
+  }, [roomId, navigate])
+
+  const handleAcceptInvite = useCallback(async () => {
+    if (!invitationId) return
+    setBusy('accept')
+    try {
+      const res = await fetch(`/api/engagement/invites/${invitationId}/accept`, { method: 'POST' })
+      const data = (await res.json()) as { ok: boolean; roomId?: number; loi?: string }
+      if (data.ok && data.roomId) {
+        toast.success('Đã vào phòng học!')
+        onDismiss(nid)
+        navigate(`/room/phong-${data.roomId}`)
+      } else {
+        toast.error(data.loi || 'Không thể chấp nhận lời mời.')
+      }
+    } catch {
+      toast.error('Lỗi kết nối.')
+    } finally {
+      setBusy(null)
+    }
+  }, [invitationId, nid, onDismiss, navigate])
+
+  const handleDismissInvite = useCallback(async () => {
+    if (!invitationId) return
+    setBusy('reject')
+    try {
+      await fetch(`/api/engagement/invites/${invitationId}/dismiss`, { method: 'POST' })
+    } catch {}
+    setBusy(null)
+    onDismiss(nid)
+  }, [invitationId, nid, onDismiss])
 
   return (
     <div
@@ -133,6 +191,30 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
             >
               <X className="h-3 w-3" />
               Từ chối
+            </Button>
+          </div>
+        )}
+
+        {n.type === 'study_invite' && n.meta?.invitationId && (
+          <div className="mt-2 flex gap-1.5">
+            <Button
+              size="sm"
+              className="h-6 gap-1 px-2 text-[10px] font-semibold"
+              disabled={busy !== null}
+              onClick={handleAcceptInvite}
+            >
+              <Check className="h-3 w-3" />
+              {busy === 'accept' ? 'Đang vào…' : 'Vào học ngay'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 gap-1 px-2 text-[10px]"
+              disabled={busy !== null}
+              onClick={handleDismissInvite}
+            >
+              <X className="h-3 w-3" />
+              Bỏ qua
             </Button>
           </div>
         )}

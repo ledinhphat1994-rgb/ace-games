@@ -29,6 +29,7 @@ import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { EngagementWidget } from '@/features/engagement/EngagementWidget'
 
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
@@ -243,6 +244,9 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
             </Button>
           </div>
         ) : null}
+
+        {/* Engagement Layer v1: Study Streak, XP & Quick Actions */}
+        <EngagementWidget className="mb-6" />
 
         {/* 3 Interactive Canvas Orbs / Hub Nodes */}
         <section className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Khu vực chức năng sảnh">

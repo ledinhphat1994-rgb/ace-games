@@ -66,6 +66,13 @@ export type AnalyticsEventName =
   | 'session.poll_created'
   | 'session.poll_voted'
   | 'session.ended'
+  // Engagement (6)
+  | 'engagement.xp_awarded'
+  | 'engagement.streak_extended'
+  | 'engagement.achievement_unlocked'
+  | 'engagement.challenge_progressed'
+  | 'engagement.invite_sent'
+  | 'engagement.invite_accepted'
   // DO Operations (2)
   | 'do.sfu_close_failed'
   | 'do.revocation_retry'
@@ -102,6 +109,12 @@ export const ALL_ANALYTICS_EVENTS: readonly AnalyticsEventName[] = [
   'session.poll_created',
   'session.poll_voted',
   'session.ended',
+  'engagement.xp_awarded',
+  'engagement.streak_extended',
+  'engagement.achievement_unlocked',
+  'engagement.challenge_progressed',
+  'engagement.invite_sent',
+  'engagement.invite_accepted',
   'do.sfu_close_failed',
   'do.revocation_retry',
   'http.request',
@@ -127,6 +140,9 @@ export const MEANINGFUL_EVENTS = [
   'friend.request_accepted',
   'report.submitted',
   'moderation.action_completed',
+  'engagement.xp_awarded',
+  'engagement.achievement_unlocked',
+  'engagement.challenge_progressed',
 ] as const
 
 export interface AnalyticsEventInput {
@@ -580,6 +596,14 @@ export async function computeAnalyticsOverview(
       'session.poll_created',
       'session.poll_voted',
       'session.ended',
+    ],
+    engagement: [
+      'engagement.xp_awarded',
+      'engagement.streak_extended',
+      'engagement.achievement_unlocked',
+      'engagement.challenge_progressed',
+      'engagement.invite_sent',
+      'engagement.invite_accepted',
     ],
   }
 
