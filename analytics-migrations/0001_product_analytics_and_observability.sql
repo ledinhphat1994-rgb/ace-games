@@ -1,5 +1,6 @@
--- Migration 0010: Product Analytics and Observability Baseline
+-- Migration 0001: Product Analytics and Observability Baseline
 -- Digital Campus v2: M0 Privacy-Preserving Event Ingestion & Operational Metrics
+-- Stored in dedicated ANALYTICS_DB (isolated from authoritative business DB)
 
 CREATE TABLE IF NOT EXISTS analytics_events (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,

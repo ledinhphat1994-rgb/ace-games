@@ -12,7 +12,7 @@ import {
 import { loi } from './lib/http'
 import { xacMinhMatKhau } from './lib/passwords'
 import { laGiaoVienDaDuyet, laQuanTriTruong } from './lib/scope'
-import { recordAnalyticsEvent, computeAnalyticsOverview } from './lib/analytics'
+import { recordAnalyticsEvent, computeAnalyticsOverview, pruneExpiredAnalytics } from './lib/analytics'
 import { kiemTraPhien, layPhien } from './lib/session'
 import { cungNguon, HEADER_DANH_TINH, laYeuCauWebSocket, maHoaDanhTinh } from './lib/ws'
 import {
@@ -866,6 +866,28 @@ app.get('/api/admin/analytics/overview', async (c) => {
 })
 app.all('/api/admin/analytics/overview', saiPhuongThuc)
 
+app.post('/api/admin/analytics/prune', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  if (!laQuanTriTruong(kq.taiKhoan)) {
+    return loi('Chỉ quản trị viên trường mới có quyền dọn dẹp số liệu phân tích.', 403)
+  }
+
+  if (!c.env.ANALYTICS_DB) {
+    return loi('Cơ sở dữ liệu phân tích (ANALYTICS_DB) chưa được kích hoạt.', 503)
+  }
+
+  try {
+    const deletedCount = await pruneExpiredAnalytics(c.env.ANALYTICS_DB, 60)
+    return c.json({ ok: true, deletedCount, retentionDays: 60 })
+  } catch (err) {
+    console.error('Lỗi dọn dẹp analytics quá hạn:', err)
+    return loi('Không thể dọn dẹp số liệu phân tích.', 500)
+  }
+})
+app.all('/api/admin/analytics/prune', saiPhuongThuc)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // R2 File Upload (Auth + Quota + Extension + MIME + Magic Bytes + PPTX ZIP inspect)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1068,4 +1090,19 @@ app.onError((err, c) => {
   return loi('Máy chủ gặp lỗi, vui lòng thử lại.', 500)
 })
 
-export default app
+export default {
+  fetch: (req: Request, env: Env, ctx: ExecutionContext) => app.fetch(req, env, ctx),
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (env.ANALYTICS_DB) {
+      ctx.waitUntil(
+        pruneExpiredAnalytics(env.ANALYTICS_DB, 60)
+          .then((deleted) => {
+            console.log(`[Scheduled Retention] Đã dọn dẹp ${deleted} sự kiện analytics quá hạn 60 ngày.`)
+          })
+          .catch((err: any) => {
+            console.warn('[Scheduled Retention] Lỗi dọn dẹp analytics:', err?.message || err)
+          }),
+      )
+    }
+  },
+}

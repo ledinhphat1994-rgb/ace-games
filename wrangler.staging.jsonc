@@ -16,14 +16,19 @@
     {
       "binding": "DB",
       "database_name": "lop-10a7-db-staging",
-      "database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f"
+      "database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f",
+      "migrations_dir": "migrations"
     },
     {
       "binding": "ANALYTICS_DB",
       "database_name": "lop-10a7-analytics-staging",
-      "database_id": "c5c3eaec-c6b2-4b09-9d1b-bc18a2288a54"
+      "database_id": "c5c3eaec-c6b2-4b09-9d1b-bc18a2288a54",
+      "migrations_dir": "analytics-migrations"
     }
   ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",

@@ -5,8 +5,8 @@ import { bamMatKhau, taoSalt } from '../worker/lib/passwords'
 import { LOP_THU, MAT_KHAU, TAI_KHOAN_THU } from './fixtures'
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
-if (env.ANALYTICS_DB) {
-  await applyD1Migrations(env.ANALYTICS_DB, env.TEST_MIGRATIONS)
+if (env.ANALYTICS_DB && (env as any).ANALYTICS_TEST_MIGRATIONS) {
+  await applyD1Migrations(env.ANALYTICS_DB, (env as any).ANALYTICS_TEST_MIGRATIONS)
 }
 
 // Miniflare workerd chưa triển khai RPC receiver cho Ratelimit binding trong môi trường test cục bộ.

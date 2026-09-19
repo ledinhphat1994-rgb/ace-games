@@ -16,9 +16,20 @@
     {
       "binding": "DB",
       "database_name": "lop-10a7-db",
-      "database_id": "a12de014-e9d2-4d6d-994f-dcb36c481432"
+      "database_id": "a12de014-e9d2-4d6d-994f-dcb36c481432",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "ANALYTICS_DB",
+      "database_name": "lop-10a7-analytics",
+      // KHÓA PHÁT HÀNH: Thay thế bằng UUID của lop-10a7-analytics sau khi được cấp phép tạo D1 production
+      "database_id": "UNPROVISIONED_PRODUCTION_ANALYTICS_DB_ID",
+      "migrations_dir": "analytics-migrations"
     }
   ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",
