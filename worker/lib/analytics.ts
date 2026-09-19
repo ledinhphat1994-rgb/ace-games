@@ -58,6 +58,14 @@ export type AnalyticsEventName =
   // Games (2)
   | 'game.session_started'
   | 'game.session_completed'
+  // Learning Session (7)
+  | 'session.goal_set'
+  | 'session.task_added'
+  | 'session.task_completed'
+  | 'session.timer_started'
+  | 'session.poll_created'
+  | 'session.poll_voted'
+  | 'session.ended'
   // DO Operations (2)
   | 'do.sfu_close_failed'
   | 'do.revocation_retry'
@@ -87,6 +95,13 @@ export const ALL_ANALYTICS_EVENTS: readonly AnalyticsEventName[] = [
   'moderation.action_completed',
   'game.session_started',
   'game.session_completed',
+  'session.goal_set',
+  'session.task_added',
+  'session.task_completed',
+  'session.timer_started',
+  'session.poll_created',
+  'session.poll_voted',
+  'session.ended',
   'do.sfu_close_failed',
   'do.revocation_retry',
   'http.request',
@@ -105,6 +120,9 @@ export const MEANINGFUL_EVENTS = [
   'media.playback_started',
   'game.session_started',
   'game.session_completed',
+  'session.task_completed',
+  'session.poll_voted',
+  'session.ended',
   'friend.request_sent',
   'friend.request_accepted',
   'report.submitted',

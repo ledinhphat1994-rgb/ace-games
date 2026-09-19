@@ -802,6 +802,60 @@ app.post('/api/rooms/:id/kick', kickMemberFromRoom)
 app.post('/api/rooms/:id/ban', banMemberFromRoom)
 app.post('/api/rooms/:id/unban', unbanMemberFromRoom)
 app.get('/api/rooms/:id/banned-members', listBannedMembers)
+app.get('/api/rooms/:id/sessions', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const isAdmin = laQuanTriTruong(kq.taiKhoan)
+  const isTeacher = laGiaoVienDaDuyet(kq.taiKhoan)
+  if (!isAdmin && !isTeacher) {
+    return loi('Chỉ giáo viên và quản trị viên mới có quyền xem lịch sử buổi học.', 403)
+  }
+
+  const roomId = parseInt(c.req.param('id'), 10)
+  if (!Number.isFinite(roomId) || roomId <= 0) {
+    return loi('ID phòng không hợp lệ.', 400)
+  }
+
+  try {
+    const rows = await c.env.DB.prepare(
+      'SELECT id, phong_id, started_at, ended_at, duration_seconds, summary_json, created_at FROM hoc_session_summary WHERE phong_id = ?1 ORDER BY started_at DESC LIMIT 50',
+    )
+      .bind(roomId)
+      .all<{
+        id: string
+        phong_id: number
+        started_at: number
+        ended_at: number
+        duration_seconds: number
+        summary_json: string
+        created_at: string
+      }>()
+
+    const sessions = (rows.results || []).map((r) => {
+      try {
+        return JSON.parse(r.summary_json)
+      } catch {
+        return {
+          sessionId: r.id,
+          roomId: r.phong_id,
+          startedAt: r.started_at,
+          endedAt: r.ended_at,
+          durationSeconds: r.duration_seconds,
+          taskCount: 0,
+          taskCompletionRates: {},
+          activeMembers: [],
+          pollResults: [],
+        }
+      }
+    })
+
+    return c.json({ sessions, total: sessions.length })
+  } catch (err) {
+    console.error('Lỗi truy vấn hoc_session_summary:', err)
+    return c.json({ sessions: [], total: 0 })
+  }
+})
 app.post('/api/reports', createReport)
 app.get('/api/reports', listReports)
 app.post('/api/reports/:id/resolve', resolveReport)

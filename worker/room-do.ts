@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import {
   LenhPhong,
+  LenhPhongSession,
   canonicalMediaPosition,
   YOUTUBE_VIDEO_ID_REGEX,
   type GoiPhong,
@@ -13,6 +14,12 @@ import {
   type WhiteboardStroke,
   type SlideState,
   type VoiceParticipantState,
+  type SessionGoal,
+  type SessionTask,
+  type SessionTimerState,
+  type ActivePoll,
+  type PollOption,
+  type SessionSummary,
 } from '../shared/protocol/room'
 import {
   type BanSanh,
@@ -96,6 +103,15 @@ const DEFAULT_GAME_META: GameMetaState = {
   scoreO: 0,
 }
 
+const DEFAULT_SESSION_TIMER: SessionTimerState = {
+  running: false,
+  durationSeconds: 1800,
+  startedAt: 0,
+  endsAt: 0,
+  remaining: 1800,
+  revision: 1,
+}
+
 export class RoomDO extends DurableObject<Env> {
   private media: MediaState = { ...DEFAULT_MEDIA }
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
@@ -120,6 +136,16 @@ export class RoomDO extends DurableObject<Env> {
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
   private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
   private roomName: string = ''
+  // Learning Session v1
+  private sessionGoal: SessionGoal | null = null
+  private sessionTasks: SessionTask[] = []
+  /** taskId → Set<accountId> */
+  private sessionTaskCompletions = new Map<string, Set<number>>()
+  private sessionTimer: SessionTimerState = { ...DEFAULT_SESSION_TIMER }
+  private activePoll: ActivePoll | null = null
+  /** pollId → (accountId → optionId) */
+  private pollVotes = new Map<string, Map<number, string>>()
+  private sessionStartedAt: number | null = null
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -274,6 +300,62 @@ export class RoomDO extends DurableObject<Env> {
       try {
         this.ctx.storage.sql.exec("UPDATE kick_cooldowns SET cooldown_id = hex(randomblob(16)) WHERE cooldown_id IS NULL")
       } catch {}
+      // Learning Session v1 tables
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS session_state (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS session_tasks (
+          id TEXT PRIMARY KEY,
+          text TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          position INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS session_task_completions (
+          task_id TEXT NOT NULL,
+          account_id INTEGER NOT NULL,
+          completed_at INTEGER NOT NULL,
+          PRIMARY KEY (task_id, account_id)
+        );
+        CREATE TABLE IF NOT EXISTS session_timer (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          running INTEGER NOT NULL DEFAULT 0,
+          duration_seconds INTEGER NOT NULL DEFAULT 1800,
+          started_at INTEGER NOT NULL DEFAULT 0,
+          ends_at INTEGER NOT NULL DEFAULT 0,
+          remaining INTEGER NOT NULL DEFAULT 1800,
+          revision INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS session_polls (
+          id TEXT PRIMARY KEY,
+          question TEXT NOT NULL,
+          options_json TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          closed INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS session_poll_votes (
+          poll_id TEXT NOT NULL,
+          account_id INTEGER NOT NULL,
+          option_id TEXT NOT NULL,
+          voted_at INTEGER NOT NULL,
+          PRIMARY KEY (poll_id, account_id)
+        );
+        CREATE TABLE IF NOT EXISTS session_activity (
+          actor_key TEXT PRIMARY KEY,
+          last_active_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS session_summaries (
+          id TEXT PRIMARY KEY,
+          room_id INTEGER NOT NULL,
+          started_at INTEGER NOT NULL,
+          ended_at INTEGER NOT NULL,
+          summary_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `)
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
     }
@@ -415,8 +497,115 @@ export class RoomDO extends DurableObject<Env> {
           this.ctx.waitUntil(this.retryPendingVoiceRevocations().catch(() => {}))
         }
       } catch {}
+
+      // Hydrate Learning Session v1 data
+      try {
+        const stateRows = [...this.ctx.storage.sql.exec<{ key: string; value: string }>('SELECT key, value FROM session_state')]
+        for (const r of stateRows) {
+          if (r.key === 'goal') {
+            try { this.sessionGoal = JSON.parse(r.value) as SessionGoal } catch {}
+          } else if (r.key === 'started_at') {
+            const st = parseInt(r.value, 10)
+            if (Number.isFinite(st) && st > 0) this.sessionStartedAt = st
+          }
+        }
+      } catch {}
+
+      try {
+        const taskRows = [...this.ctx.storage.sql.exec<{
+          id: string
+          text: string
+          created_by: string
+          created_at: number
+          position: number
+        }>('SELECT id, text, created_by, created_at, position FROM session_tasks ORDER BY position ASC')]
+        this.sessionTasks = taskRows.map((tr) => ({
+          id: tr.id,
+          text: tr.text,
+          createdBy: tr.created_by,
+          createdAt: tr.created_at,
+          order: tr.position,
+        }))
+      } catch {}
+
+      try {
+        const compRows = [...this.ctx.storage.sql.exec<{
+          task_id: string
+          account_id: number
+        }>('SELECT task_id, account_id FROM session_task_completions')]
+        for (const cr of compRows) {
+          let s = this.sessionTaskCompletions.get(cr.task_id)
+          if (!s) {
+            s = new Set<number>()
+            this.sessionTaskCompletions.set(cr.task_id, s)
+          }
+          s.add(cr.account_id)
+        }
+      } catch {}
+
+      try {
+        const timerRows = [...this.ctx.storage.sql.exec<{
+          running: number
+          duration_seconds: number
+          started_at: number
+          ends_at: number
+          remaining: number
+          revision: number
+        }>('SELECT running, duration_seconds, started_at, ends_at, remaining, revision FROM session_timer WHERE id = 1')]
+        if (timerRows.length > 0) {
+          const tr = timerRows[0]
+          this.sessionTimer = {
+            running: Boolean(tr.running),
+            durationSeconds: tr.duration_seconds,
+            startedAt: tr.started_at,
+            endsAt: tr.ends_at,
+            remaining: tr.remaining,
+            revision: tr.revision,
+          }
+        }
+      } catch {}
+
+      try {
+        const pollRows = [...this.ctx.storage.sql.exec<{
+          id: string
+          question: string
+          options_json: string
+          created_by: string
+          created_at: number
+          closed: number
+        }>('SELECT id, question, options_json, created_by, created_at, closed FROM session_polls ORDER BY created_at DESC LIMIT 1')]
+        if (pollRows.length > 0) {
+          const pr = pollRows[0]
+          try {
+            this.activePoll = {
+              id: pr.id,
+              question: pr.question,
+              options: JSON.parse(pr.options_json),
+              createdBy: pr.created_by,
+              createdAt: pr.created_at,
+              closed: Boolean(pr.closed),
+            }
+          } catch {}
+        }
+      } catch {}
+
+      try {
+        const voteRows = [...this.ctx.storage.sql.exec<{
+          poll_id: string
+          account_id: number
+          option_id: string
+        }>('SELECT poll_id, account_id, option_id FROM session_poll_votes')]
+        for (const vr of voteRows) {
+          let vm = this.pollVotes.get(vr.poll_id)
+          if (!vm) {
+            vm = new Map<number, string>()
+            this.pollVotes.set(vr.poll_id, vm)
+          }
+          vm.set(vr.account_id, vr.option_id)
+        }
+      } catch {}
     } catch (err) {
-      console.error('Lỗi nạp room_meta / game_state / voice_state:', err)
+      console.error('Lỗi nạp room_meta / game_state / voice_state / session_state:', err)
     }
 
     this.khoiTaoXong = true
@@ -443,11 +632,48 @@ export class RoomDO extends DurableObject<Env> {
     return true
   }
 
+  private kiemTraVaCapNhatSessionTimer(now: number): boolean {
+    if (!this.sessionTimer.running || this.sessionTimer.endsAt <= 0 || now < this.sessionTimer.endsAt) {
+      return false
+    }
+    this.sessionTimer = {
+      ...this.sessionTimer,
+      running: false,
+      remaining: 0,
+      endsAt: 0,
+      revision: (this.sessionTimer.revision || 1) + 1,
+    }
+    this.luuSessionTimer()
+    return true
+  }
+
+  private async updateTimerAlarm(): Promise<void> {
+    const candidates: number[] = []
+    if (this.pomodoro.running && this.pomodoro.endsAt > 0) {
+      candidates.push(this.pomodoro.endsAt)
+    }
+    if (this.sessionTimer.running && this.sessionTimer.endsAt > 0) {
+      candidates.push(this.sessionTimer.endsAt)
+    }
+    if (candidates.length > 0) {
+      const earliest = Math.min(...candidates)
+      try {
+        await this.ctx.storage.setAlarm(earliest)
+      } catch (err) {
+        console.error('Lỗi setAlarm cho timers:', err)
+      }
+    }
+  }
+
   override async alarm(): Promise<void> {
     const now = Date.now()
     if (this.kiemTraVaCapNhatPomodoro(now)) {
       this.broadcast({ type: 'pomodoro.sync', state: this.pomodoro, serverNow: now })
     }
+    if (this.kiemTraVaCapNhatSessionTimer(now)) {
+      this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
+    }
+    await this.updateTimerAlarm()
     try {
       await this.retryPendingVoiceRevocations(now)
     } catch (err) {
@@ -667,7 +893,7 @@ export class RoomDO extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server, [theTaiKhoan(accountId), 'phien:' + phienId])
-    server.serializeAttachment({
+    const attObj: AttachmentKetNoi = {
       key,
       ten,
       accountId,
@@ -680,7 +906,8 @@ export class RoomDO extends DurableObject<Env> {
       mic: false,
       isGame: laGame,
       _joinedAt: Date.now(),
-    } satisfies AttachmentKetNoi)
+    }
+    server.serializeAttachment(attObj)
 
     if (laGame) {
       const snapshot: GoiGame = {
@@ -694,8 +921,9 @@ export class RoomDO extends DurableObject<Env> {
         server.send(JSON.stringify(snapshot))
       } catch {}
     } else {
-      // Đảm bảo Pomodoro được cập nhật trạng thái mới nhất nếu đã hết giờ trước khi gửi snapshot
+      // Đảm bảo Pomodoro và Session Timer được cập nhật trạng thái mới nhất nếu đã hết giờ trước khi gửi snapshot
       this.kiemTraVaCapNhatPomodoro(Date.now())
+      this.kiemTraVaCapNhatSessionTimer(Date.now())
 
       // Gửi snapshot ngay cho người mới vào phòng học
       const snapshot: GoiPhong = {
@@ -713,6 +941,15 @@ export class RoomDO extends DurableObject<Env> {
         slide: this.slide,
         voiceRegistry: this.getVoiceRegistry(),
         serverNow: Date.now(),
+        // Learning Session v1
+        sessionGoal: this.sessionGoal,
+        sessionTasks: this.sessionTasks,
+        sessionTaskCompletions: this.laySessionTaskCompletions(),
+        sessionTimer: this.sessionTimer,
+        activePoll: this.activePoll,
+        pollVoteCounts: this.layPollVoteCountsChoNguoiDung(attObj),
+        sessionStartedAt: this.sessionStartedAt,
+        activeParticipantKeys: this.layActiveParticipants(),
       }
       try {
         server.send(JSON.stringify(snapshot))
@@ -751,6 +988,8 @@ export class RoomDO extends DurableObject<Env> {
 
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (!att) return
+
+    this.ghiNhanActivity(att.key)
 
     const type = String(raw.type || '')
 
@@ -1530,6 +1769,16 @@ export class RoomDO extends DurableObject<Env> {
         this.updateVoiceStatus(att.key, nextStatus, goi.generation)
         break
       }
+
+      case 'session.action': {
+        const parsed = LenhPhongSession.safeParse(goi.data)
+        if (!parsed.success) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Dữ liệu hành động phiên học không hợp lệ.' }))
+          return
+        }
+        await this.handleSessionAction(ws, att, parsed.data)
+        break
+      }
     }
   }
 
@@ -1624,6 +1873,623 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     return [...map.values()]
+  }
+
+  private luuSessionTimer(): void {
+    try {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO session_timer (id, running, duration_seconds, started_at, ends_at, remaining, revision)
+         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(id) DO UPDATE SET
+           running = ?1,
+           duration_seconds = ?2,
+           started_at = ?3,
+           ends_at = ?4,
+           remaining = ?5,
+           revision = ?6`,
+        this.sessionTimer.running ? 1 : 0,
+        this.sessionTimer.durationSeconds,
+        this.sessionTimer.startedAt,
+        this.sessionTimer.endsAt,
+        this.sessionTimer.remaining,
+        this.sessionTimer.revision,
+      )
+    } catch (err) {
+      console.error('Lỗi lưu session_timer vào SQLite:', err)
+    }
+  }
+
+  private laySessionTaskCompletions(): Record<string, number[]> {
+    const res: Record<string, number[]> = {}
+    for (const [taskId, set] of this.sessionTaskCompletions) {
+      res[taskId] = Array.from(set)
+    }
+    return res
+  }
+
+  private phatTasksSync(): void {
+    this.broadcast({
+      type: 'session.tasks.sync',
+      tasks: this.sessionTasks,
+      completionMap: this.laySessionTaskCompletions(),
+    })
+  }
+
+  private layPollVoteCounts(pollId: string): Record<string, number> {
+    const counts: Record<string, number> = {}
+    if (this.activePoll && this.activePoll.id === pollId) {
+      for (const opt of this.activePoll.options) {
+        counts[opt.id] = 0
+      }
+    }
+    const votes = this.pollVotes.get(pollId)
+    if (votes) {
+      for (const optId of votes.values()) {
+        counts[optId] = (counts[optId] || 0) + 1
+      }
+    }
+    return counts
+  }
+
+  private layPollVoteCountsChoNguoiDung(att: AttachmentKetNoi | null): Record<string, number> | null {
+    if (!this.activePoll) return null
+    if (this.activePoll.closed) return this.layPollVoteCounts(this.activePoll.id)
+    if (att && this.coQuyenDieuKhien(att)) return this.layPollVoteCounts(this.activePoll.id)
+    return null
+  }
+
+  private phatPollSync(): void {
+    if (!this.activePoll) {
+      this.broadcast({ type: 'session.poll.sync', poll: null, voteCounts: null })
+      return
+    }
+    const counts = this.layPollVoteCounts(this.activePoll.id)
+    if (this.activePoll.closed) {
+      this.broadcast({ type: 'session.poll.sync', poll: this.activePoll, voteCounts: counts })
+      return
+    }
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState !== WebSocket.OPEN) continue
+      const att = ws.deserializeAttachment() as AttachmentKetNoi | null
+      const isControl = att && this.coQuyenDieuKhien(att)
+      const msg: GoiPhong = {
+        type: 'session.poll.sync',
+        poll: this.activePoll,
+        voteCounts: isControl ? counts : null,
+      }
+      try {
+        ws.send(JSON.stringify(msg))
+      } catch {}
+    }
+  }
+
+  private ghiNhanActivity(actorKey: string): void {
+    const now = Date.now()
+    try {
+      this.ctx.storage.sql.exec(
+        'INSERT INTO session_activity (actor_key, last_active_at) VALUES (?1, ?2) ON CONFLICT(actor_key) DO UPDATE SET last_active_at = ?2',
+        actorKey,
+        now,
+      )
+    } catch (err) {
+      console.error('Lỗi ghi nhận session_activity:', err)
+    }
+  }
+
+  private layActiveParticipants(windowMs: number = 5 * 60 * 1000): string[] {
+    const threshold = Date.now() - windowMs
+    try {
+      const rows = [...this.ctx.storage.sql.exec<{ actor_key: string }>(
+        'SELECT actor_key FROM session_activity WHERE last_active_at >= ?1',
+        threshold,
+      )]
+      return rows.map((r) => r.actor_key)
+    } catch {
+      return []
+    }
+  }
+
+  private async handleSessionAction(ws: WebSocket, att: AttachmentKetNoi, action: LenhPhongSession): Promise<void> {
+    const laQuanTri = this.coQuyenDieuKhien(att)
+
+    switch (action.action) {
+      case 'goal.set': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền đặt mục tiêu buổi học.' }))
+          return
+        }
+        const text = lamSachVanBan(action.text)
+        if (!text) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Nội dung mục tiêu không được để trống.' }))
+          return
+        }
+        this.sessionGoal = {
+          text,
+          setBy: att.ten || 'Giáo viên',
+          setAt: Date.now(),
+          revision: (this.sessionGoal?.revision || 0) + 1,
+        }
+        try {
+          this.ctx.storage.sql.exec(
+            "INSERT INTO session_state (key, value) VALUES ('goal', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1",
+            JSON.stringify(this.sessionGoal),
+          )
+        } catch (err) {
+          console.error('Lỗi lưu sessionGoal:', err)
+        }
+        this.broadcast({ type: 'session.goal.sync', goal: this.sessionGoal })
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.goal_set',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
+        break
+      }
+
+      case 'goal.clear': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền xóa mục tiêu.' }))
+          return
+        }
+        this.sessionGoal = null
+        try {
+          this.ctx.storage.sql.exec("DELETE FROM session_state WHERE key = 'goal'")
+        } catch {}
+        this.broadcast({ type: 'session.goal.sync', goal: null })
+        break
+      }
+
+      case 'task.add': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền thêm nhiệm vụ.' }))
+          return
+        }
+        if (this.sessionTasks.length >= 30) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Số lượng nhiệm vụ tối đa trong một buổi học là 30.' }))
+          return
+        }
+        const text = lamSachVanBan(action.text)
+        if (!text) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Nội dung nhiệm vụ không được để trống.' }))
+          return
+        }
+        const newTask: SessionTask = {
+          id: crypto.randomUUID(),
+          text,
+          createdBy: att.ten || 'Giáo viên',
+          createdAt: Date.now(),
+          order: this.sessionTasks.length,
+        }
+        this.sessionTasks.push(newTask)
+        try {
+          this.ctx.storage.sql.exec(
+            'INSERT INTO session_tasks (id, text, created_by, created_at, position) VALUES (?1, ?2, ?3, ?4, ?5)',
+            newTask.id,
+            newTask.text,
+            newTask.createdBy,
+            newTask.createdAt,
+            newTask.order,
+          )
+        } catch (err) {
+          console.error('Lỗi lưu sessionTask:', err)
+        }
+        this.phatTasksSync()
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.task_added',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
+        break
+      }
+
+      case 'task.remove': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền xóa nhiệm vụ.' }))
+          return
+        }
+        this.sessionTasks = this.sessionTasks.filter((t) => t.id !== action.taskId)
+        this.sessionTaskCompletions.delete(action.taskId)
+        try {
+          this.ctx.storage.sql.exec('DELETE FROM session_tasks WHERE id = ?1', action.taskId)
+          this.ctx.storage.sql.exec('DELETE FROM session_task_completions WHERE task_id = ?1', action.taskId)
+        } catch (err) {
+          console.error('Lỗi xóa sessionTask:', err)
+        }
+        this.phatTasksSync()
+        break
+      }
+
+      case 'task.tick': {
+        if (!att.accountId) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Yêu cầu đăng nhập để đánh dấu hoàn thành nhiệm vụ.' }))
+          return
+        }
+        const task = this.sessionTasks.find((t) => t.id === action.taskId)
+        if (!task) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Nhiệm vụ không tồn tại.' }))
+          return
+        }
+        let set = this.sessionTaskCompletions.get(action.taskId)
+        if (!set) {
+          set = new Set<number>()
+          this.sessionTaskCompletions.set(action.taskId, set)
+        }
+        if (!set.has(att.accountId)) {
+          set.add(att.accountId)
+          try {
+            this.ctx.storage.sql.exec(
+              'INSERT OR IGNORE INTO session_task_completions (task_id, account_id, completed_at) VALUES (?1, ?2, ?3)',
+              action.taskId,
+              att.accountId,
+              Date.now(),
+            )
+          } catch (err) {
+            console.error('Lỗi lưu session_task_completions:', err)
+          }
+          this.phatTasksSync()
+          if (this.env?.ANALYTICS_DB) {
+            recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+              event: 'session.task_completed',
+              actorId: att.accountId,
+              sessionId: att.phienId || null,
+              roomId: this.parseNumericRoomId(),
+            })
+          }
+        }
+        break
+      }
+
+      case 'task.untick': {
+        if (!att.accountId) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Yêu cầu đăng nhập để bỏ đánh dấu nhiệm vụ.' }))
+          return
+        }
+        const set = this.sessionTaskCompletions.get(action.taskId)
+        if (set && set.has(att.accountId)) {
+          set.delete(att.accountId)
+          try {
+            this.ctx.storage.sql.exec(
+              'DELETE FROM session_task_completions WHERE task_id = ?1 AND account_id = ?2',
+              action.taskId,
+              att.accountId,
+            )
+          } catch (err) {
+            console.error('Lỗi xóa session_task_completions:', err)
+          }
+          this.phatTasksSync()
+        }
+        break
+      }
+
+      case 'timer.start': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền điều khiển đồng hồ.' }))
+          return
+        }
+        const now = Date.now()
+        const dur = Math.max(60, Math.min(10800, action.durationSeconds))
+        this.sessionTimer = {
+          running: true,
+          durationSeconds: dur,
+          startedAt: now,
+          endsAt: now + dur * 1000,
+          remaining: dur,
+          revision: (this.sessionTimer.revision || 1) + 1,
+        }
+        this.luuSessionTimer()
+        await this.updateTimerAlarm()
+        this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.timer_started',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
+        break
+      }
+
+      case 'timer.pause': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền tạm dừng đồng hồ.' }))
+          return
+        }
+        if (!this.sessionTimer.running) return
+        const now = Date.now()
+        const remaining = this.sessionTimer.endsAt > now
+          ? Math.max(0, Math.round((this.sessionTimer.endsAt - now) / 1000))
+          : 0
+        this.sessionTimer = {
+          ...this.sessionTimer,
+          running: false,
+          endsAt: 0,
+          remaining,
+          revision: (this.sessionTimer.revision || 1) + 1,
+        }
+        this.luuSessionTimer()
+        await this.updateTimerAlarm()
+        this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: now })
+        break
+      }
+
+      case 'timer.reset': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền đặt lại đồng hồ.' }))
+          return
+        }
+        const dur = this.sessionTimer.durationSeconds || 1800
+        this.sessionTimer = {
+          running: false,
+          durationSeconds: dur,
+          startedAt: 0,
+          endsAt: 0,
+          remaining: dur,
+          revision: (this.sessionTimer.revision || 1) + 1,
+        }
+        this.luuSessionTimer()
+        await this.updateTimerAlarm()
+        this.broadcast({ type: 'session.timer.sync', state: this.sessionTimer, serverNow: Date.now() })
+        break
+      }
+
+      case 'poll.create': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền tạo bình chọn.' }))
+          return
+        }
+        const question = lamSachVanBan(action.question)
+        if (!question) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Nội dung câu hỏi không được để trống.' }))
+          return
+        }
+        const cleanOptions = action.options
+          .map((o) => lamSachVanBan(o))
+          .filter(Boolean)
+        if (cleanOptions.length < 2 || cleanOptions.length > 4) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn phải có từ 2 đến 4 lựa chọn.' }))
+          return
+        }
+        const pollId = crypto.randomUUID()
+        const options: PollOption[] = cleanOptions.map((text) => ({
+          id: crypto.randomUUID(),
+          text,
+        }))
+        this.activePoll = {
+          id: pollId,
+          question,
+          options,
+          createdBy: att.ten || 'Giáo viên',
+          createdAt: Date.now(),
+          closed: false,
+        }
+        this.pollVotes.set(pollId, new Map())
+        try {
+          this.ctx.storage.sql.exec(
+            'INSERT INTO session_polls (id, question, options_json, created_by, created_at, closed) VALUES (?1, ?2, ?3, ?4, ?5, 0)',
+            pollId,
+            question,
+            JSON.stringify(options),
+            this.activePoll.createdBy,
+            this.activePoll.createdAt,
+          )
+        } catch (err) {
+          console.error('Lỗi lưu session_polls:', err)
+        }
+        this.phatPollSync()
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.poll_created',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
+        break
+      }
+
+      case 'poll.vote': {
+        if (!att.accountId) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Yêu cầu đăng nhập để tham gia bình chọn.' }))
+          return
+        }
+        if (!this.activePoll || this.activePoll.closed || this.activePoll.id !== action.pollId) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Bình chọn hiện không mở hoặc không tồn tại.' }))
+          return
+        }
+        const optExists = this.activePoll.options.some((o) => o.id === action.optionId)
+        if (!optExists) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Lựa chọn bình chọn không hợp lệ.' }))
+          return
+        }
+        let votes = this.pollVotes.get(action.pollId)
+        if (!votes) {
+          votes = new Map<number, string>()
+          this.pollVotes.set(action.pollId, votes)
+        }
+        votes.set(att.accountId, action.optionId)
+        try {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO session_poll_votes (poll_id, account_id, option_id, voted_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(poll_id, account_id) DO UPDATE SET option_id = ?3, voted_at = ?4`,
+            action.pollId,
+            att.accountId,
+            action.optionId,
+            Date.now(),
+          )
+        } catch (err) {
+          console.error('Lỗi lưu session_poll_votes:', err)
+        }
+        this.phatPollSync()
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.poll_voted',
+            actorId: att.accountId,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+          })
+        }
+        break
+      }
+
+      case 'poll.close': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền đóng bình chọn.' }))
+          return
+        }
+        if (!this.activePoll || this.activePoll.closed) return
+        this.activePoll.closed = true
+        try {
+          this.ctx.storage.sql.exec('UPDATE session_polls SET closed = 1 WHERE id = ?1', this.activePoll.id)
+        } catch (err) {
+          console.error('Lỗi đóng session_polls:', err)
+        }
+        this.phatPollSync()
+        break
+      }
+
+      case 'session.start': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền bắt đầu phiên học.' }))
+          return
+        }
+        this.sessionStartedAt = Date.now()
+        try {
+          this.ctx.storage.sql.exec(
+            "INSERT INTO session_state (key, value) VALUES ('started_at', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1",
+            String(this.sessionStartedAt),
+          )
+        } catch (err) {
+          console.error('Lỗi lưu sessionStartedAt:', err)
+        }
+        this.broadcast({
+          type: 'session.timer.sync',
+          state: this.sessionTimer,
+          serverNow: this.sessionStartedAt,
+        })
+        break
+      }
+
+      case 'session.end': {
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc giáo viên mới có quyền kết thúc phiên học.' }))
+          return
+        }
+        const now = Date.now()
+        const startedAt = this.sessionStartedAt || now
+        const endedAt = now
+        const durationSeconds = Math.max(0, Math.round((endedAt - startedAt) / 1000))
+
+        const activeMembers = this.layActiveParticipants(Math.max(5 * 60 * 1000, now - startedAt))
+        const totalAdmitted = Math.max(1, activeMembers.length)
+
+        const taskCompletionRates: Record<string, number> = {}
+        for (const t of this.sessionTasks) {
+          const completedCount = this.sessionTaskCompletions.get(t.id)?.size || 0
+          taskCompletionRates[t.id] = Math.min(100, Math.round((completedCount / totalAdmitted) * 100))
+        }
+
+        const pollResults = this.activePoll
+          ? [
+              {
+                question: this.activePoll.question,
+                options: this.activePoll.options.map((opt) => ({
+                  text: opt.text,
+                  count: this.layPollVoteCounts(this.activePoll!.id)[opt.id] || 0,
+                })),
+              },
+            ]
+          : []
+
+        const summary: SessionSummary = {
+          sessionId: crypto.randomUUID(),
+          roomId: this.parseNumericRoomId() ?? 0,
+          goal: this.sessionGoal?.text || null,
+          startedAt,
+          endedAt,
+          durationSeconds,
+          taskCount: this.sessionTasks.length,
+          taskCompletionRates,
+          activeMembers,
+          pollResults,
+        }
+
+        // Lưu vào SQLite DO
+        try {
+          this.ctx.storage.sql.exec(
+            'INSERT INTO session_summaries (id, room_id, started_at, ended_at, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+            summary.sessionId,
+            summary.roomId,
+            summary.startedAt,
+            summary.endedAt,
+            JSON.stringify(summary),
+            now,
+          )
+        } catch (err) {
+          console.error('Lỗi lưu session_summaries vào SQLite:', err)
+        }
+
+        // Lưu vào D1 (Layer 3: hoc_session_summary) nếu có DB
+        if (this.env?.DB && summary.roomId > 0) {
+          const d1 = this.env.DB
+          this.ctx.waitUntil(
+            d1.prepare(
+              'INSERT INTO hoc_session_summary (id, phong_id, started_at, ended_at, duration_seconds, summary_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime(?7, \'unixepoch\'))',
+            )
+              .bind(
+                summary.sessionId,
+                summary.roomId,
+                summary.startedAt,
+                summary.endedAt,
+                summary.durationSeconds,
+                JSON.stringify(summary),
+                Math.floor(now / 1000),
+              )
+              .run()
+              .catch((err: unknown) => console.error('Lỗi ghi hoc_session_summary vào D1:', err)),
+          )
+        }
+
+        // Broadcast summary cho toàn phòng
+        this.broadcast({ type: 'session.summary', summary })
+
+        // Dọn dẹp session sau khi kết thúc
+        this.sessionStartedAt = null
+        try {
+          this.ctx.storage.sql.exec("DELETE FROM session_state WHERE key = 'started_at'")
+        } catch {}
+
+        // Emit analytics
+        if (this.env?.ANALYTICS_DB) {
+          const avgCompletionRate =
+            this.sessionTasks.length > 0
+              ? Math.round(
+                  Object.values(taskCompletionRates).reduce((a, b) => a + b, 0) / this.sessionTasks.length,
+                )
+              : 0
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+            event: 'session.ended',
+            actorId: att.accountId || null,
+            sessionId: att.phienId || null,
+            roomId: this.parseNumericRoomId(),
+            durationMs: durationSeconds * 1000,
+            properties: {
+              durationSeconds,
+              taskCompletionRate: avgCompletionRate,
+              activeMemberCount: activeMembers.length,
+            },
+          })
+        }
+        break
+      }
+    }
   }
 
   // Báo GameLobbyDO bàn đang chờ/đang chơi (upsert) hoặc đã kết thúc (gỡ khỏi sảnh) — không chờ kết quả,
