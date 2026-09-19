@@ -157,6 +157,97 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
 ])
 export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
 
+// ── Learning Session v1 ──────────────────────────────────────────────────────
+
+export interface SessionGoal {
+  text: string
+  setBy: string
+  setAt: number
+  revision: number
+}
+
+export interface SessionTask {
+  id: string
+  text: string
+  createdBy: string
+  createdAt: number
+  order: number
+}
+
+export interface SessionTimerState {
+  running: boolean
+  durationSeconds: number
+  startedAt: number
+  endsAt: number
+  remaining: number
+  revision: number
+}
+
+export interface PollOption {
+  id: string
+  text: string
+}
+
+export interface ActivePoll {
+  id: string
+  question: string
+  options: PollOption[]
+  createdBy: string
+  createdAt: number
+  closed: boolean
+}
+
+export interface SessionSummary {
+  sessionId: string
+  roomId: number
+  goal?: string | null
+  startedAt: number
+  endedAt: number
+  durationSeconds: number
+  taskCount: number
+  /** taskId → completion rate 0–100 */
+  taskCompletionRates: Record<string, number>
+  activeMembers: string[]
+  pollResults: Array<{
+    question: string
+    options: Array<{ text: string; count: number }>
+  }>
+}
+
+export const LenhPhongSession = z.discriminatedUnion('action', [
+  // Goal
+  z.object({ action: z.literal('goal.set'), text: z.string().min(1).max(500) }),
+  z.object({ action: z.literal('goal.clear') }),
+  // Tasks
+  z.object({ action: z.literal('task.add'), text: z.string().min(1).max(300) }),
+  z.object({ action: z.literal('task.remove'), taskId: z.string().min(1).max(64) }),
+  z.object({ action: z.literal('task.tick'), taskId: z.string().min(1).max(64) }),
+  z.object({ action: z.literal('task.untick'), taskId: z.string().min(1).max(64) }),
+  // Timer
+  z.object({
+    action: z.literal('timer.start'),
+    durationSeconds: z.number().int().min(60).max(10800),
+  }),
+  z.object({ action: z.literal('timer.pause') }),
+  z.object({ action: z.literal('timer.reset') }),
+  // Poll
+  z.object({
+    action: z.literal('poll.create'),
+    question: z.string().min(1).max(500),
+    options: z.array(z.string().min(1).max(200)).min(2).max(4),
+  }),
+  z.object({
+    action: z.literal('poll.vote'),
+    pollId: z.string().min(1).max(64),
+    optionId: z.string().min(1).max(64),
+  }),
+  z.object({ action: z.literal('poll.close') }),
+  // Session lifecycle
+  z.object({ action: z.literal('session.start') }),
+  z.object({ action: z.literal('session.end') }),
+])
+export type LenhPhongSession = z.infer<typeof LenhPhongSession>
+
 export interface VoiceParticipantState {
   actorKey: string
   ten: string
@@ -190,6 +281,7 @@ export const LenhPhong = z.discriminatedUnion('type', [
     generation: z.number().int().positive(),
     muted: z.boolean(),
   }),
+  z.object({ type: z.literal('session.action'), data: LenhPhongSession }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -209,6 +301,17 @@ export type GoiPhong =
       slide: SlideState | null
       voiceRegistry?: VoiceParticipantState[]
       serverNow: number
+      // Learning Session v1
+      sessionGoal: SessionGoal | null
+      sessionTasks: SessionTask[]
+      /** taskId → accountId[] who completed */
+      sessionTaskCompletions: Record<string, number[]>
+      sessionTimer: SessionTimerState
+      activePoll: ActivePoll | null
+      /** poll votes — only optionId counts visible, keyed by optionId */
+      pollVoteCounts: Record<string, number> | null
+      sessionStartedAt: number | null
+      activeParticipantKeys: string[]
     }
   | { type: 'presence'; members: ThanhVienPhong[] }
   | { type: 'media.sync'; state: MediaState; serverNow: number }
@@ -236,6 +339,22 @@ export type GoiPhong =
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }
+  // Learning Session v1 server→client syncs
+  | { type: 'session.goal.sync'; goal: SessionGoal | null }
+  | {
+      type: 'session.tasks.sync'
+      tasks: SessionTask[]
+      completionMap: Record<string, number[]>
+    }
+  | { type: 'session.timer.sync'; state: SessionTimerState; serverNow: number }
+  | {
+      type: 'session.poll.sync'
+      poll: ActivePoll | null
+      /** vote counts per optionId — only sent to host when poll is open, to all when closed */
+      voteCounts: Record<string, number> | null
+    }
+  | { type: 'session.summary'; summary: SessionSummary }
+  | { type: 'session.participation'; activeKeys: string[] }
 
 export interface VoiceSubscribeResponse {
   tracks: VoiceTrackMetadata[]

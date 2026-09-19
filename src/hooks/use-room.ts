@@ -14,6 +14,12 @@ import {
   type VoiceParticipantState,
   type BannedMemberItem,
   canonicalMediaPosition,
+  type SessionGoal,
+  type SessionTask,
+  type SessionTimerState,
+  type ActivePoll,
+  type SessionSummary,
+  type LenhPhongSession,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
@@ -30,6 +36,15 @@ export type TrangThaiKetNoiPhong =
 
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
+
+const DEFAULT_SESSION_TIMER: SessionTimerState = {
+  running: false,
+  durationSeconds: 1800,
+  startedAt: 0,
+  endsAt: 0,
+  remaining: 1800,
+  revision: 1,
+}
 
 const DEFAULT_MEDIA: MediaState = {
   videoId: 'dQw4w9WgXcQ',
@@ -62,6 +77,16 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiPhong>('dang_ket_noi')
   const [members, setMembers] = useState<ThanhVienPhong[]>([])
   const [hostKey, setHostKey] = useState<string | null>(null)
+  // Learning Session v1
+  const [sessionGoal, setSessionGoal] = useState<SessionGoal | null>(null)
+  const [sessionTasks, setSessionTasks] = useState<SessionTask[]>([])
+  const [sessionTaskCompletions, setSessionTaskCompletions] = useState<Record<string, number[]>>({})
+  const [sessionTimer, setSessionTimer] = useState<SessionTimerState>(DEFAULT_SESSION_TIMER)
+  const [activePoll, setActivePoll] = useState<ActivePoll | null>(null)
+  const [pollVoteCounts, setPollVoteCounts] = useState<Record<string, number> | null>(null)
+  const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null)
+  const [activeParticipantKeys, setActiveParticipantKeys] = useState<string[]>([])
+  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null)
   const [mediaState, setMediaState] = useState<MediaState>(DEFAULT_MEDIA)
   const [pomodoroState, setPomodoroState] = useState<PomodoroState>(DEFAULT_POMODORO)
   const [whiteboardStrokes, setWhiteboardStrokes] = useState<WhiteboardStroke[]>([])
@@ -173,6 +198,16 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
+          // Learning Session v1 snapshot
+          setSessionGoal(goi.sessionGoal ?? null)
+          setSessionTasks(goi.sessionTasks ?? [])
+          setSessionTaskCompletions(goi.sessionTaskCompletions ?? {})
+          setSessionTimer(goi.sessionTimer ?? DEFAULT_SESSION_TIMER)
+          setActivePoll(goi.activePoll ?? null)
+          setPollVoteCounts(goi.pollVoteCounts ?? null)
+          setSessionStartedAt(goi.sessionStartedAt ?? null)
+          setActiveParticipantKeys(goi.activeParticipantKeys ?? [])
+
           if (Array.isArray(goi.voiceRegistry)) {
             setVoiceRegistry(goi.voiceRegistry)
             voiceClientRef.current?.syncRegistry(goi.voiceRegistry)
@@ -183,6 +218,32 @@ export function useRoom(roomId: string, myActorKey?: string) {
             serverClockOffsetRef.current = initialOffset
             setServerClockOffset(initialOffset)
           }
+          break
+
+        case 'session.goal.sync':
+          setSessionGoal(goi.goal)
+          break
+
+        case 'session.tasks.sync':
+          setSessionTasks(goi.tasks)
+          setSessionTaskCompletions(goi.completionMap)
+          break
+
+        case 'session.timer.sync':
+          setSessionTimer(goi.state)
+          break
+
+        case 'session.poll.sync':
+          setActivePoll(goi.poll)
+          setPollVoteCounts(goi.voteCounts)
+          break
+
+        case 'session.summary':
+          setSessionSummary(goi.summary)
+          break
+
+        case 'session.participation':
+          setActiveParticipantKeys(goi.activeKeys)
           break
 
         case 'presence':
@@ -803,6 +864,69 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'close_doc' } }))
   }, [])
 
+  // ── Learning Session v1 Actions ─────────────────────────
+  const sendSessionAction = useCallback((action: LenhPhongSession) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'session.action', data: action }))
+  }, [])
+
+  const setGoal = useCallback((text: string) => {
+    sendSessionAction({ action: 'goal.set', text })
+  }, [sendSessionAction])
+
+  const clearGoal = useCallback(() => {
+    sendSessionAction({ action: 'goal.clear' })
+  }, [sendSessionAction])
+
+  const addTask = useCallback((text: string) => {
+    sendSessionAction({ action: 'task.add', text })
+  }, [sendSessionAction])
+
+  const removeTask = useCallback((taskId: string) => {
+    sendSessionAction({ action: 'task.remove', taskId })
+  }, [sendSessionAction])
+
+  const tickTask = useCallback((taskId: string) => {
+    sendSessionAction({ action: 'task.tick', taskId })
+  }, [sendSessionAction])
+
+  const untickTask = useCallback((taskId: string) => {
+    sendSessionAction({ action: 'task.untick', taskId })
+  }, [sendSessionAction])
+
+  const startSessionTimer = useCallback((durationSeconds: number) => {
+    sendSessionAction({ action: 'timer.start', durationSeconds })
+  }, [sendSessionAction])
+
+  const pauseSessionTimer = useCallback(() => {
+    sendSessionAction({ action: 'timer.pause' })
+  }, [sendSessionAction])
+
+  const resetSessionTimer = useCallback(() => {
+    sendSessionAction({ action: 'timer.reset' })
+  }, [sendSessionAction])
+
+  const createPoll = useCallback((question: string, options: string[]) => {
+    sendSessionAction({ action: 'poll.create', question, options })
+  }, [sendSessionAction])
+
+  const votePoll = useCallback((pollId: string, optionId: string) => {
+    sendSessionAction({ action: 'poll.vote', pollId, optionId })
+  }, [sendSessionAction])
+
+  const closePoll = useCallback(() => {
+    sendSessionAction({ action: 'poll.close' })
+  }, [sendSessionAction])
+
+  const startSession = useCallback(() => {
+    sendSessionAction({ action: 'session.start' })
+  }, [sendSessionAction])
+
+  const endSession = useCallback(() => {
+    sendSessionAction({ action: 'session.end' })
+  }, [sendSessionAction])
+
   return {
     trangThai,
     thongBaoLoiPhong,
@@ -851,5 +975,29 @@ export function useRoom(roomId: string, myActorKey?: string) {
     changeSlidePage,
     loadSlideDoc,
     closeSlideDoc,
+    // Learning Session v1
+    sessionGoal,
+    sessionTasks,
+    sessionTaskCompletions,
+    sessionTimer,
+    activePoll,
+    pollVoteCounts,
+    sessionStartedAt,
+    activeParticipantKeys,
+    sessionSummary,
+    setGoal,
+    clearGoal,
+    addTask,
+    removeTask,
+    tickTask,
+    untickTask,
+    startSessionTimer,
+    pauseSessionTimer,
+    resetSessionTimer,
+    createPoll,
+    votePoll,
+    closePoll,
+    startSession,
+    endSession,
   }
 }

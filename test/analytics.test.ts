@@ -30,8 +30,8 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
   })
 
   describe('1. Taxonomy & Architecture Alignment', () => {
-    it('Taxonomy contains exactly 25 authoritative events', () => {
-      expect(ALL_ANALYTICS_EVENTS).toHaveLength(25)
+    it('Taxonomy contains exactly 32 authoritative events', () => {
+      expect(ALL_ANALYTICS_EVENTS).toHaveLength(32)
       expect(ALL_ANALYTICS_EVENTS).toContain('auth.login_succeeded')
       expect(ALL_ANALYTICS_EVENTS).toContain('auth.login_failed')
       expect(ALL_ANALYTICS_EVENTS).toContain('campus.session_started')
@@ -54,6 +54,13 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
       expect(ALL_ANALYTICS_EVENTS).toContain('moderation.action_completed')
       expect(ALL_ANALYTICS_EVENTS).toContain('game.session_started')
       expect(ALL_ANALYTICS_EVENTS).toContain('game.session_completed')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.goal_set')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.task_added')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.task_completed')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.timer_started')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.poll_created')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.poll_voted')
+      expect(ALL_ANALYTICS_EVENTS).toContain('session.ended')
       expect(ALL_ANALYTICS_EVENTS).toContain('do.sfu_close_failed')
       expect(ALL_ANALYTICS_EVENTS).toContain('do.revocation_retry')
       expect(ALL_ANALYTICS_EVENTS).toContain('http.request')
@@ -504,7 +511,7 @@ describe('Milestone 0.1: Analytics Failure Isolation & Observability Correctness
       const data = (await res.json()) as { ok: boolean; analytics: any }
       expect(data.ok).toBe(true)
       expect(data.analytics.databaseIsolated).toBe(true)
-      expect(data.analytics.totalTaxonomyEvents).toBe(25)
+      expect(data.analytics.totalTaxonomyEvents).toBe(32)
       expect(data.analytics).toHaveProperty('funnel')
       expect(data.analytics).toHaveProperty('activeUsers')
       expect(data.analytics).toHaveProperty('retention')

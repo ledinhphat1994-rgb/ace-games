@@ -12,6 +12,7 @@ import {
   Eraser,
   FileText,
   Flag,
+  GraduationCap,
   Loader2,
   Mic,
   MicOff,
@@ -48,6 +49,11 @@ import {
   ReportUserDialog,
   BannedMembersDialog,
 } from './ModerationDialogs'
+import {
+  SessionPanel,
+  SessionSummaryModal,
+  SessionTimerWidget,
+} from './LearningSession'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CHALK_COLORS = [
@@ -144,9 +150,45 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     loadSlideDoc,
     closeSlideDoc,
     calculateTargetTime,
+    // Learning Session v1
+    sessionGoal,
+    sessionTasks,
+    sessionTaskCompletions,
+    sessionTimer,
+    activePoll,
+    pollVoteCounts,
+    sessionStartedAt,
+    activeParticipantKeys,
+    sessionSummary,
+    setGoal,
+    clearGoal,
+    addTask,
+    removeTask,
+    tickTask,
+    untickTask,
+    startSessionTimer,
+    pauseSessionTimer,
+    resetSessionTimer,
+    createPoll,
+    votePoll,
+    closePoll,
+    startSession,
+    endSession,
   } = useRoom(roomId, nguoiDung.actorKey)
 
   const { lamMoiPhien } = usePhien()
+
+  // ── Learning Session v1 local UI state ──────────────────────────────────
+  const [sessionPanelOpen, setSessionPanelOpen] = useState(false)
+  const [sessionSummaryOpen, setSessionSummaryOpen] = useState(false)
+
+  // Auto-open summary modal when summary is received
+  useEffect(() => {
+    if (sessionSummary) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setSessionSummaryOpen(true)
+    }
+  }, [sessionSummary])
 
   // ── Moderation & Safety v1 state ──────────────────────────────────────────
   const [kickTarget, setKickTarget] = useState<{ actorKey: string; name: string } | null>(null)
@@ -620,8 +662,51 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           </div>
         </div>
 
-        {/* Right: Members count + Mic + Host + Avatar Menu */}
+        {/* Right: Session + Members count + Mic + Host + Avatar Menu */}
         <div className="flex items-center gap-2">
+          {/* Learning Session widget & trigger */}
+          {sessionTimer.running && (
+            <button
+              type="button"
+              onClick={() => setSessionPanelOpen(true)}
+              title="Đồng hồ buổi học đang chạy. Nhấn để mở phiên học."
+              className="cursor-pointer"
+            >
+              <SessionTimerWidget
+                timer={sessionTimer}
+                serverClockOffset={serverClockOffset}
+                canControl={isHost || canModerate}
+                onStart={startSessionTimer}
+                onPause={pauseSessionTimer}
+                onReset={resetSessionTimer}
+                compact
+              />
+            </button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSessionPanelOpen((v) => !v)}
+            className={`h-8 gap-1.5 px-2.5 rounded-full border text-xs font-semibold transition-all ${
+              sessionPanelOpen
+                ? 'bg-primary/20 border-primary text-primary'
+                : sessionStartedAt
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+            }`}
+            title="Mở phiên học nhóm (Nhiệm vụ, Mục tiêu, Khảo sát)"
+          >
+            <GraduationCap className="h-4 w-4 text-emerald-400" />
+            <span className="hidden md:inline">Phiên học</span>
+            {sessionTasks.length > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/30 px-1 text-[10px] font-bold text-primary-foreground">
+                {sessionTasks.filter((t) => (sessionTaskCompletions[t.id] || []).includes(nguoiDung.accountId)).length}/
+                {sessionTasks.length}
+              </span>
+            )}
+          </Button>
+
           <button
             onClick={() => { setShowMembers(v => !v); handleCloseChat() }}
             className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors"
@@ -1517,6 +1602,44 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onOpenChange={setShowBannedModal}
         onLoadBanned={listBannedMembers}
         onUnban={unbanMember}
+      />
+
+      {/* ══ Learning Session Panel & Summary Modal ══ */}
+      <SessionPanel
+        open={sessionPanelOpen}
+        onOpenChange={setSessionPanelOpen}
+        goal={sessionGoal}
+        tasks={sessionTasks}
+        completionMap={sessionTaskCompletions}
+        timer={sessionTimer}
+        serverClockOffset={serverClockOffset}
+        poll={activePoll}
+        voteCounts={pollVoteCounts}
+        activeKeys={activeParticipantKeys}
+        members={members}
+        currentAccountId={nguoiDung.accountId}
+        canControl={isHost || canModerate}
+        sessionStartedAt={sessionStartedAt}
+        onSetGoal={setGoal}
+        onClearGoal={clearGoal}
+        onAddTask={addTask}
+        onRemoveTask={removeTask}
+        onTickTask={tickTask}
+        onUntickTask={untickTask}
+        onStartTimer={startSessionTimer}
+        onPauseTimer={pauseSessionTimer}
+        onResetTimer={resetSessionTimer}
+        onCreatePoll={createPoll}
+        onVotePoll={votePoll}
+        onClosePoll={closePoll}
+        onStartSession={startSession}
+        onEndSession={endSession}
+      />
+
+      <SessionSummaryModal
+        summary={sessionSummary}
+        open={sessionSummaryOpen}
+        onOpenChange={setSessionSummaryOpen}
       />
     </div>
   )
