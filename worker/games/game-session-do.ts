@@ -1,11 +1,19 @@
 import { DurableObject } from 'cloudflare:workers'
-import type {
-  GameEndReason,
-  GoiMatchSession,
-  LenhMatchSession,
-  MatchPlayerInfo,
-  MatchRole,
-  MatchStateSnapshot,
+import {
+  EMOTE_BURST_MAX,
+  EMOTE_COOLDOWN_MS,
+  MAX_CONSECUTIVE_INVALID_PACKETS,
+  MAX_SPECTATORS_PER_MATCH,
+  MAX_WS_FRAME_BYTES,
+  WS_RATE_LIMIT_BURST,
+  WS_RATE_LIMIT_TOKENS_PER_SEC,
+  type GameEndReason,
+  type GoiMatchSession,
+  type LenhMatchSession,
+  type MatchPlayerInfo,
+  type MatchRole,
+  type MatchStateSnapshot,
+  type OperationalLoadState,
 } from '../../shared/protocol/game-sdk'
 import type { BoardCell, GameType, PlayerSide } from '../../shared/protocol/game'
 import {
@@ -16,7 +24,7 @@ import {
   kiemTraVaLatReversi,
   taoBanMoi,
 } from '../game-engine'
-import { TEN_GAME_LOBBY } from './game-lobby-do'
+import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from './game-lobby-do'
 
 export const TEN_GAME_SESSION_PREFIX = 'match:'
 
@@ -36,6 +44,14 @@ interface AttachmentKetNoi {
   accountId: number
   name: string
   role: MatchRole
+  // Per-socket rate limiter (Token Bucket, in-memory on attachment)
+  tokens: number
+  lastTokenRefill: number
+  // Emote cooldown tracking
+  lastEmoteAt: number
+  emoteBurstCount: number
+  // Malformed / abusive packet counter
+  invalidPacketCount: number
 }
 
 /**
@@ -53,6 +69,7 @@ export class GameSessionDO extends DurableObject<Env> {
   private matchId: string = ''
   private gameType: GameType = 'caro_15'
   private status: MatchStateSnapshot['status'] = 'waiting'
+  private operationalState: OperationalLoadState = 'NORMAL'
   private hostAccountId: number = 0
   private currentTurn: PlayerSide | null = null
   private turnTimerSeconds: number = 30
@@ -530,6 +547,25 @@ export class GameSessionDO extends DurableObject<Env> {
         actorKey, accountId, ten, role, side,
       )
     } else {
+      // Spectator Load Shedding: giới hạn tối đa 30 khán giả hoặc từ chối khi đang LOAD_SHED
+      const currentSpectators = this.ctx.storage.sql
+        .exec<{ c: number }>("SELECT COUNT(*) as c FROM session_players WHERE role = 'spectator' AND connected = 1")
+        .toArray()[0]?.c ?? 0
+
+      if (currentSpectators >= MAX_SPECTATORS_PER_MATCH || this.operationalState === 'LOAD_SHED') {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: 'spectator_capacity_reached',
+            message: `Bàn chơi đã đạt giới hạn khán giả tối đa (${MAX_SPECTATORS_PER_MATCH} người).`,
+          }),
+          {
+            status: 429,
+            headers: { 'Content-Type': 'application/json', 'Retry-After': '5' },
+          },
+        )
+      }
+
       role = 'spectator'
       this.ctx.storage.sql.exec(
         'INSERT INTO session_players (actor_key, account_id, name, role, side, ready, connected) VALUES (?, ?, ?, NULL, NULL, 0, 1)',
@@ -541,7 +577,18 @@ export class GameSessionDO extends DurableObject<Env> {
     // This avoids waking the DO just to reply to heartbeats.
     this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
 
-    const att: AttachmentKetNoi = { actorKey, accountId, name: ten, role }
+    const nowConn = Date.now()
+    const att: AttachmentKetNoi = {
+      actorKey,
+      accountId,
+      name: ten,
+      role,
+      tokens: WS_RATE_LIMIT_BURST,
+      lastTokenRefill: nowConn,
+      lastEmoteAt: 0,
+      emoteBurstCount: 0,
+      invalidPacketCount: 0,
+    }
     server.serializeAttachment(att)
     this.ctx.acceptWebSocket(server, [actorKey, 'role:' + role])
 
@@ -564,56 +611,96 @@ export class GameSessionDO extends DurableObject<Env> {
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (!att) return
 
+    // 1. Inbound application frame size protection (16 KiB)
+    const msgLen = typeof message === 'string' ? message.length : message.byteLength
+    if (msgLen > MAX_WS_FRAME_BYTES) {
+      this.xuLyGoiLoi(ws, att, 'Gói tin vượt quá kích thước cho phép (tối đa 16 KiB).')
+      return
+    }
+
+    // 2. Safe JSON parsing with early malformed rejection
     let raw: unknown
     try {
       raw = typeof message === 'string' ? JSON.parse(message) : null
     } catch {
+      this.xuLyGoiLoi(ws, att, 'Dữ liệu JSON không hợp lệ.')
       return
     }
 
-    if (!raw || typeof raw !== 'object' || !('type' in raw)) return
+    if (!raw || typeof raw !== 'object' || !('type' in raw)) {
+      this.xuLyGoiLoi(ws, att, 'Gói tin thiếu trường type hợp lệ.')
+      return
+    }
     const packet = raw as LenhMatchSession
 
-    // Legacy JSON ping — still supported but clients should prefer raw "ping"
+    // Protocol ping/pong is exempt from gameplay action rate-limiting
     if (packet.type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong', t: packet.t, serverNow: Date.now() }))
       return
     }
 
+    // 3. Per-socket token bucket rate limiter
+    const now = Date.now()
+    const elapsedSec = Math.max(0, (now - att.lastTokenRefill) / 1000)
+    att.tokens = Math.min(WS_RATE_LIMIT_BURST, att.tokens + elapsedSec * WS_RATE_LIMIT_TOKENS_PER_SEC)
+    att.lastTokenRefill = now
+
+    if (att.tokens < 1) {
+      this.xuLyGoiLoi(ws, att, 'Tốc độ gửi tin vượt quá giới hạn cho phép.')
+      return
+    }
+    att.tokens -= 1
+
+    // Reset invalid packet counter on valid protocol dispatch
+    att.invalidPacketCount = 0
+
     if (packet.type === 'match.ready') {
-      if (att.role !== 'player' || this.status !== 'waiting') return
+      if (att.role !== 'player' || this.status !== 'waiting') {
+        this.xuLyGoiLoi(ws, att, 'Chỉ người chơi trong phòng đang chờ mới được sẵn sàng.')
+        return
+      }
       this.ctx.storage.sql.exec(
         'UPDATE session_players SET ready = ? WHERE actor_key = ?',
         packet.ready ? 1 : 0,
         att.actorKey,
       )
+      ws.serializeAttachment(att)
       this.kiemTraBatDauTran()
       return
     }
 
     if (packet.type === 'match.move') {
-      await this.xuLyNuocDi(att, packet)
+      await this.xuLyNuocDi(att, packet, ws)
+      ws.serializeAttachment(att)
       return
     }
 
     if (packet.type === 'match.surrender') {
-      if (att.role !== 'player' || this.status !== 'playing') return
+      if (att.role !== 'player' || this.status !== 'playing') {
+        this.xuLyGoiLoi(ws, att, 'Chỉ người chơi trong ván đang chơi mới được đầu hàng.')
+        return
+      }
       const playerRow = this.ctx.storage.sql
         .exec<{ side: PlayerSide }>('SELECT side FROM session_players WHERE actor_key = ?', att.actorKey)
         .toArray()[0]
       if (!playerRow || !playerRow.side) return
       const winnerSide: PlayerSide = playerRow.side === 'X' ? 'O' : 'X'
+      ws.serializeAttachment(att)
       await this.ketThucTran(winnerSide, 'surrender')
       return
     }
 
     if (packet.type === 'match.rematch') {
-      if (att.role !== 'player' || this.status !== 'ended') return
+      if (att.role !== 'player' || this.status !== 'ended') {
+        this.xuLyGoiLoi(ws, att, 'Chỉ người chơi sau khi kết thúc ván mới được yêu cầu đấu lại.')
+        return
+      }
       this.ctx.storage.sql.exec('UPDATE session_players SET ready = 1 WHERE actor_key = ?', att.actorKey)
       const allReady = this.ctx.storage.sql
         .exec<{ c: number }>("SELECT COUNT(*) as c FROM session_players WHERE role = 'player' AND ready = 1")
         .toArray()[0]?.c === 2
 
+      ws.serializeAttachment(att)
       if (allReady) {
         await this.batDauVongMoi()
       }
@@ -621,12 +708,35 @@ export class GameSessionDO extends DurableObject<Env> {
     }
 
     if (packet.type === 'match.emote') {
+      // Load-shedding degradation: suppress non-essential emotes under stress
+      if (this.operationalState !== 'NORMAL') {
+        ws.serializeAttachment(att)
+        return
+      }
+
+      // Emote cooldown check
+      if (now - att.lastEmoteAt < EMOTE_COOLDOWN_MS) {
+        if (att.emoteBurstCount >= EMOTE_BURST_MAX) {
+          // Throttled emote spam silently dropped
+          ws.serializeAttachment(att)
+          return
+        }
+        att.emoteBurstCount++
+      } else {
+        att.lastEmoteAt = now
+        att.emoteBurstCount = 1
+      }
+
       this.broadcast({
         type: 'match.emote',
         sender: att.name,
         emote: packet.emote.slice(0, 50),
       })
+      ws.serializeAttachment(att)
+      return
     }
+
+    ws.serializeAttachment(att)
   }
 
   async webSocketClose(ws: WebSocket, _code: number, _reason: string): Promise<void> {
@@ -730,21 +840,37 @@ export class GameSessionDO extends DurableObject<Env> {
     void this.baoLobby()
   }
 
-  private async xuLyNuocDi(att: AttachmentKetNoi, packet: { x?: number; y?: number; action?: string; payload?: unknown }): Promise<void> {
-    if (this.status !== 'playing' || att.role !== 'player') return
+  private async xuLyNuocDi(
+    att: AttachmentKetNoi,
+    packet: { x?: number; y?: number; action?: string; payload?: unknown },
+    ws?: WebSocket,
+  ): Promise<void> {
+    if (this.status !== 'playing' || att.role !== 'player') {
+      if (ws) this.xuLyGoiLoi(ws, att, 'Chỉ người chơi trong trận mới được gửi nước đi.')
+      return
+    }
 
     const playerRow = this.ctx.storage.sql
       .exec<{ side: PlayerSide }>('SELECT side FROM session_players WHERE actor_key = ?', att.actorKey)
       .toArray()[0]
-    if (!playerRow || playerRow.side !== this.currentTurn) return
+    if (!playerRow || playerRow.side !== this.currentTurn) {
+      if (ws) this.xuLyGoiLoi(ws, att, 'Chưa đến lượt đi của bạn.')
+      return
+    }
 
     const x = packet.x
     const y = packet.y
-    if (x === undefined || y === undefined) return
+    if (x === undefined || y === undefined) {
+      if (ws) this.xuLyGoiLoi(ws, att, 'Nước đi thiếu toạ độ x, y.')
+      return
+    }
 
     const H = this.board.length
     const W = this.board[0].length
-    if (y < 0 || y >= H || x < 0 || x >= W) return
+    if (y < 0 || y >= H || x < 0 || x >= W) {
+      if (ws) this.xuLyGoiLoi(ws, att, 'Toạ độ nước đi nằm ngoài bàn cờ.')
+      return
+    }
 
     const side = playerRow.side
     const now = Date.now()
@@ -979,17 +1105,30 @@ export class GameSessionDO extends DurableObject<Env> {
         .toArray()
       const host = players.find((p) => p.side === 'X')
       const guest = players.find((p) => p.side === 'O')
-      const lobbyStub = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-      await lobbyStub.capNhatBan({
+
+      const roomData = {
         id: this.matchId,
         gameType: this.gameType,
         tenChu: host ? host.name : null,
         tenKhach: guest ? guest.name : null,
-        trangThai: this.status === 'playing' ? 'playing' : 'waiting',
+        trangThai: (this.status === 'playing' ? 'playing' : 'waiting') as 'playing' | 'waiting',
         soNguoiXem: this.ctx.getWebSockets().length,
         turnTimerSeconds: this.turnTimerSeconds,
         capNhatLuc: Date.now(),
-      })
+      }
+
+      // 1. Cập nhật phân vùng Lobby theo gameType
+      const shardName = tenLobbyTheoLoai(this.gameType)
+      const shardLobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(shardName))
+      await shardLobby.capNhatBan(roomData)
+
+      // 2. Cập nhật Lobby chung (nếu khác shardName) để tương thích ngược
+      if (shardName !== TEN_GAME_LOBBY) {
+        try {
+          const globalLobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+          await globalLobby.capNhatBan(roomData)
+        } catch {}
+      }
     } catch (err) {
       console.warn('GameSessionDO: lỗi báo sảnh GameLobbyDO:', err)
     }
@@ -997,10 +1136,66 @@ export class GameSessionDO extends DurableObject<Env> {
 
   private async baoLobbyRong(): Promise<void> {
     try {
-      const lobbyStub = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-      await lobbyStub.xoaBan(this.matchId)
+      const shardName = tenLobbyTheoLoai(this.gameType)
+      const shardLobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(shardName))
+      await shardLobby.xoaBan(this.matchId)
+
+      if (shardName !== TEN_GAME_LOBBY) {
+        try {
+          const globalLobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+          await globalLobby.xoaBan(this.matchId)
+        } catch {}
+      }
     } catch (err) {
       console.warn('GameSessionDO: lỗi xoá bàn GameLobbyDO:', err)
     }
+  }
+
+  // ─── Overload & Abusive Packet Handling ─────────────────────────────────────
+
+  private xuLyGoiLoi(ws: WebSocket, att: AttachmentKetNoi, lyDo: string): void {
+    att.invalidPacketCount++
+    if (att.invalidPacketCount >= MAX_CONSECUTIVE_INVALID_PACKETS) {
+      try {
+        ws.send(
+          JSON.stringify({
+            type: 'match.error',
+            code: 'rate_limit_exceeded',
+            message: 'Kết nối bị ngắt do vượt quá giới hạn gửi tin hoặc gửi gói tin lỗi liên tiếp.',
+          }),
+        )
+        ws.close(4429, 'Rate/Policy violation')
+      } catch {}
+      return
+    }
+
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'match.error',
+          code: 'invalid_packet',
+          message: lyDo,
+        }),
+      )
+      ws.serializeAttachment(att)
+    } catch {}
+  }
+
+  // ─── Test & Metrics Inspection API ──────────────────────────────────────────
+
+  getSettlementOutboxDepth(): number {
+    return (
+      this.ctx.storage.sql
+        .exec<{ c: number }>('SELECT COUNT(*) as c FROM settlement_outbox WHERE settled = 0')
+        .toArray()[0]?.c ?? 0
+    )
+  }
+
+  setOperationalStateForTesting(state: OperationalLoadState): void {
+    this.operationalState = state
+  }
+
+  getOperationalState(): OperationalLoadState {
+    return this.operationalState
   }
 }

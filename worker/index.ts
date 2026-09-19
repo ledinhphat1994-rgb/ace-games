@@ -1,6 +1,34 @@
 import { Hono } from 'hono'
 import { taoDanhTinhCampus, TEN_CAMPUS } from './campus/danh-tinh'
-import { TEN_GAME_LOBBY } from './games/game-lobby-do'
+import { tenLobbyTheoLoai } from './games/game-lobby-do'
+
+export function isDurableObjectOverloaded(err: unknown): boolean {
+  if (!err) return false
+  if (typeof err === 'object' && (err as { overloaded?: boolean }).overloaded === true) {
+    return true
+  }
+  const msg = err instanceof Error ? err.message : String(err)
+  return msg.includes('overloaded') || msg.includes('too many requests queued') || msg.includes('request queue full')
+}
+
+export function handleDurableObjectOverload(err: unknown): Response {
+  if (isDurableObjectOverloaded(err)) {
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        loi: 'Phòng chơi đang trong trạng thái quá tải (Durable Object overloaded). Vui lòng thử lại sau giây lát.',
+      }),
+      {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': '3',
+        },
+      },
+    )
+  }
+  throw err
+}
 import { actorKey } from './lib/auth'
 import {
   admitCookieClear,
@@ -578,7 +606,11 @@ async function vaoGameSession(request: Request, env: Env, matchId: string): Prom
   headers.set('X-Match-Id', matchId)
 
   const doId = env.GAME_SESSIONS.idFromName('match:' + matchId)
-  return env.GAME_SESSIONS.get(doId).fetch(new Request(request, { headers }))
+  try {
+    return await env.GAME_SESSIONS.get(doId).fetch(new Request(request, { headers }))
+  } catch (err: unknown) {
+    return handleDurableObjectOverload(err)
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1315,10 +1347,42 @@ app.all('/api/game/session/finish', saiPhuongThuc)
 app.get('/api/game/rooms', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
-  const lobby = c.env.GAME_LOBBY.get(c.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-  return c.json({ ok: true, rooms: await lobby.danhSach() })
+  const gameType = c.req.query('gameType')
+  const shardName = tenLobbyTheoLoai(gameType)
+  try {
+    const lobby = c.env.GAME_LOBBY.get(c.env.GAME_LOBBY.idFromName(shardName))
+    return c.json({ ok: true, rooms: await lobby.danhSach() })
+  } catch (err) {
+    if (isDurableObjectOverloaded(err)) {
+      return c.json(
+        { ok: false, loi: 'Hệ thống sảnh đang quá tải, vui lòng thử lại sau.' },
+        503,
+        { 'Retry-After': '3' },
+      )
+    }
+    throw err
+  }
 })
 app.all('/api/game/rooms', saiPhuongThuc)
+
+async function vaoGameLobby(request: Request, env: Env, gameType?: string): Promise<Response> {
+  if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
+  if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
+
+  const kq = await kiemTraPhien(await layPhien(request, env), env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const shardName = tenLobbyTheoLoai(gameType)
+  const doId = env.GAME_LOBBY.idFromName(shardName)
+  try {
+    return await env.GAME_LOBBY.get(doId).fetch(request)
+  } catch (err) {
+    return handleDurableObjectOverload(err)
+  }
+}
+
+app.get('/ws/game-lobby', (c) => vaoGameLobby(c.req.raw, c.env))
+app.get('/ws/game-lobby/:gameType', (c) => vaoGameLobby(c.req.raw, c.env, c.req.param('gameType')))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // YouTube Search Proxy

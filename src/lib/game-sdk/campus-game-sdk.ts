@@ -399,8 +399,29 @@ export class CampusGameSDK {
     return this.qualityLevel
   }
 
+  /**
+   * Tính toán thời gian chờ kết nối lại (reconnect backoff) có áp dụng
+   * Exponential Backoff và Randomized Jitter để chống bão kết nối (Reconnect Storm).
+   */
+  calculateReconnectDelay(attempt: number, config?: ReconnectConfig): number {
+    const base = config?.baseDelayMs ?? 1000
+    const maxDelay = config?.maxDelayMs ?? 15000
+    const jitterFactor = config?.jitterFactor ?? 0.3 // +/- 30% jitter
+
+    const expDelay = Math.min(maxDelay, base * Math.pow(2, attempt))
+    const jitter = (Math.random() * 2 - 1) * jitterFactor * expDelay
+    return Math.max(100, Math.round(expDelay + jitter))
+  }
+
   private setLifecycle(event: GameLifecycleEvent): void {
     this.lifecycle = event
     this.onLifecycleChange?.(event)
   }
+}
+
+export interface ReconnectConfig {
+  maxRetries?: number
+  baseDelayMs?: number
+  maxDelayMs?: number
+  jitterFactor?: number
 }

@@ -44,6 +44,46 @@ export interface GameUserIdentity {
 
 export const MAX_INPUT_TRACE_EVENTS = 2000
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Overload & Rate-Limiting Protocol Constants
+// ─────────────────────────────────────────────────────────────────────────────
+/** Maximum WebSocket inbound application frame payload (16 KiB). */
+export const MAX_WS_FRAME_BYTES = 16_384
+
+/** Rate limit tokens added per second per connection (normal gameplay). */
+export const WS_RATE_LIMIT_TOKENS_PER_SEC = 20
+
+/** Burst allowance for rapid valid turns or quick interactions. */
+export const WS_RATE_LIMIT_BURST = 40
+
+/** Emote cooldown to prevent UI/chat flooding (2 seconds). */
+export const EMOTE_COOLDOWN_MS = 2_000
+
+/** Max burst emotes allowed before cooldown forces dropping. */
+export const EMOTE_BURST_MAX = 2
+
+/** Max consecutive malformed/oversized packets before socket is closed (code 4429). */
+export const MAX_CONSECUTIVE_INVALID_PACKETS = 5
+
+/** Configurable per-match spectator ceiling for load shedding. */
+export const MAX_SPECTATORS_PER_MATCH = 30
+
+/** Operational states for local overload degradation. */
+export type OperationalLoadState = 'NORMAL' | 'CONSERVATIVE' | 'LOAD_SHED'
+
+/**
+ * ARCHITECTURAL CONTRACT: NO NETWORK-PER-FRAME
+ *
+ * 1. Turn-based games (caro_15, caro_9, connect4, reversi):
+ *    Emits network packets STRICTLY on user action/move. Zero messages when idle.
+ * 2. Future realtime games (solo/multiplayer physics, snake, arcade):
+ *    - Client rendering runs locally at 60 FPS (requestAnimationFrame).
+ *    - Server authoritative simulation runs at lower fixed tick rate (10-20 Hz).
+ *    - Client network input vectors are sampled at fixed tick rate (<= 20 Hz),
+ *      NEVER 60 messages/sec/player.
+ *    - State interpolation/extrapolation runs on the client.
+ */
+
 export const GameInputPayloadSchema = z
   .union([
     z.string().max(128),
@@ -230,3 +270,32 @@ export type GoiMatchSession =
     }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'error'; message: string; code?: string }
+  | { type: 'match.error'; code: string; message: string }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LobbyDO Partitioned Event Protocol
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LobbyEventType =
+  | 'room_created'
+  | 'player_joined'
+  | 'match_started'
+  | 'match_ended'
+  | 'room_closed'
+  | 'spectator_count_sample'
+
+export interface GoiLobbyEvent {
+  type: 'lobby.event'
+  event: LobbyEventType
+  ban: unknown
+  serverTime: number
+}
+
+export interface GoiLobbySnapshot {
+  type: 'lobby.snapshot'
+  gameType?: string
+  rooms: unknown[]
+  serverTime: number
+}
+
+export type GoiLobbySession = GoiLobbyEvent | GoiLobbySnapshot | { type: 'pong'; t: number; serverNow: number }

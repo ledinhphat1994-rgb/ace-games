@@ -1,17 +1,35 @@
 import { DurableObject } from 'cloudflare:workers'
 import type { BanSanh } from '../../shared/protocol/game'
+import type { GoiLobbyEvent, GoiLobbySnapshot, LobbyEventType } from '../../shared/protocol/game-sdk'
 
-/** Một object duy nhất cho toàn trường, chỉ phục vụ RPC nội bộ từ RoomDO/Worker — không nhận WebSocket. */
+/**
+ * Tên mặc định của Lobby DO cho tính tương thích ngược.
+ * Khi phân vùng theo gameType, dùng hàm `tenLobbyTheoLoai(gameType)`.
+ */
 export const TEN_GAME_LOBBY = 'lobby'
+
+/**
+ * Trả về shard key cho LobbyDO dựa trên loại trò chơi.
+ * Tránh dồn toàn bộ học sinh toàn trường vào một object "lobby" duy nhất.
+ */
+export function tenLobbyTheoLoai(gameType?: string): string {
+  if (!gameType || gameType === 'all' || gameType === 'legacy') return TEN_GAME_LOBBY
+  return `lobby:${gameType}`
+}
 
 const BAN_TOI_DA_GUI = 100
 // Bàn không được RoomDO cập nhật quá lâu (RoomDO lỗi/bị khởi động lại giữa chừng, không kịp báo gỡ)
-// coi như đã bỏ hoang — dọn khi có ai đọc danh sách, không cần alarm riêng.
+// coi như đã bỏ hoang — dọn khi có ai đọc danh sách hoặc định kỳ.
 const BAN_HET_HAN_MS = 20 * 60 * 1000
 
-// Danh bạ các bàn Cờ/Connect 4/Reversi đang mở của Đấu Trường Game. Vòng đời một bàn rất ngắn (vài phút)
-// nên RoomDO báo trực tiếp qua RPC mỗi khi trạng thái đổi, khác với danh bạ phòng học (CampusDO) chỉ cần
-// đối soát định kỳ với D1 vì phòng học tồn tại lâu hơn nhiều.
+/**
+ * GameLobbyDO — Phân vùng danh bạ bàn đấu theo gameType và hỗ trợ WebSocket Event Stream.
+ *
+ * Invariants:
+ * - Không bao giờ đẩy từng nước đi (game move) vào Lobby.
+ * - Chỉ đẩy các sự kiện vòng đời bàn: room_created, player_joined, match_started, match_ended, room_closed.
+ * - Hỗ trợ WebSocket Hibernation API để đẩy tin thời gian thực, loại bỏ polling định kỳ 4s.
+ */
 export class GameLobbyDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
@@ -20,8 +38,65 @@ export class GameLobbyDO extends DurableObject<Env> {
     )
   }
 
-  /** RoomDO gọi mỗi khi bàn còn đang chờ/đang chơi (init, join, move, rematch làm bàn sống lại). */
+  // ─── WebSocket / HTTP Ingress ───────────────────────────────────────────────
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const upgradeHeader = request.headers.get('Upgrade')
+
+    if (upgradeHeader === 'websocket') {
+      const pair = new WebSocketPair()
+      const client = pair[0]
+      const server = pair[1]
+
+      // WebSocket Hibernation: tự động trả lời "ping" -> "pong"
+      this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
+      this.ctx.acceptWebSocket(server)
+
+      // Gửi ngay snapshot các bàn hiện có
+      const rooms = await this.danhSach()
+      const snap: GoiLobbySnapshot = {
+        type: 'lobby.snapshot',
+        rooms,
+        serverTime: Date.now(),
+      }
+      server.send(JSON.stringify(snap))
+
+      return new Response(null, { status: 101, webSocket: client })
+    }
+
+    if (url.pathname === '/rooms' || url.pathname === '/api/rooms') {
+      const rooms = await this.danhSach()
+      return Response.json({ ok: true, rooms })
+    }
+
+    return new Response('Not Found', { status: 404 })
+  }
+
+  // ─── RPC từ GameSessionDO ───────────────────────────────────────────────────
+
+  /** GameSessionDO gọi mỗi khi bàn tạo mới hoặc có thay đổi trạng thái (vào bàn, bắt đầu, kết thúc). */
   async capNhatBan(ban: BanSanh): Promise<void> {
+    const existing = this.ctx.storage.sql
+      .exec<{ du_lieu: string }>('SELECT du_lieu FROM ban WHERE id = ?', ban.id)
+      .toArray()[0]
+
+    let eventType: LobbyEventType = 'room_created'
+    if (existing) {
+      try {
+        const old = JSON.parse(existing.du_lieu) as BanSanh
+        if (old.trangThai !== ban.trangThai) {
+          eventType = ban.trangThai === 'playing' ? 'match_started' : 'match_ended'
+        } else if (old.tenKhach !== ban.tenKhach) {
+          eventType = 'player_joined'
+        } else {
+          eventType = 'spectator_count_sample'
+        }
+      } catch {
+        eventType = 'player_joined'
+      }
+    }
+
     this.ctx.storage.sql.exec(
       `INSERT INTO ban (id, du_lieu, cap_nhat_luc) VALUES (?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET du_lieu = excluded.du_lieu, cap_nhat_luc = excluded.cap_nhat_luc`,
@@ -29,11 +104,25 @@ export class GameLobbyDO extends DurableObject<Env> {
       JSON.stringify(ban),
       ban.capNhatLuc,
     )
+
+    // Phát live stream event tới các client WebSocket đang theo dõi sảnh
+    this.broadcastEvent({
+      type: 'lobby.event',
+      event: eventType,
+      ban,
+      serverTime: Date.now(),
+    })
   }
 
-  /** RoomDO gọi khi ván kết thúc hoặc phòng đã trống hẳn (mọi người rời) — gỡ khỏi sảnh. */
+  /** GameSessionDO gọi khi ván kết thúc hoặc phòng đã trống hẳn (mọi người rời) — gỡ khỏi sảnh. */
   async xoaBan(id: string): Promise<void> {
     this.ctx.storage.sql.exec('DELETE FROM ban WHERE id = ?', id)
+    this.broadcastEvent({
+      type: 'lobby.event',
+      event: 'room_closed',
+      ban: { id },
+      serverTime: Date.now(),
+    })
   }
 
   async danhSach(): Promise<BanSanh[]> {
@@ -42,5 +131,42 @@ export class GameLobbyDO extends DurableObject<Env> {
       .exec<{ du_lieu: string }>('SELECT du_lieu FROM ban ORDER BY cap_nhat_luc DESC LIMIT ?', BAN_TOI_DA_GUI)
       .toArray()
       .map((r) => JSON.parse(r.du_lieu) as BanSanh)
+  }
+
+  // ─── WebSocket Event Broadcast ──────────────────────────────────────────────
+
+  private broadcastEvent(event: GoiLobbyEvent): void {
+    const payload = JSON.stringify(event)
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(payload)
+        } catch {
+          // Bỏ qua lỗi gửi socket hỏng; hibernation sẽ dọn khi close
+        }
+      }
+    }
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // Sảnh chỉ nhận ping từ client nếu client gửi dạng JSON
+    if (typeof message === 'string' && message.includes('"ping"')) {
+      try {
+        const parsed = JSON.parse(message) as { type?: string; t?: number }
+        if (parsed.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong', t: parsed.t ?? 0, serverNow: Date.now() }))
+        }
+      } catch {
+        // Bỏ qua
+      }
+    }
+  }
+
+  async webSocketClose(_ws: WebSocket, _code: number, _reason: string): Promise<void> {
+    // Không cần quản lý thủ công; getWebSockets() tự động loại bỏ socket đã đóng
+  }
+
+  async webSocketError(_ws: WebSocket, _error: unknown): Promise<void> {
+    // Tự động giải phóng
   }
 }
