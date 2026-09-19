@@ -79,13 +79,15 @@
     "bindings": [
       { "name": "ROOMS", "class_name": "RoomDO" },
       { "name": "CAMPUS", "class_name": "CampusDO" },
-      { "name": "GAME_LOBBY", "class_name": "GameLobbyDO" }
+      { "name": "GAME_LOBBY", "class_name": "GameLobbyDO" },
+      { "name": "GAME_SESSIONS", "class_name": "GameSessionDO" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["RoomDO"] },
     { "tag": "v2", "new_sqlite_classes": ["CampusDO"] },
-    { "tag": "v3", "new_sqlite_classes": ["GameLobbyDO"] }
+    { "tag": "v3", "new_sqlite_classes": ["GameLobbyDO"] },
+    { "tag": "v4", "new_sqlite_classes": ["GameSessionDO"] }
   ],
   "observability": { "enabled": true }
 }

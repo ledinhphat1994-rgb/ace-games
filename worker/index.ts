@@ -45,6 +45,7 @@ import {
 } from './routes/voice-api'
 import { socialApp } from './routes/social'
 import { engagementApp } from './routes/engagement-api'
+import { SoloSessionFinishRequest, SoloSessionStartRequest } from '../shared/protocol/game-sdk'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -58,6 +59,7 @@ import {
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
+export { GameSessionDO } from './games/game-session-do'
 export { RoomDO } from './room-do'
 
 export type AppEnv = {
@@ -550,6 +552,27 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
 
   const doId = env.ROOMS.idFromName('game_' + maPhong)
   return env.ROOMS.get(doId).fetch(new Request(request, { headers }))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GameSessionDO WebSocket (Ephemeral Match Coordinator)
+// ─────────────────────────────────────────────────────────────────────────────
+async function vaoGameSession(request: Request, env: Env, matchId: string): Promise<Response> {
+  if (!laYeuCauWebSocket(request)) return loi('Cần kết nối WebSocket.', 426)
+  if (!cungNguon(request)) return loi('Nguồn kết nối không hợp lệ.', 403)
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(matchId)) return loi('Mã trận đấu không hợp lệ.', 400)
+
+  const kq = await kiemTraPhien(await layPhien(request, env), env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  const headers = new Headers(request.headers)
+  headers.set('X-Actor-Key', actorKey(kq.phien))
+  headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
+  headers.set('X-Actor-Account-Id', String(kq.taiKhoan.id))
+  headers.set('X-Match-Id', matchId)
+
+  const doId = env.GAME_SESSIONS.idFromName('match:' + matchId)
+  return env.GAME_SESSIONS.get(doId).fetch(new Request(request, { headers }))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1065,6 +1088,8 @@ app.post('/api/game/highscore', async (c) => {
   try { body = await c.req.json() } catch { return loi('Dữ liệu không hợp lệ.', 400) }
   const { gameType, score } = body
   if (!gameType || typeof score !== 'number' || score < 0 || !Number.isFinite(score)) return loi('Thông tin điểm không hợp lệ.', 400)
+  // Hardening: Giới hạn trần điểm số hợp lý cho legacy endpoint
+  if (score > 100000) return loi('Điểm số vượt quá giới hạn cho phép.', 400)
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
   await c.env.DB.prepare(
     'INSERT INTO game_high_scores (game_type, account_id, player_name, score, created_at) VALUES (?1, ?2, ?3, ?4, ?5)'
@@ -1073,6 +1098,133 @@ app.post('/api/game/highscore', async (c) => {
 })
 app.all('/api/game/highscores', saiPhuongThuc)
 app.all('/api/game/highscore', saiPhuongThuc)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Game Platform Foundation: Solo Game Sessions (Anti-Cheat & Verification)
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/game/session/start', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  let body: unknown
+  try { body = await c.req.json() } catch { return loi('Dữ liệu JSON không hợp lệ.', 400) }
+
+  const parsed = SoloSessionStartRequest.safeParse(body)
+  if (!parsed.success) {
+    return loi('Tham số khởi tạo phiên chơi không hợp lệ.', 400)
+  }
+
+  const { gameType, clientMetadata } = parsed.data
+  const sessionId = crypto.randomUUID()
+  const seed = Math.floor(Math.random() * 2147483647)
+  const now = Date.now()
+
+  await c.env.DB.prepare(`
+    INSERT INTO game_sessions (id, game_type, account_id, seed, started_at, status, client_metadata)
+    VALUES (?1, ?2, ?3, ?4, ?5, 'active', ?6)
+  `).bind(
+    sessionId,
+    gameType,
+    kq.taiKhoan.id,
+    seed,
+    now,
+    clientMetadata ? JSON.stringify(clientMetadata) : null,
+  ).run()
+
+  return c.json({
+    ok: true,
+    sessionId,
+    seed,
+    serverTime: now,
+  })
+})
+
+app.post('/api/game/session/finish', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  let body: unknown
+  try { body = await c.req.json() } catch { return loi('Dữ liệu JSON không hợp lệ.', 400) }
+
+  const parsed = SoloSessionFinishRequest.safeParse(body)
+  if (!parsed.success) {
+    return loi('Dữ liệu kết thúc phiên chơi không đúng chuẩn.', 400)
+  }
+
+  const { sessionId, score, durationMs, inputTrace, clientHash } = parsed.data
+
+  // 1. Kiểm tra session có tồn tại và thuộc tài khoản này không
+  const sessionRow = await c.env.DB.prepare(
+    'SELECT id, game_type, account_id, seed, started_at, status FROM game_sessions WHERE id = ?1 AND account_id = ?2',
+  ).bind(sessionId, kq.taiKhoan.id).first<{
+    id: string
+    game_type: string
+    account_id: number
+    seed: number
+    started_at: number
+    status: string
+  }>()
+
+  if (!sessionRow) {
+    return loi('Không tìm thấy phiên chơi tương ứng.', 404)
+  }
+
+  if (sessionRow.status !== 'active') {
+    return loi('Phiên chơi đã được kết thúc trước đó.', 409)
+  }
+
+  // 2. Anti-Cheat: Kiểm tra thời lượng tối thiểu
+  if (durationMs < 500) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
+    return loi('Thời lượng ván đấu không hợp lý.', 400)
+  }
+
+  // 3. Anti-Cheat: Tần suất thao tác người chơi (Human finger speed limit: 35 inputs/sec)
+  const durationSec = durationMs / 1000
+  const inputsPerSec = inputTrace.length / durationSec
+  if (inputsPerSec > 35) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
+    return loi('Tần suất thao tác vượt quá giới hạn thể chất con người.', 400)
+  }
+
+  // 4. Anti-Cheat: Giới hạn điểm số tối đa trên giây (Physics ceiling)
+  if (sessionRow.game_type === 'solo_snake') {
+    // Rắn săn mồi: tối đa 1 mồi (10 điểm) mỗi 150ms -> ~67 điểm/giây. Giới hạn trần an toàn 100 điểm/giây.
+    if (score > 0 && (score / durationSec) > 100) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    }
+  } else if (sessionRow.game_type === 'solo_2048') {
+    if (score > 0 && (score / durationSec) > 150) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected' WHERE id = ?1").bind(sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    }
+  }
+
+  const now = Date.now()
+  const ten = kq.taiKhoan.ten || kq.taiKhoan.username
+
+  // Cập nhật session thành completed và ghi nhận bảng điểm
+  await c.env.DB.batch([
+    c.env.DB.prepare(`
+      UPDATE game_sessions
+      SET score = ?1, ended_at = ?2, status = 'completed', verification_hash = ?3
+      WHERE id = ?4 AND status = 'active'
+    `).bind(score, now, clientHash || null, sessionId),
+    c.env.DB.prepare(`
+      INSERT INTO game_high_scores (game_type, account_id, player_name, score, created_at)
+      VALUES (?1, ?2, ?3, ?4, ?5)
+    `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, score, now),
+  ])
+
+  return c.json({
+    ok: true,
+    verified: true,
+    finalScore: score,
+  })
+})
+app.all('/api/game/session/start', saiPhuongThuc)
+app.all('/api/game/session/finish', saiPhuongThuc)
 
 app.get('/api/game/rooms', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
@@ -1130,6 +1282,7 @@ app.route('/api/engagement', engagementApp)
 app.get('/ws/campus', (c) => vaoCampus(c.req.raw, c.env))
 app.get('/ws/room/:maPhong', (c) => vaoPhong(c.req.raw, c.env, c.req.param('maPhong')))
 app.get('/ws/game/:maPhong', (c) => vaoPhongGame(c.req.raw, c.env, c.req.param('maPhong')))
+app.get('/ws/game-session/:matchId', (c) => vaoGameSession(c.req.raw, c.env, c.req.param('matchId')))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 404 / Error
