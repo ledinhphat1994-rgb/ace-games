@@ -1,16 +1,118 @@
 /**
- * Digital Campus v2 — Product Analytics & Observability Pipeline (M0)
+ * Digital Campus v2 — Product Analytics & Observability Pipeline (M0.1)
  *
  * Guaranteed Invariants:
- * 1. Strict Privacy & Zero-PII: Strips any sensitive credentials, tokens, OTPs,
- *    passwords, message contents, and raw user-generated text.
- * 2. Fail-Safe & Non-Blocking: Emitted asynchronously via ctx.waitUntil.
- *    Any ingestion errors log a light warning; business operations NEVER fail.
- * 3. Separation of Concerns: Product analytics are distinct from security audit logs.
+ * 1. Primary Database Failure Isolation:
+ *    All analytics events write to env.ANALYTICS_DB exclusively.
+ *    The core application database (env.DB) NEVER receives any analytics writes.
+ * 2. Fail-Safe & Non-Blocking:
+ *    Writes are deferred via ctx.waitUntil. Ingestion errors log a warning.
+ *    Any failure in ANALYTICS_DB does not affect user business operations.
+ * 3. Strict Zero-PII Boundary:
+ *    Sanitizer accepts ONLY flat bounded primitives (string <= 128, number, boolean, null).
+ *    All nested objects, arrays, and forbidden keys (passwords, tokens, cookies, OTPs,
+ *    chat text, note content, whiteboard strokes, IPs, etc.) are strictly dropped.
+ * 4. Exact Event Taxonomy (25 Authoritative Events):
+ *    Aligned across types, engine, documentation, tests, and UI.
+ * 5. Active User Semantics:
+ *    Strictly intentional meaningful room/social activity.
+ *    WebSocket reconnects, ping/pong, and page reloads NEVER count toward DAU/WAU/MAU.
+ * 6. Same-User Sequential Funnel:
+ *    Unique user progression where Stage N requires completion of Stages 1..N-1.
+ * 7. Exact Actor-Level Cohort Retention (D1 & D7):
+ *    Cohort based on user's first-ever meaningful activity date T, returned on T+1 / T+7.
+ * 8. Raw Event Retention:
+ *    Bounded to 60 days with non-blocking cleanup.
  */
 
+export const RAW_ANALYTICS_RETENTION_DAYS = 60
+
+/** Complete list of all 25 authoritative event keys */
+export type AnalyticsEventName =
+  // Auth (2)
+  | 'auth.login_succeeded'
+  | 'auth.login_failed'
+  // Campus (2)
+  | 'campus.session_started'
+  | 'campus.session_ended'
+  // Room (4)
+  | 'room.created'
+  | 'room.joined'
+  | 'room.left'
+  | 'room.admission_failed'
+  // Interaction (7)
+  | 'chat.message_sent'
+  | 'voice.publish_started'
+  | 'voice.publish_ended'
+  | 'voice.publish_failed'
+  | 'notes.updated'
+  | 'whiteboard.updated'
+  | 'media.playback_started'
+  // Social (3)
+  | 'friend.request_sent'
+  | 'friend.request_accepted'
+  | 'notification.opened'
+  // Moderation (2)
+  | 'report.submitted'
+  | 'moderation.action_completed'
+  // Games (2)
+  | 'game.session_started'
+  | 'game.session_completed'
+  // DO Operations (2)
+  | 'do.sfu_close_failed'
+  | 'do.revocation_retry'
+  // HTTP Telemetry (1)
+  | 'http.request'
+
+export const ALL_ANALYTICS_EVENTS: readonly AnalyticsEventName[] = [
+  'auth.login_succeeded',
+  'auth.login_failed',
+  'campus.session_started',
+  'campus.session_ended',
+  'room.created',
+  'room.joined',
+  'room.left',
+  'room.admission_failed',
+  'chat.message_sent',
+  'voice.publish_started',
+  'voice.publish_ended',
+  'voice.publish_failed',
+  'notes.updated',
+  'whiteboard.updated',
+  'media.playback_started',
+  'friend.request_sent',
+  'friend.request_accepted',
+  'notification.opened',
+  'report.submitted',
+  'moderation.action_completed',
+  'game.session_started',
+  'game.session_completed',
+  'do.sfu_close_failed',
+  'do.revocation_retry',
+  'http.request',
+] as const
+
+/**
+ * Meaningful events that count towards Active User (DAU/WAU/MAU) and Cohort Retention.
+ * Excludes transport/presence noise (campus.session_started, WebSocket reconnects, pings, http.request).
+ */
+export const MEANINGFUL_EVENTS = [
+  'room.joined',
+  'chat.message_sent',
+  'voice.publish_started',
+  'notes.updated',
+  'whiteboard.updated',
+  'media.playback_started',
+  'game.session_started',
+  'game.session_completed',
+  'friend.request_sent',
+  'friend.request_accepted',
+  'report.submitted',
+  'moderation.action_completed',
+] as const
+
 export interface AnalyticsEventInput {
-  event: string
+  event: AnalyticsEventName | (string & {})
   actorId?: number | null
   sessionId?: string | null
   roomId?: number | null
@@ -18,12 +120,14 @@ export interface AnalyticsEventInput {
   statusCode?: number | null
   durationMs?: number | null
   errorClass?: string | null
-  properties?: Record<string, string | number | boolean | null>
+  properties?: Record<string, unknown>
 }
 
 export interface AnalyticsOverview {
   window: 'today' | '7d' | '30d'
   generatedAt: number
+  databaseIsolated: boolean
+  totalTaxonomyEvents: number
   activeUsers: {
     dau: number
     wau: number
@@ -33,12 +137,20 @@ export interface AnalyticsOverview {
   retention: {
     d1Percent: number
     d7Percent: number
+    d1CohortSize: number
+    d1RetainedCount: number
+    d7CohortSize: number
+    d7RetainedCount: number
   }
   funnel: {
-    loginCount: number
-    campusArrivals: number
-    roomJoins: number
-    meaningfulInteractions: number
+    stage1Users: number // Distinct users who logged in
+    stage2Users: number // Logged in AND entered Campus
+    stage3Users: number // Logged in AND entered Campus AND joined Room
+    stage4Users: number // Logged in AND entered Campus AND joined Room AND performed meaningful interaction
+    stage2RatePercent: number // Stage 2 / Stage 1
+    stage3RatePercent: number // Stage 3 / Stage 2
+    stage4RatePercent: number // Stage 4 / Stage 3
+    overallRatePercent: number // Stage 4 / Stage 1
   }
   featureAdoption: Record<
     string,
@@ -76,25 +188,31 @@ const FORBIDDEN_KEY_PATTERNS = [
   /secret/i,
   /cookie/i,
   /auth/i,
+  /authorization/i,
+  /credential/i,
   /jwt/i,
   /content/i,
   /text/i,
+  /noi_dung/i,
+  /noidung/i,
   /snippet/i,
   /body/i,
   /message/i,
   /tin_nhan/i,
   /ip/i,
   /address/i,
+  /private/i,
 ]
 
 /**
  * Sanitizes arbitrary properties payload to ensure compliance with Zero-PII rules.
- * Retains only safe primitives (boolean, number, safe short strings) with non-sensitive keys.
+ * Retains only bounded flat primitives (boolean, finite number, safe short strings <= 128, null).
+ * ALL nested objects, arrays, and forbidden keys are dropped.
  */
 export function sanitizeAnalyticsProperties(
-  props?: Record<string, string | number | boolean | null>,
+  props?: Record<string, unknown>,
 ): Record<string, string | number | boolean | null> | null {
-  if (!props || typeof props !== 'object') return null
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return null
 
   const clean: Record<string, string | number | boolean | null> = {}
   for (const [key, value] of Object.entries(props)) {
@@ -103,7 +221,12 @@ export function sanitizeAnalyticsProperties(
       continue
     }
 
-    // 2. Enforce primitive types only
+    // 2. Reject any nested structures (objects, arrays) completely
+    if (value !== null && typeof value === 'object') {
+      continue
+    }
+
+    // 3. Enforce primitive types only
     if (typeof value === 'boolean') {
       clean[key] = value
       continue
@@ -116,7 +239,6 @@ export function sanitizeAnalyticsProperties(
 
     if (typeof value === 'string') {
       const trimmed = value.trim()
-      // Enforce max string length (128 chars) to avoid storing large text
       clean[key] = trimmed.length > 128 ? trimmed.slice(0, 128) : trimmed
       continue
     }
@@ -136,77 +258,98 @@ export function normalizeAnalyticsRoute(pathname: string): string {
   return pathname
     .replace(/\/api\/rooms\/[^\/]+/g, '/api/rooms/:id')
     .replace(/\/room\/[^\/]+/g, '/room/:id')
-    .replace(/\/api\/social\/[^\/]+/g, (m) => m) // specific social endpoints
+    .replace(/\/api\/social\/[^\/]+/g, (m) => m)
     .replace(/\/api\/reports\/[^\/]+/g, '/api/reports/:id')
     .slice(0, 128)
 }
 
 /**
- * Asynchronously and non-blockingly records a telemetry/analytics event into D1.
- * NEVER throws; errors are caught and logged as warnings.
+ * Asynchronously and non-blockingly records a telemetry/analytics event into the isolated ANALYTICS_DB.
+ *
+ * Invariants:
+ * - Writes ONLY to analyticsDb. If analyticsDb is missing/undefined, returns immediately.
+ * - NEVER touches or falls back to primary application DB (env.DB).
+ * - NEVER throws; errors are caught and logged as light warnings.
  */
 export function recordAnalyticsEvent(
-  db: D1Database,
+  analyticsDb: D1Database | undefined,
   ctx: { waitUntil: (promise: Promise<unknown>) => void } | undefined,
   input: AnalyticsEventInput,
 ): void {
+  if (!analyticsDb) return
+
   const now = Date.now()
   const dateStr = new Date(now).toISOString().split('T')[0]
   const cleanProps = sanitizeAnalyticsProperties(input.properties)
   const propsJson = cleanProps ? JSON.stringify(cleanProps) : null
 
-  const task = db
-    .prepare(
-      `INSERT INTO analytics_events (
-        event, actor_id, session_id, room_id, route, status_code, duration_ms, error_class, properties_json, created_at, created_date
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
-    )
-    .bind(
-      input.event.slice(0, 64),
-      input.actorId ?? null,
-      input.sessionId ? String(input.sessionId).slice(0, 64) : null,
-      input.roomId ?? null,
-      input.route ? normalizeAnalyticsRoute(input.route) : null,
-      input.statusCode ?? null,
-      typeof input.durationMs === 'number' && Number.isFinite(input.durationMs)
-        ? Math.max(0, Math.round(input.durationMs))
-        : null,
-      input.errorClass ? String(input.errorClass).slice(0, 64) : null,
-      propsJson,
-      now,
-      dateStr,
-    )
-    .run()
-    .catch((err: unknown) => {
-      // Non-blocking fail-safe: warning only
-      const msg = err instanceof Error ? err.message : String(err)
-      console.warn(`[Analytics] Lỗi ghi analytics event (${input.event}):`, msg)
-    })
+  try {
+    const task = analyticsDb
+      .prepare(
+        `INSERT INTO analytics_events (
+          event, actor_id, session_id, room_id, route, status_code, duration_ms, error_class, properties_json, created_at, created_date
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
+      )
+      .bind(
+        input.event.slice(0, 64),
+        input.actorId ?? null,
+        input.sessionId ? String(input.sessionId).slice(0, 64) : null,
+        input.roomId ?? null,
+        input.route ? normalizeAnalyticsRoute(input.route) : null,
+        input.statusCode ?? null,
+        typeof input.durationMs === 'number' && Number.isFinite(input.durationMs)
+          ? Math.max(0, Math.round(input.durationMs))
+          : null,
+        input.errorClass ? String(input.errorClass).slice(0, 64) : null,
+        propsJson,
+        now,
+        dateStr,
+      )
+      .run()
+      .catch((err: unknown) => {
+        // Non-blocking fail-safe: warning only
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn(`[Analytics] Lỗi ghi analytics event (${input.event}):`, msg)
+      })
 
-  if (ctx && typeof ctx.waitUntil === 'function') {
-    ctx.waitUntil(task)
-  } else {
-    // Fire-and-forget fallback
-    void task
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(task)
+    } else {
+      void task
+    }
+  } catch (syncErr: unknown) {
+    const msg = syncErr instanceof Error ? syncErr.message : String(syncErr)
+    console.warn(`[Analytics] Ngoại lệ đồng bộ khi ghi analytics event (${input.event}):`, msg)
   }
 }
 
-/** Meaningful events that count towards Active User (DAU/WAU/MAU) and funnel conversion */
-const MEANINGFUL_EVENTS = [
-  'auth.login_succeeded',
-  'room.joined',
-  'chat.message_sent',
-  'notes.updated',
-  'whiteboard.updated',
-  'voice.publish_started',
-  'game.session_started',
-]
+/**
+ * Prunes raw events older than maxAgeDays to prevent unbounded D1 growth.
+ * Non-blocking, fails safe.
+ */
+export async function pruneExpiredAnalytics(
+  analyticsDb: D1Database | undefined,
+  maxAgeDays = RAW_ANALYTICS_RETENTION_DAYS,
+): Promise<number> {
+  if (!analyticsDb) return 0
+  const cutoffMs = Date.now() - maxAgeDays * 86400000
+  try {
+    const res = await analyticsDb
+      .prepare('DELETE FROM analytics_events WHERE created_at < ?1')
+      .bind(cutoffMs)
+      .run()
+    return res.meta?.changes ?? 0
+  } catch (err) {
+    console.warn('[Analytics] Lỗi dọn dẹp analytics cũ:', err)
+    return 0
+  }
+}
 
 /**
- * Computes high-level aggregated analytics overview for School Admins.
+ * Computes high-level aggregated analytics overview for School Admins from the isolated ANALYTICS_DB.
  */
 export async function computeAnalyticsOverview(
-  db: D1Database,
+  analyticsDb: D1Database,
   window: 'today' | '7d' | '30d',
 ): Promise<AnalyticsOverview> {
   const now = Date.now()
@@ -216,46 +359,48 @@ export async function computeAnalyticsOverview(
   const startDateMs = now - daysBack * 86400000
   const startDateStr = new Date(startDateMs).toISOString().split('T')[0]
 
-  // 1. Active Users (DAU, WAU, MAU)
-  const dauResult = await db
+  const meaningfulSqlList = MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')
+
+  // 1. Active Users (Strict Meaningful Interaction Only — Reconnects & pings excluded)
+  const dauResult = await analyticsDb
     .prepare(
       `SELECT COUNT(DISTINCT actor_id) as count
        FROM analytics_events
        WHERE created_date = ?1
          AND actor_id IS NOT NULL
-         AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})`,
+         AND event IN (${meaningfulSqlList})`,
     )
     .bind(todayStr)
     .first<{ count: number }>()
     .catch(() => ({ count: 0 }))
 
   const wauDateStr = new Date(now - 7 * 86400000).toISOString().split('T')[0]
-  const wauResult = await db
+  const wauResult = await analyticsDb
     .prepare(
       `SELECT COUNT(DISTINCT actor_id) as count
        FROM analytics_events
        WHERE created_date >= ?1
          AND actor_id IS NOT NULL
-         AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})`,
+         AND event IN (${meaningfulSqlList})`,
     )
     .bind(wauDateStr)
     .first<{ count: number }>()
     .catch(() => ({ count: 0 }))
 
   const mauDateStr = new Date(now - 30 * 86400000).toISOString().split('T')[0]
-  const mauResult = await db
+  const mauResult = await analyticsDb
     .prepare(
       `SELECT COUNT(DISTINCT actor_id) as count
        FROM analytics_events
        WHERE created_date >= ?1
          AND actor_id IS NOT NULL
-         AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})`,
+         AND event IN (${meaningfulSqlList})`,
     )
     .bind(mauDateStr)
     .first<{ count: number }>()
     .catch(() => ({ count: 0 }))
 
-  const newLoginsResult = await db
+  const newLoginsResult = await analyticsDb
     .prepare(
       `SELECT COUNT(DISTINCT actor_id) as count
        FROM analytics_events
@@ -266,86 +411,137 @@ export async function computeAnalyticsOverview(
     .first<{ count: number }>()
     .catch(() => ({ count: 0 }))
 
-  // 2. Retention (D1 and D7)
+  // 2. Retention (D1 and D7) — Exact First-Meaningful-Activity Date Cohorts
+  // Cohort T: Users whose first-ever meaningful activity date was T.
+  // Retained: Users in cohort T who had meaningful activity on T+1 (for D1) or T+7 (for D7).
   const yesterdayStr = new Date(now - 86400000).toISOString().split('T')[0]
-  const d1RetentionResult = await db
+  const d1RetentionResult = await analyticsDb
     .prepare(
-      `SELECT
-         COUNT(DISTINCT yesterday.actor_id) as cohortCount,
-         COUNT(DISTINCT today.actor_id) as retainedCount
-       FROM (
-         SELECT DISTINCT actor_id FROM analytics_events
-         WHERE created_date = ?1 AND actor_id IS NOT NULL
-           AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})
-       ) as yesterday
-       LEFT JOIN (
-         SELECT DISTINCT actor_id FROM analytics_events
-         WHERE created_date = ?2 AND actor_id IS NOT NULL
-           AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})
-       ) as today ON yesterday.actor_id = today.actor_id`,
+      `WITH first_seen AS (
+         SELECT actor_id, MIN(created_date) as first_date
+         FROM analytics_events
+         WHERE actor_id IS NOT NULL
+           AND event IN (${meaningfulSqlList})
+         GROUP BY actor_id
+         HAVING MIN(created_date) = ?1
+       ),
+       retained AS (
+         SELECT DISTINCT a.actor_id
+         FROM analytics_events a
+         JOIN first_seen f ON a.actor_id = f.actor_id
+         WHERE a.created_date = ?2
+           AND a.event IN (${meaningfulSqlList})
+       )
+       SELECT
+         (SELECT COUNT(*) FROM first_seen) as cohortCount,
+         (SELECT COUNT(*) FROM retained) as retainedCount`,
     )
     .bind(yesterdayStr, todayStr)
     .first<{ cohortCount: number; retainedCount: number }>()
     .catch(() => ({ cohortCount: 0, retainedCount: 0 }))
 
   const day7AgoStr = new Date(now - 7 * 86400000).toISOString().split('T')[0]
-  const d7RetentionResult = await db
+  const d7RetentionResult = await analyticsDb
     .prepare(
-      `SELECT
-         COUNT(DISTINCT past.actor_id) as cohortCount,
-         COUNT(DISTINCT today.actor_id) as retainedCount
-       FROM (
-         SELECT DISTINCT actor_id FROM analytics_events
-         WHERE created_date = ?1 AND actor_id IS NOT NULL
-           AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})
-       ) as past
-       LEFT JOIN (
-         SELECT DISTINCT actor_id FROM analytics_events
-         WHERE created_date = ?2 AND actor_id IS NOT NULL
-           AND event IN (${MEANINGFUL_EVENTS.map((e) => `'${e}'`).join(',')})
-       ) as today ON past.actor_id = today.actor_id`,
+      `WITH first_seen AS (
+         SELECT actor_id, MIN(created_date) as first_date
+         FROM analytics_events
+         WHERE actor_id IS NOT NULL
+           AND event IN (${meaningfulSqlList})
+         GROUP BY actor_id
+         HAVING MIN(created_date) = ?1
+       ),
+       retained AS (
+         SELECT DISTINCT a.actor_id
+         FROM analytics_events a
+         JOIN first_seen f ON a.actor_id = f.actor_id
+         WHERE a.created_date = ?2
+           AND a.event IN (${meaningfulSqlList})
+       )
+       SELECT
+         (SELECT COUNT(*) FROM first_seen) as cohortCount,
+         (SELECT COUNT(*) FROM retained) as retainedCount`,
     )
     .bind(day7AgoStr, todayStr)
     .first<{ cohortCount: number; retainedCount: number }>()
     .catch(() => ({ cohortCount: 0, retainedCount: 0 }))
 
-  const d1Percent =
-    d1RetentionResult && d1RetentionResult.cohortCount > 0
-      ? Math.round((d1RetentionResult.retainedCount / d1RetentionResult.cohortCount) * 100)
-      : 0
+  const d1CohortSize = d1RetentionResult?.cohortCount || 0
+  const d1RetainedCount = d1RetentionResult?.retainedCount || 0
+  const d1Percent = d1CohortSize > 0 ? Math.round((d1RetainedCount / d1CohortSize) * 100) : 0
 
-  const d7Percent =
-    d7RetentionResult && d7RetentionResult.cohortCount > 0
-      ? Math.round((d7RetentionResult.retainedCount / d7RetentionResult.cohortCount) * 100)
-      : 0
+  const d7CohortSize = d7RetentionResult?.cohortCount || 0
+  const d7RetainedCount = d7RetentionResult?.retainedCount || 0
+  const d7Percent = d7CohortSize > 0 ? Math.round((d7RetainedCount / d7CohortSize) * 100) : 0
 
-  // 3. Product Funnel
-  const funnelEventsResult = await db
+  // 3. Same-User Sequential Product Funnel
+  // Stage 1: Logged in (Unique Actors)
+  // Stage 2: Logged in -> Entered Campus (same actor, created_at >= login)
+  // Stage 3: Logged in -> Entered Campus -> Joined Room (same actor, created_at >= campus)
+  // Stage 4: Logged in -> Entered Campus -> Joined Room -> Meaningful interaction (same actor, created_at >= room)
+  const funnelResult = await analyticsDb
     .prepare(
-      `SELECT event, COUNT(*) as count
-       FROM analytics_events
-       WHERE created_date >= ?1
-         AND event IN ('auth.login_succeeded', 'campus.session_started', 'room.joined', 'chat.message_sent', 'voice.publish_started', 'notes.updated', 'whiteboard.updated', 'game.session_started')
-       GROUP BY event`,
+      `WITH
+       logins AS (
+         SELECT actor_id, MIN(created_at) AS t1
+         FROM analytics_events
+         WHERE created_date >= ?1
+           AND event = 'auth.login_succeeded'
+           AND actor_id IS NOT NULL
+         GROUP BY actor_id
+       ),
+       campus AS (
+         SELECT a.actor_id, MIN(a.created_at) AS t2
+         FROM analytics_events a
+         JOIN logins l ON a.actor_id = l.actor_id AND a.created_at >= l.t1
+         WHERE a.created_date >= ?1
+           AND a.event = 'campus.session_started'
+         GROUP BY a.actor_id
+       ),
+       rooms AS (
+         SELECT a.actor_id, MIN(a.created_at) AS t3
+         FROM analytics_events a
+         JOIN campus c ON a.actor_id = c.actor_id AND a.created_at >= c.t2
+         WHERE a.created_date >= ?1
+           AND a.event = 'room.joined'
+         GROUP BY a.actor_id
+       ),
+       meaningful AS (
+         SELECT DISTINCT a.actor_id
+         FROM analytics_events a
+         JOIN rooms r ON a.actor_id = r.actor_id AND a.created_at >= r.t3
+         WHERE a.created_date >= ?1
+           AND a.event IN (${meaningfulSqlList})
+       )
+       SELECT
+         (SELECT COUNT(*) FROM logins) AS stage1_users,
+         (SELECT COUNT(*) FROM campus) AS stage2_users,
+         (SELECT COUNT(*) FROM rooms) AS stage3_users,
+         (SELECT COUNT(*) FROM meaningful) AS stage4_users`,
     )
     .bind(startDateStr)
-    .all<{ event: string; count: number }>()
-    .catch(() => ({ results: [] }))
+    .first<{
+      stage1_users: number
+      stage2_users: number
+      stage3_users: number
+      stage4_users: number
+    }>()
+    .catch(() => ({
+      stage1_users: 0,
+      stage2_users: 0,
+      stage3_users: 0,
+      stage4_users: 0,
+    }))
 
-  const eventCounts: Record<string, number> = {}
-  for (const r of funnelEventsResult.results || []) {
-    eventCounts[r.event] = r.count
-  }
+  const stage1Users = funnelResult?.stage1_users || 0
+  const stage2Users = funnelResult?.stage2_users || 0
+  const stage3Users = funnelResult?.stage3_users || 0
+  const stage4Users = funnelResult?.stage4_users || 0
 
-  const loginCount = eventCounts['auth.login_succeeded'] || 0
-  const campusArrivals = eventCounts['campus.session_started'] || 0
-  const roomJoins = eventCounts['room.joined'] || 0
-  const meaningfulInteractions =
-    (eventCounts['chat.message_sent'] || 0) +
-    (eventCounts['voice.publish_started'] || 0) +
-    (eventCounts['notes.updated'] || 0) +
-    (eventCounts['whiteboard.updated'] || 0) +
-    (eventCounts['game.session_started'] || 0)
+  const stage2RatePercent = stage1Users > 0 ? Math.round((stage2Users / stage1Users) * 100) : 0
+  const stage3RatePercent = stage2Users > 0 ? Math.round((stage3Users / stage2Users) * 100) : 0
+  const stage4RatePercent = stage3Users > 0 ? Math.round((stage4Users / stage3Users) * 100) : 0
+  const overallRatePercent = stage1Users > 0 ? Math.round((stage4Users / stage1Users) * 100) : 0
 
   // 4. Feature Adoption Breakdown
   const featureGroups: Record<string, string[]> = {
@@ -363,7 +559,7 @@ export async function computeAnalyticsOverview(
   const featureAdoption: Record<string, { eventCount: number; uniqueActors: number }> = {}
 
   for (const [feature, eventList] of Object.entries(featureGroups)) {
-    const res = await db
+    const res = await analyticsDb
       .prepare(
         `SELECT COUNT(*) as eventCount, COUNT(DISTINCT actor_id) as uniqueActors
          FROM analytics_events
@@ -381,7 +577,7 @@ export async function computeAnalyticsOverview(
   }
 
   // 5. Session Metrics
-  const durationRes = await db
+  const durationRes = await analyticsDb
     .prepare(
       `SELECT AVG(duration_ms) as avgDuration
        FROM analytics_events
@@ -399,7 +595,7 @@ export async function computeAnalyticsOverview(
     : 0
 
   // 6. Operational Health (HTTP requests, errors, latency, DO issues)
-  const httpRes = await db
+  const httpRes = await analyticsDb
     .prepare(
       `SELECT
          COUNT(*) as totalRequests,
@@ -418,7 +614,7 @@ export async function computeAnalyticsOverview(
   const err5xx = httpRes?.count5xx || 0
 
   // Approximate p50 and p95 latencies
-  const latenciesRes = await db
+  const latenciesRes = await analyticsDb
     .prepare(
       `SELECT duration_ms
        FROM analytics_events
@@ -443,11 +639,12 @@ export async function computeAnalyticsOverview(
   }
 
   // Top error classes
-  const topErrorsRes = await db
+  const topErrorsRes = await analyticsDb
     .prepare(
       `SELECT error_class, COUNT(*) as count
        FROM analytics_events
        WHERE created_date >= ?1
+         AND event = 'http.request'
          AND error_class IS NOT NULL
        GROUP BY error_class
        ORDER BY count DESC
@@ -462,18 +659,18 @@ export async function computeAnalyticsOverview(
     count: r.count,
   }))
 
-  const doRpcRes = await db
+  const doRpcRes = await analyticsDb
     .prepare(
       `SELECT COUNT(*) as count
        FROM analytics_events
        WHERE created_date >= ?1
-         AND event = 'do.rpc_failed'`,
+         AND event = 'do.sfu_close_failed'`,
     )
     .bind(startDateStr)
     .first<{ count: number }>()
     .catch(() => ({ count: 0 }))
 
-  const revocationRetryRes = await db
+  const revocationRetryRes = await analyticsDb
     .prepare(
       `SELECT COUNT(*) as count
        FROM analytics_events
@@ -487,6 +684,8 @@ export async function computeAnalyticsOverview(
   return {
     window,
     generatedAt: now,
+    databaseIsolated: true,
+    totalTaxonomyEvents: ALL_ANALYTICS_EVENTS.length,
     activeUsers: {
       dau: dauResult?.count || 0,
       wau: wauResult?.count || 0,
@@ -496,16 +695,24 @@ export async function computeAnalyticsOverview(
     retention: {
       d1Percent,
       d7Percent,
+      d1CohortSize,
+      d1RetainedCount,
+      d7CohortSize,
+      d7RetainedCount,
     },
     funnel: {
-      loginCount,
-      campusArrivals,
-      roomJoins,
-      meaningfulInteractions,
+      stage1Users,
+      stage2Users,
+      stage3Users,
+      stage4Users,
+      stage2RatePercent,
+      stage3RatePercent,
+      stage4RatePercent,
+      overallRatePercent,
     },
     featureAdoption,
     sessionMetrics: {
-      totalRoomJoins: roomJoins,
+      totalRoomJoins: stage3Users,
       avgRoomSessionDurationSec,
     },
     operationalHealth: {

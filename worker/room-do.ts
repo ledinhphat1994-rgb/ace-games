@@ -722,8 +722,8 @@ export class RoomDO extends DurableObject<Env> {
     // Broadcast presence cho toàn phòng
     this.phatDanhSach()
 
-    if (this.env?.DB) {
-      recordAnalyticsEvent(this.env.DB, this.ctx, {
+    if (this.env?.ANALYTICS_DB) {
+      recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
         event: 'room.joined',
         actorId: accountId || null,
         sessionId: phienId || null,
@@ -870,8 +870,8 @@ export class RoomDO extends DurableObject<Env> {
             this.gameMeta.status = 'playing'
             this.gameMeta.currentTurn = 'X'
             this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-            if (this.env?.DB) {
-              recordAnalyticsEvent(this.env.DB, this.ctx, {
+            if (this.env?.ANALYTICS_DB) {
+              recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
                 event: 'game.session_started',
                 actorId: att.accountId || null,
                 sessionId: att.phienId || null,
@@ -1130,8 +1130,8 @@ export class RoomDO extends DurableObject<Env> {
 
         this.luuMeta('media', this.media)
         this.broadcast({ type: 'media.sync', state: this.media, serverNow: now })
-        if (this.env?.DB && (d.action === 'play' || d.action === 'load')) {
-          recordAnalyticsEvent(this.env.DB, this.ctx, {
+        if (this.env?.ANALYTICS_DB && (d.action === 'play' || d.action === 'load')) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
             event: 'media.playback_started',
             actorId: att.accountId || null,
             sessionId: att.phienId || null,
@@ -1261,8 +1261,8 @@ export class RoomDO extends DurableObject<Env> {
             console.error('Lỗi lưu nét vẽ whiteboard:', err)
           }
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.add', stroke: strokeWithEpoch })
-          if (this.env?.DB) {
-            recordAnalyticsEvent(this.env.DB, this.ctx, {
+          if (this.env?.ANALYTICS_DB) {
+            recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
               event: 'whiteboard.updated',
               actorId: att.accountId || null,
               sessionId: att.phienId || null,
@@ -1314,8 +1314,8 @@ export class RoomDO extends DurableObject<Env> {
         this.luuMeta('notes', this.notes)
         // Broadcast tới mọi người (bao gồm cả người gửi để client nhận được revision mới nhất)
         this.broadcast({ type: 'notes.sync', notes: this.notes })
-        if (this.env?.DB) {
-          recordAnalyticsEvent(this.env.DB, this.ctx, {
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
             event: 'notes.updated',
             actorId: att.accountId || null,
             sessionId: att.phienId || null,
@@ -1504,8 +1504,8 @@ export class RoomDO extends DurableObject<Env> {
         }
         ws.send(JSON.stringify({ type: 'ack', reqId }))
         this.broadcast({ type: 'room.chat', message: msg })
-        if (this.env?.DB) {
-          recordAnalyticsEvent(this.env.DB, this.ctx, {
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
             event: 'chat.message_sent',
             actorId: att.accountId || null,
             sessionId: att.phienId || null,
@@ -1539,9 +1539,9 @@ export class RoomDO extends DurableObject<Env> {
     } catch {}
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
-      if (this.env?.DB) {
+      if (this.env?.ANALYTICS_DB) {
         const durationMs = att._joinedAt ? Date.now() - att._joinedAt : null
-        recordAnalyticsEvent(this.env.DB, this.ctx, {
+        recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
           event: 'room.left',
           actorId: att.accountId || null,
           sessionId: att.phienId || null,
@@ -2107,8 +2107,8 @@ export class RoomDO extends DurableObject<Env> {
         console.warn(
           `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
         )
-        if (this.env?.DB) {
-          recordAnalyticsEvent(this.env.DB, this.ctx, {
+        if (this.env?.ANALYTICS_DB) {
+          recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
             event: 'do.sfu_close_failed',
             errorClass: 'SFU_CLOSE_FAILED',
             properties: { attempts },
@@ -2297,8 +2297,8 @@ export class RoomDO extends DurableObject<Env> {
       console.warn(
         `[OPERATIONAL_ALERT] Pending voice revocation ${pending.revocationId} cho actor=${pending.actorKey} session=${pending.sessionId} đã đạt ${pending.attempts} lần thử nhưng chưa đóng authoritative. Tiếp tục retry theo chu kỳ capped backoff.`,
       )
-      if (this.env?.DB) {
-        recordAnalyticsEvent(this.env.DB, this.ctx, {
+      if (this.env?.ANALYTICS_DB) {
+        recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
           event: 'do.revocation_retry',
           errorClass: 'VOICE_REVOCATION_RETRY',
           properties: { attempts: pending.attempts },

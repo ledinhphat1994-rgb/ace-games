@@ -1089,7 +1089,7 @@ export async function createReport(c: Context<{ Bindings: Env }>): Promise<Respo
       return loi('Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau 10 phút.', 429)
     }
 
-    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+    recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
       event: 'report.submitted',
       actorId: kq.taiKhoan.id,
       roomId: roomId ?? null,
@@ -1266,7 +1266,7 @@ export async function resolveReport(c: Context<{ Bindings: Env }>): Promise<Resp
       },
     })
 
-    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+    recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
       event: 'moderation.action_completed',
       actorId: kq.taiKhoan.id,
       roomId: report.roomId ?? null,

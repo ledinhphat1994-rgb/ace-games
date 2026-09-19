@@ -193,8 +193,8 @@ export class CampusDO extends DurableObject<Env> {
     server.serializeAttachment({ ...dt, _joinedAt: Date.now() })
     await this.dangKyKetNoi(server, dt)
 
-    if (this.env?.DB) {
-      recordAnalyticsEvent(this.env.DB, this.ctx, {
+    if (this.env?.ANALYTICS_DB) {
+      recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
         event: 'campus.session_started',
         actorId: dt.accountId,
         sessionId: dt.phienId,
@@ -255,9 +255,9 @@ export class CampusDO extends DurableObject<Env> {
       // Mã đóng dành riêng (1005/1006) hoặc kết nối đã đóng.
     }
     const dt = ws.deserializeAttachment() as (DanhTinhCampus & { _joinedAt?: number }) | null
-    if (dt && this.env?.DB) {
+    if (dt && this.env?.ANALYTICS_DB) {
       const durationMs = dt._joinedAt ? Date.now() - dt._joinedAt : null
-      recordAnalyticsEvent(this.env.DB, this.ctx, {
+      recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
         event: 'campus.session_ended',
         actorId: dt.accountId,
         sessionId: dt.phienId,
@@ -539,8 +539,8 @@ export class CampusDO extends DurableObject<Env> {
           console.warn(
             `[OPERATIONAL_ALERT] Pending room revocation cho account=${item.accountId} room=${item.roomName} đã đạt ${nextAttempts} lần thử nhưng chưa thu hồi được. Tiếp tục retry theo chu kỳ capped backoff.`,
           )
-          if (this.env?.DB) {
-            recordAnalyticsEvent(this.env.DB, this.ctx, {
+          if (this.env?.ANALYTICS_DB) {
+            recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
               event: 'do.revocation_retry',
               actorId: item.accountId,
               errorClass: 'ROOM_REVOCATION_RETRY',
@@ -643,8 +643,8 @@ export class CampusDO extends DurableObject<Env> {
     this.gui(ws, { type: 'ack', reqId })
     this.phatTatCa({ type: 'chat.msg', message: tin })
 
-    if (this.env?.DB) {
-      recordAnalyticsEvent(this.env.DB, this.ctx, {
+    if (this.env?.ANALYTICS_DB) {
+      recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
         event: 'chat.message_sent',
         actorId: dt.accountId,
         sessionId: dt.phienId,

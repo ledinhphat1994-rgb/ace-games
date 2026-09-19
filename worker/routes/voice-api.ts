@@ -321,7 +321,7 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
   })
 
   if (!regRes.ok) {
-    recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+    recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
       event: 'voice.publish_failed',
       actorId: gate.taiKhoan.id,
       roomId: phongId,
@@ -332,7 +332,7 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     return loi(`Không thể đăng ký canonical publication: ${regRes.reason || 'lỗi server'}`, 409)
   }
 
-  recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+  recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
     event: 'voice.publish_started',
     actorId: gate.taiKhoan.id,
     roomId: phongId,
@@ -615,7 +615,7 @@ export async function dongTrackVoice(c: Context<{ Bindings: Env }>): Promise<Res
     return loi('Ấn phẩm thoại đã bị thay đổi hoặc không còn tồn tại.', 409)
   }
 
-  recordAnalyticsEvent(c.env.DB, c.executionCtx, {
+  recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
     event: 'voice.publish_ended',
     actorId: gate.taiKhoan.id,
     roomId: phongId,

@@ -105,9 +105,9 @@ app.use('*', async (c, next) => {
     await next()
   } finally {
     const durationMs = Date.now() - startMs
-    // Asynchronous non-blocking HTTP telemetry for API endpoints
+    // Asynchronous non-blocking HTTP telemetry for API endpoints (uses isolated ANALYTICS_DB only)
     const { pathname } = new URL(c.req.url)
-    if (c.env?.DB && pathname.startsWith('/api/') && !pathname.startsWith('/api/files/')) {
+    if (c.env?.ANALYTICS_DB && pathname.startsWith('/api/') && !pathname.startsWith('/api/files/')) {
       const status = c.res ? c.res.status : 500
       let errorClass: string | null = null
       if (status >= 400) {
@@ -128,7 +128,7 @@ app.use('*', async (c, next) => {
       try {
         ctx = c.executionCtx
       } catch {}
-      recordAnalyticsEvent(c.env.DB, ctx, {
+      recordAnalyticsEvent(c.env.ANALYTICS_DB, ctx, {
         event: 'http.request',
         route: pathname,
         statusCode: status,
@@ -848,12 +848,16 @@ app.get('/api/admin/analytics/overview', async (c) => {
     return loi('Chỉ quản trị viên trường mới có quyền truy cập số liệu phân tích.', 403)
   }
 
+  if (!c.env.ANALYTICS_DB) {
+    return loi('Cơ sở dữ liệu phân tích (ANALYTICS_DB) chưa được kích hoạt.', 503)
+  }
+
   const rawWindow = c.req.query('window')
   const window: 'today' | '7d' | '30d' =
     rawWindow === '7d' || rawWindow === '30d' ? rawWindow : 'today'
 
   try {
-    const analytics = await computeAnalyticsOverview(c.env.DB, window)
+    const analytics = await computeAnalyticsOverview(c.env.ANALYTICS_DB, window)
     return c.json({ ok: true, analytics })
   } catch (err) {
     console.error('Lỗi tính toán analytics overview:', err)

@@ -29,6 +29,8 @@ import {
 export interface AnalyticsOverviewData {
   window: 'today' | '7d' | '30d'
   generatedAt: number
+  databaseIsolated: boolean
+  totalTaxonomyEvents: number
   activeUsers: {
     dau: number
     wau: number
@@ -38,12 +40,20 @@ export interface AnalyticsOverviewData {
   retention: {
     d1Percent: number
     d7Percent: number
+    d1CohortSize: number
+    d1RetainedCount: number
+    d7CohortSize: number
+    d7RetainedCount: number
   }
   funnel: {
-    loginCount: number
-    campusArrivals: number
-    roomJoins: number
-    meaningfulInteractions: number
+    stage1Users: number
+    stage2Users: number
+    stage3Users: number
+    stage4Users: number
+    stage2RatePercent: number
+    stage3RatePercent: number
+    stage4RatePercent: number
+    overallRatePercent: number
   }
   featureAdoption: Record<
     string,
@@ -181,7 +191,13 @@ export function AnalyticsDashboardPage() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-base font-bold tracking-tight">Product Analytics & Observability</h1>
                   <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
-                    M0 Baseline
+                    M0.1 Baseline
+                  </Badge>
+                  <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-400">
+                    D1 Cô lập
+                  </Badge>
+                  <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-400">
+                    25 Sự kiện
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">Digital Campus v2 · Số liệu thực tế người dùng & hệ thống</p>
@@ -353,14 +369,14 @@ export function AnalyticsDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base font-bold">Phễu chuyển đổi cốt lõi (Core Product Funnel)</CardTitle>
+                    <CardTitle className="text-base font-bold">Phễu chuyển đổi tuần tự theo người dùng (Same-User Sequential Funnel)</CardTitle>
                   </div>
                   <Badge variant="outline" className="text-xs font-normal">
-                    Đo lường hành trình học tập
+                    Tổng thể: {data.funnel.overallRatePercent}% chuyển đổi
                   </Badge>
                 </div>
                 <CardDescription className="text-xs">
-                  Từ khi đăng nhập thành công → vào sảnh Campus → kết nối phòng học/game → thực hiện tương tác có ý nghĩa
+                  Theo dõi chính xác từng học sinh qua 4 giai đoạn tuần tự: Đăng nhập → Mở Sảnh Campus → Vào Phòng → Tương tác có ý nghĩa
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -371,8 +387,8 @@ export function AnalyticsDashboardPage() {
                       <span>Bước 1: Đăng nhập</span>
                       <Badge variant="secondary" className="text-[10px]">100%</Badge>
                     </div>
-                    <div className="mt-2 text-2xl font-bold">{data.funnel.loginCount}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">Tài khoản xác thực hợp lệ</p>
+                    <div className="mt-2 text-2xl font-bold">{data.funnel.stage1Users}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Học sinh đăng nhập hợp lệ</p>
                   </div>
 
                   {/* Step 2 */}
@@ -380,13 +396,11 @@ export function AnalyticsDashboardPage() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Bước 2: Sảnh Campus</span>
                       <Badge variant="secondary" className="text-[10px]">
-                        {data.funnel.loginCount > 0
-                          ? `${Math.round((data.funnel.campusArrivals / data.funnel.loginCount) * 100)}%`
-                          : '0%'}
+                        {data.funnel.stage2RatePercent}% từ B1
                       </Badge>
                     </div>
-                    <div className="mt-2 text-2xl font-bold">{data.funnel.campusArrivals}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">Mở WebSocket toàn trường</p>
+                    <div className="mt-2 text-2xl font-bold">{data.funnel.stage2Users}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Đã đăng nhập và mở sảnh</p>
                   </div>
 
                   {/* Step 3 */}
@@ -394,13 +408,11 @@ export function AnalyticsDashboardPage() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Bước 3: Vào phòng</span>
                       <Badge variant="secondary" className="text-[10px]">
-                        {data.funnel.campusArrivals > 0
-                          ? `${Math.round((data.funnel.roomJoins / data.funnel.campusArrivals) * 100)}%`
-                          : '0%'}
+                        {data.funnel.stage3RatePercent}% từ B2
                       </Badge>
                     </div>
-                    <div className="mt-2 text-2xl font-bold">{data.funnel.roomJoins}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">Kết nối phòng học hoặc game</p>
+                    <div className="mt-2 text-2xl font-bold">{data.funnel.stage3Users}</div>
+                    <p className="mt-1 text-xs text-muted-foreground">Đã qua sảnh và kết nối phòng</p>
                   </div>
 
                   {/* Step 4 */}
@@ -408,15 +420,13 @@ export function AnalyticsDashboardPage() {
                     <div className="flex items-center justify-between text-xs text-emerald-400">
                       <span>Bước 4: Tương tác có ý nghĩa</span>
                       <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-400">
-                        {data.funnel.roomJoins > 0
-                          ? `${Math.round((data.funnel.meaningfulInteractions / data.funnel.roomJoins) * 100)}%`
-                          : '0%'}
+                        {data.funnel.stage4RatePercent}% từ B3
                       </Badge>
                     </div>
                     <div className="mt-2 text-2xl font-bold text-emerald-400">
-                      {data.funnel.meaningfulInteractions}
+                      {data.funnel.stage4Users}
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">Chat, Thoại, Ghi chú, Vẽ, Game</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Chat, Thoại, Ghi chú, Bảng vẽ, Game</p>
                   </div>
                 </div>
               </CardContent>

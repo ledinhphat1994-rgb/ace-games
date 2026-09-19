@@ -118,7 +118,7 @@ export async function dangNhap(
     ? await xacMinhMatKhau(password, user.mat_khau_hash, user.salt, user.iterations)
     : false
   if (!user || !hopLe) {
-    recordAnalyticsEvent(env.DB, ctx, {
+    recordAnalyticsEvent(env.ANALYTICS_DB, ctx, {
       event: 'auth.login_failed',
       properties: {
         reason: !user ? 'USER_NOT_FOUND' : !user.dang_hoat_dong ? 'ACCOUNT_INACTIVE' : 'INVALID_CREDENTIALS',
@@ -173,7 +173,7 @@ export async function dangNhap(
   }
   const token = await createToken(env.SESSION_SECRET, payload, SESSION_TTL)
 
-  recordAnalyticsEvent(env.DB, ctx, {
+  recordAnalyticsEvent(env.ANALYTICS_DB, ctx, {
     event: 'auth.login_succeeded',
     actorId: user.id,
     sessionId: phienId,

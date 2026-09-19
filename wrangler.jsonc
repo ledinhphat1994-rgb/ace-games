@@ -21,6 +21,12 @@
       "database_id": "a12de014-e9d2-4d6d-994f-dcb36c481432",
       // Staging / preview database id
       "preview_database_id": "46ed8936-b447-4f10-8983-8f3c3d310e9f"
+    },
+    {
+      "binding": "ANALYTICS_DB",
+      "database_name": "lop-10a7-analytics-staging",
+      "database_id": "c5c3eaec-c6b2-4b09-9d1b-bc18a2288a54",
+      "preview_database_id": "c5c3eaec-c6b2-4b09-9d1b-bc18a2288a54"
     }
   ],
   "kv_namespaces": [
