@@ -107,10 +107,10 @@ export function AccountMenu({ nguoiDung, onDangXuat }: AccountMenuProps) {
         {nguoiDung.isSchoolAdmin && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Quản trị hệ thống
-            </DropdownMenuLabel>
             <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Quản trị hệ thống
+              </DropdownMenuLabel>
               <DropdownMenuItem
                 data-testid="admin-control-plane-link"
                 onClick={() => navigate('/admin')}
