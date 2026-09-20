@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import { CreateStudyRoomDialog } from '@/features/hub/CreateStudyRoomDialog'
 import {
   ArrowLeft,
   RefreshCw,
@@ -23,13 +24,18 @@ import {
   Users,
   Clock,
   XCircle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Search,
   ToggleLeft,
   ToggleRight,
   ClipboardList,
+  Sparkles,
+  ArrowRight,
+  BarChart3,
+  Megaphone,
+  Sliders,
+  ExternalLink,
 } from 'lucide-react'
 import type { AdminRoomItem, RoomLifecyclePolicy } from '@shared/protocol/room'
 
@@ -66,12 +72,35 @@ function fmtRelative(ts: number | null): string {
 
 function statusBadge(item: AdminRoomItem) {
   if (item.lifecycleStatus === 'closed')
-    return <Badge variant="outline" className="border-slate-600 text-slate-400">Đã đóng</Badge>
+    return <Badge variant="outline" className="border-border-default bg-muted/40 text-muted-foreground text-[10px]">Đã đóng</Badge>
   if (item.lifecycleStatus === 'closing')
-    return <Badge variant="outline" className="border-yellow-600 text-yellow-400">Đang đóng</Badge>
+    return <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning text-[10px]">Đang đóng</Badge>
   if (!item.everJoined)
-    return <Badge variant="outline" className="border-orange-600 text-orange-400">Chưa ai vào</Badge>
-  return <Badge variant="outline" className="border-emerald-600 text-emerald-400">Đang mở</Badge>
+    return <Badge variant="outline" className="border-social/40 bg-social/10 text-social text-[10px]">Chưa ai vào</Badge>
+  return <Badge variant="outline" className="border-success/40 bg-success/10 text-success text-[10px]">Đang mở</Badge>
+}
+
+// Sparkline SVG decorative component
+function Sparkline({ color = '#22d3ee', direction = 'up' }: { color?: string; direction?: 'up' | 'down' }) {
+  const pathData = direction === 'up'
+    ? 'M0,24 Q15,20 30,22 T60,14 T90,16 T120,4'
+    : 'M0,6 Q15,10 30,8 T60,18 T90,14 T120,24'
+  const fillData = direction === 'up'
+    ? 'M0,24 Q15,20 30,22 T60,14 T90,16 T120,4 L120,28 L0,28 Z'
+    : 'M0,6 Q15,10 30,8 T60,18 T90,14 T120,24 L120,28 L0,28 Z'
+
+  return (
+    <svg className="w-24 h-7 overflow-visible opacity-80" viewBox="0 0 120 28" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+      <path d={fillData} fill={`url(#grad-${color.replace('#', '')})`} />
+      <path d={pathData} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 // ─── API fetch helpers ────────────────────────────────────────────────────────
@@ -104,102 +133,496 @@ async function fetchAuditLogs(page: number): Promise<{ ok: boolean; logs: AuditL
 
 // ─── Overview Panel ───────────────────────────────────────────────────────────
 
-function OverviewPanel({ onTabChange }: { onTabChange: (t: AdminTab) => void }) {
-  const { data, isLoading, error, refetch } = useQuery({
+function OverviewPanel({
+  onTabChange,
+  onCreateRoom,
+}: {
+  onTabChange: (t: AdminTab) => void
+  onCreateRoom: () => void
+}) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const [closingId, setClosingId] = useState<number | null>(null)
+
+  const { data: roomsData, isLoading: loadingRooms, error: roomsError, refetch: refetchRooms } = useQuery({
     queryKey: ['admin-rooms-overview'],
-    queryFn: () => fetchAdminRooms({ page: 1, limit: 1, status: 'all', q: '' }),
-    staleTime: 30_000,
+    queryFn: () => fetchAdminRooms({ page: 1, limit: 6, status: 'all', q: '' }),
+    staleTime: 20_000,
   })
 
-  const stats = data?.stats ?? {}
+  const { data: policyData, refetch: refetchPolicy } = useQuery({
+    queryKey: ['admin-room-policy'],
+    queryFn: fetchPolicy,
+    staleTime: 60_000,
+  })
+
+  const policy = policyData?.policy
+
+  const closeRoomMut = useMutation({
+    mutationFn: async (roomId: number) => {
+      const res = await fetch(`/api/admin/rooms/${roomId}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'admin_closed' }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(body.error || 'Đóng phòng thất bại.')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-rooms-overview'] })
+      qc.invalidateQueries({ queryKey: ['admin-rooms'] })
+      setClosingId(null)
+    },
+  })
+
+  const stats = roomsData?.stats ?? {}
+  const activeRooms = roomsData?.rooms ?? []
 
   const kpis = [
-    { label: 'Phòng đang mở', value: stats.openCount ?? '—', icon: DoorOpen, color: 'text-emerald-400', onClick: () => onTabChange('rooms') },
-    { label: 'Đang đóng', value: stats.closingCount ?? '—', icon: Clock, color: 'text-yellow-400', onClick: () => onTabChange('rooms') },
-    { label: 'Đóng hôm nay', value: stats.closedTodayCount ?? '—', icon: DoorClosed, color: 'text-slate-400', onClick: undefined },
-    { label: 'Chưa ai vào', value: stats.neverJoinedCount ?? '—', icon: AlertTriangle, color: 'text-orange-400', onClick: () => onTabChange('rooms') },
+    {
+      label: 'Phòng đang mở',
+      value: stats.openCount ?? 0,
+      sub: '↑ Đang trực tuyến',
+      icon: DoorOpen,
+      color: '#22d3ee',
+      textColor: 'text-brand',
+      bgGlow: 'bg-brand/10 border-brand/20',
+      direction: 'up' as const,
+      onClick: () => onTabChange('rooms'),
+    },
+    {
+      label: 'Đang đóng dần',
+      value: stats.closingCount ?? 0,
+      sub: 'Chờ hết hạn TTL',
+      icon: Clock,
+      color: '#f59e0b',
+      textColor: 'text-warning',
+      bgGlow: 'bg-warning/10 border-warning/20',
+      direction: 'down' as const,
+      onClick: () => onTabChange('rooms'),
+    },
+    {
+      label: 'Chưa ai vào',
+      value: stats.neverJoinedCount ?? 0,
+      sub: 'Tự hủy sau timeout',
+      icon: AlertTriangle,
+      color: '#a78bfa',
+      textColor: 'text-social',
+      bgGlow: 'bg-social/10 border-social/20',
+      direction: 'down' as const,
+      onClick: () => onTabChange('rooms'),
+    },
+    {
+      label: 'Đã đóng hôm nay',
+      value: stats.closedTodayCount ?? 0,
+      sub: 'Hoàn tất phiên học',
+      icon: DoorClosed,
+      color: '#10b981',
+      textColor: 'text-success',
+      bgGlow: 'bg-success/10 border-success/20',
+      direction: 'up' as const,
+      onClick: undefined,
+    },
   ]
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Tổng quan hệ thống</h2>
-        <Button size="sm" variant="ghost" onClick={() => refetch()} className="text-slate-400 hover:text-white">
-          <RefreshCw className="h-4 w-4 mr-1.5" />Làm mới
-        </Button>
+      {/* 1. Hero Banner with Visual Design Parity */}
+      <div className="relative overflow-hidden rounded-3xl border border-border-default bg-surface/90 p-6 sm:p-8 shadow-xl backdrop-blur-xl">
+        {/* Glow backdrop decorative lighting */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-brand/15 blur-[120px]" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-social/15 blur-[120px]" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="max-w-xl space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Admin Control Center • Quản lý tập trung</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              Admin Control Center
+            </h1>
+
+            <p className="text-sm font-semibold text-brand/90">
+              Manage. Support. Empower.
+            </p>
+
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Không gian điều hành trường học số an toàn, bảo mật và tương tác trực tiếp theo thời gian thực dành cho học sinh và giáo viên.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Button
+                onClick={onCreateRoom}
+                className="h-9 rounded-xl bg-brand text-slate-950 font-bold hover:bg-brand-hover shadow-lg shadow-brand/20 gap-1.5 cursor-pointer"
+              >
+                <DoorOpen className="h-4 w-4" />
+                <span>Tạo phòng học mới</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => navigate('/admin/analytics')}
+                className="h-9 rounded-xl border-border-default bg-surface-raised/80 hover:bg-surface-overlay text-xs font-semibold gap-1.5 cursor-pointer"
+              >
+                <BarChart3 className="h-4 w-4 text-brand" />
+                <span>Xem báo cáo phân tích</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Announcement Card inside Hero */}
+          <div className="w-full lg:max-w-md rounded-2xl border border-social/30 bg-social/10 p-4 sm:p-5 backdrop-blur-md space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-social uppercase tracking-wider">
+              <Megaphone className="h-4 w-4" />
+              <span>Thông báo hệ thống</span>
+            </div>
+            <h4 className="text-sm font-bold text-foreground">
+              Giám sát giai đoạn học tập cao điểm
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Tăng cường kiểm duyệt phòng học, duy trì hỗ trợ và đảm bảo chính sách bảo vệ dữ liệu cho toàn bộ thành viên trường.
+            </p>
+            <button
+              type="button"
+              onClick={() => onTabChange('audit')}
+              className="inline-flex items-center gap-1 text-xs font-bold text-social hover:underline cursor-pointer pt-1"
+            >
+              <span>Xem nhật ký kiểm duyệt</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {error && <p className="text-sm text-red-400">{String(error)}</p>}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* 2. Four Metric Cards with Sparklines */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi) => (
           <Card
             key={kpi.label}
-            className={`bg-[#0f1923] border-white/10 ${kpi.onClick ? 'cursor-pointer hover:border-white/20 transition-colors' : ''}`}
+            className={`border-border-default bg-surface/80 shadow-md backdrop-blur-md transition-all ${
+              kpi.onClick ? 'cursor-pointer hover:border-brand/40 hover:bg-surface-raised' : ''
+            }`}
             onClick={kpi.onClick}
           >
-            <CardContent className="p-5">
-              <div className={`h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center mb-3 ${kpi.color}`}>
-                <kpi.icon className="h-4 w-4" />
+            <CardContent className="p-5 flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${kpi.bgGlow} ${kpi.textColor}`}>
+                  <kpi.icon className="h-5 w-5" />
+                </div>
+                <Sparkline color={kpi.color} direction={kpi.direction} />
               </div>
-              {isLoading
-                ? <Skeleton className="h-8 w-16 mb-1" />
-                : <div className="text-2xl font-bold text-white">{kpi.value}</div>
-              }
-              <p className="text-xs text-slate-500 mt-1">{kpi.label}</p>
+
+              <div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                  {loadingRooms ? <Skeleton className="h-8 w-16 mb-1" /> : kpi.value}
+                </div>
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-muted-foreground font-medium">{kpi.label}</span>
+                  <span className={`font-semibold ${kpi.textColor}`}>{kpi.sub}</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-[#0f1923] border-white/10">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-slate-300 flex items-center gap-2">
-              <Settings2 className="h-4 w-4 text-indigo-400" />Truy cập nhanh
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {[
-              { label: 'Quản lý phòng học', tab: 'rooms' as AdminTab, icon: BookOpen },
-              { label: 'Chính sách tự động đóng', tab: 'policy' as AdminTab, icon: Settings2 },
-              { label: 'Nhật ký kiểm duyệt', tab: 'audit' as AdminTab, icon: ClipboardList },
-            ].map((item) => (
-              <button
-                key={item.tab}
-                onClick={() => onTabChange(item.tab)}
-                className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm text-slate-300 hover:text-white"
-              >
-                <item.icon className="h-4 w-4 text-indigo-400" />
-                {item.label}
-              </button>
-            ))}
-          </CardContent>
-        </Card>
+      {/* 3. Split 2-Column Operational Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Active Rooms Live Table (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
+              <h3 className="text-base font-bold text-foreground">Phòng học trực tiếp</h3>
+              <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-[10px] ml-1">
+                Live
+              </Badge>
+            </div>
 
-        <Card className="bg-[#0f1923] border-white/10">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-slate-300 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-emerald-400" />Trạng thái bảo mật
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: 'RBAC Admin fail-closed', ok: true },
-              { label: 'D1 admission gate', ok: true },
-              { label: 'phong_ban fail-closed', ok: true },
-              { label: 'Auto-close lifecycle', ok: true },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">{item.label}</span>
-                {item.ok
-                  ? <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  : <XCircle className="h-4 w-4 text-red-400" />
-                }
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => refetchRooms()}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Làm mới</span>
+            </Button>
+          </div>
+
+          {roomsError && <p className="text-xs text-destructive">{String(roomsError)}</p>}
+
+          <Card className="border-border-default bg-surface/80 shadow-md backdrop-blur-md overflow-hidden">
+            <CardContent className="p-0">
+              {loadingRooms ? (
+                <div className="p-4 space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                  ))}
+                </div>
+              ) : activeRooms.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <DoorClosed className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                  <p className="text-xs text-muted-foreground">Hiện chưa có phòng học nào đang mở.</p>
+                  <Button
+                    size="sm"
+                    onClick={onCreateRoom}
+                    className="h-8 text-xs bg-brand text-slate-950 font-bold hover:bg-brand-hover mt-2"
+                  >
+                    Tạo phòng đầu tiên
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border-subtle">
+                  {activeRooms.map((room) => (
+                    <div
+                      key={room.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 hover:bg-surface-raised/60 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="h-10 w-10 rounded-xl border border-brand/20 bg-brand/10 flex items-center justify-center text-brand shrink-0 mt-0.5">
+                          <BookOpen className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-foreground truncate">
+                              {room.name}
+                            </span>
+                            {statusBadge(room)}
+                            <span className="text-[10px] text-muted-foreground">#{room.id}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3 text-primary" />
+                              <span className="font-medium text-foreground">{room.ownerDisplayName}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{fmtRelative(room.createdAt)}</span>
+                            </span>
+                            {room.autoCloseDeadline && room.lifecycleStatus === 'open' && (
+                              <span className="text-warning text-[11px] font-medium">
+                                Tự đóng: {fmtRelative(room.autoCloseDeadline)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/room/phong-${room.id}`)}
+                          className="h-7 text-xs border-border-default bg-surface-raised/70 hover:bg-surface-overlay gap-1 cursor-pointer"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>Vào</span>
+                        </Button>
+
+                        {room.lifecycleStatus === 'open' && (
+                          closingId === room.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => closeRoomMut.mutate(room.id)}
+                                disabled={closeRoomMut.isPending}
+                                className="h-7 text-xs font-bold"
+                              >
+                                {closeRoomMut.isPending ? '...' : 'Đóng'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setClosingId(null)}
+                                className="h-7 text-xs text-muted-foreground"
+                              >
+                                Hủy
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setClosingId(room.id)}
+                              className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 cursor-pointer"
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" />
+                              <span>Đóng</span>
+                            </Button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Table Footer */}
+              <div className="flex items-center justify-between border-t border-border-subtle p-3 px-4 bg-surface/50 text-xs text-muted-foreground">
+                <span>Hiển thị {activeRooms.length} phòng gần nhất</span>
+                <button
+                  type="button"
+                  onClick={() => onTabChange('rooms')}
+                  className="font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Xem tất cả danh sách</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: Room Moderation Quick Actions & Automated Policies (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Card A: Room Moderation Quick Actions */}
+          <Card className="border-border-default bg-surface/80 shadow-md backdrop-blur-md">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Shield className="h-4 w-4 text-brand" />
+                <span>Kiểm duyệt & Vận hành</span>
+              </CardTitle>
+              <button
+                type="button"
+                onClick={() => onTabChange('audit')}
+                className="text-xs font-bold text-social hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Nhật ký</span>
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2.5">
+                <Button
+                  variant="outline"
+                  onClick={() => onTabChange('rooms')}
+                  className="h-10 justify-start border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive text-xs font-semibold gap-2 cursor-pointer"
+                >
+                  <XCircle className="h-4 w-4 shrink-0" />
+                  <span>Đóng phòng</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/admin/analytics')}
+                  className="h-10 justify-start border-border-default bg-surface-raised hover:bg-surface-overlay text-xs font-semibold gap-2 cursor-pointer"
+                >
+                  <BarChart3 className="h-4 w-4 text-brand shrink-0" />
+                  <span>Analytics</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => onTabChange('policy')}
+                  className="h-10 justify-start border-border-default bg-surface-raised hover:bg-surface-overlay text-xs font-semibold gap-2 cursor-pointer"
+                >
+                  <Sliders className="h-4 w-4 text-warning shrink-0" />
+                  <span>Cấu hình TTL</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    refetchRooms()
+                    refetchPolicy()
+                  }}
+                  className="h-10 justify-start border-border-default bg-surface-raised hover:bg-surface-overlay text-xs font-semibold gap-2 cursor-pointer"
+                >
+                  <RefreshCw className="h-4 w-4 text-success shrink-0" />
+                  <span>Đồng bộ D1</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card B: Automated Policies Status Display (Canonical editing in Policy tab) */}
+          <Card className="border-border-default bg-surface/80 shadow-md backdrop-blur-md">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-brand" />
+                <span>Chính sách tự động</span>
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onTabChange('policy')}
+                className="h-7 text-xs border-border-default hover:bg-surface-raised cursor-pointer gap-1"
+              >
+                <span>Cấu hình TTL</span>
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Policy Item 1: Auto-close enabled */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-raised/50">
+                <div>
+                  <p className="text-xs font-bold text-foreground">Tự động đóng phòng</p>
+                  <p className="text-[11px] text-muted-foreground">Vòng đời TTL tự động của D1</p>
+                </div>
+                <Badge variant="outline" className={policy?.autoCloseEnabled ? 'border-success/30 bg-success/10 text-success text-xs' : 'border-border-default text-muted-foreground text-xs'}>
+                  {policy?.autoCloseEnabled ? 'Đang bật' : 'Đang tắt'}
+                </Badge>
+              </div>
+
+              {/* Policy Item 2: Empty room TTL */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-raised/50">
+                <div>
+                  <p className="text-xs font-bold text-foreground">Đóng phòng trống</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sau {policy?.emptyRoomTtlMinutes || 30} phút không có ai
+                  </p>
+                </div>
+                <span className="text-xs font-extrabold text-brand">
+                  {fmtMinutes(policy?.emptyRoomTtlMinutes || 30)}
+                </span>
+              </div>
+
+              {/* Policy Item 3: Never joined TTL */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-raised/50">
+                <div>
+                  <p className="text-xs font-bold text-foreground">Phòng chưa ai vào</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Hủy sau {policy?.neverJoinedTtlMinutes || 15} phút tạo
+                  </p>
+                </div>
+                <span className="text-xs font-extrabold text-warning">
+                  {fmtMinutes(policy?.neverJoinedTtlMinutes || 15)}
+                </span>
+              </div>
+
+              {/* Policy Item 4: Max room lifetime */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border-subtle bg-surface-raised/50">
+                <div>
+                  <p className="text-xs font-bold text-foreground">Thời lượng tối đa</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tối đa {fmtMinutes(policy?.maxRoomLifetimeMinutes || 240)} / phiên
+                  </p>
+                </div>
+                <span className="text-xs font-extrabold text-social">
+                  {fmtMinutes(policy?.maxRoomLifetimeMinutes || 240)}
+                </span>
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => onTabChange('policy')}
+                  className="w-full text-center text-xs font-bold text-brand hover:underline cursor-pointer"
+                >
+                  Điều chỉnh thanh trượt chi tiết trong Tab Chính Sách →
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
@@ -229,13 +652,14 @@ function RoomsPanel() {
         body: JSON.stringify({ reason: 'admin_closed' }),
       })
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(body.error || 'Đóng phòng thất bại.')
       }
       return res.json()
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-rooms'] })
+      qc.invalidateQueries({ queryKey: ['admin-rooms-overview'] })
       setClosingId(null)
     },
   })
@@ -252,15 +676,19 @@ function RoomsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
           {statusFilters.map((f) => (
             <button
               key={f.value}
-              onClick={() => { setStatus(f.value); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              type="button"
+              onClick={() => {
+                setStatus(f.value)
+                setPage(1)
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                 status === f.value
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  ? 'bg-brand text-slate-950 shadow-sm'
+                  : 'bg-surface-raised border border-border-default text-muted-foreground hover:text-foreground hover:bg-surface-overlay'
               }`}
             >
               {f.label}
@@ -269,44 +697,52 @@ function RoomsPanel() {
         </div>
         <div className="flex gap-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setQ(searchInput); setPage(1) } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setQ(searchInput)
+                  setPage(1)
+                }
+              }}
               placeholder="Tìm phòng..."
-              className="pl-8 h-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-slate-500 w-44"
+              className="pl-8 h-8 text-xs bg-surface border-border-default text-foreground placeholder:text-muted-foreground w-48"
             />
           </div>
-          <Button size="sm" variant="ghost" onClick={() => refetch()} className="text-slate-400 h-8">
+          <Button size="sm" variant="ghost" onClick={() => refetch()} className="text-muted-foreground hover:text-foreground h-8 cursor-pointer">
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-400">{String(error)}</p>}
-      {closeRoomMut.error && (
-        <p className="text-sm text-red-400">{String(closeRoomMut.error)}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{String(error)}</p>}
+      {closeRoomMut.error && <p className="text-sm text-destructive">{String(closeRoomMut.error)}</p>}
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1,2,3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
         </div>
       ) : (
         <div className="space-y-2">
           {(data?.rooms ?? []).length === 0 && (
-            <div className="text-center py-10 text-slate-500">Không có phòng nào.</div>
+            <div className="text-center py-10 text-muted-foreground text-xs">Không có phòng nào phù hợp bộ lọc.</div>
           )}
           {(data?.rooms ?? []).map((room) => (
-            <div key={room.id} className="flex items-center gap-4 p-4 rounded-xl bg-[#0f1923] border border-white/10 hover:border-white/20 transition-colors">
+            <div
+              key={room.id}
+              className="flex items-center gap-4 p-4 rounded-xl bg-surface/80 border border-border-default hover:border-brand/30 transition-colors"
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   {statusBadge(room)}
-                  <span className="text-sm font-medium text-white truncate">{room.name}</span>
-                  <span className="text-xs text-slate-500 shrink-0">#{room.id}</span>
+                  <span className="text-sm font-bold text-foreground truncate">{room.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">#{room.id}</span>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
                     {room.ownerDisplayName}
@@ -316,12 +752,13 @@ function RoomsPanel() {
                     {fmtRelative(room.createdAt)}
                   </span>
                   {room.autoCloseDeadline && room.lifecycleStatus === 'open' && (
-                    <span className="text-orange-400">
+                    <span className="text-warning font-medium">
                       Tự đóng: {fmtRelative(room.autoCloseDeadline)}
                     </span>
                   )}
                 </div>
               </div>
+
               {room.lifecycleStatus === 'open' && (
                 closingId === room.id ? (
                   <div className="flex gap-2">
@@ -330,11 +767,16 @@ function RoomsPanel() {
                       variant="destructive"
                       onClick={() => closeRoomMut.mutate(room.id)}
                       disabled={closeRoomMut.isPending}
-                      className="h-7 text-xs"
+                      className="h-7 text-xs font-bold"
                     >
                       {closeRoomMut.isPending ? '...' : 'Xác nhận đóng'}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setClosingId(null)} className="h-7 text-xs text-slate-400">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setClosingId(null)}
+                      className="h-7 text-xs text-muted-foreground"
+                    >
                       Hủy
                     </Button>
                   </div>
@@ -343,9 +785,10 @@ function RoomsPanel() {
                     size="sm"
                     variant="ghost"
                     onClick={() => setClosingId(room.id)}
-                    className="h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+                    className="h-7 text-xs text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
                   >
-                    <XCircle className="h-3.5 w-3.5 mr-1" />Đóng phòng
+                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                    Đóng phòng
                   </Button>
                 )
               )}
@@ -356,23 +799,27 @@ function RoomsPanel() {
 
       {/* Pagination */}
       {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-slate-500 pt-2">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
           <span>Tổng: {data.pagination.total} phòng</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
-              size="sm" variant="ghost"
+              size="sm"
+              variant="ghost"
               disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-              className="h-7 px-2 text-slate-400"
+              onClick={() => setPage((p) => p - 1)}
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-xs leading-7">Trang {page}/{data.pagination.totalPages}</span>
+            <span className="text-xs">
+              Trang {page} / {data.pagination.totalPages}
+            </span>
             <Button
-              size="sm" variant="ghost"
+              size="sm"
+              variant="ghost"
               disabled={page >= data.pagination.totalPages}
-              onClick={() => setPage(p => p + 1)}
-              className="h-7 px-2 text-slate-400"
+              onClick={() => setPage((p) => p + 1)}
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -405,7 +852,7 @@ function PolicyPanel() {
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string }
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(body.error || 'Lưu chính sách thất bại.')
       }
       return res.json()
@@ -432,33 +879,44 @@ function PolicyPanel() {
     })
   }, [policy, current, saveMut])
 
-  if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
-  if (error) return <p className="text-sm text-red-400">{String(error)}</p>
+  if (isLoading)
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        ))}
+      </div>
+    )
+  if (error) return <p className="text-sm text-destructive">{String(error)}</p>
 
   return (
     <div className="space-y-5 max-w-xl">
-      <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-300 flex items-start gap-2.5">
-        <span className="font-semibold text-cyan-400 shrink-0">Lưu ý:</span>
-        <span>Thay đổi áp dụng cho các phòng được tạo sau khi lưu. Các phòng đang mở hiện tại giữ nguyên snapshot chính sách đã nhận khi tạo.</span>
+      <div className="p-3.5 rounded-xl bg-brand/10 border border-brand/20 text-xs text-brand flex items-start gap-2.5">
+        <span className="font-bold shrink-0">Lưu ý:</span>
+        <span>
+          Thay đổi áp dụng cho các phòng được tạo sau khi lưu. Các phòng đang mở hiện tại giữ nguyên snapshot chính sách đã nhận khi tạo.
+        </span>
       </div>
 
-      {saveMut.error && <p className="text-sm text-red-400">{String(saveMut.error)}</p>}
-      {saveMut.isSuccess && <p className="text-sm text-emerald-400">Đã lưu chính sách thành công.</p>}
+      {saveMut.error && <p className="text-sm text-destructive">{String(saveMut.error)}</p>}
+      {saveMut.isSuccess && <p className="text-sm text-success">Đã lưu chính sách thành công.</p>}
 
       {/* Auto-close toggle */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-[#0f1923] border border-white/10">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-surface/80 border border-border-default">
         <div>
-          <p className="text-sm font-medium text-white">Tự động đóng phòng</p>
-          <p className="text-xs text-slate-500 mt-0.5">Kích hoạt các quy tắc TTL bên dưới</p>
+          <p className="text-sm font-bold text-foreground">Tự động đóng phòng</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Kích hoạt các quy tắc TTL bên dưới</p>
         </div>
         <button
-          onClick={() => setForm(f => ({ ...f, autoCloseEnabled: !current.autoCloseEnabled }))}
-          className={`transition-colors ${current.autoCloseEnabled ? 'text-emerald-400' : 'text-slate-600'}`}
+          type="button"
+          onClick={() => setForm((f) => ({ ...f, autoCloseEnabled: !current.autoCloseEnabled }))}
+          className="cursor-pointer transition-colors"
         >
-          {current.autoCloseEnabled
-            ? <ToggleRight className="h-8 w-8" />
-            : <ToggleLeft className="h-8 w-8" />
-          }
+          {current.autoCloseEnabled ? (
+            <ToggleRight className="h-8 w-8 text-success" />
+          ) : (
+            <ToggleLeft className="h-8 w-8 text-muted-foreground" />
+          )}
         </button>
       </div>
 
@@ -467,38 +925,41 @@ function PolicyPanel() {
           key: 'neverJoinedTtlMinutes' as keyof RoomLifecyclePolicy,
           label: 'TTL phòng chưa ai vào',
           desc: 'Thời gian tối đa phòng tồn tại mà không có ai tham gia lần đầu.',
-          min: 1, max: 120,
+          min: 1,
+          max: 120,
         },
         {
           key: 'emptyRoomTtlMinutes' as keyof RoomLifecyclePolicy,
           label: 'TTL phòng trống',
           desc: 'Thời gian tối đa phòng tồn tại sau khi người cuối cùng rời đi.',
-          min: 1, max: 1440,
+          min: 1,
+          max: 1440,
         },
         {
           key: 'maxRoomLifetimeMinutes' as keyof RoomLifecyclePolicy,
           label: 'Thời gian tồn tại tối đa',
           desc: 'Thời gian tối đa một phòng được phép hoạt động.',
-          min: 15, max: 10080,
+          min: 15,
+          max: 10080,
         },
       ].map((field) => {
         const val = current[field.key] as number
         return (
-          <div key={field.key} className="p-4 rounded-xl bg-[#0f1923] border border-white/10 space-y-2">
+          <div key={field.key} className="p-4 rounded-xl bg-surface/80 border border-border-default space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white">{field.label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{field.desc}</p>
+                <p className="text-sm font-bold text-foreground">{field.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{field.desc}</p>
               </div>
-              <span className="text-sm font-semibold text-indigo-400 ml-4 shrink-0">{fmtMinutes(val)}</span>
+              <span className="text-sm font-bold text-brand ml-4 shrink-0">{fmtMinutes(val)}</span>
             </div>
             <input
               type="range"
               min={field.min}
               max={field.max}
               value={val}
-              onChange={(e) => setForm(f => ({ ...f, [field.key]: parseInt(e.target.value, 10) }))}
-              className="w-full accent-indigo-500"
+              onChange={(e) => setForm((f) => ({ ...f, [field.key]: parseInt(e.target.value, 10) }))}
+              className="w-full accent-brand"
             />
           </div>
         )
@@ -507,13 +968,13 @@ function PolicyPanel() {
       <Button
         onClick={handleSave}
         disabled={saveMut.isPending || Object.keys(form).length === 0}
-        className="bg-indigo-600 hover:bg-indigo-500 text-white w-full"
+        className="bg-brand text-slate-950 font-bold hover:bg-brand-hover w-full cursor-pointer"
       >
         {saveMut.isPending ? 'Đang lưu...' : 'Lưu chính sách'}
       </Button>
 
       {policy && (
-        <p className="text-xs text-slate-600 text-center">
+        <p className="text-xs text-muted-foreground text-center">
           Phiên bản hiện tại: #{policy.revision} · Cập nhật: {fmtRelative(policy.updatedAt)}
         </p>
       )}
@@ -533,65 +994,84 @@ function AuditPanel() {
   })
 
   const actionLabel: Record<string, string> = {
-    kick: 'Kick',
-    ban: 'Cấm',
+    kick: 'Kick thành viên',
+    ban: 'Cấm tài khoản',
     unban: 'Bỏ cấm',
-    voice_mute: 'Tắt mic',
+    voice_mute: 'Tắt micro',
     report_resolved: 'Giải quyết báo cáo',
     admin_room_close: 'Admin đóng phòng',
-    system_room_close: 'Hệ thống đóng phòng',
+    system_room_close: 'Hệ thống tự đóng',
     owner_room_close: 'Chủ phòng đóng',
     room_policy_update: 'Cập nhật chính sách',
-    room_lifecycle_bootstrap_failed: 'Khởi tạo phòng thất bại',
+    room_lifecycle_bootstrap_failed: 'Khởi tạo phòng lỗi',
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">Nhật ký các hành động kiểm duyệt và vận hành.</p>
-        <Button size="sm" variant="ghost" onClick={() => refetch()} className="text-slate-400 h-8">
+        <p className="text-xs text-muted-foreground">Nhật ký kiểm duyệt và hành động bảo vệ hệ thống.</p>
+        <Button size="sm" variant="ghost" onClick={() => refetch()} className="text-muted-foreground hover:text-foreground h-8 cursor-pointer">
           <RefreshCw className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {error && <p className="text-sm text-red-400">{String(error)}</p>}
+      {error && <p className="text-sm text-destructive">{String(error)}</p>}
 
       {isLoading ? (
-        <div className="space-y-2">{[1,2,3,4].map(i => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}</div>
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-xl" />
+          ))}
+        </div>
       ) : (
         <div className="space-y-2">
           {(data?.logs ?? []).length === 0 && (
-            <div className="text-center py-10 text-slate-500">Chưa có nhật ký nào.</div>
+            <div className="text-center py-10 text-muted-foreground text-xs">Chưa có nhật ký nào được ghi nhận.</div>
           )}
           {(data?.logs ?? []).map((log) => (
-            <div key={log.id} className="flex items-start gap-3 p-3.5 rounded-xl bg-[#0f1923] border border-white/10 text-sm">
-              <div className="h-7 w-7 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Shield className="h-3.5 w-3.5 text-indigo-400" />
+            <div
+              key={log.id}
+              className="flex items-start gap-3 p-3.5 rounded-xl bg-surface/80 border border-border-default text-xs"
+            >
+              <div className="h-7 w-7 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0 mt-0.5 text-brand">
+                <Shield className="h-3.5 w-3.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-white">{actionLabel[log.hanh_dong] ?? log.hanh_dong}</span>
-                  {log.phong_id && <span className="text-xs text-slate-500">Phòng #{log.phong_id}</span>}
+                  <span className="font-bold text-foreground">{actionLabel[log.hanh_dong] ?? log.hanh_dong}</span>
+                  {log.phong_id && <span className="text-[11px] text-brand">Phòng #{log.phong_id}</span>}
                 </div>
-                {log.chi_tiet && (
-                  <p className="text-xs text-slate-500 truncate mt-0.5">{log.chi_tiet}</p>
-                )}
+                {log.chi_tiet && <p className="text-muted-foreground truncate mt-0.5">{log.chi_tiet}</p>}
               </div>
-              <span className="text-xs text-slate-600 shrink-0">{new Date(log.tao_luc).toLocaleString('vi')}</span>
+              <span className="text-muted-foreground shrink-0">{new Date(log.tao_luc).toLocaleString('vi-VN')}</span>
             </div>
           ))}
         </div>
       )}
 
       {data && data.total > 20 && (
-        <div className="flex items-center justify-between text-sm text-slate-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Tổng: {data.total} bản ghi</span>
-          <div className="flex gap-2">
-            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-7 px-2 text-slate-400">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+            >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-xs leading-7">Trang {page}/{Math.ceil(data.total / 20)}</span>
-            <Button size="sm" variant="ghost" disabled={page >= Math.ceil(data.total / 20)} onClick={() => setPage(p => p + 1)} className="h-7 px-2 text-slate-400">
+            <span className="text-xs">
+              Trang {page} / {Math.ceil(data.total / 20)}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={page >= Math.ceil(data.total / 20)}
+              onClick={() => setPage((p) => p + 1)}
+              className="h-7 px-2 text-muted-foreground hover:text-foreground"
+            >
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -607,77 +1087,104 @@ export function AdminControlPlanePage() {
   const navigate = useNavigate()
   const { nguoiDung } = usePhien()
   const [tab, setTab] = useState<AdminTab>('overview')
+  const [createRoomOpen, setCreateRoomOpen] = useState(false)
 
   if (!nguoiDung) return null
   if (!nguoiDung.isSchoolAdmin) {
     return (
-      <div className="min-h-screen bg-[#080e1a] flex items-center justify-center text-slate-400">
-        Bạn không có quyền truy cập trang này.
+      <div className="min-h-screen bg-canvas flex items-center justify-center text-muted-foreground text-sm">
+        Bạn không có quyền quản trị viên trường học để truy cập trang này.
       </div>
     )
   }
 
   const tabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'overview', label: 'Tổng quan', icon: Home },
-    { id: 'rooms', label: 'Phòng học', icon: BookOpen },
-    { id: 'policy', label: 'Chính sách', icon: Settings2 },
-    { id: 'audit', label: 'Nhật ký', icon: ClipboardList },
+    { id: 'overview', label: 'Bảng điều khiển', icon: Home },
+    { id: 'rooms', label: 'Quản lý phòng', icon: BookOpen },
+    { id: 'policy', label: 'Chính sách tự động', icon: Settings2 },
+    { id: 'audit', label: 'Nhật ký kiểm duyệt', icon: ClipboardList },
   ]
 
   return (
-    <div className="min-h-screen bg-[#080e1a] text-white">
-      {/* Header */}
-      <div className="border-b border-white/10 bg-[#0a1221]/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="text-slate-400 hover:text-white -ml-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" />
-            Sảnh
-          </Button>
-          <div className="flex items-center gap-2 flex-1">
-            <div className="h-7 w-7 rounded-lg bg-indigo-500/15 flex items-center justify-center">
-              <Shield className="h-4 w-4 text-indigo-400" />
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold text-white leading-none">Bảng điều khiển quản trị</h1>
-              <p className="text-xs text-slate-500 mt-0.5">Digital Campus v2 · Admin Control Plane</p>
+    <div className="min-h-screen bg-canvas text-foreground pb-12">
+      {/* Sub-Header Navigation Bar */}
+      <div className="border-b border-border-subtle bg-surface/80 backdrop-blur-md sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="text-muted-foreground hover:text-foreground -ml-2 h-8 px-2 cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              <span>Sảnh</span>
+            </Button>
+
+            <div className="h-4 w-px bg-border-subtle" />
+
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+                <Shield className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-foreground leading-none">Trung tâm Kiểm soát Quản trị</h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Digital Campus v2.1 • Control Plane</p>
+              </div>
             </div>
           </div>
-          <Badge variant="outline" className="border-indigo-500/30 text-indigo-300 text-xs">
-            A1
-          </Badge>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-brand/40 bg-brand/10 text-brand text-xs font-semibold">
+              Quyền Quản trị viên
+            </Badge>
+
+            <Button
+              size="sm"
+              onClick={() => setCreateRoomOpen(true)}
+              className="h-8 text-xs bg-brand text-slate-950 font-bold hover:bg-brand-hover cursor-pointer"
+            >
+              + Tạo phòng
+            </Button>
+          </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="max-w-5xl mx-auto px-4 flex gap-1 pb-0">
+        {/* Sub Navigation Tabs */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 overflow-x-auto pb-0">
           {tabs.map((t) => (
             <button
               key={t.id}
+              type="button"
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold transition-all border-b-2 shrink-0 cursor-pointer ${
                 tab === t.id
-                  ? 'border-indigo-500 text-white'
-                  : 'border-transparent text-slate-500 hover:text-slate-300'
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               <t.icon className="h-3.5 w-3.5" />
-              {t.label}
+              <span>{t.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {tab === 'overview' && <OverviewPanel onTabChange={setTab} />}
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {tab === 'overview' && (
+          <OverviewPanel onTabChange={setTab} onCreateRoom={() => setCreateRoomOpen(true)} />
+        )}
         {tab === 'rooms' && <RoomsPanel />}
         {tab === 'policy' && <PolicyPanel />}
         {tab === 'audit' && <AuditPanel />}
       </div>
+
+      {/* Create Study Room Dialog */}
+      <CreateStudyRoomDialog
+        open={createRoomOpen}
+        onOpenChange={setCreateRoomOpen}
+        onSuccess={() => setCreateRoomOpen(false)}
+      />
     </div>
   )
 }
