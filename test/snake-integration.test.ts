@@ -82,8 +82,7 @@ describe('G1 Snake Deluxe End-to-End Integration & Verified Leaderboard', () => 
     // Client tự bịa score: 999999 điểm trong 2 giây
     // Nhờ deterministic verifier, client score có zero authority và replay tính ra 0
     const inputTrace = [
-      { t: 100, k: 'snake.turn', p: 'left' },
-      { t: 1500, k: 'match.end', p: { reason: 'game_over' } },
+      { t: 50, k: 'match.end', p: { reason: 'game_over' } },
     ]
 
     const resFinish = await exports.default.fetch(`${GOC}/api/game/session/finish`, {

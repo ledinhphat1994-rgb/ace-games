@@ -91,6 +91,8 @@ import {
   resolveReport,
   listAuditLogs,
 } from './routes/moderation-api'
+import { adminRouter } from './routes/admin-api'
+import { roomRouter } from './routes/room-api'
 
 export { CampusDO } from './campus/campus-do'
 export { GameLobbyDO } from './games/game-lobby-do'
@@ -1602,6 +1604,8 @@ app.all('/api/yt-search', saiPhuongThuc)
 // ─────────────────────────────────────────────────────────────────────────────
 app.route('/api/social', socialApp)
 app.route('/api/engagement', engagementApp)
+app.route('/api/admin', adminRouter)
+app.route('/api/rooms', roomRouter)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket routes

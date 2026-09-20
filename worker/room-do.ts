@@ -44,6 +44,7 @@ import { callCloudflareRealtime } from './routes/voice-api'
 import { recordAnalyticsEvent } from './lib/analytics'
 import { processLearningSessionSummaryEngagement } from './lib/engagement'
 import type { SessionEngagementFacts } from '../shared/protocol/engagement'
+import { claimRoomCloseD1, finalizeRoomCloseD1, getSystemAccountId } from './services/room-lifecycle'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -114,6 +115,38 @@ const DEFAULT_SESSION_TIMER: SessionTimerState = {
   revision: 1,
 }
 
+export interface RoomLifecycleLocalState {
+  createdAt: number
+  everJoined: boolean
+  lastJoinAt: number | null
+  lastParticipantLeftAt: number | null
+  lastActivityAt: number | null
+  isClosed: boolean
+  closeReason: string | null
+  closedAt: number | null
+  closedBy: number | null
+  neverJoinedTtlMinutes: number
+  emptyRoomTtlMinutes: number
+  maxRoomLifetimeMinutes: number
+  autoCloseEnabled: boolean
+}
+
+const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
+  createdAt: 0,
+  everJoined: false,
+  lastJoinAt: null,
+  lastParticipantLeftAt: null,
+  lastActivityAt: null,
+  isClosed: false,
+  closeReason: null,
+  closedAt: null,
+  closedBy: null,
+  neverJoinedTtlMinutes: 5,
+  emptyRoomTtlMinutes: 15,
+  maxRoomLifetimeMinutes: 480,
+  autoCloseEnabled: true,
+}
+
 export class RoomDO extends DurableObject<Env> {
   private media: MediaState = { ...DEFAULT_MEDIA }
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
@@ -125,13 +158,16 @@ export class RoomDO extends DurableObject<Env> {
   private hostKey: string | null = null
   private isGameRoom = false
   private khoiTaoXong = false
+  private lifecycleState: RoomLifecycleLocalState = { ...DEFAULT_LIFECYCLE_STATE }
+  private lastD1ActivityPersistAt = 0
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
 
   private parseNumericRoomId(): number | null {
-    if (!this.roomName) return null
-    const m = /^phong-(\d+)$/.exec(this.roomName)
+    const name = this.roomName || (this.ctx as any).id?.name || ''
+    if (!name) return null
+    const m = /^phong-(\d+)$/.exec(name)
     return m ? parseInt(m[1], 10) : null
   }
   private voiceGeneration = new Map<string, number>()
@@ -375,6 +411,22 @@ export class RoomDO extends DurableObject<Env> {
           next_retry_at INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS room_lifecycle (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          created_at INTEGER NOT NULL,
+          ever_joined INTEGER NOT NULL DEFAULT 0,
+          last_join_at INTEGER,
+          last_participant_left_at INTEGER,
+          last_activity_at INTEGER,
+          is_closed INTEGER NOT NULL DEFAULT 0,
+          close_reason TEXT,
+          closed_at INTEGER,
+          closed_by INTEGER,
+          never_joined_ttl_minutes INTEGER NOT NULL DEFAULT 5,
+          empty_room_ttl_minutes INTEGER NOT NULL DEFAULT 15,
+          max_room_lifetime_minutes INTEGER NOT NULL DEFAULT 480,
+          auto_close_enabled INTEGER NOT NULL DEFAULT 1
+        );
       `)
       try {
         this.ctx.storage.sql.exec('ALTER TABLE pending_session_summary_sync ADD COLUMN facts_json TEXT')
@@ -410,6 +462,8 @@ export class RoomDO extends DurableObject<Env> {
           try { this.slide = JSON.parse(r.value) as SlideState } catch {}
         } else if (r.key === 'host_key') {
           this.hostKey = r.value
+        } else if (r.key === 'room_name') {
+          this.roomName = r.value
         }
       }
 
@@ -627,12 +681,54 @@ export class RoomDO extends DurableObject<Env> {
         }
       } catch {}
 
-      // Khôi phục và đối soát các nghĩa vụ alarm bền vững (voice, summary sync, timers) sau khi restart
+      // Nạp room_lifecycle
+      try {
+        const lcRows = [
+          ...this.ctx.storage.sql.exec<{
+            created_at: number
+            ever_joined: number
+            last_join_at: number | null
+            last_participant_left_at: number | null
+            last_activity_at: number | null
+            is_closed: number
+            close_reason: string | null
+            closed_at: number | null
+            closed_by: number | null
+            never_joined_ttl_minutes: number
+            empty_room_ttl_minutes: number
+            max_room_lifetime_minutes: number
+            auto_close_enabled: number
+          }>('SELECT * FROM room_lifecycle WHERE id = 1'),
+        ]
+        if (lcRows.length > 0) {
+          const r = lcRows[0]
+          this.lifecycleState = {
+            createdAt: r.created_at,
+            everJoined: Boolean(r.ever_joined),
+            lastJoinAt: r.last_join_at,
+            lastParticipantLeftAt: r.last_participant_left_at,
+            lastActivityAt: r.last_activity_at,
+            isClosed: Boolean(r.is_closed),
+            closeReason: r.close_reason,
+            closedAt: r.closed_at,
+            closedBy: r.closed_by,
+            neverJoinedTtlMinutes: r.never_joined_ttl_minutes,
+            emptyRoomTtlMinutes: r.empty_room_ttl_minutes,
+            maxRoomLifetimeMinutes: r.max_room_lifetime_minutes,
+            autoCloseEnabled: Boolean(r.auto_close_enabled),
+          }
+        }
+      } catch (err) {
+        console.warn('[RoomDO] Lỗi đọc room_lifecycle:', err)
+      }
+
+      // Khôi phục và đối soát các nghĩa vụ alarm bền vững (lifecycle, voice, summary sync, timers) sau khi restart
       try {
         const pendingVoice = this.getPendingVoiceRevocations()
         const pendingSummary = this.getPendingSessionSummaries()
         const hasActiveTimer = (this.sessionTimer.running && this.sessionTimer.endsAt > 0) || (this.pomodoro.running && this.pomodoro.endsAt > 0)
-        if (pendingVoice.length > 0 || pendingSummary.length > 0 || hasActiveTimer) {
+        const hasLifecycleObligation = !this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled
+        if (pendingVoice.length > 0 || pendingSummary.length > 0 || hasActiveTimer || hasLifecycleObligation) {
           this.ctx.blockConcurrencyWhile(async () => {
             await this.reconcileRoomAlarm()
           })
@@ -651,6 +747,48 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     this.khoiTaoXong = true
+  }
+
+  private luuLifecycleState(): void {
+    try {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO room_lifecycle (
+          id, created_at, ever_joined, last_join_at, last_participant_left_at,
+          last_activity_at, is_closed, close_reason, closed_at, closed_by,
+          never_joined_ttl_minutes, empty_room_ttl_minutes, max_room_lifetime_minutes, auto_close_enabled
+        ) VALUES (
+          1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13
+        ) ON CONFLICT(id) DO UPDATE SET
+          created_at = ?1,
+          ever_joined = ?2,
+          last_join_at = ?3,
+          last_participant_left_at = ?4,
+          last_activity_at = ?5,
+          is_closed = ?6,
+          close_reason = ?7,
+          closed_at = ?8,
+          closed_by = ?9,
+          never_joined_ttl_minutes = ?10,
+          empty_room_ttl_minutes = ?11,
+          max_room_lifetime_minutes = ?12,
+          auto_close_enabled = ?13`,
+        this.lifecycleState.createdAt,
+        this.lifecycleState.everJoined ? 1 : 0,
+        this.lifecycleState.lastJoinAt,
+        this.lifecycleState.lastParticipantLeftAt,
+        this.lifecycleState.lastActivityAt,
+        this.lifecycleState.isClosed ? 1 : 0,
+        this.lifecycleState.closeReason,
+        this.lifecycleState.closedAt,
+        this.lifecycleState.closedBy,
+        this.lifecycleState.neverJoinedTtlMinutes,
+        this.lifecycleState.emptyRoomTtlMinutes,
+        this.lifecycleState.maxRoomLifetimeMinutes,
+        this.lifecycleState.autoCloseEnabled ? 1 : 0,
+      )
+    } catch (err) {
+      console.error('[RoomDO] Lỗi lưu room_lifecycle:', err)
+    }
   }
 
   private kiemTraVaCapNhatPomodoro(now: number): boolean {
@@ -734,6 +872,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async reconcileRoomAlarm(): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const deadlines: number[] = []
     const now = Date.now()
 
@@ -762,6 +901,33 @@ export class RoomDO extends DurableObject<Env> {
       deadlines.push(summaryDue)
     }
 
+    // 5. Room lifecycle deadlines
+    if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled && this.lifecycleState.createdAt > 0) {
+      // 5.1 Never-joined deadline
+      if (!this.lifecycleState.everJoined && this.lifecycleState.neverJoinedTtlMinutes > 0) {
+        const neverDue = this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
+        deadlines.push(neverDue)
+      }
+      // 5.2 Empty room deadline (only when ever_joined is true and room is empty)
+      if (this.lifecycleState.everJoined && this.lifecycleState.lastParticipantLeftAt) {
+        const activeSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
+        const activeUnique = new Set(
+          activeSockets
+            .map((ws) => (ws.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+            .filter(Boolean),
+        )
+        if (activeUnique.size === 0 && this.lifecycleState.emptyRoomTtlMinutes > 0) {
+          const emptyDue = this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
+          deadlines.push(emptyDue)
+        }
+      }
+      // 5.3 Max lifetime deadline
+      if (this.lifecycleState.maxRoomLifetimeMinutes > 0) {
+        const maxDue = this.lifecycleState.createdAt + this.lifecycleState.maxRoomLifetimeMinutes * 60 * 1000
+        deadlines.push(maxDue)
+      }
+    }
+
     if (deadlines.length > 0) {
       const earliest = Math.min(...deadlines)
       const scheduledTime = Math.max(now + 50, earliest)
@@ -783,7 +949,93 @@ export class RoomDO extends DurableObject<Env> {
     await this.reconcileRoomAlarm()
   }
 
+  private async xuLyLifecycleAlarm(now: number): Promise<void> {
+    this.nạpDuLieuNeuCan()
+    if (this.lifecycleState.isClosed || !this.lifecycleState.autoCloseEnabled || this.lifecycleState.createdAt <= 0) {
+      return
+    }
+
+    let timeoutReason: string | null = null
+    if (
+      this.lifecycleState.maxRoomLifetimeMinutes > 0 &&
+      now >= this.lifecycleState.createdAt + this.lifecycleState.maxRoomLifetimeMinutes * 60 * 1000
+    ) {
+      timeoutReason = 'max_lifetime'
+    } else if (
+      !this.lifecycleState.everJoined &&
+      this.lifecycleState.neverJoinedTtlMinutes > 0 &&
+      now >= this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
+    ) {
+      timeoutReason = 'never_joined_timeout'
+    } else if (
+      this.lifecycleState.everJoined &&
+      this.lifecycleState.lastParticipantLeftAt &&
+      this.lifecycleState.emptyRoomTtlMinutes > 0
+    ) {
+      const activeSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
+      const activeUnique = new Set(
+        activeSockets
+          .map((ws) => (ws.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+          .filter(Boolean),
+      )
+      if (
+        activeUnique.size === 0 &&
+        now >= this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
+      ) {
+        timeoutReason = 'empty_timeout'
+      }
+    }
+
+    if (timeoutReason) {
+      const numericId = this.parseNumericRoomId()
+      if (numericId && this.env?.DB) {
+        try {
+          const systemAccountId = await getSystemAccountId(this.env.DB)
+          const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, systemAccountId)
+          if (claim.alreadyClosed) {
+            return
+          }
+          if (claim.claimed || claim.alreadyClosing) {
+            // FIRST COMMITTED CLAIM WINS:
+            // Nếu claim trả về alreadyClosing, giữ nguyên reason và actor đã commit trước đó (ví dụ admin_closed).
+            const effectiveReason = claim.persistedReasonCode || timeoutReason
+            const effectiveClosedBy = claim.persistedClosedBy ?? systemAccountId
+
+            const actorType = effectiveReason.startsWith('admin_')
+              ? 'admin'
+              : effectiveReason.startsWith('owner_')
+                ? 'owner'
+                : effectiveReason.startsWith('moderator_')
+                  ? 'moderator'
+                  : 'system'
+
+            const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+
+            // Đóng trực tiếp bộ nhớ cục bộ RoomDO (NO SELF-RPC - Item 4)
+            const localRes = await this.dongPhongNoiBo({
+              reason: effectiveReason,
+              closedByAccountId: effectiveClosedBy,
+              actorType,
+            })
+            // Chốt trạng thái D1 và ghi nhận audit log hệ thống
+            await finalizeRoomCloseD1(
+              this.env.DB,
+              numericId,
+              effectiveReason,
+              { type: actorType, accountId: effectiveClosedBy, name: actorName },
+              localRes.closedCount,
+              true,
+            )
+          }
+        } catch (err) {
+          console.error('[RoomDO.xuLyLifecycleAlarm] Lỗi đóng phòng alarm:', err)
+        }
+      }
+    }
+  }
+
   override async alarm(): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const now = Date.now()
     this.voiceAlarmTarget = null
     if (this.kiemTraVaCapNhatPomodoro(now)) {
@@ -801,6 +1053,11 @@ export class RoomDO extends DurableObject<Env> {
       await this.xuLyPendingSummarySync(now)
     } catch (err) {
       console.error('[RoomDO.alarm] Lỗi xử lý pending summary sync:', err)
+    }
+    try {
+      await this.xuLyLifecycleAlarm(now)
+    } catch (err) {
+      console.error('[RoomDO.alarm] Lỗi xử lý lifecycle alarm:', err)
     }
     await this.reconcileRoomAlarm()
   }
@@ -926,6 +1183,21 @@ export class RoomDO extends DurableObject<Env> {
     const lopId = lopIdStr ? parseInt(lopIdStr, 10) || null : null
 
     this.nạpDuLieuNeuCan()
+
+    // ── Lifecycle Closed Gate (server-authoritative fail-closed) ──
+    if (this.lifecycleState.isClosed) {
+      return new Response(
+        JSON.stringify({
+          type: 'error',
+          code: 'room_closed',
+          message: 'Phòng học đã đóng hoặc tạm dừng hoạt động.',
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
 
     // ── Kick Cooldown Gate (server-authoritative durable storage, fail-closed) ──
     const cdResult = this.kiemTraKickCooldown(key)
@@ -1076,6 +1348,50 @@ export class RoomDO extends DurableObject<Env> {
 
     // Broadcast presence cho toàn phòng
     this.phatDanhSach()
+
+    // ── Lifecycle: First Join & Rejoin Tracking ──
+    const nowJoin = Date.now()
+    let needReconcile = false
+    if (!this.lifecycleState.everJoined) {
+      this.lifecycleState.everJoined = true
+      this.lifecycleState.lastJoinAt = nowJoin
+      this.lifecycleState.lastActivityAt = nowJoin
+      this.luuLifecycleState()
+      needReconcile = true
+      const numericId = this.parseNumericRoomId()
+      if (numericId && this.env?.DB) {
+        this.ctx.waitUntil(
+          this.env.DB.prepare(
+            'UPDATE phong SET ever_joined = 1, last_join_at = ?1, last_activity_at = ?1 WHERE id = ?2',
+          )
+            .bind(nowJoin, numericId)
+            .run()
+            .catch(() => {}),
+        )
+      }
+    } else if (this.lifecycleState.lastParticipantLeftAt !== null) {
+      // Rejoin cancels empty room timeout deadline
+      this.lifecycleState.lastParticipantLeftAt = null
+      this.lifecycleState.lastJoinAt = nowJoin
+      this.lifecycleState.lastActivityAt = nowJoin
+      this.luuLifecycleState()
+      needReconcile = true
+      const numericId = this.parseNumericRoomId()
+      if (numericId && this.env?.DB) {
+        this.ctx.waitUntil(
+          this.env.DB.prepare(
+            'UPDATE phong SET last_participant_left_at = NULL, last_join_at = ?1, last_activity_at = ?1 WHERE id = ?2',
+          )
+            .bind(nowJoin, numericId)
+            .run()
+            .catch(() => {}),
+        )
+      }
+    }
+
+    if (needReconcile) {
+      this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
+    }
 
     if (this.env?.ANALYTICS_DB) {
       recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
@@ -1924,6 +2240,35 @@ export class RoomDO extends DurableObject<Env> {
         }
       }
     }
+
+    // ── Lifecycle: Empty Room Tracking ──
+    if (this.lifecycleState.everJoined && !this.lifecycleState.isClosed) {
+      const remainingUniqueActors = new Set(
+        this.ctx
+          .getWebSockets()
+          .filter((w) => w !== ws && w.readyState === WebSocket.OPEN)
+          .map((w) => (w.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+          .filter(Boolean),
+      )
+      if (remainingUniqueActors.size === 0 && this.lifecycleState.lastParticipantLeftAt === null) {
+        const leftNow = Date.now()
+        this.lifecycleState.lastParticipantLeftAt = leftNow
+        this.luuLifecycleState()
+        const numericId = this.parseNumericRoomId()
+        if (numericId && this.env?.DB) {
+          this.ctx.waitUntil(
+            this.env.DB.prepare(
+              'UPDATE phong SET last_participant_left_at = ?1 WHERE id = ?2',
+            )
+              .bind(leftNow, numericId)
+              .run()
+              .catch(() => {}),
+          )
+        }
+        this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
+      }
+    }
+
     this.phatDanhSach(ws)
     this.baoRoiLobbyNeuTrong(ws)
   }
@@ -1946,6 +2291,35 @@ export class RoomDO extends DurableObject<Env> {
         }
       }
     }
+
+    // ── Lifecycle: Empty Room Tracking ──
+    if (this.lifecycleState.everJoined && !this.lifecycleState.isClosed) {
+      const remainingUniqueActors = new Set(
+        this.ctx
+          .getWebSockets()
+          .filter((w) => w !== ws && w.readyState === WebSocket.OPEN)
+          .map((w) => (w.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+          .filter(Boolean),
+      )
+      if (remainingUniqueActors.size === 0 && this.lifecycleState.lastParticipantLeftAt === null) {
+        const leftNow = Date.now()
+        this.lifecycleState.lastParticipantLeftAt = leftNow
+        this.luuLifecycleState()
+        const numericId = this.parseNumericRoomId()
+        if (numericId && this.env?.DB) {
+          this.ctx.waitUntil(
+            this.env.DB.prepare(
+              'UPDATE phong SET last_participant_left_at = ?1 WHERE id = ?2',
+            )
+              .bind(leftNow, numericId)
+              .run()
+              .catch(() => {}),
+          )
+        }
+        this.ctx.waitUntil(this.reconcileRoomAlarm().catch(() => {}))
+      }
+    }
+
     this.phatDanhSach(ws)
     this.baoRoiLobbyNeuTrong(ws)
   }
@@ -2081,6 +2455,21 @@ export class RoomDO extends DurableObject<Env> {
       )
     } catch (err) {
       console.error('Lỗi ghi nhận session_activity:', err)
+    }
+
+    this.lifecycleState.lastActivityAt = now
+    // Throttle ghi D1 tối đa 1 lần mỗi 30 giây per active room (Section 27)
+    if (now - this.lastD1ActivityPersistAt > 30000) {
+      this.lastD1ActivityPersistAt = now
+      const numericId = this.parseNumericRoomId()
+      if (numericId && this.env?.DB) {
+        this.ctx.waitUntil(
+          this.env.DB.prepare('UPDATE phong SET last_activity_at = ?1 WHERE id = ?2')
+            .bind(now, numericId)
+            .run()
+            .catch(() => {}),
+        )
+      }
     }
   }
 
@@ -4238,6 +4627,261 @@ export class RoomDO extends DurableObject<Env> {
       return json({ ok: true, info })
     }
 
+    // ── Milestone A1: Room Lifecycle Internal Endpoints ──
+
+    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/init') {
+      try {
+        const body = (await request.json()) as {
+          roomId: number
+          createdAt: number
+          policy?: {
+            autoCloseEnabled?: boolean
+            neverJoinedTtlMinutes?: number
+            emptyRoomTtlMinutes?: number
+            maxRoomLifetimeMinutes?: number
+          }
+        }
+        this.nạpDuLieuNeuCan()
+        if (body.roomId) {
+          this.roomName = `phong-${body.roomId}`
+          try {
+            this.ctx.storage.sql.exec(
+              "INSERT INTO room_meta (key, value) VALUES ('room_name', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1",
+              this.roomName,
+            )
+          } catch {}
+        }
+        this.lifecycleState.createdAt = body.createdAt || Date.now()
+        this.lifecycleState.everJoined = false
+        this.lifecycleState.lastJoinAt = null
+        this.lifecycleState.lastParticipantLeftAt = null
+        this.lifecycleState.lastActivityAt = body.createdAt || Date.now()
+        this.lifecycleState.isClosed = false
+        this.lifecycleState.closeReason = null
+        this.lifecycleState.closedAt = null
+        this.lifecycleState.closedBy = null
+        if (body.policy) {
+          if (typeof body.policy.autoCloseEnabled === 'boolean') {
+            this.lifecycleState.autoCloseEnabled = body.policy.autoCloseEnabled
+          }
+          if (typeof body.policy.neverJoinedTtlMinutes === 'number') {
+            this.lifecycleState.neverJoinedTtlMinutes = body.policy.neverJoinedTtlMinutes
+          }
+          if (typeof body.policy.emptyRoomTtlMinutes === 'number') {
+            this.lifecycleState.emptyRoomTtlMinutes = body.policy.emptyRoomTtlMinutes
+          }
+          if (typeof body.policy.maxRoomLifetimeMinutes === 'number') {
+            this.lifecycleState.maxRoomLifetimeMinutes = body.policy.maxRoomLifetimeMinutes
+          }
+        }
+        this.luuLifecycleState()
+        await this.reconcileRoomAlarm()
+        return json({ ok: true })
+      } catch (err: any) {
+        return json({ ok: false, error: err?.message || 'init_failed' }, 500)
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/close') {
+      try {
+        const body = (await request.json()) as {
+          reason: string
+          closedByAccountId?: number | null
+          closedByName?: string
+          actorType?: string
+          note?: string | null
+        }
+        const res = await this.dongPhongNoiBo(body)
+        return json(res)
+      } catch (err: any) {
+        return json({ ok: false, error: err?.message || 'close_failed' }, 500)
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/internal/lifecycle/state') {
+      this.nạpDuLieuNeuCan()
+      const liveSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
+      const uniqueActors = new Set(
+        liveSockets
+          .map((ws) => (ws.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+          .filter(Boolean),
+      )
+      return json({
+        ok: true,
+        lifecycle: this.lifecycleState,
+        uniqueLiveParticipants: uniqueActors.size,
+        totalSockets: liveSockets.length,
+      })
+    }
+
+
+
     return new Response('Không tìm thấy endpoint nội bộ.', { status: 404 })
+  }
+
+  async dongPhongNoiBo(params: {
+    reason: string
+    closedByAccountId?: number | null
+    closedByName?: string
+    actorType?: string
+    note?: string | null
+  }): Promise<{ ok: boolean; closedCount: number; alreadyClosedLocally?: boolean }> {
+    this.nạpDuLieuNeuCan()
+    if (this.lifecycleState.isClosed) {
+      return { ok: true, closedCount: 0, alreadyClosedLocally: true }
+    }
+    const now = Date.now()
+
+    // 1. Chốt trạng thái vòng đời trong RoomDO SQLite
+    this.lifecycleState.isClosed = true
+    this.lifecycleState.closeReason = params.reason
+    this.lifecycleState.closedAt = now
+    this.lifecycleState.closedBy = params.closedByAccountId ?? null
+    this.luuLifecycleState()
+
+    // 2. Chốt Learning Session nếu đang chạy để không mất dữ liệu summary (Section 15 & 28)
+    if (this.activeLearningSession) {
+      try {
+        const { sessionId, startedAt } = this.activeLearningSession
+        const durationSeconds = Math.max(0, Math.round((now - startedAt) / 1000))
+        const activeMembers = this.layActiveParticipants(Math.max(5 * 60 * 1000, now - startedAt))
+        const totalAdmitted = Math.max(1, activeMembers.length)
+        const taskCompletionRates: Record<string, number> = {}
+        for (const t of this.sessionTasks) {
+          const completedCount = this.sessionTaskCompletions.get(t.id)?.size || 0
+          taskCompletionRates[t.id] = Math.min(100, Math.round((completedCount / totalAdmitted) * 100))
+        }
+        const summary: SessionSummary = {
+          sessionId,
+          roomId: this.parseNumericRoomId() ?? 0,
+          goal: this.sessionGoal?.text || null,
+          startedAt,
+          endedAt: now,
+          durationSeconds,
+          taskCount: this.sessionTasks.length,
+          taskCompletionRates,
+          pollResults: this.activePoll
+            ? [
+                {
+                  question: this.activePoll.question,
+                  options: this.activePoll.options.map((opt) => ({
+                    text: opt.text,
+                    count: this.layPollVoteCounts(this.activePoll!.id)[opt.id] || 0,
+                  })),
+                },
+              ]
+            : [],
+          activeMembers,
+        }
+        if (summary.roomId > 0) {
+          this.ctx.storage.sql.exec(
+            `INSERT OR IGNORE INTO pending_session_summary_sync
+             (session_id, room_id, summary_json, facts_json, attempts, last_attempt_at, next_retry_at, created_at)
+             VALUES (?1, ?2, ?3, NULL, 0, 0, 0, ?4)`,
+            summary.sessionId,
+            summary.roomId,
+            JSON.stringify(summary),
+            now,
+          )
+        }
+      } catch (err) {
+        console.warn('[RoomDO.dongPhongNoiBo] Lỗi lưu pending summary khi đóng phòng:', err)
+      }
+      this.activeLearningSession = null
+      this.sessionStartedAt = null
+    }
+
+    // 3. Dừng timer và Pomodoro
+    this.pomodoro.running = false
+    this.sessionTimer.running = false
+
+    // 4. Phát sự kiện room.closed cho tất cả socket đang kết nối
+    let message = 'Phòng học đã đóng.'
+    if (params.reason === 'admin_closed') {
+      message = 'Phòng đã được quản trị viên đóng.'
+    } else if (params.reason === 'never_joined_timeout') {
+      message = 'Phòng đã tự động đóng do không có người tham gia.'
+    } else if (params.reason === 'empty_timeout') {
+      message = 'Phòng đã tự động đóng do tất cả thành viên đã rời phòng.'
+    } else if (params.reason === 'max_lifetime') {
+      message = 'Phòng đã tự động đóng do đạt thời gian hoạt động tối đa.'
+    } else if (params.reason === 'owner_closed') {
+      message = 'Chủ phòng đã đóng phòng học.'
+    } else if (params.reason === 'moderator_room_close' || params.reason === 'moderation') {
+      message = 'Phòng học đã được điều hành viên đóng.'
+    }
+
+    const closePacket: GoiPhong = {
+      type: 'room.closed',
+      reason: params.reason,
+      message,
+    }
+    this.broadcast(closePacket)
+
+    // 5. Đóng graceful các WebSocket hiện hữu (mã 1000 - Bình thường)
+    const sockets = this.ctx.getWebSockets()
+    let closedCount = 0
+    for (const ws of sockets) {
+      try {
+        ws.close(1000, message)
+        closedCount++
+      } catch {}
+    }
+
+    // 6. Dọn dẹp publication thoại
+    this.voiceRegistry.clear()
+    try {
+      this.ctx.storage.sql.exec('DELETE FROM voice_publications')
+    } catch {}
+
+    // 7. Báo gỡ khỏi GameLobby nếu là phòng game
+    if (this.isGameRoom && this.gameRoomId) {
+      try {
+        const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
+        this.ctx.waitUntil(lobby.xoaBan(this.gameRoomId).catch(() => {}))
+      } catch {}
+    }
+
+    // 8. Reconcile alarm: gỡ bỏ deadline lifecycle, duy trì retry summary/voice nếu có
+    await this.reconcileRoomAlarm()
+
+    return { ok: true, closedCount, alreadyClosedLocally: false }
+  }
+
+  async testGetLifecycleState(): Promise<RoomLifecycleLocalState> {
+    this.nạpDuLieuNeuCan()
+    return this.lifecycleState
+  }
+
+  async testSetLifecycleState(state: Partial<RoomLifecycleLocalState>, roomName?: string): Promise<void> {
+    this.nạpDuLieuNeuCan()
+    if (roomName) {
+      this.roomName = roomName
+    }
+    this.lifecycleState = { ...this.lifecycleState, ...state }
+    this.luuLifecycleState()
+    await this.reconcileRoomAlarm()
+  }
+
+  async testGetScheduledAlarm(): Promise<number | null> {
+    try {
+      return await this.ctx.storage.getAlarm()
+    } catch {
+      return null
+    }
+  }
+
+  async testSetPomodoro(p: Partial<PomodoroState>): Promise<void> {
+    this.nạpDuLieuNeuCan()
+    this.pomodoro = { ...this.pomodoro, ...p }
+    this.luuMeta('pomodoro', this.pomodoro)
+    await this.reconcileRoomAlarm()
+  }
+
+  async testSetSessionTimer(st: Partial<SessionTimerState>): Promise<void> {
+    this.nạpDuLieuNeuCan()
+    this.sessionTimer = { ...this.sessionTimer, ...st }
+    this.luuMeta('session_timer', this.sessionTimer)
+    await this.reconcileRoomAlarm()
   }
 }

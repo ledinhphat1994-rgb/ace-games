@@ -355,6 +355,11 @@ export type GoiPhong =
     }
   | { type: 'session.summary'; summary: SessionSummary }
   | { type: 'session.participation'; activeKeys: string[] }
+  | {
+      type: 'room.closed'
+      reason: string
+      message: string
+    }
 
 export interface VoiceSubscribeResponse {
   tracks: VoiceTrackMetadata[]
@@ -417,7 +422,17 @@ export const RoomUnbanPayloadSchema = z.object({
 })
 export type RoomUnbanPayload = z.infer<typeof RoomUnbanPayloadSchema>
 
-export type AuditLogAction = 'kick' | 'ban' | 'unban' | 'voice_mute' | 'report_resolved'
+export type AuditLogAction =
+  | 'kick'
+  | 'ban'
+  | 'unban'
+  | 'voice_mute'
+  | 'report_resolved'
+  | 'admin_room_close'
+  | 'system_room_close'
+  | 'owner_room_close'
+  | 'room_policy_update'
+  | 'room_lifecycle_bootstrap_failed'
 
 export interface BannedMemberItem {
   id: number
@@ -430,4 +445,76 @@ export interface BannedMemberItem {
   createdAt: string
   authorityRank?: number
   revision?: number
+}
+
+// ── Milestone A1: Room Lifecycle & Admin Control Plane Schemas ───────────────
+
+export interface RoomLifecyclePolicy {
+  id: number
+  autoCloseEnabled: boolean
+  neverJoinedTtlMinutes: number
+  emptyRoomTtlMinutes: number
+  maxRoomLifetimeMinutes: number
+  updatedAt: number
+  updatedBy?: number | null
+  revision: number
+}
+
+export const UpdateRoomPolicyPayloadSchema = z.object({
+  autoCloseEnabled: z.boolean(),
+  neverJoinedTtlMinutes: z.number().int().min(1, 'Tối thiểu 1 phút').max(120, 'Tối đa 120 phút'),
+  emptyRoomTtlMinutes: z.number().int().min(1, 'Tối thiểu 1 phút').max(1440, 'Tối đa 1440 phút (24 giờ)'),
+  maxRoomLifetimeMinutes: z.number().int().min(15, 'Tối thiểu 15 phút').max(10080, 'Tối đa 10080 phút (7 ngày)'),
+  expectedRevision: z.number().int().positive().optional(),
+})
+export type UpdateRoomPolicyPayload = z.infer<typeof UpdateRoomPolicyPayloadSchema>
+
+export const CloseRoomPayloadSchema = z.object({
+  reason: z.string().trim().max(500, 'Lý do tối đa 500 ký tự').optional(),
+  note: z.string().trim().max(500, 'Ghi chú tối đa 500 ký tự').optional(),
+})
+export type CloseRoomPayload = z.infer<typeof CloseRoomPayloadSchema>
+
+export const CreateStudyRoomPayloadSchema = z.object({
+  ten: z.string().trim().min(1, 'Vui lòng nhập tên phòng').max(100, 'Tên phòng tối đa 100 ký tự'),
+  moTa: z.string().trim().max(500, 'Mô tả tối đa 500 ký tự').optional(),
+  phamVi: z.enum(['truong', 'lop']),
+  lopId: z.number().int().positive().nullable().optional(),
+  accessMode: z.enum(['public', 'password']).default('public'),
+  password: z.string().min(4, 'Mật khẩu tối thiểu 4 ký tự').max(50, 'Mật khẩu tối đa 50 ký tự').optional(),
+  sucChua: z.number().int().min(2, 'Tối thiểu 2 người').max(100, 'Tối đa 100 người').default(20),
+})
+export type CreateStudyRoomPayload = z.infer<typeof CreateStudyRoomPayloadSchema>
+
+export interface AdminRoomItem {
+  id: number
+  name: string
+  description: string | null
+  ownerAccountId: number
+  ownerKey: string
+  ownerDisplayName: string
+  scope: 'truong' | 'lop'
+  classId: number | null
+  accessMode: 'public' | 'password'
+  capacity: number
+  lifecycleStatus: 'open' | 'closing' | 'closed'
+  rawStatus: string
+  createdAt: number
+  lastActivityAt: number | null
+  lastJoinAt: number | null
+  lastParticipantLeftAt: number | null
+  everJoined: boolean
+  closingAt: number | null
+  closedAt: number | null
+  closedBy: number | null
+  closeReason: string | null
+  lifecycleRevision: number
+  roomAgeMinutes: number
+  autoCloseDeadline: number | null
+  liveParticipantCount?: number
+  effectivePolicyRevision?: number
+  effectiveNeverJoinedTtl?: number
+  effectiveEmptyRoomTtl?: number
+  effectiveMaxLifetime?: number
+  effectiveAutoCloseEnabled?: boolean
 }

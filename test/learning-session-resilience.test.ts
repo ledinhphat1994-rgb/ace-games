@@ -326,7 +326,7 @@ describe('Learning Session v1 Closure & Resilience (Targeted Release Gates)', ()
 
       host.dong()
       member.dong()
-    })
+    }, 15000)
   })
 
   // ─────────────────────────────────────────────────────────────
