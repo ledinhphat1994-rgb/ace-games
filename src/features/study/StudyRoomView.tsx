@@ -589,13 +589,13 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       </div>
 
       {/* ══ LAYER 1: Top header bar ══ */}
-      <header className="absolute inset-x-0 top-0 z-50 flex h-12 shrink-0 items-center justify-between border-b border-white/10 bg-[#090d16]/90 px-4 backdrop-blur-md">
+      <header className="absolute inset-x-0 top-0 z-50 flex h-12 shrink-0 items-center justify-between border-b border-border-subtle bg-surface/90 px-4 backdrop-blur-md">
         {/* Left: Leave + Room info */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2 text-xs text-slate-400 hover:bg-white/10 hover:text-white"
+            className="h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:bg-surface-raised hover:text-foreground"
             onClick={onLeaveRoom}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -938,8 +938,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* ══ LAYER 3: Chat drawer (slides in from right) ══ */}
       {showChat ? (
-        <div className="absolute right-0 top-12 bottom-20 z-50 flex w-80 flex-col overflow-hidden border-l border-white/10 bg-[#090e18]/97 backdrop-blur-2xl shadow-2xl">
-          <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
+        <div className="absolute right-0 top-12 bottom-20 z-50 flex w-80 flex-col overflow-hidden border-l border-border-default bg-surface/95 backdrop-blur-2xl shadow-2xl">
+          <div className="flex h-11 shrink-0 items-center justify-between border-b border-border-subtle px-4">
             <span className="text-sm font-bold text-slate-200">💬 Chat phòng học</span>
             <button onClick={handleCloseChat} className="rounded p-1 text-slate-400 hover:text-white">
               <X className="h-4 w-4" />
@@ -1058,8 +1058,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* ══ Members drawer ══ */}
       {showMembers ? (
-        <div className="absolute right-0 top-12 bottom-20 z-50 flex w-72 flex-col overflow-hidden border-l border-white/10 bg-[#090e18]/97 backdrop-blur-2xl shadow-2xl">
-          <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 px-4">
+        <div className="absolute right-0 top-12 bottom-20 z-50 flex w-72 flex-col overflow-hidden border-l border-border-default bg-surface/95 backdrop-blur-2xl shadow-2xl">
+          <div className="flex h-11 shrink-0 items-center justify-between border-b border-border-subtle px-4">
             <span className="text-sm font-bold text-slate-200">👥 Thành viên ({members.length})</span>
             <div className="flex items-center gap-1.5">
               <button
@@ -1330,7 +1330,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* ══ LAYER 4: Bottom floating dock ══ */}
       <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
-        <div className="flex items-center gap-1 rounded-full border border-white/15 bg-[#0b1020]/92 px-2 py-1.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/8">
+        <div className="flex items-center gap-1 rounded-full border border-border-default bg-surface/92 px-2 py-1.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/8">
 
           {/* Chalk Color Picker (Single control + Popover progressive disclosure) */}
           <div className="relative">
