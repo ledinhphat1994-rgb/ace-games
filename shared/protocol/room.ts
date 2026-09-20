@@ -471,6 +471,7 @@ export type UpdateRoomPolicyPayload = z.infer<typeof UpdateRoomPolicyPayloadSche
 
 export const CloseRoomPayloadSchema = z.object({
   reason: z.string().trim().max(500, 'Lý do tối đa 500 ký tự').optional(),
+  note: z.string().trim().max(500, 'Ghi chú tối đa 500 ký tự').optional(),
 })
 export type CloseRoomPayload = z.infer<typeof CloseRoomPayloadSchema>
 

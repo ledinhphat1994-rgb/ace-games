@@ -305,7 +305,7 @@ adminRouter.post('/rooms/:id/close', async (c) => {
   const roomId = parseInt(c.req.param('id'), 10)
   if (!roomId || roomId <= 0) return loi('ID phòng không hợp lệ.', 400)
 
-  let body: { reason?: string } = {}
+  let body: { reason?: string; note?: string } = {}
   try {
     const raw = await c.req.json()
     const parsed = CloseRoomPayloadSchema.safeParse(raw)
@@ -314,7 +314,7 @@ adminRouter.post('/rooms/:id/close', async (c) => {
     }
   } catch {}
 
-  const reason = body.reason?.trim() || 'admin_closed'
+  const humanNote = body.note || body.reason || null
 
   const res = await closeStudyRoomCanonical(
     c.env,
@@ -324,22 +324,38 @@ adminRouter.post('/rooms/:id/close', async (c) => {
       accountId: auth.admin.id,
       name: auth.admin.ten || auth.admin.username,
     },
-    reason,
+    'admin_closed',
+    humanNote,
   )
 
   if (!res.ok) {
     if (res.notFound) {
       return loi('Không tìm thấy phòng học.', 404)
     }
+    if (res.partial) {
+      return c.json(
+        {
+          ok: false,
+          partial: true,
+          retryable: true,
+          lifecycleStatus: res.lifecycleStatus || 'closing',
+          error: res.error || 'Đóng phòng học gặp sự cố từng phần. Vui lòng thử lại.',
+        },
+        502,
+      )
+    }
     return loi(res.error || 'Đóng phòng học thất bại.', 500)
   }
 
   if (res.alreadyClosed) {
-    return c.json({
-      ok: false,
-      alreadyClosed: true,
-      error: 'Phòng học này đã đóng trước đó.',
-    }, 409)
+    return c.json(
+      {
+        ok: false,
+        alreadyClosed: true,
+        error: 'Phòng học này đã đóng trước đó.',
+      },
+      409,
+    )
   }
 
   // Analytics event
@@ -350,7 +366,8 @@ adminRouter.post('/rooms/:id/close', async (c) => {
         actorId: auth.admin.id,
         roomId,
         properties: {
-          reason,
+          reason: 'admin_closed',
+          note: humanNote,
           closedSocketsCount: res.closedSocketsCount ?? 0,
         },
       })
@@ -399,7 +416,7 @@ adminRouter.put('/room-policy', async (c) => {
     return loi(issue, 400)
   }
 
-  const res = await updateRoomLifecyclePolicy(c.env.DB, auth.admin, parsed.data)
+  const res = await updateRoomLifecyclePolicy(c.env.DB, auth.admin, parsed.data, c.env)
   if (!res.ok) {
     const isConflict = res.error?.includes('Xung đột')
     return loi(res.error || 'Cập nhật chính sách thất bại.', isConflict ? 409 : 400)

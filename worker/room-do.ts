@@ -44,7 +44,7 @@ import { callCloudflareRealtime } from './routes/voice-api'
 import { recordAnalyticsEvent } from './lib/analytics'
 import { processLearningSessionSummaryEngagement } from './lib/engagement'
 import type { SessionEngagementFacts } from '../shared/protocol/engagement'
-import { closeStudyRoomCanonical } from './services/room-lifecycle'
+import { claimRoomCloseD1, finalizeRoomCloseD1 } from './services/room-lifecycle'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -132,7 +132,7 @@ export interface RoomLifecycleLocalState {
 }
 
 const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
-  createdAt: Date.now(),
+  createdAt: 0,
   everJoined: false,
   lastJoinAt: null,
   lastParticipantLeftAt: null,
@@ -872,6 +872,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async reconcileRoomAlarm(): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const deadlines: number[] = []
     const now = Date.now()
 
@@ -901,7 +902,7 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // 5. Room lifecycle deadlines
-    if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled) {
+    if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled && this.lifecycleState.createdAt > 0) {
       // 5.1 Never-joined deadline
       if (!this.lifecycleState.everJoined && this.lifecycleState.neverJoinedTtlMinutes > 0) {
         const neverDue = this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
@@ -949,7 +950,8 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   private async xuLyLifecycleAlarm(now: number): Promise<void> {
-    if (this.lifecycleState.isClosed || !this.lifecycleState.autoCloseEnabled) {
+    this.nạpDuLieuNeuCan()
+    if (this.lifecycleState.isClosed || !this.lifecycleState.autoCloseEnabled || this.lifecycleState.createdAt <= 0) {
       return
     }
 
@@ -986,22 +988,37 @@ export class RoomDO extends DurableObject<Env> {
 
     if (timeoutReason) {
       const numericId = this.parseNumericRoomId()
-      if (numericId && this.env) {
+      if (numericId && this.env?.DB) {
         try {
-          await closeStudyRoomCanonical(
-            this.env,
-            numericId,
-            { type: 'system', name: 'Hệ thống tự động' },
-            timeoutReason,
-          )
+          const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, null)
+          if (claim.alreadyClosed) {
+            return
+          }
+          if (claim.claimed || claim.alreadyClosing) {
+            // Đóng trực tiếp bộ nhớ cục bộ RoomDO (NO SELF-RPC - Item 4)
+            const localRes = await this.dongPhongNoiBo({
+              reason: timeoutReason,
+              actorType: 'system',
+            })
+            // Chốt trạng thái D1 và ghi nhận audit log hệ thống
+            await finalizeRoomCloseD1(
+              this.env.DB,
+              numericId,
+              timeoutReason,
+              { type: 'system', name: 'Hệ thống tự động' },
+              localRes.closedCount,
+              true,
+            )
+          }
         } catch (err) {
-          console.error('[RoomDO.xuLyLifecycleAlarm] Lỗi đóng phòng canonical:', err)
+          console.error('[RoomDO.xuLyLifecycleAlarm] Lỗi đóng phòng alarm:', err)
         }
       }
     }
   }
 
   override async alarm(): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const now = Date.now()
     this.voiceAlarmTarget = null
     if (this.kiemTraVaCapNhatPomodoro(now)) {
@@ -4594,6 +4611,40 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // ── Milestone A1: Room Lifecycle Internal Endpoints ──
+    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/policy') {
+      try {
+        const body = (await request.json()) as {
+          policy?: {
+            autoCloseEnabled?: boolean
+            neverJoinedTtlMinutes?: number
+            emptyRoomTtlMinutes?: number
+            maxRoomLifetimeMinutes?: number
+          }
+        }
+        if (body.policy) {
+          this.nạpDuLieuNeuCan()
+          if (typeof body.policy.autoCloseEnabled === 'boolean') {
+            this.lifecycleState.autoCloseEnabled = body.policy.autoCloseEnabled
+          }
+          if (typeof body.policy.neverJoinedTtlMinutes === 'number') {
+            this.lifecycleState.neverJoinedTtlMinutes = body.policy.neverJoinedTtlMinutes
+          }
+          if (typeof body.policy.emptyRoomTtlMinutes === 'number') {
+            this.lifecycleState.emptyRoomTtlMinutes = body.policy.emptyRoomTtlMinutes
+          }
+          if (typeof body.policy.maxRoomLifetimeMinutes === 'number') {
+            this.lifecycleState.maxRoomLifetimeMinutes = body.policy.maxRoomLifetimeMinutes
+          }
+          this.luuLifecycleState()
+          await this.reconcileRoomAlarm()
+          return json({ ok: true })
+        }
+        return json({ ok: false, message: 'Thiếu policy' }, 400)
+      } catch (err: any) {
+        return json({ ok: false, error: err?.message || 'policy_update_failed' }, 500)
+      }
+    }
+
     if (request.method === 'POST' && url.pathname === '/internal/lifecycle/init') {
       try {
         const body = (await request.json()) as {
@@ -4654,6 +4705,7 @@ export class RoomDO extends DurableObject<Env> {
           closedByAccountId?: number | null
           closedByName?: string
           actorType?: string
+          note?: string | null
         }
         const res = await this.dongPhongNoiBo(body)
         return json(res)
@@ -4678,6 +4730,35 @@ export class RoomDO extends DurableObject<Env> {
       })
     }
 
+    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/policy') {
+      try {
+        const body = (await request.json()) as {
+          autoCloseEnabled?: boolean
+          neverJoinedTtlMinutes?: number
+          emptyRoomTtlMinutes?: number
+          maxRoomLifetimeMinutes?: number
+        }
+        this.nạpDuLieuNeuCan()
+        if (typeof body.autoCloseEnabled === 'boolean') {
+          this.lifecycleState.autoCloseEnabled = body.autoCloseEnabled
+        }
+        if (typeof body.neverJoinedTtlMinutes === 'number') {
+          this.lifecycleState.neverJoinedTtlMinutes = body.neverJoinedTtlMinutes
+        }
+        if (typeof body.emptyRoomTtlMinutes === 'number') {
+          this.lifecycleState.emptyRoomTtlMinutes = body.emptyRoomTtlMinutes
+        }
+        if (typeof body.maxRoomLifetimeMinutes === 'number') {
+          this.lifecycleState.maxRoomLifetimeMinutes = body.maxRoomLifetimeMinutes
+        }
+        this.luuLifecycleState()
+        await this.reconcileRoomAlarm()
+        return json({ ok: true })
+      } catch (err: any) {
+        return json({ ok: false, error: err?.message || 'policy_update_failed' }, 500)
+      }
+    }
+
     return new Response('Không tìm thấy endpoint nội bộ.', { status: 404 })
   }
 
@@ -4686,8 +4767,12 @@ export class RoomDO extends DurableObject<Env> {
     closedByAccountId?: number | null
     closedByName?: string
     actorType?: string
-  }): Promise<{ ok: boolean; closedCount: number }> {
+    note?: string | null
+  }): Promise<{ ok: boolean; closedCount: number; alreadyClosedLocally?: boolean }> {
     this.nạpDuLieuNeuCan()
+    if (this.lifecycleState.isClosed) {
+      return { ok: true, closedCount: 0, alreadyClosedLocally: true }
+    }
     const now = Date.now()
 
     // 1. Chốt trạng thái vòng đời trong RoomDO SQLite
@@ -4765,6 +4850,8 @@ export class RoomDO extends DurableObject<Env> {
       message = 'Phòng đã tự động đóng do đạt thời gian hoạt động tối đa.'
     } else if (params.reason === 'owner_closed') {
       message = 'Chủ phòng đã đóng phòng học.'
+    } else if (params.reason === 'moderator_room_close' || params.reason === 'moderation') {
+      message = 'Phòng học đã được điều hành viên đóng.'
     }
 
     const closePacket: GoiPhong = {
@@ -4801,7 +4888,7 @@ export class RoomDO extends DurableObject<Env> {
     // 8. Reconcile alarm: gỡ bỏ deadline lifecycle, duy trì retry summary/voice nếu có
     await this.reconcileRoomAlarm()
 
-    return { ok: true, closedCount }
+    return { ok: true, closedCount, alreadyClosedLocally: false }
   }
 
   async testGetLifecycleState(): Promise<RoomLifecycleLocalState> {

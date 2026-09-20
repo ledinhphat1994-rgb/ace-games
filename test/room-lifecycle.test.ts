@@ -120,7 +120,7 @@ describe('A1 — Room Lifecycle Engine: Creation & Canonical Safe Close', () => 
     // 4. Kiểm tra peer nhận được packet room.closed
     const roomClosedPkt = receivedPackets.find((p) => p.type === 'room.closed')
     expect(roomClosedPkt).toBeDefined()
-    expect(roomClosedPkt.reason).toBe('owner_done')
+    expect(roomClosedPkt.reason).toBe('owner_closed')
     expect(closedWithCode).toBe(1000)
     expect(closedWithReason).toBeDefined()
 
@@ -133,7 +133,7 @@ describe('A1 — Room Lifecycle Engine: Creation & Canonical Safe Close', () => 
 
     expect(d1Row!.trang_thai).toBe('dong')
     expect(d1Row!.closed_at).toBeGreaterThan(0)
-    expect(d1Row!.close_reason).toBe('owner_done')
+    expect(d1Row!.close_reason).toBe('owner_closed')
   })
 
   it('Admission gate fail-closed: rejects WS connection to a closed room with 403', async () => {
@@ -196,11 +196,13 @@ describe('A1 — Room Lifecycle Engine: Creation & Canonical Safe Close', () => 
     expect(auditRes.status).toBe(200)
     const auditBody = (await auditRes.json()) as {
       ok: boolean
-      logs: Array<{ action: string; reason: string; roomId: number }>
+      logs: Array<{ action: string; reason: string; metadata: string; roomId: number }>
     }
     expect(auditBody.ok).toBe(true)
     const closeLog = auditBody.logs.find((l) => l.action === 'admin_room_close')
     expect(closeLog).toBeDefined()
-    expect(closeLog!.reason).toBe('violation_check')
+    expect(closeLog!.reason).toBe('admin_closed')
+    const meta = JSON.parse(closeLog!.metadata)
+    expect(meta.note).toBe('violation_check')
   })
 })

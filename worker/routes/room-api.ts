@@ -276,7 +276,7 @@ roomRouter.post('/:id/close', async (c) => {
     return loi('Bạn không có quyền đóng phòng học này.', 403)
   }
 
-  let body: { reason?: string } = {}
+  let body: { reason?: string; note?: string } = {}
   try {
     const raw = await c.req.json()
     const parsed = CloseRoomPayloadSchema.safeParse(raw)
@@ -284,7 +284,8 @@ roomRouter.post('/:id/close', async (c) => {
   } catch {}
 
   const actorType = isAdmin ? 'admin' : isOwner ? 'owner' : 'moderator'
-  const reason = body.reason?.trim() || (isOwner ? 'owner_closed' : isAdmin ? 'admin_closed' : 'moderation')
+  const reasonCode = isOwner ? 'owner_closed' : isAdmin ? 'admin_closed' : 'moderator_room_close'
+  const humanNote = body.note || body.reason || null
 
   const res = await closeStudyRoomCanonical(
     c.env,
@@ -294,10 +295,23 @@ roomRouter.post('/:id/close', async (c) => {
       accountId: kq.taiKhoan.id,
       name: kq.taiKhoan.ten || kq.taiKhoan.username,
     },
-    reason,
+    reasonCode,
+    humanNote,
   )
 
   if (!res.ok) {
+    if (res.partial) {
+      return c.json(
+        {
+          ok: false,
+          partial: true,
+          retryable: true,
+          lifecycleStatus: res.lifecycleStatus || 'closing',
+          error: res.error || 'Đóng phòng học gặp sự cố từng phần. Vui lòng thử lại.',
+        },
+        502,
+      )
+    }
     return loi(res.error || 'Đóng phòng học thất bại.', 500)
   }
 
