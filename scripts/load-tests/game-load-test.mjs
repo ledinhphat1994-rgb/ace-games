@@ -14,6 +14,7 @@
  */
 
 import { performance } from 'node:perf_hooks'
+import { execSync } from 'node:child_process'
 
 const DEFAULT_TARGET = 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
 const TEST_PASSWORD = 'ThuNghiem@v2-2026'
@@ -271,8 +272,8 @@ function startCampusIsolationProbe(cookie, intervalMs = 1500) {
             const tm = setTimeout(() => {
               try { ws.close() } catch {}
               reject(new Error('Campus WS timeout'))
-            }, 3000)
-            ws.onmessage = (e) => {
+            }, 6000)
+            ws.onmessage = (_e) => {
               clearTimeout(tm)
               try { ws.close() } catch {}
               resolve()
@@ -280,6 +281,14 @@ function startCampusIsolationProbe(cookie, intervalMs = 1500) {
             ws.onerror = (e) => {
               clearTimeout(tm)
               reject(e)
+            }
+            ws.onclose = (e) => {
+              clearTimeout(tm)
+              if (e.code !== 1000 && e.code !== 1005) {
+                reject(new Error(`Campus WS closed: ${e.code}`))
+              } else {
+                resolve()
+              }
             }
           })
           results.latencies.push(performance.now() - wsT0)
@@ -317,7 +326,56 @@ function startCampusIsolationProbe(cookie, intervalMs = 1500) {
   }
 }
 
-// ─── Scenario 1: Distributed Concurrent Sockets (Blockers 3, 4, 5, 8) ──────────
+// ─── D1 Settlement Convergence Verification (Blocker 4) ─────────────────────────
+function verifyD1SettlementConvergence(expectedRoundIds) {
+  if (expectedRoundIds.length === 0) {
+    return { durablySettled: 0, missing: 0, duplicate: 0, finalOutboxDepth: 0 }
+  }
+
+  const idsSql = expectedRoundIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')
+  const query = `SELECT id, COUNT(*) as cnt FROM game_matches WHERE id IN (${idsSql}) GROUP BY id`
+  try {
+    const rawOut = execSync(
+      `npx wrangler d1 execute lop-10a7-db-staging --remote --json --command="${query}"`,
+      { encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'ignore'] },
+    )
+    const parsed = JSON.parse(rawOut)
+    const rows = parsed[0]?.results || []
+    const persistedMap = new Map(rows.map((r) => [r.id, r.cnt]))
+
+    let durablySettled = 0
+    let missing = 0
+    let duplicate = 0
+
+    for (const id of expectedRoundIds) {
+      const cnt = persistedMap.get(id) || 0
+      if (cnt === 1) {
+        durablySettled++
+      } else if (cnt === 0) {
+        missing++
+      } else if (cnt > 1) {
+        duplicate++
+      }
+    }
+
+    return {
+      durablySettled,
+      missing,
+      duplicate,
+      finalOutboxDepth: missing,
+    }
+  } catch (err) {
+    console.error('Failed to verify D1 settlement convergence:', err.message)
+    return {
+      durablySettled: 0,
+      missing: expectedRoundIds.length,
+      duplicate: 0,
+      finalOutboxDepth: expectedRoundIds.length,
+    }
+  }
+}
+
+// ─── Scenario 1: Distributed Concurrent Sockets (Blockers 1, 2, 3, 4, 5, 8) ────
 async function runDistributedScenario(totalSockets = 100) {
   const matchCount = Math.floor(totalSockets / 2)
   console.log(`\n▶ [Distributed Barrier Test] Target: ${totalSockets} concurrent sockets across ${matchCount} matches...`)
@@ -328,7 +386,9 @@ async function runDistributedScenario(totalSockets = 100) {
   const openConnections = []
   let currentlyOpen = 0
   let peakOpenSockets = 0
-  let unexpectedDisconnects = 0
+  let setupFailures = 0
+  let unexpectedRuntimeDisconnects = 0
+  let isCleaningUp = false
   const connectLatencies = []
   const actionPropagationLatencies = []
 
@@ -345,21 +405,31 @@ async function runDistributedScenario(totalSockets = 100) {
       const matchId = `dist-${totalSockets}-${Date.now().toString(36)}-${matchIndex}`
 
       try {
-        const [conn1, conn2] = await Promise.all([
-          connectGameSession(matchId, p1Cookie),
-          connectGameSession(matchId, p2Cookie),
-        ])
+        const conn1 = await connectGameSession(matchId, p1Cookie)
+        const conn2 = await connectGameSession(matchId, p2Cookie)
 
         connectLatencies.push(conn1.connectLatency, conn2.connectLatency)
         currentlyOpen += 2
         peakOpenSockets = Math.max(peakOpenSockets, currentlyOpen)
 
-        conn1.ws.onclose = () => { currentlyOpen-- }
-        conn2.ws.onclose = () => { currentlyOpen-- }
+        conn1.ws.onclose = (e) => {
+          currentlyOpen--
+          if (!isCleaningUp) {
+            unexpectedRuntimeDisconnects++
+            console.warn(`[Runtime Disconnect] conn1 in ${matchId} closed unexpectedly (code=${e.code})`)
+          }
+        }
+        conn2.ws.onclose = (e) => {
+          currentlyOpen--
+          if (!isCleaningUp) {
+            unexpectedRuntimeDisconnects++
+            console.warn(`[Runtime Disconnect] conn2 in ${matchId} closed unexpectedly (code=${e.code})`)
+          }
+        }
 
         openConnections.push({ matchId, conn1, conn2 })
       } catch (err) {
-        unexpectedDisconnects++
+        setupFailures += 2
       }
     })
     await Promise.all(promises)
@@ -372,46 +442,89 @@ async function runDistributedScenario(totalSockets = 100) {
   // 2. Start Concurrent Campus Core Isolation Probe (Blocker 5)
   const campusProbe = startCampusIsolationProbe(p1Cookie, 1500)
 
-  // 3. Synchronized Activity & Real Action Propagation Latency (Blocker 4)
-  const sampleSize = Math.min(openConnections.length, 30)
-  for (let i = 0; i < sampleSize; i++) {
-    const { conn1, conn2 } = openConnections[i]
-    try {
-      // Ready check on both players to guarantee match starts
-      conn1.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
-      conn2.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
+  // 3. Separate distinct match pools for action probes vs settlement samples
+  const settlementCount = Math.min(10, Math.floor(openConnections.length / 4) || 1)
+  const actionCount = Math.min(30, openConnections.length - settlementCount)
 
-      // Wait for playing status
-      await waitForMessage(conn1, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
+  const actionMatches = openConnections.slice(0, actionCount)
+  const settlementMatches = openConnections.slice(actionCount, actionCount + settlementCount)
 
-      // Measure real application propagation: t0 -> authoritative match.state received on peer
-      const t0 = performance.now()
-      conn1.ws.send(JSON.stringify({ type: 'match.move', x: 7, y: 7 }))
-
-      await waitForMessage(conn2, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
-      const rtt = performance.now() - t0
-      actionPropagationLatencies.push(rtt)
-    } catch {}
+  // Helper to determine Player X (moves first) vs Player O
+  function resolvePlayerSides(conn1, conn2) {
+    const snap1 = conn1.snapshot
+    if (snap1 && snap1.players) {
+      const players = Object.values(snap1.players)
+      const p1 = players.find((p) => p.name === 'qa.v2.thu1')
+      if (p1 && p1.side === 'O') return { pX: conn2, pO: conn1 }
+    }
+    return { pX: conn1, pO: conn2 }
   }
 
-  // 4. Settlement Under Load (Blocker 8)
-  const settlementSample = Math.min(openConnections.length, 10)
-  let settlementSuccesses = 0
-  let settlementFailures = 0
-  for (let i = 0; i < settlementSample; i++) {
-    const { conn1, conn2 } = openConnections[i]
-    try {
-      // Ensure match is in playing status before surrender
-      conn1.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
-      conn2.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
-      await waitForMessage(conn1, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
+  // Synchronized Activity & Real Action Propagation Latency (Blocker 1 & 4)
+  let actionAttempts = 0
+  let actionSuccesses = 0
+  let actionFailures = 0
+  const actionFailureReasons = []
 
-      conn2.ws.send(JSON.stringify({ type: 'match.surrender' }))
-      await waitForMessage(conn1, (m) => m.type === 'match.ended', 6000)
-      settlementSuccesses++
-    } catch {
+  for (let i = 0; i < actionMatches.length; i++) {
+    const { conn1, conn2, matchId } = actionMatches[i]
+    const { pX, pO } = resolvePlayerSides(conn1, conn2)
+    actionAttempts++
+    try {
+      // Ready check on both players
+      pX.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
+      pO.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
+
+      // Ensure both players have transitioned to playing before action probe
+      await Promise.all([
+        waitForMessage(pX, (m) => m.type === 'match.state' && m.status === 'playing', 6000),
+        waitForMessage(pO, (m) => m.type === 'match.state' && m.status === 'playing', 6000),
+      ])
+
+      const t0 = performance.now()
+      // Player X moves first
+      pX.ws.send(JSON.stringify({ type: 'match.move', x: 7, y: 7 }))
+      await waitForMessage(pO, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
+      const rtt = performance.now() - t0
+      actionPropagationLatencies.push(rtt)
+      actionSuccesses++
+    } catch (err) {
+      actionFailures++
+      actionFailureReasons.push(`Match ${matchId}: ${err.message}`)
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+
+  const actionSuccessPercent = actionAttempts > 0
+    ? parseFloat(((actionSuccesses / actionAttempts) * 100).toFixed(1))
+    : 100.0
+
+  // 4. Settlement Under Load & Durable Convergence (Blocker 4 & 8)
+  let settlementAttempts = 0
+  let gameplayEnded = 0
+  let settlementFailures = 0
+  const expectedRounds = []
+
+  for (let i = 0; i < settlementMatches.length; i++) {
+    const { conn1, conn2, matchId } = settlementMatches[i]
+    const { pX, pO } = resolvePlayerSides(conn1, conn2)
+    settlementAttempts++
+    try {
+      pX.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
+      pO.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
+      await Promise.all([
+        waitForMessage(pX, (m) => m.type === 'match.state' && m.status === 'playing', 6000),
+        waitForMessage(pO, (m) => m.type === 'match.state' && m.status === 'playing', 6000),
+      ])
+
+      pO.ws.send(JSON.stringify({ type: 'match.surrender' }))
+      await waitForMessage(pX, (m) => m.type === 'match.ended', 6000)
+      gameplayEnded++
+      expectedRounds.push(matchId)
+    } catch (err) {
       settlementFailures++
     }
+    await new Promise((r) => setTimeout(r, 100))
   }
 
   // 5. Load Dwell Period (hold open under load)
@@ -420,7 +533,17 @@ async function runDistributedScenario(totalSockets = 100) {
   // 6. Stop Campus Isolation Probe
   const campusMetrics = await campusProbe.stop()
 
-  // 7. Clean up all connections
+  // 7. Verify Durable D1 Settlement Convergence
+  console.log(`  → Verifying D1 settlement convergence for ${expectedRounds.length} rounds...`)
+  const d1Convergence = verifyD1SettlementConvergence(expectedRounds)
+  const durablySettled = d1Convergence.durablySettled
+  const missingSettlements = d1Convergence.missing
+  const duplicateSettlements = d1Convergence.duplicate
+  const finalOutboxDepth = d1Convergence.finalOutboxDepth
+  settlementFailures += (settlementAttempts - durablySettled)
+
+  // 8. Clean up all connections
+  isCleaningUp = true
   openConnections.forEach(({ conn1, conn2 }) => {
     try { conn1.ws.close() } catch {}
     try { conn2.ws.close() } catch {}
@@ -433,38 +556,49 @@ async function runDistributedScenario(totalSockets = 100) {
     targetSockets: totalSockets,
     peakOpenSockets,
     successSockets,
+    setupFailures,
     connectionSuccessPercent,
-    unexpectedDisconnects,
+    unexpectedRuntimeDisconnects,
     connectP50: calculatePercentile(connectLatencies, 50),
     connectP95: calculatePercentile(connectLatencies, 95),
     connectP99: calculatePercentile(connectLatencies, 99),
-    actionSamples: actionPropagationLatencies.length,
+    actionAttempts,
+    actionSuccesses,
+    actionFailures,
+    actionFailureReasons,
+    actionSuccessPercent,
     actionP50: calculatePercentile(actionPropagationLatencies, 50),
     actionP95: calculatePercentile(actionPropagationLatencies, 95),
     actionP99: calculatePercentile(actionPropagationLatencies, 99),
-    settlementSuccesses,
+    settlementAttempts,
+    gameplayEnded,
+    durablySettled,
+    missingSettlements,
+    duplicateSettlements,
+    finalOutboxDepth,
     settlementFailures,
     campusRequestCount: campusMetrics.requestCount,
     campusSuccessPercent: campusMetrics.successPercent,
     campusP50: campusMetrics.p50,
     campusP95: campusMetrics.p95,
+    campusP99: campusMetrics.p99,
     campus5xx: campusMetrics.fiveXxCount,
+    campusTimeouts: campusMetrics.timeouts,
+    campusWsFailures: campusMetrics.campusWsFailures,
     durationMs,
   }
 }
 
-// ─── Scenario 2: Hot Object & Spectator Capacity (Blockers 1, 2, 14) ───────────
+// ─── Scenario 2: Hot Object Spectator Capacity (Blockers 6, 9) ─────────────────
 async function runHotObjectScenario() {
-  console.log(`\n▶ [Hot Object & Spectators] 2 players + 30 distinct spectators + overflow #31...`)
+  console.log('\n▶ [Hot Object] 30 distinct spectators + 1 overflow spectator + active match...')
   const p1Cookie = await ensureStagingUser('qa.v2.thu1')
   const p2Cookie = await ensureStagingUser('qa.v2.thu2')
 
-  // Provision 31 distinct staging QA spectator accounts (qa.staging.spec.01 .. 31)
-  console.log('  → Ensuring 31 unique QA spectator accounts in staging...')
   const spectatorCookies = []
   for (let i = 1; i <= 31; i++) {
-    const username = `qa.staging.spec.${String(i).padStart(2, '0')}`
-    const cookie = await ensureStagingUser(username, TEST_PASSWORD, `Khán giả ${i}`)
+    const idxStr = i < 10 ? `0${i}` : `${i}`
+    const cookie = await ensureStagingUser(`qa.staging.spec.${idxStr}`)
     spectatorCookies.push(cookie)
   }
 
@@ -509,12 +643,17 @@ async function runHotObjectScenario() {
   } catch {}
 
   // Verify active players can still move smoothly under hot spectator load
+  p1.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
   p2.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
-  await waitForMessage(p1.ws, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
+  await waitForMessage(p1, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
 
+  let playerActionSucceeds = false
   const moveT0 = performance.now()
-  p1.ws.send(JSON.stringify({ type: 'match.move', x: 5, y: 5 }))
-  await waitForMessage(p2.ws, (m) => m.type === 'match.state' && m.lastMove?.x === 5 && m.lastMove?.y === 5, 5000)
+  try {
+    p1.ws.send(JSON.stringify({ type: 'match.move', x: 5, y: 5 }))
+    await waitForMessage(p2, (m) => m.type === 'match.state' && m.lastMove?.x === 5 && m.lastMove?.y === 5, 5000)
+    playerActionSucceeds = true
+  } catch {}
   const playerMoveLatencyMs = Math.round(performance.now() - moveT0)
 
   // Cleanup
@@ -529,12 +668,13 @@ async function runHotObjectScenario() {
     connectedSpectators: spectators.length,
     refusedSpectators,
     spectatorCapEnforced,
+    playerActionSucceeds,
     playerMoveLatencyMs,
-    pass: spectators.length === 30 && spectatorCapEnforced,
+    pass: spectators.length === 30 && spectatorCapEnforced && playerActionSucceeds && playerMoveLatencyMs <= 500,
   }
 }
 
-// ─── Scenario 3: Reconnect Storm (Blocker 9) ──────────────────────────────────
+// ─── Scenario 3: Reconnect Storm (Blockers 7, 9) ───────────────────────────────
 async function runReconnectStormScenario(stormSockets = 100) {
   const matchCount = Math.floor(stormSockets / 2)
   console.log(`\n▶ [Reconnect Storm] Testing ${stormSockets} sockets under both Worst-Case and Production Jittered policies...`)
@@ -561,7 +701,6 @@ async function runReconnectStormScenario(stormSockets = 100) {
   })
 
   // Immediate reconnect
-  const worstCaseT0 = performance.now()
   let worstCaseRecovered = 0
   const worstCaseLatencies = []
   await Promise.all(
@@ -606,6 +745,7 @@ async function runReconnectStormScenario(stormSockets = 100) {
       // Jitter delay: 100ms - 800ms
       const jitterDelay = 100 + Math.random() * 700
       await new Promise((r) => setTimeout(r, jitterDelay))
+
       try {
         const t0 = performance.now()
         const [r1, r2] = await Promise.all([
@@ -623,13 +763,17 @@ async function runReconnectStormScenario(stormSockets = 100) {
   return {
     scenario: 'Reconnect Storm (100 Sockets)',
     worstCaseRecovered,
+    worstCaseFailedCount: stormSockets - worstCaseRecovered,
     worstCaseRecoveryPercent: parseFloat(((worstCaseRecovered / stormSockets) * 100).toFixed(1)),
     worstCaseP50: calculatePercentile(worstCaseLatencies, 50),
     worstCaseP95: calculatePercentile(worstCaseLatencies, 95),
+    worstCaseP99: calculatePercentile(worstCaseLatencies, 99),
     prodRecovered,
+    prodFailedCount: stormSockets - prodRecovered,
     prodRecoveryPercent: parseFloat(((prodRecovered / stormSockets) * 100).toFixed(1)),
     prodP50: calculatePercentile(prodLatencies, 50),
     prodP95: calculatePercentile(prodLatencies, 95),
+    prodP99: calculatePercentile(prodLatencies, 99),
   }
 }
 
@@ -644,21 +788,29 @@ async function runAbuseScenario() {
   const p1 = await connectGameSession(matchId, p1Cookie)
   const p2 = await connectGameSession(matchId, p2Cookie)
 
+  p1.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
   p2.ws.send(JSON.stringify({ type: 'match.ready', ready: true }))
-  await waitForMessage(p1.ws, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
+  await waitForMessage(p1, (m) => m.type === 'match.state' && m.status === 'playing', 6000)
 
   // Measure baseline legitimate move latency
   const baseT0 = performance.now()
   p1.ws.send(JSON.stringify({ type: 'match.move', x: 7, y: 7 }))
-  await waitForMessage(p2.ws, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
+  await waitForMessage(p2, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
   const baselineMoveLatencyMs = Math.round(performance.now() - baseT0)
 
   // Connect attacker socket
   const attacker = await connectGameSession(matchId, attackerCookie)
   let attackerClosedWith4429 = false
-  attacker.ws.onclose = (e) => {
-    if (e.code === 4429) attackerClosedWith4429 = true
-  }
+  const closePromise = new Promise((resolve) => {
+    const handleClose = (code) => {
+      if (code === 4429) attackerClosedWith4429 = true
+      resolve(code)
+    }
+    if (attacker.ws.addEventListener) {
+      attacker.ws.addEventListener('close', (e) => handleClose(e.code))
+    }
+    attacker.ws.onclose = (e) => handleClose(e?.code)
+  })
 
   // Attacker floods malformed packets and oversized frames
   for (let i = 0; i < 6; i++) {
@@ -671,10 +823,11 @@ async function runAbuseScenario() {
   // Legitimate players continue playing DURING attack
   const attackT0 = performance.now()
   p2.ws.send(JSON.stringify({ type: 'match.move', x: 8, y: 8 }))
-  await waitForMessage(p1.ws, (m) => m.type === 'match.state' && m.lastMove?.x === 8 && m.lastMove?.y === 8, 5000)
+  await waitForMessage(p1, (m) => m.type === 'match.state' && m.lastMove?.x === 8 && m.lastMove?.y === 8, 5000)
   const duringAttackMoveLatencyMs = Math.round(performance.now() - attackT0)
 
-  await new Promise((r) => setTimeout(r, 500))
+  // Wait for attacker close frame to arrive over the network
+  await Promise.race([closePromise, new Promise((r) => setTimeout(r, 4000))])
 
   p1.ws.close()
   p2.ws.close()
@@ -686,6 +839,136 @@ async function runAbuseScenario() {
     duringAttackMoveLatencyMs,
     legitimateMatchFunctional: duringAttackMoveLatencyMs < 600,
     pass: attackerClosedWith4429 && duringAttackMoveLatencyMs < 600,
+  }
+}
+
+// ─── Release Gate Evaluation Functions (Blockers 3, 5, 7, 9, 13) ───────────────
+export function evaluateDistributedTier(result, tierSockets) {
+  const isHighTier = tierSockets >= 500
+  const minConnSuccess = isHighTier ? 99.5 : 99.0
+  const maxDisconnectRate = 0.5 // 0.5% max unexpected runtime disconnect
+  const minActionSuccess = 99.0
+  const maxActionP95 = isHighTier ? 300 : 500
+  const maxActionP99 = isHighTier ? 1000 : 1200
+  const minCampusSuccess = 99.5
+
+  const failures = []
+
+  // 1. Connection success
+  if (result.connectionSuccessPercent < minConnSuccess) {
+    failures.push(`Connection success ${result.connectionSuccessPercent}% < required ${minConnSuccess}%`)
+  }
+
+  // 2. Runtime unexpected disconnects
+  const runtimeDisconnectRate = result.targetSockets > 0
+    ? (result.unexpectedRuntimeDisconnects / result.targetSockets) * 100
+    : 0
+  if (runtimeDisconnectRate > maxDisconnectRate) {
+    failures.push(`Unexpected runtime disconnects: ${result.unexpectedRuntimeDisconnects} (${runtimeDisconnectRate.toFixed(2)}%) > allowed ${maxDisconnectRate}%`)
+  }
+
+  // 3. Action propagation success & latency
+  if (result.actionSuccessPercent < minActionSuccess) {
+    failures.push(`Action success ${result.actionSuccessPercent}% < required ${minActionSuccess}%`)
+  }
+  if (result.actionP95 > maxActionP95) {
+    failures.push(`Action P95 latency ${result.actionP95}ms > threshold ${maxActionP95}ms`)
+  }
+  if (result.actionP99 > maxActionP99) {
+    failures.push(`Action P99 latency ${result.actionP99}ms > threshold ${maxActionP99}ms`)
+  }
+
+  // 4. Settlement under load
+  if (result.settlementFailures > 0) {
+    failures.push(`Settlement failures: ${result.settlementFailures}`)
+  }
+  if (result.missingSettlements > 0) {
+    failures.push(`Missing settlements in D1: ${result.missingSettlements}`)
+  }
+  if (result.duplicateSettlements > 0) {
+    failures.push(`Duplicate settlements in D1: ${result.duplicateSettlements}`)
+  }
+  if (result.durablySettled !== result.settlementAttempts) {
+    failures.push(`Durably settled ${result.durablySettled} !== attempted ${result.settlementAttempts}`)
+  }
+  if (result.finalOutboxDepth > 0) {
+    failures.push(`Final outstanding outbox depth: ${result.finalOutboxDepth} > 0`)
+  }
+
+  // 5. Campus core isolation
+  if (result.campus5xx > 0) {
+    failures.push(`Campus core 5xx count: ${result.campus5xx} > 0`)
+  }
+  if (result.campusTimeouts > 0) {
+    failures.push(`Campus core timeouts: ${result.campusTimeouts} > 0`)
+  }
+  if (result.campusWsFailures > 0) {
+    failures.push(`Campus WS failures: ${result.campusWsFailures} > 0`)
+  }
+  if (result.campusSuccessPercent < minCampusSuccess) {
+    failures.push(`Campus core success ${result.campusSuccessPercent}% < required ${minCampusSuccess}%`)
+  }
+
+  return {
+    pass: failures.length === 0,
+    failures,
+  }
+}
+
+export function evaluateHotObjectResult(result) {
+  const failures = []
+  if (result.connectedSpectators !== 30) {
+    failures.push(`Connected spectators ${result.connectedSpectators} !== 30`)
+  }
+  if (result.refusedSpectators < 1) {
+    failures.push(`Refused spectator #31 count ${result.refusedSpectators} < 1`)
+  }
+  if (!result.spectatorCapEnforced) {
+    failures.push(`Spectator cap not enforced`)
+  }
+  if (!result.playerActionSucceeds) {
+    failures.push(`Player action under hot load failed`)
+  }
+  if (result.playerMoveLatencyMs > 500) {
+    failures.push(`Player move latency under hot load ${result.playerMoveLatencyMs}ms > 500ms`)
+  }
+  return {
+    pass: failures.length === 0,
+    failures,
+  }
+}
+
+export function evaluateReconnectResult(result) {
+  const failures = []
+  if (result.prodRecoveryPercent < 99.0) {
+    failures.push(`Production jittered reconnect recovery ${result.prodRecoveryPercent}% < 99.0%`)
+  }
+  if (result.prodFailedCount > 0) {
+    failures.push(`Production jittered reconnect failed count: ${result.prodFailedCount} > 0`)
+  }
+  if (result.worstCaseRecoveryPercent < 95.0) {
+    failures.push(`Worst-case reconnect recovery ${result.worstCaseRecoveryPercent}% < 95.0%`)
+  }
+  return {
+    pass: failures.length === 0,
+    failures,
+  }
+}
+
+export function evaluateAbuseResult(result) {
+  const failures = []
+  if (!result.attackerDisconnectedWith4429) {
+    failures.push(`Attacker was not disconnected with WebSocket code 4429`)
+  }
+  if (!result.legitimateMatchFunctional) {
+    failures.push(`Legitimate match was degraded during attack`)
+  }
+  if (result.duringAttackMoveLatencyMs > 600) {
+    failures.push(`Legitimate move latency during attack ${result.duringAttackMoveLatencyMs}ms > 600ms`)
+  }
+  return {
+    pass: failures.length === 0,
+    failures,
   }
 }
 
@@ -704,34 +987,46 @@ async function main() {
   try {
     if (scenario === 'all' || scenario === 'hot') {
       report.hotObject = await runHotObjectScenario()
-      if (!report.hotObject.pass) allGatesPassed = false
+      const evalHot = evaluateHotObjectResult(report.hotObject)
+      if (!evalHot.pass) {
+        console.error('❌ Hot Object Gate Failed:', evalHot.failures)
+        allGatesPassed = false
+      }
     }
 
     if (scenario === 'all' || scenario === 'distributed' || scenario === 'tiers') {
       if (scenario === 'distributed') {
         report[`tier_${concurrency}`] = await runDistributedScenario(concurrency)
-        if (
-          report[`tier_${concurrency}`].connectionSuccessPercent < (concurrency >= 500 ? 98.0 : 99.0) ||
-          report[`tier_${concurrency}`].actionP95 > (concurrency >= 500 ? 800 : 500)
-        ) {
+        const evalTier = evaluateDistributedTier(report[`tier_${concurrency}`], concurrency)
+        if (!evalTier.pass) {
+          console.error(`❌ Distributed Tier ${concurrency} Gate Failed:`, evalTier.failures)
           allGatesPassed = false
         }
       } else {
         // Tier A: 100 sockets
         report.tierA = await runDistributedScenario(100)
-        if (report.tierA.connectionSuccessPercent < 99.0 || report.tierA.actionP95 > 500) {
+        const evalA = evaluateDistributedTier(report.tierA, 100)
+        if (!evalA.pass) {
+          console.error('❌ Tier A (100 sockets) Gate Failed:', evalA.failures)
           allGatesPassed = false
         }
 
         // Tier B: 500 sockets
         report.tierB = await runDistributedScenario(500)
-        if (report.tierB.connectionSuccessPercent < 98.0 || report.tierB.actionP95 > 800) {
+        const evalB = evaluateDistributedTier(report.tierB, 500)
+        if (!evalB.pass) {
+          console.error('❌ Tier B (500 sockets) Gate Failed:', evalB.failures)
           allGatesPassed = false
         }
 
         // Tier C: 1000 sockets (only if Tier B passes cleanly)
-        if (report.tierB.connectionSuccessPercent >= 98.0 && report.tierB.unexpectedDisconnects <= 5) {
+        if (evalB.pass) {
           report.tierC = await runDistributedScenario(1000)
+          const evalC = evaluateDistributedTier(report.tierC, 1000)
+          if (!evalC.pass) {
+            console.error('❌ Tier C (1000 sockets) Gate Failed:', evalC.failures)
+            allGatesPassed = false
+          }
         } else {
           report.tierC = { status: 'NOT EXECUTED', reason: 'Tier B did not meet clean threshold for Tier C scaling' }
         }
@@ -740,12 +1035,20 @@ async function main() {
 
     if (scenario === 'all' || scenario === 'reconnect') {
       report.reconnect = await runReconnectStormScenario(100)
-      if (report.reconnect.prodRecoveryPercent < 95.0) allGatesPassed = false
+      const evalRec = evaluateReconnectResult(report.reconnect)
+      if (!evalRec.pass) {
+        console.error('❌ Reconnect Storm Gate Failed:', evalRec.failures)
+        allGatesPassed = false
+      }
     }
 
     if (scenario === 'all' || scenario === 'abuse') {
       report.abuse = await runAbuseScenario()
-      if (!report.abuse.pass) allGatesPassed = false
+      const evalAbuse = evaluateAbuseResult(report.abuse)
+      if (!evalAbuse.pass) {
+        console.error('❌ Abuse Isolation Gate Failed:', evalAbuse.failures)
+        allGatesPassed = false
+      }
     }
 
     console.log('\n=================================================================')
@@ -766,4 +1069,7 @@ async function main() {
   }
 }
 
-main()
+// Only invoke main when executed directly
+if (process.argv[1] && process.argv[1].endsWith('game-load-test.mjs')) {
+  main()
+}
