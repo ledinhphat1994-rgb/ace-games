@@ -85,6 +85,7 @@ export class SnakeSoloVerifier implements SoloGameVerifier {
         reason:
           replay.reason ??
           'Ván đấu chưa đạt trạng thái kết thúc hợp lệ (chưa va chạm tường hoặc thân).',
+        terminalReason: replay.terminalReason ?? undefined,
       }
     }
 
@@ -92,6 +93,7 @@ export class SnakeSoloVerifier implements SoloGameVerifier {
       valid: true,
       computedScore: replay.computedScore,
       verificationHash: '', // worker/index.ts generates canonical SHA-256 with sessionId
+      terminalReason: replay.terminalReason ?? undefined,
     }
   }
 }

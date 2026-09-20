@@ -12,9 +12,14 @@ function computePercentiles(arr) {
   }
 }
 
-async function runTier(tierCount, cookie) {
+async function runTier(tierCount, cookie, options = {}) {
+  const isBurst = Boolean(options.isBurst)
+  const title = isBurst
+    ? `BURST TIER: ${tierCount} SIMULTANEOUS FINISHES`
+    : `STAGGERED TIER: ${tierCount} CONCURRENT SESSIONS`
+
   console.log(`\n======================================================`)
-  console.log(`RUNNING G1 OVERLOAD TIER: ${tierCount} CONCURRENT SESSIONS`)
+  console.log(`RUNNING G1 OVERLOAD: ${title}`)
   console.log(`======================================================`)
 
   const startLatencies = []
@@ -31,19 +36,32 @@ async function runTier(tierCount, cookie) {
   ]
 
   // Concurrently probe Campus core health during the overload run
-  let campusProbeSuccess = 0
-  let campusProbeTotal = 0
+  let coldStartProbe = null
+  let steadyProbeSuccess = 0
+  let steadyProbeTotal = 0
+  let probeCount = 0
+
   const campusProbeInterval = setInterval(async () => {
-    campusProbeTotal++
+    probeCount++
     try {
       const res = await fetch(`${TARGET}/`, { signal: AbortSignal.timeout(5000) })
-      if (res.status === 200) campusProbeSuccess++
+      const ok = res.status === 200
+      if (probeCount === 1) {
+        coldStartProbe = ok
+      } else {
+        steadyProbeTotal++
+        if (ok) steadyProbeSuccess++
+      }
     } catch {
-      // Failed probe
+      if (probeCount === 1) {
+        coldStartProbe = false
+      } else {
+        steadyProbeTotal++
+      }
     }
   }, 250)
 
-  // 1. Concurrent Session Starts (batched in chunks of 50 to avoid local socket exhaustion)
+  // 1. Session Starts (in batches of 50 to avoid local socket exhaustion)
   const sessions = []
   const batchSize = 50
 
@@ -80,9 +98,11 @@ async function runTier(tierCount, cookie) {
     }
   }
 
-  // 2. Concurrent Session Finishes (Staggered realistic load & burst)
-  for (let i = 0; i < sessions.length; i += batchSize) {
-    const batch = sessions.slice(i, i + batchSize).map(async (sess) => {
+  // 2. Session Finishes
+  if (isBurst) {
+    // BURST SCENARIO: All finish requests fired simultaneously
+    console.log(`[Burst] Firing ${sessions.length} simultaneous finish requests...`)
+    const burstPromises = sessions.map(async (sess) => {
       const t0 = performance.now()
       try {
         const res = await fetch(`${TARGET}/api/game/session/finish`, {
@@ -94,7 +114,7 @@ async function runTier(tierCount, cookie) {
             durationMs: 2000,
             inputTrace: validTrace,
           }),
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(15000),
         })
         const elapsed = performance.now() - t0
         finishLatencies.push(elapsed)
@@ -113,16 +133,56 @@ async function runTier(tierCount, cookie) {
       }
     })
 
-    await Promise.all(batch)
+    await Promise.all(burstPromises)
+  } else {
+    // STAGGERED SCENARIO: Realistic batches of 50
+    for (let i = 0; i < sessions.length; i += batchSize) {
+      const batch = sessions.slice(i, i + batchSize).map(async (sess) => {
+        const t0 = performance.now()
+        try {
+          const res = await fetch(`${TARGET}/api/game/session/finish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Cookie: cookie },
+            body: JSON.stringify({
+              sessionId: sess.sessionId,
+              score: 0,
+              durationMs: 2000,
+              inputTrace: validTrace,
+            }),
+            signal: AbortSignal.timeout(10000),
+          })
+          const elapsed = performance.now() - t0
+          finishLatencies.push(elapsed)
+
+          if (res.status >= 500) error5xx++
+          if (res.status === 200) {
+            const data = await res.json()
+            if (data.ok) {
+              finishSuccess++
+              if (data.verified) verifiedSuccess++
+            }
+          }
+        } catch (err) {
+          if (String(err).includes('500') || String(err).includes('503')) error5xx++
+          d1Errors++
+        }
+      })
+
+      await Promise.all(batch)
+    }
   }
 
   clearInterval(campusProbeInterval)
 
   const startP = computePercentiles(startLatencies)
   const finishP = computePercentiles(finishLatencies)
+  const steadyHealthRate = steadyProbeTotal > 0
+    ? (steadyProbeSuccess / steadyProbeTotal) * 100
+    : 100
 
   const report = {
     tier: tierCount,
+    mode: isBurst ? 'burst' : 'staggered',
     startAttempts: tierCount,
     startSuccess,
     startSuccessRate: ((startSuccess / tierCount) * 100).toFixed(1) + '%',
@@ -135,15 +195,72 @@ async function runTier(tierCount, cookie) {
     finishLatencies: finishP,
     error5xx,
     d1Errors,
-    campusProbeSuccess: `${campusProbeSuccess}/${campusProbeTotal} (${((campusProbeSuccess / Math.max(1, campusProbeTotal)) * 100).toFixed(1)}%)`,
+    coldStartProbe: coldStartProbe ? 'OK (200)' : 'FAILED',
+    steadyCampusProbe: `${steadyProbeSuccess}/${steadyProbeTotal} (${steadyHealthRate.toFixed(1)}%)`,
+    steadyCampusHealthRate: steadyHealthRate,
   }
 
-  console.log(`Tier ${tierCount} Report:`, JSON.stringify(report, null, 2))
+  console.log(`Report:`, JSON.stringify(report, null, 2))
   return report
 }
 
+function evaluateReleaseGates(reports) {
+  console.log('\n======================================================')
+  console.log('EVALUATING G1 MACHINE RELEASE GATES (Section 14)')
+  console.log('======================================================')
+
+  let hasFailure = false
+
+  for (const rep of reports) {
+    const name = `${rep.mode.toUpperCase()} ${rep.tier}`
+    const startRate = parseFloat(rep.startSuccessRate)
+    const finishRate = parseFloat(rep.finishSuccessRate)
+    const verifiedRate = parseFloat(rep.verifiedRate)
+
+    if (startRate < 99.0) {
+      console.error(`❌ [${name}] Start success rate ${startRate}% < 99%`)
+      hasFailure = true
+    }
+    if (finishRate < 99.0) {
+      console.error(`❌ [${name}] Finish success rate ${finishRate}% < 99%`)
+      hasFailure = true
+    }
+    if (verifiedRate < 100.0) {
+      console.error(`❌ [${name}] Verification success rate ${verifiedRate}% < 100%`)
+      hasFailure = true
+    }
+    if (rep.error5xx > 0) {
+      console.error(`❌ [${name}] HTTP 5xx errors: ${rep.error5xx} > 0`)
+      hasFailure = true
+    }
+    if (rep.d1Errors > 0) {
+      console.error(`❌ [${name}] D1 errors: ${rep.d1Errors} > 0`)
+      hasFailure = true
+    }
+    if (rep.steadyCampusHealthRate < 95.0) {
+      console.error(`❌ [${name}] Campus steady-state health ${rep.steadyCampusHealthRate}% < 95%`)
+      hasFailure = true
+    }
+    if (rep.startLatencies.p95 > 1000) {
+      console.error(`❌ [${name}] Start P95 latency ${rep.startLatencies.p95}ms > 1000ms`)
+      hasFailure = true
+    }
+    if (rep.finishLatencies.p95 > 1500) {
+      console.error(`❌ [${name}] Finish P95 latency ${rep.finishLatencies.p95}ms > 1500ms`)
+      hasFailure = true
+    }
+  }
+
+  if (hasFailure) {
+    console.error('\n❌ MACHINE RELEASE GATE FAILED!')
+    process.exit(1)
+  }
+
+  console.log('\n✅ ALL G1 OVERLOAD & BURST RELEASE GATES PASSED!')
+}
+
 async function main() {
-  console.log(`Connecting to ${TARGET}...`)
+  console.log(`Target URL: ${TARGET}`)
 
   // Register benchmark user
   const ts = Date.now()
@@ -164,14 +281,22 @@ async function main() {
   const cookie = rLogin.headers.get('set-cookie')?.split(';')[0]
   if (!cookie) throw new Error('Failed to get benchmark auth cookie')
 
-  const report100 = await runTier(100, cookie)
-  const report250 = await runTier(250, cookie)
-  const report500 = await runTier(500, cookie)
+  // 1. Staggered Tiers
+  const report100 = await runTier(100, cookie, { isBurst: false })
+  const report250 = await runTier(250, cookie, { isBurst: false })
+  const report500 = await runTier(500, cookie, { isBurst: false })
+
+  // 2. Burst Tiers (Section 15: 100 simultaneous, then 250 simultaneous)
+  const burst100 = await runTier(100, cookie, { isBurst: true })
+  const burst250 = await runTier(250, cookie, { isBurst: true })
 
   console.log('\n======================================================')
   console.log('OVERALL G1 LOAD BENCHMARK SUMMARY')
   console.log('======================================================')
-  console.log(JSON.stringify({ report100, report250, report500 }, null, 2))
+  console.log(JSON.stringify({ report100, report250, report500, burst100, burst250 }, null, 2))
+
+  // 3. Machine-gated evaluation
+  evaluateReleaseGates([report100, report250, report500, burst100, burst250])
 }
 
 main().catch((err) => {

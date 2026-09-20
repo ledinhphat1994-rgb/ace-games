@@ -45,7 +45,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       const rStart = await exports.default.fetch(`${GOC}/api/game/session/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameType: 'solo_snake' }),
+        body: JSON.stringify({ gameType: 'solo_2048' }),
       })
       expect(rStart.status).toBe(401)
 
@@ -70,7 +70,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({
-          gameType: 'solo_snake',
+          gameType: 'solo_2048',
           clientMetadata: { engine: 'phaser', viewport: { width: 800, height: 600, dpr: 2 } },
         }),
       })
@@ -130,7 +130,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       const resStart = await exports.default.fetch(`${GOC}/api/game/session/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ gameType: 'solo_snake' }),
+        body: JSON.stringify({ gameType: 'solo_2048' }),
       })
       const { sessionId } = (await resStart.json()) as { sessionId: string }
 
@@ -159,7 +159,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       const resStart = await exports.default.fetch(`${GOC}/api/game/session/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ gameType: 'solo_snake' }),
+        body: JSON.stringify({ gameType: 'solo_2048' }),
       })
       const { sessionId } = (await resStart.json()) as { sessionId: string }
 
@@ -186,7 +186,7 @@ describe('Milestone G0 — Campus Game Platform Foundation', () => {
       const resStart = await exports.default.fetch(`${GOC}/api/game/session/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ gameType: 'solo_snake' }),
+        body: JSON.stringify({ gameType: 'solo_2048' }),
       })
       const { sessionId } = (await resStart.json()) as { sessionId: string }
 

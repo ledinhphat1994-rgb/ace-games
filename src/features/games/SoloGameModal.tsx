@@ -441,7 +441,7 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
           <div className="py-2">
             {gameType === 'solo_2048' && <Game2048View onSaveScore={handleSaveScore} />}
             {gameType === 'solo_memory' && <GameMemoryView onSaveScore={handleSaveScore} />}
-            {gameType === 'solo_snake' && <SnakeDeluxe onSaveScore={handleSaveScore} />}
+            {gameType === 'solo_snake' && <SnakeDeluxe />}
           </div>
         ) : (
           <div className="flex flex-col gap-2 min-h-[320px] max-h-[380px] overflow-y-auto pr-1">

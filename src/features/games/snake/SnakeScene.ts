@@ -1,6 +1,8 @@
 import {
   DEFAULT_SNAKE_CONFIG,
+  applySnakeDirection,
   createSnakeState,
+  isOppositeDirection,
   isSnakeTerminal,
   stepSnake,
   type Direction,
@@ -44,7 +46,7 @@ export class SnakeScene {
   private offsetX = 20
   private offsetY = 20
 
-  private pendingTurn: Direction | null = null
+  private turnQueue: Direction[] = []
   private isDestroyed = false
 
   // Sound synthesis using Web Audio API via SDK volume settings
@@ -96,7 +98,23 @@ export class SnakeScene {
   }
 
   queueTurn(dir: Direction): void {
-    this.pendingTurn = dir
+    if (this.isDestroyed || isSnakeTerminal(this.state)) return
+    const lastPlannedDir = this.turnQueue.length > 0
+      ? this.turnQueue[this.turnQueue.length - 1]
+      : this.state.dir
+
+    // Disallow direct 180° turn and redundant duplicate inputs
+    if (isOppositeDirection(lastPlannedDir, dir) || dir === lastPlannedDir) {
+      return
+    }
+
+    if (this.turnQueue.length < 2) {
+      this.turnQueue.push(dir)
+    }
+  }
+
+  getState(): Readonly<SnakeState> {
+    return this.state
   }
 
   private setupInputs(): void {
@@ -152,16 +170,13 @@ export class SnakeScene {
   private tick(): void {
     if (this.isDestroyed || isSnakeTerminal(this.state)) return
 
-    // 1. Apply queued direction if legal
-    if (this.pendingTurn) {
-      const prevDir = this.state.dir
-      const dir = this.pendingTurn
-      this.pendingTurn = null
-
-      if (dir !== prevDir) {
-        // Record input event in CampusGameSDK
-        this.sdk.recordInput('snake.turn', dir)
-        this.state.dir = dir
+    // 1. Apply queued direction using shared deterministic rule
+    while (this.turnQueue.length > 0) {
+      const nextDir = this.turnQueue.shift()!
+      if (applySnakeDirection(this.state, nextDir)) {
+        // Record input at simulation elapsed time
+        this.sdk.recordInputAt('snake.turn', nextDir, this.state.elapsedMs)
+        break
       }
     }
 

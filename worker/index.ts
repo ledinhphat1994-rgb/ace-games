@@ -1285,27 +1285,33 @@ app.post('/api/game/session/finish', async (c) => {
     return loi(tsCheck.reason ?? 'Trace input có timestamp không hợp lệ.', 400)
   }
 
-  // 4b. Anti-Cheat: Heuristic physics ceiling check (chống spam điểm số phi lý vượt giới hạn cơ chế trò chơi)
-  const durationSec = Math.max(0.5, effectiveElapsed / 1000)
-  if (sessionRow.game_type === 'solo_snake' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 100) {
-    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
-    return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
-  } else if (sessionRow.game_type === 'solo_2048' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 150) {
-    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
-    return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+  // 5. Verifier trust model: chỉ game type có registered deterministic verifier mới được verified: true
+  const verifier = soloVerifierRegistry.get(sessionRow.game_type)
+
+  // 4b. Anti-Cheat: Heuristic physics ceiling check (chỉ áp dụng cho game UNREGISTERED / legacy)
+  // Khi game đã đăng ký deterministic verifier, client score có ZERO authority và sẽ được tính toán qua server replay.
+  if (!verifier) {
+    const durationSec = Math.max(0.5, effectiveElapsed / 1000)
+    if (sessionRow.game_type === 'solo_snake' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 100) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    } else if (sessionRow.game_type === 'solo_2048' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 150) {
+      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+    }
   }
 
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
 
-  // 5. Verifier trust model: chỉ game type có registered deterministic verifier mới được verified: true
-  const verifier = soloVerifierRegistry.get(sessionRow.game_type)
   let finalVerified = false
-  let finalScore = parsed.data.score
+  let finalScore = 0
   let verificationHash: string | null = null
   let verifyReason: string | undefined
+  let sessionStatus = 'completed'
+  let insertHighScore = true
 
   if (verifier) {
-    // Server recomputes score deterministically — client score is ignored for ranking
+    // Server recomputes score deterministically — client score has zero authority
     try {
       const result = await verifier.verify({
         seed: sessionRow.seed,
@@ -1317,19 +1323,33 @@ app.post('/api/game/session/finish', async (c) => {
         finalVerified = true
         finalScore = result.computedScore
         verificationHash = result.verificationHash
+        sessionStatus = 'completed'
+        insertHighScore = true
       } else {
         finalVerified = false
-        finalScore = parsed.data.score
+        finalScore = result.computedScore ?? 0
         verifyReason = result.reason
+        insertHighScore = false
+        if (result.terminalReason === 'aborted' || verifyReason?.includes('aborted')) {
+          sessionStatus = 'abandoned'
+        } else {
+          sessionStatus = 'rejected'
+        }
       }
     } catch (err) {
       console.error('SoloVerifier error for', sessionRow.game_type, ':', err)
       finalVerified = false
+      finalScore = 0
       verifyReason = 'Verifier error'
+      sessionStatus = 'rejected'
+      insertHighScore = false
     }
   } else {
-    // Legacy/unregistered game type — never produce verified: true
+    // Legacy/unregistered game type — never produce verified: true, use client score with legacy heuristics
+    finalScore = parsed.data.score
     verifyReason = 'No deterministic verifier registered for this game type (legacy/unverified)'
+    sessionStatus = 'completed'
+    insertHighScore = true
   }
 
   // 6. Server-generated authoritative verification hash — never accept client hash as proof
@@ -1345,20 +1365,27 @@ app.post('/api/game/session/finish', async (c) => {
     })
   }
 
-  // 7. Atomic DB write: UPDATE session + INSERT high score with session_id unique constraint
+  // 7. Atomic DB write: UPDATE session + optionally INSERT high score with session_id unique constraint
   // The unique index on game_high_scores(session_id) provides DB-enforced exactly-once guarantee
   // for concurrent finish requests.
-  const updateResult = await c.env.DB.batch([
+  const batchStatements = [
     c.env.DB.prepare(`
       UPDATE game_sessions
-      SET score = ?1, ended_at = ?2, status = 'completed', verification_hash = ?3
-      WHERE id = ?4 AND status = 'active'
-    `).bind(finalScore, now, verificationHash, sessionId),
-    c.env.DB.prepare(`
-      INSERT OR IGNORE INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified, session_id)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-    `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, finalScore, now, finalVerified ? 1 : 0, sessionId),
-  ])
+      SET score = ?1, ended_at = ?2, status = ?3, verification_hash = ?4
+      WHERE id = ?5 AND status = 'active'
+    `).bind(finalScore, now, sessionStatus, verificationHash, sessionId),
+  ]
+
+  if (insertHighScore) {
+    batchStatements.push(
+      c.env.DB.prepare(`
+        INSERT OR IGNORE INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified, session_id)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+      `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, finalScore, now, finalVerified ? 1 : 0, sessionId),
+    )
+  }
+
+  const updateResult = await c.env.DB.batch(batchStatements)
 
   // If UPDATE affected 0 rows, another concurrent finish already closed this session
   const sessionUpdateMeta = updateResult[0].meta as { changes?: number } | undefined

@@ -178,6 +178,24 @@ describe('G1 Snake Simulation & Deterministic Core', () => {
       stepSnake(state, rng)
       expect(state.stepDurationMs).toBe(80)
     })
+
+    it('tính đúng stepDurationUsed vào elapsedMs khi qua ngưỡng tăng tốc', () => {
+      const { state, rng } = createSnakeState(1)
+      expect(state.stepDurationMs).toBe(150)
+      expect(state.elapsedMs).toBe(0)
+
+      // Simulate state right before eating 5th food
+      state.foodsEaten = 4
+      state.stepDurationMs = 150
+      state.food = { x: 7, y: 6 } // Head will eat on this step
+
+      stepSnake(state, rng)
+
+      // Step that just finished was executed with duration 150ms
+      expect(state.foodsEaten).toBe(5)
+      expect(state.stepDurationMs).toBe(140) // New duration for NEXT step
+      expect(state.elapsedMs).toBe(150) // MUST be 150ms, NOT 140ms
+    })
   })
 
   describe('Golden Vectors & 100 Repeated Replays', () => {

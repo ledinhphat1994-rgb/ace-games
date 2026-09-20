@@ -98,6 +98,9 @@ export function stepSnake(
     return
   }
 
+  // Capture the duration that executes THIS step before any speed progression update
+  const stepDurationUsed = state.stepDurationMs
+
   const head = state.snake[0]
   let nx = head.x
   let ny = head.y
@@ -163,7 +166,7 @@ export function stepSnake(
   }
 
   state.tick += 1
-  state.elapsedMs += state.stepDurationMs
+  state.elapsedMs += stepDurationUsed
 }
 
 export function isSnakeTerminal(state: SnakeState): boolean {
@@ -200,7 +203,7 @@ export function replaySnakeSession(params: {
   let hasMatchEnd = false
   let matchEndReason: string | null = null
 
-  while (!isSnakeTerminal(state) && state.tick < MAX_TICKS && simTime <= maxElapsed) {
+  while (!isSnakeTerminal(state) && state.tick < MAX_TICKS && simTime < maxElapsed) {
     const nextTickTime = simTime + state.stepDurationMs
 
     // Process all events up to nextTickTime

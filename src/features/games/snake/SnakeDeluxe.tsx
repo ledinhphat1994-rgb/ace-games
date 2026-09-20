@@ -18,13 +18,12 @@ import { CampusGameSDK } from '@/lib/game-sdk/campus-game-sdk'
 import type { Direction } from '../../../../shared/games/snake'
 import { SnakeScene } from './SnakeScene'
 
-interface SnakeDeluxeProps {
-  onSaveScore?: (score: number) => void
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface SnakeDeluxeProps {}
 
 type VerificationStatus = 'idle' | 'verifying' | 'verified' | 'unverified' | 'practice'
 
-export function SnakeDeluxe({ onSaveScore }: SnakeDeluxeProps) {
+export function SnakeDeluxe(_props?: SnakeDeluxeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [score, setScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -63,6 +62,12 @@ export function SnakeDeluxe({ onSaveScore }: SnakeDeluxeProps) {
 
   const startGame = useCallback(async () => {
     if (!containerRef.current) return
+
+    // If an active session was already playing, abort it first so it doesn't stay orphaned
+    if (sdkRef.current && isPlaying && !isDead) {
+      sdkRef.current.abort('aborted').catch(() => {})
+    }
+
     stopCurrentGame()
 
     setIsPlaying(true)
@@ -108,21 +113,18 @@ export function SnakeDeluxe({ onSaveScore }: SnakeDeluxeProps) {
 
           if (isPracticeRun) {
             setVerificationStatus('practice')
-            onSaveScore?.(finalScore)
             return
           }
 
-          // Submit to server verification pipeline
+          // Submit to server verification pipeline with simulation elapsed time
           setVerificationStatus('verifying')
           try {
-            const finishRes = await sdk.end('game_over', finalScore)
+            const finishRes = await sdk.end('game_over', finalScore, snakeScene.getState().elapsedMs)
             if (finishRes?.ok && finishRes.verified) {
               setVerificationStatus('verified')
               setVerifiedScore(finishRes.finalScore)
-              onSaveScore?.(finishRes.finalScore)
             } else {
               setVerificationStatus('unverified')
-              onSaveScore?.(finalScore)
             }
           } catch {
             setVerificationStatus('unverified')
@@ -161,7 +163,7 @@ export function SnakeDeluxe({ onSaveScore }: SnakeDeluxeProps) {
     } finally {
       setEngineLoading(false)
     }
-  }, [stopCurrentGame, onSaveScore])
+  }, [stopCurrentGame, isPlaying, isDead])
 
   // Handle direct turn command from UI or touch
   const handleTurn = useCallback((dir: Direction) => {
@@ -216,12 +218,46 @@ export function SnakeDeluxe({ onSaveScore }: SnakeDeluxeProps) {
     }
   }, [handleTurn])
 
+  // Hidden tab aborts active ranked run immediately
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isPlaying && !isDead) {
+        // 1. Stop simulation immediately
+        if (snakeSceneRef.current) {
+          snakeSceneRef.current.destroy()
+          snakeSceneRef.current = null
+        }
+        if (phaserGameRef.current) {
+          try { phaserGameRef.current.destroy(true) } catch {}
+          phaserGameRef.current = null
+        }
+        setIsPlaying(false)
+        setIsDead(true)
+        setDeathReason('aborted')
+        setVerificationStatus('unverified')
+
+        // 2. Abort server session
+        if (sdkRef.current) {
+          sdkRef.current.abort('aborted').catch(() => {})
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isPlaying, isDead])
+
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
+      if (sdkRef.current && isPlaying && !isDead) {
+        sdkRef.current.abort('aborted').catch(() => {})
+      }
       stopCurrentGame()
     }
-  }, [stopCurrentGame])
+  }, [stopCurrentGame, isPlaying, isDead])
 
   return (
     <div className="flex flex-col items-center gap-3 w-full select-none">

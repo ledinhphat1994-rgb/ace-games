@@ -158,24 +158,31 @@ export class CampusGameSDK {
     }
   }
 
-  async end(reason: GameEndReason = 'game_over', finalScore?: number): Promise<SoloSessionFinishResponse | null> {
+  async end(
+    reason: GameEndReason = 'game_over',
+    finalScore?: number,
+    deterministicElapsedMs?: number,
+  ): Promise<SoloSessionFinishResponse | null> {
     if (this.lifecycle === 'end') return null
 
     if (typeof finalScore === 'number') {
       this.currentScore = finalScore
     }
 
-    this.recordInput('match.end', { reason, finalScore: this.currentScore })
+    this.recordInputAt('match.end', { reason, finalScore: this.currentScore }, deterministicElapsedMs)
     this.setLifecycle('end')
     this.stopPerfMonitoring()
 
     // Submit solo run to server verification pipeline
     if (this.mode === 'solo' && this.sessionId) {
-      const durationMs = Math.max(100, Date.now() - (this.sessionStartTime || Date.now()))
+      const durationMs = typeof deterministicElapsedMs === 'number'
+        ? Math.max(100, Math.round(deterministicElapsedMs))
+        : Math.max(100, Date.now() - (this.sessionStartTime || Date.now()))
       try {
         const res = await fetch('/api/game/session/finish', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
           body: JSON.stringify({
             sessionId: this.sessionId,
             score: Math.round(this.currentScore),
@@ -197,6 +204,18 @@ export class CampusGameSDK {
     return null
   }
 
+  /**
+   * Explicitly aborts an active ranked session so it does not remain orphaned on the server.
+   */
+  async abort(reason: GameEndReason = 'aborted'): Promise<SoloSessionFinishResponse | null> {
+    if (this.lifecycle === 'end' || this.lifecycle === 'destroy') return null
+    if (!this.sessionId || this.mode !== 'solo') {
+      this.setLifecycle('end')
+      return null
+    }
+    return this.end(reason, this.currentScore)
+  }
+
   destroy(): void {
     this.stopPerfMonitoring()
     if (this.resizeObserver) {
@@ -213,6 +232,10 @@ export class CampusGameSDK {
       document.removeEventListener('fullscreenchange', this.fullscreenListener)
       this.fullscreenListener = null
     }
+    // If an active solo ranked session is still running, abort it to prevent orphaned server session
+    if (this.mode === 'solo' && this.sessionId && this.lifecycle !== 'end' && this.lifecycle !== 'destroy') {
+      this.abort('aborted').catch(() => {})
+    }
     this.inputTrace = []
     this.traceOverflow = false
     this.setLifecycle('destroy')
@@ -222,9 +245,14 @@ export class CampusGameSDK {
   // Input Recording & Anti-Cheat Trace
   // ─────────────────────────────────────────────────────────────────────────
 
-  recordInput(actionCode: string, payload?: unknown): void {
+  /**
+   * Records an input event at an authoritative deterministic simulation timestamp.
+   */
+  recordInputAt(actionCode: string, payload?: unknown, deterministicElapsedMs?: number): void {
     if (this.traceOverflow) return
-    const elapsed = this.sessionStartTime ? Date.now() - this.sessionStartTime : 0
+    const elapsed = typeof deterministicElapsedMs === 'number'
+      ? Math.max(0, Math.round(deterministicElapsedMs))
+      : (this.sessionStartTime ? Date.now() - this.sessionStartTime : 0)
     if (this.inputTrace.length >= MAX_INPUT_TRACE_EVENTS) {
       this.traceOverflow = true
       console.warn(`CampusGameSDK: inputTrace hit MAX (${MAX_INPUT_TRACE_EVENTS}). Further inputs not recorded.`)
@@ -236,6 +264,15 @@ export class CampusGameSDK {
       // Cast: payload conforms to GameInputPayloadSchema at runtime; SDK accepts any game value
       p: payload as GameInputEvent['p'],
     })
+  }
+
+  recordInput(actionCode: string, payload?: unknown): void {
+    this.recordInputAt(actionCode, payload)
+  }
+
+  /** Returns a copy of the currently recorded input trace (useful for testing & assertions). */
+  getRecordedInputs(): readonly GameInputEvent[] {
+    return [...this.inputTrace]
   }
 
   /** Whether input trace overflowed. Server will note this in verification. */
