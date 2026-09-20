@@ -16,6 +16,7 @@ import {
   Radio,
   RefreshCw,
   Search,
+  Shield,
   Users,
   Wifi,
   WifiOff,
@@ -199,6 +200,20 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 >
                   <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                   Analytics
+                </Button>
+              ) : null}
+
+            {/* Admin Control Plane button for school admin */}
+            {nguoiDung.isSchoolAdmin ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/admin')}
+                  className="h-8 border-indigo-500/40 bg-indigo-500/10 px-2.5 text-xs text-indigo-300 hover:bg-indigo-500/20"
+                  title="Bảng điều khiển quản trị — Quản lý phòng học, chính sách và nhật ký"
+                >
+                  <Shield className="mr-1.5 h-3.5 w-3.5" />
+                  Quản trị
                 </Button>
               ) : null}
 

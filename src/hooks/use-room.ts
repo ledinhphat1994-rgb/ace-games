@@ -114,6 +114,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
   })
   const myMic = Boolean(voiceState.isPublishing && !voiceState.isMuted)
   const [thongBaoLoiPhong, setThongBaoLoiPhong] = useState<string | null>(null)
+  // A1: Room closed by admin/system — disables reconnect, shows modal
+  const [roomClosedInfo, setRoomClosedInfo] = useState<{ reason: string; message: string } | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const voiceClientRef = useRef<VoiceClient | null>(null)
@@ -367,6 +369,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
             toast.info(`${targetName} đã bị mời ra khỏi phòng.`)
             setMembers((prev) => prev.filter((m) => m.key !== goi.targetKey))
           }
+          break
+        }
+
+        case 'room.closed': {
+          // Server-authoritative room close (admin / system timeout / owner)
+          // Stop reconnect loop immediately — this is permanent, not a network glitch
+          daHuyRef.current = true
+          if (henGioKetNoiLaiRef.current) {
+            clearTimeout(henGioKetNoiLaiRef.current)
+            henGioKetNoiLaiRef.current = null
+          }
+          // Teardown voice/media tracks
+          voiceClientRef.current?.destroy()
+          voiceClientRef.current = null
+          // Surface info to UI
+          setRoomClosedInfo({ reason: goi.reason, message: goi.message })
+          setTrangThai('bi_tu_choi')
+          toast.info(goi.message || 'Phòng học đã bị đóng.')
           break
         }
 
@@ -930,6 +950,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
   return {
     trangThai,
     thongBaoLoiPhong,
+    roomClosedInfo,
     members,
     hostKey,
     isHost,

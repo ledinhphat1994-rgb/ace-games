@@ -116,6 +116,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const {
     trangThai,
     thongBaoLoiPhong,
+    roomClosedInfo,
     members,
     hostKey,
     isHost,
@@ -1569,17 +1570,46 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       {/* ══ Permanent room denial modal (banned / wrong class / room closed) ══ */}
       {trangThai === 'bi_tu_choi' && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="max-w-md w-full rounded-2xl border border-orange-500/30 bg-[#0d1422] p-6 shadow-2xl text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10 text-orange-400">
+          <div className={`max-w-md w-full rounded-2xl border p-6 shadow-2xl text-center space-y-4 ${
+            roomClosedInfo
+              ? 'border-amber-500/30 bg-[#0d1422]'
+              : 'border-orange-500/30 bg-[#0d1422]'
+          }`}>
+            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
+              roomClosedInfo
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'bg-orange-500/10 text-orange-400'
+            }`}>
               <ShieldAlert className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white">Không thể truy cập phòng học</h2>
-            <p className="text-sm text-slate-400">
-              {thongBaoLoiPhong || 'Bạn không có quyền truy cập vào phòng học này.'}
-            </p>
+            {roomClosedInfo ? (
+              <>
+                <h2 className="text-lg font-bold text-white">Phòng học đã được đóng</h2>
+                <p className="text-sm text-slate-400">{roomClosedInfo.message}</p>
+                <p className="text-xs text-slate-500">
+                  Lý do: {roomClosedInfo.reason === 'admin_closed' ? 'Quản trị viên đóng phòng'
+                    : roomClosedInfo.reason === 'owner_closed' ? 'Chủ phòng đóng phòng'
+                    : roomClosedInfo.reason === 'never_joined_timeout' ? 'Phòng không có ai tham gia'
+                    : roomClosedInfo.reason === 'empty_room_timeout' ? 'Phòng đã trống quá lâu'
+                    : roomClosedInfo.reason === 'max_lifetime_exceeded' ? 'Phòng quá thời gian hoạt động'
+                    : roomClosedInfo.reason}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-white">Không thể truy cập phòng học</h2>
+                <p className="text-sm text-slate-400">
+                  {thongBaoLoiPhong || 'Bạn không có quyền truy cập vào phòng học này.'}
+                </p>
+              </>
+            )}
             <Button
               onClick={onLeaveRoom}
-              className="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-orange-500/20"
+              className={`w-full text-white font-semibold py-2.5 rounded-xl shadow-lg ${
+                roomClosedInfo
+                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20'
+                  : 'bg-orange-600 hover:bg-orange-500 shadow-orange-500/20'
+              }`}
             >
               Quay lại Sảnh
             </Button>
