@@ -44,26 +44,25 @@ export function AppShell({ children }: AppShellProps) {
       />
 
       {/* 2. Main Content Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 pb-24 md:pb-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 pb-[76px] md:pb-8">
         {/* Single-device policy warning banner */}
         {trangThai === 'phien_bi_thay' ? (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
+              <AlertTriangle className="h-5 w-5 shrink-0" />
               <div>
                 <p className="font-semibold">Phiên kết nối này đã bị ngắt tự động (Mã 4001)</p>
-                <p className="text-xs text-muted-foreground">
-                  Tài khoản của bạn vừa đăng nhập ở một thiết bị hoặc trình duyệt khác. Để bảo vệ an toàn và bảo mật, hệ thống chỉ duy trì 01 phiên hoạt động duy nhất.
+                <p className="text-xs text-destructive/70 mt-0.5">
+                  Tài khoản của bạn vừa đăng nhập ở một thiết bị hoặc trình duyệt khác. Hệ thống chỉ duy trì 01 phiên hoạt động.
                 </p>
               </div>
             </div>
             <Button
               size="sm"
               variant="destructive"
-              className="h-8 text-xs font-semibold"
               onClick={() => window.location.reload()}
             >
-              Tải lại trang & Kết nối lại
+              Tải lại trang &amp; Kết nối lại
             </Button>
           </div>
         ) : null}
