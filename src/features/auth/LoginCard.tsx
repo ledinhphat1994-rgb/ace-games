@@ -328,14 +328,14 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
             </div>
 
             {dkVaiTro === 'teacher' && (
-              <div className="flex flex-col gap-1 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
-                <Label htmlFor="dk-teachercode" className="text-amber-500 text-xs font-semibold">
+              <div className="flex flex-col gap-1 rounded-lg border border-warning/20 bg-warning/5 p-2.5">
+                <Label htmlFor="dk-teachercode" className="text-warning text-xs font-semibold">
                   Mã xác minh giáo viên (nếu có)
                 </Label>
                 <Input
                   id="dk-teachercode"
                   type="password"
-                  className="h-8 text-xs border-amber-500/30"
+                  className="h-8 text-xs border-warning/30"
                   placeholder="Nhập mã do trường cung cấp"
                   value={dkTeacherCode}
                   onChange={(e) => setDkTeacherCode(e.target.value)}

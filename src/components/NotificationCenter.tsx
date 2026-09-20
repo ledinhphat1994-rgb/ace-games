@@ -44,34 +44,34 @@ function NotificationIcon({ type }: { type: AppNotification['type'] }) {
   }
   if (type === 'friend_online') {
     return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-success/30 bg-success/10 text-success">
         <Radio className="h-4 w-4" />
       </div>
     )
   }
   if (type === 'study_invite') {
     return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
         <GraduationCap className="h-4 w-4" />
       </div>
     )
   }
   if (type === 'achievement_unlocked') {
     return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-achievement/30 bg-achievement/10 text-achievement">
         <Trophy className="h-4 w-4" />
       </div>
     )
   }
   if (type === 'challenge_completed') {
     return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-warning/30 bg-warning/10 text-warning">
         <Flame className="h-4 w-4" />
       </div>
     )
   }
   return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
       <DoorOpen className="h-4 w-4" />
     </div>
   )
