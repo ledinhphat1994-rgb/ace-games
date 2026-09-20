@@ -80,6 +80,7 @@ import {
   validateHumanInputRate,
   validateInputTraceTimestamps,
 } from './games/anti-cheat'
+import './games/verifiers/snake-solo-verifier'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -1284,6 +1285,16 @@ app.post('/api/game/session/finish', async (c) => {
     return loi(tsCheck.reason ?? 'Trace input có timestamp không hợp lệ.', 400)
   }
 
+  // 4b. Anti-Cheat: Heuristic physics ceiling check (chống spam điểm số phi lý vượt giới hạn cơ chế trò chơi)
+  const durationSec = Math.max(0.5, effectiveElapsed / 1000)
+  if (sessionRow.game_type === 'solo_snake' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 100) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+    return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+  } else if (sessionRow.game_type === 'solo_2048' && parsed.data.score > 0 && (parsed.data.score / durationSec) > 150) {
+    await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
+    return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
+  }
+
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username
 
   // 5. Verifier trust model: chỉ game type có registered deterministic verifier mới được verified: true
@@ -1302,10 +1313,15 @@ app.post('/api/game/session/finish', async (c) => {
         serverEndedAt: now,
         inputTrace,
       })
-      finalVerified = result.valid
-      finalScore = result.computedScore
-      verificationHash = result.verificationHash
-      verifyReason = result.reason
+      if (result.valid) {
+        finalVerified = true
+        finalScore = result.computedScore
+        verificationHash = result.verificationHash
+      } else {
+        finalVerified = false
+        finalScore = parsed.data.score
+        verifyReason = result.reason
+      }
     } catch (err) {
       console.error('SoloVerifier error for', sessionRow.game_type, ':', err)
       finalVerified = false
@@ -1313,15 +1329,6 @@ app.post('/api/game/session/finish', async (c) => {
     }
   } else {
     // Legacy/unregistered game type — never produce verified: true
-    // Heuristic ceiling check for basic sanity, but result stays unverified
-    const durationSec = Math.max(0.5, effectiveElapsed / 1000)
-    if (sessionRow.game_type === 'solo_snake' && finalScore > 0 && (finalScore / durationSec) > 100) {
-      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
-      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
-    } else if (sessionRow.game_type === 'solo_2048' && finalScore > 0 && (finalScore / durationSec) > 150) {
-      await c.env.DB.prepare("UPDATE game_sessions SET status = 'rejected', ended_at = ?1 WHERE id = ?2 AND status = 'active'").bind(now, sessionId).run()
-      return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
-    }
     verifyReason = 'No deterministic verifier registered for this game type (legacy/unverified)'
   }
 
