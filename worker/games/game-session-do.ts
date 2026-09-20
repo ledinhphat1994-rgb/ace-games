@@ -531,6 +531,23 @@ export class GameSessionDO extends DurableObject<Env> {
       return Response.json({ ok: true, matchId: this.matchId })
     }
 
+    if (url.pathname === '/internal/outbox' && request.method === 'GET') {
+      const rows = this.ctx.storage.sql
+        .exec<{ round_id: string; match_room_id: string; settled: number; attempts: number }>(
+          'SELECT round_id, match_room_id, settled, attempts FROM settlement_outbox',
+        )
+        .toArray()
+      const pendingRows = rows.filter((r) => r.settled === 0)
+      return Response.json({
+        ok: true,
+        matchId: this.matchId,
+        totalRows: rows.length,
+        pendingCount: pendingRows.length,
+        pendingRoundIds: pendingRows.map((r) => r.round_id),
+        rows,
+      })
+    }
+
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Yêu cầu kết nối WebSocket.', { status: 426 })
     }

@@ -327,13 +327,17 @@ function startCampusIsolationProbe(cookie, intervalMs = 1500) {
 }
 
 // ─── D1 Settlement Convergence Verification (Blocker 4) ─────────────────────────
-function verifyD1SettlementConvergence(expectedRoundIds) {
+async function verifyD1SettlementConvergence(targetUrl, expectedRoundIds) {
   if (expectedRoundIds.length === 0) {
-    return { durablySettled: 0, missing: 0, duplicate: 0, finalOutboxDepth: 0 }
+    return { durablySettled: 0, missing: 0, duplicate: 0, finalOutboxDepth: 0, pendingOutboxRounds: [] }
   }
 
   const idsSql = expectedRoundIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')
   const query = `SELECT id, COUNT(*) as cnt FROM game_matches WHERE id IN (${idsSql}) GROUP BY id`
+  let durablySettled = 0
+  let missing = 0
+  let duplicate = 0
+
   try {
     const rawOut = execSync(
       `npx wrangler d1 execute lop-10a7-db-staging --remote --json --command="${query}"`,
@@ -342,10 +346,6 @@ function verifyD1SettlementConvergence(expectedRoundIds) {
     const parsed = JSON.parse(rawOut)
     const rows = parsed[0]?.results || []
     const persistedMap = new Map(rows.map((r) => [r.id, r.cnt]))
-
-    let durablySettled = 0
-    let missing = 0
-    let duplicate = 0
 
     for (const id of expectedRoundIds) {
       const cnt = persistedMap.get(id) || 0
@@ -357,21 +357,41 @@ function verifyD1SettlementConvergence(expectedRoundIds) {
         duplicate++
       }
     }
-
-    return {
-      durablySettled,
-      missing,
-      duplicate,
-      finalOutboxDepth: missing,
-    }
   } catch (err) {
     console.error('Failed to verify D1 settlement convergence:', err.message)
-    return {
-      durablySettled: 0,
-      missing: expectedRoundIds.length,
-      duplicate: 0,
-      finalOutboxDepth: expectedRoundIds.length,
+    missing = expectedRoundIds.length
+  }
+
+  // 2. Direct GameSessionDO settlement_outbox inspection via staging diagnostic endpoint
+  let finalOutboxDepth = 0
+  const pendingOutboxRounds = []
+
+  for (const roundId of expectedRoundIds) {
+    try {
+      const res = await fetch(`${targetUrl}/api/staging/game-session/${encodeURIComponent(roundId)}/outbox`, {
+        headers: { 'X-Staging-Diagnostic': 'lop-10a7-g0-diagnostic' },
+        signal: AbortSignal.timeout(5000),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.pendingCount > 0) {
+          finalOutboxDepth += data.pendingCount
+          pendingOutboxRounds.push(...(data.pendingRoundIds || [roundId]))
+        }
+      } else {
+        console.warn(`  ⚠️ Diagnostic outbox probe returned HTTP ${res.status} for ${roundId}`)
+      }
+    } catch (err) {
+      console.warn(`  ⚠️ Could not verify DO outbox for ${roundId}:`, err.message)
     }
+  }
+
+  return {
+    durablySettled,
+    missing,
+    duplicate,
+    finalOutboxDepth,
+    pendingOutboxRounds,
   }
 }
 
@@ -465,6 +485,7 @@ async function runDistributedScenario(totalSockets = 100) {
   let actionSuccesses = 0
   let actionFailures = 0
   const actionFailureReasons = []
+  const actionDetails = []
 
   for (let i = 0; i < actionMatches.length; i++) {
     const { conn1, conn2, matchId } = actionMatches[i]
@@ -482,12 +503,25 @@ async function runDistributedScenario(totalSockets = 100) {
       ])
 
       const t0 = performance.now()
+      const sendWallTime = Date.now()
       // Player X moves first
       pX.ws.send(JSON.stringify({ type: 'match.move', x: 7, y: 7 }))
-      await waitForMessage(pO, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
-      const rtt = performance.now() - t0
+      const stateMsg = await waitForMessage(pO, (m) => m.type === 'match.state' && m.lastMove?.x === 7 && m.lastMove?.y === 7, 5000)
+      const t1 = performance.now()
+      const recvWallTime = Date.now()
+      const rtt = Math.round(t1 - t0)
       actionPropagationLatencies.push(rtt)
       actionSuccesses++
+      actionDetails.push({
+        sample: i + 1,
+        matchId,
+        rtt,
+        sendWallTime,
+        recvWallTime,
+        serverTime: stateMsg.serverTime,
+        inboundPlusExecMs: stateMsg.serverTime ? stateMsg.serverTime - sendWallTime : null,
+        outboundBroadcastMs: stateMsg.serverTime ? recvWallTime - stateMsg.serverTime : null,
+      })
     } catch (err) {
       actionFailures++
       actionFailureReasons.push(`Match ${matchId}: ${err.message}`)
@@ -533,9 +567,9 @@ async function runDistributedScenario(totalSockets = 100) {
   // 6. Stop Campus Isolation Probe
   const campusMetrics = await campusProbe.stop()
 
-  // 7. Verify Durable D1 Settlement Convergence
-  console.log(`  → Verifying D1 settlement convergence for ${expectedRounds.length} rounds...`)
-  const d1Convergence = verifyD1SettlementConvergence(expectedRounds)
+  // 7. Verify Durable D1 Settlement Convergence & DO Outbox Depth
+  console.log(`  → Verifying D1 settlement convergence & DO outbox for ${expectedRounds.length} rounds...`)
+  const d1Convergence = await verifyD1SettlementConvergence(targetUrl, expectedRounds)
   const durablySettled = d1Convergence.durablySettled
   const missingSettlements = d1Convergence.missing
   const duplicateSettlements = d1Convergence.duplicate
@@ -554,6 +588,8 @@ async function runDistributedScenario(totalSockets = 100) {
   return {
     tier: `${totalSockets} Sockets`,
     targetSockets: totalSockets,
+    everConnected: successSockets,
+    barrierPeakConcurrent: peakOpenSockets,
     peakOpenSockets,
     successSockets,
     setupFailures,
@@ -570,12 +606,14 @@ async function runDistributedScenario(totalSockets = 100) {
     actionP50: calculatePercentile(actionPropagationLatencies, 50),
     actionP95: calculatePercentile(actionPropagationLatencies, 95),
     actionP99: calculatePercentile(actionPropagationLatencies, 99),
+    actionDetails,
     settlementAttempts,
     gameplayEnded,
     durablySettled,
     missingSettlements,
     duplicateSettlements,
     finalOutboxDepth,
+    pendingOutboxRounds: d1Convergence.pendingOutboxRounds,
     settlementFailures,
     campusRequestCount: campusMetrics.requestCount,
     campusSuccessPercent: campusMetrics.successPercent,

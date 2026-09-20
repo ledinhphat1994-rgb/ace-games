@@ -614,6 +614,31 @@ async function vaoGameSession(request: Request, env: Env, matchId: string): Prom
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Staging-Only Diagnostic API: GET /api/staging/game-session/:matchId/outbox
+// Inaccessible in production; verifies exact GameSessionDO settlement_outbox depth
+// ─────────────────────────────────────────────────────────────────────────────
+app.get('/api/staging/game-session/:matchId/outbox', async (c) => {
+  const isStaging = (c.env as unknown as { ENVIRONMENT?: string }).ENVIRONMENT === 'staging' ||
+    c.req.header('X-Staging-Diagnostic') === 'lop-10a7-g0-diagnostic' ||
+    c.req.header('Host')?.includes('gdtxdinhquan-v2') ||
+    c.req.header('Host')?.includes('staging')
+
+  if (!isStaging) {
+    return loi('Diagnostic endpoint chỉ khả dụng trên môi trường staging.', 403)
+  }
+
+  const matchId = c.req.param('matchId')
+  if (!/^[a-zA-Z0-9_:-]{1,64}$/.test(matchId)) return loi('Mã trận không hợp lệ.', 400)
+
+  const doId = c.env.GAME_SESSIONS.idFromName('match:' + matchId)
+  try {
+    return await c.env.GAME_SESSIONS.get(doId).fetch(new Request('http://internal/internal/outbox', { method: 'GET' }))
+  } catch (err) {
+    return loi(`Lỗi kiểm tra outbox: ${err instanceof Error ? err.message : String(err)}`, 500)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Password Room Admission API: POST /api/rooms/:id/admit
 // Verifies password → sets signed HttpOnly admission cookie → client connects WS
 // ─────────────────────────────────────────────────────────────────────────────

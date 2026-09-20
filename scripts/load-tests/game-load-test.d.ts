@@ -1,6 +1,8 @@
 export interface DistributedTierResult {
   tier: string
   targetSockets: number
+  everConnected?: number
+  barrierPeakConcurrent?: number
   peakOpenSockets: number
   successSockets: number
   setupFailures: number
@@ -17,12 +19,14 @@ export interface DistributedTierResult {
   actionP50: number
   actionP95: number
   actionP99: number
+  actionDetails?: unknown[]
   settlementAttempts: number
   gameplayEnded: number
   durablySettled: number
   missingSettlements: number
   duplicateSettlements: number
   finalOutboxDepth: number
+  pendingOutboxRounds?: string[]
   settlementFailures: number
   campusRequestCount: number
   campusSuccessPercent: number
