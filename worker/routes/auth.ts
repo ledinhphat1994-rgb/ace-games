@@ -682,16 +682,23 @@ export async function capNhatHoSo(request: Request, env: Env): Promise<Response>
   }
 
   const tenHienThi = body.tenHienThi ? String(body.tenHienThi).trim() : null
-  const tieuDeHoSo = body.tieuDeHoSo ? String(body.tieuDeHoSo).trim() : null
+  const hasTieuDeHoSo = typeof body.tieuDeHoSo === 'string' || body.tieuDeHoSo === null
+  const tieuDeHoSo = hasTieuDeHoSo ? (body.tieuDeHoSo ? String(body.tieuDeHoSo).trim() : '') : null
 
   if (tenHienThi && (tenHienThi.length < 2 || tenHienThi.length > 50)) {
     return loi('Tên hiển thị phải từ 2 đến 50 ký tự.', 400)
+  }
+  if (tieuDeHoSo && tieuDeHoSo.length > 150) {
+    return loi('Châm ngôn học tập không được vượt quá 150 ký tự.', 400)
   }
 
   await env.DB.prepare(`
     UPDATE tai_khoan_campus
        SET ten_hien_thi = COALESCE(?1, ten_hien_thi),
-           tieu_de_ho_so = COALESCE(?2, tieu_de_ho_so),
+           tieu_de_ho_so = CASE
+             WHEN ?2 IS NOT NULL THEN (CASE WHEN ?2 = '' THEN NULL ELSE ?2 END)
+             ELSE tieu_de_ho_so
+           END,
            cap_nhat_luc = CURRENT_TIMESTAMP
      WHERE id = ?3
   `)

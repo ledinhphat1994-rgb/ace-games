@@ -68,10 +68,6 @@ export function ProgressSummary({
 
   const todayXp = profile?.todayXp ?? 0
   const totalXp = profile?.totalXp ?? 0
-  const maxDailyXp = 120
-  const dailyProgress = Math.min(100, Math.round((todayXp / maxDailyXp) * 100))
-  const userLevel = Math.floor(totalXp / 100) + 1
-  const xpNeeded = Math.max(0, maxDailyXp - todayXp)
 
   return (
     <>
@@ -92,9 +88,9 @@ export function ProgressSummary({
             </div>
           ) : (
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
-              {/* Left & Middle: Gamified Level, Streak & Today's Goal Progress Rail */}
+              {/* Left & Middle: Streak & Truthful XP Summary */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 flex-1 min-w-0">
-                {/* Level & Streak Stats */}
+                {/* Streak Stats */}
                 <div className="flex items-center gap-3.5 shrink-0">
                   {/* Streak Flame Container */}
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-inner">
@@ -120,7 +116,7 @@ export function ProgressSummary({
 
                 <div className="h-8 w-px bg-border/60 hidden sm:block shrink-0" />
 
-                {/* Level + Today's XP Progress Rail */}
+                {/* Truthful XP Summary & Challenge Context */}
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 truncate">
@@ -128,25 +124,34 @@ export function ProgressSummary({
                         <Zap className="h-3 w-3" />
                       </div>
                       <span className="text-xs font-extrabold text-foreground truncate">
-                        Cấp {userLevel} · {totalXp} XP
+                        {totalXp} XP tích lũy
                       </span>
                     </div>
 
                     <span className="text-[11px] font-medium text-muted-foreground shrink-0">
-                      Hôm nay: <strong className="text-primary font-bold">{todayXp}</strong>/{maxDailyXp} XP
+                      Hôm nay: <strong className="text-primary font-bold">+{todayXp}</strong> XP
                     </span>
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="relative">
-                    <Progress value={dailyProgress} className="h-2 bg-muted/60" />
-                  </div>
-
-                  <p className="text-[10px] text-muted-foreground/80 truncate">
-                    {xpNeeded > 0
-                      ? `Còn ${xpNeeded} XP nữa để hoàn thành mục tiêu học tập hôm nay`
-                      : '🎉 Bạn đã hoàn thành xuất sắc mục tiêu XP hôm nay!'}
-                  </p>
+                  {challenge && challenge.targetValue > 0 ? (
+                    <>
+                      <div className="relative">
+                        <Progress
+                          value={Math.min(100, Math.round((challenge.currentValue / challenge.targetValue) * 100))}
+                          className="h-2 bg-muted/60"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/80 truncate">
+                        Thử thách lớp: <span className="font-semibold text-foreground/90">{challenge.title}</span> ({challenge.currentValue}/{challenge.targetValue})
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground/80 truncate pt-0.5">
+                      {todayXp > 0
+                        ? `Đã nhận +${todayXp} XP từ các hoạt động học tập hôm nay`
+                        : 'Tham gia học tập hoặc giải đố để tích lũy XP trong ngày'}
+                    </p>
+                  )}
                 </div>
               </div>
 

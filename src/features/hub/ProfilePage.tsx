@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
@@ -52,8 +52,13 @@ export function ProfilePage() {
 
   // Profile edit states
   const [tenHienThi, setTenHienThi] = useState(nguoiDung.ten || nguoiDung.username)
-  const [tieuDeHoSo, setTieuDeHoSo] = useState('')
+  const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung.tieuDeHoSo ?? '')
   const [dangLuuProfile, setDangLuuProfile] = useState(false)
+
+  useEffect(() => {
+    setTenHienThi(nguoiDung.ten || nguoiDung.username)
+    setTieuDeHoSo(nguoiDung.tieuDeHoSo ?? '')
+  }, [nguoiDung.ten, nguoiDung.username, nguoiDung.tieuDeHoSo])
 
   // Avatar states
   const [customAvatarUrl, setCustomAvatarUrl] = useState('')
@@ -161,7 +166,6 @@ export function ProfilePage() {
   const displayName = nguoiDung.ten || nguoiDung.username
   const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh toàn trường'
   const profile = profileData?.profile
-  const userLevel = Math.floor((profile?.totalXp ?? 0) / 100) + 1
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -217,9 +221,9 @@ export function ProfilePage() {
               </p>
 
               {/* Motto or bio if set */}
-              {tieuDeHoSo ? (
+              {nguoiDung.tieuDeHoSo ? (
                 <p className="text-xs italic text-foreground/80 bg-muted/40 rounded-lg px-3 py-1.5 inline-block">
-                  "{tieuDeHoSo}"
+                  "{nguoiDung.tieuDeHoSo}"
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground/70 flex items-center justify-center sm:justify-start gap-1">
@@ -238,8 +242,8 @@ export function ProfilePage() {
 
                 <div className="flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs text-primary">
                   <Zap className="h-3.5 w-3.5" />
-                  <span className="font-bold">Cấp {userLevel}</span>
-                  <span className="text-[10px] text-muted-foreground">({profile?.totalXp ?? 0} XP)</span>
+                  <span className="font-bold">{profile?.totalXp ?? 0} XP</span>
+                  <span className="text-[10px] text-muted-foreground">tích lũy</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 rounded-lg border border-purple-500/25 bg-purple-500/10 px-2.5 py-1 text-xs text-purple-400">

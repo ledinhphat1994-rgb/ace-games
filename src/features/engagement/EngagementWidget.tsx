@@ -11,7 +11,6 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type {
   EngagementProfile,
@@ -81,8 +80,6 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
   const activeFriendsCount = friendsData?.activeFriendsCount || 0
 
   const todayXp = profile?.todayXp ?? 0
-  const maxDailyXp = 120
-  const dailyProgress = Math.min(100, Math.round((todayXp / maxDailyXp) * 100))
 
   return (
     <>
@@ -136,10 +133,14 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                         {profile?.totalXp ?? 0} XP
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        Hôm nay: {todayXp}/{maxDailyXp}
+                        Hôm nay: <strong className="text-primary font-bold">+{todayXp}</strong> XP
                       </span>
                     </div>
-                    <Progress value={dailyProgress} className="h-1.5 mt-1.5 bg-muted" />
+                    <p className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+                      {todayXp > 0
+                        ? `+${todayXp} XP từ hoạt động hôm nay`
+                        : 'Tham gia học tập để tích lũy XP'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -164,8 +165,8 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                 >
                   <Award className="h-3.5 w-3.5 text-purple-500" />
                   <span>Huy hiệu</span>
-                  <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-0.5">
-                    {profile?.unlockedAchievementsCount ?? 0}/8
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-0.5">
+                    {profile?.unlockedAchievementsCount ?? 0}
                   </Badge>
                 </Button>
 
