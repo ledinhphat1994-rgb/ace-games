@@ -72,7 +72,7 @@ export function ProgressSummary({
   return (
     <>
       <Card
-        className={`border border-border/80 bg-gradient-to-r from-card/95 via-card to-primary/5 shadow-sm backdrop-blur-md overflow-hidden transition-all hover:border-border ${className}`}
+        className={`border border-border-default bg-gradient-to-r from-card via-card to-brand/5 overflow-hidden transition-colors ${className}`}
       >
         <CardContent className="p-4 sm:p-5">
           {loadingProfile ? (
@@ -93,22 +93,19 @@ export function ProgressSummary({
                 {/* Streak Stats */}
                 <div className="flex items-center gap-3.5 shrink-0">
                   {/* Streak Flame Container */}
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-inner">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-warning/10 text-warning border border-warning/25 shadow-inner">
                     <Flame className="h-6 w-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-black tracking-tight text-foreground">
+                      <span className="text-sm font-black tracking-tight text-text-primary">
                         {profile?.currentStreak ?? 0} Ngày
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] font-bold px-1.5 py-0"
-                      >
+                      <Badge variant="warning" className="text-[10px] px-1.5 py-0">
                         Chuỗi
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-[11px] text-text-secondary mt-0.5">
                       Kỷ lục: {profile?.longestStreak ?? 0} ngày
                     </p>
                   </div>
@@ -120,16 +117,16 @@ export function ProgressSummary({
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 truncate">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/20 text-primary">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-md bg-brand/15 text-brand">
                         <Zap className="h-3 w-3" />
                       </div>
-                      <span className="text-xs font-extrabold text-foreground truncate">
+                      <span className="text-xs font-extrabold text-text-primary truncate">
                         {totalXp} XP tích lũy
                       </span>
                     </div>
 
-                    <span className="text-[11px] font-medium text-muted-foreground shrink-0">
-                      Hôm nay: <strong className="text-primary font-bold">+{todayXp}</strong> XP
+                    <span className="text-[11px] font-medium text-text-secondary shrink-0">
+                      Hôm nay: <strong className="text-brand font-bold">+{todayXp}</strong> XP
                     </span>
                   </div>
 
@@ -162,10 +159,10 @@ export function ProgressSummary({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowLeaderboard(true)}
-                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                    className="h-8 px-2.5 text-xs text-text-secondary hover:text-achievement hover:bg-achievement/10"
                     title="Bảng xếp hạng chuyên cần tuần"
                   >
-                    <Trophy className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                    <Trophy className="h-3.5 w-3.5 mr-1 text-achievement" />
                     <span>Xếp hạng</span>
                   </Button>
 
@@ -173,12 +170,12 @@ export function ProgressSummary({
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowAchievements(true)}
-                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                    className="h-8 px-2.5 text-xs text-text-secondary hover:text-social hover:bg-social/10"
                     title="Danh hiệu & Huy hiệu học tập"
                   >
-                    <Award className="h-3.5 w-3.5 mr-1 text-purple-400" />
+                    <Award className="h-3.5 w-3.5 mr-1 text-social" />
                     <span>Huy hiệu</span>
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-1">
+                    <Badge variant="social" className="text-[10px] px-1 py-0 h-4 ml-1">
                       {profile?.unlockedAchievementsCount ?? 0}
                     </Badge>
                   </Button>
@@ -188,10 +185,10 @@ export function ProgressSummary({
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowChallenge(true)}
-                      className="h-8 px-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      className="h-8 px-2.5 text-xs text-text-secondary hover:text-success hover:bg-success/10"
                       title={`Thử thách lớp: ${challenge.title}`}
                     >
-                      <Target className="h-3.5 w-3.5 mr-1 text-emerald-400" />
+                      <Target className="h-3.5 w-3.5 mr-1 text-success" />
                       <span className="hidden sm:inline">Thử thách</span>
                     </Button>
                   )}
@@ -201,7 +198,7 @@ export function ProgressSummary({
                 <Button
                   size="sm"
                   onClick={() => navigate('/me?tab=progress')}
-                  className="h-8 px-3 text-xs font-semibold gap-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                  className="gap-1"
                 >
                   <span>Xem tiến trình</span>
                   <ChevronRight className="h-3.5 w-3.5" />

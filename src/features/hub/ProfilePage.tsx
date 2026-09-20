@@ -170,9 +170,9 @@ export function ProfilePage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* 1. Student Campus Identity Passport Card */}
-      <Card className="relative overflow-hidden border border-border/80 bg-gradient-to-br from-[#0c1322] via-[#0f172a] to-primary/10 shadow-sm">
+      <Card className="relative overflow-hidden border border-border-default hero-gradient">
         {/* Subtle ambient glow */}
-        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="pointer-events-none absolute top-0 right-0 h-40 w-40 rounded-full bg-brand/8 blur-3xl" />
 
         <CardContent className="p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
@@ -185,7 +185,7 @@ export function ProfilePage() {
                   className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border-2 border-primary/40 shadow-md"
                 />
               ) : (
-                <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-2xl bg-primary/20 text-2xl sm:text-3xl font-bold text-primary border-2 border-primary/40 uppercase shadow-md">
+                <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-2xl bg-brand/15 text-2xl sm:text-3xl font-bold text-brand border-2 border-brand/30 uppercase shadow-md">
                   {displayName.slice(0, 2)}
                 </div>
               )}
@@ -206,17 +206,17 @@ export function ProfilePage() {
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground truncate">
                   {displayName}
                 </h1>
-                <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-xs font-semibold">
+                <Badge variant="default" className="text-xs font-semibold">
                   {nguoiDung.isVerifiedTeacher ? 'Giáo viên' : lopText}
                 </Badge>
                 {nguoiDung.isSchoolAdmin && (
-                  <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-semibold">
+                  <Badge variant="achievement" className="text-xs font-semibold">
                     <ShieldCheck className="h-3 w-3 mr-1" /> Quản trị trường
                   </Badge>
                 )}
               </div>
 
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-text-secondary">
                 @{nguoiDung.username} {nguoiDung.lop?.ten ? `· ${nguoiDung.lop.ten}` : ''}
               </p>
 
@@ -234,22 +234,22 @@ export function ProfilePage() {
 
               {/* Quick Gamified Stats Pill Row */}
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                <div className="flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-400">
+                <div className="flex items-center gap-1.5 rounded-lg border border-warning/20 bg-warning/10 px-2.5 py-1 text-xs text-warning">
                   <Flame className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.currentStreak ?? 0}</span>
-                  <span className="text-[10px] text-muted-foreground">ngày chuỗi</span>
+                  <span className="text-[10px] text-text-tertiary">ngày chuỗi</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs text-primary">
+                <div className="flex items-center gap-1.5 rounded-lg border border-brand/20 bg-brand/10 px-2.5 py-1 text-xs text-brand">
                   <Zap className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.totalXp ?? 0} XP</span>
-                  <span className="text-[10px] text-muted-foreground">tích lũy</span>
+                  <span className="text-[10px] text-text-tertiary">tích lũy</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 rounded-lg border border-purple-500/25 bg-purple-500/10 px-2.5 py-1 text-xs text-purple-400">
+                <div className="flex items-center gap-1.5 rounded-lg border border-social/20 bg-social/10 px-2.5 py-1 text-xs text-social">
                   <Award className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.unlockedAchievementsCount ?? 0}</span>
-                  <span className="text-[10px] text-muted-foreground">huy hiệu</span>
+                  <span className="text-[10px] text-text-tertiary">huy hiệu</span>
                 </div>
               </div>
             </div>
@@ -267,20 +267,20 @@ export function ProfilePage() {
         }}
         className="w-full space-y-4"
       >
-        <TabsList className="bg-card border border-border/70 p-1 w-full sm:w-auto grid grid-cols-4 sm:flex">
-          <TabsTrigger value="profile" className="text-xs font-semibold gap-1.5">
+        <TabsList className="w-full sm:w-auto grid grid-cols-4 sm:flex">
+          <TabsTrigger value="profile" className="text-xs gap-1.5">
             <User className="h-3.5 w-3.5" />
             <span>Hồ sơ</span>
           </TabsTrigger>
-          <TabsTrigger value="avatar" className="text-xs font-semibold gap-1.5">
+          <TabsTrigger value="avatar" className="text-xs gap-1.5">
             <Palette className="h-3.5 w-3.5" />
             <span>Avatar</span>
           </TabsTrigger>
-          <TabsTrigger value="progress" className="text-xs font-semibold gap-1.5">
+          <TabsTrigger value="progress" className="text-xs gap-1.5">
             <Award className="h-3.5 w-3.5" />
             <span>Tiến trình</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="text-xs font-semibold gap-1.5">
+          <TabsTrigger value="security" className="text-xs gap-1.5">
             <KeyRound className="h-3.5 w-3.5" />
             <span>Mật khẩu</span>
           </TabsTrigger>
@@ -316,12 +316,7 @@ export function ProfilePage() {
                     className="h-9 text-xs"
                   />
                 </div>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={dangLuuProfile}
-                  className="h-8 text-xs font-semibold bg-primary text-primary-foreground"
-                >
+                <Button type="submit" size="sm" disabled={dangLuuProfile}>
                   {dangLuuProfile ? 'Đang lưu…' : 'Lưu thay đổi'}
                 </Button>
               </form>
@@ -360,8 +355,8 @@ export function ProfilePage() {
               {/* Upload file */}
               <div className="border-t border-border/60 pt-4 max-w-md space-y-2">
                 <p className="text-xs font-semibold text-foreground">Tải ảnh từ thiết bị</p>
-                <label className="flex items-center gap-2 rounded-xl border border-dashed border-border/80 p-3 hover:border-primary/60 transition-colors cursor-pointer">
-                  <Upload className="h-4 w-4 text-primary" />
+                <label className="flex items-center gap-2 rounded-xl border border-dashed border-border-default p-3 hover:border-brand/50 transition-colors cursor-pointer">
+                  <Upload className="h-4 w-4 text-brand" />
                   <span className="text-xs text-muted-foreground">
                     {dangUploadAvatar ? 'Đang tải lên…' : 'Chọn tệp ảnh (.png, .jpg, .webp)…'}
                   </span>
@@ -447,12 +442,7 @@ export function ProfilePage() {
                     required
                   />
                 </div>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={dangDoiMk}
-                  className="h-8 text-xs font-semibold mt-2 bg-primary text-primary-foreground"
-                >
+                <Button type="submit" size="sm" disabled={dangDoiMk} className="mt-2">
                   {dangDoiMk ? 'Đang cập nhật…' : 'Đổi mật khẩu'}
                 </Button>
               </form>
