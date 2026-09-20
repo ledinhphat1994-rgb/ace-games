@@ -23,7 +23,6 @@ export function CommunityPage() {
     [socialState?.incomingRequests],
   )
 
-  // Online friends
   const onlineFriends = useMemo(() => {
     return friends.filter((f) => {
       const presence = presenceMap[f.id]
@@ -32,79 +31,76 @@ export function CommunityPage() {
   }, [friends, presenceMap])
 
   return (
-    <div className="space-y-6">
-      {/* 1. Header & Social Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
+    <div className="space-y-5">
+      {/* ── Header ────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <span>Cộng đồng Học sinh</span>
+            <h1 className="text-lg font-bold tracking-tight text-text-primary flex items-center gap-2">
+              <Users className="h-5 w-5 text-social" />
+              Cộng đồng Học sinh
             </h1>
-            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-bold">
-              {friends.length} bạn bè
-            </Badge>
+            <Badge variant="social">{friends.length} bạn bè</Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Giao lưu, kết nối bạn bè cùng lớp và đồng hành học tập toàn trường
+          <p className="text-xs text-text-secondary mt-1">
+            Kết nối bạn bè cùng lớp và đồng hành học tập toàn trường
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Drawer for searching & managing friends */}
-          <FriendsDrawer />
-        </div>
+        <FriendsDrawer />
       </div>
 
-      {/* 2. Compact Social Overview Stats */}
+      {/* ── Stats overview ────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Total Friends */}
-        <Card className="border border-border/70 bg-gradient-to-br from-card to-primary/5 shadow-xs">
+        {/* Total friends */}
+        <Card className="border-social/20 bg-gradient-to-br from-card to-social/5">
           <CardContent className="flex items-center gap-3.5 p-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-inner">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-social/10 text-social border border-social/20 shadow-inner">
               <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground">Tổng bạn bè</p>
-              <p className="text-lg font-black tracking-tight text-foreground">{friends.length}</p>
+              <p className="text-[11px] font-medium text-text-secondary">Tổng bạn bè</p>
+              <p className="text-lg font-black tracking-tight text-text-primary">{friends.length}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Online Friends */}
-        <Card className="border border-border/70 bg-gradient-to-br from-card to-emerald-500/5 shadow-xs">
+        {/* Online */}
+        <Card className="border-success/20 bg-gradient-to-br from-card to-success/5">
           <CardContent className="flex items-center gap-3.5 p-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-inner">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-success/10 text-success border border-success/20 shadow-inner">
               <Radio className="h-5 w-5 animate-pulse" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground">Đang trực tuyến</p>
-              <p className="text-lg font-black tracking-tight text-emerald-400">{onlineFriends.length}</p>
+              <p className="text-[11px] font-medium text-text-secondary">Đang trực tuyến</p>
+              <p className="text-lg font-black tracking-tight text-success">{onlineFriends.length}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Pending Requests */}
-        <Card className="border border-border/70 bg-gradient-to-br from-card to-amber-500/5 shadow-xs">
+        {/* Pending requests */}
+        <Card className="border-warning/20 bg-gradient-to-br from-card to-warning/5">
           <CardContent className="flex items-center gap-3.5 p-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-inner">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-warning/10 text-warning border border-warning/20 shadow-inner">
               <UserPlus className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground">Lời mời kết bạn</p>
-              <p className="text-lg font-black tracking-tight text-amber-400">{incomingRequests.length}</p>
+              <p className="text-[11px] font-medium text-text-secondary">Lời mời kết bạn</p>
+              <p className="text-lg font-black tracking-tight text-warning">{incomingRequests.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. Friend Directory */}
+      {/* ── Friend directory ──────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-foreground">Danh sách bạn bè ({friends.length})</h2>
+          <h2 className="text-sm font-bold text-text-primary">
+            Danh sách bạn bè ({friends.length})
+          </h2>
           {onlineFriends.length > 0 && (
-            <span className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="text-xs text-success font-medium flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-success animate-ping" />
               {onlineFriends.length} bạn đang online
             </span>
           )}
@@ -113,8 +109,8 @@ export function CommunityPage() {
         {friends.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="Chưa có bạn bè nào trong danh sách"
-            description="Hãy mở danh bạ trường để tìm kiếm và kết bạn cùng các bạn học trong lớp hoặc toàn trường!"
+            title="Chưa có bạn bè nào"
+            description="Mở danh bạ trường để tìm kiếm và kết bạn!"
             action={<FriendsDrawer />}
           />
         ) : (
@@ -127,7 +123,7 @@ export function CommunityPage() {
               return (
                 <Card
                   key={friend.id}
-                  className="border border-border/70 bg-card hover:border-border/90 hover:shadow-xs transition-all"
+                  className="hover:border-border-strong hover:shadow-sm transition-all"
                 >
                   <CardContent className="flex items-center justify-between p-3.5 gap-3">
                     <div className="flex items-center gap-3 min-w-0">
@@ -136,51 +132,43 @@ export function CommunityPage() {
                           <img
                             src={friend.avatar}
                             alt={friend.displayName}
-                            className="h-10 w-10 rounded-full object-cover border border-border/60 shadow-xs"
+                            className="h-10 w-10 rounded-full object-cover border border-border-default"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600/20 text-xs font-bold text-indigo-400 border border-indigo-500/30 uppercase shadow-xs">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-social/15 text-xs font-bold text-social border border-social/25 uppercase">
                             {friend.displayName.slice(0, 2)}
                           </div>
                         )}
-                        {/* Live indicator dot */}
+                        {/* Online indicator dot */}
                         <span
                           className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card ${
-                            isOnline ? 'bg-emerald-500' : 'bg-slate-600'
+                            isOnline ? 'bg-success' : 'bg-border-strong'
                           }`}
                         />
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-foreground">
+                        <p className="truncate text-xs font-bold text-text-primary">
                           {friend.displayName}
                         </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          @{friend.username} {friend.lopTen ? `· ${friend.lopTen}` : ''}
+                        <p className="text-[11px] text-text-secondary truncate">
+                          @{friend.username}{friend.lopTen ? ` · ${friend.lopTen}` : ''}
                         </p>
                       </div>
                     </div>
 
-                    {/* Direct Action: Join Room if Friend is studying */}
                     {inRoom ? (
                       <Button
                         size="sm"
                         onClick={() => navigate(`/room/phong-${presence.activity?.roomId}`)}
-                        className="h-7 px-2.5 text-[11px] font-semibold gap-1 bg-indigo-600/90 hover:bg-indigo-600 text-white shrink-0 shadow-xs"
                         title="Vào phòng cùng bạn"
+                        className="h-7 px-2.5 text-[11px] gap-1 bg-social text-white hover:bg-social/90 shrink-0"
                       >
                         <DoorOpen className="h-3 w-3" />
-                        <span>Vào phòng</span>
+                        Vào phòng
                       </Button>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] shrink-0 font-medium ${
-                          isOnline
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                            : 'border-border/50 text-muted-foreground'
-                        }`}
-                      >
+                      <Badge variant={isOnline ? 'success' : 'secondary'} className="text-[10px] shrink-0">
                         {isOnline ? 'Trực tuyến' : 'Ngoại tuyến'}
                       </Badge>
                     )}

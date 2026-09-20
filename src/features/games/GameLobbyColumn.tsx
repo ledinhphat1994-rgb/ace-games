@@ -25,9 +25,9 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
 
   if (info.category === 'solo') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-800 p-6 text-center">
-        <Users className="size-6 text-slate-700" />
-        <p className="text-xs text-slate-500">Trò chơi đơn không có bàn đấu — bấm "Chơi Ngay" ở cột bên để bắt đầu.</p>
+      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border-default bg-surface/50 p-6 text-center">
+        <Users className="size-6 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">Trò chơi đơn không có bàn đấu — bấm "Chơi Ngay" ở cột bên để bắt đầu.</p>
       </div>
     )
   }
@@ -38,8 +38,8 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="shrink-0">
-        <h3 className="flex items-center gap-1.5 text-sm font-bold text-white">
-          <Users className="size-4 text-cyan-400" /> Bàn {info.shortTitle}
+        <h3 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+          <Users className="size-4 text-brand" /> Bàn {info.shortTitle}
         </h3>
         <div className="mt-2 flex gap-1.5">
           {(
@@ -53,8 +53,8 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
-                filter === f.id ? 'bg-cyan-600 text-white' : 'bg-slate-800/70 text-slate-400 hover:text-white'
+              className={`rounded-lg px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
+                filter === f.id ? 'bg-brand text-slate-950 font-black shadow-sm' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
               }`}
             >
               {f.label}
@@ -63,15 +63,15 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/60 p-2">
+      <div className="flex shrink-0 items-center gap-2 rounded-xl border border-border-default bg-surface/60 p-2">
         <div className="flex flex-1 gap-1">
           {[15, 30, 60].map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setTurnSeconds(s)}
-              className={`flex-1 rounded-lg py-1 text-[10px] font-bold transition-colors ${
-                turnSeconds === s ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+              className={`flex-1 rounded-lg py-1 text-[10px] font-bold transition-colors cursor-pointer ${
+                turnSeconds === s ? 'bg-brand text-slate-950 font-black' : 'bg-surface-raised text-muted-foreground hover:text-foreground'
               }`}
             >
               {s}s
@@ -82,7 +82,7 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
           type="button"
           size="sm"
           onClick={() => onCreate(turnSeconds)}
-          className="h-7 shrink-0 gap-1 bg-cyan-600 px-2.5 text-[11px] font-bold hover:bg-cyan-500"
+          className="h-7 shrink-0 gap-1 bg-brand text-slate-950 font-bold hover:bg-brand-hover cursor-pointer"
         >
           <Plus className="size-3" /> Tạo bàn
         </Button>
@@ -90,12 +90,12 @@ export function GameLobbyColumn({ gameType, tables, isPending, isError, onEnter,
 
       <div className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto" style={{ overflowAnchor: 'none' }}>
         {isError ? (
-          <div className="flex h-24 items-center justify-center text-xs text-rose-400">Không tải được danh sách bàn.</div>
+          <div className="flex h-24 items-center justify-center text-xs text-destructive">Không tải được danh sách bàn.</div>
         ) : filtered.length > 0 ? (
           filtered.map((t) => <GameTableCard key={t.id} table={t} onEnter={() => onEnter(t.id)} hideGameBadge />)
         ) : (
-          <div className="flex h-24 flex-col items-center justify-center gap-1 text-center text-xs text-slate-500">
-            <Swords className="size-5 text-slate-700" />
+          <div className="flex h-24 flex-col items-center justify-center gap-1 text-center text-xs text-muted-foreground">
+            <Swords className="size-5 text-muted-foreground/60" />
             {isPending
               ? 'Đang tải…'
               : filter === 'waiting'

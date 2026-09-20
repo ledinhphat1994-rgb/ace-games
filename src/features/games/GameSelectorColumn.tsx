@@ -33,14 +33,16 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-1">
+      <div className="flex gap-1 rounded-xl border border-border-default bg-surface/90 p-1">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setCategory(tab.id)}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all ${
-              category === tab.id ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all cursor-pointer ${
+              category === tab.id
+                ? 'bg-gradient-to-r from-brand to-cyan-600 text-slate-950 font-black shadow-md'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon ? <tab.icon className="size-3" /> : null}
@@ -50,12 +52,12 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
       </div>
 
       <div className="relative shrink-0">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-slate-500" />
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Tìm trò chơi…"
-          className="h-8 border-slate-800 bg-slate-900/90 pl-8 text-xs text-white placeholder:text-slate-500"
+          className="h-8 border-border-default bg-surface/80 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus-visible:ring-brand/40"
         />
       </div>
 
@@ -64,7 +66,7 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
         style={{ overflowAnchor: 'none' }}
       >
         {games.length === 0 ? (
-          <div className="flex w-full items-center justify-center py-6 text-center text-xs text-slate-500">
+          <div className="flex w-full items-center justify-center py-6 text-center text-xs text-muted-foreground">
             Không tìm thấy trò chơi phù hợp.
           </div>
         ) : (
@@ -76,24 +78,24 @@ export function GameSelectorColumn({ selectedGame, onSelect, waitingCounts }: Ga
                 key={g.id}
                 type="button"
                 onClick={() => onSelect(g.id)}
-                className={`flex w-44 shrink-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all xl:w-full xl:shrink ${
+                className={`flex w-44 shrink-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all cursor-pointer xl:w-full xl:shrink ${
                   active
-                    ? 'border-cyan-500/60 bg-cyan-500/10 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
-                    : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900'
+                    ? 'border-brand/60 bg-brand/10 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
+                    : 'border-border-default bg-surface/60 hover:border-border-strong hover:bg-surface-raised'
                 }`}
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-800/70 text-base">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-base">
                   {g.icon}
                 </span>
                 <span className="min-w-0">
-                  <span className={`block truncate text-xs font-bold ${active ? 'text-cyan-300' : 'text-white'}`}>
+                  <span className={`block truncate text-xs font-bold ${active ? 'text-brand' : 'text-foreground'}`}>
                     {g.shortTitle}
                   </span>
-                  <span className="block truncate text-[10px] text-slate-500">
+                  <span className="block truncate text-[10px] text-muted-foreground">
                     {g.category === '1v1' ? (
                       soCho > 0 ? (
-                        <span className="inline-flex items-center gap-1 font-semibold text-cyan-400">
-                          <span className="size-1 animate-pulse rounded-full bg-cyan-400" />⚡ {soCho} bàn chờ
+                        <span className="inline-flex items-center gap-1 font-semibold text-brand">
+                          <span className="size-1 animate-pulse rounded-full bg-brand" />⚡ {soCho} bàn chờ
                         </span>
                       ) : (
                         'Đối kháng 1v1'

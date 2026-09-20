@@ -103,16 +103,16 @@ function XemTruocSolo({ gameType }: { gameType: SoloGameType }) {
   return (
     <div className="flex h-full flex-col gap-4">
       <GameHeader gameType={gameType} />
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-800 bg-slate-950/60 p-6 text-center">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border-default bg-surface/50 p-6 text-center">
         <span className="text-5xl">{info.icon}</span>
-        <p className="text-xs text-slate-500">Trò chơi một người — điểm số cao nhất được ghi vào bảng xếp hạng bên cạnh.</p>
+        <p className="text-xs text-muted-foreground">Trò chơi một người — điểm số cao nhất được ghi vào bảng xếp hạng bên cạnh.</p>
       </div>
       <Button
         type="button"
         onClick={() => setDangChoi(true)}
-        className="h-11 w-full gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 font-extrabold text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-blue-500"
+        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
       >
-        <Play className="size-4 fill-white" /> Chơi Ngay
+        <Play className="size-4 fill-slate-950" /> Chơi Ngay
       </Button>
       {dangChoi && <SoloGameModal gameType={gameType} onClose={() => setDangChoi(false)} />}
     </div>
@@ -126,14 +126,14 @@ function GameHeader({ gameType }: { gameType: GameType }) {
       <div className="flex items-center gap-2">
         <span className="text-2xl">{info.icon}</span>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-extrabold text-white">{info.title}</h2>
-          <p className="truncate text-xs text-slate-400">
+          <h2 className="truncate text-base font-extrabold text-foreground">{info.title}</h2>
+          <p className="truncate text-xs text-muted-foreground">
             {info.subtitle}
             {info.boardLabel ? ` · ${info.boardLabel}` : ''}
           </p>
         </div>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-slate-400">{info.description}</p>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{info.description}</p>
     </div>
   )
 }
@@ -196,11 +196,11 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
       <GameHeader gameType={gameType} />
 
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">
           {tuChoi ? (
-            <MousePointerClick className="size-3.5 text-cyan-400" />
+            <MousePointerClick className="size-3.5 text-brand" />
           ) : (
-            <Sparkles className="size-3.5 animate-pulse text-cyan-400" />
+            <Sparkles className="size-3.5 animate-pulse text-brand" />
           )}
           {tuChoi ? 'Chế độ tự thử' : 'Minh hoạ tự động'}
         </span>
@@ -209,15 +209,15 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
           size="sm"
           variant="outline"
           onClick={() => setTuChoi((v) => !v)}
-          className="h-7 shrink-0 border-slate-700 text-[11px] text-slate-300 hover:text-white"
+          className="h-7 shrink-0 border-border-default text-[11px] text-muted-foreground hover:text-foreground hover:bg-surface-raised cursor-pointer"
         >
           {tuChoi ? 'Xem minh hoạ' : 'Tự thử luôn tay'}
         </Button>
       </div>
 
-      <div className="flex flex-1 items-center justify-center rounded-2xl border border-slate-800/80 bg-slate-950 p-3 shadow-inner">
+      <div className="flex flex-1 items-center justify-center rounded-2xl border border-border-default bg-canvas p-3 shadow-inner">
         <div
-          className="grid gap-[1.5px] rounded-lg bg-slate-800/60 p-[2px]"
+          className="grid gap-[1.5px] rounded-lg bg-surface-raised/80 p-[2px]"
           style={{ gridTemplateColumns: `repeat(${soCot}, minmax(0, 1fr))` }}
         >
           {demo.board.map((row, y) =>
@@ -230,8 +230,8 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
                 className={`flex size-4 items-center justify-center rounded-[2px] text-[8px] font-black transition-colors sm:size-5 ${
                   cell === null
                     ? tuChoi
-                      ? 'cursor-pointer bg-slate-900/90 hover:bg-slate-800 disabled:cursor-default'
-                      : 'bg-slate-900/90'
+                      ? 'cursor-pointer bg-surface/90 hover:bg-surface-raised disabled:cursor-default'
+                      : 'bg-surface/90'
                     : MAU_QUAN[cell]
                 }`}
               >
@@ -242,12 +242,12 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
         </div>
       </div>
 
-      <p className="min-h-4 text-center text-[11px] font-semibold text-cyan-300">{demo.ketQua ?? ' '}</p>
+      <p className="min-h-4 text-center text-[11px] font-semibold text-brand">{demo.ketQua ?? ' '}</p>
 
       <Button
         type="button"
         onClick={onEnterRoom}
-        className="h-11 w-full gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 font-extrabold text-white shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-blue-500"
+        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
       >
         <Swords className="size-4" /> Vào Đấu Ngay
       </Button>

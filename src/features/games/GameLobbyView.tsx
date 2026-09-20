@@ -86,29 +86,29 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
   }, [])
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-slate-950 font-sans text-slate-100">
+    <div className="relative flex h-full flex-col overflow-hidden bg-canvas font-sans text-foreground">
       {/* Glow ambient background */}
-      <div className="pointer-events-none absolute top-0 left-1/4 h-[300px] w-[600px] rounded-full bg-cyan-600/10 blur-[120px]" />
-      <div className="pointer-events-none absolute top-1/3 right-10 h-[350px] w-[500px] rounded-full bg-fuchsia-600/10 blur-[140px]" />
+      <div className="pointer-events-none absolute top-0 left-1/4 h-[300px] w-[600px] rounded-full bg-brand/10 blur-[120px]" />
+      <div className="pointer-events-none absolute top-1/3 right-10 h-[350px] w-[500px] rounded-full bg-social/10 blur-[140px]" />
 
       {/* Top Header */}
-      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 bg-slate-900/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-5">
+      <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-surface/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onBackToHub}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700/50 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-700/80 hover:text-white"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border-default bg-surface-raised/80 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-overlay hover:text-foreground cursor-pointer"
           >
             <ArrowLeft className="size-3.5" />
             <span>Sảnh chính</span>
           </button>
           <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-base font-extrabold tracking-tight text-white">
+            <h1 className="flex items-center gap-2 text-base font-extrabold tracking-tight text-foreground">
               <span className="text-xl">🎮</span>
               Đấu Trường Game
             </h1>
-            <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <span className="size-1.5 animate-pulse rounded-full bg-success" />
               {tablesPending
                 ? 'Đang tải dữ liệu…'
                 : `${tables.length} bàn đang mở · ${soDangChoi} trận trực tiếp · ${tongNguoiXem} người đang xem`}
@@ -119,7 +119,7 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
         <Button
           type="button"
           onClick={handleQuickMatch}
-          className="h-9 gap-1.5 bg-gradient-to-r from-amber-500 to-orange-600 px-3.5 font-black text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-orange-500"
+          className="h-9 gap-1.5 bg-gradient-to-r from-warning to-amber-600 px-3.5 font-black text-slate-950 shadow-lg shadow-warning/20 hover:from-amber-400 hover:to-orange-500 cursor-pointer"
         >
           <Zap className="size-3.5 fill-slate-950" />
           <span className="hidden sm:inline">⚡ Ghép Nhanh</span>
@@ -127,9 +127,7 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
         </Button>
       </header>
 
-      {/* 4 cột chính — dùng CSS Grid ở xl trở lên: flex-basis:auto không co giãn chiều cao đúng cho các
-          cột chiều rộng cố định (đã đo được: h-full trả về chiều cao theo nội dung thay vì bằng hàng),
-          Grid stretch mặc định theo từng track thì luôn đúng chiều cao bằng nhau. */}
+      {/* 4 cột chính */}
       <div
         className="relative z-10 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 xl:grid xl:grid-cols-[14rem_1fr_20rem_18rem] xl:items-stretch xl:overflow-hidden xl:p-5"
         style={{ overflowAnchor: 'none' }}
@@ -140,14 +138,14 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
         </div>
 
         {/* Chuyển cột 2/3/4 trên di động & tablet (từ xl trở lên hiện đồng thời cả 3) */}
-        <div className="flex shrink-0 gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-1 xl:hidden">
+        <div className="flex shrink-0 gap-1 rounded-xl border border-border-default bg-surface/90 p-1 xl:hidden">
           {MOBILE_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setMobilePanel(tab.id)}
-              className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all ${
-                mobilePanel === tab.id ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-all cursor-pointer ${
+                mobilePanel === tab.id ? 'bg-gradient-to-r from-brand to-cyan-600 text-slate-950 font-black shadow-md' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <tab.icon className="size-3" />
@@ -158,7 +156,7 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
 
         {/* Cột 2: xem trước / minh hoạ */}
         <div
-          className={`${mobilePanel === 'preview' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-slate-800/80 bg-slate-900/70 p-5 shadow-lg xl:flex xl:h-full xl:min-h-0 xl:overflow-y-auto`}
+          className={`${mobilePanel === 'preview' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-border-default bg-surface/70 p-5 shadow-lg backdrop-blur-md xl:flex xl:h-full xl:min-h-0 xl:overflow-y-auto`}
           style={{ overflowAnchor: 'none' }}
         >
           <GamePreviewColumn key={selectedGame} gameType={selectedGame} onEnterRoom={handleEnterSelected} />
@@ -166,7 +164,7 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
 
         {/* Cột 3: sảnh bàn đấu */}
         <div
-          className={`${mobilePanel === 'lobby' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-slate-800/80 bg-slate-900/70 p-4 shadow-lg xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden`}
+          className={`${mobilePanel === 'lobby' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-border-default bg-surface/70 p-4 shadow-lg backdrop-blur-md xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden`}
         >
           <GameLobbyColumn
             gameType={selectedGame}
@@ -180,7 +178,7 @@ export function GameLobbyView({ onBackToHub, onCreateRoom, onJoinExisting }: Gam
 
         {/* Cột 4: bảng xếp hạng */}
         <div
-          className={`${mobilePanel === 'leaderboard' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-slate-800/80 bg-slate-900/70 p-4 shadow-lg xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden`}
+          className={`${mobilePanel === 'leaderboard' ? 'flex' : 'hidden'} min-h-[420px] flex-col rounded-3xl border border-border-default bg-surface/70 p-4 shadow-lg backdrop-blur-md xl:flex xl:h-full xl:min-h-0 xl:overflow-hidden`}
         >
           <GameLeaderboard gameType={selectedGame} />
         </div>
