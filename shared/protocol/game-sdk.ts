@@ -105,6 +105,7 @@ export interface SoloGameVerifierResult {
   computedScore: number
   verificationHash: string
   reason?: string
+  terminalReason?: string
 }
 
 export interface SoloGameVerifier {

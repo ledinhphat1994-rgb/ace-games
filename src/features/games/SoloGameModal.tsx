@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
   Award,
-  Play,
+  CheckCircle2,
   RotateCcw,
   Sparkles,
   Trophy,
   X,
 } from 'lucide-react'
+import { SnakeDeluxe } from './snake/SnakeDeluxe'
 
 export type SoloGameType = 'solo_2048' | 'solo_memory' | 'solo_snake'
 
@@ -24,6 +25,7 @@ interface HighScoreRecord {
   gameType: string
   playerName: string
   score: number
+  verified?: number
   createdAt: number
 }
 
@@ -336,194 +338,6 @@ function GameMemoryView({ onSaveScore }: { onSaveScore: (score: number) => void 
 }
 
 // ----------------------------------------------------
-// SOLO GAME 3: SNAKE (RẮN SĂN MỒI)
-// ----------------------------------------------------
-const GRID_SIZE = 15
-
-function GameSnakeView({ onSaveScore }: { onSaveScore: (score: number) => void }) {
-  const [snake, setSnake] = useState<[number, number][]>([[7, 7], [7, 8], [7, 9]])
-  const [food, setFood] = useState<[number, number]>([3, 3])
-  const [dir, setDir] = useState<[number, number]>([0, -1])
-  const [score, setScore] = useState(0)
-  const [isDead, setIsDead] = useState(false)
-  const [isRunning, setIsRunning] = useState(false)
-  const dirRef = useRef(dir)
-  useEffect(() => {
-    dirRef.current = dir
-  }, [dir])
-
-  const spawnFood = (curSnake: [number, number][]): [number, number] => {
-    while (true) {
-      const fx = Math.floor(Math.random() * GRID_SIZE)
-      const fy = Math.floor(Math.random() * GRID_SIZE)
-      if (!curSnake.some(([sx, sy]) => sx === fx && sy === fy)) {
-        return [fx, fy]
-      }
-    }
-  }
-
-  const restartSnake = () => {
-    if (score > 0) onSaveScore(score)
-    const initial: [number, number][] = [[7, 7], [7, 8], [7, 9]]
-    setSnake(initial)
-    setFood(spawnFood(initial))
-    setDir([0, -1])
-    setScore(0)
-    setIsDead(false)
-    setIsRunning(true)
-  }
-
-  useEffect(() => {
-    if (!isRunning || isDead) return
-
-    const timer = setInterval(() => {
-      setSnake((prev) => {
-        const head = prev[0]
-        const [dx, dy] = dirRef.current
-        const nx = head[0] + dx
-        const ny = head[1] + dy
-
-        // Va chạm tường hoặc thân
-        if (
-          nx < 0 ||
-          nx >= GRID_SIZE ||
-          ny < 0 ||
-          ny >= GRID_SIZE ||
-          prev.slice(0, -1).some(([sx, sy]) => sx === nx && sy === ny)
-        ) {
-          setIsDead(true)
-          setIsRunning(false)
-          return prev
-        }
-
-        const newSnake: [number, number][] = [[nx, ny], ...prev]
-        if (nx === food[0] && ny === food[1]) {
-          setScore((s) => s + 10)
-          setFood(spawnFood(newSnake))
-        } else {
-          newSnake.pop()
-        }
-        return newSnake
-      })
-    }, 150)
-
-    return () => clearInterval(timer)
-  }, [isRunning, isDead, food])
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault()
-        const [dx, dy] = dirRef.current
-        if (e.key === 'ArrowUp' && dy !== 1) setDir([0, -1])
-        if (e.key === 'ArrowDown' && dy !== -1) setDir([0, 1])
-        if (e.key === 'ArrowLeft' && dx !== 1) setDir([-1, 0])
-        if (e.key === 'ArrowRight' && dx !== -1) setDir([1, 0])
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [])
-
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex items-center justify-between w-full max-w-xs px-2">
-        <div className="flex flex-col">
-          <span className="text-xs text-slate-400 font-semibold uppercase">Điểm rắn</span>
-          <span className="text-2xl font-black text-emerald-400 font-mono">{score}</span>
-        </div>
-        {!isRunning ? (
-          <button
-            type="button"
-            onClick={restartSnake}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md transition-all active:scale-95"
-          >
-            <Play className="w-3.5 h-3.5" /> Bắt đầu
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={restartSnake}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Chơi lại
-          </button>
-        )}
-      </div>
-
-      {isDead && (
-        <div className="text-xs font-bold text-red-400 bg-red-950/80 px-4 py-1.5 rounded-xl border border-red-800/80 animate-pulse">
-          Trò chơi kết thúc! Rắn đâm vào chướng ngại vật!
-        </div>
-      )}
-
-      {/* Snake Grid */}
-      <div
-        className="grid gap-[1px] bg-slate-900 p-2 rounded-2xl border-2 border-slate-800 shadow-inner w-72 h-72 sm:w-80 sm:h-80"
-        style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}
-      >
-        {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
-          const x = idx % GRID_SIZE
-          const y = Math.floor(idx / GRID_SIZE)
-          const isHead = snake[0][0] === x && snake[0][1] === y
-          const isBody = snake.slice(1).some(([sx, sy]) => sx === x && sy === y)
-          const isFood = food[0] === x && food[1] === y
-
-          return (
-            <div
-              key={`cell-${x}-${y}`}
-              className={`rounded-[2px] transition-colors ${
-                isHead
-                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] z-10'
-                  : isBody
-                    ? 'bg-emerald-600'
-                    : isFood
-                      ? 'bg-red-500 rounded-full animate-ping'
-                      : 'bg-slate-950/70'
-              }`}
-            />
-          )
-        })}
-      </div>
-
-      {/* Mobile direction buttons */}
-      <div className="flex flex-col items-center gap-1 mt-1">
-        <button
-          type="button"
-          onClick={() => { if (dirRef.current[1] !== 1) setDir([0, -1]) }}
-          className="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700"
-        >
-          <ArrowUp className="w-4 h-4" />
-        </button>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => { if (dirRef.current[0] !== 1) setDir([-1, 0]) }}
-            className="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => { if (dirRef.current[1] !== -1) setDir([0, 1]) }}
-            className="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700"
-          >
-            <ArrowDown className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => { if (dirRef.current[0] !== -1) setDir([1, 0]) }}
-            className="p-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700"
-          >
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ----------------------------------------------------
 // MAIN SOLO MODAL WITH LEADERBOARD TAB
 // ----------------------------------------------------
 export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
@@ -534,9 +348,13 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
   const loadHighScores = useCallback(async () => {
     setLoadingScores(true)
     try {
-      const res = await fetch(`/api/game/highscores?gameType=${encodeURIComponent(gameType)}`)
+      const url =
+        gameType === 'solo_snake'
+          ? '/api/game/highscores?gameType=solo_snake&verifiedOnly=1'
+          : `/api/game/highscores?gameType=${encodeURIComponent(gameType)}`
+      const res = await fetch(url)
       if (res.ok) {
-        const data = await res.json() as { ok: boolean; highscores: HighScoreRecord[] }
+        const data = (await res.json()) as { ok: boolean; highscores: HighScoreRecord[] }
         if (data.ok) setHighScores(data.highscores || [])
       }
     } catch (err) {
@@ -560,9 +378,12 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
 
   const getGameTitle = () => {
     switch (gameType) {
-      case 'solo_2048': return 'Trò chơi 2048'
-      case 'solo_memory': return 'Lật Thẻ Trí Nhớ 4×4'
-      case 'solo_snake': return 'Rắn Săn Mồi Retro'
+      case 'solo_2048':
+        return 'Trò chơi 2048'
+      case 'solo_memory':
+        return 'Lật Thẻ Trí Nhớ 4×4'
+      case 'solo_snake':
+        return 'Snake Deluxe (G1)'
     }
   }
 
@@ -620,7 +441,7 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
           <div className="py-2">
             {gameType === 'solo_2048' && <Game2048View onSaveScore={handleSaveScore} />}
             {gameType === 'solo_memory' && <GameMemoryView onSaveScore={handleSaveScore} />}
-            {gameType === 'solo_snake' && <GameSnakeView onSaveScore={handleSaveScore} />}
+            {gameType === 'solo_snake' && <SnakeDeluxe />}
           </div>
         ) : (
           <div className="flex flex-col gap-2 min-h-[320px] max-h-[380px] overflow-y-auto pr-1">
@@ -657,6 +478,9 @@ export function SoloGameModal({ gameType, onClose }: SoloGameModalProps) {
                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                     </span>
                     <span className="text-white truncate max-w-[150px]">{h.playerName}</span>
+                    {h.verified === 1 && (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    )}
                   </div>
                   <span className="font-mono font-bold text-cyan-400">{h.score}</span>
                 </div>

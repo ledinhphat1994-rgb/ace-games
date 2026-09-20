@@ -125,6 +125,42 @@ describe('Staging Diagnostic Isolation & Environment Gating Tests', () => {
     expect(data.loi).toBe('Mã trận không hợp lệ.')
   })
 
+  it('Production environment: POST /api/staging/game-session/reconcile returns strict 404', async () => {
+    const prodEnv: Env = {
+      ...env,
+      ENVIRONMENT: 'production',
+    }
+
+    const res = await app.fetch(
+      new Request('https://gdtxdinhquan.workers.dev/api/staging/game-session/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIds: ['session-1', 'session-2'] }),
+      }),
+      prodEnv,
+    )
+
+    expect(res.status).toBe(404)
+  })
+
+  it('Staging environment: POST /api/staging/game-session/reconcile unauthenticated returns 401', async () => {
+    const stagingEnv: Env = {
+      ...env,
+      ENVIRONMENT: 'staging',
+    }
+
+    const res = await app.fetch(
+      new Request('https://gdtxdinhquan-v2.ledinhphat1994.workers.dev/api/staging/game-session/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIds: ['session-1'] }),
+      }),
+      stagingEnv,
+    )
+
+    expect(res.status).toBe(401)
+  })
+
   it('Config verification: wrangler.production.jsonc has ENVIRONMENT=production and no staging IDs', () => {
     const prodContent = (env as any).PROD_WRANGLER_CONFIG as string
     expect(typeof prodContent).toBe('string')
