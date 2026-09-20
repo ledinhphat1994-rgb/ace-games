@@ -1274,8 +1274,7 @@ app.post('/api/game/session/start', async (c) => {
 })
 
 app.post('/api/game/session/finish', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const reqArrival = Date.now()
 
   let body: unknown
   try { body = await c.req.json() } catch { return loi('Dữ liệu JSON không hợp lệ.', 400) }
@@ -1285,19 +1284,32 @@ app.post('/api/game/session/finish', async (c) => {
     return loi('Dữ liệu kết thúc phiên chơi không đúng chuẩn.', 400)
   }
 
+  const phien = await layPhien(c.req.raw, c.env)
+  if (!phien || !phien.accountId) {
+    const kq = await kiemTraPhien(phien, c.env)
+    return loi(!kq.hopLe ? kq.thongBao : 'Chưa đăng nhập.', 401)
+  }
+
   const { sessionId, inputTrace } = parsed.data
 
-  // 1. Đọc session từ DB — xác minh session tồn tại và thuộc tài khoản này
-  const sessionRow = await c.env.DB.prepare(
-    'SELECT id, game_type, account_id, seed, started_at, status FROM game_sessions WHERE id = ?1 AND account_id = ?2',
-  ).bind(sessionId, kq.taiKhoan.id).first<{
-    id: string
-    game_type: string
-    account_id: number
-    seed: number
-    started_at: number
-    status: string
-  }>()
+  // 1. Concurrent Auth verification & Session lookup in D1 (eliminates sequential D1 roundtrip latency)
+  const tAuthStart = Date.now()
+  const [kq, sessionRow] = await Promise.all([
+    kiemTraPhien(phien, c.env),
+    c.env.DB.prepare(
+      'SELECT id, game_type, account_id, seed, started_at, status FROM game_sessions WHERE id = ?1 AND account_id = ?2',
+    ).bind(sessionId, phien.accountId).first<{
+      id: string
+      game_type: string
+      account_id: number
+      seed: number
+      started_at: number
+      status: string
+    }>(),
+  ])
+  const tAuthLookup = Date.now() - tAuthStart
+
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
 
   if (!sessionRow) {
     return loi('Không tìm thấy phiên chơi tương ứng.', 404)
@@ -1372,9 +1384,11 @@ app.post('/api/game/session/finish', async (c) => {
   let verifyReason: string | undefined
   let sessionStatus = 'completed'
   let insertHighScore = true
+  let tReplay = 0
 
   if (verifier) {
     // Server recomputes score deterministically — client score has zero authority
+    const tReplayStart = Date.now()
     try {
       const result = await verifier.verify({
         seed: sessionRow.seed,
@@ -1382,6 +1396,7 @@ app.post('/api/game/session/finish', async (c) => {
         serverEndedAt: now,
         inputTrace,
       })
+      tReplay = Date.now() - tReplayStart
       if (result.valid) {
         finalVerified = true
         finalScore = result.computedScore
@@ -1448,13 +1463,21 @@ app.post('/api/game/session/finish', async (c) => {
     )
   }
 
+  const tBatchStart = Date.now()
   const updateResult = await c.env.DB.batch(batchStatements)
+  const tDbBatch = Date.now() - tBatchStart
 
   // If UPDATE affected 0 rows, another concurrent finish already closed this session
   const sessionUpdateMeta = updateResult[0].meta as { changes?: number } | undefined
   if (sessionUpdateMeta && (sessionUpdateMeta.changes ?? 1) === 0) {
     return loi('Phiên chơi đã được kết thúc trước đó.', 409)
   }
+
+  const tTotal = Date.now() - reqArrival
+  c.header(
+    'Server-Timing',
+    `auth;dur=${tAuthLookup}, replay;dur=${tReplay}, db_batch;dur=${tDbBatch}, total;dur=${tTotal}`,
+  )
 
   return c.json({
     ok: true,

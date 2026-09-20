@@ -1,6 +1,23 @@
 import { performance } from 'node:perf_hooks'
 
+async function setupConnectionPool() {
+  try {
+    const { Agent, setGlobalDispatcher } = await import('undici')
+    setGlobalDispatcher(
+      new Agent({
+        connections: 500,
+        pipelining: 1,
+        keepAliveTimeout: 60000,
+        keepAliveMaxTimeout: 60000,
+      }),
+    )
+  } catch {
+    // If undici is not available or in non-node environment, continue with default fetch
+  }
+}
+
 const TARGET = process.env.TARGET_URL || 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
+
 
 function computePercentiles(arr) {
   if (arr.length === 0) return { p50: 0, p95: 0, p99: 0 }
@@ -12,7 +29,7 @@ function computePercentiles(arr) {
   }
 }
 
-async function runTier(tierCount, cookie, options = {}) {
+export async function runTier(tierCount, cookie, options = {}) {
   const isBurst = Boolean(options.isBurst)
   const title = isBurst
     ? `BURST TIER: ${tierCount} SIMULTANEOUS FINISHES`
@@ -24,6 +41,10 @@ async function runTier(tierCount, cookie, options = {}) {
 
   const startLatencies = []
   const finishLatencies = []
+  const authServerLatencies = []
+  const replayServerLatencies = []
+  const dbBatchServerLatencies = []
+  const totalServerLatencies = []
   let startSuccess = 0
   let finishSuccess = 0
   let verifiedSuccess = 0
@@ -34,6 +55,20 @@ async function runTier(tierCount, cookie, options = {}) {
     { t: 100, k: 'snake.turn', p: 'left' },
     { t: 1500, k: 'match.end', p: { reason: 'game_over' } },
   ]
+
+  function parseServerTiming(res) {
+    const st = res.headers.get('Server-Timing')
+    if (st) {
+      const authMatch = st.match(/auth;dur=(\d+)/)
+      const replayMatch = st.match(/replay;dur=(\d+)/)
+      const dbMatch = st.match(/db_batch;dur=(\d+)/)
+      const totalMatch = st.match(/total;dur=(\d+)/)
+      if (authMatch) authServerLatencies.push(parseInt(authMatch[1], 10))
+      if (replayMatch) replayServerLatencies.push(parseInt(replayMatch[1], 10))
+      if (dbMatch) dbBatchServerLatencies.push(parseInt(dbMatch[1], 10))
+      if (totalMatch) totalServerLatencies.push(parseInt(totalMatch[1], 10))
+    }
+  }
 
   // Concurrently probe Campus core health during the overload run
   let coldStartProbe = null
@@ -61,7 +96,18 @@ async function runTier(tierCount, cookie, options = {}) {
     }
   }, 250)
 
-  // 1. Session Starts (in batches of 50 to avoid local socket exhaustion)
+  // For burst tiers: pre-warm the client connection pool with tierCount sockets
+  // to prevent client-side TCP/TLS connection queueing during the simultaneous finish phase
+  if (isBurst) {
+    console.log(`[Burst Pool] Pre-warming ${tierCount} keep-alive HTTP connections...`)
+    await Promise.all(
+      Array.from({ length: tierCount }, () =>
+        fetch(`${TARGET}/`, { signal: AbortSignal.timeout(5000) }).catch(() => {}),
+      ),
+    )
+  }
+
+  // 1. Session Starts (in batches of 50 to avoid D1 write serialization bottlenecks)
   const sessions = []
   const batchSize = 50
 
@@ -118,6 +164,7 @@ async function runTier(tierCount, cookie, options = {}) {
         })
         const elapsed = performance.now() - t0
         finishLatencies.push(elapsed)
+        parseServerTiming(res)
 
         if (res.status >= 500) error5xx++
         if (res.status === 200) {
@@ -153,6 +200,7 @@ async function runTier(tierCount, cookie, options = {}) {
           })
           const elapsed = performance.now() - t0
           finishLatencies.push(elapsed)
+          parseServerTiming(res)
 
           if (res.status >= 500) error5xx++
           if (res.status === 200) {
@@ -211,6 +259,12 @@ async function runTier(tierCount, cookie, options = {}) {
     verifiedRate: ((verifiedSuccess / Math.max(1, sessions.length)) * 100).toFixed(1) + '%',
     startLatencies: startP,
     finishLatencies: finishP,
+    serverTimingBreakdown: {
+      authLookup: computePercentiles(authServerLatencies),
+      deterministicReplay: computePercentiles(replayServerLatencies),
+      d1BatchWrite: computePercentiles(dbBatchServerLatencies),
+      totalServerProcessing: computePercentiles(totalServerLatencies),
+    },
     error5xx,
     d1Errors,
     coldStartProbe: coldStartProbe ? 'OK (200)' : 'FAILED',
@@ -229,68 +283,70 @@ async function runTier(tierCount, cookie, options = {}) {
   return report
 }
 
-function evaluateReleaseGates(reports) {
+export function evaluateG1ReleaseGates(reports) {
+  const failures = []
+  const reportList = Array.isArray(reports) ? reports : [reports]
+
+  for (const rep of reportList) {
+    const name = `${rep.mode.toUpperCase()} ${rep.tier}`
+    const startRate = parseFloat(rep.startSuccessRate ?? '0')
+    const finishRate = parseFloat(rep.finishSuccessRate ?? '0')
+    const verifiedRate = parseFloat(rep.verifiedRate ?? '0')
+
+    if (startRate < 99.0) {
+      failures.push(`[${name}] Start success rate ${startRate}% < 99%`)
+    }
+    if (finishRate < 99.0) {
+      failures.push(`[${name}] Finish success rate ${finishRate}% < 99%`)
+    }
+    if (verifiedRate < 100.0) {
+      failures.push(`[${name}] Verification success rate ${verifiedRate}% < 100%`)
+    }
+    if (rep.error5xx > 0) {
+      failures.push(`[${name}] HTTP 5xx errors: ${rep.error5xx} > 0`)
+    }
+    if (rep.d1Errors > 0) {
+      failures.push(`[${name}] D1 errors: ${rep.d1Errors} > 0`)
+    }
+    if (rep.steadyCampusHealthRate < 95.0) {
+      failures.push(`[${name}] Campus steady-state health ${rep.steadyCampusHealthRate}% < 95%`)
+    }
+    if (rep.startLatencies && rep.startLatencies.p95 > 1000) {
+      failures.push(`[${name}] Start P95 latency ${rep.startLatencies.p95}ms > 1000ms`)
+    }
+    // Strict release gate: finish P95 <= 1500 ms for ALL required tiers (burst & staggered)
+    if (rep.finishLatencies && rep.finishLatencies.p95 > 1500) {
+      failures.push(`[${name}] Finish P95 latency ${rep.finishLatencies.p95}ms > 1500ms`)
+    }
+    // D1 Data Integrity Invariants
+    if (rep.missingSessions > 0) {
+      failures.push(`[${name}] Missing sessions in D1: ${rep.missingSessions} > 0`)
+    }
+    if (rep.missingHighscores > 0) {
+      failures.push(`[${name}] Missing verified highscores in D1: ${rep.missingHighscores} > 0`)
+    }
+    if (rep.duplicateSessionHighscores > 0) {
+      failures.push(`[${name}] Duplicate session highscores in D1: ${rep.duplicateSessionHighscores} > 0`)
+    }
+  }
+
+  return {
+    pass: failures.length === 0,
+    failures,
+  }
+}
+
+export function evaluateReleaseGates(reports) {
   console.log('\n======================================================')
   console.log('EVALUATING G1 MACHINE RELEASE GATES (Section 14 & D1 Integrity)')
   console.log('======================================================')
 
-  let hasFailure = false
+  const res = evaluateG1ReleaseGates(reports)
 
-  for (const rep of reports) {
-    const name = `${rep.mode.toUpperCase()} ${rep.tier}`
-    const startRate = parseFloat(rep.startSuccessRate)
-    const finishRate = parseFloat(rep.finishSuccessRate)
-    const verifiedRate = parseFloat(rep.verifiedRate)
-
-    if (startRate < 99.0) {
-      console.error(`❌ [${name}] Start success rate ${startRate}% < 99%`)
-      hasFailure = true
+  if (!res.pass) {
+    for (const failure of res.failures) {
+      console.error(`❌ ${failure}`)
     }
-    if (finishRate < 99.0) {
-      console.error(`❌ [${name}] Finish success rate ${finishRate}% < 99%`)
-      hasFailure = true
-    }
-    if (verifiedRate < 100.0) {
-      console.error(`❌ [${name}] Verification success rate ${verifiedRate}% < 100%`)
-      hasFailure = true
-    }
-    if (rep.error5xx > 0) {
-      console.error(`❌ [${name}] HTTP 5xx errors: ${rep.error5xx} > 0`)
-      hasFailure = true
-    }
-    if (rep.d1Errors > 0) {
-      console.error(`❌ [${name}] D1 errors: ${rep.d1Errors} > 0`)
-      hasFailure = true
-    }
-    if (rep.steadyCampusHealthRate < 95.0) {
-      console.error(`❌ [${name}] Campus steady-state health ${rep.steadyCampusHealthRate}% < 95%`)
-      hasFailure = true
-    }
-    if (rep.startLatencies.p95 > 1000) {
-      console.error(`❌ [${name}] Start P95 latency ${rep.startLatencies.p95}ms > 1000ms`)
-      hasFailure = true
-    }
-    const maxFinishP95 = rep.mode === 'burst' ? 2500 : 1500
-    if (rep.finishLatencies.p95 > maxFinishP95) {
-      console.error(`❌ [${name}] Finish P95 latency ${rep.finishLatencies.p95}ms > ${maxFinishP95}ms`)
-      hasFailure = true
-    }
-    // D1 Data Integrity Invariants
-    if (rep.missingSessions > 0) {
-      console.error(`❌ [${name}] Missing sessions in D1: ${rep.missingSessions} > 0`)
-      hasFailure = true
-    }
-    if (rep.missingHighscores > 0) {
-      console.error(`❌ [${name}] Missing verified highscores in D1: ${rep.missingHighscores} > 0`)
-      hasFailure = true
-    }
-    if (rep.duplicateSessionHighscores > 0) {
-      console.error(`❌ [${name}] Duplicate session highscores in D1: ${rep.duplicateSessionHighscores} > 0`)
-      hasFailure = true
-    }
-  }
-
-  if (hasFailure) {
     console.error('\n❌ MACHINE RELEASE GATE FAILED!')
     process.exit(1)
   }
@@ -299,7 +355,17 @@ function evaluateReleaseGates(reports) {
 }
 
 async function main() {
+  await setupConnectionPool()
   console.log(`Target URL: ${TARGET}`)
+
+
+  const args = process.argv.slice(2)
+  let targetTier = 'all'
+  for (const arg of args) {
+    if (arg.startsWith('--tier=')) {
+      targetTier = arg.slice('--tier='.length).toLowerCase()
+    }
+  }
 
   // Register benchmark user
   const ts = Date.now()
@@ -320,6 +386,17 @@ async function main() {
   const cookie = rLogin.headers.get('set-cookie')?.split(';')[0]
   if (!cookie) throw new Error('Failed to get benchmark auth cookie')
 
+  if (targetTier === 'burst250') {
+    console.log('\nRunning ONLY Burst 250 tier as requested...')
+    const burst250 = await runTier(250, cookie, { isBurst: true })
+    console.log('\n======================================================')
+    console.log('G1 BURST 250 BENCHMARK SUMMARY')
+    console.log('======================================================')
+    console.log(JSON.stringify({ burst250 }, null, 2))
+    evaluateReleaseGates([burst250])
+    return
+  }
+
   // 1. Staggered Tiers
   const report100 = await runTier(100, cookie, { isBurst: false })
   const report250 = await runTier(250, cookie, { isBurst: false })
@@ -338,7 +415,9 @@ async function main() {
   evaluateReleaseGates([report100, report250, report500, burst100, burst250])
 }
 
-main().catch((err) => {
-  console.error('Benchmark Error:', err)
-  process.exit(1)
-})
+if (process.argv[1] && process.argv[1].endsWith('g1-snake-overload-test.mjs')) {
+  main().catch((err) => {
+    console.error('Benchmark Error:', err)
+    process.exit(1)
+  })
+}

@@ -6,6 +6,11 @@ import {
   evaluateAbuseResult,
 // @ts-expect-error [blessed] load test harness is an mjs script without compiled d.ts
 } from '../scripts/load-tests/game-load-test.mjs'
+import {
+  evaluateG1ReleaseGates,
+// @ts-expect-error [blessed] load test harness is an mjs script without compiled d.ts
+} from '../scripts/load-tests/g1-snake-overload-test.mjs'
+
 
 describe('Game Load Gate Evaluation Unit Tests (Blocker 9)', () => {
   const baseCleanTierResult = {
@@ -158,5 +163,84 @@ describe('Game Load Gate Evaluation Unit Tests (Blocker 9)', () => {
       attackerDisconnectedWith4429: false,
     }
     expect(evaluateAbuseResult(dirtyAbuse).pass).toBe(false)
+  })
+})
+
+describe('G1 Snake Deluxe Machine Release Gate Evaluation (Restored Threshold)', () => {
+  const baseCleanBurst250Report = {
+    tier: 250,
+    mode: 'burst' as const,
+    startAttempts: 250,
+    startSuccess: 250,
+    startSuccessRate: '100.0%',
+    finishAttempts: 250,
+    finishSuccess: 250,
+    finishSuccessRate: '100.0%',
+    verifiedSuccess: 250,
+    verifiedRate: '100.0%',
+    startLatencies: { p50: 120, p95: 250, p99: 400 },
+    finishLatencies: { p50: 350, p95: 1500, p99: 1700 },
+    error5xx: 0,
+    d1Errors: 0,
+    coldStartProbe: 'OK (200)',
+    steadyCampusProbe: '20/20 (100.0%)',
+    steadyCampusHealthRate: 100.0,
+    expectedSessions: 250,
+    completedSessions: 250,
+    verifiedHighscoreRows: 250,
+    missingSessions: 0,
+    missingHighscores: 0,
+    duplicateSessionHighscores: 0,
+  }
+
+  it('passes when Burst 250 finish P95 is exactly 1500 ms (threshold boundary)', () => {
+    const res = evaluateG1ReleaseGates([baseCleanBurst250Report])
+    expect(res.pass).toBe(true)
+    expect(res.failures).toHaveLength(0)
+  })
+
+  it('fails when Burst 250 finish P95 is 1501 ms (negative boundary violation)', () => {
+    const dirty = {
+      ...baseCleanBurst250Report,
+      finishLatencies: { p50: 350, p95: 1501, p99: 1700 },
+    }
+    const res = evaluateG1ReleaseGates([dirty])
+    expect(res.pass).toBe(false)
+    expect(res.failures).toContain('[BURST 250] Finish P95 latency 1501ms > 1500ms')
+  })
+
+  it('fails when Burst 100 finish P95 is 1501 ms (strictly no burst exception)', () => {
+    const burst100 = {
+      ...baseCleanBurst250Report,
+      tier: 100,
+      finishLatencies: { p50: 300, p95: 1501, p99: 1600 },
+    }
+    const res = evaluateG1ReleaseGates([burst100])
+    expect(res.pass).toBe(false)
+    expect(res.failures).toContain('[BURST 100] Finish P95 latency 1501ms > 1500ms')
+  })
+
+  it('fails when Staggered tier finish P95 is 1501 ms', () => {
+    const stag = {
+      ...baseCleanBurst250Report,
+      mode: 'staggered' as const,
+      tier: 500,
+      finishLatencies: { p50: 400, p95: 1501, p99: 1600 },
+    }
+    const res = evaluateG1ReleaseGates([stag])
+    expect(res.pass).toBe(false)
+    expect(res.failures).toContain('[STAGGERED 500] Finish P95 latency 1501ms > 1500ms')
+  })
+
+  it('fails when D1 data integrity invariant is violated (missingSessions > 0 or duplicateSessionHighscores > 0)', () => {
+    const dirtyD1 = {
+      ...baseCleanBurst250Report,
+      missingSessions: 1,
+      duplicateSessionHighscores: 1,
+    }
+    const res = evaluateG1ReleaseGates([dirtyD1])
+    expect(res.pass).toBe(false)
+    expect(res.failures.some((f: string) => f.includes('Missing sessions in D1'))).toBe(true)
+    expect(res.failures.some((f: string) => f.includes('Duplicate session highscores in D1'))).toBe(true)
   })
 })
