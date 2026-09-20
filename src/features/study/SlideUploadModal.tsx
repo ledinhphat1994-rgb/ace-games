@@ -14,7 +14,8 @@ import { toast } from 'sonner'
 interface SlideUploadModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onLoadSlide: (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => void
+  roomId?: string
+  onLoadSlide: (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number, docId?: number) => void
 }
 
 /** Lightweight PDF page count using regex on binary content — no external deps */
@@ -33,9 +34,10 @@ async function countPdfPages(file: File): Promise<number> {
   }
 }
 
-export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploadModalProps) {
+export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: SlideUploadModalProps) {
   const [docName, setDocName] = useState('')
   const [docUrl, setDocUrl] = useState('')
+  const [docId, setDocId] = useState<number | undefined>(undefined)
   const [totalPages, setTotalPages] = useState<number>(10)
   const [fileType, setFileType] = useState<'pptx' | 'pdf' | 'image'>('pptx')
   const [glUrl, setGlUrl] = useState('')
@@ -46,6 +48,12 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
 
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
+
+    if (ext === 'ppt') {
+      toast.error('Định dạng .ppt cũ không được hỗ trợ trực tiếp. Vui lòng lưu tệp thành .pdf hoặc .pptx để trình chiếu.')
+      return
+    }
+
     let type: 'pptx' | 'pdf' | 'image' = 'pptx'
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) type = 'image'
     else if (ext === 'pdf') type = 'pdf'
@@ -57,37 +65,65 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
     // Tải lên server R2 để có URL dùng chung cho cả phòng học
     setIsUploading(true)
     let uploadedUrl = ''
+    let uploadedDocId: number | undefined
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/upload', {
+      const cleanRoomId = roomId ? roomId.replace('phong-', '') : null
+      const endpoint = cleanRoomId ? `/api/rooms/${cleanRoomId}/documents` : '/api/upload'
+      const res = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       })
-      if (res.ok) {
-        const data = (await res.json()) as { ok?: boolean; url?: string }
-        if (data.ok && data.url) {
+      const data = (await res.json().catch(() => ({}))) as any
+      if (res.ok && data.ok) {
+        if (data.document) {
+          uploadedUrl = data.document.url
+          uploadedDocId = data.document.id
+        } else if (data.url) {
           uploadedUrl = data.url
-          if (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://')) {
-            try {
-              uploadedUrl = new URL(uploadedUrl).pathname
-            } catch {}
-          }
         }
+        if (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://')) {
+          try {
+            uploadedUrl = new URL(uploadedUrl).pathname
+          } catch {}
+        }
+      } else {
+        const errorMsg =
+          data.loi ||
+          data.error ||
+          (res.status === 413
+            ? 'Dung lượng tệp vượt quá giới hạn tối đa cho phép.'
+            : res.status === 415
+              ? 'Định dạng tệp không được hỗ trợ.'
+              : res.status === 409
+                ? 'Phòng học đã đóng, không thể tải lên tài liệu mới.'
+                : res.status === 403
+                  ? 'Bạn không có quyền tải tài liệu vào phòng học này.'
+                  : res.status === 401
+                    ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+                    : res.status === 429
+                      ? 'Bạn đã tải lên quá nhiều tệp. Vui lòng đợi trong giây lát.'
+                      : 'Không thể tải tệp lên máy chủ lưu trữ.')
+        toast.error(errorMsg)
+        return
       }
-    } catch (err) {
-      console.error('Lỗi tải tệp lên máy chủ R2:', err)
+    } catch (err: any) {
+      console.error('Lỗi tải tệp lên máy chủ:', err)
+      toast.error(err.message || 'Lỗi kết nối khi tải tệp lên máy chủ lưu trữ.')
+      return
     } finally {
       setIsUploading(false)
     }
 
     if (!uploadedUrl) {
       setDocUrl('')
-      toast.error('Không thể tải tệp lên máy chủ lưu trữ. Vui lòng thử lại.')
+      setDocId(undefined)
       return
     }
 
     setDocUrl(uploadedUrl)
+    setDocId(uploadedDocId)
 
     if (type === 'pdf') {
       setIsDetecting(true)
@@ -112,7 +148,11 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
     const file = e.dataTransfer.files[0]
     if (!file) return
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    if (!['pptx', 'ppt', 'pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+    if (ext === 'ppt') {
+      toast.error('Định dạng .ppt cũ không được hỗ trợ trực tiếp. Vui lòng lưu tệp thành .pdf hoặc .pptx để trình chiếu.')
+      return
+    }
+    if (!['pptx', 'pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
       toast.error('Định dạng không hỗ trợ. Hãy chọn .pptx, .pdf hoặc ảnh.')
       return
     }
@@ -128,7 +168,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
       toast.error('Tệp chưa được tải lên máy chủ lưu trữ. Vui lòng chọn tệp để tải lên.')
       return
     }
-    onLoadSlide(docUrl.trim(), docName.trim(), fileType, Math.max(1, totalPages))
+    onLoadSlide(docUrl.trim(), docName.trim(), fileType, Math.max(1, totalPages), docId)
     onOpenChange(false)
     toast.success(`Đã chèn bài giảng "${docName}" lên bảng đen!`)
   }
@@ -175,7 +215,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
             <input
               type="file"
               id="slide-file-input"
-              accept=".pptx,.ppt,.pdf,.png,.jpg,.jpeg,.webp"
+              accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -197,7 +237,7 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
                         : 'Kéo thả hoặc bấm để chọn tệp'}
               </span>
               <span className="text-[11px] text-slate-400">
-                Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)
+                Hỗ trợ: .pdf (khuyên dùng trình chiếu), .pptx, ảnh (.png/.jpg/.webp)
               </span>
             </div>
           </div>
@@ -237,12 +277,18 @@ export function SlideUploadModal({ open, onOpenChange, onLoadSlide }: SlideUploa
                   onChange={(e) => setFileType(e.target.value as 'pptx' | 'pdf' | 'image')}
                   className="h-8 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white"
                 >
-                  <option value="pptx">PowerPoint (.pptx)</option>
-                  <option value="pdf">Tài liệu PDF (.pdf)</option>
+                  <option value="pdf">Tài liệu PDF (.pdf — Khuyên dùng)</option>
+                  <option value="pptx">PowerPoint (.pptx — Lưu trữ phòng)</option>
                   <option value="image">Hình ảnh bài tập (.png/.jpg)</option>
                 </select>
               </div>
             </div>
+
+            {fileType === 'pptx' && (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-200">
+                💡 <strong>Mẹo:</strong> Tệp PowerPoint (.pptx) sẽ được lưu trữ an toàn trong phòng học. Để trình chiếu đồng bộ từng trang mượt mà trên bảng đen cho cả phòng, bạn nên xuất tệp sang định dạng <strong>PDF (.pdf)</strong> trước khi tải lên.
+              </div>
+            )}
           </div>
 
           {/* Google Slides section */}

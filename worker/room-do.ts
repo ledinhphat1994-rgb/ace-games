@@ -2086,14 +2086,19 @@ export class RoomDO extends DurableObject<Env> {
               pathname = rawUrl
             }
           }
-          const isR2Asset = !pathname.includes('..') && (/^\/api\/files\/[a-zA-Z0-9_./-]+$/.test(pathname) || /^\/api\/slides\/[a-zA-Z0-9_./-]+$/.test(pathname))
+          const isR2Asset =
+            !pathname.includes('..') &&
+            (/^\/api\/files\/[a-zA-Z0-9_./-]+$/.test(pathname) ||
+              /^\/api\/slides\/[a-zA-Z0-9_./-]+$/.test(pathname) ||
+              /^\/api\/rooms\/[0-9]+\/documents\/[0-9]+\/file$/.test(pathname))
           const isGoogleSlide = /^https:\/\/docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+(\/.*)?$/.test(rawUrl)
           if (!isR2Asset && !isGoogleSlide) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ. Chỉ chấp nhận tệp tải lên (/api/files/...) hoặc Google Slides.' }))
+            ws.send(JSON.stringify({ type: 'error', message: 'Đường dẫn tài liệu không hợp lệ. Chỉ chấp nhận tệp tải lên (/api/rooms/... hoặc /api/files/...) hoặc Google Slides.' }))
             return
           }
           const totalPages = d.fileType === 'image' ? 1 : Math.max(1, Math.min(500, d.totalPages))
           this.slide = {
+            docId: d.docId,
             docUrl: isR2Asset ? pathname : rawUrl,
             docName: lamSachVanBan(d.docName) || 'Tài liệu trình chiếu',
             fileType: d.fileType,

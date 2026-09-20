@@ -395,8 +395,10 @@ const ALLOWED_UPLOAD_EXTS: Record<string, { maxBytes: number; folder: string; al
     folder: 'slides',
     allowedMimes: [
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'application/octet-stream',
+      'application/x-zip-compressed',
       'application/zip',
+      'application/vnd.ms-powerpoint',
+      'application/octet-stream',
     ],
   },
   ppt: {
@@ -408,7 +410,15 @@ const ALLOWED_UPLOAD_EXTS: Record<string, { maxBytes: number; folder: string; al
   pdf: {
     maxBytes: 30 * 1024 * 1024,
     folder: 'slides',
-    allowedMimes: ['application/pdf', 'application/octet-stream'],
+    allowedMimes: [
+      'application/pdf',
+      'application/x-pdf',
+      'application/acrobat',
+      'applications/vnd.pdf',
+      'text/pdf',
+      'text/x-pdf',
+      'application/octet-stream',
+    ],
   },
   png: {
     maxBytes: 5 * 1024 * 1024,
