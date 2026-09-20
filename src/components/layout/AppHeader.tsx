@@ -61,19 +61,19 @@ export function AppHeader({
     <header className="sticky top-0 z-30 border-b border-border/80 bg-[#080c14]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         {/* Left: Brand & Desktop Navigation */}
-        <div className="flex items-center gap-6">
-          <NavLink to="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-sm group-hover:bg-primary/20 transition-all">
-              <GraduationCap className="h-5 w-5" />
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <NavLink to="/" className="flex items-center gap-2 group shrink-0">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-sm group-hover:bg-primary/20 transition-all">
+              <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-extrabold tracking-tight text-foreground">
+                <span className="text-xs sm:text-sm font-extrabold tracking-tight text-foreground truncate">
                   Digital Campus
                 </span>
                 <Badge
                   variant="outline"
-                  className="border-primary/30 bg-primary/10 px-1 py-0 text-[10px] font-semibold text-primary"
+                  className="hidden sm:inline-flex border-primary/30 bg-primary/10 px-1 py-0 text-[10px] font-semibold text-primary"
                 >
                   v2.1
                 </Badge>
@@ -115,14 +115,14 @@ export function AppHeader({
             <Input
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
-              placeholder="Tìm phòng học, bạn bè…"
+              placeholder="Tìm phòng học…"
               className="h-8 pl-8 pr-3 text-xs bg-card/60 border-border/70 focus:bg-card"
             />
           </div>
         </form>
 
         {/* Right: Status & Supporting Actions */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Live presence indicator */}
           <ConnectionIndicator
             trangThai={trangThai}
@@ -135,13 +135,16 @@ export function AppHeader({
           {/* Notifications */}
           <NotificationCenter />
 
-          {/* Friends Drawer */}
-          <FriendsDrawer />
+          {/* Friends Drawer — visible on sm and up, since mobile already has Community navigation in bottom nav */}
+          <div className="hidden sm:block">
+            <FriendsDrawer />
+          </div>
 
           {/* Chat Drawer Trigger (On-demand, doesn't consume desktop 400px column) */}
           <Button
             variant="ghost"
             size="sm"
+            data-testid="campus-chat-trigger"
             onClick={onToggleChat}
             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-white/10 relative"
             title="Mở trò chuyện toàn trường"
@@ -155,7 +158,7 @@ export function AppHeader({
           </Button>
 
           {/* Account & Profile Menu (with contextual admin controls) */}
-          <div className="flex items-center pl-1 border-l border-border/60">
+          <div className="flex items-center pl-1 sm:pl-2 border-l border-border/60">
             <AccountMenu
               nguoiDung={nguoiDung}
               onDangXuat={onDangXuat}

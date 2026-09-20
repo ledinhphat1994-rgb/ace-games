@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { RoomCard } from './RoomCard'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
+import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
 import {
@@ -21,16 +22,24 @@ import { toast } from 'sonner'
 export function LearningPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const initialQuery = searchParams.get('q') || ''
+  const urlQuery = searchParams.get('q') || ''
 
   const { nguoiDung } = usePhien()
   const { rooms, socialState, presenceMap } = useCampus()
 
   // Discovery filter state
   const [tabPhamVi, setTabPhamVi] = useState<'tat_ca' | 'truong' | 'lop'>('tat_ca')
-  const [tuKhoa, setTuKhoa] = useState(initialQuery)
+  const [tuKhoa, setTuKhoa] = useState(urlQuery)
+  const [prevUrlQuery, setPrevUrlQuery] = useState(urlQuery)
   const [chiHienCoBanBe, setChiHienCoBanBe] = useState(false)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
+  const [moTaoPhong, setMoTaoPhong] = useState(false)
+
+  // Synchronize search input & filtering when URL parameter ?q changes
+  if (urlQuery !== prevUrlQuery) {
+    setPrevUrlQuery(urlQuery)
+    setTuKhoa(urlQuery)
+  }
 
   // Friends & presence projection
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
@@ -86,7 +95,7 @@ export function LearningPage() {
 
         <Button
           size="sm"
-          onClick={() => navigate(`/room/phong-${Date.now().toString(36)}`)}
+          onClick={() => setMoTaoPhong(true)}
           className="gap-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
@@ -189,7 +198,7 @@ export function LearningPage() {
           <Button
             size="sm"
             className="mt-4 h-9 gap-1.5 text-xs font-semibold"
-            onClick={() => navigate(`/room/phong-${Date.now().toString(36)}`)}
+            onClick={() => setMoTaoPhong(true)}
           >
             <Plus className="h-3.5 w-3.5" />
             Tạo phòng học ngay
@@ -207,6 +216,12 @@ export function LearningPage() {
           ))}
         </div>
       )}
+
+      {/* Create Room Modal */}
+      <CreateStudyRoomDialog
+        open={moTaoPhong}
+        onOpenChange={setMoTaoPhong}
+      />
 
       {/* Password Modal */}
       <PasswordRoomDialog

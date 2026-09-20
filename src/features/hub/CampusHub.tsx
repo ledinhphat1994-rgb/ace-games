@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { CampusChatDrawer } from './CampusChatDrawer'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { RoomCard } from './RoomCard'
+import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
@@ -65,6 +66,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
   const [chiHienCoBanBe, setChiHienCoBanBe] = useState(false)
   // Phòng học đang hiện dialog mật khẩu (null = đóng)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
+  const [moTaoPhong, setMoTaoPhong] = useState(false)
 
   // Memoized room-to-friends projection (O(rooms + visible friends), no N+1, no extra API)
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
@@ -440,9 +442,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                 <Button
                   size="sm"
                   className="mt-4 h-9 gap-1.5 text-xs font-semibold"
-                  onClick={() => {
-                    navigate(`/room/phong-${Date.now().toString(36)}`)
-                  }}
+                  onClick={() => setMoTaoPhong(true)}
                 >
                   <BookOpen className="h-3.5 w-3.5" />
                   Tạo phòng học mới
@@ -474,6 +474,12 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
           </aside>
         </div>
       </main>
+
+      {/* Create Room Modal */}
+      <CreateStudyRoomDialog
+        open={moTaoPhong}
+        onOpenChange={setMoTaoPhong}
+      />
 
       {/* Dialog mật khẩu phòng học — render ngoài flow chính để tránh CLS */}
       <PasswordRoomDialog

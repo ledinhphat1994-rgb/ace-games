@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ProgressSummary } from '@/components/progress/ProgressSummary'
 import { RoomCard } from './RoomCard'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
+import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
 import {
@@ -27,6 +28,7 @@ export function HomePage() {
   const { rooms, socialState, presenceMap } = useCampus()
 
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
+  const [moTaoPhong, setMoTaoPhong] = useState(false)
 
   const displayName = nguoiDung.ten || nguoiDung.username
   const lopText = nguoiDung.lop?.ten ? ` · ${nguoiDung.lop.ten}` : ''
@@ -96,7 +98,7 @@ export function HomePage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/room/phong-${Date.now().toString(36)}`)}
+              onClick={() => setMoTaoPhong(true)}
               className="gap-1.5 text-xs font-semibold border-border/80 hover:bg-white/5"
             >
               <Plus className="h-4 w-4" />
@@ -207,7 +209,7 @@ export function HomePage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigate(`/room/phong-${Date.now().toString(36)}`)}
+              onClick={() => setMoTaoPhong(true)}
               className="mt-3 h-8 gap-1 text-xs border-border/70"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -227,6 +229,12 @@ export function HomePage() {
           </div>
         )}
       </section>
+
+      {/* Create Room Modal */}
+      <CreateStudyRoomDialog
+        open={moTaoPhong}
+        onOpenChange={setMoTaoPhong}
+      />
 
       {/* Password Modal */}
       <PasswordRoomDialog
