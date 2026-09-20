@@ -7,6 +7,7 @@ import {
   GripHorizontal,
   Maximize2,
   Minimize2,
+  Minus,
   Pause,
   Play,
   Volume2,
@@ -20,6 +21,25 @@ import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 
 export type VideoSizePreset = 'pip' | 'medium' | 'large' | 'full'
 
+const PRESET_SIZES: Record<'pip' | 'medium' | 'large', { w: number; h: number }> = {
+  pip: { w: 360, h: 274 },
+  medium: { w: 540, h: 376 },
+  large: { w: 760, h: 500 },
+}
+
+type ResizeDir = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w'
+
+const RESIZE_CURSORS: Record<ResizeDir, string> = {
+  nw: 'nwse-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+  se: 'nwse-resize',
+  n: 'ns-resize',
+  s: 'ns-resize',
+  e: 'ew-resize',
+  w: 'ew-resize',
+}
+
 interface FloatingVideoPlayerProps {
   mediaState: MediaState
   isHost: boolean
@@ -31,6 +51,8 @@ interface FloatingVideoPlayerProps {
   onOpenSearchQueue: () => void
   onClose: () => void
   calculateTargetTime: () => number
+  zIndex?: number
+  onFocus?: () => void
 }
 
 function YoutubeIcon({ className }: { className?: string }) {
@@ -60,17 +82,31 @@ export function FloatingVideoPlayer({
   onOpenSearchQueue,
   onClose,
   calculateTargetTime,
+  zIndex,
+  onFocus,
 }: FloatingVideoPlayerProps) {
   const [sizePreset, setSizePreset] = useState<VideoSizePreset>('medium')
   const [isMinimized, setIsMinimized] = useState(false)
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 40, y: 30 })
-  const [isDragging, setIsDragging] = useState(false)
-  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number }>({
-    mouseX: 0,
-    mouseY: 0,
-    startX: 0,
-    startY: 0,
-  })
+  const [isMaximized, setIsMaximized] = useState(false)
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 80, y: 70 })
+  const [size, setSize] = useState<{ w: number; h: number }>(PRESET_SIZES.medium)
+  const [prevBounds, setPrevBounds] = useState<{
+    pos: { x: number; y: number }
+    size: { w: number; h: number }
+    preset: VideoSizePreset
+  } | null>(null)
+  const [isInteracting, setIsInteracting] = useState(false)
+  const [activeCursor, setActiveCursor] = useState<string>('default')
+  const interRef = useRef<{
+    type: 'drag' | 'resize'
+    dir?: ResizeDir
+    startMouseX: number
+    startMouseY: number
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+  } | null>(null)
 
   const rawId = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const containerId = `floating_yt_${rawId}`
@@ -107,179 +143,295 @@ export function FloatingVideoPlayer({
   }, [isReady, availableRates])
 
   // Dragging logic
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return
-    setIsDragging(true)
-    dragStartRef.current = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
+  const startDrag = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input') || (e.target as HTMLElement).closest('select')) return
+    if (isMaximized) return
+    onFocus?.()
+    setActiveCursor('move')
+    setIsInteracting(true)
+    interRef.current = {
+      type: 'drag',
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
       startX: position.x,
       startY: position.y,
+      startW: size.w,
+      startH: size.h,
+    }
+  }
+
+  const startResize = (dir: ResizeDir, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (isMaximized) return
+    onFocus?.()
+    setActiveCursor(RESIZE_CURSORS[dir])
+    setIsInteracting(true)
+    interRef.current = {
+      type: 'resize',
+      dir,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startX: position.x,
+      startY: position.y,
+      startW: size.w,
+      startH: size.h,
     }
   }
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return
-      const dx = e.clientX - dragStartRef.current.mouseX
-      const dy = e.clientY - dragStartRef.current.mouseY
-      setPosition({
-        x: Math.max(10, dragStartRef.current.startX + dx),
-        y: Math.max(10, dragStartRef.current.startY + dy),
-      })
+      const ref = interRef.current
+      if (!ref) return
+      const dx = e.clientX - ref.startMouseX
+      const dy = e.clientY - ref.startMouseY
+
+      if (ref.type === 'drag') {
+        setPosition({
+          x: Math.max(10, ref.startX + dx),
+          y: Math.max(10, ref.startY + dy),
+        })
+      } else if (ref.type === 'resize' && ref.dir) {
+        const c = ref.dir
+        let newW = ref.startW
+        let newH = ref.startH
+        let newX = ref.startX
+        let newY = ref.startY
+
+        if (c.includes('e')) newW = Math.max(320, ref.startW + dx)
+        if (c.includes('w')) {
+          newW = Math.max(320, ref.startW - dx)
+          newX = Math.max(10, ref.startX + Math.min(dx, ref.startW - 320))
+        }
+        if (c.includes('s')) newH = Math.max(220, ref.startH + dy)
+        if (c.includes('n')) {
+          newH = Math.max(220, ref.startH - dy)
+          newY = Math.max(10, ref.startY + Math.min(dy, ref.startH - 220))
+        }
+
+        setSize({ w: newW, h: newH })
+        setPosition({ x: newX, y: newY })
+      }
     }
+
     const handleMouseUp = () => {
-      if (isDragging) setIsDragging(false)
+      if (interRef.current) {
+        interRef.current = null
+        setIsInteracting(false)
+      }
     }
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
-    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging])
+  }, [])
 
-  // Preset dimensions
-  const getPresetStyles = (): React.CSSProperties => {
-    if (sizePreset === 'full') {
+  const applyPreset = (preset: 'pip' | 'medium' | 'large') => {
+    onFocus?.()
+    if (isMaximized) {
+      setIsMaximized(false)
+    }
+    setSizePreset(preset)
+    setSize(PRESET_SIZES[preset])
+  }
+
+  const toggleMaximize = () => {
+    onFocus?.()
+    if (isMaximized) {
+      if (prevBounds) {
+        setPosition(prevBounds.pos)
+        setSize(prevBounds.size)
+        setSizePreset(prevBounds.preset)
+      } else {
+        setSize(PRESET_SIZES.medium)
+        setSizePreset('medium')
+      }
+      setIsMaximized(false)
+    } else {
+      setPrevBounds({ pos: position, size, preset: sizePreset })
+      setPosition({ x: 16, y: 56 })
+      setSize({
+        w: Math.max(640, window.innerWidth - 32),
+        h: Math.max(400, window.innerHeight - 128),
+      })
+      setSizePreset('full')
+      setIsMaximized(true)
+    }
+  }
+
+  const getContainerStyle = (): React.CSSProperties => {
+    if (isMinimized) {
       return {
-        position: 'absolute',
-        inset: '16px',
-        width: 'calc(100% - 32px)',
-        height: 'calc(100% - 32px)',
-        zIndex: 40,
+        position: 'fixed',
+        top: '-9999px',
+        left: '-9999px',
+        width: '1px',
+        height: '1px',
+        opacity: 0,
+        pointerEvents: 'none',
+        zIndex: -1,
       }
     }
-    const widths: Record<VideoSizePreset, number> = {
-      pip: 360,
-      medium: 540,
-      large: 760,
-      full: 960,
-    }
-    const width = widths[sizePreset]
-    const height = Math.round((width * 9) / 16) + 72 // 16:9 + header & controls
+
+    const effectiveZ = isMaximized ? 999 : (zIndex ?? 40)
 
     return {
       position: 'absolute',
       left: `${position.x}px`,
       top: `${position.y}px`,
-      width: `${width}px`,
-      height: `${height}px`,
-      zIndex: 40,
+      width: `${size.w}px`,
+      height: `${size.h}px`,
+      zIndex: effectiveZ,
+      transition: isInteracting ? 'none' : 'all 150ms cubic-bezier(0.16, 1, 0.3, 1)',
     }
   }
 
   return (
     <>
+      {/* Global transparent overlay during drag/resize to prevent YouTube iframe from capturing mouse */}
+      {isInteracting && (
+        <div
+          className="fixed inset-0 z-[99999] select-none"
+          style={{ cursor: activeCursor }}
+        />
+      )}
+
       {/* 1. Main Floating Window (ALWAYS mounted in DOM, hidden when minimized to preserve player instance) */}
       <div
         ref={containerRef}
-        style={
-          isMinimized
-            ? {
-                position: 'fixed',
-                top: '-9999px',
-                left: '-9999px',
-                width: '1px',
-                height: '1px',
-                opacity: 0,
-                pointerEvents: 'none',
-                zIndex: -1,
-              }
-            : getPresetStyles()
-        }
-        className="flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0a0f18]/95 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 transition-all duration-150"
+        style={getContainerStyle()}
+        className="flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-[#0a0f18]/95 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 select-none"
+        onClick={onFocus}
       >
-      {/* 1. Header with Drag Handle & Size Controls */}
-      <div
-        onMouseDown={handleMouseDown}
-        className="flex h-9 shrink-0 cursor-move items-center justify-between border-b border-white/10 bg-white/5 px-3 select-none"
-      >
-        <div className="flex items-center gap-2 truncate pr-2">
-          <GripHorizontal className="h-3.5 w-3.5 text-slate-400" />
-          <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0" />
-          <span className="truncate text-xs font-semibold text-slate-200">
-            {mediaState.title || 'Video học tập chung'}
-          </span>
+        {/* 1. Header with Drag Handle & Size Controls */}
+        <div
+          onMouseDown={startDrag}
+          className="flex h-9 shrink-0 cursor-move items-center justify-between border-b border-white/10 bg-white/5 px-3 select-none"
+        >
+          <div className="flex items-center gap-2 truncate pr-2">
+            <GripHorizontal className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0" />
+            <span className="truncate text-xs font-semibold text-slate-200">
+              {mediaState.title || 'Video học tập chung'}
+            </span>
 
-          {isHost ? (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300">
-              <Crown className="h-2.5 w-2.5" /> Chủ phòng
-            </span>
-          ) : canModerate ? (
-            <span className="inline-flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300">
-              <ShieldAlert className="h-2.5 w-2.5" /> Điều hành
-            </span>
-          ) : null}
+            {isHost ? (
+              <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-300 shrink-0">
+                <Crown className="h-2.5 w-2.5" /> Chủ phòng
+              </span>
+            ) : canModerate ? (
+              <span className="inline-flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300 shrink-0">
+                <ShieldAlert className="h-2.5 w-2.5" /> Điều hành
+              </span>
+            ) : null}
 
-          {mediaState.hostOnlyControl && !effectiveCanControl ? (
-            <span className="hidden sm:inline-flex items-center gap-1 rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] text-rose-300">
-              Chỉ host điều khiển
-            </span>
-          ) : null}
+            {mediaState.hostOnlyControl && !effectiveCanControl ? (
+              <span className="hidden sm:inline-flex items-center gap-1 rounded bg-rose-500/20 px-1.5 py-0.5 text-[9px] text-rose-300 shrink-0">
+                Chỉ host điều khiển
+              </span>
+            ) : null}
+          </div>
+
+          {/* Preset size and window buttons */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => applyPreset('pip')}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                sizePreset === 'pip' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Kích thước nhỏ (PiP 360px)"
+            >
+              Nhỏ
+            </button>
+            <button
+              onClick={() => applyPreset('medium')}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                sizePreset === 'medium' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Kích thước vừa (540px)"
+            >
+              Vừa
+            </button>
+            <button
+              onClick={() => applyPreset('large')}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                sizePreset === 'large' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Kích thước lớn (760px)"
+            >
+              Lớn
+            </button>
+            <button
+              onClick={toggleMaximize}
+              className={`rounded p-1 text-slate-400 hover:text-white transition-colors ${
+                isMaximized ? 'text-cyan-400' : ''
+              }`}
+              title={isMaximized ? 'Thu về kích thước ban đầu' : 'Phóng to toàn màn hình'}
+            >
+              {isMaximized ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            </button>
+
+            <button
+              onClick={() => setIsMinimized(true)}
+              className="rounded p-1 text-slate-400 hover:text-white transition-colors"
+              title="Thu nhỏ thành thanh dock mini"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+
+            <button
+              onClick={onClose}
+              className="rounded p-1 text-slate-400 hover:text-red-400 transition-colors"
+              title="Đóng khung video"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Preset size and window buttons */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setSizePreset('pip')}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-              sizePreset === 'pip' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-            title="Kích thước nhỏ (PiP 360px)"
-          >
-            Nhỏ
-          </button>
-          <button
-            onClick={() => setSizePreset('medium')}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-              sizePreset === 'medium' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-            title="Kích thước vừa (540px)"
-          >
-            Vừa
-          </button>
-          <button
-            onClick={() => setSizePreset('large')}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-              sizePreset === 'large' ? 'bg-cyan-500 text-black font-bold' : 'text-slate-400 hover:text-white'
-            }`}
-            title="Kích thước lớn (760px)"
-          >
-            Lớn
-          </button>
-          <button
-            onClick={() => setSizePreset((prev) => (prev === 'full' ? 'medium' : 'full'))}
-            className={`rounded p-1 text-slate-400 hover:text-white transition-colors ${
-              sizePreset === 'full' ? 'text-cyan-400' : ''
-            }`}
-            title={sizePreset === 'full' ? 'Thu nhỏ lại' : 'Toàn màn hình'}
-          >
-            {sizePreset === 'full' ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-          </button>
+        {/* Resize Handles */}
+        {!isMaximized && (
+          <>
+            <div
+              className="absolute -top-1 -left-1 h-3 w-3 cursor-nwse-resize z-30"
+              onMouseDown={(e) => startResize('nw', e)}
+            />
+            <div
+              className="absolute -top-1 -right-1 h-3 w-3 cursor-nesw-resize z-30"
+              onMouseDown={(e) => startResize('ne', e)}
+            />
+            <div
+              className="absolute -bottom-1 -left-1 h-3 w-3 cursor-nesw-resize z-30"
+              onMouseDown={(e) => startResize('sw', e)}
+            />
+            <div
+              className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize z-30"
+              onMouseDown={(e) => startResize('se', e)}
+            />
+            <div
+              className="absolute top-0 left-2 right-2 h-1 cursor-ns-resize z-30"
+              onMouseDown={(e) => startResize('n', e)}
+            />
+            <div
+              className="absolute bottom-0 left-2 right-2 h-1 cursor-ns-resize z-30"
+              onMouseDown={(e) => startResize('s', e)}
+            />
+            <div
+              className="absolute top-2 bottom-2 left-0 w-1 cursor-ew-resize z-30"
+              onMouseDown={(e) => startResize('w', e)}
+            />
+            <div
+              className="absolute top-2 bottom-2 right-0 w-1 cursor-ew-resize z-30"
+              onMouseDown={(e) => startResize('e', e)}
+            />
+          </>
+        )}
 
-          <button
-            onClick={() => setIsMinimized(true)}
-            className="rounded p-1 text-slate-400 hover:text-white"
-            title="Thu nhỏ thành thanh dock mini"
-          >
-            <Minimize2 className="h-3 w-3" />
-          </button>
-
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:text-red-400"
-            title="Đóng khung video"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Video Player Area */}
-      <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
+        {/* 2. Video Player Area */}
+        <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
         {/* The DOM element where YT.Player is instantiated */}
         <div id={containerId} data-testid="yt-player-host" className="absolute inset-0 h-full w-full" />
 
@@ -433,7 +585,7 @@ export function FloatingVideoPlayer({
         className="absolute z-40 flex items-center gap-3 rounded-full border border-white/20 bg-[#0d1424]/95 px-4 py-2 shadow-2xl backdrop-blur-xl ring-1 ring-cyan-500/30"
       >
         <div
-          onMouseDown={handleMouseDown}
+          onMouseDown={startDrag}
           className="flex cursor-move items-center gap-2 pr-2 border-r border-white/10 select-none"
         >
           <GripHorizontal className="h-4 w-4 text-slate-400" />

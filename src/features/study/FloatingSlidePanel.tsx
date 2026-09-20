@@ -9,7 +9,7 @@ import {
   FileText,
   GripHorizontal,
   Maximize2,
-  Minimize2,
+  Minus,
   Pin,
   PinOff,
   RefreshCw,
@@ -29,7 +29,7 @@ function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string
         <FileSpreadsheet className="h-10 w-10 text-orange-400" />
       </div>
       <div>
-        <h4 className="text-sm font-semibold text-slate-100 truncate max-w-xs">{docName}</h4>
+        <h4 className="text-sm font-semibold text-slate-100 break-all line-clamp-2 max-w-md" title={docName}>{docName}</h4>
         <p className="text-[11px] text-amber-400/90 mt-1 font-medium">
           Tệp PowerPoint đã được lưu trữ an toàn trong phòng học
         </p>
@@ -236,10 +236,10 @@ export function FloatingSlidePanel({
       setIsMaximized(false)
     } else {
       setPrevBounds({ pos: position, size })
-      setPosition({ x: 20, y: 20 })
+      setPosition({ x: 16, y: 56 })
       setSize({
-        w: Math.max(640, window.innerWidth - 40),
-        h: Math.max(480, window.innerHeight - 100),
+        w: Math.max(640, window.innerWidth - 32),
+        h: Math.max(400, window.innerHeight - 128),
       })
       setIsMaximized(true)
     }
@@ -296,7 +296,7 @@ export function FloatingSlidePanel({
       )}
 
       <div
-        style={{ left: position.x, top: position.y, width: size.w, height: size.h, zIndex }}
+        style={{ left: position.x, top: position.y, width: size.w, height: size.h, zIndex: isMaximized ? 999 : zIndex }}
         className="absolute flex flex-col rounded-2xl border border-orange-500/25 bg-[#0a0f18]/97 shadow-2xl backdrop-blur-2xl ring-1 ring-orange-500/15 select-none transition-shadow"
         onClick={onFocus}
       >
@@ -363,7 +363,7 @@ export function FloatingSlidePanel({
                 className="rounded p-1 text-slate-400 hover:text-white transition-colors"
                 title="Thu nhỏ thành thanh nổi"
               >
-                <Minimize2 className="h-3 w-3" />
+                <Minus className="h-3 w-3" />
               </button>
               <button
                 onClick={onClose}

@@ -893,20 +893,20 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* YouTube floating player */}
       {showYoutube && mediaState.videoId ? (
-        <div className="absolute" style={{ zIndex: youtubeZ, top: 70, left: 60 }} onClick={bringYoutubeToFront}>
-          <FloatingVideoPlayer
-            mediaState={mediaState}
-            isHost={isHost}
-            canModerate={canModerate}
-            canControlMedia={canControlMedia}
-            volume={volume}
-            onVolumeChange={setVolume}
-            onSyncMedia={handleSyncMedia}
-            onOpenSearchQueue={() => setShowYtPanel(true)}
-            onClose={() => setShowYoutube(false)}
-            calculateTargetTime={calculateTargetTime}
-          />
-        </div>
+        <FloatingVideoPlayer
+          mediaState={mediaState}
+          isHost={isHost}
+          canModerate={canModerate}
+          canControlMedia={canControlMedia}
+          volume={volume}
+          onVolumeChange={setVolume}
+          onSyncMedia={handleSyncMedia}
+          onOpenSearchQueue={() => setShowYtPanel(true)}
+          onClose={() => setShowYoutube(false)}
+          calculateTargetTime={calculateTargetTime}
+          zIndex={youtubeZ}
+          onFocus={bringYoutubeToFront}
+        />
       ) : null}
 
       {/* Slide floating panel (only shown if not pinned to background) */}
