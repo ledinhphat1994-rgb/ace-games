@@ -68,6 +68,7 @@ describe('R1 — Study Room Reconnect & Document Sync Persistence', () => {
 
     host.dong()
     member.dong()
+    await new Promise((r) => setTimeout(r, 50))
   })
 
   it('2. Late joiner / reconnecting participant receives authoritative SlideState snapshot with docId and currentPage', async () => {
@@ -111,5 +112,6 @@ describe('R1 — Study Room Reconnect & Document Sync Persistence', () => {
 
     host.dong()
     member.dong()
+    await new Promise((r) => setTimeout(r, 50))
   })
 })
