@@ -13,15 +13,14 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react'
-import { GameEngineLoader } from '@/lib/game-loader/engine-loader'
-import { CampusGameSDK } from '@/lib/game-sdk/campus-game-sdk'
 import type { Direction } from '../../../../shared/games/snake'
-import { SnakeScene } from './SnakeScene'
+import {
+  SnakeGameController,
+  type SnakeVerificationStatus,
+} from './SnakeGameController'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface SnakeDeluxeProps {}
-
-type VerificationStatus = 'idle' | 'verifying' | 'verified' | 'unverified' | 'practice'
 
 export function SnakeDeluxe(_props?: SnakeDeluxeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -30,144 +29,44 @@ export function SnakeDeluxe(_props?: SnakeDeluxeProps) {
   const [isDead, setIsDead] = useState(false)
   const [deathReason, setDeathReason] = useState<string | null>(null)
   const [engineLoading, setEngineLoading] = useState(false)
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('idle')
+  const [verificationStatus, setVerificationStatus] = useState<SnakeVerificationStatus>('idle')
   const [verifiedScore, setVerifiedScore] = useState<number | null>(null)
 
-  const sdkRef = useRef<CampusGameSDK | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const phaserGameRef = useRef<any>(null)
-  const snakeSceneRef = useRef<SnakeScene | null>(null)
+  const controllerRef = useRef<SnakeGameController | null>(null)
 
   // Touch gesture tracking
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
-  const stopCurrentGame = useCallback(() => {
-    if (phaserGameRef.current) {
-      try {
-        phaserGameRef.current.destroy(true)
-      } catch {
-        // Safe destroy
-      }
-      phaserGameRef.current = null
+  const getController = useCallback(() => {
+    if (!controllerRef.current && containerRef.current) {
+      controllerRef.current = new SnakeGameController({
+        container: containerRef.current,
+        onScoreUpdate: (s) => setScore(s),
+        onStatusChange: (status, vScore) => {
+          setVerificationStatus(status)
+          setVerifiedScore(vScore)
+        },
+        onEngineLoadingChange: (loading) => setEngineLoading(loading),
+        onStateChange: (state) => {
+          setIsPlaying(state.isPlaying)
+          setIsDead(state.isDead)
+          setDeathReason(state.deathReason)
+        },
+      })
     }
-    if (snakeSceneRef.current) {
-      snakeSceneRef.current.destroy()
-      snakeSceneRef.current = null
-    }
-    if (sdkRef.current) {
-      sdkRef.current.destroy()
-      sdkRef.current = null
-    }
+    return controllerRef.current
   }, [])
 
   const startGame = useCallback(async () => {
-    if (!containerRef.current) return
-
-    // If an active session was already playing, abort it first so it doesn't stay orphaned
-    if (sdkRef.current && isPlaying && !isDead) {
-      sdkRef.current.abort('aborted').catch(() => {})
+    const ctrl = getController()
+    if (ctrl) {
+      await ctrl.start()
     }
-
-    stopCurrentGame()
-
-    setIsPlaying(true)
-    setIsDead(false)
-    setDeathReason(null)
-    setScore(0)
-    setVerificationStatus('idle')
-    setVerifiedScore(null)
-    setEngineLoading(true)
-
-    try {
-      // 1. Initialize CampusGameSDK
-      const sdk = new CampusGameSDK({
-        container: containerRef.current,
-        gameType: 'solo_snake',
-        mode: 'solo',
-        onScoreUpdate: (s) => setScore(s),
-      })
-      sdkRef.current = sdk
-
-      // 2. Start server session for seed & anti-cheat
-      await sdk.start()
-      const seed = sdk.getSessionSeed()
-      const isPracticeRun = seed === 0
-      if (isPracticeRun) {
-        setVerificationStatus('practice')
-      }
-
-      // 3. Lazy load Phaser 4.2.1
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const Phaser: any = await GameEngineLoader.loadPhaser()
-      if (!containerRef.current) return
-
-      // 4. Create SnakeScene instance
-      const snakeScene = new SnakeScene({
-        seed: seed || Date.now(),
-        sdk,
-        onScoreUpdate: (s) => setScore(s),
-        onGameOver: async (finalScore, reason) => {
-          setIsDead(true)
-          setDeathReason(reason)
-          setIsPlaying(false)
-
-          if (isPracticeRun) {
-            setVerificationStatus('practice')
-            return
-          }
-
-          // Submit to server verification pipeline with simulation elapsed time
-          setVerificationStatus('verifying')
-          try {
-            const finishRes = await sdk.end('game_over', finalScore, snakeScene.getState().elapsedMs)
-            if (finishRes?.ok && finishRes.verified) {
-              setVerificationStatus('verified')
-              setVerifiedScore(finishRes.finalScore)
-            } else {
-              setVerificationStatus('unverified')
-            }
-          } catch {
-            setVerificationStatus('unverified')
-          }
-        },
-      })
-      snakeSceneRef.current = snakeScene
-
-      // 5. Mount Phaser.Game
-      const rect = containerRef.current.getBoundingClientRect()
-      const gameWidth = Math.max(300, Math.floor(rect.width) || 360)
-      const gameHeight = Math.max(300, Math.floor(rect.height) || 360)
-
-      const phaserConfig = {
-        type: Phaser.AUTO,
-        parent: containerRef.current,
-        width: gameWidth,
-        height: gameHeight,
-        transparent: true,
-        scene: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          create(this: any) {
-            snakeScene.init(this)
-          },
-          update() {
-            snakeScene.update()
-          },
-        },
-      }
-
-      phaserGameRef.current = new Phaser.Game(phaserConfig)
-    } catch (err) {
-      console.error('Lỗi khởi động Snake Deluxe:', err)
-      setIsPlaying(false)
-      setVerificationStatus('practice')
-    } finally {
-      setEngineLoading(false)
-    }
-  }, [stopCurrentGame, isPlaying, isDead])
+  }, [getController])
 
   // Handle direct turn command from UI or touch
   const handleTurn = useCallback((dir: Direction) => {
-    snakeSceneRef.current?.queueTurn(dir)
+    controllerRef.current?.handleTurn(dir)
   }, [])
 
   // Touch gesture listeners (swipe)
@@ -218,46 +117,25 @@ export function SnakeDeluxe(_props?: SnakeDeluxeProps) {
     }
   }, [handleTurn])
 
-  // Hidden tab aborts active ranked run immediately
+  // Hidden tab aborts active ranked run immediately with deterministic elapsed time
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && isPlaying && !isDead) {
-        // 1. Stop simulation immediately
-        if (snakeSceneRef.current) {
-          snakeSceneRef.current.destroy()
-          snakeSceneRef.current = null
-        }
-        if (phaserGameRef.current) {
-          try { phaserGameRef.current.destroy(true) } catch {}
-          phaserGameRef.current = null
-        }
-        setIsPlaying(false)
-        setIsDead(true)
-        setDeathReason('aborted')
-        setVerificationStatus('unverified')
-
-        // 2. Abort server session
-        if (sdkRef.current) {
-          sdkRef.current.abort('aborted').catch(() => {})
-        }
-      }
+      controllerRef.current?.handleVisibilityChange(document.hidden)
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [isPlaying, isDead])
+  }, [])
 
-  // Cleanup on component unmount
+  // Cleanup on component unmount only
   useEffect(() => {
     return () => {
-      if (sdkRef.current && isPlaying && !isDead) {
-        sdkRef.current.abort('aborted').catch(() => {})
-      }
-      stopCurrentGame()
+      controllerRef.current?.destroy()
+      controllerRef.current = null
     }
-  }, [stopCurrentGame, isPlaying, isDead])
+  }, [])
 
   return (
     <div className="flex flex-col items-center gap-3 w-full select-none">

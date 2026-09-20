@@ -641,6 +641,69 @@ app.get('/api/staging/game-session/:matchId/outbox', async (c) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Staging-Only Diagnostic API: POST /api/staging/game-session/reconcile
+// Inaccessible in production; reconciles exact benchmark session IDs against D1
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/staging/game-session/reconcile', async (c) => {
+  if (c.env.ENVIRONMENT !== 'staging') {
+    return c.notFound()
+  }
+
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+
+  let body: { sessionIds?: string[] }
+  try { body = await c.req.json() } catch { return loi('Dữ liệu JSON không hợp lệ.', 400) }
+  const sessionIds = body.sessionIds
+  if (!Array.isArray(sessionIds) || sessionIds.length === 0 || sessionIds.length > 1000) {
+    return loi('Danh sách sessionIds không hợp lệ (1 - 1000).', 400)
+  }
+
+  const chunkSize = 100
+  let completedSessions = 0
+  let verifiedHighscoreRows = 0
+  let duplicateHighscores = 0
+
+  for (let i = 0; i < sessionIds.length; i += chunkSize) {
+    const chunk = sessionIds.slice(i, i + chunkSize)
+    const placeholders = chunk.map((_, idx) => `?${idx + 1}`).join(',')
+
+    const sessionsRes = await c.env.DB.prepare(
+      `SELECT id, status FROM game_sessions WHERE id IN (${placeholders})`
+    ).bind(...chunk).all<{ id: string; status: string }>()
+
+    for (const row of (sessionsRes.results || [])) {
+      if (row.status === 'completed') completedSessions++
+    }
+
+    const scoresRes = await c.env.DB.prepare(
+      `SELECT session_id, count(*) as cnt FROM game_high_scores WHERE session_id IN (${placeholders}) AND verified = 1 GROUP BY session_id`
+    ).bind(...chunk).all<{ session_id: string; cnt: number }>()
+
+    for (const row of (scoresRes.results || [])) {
+      verifiedHighscoreRows += row.cnt
+      if (row.cnt > 1) {
+        duplicateHighscores += (row.cnt - 1)
+      }
+    }
+  }
+
+  const expectedSessions = sessionIds.length
+  const missingSessions = expectedSessions - completedSessions
+  const missingHighscores = completedSessions - verifiedHighscoreRows
+
+  return c.json({
+    ok: true,
+    expectedSessions,
+    completedSessions,
+    verifiedHighscoreRows,
+    missingSessions,
+    missingHighscores,
+    duplicateSessionHighscores: duplicateHighscores,
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Password Room Admission API: POST /api/rooms/:id/admit
 // Verifies password → sets signed HttpOnly admission cookie → client connects WS
 // ─────────────────────────────────────────────────────────────────────────────

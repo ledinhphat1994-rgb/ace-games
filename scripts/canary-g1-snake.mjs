@@ -199,10 +199,19 @@ async function main() {
   console.log(`Forged score finish status: ${rFinish2.status}`)
   const dataFinish2 = await rFinish2.json()
   console.log(`Forged score response:`, JSON.stringify(dataFinish2))
-  if (dataFinish2.finalScore === 999999) {
-    throw new Error(`Canary 2 FAILED: Server accepted forged score 999999!`)
+  if (
+    rFinish2.status !== 200 ||
+    !dataFinish2.ok ||
+    dataFinish2.verified !== true ||
+    dataFinish2.finalScore !== 0 ||
+    typeof dataFinish2.verificationHash !== 'string' ||
+    dataFinish2.verificationHash.length === 0
+  ) {
+    throw new Error(
+      `Canary 2 FAILED: expected status 200, ok=true, verified=true, finalScore=0, and valid verificationHash; got ${JSON.stringify(dataFinish2)}`
+    )
   }
-  console.log(`✅ Canary 2 Passed: Forged score 999999 overridden to ${dataFinish2.finalScore}`)
+  console.log(`✅ Canary 2 Passed: Forged score 999999 strictly overridden to exact authoritative 0 (hash: ${dataFinish2.verificationHash})`)
 
   // CANARY 3: Duplicate Finish Rejection (409 Conflict)
   console.log('\n--- CANARY 3: Duplicate Finish 409 Conflict ---')
@@ -222,8 +231,8 @@ async function main() {
   }
   console.log('✅ Canary 3 Passed: Duplicate finish strictly rejected with 409 Conflict.')
 
-  // CANARY 4: Abort on Hidden Tab
-  console.log('\n--- CANARY 4: Hidden Tab Abort Convergence ---')
+  // CANARY 4: Hidden Tab Abort Convergence with Deterministic Elapsed Time
+  console.log('\n--- CANARY 4: Hidden Tab Abort Convergence with Deterministic Elapsed Time ---')
   const rStart4 = await fetch(`${TARGET}/api/game/session/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -231,14 +240,21 @@ async function main() {
   })
   const dataStart4 = await rStart4.json()
 
+  // Wait 600ms
+  await new Promise((resolve) => setTimeout(resolve, 600))
+
+  const deterministicAbortElapsed = 450
   const rFinish4 = await fetch(`${TARGET}/api/game/session/finish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: cookie },
     body: JSON.stringify({
       sessionId: dataStart4.sessionId,
       score: 0,
-      durationMs: 600,
-      inputTrace: [{ t: 200, k: 'match.end', p: { reason: 'aborted' } }],
+      durationMs: deterministicAbortElapsed,
+      inputTrace: [
+        { t: 0, k: 'snake.turn', p: 'left' },
+        { t: deterministicAbortElapsed, k: 'match.end', p: { reason: 'aborted' } },
+      ],
     }),
   })
   const dataFinish4 = await rFinish4.json()

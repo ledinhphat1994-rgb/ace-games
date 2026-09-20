@@ -206,8 +206,8 @@ export function replaySnakeSession(params: {
   while (!isSnakeTerminal(state) && state.tick < MAX_TICKS && simTime < maxElapsed) {
     const nextTickTime = simTime + state.stepDurationMs
 
-    // Process all events up to nextTickTime
-    while (eventIdx < inputTrace.length && inputTrace[eventIdx].t <= nextTickTime) {
+    // Process all events up to nextTickTime (strictly < nextTickTime so t = elapsed takes effect on next step)
+    while (eventIdx < inputTrace.length && inputTrace[eventIdx].t < nextTickTime) {
       const event = inputTrace[eventIdx]
       eventIdx++
 

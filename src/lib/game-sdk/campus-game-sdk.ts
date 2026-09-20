@@ -207,13 +207,16 @@ export class CampusGameSDK {
   /**
    * Explicitly aborts an active ranked session so it does not remain orphaned on the server.
    */
-  async abort(reason: GameEndReason = 'aborted'): Promise<SoloSessionFinishResponse | null> {
+  async abort(
+    reason: GameEndReason = 'aborted',
+    deterministicElapsedMs?: number,
+  ): Promise<SoloSessionFinishResponse | null> {
     if (this.lifecycle === 'end' || this.lifecycle === 'destroy') return null
     if (!this.sessionId || this.mode !== 'solo') {
       this.setLifecycle('end')
       return null
     }
-    return this.end(reason, this.currentScore)
+    return this.end(reason, this.currentScore, deterministicElapsedMs)
   }
 
   destroy(): void {
@@ -291,6 +294,10 @@ export class CampusGameSDK {
 
   getSessionSeed(): number {
     return this.sessionSeed
+  }
+
+  getSessionId(): string | null {
+    return this.sessionId
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -384,7 +391,7 @@ export class CampusGameSDK {
   }
 
   private startPerfMonitoring(): void {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return
     this.frameCount = 0
     this.lastFpsCheck = performance.now()
 
@@ -413,16 +420,18 @@ export class CampusGameSDK {
         }
       }
 
-      if (this.lifecycle === 'start') {
+      if (this.lifecycle === 'start' && typeof requestAnimationFrame === 'function') {
         this.animFrameId = requestAnimationFrame(check)
       }
     }
 
-    this.animFrameId = requestAnimationFrame(check)
+    if (typeof requestAnimationFrame === 'function') {
+      this.animFrameId = requestAnimationFrame(check)
+    }
   }
 
   private stopPerfMonitoring(): void {
-    if (this.animFrameId !== null && typeof cancelAnimationFrame !== 'undefined') {
+    if (this.animFrameId !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this.animFrameId)
       this.animFrameId = null
     }

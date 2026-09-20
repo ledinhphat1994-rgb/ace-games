@@ -300,4 +300,159 @@ describe('G1 Snake Client / Server Parity & Determinism Suite', () => {
     expect(replay.valid).toBe(true)
     expect(replay.terminalReason).toBe('self_collision')
   })
+
+  it('8. Delayed First Input: Tick 1 no input -> Before Tick 2 turn LEFT hội tụ chính xác giữa Client và Replay', () => {
+    const container = createMockContainer()
+    const sdk = new CampusGameSDK({ container, gameType: 'solo_snake', mode: 'solo' })
+    const scene = new SnakeScene({
+      seed: 8888,
+      sdk,
+      onScoreUpdate: () => {},
+      onGameOver: () => {},
+    })
+    scene.init(createMockPhaserScene())
+
+    // Tick 1: No input, head moves UP from (7, 7) to (7, 6), elapsedMs becomes 150
+    ;(scene as unknown as { tick: () => void }).tick()
+    expect(scene.getState().snake[0]).toEqual({ x: 7, y: 6 })
+    expect(scene.getState().dir).toBe('up')
+    expect(scene.getState().elapsedMs).toBe(150)
+
+    // Before Tick 2: Player turns LEFT
+    scene.queueTurn('left')
+
+    // Tick 2: Client applies LEFT, moves from (7, 6) to (6, 6), elapsedMs becomes 300
+    ;(scene as unknown as { tick: () => void }).tick()
+    const clientState = scene.getState()
+    expect(clientState.snake[0]).toEqual({ x: 6, y: 6 })
+    expect(clientState.dir).toBe('left')
+    expect(clientState.elapsedMs).toBe(300)
+
+    sdk.end('game_over', clientState.score, clientState.elapsedMs)
+
+    // Server replay
+    const replay = replaySnakeSession({
+      seed: 8888,
+      inputTrace: sdk.getRecordedInputs(),
+      maxElapsedMs: clientState.elapsedMs,
+    })
+
+    // Assert 100% lockstep parity at tick boundary
+    expect(replay.finalState.snake[0]).toEqual(clientState.snake[0])
+    expect(replay.finalState.dir).toBe(clientState.dir)
+    expect(replay.finalState.elapsedMs).toBe(clientState.elapsedMs)
+    expect(replay.finalState.tick).toBe(clientState.tick)
+    expect(replay.computedScore).toBe(clientState.score)
+  })
+
+  it('9. Gap Between Inputs: RIGHT on tick 1 -> No input tick 2 -> DOWN on tick 3 hội tụ chính xác', () => {
+    const container = createMockContainer()
+    const sdk = new CampusGameSDK({ container, gameType: 'solo_snake', mode: 'solo' })
+    const scene = new SnakeScene({
+      seed: 9999,
+      sdk,
+      onScoreUpdate: () => {},
+      onGameOver: () => {},
+    })
+    scene.init(createMockPhaserScene())
+
+    // Tick 1: Turn RIGHT, head moves from (7, 7) to (8, 7)
+    scene.queueTurn('right')
+    ;(scene as unknown as { tick: () => void }).tick()
+    expect(scene.getState().snake[0]).toEqual({ x: 8, y: 7 })
+    expect(scene.getState().elapsedMs).toBe(150)
+
+    // Tick 2: No input, head moves from (8, 7) to (9, 7)
+    ;(scene as unknown as { tick: () => void }).tick()
+    expect(scene.getState().snake[0]).toEqual({ x: 9, y: 7 })
+    expect(scene.getState().elapsedMs).toBe(300)
+
+    // Before Tick 3: Turn DOWN
+    scene.queueTurn('down')
+    ;(scene as unknown as { tick: () => void }).tick()
+    const clientState = scene.getState()
+    expect(clientState.snake[0]).toEqual({ x: 9, y: 8 })
+    expect(clientState.dir).toBe('down')
+    expect(clientState.elapsedMs).toBe(450)
+
+    sdk.end('game_over', clientState.score, clientState.elapsedMs)
+
+    const replay = replaySnakeSession({
+      seed: 9999,
+      inputTrace: sdk.getRecordedInputs(),
+      maxElapsedMs: clientState.elapsedMs,
+    })
+
+    expect(replay.finalState.snake[0]).toEqual(clientState.snake[0])
+    expect(replay.finalState.dir).toBe(clientState.dir)
+    expect(replay.finalState.elapsedMs).toBe(clientState.elapsedMs)
+    expect(replay.finalState.tick).toBe(clientState.tick)
+  })
+
+  it('10. Speed Boundary Parity: 150ms -> 140ms chuyển tốc độ với turn đầu vào hội tụ 100%', () => {
+    const container = createMockContainer()
+    const sdk = new CampusGameSDK({ container, gameType: 'solo_snake', mode: 'solo' })
+    const seed = 1001
+    const scene = new SnakeScene({
+      seed,
+      sdk,
+      onScoreUpdate: () => {},
+      onGameOver: () => {},
+    })
+    scene.init(createMockPhaserScene())
+
+    // Simple pathfinder helper to steer head towards target
+    const steerTowards = (target: { x: number; y: number }) => {
+      const head = scene.getState().snake[0]
+      const currentDir = scene.getState().dir
+      if (target.x > head.x && currentDir !== 'left') return 'right'
+      if (target.x < head.x && currentDir !== 'right') return 'left'
+      if (target.y > head.y && currentDir !== 'up') return 'down'
+      if (target.y < head.y && currentDir !== 'down') return 'up'
+      return currentDir
+    }
+
+    // Naturally eat 5 foods to trigger speed progression (150ms -> 140ms)
+    let safety = 0
+    while (scene.getState().foodsEaten < 5 && safety < 100 && !scene.getState().isDead) {
+      safety++
+      const targetFood = scene.getState().food
+      if (targetFood) {
+        const nextDir = steerTowards(targetFood)
+        if (nextDir !== scene.getState().dir) {
+          scene.queueTurn(nextDir)
+        }
+      }
+      ;(scene as unknown as { tick: () => void }).tick()
+    }
+
+    expect(scene.getState().foodsEaten).toBe(5)
+    expect(scene.getState().stepDurationMs).toBe(140)
+
+    // Queue turn at the 140ms speed boundary
+    const food5Elapsed = scene.getState().elapsedMs
+    const perpendicularDir = (scene.getState().dir === 'up' || scene.getState().dir === 'down') ? 'left' : 'up'
+    scene.queueTurn(perpendicularDir)
+    ;(scene as unknown as { tick: () => void }).tick()
+
+    const clientState = scene.getState()
+    expect(clientState.elapsedMs).toBe(food5Elapsed + 140)
+    expect(clientState.dir).toBe(perpendicularDir)
+
+    sdk.end('game_over', clientState.score, clientState.elapsedMs)
+
+    const replay = replaySnakeSession({
+      seed,
+      inputTrace: sdk.getRecordedInputs(),
+      maxElapsedMs: clientState.elapsedMs,
+    })
+
+    expect(replay.finalState.snake).toEqual(clientState.snake)
+    expect(replay.finalState.food).toEqual(clientState.food)
+    expect(replay.finalState.dir).toBe(clientState.dir)
+    expect(replay.finalState.score).toBe(clientState.score)
+    expect(replay.finalState.tick).toBe(clientState.tick)
+    expect(replay.finalState.elapsedMs).toBe(clientState.elapsedMs)
+    expect(replay.finalState.stepDurationMs).toBe(clientState.stepDurationMs)
+  })
 })
