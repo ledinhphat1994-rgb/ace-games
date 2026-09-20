@@ -43,7 +43,6 @@ export function HomePage() {
   const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh toàn trường'
   const loiChao = useMemo(() => getLoiChaoTheoGio(), [])
 
-  // Friends & presence projection
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
@@ -52,7 +51,7 @@ export function HomePage() {
     [rooms, friends, presenceMap, blockedUsers],
   )
 
-  // Smart continuation: Find if any friend is actively in a study room
+  // Smart continuation: find a friend actively in a study room
   const activeFriendStudy = useMemo(() => {
     for (const friend of friends) {
       const presence = presenceMap[friend.id]
@@ -68,7 +67,7 @@ export function HomePage() {
     return null
   }, [friends, presenceMap, rooms])
 
-  // Top active rooms (up to 4 rooms, prioritized by friend presence and occupancy)
+  // Top active rooms (up to 4), friends-first then occupancy
   const activeRoomsPreview = useMemo(() => {
     return [...rooms]
       .sort((a, b) => {
@@ -93,69 +92,70 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 1. Context Hero: Personal, Motivating & Clear Action Dominance */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-[#0c1322] via-[#0f172a] to-primary/10 p-5 sm:p-6 shadow-sm">
-        {/* Subtle decorative glow */}
-        <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+    <div className="space-y-5">
+      {/* ── 1. Hero banner ────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl border border-border-default hero-gradient p-5 sm:p-6">
+        {/* Decorative glow */}
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand/8 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-social/5 blur-2xl" />
 
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="space-y-1.5 max-w-xl">
+          {/* Identity + greeting */}
+          <div className="space-y-1.5 max-w-lg">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand uppercase tracking-wider">
                 <Sparkles className="h-3 w-3" />
                 {loiChao}
               </span>
-              <span className="text-muted-foreground/60 text-xs">·</span>
-              <span className="text-xs font-semibold text-muted-foreground">{lopText}</span>
+              <span className="text-border-strong text-xs">·</span>
+              <span className="text-xs font-medium text-text-secondary">{lopText}</span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-text-primary">
               Xin chào, {displayName}!
             </h1>
 
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Chào mừng bạn đến không gian học tập số. Hãy bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn nhé!
+            <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+              Bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn.
             </p>
           </div>
 
-          {/* Primary & Secondary Action CTAs */}
+          {/* CTAs */}
           <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
             <Button
               size="default"
               onClick={() => navigate('/learn')}
-              className="h-10 px-5 gap-2 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20 transition-all hover:scale-[1.02]"
+              className="gap-2 font-bold shadow-md shadow-brand/20 hover:scale-[1.02] transition-transform"
             >
               <BookOpen className="h-4 w-4" />
-              <span>Vào học ngay</span>
+              Vào học ngay
             </Button>
 
             <Button
               variant="outline"
               size="default"
               onClick={() => setMoTaoPhong(true)}
-              className="h-10 px-3.5 gap-1.5 text-xs font-semibold border-border/80 bg-card/60 hover:bg-white/5 transition-colors"
             >
-              <Plus className="h-4 w-4 text-primary" />
-              <span>Tạo phòng mới</span>
+              <Plus className="h-4 w-4 text-brand" />
+              Tạo phòng
             </Button>
           </div>
         </div>
       </div>
 
-      {/* 2. Smart Continuation Card (Only when a friend is currently studying in a room) */}
+      {/* ── 2. Smart continuation (friend actively studying) ─ */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/15 via-indigo-500/5 to-transparent p-3.5 shadow-xs">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-social/25 bg-social/8 p-3.5">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-social/15 text-social border border-social/20">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">
-                Bạn bè đang học tập: <span className="text-indigo-400">{activeFriendStudy.friend.displayName}</span>
+              <p className="text-xs font-bold text-text-primary truncate">
+                Bạn bè đang học: <span className="text-social">{activeFriendStudy.friend.displayName}</span>
               </p>
-              <p className="text-[11px] text-muted-foreground truncate">
-                Đang ở trong {activeFriendStudy.roomName}. Cùng vào học nhé!
+              <p className="text-[11px] text-text-secondary truncate">
+                {activeFriendStudy.roomName} — cùng vào học nhé!
               </p>
             </div>
           </div>
@@ -163,110 +163,110 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="h-8 px-3 text-xs font-semibold gap-1 bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 shadow-sm"
+            className="shrink-0 gap-1 bg-social text-white hover:bg-social/90 shadow-sm"
           >
             <DoorOpen className="h-3.5 w-3.5" />
-            <span>Vào học cùng</span>
+            Vào học cùng
           </Button>
         </div>
       )}
 
-      {/* 3. Consolidated Gamified Progress Rail */}
+      {/* ── 3. Progress rail ─────────────────────────────── */}
       <ProgressSummary />
 
-      {/* 4. Visually Differentiated Destination Cards */}
+      {/* ── 4. Destination shortcut cards ────────────────── */}
       <section aria-label="Lối tắt nhanh" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {/* Destination: Học tập (Cyan brand theme) */}
+        {/* Học tập */}
         <Card
           onClick={() => navigate('/learn')}
-          className="group cursor-pointer border border-cyan-500/25 bg-gradient-to-br from-card to-cyan-500/5 hover:border-cyan-500/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="group cursor-pointer border-brand/20 bg-gradient-to-br from-card to-brand/5 hover:border-brand/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
         >
           <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 shadow-inner group-hover:bg-cyan-500/20 group-hover:scale-105 transition-all">
-              <BookOpen className="h-6 w-6" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/25 bg-brand/10 text-brand shadow-inner group-hover:bg-brand/18 group-hover:scale-105 transition-all">
+              <BookOpen className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-sm text-foreground group-hover:text-cyan-400 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-sm text-text-primary group-hover:text-brand transition-colors truncate">
                   Học Tập 📚
                 </h3>
-                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-[10px] font-bold text-cyan-300">
+                <Badge variant="default" className="shrink-0 text-[10px] px-1.5 py-0">
                   {rooms.length} phòng
                 </Badge>
               </div>
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                Phòng học lớp, toàn trường và thảo luận bài
+              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
+                Phòng học lớp, toàn trường và thảo luận
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Destination: Đấu trường Game (Emerald theme) */}
+        {/* Game */}
         <Card
           onClick={() => navigate('/arena')}
-          className="group cursor-pointer border border-emerald-500/25 bg-gradient-to-br from-card to-emerald-500/5 hover:border-emerald-500/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="group cursor-pointer border-success/20 bg-gradient-to-br from-card to-success/5 hover:border-success/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
         >
           <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-inner group-hover:bg-emerald-500/20 group-hover:scale-105 transition-all">
-              <Gamepad2 className="h-6 w-6" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-success/25 bg-success/10 text-success shadow-inner group-hover:bg-success/18 group-hover:scale-105 transition-all">
+              <Gamepad2 className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-sm text-foreground group-hover:text-emerald-400 transition-colors">
-                  Đấu Trường Game 🎮
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-sm text-text-primary group-hover:text-success transition-colors truncate">
+                  Đấu Trường 🎮
                 </h3>
-                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] font-bold text-emerald-400">
+                <Badge variant="success" className="shrink-0 text-[10px] px-1.5 py-0">
                   4 trò chơi
                 </Badge>
               </div>
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                Caro, Cờ lật, 2048 & Rắn Deluxe
+              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
+                Caro, Cờ lật, 2048 &amp; Rắn Deluxe
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Destination: Cộng đồng (Purple theme) */}
+        {/* Cộng đồng */}
         <Card
           onClick={() => navigate('/community')}
-          className="group cursor-pointer border border-purple-500/25 bg-gradient-to-br from-card to-purple-500/5 hover:border-purple-500/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="group cursor-pointer border-social/20 bg-gradient-to-br from-card to-social/5 hover:border-social/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
         >
           <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-purple-500/30 bg-purple-500/10 text-purple-400 shadow-inner group-hover:bg-purple-500/20 group-hover:scale-105 transition-all">
-              <Users className="h-6 w-6" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-social/25 bg-social/10 text-social shadow-inner group-hover:bg-social/18 group-hover:scale-105 transition-all">
+              <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-sm text-foreground group-hover:text-purple-400 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-sm text-text-primary group-hover:text-social transition-colors truncate">
                   Cộng Đồng 👥
                 </h3>
-                <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-[10px] font-bold text-purple-300">
+                <Badge variant="social" className="shrink-0 text-[10px] px-1.5 py-0">
                   {friends.length} bạn bè
                 </Badge>
               </div>
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                Bạn bè, hoạt động và kết nối trường lớp
+              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
+                Bạn bè, hoạt động và kết nối lớp
               </p>
             </div>
           </CardContent>
         </Card>
       </section>
 
-      {/* 5. Featured Active Rooms */}
+      {/* ── 5. Featured active rooms ─────────────────────── */}
       <section aria-label="Phòng học đang hoạt động" className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
-            <h2 className="text-sm font-bold text-foreground">Phòng học nổi bật</h2>
+            <Radio className="h-4 w-4 text-success animate-pulse" />
+            <h2 className="text-sm font-bold text-text-primary">Phòng học nổi bật</h2>
           </div>
 
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/learn')}
-            className="h-8 gap-1 text-xs font-semibold text-primary hover:text-primary hover:bg-primary/10"
+            className="h-7 gap-1 text-xs font-semibold text-brand hover:text-brand hover:bg-brand/10"
           >
-            <span>Xem tất cả ({rooms.length})</span>
+            Xem tất cả ({rooms.length})
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -275,7 +275,7 @@ export function HomePage() {
           <EmptyState
             icon={BookOpen}
             title="Chưa có phòng học nào đang mở"
-            description="Hãy tạo phòng học đầu tiên để cùng các bạn trao đổi bài và thảo luận nhóm!"
+            description="Tạo phòng học đầu tiên để cùng các bạn trao đổi bài và thảo luận nhóm!"
             action={{
               label: 'Tạo phòng học ngay',
               icon: Plus,
@@ -283,7 +283,7 @@ export function HomePage() {
             }}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {activeRoomsPreview.map((room) => (
               <RoomCard
                 key={room.id}
@@ -296,13 +296,8 @@ export function HomePage() {
         )}
       </section>
 
-      {/* Create Room Modal */}
-      <CreateStudyRoomDialog
-        open={moTaoPhong}
-        onOpenChange={setMoTaoPhong}
-      />
-
-      {/* Password Modal */}
+      {/* Modals */}
+      <CreateStudyRoomDialog open={moTaoPhong} onOpenChange={setMoTaoPhong} />
       <PasswordRoomDialog
         room={phongCanMatKhau}
         onClose={() => setPhongCanMatKhau(null)}
