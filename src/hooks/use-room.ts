@@ -869,12 +869,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page } }))
   }, [])
 
-  const loadSlideDoc = useCallback((docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages = 1) => {
+  const loadSlideDoc = useCallback((docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages = 1, docId?: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({
       type: 'slide.action',
-      data: { action: 'load_doc', docUrl, docName, fileType, totalPages }
+      data: { action: 'load_doc', docId, docUrl, docName, fileType, totalPages }
     }))
   }, [])
 

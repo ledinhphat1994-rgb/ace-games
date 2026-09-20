@@ -379,8 +379,10 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     if (slideState?.docUrl && slideState?.docUrl !== prevSlideUrlRef.current) {
       prevSlideUrlRef.current = slideState.docUrl
       setShowSlide(true)
+    } else if (!slideState) {
+      prevSlideUrlRef.current = null
     }
-  }, [slideState?.docUrl])
+  }, [slideState])
 
   // ── Refs ─────────────────────────────────────────────────────────────────
   const chatRef = useRef<HTMLDivElement | null>(null)
@@ -480,8 +482,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }
   }
 
-  const handleLoadSlide = (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number) => {
-    loadSlideDoc(docUrl, docName, fileType, totalPages)
+  const handleLoadSlide = (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number, docId?: number) => {
+    loadSlideDoc(docUrl, docName, fileType, totalPages, docId)
     setShowSlide(true)
     setIsSlidePinned(false)
     setShowUploadModal(false)
@@ -1621,6 +1623,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
       <SlideUploadModal
         open={showUploadModal}
         onOpenChange={setShowUploadModal}
+        roomId={roomId}
         onLoadSlide={handleLoadSlide}
       />
 

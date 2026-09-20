@@ -137,6 +137,7 @@ export const LenhPhongQueue = z.discriminatedUnion('action', [
 export type LenhPhongQueue = z.infer<typeof LenhPhongQueue>
 
 export interface SlideState {
+  docId?: number
   docUrl: string
   docName: string
   fileType: 'pptx' | 'pdf' | 'image'
@@ -148,6 +149,7 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
   z.object({ action: z.literal('change_page'), page: z.number().int().positive() }),
   z.object({
     action: z.literal('load_doc'),
+    docId: z.number().int().positive().optional(),
     docUrl: z.string().min(1),
     docName: z.string().max(200),
     fileType: z.enum(['pptx', 'pdf', 'image']),
@@ -156,6 +158,34 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
   z.object({ action: z.literal('close_doc') }),
 ])
 export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
+
+export interface RoomDocumentItem {
+  id: number
+  roomId: number
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  pageCount: number
+  fileType: 'pdf' | 'pptx' | 'image'
+  uploadedByAccountId: number
+  uploadedByName: string
+  createdAt: number
+  url: string
+}
+
+export const UPLOAD_ERROR_CODES = {
+  FILE_TOO_LARGE: 'UPLOAD_FILE_TOO_LARGE',
+  UNSUPPORTED_TYPE: 'UPLOAD_UNSUPPORTED_TYPE',
+  EMPTY_FILE: 'UPLOAD_EMPTY_FILE',
+  AUTH_REQUIRED: 'UPLOAD_AUTH_REQUIRED',
+  ROOM_FORBIDDEN: 'UPLOAD_ROOM_FORBIDDEN',
+  ROOM_CLOSED: 'UPLOAD_ROOM_CLOSED',
+  STORAGE_UNAVAILABLE: 'UPLOAD_STORAGE_UNAVAILABLE',
+  STORAGE_WRITE_FAILED: 'UPLOAD_STORAGE_WRITE_FAILED',
+  METADATA_FAILED: 'UPLOAD_METADATA_FAILED',
+  TIMEOUT: 'UPLOAD_TIMEOUT',
+} as const
+export type UploadErrorCode = (typeof UPLOAD_ERROR_CODES)[keyof typeof UPLOAD_ERROR_CODES]
 
 // ── Learning Session v1 ──────────────────────────────────────────────────────
 
