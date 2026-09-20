@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Download,
   FileSpreadsheet,
   FileText,
   GripHorizontal,
@@ -16,6 +17,46 @@ import {
 } from 'lucide-react'
 import { PdfCanvasViewer } from './PdfCanvasViewer'
 import { useEffect, useRef, useState } from 'react'
+
+function isGoogleSlidesUrl(url?: string): boolean {
+  return typeof url === 'string' && url.includes('docs.google.com/presentation')
+}
+
+function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-6 text-center text-slate-300 max-w-md mx-auto space-y-3 select-auto">
+      <div className="rounded-2xl bg-orange-500/10 p-4 ring-1 ring-orange-500/20">
+        <FileSpreadsheet className="h-10 w-10 text-orange-400" />
+      </div>
+      <div>
+        <h4 className="text-sm font-semibold text-slate-100 truncate max-w-xs">{docName}</h4>
+        <p className="text-[11px] text-amber-400/90 mt-1 font-medium">
+          Tệp PowerPoint đã được lưu trữ an toàn trong phòng học
+        </p>
+      </div>
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-left text-[11px] text-slate-400 space-y-1">
+        <p className="font-semibold text-amber-300 flex items-center gap-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Chưa hỗ trợ trình chiếu trực tiếp PPTX
+        </p>
+        <p className="leading-relaxed">
+          Để bảo mật dữ liệu phòng học, tài liệu chỉ được truy cập nội bộ bởi thành viên phòng.
+          Bạn hãy <strong className="text-slate-200">xuất bài giảng sang định dạng PDF (.pdf)</strong> để trình chiếu và đồng bộ từng trang trực tiếp trên bảng học.
+        </p>
+      </div>
+      {docUrl && (
+        <a
+          href={docUrl}
+          download={docName}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-white/20 transition-colors"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Tải tệp .pptx về máy
+        </a>
+      )}
+    </div>
+  )
+}
 
 /** Build the correct iframe src depending on the URL type */
 function buildIframeSrc(docUrl: string, fileType: 'pptx' | 'pdf' | 'image', useGoogleViewer = false): string {
@@ -299,8 +340,8 @@ export function FloatingSlidePanel({
                 </button>
               )}
 
-              {/* Switch viewer for PPTX */}
-              {slideState.fileType === 'pptx' && (
+              {/* Switch viewer for web-based PPTX (e.g. Google Slides) */}
+              {slideState.fileType === 'pptx' && isGoogleSlidesUrl(slideState.docUrl) && (
                 <button
                   onClick={() => setUseGoogleViewer((v) => !v)}
                   className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"
@@ -374,6 +415,8 @@ export function FloatingSlidePanel({
                 className="max-h-full max-w-full object-contain select-none"
                 draggable={false}
               />
+            ) : slideState.fileType === 'pptx' && !isGoogleSlidesUrl(slideState.docUrl) ? (
+              <PptxAdvisoryCard docName={slideState.docName} docUrl={slideState.docUrl} />
             ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
               <div className="relative h-full w-full">
                 <div className="absolute top-2 left-2 z-10 rounded bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold text-amber-200 backdrop-blur">
@@ -402,8 +445,12 @@ export function FloatingSlidePanel({
           >
             {slideState.fileType === 'pptx' ? (
               <div className="w-full flex items-center justify-between text-slate-400 text-xs">
-                <span className="text-[11px] text-amber-400/90 font-medium">Chế độ xem ngoài — lướt trang trực tiếp trong khung</span>
-                <span className="text-[10px] text-slate-500">Độc lập từng người xem</span>
+                <span className="text-[11px] text-amber-400/90 font-medium">
+                  {isGoogleSlidesUrl(slideState.docUrl) ? 'Google Slides trực tuyến' : 'Tệp PPTX lưu trữ • Khuyên dùng PDF để trình chiếu'}
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {isGoogleSlidesUrl(slideState.docUrl) ? 'Lướt độc lập' : 'Tải về máy để xem'}
+                </span>
               </div>
             ) : (
               <>
@@ -569,6 +616,8 @@ export function PinnedSlideView({
             className="max-h-full max-w-full object-contain"
             draggable={false}
           />
+        ) : slideState.fileType === 'pptx' && !isGoogleSlidesUrl(slideState.docUrl) ? (
+          <PptxAdvisoryCard docName={slideState.docName} docUrl={slideState.docUrl} />
         ) : slideState.docUrl && slideState.docUrl !== 'local_presentation' ? (
           <div className="relative h-full w-full">
             <div className="absolute top-2 left-2 z-10 rounded bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 text-[10px] font-semibold text-amber-200 backdrop-blur">
@@ -602,7 +651,7 @@ export function PinnedSlideView({
 
         {slideState.fileType === 'pptx' ? (
           <span className="text-[10px] text-amber-300/80 border-l border-white/10 pl-2">
-            Chế độ xem ngoài (lướt độc lập)
+            {isGoogleSlidesUrl(slideState.docUrl) ? 'Chế độ xem ngoài (lướt độc lập)' : 'Tệp PPTX lưu trữ • Khuyên dùng PDF'}
           </span>
         ) : (
           <div className="flex items-center gap-1 border-l border-white/10 pl-2">
@@ -632,7 +681,7 @@ export function PinnedSlideView({
           </div>
         )}
 
-        {slideState.fileType === 'pptx' && (
+        {slideState.fileType === 'pptx' && isGoogleSlidesUrl(slideState.docUrl) && (
           <button
             onClick={() => setUseGoogleViewer((v) => !v)}
             className="rounded p-1 text-slate-400 hover:text-cyan-300 transition-colors"

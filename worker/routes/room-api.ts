@@ -17,7 +17,7 @@ import {
 import { lamSachVanBan } from '../../shared/protocol/common'
 import { recordAnalyticsEvent } from '../lib/analytics'
 import { validateDocumentUpload } from '../lib/document-validation'
-import { kiemTraPhamVi, type DongPhong } from '../lib/room-gate'
+import { kiemTraQuyenTruyCapPhong, type DongPhong } from '../lib/room-gate'
 
 export const roomRouter = new Hono<{ Bindings: Env }>()
 
@@ -345,13 +345,10 @@ roomRouter.post('/:id/close', async (c) => {
  * Tuân thủ Section 4, 5, 6, 7, 8, 9, 10, 11 của Milestone R1.
  */
 roomRouter.post('/:id/documents', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401, UPLOAD_ERROR_CODES.AUTH_REQUIRED)
-
   const roomId = parseInt(c.req.param('id'), 10)
   if (!roomId || roomId <= 0) return loi('ID phòng không hợp lệ.', 400)
 
-  // 1. Kiểm tra phòng tồn tại & trạng thái vòng đời
+  // 1. Kiểm tra trạng thái vòng đời phòng học trước (Section 25: từ chối 409 nếu đóng/đang đóng)
   let roomRow: DongPhong | null = null
   try {
     roomRow = await c.env.DB.prepare(
@@ -372,26 +369,30 @@ roomRouter.post('/:id/documents', async (c) => {
     return loi('Phòng học đã đóng, không thể tải lên tài liệu mới.', 409, UPLOAD_ERROR_CODES.ROOM_CLOSED)
   }
 
-  // 2. Kiểm tra phân quyền truy cập phòng (Scope & Ban check)
-  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, roomRow)
-  if (loiPhamVi) return loi('Bạn không có quyền tải tài liệu vào phòng học này.', 403, UPLOAD_ERROR_CODES.ROOM_FORBIDDEN)
-
-  try {
-    const ban = await c.env.DB.prepare(
-      'SELECT 1 FROM phong_ban WHERE phong_id = ?1 AND tai_khoan_id = ?2 LIMIT 1',
-    )
-      .bind(roomRow.id, kq.taiKhoan.id)
-      .first()
-    if (ban) return loi('Bạn đã bị cấm khỏi phòng học này.', 403, UPLOAD_ERROR_CODES.ROOM_FORBIDDEN)
-  } catch (banErr) {
-    console.error('[roomRouter.uploadDocument] Lỗi tra cứu phong_ban:', banErr)
-    return loi('Không thể xác thực quyền truy cập phòng học.', 503)
+  // 2. Kiểm tra phân quyền chuẩn canonical (Session, Scope, Ban, Password Admission Token)
+  const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
+  if (!gate.ok) {
+    if (gate.response.status === 401) {
+      return loi('Vui lòng đăng nhập để thực hiện.', 401, UPLOAD_ERROR_CODES.AUTH_REQUIRED)
+    }
+    if (gate.response.status === 403) {
+      const errText = await gate.response.clone().text().catch(() => '')
+      let msg = 'Bạn không có quyền thực hiện thao tác này.'
+      try {
+        const json = JSON.parse(errText)
+        if (json.loi || json.error) msg = json.loi || json.error
+      } catch {}
+      return loi(msg, 403, UPLOAD_ERROR_CODES.ROOM_FORBIDDEN)
+    }
+    return gate.response
   }
+
+  const { taiKhoan } = gate
 
   // 3. Giới hạn tần suất tải lên (Rate limiting anti-abuse)
   if (c.env.UPLOAD_LIMITER) {
     try {
-      const rlRes = await c.env.UPLOAD_LIMITER.limit({ key: `up:${kq.taiKhoan.id}` })
+      const rlRes = await c.env.UPLOAD_LIMITER.limit({ key: `up:${taiKhoan.id}` })
       if (!rlRes.success) {
         return loi('Bạn đã tải lên quá nhiều tệp trong thời gian ngắn. Vui lòng đợi 1 phút.', 429)
       }
@@ -401,7 +402,7 @@ roomRouter.post('/:id/documents', async (c) => {
   }
 
   if (c.env.RATE_LIMIT) {
-    const rateKey = `rate:upload:${kq.taiKhoan.id}`
+    const rateKey = `rate:upload:${taiKhoan.id}`
     try {
       const count = parseInt((await c.env.RATE_LIMIT.get(rateKey)) || '0', 10)
       if (Number.isFinite(count) && count >= 20) {
@@ -450,7 +451,7 @@ roomRouter.post('/:id/documents', async (c) => {
       customMetadata: {
         originalName: encodeURIComponent(file.name),
         size: String(file.size),
-        uploaderId: String(kq.taiKhoan.id),
+        uploaderId: String(taiKhoan.id),
         roomId: String(roomId),
       },
     })
@@ -478,8 +479,8 @@ roomRouter.post('/:id/documents', async (c) => {
         file.size,
         valRes.pageCount || 1,
         valRes.fileType || 'pdf',
-        kq.taiKhoan.id,
-        kq.taiKhoan.ten || kq.taiKhoan.username,
+        taiKhoan.id,
+        taiKhoan.ten || taiKhoan.username,
         now,
       )
       .first<{ id: number }>()
@@ -502,8 +503,8 @@ roomRouter.post('/:id/documents', async (c) => {
     sizeBytes: file.size,
     pageCount: valRes.pageCount || 1,
     fileType: valRes.fileType || 'pdf',
-    uploadedByAccountId: kq.taiKhoan.id,
-    uploadedByName: kq.taiKhoan.ten || kq.taiKhoan.username,
+    uploadedByAccountId: taiKhoan.id,
+    uploadedByName: taiKhoan.ten || taiKhoan.username,
     createdAt: now,
     url: `/api/rooms/${roomId}/documents/${docId}/file`,
   }
@@ -514,29 +515,14 @@ roomRouter.post('/:id/documents', async (c) => {
 /**
  * GET /api/rooms/:id/documents
  * Danh sách tài liệu hiện có trong phòng học
+ * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission)
  */
 roomRouter.get('/:id/documents', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
-
   const roomId = parseInt(c.req.param('id'), 10)
   if (!roomId || roomId <= 0) return loi('ID phòng không hợp lệ.', 400)
 
-  let roomRow: DongPhong | null = null
-  try {
-    roomRow = await c.env.DB.prepare(
-      'SELECT id, trang_thai, pham_vi, lop_id, access_mode, chu_phong_khoa FROM phong WHERE id = ?1 AND loai = \'video\'',
-    )
-      .bind(roomId)
-      .first<DongPhong>()
-  } catch {
-    return loi('Không thể tra cứu thông tin phòng học.', 500)
-  }
-
-  if (!roomRow) return loi('Không tìm thấy phòng học.', 404)
-
-  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, roomRow)
-  if (loiPhamVi) return loi('Bạn không có quyền truy cập danh sách tài liệu của phòng này.', 403)
+  const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
+  if (!gate.ok) return gate.response
 
   try {
     const rows = await c.env.DB.prepare(`
@@ -573,30 +559,15 @@ roomRouter.get('/:id/documents', async (c) => {
 /**
  * GET /api/rooms/:id/documents/:docId/file
  * Tải/Xem luồng nội dung tệp có xác thực phân quyền phòng học (Authoritative Storage Gate)
+ * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission)
  */
 roomRouter.get('/:id/documents/:docId/file', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
-
   const roomId = parseInt(c.req.param('id'), 10)
   const docId = parseInt(c.req.param('docId'), 10)
   if (!roomId || !docId) return loi('Tham số yêu cầu không hợp lệ.', 400)
 
-  let roomRow: DongPhong | null = null
-  try {
-    roomRow = await c.env.DB.prepare(
-      'SELECT id, trang_thai, pham_vi, lop_id, access_mode, chu_phong_khoa FROM phong WHERE id = ?1 AND loai = \'video\'',
-    )
-      .bind(roomId)
-      .first<DongPhong>()
-  } catch {
-    return loi('Không thể tra cứu thông tin phòng học.', 500)
-  }
-
-  if (!roomRow) return loi('Không tìm thấy phòng học.', 404)
-
-  const loiPhamVi = await kiemTraPhamVi(c.env, kq.taiKhoan, roomRow)
-  if (loiPhamVi) return loi('Bạn không có quyền truy cập tài liệu trong phòng học này.', 403)
+  const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
+  if (!gate.ok) return gate.response
 
   let docRow: any = null
   try {
@@ -629,32 +600,32 @@ roomRouter.get('/:id/documents/:docId/file', async (c) => {
 /**
  * DELETE /api/rooms/:id/documents/:docId
  * Xóa mềm tài liệu khỏi phòng học (Chủ phòng, Moderator hoặc người tải lên)
+ * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission)
  */
 roomRouter.delete('/:id/documents/:docId', async (c) => {
-  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
-
   const roomId = parseInt(c.req.param('id'), 10)
   const docId = parseInt(c.req.param('docId'), 10)
   if (!roomId || !docId) return loi('Tham số yêu cầu không hợp lệ.', 400)
 
-  let roomRow: any = null
+  const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
+  if (!gate.ok) return gate.response
+
+  const { taiKhoan, phongRow, phien } = gate
+
   let docRow: any = null
   try {
-    roomRow = await c.env.DB.prepare('SELECT * FROM phong WHERE id = ?1 AND loai = \'video\'').bind(roomId).first()
     docRow = await c.env.DB.prepare('SELECT * FROM phong_tai_lieu WHERE id = ?1 AND room_id = ?2 AND deleted_at IS NULL').bind(docId, roomId).first()
   } catch {
     return loi('Lỗi cơ sở dữ liệu khi kiểm tra tài liệu.', 500)
   }
 
-  if (!roomRow) return loi('Không tìm thấy phòng học.', 404)
   if (!docRow) return loi('Không tìm thấy tài liệu.', 404)
 
-  const callerKey = actorKey(kq.phien)
-  const isOwner = roomRow.chu_phong_khoa === callerKey
-  const isAdmin = laQuanTriTruong(kq.taiKhoan)
-  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, kq.taiKhoan, roomRow, callerKey)
-  const isUploader = docRow.uploaded_by_account_id === kq.taiKhoan.id
+  const callerKey = actorKey(phien)
+  const isOwner = phongRow.chu_phong_khoa === callerKey
+  const isAdmin = laQuanTriTruong(taiKhoan)
+  const modQuyen = await xacDinhQuyenModeratorPhong(c.env.DB, taiKhoan, phongRow, callerKey)
+  const isUploader = docRow.uploaded_by_account_id === taiKhoan.id
 
   if (!isOwner && !isAdmin && !modQuyen.canModerate && !isUploader) {
     return loi('Bạn không có quyền xóa tài liệu này.', 403)

@@ -215,7 +215,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <input
               type="file"
               id="slide-file-input"
-              accept=".pptx,.ppt,.pdf,.png,.jpg,.jpeg,.webp"
+              accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -237,7 +237,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
                         : 'Kéo thả hoặc bấm để chọn tệp'}
               </span>
               <span className="text-[11px] text-slate-400">
-                Hỗ trợ: .pptx, .ppt, .pdf, ảnh (.png/.jpg/.webp)
+                Hỗ trợ: .pdf (khuyên dùng trình chiếu), .pptx, ảnh (.png/.jpg/.webp)
               </span>
             </div>
           </div>
@@ -277,12 +277,18 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
                   onChange={(e) => setFileType(e.target.value as 'pptx' | 'pdf' | 'image')}
                   className="h-8 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white"
                 >
-                  <option value="pptx">PowerPoint (.pptx)</option>
-                  <option value="pdf">Tài liệu PDF (.pdf)</option>
+                  <option value="pdf">Tài liệu PDF (.pdf — Khuyên dùng)</option>
+                  <option value="pptx">PowerPoint (.pptx — Lưu trữ phòng)</option>
                   <option value="image">Hình ảnh bài tập (.png/.jpg)</option>
                 </select>
               </div>
             </div>
+
+            {fileType === 'pptx' && (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-200">
+                💡 <strong>Mẹo:</strong> Tệp PowerPoint (.pptx) sẽ được lưu trữ an toàn trong phòng học. Để trình chiếu đồng bộ từng trang mượt mà trên bảng đen cho cả phòng, bạn nên xuất tệp sang định dạng <strong>PDF (.pdf)</strong> trước khi tải lên.
+              </div>
+            )}
           </div>
 
           {/* Google Slides section */}
