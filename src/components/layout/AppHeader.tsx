@@ -32,6 +32,7 @@ const DESKTOP_NAV_LINKS = [
   { to: '/learn', label: 'Học tập' },
   { to: '/arena', label: 'Game' },
   { to: '/community', label: 'Cộng đồng' },
+  { to: '/me', label: 'Cá nhân' },
 ]
 
 export function AppHeader({

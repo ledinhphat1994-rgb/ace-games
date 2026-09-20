@@ -4,6 +4,7 @@ import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import {
   DoorOpen,
@@ -22,7 +23,7 @@ export function CommunityPage() {
     [socialState?.incomingRequests],
   )
 
-  // Online friends count
+  // Online friends
   const onlineFriends = useMemo(() => {
     return friends.filter((f) => {
       const presence = presenceMap[f.id]
@@ -32,80 +33,90 @@ export function CommunityPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Page Header */}
+      {/* 1. Header & Social Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            <span>Cộng đồng & Bạn bè</span>
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Kết nối bạn bè, theo dõi hoạt động học tập và giao lưu trong toàn trường
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <span>Cộng đồng Học sinh</span>
+            </h1>
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-bold">
+              {friends.length} bạn bè
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Giao lưu, kết nối bạn bè cùng lớp và đồng hành học tập toàn trường
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Trigger to open the full friends drawer */}
+          {/* Drawer for searching & managing friends */}
           <FriendsDrawer />
         </div>
       </div>
 
-      {/* 2. Overview Stats */}
+      {/* 2. Compact Social Overview Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card className="border border-border/70 bg-card/80">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+        {/* Total Friends */}
+        <Card className="border border-border/70 bg-gradient-to-br from-card to-primary/5 shadow-xs">
+          <CardContent className="flex items-center gap-3.5 p-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-inner">
               <Users className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Tổng số bạn bè</p>
-              <p className="text-lg font-bold text-foreground">{friends.length}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground">Tổng bạn bè</p>
+              <p className="text-lg font-black tracking-tight text-foreground">{friends.length}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border/70 bg-card/80">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Radio className="h-5 w-5" />
+        {/* Online Friends */}
+        <Card className="border border-border/70 bg-gradient-to-br from-card to-emerald-500/5 shadow-xs">
+          <CardContent className="flex items-center gap-3.5 p-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-inner">
+              <Radio className="h-5 w-5 animate-pulse" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Đang trực tuyến</p>
-              <p className="text-lg font-bold text-emerald-400">{onlineFriends.length}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground">Đang trực tuyến</p>
+              <p className="text-lg font-black tracking-tight text-emerald-400">{onlineFriends.length}</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-border/70 bg-card/80">
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        {/* Pending Requests */}
+        <Card className="border border-border/70 bg-gradient-to-br from-card to-amber-500/5 shadow-xs">
+          <CardContent className="flex items-center gap-3.5 p-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-inner">
               <UserPlus className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Lời mời kết bạn</p>
-              <p className="text-lg font-bold text-amber-400">{incomingRequests.length}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground">Lời mời kết bạn</p>
+              <p className="text-lg font-black tracking-tight text-amber-400">{incomingRequests.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. Friend Directory Grid */}
+      {/* 3. Friend Directory */}
       <section className="space-y-3">
-        <h2 className="text-sm font-bold text-foreground">Danh sách bạn bè</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-foreground">Danh sách bạn bè ({friends.length})</h2>
+          {onlineFriends.length > 0 && (
+            <span className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              {onlineFriends.length} bạn đang online
+            </span>
+          )}
+        </div>
 
         {friends.length === 0 ? (
-          <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 p-8 text-center bg-card/20">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mb-3">
-              <Users className="h-6 w-6 opacity-60" />
-            </div>
-            <h4 className="text-sm font-semibold text-foreground">Chưa có bạn bè nào</h4>
-            <p className="mt-1 max-w-sm text-xs text-muted-foreground leading-relaxed">
-              Hãy tìm kiếm và kết nối với các bạn cùng lớp hoặc toàn trường để cùng nhau học tập nhé!
-            </p>
-            <div className="mt-4">
-              <FriendsDrawer />
-            </div>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="Chưa có bạn bè nào trong danh sách"
+            description="Hãy mở danh bạ trường để tìm kiếm và kết bạn cùng các bạn học trong lớp hoặc toàn trường!"
+            action={<FriendsDrawer />}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {friends.map((friend) => {
@@ -116,19 +127,19 @@ export function CommunityPage() {
               return (
                 <Card
                   key={friend.id}
-                  className="border border-border/70 bg-card hover:border-border transition-all"
+                  className="border border-border/70 bg-card hover:border-border/90 hover:shadow-xs transition-all"
                 >
                   <CardContent className="flex items-center justify-between p-3.5 gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative">
+                      <div className="relative shrink-0">
                         {friend.avatar ? (
                           <img
                             src={friend.avatar}
                             alt={friend.displayName}
-                            className="h-10 w-10 rounded-full object-cover border border-border/60"
+                            className="h-10 w-10 rounded-full object-cover border border-border/60 shadow-xs"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600/20 text-xs font-bold text-indigo-400 border border-indigo-500/30 uppercase">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600/20 text-xs font-bold text-indigo-400 border border-indigo-500/30 uppercase shadow-xs">
                             {friend.displayName.slice(0, 2)}
                           </div>
                         )}
@@ -150,12 +161,12 @@ export function CommunityPage() {
                       </div>
                     </div>
 
-                    {/* Action: Join room if friend is studying */}
+                    {/* Direct Action: Join Room if Friend is studying */}
                     {inRoom ? (
                       <Button
                         size="sm"
                         onClick={() => navigate(`/room/phong-${presence.activity?.roomId}`)}
-                        className="h-7 px-2 text-[11px] font-semibold gap-1 bg-indigo-600/80 hover:bg-indigo-600 text-white shrink-0"
+                        className="h-7 px-2.5 text-[11px] font-semibold gap-1 bg-indigo-600/90 hover:bg-indigo-600 text-white shrink-0 shadow-xs"
                         title="Vào phòng cùng bạn"
                       >
                         <DoorOpen className="h-3 w-3" />
@@ -164,7 +175,7 @@ export function CommunityPage() {
                     ) : (
                       <Badge
                         variant="outline"
-                        className={`text-[10px] shrink-0 ${
+                        className={`text-[10px] shrink-0 font-medium ${
                           isOnline
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
                             : 'border-border/50 text-muted-foreground'

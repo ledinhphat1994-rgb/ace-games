@@ -31,7 +31,7 @@ export function MobileNav() {
               to={item.to}
               end={item.exact}
               className={({ isActive }) =>
-                `flex flex-1 flex-col items-center justify-center min-h-[44px] py-1 text-[11px] font-medium transition-colors ${
+                `flex flex-1 flex-col items-center justify-center min-h-[44px] py-1 text-[11px] font-medium active:scale-95 transition-all duration-150 ${
                   isActive
                     ? 'text-primary font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -41,15 +41,17 @@ export function MobileNav() {
               {({ isActive }) => (
                 <>
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ${
                       isActive
-                        ? 'bg-primary/15 text-primary scale-105'
+                        ? 'bg-primary/20 text-primary shadow-xs scale-105'
                         : 'text-muted-foreground'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="mt-0.5 leading-none">{item.label}</span>
+                  <span className={`mt-0.5 leading-none transition-colors ${isActive ? 'font-bold text-primary' : ''}`}>
+                    {item.label}
+                  </span>
                 </>
               )}
             </NavLink>

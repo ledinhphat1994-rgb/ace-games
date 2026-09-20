@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { RoomCard } from './RoomCard'
+import { EmptyState } from '@/components/ui/empty-state'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
@@ -185,25 +186,20 @@ export function LearningPage() {
 
       {/* 3. Room Grid */}
       {danhSachPhongLoc.length === 0 ? (
-        <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 p-8 text-center bg-card/20">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mb-3">
-            <Radio className="h-7 w-7 opacity-60" />
-          </div>
-          <h4 className="text-sm font-semibold text-foreground">Không tìm thấy phòng học nào</h4>
-          <p className="mt-1.5 max-w-sm text-xs text-muted-foreground leading-relaxed">
-            {tuKhoa || chiHienCoBanBe
+        <EmptyState
+          icon={Radio}
+          title="Không tìm thấy phòng học nào"
+          description={
+            tuKhoa || chiHienCoBanBe
               ? 'Không có phòng học phù hợp với bộ lọc hiện tại. Thử xóa bớt từ khóa hoặc tắt bộ lọc bạn bè.'
-              : 'Hiện chưa có phòng học nào đang mở. Hãy tạo phòng đầu tiên để bắt đầu học tập cùng bạn bè!'}
-          </p>
-          <Button
-            size="sm"
-            className="mt-4 h-9 gap-1.5 text-xs font-semibold"
-            onClick={() => setMoTaoPhong(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Tạo phòng học ngay
-          </Button>
-        </div>
+              : 'Hiện chưa có phòng học nào đang mở. Hãy tạo phòng đầu tiên để bắt đầu học tập cùng bạn bè!'
+          }
+          action={{
+            label: 'Tạo phòng học ngay',
+            icon: Plus,
+            onClick: () => setMoTaoPhong(true),
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {danhSachPhongLoc.map((room) => (

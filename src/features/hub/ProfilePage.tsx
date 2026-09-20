@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,13 +10,17 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProgressSummary } from '@/components/progress/ProgressSummary'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
+import type { EngagementProfile } from '@shared/protocol/engagement'
 import {
   Award,
+  Flame,
   KeyRound,
   Palette,
+  Sparkles,
   Upload,
   User,
   ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -30,6 +35,20 @@ export function ProfilePage() {
   const initialTab = searchParams.get('tab') === 'progress' ? 'progress' : 'profile'
 
   const [activeTab, setActiveTab] = useState<'profile' | 'avatar' | 'progress' | 'security'>(initialTab)
+
+  // Engagement data for student passport header
+  const { data: profileData } = useQuery<{
+    ok: boolean
+    profile: EngagementProfile
+  }>({
+    queryKey: ['engagement', 'me'],
+    queryFn: async () => {
+      const res = await fetch('/api/engagement/me')
+      if (!res.ok) throw new Error('Không thể tải thông tin chuyên cần.')
+      return res.json()
+    },
+    staleTime: 30_000,
+  })
 
   // Profile edit states
   const [tenHienThi, setTenHienThi] = useState(nguoiDung.ten || nguoiDung.username)
@@ -140,47 +159,101 @@ export function ProfilePage() {
   }
 
   const displayName = nguoiDung.ten || nguoiDung.username
+  const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh toàn trường'
+  const profile = profileData?.profile
+  const userLevel = Math.floor((profile?.totalXp ?? 0) / 100) + 1
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* 1. Profile Header Card */}
-      <Card className="border border-border/80 bg-gradient-to-r from-card via-card to-primary/5 shadow-sm">
-        <CardContent className="flex flex-col sm:flex-row items-center gap-5 p-6">
-          <div className="relative">
-            {nguoiDung.avatar ? (
-              <img
-                src={nguoiDung.avatar}
-                alt={displayName}
-                className="h-20 w-20 rounded-2xl object-cover border-2 border-primary/30 shadow-md"
-              />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20 text-2xl font-bold text-primary border-2 border-primary/30 uppercase shadow-md">
-                {displayName.slice(0, 2)}
-              </div>
-            )}
-          </div>
+      {/* 1. Student Campus Identity Passport Card */}
+      <Card className="relative overflow-hidden border border-border/80 bg-gradient-to-br from-[#0c1322] via-[#0f172a] to-primary/10 shadow-sm">
+        {/* Subtle ambient glow */}
+        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
 
-          <div className="flex-1 text-center sm:text-left space-y-1">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h1 className="text-xl font-bold text-foreground">{displayName}</h1>
-              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-xs">
-                {nguoiDung.isVerifiedTeacher ? 'Giáo viên' : 'Học sinh'}
-              </Badge>
-              {nguoiDung.isSchoolAdmin && (
-                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs">
-                  <ShieldCheck className="h-3 w-3 mr-1" /> Quản trị trường
-                </Badge>
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            {/* Avatar with click-to-change shortcut */}
+            <div className="relative group shrink-0">
+              {nguoiDung.avatar ? (
+                <img
+                  src={nguoiDung.avatar}
+                  alt={displayName}
+                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border-2 border-primary/40 shadow-md"
+                />
+              ) : (
+                <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-2xl bg-primary/20 text-2xl sm:text-3xl font-bold text-primary border-2 border-primary/40 uppercase shadow-md">
+                  {displayName.slice(0, 2)}
+                </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('avatar')}
+                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 text-white text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs cursor-pointer"
+                title="Đổi ảnh đại diện"
+              >
+                Đổi ảnh
+              </button>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              @{nguoiDung.username} {nguoiDung.lop?.ten ? `· ${nguoiDung.lop.ten}` : ''}
-            </p>
+            {/* Identity Details */}
+            <div className="flex-1 text-center sm:text-left space-y-2 min-w-0">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground truncate">
+                  {displayName}
+                </h1>
+                <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-xs font-semibold">
+                  {nguoiDung.isVerifiedTeacher ? 'Giáo viên' : lopText}
+                </Badge>
+                {nguoiDung.isSchoolAdmin && (
+                  <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-semibold">
+                    <ShieldCheck className="h-3 w-3 mr-1" /> Quản trị trường
+                  </Badge>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                @{nguoiDung.username} {nguoiDung.lop?.ten ? `· ${nguoiDung.lop.ten}` : ''}
+              </p>
+
+              {/* Motto or bio if set */}
+              {tieuDeHoSo ? (
+                <p className="text-xs italic text-foreground/80 bg-muted/40 rounded-lg px-3 py-1.5 inline-block">
+                  "{tieuDeHoSo}"
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground/70 flex items-center justify-center sm:justify-start gap-1">
+                  <Sparkles className="h-3 w-3 text-primary/70" />
+                  <span>Chưa đặt châm ngôn học tập</span>
+                </p>
+              )}
+
+              {/* Quick Gamified Stats Pill Row */}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                <div className="flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-400">
+                  <Flame className="h-3.5 w-3.5" />
+                  <span className="font-bold">{profile?.currentStreak ?? 0}</span>
+                  <span className="text-[10px] text-muted-foreground">ngày chuỗi</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span className="font-bold">Cấp {userLevel}</span>
+                  <span className="text-[10px] text-muted-foreground">({profile?.totalXp ?? 0} XP)</span>
+                </div>
+
+                <div className="flex items-center gap-1.5 rounded-lg border border-purple-500/25 bg-purple-500/10 px-2.5 py-1 text-xs text-purple-400">
+                  <Award className="h-3.5 w-3.5" />
+                  <span className="font-bold">{profile?.unlockedAchievementsCount ?? 0}</span>
+                  <span className="text-[10px] text-muted-foreground">huy hiệu</span>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. Tabs */}
+      {/* 2. Tabs Section: Secondary to Identity */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => {
@@ -209,13 +282,13 @@ export function ProfilePage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Profile */}
+        {/* Tab 1: Profile form */}
         <TabsContent value="profile">
           <Card className="border border-border/70 bg-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold">Thông tin cá nhân</CardTitle>
               <CardDescription className="text-xs">
-                Cập nhật tên hiển thị của bạn trong phòng học và bảng tin trường
+                Cập nhật tên hiển thị và châm ngôn học tập của bạn trên Digital Campus
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -258,7 +331,7 @@ export function ProfilePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold">Ảnh đại diện</CardTitle>
               <CardDescription className="text-xs">
-                Chọn biểu tượng sẵn có hoặc tải ảnh đại diện từ máy tính của bạn
+                Chọn biểu tượng sẵn có hoặc tải ảnh đại diện từ thiết bị của bạn
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -272,7 +345,7 @@ export function ProfilePage() {
                       type="button"
                       disabled={dangLuuAvatar}
                       onClick={() => handleSelectPresetAvatar(preset)}
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 text-2xl hover:scale-110 hover:border-primary transition-all cursor-pointer"
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 text-2xl hover:scale-110 hover:border-primary transition-all cursor-pointer shadow-xs"
                     >
                       {preset}
                     </button>
@@ -335,7 +408,7 @@ export function ProfilePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold">Đổi mật khẩu</CardTitle>
               <CardDescription className="text-xs">
-                Mật khẩu mới phải có tối thiểu 6 ký tự để đảm bảo an toàn
+                Mật khẩu mới phải có tối thiểu 6 ký tự để đảm bảo an toàn cho tài khoản
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -374,7 +447,7 @@ export function ProfilePage() {
                   type="submit"
                   size="sm"
                   disabled={dangDoiMk}
-                  className="h-8 text-xs font-semibold mt-2"
+                  className="h-8 text-xs font-semibold mt-2 bg-primary text-primary-foreground"
                 >
                   {dangDoiMk ? 'Đang cập nhật…' : 'Đổi mật khẩu'}
                 </Button>
