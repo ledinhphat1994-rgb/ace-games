@@ -1292,35 +1292,68 @@ app.post('/api/game/session/finish', async (c) => {
 
   const { sessionId, inputTrace } = parsed.data
 
-  // 1. Concurrent Auth verification & Session lookup in D1 (eliminates sequential D1 roundtrip latency)
+  // 1. Unified Single-Query Auth verification & Session lookup in D1 (cuts D1 read load in half under burst)
   const tAuthStart = Date.now()
-  const [kq, sessionRow] = await Promise.all([
-    kiemTraPhien(phien, c.env),
-    c.env.DB.prepare(
-      'SELECT id, game_type, account_id, seed, started_at, status FROM game_sessions WHERE id = ?1 AND account_id = ?2',
-    ).bind(sessionId, phien.accountId).first<{
-      id: string
-      game_type: string
-      account_id: number
-      seed: number
-      started_at: number
-      status: string
-    }>(),
-  ])
+  const lookupRow = await c.env.DB.prepare(`
+    SELECT
+      u.id AS userId,
+      u.ten_dang_nhap AS tenDangNhap,
+      u.ten_hien_thi AS ten,
+      u.vai_tro AS vaiTro,
+      u.teacher_pending AS teacherPending,
+      u.dang_hoat_dong AS dangHoatDong,
+      u.thiet_bi AS thietBi,
+      s.id AS sessionId,
+      s.game_type AS gameType,
+      s.seed AS seed,
+      s.started_at AS startedAt,
+      s.status AS sessionStatus
+    FROM tai_khoan_campus u
+    LEFT JOIN game_sessions s ON s.id = ?1 AND s.account_id = u.id
+    WHERE u.id = ?2
+  `).bind(sessionId, phien.accountId).first<{
+    userId: number
+    tenDangNhap: string
+    ten: string | null
+    vaiTro: string | null
+    teacherPending: number | null
+    dangHoatDong: number | null
+    thietBi: string | null
+    sessionId: string | null
+    gameType: string | null
+    seed: number | null
+    startedAt: number | null
+    sessionStatus: string | null
+  }>()
   const tAuthLookup = Date.now() - tAuthStart
 
-  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  if (!lookupRow) return loi('Tài khoản không còn tồn tại.', 401)
+  if (!lookupRow.dangHoatDong) return loi('Tài khoản này đã bị khoá.', 401)
+  if (lookupRow.thietBi && (!phien.phienId || lookupRow.thietBi !== phien.phienId)) {
+    return loi('Tài khoản của bạn đã được đăng nhập trên một thiết bị khác hoặc phiên đã bị hủy. Bạn đã bị đăng xuất.', 401)
+  }
 
-  if (!sessionRow) {
+  if (!lookupRow.sessionId || !lookupRow.gameType || lookupRow.seed === null || lookupRow.startedAt === null) {
     return loi('Không tìm thấy phiên chơi tương ứng.', 404)
   }
 
   // Concurrent finish protection: status check alone is a TOCTOU race.
   // The UPDATE ... WHERE status = 'active' below is the DB-enforced idempotency gate.
   // We return 409 for any already-closed session (completed/rejected/abandoned).
-  if (sessionRow.status !== 'active') {
+  if (lookupRow.sessionStatus !== 'active') {
     return loi('Phiên chơi đã được kết thúc trước đó.', 409)
   }
+
+  const sessionRow = {
+    id: lookupRow.sessionId,
+    game_type: lookupRow.gameType,
+    account_id: lookupRow.userId,
+    seed: lookupRow.seed,
+    started_at: lookupRow.startedAt,
+    status: lookupRow.sessionStatus,
+  }
+  const ten = lookupRow.ten || lookupRow.tenDangNhap
+
 
   // 2. AUTHORITATIVE server elapsed time — client durationMs is cross-checked but not blindly trusted.
   // effectiveElapsed uses the larger of server-measured and client-reported to avoid
@@ -1375,8 +1408,6 @@ app.post('/api/game/session/finish', async (c) => {
       return loi('Điểm số vượt quá giới hạn cơ chế của trò chơi.', 400)
     }
   }
-
-  const ten = kq.taiKhoan.ten || kq.taiKhoan.username
 
   let finalVerified = false
   let finalScore = 0
@@ -1459,7 +1490,7 @@ app.post('/api/game/session/finish', async (c) => {
       c.env.DB.prepare(`
         INSERT OR IGNORE INTO game_high_scores (game_type, account_id, player_name, score, created_at, verified, session_id)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-      `).bind(sessionRow.game_type, kq.taiKhoan.id, ten, finalScore, now, finalVerified ? 1 : 0, sessionId),
+      `).bind(sessionRow.game_type, sessionRow.account_id, ten, finalScore, now, finalVerified ? 1 : 0, sessionId),
     )
   }
 
