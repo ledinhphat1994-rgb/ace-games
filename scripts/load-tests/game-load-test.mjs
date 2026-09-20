@@ -369,7 +369,6 @@ async function verifyD1SettlementConvergence(targetUrl, expectedRoundIds) {
   for (const roundId of expectedRoundIds) {
     try {
       const res = await fetch(`${targetUrl}/api/staging/game-session/${encodeURIComponent(roundId)}/outbox`, {
-        headers: { 'X-Staging-Diagnostic': 'lop-10a7-g0-diagnostic' },
         signal: AbortSignal.timeout(5000),
       })
       if (res.ok) {

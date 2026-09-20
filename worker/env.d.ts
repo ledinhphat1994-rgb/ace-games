@@ -4,6 +4,7 @@ interface Env {
   TEACHER_CODE?: string
   CLASS_CODE?: string
   TURNSTILE_SECRET_KEY?: string
+  ENVIRONMENT?: string
 }
 
 declare namespace Cloudflare {
@@ -12,5 +13,6 @@ declare namespace Cloudflare {
     TEACHER_CODE?: string
     CLASS_CODE?: string
     TURNSTILE_SECRET_KEY?: string
+    ENVIRONMENT?: string
   }
 }

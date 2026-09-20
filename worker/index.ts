@@ -104,6 +104,7 @@ export type AppEnv = {
 }
 
 const app = new Hono<AppEnv>()
+export { app }
 
 // ── Global Middleware: Request Correlation ID & Production Security Headers ──
 //
@@ -618,13 +619,8 @@ async function vaoGameSession(request: Request, env: Env, matchId: string): Prom
 // Inaccessible in production; verifies exact GameSessionDO settlement_outbox depth
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/staging/game-session/:matchId/outbox', async (c) => {
-  const isStaging = (c.env as unknown as { ENVIRONMENT?: string }).ENVIRONMENT === 'staging' ||
-    c.req.header('X-Staging-Diagnostic') === 'lop-10a7-g0-diagnostic' ||
-    c.req.header('Host')?.includes('gdtxdinhquan-v2') ||
-    c.req.header('Host')?.includes('staging')
-
-  if (!isStaging) {
-    return loi('Diagnostic endpoint chỉ khả dụng trên môi trường staging.', 403)
+  if (c.env.ENVIRONMENT !== 'staging') {
+    return c.notFound()
   }
 
   const matchId = c.req.param('matchId')
@@ -632,7 +628,12 @@ app.get('/api/staging/game-session/:matchId/outbox', async (c) => {
 
   const doId = c.env.GAME_SESSIONS.idFromName('match:' + matchId)
   try {
-    return await c.env.GAME_SESSIONS.get(doId).fetch(new Request('http://internal/internal/outbox', { method: 'GET' }))
+    const res = await c.env.GAME_SESSIONS.get(doId).fetch(new Request('http://internal/internal/outbox', { method: 'GET' }))
+    const data = (await res.json()) as Record<string, unknown>
+    return c.json({
+      ...data,
+      matchId,
+    })
   } catch (err) {
     return loi(`Lỗi kiểm tra outbox: ${err instanceof Error ? err.message : String(err)}`, 500)
   }

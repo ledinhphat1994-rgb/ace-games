@@ -12,6 +12,8 @@ export default defineConfig(async () => ({
           ANALYTICS_TEST_MIGRATIONS: await readD1Migrations('./test/analytics-migrations'),
           CORE_MIGRATION_FILES: fs.readdirSync('./migrations'),
           ANALYTICS_MIGRATION_FILES: fs.readdirSync('./analytics-migrations'),
+          PROD_WRANGLER_CONFIG: fs.readFileSync('./wrangler.production.jsonc', 'utf-8'),
+          STAGING_WRANGLER_CONFIG: fs.readFileSync('./wrangler.staging.jsonc', 'utf-8'),
           // Secret riêng cho test (không phải secret thật); trùng với secret dùng để sinh vector tương thích.
           SESSION_SECRET: 'bi-mat-chi-dung-trong-test-khong-phai-that',
         },
