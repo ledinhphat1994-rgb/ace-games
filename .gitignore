@@ -31,3 +31,4 @@ phase4c-screenshots/
 # Worktree tạm của agent IDE — không phải mã nguồn.
 .claude/
 scratch/
+artifacts/

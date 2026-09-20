@@ -1,10 +1,16 @@
 // scripts/capture-staging-screenshots.mjs
 import { chromium } from '@playwright/test'
 import path from 'node:path'
+import fs from 'node:fs'
 
-const STAGING = 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
-const DOMAIN = 'gdtxdinhquan-v2.ledinhphat1994.workers.dev'
-const ARTIFACTS_DIR = 'C:/Users/lepha/.gemini/antigravity-ide/brain/e6edbd18-3ae2-46b7-8200-83491b8941d2'
+const STAGING = process.env.U1_STAGING_URL || 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
+const parsedUrl = new URL(STAGING)
+const DOMAIN = parsedUrl.hostname
+
+const ARTIFACTS_DIR = path.resolve(
+  process.env.U1_SCREENSHOT_DIR || 'artifacts/u1-visual-review'
+)
+fs.mkdirSync(ARTIFACTS_DIR, { recursive: true })
 
 async function getAuthCookie(username, password) {
   const res = await fetch(`${STAGING}/api/login`, {
@@ -20,11 +26,30 @@ async function getAuthCookie(username, password) {
 }
 
 async function run() {
-  console.log('Fetching auth session cookies from Staging API...')
-  const studentCookie = await getAuthCookie('qa.v2.thu1', 'ThuNghiem@v2-2026')
-  const adminCookie = await getAuthCookie('qa.v2.admin', 'ThuNghiem@v2-2026')
-  console.log('Student cookie obtained:', studentCookie.slice(0, 20) + '...')
-  console.log('Admin cookie obtained:', adminCookie.slice(0, 20) + '...')
+  const studentUsername = process.env.U1_SCREENSHOT_STUDENT_USERNAME
+  const studentPassword = process.env.U1_SCREENSHOT_STUDENT_PASSWORD
+  const adminUsername = process.env.U1_SCREENSHOT_ADMIN_USERNAME
+  const adminPassword = process.env.U1_SCREENSHOT_ADMIN_PASSWORD
+
+  if (!studentUsername || !studentPassword || !adminUsername || !adminPassword) {
+    console.error('Error: Missing required environment variables.')
+    console.error('Please configure the following environment variables:')
+    console.error('  U1_SCREENSHOT_STUDENT_USERNAME')
+    console.error('  U1_SCREENSHOT_STUDENT_PASSWORD')
+    console.error('  U1_SCREENSHOT_ADMIN_USERNAME')
+    console.error('  U1_SCREENSHOT_ADMIN_PASSWORD')
+    process.exit(1)
+  }
+
+  console.log(`Target Staging URL: ${STAGING}`)
+  console.log(`Writing screenshot artifacts to: ${ARTIFACTS_DIR}`)
+  console.log('Authenticating student and admin sessions via Staging API...')
+
+  const studentCookie = await getAuthCookie(studentUsername, studentPassword)
+  console.log('Student session established.')
+
+  const adminCookie = await getAuthCookie(adminUsername, adminPassword)
+  console.log('Admin session established.')
 
   console.log('Launching browser with Playwright...')
   const browser = await chromium.launch({ headless: true })
