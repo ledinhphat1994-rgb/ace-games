@@ -116,6 +116,9 @@ adminRouter.get('/rooms', async (c) => {
              p.chu_phong_khoa, p.chu_phong_ten,
              p.created_at, p.last_activity_at, p.last_join_at, p.last_participant_left_at,
              p.ever_joined, p.closing_at, p.closed_at, p.closed_by, p.close_reason, p.lifecycle_revision,
+             p.lifecycle_auto_close_enabled, p.lifecycle_never_joined_ttl_minutes,
+             p.lifecycle_empty_room_ttl_minutes, p.lifecycle_max_lifetime_minutes,
+             p.lifecycle_policy_revision,
              p.tao_luc, p.cap_nhat_luc,
              l.ten AS ten_lop
       FROM phong p
@@ -147,13 +150,17 @@ adminRouter.get('/rooms', async (c) => {
       closed_by: number | null
       close_reason: string | null
       lifecycle_revision: number
+      lifecycle_auto_close_enabled?: number | null
+      lifecycle_never_joined_ttl_minutes?: number | null
+      lifecycle_empty_room_ttl_minutes?: number | null
+      lifecycle_max_lifetime_minutes?: number | null
+      lifecycle_policy_revision?: number | null
       tao_luc: string
       cap_nhat_luc: string
       ten_lop: string | null
     }>()
 
-    // 3. Đọc cấu hình chính sách hiện tại để tính toán auto_close_deadline
-    const policy = await getRoomLifecyclePolicy(c.env.DB)
+    // 3. Tính toán auto_close_deadline từ chính sách snapshot của từng phòng
     const now = Date.now()
 
     const rooms: AdminRoomItem[] = (rows.results || []).map((r) => {
@@ -165,14 +172,20 @@ adminRouter.get('/rooms', async (c) => {
       const createdAt = r.created_at ?? (new Date(r.tao_luc).getTime() || now)
       const everJoined = Boolean(r.ever_joined)
 
+      const autoCloseEnabled = Boolean(r.lifecycle_auto_close_enabled ?? 1)
+      const neverJoinedTtl = r.lifecycle_never_joined_ttl_minutes ?? 5
+      const emptyRoomTtl = r.lifecycle_empty_room_ttl_minutes ?? 15
+      const maxRoomLifetime = r.lifecycle_max_lifetime_minutes ?? 480
+      const policyRevision = r.lifecycle_policy_revision ?? 1
+
       let autoCloseDeadline: number | null = null
-      if (r.trang_thai === 'mo' && policy.autoCloseEnabled) {
-        if (!everJoined && policy.neverJoinedTtlMinutes > 0) {
-          autoCloseDeadline = createdAt + policy.neverJoinedTtlMinutes * 60 * 1000
-        } else if (r.last_participant_left_at && policy.emptyRoomTtlMinutes > 0) {
-          autoCloseDeadline = r.last_participant_left_at + policy.emptyRoomTtlMinutes * 60 * 1000
-        } else if (policy.maxRoomLifetimeMinutes > 0) {
-          autoCloseDeadline = createdAt + policy.maxRoomLifetimeMinutes * 60 * 1000
+      if (r.trang_thai === 'mo' && autoCloseEnabled) {
+        if (!everJoined && neverJoinedTtl > 0) {
+          autoCloseDeadline = createdAt + neverJoinedTtl * 60 * 1000
+        } else if (r.last_participant_left_at && emptyRoomTtl > 0) {
+          autoCloseDeadline = r.last_participant_left_at + emptyRoomTtl * 60 * 1000
+        } else if (maxRoomLifetime > 0) {
+          autoCloseDeadline = createdAt + maxRoomLifetime * 60 * 1000
         }
       }
 
@@ -204,6 +217,11 @@ adminRouter.get('/rooms', async (c) => {
         lifecycleRevision: r.lifecycle_revision,
         roomAgeMinutes: Math.max(0, Math.floor((now - createdAt) / 60000)),
         autoCloseDeadline,
+        effectivePolicyRevision: policyRevision,
+        effectiveNeverJoinedTtl: neverJoinedTtl,
+        effectiveEmptyRoomTtl: emptyRoomTtl,
+        effectiveMaxLifetime: maxRoomLifetime,
+        effectiveAutoCloseEnabled: autoCloseEnabled,
       } satisfies AdminRoomItem
     })
 
@@ -283,9 +301,27 @@ adminRouter.get('/rooms/:id', async (c) => {
       }
     }
 
+    const effectivePolicyRevision = row.lifecycle_policy_revision ?? 1
+    const effectiveNeverJoinedTtl = row.lifecycle_never_joined_ttl_minutes ?? 5
+    const effectiveEmptyRoomTtl = row.lifecycle_empty_room_ttl_minutes ?? 15
+    const effectiveMaxLifetime = row.lifecycle_max_lifetime_minutes ?? 480
+    const effectiveAutoCloseEnabled = Boolean(row.lifecycle_auto_close_enabled ?? 1)
+
     return c.json({
       ok: true,
-      room: row,
+      room: {
+        ...row,
+        effectivePolicyRevision,
+        effectiveNeverJoinedTtl,
+        effectiveEmptyRoomTtl,
+        effectiveMaxLifetime,
+        effectiveAutoCloseEnabled,
+      },
+      effectivePolicyRevision,
+      effectiveNeverJoinedTtl,
+      effectiveEmptyRoomTtl,
+      effectiveMaxLifetime,
+      effectiveAutoCloseEnabled,
       liveState,
     })
   } catch (err: any) {

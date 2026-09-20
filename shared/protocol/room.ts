@@ -512,4 +512,9 @@ export interface AdminRoomItem {
   roomAgeMinutes: number
   autoCloseDeadline: number | null
   liveParticipantCount?: number
+  effectivePolicyRevision?: number
+  effectiveNeverJoinedTtl?: number
+  effectiveEmptyRoomTtl?: number
+  effectiveMaxLifetime?: number
+  effectiveAutoCloseEnabled?: boolean
 }

@@ -44,7 +44,7 @@ import { callCloudflareRealtime } from './routes/voice-api'
 import { recordAnalyticsEvent } from './lib/analytics'
 import { processLearningSessionSummaryEngagement } from './lib/engagement'
 import type { SessionEngagementFacts } from '../shared/protocol/engagement'
-import { claimRoomCloseD1, finalizeRoomCloseD1 } from './services/room-lifecycle'
+import { claimRoomCloseD1, finalizeRoomCloseD1, getSystemAccountId } from './services/room-lifecycle'
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
@@ -990,22 +990,39 @@ export class RoomDO extends DurableObject<Env> {
       const numericId = this.parseNumericRoomId()
       if (numericId && this.env?.DB) {
         try {
-          const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, null)
+          const systemAccountId = await getSystemAccountId(this.env.DB)
+          const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, systemAccountId)
           if (claim.alreadyClosed) {
             return
           }
           if (claim.claimed || claim.alreadyClosing) {
+            // FIRST COMMITTED CLAIM WINS:
+            // Nếu claim trả về alreadyClosing, giữ nguyên reason và actor đã commit trước đó (ví dụ admin_closed).
+            const effectiveReason = claim.persistedReasonCode || timeoutReason
+            const effectiveClosedBy = claim.persistedClosedBy ?? systemAccountId
+
+            const actorType = effectiveReason.startsWith('admin_')
+              ? 'admin'
+              : effectiveReason.startsWith('owner_')
+                ? 'owner'
+                : effectiveReason.startsWith('moderator_')
+                  ? 'moderator'
+                  : 'system'
+
+            const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+
             // Đóng trực tiếp bộ nhớ cục bộ RoomDO (NO SELF-RPC - Item 4)
             const localRes = await this.dongPhongNoiBo({
-              reason: timeoutReason,
-              actorType: 'system',
+              reason: effectiveReason,
+              closedByAccountId: effectiveClosedBy,
+              actorType,
             })
             // Chốt trạng thái D1 và ghi nhận audit log hệ thống
             await finalizeRoomCloseD1(
               this.env.DB,
               numericId,
-              timeoutReason,
-              { type: 'system', name: 'Hệ thống tự động' },
+              effectiveReason,
+              { type: actorType, accountId: effectiveClosedBy, name: actorName },
               localRes.closedCount,
               true,
             )
@@ -4611,39 +4628,6 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // ── Milestone A1: Room Lifecycle Internal Endpoints ──
-    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/policy') {
-      try {
-        const body = (await request.json()) as {
-          policy?: {
-            autoCloseEnabled?: boolean
-            neverJoinedTtlMinutes?: number
-            emptyRoomTtlMinutes?: number
-            maxRoomLifetimeMinutes?: number
-          }
-        }
-        if (body.policy) {
-          this.nạpDuLieuNeuCan()
-          if (typeof body.policy.autoCloseEnabled === 'boolean') {
-            this.lifecycleState.autoCloseEnabled = body.policy.autoCloseEnabled
-          }
-          if (typeof body.policy.neverJoinedTtlMinutes === 'number') {
-            this.lifecycleState.neverJoinedTtlMinutes = body.policy.neverJoinedTtlMinutes
-          }
-          if (typeof body.policy.emptyRoomTtlMinutes === 'number') {
-            this.lifecycleState.emptyRoomTtlMinutes = body.policy.emptyRoomTtlMinutes
-          }
-          if (typeof body.policy.maxRoomLifetimeMinutes === 'number') {
-            this.lifecycleState.maxRoomLifetimeMinutes = body.policy.maxRoomLifetimeMinutes
-          }
-          this.luuLifecycleState()
-          await this.reconcileRoomAlarm()
-          return json({ ok: true })
-        }
-        return json({ ok: false, message: 'Thiếu policy' }, 400)
-      } catch (err: any) {
-        return json({ ok: false, error: err?.message || 'policy_update_failed' }, 500)
-      }
-    }
 
     if (request.method === 'POST' && url.pathname === '/internal/lifecycle/init') {
       try {
@@ -4730,34 +4714,7 @@ export class RoomDO extends DurableObject<Env> {
       })
     }
 
-    if (request.method === 'POST' && url.pathname === '/internal/lifecycle/policy') {
-      try {
-        const body = (await request.json()) as {
-          autoCloseEnabled?: boolean
-          neverJoinedTtlMinutes?: number
-          emptyRoomTtlMinutes?: number
-          maxRoomLifetimeMinutes?: number
-        }
-        this.nạpDuLieuNeuCan()
-        if (typeof body.autoCloseEnabled === 'boolean') {
-          this.lifecycleState.autoCloseEnabled = body.autoCloseEnabled
-        }
-        if (typeof body.neverJoinedTtlMinutes === 'number') {
-          this.lifecycleState.neverJoinedTtlMinutes = body.neverJoinedTtlMinutes
-        }
-        if (typeof body.emptyRoomTtlMinutes === 'number') {
-          this.lifecycleState.emptyRoomTtlMinutes = body.emptyRoomTtlMinutes
-        }
-        if (typeof body.maxRoomLifetimeMinutes === 'number') {
-          this.lifecycleState.maxRoomLifetimeMinutes = body.maxRoomLifetimeMinutes
-        }
-        this.luuLifecycleState()
-        await this.reconcileRoomAlarm()
-        return json({ ok: true })
-      } catch (err: any) {
-        return json({ ok: false, error: err?.message || 'policy_update_failed' }, 500)
-      }
-    }
+
 
     return new Response('Không tìm thấy endpoint nội bộ.', { status: 404 })
   }

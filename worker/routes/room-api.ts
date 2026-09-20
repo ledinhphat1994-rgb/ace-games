@@ -108,18 +108,24 @@ roomRouter.post('/', async (c) => {
   // Đọc cấu hình chính sách hiện hành từ D1
   const policy = await getRoomLifecyclePolicy(c.env.DB)
 
-  // 1. Tạo bản ghi phòng trong D1 (trạng thái OPEN 'mo', ever_joined = 0)
+  // 1. Tạo bản ghi phòng trong D1 (trạng thái OPEN 'mo', ever_joined = 0, kèm snapshot chính sách)
   let createdRoom: { id: number; ten: string; pham_vi: string; lop_id: number | null; access_mode: string; suc_chua: number } | null = null
   try {
     const insertRes = await c.env.DB.prepare(`
       INSERT INTO phong (
         loai, ten, mo_ta, pham_vi, lop_id, chu_phong_khoa, chu_phong_ten,
         trang_thai, access_mode, mat_khau_hash, mat_khau_salt, mat_khau_iterations,
-        suc_chua, created_at, last_activity_at, ever_joined, lifecycle_revision, tao_luc, cap_nhat_luc
+        suc_chua, created_at, last_activity_at, ever_joined, lifecycle_revision,
+        lifecycle_auto_close_enabled, lifecycle_never_joined_ttl_minutes,
+        lifecycle_empty_room_ttl_minutes, lifecycle_max_lifetime_minutes,
+        lifecycle_policy_revision,
+        tao_luc, cap_nhat_luc
       ) VALUES (
         'video', ?1, ?2, ?3, ?4, ?5, ?6,
         'mo', ?7, ?8, ?9, ?10,
-        ?11, ?12, ?12, 0, 1, datetime('now'), datetime('now')
+        ?11, ?12, ?12, 0, 1,
+        ?13, ?14, ?15, ?16, ?17,
+        datetime('now'), datetime('now')
       ) RETURNING id, ten, pham_vi, lop_id, access_mode, suc_chua
     `)
       .bind(
@@ -135,6 +141,11 @@ roomRouter.post('/', async (c) => {
         matKhauIterations,
         sucChua,
         now,
+        policy.autoCloseEnabled ? 1 : 0,
+        policy.neverJoinedTtlMinutes,
+        policy.emptyRoomTtlMinutes,
+        policy.maxRoomLifetimeMinutes,
+        policy.revision,
       )
       .first<{ id: number; ten: string; pham_vi: string; lop_id: number | null; access_mode: string; suc_chua: number }>()
 

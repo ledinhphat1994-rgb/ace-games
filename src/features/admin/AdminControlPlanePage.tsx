@@ -437,9 +437,10 @@ function PolicyPanel() {
 
   return (
     <div className="space-y-5 max-w-xl">
-      <p className="text-sm text-slate-400">
-        Cấu hình chính sách vòng đời phòng học. Thay đổi áp dụng đồng bộ ngay lập tức cho toàn bộ phòng học đang mở và phòng học mới tạo.
-      </p>
+      <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-300 flex items-start gap-2.5">
+        <span className="font-semibold text-cyan-400 shrink-0">Lưu ý:</span>
+        <span>Thay đổi áp dụng cho các phòng được tạo sau khi lưu. Các phòng đang mở hiện tại giữ nguyên snapshot chính sách đã nhận khi tạo.</span>
+      </div>
 
       {saveMut.error && <p className="text-sm text-red-400">{String(saveMut.error)}</p>}
       {saveMut.isSuccess && <p className="text-sm text-emerald-400">Đã lưu chính sách thành công.</p>}

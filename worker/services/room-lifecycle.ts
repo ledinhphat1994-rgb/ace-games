@@ -71,7 +71,7 @@ export async function updateRoomLifecyclePolicy(
   db: D1Database,
   actor: TaiKhoan,
   payload: UpdateRoomPolicyPayload,
-  env?: Env,
+  _env?: Env,
 ): Promise<{ ok: boolean; policy?: RoomLifecyclePolicy; error?: string }> {
   const current = await getRoomLifecyclePolicy(db)
   if (payload.expectedRevision && payload.expectedRevision !== current.revision) {
@@ -147,28 +147,6 @@ export async function updateRoomLifecyclePolicy(
       revision: newRevision,
     }
 
-    // Hội tụ chính sách tới các phòng học đang mở (Option A - Sync policy to open rooms)
-    if (env?.ROOMS) {
-      try {
-        const openRooms = await db
-          .prepare("SELECT id FROM phong WHERE trang_thai = 'mo' LIMIT 100")
-          .all<{ id: number }>()
-        for (const r of openRooms.results || []) {
-          try {
-            const doId = env.ROOMS.idFromName(`phong-${r.id}`)
-            const stub = env.ROOMS.get(doId)
-            void stub.fetch('http://room.internal/internal/lifecycle/policy', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ policy: updatedPolicy }),
-            }).catch(() => {})
-          } catch {}
-        }
-      } catch (syncErr) {
-        console.warn('[RoomLifecycle] Lỗi đồng bộ chính sách tới các RoomDO đang mở:', syncErr)
-      }
-    }
-
     return { ok: true, policy: updatedPolicy }
   } catch (err: any) {
     console.error('[RoomLifecycle] Lỗi ghi campus_room_policy:', err)
@@ -201,17 +179,22 @@ export interface ClaimCloseResult {
   alreadyClosed?: boolean
   notFound?: boolean
   error?: string
+  persistedReasonCode?: string | null
+  persistedClosedBy?: number | null
   room?: {
     id: number
     trang_thai: string
     chu_phong_khoa: string
     chu_phong_ten: string
+    close_reason?: string | null
+    closed_by?: number | null
   }
 }
 
 /**
  * Lấy hoặc tạo tài khoản hệ thống cho mục đích kiểm toán (Audit Trail)
- * Ngăn ngừa gán nhầm actor_id sang chủ phòng khi hệ thống tự động dọn dẹp.
+ * Ngăn ngừa gán nhầm actor_id sang chủ phòng hoặc người dùng bất kỳ khi hệ thống tự động dọn dẹp.
+ * Bất biến: Tuyệt đối không fallback về user ID 1 khi không tìm thấy.
  */
 export async function getSystemAccountId(db: D1Database): Promise<number> {
   const existing = await db
@@ -223,8 +206,9 @@ export async function getSystemAccountId(db: D1Database): Promise<number> {
     const res = await db
       .prepare(
         `INSERT INTO tai_khoan_campus
-         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, dang_hoat_dong, la_admin_truong)
-         VALUES ('system', 'Hệ thống', 'SYSTEM_ACCOUNT_LOCKED', 'SYSTEM_SALT', 100000, 'admin', 0, 1)
+         (ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations, vai_tro, dang_hoat_dong, la_admin_truong, tao_luc, cap_nhat_luc)
+         VALUES ('system', 'Hệ thống', 'LOCKED_SYSTEM_ACCOUNT', 'SYSTEM_SALT', 100000, 'admin', 0, 1, datetime('now'), datetime('now'))
+         ON CONFLICT(ten_dang_nhap) DO UPDATE SET dang_hoat_dong = 0, ten_hien_thi = 'Hệ thống'
          RETURNING id`,
       )
       .first<{ id: number }>()
@@ -234,12 +218,15 @@ export async function getSystemAccountId(db: D1Database): Promise<number> {
   const fallback = await db
     .prepare("SELECT id FROM tai_khoan_campus WHERE ten_dang_nhap = 'system'")
     .first<{ id: number }>()
-  return fallback?.id ?? 1
+  if (fallback?.id) return fallback.id
+
+  throw new Error('SYSTEM_PRINCIPAL_MISSING: Tài khoản hệ thống (system) không tồn tại trong cơ sở dữ liệu và không thể cấp phát.')
 }
 
 /**
  * Pha 1: Chốt claim đóng phòng trên D1 (OPEN -> CLOSING).
- * Nếu phòng đang ở trạng thái CLOSING, chấp nhận là resumable và tiếp tục các bước sau mà không từ chối sớm.
+ * Bất biến: FIRST COMMITTED CLAIM WINS.
+ * Khi phòng đã ở trạng thái CLOSING, caller sau là Recovery Executor và PHẢI dùng lại close_reason và closed_by đã commit.
  */
 export async function claimRoomCloseD1(
   db: D1Database,
@@ -253,17 +240,21 @@ export async function claimRoomCloseD1(
     trang_thai: string
     chu_phong_khoa: string
     chu_phong_ten: string
+    close_reason: string | null
+    closed_by: number | null
   } | null = null
 
   try {
     roomRow = await db
-      .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten FROM phong WHERE id = ?1')
+      .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by FROM phong WHERE id = ?1')
       .bind(roomId)
       .first<{
         id: number
         trang_thai: string
         chu_phong_khoa: string
         chu_phong_ten: string
+        close_reason: string | null
+        closed_by: number | null
       }>()
   } catch (err: any) {
     console.error(`[RoomLifecycle.claim] Lỗi đọc phòng ${roomId}:`, err)
@@ -276,15 +267,28 @@ export async function claimRoomCloseD1(
 
   // Đã đóng hoàn toàn (Terminal state)
   if (roomRow.trang_thai === 'dong') {
-    return { ok: true, alreadyClosed: true, room: roomRow }
+    return {
+      ok: true,
+      alreadyClosed: true,
+      persistedReasonCode: roomRow.close_reason,
+      persistedClosedBy: roomRow.closed_by,
+      room: roomRow,
+    }
   }
 
-  // Đang ở trạng thái CLOSING: Chấp nhận resumable để thử lại quy trình đóng RoomDO/D1
+  // Đang ở trạng thái CLOSING: Chấp nhận là resumable (Recovery Executor)
+  // Bất biến: Giữ nguyên close_reason và closed_by đã được commit trước đó!
   if (roomRow.trang_thai === 'closing') {
-    return { ok: true, alreadyClosing: true, room: roomRow }
+    return {
+      ok: true,
+      alreadyClosing: true,
+      persistedReasonCode: roomRow.close_reason || reasonCode,
+      persistedClosedBy: roomRow.closed_by !== undefined ? roomRow.closed_by : actorId,
+      room: roomRow,
+    }
   }
 
-  // Phòng đang 'mo': Chuyển trạng thái sang 'closing'
+  // Phòng đang 'mo': Chuyển trạng thái sang 'closing' (First committed claim)
   try {
     const step1 = await db
       .prepare(
@@ -307,19 +311,44 @@ export async function claimRoomCloseD1(
     if ((step1.meta.changes ?? 0) === 0) {
       // Re-check trạng thái do tranh chấp đồng thời
       const recheck = await db
-        .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten FROM phong WHERE id = ?1')
+        .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by FROM phong WHERE id = ?1')
         .bind(roomId)
-        .first<{ id: number; trang_thai: string; chu_phong_khoa: string; chu_phong_ten: string }>()
+        .first<{
+          id: number
+          trang_thai: string
+          chu_phong_khoa: string
+          chu_phong_ten: string
+          close_reason: string | null
+          closed_by: number | null
+        }>()
       if (recheck?.trang_thai === 'dong') {
-        return { ok: true, alreadyClosed: true, room: recheck }
+        return {
+          ok: true,
+          alreadyClosed: true,
+          persistedReasonCode: recheck.close_reason,
+          persistedClosedBy: recheck.closed_by,
+          room: recheck,
+        }
       }
       if (recheck?.trang_thai === 'closing') {
-        return { ok: true, alreadyClosing: true, room: recheck }
+        return {
+          ok: true,
+          alreadyClosing: true,
+          persistedReasonCode: recheck.close_reason || reasonCode,
+          persistedClosedBy: recheck.closed_by !== undefined ? recheck.closed_by : actorId,
+          room: recheck,
+        }
       }
       return { ok: false, error: 'Xung đột khi claim trạng thái CLOSING.' }
     }
 
-    return { ok: true, claimed: true, room: roomRow }
+    return {
+      ok: true,
+      claimed: true,
+      persistedReasonCode: reasonCode,
+      persistedClosedBy: actorId,
+      room: roomRow,
+    }
   } catch (err: any) {
     console.error(`[RoomLifecycle.claim] Lỗi D1 chuyển sang CLOSING cho phòng ${roomId}:`, err)
     return { ok: false, error: 'Lỗi D1 khi chuyển phòng sang trạng thái đóng.' }
@@ -328,6 +357,7 @@ export async function claimRoomCloseD1(
 
 /**
  * Pha 3: Hoàn tất trạng thái D1 (CLOSING -> DONG) và ghi nhận Audit Trail.
+ * Bất biến: COALESCE bảo tồn claimant identity đã được chốt từ bước OPEN -> CLOSING.
  */
 export async function finalizeRoomCloseD1(
   db: D1Database,
@@ -343,14 +373,15 @@ export async function finalizeRoomCloseD1(
   const actorId = actor.accountId ?? null
 
   // Chuyển D1: CLOSING -> DONG
+  // Bất biến: COALESCE bảo tồn claimant identity đã được chốt từ bước OPEN -> CLOSING.
   try {
     const res = await db
       .prepare(
         `UPDATE phong
          SET trang_thai = 'dong',
              closed_at = ?1,
-             closed_by = ?2,
-             close_reason = ?3,
+             closed_by = COALESCE(closed_by, ?2),
+             close_reason = COALESCE(close_reason, ?3),
              lifecycle_revision = lifecycle_revision + 1,
              cap_nhat_luc = datetime('now')
          WHERE id = ?4 AND (trang_thai = 'closing' OR trang_thai = 'mo')`,
@@ -366,25 +397,38 @@ export async function finalizeRoomCloseD1(
     return { ok: false, error: 'Lỗi cơ sở dữ liệu khi đóng phòng: ' + (err.message || String(err)) }
   }
 
-  // Ghi nhận Audit Log
+  // Ghi nhận Audit Log với actor chính chủ
   const auditAction =
-    actor.type === 'admin'
+    reasonCode.startsWith('admin_')
       ? 'admin_room_close'
-      : actor.type === 'owner'
+      : reasonCode.startsWith('owner_')
         ? 'owner_room_close'
-        : actor.type === 'moderator'
+        : reasonCode.startsWith('moderator_')
           ? 'moderator_room_close'
           : 'system_room_close'
 
   let auditActorId = actorId
-  if (actor.type === 'system' || !auditActorId) {
+  let auditActorName = actor.name
+
+  if (auditAction === 'system_room_close' || !auditActorId) {
     auditActorId = await getSystemAccountId(db)
+    auditActorName = 'Hệ thống'
+  } else if (!auditActorName) {
+    try {
+      const userRow = await db
+        .prepare('SELECT ten_hien_thi FROM tai_khoan_campus WHERE id = ?1')
+        .bind(auditActorId)
+        .first<{ ten_hien_thi: string }>()
+      if (userRow?.ten_hien_thi) {
+        auditActorName = userRow.ten_hien_thi
+      }
+    } catch {}
   }
 
   const metaObj: Record<string, unknown> = {
     closedAt: now,
-    actorType: actor.type,
-    actorName: actor.type === 'system' ? 'Hệ thống' : (actor.name ?? 'Quản trị viên'),
+    actorType: auditAction === 'system_room_close' ? 'system' : actor.type,
+    actorName: auditActorName ?? (auditAction === 'system_room_close' ? 'Hệ thống' : 'Quản trị viên'),
     reasonCode,
     note: humanNote ?? null,
     previousState: 'closing',
@@ -421,10 +465,10 @@ export async function finalizeRoomCloseD1(
 /**
  * HÀM ĐÓNG PHÒNG CHUẨN MỰC (Canonical Safe Close Flow)
  * Tuân thủ bất biến mục 2 & 3:
- * 1. D1 chuyển OPEN -> CLOSING (khóa ngay cổng admission, fail-closed)
+ * 1. D1 chuyển OPEN -> CLOSING (khóa ngay cổng admission, fail-closed, lưu immutable claimant)
  * 2. Gửi RPC nội bộ tới RoomDO: phát room.closed, dọn dẹp WebSockets & voice, chốt Learning Session
  *    -> NẾU RoomDO close RPC thất bại: D1 BẮT BUỘC GIỮ LẠI 'closing', KHÔNG ĐƯỢC CHUYỂN 'dong'!
- * 3. NẾU RoomDO close RPC thành công: D1 chuyển CLOSING -> DONG (lưu closed_at, close_reason, closed_by)
+ * 3. NẾU RoomDO close RPC thành công: D1 chuyển CLOSING -> DONG (bảo tồn original claimant)
  * 4. Ghi nhận audit trail trong moderation_audit_logs với định danh actor chuẩn xác
  */
 export async function closeStudyRoomCanonical(
@@ -473,6 +517,30 @@ export async function closeStudyRoomCanonical(
     return { ok: true, status: 'closed', alreadyClosed: true, closedSocketsCount: 0 }
   }
 
+  // FIRST COMMITTED CLAIM WINS:
+  // Whichever caller won OPEN -> CLOSING first defines the immutable close identity.
+  // A subsequent caller resuming a CLOSING room is merely THE RECOVERY EXECUTOR.
+  const effectiveReasonCode = claim.persistedReasonCode || canonicalReasonCode
+  const effectiveClosedBy = claim.persistedClosedBy !== undefined ? claim.persistedClosedBy : (actor.accountId ?? null)
+
+  let effectiveActor: CloseActor = actor
+  if (claim.alreadyClosing) {
+    const origType =
+      effectiveReasonCode.startsWith('admin_')
+        ? 'admin'
+        : effectiveReasonCode.startsWith('owner_')
+          ? 'owner'
+          : effectiveReasonCode.startsWith('moderator_')
+            ? 'moderator'
+            : 'system'
+
+    effectiveActor = {
+      type: origType,
+      accountId: effectiveClosedBy,
+      name: origType === 'system' ? 'Hệ thống' : (effectiveClosedBy === actor.accountId ? actor.name : undefined),
+    }
+  }
+
   // 2. Gửi lệnh đóng nội bộ tới RoomDO
   let closedSocketsCount = 0
   let doRpcSuccess = false
@@ -485,10 +553,10 @@ export async function closeStudyRoomCanonical(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        reason: canonicalReasonCode,
-        closedByAccountId: actor.accountId ?? null,
-        closedByName: actor.name ?? (actor.type === 'system' ? 'Hệ thống' : 'Quản trị viên'),
-        actorType: actor.type,
+        reason: effectiveReasonCode,
+        closedByAccountId: effectiveClosedBy,
+        closedByName: effectiveActor.name ?? (effectiveActor.type === 'system' ? 'Hệ thống' : 'Quản trị viên'),
+        actorType: effectiveActor.type,
         note: humanNote ?? null,
       }),
     })
@@ -529,8 +597,8 @@ export async function closeStudyRoomCanonical(
   const finalRes = await finalizeRoomCloseD1(
     db,
     roomId,
-    canonicalReasonCode,
-    actor,
+    effectiveReasonCode,
+    effectiveActor,
     closedSocketsCount,
     doRpcSuccess,
     humanNote,
@@ -552,11 +620,11 @@ export async function closeStudyRoomCanonical(
     try {
       void recordAnalyticsEvent(env.ANALYTICS_DB, undefined, {
         event: 'room.lifecycle.closed',
-        actorId: actor.accountId ?? null,
+        actorId: effectiveClosedBy,
         roomId,
         properties: {
-          actorType: actor.type,
-          reason: canonicalReasonCode,
+          actorType: effectiveActor.type,
+          reason: effectiveReasonCode,
           closedSocketsCount,
         },
       })

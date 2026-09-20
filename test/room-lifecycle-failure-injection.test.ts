@@ -15,6 +15,7 @@ import { dangNhapLayCookie } from './ws'
 import {
   closeStudyRoomCanonical,
   claimRoomCloseD1,
+  getSystemAccountId,
 } from '../worker/services/room-lifecycle'
 
 function moPhongWs(id: number, cookie: string) {
@@ -254,17 +255,60 @@ describe('A1 — Room Lifecycle Failure Injection & Invariant Resilience', () =>
     expect(d1Row!.close_reason).toBe('admin_closed')
   })
 
-  it('Scenario E: Admin + timeout race -> first committed claim wins, no reason overwrite after terminal closure', async () => {
+  it('Scenario E1 (Barrier Race): Admin claims first, Timeout resumes -> reason remains admin_closed, actor remains Admin A', async () => {
     const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
 
     const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
-      ten: 'Phòng Admin Timeout Race',
+      ten: 'Phòng Barrier Race Admin First',
       phamVi: 'truong',
       accessMode: 'public',
     })
     const { room } = (await createRes.json()) as { room: { id: number } }
 
-    // Admin closes first
+    // 1. Admin A performs OPEN -> CLOSING claim atomically
+    const claimRes = await claimRoomCloseD1(env.DB, room.id, 'admin_closed', 8)
+    expect(claimRes.ok).toBe(true)
+    expect(claimRes.claimed).toBe(true)
+    expect(claimRes.persistedReasonCode).toBe('admin_closed')
+    expect(claimRes.persistedClosedBy).toBe(8)
+
+    // BARRIER: While Admin A is paused between claim and finalize, system timeout runs
+    const timeoutRes = await closeStudyRoomCanonical(
+      env,
+      room.id,
+      { type: 'system', name: 'Hệ thống tự động' },
+      'never_joined_timeout',
+    )
+    expect(timeoutRes.ok).toBe(true)
+
+    // Terminal state inspection
+    const d1Row = await env.DB.prepare('SELECT trang_thai, close_reason, closed_by FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string; close_reason: string; closed_by: number }>()
+
+    expect(d1Row!.trang_thai).toBe('dong')
+    // FIRST COMMITTED CLAIM WINS:
+    expect(d1Row!.close_reason).toBe('admin_closed')
+    expect(d1Row!.closed_by).toBe(8)
+  })
+
+  it('Scenario E2 (Barrier Race): Timeout claims first, Admin resumes -> reason remains never_joined_timeout, actor remains system', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Barrier Race Timeout First',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    // 1. System timeout performs OPEN -> CLOSING claim atomically
+    const claimRes = await claimRoomCloseD1(env.DB, room.id, 'never_joined_timeout', null)
+    expect(claimRes.ok).toBe(true)
+    expect(claimRes.claimed).toBe(true)
+    expect(claimRes.persistedReasonCode).toBe('never_joined_timeout')
+
+    // BARRIER: While timeout is paused, Admin A attempts to force close
     const adminRes = await closeStudyRoomCanonical(
       env,
       room.id,
@@ -274,23 +318,82 @@ describe('A1 — Room Lifecycle Failure Injection & Invariant Resilience', () =>
     )
     expect(adminRes.ok).toBe(true)
 
-    // Now system timeout attempts to close the already-closed room
-    const timeoutRes = await closeStudyRoomCanonical(
+    // Terminal state inspection
+    const d1Row = await env.DB.prepare('SELECT trang_thai, close_reason, closed_by FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string; close_reason: string; closed_by: number | null }>()
+
+    expect(d1Row!.trang_thai).toBe('dong')
+    // FIRST COMMITTED CLAIM WINS: Timeout claim identity is preserved
+    expect(d1Row!.close_reason).toBe('never_joined_timeout')
+    expect(d1Row!.closed_by).not.toBe(8)
+  })
+
+  it('Scenario E3 (Barrier Race): Admin A claims first, Admin B resumes -> closed_by remains Admin A', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Barrier Race Two Admins',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    // Admin A (ID = 8) claims OPEN -> CLOSING
+    const claimRes = await claimRoomCloseD1(env.DB, room.id, 'admin_closed', 8)
+    expect(claimRes.ok).toBe(true)
+    expect(claimRes.claimed).toBe(true)
+
+    // BARRIER: Admin B (ID = 2) executes close on the in-flight CLOSING room
+    const adminBRes = await closeStudyRoomCanonical(
       env,
       room.id,
-      { type: 'system', name: 'Hệ thống tự động' },
-      'never_joined_timeout',
+      { type: 'admin', accountId: 2, name: 'Admin B' },
+      'admin_closed',
+      'Admin B finalizes recovery',
     )
+    expect(adminBRes.ok).toBe(true)
 
-    expect(timeoutRes.ok).toBe(true)
-    expect(timeoutRes.alreadyClosed).toBe(true)
-
-    // Invariant: close_reason in D1 MUST NOT be overwritten by the later timeout
-    const d1Row = await env.DB.prepare('SELECT trang_thai, close_reason FROM phong WHERE id = ?1')
+    // Terminal state inspection: closed_by MUST remain Admin A (ID = 8)
+    const d1Row = await env.DB.prepare('SELECT trang_thai, close_reason, closed_by FROM phong WHERE id = ?1')
       .bind(room.id)
-      .first<{ trang_thai: string; close_reason: string }>()
+      .first<{ trang_thai: string; close_reason: string; closed_by: number }>()
 
     expect(d1Row!.trang_thai).toBe('dong')
     expect(d1Row!.close_reason).toBe('admin_closed')
+    expect(d1Row!.closed_by).toBe(8)
+  })
+
+  it('Hardening: getSystemAccountId returns disabled system principal and NEVER falls back to user 1', async () => {
+    // 1. Bình thường: Lấy ra ID của tài khoản system
+    const systemId = await getSystemAccountId(env.DB)
+    expect(systemId).toBeGreaterThan(0)
+
+    // Xác minh tài khoản này trong DB có dang_hoat_dong = 0
+    const systemRow = await env.DB.prepare('SELECT id, ten_dang_nhap, dang_hoat_dong FROM tai_khoan_campus WHERE id = ?1')
+      .bind(systemId)
+      .first<{ id: number; ten_dang_nhap: string; dang_hoat_dong: number }>()
+
+    expect(systemRow!.ten_dang_nhap).toBe('system')
+    expect(systemRow!.dang_hoat_dong).toBe(0)
+
+    // 2. Hardening test: Nếu mock database không có system và không insert được -> throw error, KHÔNG fallback về 1
+    const brokenDb = {
+      ...env.DB,
+      prepare: (sql: string) => {
+        if (sql.includes('ten_dang_nhap')) {
+          return {
+            first: async () => null,
+            bind: () => ({
+              first: async () => null,
+              run: async () => ({ success: false, meta: { changes: 0 } }),
+            }),
+          } as any
+        }
+        return env.DB.prepare(sql)
+      },
+    } as unknown as D1Database
+
+    await expect(getSystemAccountId(brokenDb)).rejects.toThrow('SYSTEM_PRINCIPAL_MISSING')
   })
 })
