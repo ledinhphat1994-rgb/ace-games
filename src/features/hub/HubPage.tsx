@@ -1,13 +1,5 @@
-import { usePhien } from '@/app/phien'
-import { CampusHub } from '@/features/hub/CampusHub'
+import { HomePage } from '@/features/hub/HomePage'
 
 export function HubPage() {
-  const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
-  return (
-    <CampusHub
-      nguoiDung={nguoiDung}
-      onDangXuat={() => void dangXuat()}
-      onLamMoiPhien={lamMoiPhien}
-    />
-  )
+  return <HomePage />
 }

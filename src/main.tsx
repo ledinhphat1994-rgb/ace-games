@@ -7,7 +7,11 @@ import { AuthGate } from '@/app/AuthGate'
 import { NotFoundPage } from '@/app/NotFoundPage'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { HubPage } from '@/features/hub/HubPage'
+import { AppShell } from '@/components/layout/AppShell'
+import { HomePage } from '@/features/hub/HomePage'
+import { LearningPage } from '@/features/hub/LearningPage'
+import { CommunityPage } from '@/features/hub/CommunityPage'
+import { ProfilePage } from '@/features/hub/ProfilePage'
 import { RoomPage } from '@/features/study/RoomPage'
 import { GameArenaPage } from '@/features/games/GameArenaPage'
 import { GameRoomPage } from '@/features/games/GameRoomPage'
@@ -23,12 +27,20 @@ const router = createBrowserRouter([
   {
     element: <AuthGate />,
     children: [
-      { index: true, element: <HubPage /> },
+      {
+        element: <AppShell />,
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'learn', element: <LearningPage /> },
+          { path: 'arena', element: <GameArenaPage /> },
+          { path: 'community', element: <CommunityPage /> },
+          { path: 'me', element: <ProfilePage /> },
+          { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
+          { path: 'admin', element: <AdminControlPlanePage /> },
+        ],
+      },
       { path: 'room/:roomId', element: <RoomPage /> },
-      { path: 'arena', element: <GameArenaPage /> },
       { path: 'game/:gameId', element: <GameRoomPage /> },
-      { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
-      { path: 'admin', element: <AdminControlPlanePage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

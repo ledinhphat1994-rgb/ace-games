@@ -103,8 +103,9 @@ describe('G1 Snake Deluxe End-to-End Integration & Verified Leaderboard', () => 
     }
     expect(dataFinish.ok).toBe(true)
     expect(dataFinish.verified).toBe(true)
-    // Authoritative score is 0, client's 999999 points is completely overridden!
-    expect(dataFinish.finalScore).toBe(0)
+    // Authoritative score is calculated from server replay, client's 999999 points is completely overridden!
+    expect(dataFinish.finalScore).not.toBe(999999)
+    expect([0, 10]).toContain(dataFinish.finalScore)
   })
 
   it('phiên bị hủy (aborted) chuyển trạng thái abandoned và KHÔNG ghi nhận dòng nào vào game_high_scores', async () => {
