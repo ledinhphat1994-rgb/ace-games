@@ -1,5 +1,5 @@
 export const GOC = 'https://campus.test'
-export const MAT_KHAU = 'ThuNghiem@v2-2026'
+export const MAT_KHAU = 'MockLocalOnly@test-v2'
 
 // Lớp thử: id tự tăng theo đúng thứ tự này (1, 2).
 export const LOP_THU = ['10A7 Thử nghiệm', '10A8 Thử nghiệm'] as const

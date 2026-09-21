@@ -58,8 +58,8 @@ async function createOrGetRoom(cookie) {
 }
 
 async function run() {
-  const username = process.env.U2_SCREENSHOT_USERNAME || process.env.U1_SCREENSHOT_STUDENT_USERNAME
-  const password = process.env.U2_SCREENSHOT_PASSWORD || process.env.U1_SCREENSHOT_STUDENT_PASSWORD
+  const username = process.env.U2_SCREENSHOT_USERNAME
+  const password = process.env.U2_SCREENSHOT_PASSWORD
 
   if (!username || !password) {
     console.error('Error: U2_SCREENSHOT_USERNAME and U2_SCREENSHOT_PASSWORD must be provided via environment variables.')

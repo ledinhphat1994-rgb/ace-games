@@ -28,14 +28,14 @@ async function getAuthCookie(username, password) {
 async function run() {
   const studentUsername =
     process.env.U2_SCREENSHOT_STUDENT_USERNAME ||
-    process.env.U1_SCREENSHOT_STUDENT_USERNAME
+    process.env.U2_SCREENSHOT_USERNAME
   const studentPassword =
     process.env.U2_SCREENSHOT_STUDENT_PASSWORD ||
-    process.env.U1_SCREENSHOT_STUDENT_PASSWORD
+    process.env.U2_SCREENSHOT_PASSWORD
 
   if (!studentUsername || !studentPassword) {
     console.error('Error: Missing required environment variables.')
-    console.error('Please configure U2_SCREENSHOT_STUDENT_USERNAME and U2_SCREENSHOT_STUDENT_PASSWORD')
+    console.error('Please configure U2_SCREENSHOT_STUDENT_USERNAME and U2_SCREENSHOT_STUDENT_PASSWORD (or U2_SCREENSHOT_USERNAME / U2_SCREENSHOT_PASSWORD)')
     process.exit(1)
   }
 

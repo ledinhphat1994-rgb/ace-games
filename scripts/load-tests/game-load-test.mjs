@@ -17,7 +17,7 @@ import { performance } from 'node:perf_hooks'
 import { execSync } from 'node:child_process'
 
 const DEFAULT_TARGET = 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
-const TEST_PASSWORD = 'ThuNghiem@v2-2026'
+const TEST_PASSWORD = process.env.GAME_TEST_PASSWORD || ''
 
 // Parse CLI arguments
 const args = process.argv.slice(2)
