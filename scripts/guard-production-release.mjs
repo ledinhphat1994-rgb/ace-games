@@ -2,7 +2,7 @@
 // Production Release Guard Script
 // Kiểm tra nghiêm ngặt cấu hình trước khi chạy npm run deploy:production
 // Đảm bảo không sử dụng staging resources, migrations đã tách riêng, DB analytics đã được cấp phép,
-// Worker name/env chính xác, và nợ kiến trúc R2 được theo dõi có kiểm soát.
+// Worker name/env chính xác, working tree sạch 100%, và nợ kiến trúc R2 được theo dõi có kiểm soát.
 
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -19,7 +19,59 @@ const PLACEHOLDER_ID = 'UNPROVISIONED_PRODUCTION_ANALYTICS_DB_ID'
 
 console.log('=== DIGITAL CAMPUS V2: PRODUCTION RELEASE GUARD ===')
 
-// 1. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
+// 1. Kiểm tra trạng thái Git & Khóa nguồn (Source Lock & Clean Tree)
+let headSha = ''
+let currentBranch = ''
+try {
+  headSha = execSync('git rev-parse HEAD', { cwd: rootDir, encoding: 'utf8' }).trim()
+  currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: rootDir, encoding: 'utf8' }).trim()
+} catch (gitErr) {
+  console.error('❌ [RELEASE GUARD] LỖI GIT: Không thể đọc thông tin Git repository:', gitErr.message)
+  process.exit(1)
+}
+
+if (!/^[a-f0-9]{40}$/i.test(headSha)) {
+  console.error(`❌ [RELEASE GUARD] LỖI GIT SHA: Giá trị Git HEAD không hợp lệ: "${headSha}"`)
+  process.exit(1)
+}
+
+// Kiểm tra Dirty Working Tree — HARD FAIL nếu có file thay đổi chưa commit
+if (!process.env.SKIP_DIRTY_CHECK) {
+  let dirtyFiles = ''
+  try {
+    dirtyFiles = execSync('git status --porcelain', { cwd: rootDir, encoding: 'utf8' }).trim()
+  } catch (statusErr) {
+    console.error('❌ [RELEASE GUARD] LỖI GIT: Không thể kiểm tra git status:', statusErr.message)
+    process.exit(1)
+  }
+
+  if (dirtyFiles.length > 0) {
+    console.error('❌ [RELEASE GUARD] LỖI BẢO VỆ MÃ NGUỒN: Working tree đang có thay đổi chưa commit (dirty working tree)!')
+    console.error('   Production release bắt buộc working tree phải hoàn toàn sạch (clean).')
+    console.error('   Danh sách thay đổi chưa commit:')
+    console.error(dirtyFiles)
+    process.exit(1)
+  }
+}
+
+// Kiểm tra nhánh phát hành (Branch Check)
+if (currentBranch !== 'main' && currentBranch !== 'HEAD' && !process.env.ALLOW_NON_MAIN_DEPLOY) {
+  console.error(`❌ [RELEASE GUARD] LỖI NHÁNH PHÁT HÀNH: Production chỉ được phép phát hành từ nhánh 'main' (nhận được: '${currentBranch}').`)
+  console.error(`   Nếu thực sự cần test deploy từ nhánh khác, hãy đặt biến môi trường: ALLOW_NON_MAIN_DEPLOY=1`)
+  process.exit(1)
+}
+
+// Kiểm tra cam kết SHA dự kiến nếu có cấu hình EXPECTED_RELEASE_SHA
+if (process.env.EXPECTED_RELEASE_SHA && process.env.EXPECTED_RELEASE_SHA !== headSha) {
+  console.error(`❌ [RELEASE GUARD] LỖI SHA BẢO VỆ (EXPECTED_RELEASE_SHA):`)
+  console.error(`   SHA mong đợi: ${process.env.EXPECTED_RELEASE_SHA}`)
+  console.error(`   SHA hiện tại: ${headSha}`)
+  process.exit(1)
+}
+
+console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha} (Branch: ${currentBranch}, Tree: ${process.env.SKIP_DIRTY_CHECK ? 'DIRTY_CHECK_BYPASSED_FOR_TEST' : 'CLEAN'})`)
+
+// 2. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
 const coreMigrationsDir = path.join(rootDir, 'migrations')
 if (fs.existsSync(coreMigrationsDir)) {
   const files = fs.readdirSync(coreMigrationsDir)
@@ -32,7 +84,7 @@ if (fs.existsSync(coreMigrationsDir)) {
   }
 }
 
-// 2. Kiểm tra analytics-migrations/ tồn tại và có migration
+// 3. Kiểm tra analytics-migrations/ tồn tại và có migration
 const analyticsMigrationsDir = path.join(rootDir, 'analytics-migrations')
 if (!fs.existsSync(analyticsMigrationsDir)) {
   console.error(`❌ [RELEASE GUARD] LỖI: Thư mục analytics-migrations/ không tồn tại!`)
@@ -60,14 +112,14 @@ function parseJsonc(filePath) {
   }
 }
 
-// 3. Đọc và phân tích wrangler.production.jsonc & wrangler.staging.jsonc
+// 4. Đọc và phân tích wrangler.production.jsonc & wrangler.staging.jsonc
 const prodConfigPath = path.join(rootDir, 'wrangler.production.jsonc')
 const stagingConfigPath = path.join(rootDir, 'wrangler.staging.jsonc')
 
 const prodConfig = parseJsonc(prodConfigPath)
 const stagingConfig = parseJsonc(stagingConfigPath)
 
-// 4. Kiểm tra định danh Worker & Biến môi trường
+// 5. Kiểm tra định danh Worker & Biến môi trường
 if (prodConfig.name !== EXPECTED_PROD_WORKER_NAME) {
   console.error(`❌ [RELEASE GUARD] LỖI TÊN WORKER:`)
   console.error(`   wrangler.production.jsonc có 'name' = '${prodConfig.name}', mong đợi: '${EXPECTED_PROD_WORKER_NAME}'!`)
@@ -80,7 +132,7 @@ if (prodConfig.vars?.ENVIRONMENT !== EXPECTED_PROD_ENVIRONMENT) {
   process.exit(1)
 }
 
-// 5. Kiểm tra phân tách cơ sở dữ liệu D1
+// 6. Kiểm tra phân tách cơ sở dữ liệu D1
 const prodD1 = prodConfig.d1_databases || []
 const stagingD1 = stagingConfig.d1_databases || []
 
@@ -122,7 +174,7 @@ if (stagingAnalyticsDb && prodAnalyticsDb.database_id === stagingAnalyticsDb.dat
   process.exit(1)
 }
 
-// 6. Kiểm tra phân tách KV Namespace
+// 7. Kiểm tra phân tách KV Namespace
 const prodKv = (prodConfig.kv_namespaces || []).find((kv) => kv.binding === 'RATE_LIMIT')
 const stagingKv = (stagingConfig.kv_namespaces || []).find((kv) => kv.binding === 'RATE_LIMIT')
 
@@ -136,7 +188,7 @@ if (stagingKv && prodKv.id === stagingKv.id) {
   process.exit(1)
 }
 
-// 7. Kiểm tra R2 Bucket & Theo dõi nợ kiến trúc (Architectural Debt Tracker)
+// 8. Kiểm tra R2 Bucket & Theo dõi nợ kiến trúc (Architectural Debt Tracker)
 const prodR2 = (prodConfig.r2_buckets || []).find((r2) => r2.binding === 'ANH')
 const stagingR2 = (stagingConfig.r2_buckets || []).find((r2) => r2.binding === 'ANH')
 
@@ -149,15 +201,6 @@ if (stagingR2 && prodR2.bucket_name === stagingR2.bucket_name) {
   console.log(`ℹ️  [RELEASE GUARD] GHI NHẬN NỢ KIẾN TRÚC ĐANG THEO DÕI:`)
   console.log(`    R2 binding 'ANH' đang dùng chung bucket '${prodR2.bucket_name}' giữa staging và production.`)
   console.log(`    (Kế hoạch phân tách sang 'lop-10a7-anh-staging' đang trong quy trình backlog).`)
-}
-
-// 8. Đọc Git SHA của mã nguồn đang chuẩn bị release (Traceability)
-try {
-  const headSha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
-  const isDirty = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0
-  console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha}${isDirty ? ' (DIRTY TREE WARNING)' : ' (CLEAN)'}`)
-} catch {
-  console.log(`⚠️  [RELEASE GUARD] Không thể đọc Git SHA từ môi trường hiện tại.`)
 }
 
 console.log('✅ [RELEASE GUARD] Tất cả kiểm tra an toàn cấu hình và phân tách cơ sở dữ liệu đã đạt chuẩn 100%!')

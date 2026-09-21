@@ -30,23 +30,24 @@
   * Non-mutating public smoke probes: 8/8 routes PASSED.
   * Client bundle integrity (JS/CSS): PASSED.
   * U2 visual static asset samples: PASSED (campus, learning, community, games, avatars).
-  * Production AuthGate visual sanity check: PASSED (zero console errors, clean dark mode layout).
+  * Production AuthGate visual sanity check: PASSED (zero console errors in headless browser).
   * Database non-mutation: 0 D1 migrations applied, 0 seed rows added, 0 table truncations.
   * Storage non-mutation: 0 R2 mutations, 0 KV mutations.
   * Rollback: NOT TRIGGERED.
 
 ---
 
-### 2. Summary of U2 Deliverables
+### 2. Summary of Verified U2 Deliverables
 
-- **U2 Visual Polish & Parity:**
-  * Complete brand identity implementation with dark theme, glassmorphism, curated semantic color tokens, and Vietnamese educational typography.
-  * Visual assets deployed via Cloudflare Workers Static Assets across Campus, Learning, Community, Games, and Avatar domains.
-  * AuthGate / Classroom participant states, presentation controls, and zero CLS layout stability.
+- **Visual Asset System:**
+  * Curated semantic theme tokens, dark mode palette, and educational typography.
+  * 52 visual assets deployed via Cloudflare Workers Static Assets across Campus, Learning, Community, Games, and Avatar domains (100% 200 OK responses).
+- **UI & Interaction Parity:**
+  * AuthGate, Classroom participant strip, and presentation controls verified in headless browser.
 - **Data-Truth & Reliability Invariants:**
-  * Re-entry and live status evaluations.
-  * Atomic state mutations for concurrent operations.
-  * Zero-slop validation with 100% test pass rate (642/642 tests passing locally and in CI).
+  * Re-entry and live status evaluations without stale caching.
+  * Atomic state mutations for concurrent room/game operations.
+  * Automated regression suite passing: 59 test files, 642/642 tests passing locally and in CI.
 
 ---
 
@@ -64,7 +65,7 @@
 - **Asset Integrity:**
   * CSS Bundle: `200 OK` (text/css)
   * JS Bundle: `200 OK` (text/javascript)
-  * WebP Visual Samples: `200 OK` (`image/webp`) across all 5 asset directories.
+  * WebP Visual Samples: `200 OK` (`image/webp`) across all 5 asset categories.
 - **Database & State Safety:**
   * Core D1 Pending: 0
   * Analytics D1 Pending: 0
@@ -73,7 +74,22 @@
 
 ---
 
-### 4. Emergency Rollback Command
+### 4. Architectural Debt & Governance Status
+
+- **R2 Storage Isolation Debt:**
+  * **Classification:** `R2 SHARING = REAL CROSS-ENV ISOLATION DEBT`.
+  * **General File Path (`GET /api/files/:key`):** Public key-based access directly executing `c.env.ANH.get(key)` without D1 consultation or authentication. Anyone possessing a valid object key can fetch the object from either staging or production.
+  * **Staging Writes:** Staging file uploads currently perform `ANH.put()` directly into the shared physical bucket (`lop-10a7-anh`). While key namespacing (`${folder}/${timestamp}_${uuid}_${name}`) prevents collisions, staging test data resides in the production bucket namespace.
+  * **Study Room Document Path (`GET /api/rooms/:id/documents/:docId/file`):** Strictly gated by canonical room authority and D1 metadata lookup (`phong_tai_lieu`), providing stronger authorization.
+  * **Target Resolution:** Staging must be moved to a dedicated bucket (`lop-10a7-anh-staging`) in a dedicated hardening task. Production retains `lop-10a7-anh` with 0 object migrations required.
+- **Repository Governance Status:**
+  * GitHub native branch protection is disabled by GitHub policy (HTTP 403 on GitHub Free personal account for private repositories).
+  * Enforcement relies on CI Quality Gates on PRs, pre-release release guards (`scripts/guard-production-release.mjs`), clean tree enforcement, and PR review discipline.
+  * Direct push protection on `main` is not server-enforced; team adherence to PR workflow is mandatory.
+
+---
+
+### 5. Emergency Rollback Command
 
 If an unexpected functional regression occurs, roll back immediately to the baseline:
 
@@ -85,7 +101,4 @@ npx wrangler rollback 9edea0a6-cf8d-4b06-bb2d-b1eff92014ba --config wrangler.pro
 
 ## Historical Release Archive
 
-### Milestone PRV8.2 (2026-09-19)
-- **Released Git Commit SHA:** `d12506f8997709472a43c86e2afa6db8dd09f772`
-- **Production Worker Version ID:** `5c4f01af-92d0-4e18-ac39-2301391bc0fe`
-- **Scope:** Multi-generation identity closures, voice revocation incarnation, and room reconciliation state machines. Migrations applied: `0008_ban_authority_and_concurrency.sql`, `0009_password_reset_tokens.sql`.
+- **Milestone PRV8.2 (2026-09-19):** Full release evidence, migration records, and canaries preserved in [docs/releases/2026-09-19-prv8.2.md](docs/releases/2026-09-19-prv8.2.md).
