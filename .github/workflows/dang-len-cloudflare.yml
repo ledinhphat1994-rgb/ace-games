@@ -1,9 +1,16 @@
 # Tự động/thủ công deploy lên Cloudflare Workers + Static Assets.
+# Quy trình phát hành production BẮT BUỘC tuân thủ Release Guard và Source Lock:
+#   - Chỉ cho phép chạy trên nhánh main (refs/heads/main)
+#   - Sử dụng checkout full history (fetch-depth: 0) để xác thực origin/main
+#   - Khóa nguồn với EXPECTED_RELEASE_SHA: ${{ github.sha }}
+#   - Thực thi qua wrapper có thẩm quyền: npm run deploy:production
+#   - Sử dụng cấu hình wrangler.production.jsonc
+#   - Tự động gắn nhãn version metadata: --message "release:<FULL_GIT_SHA>"
 #
 # Cần khai báo trong repo Settings -> Secrets and variables -> Actions:
 #   CLOUDFLARE_API_TOKEN   — token Cloudflare Workers
 #   CLOUDFLARE_ACCOUNT_ID  — Account ID
-name: Deploy lên Cloudflare
+name: Deploy Production lên Cloudflare
 
 on:
   workflow_dispatch:
@@ -11,12 +18,27 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   trien-khai:
+    name: Guarded Production Deploy
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
-      - name: Lấy mã nguồn
+      - name: Kiểm tra ràng buộc nhánh main (Fail-Closed Branch Gate)
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production release chỉ được phép thực thi trên refs/heads/main (nhận được: ${{ github.ref }})"
+            exit 1
+          fi
+
+      - name: Lấy mã nguồn (Full History for Source Lock)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cài Node.js theo .node-version
         uses: actions/setup-node@v4
@@ -27,12 +49,9 @@ jobs:
       - name: Cài thư viện
         run: npm ci
 
-      - name: Build Production
-        run: npm run build
-
-      - name: Deploy qua Cloudflare Wrangler
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+      - name: Deploy Production qua Guarded Wrapper
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
+        run: npm run deploy:production
