@@ -4,7 +4,6 @@ import { useCampus } from '@/hooks/use-campus'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { RoomCard } from './RoomCard'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
@@ -14,9 +13,11 @@ import type { PhongSanh } from '@shared/protocol/campus'
 import {
   BookOpen,
   Plus,
-  Radio,
   Search,
   Users,
+  Target,
+  TrendingUp,
+  Activity,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -65,6 +66,10 @@ export function LearningPage() {
     return dem
   }, [roomFriendsMap])
 
+  const totalParticipants = useMemo(() => {
+    return rooms.reduce((acc, r) => acc + (r.soNguoi || 0), 0)
+  }, [rooms])
+
   const danhSachPhongLoc = useMemo(() => {
     return filterDiscoveryRooms(rooms, roomFriendsMap, {
       tabPhamVi,
@@ -87,30 +92,62 @@ export function LearningPage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* ── Page header ───────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-subtle pb-4">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-brand" />
-            Học tập &amp; Nghiên cứu
-          </h1>
-          <p className="text-xs text-text-secondary mt-0.5">
-            Phòng học nhóm trực tuyến, video đồng bộ và thảo luận bài học
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* ── 1. Learning Hero Banner ───────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#080d19] shadow-2xl">
+        {/* Background artwork */}
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-right bg-no-repeat opacity-80 sm:opacity-95"
+          style={{
+            backgroundImage: 'url(/assets/learning/learning_hero.webp)',
+            backgroundPosition: 'right 15% center',
+          }}
+        />
+        {/* Dark directional gradient mask */}
+        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#080d19] via-[#080d19]/80 to-transparent sm:bg-gradient-to-r sm:from-[#080d19] sm:via-[#080d19]/90 sm:via-45% sm:to-transparent pointer-events-none" />
 
-        <Button size="default" onClick={() => setMoTaoPhong(true)}>
-          <Plus className="h-4 w-4" />
-          Tạo phòng học
-        </Button>
+        <div className="relative z-10 flex flex-col justify-between min-h-[190px] sm:min-h-[210px] p-5 sm:p-7">
+          <div className="max-w-xl space-y-2">
+            <div className="flex items-center gap-2 text-cyan-400 font-extrabold text-xs tracking-wider uppercase">
+              <BookOpen className="h-4 w-4" />
+              <span>Không gian học tập &amp; nghiên cứu</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow">
+              Học tập trực tuyến
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 font-medium line-clamp-2">
+              Không gian phòng học nhóm, trao đổi kiến thức và đồng hành tiến bộ mỗi ngày.
+            </p>
+          </div>
+
+          {/* 3 Core Value Pills + Slogan */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/25 text-[11px] font-semibold text-cyan-300 backdrop-blur-md">
+                <Target className="h-3 w-3 text-cyan-400" />
+                Tập trung hơn
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-950/60 border border-indigo-500/25 text-[11px] font-semibold text-indigo-300 backdrop-blur-md">
+                <Users className="h-3 w-3 text-indigo-400" />
+                Kết nối dễ dàng
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/25 text-[11px] font-semibold text-emerald-300 backdrop-blur-md">
+                <TrendingUp className="h-3 w-3 text-emerald-400" />
+                Tiến bộ mỗi ngày
+              </span>
+            </div>
+
+            <p className="hidden md:block text-xs font-semibold text-cyan-200/80 italic tracking-wide">
+              Học cùng nhau đi xa hơn mỗi ngày
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Filter bar ────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-default bg-surface/50 p-3">
-        {/* Scope chips + friend filter */}
+      {/* ── 2. Compact Filter & Search Toolbar ─────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0c1222] p-3 shadow-md">
+        {/* Scope tabs */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* Scope toggle buttons */}
           {SCOPE_TABS.map((tab) => {
             const isActive = tabPhamVi === tab.id
             return (
@@ -118,102 +155,180 @@ export function LearningPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setTabPhamVi(tab.id)}
-                className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors duration-150',
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
                   isActive
-                    ? 'bg-brand/15 text-brand font-semibold'
-                    : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
-                ].join(' ')}
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/25'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                }`}
               >
                 {tab.label}
                 {tab.id === 'tat_ca' && (
-                  <span className="ml-1.5 text-text-tertiary">({rooms.length})</span>
+                  <span className={`ml-1.5 text-[10px] ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}>
+                    ({rooms.length})
+                  </span>
                 )}
               </button>
             )
           })}
 
-          <div className="h-5 w-px bg-border-default mx-0.5 hidden sm:block" />
+          <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
 
           {/* Friend filter chip */}
           <button
             type="button"
-            data-testid="filter-co-ban-be"
-            onClick={() => setChiHienCoBanBe((prev) => !prev)}
-            aria-pressed={chiHienCoBanBe}
-            aria-label="Lọc phòng có bạn bè đang tham gia"
-            className={[
-              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all duration-150',
+            onClick={() => setChiHienCoBanBe(!chiHienCoBanBe)}
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 ${
               chiHienCoBanBe
-                ? 'border-social/50 bg-social text-white shadow-sm'
-                : 'border-border-default text-text-secondary hover:border-border-strong hover:text-text-primary',
-            ].join(' ')}
+                ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/25'
+                : 'text-slate-300 hover:bg-white/5 hover:text-white'
+            }`}
           >
             <Users className="h-3.5 w-3.5" />
             <span>Có bạn bè</span>
             {soPhongCoBanBe > 0 && (
-              <Badge
-                variant="secondary"
-                className={[
-                  'ml-0.5 px-1.5 py-0 text-[10px]',
-                  chiHienCoBanBe ? 'bg-white/20 text-white border-white/20' : '',
-                ].join(' ')}
-              >
+              <span className={`rounded-full px-1.5 text-[10px] ${chiHienCoBanBe ? 'bg-white text-indigo-700' : 'bg-indigo-500/20 text-indigo-300'}`}>
                 {soPhongCoBanBe}
-              </Badge>
+              </span>
             )}
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative flex-1 min-w-[180px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-tertiary pointer-events-none" />
-          <Input
-            value={tuKhoa}
-            onChange={(e) => setTuKhoa(e.target.value)}
-            placeholder="Tìm phòng, chủ phòng…"
-            className="h-9 pl-9 text-xs"
-          />
+        {/* Search input + Create button */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              value={tuKhoa}
+              onChange={(e) => setTuKhoa(e.target.value)}
+              placeholder="Tìm theo tên phòng, môn học..."
+              className="h-9 pl-9 pr-3 text-xs bg-slate-900/60 border-white/10 focus:border-cyan-500 rounded-xl"
+            />
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => setMoTaoPhong(true)}
+            className="h-9 px-3.5 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 gap-1.5 shadow-md shadow-cyan-500/20 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Tạo phòng</span>
+          </Button>
         </div>
       </div>
 
-      {/* ── Room grid ─────────────────────────────────────── */}
-      {danhSachPhongLoc.length === 0 ? (
-        <EmptyState
-          icon={Radio}
-          title="Không tìm thấy phòng học"
-          description={
-            tuKhoa || chiHienCoBanBe
-              ? 'Thử xóa bớt từ khóa hoặc tắt bộ lọc bạn bè.'
-              : 'Hiện chưa có phòng nào đang mở. Hãy tạo phòng đầu tiên!'
-          }
-          action={{
-            label: 'Tạo phòng học ngay',
-            icon: Plus,
-            onClick: () => setMoTaoPhong(true),
-          }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {danhSachPhongLoc.map((room) => (
-            <RoomCard
-              key={room.id}
-              room={room}
-              friends={roomFriendsMap.get(room.id)}
-              onVaoPhong={xuLyVaoPhong}
+      {/* ── 3. Main Content: Room Grid + Stats Sidebar ─────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Room Grid (3 cols on desktop) */}
+        <div className="lg:col-span-3">
+          {danhSachPhongLoc.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Không tìm thấy phòng học phù hợp"
+              description={
+                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca'
+                  ? 'Thử thay đổi bộ lọc tìm kiếm hoặc từ khóa để tìm thêm phòng học.'
+                  : 'Hiện chưa có phòng học nào đang hoạt động. Bạn có muốn tạo phòng mới không?'
+              }
+              action={
+                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca'
+                  ? {
+                      label: 'Xóa bộ lọc',
+                      onClick: () => {
+                        setTabPhamVi('tat_ca')
+                        setTuKhoa('')
+                        setChiHienCoBanBe(false)
+                      },
+                    }
+                  : {
+                      label: 'Tạo phòng học ngay',
+                      onClick: () => setMoTaoPhong(true),
+                    }
+              }
             />
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {danhSachPhongLoc.map((room) => (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  friends={roomFriendsMap.get(room.id)}
+                  onVaoPhong={xuLyVaoPhong}
+                />
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Right Sidebar: Today's Summary & Inspiration Poster */}
+        <div className="space-y-4">
+          {/* Today's Stats Card */}
+          <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+              <Activity className="h-4 w-4 text-cyan-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Tổng quan hôm nay
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3">
+                <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Đang mở</span>
+                </div>
+                <p className="text-xl font-black text-white mt-1">{rooms.length}</p>
+                <p className="text-[10px] text-slate-400">Phòng hoạt động</p>
+              </div>
+
+              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3">
+                <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-semibold">
+                  <Users className="h-3 w-3" />
+                  <span>Tham gia</span>
+                </div>
+                <p className="text-xl font-black text-white mt-1">{totalParticipants}</p>
+                <p className="text-[10px] text-slate-400">Học sinh online</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Educational Quote & Graduation Art Banner */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg min-h-[160px] flex flex-col justify-end">
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-40 pointer-events-none"
+              style={{ backgroundImage: 'url(/assets/learning/learning_quote.webp)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0c1222] via-[#0c1222]/85 to-transparent pointer-events-none" />
+
+            <div className="relative z-10 space-y-1">
+              <p className="text-xs font-bold text-white leading-snug drop-shadow">
+                Kiến thức hôm nay là cơ hội của ngày mai.
+              </p>
+              <p className="text-[10px] text-cyan-300/80 font-medium">
+                Better Students · Brighter Tomorrow
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      {phongCanMatKhau && (
+        <PasswordRoomDialog
+          room={phongCanMatKhau}
+          onSuccess={(roomId) => {
+            setPhongCanMatKhau(null)
+            navigate(`/room/phong-${roomId}`)
+          }}
+          onClose={() => setPhongCanMatKhau(null)}
+        />
       )}
 
-      {/* Modals */}
-      <CreateStudyRoomDialog open={moTaoPhong} onOpenChange={setMoTaoPhong} />
-      <PasswordRoomDialog
-        room={phongCanMatKhau}
-        onClose={() => setPhongCanMatKhau(null)}
-        onSuccess={(room) => {
-          setPhongCanMatKhau(null)
-          navigate(`/room/phong-${room.id}`)
+      <CreateStudyRoomDialog
+        open={moTaoPhong}
+        onOpenChange={setMoTaoPhong}
+        onSuccess={(roomId) => {
+          setMoTaoPhong(false)
+          navigate(`/room/phong-${roomId}`)
         }}
       />
     </div>

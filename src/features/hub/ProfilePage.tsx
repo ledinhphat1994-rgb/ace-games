@@ -9,25 +9,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ProgressSummary } from '@/components/progress/ProgressSummary'
+import { AvatarPicker } from '@/features/profile/AvatarPicker'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
 import type { EngagementProfile } from '@shared/protocol/engagement'
 import {
   Award,
+  Camera,
   Flame,
   KeyRound,
   Palette,
   Sparkles,
-  Upload,
   User,
   ShieldCheck,
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-const PRESET_AVATARS = [
-  '🎓', '🚀', '🦉', '🦊', '🦁', '🐼',
-  '🐯', '🦄', '🌟', '⚡', '🎨', '🔬',
-]
 
 export function ProfilePage() {
   const { nguoiDung, lamMoiPhien } = usePhien()
@@ -60,11 +56,6 @@ export function ProfilePage() {
     setTieuDeHoSo(nguoiDung.tieuDeHoSo ?? '')
   }, [nguoiDung.ten, nguoiDung.username, nguoiDung.tieuDeHoSo])
 
-  // Avatar states
-  const [customAvatarUrl, setCustomAvatarUrl] = useState('')
-  const [dangLuuAvatar, setDangLuuAvatar] = useState(false)
-  const [dangUploadAvatar, setDangUploadAvatar] = useState(false)
-
   // Password states
   const [matKhauCu, setMatKhauCu] = useState('')
   const [matKhauMoi, setMatKhauMoi] = useState('')
@@ -83,59 +74,6 @@ export function ProfilePage() {
       toast.error(err instanceof Error ? err.message : 'Không cập nhật được hồ sơ.')
     } finally {
       setDangLuuProfile(false)
-    }
-  }
-
-  const handleSelectPresetAvatar = async (preset: string) => {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="30" fill="#0f172a"/><text x="50" y="65" font-size="52" text-anchor="middle">${preset}</text></svg>`
-    const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
-
-    setDangLuuAvatar(true)
-    try {
-      await doiAvatar(dataUrl)
-      toast.success(`Đã đổi avatar biểu tượng ${preset}!`)
-      if (lamMoiPhien) await lamMoiPhien()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Lỗi khi lưu avatar.')
-    } finally {
-      setDangLuuAvatar(false)
-    }
-  }
-
-  const handleUploadAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setDangUploadAvatar(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      if (!res.ok) throw new Error('Tải ảnh lên máy chủ thất bại.')
-      const data = (await res.json()) as { ok?: boolean; url?: string }
-      if (data.ok && data.url) {
-        await doiAvatar(data.url)
-        toast.success('Đã tải và đổi ảnh đại diện thành công!')
-        if (lamMoiPhien) await lamMoiPhien()
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Không tải được ảnh đại diện.')
-    } finally {
-      setDangUploadAvatar(false)
-    }
-  }
-
-  const handleSaveCustomAvatarUrl = async () => {
-    if (!customAvatarUrl.trim()) return
-    setDangLuuAvatar(true)
-    try {
-      await doiAvatar(customAvatarUrl.trim())
-      toast.success('Đã cập nhật avatar tùy chỉnh!')
-      setCustomAvatarUrl('')
-      if (lamMoiPhien) await lamMoiPhien()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Lỗi lưu avatar.')
-    } finally {
-      setDangLuuAvatar(false)
     }
   }
 
@@ -166,44 +104,63 @@ export function ProfilePage() {
   const displayName = nguoiDung.ten || nguoiDung.username
   const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh toàn trường'
   const profile = profileData?.profile
+  const defaultAvatar = '/assets/avatars/avatar_01_boy.webp'
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* 1. Student Campus Identity Passport Card */}
-      <Card className="relative overflow-hidden border border-border-default hero-gradient">
-        {/* Subtle ambient glow */}
-        <div className="pointer-events-none absolute top-0 right-0 h-40 w-40 rounded-full bg-brand/8 blur-3xl" />
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* 1. Student Campus Identity Passport Card with Cover Art */}
+      <Card className="relative overflow-hidden border border-border/80 bg-card shadow-sm">
+        {/* Profile Cover Art Banner */}
+        <div className="relative h-40 sm:h-52 w-full overflow-hidden bg-slate-900">
+          <img
+            src="/assets/profile/profile_cover.webp"
+            alt="Profile Cover"
+            className="h-full w-full object-cover object-center brightness-90"
+            onError={(e) => {
+              // Fallback gradient if asset missing
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-black/30 to-black/10" />
 
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-            {/* Avatar with click-to-change shortcut */}
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex items-center gap-2">
+            <Badge variant="outline" className="bg-black/40 backdrop-blur-md text-white border-white/20 text-xs font-semibold px-2.5 py-1">
+              Digital Campus Passport
+            </Badge>
+          </div>
+        </div>
+
+        <CardContent className="px-5 pb-6 pt-0">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 -mt-14 sm:-mt-16">
+            {/* Avatar with click-to-change overlay */}
             <div className="relative group shrink-0">
-              {nguoiDung.avatar ? (
+              <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl overflow-hidden border-4 border-card bg-card shadow-xl ring-2 ring-primary/30">
                 <img
-                  src={nguoiDung.avatar}
+                  src={nguoiDung.avatar || defaultAvatar}
                   alt={displayName}
-                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl object-cover border-2 border-primary/40 shadow-md"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    // Fallback to default boy avatar
+                    e.currentTarget.src = defaultAvatar
+                  }}
                 />
-              ) : (
-                <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-2xl bg-brand/15 text-2xl sm:text-3xl font-bold text-brand border-2 border-brand/30 uppercase shadow-md">
-                  {displayName.slice(0, 2)}
-                </div>
-              )}
+              </div>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('avatar')}
-                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 text-white text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs cursor-pointer"
+                className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/60 text-white text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs cursor-pointer gap-1"
                 title="Đổi ảnh đại diện"
               >
-                Đổi ảnh
+                <Camera className="h-4 w-4" />
+                <span>Đổi Avatar</span>
               </button>
             </div>
 
             {/* Identity Details */}
-            <div className="flex-1 text-center sm:text-left space-y-2 min-w-0">
+            <div className="flex-1 text-center sm:text-left space-y-2.5 min-w-0 pt-2 sm:pt-4">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground truncate">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
                   {displayName}
                 </h1>
                 <Badge variant="default" className="text-xs font-semibold">
@@ -222,7 +179,7 @@ export function ProfilePage() {
 
               {/* Motto or bio if set */}
               {nguoiDung.tieuDeHoSo ? (
-                <p className="text-xs italic text-foreground/80 bg-muted/40 rounded-lg px-3 py-1.5 inline-block">
+                <p className="text-xs italic text-foreground/90 bg-muted/40 border-l-2 border-brand/60 rounded-r-lg px-3 py-1.5 inline-block">
                   "{nguoiDung.tieuDeHoSo}"
                 </p>
               ) : (
@@ -231,33 +188,45 @@ export function ProfilePage() {
                   <span>Chưa đặt châm ngôn học tập</span>
                 </p>
               )}
+            </div>
 
-              {/* Quick Gamified Stats Pill Row */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
-                <div className="flex items-center gap-1.5 rounded-lg border border-warning/20 bg-warning/10 px-2.5 py-1 text-xs text-warning">
+            {/* Quick Gamified Stats & Action */}
+            <div className="flex flex-col items-center sm:items-end gap-3 pt-2 sm:pt-4 shrink-0">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2.5 py-1 text-xs text-warning">
                   <Flame className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.currentStreak ?? 0}</span>
                   <span className="text-[10px] text-text-tertiary">ngày chuỗi</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 rounded-lg border border-brand/20 bg-brand/10 px-2.5 py-1 text-xs text-brand">
+                <div className="flex items-center gap-1.5 rounded-lg border border-brand/25 bg-brand/10 px-2.5 py-1 text-xs text-brand">
                   <Zap className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.totalXp ?? 0} XP</span>
                   <span className="text-[10px] text-text-tertiary">tích lũy</span>
                 </div>
 
-                <div className="flex items-center gap-1.5 rounded-lg border border-social/20 bg-social/10 px-2.5 py-1 text-xs text-social">
+                <div className="flex items-center gap-1.5 rounded-lg border border-social/25 bg-social/10 px-2.5 py-1 text-xs text-social">
                   <Award className="h-3.5 w-3.5" />
                   <span className="font-bold">{profile?.unlockedAchievementsCount ?? 0}</span>
                   <span className="text-[10px] text-text-tertiary">huy hiệu</span>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('avatar')}
+                className="text-xs font-semibold gap-1.5 hover:border-primary/50"
+              >
+                <Palette className="h-3.5 w-3.5 text-primary" />
+                <span>Kho Avatar Nhân Vật</span>
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. Tabs Section: Secondary to Identity */}
+      {/* 2. Tabs Section */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => {
@@ -274,7 +243,7 @@ export function ProfilePage() {
           </TabsTrigger>
           <TabsTrigger value="avatar" className="text-xs gap-1.5">
             <Palette className="h-3.5 w-3.5" />
-            <span>Avatar</span>
+            <span>Kho Avatar</span>
           </TabsTrigger>
           <TabsTrigger value="progress" className="text-xs gap-1.5">
             <Award className="h-3.5 w-3.5" />
@@ -324,72 +293,23 @@ export function ProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* Tab 2: Avatar */}
+        {/* Tab 2: Avatar Gallery Picker */}
         <TabsContent value="avatar">
           <Card className="border border-border/70 bg-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold">Ảnh đại diện</CardTitle>
+              <CardTitle className="text-sm font-bold">Kho Ảnh Đại Diện Nhân Vật</CardTitle>
               <CardDescription className="text-xs">
-                Chọn biểu tượng sẵn có hoặc tải ảnh đại diện từ thiết bị của bạn
+                Chọn hình tượng nhân vật phong cách yêu thích hoặc tải ảnh đại diện từ thiết bị của bạn
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Presets */}
-              <div>
-                <p className="text-xs font-semibold text-foreground mb-3">Biểu tượng cá tính</p>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 max-w-sm">
-                  {PRESET_AVATARS.map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      disabled={dangLuuAvatar}
-                      onClick={() => handleSelectPresetAvatar(preset)}
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 text-2xl hover:scale-110 hover:border-primary transition-all cursor-pointer shadow-xs"
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Upload file */}
-              <div className="border-t border-border/60 pt-4 max-w-md space-y-2">
-                <p className="text-xs font-semibold text-foreground">Tải ảnh từ thiết bị</p>
-                <label className="flex items-center gap-2 rounded-xl border border-dashed border-border-default p-3 hover:border-brand/50 transition-colors cursor-pointer">
-                  <Upload className="h-4 w-4 text-brand" />
-                  <span className="text-xs text-muted-foreground">
-                    {dangUploadAvatar ? 'Đang tải lên…' : 'Chọn tệp ảnh (.png, .jpg, .webp)…'}
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleUploadAvatarFile}
-                    className="hidden"
-                    disabled={dangUploadAvatar}
-                  />
-                </label>
-              </div>
-
-              {/* URL */}
-              <div className="border-t border-border/60 pt-4 max-w-md space-y-2">
-                <p className="text-xs font-semibold text-foreground">Hoặc dùng đường link ảnh</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={customAvatarUrl}
-                    onChange={(e) => setCustomAvatarUrl(e.target.value)}
-                    placeholder="https://example.com/avatar.png"
-                    className="h-8 text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveCustomAvatarUrl}
-                    disabled={dangLuuAvatar || !customAvatarUrl.trim()}
-                    className="h-8 text-xs shrink-0"
-                  >
-                    Lưu link
-                  </Button>
-                </div>
-              </div>
+            <CardContent>
+              <AvatarPicker
+                currentAvatarUrl={nguoiDung.avatar || undefined}
+                onSaveAvatar={async (newUrl) => {
+                  await doiAvatar(newUrl)
+                  if (lamMoiPhien) await lamMoiPhien()
+                }}
+              />
             </CardContent>
           </Card>
         </TabsContent>

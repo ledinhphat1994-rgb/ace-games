@@ -276,26 +276,40 @@ function OverviewPanel({
             </div>
           </div>
 
-          {/* Announcement Card inside Hero */}
-          <div className="w-full lg:max-w-md rounded-2xl border border-social/30 bg-social/10 p-4 sm:p-5 backdrop-blur-md space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-social uppercase tracking-wider">
-              <Megaphone className="h-4 w-4" />
-              <span>Thông báo hệ thống</span>
+          {/* Announcement Card with Editorial Art Header inside Hero */}
+          <div className="w-full lg:max-w-md rounded-2xl border border-social/30 bg-social/10 overflow-hidden backdrop-blur-md shadow-md">
+            <div className="relative h-28 w-full overflow-hidden bg-slate-900">
+              <img
+                src="/assets/admin/admin_poster.webp"
+                alt="Admin Announcement"
+                className="h-full w-full object-cover brightness-90"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+              <div className="absolute bottom-2 left-3 right-3 flex items-center gap-2 text-xs font-bold text-social uppercase tracking-wider">
+                <Megaphone className="h-3.5 w-3.5" />
+                <span>Thông báo hệ thống</span>
+              </div>
             </div>
-            <h4 className="text-sm font-bold text-foreground">
-              Giám sát giai đoạn học tập cao điểm
-            </h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Tăng cường kiểm duyệt phòng học, duy trì hỗ trợ và đảm bảo chính sách bảo vệ dữ liệu cho toàn bộ thành viên trường.
-            </p>
-            <button
-              type="button"
-              onClick={() => onTabChange('audit')}
-              className="inline-flex items-center gap-1 text-xs font-bold text-social hover:underline cursor-pointer pt-1"
-            >
-              <span>Xem nhật ký kiểm duyệt</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+
+            <div className="p-4 space-y-2">
+              <h4 className="text-sm font-bold text-foreground">
+                Giám sát giai đoạn học tập cao điểm
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Tăng cường kiểm duyệt phòng học, duy trì hỗ trợ và đảm bảo chính sách bảo vệ dữ liệu cho toàn bộ thành viên trường.
+              </p>
+              <button
+                type="button"
+                onClick={() => onTabChange('audit')}
+                className="inline-flex items-center gap-1 text-xs font-bold text-social hover:underline cursor-pointer pt-1"
+              >
+                <span>Xem nhật ký kiểm duyệt</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -386,8 +400,15 @@ function OverviewPanel({
                       className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 hover:bg-surface-raised/60 transition-colors"
                     >
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl border border-brand/20 bg-brand/10 flex items-center justify-center text-brand shrink-0 mt-0.5">
-                          <BookOpen className="h-5 w-5" />
+                        <div className="h-11 w-14 rounded-xl border border-brand/25 bg-slate-900 overflow-hidden shrink-0 mt-0.5 shadow-xs">
+                          <img
+                            src="/assets/learning/room_math.webp"
+                            alt={room.name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
                         </div>
                         <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">

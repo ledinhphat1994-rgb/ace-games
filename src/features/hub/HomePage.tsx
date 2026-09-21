@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ProgressSummary } from '@/components/progress/ProgressSummary'
+import { CampusHeroBanner } from '@/components/campus/CampusHeroBanner'
+import { HomeDestinationCard, type HomeDestinationItem } from './HomeDestinationCard'
 import { RoomCard } from './RoomCard'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
@@ -17,7 +17,6 @@ import {
   BookOpen,
   DoorOpen,
   Gamepad2,
-  Plus,
   Radio,
   Sparkles,
   Users,
@@ -79,6 +78,47 @@ export function HomePage() {
       .slice(0, 4)
   }, [rooms, roomFriendsMap])
 
+  // Online friends list
+  const onlineFriends = useMemo(() => {
+    return friends.filter((f) => {
+      const p = presenceMap[f.id]
+      return p && (p.state === 'online' || p.state === 'away')
+    })
+  }, [friends, presenceMap])
+
+  const destinationItems: HomeDestinationItem[] = [
+    {
+      id: 'learn',
+      title: 'Học tập',
+      subtitle: 'Khám phá kiến thức',
+      tags: ['Phòng học', 'Tài liệu', 'Trao đổi'],
+      artwork: '/assets/learning/card_learning.webp',
+      href: '/learning',
+      icon: <BookOpen className="h-5 w-5" />,
+      accentColor: 'blue',
+    },
+    {
+      id: 'arena',
+      title: 'Đấu trường Game',
+      subtitle: 'Thư giãn & thử thách',
+      tags: ['Caro', 'Cờ vua', '2048', '+ Khác'],
+      artwork: '/assets/games/card_game.webp',
+      href: '/arena',
+      icon: <Gamepad2 className="h-5 w-5" />,
+      accentColor: 'green',
+    },
+    {
+      id: 'community',
+      title: 'Cộng đồng',
+      subtitle: 'Kết nối, cùng phát triển',
+      tags: ['Bạn bè', 'Thảo luận', 'Sự kiện'],
+      artwork: '/assets/community/card_community.webp',
+      href: '/community',
+      icon: <Users className="h-5 w-5" />,
+      accentColor: 'purple',
+    },
+  ]
+
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
       toast.error('Phòng học đã đầy số lượng người tham gia!')
@@ -92,70 +132,39 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* ── 1. Hero banner ────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl border border-border-default hero-gradient p-5 sm:p-6">
-        {/* Decorative glow */}
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand/8 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-social/5 blur-2xl" />
-
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          {/* Identity + greeting */}
-          <div className="space-y-1.5 max-w-lg">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand uppercase tracking-wider">
-                <Sparkles className="h-3 w-3" />
-                {loiChao}
-              </span>
-              <span className="text-border-strong text-xs">·</span>
-              <span className="text-xs font-medium text-text-secondary">{lopText}</span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-text-primary">
-              Xin chào, {displayName}!
-            </h1>
-
-            <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-              Bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn.
-            </p>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
-            <Button
-              size="default"
-              onClick={() => navigate('/learn')}
-              className="gap-2 font-bold shadow-md shadow-brand/20 hover:scale-[1.02] transition-transform"
-            >
-              <BookOpen className="h-4 w-4" />
-              Vào học ngay
-            </Button>
-
-            <Button
-              variant="outline"
-              size="default"
-              onClick={() => setMoTaoPhong(true)}
-            >
-              <Plus className="h-4 w-4 text-brand" />
-              Tạo phòng
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {/* ── 1. Cinematic Hero Banner (Contract for future Admin banner) ── */}
+      <CampusHeroBanner
+        badgeText={`${loiChao} · ${lopText}`}
+        title={`Xin chào, ${displayName}!`}
+        motto={nguoiDung.tieuDeHoSo || 'Học hôm nay, tiến xa hơn ngày mai.'}
+        subtitle="Bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn trong không gian số."
+        primaryAction={{
+          label: 'Vào học ngay',
+          icon: <BookOpen className="h-4 w-4" />,
+          onClick: () => navigate('/learning'),
+        }}
+        secondaryAction={{
+          label: 'Tạo phòng học',
+          icon: <Sparkles className="h-4 w-4" />,
+          onClick: () => setMoTaoPhong(true),
+        }}
+        slogan="Cùng nhau tạo nên phiên bản tốt hơn mỗi ngày"
+      />
 
       {/* ── 2. Smart continuation (friend actively studying) ─ */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-social/25 bg-social/8 p-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/25 bg-indigo-950/20 p-3.5 backdrop-blur-md">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-social/15 text-social border border-social/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-text-primary truncate">
-                Bạn bè đang học: <span className="text-social">{activeFriendStudy.friend.displayName}</span>
+              <p className="text-xs font-bold text-white truncate">
+                Bạn bè đang học: <span className="text-indigo-400">{activeFriendStudy.friend.displayName}</span>
               </p>
-              <p className="text-[11px] text-text-secondary truncate">
-                {activeFriendStudy.roomName} — cùng vào học nhé!
+              <p className="text-[11px] text-slate-400 truncate">
+                {activeFriendStudy.roomName} — cùng vào học ngay nhé!
               </p>
             </div>
           </div>
@@ -163,147 +172,173 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="shrink-0 gap-1 bg-social text-white hover:bg-social/90 shadow-sm"
+            className="shrink-0 gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold shadow-md shadow-indigo-500/20"
           >
             <DoorOpen className="h-3.5 w-3.5" />
-            Vào học cùng
+            Vào cùng
           </Button>
         </div>
       )}
 
-      {/* ── 3. Progress rail ─────────────────────────────── */}
+      {/* ── 3. Progress / Gamification Strip ───────────────── */}
       <ProgressSummary />
 
-      {/* ── 4. Destination shortcut cards ────────────────── */}
-      <section aria-label="Lối tắt nhanh" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {/* Học tập */}
-        <Card
-          onClick={() => navigate('/learn')}
-          className="group cursor-pointer border-brand/20 bg-gradient-to-br from-card to-brand/5 hover:border-brand/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-        >
-          <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand/25 bg-brand/10 text-brand shadow-inner group-hover:bg-brand/18 group-hover:scale-105 transition-all">
-              <BookOpen className="h-5 w-5" />
+      {/* ── 4. Main Grid: Destination Cards + Sidebar Widgets ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left 3 columns: Destination Cards + Active Rooms */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Destination Cards */}
+          <section aria-label="Khám phá không gian">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {destinationItems.map((item) => (
+                <HomeDestinationCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => navigate(item.href)}
+                />
+              ))}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-bold text-sm text-text-primary group-hover:text-brand transition-colors truncate">
-                  Học Tập 📚
-                </h3>
-                <Badge variant="default" className="shrink-0 text-[10px] px-1.5 py-0">
-                  {rooms.length} phòng
-                </Badge>
+          </section>
+
+          {/* Active Rooms */}
+          <section aria-label="Phòng học đang hoạt động" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
+                <h2 className="text-base font-extrabold text-white">Phòng học nổi bật</h2>
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
-                Phòng học lớp, toàn trường và thảo luận
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Game */}
-        <Card
-          onClick={() => navigate('/arena')}
-          className="group cursor-pointer border-success/20 bg-gradient-to-br from-card to-success/5 hover:border-success/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-        >
-          <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-success/25 bg-success/10 text-success shadow-inner group-hover:bg-success/18 group-hover:scale-105 transition-all">
-              <Gamepad2 className="h-5 w-5" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/learn')}
+                className="h-8 gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Xem tất cả ({rooms.length})
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-bold text-sm text-text-primary group-hover:text-success transition-colors truncate">
-                  Đấu Trường 🎮
-                </h3>
-                <Badge variant="success" className="shrink-0 text-[10px] px-1.5 py-0">
-                  4 trò chơi
-                </Badge>
+
+            {activeRoomsPreview.length === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title="Chưa có phòng học nào đang mở"
+                description="Tạo phòng học đầu tiên để cùng các bạn trao đổi bài và thảo luận nhóm!"
+                action={{
+                  label: 'Tạo phòng học ngay',
+                  onClick: () => setMoTaoPhong(true),
+                }}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activeRoomsPreview.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    friends={roomFriendsMap.get(room.id)}
+                    onVaoPhong={xuLyVaoPhong}
+                  />
+                ))}
               </div>
-              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
-                Caro, Cờ lật, 2048 &amp; Rắn Deluxe
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cộng đồng */}
-        <Card
-          onClick={() => navigate('/community')}
-          className="group cursor-pointer border-social/20 bg-gradient-to-br from-card to-social/5 hover:border-social/50 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
-        >
-          <CardContent className="flex items-center gap-3.5 p-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-social/25 bg-social/10 text-social shadow-inner group-hover:bg-social/18 group-hover:scale-105 transition-all">
-              <Users className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-bold text-sm text-text-primary group-hover:text-social transition-colors truncate">
-                  Cộng Đồng 👥
-                </h3>
-                <Badge variant="social" className="shrink-0 text-[10px] px-1.5 py-0">
-                  {friends.length} bạn bè
-                </Badge>
-              </div>
-              <p className="mt-0.5 text-xs text-text-secondary line-clamp-1">
-                Bạn bè, hoạt động và kết nối lớp
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* ── 5. Featured active rooms ─────────────────────── */}
-      <section aria-label="Phòng học đang hoạt động" className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-success animate-pulse" />
-            <h2 className="text-sm font-bold text-text-primary">Phòng học nổi bật</h2>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/learn')}
-            className="h-7 gap-1 text-xs font-semibold text-brand hover:text-brand hover:bg-brand/10"
-          >
-            Xem tất cả ({rooms.length})
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
+            )}
+          </section>
         </div>
 
-        {activeRoomsPreview.length === 0 ? (
-          <EmptyState
-            icon={BookOpen}
-            title="Chưa có phòng học nào đang mở"
-            description="Tạo phòng học đầu tiên để cùng các bạn trao đổi bài và thảo luận nhóm!"
-            action={{
-              label: 'Tạo phòng học ngay',
-              icon: Plus,
-              onClick: () => setMoTaoPhong(true),
-            }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {activeRoomsPreview.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                friends={roomFriendsMap.get(room.id)}
-                onVaoPhong={xuLyVaoPhong}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        {/* Right 1 column: Sidebar Widgets (Online Friends + Quote Banner) */}
+        <div className="space-y-4">
+          {/* Online Friends Widget */}
+          <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg">
+            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-cyan-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Bạn bè online ({onlineFriends.length})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/community')}
+                className="text-[11px] font-semibold text-cyan-400 hover:underline"
+              >
+                Xem tất cả
+              </button>
+            </div>
 
-      {/* Modals */}
-      <CreateStudyRoomDialog open={moTaoPhong} onOpenChange={setMoTaoPhong} />
-      <PasswordRoomDialog
-        room={phongCanMatKhau}
-        onClose={() => setPhongCanMatKhau(null)}
-        onSuccess={(room) => {
-          setPhongCanMatKhau(null)
-          navigate(`/room/phong-${room.id}`)
+            <div className="pt-3">
+              {onlineFriends.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-slate-400">Chưa có bạn bè nào đang online</p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => navigate('/community')}
+                    className="text-xs text-cyan-400 h-auto p-0 mt-1"
+                  >
+                    Kết nối bạn bè ngay
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {onlineFriends.slice(0, 5).map((friend) => (
+                    <div key={friend.id} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-950 text-cyan-300 font-bold text-xs border border-cyan-500/30">
+                            {friend.displayName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
+                        </div>
+                        <span className="text-xs font-medium text-slate-200 truncate">
+                          {friend.displayName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-medium">Trực tuyến</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Inspirational Quote Landscape Banner */}
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg min-h-[120px] flex flex-col justify-end">
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-40 pointer-events-none"
+              style={{ backgroundImage: 'url(/assets/campus/quote_landscape.webp)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0c1222] via-[#0c1222]/80 to-transparent pointer-events-none" />
+
+            <div className="relative z-10 space-y-1">
+              <span className="text-cyan-400 text-lg font-serif leading-none">&ldquo;</span>
+              <p className="text-xs font-semibold text-slate-200 italic leading-relaxed">
+                Kiến thức hôm nay là cơ hội của ngày mai.
+              </p>
+              <p className="text-[10px] text-cyan-300/70 font-medium pt-1">
+                Better Students · Brighter Tomorrow
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      {phongCanMatKhau && (
+        <PasswordRoomDialog
+          room={phongCanMatKhau}
+          onSuccess={(roomId) => {
+            setPhongCanMatKhau(null)
+            navigate(`/room/phong-${roomId}`)
+          }}
+          onClose={() => setPhongCanMatKhau(null)}
+        />
+      )}
+
+      <CreateStudyRoomDialog
+        open={moTaoPhong}
+        onOpenChange={setMoTaoPhong}
+        onSuccess={(roomId) => {
+          setMoTaoPhong(false)
+          navigate(`/room/phong-${roomId}`)
         }}
       />
     </div>

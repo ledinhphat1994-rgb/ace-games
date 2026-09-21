@@ -1,9 +1,7 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { PhongSanh } from '@shared/protocol/campus'
 import type { RoomFriendInfo } from './room-discovery'
-import { BookOpen, Lock, Play, Users } from 'lucide-react'
+import { Lock, Radio, Users, ArrowRight } from 'lucide-react'
 
 const TEN_MON_HOC: Record<string, string> = {
   toan: 'Toán',
@@ -15,114 +13,127 @@ const TEN_MON_HOC: Record<string, string> = {
   'lich-su': 'Lịch sử',
   'dia-li': 'Địa lí',
   'tin-hoc': 'Tin học',
-  khac: 'Tự học / khác',
+  khac: 'Tự học',
+}
+
+function getRoomThumbnail(room: PhongSanh): string {
+  const name = (room.ten + ' ' + (room.monHoc || '')).toLowerCase()
+  if (name.includes('toán') || room.monHoc === 'toan') return '/assets/learning/room_math.webp'
+  if (name.includes('vật') || name.includes('lý') || room.monHoc === 'vat-li') return '/assets/learning/room_physics.webp'
+  if (name.includes('game') || name.includes('caro') || room.monHoc === 'tin-hoc') return '/assets/learning/room_tech.webp'
+  if (name.includes('youtube') || room.dangPhat) return '/assets/learning/room_youtube.webp'
+  if (name.includes('bảo mật') || room.coMatKhau) return '/assets/learning/room_security.webp'
+  return '/assets/learning/room_study.webp'
 }
 
 interface RoomCardProps {
   room: PhongSanh
   friends?: RoomFriendInfo[]
   onVaoPhong?: (room: PhongSanh) => void
+  layout?: 'grid' | 'compact'
 }
 
 export function RoomCard({ room, friends, onVaoPhong }: RoomCardProps) {
   const tenMon = room.monHoc ? (TEN_MON_HOC[room.monHoc] ?? room.monHoc) : 'Học tập'
   const dayPhong = room.soNguoi >= room.sucChua
+  const thumbnail = getRoomThumbnail(room)
 
   return (
-    <Card
+    <div
       data-testid={`room-card-${room.id}`}
-      className="group flex flex-col justify-between hover:border-brand/40 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+      onClick={() => onVaoPhong?.(room)}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-cyan-500/10 hover:shadow-xl cursor-pointer"
     >
-      <CardHeader className="gap-2 p-4 pb-2">
-        {/* Scope + lock badges */}
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <Badge variant="default" className="gap-1">
-            <BookOpen className="h-3 w-3" />
-            {tenMon}
-          </Badge>
+      {/* Visual Thumbnail Header */}
+      <div className="relative h-32 w-full overflow-hidden bg-slate-900">
+        <img
+          src={thumbnail}
+          alt={room.ten}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0c1222] via-[#0c1222]/40 to-transparent" />
 
+        {/* State and Category Chips over thumbnail */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1.5 z-10">
           <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold text-slate-950 backdrop-blur-md shadow-sm">
+              <Radio className="h-2.5 w-2.5 animate-pulse" />
+              Trực tiếp
+            </span>
+            <span className="inline-flex items-center rounded-md bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-200 backdrop-blur-md">
+              {tenMon}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
             {room.coMatKhau && (
-              <Badge variant="warning" className="gap-1">
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-950 backdrop-blur-md">
                 <Lock className="h-2.5 w-2.5" />
-                Mật khẩu
-              </Badge>
+                Khoá
+              </span>
             )}
-
-            <Badge variant={room.phamVi === 'truong' ? 'social' : 'secondary'}>
+            <span className="inline-flex items-center rounded-md bg-slate-900/80 border border-white/15 px-1.5 py-0.5 text-[10px] font-medium text-slate-300 backdrop-blur-md">
               {room.phamVi === 'truong' ? 'Toàn trường' : (room.lopTen || 'Lớp')}
-            </Badge>
+            </span>
           </div>
         </div>
+      </div>
 
-        {/* Title + host */}
-        <div className="mt-1">
-          <CardTitle className="line-clamp-1 group-hover:text-brand transition-colors">
+      {/* Content Area */}
+      <div className="p-4 pt-2 flex flex-col justify-between flex-1 gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 leading-snug">
             {room.ten}
-          </CardTitle>
-          <p className="mt-0.5 line-clamp-1 text-xs text-text-secondary">
-            Chủ phòng: <span className="font-semibold text-text-primary">{room.chuPhongTen}</span>
+          </h3>
+          <p className="mt-1 text-xs text-slate-400 line-clamp-1">
+            Chủ phòng: <span className="font-semibold text-slate-200">{room.chuPhongTen}</span>
           </p>
         </div>
-      </CardHeader>
 
-      <CardContent className="px-4 py-2 space-y-2">
-        {/* Currently playing */}
-        {room.dangPhat ? (
-          <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/10 px-2.5 py-1.5 text-xs text-success">
-            <Play className="h-3 w-3 shrink-0 fill-success/40" />
-            <span className="truncate font-medium">{room.dangPhat}</span>
-          </div>
-        ) : (
-          <p className="line-clamp-2 text-xs text-text-secondary leading-relaxed">
-            {room.moTa || 'Phòng học tự do, trao đổi bài và thảo luận nhóm.'}
-          </p>
-        )}
-
-        {/* Friend presence */}
+        {/* Friend presence badge if friends inside */}
         {friends && friends.length > 0 && (
-          <div
-            data-testid={`room-friends-indicator-${room.id}`}
-            className="flex items-center gap-2 rounded-lg border border-social/20 bg-social/8 px-2 py-1 text-xs text-social"
-            aria-label={`${friends.length} bạn bè đang ở đây: ${friends.map((f) => f.displayName).join(', ')}`}
-            title={friends.map((f) => f.displayName).join(', ')}
-          >
-            <div className="flex -space-x-1.5 overflow-hidden shrink-0">
+          <div className="flex items-center gap-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 text-xs text-indigo-300">
+            <div className="flex -space-x-1 overflow-hidden shrink-0">
               {friends.slice(0, 3).map((f) => (
                 <div
                   key={f.id}
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-surface bg-social text-[9px] font-bold text-white uppercase"
-                  title={f.displayName}
+                  className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white border border-slate-900"
                 >
                   {f.displayName.slice(0, 1)}
                 </div>
               ))}
             </div>
-            <span className="truncate font-medium text-[11px]">
-              {friends.length === 1 ? '1 bạn đang ở đây' : `${friends.length} bạn đang ở đây`}
+            <span className="text-[11px] font-medium truncate">
+              {friends.length === 1 ? '1 bạn bè đang học' : `${friends.length} bạn bè đang học`}
             </span>
           </div>
         )}
-      </CardContent>
 
-      <CardFooter className="flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <Users className="h-3.5 w-3.5 opacity-70" />
-          <span className={dayPhong ? 'font-bold text-destructive' : 'font-semibold text-text-primary'}>
-            {room.soNguoi}/{room.sucChua}
-          </span>
-          {dayPhong && <span className="text-[10px] text-destructive">(Đầy)</span>}
+        {/* Card Footer: Users count + CTA */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/5 mt-auto">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Users className="h-3.5 w-3.5 text-slate-400" />
+            <span className={dayPhong ? 'font-bold text-rose-400' : 'font-semibold text-slate-200'}>
+              {room.soNguoi}/{room.sucChua}
+            </span>
+            {dayPhong && <span className="text-[10px] text-rose-400 font-bold">(Đầy)</span>}
+          </div>
+
+          <Button
+            size="sm"
+            disabled={dayPhong}
+            onClick={(e) => {
+              e.stopPropagation()
+              onVaoPhong?.(room)
+            }}
+            className="h-8 px-3 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 gap-1 transition-all"
+          >
+            <span>{dayPhong ? 'Đã đầy' : 'Vào phòng'}</span>
+            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+          </Button>
         </div>
-
-        <Button
-          size="sm"
-          disabled={dayPhong}
-          onClick={() => onVaoPhong?.(room)}
-          className="h-8 gap-1"
-        >
-          {dayPhong ? 'Đã đầy' : 'Vào phòng'}
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }

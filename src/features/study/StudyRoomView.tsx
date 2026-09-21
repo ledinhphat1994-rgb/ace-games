@@ -26,9 +26,11 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
+  Sparkles,
   Users,
   UserX,
   UserPlus,
+  Video,
   Wifi,
   WifiOff,
   X,
@@ -41,6 +43,8 @@ import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ChalkboardCanvas } from './ChalkboardCanvas'
+import { ClassroomStage } from './ClassroomStage'
+import { ClassroomWebcamStrip } from './ClassroomWebcamStrip'
 import { FloatingCalculator } from './FloatingCalculator'
 import { FloatingSlidePanel, PinnedSlideView } from './FloatingSlidePanel'
 import { FloatingVideoPlayer } from './FloatingVideoPlayer'
@@ -282,6 +286,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [showSlide, setShowSlide] = useState(false)
   const [showCalc, setShowCalc] = useState(false)
   const [isSlidePinned, setIsSlidePinned] = useState(false)
+  const [showClassroomStage, setShowClassroomStage] = useState(true)
+  const [showWebcamStrip, setShowWebcamStrip] = useState(true)
 
   // ── Drawers ──────────────────────────────────────────────────────────────
   const [showChat, setShowChat] = useState(false)
@@ -562,7 +568,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="relative h-svh w-full overflow-hidden select-none">
-      {/* ══ LAYER 0: Full-screen blackboard canvas with optional pinned slide layer ══ */}
+      {/* ══ LAYER 0: Full-screen blackboard canvas with optional pinned slide layer or Classroom Stage ══ */}
       <div className="absolute inset-0">
         <ChalkboardCanvas
           strokes={whiteboardStrokes}
@@ -585,8 +591,27 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               onChangeSlidePage={changeSlidePage}
             />
           )}
+
+          {!showYoutube && (!showSlide || !slideState) && showClassroomStage && (
+            <ClassroomStage
+              roomTitle={`Lớp Học Trực Tuyến 10A7 · ${tenChuPhong}`}
+              onUploadSlide={() => setShowUploadModal(true)}
+              onOpenYoutube={() => setShowYtPanel(true)}
+              onSwitchToChalk={() => setShowClassroomStage(false)}
+            />
+          )}
         </ChalkboardCanvas>
       </div>
+
+      {/* ══ Classroom Webcam Participant Strip ══ */}
+      {showWebcamStrip && (
+        <ClassroomWebcamStrip
+          members={members}
+          hostKey={hostKey}
+          currentActorKey={nguoiDung.actorKey}
+          speakingActors={voiceState.speakingActors}
+        />
+      )}
 
       {/* ══ LAYER 1: Top header bar ══ */}
       <header className="absolute inset-x-0 top-0 z-50 flex h-12 shrink-0 items-center justify-between border-b border-border-subtle bg-surface/90 px-4 backdrop-blur-md">
@@ -712,6 +737,20 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
               </span>
             )}
           </Button>
+
+          <button
+            type="button"
+            onClick={() => setShowWebcamStrip((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              showWebcamStrip
+                ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300'
+                : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+            title="Bật/tắt camera học sinh & giáo viên"
+          >
+            <Video className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden sm:inline font-semibold">Webcam</span>
+          </button>
 
           <button
             onClick={() => { setShowMembers(v => !v); handleCloseChat() }}
@@ -1500,6 +1539,18 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             <Upload className="h-3.5 w-3.5" />
             <FileText className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Slide</span>
+          </button>
+
+          {/* Classroom Stage button */}
+          <button
+            onClick={() => setShowClassroomStage((v) => !v)}
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
+              showClassroomStage ? 'bg-emerald-600/80 text-white' : 'text-emerald-400 hover:bg-emerald-600/20'
+            }`}
+            title={showClassroomStage ? 'Thu nhỏ bài giảng để viết bảng phấn' : 'Hiện bài giảng số hóa'}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Bài giảng</span>
           </button>
 
           {/* Calculator button */}
