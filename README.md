@@ -45,4 +45,8 @@ Hệ thống Digital Campus trường GDTX Định Quán: Vite + React 19 + Type
   - Production R2: `ANH` (`lop-10a7-anh`)
   - Staging D1: `lop-10a7-db-staging` (`46ed8936-b447-4f10-8983-8f3c3d310e9f`)
   - Staging KV: `d8cd90e018eb4da3ba697aaba555115c`
-- Lệnh deploy chính thức: `npm run deploy`.
+  - Staging R2: `ANH` (`lop-10a7-anh-staging`)
+- Lệnh deploy chính thức:
+  - Staging: `npm run deploy:staging`
+  - Production: `npm run deploy:production`
+  - Lệnh chung `npm run deploy` bị cố ý chặn (hard-blocked) để tránh triển khai nhầm môi trường.

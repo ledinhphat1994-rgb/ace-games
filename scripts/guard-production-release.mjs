@@ -249,7 +249,7 @@ if (stagingKv && prodKv.id === stagingKv.id) {
   process.exit(1)
 }
 
-// 8. Kiểm tra R2 Bucket & Theo dõi nợ kiến trúc (Architectural Debt Tracker)
+// 8. Kiểm tra R2 Bucket & Phân lập lưu trữ (Storage Isolation Invariant)
 const prodR2 = (prodConfig.r2_buckets || []).find((r2) => r2.binding === 'ANH')
 const stagingR2 = (stagingConfig.r2_buckets || []).find((r2) => r2.binding === 'ANH')
 
@@ -258,10 +258,15 @@ if (!prodR2) {
   process.exit(1)
 }
 
-if (stagingR2 && prodR2.bucket_name === stagingR2.bucket_name) {
-  console.log(`ℹ️  [RELEASE GUARD] GHI NHẬN NỢ KIẾN TRÚC ĐANG THEO DÕI:`)
-  console.log(`    R2 binding 'ANH' đang dùng chung bucket '${prodR2.bucket_name}' giữa staging và production.`)
-  console.log(`    (Kế hoạch phân tách sang 'lop-10a7-anh-staging' đang trong quy trình backlog).`)
+if (!stagingR2) {
+  console.error(`❌ [RELEASE GUARD] LỖI: wrangler.staging.jsonc thiếu binding 'ANH' cho R2 bucket!`)
+  process.exit(1)
+}
+
+if (prodR2.bucket_name === stagingR2.bucket_name) {
+  console.error(`❌ [RELEASE GUARD] LỖI BẢO VỆ NHIỄM CHÉO R2: Production R2 ANH bucket trùng với Staging R2 bucket ('${prodR2.bucket_name}')!`)
+  console.error(`    Yêu cầu phân lập R2 bắt buộc: Production '${prodR2.bucket_name}' vs Staging '${stagingR2.bucket_name}'.`)
+  process.exit(1)
 }
 
 console.log('✅ [RELEASE GUARD] Tất cả kiểm tra an toàn cấu hình và phân tách cơ sở dữ liệu đã đạt chuẩn 100%!')

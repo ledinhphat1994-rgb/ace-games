@@ -75,7 +75,7 @@
   "r2_buckets": [
     {
       "binding": "ANH",
-      "bucket_name": "lop-10a7-anh"
+      "bucket_name": "lop-10a7-anh-staging"
     }
   ],
   "durable_objects": {
