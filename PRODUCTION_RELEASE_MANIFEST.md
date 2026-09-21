@@ -76,12 +76,22 @@
 
 ### 4. Architectural Debt & Governance Status
 
-- **R2 Storage Isolation Debt:**
-  * **Classification:** `R2 SHARING = REAL CROSS-ENV ISOLATION DEBT`.
-  * **General File Path (`GET /api/files/:key`):** Public key-based access directly executing `c.env.ANH.get(key)` without D1 consultation or authentication. Anyone possessing a valid object key can fetch the object from either staging or production.
-  * **Staging Writes:** Staging file uploads currently perform `ANH.put()` directly into the shared physical bucket (`lop-10a7-anh`). While key namespacing (`${folder}/${timestamp}_${uuid}_${name}`) prevents collisions, staging test data resides in the production bucket namespace.
-  * **Study Room Document Path (`GET /api/rooms/:id/documents/:docId/file`):** Strictly gated by canonical room authority and D1 metadata lookup (`phong_tai_lieu`), providing stronger authorization.
-  * **Target Resolution:** Staging must be moved to a dedicated bucket (`lop-10a7-anh-staging`) in a dedicated hardening task. Production retains `lop-10a7-anh` with 0 object migrations required.
+- **R2 Storage Cross-Env Isolation (ENFORCED):**
+  * **Production:** `ANH -> lop-10a7-anh`
+  * **Staging:** `ANH -> lop-10a7-anh-staging`
+  * **R2 CROSS-ENV ISOLATION:** `ENFORCED`
+  * **Isolation Contract & Status:**
+    - Dedicated staging bucket `lop-10a7-anh-staging` created and bound in `wrangler.staging.jsonc` (deployed to Worker `gdtxdinhquan-v2`).
+    - Production bucket `lop-10a7-anh` remains completely intact and was NOT mutated, deleted, or renamed.
+    - Production objects were NOT migrated.
+    - Staging now has independent physical storage.
+    - Staging referenced objects (20 documents in `phong_tai_lieu`) had zero collisions with production metadata and were safely copied to `lop-10a7-anh-staging` with 100% byte integrity verified.
+    - Invariant enforced in `scripts/guard-production-release.mjs`: shared R2 bucket between staging and production is an absolute hard block (exit code 1).
+    - Verified via automated 10-invariant harness `scripts/verify-release-guard.mjs` (10/10 PASS).
+    - Strong isolation verified via live staging smoke: staging upload returned 200 on staging, present in `lop-10a7-anh-staging`, 404 on production URL, and absent from `lop-10a7-anh`.
+  * **File Authorization Preservation:**
+    - Public key-based `/api/files/:key` authorization behavior itself was NOT redesigned in this task and remains direct key-based `c.env.ANH.get(key)` without authentication.
+    - Study Room documents continue to enforce canonical room access gate via `GET /api/rooms/:id/documents/:docId/file`.
 - **Repository Governance Status:**
   * GitHub native branch protection is disabled by GitHub policy (HTTP 403 on GitHub Free personal account for private repositories).
   * Enforcement relies on CI Quality Gates on PRs, pre-release release guards (`scripts/guard-production-release.mjs`), clean tree enforcement, and PR review discipline.
