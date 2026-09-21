@@ -1,12 +1,15 @@
 import { type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 
 export interface CampusHeroBannerAction {
   label: string
   onClick: () => void
   icon?: ReactNode
 }
+
+import { CAMPUS_HERO_BANNER_CONTRACT } from './campus-hero-contract'
+export { CAMPUS_HERO_BANNER_CONTRACT }
 
 export interface CampusHeroBannerProps {
   image?: string
@@ -110,37 +113,14 @@ export function CampusHeroBanner({
             )}
           </div>
 
-          {/* Right Slogan & Carousel controls (contract for future Admin promotion carousel) */}
-          <div className="hidden md:flex flex-col items-end gap-1.5 text-right select-none">
-            {slogan && (
+          {/* Right Slogan */}
+          {slogan && (
+            <div className="hidden md:flex flex-col items-end gap-1.5 text-right select-none" data-testid="hero-slogan">
               <p className="text-xs lg:text-sm text-cyan-100/80 font-medium italic tracking-wide max-w-xs drop-shadow">
                 {slogan}
               </p>
-            )}
-            <div className="flex items-center gap-2 pt-1 opacity-75 hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-1">
-                <span className="h-1.5 w-5 rounded-full bg-cyan-400" />
-                <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
-                <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
-              </div>
-              <div className="flex items-center gap-1 ml-2">
-                <button
-                  type="button"
-                  aria-label="Previous slide"
-                  className="p-1 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white border border-white/10 transition-colors"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next slide"
-                  className="p-1 rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white border border-white/10 transition-colors"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

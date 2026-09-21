@@ -21,6 +21,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { LEARNING_OCCUPANCY_METRIC_CONFIG } from './learning-semantics'
+export { LEARNING_OCCUPANCY_METRIC_CONFIG }
+
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
 
 const SCOPE_TABS: { id: TabPhamVi; label: string }[] = [
@@ -280,13 +283,13 @@ export function LearningPage() {
                 <p className="text-[10px] text-slate-400">Phòng hoạt động</p>
               </div>
 
-              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3">
+              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3" data-testid="room-occupancy-metric">
                 <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-semibold">
                   <Users className="h-3 w-3" />
-                  <span>Tham gia</span>
+                  <span>Đang tham gia</span>
                 </div>
                 <p className="text-xl font-black text-white mt-1">{totalParticipants}</p>
-                <p className="text-[10px] text-slate-400">Học sinh online</p>
+                <p className="text-[10px] text-slate-400">Lượt trong phòng</p>
               </div>
             </div>
           </div>

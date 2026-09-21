@@ -594,7 +594,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
           {!showYoutube && (!showSlide || !slideState) && showClassroomStage && (
             <ClassroomStage
-              roomTitle={`Lớp Học Trực Tuyến 10A7 · ${tenChuPhong}`}
+              roomTitle={tenChuPhong ? `Phòng Học Trực Tuyến · ${tenChuPhong}` : 'Phòng Học Trực Tuyến'}
+              slideState={null}
               onUploadSlide={() => setShowUploadModal(true)}
               onOpenYoutube={() => setShowYtPanel(true)}
               onSwitchToChalk={() => setShowClassroomStage(false)}
