@@ -81,27 +81,30 @@
   * **Staging Binding:** `ANH -> lop-10a7-anh-staging`
   * **R2 BINDING ISOLATION:** `ENFORCED`
   * **NEW STAGING WRITE ISOLATION:** `ENFORCED`
-  * **LEGACY STAGING OBJECT RESIDUE IN PRODUCTION BUCKET:** `20 KEYS`
-  * **LEGACY RESIDUE STATUS:** `PENDING CONTROLLED CLEANUP`
+  * **LEGACY STAGING OBJECT RESIDUE IN PRODUCTION BUCKET:** `0`
+  * **LEGACY RESIDUE STATUS:** `CONTROLLED CLEANUP COMPLETED`
   * **Isolation Contract & Status:**
     - Dedicated staging bucket `lop-10a7-anh-staging` created and bound in `wrangler.staging.jsonc` (deployed to Worker `gdtxdinhquan-v2`).
-    - Production bucket `lop-10a7-anh` remains intact; no production objects were deleted, renamed, or bulk-copied.
-    - Zero production objects were migrated.
-    - Staging now has independent physical storage for all current and future writes.
+    - Staging has independent physical storage for all current and future writes (`NEW STAGING WRITE ISOLATION = ENFORCED`).
     - Invariant enforced in `scripts/guard-production-release.mjs`: shared R2 bucket between staging and production is an absolute hard block (exit code 1).
     - Verified via automated 10-invariant harness `scripts/verify-release-guard.mjs` (10/10 PASS).
     - Strong isolation verified via live staging smoke: staging upload returned 200 on staging, present in `lop-10a7-anh-staging`, 404 on production URL, and absent from `lop-10a7-anh`.
-  * **Legacy Object Preservation & Residue:**
-    - Pre-separation staging D1 inventory identified 20 referenced objects in `phong_tai_lieu`.
-    - Production collision check verified 0 reference collisions with production D1 metadata.
-    - All 20 referenced objects were successfully copied to `lop-10a7-anh-staging` with 100% byte size integrity verified.
-    - Because production R2 mutation was strictly prohibited during PR #11, the 20 legacy objects were intentionally NOT deleted from `lop-10a7-anh`.
-    - Historical physical separation will be finalized in a separate, dedicated controlled cleanup gate after PR #11 merge.
+  * **Controlled Legacy Residue Cleanup Execution:**
+    - Pre-cleanup audit re-verified exactly 20 referenced legacy staging objects in D1 `phong_tai_lieu`.
+    - Production reference collisions across all tables and columns were independently verified to be 0 (`PRODUCTION_REFERENCE_COLLISIONS = 0`).
+    - Prior to deletion, SHA-256 byte-for-byte integrity was proven between `lop-10a7-anh` and `lop-10a7-anh-staging` for all 20 objects (`BYTE_IDENTICAL = 20/20`).
+    - Pre-delete TOCTOU checkpoint confirmed zero drift across D1 metadata and physical object availability.
+    - Exact-key deletions were executed strictly one-by-one with immediate absence verification: exactly 20 verified legacy staging objects deleted from `lop-10a7-anh` (`PRODUCTION R2 EXACT-KEY DELETIONS = 20`, `FAILURES = 0`).
+    - Post-cleanup verification confirmed:
+      * Production bucket legacy residue remaining: 0 (all 20 return 404 on production URL).
+      * Staging bucket copies preserved: 20/20 present and intact (return 200 on staging URL).
+      * Production D1, KV, deployments, and configuration: zero mutation (`NONE`).
+      * Unrelated production R2 objects: zero mutation (`NONE`).
   * **Public Key-Based Read Endpoint Consequence:**
     - `GET /api/files/:key` performs direct public key-based R2 read (`c.env.ANH.get(key)`) without authentication and was intentionally NOT redesigned in this task.
-    - Consequently, the 20 legacy staging objects still residing in `lop-10a7-anh` can theoretically still be fetched from the production Worker if an exact key is known.
-    - The Study Room document authorization gate (`GET /api/rooms/:id/documents/:docId/file`) does NOT protect the generic `/api/files/:key` endpoint.
-    - Redesigning file access authorization is a separate security task outside the scope of R2 storage separation.
+    - With legacy staging objects deleted from `lop-10a7-anh`, direct requests to the production Worker for legacy staging keys return 404 Not Found.
+    - Study Room document authorization gate (`GET /api/rooms/:id/documents/:docId/file`) continues to enforce canonical room access.
+    - Redesigning general file access authorization remains a separate security task outside the scope of storage separation.
 - **Repository Governance Status:**
   * GitHub native branch protection is disabled by GitHub policy (HTTP 403 on GitHub Free personal account for private repositories).
   * Enforcement relies on CI Quality Gates on PRs, pre-release release guards (`scripts/guard-production-release.mjs`), clean tree enforcement, and PR review discipline.
