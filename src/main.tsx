@@ -32,9 +32,11 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: 'learn', element: <LearningPage /> },
+          { path: 'learning', element: <LearningPage /> },
           { path: 'arena', element: <GameArenaPage /> },
           { path: 'community', element: <CommunityPage /> },
           { path: 'me', element: <ProfilePage /> },
+          { path: 'profile', element: <ProfilePage /> },
           { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
           { path: 'admin', element: <AdminControlPlanePage /> },
         ],
