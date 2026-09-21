@@ -41,7 +41,7 @@
 
 - **Visual Asset System:**
   * Curated semantic theme tokens, dark mode palette, and educational typography.
-  * 52 visual assets deployed via Cloudflare Workers Static Assets across Campus, Learning, Community, Games, and Avatar domains (100% 200 OK responses).
+  * 52 visual assets were deployed. Representative production samples across Campus, Learning, Community, Games, and Avatar asset categories returned HTTP 200 with valid image/webp responses.
 - **UI & Interaction Parity:**
   * AuthGate, Classroom participant strip, and presentation controls verified in headless browser.
 - **Data-Truth & Reliability Invariants:**

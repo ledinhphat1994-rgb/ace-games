@@ -19,6 +19,12 @@ const rootDir = path.resolve(__dirname, '..')
 const isValidateOnly = process.argv.includes('--validate-only')
 const isDryRun = process.argv.includes('--dry-run') || isValidateOnly
 
+// Hỗ trợ target directory cho test harness nếu có
+const targetDirIndex = process.argv.indexOf('--target-dir')
+const targetDir = targetDirIndex !== -1 && process.argv[targetDirIndex + 1]
+  ? path.resolve(process.argv[targetDirIndex + 1])
+  : rootDir
+
 console.log('=== DIGITAL CAMPUS V2: CONTROLLED PRODUCTION DEPLOY ===')
 if (isValidateOnly) {
   console.log('🔍 Chế độ VALIDATE-ONLY: Kiểm tra an toàn và in lệnh deploy mà không build/upload.')
@@ -26,12 +32,12 @@ if (isValidateOnly) {
   console.log('🔍 Chế độ DRY-RUN: Build và kiểm tra cấu hình Wrangler deploy không upload production.')
 }
 
-// 1. Đọc và kiểm tra Git HEAD
+// 1. Đọc và kiểm tra Git HEAD một lần duy nhất (authoritative source)
 let headSha = ''
 let currentBranch = ''
 try {
-  headSha = execSync('git rev-parse HEAD', { cwd: rootDir, encoding: 'utf8' }).trim()
-  currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: rootDir, encoding: 'utf8' }).trim()
+  headSha = execSync('git rev-parse HEAD', { cwd: targetDir, encoding: 'utf8' }).trim()
+  currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: targetDir, encoding: 'utf8' }).trim()
 } catch (err) {
   console.error('❌ [DEPLOY] Lỗi đọc thông tin Git repository:', err.message)
   process.exit(1)
@@ -42,10 +48,31 @@ if (!/^[a-f0-9]{40}$/i.test(headSha)) {
   process.exit(1)
 }
 
-// 2. Chạy Release Guard
+// 2. Trong real production deploy (không phải dry-run hay validate-only):
+// TUYỆT ĐỐI KHÔNG CÓ BYPASS CHO FEATURE BRANCH.
+if (!isDryRun && !isValidateOnly) {
+  if (currentBranch !== 'main' && currentBranch !== 'HEAD') {
+    console.error(`❌ [DEPLOY] LỖI BẢO VỆ NGUỒN: Real production deploy chỉ được phép từ nhánh 'main' (hoặc detached HEAD với EXPECTED_RELEASE_SHA).`)
+    console.error(`   Nhánh hiện tại: '${currentBranch}'. Hủy bỏ deployment.`)
+    process.exit(1)
+  }
+}
+
+// 3. Chạy Release Guard
 console.log('\n[1/3] Đang chạy kiểm tra an toàn phát hành (Release Guard)...')
-const guardResult = spawnSync(process.execPath, [path.join(__dirname, 'guard-production-release.mjs')], {
-  cwd: rootDir,
+const guardArgs = [path.join(__dirname, 'guard-production-release.mjs')]
+if (targetDir !== rootDir) {
+  guardArgs.push(targetDir)
+}
+if (isDryRun) {
+  guardArgs.push('--dry-run')
+}
+if (isValidateOnly) {
+  guardArgs.push('--validate-only')
+}
+
+const guardResult = spawnSync(process.execPath, guardArgs, {
+  cwd: targetDir,
   stdio: 'inherit',
   env: process.env,
 })
@@ -55,7 +82,7 @@ if (guardResult.status !== 0) {
   process.exit(guardResult.status ?? 1)
 }
 
-// Chuẩn bị lệnh Wrangler Deploy
+// Chuẩn bị lệnh Wrangler Deploy với verified headSha
 const wranglerArgs = [
   'wrangler',
   'deploy',
@@ -81,7 +108,7 @@ console.log('\n[2/3] Đang build production bundle (npm run build)...')
 const isWindows = process.platform === 'win32'
 const npmCmd = isWindows ? 'npm.cmd' : 'npm'
 const buildResult = spawnSync(npmCmd, ['run', 'build'], {
-  cwd: rootDir,
+  cwd: targetDir,
   stdio: 'inherit',
   shell: isWindows,
 })
@@ -98,7 +125,7 @@ console.log(`🏷️  Cloudflare Version Message: release:${headSha}`)
 
 const npxCmd = isWindows ? 'npx.cmd' : 'npx'
 const deployResult = spawnSync(npxCmd, wranglerArgs, {
-  cwd: rootDir,
+  cwd: targetDir,
   stdio: 'inherit',
   shell: isWindows,
 })
