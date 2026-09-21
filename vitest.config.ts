@@ -1,8 +1,15 @@
 import fs from 'node:fs'
+import { fileURLToPath, URL } from 'node:url'
 import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig(async () => ({
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
+    },
+  },
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },

@@ -70,7 +70,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/20">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-social/10 text-social border border-social/20">
                 <Award className="h-5 w-5" />
               </div>
               <div>
@@ -83,7 +83,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
               </div>
             </div>
             {data && (
-              <Badge variant="secondary" className="px-2.5 py-1 text-xs font-semibold">
+              <Badge variant="social" className="px-2.5 py-1 text-xs">
                 {unlockedCount} / {totalCount} Đã mở khóa
               </Badge>
             )}
@@ -109,16 +109,16 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                   key={badge.key}
                   className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
                     badge.unlocked
-                      ? 'border-purple-500/40 bg-purple-500/5 hover:bg-purple-500/10 shadow-sm'
-                      : 'border-border/40 bg-muted/20 opacity-70'
+                      ? 'border-social/30 bg-social/5 hover:bg-social/10'
+                      : 'border-border-subtle bg-surface/50 opacity-70'
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
                         badge.unlocked
-                          ? 'bg-purple-500/15 text-purple-500 border-purple-500/30'
-                          : 'bg-muted text-muted-foreground border-border/50'
+                          ? 'bg-social/12 text-social border-social/25'
+                          : 'bg-surface text-text-tertiary border-border-subtle'
                       }`}
                     >
                       {badge.unlocked ? iconElement : <Lock className="h-4 w-4 text-muted-foreground/80" />}
@@ -129,12 +129,8 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                           {badge.title}
                         </span>
                         <Badge
-                          variant={badge.unlocked ? 'default' : 'outline'}
-                          className={`text-[9px] px-1.5 py-0 h-4 ${
-                            badge.unlocked
-                              ? 'bg-purple-600 hover:bg-purple-600 text-white'
-                              : 'text-muted-foreground'
-                          }`}
+                          variant={badge.unlocked ? 'social' : 'secondary'}
+                          className="text-[9px] px-1.5 py-0 h-4"
                         >
                           +{badge.rewardXp} XP
                         </Badge>
@@ -146,7 +142,7 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
                   </div>
 
                   {badge.unlocked && badge.unlockedAt && (
-                    <div className="text-[9px] text-purple-500/80 font-medium text-right mt-2">
+                    <div className="text-[9px] text-social/70 font-medium text-right mt-2">
                       Mở khóa: {new Date(badge.unlockedAt).toLocaleDateString('vi-VN')}
                     </div>
                   )}

@@ -39,30 +39,30 @@ export function GameLeaderboard({ gameType }: { gameType: GameType }) {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <h3 className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-white">
-        <Trophy className="size-4 text-amber-400" /> Xếp hạng {info.shortTitle}
+      <h3 className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-foreground">
+        <Trophy className="size-4 text-achievement" /> Xếp hạng {info.shortTitle}
       </h3>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto" style={{ overflowAnchor: 'none' }}>
         {isPending ? (
-          <div className="flex h-40 items-center justify-center text-xs text-slate-500">Đang tải…</div>
+          <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">Đang tải…</div>
         ) : isError ? (
-          <div className="flex h-40 items-center justify-center text-center text-xs text-rose-400">
+          <div className="flex h-40 items-center justify-center text-center text-xs text-destructive">
             Không tải được bảng xếp hạng, thử lại sau.
           </div>
         ) : data && data.length > 0 ? (
           data.map((row, i) => (
-            <div key={row.id} className="flex items-center gap-2.5 rounded-xl bg-slate-800/40 px-3 py-2 text-sm">
-              <span className={`w-5 shrink-0 text-center font-black ${MAU_HANG[i] ?? 'text-slate-500'}`}>
+            <div key={row.id} className="flex items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-raised/70 px-3 py-2 text-sm transition-colors hover:bg-surface-raised">
+              <span className={`w-5 shrink-0 text-center font-black ${MAU_HANG[i] ?? 'text-muted-foreground'}`}>
                 {i < 3 ? <Medal className="size-4" /> : i + 1}
               </span>
-              <span className="min-w-0 flex-1 truncate font-medium text-slate-200">{row.playerName}</span>
-              <span className="shrink-0 font-black text-cyan-400">{row.score.toLocaleString('vi-VN')}</span>
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">{row.playerName}</span>
+              <span className="shrink-0 font-black text-brand">{row.score.toLocaleString('vi-VN')}</span>
             </div>
           ))
         ) : (
-          <div className="flex h-40 flex-col items-center justify-center gap-1 text-center text-xs text-slate-500">
-            <Trophy className="size-6 text-slate-700" />
+          <div className="flex h-40 flex-col items-center justify-center gap-1 text-center text-xs text-muted-foreground">
+            <Trophy className="size-6 text-muted-foreground/50" />
             {info.category === '1v1'
               ? 'Đối kháng chưa tích luỹ điểm toàn trường — đang phát triển.'
               : 'Chưa có điểm nào cho trò này — chơi thử để lập kỷ lục đầu tiên!'}

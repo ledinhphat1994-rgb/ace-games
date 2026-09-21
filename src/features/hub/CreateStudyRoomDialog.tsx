@@ -303,7 +303,7 @@ export function CreateStudyRoomDialog({
                 disabled={isSubmitting}
                 className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors cursor-pointer ${
                   accessMode === 'public'
-                    ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400 font-semibold'
+                    ? 'border-success/50 bg-success/10 text-success font-semibold'
                     : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
                 }`}
               >
@@ -321,7 +321,7 @@ export function CreateStudyRoomDialog({
                 disabled={isSubmitting}
                 className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors cursor-pointer ${
                   accessMode === 'password'
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-300 font-semibold'
+                    ? 'border-warning/50 bg-warning/10 text-warning font-semibold'
                     : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
                 }`}
               >

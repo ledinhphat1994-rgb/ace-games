@@ -85,83 +85,257 @@ body {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+
+  /* Surface hierarchy */
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-elevated: var(--surface-elevated);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-interactive: var(--surface-interactive);
+
+  /* Semantic border */
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
+  --color-border-active: var(--border-active);
+
+  /* Text */
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
+  --color-text-on-brand: var(--text-on-brand);
+
+  /* Brand */
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Semantic roles */
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
+  --color-social: var(--social);
+  --color-social-muted: var(--social-muted);
+  --color-achievement: var(--achievement);
+  --color-achievement-muted: var(--achievement-muted);
+  --color-danger: var(--danger);
+
+  /* Radius system */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+  /* Legacy aliases used by shadcn primitives */
+  --radius-sm-legacy: calc(var(--radius) * 0.6);
+  --radius-md-legacy: calc(var(--radius) * 0.8);
+  --radius-lg-legacy: var(--radius);
+  --radius-xl-legacy: calc(var(--radius) * 1.4);
+  --radius-2xl-legacy: calc(var(--radius) * 1.8);
+  --radius-3xl-legacy: calc(var(--radius) * 2.2);
+  --radius-4xl-legacy: calc(var(--radius) * 2.6);
 }
 
-/* Giao diện tối theo màu thương hiệu Digital Campus: nền navy, bề mặt slate, nhấn cyan. */
+/* ============================================================
+   DARK THEME — Digital Campus: navy canvas, slate surfaces, cyan accent
+   ============================================================ */
 .dark {
-  --background: #080c14;
+  /* ─── Core shadcn tokens (used by all primitives) ─────── */
+  --background: #060a12;
   --foreground: #e2e8f0;
-  --card: #0f172a;
+  --card: #0d1525;
   --card-foreground: #e2e8f0;
-  --popover: #0f172a;
+  --popover: #0d1525;
   --popover-foreground: #e2e8f0;
   --primary: #22d3ee;
   --primary-foreground: #04121a;
-  --secondary: #1e293b;
+  --secondary: #1a2640;
   --secondary-foreground: #e2e8f0;
-  --muted: #1e293b;
+  --muted: #1a2640;
   --muted-foreground: #94a3b8;
-  --accent: #1e293b;
+  --accent: #1a2640;
   --accent-foreground: #e2e8f0;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: rgb(255 255 255 / 10%);
-  --input: rgb(255 255 255 / 15%);
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.12);
   --ring: #22d3ee;
-  --surface-1: #0f172a;
-  --surface-2: #1e293b;
-  --surface-elevated: #182234;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --text-primary: #f8fafc;
+
+  /* ─── Surface hierarchy ─────────────────────────────────── */
+  --canvas: #060a12;           /* Deepest canvas — page background */
+  --surface: #0d1525;          /* Primary surface — cards, panels */
+  --surface-raised: #131e30;   /* Elevated surface — dropdowns, popovers */
+  --surface-overlay: #1a2640;  /* Hover / overlay state */
+  --surface-interactive: #1f2d47; /* Interactive hover tint */
+  /* Legacy keys (used by existing components) */
+  --surface-1: #0d1525;
+  --surface-2: #1a2640;
+  --surface-elevated: #131e30;
+
+  /* ─── Semantic borders ──────────────────────────────────── */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-active: rgba(34, 211, 238, 0.45);  /* Cyan tint for active/focus */
+
+  /* ─── Text hierarchy ────────────────────────────────────── */
+  --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-tertiary: #64748b;
+  --text-on-brand: #04121a;    /* Dark text on cyan buttons */
+
+  /* ─── Brand ─────────────────────────────────────────────── */
   --brand: #22d3ee;
   --brand-hover: #06b6d4;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: #0f172a;
+
+  /* ─── Semantic color roles ──────────────────────────────── */
+  --success: #10b981;                  /* Emerald — active/online/game */
+  --success-muted: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;                  /* Amber — streak/achievements */
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --social: #a78bfa;                   /* Violet — community/social */
+  --social-muted: rgba(167, 139, 250, 0.15);
+  --achievement: #fbbf24;              /* Gold — badges/rewards */
+  --achievement-muted: rgba(251, 191, 36, 0.15);
+  --danger: oklch(0.704 0.191 22.216);
+
+  /* ─── Charts (inherit from root) ────────────────────────── */
+  --chart-1: #22d3ee;
+  --chart-2: #a78bfa;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #f87171;
+
+  /* ─── Sidebar (matches surface) ─────────────────────────── */
+  --sidebar: #0d1525;
   --sidebar-foreground: #e2e8f0;
   --sidebar-primary: #22d3ee;
   --sidebar-primary-foreground: #04121a;
-  --sidebar-accent: #1e293b;
+  --sidebar-accent: #1a2640;
   --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-border: rgba(255, 255, 255, 0.09);
   --sidebar-ring: #22d3ee;
 }
 
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
-  button:not(:disabled), [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
+
   html {
     @apply font-sans;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Smooth scrolling for inner containers (not window) */
+  .scroll-smooth-inner {
+    scroll-behavior: smooth;
+  }
+
+  /* Typography scale */
+  h1 {
+    @apply font-heading font-bold tracking-tight;
+    font-size: clamp(1.625rem, 2.5vw, 2.25rem);
+    line-height: 1.15;
+  }
+
+  h2 {
+    @apply font-heading font-semibold tracking-tight;
+    font-size: clamp(1.125rem, 1.8vw, 1.5rem);
+    line-height: 1.25;
+  }
+
+  h3 {
+    @apply font-heading font-semibold;
+    font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
+    line-height: 1.35;
+  }
+
+  /* Section label style — small uppercase metadata */
+  .label-section {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+}
+
+/* ============================================================
+   UTILITY CLASSES — used across components
+   ============================================================ */
+@layer utilities {
+  /* Glass surface — for headers, floating panels */
+  .glass {
+    background: rgba(6, 10, 18, 0.85);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
+
+  /* Card surface that uses the design-system surface token */
+  .card-surface {
+    background: var(--surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Compact pill used for tags / badges in mockup */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Brand gradient text */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Thin hairline separator */
+  .hairline {
+    border-top: 1px solid var(--border-default);
+  }
+
+  /* Focus ring — cyan tinted */
+  .focus-ring {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--border-active);
+  }
+
+  /* Subtle hover surface transition */
+  .hover-surface {
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  /* Animated gradient for hero / banner areas */
+  .hero-gradient {
+    background: linear-gradient(
+      135deg,
+      rgba(34, 211, 238, 0.08) 0%,
+      rgba(99, 102, 241, 0.06) 50%,
+      rgba(16, 185, 129, 0.04) 100%
+    );
   }
 }

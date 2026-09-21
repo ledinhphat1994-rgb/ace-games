@@ -199,10 +199,10 @@ export function AnalyticsDashboardPage() {
                   <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
                     M0.1 Baseline
                   </Badge>
-                  <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-400">
+                  <Badge variant="outline" className="border-success/40 bg-success/10 text-[10px] text-success">
                     D1 Cô lập
                   </Badge>
-                  <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-[10px] text-cyan-400">
+                  <Badge variant="outline" className="border-brand/40 bg-brand/10 text-[10px] text-brand">
                     {data?.totalTaxonomyEvents ?? 32} Sự kiện
                   </Badge>
                 </div>

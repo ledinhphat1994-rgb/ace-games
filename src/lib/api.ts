@@ -4,6 +4,7 @@ export interface NguoiDung {
   ten: string | null
   role: string | null
   avatar: string | null
+  tieuDeHoSo: string | null
   teacherPending: boolean
   isSchoolAdmin: boolean
   isVerifiedTeacher: boolean

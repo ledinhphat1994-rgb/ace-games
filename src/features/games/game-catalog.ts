@@ -14,6 +14,7 @@ export interface GameDefinition {
   description: string
   /** Kích thước bàn hiển thị nhanh trên thẻ/bàn — chỉ có ở trò chơi đối kháng. */
   boardLabel: string | null
+  cover: string
 }
 
 // Nguồn sự thật DUY NHẤT cho tên/mô tả/màu từng trò chơi — dùng chung cho lưới trò chơi, thẻ bàn đang mở
@@ -30,6 +31,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '⚔️',
     description: 'Bàn cờ chuẩn 15×15, 5 quân thẳng hàng để chiến thắng.',
     boardLabel: '15×15',
+    cover: '/assets/games/cover_caro.webp',
   },
   {
     id: 'caro_9',
@@ -42,6 +44,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '⚡',
     description: 'Bàn cờ 9×9 nhịp độ cực nhanh, mỗi lượt đi chớp nhoáng.',
     boardLabel: '9×9',
+    cover: '/assets/games/cover_caro9.webp',
   },
   {
     id: 'connect4',
@@ -54,6 +57,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '🔴',
     description: 'Thả quân theo cột, xếp 4 quân đồng màu liên tiếp để thắng.',
     boardLabel: '7×6',
+    cover: '/assets/games/cover_connect4.webp',
   },
   {
     id: 'reversi',
@@ -66,6 +70,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '⚪',
     description: 'Kẹp quân đối phương ở 8 hướng để lật cờ, ăn nhiều quân nhất khi kín bàn.',
     boardLabel: '8×8',
+    cover: '/assets/games/cover_reversi.webp',
   },
   {
     id: 'solo_2048',
@@ -78,6 +83,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '🔢',
     description: 'Trượt các ô để hợp nhất số bằng nhau, chinh phục mốc điểm 2048.',
     boardLabel: null,
+    cover: '/assets/games/cover_2048.webp',
   },
   {
     id: 'solo_memory',
@@ -90,6 +96,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '🃏',
     description: 'Lật tìm các cặp biểu tượng tương ứng với số lượt ít nhất.',
     boardLabel: null,
+    cover: '/assets/games/cover_memory.webp',
   },
   {
     id: 'solo_snake',
@@ -102,6 +109,7 @@ export const GAME_CATALOG: GameDefinition[] = [
     icon: '🐍',
     description: 'Điều khiển chú rắn ăn táo, tránh va vào tường hoặc cắn vào thân mình.',
     boardLabel: null,
+    cover: '/assets/games/cover_snake.webp',
   },
 ]
 

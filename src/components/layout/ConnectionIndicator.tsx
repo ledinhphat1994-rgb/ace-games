@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -16,6 +15,8 @@ interface ConnectionIndicatorProps {
   onKetNoiLai: () => void
 }
 
+const pillBase = 'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border transition-colors duration-150 select-none'
+
 export function ConnectionIndicator({
   trangThai,
   onlineCount,
@@ -25,7 +26,7 @@ export function ConnectionIndicator({
 }: ConnectionIndicatorProps) {
   if (trangThai === 'phien_bi_thay') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+      <div className={`${pillBase} border-destructive/30 bg-destructive/10 text-destructive`}>
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden sm:inline">Phiên bị thay thế</span>
       </div>
@@ -34,7 +35,7 @@ export function ConnectionIndicator({
 
   if (trangThai === 'dang_ket_noi') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300">
+      <div className={`${pillBase} border-warning/25 bg-warning/10 text-warning`}>
         <RefreshCw className="h-3 w-3 animate-spin shrink-0" />
         <span className="hidden sm:inline">Đang kết nối…</span>
       </div>
@@ -43,13 +44,13 @@ export function ConnectionIndicator({
 
   if (trangThai === 'mat_ket_noi') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+      <div className={`${pillBase} border-destructive/30 bg-destructive/10 text-destructive`}>
         <WifiOff className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden sm:inline">Mất kết nối</span>
         <button
           type="button"
           onClick={onKetNoiLai}
-          className="ml-1 underline hover:text-destructive-foreground cursor-pointer"
+          className="ml-1 underline hover:opacity-80 cursor-pointer"
         >
           Thử lại
         </button>
@@ -57,34 +58,35 @@ export function ConnectionIndicator({
     )
   }
 
-  // Da ket noi
+  // Connected
   return (
     <Popover>
       <PopoverTrigger
-        className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+        className={`${pillBase} border-success/25 bg-success/10 text-success hover:bg-success/18 cursor-pointer`}
         title="Trạng thái kết nối phòng học số"
       >
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
         </span>
         <span className="hidden sm:inline">{onlineCount} trực tuyến</span>
       </PopoverTrigger>
+
       <PopoverContent
         align="end"
-        className="w-64 border-border/80 bg-[#0f172a]/95 p-3 text-xs shadow-xl backdrop-blur-md"
+        className="w-60 border-border-default bg-surface-raised/95 p-3 text-xs shadow-2xl backdrop-blur-md"
       >
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between border-b border-border/50 pb-2">
-            <span className="font-semibold text-foreground">Trực tuyến</span>
-            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+          <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+            <span className="font-semibold text-text-primary">Trực tuyến</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 border border-success/20 px-2 py-0.5 text-xs font-semibold text-success">
               {onlineCount} người
-            </Badge>
+            </span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Độ trễ máy chủ (RTT)</span>
-            <span className="font-mono font-semibold text-foreground">
+            <span className="text-text-secondary">Độ trễ máy chủ (RTT)</span>
+            <span className="font-mono font-semibold text-text-primary">
               {latencyMs !== null ? `${latencyMs} ms` : '—'}
             </span>
           </div>
@@ -92,10 +94,10 @@ export function ConnectionIndicator({
           <Button
             variant="outline"
             size="sm"
-            className="w-full h-7 text-xs border-border/70 hover:bg-white/5"
+            className="w-full text-xs"
             onClick={onDoDoTre}
           >
-            <Wifi className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
+            <Wifi className="h-3.5 w-3.5 text-success" />
             Đo lại ping
           </Button>
         </div>

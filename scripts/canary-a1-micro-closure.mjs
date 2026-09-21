@@ -41,7 +41,7 @@ setGlobalDispatcher(
 )
 
 const TARGET = process.env.TARGET_URL || 'https://gdtxdinhquan-v2.ledinhphat1994.workers.dev'
-const MAT_KHAU = 'ThuNghiem@v2-2026'
+const MAT_KHAU = process.env.CANARY_PASSWORD || ''
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 

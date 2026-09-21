@@ -20,9 +20,13 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Điều hướng chính di động"
-      className="fixed bottom-0 inset-x-0 z-40 md:hidden border-t border-border/80 bg-[#0a0f18]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]"
+      className={[
+        'fixed bottom-0 inset-x-0 z-40 md:hidden',
+        'border-t border-border-subtle glass',
+        'pb-[env(safe-area-inset-bottom)]',
+      ].join(' ')}
     >
-      <div className="flex h-16 items-center justify-around px-2">
+      <div className="flex h-[60px] items-end justify-around px-1 pb-1">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon
           return (
@@ -31,25 +35,31 @@ export function MobileNav() {
               to={item.to}
               end={item.exact}
               className={({ isActive }) =>
-                `flex flex-1 flex-col items-center justify-center min-h-[44px] py-1 text-[11px] font-medium transition-colors ${
+                [
+                  'flex flex-1 flex-col items-center justify-end min-h-[52px] pb-1 gap-0.5',
+                  'text-[10px] font-medium transition-all duration-150',
+                  'active:scale-95 select-none',
                   isActive
-                    ? 'text-primary font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`
+                    ? 'text-brand font-semibold'
+                    : 'text-text-tertiary hover:text-text-secondary',
+                ].join(' ')
               }
             >
               {({ isActive }) => (
                 <>
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                    className={[
+                      'flex h-8 w-10 items-center justify-center rounded-xl transition-all duration-200',
                       isActive
-                        ? 'bg-primary/15 text-primary scale-105'
-                        : 'text-muted-foreground'
-                    }`}
+                        ? 'bg-brand/15 text-brand scale-105'
+                        : 'text-text-tertiary',
+                    ].join(' ')}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-[18px] w-[18px]" />
                   </div>
-                  <span className="mt-0.5 leading-none">{item.label}</span>
+                  <span className="leading-none tracking-tight">
+                    {item.label}
+                  </span>
                 </>
               )}
             </NavLink>

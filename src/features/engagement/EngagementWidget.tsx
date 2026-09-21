@@ -11,7 +11,6 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type {
   EngagementProfile,
@@ -81,8 +80,6 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
   const activeFriendsCount = friendsData?.activeFriendsCount || 0
 
   const todayXp = profile?.todayXp ?? 0
-  const maxDailyXp = 120
-  const dailyProgress = Math.min(100, Math.round((todayXp / maxDailyXp) * 100))
 
   return (
     <>
@@ -107,7 +104,7 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 {/* Streak Badge */}
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/25 shadow-inner">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-warning/10 text-warning border border-warning/25 shadow-inner">
                     <Flame className="h-6 w-6" />
                   </div>
                   <div>
@@ -136,10 +133,14 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                         {profile?.totalXp ?? 0} XP
                       </span>
                       <span className="text-[10px] text-muted-foreground">
-                        Hôm nay: {todayXp}/{maxDailyXp}
+                        Hôm nay: <strong className="text-primary font-bold">+{todayXp}</strong> XP
                       </span>
                     </div>
-                    <Progress value={dailyProgress} className="h-1.5 mt-1.5 bg-muted" />
+                    <p className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+                      {todayXp > 0
+                        ? `+${todayXp} XP từ hoạt động hôm nay`
+                        : 'Tham gia học tập để tích lũy XP'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -150,9 +151,9 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowLeaderboard(true)}
-                  className="h-8 text-xs gap-1.5 border-border/70 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500 transition-colors"
+                  className="h-8 text-xs gap-1.5 border-border/70 hover:bg-warning/10 hover:border-warning/30 hover:text-warning transition-colors"
                 >
-                  <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                  <Trophy className="h-3.5 w-3.5 text-warning" />
                   <span>Xếp hạng tuần</span>
                 </Button>
 
@@ -160,12 +161,12 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowAchievements(true)}
-                  className="h-8 text-xs gap-1.5 border-border/70 hover:bg-purple-500/10 hover:border-purple-500/30 hover:text-purple-500 transition-colors"
+                  className="h-8 text-xs gap-1.5 border-border/70 hover:bg-social/10 hover:border-social/30 hover:text-social transition-colors"
                 >
-                  <Award className="h-3.5 w-3.5 text-purple-500" />
+                  <Award className="h-3.5 w-3.5 text-social" />
                   <span>Huy hiệu</span>
-                  <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-0.5">
-                    {profile?.unlockedAchievementsCount ?? 0}/8
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 ml-0.5">
+                    {profile?.unlockedAchievementsCount ?? 0}
                   </Badge>
                 </Button>
 
@@ -174,11 +175,11 @@ export function EngagementWidget({ className = '' }: EngagementWidgetProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowChallenge(true)}
-                    className="h-8 text-xs gap-1.5 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                    className="h-8 text-xs gap-1.5 border-success/30 bg-success/5 text-success hover:bg-success/10 transition-colors"
                   >
-                    <Target className="h-3.5 w-3.5 text-emerald-500" />
+                    <Target className="h-3.5 w-3.5 text-success" />
                     <span>Thử thách lớp</span>
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-0.5 bg-success/20 text-success">
                       {challenge.currentValue}/{challenge.targetValue}
                     </Badge>
                   </Button>

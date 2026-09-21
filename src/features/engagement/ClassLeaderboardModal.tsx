@@ -73,13 +73,13 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
       <DialogContent className="max-w-lg p-5 sm:p-6 bg-card/95 backdrop-blur-xl border border-border/60">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-achievement/10 text-achievement border border-achievement/20">
               <Trophy className="h-5 w-5" />
             </div>
             <div>
               <DialogTitle className="text-lg font-bold flex items-center gap-2">
                 Bảng xếp hạng học tập tuần
-                <Sparkles className="h-4 w-4 text-amber-400" />
+                <Sparkles className="h-4 w-4 text-achievement" />
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 {data?.lopTen ? `Lớp ${data.lopTen}` : 'Xếp hạng tuần'} • Dựa trên điểm chuyên cần & tham gia học tập
@@ -109,8 +109,8 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
                 key={item.accountId}
                 className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
                   item.isCurrentUser
-                    ? 'border-primary/50 bg-primary/10 shadow-sm'
-                    : 'border-border/40 bg-background/50 hover:bg-muted/40'
+                    ? 'border-brand/40 bg-brand/8 shadow-sm'
+                    : 'border-border-subtle bg-surface/50 hover:bg-surface-overlay'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -131,7 +131,7 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
                       )}
                     </div>
                     {item.currentStreak > 0 && (
-                      <div className="text-[10px] text-amber-500 font-medium flex items-center gap-1">
+                      <div className="text-[10px] text-warning font-medium flex items-center gap-1">
                         <Flame className="h-3 w-3" />
                         <span>Chuỗi {item.currentStreak} ngày</span>
                       </div>
@@ -140,8 +140,8 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-extrabold text-primary">+{item.weeklyXp} XP</div>
-                  <div className="text-[10px] text-muted-foreground">tuần này</div>
+                  <div className="text-sm font-extrabold text-brand">+{item.weeklyXp} XP</div>
+                  <div className="text-[10px] text-text-secondary">tuần này</div>
                 </div>
               </div>
             ))}

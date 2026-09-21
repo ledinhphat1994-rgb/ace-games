@@ -150,7 +150,7 @@ export function StudyInviteDialog({
                     >
                       {isSent ? (
                         <>
-                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                          <Check className="h-3.5 w-3.5 text-success" />
                           <span>Đã mời</span>
                         </>
                       ) : isLoading ? (

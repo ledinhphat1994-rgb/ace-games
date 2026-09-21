@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { NguoiDung } from '@/lib/api'
+import type { EngagementProfile } from '../../shared/protocol/engagement'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
 import {
   Award,
@@ -50,8 +52,27 @@ export function UserAvatarMenu({
 
   // Form states
   const [tenHienThi, setTenHienThi] = useState(nguoiDung.ten || nguoiDung.username)
-  const [tieuDeHoSo, setTieuDeHoSo] = useState('')
+  const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung.tieuDeHoSo ?? '')
   const [dangLuuProfile, setDangLuuProfile] = useState(false)
+
+  useEffect(() => {
+    setTenHienThi(nguoiDung.ten || nguoiDung.username)
+    setTieuDeHoSo(nguoiDung.tieuDeHoSo ?? '')
+  }, [nguoiDung.ten, nguoiDung.username, nguoiDung.tieuDeHoSo])
+
+  // Profile data query for achievements & progress tab
+  const { data: profileData } = useQuery<{ ok: boolean; profile: EngagementProfile }>({
+    queryKey: ['engagement', 'profile'],
+    queryFn: async () => {
+      const res = await fetch('/api/engagement/profile')
+      if (!res.ok) return { ok: false, profile: null as any }
+      return res.json()
+    },
+    enabled: open,
+    staleTime: 30_000,
+  })
+
+  const totalXp = profileData?.profile?.totalXp ?? 0
 
   // Avatar states
   const [selectedPreset, setSelectedPreset] = useState<string>('')
@@ -64,11 +85,6 @@ export function UserAvatarMenu({
   const [matKhauMoi, setMatKhauMoi] = useState('')
   const [xacNhanMoi, setXacNhanMoi] = useState('')
   const [dangDoiMk, setDangDoiMk] = useState(false)
-
-  // Tính level giả định dựa trên accountId + tính năng
-  const level = Math.max(1, ((nguoiDung.accountId * 7) % 20) + 1)
-  const currentXp = (level * 73) % 100
-  const maxXp = 100
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,13 +204,13 @@ export function UserAvatarMenu({
           )}
         </div>
 
-        {/* User name & Level badge */}
+        {/* User name & Role badge */}
         <div className="hidden sm:flex flex-col text-left leading-none">
           <span className="max-w-[110px] truncate text-xs font-semibold text-slate-200 group-hover:text-white">
             {nguoiDung.ten || nguoiDung.username}
           </span>
           <span className="text-[10px] font-mono text-cyan-400">
-            Lv.{level} · {nguoiDung.isSchoolAdmin ? 'Admin' : nguoiDung.role === 'teacher' ? 'GV' : 'HS'}
+            {nguoiDung.isSchoolAdmin ? 'Admin' : nguoiDung.role === 'teacher' ? 'GV' : 'HS'}
           </span>
         </div>
       </button>
@@ -216,7 +232,7 @@ export function UserAvatarMenu({
                   <span className="text-2xl font-black text-white">{displayInitial}</span>
                 )}
                 <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center text-[9px] font-mono text-cyan-300">
-                  Lv.{level}
+                  {totalXp} XP
                 </div>
               </div>
 
@@ -240,17 +256,15 @@ export function UserAvatarMenu({
                   @{nguoiDung.username} {nguoiDung.lop ? `· Lớp ${nguoiDung.lop.ten}` : ''}
                 </DialogDescription>
 
-                {/* Level progress bar */}
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan-400 to-indigo-400 rounded-full transition-all duration-500"
-                      style={{ width: `${(currentXp / maxXp) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-mono text-cyan-300 shrink-0">
-                    {currentXp}/{maxXp} XP
-                  </span>
+                {/* Truthful XP & Streak summary */}
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-cyan-300 font-mono">
+                  <span>{totalXp} XP tích lũy</span>
+                  {profileData?.profile?.currentStreak ? (
+                    <>
+                      <span className="text-white/30">·</span>
+                      <span>🔥 {profileData.profile.currentStreak} ngày chuỗi</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -378,18 +392,22 @@ export function UserAvatarMenu({
                 </div>
               </TabsContent>
 
-              {/* ── TAB 3: Achievements & Level ── */}
+              {/* ── TAB 3: Achievements & Progress ── */}
               <TabsContent value="achievements" className="space-y-3 pt-4">
-                <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-3">
                   <div className="flex items-center gap-2.5">
-                    <Zap className="h-6 w-6 text-amber-400" />
+                    <Zap className="h-6 w-6 text-primary" />
                     <div>
-                      <p className="text-xs font-bold text-amber-200">Cấp độ học tập: Cấp {level}</p>
-                      <p className="text-[11px] text-amber-300/80">Tích lũy kinh nghiệm qua học nhóm & trò chơi trí tuệ</p>
+                      <p className="text-xs font-bold text-foreground">
+                        {profileData?.profile?.totalXp ?? 0} XP tích lũy
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Duy trì chuỗi {profileData?.profile?.currentStreak ?? 0} ngày học tập
+                      </p>
                     </div>
                   </div>
-                  <Badge className="bg-amber-500/30 text-amber-200 border-amber-500/40">
-                    +{currentXp} XP
+                  <Badge className="bg-primary/20 text-primary border-primary/40">
+                    +{profileData?.profile?.todayXp ?? 0} XP hôm nay
                   </Badge>
                 </div>
 
