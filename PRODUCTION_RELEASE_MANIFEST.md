@@ -100,11 +100,15 @@
       * Staging bucket copies preserved: 20/20 present and intact (return 200 on staging URL).
       * Production D1, KV, deployments, and configuration: zero mutation (`NONE`).
       * Unrelated production R2 objects: zero mutation (`NONE`).
-  * **Public Key-Based Read Endpoint Consequence:**
-    - `GET /api/files/:key` performs direct public key-based R2 read (`c.env.ANH.get(key)`) without authentication and was intentionally NOT redesigned in this task.
-    - With legacy staging objects deleted from `lop-10a7-anh`, direct requests to the production Worker for legacy staging keys return 404 Not Found.
-    - Study Room document authorization gate (`GET /api/rooms/:id/documents/:docId/file`) continues to enforce canonical room access.
-    - Redesigning general file access authorization remains a separate security task outside the scope of storage separation.
+  * **R2 Object Access Control & File Authorization Status (Milestone F1):**
+    - **GENERIC FILE KEY-POSSESSION ACCESS:** `REMOVED`. Possession of an R2 object key alone NEVER authorizes read access.
+    - **AUTHORITATIVE METADATA REGISTRY:** `ENFORCED`. Backed by D1 table `file_metadata` (Migration `0018_file_metadata_registry.sql`) tracking `object_key`, `original_name`, `mime_type`, `size_bytes`, `purpose`, `visibility`, `uploaded_by_account_id`, and timestamps.
+    - **STUDY ROOM DOCUMENT BYPASS:** `BLOCKED`. Generic path `/api/files/:key` explicitly rejects keys matching `rooms/` or `/documents/` with 404 Not Found (Fail Closed). Canonical room access (`GET /api/rooms/:id/documents/:docId/file`) remains the sole authorized path.
+    - **AVATAR VISIBILITY CLASS:** `campus`. Uploaded user avatars require an active campus session (`kiemTraPhien`). Unauthenticated requests return 401 Unauthorized. Served with `Cache-Control: private, max-age=3600` and no wildcard CORS.
+    - **PERSONAL / GENERAL VISIBILITY CLASS:** `owner`. General and slide uploads are accessible only by the original uploader (`uploaded_by_account_id`). Other authenticated users receive 403 Forbidden; unauthenticated receive 401 Unauthorized.
+    - **ORPHAN / UNKNOWN OBJECT ACCESS:** `FAIL CLOSED`. Keys without valid, non-deleted records in `file_metadata` return 404 Not Found to prevent leaking object existence.
+    - **UPLOAD COMPENSATION DELETION:** `ENFORCED`. If D1 metadata persistence fails after R2 `put()`, an exact-key `c.env.ANH.delete(key)` is immediately triggered.
+    - **IDEMPOTENT LEGACY BACKFILL:** Migration 0018 includes an idempotent backfill query indexing any avatar URLs currently stored in `tai_khoan_campus.avatar`. Audit confirmed 0 legacy avatar residue in staging D1.
 - **Repository Governance Status:**
   * GitHub native branch protection is disabled by GitHub policy (HTTP 403 on GitHub Free personal account for private repositories).
   * Enforcement relies on CI Quality Gates on PRs, pre-release release guards (`scripts/guard-production-release.mjs`), clean tree enforcement, and PR review discipline.

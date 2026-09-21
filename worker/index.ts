@@ -1171,6 +1171,25 @@ app.post('/api/upload', async (c) => {
       if (!pptxCheck.ok) return loi(`Tệp PPTX không hợp lệ: ${pptxCheck.reason}`, 400)
     }
 
+    // Authoritative Purpose & Visibility Binding
+    const rawPurpose = (formData.get('purpose') as string | null)?.trim() || 'general'
+    let purpose = 'general'
+    let visibility: 'owner' | 'campus' | 'public' = 'owner'
+
+    if (rawPurpose === 'avatar') {
+      if (rule.folder !== 'images') {
+        return loi('Ảnh đại diện phải là tệp hình ảnh (PNG, JPG, WEBP).', 400)
+      }
+      purpose = 'avatar'
+      visibility = 'campus'
+    } else if (rawPurpose === 'slide') {
+      purpose = 'slide'
+      visibility = 'owner'
+    } else {
+      purpose = 'general'
+      visibility = 'owner'
+    }
+
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50)
     const key = `${rule.folder}/${Date.now()}_${crypto.randomUUID()}_${safeName}`
 
@@ -1180,11 +1199,49 @@ app.post('/api/upload', async (c) => {
         originalName: encodeURIComponent(file.name),
         size: String(file.size),
         uploaderId: String(kq.taiKhoan.id),
+        purpose,
+        visibility,
       },
     })
 
+    // Authoritative metadata registry in D1 file_metadata with compensating R2 delete on failure
+    try {
+      await c.env.DB.prepare(`
+        INSERT INTO file_metadata (
+          object_key, original_name, mime_type, size_bytes, purpose, visibility,
+          uploaded_by_account_id, created_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+      `).bind(
+        key,
+        file.name.slice(0, 200),
+        file.type || 'application/octet-stream',
+        file.size,
+        purpose,
+        visibility,
+        kq.taiKhoan.id,
+        Date.now(),
+      ).run()
+    } catch (dbErr) {
+      console.error('[upload] D1 file_metadata insert failed, compensating R2 delete:', dbErr)
+      try {
+        await c.env.ANH.delete(key)
+      } catch (delErr) {
+        console.error('[upload] R2 compensation delete failed:', delErr)
+      }
+      return loi('Không thể lưu thông tin tệp vào cơ sở dữ liệu.', 500)
+    }
+
     const origin = new URL(c.req.url).origin
-    return c.json({ ok: true, key, url: `${origin}/api/files/${key}`, name: file.name, size: file.size, type: file.type })
+    return c.json({
+      ok: true,
+      key,
+      url: `${origin}/api/files/${key}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      purpose,
+      visibility,
+    })
   } catch (err) {
     console.error('Lỗi khi tải tệp lên R2:', err)
     return loi('Không thể tải tệp lên máy chủ lưu trữ.', 500)
@@ -1192,19 +1249,102 @@ app.post('/api/upload', async (c) => {
 })
 app.all('/api/upload', saiPhuongThuc)
 
+interface FileMetadataRecord {
+  id: number
+  object_key: string
+  original_name: string
+  mime_type: string
+  size_bytes: number
+  purpose: string
+  visibility: 'owner' | 'campus' | 'public'
+  uploaded_by_account_id: number
+  created_at: number
+  deleted_at: number | null
+}
+
 app.get('/api/files/:key{.+}', async (c) => {
   const key = c.req.param('key')
   if (!key) return loi('Thiếu tên tệp.', 400)
+
+  // 1. Chặn path manipulation và chặn triệt để bypass Study Room document qua generic path
+  if (
+    key.includes('..') ||
+    key.startsWith('/') ||
+    key.startsWith('\\') ||
+    key.startsWith('rooms/') ||
+    key.includes('/documents/')
+  ) {
+    return loi('Không tìm thấy tệp.', 404)
+  }
+
+  // 2. Tra cứu siêu dữ liệu quyền sở hữu và phạm vi trong file_metadata
+  let meta: FileMetadataRecord | null = null
+  try {
+    meta = await c.env.DB.prepare(
+      'SELECT * FROM file_metadata WHERE object_key = ?1 AND deleted_at IS NULL'
+    )
+      .bind(key)
+      .first<FileMetadataRecord>()
+  } catch (err) {
+    console.error('[files] Lỗi tra cứu file_metadata:', err)
+    return loi('Không thể tra cứu thông tin tệp.', 500)
+  }
+
+  // 3. Không có metadata => FAIL CLOSED (404 Not Found để không tiết lộ sự tồn tại của tệp)
+  if (!meta) {
+    return loi('Không tìm thấy tệp.', 404)
+  }
+
+  // 4. Đánh giá phân quyền truy cập
+  if (meta.visibility === 'public') {
+    // Tệp công khai: cho phép tải không cần phiên đăng nhập
+    const object = await c.env.ANH.get(key)
+    if (!object) return loi('Không tìm thấy tệp.', 404)
+
+    const headers = new Headers()
+    headers.set('Content-Type', meta.mime_type || object.httpMetadata?.contentType || 'application/octet-stream')
+    const originalName = meta.original_name || (object.customMetadata?.originalName
+      ? decodeURIComponent(object.customMetadata.originalName)
+      : key.split('/').pop() || 'file')
+    headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(originalName)}"`)
+    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Cache-Control', 'public, max-age=86400')
+    headers.set('X-Content-Type-Options', 'nosniff')
+    return new Response(object.body, { headers })
+  }
+
+  // Tệp được bảo vệ (campus hoặc owner): bắt buộc có phiên hợp lệ
+  const phienRaw = await layPhien(c.req.raw, c.env)
+  const kq = await kiemTraPhien(phienRaw, c.env)
+  if (!kq.hopLe) {
+    return loi('Yêu cầu đăng nhập để truy cập tệp.', 401)
+  }
+
+  if (meta.visibility === 'owner') {
+    // Chỉ chính người tải lên mới được phép đọc
+    if (kq.taiKhoan.id !== meta.uploaded_by_account_id) {
+      return loi('Bạn không có quyền truy cập tệp này.', 403)
+    }
+  } else if (meta.visibility === 'campus') {
+    // Bất kỳ thành viên campus nào có phiên hợp lệ đều được đọc (ví dụ: avatar)
+  } else {
+    // Bất kỳ giá trị visibility nào khác => FAIL CLOSED
+    return loi('Phạm vi truy cập tệp không hợp lệ.', 403)
+  }
+
+  // 5. Đọc tệp từ R2 sau khi đã xác thực đầy đủ quyền truy cập
   const object = await c.env.ANH.get(key)
   if (!object) return loi('Không tìm thấy tệp.', 404)
+
   const headers = new Headers()
-  headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream')
-  const originalName = object.customMetadata?.originalName
+  headers.set('Content-Type', meta.mime_type || object.httpMetadata?.contentType || 'application/octet-stream')
+  const originalName = meta.original_name || (object.customMetadata?.originalName
     ? decodeURIComponent(object.customMetadata.originalName)
-    : key.split('/').pop() || 'file'
-  headers.set('Content-Disposition', `inline; filename="${originalName}"`)
-  headers.set('Access-Control-Allow-Origin', '*')
-  headers.set('Cache-Control', 'public, max-age=86400')
+    : key.split('/').pop() || 'file')
+  headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(originalName)}"`)
+  // Protected headers: NO wildcard CORS, private cache only, Vary Cookie
+  headers.set('Cache-Control', 'private, max-age=3600')
+  headers.set('Vary', 'Cookie')
   headers.set('X-Content-Type-Options', 'nosniff')
   return new Response(object.body, { headers })
 })

@@ -51,6 +51,7 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('purpose', 'avatar')
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       if (!res.ok) throw new Error('Tải ảnh lên thất bại.')
       const data = (await res.json()) as { ok?: boolean; url?: string }

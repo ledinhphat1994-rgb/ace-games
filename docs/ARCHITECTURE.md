@@ -61,11 +61,14 @@ Hợp đồng dữ liệu được chia sẻ giữa Frontend và Backend, địn
 2. **Password Recovery:**
    - Không dùng mã tĩnh hay mã chung của trường/lớp để reset mật khẩu.
    - Mã khôi phục gồm 6 chữ số ngẫu nhiên do hệ thống tạo (hoặc do GVCN/Admin cấp trực tiếp), có thời hạn 15 phút, dùng 1 lần (single-use), giới hạn 5 lần thử sai.
-3. **Upload Security:**
+3. **Upload & File Access Security:**
    - Tuyệt đối yêu cầu đăng nhập trước khi tải tệp (`kiemTraPhien`).
-   - Giới hạn quota 20 tệp / 10 phút qua Cloudflare KV.
-   - Kiểm tra chặt chẽ phần mở rộng và MIME type (`.pptx`, `.ppt`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`).
-   - Tên tệp lưu trữ trên R2 dùng UUID ngẫu nhiên, không để lộ đường dẫn gốc.
+   - Giới hạn quota 20 tệp / 10 phút qua Cloudflare KV và 10 tệp / 60 giây qua Edge Rate Limiter.
+   - Kiểm tra chặt chẽ phần mở rộng, MIME type (`.pptx`, `.ppt`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`), magic bytes và deep ZIP inspection đối với PPTX.
+   - Phân định quyền sở hữu và phạm vi (`purpose` & `visibility`) được kiểm soát chặt chẽ phía server, lưu vào bảng siêu dữ liệu D1 `file_metadata`.
+   - Có cơ chế xóa bù trừ (R2 compensation delete) lập tức nếu lưu metadata D1 thất bại, không để lại orphan object.
+   - Phân quyền đọc `GET /api/files/:key`: Xóa bỏ cơ chế ủy quyền qua key đơn thuần. Bắt buộc tra cứu `file_metadata`. Avatar gán phạm vi `campus` (chỉ đọc với phiên đăng nhập hợp lệ, private cache, không wildcard CORS); tệp cá nhân gán phạm vi `owner` (chỉ chính chủ đọc); tệp không có metadata trả về 404 (Fail Closed).
+   - Chặn tuyệt đối đường dẫn tài liệu phòng học `rooms/` trên generic `/api/files/:key`, bắt buộc đi qua canonical route `GET /api/rooms/:id/documents/:docId/file`.
 4. **Study Room Governance:**
    - Mặc định bảo vệ video học tập và trình chiếu (`hostOnlyControl = true`).
    - Chỉ Host hoặc Giáo viên / Quản trị viên trường mới có quyền đổi video, xóa toàn bộ nét vẽ trên bảng, đổi slide hoặc phát nhạc từ hàng đợi.

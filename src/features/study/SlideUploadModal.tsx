@@ -70,6 +70,9 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
       const formData = new FormData()
       formData.append('file', file)
       const cleanRoomId = roomId ? roomId.replace('phong-', '') : null
+      if (!cleanRoomId) {
+        formData.append('purpose', 'slide')
+      }
       const endpoint = cleanRoomId ? `/api/rooms/${cleanRoomId}/documents` : '/api/upload'
       const res = await fetch(endpoint, {
         method: 'POST',
