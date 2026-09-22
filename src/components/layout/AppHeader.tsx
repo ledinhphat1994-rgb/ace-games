@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
-import { AccountMenu } from './AccountMenu'
+import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import type { NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
@@ -19,6 +19,7 @@ interface AppHeaderProps {
   onKetNoiLai: () => void
   onDangXuat: () => void
   onToggleChat: () => void
+  onLamMoiPhien?: () => Promise<void>
 }
 
 const DESKTOP_NAV_LINKS = [
@@ -39,6 +40,7 @@ export function AppHeader({
   onKetNoiLai,
   onDangXuat,
   onToggleChat,
+  onLamMoiPhien,
 }: AppHeaderProps) {
   const navigate = useNavigate()
   const [searchVal, setSearchVal] = useState('')
@@ -65,9 +67,6 @@ export function AppHeader({
             </div>
             <span className="hidden sm:block text-sm font-extrabold tracking-tight text-text-primary">
               Digital Campus
-            </span>
-            <span className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-[10px] font-semibold text-brand leading-none">
-              v2.1
             </span>
           </NavLink>
 
@@ -154,9 +153,13 @@ export function AppHeader({
             )}
           </Button>
 
-          {/* Divider + Account */}
+          {/* Divider + Account Quick Center */}
           <div className="flex items-center pl-1 sm:pl-2 border-l border-border-subtle">
-            <AccountMenu nguoiDung={nguoiDung} onDangXuat={onDangXuat} />
+            <UserAvatarMenu
+              nguoiDung={nguoiDung}
+              onDangXuat={onDangXuat}
+              onLamMoiPhien={onLamMoiPhien}
+            />
           </div>
         </div>
       </div>
