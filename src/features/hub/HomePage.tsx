@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ProgressSummary } from '@/components/progress/ProgressSummary'
 import { CampusHeroBanner } from '@/components/campus/CampusHeroBanner'
-import { HomeDestinationCard, type HomeDestinationItem } from './HomeDestinationCard'
+import type { ReactNode } from 'react'
+import { HomeDestinationCard, type HomeDestinationItem, HOME_DESTINATIONS } from './HomeDestinationCard'
 import { RoomCard } from './RoomCard'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
@@ -78,36 +79,18 @@ export function HomePage() {
   }, [friends, presenceMap])
 
   // Quick Launch 4-card grid: Label-first, no subtitles, no fake badges
-  const destinationItems: HomeDestinationItem[] = [
-    {
-      id: 'learn',
-      title: 'Học tập',
-      artwork: '/assets/learning/card_learning.webp',
-      href: '/learning',
-      icon: <BookOpen className="h-5 w-5" />,
-    },
-    {
-      id: 'arena',
-      title: 'Game',
-      artwork: '/assets/games/card_game.webp',
-      href: '/arena',
-      icon: <Gamepad2 className="h-5 w-5" />,
-    },
-    {
-      id: 'community',
-      title: 'Cộng đồng',
-      artwork: '/assets/community/card_community.webp',
-      href: '/community',
-      icon: <Users className="h-5 w-5" />,
-    },
-    {
-      id: 'rooms',
-      title: 'Phòng học',
-      artwork: '/assets/learning/room_study.webp',
-      href: '/learn',
-      icon: <DoorOpen className="h-5 w-5" />,
-    },
-  ]
+  const destinationItems: HomeDestinationItem[] = useMemo(() => {
+    const iconMap: Record<string, ReactNode> = {
+      learn: <BookOpen className="h-5 w-5" />,
+      arena: <Gamepad2 className="h-5 w-5" />,
+      community: <Users className="h-5 w-5" />,
+      rooms: <DoorOpen className="h-5 w-5" />,
+    }
+    return HOME_DESTINATIONS.map((dest) => ({
+      ...dest,
+      icon: iconMap[dest.id],
+    }))
+  }, [])
 
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {

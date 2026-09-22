@@ -17,6 +17,7 @@ import type { NguoiDung } from '@/lib/api'
 import type { EngagementProfile, UserAchievementItem } from '@shared/protocol/engagement'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
 import {
+  AlertCircle,
   Award,
   BookOpen,
   Check,
@@ -41,6 +42,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PRESET_AVATARS } from './preset-avatars'
+import { deriveAchievementViewState } from './account-quick-center-state'
 
 export interface AccountQuickCenterProps {
   nguoiDung: NguoiDung
@@ -135,19 +137,35 @@ export function AccountQuickCenter({
   }
 
   // Profile engagement query for achievements view
-  const { data: profileData } = useQuery<{ ok: boolean; profile: EngagementProfile }>({
+  const {
+    data: profileData,
+    isLoading: isLoadingProfile,
+    isError: isProfileError,
+    refetch: refetchProfile,
+  } = useQuery<{ ok: boolean; profile: EngagementProfile }>({
     queryKey: ['engagement', 'profile'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/profile')
-      if (!res.ok) return { ok: false, profile: null as any }
-      return res.json()
+      if (!res.ok) {
+        throw new Error('Không thể tải thông tin hoạt động.')
+      }
+      const data = await res.json()
+      if (data && data.ok === false) {
+        throw new Error(data.loi || data.message || 'Không thể tải thông tin hoạt động.')
+      }
+      return data
     },
     enabled: isOpen && currentView === 'achievements',
     staleTime: 30_000,
   })
 
   // Authoritative achievements query
-  const { data: achievementsData, isLoading: isLoadingAchievements } = useQuery<{
+  const {
+    data: achievementsData,
+    isLoading: isLoadingAchievements,
+    isError: isAchievementsError,
+    refetch: refetchAchievements,
+  } = useQuery<{
     ok: boolean
     achievements?: UserAchievementItem[]
     items?: UserAchievementItem[]
@@ -155,18 +173,25 @@ export function AccountQuickCenter({
     queryKey: ['engagement', 'achievements'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/achievements')
-      if (!res.ok) return { ok: false, achievements: [] }
-      return res.json()
+      if (!res.ok) {
+        throw new Error('Không thể tải danh sách thành tựu.')
+      }
+      const data = await res.json()
+      if (data && data.ok === false) {
+        throw new Error(data.loi || data.message || 'Không thể tải danh sách thành tựu.')
+      }
+      return data
     },
     enabled: isOpen && currentView === 'achievements',
     staleTime: 30_000,
   })
 
-  const totalXp = profileData?.profile?.totalXp ?? 0
-  const currentStreak = profileData?.profile?.currentStreak ?? 0
-  const todayXp = profileData?.profile?.todayXp ?? 0
-  const realAchievements: UserAchievementItem[] =
-    achievementsData?.achievements || achievementsData?.items || []
+  const rawAchievements = achievementsData?.achievements || achievementsData?.items || []
+  const achievementViewState = deriveAchievementViewState({
+    isLoading: isLoadingAchievements,
+    isError: isAchievementsError,
+    items: rawAchievements,
+  })
 
   const handleSelectPresetAvatar = async (src: string) => {
     setDangLuuAvatar(true)
@@ -704,21 +729,56 @@ export function AccountQuickCenter({
               <div className="flex items-center gap-2.5">
                 <Flame className="h-6 w-6 text-amber-400 fill-amber-400/20" />
                 <div>
-                  <p className="text-xs font-bold text-white">{currentStreak} ngày chuỗi học</p>
-                  <p className="text-xs text-slate-400">{totalXp} XP tích lũy</p>
+                  {isLoadingProfile ? (
+                    <p className="text-xs text-slate-400">Đang tải số liệu...</p>
+                  ) : isProfileError ? (
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-rose-300">Không tải được số liệu</p>
+                      <button
+                        type="button"
+                        onClick={() => void refetchProfile()}
+                        className="text-xs text-amber-400 hover:underline"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-white">
+                        {profileData?.profile?.currentStreak ?? 0} ngày chuỗi học
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {profileData?.profile?.totalXp ?? 0} XP tích lũy
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
-              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs">
-                +{todayXp} XP hôm nay
-              </Badge>
+              {!isLoadingProfile && !isProfileError && profileData?.profile && (
+                <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs">
+                  +{profileData.profile.todayXp ?? 0} XP hôm nay
+                </Badge>
+              )}
             </div>
 
-            {isLoadingAchievements ? (
+            {achievementViewState.status === 'loading' ? (
               <div className="flex items-center justify-center py-8 text-slate-400 gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                 <span className="text-xs">Đang tải thành tựu...</span>
               </div>
-            ) : realAchievements.length === 0 ? (
+            ) : achievementViewState.status === 'error' ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400">
+                <AlertCircle className="h-8 w-8 text-rose-400 mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-rose-300">Không tải được thành tựu</p>
+                <button
+                  type="button"
+                  onClick={() => void refetchAchievements()}
+                  className="mt-2 text-xs font-medium text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : achievementViewState.status === 'empty' ? (
               <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400">
                 <Award className="h-8 w-8 text-slate-500 mb-2 opacity-60" />
                 <p className="text-xs font-semibold text-slate-300">Chưa có danh hiệu nào</p>
@@ -726,7 +786,7 @@ export function AccountQuickCenter({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                {realAchievements.map((ach) => (
+                {achievementViewState.items.map((ach) => (
                   <div
                     key={ach.key}
                     className={`flex items-center gap-2.5 rounded-xl border p-2.5 transition-all ${

@@ -4,7 +4,10 @@
 import { describe, expect, it } from 'vitest'
 import type { UserAchievementItem } from '../shared/protocol/engagement'
 import { PRESET_AVATARS } from '../src/components/account/preset-avatars'
+import { deriveAchievementViewState } from '../src/components/account/account-quick-center-state'
+import { type HomeDestinationConfig, HOME_DESTINATIONS } from '../src/features/hub/home-destinations'
 import accountQuickCenterRaw from '../src/components/account/AccountQuickCenter.tsx?raw'
+import homePageRaw from '../src/features/hub/HomePage.tsx?raw'
 
 describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
   // ── 1. Preset Avatars Integrity ───────────────────────────────────────────
@@ -104,45 +107,74 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
     expect(getRoleLabel({ isSchoolAdmin: false, role: 'student' })).toBe('Học sinh')
   })
 
-  // ── 5. Quick Launch Destinations Contract ─────────────────────────────────
-  it('5. Verifies Quick Launch destinations coverage and gaming hub identity', () => {
-    const destinationIds = ['learn', 'arena', 'community', 'rooms']
-    expect(destinationIds).toContain('learn')
-    expect(destinationIds).toContain('arena')
-    expect(destinationIds).toContain('community')
-    expect(destinationIds).toContain('rooms')
+  // ── 5. Quick Launch Destinations Contract (Source-Derived) ────────────────
+  it('5. E: Verifies Quick Launch destinations coverage and gaming hub identity from real source config', () => {
+    // Assert current V3 contract from real code:
+    // 1. learn destination exists
+    const learnDest = HOME_DESTINATIONS.find((d: HomeDestinationConfig) => d.id === 'learn')
+    expect(learnDest).toBeDefined()
+    expect(learnDest?.title).toBe('Học tập')
+    expect(learnDest?.href).toBe('/learning')
 
-    // Game hub identity
-    const arenaItem = {
-      id: 'arena',
-      title: 'Đấu trường Game',
-      subtitle: 'Caro · 2048 · Rắn',
-      artwork: '/assets/games/card_game.webp',
-      href: '/arena',
-      accentColor: 'green',
-      badge: 'HOT',
+    // 2. arena destination exists and routes to /arena
+    const arenaDest = HOME_DESTINATIONS.find((d: HomeDestinationConfig) => d.id === 'arena')
+    expect(arenaDest).toBeDefined()
+    expect(arenaDest?.title).toBe('Game')
+    expect(arenaDest?.href).toBe('/arena')
+    expect(arenaDest?.artwork).toContain('/assets/games/')
+
+    // 3. community destination exists
+    const commDest = HOME_DESTINATIONS.find((d: HomeDestinationConfig) => d.id === 'community')
+    expect(commDest).toBeDefined()
+    expect(commDest?.title).toBe('Cộng đồng')
+    expect(commDest?.href).toBe('/community')
+
+    // 4. rooms destination exists
+    const roomsDest = HOME_DESTINATIONS.find((d: HomeDestinationConfig) => d.id === 'rooms')
+    expect(roomsDest).toBeDefined()
+    expect(roomsDest?.title).toBe('Phòng học')
+    expect(roomsDest?.href).toBe('/learn')
+
+    // Total destinations coverage
+    const destinationIds = HOME_DESTINATIONS.map((d: HomeDestinationConfig) => d.id)
+    expect(destinationIds).toEqual(['learn', 'arena', 'community', 'rooms'])
+
+    // NO decorative HOT badge in actual destinations
+    for (const dest of HOME_DESTINATIONS) {
+      expect(dest.badge).toBeUndefined()
     }
-    expect(arenaItem.accentColor).toBe('green')
-    expect(arenaItem.badge).toBe('HOT')
-    expect(arenaItem.artwork).toContain('/assets/games/')
+
+    // NO explanatory destination subtitles in actual Home config
+    for (const dest of HOME_DESTINATIONS) {
+      expect(dest.subtitle).toBeUndefined()
+    }
+
+    // Quick launch does not assign rainbow accent colors merely per tile
+    for (const dest of HOME_DESTINATIONS) {
+      expect('accentColor' in dest).toBe(false)
+    }
+
+    // Assert real HomePage source code has no legacy HOT badge or tile accentColor assignments
+    expect(homePageRaw).not.toContain("badge: 'HOT'")
+    expect(homePageRaw).not.toContain('accentColor:')
   })
 
   // ── 6. Zero Fabricated Achievements Contract ──────────────────────────────
-  it('6. Ensures AccountQuickCenter does NOT contain hardcoded fake achievements and consumes authoritative endpoint', () => {
-    // Must NOT contain fabricated achievement titles
+  it('6. D: Ensures AccountQuickCenter does NOT contain hardcoded fake achievements and consumes authoritative endpoint', () => {
+    // D. No fabricated achievement names exist
     expect(accountQuickCenterRaw).not.toContain('Pomodoro')
     expect(accountQuickCenterRaw).not.toContain('Vua Cờ Caro')
     expect(accountQuickCenterRaw).not.toContain('Thuyết Trình')
     expect(accountQuickCenterRaw).not.toContain('Bảng Đen')
 
-    // Must query authoritative achievements endpoint
+    // Must query authoritative achievements & profile endpoints
     expect(accountQuickCenterRaw).toContain('/api/engagement/achievements')
+    expect(accountQuickCenterRaw).toContain('/api/engagement/profile')
     expect(accountQuickCenterRaw).toContain("currentView === 'achievements'")
   })
 
-  // ── 7. Authoritative Achievement Model Mapping ────────────────────────────
-  it('7. Correctly maps UserAchievementItem list and distinguishes empty vs populated state', () => {
-    const mockEmptyAchievements: UserAchievementItem[] = []
+  // ── 7. Truthful Achievement View State Derivation ─────────────────────────
+  describe('7. Truthful Achievement View State & Error Recovery Contract', () => {
     const mockRealAchievements: UserAchievementItem[] = [
       {
         key: 'first_session',
@@ -166,13 +198,84 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
       },
     ]
 
-    // Empty state truthfully detected
-    expect(mockEmptyAchievements.length).toBe(0)
+    // A. Authoritative achievement success renders backend data
+    it('A. Authoritative achievement success renders backend data without fabrication', () => {
+      const state = deriveAchievementViewState({
+        isLoading: false,
+        isError: false,
+        items: mockRealAchievements,
+      })
+      expect(state).toEqual({
+        status: 'success',
+        items: mockRealAchievements,
+      })
+      if (state.status === 'success') {
+        expect(state.items).toHaveLength(2)
+        expect(state.items[0].title).toBe('Khởi đầu học tập')
+        expect(state.items[0].rewardXp).toBe(15)
+        expect(state.items[0].unlocked).toBe(true)
+        expect(state.items[1].title).toBe('Chăm chỉ 3 ngày')
+        expect(state.items[1].unlocked).toBe(false)
+      }
+    })
 
-    // Unlocked and locked records distinguish visually and have valid rewardXP
-    expect(mockRealAchievements[0].unlocked).toBe(true)
-    expect(mockRealAchievements[0].rewardXp).toBe(15)
-    expect(mockRealAchievements[1].unlocked).toBe(false)
-    expect(mockRealAchievements[1].rewardXp).toBe(25)
+    // B. Zero achievements renders true empty state
+    it('B. Zero achievements (200 OK with empty catalog/list) renders truthful empty state', () => {
+      const state = deriveAchievementViewState({
+        isLoading: false,
+        isError: false,
+        items: [],
+      })
+      expect(state).toEqual({ status: 'empty' })
+    })
+
+    // C. Achievement API failure renders ERROR state, NOT empty state
+    it('C. Achievement API failure renders ERROR state, NEVER converts to empty or zero', () => {
+      // Even if items is empty array or null, isError takes absolute precedence
+      const stateOnErrorEmpty = deriveAchievementViewState({
+        isLoading: false,
+        isError: true,
+        items: [],
+      })
+      expect(stateOnErrorEmpty).toEqual({
+        status: 'error',
+        message: 'Không tải được thành tựu',
+      })
+      expect(stateOnErrorEmpty.status).not.toBe('empty')
+      expect(stateOnErrorEmpty.status).not.toBe('success')
+
+      const stateOnErrorNull = deriveAchievementViewState({
+        isLoading: false,
+        isError: true,
+        items: null,
+      })
+      expect(stateOnErrorNull).toEqual({
+        status: 'error',
+        message: 'Không tải được thành tựu',
+      })
+      expect(stateOnErrorNull.status).not.toBe('empty')
+
+      // With custom error message from backend
+      const stateCustomError = deriveAchievementViewState({
+        isLoading: false,
+        isError: true,
+        errorMessage: 'Máy chủ phản hồi 500',
+      })
+      expect(stateCustomError).toEqual({
+        status: 'error',
+        message: 'Máy chủ phản hồi 500',
+      })
+      expect(stateCustomError.status).not.toBe('empty')
+    })
+
+    // Strict loading state isolation
+    it('Loading state is strictly distinguished from empty and error', () => {
+      const state = deriveAchievementViewState({
+        isLoading: true,
+        isError: false,
+        items: null,
+      })
+      expect(state).toEqual({ status: 'loading' })
+    })
   })
 })

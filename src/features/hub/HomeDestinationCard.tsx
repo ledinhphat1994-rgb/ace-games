@@ -1,15 +1,12 @@
 import { type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
+import type { HomeDestinationConfig } from './home-destinations'
 
-export interface HomeDestinationItem {
-  id: string
-  title: string
-  subtitle?: string
-  artwork: string
-  href: string
+export { type HomeDestinationConfig, HOME_DESTINATIONS } from './home-destinations'
+
+export interface HomeDestinationItem extends HomeDestinationConfig {
   icon: ReactNode
   accentColor?: string
-  badge?: string
 }
 
 export function HomeDestinationCard({
