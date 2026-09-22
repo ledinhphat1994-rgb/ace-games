@@ -17,8 +17,8 @@ import {
   BookOpen,
   DoorOpen,
   Gamepad2,
-  Radio,
-  Sparkles,
+  Plus,
+  UserPlus,
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ export function HomePage() {
   const [moTaoPhong, setMoTaoPhong] = useState(false)
 
   const displayName = nguoiDung.ten || nguoiDung.username
-  const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Học sinh toàn trường'
+  const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Campus Toàn trường'
   const loiChao = useMemo(() => getLoiChaoTheoGio(), [])
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
@@ -86,12 +86,12 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
+  // Quick Launch 4-card grid
   const destinationItems: HomeDestinationItem[] = [
     {
       id: 'learn',
       title: 'Học tập',
-      subtitle: 'Khám phá kiến thức',
-      tags: ['Phòng học', 'Tài liệu', 'Trao đổi'],
+      subtitle: 'Tài liệu & ôn tập',
       artwork: '/assets/learning/card_learning.webp',
       href: '/learning',
       icon: <BookOpen className="h-5 w-5" />,
@@ -100,22 +100,30 @@ export function HomePage() {
     {
       id: 'arena',
       title: 'Đấu trường Game',
-      subtitle: 'Thư giãn & thử thách',
-      tags: ['Caro', '2048', 'Rắn'],
+      subtitle: 'Caro · 2048 · Rắn',
       artwork: '/assets/games/card_game.webp',
       href: '/arena',
       icon: <Gamepad2 className="h-5 w-5" />,
       accentColor: 'green',
+      badge: 'HOT',
     },
     {
       id: 'community',
-      title: 'Cộng đồng',
-      subtitle: 'Kết nối, cùng phát triển',
-      tags: ['Bạn bè', 'Trực tuyến', 'Kết nối'],
+      title: 'Bạn bè & Cộng đồng',
+      subtitle: 'Trò chuyện & kết nối',
       artwork: '/assets/community/card_community.webp',
       href: '/community',
       icon: <Users className="h-5 w-5" />,
       accentColor: 'purple',
+    },
+    {
+      id: 'rooms',
+      title: 'Phòng học nhóm',
+      subtitle: 'Không gian học trực tuyến',
+      artwork: '/assets/learning/room_study.webp',
+      href: '/learn',
+      icon: <DoorOpen className="h-5 w-5" />,
+      accentColor: 'amber',
     },
   ]
 
@@ -132,12 +140,11 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* ── 1. Cinematic Hero Banner (Contract for future Admin banner) ── */}
+    <div className="space-y-5 sm:space-y-6">
+      {/* ── 1. Modern Teen Hero Banner ── */}
       <CampusHeroBanner
         badgeText={`${loiChao} · ${lopText}`}
         title={`Xin chào, ${displayName}!`}
-        motto={nguoiDung.tieuDeHoSo || 'Học hôm nay, tiến xa hơn ngày mai.'}
         subtitle="Bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn trong không gian số."
         primaryAction={{
           label: 'Vào học ngay',
@@ -146,25 +153,24 @@ export function HomePage() {
         }}
         secondaryAction={{
           label: 'Tạo phòng học',
-          icon: <Sparkles className="h-4 w-4" />,
+          icon: <Plus className="h-4 w-4" />,
           onClick: () => setMoTaoPhong(true),
         }}
-        slogan="Cùng nhau tạo nên phiên bản tốt hơn mỗi ngày"
       />
 
-      {/* ── 2. Smart continuation (friend actively studying) ─ */}
+      {/* ── 2. Smart Continuation Banner (Friend actively studying) ── */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/25 bg-indigo-950/20 p-3.5 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-950/30 p-3.5 backdrop-blur-md shadow-md">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">
-                Bạn bè đang học: <span className="text-indigo-400">{activeFriendStudy.friend.displayName}</span>
+                Bạn bè đang học: <span className="text-indigo-400 font-extrabold">{activeFriendStudy.friend.displayName}</span>
               </p>
               <p className="text-[11px] text-slate-400 truncate">
-                {activeFriendStudy.roomName} — cùng vào học ngay nhé!
+                {activeFriendStudy.roomName} — tham gia học chung ngay!
               </p>
             </div>
           </div>
@@ -172,153 +178,149 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="shrink-0 gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold shadow-md shadow-indigo-500/20"
+            className="shrink-0 gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold shadow-md shadow-indigo-500/25"
           >
             <DoorOpen className="h-3.5 w-3.5" />
-            Vào cùng
+            <span>Vào cùng</span>
           </Button>
         </div>
       )}
 
-      {/* ── 3. Progress / Gamification Strip ───────────────── */}
+      {/* ── 3. Compact Progress & Gamification Strip ── */}
       <ProgressSummary />
 
-      {/* ── 4. Main Grid: Destination Cards + Sidebar Widgets ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left 3 columns: Destination Cards + Active Rooms */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Destination Cards */}
-          <section aria-label="Khám phá không gian">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {destinationItems.map((item) => (
-                <HomeDestinationCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => navigate(item.href)}
+      {/* ── 4. Quick Launch 4-Tile Grid ── */}
+      <section aria-label="Lối tắt truy cập nhanh">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {destinationItems.map((item) => (
+            <HomeDestinationCard
+              key={item.id}
+              item={item}
+              onClick={() => navigate(item.href)}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ── 5. Main Content Area: Active Rooms + Online Friends ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+        {/* Left 2 columns: Featured Active Rooms */}
+        <section aria-label="Phòng học đang hoạt động" className="lg:col-span-2 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                Phòng học nổi bật
+              </h2>
+              {rooms.length > 0 && (
+                <span className="text-xs text-slate-400 font-mono">({rooms.length})</span>
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/learn')}
+              className="h-8 gap-1 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+            >
+              <span>Xem tất cả</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          {activeRoomsPreview.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="Chưa có phòng học nào đang mở"
+              description="Tạo phòng học đầu tiên để cùng thảo luận nhóm hoặc ôn tập bài giảng!"
+              action={{
+                label: 'Tạo phòng học ngay',
+                onClick: () => setMoTaoPhong(true),
+              }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {activeRoomsPreview.map((room) => (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  friends={roomFriendsMap.get(room.id)}
+                  onVaoPhong={xuLyVaoPhong}
                 />
               ))}
             </div>
-          </section>
+          )}
+        </section>
 
-          {/* Active Rooms */}
-          <section aria-label="Phòng học đang hoạt động" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Radio className="h-4 w-4 text-emerald-400 animate-pulse" />
-                <h2 className="text-base font-extrabold text-white">Phòng học nổi bật</h2>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/learn')}
-                className="h-8 gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-              >
-                Xem tất cả ({rooms.length})
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
+        {/* Right 1 column: Live Online Friends Widget */}
+        <section aria-label="Bạn bè trực tuyến" className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-purple-400" />
+              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                Bạn bè online
+              </h2>
+              <span className="text-xs text-slate-400 font-mono">({onlineFriends.length})</span>
             </div>
 
-            {activeRoomsPreview.length === 0 ? (
-              <EmptyState
-                icon={BookOpen}
-                title="Chưa có phòng học nào đang mở"
-                description="Tạo phòng học đầu tiên để cùng các bạn trao đổi bài và thảo luận nhóm!"
-                action={{
-                  label: 'Tạo phòng học ngay',
-                  onClick: () => setMoTaoPhong(true),
-                }}
-              />
+            <button
+              type="button"
+              onClick={() => navigate('/community')}
+              className="text-xs font-bold text-cyan-400 hover:underline"
+            >
+              Cộng đồng
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#0c1222]/85 p-3.5 backdrop-blur-md shadow-lg min-h-[160px] flex flex-col justify-center">
+            {onlineFriends.length === 0 ? (
+              <div className="text-center py-4 space-y-2">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/25">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-300">Chưa có bạn bè trực tuyến</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Kết nối bạn bè cùng lớp để cùng nhau học tập nhé!
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/community')}
+                  className="h-7 text-xs border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 mt-1"
+                >
+                  Tìm bạn bè
+                </Button>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {activeRoomsPreview.map((room) => (
-                  <RoomCard
-                    key={room.id}
-                    room={room}
-                    friends={roomFriendsMap.get(room.id)}
-                    onVaoPhong={xuLyVaoPhong}
-                  />
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {onlineFriends.slice(0, 6).map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="relative">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-xs shadow-sm">
+                          {friend.displayName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0c1222]" />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-200 truncate">
+                        {friend.displayName}
+                      </span>
+                    </div>
+
+                    <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      Online
+                    </span>
+                  </div>
                 ))}
               </div>
             )}
-          </section>
-        </div>
-
-        {/* Right 1 column: Sidebar Widgets (Online Friends + Quote Banner) */}
-        <div className="space-y-4">
-          {/* Online Friends Widget */}
-          <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-cyan-400" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Bạn bè online ({onlineFriends.length})
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/community')}
-                className="text-[11px] font-semibold text-cyan-400 hover:underline"
-              >
-                Xem tất cả
-              </button>
-            </div>
-
-            <div className="pt-3">
-              {onlineFriends.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-xs text-slate-400">Chưa có bạn bè nào đang online</p>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={() => navigate('/community')}
-                    className="text-xs text-cyan-400 h-auto p-0 mt-1"
-                  >
-                    Kết nối bạn bè ngay
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {onlineFriends.slice(0, 5).map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-950 text-cyan-300 font-bold text-xs border border-cyan-500/30">
-                            {friend.displayName.slice(0, 2).toUpperCase()}
-                          </div>
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
-                        </div>
-                        <span className="text-xs font-medium text-slate-200 truncate">
-                          {friend.displayName}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-emerald-400 font-medium">Trực tuyến</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
-
-          {/* Inspirational Quote Landscape Banner */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg min-h-[120px] flex flex-col justify-end">
-            <div
-              className="absolute inset-0 bg-cover bg-center opacity-40 pointer-events-none"
-              style={{ backgroundImage: 'url(/assets/campus/quote_landscape.webp)' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0c1222] via-[#0c1222]/80 to-transparent pointer-events-none" />
-
-            <div className="relative z-10 space-y-1">
-              <span className="text-cyan-400 text-lg font-serif leading-none">&ldquo;</span>
-              <p className="text-xs font-semibold text-slate-200 italic leading-relaxed">
-                Kiến thức hôm nay là cơ hội của ngày mai.
-              </p>
-              <p className="text-[10px] text-cyan-300/70 font-medium pt-1">
-                Better Students · Brighter Tomorrow
-              </p>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
 
       {/* Dialogs */}

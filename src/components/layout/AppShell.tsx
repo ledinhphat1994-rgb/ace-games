@@ -13,7 +13,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { nguoiDung, dangXuat } = usePhien()
+  const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
   const {
     trangThai,
     onlineCount,
@@ -41,6 +41,7 @@ export function AppShell({ children }: AppShellProps) {
         onKetNoiLai={ketNoiLai}
         onDangXuat={() => void dangXuat()}
         onToggleChat={() => setIsChatOpen((v) => !v)}
+        onLamMoiPhien={lamMoiPhien}
       />
 
       {/* 2. Main Content Container */}
