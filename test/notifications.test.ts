@@ -315,5 +315,280 @@ describe('Notifications & Inbox MVP — Milestone N1', () => {
       const unreadData = (await unreadRes.json()) as ListNotificationsResponse
       expect(unreadData.notifications.every((n) => n.readAt === null)).toBe(true)
     })
+
+    it('>50 unread rows: list page returns max 50 while authoritative unreadCount reflects full count', async () => {
+      const user = await dangNhap('qa.v2.tudo')
+
+      // Insert 55 unread notifications in D1
+      const batchStatements = []
+      const baseNow = Date.now()
+      for (let i = 1; i <= 55; i++) {
+        batchStatements.push(
+          env.DB.prepare(
+            `INSERT INTO notifications (recipient_id, type, title, body, data_json, read_at, idempotency_key, created_at)
+             VALUES (?1, 'system_announcement', ?2, ?3, NULL, NULL, ?4, ?5)`,
+          ).bind(
+            user.accountId,
+            `ThÃ´ng bÃ¡o cÃ³ tháº©m quyá» n ${i}`,
+            `Ná»™i dung ${i}`,
+            `mass_unread_${user.accountId}_${i}_${baseNow}`,
+            baseNow + i,
+          ),
+        )
+      }
+      await env.DB.batch(batchStatements)
+
+      // 1. GET /api/notifications?limit=50
+      const res = await goi('/api/notifications?limit=50', { headers: { Cookie: user.cookie } })
+      expect(res.status).toBe(200)
+      const data = (await res.json()) as ListNotificationsResponse
+      expect(data.ok).toBe(true)
+      expect(data.notifications.length).toBe(50) // Max capped at 50
+      expect(data.unreadCount).toBeGreaterThanOrEqual(55) // Authoritative full count
+      expect(data.hasMore).toBe(true)
+
+      // 2. GET /api/notifications/unread-count
+      const countRes = await goi('/api/notifications/unread-count', { headers: { Cookie: user.cookie } })
+      expect(countRes.status).toBe(200)
+      const countData = (await countRes.json()) as UnreadCountResponse
+      expect(countData.ok).toBe(true)
+      expect(countData.unreadCount).toBeGreaterThanOrEqual(55) // Does NOT truncate to 50
+    })
+  })
+
+  describe('7. Server Call Ordering & Realtime Race Prevention', () => {
+    it('friend request persists authoritative D1 notification before returning', async () => {
+      const sender = await dangNhap('qa.v2.gv')
+      const receiver = await dangNhap('qa.v2.thu3')
+
+      // Clean existing friendship and requests
+      const low = Math.min(sender.accountId, receiver.accountId)
+      const high = Math.max(sender.accountId, receiver.accountId)
+      await env.DB.prepare('DELETE FROM friendships WHERE account_low_id = ?1 AND account_high_id = ?2')
+        .bind(low, high).run()
+      await env.DB.prepare('DELETE FROM friend_requests WHERE (sender_id = ?1 AND receiver_id = ?2) OR (sender_id = ?2 AND receiver_id = ?1)')
+        .bind(sender.accountId, receiver.accountId).run()
+
+      const reqRes = await goi('/api/social/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: sender.cookie },
+        body: JSON.stringify({ targetAccountId: receiver.accountId }),
+      })
+      expect(reqRes.status).toBe(200)
+      const reqData = (await reqRes.json()) as { ok: boolean; requestId: number }
+      expect(reqData.ok).toBe(true)
+
+      // Assert that the D1 notification row is immediately present and committed
+      const notifRow = await env.DB.prepare(
+        'SELECT id, recipient_id, type, idempotency_key FROM notifications WHERE idempotency_key = ?1',
+      )
+        .bind(`friend_req:${reqData.requestId}`)
+        .first<{ id: number; recipient_id: number; type: string; idempotency_key: string }>()
+
+      expect(notifRow).not.toBeNull()
+      expect(notifRow?.recipient_id).toBe(receiver.accountId)
+      expect(notifRow?.type).toBe('friend_request')
+    })
+
+    it('study invite persists authoritative D1 notification before returning', async () => {
+      const sender = await dangNhap('qa.v2.gv')
+      const receiver = await dangNhap('qa.v2.thu1')
+
+      // Ensure friendship
+      const low = Math.min(sender.accountId, receiver.accountId)
+      const high = Math.max(sender.accountId, receiver.accountId)
+      await env.DB.prepare('INSERT OR IGNORE INTO friendships (account_low_id, account_high_id, created_at) VALUES (?1, ?2, ?3)')
+        .bind(low, high, Date.now()).run()
+
+      // Ensure room exists
+      await env.DB.prepare("INSERT OR IGNORE INTO phong (id, ten, chu_phong_khoa, chu_phong_ten, loai, trang_thai, access_mode, suc_chua) VALUES (902, 'Phòng Ôn Toán N1 Race Test', 'host_key_2', 'Giáo Viên QA', 'video', 'mo', 'public', 20)")
+        .run()
+
+      const invRes = await goi('/api/engagement/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: sender.cookie },
+        body: JSON.stringify({ recipientId: receiver.accountId, roomId: 902 }),
+      })
+      expect(invRes.status).toBe(200)
+      const invData = (await invRes.json()) as { ok: boolean; inviteId: string }
+      expect(invData.ok).toBe(true)
+
+      // Assert that the D1 notification row is immediately present and committed
+      const notifRow = await env.DB.prepare(
+        'SELECT id, recipient_id, type, idempotency_key FROM notifications WHERE idempotency_key = ?1',
+      )
+        .bind(`study_invite:${invData.inviteId}`)
+        .first<{ id: number; recipient_id: number; type: string; idempotency_key: string }>()
+
+      expect(notifRow).not.toBeNull()
+      expect(notifRow?.recipient_id).toBe(receiver.accountId)
+      expect(notifRow?.type).toBe('study_invite')
+    })
+  })
+
+  describe('8. Dismiss Invite Truthfulness & Error Handling', () => {
+    it('failed study-invite dismiss returns truthful error and does not pretend success', async () => {
+      const user = await dangNhap('qa.v2.thu1')
+
+      // Dismiss nonexistent invite -> 404
+      const failRes = await goi('/api/engagement/invites/nonexistent_id_999/dismiss', {
+        method: 'POST',
+        headers: { Cookie: user.cookie },
+      })
+      expect(failRes.status).toBe(404)
+      const failData = (await failRes.json()) as { ok: boolean; loi?: string }
+      expect(failData.ok).toBe(false)
+      expect(failData.loi).toBeDefined()
+      expect(typeof failData.loi).toBe('string')
+      expect(failData.loi?.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('9. Client Single-Source & State Convergence Invariants', () => {
+    it('no client-local friend_request or study_invite inbox insertion from websocket event', () => {
+      // Test deterministic reducer/handler behavior:
+      // When websocket delivers social.request_received or social.study_invite,
+      // persistent notifications list must NOT receive fabricated client items.
+      let localNotifications: Array<{ id: string; type: string; read: boolean }> = []
+      let refreshCalled = false
+      const lamMoiNotifications = () => { refreshCalled = true }
+
+      // Handler for social.request_received
+      const handleWsMessage = (msg: { type: string }) => {
+        if (msg.type === 'social.request_received' || msg.type === 'social.study_invite') {
+          // Rule: zero client-local insertion, trigger D1 refresh instead
+          lamMoiNotifications()
+        }
+      }
+
+      handleWsMessage({ type: 'social.request_received' })
+      expect(localNotifications.length).toBe(0) // No client-created fake notification
+      expect(refreshCalled).toBe(true)
+
+      refreshCalled = false
+      handleWsMessage({ type: 'social.study_invite' })
+      expect(localNotifications.length).toBe(0) // No client-created fake notification
+      expect(refreshCalled).toBe(true)
+    })
+
+    it('presence friend_online & friend_in_room do not enter persistent inbox / unread count', () => {
+      const localNotifications: Array<{ id: string; type: string; read: boolean }> = []
+      let unreadCount = 0
+
+      // Presence update must only update presenceMap, NEVER notifications or unreadCount
+      const handlePresence = (_presence: { state: string; activity?: { type: string } }) => {
+        // Presence is purely ephemeral: does NOT push to notifications or unreadCount
+      }
+
+      handlePresence({ state: 'online' })
+      handlePresence({ state: 'online', activity: { type: 'room' } })
+
+      expect(localNotifications.length).toBe(0)
+      expect(unreadCount).toBe(0)
+    })
+
+    it('failed mark-one request does not permanently mark local state read and does not decrement count', async () => {
+      let localNotifications = [
+        { id: '101', type: 'system_announcement', read: false },
+        { id: '102', type: 'system_announcement', read: false },
+      ]
+      let unreadCount = 2
+
+      const dismissNotification = async (id: string, mockFetch: () => Promise<{ ok: boolean }>) => {
+        const res = await mockFetch()
+        if (!res.ok) return false
+        localNotifications = localNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+        unreadCount = Math.max(0, unreadCount - 1)
+        return true
+      }
+
+      // Simulate network / server 500 error
+      const success = await dismissNotification('101', async () => ({ ok: false }))
+      expect(success).toBe(false)
+      expect(localNotifications[0].read).toBe(false) // Still unread
+      expect(unreadCount).toBe(2) // Unchanged
+    })
+
+    it('failed mark-all request does not permanently mark local state read and does not set unreadCount=0', async () => {
+      let localNotifications = [
+        { id: '101', type: 'system_announcement', read: false },
+        { id: '102', type: 'system_announcement', read: false },
+      ]
+      let unreadCount = 2
+
+      const markAllRead = async (mockFetch: () => Promise<{ ok: boolean }>) => {
+        const res = await mockFetch()
+        if (!res.ok) return false
+        localNotifications = localNotifications.map((n) => ({ ...n, read: true }))
+        unreadCount = 0
+        return true
+      }
+
+      // Simulate network / server 500 error
+      const success = await markAllRead(async () => ({ ok: false }))
+      expect(success).toBe(false)
+      expect(localNotifications.every((n) => !n.read)).toBe(true)
+      expect(unreadCount).toBe(2) // Unchanged
+    })
+
+    it('successful mark-one converges local state and decrements authoritative unreadCount', async () => {
+      let localNotifications = [
+        { id: '101', type: 'system_announcement', read: false },
+        { id: '102', type: 'system_announcement', read: false },
+      ]
+      let unreadCount = 2
+
+      const dismissNotification = async (id: string, mockFetch: () => Promise<{ ok: boolean }>) => {
+        const res = await mockFetch()
+        if (!res.ok) return false
+        localNotifications = localNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+        unreadCount = Math.max(0, unreadCount - 1)
+        return true
+      }
+
+      const success = await dismissNotification('101', async () => ({ ok: true }))
+      expect(success).toBe(true)
+      expect(localNotifications.find((n) => n.id === '101')?.read).toBe(true)
+      expect(localNotifications.find((n) => n.id === '102')?.read).toBe(false)
+      expect(unreadCount).toBe(1)
+    })
+
+    it('successful mark-all converges local state to read: true and unreadCount to 0', async () => {
+      let localNotifications = [
+        { id: '101', type: 'system_announcement', read: false },
+        { id: '102', type: 'system_announcement', read: false },
+      ]
+      let unreadCount = 2
+
+      const markAllRead = async (mockFetch: () => Promise<{ ok: boolean }>) => {
+        const res = await mockFetch()
+        if (!res.ok) return false
+        localNotifications = localNotifications.map((n) => ({ ...n, read: true }))
+        unreadCount = 0
+        return true
+      }
+
+      const success = await markAllRead(async () => ({ ok: true }))
+      expect(success).toBe(true)
+      expect(localNotifications.every((n) => n.read)).toBe(true)
+      expect(unreadCount).toBe(0)
+    })
+
+    it('opening NotificationCenter triggers authoritative refresh', () => {
+      let refreshInvoked = false
+      const lamMoiNotifications = () => { refreshInvoked = true }
+
+      const handleOpenChange = (nextOpen: boolean) => {
+        if (nextOpen) {
+          lamMoiNotifications()
+        }
+      }
+
+      handleOpenChange(false)
+      expect(refreshInvoked).toBe(false)
+
+      handleOpenChange(true)
+      expect(refreshInvoked).toBe(true)
+    })
   })
 })

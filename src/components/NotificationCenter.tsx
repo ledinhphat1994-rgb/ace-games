@@ -4,18 +4,16 @@ import {
   Bell,
   Check,
   CheckCheck,
-  DoorOpen,
-  Radio,
   UserPlus,
   UserCheck,
   X,
   GraduationCap,
   Trophy,
-  Flame,
   ShieldAlert,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import type { NotificationType } from '@shared/protocol/notification'
 import { useCampusContext, type AppNotification } from '@/app/CampusContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,7 +35,7 @@ function formatRelativeTime(ts: number): string {
   return `${Math.floor(hours / 24)} ngày trước`
 }
 
-function NotificationIcon({ type }: { type: AppNotification['type'] }) {
+function NotificationIcon({ type }: { type: NotificationType }) {
   if (type === 'friend_request') {
     return (
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
@@ -49,13 +47,6 @@ function NotificationIcon({ type }: { type: AppNotification['type'] }) {
     return (
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-success/30 bg-success/10 text-success">
         <UserCheck className="h-4 w-4" />
-      </div>
-    )
-  }
-  if (type === 'friend_online') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-success/30 bg-success/10 text-success">
-        <Radio className="h-4 w-4" />
       </div>
     )
   }
@@ -73,13 +64,6 @@ function NotificationIcon({ type }: { type: AppNotification['type'] }) {
       </div>
     )
   }
-  if (type === 'challenge_completed') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-warning/30 bg-warning/10 text-warning">
-        <Flame className="h-4 w-4" />
-      </div>
-    )
-  }
   if (type === 'moderation_notice') {
     return (
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10 text-destructive">
@@ -89,7 +73,7 @@ function NotificationIcon({ type }: { type: AppNotification['type'] }) {
   }
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-      <DoorOpen className="h-4 w-4" />
+      <Bell className="h-4 w-4" />
     </div>
   )
 }
@@ -166,10 +150,18 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
     if (!invitationId) return
     setBusy('reject')
     try {
-      await fetch(`/api/engagement/invites/${invitationId}/dismiss`, { method: 'POST' })
-    } catch {}
-    setBusy(null)
-    onDismiss(nid)
+      const res = await fetch(`/api/engagement/invites/${invitationId}/dismiss`, { method: 'POST' })
+      const data = (await res.json()) as { ok?: boolean; loi?: string }
+      if (res.ok && data.ok) {
+        onDismiss(nid)
+      } else {
+        toast.error(data.loi || 'Không thể bỏ qua lời mời.')
+      }
+    } catch {
+      toast.error('Lỗi kết nối khi bỏ qua lời mời.')
+    } finally {
+      setBusy(null)
+    }
   }, [invitationId, nid, onDismiss])
 
   return (
@@ -240,7 +232,7 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
           </div>
         )}
 
-        {(n.type === 'friend_in_room' || n.type === 'study_invite_accepted') && n.meta?.roomId && (
+        {n.type === 'study_invite_accepted' && n.meta?.roomId && (
           <button
             type="button"
             onClick={(e) => {
@@ -272,16 +264,23 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
 // === main component ==========================================================
 
 export function NotificationCenter() {
-  const { notifications, unreadCount, dismissNotification, markAllRead } = useCampusContext()
+  const { notifications, unreadCount, dismissNotification, markAllRead, lamMoiNotifications } = useCampusContext()
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
+
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      void lamMoiNotifications()
+    }
+  }, [lamMoiNotifications])
 
   const displayedNotifications = filter === 'unread'
     ? notifications.filter((n) => !n.read)
     : notifications
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <div className="relative">
         <PopoverTrigger
           id="notification-center-trigger"

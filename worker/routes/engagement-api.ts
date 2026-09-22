@@ -336,24 +336,10 @@ engagementApp.post('/invites', async (c) => {
     .bind(inviteId, myId, recipientId, roomId, roomTitle, now, expiresAt)
     .run()
 
-  // 5. Realtime Notification push via CampusDO
   const senderName = kq.taiKhoan.ten || kq.taiKhoan.username
-  await thongBaoCampusDO(c.env, {
-    type: 'social.study_invite' as any,
-    receiverId: recipientId,
-    invitation: {
-      id: inviteId,
-      senderId: myId,
-      senderName,
-      senderAvatar: kq.taiKhoan.avatar || null,
-      roomId,
-      roomTitle,
-      expiresAt,
-    },
-  })
 
-  // 6. Ghi nhận thông báo có thẩm quyền vào D1 cho người nhận
-  await createNotification(c.env.DB, {
+  // 5. Ghi nhận thông báo có thẩm quyền vào D1 cho người nhận TRƯỚC
+  const notif = await createNotification(c.env.DB, {
     recipientId,
     type: 'study_invite',
     title: 'Lời mời học nhóm',
@@ -370,6 +356,23 @@ engagementApp.post('/invites', async (c) => {
     idempotencyKey: `study_invite:${inviteId}`,
     now,
   })
+
+  // 6. Realtime Notification push qua CampusDO CHỈ SAU KHI đã lưu D1 thành công
+  if (notif) {
+    await thongBaoCampusDO(c.env, {
+      type: 'social.study_invite' as any,
+      receiverId: recipientId,
+      invitation: {
+        id: inviteId,
+        senderId: myId,
+        senderName,
+        senderAvatar: kq.taiKhoan.avatar || null,
+        roomId,
+        roomTitle,
+        expiresAt,
+      },
+    })
+  }
 
   // 7. Analytics Telemetry
   if (c.env.ANALYTICS_DB) {

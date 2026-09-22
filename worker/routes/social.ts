@@ -365,26 +365,8 @@ socialApp.post('/request', async (c) => {
 
   const requestId = insertRes.id
 
-  // Báo CampusDO gửi realtime push tới người nhận
-  await thongBaoCampusDO(c.env, {
-    type: 'social.request_received',
-    receiverId: targetId,
-    request: {
-      id: requestId,
-      createdAt: now,
-      sender: {
-        id: myId,
-        username: kq.taiKhoan.username,
-        displayName: kq.taiKhoan.ten || kq.taiKhoan.username,
-        avatar: kq.taiKhoan.avatar,
-        role: kq.taiKhoan.role,
-        lopTen: null,
-      },
-    },
-  })
-
-  // Lưu thông báo bền vững có thẩm quyền vào D1
-  await createNotification(c.env.DB, {
+  // 1. Lưu thông báo bền vững có thẩm quyền vào D1 TRƯỚC
+  const notif = await createNotification(c.env.DB, {
     recipientId: targetId,
     type: 'friend_request',
     title: 'Lời mời kết bạn mới',
@@ -398,6 +380,26 @@ socialApp.post('/request', async (c) => {
     idempotencyKey: `friend_req:${requestId}`,
     now,
   })
+
+  // 2. Báo CampusDO gửi realtime push tới người nhận CHỈ SAU KHI đã lưu D1 thành công
+  if (notif) {
+    await thongBaoCampusDO(c.env, {
+      type: 'social.request_received',
+      receiverId: targetId,
+      request: {
+        id: requestId,
+        createdAt: now,
+        sender: {
+          id: myId,
+          username: kq.taiKhoan.username,
+          displayName: kq.taiKhoan.ten || kq.taiKhoan.username,
+          avatar: kq.taiKhoan.avatar,
+          role: kq.taiKhoan.role,
+          lopTen: null,
+        },
+      },
+    })
+  }
 
   return c.json({ ok: true, requestId })
 })

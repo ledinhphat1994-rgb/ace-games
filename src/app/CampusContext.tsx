@@ -4,18 +4,10 @@ import type { FriendPresence, FriendRequestItem, SocialState, UserActivity } fro
 import { lamSachVanBan, MA_DONG_SOCKET, PING_GIU_KET_NOI } from '@shared/protocol/common'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
+import type { NotificationType } from '@shared/protocol/notification'
+
 // ─── Notification System ────────────────────────────────────────────────────
-export type NotificationType =
-  | 'friend_request'
-  | 'friend_accept'
-  | 'friend_online'
-  | 'friend_in_room'
-  | 'study_invite'
-  | 'study_invite_accepted'
-  | 'achievement_unlocked'
-  | 'challenge_completed'
-  | 'moderation_notice'
-  | 'system_announcement'
+export type { NotificationType }
 
 export interface AppNotification {
   id: string
@@ -31,13 +23,11 @@ export interface AppNotification {
     roomTitle?: string
     invitationId?: string
     achievementKey?: string
+    actorId?: number
+    actorName?: string
+    actorAvatar?: string | null
+    [key: string]: unknown
   }
-}
-
-const MAX_NOTIFICATIONS = 50
-
-function makeId(): string {
-  return Math.random().toString(36).slice(2, 10)
 }
 
 export type TrangThaiKetNoiCampus = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
@@ -98,8 +88,8 @@ export interface CampusContextValue {
   // Notifications v1
   notifications: AppNotification[]
   unreadCount: number
-  dismissNotification: (id: string) => void
-  markAllRead: () => void
+  dismissNotification: (id: string) => Promise<boolean>
+  markAllRead: () => Promise<boolean>
   lamMoiNotifications: () => Promise<void>
 
   // Aliases
@@ -128,8 +118,9 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [socialState, setSocialState] = useState<SocialState>(RONG_SOCIAL_STATE)
   const [presenceMap, setPresenceMap] = useState<Record<number, FriendPresence>>({})
 
-  // Notifications v1
+  // Notifications v1 — Authoritative D1 State Only
   const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [unreadCount, setUnreadCount] = useState<number>(0)
 
   const wsRef = useRef<WebSocket | null>(null)
   const choPhanHoiRef = useRef<Map<string, ChoPhanHoi>>(new Map())
@@ -142,13 +133,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const awayRef = useRef<boolean>(false)
   // Track previous presence to guard against flicker spam
   const prevPresenceRef = useRef<Record<number, FriendPresence>>({})
-
-  const pushNotification = useCallback((n: Omit<AppNotification, 'id' | 'read' | 'timestamp'>) => {
-    setNotifications((prev) => [
-      { ...n, id: makeId(), read: false, timestamp: Date.now() },
-      ...prev,
-    ].slice(0, MAX_NOTIFICATIONS))
-  }, [])
 
   // Tải social state từ API
   const lamMoiSocialState = useCallback(async () => {
@@ -193,6 +177,9 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
             readAt: number | null
             createdAt: number
           }>
+          unreadCount?: number
+          totalCount?: number
+          hasMore?: boolean
         }
         if (json.ok && Array.isArray(json.notifications)) {
           setNotifications(
@@ -206,6 +193,9 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
               meta: (n.data as AppNotification['meta']) || undefined,
             })),
           )
+          if (typeof json.unreadCount === 'number') {
+            setUnreadCount(json.unreadCount)
+          }
         }
       }
     } catch {
@@ -330,41 +320,6 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
         case 'social.presence_update': {
           const p = goi.presence
-          const prev = prevPresenceRef.current[p.accountId]
-
-          // Trigger: friend came online (was offline before)
-          if (
-            (p.state === 'online' || p.state === 'away') &&
-            (!prev || prev.state === 'offline')
-          ) {
-            pushNotification({
-              type: 'friend_online',
-              title: 'Bạn bè trực tuyến',
-              body: `Một người bạn vừa online.`,
-              meta: { accountId: p.accountId },
-            })
-          }
-
-          // Trigger: friend joined a room (activity changed to a new room)
-          if (
-            p.activity?.type === 'room' &&
-            p.activity.roomId != null &&
-            p.activity.roomId !== prev?.activity?.roomId
-          ) {
-            pushNotification({
-              type: 'friend_in_room',
-              title: 'Bạn bè đang học nhóm',
-              body: p.activity.roomTitle
-                ? `Vừa vào phòng "${p.activity.roomTitle}".`
-                : 'Vừa vào một phòng học.',
-              meta: {
-                accountId: p.accountId,
-                roomId: p.activity.roomId,
-                roomTitle: p.activity.roomTitle,
-              },
-            })
-          }
-
           prevPresenceRef.current = { ...prevPresenceRef.current, [p.accountId]: p }
           setPresenceMap((prev) => ({
             ...prev,
@@ -383,32 +338,14 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
               incomingRequests: [req, ...cur.incomingRequests],
             }
           })
-          // Notification: incoming friend request
-          pushNotification({
-            type: 'friend_request',
-            title: 'Lời mời kết bạn',
-            body: req.sender
-              ? `${req.sender.displayName || req.sender.username} muốn kết bạn với bạn.`
-              : 'Bạn có một lời mời kết bạn mới.',
-            meta: { requestId: req.id, accountId: req.sender?.id },
-          })
+          // Authoritative refresh from D1 — zero client-local fake injection
+          void lamMoiNotifications()
           break
         }
 
         case 'social.study_invite': {
-          const inv = (goi as any).invitation
-          if (inv) {
-            pushNotification({
-              type: 'study_invite',
-              title: 'Lời mời học nhóm',
-              body: `${inv.senderName} mời bạn vào học cùng tại "${inv.roomTitle}".`,
-              meta: {
-                roomId: inv.roomId,
-                roomTitle: inv.roomTitle,
-                invitationId: inv.id,
-              },
-            })
-          }
+          // Authoritative refresh from D1 — zero client-local fake injection
+          void lamMoiNotifications()
           break
         }
 
@@ -544,7 +481,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
     }
-  }, [donDepChoPhanHoi, pushNotification])
+  }, [donDepChoPhanHoi, lamMoiNotifications])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi
@@ -794,19 +731,43 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     (p) => p.state === 'online' || p.state === 'away',
   ).length
 
-  const unreadCount = notifications.filter((n) => !n.read).length
-
-  const dismissNotification = useCallback((id: string) => {
+  const dismissNotification = useCallback(async (id: string): Promise<boolean> => {
     const numId = parseInt(id, 10)
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-    if (Number.isInteger(numId) && numId > 0) {
-      void fetch(`/api/notifications/${numId}/read`, { method: 'POST' }).catch(() => {})
+    if (!Number.isInteger(numId) || numId <= 0) return false
+    try {
+      const res = await fetch(`/api/notifications/${numId}/read`, { method: 'POST' })
+      if (!res.ok) return false
+      const data = (await res.json()) as { ok?: boolean }
+      if (!data.ok) return false
+
+      // Authoritative convergence: update local state only on D1 success
+      setNotifications((prev) => {
+        const target = prev.find((n) => n.id === id)
+        if (target && !target.read) {
+          setUnreadCount((c) => Math.max(0, c - 1))
+        }
+        return prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      })
+      return true
+    } catch {
+      return false
     }
   }, [])
 
-  const markAllRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-    void fetch('/api/notifications/read-all', { method: 'POST' }).catch(() => {})
+  const markAllRead = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/notifications/read-all', { method: 'POST' })
+      if (!res.ok) return false
+      const data = (await res.json()) as { ok?: boolean }
+      if (!data.ok) return false
+
+      // Authoritative convergence: update local state only on D1 success
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      setUnreadCount(0)
+      return true
+    } catch {
+      return false
+    }
   }, [])
 
   const value: CampusContextValue = {
