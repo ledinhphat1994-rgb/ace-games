@@ -211,10 +211,11 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     expect(metaAfter.purpose).toBe('avatar')
     expect(metaAfter.visibility).toBe('campus')
 
-    // 4. Verify user avatar field updated in tai_khoan_campus
+    // 4. Verify user avatar field updated in tai_khoan_campus as canonical relative path
     const userRow = await env.DB.prepare('SELECT avatar FROM tai_khoan_campus WHERE id = 1')
       .first<{ avatar: string }>()
-    expect(userRow?.avatar).toBe(url)
+    expect(userRow?.avatar).toBe(`/api/files/${key}`)
+    expect(profileData.avatar).toBe(`/api/files/${key}`)
 
     // 5. Post-promotion access:
     // Owner can read -> 200
@@ -232,6 +233,118 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     // Unauthenticated caller is STILL denied -> 401
     const unauthPostRead = await app.fetch(`${GOC}/api/files/${key}`)
     expect(unauthPostRead.status).toBe(401)
+  })
+
+  it('5g. TEST A: Foreign-origin fake internal URL MUST NOT promote file_metadata', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    // 1. User 1 uploads a valid image
+    const form = new FormData()
+    form.append('file', createPngFile('fake_foreign.png', 'foreign-check'))
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser1 },
+      body: form,
+    })
+    const { key } = (await uploadRes.json()) as any
+
+    const metaBefore = await env.DB.prepare('SELECT visibility, purpose FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<any>()
+    expect(metaBefore.visibility).toBe('owner')
+    expect(metaBefore.purpose).toBe('general')
+
+    // 2. User 1 calls /api/profile/avatar with a foreign origin containing /api/files/<owned-key>
+    const foreignUrl = `https://foreign.example/api/files/${key}`
+    const profileRes = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: foreignUrl }),
+    })
+    // External URL may be accepted as external avatar or rejected, but MUST NOT promote internal metadata
+    expect([200, 400]).toContain(profileRes.status)
+
+    // 3. Invariant: file_metadata MUST remain visibility=owner and purpose=general
+    const metaAfter = await env.DB.prepare('SELECT visibility, purpose FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<any>()
+    expect(metaAfter.visibility).toBe('owner')
+    expect(metaAfter.purpose).toBe('general')
+  })
+
+  it('5h. TEST B & C: Same-origin absolute URL is canonicalized to /api/files/<key> on promotion', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    const form = new FormData()
+    form.append('file', createPngFile('same_origin.png', 'same-origin-test'))
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser1 },
+      body: form,
+    })
+    const { key } = (await uploadRes.json()) as any
+
+    // Call with absolute same-origin URL: <GOC>/api/files/<key>
+    const sameOriginUrl = `${GOC}/api/files/${key}`
+    const profileRes = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: sameOriginUrl }),
+    })
+    expect(profileRes.status).toBe(200)
+    const profileData = (await profileRes.json()) as any
+    expect(profileData.ok).toBe(true)
+    // Canonicalized to relative internal reference!
+    expect(profileData.avatar).toBe(`/api/files/${key}`)
+
+    const userRow = await env.DB.prepare('SELECT avatar FROM tai_khoan_campus WHERE id = 1')
+      .first<{ avatar: string }>()
+    expect(userRow?.avatar).toBe(`/api/files/${key}`)
+
+    const meta = await env.DB.prepare('SELECT visibility, purpose FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<any>()
+    expect(meta.visibility).toBe('campus')
+    expect(meta.purpose).toBe('avatar')
+  })
+
+  it('5i. TEST D: Foreign-origin URL for another user key never alters file_metadata', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieUser2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    // User 2 uploads an image
+    const form = new FormData()
+    form.append('file', createPngFile('user2_doc.png', 'u2-data'))
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser2 },
+      body: form,
+    })
+    const { key: user2Key } = (await uploadRes.json()) as any
+
+    // User 1 sends foreign URL pointing to user 2's key
+    const foreignUrl = `https://evil.example/api/files/${user2Key}`
+    await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: foreignUrl }),
+    })
+
+    // User 2's metadata must remain untouched
+    const meta2 = await env.DB.prepare('SELECT visibility, uploaded_by_account_id FROM file_metadata WHERE object_key = ?1')
+      .bind(user2Key)
+      .first<any>()
+    expect(meta2.visibility).toBe('owner')
+    expect(meta2.uploaded_by_account_id).toBe(2)
   })
 
   it('5c. Cross-owner avatar promotion attempt is DENIED (403 Forbidden)', async () => {

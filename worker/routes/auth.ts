@@ -663,16 +663,38 @@ export async function doiAvatar(request: Request, env: Env): Promise<Response> {
   const avatarUrl = String(body.avatarUrl || '').trim()
   if (!avatarUrl) return loi('Thiếu URL avatar.', 400)
 
-  // Kiểm tra nếu là tệp tải lên nội bộ (/api/files/<key>)
-  const marker = '/api/files/'
-  const idx = avatarUrl.indexOf(marker)
+  // URL-aware canonicalization:
+  // Treat as INTERNAL only when:
+  // A. Canonical relative application path beginning exactly with /api/files/
+  // OR
+  // B. Absolute URL whose origin EXACTLY matches the request's origin and whose pathname begins exactly with /api/files/
+  let isInternal = false
+  let extractedPathname = ''
 
-  if (idx !== -1) {
-    let key = avatarUrl.slice(idx + marker.length).trim()
-    const qIdx = key.indexOf('?')
-    if (qIdx !== -1) key = key.slice(0, qIdx)
-    const hIdx = key.indexOf('#')
-    if (hIdx !== -1) key = key.slice(0, hIdx)
+  if (avatarUrl.startsWith('/api/files/')) {
+    isInternal = true
+    extractedPathname = avatarUrl.split(/[?#]/)[0]
+  } else if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    try {
+      const parsedUrl = new URL(avatarUrl)
+      const reqUrl = new URL(request.url)
+      if (parsedUrl.origin.toLowerCase() === reqUrl.origin.toLowerCase() && parsedUrl.pathname.startsWith('/api/files/')) {
+        isInternal = true
+        extractedPathname = parsedUrl.pathname
+      }
+    } catch {
+      return loi('Định dạng URL avatar không hợp lệ.', 400)
+    }
+  }
+
+  if (isInternal) {
+    const rawKeySegment = extractedPathname.slice('/api/files/'.length)
+    let key: string
+    try {
+      key = decodeURIComponent(rawKeySegment)
+    } catch {
+      return loi('Đường dẫn tệp chứa mã hóa không hợp lệ.', 400)
+    }
 
     // Kiểm tra tính hợp lệ và an toàn của key
     if (
@@ -682,7 +704,8 @@ export async function doiAvatar(request: Request, env: Env): Promise<Response> {
       key.startsWith('/') ||
       key.includes('\\') ||
       key.startsWith('rooms/') ||
-      key.includes('/documents/')
+      key.includes('/documents/') ||
+      !/^[a-zA-Z0-9._\-\/]+$/.test(key)
     ) {
       return loi('Đường dẫn tệp nội bộ không hợp lệ hoặc bị cấm sử dụng làm ảnh đại diện.', 400)
     }
@@ -716,13 +739,16 @@ export async function doiAvatar(request: Request, env: Env): Promise<Response> {
       return loi('Tệp được chọn không phải là định dạng hình ảnh hợp lệ (chỉ hỗ trợ PNG, JPG, WEBP, GIF).', 400)
     }
 
+    // Luôn lưu dạng tương đối chuẩn tắc (/api/files/<canonical-key>) để đồng nhất dữ liệu
+    const canonicalAvatar = `/api/files/${key}`
+
     // Thực hiện thăng cấp quyền lên campus đồng thời cập nhật profile qua D1 batch transaction
     await env.DB.batch([
       env.DB.prepare("UPDATE file_metadata SET purpose = 'avatar', visibility = 'campus' WHERE id = ?1").bind(meta.id),
-      env.DB.prepare('UPDATE tai_khoan_campus SET avatar = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2').bind(avatarUrl, kq.taiKhoan.id),
+      env.DB.prepare('UPDATE tai_khoan_campus SET avatar = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2').bind(canonicalAvatar, kq.taiKhoan.id),
     ])
 
-    return json({ ok: true, avatar: avatarUrl })
+    return json({ ok: true, avatar: canonicalAvatar })
   }
 
   // Đối với URL tĩnh (preset /assets/avatars/...), URL ngoài hoặc data URL
