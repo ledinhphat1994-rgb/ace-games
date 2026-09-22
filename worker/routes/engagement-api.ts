@@ -18,6 +18,7 @@ import type {
 } from '../../shared/protocol/engagement'
 import { thongBaoCampusDO } from './social'
 import { recordAnalyticsEvent } from '../lib/analytics'
+import { createNotification } from '../services/notification-service'
 
 export const engagementApp = new Hono<{ Bindings: Env }>()
 
@@ -335,23 +336,45 @@ engagementApp.post('/invites', async (c) => {
     .bind(inviteId, myId, recipientId, roomId, roomTitle, now, expiresAt)
     .run()
 
-  // 5. Realtime Notification push via CampusDO
   const senderName = kq.taiKhoan.ten || kq.taiKhoan.username
-  await thongBaoCampusDO(c.env, {
-    type: 'social.study_invite' as any,
-    receiverId: recipientId,
-    invitation: {
-      id: inviteId,
-      senderId: myId,
-      senderName,
-      senderAvatar: kq.taiKhoan.avatar || null,
+
+  // 5. Ghi nhận thông báo có thẩm quyền vào D1 cho người nhận TRƯỚC
+  const notif = await createNotification(c.env.DB, {
+    recipientId,
+    type: 'study_invite',
+    title: 'Lời mời học nhóm',
+    body: `${senderName} đã mời bạn tham gia phòng học "${roomTitle}".`,
+    data: {
+      invitationId: inviteId,
       roomId,
       roomTitle,
+      actorId: myId,
+      actorName: senderName,
+      actorAvatar: kq.taiKhoan.avatar || null,
       expiresAt,
     },
+    idempotencyKey: `study_invite:${inviteId}`,
+    now,
   })
 
-  // 6. Analytics Telemetry
+  // 6. Realtime Notification push qua CampusDO CHỈ SAU KHI đã lưu D1 thành công
+  if (notif) {
+    await thongBaoCampusDO(c.env, {
+      type: 'social.study_invite' as any,
+      receiverId: recipientId,
+      invitation: {
+        id: inviteId,
+        senderId: myId,
+        senderName,
+        senderAvatar: kq.taiKhoan.avatar || null,
+        roomId,
+        roomTitle,
+        expiresAt,
+      },
+    })
+  }
+
+  // 7. Analytics Telemetry
   if (c.env.ANALYTICS_DB) {
     recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {
       event: 'engagement.invite_sent',
@@ -373,10 +396,10 @@ engagementApp.post('/invites/:id/accept', async (c) => {
   const now = Date.now()
 
   const invite = await c.env.DB.prepare(
-    'SELECT id, recipient_id, room_id, status, expires_at FROM study_invitations WHERE id = ?1',
+    'SELECT id, sender_id, recipient_id, room_id, room_title, status, expires_at FROM study_invitations WHERE id = ?1',
   )
     .bind(inviteId)
-    .first<{ id: string; recipient_id: number; room_id: number; status: string; expires_at: number }>()
+    .first<{ id: string; sender_id: number; recipient_id: number; room_id: number; room_title: string; status: string; expires_at: number }>()
 
   if (!invite) return loi('Lời mời không tồn tại.', 404)
   if (invite.recipient_id !== myId) return loi('Bạn không có quyền thực hiện lời mời này.', 403)
@@ -387,6 +410,24 @@ engagementApp.post('/invites/:id/accept', async (c) => {
   }
 
   await c.env.DB.prepare("UPDATE study_invitations SET status = 'accepted' WHERE id = ?1").bind(inviteId).run()
+
+  // Thông báo tới người đã gửi lời mời (sender_id)
+  await createNotification(c.env.DB, {
+    recipientId: invite.sender_id,
+    type: 'study_invite_accepted',
+    title: 'Lời mời học tập được chấp nhận',
+    body: `${kq.taiKhoan.ten || kq.taiKhoan.username} đã chấp nhận lời mời tham gia "${invite.room_title || 'phòng học'}".`,
+    data: {
+      invitationId: inviteId,
+      roomId: invite.room_id,
+      roomTitle: invite.room_title,
+      actorId: myId,
+      actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+      actorAvatar: kq.taiKhoan.avatar || null,
+    },
+    idempotencyKey: `study_invite_acc:${inviteId}`,
+    now,
+  })
 
   if (c.env.ANALYTICS_DB) {
     recordAnalyticsEvent(c.env.ANALYTICS_DB, c.executionCtx, {

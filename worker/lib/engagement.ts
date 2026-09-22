@@ -21,6 +21,7 @@ import type {
 } from '../../shared/protocol/engagement'
 import type { SessionSummary } from '../../shared/protocol/room'
 import { recordAnalyticsEvent } from './analytics'
+import { createNotification } from '../services/notification-service'
 
 // ─── Configuration Constants ──────────────────────────────────────────────────
 export const MAX_DAILY_XP = 120
@@ -499,6 +500,27 @@ export async function unlockAchievement(
       sourceKey: `ach_reward:${key}:acc:${accountId}`,
       timestamp: now,
     })
+  }
+
+  // 3. Ghi nhận thông báo mở khóa thành tựu vào D1
+  if (newlyInserted) {
+    try {
+      await createNotification(db, {
+        recipientId: accountId,
+        type: 'achievement_unlocked',
+        title: 'Mở khóa thành tựu mới!',
+        body: `Chúc mừng bạn đã đạt thành tựu "${achDef.title}": ${achDef.description} (+${achDef.rewardXp} XP)`,
+        data: {
+          achievementKey: key,
+          achievementTitle: achDef.title,
+          rewardXp: achDef.rewardXp,
+        },
+        idempotencyKey: `ach_unlock:${accountId}:${key}`,
+        now,
+      })
+    } catch (notifErr) {
+      console.error('[engagement] Lỗi tạo thông báo thành tựu:', notifErr)
+    }
   }
 
   return {
