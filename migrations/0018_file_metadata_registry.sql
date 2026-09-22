@@ -33,7 +33,13 @@ INSERT OR IGNORE INTO file_metadata (
 SELECT
   substr(avatar, instr(avatar, '/api/files/') + 11) AS object_key,
   'legacy_avatar' AS original_name,
-  'image/jpeg' AS mime_type,
+  CASE
+    WHEN lower(avatar) LIKE '%.png' THEN 'image/png'
+    WHEN lower(avatar) LIKE '%.webp' THEN 'image/webp'
+    WHEN lower(avatar) LIKE '%.jpg' OR lower(avatar) LIKE '%.jpeg' THEN 'image/jpeg'
+    WHEN lower(avatar) LIKE '%.gif' THEN 'image/gif'
+    ELSE 'unknown'
+  END AS mime_type,
   0 AS size_bytes,
   'avatar' AS purpose,
   'campus' AS visibility,

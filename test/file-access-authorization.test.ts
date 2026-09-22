@@ -133,12 +133,12 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     expect(errBody.loi || errBody.error).toContain('không có quyền')
   })
 
-  it('5. Avatar upload binds visibility=campus: readable by any campus member, denied for unauth (401)', async () => {
+  it('5. Generic upload always binds visibility=owner even if purpose=avatar is supplied', async () => {
     const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
     const cookieUser2 = await dangNhapLayCookie('qa.v2.thu2')
 
     const form = new FormData()
-    form.append('file', createPngFile('avatar.png', 'avatar-bytes'))
+    form.append('file', createPngFile('avatar_raw.png', 'raw-avatar-bytes'))
     form.append('purpose', 'avatar')
 
     const uploadRes = await app.fetch(`${GOC}/api/upload`, {
@@ -149,23 +149,203 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     expect(uploadRes.status).toBe(200)
     const uploadData = (await uploadRes.json()) as any
     expect(uploadData.purpose).toBe('avatar')
-    expect(uploadData.visibility).toBe('campus')
+    // Crucial F1 Invariant: Upload intent does NOT directly grant campus visibility!
+    expect(uploadData.visibility).toBe('owner')
 
-    // 5.1. Unauthenticated -> 401
-    const unauthRead = await app.fetch(`${GOC}/api/files/${uploadData.key}`)
-    expect(unauthRead.status).toBe(401)
+    // Verify in D1 file_metadata
+    const metaBefore = await env.DB.prepare('SELECT * FROM file_metadata WHERE object_key = ?1')
+      .bind(uploadData.key)
+      .first<any>()
+    expect(metaBefore.visibility).toBe('owner')
 
-    // 5.2. Owner -> 200
+    // 5.1. Owner can read pre-promotion -> 200 OK
     const ownerRead = await app.fetch(`${GOC}/api/files/${uploadData.key}`, {
       headers: { Cookie: cookieUser1 },
     })
     expect(ownerRead.status).toBe(200)
 
-    // 5.3. Another campus member -> 200
-    const otherMemberRead = await app.fetch(`${GOC}/api/files/${uploadData.key}`, {
+    // 5.2. Other campus member CANNOT read pre-promotion -> 403 Forbidden!
+    const otherMemberPreRead = await app.fetch(`${GOC}/api/files/${uploadData.key}`, {
       headers: { Cookie: cookieUser2 },
     })
-    expect(otherMemberRead.status).toBe(200)
+    expect(otherMemberPreRead.status).toBe(403)
+
+    // 5.3. Unauthenticated caller CANNOT read -> 401 Unauthorized
+    const unauthRead = await app.fetch(`${GOC}/api/files/${uploadData.key}`)
+    expect(unauthRead.status).toBe(401)
+  })
+
+  it('5b. Authoritative profile avatar assignment promotes file_metadata to visibility=campus', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieUser2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    // 1. Upload owner-private image
+    const form = new FormData()
+    form.append('file', createPngFile('my_avatar.png', 'avatar-bytes-verified'))
+    form.append('purpose', 'avatar')
+
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser1 },
+      body: form,
+    })
+    const { key, url } = (await uploadRes.json()) as any
+
+    // 2. Authoritative profile assignment: User 1 sets their avatar
+    const profileRes = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: url }),
+    })
+    expect(profileRes.status).toBe(200)
+    const profileData = (await profileRes.json()) as any
+    expect(profileData.ok).toBe(true)
+
+    // 3. Verify D1 metadata promotion
+    const metaAfter = await env.DB.prepare('SELECT * FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<any>()
+    expect(metaAfter.purpose).toBe('avatar')
+    expect(metaAfter.visibility).toBe('campus')
+
+    // 4. Verify user avatar field updated in tai_khoan_campus
+    const userRow = await env.DB.prepare('SELECT avatar FROM tai_khoan_campus WHERE id = 1')
+      .first<{ avatar: string }>()
+    expect(userRow?.avatar).toBe(url)
+
+    // 5. Post-promotion access:
+    // Owner can read -> 200
+    const ownerRead = await app.fetch(`${GOC}/api/files/${key}`, {
+      headers: { Cookie: cookieUser1 },
+    })
+    expect(ownerRead.status).toBe(200)
+
+    // Another campus account CAN NOW read promoted avatar -> 200!
+    const otherMemberPostRead = await app.fetch(`${GOC}/api/files/${key}`, {
+      headers: { Cookie: cookieUser2 },
+    })
+    expect(otherMemberPostRead.status).toBe(200)
+
+    // Unauthenticated caller is STILL denied -> 401
+    const unauthPostRead = await app.fetch(`${GOC}/api/files/${key}`)
+    expect(unauthPostRead.status).toBe(401)
+  })
+
+  it('5c. Cross-owner avatar promotion attempt is DENIED (403 Forbidden)', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+    const cookieUser2 = await dangNhapLayCookie('qa.v2.thu2')
+
+    // User 1 uploads an owner-private file
+    const form = new FormData()
+    form.append('file', createPngFile('user1_secret_pic.png', 'u1-secret'))
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser1 },
+      body: form,
+    })
+    const { key, url } = (await uploadRes.json()) as any
+
+    // User 2 maliciously tries to set User 1's file as User 2's avatar
+    const hijackRes = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser2,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: url }),
+    })
+    expect(hijackRes.status).toBe(403)
+    const errBody = (await hijackRes.json()) as any
+    expect(errBody.ok).toBe(false)
+    expect(errBody.loi).toContain('không có quyền')
+
+    // Verify metadata was NOT promoted
+    const meta = await env.DB.prepare('SELECT visibility FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<{ visibility: string }>()
+    expect(meta?.visibility).toBe('owner')
+
+    // Verify User 2's profile was NOT updated
+    const user2Row = await env.DB.prepare('SELECT avatar FROM tai_khoan_campus WHERE id = 2')
+      .first<{ avatar: string }>()
+    expect(user2Row?.avatar).not.toBe(url)
+  })
+
+  it('5d. Room document keys in avatar promotion are BLOCKED (400 Bad Request)', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    const roomDocUrl = `${GOC}/api/files/rooms/10/documents/exam_answers.pdf`
+    const res = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: roomDocUrl }),
+    })
+    expect(res.status).toBe(400)
+    const errBody = (await res.json()) as any
+    expect(errBody.ok).toBe(false)
+  })
+
+  it('5e. Non-image file uploaded by user cannot be promoted to avatar (400 Bad Request)', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Upload a PDF
+    const form = new FormData()
+    form.append('file', createPdfFile('slides.pdf', 'pdf-bytes'))
+    form.append('purpose', 'slide')
+
+    const uploadRes = await app.fetch(`${GOC}/api/upload`, {
+      method: 'POST',
+      headers: { Cookie: cookieUser1 },
+      body: form,
+    })
+    expect(uploadRes.status).toBe(200)
+    const { key, url } = (await uploadRes.json()) as any
+
+    // Try to set PDF as avatar
+    const res = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: url }),
+    })
+    expect(res.status).toBe(400)
+    const errBody = (await res.json()) as any
+    expect(errBody.ok).toBe(false)
+    expect(errBody.loi).toContain('hình ảnh')
+
+    // Verify metadata was NOT promoted
+    const meta = await env.DB.prepare('SELECT visibility, purpose FROM file_metadata WHERE object_key = ?1')
+      .bind(key)
+      .first<{ visibility: string; purpose: string }>()
+    expect(meta?.visibility).toBe('owner')
+    expect(meta?.purpose).toBe('slide')
+  })
+
+  it('5f. External & static preset avatar URLs update profile without mutating file_metadata', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Preset static avatar
+    const presetRes = await app.fetch(`${GOC}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Cookie: cookieUser1,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ avatarUrl: '/assets/avatars/avatar-robot.png' }),
+    })
+    expect(presetRes.status).toBe(200)
+
+    const userRow = await env.DB.prepare('SELECT avatar FROM tai_khoan_campus WHERE id = 1')
+      .first<{ avatar: string }>()
+    expect(userRow?.avatar).toBe('/assets/avatars/avatar-robot.png')
   })
 
   it('6. Non-image file claiming purpose=avatar is rejected (400 Bad Request)', async () => {
@@ -292,7 +472,7 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     expect(bannedRes.status).toBe(403)
   })
 
-  it('10. Metadata write failure triggers R2 compensation deletion (Zero orphan objects)', async () => {
+  it('10. Metadata write failure triggers R2 compensation deletion attempt (Fail-closed invariant)', async () => {
     const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
 
     // Spy on env.ANH.delete
@@ -405,8 +585,8 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     expect(unauthRes.status).toBe(404)
   })
 
-  it('15. Idempotent Backfill: Existing avatar in tai_khoan_campus is backfilled into file_metadata', async () => {
-    const legacyKey = 'images/1690000000000_legacy-avatar-uuid_photo.jpg'
+  it('15. Idempotent Backfill: Existing avatar in tai_khoan_campus is backfilled into file_metadata truthfully', async () => {
+    const legacyKey = 'images/1690000000000_legacy-avatar-uuid_photo.png'
     const legacyUrl = `https://gdtxdinhquan.ledinhphat1994.workers.dev/api/files/${legacyKey}`
 
     // Insert or update an account with an avatar referencing /api/files/
@@ -414,7 +594,7 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
       'UPDATE tai_khoan_campus SET avatar = ?1 WHERE id = 1'
     ).bind(legacyUrl).run()
 
-    // Run the idempotent backfill query from 0018_file_metadata_registry.sql
+    // Run the truthful idempotent backfill query from 0018_file_metadata_registry.sql
     await env.DB.prepare(`
       INSERT OR IGNORE INTO file_metadata (
         object_key, original_name, mime_type, size_bytes, purpose, visibility, uploaded_by_account_id, created_at
@@ -422,7 +602,13 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
       SELECT
         substr(avatar, instr(avatar, '/api/files/') + 11) AS object_key,
         'legacy_avatar' AS original_name,
-        'image/jpeg' AS mime_type,
+        CASE
+          WHEN lower(avatar) LIKE '%.png' THEN 'image/png'
+          WHEN lower(avatar) LIKE '%.webp' THEN 'image/webp'
+          WHEN lower(avatar) LIKE '%.jpg' OR lower(avatar) LIKE '%.jpeg' THEN 'image/jpeg'
+          WHEN lower(avatar) LIKE '%.gif' THEN 'image/gif'
+          ELSE 'unknown'
+        END AS mime_type,
         0 AS size_bytes,
         'avatar' AS purpose,
         'campus' AS visibility,
@@ -435,13 +621,16 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
     `).run()
 
     // Put mock object into R2
-    await env.ANH.put(legacyKey, createPngBytes('legacy-avatar-bytes'))
+    await env.ANH.put(legacyKey, createPngBytes('legacy-avatar-bytes'), {
+      httpMetadata: { contentType: 'image/png' },
+    })
 
     // Verify backfilled record in file_metadata
     const meta = await env.DB.prepare('SELECT * FROM file_metadata WHERE object_key = ?1')
       .bind(legacyKey)
       .first<any>()
     expect(meta).toBeDefined()
+    expect(meta.mime_type).toBe('image/png')
     expect(meta.purpose).toBe('avatar')
     expect(meta.visibility).toBe('campus')
     expect(meta.uploaded_by_account_id).toBe(1)
@@ -452,9 +641,32 @@ describe('Milestone F1: File Access Authorization Hardening Suite', () => {
       headers: { Cookie: cookieUser2 },
     })
     expect(readRes.status).toBe(200)
+    expect(readRes.headers.get('Content-Type')).toBe('image/png')
 
     // Verify unauthenticated caller is denied
     const unauthRes = await app.fetch(`${GOC}/api/files/${legacyKey}`)
     expect(unauthRes.status).toBe(401)
+  })
+
+  it('16. Truthful MIME fallback: When file_metadata.mime_type is unknown, read endpoint falls back to R2 httpMetadata', async () => {
+    const cookieUser1 = await dangNhapLayCookie('qa.v2.thu1')
+
+    const fallbackKey = 'images/legacy_unknown_mime.webp'
+    await env.ANH.put(fallbackKey, createPngBytes('webp-payload'), {
+      httpMetadata: { contentType: 'image/webp' },
+    })
+
+    await env.DB.prepare(`
+      INSERT INTO file_metadata (
+        object_key, original_name, mime_type, size_bytes, purpose, visibility, uploaded_by_account_id, created_at
+      ) VALUES (?1, 'legacy.webp', 'unknown', 123, 'avatar', 'campus', 1, ?2)
+    `).bind(fallbackKey, Date.now()).run()
+
+    const readRes = await app.fetch(`${GOC}/api/files/${fallbackKey}`, {
+      headers: { Cookie: cookieUser1 },
+    })
+    expect(readRes.status).toBe(200)
+    // Server truthfully falls back to R2 httpMetadata contentType instead of fabricating image/jpeg!
+    expect(readRes.headers.get('Content-Type')).toBe('image/webp')
   })
 })

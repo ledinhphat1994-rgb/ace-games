@@ -1172,22 +1172,21 @@ app.post('/api/upload', async (c) => {
     }
 
     // Authoritative Purpose & Visibility Binding
+    // Generic uploads always start at visibility = 'owner'.
+    // Client-supplied purpose records upload intent only and MUST NEVER grant campus or public visibility.
     const rawPurpose = (formData.get('purpose') as string | null)?.trim() || 'general'
     let purpose = 'general'
-    let visibility: 'owner' | 'campus' | 'public' = 'owner'
+    const visibility: 'owner' | 'campus' | 'public' = 'owner'
 
     if (rawPurpose === 'avatar') {
       if (rule.folder !== 'images') {
         return loi('Ảnh đại diện phải là tệp hình ảnh (PNG, JPG, WEBP).', 400)
       }
       purpose = 'avatar'
-      visibility = 'campus'
     } else if (rawPurpose === 'slide') {
       purpose = 'slide'
-      visibility = 'owner'
     } else {
       purpose = 'general'
-      visibility = 'owner'
     }
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50)
@@ -1200,7 +1199,7 @@ app.post('/api/upload', async (c) => {
         size: String(file.size),
         uploaderId: String(kq.taiKhoan.id),
         purpose,
-        visibility,
+        visibility: 'owner',
       },
     })
 
@@ -1221,12 +1220,13 @@ app.post('/api/upload', async (c) => {
         kq.taiKhoan.id,
         Date.now(),
       ).run()
-    } catch (dbErr) {
-      console.error('[upload] D1 file_metadata insert failed, compensating R2 delete:', dbErr)
+    } catch (_dbErr) {
+      console.error('[upload] D1 file_metadata insert failed, attempting compensating R2 delete')
       try {
         await c.env.ANH.delete(key)
+        console.warn('[upload] R2 compensation delete succeeded for uncatalogued object')
       } catch (delErr) {
-        console.error('[upload] R2 compensation delete failed:', delErr)
+        console.error('[upload] R2 compensation delete failed; object remains authorization fail-closed:', delErr instanceof Error ? delErr.message : 'unknown')
       }
       return loi('Không thể lưu thông tin tệp vào cơ sở dữ liệu.', 500)
     }
@@ -1302,7 +1302,10 @@ app.get('/api/files/:key{.+}', async (c) => {
     if (!object) return loi('Không tìm thấy tệp.', 404)
 
     const headers = new Headers()
-    headers.set('Content-Type', meta.mime_type || object.httpMetadata?.contentType || 'application/octet-stream')
+    const mimeType = (meta.mime_type && meta.mime_type !== 'unknown' && meta.mime_type !== 'application/octet-stream')
+      ? meta.mime_type
+      : (object.httpMetadata?.contentType || 'application/octet-stream')
+    headers.set('Content-Type', mimeType)
     const originalName = meta.original_name || (object.customMetadata?.originalName
       ? decodeURIComponent(object.customMetadata.originalName)
       : key.split('/').pop() || 'file')
@@ -1337,7 +1340,10 @@ app.get('/api/files/:key{.+}', async (c) => {
   if (!object) return loi('Không tìm thấy tệp.', 404)
 
   const headers = new Headers()
-  headers.set('Content-Type', meta.mime_type || object.httpMetadata?.contentType || 'application/octet-stream')
+  const mimeType = (meta.mime_type && meta.mime_type !== 'unknown' && meta.mime_type !== 'application/octet-stream')
+    ? meta.mime_type
+    : (object.httpMetadata?.contentType || 'application/octet-stream')
+  headers.set('Content-Type', mimeType)
   const originalName = meta.original_name || (object.customMetadata?.originalName
     ? decodeURIComponent(object.customMetadata.originalName)
     : key.split('/').pop() || 'file')

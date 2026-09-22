@@ -663,6 +663,78 @@ export async function doiAvatar(request: Request, env: Env): Promise<Response> {
   const avatarUrl = String(body.avatarUrl || '').trim()
   if (!avatarUrl) return loi('Thiếu URL avatar.', 400)
 
+  // Kiểm tra nếu là tệp tải lên nội bộ (/api/files/<key>)
+  const marker = '/api/files/'
+  const idx = avatarUrl.indexOf(marker)
+
+  if (idx !== -1) {
+    let key = avatarUrl.slice(idx + marker.length).trim()
+    const qIdx = key.indexOf('?')
+    if (qIdx !== -1) key = key.slice(0, qIdx)
+    const hIdx = key.indexOf('#')
+    if (hIdx !== -1) key = key.slice(0, hIdx)
+
+    // Kiểm tra tính hợp lệ và an toàn của key
+    if (
+      !key ||
+      key.includes('..') ||
+      key.includes('//') ||
+      key.startsWith('/') ||
+      key.includes('\\') ||
+      key.startsWith('rooms/') ||
+      key.includes('/documents/')
+    ) {
+      return loi('Đường dẫn tệp nội bộ không hợp lệ hoặc bị cấm sử dụng làm ảnh đại diện.', 400)
+    }
+
+    // Tra cứu authoritative metadata trong file_metadata
+    const meta = await env.DB.prepare(
+      'SELECT id, object_key, mime_type, uploaded_by_account_id, deleted_at FROM file_metadata WHERE object_key = ?1'
+    ).bind(key).first<{
+      id: number
+      object_key: string
+      mime_type: string
+      uploaded_by_account_id: number
+      deleted_at: number | null
+    }>()
+
+    if (!meta) {
+      return loi('Tệp không tồn tại trong danh mục hệ thống.', 404)
+    }
+
+    if (meta.deleted_at !== null) {
+      return loi('Tệp đã bị xóa.', 400)
+    }
+
+    // Chống leo thang / chiếm quyền tệp của người khác: Chỉ người tải lên mới được gán làm avatar
+    if (meta.uploaded_by_account_id !== kq.taiKhoan.id) {
+      return loi('Bạn không có quyền sử dụng tệp của tài khoản khác làm ảnh đại diện.', 403)
+    }
+
+    const ALLOWED_AVATAR_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+    if (!meta.mime_type || !ALLOWED_AVATAR_MIMES.has(meta.mime_type.toLowerCase())) {
+      return loi('Tệp được chọn không phải là định dạng hình ảnh hợp lệ (chỉ hỗ trợ PNG, JPG, WEBP, GIF).', 400)
+    }
+
+    // Thực hiện thăng cấp quyền lên campus đồng thời cập nhật profile qua D1 batch transaction
+    await env.DB.batch([
+      env.DB.prepare("UPDATE file_metadata SET purpose = 'avatar', visibility = 'campus' WHERE id = ?1").bind(meta.id),
+      env.DB.prepare('UPDATE tai_khoan_campus SET avatar = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2').bind(avatarUrl, kq.taiKhoan.id),
+    ])
+
+    return json({ ok: true, avatar: avatarUrl })
+  }
+
+  // Đối với URL tĩnh (preset /assets/avatars/...), URL ngoài hoặc data URL
+  if (
+    !avatarUrl.startsWith('/assets/avatars/') &&
+    !avatarUrl.startsWith('data:image/') &&
+    !avatarUrl.startsWith('https://') &&
+    !avatarUrl.startsWith('http://')
+  ) {
+    return loi('Định dạng URL avatar không được hỗ trợ.', 400)
+  }
+
   await env.DB.prepare('UPDATE tai_khoan_campus SET avatar = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2')
     .bind(avatarUrl, kq.taiKhoan.id)
     .run()
