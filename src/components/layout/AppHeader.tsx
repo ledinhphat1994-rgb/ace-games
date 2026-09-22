@@ -68,9 +68,6 @@ export function AppHeader({
             <span className="hidden sm:block text-sm font-extrabold tracking-tight text-text-primary">
               Digital Campus
             </span>
-            <span className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-[10px] font-semibold text-brand leading-none">
-              v2.1
-            </span>
           </NavLink>
 
           {/* Desktop nav — separator + pill-link items */}

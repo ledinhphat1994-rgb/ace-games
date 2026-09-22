@@ -23,13 +23,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-function getLoiChaoTheoGio(): string {
-  const hour = new Date().getHours()
-  if (hour >= 5 && hour < 12) return 'Chào buổi sáng'
-  if (hour >= 12 && hour < 18) return 'Chào buổi chiều'
-  return 'Chào buổi tối'
-}
-
 export function HomePage() {
   const navigate = useNavigate()
   const { nguoiDung } = usePhien()
@@ -39,8 +32,6 @@ export function HomePage() {
   const [moTaoPhong, setMoTaoPhong] = useState(false)
 
   const displayName = nguoiDung.ten || nguoiDung.username
-  const lopText = nguoiDung.lop?.ten ? `Lớp ${nguoiDung.lop.ten}` : 'Campus Toàn trường'
-  const loiChao = useMemo(() => getLoiChaoTheoGio(), [])
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -86,44 +77,35 @@ export function HomePage() {
     })
   }, [friends, presenceMap])
 
-  // Quick Launch 4-card grid
+  // Quick Launch 4-card grid: Label-first, no subtitles, no fake badges
   const destinationItems: HomeDestinationItem[] = [
     {
       id: 'learn',
       title: 'Học tập',
-      subtitle: 'Tài liệu & ôn tập',
       artwork: '/assets/learning/card_learning.webp',
       href: '/learning',
       icon: <BookOpen className="h-5 w-5" />,
-      accentColor: 'blue',
     },
     {
       id: 'arena',
-      title: 'Đấu trường Game',
-      subtitle: 'Caro · 2048 · Rắn',
+      title: 'Game',
       artwork: '/assets/games/card_game.webp',
       href: '/arena',
       icon: <Gamepad2 className="h-5 w-5" />,
-      accentColor: 'green',
-      badge: 'HOT',
     },
     {
       id: 'community',
-      title: 'Bạn bè & Cộng đồng',
-      subtitle: 'Trò chuyện & kết nối',
+      title: 'Cộng đồng',
       artwork: '/assets/community/card_community.webp',
       href: '/community',
       icon: <Users className="h-5 w-5" />,
-      accentColor: 'purple',
     },
     {
       id: 'rooms',
-      title: 'Phòng học nhóm',
-      subtitle: 'Không gian học trực tuyến',
+      title: 'Phòng học',
       artwork: '/assets/learning/room_study.webp',
       href: '/learn',
       icon: <DoorOpen className="h-5 w-5" />,
-      accentColor: 'amber',
     },
   ]
 
@@ -141,36 +123,30 @@ export function HomePage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* ── 1. Modern Teen Hero Banner ── */}
+      {/* ── 1. Modern Teen Hero Banner (Reduced, dominant CTA, no badge) ── */}
       <CampusHeroBanner
-        badgeText={`${loiChao} · ${lopText}`}
         title={`Xin chào, ${displayName}!`}
-        subtitle="Bắt đầu ôn luyện bài học hoặc kết nối cùng các bạn trong không gian số."
+        subtitle="Không gian học tập và kết nối số 10A7."
         primaryAction={{
           label: 'Vào học ngay',
           icon: <BookOpen className="h-4 w-4" />,
           onClick: () => navigate('/learning'),
         }}
-        secondaryAction={{
-          label: 'Tạo phòng học',
-          icon: <Plus className="h-4 w-4" />,
-          onClick: () => setMoTaoPhong(true),
-        }}
       />
 
       {/* ── 2. Smart Continuation Banner (Friend actively studying) ── */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-950/30 p-3.5 backdrop-blur-md shadow-md">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-3 backdrop-blur-md shadow-md">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">
-                Bạn bè đang học: <span className="text-indigo-400 font-extrabold">{activeFriendStudy.friend.displayName}</span>
+                Bạn bè đang học: <span className="text-cyan-400 font-extrabold">{activeFriendStudy.friend.displayName}</span>
               </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                {activeFriendStudy.roomName} — tham gia học chung ngay!
+              <p className="text-xs text-slate-400 truncate">
+                {activeFriendStudy.roomName}
               </p>
             </div>
           </div>
@@ -178,7 +154,7 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="shrink-0 gap-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold shadow-md shadow-indigo-500/25"
+            className="shrink-0 gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs"
           >
             <DoorOpen className="h-3.5 w-3.5" />
             <span>Vào cùng</span>
@@ -189,7 +165,7 @@ export function HomePage() {
       {/* ── 3. Compact Progress & Gamification Strip ── */}
       <ProgressSummary />
 
-      {/* ── 4. Quick Launch 4-Tile Grid ── */}
+      {/* ── 4. Quick Launch 4-Tile Grid (Label-first) ── */}
       <section aria-label="Lối tắt truy cập nhanh">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {destinationItems.map((item) => (
@@ -208,7 +184,7 @@ export function HomePage() {
         <section aria-label="Phòng học đang hoạt động" className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
               <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
                 Phòng học nổi bật
               </h2>
@@ -217,24 +193,35 @@ export function HomePage() {
               )}
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/learn')}
-              className="h-8 gap-1 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-            >
-              <span>Xem tất cả</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMoTaoPhong(true)}
+                className="h-8 gap-1 text-xs font-semibold border-white/10 bg-white/5 hover:bg-white/10 text-slate-200"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tạo phòng</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/learn')}
+                className="h-8 gap-1 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+              >
+                <span>Xem tất cả</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
 
           {activeRoomsPreview.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title="Chưa có phòng học nào đang mở"
-              description="Tạo phòng học đầu tiên để cùng thảo luận nhóm hoặc ôn tập bài giảng!"
+              title="Chưa có phòng học"
               action={{
-                label: 'Tạo phòng học ngay',
+                label: 'Tạo phòng',
                 onClick: () => setMoTaoPhong(true),
               }}
             />
@@ -256,7 +243,7 @@ export function HomePage() {
         <section aria-label="Bạn bè trực tuyến" className="space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-purple-400" />
+              <Users className="h-4 w-4 text-cyan-400" />
               <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
                 Bạn bè online
               </h2>
@@ -272,25 +259,20 @@ export function HomePage() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0c1222]/85 p-3.5 backdrop-blur-md shadow-lg min-h-[160px] flex flex-col justify-center">
+          <div className="rounded-2xl border border-white/10 bg-[#0c1222]/85 p-3.5 backdrop-blur-md shadow-lg min-h-[140px] flex flex-col justify-center">
             {onlineFriends.length === 0 ? (
-              <div className="text-center py-4 space-y-2">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/25">
-                  <UserPlus className="h-5 w-5" />
+              <div className="text-center py-3 space-y-2">
+                <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 border border-white/10">
+                  <UserPlus className="h-4 w-4" />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-300">Chưa có bạn bè trực tuyến</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Kết nối bạn bè cùng lớp để cùng nhau học tập nhé!
-                  </p>
-                </div>
+                <p className="text-xs font-semibold text-slate-300">Chưa có bạn online</p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => navigate('/community')}
-                  className="h-7 text-xs border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 mt-1"
+                  className="h-7 text-xs border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
                 >
-                  Tìm bạn bè
+                  Tìm bạn
                 </Button>
               </div>
             ) : (
@@ -311,10 +293,6 @@ export function HomePage() {
                         {friend.displayName}
                       </span>
                     </div>
-
-                    <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                      Online
-                    </span>
                   </div>
                 ))}
               </div>

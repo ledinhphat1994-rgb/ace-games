@@ -96,7 +96,7 @@ export function ProgressSummary({
               <Flame className="h-4 w-4 text-amber-400 fill-amber-400/20" />
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-black text-amber-300">{currentStreak}</span>
-                <span className="text-[11px] font-semibold text-amber-200/80">ngày</span>
+                <span className="text-xs font-semibold text-amber-200/80">ngày</span>
               </div>
             </div>
 
@@ -108,10 +108,10 @@ export function ProgressSummary({
               <Zap className="h-4 w-4 text-cyan-400 fill-cyan-400/20" />
               <div className="flex items-baseline gap-1">
                 <span className="text-sm font-black text-cyan-300">{totalXp}</span>
-                <span className="text-[11px] font-semibold text-cyan-200/80">XP</span>
+                <span className="text-xs font-semibold text-cyan-200/80">XP</span>
               </div>
               {todayXp > 0 && (
-                <span className="hidden md:inline text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full border border-emerald-500/25">
+                <span className="hidden md:inline text-xs font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full border border-emerald-500/25">
                   +{todayXp}
                 </span>
               )}
@@ -121,7 +121,7 @@ export function ProgressSummary({
           {/* Middle: Challenge Progress (if active) */}
           {challenge && challenge.targetValue > 0 && (
             <div className="flex-1 min-w-0 max-w-xs hidden lg:block space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-300 truncate">{challenge.title}</span>
                 <span className="text-slate-400 font-mono">
                   {challenge.currentValue}/{challenge.targetValue}
@@ -157,7 +157,7 @@ export function ProgressSummary({
               <Award className="h-3.5 w-3.5 text-purple-400" />
               <span className="hidden xs:inline">Huy hiệu</span>
               {profile && profile.unlockedAchievementsCount > 0 && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-purple-500/40 bg-purple-500/20 text-purple-300">
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 border-purple-500/40 bg-purple-500/20 text-purple-300">
                   {profile.unlockedAchievementsCount}
                 </Badge>
               )}

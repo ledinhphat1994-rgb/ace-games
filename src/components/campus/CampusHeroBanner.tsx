@@ -56,9 +56,6 @@ export function CampusHeroBanner({
       {/* Directional gradient mask to ensure text punch & legibility */}
       <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#080d19] via-[#080d19]/80 to-transparent sm:bg-gradient-to-r sm:from-[#080d19] sm:via-[#080d19]/85 sm:to-transparent pointer-events-none" />
 
-      {/* Atmospheric neon ambient glow */}
-      <div className="pointer-events-none absolute -left-12 -top-12 h-56 w-56 rounded-full bg-cyan-500/15 blur-3xl z-[1]" />
-      <div className="pointer-events-none absolute -bottom-10 right-1/3 h-48 w-48 rounded-full bg-indigo-500/15 blur-3xl z-[1]" />
 
       {/* Hero Content */}
       <div className="relative z-10 flex flex-col justify-between min-h-[190px] sm:min-h-[210px] p-5 sm:p-7 lg:p-8">

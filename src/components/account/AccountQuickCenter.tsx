@@ -29,7 +29,6 @@ import {
   Sparkles,
   Upload,
   User,
-  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PRESET_AVATARS } from './preset-avatars'
@@ -96,7 +95,7 @@ export function AccountQuickCenter({
     }
   }
 
-  // Profile engagement query
+  // Profile engagement query for achievements view
   const { data: profileData } = useQuery<{ ok: boolean; profile: EngagementProfile }>({
     queryKey: ['engagement', 'profile'],
     queryFn: async () => {
@@ -104,7 +103,7 @@ export function AccountQuickCenter({
       if (!res.ok) return { ok: false, profile: null as any }
       return res.json()
     },
-    enabled: isOpen,
+    enabled: isOpen && currentView === 'achievements',
     staleTime: 30_000,
   })
 
@@ -160,7 +159,7 @@ export function AccountQuickCenter({
       if (onLamMoiPhien) await onLamMoiPhien()
       setCurrentView('main')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Lỗi lưu avatar.')
+      toast.error(err instanceof Error ? err.message : 'Không đổi được ảnh đại diện.')
     } finally {
       setDangLuuAvatar(false)
     }
@@ -168,15 +167,21 @@ export function AccountQuickCenter({
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (dangLuuProfile) return
+    if (!tenHienThi.trim()) {
+      toast.error('Tên hiển thị không được để trống.')
+      return
+    }
     setDangLuuProfile(true)
     try {
-      await capNhatHoSo({ tenHienThi, tieuDeHoSo })
+      await capNhatHoSo({
+        tenHienThi: tenHienThi.trim(),
+        tieuDeHoSo: tieuDeHoSo.trim() || undefined,
+      })
       toast.success('Đã lưu thông tin hồ sơ!')
       if (onLamMoiPhien) await onLamMoiPhien()
       setCurrentView('main')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Không cập nhật được hồ sơ.')
+      toast.error(err instanceof Error ? err.message : 'Không thể lưu hồ sơ.')
     } finally {
       setDangLuuProfile(false)
     }
@@ -184,18 +189,23 @@ export function AccountQuickCenter({
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!matKhauCu || !matKhauMoi || !xacNhanMoi) {
+      toast.error('Vui lòng điền đầy đủ các trường.')
+      return
+    }
     if (matKhauMoi !== xacNhanMoi) {
-      toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp.')
+      toast.error('Mật khẩu mới và xác nhận không khớp.')
       return
     }
     if (matKhauMoi.length < 6) {
       toast.error('Mật khẩu mới phải từ 6 ký tự trở lên.')
       return
     }
+
     setDangDoiMk(true)
     try {
-      const res = await doiMatKhau({ matKhauCu, matKhauMoi })
-      toast.success(res.message || 'Đổi mật khẩu thành công!')
+      await doiMatKhau({ matKhauCu, matKhauMoi })
+      toast.success('Đổi mật khẩu thành công!')
       setMatKhauCu('')
       setMatKhauMoi('')
       setXacNhanMoi('')
@@ -214,7 +224,7 @@ export function AccountQuickCenter({
       ? 'Giáo viên'
       : 'Học sinh'
 
-  // Trigger content
+  // Trigger content (No fake decorative green dot, no sub-12px microtext)
   const triggerContent = (
     <>
       <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cyan-400/50 bg-gradient-to-tr from-cyan-600 via-indigo-600 to-purple-600 text-sm font-bold text-white shadow-md">
@@ -227,14 +237,13 @@ export function AccountQuickCenter({
         ) : (
           <span>{displayInitial}</span>
         )}
-        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-1 ring-black" />
       </div>
 
       <div className="hidden sm:flex flex-col text-left leading-none">
         <span className="max-w-[100px] truncate text-xs font-semibold text-slate-200 group-hover:text-white">
           {nguoiDung.ten || nguoiDung.username}
         </span>
-        <span className="text-[10px] font-mono text-cyan-400">
+        <span className="text-xs text-slate-400">
           {nguoiDung.isSchoolAdmin ? 'Admin' : nguoiDung.role === 'teacher' ? 'GV' : 'HS'}
         </span>
       </div>
@@ -246,18 +255,18 @@ export function AccountQuickCenter({
   const renderViewContent = () => {
     switch (currentView) {
       // ──────────────────────────────────────────────────────────────────────
-      // 1. MAIN OVERVIEW
+      // 1. MAIN OVERVIEW (Simplified: Who am I? What to change?)
       // ──────────────────────────────────────────────────────────────────────
       case 'main':
         return (
-          <div className="space-y-4">
-            {/* User Profile Card */}
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 via-white/5 to-transparent p-4">
-              <div className="flex items-center gap-3.5">
+          <div className="space-y-3.5">
+            {/* User Profile Identity Surface */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setCurrentView('avatar')}
-                  className="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-cyan-400/60 bg-gradient-to-tr from-cyan-600 to-indigo-600 shadow-xl transition-transform hover:scale-105"
+                  className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-cyan-400/50 bg-gradient-to-tr from-cyan-600 to-indigo-600 shadow-md transition-transform hover:scale-105"
                   title="Bấm để đổi ảnh đại diện"
                 >
                   {nguoiDung.avatar ? (
@@ -267,110 +276,78 @@ export function AccountQuickCenter({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-2xl font-black text-white">{displayInitial}</span>
+                    <span className="text-xl font-black text-white">{displayInitial}</span>
                   )}
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Sparkles className="h-5 w-5 text-cyan-300" />
+                    <Sparkles className="h-4 w-4 text-cyan-300" />
                   </div>
                 </button>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-bold text-white">
-                      {nguoiDung.ten || nguoiDung.username}
-                    </h3>
-                    <Badge
-                      variant="outline"
-                      className="shrink-0 border-cyan-400/40 bg-cyan-500/10 px-1.5 py-0 text-[10px] font-semibold text-cyan-300"
-                    >
-                      {roleLabel}
-                    </Badge>
-                  </div>
+                  <h3 className="truncate text-base font-bold text-white leading-tight">
+                    {nguoiDung.ten || nguoiDung.username}
+                  </h3>
                   <p className="truncate text-xs font-mono text-slate-400">@{nguoiDung.username}</p>
-                  {nguoiDung.tieuDeHoSo && (
-                    <p className="mt-1 line-clamp-1 text-[11px] italic text-slate-300/80">
-                      &ldquo;{nguoiDung.tieuDeHoSo}&rdquo;
-                    </p>
-                  )}
                 </div>
-              </div>
-
-              {/* Gamification mini-strip */}
-              <div className="mt-3.5 flex items-center justify-between rounded-xl border border-white/5 bg-black/40 px-3 py-2 text-xs">
-                <div className="flex items-center gap-1.5 text-amber-400 font-semibold">
-                  <Flame className="h-4 w-4 fill-amber-400/20" />
-                  <span>{currentStreak} ngày chuỗi</span>
-                </div>
-                <div className="h-3 w-px bg-white/10" />
-                <div className="flex items-center gap-1.5 text-cyan-400 font-semibold">
-                  <Zap className="h-4 w-4 fill-cyan-400/20" />
-                  <span>{totalXp} XP</span>
-                </div>
-                {todayXp > 0 && (
-                  <>
-                    <div className="h-3 w-px bg-white/10" />
-                    <span className="text-[11px] text-emerald-400">+{todayXp} hôm nay</span>
-                  </>
-                )}
               </div>
             </div>
 
-            {/* Quick Actions List */}
+            {/* Quick Actions List (Restrained single brand accent) */}
             <div className="space-y-1">
               <button
                 type="button"
                 onClick={() => setCurrentView('avatar')}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-slate-300 group-hover:bg-cyan-500/15 group-hover:text-cyan-400 transition-colors">
                     <ImageIcon className="h-4 w-4" />
                   </div>
                   <span>Đổi ảnh đại diện</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-500" />
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurrentView('profile')}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-400">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-slate-300 group-hover:bg-cyan-500/15 group-hover:text-cyan-400 transition-colors">
                     <User className="h-4 w-4" />
                   </div>
                   <span>Chỉnh sửa hồ sơ</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-500" />
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurrentView('password')}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-slate-300 group-hover:bg-cyan-500/15 group-hover:text-cyan-400 transition-colors">
                     <KeyRound className="h-4 w-4" />
                   </div>
                   <span>Đổi mật khẩu</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-500" />
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurrentView('achievements')}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-slate-300 group-hover:bg-cyan-500/15 group-hover:text-cyan-400 transition-colors">
                     <Award className="h-4 w-4" />
                   </div>
-                  <span>Huy hiệu & Thành tựu</span>
+                  <span>Thành tựu & Huy hiệu</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-500" />
+                <ChevronRight className="h-4 w-4 text-slate-500 group-hover:text-slate-300" />
               </button>
 
               {nguoiDung.isSchoolAdmin && (
@@ -380,7 +357,7 @@ export function AccountQuickCenter({
                     setIsOpen(false)
                     navigate('/admin')
                   }}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors"
+                  className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-amber-300 hover:bg-amber-500/10 transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-300">
@@ -394,7 +371,7 @@ export function AccountQuickCenter({
             </div>
 
             {/* Footer Buttons */}
-            <div className="border-t border-white/10 pt-3 flex items-center justify-between gap-2">
+            <div className="border-t border-white/10 pt-2.5 flex items-center justify-between gap-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -404,7 +381,7 @@ export function AccountQuickCenter({
                 }}
                 className="h-8 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5"
               >
-                Xem toàn bộ hồ sơ
+                Hồ sơ chi tiết
               </Button>
 
               <Button
@@ -445,7 +422,7 @@ export function AccountQuickCenter({
 
             {/* Preset Avatars Grid */}
             <div>
-              <Label className="text-[11px] font-semibold text-slate-300 mb-2 block">
+              <Label className="text-xs font-semibold text-slate-300 mb-2 block">
                 12 Avatar học sinh phong cách Teen Campus
               </Label>
               <div className="grid grid-cols-4 gap-2.5 max-h-56 overflow-y-auto pr-1">
@@ -495,7 +472,7 @@ export function AccountQuickCenter({
 
             {/* Custom URL Section */}
             <div className="border-t border-white/10 pt-3 space-y-2">
-              <Label className="text-[11px] font-semibold text-slate-400">Hoặc dán link ảnh trực tiếp</Label>
+              <Label className="text-xs font-semibold text-slate-400">Hoặc dán link ảnh trực tiếp</Label>
               <div className="flex gap-2">
                 <Input
                   value={customAvatarUrl}
@@ -547,7 +524,7 @@ export function AccountQuickCenter({
                   className="h-9 mt-1 border-white/10 bg-black/40 text-xs text-white"
                   required
                 />
-                <p className="mt-1 text-[10px] text-slate-400">Từ 2 đến 50 ký tự</p>
+                <p className="mt-1 text-xs text-slate-400">Từ 2 đến 50 ký tự</p>
               </div>
 
               <div>
@@ -558,10 +535,10 @@ export function AccountQuickCenter({
                   placeholder="Chia sẻ phương châm học tập..."
                   className="h-9 mt-1 border-white/10 bg-black/40 text-xs text-white"
                 />
-                <p className="mt-1 text-[10px] text-slate-400">Tối đa 150 ký tự</p>
+                <p className="mt-1 text-xs text-slate-400">Tối đa 150 ký tự</p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] text-slate-400 space-y-1">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-slate-400 space-y-1">
                 <p><span className="text-slate-300 font-semibold">Tên đăng nhập:</span> @{nguoiDung.username}</p>
                 <p><span className="text-slate-300 font-semibold">Vai trò:</span> {roleLabel}</p>
                 <p><span className="text-slate-300 font-semibold">Đơn vị:</span> Trung tâm GDTX Định Quán</p>
@@ -647,7 +624,7 @@ export function AccountQuickCenter({
         )
 
       // ──────────────────────────────────────────────────────────────────────
-      // 5. ACHIEVEMENTS & PROGRESS IN-PLACE
+      // 5. ACHIEVEMENTS & PROGRESS IN-PLACE (Dedicated subview)
       // ──────────────────────────────────────────────────────────────────────
       case 'achievements':
         return (
@@ -671,10 +648,10 @@ export function AccountQuickCenter({
                 <Flame className="h-6 w-6 text-amber-400 fill-amber-400/20" />
                 <div>
                   <p className="text-xs font-bold text-white">{currentStreak} ngày chuỗi học</p>
-                  <p className="text-[11px] text-slate-400">{totalXp} XP tích lũy</p>
+                  <p className="text-xs text-slate-400">{totalXp} XP tích lũy</p>
                 </div>
               </div>
-              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40">
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-xs">
                 +{todayXp} XP hôm nay
               </Badge>
             </div>
@@ -686,7 +663,7 @@ export function AccountQuickCenter({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-white">Pomodoro</p>
-                  <p className="truncate text-[10px] text-slate-400">Tập trung &gt;25p</p>
+                  <p className="truncate text-xs text-slate-400">Tập trung &gt;25p</p>
                 </div>
               </div>
 
@@ -696,7 +673,7 @@ export function AccountQuickCenter({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-white">Vua Cờ Caro</p>
-                  <p className="truncate text-[10px] text-slate-400">Thắng đấu trường</p>
+                  <p className="truncate text-xs text-slate-400">Thắng đấu trường</p>
                 </div>
               </div>
 
@@ -706,7 +683,7 @@ export function AccountQuickCenter({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-white">Thuyết Trình</p>
-                  <p className="truncate text-[10px] text-slate-400">Trình chiếu slide</p>
+                  <p className="truncate text-xs text-slate-400">Trình chiếu slide</p>
                 </div>
               </div>
 
@@ -716,7 +693,7 @@ export function AccountQuickCenter({
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-white">Bảng Đen</p>
-                  <p className="truncate text-[10px] text-slate-400">Ghi chú & vẽ</p>
+                  <p className="truncate text-xs text-slate-400">Ghi chú & vẽ</p>
                 </div>
               </div>
             </div>
@@ -771,7 +748,7 @@ export function AccountQuickCenter({
         align="end"
         side="bottom"
         sideOffset={8}
-        className="w-[360px] rounded-2xl border border-white/15 bg-[#0a0f1d]/95 p-4 text-slate-100 backdrop-blur-2xl shadow-2xl transition-all"
+        className="w-[340px] rounded-2xl border border-white/15 bg-[#0a0f1d]/95 p-4 text-slate-100 backdrop-blur-2xl shadow-2xl transition-all"
       >
         {renderViewContent()}
       </PopoverContent>
