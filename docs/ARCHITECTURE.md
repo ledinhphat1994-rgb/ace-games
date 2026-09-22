@@ -61,11 +61,14 @@ Hợp đồng dữ liệu được chia sẻ giữa Frontend và Backend, địn
 2. **Password Recovery:**
    - Không dùng mã tĩnh hay mã chung của trường/lớp để reset mật khẩu.
    - Mã khôi phục gồm 6 chữ số ngẫu nhiên do hệ thống tạo (hoặc do GVCN/Admin cấp trực tiếp), có thời hạn 15 phút, dùng 1 lần (single-use), giới hạn 5 lần thử sai.
-3. **Upload Security:**
+3. **Upload & File Access Security:**
    - Tuyệt đối yêu cầu đăng nhập trước khi tải tệp (`kiemTraPhien`).
-   - Giới hạn quota 20 tệp / 10 phút qua Cloudflare KV.
-   - Kiểm tra chặt chẽ phần mở rộng và MIME type (`.pptx`, `.ppt`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`).
-   - Tên tệp lưu trữ trên R2 dùng UUID ngẫu nhiên, không để lộ đường dẫn gốc.
+   - Giới hạn quota 20 tệp / 10 phút qua Cloudflare KV và 10 tệp / 60 giây qua Edge Rate Limiter.
+   - Kiểm tra chặt chẽ phần mở rộng, MIME type (`.pptx`, `.ppt`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.webp`), magic bytes và deep ZIP inspection đối với PPTX.
+   - Phân định quyền sở hữu và phạm vi (`purpose` & `visibility`) được kiểm soát server-authoritative, lưu vào bảng siêu dữ liệu D1 `file_metadata`. Giá trị `purpose` gửi từ client khi tải lên chung chỉ ghi nhận mục đích dự kiến (upload intent); toàn bộ tệp tải lên chung luôn khởi tạo với `visibility = 'owner'`. Chỉ logic nghiệp vụ có thẩm quyền (như gán ảnh đại diện qua `POST /api/profile/avatar`) mới được thăng cấp quyền lên `visibility = 'campus'`.
+   - Cơ chế xóa bù trừ (R2 compensation delete): Khi lưu metadata D1 thất bại, hệ thống thực hiện lệnh xóa hoàn tác trên R2. Nếu xóa thành công, tệp được thu hồi ngay lập tức; nếu lệnh xóa gặp sự cố, tệp mồ côi chưa lập chỉ mục vẫn tuyệt đối không thể bị truy cập qua `/api/files/:key` nhờ chốt an toàn Fail-Closed (trả về 404), dù vậy việc dọn dẹp vật lý định kỳ vẫn có thể cần thiết.
+   - Phân quyền đọc `GET /api/files/:key`: Xóa bỏ cơ chế ủy quyền qua key đơn thuần. Bắt buộc tra cứu `file_metadata`. Tệp `campus` (như avatar đã gán) yêu cầu phiên đăng nhập hợp lệ, private cache, không wildcard CORS; tệp `owner` chỉ chính chủ mới đọc được; tệp không có metadata hoặc đường dẫn bất thường trả về 404 (Fail Closed).
+   - Chặn tuyệt đối đường dẫn tài liệu phòng học `rooms/` trên generic `/api/files/:key`, bắt buộc đi qua canonical route `GET /api/rooms/:id/documents/:docId/file`.
 4. **Study Room Governance:**
    - Mặc định bảo vệ video học tập và trình chiếu (`hostOnlyControl = true`).
    - Chỉ Host hoặc Giáo viên / Quản trị viên trường mới có quyền đổi video, xóa toàn bộ nét vẽ trên bảng, đổi slide hoặc phát nhạc từ hàng đợi.
