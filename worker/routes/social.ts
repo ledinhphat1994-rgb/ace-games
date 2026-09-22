@@ -9,6 +9,7 @@ import type {
 } from '../../shared/protocol/social'
 import { kiemTraPhien, layPhien } from '../lib/session'
 import { TEN_CAMPUS } from '../campus/danh-tinh'
+import { createNotification } from '../services/notification-service'
 
 export const socialApp = new Hono<{ Bindings: Env }>()
 
@@ -382,6 +383,22 @@ socialApp.post('/request', async (c) => {
     },
   })
 
+  // Lưu thông báo bền vững có thẩm quyền vào D1
+  await createNotification(c.env.DB, {
+    recipientId: targetId,
+    type: 'friend_request',
+    title: 'Lời mời kết bạn mới',
+    body: `${kq.taiKhoan.ten || kq.taiKhoan.username} đã gửi cho bạn một lời mời kết bạn.`,
+    data: {
+      requestId,
+      actorId: myId,
+      actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+      actorAvatar: kq.taiKhoan.avatar,
+    },
+    idempotencyKey: `friend_req:${requestId}`,
+    now,
+  })
+
   return c.json({ ok: true, requestId })
 })
 
@@ -469,6 +486,22 @@ socialApp.post('/accept', async (c) => {
       lopTen: null,
       friendedAt: now,
     },
+  })
+
+  // Lưu thông báo chấp nhận kết bạn cho người gửi ban đầu (otherId)
+  await createNotification(c.env.DB, {
+    recipientId: otherId,
+    type: 'friend_accept',
+    title: 'Lời mời kết bạn được chấp nhận',
+    body: `${kq.taiKhoan.ten || kq.taiKhoan.username} đã đồng ý lời mời kết bạn của bạn.`,
+    data: {
+      requestId,
+      actorId: myId,
+      actorName: kq.taiKhoan.ten || kq.taiKhoan.username,
+      actorAvatar: kq.taiKhoan.avatar,
+    },
+    idempotencyKey: `friend_accept:${requestId}`,
+    now,
   })
 
   return c.json({ ok: true, isFriend: true })

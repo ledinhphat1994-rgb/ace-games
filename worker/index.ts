@@ -73,6 +73,7 @@ import {
 } from './routes/voice-api'
 import { socialApp } from './routes/social'
 import { engagementApp } from './routes/engagement-api'
+import { notificationApp } from './routes/notification-api'
 import { SoloSessionFinishRequest, SoloSessionStartRequest } from '../shared/protocol/game-sdk'
 import {
   generateAuthoritativeVerificationHash,
@@ -1760,6 +1761,7 @@ app.all('/api/yt-search', saiPhuongThuc)
 // ─────────────────────────────────────────────────────────────────────────────
 app.route('/api/social', socialApp)
 app.route('/api/engagement', engagementApp)
+app.route('/api/notifications', notificationApp)
 app.route('/api/admin', adminRouter)
 app.route('/api/rooms', roomRouter)
 

@@ -7,11 +7,15 @@ import { CHAT_CAMPUS } from '@shared/rooms/constants'
 // ─── Notification System ────────────────────────────────────────────────────
 export type NotificationType =
   | 'friend_request'
+  | 'friend_accept'
   | 'friend_online'
   | 'friend_in_room'
   | 'study_invite'
+  | 'study_invite_accepted'
   | 'achievement_unlocked'
   | 'challenge_completed'
+  | 'moderation_notice'
+  | 'system_announcement'
 
 export interface AppNotification {
   id: string
@@ -96,6 +100,7 @@ export interface CampusContextValue {
   unreadCount: number
   dismissNotification: (id: string) => void
   markAllRead: () => void
+  lamMoiNotifications: () => Promise<void>
 
   // Aliases
   sendFriendRequest: (targetAccountId: number) => Promise<KetQuaThaoTac>
@@ -171,6 +176,46 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void lamMoiSocialState()
   }, [lamMoiSocialState])
+
+  // Tải danh sách thông báo từ API D1
+  const lamMoiNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications?limit=50')
+      if (res.ok) {
+        const json = (await res.json()) as {
+          ok: boolean
+          notifications?: Array<{
+            id: number
+            type: NotificationType
+            title: string
+            body: string
+            data?: Record<string, unknown> | null
+            readAt: number | null
+            createdAt: number
+          }>
+        }
+        if (json.ok && Array.isArray(json.notifications)) {
+          setNotifications(
+            json.notifications.map((n) => ({
+              id: String(n.id),
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              timestamp: n.createdAt,
+              read: n.readAt !== null,
+              meta: (n.data as AppNotification['meta']) || undefined,
+            })),
+          )
+        }
+      }
+    } catch {
+      // Ignored: network error
+    }
+  }, [])
+
+  useEffect(() => {
+    void lamMoiNotifications()
+  }, [lamMoiNotifications])
 
   const donDepChoPhanHoi = useCallback((thongBaoLoi = 'Mất kết nối máy chủ') => {
     for (const [reqId, item] of choPhanHoiRef.current.entries()) {
@@ -752,11 +797,16 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const unreadCount = notifications.filter((n) => !n.read).length
 
   const dismissNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    const numId = parseInt(id, 10)
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    if (Number.isInteger(numId) && numId > 0) {
+      void fetch(`/api/notifications/${numId}/read`, { method: 'POST' }).catch(() => {})
+    }
   }, [])
 
   const markAllRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    void fetch('/api/notifications/read-all', { method: 'POST' }).catch(() => {})
   }, [])
 
   const value: CampusContextValue = {
@@ -802,6 +852,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     unreadCount,
     dismissNotification,
     markAllRead,
+    lamMoiNotifications,
 
     // Aliases
     sendFriendRequest: guiLoiMoiKetBan,
