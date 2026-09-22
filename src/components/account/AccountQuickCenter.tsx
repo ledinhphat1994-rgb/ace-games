@@ -14,21 +14,30 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import type { NguoiDung } from '@/lib/api'
-import type { EngagementProfile } from '@shared/protocol/engagement'
+import type { EngagementProfile, UserAchievementItem } from '@shared/protocol/engagement'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
 import {
   Award,
+  BookOpen,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Flame,
   Image as ImageIcon,
   KeyRound,
+  Loader2,
+  Lock,
   LogOut,
   ShieldCheck,
   Sparkles,
+  Target,
+  Trophy,
   Upload,
   User,
+  Users,
+  Vote,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PRESET_AVATARS } from './preset-avatars'
@@ -41,6 +50,36 @@ export interface AccountQuickCenterProps {
 }
 
 type QuickCenterView = 'main' | 'avatar' | 'profile' | 'password' | 'achievements'
+
+function renderAchievementIcon(iconName: string, unlocked: boolean) {
+  if (!unlocked) {
+    return <Lock className="h-4 w-4 text-slate-400" />
+  }
+  switch (iconName) {
+    case 'Sparkles':
+      return <Sparkles className="h-4 w-4 text-emerald-400" />
+    case 'Users':
+      return <Users className="h-4 w-4 text-sky-400" />
+    case 'Flame':
+      return <Flame className="h-4 w-4 text-amber-400" />
+    case 'Zap':
+      return <Zap className="h-4 w-4 text-yellow-400" />
+    case 'CheckCircle2':
+      return <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+    case 'Vote':
+      return <Vote className="h-4 w-4 text-indigo-400" />
+    case 'BookOpen':
+      return <BookOpen className="h-4 w-4 text-blue-400" />
+    case 'Target':
+      return <Target className="h-4 w-4 text-rose-400" />
+    case 'Trophy':
+      return <Trophy className="h-4 w-4 text-amber-400" />
+    case 'ShieldCheck':
+      return <ShieldCheck className="h-4 w-4 text-cyan-400" />
+    default:
+      return <Award className="h-4 w-4 text-purple-400" />
+  }
+}
 
 export function AccountQuickCenter({
   nguoiDung,
@@ -107,9 +146,27 @@ export function AccountQuickCenter({
     staleTime: 30_000,
   })
 
+  // Authoritative achievements query
+  const { data: achievementsData, isLoading: isLoadingAchievements } = useQuery<{
+    ok: boolean
+    achievements?: UserAchievementItem[]
+    items?: UserAchievementItem[]
+  }>({
+    queryKey: ['engagement', 'achievements'],
+    queryFn: async () => {
+      const res = await fetch('/api/engagement/achievements')
+      if (!res.ok) return { ok: false, achievements: [] }
+      return res.json()
+    },
+    enabled: isOpen && currentView === 'achievements',
+    staleTime: 30_000,
+  })
+
   const totalXp = profileData?.profile?.totalXp ?? 0
   const currentStreak = profileData?.profile?.currentStreak ?? 0
   const todayXp = profileData?.profile?.todayXp ?? 0
+  const realAchievements: UserAchievementItem[] =
+    achievementsData?.achievements || achievementsData?.items || []
 
   const handleSelectPresetAvatar = async (src: string) => {
     setDangLuuAvatar(true)
@@ -656,47 +713,48 @@ export function AccountQuickCenter({
               </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-white">Pomodoro</p>
-                  <p className="truncate text-xs text-slate-400">Tập trung &gt;25p</p>
-                </div>
+            {isLoadingAchievements ? (
+              <div className="flex items-center justify-center py-8 text-slate-400 gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                <span className="text-xs">Đang tải thành tựu...</span>
               </div>
-
-              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400">
-                  <Award className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-white">Vua Cờ Caro</p>
-                  <p className="truncate text-xs text-slate-400">Thắng đấu trường</p>
-                </div>
+            ) : realAchievements.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400">
+                <Award className="h-8 w-8 text-slate-500 mb-2 opacity-60" />
+                <p className="text-xs font-semibold text-slate-300">Chưa có danh hiệu nào</p>
+                <p className="text-xs text-slate-500 mt-0.5">Tham gia lớp học để mở khóa thành tựu.</p>
               </div>
-
-              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-white">Thuyết Trình</p>
-                  <p className="truncate text-xs text-slate-400">Trình chiếu slide</p>
-                </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                {realAchievements.map((ach) => (
+                  <div
+                    key={ach.key}
+                    className={`flex items-center gap-2.5 rounded-xl border p-2.5 transition-all ${
+                      ach.unlocked
+                        ? 'border-white/10 bg-white/5'
+                        : 'border-white/5 bg-white/[0.02] opacity-60'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                        ach.unlocked ? 'bg-white/10' : 'bg-white/5'
+                      }`}
+                    >
+                      {renderAchievementIcon(ach.icon, ach.unlocked)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="truncate text-xs font-semibold text-white">{ach.title}</p>
+                        {ach.rewardXp ? (
+                          <span className="shrink-0 text-xs text-amber-400 font-medium">+{ach.rewardXp}</span>
+                        ) : null}
+                      </div>
+                      <p className="truncate text-xs text-slate-400">{ach.description}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
-                  <Check className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-white">Bảng Đen</p>
-                  <p className="truncate text-xs text-slate-400">Ghi chú & vẽ</p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         )
     }

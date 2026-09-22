@@ -10,7 +10,7 @@ trigger: always_on
 ---
 
 ## 1. Engine & Technology Direction
-- **Phaser as Primary 2D Direction:** Phaser 3+ is the authoritative standard for 2D arcade, board, puzzle, and platform experiences in Digital Campus. It ensures deterministic scene management, asset preloading, canvas/WebGL fallback, and rich plugin ecosystems.
+- **Phaser as Primary 2D Direction:** Game development must use the repository-pinned current Phaser major, currently Phaser 4.x / package version 4.2.1. It is the authoritative standard for 2D arcade, board, puzzle, and platform experiences in Digital Campus, ensuring deterministic scene management, asset preloading, canvas/WebGL fallback, and rich plugin ecosystems. Never downgrade to Phaser 3 APIs or documentation without an explicit migration decision. Future research should use documentation matching the installed major.
 - **3D & Next-Gen Exploration:** Where 3D brings tangible educational or gameplay value, Three.js, Babylon.js, or raw WebGPU may be leveraged.
 - **Progressive Enhancement:** Implement WebGPU with progressive enhancement and graceful WebGL2/Canvas fallbacks to guarantee high frame rates across low-power mobile devices and Chromebooks.
 
