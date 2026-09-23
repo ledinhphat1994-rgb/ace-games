@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { usePhien } from '@/app/phien'
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Sparkles, Users, BookOpen, Clock, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useQuickStartLock } from './quick-start-controller'
 
 export interface QuickStartStudyModalProps {
   open: boolean
@@ -60,62 +61,58 @@ const QUICK_TEMPLATES: QuickTemplate[] = [
 export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickStartStudyModalProps) {
   const { nguoiDung } = usePhien()
   const [selectedTemplate, setSelectedTemplate] = useState<string>('solo_focus')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const inFlightRef = useRef(false)
-
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      inFlightRef.current = false
-      setIsSubmitting(false)
-    }
-    onOpenChange(newOpen)
-  }
+  const { isInFlight, handleOpenChange, execute } = useQuickStartLock()
 
   const displayName = nguoiDung.ten || nguoiDung.username
   const className = nguoiDung.lop?.ten || (nguoiDung.lopId ? `Lớp ${nguoiDung.lopId}` : undefined)
 
   const handleStart = async () => {
-    if (inFlightRef.current) return
-    inFlightRef.current = true
-    setIsSubmitting(true)
+    if (isInFlight) return
 
     const template = QUICK_TEMPLATES.find((t) => t.id === selectedTemplate) || QUICK_TEMPLATES[0]
     const phamVi = template.phamVi === 'lop' && nguoiDung.lopId ? 'lop' : 'truong'
     const roomName = template.defaultName(displayName, className)
 
-    try {
-      const res = await fetch('/api/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ten: roomName,
-          moTa: template.description,
-          phamVi,
-          lopId: phamVi === 'lop' ? nguoiDung.lopId : undefined,
-          accessMode: 'public',
-          sucChua: template.sucChua,
-        }),
-      })
+    await execute(
+      async () => {
+        const res = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ten: roomName,
+            moTa: template.description,
+            phamVi,
+            lopId: phamVi === 'lop' ? nguoiDung.lopId : undefined,
+            accessMode: 'public',
+            sucChua: template.sucChua,
+          }),
+        })
 
-      const data = await res.json()
-      if (!res.ok || !data.ok) {
-        throw new Error(data.loi || data.error || 'Không thể tạo phòng học nhanh.')
+        const data = await res.json()
+        if (!res.ok || !data.ok) {
+          throw new Error(data.loi || data.error || 'Không thể tạo phòng học nhanh.')
+        }
+        return data
+      },
+      {
+        onSuccess: (data) => {
+          toast.success('Đã tạo phòng học thành công!')
+          onOpenChange(false)
+          onSuccess(data.room.id)
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : 'Lỗi khi khởi tạo phòng học.')
+        },
       }
-
-      toast.success('Đã tạo phòng học thành công!')
-      onOpenChange(false)
-      onSuccess(data.room.id)
-    } catch (err) {
-      inFlightRef.current = false
-      toast.error(err instanceof Error ? err.message : 'Lỗi khi khởi tạo phòng học.')
-    } finally {
-      setIsSubmitting(false)
-    }
+    )
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md bg-[#0c1222] border-white/10 text-white p-5 sm:p-6 rounded-2xl shadow-2xl">
+    <Dialog open={open} onOpenChange={(newOpen) => handleOpenChange(newOpen, onOpenChange)}>
+      <DialogContent
+        showCloseButton={!isInFlight}
+        className="sm:max-w-md bg-[#0c1222] border-white/10 text-white p-5 sm:p-6 rounded-2xl shadow-2xl"
+      >
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
@@ -140,6 +137,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
               <button
                 key={tmpl.id}
                 type="button"
+                disabled={isInFlight}
                 onClick={() => setSelectedTemplate(tmpl.id)}
                 className={`w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
                   isSelected
@@ -181,8 +179,8 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
+            onClick={() => handleOpenChange(false, onOpenChange)}
+            disabled={isInFlight}
             className="text-xs text-slate-400 hover:text-white"
           >
             Hủy
@@ -192,10 +190,10 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
             type="button"
             size="sm"
             onClick={handleStart}
-            disabled={isSubmitting}
+            disabled={isInFlight}
             className="h-9 px-4 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20 gap-2"
           >
-            {isSubmitting ? (
+            {isInFlight ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 <span>Đang tạo phòng...</span>

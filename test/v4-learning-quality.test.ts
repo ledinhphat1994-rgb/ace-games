@@ -9,6 +9,10 @@ import {
   deriveChallengeProgress,
 } from '../src/features/hub/learning-semantics'
 import { deriveProgressState, type ProgressDataResponse } from '../src/components/progress/progress-state'
+import {
+  QuickStartSubmissionLock,
+  quickStartLock,
+} from '../src/features/hub/components/learning/quick-start-controller'
 import type { PhongSanh } from '../shared/protocol/campus'
 import type { ClassChallenge } from '../shared/protocol/engagement'
 
@@ -258,34 +262,135 @@ describe('V4 Learning Experience & Functional Quality Contracts', () => {
   })
 
   // ── 5. QuickStart In-flight Guard Against Double Submission ─────────────────
-  describe('5. QuickStart Mutation Double Submission Guard', () => {
-    it('J. QuickStart in-flight ref prevents duplicate POST requests upon rapid double-clicks', async () => {
+  describe('5. QuickStart Mutation Double Submission Guard (QuickStartSubmissionLock)', () => {
+    it('J. Regression: Invariant AT MOST ONE POST /api/rooms while pending, closing/reopening dialog does NOT reset lock', async () => {
+      const lock = new QuickStartSubmissionLock()
+      let postCallCount = 0
+      let rejectPost1: (err: unknown) => void = () => {}
+
+      const pendingPromise = new Promise((_resolve, reject) => {
+        rejectPost1 = reject
+      })
+
+      const mockFetchRooms = vi.fn().mockImplementation(() => {
+        postCallCount++
+        return pendingPromise
+      })
+
+      let modalOpen = true
+      const setModalOpen = (open: boolean) => {
+        modalOpen = open
+      }
+
+      // Step 1: User clicks Quick Start submit -> POST #1 begins and remains pending
+      const execution1Promise = lock.execute(
+        () => mockFetchRooms(),
+        {
+          onSuccess: () => { modalOpen = false },
+          onError: () => {},
+        }
+      )
+
+      expect(lock.isInFlight()).toBe(true)
+      expect(lock.canDismiss()).toBe(false)
+      expect(postCallCount).toBe(1)
+
+      // Step 2: User attempts to close modal via X / ESC / overlay / Cancel button
+      const dismissAllowed = lock.handleOpenChange(false, setModalOpen)
+      expect(dismissAllowed).toBe(false)
+      expect(modalOpen).toBe(true) // Modal dismissal is blocked
+      expect(lock.isInFlight()).toBe(true) // In-flight lock is NEVER cleared by close attempt!
+
+      // Step 3: Even if modal were somehow visually closed externally and then reopened
+      modalOpen = false
+      expect(lock.isInFlight()).toBe(true) // Lock strictly persists!
+
+      // Reopening modal
+      lock.handleOpenChange(true, setModalOpen)
+      expect(modalOpen).toBe(true)
+      expect(lock.isInFlight()).toBe(true)
+
+      // Step 4: User clicks submit again before POST #1 settles
+      const execution2Result = await lock.execute(
+        () => mockFetchRooms(),
+        {
+          onSuccess: () => {},
+          onError: () => {},
+        }
+      )
+
+      // Assert Invariant: AT MOST ONE POST /api/rooms until request settles
+      expect(execution2Result.executed).toBe(false)
+      expect(postCallCount).toBe(1)
+      expect(mockFetchRooms).toHaveBeenCalledTimes(1)
+
+      // Step 5: POST #1 fails (rejects with network error)
+      rejectPost1(new Error('Mạng bị gián đoạn khi kết nối D1'))
+      const execution1Result = await execution1Promise
+
+      expect(execution1Result.executed).toBe(true)
+      expect(execution1Result.error).toBeDefined()
+      expect(lock.isInFlight()).toBe(false) // Lock is ONLY released after the request settles
+      expect(lock.canDismiss()).toBe(true)
+
+      // Step 6: On failure, retry becomes possible; second attempt after settle is allowed
+      const mockPostRetry = vi.fn().mockResolvedValue({ ok: true, room: { id: 202 } })
+      const retryResult = await lock.execute(
+        () => mockPostRetry(),
+        {
+          onSuccess: () => { modalOpen = false },
+          onError: () => {},
+        }
+      )
+
+      expect(retryResult.executed).toBe(true)
+      expect(mockPostRetry).toHaveBeenCalledTimes(1)
+      expect(modalOpen).toBe(false)
+    })
+
+    it('J2. Success Lifecycle: Success triggers callbacks exactly once, closes modal, and settles cleanly', async () => {
+      const lock = new QuickStartSubmissionLock()
+      let postCallCount = 0
+      let modalOpen = true
+      let navigatedRoomId: number | null = null
+
+      const mockSuccessFetch = vi.fn().mockImplementation(async () => {
+        postCallCount++
+        return { ok: true, room: { id: 777, ten: 'Phòng học 10A7' } }
+      })
+
+      const result = await lock.execute(
+        () => mockSuccessFetch(),
+        {
+          onSuccess: (data: { room: { id: number } }) => {
+            navigatedRoomId = data.room.id
+            modalOpen = false
+          },
+          onError: () => {},
+        }
+      )
+
+      expect(result.executed).toBe(true)
+      expect(postCallCount).toBe(1)
+      expect(navigatedRoomId).toBe(777)
+      expect(modalOpen).toBe(false)
+      expect(lock.isInFlight()).toBe(false)
+      expect(lock.canDismiss()).toBe(true)
+    })
+
+    it('J3. Rapid Concurrent Clicks: Promise.all simultaneous calls drop duplicate execution', async () => {
+      const lock = new QuickStartSubmissionLock()
       let callCount = 0
       const mockFetch = vi.fn().mockImplementation(async () => {
         callCount++
-        await new Promise((r) => setTimeout(r, 50))
-        return {
-          ok: true,
-          json: async () => ({ ok: true, room: { id: 101, ten: 'Phòng tập trung' } }),
-        }
+        await new Promise((r) => setTimeout(r, 20))
+        return { ok: true, room: { id: 999 } }
       })
 
-      // Simulate the exact inFlightRef guard implemented in QuickStartStudyModal
-      const inFlightRef = { current: false }
-
-      const executeStart = async () => {
-        if (inFlightRef.current) return { executed: false }
-        inFlightRef.current = true
-        try {
-          await mockFetch('/api/rooms', { method: 'POST' })
-          return { executed: true }
-        } finally {
-          // In real component, on unmount/success it completes; on error it releases
-        }
-      }
-
-      // Fire two simultaneous calls without awaiting between them (rapid double click)
-      const [res1, res2] = await Promise.all([executeStart(), executeStart()])
+      const [res1, res2] = await Promise.all([
+        lock.execute(() => mockFetch(), { onSuccess: () => {}, onError: () => {} }),
+        lock.execute(() => mockFetch(), { onSuccess: () => {}, onError: () => {} }),
+      ])
 
       expect(res1.executed).toBe(true)
       expect(res2.executed).toBe(false)
@@ -293,37 +398,10 @@ describe('V4 Learning Experience & Functional Quality Contracts', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
     })
 
-    it('J2. QuickStart in-flight guard releases upon failure so user can retry', async () => {
-      let callCount = 0
-      const mockFailingFetch = vi.fn().mockImplementation(async () => {
-        callCount++
-        throw new Error('Connection failed')
-      })
-
-      const inFlightRef = { current: false }
-
-      const executeStart = async () => {
-        if (inFlightRef.current) return { executed: false, error: null }
-        inFlightRef.current = true
-        try {
-          await mockFailingFetch('/api/rooms', { method: 'POST' })
-          return { executed: true, error: null }
-        } catch (err) {
-          inFlightRef.current = false // Released on catch
-          return { executed: true, error: err }
-        }
-      }
-
-      // First call fails
-      const res1 = await executeStart()
-      expect(res1.executed).toBe(true)
-      expect(res1.error).toBeDefined()
-      expect(inFlightRef.current).toBe(false) // Released
-
-      // Second call (retry) is allowed and executed
-      const res2 = await executeStart()
-      expect(res2.executed).toBe(true)
-      expect(callCount).toBe(2)
+    it('J4. Module singleton quickStartLock preserves lock state across callers', () => {
+      expect(quickStartLock).toBeInstanceOf(QuickStartSubmissionLock)
+      expect(quickStartLock.isInFlight()).toBe(false)
+      expect(quickStartLock.canDismiss()).toBe(true)
     })
   })
 
