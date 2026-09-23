@@ -27,12 +27,16 @@ export interface LearningSubject {
 
 export const LEARNING_SUBJECTS: LearningSubject[] = [
   { id: 'tat_ca', label: 'Tất cả môn', shortLabel: 'Tất cả', keywords: [], accentColor: 'cyan' },
-  { id: 'toan', label: 'Toán học', shortLabel: 'Toán', keywords: ['toán', 'toan', 'math', 'đại số', 'hình học', 'giải tích'], accentColor: 'blue' },
-  { id: 'tieng-anh', label: 'Tiếng Anh', shortLabel: 'Anh', keywords: ['anh', 'english', 'ielts', 'toeic', 'ngữ pháp', 'từ vựng'], accentColor: 'purple' },
-  { id: 'ngu-van', label: 'Ngữ văn', shortLabel: 'Văn', keywords: ['văn', 'van', 'ngữ văn', 'văn học', 'nghị luận'], accentColor: 'rose' },
-  { id: 'vat-li', label: 'Vật lí', shortLabel: 'Lý', keywords: ['lý', 'ly', 'vật lí', 'vat li', 'physics'], accentColor: 'amber' },
-  { id: 'hoa-hoc', label: 'Hóa học', shortLabel: 'Hóa', keywords: ['hóa', 'hoa', 'chemistry'], accentColor: 'emerald' },
-  { id: 'tin-hoc', label: 'Tin học', shortLabel: 'Tin', keywords: ['tin', 'it', 'code', 'lập trình', 'tin học', 'python', 'pascal'], accentColor: 'indigo' },
+  { id: 'toan', label: 'Toán học', shortLabel: 'Toán', keywords: ['toán', 'toan', 'math', 'đại số', 'hình học', 'giải tích', 'môn toán', 'toán 10', 'toán 11', 'toán 12'], accentColor: 'blue' },
+  { id: 'ngu-van', label: 'Ngữ văn', shortLabel: 'Văn', keywords: ['ngữ văn', 'ngu van', 'văn học', 'van hoc', 'nghị luận', 'môn văn', 'văn 10', 'văn 11', 'văn 12', 'tiếng việt', 'học văn'], accentColor: 'rose' },
+  { id: 'tieng-anh', label: 'Tiếng Anh', shortLabel: 'Anh', keywords: ['tiếng anh', 'tieng anh', 'english', 'ielts', 'toeic', 'anh văn', 'môn anh', 'anh 10', 'anh 11', 'anh 12'], accentColor: 'purple' },
+  { id: 'vat-li', label: 'Vật lí', shortLabel: 'Lý', keywords: ['vật lí', 'vật lý', 'vat li', 'vat ly', 'physics', 'môn lý', 'lý 10', 'lý 11', 'lý 12'], accentColor: 'amber' },
+  { id: 'hoa-hoc', label: 'Hóa học', shortLabel: 'Hóa', keywords: ['hóa học', 'hoa hoc', 'hoá học', 'chemistry', 'môn hóa', 'hóa 10', 'hóa 11', 'hóa 12'], accentColor: 'emerald' },
+  { id: 'sinh-hoc', label: 'Sinh học', shortLabel: 'Sinh', keywords: ['sinh học', 'sinh hoc', 'biology', 'môn sinh', 'sinh 10', 'sinh 11', 'sinh 12'], accentColor: 'green' },
+  { id: 'lich-su', label: 'Lịch sử', shortLabel: 'Sử', keywords: ['lịch sử', 'lich su', 'history', 'môn sử', 'sử 10', 'sử 11', 'sử 12'], accentColor: 'orange' },
+  { id: 'dia-li', label: 'Địa lí', shortLabel: 'Địa', keywords: ['địa lí', 'địa lý', 'dia li', 'dia ly', 'geography', 'môn địa', 'địa 10', 'địa 11', 'địa 12'], accentColor: 'yellow' },
+  { id: 'tin-hoc', label: 'Tin học', shortLabel: 'Tin', keywords: ['tin học', 'tin hoc', 'lập trình', 'lap trinh', 'coding', 'python', 'pascal', 'computer science', 'môn tin', 'tin 10', 'tin 11', 'tin 12'], accentColor: 'indigo' },
+  { id: 'gdcd', label: 'GDCD / GDKT&PL', shortLabel: 'GDCD', keywords: ['gdcd', 'kinh tế và pháp luật', 'gdkt&pl', 'gdktpl', 'pháp luật', 'công dân', 'môn gdcd', 'kinh tế pháp luật'], accentColor: 'teal' },
 ]
 
 /**
@@ -40,7 +44,9 @@ export const LEARNING_SUBJECTS: LearningSubject[] = [
  */
 export function matchRoomSubject(room: PhongSanh, subjectId: string): boolean {
   if (subjectId === 'tat_ca') return true
-  if (room.monHoc && room.monHoc.toLowerCase() === subjectId.toLowerCase()) return true
+  if (room.monHoc) {
+    return room.monHoc.toLowerCase() === subjectId.toLowerCase()
+  }
 
   const subject = LEARNING_SUBJECTS.find((s) => s.id === subjectId)
   if (!subject || subject.keywords.length === 0) return false

@@ -100,6 +100,7 @@ export const MON_HOC = [
   { id: 'lich-su', ten: 'Lịch sử' },
   { id: 'dia-li', ten: 'Địa lí' },
   { id: 'tin-hoc', ten: 'Tin học' },
+  { id: 'gdcd', ten: 'GDCD / GDKT&PL' },
   { id: 'khac', ten: 'Tự học / khác' },
 ] as const
 export type MonHoc = (typeof MON_HOC)[number]['id']

@@ -19,7 +19,11 @@ export function ClassChallengeCard() {
     queryFn: async () => {
       const res = await fetch('/api/engagement/challenges')
       if (!res.ok) throw new Error('Không thể tải thử thách học tập của lớp.')
-      return res.json()
+      const json = await res.json()
+      if (!json || json.ok !== true) {
+        throw new Error(json?.loi || json?.error || 'Không thể tải thử thách học tập của lớp.')
+      }
+      return json
     },
     staleTime: 60_000,
   })

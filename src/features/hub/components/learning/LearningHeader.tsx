@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
-import { Flame, Sparkles, Plus, BookOpen } from 'lucide-react'
-import type { EngagementProfile } from '@shared/protocol/engagement'
+import { Flame, Sparkles, Plus, BookOpen, AlertCircle, RotateCw } from 'lucide-react'
+import { deriveProgressState, type ProgressDataResponse } from '@/components/progress/progress-state'
 
 interface LearningHeaderProps {
   onOpenCreateRoom: () => void
@@ -12,21 +12,36 @@ interface LearningHeaderProps {
 export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningHeaderProps) {
   const { nguoiDung } = usePhien()
 
-  const { data: profileData } = useQuery<{
-    ok: boolean
-    profile: EngagementProfile
-  }>({
+  const {
+    data: profileData,
+    isLoading: loadingProfile,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useQuery<ProgressDataResponse>({
     queryKey: ['engagement', 'me'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/me')
       if (!res.ok) throw new Error('Không thể tải hồ sơ học tập.')
-      return res.json()
+      const json = (await res.json()) as ProgressDataResponse
+      if (!json || json.ok === false) {
+        throw new Error(json?.loi || json?.message || 'Không thể tải hồ sơ học tập.')
+      }
+      if (!json.profile) {
+        throw new Error('Dữ liệu hồ sơ học tập không hợp lệ.')
+      }
+      return json
     },
     staleTime: 30_000,
   })
 
-  const streak = profileData?.profile?.currentStreak ?? 0
-  const todayXp = profileData?.profile?.todayXp ?? 0
+  const progressState = deriveProgressState({
+    isLoading: loadingProfile,
+    isError: isProfileError,
+    data: profileData,
+    error: profileError,
+  })
+
   const displayName = nguoiDung.ten || nguoiDung.username
 
   return (
@@ -58,17 +73,44 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
           </h1>
 
           {/* Quick Truthful Metrics Badges */}
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-bold text-amber-300">
-              <Flame className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-              <span>Chuỗi {streak} ngày</span>
+          {progressState.type === 'loading' && (
+            <div className="flex items-center gap-2 pt-0.5" data-testid="learning-header-loading">
+              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
             </div>
+          )}
 
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-              <span>+{todayXp} XP hôm nay</span>
+          {progressState.type === 'error' && (
+            <div className="flex items-center gap-2 pt-0.5" data-testid="learning-header-error">
+              <span className="text-xs text-rose-300 font-medium flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                Không tải được tiến trình
+              </span>
+              <button
+                type="button"
+                onClick={() => refetchProfile()}
+                className="text-[11px] font-semibold text-rose-400 hover:text-rose-200 underline ml-1 cursor-pointer flex items-center gap-1"
+                title="Thử lại"
+              >
+                <RotateCw className="h-2.5 w-2.5" />
+                <span>Thử lại</span>
+              </button>
             </div>
-          </div>
+          )}
+
+          {progressState.type === 'success' && (
+            <div className="flex flex-wrap items-center gap-2 pt-0.5" data-testid="learning-header-success">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-bold text-amber-300">
+                <Flame className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                <span>Chuỗi {progressState.currentStreak} ngày</span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-xs font-bold text-cyan-300">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span>+{progressState.todayXp} XP hôm nay</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Primary Call-to-Actions */}

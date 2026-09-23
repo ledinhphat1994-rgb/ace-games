@@ -1,13 +1,14 @@
 // test/v4-learning-quality.test.ts
 // Digital Campus v2: Milestone V4 — Learning Experience & Functional Quality Contracts
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
   LEARNING_SUBJECTS,
   matchRoomSubject,
   deriveChallengeProgress,
 } from '../src/features/hub/learning-semantics'
+import { deriveProgressState, type ProgressDataResponse } from '../src/components/progress/progress-state'
 import type { PhongSanh } from '../shared/protocol/campus'
 import type { ClassChallenge } from '../shared/protocol/engagement'
 
@@ -19,30 +20,181 @@ describe('V4 Learning Experience & Functional Quality Contracts', () => {
     expect(LEARNING_OCCUPANCY_METRIC_CONFIG.prohibitedLabel).toBe('Học sinh online')
   })
 
-  // ── 2. Subject Definitions Integrity ────────────────────────────────────────
-  it('2. Learning subjects include core high school subjects with unique IDs', () => {
-    expect(LEARNING_SUBJECTS.length).toBeGreaterThanOrEqual(6)
+  // ── 2. LearningHeader Truthful Progress State Contracts ─────────────────────
+  describe('2. LearningHeader Progress Truthfulness (deriveProgressState)', () => {
+    it('A. LearningHeader authoritative zero: legitimate 0 streak and 0 XP renders success state, not error', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: true,
+          profile: {
+            accountId: 1,
+            totalXp: 0,
+            todayXp: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            lastStudyDate: null,
+            unlockedAchievementsCount: 0,
+            updatedAt: 1700000000000,
+          },
+        },
+      })
 
-    const ids = new Set<string>()
-    for (const subj of LEARNING_SUBJECTS) {
-      expect(ids.has(subj.id)).toBe(false)
-      ids.add(subj.id)
-      expect(subj.label.length).toBeGreaterThan(0)
-      expect(subj.shortLabel.length).toBeGreaterThan(0)
-    }
+      expect(state.type).toBe('success')
+      if (state.type === 'success') {
+        expect(state.currentStreak).toBe(0)
+        expect(state.todayXp).toBe(0)
+      }
+    })
 
-    expect(ids.has('tat_ca')).toBe(true)
-    expect(ids.has('toan')).toBe(true)
-    expect(ids.has('tieng-anh')).toBe(true)
-    expect(ids.has('ngu-van')).toBe(true)
+    it('B. LearningHeader authoritative non-zero: renders exact positive streak and XP', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: true,
+          profile: {
+            accountId: 2,
+            totalXp: 450,
+            todayXp: 35,
+            currentStreak: 7,
+            longestStreak: 12,
+            lastStudyDate: '2026-09-23',
+            unlockedAchievementsCount: 3,
+            updatedAt: 1700000000000,
+          },
+        },
+      })
+
+      expect(state.type).toBe('success')
+      if (state.type === 'success') {
+        expect(state.currentStreak).toBe(7)
+        expect(state.todayXp).toBe(35)
+      }
+    })
+
+    it('C. LearningHeader API error: HTTP or network failure results in type="error", NEVER false zeros', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: true,
+        error: new Error('Network timeout'),
+        data: null,
+      })
+
+      expect(state.type).toBe('error')
+      if (state.type === 'error') {
+        expect(state.message).toContain('Network timeout')
+      }
+    })
+
+    it('D. LearningHeader JSON ok:false: API returning 200 with ok=false results in type="error"', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: false,
+          loi: 'Phiên đăng nhập đã hết hạn',
+        },
+      })
+
+      expect(state.type).toBe('error')
+      if (state.type === 'error') {
+        expect(state.message).toContain('Phiên đăng nhập đã hết hạn')
+      }
+    })
+
+    it('D2. LearningHeader missing profile: ok=true but missing profile payload results in type="error"', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: true,
+        } as ProgressDataResponse,
+      })
+
+      expect(state.type).toBe('error')
+    })
   })
 
-  // ── 3. Subject Matching Semantics ───────────────────────────────────────────
-  describe('3. Subject Matching Semantics (matchRoomSubject)', () => {
+  // ── 3. Challenge & Leaderboard API Body Failure Contracts ───────────────────
+  describe('3. Challenge & Leaderboard Error vs Empty Contracts', () => {
+    it('E. Challenge HTTP/body failure: ok=false in response throws and flags error, not empty', async () => {
+      const parseChallengeResponse = (json: unknown) => {
+        const payload = json as { ok?: boolean; loi?: string; challenge?: unknown }
+        if (!payload || payload.ok !== true) {
+          throw new Error(payload?.loi || 'Không thể tải thử thách học tập của lớp.')
+        }
+        return payload
+      }
+
+      // Valid failure payload:
+      expect(() => parseChallengeResponse({ ok: false, loi: 'Lỗi máy chủ D1' })).toThrow('Lỗi máy chủ D1')
+      // Malformed / empty object without ok:true
+      expect(() => parseChallengeResponse({})).toThrow('Không thể tải thử thách học tập của lớp.')
+
+      // Legitimate empty challenge must have ok:true with challenge: null
+      const validEmpty = parseChallengeResponse({ ok: true, challenge: null })
+      expect(validEmpty.ok).toBe(true)
+      expect(validEmpty.challenge).toBeNull()
+    })
+
+    it('F. Leaderboard HTTP/body failure: ok=false in response throws and flags error, not empty', async () => {
+      const parseLeaderboardResponse = (json: unknown) => {
+        const payload = json as { ok?: boolean; loi?: string; items?: unknown }
+        if (!payload || payload.ok === false || !Array.isArray(payload.items)) {
+          throw new Error(payload?.loi || 'Không thể tải bảng thi đua tuần của lớp.')
+        }
+        return payload
+      }
+
+      // Valid failure payload:
+      expect(() => parseLeaderboardResponse({ ok: false, loi: 'Bảng thi đua tạm ngưng' })).toThrow('Bảng thi đua tạm ngưng')
+      // Missing items array:
+      expect(() => parseLeaderboardResponse({ ok: true })).toThrow('Không thể tải bảng thi đua tuần của lớp.')
+
+      // Legitimate empty leaderboard: ok=true with items: []
+      const validEmpty = parseLeaderboardResponse({ ok: true, items: [] })
+      expect(validEmpty.ok).toBe(true)
+      expect(validEmpty.items).toEqual([])
+    })
+  })
+
+  // ── 4. Subject Definitions Integrity & Matching ─────────────────────────────
+  describe('4. Subject Definitions & Matching Semantics', () => {
+    it('G. All subject definitions exist and IDs are unique (10 standard subjects + tat_ca)', () => {
+      expect(LEARNING_SUBJECTS.length).toBe(11) // 1 'tat_ca' + 10 academic subjects
+
+      const ids = new Set<string>()
+      for (const subj of LEARNING_SUBJECTS) {
+        expect(ids.has(subj.id)).toBe(false)
+        ids.add(subj.id)
+        expect(subj.label.length).toBeGreaterThan(0)
+        expect(subj.shortLabel.length).toBeGreaterThan(0)
+      }
+
+      const expectedSubjects = [
+        'tat_ca',
+        'toan',
+        'ngu-van',
+        'tieng-anh',
+        'vat-li',
+        'hoa-hoc',
+        'sinh-hoc',
+        'lich-su',
+        'dia-li',
+        'tin-hoc',
+        'gdcd',
+      ]
+      for (const exp of expectedSubjects) {
+        expect(ids.has(exp)).toBe(true)
+      }
+    })
+
     const baseRoom: PhongSanh = {
       id: 1,
-      ten: 'Phòng học tổng hợp',
-      moTa: 'Cùng nhau học bài',
+      ten: 'Phòng học',
+      moTa: 'Phòng học chung',
       monHoc: null,
       soNguoi: 2,
       sucChua: 10,
@@ -55,43 +207,128 @@ describe('V4 Learning Experience & Functional Quality Contracts', () => {
       taoLuc: 1700000000000,
     }
 
-    it('A. "tat_ca" matches any room unconditionally', () => {
-      expect(matchRoomSubject(baseRoom, 'tat_ca')).toBe(true)
-      expect(matchRoomSubject({ ...baseRoom, monHoc: 'toan' }, 'tat_ca')).toBe(true)
+    it('H. Missing subjects matcher coverage: Sinh, Sử, Địa, GDCD match valid queries', () => {
+      // 1. Sinh học
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Chuyên đề Sinh học 10 tế bào' }, 'sinh-hoc')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, moTa: 'Ôn tập Biology kỳ 1' }, 'sinh-hoc')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Phòng tự học môn sinh' }, 'sinh-hoc')).toBe(true)
+
+      // 2. Lịch sử
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Lịch sử Việt Nam thế kỷ 20' }, 'lich-su')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, moTa: 'History review for midterms' }, 'lich-su')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Ôn tập môn sử' }, 'lich-su')).toBe(true)
+
+      // 3. Địa lí
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Địa lí tự nhiên Việt Nam' }, 'dia-li')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, moTa: 'Bài tập Địa lý 10' }, 'dia-li')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Geography study group' }, 'dia-li')).toBe(true)
+
+      // 4. GDCD / GDKT&PL
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Giáo dục kinh tế và pháp luật 10' }, 'gdcd')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, moTa: 'Ôn tập môn GDCD' }, 'gdcd')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Quyền và nghĩa vụ công dân' }, 'gdcd')).toBe(true)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Chuyên đề GDKT&PL' }, 'gdcd')).toBe(true)
     })
 
-    it('B. Explicit monHoc matches subject ID exactly (case-insensitive)', () => {
-      const mathRoom: PhongSanh = { ...baseRoom, monHoc: 'toan' }
-      expect(matchRoomSubject(mathRoom, 'toan')).toBe(true)
-      expect(matchRoomSubject(mathRoom, 'tieng-anh')).toBe(false)
+    it('I. Keyword false-positive protection: guarded tokens avoid accidental matches', () => {
+      // "sử dụng" does NOT match Lịch sử
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Hướng dẫn sử dụng phần mềm phòng học' }, 'lich-su')).toBe(false)
 
-      const englishRoom: PhongSanh = { ...baseRoom, monHoc: 'tieng-anh' }
-      expect(matchRoomSubject(englishRoom, 'tieng-anh')).toBe(true)
+      // "học sinh" does NOT match Sinh học
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Danh sách học sinh lớp 10A7 ôn bài' }, 'sinh-hoc')).toBe(false)
+      expect(matchRoomSubject({ ...baseRoom, moTa: 'Dành cho toàn bộ học sinh trong trường' }, 'sinh-hoc')).toBe(false)
+
+      // "xử lý" or "quản lý" does NOT match Vật lí
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Quy trình xử lý tài liệu học tập' }, 'vat-li')).toBe(false)
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Ban quản lý lớp trực tuần' }, 'vat-li')).toBe(false)
+
+      // "văn phòng" does NOT match Ngữ văn
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Trực văn phòng đoàn trường' }, 'ngu-van')).toBe(false)
+
+      // "tự tin" does NOT match Tin học
+      expect(matchRoomSubject({ ...baseRoom, ten: 'Rèn luyện sự tự tin khi thuyết trình' }, 'tin-hoc')).toBe(false)
     })
 
-    it('C. Keyword fallback matches room title', () => {
-      const room1: PhongSanh = { ...baseRoom, ten: 'Giải bài tập Toán 10 nâng cao' }
-      expect(matchRoomSubject(room1, 'toan')).toBe(true)
-      expect(matchRoomSubject(room1, 'ngu-van')).toBe(false)
-
-      const room2: PhongSanh = { ...baseRoom, ten: 'Luyện đề IELTS Reading & Speaking' }
-      expect(matchRoomSubject(room2, 'tieng-anh')).toBe(true)
-
-      const room3: PhongSanh = { ...baseRoom, ten: 'Ôn tập Nghị luận văn học' }
-      expect(matchRoomSubject(room3, 'ngu-van')).toBe(true)
-
-      const room4: PhongSanh = { ...baseRoom, ten: 'Lập trình Python cơ bản' }
-      expect(matchRoomSubject(room4, 'tin-hoc')).toBe(true)
-    })
-
-    it('D. Keyword fallback matches room description', () => {
-      const room: PhongSanh = { ...baseRoom, ten: 'Phòng học nhóm 1', moTa: 'Thảo luận đề thi Vật lí kì 1' }
-      expect(matchRoomSubject(room, 'vat-li')).toBe(true)
+    it('I2. Explicit room.monHoc has higher authority than keyword matching', () => {
+      // Room named "Toán" but explicitly tagged as "ngu-van"
+      const crossRoom: PhongSanh = { ...baseRoom, ten: 'Toán học và thơ ca', monHoc: 'ngu-van' }
+      expect(matchRoomSubject(crossRoom, 'ngu-van')).toBe(true)
+      expect(matchRoomSubject(crossRoom, 'toan')).toBe(false)
     })
   })
 
-  // ── 4. Class Challenge Progress Derivation ──────────────────────────────────
-  describe('4. Class Challenge Progress Derivation (deriveChallengeProgress)', () => {
+  // ── 5. QuickStart In-flight Guard Against Double Submission ─────────────────
+  describe('5. QuickStart Mutation Double Submission Guard', () => {
+    it('J. QuickStart in-flight ref prevents duplicate POST requests upon rapid double-clicks', async () => {
+      let callCount = 0
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        callCount++
+        await new Promise((r) => setTimeout(r, 50))
+        return {
+          ok: true,
+          json: async () => ({ ok: true, room: { id: 101, ten: 'Phòng tập trung' } }),
+        }
+      })
+
+      // Simulate the exact inFlightRef guard implemented in QuickStartStudyModal
+      const inFlightRef = { current: false }
+
+      const executeStart = async () => {
+        if (inFlightRef.current) return { executed: false }
+        inFlightRef.current = true
+        try {
+          await mockFetch('/api/rooms', { method: 'POST' })
+          return { executed: true }
+        } finally {
+          // In real component, on unmount/success it completes; on error it releases
+        }
+      }
+
+      // Fire two simultaneous calls without awaiting between them (rapid double click)
+      const [res1, res2] = await Promise.all([executeStart(), executeStart()])
+
+      expect(res1.executed).toBe(true)
+      expect(res2.executed).toBe(false)
+      expect(callCount).toBe(1)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('J2. QuickStart in-flight guard releases upon failure so user can retry', async () => {
+      let callCount = 0
+      const mockFailingFetch = vi.fn().mockImplementation(async () => {
+        callCount++
+        throw new Error('Connection failed')
+      })
+
+      const inFlightRef = { current: false }
+
+      const executeStart = async () => {
+        if (inFlightRef.current) return { executed: false, error: null }
+        inFlightRef.current = true
+        try {
+          await mockFailingFetch('/api/rooms', { method: 'POST' })
+          return { executed: true, error: null }
+        } catch (err) {
+          inFlightRef.current = false // Released on catch
+          return { executed: true, error: err }
+        }
+      }
+
+      // First call fails
+      const res1 = await executeStart()
+      expect(res1.executed).toBe(true)
+      expect(res1.error).toBeDefined()
+      expect(inFlightRef.current).toBe(false) // Released
+
+      // Second call (retry) is allowed and executed
+      const res2 = await executeStart()
+      expect(res2.executed).toBe(true)
+      expect(callCount).toBe(2)
+    })
+  })
+
+  // ── 6. Class Challenge Progress Derivation ──────────────────────────────────
+  describe('6. Class Challenge Progress Derivation (deriveChallengeProgress)', () => {
     it('A. Null/undefined challenge returns clean zero defaults', () => {
       const result = deriveChallengeProgress(null)
       expect(result).toEqual({

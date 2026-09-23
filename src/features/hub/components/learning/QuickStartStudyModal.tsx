@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { usePhien } from '@/app/phien'
 import {
   Dialog,
@@ -30,10 +30,10 @@ interface QuickTemplate {
 const QUICK_TEMPLATES: QuickTemplate[] = [
   {
     id: 'solo_focus',
-    title: 'Tự học tập trung',
-    description: 'Không gian yên tĩnh với đồng hồ Pomodoro và bảng vẽ cá nhân.',
+    title: 'Học tập trung',
+    description: 'Phòng học nhỏ tối đa 2 người với Pomodoro và bảng vẽ.',
     icon: Clock,
-    defaultName: (name) => `Tự học tập trung · ${name}`,
+    defaultName: (name) => `Phòng tập trung · ${name}`,
     phamVi: 'truong',
     sucChua: 2,
   },
@@ -61,16 +61,28 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
   const { nguoiDung } = usePhien()
   const [selectedTemplate, setSelectedTemplate] = useState<string>('solo_focus')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const inFlightRef = useRef(false)
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      inFlightRef.current = false
+      setIsSubmitting(false)
+    }
+    onOpenChange(newOpen)
+  }
 
   const displayName = nguoiDung.ten || nguoiDung.username
   const className = nguoiDung.lop?.ten || (nguoiDung.lopId ? `Lớp ${nguoiDung.lopId}` : undefined)
 
   const handleStart = async () => {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    setIsSubmitting(true)
+
     const template = QUICK_TEMPLATES.find((t) => t.id === selectedTemplate) || QUICK_TEMPLATES[0]
     const phamVi = template.phamVi === 'lop' && nguoiDung.lopId ? 'lop' : 'truong'
     const roomName = template.defaultName(displayName, className)
 
-    setIsSubmitting(true)
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST',
@@ -94,6 +106,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
       onOpenChange(false)
       onSuccess(data.room.id)
     } catch (err) {
+      inFlightRef.current = false
       toast.error(err instanceof Error ? err.message : 'Lỗi khi khởi tạo phòng học.')
     } finally {
       setIsSubmitting(false)
@@ -101,7 +114,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md bg-[#0c1222] border-white/10 text-white p-5 sm:p-6 rounded-2xl shadow-2xl">
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">

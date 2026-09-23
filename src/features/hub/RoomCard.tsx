@@ -13,6 +13,7 @@ const TEN_MON_HOC: Record<string, string> = {
   'lich-su': 'Lịch sử',
   'dia-li': 'Địa lí',
   'tin-hoc': 'Tin học',
+  gdcd: 'GDCD / GDKT&PL',
   khac: 'Tự học',
 }
 

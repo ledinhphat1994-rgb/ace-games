@@ -20,7 +20,11 @@ export function ClassLeaderboardCard() {
     queryFn: async () => {
       const res = await fetch('/api/engagement/leaderboard')
       if (!res.ok) throw new Error('Không thể tải bảng thi đua tuần của lớp.')
-      return res.json()
+      const json = await res.json()
+      if (!json || json.ok !== true || !Array.isArray(json.items)) {
+        throw new Error(json?.loi || json?.error || 'Không thể tải bảng thi đua tuần của lớp.')
+      }
+      return json
     },
     staleTime: 60_000,
   })
