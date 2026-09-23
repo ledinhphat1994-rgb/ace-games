@@ -129,6 +129,8 @@ export interface RoomLifecycleLocalState {
   emptyRoomTtlMinutes: number
   maxRoomLifetimeMinutes: number
   autoCloseEnabled: boolean
+  retryAttempts?: number
+  nextRetryAt?: number
 }
 
 const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
@@ -145,6 +147,8 @@ const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
   emptyRoomTtlMinutes: 15,
   maxRoomLifetimeMinutes: 480,
   autoCloseEnabled: true,
+  retryAttempts: 0,
+  nextRetryAt: 0,
 }
 
 export class RoomDO extends DurableObject<Env> {
@@ -160,6 +164,12 @@ export class RoomDO extends DurableObject<Env> {
   private khoiTaoXong = false
   private lifecycleState: RoomLifecycleLocalState = { ...DEFAULT_LIFECYCLE_STATE }
   private lastD1ActivityPersistAt = 0
+  // P0 Alarm Storm Safety Fuse: Bộ đếm các lần overdue liên tiếp để backoff lũy tiến
+  private consecutiveOverdueAlarms = 0
+  // In-memory overrides đảm bảo next retry luôn tiến về tương lai kể cả khi SQLite gặp lỗi
+  private voiceRetryOverrides = new Map<string, { attempts: number; nextRetryAt: number }>()
+  private summaryRetryOverrides = new Map<string, { attempts: number; nextRetryAt: number }>()
+  private testFailD1LifecycleClaim = false
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
@@ -425,11 +435,19 @@ export class RoomDO extends DurableObject<Env> {
           never_joined_ttl_minutes INTEGER NOT NULL DEFAULT 5,
           empty_room_ttl_minutes INTEGER NOT NULL DEFAULT 15,
           max_room_lifetime_minutes INTEGER NOT NULL DEFAULT 480,
-          auto_close_enabled INTEGER NOT NULL DEFAULT 1
+          auto_close_enabled INTEGER NOT NULL DEFAULT 1,
+          retry_attempts INTEGER NOT NULL DEFAULT 0,
+          next_retry_at INTEGER NOT NULL DEFAULT 0
         );
       `)
       try {
         this.ctx.storage.sql.exec('ALTER TABLE pending_session_summary_sync ADD COLUMN facts_json TEXT')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN retry_attempts INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN next_retry_at INTEGER NOT NULL DEFAULT 0')
       } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -698,6 +716,8 @@ export class RoomDO extends DurableObject<Env> {
             empty_room_ttl_minutes: number
             max_room_lifetime_minutes: number
             auto_close_enabled: number
+            retry_attempts?: number
+            next_retry_at?: number
           }>('SELECT * FROM room_lifecycle WHERE id = 1'),
         ]
         if (lcRows.length > 0) {
@@ -716,6 +736,8 @@ export class RoomDO extends DurableObject<Env> {
             emptyRoomTtlMinutes: r.empty_room_ttl_minutes,
             maxRoomLifetimeMinutes: r.max_room_lifetime_minutes,
             autoCloseEnabled: Boolean(r.auto_close_enabled),
+            retryAttempts: r.retry_attempts || 0,
+            nextRetryAt: r.next_retry_at || 0,
           }
         }
       } catch (err) {
@@ -755,9 +777,10 @@ export class RoomDO extends DurableObject<Env> {
         `INSERT INTO room_lifecycle (
           id, created_at, ever_joined, last_join_at, last_participant_left_at,
           last_activity_at, is_closed, close_reason, closed_at, closed_by,
-          never_joined_ttl_minutes, empty_room_ttl_minutes, max_room_lifetime_minutes, auto_close_enabled
+          never_joined_ttl_minutes, empty_room_ttl_minutes, max_room_lifetime_minutes, auto_close_enabled,
+          retry_attempts, next_retry_at
         ) VALUES (
-          1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13
+          1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
         ) ON CONFLICT(id) DO UPDATE SET
           created_at = ?1,
           ever_joined = ?2,
@@ -771,7 +794,9 @@ export class RoomDO extends DurableObject<Env> {
           never_joined_ttl_minutes = ?10,
           empty_room_ttl_minutes = ?11,
           max_room_lifetime_minutes = ?12,
-          auto_close_enabled = ?13`,
+          auto_close_enabled = ?13,
+          retry_attempts = ?14,
+          next_retry_at = ?15`,
         this.lifecycleState.createdAt,
         this.lifecycleState.everJoined ? 1 : 0,
         this.lifecycleState.lastJoinAt,
@@ -785,6 +810,8 @@ export class RoomDO extends DurableObject<Env> {
         this.lifecycleState.emptyRoomTtlMinutes,
         this.lifecycleState.maxRoomLifetimeMinutes,
         this.lifecycleState.autoCloseEnabled ? 1 : 0,
+        this.lifecycleState.retryAttempts || 0,
+        this.lifecycleState.nextRetryAt || 0,
       )
     } catch (err) {
       console.error('[RoomDO] Lỗi lưu room_lifecycle:', err)
@@ -830,17 +857,21 @@ export class RoomDO extends DurableObject<Env> {
   getEarliestPendingVoiceRetryTime(_now = Date.now()): number | null {
     try {
       const rows = [...this.ctx.storage.sql.exec<{
+        revocation_id: string
         attempts: number
         last_attempt_at: number
         next_retry_at: number
         created_at: number
-      }>('SELECT attempts, last_attempt_at, next_retry_at, created_at FROM pending_voice_revocations')]
+      }>('SELECT revocation_id, attempts, last_attempt_at, next_retry_at, created_at FROM pending_voice_revocations')]
       if (rows.length === 0) return null
       let earliest = Infinity
       for (const r of rows) {
-        const dueAt = r.next_retry_at > 0
-          ? r.next_retry_at
-          : (r.last_attempt_at > 0 ? r.last_attempt_at + this.tinhVoiceBackoffDelay(r.attempts) : r.created_at)
+        const override = this.voiceRetryOverrides.get(r.revocation_id)
+        const attempts = override?.attempts ?? r.attempts
+        let dueAt = override?.nextRetryAt ?? (r.next_retry_at > 0 ? r.next_retry_at : 0)
+        if (dueAt === 0) {
+          dueAt = r.last_attempt_at > 0 ? r.last_attempt_at + this.tinhVoiceBackoffDelay(attempts) : r.created_at
+        }
         if (dueAt < earliest) earliest = dueAt
       }
       return Number.isFinite(earliest) ? earliest : null
@@ -849,20 +880,24 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
-  getEarliestPendingSummaryRetryTime(): number | null {
+  getEarliestPendingSummaryRetryTime(_now = Date.now()): number | null {
     try {
       const rows = [...this.ctx.storage.sql.exec<{
+        session_id: string
         next_retry_at: number
         last_attempt_at: number
         attempts: number
         created_at: number
-      }>('SELECT next_retry_at, last_attempt_at, attempts, created_at FROM pending_session_summary_sync')]
+      }>('SELECT session_id, next_retry_at, last_attempt_at, attempts, created_at FROM pending_session_summary_sync')]
       if (rows.length === 0) return null
       let earliest = Infinity
       for (const r of rows) {
-        const dueAt = r.next_retry_at > 0
-          ? r.next_retry_at
-          : (r.last_attempt_at > 0 ? r.last_attempt_at + Math.min(1000 * Math.pow(2, Math.max(0, r.attempts - 1)), 60000) : r.created_at)
+        const override = this.summaryRetryOverrides.get(r.session_id)
+        const attempts = override?.attempts ?? r.attempts
+        let dueAt = override?.nextRetryAt ?? (r.next_retry_at > 0 ? r.next_retry_at : 0)
+        if (dueAt === 0) {
+          dueAt = r.last_attempt_at > 0 ? r.last_attempt_at + Math.min(1000 * Math.pow(2, Math.max(0, attempts - 1)), 60000) : r.created_at
+        }
         if (dueAt < earliest) earliest = dueAt
       }
       return Number.isFinite(earliest) ? earliest : null
@@ -896,47 +931,69 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // 4. Earliest pending session summary sync retry
-    const summaryDue = this.getEarliestPendingSummaryRetryTime()
+    const summaryDue = this.getEarliestPendingSummaryRetryTime(now)
     if (summaryDue !== null) {
       deadlines.push(summaryDue)
     }
 
     // 5. Room lifecycle deadlines
     if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled && this.lifecycleState.createdAt > 0) {
-      // 5.1 Never-joined deadline
-      if (!this.lifecycleState.everJoined && this.lifecycleState.neverJoinedTtlMinutes > 0) {
-        const neverDue = this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
-        deadlines.push(neverDue)
-      }
-      // 5.2 Empty room deadline (only when ever_joined is true and room is empty)
-      if (this.lifecycleState.everJoined && this.lifecycleState.lastParticipantLeftAt) {
-        const activeSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
-        const activeUnique = new Set(
-          activeSockets
-            .map((ws) => (ws.deserializeAttachment() as AttachmentKetNoi | null)?.key)
-            .filter(Boolean),
-        )
-        if (activeUnique.size === 0 && this.lifecycleState.emptyRoomTtlMinutes > 0) {
-          const emptyDue = this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
-          deadlines.push(emptyDue)
+      if (this.lifecycleState.nextRetryAt && this.lifecycleState.nextRetryAt > now) {
+        // Lifecycle đang trong chu kỳ backoff tạm thời sau lỗi D1
+        deadlines.push(this.lifecycleState.nextRetryAt)
+      } else {
+        // 5.1 Never-joined deadline
+        if (!this.lifecycleState.everJoined && this.lifecycleState.neverJoinedTtlMinutes > 0) {
+          const neverDue = this.lifecycleState.createdAt + this.lifecycleState.neverJoinedTtlMinutes * 60 * 1000
+          deadlines.push(neverDue)
         }
-      }
-      // 5.3 Max lifetime deadline
-      if (this.lifecycleState.maxRoomLifetimeMinutes > 0) {
-        const maxDue = this.lifecycleState.createdAt + this.lifecycleState.maxRoomLifetimeMinutes * 60 * 1000
-        deadlines.push(maxDue)
+        // 5.2 Empty room deadline (only when ever_joined is true and room is empty)
+        if (this.lifecycleState.everJoined && this.lifecycleState.lastParticipantLeftAt) {
+          const activeSockets = this.ctx.getWebSockets().filter((ws) => ws.readyState === WebSocket.OPEN)
+          const activeUnique = new Set(
+            activeSockets
+              .map((ws) => (ws.deserializeAttachment() as AttachmentKetNoi | null)?.key)
+              .filter(Boolean),
+          )
+          if (activeUnique.size === 0 && this.lifecycleState.emptyRoomTtlMinutes > 0) {
+            const emptyDue = this.lifecycleState.lastParticipantLeftAt + this.lifecycleState.emptyRoomTtlMinutes * 60 * 1000
+            deadlines.push(emptyDue)
+          }
+        }
+        // 5.3 Max lifetime deadline
+        if (this.lifecycleState.maxRoomLifetimeMinutes > 0) {
+          const maxDue = this.lifecycleState.createdAt + this.lifecycleState.maxRoomLifetimeMinutes * 60 * 1000
+          deadlines.push(maxDue)
+        }
       }
     }
 
     if (deadlines.length > 0) {
       const earliest = Math.min(...deadlines)
-      const scheduledTime = Math.max(now + 50, earliest)
+      let scheduledTime: number
+
+      if (earliest > now) {
+        scheduledTime = earliest
+        this.consecutiveOverdueAlarms = 0
+      } else {
+        // Section 5: Global Alarm Safety Fuse
+        // Phát hiện deadline quá hạn (earliest <= now). Tuyệt đối cấm lặp vô hạn now + 50ms.
+        // Áp dụng backoff lũy tiến bền bỉ bắt đầu từ 1000ms đến tối đa 60000ms.
+        this.consecutiveOverdueAlarms = (this.consecutiveOverdueAlarms || 0) + 1
+        const backoffDelay = Math.min(1000 * Math.pow(2, Math.max(0, this.consecutiveOverdueAlarms - 1)), 60000)
+        scheduledTime = now + backoffDelay
+        console.warn(
+          `[RoomDO] ROOM_ALARM_OVERDUE_RECOVERY: Phát hiện nghĩa vụ quá hạn (${now - earliest}ms). Áp dụng backoff ${backoffDelay}ms (lần ${this.consecutiveOverdueAlarms}).`,
+        )
+      }
+
       try {
         await this.ctx.storage.setAlarm(scheduledTime)
       } catch (err) {
         console.error('[RoomDO] Lỗi setAlarm trong reconcileRoomAlarm:', err)
       }
     } else {
+      this.consecutiveOverdueAlarms = 0
       try {
         await this.ctx.storage.deleteAlarm()
       } catch (err) {
@@ -949,9 +1006,26 @@ export class RoomDO extends DurableObject<Env> {
     await this.reconcileRoomAlarm()
   }
 
+  private apDungLifecycleBackoff(now: number, reason: string): void {
+    const attempts = (this.lifecycleState.retryAttempts || 0) + 1
+    const delay = Math.min(1000 * Math.pow(2, Math.max(0, attempts - 1)), 60000)
+    const nextRetryAt = now + delay
+    this.lifecycleState.retryAttempts = attempts
+    this.lifecycleState.nextRetryAt = nextRetryAt
+    this.luuLifecycleState()
+    console.warn(
+      `[RoomDO] ROOM_ALARM_BACKOFF_APPLIED: Lifecycle retry #${attempts} lùi lại ${delay}ms do lỗi: ${reason}`,
+    )
+  }
+
   private async xuLyLifecycleAlarm(now: number): Promise<void> {
     this.nạpDuLieuNeuCan()
     if (this.lifecycleState.isClosed || !this.lifecycleState.autoCloseEnabled || this.lifecycleState.createdAt <= 0) {
+      return
+    }
+
+    // Nếu đang trong thời gian backoff thì chưa thử lại
+    if (this.lifecycleState.nextRetryAt && this.lifecycleState.nextRetryAt > now) {
       return
     }
 
@@ -988,48 +1062,110 @@ export class RoomDO extends DurableObject<Env> {
 
     if (timeoutReason) {
       const numericId = this.parseNumericRoomId()
-      if (numericId && this.env?.DB) {
-        try {
-          const systemAccountId = await getSystemAccountId(this.env.DB)
-          const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, systemAccountId)
-          if (claim.alreadyClosed) {
-            return
-          }
-          if (claim.claimed || claim.alreadyClosing) {
-            // FIRST COMMITTED CLAIM WINS:
-            // Nếu claim trả về alreadyClosing, giữ nguyên reason và actor đã commit trước đó (ví dụ admin_closed).
-            const effectiveReason = claim.persistedReasonCode || timeoutReason
-            const effectiveClosedBy = claim.persistedClosedBy ?? systemAccountId
+      if (!numericId || !this.env?.DB) {
+        // Section 3: Room không hợp lệ hoặc thiếu binding D1 -> Fail-closed terminal local state
+        console.warn(
+          `[RoomDO] ROOM_LIFECYCLE_LOCAL_RECONCILED: Phòng không hợp lệ hoặc thiếu D1 (id=${numericId}). Đóng cục bộ fail-closed.`,
+        )
+        await this.dongPhongNoiBo({
+          reason: 'invalid_or_missing_room',
+          closedByAccountId: null,
+          closedByName: 'Hệ thống tự động',
+          actorType: 'system',
+        })
+        return
+      }
 
-            const actorType = effectiveReason.startsWith('admin_')
-              ? 'admin'
-              : effectiveReason.startsWith('owner_')
-                ? 'owner'
-                : effectiveReason.startsWith('moderator_')
-                  ? 'moderator'
-                  : 'system'
-
-            const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
-
-            // Đóng trực tiếp bộ nhớ cục bộ RoomDO (NO SELF-RPC - Item 4)
-            const localRes = await this.dongPhongNoiBo({
-              reason: effectiveReason,
-              closedByAccountId: effectiveClosedBy,
-              actorType,
-            })
-            // Chốt trạng thái D1 và ghi nhận audit log hệ thống
-            await finalizeRoomCloseD1(
-              this.env.DB,
-              numericId,
-              effectiveReason,
-              { type: actorType, accountId: effectiveClosedBy, name: actorName },
-              localRes.closedCount,
-              true,
-            )
-          }
-        } catch (err) {
-          console.error('[RoomDO.xuLyLifecycleAlarm] Lỗi đóng phòng alarm:', err)
+      try {
+        if (this.testFailD1LifecycleClaim) {
+          throw new Error('SIMULATED_D1_TRANSIENT_FAILURE')
         }
+        const systemAccountId = await getSystemAccountId(this.env.DB)
+        const claim = await claimRoomCloseD1(this.env.DB, numericId, timeoutReason, systemAccountId)
+
+        // Section 3: Phòng không tồn tại trong D1 -> Fail-closed terminal local state
+        if (claim.notFound) {
+          console.warn(
+            `[RoomDO] ROOM_LIFECYCLE_LOCAL_RECONCILED: Phòng ${numericId} không tồn tại trên D1. Đóng cục bộ fail-closed.`,
+          )
+          await this.dongPhongNoiBo({
+            reason: 'canonical_not_found',
+            closedByAccountId: systemAccountId,
+            closedByName: 'Hệ thống tự động',
+            actorType: 'system',
+          })
+          return
+        }
+
+        // Section 2: D1 báo phòng đã đóng (alreadyClosed) -> Reconcile local state với canonical D1 truth
+        if (claim.alreadyClosed) {
+          console.log(
+            `[RoomDO] ROOM_LIFECYCLE_LOCAL_RECONCILED: Phòng ${numericId} đã đóng trên D1 (reason=${claim.persistedReasonCode}). Đồng bộ trạng thái cục bộ.`,
+          )
+          const effectiveReason = claim.persistedReasonCode || timeoutReason
+          const effectiveClosedBy = claim.persistedClosedBy ?? systemAccountId
+          const effectiveClosedAt = claim.persistedClosedAt ?? now
+          const actorType = effectiveReason.startsWith('admin_')
+            ? 'admin'
+            : effectiveReason.startsWith('owner_')
+              ? 'owner'
+              : effectiveReason.startsWith('moderator_')
+                ? 'moderator'
+                : 'system'
+
+          const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+
+          await this.dongPhongNoiBo({
+            reason: effectiveReason,
+            closedByAccountId: effectiveClosedBy,
+            closedByName: actorName,
+            actorType,
+            closedAt: effectiveClosedAt,
+          })
+          return
+        }
+
+        // Đã claim thành công hoặc đang closing
+        if (claim.claimed || claim.alreadyClosing) {
+          const effectiveReason = claim.persistedReasonCode || timeoutReason
+          const effectiveClosedBy = claim.persistedClosedBy ?? systemAccountId
+          const effectiveClosedAt = claim.persistedClosedAt ?? now
+
+          const actorType = effectiveReason.startsWith('admin_')
+            ? 'admin'
+            : effectiveReason.startsWith('owner_')
+              ? 'owner'
+              : effectiveReason.startsWith('moderator_')
+                ? 'moderator'
+                : 'system'
+
+          const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+
+          const localRes = await this.dongPhongNoiBo({
+            reason: effectiveReason,
+            closedByAccountId: effectiveClosedBy,
+            closedByName: actorName,
+            actorType,
+            closedAt: effectiveClosedAt,
+          })
+
+          await finalizeRoomCloseD1(
+            this.env.DB,
+            numericId,
+            effectiveReason,
+            { type: actorType, accountId: effectiveClosedBy, name: actorName },
+            localRes.closedCount,
+            true,
+          )
+          return
+        }
+
+        // Claim không thành công do lỗi D1 -> Áp dụng backoff (Section 4)
+        this.apDungLifecycleBackoff(now, claim.error || 'claim_failed')
+      } catch (err: any) {
+        // Ngoại lệ mạng / D1 -> Áp dụng backoff (Section 4)
+        console.error('[RoomDO.xuLyLifecycleAlarm] Lỗi đóng phòng alarm:', err)
+        this.apDungLifecycleBackoff(now, err?.message || String(err))
       }
     }
   }
@@ -3132,7 +3268,9 @@ export class RoomDO extends DurableObject<Env> {
     const d1 = this.env.DB
 
     for (const item of pending) {
-      if (item.nextRetryAt > now) continue
+      const override = this.summaryRetryOverrides.get(item.sessionId)
+      const effectiveNextRetry = override?.nextRetryAt ?? item.nextRetryAt
+      if (effectiveNextRetry > now) continue
       try {
         const summary = JSON.parse(item.summaryJson) as SessionSummary
         let facts: SessionEngagementFacts | undefined
@@ -3164,14 +3302,16 @@ export class RoomDO extends DurableObject<Env> {
         await processLearningSessionSummaryEngagement(d1, summary, this.env.ANALYTICS_DB, this.ctx, facts)
 
         // 3. ONLY after BOTH D1 summary persistence AND engagement delivery succeed:
-        // Delete from RoomDO durable outbox
+        // Delete from RoomDO durable outbox and clear in-memory override
+        this.summaryRetryOverrides.delete(item.sessionId)
         try {
           this.ctx.storage.sql.exec('DELETE FROM pending_session_summary_sync WHERE session_id = ?1', item.sessionId)
         } catch {}
         delivered++
       } catch (err) {
         console.error(`[xuLyPendingSummarySync] Outbox processing failed for session=${item.sessionId}:`, err)
-        const nextAttempts = item.attempts + 1
+        const currentAttempts = override?.attempts ?? item.attempts
+        const nextAttempts = currentAttempts + 1
         if (nextAttempts >= 5) {
           console.warn(
             `[xuLyPendingSummarySync] CẢNH BÁO VẬN HÀNH: summary sync cho session=${item.sessionId} đã thử thất bại ${nextAttempts} lần. Tiếp tục duy trì outbox và retry với backoff tối đa.`,
@@ -3179,6 +3319,7 @@ export class RoomDO extends DurableObject<Env> {
         }
         const backoffDelay = Math.min(1000 * Math.pow(2, Math.max(0, nextAttempts - 1)), 60000)
         const nextRetryAt = now + backoffDelay
+
         try {
           this.ctx.storage.sql.exec(
             'UPDATE pending_session_summary_sync SET attempts = ?1, last_attempt_at = ?2, next_retry_at = ?3 WHERE session_id = ?4',
@@ -3187,7 +3328,12 @@ export class RoomDO extends DurableObject<Env> {
             nextRetryAt,
             item.sessionId,
           )
-        } catch {}
+          this.summaryRetryOverrides.delete(item.sessionId)
+        } catch (sqlErr) {
+          console.warn('[xuLyPendingSummarySync] Lỗi SQLite khi ghi nhận backoff summary sync:', sqlErr)
+          // Invariant: Override bảo đảm nextRetryAt luôn nằm ở tương lai kể cả khi SQLite UPDATE bị ngoại lệ
+          this.summaryRetryOverrides.set(item.sessionId, { attempts: nextAttempts, nextRetryAt })
+        }
       }
     }
 
@@ -3228,6 +3374,7 @@ export class RoomDO extends DurableObject<Env> {
     nextRetryAt: number,
   ): Promise<void> {
     const now = Date.now()
+    this.voiceRetryOverrides.delete(revocationId)
     this.ctx.storage.sql.exec(
       `INSERT INTO pending_voice_revocations
        (revocation_id, actor_key, session_id, track_name, mid, generation, attempts, last_attempt_at, next_retry_at, created_at)
@@ -3242,6 +3389,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async testDeletePendingVoiceRevocation(revocationId: string): Promise<void> {
+    this.voiceRetryOverrides.delete(revocationId)
     this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE revocation_id = ?1', revocationId)
     await this.reconcileRoomAlarm()
   }
@@ -3254,6 +3402,7 @@ export class RoomDO extends DurableObject<Env> {
     factsJson?: string,
   ): Promise<void> {
     const now = Date.now()
+    this.summaryRetryOverrides.delete(sessionId)
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO pending_session_summary_sync
        (session_id, room_id, summary_json, facts_json, attempts, last_attempt_at, next_retry_at, created_at)
@@ -3736,6 +3885,7 @@ export class RoomDO extends DurableObject<Env> {
 
       // Invariant: Success (200/201) OR authoritative already-closed (404/410) clears pending
       if (res.ok || res.status === 404 || res.status === 410) {
+        this.voiceRetryOverrides.delete(revocationId)
         try {
           this.ctx.storage.sql.exec('DELETE FROM pending_voice_revocations WHERE revocation_id = ?1', revocationId)
         } catch {}
@@ -3744,67 +3894,79 @@ export class RoomDO extends DurableObject<Env> {
 
       // Transient or non-terminal failure
       console.warn(`[attemptSfuCloseWithTracking] SFU close thất bại (${res.status}): ${res.errorText || 'lỗi'}`)
-      let attempts = 1
-      const backoffDelay = this.tinhVoiceBackoffDelay(attempts)
+      const existingRow = this.getPendingVoiceRevocation(revocationId)
+      const currentAttempts = this.voiceRetryOverrides.get(revocationId)?.attempts ?? existingRow?.attempts ?? 0
+      const nextAttempts = currentAttempts + 1
+      const backoffDelay = this.tinhVoiceBackoffDelay(nextAttempts)
       const nextRetryAt = Date.now() + backoffDelay
+
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
-           SET attempts = attempts + 1, last_attempt_at = ?1, next_retry_at = ?2, error_text = ?3
-           WHERE revocation_id = ?4`,
+           SET attempts = ?1, last_attempt_at = ?2, next_retry_at = ?3, error_text = ?4
+           WHERE revocation_id = ?5`,
+          nextAttempts,
           Date.now(),
           nextRetryAt,
           res.errorText || `HTTP_${res.status}`,
           revocationId,
         )
-        const row = this.getPendingVoiceRevocation(revocationId)
-        if (row) attempts = row.attempts
-      } catch {}
+        this.voiceRetryOverrides.delete(revocationId)
+      } catch (sqlErr) {
+        console.warn('[attemptSfuCloseWithTracking] Lỗi SQLite khi cập nhật voice revocation:', sqlErr)
+        this.voiceRetryOverrides.set(revocationId, { attempts: nextAttempts, nextRetryAt })
+      }
 
-      if (attempts >= 5) {
+      if (nextAttempts >= 5) {
         console.warn(
-          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} thất bại lần thứ ${attempts} (${res.status}): ${res.errorText || 'lỗi'}`,
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} thất bại lần thứ ${nextAttempts} (${res.status}): ${res.errorText || 'lỗi'}`,
         )
         if (this.env?.ANALYTICS_DB) {
           recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
             event: 'do.sfu_close_failed',
             errorClass: 'SFU_CLOSE_FAILED',
-            properties: { attempts },
+            properties: { attempts: nextAttempts },
           })
         }
       }
 
       // Schedule retry via alarm with bounded backoff
-      await this.scheduleVoiceRevocationAlarm(this.tinhVoiceBackoffDelay(attempts))
+      await this.scheduleVoiceRevocationAlarm(backoffDelay)
 
       return res
     } catch (err: any) {
       console.warn(`[attemptSfuCloseWithTracking] Ngoại lệ khi gọi SFU close:`, err)
-      let attempts = 1
-      const backoffDelay = this.tinhVoiceBackoffDelay(attempts)
+      const existingRow = this.getPendingVoiceRevocation(revocationId)
+      const currentAttempts = this.voiceRetryOverrides.get(revocationId)?.attempts ?? existingRow?.attempts ?? 0
+      const nextAttempts = currentAttempts + 1
+      const backoffDelay = this.tinhVoiceBackoffDelay(nextAttempts)
       const nextRetryAt = Date.now() + backoffDelay
+
+      this.voiceRetryOverrides.set(revocationId, { attempts: nextAttempts, nextRetryAt })
+
       try {
         this.ctx.storage.sql.exec(
           `UPDATE pending_voice_revocations
-           SET attempts = attempts + 1, last_attempt_at = ?1, next_retry_at = ?2, error_text = ?3
-           WHERE revocation_id = ?4`,
+           SET attempts = ?1, last_attempt_at = ?2, next_retry_at = ?3, error_text = ?4
+           WHERE revocation_id = ?5`,
+          nextAttempts,
           Date.now(),
           nextRetryAt,
           err?.message || 'exception',
           revocationId,
         )
-        const row = this.getPendingVoiceRevocation(revocationId)
-        if (row) attempts = row.attempts
-      } catch {}
+      } catch (sqlErr) {
+        console.warn('[attemptSfuCloseWithTracking] Lỗi SQLite khi cập nhật voice revocation:', sqlErr)
+      }
 
-      if (attempts >= 5) {
+      if (nextAttempts >= 5) {
         console.warn(
-          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} gặp ngoại lệ lần thứ ${attempts}: ${err?.message || 'exception'}`,
+          `[OPERATIONAL_ALERT] SFU close cho actor=${actorKey} revocation=${revocationId} session=${sessionId} gặp ngoại lệ lần thứ ${nextAttempts}: ${err?.message || 'exception'}`,
         )
       }
 
       // Fix PRV8.1: Thrown exception MUST schedule alarm retry with bounded backoff
-      await this.scheduleVoiceRevocationAlarm(this.tinhVoiceBackoffDelay(attempts))
+      await this.scheduleVoiceRevocationAlarm(backoffDelay)
 
       return { ok: false, status: 502, errorText: err?.message || 'exception' }
     }
@@ -4730,6 +4892,7 @@ export class RoomDO extends DurableObject<Env> {
     closedByName?: string
     actorType?: string
     note?: string | null
+    closedAt?: number | null
   }): Promise<{ ok: boolean; closedCount: number; alreadyClosedLocally?: boolean }> {
     this.nạpDuLieuNeuCan()
     if (this.lifecycleState.isClosed) {
@@ -4740,8 +4903,11 @@ export class RoomDO extends DurableObject<Env> {
     // 1. Chốt trạng thái vòng đời trong RoomDO SQLite
     this.lifecycleState.isClosed = true
     this.lifecycleState.closeReason = params.reason
-    this.lifecycleState.closedAt = now
+    this.lifecycleState.closedAt = params.closedAt || now
     this.lifecycleState.closedBy = params.closedByAccountId ?? null
+    this.lifecycleState.retryAttempts = 0
+    this.lifecycleState.nextRetryAt = 0
+    this.consecutiveOverdueAlarms = 0
     this.luuLifecycleState()
 
     // 2. Chốt Learning Session nếu đang chạy để không mất dữ liệu summary (Section 15 & 28)
@@ -4888,5 +5054,9 @@ export class RoomDO extends DurableObject<Env> {
     this.sessionTimer = { ...this.sessionTimer, ...st }
     this.luuMeta('session_timer', this.sessionTimer)
     await this.reconcileRoomAlarm()
+  }
+
+  testSetFailD1LifecycleClaim(fail: boolean): void {
+    this.testFailD1LifecycleClaim = fail
   }
 }

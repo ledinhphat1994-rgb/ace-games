@@ -181,6 +181,7 @@ export interface ClaimCloseResult {
   error?: string
   persistedReasonCode?: string | null
   persistedClosedBy?: number | null
+  persistedClosedAt?: number | null
   room?: {
     id: number
     trang_thai: string
@@ -188,6 +189,7 @@ export interface ClaimCloseResult {
     chu_phong_ten: string
     close_reason?: string | null
     closed_by?: number | null
+    closed_at?: number | null
   }
 }
 
@@ -242,11 +244,12 @@ export async function claimRoomCloseD1(
     chu_phong_ten: string
     close_reason: string | null
     closed_by: number | null
+    closed_at: number | null
   } | null = null
 
   try {
     roomRow = await db
-      .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by FROM phong WHERE id = ?1')
+      .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by, closed_at FROM phong WHERE id = ?1')
       .bind(roomId)
       .first<{
         id: number
@@ -255,6 +258,7 @@ export async function claimRoomCloseD1(
         chu_phong_ten: string
         close_reason: string | null
         closed_by: number | null
+        closed_at: number | null
       }>()
   } catch (err: any) {
     console.error(`[RoomLifecycle.claim] Lỗi đọc phòng ${roomId}:`, err)
@@ -272,6 +276,7 @@ export async function claimRoomCloseD1(
       alreadyClosed: true,
       persistedReasonCode: roomRow.close_reason,
       persistedClosedBy: roomRow.closed_by,
+      persistedClosedAt: roomRow.closed_at,
       room: roomRow,
     }
   }
@@ -284,6 +289,7 @@ export async function claimRoomCloseD1(
       alreadyClosing: true,
       persistedReasonCode: roomRow.close_reason || reasonCode,
       persistedClosedBy: roomRow.closed_by !== undefined ? roomRow.closed_by : actorId,
+      persistedClosedAt: roomRow.closed_at,
       room: roomRow,
     }
   }
@@ -311,7 +317,7 @@ export async function claimRoomCloseD1(
     if ((step1.meta.changes ?? 0) === 0) {
       // Re-check trạng thái do tranh chấp đồng thời
       const recheck = await db
-        .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by FROM phong WHERE id = ?1')
+        .prepare('SELECT id, trang_thai, chu_phong_khoa, chu_phong_ten, close_reason, closed_by, closed_at FROM phong WHERE id = ?1')
         .bind(roomId)
         .first<{
           id: number
@@ -320,6 +326,7 @@ export async function claimRoomCloseD1(
           chu_phong_ten: string
           close_reason: string | null
           closed_by: number | null
+          closed_at: number | null
         }>()
       if (recheck?.trang_thai === 'dong') {
         return {
@@ -327,6 +334,7 @@ export async function claimRoomCloseD1(
           alreadyClosed: true,
           persistedReasonCode: recheck.close_reason,
           persistedClosedBy: recheck.closed_by,
+          persistedClosedAt: recheck.closed_at,
           room: recheck,
         }
       }
@@ -336,6 +344,7 @@ export async function claimRoomCloseD1(
           alreadyClosing: true,
           persistedReasonCode: recheck.close_reason || reasonCode,
           persistedClosedBy: recheck.closed_by !== undefined ? recheck.closed_by : actorId,
+          persistedClosedAt: recheck.closed_at,
           room: recheck,
         }
       }
