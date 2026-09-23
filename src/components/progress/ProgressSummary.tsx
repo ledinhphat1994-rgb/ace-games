@@ -8,18 +8,23 @@ import {
   Target,
   ChevronRight,
   Zap,
+  AlertCircle,
+  RotateCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type {
-  EngagementProfile,
   ClassChallenge,
 } from '@shared/protocol/engagement'
 import { ClassLeaderboardModal } from '@/features/engagement/ClassLeaderboardModal'
 import { AchievementsModal } from '@/features/engagement/AchievementsModal'
 import { ClassChallengeModal } from '@/features/engagement/ClassChallengeModal'
+import {
+  deriveProgressState,
+  type ProgressDataResponse,
+} from './progress-state'
 
 interface ProgressSummaryProps {
   className?: string
@@ -34,15 +39,22 @@ export function ProgressSummary({
   const [showChallenge, setShowChallenge] = useState(false)
 
   // Profile engagement (Streak, XP)
-  const { data: profileData, isLoading: loadingProfile } = useQuery<{
-    ok: boolean
-    profile: EngagementProfile
-  }>({
+  const {
+    data: profileData,
+    isLoading: loadingProfile,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useQuery<ProgressDataResponse>({
     queryKey: ['engagement', 'me'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/me')
       if (!res.ok) throw new Error('Không thể tải thông tin chuyên cần.')
-      return res.json()
+      const json = (await res.json()) as ProgressDataResponse
+      if (!json || json.ok === false) {
+        throw new Error(json?.loi || json?.message || 'Không thể tải thông tin chuyên cần.')
+      }
+      return json
     },
     staleTime: 30_000,
   })
@@ -62,53 +74,88 @@ export function ProgressSummary({
     staleTime: 60_000,
   })
 
-  const profile = profileData?.profile
-  const challenge = challengeData?.challenge
+  const progressState = deriveProgressState({
+    isLoading: loadingProfile,
+    isError: isProfileError,
+    data: profileData,
+    error: profileError,
+  })
 
-  const todayXp = profile?.todayXp ?? 0
-  const totalXp = profile?.totalXp ?? 0
-  const currentStreak = profile?.currentStreak ?? 0
-
-  if (loadingProfile) {
+  // 1. LOADING VIEW STATE
+  if (progressState.type === 'loading') {
     return (
-      <div className={`rounded-2xl border border-white/10 bg-[#0c1322]/80 p-3.5 backdrop-blur-md ${className}`}>
-        <div className="flex items-center justify-between gap-4">
-          <Skeleton className="h-8 w-36 rounded-xl" />
-          <Skeleton className="h-8 w-48 rounded-xl" />
+      <div
+        data-testid="progress-summary-loading"
+        className={`rounded-xl sm:rounded-2xl border border-white/10 bg-[#0c1322]/80 p-2.5 sm:p-3.5 backdrop-blur-md ${className}`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-7 sm:h-8 w-28 sm:w-36 rounded-lg sm:rounded-xl" />
+          <Skeleton className="h-7 sm:h-8 w-24 sm:w-32 rounded-lg sm:rounded-xl" />
         </div>
       </div>
     )
   }
 
+  // 2. ERROR VIEW STATE (Truthful compact error banner, no fake zeros)
+  if (progressState.type === 'error') {
+    return (
+      <div
+        data-testid="progress-summary-error"
+        className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-rose-500/25 bg-[#0c1322]/85 p-2 sm:p-2.5 backdrop-blur-md shadow-md transition-all ${className}`}
+      >
+        <div className="flex items-center justify-between gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2 text-xs text-rose-300 font-medium truncate">
+            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+            <span className="truncate">Không tải được tiến trình</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetchProfile()}
+            className="h-7 px-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white hover:bg-rose-500/20 gap-1.5 shrink-0"
+          >
+            <RotateCw className="h-3 w-3" />
+            <span>Thử lại</span>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // 3. SUCCESS VIEW STATE (Authoritative values rendered, including legitimate zeros)
+  const { profile, todayXp, totalXp, currentStreak } = progressState
+  const challenge = challengeData?.challenge
+
   return (
     <>
       <div
-        className={`relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c1322]/85 p-3 sm:p-3.5 backdrop-blur-md shadow-lg transition-all ${className}`}
+        data-testid="progress-summary"
+        className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-white/10 bg-[#0c1322]/85 p-2 sm:p-3.5 backdrop-blur-md shadow-md sm:shadow-lg transition-all ${className}`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          {/* Left: Streak & XP Badges */}
-          <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-4">
+          {/* Left: Streak & XP Badges (Authoritative data only) */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Streak pill with animated warm glow */}
             <div
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 px-3 py-1.5 shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
               title={`Chuỗi học tập hiện tại: ${currentStreak} ngày`}
             >
-              <Flame className="h-4 w-4 text-amber-400 fill-amber-400/20" />
+              <Flame className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400 fill-amber-400/20" />
               <div className="flex items-baseline gap-1">
-                <span className="text-sm font-black text-amber-300">{currentStreak}</span>
-                <span className="text-xs font-semibold text-amber-200/80">ngày</span>
+                <span className="text-xs sm:text-sm font-black text-amber-300">{currentStreak}</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-amber-200/80">ngày</span>
               </div>
             </div>
 
             {/* Total XP pill */}
             <div
-              className="flex items-center gap-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 px-3 py-1.5 shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-cyan-500/15 border border-cyan-500/30 px-2 sm:px-3 py-1 sm:py-1.5 shadow-sm"
               title={`Tổng điểm kinh nghiệm: ${totalXp} XP (+${todayXp} hôm nay)`}
             >
-              <Zap className="h-4 w-4 text-cyan-400 fill-cyan-400/20" />
+              <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-400 fill-cyan-400/20" />
               <div className="flex items-baseline gap-1">
-                <span className="text-sm font-black text-cyan-300">{totalXp}</span>
-                <span className="text-xs font-semibold text-cyan-200/80">XP</span>
+                <span className="text-xs sm:text-sm font-black text-cyan-300">{totalXp}</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-cyan-200/80">XP</span>
               </div>
               {todayXp > 0 && (
                 <span className="hidden md:inline text-xs font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full border border-emerald-500/25">
@@ -118,7 +165,7 @@ export function ProgressSummary({
             </div>
           </div>
 
-          {/* Middle: Challenge Progress (if active) */}
+          {/* Middle: Challenge Progress (desktop only) */}
           {challenge && challenge.targetValue > 0 && (
             <div className="flex-1 min-w-0 max-w-xs hidden lg:block space-y-1">
               <div className="flex items-center justify-between text-xs">
@@ -134,28 +181,28 @@ export function ProgressSummary({
             </div>
           )}
 
-          {/* Right: Actions */}
-          <div className="flex items-center justify-between sm:justify-end gap-1.5 shrink-0">
+          {/* Right: Actions (Desktop has modals, Mobile has clean compact 'Chi tiết' button) */}
+          <div className="flex items-center justify-end gap-1.5 shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowLeaderboard(true)}
-              className="h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg gap-1.5"
+              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg gap-1.5"
               title="Bảng xếp hạng chuyên cần"
             >
               <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              <span className="hidden xs:inline">Xếp hạng</span>
+              <span>Xếp hạng</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowAchievements(true)}
-              className="h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg gap-1.5"
+              className="hidden sm:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg gap-1.5"
               title="Danh hiệu & Huy hiệu"
             >
               <Award className="h-3.5 w-3.5 text-purple-400" />
-              <span className="hidden xs:inline">Huy hiệu</span>
+              <span>Huy hiệu</span>
               {profile && profile.unlockedAchievementsCount > 0 && (
                 <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 border-purple-500/40 bg-purple-500/20 text-purple-300">
                   {profile.unlockedAchievementsCount}
@@ -168,20 +215,21 @@ export function ProgressSummary({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowChallenge(true)}
-                className="h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg gap-1.5"
+                className="hidden md:inline-flex h-8 px-2.5 text-xs font-semibold text-slate-300 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg gap-1.5"
                 title={`Thử thách: ${challenge.title}`}
               >
                 <Target className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">Thử thách</span>
+                <span>Thử thách</span>
               </Button>
             )}
 
             <Button
               size="sm"
               onClick={() => navigate('/me?tab=progress')}
-              className="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs gap-1 shadow-sm transition-all"
+              className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs gap-1 shadow-sm transition-all"
             >
-              <span>Tiến trình</span>
+              <span className="hidden xs:inline">Tiến trình</span>
+              <span className="xs:hidden">Chi tiết</span>
               <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
             </Button>
           </div>

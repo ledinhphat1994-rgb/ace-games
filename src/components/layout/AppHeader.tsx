@@ -95,31 +95,31 @@ export function AppHeader({
           </nav>
         </div>
 
-        {/* ── Center: Search ── */}
+        {/* ── Center: Search (Clean & compact, xl only to leave room for nav) ── */}
         <form
           onSubmit={handleSearchSubmit}
-          className="hidden lg:flex items-center flex-1 max-w-[280px] mx-4"
+          className="hidden xl:flex items-center flex-1 max-w-[220px] mx-3"
           role="search"
         >
           <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-tertiary pointer-events-none" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             <input
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               placeholder="Tìm phòng học…"
               aria-label="Tìm phòng học"
               className={[
-                'h-9 w-full rounded-lg pl-9 pr-3',
-                'border border-border-default bg-surface/60',
-                'text-sm text-text-primary placeholder:text-text-tertiary',
+                'h-8 w-full rounded-lg pl-8 pr-2.5',
+                'border border-white/10 bg-white/[0.04]',
+                'text-xs text-text-primary placeholder:text-slate-400',
                 'outline-none transition-all duration-150',
-                'focus:border-brand/40 focus:bg-surface focus:ring-2 focus:ring-brand/15',
+                'focus:border-brand/40 focus:bg-white/[0.07] focus:ring-1 focus:ring-brand/20',
               ].join(' ')}
             />
           </div>
         </form>
 
-        {/* ── Right: Action cluster ── */}
+        {/* ── Right: Action cluster (Subtle secondary icons + prominent Account) ── */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Connection status */}
           <ConnectionIndicator
@@ -130,31 +130,34 @@ export function AppHeader({
             onKetNoiLai={onKetNoiLai}
           />
 
-          {/* Notifications */}
-          <NotificationCenter />
+          {/* Secondary icon group */}
+          <div className="flex items-center gap-0.5 text-slate-400">
+            {/* Notifications */}
+            <NotificationCenter />
 
-          {/* Friends — hidden on mobile (in community tab) */}
-          <div className="hidden sm:block">
-            <FriendsDrawer />
+            {/* Friends — hidden on mobile (in community tab) */}
+            <div className="hidden sm:block">
+              <FriendsDrawer />
+            </div>
+
+            {/* Campus Chat trigger */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              data-testid="campus-chat-trigger"
+              onClick={onToggleChat}
+              title="Mở trò chuyện toàn trường"
+              className="relative text-slate-400 hover:text-white hover:bg-white/5 h-8 w-8"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {messageCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-brand" />
+              )}
+            </Button>
           </div>
 
-          {/* Campus Chat trigger */}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            data-testid="campus-chat-trigger"
-            onClick={onToggleChat}
-            title="Mở trò chuyện toàn trường"
-            className="relative text-text-secondary hover:text-text-primary"
-          >
-            <MessageSquare className="h-4 w-4" />
-            {messageCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-brand" />
-            )}
-          </Button>
-
           {/* Divider + Account Quick Center */}
-          <div className="flex items-center pl-1 sm:pl-2 border-l border-border-subtle">
+          <div className="flex items-center pl-1 sm:pl-2 ml-0.5 border-l border-white/10">
             <UserAvatarMenu
               nguoiDung={nguoiDung}
               onDangXuat={onDangXuat}

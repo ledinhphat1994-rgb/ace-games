@@ -105,7 +105,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-3.5 sm:space-y-5 lg:space-y-6">
       {/* ── 1. Modern Teen Hero Banner (Reduced, dominant CTA, no badge) ── */}
       <CampusHeroBanner
         title={`Xin chào, ${displayName}!`}
@@ -119,9 +119,9 @@ export function HomePage() {
 
       {/* ── 2. Smart Continuation Banner (Friend actively studying) ── */}
       {activeFriendStudy && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-3 backdrop-blur-md shadow-md">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+        <div className="flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl border border-cyan-500/30 bg-cyan-950/20 p-2.5 sm:p-3 backdrop-blur-md shadow-md">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
@@ -137,7 +137,7 @@ export function HomePage() {
           <Button
             size="sm"
             onClick={() => navigate(`/room/phong-${activeFriendStudy.roomId}`)}
-            className="shrink-0 gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs"
+            className="shrink-0 gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs h-7 sm:h-8 px-2.5 sm:px-3"
           >
             <DoorOpen className="h-3.5 w-3.5" />
             <span>Vào cùng</span>
@@ -150,7 +150,7 @@ export function HomePage() {
 
       {/* ── 4. Quick Launch 4-Tile Grid (Label-first) ── */}
       <section aria-label="Lối tắt truy cập nhanh">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {destinationItems.map((item) => (
             <HomeDestinationCard
               key={item.id}
@@ -242,24 +242,24 @@ export function HomePage() {
             </button>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0c1222]/85 p-3.5 backdrop-blur-md shadow-lg min-h-[140px] flex flex-col justify-center">
+          <div className="rounded-xl sm:rounded-2xl border border-white/5 bg-[#0c1222]/60 p-3 sm:p-3.5 backdrop-blur-md min-h-[110px] sm:min-h-[130px] flex flex-col justify-center">
             {onlineFriends.length === 0 ? (
-              <div className="text-center py-3 space-y-2">
-                <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 border border-white/10">
-                  <UserPlus className="h-4 w-4" />
+              <div className="text-center py-2.5 space-y-1.5">
+                <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-400 border border-white/10">
+                  <UserPlus className="h-3.5 w-3.5" />
                 </div>
                 <p className="text-xs font-semibold text-slate-300">Chưa có bạn online</p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => navigate('/community')}
-                  className="h-7 text-xs border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+                  className="h-6 sm:h-7 px-2.5 text-xs border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
                 >
                   Tìm bạn
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                 {onlineFriends.slice(0, 6).map((friend) => (
                   <div
                     key={friend.id}
@@ -267,7 +267,7 @@ export function HomePage() {
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="relative">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-xs shadow-sm">
+                        <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white font-bold text-xs shadow-sm">
                           {friend.displayName.slice(0, 2).toUpperCase()}
                         </div>
                         <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0c1222]" />
