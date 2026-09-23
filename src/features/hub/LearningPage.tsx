@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
 import { usePhien } from '@/app/phien'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RoomCard } from './RoomCard'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -12,16 +11,23 @@ import { buildRoomFriendsMap, filterDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
 import {
   BookOpen,
-  Plus,
   Search,
   Users,
-  Target,
-  TrendingUp,
   Activity,
+  Trophy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { LEARNING_OCCUPANCY_METRIC_CONFIG } from './learning-semantics'
+import {
+  LEARNING_OCCUPANCY_METRIC_CONFIG,
+  matchRoomSubject,
+} from './learning-semantics'
+import { LearningHeader } from './components/learning/LearningHeader'
+import { ClassChallengeCard } from './components/learning/ClassChallengeCard'
+import { ClassLeaderboardCard } from './components/learning/ClassLeaderboardCard'
+import { SubjectFilterStrip } from './components/learning/SubjectFilterStrip'
+import { QuickStartStudyModal } from './components/learning/QuickStartStudyModal'
+
 export { LEARNING_OCCUPANCY_METRIC_CONFIG }
 
 type TabPhamVi = 'tat_ca' | 'truong' | 'lop'
@@ -43,9 +49,14 @@ export function LearningPage() {
   const [tabPhamVi, setTabPhamVi] = useState<TabPhamVi>('tat_ca')
   const [tuKhoa, setTuKhoa] = useState(urlQuery)
   const [prevUrlQuery, setPrevUrlQuery] = useState(urlQuery)
+  const [selectedSubject, setSelectedSubject] = useState<string>('tat_ca')
   const [chiHienCoBanBe, setChiHienCoBanBe] = useState(false)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
+  const [moQuickStart, setMoQuickStart] = useState(false)
+
+  // Mobile sub-tab: 'rooms' (Phòng học) vs 'class_goals' (Mục tiêu & Thi đua lớp)
+  const [mobileTab, setMobileTab] = useState<'rooms' | 'class_goals'>('rooms')
 
   // Sync URL ?q param → local filter state
   if (urlQuery !== prevUrlQuery) {
@@ -73,14 +84,19 @@ export function LearningPage() {
     return rooms.reduce((acc, r) => acc + (r.soNguoi || 0), 0)
   }, [rooms])
 
+  // Filter rooms by scope, keyword, friend attendance, and subject
   const danhSachPhongLoc = useMemo(() => {
-    return filterDiscoveryRooms(rooms, roomFriendsMap, {
+    const baseList = filterDiscoveryRooms(rooms, roomFriendsMap, {
       tabPhamVi,
       tuKhoa,
       chiHienCoBanBe,
       userLopId: nguoiDung.lopId,
     })
-  }, [rooms, roomFriendsMap, tabPhamVi, tuKhoa, chiHienCoBanBe, nguoiDung.lopId])
+
+    if (selectedSubject === 'tat_ca') return baseList
+
+    return baseList.filter((room) => matchRoomSubject(room, selectedSubject))
+  }, [rooms, roomFriendsMap, tabPhamVi, tuKhoa, chiHienCoBanBe, selectedSubject, nguoiDung.lopId])
 
   const xuLyVaoPhong = (room: PhongSanh) => {
     if (room.soNguoi >= room.sucChua) {
@@ -95,156 +111,137 @@ export function LearningPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* ── 1. Learning Hero Banner ───────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#080d19] shadow-2xl">
-        {/* Background artwork */}
-        <div
-          className="absolute inset-0 z-0 bg-cover bg-right bg-no-repeat opacity-80 sm:opacity-95"
-          style={{
-            backgroundImage: 'url(/assets/learning/learning_hero.webp)',
-            backgroundPosition: 'right 15% center',
-          }}
-        />
-        {/* Dark directional gradient mask */}
-        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#080d19] via-[#080d19]/80 to-transparent sm:bg-gradient-to-r sm:from-[#080d19] sm:via-[#080d19]/90 sm:via-45% sm:to-transparent pointer-events-none" />
+    <div className="space-y-5">
+      {/* ── 1. Learning Action Header ─────────────────────── */}
+      <LearningHeader
+        onOpenCreateRoom={() => setMoTaoPhong(true)}
+        onOpenQuickStart={() => setMoQuickStart(true)}
+      />
 
-        <div className="relative z-10 flex flex-col justify-between min-h-[190px] sm:min-h-[210px] p-5 sm:p-7">
-          <div className="max-w-xl space-y-2">
-            <div className="flex items-center gap-2 text-cyan-400 font-extrabold text-xs tracking-wider uppercase">
-              <BookOpen className="h-4 w-4" />
-              <span>Không gian học tập &amp; nghiên cứu</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow">
-              Học tập trực tuyến
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium line-clamp-2">
-              Không gian phòng học nhóm, trao đổi kiến thức và đồng hành tiến bộ mỗi ngày.
-            </p>
-          </div>
+      {/* ── 2. Mobile View Switcher (Segmented Control) ────── */}
+      <div className="flex sm:hidden rounded-xl bg-slate-900/80 p-1 border border-white/10">
+        <button
+          type="button"
+          onClick={() => setMobileTab('rooms')}
+          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'rooms'
+              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          <span>Phòng học ({rooms.length})</span>
+        </button>
 
-          {/* 3 Core Value Pills + Slogan */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/25 text-[11px] font-semibold text-cyan-300 backdrop-blur-md">
-                <Target className="h-3 w-3 text-cyan-400" />
-                Tập trung hơn
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-950/60 border border-indigo-500/25 text-[11px] font-semibold text-indigo-300 backdrop-blur-md">
-                <Users className="h-3 w-3 text-indigo-400" />
-                Kết nối dễ dàng
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/25 text-[11px] font-semibold text-emerald-300 backdrop-blur-md">
-                <TrendingUp className="h-3 w-3 text-emerald-400" />
-                Tiến bộ mỗi ngày
-              </span>
-            </div>
-
-            <p className="hidden md:block text-xs font-semibold text-cyan-200/80 italic tracking-wide">
-              Học cùng nhau đi xa hơn mỗi ngày
-            </p>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setMobileTab('class_goals')}
+          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'class_goals'
+              ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Trophy className="h-3.5 w-3.5" />
+          <span>Mục tiêu & Thi đua</span>
+        </button>
       </div>
 
-      {/* ── 2. Compact Filter & Search Toolbar ─────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0c1222] p-3 shadow-md">
-        {/* Scope tabs */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {SCOPE_TABS.map((tab) => {
-            const isActive = tabPhamVi === tab.id
-            return (
+      {/* ── 3. Main 2-Column Responsive Layout ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
+        {/* Left Column (3 cols on desktop): Room Discovery Workspace */}
+        <div className={`lg:col-span-3 space-y-4 ${mobileTab === 'class_goals' ? 'hidden sm:block' : 'block'}`}>
+          {/* Subject Filter Strip */}
+          <SubjectFilterStrip
+            selectedSubject={selectedSubject}
+            onSelectSubject={setSelectedSubject}
+          />
+
+          {/* Scope & Keyword Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-white/10 bg-[#0c1222] p-2.5 sm:p-3 shadow-md">
+            {/* Scope tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SCOPE_TABS.map((tab) => {
+                const isActive = tabPhamVi === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setTabPhamVi(tab.id)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+                      isActive
+                        ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/25'
+                        : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.id === 'tat_ca' && (
+                      <span className={`ml-1 text-[10px] ${isActive ? 'text-slate-950 font-extrabold' : 'text-slate-400'}`}>
+                        ({rooms.length})
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+
+              <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
+
+              {/* Friend filter chip */}
               <button
-                key={tab.id}
                 type="button"
-                onClick={() => setTabPhamVi(tab.id)}
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-200 ${
-                  isActive
-                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/25'
+                onClick={() => setChiHienCoBanBe(!chiHienCoBanBe)}
+                className={`rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  chiHienCoBanBe
+                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-300 hover:bg-white/5 hover:text-white'
                 }`}
               >
-                {tab.label}
-                {tab.id === 'tat_ca' && (
-                  <span className={`ml-1.5 text-[10px] ${isActive ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}>
-                    ({rooms.length})
+                <Users className="h-3.5 w-3.5" />
+                <span>Có bạn bè</span>
+                {soPhongCoBanBe > 0 && (
+                  <span className={`rounded-full px-1.5 text-[10px] ${chiHienCoBanBe ? 'bg-white text-indigo-700 font-extrabold' : 'bg-indigo-500/20 text-indigo-300'}`}>
+                    {soPhongCoBanBe}
                   </span>
                 )}
               </button>
-            )
-          })}
+            </div>
 
-          <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
-
-          {/* Friend filter chip */}
-          <button
-            type="button"
-            onClick={() => setChiHienCoBanBe(!chiHienCoBanBe)}
-            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 ${
-              chiHienCoBanBe
-                ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/25'
-                : 'text-slate-300 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            <span>Có bạn bè</span>
-            {soPhongCoBanBe > 0 && (
-              <span className={`rounded-full px-1.5 text-[10px] ${chiHienCoBanBe ? 'bg-white text-indigo-700' : 'bg-indigo-500/20 text-indigo-300'}`}>
-                {soPhongCoBanBe}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Search input + Create button */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <Input
-              value={tuKhoa}
-              onChange={(e) => setTuKhoa(e.target.value)}
-              placeholder="Tìm theo tên phòng, môn học..."
-              className="h-9 pl-9 pr-3 text-xs bg-slate-900/60 border-white/10 focus:border-cyan-500 rounded-xl"
-            />
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                value={tuKhoa}
+                onChange={(e) => setTuKhoa(e.target.value)}
+                placeholder="Tìm tên phòng, nội dung..."
+                className="h-8 sm:h-9 pl-9 pr-3 text-xs bg-slate-900/60 border-white/10 focus:border-cyan-500 rounded-xl"
+              />
+            </div>
           </div>
 
-          <Button
-            size="sm"
-            onClick={() => setMoTaoPhong(true)}
-            className="h-9 px-3.5 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 gap-1.5 shadow-md shadow-cyan-500/20 shrink-0"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Tạo phòng</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* ── 3. Main Content: Room Grid + Stats Sidebar ─────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Room Grid (3 cols on desktop) */}
-        <div className="lg:col-span-3">
+          {/* Room Cards Grid or Empty State */}
           {danhSachPhongLoc.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title="Không tìm thấy phòng học phù hợp"
+              title="Chưa có phòng học phù hợp"
               description={
-                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca'
-                  ? 'Thử thay đổi bộ lọc tìm kiếm hoặc từ khóa để tìm thêm phòng học.'
-                  : 'Hiện chưa có phòng học nào đang hoạt động. Bạn có muốn tạo phòng mới không?'
+                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca' || selectedSubject !== 'tat_ca'
+                  ? 'Thử thay đổi bộ lọc môn học hoặc từ khóa tìm kiếm để khám phá thêm phòng học.'
+                  : 'Hiện tại chưa có phòng học nhóm nào đang mở. Bạn có thể mở phòng ngay để cùng học với bạn bè.'
               }
               action={
-                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca'
+                tuKhoa || chiHienCoBanBe || tabPhamVi !== 'tat_ca' || selectedSubject !== 'tat_ca'
                   ? {
                       label: 'Xóa bộ lọc',
                       onClick: () => {
                         setTabPhamVi('tat_ca')
+                        setSelectedSubject('tat_ca')
                         setTuKhoa('')
                         setChiHienCoBanBe(false)
                       },
                     }
                   : {
-                      label: 'Tạo phòng học ngay',
-                      onClick: () => setMoTaoPhong(true),
+                      label: 'Bắt đầu học ngay',
+                      onClick: () => setMoQuickStart(true),
                     }
               }
             />
@@ -262,53 +259,44 @@ export function LearningPage() {
           )}
         </div>
 
-        {/* Right Sidebar: Today's Summary & Inspiration Poster */}
-        <div className="space-y-4">
-          {/* Today's Stats Card */}
-          <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+        {/* Right Column (1 col on desktop): Goals, Leaderboard & Metrics */}
+        <div className={`space-y-4 ${mobileTab === 'rooms' ? 'hidden sm:block' : 'block'}`}>
+          {/* Class Weekly Challenge Card */}
+          <ClassChallengeCard />
+
+          {/* Class Leaderboard Card */}
+          <ClassLeaderboardCard />
+
+          {/* Live Occupancy Metric Box (Contract Invariant Compliant) */}
+          <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg space-y-3">
+            <div className="flex items-center gap-2 pb-1 border-b border-white/5">
               <Activity className="h-4 w-4 text-cyan-400" />
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                Tổng quan hôm nay
+                Thống kê sảnh học tập
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3">
-                <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-2.5 text-center">
+                <div className="flex items-center justify-center gap-1.5 text-emerald-400 text-[11px] font-semibold">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Đang mở</span>
                 </div>
-                <p className="text-xl font-black text-white mt-1">{rooms.length}</p>
+                <p className="text-lg font-black text-white mt-0.5">{rooms.length}</p>
                 <p className="text-[10px] text-slate-400">Phòng hoạt động</p>
               </div>
 
-              <div className="rounded-xl bg-slate-900/60 border border-white/5 p-3" data-testid="room-occupancy-metric">
-                <div className="flex items-center gap-1.5 text-cyan-400 text-xs font-semibold">
+              <div
+                className="rounded-xl bg-slate-900/60 border border-white/5 p-2.5 text-center"
+                data-testid="room-occupancy-metric"
+              >
+                <div className="flex items-center justify-center gap-1.5 text-cyan-400 text-[11px] font-semibold">
                   <Users className="h-3 w-3" />
-                  <span>Đang tham gia</span>
+                  <span>{LEARNING_OCCUPANCY_METRIC_CONFIG.headerLabel}</span>
                 </div>
-                <p className="text-xl font-black text-white mt-1">{totalParticipants}</p>
-                <p className="text-[10px] text-slate-400">Lượt trong phòng</p>
+                <p className="text-lg font-black text-white mt-0.5">{totalParticipants}</p>
+                <p className="text-[10px] text-slate-400">{LEARNING_OCCUPANCY_METRIC_CONFIG.subLabel}</p>
               </div>
-            </div>
-          </div>
-
-          {/* Educational Quote & Graduation Art Banner */}
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg min-h-[160px] flex flex-col justify-end">
-            <div
-              className="absolute inset-0 bg-cover bg-center opacity-40 pointer-events-none"
-              style={{ backgroundImage: 'url(/assets/learning/learning_quote.webp)' }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0c1222] via-[#0c1222]/85 to-transparent pointer-events-none" />
-
-            <div className="relative z-10 space-y-1">
-              <p className="text-xs font-bold text-white leading-snug drop-shadow">
-                Kiến thức hôm nay là cơ hội của ngày mai.
-              </p>
-              <p className="text-[10px] text-cyan-300/80 font-medium">
-                Better Students · Brighter Tomorrow
-              </p>
             </div>
           </div>
         </div>
@@ -331,6 +319,15 @@ export function LearningPage() {
         onOpenChange={setMoTaoPhong}
         onSuccess={(roomId) => {
           setMoTaoPhong(false)
+          navigate(`/room/phong-${roomId}`)
+        }}
+      />
+
+      <QuickStartStudyModal
+        open={moQuickStart}
+        onOpenChange={setMoQuickStart}
+        onSuccess={(roomId) => {
+          setMoQuickStart(false)
           navigate(`/room/phong-${roomId}`)
         }}
       />
