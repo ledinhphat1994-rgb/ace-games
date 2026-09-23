@@ -10,10 +10,18 @@ import {
   type DesktopNavLink,
   type MobileNavItem,
 } from '../src/components/layout/navigation-config'
+import {
+  parseRoomJoinTarget,
+  deriveLobbyState,
+  filterLobbyRooms,
+} from '../src/features/hub/learning-semantics'
 import type { PhongSanh } from '../shared/protocol/campus'
 import appHeaderRaw from '../src/components/layout/AppHeader.tsx?raw'
 import mobileNavRaw from '../src/components/layout/MobileNav.tsx?raw'
 import learningPageRaw from '../src/features/hub/LearningPage.tsx?raw'
+import joinRoomModalRaw from '../src/features/hub/components/learning/JoinRoomModal.tsx?raw'
+import createStudyRoomDialogRaw from '../src/features/hub/CreateStudyRoomDialog.tsx?raw'
+import roomCardRaw from '../src/features/hub/RoomCard.tsx?raw'
 import mainRaw from '../src/main.tsx?raw'
 
 describe('PQA-A: Primary Navigation Simplification Contracts', () => {
@@ -143,57 +151,133 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
     })
   })
 
-  // ── 5. Room Code & Direct Join Sanitization Logic ──────────────────────────
-  describe('5. Join Room ID / Code Sanitization Logic', () => {
-    function sanitizeJoinRoomInput(input: string): { ok: boolean; roomId?: number; error?: string } {
-      const clean = input.trim().replace(/^phong-/, '')
-      if (!clean) {
-        return { ok: false, error: 'Vui lòng nhập ID hoặc mã số phòng học.' }
-      }
-      const num = parseInt(clean, 10)
-      if (isNaN(num) || num <= 0) {
-        return { ok: false, error: 'Mã phòng không hợp lệ. Vui lòng nhập số ID phòng (VD: 1, 42).' }
-      }
-      return { ok: true, roomId: num }
+  // ── 5. Room Lobby Authoritative Readiness Lifecycle ────────────────────────
+  describe('5. Lobby Readiness State Derivation (deriveLobbyState)', () => {
+    const sampleRoom: PhongSanh = {
+      id: 1,
+      ten: 'Phòng Toán 10',
+      chuPhongTen: 'Nguyễn Văn An',
+      phamVi: 'truong',
+      lopId: null,
+      lopTen: null,
+      soNguoi: 2,
+      sucChua: 20,
+      coMatKhau: false,
+      monHoc: 'toan',
+      moTa: 'Ôn tập chương 1',
+      dangPhat: null,
+      taoLuc: 1700000000000,
     }
 
-    it('A. Correctly accepts standard numeric IDs', () => {
-      expect(sanitizeJoinRoomInput('1')).toEqual({ ok: true, roomId: 1 })
-      expect(sanitizeJoinRoomInput('42')).toEqual({ ok: true, roomId: 42 })
-      expect(sanitizeJoinRoomInput(' 108 ')).toEqual({ ok: true, roomId: 108 })
+    it('A. Contract A: No snapshot yet => loading, NOT empty', () => {
+      const state = deriveLobbyState({
+        trangThai: 'dang_ket_noi',
+        campusSnapshotReady: false,
+        rooms: [],
+      })
+      expect(state.status).toBe('loading')
     })
 
-    it('B. Correctly strips optional "phong-" prefix', () => {
-      expect(sanitizeJoinRoomInput('phong-42')).toEqual({ ok: true, roomId: 42 })
-      expect(sanitizeJoinRoomInput(' phong-99 ')).toEqual({ ok: true, roomId: 99 })
+    it('B. Contract B: Disconnect after previous rooms => reconnecting, NOT confirmed active', () => {
+      const state = deriveLobbyState({
+        trangThai: 'mat_ket_noi',
+        campusSnapshotReady: false,
+        rooms: [sampleRoom],
+      })
+      expect(state.status).toBe('reconnecting')
     })
 
-    it('C. Rejects empty, non-numeric, or negative inputs with clear error messages', () => {
-      expect(sanitizeJoinRoomInput('')).toEqual({
-        ok: false,
-        error: 'Vui lòng nhập ID hoặc mã số phòng học.',
+    it('C. Contract C: Fresh empty snapshot received => ready with 0 rooms (authoritative empty)', () => {
+      const state = deriveLobbyState({
+        trangThai: 'da_ket_noi',
+        campusSnapshotReady: true,
+        rooms: [],
       })
-      expect(sanitizeJoinRoomInput('   ')).toEqual({
-        ok: false,
-        error: 'Vui lòng nhập ID hoặc mã số phòng học.',
+      expect(state.status).toBe('ready')
+      if (state.status === 'ready') {
+        expect(state.rooms).toHaveLength(0)
+      }
+    })
+
+    it('D. Contract D: Fresh rooms snapshot received => ready with active rooms', () => {
+      const state = deriveLobbyState({
+        trangThai: 'da_ket_noi',
+        campusSnapshotReady: true,
+        rooms: [sampleRoom],
       })
-      expect(sanitizeJoinRoomInput('abc')).toEqual({
-        ok: false,
-        error: 'Mã phòng không hợp lệ. Vui lòng nhập số ID phòng (VD: 1, 42).',
-      })
-      expect(sanitizeJoinRoomInput('-5')).toEqual({
-        ok: false,
-        error: 'Mã phòng không hợp lệ. Vui lòng nhập số ID phòng (VD: 1, 42).',
-      })
-      expect(sanitizeJoinRoomInput('0')).toEqual({
-        ok: false,
-        error: 'Mã phòng không hợp lệ. Vui lòng nhập số ID phòng (VD: 1, 42).',
-      })
+      expect(state.status).toBe('ready')
+      if (state.status === 'ready') {
+        expect(state.rooms).toHaveLength(1)
+        expect(state.rooms[0].id).toBe(1)
+      }
     })
   })
 
-  // ── 6. In-Lobby Search & Filtering Logic ────────────────────────────────────
-  describe('6. In-Lobby Room Search & Filtering Truthfulness', () => {
+  // ── 6. Production Strict Room Join Parser ──────────────────────────────────
+  describe('6. Production Strict Room Join Target Parser (parseRoomJoinTarget)', () => {
+    it('E. Accepts valid existing formats: number, phong-ID, relative route, and full URL', () => {
+      expect(parseRoomJoinTarget('42')).toEqual({ ok: true, roomId: 42 })
+      expect(parseRoomJoinTarget(' 108 ')).toEqual({ ok: true, roomId: 108 })
+      expect(parseRoomJoinTarget('phong-42')).toEqual({ ok: true, roomId: 42 })
+      expect(parseRoomJoinTarget('/room/phong-42')).toEqual({ ok: true, roomId: 42 })
+      expect(parseRoomJoinTarget('room/phong-42')).toEqual({ ok: true, roomId: 42 })
+      expect(parseRoomJoinTarget('https://campus.school.edu/room/phong-42')).toEqual({
+        ok: true,
+        roomId: 42,
+      })
+      expect(parseRoomJoinTarget('http://localhost:5173/room/phong-99')).toEqual({
+        ok: true,
+        roomId: 99,
+      })
+    })
+
+    it('F. Strictly rejects malformed alphanumeric mix (42abc, abc42), negative, zero, and unrelated URLs', () => {
+      expect(parseRoomJoinTarget('42abc').ok).toBe(false)
+      expect(parseRoomJoinTarget('abc42').ok).toBe(false)
+      expect(parseRoomJoinTarget('0').ok).toBe(false)
+      expect(parseRoomJoinTarget('-5').ok).toBe(false)
+      expect(parseRoomJoinTarget('').ok).toBe(false)
+      expect(parseRoomJoinTarget('   ').ok).toBe(false)
+      expect(parseRoomJoinTarget('https://example.com/other-page').ok).toBe(false)
+    })
+
+    it('G. JoinRoomModal has eliminated fake "room code" wording', () => {
+      expect(joinRoomModalRaw).not.toContain('Mã hoặc số phòng')
+      expect(joinRoomModalRaw).not.toContain('mã số phòng')
+      expect(joinRoomModalRaw).toContain('ID hoặc liên kết phòng')
+      expect(learningPageRaw).toContain('<span>Vào phòng</span>')
+    })
+  })
+
+  // ── 7. Create Room Dialog Simplicity & Progressive Disclosure ──────────────
+  describe('7. Create Room Dialog Simplicity (CreateStudyRoomDialog)', () => {
+    it('G. Advanced options are collapsed and hidden by default behind toggle', () => {
+      expect(createStudyRoomDialogRaw).toContain('const [showAdvanced, setShowAdvanced] = useState(false)')
+      expect(createStudyRoomDialogRaw).toContain('data-testid="create-room-advanced-toggle"')
+      expect(createStudyRoomDialogRaw).toContain('data-testid="create-room-advanced-section"')
+    })
+  })
+
+  // ── 8. RoomCard Visual Simplification ──────────────────────────────────────
+  describe('8. RoomCard Visual Simplification', () => {
+    it('H. Prohibits redundant "Trực tiếp" and "Học tập" category badges', () => {
+      expect(roomCardRaw).not.toContain('Trực tiếp')
+      expect(roomCardRaw).not.toContain('Radio')
+      expect(roomCardRaw).not.toContain('TEN_MON_HOC')
+      expect(roomCardRaw).not.toContain('getRoomThumbnail')
+    })
+
+    it('I. RoomCard maintains calm workspace structure with room name, host, capacity, lock and Vào phòng CTA', () => {
+      expect(roomCardRaw).toContain('room.ten')
+      expect(roomCardRaw).toContain('room.chuPhongTen')
+      expect(roomCardRaw).toContain('room.sucChua')
+      expect(roomCardRaw).toContain('room.soNguoi')
+      expect(roomCardRaw).toContain('Vào phòng')
+    })
+  })
+
+  // ── 9. In-Lobby Room Search & Filtering Logic ──────────────────────────────
+  describe('9. In-Lobby Room Search & Filtering Truthfulness (filterLobbyRooms)', () => {
     const mockRooms: PhongSanh[] = [
       {
         id: 1,
@@ -242,42 +326,31 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       },
     ]
 
-    function filterRooms(rooms: PhongSanh[], query: string): PhongSanh[] {
-      const q = query.trim().toLowerCase()
-      if (!q) return rooms
-      return rooms.filter((room) => {
-        const matchName = room.ten.toLowerCase().includes(q)
-        const matchHost = room.chuPhongTen.toLowerCase().includes(q)
-        const matchSubject = (room.monHoc || '').toLowerCase().includes(q)
-        return matchName || matchHost || matchSubject
-      })
-    }
-
     it('A. Returns all rooms when search query is empty', () => {
-      expect(filterRooms(mockRooms, '')).toHaveLength(3)
-      expect(filterRooms(mockRooms, '   ')).toHaveLength(3)
+      expect(filterLobbyRooms(mockRooms, '')).toHaveLength(3)
+      expect(filterLobbyRooms(mockRooms, '   ')).toHaveLength(3)
     })
 
     it('B. Filters accurately by room name', () => {
-      const result = filterRooms(mockRooms, 'Toán Hình')
+      const result = filterLobbyRooms(mockRooms, 'Toán Hình')
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe(1)
     })
 
     it('C. Filters accurately by host name', () => {
-      const result = filterRooms(mockRooms, 'Bình')
+      const result = filterLobbyRooms(mockRooms, 'Bình')
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe(2)
     })
 
     it('D. Filters accurately by subject keyword', () => {
-      const result = filterRooms(mockRooms, 'tieng-anh')
+      const result = filterLobbyRooms(mockRooms, 'tieng-anh')
       expect(result).toHaveLength(1)
       expect(result[0].id).toBe(3)
     })
 
     it('E. Returns truthful empty array when no rooms match query', () => {
-      const result = filterRooms(mockRooms, 'hoa-hoc')
+      const result = filterLobbyRooms(mockRooms, 'hoa-hoc')
       expect(result).toHaveLength(0)
     })
   })

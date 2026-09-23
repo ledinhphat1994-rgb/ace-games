@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LogIn } from 'lucide-react'
+import { parseRoomJoinTarget } from '@/features/hub/learning-semantics'
 
 interface JoinRoomModalProps {
   open: boolean
@@ -18,24 +19,19 @@ interface JoinRoomModalProps {
 }
 
 export function JoinRoomModal({ open, onOpenChange, onJoinRoomId }: JoinRoomModalProps) {
-  const [roomIdInput, setRoomIdInput] = useState('')
+  const [targetInput, setTargetInput] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const clean = roomIdInput.trim().replace(/^phong-/, '')
-    if (!clean) {
-      setError('Vui lòng nhập ID hoặc mã số phòng học.')
-      return
-    }
-    const num = parseInt(clean, 10)
-    if (isNaN(num) || num <= 0) {
-      setError('Mã phòng không hợp lệ. Vui lòng nhập số ID phòng (VD: 1, 42).')
+    const result = parseRoomJoinTarget(targetInput)
+    if (!result.ok || !result.roomId) {
+      setError(result.error || 'Mục tiêu phòng học không hợp lệ.')
       return
     }
     setError(null)
-    setRoomIdInput('')
-    onJoinRoomId(num)
+    setTargetInput('')
+    onJoinRoomId(result.roomId)
     onOpenChange(false)
   }
 
@@ -48,24 +44,24 @@ export function JoinRoomModal({ open, onOpenChange, onJoinRoomId }: JoinRoomModa
             <span>Vào phòng học</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-400">
-            Nhập ID hoặc mã số phòng học để tham gia trực tiếp.
+            Nhập ID hoặc liên kết phòng để tham gia trực tiếp.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div>
             <Label htmlFor="room-id-input" className="text-xs text-slate-300">
-              Mã hoặc số phòng
+              ID hoặc liên kết phòng
             </Label>
             <Input
               id="room-id-input"
               data-testid="join-room-input"
-              value={roomIdInput}
+              value={targetInput}
               onChange={(e) => {
-                setRoomIdInput(e.target.value)
+                setTargetInput(e.target.value)
                 setError(null)
               }}
-              placeholder="VD: 1, 42 hoặc phong-42"
+              placeholder="VD: 42, phong-42 hoặc /room/phong-42"
               className="mt-1.5 h-9 border-white/15 bg-white/5 text-sm text-white placeholder:text-slate-500 focus-visible:ring-cyan-500/40"
             />
             {error && <p className="mt-1.5 text-xs text-rose-400">{error}</p>}

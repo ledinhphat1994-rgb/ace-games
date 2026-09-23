@@ -94,3 +94,113 @@ export function deriveChallengeProgress(challenge: ClassChallenge | null | undef
       : `Đã đạt ${current}/${target} ${unit} (${percent}%)`,
   }
 }
+
+/**
+ * Strict Room Join Target Parser
+ * Strictly validates and extracts room ID from:
+ * - Pure integer digits: "42"
+ * - Room prefix: "phong-42"
+ * - Relative room path: "/room/phong-42" or "room/phong-42"
+ * - Absolute room URL: "http(s)://.../room/phong-42"
+ *
+ * Strictly rejects:
+ * - Trailing/leading alphanumeric mixes (e.g., "42abc", "abc42")
+ * - Zero and negative IDs
+ * - Unrelated URLs and malformed strings
+ */
+export interface ParseJoinTargetResult {
+  ok: boolean
+  roomId?: number
+  error?: string
+}
+
+export function parseRoomJoinTarget(input: string): ParseJoinTargetResult {
+  const raw = input.trim()
+  if (!raw) {
+    return { ok: false, error: 'Vui lòng nhập ID hoặc liên kết phòng.' }
+  }
+
+  // 1. Full URL (e.g., https://campus.edu.vn/room/phong-42)
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    try {
+      const url = new URL(raw)
+      const match = url.pathname.match(/^\/room\/phong-(\d+)$/)
+      if (match) {
+        const id = Number(match[1])
+        if (id > 0) return { ok: true, roomId: id }
+      }
+      return { ok: false, error: 'Liên kết không hợp lệ. Vui lòng nhập liên kết phòng học (VD: /room/phong-42).' }
+    } catch {
+      return { ok: false, error: 'Địa chỉ liên kết URL không hợp lệ.' }
+    }
+  }
+
+  // 2. Relative route path (e.g., /room/phong-42 or room/phong-42)
+  const relMatch = raw.match(/^\/?room\/phong-(\d+)$/)
+  if (relMatch) {
+    const id = Number(relMatch[1])
+    if (id > 0) return { ok: true, roomId: id }
+    return { ok: false, error: 'ID phòng phải là số nguyên dương.' }
+  }
+
+  // 3. phong-42 prefix
+  const prefixMatch = raw.match(/^phong-(\d+)$/)
+  if (prefixMatch) {
+    const id = Number(prefixMatch[1])
+    if (id > 0) return { ok: true, roomId: id }
+    return { ok: false, error: 'ID phòng phải là số nguyên dương.' }
+  }
+
+  // 4. Pure positive integer (strict: only digits 0-9)
+  const numMatch = raw.match(/^(\d+)$/)
+  if (numMatch) {
+    const id = Number(numMatch[1])
+    if (id > 0) return { ok: true, roomId: id }
+    return { ok: false, error: 'ID phòng phải là số nguyên dương.' }
+  }
+
+  return {
+    ok: false,
+    error: 'Mục tiêu không hợp lệ. Vui lòng nhập số ID phòng (VD: 42, phong-42) hoặc liên kết phòng.',
+  }
+}
+
+/**
+ * Lobby Readiness State Derivation
+ * Lifecycle:
+ * - Before authoritative snapshot or during initial connection: 'loading'
+ * - While connection is broken / reconnecting: 'reconnecting'
+ * - Once authoritative snapshot arrives: 'ready'
+ */
+export type LobbyReadinessState =
+  | { status: 'loading' }
+  | { status: 'reconnecting' }
+  | { status: 'ready'; rooms: PhongSanh[] }
+
+export function deriveLobbyState(params: {
+  trangThai: string
+  campusSnapshotReady: boolean
+  rooms: PhongSanh[]
+}): LobbyReadinessState {
+  if (params.trangThai === 'mat_ket_noi') {
+    return { status: 'reconnecting' }
+  }
+  if (!params.campusSnapshotReady || params.trangThai === 'dang_ket_noi') {
+    return { status: 'loading' }
+  }
+  return { status: 'ready', rooms: params.rooms }
+}
+
+/**
+ * Pure filter for active rooms in lobby by query (room name, host name, subject)
+ */
+export function filterLobbyRooms(rooms: PhongSanh[], query: string): PhongSanh[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return rooms
+  return rooms.filter((room) => {
+    const matchName = (room.ten || '').toLowerCase().includes(q)
+    const matchHost = (room.chuPhongTen || '').toLowerCase().includes(q)
+    const matchSubject = (room.monHoc || '').toLowerCase().includes(q)
+    return matchName || matchHost || matchSubject
+  })
+}
