@@ -131,6 +131,10 @@ export interface RoomLifecycleLocalState {
   autoCloseEnabled: boolean
   retryAttempts?: number
   nextRetryAt?: number
+  finalizePending?: boolean
+  finalizeRetryAttempts?: number
+  finalizeNextRetryAt?: number
+  consecutiveOverdueAlarms?: number
 }
 
 const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
@@ -149,6 +153,10 @@ const DEFAULT_LIFECYCLE_STATE: RoomLifecycleLocalState = {
   autoCloseEnabled: true,
   retryAttempts: 0,
   nextRetryAt: 0,
+  finalizePending: false,
+  finalizeRetryAttempts: 0,
+  finalizeNextRetryAt: 0,
+  consecutiveOverdueAlarms: 0,
 }
 
 export class RoomDO extends DurableObject<Env> {
@@ -164,12 +172,13 @@ export class RoomDO extends DurableObject<Env> {
   private khoiTaoXong = false
   private lifecycleState: RoomLifecycleLocalState = { ...DEFAULT_LIFECYCLE_STATE }
   private lastD1ActivityPersistAt = 0
-  // P0 Alarm Storm Safety Fuse: Bộ đếm các lần overdue liên tiếp để backoff lũy tiến
+  // P0 Alarm Storm Safety Fuse: Bộ đếm các lần overdue liên tiếp để backoff lũy tiến (lưu bền bỉ vào SQLite)
   private consecutiveOverdueAlarms = 0
   // In-memory overrides đảm bảo next retry luôn tiến về tương lai kể cả khi SQLite gặp lỗi
   private voiceRetryOverrides = new Map<string, { attempts: number; nextRetryAt: number }>()
   private summaryRetryOverrides = new Map<string, { attempts: number; nextRetryAt: number }>()
   private testFailD1LifecycleClaim = false
+  private testFailD1LifecycleFinalize = false
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
@@ -437,7 +446,11 @@ export class RoomDO extends DurableObject<Env> {
           max_room_lifetime_minutes INTEGER NOT NULL DEFAULT 480,
           auto_close_enabled INTEGER NOT NULL DEFAULT 1,
           retry_attempts INTEGER NOT NULL DEFAULT 0,
-          next_retry_at INTEGER NOT NULL DEFAULT 0
+          next_retry_at INTEGER NOT NULL DEFAULT 0,
+          finalize_pending INTEGER NOT NULL DEFAULT 0,
+          finalize_retry_attempts INTEGER NOT NULL DEFAULT 0,
+          finalize_next_retry_at INTEGER NOT NULL DEFAULT 0,
+          consecutive_overdue_alarms INTEGER NOT NULL DEFAULT 0
         );
       `)
       try {
@@ -448,6 +461,18 @@ export class RoomDO extends DurableObject<Env> {
       } catch {}
       try {
         this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN next_retry_at INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN finalize_pending INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN finalize_retry_attempts INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN finalize_next_retry_at INTEGER NOT NULL DEFAULT 0')
+      } catch {}
+      try {
+        this.ctx.storage.sql.exec('ALTER TABLE room_lifecycle ADD COLUMN consecutive_overdue_alarms INTEGER NOT NULL DEFAULT 0')
       } catch {}
     } catch (err) {
       console.error('Lỗi khởi tạo SQLite trong RoomDO:', err)
@@ -718,6 +743,10 @@ export class RoomDO extends DurableObject<Env> {
             auto_close_enabled: number
             retry_attempts?: number
             next_retry_at?: number
+            finalize_pending?: number
+            finalize_retry_attempts?: number
+            finalize_next_retry_at?: number
+            consecutive_overdue_alarms?: number
           }>('SELECT * FROM room_lifecycle WHERE id = 1'),
         ]
         if (lcRows.length > 0) {
@@ -738,7 +767,12 @@ export class RoomDO extends DurableObject<Env> {
             autoCloseEnabled: Boolean(r.auto_close_enabled),
             retryAttempts: r.retry_attempts || 0,
             nextRetryAt: r.next_retry_at || 0,
+            finalizePending: Boolean(r.finalize_pending),
+            finalizeRetryAttempts: r.finalize_retry_attempts || 0,
+            finalizeNextRetryAt: r.finalize_next_retry_at || 0,
+            consecutiveOverdueAlarms: r.consecutive_overdue_alarms || 0,
           }
+          this.consecutiveOverdueAlarms = r.consecutive_overdue_alarms || 0
         }
       } catch (err) {
         console.warn('[RoomDO] Lỗi đọc room_lifecycle:', err)
@@ -749,7 +783,9 @@ export class RoomDO extends DurableObject<Env> {
         const pendingVoice = this.getPendingVoiceRevocations()
         const pendingSummary = this.getPendingSessionSummaries()
         const hasActiveTimer = (this.sessionTimer.running && this.sessionTimer.endsAt > 0) || (this.pomodoro.running && this.pomodoro.endsAt > 0)
-        const hasLifecycleObligation = !this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled
+        const hasLifecycleObligation =
+          (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled) ||
+          Boolean(this.lifecycleState.finalizePending)
         if (pendingVoice.length > 0 || pendingSummary.length > 0 || hasActiveTimer || hasLifecycleObligation) {
           this.ctx.blockConcurrencyWhile(async () => {
             await this.reconcileRoomAlarm()
@@ -778,9 +814,10 @@ export class RoomDO extends DurableObject<Env> {
           id, created_at, ever_joined, last_join_at, last_participant_left_at,
           last_activity_at, is_closed, close_reason, closed_at, closed_by,
           never_joined_ttl_minutes, empty_room_ttl_minutes, max_room_lifetime_minutes, auto_close_enabled,
-          retry_attempts, next_retry_at
+          retry_attempts, next_retry_at, finalize_pending, finalize_retry_attempts, finalize_next_retry_at,
+          consecutive_overdue_alarms
         ) VALUES (
-          1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
+          1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19
         ) ON CONFLICT(id) DO UPDATE SET
           created_at = ?1,
           ever_joined = ?2,
@@ -796,7 +833,11 @@ export class RoomDO extends DurableObject<Env> {
           max_room_lifetime_minutes = ?12,
           auto_close_enabled = ?13,
           retry_attempts = ?14,
-          next_retry_at = ?15`,
+          next_retry_at = ?15,
+          finalize_pending = ?16,
+          finalize_retry_attempts = ?17,
+          finalize_next_retry_at = ?18,
+          consecutive_overdue_alarms = ?19`,
         this.lifecycleState.createdAt,
         this.lifecycleState.everJoined ? 1 : 0,
         this.lifecycleState.lastJoinAt,
@@ -812,6 +853,10 @@ export class RoomDO extends DurableObject<Env> {
         this.lifecycleState.autoCloseEnabled ? 1 : 0,
         this.lifecycleState.retryAttempts || 0,
         this.lifecycleState.nextRetryAt || 0,
+        this.lifecycleState.finalizePending ? 1 : 0,
+        this.lifecycleState.finalizeRetryAttempts || 0,
+        this.lifecycleState.finalizeNextRetryAt || 0,
+        this.consecutiveOverdueAlarms || 0,
       )
     } catch (err) {
       console.error('[RoomDO] Lỗi lưu room_lifecycle:', err)
@@ -937,7 +982,14 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // 5. Room lifecycle deadlines
-    if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled && this.lifecycleState.createdAt > 0) {
+    if (this.lifecycleState.finalizePending) {
+      // Có nghĩa vụ finalize pending D1: nếu có finalizeNextRetryAt trong tương lai thì xếp lịch, nếu không thì now
+      const finalizeDue =
+        this.lifecycleState.finalizeNextRetryAt && this.lifecycleState.finalizeNextRetryAt > 0
+          ? this.lifecycleState.finalizeNextRetryAt
+          : now
+      deadlines.push(finalizeDue)
+    } else if (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled && this.lifecycleState.createdAt > 0) {
       if (this.lifecycleState.nextRetryAt && this.lifecycleState.nextRetryAt > now) {
         // Lifecycle đang trong chu kỳ backoff tạm thời sau lỗi D1
         deadlines.push(this.lifecycleState.nextRetryAt)
@@ -974,12 +1026,18 @@ export class RoomDO extends DurableObject<Env> {
 
       if (earliest > now) {
         scheduledTime = earliest
-        this.consecutiveOverdueAlarms = 0
+        if (this.consecutiveOverdueAlarms !== 0) {
+          this.consecutiveOverdueAlarms = 0
+          this.lifecycleState.consecutiveOverdueAlarms = 0
+          this.luuLifecycleState()
+        }
       } else {
         // Section 5: Global Alarm Safety Fuse
         // Phát hiện deadline quá hạn (earliest <= now). Tuyệt đối cấm lặp vô hạn now + 50ms.
         // Áp dụng backoff lũy tiến bền bỉ bắt đầu từ 1000ms đến tối đa 60000ms.
         this.consecutiveOverdueAlarms = (this.consecutiveOverdueAlarms || 0) + 1
+        this.lifecycleState.consecutiveOverdueAlarms = this.consecutiveOverdueAlarms
+        this.luuLifecycleState()
         const backoffDelay = Math.min(1000 * Math.pow(2, Math.max(0, this.consecutiveOverdueAlarms - 1)), 60000)
         scheduledTime = now + backoffDelay
         console.warn(
@@ -993,7 +1051,11 @@ export class RoomDO extends DurableObject<Env> {
         console.error('[RoomDO] Lỗi setAlarm trong reconcileRoomAlarm:', err)
       }
     } else {
-      this.consecutiveOverdueAlarms = 0
+      if (this.consecutiveOverdueAlarms !== 0) {
+        this.consecutiveOverdueAlarms = 0
+        this.lifecycleState.consecutiveOverdueAlarms = 0
+        this.luuLifecycleState()
+      }
       try {
         await this.ctx.storage.deleteAlarm()
       } catch (err) {
@@ -1018,8 +1080,94 @@ export class RoomDO extends DurableObject<Env> {
     )
   }
 
+  private apDungFinalizeBackoff(now: number, reason: string): void {
+    const attempts = (this.lifecycleState.finalizeRetryAttempts || 0) + 1
+    const delay = Math.min(1000 * Math.pow(2, Math.max(0, attempts - 1)), 60000)
+    const nextRetryAt = now + delay
+    this.lifecycleState.finalizePending = true
+    this.lifecycleState.finalizeRetryAttempts = attempts
+    this.lifecycleState.finalizeNextRetryAt = nextRetryAt
+    this.luuLifecycleState()
+    console.warn(
+      `[RoomDO] ROOM_FINALIZE_BACKOFF_APPLIED: Finalize retry #${attempts} lùi lại ${delay}ms do lỗi: ${reason}`,
+    )
+  }
+
+  private async thucHienFinalizeD1(
+    now: number,
+    roomId: number,
+    reason: string,
+    actorType: 'admin' | 'owner' | 'moderator' | 'system',
+    closedBy: number | null,
+    actorName: string,
+    closedSocketsCount: number,
+  ): Promise<boolean> {
+    if (!this.env?.DB) {
+      this.apDungFinalizeBackoff(now, 'missing_d1_database')
+      return false
+    }
+
+    try {
+      if (this.testFailD1LifecycleFinalize) {
+        throw new Error('SIMULATED_D1_FINALIZE_FAILURE')
+      }
+
+      const res = await finalizeRoomCloseD1(
+        this.env.DB,
+        roomId,
+        reason,
+        { type: actorType, accountId: closedBy, name: actorName },
+        closedSocketsCount,
+        true,
+      )
+
+      if (res.ok) {
+        this.lifecycleState.finalizePending = false
+        this.lifecycleState.finalizeRetryAttempts = 0
+        this.lifecycleState.finalizeNextRetryAt = 0
+        this.luuLifecycleState()
+        await this.reconcileRoomAlarm()
+        return true
+      } else {
+        this.apDungFinalizeBackoff(now, res.error || 'finalize_failed')
+        await this.reconcileRoomAlarm()
+        return false
+      }
+    } catch (err: any) {
+      console.error('[RoomDO.thucHienFinalizeD1] Lỗi finalize D1:', err)
+      this.apDungFinalizeBackoff(now, err?.message || String(err))
+      await this.reconcileRoomAlarm()
+      return false
+    }
+  }
+
   private async xuLyLifecycleAlarm(now: number): Promise<void> {
     this.nạpDuLieuNeuCan()
+
+    // ── Priority 0: Xử lý nghĩa vụ D1 Finalize Pending nếu có ──
+    if (this.lifecycleState.finalizePending) {
+      if (this.lifecycleState.finalizeNextRetryAt && this.lifecycleState.finalizeNextRetryAt > now) {
+        return
+      }
+      const numericId = this.parseNumericRoomId()
+      if (!numericId || !this.env?.DB) {
+        this.apDungFinalizeBackoff(now, 'missing_db_or_id')
+        return
+      }
+      const effectiveReason = this.lifecycleState.closeReason || 'empty_timeout'
+      const effectiveClosedBy = this.lifecycleState.closedBy ?? null
+      const actorType: 'admin' | 'owner' | 'moderator' | 'system' = effectiveReason.startsWith('admin_')
+        ? 'admin'
+        : effectiveReason.startsWith('owner_')
+          ? 'owner'
+          : effectiveReason.startsWith('moderator_')
+            ? 'moderator'
+            : 'system'
+      const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+      await this.thucHienFinalizeD1(now, numericId, effectiveReason, actorType, effectiveClosedBy, actorName, 0)
+      return
+    }
+
     if (this.lifecycleState.isClosed || !this.lifecycleState.autoCloseEnabled || this.lifecycleState.createdAt <= 0) {
       return
     }
@@ -1067,6 +1215,9 @@ export class RoomDO extends DurableObject<Env> {
         console.warn(
           `[RoomDO] ROOM_LIFECYCLE_LOCAL_RECONCILED: Phòng không hợp lệ hoặc thiếu D1 (id=${numericId}). Đóng cục bộ fail-closed.`,
         )
+        this.lifecycleState.finalizePending = false
+        this.lifecycleState.finalizeRetryAttempts = 0
+        this.lifecycleState.finalizeNextRetryAt = 0
         await this.dongPhongNoiBo({
           reason: 'invalid_or_missing_room',
           closedByAccountId: null,
@@ -1088,6 +1239,9 @@ export class RoomDO extends DurableObject<Env> {
           console.warn(
             `[RoomDO] ROOM_LIFECYCLE_LOCAL_RECONCILED: Phòng ${numericId} không tồn tại trên D1. Đóng cục bộ fail-closed.`,
           )
+          this.lifecycleState.finalizePending = false
+          this.lifecycleState.finalizeRetryAttempts = 0
+          this.lifecycleState.finalizeNextRetryAt = 0
           await this.dongPhongNoiBo({
             reason: 'canonical_not_found',
             closedByAccountId: systemAccountId,
@@ -1114,6 +1268,10 @@ export class RoomDO extends DurableObject<Env> {
                 : 'system'
 
           const actorName = actorType === 'system' ? 'Hệ thống tự động' : 'Quản trị viên'
+
+          this.lifecycleState.finalizePending = false
+          this.lifecycleState.finalizeRetryAttempts = 0
+          this.lifecycleState.finalizeNextRetryAt = 0
 
           await this.dongPhongNoiBo({
             reason: effectiveReason,
@@ -1147,15 +1305,17 @@ export class RoomDO extends DurableObject<Env> {
             closedByName: actorName,
             actorType,
             closedAt: effectiveClosedAt,
+            finalizePending: true,
           })
 
-          await finalizeRoomCloseD1(
-            this.env.DB,
+          await this.thucHienFinalizeD1(
+            now,
             numericId,
             effectiveReason,
-            { type: actorType, accountId: effectiveClosedBy, name: actorName },
+            actorType,
+            effectiveClosedBy,
+            actorName,
             localRes.closedCount,
-            true,
           )
           return
         }
@@ -4893,6 +5053,7 @@ export class RoomDO extends DurableObject<Env> {
     actorType?: string
     note?: string | null
     closedAt?: number | null
+    finalizePending?: boolean
   }): Promise<{ ok: boolean; closedCount: number; alreadyClosedLocally?: boolean }> {
     this.nạpDuLieuNeuCan()
     if (this.lifecycleState.isClosed) {
@@ -4907,7 +5068,13 @@ export class RoomDO extends DurableObject<Env> {
     this.lifecycleState.closedBy = params.closedByAccountId ?? null
     this.lifecycleState.retryAttempts = 0
     this.lifecycleState.nextRetryAt = 0
+    this.lifecycleState.finalizePending = Boolean(params.finalizePending)
+    if (!this.lifecycleState.finalizePending) {
+      this.lifecycleState.finalizeRetryAttempts = 0
+      this.lifecycleState.finalizeNextRetryAt = 0
+    }
     this.consecutiveOverdueAlarms = 0
+    this.lifecycleState.consecutiveOverdueAlarms = 0
     this.luuLifecycleState()
 
     // 2. Chốt Learning Session nếu đang chạy để không mất dữ liệu summary (Section 15 & 28)
@@ -5058,5 +5225,14 @@ export class RoomDO extends DurableObject<Env> {
 
   testSetFailD1LifecycleClaim(fail: boolean): void {
     this.testFailD1LifecycleClaim = fail
+  }
+
+  testSetFailD1LifecycleFinalize(fail: boolean): void {
+    this.testFailD1LifecycleFinalize = fail
+  }
+
+  async testReloadFromSqlite(): Promise<void> {
+    this.khoiTaoXong = false
+    this.nạpDuLieuNeuCan()
   }
 }

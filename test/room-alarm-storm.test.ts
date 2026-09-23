@@ -350,4 +350,337 @@ describe('P0 Incident — RoomDO Alarm Storm & Invariant Defense Suite', () => {
     // Cleanup
     await (stub as any).testSetFailD1LifecycleClaim(false)
   })
+
+  it('Invariant I: OPEN -> claim CLOSING -> local close -> D1 finalize SUCCESS => D1=dong, local=closed, no alarm', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant I',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // Trigger alarm -> claim CLOSING -> local close -> finalize D1
+    await stub.testTriggerAlarm()
+
+    // 1. D1 canonical state is terminal 'dong'
+    const row = await env.DB.prepare('SELECT trang_thai, close_reason FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string; close_reason: string }>()
+    expect(row?.trang_thai).toBe('dong')
+    expect(row?.close_reason).toBe('never_joined_timeout')
+
+    // 2. Local state is closed and finalize obligation is complete
+    const local = await stub.testGetLifecycleState()
+    expect(local.isClosed).toBe(true)
+    expect(local.finalizePending).toBe(false)
+    expect(local.finalizeRetryAttempts).toBe(0)
+
+    // 3. No alarm remaining
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).toBeNull()
+  })
+
+  it('Invariant J: OPEN -> claim CLOSING -> local close -> D1 finalize FAIL => D1=closing, local closed, finalizePending=true, future retry alarm', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant J',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // Inject failure AFTER claim succeeded (during D1 finalize)
+    await (stub as any).testSetFailD1LifecycleFinalize(true)
+
+    // Trigger alarm
+    await stub.testTriggerAlarm()
+
+    // 1. D1 state reached CLOSING
+    const row = await env.DB.prepare('SELECT trang_thai, close_reason FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string; close_reason: string }>()
+    expect(row?.trang_thai).toBe('closing')
+    expect(row?.close_reason).toBe('never_joined_timeout')
+
+    // 2. Local room is operationally closed, but retains durable finalize pending obligation
+    const local = await stub.testGetLifecycleState()
+    expect(local.isClosed).toBe(true)
+    expect(local.finalizePending).toBe(true)
+    expect(local.finalizeRetryAttempts).toBe(1)
+    expect(local.finalizeNextRetryAt).toBeGreaterThanOrEqual(now + 900)
+
+    // 3. Alarm exists in the FUTURE, NO 50ms loop!
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).not.toBeNull()
+    expect(alarm! - now).toBeGreaterThanOrEqual(900)
+
+    // Reset injection
+    await (stub as any).testSetFailD1LifecycleFinalize(false)
+  })
+
+  it('Invariant K: Retry after J with D1 restored => D1 converges to dong, finalizePending cleared, alarm deleted', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant K',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // 1. First trigger with finalize failure
+    await (stub as any).testSetFailD1LifecycleFinalize(true)
+    await stub.testTriggerAlarm()
+
+    const localAfterFail = await stub.testGetLifecycleState()
+    expect(localAfterFail.finalizePending).toBe(true)
+    expect(localAfterFail.finalizeRetryAttempts).toBe(1)
+
+    // 2. Restore D1 (disable failure hook)
+    await (stub as any).testSetFailD1LifecycleFinalize(false)
+
+    // Simulate alarm wake at due time
+    await stub.testSetLifecycleState({ finalizeNextRetryAt: 0 })
+    await stub.testTriggerAlarm()
+
+    // 3. D1 is now converged to terminal 'dong'
+    const row = await env.DB.prepare('SELECT trang_thai FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string }>()
+    expect(row?.trang_thai).toBe('dong')
+
+    // 4. finalizePending is cleared and alarm is removed
+    const localAfterSuccess = await stub.testGetLifecycleState()
+    expect(localAfterSuccess.isClosed).toBe(true)
+    expect(localAfterSuccess.finalizePending).toBe(false)
+    expect(localAfterSuccess.finalizeRetryAttempts).toBe(0)
+
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).toBeNull()
+  })
+
+  it('Invariant L: D1 already CLOSING from earlier attempt => original claimant preserved, recovery resumes', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant L',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    // Manually set D1 to 'closing' with an earlier claimant (FIRST COMMITTED CLAIM WINS)
+    const originalReason = 'admin_policy_eviction'
+    const originalClosedBy = 1
+    await env.DB.prepare(
+      `UPDATE phong
+       SET trang_thai = 'closing',
+           close_reason = ?1,
+           closed_by = ?2,
+           closing_at = ?3
+       WHERE id = ?4`,
+    )
+      .bind(originalReason, originalClosedBy, now - 30000, room.id)
+      .run()
+
+    // RoomDO is locally open with overdue lifecycle
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // Trigger alarm
+    await stub.testTriggerAlarm()
+
+    // D1 converges to 'dong', retaining the original close_reason and closed_by!
+    const row = await env.DB.prepare('SELECT trang_thai, close_reason, closed_by FROM phong WHERE id = ?1')
+      .bind(room.id)
+      .first<{ trang_thai: string; close_reason: string; closed_by: number }>()
+    expect(row?.trang_thai).toBe('dong')
+    expect(row?.close_reason).toBe(originalReason)
+    expect(row?.closed_by).toBe(originalClosedBy)
+
+    // Local state adopts original reason
+    const local = await stub.testGetLifecycleState()
+    expect(local.isClosed).toBe(true)
+    expect(local.closeReason).toBe(originalReason)
+    expect(local.closedBy).toBe(originalClosedBy)
+    expect(local.finalizePending).toBe(false)
+
+    // Alarm removed
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).toBeNull()
+  })
+
+  it('Invariant M: D1 already DONG + local open => copies canonical metadata, no finalize needed, alarm deleted', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant M',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    const canonicalClosedAt = now - 120000
+    await env.DB.prepare(
+      `UPDATE phong
+       SET trang_thai = 'dong',
+           close_reason = 'teacher_manual_close',
+           closed_by = 1,
+           closed_at = ?1
+       WHERE id = ?2`,
+    )
+      .bind(canonicalClosedAt, room.id)
+      .run()
+
+    // RoomDO is locally open with overdue lifecycle
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // Trigger alarm
+    await stub.testTriggerAlarm()
+
+    // Local state reconciled
+    const local = await stub.testGetLifecycleState()
+    expect(local.isClosed).toBe(true)
+    expect(local.closeReason).toBe('teacher_manual_close')
+    expect(local.closedBy).toBe(1)
+    expect(local.closedAt).toBe(canonicalClosedAt)
+    expect(local.finalizePending).toBe(false)
+
+    // Alarm deleted
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).toBeNull()
+  })
+
+  it('Invariant N: Object state reload from SQLite preserves finalize retry obligation & durable overdue fuse', async () => {
+    const ownerCookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const createRes = await apiFetch('/api/rooms', ownerCookie, 'POST', {
+      ten: 'Phòng Invariant N',
+      phamVi: 'truong',
+      accessMode: 'public',
+    })
+    const { room } = (await createRes.json()) as { room: { id: number } }
+
+    const doId = env.ROOMS.idFromName(`phong-${room.id}`)
+    const stub = env.ROOMS.get(doId)
+
+    const now = Date.now()
+    await stub.testSetLifecycleState(
+      {
+        createdAt: now - 10 * 60 * 1000,
+        neverJoinedTtlMinutes: 5,
+        autoCloseEnabled: true,
+        everJoined: false,
+        isClosed: false,
+      },
+      `phong-${room.id}`,
+    )
+
+    // Fail finalize
+    await (stub as any).testSetFailD1LifecycleFinalize(true)
+    await stub.testTriggerAlarm()
+
+    const localBeforeReload = await stub.testGetLifecycleState()
+    expect(localBeforeReload.finalizePending).toBe(true)
+    expect(localBeforeReload.finalizeRetryAttempts).toBe(1)
+    expect(localBeforeReload.finalizeNextRetryAt).toBeGreaterThan(0)
+
+    // Simulate DO cold start / restart / memory eviction: reload completely from SQLite
+    await (stub as any).testReloadFromSqlite()
+
+    // State loaded from SQLite must preserve finalize retry obligation
+    const localAfterReload = await stub.testGetLifecycleState()
+    expect(localAfterReload.finalizePending).toBe(true)
+    expect(localAfterReload.finalizeRetryAttempts).toBe(1)
+    expect(localAfterReload.finalizeNextRetryAt).toBe(localBeforeReload.finalizeNextRetryAt)
+
+    // Alarm must still be scheduled in the future, proving durability does not rely on in-memory counters
+    const alarm = await stub.testGetScheduledAlarm()
+    expect(alarm).not.toBeNull()
+    expect(alarm! - Date.now()).toBeGreaterThanOrEqual(500)
+
+    // Second retry after wake preserves sequence
+    await stub.testSetLifecycleState({ finalizeNextRetryAt: 0 })
+    await (stub as any).testReloadFromSqlite()
+    await stub.testTriggerAlarm()
+
+    const localAttempt2 = await stub.testGetLifecycleState()
+    expect(localAttempt2.finalizeRetryAttempts).toBe(2)
+
+    // Clean up
+    await (stub as any).testSetFailD1LifecycleFinalize(false)
+  })
 })
