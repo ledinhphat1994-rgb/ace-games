@@ -5,7 +5,7 @@ export interface PresetAvatar {
 }
 
 export const PRESET_AVATARS: PresetAvatar[] = [
-  { id: 'boy_smile', src: '/assets/avatars/avatar_01_boy_smile.webp', label: 'Cậu bé mỉm cười' },
+  { id: 'boy_smile', src: '/assets/avatars/avatar_01_boy.webp', label: 'Cậu bé mỉm cười' },
   { id: 'boy_glasses', src: '/assets/avatars/avatar_02_boy_glasses.webp', label: 'Cậu bé kính cận' },
   { id: 'girl_peace', src: '/assets/avatars/avatar_03_girl_peace.webp', label: 'Cô bé năng động' },
   { id: 'boy_gamer', src: '/assets/avatars/avatar_04_boy_gamer.webp', label: 'Gamer boy' },

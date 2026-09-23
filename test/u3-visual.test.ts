@@ -1,18 +1,22 @@
-// test/u3-visual.test.ts
-// Digital Campus v2: Milestone V3 — Visual Recovery & Account Quick Center Contracts
-
 import { describe, expect, it } from 'vitest'
 import type { UserAchievementItem } from '../shared/protocol/engagement'
 import { PRESET_AVATARS } from '../src/components/account/preset-avatars'
 import { deriveAchievementViewState } from '../src/components/account/account-quick-center-state'
+import { deriveProgressState } from '../src/components/progress/progress-state'
 import { type HomeDestinationConfig, HOME_DESTINATIONS } from '../src/features/hub/home-destinations'
 import accountQuickCenterRaw from '../src/components/account/AccountQuickCenter.tsx?raw'
 import homePageRaw from '../src/features/hub/HomePage.tsx?raw'
 
 describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
   // ── 1. Preset Avatars Integrity ───────────────────────────────────────────
-  it('1. Preset avatars contain 12 distinct teen illustrated assets', () => {
+  it('1. Preset avatars contain 12 distinct teen illustrated assets that resolve to real packaged files', () => {
     expect(PRESET_AVATARS).toHaveLength(12)
+
+    // Verify all 12 avatar assets are discoverable and packaged by Vite
+    const packagedAvatars = import.meta.glob('../public/assets/avatars/*.webp', { eager: true })
+    const packagedPaths = new Set(
+      Object.keys(packagedAvatars).map((p) => p.replace('../public', ''))
+    )
 
     const ids = new Set<string>()
     const paths = new Set<string>()
@@ -24,6 +28,9 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
 
       expect(ids.has(avatar.id)).toBe(false)
       expect(paths.has(avatar.src)).toBe(false)
+
+      // Deterministic check: asset file must be packaged and available
+      expect(packagedPaths.has(avatar.src), `Preset avatar "${avatar.label}" asset (${avatar.src}) must be packaged`).toBe(true)
 
       ids.add(avatar.id)
       paths.add(avatar.src)
@@ -276,6 +283,109 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
         items: null,
       })
       expect(state).toEqual({ status: 'loading' })
+    })
+  })
+
+  // ── 6. Truthful Progress State Contract ──────────────────────────────────
+  describe('6. Truthful Progress State Contract (Anti-Fabrication & Strict Error Handling)', () => {
+    // A. Successful profile: currentStreak=0, totalXp=0 => legitimate zero values render
+    it('A. Successful profile with 0 streak and 0 XP renders legitimate zeros, not error', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: true,
+          profile: {
+            accountId: 1,
+            currentStreak: 0,
+            longestStreak: 0,
+            lastStudyDate: null,
+            totalXp: 0,
+            todayXp: 0,
+            unlockedAchievementsCount: 0,
+            updatedAt: 1700000000000,
+          },
+        },
+      })
+      expect(state).toEqual({
+        type: 'success',
+        profile: expect.any(Object),
+        todayXp: 0,
+        totalXp: 0,
+        currentStreak: 0,
+      })
+    })
+
+    // B. Successful profile with data => authoritative values render
+    it('B. Successful profile with real data renders authoritative values', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: true,
+          profile: {
+            accountId: 1,
+            currentStreak: 7,
+            longestStreak: 14,
+            lastStudyDate: '2026-09-23',
+            totalXp: 450,
+            todayXp: 50,
+            unlockedAchievementsCount: 4,
+            updatedAt: 1700000000000,
+          },
+        },
+      })
+      expect(state).toEqual({
+        type: 'success',
+        profile: expect.any(Object),
+        todayXp: 50,
+        totalXp: 450,
+        currentStreak: 7,
+      })
+    })
+
+    // C. HTTP/API error => error state, NOT 0 ngày / 0 XP
+    it('C. HTTP/API error renders ERROR state, NEVER converts to fake zero streak or XP', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: true,
+        data: null,
+        error: new Error('Network timeout'),
+      })
+      expect(state).toEqual({
+        type: 'error',
+        message: 'Network timeout',
+      })
+      expect(state.type).not.toBe('success')
+    })
+
+    // D. JSON { ok:false } => error state
+    it('D. HTTP 200 with JSON { ok: false } returns error state, not success', () => {
+      const state = deriveProgressState({
+        isLoading: false,
+        isError: false,
+        data: {
+          ok: false,
+          loi: 'Phiên đăng nhập hết hạn',
+        },
+      })
+      expect(state).toEqual({
+        type: 'error',
+        message: 'Phiên đăng nhập hết hạn',
+      })
+      expect(state.type).not.toBe('success')
+    })
+
+    // E. Loading => loading state
+    it('E. Loading state is strictly distinguished from error and success', () => {
+      const state = deriveProgressState({
+        isLoading: true,
+        isError: false,
+        data: null,
+      })
+      expect(state).toEqual({
+        type: 'loading',
+      })
     })
   })
 })
