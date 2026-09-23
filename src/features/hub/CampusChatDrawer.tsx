@@ -168,7 +168,7 @@ export function CampusChatDrawer({
       </CardContent>
 
       {/* Composer Footer */}
-      <CardFooter className="border-t border-border/50 p-3 bg-card/80 shrink-0">
+      <CardFooter className="border-t border-border/50 p-3 pb-6 sm:pb-3 bg-card/80 shrink-0">
         <form onSubmit={xuLyGui} className="flex w-full items-center gap-2">
           <Input
             value={noiDung}

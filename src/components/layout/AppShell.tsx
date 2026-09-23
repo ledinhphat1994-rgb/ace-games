@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
@@ -27,6 +27,12 @@ export function AppShell({ children }: AppShellProps) {
   } = useCampus()
 
   const [isChatOpen, setIsChatOpen] = useState(false)
+
+  useEffect(() => {
+    const handleOpenChat = () => setIsChatOpen(true)
+    window.addEventListener('campus:open-chat', handleOpenChat)
+    return () => window.removeEventListener('campus:open-chat', handleOpenChat)
+  }, [])
 
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
