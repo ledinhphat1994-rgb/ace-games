@@ -1,4 +1,4 @@
-import { useState, useTransition } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   UserCheck,
@@ -13,6 +13,9 @@ import {
   DoorOpen,
   Clock,
   ShieldAlert,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -29,29 +32,34 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { timKiemNguoiDung } from '@/lib/api'
-import type { SearchResultItem } from '@shared/protocol/social'
-
-function formatLastSeen(ts: number | null): string {
-  if (!ts) return 'Ngoại tuyến'
-  const diff = Date.now() - ts
-  if (diff < 60_000) return 'Vừa mới đây'
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 60) return `${mins} phút trước`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} giờ trước`
-  const days = Math.floor(hours / 24)
-  return `${days} ngày trước`
-}
+import {
+  UserSearchController,
+  type SearchState,
+  formatLastSeen,
+  derivePresenceView,
+} from '@/features/hub/social-semantics'
 
 interface FriendsDrawerProps {
   className?: string
+  defaultTab?: 'friends' | 'requests' | 'search'
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactNode
 }
 
-export function FriendsDrawer({ className }: FriendsDrawerProps) {
+export function FriendsDrawer({
+  className,
+  defaultTab,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  trigger,
+}: FriendsDrawerProps) {
   const navigate = useNavigate()
   const {
     socialState,
     friendsPresence,
+    presenceReady,
+    trangThai,
     sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
@@ -61,39 +69,59 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
     unblockUser,
   } = useCampusContext()
 
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends')
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = typeof controlledOpen === 'boolean'
+  const isOpen = isControlled ? controlledOpen : internalOpen
+  const handleOpenChange = (val: boolean) => {
+    if (isControlled) {
+      setControlledOpen?.(val)
+    } else {
+      setInternalOpen(val)
+    }
+  }
+
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>(defaultTab || 'friends')
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([])
-  const [isSearching, startSearchTransition] = useTransition()
+  const [searchController] = useState(() => new UserSearchController())
+  const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' })
   const [busyActionId, setBusyActionId] = useState<string | null>(null)
 
-  const incomingRequests = socialState?.incomingRequests ?? []
-  const outgoingRequests = socialState?.outgoingRequests ?? []
-  const friends = socialState?.friends ?? []
-  const blockedUsers = socialState?.blockedUsers ?? []
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab)
+    }
+  }, [defaultTab])
 
-  // Count online friends
-  const onlineFriendsCount = friends.filter((f) => {
-    const p = friendsPresence[f.id]
-    return p && (p.state === 'online' || p.state === 'away')
-  }).length
+  useEffect(() => {
+    return searchController.subscribe(setSearchState)
+  }, [searchController])
+
+  const incomingRequests = useMemo(() => socialState?.incomingRequests ?? [], [socialState?.incomingRequests])
+  const outgoingRequests = useMemo(() => socialState?.outgoingRequests ?? [], [socialState?.outgoingRequests])
+  const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
+  const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
+
+  const presenceView = useMemo(() => {
+    return derivePresenceView({
+      friends,
+      presenceMap: friendsPresence,
+      presenceReady,
+      connectionStatus: trangThai,
+    })
+  }, [friends, friendsPresence, presenceReady, trangThai])
+
+  // Count online friends truthfully from presenceView
+  const onlineFriendsCount = presenceView.totalActive
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    const trimmed = query.trim()
-    if (!trimmed) {
-      setSearchResults([])
-      return
+    void searchController.executeSearch(query, timKiemNguoiDung)
+  }
+
+  const handleRetrySearch = () => {
+    if (searchQuery.trim()) {
+      void searchController.executeSearch(searchQuery, timKiemNguoiDung)
     }
-    startSearchTransition(async () => {
-      try {
-        const results = await timKiemNguoiDung(trimmed)
-        setSearchResults(results)
-      } catch {
-        setSearchResults([])
-      }
-    })
   }
 
   const handleSendRequest = async (targetId: number) => {
@@ -105,11 +133,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
         return
       }
       toast.success('Đã gửi lời mời kết bạn!')
-      setSearchResults((prev) =>
-        prev.map((item) =>
-          item.id === targetId ? { ...item, relationshipStatus: 'pending_sent' } : item,
-        ),
-      )
+      searchController.updateItemStatus(targetId, 'pending_sent')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không gửi được lời mời.')
     } finally {
@@ -214,38 +238,44 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
   }
 
   const handleJoinFriendRoom = (roomId: number) => {
-    setOpen(false)
+    handleOpenChange(false)
     navigate(`/room/phong-${roomId}`)
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger
-        data-testid="friends-drawer-trigger"
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`relative h-9 gap-1.5 px-3 text-xs font-medium text-slate-300 hover:text-white ${className || ''}`}
-            aria-label="Mở danh sách bạn bè"
-          />
-        }
-      >
-        <Users className="h-4 w-4 text-indigo-400" />
-        <span className="hidden sm:inline">Bạn bè</span>
-        {onlineFriendsCount > 0 && (
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500" title={`${onlineFriendsCount} bạn trực tuyến`} />
-        )}
-        {incomingRequests.length > 0 && (
-          <Badge
-            data-testid="pending-requests-badge"
-            variant="destructive"
-            className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-bold"
-          >
-            {incomingRequests.length}
-          </Badge>
-        )}
-      </SheetTrigger>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
+      {trigger ? (
+        <SheetTrigger data-testid="friends-drawer-trigger" render={<span className="inline-block cursor-pointer" />}>
+          {trigger}
+        </SheetTrigger>
+      ) : (
+        <SheetTrigger
+          data-testid="friends-drawer-trigger"
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`relative h-9 gap-1.5 px-3 text-xs font-medium text-slate-300 hover:text-white ${className || ''}`}
+              aria-label="Mở danh sách bạn bè"
+            />
+          }
+        >
+          <Users className="h-4 w-4 text-indigo-400" />
+          <span className="hidden sm:inline">Bạn bè</span>
+          {onlineFriendsCount > 0 && (
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500" title={`${onlineFriendsCount} bạn trực tuyến`} />
+          )}
+          {incomingRequests.length > 0 && (
+            <Badge
+              data-testid="pending-requests-badge"
+              variant="destructive"
+              className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-bold"
+            >
+              {incomingRequests.length}
+            </Badge>
+          )}
+        </SheetTrigger>
+      )}
 
       <SheetContent
         side="right"
@@ -295,7 +325,21 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
           </TabsList>
 
           {/* ════ TAB 1: DANH SÁCH BẠN BÈ ════ */}
-          <TabsContent value="friends" className="flex-1 overflow-y-auto px-4 pb-4 mt-0 space-y-2">
+          <TabsContent value="friends" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-2">
+            {presenceView.freshness !== 'ready' && (
+              <div
+                data-testid="drawer-presence-disconnected"
+                className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 p-2.5 text-xs text-warning"
+              >
+                <span className="h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" />
+                <span>
+                  {presenceView.freshness === 'stale'
+                    ? 'Mất kết nối thời gian thực. Đang kết nối lại…'
+                    : 'Đang đồng bộ trạng thái bạn bè…'}
+                </span>
+              </div>
+            )}
+
             {friends.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
                 <Users className="h-10 w-10 text-slate-500 mb-2 opacity-60" />
@@ -315,11 +359,12 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
               </div>
             ) : (
               friends.map((friend) => {
-                const presence = friendsPresence[friend.id]
-                const status = presence?.state ?? 'offline'
+                const isReady = presenceView.freshness === 'ready'
+                const presence = isReady ? friendsPresence[friend.id] : undefined
+                const status = isReady ? (presence?.state ?? 'offline') : 'unknown'
                 const isOnline = status === 'online'
                 const isAway = status === 'away'
-                const activity = presence?.activity
+                const activity = isReady ? presence?.activity : undefined
 
                 return (
                   <div
@@ -341,13 +386,25 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
                         <span
                           data-testid={`presence-dot-${friend.username}`}
                           className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0c121e] ${
-                            isOnline
+                            !isReady
+                              ? 'bg-slate-600'
+                              : isOnline
                               ? 'bg-emerald-500'
                               : isAway
                               ? 'bg-amber-400'
                               : 'bg-slate-500'
                           }`}
-                          title={isOnline ? 'Trực tuyến' : isAway ? 'Vắng mặt' : 'Ngoại tuyến'}
+                          title={
+                            !isReady
+                              ? presenceView.freshness === 'stale'
+                                ? 'Mất kết nối'
+                                : 'Đang đồng bộ'
+                              : isOnline
+                              ? 'Trực tuyến'
+                              : isAway
+                              ? 'Vắng mặt'
+                              : 'Ngoại tuyến'
+                          }
                         />
                       </div>
 
@@ -373,6 +430,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
                           size="icon"
                           className="h-7 w-7 text-slate-400 hover:text-rose-400"
                           title="Hủy kết bạn"
+                          aria-label="Hủy kết bạn"
                           disabled={busyActionId === `unfriend-${friend.id}`}
                           onClick={() => handleUnfriend(friend.id)}
                         >
@@ -383,6 +441,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
                           size="icon"
                           className="h-7 w-7 text-slate-400 hover:text-red-500"
                           title="Chặn người dùng"
+                          aria-label="Chặn người dùng"
                           disabled={busyActionId === `block-${friend.id}`}
                           onClick={() => handleBlock(friend.id)}
                         >
@@ -393,7 +452,16 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
 
                     {/* Activity or Last seen status */}
                     <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
-                      {activity ? (
+                      {!isReady ? (
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {presenceView.freshness === 'stale'
+                              ? 'Mất kết nối thời gian thực'
+                              : 'Đang đồng bộ…'}
+                          </span>
+                        </div>
+                      ) : activity ? (
                         <div className="flex items-center gap-1.5 text-indigo-300 truncate" data-testid={`friend-activity-${friend.username}`}>
                           <Radio className="h-3 w-3 shrink-0 text-emerald-400 animate-pulse" />
                           <span className="truncate">
@@ -418,7 +486,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
                       )}
 
                       {/* Join Friend Button */}
-                      {activity?.roomId && (
+                      {isReady && activity?.roomId && (
                         <Button
                           data-testid={`join-friend-btn-${friend.username}`}
                           size="sm"
@@ -437,7 +505,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
           </TabsContent>
 
           {/* ════ TAB 2: LỜI MỜI KẾT BẠN ════ */}
-          <TabsContent value="requests" className="flex-1 overflow-y-auto px-4 pb-4 mt-0 space-y-4">
+          <TabsContent value="requests" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-4">
             {/* Lời mời đã nhận */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -487,6 +555,8 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 text-slate-400 hover:text-rose-400"
+                          title="Từ chối kết bạn"
+                          aria-label="Từ chối kết bạn"
                           disabled={busyActionId === `reject-${req.id}`}
                           onClick={() => handleRejectRequest(req.id)}
                         >
@@ -550,7 +620,7 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
           </TabsContent>
 
           {/* ════ TAB 3: TÌM BẠN HỌC ════ */}
-          <TabsContent value="search" className="flex-1 overflow-y-auto px-4 pb-4 mt-0 space-y-3">
+          <TabsContent value="search" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -562,82 +632,106 @@ export function FriendsDrawer({ className }: FriendsDrawerProps) {
               />
             </div>
 
-            {isSearching && (
-              <p className="text-xs text-slate-400 text-center py-4">Đang tìm kiếm…</p>
+            {searchState.status === 'searching' && (
+              <div data-testid="search-searching-state" className="flex items-center justify-center gap-2 py-6 text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
+                <span className="text-xs">Đang tìm kiếm…</span>
+              </div>
             )}
 
-            {!isSearching && searchResults.length === 0 && searchQuery.trim() && (
-              <p className="text-xs text-slate-500 text-center py-6">
-                Không tìm thấy tài khoản nào khớp với &quot;{searchQuery}&quot;
+            {searchState.status === 'empty' && (
+              <p data-testid="search-empty-state" className="text-xs text-slate-400 text-center py-6">
+                Không tìm thấy tài khoản nào khớp với &quot;{searchState.query}&quot;
               </p>
             )}
 
-            <div className="space-y-2">
-              {searchResults.map((user) => (
-                <div
-                  key={user.id}
-                  data-testid={`search-result-${user.username}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
+            {searchState.status === 'error' && (
+              <div data-testid="search-error-state" className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-center space-y-2.5">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-rose-400 font-medium">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{searchState.error}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-testid="search-retry-btn"
+                  onClick={handleRetrySearch}
+                  className="h-7 text-xs gap-1.5 border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500/20"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white border border-white/10 overflow-hidden">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.username} className="h-full w-full object-cover" />
-                      ) : (
-                        user.displayName.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs font-semibold text-white">
-                          {user.displayName}
-                        </p>
-                        {user.lopTen && (
-                          <span className="shrink-0 rounded bg-white/10 px-1 py-0.2 text-[10px] text-slate-300">
-                            {user.lopTen}
-                          </span>
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Thử lại</span>
+                </Button>
+              </div>
+            )}
+
+            {searchState.status === 'success' && (
+              <div className="space-y-2">
+                {searchState.results.map((user) => (
+                  <div
+                    key={user.id}
+                    data-testid={`search-result-${user.username}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white border border-white/10 overflow-hidden">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.username} className="h-full w-full object-cover" />
+                        ) : (
+                          user.displayName.charAt(0).toUpperCase()
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400">@{user.username}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs font-semibold text-white">
+                            {user.displayName}
+                          </p>
+                          {user.lopTen && (
+                            <span className="shrink-0 rounded bg-white/10 px-1 py-0.2 text-[10px] text-slate-300">
+                              {user.lopTen}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">@{user.username}</p>
+                      </div>
                     </div>
-                  </div>
 
-                  {user.relationshipStatus === 'self' ? (
-                    <Badge variant="outline" className="text-[10px] border-white/15 text-slate-400">
-                      Bạn
-                    </Badge>
-                  ) : user.relationshipStatus === 'friend' ? (
-                    <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                      <UserCheck className="h-3 w-3 mr-1" />
-                      Bạn bè
-                    </Badge>
-                  ) : user.relationshipStatus === 'pending_sent' ? (
-                    <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-300">
-                      Đã gửi
-                    </Badge>
-                  ) : user.relationshipStatus === 'pending_received' ? (
-                    <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-300">
-                      Đang chờ bạn
-                    </Badge>
-                  ) : user.relationshipStatus === 'blocked' ? (
-                    <Badge variant="outline" className="text-[10px] border-rose-500/30 text-rose-400">
-                      Đã chặn
-                    </Badge>
-                  ) : (
-                    <Button
-                      data-testid={`add-friend-btn-${user.username}`}
-                      size="sm"
-                      className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg gap-1"
-                      disabled={busyActionId === `send-${user.id}`}
-                      onClick={() => handleSendRequest(user.id)}
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      Kết bạn
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {user.relationshipStatus === 'self' ? (
+                      <Badge variant="outline" className="text-[10px] border-white/15 text-slate-400">
+                        Bạn
+                      </Badge>
+                    ) : user.relationshipStatus === 'friend' ? (
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                        <UserCheck className="h-3 w-3 mr-1" />
+                        Bạn bè
+                      </Badge>
+                    ) : user.relationshipStatus === 'pending_sent' ? (
+                      <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-300">
+                        Đã gửi
+                      </Badge>
+                    ) : user.relationshipStatus === 'pending_received' ? (
+                      <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-300">
+                        Đang chờ bạn
+                      </Badge>
+                    ) : user.relationshipStatus === 'blocked' ? (
+                      <Badge variant="outline" className="text-[10px] border-rose-500/30 text-rose-400">
+                        Đã chặn
+                      </Badge>
+                    ) : (
+                      <Button
+                        data-testid={`add-friend-btn-${user.username}`}
+                        size="sm"
+                        className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg gap-1"
+                        disabled={busyActionId === `send-${user.id}`}
+                        onClick={() => handleSendRequest(user.id)}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Kết bạn
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Danh sách người dùng đã chặn */}
             {blockedUsers.length > 0 && (

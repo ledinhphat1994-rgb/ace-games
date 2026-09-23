@@ -16,6 +16,7 @@ interface CampusChatDrawerProps {
   onSendMessage: (text: string) => Promise<KetQuaThaoTac>
   onDeleteMessage: (id: number) => Promise<KetQuaThaoTac>
   className?: string
+  hideHeader?: boolean
 }
 
 function dinhDangGio(ms: number): string {
@@ -31,6 +32,7 @@ export function CampusChatDrawer({
   onSendMessage,
   onDeleteMessage,
   className = '',
+  hideHeader = false,
 }: CampusChatDrawerProps) {
   const [noiDung, setNoiDung] = useState('')
   const [dangGui, setDangGui] = useState(false)
@@ -84,17 +86,19 @@ export function CampusChatDrawer({
   return (
     <Card className={`flex h-full flex-col border-border/70 bg-card ${className}`}>
       {/* Header */}
-      <CardHeader className="border-b border-border/50 px-4 py-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <MessageSquare className="h-4 w-4 text-primary" />
-            <span>Trò chuyện sảnh trường</span>
-          </CardTitle>
-          <Badge variant="outline" className="border-border/60 bg-muted/30 text-[10px] text-muted-foreground font-medium">
-            {messages.length} tin nhắn
-          </Badge>
-        </div>
-      </CardHeader>
+      {!hideHeader && (
+        <CardHeader className="border-b border-border/50 px-4 py-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span>Trò chuyện sảnh trường</span>
+            </CardTitle>
+            <Badge variant="outline" className="border-border/60 bg-muted/30 text-[10px] text-muted-foreground font-medium">
+              {messages.length} tin nhắn
+            </Badge>
+          </div>
+        </CardHeader>
+      )}
 
       {/* Messages Scroll Area */}
       <CardContent ref={containerRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
@@ -168,7 +172,7 @@ export function CampusChatDrawer({
       </CardContent>
 
       {/* Composer Footer */}
-      <CardFooter className="border-t border-border/50 p-3 bg-card/80 shrink-0">
+      <CardFooter className="border-t border-border/50 p-3 pb-6 sm:pb-3 bg-card/80 shrink-0">
         <form onSubmit={xuLyGui} className="flex w-full items-center gap-2">
           <Input
             value={noiDung}
