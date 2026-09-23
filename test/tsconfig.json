@@ -14,7 +14,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/*": ["../src/*"],
+      "@shared/*": ["../shared/*"]
+    }
   },
   "include": ["./**/*.ts", "../worker-configuration.d.ts", "../worker/env.d.ts"]
 }
