@@ -46,6 +46,7 @@ export function CampusChatSheet({
             myPermissions={myPermissions}
             onSendMessage={onSendMessage}
             onDeleteMessage={onDeleteMessage}
+            hideHeader={true}
             className="h-full border-0 rounded-none bg-transparent shadow-none"
           />
         </div>

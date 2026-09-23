@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   UserCheck,
@@ -32,7 +32,12 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { timKiemNguoiDung } from '@/lib/api'
-import { UserSearchController, type SearchState, formatLastSeen } from '@/features/hub/social-semantics'
+import {
+  UserSearchController,
+  type SearchState,
+  formatLastSeen,
+  derivePresenceView,
+} from '@/features/hub/social-semantics'
 
 interface FriendsDrawerProps {
   className?: string
@@ -53,6 +58,8 @@ export function FriendsDrawer({
   const {
     socialState,
     friendsPresence,
+    presenceReady,
+    trangThai,
     sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
@@ -89,16 +96,22 @@ export function FriendsDrawer({
     return searchController.subscribe(setSearchState)
   }, [searchController])
 
-  const incomingRequests = socialState?.incomingRequests ?? []
-  const outgoingRequests = socialState?.outgoingRequests ?? []
-  const friends = socialState?.friends ?? []
-  const blockedUsers = socialState?.blockedUsers ?? []
+  const incomingRequests = useMemo(() => socialState?.incomingRequests ?? [], [socialState?.incomingRequests])
+  const outgoingRequests = useMemo(() => socialState?.outgoingRequests ?? [], [socialState?.outgoingRequests])
+  const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
+  const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
-  // Count online friends
-  const onlineFriendsCount = friends.filter((f) => {
-    const p = friendsPresence[f.id]
-    return p && (p.state === 'online' || p.state === 'away')
-  }).length
+  const presenceView = useMemo(() => {
+    return derivePresenceView({
+      friends,
+      presenceMap: friendsPresence,
+      presenceReady,
+      connectionStatus: trangThai,
+    })
+  }, [friends, friendsPresence, presenceReady, trangThai])
+
+  // Count online friends truthfully from presenceView
+  const onlineFriendsCount = presenceView.totalActive
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -313,6 +326,20 @@ export function FriendsDrawer({
 
           {/* ════ TAB 1: DANH SÁCH BẠN BÈ ════ */}
           <TabsContent value="friends" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-2">
+            {presenceView.freshness !== 'ready' && (
+              <div
+                data-testid="drawer-presence-disconnected"
+                className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 p-2.5 text-xs text-warning"
+              >
+                <span className="h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" />
+                <span>
+                  {presenceView.freshness === 'stale'
+                    ? 'Mất kết nối thời gian thực. Đang kết nối lại…'
+                    : 'Đang đồng bộ trạng thái bạn bè…'}
+                </span>
+              </div>
+            )}
+
             {friends.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
                 <Users className="h-10 w-10 text-slate-500 mb-2 opacity-60" />
@@ -332,11 +359,12 @@ export function FriendsDrawer({
               </div>
             ) : (
               friends.map((friend) => {
-                const presence = friendsPresence[friend.id]
-                const status = presence?.state ?? 'offline'
+                const isReady = presenceView.freshness === 'ready'
+                const presence = isReady ? friendsPresence[friend.id] : undefined
+                const status = isReady ? (presence?.state ?? 'offline') : 'unknown'
                 const isOnline = status === 'online'
                 const isAway = status === 'away'
-                const activity = presence?.activity
+                const activity = isReady ? presence?.activity : undefined
 
                 return (
                   <div
@@ -358,13 +386,25 @@ export function FriendsDrawer({
                         <span
                           data-testid={`presence-dot-${friend.username}`}
                           className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0c121e] ${
-                            isOnline
+                            !isReady
+                              ? 'bg-slate-600'
+                              : isOnline
                               ? 'bg-emerald-500'
                               : isAway
                               ? 'bg-amber-400'
                               : 'bg-slate-500'
                           }`}
-                          title={isOnline ? 'Trực tuyến' : isAway ? 'Vắng mặt' : 'Ngoại tuyến'}
+                          title={
+                            !isReady
+                              ? presenceView.freshness === 'stale'
+                                ? 'Mất kết nối'
+                                : 'Đang đồng bộ'
+                              : isOnline
+                              ? 'Trực tuyến'
+                              : isAway
+                              ? 'Vắng mặt'
+                              : 'Ngoại tuyến'
+                          }
                         />
                       </div>
 
@@ -390,6 +430,7 @@ export function FriendsDrawer({
                           size="icon"
                           className="h-7 w-7 text-slate-400 hover:text-rose-400"
                           title="Hủy kết bạn"
+                          aria-label="Hủy kết bạn"
                           disabled={busyActionId === `unfriend-${friend.id}`}
                           onClick={() => handleUnfriend(friend.id)}
                         >
@@ -400,6 +441,7 @@ export function FriendsDrawer({
                           size="icon"
                           className="h-7 w-7 text-slate-400 hover:text-red-500"
                           title="Chặn người dùng"
+                          aria-label="Chặn người dùng"
                           disabled={busyActionId === `block-${friend.id}`}
                           onClick={() => handleBlock(friend.id)}
                         >
@@ -410,7 +452,16 @@ export function FriendsDrawer({
 
                     {/* Activity or Last seen status */}
                     <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
-                      {activity ? (
+                      {!isReady ? (
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {presenceView.freshness === 'stale'
+                              ? 'Mất kết nối thời gian thực'
+                              : 'Đang đồng bộ…'}
+                          </span>
+                        </div>
+                      ) : activity ? (
                         <div className="flex items-center gap-1.5 text-indigo-300 truncate" data-testid={`friend-activity-${friend.username}`}>
                           <Radio className="h-3 w-3 shrink-0 text-emerald-400 animate-pulse" />
                           <span className="truncate">
@@ -435,7 +486,7 @@ export function FriendsDrawer({
                       )}
 
                       {/* Join Friend Button */}
-                      {activity?.roomId && (
+                      {isReady && activity?.roomId && (
                         <Button
                           data-testid={`join-friend-btn-${friend.username}`}
                           size="sm"
@@ -504,6 +555,8 @@ export function FriendsDrawer({
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 text-slate-400 hover:text-rose-400"
+                          title="Từ chối kết bạn"
+                          aria-label="Từ chối kết bạn"
                           disabled={busyActionId === `reject-${req.id}`}
                           onClick={() => handleRejectRequest(req.id)}
                         >

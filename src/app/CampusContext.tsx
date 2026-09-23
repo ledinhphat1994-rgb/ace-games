@@ -5,9 +5,11 @@ import { lamSachVanBan, MA_DONG_SOCKET, PING_GIU_KET_NOI } from '@shared/protoco
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
 import type { NotificationType } from '@shared/protocol/notification'
+import { SocialMutationLockManager, type SocialStatus } from '@/features/hub/social-semantics'
 
 // ─── Notification System ────────────────────────────────────────────────────
 export type { NotificationType }
+export type { SocialStatus }
 
 export interface AppNotification {
   id: string
@@ -32,11 +34,10 @@ export interface AppNotification {
 
 export type TrangThaiKetNoiCampus = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
 
-export type SocialStatus = 'loading' | 'ready' | 'error'
-
 export interface KetQuaThaoTac {
   ok: boolean
   loi?: string
+  refreshed?: boolean
 }
 
 interface ChoPhanHoi {
@@ -80,7 +81,7 @@ export interface CampusContextValue {
   friendsPresence: Record<number, FriendPresence>
   incomingCount: number
   onlineFriendsCount: number
-  lamMoiSocialState: () => Promise<void>
+  lamMoiSocialState: () => Promise<{ ok: boolean; error?: string }>
   guiLoiMoiKetBan: (targetAccountId: number) => Promise<KetQuaThaoTac>
   chapNhanKetBan: (requestId: number) => Promise<KetQuaThaoTac>
   tuChoiKetBan: (requestId: number) => Promise<KetQuaThaoTac>
@@ -126,7 +127,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [presenceReady, setPresenceReady] = useState<boolean>(false)
   const [socialState, setSocialState] = useState<SocialState>(RONG_SOCIAL_STATE)
   const [presenceMap, setPresenceMap] = useState<Record<number, FriendPresence>>({})
-  const socialMutationLocksRef = useRef<Set<string>>(new Set())
+  const mutationLockManager = useRef(new SocialMutationLockManager()).current
 
   // Notifications v1 — Authoritative D1 State Only
   const [notifications, setNotifications] = useState<AppNotification[]>([])
@@ -145,7 +146,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const prevPresenceRef = useRef<Record<number, FriendPresence>>({})
 
   // Tải social state từ API — Authoritative Server State Only (Không merge ghost request)
-  const lamMoiSocialState = useCallback(async () => {
+  const lamMoiSocialState = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/social/state')
       if (res.ok) {
@@ -154,14 +155,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           setSocialState(json.state)
           setSocialStatus('ready')
           setSocialError(null)
-          return
+          return { ok: true }
         }
       }
-      setSocialStatus((prev) => (prev === 'ready' ? 'ready' : 'error'))
-      setSocialError('Không thể tải dữ liệu mạng xã hội.')
+      const msg = 'Không thể làm mới dữ liệu bạn bè.'
+      setSocialStatus((prev) => (prev === 'ready' || prev === 'degraded' ? 'degraded' : 'error'))
+      setSocialError(msg)
+      return { ok: false, error: msg }
     } catch (err) {
-      setSocialStatus((prev) => (prev === 'ready' ? 'ready' : 'error'))
-      setSocialError(err instanceof Error ? err.message : 'Lỗi kết nối khi tải mạng xã hội.')
+      const msg = err instanceof Error ? err.message : 'Lỗi kết nối khi tải mạng xã hội.'
+      setSocialStatus((prev) => (prev === 'ready' || prev === 'degraded' ? 'degraded' : 'error'))
+      setSocialError(msg)
+      return { ok: false, error: msg }
     }
   }, [])
 
@@ -239,6 +244,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     }
 
     setTrangThai('dang_ket_noi')
+    setPresenceReady(false)
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
     const ws = new WebSocket(`${giaoThuc}//${host}/ws/campus`)
@@ -476,6 +482,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     ws.onclose = (e) => {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
+      setPresenceReady(false)
 
       if (e.code === MA_DONG_SOCKET.PHIEN_BI_THAY) {
         setTrangThai('phien_bi_thay')
@@ -495,6 +502,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     ws.onerror = () => {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
+      setPresenceReady(false)
     }
   }, [donDepChoPhanHoi, lamMoiNotifications])
 
@@ -611,8 +619,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   // Social API actions with in-flight mutation guards
   const guiLoiMoiKetBan = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `send-${targetAccountId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/request', {
         method: 'POST',
@@ -621,19 +628,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể gửi lời mời.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi gửi lời mời.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const chapNhanKetBan = useCallback(async (requestId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `accept-${requestId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/accept', {
         method: 'POST',
@@ -642,19 +648,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể chấp nhận lời mời.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi chấp nhận lời mời.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const tuChoiKetBan = useCallback(async (requestId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `reject-${requestId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/reject', {
         method: 'POST',
@@ -663,19 +668,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể từ chối lời mời.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi từ chối lời mời.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const huyLoiMoi = useCallback(async (requestId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `cancel-${requestId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/cancel', {
         method: 'POST',
@@ -684,19 +688,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể huỷ lời mời.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi huỷ lời mời.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const huyKetBan = useCallback(async (friendAccountId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `unfriend-${friendAccountId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/unfriend', {
         method: 'POST',
@@ -705,19 +708,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể huỷ kết bạn.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi huỷ kết bạn.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const chanNguoiDung = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `block-${targetAccountId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/block', {
         method: 'POST',
@@ -726,19 +728,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể chặn người dùng.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi chặn người dùng.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const boChanNguoiDung = useCallback(async (targetAccountId: number): Promise<KetQuaThaoTac> => {
     const lockKey = `unblock-${targetAccountId}`
-    if (socialMutationLocksRef.current.has(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
-    socialMutationLocksRef.current.add(lockKey)
+    if (!mutationLockManager.acquire(lockKey)) return { ok: false, loi: 'Thao tác đang được xử lý.' }
     try {
       const res = await fetch('/api/social/unblock', {
         method: 'POST',
@@ -747,14 +748,14 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       })
       const data = (await res.json()) as { ok: boolean; loi?: string }
       if (!res.ok || !data.ok) return { ok: false, loi: data.loi || 'Không thể bỏ chặn.' }
-      await lamMoiSocialState()
-      return { ok: true }
+      const refreshRes = await lamMoiSocialState()
+      return { ok: true, refreshed: refreshRes.ok }
     } catch {
       return { ok: false, loi: 'Lỗi mạng khi bỏ chặn.' }
     } finally {
-      socialMutationLocksRef.current.delete(lockKey)
+      mutationLockManager.release(lockKey)
     }
-  }, [lamMoiSocialState])
+  }, [lamMoiSocialState, mutationLockManager])
 
   const datTrangThaiAway = useCallback((away: boolean) => {
     awayRef.current = away

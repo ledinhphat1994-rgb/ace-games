@@ -7,11 +7,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import {
-  classifyFriendsPresence,
+  derivePresenceView,
   formatLastSeen,
 } from '@/features/hub/social-semantics'
 import {
   AlertCircle,
+  AlertTriangle,
   BookOpen,
   DoorOpen,
   MessageSquare,
@@ -31,6 +32,7 @@ export function CommunityPage() {
     socialError,
     retrySocialLoad,
     presenceMap,
+    presenceReady,
     trangThai,
   } = useCampus()
 
@@ -48,11 +50,16 @@ export function CommunityPage() {
     [socialState?.incomingRequests],
   )
 
-  const classified = useMemo(() => {
-    return classifyFriendsPresence(friends, presenceMap)
-  }, [friends, presenceMap])
+  const presenceView = useMemo(() => {
+    return derivePresenceView({
+      friends,
+      presenceMap,
+      presenceReady,
+      connectionStatus: trangThai,
+    })
+  }, [friends, presenceMap, presenceReady, trangThai])
 
-  const totalActive = classified.inRoom.length + classified.online.length
+  const totalActive = presenceView.totalActive
 
   const handleOpenChat = () => {
     window.dispatchEvent(new CustomEvent('campus:open-chat'))
@@ -68,17 +75,22 @@ export function CommunityPage() {
               <Users className="h-6 w-6 text-social shrink-0" />
               <span>Cộng đồng bạn học</span>
             </h1>
-            {socialStatus === 'ready' && (
+            {(socialStatus === 'ready' || socialStatus === 'degraded') && (
               <Badge variant="outline" className="text-xs border-social/30 text-social bg-social/10 font-medium">
                 {friends.length} bạn
               </Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {trangThai === 'dang_ket_noi' ? (
+            {trangThai === 'dang_ket_noi' || trangThai === 'mat_ket_noi' ? (
               <span className="inline-flex items-center gap-1.5 text-warning font-medium">
                 <span className="h-2 w-2 rounded-full bg-warning animate-pulse" />
                 Đang kết nối lại sảnh cộng đồng…
+              </span>
+            ) : !presenceReady ? (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium">
+                <Radio className="h-3 w-3 animate-pulse" />
+                Đang đồng bộ hoạt động bạn bè…
               </span>
             ) : totalActive > 0 ? (
               <span className="inline-flex items-center gap-1.5 text-success font-medium">
@@ -130,7 +142,30 @@ export function CommunityPage() {
         </div>
       </div>
 
-      {/* ── 2. Data Truth States: Loading, Error, Empty, Ready ── */}
+      {/* ── 2. Data Truth States: Loading, Error, Degraded, Empty, Ready ── */}
+
+      {/* Degraded Refresh Banner (Preserves existing data without fake fresh claim) */}
+      {socialStatus === 'degraded' && (
+        <div
+          data-testid="community-degraded-banner"
+          className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>Dữ liệu bạn bè chưa được cập nhật mới nhất do sự cố kết nối máy chủ.</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="community-degraded-retry-btn"
+            onClick={() => void retrySocialLoad()}
+            className="h-7 text-xs font-semibold gap-1 text-warning hover:bg-warning/20 shrink-0"
+          >
+            <RefreshCw className="h-3 w-3" />
+            <span>Thử lại</span>
+          </Button>
+        </div>
+      )}
 
       {/* STATE A: Loading Skeleton */}
       {socialStatus === 'loading' && (
@@ -185,7 +220,7 @@ export function CommunityPage() {
       )}
 
       {/* STATE C: Authoritative Empty State */}
-      {socialStatus === 'ready' && friends.length === 0 && (
+      {(socialStatus === 'ready' || socialStatus === 'degraded') && friends.length === 0 && (
         <div data-testid="community-empty" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <EmptyState
@@ -233,24 +268,103 @@ export function CommunityPage() {
         </div>
       )}
 
-      {/* STATE D: Ready with Friends */}
-      {socialStatus === 'ready' && friends.length > 0 && (
+      {/* STATE D: Ready/Degraded with Friends */}
+      {(socialStatus === 'ready' || socialStatus === 'degraded') && friends.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Main Friends Column (2 Cols) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* ── Section 1: Bạn đang học trong phòng (High Value Social Hook) ── */}
-            {classified.inRoom.length > 0 && (
+            {/* Realtime Disconnected / Reconnecting State Banner */}
+            {presenceView.freshness === 'stale' && (
+              <div
+                data-testid="presence-disconnected-banner"
+                className="flex items-center gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning font-medium"
+              >
+                <span className="h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" />
+                <span>Trạng thái trực tuyến và phòng học đang kết nối lại…</span>
+              </div>
+            )}
+
+            {/* Presence Loading State Banner */}
+            {presenceView.freshness === 'unknown' && (
+              <div
+                data-testid="presence-unknown-banner"
+                className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/20 p-3 text-xs text-muted-foreground"
+              >
+                <Radio className="h-3.5 w-3.5 text-muted-foreground animate-pulse shrink-0" />
+                <span>Đang tải thông tin hoạt động trực tuyến của bạn bè…</span>
+              </div>
+            )}
+
+            {/* When presence freshness is NOT ready: Render unconfirmed friend list (without fake online/offline/inRoom) */}
+            {presenceView.freshness !== 'ready' && (
+              <div className="space-y-3" data-testid="friends-unconfirmed-list">
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Users className="h-4 w-4 text-social" />
+                    <span>Danh sách bạn bè ({friends.length})</span>
+                  </h2>
+                  <span className="text-xs text-muted-foreground">
+                    {presenceView.freshness === 'stale' ? 'Trạng thái đang kết nối lại' : 'Đang tải trạng thái'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {friends.map((friend) => (
+                    <Card
+                      key={friend.id}
+                      data-testid={`friend-unconfirmed-${friend.username}`}
+                      className="border-border/60 bg-card hover:border-border transition-all shadow-xs"
+                    >
+                      <CardContent className="flex items-center justify-between p-3.5 gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            {friend.avatar ? (
+                              <img
+                                src={friend.avatar}
+                                alt={friend.displayName}
+                                className="h-10 w-10 rounded-full object-cover border border-border/80"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground border border-border/80 uppercase">
+                                {friend.displayName.slice(0, 2)}
+                              </div>
+                            )}
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card bg-slate-500" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold text-foreground">
+                              {friend.displayName}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              @{friend.username}{friend.lopTen ? ` · ${friend.lopTen}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Badge variant="outline" className="text-[10px] shrink-0 font-medium text-muted-foreground border-border/60">
+                          {presenceView.freshness === 'stale' ? 'Mất kết nối' : 'Đang tải'}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Authoritative Live Presence Sections (ONLY rendered when freshness === 'ready') */}
+            {presenceView.freshness === 'ready' && presenceView.inRoom.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-social/25 pb-2">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Radio className="h-4 w-4 text-social animate-pulse" />
-                    <span>Đang trong phòng học ({classified.inRoom.length})</span>
+                    <span>Đang trong phòng học ({presenceView.inRoom.length})</span>
                   </h2>
                   <span className="text-xs font-medium text-social">Cùng tham gia học tập</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {classified.inRoom.map(({ friend, roomId, roomTitle }) => (
+                  {presenceView.inRoom.map(({ friend, roomId, roomTitle }) => (
                     <Card
                       key={friend.id}
                       data-testid={`friend-in-room-${friend.username}`}
@@ -303,18 +417,18 @@ export function CommunityPage() {
             )}
 
             {/* ── Section 2: Bạn đang trực tuyến / tạm vắng tại sảnh ── */}
-            {classified.online.length > 0 && (
+            {presenceView.freshness === 'ready' && presenceView.online.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-border/60 pb-2">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                    <span>Đang trực tuyến ({classified.online.length})</span>
+                    <span>Đang trực tuyến ({presenceView.online.length})</span>
                   </h2>
                   <span className="text-xs text-muted-foreground">Sẵn sàng kết nối</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {classified.online.map(({ friend, isAway }) => (
+                  {presenceView.online.map(({ friend, isAway }) => (
                     <Card
                       key={friend.id}
                       data-testid={`friend-online-${friend.username}`}
@@ -365,17 +479,17 @@ export function CommunityPage() {
             )}
 
             {/* ── Section 3: Bạn bè ngoại tuyến ── */}
-            {classified.offline.length > 0 && (
+            {presenceView.freshness === 'ready' && presenceView.offline.length > 0 && (
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between border-b border-border/60 pb-2">
                   <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    <span>Ngoại tuyến ({classified.offline.length})</span>
+                    <span>Ngoại tuyến ({presenceView.offline.length})</span>
                   </h2>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {classified.offline.map(({ friend, presence }) => (
+                  {presenceView.offline.map(({ friend, presence }) => (
                     <div
                       key={friend.id}
                       data-testid={`friend-offline-${friend.username}`}

@@ -7,27 +7,72 @@
 
 import type { FriendItem, FriendPresence, SearchResultItem } from '@shared/protocol/social'
 
-export type SocialStatus = 'loading' | 'ready' | 'error'
+export type SocialStatus = 'loading' | 'ready' | 'degraded' | 'error'
 
-export interface ClassifiedFriends {
-  /** Friends currently in a study or game room that can be joined */
+export type PresenceFreshness = 'unknown' | 'ready' | 'stale'
+
+export interface AuthoritativePresenceView {
+  freshness: PresenceFreshness
+  /** Whether authoritative live presence details can be shown to the user */
+  isLive: boolean
+  /** Active friends in joinable rooms (ONLY non-empty when freshness === 'ready') */
   inRoom: Array<{ friend: FriendItem; presence: FriendPresence; roomId: number; roomTitle?: string }>
-  /** Friends online or away at lobby */
+  /** Active friends online or away (ONLY non-empty when freshness === 'ready') */
   online: Array<{ friend: FriendItem; presence: FriendPresence; isAway: boolean }>
-  /** Friends offline */
+  /** Offline friends with last seen timestamp (ONLY non-empty when freshness === 'ready') */
   offline: Array<{ friend: FriendItem; presence?: FriendPresence }>
+  /** Friends whose presence status is unknown/unavailable (when freshness !== 'ready') */
+  unknown: Array<{ friend: FriendItem }>
+  /** Total count of actively online / in-room friends (0 if not ready) */
+  totalActive: number
 }
 
 /**
- * Classifies friends into authoritative presence buckets based on realtime snapshot.
+ * Derives an authoritative presence view for friends.
+ *
+ * Guaranteed Truth Invariants:
+ * 1. If connection is reconnecting/disconnected ('dang_ket_noi' | 'mat_ket_noi'):
+ *    freshness becomes 'stale'. Stale presenceMap in-room activity is NEVER presented as joinable.
+ * 2. If presence has not loaded ('presenceReady === false'):
+ *    freshness is 'unknown'. Friends are NEVER classified as 'offline'.
+ * 3. Only when connection is active ('da_ket_noi') AND presenceReady === true:
+ *    authoritative inRoom, online, and offline buckets are populated.
  */
-export function classifyFriendsPresence(
-  friends: FriendItem[],
-  presenceMap: Record<number, FriendPresence>,
-): ClassifiedFriends {
-  const inRoom: ClassifiedFriends['inRoom'] = []
-  const online: ClassifiedFriends['online'] = []
-  const offline: ClassifiedFriends['offline'] = []
+export function derivePresenceView(params: {
+  friends: FriendItem[]
+  presenceMap: Record<number, FriendPresence>
+  presenceReady: boolean
+  connectionStatus: string
+}): AuthoritativePresenceView {
+  const { friends, presenceMap, presenceReady, connectionStatus } = params
+
+  if (connectionStatus === 'dang_ket_noi' || connectionStatus === 'mat_ket_noi') {
+    return {
+      freshness: 'stale',
+      isLive: false,
+      inRoom: [],
+      online: [],
+      offline: [],
+      unknown: friends.map((f) => ({ friend: f })),
+      totalActive: 0,
+    }
+  }
+
+  if (!presenceReady || connectionStatus !== 'da_ket_noi') {
+    return {
+      freshness: 'unknown',
+      isLive: false,
+      inRoom: [],
+      online: [],
+      offline: [],
+      unknown: friends.map((f) => ({ friend: f })),
+      totalActive: 0,
+    }
+  }
+
+  const inRoom: AuthoritativePresenceView['inRoom'] = []
+  const online: AuthoritativePresenceView['online'] = []
+  const offline: AuthoritativePresenceView['offline'] = []
 
   for (const friend of friends) {
     const presence = presenceMap[friend.id]
@@ -54,7 +99,41 @@ export function classifyFriendsPresence(
     }
   }
 
-  return { inRoom, online, offline }
+  return {
+    freshness: 'ready',
+    isLive: true,
+    inRoom,
+    online,
+    offline,
+    unknown: [],
+    totalActive: inRoom.length + online.length,
+  }
+}
+
+export interface ClassifiedFriends {
+  /** Friends currently in a study or game room that can be joined */
+  inRoom: Array<{ friend: FriendItem; presence: FriendPresence; roomId: number; roomTitle?: string }>
+  /** Friends online or away at lobby */
+  online: Array<{ friend: FriendItem; presence: FriendPresence; isAway: boolean }>
+  /** Friends offline */
+  offline: Array<{ friend: FriendItem; presence?: FriendPresence }>
+}
+
+/**
+ * Classifies friends into presence buckets (requires presenceReady to be truthful).
+ */
+export function classifyFriendsPresence(
+  friends: FriendItem[],
+  presenceMap: Record<number, FriendPresence>,
+  presenceReady = true,
+  connectionStatus = 'da_ket_noi',
+): ClassifiedFriends {
+  const view = derivePresenceView({ friends, presenceMap, presenceReady, connectionStatus })
+  return {
+    inRoom: view.inRoom,
+    online: view.online,
+    offline: view.offline,
+  }
 }
 
 /**
