@@ -1,22 +1,11 @@
 import { NavLink } from 'react-router'
-import { BookOpen, Gamepad2, Home, User, Users } from 'lucide-react'
+import { MOBILE_NAV_ITEMS, NAV_ITEMS, type MobileNavItem } from './navigation-config'
 
-interface NavItem {
-  to: string
-  label: string
-  icon: typeof Home
-  exact?: boolean
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Trang chủ', icon: Home, exact: true },
-  { to: '/learn', label: 'Học tập', icon: BookOpen },
-  { to: '/arena', label: 'Game', icon: Gamepad2 },
-  { to: '/community', label: 'Cộng đồng', icon: Users },
-  { to: '/me', label: 'Cá nhân', icon: User },
-]
+export { MOBILE_NAV_ITEMS, NAV_ITEMS }
+export type { MobileNavItem }
 
 export function MobileNav() {
+
   return (
     <nav
       aria-label="Điều hướng chính di động"

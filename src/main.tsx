@@ -1,14 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter } from 'react-router'
+import { Navigate, createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { AuthGate } from '@/app/AuthGate'
 import { NotFoundPage } from '@/app/NotFoundPage'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AppShell } from '@/components/layout/AppShell'
-import { HomePage } from '@/features/hub/HomePage'
 import { LearningPage } from '@/features/hub/LearningPage'
 import { CommunityPage } from '@/features/hub/CommunityPage'
 import { ProfilePage } from '@/features/hub/ProfilePage'
@@ -30,13 +29,13 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <HomePage /> },
+          { index: true, element: <Navigate to="/learn" replace /> },
           { path: 'learn', element: <LearningPage /> },
-          { path: 'learning', element: <LearningPage /> },
+          { path: 'learning', element: <Navigate to="/learn" replace /> },
           { path: 'arena', element: <GameArenaPage /> },
           { path: 'community', element: <CommunityPage /> },
           { path: 'me', element: <ProfilePage /> },
-          { path: 'profile', element: <ProfilePage /> },
+          { path: 'profile', element: <Navigate to="/me" replace /> },
           { path: 'admin/analytics', element: <AnalyticsDashboardPage /> },
           { path: 'admin', element: <AdminControlPlanePage /> },
         ],
