@@ -63,9 +63,18 @@ if (dirtyFiles.length > 0) {
 }
 
 // Kiểm tra Khóa Nguồn Phát Hành (Authoritative Source Lock)
-if (currentBranch === 'main') {
-  // Chế độ phát hành từ nhánh main: Bắt buộc HEAD == origin/main (chống stale local main)
-  console.log('🔍 [RELEASE GUARD] Đang xác thực đồng bộ với remote origin/main...')
+if (currentBranch === 'main' || currentBranch === 'HEAD') {
+  // Yêu cầu hợp đồng nguồn trong môi trường detached HEAD (CI / Automation Pipeline)
+  if (currentBranch === 'HEAD' && !process.env.EXPECTED_RELEASE_SHA) {
+    console.error('❌ [RELEASE GUARD] LỖI SOURCE CONTRACT (DETACHED HEAD):')
+    console.error('   Đang ở trạng thái detached HEAD nhưng thiếu biến môi trường EXPECTED_RELEASE_SHA!')
+    console.error('   Trong CI hoặc môi trường detached HEAD, bắt buộc phải cung cấp EXPECTED_RELEASE_SHA được phê duyệt.')
+    console.error('   Production release fail-closed: Từ chối phát hành từ commit không được chứng minh.')
+    process.exit(1)
+  }
+
+  // Luôn luôn fetch và xác thực trực tiếp với remote origin/main mới nhất (cho cả main và detached HEAD)
+  console.log('🔍 [RELEASE GUARD] Đang xác thực đồng bộ với remote origin/main mới nhất (git fetch origin main)...')
   let originMainSha = ''
   try {
     execSync('git fetch origin main', { cwd: targetDir, stdio: 'pipe', encoding: 'utf8', timeout: 30000 })
@@ -81,16 +90,17 @@ if (currentBranch === 'main') {
     process.exit(1)
   }
 
+  // Khóa nguồn 1: HEAD phải khớp 100% với origin/main mới nhất
   if (headSha !== originMainSha) {
-    console.error('❌ [RELEASE GUARD] LỖI SOURCE LOCK: Local HEAD không khớp với origin/main (phát hiện stale local main)!')
+    console.error('❌ [RELEASE GUARD] LỖI SOURCE LOCK: HEAD không khớp với origin/main mới nhất (phát hiện stale commit / main đã tiến bước)!')
     console.error(`   Local HEAD:   ${headSha}`)
     console.error(`   origin/main:  ${originMainSha}`)
-    console.error('   Chỉ commit đã được phê duyệt và đẩy lên origin/main mới được phép phát hành ra production.')
-    console.error('   Vui lòng chạy "git pull origin main" trước khi deploy.')
+    console.error('   Production release fail-closed: Nhánh main trên remote đã có commit mới sau thời điểm checkout hoặc local main chưa pull.')
+    console.error('   Hủy bỏ phát hành để chống triển khai commit lỗi thời.')
     process.exit(1)
   }
 
-  // Nếu người dùng cung cấp EXPECTED_RELEASE_SHA thì cũng phải khớp
+  // Khóa nguồn 2: Nếu có EXPECTED_RELEASE_SHA thì HEAD cũng phải khớp
   if (process.env.EXPECTED_RELEASE_SHA && process.env.EXPECTED_RELEASE_SHA !== headSha) {
     console.error('❌ [RELEASE GUARD] LỖI SHA BẢO VỆ (EXPECTED_RELEASE_SHA):')
     console.error(`   SHA mong đợi: ${process.env.EXPECTED_RELEASE_SHA}`)
@@ -99,25 +109,6 @@ if (currentBranch === 'main') {
   }
 
   console.log(`🔒 [RELEASE GUARD] Khóa nguồn thành công: HEAD (${headSha}) == origin/main (${originMainSha})`)
-} else if (currentBranch === 'HEAD') {
-  // Chế độ Detached HEAD (CI / Automation Pipeline)
-  // Bắt buộc phải có hợp đồng nguồn rõ ràng: EXPECTED_RELEASE_SHA phải tồn tại và khớp với HEAD
-  if (!process.env.EXPECTED_RELEASE_SHA) {
-    console.error('❌ [RELEASE GUARD] LỖI SOURCE CONTRACT (DETACHED HEAD):')
-    console.error('   Đang ở trạng thái detached HEAD nhưng thiếu biến môi trường EXPECTED_RELEASE_SHA!')
-    console.error('   Trong CI hoặc môi trường detached HEAD, bắt buộc phải cung cấp EXPECTED_RELEASE_SHA được phê duyệt.')
-    console.error('   Production release fail-closed: Từ chối phát hành từ commit không được chứng minh.')
-    process.exit(1)
-  }
-
-  if (process.env.EXPECTED_RELEASE_SHA !== headSha) {
-    console.error('❌ [RELEASE GUARD] LỖI SHA BẢO VỆ (EXPECTED_RELEASE_SHA):')
-    console.error(`   SHA mong đợi: ${process.env.EXPECTED_RELEASE_SHA}`)
-    console.error(`   SHA hiện tại: ${headSha}`)
-    process.exit(1)
-  }
-
-  console.log(`🔒 [RELEASE GUARD] Khóa nguồn CI thành công: HEAD (${headSha}) == EXPECTED_RELEASE_SHA`)
 } else {
   // Nhánh feature (không phải main, không phải detached HEAD)
   // Trong real production deploy: tuyệt đối cấm mọi bypass
@@ -135,7 +126,7 @@ console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha} (Branch: ${cur
 
 // 2. Xác thực Exact-SHA CI Quality Gates (Bắt buộc hoàn tất và thành công 100%)
 // Invariant: DEPLOY_SHA == origin/main == exact successful CI head SHA
-const shouldVerifyCi = currentBranch === 'main' || currentBranch === 'HEAD' || Boolean(process.env.MOCK_CI_RUNS)
+const shouldVerifyCi = currentBranch === 'main' || currentBranch === 'HEAD'
 if (shouldVerifyCi) {
   console.log(`🔍 [RELEASE GUARD] Đang xác thực Exact-SHA CI Quality Gates cho commit ${headSha}...`)
   let ciRuns = []

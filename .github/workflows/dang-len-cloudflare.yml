@@ -5,7 +5,7 @@
 #           ↓
 #   manual production workflow_dispatch
 #           ↓
-#   verify requested SHA == current main
+#   verify requested SHA == fresh origin/main
 #           ↓
 #   verify exact SHA CI SUCCESS
 #           ↓
@@ -65,14 +65,16 @@ jobs:
       - name: Cài thư viện
         run: npm ci
 
-      - name: [1/6] Xác thực requested SHA == current main
+      - name: [1/6] Xác thực requested SHA == fresh origin/main
         run: |
+          echo "Đang fetch origin main mới nhất từ GitHub..."
+          git fetch origin main
           MAIN_SHA=$(git rev-parse origin/main)
           HEAD_SHA=$(git rev-parse HEAD)
           echo "origin/main SHA: $MAIN_SHA"
           echo "HEAD SHA:        $HEAD_SHA"
           if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
-            echo "::error::Local checkout HEAD ($HEAD_SHA) không khớp với origin/main ($MAIN_SHA)"
+            echo "::error::Local checkout HEAD ($HEAD_SHA) không khớp với fresh origin/main ($MAIN_SHA). Main có thể đã tiến commit mới!"
             exit 1
           fi
           INPUT_SHA="${{ github.event.inputs.release_sha }}"
@@ -108,11 +110,14 @@ jobs:
           echo "Kiểm tra tình trạng runtime production..."
           node -e "
             async function smoke() {
-              const rootRes = await fetch('https://gdtxdinhquan.ledinhphat1994.workers.dev/');
-              if (rootRes.status !== 200) {
-                throw new Error('Root endpoint trả về HTTP ' + rootRes.status + ' (kỳ vọng 200)');
+              const pages = ['/', '/learn', '/arena', '/community'];
+              for (const p of pages) {
+                const res = await fetch('https://gdtxdinhquan.ledinhphat1994.workers.dev' + p);
+                if (res.status !== 200) {
+                  throw new Error('Endpoint ' + p + ' trả về HTTP ' + res.status + ' (kỳ vọng 200)');
+                }
+                console.log('✓ UI page responding: ' + p + ' (HTTP 200)');
               }
-              console.log('✓ Root UI responding (HTTP 200)');
 
               const apiRes = await fetch('https://gdtxdinhquan.ledinhphat1994.workers.dev/api/whoami');
               if (apiRes.status !== 401) {

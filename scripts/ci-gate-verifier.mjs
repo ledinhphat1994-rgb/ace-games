@@ -5,11 +5,15 @@
 // 1. Chỉ chấp nhận commit có CI Quality Gates chạy hoàn tất (status: completed).
 // 2. Kết quả CI phải thành công tuyệt đối (conclusion: success).
 // 3. Exact SHA match 100% — không chấp nhận commit khác, không chấp nhận branch khác.
-// 4. Fail-closed: Bất kỳ sự cố kết nối, thiếu quyền hoặc không tìm thấy kết quả đều chặn release.
+// 4. Ràng buộc tuyệt đối vào canonical repository: ledinhphat1994-rgb/lop-10a7.
+//    Cấm tuyệt đối mọi cờ mock runtime (như MOCK_CI_RUNS) và cấm redirect sang fork.
+// 5. Fail-closed: Bất kỳ sự cố kết nối, thiếu quyền hoặc không tìm thấy kết quả đều chặn release.
 
 import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+export const CANONICAL_REPOSITORY = 'ledinhphat1994-rgb/lop-10a7'
 
 /**
  * Pure evaluation function for CI runs against an expected SHA.
@@ -104,22 +108,23 @@ export function evaluateCiRuns(runs, expectedSha) {
 /**
  * Truy vấn danh sách CI runs từ GitHub cho một commit cụ thể.
  * Hỗ trợ gh CLI hoặc GITHUB_TOKEN REST API.
- * Fail-closed nếu không thể truy vấn.
+ * Luôn luôn truy vấn từ CANONICAL_REPOSITORY ('ledinhphat1994-rgb/lop-10a7').
+ * Fail-closed nếu không thể truy vấn hoặc phát hiện redirection sang repository khác.
  * @param {string} targetSha
  * @param {string} cwd
  * @returns {Array<any>}
  */
 export function queryGitHubCiRuns(targetSha, cwd = process.cwd()) {
-  // Cho phép fixture tests truyền mock runs có kiểm soát để test ma trận logic
-  if (process.env.MOCK_CI_RUNS) {
-    try {
-      return JSON.parse(process.env.MOCK_CI_RUNS)
-    } catch (err) {
-      throw new Error(`[CI-VERIFY] Biến môi trường MOCK_CI_RUNS không hợp lệ: ${err.message}`)
-    }
+  // Bắt buộc ràng buộc repository phát hành chính thức:
+  // Nếu có biến môi trường GITHUB_REPOSITORY (từ GitHub Actions runner hoặc caller),
+  // nó BẮT BUỘC phải khớp với CANONICAL_REPOSITORY. Chặn đứng hoàn toàn nguy cơ fork redirect.
+  if (process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY !== CANONICAL_REPOSITORY) {
+    throw new Error(
+      `[CI-VERIFY] LỖI BẢO MẬT: GITHUB_REPOSITORY ('${process.env.GITHUB_REPOSITORY}') không khớp với repository phát hành chính thức ('${CANONICAL_REPOSITORY}'). Chặn phát hành.`
+    )
   }
 
-  const repo = process.env.GITHUB_REPOSITORY || 'ledinhphat1994-rgb/lop-10a7'
+  const repo = CANONICAL_REPOSITORY
 
   // 1. Thử dùng gh CLI
   try {
@@ -178,7 +183,7 @@ export function queryGitHubCiRuns(targetSha, cwd = process.cwd()) {
 
   // 3. Fail-closed
   throw new Error(
-    `[CI-VERIFY] Không thể truy vấn trạng thái CI Quality Gates từ GitHub cho commit ${targetSha}. ` +
+    `[CI-VERIFY] Không thể truy vấn trạng thái CI Quality Gates từ GitHub cho commit ${targetSha} tại ${repo}. ` +
     `Yêu cầu GitHub CLI (gh) đã đăng nhập hoặc GITHUB_TOKEN hợp lệ. Production release bị chặn an toàn.`
   )
 }
@@ -196,6 +201,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   }
 
   console.log(`🔍 [CI-GATE] Đang kiểm tra CI Quality Gates cho commit: ${targetSha}`)
+  console.log(`🔒 [CI-GATE] Canonical Repository: ${CANONICAL_REPOSITORY}`)
   try {
     const runs = queryGitHubCiRuns(targetSha)
     const evaluation = evaluateCiRuns(runs, targetSha)
