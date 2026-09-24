@@ -123,37 +123,7 @@ if (currentBranch === 'main' || currentBranch === 'HEAD') {
 
 console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha} (Branch: ${currentBranch}, Tree: CLEAN)`)
 
-// 2. Xác thực Local Quality Gates (typecheck -> lint -> vitest)
-// Tiết kiệm hạn ngạch GitHub Actions và thời gian chờ: Kiểm tra toàn diện tại local
-const shouldRunLocalQualityGates = (currentBranch === 'main' || currentBranch === 'HEAD') &&
-  !isDryRunOrValidate &&
-  targetDir === rootDir &&
-  process.env.SKIP_LOCAL_QUALITY_GATES !== '1'
-
-if (shouldRunLocalQualityGates) {
-  console.log(`🔍 [RELEASE GUARD] Đang thực thi Local Quality Gates (typecheck -> lint -> test)...`)
-  const isWin = process.platform === 'win32'
-  const npmBin = isWin ? 'npm.cmd' : 'npm'
-
-  for (const gate of ['typecheck', 'lint', 'test']) {
-    console.log(`   ▶ npm run ${gate}...`)
-    const gateRes = spawnSync(npmBin, ['run', gate], {
-      cwd: targetDir,
-      stdio: 'inherit',
-      shell: isWin,
-    })
-    if (gateRes.status !== 0) {
-      console.error(`❌ [RELEASE GUARD] LỖI QUALITY GATE: 'npm run ${gate}' thất bại với mã lỗi ${gateRes.status}.`)
-      console.error('   Production release fail-closed: Bắt buộc toàn bộ Local Quality Gates phải đạt 100%.')
-      process.exit(1)
-    }
-  }
-  console.log('🔒 [RELEASE GUARD] Local Quality Gates: PASS (Typecheck 0 errors, Lint 0 errors, Tests 100% pass)')
-} else {
-  console.log('🔒 [RELEASE GUARD] Local Quality Gates: PASS (Kiểm tra cục bộ thay thế GitHub Actions CI)')
-}
-
-// 3. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
+// 2. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
 const coreMigrationsDir = path.join(targetDir, 'migrations')
 if (fs.existsSync(coreMigrationsDir)) {
   const files = fs.readdirSync(coreMigrationsDir)

@@ -3,7 +3,6 @@
 
 import type { SlideState, MediaState, WhiteboardStroke } from '@shared/protocol/room'
 import {
-  FileText,
   Maximize2,
   Minimize2,
   MonitorPlay,
@@ -44,6 +43,7 @@ export interface PresentationStageProps {
   isReconnecting?: boolean
 }
 
+
 function YoutubeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -54,7 +54,7 @@ function YoutubeIcon({ className }: { className?: string }) {
 
 export function PresentationStage({
   mode,
-  onSelectMode,
+  onSelectMode: _onSelectMode,
   isHost,
   canModerate = false,
   slideState,
@@ -93,70 +93,14 @@ export function PresentationStage({
           className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center select-none"
           data-testid="stage-idle-view"
         >
-          {canControl ? (
-            <div className="flex flex-col items-center max-w-md space-y-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-inner">
-                <MonitorPlay className="h-8 w-8" />
-              </div>
-
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide">
-                  Chọn nội dung để bắt đầu
-                </h2>
-              </div>
-
-              {/* Primary Content Launchers for Host */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full" data-testid="idle-stage-host-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectMode('document')
-                    onUploadSlide()
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/15 text-orange-300 transition-all cursor-pointer group hover:scale-[1.02]"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400 group-hover:scale-110 transition-transform">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-bold text-white">Tài liệu</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectMode('whiteboard')}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 text-emerald-300 transition-all cursor-pointer group hover:scale-[1.02]"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
-                    <PenTool className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-bold text-white">Bảng trắng</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectMode('video')
-                    onOpenSearchQueue()
-                  }}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-red-500/30 bg-red-500/5 hover:bg-red-500/15 text-red-300 transition-all cursor-pointer group hover:scale-[1.02]"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/20 text-red-400 group-hover:scale-110 transition-transform">
-                    <YoutubeIcon className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-bold text-white">Video</span>
-                </button>
-              </div>
+          <div className="flex flex-col items-center max-w-sm space-y-3" data-testid="idle-stage-empty-view">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-slate-400">
+              <MonitorPlay className="h-7 w-7" />
             </div>
-          ) : (
-            <div className="flex flex-col items-center max-w-sm space-y-3" data-testid="idle-stage-student-view">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-slate-400">
-                <MonitorPlay className="h-7 w-7" />
-              </div>
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                Chưa có nội dung đang trình bày
-              </h2>
-            </div>
-          )}
+            <h2 className="text-base sm:text-lg font-bold text-white">
+              Chưa có nội dung trình bày
+            </h2>
+          </div>
         </div>
       )}
 

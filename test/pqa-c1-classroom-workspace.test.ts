@@ -161,12 +161,13 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       expect(docStageRaw).toContain('xuất bài giảng sang định dạng PDF (.pdf)')
     })
 
-    it('K. student idle state has no host upload actions', () => {
-      expect(canUserPresent(false, false)).toBe(false)
-      expect(canUserPresent(false, undefined)).toBe(false)
-      expect(stageRaw).toContain('{canControl ? (')
-      expect(stageRaw).toContain('data-testid="idle-stage-student-view"')
-      expect(stageRaw).toContain('Chưa có nội dung đang trình bày')
+    it('K. idle stage shows only "Chưa có nội dung trình bày" and bottom dock is launcher', () => {
+      expect(stageRaw).toContain('Chưa có nội dung trình bày')
+      expect(stageRaw).not.toContain('idle-stage-host-actions')
+      expect(dockRaw).toContain('dock-btn-document')
+      expect(dockRaw).toContain('dock-btn-whiteboard')
+      expect(dockRaw).toContain('dock-btn-video')
+      expect(dockRaw).toContain('dock-btn-secondary-tools')
     })
 
     it('L. reconnecting disables unsafe mutations', () => {
@@ -297,9 +298,9 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       expect(canUserPresent(false, undefined)).toBe(false)
     })
 
-    it('idle stage shows simple waiting message for normal students without upload actions', () => {
-      expect(stageRaw).toContain('Chưa có nội dung đang trình bày')
-      expect(stageRaw).toContain('{canControl ? (')
+    it('idle stage shows simple message without duplicated launcher cards', () => {
+      expect(stageRaw).toContain('Chưa có nội dung trình bày')
+      expect(stageRaw).not.toContain('idle-stage-host-actions')
     })
   })
 
@@ -311,11 +312,12 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       expect(canUserPresent(true, true)).toBe(true)
     })
 
-    it('idle stage presents concise host triggers: Chọn nội dung để bắt đầu', () => {
-      expect(stageRaw).toContain('Chọn nội dung để bắt đầu')
-      expect(stageRaw).toContain('Tài liệu')
-      expect(stageRaw).toContain('Bảng trắng')
-      expect(stageRaw).toContain('Video')
+    it('bottom dock is the only launcher for content: Tài liệu, Bảng trắng, Video, Công cụ', () => {
+      expect(dockRaw).toContain('Tài liệu')
+      expect(dockRaw).toContain('Bảng trắng')
+      expect(dockRaw).toContain('Video')
+      expect(dockRaw).toContain('Công cụ')
+      expect(stageRaw).not.toContain('Chọn nội dung để bắt đầu')
     })
   })
 

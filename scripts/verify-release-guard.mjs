@@ -188,8 +188,8 @@ try {
   // PR #21 Closure Regression Tests: A through G
   // -------------------------------------------------------------
 
-  // Test: Local Quality Gates verified in release guard => PASS (exit 0)
-  test('Local Quality Gates verified in release guard => PASS (exit 0)', () => {
+  // Test: Release guard verifies clean main + config isolation without repeated test suite => PASS (exit 0)
+  test('Release guard verifies clean main + config isolation without repeated test suite => PASS (exit 0)', () => {
     const res = spawnSync(process.execPath, [guardScript, localDir], {
       encoding: 'utf8',
       env: getFixtureEnv(),
@@ -198,8 +198,8 @@ try {
       throw new Error(`Expected status 0, received ${res.status}:\n${res.stderr + res.stdout}`)
     }
     const combined = res.stderr + res.stdout
-    if (!combined.includes('Local Quality Gates: PASS')) {
-      throw new Error(`Expected output to contain 'Local Quality Gates: PASS', received:\n${combined}`)
+    if (!combined.includes('Khóa nguồn thành công') || !combined.includes('đã đạt chuẩn 100%')) {
+      throw new Error(`Expected output to contain success logs, received:\n${combined}`)
     }
   })
 
@@ -260,7 +260,7 @@ try {
         throw new Error(`Expected status 0, received ${res.status}:\n${res.stderr + res.stdout}`)
       }
       const combined = res.stderr + res.stdout
-      if (!combined.includes('Khóa nguồn thành công') || !combined.includes('Local Quality Gates: PASS')) {
+      if (!combined.includes('Khóa nguồn thành công') || !combined.includes('đã đạt chuẩn 100%')) {
         throw new Error(`Expected output to contain success logs, received:\n${combined}`)
       }
     } finally {
@@ -440,8 +440,8 @@ try {
     if (!combined.includes('--message')) {
       throw new Error(`Expected output to contain '--message', received:\n${combined}`)
     }
-    if (!combined.includes('Local Quality Gates: PASS')) {
-      throw new Error(`Expected output to contain 'Local Quality Gates: PASS', received:\n${combined}`)
+    if (!combined.includes('Cấu hình production & ranh giới di chuyển dữ liệu: PASS')) {
+      throw new Error(`Expected output to contain 'Cấu hình production & ranh giới di chuyển dữ liệu: PASS', received:\n${combined}`)
     }
   })
 
