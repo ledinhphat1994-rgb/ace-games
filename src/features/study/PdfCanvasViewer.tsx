@@ -12,6 +12,9 @@ export interface PdfCanvasViewerProps {
   pageNumber: number
   onLoadSuccess?: (numPages: number) => void
   onError?: (error: Error) => void
+  onLoadingChange?: (loading: boolean) => void
+  zoomScale?: number
+  fitMode?: 'page' | 'width'
 }
 
 /** Thin wrapper — defers the PDF.js bundle until first render */
