@@ -1,13 +1,13 @@
 # Digital Campus v2 — Authoritative Cloudflare Production Release Workflow
 #
 # Production release pipeline:
-#   CI SUCCESS on main
+#   Local Quality Gates PASS
 #           ↓
 #   manual production workflow_dispatch
 #           ↓
 #   verify requested SHA == fresh origin/main
 #           ↓
-#   verify exact SHA CI SUCCESS
+#   Quality Gates (typecheck -> lint -> vitest)
 #           ↓
 #   Release Guard
 #           ↓
@@ -83,13 +83,11 @@ jobs:
             exit 1
           fi
 
-      - name: [2/6] Xác thực exact-SHA CI SUCCESS
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: [2/6] Kiểm tra Quality Gates (Typecheck -> Lint -> Vitest)
         run: |
-          TARGET_SHA=$(git rev-parse HEAD)
-          echo "Đang kiểm tra CI Quality Gates cho exact commit: $TARGET_SHA"
-          node scripts/ci-gate-verifier.mjs "$TARGET_SHA"
+          npm run typecheck
+          npm run lint
+          npm test
 
       - name: [3/6] Release Guard (Validate-Only)
         env:

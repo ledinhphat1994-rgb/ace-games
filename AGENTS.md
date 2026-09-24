@@ -16,6 +16,7 @@
 - **Shared Contracts:** Giao thức WebSocket & Type dùng chung tại `shared/protocol/` (`campus.ts`, `room.ts`, `game.ts`, `common.ts`).
 
 ## 2. Tiêu chuẩn chất lượng & Kiểm tra bắt buộc (Quality Gates)
+- **Local Quality Gates là duy nhất & có thẩm quyền:** Đã loại bỏ GitHub Actions CI workflow khi push/PR để tiết kiệm hạn ngạch GitHub Actions và thời gian chờ. Toàn bộ kiểm tra mã nguồn được thực hiện hoàn toàn và triệt để tại local trước khi commit/push.
 Trước khi commit hoặc push:
 1. `npm run typecheck` — Tạo kiểu Cloudflare (`wrangler types`) và kiểm tra TypeScript (`tsc -b`). Phải đạt 0 lỗi.
 2. `npm run lint` — Chạy `oxlint`. Phải đạt 0 lỗi.

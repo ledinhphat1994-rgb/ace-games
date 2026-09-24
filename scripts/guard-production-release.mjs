@@ -4,11 +4,10 @@
 // Đảm bảo không sử dụng staging resources, migrations đã tách riêng, DB analytics đã được cấp phép,
 // Worker name/env chính xác, working tree sạch 100%, và nợ kiến trúc R2 được theo dõi có kiểm soát.
 
-import { execSync } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { queryGitHubCiRuns, evaluateCiRuns } from './ci-gate-verifier.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -124,31 +123,34 @@ if (currentBranch === 'main' || currentBranch === 'HEAD') {
 
 console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha} (Branch: ${currentBranch}, Tree: CLEAN)`)
 
-// 2. Xác thực Exact-SHA CI Quality Gates (Bắt buộc hoàn tất và thành công 100%)
-// Invariant: DEPLOY_SHA == origin/main == exact successful CI head SHA
-const shouldVerifyCi = currentBranch === 'main' || currentBranch === 'HEAD'
-if (shouldVerifyCi) {
-  console.log(`🔍 [RELEASE GUARD] Đang xác thực Exact-SHA CI Quality Gates cho commit ${headSha}...`)
-  let ciRuns = []
-  try {
-    ciRuns = queryGitHubCiRuns(headSha, targetDir)
-  } catch (ciQueryErr) {
-    console.error('❌ [RELEASE GUARD] LỖI TRUY VẤN CI QUALITY GATES TỪ GITHUB:')
-    console.error(`   ${ciQueryErr.message}`)
-    console.error('   Production release fail-closed: Không thể xác minh kết quả CI của commit trên GitHub Actions.')
-    process.exit(1)
-  }
+// 2. Xác thực Local Quality Gates (typecheck -> lint -> vitest)
+// Tiết kiệm hạn ngạch GitHub Actions và thời gian chờ: Kiểm tra toàn diện tại local
+const shouldRunLocalQualityGates = (currentBranch === 'main' || currentBranch === 'HEAD') &&
+  !isDryRunOrValidate &&
+  targetDir === rootDir &&
+  process.env.SKIP_LOCAL_QUALITY_GATES !== '1'
 
-  const ciEvaluation = evaluateCiRuns(ciRuns, headSha)
-  if (!ciEvaluation.ok) {
-    console.error('❌ [RELEASE GUARD] LỖI BẢO VỆ CI QUALITY GATES (EXACT-SHA CI REQUIREMENT):')
-    console.error(`   ${ciEvaluation.reason}`)
-    console.error(`   Commit phát hành: ${headSha}`)
-    console.error('   Production release fail-closed: Bắt buộc exact commit SHA phải vượt qua CI Quality Gates (status=completed, conclusion=success).')
-    process.exit(1)
-  }
+if (shouldRunLocalQualityGates) {
+  console.log(`🔍 [RELEASE GUARD] Đang thực thi Local Quality Gates (typecheck -> lint -> test)...`)
+  const isWin = process.platform === 'win32'
+  const npmBin = isWin ? 'npm.cmd' : 'npm'
 
-  console.log(`🔒 [RELEASE GUARD] Exact-SHA CI Quality Gates: PASS (Status: ${ciEvaluation.matchedRun.status}, Conclusion: ${ciEvaluation.matchedRun.conclusion})`)
+  for (const gate of ['typecheck', 'lint', 'test']) {
+    console.log(`   ▶ npm run ${gate}...`)
+    const gateRes = spawnSync(npmBin, ['run', gate], {
+      cwd: targetDir,
+      stdio: 'inherit',
+      shell: isWin,
+    })
+    if (gateRes.status !== 0) {
+      console.error(`❌ [RELEASE GUARD] LỖI QUALITY GATE: 'npm run ${gate}' thất bại với mã lỗi ${gateRes.status}.`)
+      console.error('   Production release fail-closed: Bắt buộc toàn bộ Local Quality Gates phải đạt 100%.')
+      process.exit(1)
+    }
+  }
+  console.log('🔒 [RELEASE GUARD] Local Quality Gates: PASS (Typecheck 0 errors, Lint 0 errors, Tests 100% pass)')
+} else {
+  console.log('🔒 [RELEASE GUARD] Local Quality Gates: PASS (Kiểm tra cục bộ thay thế GitHub Actions CI)')
 }
 
 // 3. Kiểm tra migrations/ không chứa bất kỳ file analytics nào

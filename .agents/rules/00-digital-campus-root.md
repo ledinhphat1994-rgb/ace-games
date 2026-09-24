@@ -73,10 +73,10 @@ trigger: always_on
 - Production and staging environments must maintain isolated D1, KV, and R2 bindings.
 
 ## 15. Delivery Workflow & Release Safety
-- Quality gates order: `typecheck` (0 errors) -> `lint` (0 errors) -> `test` (100% pass) -> `build` -> `release-guard` (10/10).
+- Quality gates order: Local Quality Gates are authoritative: `typecheck` (0 errors) -> `lint` (0 errors) -> `test` (100% pass) -> `build` -> `release-guard`. GitHub Actions CI workflow on push has been removed to conserve quota and eliminate wait times.
 - Migration Immutability: Applied migrations in `migrations/` are immutable. New changes require sequentially numbered files.
 - Staging deployment precedes production review. Production releases require human authorization.
 
 ## 16. Truthful Reporting
-- Reports must reflect empirical facts: exact git SHAs, verified CI run statuses, actual deployment Version IDs, and directly reviewable visual evidence.
+- Reports must reflect empirical facts: exact git SHAs, local quality gates results, actual deployment Version IDs, and directly reviewable visual evidence.
 - Never state "perfect" or "passed" without verifiable runtime proof.
