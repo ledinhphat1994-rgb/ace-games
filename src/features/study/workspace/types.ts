@@ -27,7 +27,7 @@ export function deriveDefaultWorkspaceMode(
   mediaState?: MediaState | null,
   slideState?: SlideState | null,
 ): WorkspaceMode {
-  if (mediaState?.videoId && mediaState.videoId.trim().length > 0) {
+  if (mediaState?.videoId && mediaState.status === 'playing') {
     return 'video'
   }
   if (slideState?.docUrl && slideState.docUrl.trim().length > 0) {

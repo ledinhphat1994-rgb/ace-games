@@ -195,7 +195,7 @@ app.use('*', async (c, next) => {
 })
 
 // Canonical Study Room key pattern: phong-<positive integer>
-const RE_PHONG_ID = /^phong-(\d+)$/
+const RE_PHONG_ID = /^(?:phong-)?(\d+)$/
 
 const saiPhuongThuc = () => loi('Phương thức không được hỗ trợ.', 405)
 const laHttps = (request: Request) => new URL(request.url).protocol === 'https:'
