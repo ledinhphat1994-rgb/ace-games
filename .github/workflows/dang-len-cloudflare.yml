@@ -1,22 +1,38 @@
-# Tự động/thủ công deploy lên Cloudflare Workers + Static Assets.
-# Quy trình phát hành production BẮT BUỘC tuân thủ Release Guard và Source Lock:
-#   - Chỉ cho phép chạy trên nhánh main (refs/heads/main)
-#   - Sử dụng checkout full history (fetch-depth: 0) để xác thực origin/main
-#   - Khóa nguồn với EXPECTED_RELEASE_SHA: ${{ github.sha }}
-#   - Thực thi qua wrapper có thẩm quyền: npm run deploy:production
-#   - Sử dụng cấu hình wrangler.production.jsonc
-#   - Tự động gắn nhãn version metadata: --message "release:<FULL_GIT_SHA>"
+# Digital Campus v2 — Authoritative Cloudflare Production Release Workflow
 #
-# Cần khai báo trong repo Settings -> Secrets and variables -> Actions:
-#   CLOUDFLARE_API_TOKEN   — token Cloudflare Workers
-#   CLOUDFLARE_ACCOUNT_ID  — Account ID
+# Production release pipeline:
+#   CI SUCCESS on main
+#           ↓
+#   manual production workflow_dispatch
+#           ↓
+#   verify requested SHA == fresh origin/main
+#           ↓
+#   verify exact SHA CI SUCCESS
+#           ↓
+#   Release Guard
+#           ↓
+#   validate-only
+#           ↓
+#   deploy production
+#           ↓
+#   smoke
+#
+# Yêu cầu Secrets trong GitHub Repository:
+#   CLOUDFLARE_API_TOKEN   — Cloudflare Workers API token
+#   CLOUDFLARE_ACCOUNT_ID  — Cloudflare Account ID
 name: Deploy Production lên Cloudflare
 
 on:
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: 'Commit SHA cụ thể cần phát hành (để trống = dùng origin/main HEAD)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: production-deploy
@@ -28,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Kiểm tra ràng buộc nhánh main (Fail-Closed Branch Gate)
+      - name: [Pre-check] Kiểm tra ràng buộc nhánh main (Fail-Closed Branch Gate)
         run: |
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "::error::Production release chỉ được phép thực thi trên refs/heads/main (nhận được: ${{ github.ref }})"
@@ -49,9 +65,68 @@ jobs:
       - name: Cài thư viện
         run: npm ci
 
-      - name: Deploy Production qua Guarded Wrapper
+      - name: [1/6] Xác thực requested SHA == fresh origin/main
+        run: |
+          echo "Đang fetch origin main mới nhất từ GitHub..."
+          git fetch origin main
+          MAIN_SHA=$(git rev-parse origin/main)
+          HEAD_SHA=$(git rev-parse HEAD)
+          echo "origin/main SHA: $MAIN_SHA"
+          echo "HEAD SHA:        $HEAD_SHA"
+          if [ "$HEAD_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Local checkout HEAD ($HEAD_SHA) không khớp với fresh origin/main ($MAIN_SHA). Main có thể đã tiến commit mới!"
+            exit 1
+          fi
+          INPUT_SHA="${{ github.event.inputs.release_sha }}"
+          if [ -n "$INPUT_SHA" ] && [ "$INPUT_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::Requested SHA ($INPUT_SHA) không khớp với current origin/main ($MAIN_SHA)"
+            exit 1
+          fi
+
+      - name: [2/6] Xác thực exact-SHA CI SUCCESS
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TARGET_SHA=$(git rev-parse HEAD)
+          echo "Đang kiểm tra CI Quality Gates cho exact commit: $TARGET_SHA"
+          node scripts/ci-gate-verifier.mjs "$TARGET_SHA"
+
+      - name: [3/6] Release Guard (Validate-Only)
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/deploy-production.mjs --validate-only
+
+      - name: [4/6] Deploy Production qua Guarded Wrapper
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EXPECTED_RELEASE_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run deploy:production
+
+      - name: [5/6] Smoke Verification sau Deploy
+        run: |
+          echo "Kiểm tra tình trạng runtime production..."
+          node -e "
+            async function smoke() {
+              const pages = ['/', '/learn', '/arena', '/community'];
+              for (const p of pages) {
+                const res = await fetch('https://gdtxdinhquan.ledinhphat1994.workers.dev' + p);
+                if (res.status !== 200) {
+                  throw new Error('Endpoint ' + p + ' trả về HTTP ' + res.status + ' (kỳ vọng 200)');
+                }
+                console.log('✓ UI page responding: ' + p + ' (HTTP 200)');
+              }
+
+              const apiRes = await fetch('https://gdtxdinhquan.ledinhphat1994.workers.dev/api/whoami');
+              if (apiRes.status !== 401) {
+                throw new Error('API whoami trả về HTTP ' + apiRes.status + ' (kỳ vọng 401 cho unauthenticated)');
+              }
+              console.log('✓ API Worker responding (HTTP 401 valid authentication gate)');
+            }
+            smoke().catch((err) => {
+              console.error('::error::Smoke test thất bại:', err.message);
+              process.exit(1);
+            });
+          "
