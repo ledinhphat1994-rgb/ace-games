@@ -31,7 +31,15 @@ export function LearningPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') || ''
 
-  const { rooms, socialState, presenceMap, trangThai, ketNoiLai, campusSnapshotReady } = useCampus()
+  const {
+    rooms,
+    socialState,
+    presenceMap,
+    presenceReady,
+    trangThai,
+    ketNoiLai,
+    campusSnapshotReady,
+  } = useCampus()
 
   const [tuKhoa, setTuKhoa] = useState(urlQuery)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
@@ -42,8 +50,12 @@ export function LearningPage() {
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
   const roomFriendsMap = useMemo(
-    () => buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers),
-    [rooms, friends, presenceMap, blockedUsers],
+    () =>
+      buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers, {
+        presenceReady,
+        connectionStatus: trangThai,
+      }),
+    [rooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
   )
 
   // Authoritative Lobby Readiness State: 'loading' | 'reconnecting' | 'ready'

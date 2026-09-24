@@ -24,7 +24,8 @@ export function JoinRoomModal({ open, onOpenChange, onJoinRoomId }: JoinRoomModa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const result = parseRoomJoinTarget(targetInput)
+    const currentOrigin = typeof window !== 'undefined' && window.location ? window.location.origin : undefined
+    const result = parseRoomJoinTarget(targetInput, currentOrigin)
     if (!result.ok || !result.roomId) {
       setError(result.error || 'Mục tiêu phòng học không hợp lệ.')
       return

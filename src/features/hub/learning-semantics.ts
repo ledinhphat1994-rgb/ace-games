@@ -114,16 +114,29 @@ export interface ParseJoinTargetResult {
   error?: string
 }
 
-export function parseRoomJoinTarget(input: string): ParseJoinTargetResult {
+export function parseRoomJoinTarget(
+  input: string,
+  currentOrigin?: string,
+): ParseJoinTargetResult {
   const raw = input.trim()
   if (!raw) {
     return { ok: false, error: 'Vui lòng nhập ID hoặc liên kết phòng.' }
   }
 
-  // 1. Full URL (e.g., https://campus.edu.vn/room/phong-42)
+  // 1. Full URL (e.g., https://campus.edu.vn/room/phong-42) - Must be same-origin
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
     try {
       const url = new URL(raw)
+      const trustedOrigin =
+        currentOrigin || (typeof window !== 'undefined' && window.location ? window.location.origin : undefined)
+
+      if (!trustedOrigin || url.origin.toLowerCase() !== trustedOrigin.toLowerCase()) {
+        return {
+          ok: false,
+          error: 'Chỉ chấp nhận liên kết phòng học từ trang hiện tại (cùng tên miền).',
+        }
+      }
+
       const match = url.pathname.match(/^\/room\/phong-(\d+)$/)
       if (match) {
         const id = Number(match[1])

@@ -15,7 +15,9 @@ import {
   deriveLobbyState,
   filterLobbyRooms,
 } from '../src/features/hub/learning-semantics'
+import { buildRoomFriendsMap } from '../src/features/hub/room-discovery'
 import type { PhongSanh } from '../shared/protocol/campus'
+import type { FriendItem, FriendPresence } from '../shared/protocol/social'
 import appHeaderRaw from '../src/components/layout/AppHeader.tsx?raw'
 import mobileNavRaw from '../src/components/layout/MobileNav.tsx?raw'
 import learningPageRaw from '../src/features/hub/LearningPage.tsx?raw'
@@ -215,30 +217,44 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
 
   // ── 6. Production Strict Room Join Parser ──────────────────────────────────
   describe('6. Production Strict Room Join Target Parser (parseRoomJoinTarget)', () => {
-    it('E. Accepts valid existing formats: number, phong-ID, relative route, and full URL', () => {
+    it('E. Accepts valid existing formats: number, phong-ID, relative route, and same-origin URL', () => {
       expect(parseRoomJoinTarget('42')).toEqual({ ok: true, roomId: 42 })
       expect(parseRoomJoinTarget(' 108 ')).toEqual({ ok: true, roomId: 108 })
       expect(parseRoomJoinTarget('phong-42')).toEqual({ ok: true, roomId: 42 })
       expect(parseRoomJoinTarget('/room/phong-42')).toEqual({ ok: true, roomId: 42 })
       expect(parseRoomJoinTarget('room/phong-42')).toEqual({ ok: true, roomId: 42 })
-      expect(parseRoomJoinTarget('https://campus.school.edu/room/phong-42')).toEqual({
+      expect(
+        parseRoomJoinTarget('https://campus.school.edu/room/phong-42', 'https://campus.school.edu'),
+      ).toEqual({
         ok: true,
         roomId: 42,
       })
-      expect(parseRoomJoinTarget('http://localhost:5173/room/phong-99')).toEqual({
+      expect(
+        parseRoomJoinTarget('http://localhost:5173/room/phong-99', 'http://localhost:5173'),
+      ).toEqual({
         ok: true,
         roomId: 99,
       })
     })
 
-    it('F. Strictly rejects malformed alphanumeric mix (42abc, abc42), negative, zero, and unrelated URLs', () => {
+    it('F. Strictly rejects malformed alphanumeric mix, external lookalike domains, negative, zero, and unrelated URLs', () => {
       expect(parseRoomJoinTarget('42abc').ok).toBe(false)
       expect(parseRoomJoinTarget('abc42').ok).toBe(false)
       expect(parseRoomJoinTarget('0').ok).toBe(false)
       expect(parseRoomJoinTarget('-5').ok).toBe(false)
       expect(parseRoomJoinTarget('').ok).toBe(false)
       expect(parseRoomJoinTarget('   ').ok).toBe(false)
-      expect(parseRoomJoinTarget('https://example.com/other-page').ok).toBe(false)
+      // Reject external lookalike domains even if path matches /room/phong-42
+      expect(
+        parseRoomJoinTarget('https://evil.example/room/phong-42', 'https://campus.school.edu').ok,
+      ).toBe(false)
+      expect(
+        parseRoomJoinTarget('https://phishing.campus/room/phong-42', 'https://campus.school.edu').ok,
+      ).toBe(false)
+      expect(parseRoomJoinTarget('https://evil.example/room/phong-42').ok).toBe(false)
+      expect(
+        parseRoomJoinTarget('https://campus.school.edu/other-page', 'https://campus.school.edu').ok,
+      ).toBe(false)
     })
 
     it('G. JoinRoomModal has eliminated fake "room code" wording', () => {
@@ -352,6 +368,92 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
     it('E. Returns truthful empty array when no rooms match query', () => {
       const result = filterLobbyRooms(mockRooms, 'hoa-hoc')
       expect(result).toHaveLength(0)
+    })
+  })
+
+  // ── 10. Authoritative Room Friend Presence Freshness (buildRoomFriendsMap) ──
+  describe('10. Authoritative Room Friend Presence Freshness (buildRoomFriendsMap)', () => {
+    const sampleRoom: PhongSanh = {
+      id: 42,
+      ten: 'Phòng Toán 10',
+      chuPhongTen: 'Nguyễn Văn An',
+      phamVi: 'truong',
+      lopId: null,
+      lopTen: null,
+      soNguoi: 2,
+      sucChua: 20,
+      coMatKhau: false,
+      monHoc: 'toan',
+      moTa: 'Ôn tập chương 1',
+      dangPhat: null,
+      taoLuc: 1700000000000,
+    }
+
+    const friendA: FriendItem = {
+      id: 101,
+      username: 'bana',
+      displayName: 'Bạn A',
+      avatar: null,
+      role: 'hoc_sinh',
+      lopTen: '10A7',
+      friendedAt: 1700000000000,
+    }
+
+    const presenceMapWithRoom: Record<number, FriendPresence> = {
+      101: {
+        accountId: 101,
+        state: 'online',
+        lastSeen: Date.now(),
+        activity: {
+          type: 'room',
+          roomId: 42,
+          roomTitle: 'Phòng Toán 10',
+        },
+      },
+    }
+
+    it('A. presenceReady=true + connection=da_ket_noi: friend in room => friend badge projection exists', () => {
+      const map = buildRoomFriendsMap([sampleRoom], [friendA], presenceMapWithRoom, [], {
+        presenceReady: true,
+        connectionStatus: 'da_ket_noi',
+      })
+      const friendsIn42 = map.get(42)
+      expect(friendsIn42).toBeDefined()
+      expect(friendsIn42).toHaveLength(1)
+      expect(friendsIn42![0].id).toBe(101)
+      expect(friendsIn42![0].displayName).toBe('Bạn A')
+    })
+
+    it('B. Same cached presenceMap + presenceReady=false + connection=mat_ket_noi: => ZERO friend room projections', () => {
+      const map = buildRoomFriendsMap([sampleRoom], [friendA], presenceMapWithRoom, [], {
+        presenceReady: false,
+        connectionStatus: 'mat_ket_noi',
+      })
+      const friendsIn42 = map.get(42)
+      expect(friendsIn42).toBeDefined()
+      expect(friendsIn42).toHaveLength(0) // ZERO friend projections!
+    })
+
+    it('C. Reconnecting: presenceReady=false + connection=dang_ket_noi: => ZERO friend room projections', () => {
+      const map = buildRoomFriendsMap([sampleRoom], [friendA], presenceMapWithRoom, [], {
+        presenceReady: false,
+        connectionStatus: 'dang_ket_noi',
+      })
+      const friendsIn42 = map.get(42)
+      expect(friendsIn42).toBeDefined()
+      expect(friendsIn42).toHaveLength(0) // ZERO friend projections!
+    })
+
+    it('D. Fresh snapshot after reconnect: presenceReady=true + connection=da_ket_noi: => friend projection returns correctly', () => {
+      const map = buildRoomFriendsMap([sampleRoom], [friendA], presenceMapWithRoom, [], {
+        presenceReady: true,
+        connectionStatus: 'da_ket_noi',
+      })
+      const friendsIn42 = map.get(42)
+      expect(friendsIn42).toBeDefined()
+      expect(friendsIn42).toHaveLength(1)
+      expect(friendsIn42![0].id).toBe(101)
+      expect(friendsIn42![0].displayName).toBe('Bạn A')
     })
   })
 })

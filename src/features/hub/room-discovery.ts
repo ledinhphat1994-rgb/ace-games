@@ -26,10 +26,23 @@ export function buildRoomFriendsMap(
   friends: FriendItem[],
   presenceMap: Record<number, FriendPresence>,
   blockedUsers?: BlockedUserItem[],
+  freshness?: {
+    presenceReady?: boolean
+    connectionStatus?: string
+  },
 ): Map<number, RoomFriendInfo[]> {
   const roomMap = new Map<number, RoomFriendInfo[]>()
   for (const r of rooms) {
     roomMap.set(r.id, [])
+  }
+
+  // Fail-closed: UNKNOWN / STALE presence must NEVER be shown as current live activity.
+  // Only derive friend-in-room badges when presenceReady === true AND connectionStatus === 'da_ket_noi'.
+  if (freshness) {
+    const { presenceReady, connectionStatus } = freshness
+    if (presenceReady !== true || connectionStatus !== 'da_ket_noi') {
+      return roomMap
+    }
   }
 
   const blockedSet = new Set((blockedUsers ?? []).map((b) => b.id))
