@@ -58,6 +58,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
     ketNoiLai,
     socialState,
     presenceMap,
+    presenceReady,
   } = useCampus()
 
   const [tabPhamVi, setTabPhamVi] = useState<TabPhamVi>('tat_ca')
@@ -73,8 +74,12 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
   const roomFriendsMap = useMemo(
-    () => buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers),
-    [rooms, friends, presenceMap, blockedUsers],
+    () =>
+      buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers, {
+        presenceReady,
+        connectionStatus: trangThai,
+      }),
+    [rooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
   )
 
   // Thống kê động cho 3 Interactive Canvas Orbs / Hub Nodes

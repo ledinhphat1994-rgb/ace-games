@@ -27,7 +27,7 @@ import { toast } from 'sonner'
 export function HomePage() {
   const navigate = useNavigate()
   const { nguoiDung } = usePhien()
-  const { rooms, socialState, presenceMap } = useCampus()
+  const { rooms, socialState, presenceMap, presenceReady, trangThai } = useCampus()
 
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
@@ -38,8 +38,12 @@ export function HomePage() {
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
 
   const roomFriendsMap = useMemo(
-    () => buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers),
-    [rooms, friends, presenceMap, blockedUsers],
+    () =>
+      buildRoomFriendsMap(rooms, friends, presenceMap, blockedUsers, {
+        presenceReady,
+        connectionStatus: trangThai,
+      }),
+    [rooms, friends, presenceMap, blockedUsers, presenceReady, trangThai],
   )
 
   // Smart continuation: find a friend actively in a study room

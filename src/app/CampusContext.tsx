@@ -62,6 +62,8 @@ export interface CampusContextValue {
   rooms: PhongSanh[]
   messages: TinCampus[]
   myPermissions: { accountId: number; xoaMoiTin: boolean } | null
+  campusSnapshotReady: boolean
+  roomsReady: boolean
   latencyMs: number | null
   latency: number | null
   doDoTre: () => Promise<number | null>
@@ -119,6 +121,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [rooms, setRooms] = useState<PhongSanh[]>([])
   const [messages, setMessages] = useState<TinCampus[]>([])
   const [myPermissions, setMyPermissions] = useState<{ accountId: number; xoaMoiTin: boolean } | null>(null)
+  const [campusSnapshotReady, setCampusSnapshotReady] = useState<boolean>(false)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
 
   // Social state & presence map
@@ -245,6 +248,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
     setTrangThai('dang_ket_noi')
     setPresenceReady(false)
+    setCampusSnapshotReady(false)
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
     const ws = new WebSocket(`${giaoThuc}//${host}/ws/campus`)
@@ -284,6 +288,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
           setRooms(goi.rooms)
           setMessages(goi.chat)
           setMyPermissions(goi.me)
+          setCampusSnapshotReady(true)
           break
 
         case 'online':
@@ -483,6 +488,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
       setPresenceReady(false)
+      setCampusSnapshotReady(false)
 
       if (e.code === MA_DONG_SOCKET.PHIEN_BI_THAY) {
         setTrangThai('phien_bi_thay')
@@ -503,6 +509,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       if (wsRef.current !== ws) return
       donDepChoPhanHoi()
       setPresenceReady(false)
+      setCampusSnapshotReady(false)
     }
   }, [donDepChoPhanHoi, lamMoiNotifications])
 
@@ -827,6 +834,8 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     rooms,
     messages,
     myPermissions,
+    campusSnapshotReady,
+    roomsReady: campusSnapshotReady,
     latencyMs,
     latency: latencyMs,
     doDoTre,
