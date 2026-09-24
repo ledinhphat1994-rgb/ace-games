@@ -48,12 +48,13 @@ if (!/^[a-f0-9]{40}$/i.test(headSha)) {
   process.exit(1)
 }
 
-// 2. Trong real production deploy (không phải dry-run hay validate-only):
-// TUYỆT ĐỐI KHÔNG CÓ BYPASS CHO FEATURE BRANCH.
-if (!isDryRun && !isValidateOnly) {
-  if (currentBranch !== 'main' && currentBranch !== 'HEAD') {
-    console.error(`❌ [DEPLOY] LỖI BẢO VỆ NGUỒN: Real production deploy chỉ được phép từ nhánh 'main' (hoặc detached HEAD với EXPECTED_RELEASE_SHA).`)
-    console.error(`   Nhánh hiện tại: '${currentBranch}'. Hủy bỏ deployment.`)
+// 2. Kiểm tra ràng buộc nhánh phát hành
+// Real deploy bắt buộc trên main hoặc detached HEAD.
+// Validate-only cũng bắt buộc trên main hoặc detached HEAD (trừ khi test harness cấp cờ ALLOW_NON_MAIN_DEPLOY).
+if (currentBranch !== 'main' && currentBranch !== 'HEAD') {
+  if (!isDryRun || !process.env.ALLOW_NON_MAIN_DEPLOY) {
+    console.error(`❌ [DEPLOY] LỖI BẢO VỆ NGUỒN: Production deploy & validate chỉ được phép trên nhánh 'main' (hoặc detached HEAD với EXPECTED_RELEASE_SHA).`)
+    console.error(`   Nhánh hiện tại: '${currentBranch}'. Hủy bỏ quy trình.`)
     process.exit(1)
   }
 }
@@ -97,9 +98,18 @@ if (isDryRun) {
 }
 
 if (isValidateOnly) {
+  console.log(`\n📋 [DEPLOY VALIDATE] Đã xác thực toàn bộ điều kiện tiên quyết phát hành production:`)
+  console.log(`   ✓ Clean working tree (100% không có thay đổi chưa commit)`)
+  console.log(`   ✓ Nhánh phát hành: ${currentBranch}`)
+  console.log(`   ✓ Khóa nguồn đồng bộ: HEAD (${headSha}) == origin/main`)
+  if (process.env.EXPECTED_RELEASE_SHA) {
+    console.log(`   ✓ Khóa SHA bảo vệ: EXPECTED_RELEASE_SHA (${process.env.EXPECTED_RELEASE_SHA}) khớp 100%`)
+  }
+  console.log(`   ✓ Phân tách tài nguyên D1, KV, R2 (hoàn toàn cách ly staging)`)
+  console.log(`   ✓ Exact-SHA CI Quality Gates: PASS trên GitHub Actions`)
   console.log(`\n📦 Lệnh deploy dự kiến: npx ${wranglerArgs.join(' ')}`)
   console.log(`🏷️  Cloudflare Version Message: release:${headSha}`)
-  console.log('✅ [DEPLOY] Xác thực cấu hình lệnh deploy thành công!')
+  console.log('✅ [DEPLOY] Xác thực cấu hình lệnh deploy thành công (No production mutation)!')
   process.exit(0)
 }
 

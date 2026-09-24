@@ -1,21 +1,35 @@
 #!/usr/bin/env node
 // Automated Regression Verification for Release Guard & Deployment Tooling
-// Kiểm tra 10 invariants bắt buộc của Release Engineering:
-// 1. Dirty working tree => BLOCK (exit 1)
-// 2. Clean non-main feature branch => BLOCK (exit 1)
-// 3. Stale local main where HEAD != origin/main => BLOCK (exit 1)
-// 4. Current main where HEAD == origin/main => PASS (exit 0)
-// 5. Detached HEAD without EXPECTED_RELEASE_SHA => BLOCK (exit 1)
-// 6. Detached HEAD with matching EXPECTED_RELEASE_SHA => PASS (exit 0)
-// 7. Mismatched EXPECTED_RELEASE_SHA => BLOCK (exit 1)
-// 8. Deploy wrapper dry-run contains: release:<exact verified 40-char SHA>
-// 9. No test-only environment variable can turn a dirty production tree into an allowed real deployment (BLOCK exit 1)
-// 10. Shared R2 bucket between staging and production => BLOCK (exit 1)
+// Kiểm tra toàn diện các bất biến bắt buộc của Release Engineering:
+// 1. Dirty working tree => FAIL (exit 1)
+// 2. Clean non-main feature branch => FAIL (exit 1)
+// 3. Stale local main where HEAD != origin/main => FAIL (exit 1)
+// 4. Detached HEAD without EXPECTED_RELEASE_SHA => FAIL (exit 1)
+// 5. Mismatched EXPECTED_RELEASE_SHA => FAIL (exit 1)
+// 6. No test-only environment variable can bypass dirty working tree => FAIL (exit 1)
+// 7. Shared R2 bucket between staging and production => FAIL (exit 1)
+//
+// Authoritative Exact-SHA CI Quality Gates Invariants:
+// 8. CI Evaluation: CI success + exact SHA => PASS
+// 9. CI Evaluation: CI success for different SHA => FAIL
+// 10. CI Evaluation: CI pending (in_progress) => FAIL
+// 11. CI Evaluation: CI failure => FAIL
+// 12. CI Evaluation: no CI result => FAIL
+//
+// Process-Level Release Guard Invariants:
+// 13. Process Guard: CI success + exact SHA => PASS (exit 0)
+// 14. Process Guard: CI success for different SHA => FAIL (exit 1)
+// 15. Process Guard: CI pending => FAIL (exit 1)
+// 16. Process Guard: CI failure => FAIL (exit 1)
+// 17. Process Guard: no CI result => FAIL (exit 1)
+// 18. Process Guard: Detached HEAD with matching EXPECTED_RELEASE_SHA + passing CI => PASS (exit 0)
+// 19. Deploy Wrapper: validate-only contains release:<exact verified 40-char SHA> => PASS (exit 0)
 
 import { execSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { evaluateCiRuns } from './ci-gate-verifier.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -24,7 +38,7 @@ const rootDir = path.resolve(__dirname, '..')
 const guardScript = path.join(__dirname, 'guard-production-release.mjs')
 const deployScript = path.join(__dirname, 'deploy-production.mjs')
 
-console.log('=== VERIFYING RELEASE GUARD & DEPLOY TOOLING (10 INVARIANTS) ===\n')
+console.log('=== VERIFYING RELEASE GUARD & CI QUALITY GATES (DETERMINISTIC SUITE) ===\n')
 
 let passed = 0
 let failed = 0
@@ -40,6 +54,78 @@ function test(name, fn) {
     failed++
   }
 }
+
+// ========================================================
+// 1. PURE COMPARISON LOGIC TESTS (evaluateCiRuns)
+// ========================================================
+console.log('--- 1. Pure Comparison Logic Tests (evaluateCiRuns) ---')
+
+const SAMPLE_SHA = 'db522daf7a990f350fd493709343209a06135b7f'
+const OTHER_SHA = 'a2ef68628b030438b4d82f7c220f86235123d578'
+
+test('CI Evaluation: CI success + exact SHA => PASS', () => {
+  const runs = [
+    { name: 'CI Quality Gates', headSha: SAMPLE_SHA, status: 'completed', conclusion: 'success' },
+  ]
+  const result = evaluateCiRuns(runs, SAMPLE_SHA)
+  if (!result.ok || !result.matchedRun) {
+    throw new Error(`Expected ok: true, received: ${JSON.stringify(result)}`)
+  }
+})
+
+test('CI Evaluation: CI success for different SHA => FAIL', () => {
+  const runs = [
+    { name: 'CI Quality Gates', headSha: OTHER_SHA, status: 'completed', conclusion: 'success' },
+  ]
+  const result = evaluateCiRuns(runs, SAMPLE_SHA)
+  if (result.ok) {
+    throw new Error(`Expected ok: false for different SHA, received ok: true`)
+  }
+  if (!result.reason.includes('Không có CI Quality Gates run nào cho exact SHA')) {
+    throw new Error(`Expected reason to mention exact SHA mismatch, received: ${result.reason}`)
+  }
+})
+
+test('CI Evaluation: CI pending (in_progress) => FAIL', () => {
+  const runs = [
+    { name: 'CI Quality Gates', headSha: SAMPLE_SHA, status: 'in_progress' },
+  ]
+  const result = evaluateCiRuns(runs, SAMPLE_SHA)
+  if (result.ok) {
+    throw new Error(`Expected ok: false for pending CI, received ok: true`)
+  }
+  if (!result.reason.includes('chưa hoàn tất')) {
+    throw new Error(`Expected reason to mention 'chưa hoàn tất', received: ${result.reason}`)
+  }
+})
+
+test('CI Evaluation: CI failure => FAIL', () => {
+  const runs = [
+    { name: 'CI Quality Gates', headSha: SAMPLE_SHA, status: 'completed', conclusion: 'failure' },
+  ]
+  const result = evaluateCiRuns(runs, SAMPLE_SHA)
+  if (result.ok) {
+    throw new Error(`Expected ok: false for failed CI, received ok: true`)
+  }
+  if (!result.reason.includes("hoàn tất với kết quả 'failure'")) {
+    throw new Error(`Expected reason to mention failure, received: ${result.reason}`)
+  }
+})
+
+test('CI Evaluation: no CI result => FAIL', () => {
+  const result = evaluateCiRuns([], SAMPLE_SHA)
+  if (result.ok) {
+    throw new Error(`Expected ok: false for empty runs, received ok: true`)
+  }
+  if (!result.reason.includes('Không tìm thấy bất kỳ lượt chạy CI Quality Gates nào')) {
+    throw new Error(`Expected reason to mention no runs found, received: ${result.reason}`)
+  }
+})
+
+// ========================================================
+// 2. REPOSITORY & RELEASE GUARD PROCESS TESTS
+// ========================================================
+console.log('\n--- 2. Process-Level Release Guard Tests ---')
 
 // Thiết lập Isolated Fixture Repository để kiểm thử mà không làm ảnh hưởng workspace chính
 const fixtureDir = path.join(rootDir, 'node_modules', '.tmp-guard-fixture')
@@ -89,15 +175,20 @@ function teardownFixture() {
 
 try {
   setupFixture()
+  const fixtureHeadSha = execSync('git rev-parse HEAD', { cwd: localDir, encoding: 'utf8' }).trim()
 
-  // Test 1: dirty working tree => BLOCK (exit code 1)
-  test('1. Dirty working tree => BLOCK (exit 1)', () => {
+  const passingRunsJson = JSON.stringify([
+    { name: 'CI Quality Gates', headSha: fixtureHeadSha, status: 'completed', conclusion: 'success' },
+  ])
+
+  // Test: dirty working tree => FAIL (exit code 1)
+  test('Process Guard: Dirty working tree => FAIL (exit 1)', () => {
     const dirtyFile = path.join(localDir, 'dirty.txt')
     try {
       fs.writeFileSync(dirtyFile, 'uncommitted dirty change', 'utf8')
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env },
+        env: { ...process.env, MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status}`)
@@ -113,13 +204,13 @@ try {
     }
   })
 
-  // Test 2: clean non-main feature branch => BLOCK (exit code 1)
-  test('2. Clean non-main feature branch => BLOCK (exit 1)', () => {
+  // Test: clean non-main feature branch => FAIL (exit code 1)
+  test('Process Guard: Clean non-main feature branch => FAIL (exit 1)', () => {
     try {
       execSync('git checkout -b feature/test-branch', { cwd: localDir, stdio: 'pipe' })
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env, ALLOW_NON_MAIN_DEPLOY: '' },
+        env: { ...process.env, ALLOW_NON_MAIN_DEPLOY: '', MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status}`)
@@ -133,15 +224,15 @@ try {
     }
   })
 
-  // Test 3: stale local main where HEAD != origin/main => BLOCK (exit code 1)
-  test('3. Stale local main where HEAD != origin/main => BLOCK (exit 1)', () => {
+  // Test: stale local main where HEAD != origin/main => FAIL (exit code 1)
+  test('Process Guard: Stale local main where HEAD != origin/main => FAIL (exit 1)', () => {
     const unpushedFile = path.join(localDir, 'unpushed.txt')
     try {
       fs.writeFileSync(unpushedFile, 'unpushed commit payload', 'utf8')
       execSync('git add unpushed.txt && git commit -m "unpushed local commit"', { cwd: localDir, stdio: 'pipe' })
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env },
+        env: { ...process.env, MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status}`)
@@ -155,28 +246,98 @@ try {
     }
   })
 
-  // Test 4: current main where HEAD == origin/main => PASS (exit code 0)
-  test('4. Current main where HEAD == origin/main => PASS (exit 0)', () => {
+  // Test: CI success + exact SHA => PASS (exit code 0)
+  test('Process Guard: CI success + exact SHA => PASS (exit 0)', () => {
     const res = spawnSync(process.execPath, [guardScript, localDir], {
       encoding: 'utf8',
-      env: { ...process.env },
+      env: { ...process.env, MOCK_CI_RUNS: passingRunsJson },
     })
     if (res.status !== 0) {
       throw new Error(`Expected status 0, received ${res.status}:\n${res.stderr + res.stdout}`)
     }
     const combined = res.stderr + res.stdout
-    if (!combined.includes('Khóa nguồn thành công')) {
-      throw new Error(`Expected output to contain 'Khóa nguồn thành công', received:\n${combined}`)
+    if (!combined.includes('Exact-SHA CI Quality Gates: PASS')) {
+      throw new Error(`Expected output to contain 'Exact-SHA CI Quality Gates: PASS', received:\n${combined}`)
     }
   })
 
-  // Test 5: detached HEAD without EXPECTED_RELEASE_SHA => BLOCK (exit code 1)
-  test('5. Detached HEAD without EXPECTED_RELEASE_SHA => BLOCK (exit 1)', () => {
+  // Test: CI success for different SHA => FAIL (exit code 1)
+  test('Process Guard: CI success for different SHA => FAIL (exit 1)', () => {
+    const mismatchedRunsJson = JSON.stringify([
+      { name: 'CI Quality Gates', headSha: '0000000000000000000000000000000000000000', status: 'completed', conclusion: 'success' },
+    ])
+    const res = spawnSync(process.execPath, [guardScript, localDir], {
+      encoding: 'utf8',
+      env: { ...process.env, MOCK_CI_RUNS: mismatchedRunsJson },
+    })
+    if (res.status !== 1) {
+      throw new Error(`Expected status 1, received ${res.status}`)
+    }
+    const combined = res.stderr + res.stdout
+    if (!combined.includes('LỖI BẢO VỆ CI QUALITY GATES')) {
+      throw new Error(`Expected output to contain 'LỖI BẢO VỆ CI QUALITY GATES', received:\n${combined}`)
+    }
+  })
+
+  // Test: CI pending => FAIL (exit code 1)
+  test('Process Guard: CI pending => FAIL (exit 1)', () => {
+    const pendingRunsJson = JSON.stringify([
+      { name: 'CI Quality Gates', headSha: fixtureHeadSha, status: 'in_progress' },
+    ])
+    const res = spawnSync(process.execPath, [guardScript, localDir], {
+      encoding: 'utf8',
+      env: { ...process.env, MOCK_CI_RUNS: pendingRunsJson },
+    })
+    if (res.status !== 1) {
+      throw new Error(`Expected status 1, received ${res.status}`)
+    }
+    const combined = res.stderr + res.stdout
+    if (!combined.includes('chưa hoàn tất')) {
+      throw new Error(`Expected output to contain 'chưa hoàn tất', received:\n${combined}`)
+    }
+  })
+
+  // Test: CI failure => FAIL (exit code 1)
+  test('Process Guard: CI failure => FAIL (exit 1)', () => {
+    const failedRunsJson = JSON.stringify([
+      { name: 'CI Quality Gates', headSha: fixtureHeadSha, status: 'completed', conclusion: 'failure' },
+    ])
+    const res = spawnSync(process.execPath, [guardScript, localDir], {
+      encoding: 'utf8',
+      env: { ...process.env, MOCK_CI_RUNS: failedRunsJson },
+    })
+    if (res.status !== 1) {
+      throw new Error(`Expected status 1, received ${res.status}`)
+    }
+    const combined = res.stderr + res.stdout
+    if (!combined.includes("hoàn tất với kết quả 'failure'")) {
+      throw new Error(`Expected output to contain failure error, received:\n${combined}`)
+    }
+  })
+
+  // Test: no CI result => FAIL (exit code 1)
+  test('Process Guard: no CI result => FAIL (exit 1)', () => {
+    const emptyRunsJson = JSON.stringify([])
+    const res = spawnSync(process.execPath, [guardScript, localDir], {
+      encoding: 'utf8',
+      env: { ...process.env, MOCK_CI_RUNS: emptyRunsJson },
+    })
+    if (res.status !== 1) {
+      throw new Error(`Expected status 1, received ${res.status}`)
+    }
+    const combined = res.stderr + res.stdout
+    if (!combined.includes('Không tìm thấy bất kỳ lượt chạy CI Quality Gates nào')) {
+      throw new Error(`Expected output to contain no runs found error, received:\n${combined}`)
+    }
+  })
+
+  // Test: detached HEAD without EXPECTED_RELEASE_SHA => FAIL (exit code 1)
+  test('Process Guard: Detached HEAD without EXPECTED_RELEASE_SHA => FAIL (exit 1)', () => {
     try {
       execSync('git checkout --detach HEAD', { cwd: localDir, stdio: 'pipe' })
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env, EXPECTED_RELEASE_SHA: '' },
+        env: { ...process.env, EXPECTED_RELEASE_SHA: '', MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status}`)
@@ -190,14 +351,13 @@ try {
     }
   })
 
-  // Test 6: detached HEAD with matching EXPECTED_RELEASE_SHA => PASS (exit code 0)
-  test('6. Detached HEAD with matching EXPECTED_RELEASE_SHA => PASS (exit 0)', () => {
+  // Test: detached HEAD with matching EXPECTED_RELEASE_SHA + passing CI => PASS (exit code 0)
+  test('Process Guard: Detached HEAD with matching EXPECTED_RELEASE_SHA => PASS (exit 0)', () => {
     try {
       execSync('git checkout --detach HEAD', { cwd: localDir, stdio: 'pipe' })
-      const currentHead = execSync('git rev-parse HEAD', { cwd: localDir, encoding: 'utf8' }).trim()
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env, EXPECTED_RELEASE_SHA: currentHead },
+        env: { ...process.env, EXPECTED_RELEASE_SHA: fixtureHeadSha, MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 0) {
         throw new Error(`Expected status 0, received ${res.status}:\n${res.stderr + res.stdout}`)
@@ -211,13 +371,13 @@ try {
     }
   })
 
-  // Test 7: mismatched EXPECTED_RELEASE_SHA => BLOCK (exit code 1)
-  test('7. Mismatched EXPECTED_RELEASE_SHA => BLOCK (exit 1)', () => {
+  // Test: mismatched EXPECTED_RELEASE_SHA => FAIL (exit code 1)
+  test('Process Guard: Mismatched EXPECTED_RELEASE_SHA => FAIL (exit 1)', () => {
     try {
       execSync('git checkout --detach HEAD', { cwd: localDir, stdio: 'pipe' })
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env, EXPECTED_RELEASE_SHA: '0000000000000000000000000000000000000000' },
+        env: { ...process.env, EXPECTED_RELEASE_SHA: '0000000000000000000000000000000000000000', MOCK_CI_RUNS: passingRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status}`)
@@ -231,27 +391,29 @@ try {
     }
   })
 
-  // Test 8: deploy wrapper dry-run contains: release:<exact verified 40-char SHA>
-  test('8. Deploy wrapper contains release:<exact verified 40-char SHA>', () => {
-    const currentHead = execSync('git rev-parse HEAD', { cwd: localDir, encoding: 'utf8' }).trim()
+  // Test: deploy wrapper validate-only contains: release:<exact verified 40-char SHA>
+  test('Deploy Wrapper: validate-only contains release:<exact verified 40-char SHA>', () => {
     const res = spawnSync(process.execPath, [deployScript, '--target-dir', localDir, '--validate-only'], {
       encoding: 'utf8',
-      env: { ...process.env },
+      env: { ...process.env, MOCK_CI_RUNS: passingRunsJson },
     })
     if (res.status !== 0) {
       throw new Error(`Expected status 0, received ${res.status}:\n${res.stderr + res.stdout}`)
     }
     const combined = res.stderr + res.stdout
-    if (!combined.includes(`release:${currentHead}`)) {
-      throw new Error(`Expected output to contain 'release:${currentHead}', received:\n${combined}`)
+    if (!combined.includes(`release:${fixtureHeadSha}`)) {
+      throw new Error(`Expected output to contain 'release:${fixtureHeadSha}', received:\n${combined}`)
     }
     if (!combined.includes('--message')) {
       throw new Error(`Expected output to contain '--message', received:\n${combined}`)
     }
+    if (!combined.includes('Exact-SHA CI Quality Gates: PASS')) {
+      throw new Error(`Expected output to contain 'Exact-SHA CI Quality Gates: PASS', received:\n${combined}`)
+    }
   })
 
-  // Test 9: no test-only environment variable can turn a dirty production tree into an allowed real deployment
-  test('9. No test-only environment variable can bypass dirty working tree', () => {
+  // Test: no test-only environment variable can turn a dirty production tree into an allowed real deployment
+  test('Process Guard: No test-only environment variable can bypass dirty working tree', () => {
     const dirtyFile = path.join(localDir, 'dirty.txt')
     try {
       fs.writeFileSync(dirtyFile, 'dirty bypass test', 'utf8')
@@ -263,6 +425,7 @@ try {
           ALLOW_NON_MAIN_DEPLOY: '1',
           FORCE: '1',
           DRY_RUN: '1',
+          MOCK_CI_RUNS: passingRunsJson,
         },
       })
       if (res.status !== 1) {
@@ -279,8 +442,8 @@ try {
     }
   })
 
-  // Test 10: shared R2 bucket between staging and production => BLOCK (exit 1)
-  test('10. Shared R2 bucket between staging and production => BLOCK (exit 1)', () => {
+  // Test: shared R2 bucket between staging and production => FAIL (exit 1)
+  test('Process Guard: Shared R2 bucket between staging and production => FAIL (exit 1)', () => {
     const stagingConfigPath = path.join(localDir, 'wrangler.staging.jsonc')
     const originalStagingConfig = fs.readFileSync(stagingConfigPath, 'utf8')
     try {
@@ -290,9 +453,13 @@ try {
       )
       fs.writeFileSync(stagingConfigPath, regressedStagingConfig, 'utf8')
       execSync('git add wrangler.staging.jsonc && git commit -m "simulate shared r2 regression" && git push origin main', { cwd: localDir, stdio: 'pipe' })
+      const newHead = execSync('git rev-parse HEAD', { cwd: localDir, encoding: 'utf8' }).trim()
+      const newHeadRunsJson = JSON.stringify([
+        { name: 'CI Quality Gates', headSha: newHead, status: 'completed', conclusion: 'success' },
+      ])
       const res = spawnSync(process.execPath, [guardScript, localDir], {
         encoding: 'utf8',
-        env: { ...process.env },
+        env: { ...process.env, MOCK_CI_RUNS: newHeadRunsJson },
       })
       if (res.status !== 1) {
         throw new Error(`Expected status 1, received ${res.status} (Shared R2 bucket was allowed!)`)
@@ -314,5 +481,5 @@ console.log(`\nResults: ${passed} passed, ${failed} failed`)
 if (failed > 0) {
   process.exit(1)
 }
-console.log('✅ All 10 release guard invariants verified successfully!\n')
+console.log('✅ All deterministic release guard & CI quality gates invariants verified successfully!\n')
 process.exit(0)
