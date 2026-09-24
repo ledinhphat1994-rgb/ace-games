@@ -18,21 +18,38 @@ export interface WorkspaceState {
 
 /**
  * Derives default workspace mode from canonical room state.
- * Priority:
- * 1. If media is actively playing or videoId is set -> 'video'
- * 2. Else if slide is actively presented -> 'document'
- * 3. Else -> 'idle'
+ *
+ * Strict Priority:
+ * A. video exists AND playing => 'video'
+ * B. document exists => 'document'
+ * C. video exists but paused => 'video'
+ * D. otherwise => 'idle'
+ *
+ * This keeps an actively playing video dominant, allows an active document
+ * to take priority over a merely paused background video, but still restores
+ * a paused-only video correctly after join/reconnect.
  */
 export function deriveDefaultWorkspaceMode(
   mediaState?: MediaState | null,
   slideState?: SlideState | null,
 ): WorkspaceMode {
-  if (mediaState?.videoId && mediaState.status === 'playing') {
+  const hasVideo = Boolean(mediaState?.videoId && mediaState.videoId.trim().length > 0)
+  const isPlaying = mediaState?.status === 'playing'
+  const hasDocument = Boolean(slideState?.docUrl && slideState.docUrl.trim().length > 0)
+
+  // A. video exists AND playing => video
+  if (hasVideo && isPlaying) {
     return 'video'
   }
-  if (slideState?.docUrl && slideState.docUrl.trim().length > 0) {
+  // B. document exists => document
+  if (hasDocument) {
     return 'document'
   }
+  // C. video exists but paused => video
+  if (hasVideo) {
+    return 'video'
+  }
+  // D. otherwise => idle
   return 'idle'
 }
 

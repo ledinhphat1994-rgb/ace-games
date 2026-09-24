@@ -21,32 +21,169 @@ import docStageRaw from '../src/features/study/workspace/DocumentStageView.tsx?r
 import videoPlayerRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?raw'
 import studyRoomViewRaw from '../src/features/study/StudyRoomView.tsx?raw'
 
+// Production default objects to verify neutral authoritative states
+import {
+  DEFAULT_MEDIA as CLIENT_DEFAULT_MEDIA,
+  DEFAULT_NOTES as CLIENT_DEFAULT_NOTES,
+} from '../src/hooks/use-room'
+import {
+  DEFAULT_MEDIA as ROOMDO_DEFAULT_MEDIA,
+  DEFAULT_NOTES as ROOMDO_DEFAULT_NOTES,
+} from '../worker/room-do'
+
 describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', () => {
+  // ── 12 Regression Coverage (Points A through L) ───────────────────────────
+  describe('PQA-C1 Authoritative Correctness & Neutral Defaults (Items A-L)', () => {
+    it('A. client DEFAULT_MEDIA is neutral with no pre-seeded sample video', () => {
+      expect(CLIENT_DEFAULT_MEDIA.videoId).toBe('')
+      expect(CLIENT_DEFAULT_MEDIA.title).toBe('')
+      expect(CLIENT_DEFAULT_MEDIA.status).toBe('paused')
+      expect(CLIENT_DEFAULT_MEDIA.time).toBe(0)
+      expect(CLIENT_DEFAULT_MEDIA.updatedAt).toBe(0)
+      expect(CLIENT_DEFAULT_MEDIA.playbackRate).toBe(1)
+      expect(CLIENT_DEFAULT_MEDIA.hostOnlyControl).toBe(true)
+    })
+
+    it('B. RoomDO DEFAULT_MEDIA is neutral with no pre-seeded sample video', () => {
+      expect(ROOMDO_DEFAULT_MEDIA.videoId).toBe('')
+      expect(ROOMDO_DEFAULT_MEDIA.title).toBe('')
+      expect(ROOMDO_DEFAULT_MEDIA.status).toBe('paused')
+      expect(ROOMDO_DEFAULT_MEDIA.time).toBe(0)
+      expect(ROOMDO_DEFAULT_MEDIA.updatedAt).toBe(0)
+      expect(ROOMDO_DEFAULT_MEDIA.playbackRate).toBe(1)
+      expect(ROOMDO_DEFAULT_MEDIA.hostOnlyControl).toBe(true)
+    })
+
+    it('C. client DEFAULT_NOTES is neutral with no fake lesson notes', () => {
+      expect(CLIENT_DEFAULT_NOTES.content).toBe('')
+      expect(CLIENT_DEFAULT_NOTES.lastEditedBy).toBe('')
+      expect(CLIENT_DEFAULT_NOTES.updatedAt).toBe(0)
+      expect(CLIENT_DEFAULT_NOTES.revision).toBe(1)
+    })
+
+    it('D. RoomDO DEFAULT_NOTES is neutral with no fake lesson notes', () => {
+      expect(ROOMDO_DEFAULT_NOTES.content).toBe('')
+      expect(ROOMDO_DEFAULT_NOTES.lastEditedBy).toBe('')
+      expect(ROOMDO_DEFAULT_NOTES.updatedAt).toBe(0)
+      expect(ROOMDO_DEFAULT_NOTES.revision).toBe(1)
+    })
+
+    it('E. fresh room => workspace derives idle truthfully from authoritative defaults', () => {
+      expect(deriveDefaultWorkspaceMode(CLIENT_DEFAULT_MEDIA, null)).toBe('idle')
+      expect(deriveDefaultWorkspaceMode(ROOMDO_DEFAULT_MEDIA, null)).toBe('idle')
+    })
+
+    it('F. paused loaded video only (no document) => workspace derives video mode', () => {
+      const pausedVideo: MediaState = {
+        videoId: 'real-youtube-id',
+        title: 'Video Bài Giảng Toán',
+        status: 'paused',
+        time: 0,
+        playbackRate: 1,
+        hostOnlyControl: true,
+        updatedAt: 1000,
+      }
+      expect(deriveDefaultWorkspaceMode(pausedVideo, null)).toBe('video')
+      expect(deriveDefaultWorkspaceMode(pausedVideo, {
+        docUrl: '',
+        docName: '',
+        fileType: 'pdf',
+        currentPage: 1,
+        totalPages: 1,
+      })).toBe('video')
+    })
+
+    it('G. paused video + document => workspace derives document mode (Priority B > C)', () => {
+      const pausedVideo: MediaState = {
+        videoId: 'real-youtube-id',
+        title: 'Video Bài Giảng Toán',
+        status: 'paused',
+        time: 0,
+        playbackRate: 1,
+        hostOnlyControl: true,
+        updatedAt: 1000,
+      }
+      const activeDoc: SlideState = {
+        docUrl: 'https://r2.lop10a7.edu.vn/slides/bai-1.pdf',
+        docName: 'bai-1.pdf',
+        fileType: 'pdf',
+        currentPage: 1,
+        totalPages: 10,
+      }
+      expect(deriveDefaultWorkspaceMode(pausedVideo, activeDoc)).toBe('document')
+    })
+
+    it('H. playing video + document => workspace derives video mode (Priority A dominates)', () => {
+      const playingVideo: MediaState = {
+        videoId: 'real-youtube-id',
+        title: 'Video Bài Giảng Toán',
+        status: 'playing',
+        time: 25,
+        playbackRate: 1,
+        hostOnlyControl: true,
+        updatedAt: 1000,
+      }
+      const activeDoc: SlideState = {
+        docUrl: 'https://r2.lop10a7.edu.vn/slides/bai-1.pdf',
+        docName: 'bai-1.pdf',
+        fileType: 'pdf',
+        currentPage: 1,
+        totalPages: 10,
+      }
+      expect(deriveDefaultWorkspaceMode(playingVideo, activeDoc)).toBe('video')
+    })
+
+    it('I. no authoritative content => workspace derives idle mode', () => {
+      expect(deriveDefaultWorkspaceMode(null, null)).toBe('idle')
+      expect(deriveDefaultWorkspaceMode(undefined, undefined)).toBe('idle')
+      expect(deriveDefaultWorkspaceMode({
+        videoId: '   ',
+        title: '',
+        status: 'paused',
+        time: 0,
+        playbackRate: 1,
+        hostOnlyControl: true,
+        updatedAt: 0,
+      }, null)).toBe('idle')
+    })
+
+    it('J. PPTX remains unsupported/truthful with advisory guidance', () => {
+      const pptxSlide: SlideState = {
+        docUrl: 'https://r2.lop10a7.edu.vn/bai-giang.pptx',
+        docName: 'bai-giang.pptx',
+        fileType: 'pptx',
+        currentPage: 1,
+        totalPages: 1,
+      }
+      expect(deriveDocumentStatus(pptxSlide)).toBe('unsupported')
+      expect(docStageRaw).toContain('PptxAdvisoryCard')
+      expect(docStageRaw).toContain('Chưa hỗ trợ trình chiếu trực tiếp PPTX')
+      expect(docStageRaw).toContain('xuất bài giảng sang định dạng PDF (.pdf)')
+    })
+
+    it('K. student idle state has no host upload actions', () => {
+      expect(canUserPresent(false, false)).toBe(false)
+      expect(canUserPresent(false, undefined)).toBe(false)
+      expect(stageRaw).toContain('{canControl ? (')
+      expect(stageRaw).toContain('data-testid="idle-stage-student-view"')
+      expect(stageRaw).toContain('Chưa có nội dung đang trình bày')
+    })
+
+    it('L. reconnecting disables unsafe mutations', () => {
+      expect(workspaceRaw).toContain("const isReconnecting = trangThai === 'dang_ket_noi' || trangThai === 'mat_ket_noi'")
+      expect(contextPanelRaw).toContain('disabled={isReconnecting}')
+      expect(dockRaw).toContain('const canControl = !isReconnecting')
+      expect(workspaceRaw).toContain('data-testid="classroom-reconnecting-banner"')
+    })
+  })
+
   // ── A. Workspace Idle Derivation ──────────────────────────────────────────
   describe('A. Workspace Idle Derivation', () => {
     it('returns idle mode when no media is playing and no slide document is loaded', () => {
-      const defaultMedia: MediaState = {
-        videoId: '',
-        title: '',
-        status: 'paused',
-        time: 0,
-        playbackRate: 1,
-        hostOnlyControl: false,
-        updatedAt: 0,
-      }
-      expect(deriveDefaultWorkspaceMode(defaultMedia, null)).toBe('idle')
+      expect(deriveDefaultWorkspaceMode(CLIENT_DEFAULT_MEDIA, null)).toBe('idle')
     })
 
     it('returns idle mode when slide has empty docUrl', () => {
-      const defaultMedia: MediaState = {
-        videoId: '',
-        title: '',
-        status: 'paused',
-        time: 0,
-        playbackRate: 1,
-        hostOnlyControl: false,
-        updatedAt: 0,
-      }
       const emptySlide: SlideState = {
         docUrl: '',
         docName: '',
@@ -54,7 +191,7 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
         currentPage: 1,
         totalPages: 1,
       }
-      expect(deriveDefaultWorkspaceMode(defaultMedia, emptySlide)).toBe('idle')
+      expect(deriveDefaultWorkspaceMode(CLIENT_DEFAULT_MEDIA, emptySlide)).toBe('idle')
     })
   })
 

@@ -46,14 +46,14 @@ const DEFAULT_SESSION_TIMER: SessionTimerState = {
   revision: 1,
 }
 
-const DEFAULT_MEDIA: MediaState = {
-  videoId: 'dQw4w9WgXcQ',
-  title: 'Video học tập chung',
+export const DEFAULT_MEDIA: MediaState = {
+  videoId: '',
+  title: '',
   status: 'paused',
   time: 0,
-  updatedAt: Date.now(),
+  updatedAt: 0,
   playbackRate: 1,
-  hostOnlyControl: false,
+  hostOnlyControl: true,
 }
 
 const DEFAULT_POMODORO: PomodoroState = {
@@ -66,10 +66,10 @@ const DEFAULT_POMODORO: PomodoroState = {
   revision: 1,
 }
 
-const DEFAULT_NOTES: SharedNotes = {
-  content: '# Ghi chú bài học 📝\n\n- Thảo luận và ghi lại các công thức quan trọng tại đây.',
-  lastEditedBy: 'Hệ thống',
-  updatedAt: Date.now(),
+export const DEFAULT_NOTES: SharedNotes = {
+  content: '',
+  lastEditedBy: '',
+  updatedAt: 0,
   revision: 1,
 }
 

@@ -151,14 +151,26 @@ export function ClassroomWorkspace({
     deriveDefaultWorkspaceMode(mediaState, slideState)
   )
 
-  // React to incoming media / slide updates if user hasn't locked whiteboard
+  // React to incoming media / slide updates without conflicting with user-selected views
+  // NOTE: Synchronized presenter-surface selection across clients is deferred to a later milestone (C2/C3).
+  // In C1, local workspace navigation (e.g. user toggling whiteboard or document) is intentionally preserved.
+  // We only auto-transition when:
+  // 1. A video begins actively playing (Priority A: video dominates).
+  // 2. The workspace is currently 'idle' and authoritative content arrives from snapshot/host.
+  // We explicitly avoid switching away when a video is merely paused to prevent layout flap/loops.
   useEffect(() => {
-    if (mediaState?.videoId && mediaState.status === 'playing') {
+    const hasVideo = Boolean(mediaState?.videoId && mediaState.videoId.trim().length > 0)
+    const isPlaying = mediaState?.status === 'playing'
+
+    if (hasVideo && isPlaying) {
       setMode('video')
-    } else if (slideState?.docUrl && mode === 'idle') {
-      setMode('document')
+    } else if (mode === 'idle') {
+      const derived = deriveDefaultWorkspaceMode(mediaState, slideState)
+      if (derived !== 'idle') {
+        setMode(derived)
+      }
     }
-  }, [mediaState?.videoId, mediaState?.status, slideState?.docUrl])
+  }, [mediaState?.videoId, mediaState?.status, slideState?.docUrl, mode])
 
   // Contextual Rail: only ONE active at a time!
   const [contextPanel, setContextPanel] = useState<ContextPanelView>('closed')
