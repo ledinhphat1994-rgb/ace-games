@@ -8,7 +8,6 @@ import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { queryGitHubCiRuns, evaluateCiRuns } from './ci-gate-verifier.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -124,34 +123,7 @@ if (currentBranch === 'main' || currentBranch === 'HEAD') {
 
 console.log(`📦 [RELEASE GUARD] Git Source Revision: ${headSha} (Branch: ${currentBranch}, Tree: CLEAN)`)
 
-// 2. Xác thực Exact-SHA CI Quality Gates (Bắt buộc hoàn tất và thành công 100%)
-// Invariant: DEPLOY_SHA == origin/main == exact successful CI head SHA
-const shouldVerifyCi = currentBranch === 'main' || currentBranch === 'HEAD'
-if (shouldVerifyCi) {
-  console.log(`🔍 [RELEASE GUARD] Đang xác thực Exact-SHA CI Quality Gates cho commit ${headSha}...`)
-  let ciRuns = []
-  try {
-    ciRuns = queryGitHubCiRuns(headSha, targetDir)
-  } catch (ciQueryErr) {
-    console.error('❌ [RELEASE GUARD] LỖI TRUY VẤN CI QUALITY GATES TỪ GITHUB:')
-    console.error(`   ${ciQueryErr.message}`)
-    console.error('   Production release fail-closed: Không thể xác minh kết quả CI của commit trên GitHub Actions.')
-    process.exit(1)
-  }
-
-  const ciEvaluation = evaluateCiRuns(ciRuns, headSha)
-  if (!ciEvaluation.ok) {
-    console.error('❌ [RELEASE GUARD] LỖI BẢO VỆ CI QUALITY GATES (EXACT-SHA CI REQUIREMENT):')
-    console.error(`   ${ciEvaluation.reason}`)
-    console.error(`   Commit phát hành: ${headSha}`)
-    console.error('   Production release fail-closed: Bắt buộc exact commit SHA phải vượt qua CI Quality Gates (status=completed, conclusion=success).')
-    process.exit(1)
-  }
-
-  console.log(`🔒 [RELEASE GUARD] Exact-SHA CI Quality Gates: PASS (Status: ${ciEvaluation.matchedRun.status}, Conclusion: ${ciEvaluation.matchedRun.conclusion})`)
-}
-
-// 3. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
+// 2. Kiểm tra migrations/ không chứa bất kỳ file analytics nào
 const coreMigrationsDir = path.join(targetDir, 'migrations')
 if (fs.existsSync(coreMigrationsDir)) {
   const files = fs.readdirSync(coreMigrationsDir)

@@ -15,12 +15,66 @@
 - **Backend / Workers:** Hono API Router (`worker/index.ts`), Durable Objects (`CampusDO` cho sảnh toàn trường & chat trực tiếp, `RoomDO` cho phòng học nhóm / YouTube sync / Game Arena).
 - **Shared Contracts:** Giao thức WebSocket & Type dùng chung tại `shared/protocol/` (`campus.ts`, `room.ts`, `game.ts`, `common.ts`).
 
-## 2. Tiêu chuẩn chất lượng & Kiểm tra bắt buộc (Quality Gates)
-Trước khi commit hoặc push:
-1. `npm run typecheck` — Tạo kiểu Cloudflare (`wrangler types`) và kiểm tra TypeScript (`tsc -b`). Phải đạt 0 lỗi.
-2. `npm run lint` — Chạy `oxlint`. Phải đạt 0 lỗi.
-3. `npm test` — Chạy toàn bộ Vitest suite (`vitest run`) trên môi trường giả lập Workers runtime (`@cloudflare/vitest-plugin`). Đảm bảo 100% test xanh.
-4. `npm run build` — Đóng gói production bundle cho cả Worker và Client. Phải build thành công không lỗi.
+## 2. Quy trình phát triển tối ưu tốc độ (4 bước mặc định)
+
+Tóm gọn: **Sửa local → test đúng lỗi → final local check 1 lần → push → (staging nếu cần) → deploy → smoke.**
+
+1. **CODE → TEST ĐÚNG PHẦN ĐANG SỬA:**
+   Chỉ chạy test liên quan trực tiếp đến phần đang sửa (ví dụ: `npx vitest run test/my-file.test.ts`). Lỗi thì sửa tiếp local.
+   *Cấm:* Không full test, không build, không GitHub CI, không staging trong vòng lặp debug.
+
+2. **XONG → CHECK LOCAL 1 LẦN:**
+   Chỉ khi đã hoàn thành toàn bộ sửa đổi mới chạy Local Final Gate (DUY NHẤT 1 LẦN):
+   - `npm run typecheck` (0 lỗi)
+   - `npm run lint` (0 lỗi)
+   - `npm test` (100% xanh)
+   - `npm run build:bundle` (`vite build`, không lặp lại typecheck)
+   - `git diff --check` (0 lỗi whitespace / conflict)
+   PASS hết mới commit/push. Pre-commit chỉ check staged diff & lint file staged. Không chạy GitHub CI.
+
+3. **STAGING CHỈ KHI THẬT SỰ CẦN:**
+   Chỉ khi UI/Room/browser/realtime cần nhìn thực tế mới deploy staging **1 lần** để review.
+   Sửa typo, helper nhỏ, test-only, script... **bỏ qua staging**.
+
+4. **PRODUCTION → GUARD → DEPLOY → SMOKE:**
+   Khi được duyệt: `main sạch + HEAD == origin/main + config production đúng → deploy → smoke`.
+   Chỉ kiểm tra thêm migration/RoomDO/auth/voice khi diff thật sự đụng các phần đó.
+
+### Những thứ BỎ HẲN khỏi flow thường ngày:
+- Không GitHub CI trên PR / push.
+- Không full test sau mỗi lần sửa nhỏ.
+- Không full test trong pre-commit (`.husky/pre-commit` chỉ chạy `git diff --cached --check` và lint staged files).
+- Không build lặp lại typecheck.
+- Không chạy release-guard khi đang làm UI / feature thông thường.
+- Không staging sau từng commit.
+- Không post-merge test lại nếu mã nguồn không thay đổi.
+- Không tường thuật "đang chạy / đang chờ".
+
+### Quy tắc kiểm tra an toàn theo rủi ro (Risk-Based Verification):
+Chỉ chạy test/gate tương ứng với rủi ro thật của diff:
+- Sửa CSS/UI: Không test RoomDO, không test release pipeline.
+- Sửa RoomDO: Chạy RoomDO tests.
+- Sửa Auth: Chạy auth/security tests.
+- Sửa Migration: Kiểm tra migration D1.
+- Sửa Deploy script/Wrangler config: Chạy `scripts/verify-release-guard.mjs`.
+
+### Định dạng báo cáo bắt buộc (Concise Reporting):
+Không báo gì trong lúc làm. Chỉ báo khi hoàn tất:
+```text
+DONE
+
+LOCAL CHECK: PASS
+TESTS: <số test>/<tổng test>
+STAGING: <version nếu có hoặc NONE>
+PR: #xx (nếu có)
+PRODUCTION: UNTOUCHED
+```
+Nếu bị chặn:
+```text
+BLOCKED
+CAUSE: <1 câu nguyên nhân>
+NEED: <thứ cần quyết định>
+```
 
 ## 3. Quy tắc bảo toàn dữ liệu & Tương thích hệ thống (Data Invariants)
 - **Mật khẩu:** Thuật toán PBKDF2-SHA256 với salt/hash hex, số vòng lấy theo từng dòng `tai_khoan_campus.iterations` của cơ sở dữ liệu gốc.

@@ -46,14 +46,14 @@ const DEFAULT_SESSION_TIMER: SessionTimerState = {
   revision: 1,
 }
 
-const DEFAULT_MEDIA: MediaState = {
-  videoId: 'dQw4w9WgXcQ',
-  title: 'Video học tập chung',
+export const DEFAULT_MEDIA: MediaState = {
+  videoId: '',
+  title: '',
   status: 'paused',
   time: 0,
-  updatedAt: Date.now(),
+  updatedAt: 0,
   playbackRate: 1,
-  hostOnlyControl: false,
+  hostOnlyControl: true,
 }
 
 const DEFAULT_POMODORO: PomodoroState = {
@@ -66,10 +66,10 @@ const DEFAULT_POMODORO: PomodoroState = {
   revision: 1,
 }
 
-const DEFAULT_NOTES: SharedNotes = {
-  content: '# Ghi chú bài học 📝\n\n- Thảo luận và ghi lại các công thức quan trọng tại đây.',
-  lastEditedBy: 'Hệ thống',
-  updatedAt: Date.now(),
+export const DEFAULT_NOTES: SharedNotes = {
+  content: '',
+  lastEditedBy: '',
+  updatedAt: 0,
   revision: 1,
 }
 
@@ -158,7 +158,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     setTrangThai('dang_ket_noi')
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
-    const ws = new WebSocket(`${giaoThuc}//${host}/ws/room/${encodeURIComponent(roomId)}`)
+    const canonicalMaPhong = roomId.startsWith('phong-') ? roomId : `phong-${roomId}`
+    const ws = new WebSocket(`${giaoThuc}//${host}/ws/room/${encodeURIComponent(canonicalMaPhong)}`)
     wsRef.current = ws
     // Expose WebSocket and shared notes ref for E2E tests ONLY — never in normal production
     if (typeof window !== 'undefined' && (window as unknown as { __E2E_MODE__?: boolean }).__E2E_MODE__ === true) {
@@ -421,6 +422,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
       }
 
       if (daHuyRef.current) return
+
+      // Immediately signal transient connection loss so UI displays reconnect banner with zero latency
+      setTrangThai('mat_ket_noi')
 
       // Classify disconnection reason against canonical admission status endpoint
       const idMatch = roomId.match(/(\d+)$/)

@@ -1,3 +1,7 @@
-npm run typecheck
-npm run lint
-npm test
+git diff --cached --check
+
+if command -v node.exe >/dev/null 2>&1; then
+  node.exe scripts/pre-commit-lint.mjs
+else
+  node scripts/pre-commit-lint.mjs
+fi

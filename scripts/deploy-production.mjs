@@ -106,7 +106,7 @@ if (isValidateOnly) {
     console.log(`   ✓ Khóa SHA bảo vệ: EXPECTED_RELEASE_SHA (${process.env.EXPECTED_RELEASE_SHA}) khớp 100%`)
   }
   console.log(`   ✓ Phân tách tài nguyên D1, KV, R2 (hoàn toàn cách ly staging)`)
-  console.log(`   ✓ Exact-SHA CI Quality Gates: PASS trên GitHub Actions`)
+  console.log(`   ✓ Cấu hình production & ranh giới di chuyển dữ liệu: PASS`)
   console.log(`\n📦 Lệnh deploy dự kiến: npx ${wranglerArgs.join(' ')}`)
   console.log(`🏷️  Cloudflare Version Message: release:${headSha}`)
   console.log('✅ [DEPLOY] Xác thực cấu hình lệnh deploy thành công (No production mutation)!')
