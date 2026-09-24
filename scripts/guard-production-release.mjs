@@ -4,7 +4,7 @@
 // Đảm bảo không sử dụng staging resources, migrations đã tách riêng, DB analytics đã được cấp phép,
 // Worker name/env chính xác, working tree sạch 100%, và nợ kiến trúc R2 được theo dõi có kiểm soát.
 
-import { execSync, spawnSync } from 'node:child_process'
+import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
