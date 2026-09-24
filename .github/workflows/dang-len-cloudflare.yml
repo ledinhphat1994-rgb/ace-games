@@ -83,11 +83,12 @@ jobs:
             exit 1
           fi
 
-      - name: [2/6] Kiểm tra Quality Gates (Typecheck -> Lint -> Vitest)
+      - name: [2/6] Full Quality Gates Verification (Typecheck -> Lint -> Vitest -> Build)
         run: |
           npm run typecheck
           npm run lint
           npm test
+          npm run build
 
       - name: [3/6] Release Guard (Validate-Only)
         env:

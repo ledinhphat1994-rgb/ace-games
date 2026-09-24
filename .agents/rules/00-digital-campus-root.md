@@ -72,11 +72,14 @@ trigger: always_on
 - Local configuration resides in `.dev.vars` / `.env.e2e` (git-ignored).
 - Production and staging environments must maintain isolated D1, KV, and R2 bindings.
 
-## 15. Delivery Workflow & Release Safety
-- Quality gates order: Local Quality Gates are authoritative: `typecheck` (0 errors) -> `lint` (0 errors) -> `test` (100% pass) -> `build` -> `release-guard`. GitHub Actions CI workflow on push has been removed to conserve quota and eliminate wait times.
+## 15. Delivery Workflow & Release Safety (4-Step Lean Flow)
+- Pipeline: Targeted local -> Final local once (`typecheck` -> `lint` -> `test` -> `build:bundle` -> `diff check`) -> Staging only if needed -> Production guard + smoke.
+- Risk-Based Verification: Run tests and gates corresponding strictly to the real risk of the diff. Do not run release guard for UI changes.
+- Pre-commit Hook: Fast staged check only (`git diff --cached --check` and lint staged files). No full test suite or typecheck in pre-commit.
 - Migration Immutability: Applied migrations in `migrations/` are immutable. New changes require sequentially numbered files.
-- Staging deployment precedes production review. Production releases require human authorization.
+- Production Releases: Require human authorization and pass production release guard (`main sạch + HEAD == origin/main + config đúng`).
 
-## 16. Truthful Reporting
-- Reports must reflect empirical facts: exact git SHAs, local quality gates results, actual deployment Version IDs, and directly reviewable visual evidence.
-- Never state "perfect" or "passed" without verifiable runtime proof.
+## 16. Truthful & Concise Reporting
+- Báo cáo ngắn gọn khi hoàn tất: `DONE`, `LOCAL CHECK: PASS`, `TESTS: x/x`, `STAGING: <version | NONE>`, `PR: #xx`, `PRODUCTION: UNTOUCHED`.
+- Báo cáo khi bị chặn: `BLOCKED`, `CAUSE: <1 câu>`, `NEED: <thứ cần quyết định>`.
+- Tuyệt đối không tường thuật trạng thái chờ ("đang chạy", "đang chờ", "build đang chạy").
