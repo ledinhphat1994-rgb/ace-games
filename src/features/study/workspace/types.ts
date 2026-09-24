@@ -90,3 +90,10 @@ export function canUserPresent(
 ): boolean {
   return Boolean(isHost || canModerate)
 }
+
+export const ANNOTATION_COLORS = [
+  { name: 'Đỏ', value: '#ef4444' },
+  { name: 'Vàng', value: '#eab308' },
+  { name: 'Xanh lục', value: '#22c55e' },
+  { name: 'Xanh lam', value: '#3b82f6' },
+] as const

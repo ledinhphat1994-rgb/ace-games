@@ -13,6 +13,7 @@ import {
   type ThanhVienPhong,
   type WhiteboardStroke,
   type SlideState,
+  type SlideAnnotationStroke,
   type VoiceParticipantState,
   type SessionGoal,
   type SessionTask,
@@ -222,6 +223,12 @@ export class RoomDO extends DurableObject<Env> {
         );
         CREATE TABLE IF NOT EXISTS whiteboard_strokes (
           id TEXT PRIMARY KEY,
+          stroke_data TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS slide_annotations (
+          id TEXT PRIMARY KEY,
+          page INTEGER NOT NULL,
           stroke_data TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
@@ -1404,6 +1411,17 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
+  private laySlideAnnotations(): SlideAnnotationStroke[] {
+    try {
+      const rows = [...this.ctx.storage.sql.exec<{ stroke_data: string }>(
+        'SELECT stroke_data FROM slide_annotations ORDER BY created_at ASC LIMIT 500',
+      )]
+      return rows.map((r) => JSON.parse(r.stroke_data) as SlideAnnotationStroke)
+    } catch {
+      return []
+    }
+  }
+
   private layQueue(): QueueItem[] {
     try {
       const rows = [...this.ctx.storage.sql.exec<{
@@ -1625,6 +1643,7 @@ export class RoomDO extends DurableObject<Env> {
         queue: this.layQueue(),
         chat: this.layChat(),
         slide: this.slide,
+        slideAnnotations: this.laySlideAnnotations(),
         voiceRegistry: this.getVoiceRegistry(),
         serverNow: Date.now(),
         // Learning Session v1
@@ -2401,8 +2420,67 @@ export class RoomDO extends DurableObject<Env> {
             currentPage: 1,
             totalPages,
           }
+          try {
+            this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+          } catch {}
+          this.broadcast({ type: 'slide.annotation', action: 'clear' })
         } else if (d.action === 'close_doc') {
           this.slide = null
+          try {
+            this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+          } catch {}
+          this.broadcast({ type: 'slide.annotation', action: 'clear' })
+        } else if (d.action === 'annotation_add') {
+          const st = d.stroke
+          if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 300) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ chú thích không hợp lệ (tối đa 300 điểm).' }))
+            return
+          }
+          const stroke: SlideAnnotationStroke = {
+            id: st.id,
+            page: st.page,
+            tool: st.tool,
+            points: st.points,
+            color: st.color,
+            size: st.size,
+            opacity: st.opacity,
+          }
+          try {
+            this.ctx.storage.sql.exec(
+              'INSERT OR REPLACE INTO slide_annotations (id, page, stroke_data, created_at) VALUES (?1, ?2, ?3, ?4)',
+              stroke.id,
+              stroke.page,
+              JSON.stringify(stroke),
+              Date.now(),
+            )
+            this.ctx.storage.sql.exec(
+              'DELETE FROM slide_annotations WHERE id NOT IN (SELECT id FROM slide_annotations ORDER BY created_at DESC LIMIT 500)',
+            )
+          } catch (err) {
+            console.error('Lỗi lưu nét vẽ slide:', err)
+          }
+          this.broadcast({ type: 'slide.annotation', action: 'add', stroke })
+          return
+        } else if (d.action === 'annotation_clear') {
+          try {
+            if (d.page) {
+              this.ctx.storage.sql.exec('DELETE FROM slide_annotations WHERE page = ?1', d.page)
+            } else {
+              this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
+            }
+          } catch (err) {
+            console.error('Lỗi xóa nét vẽ slide:', err)
+          }
+          this.broadcast({ type: 'slide.annotation', action: 'clear', page: d.page })
+          return
+        } else if (d.action === 'laser') {
+          this.broadcast({
+            type: 'slide.laser',
+            point: d.point,
+            page: d.page,
+            senderName: att.ten || 'Giáo viên',
+          })
+          return
         }
         this.luuMeta('slide', this.slide)
         this.broadcast({ type: 'slide.sync', slide: this.slide })

@@ -7,6 +7,7 @@ import type {
   RoomChatMessage,
   SharedNotes,
   SlideState,
+  SlideAnnotationStroke,
   ThanhVienPhong,
   WhiteboardStroke,
 } from '@shared/protocol/room'
@@ -39,6 +40,11 @@ export interface ClassroomWorkspaceProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  slideAnnotations?: SlideAnnotationStroke[]
+  onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
+  onClearSlideAnnotations?: (page?: number) => void
+  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  onSendSlideLaser?: (point: [number, number] | null, page: number) => void
   // Video
   mediaState?: MediaState | null
   canControlMedia?: boolean
@@ -104,6 +110,11 @@ export function ClassroomWorkspace({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  slideAnnotations,
+  onSendSlideAnnotation,
+  onClearSlideAnnotations,
+  slideLaser,
+  onSendSlideLaser,
   mediaState,
   canControlMedia = true,
   volume,
@@ -268,6 +279,11 @@ export function ClassroomWorkspace({
             isFullscreen={isFullscreen}
             onToggleFullscreen={() => setIsFullscreen((v) => !v)}
             isReconnecting={isReconnecting}
+            slideAnnotations={slideAnnotations}
+            onSendSlideAnnotation={onSendSlideAnnotation}
+            onClearSlideAnnotations={onClearSlideAnnotations}
+            slideLaser={slideLaser}
+            onSendSlideLaser={onSendSlideLaser}
           />
         </main>
 

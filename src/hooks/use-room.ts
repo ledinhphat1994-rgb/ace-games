@@ -11,6 +11,7 @@ import {
   type ThanhVienPhong,
   type WhiteboardStroke,
   type SlideState,
+  type SlideAnnotationStroke,
   type VoiceParticipantState,
   type BannedMemberItem,
   canonicalMediaPosition,
@@ -96,6 +97,13 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
   const [slideState, setSlideState] = useState<SlideState | null>(null)
+  const [slideAnnotations, setSlideAnnotations] = useState<SlideAnnotationStroke[]>([])
+  const [slideLaser, setSlideLaser] = useState<{
+    point: [number, number] | null
+    page: number
+    senderName?: string
+    updatedAt: number
+  } | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const [voiceRegistry, setVoiceRegistry] = useState<VoiceParticipantState[]>([])
@@ -201,6 +209,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setQueue(goi.queue)
           setChatMessages(goi.chat)
           setSlideState(goi.slide ?? null)
+          setSlideAnnotations(goi.slideAnnotations ?? [])
           // Learning Session v1 snapshot
           setSessionGoal(goi.sessionGoal ?? null)
           setSessionTasks(goi.sessionTasks ?? [])
@@ -310,6 +319,34 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
         case 'slide.sync':
           setSlideState(goi.slide ?? null)
+          if (!goi.slide) {
+            setSlideAnnotations([])
+            setSlideLaser(null)
+          }
+          break
+
+        case 'slide.annotation':
+          if (goi.action === 'add' && goi.stroke) {
+            const st = goi.stroke
+            setSlideAnnotations((prev) => {
+              if (prev.some((s) => s.id === st.id)) return prev
+              return [...prev, st].slice(-500)
+            })
+          } else if (goi.action === 'clear') {
+            if (goi.page) {
+              setSlideAnnotations((prev) => prev.filter((s) => s.page !== goi.page))
+            } else {
+              setSlideAnnotations([])
+            }
+          }
+          break
+
+        case 'slide.laser':
+          setSlideLaser(
+            goi.point
+              ? { point: goi.point, page: goi.page, senderName: goi.senderName, updatedAt: Date.now() }
+              : null,
+          )
           break
 
         case 'voice.updated': {
@@ -888,6 +925,24 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'close_doc' } }))
   }, [])
 
+  const sendSlideAnnotation = useCallback((stroke: SlideAnnotationStroke) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'annotation_add', stroke } }))
+  }, [])
+
+  const clearSlideAnnotations = useCallback((page?: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'annotation_clear', page } }))
+  }, [])
+
+  const sendSlideLaser = useCallback((point: [number, number] | null, page: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'laser', point, page } }))
+  }, [])
+
   // ── Learning Session v1 Actions ─────────────────────────
   const sendSessionAction = useCallback((action: LenhPhongSession) => {
     const ws = wsRef.current
@@ -997,9 +1052,14 @@ export function useRoom(roomId: string, myActorKey?: string) {
     setAudioInputDevice,
     setAudioOutputDevice,
     slideState,
+    slideAnnotations,
+    slideLaser,
     changeSlidePage,
     loadSlideDoc,
     closeSlideDoc,
+    sendSlideAnnotation,
+    clearSlideAnnotations,
+    sendSlideLaser,
     // Learning Session v1
     sessionGoal,
     sessionTasks,

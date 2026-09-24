@@ -1,7 +1,7 @@
 // src/features/study/workspace/DocumentStageView.tsx
 // Digital Campus v2: Milestone PQA-C2 — Classroom Presentation Surface
 
-import type { SlideState } from '@shared/protocol/room'
+import type { SlideState, SlideAnnotationStroke } from '@shared/protocol/room'
 import {
   AlertTriangle,
   ChevronLeft,
@@ -19,7 +19,9 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
-import { deriveDocumentStatus } from './types'
+import { deriveDocumentStatus, ANNOTATION_COLORS } from './types'
+import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
+import { SlideAnnotationToolbar } from './SlideAnnotationToolbar'
 
 export interface DocumentStageViewProps {
   slideState?: SlideState | null
@@ -31,6 +33,11 @@ export interface DocumentStageViewProps {
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
   isReconnecting?: boolean
+  slideAnnotations?: SlideAnnotationStroke[]
+  onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
+  onClearSlideAnnotations?: (page?: number) => void
+  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  onSendSlideLaser?: (point: [number, number] | null, page: number) => void
 }
 
 function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string }) {
@@ -84,8 +91,15 @@ export function DocumentStageView({
   isFullscreen,
   onToggleFullscreen,
   isReconnecting = false,
+  slideAnnotations = [],
+  onSendSlideAnnotation,
+  onClearSlideAnnotations,
+  slideLaser,
+  onSendSlideLaser,
 }: DocumentStageViewProps) {
   const [hasRenderError, setHasRenderError] = useState(false)
+  const [activeTool, setActiveTool] = useState<AnnotationTool>('pointer')
+  const [selectedColor, setSelectedColor] = useState<string>(ANNOTATION_COLORS[0].value)
 
   // Local-only view settings (PQA-C2 Section 5: never synchronized via RoomDO)
   const [zoomScale, setZoomScale] = useState<number>(1.0)
@@ -387,25 +401,49 @@ export function DocumentStageView({
               zoomScale={zoomScale}
               fitMode={fitMode}
               onError={() => setHasRenderError(true)}
-            />
+            >
+              <SlideAnnotationLayer
+                pageNumber={slideState.currentPage}
+                strokes={slideAnnotations}
+                activeTool={activeTool}
+                selectedColor={selectedColor}
+                canAnnotate={canControl}
+                onSendStroke={onSendSlideAnnotation}
+                laser={slideLaser}
+                onSendLaser={onSendSlideLaser}
+              />
+            </PdfCanvasViewer>
           </div>
         ) : slideState?.fileType === 'image' ? (
           <div className="h-full w-full flex items-center justify-center overflow-auto p-2" data-testid="doc-image-container">
-            <img
-              src={slideState.docUrl}
-              alt={slideState.docName || 'Bài giảng'}
-              onError={() => setHasRenderError(true)}
+            <div
+              className="relative inline-flex items-center justify-center m-auto transition-transform duration-100 ease-out"
               style={{
                 transform: `scale(${zoomScale})`,
                 transformOrigin: 'center center',
-                transition: 'transform 0.15s ease-out',
                 maxWidth: fitMode === 'page' ? '100%' : 'none',
                 maxHeight: fitMode === 'page' ? '100%' : 'none',
               }}
-              className="object-contain rounded-lg shadow-2xl border border-white/10 select-none"
-              draggable={false}
-              data-testid="doc-image-viewer"
-            />
+            >
+              <img
+                src={slideState.docUrl}
+                alt={slideState.docName || 'Bài giảng'}
+                onError={() => setHasRenderError(true)}
+                className="object-contain rounded-lg shadow-2xl border border-white/10 select-none max-h-full max-w-full"
+                draggable={false}
+                data-testid="doc-image-viewer"
+              />
+              <SlideAnnotationLayer
+                pageNumber={1}
+                strokes={slideAnnotations}
+                activeTool={activeTool}
+                selectedColor={selectedColor}
+                canAnnotate={canControl}
+                onSendStroke={onSendSlideAnnotation}
+                laser={slideLaser}
+                onSendLaser={onSendSlideLaser}
+              />
+            </div>
           </div>
         ) : slideState?.fileType === 'pptx' ? (
           <PptxAdvisoryCard docName={slideState.docName} docUrl={slideState.docUrl} />
@@ -417,6 +455,19 @@ export function DocumentStageView({
           </div>
         )}
       </div>
+
+      {/* ── FLOATING ANNOTATION & LASER TOOLBAR (PQA-C3) ── */}
+      {status === 'ready' && (
+        <SlideAnnotationToolbar
+          canAnnotate={canControl}
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          selectedColor={selectedColor}
+          onSelectColor={setSelectedColor}
+          onClearPage={() => onClearSlideAnnotations?.(slideState?.currentPage)}
+          hasPageStrokes={slideAnnotations.some((s) => s.page === (slideState?.currentPage ?? 1))}
+        />
+      )}
     </div>
   )
 }

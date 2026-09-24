@@ -28,6 +28,7 @@ export function PdfCanvasViewerImpl({
   onLoadingChange,
   zoomScale = 1.0,
   fitMode = 'page',
+  children,
 }: PdfCanvasViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -264,12 +265,13 @@ export function PdfCanvasViewerImpl({
           <p className="text-[11px] text-slate-500 max-w-[280px]">{errorMsg}</p>
         </div>
       ) : (
-        <div className="flex items-center justify-center m-auto transition-transform duration-100 ease-out">
+        <div className="relative inline-flex items-center justify-center m-auto transition-transform duration-100 ease-out">
           <canvas
             ref={canvasRef}
             className="max-h-full max-w-full object-contain shadow-2xl rounded border border-white/10 bg-white"
             data-rendered-page={renderedPage ?? ''}
           />
+          {children}
         </div>
       )}
     </div>
