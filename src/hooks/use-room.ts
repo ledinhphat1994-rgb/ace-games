@@ -332,6 +332,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
               if (prev.some((s) => s.id === st.id)) return prev
               return [...prev, st].slice(-500)
             })
+          } else if (goi.action === 'remove' && goi.strokeId) {
+            setSlideAnnotations((prev) => prev.filter((s) => s.id !== goi.strokeId))
           } else if (goi.action === 'clear') {
             if (goi.page) {
               setSlideAnnotations((prev) => prev.filter((s) => s.page !== goi.page))
@@ -943,6 +945,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'laser', point, page } }))
   }, [])
 
+  const removeSlideAnnotation = useCallback((id: string) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'annotation_remove', id } }))
+  }, [])
+
   // ── Learning Session v1 Actions ─────────────────────────
   const sendSessionAction = useCallback((action: LenhPhongSession) => {
     const ws = wsRef.current
@@ -1059,6 +1067,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     closeSlideDoc,
     sendSlideAnnotation,
     clearSlideAnnotations,
+    removeSlideAnnotation,
     sendSlideLaser,
     // Learning Session v1
     sessionGoal,

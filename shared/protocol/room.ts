@@ -183,6 +183,10 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     page: z.number().int().positive().optional(),
   }),
   z.object({
+    action: z.literal('annotation_remove'),
+    id: z.string().min(1).max(64),
+  }),
+  z.object({
     action: z.literal('laser'),
     point: z.tuple([z.number(), z.number()]).nullable(),
     page: z.number().int().positive(),
@@ -394,8 +398,9 @@ export type GoiPhong =
   | { type: 'slide.sync'; slide: SlideState | null }
   | {
       type: 'slide.annotation'
-      action: 'add' | 'clear'
+      action: 'add' | 'clear' | 'remove'
       stroke?: SlideAnnotationStroke
+      strokeId?: string
       page?: number
     }
   | {

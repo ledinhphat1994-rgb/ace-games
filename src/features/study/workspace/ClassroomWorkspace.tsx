@@ -43,6 +43,7 @@ export interface ClassroomWorkspaceProps {
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onClearSlideAnnotations?: (page?: number) => void
+  onRemoveSlideAnnotation?: (id: string) => void
   slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
   // Video
@@ -113,6 +114,7 @@ export function ClassroomWorkspace({
   slideAnnotations,
   onSendSlideAnnotation,
   onClearSlideAnnotations,
+  onRemoveSlideAnnotation,
   slideLaser,
   onSendSlideLaser,
   mediaState,
@@ -282,6 +284,7 @@ export function ClassroomWorkspace({
             slideAnnotations={slideAnnotations}
             onSendSlideAnnotation={onSendSlideAnnotation}
             onClearSlideAnnotations={onClearSlideAnnotations}
+            onRemoveSlideAnnotation={onRemoveSlideAnnotation}
             slideLaser={slideLaser}
             onSendSlideLaser={onSendSlideLaser}
           />

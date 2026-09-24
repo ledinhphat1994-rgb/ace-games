@@ -2473,6 +2473,14 @@ export class RoomDO extends DurableObject<Env> {
           }
           this.broadcast({ type: 'slide.annotation', action: 'clear', page: d.page })
           return
+        } else if (d.action === 'annotation_remove') {
+          try {
+            this.ctx.storage.sql.exec('DELETE FROM slide_annotations WHERE id = ?1', d.id)
+          } catch (err) {
+            console.error('Lỗi xóa nét vẽ slide theo id:', err)
+          }
+          this.broadcast({ type: 'slide.annotation', action: 'remove', strokeId: d.id })
+          return
         } else if (d.action === 'laser') {
           this.broadcast({
             type: 'slide.laser',

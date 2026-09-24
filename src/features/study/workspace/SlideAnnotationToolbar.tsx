@@ -1,7 +1,7 @@
 // src/features/study/workspace/SlideAnnotationToolbar.tsx
 // Digital Campus v2: Milestone PQA-C3 — Minimal Floating Annotation Toolbar
 
-import { ChevronDown, ChevronUp, Highlighter, MousePointer2, Pen, Sparkles, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Eraser, Highlighter, MousePointer2, Pen, Sparkles, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { AnnotationTool } from './SlideAnnotationLayer'
 import { ANNOTATION_COLORS } from './types'
@@ -105,6 +105,22 @@ export function SlideAnnotationToolbar({
           data-testid="tool-btn-highlighter"
         >
           <Highlighter className="h-4 w-4" />
+        </button>
+
+        {/* Tool: Eraser */}
+        <button
+          type="button"
+          onClick={() => onSelectTool('eraser')}
+          className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
+            activeTool === 'eraser'
+              ? 'bg-rose-500/30 text-rose-300 shadow-sm ring-1 ring-rose-500/40'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+          }`}
+          title="Tẩy nét vẽ"
+          aria-label="Tẩy nét vẽ"
+          data-testid="tool-btn-eraser"
+        >
+          <Eraser className="h-4 w-4" />
         </button>
 
         {/* Tool: Laser Pointer */}

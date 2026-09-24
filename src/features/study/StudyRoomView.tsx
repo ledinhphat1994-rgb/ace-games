@@ -102,6 +102,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     closeSlideDoc,
     sendSlideAnnotation,
     clearSlideAnnotations,
+    removeSlideAnnotation,
     sendSlideLaser,
     calculateTargetTime,
     // Learning Session v1
@@ -420,6 +421,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         slideAnnotations={slideAnnotations}
         onSendSlideAnnotation={isHost || canModerate ? sendSlideAnnotation : undefined}
         onClearSlideAnnotations={isHost || canModerate ? clearSlideAnnotations : undefined}
+        onRemoveSlideAnnotation={isHost || canModerate ? removeSlideAnnotation : undefined}
         slideLaser={slideLaser}
         onSendSlideLaser={isHost || canModerate ? sendSlideLaser : undefined}
         mediaState={mediaState}

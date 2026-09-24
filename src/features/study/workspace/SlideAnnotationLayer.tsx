@@ -5,7 +5,13 @@ import type { SlideAnnotationStroke } from '@shared/protocol/room'
 import { getStroke } from 'perfect-freehand'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export type AnnotationTool = 'pointer' | 'pen' | 'highlighter' | 'laser'
+import {
+  type AnnotationTool,
+  downsampleStrokePoints,
+  hitTestStrokes,
+} from './annotation-geometry'
+
+export type { AnnotationTool }
 
 interface SlideAnnotationLayerProps {
   pageNumber: number
@@ -14,6 +20,7 @@ interface SlideAnnotationLayerProps {
   selectedColor: string
   canAnnotate: boolean
   onSendStroke?: (stroke: SlideAnnotationStroke) => void
+  onRemoveStroke?: (strokeId: string) => void
   laser?: {
     point: [number, number] | null
     page: number
@@ -44,10 +51,12 @@ export function SlideAnnotationLayer({
   selectedColor,
   canAnnotate,
   onSendStroke,
+  onRemoveStroke,
   laser,
   onSendLaser,
 }: SlideAnnotationLayerProps) {
   const isDrawingRef = useRef(false)
+  const isErasingRef = useRef(false)
   const currentPointsRef = useRef<[number, number][]>([])
   const [activePoints, setActivePoints] = useState<[number, number][]>([])
   const svgRef = useRef<SVGSVGElement>(null)
@@ -72,6 +81,9 @@ export function SlideAnnotationLayer({
       expiredLaserTime !== laser.updatedAt,
   )
 
+  // Filter strokes for current page
+  const pageStrokes = strokes.filter((s) => s.page === pageNumber)
+
   // Get normalized [0..1] coordinates from mouse/pointer event relative to SVG
   const getNormalizedPoint = useCallback((e: React.PointerEvent<SVGSVGElement>): [number, number] | null => {
     const rect = svgRef.current?.getBoundingClientRect()
@@ -88,6 +100,18 @@ export function SlideAnnotationLayer({
 
     if (activeTool === 'laser') {
       onSendLaser?.(pt, pageNumber)
+      return
+    }
+
+    if (activeTool === 'eraser') {
+      const hitId = hitTestStrokes(pt, pageStrokes)
+      if (hitId) {
+        onRemoveStroke?.(hitId)
+      }
+      isErasingRef.current = true
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {}
       return
     }
 
@@ -115,6 +139,19 @@ export function SlideAnnotationLayer({
       return
     }
 
+    if (activeTool === 'eraser') {
+      if (isErasingRef.current) {
+        const pt = getNormalizedPoint(e)
+        if (pt) {
+          const hitId = hitTestStrokes(pt, pageStrokes)
+          if (hitId) {
+            onRemoveStroke?.(hitId)
+          }
+        }
+      }
+      return
+    }
+
     if (!isDrawingRef.current) return
     const pt = getNormalizedPoint(e)
     if (!pt) return
@@ -129,14 +166,23 @@ export function SlideAnnotationLayer({
       return
     }
 
+    if (activeTool === 'eraser') {
+      isErasingRef.current = false
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      } catch {}
+      return
+    }
+
     if (!isDrawingRef.current) return
     isDrawingRef.current = false
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}
 
-    const pts = currentPointsRef.current
-    if (pts.length >= 2 && onSendStroke && (activeTool === 'pen' || activeTool === 'highlighter')) {
+    const rawPts = currentPointsRef.current
+    if (rawPts.length >= 2 && onSendStroke && (activeTool === 'pen' || activeTool === 'highlighter')) {
+      const pts = downsampleStrokePoints(rawPts, 300)
       const strokeSize = activeTool === 'highlighter' ? 22 : 6
       const opacity = activeTool === 'highlighter' ? 0.38 : 1
       onSendStroke({
@@ -159,10 +205,7 @@ export function SlideAnnotationLayer({
     }
   }
 
-  // Filter strokes for current page
-  const pageStrokes = strokes.filter((s) => s.page === pageNumber)
-
-  const isInteractive = canAnnotate && (activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'laser')
+  const isInteractive = canAnnotate && (activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'eraser' || activeTool === 'laser')
 
   return (
     <div
@@ -184,7 +227,7 @@ export function SlideAnnotationLayer({
           cursor:
             activeTool === 'laser'
               ? 'none'
-              : activeTool === 'pen' || activeTool === 'highlighter'
+              : activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'eraser'
                 ? 'crosshair'
                 : 'default',
         }}

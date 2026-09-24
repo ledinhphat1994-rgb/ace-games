@@ -36,6 +36,7 @@ export interface DocumentStageViewProps {
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onClearSlideAnnotations?: (page?: number) => void
+  onRemoveSlideAnnotation?: (id: string) => void
   slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
 }
@@ -94,6 +95,7 @@ export function DocumentStageView({
   slideAnnotations = [],
   onSendSlideAnnotation,
   onClearSlideAnnotations,
+  onRemoveSlideAnnotation,
   slideLaser,
   onSendSlideLaser,
 }: DocumentStageViewProps) {
@@ -409,6 +411,7 @@ export function DocumentStageView({
                 selectedColor={selectedColor}
                 canAnnotate={canControl}
                 onSendStroke={onSendSlideAnnotation}
+                onRemoveStroke={onRemoveSlideAnnotation}
                 laser={slideLaser}
                 onSendLaser={onSendSlideLaser}
               />
@@ -440,6 +443,7 @@ export function DocumentStageView({
                 selectedColor={selectedColor}
                 canAnnotate={canControl}
                 onSendStroke={onSendSlideAnnotation}
+                onRemoveStroke={onRemoveSlideAnnotation}
                 laser={slideLaser}
                 onSendLaser={onSendSlideLaser}
               />
