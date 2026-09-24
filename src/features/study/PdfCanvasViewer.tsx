@@ -15,6 +15,7 @@ export interface PdfCanvasViewerProps {
   onLoadingChange?: (loading: boolean) => void
   zoomScale?: number
   fitMode?: 'page' | 'width'
+  children?: React.ReactNode
 }
 
 /** Thin wrapper — defers the PDF.js bundle until first render */

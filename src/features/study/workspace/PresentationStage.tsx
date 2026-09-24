@@ -1,7 +1,7 @@
 // src/features/study/workspace/PresentationStage.tsx
 // Digital Campus v2: Dominant Central Presentation Stage
 
-import type { SlideState, MediaState, WhiteboardStroke } from '@shared/protocol/room'
+import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke } from '@shared/protocol/room'
 import {
   Maximize2,
   Minimize2,
@@ -23,6 +23,12 @@ export interface PresentationStageProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  slideAnnotations?: SlideAnnotationStroke[]
+  onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
+  onClearSlideAnnotations?: (page?: number) => void
+  onRemoveSlideAnnotation?: (id: string) => void
+  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  onSendSlideLaser?: (point: [number, number] | null, page: number) => void
   // Video props
   mediaState?: MediaState | null
   canControlMedia?: boolean
@@ -61,6 +67,12 @@ export function PresentationStage({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  slideAnnotations,
+  onSendSlideAnnotation,
+  onClearSlideAnnotations,
+  onRemoveSlideAnnotation,
+  slideLaser,
+  onSendSlideLaser,
   mediaState,
   canControlMedia = true,
   volume,
@@ -116,6 +128,12 @@ export function PresentationStage({
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}
           isReconnecting={isReconnecting}
+          slideAnnotations={slideAnnotations}
+          onSendSlideAnnotation={onSendSlideAnnotation}
+          onClearSlideAnnotations={onClearSlideAnnotations}
+          onRemoveSlideAnnotation={onRemoveSlideAnnotation}
+          slideLaser={slideLaser}
+          onSendSlideLaser={onSendSlideLaser}
         />
       )}
 

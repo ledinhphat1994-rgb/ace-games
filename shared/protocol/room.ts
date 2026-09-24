@@ -136,6 +136,16 @@ export const LenhPhongQueue = z.discriminatedUnion('action', [
 ])
 export type LenhPhongQueue = z.infer<typeof LenhPhongQueue>
 
+export interface SlideAnnotationStroke {
+  id: string
+  page: number
+  tool: 'pen' | 'highlighter'
+  points: [number, number][]
+  color: string
+  size: number
+  opacity?: number
+}
+
 export interface SlideState {
   docId?: number
   docUrl: string
@@ -156,6 +166,31 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     totalPages: z.number().int().positive().default(1),
   }),
   z.object({ action: z.literal('close_doc') }),
+  z.object({
+    action: z.literal('annotation_add'),
+    stroke: z.object({
+      id: z.string().min(1).max(64),
+      page: z.number().int().positive(),
+      tool: z.enum(['pen', 'highlighter']),
+      points: z.array(z.tuple([z.number(), z.number()])).min(1).max(300),
+      color: z.string().max(30),
+      size: z.number().positive().max(50),
+      opacity: z.number().min(0.05).max(1).optional(),
+    }),
+  }),
+  z.object({
+    action: z.literal('annotation_clear'),
+    page: z.number().int().positive().optional(),
+  }),
+  z.object({
+    action: z.literal('annotation_remove'),
+    id: z.string().min(1).max(64),
+  }),
+  z.object({
+    action: z.literal('laser'),
+    point: z.tuple([z.number(), z.number()]).nullable(),
+    page: z.number().int().positive(),
+  }),
 ])
 export type LenhPhongSlide = z.infer<typeof LenhPhongSlide>
 
@@ -329,6 +364,7 @@ export type GoiPhong =
       queue: QueueItem[]
       chat: RoomChatMessage[]
       slide: SlideState | null
+      slideAnnotations?: SlideAnnotationStroke[]
       voiceRegistry?: VoiceParticipantState[]
       serverNow: number
       // Learning Session v1
@@ -360,6 +396,19 @@ export type GoiPhong =
     }
   | { type: 'queue.sync'; queue: QueueItem[] }
   | { type: 'slide.sync'; slide: SlideState | null }
+  | {
+      type: 'slide.annotation'
+      action: 'add' | 'clear' | 'remove'
+      stroke?: SlideAnnotationStroke
+      strokeId?: string
+      page?: number
+    }
+  | {
+      type: 'slide.laser'
+      point: [number, number] | null
+      page: number
+      senderName?: string
+    }
   | { type: 'room.chat'; message: RoomChatMessage }
   | { type: 'voice.registry'; registry: VoiceParticipantState[] }
   | { type: 'voice.updated'; participant: VoiceParticipantState }

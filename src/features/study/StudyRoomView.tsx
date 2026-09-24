@@ -95,9 +95,15 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setAudioInputDevice,
     setAudioOutputDevice,
     slideState,
+    slideAnnotations,
+    slideLaser,
     changeSlidePage,
     loadSlideDoc,
     closeSlideDoc,
+    sendSlideAnnotation,
+    clearSlideAnnotations,
+    removeSlideAnnotation,
+    sendSlideLaser,
     calculateTargetTime,
     // Learning Session v1
     sessionGoal,
@@ -412,6 +418,12 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}
         onCloseDoc={isHost || canModerate ? closeSlideDoc : undefined}
+        slideAnnotations={slideAnnotations}
+        onSendSlideAnnotation={isHost || canModerate ? sendSlideAnnotation : undefined}
+        onClearSlideAnnotations={isHost || canModerate ? clearSlideAnnotations : undefined}
+        onRemoveSlideAnnotation={isHost || canModerate ? removeSlideAnnotation : undefined}
+        slideLaser={slideLaser}
+        onSendSlideLaser={isHost || canModerate ? sendSlideLaser : undefined}
         mediaState={mediaState}
         canControlMedia={canControlMedia}
         volume={volume}
