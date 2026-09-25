@@ -1,12 +1,22 @@
 import { useState } from 'react'
-import { Check, Sparkles, Upload } from 'lucide-react'
+import { Check, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
-import { CHARACTER_AVATARS } from './character-avatars'
+import { CHARACTER_AVATARS, type CharacterAvatar } from './character-avatars'
 
-type AvatarCategoryFilter = 'all' | 'nhan_vat' | 'anime' | 'cute' | 'minimal'
+type AvatarCategoryFilter = 'all' | CharacterAvatar['category']
+
+const NHOM: readonly { id: AvatarCategoryFilter; label: string }[] = [
+  { id: 'all', label: 'Tất cả' },
+  { id: 'nhan_vat', label: 'Nhân vật' },
+  { id: 'anime', label: 'Anime' },
+  { id: 'cute', label: 'Thú cưng' },
+  { id: 'minimal', label: 'Tối giản' },
+]
 
 interface AvatarPickerProps {
   currentAvatarUrl?: string
@@ -22,21 +32,16 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
-  const filteredAvatars = CHARACTER_AVATARS.filter((a) => {
-    if (activeCategory === 'all') return true
-    return a.category === activeCategory
-  })
-
-  const handleSelect = (src: string) => {
-    setSelectedAvatar(src)
-  }
+  const filteredAvatars = CHARACTER_AVATARS.filter((a) => activeCategory === 'all' || a.category === activeCategory)
+  const demTheoNhom = (id: AvatarCategoryFilter) =>
+    id === 'all' ? CHARACTER_AVATARS.length : CHARACTER_AVATARS.filter((a) => a.category === id).length
 
   const handleSave = async () => {
     if (isSaving) return
     setIsSaving(true)
     try {
       await onSaveAvatar(selectedAvatar)
-      toast.success('Đã cập nhật ảnh đại diện nhân vật thành công!')
+      toast.success('Đã cập nhật ảnh đại diện!')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không lưu được ảnh đại diện.')
     } finally {
@@ -64,166 +69,106 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
       toast.error(err instanceof Error ? err.message : 'Lỗi khi tải ảnh lên.')
     } finally {
       setIsUploading(false)
+      e.target.value = ''
     }
   }
 
   const handleApplyCustomUrl = async () => {
     if (!customUrl.trim()) return
-    setSelectedAvatar(customUrl.trim())
-    await onSaveAvatar(customUrl.trim())
-    toast.success('Đã áp dụng ảnh đại diện từ đường dẫn!')
-    setCustomUrl('')
+    try {
+      setSelectedAvatar(customUrl.trim())
+      await onSaveAvatar(customUrl.trim())
+      toast.success('Đã áp dụng ảnh đại diện từ đường dẫn!')
+      setCustomUrl('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Không dùng được ảnh từ đường dẫn này.')
+    }
   }
 
+  const chuaDoi = selectedAvatar === currentAvatarUrl
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      {/* Left Column: Category Filters & Info */}
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-5 shadow-lg space-y-4">
-          <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-cyan-400" />
-              <span>Tạo dấu ấn riêng</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Chọn avatar thể hiện phong cách của bạn trên Digital Campus.
-            </p>
-          </div>
-
-          <div className="space-y-1.5 pt-2 border-t border-white/5">
-            {[
-              { id: 'all', label: 'Tất cả', count: CHARACTER_AVATARS.length },
-              { id: 'nhan_vat', label: 'Nhân vật', count: 5 },
-              { id: 'anime', label: 'Phong cách anime', count: 3 },
-              { id: 'cute', label: 'Cute & Thú cưng', count: 2 },
-              { id: 'minimal', label: 'Minimal', count: 2 },
-            ].map((cat) => {
-              const isActive = activeCategory === cat.id
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id as AvatarCategoryFilter)}
-                  className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <span>{cat.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-slate-900 text-cyan-300' : 'bg-white/5 text-slate-400'}`}>
-                    {cat.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="day-loc-deu-co-gian sm:max-w-xl sm:flex-1 [--the-nho-nhat:5.5rem]" role="group" aria-label="Loại ảnh đại diện">
+          {NHOM.map((nhom) => (
+            <button
+              key={nhom.id}
+              type="button"
+              aria-pressed={activeCategory === nhom.id}
+              onClick={() => setActiveCategory(nhom.id)}
+              className={cn(
+                'flex h-9 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors duration-150',
+                activeCategory === nhom.id
+                  ? 'border-brand/50 bg-brand/10 text-brand'
+                  : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+              )}
+            >
+              {nhom.label}
+              <span className="text-xs tabular-nums opacity-70">{demTheoNhom(nhom.id)}</span>
+            </button>
+          ))}
         </div>
-
-        {/* Upload Custom Avatar Card */}
-        <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-4 shadow-lg space-y-3">
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-            Tải ảnh từ thiết bị
-          </h4>
-          <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-slate-900/50 p-4 cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-center">
-            <Upload className="h-5 w-5 text-cyan-400 mb-1" />
-            <span className="text-xs font-semibold text-slate-200">
-              {isUploading ? 'Đang tải ảnh…' : 'Chọn tệp ảnh (.png, .jpg, .webp)'}
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={isUploading}
-              onChange={handleUploadFile}
-            />
-          </label>
-
-          <div className="pt-2">
-            <label className="text-[11px] font-medium text-slate-400 block mb-1">
-              Hoặc dùng đường link ảnh
-            </label>
-            <div className="flex gap-2">
-              <Input
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="https://example.com/avatar.png"
-                className="h-8 text-xs bg-slate-900 border-white/10 rounded-lg flex-1"
-              />
-              <Button
-                size="sm"
-                onClick={handleApplyCustomUrl}
-                disabled={!customUrl.trim()}
-                className="h-8 px-3 text-xs font-bold bg-white/10 hover:bg-white/20 text-white"
-              >
-                Lưu
-              </Button>
-            </div>
-          </div>
-        </div>
+        <Button onClick={handleSave} disabled={isSaving || chuaDoi} className="shrink-0">
+          {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
+          {isSaving ? 'Đang lưu…' : 'Lưu ảnh đã chọn'}
+        </Button>
       </div>
 
-      {/* Right 3 Columns: Avatar Gallery Grid */}
-      <div className="lg:col-span-3 space-y-5">
-        <div className="rounded-2xl border border-white/10 bg-[#0c1222] p-5 shadow-lg space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <div>
-              <h3 className="text-base font-black text-white">
-                Thư viện Avatar nhân vật ({filteredAvatars.length})
-              </h3>
-              <p className="text-xs text-slate-400">
-                Nhấp vào avatar để chọn, sau đó bấm &ldquo;Lưu thay đổi&rdquo; bên dưới.
-              </p>
-            </div>
-
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="h-9 px-4 rounded-xl text-xs font-extrabold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/25 gap-1.5"
+      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-8" role="listbox" aria-label="Thư viện ảnh đại diện">
+        {filteredAvatars.map((avatar) => {
+          const daChon = selectedAvatar === avatar.src
+          return (
+            <button
+              key={avatar.id}
+              type="button"
+              role="option"
+              aria-selected={daChon}
+              aria-label={avatar.name}
+              title={avatar.name}
+              onClick={() => setSelectedAvatar(avatar.src)}
+              className={cn(
+                'relative aspect-square overflow-hidden rounded-2xl bg-canvas transition-shadow duration-150',
+                daChon ? 'ring-2 ring-brand ring-offset-2 ring-offset-surface' : 'ring-1 ring-border-default hover:ring-border-strong',
+              )}
             >
-              <Check className="h-3.5 w-3.5" />
-              <span>{isSaving ? 'Đang lưu…' : 'Lưu thay đổi'}</span>
+              <img src={avatar.src} alt="" loading="lazy" className="size-full object-cover" />
+              {daChon && (
+                <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-brand text-text-on-brand shadow">
+                  <Check className="size-3 stroke-[3]" />
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="grid gap-4 border-t border-border-subtle pt-5 sm:grid-cols-2">
+        <label
+          className={cn(
+            'flex min-h-[84px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border-strong px-4 py-4 text-center transition-colors hover:border-brand/50 hover:bg-brand/5',
+            isUploading && 'pointer-events-none opacity-60',
+          )}
+        >
+          {isUploading ? <Loader2 className="size-5 animate-spin text-brand" /> : <Upload className="size-5 text-brand" />}
+          <span className="text-sm font-medium text-text-primary">{isUploading ? 'Đang tải ảnh…' : 'Tải ảnh từ thiết bị'}</span>
+          <span className="text-xs text-text-tertiary">PNG, JPG hoặc WEBP</span>
+          <input type="file" accept="image/*" className="hidden" disabled={isUploading} onChange={handleUploadFile} />
+        </label>
+
+        <div className="flex flex-col justify-center gap-2">
+          <Label htmlFor="avatar-link" className="text-sm font-medium">Hoặc dùng đường link ảnh</Label>
+          <div className="flex gap-2">
+            <Input
+              id="avatar-link"
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              placeholder="https://…/anh.png"
+              className="flex-1"
+            />
+            <Button variant="outline" onClick={() => void handleApplyCustomUrl()} disabled={!customUrl.trim()} className="shrink-0">
+              Dùng link
             </Button>
-          </div>
-
-          {/* Avatars Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
-            {filteredAvatars.map((avatar) => {
-              const isSelected = selectedAvatar === avatar.src
-              return (
-                <div
-                  key={avatar.id}
-                  onClick={() => handleSelect(avatar.src)}
-                  className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 cursor-pointer aspect-square bg-slate-950 flex items-center justify-center ${
-                    isSelected
-                      ? 'border-cyan-400 ring-4 ring-cyan-400/20 shadow-lg shadow-cyan-500/25 scale-[1.03]'
-                      : 'border-white/10 hover:border-cyan-500/50 hover:scale-[1.02]'
-                  }`}
-                >
-                  <img
-                    src={avatar.src}
-                    alt={avatar.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy"
-                  />
-
-                  {/* Active Selection Badge */}
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-cyan-400 text-slate-950 shadow-md">
-                      <Check className="h-3 w-3 stroke-[3]" />
-                    </div>
-                  )}
-
-                  {/* Name label on hover */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-[10px] font-bold text-white text-center truncate">
-                      {avatar.name}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
           </div>
         </div>
       </div>

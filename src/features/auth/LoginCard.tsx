@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
-import { AlertCircle, ArrowLeft, Eye, EyeOff, GraduationCap, Presentation } from 'lucide-react'
+import { AlertCircle, ArrowLeft, GraduationCap, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
 
 type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
@@ -203,12 +204,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
               </button>
             }
           >
-            <OMatKhau
-              id="mat-khau"
-              autoComplete="current-password"
-              value={password}
-              onChange={setPassword}
-            />
+            <PasswordInput id="mat-khau" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </TruongNhap>
 
           <ThongBaoLoi loi={loi} />
@@ -298,10 +294,10 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TruongNhap label="Mật khẩu" htmlFor="dk-password" batBuoc>
-              <OMatKhau id="dk-password" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={dkPassword} onChange={setDkPassword} />
+              <PasswordInput id="dk-password" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={dkPassword} onChange={(e) => setDkPassword(e.target.value)} required />
             </TruongNhap>
             <TruongNhap label="Nhập lại mật khẩu" htmlFor="dk-confirm-password" batBuoc>
-              <OMatKhau id="dk-confirm-password" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={dkConfirmPassword} onChange={setDkConfirmPassword} />
+              <PasswordInput id="dk-confirm-password" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={dkConfirmPassword} onChange={(e) => setDkConfirmPassword(e.target.value)} required />
             </TruongNhap>
           </div>
 
@@ -368,10 +364,10 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TruongNhap label="Mật khẩu mới" htmlFor="qmk-newpassword" batBuoc>
-              <OMatKhau id="qmk-newpassword" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={qmkNewPassword} onChange={setQmkNewPassword} />
+              <PasswordInput id="qmk-newpassword" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={qmkNewPassword} onChange={(e) => setQmkNewPassword(e.target.value)} required />
             </TruongNhap>
             <TruongNhap label="Nhập lại mật khẩu mới" htmlFor="qmk-confirm-newpassword" batBuoc>
-              <OMatKhau id="qmk-confirm-newpassword" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={qmkConfirmPassword} onChange={setQmkConfirmPassword} />
+              <PasswordInput id="qmk-confirm-newpassword" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={qmkConfirmPassword} onChange={(e) => setQmkConfirmPassword(e.target.value)} required />
             </TruongNhap>
           </div>
 
@@ -409,45 +405,6 @@ function TruongNhap({
         {phu}
       </div>
       {children}
-    </div>
-  )
-}
-
-function OMatKhau({
-  id,
-  autoComplete,
-  placeholder = '••••••••',
-  value,
-  onChange,
-}: {
-  id: string
-  autoComplete: string
-  placeholder?: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  const [hien, setHien] = useState(false)
-  return (
-    <div className="relative">
-      <Input
-        id={id}
-        type={hien ? 'text' : 'password'}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="pr-11"
-        required
-      />
-      <button
-        type="button"
-        onClick={() => setHien((v) => !v)}
-        aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-        aria-pressed={hien}
-        className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
-      >
-        {hien ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-      </button>
     </div>
   )
 }

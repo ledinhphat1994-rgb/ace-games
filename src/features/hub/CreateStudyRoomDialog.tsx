@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { usePhien } from '@/app/phien'
+import { tenLop } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -306,7 +307,7 @@ export function CreateStudyRoomDialog({
                     <School className="h-4 w-4 shrink-0" />
                     <div className="min-w-0">
                       <div className="truncate font-medium">
-                        {classNameDisplay ? `Lớp ${classNameDisplay}` : 'Lớp học'}
+                        {classNameDisplay ? tenLop(classNameDisplay) : 'Lớp học'}
                       </div>
                       <div className="text-[10px] text-muted-foreground">Chỉ thành viên lớp</div>
                     </div>

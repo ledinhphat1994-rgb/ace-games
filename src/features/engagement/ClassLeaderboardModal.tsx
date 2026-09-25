@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ClassLeaderboardItem } from '@shared/protocol/engagement'
+import { tenLop } from '@/lib/utils'
 
 interface ClassLeaderboardModalProps {
   open: boolean
@@ -82,7 +83,7 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
                 <Sparkles className="h-4 w-4 text-achievement" />
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {data?.lopTen ? `Lớp ${data.lopTen}` : 'Xếp hạng tuần'} • Dựa trên điểm chuyên cần & tham gia học tập
+                {data?.lopTen ? tenLop(data.lopTen) : 'Xếp hạng tuần'} • Dựa trên điểm chuyên cần & tham gia học tập
               </DialogDescription>
             </div>
           </div>

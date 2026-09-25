@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ClassChallenge } from '@shared/protocol/engagement'
+import { tenLop } from '@/lib/utils'
 
 interface ClassChallengeModalProps {
   open: boolean
@@ -56,7 +57,7 @@ export function ClassChallengeModal({ open, onOpenChange }: ClassChallengeModalP
                 <Sparkles className="h-4 w-4 text-success" />
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {data?.lopTen ? `Lớp ${data.lopTen}` : 'Tập thể lớp'} • Cùng nhau hoàn thành mục tiêu tuần
+                {data?.lopTen ? tenLop(data.lopTen) : 'Tập thể lớp'} • Cùng nhau hoàn thành mục tiêu tuần
               </DialogDescription>
             </div>
           </div>
