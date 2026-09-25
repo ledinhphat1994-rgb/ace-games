@@ -1,6 +1,11 @@
 // src/features/study/classroom-webcam-state.ts
 // Digital Campus v2: Milestone U2 — Classroom Webcam State Derivation (Data-Truth)
 
+import { getInitials } from '@/lib/utils'
+
+// Dùng chung với danh sách bạn bè; giữ export ở đây cho các nơi đang import từ module này.
+export { getInitials }
+
 export interface ClassroomMember {
   key: string
   ten: string
@@ -20,13 +25,6 @@ export interface DerivedWebcamParticipant {
   micOn?: boolean
   avatar?: string
   initials: string
-}
-
-export function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 0 || !parts[0]) return 'HS'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 /**

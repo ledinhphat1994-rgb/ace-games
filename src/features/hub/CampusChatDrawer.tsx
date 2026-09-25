@@ -1,13 +1,21 @@
-import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { EmptyState } from '@/components/ui/empty-state'
 import type { KetQuaThaoTac } from '@/hooks/use-campus'
+import { cn, getInitials } from '@/lib/utils'
 import type { TinCampus } from '@shared/protocol/campus'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
-import { MessageSquare, Send, Sparkles, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ArrowDown, Loader2, MessageSquare, SendHorizontal, Trash2 } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 interface CampusChatDrawerProps {
@@ -19,11 +27,22 @@ interface CampusChatDrawerProps {
   hideHeader?: boolean
 }
 
-function dinhDangGio(ms: number): string {
-  const d = new Date(ms)
-  const h = String(d.getHours()).padStart(2, '0')
-  const m = String(d.getMinutes()).padStart(2, '0')
-  return `${h}:${m}`
+/** Tin liên tiếp của cùng một người trong khoảng này được gộp dưới một tên. */
+const GOP_TIN_TRONG_MS = 5 * 60 * 1000
+/** Cách đáy dưới mức này thì coi như đang xem tin mới nhất (tin mới đến sẽ tự cuộn theo). */
+const NGUONG_DAY_PX = 80
+
+const DINH_DANG_GIO = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
+const DINH_DANG_NGAY = new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' })
+
+function cungNgay(a: number, b: number): boolean {
+  return new Date(a).toDateString() === new Date(b).toDateString()
+}
+
+function nhanNgay(ms: number, bayGio: number): string {
+  if (cungNgay(ms, bayGio)) return 'Hôm nay'
+  if (cungNgay(ms, bayGio - 24 * 60 * 60 * 1000)) return 'Hôm qua'
+  return DINH_DANG_NGAY.format(ms)
 }
 
 export function CampusChatDrawer({
@@ -31,50 +50,83 @@ export function CampusChatDrawer({
   myPermissions,
   onSendMessage,
   onDeleteMessage,
-  className = '',
+  className,
   hideHeader = false,
 }: CampusChatDrawerProps) {
   const [noiDung, setNoiDung] = useState('')
   const [dangGui, setDangGui] = useState(false)
   const [idDangXoa, setIdDangXoa] = useState<number | null>(null)
+  const [tinCanXoa, setTinCanXoa] = useState<TinCampus | null>(null)
   const [bayGio, setBayGio] = useState(() => Date.now())
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  const khungRef = useRef<HTMLDivElement | null>(null)
+  const daCuonLanDau = useRef(false)
+  const oDayRef = useRef(true)
+  const [oDay, setODay] = useState(true)
+
+  const tinCuoi = messages.length > 0 ? messages[messages.length - 1] : null
+  const idTinCuoi = tinCuoi?.id ?? null
+  const tinCuoiCuaMinh = tinCuoi !== null && tinCuoi.accountId === myPermissions?.accountId
+  const [idDaXem, setIdDaXem] = useState<number | null>(idTinCuoi)
+  const coTinMoi = !oDay && idTinCuoi !== null && idTinCuoi !== idDaXem
 
   useEffect(() => {
     const timer = setInterval(() => setBayGio(Date.now()), 30000)
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTo({
-        top: containerRef.current.scrollHeight,
-        behavior: 'smooth',
-      })
+  // Chỉ cuộn bên trong khung tin (không đụng tới cuộn trang). Lần đầu nhảy thẳng xuống cuối; về sau chỉ bám theo
+  // tin mới khi người dùng đang ở cuối hoặc vừa tự gửi — đang đọc tin cũ thì không kéo họ đi, chỉ hiện nút "Tin nhắn mới".
+  useLayoutEffect(() => {
+    const khung = khungRef.current
+    if (!khung || idTinCuoi === null) return
+    if (!daCuonLanDau.current) {
+      daCuonLanDau.current = true
+      khung.scrollTop = khung.scrollHeight
+      return
     }
-  }, [messages.length])
+    if (oDayRef.current || tinCuoiCuaMinh) {
+      khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+    }
+  }, [idTinCuoi, tinCuoiCuaMinh])
+
+  const xuLyCuon = () => {
+    const khung = khungRef.current
+    if (!khung) return
+    const gan = khung.scrollHeight - khung.scrollTop - khung.clientHeight < NGUONG_DAY_PX
+    oDayRef.current = gan
+    setODay(gan)
+    if (gan) setIdDaXem(idTinCuoi)
+  }
+
+  const cuonXuongCuoi = () => {
+    const khung = khungRef.current
+    if (khung) khung.scrollTo({ top: khung.scrollHeight, behavior: 'smooth' })
+  }
 
   const xuLyGui = async (e?: React.FormEvent) => {
     e?.preventDefault()
     const text = noiDung.trim()
     if (!text || dangGui) return
 
+    // Ô nhập không bị khoá khi đang gửi để giữ nguyên con trỏ; chỉ xoá nếu nội dung vẫn là tin vừa gửi.
     setDangGui(true)
     const kq = await onSendMessage(text)
     setDangGui(false)
 
     if (kq.ok) {
-      setNoiDung('')
+      setNoiDung((hienTai) => (hienTai.trim() === text ? '' : hienTai))
     } else {
       toast.error(kq.loi || 'Không gửi được tin nhắn')
     }
   }
 
-  const xuLyXoa = async (id: number) => {
-    if (idDangXoa !== null) return
-    setIdDangXoa(id)
-    const kq = await onDeleteMessage(id)
+  const xacNhanXoa = async () => {
+    const tin = tinCanXoa
+    if (!tin || idDangXoa !== null) return
+    setIdDangXoa(tin.id)
+    const kq = await onDeleteMessage(tin.id)
     setIdDangXoa(null)
+    setTinCanXoa(null)
 
     if (kq.ok) {
       toast.success('Đã xoá tin nhắn')
@@ -83,114 +135,206 @@ export function CampusChatDrawer({
     }
   }
 
+  const conLai = CHAT_CAMPUS.TOI_DA_KY_TU - noiDung.length
+  const xoaHoTinNguoiKhac = tinCanXoa !== null && tinCanXoa.accountId !== myPermissions?.accountId
+
   return (
-    <Card className={`flex h-full flex-col border-border/70 bg-card ${className}`}>
-      {/* Header */}
+    <div className={cn('flex h-full min-h-0 flex-col', className)}>
       {!hideHeader && (
-        <CardHeader className="border-b border-border/50 px-4 py-3 shrink-0">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <span>Trò chuyện sảnh trường</span>
-            </CardTitle>
-            <Badge variant="outline" className="border-border/60 bg-muted/30 text-[10px] text-muted-foreground font-medium">
-              {messages.length} tin nhắn
-            </Badge>
-          </div>
-        </CardHeader>
+        <div className="flex items-center gap-2 border-b border-border-subtle px-4 py-3">
+          <MessageSquare className="size-4 text-text-tertiary" />
+          <h2 className="text-sm font-semibold text-text-primary">Trò chuyện toàn trường</h2>
+        </div>
       )}
 
-      {/* Messages Scroll Area */}
-      <CardContent ref={containerRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
-        {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-4">
-            <EmptyState
-              compact
-              icon={Sparkles}
-              title="Chưa có tin nhắn nào"
-              description="Hãy là người đầu tiên gửi lời chào tới thầy cô và các bạn trong toàn trường!"
-            />
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const laCuaMinh = myPermissions?.accountId === msg.accountId
-            const trong15Phut = bayGio - msg.taoLuc <= CHAT_CAMPUS.TU_XOA_TRONG_MS
-            const coQuyenXoa = myPermissions?.xoaMoiTin || (laCuaMinh && trong15Phut)
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={khungRef}
+          onScroll={xuLyCuon}
+          role="log"
+          aria-label="Tin nhắn toàn trường"
+          className="h-full overflow-y-auto overscroll-contain px-4 py-3"
+          style={{ overflowAnchor: 'none' }}
+        >
+          {messages.length === 0 ? (
+            <div className="flex min-h-full flex-col items-center justify-center py-10 text-center">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-raised text-text-tertiary">
+                <MessageSquare className="size-5" />
+              </span>
+              <p className="mt-3 text-sm font-medium text-text-primary">Chưa có tin nhắn nào</p>
+              <p className="mt-1 max-w-64 text-xs leading-relaxed text-text-tertiary">
+                Gửi lời chào đầu tiên tới thầy cô và các bạn trong trường.
+              </p>
+            </div>
+          ) : (
+            <ol>
+              {messages.map((msg, i) => {
+                const truoc = i > 0 ? messages[i - 1] : null
+                const sangNgayMoi = !truoc || !cungNgay(truoc.taoLuc, msg.taoLuc)
+                const noiTiep =
+                  !sangNgayMoi &&
+                  truoc !== null &&
+                  truoc.accountId === msg.accountId &&
+                  msg.taoLuc - truoc.taoLuc < GOP_TIN_TRONG_MS
+                const laCuaMinh = myPermissions?.accountId === msg.accountId
+                const trong15Phut = bayGio - msg.taoLuc <= CHAT_CAMPUS.TU_XOA_TRONG_MS
+                const coQuyenXoa = Boolean(myPermissions?.xoaMoiTin || (laCuaMinh && trong15Phut))
+                const gio = DINH_DANG_GIO.format(msg.taoLuc)
 
-            return (
-              <div
-                key={msg.id}
-                className={`group flex flex-col rounded-xl p-2.5 text-xs transition-colors shadow-2xs ${
-                  laCuaMinh
-                    ? 'bg-primary/10 border border-primary/25 ml-4'
-                    : 'bg-muted/40 border border-border/40 hover:bg-muted/60 mr-4'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="truncate font-bold text-foreground">
-                      {msg.ten}
-                      {laCuaMinh ? ' (bạn)' : ''}
-                    </span>
+                return (
+                  <li key={msg.id} className={cn(sangNgayMoi ? 'pt-1' : noiTiep ? 'pt-0.5' : 'pt-3')}>
+                    {sangNgayMoi && (
+                      <p className="mb-3 flex items-center gap-3 text-[11px] font-medium text-text-tertiary">
+                        <span className="h-px flex-1 bg-border-subtle" />
+                        <span className="first-letter:uppercase">{nhanNgay(msg.taoLuc, bayGio)}</span>
+                        <span className="h-px flex-1 bg-border-subtle" />
+                      </p>
+                    )}
 
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] px-1 py-0 h-4 font-semibold ${
-                        msg.vaiTro === 'giao_vien'
-                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                          : 'border-slate-500/30 text-muted-foreground'
-                      }`}
-                    >
-                      {msg.vaiTro === 'giao_vien' ? 'Giáo viên' : (msg.lopTen || 'Học sinh')}
-                    </Badge>
-                  </div>
+                    <div className={cn('group flex items-end gap-2', laCuaMinh && 'flex-row-reverse')}>
+                      {!laCuaMinh &&
+                        (noiTiep ? (
+                          <span aria-hidden className="w-8 shrink-0" />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="flex size-8 shrink-0 items-center justify-center self-start rounded-full bg-surface-overlay text-[11px] font-semibold text-text-secondary"
+                          >
+                            {getInitials(msg.ten)}
+                          </span>
+                        ))}
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] text-muted-foreground/70">{dinhDangGio(msg.taoLuc)}</span>
+                      <div className={cn('flex max-w-[80%] min-w-0 flex-col', laCuaMinh ? 'items-end' : 'items-start')}>
+                        {!noiTiep && (
+                          <p className="mb-1 flex flex-wrap items-baseline gap-x-1.5 px-1 text-xs">
+                            {!laCuaMinh && (
+                              <>
+                                <span className="min-w-0 font-medium break-words text-text-primary">{msg.ten}</span>
+                                {msg.vaiTro === 'giao_vien' ? (
+                                  <span className="rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
+                                ) : msg.lopTen ? (
+                                  <span className="text-text-tertiary">{msg.lopTen}</span>
+                                ) : null}
+                              </>
+                            )}
+                            <time dateTime={new Date(msg.taoLuc).toISOString()} className="text-text-tertiary tabular-nums">
+                              {gio}
+                            </time>
+                          </p>
+                        )}
 
-                    {coQuyenXoa ? (
-                      <button
-                        type="button"
-                        onClick={() => xuLyXoa(msg.id)}
-                        disabled={idDangXoa === msg.id}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-muted-foreground hover:text-destructive cursor-pointer"
-                        title={myPermissions?.xoaMoiTin && !laCuaMinh ? 'Xoá tin (quyền Giáo viên)' : 'Tự xoá tin'}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
+                        <div className={cn('flex max-w-full items-center gap-1', laCuaMinh && 'flex-row-reverse')}>
+                          <p
+                            title={gio}
+                            className={cn(
+                              'min-w-0 rounded-2xl px-3 py-2 text-[0.8125rem] leading-relaxed break-words whitespace-pre-wrap text-text-primary',
+                              laCuaMinh ? 'rounded-br-md bg-brand/15' : 'rounded-bl-md bg-surface-raised',
+                            )}
+                          >
+                            {msg.noiDung}
+                          </p>
+                          {coQuyenXoa && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => setTinCanXoa(msg)}
+                              disabled={idDangXoa === msg.id}
+                              className="shrink-0 text-text-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 pointer-coarse:opacity-100"
+                              title={myPermissions?.xoaMoiTin && !laCuaMinh ? 'Xoá tin (quyền Giáo viên)' : 'Xoá tin của bạn'}
+                              aria-label={laCuaMinh ? 'Xoá tin nhắn của bạn' : `Xoá tin nhắn của ${msg.ten}`}
+                            >
+                              <Trash2 />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </div>
 
-                <p className="whitespace-pre-wrap break-words text-foreground/90 text-xs leading-relaxed">
-                  {msg.noiDung}
-                </p>
-              </div>
-            )
-          })
+        {coTinMoi && (
+          <button
+            type="button"
+            onClick={cuonXuongCuoi}
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-lg shadow-black/40"
+          >
+            Tin nhắn mới
+            <ArrowDown className="size-3.5" />
+          </button>
         )}
-      </CardContent>
+      </div>
 
-      {/* Composer Footer */}
-      <CardFooter className="border-t border-border/50 p-3 pb-6 sm:pb-3 bg-card/80 shrink-0">
-        <form onSubmit={xuLyGui} className="flex w-full items-center gap-2">
-          <Input
-            value={noiDung}
-            onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
-            placeholder="Nhập lời nhắn gửi đến toàn trường…"
-            className="h-9 text-xs bg-muted/20 border-border/70 focus:bg-background"
-            disabled={dangGui}
-          />
+      <form
+        onSubmit={xuLyGui}
+        className="shrink-0 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Input
+              value={noiDung}
+              onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
+              placeholder="Nhắn tới cả trường…"
+              aria-label="Nội dung tin nhắn"
+              maxLength={CHAT_CAMPUS.TOI_DA_KY_TU}
+              enterKeyHint="send"
+              autoComplete="off"
+              className={cn('h-10', conLai <= 50 && 'pr-12')}
+            />
+            {conLai <= 50 && (
+              <span
+                aria-live="polite"
+                className={cn(
+                  'pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[11px] tabular-nums',
+                  conLai <= 10 ? 'text-warning' : 'text-text-tertiary',
+                )}
+              >
+                {conLai}
+              </span>
+            )}
+          </div>
           <Button
             type="submit"
-            size="sm"
-            className="h-9 w-9 shrink-0 p-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            size="icon"
+            className="shrink-0"
             disabled={!noiDung.trim() || dangGui}
+            aria-label="Gửi tin nhắn"
+            // Bấm gửi không lấy mất con trỏ của ô nhập (bàn phím điện thoại không bị đóng giữa chừng)
+            onMouseDown={(e) => e.preventDefault()}
           >
-            <Send className="h-3.5 w-3.5" />
+            {dangGui ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
           </Button>
-        </form>
-      </CardFooter>
-    </Card>
+        </div>
+      </form>
+
+      <AlertDialog
+        open={tinCanXoa !== null}
+        onOpenChange={(mo) => {
+          if (!mo && idDangXoa === null) setTinCanXoa(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá tin nhắn?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {xoaHoTinNguoiKhac
+                ? `Tin của ${tinCanXoa?.ten} sẽ được gỡ khỏi trò chuyện toàn trường.`
+                : 'Tin nhắn sẽ được gỡ với mọi người trong trường.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={idDangXoa !== null}>Huỷ</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={idDangXoa !== null} onClick={xacNhanXoa}>
+              {idDangXoa !== null && <Loader2 className="animate-spin" />}
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   )
 }

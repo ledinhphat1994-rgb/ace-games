@@ -1,16 +1,24 @@
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useRoom } from '@/hooks/use-room'
 import type { NguoiDung } from '@/lib/api'
 import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/protocol/room'
 import {
   AlertCircle,
+  DoorClosed,
   Loader2,
+  Lock,
   Search,
   ShieldAlert,
-  X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { toast } from 'sonner'
 import { useCampusContext } from '@/app/CampusContext'
 import { FloatingCalculator } from './FloatingCalculator'
@@ -41,6 +49,61 @@ function trichXuatYoutubeId(linkHoacId: string): string {
   if (khop) return khop[1]
   if (/^[\w-]{11}$/.test(trimmed)) return trimmed
   return ''
+}
+
+/** Lý do đóng phòng máy chủ gửi về (giữ cả tên cũ để phòng cũ vẫn hiển thị đúng). */
+const LY_DO_DONG_PHONG: Record<string, string> = {
+  admin_closed: 'Quản trị viên đã đóng phòng.',
+  owner_closed: 'Chủ phòng đã đóng phòng.',
+  never_joined_timeout: 'Không có ai vào phòng trong thời gian quy định.',
+  empty_timeout: 'Phòng đã trống quá lâu.',
+  empty_room_timeout: 'Phòng đã trống quá lâu.',
+  max_lifetime: 'Phòng đã mở quá thời lượng tối đa.',
+  max_lifetime_exceeded: 'Phòng đã mở quá thời lượng tối đa.',
+}
+
+/** Màn chặn giữa màn hình khi không thể ở lại phòng (đã đóng, bị từ chối, cần nhập lại mật khẩu). */
+function ManChanPhong({
+  icon: Icon,
+  tone,
+  title,
+  text,
+  onLeave,
+}: {
+  icon: ComponentType<{ className?: string }>
+  tone: 'warning' | 'destructive' | 'muted'
+  title: string
+  text: string
+  onLeave: () => void
+}) {
+  return (
+    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[3px]">
+      <div
+        role="alertdialog"
+        aria-labelledby="man-chan-phong-tieu-de"
+        className="w-full max-w-sm rounded-2xl border border-border-default bg-surface p-6 text-center shadow-2xl"
+      >
+        <span
+          className={
+            tone === 'warning'
+              ? 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-warning/12 text-warning'
+              : tone === 'destructive'
+                ? 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-destructive/12 text-destructive'
+                : 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-surface-overlay text-text-secondary'
+          }
+        >
+          <Icon className="size-5" />
+        </span>
+        <h2 id="man-chan-phong-tieu-de" className="mt-4 text-base font-semibold text-text-primary">
+          {title}
+        </h2>
+        <p className="mt-1.5 text-sm leading-relaxed break-words text-text-secondary">{text}</p>
+        <Button className="mt-5 w-full" onClick={onLeave}>
+          Về danh sách phòng
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 // ─── Window z-index manager ───────────────────────────────────────────────────
@@ -242,6 +305,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [ytSearch, setYtSearch] = useState('')
   const [ytSearching, setYtSearching] = useState(false)
   const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string }[]>([])
+  const [ytDaTim, setYtDaTim] = useState('')
+  const [ytLoi, setYtLoi] = useState<string | null>(null)
 
   // Toast notification when pomodoro mode switches on server
   const prevModeRef = useRef(pomodoroState.mode)
@@ -306,24 +371,32 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
 
   // ── Social & Campus Presence Activity ──────────────────────────────────────
-  const { setActivity } = useCampusContext()
+  const { setActivity, rooms: phongTrenSanh } = useCampusContext()
   const numericRoomId = useMemo(() => {
     const num = parseInt(roomId.replace('phong-', ''), 10)
     return isNaN(num) ? undefined : num
   }, [roomId])
+
+  // Tên thật của phòng lấy từ danh sách phòng trên sảnh (snapshot RoomDO không kèm tên);
+  // chỉ khi sảnh chưa có phòng này mới tạm gọi theo tên chủ phòng.
+  const tieuDePhong = useMemo(() => {
+    const tenThat = numericRoomId ? phongTrenSanh.find((p) => p.id === numericRoomId)?.ten?.trim() : undefined
+    if (tenThat) return tenThat
+    return tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId ?? roomId}`
+  }, [phongTrenSanh, numericRoomId, tenChuPhong, roomId])
 
   useEffect(() => {
     if (numericRoomId) {
       setActivity({
         type: 'room',
         roomId: numericRoomId,
-        roomTitle: tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId}`,
+        roomTitle: tieuDePhong,
       })
     }
     return () => {
       setActivity(null)
     }
-  }, [numericRoomId, tenChuPhong, setActivity])
+  }, [numericRoomId, tieuDePhong, setActivity])
 
   const handleNotesChange = (text: string) => {
     setLocalNotes(text)
@@ -371,22 +444,25 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setShowUploadModal(false)
   }
 
+  // Kết quả / lỗi hiển thị ngay trong hộp thoại (trước đây vừa toast vừa báo "không có kết quả" khi mới gõ chưa tìm)
   const doYtSearch = async (q: string) => {
-    if (!q.trim()) return
+    const tuKhoa = q.trim()
+    if (!tuKhoa) return
     setYtSearching(true)
+    setYtLoi(null)
     setYtResults([])
     try {
-      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(q.trim())}`)
+      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(tuKhoa)}`)
       if (res.ok) {
         const data = await res.json() as { videoId: string; title: string; author: string }[]
         setYtResults(Array.isArray(data) ? data : [])
-        if (!data.length) toast.error('Không tìm thấy kết quả. Thử từ khóa khác.')
       } else {
-        toast.error('Không tìm được kết quả. Hãy dán link video trực tiếp.')
+        setYtLoi('Chưa tìm được lúc này. Hãy dán link video trực tiếp.')
       }
     } catch {
-      toast.error('Lỗi kết nối tìm kiếm. Hãy dán link video trực tiếp.')
+      setYtLoi('Lỗi kết nối khi tìm. Hãy dán link video trực tiếp.')
     } finally {
+      setYtDaTim(tuKhoa)
       setYtSearching(false)
     }
   }
@@ -396,7 +472,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     syncMedia({ action: 'play' })
     setShowYtPanel(false)
     setYtResults([])
-    toast.success(`Đang phát: ${title.slice(0, 40)}…`)
+    setYtDaTim('')
+    toast.success(`Đang phát: ${title}`)
   }
 
   const bringCalcToFront = () => setCalcZ(nextZIndex())
@@ -406,7 +483,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     <div className="relative h-svh w-full overflow-hidden select-none">
       <ClassroomWorkspace
         roomId={roomId}
-        roomTitle={tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId || roomId}`}
+        roomTitle={tieuDePhong}
         nguoiDung={nguoiDung}
         isHost={isHost}
         canModerate={canModerate}
@@ -505,190 +582,166 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         />
       )}
 
-      {/* ══ YouTube search/paste modal with clean backdrop ══ */}
-      {showYtPanel && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none">
-          <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-[#0d1424]/98 shadow-2xl backdrop-blur-2xl ring-1 ring-red-500/10 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10 bg-slate-950/80">
-              <div className="flex items-center gap-2">
-                <YoutubeIcon className="h-5 w-5 text-red-500" />
-                <span className="text-sm font-bold text-white">Chèn Video YouTube</span>
-              </div>
+      {/* ══ YouTube: dán link hoặc tìm bài giảng (hộp thoại chung: Esc để đóng, giữ tiêu điểm bàn phím) ══ */}
+      <Dialog open={showYtPanel} onOpenChange={setShowYtPanel}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <YoutubeIcon className="size-5 shrink-0 text-red-500" />
+              Chèn video YouTube
+            </DialogTitle>
+            <DialogDescription>Video phát đồng bộ cho cả phòng.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-1.5">
+            {([
+              ['paste', 'Dán link'],
+              ['search', 'Tìm bài giảng'],
+            ] as const).map(([tab, nhan]) => (
               <button
+                key={tab}
                 type="button"
-                onClick={() => setShowYtPanel(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-                title="Đóng"
+                aria-pressed={ytTab === tab}
+                onClick={() => setYtTab(tab)}
+                className={
+                  ytTab === tab
+                    ? 'inline-flex h-8 items-center rounded-full border border-brand/50 bg-brand/10 px-3.5 text-xs font-medium text-brand'
+                    : 'inline-flex h-8 items-center rounded-full border border-border-default px-3.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary'
+                }
               >
-                <X className="h-4 w-4" />
+                {nhan}
               </button>
-            </div>
-            {/* Tabs */}
-            <div className="flex border-b border-white/10 bg-slate-900/60">
-              <button
-                type="button"
-                onClick={() => setYtTab('paste')}
-                className={`flex-1 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  ytTab === 'paste' ? 'border-b-2 border-red-500 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
+            ))}
+          </div>
+
+          {ytTab === 'paste' ? (
+            <form onSubmit={handlePlayVideo} className="flex gap-2">
+              <Input
+                value={directYtInput}
+                onChange={(e) => setDirectYtInput(e.target.value)}
+                placeholder="Dán link YouTube hoặc mã video"
+                aria-label="Link hoặc mã video YouTube"
+                autoComplete="off"
+                className="h-10 flex-1"
+              />
+              <Button type="submit" className="h-10" disabled={!directYtInput.trim()}>
+                Chèn
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              <form
+                onSubmit={(e) => { e.preventDefault(); void doYtSearch(ytSearch) }}
+                className="flex gap-2"
               >
-                🔗 Dán link
-              </button>
-              <button
-                type="button"
-                onClick={() => setYtTab('search')}
-                className={`flex-1 py-2 text-xs font-semibold transition-colors cursor-pointer ${
-                  ytTab === 'search' ? 'border-b-2 border-red-500 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                🔍 Tìm kiếm
-              </button>
-            </div>
-            {/* Paste tab */}
-            {ytTab === 'paste' && (
-              <form onSubmit={handlePlayVideo} className="p-3 flex gap-2">
                 <Input
-                  value={directYtInput}
-                  onChange={(e) => setDirectYtInput(e.target.value)}
-                  placeholder="Dán link YouTube hoặc mã video..."
-                  className="flex-1 h-9 border-white/15 bg-white/8 text-sm text-white placeholder:text-slate-600 focus-visible:ring-red-500/40"
+                  value={ytSearch}
+                  onChange={(e) => setYtSearch(e.target.value)}
+                  placeholder="Ví dụ: hàm số bậc hai lớp 10"
+                  aria-label="Từ khoá tìm bài giảng"
+                  autoComplete="off"
+                  enterKeyHint="search"
+                  className="h-10 flex-1"
                 />
-                <Button type="submit" className="h-9 bg-red-600 hover:bg-red-500 px-4 font-bold text-xs cursor-pointer">
-                  Chèn
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="size-10"
+                  disabled={ytSearching || !ytSearch.trim()}
+                  aria-label="Tìm"
+                >
+                  {ytSearching ? <Loader2 className="animate-spin" /> : <Search />}
                 </Button>
               </form>
-            )}
-            {/* Search tab */}
-            {ytTab === 'search' && (
-              <div className="p-3 space-y-2">
-                <form
-                  onSubmit={(e) => { e.preventDefault(); doYtSearch(ytSearch) }}
-                  className="flex gap-2"
-                >
-                  <Input
-                    value={ytSearch}
-                    onChange={(e) => setYtSearch(e.target.value)}
-                    placeholder="Nhập từ khóa tìm bài giảng..."
-                    className="flex-1 h-9 border-white/15 bg-white/8 text-sm text-white placeholder:text-slate-600 focus-visible:ring-red-500/40"
-                  />
-                  <Button type="submit" disabled={ytSearching} className="h-9 bg-red-600 hover:bg-red-500 px-3 cursor-pointer">
-                    {ytSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  </Button>
-                </form>
-                {ytSearching && (
-                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-slate-500">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Đang tìm kiếm...
+
+              <div className="min-h-40">
+                {ytSearching ? (
+                  <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-text-tertiary">
+                    <Loader2 className="size-4 animate-spin" /> Đang tìm…
                   </div>
-                )}
-                {!ytSearching && ytResults.length > 0 && (
-                  <div className="max-h-60 overflow-y-auto space-y-0.5 pr-0.5">
+                ) : ytLoi ? (
+                  <div className="flex min-h-40 flex-col items-center justify-center text-center">
+                    <AlertCircle className="size-5 text-destructive" />
+                    <p className="mt-2 text-sm text-text-primary">{ytLoi}</p>
+                    <Button type="button" size="xs" variant="outline" className="mt-3" onClick={() => setYtTab('paste')}>
+                      Dán link
+                    </Button>
+                  </div>
+                ) : ytResults.length > 0 ? (
+                  <ul className="-mx-1 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain px-1">
                     {ytResults.map((v) => (
-                      <button
-                        key={v.videoId}
-                        data-video-id={v.videoId}
-                        onClick={() => handlePickYtVideo(v.videoId, v.title)}
-                        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/8 text-left transition-colors cursor-pointer"
-                      >
-                        <img
-                          src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                          alt=""
-                          className="h-11 w-[78px] rounded object-cover shrink-0 bg-slate-800"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-200 line-clamp-2 leading-snug">{v.title}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{v.author}</p>
-                        </div>
-                      </button>
+                      <li key={v.videoId}>
+                        <button
+                          type="button"
+                          data-video-id={v.videoId}
+                          onClick={() => handlePickYtVideo(v.videoId, v.title)}
+                          className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <img
+                            src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
+                            alt=""
+                            className="aspect-video w-24 shrink-0 rounded-lg bg-surface-overlay object-cover"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-[0.8125rem] leading-snug font-medium break-words text-text-primary">
+                              {v.title}
+                            </span>
+                            <span className="mt-0.5 block text-xs break-words text-text-tertiary">{v.author}</span>
+                          </span>
+                        </button>
+                      </li>
                     ))}
-                  </div>
-                )}
-                {!ytSearching && ytResults.length === 0 && ytSearch && (
-                  <p className="text-center text-xs text-slate-500 py-4">
-                    Không có kết quả. Thử từ khóa khác hoặc dán link.
+                  </ul>
+                ) : ytDaTim ? (
+                  <p className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-text-tertiary">
+                    Không tìm thấy video nào cho “{ytDaTim}”. Thử từ khoá khác hoặc dán link.
                   </p>
-                )}
-                {!ytSearching && !ytSearch && (
-                  <p className="text-center text-xs text-slate-500 py-3">
-                    Nhập từ khóa để tìm video bài giảng.
+                ) : (
+                  <p className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-text-tertiary">
+                    Gõ tên bài học rồi bấm tìm.
                   </p>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ══ Re-admission modal on password admission expiry ══ */}
       {trangThai === 'can_xac_thuc_lai' && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="max-w-md w-full rounded-2xl border border-red-500/30 bg-[#0d1422] p-6 shadow-2xl text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-bold text-white">Phiên vào phòng đã hết hạn.</h2>
-            <p className="text-sm text-slate-400">
-              Mã xác thực vào phòng có mật khẩu của bạn đã hết hạn hoặc không còn hiệu lực. Vui lòng quay lại sảnh để nhập lại mật khẩu.
-            </p>
-            <Button
-              onClick={onLeaveRoom}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-500/20"
-            >
-              Quay lại sảnh để nhập lại mật khẩu
-            </Button>
-          </div>
-        </div>
+        <ManChanPhong
+          icon={Lock}
+          tone="warning"
+          title="Cần nhập lại mật khẩu phòng"
+          text="Quyền vào phòng có mật khẩu của bạn đã hết hạn. Hãy quay lại danh sách phòng và nhập mật khẩu để vào tiếp."
+          onLeave={onLeaveRoom}
+        />
       )}
 
       {/* ══ Permanent room denial modal (banned / wrong class / room closed) ══ */}
-      {trangThai === 'bi_tu_choi' && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className={`max-w-md w-full rounded-2xl border p-6 shadow-2xl text-center space-y-4 ${
-            roomClosedInfo
-              ? 'border-amber-500/30 bg-[#0d1422]'
-              : 'border-orange-500/30 bg-[#0d1422]'
-          }`}>
-            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
-              roomClosedInfo
-                ? 'bg-amber-500/10 text-amber-400'
-                : 'bg-orange-500/10 text-orange-400'
-            }`}>
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            {roomClosedInfo ? (
-              <>
-                <h2 className="text-lg font-bold text-white">Phòng học đã được đóng</h2>
-                <p className="text-sm text-slate-400">{roomClosedInfo.message}</p>
-                <p className="text-xs text-slate-500">
-                  Lý do: {roomClosedInfo.reason === 'admin_closed' ? 'Quản trị viên đóng phòng'
-                    : roomClosedInfo.reason === 'owner_closed' ? 'Chủ phòng đóng phòng'
-                    : roomClosedInfo.reason === 'never_joined_timeout' ? 'Phòng không có ai tham gia'
-                    : roomClosedInfo.reason === 'empty_room_timeout' ? 'Phòng đã trống quá lâu'
-                    : roomClosedInfo.reason === 'max_lifetime_exceeded' ? 'Phòng quá thời gian hoạt động'
-                    : roomClosedInfo.reason}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-bold text-white">Không thể truy cập phòng học</h2>
-                <p className="text-sm text-slate-400">
-                  {thongBaoLoiPhong || 'Bạn không có quyền truy cập vào phòng học này.'}
-                </p>
-              </>
-            )}
-            <Button
-              onClick={onLeaveRoom}
-              className={`w-full text-white font-semibold py-2.5 rounded-xl shadow-lg ${
-                roomClosedInfo
-                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20'
-                  : 'bg-orange-600 hover:bg-orange-500 shadow-orange-500/20'
-              }`}
-            >
-              Quay lại Sảnh
-            </Button>
-          </div>
-        </div>
-      )}
+      {trangThai === 'bi_tu_choi' &&
+        (roomClosedInfo ? (
+          <ManChanPhong
+            icon={DoorClosed}
+            tone="muted"
+            title="Phòng học đã đóng"
+            // Thông điệp máy chủ đã nêu lý do; chỉ khi thiếu mới dịch mã lý do (trước đây hiện nguyên mã như "empty_timeout")
+            text={
+              roomClosedInfo.message ||
+              LY_DO_DONG_PHONG[roomClosedInfo.reason] ||
+              'Phòng này không còn hoạt động.'
+            }
+            onLeave={onLeaveRoom}
+          />
+        ) : (
+          <ManChanPhong
+            icon={ShieldAlert}
+            tone="destructive"
+            title="Không vào được phòng học"
+            text={thongBaoLoiPhong || 'Bạn không có quyền vào phòng học này.'}
+            onLeave={onLeaveRoom}
+          />
+        ))}
 
       {/* ══ Slide upload modal ══ */}
       <SlideUploadModal
@@ -762,7 +815,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         open={showInviteModal}
         onOpenChange={setShowInviteModal}
         roomId={numericRoomId || 1}
-        roomTitle={tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId || 1}`}
+        roomTitle={tieuDePhong}
       />
     </div>
   )

@@ -14,7 +14,7 @@ function Card({
         "group/card flex flex-col gap-(--card-spacing) overflow-hidden",
         // Surface and shape
         "rounded-2xl bg-card",
-        "border border-border-default",
+        "border border-border-subtle",
         "text-sm text-card-foreground",
         // Spacing — CSS custom prop controlled by data-size
         "py-(--card-spacing)",

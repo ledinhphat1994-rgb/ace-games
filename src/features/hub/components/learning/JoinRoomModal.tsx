@@ -3,13 +3,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { LogIn } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { parseRoomJoinTarget } from '@/features/hub/learning-semantics'
 
 interface JoinRoomModalProps {
@@ -38,20 +39,15 @@ export function JoinRoomModal({ open, onOpenChange, onJoinRoomId }: JoinRoomModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm border border-white/10 bg-[#0d1424] p-5 text-white shadow-2xl">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-white">
-            <LogIn className="h-4 w-4 text-cyan-400" />
-            <span>Vào phòng học</span>
-          </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
-            Nhập ID hoặc liên kết phòng để tham gia trực tiếp.
-          </DialogDescription>
+          <DialogTitle>Vào phòng học</DialogTitle>
+          <DialogDescription>Dán liên kết bạn bè gửi, hoặc nhập số ID của phòng.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <div>
-            <Label htmlFor="room-id-input" className="text-xs text-slate-300">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="room-id-input" className="text-sm font-medium">
               ID hoặc liên kết phòng
             </Label>
             <Input
@@ -62,31 +58,25 @@ export function JoinRoomModal({ open, onOpenChange, onJoinRoomId }: JoinRoomModa
                 setTargetInput(e.target.value)
                 setError(null)
               }}
-              placeholder="VD: 42, phong-42 hoặc /room/phong-42"
-              className="mt-1.5 h-9 border-white/15 bg-white/5 text-sm text-white placeholder:text-slate-500 focus-visible:ring-cyan-500/40"
+              placeholder="Ví dụ: 42 hoặc /room/phong-42"
+              aria-invalid={error ? true : undefined}
             />
-            {error && <p className="mt-1.5 text-xs text-rose-400">{error}</p>}
+            {error && (
+              <p className="flex items-start gap-1.5 text-sm text-destructive" role="alert">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              Hủy
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Huỷ
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              data-testid="join-room-submit-btn"
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20"
-            >
+            <Button type="submit" data-testid="join-room-submit-btn" disabled={!targetInput.trim()}>
               Vào phòng
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

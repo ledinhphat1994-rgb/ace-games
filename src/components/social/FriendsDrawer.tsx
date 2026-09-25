@@ -1,21 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import {
+  AlertCircle,
+  Ban,
+  Check,
+  Clock,
+  DoorOpen,
+  Loader2,
+  Radio,
+  RefreshCw,
+  Search,
   UserCheck,
   UserPlus,
   Users,
-  Search,
-  Check,
-  X,
   UserX,
-  Ban,
-  Radio,
-  DoorOpen,
-  Clock,
-  ShieldAlert,
-  Loader2,
-  RefreshCw,
-  AlertCircle,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -26,24 +25,37 @@ import { Input } from '@/components/ui/input'
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { timKiemNguoiDung } from '@/lib/api'
+import { cn, getInitials } from '@/lib/utils'
 import {
   UserSearchController,
   type SearchState,
   formatLastSeen,
   derivePresenceView,
 } from '@/features/hub/social-semantics'
+import type { SearchResultItem } from '@shared/protocol/social'
+
+type TabBanBe = 'friends' | 'requests' | 'search'
+
+/** Đợi người dùng gõ xong rồi mới hỏi máy chủ — không bắn một truy vấn D1 cho mỗi phím. */
+const TRE_TIM_KIEM_MS = 250
+
+/** Mỗi tab tự cuộn trong khung cố định của ngăn kéo, nên đổi tab không làm xê dịch bố cục. */
+const KHUNG_TAB =
+  'mt-0 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]'
 
 interface FriendsDrawerProps {
   className?: string
-  defaultTab?: 'friends' | 'requests' | 'search'
+  defaultTab?: TabBanBe
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Nút mở tuỳ chỉnh. Drawer điều khiển từ ngoài (`open`) mà không truyền trigger sẽ không vẽ nút mặc định. */
   trigger?: React.ReactNode
 }
 
@@ -80,21 +92,40 @@ export function FriendsDrawer({
     }
   }
 
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>(defaultTab || 'friends')
+  const [activeTab, setActiveTab] = useState<TabBanBe>(defaultTab || 'friends')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchController] = useState(() => new UserSearchController())
   const [searchState, setSearchState] = useState<SearchState>({ status: 'idle' })
+  // Kết quả lần tìm gần nhất — vẫn hiện (mờ đi) trong lúc tìm lại, để danh sách không nháy trống theo từng phím.
+  const [ketQuaDangHien, setKetQuaDangHien] = useState<SearchResultItem[]>([])
   const [busyActionId, setBusyActionId] = useState<string | null>(null)
+  const henGioTimRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Mỗi lần mở (hoặc khi trang đổi tab mặc định, vd. nút "Tìm bạn") thì hiện đúng tab được yêu cầu,
+  // kể cả khi lần trước người dùng đã tự chuyển sang tab khác rồi đóng. Điều chỉnh ngay trong lần vẽ, không cần effect.
+  const [tabMacDinhTruoc, setTabMacDinhTruoc] = useState(defaultTab)
+  const [dangMoTruoc, setDangMoTruoc] = useState(isOpen)
+  if (defaultTab !== tabMacDinhTruoc || isOpen !== dangMoTruoc) {
+    const vuaMo = isOpen && !dangMoTruoc
+    if (defaultTab && (defaultTab !== tabMacDinhTruoc || vuaMo)) setActiveTab(defaultTab)
+    setTabMacDinhTruoc(defaultTab)
+    setDangMoTruoc(isOpen)
+  }
 
   useEffect(() => {
-    if (defaultTab) {
-      setActiveTab(defaultTab)
-    }
-  }, [defaultTab])
-
-  useEffect(() => {
-    return searchController.subscribe(setSearchState)
+    return searchController.subscribe((next) => {
+      setSearchState(next)
+      if (next.status === 'success') setKetQuaDangHien(next.results)
+      else if (next.status !== 'searching') setKetQuaDangHien([])
+    })
   }, [searchController])
+
+  useEffect(() => {
+    const henGio = henGioTimRef
+    return () => {
+      if (henGio.current) clearTimeout(henGio.current)
+    }
+  }, [])
 
   const incomingRequests = useMemo(() => socialState?.incomingRequests ?? [], [socialState?.incomingRequests])
   const outgoingRequests = useMemo(() => socialState?.outgoingRequests ?? [], [socialState?.outgoingRequests])
@@ -112,10 +143,18 @@ export function FriendsDrawer({
 
   // Count online friends truthfully from presenceView
   const onlineFriendsCount = presenceView.totalActive
+  const presenceSanSang = presenceView.freshness === 'ready'
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    void searchController.executeSearch(query, timKiemNguoiDung)
+    if (henGioTimRef.current) clearTimeout(henGioTimRef.current)
+    if (!query.trim()) {
+      searchController.reset()
+      return
+    }
+    henGioTimRef.current = setTimeout(() => {
+      void searchController.executeSearch(query, timKiemNguoiDung)
+    }, TRE_TIM_KIEM_MS)
   }
 
   const handleRetrySearch = () => {
@@ -242,34 +281,38 @@ export function FriendsDrawer({
     navigate(`/room/phong-${roomId}`)
   }
 
+  const dangTim = searchState.status === 'searching'
+  const ketQuaTimKiem =
+    searchState.status === 'success' ? searchState.results : dangTim ? ketQuaDangHien : []
+
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       {trigger ? (
         <SheetTrigger data-testid="friends-drawer-trigger" render={<span className="inline-block cursor-pointer" />}>
           {trigger}
         </SheetTrigger>
-      ) : (
+      ) : isControlled ? null : (
         <SheetTrigger
           data-testid="friends-drawer-trigger"
           render={
             <Button
               variant="ghost"
               size="sm"
-              className={`relative h-9 gap-1.5 px-3 text-xs font-medium text-slate-300 hover:text-white ${className || ''}`}
+              className={cn('relative gap-1.5 text-text-secondary hover:text-text-primary', className)}
               aria-label="Mở danh sách bạn bè"
             />
           }
         >
-          <Users className="h-4 w-4 text-indigo-400" />
-          <span className="hidden sm:inline">Bạn bè</span>
+          <Users />
+          <span className="max-sm:sr-only">Bạn bè</span>
           {onlineFriendsCount > 0 && (
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500" title={`${onlineFriendsCount} bạn trực tuyến`} />
+            <span className="size-2 rounded-full bg-success" title={`${onlineFriendsCount} bạn trực tuyến`} />
           )}
           {incomingRequests.length > 0 && (
             <Badge
               data-testid="pending-requests-badge"
               variant="destructive"
-              className="ml-0.5 h-4 min-w-4 px-1 text-[10px] font-bold"
+              className="h-4 min-w-4 px-1 text-[10px] font-semibold tabular-nums"
             >
               {incomingRequests.length}
             </Badge>
@@ -277,495 +320,536 @@ export function FriendsDrawer({
         </SheetTrigger>
       )}
 
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md border-l border-white/10 bg-[#0c121e]/95 p-0 text-slate-200 backdrop-blur-xl flex flex-col"
-      >
-        <SheetHeader className="border-b border-white/10 p-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2 text-base font-semibold text-white">
-              <Users className="h-5 w-5 text-indigo-400" />
-              Bạn bè & Kết nối
-            </SheetTitle>
-          </div>
+      <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+        <SheetHeader className="px-4 pt-4 pb-3 pr-12">
+          <SheetTitle className="text-base font-semibold text-text-primary">Bạn bè</SheetTitle>
+          <SheetDescription className="text-[0.8125rem] text-text-tertiary tabular-nums">
+            {friends.length} bạn
+            {presenceSanSang ? ` · ${onlineFriendsCount} đang trực tuyến` : ''}
+          </SheetDescription>
         </SheetHeader>
 
         <Tabs
           value={activeTab}
-          onValueChange={(val) => setActiveTab(val as 'friends' | 'requests' | 'search')}
-          className="flex flex-col flex-1 min-h-0"
+          onValueChange={(val) => setActiveTab(val as TabBanBe)}
+          className="min-h-0 flex-1 gap-3"
         >
-          <TabsList className="grid grid-cols-3 mx-4 my-3 bg-white/5 p-1 rounded-xl shrink-0">
-            <TabsTrigger
-              value="friends"
-              data-testid="tab-friends"
-              className="text-xs data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
-            >
-              Bạn bè ({friends.length})
-            </TabsTrigger>
-            <TabsTrigger
-              value="requests"
-              data-testid="tab-requests"
-              className="text-xs relative data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
-            >
-              Lời mời
-              {incomingRequests.length > 0 && (
-                <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.2 text-[10px] font-bold text-white">
-                  {incomingRequests.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger
-              value="search"
-              data-testid="tab-search"
-              className="text-xs data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
-            >
-              Tìm bạn
-            </TabsTrigger>
-          </TabsList>
+          <div className="px-4">
+            <TabsList>
+              <TabsTrigger value="friends" data-testid="tab-friends">
+                Bạn bè
+                <span className="text-xs font-medium tabular-nums opacity-70">{friends.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="requests" data-testid="tab-requests">
+                Lời mời
+                {incomingRequests.length > 0 && (
+                  <span className="min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">
+                    {incomingRequests.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="search" data-testid="tab-search">
+                Tìm bạn
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          {/* ════ TAB 1: DANH SÁCH BẠN BÈ ════ */}
-          <TabsContent value="friends" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-2">
-            {presenceView.freshness !== 'ready' && (
-              <div
-                data-testid="drawer-presence-disconnected"
-                className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 p-2.5 text-xs text-warning"
-              >
-                <span className="h-2 w-2 rounded-full bg-warning animate-pulse shrink-0" />
-                <span>
-                  {presenceView.freshness === 'stale'
-                    ? 'Mất kết nối thời gian thực. Đang kết nối lại…'
-                    : 'Đang đồng bộ trạng thái bạn bè…'}
-                </span>
-              </div>
-            )}
-
+          {/* ════ BẠN BÈ ════ */}
+          <TabsContent value="friends" className={KHUNG_TAB}>
             {friends.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
-                <Users className="h-10 w-10 text-slate-500 mb-2 opacity-60" />
-                <p className="text-sm font-medium">Chưa có bạn bè nào</p>
-                <p className="text-xs text-slate-500 max-w-xs mt-1">
-                  Chuyển sang tab Tìm bạn để tìm bạn học trên campus và gửi lời mời kết bạn!
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-4 border-white/15 bg-white/5 text-xs text-indigo-300"
-                  onClick={() => setActiveTab('search')}
-                >
-                  <Search className="h-3.5 w-3.5 mr-1" />
-                  Tìm bạn ngay
-                </Button>
-              </div>
+              <TrangTrong
+                fill
+                icon={Users}
+                title="Chưa có bạn bè"
+                text="Tìm bạn học cùng trường và gửi lời mời kết bạn."
+                action={
+                  <Button size="sm" onClick={() => setActiveTab('search')}>
+                    <Search />
+                    Tìm bạn
+                  </Button>
+                }
+              />
             ) : (
-              friends.map((friend) => {
-                const isReady = presenceView.freshness === 'ready'
-                const presence = isReady ? friendsPresence[friend.id] : undefined
-                const status = isReady ? (presence?.state ?? 'offline') : 'unknown'
-                const isOnline = status === 'online'
-                const isAway = status === 'away'
-                const activity = isReady ? presence?.activity : undefined
-
-                return (
-                  <div
-                    key={friend.id}
-                    data-testid={`friend-item-${friend.username}`}
-                    className="flex flex-col gap-2 rounded-xl border border-white/5 bg-white/5 p-3 hover:bg-white/[0.08] transition-colors"
+              <>
+                {!presenceSanSang && (
+                  <p
+                    data-testid="drawer-presence-disconnected"
+                    className="flex items-center gap-2 rounded-xl border border-warning/25 bg-warning/10 px-3 py-2 text-xs text-warning"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Avatar & Presence */}
-                      <div className="relative shrink-0">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white border border-white/10 overflow-hidden">
-                          {friend.avatar ? (
-                            <img src={friend.avatar} alt={friend.username} className="h-full w-full object-cover" />
-                          ) : (
-                            friend.displayName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        {/* Status Dot */}
-                        <span
-                          data-testid={`presence-dot-${friend.username}`}
-                          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0c121e] ${
-                            !isReady
-                              ? 'bg-slate-600'
-                              : isOnline
-                              ? 'bg-emerald-500'
-                              : isAway
-                              ? 'bg-amber-400'
-                              : 'bg-slate-500'
-                          }`}
-                          title={
-                            !isReady
-                              ? presenceView.freshness === 'stale'
-                                ? 'Mất kết nối'
-                                : 'Đang đồng bộ'
-                              : isOnline
-                              ? 'Trực tuyến'
-                              : isAway
-                              ? 'Vắng mặt'
-                              : 'Ngoại tuyến'
-                          }
-                        />
-                      </div>
+                    <span className="size-2 shrink-0 animate-pulse rounded-full bg-warning" />
+                    {presenceView.freshness === 'stale'
+                      ? 'Mất kết nối thời gian thực. Đang kết nối lại…'
+                      : 'Đang đồng bộ trạng thái bạn bè…'}
+                  </p>
+                )}
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-sm font-medium text-white">
-                            {friend.displayName}
-                          </p>
-                          {friend.lopTen && (
-                            <span className="shrink-0 rounded bg-white/10 px-1 py-0.2 text-[10px] text-slate-300">
-                              {friend.lopTen}
+                <DanhSach>
+                  {friends.map((friend) => {
+                    const presence = presenceSanSang ? friendsPresence[friend.id] : undefined
+                    const status = presenceSanSang ? (presence?.state ?? 'offline') : 'unknown'
+                    const isOnline = status === 'online'
+                    const isAway = status === 'away'
+                    const activity = presenceSanSang ? presence?.activity : undefined
+
+                    return (
+                      <li
+                        key={friend.id}
+                        data-testid={`friend-item-${friend.username}`}
+                        className="flex items-start gap-3 px-3.5 py-3"
+                      >
+                        <div className="relative mt-0.5 shrink-0">
+                          <AnhDaiDien ten={friend.displayName} anh={friend.avatar} mo={status === 'offline'} />
+                          <span
+                            data-testid={`presence-dot-${friend.username}`}
+                            className={cn(
+                              'absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface',
+                              !presenceSanSang
+                                ? 'bg-slate-600'
+                                : isOnline
+                                  ? 'bg-emerald-500'
+                                  : isAway
+                                    ? 'bg-amber-400'
+                                    : 'bg-slate-500',
+                            )}
+                            title={
+                              !presenceSanSang
+                                ? presenceView.freshness === 'stale'
+                                  ? 'Mất kết nối'
+                                  : 'Đang đồng bộ'
+                                : isOnline
+                                  ? 'Trực tuyến'
+                                  : isAway
+                                    ? 'Vắng mặt'
+                                    : 'Ngoại tuyến'
+                            }
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-baseline gap-x-1.5">
+                            <span className="min-w-0 text-sm font-medium break-words text-text-primary">
+                              {friend.displayName}
                             </span>
+                            {friend.lopTen && <span className="text-xs text-text-tertiary">{friend.lopTen}</span>}
+                          </p>
+
+                          {!presenceSanSang ? (
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-text-tertiary">
+                              <Clock className="size-3 shrink-0" />
+                              {presenceView.freshness === 'stale' ? 'Mất kết nối thời gian thực' : 'Đang đồng bộ…'}
+                            </p>
+                          ) : activity ? (
+                            <p
+                              data-testid={`friend-activity-${friend.username}`}
+                              className="mt-0.5 flex items-start gap-1.5 text-xs text-social"
+                            >
+                              <Radio className="mt-px size-3 shrink-0 text-success" />
+                              <span className="min-w-0 break-words">
+                                {activity.type === 'room'
+                                  ? activity.roomTitle
+                                    ? `Đang trong: ${activity.roomTitle}`
+                                    : 'Đang học nhóm'
+                                  : 'Đang ở sảnh Campus'}
+                              </span>
+                            </p>
+                          ) : (
+                            <p
+                              className={cn(
+                                'mt-0.5 text-xs',
+                                isOnline ? 'text-success' : isAway ? 'text-warning' : 'text-text-tertiary',
+                              )}
+                            >
+                              {isOnline
+                                ? 'Đang trực tuyến'
+                                : isAway
+                                  ? 'Đang tạm vắng'
+                                  : formatLastSeen(presence?.lastSeen ?? null)}
+                            </p>
+                          )}
+
+                          {presenceSanSang && activity?.roomId && (
+                            <Button
+                              data-testid={`join-friend-btn-${friend.username}`}
+                              size="xs"
+                              className="mt-2"
+                              onClick={() => handleJoinFriendRoom(activity.roomId!)}
+                            >
+                              <DoorOpen />
+                              Vào phòng
+                            </Button>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">@{friend.username}</p>
-                      </div>
 
-                      {/* Quick Actions */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-rose-400"
-                          title="Hủy kết bạn"
-                          aria-label="Hủy kết bạn"
-                          disabled={busyActionId === `unfriend-${friend.id}`}
-                          onClick={() => handleUnfriend(friend.id)}
-                        >
-                          <UserX className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-red-500"
-                          title="Chặn người dùng"
-                          aria-label="Chặn người dùng"
-                          disabled={busyActionId === `block-${friend.id}`}
-                          onClick={() => handleBlock(friend.id)}
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Activity or Last seen status */}
-                    <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px]">
-                      {!isReady ? (
-                        <div className="flex items-center gap-1 text-slate-500">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {presenceView.freshness === 'stale'
-                              ? 'Mất kết nối thời gian thực'
-                              : 'Đang đồng bộ…'}
-                          </span>
+                        <div className="-mt-1 -mr-1.5 flex shrink-0 items-center">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-text-tertiary hover:text-destructive"
+                            title="Hủy kết bạn"
+                            aria-label={`Hủy kết bạn với ${friend.displayName}`}
+                            disabled={busyActionId === `unfriend-${friend.id}`}
+                            onClick={() => handleUnfriend(friend.id)}
+                          >
+                            <UserX />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-text-tertiary hover:text-destructive"
+                            title="Chặn người dùng"
+                            aria-label={`Chặn ${friend.displayName}`}
+                            disabled={busyActionId === `block-${friend.id}`}
+                            onClick={() => handleBlock(friend.id)}
+                          >
+                            <Ban />
+                          </Button>
                         </div>
-                      ) : activity ? (
-                        <div className="flex items-center gap-1.5 text-indigo-300 truncate" data-testid={`friend-activity-${friend.username}`}>
-                          <Radio className="h-3 w-3 shrink-0 text-emerald-400 animate-pulse" />
-                          <span className="truncate">
-                            {activity.type === 'room'
-                              ? activity.roomTitle
-                                ? `Đang trong: ${activity.roomTitle}`
-                                : 'Đang học nhóm'
-                              : 'Đang ở sảnh Campus'}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-slate-500">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {isOnline
-                              ? 'Đang trực tuyến'
-                              : isAway
-                              ? 'Đang tạm vắng'
-                              : formatLastSeen(presence?.lastSeen ?? null)}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Join Friend Button */}
-                      {isReady && activity?.roomId && (
-                        <Button
-                          data-testid={`join-friend-btn-${friend.username}`}
-                          size="sm"
-                          className="h-6 px-2 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg gap-1 shrink-0"
-                          onClick={() => handleJoinFriendRoom(activity.roomId!)}
-                        >
-                          <DoorOpen className="h-3 w-3" />
-                          Vào phòng
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
+                      </li>
+                    )
+                  })}
+                </DanhSach>
+              </>
             )}
           </TabsContent>
 
-          {/* ════ TAB 2: LỜI MỜI KẾT BẠN ════ */}
-          <TabsContent value="requests" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-4">
-            {/* Lời mời đã nhận */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Lời mời đã nhận ({incomingRequests.length})
-              </h4>
-              {incomingRequests.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">Không có lời mời nào đang chờ.</p>
-              ) : (
-                incomingRequests.map((req) => {
-                  const sender = req.sender
-                  if (!sender) return null
-                  return (
-                    <div
-                      key={req.id}
-                      data-testid={`incoming-request-${sender.username}`}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white border border-white/10 overflow-hidden">
-                          {sender.avatar ? (
-                            <img src={sender.avatar} alt={sender.username} className="h-full w-full object-cover" />
-                          ) : (
-                            sender.displayName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-white">
-                            {sender.displayName}
-                          </p>
-                          <p className="text-[11px] text-slate-400">@{sender.username}</p>
-                        </div>
-                      </div>
+          {/* ════ LỜI MỜI ════ */}
+          <TabsContent value="requests" className={KHUNG_TAB}>
+            {incomingRequests.length === 0 && outgoingRequests.length === 0 ? (
+              <TrangTrong
+                fill
+                icon={UserPlus}
+                title="Không có lời mời nào"
+                text="Lời mời kết bạn bạn nhận được hoặc đã gửi sẽ hiện ở đây."
+                action={
+                  <Button size="sm" variant="outline" onClick={() => setActiveTab('search')}>
+                    <Search />
+                    Tìm bạn
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <section className="space-y-2">
+                  <TieuDeNhom title="Đã nhận" count={incomingRequests.length} />
+                  {incomingRequests.length === 0 ? (
+                    <DongTrong>Không có lời mời nào đang chờ.</DongTrong>
+                  ) : (
+                    <DanhSach>
+                      {incomingRequests.map((req) => {
+                        const sender = req.sender
+                        if (!sender) return null
+                        const dangDongY = busyActionId === `accept-${req.id}`
+                        return (
+                          <li
+                            key={req.id}
+                            data-testid={`incoming-request-${sender.username}`}
+                            className="flex items-center gap-3 px-3.5 py-3"
+                          >
+                            <AnhDaiDien ten={sender.displayName} anh={sender.avatar} />
+                            <NguoiDung ten={sender.displayName} username={sender.username} lop={sender.lopTen} />
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                data-testid={`accept-request-btn-${sender.username}`}
+                                size="xs"
+                                disabled={dangDongY}
+                                onClick={() => handleAcceptRequest(req.id)}
+                              >
+                                {dangDongY ? <Loader2 className="animate-spin" /> : <Check />}
+                                Đồng ý
+                              </Button>
+                              <Button
+                                data-testid={`reject-request-btn-${sender.username}`}
+                                variant="ghost"
+                                size="icon-xs"
+                                className="text-text-tertiary hover:text-destructive"
+                                title="Từ chối kết bạn"
+                                aria-label="Từ chối kết bạn"
+                                disabled={busyActionId === `reject-${req.id}`}
+                                onClick={() => handleRejectRequest(req.id)}
+                              >
+                                <X />
+                              </Button>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </DanhSach>
+                  )}
+                </section>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          data-testid={`accept-request-btn-${sender.username}`}
-                          size="sm"
-                          className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg gap-1"
-                          disabled={busyActionId === `accept-${req.id}`}
-                          onClick={() => handleAcceptRequest(req.id)}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Đồng ý
-                        </Button>
-                        <Button
-                          data-testid={`reject-request-btn-${sender.username}`}
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-slate-400 hover:text-rose-400"
-                          title="Từ chối kết bạn"
-                          aria-label="Từ chối kết bạn"
-                          disabled={busyActionId === `reject-${req.id}`}
-                          onClick={() => handleRejectRequest(req.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-
-            {/* Lời mời đã gửi */}
-            <div className="space-y-2 pt-3 border-t border-white/10">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Đã gửi ({outgoingRequests.length})
-              </h4>
-              {outgoingRequests.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">Chưa gửi lời mời nào.</p>
-              ) : (
-                outgoingRequests.map((req) => {
-                  const receiver = req.receiver
-                  if (!receiver) return null
-                  return (
-                    <div
-                      key={req.id}
-                      data-testid={`outgoing-request-${receiver.username}`}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white border border-white/10 overflow-hidden">
-                          {receiver.avatar ? (
-                            <img src={receiver.avatar} alt={receiver.username} className="h-full w-full object-cover" />
-                          ) : (
-                            receiver.displayName.charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-white">
-                            {receiver.displayName}
-                          </p>
-                          <p className="text-[11px] text-slate-400">@{receiver.username}</p>
-                        </div>
-                      </div>
-
-                      <Button
-                        data-testid={`cancel-request-btn-${receiver.username}`}
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs border-white/10 bg-white/5 text-slate-300 hover:text-white"
-                        disabled={busyActionId === `cancel-${req.id}`}
-                        onClick={() => handleCancelRequest(req.id)}
-                      >
-                        Hủy
-                      </Button>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                <section className="space-y-2">
+                  <TieuDeNhom title="Đã gửi" count={outgoingRequests.length} />
+                  {outgoingRequests.length === 0 ? (
+                    <DongTrong>Chưa gửi lời mời nào.</DongTrong>
+                  ) : (
+                    <DanhSach>
+                      {outgoingRequests.map((req) => {
+                        const receiver = req.receiver
+                        if (!receiver) return null
+                        return (
+                          <li
+                            key={req.id}
+                            data-testid={`outgoing-request-${receiver.username}`}
+                            className="flex items-center gap-3 px-3.5 py-3"
+                          >
+                            <AnhDaiDien ten={receiver.displayName} anh={receiver.avatar} />
+                            <NguoiDung ten={receiver.displayName} username={receiver.username} lop={receiver.lopTen} />
+                            <Button
+                              data-testid={`cancel-request-btn-${receiver.username}`}
+                              variant="outline"
+                              size="xs"
+                              className="shrink-0"
+                              disabled={busyActionId === `cancel-${req.id}`}
+                              onClick={() => handleCancelRequest(req.id)}
+                            >
+                              Hủy
+                            </Button>
+                          </li>
+                        )
+                      })}
+                    </DanhSach>
+                  )}
+                </section>
+              </>
+            )}
           </TabsContent>
 
-          {/* ════ TAB 3: TÌM BẠN HỌC ════ */}
-          <TabsContent value="search" className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4 mt-0 space-y-3">
+          {/* ════ TÌM BẠN ════ */}
+          <TabsContent value="search" className={KHUNG_TAB}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
               <Input
                 data-testid="search-user-input"
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Nhập tên hoặc username..."
-                className="pl-9 h-9 border-white/15 bg-white/5 text-xs text-white placeholder:text-slate-500 rounded-xl"
+                placeholder="Tên hoặc tên đăng nhập"
+                aria-label="Tìm bạn học theo tên hoặc tên đăng nhập"
+                maxLength={50}
+                enterKeyHint="search"
+                autoComplete="off"
+                className="h-10 pr-9 pl-9"
               />
+              {dangTim && (
+                <Loader2
+                  aria-hidden
+                  className="absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-text-tertiary"
+                />
+              )}
             </div>
 
-            {searchState.status === 'searching' && (
-              <div data-testid="search-searching-state" className="flex items-center justify-center gap-2 py-6 text-slate-400">
-                <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
-                <span className="text-xs">Đang tìm kiếm…</span>
+            {searchState.status === 'idle' && (
+              <DongTrong className="py-4 text-center">Gõ tên hoặc tên đăng nhập để tìm bạn cùng trường.</DongTrong>
+            )}
+
+            {dangTim && ketQuaTimKiem.length === 0 && (
+              <div
+                data-testid="search-searching-state"
+                className="flex items-center justify-center gap-2 py-6 text-xs text-text-tertiary"
+              >
+                <Loader2 className="size-4 animate-spin" />
+                Đang tìm…
               </div>
             )}
 
             {searchState.status === 'empty' && (
-              <p data-testid="search-empty-state" className="text-xs text-slate-400 text-center py-6">
-                Không tìm thấy tài khoản nào khớp với &quot;{searchState.query}&quot;
+              <p data-testid="search-empty-state" className="px-1 py-4 text-center text-xs break-words text-text-tertiary">
+                Không tìm thấy ai khớp với “{searchState.query}”.
               </p>
             )}
 
             {searchState.status === 'error' && (
-              <div data-testid="search-error-state" className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-center space-y-2.5">
-                <div className="flex items-center justify-center gap-1.5 text-xs text-rose-400 font-medium">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{searchState.error}</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  data-testid="search-retry-btn"
-                  onClick={handleRetrySearch}
-                  className="h-7 text-xs gap-1.5 border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-500/20"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  <span>Thử lại</span>
+              <div
+                data-testid="search-error-state"
+                className="space-y-3 rounded-xl border border-destructive/25 bg-destructive/10 p-4 text-center"
+              >
+                <p className="flex items-start justify-center gap-1.5 text-xs font-medium text-destructive">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span className="break-words">{searchState.error}</span>
+                </p>
+                <Button size="xs" variant="outline" data-testid="search-retry-btn" onClick={handleRetrySearch}>
+                  <RefreshCw />
+                  Thử lại
                 </Button>
               </div>
             )}
 
-            {searchState.status === 'success' && (
-              <div className="space-y-2">
-                {searchState.results.map((user) => (
-                  <div
+            {ketQuaTimKiem.length > 0 && (
+              <DanhSach className={cn('transition-opacity', dangTim && 'opacity-60')} aria-busy={dangTim || undefined}>
+                {ketQuaTimKiem.map((user) => (
+                  <li
                     key={user.id}
                     data-testid={`search-result-${user.username}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
+                    className="flex items-center gap-3 px-3.5 py-3"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white border border-white/10 overflow-hidden">
-                        {user.avatar ? (
-                          <img src={user.avatar} alt={user.username} className="h-full w-full object-cover" />
-                        ) : (
-                          user.displayName.charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-xs font-semibold text-white">
-                            {user.displayName}
-                          </p>
-                          {user.lopTen && (
-                            <span className="shrink-0 rounded bg-white/10 px-1 py-0.2 text-[10px] text-slate-300">
-                              {user.lopTen}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">@{user.username}</p>
-                      </div>
-                    </div>
-
-                    {user.relationshipStatus === 'self' ? (
-                      <Badge variant="outline" className="text-[10px] border-white/15 text-slate-400">
-                        Bạn
-                      </Badge>
-                    ) : user.relationshipStatus === 'friend' ? (
-                      <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                        <UserCheck className="h-3 w-3 mr-1" />
-                        Bạn bè
-                      </Badge>
-                    ) : user.relationshipStatus === 'pending_sent' ? (
-                      <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-300">
-                        Đã gửi
-                      </Badge>
-                    ) : user.relationshipStatus === 'pending_received' ? (
-                      <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-300">
-                        Đang chờ bạn
-                      </Badge>
-                    ) : user.relationshipStatus === 'blocked' ? (
-                      <Badge variant="outline" className="text-[10px] border-rose-500/30 text-rose-400">
-                        Đã chặn
-                      </Badge>
-                    ) : (
-                      <Button
-                        data-testid={`add-friend-btn-${user.username}`}
-                        size="sm"
-                        className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg gap-1"
-                        disabled={busyActionId === `send-${user.id}`}
-                        onClick={() => handleSendRequest(user.id)}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Kết bạn
-                      </Button>
-                    )}
-                  </div>
+                    <AnhDaiDien ten={user.displayName} anh={user.avatar} />
+                    <NguoiDung ten={user.displayName} username={user.username} lop={user.lopTen} />
+                    <QuanHe
+                      user={user}
+                      dangGui={busyActionId === `send-${user.id}`}
+                      onKetBan={() => handleSendRequest(user.id)}
+                      onXemLoiMoi={() => setActiveTab('requests')}
+                    />
+                  </li>
                 ))}
-              </div>
+              </DanhSach>
             )}
 
-            {/* Danh sách người dùng đã chặn */}
+            {/* Người đã chặn: bỏ chặn tại đây (máy chủ ẩn họ khỏi kết quả tìm kiếm) */}
             {blockedUsers.length > 0 && (
-              <div className="pt-4 mt-4 border-t border-white/10 space-y-2">
-                <h4 className="text-xs font-semibold text-rose-400 flex items-center gap-1.5 uppercase tracking-wider">
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Đã chặn ({blockedUsers.length})
-                </h4>
-                {blockedUsers.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2.5"
-                  >
-                    <div>
-                      <p className="text-xs font-medium text-slate-300">{b.displayName}</p>
-                      <p className="text-[10px] text-slate-500">@{b.username}</p>
-                    </div>
-                    <Button
-                      data-testid={`unblock-btn-${b.username}`}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 px-2 text-[11px] border-white/15 bg-white/5 text-slate-300 hover:text-white"
-                      disabled={busyActionId === `unblock-${b.id}`}
-                      onClick={() => handleUnblock(b.id)}
-                    >
-                      Bỏ chặn
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <section className="space-y-2 pt-2">
+                <TieuDeNhom title="Đã chặn" count={blockedUsers.length} />
+                <DanhSach>
+                  {blockedUsers.map((b) => (
+                    <li key={b.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm break-words text-text-secondary">{b.displayName}</p>
+                        <p className="text-xs break-words text-text-tertiary">@{b.username}</p>
+                      </div>
+                      <Button
+                        data-testid={`unblock-btn-${b.username}`}
+                        variant="outline"
+                        size="xs"
+                        className="shrink-0"
+                        disabled={busyActionId === `unblock-${b.id}`}
+                        onClick={() => handleUnblock(b.id)}
+                      >
+                        Bỏ chặn
+                      </Button>
+                    </li>
+                  ))}
+                </DanhSach>
+              </section>
             )}
           </TabsContent>
         </Tabs>
       </SheetContent>
     </Sheet>
   )
+}
+
+function DanhSach({ className, children, ...props }: React.ComponentProps<'ul'>) {
+  return (
+    <ul
+      className={cn('divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle', className)}
+      {...props}
+    >
+      {children}
+    </ul>
+  )
+}
+
+function TieuDeNhom({ title, count }: { title: string; count: number }) {
+  return (
+    <h3 className="flex items-baseline gap-2 px-1 text-[0.8125rem] font-semibold text-text-primary">
+      {title}
+      <span className="text-xs font-medium tabular-nums text-text-tertiary">{count}</span>
+    </h3>
+  )
+}
+
+function DongTrong({ className, children }: { className?: string; children: ReactNode }) {
+  return <p className={cn('px-1 text-xs text-text-tertiary', className)}>{children}</p>
+}
+
+function TrangTrong({
+  icon: Icon,
+  title,
+  text,
+  action,
+  fill,
+}: {
+  icon: ComponentType<{ className?: string }>
+  title: string
+  text: string
+  action?: ReactNode
+  /** Chiếm trọn khung tab để trạng thái trống nằm giữa, không dồn lên đầu. */
+  fill?: boolean
+}) {
+  return (
+    <div className={cn('flex flex-col items-center justify-center py-10 text-center', fill && 'min-h-full')}>
+      <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-raised text-text-tertiary">
+        <Icon className="size-5" />
+      </span>
+      <p className="mt-3 text-sm font-medium text-text-primary">{title}</p>
+      <p className="mt-1 max-w-64 text-xs leading-relaxed text-text-tertiary">{text}</p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  )
+}
+
+function AnhDaiDien({ ten, anh, mo }: { ten: string; anh: string | null; mo?: boolean }) {
+  if (anh) {
+    return <img src={anh} alt="" className={cn('size-10 shrink-0 rounded-full object-cover', mo && 'opacity-60 grayscale')} />
+  }
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
+        mo && 'opacity-70',
+      )}
+    >
+      {getInitials(ten)}
+    </span>
+  )
+}
+
+function NguoiDung({ ten, username, lop }: { ten: string; username: string; lop: string | null }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium break-words text-text-primary">{ten}</p>
+      <p className="text-xs break-words text-text-tertiary">
+        @{username}
+        {lop ? ` · ${lop}` : ''}
+      </p>
+    </div>
+  )
+}
+
+function QuanHe({
+  user,
+  dangGui,
+  onKetBan,
+  onXemLoiMoi,
+}: {
+  user: SearchResultItem
+  dangGui: boolean
+  onKetBan: () => void
+  onXemLoiMoi: () => void
+}) {
+  switch (user.relationshipStatus) {
+    case 'self':
+      return <span className="shrink-0 text-xs text-text-tertiary">Bạn</span>
+    case 'friend':
+      return (
+        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-success">
+          <UserCheck className="size-3.5" />
+          Bạn bè
+        </span>
+      )
+    case 'pending_sent':
+      return <span className="shrink-0 text-xs font-medium text-warning">Đã gửi</span>
+    case 'pending_received':
+      // Họ đã mời mình — đưa thẳng tới tab Lời mời để đồng ý
+      return (
+        <Button size="xs" variant="outline" className="shrink-0" onClick={onXemLoiMoi}>
+          Xem lời mời
+        </Button>
+      )
+    case 'blocked':
+      return <span className="shrink-0 text-xs font-medium text-destructive">Đã chặn</span>
+    default:
+      return (
+        <Button
+          data-testid={`add-friend-btn-${user.username}`}
+          size="xs"
+          className="shrink-0"
+          disabled={dangGui}
+          onClick={onKetBan}
+        >
+          {dangGui ? <Loader2 className="animate-spin" /> : <UserPlus />}
+          Kết bạn
+        </Button>
+      )
+  }
 }

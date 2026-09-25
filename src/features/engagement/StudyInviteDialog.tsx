@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send, Users, Check, AlertCircle, Sparkles } from 'lucide-react'
+import { AlertCircle, Check, Loader2, Search, Send, Users } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { useCampusContext } from '@/app/CampusContext'
+import { cn, getInitials, tenLop } from '@/lib/utils'
 
 interface StudyInviteDialogProps {
   open: boolean
@@ -25,7 +25,7 @@ export function StudyInviteDialog({
   roomId,
   roomTitle,
 }: StudyInviteDialogProps) {
-  const { socialState } = useCampusContext()
+  const { socialState, friendsPresence, presenceReady } = useCampusContext()
   const friends = socialState?.friends || []
 
   const [search, setSearch] = useState('')
@@ -33,10 +33,16 @@ export function StudyInviteDialog({
   const [loadingMap, setLoadingMap] = useState<Record<number, boolean>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const filteredFriends = friends.filter((f) =>
-    f.displayName.toLowerCase().includes(search.toLowerCase()) ||
-    f.username.toLowerCase().includes(search.toLowerCase()),
-  )
+  const tuKhoa = search.trim().toLowerCase()
+  const trangThai = (id: number) => (presenceReady ? friendsPresence[id] : undefined)
+  // Bạn đang trực tuyến lên đầu — mời họ thì mới có người vào ngay
+  const filteredFriends = friends
+    .filter(
+      (f) => !tuKhoa || f.displayName.toLowerCase().includes(tuKhoa) || f.username.toLowerCase().includes(tuKhoa),
+    )
+    .map((f, viTri) => ({ friend: f, viTri, onl: trangThai(f.id)?.state === 'online' ? 0 : 1 }))
+    .sort((a, b) => a.onl - b.onl || a.viTri - b.viTri)
+    .map(({ friend }) => friend)
 
   const handleSendInvite = async (friendId: number) => {
     setErrorMsg(null)
@@ -53,7 +59,7 @@ export function StudyInviteDialog({
         }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setErrorMsg(data.loi || 'Không thể gửi lời mời.')
       } else {
@@ -68,104 +74,98 @@ export function StudyInviteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-5 sm:p-6 bg-card/95 backdrop-blur-xl border border-border/60">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                Mời bạn học cùng
-                <Sparkles className="h-4 w-4 text-primary" />
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Gửi lời mời tham gia phòng học “{roomTitle}”
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle>Mời bạn học cùng</DialogTitle>
+          <DialogDescription>
+            Bạn bè sẽ nhận thông báo mời vào <span className="font-medium break-words text-text-primary">“{roomTitle}”</span>.
+          </DialogDescription>
         </DialogHeader>
 
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>{errorMsg}</span>
+          <p className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-xs text-destructive" role="alert">
+            <AlertCircle className="mt-px size-4 shrink-0" />
+            <span className="break-words">{errorMsg}</span>
+          </p>
+        )}
+
+        {friends.length > 5 && (
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
+            <Input
+              placeholder="Tìm trong danh sách bạn bè"
+              aria-label="Tìm bạn bè"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 pl-9"
+            />
           </div>
         )}
 
-        <div className="space-y-3 my-2">
-          {friends.length > 5 && (
-            <Input
-              placeholder="Tìm bạn bè theo tên..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="text-xs h-9"
-            />
-          )}
-
+        <div className="min-h-40">
           {friends.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">
-              Bạn chưa có bạn bè nào để mời. Hãy kết bạn ở Sảnh Campus trước nhé!
+            <div className="flex min-h-40 flex-col items-center justify-center text-center">
+              <Users className="size-6 text-text-tertiary" />
+              <p className="mt-2 text-sm font-medium text-text-primary">Bạn chưa có bạn bè để mời</p>
+              <p className="mt-1 text-xs text-text-tertiary">Kết bạn ở trang Cộng đồng rồi quay lại mời nhé.</p>
             </div>
           ) : filteredFriends.length === 0 ? (
-            <div className="py-6 text-center text-xs text-muted-foreground">
-              Không tìm thấy bạn bè phù hợp.
-            </div>
+            <p className="flex min-h-40 items-center justify-center text-center text-sm text-text-tertiary">
+              Không có ai khớp với “{search.trim()}”.
+            </p>
           ) : (
-            <div className="max-h-[50vh] overflow-y-auto space-y-2 pr-1">
+            <ul className="-mx-1 max-h-[50svh] space-y-1 overflow-y-auto overscroll-contain px-1">
               {filteredFriends.map((friend) => {
                 const isSent = sentMap[friend.id]
                 const isLoading = loadingMap[friend.id]
+                const presence = trangThai(friend.id)
+                const dangOPhongNay = presence?.activity?.type === 'room' && presence.activity.roomId === roomId
+                const dangTrucTuyen = presence?.state === 'online'
 
                 return (
-                  <div
-                    key={friend.id}
-                    className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-border/40 bg-background/50 hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-8 w-8 border border-border/50">
-                        <AvatarImage src={friend.avatar || undefined} />
-                        <AvatarFallback className="text-xs font-bold">
-                          {friend.displayName.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-foreground truncate">
-                          {friend.displayName}
-                        </div>
-                        {friend.lopTen && (
-                          <div className="text-[10px] text-muted-foreground">
-                            Lớp {friend.lopTen}
-                          </div>
-                        )}
-                      </div>
+                  <li key={friend.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-raised/60">
+                    <span className="relative shrink-0">
+                      {friend.avatar ? (
+                        <img src={friend.avatar} alt="" className="size-9 rounded-full object-cover" />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary"
+                        >
+                          {getInitials(friend.displayName)}
+                        </span>
+                      )}
+                      {dangTrucTuyen && (
+                        <span className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full bg-success ring-2 ring-surface" />
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium break-words text-text-primary">{friend.displayName}</p>
+                      <p className="text-xs break-words text-text-tertiary">
+                        {dangOPhongNay
+                          ? 'Đang ở trong phòng này'
+                          : [friend.lopTen ? tenLop(friend.lopTen) : null, dangTrucTuyen ? 'đang trực tuyến' : null]
+                              .filter(Boolean)
+                              .join(' · ') || `@${friend.username}`}
+                      </p>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant={isSent ? 'secondary' : 'default'}
-                      disabled={isSent || isLoading}
-                      onClick={() => handleSendInvite(friend.id)}
-                      className="h-8 px-3 text-xs gap-1.5 shrink-0"
-                    >
-                      {isSent ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-success" />
-                          <span>Đã mời</span>
-                        </>
-                      ) : isLoading ? (
-                        <span>Đang gửi...</span>
-                      ) : (
-                        <>
-                          <Send className="h-3.5 w-3.5" />
-                          <span>Mời</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                    {dangOPhongNay ? null : (
+                      <Button
+                        size="xs"
+                        variant={isSent ? 'ghost' : 'default'}
+                        disabled={isSent || isLoading}
+                        onClick={() => handleSendInvite(friend.id)}
+                        className={cn('shrink-0', isSent && 'text-success disabled:opacity-100')}
+                      >
+                        {isSent ? <Check /> : isLoading ? <Loader2 className="animate-spin" /> : <Send />}
+                        {isSent ? 'Đã mời' : 'Mời'}
+                      </Button>
+                    )}
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           )}
         </div>
       </DialogContent>

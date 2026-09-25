@@ -1,30 +1,23 @@
 // Digital Campus v2: Canonical Study Room Creation Dialog
 // src/features/hub/CreateStudyRoomDialog.tsx
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { usePhien } from '@/app/phien'
+import { cn, tenLop } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Globe,
-  Loader2,
-  Lock,
-  School,
-  Sparkles,
-  Users,
-} from 'lucide-react'
+import { PasswordInput } from '@/components/ui/password-input'
+import { AlertCircle, ChevronDown, Globe, Loader2, Lock, School, Users } from 'lucide-react'
 
 export interface CreateStudyRoomDialogProps {
   open: boolean
@@ -45,7 +38,6 @@ export function CreateStudyRoomDialog({
   const [phamVi, setPhamVi] = useState<'truong' | 'lop'>('truong')
   const [accessMode, setAccessMode] = useState<'public' | 'password'>('public')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [sucChua, setSucChua] = useState(20)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
@@ -54,6 +46,7 @@ export function CreateStudyRoomDialog({
 
   const userHasClass = Boolean(nguoiDung?.lopId)
   const classNameDisplay = nguoiDung?.lop?.ten || (nguoiDung?.lopId ? `Lớp ${nguoiDung.lopId}` : '')
+  const coTheChonLop = userHasClass || Boolean(nguoiDung?.isSchoolAdmin)
 
   const resetForm = () => {
     setTen('')
@@ -61,7 +54,6 @@ export function CreateStudyRoomDialog({
     setPhamVi('truong')
     setAccessMode('public')
     setPassword('')
-    setShowPassword(false)
     setSucChua(20)
     setShowAdvanced(false)
     setError(null)
@@ -192,25 +184,18 @@ export function CreateStudyRoomDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
-      <DialogContent
-        className="sm:max-w-md bg-card/95 border-border/80 backdrop-blur-md"
-        data-testid="create-room-dialog"
-      >
+      <DialogContent className="sm:max-w-md" data-testid="create-room-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Tạo phòng học nhóm mới
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Khởi tạo không gian học tập trực tiếp với bảng viết, slide tài liệu và thảo luận âm thanh.
+          <DialogTitle>Tạo phòng học</DialogTitle>
+          <DialogDescription>
+            Mọi người trong phòng cùng xem video, trình chiếu tài liệu và viết bảng theo thời gian thực.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {/* Tên phòng */}
-          <div className="space-y-1.5">
-            <Label htmlFor="room-ten" className="text-xs font-medium">
-              Tên phòng học <span className="text-destructive">*</span>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="room-ten" className="text-sm font-medium">
+              Tên phòng <span className="text-text-tertiary">*</span>
             </Label>
             <Input
               id="room-ten"
@@ -220,243 +205,211 @@ export function CreateStudyRoomDialog({
                 setTen(e.target.value)
                 setError(null)
               }}
-              placeholder="vd: Ôn thi Toán học kỳ 2"
+              placeholder="Ví dụ: Ôn thi Toán học kỳ 2"
               disabled={isSubmitting}
               maxLength={100}
-              className="h-9 text-xs"
             />
           </div>
 
-          {/* Mô tả */}
-          <div className="space-y-1.5">
-            <Label htmlFor="room-mota" className="text-xs font-medium">
-              Mô tả mục tiêu (tùy chọn)
+          <div className="space-y-2">
+            <Label htmlFor="room-mota" className="text-sm font-medium">
+              Mục tiêu buổi học <span className="font-normal text-text-tertiary">(không bắt buộc)</span>
             </Label>
             <Input
               id="room-mota"
               data-testid="create-room-desc-input"
               value={moTa}
               onChange={(e) => setMoTa(e.target.value)}
-              placeholder="vd: Thảo luận bài tập nhóm, giải đề cương..."
+              placeholder="Ví dụ: Giải đề cương chương 2"
               disabled={isSubmitting}
               maxLength={500}
-              className="h-9 text-xs"
             />
           </div>
 
-          {/* Tùy chọn nâng cao (Progressive Disclosure) */}
-          <div className="pt-0.5">
-            <button
-              type="button"
-              data-testid="create-room-advanced-toggle"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="flex items-center gap-1 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
-            >
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                  showAdvanced ? 'rotate-180' : ''
-                }`}
-              />
-              <span>{showAdvanced ? 'Thu gọn tùy chọn' : 'Tùy chọn (phạm vi, mật khẩu, sức chứa)'}</span>
-            </button>
-          </div>
+          {/* Tùy chọn nâng cao — ẩn mặc định (progressive disclosure) */}
+          <button
+            type="button"
+            data-testid="create-room-advanced-toggle"
+            aria-expanded={showAdvanced}
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ChevronDown className={cn('size-4 transition-transform duration-200', showAdvanced && 'rotate-180')} />
+            {showAdvanced ? 'Ẩn tuỳ chọn' : 'Tuỳ chọn: phạm vi, mật khẩu, sức chứa'}
+          </button>
 
           {showAdvanced && (
-            <div data-testid="create-room-advanced-section" className="space-y-3.5 pt-1 border-t border-white/10 animate-in fade-in-50 duration-150">
-              {/* Phạm vi phòng */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Phạm vi chia sẻ</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    data-testid="create-room-scope-truong"
-                    onClick={() => setPhamVi('truong')}
+            <div
+              data-testid="create-room-advanced-section"
+              className="space-y-4 border-t border-border-subtle pt-4 animate-in fade-in-50 duration-150"
+            >
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-sm font-medium text-text-primary">Ai được thấy phòng</legend>
+                <div className="day-loc-deu [--the-nho-nhat:9rem]">
+                  <TheLuaChon
+                    testId="create-room-scope-truong"
+                    chon={phamVi === 'truong'}
+                    onChon={() => setPhamVi('truong')}
                     disabled={isSubmitting}
-                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors cursor-pointer ${
-                      phamVi === 'truong'
-                        ? 'border-primary/50 bg-primary/10 text-primary font-semibold'
-                        : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                    }`}
-                  >
-                    <Globe className="h-4 w-4 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">Toàn trường</div>
-                      <div className="text-[10px] text-muted-foreground">Mọi người trong trường</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid="create-room-scope-lop"
-                    onClick={() => {
-                      if (userHasClass || nguoiDung?.isSchoolAdmin) {
-                        setPhamVi('lop')
-                      }
+                    icon={<Globe className="size-4" />}
+                    tieuDe="Toàn trường"
+                    moTa="Mọi người trong trường"
+                  />
+                  <TheLuaChon
+                    testId="create-room-scope-lop"
+                    chon={phamVi === 'lop'}
+                    onChon={() => {
+                      if (coTheChonLop) setPhamVi('lop')
                     }}
-                    disabled={isSubmitting || (!userHasClass && !nguoiDung?.isSchoolAdmin)}
-                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors ${
-                      !userHasClass && !nguoiDung?.isSchoolAdmin
-                        ? 'opacity-50 cursor-not-allowed border-border/30 bg-muted/10'
-                        : 'cursor-pointer ' +
-                          (phamVi === 'lop'
-                            ? 'border-primary/50 bg-primary/10 text-primary font-semibold'
-                            : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40')
-                    }`}
-                  >
-                    <School className="h-4 w-4 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">
-                        {classNameDisplay ? `Lớp ${classNameDisplay}` : 'Lớp học'}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">Chỉ thành viên lớp</div>
-                    </div>
-                  </button>
+                    disabled={isSubmitting || !coTheChonLop}
+                    icon={<School className="size-4" />}
+                    tieuDe={classNameDisplay ? tenLop(classNameDisplay) : 'Lớp học'}
+                    moTa={coTheChonLop ? 'Chỉ thành viên lớp' : 'Bạn chưa thuộc lớp nào'}
+                  />
                 </div>
-              </div>
+              </fieldset>
 
-              {/* Chế độ vào phòng */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Chế độ truy cập</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    data-testid="create-room-mode-public"
-                    onClick={() => setAccessMode('public')}
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-sm font-medium text-text-primary">Cách vào phòng</legend>
+                <div className="day-loc-deu [--the-nho-nhat:9rem]">
+                  <TheLuaChon
+                    testId="create-room-mode-public"
+                    chon={accessMode === 'public'}
+                    onChon={() => setAccessMode('public')}
                     disabled={isSubmitting}
-                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors cursor-pointer ${
-                      accessMode === 'public'
-                        ? 'border-success/50 bg-success/10 text-success font-semibold'
-                        : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                    }`}
-                  >
-                    <Globe className="h-4 w-4 shrink-0" />
-                    <div>
-                      <div className="font-medium">Công khai</div>
-                      <div className="text-[10px] text-muted-foreground">Ai cũng vào được</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid="create-room-mode-password"
-                    onClick={() => setAccessMode('password')}
+                    icon={<Globe className="size-4" />}
+                    tieuDe="Công khai"
+                    moTa="Ai thấy phòng đều vào được"
+                  />
+                  <TheLuaChon
+                    testId="create-room-mode-password"
+                    chon={accessMode === 'password'}
+                    onChon={() => setAccessMode('password')}
                     disabled={isSubmitting}
-                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors cursor-pointer ${
-                      accessMode === 'password'
-                        ? 'border-warning/50 bg-warning/10 text-warning font-semibold'
-                        : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                    }`}
-                  >
-                    <Lock className="h-4 w-4 shrink-0" />
-                    <div>
-                      <div className="font-medium">Mật khẩu bảo vệ</div>
-                      <div className="text-[10px] text-muted-foreground">Yêu cầu nhập mã PIN</div>
-                    </div>
-                  </button>
+                    icon={<Lock className="size-4" />}
+                    tieuDe="Có mật khẩu"
+                    moTa="Nhập đúng mật khẩu mới vào"
+                  />
                 </div>
-              </div>
+              </fieldset>
 
-              {/* Mật khẩu nếu chọn accessMode = password */}
               {accessMode === 'password' && (
-                <div className="space-y-1.5 animate-in fade-in-50 duration-150">
-                  <Label htmlFor="room-password" className="text-xs font-medium">
-                    Mật khẩu phòng <span className="text-destructive">*</span>
+                <div className="space-y-2 animate-in fade-in-50 duration-150">
+                  <Label htmlFor="room-password" className="text-sm font-medium">
+                    Mật khẩu phòng <span className="text-text-tertiary">*</span>
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id="room-password"
-                      data-testid="create-room-password-input"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value)
-                        setError(null)
-                      }}
-                      placeholder="Tối thiểu 4 ký tự..."
-                      disabled={isSubmitting}
-                      maxLength={50}
-                      className="h-9 pr-9 text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                      tabIndex={-1}
-                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                    >
-                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    id="room-password"
+                    data-testid="create-room-password-input"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      setError(null)
+                    }}
+                    placeholder="Tối thiểu 4 ký tự"
+                    disabled={isSubmitting}
+                    maxLength={50}
+                  />
                 </div>
               )}
 
-              {/* Sức chứa */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="room-capacity" className="text-xs font-medium flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    Sức chứa tối đa
-                  </Label>
-                  <span className="text-xs font-bold text-primary">{sucChua} người</span>
+              <div className="space-y-2">
+                <Label htmlFor="room-capacity" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Users className="size-4 text-text-tertiary" />
+                  Sức chứa tối đa
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="room-capacity"
+                    data-testid="create-room-capacity-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={2}
+                    max={100}
+                    value={sucChua}
+                    onChange={(e) => setSucChua(Math.min(100, Math.max(2, parseInt(e.target.value, 10) || 2)))}
+                    disabled={isSubmitting}
+                    className="w-28 tabular-nums"
+                  />
+                  <span className="text-sm text-text-tertiary">người (2–100)</span>
                 </div>
-                <Input
-                  id="room-capacity"
-                  data-testid="create-room-capacity-input"
-                  type="number"
-                  min={2}
-                  max={100}
-                  value={sucChua}
-                  onChange={(e) => setSucChua(Math.min(100, Math.max(2, parseInt(e.target.value, 10) || 2)))}
-                  disabled={isSubmitting}
-                  className="h-9 text-xs"
-                />
               </div>
             </div>
           )}
 
-
-          {/* Error display */}
           {error && (
-            <div
+            <p
               data-testid="create-room-error"
-              className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive"
+              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-destructive"
               role="alert"
             >
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
               {error}
-            </div>
+            </p>
           )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="h-8 text-xs"
-            >
-              Hủy
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+              Huỷ
             </Button>
             <Button
               type="submit"
-              size="sm"
               data-testid="create-room-submit-button"
               disabled={isSubmitting || !ten.trim()}
-              className="h-8 text-xs font-semibold gap-1.5"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Đang khởi tạo…
+                  <Loader2 className="animate-spin" />
+                  Đang tạo phòng…
                 </>
               ) : (
-                'Tạo phòng học'
+                'Tạo phòng'
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function TheLuaChon({
+  testId,
+  chon,
+  onChon,
+  disabled,
+  icon,
+  tieuDe,
+  moTa,
+}: {
+  testId: string
+  chon: boolean
+  onChon: () => void
+  disabled: boolean
+  icon: ReactNode
+  tieuDe: string
+  moTa: string
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-pressed={chon}
+      onClick={onChon}
+      disabled={disabled}
+      className={cn(
+        'flex items-start gap-2.5 rounded-xl border p-3 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+        chon
+          ? 'border-brand/50 bg-brand/10'
+          : 'border-border-default hover:border-border-strong hover:bg-surface-overlay/60',
+      )}
+    >
+      <span className={cn('mt-0.5 shrink-0', chon ? 'text-brand' : 'text-text-tertiary')}>{icon}</span>
+      <span className="min-w-0">
+        <span className={cn('block text-sm font-medium break-words', chon ? 'text-brand' : 'text-text-primary')}>{tieuDe}</span>
+        <span className="mt-0.5 block text-xs leading-relaxed text-text-tertiary">{moTa}</span>
+      </span>
+    </button>
   )
 }

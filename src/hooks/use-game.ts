@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BoardCell, GameMetaState, GameType, GoiGame, LenhGame, PlayerSide } from '@shared/protocol/game'
 import { MA_DONG_SOCKET } from '@shared/protocol/common'
 import { taoBanMoi } from '../../worker/game-engine'
+import { toast } from 'sonner'
+import { nenKhoiTaoBan } from '@/features/games/game-ids'
 
 export type TrangThaiKetNoiGame = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
 
@@ -107,15 +109,9 @@ export function useGame(
           setMeta(goi.meta)
           setBoard(goi.board)
           setSpectators(goi.spectators)
-          // Bàn vừa tạo, còn nguyên trạng mặc định và chưa ai nhận X/O: áp đúng trò chơi/thời gian lượt
-          // người tạo đã chọn ở sảnh (chỉ mình người tạo gửi lệnh này — người vào bàn có sẵn không đụng tới).
-          if (
-            intendedGameType &&
-            goi.meta.gameType !== intendedGameType &&
-            goi.meta.status === 'waiting' &&
-            !goi.meta.playerX &&
-            !goi.meta.playerO
-          ) {
+          // Bàn vừa tạo, chưa ai nhận X/O: người tạo gửi init để ngồi ghế X, áp trò chơi/thời gian lượt đã chọn ở
+          // sảnh và đăng bàn lên sảnh (người vào bàn có sẵn không kèm intendedGameType nên không đụng tới).
+          if (intendedGameType && nenKhoiTaoBan(goi.meta, intendedGameType)) {
             ws.send(
               JSON.stringify({
                 type: 'game.init',
@@ -151,6 +147,8 @@ export function useGame(
         }
         case 'error': {
           console.warn('[Game] Server error:', goi.message)
+          // Máy chủ từ chối lệnh (nước đi sai luật, chưa tới lượt…): báo cho người chơi thay vì im lặng.
+          if (goi.message) toast.error(goi.message, { id: 'game-server-error' })
           break
         }
       }

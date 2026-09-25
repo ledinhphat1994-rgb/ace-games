@@ -166,8 +166,8 @@ export function SessionPanel({
 
           {/* Navigation Tabs */}
           <Tabs defaultValue="tasks" className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-4 pt-2 border-b border-border/40 bg-card/20">
-              <TabsList className="w-full grid grid-cols-3 h-8 p-0.5 bg-muted/60">
+            <div className="border-b border-border-subtle px-4 py-3">
+              <TabsList className="[--the-nho-nhat:6rem]">
                 <TabsTrigger value="tasks" className="text-xs gap-1.5">
                   <Target className="h-3.5 w-3.5" />
                   Nhiệm vụ

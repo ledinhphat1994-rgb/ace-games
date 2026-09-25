@@ -174,9 +174,11 @@ describe('V3 Visual Recovery & Account Quick Center Contracts', () => {
     expect(accountQuickCenterRaw).not.toContain('Thuyết Trình')
     expect(accountQuickCenterRaw).not.toContain('Bảng Đen')
 
-    // Must query authoritative achievements & profile endpoints
+    // Must query authoritative achievements & profile endpoints.
+    // The profile summary lives at /api/engagement/me — /api/engagement/profile never existed on the worker (404).
     expect(accountQuickCenterRaw).toContain('/api/engagement/achievements')
-    expect(accountQuickCenterRaw).toContain('/api/engagement/profile')
+    expect(accountQuickCenterRaw).toContain('/api/engagement/me')
+    expect(accountQuickCenterRaw).not.toContain('/api/engagement/profile')
     expect(accountQuickCenterRaw).toContain("currentView === 'achievements'")
   })
 

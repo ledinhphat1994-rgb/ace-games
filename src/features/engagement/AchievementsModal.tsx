@@ -1,15 +1,19 @@
+import type { ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  AlertCircle,
   Award,
-  Lock,
-  Sparkles,
-  Users,
-  Flame,
-  Trophy,
-  CheckCircle2,
-  Vote,
   BookOpen,
+  CheckCircle2,
+  Flame,
+  Lock,
+  ShieldCheck,
+  Sparkles,
   Target,
+  Trophy,
+  Users,
+  Vote,
+  Zap,
 } from 'lucide-react'
 import {
   Dialog,
@@ -18,8 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import type { UserAchievementItem } from '@shared/protocol/engagement'
 
 interface AchievementsModalProps {
@@ -35,24 +41,28 @@ interface AchievementsResponse {
   totalCount?: number
 }
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  Sparkles: <Sparkles className="h-5 w-5" />,
-  Users: <Users className="h-5 w-5" />,
-  Flame: <Flame className="h-5 w-5" />,
-  CheckCircle2: <CheckCircle2 className="h-5 w-5" />,
-  Vote: <Vote className="h-5 w-5" />,
-  BookOpen: <BookOpen className="h-5 w-5" />,
-  Target: <Target className="h-5 w-5" />,
-  Trophy: <Trophy className="h-5 w-5" />,
+const ICON: Record<string, ComponentType<{ className?: string }>> = {
+  Sparkles,
+  Users,
+  Flame,
+  Zap,
+  CheckCircle2,
+  Vote,
+  BookOpen,
+  Target,
+  Trophy,
+  ShieldCheck,
 }
 
+const NGAY = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
+
 export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps) {
-  const { data, isLoading, error } = useQuery<AchievementsResponse>({
+  const { data, isLoading, error, refetch } = useQuery<AchievementsResponse>({
     queryKey: ['engagement', 'achievements'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/achievements')
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         throw new Error(err.loi || 'Không thể tải huy hiệu.')
       }
       return res.json()
@@ -63,94 +73,94 @@ export function AchievementsModal({ open, onOpenChange }: AchievementsModalProps
   const items = data?.items || data?.achievements || []
   const unlockedCount = data?.unlockedCount ?? items.filter((a) => a.unlocked).length
   const totalCount = data?.totalCount ?? items.length
+  // Đã mở khoá lên trước (mới nhất trước), còn lại giữ thứ tự của máy chủ
+  const sapXep = [...items].sort((a, b) => {
+    if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1
+    return (b.unlockedAt ?? 0) - (a.unlockedAt ?? 0)
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-5 sm:p-6 bg-card/95 backdrop-blur-xl border border-border/60">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-social/10 text-social border border-social/20">
-                <Award className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  Huy hiệu thành tích
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
-                  Ghi nhận nỗ lực học tập và tinh thần đồng đội
-                </DialogDescription>
-              </div>
-            </div>
-            {data && (
-              <Badge variant="social" className="px-2.5 py-1 text-xs">
-                {unlockedCount} / {totalCount} Đã mở khóa
-              </Badge>
-            )}
-          </div>
+          <DialogTitle>Huy hiệu</DialogTitle>
+          <DialogDescription>Mỗi huy hiệu ghi nhận một thói quen học tập tốt và thưởng thêm XP.</DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="p-6 text-center text-xs text-destructive">
-            {error instanceof Error ? error.message : 'Lỗi tải danh sách huy hiệu.'}
-          </div>
-        ) : (
-          <div className="max-h-[60vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 pr-1 my-2">
-            {items.map((badge) => {
-              const iconElement = ICON_MAP[badge.icon] || <Award className="h-5 w-5" />
-              return (
-                <div
-                  key={badge.key}
-                  className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
-                    badge.unlocked
-                      ? 'border-social/30 bg-social/5 hover:bg-social/10'
-                      : 'border-border-subtle bg-surface/50 opacity-70'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${
-                        badge.unlocked
-                          ? 'bg-social/12 text-social border-social/25'
-                          : 'bg-surface text-text-tertiary border-border-subtle'
-                      }`}
-                    >
-                      {badge.unlocked ? iconElement : <Lock className="h-4 w-4 text-muted-foreground/80" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {badge.title}
-                        </span>
-                        <Badge
-                          variant={badge.unlocked ? 'social' : 'secondary'}
-                          className="text-[9px] px-1.5 py-0 h-4"
-                        >
-                          +{badge.rewardXp} XP
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                        {badge.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  {badge.unlocked && badge.unlockedAt && (
-                    <div className="text-[9px] text-social/70 font-medium text-right mt-2">
-                      Mở khóa: {new Date(badge.unlockedAt).toLocaleDateString('vi-VN')}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+        {data && totalCount > 0 && (
+          <div className="flex items-center gap-3">
+            <Progress value={(unlockedCount / totalCount) * 100} className="h-1.5 flex-1" aria-label="Huy hiệu đã mở" />
+            <span className="shrink-0 text-xs text-text-tertiary tabular-nums">
+              <span className="font-semibold text-text-primary">{unlockedCount}</span> / {totalCount} đã mở
+            </span>
           </div>
         )}
+
+        <div className="min-h-48">
+          {isLoading ? (
+            <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <AlertCircle className="size-6 text-destructive" />
+              <p className="mt-2 text-sm text-text-primary">
+                {error instanceof Error ? error.message : 'Không thể tải huy hiệu.'}
+              </p>
+              <Button variant="outline" size="xs" className="mt-3" onClick={() => void refetch()}>
+                Thử lại
+              </Button>
+            </div>
+          ) : sapXep.length === 0 ? (
+            <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <Award className="size-6 text-text-tertiary" />
+              <p className="mt-2 text-sm font-medium text-text-primary">Chưa có huy hiệu nào</p>
+            </div>
+          ) : (
+            <ul className="-mx-1 grid max-h-[60svh] gap-2 overflow-y-auto overscroll-contain px-1 sm:grid-cols-2">
+              {sapXep.map((badge) => {
+                const Icon = badge.unlocked ? (ICON[badge.icon] ?? Award) : Lock
+                return (
+                  <li
+                    key={badge.key}
+                    className={cn(
+                      'flex items-start gap-3 rounded-xl border p-3',
+                      badge.unlocked ? 'border-achievement/25 bg-achievement/[0.06]' : 'border-border-subtle',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                        badge.unlocked ? 'bg-achievement/15 text-achievement' : 'bg-surface-overlay text-text-tertiary',
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span
+                          className={cn(
+                            'min-w-0 text-sm font-medium break-words',
+                            badge.unlocked ? 'text-text-primary' : 'text-text-secondary',
+                          )}
+                        >
+                          {badge.title}
+                        </span>
+                        <span className="text-xs text-achievement tabular-nums">+{badge.rewardXp} XP</span>
+                      </p>
+                      <p className="mt-0.5 text-xs leading-snug break-words text-text-tertiary">{badge.description}</p>
+                      {badge.unlocked && badge.unlockedAt ? (
+                        <p className="mt-1 text-[11px] text-text-tertiary">Mở ngày {NGAY.format(badge.unlockedAt)}</p>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

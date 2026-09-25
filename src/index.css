@@ -235,6 +235,26 @@ body {
 
   html {
     @apply font-sans;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.28);
+    color: #fff;
   }
 
   button:not(:disabled),
@@ -337,5 +357,35 @@ body {
       rgba(99, 102, 241, 0.06) 50%,
       rgba(16, 185, 129, 0.04) 100%
     );
+  }
+}
+
+/* ============================================================
+   HÀNG THẺ / NÚT CHIA ĐỀU — quy tắc chung toàn web: chia đều hết chiều
+   ngang, không để dư khoảng trống, nội dung mỗi ô căn giữa.
+   - day-loc-deu: lưới auto-fit cột bằng nhau (nhóm ít mục, thẻ mồ côi giữ
+     đúng cỡ thẻ phía trên).
+   - day-loc-deu-co-gian: flex co giãn, dòng nào cũng tự lấp đầy khi phải
+     xuống nhiều dòng.
+   Chỉnh ngưỡng co cột qua biến --the-nho-nhat.
+   ============================================================ */
+@utility day-loc-deu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--the-nho-nhat, 7rem), 100%), 1fr));
+  gap: 0.5rem;
+
+  & > * {
+    justify-content: center;
+  }
+}
+
+@utility day-loc-deu-co-gian {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  & > * {
+    flex: 1 1 var(--the-nho-nhat, 7rem);
+    justify-content: center;
   }
 }

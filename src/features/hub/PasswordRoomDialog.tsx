@@ -17,24 +17,25 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/ui/password-input'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { Eye, EyeOff, Lock, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 interface PasswordRoomDialogProps {
   room: PhongSanh | null
   onClose: () => void
-  onSuccess: (room: PhongSanh) => void
+  /** Nhận MÃ SỐ phòng đã được cấp quyền (trước đây truyền cả object → điều hướng tới "/room/phong-[object Object]"). */
+  onSuccess: (roomId: number) => void
 }
 
 export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDialogProps) {
   const [password, setPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -45,10 +46,9 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
     setPassword('')
     setError(null)
     setLoading(false)
-    setShowPw(false)
   }
 
-  // Focus sau khi dialog animate vào
+  // Focus sau khi dialog animate vào (không dùng autoFocus để tránh cuộn trang)
   useEffect(() => {
     if (room) {
       const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 80)
@@ -81,7 +81,7 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
         // Cookie đã được server set, JS không đọc được (HttpOnly)
         // Xóa password khỏi state trước khi navigate
         setPassword('')
-        onSuccess(room)
+        onSuccess(room.id)
       } else {
         const data = await res.json().catch(() => ({})) as { message?: string }
         if (res.status === 429) {
@@ -109,74 +109,49 @@ export function PasswordRoomDialog({ room, onClose, onSuccess }: PasswordRoomDia
 
   return (
     <Dialog open={!!room} onOpenChange={(open) => { if (!open) handleClose() }}>
-      <DialogContent
-        className="sm:max-w-sm"
-        aria-describedby="pw-dialog-desc"
-      >
+      <DialogContent className="sm:max-w-sm" aria-describedby="pw-dialog-desc">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-amber-400" />
-            Phòng học bảo vệ
-          </DialogTitle>
+          <span className="mb-1 flex size-10 items-center justify-center rounded-xl bg-warning-muted text-warning">
+            <Lock className="size-[18px]" />
+          </span>
+          <DialogTitle>Phòng có mật khẩu</DialogTitle>
           <DialogDescription id="pw-dialog-desc">
-            <span className="font-medium text-foreground">{room?.ten}</span>
-            {' '}— yêu cầu mật khẩu để vào.
+            Nhập mật khẩu để vào <span className="font-medium break-words text-text-primary">{room?.ten}</span>.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="room-password-input">Mật khẩu phòng</Label>
-            <div className="relative">
-              <Input
-                id="room-password-input"
-                ref={inputRef}
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(null) }}
-                placeholder="Nhập mật khẩu phòng học..."
-                disabled={loading}
-                className="pr-10"
-                autoComplete="off"
-                // Do NOT use autoFocus — use programmatic focus with preventScroll
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-0.5"
-                aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-              >
-                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="room-password-input" className="text-sm font-medium">Mật khẩu phòng</Label>
+            <PasswordInput
+              id="room-password-input"
+              ref={inputRef}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null) }}
+              placeholder="Nhập mật khẩu phòng"
+              disabled={loading}
+              autoComplete="off"
+            />
             {error && (
-              <p className="text-xs text-destructive" role="alert">{error}</p>
+              <p className="flex items-start gap-1.5 text-sm text-destructive" role="alert">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
             )}
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={loading}
-              onClick={handleClose}
-            >
-              Hủy
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={loading} onClick={handleClose}>
+              Huỷ
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !password.trim()}
-              className="gap-1.5"
-            >
+            <Button type="submit" disabled={loading || !password.trim()}>
               {loading ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang xác thực…</>
+                <><Loader2 className="animate-spin" /> Đang kiểm tra…</>
               ) : (
                 'Vào phòng'
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

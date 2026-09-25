@@ -22,22 +22,22 @@ function Tabs({
 
 const tabsListVariants = cva(
   [
-    "group/tabs-list inline-flex w-fit items-center justify-center text-muted-foreground",
-    "group-data-horizontal/tabs:h-9 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
+    "group/tabs-list items-center text-muted-foreground",
+    "group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col",
     "data-[variant=line]:rounded-none data-[variant=pills]:rounded-none",
   ].join(" "),
   {
     variants: {
       variant: {
-        /** Pill segment — for profile tabs, settings sections */
+        /** Thẻ bo tròn tách rời, chia đều hết chiều ngang (quy tắc chung: không dùng thanh gộp liền) */
         default:
-          "rounded-lg bg-surface-overlay p-[3px] gap-0.5",
-        /** Underline — for page-level nav tabs (Learning, Profile sections) */
+          "day-loc-deu w-full [--the-nho-nhat:6.5rem]",
+        /** Underline — for page-level nav tabs */
         line:
-          "gap-1 bg-transparent border-b border-border-subtle",
-        /** Pill chip — for filter chips (Tất cả / Toàn trường / Lớp tôi) */
+          "inline-flex w-fit gap-1 bg-transparent border-b border-border-subtle group-data-horizontal/tabs:h-9",
+        /** Pill chip — for filter chips */
         pills:
-          "gap-1.5 bg-transparent",
+          "inline-flex w-fit flex-wrap gap-1.5 bg-transparent",
       },
     },
     defaultVariants: {
@@ -83,20 +83,21 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 
-        // ── DEFAULT variant (pill segment) ──
-        "group-data-[variant=default]/tabs-list:h-[calc(100%-6px)]",
-        "group-data-[variant=default]/tabs-list:flex-1",
-        "group-data-[variant=default]/tabs-list:rounded-md",
-        "group-data-[variant=default]/tabs-list:px-3 group-data-[variant=default]/tabs-list:py-1",
-        "group-data-[variant=default]/tabs-list:border group-data-[variant=default]/tabs-list:border-transparent",
+        // ── DEFAULT variant (thẻ tách rời, chia đều) ──
+        "group-data-[variant=default]/tabs-list:h-9",
+        "group-data-[variant=default]/tabs-list:min-w-0",
+        "group-data-[variant=default]/tabs-list:rounded-xl",
+        "group-data-[variant=default]/tabs-list:px-3",
+        "group-data-[variant=default]/tabs-list:border group-data-[variant=default]/tabs-list:border-border-default",
         // inactive
-        "group-data-[variant=default]/tabs-list:text-text-tertiary",
-        "group-data-[variant=default]/tabs-list:hover:text-text-secondary",
+        "group-data-[variant=default]/tabs-list:text-text-secondary",
+        "group-data-[variant=default]/tabs-list:not-data-active:hover:bg-surface-overlay",
+        "group-data-[variant=default]/tabs-list:not-data-active:hover:text-text-primary",
         // active
-        "group-data-[variant=default]/tabs-list:data-active:bg-surface-raised",
-        "group-data-[variant=default]/tabs-list:data-active:text-foreground",
-        "group-data-[variant=default]/tabs-list:data-active:shadow-sm",
-        "group-data-[variant=default]/tabs-list:data-active:border-border-subtle",
+        "group-data-[variant=default]/tabs-list:data-active:border-brand/50",
+        "group-data-[variant=default]/tabs-list:data-active:bg-brand/10",
+        "group-data-[variant=default]/tabs-list:data-active:text-brand",
+        "group-data-[variant=default]/tabs-list:data-active:font-semibold",
 
         // ── LINE variant (underline nav) ──
         "group-data-[variant=line]/tabs-list:h-9",

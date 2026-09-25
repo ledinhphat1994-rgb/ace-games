@@ -64,12 +64,17 @@ export function ConnectionIndicator({
       <PopoverTrigger
         className={`${pillBase} border-success/25 bg-success/10 text-success hover:bg-success/18 cursor-pointer`}
         title="Trạng thái kết nối phòng học số"
+        aria-label={`${onlineCount} người trực tuyến — xem trạng thái kết nối`}
       >
         <span className="relative flex h-2 w-2 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
         </span>
-        <span className="hidden sm:inline">{onlineCount} trực tuyến</span>
+        {/* Máy tính bảng (md→lg) chật chỗ vì có thêm thanh điều hướng: chỉ giữ con số, chữ hiện lại từ lg. */}
+        <span className="hidden whitespace-nowrap tabular-nums sm:inline">
+          {onlineCount}
+          <span className="md:hidden lg:inline"> trực tuyến</span>
+        </span>
       </PopoverTrigger>
 
       <PopoverContent
