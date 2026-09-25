@@ -44,6 +44,7 @@ interface FriendsDrawerProps {
   defaultTab?: 'friends' | 'requests' | 'search'
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Nút mở tuỳ chỉnh. Drawer điều khiển từ ngoài (`open`) mà không truyền trigger sẽ không vẽ nút mặc định. */
   trigger?: React.ReactNode
 }
 
@@ -248,7 +249,7 @@ export function FriendsDrawer({
         <SheetTrigger data-testid="friends-drawer-trigger" render={<span className="inline-block cursor-pointer" />}>
           {trigger}
         </SheetTrigger>
-      ) : (
+      ) : isControlled ? null : (
         <SheetTrigger
           data-testid="friends-drawer-trigger"
           render={

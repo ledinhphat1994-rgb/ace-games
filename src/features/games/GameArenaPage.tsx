@@ -7,7 +7,6 @@ export function GameArenaPage() {
 
   return (
     <GameLobbyView
-      onBackToHub={() => navigate('/')}
       onCreateRoom={(roomId: string, gameType: GameType, turnSeconds: number) =>
         navigate(`/game/${encodeURIComponent(roomId)}?gameType=${gameType}&turn=${turnSeconds}`)
       }

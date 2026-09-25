@@ -51,7 +51,7 @@ export function AppShell({ children }: AppShellProps) {
       />
 
       {/* 2. Main Content Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 pb-[76px] md:pb-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-[76px] sm:px-6 sm:pt-8 md:pb-10">
         {/* Single-device policy warning banner */}
         {trangThai === 'phien_bi_thay' ? (
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">

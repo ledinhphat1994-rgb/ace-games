@@ -41,7 +41,7 @@ export function AppHeader({
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
 
         {/* ── Left: Brand + Desktop Nav ── */}
-        <div className="flex items-center gap-2 sm:gap-5 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0">
           {/* Brand mark pointing to canonical /learn */}
           <NavLink to="/learn" className="flex items-center gap-2 group shrink-0 select-none">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
@@ -55,7 +55,7 @@ export function AppHeader({
           {/* Desktop nav — exactly 3 items: Học tập, Game, Cộng đồng */}
           <nav
             aria-label="Điều hướng chính"
-            className="hidden md:flex items-center gap-0.5 pl-3 border-l border-border-subtle"
+            className="hidden md:flex items-center gap-0.5 pl-2 lg:pl-3 border-l border-border-subtle"
           >
             {DESKTOP_NAV_LINKS.map((item) => (
               <NavLink
@@ -63,7 +63,7 @@ export function AppHeader({
                 to={item.to}
                 className={({ isActive }) =>
                   [
-                    'relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150',
+                    'relative whitespace-nowrap px-2 lg:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150',
                     isActive
                       ? 'bg-brand/12 text-brand font-semibold'
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
