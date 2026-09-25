@@ -91,8 +91,8 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "group-data-[variant=default]/tabs-list:border group-data-[variant=default]/tabs-list:border-border-default",
         // inactive
         "group-data-[variant=default]/tabs-list:text-text-secondary",
-        "group-data-[variant=default]/tabs-list:hover:bg-surface-overlay",
-        "group-data-[variant=default]/tabs-list:hover:text-text-primary",
+        "group-data-[variant=default]/tabs-list:not-data-active:hover:bg-surface-overlay",
+        "group-data-[variant=default]/tabs-list:not-data-active:hover:text-text-primary",
         // active
         "group-data-[variant=default]/tabs-list:data-active:border-brand/50",
         "group-data-[variant=default]/tabs-list:data-active:bg-brand/10",
