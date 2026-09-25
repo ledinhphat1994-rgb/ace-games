@@ -235,6 +235,16 @@ body {
 
   html {
     @apply font-sans;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.28);
+    color: #fff;
   }
 
   button:not(:disabled),
