@@ -91,22 +91,22 @@ export function AppShell({ children }: AppShellProps) {
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-[76px] sm:px-6 sm:pt-8 md:pb-10">
         {/* Single-device policy warning banner */}
         {trangThai === 'phien_bi_thay' ? (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div
+            role="alert"
+            className="mb-6 flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
               <div>
-                <p className="font-semibold">Phiên kết nối này đã bị ngắt tự động (Mã 4001)</p>
-                <p className="text-xs text-destructive/70 mt-0.5">
-                  Tài khoản của bạn vừa đăng nhập ở một thiết bị hoặc trình duyệt khác. Hệ thống chỉ duy trì 01 phiên hoạt động.
+                <p className="text-sm font-semibold text-text-primary">Tài khoản này vừa đăng nhập trên thiết bị khác</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
+                  Mỗi tài khoản chỉ dùng trên một thiết bị cùng lúc, nên kết nối ở đây đã dừng. Muốn dùng tiếp trên máy
+                  này, hãy tải lại trang.
                 </p>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => window.location.reload()}
-            >
-              Tải lại trang &amp; Kết nối lại
+            <Button variant="destructive" className="shrink-0" onClick={() => window.location.reload()}>
+              Tải lại trang
             </Button>
           </div>
         ) : null}

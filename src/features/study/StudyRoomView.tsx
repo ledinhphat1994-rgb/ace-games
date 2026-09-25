@@ -306,24 +306,32 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const tenChuPhong = useMemo(() => members.find((m) => m.key === hostKey)?.ten || 'Chủ phòng', [members, hostKey])
 
   // ── Social & Campus Presence Activity ──────────────────────────────────────
-  const { setActivity } = useCampusContext()
+  const { setActivity, rooms: phongTrenSanh } = useCampusContext()
   const numericRoomId = useMemo(() => {
     const num = parseInt(roomId.replace('phong-', ''), 10)
     return isNaN(num) ? undefined : num
   }, [roomId])
+
+  // Tên thật của phòng lấy từ danh sách phòng trên sảnh (snapshot RoomDO không kèm tên);
+  // chỉ khi sảnh chưa có phòng này mới tạm gọi theo tên chủ phòng.
+  const tieuDePhong = useMemo(() => {
+    const tenThat = numericRoomId ? phongTrenSanh.find((p) => p.id === numericRoomId)?.ten?.trim() : undefined
+    if (tenThat) return tenThat
+    return tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId ?? roomId}`
+  }, [phongTrenSanh, numericRoomId, tenChuPhong, roomId])
 
   useEffect(() => {
     if (numericRoomId) {
       setActivity({
         type: 'room',
         roomId: numericRoomId,
-        roomTitle: tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId}`,
+        roomTitle: tieuDePhong,
       })
     }
     return () => {
       setActivity(null)
     }
-  }, [numericRoomId, tenChuPhong, setActivity])
+  }, [numericRoomId, tieuDePhong, setActivity])
 
   const handleNotesChange = (text: string) => {
     setLocalNotes(text)
@@ -406,7 +414,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     <div className="relative h-svh w-full overflow-hidden select-none">
       <ClassroomWorkspace
         roomId={roomId}
-        roomTitle={tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId || roomId}`}
+        roomTitle={tieuDePhong}
         nguoiDung={nguoiDung}
         isHost={isHost}
         canModerate={canModerate}
@@ -762,7 +770,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         open={showInviteModal}
         onOpenChange={setShowInviteModal}
         roomId={numericRoomId || 1}
-        roomTitle={tenChuPhong ? `Phòng của ${tenChuPhong}` : `Phòng học #${numericRoomId || 1}`}
+        roomTitle={tieuDePhong}
       />
     </div>
   )
