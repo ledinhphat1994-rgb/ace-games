@@ -4,7 +4,7 @@ import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { LiveDot, PageHeader } from '@/components/layout/PageHeader'
-import { cn } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 import {
   derivePresenceView,
   formatLastSeen,
@@ -461,11 +461,11 @@ function DongBanBe({
         ) : (
           <div
             className={cn(
-              'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary uppercase',
+              'flex size-9 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary',
               ngoaiTuyen && 'opacity-70',
             )}
           >
-            {friend.displayName.slice(0, 2)}
+            {getInitials(friend.displayName)}
           </div>
         )}
         {cham && <span className={cn('absolute -right-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-surface', cham)} />}
