@@ -30,10 +30,16 @@ import {
   LenhGame,
   type PlayerSide,
 } from '../shared/protocol/game'
+import { EMOTE_BURST_MAX, EMOTE_COOLDOWN_MS } from '../shared/protocol/game-sdk'
 import { TEN_GAME_LOBBY } from './games/game-lobby-do'
 import {
+  GIA_HAN_HET_GIO_MS,
+  batDauVan,
+  benKia,
   coNuocDiHopLeReversi,
+  daHetGioLuot,
   demQuanReversi,
+  ketThucVan,
   kiemTraThangCaro,
   kiemTraThangConnect4,
   kiemTraVaLatReversi,
@@ -105,6 +111,9 @@ const DEFAULT_GAME_META: GameMetaState = {
   turnTimerEndsAt: 0,
   scoreX: 0,
   scoreO: 0,
+  endReason: null,
+  rematchBy: null,
+  firstTurn: 'X',
 }
 
 const DEFAULT_SESSION_TIMER: SessionTimerState = {
@@ -181,7 +190,10 @@ export class RoomDO extends DurableObject<Env> {
   private testFailD1LifecycleClaim = false
   private testFailD1LifecycleFinalize = false
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
+  // Lưu bền trong room_meta (`game_room_id`) để sau khi DO ngủ đông rồi thức dậy vẫn báo được sảnh.
   private gameRoomId: string | null = null
+  // Nhịp gửi biểu cảm của từng actor trong bàn game (chống spam; chỉ cần sống trong bộ nhớ).
+  private nhipBieuCam = new Map<string, { luc: number; soLan: number }>()
   private voiceRegistry = new Map<string, VoiceParticipantState>()
 
   private parseNumericRoomId(): number | null {
@@ -514,14 +526,17 @@ export class RoomDO extends DurableObject<Env> {
           this.hostKey = r.value
         } else if (r.key === 'room_name') {
           this.roomName = r.value
+        } else if (r.key === 'game_room_id') {
+          this.gameRoomId = r.value
+          this.isGameRoom = true
         }
       }
 
-      // Đọc game_state
+      // Đọc game_state (bàn lưu trước khi có endReason/rematchBy/firstTurn thì lấy giá trị mặc định)
       const gameRow = [...this.ctx.storage.sql.exec<{ meta: string; board: string }>('SELECT meta, board FROM game_state WHERE id = 1')][0]
       if (gameRow) {
         try {
-          this.gameMeta = JSON.parse(gameRow.meta) as GameMetaState
+          this.gameMeta = { ...DEFAULT_GAME_META, ...(JSON.parse(gameRow.meta) as Partial<GameMetaState>) }
           this.gameBoard = JSON.parse(gameRow.board) as BoardCell[][]
         } catch {}
       }
@@ -789,7 +804,10 @@ export class RoomDO extends DurableObject<Env> {
       try {
         const pendingVoice = this.getPendingVoiceRevocations()
         const pendingSummary = this.getPendingSessionSummaries()
-        const hasActiveTimer = (this.sessionTimer.running && this.sessionTimer.endsAt > 0) || (this.pomodoro.running && this.pomodoro.endsAt > 0)
+        const hasActiveTimer =
+          (this.sessionTimer.running && this.sessionTimer.endsAt > 0) ||
+          (this.pomodoro.running && this.pomodoro.endsAt > 0) ||
+          this.hanChotLuotGame() !== null
         const hasLifecycleObligation =
           (!this.lifecycleState.isClosed && this.lifecycleState.autoCloseEnabled) ||
           Boolean(this.lifecycleState.finalizePending)
@@ -986,6 +1004,12 @@ export class RoomDO extends DurableObject<Env> {
     const summaryDue = this.getEarliestPendingSummaryRetryTime(now)
     if (summaryDue !== null) {
       deadlines.push(summaryDue)
+    }
+
+    // 4b. Hạn chót lượt đi của bàn game (máy chủ xử thua bên tới lượt khi quá hạn)
+    const hanLuotGame = this.hanChotLuotGame()
+    if (hanLuotGame !== null) {
+      deadlines.push(hanLuotGame)
     }
 
     // 5. Room lifecycle deadlines
@@ -1362,7 +1386,35 @@ export class RoomDO extends DurableObject<Env> {
     } catch (err) {
       console.error('[RoomDO.alarm] Lỗi xử lý lifecycle alarm:', err)
     }
+    this.xuLyHetGioLuot(now)
     await this.reconcileRoomAlarm()
+  }
+
+  /** Hạn chót (đã cộng ân hạn) mà alarm phải tới để xử lượt đi đang chạy của bàn game; null nếu không có. */
+  private hanChotLuotGame(): number | null {
+    if (!this.isGameRoom || this.gameMeta.status !== 'playing' || this.gameMeta.turnTimerEndsAt <= 0) return null
+    return this.gameMeta.turnTimerEndsAt + GIA_HAN_HET_GIO_MS
+  }
+
+  /** Bên tới lượt đã quá giờ: xử thua ngay (idempotent — gọi thừa khi chưa quá hạn thì không làm gì). */
+  private xuLyHetGioLuot(now: number): boolean {
+    if (!this.isGameRoom || !daHetGioLuot(this.gameMeta, now)) return false
+    this.gameMeta = ketThucVan(this.gameMeta, benKia(this.gameMeta.currentTurn), 'timeout')
+    this.luuGameState()
+    this.baoLobby()
+    this.broadcastGame({ type: 'game.sync', meta: this.gameMeta, board: this.gameBoard, serverNow: now })
+    return true
+  }
+
+  private gheCua(actorKey: string): PlayerSide | null {
+    if (actorKey === this.gameMeta.playerX) return 'X'
+    if (actorKey === this.gameMeta.playerO) return 'O'
+    return null
+  }
+
+  /** Người xem = người đang ở bàn nhưng không ngồi ghế X/O. */
+  private demNguoiXemGame(boQua?: WebSocket): number {
+    return this.layDanhSachThanhVien(boQua).filter((m) => this.gheCua(m.key) === null).length
   }
 
   private luuGameState(): void {
@@ -1384,6 +1436,264 @@ export class RoomDO extends DurableObject<Env> {
       try {
         ws.send(json)
       } catch {}
+    }
+  }
+
+  private phatTrangThaiGame(now: number, lastMove?: { player: PlayerSide; x: number; y: number }): void {
+    this.broadcastGame({
+      type: 'game.sync',
+      meta: this.gameMeta,
+      board: this.gameBoard,
+      ...(lastMove ? { lastMove } : {}),
+      serverNow: now,
+    })
+  }
+
+  private guiLoiGame(ws: WebSocket, message: string): void {
+    try {
+      ws.send(JSON.stringify({ type: 'error', message } satisfies GoiGame))
+    } catch {}
+  }
+
+  /** Tối đa EMOTE_BURST_MAX biểu cảm trong mỗi cửa sổ EMOTE_COOLDOWN_MS cho mỗi người. */
+  private choPhepBieuCam(actorKey: string, now: number): boolean {
+    const nhip = this.nhipBieuCam.get(actorKey)
+    if (!nhip || now - nhip.luc >= EMOTE_COOLDOWN_MS) {
+      this.nhipBieuCam.set(actorKey, { luc: now, soLan: 1 })
+      return true
+    }
+    if (nhip.soLan >= EMOTE_BURST_MAX) return false
+    nhip.soLan += 1
+    return true
+  }
+
+  // Trọng tài bàn đối kháng 1v1: mọi luật, lượt, đồng hồ và kết quả đều do máy chủ quyết định.
+  private async xuLyLenhGame(ws: WebSocket, att: AttachmentKetNoi, goi: LenhGame): Promise<void> {
+    const now = Date.now()
+    // Lượt đang chạy đã quá hạn mà alarm chưa kịp tới: chốt thua vì hết giờ trước khi xét lệnh này.
+    const benVuaHetGio = this.xuLyHetGioLuot(now) ? this.gameMeta.currentTurn : null
+
+    switch (goi.type) {
+      case 'game.init': {
+        // Chỉ khởi tạo được bàn còn nguyên (chưa ai ngồi): người xem hay đối thủ không thể xoá ván của người khác.
+        if (this.gameMeta.status !== 'waiting' || this.gameMeta.playerX || this.gameMeta.playerO) {
+          this.guiLoiGame(ws, 'Bàn này đã có người chơi, không thể tạo lại.')
+          return
+        }
+        this.gameMeta = {
+          ...DEFAULT_GAME_META,
+          gameType: goi.gameType,
+          playerX: att.key,
+          playerXName: att.ten,
+          turnTimerSeconds: goi.turnSeconds ?? DEFAULT_GAME_META.turnTimerSeconds,
+        }
+        this.gameBoard = taoBanMoi(goi.gameType)
+        if (goi.gameType === 'reversi') Object.assign(this.gameMeta, demQuanReversi(this.gameBoard))
+        this.luuGameState()
+        this.baoLobby()
+        this.phatTrangThaiGame(now)
+        return
+      }
+
+      case 'game.join': {
+        if (this.gheCua(att.key)) {
+          // Đã ngồi sẵn (mở thêm tab, vào lại sau khi rớt mạng): chỉ gửi lại trạng thái cho chính người này.
+          ws.send(JSON.stringify({ type: 'game.sync', meta: this.gameMeta, board: this.gameBoard, serverNow: now } satisfies GoiGame))
+          return
+        }
+        if (this.gameMeta.status !== 'waiting') {
+          this.guiLoiGame(ws, 'Bàn đang có trận đấu — bạn đang xem.')
+          return
+        }
+        // Ghế của người đã rời bàn (không còn kết nối nào) coi như trống: không ghép người mới với một người
+        // vắng mặt để rồi người đó bị xử thua vì hết giờ.
+        if (this.gameMeta.playerX && !this.hasConnectedActor(this.gameMeta.playerX)) {
+          this.gameMeta = { ...this.gameMeta, playerX: null, playerXName: null }
+        }
+        if (this.gameMeta.playerO && !this.hasConnectedActor(this.gameMeta.playerO)) {
+          this.gameMeta = { ...this.gameMeta, playerO: null, playerOName: null }
+        }
+        // Ghế X (chủ bàn, tên hiện trên sảnh) luôn được lấp trước.
+        if (!this.gameMeta.playerX) {
+          this.gameMeta = { ...this.gameMeta, playerX: att.key, playerXName: att.ten }
+        } else if (!this.gameMeta.playerO) {
+          this.gameMeta = { ...this.gameMeta, playerO: att.key, playerOName: att.ten }
+        } else {
+          this.guiLoiGame(ws, 'Bàn đã đủ hai người chơi.')
+          return
+        }
+
+        if (this.gameMeta.playerX && this.gameMeta.playerO) {
+          const van = batDauVan(this.gameMeta, now)
+          this.gameMeta = van.meta
+          this.gameBoard = van.board
+          if (this.env?.ANALYTICS_DB) {
+            recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
+              event: 'game.session_started',
+              actorId: att.accountId || null,
+              sessionId: att.phienId || null,
+              roomId: this.parseNumericRoomId(),
+              properties: {
+                gameType: this.gameMeta.gameType,
+              },
+            })
+          }
+        }
+        this.luuGameState()
+        this.baoLobby()
+        this.phatTrangThaiGame(now)
+        await this.reconcileRoomAlarm()
+        return
+      }
+
+      case 'game.move': {
+        if (this.gameMeta.status !== 'playing') {
+          this.guiLoiGame(
+            ws,
+            benVuaHetGio && this.gheCua(att.key) === benVuaHetGio
+              ? 'Bạn đã hết giờ cho lượt này.'
+              : 'Ván đấu chưa bắt đầu hoặc đã kết thúc.',
+          )
+          return
+        }
+        const side = this.gheCua(att.key)
+        if (!side || side !== this.gameMeta.currentTurn) {
+          this.guiLoiGame(ws, 'Chưa tới lượt của bạn.')
+          return
+        }
+
+        const { x } = goi
+        let { y } = goi
+        const H = this.gameBoard.length
+        const W = this.gameBoard[0].length
+        const hanLuotMoi = now + this.gameMeta.turnTimerSeconds * 1000
+
+        if (this.gameMeta.gameType === 'caro_15' || this.gameMeta.gameType === 'caro_9') {
+          if (x >= W || y >= H || this.gameBoard[y][x] !== null) {
+            this.guiLoiGame(ws, 'Nước đi không hợp lệ.')
+            return
+          }
+          this.gameBoard[y][x] = side
+          const winLine = kiemTraThangCaro(this.gameBoard, x, y, side)
+          if (winLine) {
+            this.gameMeta = ketThucVan({ ...this.gameMeta, winLine }, side, 'normal')
+          } else if (this.gameBoard.every((row) => row.every((c) => c !== null))) {
+            this.gameMeta = ketThucVan(this.gameMeta, 'draw', 'normal')
+          } else {
+            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+          }
+        } else if (this.gameMeta.gameType === 'connect4') {
+          if (x >= W) {
+            this.guiLoiGame(ws, 'Cột không hợp lệ.')
+            return
+          }
+          let dropY = -1
+          for (let r = H - 1; r >= 0; r--) {
+            if (this.gameBoard[r][x] === null) {
+              dropY = r
+              break
+            }
+          }
+          if (dropY === -1) {
+            this.guiLoiGame(ws, 'Cột này đã đầy.')
+            return
+          }
+          y = dropY
+          this.gameBoard[y][x] = side
+          const winLine = kiemTraThangConnect4(this.gameBoard, x, y, side)
+          if (winLine) {
+            this.gameMeta = ketThucVan({ ...this.gameMeta, winLine }, side, 'normal')
+          } else if (this.gameBoard.every((row) => row.every((c) => c !== null))) {
+            this.gameMeta = ketThucVan(this.gameMeta, 'draw', 'normal')
+          } else {
+            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+          }
+        } else if (this.gameMeta.gameType === 'reversi') {
+          if (x >= W || y >= H) {
+            this.guiLoiGame(ws, 'Nước đi Reversi không hợp lệ.')
+            return
+          }
+          const { hopLe, flipped } = kiemTraVaLatReversi(this.gameBoard, x, y, side)
+          if (!hopLe) {
+            this.guiLoiGame(ws, 'Nước đi Reversi không hợp lệ.')
+            return
+          }
+          this.gameBoard[y][x] = side
+          for (const [fx, fy] of flipped) {
+            this.gameBoard[fy][fx] = side
+          }
+          this.gameMeta = { ...this.gameMeta, ...demQuanReversi(this.gameBoard) }
+
+          if (coNuocDiHopLeReversi(this.gameBoard, benKia(side))) {
+            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+          } else if (coNuocDiHopLeReversi(this.gameBoard, side)) {
+            // Đối thủ không còn nước đi hợp lệ: mất lượt, bên vừa đi đi tiếp.
+            this.gameMeta = { ...this.gameMeta, currentTurn: side, turnTimerEndsAt: hanLuotMoi }
+          } else {
+            const { scoreX, scoreO } = this.gameMeta
+            this.gameMeta = ketThucVan(this.gameMeta, scoreX > scoreO ? 'X' : scoreO > scoreX ? 'O' : 'draw', 'normal')
+          }
+        } else {
+          this.guiLoiGame(ws, 'Trò chơi này không có bàn đối kháng.')
+          return
+        }
+
+        this.luuGameState()
+        // Sảnh chỉ nhận thay đổi vòng đời bàn, không nhận từng nước đi.
+        if (this.gameMeta.status === 'ended') this.baoLobby()
+        this.phatTrangThaiGame(now, { player: side, x, y })
+        await this.reconcileRoomAlarm()
+        return
+      }
+
+      case 'game.surrender': {
+        const side = this.gheCua(att.key)
+        if (this.gameMeta.status !== 'playing' || !side) return
+        this.gameMeta = ketThucVan(this.gameMeta, benKia(side), 'surrender')
+        this.luuGameState()
+        this.baoLobby()
+        this.phatTrangThaiGame(now)
+        await this.reconcileRoomAlarm()
+        return
+      }
+
+      case 'game.rematch': {
+        const side = this.gheCua(att.key)
+        if (!side) {
+          this.guiLoiGame(ws, 'Chỉ hai người chơi của bàn mới đấu lại được.')
+          return
+        }
+        if (this.gameMeta.status !== 'ended') {
+          this.guiLoiGame(ws, 'Ván này chưa kết thúc.')
+          return
+        }
+        if (this.gameMeta.rematchBy === side) return // Đã mời, đang chờ đối thủ đồng ý.
+        if (this.gameMeta.rematchBy === benKia(side)) {
+          // Cả hai cùng muốn đấu lại: ván mới, đổi bên đi trước.
+          const van = batDauVan({ ...this.gameMeta, firstTurn: benKia(this.gameMeta.firstTurn) }, now)
+          this.gameMeta = van.meta
+          this.gameBoard = van.board
+          this.baoLobby()
+        } else {
+          this.gameMeta = { ...this.gameMeta, rematchBy: side }
+        }
+        this.luuGameState()
+        this.phatTrangThaiGame(now)
+        await this.reconcileRoomAlarm()
+        return
+      }
+
+      case 'game.emote': {
+        if (!this.choPhepBieuCam(att.key, now)) {
+          this.guiLoiGame(ws, 'Bạn gửi biểu cảm hơi nhanh, chờ một chút nhé.')
+          return
+        }
+        this.broadcastGame({ type: 'game.emote', sender: att.ten, emote: goi.emote })
+        return
+      }
+
+      default:
+        return
     }
   }
 
@@ -1592,6 +1902,9 @@ export class RoomDO extends DurableObject<Env> {
       this.isGameRoom = true
       if (!this.gameRoomId) {
         this.gameRoomId = new URL(request.url).pathname.match(/^\/ws\/game\/([^/]+)$/)?.[1] ?? null
+        // Bộ nhớ của DO mất khi ngủ đông: lưu mã bàn (và tên phòng để báo CampusDO khi rời) để còn dùng sau đó.
+        if (this.gameRoomId) this.luuMeta('game_room_id', this.gameRoomId)
+        if (this.roomName) this.luuMeta('room_name', this.roomName)
       }
     }
 
@@ -1614,16 +1927,20 @@ export class RoomDO extends DurableObject<Env> {
     server.serializeAttachment(attObj)
 
     if (laGame) {
+      // Lượt đang chạy đã quá hạn mà alarm chưa kịp tới: chốt kết quả trước để người mới vào thấy đúng sự thật.
+      this.xuLyHetGioLuot(Date.now())
       const snapshot: GoiGame = {
         type: 'game.snapshot',
         meta: this.gameMeta,
         board: this.gameBoard,
-        spectators: this.layDanhSachThanhVien().length,
+        spectators: this.demNguoiXemGame(),
         serverNow: Date.now(),
       }
       try {
         server.send(JSON.stringify(snapshot))
       } catch {}
+      // Cập nhật số người xem của bàn trên sảnh.
+      if (this.gameMeta.playerX || this.gameMeta.playerO) this.baoLobby()
     } else {
       // Đảm bảo Pomodoro và Session Timer được cập nhật trạng thái mới nhất nếu đã hết giờ trước khi gửi snapshot
       this.kiemTraVaCapNhatPomodoro(Date.now())
@@ -1725,6 +2042,10 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // DO có thể vừa thức dậy từ ngủ đông (WebSocket Hibernation): bộ nhớ trống trơn, phải nạp lại trạng thái
+    // từ SQLite trước khi xử lý — nếu không, lệnh chạy trên trạng thái mặc định (ván cờ "chưa bắt đầu",
+    // video/ghi chú rỗng…) và có thể ghi đè dữ liệu thật.
+    this.nạpDuLieuNeuCan()
     if (typeof message !== 'string' || message.length > 65536) return
     let raw: { type?: string; [k: string]: unknown }
     try {
@@ -1795,271 +2116,7 @@ export class RoomDO extends DurableObject<Env> {
         ws.send(JSON.stringify({ type: 'error', message: 'Lệnh game không hợp lệ.' }))
         return
       }
-      const goi = parseRes.data
-      const now = Date.now()
-
-      switch (goi.type) {
-        case 'game.init': {
-          const gameType = goi.gameType
-          const turnSeconds = goi.turnSeconds ?? 30
-          this.gameMeta = {
-            gameType,
-            playerX: att.key,
-            playerXName: att.ten,
-            playerO: null,
-            playerOName: null,
-            currentTurn: 'X',
-            status: 'waiting',
-            winner: null,
-            winLine: null,
-            turnTimerSeconds: turnSeconds,
-            turnTimerEndsAt: 0,
-            scoreX: 0,
-            scoreO: 0,
-          }
-          this.gameBoard = taoBanMoi(gameType)
-          this.luuGameState()
-          this.baoLobby()
-          this.broadcastGame({
-            type: 'game.sync',
-            meta: this.gameMeta,
-            board: this.gameBoard,
-            serverNow: now,
-          })
-          break
-        }
-
-        case 'game.join': {
-          const desiredSide = goi.side
-          if (this.gameMeta.playerX === att.key || this.gameMeta.playerO === att.key) {
-            this.broadcastGame({
-              type: 'game.sync',
-              meta: this.gameMeta,
-              board: this.gameBoard,
-              serverNow: now,
-            })
-            break
-          }
-          if (desiredSide === 'X' && !this.gameMeta.playerX) {
-            this.gameMeta.playerX = att.key
-            this.gameMeta.playerXName = att.ten
-          } else if (desiredSide === 'O' && !this.gameMeta.playerO) {
-            this.gameMeta.playerO = att.key
-            this.gameMeta.playerOName = att.ten
-          } else if (!this.gameMeta.playerX) {
-            this.gameMeta.playerX = att.key
-            this.gameMeta.playerXName = att.ten
-          } else if (!this.gameMeta.playerO) {
-            this.gameMeta.playerO = att.key
-            this.gameMeta.playerOName = att.ten
-          }
-
-          if (this.gameMeta.playerX && this.gameMeta.playerO && this.gameMeta.status === 'waiting') {
-            this.gameMeta.status = 'playing'
-            this.gameMeta.currentTurn = 'X'
-            this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-            if (this.env?.ANALYTICS_DB) {
-              recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
-                event: 'game.session_started',
-                actorId: att.accountId || null,
-                sessionId: att.phienId || null,
-                roomId: this.parseNumericRoomId(),
-                properties: {
-                  gameType: this.gameMeta.gameType,
-                },
-              })
-            }
-          }
-
-          this.luuGameState()
-          this.baoLobby()
-          this.broadcastGame({
-            type: 'game.sync',
-            meta: this.gameMeta,
-            board: this.gameBoard,
-            serverNow: now,
-          })
-          break
-        }
-
-        case 'game.move': {
-          if (this.gameMeta.status !== 'playing') {
-            ws.send(JSON.stringify({ type: 'error', message: 'Ván đấu chưa bắt đầu hoặc đã kết thúc.' }))
-            return
-          }
-          const side: PlayerSide | null =
-            att.key === this.gameMeta.playerX ? 'X' : (att.key === this.gameMeta.playerO ? 'O' : null)
-          if (!side || side !== this.gameMeta.currentTurn) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chưa tới lượt của bạn.' }))
-            return
-          }
-
-          const { x } = goi
-          let { y } = goi
-
-          if (this.gameMeta.gameType === 'caro_15' || this.gameMeta.gameType === 'caro_9') {
-            const H = this.gameBoard.length
-            const W = this.gameBoard[0].length
-            if (x < 0 || x >= W || y < 0 || y >= H || this.gameBoard[y][x] !== null) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Nước đi không hợp lệ.' }))
-              return
-            }
-            this.gameBoard[y][x] = side
-            const winLine = kiemTraThangCaro(this.gameBoard, x, y, side)
-            if (winLine) {
-              this.gameMeta.status = 'ended'
-              this.gameMeta.winner = side
-              this.gameMeta.winLine = winLine
-              if (side === 'X') this.gameMeta.scoreX++
-              else this.gameMeta.scoreO++
-            } else {
-              const hetO = this.gameBoard.every((row) => row.every((c) => c !== null))
-              if (hetO) {
-                this.gameMeta.status = 'ended'
-                this.gameMeta.winner = 'draw'
-              } else {
-                this.gameMeta.currentTurn = side === 'X' ? 'O' : 'X'
-                this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-              }
-            }
-          } else if (this.gameMeta.gameType === 'connect4') {
-            const H = this.gameBoard.length
-            const W = this.gameBoard[0].length
-            if (x < 0 || x >= W) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Cột không hợp lệ.' }))
-              return
-            }
-            let dropY = -1
-            for (let r = H - 1; r >= 0; r--) {
-              if (this.gameBoard[r][x] === null) {
-                dropY = r
-                break
-              }
-            }
-            if (dropY === -1) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Cột này đã đầy.' }))
-              return
-            }
-            y = dropY
-            this.gameBoard[y][x] = side
-            const winLine = kiemTraThangConnect4(this.gameBoard, x, y, side)
-            if (winLine) {
-              this.gameMeta.status = 'ended'
-              this.gameMeta.winner = side
-              this.gameMeta.winLine = winLine
-              if (side === 'X') this.gameMeta.scoreX++
-              else this.gameMeta.scoreO++
-            } else {
-              const hetO = this.gameBoard.every((row) => row.every((c) => c !== null))
-              if (hetO) {
-                this.gameMeta.status = 'ended'
-                this.gameMeta.winner = 'draw'
-              } else {
-                this.gameMeta.currentTurn = side === 'X' ? 'O' : 'X'
-                this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-              }
-            }
-          } else if (this.gameMeta.gameType === 'reversi') {
-            const { hopLe, flipped } = kiemTraVaLatReversi(this.gameBoard, x, y, side)
-            if (!hopLe) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Nước đi Reversi không hợp lệ.' }))
-              return
-            }
-            this.gameBoard[y][x] = side
-            for (const [fx, fy] of flipped) {
-              this.gameBoard[fy][fx] = side
-            }
-            const { scoreX, scoreO } = demQuanReversi(this.gameBoard)
-            this.gameMeta.scoreX = scoreX
-            this.gameMeta.scoreO = scoreO
-
-            const opponent: PlayerSide = side === 'X' ? 'O' : 'X'
-            const opponentHasMoves = coNuocDiHopLeReversi(this.gameBoard, opponent)
-            const currentHasMoves = coNuocDiHopLeReversi(this.gameBoard, side)
-
-            if (opponentHasMoves) {
-              this.gameMeta.currentTurn = opponent
-              this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-            } else if (currentHasMoves) {
-              this.gameMeta.currentTurn = side
-              this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-            } else {
-              this.gameMeta.status = 'ended'
-              if (scoreX > scoreO) this.gameMeta.winner = 'X'
-              else if (scoreO > scoreX) this.gameMeta.winner = 'O'
-              else this.gameMeta.winner = 'draw'
-            }
-          }
-
-          this.luuGameState()
-          this.baoLobby()
-          this.broadcastGame({
-            type: 'game.sync',
-            meta: this.gameMeta,
-            board: this.gameBoard,
-            lastMove: { player: side, x, y },
-            serverNow: now,
-          })
-          break
-        }
-
-        case 'game.surrender': {
-          if (this.gameMeta.status !== 'playing') return
-          const side: PlayerSide | null =
-            att.key === this.gameMeta.playerX ? 'X' : (att.key === this.gameMeta.playerO ? 'O' : null)
-          if (!side) return
-          const winner: PlayerSide = side === 'X' ? 'O' : 'X'
-          this.gameMeta.status = 'ended'
-          this.gameMeta.winner = winner
-          if (winner === 'X') this.gameMeta.scoreX++
-          else this.gameMeta.scoreO++
-          this.luuGameState()
-          this.baoLobby()
-          this.broadcastGame({
-            type: 'game.sync',
-            meta: this.gameMeta,
-            board: this.gameBoard,
-            serverNow: now,
-          })
-          break
-        }
-
-        case 'game.rematch': {
-          this.gameBoard = taoBanMoi(this.gameMeta.gameType)
-          this.gameMeta.winner = null
-          this.gameMeta.winLine = null
-          if (this.gameMeta.gameType === 'reversi') {
-            const { scoreX, scoreO } = demQuanReversi(this.gameBoard)
-            this.gameMeta.scoreX = scoreX
-            this.gameMeta.scoreO = scoreO
-          }
-          if (this.gameMeta.playerX && this.gameMeta.playerO) {
-            this.gameMeta.status = 'playing'
-            this.gameMeta.currentTurn = 'X'
-            this.gameMeta.turnTimerEndsAt = now + this.gameMeta.turnTimerSeconds * 1000
-          } else {
-            this.gameMeta.status = 'waiting'
-          }
-          this.luuGameState()
-          this.baoLobby()
-          this.broadcastGame({
-            type: 'game.sync',
-            meta: this.gameMeta,
-            board: this.gameBoard,
-            serverNow: now,
-          })
-          break
-        }
-
-        case 'game.emote': {
-          this.broadcastGame({
-            type: 'game.emote',
-            sender: att.ten,
-            emote: goi.emote,
-          })
-          break
-        }
-      }
+      await this.xuLyLenhGame(ws, att, parseRes.data)
       return
     }
 
@@ -2594,6 +2651,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    this.nạpDuLieuNeuCan()
     try {
       ws.close(code, reason)
     } catch {}
@@ -2661,6 +2719,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
@@ -3674,7 +3733,7 @@ export class RoomDO extends DurableObject<Env> {
 
   // Báo GameLobbyDO bàn đang chờ/đang chơi (upsert) hoặc đã kết thúc (gỡ khỏi sảnh) — không chờ kết quả,
   // lỗi báo cáo không được phép làm hỏng phản hồi nước đi thật cho người chơi.
-  private baoLobby(): void {
+  private baoLobby(boQua?: WebSocket): void {
     if (!this.isGameRoom || !this.gameRoomId) return
     const ban: BanSanh = {
       id: this.gameRoomId,
@@ -3682,7 +3741,7 @@ export class RoomDO extends DurableObject<Env> {
       tenChu: this.gameMeta.playerXName,
       tenKhach: this.gameMeta.playerOName,
       trangThai: this.gameMeta.status,
-      soNguoiXem: this.layDanhSachThanhVien().length,
+      soNguoiXem: this.demNguoiXemGame(boQua),
       turnTimerSeconds: this.gameMeta.turnTimerSeconds,
       capNhatLuc: Date.now(),
     }
@@ -3692,9 +3751,13 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — gỡ khỏi sảnh dù ván chưa kết thúc.
+  // Còn người ở lại thì chỉ cập nhật số người xem của bàn trên sảnh.
   private baoRoiLobbyNeuTrong(vuaRoi: WebSocket): void {
     if (!this.isGameRoom || !this.gameRoomId) return
-    if (this.layDanhSachThanhVien(vuaRoi).length > 0) return
+    if (this.layDanhSachThanhVien(vuaRoi).length > 0) {
+      if (this.gameMeta.playerX || this.gameMeta.playerO) this.baoLobby(vuaRoi)
+      return
+    }
     const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
     this.ctx.waitUntil(
       lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),

@@ -1,4 +1,52 @@
-import type { BoardCell, GameType, PlayerSide } from '../shared/protocol/game'
+import type { BoardCell, GameMetaState, GameType, LyDoKetThucVan, PlayerSide } from '../shared/protocol/game'
+
+/** Ân hạn sau hạn chót của lượt, bù độ trễ mạng trước khi máy chủ xử thua vì hết giờ. */
+export const GIA_HAN_HET_GIO_MS = 1000
+
+export const benKia = (side: PlayerSide): PlayerSide => (side === 'X' ? 'O' : 'X')
+
+/** Bên tới lượt đã quá hạn chót (tính cả ân hạn) theo đồng hồ máy chủ. */
+export function daHetGioLuot(meta: Pick<GameMetaState, 'status' | 'turnTimerEndsAt'>, now: number): boolean {
+  return meta.status === 'playing' && meta.turnTimerEndsAt > 0 && now >= meta.turnTimerEndsAt + GIA_HAN_HET_GIO_MS
+}
+
+/**
+ * Chốt kết quả ván. Caro/Connect 4 cộng một ván thắng cho bên thắng; Reversi giữ nguyên điểm vì điểm Reversi
+ * là số quân trên bàn (đầu hàng hay hết giờ không làm mọc thêm quân).
+ */
+export function ketThucVan(meta: GameMetaState, winner: PlayerSide | 'draw', lyDo: LyDoKetThucVan): GameMetaState {
+  const ketQua: GameMetaState = {
+    ...meta,
+    status: 'ended',
+    winner,
+    winLine: lyDo === 'normal' ? meta.winLine : null,
+    endReason: lyDo,
+    rematchBy: null,
+    turnTimerEndsAt: 0,
+  }
+  if (meta.gameType !== 'reversi' && winner !== 'draw') {
+    if (winner === 'X') ketQua.scoreX += 1
+    else ketQua.scoreO += 1
+  }
+  return ketQua
+}
+
+/** Ván mới khi bàn đã đủ hai người: bàn cờ trống, bên `firstTurn` đi trước và bắt đầu đếm giờ lượt. */
+export function batDauVan(meta: GameMetaState, now: number): { meta: GameMetaState; board: BoardCell[][] } {
+  const board = taoBanMoi(meta.gameType)
+  const moi: GameMetaState = {
+    ...meta,
+    status: 'playing',
+    currentTurn: meta.firstTurn,
+    winner: null,
+    winLine: null,
+    endReason: null,
+    rematchBy: null,
+    turnTimerEndsAt: now + meta.turnTimerSeconds * 1000,
+  }
+  if (meta.gameType === 'reversi') Object.assign(moi, demQuanReversi(board))
+  return { meta: moi, board }
+}
 
 export function taoBanMoi(gameType: GameType): BoardCell[][] {
   let r = 15
@@ -159,6 +207,17 @@ export function kiemTraVaLatReversi(
     hopLe: allFlipped.length > 0,
     flipped: allFlipped,
   }
+}
+
+/** Mọi ô `player` được đặt quân (lật được ít nhất một quân đối phương), dạng [x, y]. */
+export function cacNuocDiHopLeReversi(board: BoardCell[][], player: PlayerSide): [number, number][] {
+  const ketQua: [number, number][] = []
+  for (let y = 0; y < board.length; y++) {
+    for (let x = 0; x < board[y].length; x++) {
+      if (board[y][x] === null && kiemTraVaLatReversi(board, x, y, player).hopLe) ketQua.push([x, y])
+    }
+  }
+  return ketQua
 }
 
 export function coNuocDiHopLeReversi(board: BoardCell[][], player: PlayerSide): boolean {

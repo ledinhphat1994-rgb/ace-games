@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { BoardCell, GameMetaState, GameType, GoiGame, LenhGame, PlayerSide } from '@shared/protocol/game'
+import type { BieuCam, BoardCell, GameMetaState, GameType, GoiGame, LenhGame, PlayerSide } from '@shared/protocol/game'
+import type { ThanhVienPhong } from '@shared/protocol/room'
+import { EMOTE_BURST_MAX, EMOTE_COOLDOWN_MS } from '@shared/protocol/game-sdk'
 import { MA_DONG_SOCKET } from '@shared/protocol/common'
 import { taoBanMoi } from '../../worker/game-engine'
 import { toast } from 'sonner'
@@ -9,6 +11,8 @@ export type TrangThaiKetNoiGame = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' 
 
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
+/** Khoảng nghỉ giữa hai biểu cảm, khớp giới hạn của máy chủ (EMOTE_BURST_MAX lần mỗi EMOTE_COOLDOWN_MS). */
+export const NGHI_GIUA_BIEU_CAM_MS = EMOTE_COOLDOWN_MS / EMOTE_BURST_MAX
 
 const DEFAULT_META: GameMetaState = {
   gameType: 'caro_15',
@@ -24,6 +28,9 @@ const DEFAULT_META: GameMetaState = {
   turnTimerEndsAt: 0,
   scoreX: 0,
   scoreO: 0,
+  endReason: null,
+  rematchBy: null,
+  firstTurn: 'X',
 }
 
 export function useGame(
@@ -35,7 +42,8 @@ export function useGame(
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiGame>('dang_ket_noi')
   const [meta, setMeta] = useState<GameMetaState>(DEFAULT_META)
   const [board, setBoard] = useState<BoardCell[][]>(() => taoBanMoi('caro_15'))
-  const [spectators, setSpectators] = useState<number>(0)
+  // Ai đang ở bàn (RoomDO phát `presence` mỗi khi có người vào/rời); null khi chưa nhận lần nào.
+  const [thanhVien, setThanhVien] = useState<ThanhVienPhong[] | null>(null)
   const [lastMove, setLastMove] = useState<{ player: PlayerSide; x: number; y: number } | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [incomingEmote, setIncomingEmote] = useState<{ sender: string; emote: string; id: number } | null>(null)
@@ -43,6 +51,8 @@ export function useGame(
 
   const wsRef = useRef<WebSocket | null>(null)
   const lucGuiPingRef = useRef<number | null>(null)
+  // Đồng hồ máy chủ − đồng hồ máy này: hạn chót lượt là giờ máy chủ, máy học sinh có thể lệch vài chục giây.
+  const lechDongHoRef = useRef<number>(0)
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const daHuyRef = useRef<boolean>(false)
@@ -59,18 +69,33 @@ export function useGame(
     return mySide !== null && meta.status === 'playing' && meta.currentTurn === mySide
   }, [mySide, meta.status, meta.currentTurn])
 
-  // Countdown timer cho lượt đi
+  /** Người ngồi ghế này có đang ở bàn không (chưa có dữ liệu hiện diện thì coi như có). */
+  const coMat = useCallback(
+    (side: PlayerSide) => {
+      const key = side === 'X' ? meta.playerX : meta.playerO
+      if (!key) return false
+      return thanhVien ? thanhVien.some((m) => m.key === key) : true
+    },
+    [meta.playerX, meta.playerO, thanhVien],
+  )
+
+  const spectators = useMemo(
+    () => (thanhVien ?? []).filter((m) => m.key !== meta.playerX && m.key !== meta.playerO).length,
+    [thanhVien, meta.playerX, meta.playerO],
+  )
+
+  // Đếm ngược lượt đi theo đồng hồ máy chủ.
   useEffect(() => {
     if (meta.status !== 'playing' || meta.turnTimerEndsAt <= 0) {
       return
     }
 
     const capNhat = () => {
-      const conLai = Math.max(0, Math.ceil((meta.turnTimerEndsAt - Date.now()) / 1000))
-      setTurnTimeRemaining(conLai)
+      const bayGioMayChu = Date.now() + lechDongHoRef.current
+      setTurnTimeRemaining(Math.max(0, Math.ceil((meta.turnTimerEndsAt - bayGioMayChu) / 1000)))
     }
     capNhat()
-    const timer = setInterval(capNhat, 500)
+    const timer = setInterval(capNhat, 250)
     return () => clearInterval(timer)
   }, [meta.status, meta.turnTimerEndsAt])
 
@@ -106,9 +131,10 @@ export function useGame(
 
       switch (goi.type) {
         case 'game.snapshot': {
+          lechDongHoRef.current = goi.serverNow - Date.now()
           setMeta(goi.meta)
           setBoard(goi.board)
-          setSpectators(goi.spectators)
+          setLastMove(null)
           // Bàn vừa tạo, chưa ai nhận X/O: người tạo gửi init để ngồi ghế X, áp trò chơi/thời gian lượt đã chọn ở
           // sảnh và đăng bàn lên sảnh (người vào bàn có sẵn không kèm intendedGameType nên không đụng tới).
           if (intendedGameType && nenKhoiTaoBan(goi.meta, intendedGameType)) {
@@ -123,11 +149,16 @@ export function useGame(
           break
         }
         case 'game.sync': {
+          lechDongHoRef.current = goi.serverNow - Date.now()
           setMeta(goi.meta)
           setBoard(goi.board)
-          if (goi.lastMove) {
-            setLastMove(goi.lastMove)
-          }
+          // Giữ dấu nước cuối trên bàn đã kết thúc (đầu hàng, hết giờ, mời đấu lại); bàn mới thì xoá dấu cũ.
+          if (goi.lastMove) setLastMove(goi.lastMove)
+          else if (goi.meta.status !== 'ended') setLastMove(null)
+          break
+        }
+        case 'presence': {
+          setThanhVien(goi.members)
           break
         }
         case 'game.emote': {
@@ -139,6 +170,7 @@ export function useGame(
           break
         }
         case 'pong': {
+          lechDongHoRef.current = goi.serverNow - Date.now()
           if (lucGuiPingRef.current != null) {
             setLatencyMs(Math.max(0, Date.now() - lucGuiPingRef.current))
             lucGuiPingRef.current = null
@@ -218,13 +250,6 @@ export function useGame(
     }
   }, [])
 
-  const initGame = useCallback(
-    (gameType: GameType, turnSeconds = 30) => {
-      gui({ type: 'game.init', gameType, turnSeconds })
-    },
-    [gui],
-  )
-
   const joinGame = useCallback(
     (side?: 'X' | 'O') => {
       gui({ type: 'game.join', side })
@@ -243,12 +268,13 @@ export function useGame(
     gui({ type: 'game.surrender' })
   }, [gui])
 
+  /** Mời đấu lại, hoặc đồng ý khi đối thủ đã mời — máy chủ chỉ mở ván mới khi cả hai cùng muốn. */
   const rematch = useCallback(() => {
     gui({ type: 'game.rematch' })
   }, [gui])
 
   const sendEmote = useCallback(
-    (emote: string) => {
+    (emote: BieuCam) => {
       gui({ type: 'game.emote', emote })
     },
     [gui],
@@ -259,13 +285,13 @@ export function useGame(
     meta,
     board,
     spectators,
+    coMat,
     mySide,
     isMyTurn,
     turnTimeRemaining,
     lastMove,
     latencyMs,
     incomingEmote,
-    initGame,
     joinGame,
     makeMove,
     surrender,
