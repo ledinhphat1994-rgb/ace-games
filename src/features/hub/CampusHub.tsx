@@ -490,9 +490,9 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
       <PasswordRoomDialog
         room={phongCanMatKhau}
         onClose={() => setPhongCanMatKhau(null)}
-        onSuccess={(room) => {
+        onSuccess={(roomId) => {
           setPhongCanMatKhau(null)
-          navigate(`/room/phong-${room.id}`)
+          navigate(`/room/phong-${roomId}`)
         }}
       />
     </div>
