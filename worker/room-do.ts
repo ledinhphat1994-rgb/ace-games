@@ -181,6 +181,7 @@ export class RoomDO extends DurableObject<Env> {
   private testFailD1LifecycleClaim = false
   private testFailD1LifecycleFinalize = false
   // Mã bàn public (đoạn cuối của /ws/game/<maPhong>) — dùng để báo GameLobbyDO, khác với ctx.id nội bộ của DO.
+  // Lưu bền trong room_meta (`game_room_id`) để sau khi DO ngủ đông rồi thức dậy vẫn báo được sảnh.
   private gameRoomId: string | null = null
   private voiceRegistry = new Map<string, VoiceParticipantState>()
 
@@ -514,6 +515,9 @@ export class RoomDO extends DurableObject<Env> {
           this.hostKey = r.value
         } else if (r.key === 'room_name') {
           this.roomName = r.value
+        } else if (r.key === 'game_room_id') {
+          this.gameRoomId = r.value
+          this.isGameRoom = true
         }
       }
 
@@ -1592,6 +1596,9 @@ export class RoomDO extends DurableObject<Env> {
       this.isGameRoom = true
       if (!this.gameRoomId) {
         this.gameRoomId = new URL(request.url).pathname.match(/^\/ws\/game\/([^/]+)$/)?.[1] ?? null
+        // Bộ nhớ của DO mất khi ngủ đông: lưu mã bàn (và tên phòng để báo CampusDO khi rời) để còn dùng sau đó.
+        if (this.gameRoomId) this.luuMeta('game_room_id', this.gameRoomId)
+        if (this.roomName) this.luuMeta('room_name', this.roomName)
       }
     }
 
@@ -1725,6 +1732,10 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // DO có thể vừa thức dậy từ ngủ đông (WebSocket Hibernation): bộ nhớ trống trơn, phải nạp lại trạng thái
+    // từ SQLite trước khi xử lý — nếu không, lệnh chạy trên trạng thái mặc định (ván cờ "chưa bắt đầu",
+    // video/ghi chú rỗng…) và có thể ghi đè dữ liệu thật.
+    this.nạpDuLieuNeuCan()
     if (typeof message !== 'string' || message.length > 65536) return
     let raw: { type?: string; [k: string]: unknown }
     try {
@@ -2594,6 +2605,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    this.nạpDuLieuNeuCan()
     try {
       ws.close(code, reason)
     } catch {}
@@ -2661,6 +2673,7 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
+    this.nạpDuLieuNeuCan()
     const att = ws.deserializeAttachment() as AttachmentKetNoi | null
     if (att) {
       const conLai = this.ctx.getWebSockets().filter((w) => {
