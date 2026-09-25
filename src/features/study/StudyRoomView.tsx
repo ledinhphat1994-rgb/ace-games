@@ -5,12 +5,14 @@ import type { NguoiDung } from '@/lib/api'
 import { SUPPORTED_PLAYBACK_RATES, type SupportedPlaybackRate } from '@shared/protocol/room'
 import {
   AlertCircle,
+  DoorClosed,
   Loader2,
+  Lock,
   Search,
   ShieldAlert,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { toast } from 'sonner'
 import { useCampusContext } from '@/app/CampusContext'
 import { FloatingCalculator } from './FloatingCalculator'
@@ -41,6 +43,61 @@ function trichXuatYoutubeId(linkHoacId: string): string {
   if (khop) return khop[1]
   if (/^[\w-]{11}$/.test(trimmed)) return trimmed
   return ''
+}
+
+/** Lý do đóng phòng máy chủ gửi về (giữ cả tên cũ để phòng cũ vẫn hiển thị đúng). */
+const LY_DO_DONG_PHONG: Record<string, string> = {
+  admin_closed: 'Quản trị viên đã đóng phòng.',
+  owner_closed: 'Chủ phòng đã đóng phòng.',
+  never_joined_timeout: 'Không có ai vào phòng trong thời gian quy định.',
+  empty_timeout: 'Phòng đã trống quá lâu.',
+  empty_room_timeout: 'Phòng đã trống quá lâu.',
+  max_lifetime: 'Phòng đã mở quá thời lượng tối đa.',
+  max_lifetime_exceeded: 'Phòng đã mở quá thời lượng tối đa.',
+}
+
+/** Màn chặn giữa màn hình khi không thể ở lại phòng (đã đóng, bị từ chối, cần nhập lại mật khẩu). */
+function ManChanPhong({
+  icon: Icon,
+  tone,
+  title,
+  text,
+  onLeave,
+}: {
+  icon: ComponentType<{ className?: string }>
+  tone: 'warning' | 'destructive' | 'muted'
+  title: string
+  text: string
+  onLeave: () => void
+}) {
+  return (
+    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[3px]">
+      <div
+        role="alertdialog"
+        aria-labelledby="man-chan-phong-tieu-de"
+        className="w-full max-w-sm rounded-2xl border border-border-default bg-surface p-6 text-center shadow-2xl"
+      >
+        <span
+          className={
+            tone === 'warning'
+              ? 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-warning/12 text-warning'
+              : tone === 'destructive'
+                ? 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-destructive/12 text-destructive'
+                : 'mx-auto flex size-11 items-center justify-center rounded-2xl bg-surface-overlay text-text-secondary'
+          }
+        >
+          <Icon className="size-5" />
+        </span>
+        <h2 id="man-chan-phong-tieu-de" className="mt-4 text-base font-semibold text-text-primary">
+          {title}
+        </h2>
+        <p className="mt-1.5 text-sm leading-relaxed break-words text-text-secondary">{text}</p>
+        <Button className="mt-5 w-full" onClick={onLeave}>
+          Về danh sách phòng
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 // ─── Window z-index manager ───────────────────────────────────────────────────
@@ -629,74 +686,39 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
       {/* ══ Re-admission modal on password admission expiry ══ */}
       {trangThai === 'can_xac_thuc_lai' && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="max-w-md w-full rounded-2xl border border-red-500/30 bg-[#0d1422] p-6 shadow-2xl text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            <h2 className="text-lg font-bold text-white">Phiên vào phòng đã hết hạn.</h2>
-            <p className="text-sm text-slate-400">
-              Mã xác thực vào phòng có mật khẩu của bạn đã hết hạn hoặc không còn hiệu lực. Vui lòng quay lại sảnh để nhập lại mật khẩu.
-            </p>
-            <Button
-              onClick={onLeaveRoom}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-indigo-500/20"
-            >
-              Quay lại sảnh để nhập lại mật khẩu
-            </Button>
-          </div>
-        </div>
+        <ManChanPhong
+          icon={Lock}
+          tone="warning"
+          title="Cần nhập lại mật khẩu phòng"
+          text="Quyền vào phòng có mật khẩu của bạn đã hết hạn. Hãy quay lại danh sách phòng và nhập mật khẩu để vào tiếp."
+          onLeave={onLeaveRoom}
+        />
       )}
 
       {/* ══ Permanent room denial modal (banned / wrong class / room closed) ══ */}
-      {trangThai === 'bi_tu_choi' && (
-        <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className={`max-w-md w-full rounded-2xl border p-6 shadow-2xl text-center space-y-4 ${
-            roomClosedInfo
-              ? 'border-amber-500/30 bg-[#0d1422]'
-              : 'border-orange-500/30 bg-[#0d1422]'
-          }`}>
-            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
-              roomClosedInfo
-                ? 'bg-amber-500/10 text-amber-400'
-                : 'bg-orange-500/10 text-orange-400'
-            }`}>
-              <ShieldAlert className="h-6 w-6" />
-            </div>
-            {roomClosedInfo ? (
-              <>
-                <h2 className="text-lg font-bold text-white">Phòng học đã được đóng</h2>
-                <p className="text-sm text-slate-400">{roomClosedInfo.message}</p>
-                <p className="text-xs text-slate-500">
-                  Lý do: {roomClosedInfo.reason === 'admin_closed' ? 'Quản trị viên đóng phòng'
-                    : roomClosedInfo.reason === 'owner_closed' ? 'Chủ phòng đóng phòng'
-                    : roomClosedInfo.reason === 'never_joined_timeout' ? 'Phòng không có ai tham gia'
-                    : roomClosedInfo.reason === 'empty_room_timeout' ? 'Phòng đã trống quá lâu'
-                    : roomClosedInfo.reason === 'max_lifetime_exceeded' ? 'Phòng quá thời gian hoạt động'
-                    : roomClosedInfo.reason}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-bold text-white">Không thể truy cập phòng học</h2>
-                <p className="text-sm text-slate-400">
-                  {thongBaoLoiPhong || 'Bạn không có quyền truy cập vào phòng học này.'}
-                </p>
-              </>
-            )}
-            <Button
-              onClick={onLeaveRoom}
-              className={`w-full text-white font-semibold py-2.5 rounded-xl shadow-lg ${
-                roomClosedInfo
-                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/20'
-                  : 'bg-orange-600 hover:bg-orange-500 shadow-orange-500/20'
-              }`}
-            >
-              Quay lại Sảnh
-            </Button>
-          </div>
-        </div>
-      )}
+      {trangThai === 'bi_tu_choi' &&
+        (roomClosedInfo ? (
+          <ManChanPhong
+            icon={DoorClosed}
+            tone="muted"
+            title="Phòng học đã đóng"
+            // Thông điệp máy chủ đã nêu lý do; chỉ khi thiếu mới dịch mã lý do (trước đây hiện nguyên mã như "empty_timeout")
+            text={
+              roomClosedInfo.message ||
+              LY_DO_DONG_PHONG[roomClosedInfo.reason] ||
+              'Phòng này không còn hoạt động.'
+            }
+            onLeave={onLeaveRoom}
+          />
+        ) : (
+          <ManChanPhong
+            icon={ShieldAlert}
+            tone="destructive"
+            title="Không vào được phòng học"
+            text={thongBaoLoiPhong || 'Bạn không có quyền vào phòng học này.'}
+            onLeave={onLeaveRoom}
+          />
+        ))}
 
       {/* ══ Slide upload modal ══ */}
       <SlideUploadModal

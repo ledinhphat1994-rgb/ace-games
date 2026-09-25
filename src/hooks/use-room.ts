@@ -423,10 +423,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
           // Teardown voice/media tracks
           voiceClientRef.current?.destroy()
           voiceClientRef.current = null
-          // Surface info to UI
+          // Surface info to UI — màn "Phòng học đã đóng" đã nêu thông điệp, không bắn thêm toast trùng lời
           setRoomClosedInfo({ reason: goi.reason, message: goi.message })
           setTrangThai('bi_tu_choi')
-          toast.info(goi.message || 'Phòng học đã bị đóng.')
           break
         }
 
