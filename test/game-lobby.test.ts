@@ -110,7 +110,7 @@ describe('RoomDO báo GameLobbyDO khi trạng thái bàn đối kháng đổi', 
     khach.dong()
   })
 
-  it('ván kết thúc (đầu hàng) -> gỡ khỏi sảnh; rematch cả 2 còn mặt -> lại "đang chơi"', async () => {
+  it('ván kết thúc (đầu hàng) -> gỡ khỏi sảnh; cả 2 đồng ý đấu lại -> lại "đang chơi"', async () => {
     const maBan = `test-end-${Date.now()}`
     const chu = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu1'))
     await chu.cho('game.snapshot')
@@ -130,6 +130,10 @@ describe('RoomDO báo GameLobbyDO khi trạng thái bàn đối kháng đổi', 
     expect(ds.some((b) => b.id === maBan)).toBe(false)
 
     chu.gui({ type: 'game.rematch' })
+    await khach.cho('game.sync', (g) => g.meta.rematchBy === 'X')
+    // Mới một người mời thì bàn chưa quay lại sảnh.
+    expect((await layLobby().danhSach()).some((b) => b.id === maBan)).toBe(false)
+    khach.gui({ type: 'game.rematch' })
     await khach.cho('game.sync', (g) => g.meta.status === 'playing' && g.meta.winner === null)
 
     ds = await layLobby().danhSach()

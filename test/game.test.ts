@@ -147,11 +147,14 @@ describe('Game Room Real-time WebSocket Flow', () => {
     p2.gui({ type: 'game.surrender' })
     const syncEnded = await p1.cho('game.sync', (g) => g.meta.status === 'ended')
     expect(syncEnded.meta.winner).toBe('X')
+    expect(syncEnded.meta.endReason).toBe('surrender')
     expect(syncEnded.meta.scoreX).toBe(1)
 
-    // Đấu lại (rematch)
+    // Đấu lại: một người mời, người kia đồng ý thì mới vào ván mới
     p1.gui({ type: 'game.rematch' })
-    const syncRematch = await p2.cho('game.sync', (g) => g.meta.status === 'playing')
+    await p2.cho('game.sync', (g) => g.meta.status === 'ended' && g.meta.rematchBy === 'X')
+    p2.gui({ type: 'game.rematch' })
+    const syncRematch = await p1.cho('game.sync', (g) => g.meta.status === 'playing' && g.meta.scoreX === 1)
     expect(syncRematch.meta.winner).toBeNull()
     expect(syncRematch.board[4][4]).toBeNull()
 
