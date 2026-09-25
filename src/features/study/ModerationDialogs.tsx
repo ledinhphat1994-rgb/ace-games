@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -13,8 +14,13 @@ import {
   type ReportCategory,
   type BannedMemberItem,
 } from '@shared/protocol/room'
-import { Ban, Flag, Loader2, ShieldAlert, UserX } from 'lucide-react'
+import { Loader2, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+const NHAN = 'text-xs font-medium text-text-secondary'
+const O_NHAP =
+  'w-full rounded-xl border border-border-default bg-canvas/40 px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-brand/50 focus:outline-none'
 
 const CATEGORY_LABELS: Record<ReportCategory, { label: string; desc: string }> = {
   harassment: { label: 'Quấy rối / Đe dọa', desc: 'Hành vi xúc phạm, đe dọa hoặc bắt nạt' },
@@ -76,36 +82,32 @@ export function KickMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-white/15 bg-[#0d1424]/98 text-slate-200 backdrop-blur-2xl shadow-2xl rounded-2xl p-6 sm:max-w-md">
-        <DialogHeader className="space-y-1.5">
-          <div className="flex items-center gap-2 text-rose-400">
-            <UserX className="h-5 w-5" />
-            <DialogTitle className="text-base font-bold text-white">
-              Mời thành viên ra khỏi phòng
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-slate-400">
-            Thành viên <span className="font-semibold text-white">{target.name}</span> sẽ bị ngắt kết nối ngay lập tức và tạm thời không thể vào lại trong 5 phút.
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mời thành viên ra khỏi phòng</DialogTitle>
+          <DialogDescription>
+            <span className="font-medium break-words text-text-primary">{target.name}</span> sẽ bị ngắt kết nối ngay và
+            không vào lại được trong 5 phút.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3.5 my-2">
+        <div className="space-y-4">
           {/* Quick pick reasons */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-300">
-              Lý do phổ biến
-            </label>
+            <p className={NHAN}>Lý do thường gặp</p>
             <div className="flex flex-wrap gap-1.5">
               {QUICK_KICK_REASONS.map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setReason(r)}
-                  className={`rounded-lg border px-2 py-1 text-[11px] transition-colors text-left ${
+                  aria-pressed={reason === r}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-left text-xs transition-colors',
                     reason === r
-                      ? 'border-rose-500/50 bg-rose-500/20 text-rose-200 font-semibold'
-                      : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                  }`}
+                      ? 'border-destructive/50 bg-destructive/12 text-destructive'
+                      : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                  )}
                 >
                   {r}
                 </button>
@@ -115,56 +117,50 @@ export function KickMemberDialog({
 
           {/* Custom reason input */}
           <div className="space-y-1.5">
-            <label htmlFor="kick-reason-input" className="text-[11px] font-semibold text-slate-300">
-              Chi tiết lý do (tùy chọn)
+            <label htmlFor="kick-reason-input" className={NHAN}>
+              Lý do cụ thể <span className="font-normal text-text-tertiary">(không bắt buộc)</span>
             </label>
             <Input
               id="kick-reason-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Nhập lý do cụ thể..."
+              placeholder="Ví dụ: nói tục trong chat"
               maxLength={200}
-              className="h-9 border-white/15 bg-white/5 text-xs text-white placeholder:text-slate-500 focus-visible:ring-rose-500/40"
+              className="h-10"
             />
           </div>
 
           {/* Ban from room checkbox */}
-          <label className="flex items-start gap-2.5 rounded-xl border border-rose-500/20 bg-rose-500/10 p-2.5 cursor-pointer hover:bg-rose-500/15 transition-colors">
+          <label
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
+              banFromRoom ? 'border-destructive/40 bg-destructive/10' : 'border-border-default hover:bg-surface-overlay/60',
+            )}
+          >
             <input
               type="checkbox"
               checked={banFromRoom}
               onChange={(e) => setBanFromRoom(e.target.checked)}
-              className="mt-0.5 rounded border-white/20 bg-white/5 text-rose-600 focus:ring-rose-500"
+              className="mt-0.5 size-4 shrink-0 accent-destructive"
             />
-            <div className="text-xs">
-              <span className="font-semibold text-rose-300">Đồng thời cấm vào phòng vĩnh viễn</span>
-              <p className="text-[10px] text-rose-300/70 mt-0.5">
-                Thành viên sẽ không thể vào lại phòng này cho đến khi bạn gỡ cấm.
-              </p>
-            </div>
+            <span className="text-sm">
+              <span className="font-medium text-text-primary">Cấm luôn khỏi phòng này</span>
+              <span className="mt-0.5 block text-xs text-text-tertiary">
+                Không vào lại được cho đến khi chủ phòng gỡ cấm.
+              </span>
+            </span>
           </label>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-            className="text-xs text-slate-400 hover:text-white"
-          >
-            Hủy
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Huỷ
           </Button>
-          <Button
-            type="button"
-            onClick={handleKick}
-            disabled={submitting}
-            className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-4 shadow-lg shadow-rose-600/20"
-          >
-            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+          <Button type="button" variant="destructive" onClick={handleKick} disabled={submitting}>
+            {submitting && <Loader2 className="animate-spin" />}
             Xác nhận mời ra
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -219,95 +215,79 @@ export function ReportUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-white/15 bg-[#0d1424]/98 text-slate-200 backdrop-blur-2xl shadow-2xl rounded-2xl p-6 sm:max-w-md">
-        <DialogHeader className="space-y-1.5">
-          <div className="flex items-center gap-2 text-amber-400">
-            <Flag className="h-5 w-5" />
-            <DialogTitle className="text-base font-bold text-white">
-              Báo cáo vi phạm
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-slate-400">
-            Báo cáo thành viên <span className="font-semibold text-white">{target.name}</span> tới ban quản lý nhà trường và giáo viên để xem xét xử lý.
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Báo cáo vi phạm</DialogTitle>
+          <DialogDescription>
+            Báo cáo <span className="font-medium break-words text-text-primary">{target.name}</span> tới thầy cô và ban
+            quản lý trường để xem xét.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3.5 my-2">
+        <div className="space-y-4">
           {/* Content snippet preview if present */}
           {target.contentSnippet && (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 space-y-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Nội dung tin nhắn vi phạm:
-              </span>
-              <p className="text-xs italic text-slate-300 bg-black/20 p-2 rounded-lg break-words">
-                "{target.contentSnippet}"
-              </p>
+            <div className="space-y-1.5">
+              <p className={NHAN}>Nội dung tin nhắn vi phạm:</p>
+              <blockquote className="rounded-xl border-l-2 border-warning/60 bg-surface-raised px-3 py-2 text-sm break-words whitespace-pre-wrap text-text-secondary">
+                {target.contentSnippet}
+              </blockquote>
             </div>
           )}
 
           {/* Category selection */}
           <div className="space-y-1.5">
-            <label htmlFor="report-category-select" className="text-[11px] font-semibold text-slate-300">
+            <label htmlFor="report-category-select" className={NHAN}>
               Loại vi phạm
             </label>
             <select
               id="report-category-select"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-lg border border-white/15 bg-white/5 px-2.5 py-2 text-xs text-white focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className={O_NHAP}
             >
-              {REPORT_CATEGORIES.map((cat) => {
-                const info = CATEGORY_LABELS[cat]
-                return (
-                  <option key={cat} value={cat} className="bg-slate-900 text-white">
-                    {info.label} — {info.desc}
-                  </option>
-                )
-              })}
+              {REPORT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat} className="bg-surface text-text-primary">
+                  {CATEGORY_LABELS[cat].label}
+                </option>
+              ))}
             </select>
+            {/* Mô tả để dưới ô chọn — gộp vào tên lựa chọn thì ô chọn bị cắt chữ */}
+            <p className="text-xs text-text-tertiary">
+              {CATEGORY_LABELS[category as ReportCategory]?.desc}
+            </p>
           </div>
 
           {/* Detailed reason textarea */}
           <div className="space-y-1.5">
-            <label htmlFor="report-reason-input" className="text-[11px] font-semibold text-slate-300">
-              Mô tả vi phạm <span className="text-rose-400">*</span>
+            <label htmlFor="report-reason-input" className={NHAN}>
+              Mô tả điều đã xảy ra
             </label>
             <textarea
               id="report-reason-input"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Vui lòng mô tả chi tiết hành vi vi phạm..."
+              placeholder="Mô tả ngắn gọn hành vi vi phạm"
               rows={3}
               maxLength={500}
-              className="w-full resize-none rounded-xl border border-white/15 bg-white/5 p-2.5 text-xs text-white placeholder:text-slate-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className={cn(O_NHAP, 'resize-none')}
             />
-            <div className="flex justify-between text-[10px] text-slate-500">
-              <span>Tối thiểu 5 ký tự</span>
+            <div className="flex justify-between text-[11px] text-text-tertiary tabular-nums">
+              <span>Ít nhất 5 ký tự</span>
               <span>{reason.length}/500</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-            className="text-xs text-slate-400 hover:text-white"
-          >
-            Hủy
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Huỷ
           </Button>
-          <Button
-            type="button"
-            onClick={handleReport}
-            disabled={submitting || reason.trim().length < 5}
-            className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 shadow-lg shadow-amber-600/20"
-          >
-            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+          <Button type="button" onClick={handleReport} disabled={submitting || reason.trim().length < 5}>
+            {submitting && <Loader2 className="animate-spin" />}
             Gửi báo cáo
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -386,69 +366,48 @@ export function BannedMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-white/15 bg-[#0d1424]/98 text-slate-200 backdrop-blur-2xl shadow-2xl rounded-2xl p-6 sm:max-w-lg">
-        <DialogHeader className="space-y-1.5">
-          <div className="flex items-center gap-2 text-rose-400">
-            <Ban className="h-5 w-5" />
-            <DialogTitle className="text-base font-bold text-white">
-              Danh sách thành viên bị cấm
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-slate-400">
-            Các thành viên dưới đây bị chặn không thể truy cập vào phòng học này.
-          </DialogDescription>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Thành viên bị cấm</DialogTitle>
+          <DialogDescription>Những người dưới đây không vào được phòng này cho đến khi được gỡ cấm.</DialogDescription>
         </DialogHeader>
 
-        <div className="my-3 max-h-72 overflow-y-auto space-y-2 pr-1">
+        <div className="-mx-1 max-h-80 min-h-40 space-y-1 overflow-y-auto overscroll-contain px-1">
           {loading ? (
-            <div className="flex items-center justify-center py-8 text-xs text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Đang tải danh sách...
+            <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-text-tertiary">
+              <Loader2 className="size-4 animate-spin" /> Đang tải danh sách…
             </div>
           ) : bannedList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500 space-y-1">
-              <ShieldAlert className="h-8 w-8 text-slate-600 mb-1" />
-              <p className="text-xs font-semibold text-slate-400">Chưa có thành viên nào bị cấm</p>
-              <p className="text-[11px] text-slate-600">Mọi thành viên đủ điều kiện đều có thể vào phòng bình thường.</p>
+            <div className="flex min-h-40 flex-col items-center justify-center text-center">
+              <ShieldAlert className="size-6 text-text-tertiary" />
+              <p className="mt-2 text-sm font-medium text-text-primary">Chưa ai bị cấm</p>
+              <p className="mt-1 text-xs text-text-tertiary">Mọi thành viên đủ điều kiện đều vào phòng bình thường.</p>
             </div>
           ) : (
             bannedList.map((item) => (
-              <div
-                key={item.accountId}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 hover:bg-white/8 transition-colors"
-              >
-                <div className="min-w-0 flex-1 pr-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-white truncate">
-                      {item.displayName || item.username || `Tài khoản #${item.accountId}`}
-                    </span>
-                    {item.username && (
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        @{item.username}
-                      </span>
-                    )}
-                  </div>
-                  {item.reason && (
-                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                      Lý do: <span className="italic">{item.reason}</span>
-                    </p>
-                  )}
-                  {item.createdAt && (
-                    <p className="text-[9px] text-slate-500 mt-0.5">
-                      Cấm lúc: {new Date(item.createdAt).toLocaleString('vi-VN')}
+              <div key={item.accountId} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-raised/60">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium break-words text-text-primary">
+                    {item.displayName || item.username || `Tài khoản #${item.accountId}`}
+                    {item.username && <span className="ml-1.5 text-xs font-normal text-text-tertiary">@{item.username}</span>}
+                  </p>
+                  {(item.reason || item.createdAt) && (
+                    <p className="mt-0.5 text-xs break-words text-text-tertiary">
+                      {item.reason ? `Lý do: ${item.reason}` : ''}
+                      {item.reason && item.createdAt ? ' · ' : ''}
+                      {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
                     </p>
                   )}
                 </div>
                 <Button
                   type="button"
-                  size="sm"
+                  size="xs"
                   variant="outline"
                   onClick={() => handleUnban(item)}
                   disabled={unbanningId === item.accountId}
-                  className="h-7 border-rose-500/30 text-rose-300 hover:bg-rose-500/20 text-[11px] px-2.5 shrink-0"
+                  className="shrink-0"
                 >
-                  {unbanningId === item.accountId ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : null}
+                  {unbanningId === item.accountId && <Loader2 className="animate-spin" />}
                   Gỡ cấm
                 </Button>
               </div>
@@ -456,16 +415,11 @@ export function BannedMembersDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-end pt-2 border-t border-white/10">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="text-xs text-slate-400 hover:text-white"
-          >
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Đóng
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
