@@ -12,6 +12,26 @@ interface AppShellProps {
   children?: React.ReactNode
 }
 
+// Mã tin trò chuyện mới nhất đã xem, lưu theo tài khoản trên thiết bị này — chỉ để bật/tắt chấm "có tin mới".
+const khoaTinDaXem = (accountId: number) => `c10a7:chat-da-xem:${accountId}`
+
+function docTinDaXem(accountId: number): number | null {
+  try {
+    const giaTri = Number(localStorage.getItem(khoaTinDaXem(accountId)))
+    return Number.isInteger(giaTri) && giaTri > 0 ? giaTri : null
+  } catch {
+    return null
+  }
+}
+
+function ghiTinDaXem(accountId: number, id: number) {
+  try {
+    localStorage.setItem(khoaTinDaXem(accountId), String(id))
+  } catch {
+    // Trình duyệt chặn bộ nhớ: chấm "tin mới" chỉ đúng trong phiên này, không ảnh hưởng gì khác.
+  }
+}
+
 export function AppShell({ children }: AppShellProps) {
   const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
   const {
@@ -27,6 +47,23 @@ export function AppShell({ children }: AppShellProps) {
   } = useCampus()
 
   const [isChatOpen, setIsChatOpen] = useState(false)
+  const [idTinDaXem, setIdTinDaXem] = useState<number | null>(() => docTinDaXem(nguoiDung.accountId))
+
+  // Chấm trên nút trò chuyện chỉ sáng khi có tin của người khác mới hơn lần xem gần nhất (trước đây sáng hễ có tin).
+  const tinCuoi = messages.length > 0 ? messages[messages.length - 1] : null
+  const coTinNhanMoi =
+    !isChatOpen &&
+    tinCuoi !== null &&
+    tinCuoi.accountId !== nguoiDung.accountId &&
+    (idTinDaXem === null || tinCuoi.id > idTinDaXem)
+
+  const datMoChat = (mo: boolean) => {
+    setIsChatOpen(mo)
+    if (tinCuoi) {
+      setIdTinDaXem(tinCuoi.id)
+      ghiTinDaXem(nguoiDung.accountId, tinCuoi.id)
+    }
+  }
 
   useEffect(() => {
     const handleOpenChat = () => setIsChatOpen(true)
@@ -42,11 +79,11 @@ export function AppShell({ children }: AppShellProps) {
         trangThai={trangThai}
         onlineCount={onlineCount}
         latencyMs={latencyMs}
-        messageCount={messages.length}
+        coTinNhanMoi={coTinNhanMoi}
         onDoDoTre={doDoTre}
         onKetNoiLai={ketNoiLai}
         onDangXuat={() => void dangXuat()}
-        onToggleChat={() => setIsChatOpen((v) => !v)}
+        onToggleChat={() => datMoChat(!isChatOpen)}
         onLamMoiPhien={lamMoiPhien}
       />
 
@@ -83,7 +120,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* 4. Global Campus Chat Drawer (On-demand Sheet) */}
       <CampusChatSheet
         open={isChatOpen}
-        onOpenChange={setIsChatOpen}
+        onOpenChange={datMoChat}
         messages={messages}
         myPermissions={myPermissions}
         onSendMessage={guiChat}

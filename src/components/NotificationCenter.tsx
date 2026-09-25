@@ -1,27 +1,29 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ComponentType, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import {
+  ArrowRight,
   Bell,
   Check,
   CheckCheck,
-  UserPlus,
-  UserCheck,
-  X,
   GraduationCap,
-  Trophy,
+  Loader2,
+  Megaphone,
   ShieldAlert,
+  Trophy,
+  UserCheck,
+  UserPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { NotificationType } from '@shared/protocol/notification'
 import { useCampusContext, type AppNotification } from '@/app/CampusContext'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 // === helpers =================================================================
 
@@ -35,47 +37,14 @@ function formatRelativeTime(ts: number): string {
   return `${Math.floor(hours / 24)} ngày trước`
 }
 
-function NotificationIcon({ type }: { type: NotificationType }) {
-  if (type === 'friend_request') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-        <UserPlus className="h-4 w-4" />
-      </div>
-    )
-  }
-  if (type === 'friend_accept') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-success/30 bg-success/10 text-success">
-        <UserCheck className="h-4 w-4" />
-      </div>
-    )
-  }
-  if (type === 'study_invite' || type === 'study_invite_accepted') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-        <GraduationCap className="h-4 w-4" />
-      </div>
-    )
-  }
-  if (type === 'achievement_unlocked') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-500">
-        <Trophy className="h-4 w-4" />
-      </div>
-    )
-  }
-  if (type === 'moderation_notice') {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-destructive/30 bg-destructive/10 text-destructive">
-        <ShieldAlert className="h-4 w-4" />
-      </div>
-    )
-  }
-  return (
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-      <Bell className="h-4 w-4" />
-    </div>
-  )
+const KIEU_THONG_BAO: Record<NotificationType, { icon: ComponentType<{ className?: string }>; mau: string }> = {
+  friend_request: { icon: UserPlus, mau: 'bg-brand/12 text-brand' },
+  friend_accept: { icon: UserCheck, mau: 'bg-success/12 text-success' },
+  study_invite: { icon: GraduationCap, mau: 'bg-social/12 text-social' },
+  study_invite_accepted: { icon: GraduationCap, mau: 'bg-social/12 text-social' },
+  achievement_unlocked: { icon: Trophy, mau: 'bg-achievement/12 text-achievement' },
+  moderation_notice: { icon: ShieldAlert, mau: 'bg-destructive/12 text-destructive' },
+  system_announcement: { icon: Megaphone, mau: 'bg-surface-overlay text-text-secondary' },
 }
 
 // === single item ==============================================================
@@ -90,34 +59,35 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
   const { acceptFriendRequest, rejectFriendRequest } = useCampusContext()
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null)
 
-  const handleAccept = useCallback(async () => {
-    if (!n.meta?.requestId) return
-    setBusy('accept')
-    const kq = await acceptFriendRequest(n.meta.requestId)
-    setBusy(null)
-    if (kq.ok) {
-      toast.success('Đã kết bạn!')
-      onDismiss(n.id)
-    } else {
-      toast.error(kq.loi ?? 'Không thể chấp nhận lời mời.')
-    }
-  }, [n.meta?.requestId, n.id, acceptFriendRequest, onDismiss])
-
-  const handleReject = useCallback(async () => {
-    if (!n.meta?.requestId) return
-    setBusy('reject')
-    const kq = await rejectFriendRequest(n.meta.requestId)
-    setBusy(null)
-    if (kq.ok) {
-      onDismiss(n.id)
-    } else {
-      toast.error(kq.loi ?? 'Không thể từ chối.')
-    }
-  }, [n.meta?.requestId, n.id, rejectFriendRequest, onDismiss])
-
+  const requestId = n.meta?.requestId
   const roomId = n.meta?.roomId
   const invitationId = n.meta?.invitationId
   const nid = n.id
+
+  const handleAccept = useCallback(async () => {
+    if (!requestId) return
+    setBusy('accept')
+    const kq = await acceptFriendRequest(requestId)
+    setBusy(null)
+    if (kq.ok) {
+      toast.success('Đã kết bạn!')
+      onDismiss(nid)
+    } else {
+      toast.error(kq.loi ?? 'Không thể chấp nhận lời mời.')
+    }
+  }, [requestId, nid, acceptFriendRequest, onDismiss])
+
+  const handleReject = useCallback(async () => {
+    if (!requestId) return
+    setBusy('reject')
+    const kq = await rejectFriendRequest(requestId)
+    setBusy(null)
+    if (kq.ok) {
+      onDismiss(nid)
+    } else {
+      toast.error(kq.loi ?? 'Không thể từ chối.')
+    }
+  }, [requestId, nid, rejectFriendRequest, onDismiss])
 
   const handleRoomClick = useCallback(() => {
     onDismiss(nid)
@@ -164,100 +134,99 @@ function NotificationItem({ n, onDismiss }: NotificationItemProps) {
     }
   }, [invitationId, nid, onDismiss])
 
+  const kieu = KIEU_THONG_BAO[n.type] ?? KIEU_THONG_BAO.system_announcement
+  const Icon = kieu.icon
+
+  let hanhDong: ReactNode = null
+  if (n.type === 'friend_request' && n.meta?.requestId) {
+    hanhDong = (
+      <>
+        <Button size="xs" disabled={busy !== null} onClick={handleAccept}>
+          {busy === 'accept' ? <Loader2 className="animate-spin" /> : <Check />}
+          Chấp nhận
+        </Button>
+        <Button size="xs" variant="outline" disabled={busy !== null} onClick={handleReject}>
+          Từ chối
+        </Button>
+      </>
+    )
+  } else if (n.type === 'study_invite' && n.meta?.invitationId) {
+    hanhDong = (
+      <>
+        <Button size="xs" disabled={busy !== null} onClick={handleAcceptInvite}>
+          {busy === 'accept' ? <Loader2 className="animate-spin" /> : <GraduationCap />}
+          Vào học ngay
+        </Button>
+        <Button size="xs" variant="outline" disabled={busy !== null} onClick={handleDismissInvite}>
+          Bỏ qua
+        </Button>
+      </>
+    )
+  } else if (n.type === 'study_invite_accepted' && n.meta?.roomId) {
+    hanhDong = (
+      <Button size="xs" variant="outline" onClick={handleRoomClick}>
+        Vào phòng cùng
+        <ArrowRight />
+      </Button>
+    )
+  }
+
   return (
-    <div
+    <li
       onClick={() => {
         if (!n.read) onDismiss(n.id)
       }}
-      className={`group relative flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted/50 cursor-pointer ${
-        n.read ? 'opacity-75' : 'bg-surface-elevated/40'
-      }`}
-    >
-      {!n.read && (
-        <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-primary" />
+      className={cn(
+        'group relative flex gap-3 px-4 py-3 transition-colors hover:bg-surface-overlay/50',
+        !n.read && 'cursor-pointer bg-brand/[0.04]',
       )}
+    >
+      <span className={cn('mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full', kieu.mau)}>
+        <Icon className="size-4" />
+      </span>
 
-      <NotificationIcon type={n.type} />
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            'text-[0.8125rem] leading-snug break-words',
+            n.read ? 'text-text-secondary' : 'font-medium text-text-primary',
+          )}
+        >
+          {n.title}
+        </p>
+        {n.body && <p className="mt-0.5 text-xs leading-snug break-words text-text-tertiary">{n.body}</p>}
+        <p className="mt-1 text-[11px] text-text-tertiary">{formatRelativeTime(n.timestamp)}</p>
 
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-xs font-semibold text-foreground leading-snug">{n.title}</p>
-        <p className="text-xs text-muted-foreground leading-snug">{n.body}</p>
-        <p className="text-[10px] text-muted-foreground/70">{formatRelativeTime(n.timestamp)}</p>
-
-        {n.type === 'friend_request' && n.meta?.requestId && (
-          <div className="mt-2 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              className="h-6 gap-1 px-2 text-[10px] font-semibold"
-              disabled={busy !== null}
-              onClick={handleAccept}
-            >
-              <Check className="h-3 w-3" />
-              {busy === 'accept' ? 'Đang xử lý…' : 'Chấp nhận'}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 gap-1 px-2 text-[10px]"
-              disabled={busy !== null}
-              onClick={handleReject}
-            >
-              <X className="h-3 w-3" />
-              Từ chối
-            </Button>
+        {hanhDong && (
+          <div className="mt-2.5 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+            {hanhDong}
           </div>
-        )}
-
-        {n.type === 'study_invite' && n.meta?.invitationId && (
-          <div className="mt-2 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              className="h-6 gap-1 px-2 text-[10px] font-semibold"
-              disabled={busy !== null}
-              onClick={handleAcceptInvite}
-            >
-              <Check className="h-3 w-3" />
-              {busy === 'accept' ? 'Đang vào…' : 'Vào học ngay'}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 gap-1 px-2 text-[10px]"
-              disabled={busy !== null}
-              onClick={handleDismissInvite}
-            >
-              <X className="h-3 w-3" />
-              Bỏ qua
-            </Button>
-          </div>
-        )}
-
-        {n.type === 'study_invite_accepted' && n.meta?.roomId && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleRoomClick()
-            }}
-            className="mt-1 text-[10px] font-medium text-primary underline underline-offset-2 hover:text-primary/80"
-          >
-            Vào phòng cùng →
-          </button>
         )}
       </div>
 
-      <button
-        type="button"
-        aria-label="Đánh dấu đã đọc"
-        onClick={(e) => {
-          e.stopPropagation()
-          onDismiss(n.id)
-        }}
-        className="invisible absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground group-hover:visible"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
+      {/* Chấm chưa đọc — di chuột hoặc dùng bàn phím thì hoá thành nút đánh dấu đã đọc */}
+      {!n.read && (
+        <button
+          type="button"
+          aria-label="Đánh dấu đã đọc"
+          title="Đánh dấu đã đọc"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDismiss(n.id)
+          }}
+          className="relative -mt-0.5 -mr-1.5 flex size-7 shrink-0 items-center justify-center rounded-lg text-text-tertiary outline-none hover:bg-surface-overlay hover:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span
+            aria-hidden
+            className="size-2 rounded-full bg-brand transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+          />
+          <Check
+            aria-hidden
+            className="absolute size-3.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+          />
+        </button>
+      )}
+    </li>
   )
 }
 
@@ -275,94 +244,72 @@ export function NotificationCenter() {
     }
   }, [lamMoiNotifications])
 
+  const handleMarkAllRead = async () => {
+    const ok = await markAllRead()
+    if (!ok) toast.error('Chưa đánh dấu được. Thử lại sau nhé.')
+  }
+
   const displayedNotifications = filter === 'unread'
     ? notifications.filter((n) => !n.read)
     : notifications
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <div className="relative">
-        <PopoverTrigger
-          id="notification-center-trigger"
-          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`Thông báo${unreadCount > 0 ? ` (${unreadCount} chưa đọc)` : ''}`}
-        >
-          <Bell className="h-4 w-4" />
-        </PopoverTrigger>
+      <PopoverTrigger
+        id="notification-center-trigger"
+        className="relative flex size-9 items-center justify-center rounded-xl text-text-secondary transition-colors outline-none hover:bg-surface-overlay hover:text-text-primary focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-surface-overlay data-popup-open:text-text-primary"
+        aria-label={`Thông báo${unreadCount > 0 ? ` (${unreadCount} chưa đọc)` : ''}`}
+      >
+        <Bell className="size-[18px]" />
         {unreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none"
-          >
+          <span className="pointer-events-none absolute top-1 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-canvas">
             {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
+          </span>
         )}
-      </div>
+      </PopoverTrigger>
 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-84 sm:w-96 p-0 shadow-xl"
+        className="w-[min(24rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0"
       >
-        <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold">Thông báo</span>
-            {unreadCount > 0 && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-semibold">
-                {unreadCount} mới
-              </Badge>
-            )}
-          </div>
+        <div className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
+          <p className="text-sm font-semibold text-text-primary">Thông báo</p>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
-              onClick={() => markAllRead()}
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="xs" className="-mr-2 text-text-secondary" onClick={() => void handleMarkAllRead()}>
+              <CheckCheck />
               Đọc tất cả
             </Button>
           )}
         </div>
 
-        {/* Tab Filters */}
-        <div className="flex border-b border-border/50 px-2 pt-1 bg-muted/20">
-          <button
-            type="button"
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-              filter === 'all'
-                ? 'border-primary text-primary font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Tất cả ({notifications.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter('unread')}
-            className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-              filter === 'unread'
-                ? 'border-primary text-primary font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Chưa đọc ({unreadCount})
-          </button>
+        <div className="flex gap-1.5 px-4 pb-3">
+          <NutLoc dangChon={filter === 'all'} onClick={() => setFilter('all')}>
+            Tất cả
+          </NutLoc>
+          <NutLoc dangChon={filter === 'unread'} onClick={() => setFilter('unread')}>
+            Chưa đọc
+            {unreadCount > 0 && <span className="tabular-nums opacity-80">{unreadCount}</span>}
+          </NutLoc>
         </div>
 
-        <div className="max-h-[420px] overflow-y-auto">
+        <div className="max-h-[min(26rem,calc(100svh-10rem))] overflow-y-auto overscroll-contain border-t border-border-subtle">
           {displayedNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-              <Bell className="h-8 w-8 text-muted-foreground/30" />
-              <p className="text-xs text-muted-foreground">
-                {filter === 'unread' ? 'Không có thông báo chưa đọc nào' : 'Chưa có thông báo nào'}
+            <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-surface-overlay text-text-tertiary">
+                <Bell className="size-5" />
+              </span>
+              <p className="mt-3 text-sm font-medium text-text-primary">
+                {filter === 'unread' ? 'Đã đọc hết' : 'Chưa có thông báo'}
+              </p>
+              <p className="mt-1 text-xs text-text-tertiary">
+                {filter === 'unread'
+                  ? 'Không còn thông báo nào chưa đọc.'
+                  : 'Lời mời kết bạn, rủ học nhóm và huy hiệu mới sẽ hiện ở đây.'}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border/40 p-1">
+            <ul className="divide-y divide-border-subtle">
               {displayedNotifications.map((n) => (
                 <NotificationItem
                   key={n.id}
@@ -370,10 +317,28 @@ export function NotificationCenter() {
                   onDismiss={dismissNotification}
                 />
               ))}
-            </div>
+            </ul>
           )}
         </div>
       </PopoverContent>
     </Popover>
+  )
+}
+
+function NutLoc({ dangChon, onClick, children }: { dangChon: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={dangChon}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        dangChon
+          ? 'border-brand/50 bg-brand/10 text-brand'
+          : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+      )}
+    >
+      {children}
+    </button>
   )
 }

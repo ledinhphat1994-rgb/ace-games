@@ -13,19 +13,20 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { AvatarPicker } from '@/features/profile/AvatarPicker'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
-import { tenLop } from '@/lib/utils'
+import { getInitials, tenLop } from '@/lib/utils'
 import type { EngagementProfile } from '@shared/protocol/engagement'
 import { Award, Camera, Flame, KeyRound, Palette, ShieldCheck, TrendingUp, User, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 
 type TabHoSo = 'profile' | 'avatar' | 'progress' | 'security'
+const CAC_TAB_HO_SO: readonly TabHoSo[] = ['profile', 'avatar', 'progress', 'security']
 
 export function ProfilePage() {
   const { nguoiDung, lamMoiPhien } = usePhien()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialTab: TabHoSo = searchParams.get('tab') === 'progress' ? 'progress' : 'profile'
-
-  const [activeTab, setActiveTab] = useState<TabHoSo>(initialTab)
+  // Tab lấy thẳng từ URL (/me?tab=avatar…) để menu tài khoản mở đúng tab kể cả khi đang ở sẵn trang này.
+  const tabTrenUrl = searchParams.get('tab')
+  const activeTab: TabHoSo = CAC_TAB_HO_SO.find((tab) => tab === tabTrenUrl) ?? 'profile'
 
   // Số liệu tiến trình thật (chuỗi ngày, XP, huy hiệu) — cùng khoá cache với menu tài khoản.
   const { data: profileData, isPending: dangTaiTienTrinh, isError: loiTienTrinh } = useQuery<{
@@ -62,8 +63,7 @@ export function ProfilePage() {
   const [dangDoiMk, setDangDoiMk] = useState(false)
 
   const doiTab = (tab: TabHoSo) => {
-    setActiveTab(tab)
-    setSearchParams(tab === 'progress' ? { tab: 'progress' } : {}, { replace: true })
+    setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true })
   }
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -108,7 +108,7 @@ export function ProfilePage() {
   const displayName = nguoiDung.ten || nguoiDung.username
   const profile = profileData?.profile
   // Cùng quy tắc với menu tài khoản trên thanh đầu trang: chữ cái đầu của tên hiển thị.
-  const chuCaiDau = displayName.charAt(0).toUpperCase()
+  const chuCaiDau = getInitials(displayName)
 
   const soLieu = (giaTri: number | undefined) =>
     dangTaiTienTrinh ? null : loiTienTrinh || giaTri === undefined ? '—' : giaTri.toLocaleString('vi-VN')

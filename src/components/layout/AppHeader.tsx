@@ -15,7 +15,8 @@ interface AppHeaderProps {
   trangThai: TrangThaiKetNoiCampus
   onlineCount: number
   latencyMs: number | null
-  messageCount: number
+  /** Có tin trò chuyện của người khác mới hơn lần xem gần nhất. */
+  coTinNhanMoi: boolean
   onDoDoTre: () => void
   onKetNoiLai: () => void
   onDangXuat: () => void
@@ -29,7 +30,7 @@ export function AppHeader({
   trangThai,
   onlineCount,
   latencyMs,
-  messageCount,
+  coTinNhanMoi,
   onDoDoTre,
   onKetNoiLai,
   onDangXuat,
@@ -88,28 +89,29 @@ export function AppHeader({
           />
 
           {/* Secondary icon group */}
-          <div className="flex items-center gap-0.5 text-slate-400">
+          <div className="flex items-center gap-0.5">
             {/* Notifications */}
             <NotificationCenter />
 
             {/* Campus Chat trigger */}
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               data-testid="campus-chat-trigger"
               onClick={onToggleChat}
               title="Mở trò chuyện toàn trường"
-              className="relative text-slate-400 hover:text-white hover:bg-white/5 h-8 w-8"
+              aria-label={coTinNhanMoi ? 'Trò chuyện toàn trường (có tin mới)' : 'Trò chuyện toàn trường'}
+              className="relative size-9 rounded-xl text-text-secondary hover:text-text-primary"
             >
-              <MessageSquare className="h-4 w-4" />
-              {messageCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-brand" />
+              <MessageSquare className="size-[18px]" />
+              {coTinNhanMoi && (
+                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-canvas" />
               )}
             </Button>
           </div>
 
           {/* Divider + Account Quick Center */}
-          <div className="flex items-center pl-1 sm:pl-2 ml-0.5 border-l border-white/10">
+          <div className="ml-0.5 flex items-center border-l border-border-subtle pl-1 sm:pl-2">
             <UserAvatarMenu
               nguoiDung={nguoiDung}
               onDangXuat={onDangXuat}
