@@ -1,6 +1,7 @@
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -27,29 +28,22 @@ export function CampusChatSheet({
 }: CampusChatSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col bg-[#0a0f18]/98 border-border/80 text-foreground backdrop-blur-2xl shadow-2xl"
-      >
-        <SheetHeader className="p-4 pb-2 border-b border-border/60">
-          <SheetTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-            <span>Trò chuyện toàn trường</span>
-            <span className="text-[10px] font-normal text-muted-foreground">
-              ({messages.length} tin)
-            </span>
-          </SheetTitle>
+      <SheetContent side="right" className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+        <SheetHeader className="border-b border-border-subtle px-4 pt-4 pb-3 pr-12">
+          <SheetTitle className="text-base font-semibold text-text-primary">Trò chuyện toàn trường</SheetTitle>
+          <SheetDescription className="text-[0.8125rem] text-text-tertiary">
+            Thầy cô và mọi bạn trong trường đều thấy tin nhắn ở đây.
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0">
-          <CampusChatDrawer
-            messages={messages}
-            myPermissions={myPermissions}
-            onSendMessage={onSendMessage}
-            onDeleteMessage={onDeleteMessage}
-            hideHeader={true}
-            className="h-full border-0 rounded-none bg-transparent shadow-none"
-          />
-        </div>
+        <CampusChatDrawer
+          messages={messages}
+          myPermissions={myPermissions}
+          onSendMessage={onSendMessage}
+          onDeleteMessage={onDeleteMessage}
+          hideHeader
+          className="min-h-0 flex-1"
+        />
       </SheetContent>
     </Sheet>
   )
