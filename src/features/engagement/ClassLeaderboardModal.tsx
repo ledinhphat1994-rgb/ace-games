@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Trophy, Flame, Sparkles } from 'lucide-react'
+import { AlertCircle, Flame, Trophy } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ClassLeaderboardItem } from '@shared/protocol/engagement'
-import { tenLop } from '@/lib/utils'
+import { cn, getInitials, tenLop } from '@/lib/utils'
 
 interface ClassLeaderboardModalProps {
   open: boolean
@@ -26,13 +25,25 @@ interface LeaderboardResponse {
   items: ClassLeaderboardItem[]
 }
 
+/** "2026-09-22" → "22/9" (không qua new Date để khỏi lệch múi giờ). */
+function ngayNgan(chuoi: string | undefined): string | null {
+  const [, thang, ngay] = (chuoi ?? '').split('-').map(Number)
+  return thang && ngay ? `${ngay}/${thang}` : null
+}
+
+const MAU_HANG: Record<number, string> = {
+  1: 'bg-achievement/20 text-achievement',
+  2: 'bg-text-secondary/15 text-text-primary',
+  3: 'bg-warning/15 text-warning',
+}
+
 export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardModalProps) {
-  const { data, isLoading, error } = useQuery<LeaderboardResponse>({
+  const { data, isLoading, error, refetch } = useQuery<LeaderboardResponse>({
     queryKey: ['engagement', 'leaderboard'],
     queryFn: async () => {
       const res = await fetch('/api/engagement/leaderboard')
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         throw new Error(err.loi || 'Không thể tải bảng xếp hạng.')
       }
       return res.json()
@@ -40,114 +51,102 @@ export function ClassLeaderboardModal({ open, onOpenChange }: ClassLeaderboardMo
     enabled: open,
   })
 
-  const getRankBadge = (rank: number) => {
-    if (rank === 1) {
-      return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 font-bold text-xs shadow-md">
-          🥇
-        </div>
-      )
-    }
-    if (rank === 2) {
-      return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-slate-300 to-slate-100 text-slate-900 font-bold text-xs shadow-md">
-          🥈
-        </div>
-      )
-    }
-    if (rank === 3) {
-      return (
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-amber-700 to-amber-500 text-amber-100 font-bold text-xs shadow-md">
-          🥉
-        </div>
-      )
-    }
-    return (
-      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-muted/30 text-xs font-semibold text-muted-foreground">
-        #{rank}
-      </div>
-    )
-  }
+  const tu = ngayNgan(data?.dateRange?.startDate)
+  const den = ngayNgan(data?.dateRange?.endDate)
+  const items = data?.items ?? []
+  // Xếp hạng giữa những người cùng 0 XP là vô nghĩa: chỉ đánh số người đã có XP trong tuần
+  const chuaAiCoXp = items.every((item) => item.weeklyXp <= 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-5 sm:p-6 bg-card/95 backdrop-blur-xl border border-border/60">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-achievement/10 text-achievement border border-achievement/20">
-              <Trophy className="h-5 w-5" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                Bảng xếp hạng học tập tuần
-                <Sparkles className="h-4 w-4 text-achievement" />
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                {data?.lopTen ? tenLop(data.lopTen) : 'Xếp hạng tuần'} • Dựa trên điểm chuyên cần & tham gia học tập
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle>Bảng xếp hạng tuần</DialogTitle>
+          <DialogDescription>
+            {data?.lopTen ? `${tenLop(data.lopTen)} · ` : ''}XP kiếm được khi học
+            {tu && den ? ` từ ${tu} đến ${den}` : ' trong tuần này'}.
+          </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="space-y-3 py-4">
-            <Skeleton className="h-12 w-full rounded-xl" />
-            <Skeleton className="h-12 w-full rounded-xl" />
-            <Skeleton className="h-12 w-full rounded-xl" />
-          </div>
-        ) : error ? (
-          <div className="p-6 text-center text-xs text-destructive">
-            {error instanceof Error ? error.message : 'Lỗi tải dữ liệu.'}
-          </div>
-        ) : !data?.items || data.items.length === 0 ? (
-          <div className="py-8 text-center text-xs text-muted-foreground">
-            Chưa có lượt học nào trong tuần này. Hãy là người đầu tiên bắt đầu chuỗi học tập!
-          </div>
-        ) : (
-          <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1 my-2">
-            {data.items.map((item) => (
-              <div
-                key={item.accountId}
-                className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
-                  item.isCurrentUser
-                    ? 'border-brand/40 bg-brand/8 shadow-sm'
-                    : 'border-border-subtle bg-surface/50 hover:bg-surface-overlay'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {getRankBadge(item.rank)}
-                  <Avatar className="h-9 w-9 border border-border/50">
-                    <AvatarImage src={item.avatar || undefined} />
-                    <AvatarFallback className="text-xs font-bold">
-                      {item.displayName.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
-                      <span>{item.displayName}</span>
-                      {item.isCurrentUser && (
-                        <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
-                          Bạn
-                        </Badge>
+        <div className="min-h-48">
+          {isLoading ? (
+            <div className="space-y-2" aria-hidden>
+              {Array.from({ length: 4 }, (_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <AlertCircle className="size-6 text-destructive" />
+              <p className="mt-2 text-sm text-text-primary">
+                {error instanceof Error ? error.message : 'Không thể tải bảng xếp hạng.'}
+              </p>
+              <Button variant="outline" size="xs" className="mt-3" onClick={() => void refetch()}>
+                Thử lại
+              </Button>
+            </div>
+          ) : chuaAiCoXp ? (
+            <div className="flex min-h-48 flex-col items-center justify-center text-center">
+              <Trophy className="size-6 text-text-tertiary" />
+              <p className="mt-2 text-sm font-medium text-text-primary">Tuần này chưa ai có XP</p>
+              <p className="mt-1 text-xs text-text-tertiary">Vào một phòng học để mở đầu bảng xếp hạng.</p>
+            </div>
+          ) : (
+            <ol className="-mx-1 max-h-[60svh] space-y-1 overflow-y-auto overscroll-contain px-1">
+              {items.map((item) => (
+                <li
+                  key={item.accountId}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5',
+                    item.isCurrentUser ? 'bg-brand/[0.08] ring-1 ring-brand/30' : 'hover:bg-surface-raised/60',
+                  )}
+                >
+                  {item.weeklyXp > 0 ? (
+                    <span
+                      className={cn(
+                        'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums',
+                        MAU_HANG[item.rank] ?? 'text-text-tertiary',
                       )}
-                    </div>
+                      aria-label={`Hạng ${item.rank}`}
+                    >
+                      {item.rank}
+                    </span>
+                  ) : (
+                    <span aria-label="Chưa xếp hạng" className="flex size-7 shrink-0 items-center justify-center text-xs text-text-tertiary">
+                      –
+                    </span>
+                  )}
+                  {item.avatar ? (
+                    <img src={item.avatar} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-overlay text-xs font-semibold text-text-secondary"
+                    >
+                      {getInitials(item.displayName)}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium break-words text-text-primary">
+                      {item.displayName}
+                      {item.isCurrentUser && <span className="ml-1.5 text-xs font-normal text-brand">(bạn)</span>}
+                    </p>
                     {item.currentStreak > 0 && (
-                      <div className="text-[10px] text-warning font-medium flex items-center gap-1">
-                        <Flame className="h-3 w-3" />
-                        <span>Chuỗi {item.currentStreak} ngày</span>
-                      </div>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-text-tertiary">
+                        <Flame className="size-3 text-warning" />
+                        {item.currentStreak} ngày liên tiếp
+                      </p>
                     )}
                   </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                  <div className="text-sm font-extrabold text-brand">+{item.weeklyXp} XP</div>
-                  <div className="text-[10px] text-text-secondary">tuần này</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                  <span className="shrink-0 text-sm font-semibold text-text-primary tabular-nums">
+                    {item.weeklyXp}
+                    <span className="ml-1 text-xs font-normal text-text-tertiary">XP</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )
