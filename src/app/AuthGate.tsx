@@ -1,11 +1,19 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { Outlet } from 'react-router'
+import { GraduationCap, Loader2, MonitorPlay, Swords, Users, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { LoginCard } from '@/features/auth/LoginCard'
 import { dangXuat, layPhienHienTai, LoiApi } from '@/lib/api'
+
+// Ba điều người dùng thật sự làm được trong Digital Campus — không phải khẩu hiệu.
+const DIEM_NOI_BAT = [
+  { icon: MonitorPlay, ten: 'Phòng học nhóm', moTa: 'Cùng xem video, trình chiếu tài liệu và viết bảng theo thời gian thực.' },
+  { icon: Swords, ten: 'Game đối kháng', moTa: 'Caro, Connect 4, Reversi 1v1 với bạn cùng trường.' },
+  { icon: Users, ten: 'Cộng đồng bạn học', moTa: 'Kết bạn, xem ai đang trực tuyến và trò chuyện toàn trường.' },
+] as const
 
 export function AuthGate() {
   const queryClient = useQueryClient()
@@ -27,72 +35,95 @@ export function AuthGate() {
   )
 
   if (phien.isPending) {
-    return <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">Đang tải…</div>
+    return (
+      <KhungNen>
+        <div role="status" className="flex flex-1 flex-col items-center justify-center gap-4">
+          <LogoCampus />
+          <Loader2 className="size-5 animate-spin text-text-tertiary" aria-label="Đang tải" />
+        </div>
+      </KhungNen>
+    )
   }
 
   if (phien.isError) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-4 text-center">
-        <p role="status" className="max-w-sm text-sm text-amber-400">
-          {phien.error instanceof LoiApi
-            ? phien.error.message
-            : 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'}
-        </p>
-        <Button className="h-11 px-4" onClick={() => void phien.refetch()}>
-          Thử lại
-        </Button>
-      </div>
+      <KhungNen>
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-5 text-center">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-warning-muted text-warning">
+            <WifiOff className="size-5" />
+          </span>
+          <div className="space-y-1.5">
+            <h1 className="text-lg font-semibold tracking-tight text-text-primary">Chưa kết nối được máy chủ</h1>
+            <p role="status" className="max-w-sm text-sm leading-relaxed text-text-secondary">
+              {phien.error instanceof LoiApi
+                ? phien.error.message
+                : 'Kiểm tra kết nối mạng rồi thử lại.'}
+            </p>
+          </div>
+          <Button size="lg" onClick={() => void phien.refetch()}>
+            Thử lại
+          </Button>
+        </div>
+      </KhungNen>
     )
   }
 
   if (!giaTri) {
     return (
-      <div className="relative min-h-svh flex flex-col items-center justify-center p-4 overflow-hidden bg-slate-950">
-        {/* Campus Background with cinematic gradient and blur */}
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/assets/campus/campus_building.webp"
-            alt="Digital Campus Building"
-            className="h-full w-full object-cover object-center opacity-35 scale-105 filter blur-xs"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/50" />
-        </div>
+      <KhungNen>
+        <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center px-5 pt-6 sm:px-8">
+          <LogoCampus />
+        </header>
 
-        {/* Ambient colored glowing orbs */}
-        <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-brand/15 blur-[120px]" />
-        <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-social/15 blur-[120px]" />
-
-        {/* Brand Header */}
-        <div className="relative z-10 text-center mb-6 space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-brand animate-ping" />
-            <span>Digital Campus v2 · Lớp 10A7</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Trung Tâm GDTX Định Quán
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300">
-            Cổng thông tin & Không gian học tập tương tác trực tuyến
-          </p>
-        </div>
-
-        <div className="relative z-10 w-full max-w-md">
-          {phien.data.thongBao && (
-            <p role="status" className="mb-4 text-center text-sm font-medium text-amber-400 bg-amber-950/60 border border-amber-500/30 rounded-xl p-2.5 backdrop-blur-md">
-              {phien.data.thongBao}
+        <main className="relative z-10 mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+          <section className="hidden lg:block" aria-label="Giới thiệu Digital Campus">
+            <p className="text-sm font-medium text-brand">Trung tâm GDTX Định Quán</p>
+            <h1 className="mt-4 text-[3.25rem] leading-[1.05] font-semibold tracking-[-0.035em] text-text-primary">
+              Học cùng nhau,
+              <br />
+              <span className="text-text-secondary">ở bất cứ đâu.</span>
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-text-secondary">
+              Không gian trực tuyến của trường — vào phòng học, chơi game và kết nối bạn học chỉ với một tài khoản.
             </p>
-          )}
-          <LoginCard onDaDangNhap={() => void queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })} />
-        </div>
+            <ul className="mt-10 space-y-5">
+              {DIEM_NOI_BAT.map(({ icon: Icon, ten, moTa }) => (
+                <li key={ten} className="flex items-start gap-4">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface text-brand">
+                    <Icon className="size-[18px]" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-text-primary">{ten}</span>
+                    <span className="mt-0.5 block max-w-sm text-sm leading-relaxed text-text-secondary">{moTa}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        {/* Footer */}
-        <div className="relative z-10 text-center mt-6 text-[11px] text-slate-500">
-          © 2026-2027 Lớp 10A7 · Nền tảng học tập số hóa toàn diện
-        </div>
-      </div>
+          <section className="mx-auto w-full max-w-md">
+            <div className="mb-8 text-center lg:hidden">
+              <h1 className="text-[1.75rem] leading-tight font-semibold tracking-[-0.025em] text-text-primary">
+                Học cùng nhau, ở bất cứ đâu.
+              </h1>
+              <p className="mt-2 text-sm text-text-secondary">Digital Campus · Trung tâm GDTX Định Quán</p>
+            </div>
+            {phien.data.thongBao && (
+              <p
+                role="status"
+                className="mb-4 rounded-xl border border-warning/30 bg-warning-muted px-3.5 py-2.5 text-center text-sm font-medium text-warning"
+              >
+                {phien.data.thongBao}
+              </p>
+            )}
+            <LoginCard onDaDangNhap={() => void queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })} />
+          </section>
+        </main>
+
+        <footer className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-6 text-center text-xs text-text-tertiary sm:px-8 lg:text-left">
+          © 2026–2027 Trung tâm GDTX Định Quán · Digital Campus
+        </footer>
+      </KhungNen>
     )
   }
 
@@ -102,5 +133,33 @@ export function AuthGate() {
         <Outlet />
       </CampusProvider>
     </PhienContext>
+  )
+}
+
+/** Nền tối giản: hai quầng sáng mờ màu thương hiệu và lưới chấm rất nhạt — không dùng ảnh bitmap. */
+function KhungNen({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-background text-text-primary">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_36rem_at_12%_-8%,rgba(34,211,238,0.13),transparent_62%),radial-gradient(48rem_36rem_at_108%_108%,rgba(167,139,250,0.10),transparent_60%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.07)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+      />
+      {children}
+    </div>
+  )
+}
+
+function LogoCampus() {
+  return (
+    <span className="inline-flex items-center gap-2.5 select-none">
+      <span className="flex size-9 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand">
+        <GraduationCap className="size-[18px]" />
+      </span>
+      <span className="text-[0.9375rem] font-semibold tracking-tight text-text-primary">Digital Campus</span>
+    </span>
   )
 }

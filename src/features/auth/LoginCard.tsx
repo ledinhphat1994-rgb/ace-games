@@ -1,13 +1,22 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
-import { GraduationCap, KeyRound, LogIn, UserPlus } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Eye, EyeOff, GraduationCap, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
 
 type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
+
+const TIEU_DE: Record<AuthMode, { title: string; description: string }> = {
+  dang_nhap: { title: 'Đăng nhập', description: 'Chào mừng bạn quay lại Digital Campus.' },
+  dang_ky: { title: 'Tạo tài khoản', description: 'Tham gia phòng học và trò chơi cùng bạn bè, thầy cô.' },
+  quen_mat_khau: {
+    title: 'Khôi phục mật khẩu',
+    description: 'Nhận mã 6 số (hoặc xin giáo viên cấp mã), rồi đặt mật khẩu mới.',
+  },
+}
 
 export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
   const [mode, setMode] = useState<AuthMode>('dang_nhap')
@@ -33,6 +42,11 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
   const [qmkConfirmPassword, setQmkConfirmPassword] = useState('')
   const [dangLayMa, setDangLayMa] = useState(false)
   const [thongBaoMa, setThongBaoMa] = useState('')
+
+  const doiCheDo = (moi: AuthMode) => {
+    setMode(moi)
+    setLoi('')
+  }
 
   async function handleLayMa() {
     if (!qmkUsername.trim()) {
@@ -133,7 +147,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
       toast.success(res.message || 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
       setUsername(qmkUsername.trim())
       setPassword('')
-      setMode('dang_nhap')
+      doiCheDo('dang_nhap')
     } catch (err) {
       setLoi(err instanceof Error ? err.message : 'Không đặt lại được mật khẩu.')
     } finally {
@@ -141,360 +155,312 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
     }
   }
 
+  const { title, description } = TIEU_DE[mode]
+
   return (
-    <Card className="w-full max-w-md shadow-2xl border-white/15 bg-card/95 backdrop-blur-xl">
-      <CardHeader className="pb-3">
-        {/* Tab switch header */}
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted/60 p-1 mb-2">
-          <button
-            type="button"
-            onClick={() => { setMode('dang_nhap'); setLoi('') }}
-            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-              mode === 'dang_nhap'
-                ? 'bg-background text-foreground shadow-sm font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
+    <div className="w-full rounded-2xl border border-border-default bg-surface/90 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
+      {mode !== 'dang_nhap' && (
+        <button
+          type="button"
+          onClick={() => doiCheDo('dang_nhap')}
+          className="-ml-1 mb-4 inline-flex items-center gap-1.5 rounded-lg px-1 py-0.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
+        >
+          <ArrowLeft className="size-4" />
+          Quay lại đăng nhập
+        </button>
+      )}
+
+      <h2 className="text-xl leading-7 font-semibold tracking-[-0.015em] text-text-primary">{title}</h2>
+      <p className="mt-1 text-sm leading-relaxed text-text-secondary">{description}</p>
+
+      {/* ══ ĐĂNG NHẬP ══ */}
+      {mode === 'dang_nhap' && (
+        <form onSubmit={guiDangNhap} className="mt-6 flex flex-col gap-4">
+          <TruongNhap label="Tên đăng nhập" htmlFor="ten-dang-nhap">
+            <Input
+              id="ten-dang-nhap"
+              autoComplete="username"
+              placeholder="Ví dụ: ledinhphat"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </TruongNhap>
+
+          <TruongNhap
+            label="Mật khẩu"
+            htmlFor="mat-khau"
+            phu={
+              <button
+                type="button"
+                onClick={() => {
+                  setQmkUsername(username)
+                  doiCheDo('quen_mat_khau')
+                }}
+                className="text-xs font-medium text-brand hover:underline"
+              >
+                Quên mật khẩu?
+              </button>
+            }
           >
-            <LogIn className="h-3.5 w-3.5" />
-            <span>Đăng nhập</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('dang_ky'); setLoi('') }}
-            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-              mode === 'dang_ky'
-                ? 'bg-background text-foreground shadow-sm font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            <span>Đăng ký</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('quen_mat_khau'); setLoi('') }}
-            className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-              mode === 'quen_mat_khau'
-                ? 'bg-background text-foreground shadow-sm font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <KeyRound className="h-3.5 w-3.5" />
-            <span>Quên MK</span>
-          </button>
-        </div>
+            <OMatKhau
+              id="mat-khau"
+              autoComplete="current-password"
+              value={password}
+              onChange={setPassword}
+            />
+          </TruongNhap>
 
-        {mode === 'dang_nhap' && (
-          <>
-            <CardTitle className="text-xl font-bold">Đăng nhập Digital Campus</CardTitle>
-            <CardDescription>Chào mừng bạn quay trở lại với không gian học tập trực tuyến.</CardDescription>
-          </>
-        )}
+          <ThongBaoLoi loi={loi} />
 
-        {mode === 'dang_ky' && (
-          <>
-            <CardTitle className="text-xl font-bold">Tạo tài khoản Campus</CardTitle>
-            <CardDescription>Tham gia lớp học và tương tác trực tiếp cùng bạn bè và thầy cô.</CardDescription>
-          </>
-        )}
+          <Button type="submit" size="lg" className="mt-1 w-full" disabled={dangGui}>
+            {dangGui ? 'Đang đăng nhập…' : 'Đăng nhập'}
+          </Button>
 
-        {mode === 'quen_mat_khau' && (
-          <>
-            <CardTitle className="text-xl font-bold">Khôi phục mật khẩu</CardTitle>
-            <CardDescription>Nhập tài khoản để nhận mã OTP hoặc liên hệ giáo viên cấp mã trực tiếp.</CardDescription>
-          </>
-        )}
-      </CardHeader>
+          <p className="text-center text-sm text-text-secondary">
+            Chưa có tài khoản?{' '}
+            <button type="button" onClick={() => doiCheDo('dang_ky')} className="font-semibold text-brand hover:underline">
+              Đăng ký
+            </button>
+          </p>
+        </form>
+      )}
 
-      <CardContent>
-        {/* ══ TAB 1: ĐĂNG NHẬP ══ */}
-        {mode === 'dang_nhap' && (
-          <form onSubmit={guiDangNhap} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ten-dang-nhap">Tên đăng nhập</Label>
-              <Input
-                id="ten-dang-nhap"
-                className="h-10"
-                autoComplete="username"
-                placeholder="Ví dụ: ledinhphat"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
+      {/* ══ ĐĂNG KÝ ══ */}
+      {mode === 'dang_ky' && (
+        <form onSubmit={guiDangKy} className="mt-6 flex flex-col gap-4">
+          <TruongNhap label="Tên đăng nhập" htmlFor="dk-username" batBuoc>
+            <Input
+              id="dk-username"
+              autoComplete="username"
+              placeholder="3–32 ký tự viết liền (chữ, số, _, -)"
+              value={dkUsername}
+              onChange={(e) => setDkUsername(e.target.value)}
+              required
+            />
+          </TruongNhap>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="mat-khau">Mật khẩu</Label>
+          <TruongNhap label="Họ và tên hiển thị" htmlFor="dk-hoten">
+            <Input
+              id="dk-hoten"
+              autoComplete="name"
+              placeholder="Ví dụ: Lê Đình Phát"
+              value={dkHoTen}
+              onChange={(e) => setDkHoTen(e.target.value)}
+            />
+          </TruongNhap>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-text-primary">Bạn là</span>
+            <div className="day-loc-deu [--the-nho-nhat:8rem]" role="group" aria-label="Vai trò">
+              {(
+                [
+                  { id: 'student', label: 'Học sinh', icon: GraduationCap },
+                  { id: 'teacher', label: 'Giáo viên', icon: Presentation },
+                ] as const
+              ).map(({ id, label, icon: Icon }) => (
                 <button
+                  key={id}
                   type="button"
-                  onClick={() => { setMode('quen_mat_khau'); setQmkUsername(username); setLoi('') }}
-                  className="text-xs text-primary hover:underline"
+                  aria-pressed={dkVaiTro === id}
+                  onClick={() => setDkVaiTro(id)}
+                  className={cn(
+                    'flex h-11 items-center gap-2 rounded-xl border text-sm font-medium transition-colors duration-150',
+                    dkVaiTro === id
+                      ? 'border-brand/60 bg-brand/10 text-brand'
+                      : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                  )}
                 >
-                  Quên mật khẩu?
+                  <Icon className="size-4" />
+                  {label}
                 </button>
-              </div>
+              ))}
+            </div>
+          </div>
+
+          {dkVaiTro === 'teacher' && (
+            <div className="flex flex-col gap-2 rounded-xl border border-warning/25 bg-warning-muted/50 p-3">
+              <Label htmlFor="dk-teachercode" className="text-sm font-medium text-warning">
+                Mã xác minh giáo viên (nếu có)
+              </Label>
               <Input
-                id="mat-khau"
+                id="dk-teachercode"
                 type="password"
-                className="h-10"
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                placeholder="Nhập mã do trường cung cấp"
+                value={dkTeacherCode}
+                onChange={(e) => setDkTeacherCode(e.target.value)}
               />
-            </div>
-
-            {loi && (
-              <p role="alert" className="text-xs font-semibold text-destructive">
-                {loi}
+              <p className="text-xs leading-relaxed text-text-secondary">
+                Nếu chưa có mã, tài khoản giáo viên sẽ ở trạng thái chờ Ban giám hiệu duyệt.
               </p>
-            )}
-
-            <Button type="submit" className="h-11 font-bold text-sm" disabled={dangGui}>
-              {dangGui ? 'Đang đăng nhập…' : 'Đăng nhập'}
-            </Button>
-
-            <div className="text-center text-xs text-muted-foreground pt-1">
-              Chưa có tài khoản?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('dang_ky'); setLoi('') }}
-                className="font-semibold text-primary hover:underline"
-              >
-                Đăng ký tài khoản mới
-              </button>
             </div>
-          </form>
-        )}
+          )}
 
-        {/* ══ TAB 2: ĐĂNG KÝ ══ */}
-        {mode === 'dang_ky' && (
-          <form onSubmit={guiDangKy} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="dk-username">Tên đăng nhập *</Label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TruongNhap label="Mật khẩu" htmlFor="dk-password" batBuoc>
+              <OMatKhau id="dk-password" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={dkPassword} onChange={setDkPassword} />
+            </TruongNhap>
+            <TruongNhap label="Nhập lại mật khẩu" htmlFor="dk-confirm-password" batBuoc>
+              <OMatKhau id="dk-confirm-password" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={dkConfirmPassword} onChange={setDkConfirmPassword} />
+            </TruongNhap>
+          </div>
+
+          <ThongBaoLoi loi={loi} />
+
+          <Button type="submit" size="lg" className="mt-1 w-full" disabled={dangGui}>
+            {dangGui ? 'Đang tạo tài khoản…' : 'Tạo tài khoản'}
+          </Button>
+
+          <p className="text-center text-sm text-text-secondary">
+            Đã có tài khoản?{' '}
+            <button type="button" onClick={() => doiCheDo('dang_nhap')} className="font-semibold text-brand hover:underline">
+              Đăng nhập
+            </button>
+          </p>
+        </form>
+      )}
+
+      {/* ══ QUÊN MẬT KHẨU ══ */}
+      {mode === 'quen_mat_khau' && (
+        <form onSubmit={guiQuenMatKhau} className="mt-6 flex flex-col gap-4">
+          <TruongNhap label="Tên đăng nhập cần khôi phục" htmlFor="qmk-username" batBuoc>
+            <div className="flex gap-2">
               <Input
-                id="dk-username"
-                className="h-9"
+                id="qmk-username"
                 autoComplete="username"
-                placeholder="Từ 3–32 ký tự viết liền (chữ, số, _, -)"
-                value={dkUsername}
-                onChange={(e) => setDkUsername(e.target.value)}
+                className="flex-1"
+                placeholder="Ví dụ: ledinhphat"
+                value={qmkUsername}
+                onChange={(e) => setQmkUsername(e.target.value)}
                 required
               />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="dk-hoten">Họ và tên hiển thị</Label>
-              <Input
-                id="dk-hoten"
-                className="h-9"
-                placeholder="Ví dụ: Lê Đình Phát"
-                value={dkHoTen}
-                onChange={(e) => setDkHoTen(e.target.value)}
-              />
-            </div>
-
-            {/* Vai trò */}
-            <div className="flex flex-col gap-1">
-              <Label>Vai trò mong muốn</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDkVaiTro('student')}
-                  className={`flex items-center justify-center gap-2 rounded-lg border p-2 text-xs font-semibold transition-all ${
-                    dkVaiTro === 'student'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 hover:border-border'
-                  }`}
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  <span>Học sinh</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDkVaiTro('teacher')}
-                  className={`flex items-center justify-center gap-2 rounded-lg border p-2 text-xs font-semibold transition-all ${
-                    dkVaiTro === 'teacher'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 hover:border-border'
-                  }`}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Giáo viên</span>
-                </button>
-              </div>
-            </div>
-
-            {dkVaiTro === 'teacher' && (
-              <div className="flex flex-col gap-1 rounded-lg border border-warning/20 bg-warning/5 p-2.5">
-                <Label htmlFor="dk-teachercode" className="text-warning text-xs font-semibold">
-                  Mã xác minh giáo viên (nếu có)
-                </Label>
-                <Input
-                  id="dk-teachercode"
-                  type="password"
-                  className="h-8 text-xs border-warning/30"
-                  placeholder="Nhập mã do trường cung cấp"
-                  value={dkTeacherCode}
-                  onChange={(e) => setDkTeacherCode(e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Nếu chưa có mã, tài khoản giáo viên sẽ ở trạng thái chờ BGH duyệt.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="dk-password">Mật khẩu *</Label>
-                <Input
-                  id="dk-password"
-                  type="password"
-                  className="h-9"
-                  autoComplete="new-password"
-                  placeholder="Tối thiểu 6 ký tự"
-                  value={dkPassword}
-                  onChange={(e) => setDkPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="dk-confirm-password">Xác nhận MK *</Label>
-                <Input
-                  id="dk-confirm-password"
-                  type="password"
-                  className="h-9"
-                  placeholder="Nhập lại mật khẩu"
-                  value={dkConfirmPassword}
-                  onChange={(e) => setDkConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {loi && (
-              <p role="alert" className="text-xs font-semibold text-destructive">
-                {loi}
-              </p>
-            )}
-
-            <Button type="submit" className="h-10 font-bold text-sm mt-1" disabled={dangGui}>
-              {dangGui ? 'Đang tạo tài khoản…' : 'Đăng ký tài khoản'}
-            </Button>
-
-            <div className="text-center text-xs text-muted-foreground">
-              Đã có tài khoản?{' '}
-              <button
+              <Button
                 type="button"
-                onClick={() => { setMode('dang_nhap'); setLoi('') }}
-                className="font-semibold text-primary hover:underline"
+                variant="outline"
+                className="shrink-0"
+                disabled={dangLayMa || !qmkUsername.trim()}
+                onClick={handleLayMa}
               >
-                Đăng nhập ngay
-              </button>
+                {dangLayMa ? 'Đang gửi…' : 'Lấy mã'}
+              </Button>
             </div>
-          </form>
-        )}
+            {thongBaoMa && <p className="text-xs leading-relaxed text-brand">{thongBaoMa}</p>}
+          </TruongNhap>
 
-        {/* ══ TAB 3: QUÊN MẬT KHẨU ══ */}
-        {mode === 'quen_mat_khau' && (
-          <form onSubmit={guiQuenMatKhau} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="qmk-username">Tên đăng nhập cần khôi phục *</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="qmk-username"
-                  className="h-9 flex-1"
-                  placeholder="Ví dụ: ledinhphat"
-                  value={qmkUsername}
-                  onChange={(e) => setQmkUsername(e.target.value)}
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 text-xs shrink-0"
-                  disabled={dangLayMa || !qmkUsername.trim()}
-                  onClick={handleLayMa}
-                >
-                  {dangLayMa ? 'Đang gửi…' : 'Lấy mã OTP'}
-                </Button>
-              </div>
-              {thongBaoMa && (
-                <p className="text-[11px] text-primary font-medium mt-0.5">
-                  {thongBaoMa}
-                </p>
-              )}
-            </div>
+          <TruongNhap
+            label="Mã khôi phục (6 số)"
+            htmlFor="qmk-code"
+            batBuoc
+            phu={<span className="text-xs text-text-tertiary">Hiệu lực 15 phút</span>}
+          >
+            <Input
+              id="qmk-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className="text-center font-mono text-base tracking-[0.4em]"
+              maxLength={8}
+              placeholder="••••••"
+              value={qmkCode}
+              onChange={(e) => setQmkCode(e.target.value)}
+              required
+            />
+          </TruongNhap>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="qmk-code">Mã khôi phục (6 số) *</Label>
-                <span className="text-[11px] text-muted-foreground">Hiệu lực 15 phút / Do GV cấp</span>
-              </div>
-              <Input
-                id="qmk-code"
-                className="h-9 tracking-widest font-mono text-center text-base"
-                maxLength={8}
-                placeholder="Ví dụ: 123456"
-                value={qmkCode}
-                onChange={(e) => setQmkCode(e.target.value)}
-                required
-              />
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TruongNhap label="Mật khẩu mới" htmlFor="qmk-newpassword" batBuoc>
+              <OMatKhau id="qmk-newpassword" autoComplete="new-password" placeholder="Tối thiểu 6 ký tự" value={qmkNewPassword} onChange={setQmkNewPassword} />
+            </TruongNhap>
+            <TruongNhap label="Nhập lại mật khẩu mới" htmlFor="qmk-confirm-newpassword" batBuoc>
+              <OMatKhau id="qmk-confirm-newpassword" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={qmkConfirmPassword} onChange={setQmkConfirmPassword} />
+            </TruongNhap>
+          </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="qmk-newpassword">Mật khẩu mới *</Label>
-                <Input
-                  id="qmk-newpassword"
-                  type="password"
-                  className="h-9"
-                  placeholder="Tối thiểu 6 ký tự"
-                  value={qmkNewPassword}
-                  onChange={(e) => setQmkNewPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="qmk-confirm-newpassword">Xác nhận MK mới *</Label>
-                <Input
-                  id="qmk-confirm-newpassword"
-                  type="password"
-                  className="h-9"
-                  placeholder="Nhập lại mật khẩu"
-                  value={qmkConfirmPassword}
-                  onChange={(e) => setQmkConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+          <ThongBaoLoi loi={loi} />
 
-            {loi && (
-              <p role="alert" className="text-xs font-semibold text-destructive">
-                {loi}
-              </p>
-            )}
+          <Button type="submit" size="lg" className="mt-1 w-full" disabled={dangGui}>
+            {dangGui ? 'Đang đặt lại mật khẩu…' : 'Đặt lại mật khẩu'}
+          </Button>
+        </form>
+      )}
+    </div>
+  )
+}
 
-            <Button type="submit" className="h-10 font-bold text-sm mt-1" disabled={dangGui}>
-              {dangGui ? 'Đang đặt lại mật khẩu…' : 'Đặt lại mật khẩu'}
-            </Button>
+function TruongNhap({
+  label,
+  htmlFor,
+  batBuoc = false,
+  phu,
+  children,
+}: {
+  label: string
+  htmlFor: string
+  batBuoc?: boolean
+  phu?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={htmlFor} className="text-sm font-medium text-text-primary">
+          {label}
+          {batBuoc && <span className="ml-0.5 text-text-tertiary">*</span>}
+        </Label>
+        {phu}
+      </div>
+      {children}
+    </div>
+  )
+}
 
-            <div className="text-center text-xs text-muted-foreground">
-              Nhớ lại mật khẩu rồi?{' '}
-              <button
-                type="button"
-                onClick={() => { setMode('dang_nhap'); setLoi('') }}
-                className="font-semibold text-primary hover:underline"
-              >
-                Quay lại đăng nhập
-              </button>
-            </div>
-          </form>
-        )}
-      </CardContent>
-    </Card>
+function OMatKhau({
+  id,
+  autoComplete,
+  placeholder = '••••••••',
+  value,
+  onChange,
+}: {
+  id: string
+  autoComplete: string
+  placeholder?: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [hien, setHien] = useState(false)
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={hien ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pr-11"
+        required
+      />
+      <button
+        type="button"
+        onClick={() => setHien((v) => !v)}
+        aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        aria-pressed={hien}
+        className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-primary"
+      >
+        {hien ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  )
+}
+
+function ThongBaoLoi({ loi }: { loi: string }) {
+  if (!loi) return null
+  return (
+    <p
+      role="alert"
+      className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm leading-relaxed text-destructive"
+    >
+      <AlertCircle className="mt-0.5 size-4 shrink-0" />
+      {loi}
+    </p>
   )
 }

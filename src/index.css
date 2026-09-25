@@ -242,6 +242,16 @@ body {
     scrollbar-width: thin;
   }
 
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
   ::selection {
     background: rgba(34, 211, 238, 0.28);
     color: #fff;
