@@ -2,6 +2,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import type { GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
 import { GameBoardView } from './GameBoardView'
+import { SoloGamePage } from './SoloGamePage'
+import type { SoloGameType } from './SoloGameStage'
+import { laTroChoiDon } from './game-ids'
 
 const CAC_GAME_TYPE: readonly GameType[] = [
   'caro_15',
@@ -32,6 +35,12 @@ export function GameRoomPage() {
   // thì không kèm tham số này, để không vô tình khởi tạo lại ván đang chơi của người khác.
   const gameTypeParam = searchParams.get('gameType')
   const intendedGameType = laGameType(gameTypeParam) ? gameTypeParam : undefined
+
+  // Trò chơi đơn không có bàn WebSocket: dựng khu chơi riêng thay vì bàn đối kháng.
+  if (intendedGameType && laTroChoiDon(intendedGameType)) {
+    return <SoloGamePage gameType={intendedGameType as SoloGameType} onLeave={() => navigate('/arena')} />
+  }
+
   const turnParam = Number(searchParams.get('turn'))
   const intendedTurnSeconds = intendedGameType && Number.isInteger(turnParam) && turnParam >= 10 && turnParam <= 120
     ? turnParam

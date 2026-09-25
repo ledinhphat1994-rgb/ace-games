@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ArrowLeft,
-  Clock,
-  Crown,
-  Eye,
-  Flag,
-  RotateCcw,
-  Sparkles,
-  Trophy,
-  Volume2,
-  VolumeX,
-  WifiOff,
-  Zap,
-} from 'lucide-react'
-import type { GameType } from '@shared/protocol/game'
+import { Crown, Eye, Flag, Link2, MessageCircle, RotateCcw, Swords, WifiOff } from 'lucide-react'
+import { toast } from 'sonner'
+import type { BoardCell, GameType, PlayerSide } from '@shared/protocol/game'
 import { useGame } from '../../hooks/use-game'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import { GameScreenHeader } from './GameScreenHeader'
+import { KICH_THUOC_BAN } from './board-size'
+import { QuanCo } from './GamePieces'
+import { GAME_CATALOG_BY_ID } from './game-catalog'
 
 interface GameBoardViewProps {
   gameId: string
@@ -31,7 +36,6 @@ const EMOTE_LIST = ['🔥', '👏', '😱', '🤔', '😎', 'GG', 'Nước hay!'
 export function GameBoardView({
   gameId,
   myActorKey,
-  myActorName: _myActorName,
   onLeave,
   intendedGameType,
   intendedTurnSeconds,
@@ -53,9 +57,9 @@ export function GameBoardView({
     sendEmote,
   } = useGame(gameId, myActorKey, intendedGameType, intendedTurnSeconds)
 
-  const [soundEnabled, setSoundEnabled] = useState(true)
   const [hoverCol, setHoverCol] = useState<number | null>(null)
-  const [showEmotePicker, setShowEmotePicker] = useState(false)
+  const [moBieuCam, setMoBieuCam] = useState(false)
+  const [xacNhanDauHang, setXacNhanDauHang] = useState(false)
   const [displayedEmote, setDisplayedEmote] = useState<{ sender: string; emote: string } | null>(null)
   const [prevEmoteId, setPrevEmoteId] = useState<number | null>(null)
 
@@ -78,405 +82,481 @@ export function GameBoardView({
     [isMyTurn, makeMove],
   )
 
-  const isWinCell = (x: number, y: number) => {
-    if (!meta.winLine) return false
-    return meta.winLine.some(([wx, wy]) => wx === x && wy === y)
+  const saoChepLinkMoi = async () => {
+    const url = `${window.location.origin}/game/${encodeURIComponent(gameId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Đã sao chép link mời — gửi cho bạn để vào bàn.')
+    } catch {
+      toast.error('Không sao chép được. Link bàn: ' + url)
+    }
   }
 
-  const isLastMoveCell = (x: number, y: number) => {
-    return lastMove?.x === x && lastMove?.y === y
-  }
+  const isWinCell = (x: number, y: number) => meta.winLine?.some(([wx, wy]) => wx === x && wy === y) ?? false
+  const isLastMoveCell = (x: number, y: number) => lastMove?.x === x && lastMove?.y === y
+  const tenTro = GAME_CATALOG_BY_ID[meta.gameType]?.shortTitle ?? 'Bàn đấu'
+  const daKetNoi = trangThai === 'da_ket_noi'
+  const tenBen = (side: PlayerSide) =>
+    side === 'X' ? meta.playerXName || (meta.playerX ? 'Người chơi X' : null) : meta.playerOName || (meta.playerO ? 'Người chơi O' : null)
+  const tenNguoiThang = meta.winner === 'X' || meta.winner === 'O' ? tenBen(meta.winner) : null
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 select-none overflow-hidden relative font-sans">
-      {/* Background glow effects */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Emote Float Banner */}
-      {displayedEmote && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce bg-slate-900/90 backdrop-blur-md border border-cyan-500/40 text-cyan-200 px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-semibold">
-          <span className="text-slate-400">{displayedEmote.sender}:</span>
-          <span className="text-2xl">{displayedEmote.emote}</span>
-        </div>
-      )}
-
-      {/* Top Header Bar */}
-      <header className="flex items-center justify-between px-4 py-2.5 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-10">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onLeave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-lg transition-colors border border-slate-700/60"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Rời bàn</span>
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-white tracking-wide">
-                {meta.gameType === 'caro_15' && 'Cờ Caro 15×15'}
-                {meta.gameType === 'caro_9' && 'Cờ Caro Nhanh 9×9'}
-                {meta.gameType === 'connect4' && 'Connect 4'}
-                {meta.gameType === 'reversi' && 'Reversi (Othello) 8×8'}
-              </span>
-              <span className="px-2 py-0.5 text-[10px] font-semibold uppercase rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                Bàn #{gameId.slice(0, 8)}
-              </span>
-              {trangThai !== 'da_ket_noi' && (
-                <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                  <WifiOff className="w-3 h-3" /> Đang kết nối lại...
+    <div className="flex min-h-svh flex-col bg-background text-text-primary select-none">
+      <GameScreenHeader
+        title={tenTro}
+        onBack={onLeave}
+        backLabel="Rời bàn, về sảnh Game"
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span>Bàn {gameId}</span>
+            <span aria-hidden>·</span>
+            <span>{meta.turnTimerSeconds}s mỗi lượt</span>
+          </span>
+        }
+        actions={
+          <>
+            {!daKetNoi && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning-muted px-2.5 py-1 text-xs font-medium text-warning">
+                <WifiOff className="size-3.5" />
+                <span className="hidden sm:inline">
+                  {trangThai === 'phien_bi_thay' ? 'Phiên đã mở ở nơi khác' : 'Đang kết nối lại…'}
                 </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/60 text-slate-400 border border-slate-700/50">
-            <Eye className="w-3.5 h-3.5 text-slate-400" />
-            <span>{spectators} người xem</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-1.5 rounded-md bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700/50"
-            title={soundEnabled ? 'Tắt âm' : 'Bật âm'}
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-        </div>
-      </header>
-
-      {/* Versus Player Strip */}
-      <section className="px-4 py-2.5 bg-slate-900/50 backdrop-blur-sm border-b border-slate-800/80 flex items-center justify-between gap-4 z-10">
-        {/* Player X */}
-        <div
-          className={`flex items-center gap-3 px-3.5 py-2 rounded-xl transition-all border ${
-            meta.currentTurn === 'X' && meta.status === 'playing'
-              ? 'bg-cyan-950/40 border-cyan-500/60 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-              : 'bg-slate-800/40 border-slate-800'
-          }`}
-        >
-          <div className="relative">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-lg text-white shadow-md">
-              X
-            </div>
-            {meta.winner === 'X' && (
-              <Crown className="w-5 h-5 text-amber-400 absolute -top-2.5 -right-2 drop-shadow-md animate-bounce" />
+              </span>
             )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-xs text-white max-w-[120px] truncate">
-                {meta.playerXName || (meta.playerX ? 'Đấu thủ X' : 'Đang chờ...')}
-              </span>
-              {mySide === 'X' && (
-                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">
-                  Bạn
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-              <span>Điểm: <strong className="text-cyan-400">{meta.scoreX}</strong></span>
-              {meta.currentTurn === 'X' && meta.status === 'playing' && (
-                <span className="flex items-center gap-1 text-cyan-300 font-mono font-bold animate-pulse">
-                  <Clock className="w-3 h-3" />
-                  {turnTimeRemaining}s
-                </span>
-              )}
-            </div>
-          </div>
+            <span
+              className="inline-flex items-center gap-1.5 text-xs text-text-secondary tabular-nums"
+              title={`${spectators} người xem`}
+            >
+              <Eye className="size-4 text-text-tertiary" />
+              {spectators}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => void saoChepLinkMoi()}>
+              <Link2 />
+              <span className="hidden sm:inline">Mời bạn</span>
+            </Button>
+          </>
+        }
+      />
+
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-4 px-4 py-5 sm:gap-5 sm:px-6">
+        {/* Hai người chơi */}
+        <div className="grid w-full max-w-[560px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+          <TheNguoiChoi
+            gameType={meta.gameType}
+            side="X"
+            ten={tenBen('X')}
+            diem={meta.scoreX}
+            laBan={mySide === 'X'}
+            dangLuot={meta.status === 'playing' && meta.currentTurn === 'X'}
+            thang={meta.winner === 'X'}
+            giayConLai={turnTimeRemaining}
+          />
+          <span className="text-xs font-semibold tracking-wider text-text-tertiary">VS</span>
+          <TheNguoiChoi
+            gameType={meta.gameType}
+            side="O"
+            ten={tenBen('O')}
+            diem={meta.scoreO}
+            laBan={mySide === 'O'}
+            dangLuot={meta.status === 'playing' && meta.currentTurn === 'O'}
+            thang={meta.winner === 'O'}
+            giayConLai={turnTimeRemaining}
+            canhPhai
+          />
         </div>
 
-        {/* Center Match Status */}
-        <div className="flex flex-col items-center justify-center">
-          {meta.status === 'waiting' && (
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-xs text-amber-400 font-semibold flex items-center gap-1.5 animate-pulse">
-                <Sparkles className="w-3.5 h-3.5" /> Chờ đối thủ vào bàn...
-              </span>
-              {!mySide && (
-                <button
-                  type="button"
-                  onClick={() => joinGame()}
-                  className="px-3 py-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-cyan-500/25 transition-transform active:scale-95"
-                >
-                  Tham gia thi đấu ⚔️
-                </button>
-              )}
-            </div>
+        {/* Trạng thái ván + hành động chính */}
+        <div className="flex min-h-10 flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center" aria-live="polite">
+          {meta.status === 'waiting' && !mySide && (
+            <>
+              <p className="text-sm text-text-secondary">Bàn đang chờ đối thủ.</p>
+              <Button size="sm" onClick={() => joinGame()} disabled={!daKetNoi}>
+                <Swords />
+                Vào chơi
+              </Button>
+            </>
           )}
-
+          {meta.status === 'waiting' && mySide && (
+            <>
+              <p className="flex items-center gap-2 text-sm text-text-secondary">
+                <span className="size-2 animate-pulse rounded-full bg-brand" />
+                Đang chờ đối thủ vào bàn…
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void saoChepLinkMoi()}>
+                <Link2 />
+                Sao chép link mời
+              </Button>
+            </>
+          )}
           {meta.status === 'playing' && (
-            <div className="flex flex-col items-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Đang thi đấu</span>
-              <div className="text-xs font-semibold mt-0.5">
-                {isMyTurn ? (
-                  <span className="text-emerald-400 flex items-center gap-1 font-bold animate-pulse">
-                    <Zap className="w-3.5 h-3.5" /> Lượt của bạn!
-                  </span>
-                ) : (
-                  <span className="text-slate-400">Lượt của đối thủ...</span>
-                )}
-              </div>
-            </div>
+            <p
+              className={cn(
+                'text-sm font-medium',
+                isMyTurn ? 'text-brand' : 'text-text-secondary',
+              )}
+            >
+              {isMyTurn ? 'Đến lượt bạn' : mySide ? 'Đang chờ đối thủ đi…' : 'Bạn đang xem trận đấu'}
+            </p>
           )}
-
           {meta.status === 'ended' && (
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                <Trophy className="w-4 h-4 text-amber-400" />
+            <>
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Crown className="size-4 text-achievement" />
                 {meta.winner === 'draw'
-                  ? 'Hòa ván cờ!'
+                  ? 'Hoà!'
                   : meta.winner === mySide
-                    ? '🎉 BẠN ĐÃ CHIẾN THẮNG!'
-                    : `Chiến thắng thuộc về ${meta.winner === 'X' ? meta.playerXName || 'X' : meta.playerOName || 'O'}!`}
-              </div>
-              <button
-                type="button"
-                onClick={rematch}
-                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-md transition-transform active:scale-95 flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" /> Đấu lại
-              </button>
-            </div>
+                    ? 'Bạn thắng!'
+                    : `${tenNguoiThang ?? 'Đối thủ'} thắng`}
+              </p>
+              {mySide && (
+                <Button size="sm" onClick={rematch}>
+                  <RotateCcw />
+                  Đấu lại
+                </Button>
+              )}
+            </>
           )}
         </div>
 
-        {/* Player O */}
-        <div
-          className={`flex items-center gap-3 px-3.5 py-2 rounded-xl transition-all border ${
-            meta.currentTurn === 'O' && meta.status === 'playing'
-              ? 'bg-fuchsia-950/40 border-fuchsia-500/60 shadow-[0_0_15px_rgba(217,70,239,0.25)]'
-              : 'bg-slate-800/40 border-slate-800'
-          }`}
-        >
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-2">
-              {mySide === 'O' && (
-                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-fuchsia-500/20 text-fuchsia-300 rounded border border-fuchsia-500/30">
-                  Bạn
-                </span>
-              )}
-              <span className="font-semibold text-xs text-white max-w-[120px] truncate">
-                {meta.playerOName || (meta.playerO ? 'Đấu thủ O' : 'Đang chờ...')}
-              </span>
+        {/* Bàn cờ */}
+        <div className="relative" style={KICH_THUOC_BAN}>
+          {displayedEmote && (
+            <div className="pointer-events-none absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 -translate-y-full items-center gap-2 rounded-full border border-border-default bg-surface-raised px-3.5 py-1.5 text-sm shadow-xl animate-in fade-in-0 zoom-in-95">
+              <span className="text-text-tertiary">{displayedEmote.sender}:</span>
+              <span className="font-semibold">{displayedEmote.emote}</span>
             </div>
-            <div className="flex items-center justify-end gap-2 text-[11px] text-slate-400 mt-0.5">
-              {meta.currentTurn === 'O' && meta.status === 'playing' && (
-                <span className="flex items-center gap-1 text-fuchsia-300 font-mono font-bold animate-pulse">
-                  <Clock className="w-3 h-3" />
-                  {turnTimeRemaining}s
-                </span>
-              )}
-              <span>Điểm: <strong className="text-fuchsia-400">{meta.scoreO}</strong></span>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center font-black text-lg text-white shadow-md">
-              O
-            </div>
-            {meta.winner === 'O' && (
-              <Crown className="w-5 h-5 text-amber-400 absolute -top-2.5 -right-2 drop-shadow-md animate-bounce" />
-            )}
-          </div>
+          )}
+
+          {(meta.gameType === 'caro_15' || meta.gameType === 'caro_9') && (
+            <BanCaro
+              board={board}
+              gameType={meta.gameType}
+              coTheDi={isMyTurn && meta.status === 'playing'}
+              isWinCell={isWinCell}
+              isLastMoveCell={isLastMoveCell}
+              onCell={handleCellClick}
+            />
+          )}
+
+          {meta.gameType === 'connect4' && (
+            <BanConnect4
+              board={board}
+              coTheDi={isMyTurn && meta.status === 'playing'}
+              mySide={mySide}
+              hoverCol={hoverCol}
+              setHoverCol={setHoverCol}
+              isWinCell={isWinCell}
+              isLastMoveCell={isLastMoveCell}
+              onCol={(x) => handleCellClick(x, 0)}
+            />
+          )}
+
+          {meta.gameType === 'reversi' && (
+            <BanReversi
+              board={board}
+              coTheDi={isMyTurn && meta.status === 'playing'}
+              isLastMoveCell={isLastMoveCell}
+              onCell={handleCellClick}
+            />
+          )}
         </div>
-      </section>
 
-      {/* Main Board Arena Viewport */}
-      <main className="flex-1 overflow-auto flex items-center justify-center p-3 sm:p-6 relative">
-        {/* CARO 15x15 & CARO 9x9 */}
-        {(meta.gameType === 'caro_15' || meta.gameType === 'caro_9') && (
-          <div className="relative p-2.5 sm:p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
-            <div
-              className="grid gap-[2px] bg-slate-800/80 p-[2px] rounded-lg shadow-inner"
-              style={{
-                gridTemplateColumns: `repeat(${board[0]?.length || 15}, minmax(0, 1fr))`,
-              }}
-            >
-              {board.map((row, y) =>
-                row.map((cell, x) => {
-                  const isWin = isWinCell(x, y)
-                  const isLast = isLastMoveCell(x, y)
-                  const cellSizeClass = meta.gameType === 'caro_15' ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-9 h-9 sm:w-11 sm:h-11'
-
-                  return (
-                    <button
-                      key={`${x}-${y}`}
-                      type="button"
-                      disabled={!isMyTurn || cell !== null || meta.status !== 'playing'}
-                      onClick={() => handleCellClick(x, y)}
-                      className={`
-                        ${cellSizeClass} flex items-center justify-center rounded-[3px] text-xs sm:text-base font-black transition-all relative
-                        ${cell === null && isMyTurn && meta.status === 'playing' ? 'hover:bg-slate-700/80 cursor-pointer' : 'cursor-default'}
-                        ${cell === null ? 'bg-slate-950/80' : ''}
-                        ${cell === 'X' ? 'bg-cyan-950/40 text-cyan-400' : ''}
-                        ${cell === 'O' ? 'bg-fuchsia-950/40 text-fuchsia-400' : ''}
-                        ${isWin ? 'ring-2 ring-amber-400 bg-amber-500/30 animate-pulse' : ''}
-                        ${isLast && !isWin ? 'ring-1 ring-white/60 shadow-[0_0_8px_rgba(255,255,255,0.4)]' : ''}
-                      `}
-                    >
-                      {cell === 'X' && <span className="drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]">✕</span>}
-                      {cell === 'O' && <span className="drop-shadow-[0_0_6px_rgba(217,70,239,0.8)]">◯</span>}
-                      {cell === null && isMyTurn && (
-                        <span className="opacity-0 hover:opacity-30 text-slate-400">
-                          {mySide === 'X' ? '✕' : '◯'}
-                        </span>
-                      )}
-                    </button>
-                  )
-                }),
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* CONNECT 4 (7 columns x 6 rows) */}
-        {meta.gameType === 'connect4' && (
-          <div className="relative p-4 rounded-3xl bg-blue-950/80 border-4 border-blue-600/80 shadow-2xl shadow-blue-500/20 backdrop-blur-xl">
-            {/* Column Drop Indicator Buttons */}
-            {isMyTurn && meta.status === 'playing' && (
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {Array.from({ length: 7 }).map((_, colIdx) => (
-                  <button
-                    key={`drop-${colIdx}`}
-                    type="button"
-                    onMouseEnter={() => setHoverCol(colIdx)}
-                    onMouseLeave={() => setHoverCol(null)}
-                    onClick={() => handleCellClick(colIdx, 0)}
-                    className="h-8 rounded-lg bg-blue-800/40 hover:bg-blue-600 text-blue-200 hover:text-white font-bold text-xs flex items-center justify-center transition-colors shadow-sm"
-                  >
-                    ⬇
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-7 gap-2 bg-blue-900/90 p-3 rounded-2xl border border-blue-700/60 shadow-inner">
-              {board.map((row, y) =>
-                row.map((cell, x) => {
-                  const isWin = isWinCell(x, y)
-                  const isLast = isLastMoveCell(x, y)
-                  const isHovered = hoverCol === x && cell === null
-
-                  return (
-                    <button
-                      key={`c4-${x}-${y}`}
-                      type="button"
-                      disabled={!isMyTurn || meta.status !== 'playing'}
-                      onClick={() => handleCellClick(x, 0)}
-                      className={`
-                        w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-inner border-2
-                        ${cell === null ? 'bg-slate-950/90 border-blue-950' : ''}
-                        ${cell === 'X' ? 'bg-gradient-to-br from-rose-500 to-red-600 border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.6)]' : ''}
-                        ${cell === 'O' ? 'bg-gradient-to-br from-amber-400 to-yellow-500 border-yellow-200 shadow-[0_0_12px_rgba(245,158,11,0.6)]' : ''}
-                        ${isWin ? 'ring-4 ring-white animate-bounce' : ''}
-                        ${isLast && !isWin ? 'ring-2 ring-white/80' : ''}
-                        ${isHovered ? 'bg-blue-900/50' : ''}
-                      `}
-                    />
-                  )
-                }),
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* REVERSI 8x8 (Othello) */}
-        {meta.gameType === 'reversi' && (
-          <div className="relative p-4 rounded-3xl bg-emerald-950/90 border-4 border-emerald-700/80 shadow-2xl shadow-emerald-950/50 backdrop-blur-xl">
-            <div className="grid grid-cols-8 gap-1.5 bg-emerald-900/90 p-2.5 rounded-2xl border border-emerald-800 shadow-inner">
-              {board.map((row, y) =>
-                row.map((cell, x) => {
-                  const isLast = isLastMoveCell(x, y)
-
-                  return (
-                    <button
-                      key={`rev-${x}-${y}`}
-                      type="button"
-                      disabled={!isMyTurn || cell !== null || meta.status !== 'playing'}
-                      onClick={() => handleCellClick(x, y)}
-                      className={`
-                        w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all bg-emerald-800/80 border border-emerald-700/50
-                        ${cell === null && isMyTurn ? 'hover:bg-emerald-700 cursor-pointer' : ''}
-                      `}
-                    >
-                      {cell === 'X' && (
-                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-slate-900 to-black border border-slate-700 shadow-lg ${isLast ? 'ring-2 ring-cyan-400' : ''}`} />
-                      )}
-                      {cell === 'O' && (
-                        <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-slate-100 to-slate-300 border border-white shadow-lg ${isLast ? 'ring-2 ring-fuchsia-400' : ''}`} />
-                      )}
-                    </button>
-                  )
-                }),
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Bottom Action / Emote Bar */}
-      <footer className="px-4 py-2.5 bg-slate-900/80 backdrop-blur-md border-t border-slate-800 flex items-center justify-between gap-3 z-10">
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowEmotePicker(!showEmotePicker)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-colors"
-            >
-              <span>💬 Biểu cảm</span>
-            </button>
-            {showEmotePicker && (
-              <div className="absolute bottom-11 left-0 bg-slate-900/95 border border-slate-700 p-2 rounded-xl shadow-2xl flex flex-wrap gap-1.5 w-64 backdrop-blur-md z-30">
+        {/* Hành động phụ */}
+        <div className="flex w-full max-w-[560px] items-center justify-between gap-3">
+          <Popover open={moBieuCam} onOpenChange={setMoBieuCam}>
+            <PopoverTrigger render={<Button variant="outline" size="sm" disabled={!daKetNoi} />}>
+              <MessageCircle />
+              Biểu cảm
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-64">
+              <div className="day-loc-deu-co-gian [--the-nho-nhat:3rem]">
                 {EMOTE_LIST.map((em) => (
                   <button
                     key={em}
                     type="button"
                     onClick={() => {
                       sendEmote(em)
-                      setShowEmotePicker(false)
+                      setMoBieuCam(false)
                     }}
-                    className="px-2.5 py-1 text-xs bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-slate-200 rounded-lg transition-colors border border-slate-700/60"
+                    className="flex h-9 items-center rounded-xl border border-border-default px-2.5 text-sm transition-colors hover:border-brand/40 hover:bg-brand/10"
                   >
                     {em}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
+            </PopoverContent>
+          </Popover>
 
-        <div className="flex items-center gap-2">
           {meta.status === 'playing' && mySide && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Bạn có chắc chắn muốn xin hàng ván cờ này?')) {
-                  surrender()
-                }
-              }}
-              className="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-300 hover:text-red-200 text-xs font-semibold border border-red-800/60 flex items-center gap-1.5 transition-colors"
-            >
-              <Flag className="w-3.5 h-3.5" />
-              <span>Đầu hàng</span>
-            </button>
-          )}
-
-          {meta.status === 'ended' && (
-            <button
-              type="button"
-              onClick={rematch}
-              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Đấu ván mới</span>
-            </button>
+            <Button variant="destructive" size="sm" onClick={() => setXacNhanDauHang(true)}>
+              <Flag />
+              Đầu hàng
+            </Button>
           )}
         </div>
-      </footer>
+      </main>
+
+      <AlertDialog open={xacNhanDauHang} onOpenChange={setXacNhanDauHang}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đầu hàng ván này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Đối thủ sẽ được tính thắng ván hiện tại. Hai bạn vẫn có thể đấu lại ngay sau đó.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Chơi tiếp</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setXacNhanDauHang(false)
+                surrender()
+              }}
+            >
+              Đầu hàng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+function TheNguoiChoi({
+  gameType,
+  side,
+  ten,
+  diem,
+  laBan,
+  dangLuot,
+  thang,
+  giayConLai,
+  canhPhai = false,
+}: {
+  gameType: GameType
+  side: PlayerSide
+  ten: string | null
+  diem: number
+  laBan: boolean
+  dangLuot: boolean
+  thang: boolean
+  giayConLai: number
+  canhPhai?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'flex min-w-0 items-center gap-2.5 rounded-2xl border px-2.5 py-2 transition-colors duration-150 sm:gap-3 sm:px-3',
+        dangLuot ? 'border-brand/50 bg-brand/[0.06]' : 'border-border-subtle bg-surface',
+        canhPhai && 'flex-row-reverse text-right',
+      )}
+    >
+      <span className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface-overlay sm:size-10">
+        <QuanCo gameType={gameType} side={side} className="size-5 sm:size-6" />
+        {thang && <Crown className="absolute -top-2 -right-1.5 size-4 text-achievement" />}
+      </span>
+      <div className="min-w-0">
+        <p className={cn('text-sm leading-5 font-semibold break-words', ten ? 'text-text-primary' : 'text-text-tertiary')}>
+          {ten ?? 'Đang chờ…'}
+          {laBan && <span className="ml-1 text-xs font-medium text-brand">(bạn)</span>}
+        </p>
+        <p className="text-xs text-text-tertiary tabular-nums">
+          {diem} điểm
+          {dangLuot && <span className="ml-1.5 font-semibold text-brand">· {giayConLai}s</span>}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function BanCaro({
+  board,
+  gameType,
+  coTheDi,
+  isWinCell,
+  isLastMoveCell,
+  onCell,
+}: {
+  board: BoardCell[][]
+  gameType: 'caro_15' | 'caro_9'
+  coTheDi: boolean
+  isWinCell: (x: number, y: number) => boolean
+  isLastMoveCell: (x: number, y: number) => boolean
+  onCell: (x: number, y: number) => void
+}) {
+  const soCot = board[0]?.length || (gameType === 'caro_15' ? 15 : 9)
+  return (
+    <div className="rounded-2xl border border-border-default bg-surface p-2 shadow-2xl shadow-black/30 sm:p-2.5">
+      <div className="relative aspect-square overflow-hidden rounded-lg bg-[#0b1322]">
+        {/* Lưới vẽ bằng SVG crispEdges: nét 1px đều nhau ở mọi kích thước ô (kể cả khi ô lẻ pixel). */}
+        <svg
+          aria-hidden
+          viewBox={`0 0 ${soCot} ${soCot}`}
+          preserveAspectRatio="none"
+          shapeRendering="crispEdges"
+          className="pointer-events-none absolute inset-0 size-full"
+        >
+          <g stroke="#243049" strokeWidth="1" vectorEffect="non-scaling-stroke">
+            {Array.from({ length: soCot - 1 }, (_, i) => (
+              <g key={i}>
+                <line x1={i + 1} y1={0} x2={i + 1} y2={soCot} vectorEffect="non-scaling-stroke" />
+                <line x1={0} y1={i + 1} x2={soCot} y2={i + 1} vectorEffect="non-scaling-stroke" />
+              </g>
+            ))}
+          </g>
+        </svg>
+        <div
+          className="relative grid size-full"
+          style={{ gridTemplateColumns: `repeat(${soCot}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${soCot}, minmax(0, 1fr))` }}
+          role="grid"
+          aria-label={`Bàn cờ ${soCot}×${soCot}`}
+        >
+          {board.map((row, y) =>
+            row.map((cell, x) => {
+              const win = isWinCell(x, y)
+              const last = isLastMoveCell(x, y)
+              const trong = cell === null
+              return (
+                <button
+                  key={`${x}-${y}`}
+                  type="button"
+                  disabled={!coTheDi || !trong}
+                  onClick={() => onCell(x, y)}
+                  aria-label={`Ô ${x + 1}, ${y + 1}${cell ? ` — ${cell}` : ''}`}
+                  className={cn(
+                    'relative flex items-center justify-center transition-colors duration-100',
+                    trong && coTheDi && 'cursor-pointer hover:bg-white/[0.05]',
+                    win && 'bg-achievement/20',
+                    last && !win && 'bg-white/[0.07]',
+                  )}
+                >
+                  {cell && <QuanCo gameType={gameType} side={cell} className="w-[74%]" />}
+                  {win && <span className="pointer-events-none absolute inset-0 ring-2 ring-achievement/80 ring-inset" />}
+                </button>
+              )
+            }),
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BanConnect4({
+  board,
+  coTheDi,
+  mySide,
+  hoverCol,
+  setHoverCol,
+  isWinCell,
+  isLastMoveCell,
+  onCol,
+}: {
+  board: BoardCell[][]
+  coTheDi: boolean
+  mySide: PlayerSide | null
+  hoverCol: number | null
+  setHoverCol: (c: number | null) => void
+  isWinCell: (x: number, y: number) => boolean
+  isLastMoveCell: (x: number, y: number) => boolean
+  onCol: (x: number) => void
+}) {
+  const soCot = board[0]?.length || 7
+  return (
+    <div>
+      {/* Hàng quân xem trước ở cột đang trỏ */}
+      <div className="grid gap-1.5 px-3 pb-1.5 sm:gap-2" style={{ gridTemplateColumns: `repeat(${soCot}, minmax(0, 1fr))` }}>
+        {Array.from({ length: soCot }, (_, x) => (
+          <span key={x} className="flex aspect-[5/3] items-end justify-center">
+            {coTheDi && hoverCol === x && mySide && <QuanCo gameType="connect4" side={mySide} className="w-[55%] opacity-60" />}
+          </span>
+        ))}
+      </div>
+      <div
+        className="grid gap-1.5 rounded-2xl border-2 border-[#2563eb] bg-[#1e3a8a] p-3 shadow-2xl shadow-blue-950/40 sm:gap-2"
+        style={{ gridTemplateColumns: `repeat(${soCot}, minmax(0, 1fr))` }}
+        onMouseLeave={() => setHoverCol(null)}
+        role="grid"
+        aria-label="Bàn Connect 4"
+      >
+        {board.map((row, y) =>
+          row.map((cell, x) => {
+            const win = isWinCell(x, y)
+            const last = isLastMoveCell(x, y)
+            return (
+              <button
+                key={`${x}-${y}`}
+                type="button"
+                disabled={!coTheDi}
+                onMouseEnter={() => setHoverCol(x)}
+                onFocus={() => setHoverCol(x)}
+                onClick={() => onCol(x)}
+                aria-label={`Thả quân vào cột ${x + 1}`}
+                className={cn(
+                  'relative flex aspect-square items-center justify-center rounded-full bg-[#020617] transition-colors duration-100',
+                  coTheDi && 'cursor-pointer',
+                  coTheDi && hoverCol === x && cell === null && 'bg-[#0b1a3d]',
+                )}
+              >
+                {cell && <QuanCo gameType="connect4" side={cell} className="w-[88%]" />}
+                {(win || last) && (
+                  <span
+                    className={cn(
+                      'pointer-events-none absolute inset-0 rounded-full ring-inset',
+                      win ? 'ring-[3px] ring-achievement' : 'ring-2 ring-white/60',
+                    )}
+                  />
+                )}
+              </button>
+            )
+          }),
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BanReversi({
+  board,
+  coTheDi,
+  isLastMoveCell,
+  onCell,
+}: {
+  board: BoardCell[][]
+  coTheDi: boolean
+  isLastMoveCell: (x: number, y: number) => boolean
+  onCell: (x: number, y: number) => void
+}) {
+  const soCot = board[0]?.length || 8
+  return (
+    <div
+      className="grid gap-1 rounded-2xl border border-[#047857]/70 bg-[#022c22] p-2 shadow-2xl shadow-black/30 sm:gap-1.5 sm:p-2.5"
+      style={{ gridTemplateColumns: `repeat(${soCot}, minmax(0, 1fr))` }}
+      role="grid"
+      aria-label="Bàn Reversi 8×8"
+    >
+      {board.map((row, y) =>
+        row.map((cell, x) => {
+          const last = isLastMoveCell(x, y)
+          const trong = cell === null
+          return (
+            <button
+              key={`${x}-${y}`}
+              type="button"
+              disabled={!coTheDi || !trong}
+              onClick={() => onCell(x, y)}
+              aria-label={`Ô ${x + 1}, ${y + 1}${cell ? ` — ${cell === 'X' ? 'đen' : 'trắng'}` : ''}`}
+              className={cn(
+                'relative flex aspect-square items-center justify-center rounded-md bg-[#065f46] transition-colors duration-100',
+                trong && coTheDi && 'cursor-pointer hover:bg-[#047857]',
+              )}
+            >
+              {cell && <QuanCo gameType="reversi" side={cell} className="w-[78%]" />}
+              {last && <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-brand/80 ring-inset" />}
+            </button>
+          )
+        }),
+      )}
     </div>
   )
 }

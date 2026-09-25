@@ -101,7 +101,12 @@ export function GameLeaderboard({ gameType, verifiedOnly = false, limit = 10 }: 
                 >
                   {i + 1}
                 </span>
-                <span className="min-w-0 flex-1 break-words text-text-primary">{row.playerName}</span>
+                <span className="min-w-0 flex-1 break-words text-text-primary">
+                  {row.playerName}
+                  {!verifiedOnly && row.verified === 1 && (
+                    <BadgeCheck className="ml-1 inline size-3.5 align-[-2px] text-success" aria-label="Điểm đã được máy chủ xác thực" />
+                  )}
+                </span>
                 <span className="shrink-0 font-semibold tabular-nums text-text-primary">
                   {row.score.toLocaleString('vi-VN')}
                 </span>

@@ -10,15 +10,13 @@ import { GameArt } from './GameArt'
 import { GameCard } from './GameCard'
 import { GameLeaderboard } from './GameLeaderboard'
 import { GameTableCard } from './GameTableCard'
+import { laTroChoiDon, taoMaBan } from './game-ids'
 import { CAC_GAME_1V1, CAC_GAME_SOLO, GAME_CATALOG_BY_ID } from './game-catalog'
 
 interface GameLobbyViewProps {
   onCreateRoom: (roomId: string, gameType: GameType, turnSeconds: number) => void
   onJoinExisting: (roomId: string) => void
 }
-
-const maBanNgauNhien = (gameType: GameType) =>
-  `${gameType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
 
 const THOI_GIAN_LUOT = [15, 30, 60] as const
 const SO_BAN_HIEN_THI = 6
@@ -55,9 +53,8 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
   // Chơi ngay: trò đơn mở phiên riêng; trò đối kháng vào bàn đang chờ đông người xem nhất, không có thì mở bàn mới.
   const handlePlayGame = useCallback(
     (gameType: GameType) => {
-      const def = GAME_CATALOG_BY_ID[gameType]
-      if (def.category === 'solo') {
-        onCreateRoom(maBanNgauNhien(gameType), gameType, 0)
+      if (laTroChoiDon(gameType)) {
+        onCreateRoom(taoMaBan(gameType), gameType, 0)
         return
       }
 
@@ -70,7 +67,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
         return
       }
 
-      onCreateRoom(maBanNgauNhien(gameType), gameType, 30)
+      onCreateRoom(taoMaBan(gameType), gameType, 30)
     },
     [tables, onJoinExisting, onCreateRoom],
   )
@@ -84,7 +81,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
       onJoinExisting(banBatKy.id)
       return
     }
-    onCreateRoom(maBanNgauNhien('caro_15'), 'caro_15', 30)
+    onCreateRoom(taoMaBan('caro_15'), 'caro_15', 30)
   }, [tables, onJoinExisting, onCreateRoom])
 
   const moHopThoaiBan = (game: GameType) => setHopThoaiBan({ open: true, game })
@@ -236,7 +233,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
 
       {/* ── Hộp thoại bàn của một trò đối kháng ───────────────── */}
       <Dialog open={hopThoaiBan.open} onOpenChange={(open) => setHopThoaiBan((s) => ({ ...s, open }))}>
-        <DialogContent className="gap-0 overflow-hidden rounded-2xl border border-border-default bg-surface p-0 sm:max-w-md">
+        <DialogContent className="gap-0 p-0 sm:max-w-md">
           <div className="flex items-center gap-3 border-b border-border-subtle p-4 pr-12">
             <div className="size-11 shrink-0 overflow-hidden rounded-xl">
               <GameArt gameType={hopThoaiBan.game} variant="icon" />
@@ -276,7 +273,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
               onClick={() => {
                 const g = hopThoaiBan.game
                 setHopThoaiBan((s) => ({ ...s, open: false }))
-                onCreateRoom(maBanNgauNhien(g), g, turnSeconds)
+                onCreateRoom(taoMaBan(g), g, turnSeconds)
               }}
             >
               <Plus />
