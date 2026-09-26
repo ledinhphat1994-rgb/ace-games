@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import { LenhCampus, type GoiCampus, type PhongSanh, type TinCampus } from '../../shared/protocol/campus'
-import type { FriendPresence, PresenceState, UserActivity } from '../../shared/protocol/social'
+import type { FriendItem, FriendPresence, UserActivity } from '../../shared/protocol/social'
 import {
   lamSachVanBan,
   MA_DONG_SOCKET,
@@ -21,11 +21,18 @@ const CUA_SO_LENH_MS = 10_000
 const PHONG_GUI_KEM = 100
 export const DISCONNECT_GRACE_MS = 5000
 
-interface TrangThaiNguoiDung {
-  state: PresenceState
-  lastSeen: number
-  activity: UserActivity | null
-  timerDisconnect?: ReturnType<typeof setTimeout>
+/**
+ * Attachment của mỗi WebSocket Campus. Instance bị huỷ khi ngủ đông nên trạng thái away/hoạt động phải nằm ở đây
+ * (sống cùng kết nối) chứ không ở bộ nhớ: presence của một tài khoản luôn suy ra từ các kết nối còn mở.
+ */
+type KetNoiCampus = DanhTinhCampus & {
+  _joinedAt?: number
+  away?: boolean
+  activity?: UserActivity | null
+  /** Lúc kết nối này gửi activity.set gần nhất — nhiều tab thì tab đặt sau cùng thắng. */
+  activityAt?: number
+  /** Lúc kết nối này đổi trạng thái gần nhất (vào, away, hoạt động). */
+  capNhatLuc?: number
 }
 
 interface DongTinD1 {
@@ -53,6 +60,11 @@ interface DongPhongD1 {
 }
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
+
+const SELECT_PHONG_SANH = `SELECT p.id, p.ten, p.mo_ta AS moTa, p.pham_vi AS phamVi, p.lop_id AS lopId, l.ten AS lopTen,
+        p.chu_phong_ten AS chuPhongTen, p.cau_hinh AS cauHinh, p.access_mode AS accessMode,
+        p.suc_chua AS sucChua, p.tao_luc AS taoLuc
+   FROM phong p LEFT JOIN lop l ON l.id = p.lop_id`
 const laMonHoc = (v: unknown): v is MonHoc => MON_HOC.some((m) => m.id === v)
 
 function docCauHinh(v: string | null): Record<string, unknown> {
@@ -109,9 +121,12 @@ export class CampusDO extends DurableObject<Env> {
   private tinGanDay: TinCampus[] | null = null
   private guiChatGanNhat = new Map<number, { luc: number; batDauPhut: number; demPhut: number }>()
   private demLenh = new WeakMap<WebSocket, { batDau: number; dem: number }>()
-  private presenceMap = new Map<number, TrangThaiNguoiDung>()
+  /** Hẹn giờ báo offline sau grace period; mất khi ngủ đông cũng không sao vì hẹn giờ đang chờ giữ instance thức. */
+  private henGioOffline = new Map<number, ReturnType<typeof setTimeout>>()
+  // Đồ thị bạn bè/chặn chỉ là cache của D1: tài khoản chưa nạp thì nạp lại (sau ngủ đông cache rỗng).
   private friendMap = new Map<number, Set<number>>()
   private blockMap = new Map<number, Set<number>>()
+  private daNapDoThi = new Set<number>()
   private phongCuaTaiKhoan = new Map<number, Set<string>>()
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -121,6 +136,9 @@ export class CampusDO extends DurableObject<Env> {
       'CREATE TABLE IF NOT EXISTS phong (id INTEGER PRIMARY KEY, du_lieu TEXT NOT NULL, pham_vi TEXT NOT NULL, lop_id INTEGER)',
     )
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS meta (khoa TEXT PRIMARY KEY, gia_tri TEXT NOT NULL)')
+    ctx.storage.sql.exec(
+      'CREATE TABLE IF NOT EXISTS presence_last_seen (account_id INTEGER PRIMARY KEY, last_seen INTEGER NOT NULL)',
+    )
     ctx.storage.sql.exec(
       'CREATE TABLE IF NOT EXISTS phong_tai_khoan (account_id INTEGER, room_name TEXT, phien_id TEXT, updated_at INTEGER, PRIMARY KEY (account_id, room_name))',
     )
@@ -190,7 +208,8 @@ export class CampusDO extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair()
     this.ctx.acceptWebSocket(server, [theTaiKhoan(dt.accountId)])
-    server.serializeAttachment({ ...dt, _joinedAt: Date.now() })
+    const bayGio = Date.now()
+    server.serializeAttachment({ ...dt, _joinedAt: bayGio, capNhatLuc: bayGio } satisfies KetNoiCampus)
     await this.dangKyKetNoi(server, dt)
 
     if (this.env?.ANALYTICS_DB) {
@@ -242,9 +261,9 @@ export class CampusDO extends DurableObject<Env> {
       case 'chat.delete':
         return this.xoaChat(ws, dt, lenh.data.id, reqId)
       case 'presence.away':
-        return this.capNhatAway(dt.accountId, lenh.data.away)
+        return this.capNhatAway(ws, lenh.data.away)
       case 'activity.set':
-        return this.capNhatHoatDong(dt.accountId, lenh.data.activity)
+        return this.capNhatHoatDong(ws, lenh.data.activity)
     }
   }
 
@@ -267,12 +286,12 @@ export class CampusDO extends DurableObject<Env> {
         },
       })
     }
-    this.huyKetNoi(ws)
+    await this.huyKetNoi(ws)
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
-    this.huyKetNoi(ws)
+    await this.huyKetNoi(ws)
     this.phatTatCa({ type: 'online', count: this.demOnline(ws) }, ws)
   }
 
@@ -597,6 +616,29 @@ export class CampusDO extends DurableObject<Env> {
     if (cu) this.phatTheoPhamVi(cu, { type: 'room.remove', id })
   }
 
+  /**
+   * RoomDO báo số người đang ở phòng học (mỗi lần có người vào/ra) và API tạo phòng báo phòng mới (0 người):
+   * sảnh của mọi người hiện phòng ngay, đúng số người và biết phòng đã đầy. Phòng chưa có trong danh bạ thì nạp
+   * đúng phòng đó từ D1 — chỉ khi D1 còn ghi đang mở, để báo muộn của phòng vừa đóng không làm phòng hiện lại.
+   */
+  async capNhatSoNguoi(id: number, soNguoi: number): Promise<void> {
+    const daCo = this.docTatCaPhong().find((p) => p.id === id)
+    if (daCo?.soNguoi === soNguoi) return
+    let goc = daCo
+    if (!goc) {
+      try {
+        const dong = await this.env.DB.prepare(`${SELECT_PHONG_SANH} WHERE p.id = ?1 AND p.trang_thai = 'mo' AND p.loai = 'video'`)
+          .bind(id)
+          .first<DongPhongD1>()
+        if (dong) goc = phongSanhTuD1(dong)
+      } catch (e) {
+        console.error(`Không nạp được phòng ${id} vào danh bạ sảnh:`, e)
+      }
+    }
+    if (!goc) return
+    await this.capNhatPhong({ ...goc, soNguoi })
+  }
+
   private async guiChat(ws: WebSocket, dt: DanhTinhCampus, text: string, reqId?: string): Promise<void> {
     const noiDung = lamSachVanBan(text)
     if (!noiDung) return this.loi(ws, reqId, 'invalid_payload', 'Tin nhắn trống.')
@@ -735,12 +777,7 @@ export class CampusDO extends DurableObject<Env> {
     let dsD1: DongPhongD1[]
     try {
       const { results } = await this.env.DB.prepare(
-        `SELECT p.id, p.ten, p.mo_ta AS moTa, p.pham_vi AS phamVi, p.lop_id AS lopId, l.ten AS lopTen,
-                p.chu_phong_ten AS chuPhongTen, p.cau_hinh AS cauHinh, p.access_mode AS accessMode,
-                p.suc_chua AS sucChua, p.tao_luc AS taoLuc
-           FROM phong p LEFT JOIN lop l ON l.id = p.lop_id
-          WHERE p.trang_thai = 'mo' AND p.loai = 'video'
-          ORDER BY p.id DESC LIMIT 200`,
+        `${SELECT_PHONG_SANH} WHERE p.trang_thai = 'mo' AND p.loai = 'video' ORDER BY p.id DESC LIMIT 200`,
       ).all<DongPhongD1>()
       dsD1 = results
     } catch (e) {
@@ -841,93 +878,115 @@ export class CampusDO extends DurableObject<Env> {
   // Presence & Social Graph Logic
   // ─────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Presence của một tài khoản suy ra từ các kết nối Campus còn mở (sống qua ngủ đông):
+   * không còn kết nối → offline; mọi kết nối đều báo away → away; còn lại → online.
+   */
+  private trangThaiTaiKhoan(accountId: number, ...boQua: WebSocket[]): FriendPresence {
+    let away = true
+    let coKetNoi = false
+    let lastSeen = 0
+    let activity: UserActivity | null = null
+    let activityAt = -1
+    for (const s of this.ctx.getWebSockets(theTaiKhoan(accountId))) {
+      if (boQua.includes(s)) continue
+      const kn = s.deserializeAttachment() as KetNoiCampus | null
+      if (!kn) continue
+      coKetNoi = true
+      if (!kn.away) away = false
+      lastSeen = Math.max(lastSeen, kn.capNhatLuc ?? kn._joinedAt ?? 0)
+      if ((kn.activityAt ?? -1) > activityAt) {
+        activityAt = kn.activityAt ?? -1
+        activity = kn.activity ?? null
+      }
+    }
+    if (!coKetNoi) return { accountId, state: 'offline', lastSeen: this.docLastSeen(accountId), activity: null }
+    return { accountId, state: away ? 'away' : 'online', lastSeen, activity }
+  }
+
+  private docLastSeen(accountId: number): number {
+    const dong = this.ctx.storage.sql
+      .exec<{ last_seen: number }>('SELECT last_seen FROM presence_last_seen WHERE account_id = ?', accountId)
+      .toArray()[0]
+    return dong?.last_seen ?? 0
+  }
+
+  private capNhatKetNoi(ws: WebSocket, thayDoi: Partial<KetNoiCampus>): void {
+    const kn = ws.deserializeAttachment() as KetNoiCampus | null
+    if (!kn) return
+    ws.serializeAttachment({ ...kn, ...thayDoi, capNhatLuc: Date.now() } satisfies KetNoiCampus)
+  }
+
   private async dangKyKetNoi(ws: WebSocket, dt: DanhTinhCampus): Promise<void> {
     await this.napSocialGraph(dt.accountId)
 
-    let entry = this.presenceMap.get(dt.accountId)
-    const wasOffline = !entry || entry.state === 'offline'
-
-    if (entry?.timerDisconnect) {
-      clearTimeout(entry.timerDisconnect)
-      entry.timerDisconnect = undefined
-    }
-
-    if (!entry) {
-      entry = {
-        state: 'online',
-        lastSeen: Date.now(),
-        activity: null,
-      }
-      this.presenceMap.set(dt.accountId, entry)
-    } else {
-      entry.state = 'online'
-      entry.lastSeen = Date.now()
+    const henGio = this.henGioOffline.get(dt.accountId)
+    if (henGio) {
+      clearTimeout(henGio)
+      this.henGioOffline.delete(dt.accountId)
     }
 
     // Gửi snapshot presence bạn bè cho WebSocket mới
-    const snapshot = this.laySnapshotBanBe(dt)
-    this.gui(ws, { type: 'social.presence_snapshot', friends: snapshot })
+    this.gui(ws, { type: 'social.presence_snapshot', friends: this.laySnapshotBanBe(dt) })
 
-    // Nếu vừa online (từ offline), phát sóng tới bạn bè
-    if (wasOffline) {
-      this.phatPresenceBanBe(dt.accountId)
+    // Vừa online (hoặc tab mới đang mở làm tài khoản hết "away"): báo bạn bè.
+    const truoc = this.trangThaiTaiKhoan(dt.accountId, ws)
+    if (truoc.state !== this.trangThaiTaiKhoan(dt.accountId).state) {
+      await this.phatPresenceBanBe(dt.accountId)
     }
   }
 
-  private huyKetNoi(ws: WebSocket): void {
+  private async huyKetNoi(ws: WebSocket): Promise<void> {
     const dt = ws.deserializeAttachment() as DanhTinhCampus | null
     if (!dt) return
 
-    // Kiểm tra các WebSocket còn lại của accountId này (multi-tab/device)
-    const conLai = this.ctx.getWebSockets(theTaiKhoan(dt.accountId)).filter((s) => s !== ws)
-    if (conLai.length > 0) {
-      // Vẫn còn tab/thiết bị khác kết nối -> Giữ online!
+    const truoc = this.trangThaiTaiKhoan(dt.accountId)
+    const sau = this.trangThaiTaiKhoan(dt.accountId, ws)
+    if (sau.state !== 'offline') {
+      // Còn tab/thiết bị khác → vẫn online; chỉ báo nếu trạng thái đổi (vd đóng tab duy nhất đang mở xem).
+      if (sau.state !== truoc.state) await this.phatPresenceBanBe(dt.accountId, ws)
       return
     }
 
-    // Kết nối cuối cùng vừa đóng -> bắt đầu Bounded Disconnect Grace Period (5 giây)
-    const entry = this.presenceMap.get(dt.accountId)
-    if (!entry) return
-
-    if (entry.timerDisconnect) clearTimeout(entry.timerDisconnect)
-    entry.timerDisconnect = setTimeout(() => {
-      // Sau grace period kiểm tra lại: nếu vẫn 0 kết nối -> offline
-      const recheck = this.ctx.getWebSockets(theTaiKhoan(dt.accountId))
-      if (recheck.length > 0) return
-
-      entry.state = 'offline'
-      entry.lastSeen = Date.now()
-      entry.activity = null
-      entry.timerDisconnect = undefined
-      this.phatPresenceBanBe(dt.accountId)
-    }, DISCONNECT_GRACE_MS)
+    // Kết nối cuối cùng vừa đóng → Bounded Disconnect Grace Period (5 giây) rồi mới báo offline.
+    const cu = this.henGioOffline.get(dt.accountId)
+    if (cu) clearTimeout(cu)
+    this.henGioOffline.set(
+      dt.accountId,
+      setTimeout(() => {
+        this.henGioOffline.delete(dt.accountId)
+        if (this.ctx.getWebSockets(theTaiKhoan(dt.accountId)).length > 0) return
+        this.ctx.storage.sql.exec(
+          `INSERT INTO presence_last_seen (account_id, last_seen) VALUES (?, ?)
+           ON CONFLICT(account_id) DO UPDATE SET last_seen = excluded.last_seen`,
+          dt.accountId,
+          Date.now(),
+        )
+        this.phatPresenceBanBe(dt.accountId).catch((e: unknown) =>
+          console.error('[CampusDO] Không báo được offline cho bạn bè:', e),
+        )
+      }, DISCONNECT_GRACE_MS),
+    )
   }
 
-  private capNhatAway(accountId: number, away: boolean): void {
-    const entry = this.presenceMap.get(accountId)
-    if (entry && this.ctx.getWebSockets(theTaiKhoan(accountId)).length > 0) {
-      entry.state = away ? 'away' : 'online'
-      entry.lastSeen = Date.now()
-      this.phatPresenceBanBe(accountId)
-    }
+  private async capNhatAway(ws: WebSocket, away: boolean): Promise<void> {
+    this.capNhatKetNoi(ws, { away })
+    const dt = ws.deserializeAttachment() as DanhTinhCampus | null
+    if (dt) await this.phatPresenceBanBe(dt.accountId)
   }
 
-  private capNhatHoatDong(accountId: number, activity: UserActivity | null): void {
-    const entry = this.presenceMap.get(accountId)
-    if (entry && this.ctx.getWebSockets(theTaiKhoan(accountId)).length > 0) {
-      entry.activity = activity
-      entry.lastSeen = Date.now()
-      this.phatPresenceBanBe(accountId)
-    }
+  private async capNhatHoatDong(ws: WebSocket, activity: UserActivity | null): Promise<void> {
+    this.capNhatKetNoi(ws, { activity, activityAt: Date.now() })
+    const dt = ws.deserializeAttachment() as DanhTinhCampus | null
+    if (dt) await this.phatPresenceBanBe(dt.accountId)
   }
 
-  private phatPresenceBanBe(accountId: number): void {
-    const entry = this.presenceMap.get(accountId)
-    if (!entry) return
-
+  private async phatPresenceBanBe(accountId: number, ...boQua: WebSocket[]): Promise<void> {
+    await this.napSocialGraph(accountId)
     const friendIds = this.friendMap.get(accountId)
     if (!friendIds || friendIds.size === 0) return
 
+    const presence = this.trangThaiTaiKhoan(accountId, ...boQua)
     const blocked = this.blockMap.get(accountId) ?? new Set()
     const danhBa = this.docTatCaPhong()
 
@@ -940,16 +999,9 @@ export class CampusDO extends DurableObject<Env> {
       for (const ws of sockets) {
         const friendDt = ws.deserializeAttachment() as DanhTinhCampus | null
         if (!friendDt) continue
-
-        const sanitized = this.locHoatDong(friendDt, entry.activity, danhBa)
         this.gui(ws, {
           type: 'social.presence_update',
-          presence: {
-            accountId,
-            state: entry.state,
-            lastSeen: entry.lastSeen,
-            activity: sanitized,
-          },
+          presence: { ...presence, activity: this.locHoatDong(friendDt, presence.activity, danhBa) },
         })
       }
     }
@@ -964,13 +1016,8 @@ export class CampusDO extends DurableObject<Env> {
     const results: FriendPresence[] = []
     for (const fid of friendIds) {
       if (blocked.has(fid)) continue
-      const entry = this.presenceMap.get(fid)
-      results.push({
-        accountId: fid,
-        state: entry?.state ?? 'offline',
-        lastSeen: entry?.lastSeen ?? 0,
-        activity: entry ? this.locHoatDong(dt, entry.activity, danhBa) : null,
-      })
+      const presence = this.trangThaiTaiKhoan(fid)
+      results.push({ ...presence, activity: this.locHoatDong(dt, presence.activity, danhBa) })
     }
     return results
   }
@@ -1003,7 +1050,7 @@ export class CampusDO extends DurableObject<Env> {
   }
 
   private async napSocialGraph(accountId: number): Promise<void> {
-    if (this.friendMap.has(accountId) && this.blockMap.has(accountId)) return
+    if (this.daNapDoThi.has(accountId)) return
     try {
       const [friendsDb, blocksDb] = await Promise.all([
         this.env.DB.prepare(
@@ -1021,11 +1068,11 @@ export class CampusDO extends DurableObject<Env> {
           .bind(accountId)
           .all<{ blockedId: number }>(),
       ])
-      const friends = new Set((friendsDb.results ?? []).map((r) => r.friendId))
-      const blocks = new Set((blocksDb.results ?? []).map((r) => r.blockedId))
-      this.friendMap.set(accountId, friends)
-      this.blockMap.set(accountId, blocks)
+      this.friendMap.set(accountId, new Set((friendsDb.results ?? []).map((r) => r.friendId)))
+      this.blockMap.set(accountId, new Set((blocksDb.results ?? []).map((r) => r.blockedId)))
+      this.daNapDoThi.add(accountId)
     } catch (e) {
+      // Không đánh dấu đã nạp: lần sau thử lại D1 thay vì kẹt với đồ thị rỗng.
       console.error('Lỗi khi nạp social graph vào CampusDO:', e)
       if (!this.friendMap.has(accountId)) this.friendMap.set(accountId, new Set())
       if (!this.blockMap.has(accountId)) this.blockMap.set(accountId, new Set())
@@ -1033,13 +1080,7 @@ export class CampusDO extends DurableObject<Env> {
   }
 
   async layTrangThaiPresence(accountId: number): Promise<FriendPresence> {
-    const entry = this.presenceMap.get(accountId)
-    return {
-      accountId,
-      state: entry?.state ?? 'offline',
-      lastSeen: entry?.lastSeen ?? 0,
-      activity: entry?.activity ?? null,
-    }
+    return this.trangThaiTaiKhoan(accountId)
   }
 
   async thongBaoSocial(suKien: any): Promise<void> {
@@ -1071,44 +1112,31 @@ export class CampusDO extends DurableObject<Env> {
       }
       case 'social.friend_added': {
         const [idA, idB] = suKien.accountIds as [number, number]
-        if (!this.friendMap.has(idA)) this.friendMap.set(idA, new Set())
-        if (!this.friendMap.has(idB)) this.friendMap.set(idB, new Set())
-        this.friendMap.get(idA)!.add(idB)
-        this.friendMap.get(idB)!.add(idA)
-
-        this.blockMap.get(idA)?.delete(idB)
-        this.blockMap.get(idB)?.delete(idA)
-
-        const entryA = this.presenceMap.get(idA)
-        const entryB = this.presenceMap.get(idB)
-
-        const socketsA = this.ctx.getWebSockets(theTaiKhoan(idA))
-        const socketsB = this.ctx.getWebSockets(theTaiKhoan(idB))
-
-        for (const ws of socketsA) {
-          this.gui(ws, {
-            type: 'social.friend_added',
-            friend: suKien.friendB,
-            presence: {
-              accountId: idB,
-              state: entryB?.state ?? 'offline',
-              lastSeen: entryB?.lastSeen ?? 0,
-              activity: entryB?.activity ?? null,
-            },
-          })
+        // Chỉ sửa cache đã nạp; tài khoản chưa nạp sẽ đọc thẳng từ D1 (đã ghi trước khi báo) lúc cần.
+        if (this.daNapDoThi.has(idA)) {
+          this.friendMap.get(idA)?.add(idB)
+          this.blockMap.get(idA)?.delete(idB)
         }
-        for (const ws of socketsB) {
-          this.gui(ws, {
-            type: 'social.friend_added',
-            friend: suKien.friendA,
-            presence: {
-              accountId: idA,
-              state: entryA?.state ?? 'offline',
-              lastSeen: entryA?.lastSeen ?? 0,
-              activity: entryA?.activity ?? null,
-            },
-          })
+        if (this.daNapDoThi.has(idB)) {
+          this.friendMap.get(idB)?.add(idA)
+          this.blockMap.get(idB)?.delete(idA)
         }
+
+        const danhBa = this.docTatCaPhong()
+        const baoBanMoi = (nguoiNhan: number, ban: unknown, banId: number) => {
+          const presence = this.trangThaiTaiKhoan(banId)
+          for (const ws of this.ctx.getWebSockets(theTaiKhoan(nguoiNhan))) {
+            const dtNhan = ws.deserializeAttachment() as DanhTinhCampus | null
+            if (!dtNhan) continue
+            this.gui(ws, {
+              type: 'social.friend_added',
+              friend: ban as FriendItem,
+              presence: { ...presence, activity: this.locHoatDong(dtNhan, presence.activity, danhBa) },
+            })
+          }
+        }
+        baoBanMoi(idA, suKien.friendB, idB)
+        baoBanMoi(idB, suKien.friendA, idA)
         break
       }
       case 'social.friend_removed': {
@@ -1128,11 +1156,8 @@ export class CampusDO extends DurableObject<Env> {
         const { blockerId, blockedId } = suKien
         this.friendMap.get(blockerId)?.delete(blockedId)
         this.friendMap.get(blockedId)?.delete(blockerId)
-
-        if (!this.blockMap.has(blockerId)) this.blockMap.set(blockerId, new Set())
-        if (!this.blockMap.has(blockedId)) this.blockMap.set(blockedId, new Set())
-        this.blockMap.get(blockerId)!.add(blockedId)
-        this.blockMap.get(blockedId)!.add(blockerId)
+        if (this.daNapDoThi.has(blockerId)) this.blockMap.get(blockerId)?.add(blockedId)
+        if (this.daNapDoThi.has(blockedId)) this.blockMap.get(blockedId)?.add(blockerId)
 
         for (const ws of this.ctx.getWebSockets(theTaiKhoan(blockerId))) {
           this.gui(ws, { type: 'social.blocked', targetId: blockedId })

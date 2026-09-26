@@ -206,6 +206,8 @@ export class RoomDO extends DurableObject<Env> {
   private voiceSessions = new Map<string, { actorKey: string; generation: number; createdAt: number; updatedAt: number; tracks: Set<string> }>()
   private kickCooldowns = new Map<string, { cooldownId: string; expiresAt: number; authorityRank: number; revision: number }>()
   private roomName: string = ''
+  /** Số người đã báo gần nhất cho danh bạ sảnh Campus (chỉ phòng học) — tránh gọi RPC khi số không đổi. */
+  private soNguoiDaBaoSanh: number | null = null
   // Learning Session v1
   private activeLearningSession: { sessionId: string; startedAt: number } | null = null
   private sessionGoal: SessionGoal | null = null
@@ -3764,8 +3766,25 @@ export class RoomDO extends DurableObject<Env> {
     )
   }
 
+  // Phòng học báo sảnh Campus số người đang ở trong phòng (bàn game có GameLobbyDO riêng) — không chờ kết quả,
+  // lỗi báo cáo không được làm hỏng việc vào/ra phòng thật; báo hỏng thì lần thay đổi sau thử lại.
+  private baoSoNguoiChoSanh(soNguoi: number): void {
+    if (this.isGameRoom || this.lifecycleState.isClosed || this.soNguoiDaBaoSanh === soNguoi) return
+    const id = this.parseNumericRoomId()
+    if (!id) return
+    this.soNguoiDaBaoSanh = soNguoi
+    const campus = this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+    this.ctx.waitUntil(
+      campus.capNhatSoNguoi(id, soNguoi).catch((err: unknown) => {
+        this.soNguoiDaBaoSanh = null
+        console.error('Không báo được số người phòng học cho sảnh Campus:', err)
+      }),
+    )
+  }
+
   private phatDanhSach(boQua?: WebSocket): void {
     const members = this.layDanhSachThanhVien(boQua)
+    this.baoSoNguoiChoSanh(members.length)
     const goi = JSON.stringify({ type: 'presence', members })
     const dsKetNoi = this.ctx.getWebSockets().filter((ws) => ws !== boQua)
 
@@ -5326,6 +5345,17 @@ export class RoomDO extends DurableObject<Env> {
       try {
         const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
         this.ctx.waitUntil(lobby.xoaBan(this.gameRoomId).catch(() => {}))
+      } catch {}
+    }
+
+    // 7b. Phòng học: gỡ khỏi danh bạ sảnh Campus ngay, không đợi lượt đối soát D1 kế tiếp.
+    const idPhongHoc = this.isGameRoom ? null : this.parseNumericRoomId()
+    if (idPhongHoc) {
+      try {
+        const campus = this.env.CAMPUS.get(this.env.CAMPUS.idFromName(TEN_CAMPUS))
+        this.ctx.waitUntil(
+          campus.goPhong(idPhongHoc).catch((err: unknown) => console.error('Không gỡ được phòng khỏi sảnh Campus:', err)),
+        )
       } catch {}
     }
 
