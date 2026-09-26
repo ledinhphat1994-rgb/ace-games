@@ -1,3 +1,9 @@
+import {
+  chuanHoaTenHienThi,
+  TEN_HIEN_THI_TOI_DA,
+  TEN_HIEN_THI_TOI_THIEU,
+  tenHienThiAnToan,
+} from '../../shared/protocol/common'
 import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { actorKey, cookiePhien, cookieXoa, createToken, SESSION_TTL, type Phien } from '../lib/auth'
 import { json, loi } from '../lib/http'
@@ -161,10 +167,12 @@ export async function dangNhap(
   if (ctx) ctx.waitUntil(baoCampus)
   else await baoCampus
 
+  // Tên nằm trong cookie: cắt về giới hạn để tài khoản cũ có tên quá dài không bị trình duyệt bỏ cookie (> 4 KB).
+  const tenAnToan = tenHienThiAnToan(user.ten_hien_thi)
   const payload: Phien = {
     accountId: user.id,
     role: user.vai_tro,
-    ten: user.ten_hien_thi,
+    ten: tenAnToan,
     username: user.ten_dang_nhap,
     teacherPending: Boolean(user.teacher_pending),
     hocSinhId: user.hoc_sinh_id || null,
@@ -189,7 +197,7 @@ export async function dangNhap(
       user: {
         id: user.id,
         username: user.ten_dang_nhap,
-        ten: user.ten_hien_thi,
+        ten: tenAnToan,
         role: user.vai_tro,
         teacherPending: payload.teacherPending,
       },
@@ -259,7 +267,7 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
 
   const username = String(body.username || '').trim().toLowerCase()
   const password = String(body.password || '').trim()
-  const tenHienThi = String(body.tenHienThi || username).trim()
+  const tenHienThi = chuanHoaTenHienThi(String(body.tenHienThi ?? '')) || username
   const vaiTro = body.vaiTro === 'teacher' ? 'teacher' : 'student'
 
   if (!username || username.length < 3 || username.length > 32) {
@@ -267,6 +275,9 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
   }
   if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
     return loi('Tên đăng nhập chỉ chứa chữ cái, số, dấu chấm, gạch ngang hoặc gạch dưới.', 400)
+  }
+  if (tenHienThi.length < TEN_HIEN_THI_TOI_THIEU || tenHienThi.length > TEN_HIEN_THI_TOI_DA) {
+    return loi(`Tên hiển thị phải từ ${TEN_HIEN_THI_TOI_THIEU} đến ${TEN_HIEN_THI_TOI_DA} ký tự.`, 400)
   }
   if (!password || password.length < 6) {
     return loi('Mật khẩu phải có ít nhất 6 ký tự.', 400)
@@ -297,14 +308,22 @@ export async function dangKy(request: Request, env: Env): Promise<Response> {
   // lop_id mặc định luôn là NULL. Không gán tự động hoặc fallback lớp đầu tiên.
   const lopId: number | null = null
 
-  await env.DB.prepare(`
-    INSERT INTO tai_khoan_campus (
-      ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations,
-      vai_tro, teacher_pending, lop_id, dang_hoat_dong
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
-  `)
-    .bind(username, tenHienThi, matKhauHash, salt, DEFAULT_ITERATIONS, vaiTro, teacherPending, lopId)
-    .run()
+  try {
+    await env.DB.prepare(`
+      INSERT INTO tai_khoan_campus (
+        ten_dang_nhap, ten_hien_thi, mat_khau_hash, salt, iterations,
+        vai_tro, teacher_pending, lop_id, dang_hoat_dong
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
+    `)
+      .bind(username, tenHienThi, matKhauHash, salt, DEFAULT_ITERATIONS, vaiTro, teacherPending, lopId)
+      .run()
+  } catch (e) {
+    // Hai lượt đăng ký cùng tên chạy song song: lượt thua chạm UNIQUE(ten_dang_nhap) sau bước kiểm tra ở trên.
+    if (String(e).includes('UNIQUE')) {
+      return loi('Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.', 400)
+    }
+    throw e
+  }
 
   return json({
     ok: true,
@@ -779,12 +798,16 @@ export async function capNhatHoSo(request: Request, env: Env): Promise<Response>
     return loi('Dữ liệu không hợp lệ.', 400)
   }
 
-  const tenHienThi = body.tenHienThi ? String(body.tenHienThi).trim() : null
+  // Có gửi tenHienThi thì phải hợp lệ sau khi làm sạch — chuỗi toàn khoảng trắng không được xoá trắng tên.
+  const tenHienThi = typeof body.tenHienThi === 'string' ? chuanHoaTenHienThi(body.tenHienThi) : null
   const hasTieuDeHoSo = typeof body.tieuDeHoSo === 'string' || body.tieuDeHoSo === null
-  const tieuDeHoSo = hasTieuDeHoSo ? (body.tieuDeHoSo ? String(body.tieuDeHoSo).trim() : '') : null
+  const tieuDeHoSo = hasTieuDeHoSo ? (body.tieuDeHoSo ? chuanHoaTenHienThi(String(body.tieuDeHoSo)) : '') : null
 
-  if (tenHienThi && (tenHienThi.length < 2 || tenHienThi.length > 50)) {
-    return loi('Tên hiển thị phải từ 2 đến 50 ký tự.', 400)
+  if (
+    tenHienThi !== null &&
+    (tenHienThi.length < TEN_HIEN_THI_TOI_THIEU || tenHienThi.length > TEN_HIEN_THI_TOI_DA)
+  ) {
+    return loi(`Tên hiển thị phải từ ${TEN_HIEN_THI_TOI_THIEU} đến ${TEN_HIEN_THI_TOI_DA} ký tự.`, 400)
   }
   if (tieuDeHoSo && tieuDeHoSo.length > 150) {
     return loi('Châm ngôn học tập không được vượt quá 150 ký tự.', 400)
@@ -838,13 +861,20 @@ export async function doiMatKhau(request: Request, env: Env): Promise<Response> 
 
   const newSalt = taoSalt()
   const newHash = await bamMatKhau(matKhauMoi, newSalt, DEFAULT_ITERATIONS)
-  const markerHuyPhien = `revoked_${crypto.randomUUID()}`
+  // Xoay phiên: thiết bị đang đổi mật khẩu nhận cookie mới và vẫn đăng nhập; mọi bản sao của phiên cũ
+  // (kể cả cookie bị lộ) mất hiệu lực. Trước đây gán mã huỷ nên chính người vừa đổi cũng bị đăng xuất.
+  const phienMoi = crypto.randomUUID()
 
   await env.DB.prepare(
     'UPDATE tai_khoan_campus SET mat_khau_hash = ?1, salt = ?2, iterations = ?3, thiet_bi = ?4, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?5'
   )
-    .bind(newHash, newSalt, DEFAULT_ITERATIONS, markerHuyPhien, kq.taiKhoan.id)
+    .bind(newHash, newSalt, DEFAULT_ITERATIONS, phienMoi, kq.taiKhoan.id)
     .run()
 
-  return json({ ok: true, message: 'Đổi mật khẩu thành công! Toàn bộ phiên khác đã được đăng xuất an toàn.' })
+  const token = await createToken(env.SESSION_SECRET, { ...kq.phien, phienId: phienMoi }, SESSION_TTL)
+  return json(
+    { ok: true, message: 'Đổi mật khẩu thành công! Toàn bộ phiên khác đã được đăng xuất an toàn.' },
+    200,
+    { 'Set-Cookie': cookiePhien(token, laHttps(request)) },
+  )
 }

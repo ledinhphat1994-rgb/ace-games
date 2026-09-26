@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
 import { AlertCircle, ArrowLeft, GraduationCap, Presentation } from 'lucide-react'
 import { toast } from 'sonner'
@@ -229,6 +230,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
             <Input
               id="dk-username"
               autoComplete="username"
+              maxLength={32}
               placeholder="3–32 ký tự viết liền (chữ, số, _, -)"
               value={dkUsername}
               onChange={(e) => setDkUsername(e.target.value)}
@@ -240,6 +242,7 @@ export function LoginCard({ onDaDangNhap }: { onDaDangNhap: () => void }) {
             <Input
               id="dk-hoten"
               autoComplete="name"
+              maxLength={TEN_HIEN_THI_TOI_DA}
               placeholder="Ví dụ: Lê Đình Phát"
               value={dkHoTen}
               onChange={(e) => setDkHoTen(e.target.value)}
