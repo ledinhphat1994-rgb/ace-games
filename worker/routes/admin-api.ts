@@ -15,6 +15,17 @@ import {
   type AdminRoomItem,
 } from '../../shared/protocol/room'
 import { recordAnalyticsEvent } from '../lib/analytics'
+import { msTuD1 } from '../lib/thoi-gian'
+import { TEN_CAMPUS } from '../campus/danh-tinh'
+import { ghiAuditLog } from './moderation-api'
+import {
+  HanhDongTaiKhoanSchema,
+  LOC_TAI_KHOAN,
+  type AdminAccountCounts,
+  type AdminAccountItem,
+  type HanhDongTaiKhoan,
+  type LocTaiKhoan,
+} from '../../shared/protocol/admin-accounts'
 
 export const adminRouter = new Hono<{ Bindings: Env }>()
 
@@ -553,4 +564,219 @@ adminRouter.get('/audit-logs', async (c) => {
     console.error('[AdminAPI.audit-logs] Lỗi tra cứu nhật ký kiểm toán:', err)
     return loi('Lỗi cơ sở dữ liệu khi tra cứu nhật ký kiểm toán.', 500)
   }
+})
+
+// ─── Quản lý tài khoản (docs/contracts/account-administration-v1.md) ─────────
+
+interface DongTaiKhoanQuanTri {
+  id: number
+  username: string
+  displayName: string | null
+  role: string | null
+  teacherPending: number | null
+  active: number | null
+  isSchoolAdmin: number | null
+  lopId: number | null
+  lopTen: string | null
+  createdAt: string | null
+}
+
+const COT_TAI_KHOAN = `tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName, tk.vai_tro AS role,
+       tk.teacher_pending AS teacherPending, tk.dang_hoat_dong AS active, tk.la_admin_truong AS isSchoolAdmin,
+       tk.lop_id AS lopId, l.ten AS lopTen, tk.tao_luc AS createdAt`
+
+// Tài khoản kỹ thuật `system` (actor của audit trail) không phải người dùng: không liệt kê, không thao tác.
+const LA_NGUOI_DUNG = "tk.ten_dang_nhap != 'system'"
+const DIEU_KIEN_GV_CHO_DUYET =
+  "tk.vai_tro = 'teacher' AND tk.teacher_pending = 1 AND tk.dang_hoat_dong = 1 AND tk.la_admin_truong = 0"
+
+function sangTaiKhoan(r: DongTaiKhoanQuanTri): AdminAccountItem {
+  return {
+    id: r.id,
+    username: r.username,
+    displayName: r.displayName || r.username,
+    role: r.role === 'teacher' ? 'teacher' : 'student',
+    teacherPending: r.teacherPending === 1,
+    active: r.active === 1,
+    isSchoolAdmin: r.isSchoolAdmin === 1,
+    lopId: r.lopId,
+    lopTen: r.lopTen,
+    createdAt: msTuD1(r.createdAt),
+  }
+}
+
+/**
+ * GET /api/admin/accounts
+ * Danh sách tài khoản Campus (tìm theo tên / tên đăng nhập, lọc vai trò / trạng thái, phân trang).
+ */
+adminRouter.get('/accounts', async (c) => {
+  const auth = await requireSchoolAdmin(c)
+  if (!auth.ok) return auth.response
+
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1)
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '20', 10) || 20))
+  const offset = (page - 1) * limit
+  const locRaw = c.req.query('filter') || 'all'
+  const loc: LocTaiKhoan = (LOC_TAI_KHOAN as readonly string[]).includes(locRaw) ? (locRaw as LocTaiKhoan) : 'all'
+  const q = (c.req.query('q') || '').trim().slice(0, 64)
+
+  const conditions: string[] = [LA_NGUOI_DUNG]
+  const params: unknown[] = []
+  if (loc === 'pending_teacher') conditions.push(DIEU_KIEN_GV_CHO_DUYET)
+  else if (loc === 'teacher') conditions.push("tk.vai_tro = 'teacher' AND tk.teacher_pending = 0")
+  else if (loc === 'student') conditions.push("tk.vai_tro = 'student'")
+  else if (loc === 'locked') conditions.push('tk.dang_hoat_dong = 0')
+  if (q) {
+    conditions.push('(tk.ten_hien_thi LIKE ? OR tk.ten_dang_nhap LIKE ?)')
+    params.push(`%${q}%`, `%${q.toLowerCase()}%`)
+  }
+  const where = `WHERE ${conditions.join(' AND ')}`
+
+  try {
+    const [countRow, rows, counts] = await Promise.all([
+      c.env.DB.prepare(`SELECT COUNT(*) AS total FROM tai_khoan_campus tk ${where}`)
+        .bind(...params)
+        .first<{ total: number }>(),
+      c.env.DB.prepare(
+        `SELECT ${COT_TAI_KHOAN}
+           FROM tai_khoan_campus tk LEFT JOIN lop l ON l.id = tk.lop_id
+           ${where}
+          ORDER BY tk.id DESC
+          LIMIT ? OFFSET ?`,
+      )
+        .bind(...params, limit, offset)
+        .all<DongTaiKhoanQuanTri>(),
+      c.env.DB.prepare(
+        `SELECT SUM(CASE WHEN ${DIEU_KIEN_GV_CHO_DUYET} THEN 1 ELSE 0 END) AS pendingTeacher,
+                SUM(CASE WHEN tk.dang_hoat_dong = 0 THEN 1 ELSE 0 END) AS locked,
+                COUNT(*) AS total
+           FROM tai_khoan_campus tk WHERE ${LA_NGUOI_DUNG}`,
+      ).first<{ pendingTeacher: number | null; locked: number | null; total: number }>(),
+    ])
+    const total = countRow?.total ?? 0
+    return c.json({
+      ok: true,
+      accounts: (rows.results ?? []).map(sangTaiKhoan),
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) || 1 },
+      counts: {
+        pendingTeacher: counts?.pendingTeacher ?? 0,
+        locked: counts?.locked ?? 0,
+        total: counts?.total ?? 0,
+      } satisfies AdminAccountCounts,
+    })
+  } catch (err) {
+    console.error('[AdminAPI.accounts] Lỗi tra cứu tài khoản:', err)
+    return loi('Lỗi cơ sở dữ liệu khi tra cứu tài khoản.', 500)
+  }
+})
+
+/**
+ * POST /api/admin/accounts/:id/action   { action: 'approve_teacher' | 'reject_teacher' | 'lock' | 'unlock' }
+ * - Duyệt/từ chối chỉ với tài khoản còn hoạt động, đang chờ duyệt giáo viên, không phải quản trị viên.
+ *   Từ chối đưa tài khoản về học sinh (vẫn dùng Campus được), không khoá.
+ * - Không tự khoá, không khoá/mở khoá quản trị viên. Khoá xong ngắt ngay mọi kết nối Campus/phòng đang mở.
+ * - UPDATE kèm đúng trạng thái đã kiểm tra: đổi cạnh tranh → 409 (cần tải lại).
+ */
+adminRouter.post('/accounts/:id/action', async (c) => {
+  const auth = await requireSchoolAdmin(c)
+  if (!auth.ok) return auth.response
+
+  const accountId = parseInt(c.req.param('id'), 10)
+  if (!Number.isInteger(accountId) || accountId <= 0) return loi('ID tài khoản không hợp lệ.', 400)
+
+  let raw: unknown
+  try {
+    raw = await c.req.json()
+  } catch {
+    return loi('Dữ liệu JSON không hợp lệ.', 400)
+  }
+  const parsed = HanhDongTaiKhoanSchema.safeParse(raw)
+  if (!parsed.success) return loi('Thao tác không hợp lệ.', 400)
+  const { action } = parsed.data
+
+  let target: DongTaiKhoanQuanTri | null
+  try {
+    target = await c.env.DB.prepare(
+      `SELECT ${COT_TAI_KHOAN} FROM tai_khoan_campus tk LEFT JOIN lop l ON l.id = tk.lop_id
+        WHERE tk.id = ?1 AND ${LA_NGUOI_DUNG}`,
+    )
+      .bind(accountId)
+      .first<DongTaiKhoanQuanTri>()
+  } catch (err) {
+    console.error('[AdminAPI.accounts/action] Lỗi đọc tài khoản:', err)
+    return loi('Lỗi cơ sở dữ liệu khi tra cứu tài khoản.', 500)
+  }
+  if (!target) return loi('Không tìm thấy tài khoản.', 404)
+
+  const tk = sangTaiKhoan(target)
+  if (tk.isSchoolAdmin) return loi('Không thể thay đổi tài khoản quản trị viên trường.', 403)
+  if (action === 'lock' && tk.id === auth.admin.id) return loi('Bạn không thể tự khoá tài khoản của mình.', 403)
+
+  const nguoiDuyet = `acc:${auth.admin.id}`
+  let sql: string
+  let binds: unknown[]
+  switch (action) {
+    case 'approve_teacher':
+    case 'reject_teacher':
+      if (!(tk.role === 'teacher' && tk.teacherPending && tk.active)) {
+        return loi('Tài khoản này không có yêu cầu giáo viên đang chờ duyệt.', 409)
+      }
+      sql = `UPDATE tai_khoan_campus
+                SET ${action === 'approve_teacher' ? '' : "vai_tro = 'student', "}teacher_pending = 0,
+                    duyet_boi_khoa = ?2, duyet_luc = CURRENT_TIMESTAMP, cap_nhat_luc = CURRENT_TIMESTAMP
+              WHERE id = ?1 AND vai_tro = 'teacher' AND teacher_pending = 1 AND dang_hoat_dong = 1 AND la_admin_truong = 0`
+      binds = [tk.id, nguoiDuyet]
+      break
+    case 'lock':
+      if (!tk.active) return loi('Tài khoản này đã bị khoá.', 409)
+      sql = `UPDATE tai_khoan_campus SET dang_hoat_dong = 0, cap_nhat_luc = CURRENT_TIMESTAMP
+              WHERE id = ?1 AND dang_hoat_dong = 1 AND la_admin_truong = 0`
+      binds = [tk.id]
+      break
+    case 'unlock':
+      if (tk.active) return loi('Tài khoản này đang hoạt động.', 409)
+      sql = `UPDATE tai_khoan_campus SET dang_hoat_dong = 1, cap_nhat_luc = CURRENT_TIMESTAMP
+              WHERE id = ?1 AND dang_hoat_dong = 0 AND la_admin_truong = 0`
+      binds = [tk.id]
+      break
+  }
+
+  try {
+    const res = await c.env.DB.prepare(sql)
+      .bind(...binds)
+      .run()
+    if ((res.meta.changes ?? 0) !== 1) {
+      return loi('Trạng thái tài khoản vừa thay đổi. Vui lòng tải lại danh sách.', 409)
+    }
+  } catch (err) {
+    console.error('[AdminAPI.accounts/action] Lỗi cập nhật tài khoản:', err)
+    return loi('Lỗi cơ sở dữ liệu khi cập nhật tài khoản.', 500)
+  }
+
+  // Khoá có hiệu lực ngay ở mọi API (kiemTraPhien đọc dang_hoat_dong); ngắt luôn WebSocket đang mở.
+  let daNgatKetNoi = false
+  if (action === 'lock') {
+    try {
+      await c.env.CAMPUS.get(c.env.CAMPUS.idFromName(TEN_CAMPUS)).dangNhapMoi(tk.id, `locked_${crypto.randomUUID()}`, 'tai_khoan_khoa')
+      daNgatKetNoi = true
+    } catch (err) {
+      console.warn('[AdminAPI.accounts/action] Không ngắt được kết nối của tài khoản vừa khoá:', err)
+    }
+  }
+
+  const TEN_AUDIT: Record<HanhDongTaiKhoan, string> = {
+    approve_teacher: 'teacher_approve',
+    reject_teacher: 'teacher_reject',
+    lock: 'account_lock',
+    unlock: 'account_unlock',
+  }
+  await ghiAuditLog(c.env, {
+    actorId: auth.admin.id,
+    targetId: tk.id,
+    roomId: null,
+    action: TEN_AUDIT[action],
+    metadata: { username: tk.username },
+  })
+
+  return c.json({ ok: true, action, accountId: tk.id, disconnected: daNgatKetNoi })
 })

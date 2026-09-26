@@ -36,6 +36,7 @@ export function AppShell({ children }: AppShellProps) {
   const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
   const {
     trangThai,
+    taiKhoanBiKhoa,
     onlineCount,
     latencyMs,
     doDoTre,
@@ -98,11 +99,23 @@ export function AppShell({ children }: AppShellProps) {
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
               <div>
-                <p className="text-sm font-semibold text-text-primary">Tài khoản này vừa đăng nhập trên thiết bị khác</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
-                  Mỗi tài khoản chỉ dùng trên một thiết bị cùng lúc, nên kết nối ở đây đã dừng. Muốn dùng tiếp trên máy
-                  này, hãy tải lại trang.
-                </p>
+                {taiKhoanBiKhoa ? (
+                  <>
+                    <p className="text-sm font-semibold text-text-primary">Tài khoản này đã bị quản trị viên khoá</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
+                      Bạn đã được đăng xuất khỏi Digital Campus. Liên hệ thầy cô hoặc Ban quản trị nhà trường nếu cần
+                      mở lại tài khoản.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-text-primary">Tài khoản này vừa đăng nhập trên thiết bị khác</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-text-secondary">
+                      Mỗi tài khoản chỉ dùng trên một thiết bị cùng lúc, nên kết nối ở đây đã dừng. Muốn dùng tiếp trên
+                      máy này, hãy tải lại trang.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <Button variant="destructive" className="shrink-0" onClick={() => window.location.reload()}>

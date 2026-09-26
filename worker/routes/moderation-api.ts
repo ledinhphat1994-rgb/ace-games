@@ -22,7 +22,7 @@ function parsePhongId(c: Context): number | null {
   return Number.isFinite(num) && num > 0 ? num : null
 }
 
-async function ghiAuditLog(
+export async function ghiAuditLog(
   env: Env,
   params: {
     actorId: number

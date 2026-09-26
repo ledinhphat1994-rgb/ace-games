@@ -337,18 +337,22 @@ export class CampusDO extends DurableObject<Env> {
     CampusDO.simulateRoomRpcFailure = val
   }
 
-  /** Worker gọi khi tài khoản vừa đăng nhập hoặc đổi mật khẩu: đóng ngay kết nối Campus và Room của phiên cũ (luật 1 thiết bị). */
+  /**
+   * Worker gọi khi tài khoản vừa đăng nhập, đổi mật khẩu hoặc bị khoá: đóng ngay kết nối Campus và Room của phiên cũ
+   * (luật 1 thiết bị). `lyDo` cho giao diện biết là bị khoá chứ không phải đăng nhập nơi khác.
+   */
   async dangNhapMoi(
     accountId: number,
     phienId: string,
+    lyDo?: 'tai_khoan_khoa',
   ): Promise<{ successfulRooms: string[]; failedRooms: string[] }> {
     const daDong: WebSocket[] = []
     for (const ws of this.ctx.getWebSockets(theTaiKhoan(accountId))) {
       const dt = ws.deserializeAttachment() as DanhTinhCampus | null
       if (!dt?.phienId || dt.phienId === phienId) continue
-      this.gui(ws, { type: 'session.replaced' })
+      this.gui(ws, lyDo ? { type: 'session.replaced', reason: lyDo } : { type: 'session.replaced' })
       try {
-        ws.close(MA_DONG_SOCKET.PHIEN_BI_THAY, 'da_dang_nhap_noi_khac')
+        ws.close(MA_DONG_SOCKET.PHIEN_BI_THAY, lyDo ?? 'da_dang_nhap_noi_khac')
       } catch {
         // Đã đóng.
       }
