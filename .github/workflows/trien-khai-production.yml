@@ -102,7 +102,9 @@ jobs:
           kiem() {
             local url="$1" mong="$2"
             local ma
-            ma=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url")
+            local them=()
+            if [ -n "${3:-}" ]; then them=(-A "$3"); fi
+            ma=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${them[@]}" "$url")
             if [ "$ma" = "$mong" ]; then echo "✅ $url → $ma"; else echo "::error::$url → $ma (mong đợi $mong)"; loi=1; fi
           }
           kiem "$URL_WORKER/" 200
@@ -110,6 +112,10 @@ jobs:
           kiem "$URL_WORKER/api/whoami" 401
           kiem "$URL_WORKER/api/login" 405
           kiem "$URL_WORKER/api/game/highscores?gameType=solo_snake&verifiedOnly=1" 200
+          # Tài liệu phòng học không bao giờ mở theo tham số hay User-Agent tự khai (chưa đăng nhập → 401).
+          kiem "$URL_WORKER/api/rooms/1/documents/1/file?view=1" 401
+          kiem "$URL_WORKER/api/rooms/1/documents/1/file" 401 "Googlebot/2.1 (+http://www.google.com/bot.html)"
+          kiem "$URL_TEN_MIEN/api/rooms/1/documents/1/file?view=1" 401
           # Tên miền riêng phải phục vụ ĐÚNG bản vừa deploy: trang chủ trỏ cùng gói JS với workers.dev.
           # (Không chặn job vì Worker đã lên; gắn tên miền nằm ngoài mã nguồn — chỉ cảnh báo.)
           goi_js() { curl -s --max-time 20 "$1/" | grep -oE '/assets/index-[A-Za-z0-9_-]+[.]js' | head -n 1; }
