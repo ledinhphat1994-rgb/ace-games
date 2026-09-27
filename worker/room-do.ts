@@ -56,6 +56,17 @@ import { claimRoomCloseD1, finalizeRoomCloseD1, getSystemAccountId } from './ser
 
 const theTaiKhoan = (accountId: number) => `acc:${accountId}`
 
+// Trần số gói mỗi kết nối được gửi (chống một người làm ngập cả phòng). Laser gửi ~30 gói/giây nên trần phải rộng hơn thế.
+const CUA_SO_LENH_MS = 1000
+const LENH_TOI_DA_MOI_CUA_SO = 60
+// Chat phòng mỗi kết nối: tối đa 5 tin / 5 giây và 30 tin / phút.
+const CHAT_CUA_SO_NGAN_MS = 5000
+const CHAT_TOI_DA_CUA_SO_NGAN = 5
+const CHAT_TOI_DA_MOI_PHUT = 30
+// Laser là gói tạm thời, không ghi dữ liệu và chỉ người điều hành gửi được: dùng lại kết quả đối chiếu phiên D1 gần
+// nhất của kết nối trong khoảng này thay vì truy vấn D1 cho từng gói. Mọi lệnh ghi dữ liệu vẫn đối chiếu D1 từng lệnh.
+const LASER_TIN_PHIEN_MS = 15_000
+
 interface AttachmentKetNoi {
   key: string
   ten: string
@@ -197,6 +208,13 @@ export class RoomDO extends DurableObject<Env> {
   private gameRoomId: string | null = null
   // Nhịp gửi biểu cảm của từng actor trong bàn game (chống spam; chỉ cần sống trong bộ nhớ).
   private nhipBieuCam = new Map<string, { luc: number; soLan: number }>()
+  // Nhịp gửi của từng kết nối (chỉ cần sống trong bộ nhớ; ngủ đông dậy thì đếm lại từ đầu).
+  private nhipLenh = new WeakMap<WebSocket, { batDau: number; dem: number; daBao: boolean }>()
+  private nhipChat = new WeakMap<WebSocket, { batDauNgan: number; demNgan: number; batDauPhut: number; demPhut: number }>()
+  /** Lúc phiên của kết nối được đối chiếu D1 thành công gần nhất (gói laser dùng lại trong LASER_TIN_PHIEN_MS). */
+  private phienXacMinhLuc = new WeakMap<WebSocket, number>()
+  /** Lệnh của một kết nối được xử lý lần lượt, kể cả khi lệnh trước còn chờ D1. */
+  private hangDoiLenh = new WeakMap<WebSocket, Promise<void>>()
   private voiceRegistry = new Map<string, VoiceParticipantState>()
 
   private parseNumericRoomId(): number | null {
@@ -2044,6 +2062,67 @@ export class RoomDO extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (this.vuotNhipLenh(ws)) return
+    // Bước đối chiếu phiên phải chờ D1, trong lúc đó DO vẫn nhận gói kế tiếp: không xếp hàng thì lệnh sau của cùng một
+    // người (vd seek) có thể chạy trước lệnh trước (vd play).
+    const truoc = this.hangDoiLenh.get(ws)
+    const lan = truoc ? truoc.then(() => this.xuLyTinNhan(ws, message)) : this.xuLyTinNhan(ws, message)
+    const duoi = lan.catch(() => {})
+    this.hangDoiLenh.set(ws, duoi)
+    try {
+      await lan
+    } finally {
+      if (this.hangDoiLenh.get(ws) === duoi) this.hangDoiLenh.delete(ws)
+    }
+  }
+
+  /** Quá trần gói của kết nối thì bỏ gói; chỉ báo lỗi một lần trong mỗi cửa sổ để không tự khuếch đại. */
+  private vuotNhipLenh(ws: WebSocket): boolean {
+    const bayGio = Date.now()
+    const nhip = this.nhipLenh.get(ws)
+    if (!nhip || bayGio - nhip.batDau >= CUA_SO_LENH_MS) {
+      this.nhipLenh.set(ws, { batDau: bayGio, dem: 1, daBao: false })
+      return false
+    }
+    nhip.dem++
+    if (nhip.dem <= LENH_TOI_DA_MOI_CUA_SO) return false
+    if (!nhip.daBao) {
+      nhip.daBao = true
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'Bạn thao tác quá nhanh, chờ một chút nhé.' }))
+      } catch {}
+    }
+    return true
+  }
+
+  private vuotNhipChat(ws: WebSocket): boolean {
+    const bayGio = Date.now()
+    const nhip = this.nhipChat.get(ws) ?? { batDauNgan: bayGio, demNgan: 0, batDauPhut: bayGio, demPhut: 0 }
+    if (bayGio - nhip.batDauNgan >= CHAT_CUA_SO_NGAN_MS) {
+      nhip.batDauNgan = bayGio
+      nhip.demNgan = 0
+    }
+    if (bayGio - nhip.batDauPhut >= 60_000) {
+      nhip.batDauPhut = bayGio
+      nhip.demPhut = 0
+    }
+    if (nhip.demNgan >= CHAT_TOI_DA_CUA_SO_NGAN || nhip.demPhut >= CHAT_TOI_DA_MOI_PHUT) return true
+    nhip.demNgan++
+    nhip.demPhut++
+    this.nhipChat.set(ws, nhip)
+    return false
+  }
+
+  /** Gói laser vừa có phiên được đối chiếu D1 gần đây thì không cần truy vấn D1 lại. */
+  private laserConTinPhien(ws: WebSocket, type: string, raw: { [k: string]: unknown }): boolean {
+    if (type !== 'slide.action') return false
+    const data = raw.data as { action?: unknown } | null | undefined
+    if (data?.action !== 'laser') return false
+    const luc = this.phienXacMinhLuc.get(ws)
+    return luc !== undefined && Date.now() - luc < LASER_TIN_PHIEN_MS
+  }
+
+  private async xuLyTinNhan(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     // DO có thể vừa thức dậy từ ngủ đông (WebSocket Hibernation): bộ nhớ trống trơn, phải nạp lại trạng thái
     // từ SQLite trước khi xử lý — nếu không, lệnh chạy trên trạng thái mặc định (ván cờ "chưa bắt đầu",
     // video/ghi chú rỗng…) và có thể ghi đè dữ liệu thật.
@@ -2073,7 +2152,7 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // ── Tier 2 Fail-Closed Session Invariant: Authoritative mutation validation ──
-    if (att.phienId && att.accountId) {
+    if (att.phienId && att.accountId && !this.laserConTinPhien(ws, type, raw)) {
       let thietBiDb: string | null = null
       try {
         const row = await this.env.DB.prepare(
@@ -2110,6 +2189,7 @@ export class RoomDO extends DurableObject<Env> {
         this.phatDanhSach(ws)
         return
       }
+      this.phienXacMinhLuc.set(ws, Date.now())
     }
 
     if (type.startsWith('game.')) {
@@ -2560,6 +2640,10 @@ export class RoomDO extends DurableObject<Env> {
         const reqId = goi.reqId?.trim()
         if (!reqId) {
           ws.send(JSON.stringify({ type: 'error', message: 'Thiếu reqId tin nhắn.' }))
+          return
+        }
+        if (this.vuotNhipChat(ws)) {
+          ws.send(JSON.stringify({ type: 'error', reqId, message: 'Bạn gửi tin quá nhanh, chờ một chút nhé.' }))
           return
         }
 

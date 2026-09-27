@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
+import { KhungChoTrang } from './KhungChoTrang'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
@@ -147,7 +148,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         ) : null}
 
-        {children || <Outlet />}
+        <Suspense fallback={<KhungChoTrang />}>{children || <Outlet />}</Suspense>
       </main>
 
       {/* 3. Mobile Bottom Navigation */}
