@@ -7,13 +7,14 @@ import { useEffect, useRef, useState } from 'react'
 import {
   CONG_CU_VE,
   DO_MO_TO_SANG,
-  diemKhungChuNhat,
-  diemVongTron,
   doDayNet,
   netDuocCham,
   rutGonDiem,
   type CongCu,
   type CoVe,
+  diemHinh,
+  tayXoaDuoc,
+  type LoaiHinh,
 } from './cong-cu'
 
 type NetGui = Omit<WhiteboardStroke, 'epoch'>
@@ -21,6 +22,8 @@ type NetGui = Omit<WhiteboardStroke, 'epoch'>
 interface BangVeProps {
   strokes: WhiteboardStroke[]
   congCu: CongCu
+  /** Kiểu hình khi đang chọn công cụ Hình. */
+  hinh?: LoaiHinh
   mau: string
   co: CoVe
   /** Phủ trong suốt lên lớp khác: không nền, chỉ nhận chuột khi đang chọn công cụ vẽ. */
@@ -34,6 +37,8 @@ interface BangVeProps {
 }
 
 const SO_DIEM_TOI_DA = 200
+/** Đầu mũi tên tối đa (đơn vị bảng 1600×900). */
+const DAU_MUI_TEN = 48
 const NGUONG_TAY = 14
 
 function duongVienNet(points: number[][], size: number, laToSang: boolean): string {
@@ -98,6 +103,7 @@ function VeNet({ net }: { net: Pick<WhiteboardStroke, 'points' | 'color' | 'size
 export function BangVe({
   strokes,
   congCu,
+  hinh = 'chu_nhat',
   mau,
   co,
   laPhu = false,
@@ -142,7 +148,7 @@ export function BangVe({
 
   const tayTai = (p: [number, number]) => {
     const coTheTay = strokes.filter(
-      (s) => !daTayRef.current.has(s.id) && (coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi)),
+      (s) => !daTayRef.current.has(s.id) && tayXoaDuoc(s) && (coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi)),
     )
     const trung = netDuocCham(p, coTheTay, NGUONG_TAY)
     if (trung) {
@@ -199,7 +205,7 @@ export function BangVe({
       tayTai(p)
       return
     }
-    if (congCu === 'khung' || congCu === 'tron') {
+    if (congCu === 'khung') {
       diemRef.current = [diemRef.current[0], p]
     } else {
       diemRef.current.push(p)
@@ -219,13 +225,12 @@ export function BangVe({
     if (congCu === 'tay') return
 
     const id = `net_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-    if (congCu === 'khung' || congCu === 'tron') {
+    if (congCu === 'khung') {
       const [a, b] = [diem[0], diem[diem.length - 1]]
       if (!a || !b || Math.hypot(b[0] - a[0], b[1] - a[1]) < 8) return
-      const hinh = congCu === 'khung' ? diemKhungChuNhat(a, b) : diemVongTron(a, b)
       onSendStroke({
         id,
-        points: hinh.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]),
+        points: diemHinh(hinh, a, b, 1, DAU_MUI_TEN).map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]),
         color: mau,
         size: doDay,
         v: 2,
@@ -248,13 +253,9 @@ export function BangVe({
 
   // Nét đang vẽ dở (xem trước tại máy mình trước khi máy chủ phát lại).
   let xemTruoc: React.ReactNode = null
-  if (nhap.length > 1 && (congCu === 'khung' || congCu === 'tron')) {
+  if (nhap.length > 1 && congCu === 'khung') {
     const [a, b] = [nhap[0], nhap[nhap.length - 1]]
-    xemTruoc = (
-      <VeNet
-        net={{ points: congCu === 'khung' ? diemKhungChuNhat(a, b) : diemVongTron(a, b), color: mau, size: doDay, tool: 'shape' }}
-      />
-    )
+    xemTruoc = <VeNet net={{ points: diemHinh(hinh, a, b, 1, DAU_MUI_TEN), color: mau, size: doDay, tool: 'shape' }} />
   } else if (nhap.length > 1 && (congCu === 'but' || congCu === 'to_sang')) {
     xemTruoc = <VeNet net={{ points: nhap, color: mau, size: doDay, tool: congCu === 'to_sang' ? 'highlighter' : 'pen' }} />
   }

@@ -135,9 +135,23 @@ describe('RoomDO: người trình chiếu sửa số trang .pptx', () => {
     expect(dongBo.slide?.currentPage).toBe(5)
     await hs.khongNhan('slide.annotation', (g) => g.action === 'clear', 200)
 
+    // Hiệu ứng theo cú bấm: bước đồng bộ cùng trang; đổi trang không kèm bước thì về 0; học sinh không điều khiển được.
+    host.gui({ type: 'slide.action', data: { action: 'change_page', page: 2, step: 3 } })
+    const buoc3 = await hs.cho('slide.sync', (g) => g.slide?.currentPage === 2)
+    expect(buoc3.slide?.step).toBe(3)
+    host.gui({ type: 'slide.action', data: { action: 'change_page', page: 3 } })
+    const trang3 = await hs.cho('slide.sync', (g) => g.slide?.currentPage === 3)
+    expect(trang3.slide?.step).toBe(0)
+    hs.gui({ type: 'slide.action', data: { action: 'change_page', page: 3, step: 1 } })
+    await hs.cho('error')
+    await host.khongNhan('slide.sync', (g) => g.slide?.step === 1, 200)
+
     // Không áp dụng cho tài liệu không phải .pptx.
     host.gui({ type: 'slide.action', data: { action: 'load_doc', docUrl: tai.url, docName: 'x.pdf', fileType: 'pdf', totalPages: 3 } })
     await hs.cho('slide.sync', (g) => g.slide?.fileType === 'pdf')
+    host.gui({ type: 'slide.action', data: { action: 'change_page', page: 2, step: 4 } })
+    const pdf = await hs.cho('slide.sync', (g) => g.slide?.currentPage === 2)
+    expect(pdf.slide?.step).toBeUndefined()
     host.gui({ type: 'slide.action', data: { action: 'set_total_pages', totalPages: 9 } })
     await hs.khongNhan('slide.sync', (g) => g.slide?.totalPages === 9, 300)
     host.dong()

@@ -175,10 +175,13 @@ export interface SlideState {
   fileType: 'pptx' | 'pdf' | 'image'
   currentPage: number
   totalPages: number
+  /** .pptx: số cú bấm hiệu ứng đã chạy trên trang hiện tại (0 = vừa vào slide). */
+  step?: number
 }
 
 export const LenhPhongSlide = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('change_page'), page: z.number().int().positive() }),
+  // step: số cú bấm hiệu ứng .pptx đã chạy trên trang đó (lùi về slide trước thì hiện đủ, như PowerPoint).
+  z.object({ action: z.literal('change_page'), page: z.number().int().positive(), step: z.number().int().min(0).max(999).optional() }),
   z.object({
     action: z.literal('load_doc'),
     docId: z.number().int().positive().optional(),

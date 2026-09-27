@@ -15,13 +15,14 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
 import { PptxSlideViewer } from '../PptxSlideViewer'
+import { BUOC_HET } from '../pptx-hieu-ung'
 import { deriveDocumentStatus, laTepPptx } from './types'
 import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
-import type { CongCu, CoVe } from './cong-cu'
+import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 
 /** Công cụ chung của sân khấu → công cụ chú thích trên trang tài liệu. */
 const CONG_CU_TREN_TRANG: Record<CongCu, AnnotationTool> = {
@@ -31,15 +32,15 @@ const CONG_CU_TREN_TRANG: Record<CongCu, AnnotationTool> = {
   tay: 'eraser',
   laser: 'laser',
   chu: 'text',
-  khung: 'rect',
-  tron: 'ellipse',
+  khung: 'shape',
 }
 
 export interface DocumentStageViewProps {
   slideState?: SlideState | null
   isHost: boolean
   canModerate?: boolean
-  onPageChange?: (newPage: number) => void
+  /** step: số cú bấm hiệu ứng .pptx đã chạy trên trang đó (bỏ trống với PDF). */
+  onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
   /** Người trình chiếu: báo số slide thật của .pptx dựng trên trình duyệt (tệp cũ / có slide ẩn). */
@@ -51,6 +52,7 @@ export interface DocumentStageViewProps {
   /** Chỉ lớp chính nhận phím ← → + − 0. */
   nhanPhim?: boolean
   congCu?: CongCu
+  hinh?: LoaiHinh
   mau?: string
   co?: CoVe
   isReconnecting?: boolean
@@ -240,6 +242,7 @@ export function DocumentStageView({
   compact = false,
   nhanPhim = true,
   congCu = 'chuot',
+  hinh = 'chu_nhat',
   mau = '#ef4444',
   co = 1,
   isReconnecting = false,
@@ -263,6 +266,43 @@ export function DocumentStageView({
   const [pptxLoi, setPptxLoi] = useState(false)
   const dungPptx = laTepPptx(slideState) && !pptxLoi
   const coChuyenTrang = slideState?.fileType === 'pdf' || dungPptx
+
+  // .pptx: mỗi slide có thể có nhiều cú bấm hiệu ứng — tiến / lùi đi qua từng cú bấm trước khi đổi slide (như PowerPoint).
+  const [soBuocPptx, setSoBuocPptx] = useState<number[] | null>(null)
+  const trangHienTai = slideState?.currentPage ?? 1
+  const tongTrang = slideState?.totalPages ?? 1
+  const buocHienTai = dungPptx ? (slideState?.step ?? 0) : 0
+  const soBuocTrang = (t: number) => (dungPptx ? (soBuocPptx?.[t - 1] ?? 0) : 0)
+  // Vị trí người trình chiếu vừa gửi (chưa kịp nhận lại từ máy chủ) — bấm nhanh liên tiếp không bị mất bước.
+  const viTriRef = useRef({ trang: trangHienTai, buoc: buocHienTai })
+  useEffect(() => {
+    viTriRef.current = { trang: trangHienTai, buoc: buocHienTai }
+  }, [trangHienTai, buocHienTai])
+
+  const diTien = () => {
+    const { trang, buoc } = viTriRef.current
+    const moi =
+      buoc < soBuocTrang(trang) ? { trang, buoc: buoc + 1 } : trang < tongTrang ? { trang: trang + 1, buoc: 0 } : null
+    if (!moi) return
+    viTriRef.current = moi
+    onPageChange?.(moi.trang, dungPptx ? moi.buoc : undefined)
+  }
+  const diLui = () => {
+    const { trang, buoc } = viTriRef.current
+    const daChay = Math.min(buoc, soBuocTrang(trang))
+    const moi = daChay > 0 ? { trang, buoc: daChay - 1 } : trang > 1 ? { trang: trang - 1, buoc: BUOC_HET } : null
+    if (!moi) return
+    viTriRef.current = moi
+    onPageChange?.(moi.trang, dungPptx ? moi.buoc : undefined)
+  }
+  const diTienRef = useRef(diTien)
+  const diLuiRef = useRef(diLui)
+  useEffect(() => {
+    diTienRef.current = diTien
+    diLuiRef.current = diLui
+  })
+  const conTien = trangHienTai < tongTrang || buocHienTai < soBuocTrang(trangHienTai)
+  const conLui = trangHienTai > 1 || Math.min(buocHienTai, soBuocTrang(trangHienTai)) > 0
 
   // Zoom handlers (clamped between 0.5 and 3.0)
   const handleZoomIn = useCallback(() => {
@@ -291,15 +331,16 @@ export function DocumentStageView({
         return
       }
 
-      if (e.key === 'ArrowLeft') {
-        if (canControl && slideState && slideState.currentPage > 1) {
+      // PageUp / PageDown: bút trình chiếu (clicker) gửi hai phím này.
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        if (canControl && slideState) {
           e.preventDefault()
-          onPageChange?.(slideState.currentPage - 1)
+          diLuiRef.current()
         }
-      } else if (e.key === 'ArrowRight') {
-        if (canControl && slideState && slideState.currentPage < slideState.totalPages) {
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        if (canControl && slideState) {
           e.preventDefault()
-          onPageChange?.(slideState.currentPage + 1)
+          diTienRef.current()
         }
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault()
@@ -315,7 +356,7 @@ export function DocumentStageView({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [nhanPhim, canControl, slideState, onPageChange, handleZoomIn, handleZoomOut, handleResetZoom])
+  }, [nhanPhim, canControl, slideState, handleZoomIn, handleZoomOut, handleResetZoom])
 
   // Reset error state if document URL changes (React recommended render-time adjustment)
   const [prevDocUrl, setPrevDocUrl] = useState(slideState?.docUrl)
@@ -323,6 +364,7 @@ export function DocumentStageView({
     setPrevDocUrl(slideState?.docUrl)
     setHasRenderError(false)
     setPptxLoi(false)
+    setSoBuocPptx(null)
   }
 
   // ── 1. EMPTY DOCUMENT STATE ──
@@ -386,14 +428,14 @@ export function DocumentStageView({
 
         {/* Center: Synchronized Page Navigation (PDF và .pptx dựng trên trình duyệt — hệ thống tự đồng bộ trang) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {slideState && slideState.totalPages > 1 && coChuyenTrang && (
+          {slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang && (
             <div className="flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
               {canControl ? (
                 <>
                   <button
                     type="button"
-                    disabled={slideState.currentPage <= 1}
-                    onClick={() => onPageChange?.(Math.max(1, slideState.currentPage - 1))}
+                    disabled={!conLui}
+                    onClick={diLui}
                     className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
                     title="Trang trước (←)"
                     aria-label="Trang trước"
@@ -406,8 +448,8 @@ export function DocumentStageView({
                   </span>
                   <button
                     type="button"
-                    disabled={slideState.currentPage >= slideState.totalPages}
-                    onClick={() => onPageChange?.(Math.min(slideState.totalPages, slideState.currentPage + 1))}
+                    disabled={!conTien}
+                    onClick={diTien}
                     className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
                     title="Trang sau (→)"
                     aria-label="Trang sau"
@@ -548,6 +590,7 @@ export function DocumentStageView({
                 pageNumber={slideState.currentPage}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
+                hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
                 canAnnotate={canControl}
@@ -581,6 +624,7 @@ export function DocumentStageView({
                 pageNumber={1}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
+                hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
                 canAnnotate={canControl}
@@ -596,15 +640,19 @@ export function DocumentStageView({
             <PptxSlideViewer
               docUrl={slideState.docUrl}
               trang={slideState.currentPage}
+              buoc={slideState.step ?? 0}
               onSoTrang={(soTrang) => {
                 if (canControl && soTrang !== slideState.totalPages) onSetTotalPages?.(soTrang)
               }}
+              onSoBuoc={setSoBuocPptx}
+              onBamSlide={canControl && activeTool === 'pointer' ? diTien : undefined}
               onLoi={() => setPptxLoi(true)}
             >
               <SlideAnnotationLayer
                 pageNumber={slideState.currentPage}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
+                hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
                 canAnnotate={canControl}

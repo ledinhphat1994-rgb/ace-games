@@ -260,9 +260,9 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
     })
 
     it('supports eraser tool without clearing the entire page', () => {
-      // Verify toolbar exports eraser and keep clear page separate
-      expect(toolbarSource).toContain("testId: 'tool-btn-eraser'")
-      expect(toolbarSource).toContain('data-testid="tool-btn-clear"')
+      // Tẩy từng nét nằm ngay trên dock, tách khỏi nút Xoá hết
+      expect(toolbarSource).toContain('data-testid="tool-btn-eraser"')
+      expect(toolbarSource).toContain('data-testid="tool-btn-clear-all"')
       // Verify eraser invokes onRemoveStroke with hitId, not onClearPage
       expect(layerSource).toContain('onRemoveStroke?.(hitId)')
     })
@@ -272,26 +272,28 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
     it('students cannot annotate slides or use laser / clear-page (presenter-only)', () => {
       // Lớp chú thích bỏ qua mọi thao tác khi không có quyền trình chiếu.
       expect(layerSource).toContain('if (!canAnnotate) return')
-      // Khay công cụ ẩn laser và "Xoá trang" với người không trình chiếu.
-      expect(toolbarSource).toContain('CONG_CU.filter((c) => !c.chiNguoiDieuHanh || canControl)')
-      expect(toolbarSource).toContain('{canControl && coTaiLieu && onClearSlidePage && (')
+      // Chuột / bút / tẩy / xoá hết trên dock và công cụ vẽ trong khay chỉ dành cho người trình chiếu.
+      expect(toolbarSource).toMatch(/\{canControl && \(\s*<>/)
+      expect(toolbarSource).toMatch(/\{canControl && \(\s*<div className="grid grid-cols-4 gap-1">/)
     })
 
     it('provides tool selection for pointer, pen, highlighter, eraser, laser, and clear', () => {
-      expect(toolbarSource).toContain("testId: 'tool-btn-pointer'")
-      expect(toolbarSource).toContain("testId: 'tool-btn-pen'")
+      expect(toolbarSource).toContain('data-testid="tool-btn-pointer"')
+      expect(toolbarSource).toContain('data-testid="tool-btn-pen"')
       expect(toolbarSource).toContain("testId: 'tool-btn-highlighter'")
-      expect(toolbarSource).toContain("testId: 'tool-btn-eraser'")
+      expect(toolbarSource).toContain('data-testid="tool-btn-eraser"')
       expect(toolbarSource).toContain("testId: 'tool-btn-laser'")
-      expect(toolbarSource).toContain('data-testid="tool-btn-clear"')
+      expect(toolbarSource).toContain('data-testid="tool-btn-clear-all"')
     })
 
-    it('tools tray also offers text, rectangle and ellipse, with shared colour and size', () => {
+    it('tools tray offers text and one shape tool (pick the shape inside); colour / size only for tools that use them', () => {
       expect(toolbarSource).toContain("testId: 'tool-btn-text'")
-      expect(toolbarSource).toContain("testId: 'tool-btn-rect'")
-      expect(toolbarSource).toContain("testId: 'tool-btn-ellipse'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-shape'")
+      expect(toolbarSource).toContain('data-testid="dock-shape-picker"')
       expect(toolbarSource).toContain('data-testid="dock-color-palette"')
       expect(toolbarSource).toContain('data-testid="dock-size-picker"')
+      expect(toolbarSource).toContain('{canControl && congCuKhay && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}')
+      expect(toolbarSource).toContain('data-testid="dock-pen-tray"')
     })
 
     it('embeds SlideAnnotationLayer on both PDF canvas and Image viewer in DocumentStageView with onRemoveStroke', () => {

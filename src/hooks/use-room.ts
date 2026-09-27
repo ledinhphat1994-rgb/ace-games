@@ -932,10 +932,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
     [roomId],
   )
 
-  const changeSlidePage = useCallback((page: number) => {
+  const changeSlidePage = useCallback((page: number, step?: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page } }))
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page, ...(step !== undefined ? { step } : {}) } }))
   }, [])
 
   const setSlideTotalPages = useCallback((totalPages: number) => {

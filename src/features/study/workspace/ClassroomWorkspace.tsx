@@ -20,7 +20,7 @@ import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
 import { PresentationStage } from './PresentationStage'
-import type { CongCu, CoVe } from './cong-cu'
+import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import {
   anLop,
   bamLop,
@@ -54,7 +54,7 @@ export interface ClassroomWorkspaceProps {
   onSendStageLayout?: (layout: BoCucSanKhau) => void
   // Slide
   slideState?: SlideState | null
-  onPageChange?: (newPage: number) => void
+  onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
   onSetTotalPages?: (totalPages: number) => void
@@ -222,6 +222,7 @@ export function ClassroomWorkspace({
 
   // Công cụ vẽ chung cho mọi lớp.
   const [congCu, setCongCu] = useState<CongCu>('chuot')
+  const [hinh, setHinh] = useState<LoaiHinh>('chu_nhat')
   const [mau, setMau] = useState<string>('#ef4444')
   const [co, setCo] = useState<CoVe>(1)
 
@@ -323,6 +324,7 @@ export function ClassroomWorkspace({
             theoNguoiTrinhChieu={Boolean(stageLayout)}
             myActorKey={nguoiDung.actorKey}
             congCu={congCu}
+            hinh={hinh}
             mau={mau}
             co={co}
             slideState={slideState}
@@ -406,14 +408,16 @@ export function ClassroomWorkspace({
               slideState?.fileType === 'pdf' || slideState?.fileType === 'image' || laTepPptx(slideState)
             setBoCuc((bc) => phuBangDeVe(bc, taiLieuVeDuoc))
           }}
+          hinh={hinh}
+          onChonHinh={setHinh}
           mau={mau}
           onChonMau={setMau}
           co={co}
           onChonCo={setCo}
-          onClearWhiteboard={onClearWhiteboard}
-          onClearSlidePage={
-            onClearSlideAnnotations && slideState ? () => onClearSlideAnnotations(slideState.currentPage) : undefined
-          }
+          onXoaHet={() => {
+            onClearWhiteboard()
+            onClearSlideAnnotations?.()
+          }}
           onOpenCalculator={onOpenCalculator}
           onOpenSessionPanel={onOpenSessionPanel}
           isReconnecting={isReconnecting}
