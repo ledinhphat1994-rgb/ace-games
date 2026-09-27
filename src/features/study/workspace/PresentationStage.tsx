@@ -19,6 +19,8 @@ export interface PresentationStageProps {
   onBatTatBangPhu: () => void
   isHost: boolean
   canModerate?: boolean
+  /** Bố cục đang theo người trình chiếu (đồng bộ qua RoomDO): người xem thấy đúng lớp bảng giáo viên đang bật. */
+  theoNguoiTrinhChieu?: boolean
   myActorKey?: string
   // Công cụ vẽ chung
   congCu: CongCu
@@ -29,6 +31,7 @@ export interface PresentationStageProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  onSetTotalPages?: (totalPages: number) => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onRemoveSlideAnnotation?: (id: string) => void
@@ -68,6 +71,7 @@ export function PresentationStage({
   onBatTatBangPhu,
   isHost,
   canModerate = false,
+  theoNguoiTrinhChieu = false,
   myActorKey,
   congCu,
   mau,
@@ -76,6 +80,7 @@ export function PresentationStage({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSetTotalPages,
   slideAnnotations,
   onSendSlideAnnotation,
   onRemoveSlideAnnotation,
@@ -195,6 +200,7 @@ export function PresentationStage({
             onPageChange={onPageChange}
             onUploadSlide={onUploadSlide}
             onCloseDoc={onCloseDoc}
+            onSetTotalPages={onSetTotalPages}
             dieuKhienKhung={nutKhung('doc')}
             compact={boCuc.doc === 'pip'}
             nhanPhim={boCuc.doc === 'main'}
@@ -293,8 +299,8 @@ export function PresentationStage({
         </KhungLop>
       )}
 
-      {/* Lớp phủ thụ động cho người xem khi có nét vẽ trên video / tài liệu mà người xem chưa bật bảng phủ */}
-      {!canControl && boCuc.board !== 'phu' && boCuc.board !== 'main' && whiteboardStrokes.length > 0 && (chinh === 'video' || chinh === 'doc') && (
+      {/* Phòng chưa có bố cục của người trình chiếu: người xem vẫn thấy nét vẽ bảng phủ trên video / tài liệu */}
+      {!canControl && !theoNguoiTrinhChieu && boCuc.board !== 'phu' && boCuc.board !== 'main' && whiteboardStrokes.length > 0 && (chinh === 'video' || chinh === 'doc') && (
         <div
           className={`pointer-events-none absolute inset-x-0 z-20 ${chinh === 'video' ? 'top-10 bottom-16' : 'top-11 bottom-0'}`}
           data-testid="whiteboard-passive-overlay"

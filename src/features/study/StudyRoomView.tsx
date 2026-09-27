@@ -146,6 +146,9 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     sendStroke,
     clearWhiteboard,
     removeStroke,
+    stageLayout,
+    daNhanAnhChup,
+    sendStageLayout,
     updateNotes,
     sendRoomChat,
     toggleMic,
@@ -162,6 +165,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     slideAnnotations,
     slideLaser,
     changeSlidePage,
+    setSlideTotalPages,
     loadSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,
@@ -514,10 +518,14 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         members={members}
         trangThai={trangThai}
         latencyMs={latencyMs}
+        stageLayout={stageLayout}
+        daNhanAnhChup={daNhanAnhChup}
+        onSendStageLayout={isHost || canModerate ? sendStageLayout : undefined}
         slideState={slideState}
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}
         onCloseDoc={isHost || canModerate ? closeSlideDoc : undefined}
+        onSetTotalPages={isHost || canModerate ? setSlideTotalPages : undefined}
         slideAnnotations={slideAnnotations}
         onSendSlideAnnotation={isHost || canModerate ? sendSlideAnnotation : undefined}
         onClearSlideAnnotations={isHost || canModerate ? clearSlideAnnotations : undefined}

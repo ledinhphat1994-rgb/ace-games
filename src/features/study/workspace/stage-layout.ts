@@ -1,5 +1,5 @@
 // Bố cục sân khấu lớp học: Tài liệu, Bảng, Video chạy đồng thời như các lớp chồng lên nhau.
-// Bố cục là lựa chọn riêng của từng người xem (không đồng bộ qua RoomDO); nội dung bên trong mỗi lớp vẫn đồng bộ.
+// Người trình chiếu đặt bố cục và RoomDO đồng bộ cho cả phòng (lưu lại cho người vào sau); nội dung bên trong mỗi lớp đồng bộ riêng.
 
 import type { WorkspaceMode } from './types'
 
@@ -86,9 +86,35 @@ export function batTatBangPhu(bc: BoCuc): BoCuc {
   return { ...bc, board: 'phu' }
 }
 
+/**
+ * Chọn công cụ vẽ: video (và tài liệu không có lớp chú thích như Word / Excel nhúng) không vẽ trực tiếp được → phủ bảng trong suốt.
+ * PDF, ảnh, .pptx vẽ lên lớp chú thích gắn theo trang nên giữ nguyên bố cục.
+ */
+export function phuBangDeVe(bc: BoCuc, taiLieuVeDuoc: boolean): BoCuc {
+  const chinh = lopChinh(bc)
+  const canPhu = chinh === 'video' || (chinh === 'doc' && !taiLieuVeDuoc)
+  return canPhu && bc.board !== 'phu' ? { ...bc, board: 'phu' } : bc
+}
+
 /** Vị trí góc của từng cửa sổ nổi (0: dưới-phải, 1: trên-phải, 2: dưới-trái, 3: trên-trái). */
 export function viTriCuaSo(bc: BoCuc, id: LopId): number {
   return THU_TU_LOP.filter((khac) => bc[khac] === 'pip').indexOf(id)
+}
+
+/** Bố cục người trình chiếu gửi về: lớp chưa có nội dung trên máy này (gói đồng bộ nội dung chưa tới) thì bỏ ra. */
+export function theoBoCucTrinhChieu(bc: BoCuc, coVideo: boolean, coTaiLieu: boolean): BoCuc {
+  const ketQua: BoCuc = {}
+  for (const id of THU_TU_LOP) {
+    const vaiTro = bc[id]
+    if (!vaiTro) continue
+    if ((id === 'video' && !coVideo) || (id === 'doc' && !coTaiLieu)) continue
+    ketQua[id] = vaiTro
+  }
+  return nangLopChinh(ketQua)
+}
+
+export function cungBoCuc(a: BoCuc, b: BoCuc | null): boolean {
+  return b !== null && THU_TU_LOP.every((id) => a[id] === b[id])
 }
 
 /** Bố cục ban đầu khi vào phòng, suy từ nội dung đang có trên máy chủ. */

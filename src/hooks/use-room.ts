@@ -10,6 +10,7 @@ import {
   type SharedNotes,
   type ThanhVienPhong,
   type WhiteboardStroke,
+  type BoCucSanKhau,
   type SlideState,
   type SlideAnnotationStroke,
   type VoiceParticipantState,
@@ -104,6 +105,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
     senderName?: string
     updatedAt: number
   } | null>(null)
+  /** Bố cục sân khấu người trình chiếu đặt (học sinh hiển thị theo). */
+  const [stageLayout, setStageLayout] = useState<BoCucSanKhau | null>(null)
+  /** Đã nhận ảnh chụp phòng của lần kết nối hiện tại (trước đó mọi trạng thái còn là mặc định). */
+  const [daNhanAnhChup, setDaNhanAnhChup] = useState(false)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const [voiceRegistry, setVoiceRegistry] = useState<VoiceParticipantState[]>([])
@@ -164,6 +169,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     }
 
     setTrangThai('dang_ket_noi')
+    setDaNhanAnhChup(false)
     const giaoThuc = typeof location !== 'undefined' && location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = typeof location !== 'undefined' ? location.host : 'localhost'
     const canonicalMaPhong = roomId.startsWith('phong-') ? roomId : `phong-${roomId}`
@@ -195,6 +201,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
       switch (goi.type) {
         case 'room.snapshot':
           setHostKey(goi.hostKey)
+          setStageLayout(goi.stageLayout ?? null)
+          setDaNhanAnhChup(true)
           membersRef.current = goi.members
           setMembers(goi.members)
           setMediaState(goi.media)
@@ -344,6 +352,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
               setSlideAnnotations([])
             }
           }
+          break
+
+        case 'stage.sync':
+          setStageLayout(goi.layout)
           break
 
         case 'slide.laser':
@@ -624,6 +636,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'pomodoro.action', data }))
+  }, [])
+
+  const sendStageLayout = useCallback((layout: BoCucSanKhau) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'stage.layout', layout }))
   }, [])
 
   const sendStroke = useCallback((stroke: Omit<WhiteboardStroke, 'epoch'> | WhiteboardStroke) => {
@@ -920,6 +938,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page } }))
   }, [])
 
+  const setSlideTotalPages = useCallback((totalPages: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'set_total_pages', totalPages } }))
+  }, [])
+
   const loadSlideDoc = useCallback((docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages = 1, docId?: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
@@ -1051,6 +1075,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
     sendStroke,
     clearWhiteboard,
     removeStroke,
+    stageLayout,
+    daNhanAnhChup,
+    sendStageLayout,
     updateNotes,
     addToQueue,
     removeFromQueue,
@@ -1072,6 +1099,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     slideAnnotations,
     slideLaser,
     changeSlidePage,
+    setSlideTotalPages,
     loadSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,

@@ -14,6 +14,7 @@ import {
   type WhiteboardStroke,
   type SlideState,
   type SlideAnnotationStroke,
+  type BoCucSanKhau,
   type VoiceParticipantState,
   type SessionGoal,
   type SessionTask,
@@ -186,6 +187,8 @@ export class RoomDO extends DurableObject<Env> {
   private pomodoro: PomodoroState = { ...DEFAULT_POMODORO }
   private notes: SharedNotes = { ...DEFAULT_NOTES }
   private slide: SlideState | null = null
+  /** Bố cục sân khấu người trình chiếu đặt gần nhất — học sinh hiển thị theo. */
+  private stageLayout: BoCucSanKhau | null = null
   private whiteboardEpoch = 1
   private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
   private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
@@ -548,6 +551,8 @@ export class RoomDO extends DurableObject<Env> {
           if (Number.isFinite(ep) && ep > 0) this.whiteboardEpoch = ep
         } else if (r.key === 'slide') {
           try { this.slide = JSON.parse(r.value) as SlideState } catch {}
+        } else if (r.key === 'stage_layout') {
+          try { this.stageLayout = JSON.parse(r.value) as BoCucSanKhau } catch {}
         } else if (r.key === 'host_key') {
           this.hostKey = r.value
         } else if (r.key === 'room_name') {
@@ -1981,6 +1986,7 @@ export class RoomDO extends DurableObject<Env> {
         chat: this.layChat(),
         slide: this.slide,
         slideAnnotations: this.laySlideAnnotations(),
+        stageLayout: this.stageLayout,
         voiceRegistry: this.getVoiceRegistry(),
         serverNow: Date.now(),
         // Learning Session v1
@@ -2345,6 +2351,11 @@ export class RoomDO extends DurableObject<Env> {
       case 'whiteboard.action': {
         const d = goi.data
         if (d.action === 'stroke.add') {
+          // Chỉ người trình chiếu vẽ lên bảng (giao diện đã ẩn công cụ vẽ với học sinh — máy chủ cũng phải chặn).
+          if (!laQuanTri) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới vẽ được lên bảng.' }))
+            return
+          }
           const st = d.stroke
           // Epoch guard: stroke.epoch is mandatory and must match current whiteboardEpoch
           if (typeof st.epoch !== 'number' || st.epoch < 0) {
@@ -2598,6 +2609,16 @@ export class RoomDO extends DurableObject<Env> {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
           } catch {}
           this.broadcast({ type: 'slide.annotation', action: 'clear' })
+        } else if (d.action === 'set_total_pages') {
+          // .pptx dựng trên trình duyệt: chỉ sửa số trang (giữ trang hiện tại trong giới hạn), không đụng tới chú thích.
+          if (!this.slide || this.slide.fileType !== 'pptx') return
+          const totalPages = Math.max(1, Math.min(500, d.totalPages))
+          if (totalPages === this.slide.totalPages) return
+          this.slide = {
+            ...this.slide,
+            totalPages,
+            currentPage: Math.min(this.slide.currentPage, totalPages),
+          }
         } else if (d.action === 'annotation_add') {
           const st = d.stroke
           if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 300) {
@@ -2751,6 +2772,18 @@ export class RoomDO extends DurableObject<Env> {
         }
         const nextStatus = goi.muted ? 'muted' : 'live'
         this.updateVoiceStatus(att.key, nextStatus, goi.generation)
+        break
+      }
+
+      case 'stage.layout': {
+        // Chỉ người trình chiếu đặt bố cục sân khấu; học sinh nhận stage.sync và hiển thị theo.
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới đổi được bố cục trình chiếu.' }))
+          return
+        }
+        this.stageLayout = goi.layout
+        this.luuMeta('stage_layout', this.stageLayout)
+        this.broadcast({ type: 'stage.sync', layout: this.stageLayout }, ws)
         break
       }
 

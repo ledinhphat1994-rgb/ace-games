@@ -9,10 +9,13 @@ import {
   bamLop,
   batTatBangPhu,
   boCucBanDau,
+  cungBoCuc,
   goLop,
   hienLop,
   lamChinh,
   lopChinh,
+  phuBangDeVe,
+  theoBoCucTrinhChieu,
   thuNho,
   viTriCuaSo,
 } from '../src/features/study/workspace/stage-layout'
@@ -96,6 +99,35 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   })
 })
 
+describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
+  it('theo bố cục giáo viên; lớp chưa có nội dung trên máy này thì bỏ ra và nâng lớp khác lên', () => {
+    expect(theoBoCucTrinhChieu({ doc: 'main', video: 'pip', board: 'phu' }, true, true)).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
+    // Gói đồng bộ video chưa tới: bỏ lớp video, bảng đang phủ lên video thành lớp chính.
+    expect(theoBoCucTrinhChieu({ video: 'main', board: 'phu' }, false, false)).toEqual({ board: 'main' })
+    expect(theoBoCucTrinhChieu({ video: 'main', doc: 'pip' }, false, true)).toEqual({ doc: 'main' })
+  })
+
+  it('so sánh bố cục theo từng lớp', () => {
+    expect(cungBoCuc({ doc: 'main', board: 'an' }, { board: 'an', doc: 'main' })).toBe(true)
+    expect(cungBoCuc({ doc: 'main' }, { doc: 'main', video: 'an' })).toBe(false)
+    expect(cungBoCuc({}, null)).toBe(false)
+  })
+
+  it('chọn bút: phủ bảng lên video / tài liệu nhúng; PDF, ảnh, .pptx vẽ lên trang nên giữ nguyên bố cục', () => {
+    expect(phuBangDeVe({ video: 'main', board: 'pip' }, false)).toEqual({ video: 'main', board: 'phu' })
+    expect(phuBangDeVe({ doc: 'main' }, false)).toEqual({ doc: 'main', board: 'phu' })
+    const taiLieuVeDuoc = { doc: 'main', video: 'pip' } as const
+    expect(phuBangDeVe(taiLieuVeDuoc, true)).toBe(taiLieuVeDuoc)
+    expect(phuBangDeVe({ board: 'main' }, false)).toEqual({ board: 'main' })
+  })
+
+  it('giao diện nối bố cục máy chủ: người trình chiếu gửi, mọi người theo; lớp phủ thụ động chỉ dùng khi chưa có bố cục', () => {
+    expect(workspaceRaw).toContain('onSendStageLayout(boCuc)')
+    expect(workspaceRaw).toContain('setBoCuc(theoBoCucTrinhChieu(stageLayout, Boolean(videoId), Boolean(docUrl)))')
+    expect(stageRaw).toContain('!canControl && !theoNguoiTrinhChieu && boCuc.board')
+  })
+})
+
 describe('Công cụ vẽ chung', () => {
   it('rút gọn nét dài về đúng giới hạn máy chủ, giữ điểm đầu và cuối', () => {
     const dai: [number, number][] = Array.from({ length: 900 }, (_, i) => [i, i * 2])
@@ -149,56 +181,88 @@ async function chenPhong(ten: string, chuPhongKhoa: string): Promise<number> {
 }
 
 describe('Bảng vẽ v2 trên RoomDO', () => {
-  it('máy chủ gắn người vẽ, giữ toạ độ v2 / chữ / hình; chỉ người vẽ hoặc chủ phòng tẩy được nét', async () => {
+  it('chỉ người trình chiếu vẽ được; máy chủ gắn người vẽ, giữ toạ độ v2 / chữ / hình; học sinh không tẩy được nét', async () => {
     const id = await chenPhong('Phòng bảng v2', 'acc:1')
     const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu1'))
     const an = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu2'))
-    const binh = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
-    const snap = await an.cho('room.snapshot')
-    await host.cho('room.snapshot')
-    await binh.cho('room.snapshot')
+    const snap = await host.cho('room.snapshot')
+    await an.cho('room.snapshot')
     const epoch = snap.whiteboardEpoch ?? 1
 
-    // Người vẽ giả mạo trường `by` → máy chủ ghi đè bằng khoá thật.
+    // Học sinh không vẽ được lên bảng (giao diện đã ẩn công cụ — máy chủ cũng chặn).
     an.gui({
+      type: 'whiteboard.action',
+      data: { action: 'stroke.add', stroke: { id: 'net-cua-an', points: [[1, 1], [2, 2]], color: '#fff', size: 4, epoch } },
+    })
+    await an.cho('error', (g) => g.message.includes('mới vẽ được lên bảng'))
+    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'net-cua-an', 200)
+
+    // Giả mạo trường `by` → máy chủ ghi đè bằng khoá thật.
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
-        stroke: { id: 'chu-cua-an', points: [[100, 100]], color: '#fff', size: 40, epoch, v: 2, tool: 'text', text: 'Bài 1', by: 'acc:1' },
+        stroke: { id: 'chu-cua-thay', points: [[100, 100]], color: '#fff', size: 40, epoch, v: 2, tool: 'text', text: 'Bài 1', by: 'acc:2' },
       },
     })
-    const netChu = await host.cho('whiteboard.sync', (g) => g.action === 'stroke.add' && g.stroke?.id === 'chu-cua-an')
-    expect(netChu.stroke).toMatchObject({ v: 2, tool: 'text', text: 'Bài 1', by: 'acc:2' })
+    const netChu = await an.cho('whiteboard.sync', (g) => g.action === 'stroke.add' && g.stroke?.id === 'chu-cua-thay')
+    expect(netChu.stroke).toMatchObject({ v: 2, tool: 'text', text: 'Bài 1', by: 'acc:1' })
 
-    an.gui({
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
-        stroke: { id: 'khung-cua-an', points: diemKhungChuNhat([10, 10], [200, 120]), color: '#f00', size: 7, epoch, v: 2, tool: 'shape' },
+        stroke: { id: 'khung-cua-thay', points: diemKhungChuNhat([10, 10], [200, 120]), color: '#f00', size: 7, epoch, v: 2, tool: 'shape' },
       },
     })
-    await host.cho('whiteboard.sync', (g) => g.action === 'stroke.add' && g.stroke?.id === 'khung-cua-an')
+    await an.cho('whiteboard.sync', (g) => g.action === 'stroke.add' && g.stroke?.id === 'khung-cua-thay')
 
-    // Bình không tẩy được nét của An.
-    binh.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-an' } })
-    await binh.cho('error', (g) => g.message.includes('nét vẽ của mình'))
+    // Học sinh không tẩy được nét của thầy; thầy tẩy được.
+    an.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
+    await an.cho('error', (g) => g.message.includes('nét vẽ của mình'))
     await host.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)
+    host.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
+    await an.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'chu-cua-thay')
 
-    // An tẩy được nét của mình; chủ phòng tẩy được nét của người khác.
-    an.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-an' } })
-    await binh.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'chu-cua-an')
-    host.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'khung-cua-an' } })
-    await binh.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'khung-cua-an')
-
-    // Vào lại phòng: hai nét đã tẩy không còn trong ảnh chụp.
+    // Vào lại phòng: nét đã tẩy không còn, nét còn lại vẫn giữ.
     const vaoLai = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
     const snapMoi = await vaoLai.cho('room.snapshot')
-    expect(snapMoi.strokes.map((s) => s.id)).not.toContain('chu-cua-an')
-    expect(snapMoi.strokes.map((s) => s.id)).not.toContain('khung-cua-an')
+    expect(snapMoi.strokes.map((s) => s.id)).not.toContain('chu-cua-thay')
+    expect(snapMoi.strokes.map((s) => s.id)).toContain('khung-cua-thay')
     host.dong()
     an.dong()
-    binh.dong()
     vaoLai.dong()
+  })
+
+  it('bố cục sân khấu: chỉ người trình chiếu đổi được; gửi cho người khác và lưu cho người vào sau', async () => {
+    const id = await chenPhong('Phòng bố cục', 'acc:1')
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu1'))
+    const an = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu2'))
+    const snap = await an.cho('room.snapshot')
+    await host.cho('room.snapshot')
+    expect(snap.stageLayout ?? null).toBeNull()
+
+    host.gui({ type: 'stage.layout', layout: { doc: 'main', video: 'pip', board: 'phu' } })
+    const dongBo = await an.cho('stage.sync')
+    expect(dongBo.layout).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
+    // Người gửi không nhận lại bố cục của chính mình (tránh ghi đè thay đổi mới hơn trên máy mình).
+    await host.khongNhan('stage.sync', () => true, 200)
+
+    // Học sinh không đổi được bố cục của cả phòng.
+    an.gui({ type: 'stage.layout', layout: { board: 'main' } })
+    await an.cho('error', (g) => g.message.includes('bố cục trình chiếu'))
+    await host.khongNhan('stage.sync', () => true, 200)
+
+    // Vai trò lạ bị từ chối ngay ở lược đồ.
+    host.gui({ type: 'stage.layout', layout: { doc: 'khong-hop-le' } } as never)
+    await an.khongNhan('stage.sync', () => true, 200)
+
+    const vaoSau = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
+    const snapSau = await vaoSau.cho('room.snapshot')
+    expect(snapSau.stageLayout).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
+    host.dong()
+    an.dong()
+    vaoSau.dong()
   })
 
   it('chú thích chữ trên tài liệu được lưu kèm nội dung chữ', async () => {
