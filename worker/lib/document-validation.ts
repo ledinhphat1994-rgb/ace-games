@@ -20,15 +20,17 @@ export const MAGIC_BYTES: Record<string, (b: Uint8Array) => boolean> = {
   jpeg: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   webp: (b) => b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
                b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50,
-  // PPTX / DOCX / XLSX: ZIP-based OOXML
+  // PPTX / DOCX / XLSX: ZIP-based OOXML (cấu trúc bên trong kiểm tra thêm bằng kiemTraGoiOoxml)
   pptx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
   docx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
   xlsx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
-  xlxs: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
+  // DOC / XLS: chỉ kiểm tra vỏ OLE Compound File, không đọc luồng bên trong
   doc:  (b) => b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0, // OLE
   xls:  (b) => b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0, // OLE
 }
 
+// fileType 'pptx' = nhóm "tài liệu Office xem qua Office Online" (cột phong_tai_lieu.file_type chỉ nhận pdf/pptx/image),
+// nên Word/Excel cũng mang fileType 'pptx'.
 export const ALLOWED_DOCUMENT_RULES: Record<
   string,
   { maxBytes: number; folder: string; allowedMimes: string[]; fileType: 'pdf' | 'pptx' | 'image' }
@@ -87,17 +89,6 @@ export const ALLOWED_DOCUMENT_RULES: Record<
     ],
     fileType: 'pptx',
   },
-  xlxs: {
-    maxBytes: 30 * 1024 * 1024,
-    folder: 'slides',
-    allowedMimes: [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'application/octet-stream',
-      'application/zip',
-    ],
-    fileType: 'pptx',
-  },
   xls: {
     maxBytes: 30 * 1024 * 1024,
     folder: 'slides',
@@ -130,11 +121,46 @@ export const ALLOWED_DOCUMENT_RULES: Record<
   },
 }
 
+/** Phần chính mà mỗi loại gói OOXML bắt buộc phải có, cùng kiểu nội dung khai báo trong [Content_Types].xml. */
+const OOXML_PHAN_CHINH = {
+  pptx: {
+    ten: 'PowerPoint',
+    part: 'ppt/presentation.xml',
+    contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml',
+    thieuPart: 'Thiếu tệp ppt/presentation.xml (không phải bản trình chiếu PowerPoint).',
+  },
+  docx: {
+    ten: 'Word',
+    part: 'word/document.xml',
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml',
+    thieuPart: 'Thiếu tệp word/document.xml (không phải văn bản Word).',
+  },
+  xlsx: {
+    ten: 'Excel',
+    part: 'xl/workbook.xml',
+    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
+    thieuPart: 'Thiếu tệp xl/workbook.xml (không phải bảng tính Excel).',
+  },
+} as const
+
+export type LoaiOoxml = keyof typeof OOXML_PHAN_CHINH
+
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+
 /**
  * PPTX ZIP Inspection:
  * Validates that an uploaded archive is a genuine PowerPoint (.pptx) OOXML package.
  */
-export async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reason?: string }> {
+export function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reason?: string }> {
+  return kiemTraGoiOoxml(fileBytes, 'pptx')
+}
+
+/**
+ * OOXML ZIP Inspection (pptx / docx / xlsx): gói phải có [Content_Types].xml, có phần chính của đúng loại, và
+ * [Content_Types].xml khai báo đúng kiểu nội dung chính cho phần đó — đổi đuôi một tệp ZIP bất kỳ không qua được.
+ */
+export async function kiemTraGoiOoxml(fileBytes: Uint8Array, loai: LoaiOoxml): Promise<{ ok: boolean; reason?: string }> {
+  const phanChinh = OOXML_PHAN_CHINH[loai]
   const MAX_EOCD_SCAN = 65536
   const MAX_ENTRIES = 500
   const MAX_TOTAL_UNCOMPRESSED = 100 * 1024 * 1024 // 100 MiB
@@ -170,7 +196,7 @@ export async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean
   let ptr = cdOffset
   let totalUncompressed = 0
   let hasContentTypes = false
-  let hasPptPresentation = false
+  let hasMainPart = false
   let contentTypesLocalHeaderOffset = -1
   let contentTypesCompressedSize = 0
   let contentTypesCompressionMethod = 0
@@ -201,15 +227,15 @@ export async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean
       contentTypesLocalHeaderOffset = localHeaderOffset
       contentTypesCompressedSize = compressedSize
       contentTypesCompressionMethod = compressionMethod
-    } else if (name === 'ppt/presentation.xml') {
-      hasPptPresentation = true
+    } else if (name === phanChinh.part) {
+      hasMainPart = true
     }
 
     ptr += 46 + nameLen + extraLen + commentLen
   }
 
-  if (!hasContentTypes) return { ok: false, reason: 'Thiếu tệp [Content_Types].xml trong gói PPTX.' }
-  if (!hasPptPresentation) return { ok: false, reason: 'Thiếu tệp ppt/presentation.xml (không phải bản trình chiếu PowerPoint).' }
+  if (!hasContentTypes) return { ok: false, reason: `Thiếu tệp [Content_Types].xml trong gói ${loai.toUpperCase()}.` }
+  if (!hasMainPart) return { ok: false, reason: phanChinh.thieuPart }
 
   // 3. Decompress [Content_Types].xml
   if (contentTypesLocalHeaderOffset + 30 > fileBytes.length) return { ok: false, reason: 'Offset của [Content_Types].xml không hợp lệ.' }
@@ -261,13 +287,16 @@ export async function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean
 
   // 4. Verify ContentType in [Content_Types].xml
   const xmlText = new TextDecoder('utf-8').decode(xmlBytes)
-  const pptMainContentTypePattern =
-    /<Override\b[^>]*(?:PartName=["']\/ppt\/presentation\.xml["'][^>]*ContentType=["']application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation\.main\+xml["']|ContentType=["']application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation\.main\+xml["'][^>]*PartName=["']\/ppt\/presentation\.xml["'])[^>]*\/?>/i
-  if (!pptMainContentTypePattern.test(xmlText)) {
+  const partName = escapeRegex(`/${phanChinh.part}`)
+  const contentType = escapeRegex(phanChinh.contentType)
+  const mainContentTypePattern = new RegExp(
+    `<Override\\b[^>]*(?:PartName=["']${partName}["'][^>]*ContentType=["']${contentType}["']|ContentType=["']${contentType}["'][^>]*PartName=["']${partName}["'])[^>]*\\/?>`,
+    'i',
+  )
+  if (!mainContentTypePattern.test(xmlText)) {
     return {
       ok: false,
-      reason:
-        '[Content_Types].xml không khai báo kiểu nội dung PowerPoint chính thức (presentationml/presentation.main+xml) cho /ppt/presentation.xml.',
+      reason: `[Content_Types].xml không khai báo kiểu nội dung ${phanChinh.ten} chính thức (${phanChinh.contentType}) cho /${phanChinh.part}.`,
     }
   }
 
@@ -338,14 +367,14 @@ export async function validateDocumentUpload(
     }
   }
 
-  // PPTX deep inspection
-  if (rawExt === 'pptx') {
-    const pptxCheck = await validatePptx(fileBytes)
-    if (!pptxCheck.ok) {
+  // OOXML deep inspection (pptx / docx / xlsx)
+  if (rawExt === 'pptx' || rawExt === 'docx' || rawExt === 'xlsx') {
+    const ooxmlCheck = await kiemTraGoiOoxml(fileBytes, rawExt)
+    if (!ooxmlCheck.ok) {
       return {
         ok: false,
         errorCode: UPLOAD_ERROR_CODES.UNSUPPORTED_TYPE,
-        error: `Tệp PPTX không hợp lệ: ${pptxCheck.reason}`,
+        error: `Tệp ${rawExt.toUpperCase()} không hợp lệ: ${ooxmlCheck.reason}`,
       }
     }
   }

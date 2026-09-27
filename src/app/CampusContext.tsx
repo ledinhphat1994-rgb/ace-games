@@ -149,6 +149,8 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   const guiChatGanNhatRef = useRef<number>(0)
   const soLanThuRef = useRef<number>(0)
   const henGioKetNoiLaiRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Đang chờ nối lại sau khi rớt mạng (không bao giờ bật khi phiên bị thiết bị khác thay — mã 4001). */
+  const choNoiLaiRef = useRef<boolean>(false)
   const daHuyRef = useRef<boolean>(false)
   const hoatDongRef = useRef<UserActivity | null>(null)
   const awayRef = useRef<boolean>(false)
@@ -269,6 +271,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(henGioKetNoiLaiRef.current)
       henGioKetNoiLaiRef.current = null
     }
+    choNoiLaiRef.current = false
 
     setTrangThai('dang_ket_noi')
     setPresenceReady(false)
@@ -524,8 +527,11 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       setTrangThai('mat_ket_noi')
       if (daHuyRef.current) return
 
-      const delay = Math.min(BACKOFF_KHOI_DAU_MS * 2 ** soLanThuRef.current, BACKOFF_TOI_DA_MS)
+      // Độ trễ ngẫu nhiên trong khoảng ½–1 mức lùi: sau một lần deploy, các máy không cùng nối lại một nhịp vào CampusDO.
+      const mucLui = Math.min(BACKOFF_KHOI_DAU_MS * 2 ** soLanThuRef.current, BACKOFF_TOI_DA_MS)
+      const delay = mucLui / 2 + Math.random() * (mucLui / 2)
       soLanThuRef.current += 1
+      choNoiLaiRef.current = true
       henGioKetNoiLaiRef.current = setTimeout(() => {
         ketNoiRef.current()
       }, delay)
@@ -569,6 +575,22 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       donDepChoPhanHoi('Hủy kết nối')
     }
   }, [ketNoi, donDepChoPhanHoi])
+
+  // Có mạng trở lại hoặc quay lại tab trong lúc đang chờ nối lại: nối ngay, không chờ hết thời gian lùi.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    const noiLaiNgay = () => {
+      if (daHuyRef.current || !choNoiLaiRef.current || document.visibilityState === 'hidden') return
+      soLanThuRef.current = 0
+      ketNoiRef.current()
+    }
+    window.addEventListener('online', noiLaiNgay)
+    document.addEventListener('visibilitychange', noiLaiNgay)
+    return () => {
+      window.removeEventListener('online', noiLaiNgay)
+      document.removeEventListener('visibilitychange', noiLaiNgay)
+    }
+  }, [])
 
   const doDoTre = useCallback(async (): Promise<number | null> => {
     const ws = wsRef.current

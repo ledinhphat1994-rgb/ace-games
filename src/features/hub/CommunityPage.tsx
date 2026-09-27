@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
+import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { FriendsDrawer } from '@/components/social/FriendsDrawer'
 import { LiveDot, PageHeader } from '@/components/layout/PageHeader'
@@ -28,6 +29,7 @@ type TrangThaiBan = 'online' | 'away' | 'room' | 'offline' | 'unknown'
 
 export function CommunityPage() {
   const navigate = useNavigate()
+  const { nguoiDung } = usePhien()
   const {
     socialState,
     socialStatus,
@@ -361,7 +363,8 @@ export function CommunityPage() {
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-text-primary">Học cùng bạn bè</h2>
                 <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-text-secondary">
-                  {campusSnapshotReady
+                  {/* Khách không nhận danh sách phòng từ sảnh: không khẳng định "chưa có phòng" */}
+                  {campusSnapshotReady && nguoiDung
                     ? rooms.length > 0
                       ? `${rooms.length} phòng học đang mở — vào học cùng mọi người.`
                       : 'Chưa có phòng nào đang mở — hãy mở phòng đầu tiên.'

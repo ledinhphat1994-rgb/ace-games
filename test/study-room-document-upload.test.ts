@@ -287,4 +287,57 @@ describe('R1 — Study Room Document Upload Pipeline', () => {
     const body2 = await res2.json() as { ok: boolean; code: string }
     expect(body2.code).toBe('UPLOAD_ROOM_CLOSED')
   })
+
+  const goiOoxml = (part: string, contentType: string) =>
+    createZip([
+      {
+        name: '[Content_Types].xml',
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Override PartName="/${part}" ContentType="${contentType}"/>
+</Types>`,
+      },
+      { name: part, content: '<root/>' },
+    ])
+  const WORD_MAIN = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
+  const EXCEL_MAIN = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml'
+
+  it('10. Word (.docx) and Excel (.xlsx) with a genuine OOXML structure are accepted (Office viewer group)', async () => {
+    const roomId = await insertRoom('Phòng Upload Word Excel')
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    const resDocx = await uploadRoomDoc(roomId, 'giao_an.docx', goiOoxml('word/document.xml', WORD_MAIN), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', cookie)
+    expect(resDocx.status).toBe(201)
+    expect(((await resDocx.json()) as { document: { fileType: string } }).document.fileType).toBe('pptx')
+
+    const resXlsx = await uploadRoomDoc(roomId, 'bang_diem.xlsx', goiOoxml('xl/workbook.xml', EXCEL_MAIN), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', cookie)
+    expect(resXlsx.status).toBe(201)
+  })
+
+  it('11. A ZIP renamed to .docx / .xlsx without the matching main part is rejected', async () => {
+    const roomId = await insertRoom('Phòng Upload Đổi Đuôi')
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+
+    // Gói PowerPoint đổi đuôi thành .docx: thiếu word/document.xml
+    const pptDoiDuoi = goiOoxml('ppt/presentation.xml', 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml')
+    const resDocx = await uploadRoomDoc(roomId, 'gia_mao.docx', pptDoiDuoi, 'application/octet-stream', cookie)
+    expect(resDocx.status).toBe(400)
+    const bodyDocx = await resDocx.json() as { code: string; loi: string }
+    expect(bodyDocx.code).toBe('UPLOAD_UNSUPPORTED_TYPE')
+    expect(bodyDocx.loi).toContain('word/document.xml')
+
+    // Có xl/workbook.xml nhưng [Content_Types].xml khai sai kiểu nội dung chính
+    const saiKieu = goiOoxml('xl/workbook.xml', 'application/xml')
+    const resXlsx = await uploadRoomDoc(roomId, 'gia_mao.xlsx', saiKieu, 'application/octet-stream', cookie)
+    expect(resXlsx.status).toBe(400)
+    expect(((await resXlsx.json()) as { loi: string }).loi).toContain('spreadsheetml.sheet.main+xml')
+  })
+
+  it('12. The misspelled ".xlxs" extension is not accepted', async () => {
+    const roomId = await insertRoom('Phòng Upload Sai Đuôi')
+    const cookie = await dangNhapLayCookie('qa.v2.thu1')
+    const res = await uploadRoomDoc(roomId, 'bang_diem.xlxs', goiOoxml('xl/workbook.xml', EXCEL_MAIN), 'application/octet-stream', cookie)
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('UPLOAD_UNSUPPORTED_TYPE')
+  })
 })
