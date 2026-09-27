@@ -170,18 +170,18 @@ export function ClassroomWorkspace({
     boCucBanDau(deriveDefaultWorkspaceMode(mediaState, slideState), Boolean(videoId), Boolean(docUrl)),
   )
 
-  // Nội dung đổi từ máy chủ (giáo viên mở video / tài liệu mới) → bảo đảm lớp đó hiện, không giành lớp chính của người xem.
+  // Nội dung đổi từ máy chủ (giáo viên mở tài liệu mới / phát video) → tự động đưa lớp đó lên làm lớp chính để cả phòng cùng theo dõi đồng bộ.
   // Nội dung kết thúc (gỡ video, đóng tài liệu) → bỏ lớp khỏi sân khấu.
   useEffect(() => {
-    setBoCuc((bc) => (videoId ? hienLop(bc, 'video') : goLop(bc, 'video')))
-  }, [videoId])
+    if (videoId) {
+      setBoCuc((bc) => (videoDangPhat ? lamChinh(bc, 'video') : hienLop(bc, 'video')))
+    } else {
+      setBoCuc((bc) => goLop(bc, 'video'))
+    }
+  }, [videoId, videoDangPhat])
 
   useEffect(() => {
-    if (videoDangPhat) setBoCuc((bc) => hienLop(bc, 'video'))
-  }, [videoDangPhat])
-
-  useEffect(() => {
-    setBoCuc((bc) => (docUrl ? hienLop(bc, 'doc') : goLop(bc, 'doc')))
+    setBoCuc((bc) => (docUrl ? lamChinh(bc, 'doc') : goLop(bc, 'doc')))
   }, [docUrl])
 
   // Công cụ vẽ chung cho mọi lớp.
@@ -361,6 +361,7 @@ export function ClassroomWorkspace({
           canModerate={canModerate}
           congCu={congCu}
           onChonCongCu={(c) => {
+            if (!canModerate && !isHost && c !== 'chuot') return
             setCongCu(c)
             const chinh = lopChinh(boCuc)
             if (c !== 'chuot' && (chinh === 'video' || chinh === 'doc')) {

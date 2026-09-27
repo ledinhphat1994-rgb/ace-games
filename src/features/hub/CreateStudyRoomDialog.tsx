@@ -245,7 +245,7 @@ export function CreateStudyRoomDialog({
                 <Users className="size-4 text-text-tertiary" />
                 Sức chứa tối đa
               </Label>
-              <div className="flex items-center gap-3">
+              <div className="relative">
                 <Input
                   id="room-capacity"
                   data-testid="create-room-capacity-input"
@@ -256,9 +256,11 @@ export function CreateStudyRoomDialog({
                   value={sucChua}
                   onChange={(e) => setSucChua(Math.min(100, Math.max(2, parseInt(e.target.value, 10) || 2)))}
                   disabled={isSubmitting}
-                  className="w-28 tabular-nums"
+                  className="w-full pr-16 tabular-nums"
                 />
-                <span className="text-sm text-text-tertiary">người</span>
+                <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-sm text-text-tertiary">
+                  người
+                </span>
               </div>
             </div>
           </div>
