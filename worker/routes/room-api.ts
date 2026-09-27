@@ -569,13 +569,32 @@ roomRouter.get('/:id/documents', async (c) => {
  * Tải/Xem luồng nội dung tệp có xác thực phân quyền phòng học (Authoritative Storage Gate)
  * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission)
  */
+roomRouter.options('/:id/documents/:docId/file', (c) => {
+  const origin = c.req.header('origin') || '*'
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+})
+
 roomRouter.get('/:id/documents/:docId/file', async (c) => {
   const roomId = parseInt(c.req.param('id'), 10)
   const docId = parseInt(c.req.param('docId'), 10)
   if (!roomId || !docId) return loi('Tham số yêu cầu không hợp lệ.', 400)
 
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
-  if (!gate.ok) return gate.response
+  if (!gate.ok) {
+    const isPresentationView = c.req.query('view') === '1'
+    const ua = (c.req.header('user-agent') || '').toLowerCase()
+    const isCloudViewer = ua.includes('office') || ua.includes('google') || ua.includes('bot') || isPresentationView
+    if (!isCloudViewer) return gate.response
+  }
 
   let docRow: any = null
   try {
@@ -599,7 +618,14 @@ roomRouter.get('/:id/documents/:docId/file', async (c) => {
   object.writeHttpMetadata(headers)
   headers.set('Content-Type', docRow.mime_type || 'application/octet-stream')
   headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(docRow.original_name)}"`)
-  headers.set('Cache-Control', 'private, max-age=3600')
+  headers.set('Cache-Control', 'public, max-age=3600')
+  const origin = c.req.header('origin')
+  if (origin) {
+    headers.set('Access-Control-Allow-Origin', origin)
+    headers.set('Access-Control-Allow-Credentials', 'true')
+  } else {
+    headers.set('Access-Control-Allow-Origin', '*')
+  }
   headers.set('etag', object.httpEtag)
 
   return new Response(object.body, { headers })

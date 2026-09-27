@@ -82,6 +82,104 @@ function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string
   )
 }
 
+function OfficeEmbedViewer({
+  docName,
+  docUrl,
+}: {
+  docName: string
+  docUrl: string
+}) {
+  const [viewerType, setViewerType] = useState<'microsoft' | 'google'>('microsoft')
+  const [showAdvisory, setShowAdvisory] = useState(false)
+
+  let fullUrl = docUrl
+  if (typeof window !== 'undefined' && docUrl.startsWith('/')) {
+    const sep = docUrl.includes('?') ? '&' : '?'
+    fullUrl = `${window.location.origin}${docUrl}${sep}view=1`
+  }
+
+  const isGoogleSlides = fullUrl.includes('docs.google.com/presentation')
+  const embedUrl = isGoogleSlides
+    ? fullUrl.replace(/\/(edit|pub|preview)(\?.*)?$/, '/embed').replace(/(embed)(\?.*)?$/, 'embed')
+    : fullUrl.includes('docs.google.com/viewer') || fullUrl.includes('view.officeapps.live.com')
+      ? fullUrl
+      : viewerType === 'microsoft'
+        ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`
+        : `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`
+
+  if (showAdvisory) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full">
+        <PptxAdvisoryCard docName={docName} docUrl={docUrl} />
+        <button
+          type="button"
+          onClick={() => setShowAdvisory(false)}
+          className="mt-3 text-xs text-cyan-400 hover:underline cursor-pointer"
+        >
+          Quay lại trình chiếu trực tiếp
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative h-full w-full flex flex-col bg-[#070b12] rounded-lg overflow-hidden">
+      <div className="relative flex-1 w-full h-full">
+        <iframe
+          src={embedUrl}
+          title={docName}
+          className="h-full w-full border-0 bg-slate-950"
+          allow="fullscreen"
+        />
+      </div>
+      {!isGoogleSlides && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950/80 border-t border-white/10 text-xs shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-400">Trình xem:</span>
+            <button
+              type="button"
+              onClick={() => setViewerType('microsoft')}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                viewerType === 'microsoft' ? 'bg-orange-500/20 text-orange-300' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Office Live
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewerType('google')}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                viewerType === 'google' ? 'bg-blue-500/20 text-blue-300' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Google Docs
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAdvisory(true)}
+              className="text-[11px] text-slate-400 hover:text-white cursor-pointer"
+            >
+              Thông tin tệp
+            </button>
+            {docUrl && (
+              <a
+                href={docUrl}
+                download={docName}
+                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
+              >
+                <Download className="h-3 w-3" />
+                Tải tệp
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function DocumentStageView({
   slideState = null,
   isHost,
@@ -186,10 +284,7 @@ export function DocumentStageView({
         {canControl ? (
           <div className="space-y-3 max-w-sm">
             <div>
-              <h3 className="text-base font-bold text-white">Chọn tài liệu để trình chiếu</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Tải lên tệp PDF hoặc hình ảnh bài giảng để cả lớp cùng xem đồng bộ.
-              </p>
+              <h3 className="text-base font-bold text-white">Trình chiếu tài liệu</h3>
             </div>
             <button
               type="button"
@@ -203,10 +298,7 @@ export function DocumentStageView({
           </div>
         ) : (
           <div className="space-y-1 max-w-sm">
-            <h3 className="text-base font-bold text-white">Chưa có tài liệu đang trình bày</h3>
-            <p className="text-xs text-slate-400">
-              Chờ chủ phòng hoặc giáo viên tải lên bài giảng cho buổi học.
-            </p>
+            <h3 className="text-base font-bold text-white">Chưa có tài liệu</h3>
           </div>
         )}
       </div>
@@ -383,9 +475,6 @@ export function DocumentStageView({
           <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2" data-testid="doc-render-error">
             <AlertTriangle className="h-8 w-8 text-amber-400 opacity-90" />
             <p className="text-xs font-semibold text-slate-200">Không thể tải tài liệu này</p>
-            <p className="text-[11px] text-slate-500 max-w-[280px]">
-              Tài liệu có thể không tồn tại hoặc định dạng tệp không được hỗ trợ để hiển thị.
-            </p>
             <button
               type="button"
               onClick={() => setHasRenderError(false)}
@@ -450,7 +539,7 @@ export function DocumentStageView({
             </div>
           </div>
         ) : slideState?.fileType === 'pptx' ? (
-          <PptxAdvisoryCard docName={slideState.docName} docUrl={slideState.docUrl} />
+          <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} />
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <FileText className="h-12 w-12 text-orange-400 mb-2 opacity-80" />

@@ -20,8 +20,13 @@ export const MAGIC_BYTES: Record<string, (b: Uint8Array) => boolean> = {
   jpeg: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   webp: (b) => b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
                b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50,
-  // PPTX: Verified via ZIP entry inspection in validatePptx() (not just PK header)
+  // PPTX / DOCX / XLSX: ZIP-based OOXML
   pptx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
+  docx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
+  xlsx: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
+  xlxs: (b) => b[0] === 0x50 && b[1] === 0x4b, // PK
+  doc:  (b) => b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0, // OLE
+  xls:  (b) => b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0, // OLE
 }
 
 export const ALLOWED_DOCUMENT_RULES: Record<
@@ -52,6 +57,51 @@ export const ALLOWED_DOCUMENT_RULES: Record<
       'application/vnd.ms-powerpoint',
       'application/octet-stream',
     ],
+    fileType: 'pptx',
+  },
+  docx: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'application/octet-stream',
+      'application/zip',
+    ],
+    fileType: 'pptx',
+  },
+  doc: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: ['application/msword', 'application/octet-stream'],
+    fileType: 'pptx',
+  },
+  xlsx: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+      'application/zip',
+    ],
+    fileType: 'pptx',
+  },
+  xlxs: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+      'application/zip',
+    ],
+    fileType: 'pptx',
+  },
+  xls: {
+    maxBytes: 30 * 1024 * 1024,
+    folder: 'slides',
+    allowedMimes: ['application/vnd.ms-excel', 'application/octet-stream'],
     fileType: 'pptx',
   },
   png: {
@@ -256,7 +306,7 @@ export async function validateDocumentUpload(
     return {
       ok: false,
       errorCode: UPLOAD_ERROR_CODES.UNSUPPORTED_TYPE,
-      error: `Định dạng tệp ".${rawExt}" không được hỗ trợ. Hệ thống hỗ trợ .pdf, .pptx và ảnh (.png, .jpg, .webp).`,
+      error: `Định dạng tệp ".${rawExt}" không được hỗ trợ. Hệ thống hỗ trợ .pdf, .pptx, Word (.docx/.doc), Excel (.xlsx/.xls) và ảnh.`,
     }
   }
 

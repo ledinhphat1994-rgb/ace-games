@@ -49,11 +49,6 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
 
-    if (ext === 'ppt') {
-      toast.error('Định dạng .ppt cũ không được hỗ trợ trực tiếp. Vui lòng lưu tệp thành .pdf hoặc .pptx để trình chiếu.')
-      return
-    }
-
     let type: 'pptx' | 'pdf' | 'image' = 'pptx'
     if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) type = 'image'
     else if (ext === 'pdf') type = 'pdf'
@@ -151,12 +146,9 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     const file = e.dataTransfer.files[0]
     if (!file) return
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    if (ext === 'ppt') {
-      toast.error('Định dạng .ppt cũ không được hỗ trợ trực tiếp. Vui lòng lưu tệp thành .pdf hoặc .pptx để trình chiếu.')
-      return
-    }
-    if (!['pptx', 'pdf', 'png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
-      toast.error('Định dạng không hỗ trợ. Hãy chọn .pptx, .pdf hoặc ảnh.')
+    const ALLOWED_EXTS = ['pptx', 'ppt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'webp']
+    if (!ALLOWED_EXTS.includes(ext)) {
+      toast.error('Định dạng không hỗ trợ. Hãy chọn PDF, PowerPoint, Word, Excel hoặc ảnh.')
       return
     }
     void processFile(file)
@@ -188,21 +180,18 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     toast.success(`Đã mở: ${name}!`)
   }
 
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/15 bg-[#0d1422] text-slate-100 sm:max-w-[540px]">
+      <DialogContent className="border-white/15 bg-[#0d1422] text-slate-100 sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold text-cyan-300">
             <FileSpreadsheet className="h-5 w-5 text-cyan-400" />
-            Chèn Bài Giảng PowerPoint / PDF
+            Chèn Tài Liệu
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
-            Tải lên tệp trình chiếu hoặc dán đường dẫn tài liệu để cả phòng cùng theo dõi trên bảng đen.
-          </DialogDescription>
+          <DialogDescription className="sr-only">Chèn tài liệu vào phòng học</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <div className="space-y-4 pt-1">
           {/* Drag-and-drop / click upload box */}
           <div
             className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors cursor-pointer ${
@@ -218,7 +207,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <input
               type="file"
               id="slide-file-input"
-              accept=".pptx,.pdf,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -230,17 +219,14 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               </div>
               <span className="text-xs font-semibold text-slate-200">
                 {isUploading
-                  ? '☁️ Đang tải tệp lên máy chủ lưu trữ...'
+                  ? 'Đang tải tệp lên...'
                   : isDetecting
-                    ? '⏳ Đang phát hiện số trang PDF...'
+                    ? 'Đang phát hiện số trang...'
                     : docName
-                      ? `✅ Đã chọn: ${docName}`
+                      ? docName
                       : isDragOver
-                        ? '🎯 Thả tệp vào đây!'
-                        : 'Kéo thả hoặc bấm để chọn tệp'}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Hỗ trợ: .pdf (khuyên dùng trình chiếu), .pptx, ảnh (.png/.jpg/.webp)
+                        ? 'Thả tệp vào đây'
+                        : 'Chọn tệp tài liệu'}
               </span>
             </div>
           </div>
@@ -248,11 +234,11 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
           {/* Form inputs */}
           <div className="space-y-2.5">
             <div>
-              <label className="text-[11px] font-semibold text-slate-300">Tên bài giảng hiển thị</label>
+              <label className="text-[11px] font-semibold text-slate-300">Tên tài liệu</label>
               <Input
                 value={docName}
                 onChange={(e) => setDocName(e.target.value)}
-                placeholder="Ví dụ: Toán 10 - Bài 1: Mệnh đề và tập hợp"
+                placeholder="Tên tài liệu..."
                 className="h-8 border-white/10 bg-black/40 text-xs text-white"
               />
             </div>
@@ -260,7 +246,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
-                  Tổng số trang
+                  Số trang
                   {isDetecting && <span className="text-[10px] text-cyan-400 animate-pulse">đang phát hiện…</span>}
                 </label>
                 <Input
@@ -274,37 +260,31 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-300">Loại tài liệu</label>
+                <label className="text-[11px] font-semibold text-slate-300">Định dạng</label>
                 <select
                   value={fileType}
                   onChange={(e) => setFileType(e.target.value as 'pptx' | 'pdf' | 'image')}
                   className="h-8 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white"
                 >
-                  <option value="pdf">Tài liệu PDF (.pdf — Khuyên dùng)</option>
-                  <option value="pptx">PowerPoint (.pptx — Lưu trữ phòng)</option>
-                  <option value="image">Hình ảnh bài tập (.png/.jpg)</option>
+                  <option value="pdf">Tài liệu PDF</option>
+                  <option value="pptx">PowerPoint / Word / Excel</option>
+                  <option value="image">Hình ảnh</option>
                 </select>
               </div>
             </div>
-
-            {fileType === 'pptx' && (
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-200">
-                💡 <strong>Mẹo:</strong> Tệp PowerPoint (.pptx) sẽ được lưu trữ an toàn trong phòng học. Để trình chiếu đồng bộ từng trang mượt mà trên bảng đen cho cả phòng, bạn nên xuất tệp sang định dạng <strong>PDF (.pdf)</strong> trước khi tải lên.
-              </div>
-            )}
           </div>
 
           {/* Google Slides section */}
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
             <div className="flex items-center gap-1.5 mb-2">
               <Link className="h-3.5 w-3.5 text-blue-400" />
-              <span className="text-[11px] font-bold text-blue-300">Chèn Google Slides (khuyên dùng)</span>
+              <span className="text-[11px] font-bold text-blue-300">Google Slides</span>
             </div>
             <div className="space-y-2">
               <Input
                 value={glUrl}
                 onChange={(e) => setGlUrl(e.target.value)}
-                placeholder="Dán link Google Slides (share/edit/pub)..."
+                placeholder="Dán link Google Slides..."
                 className="h-8 border-white/10 bg-black/40 text-xs text-white"
               />
               <Input
@@ -321,9 +301,6 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
                 Mở Google Slides
               </Button>
             </div>
-            <p className="mt-2 text-[10px] text-blue-400/70">
-              Hướng dẫn: Google Slides → File → Share → Publish to web → Copy link, dán vào đây.
-            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-white/10">

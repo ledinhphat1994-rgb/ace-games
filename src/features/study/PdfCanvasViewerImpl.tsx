@@ -111,7 +111,10 @@ export function PdfCanvasViewerImpl({
             } catch {}
             pdfDocRef.current = null
           }
-          const loadingTask = pdfjsLib.getDocument(fullUrl)
+          const loadingTask = pdfjsLib.getDocument({
+            url: fullUrl,
+            withCredentials: true,
+          })
           const doc = await loadingTask.promise
           if (cancelled || cycleId !== renderCycleRef.current) return
           pdfDocRef.current = doc
