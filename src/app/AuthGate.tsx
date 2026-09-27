@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router'
+import { KhungChoTrang } from '@/components/layout/KhungChoTrang'
 import { GraduationCap, Loader2, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
@@ -87,7 +88,9 @@ export function AuthGate() {
   return (
     <PhienContext value={giaTri}>
       <CampusProvider>
-        <Outlet />
+        <Suspense fallback={<KhungChoTrang />}>
+          <Outlet />
+        </Suspense>
         <AuthModal
           open={modalOpen}
           onOpenChange={setModalOpen}
