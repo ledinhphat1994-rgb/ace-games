@@ -70,3 +70,19 @@ export function lamSachVanBan(v: string): string {
   }
   return kq.replace(/\n{3,}/g, '\n\n').trim()
 }
+
+// Tên hiển thị đi vào cookie phiên (trình duyệt bỏ cookie > 4 KB) và attachment WebSocket (tối đa 2 KB),
+// nên đăng ký và sửa hồ sơ dùng chung một giới hạn.
+export const TEN_HIEN_THI_TOI_THIEU = 2
+export const TEN_HIEN_THI_TOI_DA = 50
+
+/** Tên hiển thị một dòng: bỏ ký tự ẩn/điều khiển, gộp mọi khoảng trắng (kể cả xuống dòng) thành một dấu cách. */
+export function chuanHoaTenHienThi(v: string): string {
+  return lamSachVanBan(v).replace(/\s+/g, ' ')
+}
+
+/** Tên đã lưu từ trước khi có giới hạn: làm sạch rồi cắt theo code point để phiên và WebSocket không vượt cỡ. */
+export function tenHienThiAnToan(v: string | null | undefined): string | null {
+  const sach = v ? chuanHoaTenHienThi(v) : ''
+  return sach ? [...sach].slice(0, TEN_HIEN_THI_TOI_DA).join('') : null
+}

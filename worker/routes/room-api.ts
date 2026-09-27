@@ -16,6 +16,7 @@ import {
 } from '../../shared/protocol/room'
 import { lamSachVanBan } from '../../shared/protocol/common'
 import { recordAnalyticsEvent } from '../lib/analytics'
+import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { validateDocumentUpload } from '../lib/document-validation'
 import { kiemTraQuyenTruyCapPhong, type DongPhong } from '../lib/room-gate'
 
@@ -223,6 +224,13 @@ roomRouter.post('/', async (c) => {
     }
 
     return loi('Không thể khởi tạo chu kỳ hoạt động của phòng học. Vui lòng thử lại.', 503)
+  }
+
+  // Đưa phòng lên sảnh Campus của mọi người trong phạm vi ngay lúc tạo (không đợi lượt đối soát D1 kế tiếp).
+  try {
+    await c.env.CAMPUS.get(c.env.CAMPUS.idFromName(TEN_CAMPUS)).capNhatSoNguoi(roomId, 0)
+  } catch (err) {
+    console.error(`[roomRouter.create] Không báo được phòng ${roomId} lên sảnh Campus:`, err)
   }
 
   // Analytics event

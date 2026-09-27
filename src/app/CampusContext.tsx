@@ -58,6 +58,8 @@ const RONG_SOCIAL_STATE: SocialState = {
 
 export interface CampusContextValue {
   trangThai: TrangThaiKetNoiCampus
+  /** Phiên bị máy chủ đóng vì quản trị viên khoá tài khoản (không phải đăng nhập ở thiết bị khác). */
+  taiKhoanBiKhoa: boolean
   onlineCount: number
   rooms: PhongSanh[]
   messages: TinCampus[]
@@ -117,6 +119,7 @@ const CampusContext = createContext<CampusContextValue | null>(null)
 
 export function CampusProvider({ children }: { children: React.ReactNode }) {
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiCampus>('dang_ket_noi')
+  const [taiKhoanBiKhoa, setTaiKhoanBiKhoa] = useState(false)
   const [onlineCount, setOnlineCount] = useState<number>(0)
   const [rooms, setRooms] = useState<PhongSanh[]>([])
   const [messages, setMessages] = useState<TinCampus[]>([])
@@ -478,6 +481,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         }
 
         case 'session.replaced': {
+          if (goi.reason === 'tai_khoan_khoa') setTaiKhoanBiKhoa(true)
           setTrangThai('phien_bi_thay')
           break
         }
@@ -491,6 +495,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
       setCampusSnapshotReady(false)
 
       if (e.code === MA_DONG_SOCKET.PHIEN_BI_THAY) {
+        if (e.reason === 'tai_khoan_khoa') setTaiKhoanBiKhoa(true)
         setTrangThai('phien_bi_thay')
         return
       }
@@ -830,6 +835,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   const value: CampusContextValue = {
     trangThai,
+    taiKhoanBiKhoa,
     onlineCount,
     rooms,
     messages,

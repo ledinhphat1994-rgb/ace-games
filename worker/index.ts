@@ -1359,14 +1359,22 @@ app.get('/api/files/:key{.+}', async (c) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Game APIs
 // ─────────────────────────────────────────────────────────────────────────────
+const CAC_TRO_CHOI_DON: ReadonlySet<string> = new Set(['solo_2048', 'solo_memory', 'solo_snake'])
+
 app.get('/api/game/highscores', async (c) => {
   const gameType = c.req.query('gameType')
   // verifiedOnly=1 returns only server-verified results; omitting or =0 returns all (legacy + verified)
   const verifiedOnly = c.req.query('verifiedOnly') === '1'
   if (!gameType) return loi('Thiếu gameType.', 400)
-  const sql = verifiedOnly
-    ? 'SELECT id, game_type as gameType, player_name as playerName, score, verified, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 AND verified = 1 ORDER BY score DESC LIMIT 10'
-    : 'SELECT id, game_type as gameType, player_name as playerName, score, verified, created_at as createdAt FROM game_high_scores WHERE game_type = ?1 ORDER BY score DESC LIMIT 10'
+  // Mỗi người chơi một dòng — kỷ lục cao nhất của họ (SQLite lấy các cột còn lại từ đúng dòng có MAX(score)),
+  // để một người chơi nhiều ván không chiếm hết top 10.
+  const sql = `SELECT id, game_type AS gameType, player_name AS playerName, MAX(score) AS score, verified,
+                      created_at AS createdAt
+                 FROM game_high_scores
+                WHERE game_type = ?1${verifiedOnly ? ' AND verified = 1' : ''}
+                GROUP BY account_id
+                ORDER BY score DESC, createdAt ASC
+                LIMIT 10`
   const { results } = await c.env.DB.prepare(sql).bind(gameType).all<{ id: number; gameType: string; playerName: string; score: number; verified: number; createdAt: number }>()
   return c.json({ ok: true, highscores: results ?? [] })
 })
@@ -1380,6 +1388,8 @@ app.post('/api/game/highscore', async (c) => {
   try { body = await c.req.json() } catch { return loi('Dữ liệu không hợp lệ.', 400) }
   const { gameType, score } = body
   if (!gameType || typeof score !== 'number' || score < 0 || !Number.isFinite(score)) return loi('Thông tin điểm không hợp lệ.', 400)
+  // Chỉ trò chơi đơn mới có bảng điểm; chặn chuỗi gameType tuỳ ý (dài bao nhiêu cũng được) ghi vào D1.
+  if (!CAC_TRO_CHOI_DON.has(gameType)) return loi('Trò chơi không có bảng điểm.', 400)
   // Giới hạn trần điểm số hợp lý cho legacy endpoint (unverified path)
   if (score > 100000) return loi('Điểm số vượt quá giới hạn cho phép.', 400)
   const ten = kq.taiKhoan.ten || kq.taiKhoan.username

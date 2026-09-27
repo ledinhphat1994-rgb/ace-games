@@ -1,0 +1,116 @@
+# Triển khai production THỦ CÔNG — không chạy khi push hay PR (AGENTS.md: "Không GitHub CI trên PR / push").
+# Chạy: GitHub → Actions → "Triển khai production" → Run workflow (nhánh main).
+# Quality gate (typecheck, lint, test, build) chạy ở máy trước khi merge; ở đây chỉ: migration → guard → build → deploy → smoke.
+#
+# Cần khai báo MỘT LẦN: Settings → Secrets and variables → Actions → New repository secret
+#   CLOUDFLARE_API_TOKEN — token của tài khoản Cloudflare bfc647e65d847f61ca386b7f11c27173
+#                          (mẫu "Edit Cloudflare Workers", thêm quyền Account → D1 → Edit).
+
+name: Triển khai production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ap_dung_migration:
+        description: 'Có migration D1 mới: áp dụng lên D1 production TRƯỚC khi deploy Worker'
+        type: boolean
+        default: false
+
+concurrency:
+  group: trien-khai-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  trien-khai:
+    # Chỉ phát hành từ main (scripts/guard-production-release.mjs cũng chặn nhánh khác).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: bfc647e65d847f61ca386b7f11c27173
+      EXPECTED_RELEASE_SHA: ${{ github.sha }}
+      URL_WORKER: https://gdtxdinhquan.ledinhphat1994.workers.dev
+      URL_TEN_MIEN: https://gdtxdinhquan.com
+
+    steps:
+      - name: Kiểm tra token Cloudflare
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Chưa có secret CLOUDFLARE_API_TOKEN (Settings → Secrets and variables → Actions). Không deploy."
+            exit 1
+          fi
+
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài Node.js theo .node-version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Cài thư viện
+        run: npm ci
+
+      - name: Migration D1 (bắt buộc trước khi deploy Worker)
+        env:
+          AP_DUNG: ${{ inputs.ap_dung_migration }}
+        run: |
+          kiem_tra() {
+            local db="$1"
+            local out
+            out=$(npx wrangler d1 migrations list "$db" --remote --config wrangler.production.jsonc 2>&1) || { echo "$out"; exit 1; }
+            echo "$out"
+            if echo "$out" | grep -q "No migrations to apply"; then
+              echo "✅ $db: không có migration đang chờ."
+              return 0
+            fi
+            if [ "$AP_DUNG" != "true" ]; then
+              echo "::error::$db có migration đang chờ. Chạy lại với 'ap_dung_migration' = true để áp dụng trước khi deploy."
+              exit 1
+            fi
+            npx wrangler d1 migrations apply "$db" --remote --config wrangler.production.jsonc
+          }
+          kiem_tra lop-10a7-db
+          kiem_tra lop-10a7-analytics
+
+      - name: Deploy (release guard + build + wrangler deploy)
+        run: |
+          set -o pipefail
+          # Log ghi ra ngoài repo: release guard từ chối working tree có tệp lạ.
+          npm run deploy:production 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+          PHIEN_BAN=$(grep -oE 'Current Version ID: [0-9a-f-]+' "$RUNNER_TEMP/deploy.log" | tail -1 | sed 's/Current Version ID: //')
+          {
+            echo "### Đã deploy production"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Cloudflare Version ID: \`${PHIEN_BAN:-không đọc được}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test
+        run: |
+          loi=0
+          kiem() {
+            local url="$1" mong="$2"
+            local ma
+            ma=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url")
+            if [ "$ma" = "$mong" ]; then echo "✅ $url → $ma"; else echo "::error::$url → $ma (mong đợi $mong)"; loi=1; fi
+          }
+          kiem "$URL_WORKER/" 200
+          kiem "$URL_WORKER/learn" 200
+          kiem "$URL_WORKER/api/whoami" 401
+          kiem "$URL_WORKER/api/login" 405
+          kiem "$URL_WORKER/api/game/highscores?gameType=solo_snake&verifiedOnly=1" 200
+          # Tên miền riêng: cảnh báo (không chặn) nếu gdtxdinhquan.com chưa trỏ về Worker này.
+          ma=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL_TEN_MIEN/api/whoami")
+          if [ "$ma" = "401" ]; then
+            echo "✅ $URL_TEN_MIEN đang phục vụ bản Worker này."
+            echo "- $URL_TEN_MIEN: đang phục vụ bản mới" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::$URL_TEN_MIEN/api/whoami → $ma — tên miền có thể chưa gắn vào Worker gdtxdinhquan."
+            echo "- ⚠️ $URL_TEN_MIEN/api/whoami → $ma (tên miền có thể chưa gắn vào Worker gdtxdinhquan)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $loi

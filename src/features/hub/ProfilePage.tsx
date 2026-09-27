@@ -14,6 +14,7 @@ import { AvatarPicker } from '@/features/profile/AvatarPicker'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
 import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
 import { getInitials, tenLop } from '@/lib/utils'
+import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import type { EngagementProfile } from '@shared/protocol/engagement'
 import { Award, Camera, Flame, KeyRound, Palette, ShieldCheck, TrendingUp, User, Zap } from 'lucide-react'
 import { toast } from 'sonner'
@@ -209,6 +210,7 @@ export function ProfilePage() {
                   onChange={(e) => setTenHienThi(e.target.value)}
                   placeholder="Nhập họ và tên…"
                   autoComplete="name"
+                  maxLength={TEN_HIEN_THI_TOI_DA}
                   required
                 />
               </div>
@@ -218,6 +220,7 @@ export function ProfilePage() {
                   id="ho-so-cham-ngon"
                   value={tieuDeHoSo}
                   onChange={(e) => setTieuDeHoSo(e.target.value)}
+                  maxLength={150}
                   placeholder="Ví dụ: Quyết tâm đạt điểm 9 môn Toán!"
                 />
               </div>

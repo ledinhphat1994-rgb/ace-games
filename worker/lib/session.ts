@@ -1,3 +1,4 @@
+import { tenHienThiAnToan } from '../../shared/protocol/common'
 import { COOKIE_NAME, readCookie, verifyToken, type Phien } from './auth'
 
 export interface TaiKhoan {
@@ -80,7 +81,7 @@ export async function kiemTraPhien(phien: Phien | null, env: Env): Promise<KetQu
   const taiKhoan: TaiKhoan = {
     id: tk.id,
     username: tk.tenDangNhap,
-    ten: tk.ten,
+    ten: tenHienThiAnToan(tk.ten),
     role: tk.vaiTro,
     teacherPending: Boolean(tk.teacherPending),
     hocSinhId: tk.hocSinhId || null,
@@ -94,7 +95,7 @@ export async function kiemTraPhien(phien: Phien | null, env: Env): Promise<KetQu
     taiKhoan,
     phien: {
       ...phien,
-      ten: tk.ten || phien.ten,
+      ten: taiKhoan.ten || phien.ten,
       role: tk.vaiTro || phien.role,
       teacherPending: taiKhoan.teacherPending,
       hocSinhId: taiKhoan.hocSinhId,

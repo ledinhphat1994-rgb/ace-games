@@ -40,9 +40,17 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
+  UserCheck,
+  Users,
   XCircle,
 } from 'lucide-react'
 import type { AdminRoomItem, RoomLifecyclePolicy } from '@shared/protocol/room'
+import type {
+  AdminAccountCounts,
+  AdminAccountItem,
+  HanhDongTaiKhoan,
+  LocTaiKhoan,
+} from '@shared/protocol/admin-accounts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,7 +68,7 @@ interface AuditLogEntry {
   createdAt: number
 }
 
-type AdminTab = 'overview' | 'rooms' | 'policy' | 'audit'
+type AdminTab = 'overview' | 'rooms' | 'accounts' | 'policy' | 'audit'
 type LocPhong = 'all' | 'mo' | 'never_joined' | 'empty' | 'closing' | 'dong'
 
 const SO_NHAT_KY_MOI_TRANG = 20
@@ -110,6 +118,10 @@ const TEN_HANH_DONG: Record<string, string> = {
   owner_room_close: 'Chủ phòng đóng phòng',
   room_policy_update: 'Cập nhật chính sách tự đóng',
   room_lifecycle_bootstrap_failed: 'Khởi tạo phòng lỗi',
+  teacher_approve: 'Duyệt giáo viên',
+  teacher_reject: 'Từ chối yêu cầu giáo viên',
+  account_lock: 'Khoá tài khoản',
+  account_unlock: 'Mở khoá tài khoản',
 }
 
 const LY_DO: Record<string, string> = {
@@ -131,6 +143,14 @@ const LOC_PHONG: { value: LocPhong; label: string }[] = [
   { value: 'empty', label: 'Đang trống' },
   { value: 'closing', label: 'Đang đóng' },
   { value: 'dong', label: 'Đã đóng' },
+]
+
+const LOC_TAI_KHOAN_UI: { value: LocTaiKhoan; label: string }[] = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'pending_teacher', label: 'Chờ duyệt' },
+  { value: 'teacher', label: 'Giáo viên' },
+  { value: 'student', label: 'Học sinh' },
+  { value: 'locked', label: 'Đã khoá' },
 ]
 
 // ─── API fetch helpers ────────────────────────────────────────────────────────
@@ -160,6 +180,61 @@ async function fetchAuditLogs(page: number): Promise<{ ok: boolean; logs: AuditL
   const res = await fetch(`/api/admin/audit-logs?limit=${SO_NHAT_KY_MOI_TRANG}&page=${page}`)
   if (!res.ok) throw new Error('Không thể tải nhật ký.')
   return res.json()
+}
+
+async function fetchAdminAccounts(params: {
+  page: number
+  limit: number
+  filter: LocTaiKhoan
+  q: string
+}): Promise<{
+  ok: boolean
+  accounts: AdminAccountItem[]
+  pagination: { total: number; page: number; totalPages: number }
+  counts: AdminAccountCounts
+}> {
+  const sp = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.limit),
+    filter: params.filter,
+    q: params.q,
+  })
+  const res = await fetch(`/api/admin/accounts?${sp}`)
+  if (!res.ok) throw new Error('Không thể tải danh sách tài khoản.')
+  return res.json()
+}
+
+const THONG_BAO_THAO_TAC: Record<HanhDongTaiKhoan, string> = {
+  approve_teacher: 'Đã duyệt tài khoản giáo viên.',
+  reject_teacher: 'Đã từ chối — tài khoản chuyển về học sinh.',
+  lock: 'Đã khoá tài khoản và ngắt các phiên đang mở.',
+  unlock: 'Đã mở khoá tài khoản.',
+}
+
+function useThaoTacTaiKhoan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: HanhDongTaiKhoan }) => {
+      const res = await fetch(`/api/admin/accounts/${id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string; loi?: string }
+        throw new Error(body.error || body.loi || 'Thao tác thất bại.')
+      }
+      return res.json()
+    },
+    onSuccess: (_data, { action }) => toast.success(THONG_BAO_THAO_TAC[action]),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Thao tác thất bại.'),
+    // Thành công hay 409 (vừa đổi ở nơi khác) đều nạp lại để danh sách khớp máy chủ.
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['admin-accounts'] })
+      qc.invalidateQueries({ queryKey: ['admin-account-counts'] })
+      qc.invalidateQueries({ queryKey: ['admin-audit-logs'] })
+    },
+  })
 }
 
 function useDongPhong() {
@@ -705,6 +780,221 @@ function PolicyPanel() {
   )
 }
 
+// ─── Accounts Panel ───────────────────────────────────────────────────────────
+
+function NhanTaiKhoan({ tk }: { tk: AdminAccountItem }) {
+  const [nhan, mau] = tk.isSchoolAdmin
+    ? ['Quản trị', 'bg-brand/12 text-brand']
+    : tk.teacherPending
+      ? ['GV chờ duyệt', 'bg-warning/12 text-warning']
+      : tk.role === 'teacher'
+        ? ['Giáo viên', 'bg-social/12 text-social']
+        : ['Học sinh', 'bg-surface-overlay text-text-secondary']
+  return (
+    <>
+      <span className={cn('inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[11px] font-medium', mau)}>
+        {nhan}
+      </span>
+      {!tk.active && (
+        <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-destructive/12 px-2 text-[11px] font-medium text-destructive">
+          Đã khoá
+        </span>
+      )}
+    </>
+  )
+}
+
+const XAC_NHAN_THAO_TAC: Partial<Record<HanhDongTaiKhoan, { tieuDe: string; moTa: (ten: string) => string; nut: string }>> = {
+  lock: {
+    tieuDe: 'Khoá tài khoản này?',
+    moTa: (ten) => `${ten} bị đăng xuất khỏi mọi thiết bị ngay và không đăng nhập được cho tới khi mở khoá.`,
+    nut: 'Khoá tài khoản',
+  },
+  reject_teacher: {
+    tieuDe: 'Từ chối yêu cầu giáo viên?',
+    moTa: (ten) => `${ten} vẫn dùng Campus được nhưng với vai trò học sinh.`,
+    nut: 'Từ chối',
+  },
+}
+
+function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: LocTaiKhoan) => void; myId: number }) {
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [q, setQ] = useState('')
+  const [canXacNhan, setCanXacNhan] = useState<{ tk: AdminAccountItem; action: HanhDongTaiKhoan } | null>(null)
+  const thaoTac = useThaoTacTaiKhoan()
+
+  useEffect(() => {
+    const henGio = setTimeout(() => {
+      setQ(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(henGio)
+  }, [searchInput])
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin-accounts', page, loc, q],
+    queryFn: () => fetchAdminAccounts({ page, limit: 20, filter: loc, q }),
+    staleTime: 15_000,
+  })
+  const accounts = data?.accounts ?? []
+
+  const chay = (tk: AdminAccountItem, action: HanhDongTaiKhoan) => {
+    if (XAC_NHAN_THAO_TAC[action]) setCanXacNhan({ tk, action })
+    else thaoTac.mutate({ id: tk.id, action })
+  }
+  const xacNhan = canXacNhan ? XAC_NHAN_THAO_TAC[canXacNhan.action] : undefined
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-sm:day-loc-deu gap-2 [--the-nho-nhat:6.5rem] sm:flex sm:flex-wrap">
+          {LOC_TAI_KHOAN_UI.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              aria-pressed={loc === f.value}
+              onClick={() => {
+                onLoc(f.value)
+                setPage(1)
+              }}
+              className={cn(
+                'inline-flex h-8 items-center justify-center gap-1.5 rounded-full border px-3.5 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                loc === f.value
+                  ? 'border-brand/50 bg-brand/10 text-brand'
+                  : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+              )}
+            >
+              {f.label}
+              {f.value === 'pending_teacher' && (data?.counts.pendingTeacher ?? 0) > 0 && (
+                <span className="rounded-full bg-warning px-1.5 text-[10px] font-semibold text-background tabular-nums">
+                  {data?.counts.pendingTeacher}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-full lg:w-64">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Tìm tên hoặc tên đăng nhập"
+            aria-label="Tìm tài khoản"
+            maxLength={64}
+            className="h-9 pl-9"
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <KhungTai dong={5} cao="h-14" />
+      ) : isError ? (
+        <KhungLoi thongBao="Không tải được danh sách tài khoản." onThuLai={() => void refetch()} />
+      ) : accounts.length === 0 ? (
+        <KhungTrong
+          icon={Users}
+          tieuDe={loc === 'pending_teacher' && !q ? 'Không có giáo viên nào đang chờ duyệt' : 'Không có tài khoản nào khớp bộ lọc'}
+          moTa={q ? `Từ khoá: “${q}”` : undefined}
+        />
+      ) : (
+        <>
+          <ul className="divide-y divide-border-subtle overflow-hidden rounded-2xl border border-border-subtle bg-surface">
+            {accounts.map((tk) => {
+              const dangXuLy = thaoTac.isPending && thaoTac.variables?.id === tk.id
+              const coTheKhoa = !tk.isSchoolAdmin && tk.active && tk.id !== myId
+              return (
+                <li key={tk.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="min-w-0 text-sm font-medium break-words text-text-primary">{tk.displayName}</span>
+                      <NhanTaiKhoan tk={tk} />
+                    </p>
+                    <p className="mt-1 text-xs break-words text-text-tertiary">
+                      @{tk.username}
+                      {tk.lopTen ? ` · Lớp ${tk.lopTen}` : ''}
+                      {tk.createdAt ? ` · tạo ${fmtRelative(tk.createdAt)}` : ''}
+                    </p>
+                  </div>
+
+                  {!tk.isSchoolAdmin && (
+                    <div className="max-sm:day-loc-deu-co-gian shrink-0 gap-2 sm:flex">
+                      {tk.teacherPending && tk.active && (
+                        <>
+                          <Button size="xs" disabled={dangXuLy} onClick={() => chay(tk, 'approve_teacher')}>
+                            {dangXuLy ? <Loader2 className="animate-spin" /> : <UserCheck />}
+                            Duyệt
+                          </Button>
+                          <Button size="xs" variant="outline" disabled={dangXuLy} onClick={() => chay(tk, 'reject_teacher')}>
+                            Từ chối
+                          </Button>
+                        </>
+                      )}
+                      {coTheKhoa && (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          disabled={dangXuLy}
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => chay(tk, 'lock')}
+                        >
+                          Khoá
+                        </Button>
+                      )}
+                      {!tk.active && (
+                        <Button size="xs" variant="outline" disabled={dangXuLy} onClick={() => chay(tk, 'unlock')}>
+                          {dangXuLy && <Loader2 className="animate-spin" />}
+                          Mở khoá
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-text-tertiary tabular-nums">{data?.pagination.total ?? accounts.length} tài khoản</p>
+            <PhanTrang trang={page} tongTrang={data?.pagination.totalPages ?? 1} onDoi={setPage} />
+          </div>
+        </>
+      )}
+
+      <AlertDialog
+        open={canXacNhan !== null}
+        onOpenChange={(mo) => {
+          if (!mo && !thaoTac.isPending) setCanXacNhan(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{xacNhan?.tieuDe}</AlertDialogTitle>
+            <AlertDialogDescription>{canXacNhan && xacNhan?.moTa(canXacNhan.tk.displayName)}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={thaoTac.isPending}>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={thaoTac.isPending}
+              onClick={() => {
+                if (canXacNhan) {
+                  thaoTac.mutate(
+                    { id: canXacNhan.tk.id, action: canXacNhan.action },
+                    { onSettled: () => setCanXacNhan(null) },
+                  )
+                }
+              }}
+            >
+              {thaoTac.isPending && <Loader2 className="animate-spin" />}
+              {xacNhan?.nut}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
 // ─── Audit Panel ──────────────────────────────────────────────────────────────
 
 function AuditPanel() {
@@ -723,7 +1013,7 @@ function AuditPanel() {
     <div className="space-y-4">
       <SectionHeader
         title="Nhật ký kiểm duyệt"
-        description="Đóng phòng, mời ra, cấm vào và thay đổi chính sách — mới nhất ở trên."
+        description="Đóng phòng, mời ra, cấm vào, duyệt/khoá tài khoản và thay đổi chính sách — mới nhất ở trên."
         action={
           <Button variant="ghost" size="xs" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className={cn(isFetching && 'animate-spin')} />
@@ -785,7 +1075,18 @@ export function AdminControlPlanePage() {
   const { nguoiDung } = usePhien()
   const [tab, setTab] = useState<AdminTab>('overview')
   const [locPhong, setLocPhong] = useState<LocPhong>('all')
+  const [locTaiKhoan, setLocTaiKhoan] = useState<LocTaiKhoan>('all')
   const [createRoomOpen, setCreateRoomOpen] = useState(false)
+  const laQuanTri = Boolean(nguoiDung?.isSchoolAdmin)
+
+  // Số giáo viên chờ duyệt cho huy hiệu ở tab — việc cần quản trị viên xử lý nhất.
+  const { data: demTaiKhoan } = useQuery({
+    queryKey: ['admin-account-counts'],
+    queryFn: () => fetchAdminAccounts({ page: 1, limit: 1, filter: 'pending_teacher', q: '' }),
+    staleTime: 30_000,
+    enabled: laQuanTri,
+  })
+  const soChoDuyet = demTaiKhoan?.counts.pendingTeacher ?? 0
 
   if (!nguoiDung) return null
   if (!nguoiDung.isSchoolAdmin) {
@@ -803,11 +1104,16 @@ export function AdminControlPlanePage() {
     setTab('rooms')
   }
 
+  const xemGiaoVienChoDuyet = () => {
+    setLocTaiKhoan('pending_teacher')
+    setTab('accounts')
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Quản trị trường"
-        description="Phòng học, chính sách tự đóng và nhật ký kiểm duyệt của toàn trường."
+        description="Phòng học, tài khoản, chính sách tự đóng và nhật ký kiểm duyệt của toàn trường."
         actions={
           <>
             <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
@@ -823,14 +1129,38 @@ export function AdminControlPlanePage() {
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as AdminTab)} className="gap-6">
-        <TabsList className="[--the-nho-nhat:8rem]">
+        <TabsList className="[--the-nho-nhat:7rem]">
           <TabsTrigger value="overview">Tổng quan</TabsTrigger>
           <TabsTrigger value="rooms">Phòng học</TabsTrigger>
+          <TabsTrigger value="accounts">
+            Tài khoản
+            {soChoDuyet > 0 && (
+              <span
+                className="rounded-full bg-warning px-1.5 text-[10px] font-semibold text-background tabular-nums"
+                aria-label={`${soChoDuyet} giáo viên chờ duyệt`}
+              >
+                {soChoDuyet}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="policy">Tự động đóng</TabsTrigger>
           <TabsTrigger value="audit">Nhật ký</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
+          {soChoDuyet > 0 && (
+            <button
+              type="button"
+              onClick={xemGiaoVienChoDuyet}
+              className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-warning/30 bg-warning-muted/40 px-4 py-3 text-left transition-colors outline-none hover:bg-warning-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <UserCheck className="size-5 shrink-0 text-warning" />
+              <span className="min-w-0 flex-1 text-sm text-text-primary">
+                <span className="font-semibold tabular-nums">{soChoDuyet}</span> giáo viên đang chờ duyệt tài khoản
+              </span>
+              <ArrowRight className="size-4 shrink-0 text-text-tertiary" />
+            </button>
+          )}
           <OverviewPanel
             onXemPhong={xemPhong}
             onXemChinhSach={() => setTab('policy')}
@@ -839,6 +1169,9 @@ export function AdminControlPlanePage() {
         </TabsContent>
         <TabsContent value="rooms">
           <RoomsPanel loc={locPhong} onLoc={setLocPhong} />
+        </TabsContent>
+        <TabsContent value="accounts">
+          <AccountsPanel loc={locTaiKhoan} onLoc={setLocTaiKhoan} myId={nguoiDung.accountId} />
         </TabsContent>
         <TabsContent value="policy">
           <PolicyPanel />

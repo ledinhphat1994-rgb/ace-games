@@ -57,7 +57,8 @@ export type GoiCampus =
   | { type: 'room.remove'; id: number }
   | { type: 'chat.msg'; message: TinCampus }
   | { type: 'chat.deleted'; id: number }
-  | { type: 'session.replaced' }
+  /** Phiên bị đóng từ máy chủ: đăng nhập nơi khác (mặc định) hoặc quản trị viên vừa khoá tài khoản. */
+  | { type: 'session.replaced'; reason?: 'tai_khoan_khoa' }
   | GoiAck
   | GoiLoi
   | GoiPong
