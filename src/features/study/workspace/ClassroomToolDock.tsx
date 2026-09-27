@@ -120,29 +120,33 @@ export function ClassroomToolDock({
       data-testid="classroom-tool-dock"
     >
       <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-950/90 px-2 py-1 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5">
-        {/* ── 1. BA LỚP NỘI DUNG: bật / ẩn, chạy đồng thời ── */}
-        {NUT_LOP.map(({ id, ten, testId }) => {
-          const hien = dangHien(boCuc[id])
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onBamLop(id)}
-              aria-pressed={hien}
-              title={ten}
-              data-testid={testId}
-              className={`${nutDock} ${hien ? 'bg-white/12 text-white ring-1 ring-white/15' : 'text-slate-400 hover:bg-white/8 hover:text-slate-200'}`}
-            >
-              <IconLop id={id} className={`h-4.5 w-4.5 ${MAU_NHAN[id]}`} />
-              <span>{ten}</span>
-              {dangChay[id] && (
-                <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-current text-emerald-400 animate-pulse" />
-              )}
-            </button>
-          )
-        })}
+        {/* ── 1. BA LỚP NỘI DUNG: chỉ chủ phòng / người điều hành mới có quyền trình chiếu ── */}
+        {canControl && (
+          <>
+            {NUT_LOP.map(({ id, ten, testId }) => {
+              const hien = dangHien(boCuc[id])
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onBamLop(id)}
+                  aria-pressed={hien}
+                  title={ten}
+                  data-testid={testId}
+                  className={`${nutDock} ${hien ? 'bg-white/12 text-white ring-1 ring-white/15' : 'text-slate-400 hover:bg-white/8 hover:text-slate-200'}`}
+                >
+                  <IconLop id={id} className={`h-4.5 w-4.5 ${MAU_NHAN[id]}`} />
+                  <span>{ten}</span>
+                  {dangChay[id] && (
+                    <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-current text-emerald-400 animate-pulse" />
+                  )}
+                </button>
+              )
+            })}
 
-        <div className="mx-1 h-7 w-px bg-white/15" />
+            <div className="mx-1 h-7 w-px bg-white/15" />
+          </>
+        )}
 
         {/* ── 2. CÔNG CỤ: bút, dạ quang, tẩy, chữ, khung, tròn, laser, màu, cỡ, máy tính… ── */}
         <Popover>
