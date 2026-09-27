@@ -18,6 +18,7 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
 import { deriveDocumentStatus, ANNOTATION_COLORS } from './types'
 import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
@@ -82,6 +83,16 @@ function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string
   )
 }
 
+/** Tệp tài liệu của phòng học (`/api/rooms/:id/documents/:docId/file`) — trình xem ngoài cần liên kết có chữ ký. */
+const MAU_TEP_PHONG = /^\/api\/rooms\/\d+\/documents\/\d+\/file$/
+
+async function layLienKetXem(docUrl: string): Promise<string> {
+  const res = await fetch(docUrl.replace(/\/file$/, '/view-link'), { credentials: 'same-origin' })
+  const duLieu = (await res.json().catch(() => null)) as { ok?: boolean; url?: string } | null
+  if (!res.ok || !duLieu?.ok || !duLieu.url) throw new Error(`Không lấy được liên kết xem (${res.status}).`)
+  return duLieu.url
+}
+
 function OfficeEmbedViewer({
   docName,
   docUrl,
@@ -92,10 +103,21 @@ function OfficeEmbedViewer({
   const [viewerType, setViewerType] = useState<'microsoft' | 'google'>('microsoft')
   const [showAdvisory, setShowAdvisory] = useState(false)
 
-  let fullUrl = docUrl
-  if (typeof window !== 'undefined' && docUrl.startsWith('/')) {
-    const sep = docUrl.includes('?') ? '&' : '?'
-    fullUrl = `${window.location.origin}${docUrl}${sep}view=1`
+  // Office Online / Google Docs tải tệp từ máy chủ của họ (không có cookie phiên): xin liên kết có chữ ký, ngắn hạn
+  // thay vì mở công khai tệp của phòng. Trình xem chỉ tải tệp lúc mở, nên mỗi lần mở / đổi trình xem xin liên kết mới.
+  const duongDanTep = docUrl.split('?')[0]
+  const laTepPhong = MAU_TEP_PHONG.test(duongDanTep)
+  const lienKetXem = useQuery({
+    queryKey: ['lien-ket-xem-tai-lieu', duongDanTep, viewerType],
+    queryFn: () => layLienKetXem(duongDanTep),
+    enabled: laTepPhong,
+    retry: 1,
+  })
+
+  const nguonTep = laTepPhong ? lienKetXem.data : docUrl
+  let fullUrl = nguonTep ?? ''
+  if (typeof window !== 'undefined' && fullUrl.startsWith('/')) {
+    fullUrl = `${window.location.origin}${fullUrl}`
   }
 
   const isGoogleSlides = fullUrl.includes('docs.google.com/presentation')
@@ -107,7 +129,7 @@ function OfficeEmbedViewer({
         ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fullUrl)}`
         : `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`
 
-  if (showAdvisory) {
+  if (showAdvisory || (laTepPhong && lienKetXem.isError)) {
     return (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <PptxAdvisoryCard docName={docName} docUrl={docUrl} />
@@ -125,12 +147,18 @@ function OfficeEmbedViewer({
   return (
     <div className="relative h-full w-full flex flex-col bg-[#070b12] rounded-lg overflow-hidden">
       <div className="relative flex-1 w-full h-full">
-        <iframe
-          src={embedUrl}
-          title={docName}
-          className="h-full w-full border-0 bg-slate-950"
-          allow="fullscreen"
-        />
+        {fullUrl ? (
+          <iframe
+            src={embedUrl}
+            title={docName}
+            className="h-full w-full border-0 bg-slate-950"
+            allow="fullscreen"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <RefreshCw className="h-5 w-5 animate-spin text-slate-500" aria-label="Đang mở tài liệu" />
+          </div>
+        )}
       </div>
       {!isGoogleSlides && (
         <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950/80 border-t border-white/10 text-xs shrink-0">

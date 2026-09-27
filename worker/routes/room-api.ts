@@ -19,6 +19,7 @@ import { recordAnalyticsEvent } from '../lib/analytics'
 import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { validateDocumentUpload } from '../lib/document-validation'
 import { kiemTraQuyenTruyCapPhong, type DongPhong } from '../lib/room-gate'
+import { kiemTraLienKetXem, kyLienKetXem } from '../lib/lien-ket-tai-lieu'
 
 export const roomRouter = new Hono<{ Bindings: Env }>()
 
@@ -565,24 +566,42 @@ roomRouter.get('/:id/documents', async (c) => {
 })
 
 /**
- * GET /api/rooms/:id/documents/:docId/file
- * Tải/Xem luồng nội dung tệp có xác thực phân quyền phòng học (Authoritative Storage Gate)
- * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission)
+ * GET /api/rooms/:id/documents/:docId/view-link
+ * Cấp liên kết xem có chữ ký, ngắn hạn cho trình xem ngoài (Office Online / Google Docs) — các trình xem này tải tệp
+ * từ máy chủ của họ, không mang cookie phiên. Chỉ người qua được cổng phòng mới xin được liên kết.
  */
-roomRouter.options('/:id/documents/:docId/file', (c) => {
-  const origin = c.req.header('origin') || '*'
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400',
-    },
-  })
+roomRouter.get('/:id/documents/:docId/view-link', async (c) => {
+  const roomId = parseInt(c.req.param('id'), 10)
+  const docId = parseInt(c.req.param('docId'), 10)
+  if (!roomId || !docId) return loi('Tham số yêu cầu không hợp lệ.', 400)
+
+  const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
+  if (!gate.ok) return gate.response
+  if (!c.env.SESSION_SECRET) return loi('Máy chủ chưa cấu hình khoá ký.', 500)
+
+  let coTaiLieu: { id: number } | null = null
+  try {
+    coTaiLieu = await c.env.DB.prepare(
+      'SELECT id FROM phong_tai_lieu WHERE id = ?1 AND room_id = ?2 AND deleted_at IS NULL',
+    )
+      .bind(docId, roomId)
+      .first<{ id: number }>()
+  } catch {
+    return loi('Không thể tra cứu thông tin tài liệu.', 500)
+  }
+  if (!coTaiLieu) return loi('Không tìm thấy tài liệu yêu cầu.', 404)
+
+  const { het, ky } = await kyLienKetXem(c.env.SESSION_SECRET, roomId, docId)
+  c.header('Cache-Control', 'no-store')
+  return c.json({ ok: true, url: `/api/rooms/${roomId}/documents/${docId}/file?het=${het}&ky=${ky}`, hetHan: het * 1000 })
 })
 
+/**
+ * GET /api/rooms/:id/documents/:docId/file
+ * Tải/Xem luồng nội dung tệp có xác thực phân quyền phòng học (Authoritative Storage Gate)
+ * Xác thực theo canonical room authority (Session, Scope, Ban, Password Admission), hoặc liên kết xem có chữ ký
+ * còn hạn gắn đúng phòng + tài liệu (trình xem ngoài). Không bao giờ mở theo User-Agent hay tham số tự khai.
+ */
 roomRouter.get('/:id/documents/:docId/file', async (c) => {
   const roomId = parseInt(c.req.param('id'), 10)
   const docId = parseInt(c.req.param('docId'), 10)
@@ -590,10 +609,8 @@ roomRouter.get('/:id/documents/:docId/file', async (c) => {
 
   const gate = await kiemTraQuyenTruyCapPhong(c.req.raw, c.env, roomId)
   if (!gate.ok) {
-    const isPresentationView = c.req.query('view') === '1'
-    const ua = (c.req.header('user-agent') || '').toLowerCase()
-    const isCloudViewer = ua.includes('office') || ua.includes('google') || ua.includes('bot') || isPresentationView
-    if (!isCloudViewer) return gate.response
+    const coChuKy = await kiemTraLienKetXem(c.env.SESSION_SECRET, roomId, docId, c.req.query('het'), c.req.query('ky'))
+    if (!coChuKy) return gate.response
   }
 
   let docRow: any = null
@@ -618,14 +635,9 @@ roomRouter.get('/:id/documents/:docId/file', async (c) => {
   object.writeHttpMetadata(headers)
   headers.set('Content-Type', docRow.mime_type || 'application/octet-stream')
   headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(docRow.original_name)}"`)
-  headers.set('Cache-Control', 'public, max-age=3600')
-  const origin = c.req.header('origin')
-  if (origin) {
-    headers.set('Access-Control-Allow-Origin', origin)
-    headers.set('Access-Control-Allow-Credentials', 'true')
-  } else {
-    headers.set('Access-Control-Allow-Origin', '*')
-  }
+  // Tài liệu phòng học là dữ liệu riêng: không cho bộ nhớ đệm dùng chung giữ lại.
+  headers.set('Cache-Control', 'private, max-age=3600')
+  headers.set('X-Content-Type-Options', 'nosniff')
   headers.set('etag', object.httpEtag)
 
   return new Response(object.body, { headers })
