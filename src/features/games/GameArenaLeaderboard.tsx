@@ -458,21 +458,6 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           {/* Top 1 Champion Spotlight */}
           {champion && <ChampionSpotlight record={champion} animKey={activeTab} />}
 
-          {/* Thông báo tiến độ lấp đầy bảng vàng Top 50 */}
-          {records.length < 50 && (
-            <div className="mx-3 mt-2 mb-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-2.5 text-center animate-in fade-in">
-              <div className="flex items-center justify-center gap-1.5 text-amber-400 text-xs font-bold">
-                <Trophy className="size-3.5 text-amber-400" />
-                <span>Bảng Vinh Danh Top 50 ({records.length}/50)</span>
-              </div>
-              <p className="text-[10px] text-text-tertiary mt-0.5">
-                {records.length === 1
-                  ? 'Còn trống 49 vị trí trong Top 50 — Chơi ngay để ghi danh bảng vàng!'
-                  : `Còn trống ${50 - records.length} vị trí trong Top 50 — Chơi ngay để ghi danh bảng vàng!`}
-              </p>
-            </div>
-          )}
-
           {/* Danh sách thứ hạng tiếp theo */}
           {remaining.length > 0 && (
             <>

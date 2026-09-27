@@ -22,9 +22,9 @@ export { LEARNING_OCCUPANCY_METRIC_CONFIG }
 
 // Ba công cụ có thật trong mọi phòng học (ClassroomToolDock) — giới thiệu ngắn khi sảnh còn trống.
 const CONG_CU_PHONG = [
-  { icon: MonitorPlay, ten: 'Cùng xem video', moTa: 'YouTube đồng bộ cho cả phòng' },
-  { icon: Presentation, ten: 'Trình chiếu tài liệu', moTa: 'PDF, slide kèm bút chú thích' },
-  { icon: PenLine, ten: 'Bảng trắng', moTa: 'Viết, vẽ và giải bài cùng nhau' },
+  { icon: MonitorPlay, ten: 'Cùng xem video' },
+  { icon: Presentation, ten: 'Trình chiếu tài liệu' },
+  { icon: PenLine, ten: 'Bảng trắng' },
 ] as const
 
 export function LearningPage() {
@@ -101,27 +101,7 @@ export function LearningPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Học tập"
-        description="Phòng học nhóm trực tuyến — cùng xem bài giảng, trình chiếu tài liệu và trao đổi theo thời gian thực."
-        actions={
-          <>
-            <Button onClick={() => setMoTaoPhong(true)} data-testid="create-room-btn">
-              <Plus />
-              <span>Tạo phòng</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setMoVaoPhong(true)}
-              data-testid="join-room-btn"
-              data-test-compat="join-by-code-btn"
-            >
-              <LogIn className="text-brand" />
-              <span>Vào phòng</span>
-            </Button>
-          </>
-        }
-      />
+      <PageHeader title="Học tập" />
 
       <section className="space-y-4" aria-labelledby="learning-rooms-heading">
         <div className="flex min-h-9 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -129,6 +109,26 @@ export function LearningPage() {
             id="learning-rooms-heading"
             title="Phòng đang mở"
             count={lobbyState.status === 'ready' ? danhSachPhongLoc.length : undefined}
+            action={
+              danhSachPhongLoc.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => setMoTaoPhong(true)} data-testid="create-room-btn">
+                    <Plus />
+                    <span>Tạo phòng</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMoVaoPhong(true)}
+                    data-testid="join-room-btn"
+                    data-test-compat="join-by-code-btn"
+                  >
+                    <LogIn className="text-brand" />
+                    <span>Vào phòng</span>
+                  </Button>
+                </div>
+              ) : undefined
+            }
           />
 
           {hienTimKiem && (
@@ -230,24 +230,18 @@ export function LearningPage() {
               <div className="flex flex-col items-center px-6 pt-10 pb-8 text-center sm:pt-12">
                 <HinhPhongTrong />
                 <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có phòng nào đang mở</h3>
-                <p className="mt-1.5 max-w-md text-sm leading-relaxed text-text-secondary">
-                  Mở một phòng để học cùng bạn bè — mọi người trong phòng thấy cùng một nội dung và trao đổi trực tiếp.
-                </p>
                 <Button onClick={() => setMoTaoPhong(true)} data-testid="empty-create-room-btn" className="mt-6">
                   <Plus />
                   Tạo phòng đầu tiên
                 </Button>
               </div>
               <ul className="day-loc-deu gap-px! border-t border-border-subtle bg-border-subtle [--the-nho-nhat:13rem]">
-                {CONG_CU_PHONG.map(({ icon: Icon, ten, moTa }) => (
-                  <li key={ten} className="flex items-center gap-3 bg-surface px-5 py-4">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                {CONG_CU_PHONG.map(({ icon: Icon, ten }) => (
+                  <li key={ten} className="flex items-center justify-center gap-2.5 bg-surface px-5 py-4">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
                       <Icon className="size-4" />
                     </span>
-                    <span className="min-w-0 text-left">
-                      <span className="block text-[0.8125rem] font-semibold text-text-primary">{ten}</span>
-                      <span className="block text-xs text-text-tertiary">{moTa}</span>
-                    </span>
+                    <span className="text-[0.8125rem] font-semibold text-text-primary">{ten}</span>
                   </li>
                 ))}
               </ul>
