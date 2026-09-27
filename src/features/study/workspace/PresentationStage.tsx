@@ -3,7 +3,7 @@
 // Mỗi lớp giữ nguyên chỗ trong cây React (chỉ đổi vai trò bằng class) nên video không bị tải lại khi đổi bố cục.
 
 import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke } from '@shared/protocol/room'
-import { MonitorPlay, PenLine } from 'lucide-react'
+import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
 import type { CongCu, CoVe } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
@@ -115,6 +115,7 @@ export function PresentationStage({
         coThePhu={id === 'board' && chinh !== null && chinh !== 'board'}
         toanManHinh={isFullscreen}
         onToanManHinh={onToggleFullscreen}
+        choPhepAn={canControl}
       />
     )
   }
@@ -156,6 +157,32 @@ export function PresentationStage({
             <h2 className="text-base sm:text-lg font-bold text-white">
               Chưa có nội dung trình bày
             </h2>
+            {(Boolean(slideState?.docUrl) || Boolean(mediaState?.videoId)) && (
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1" data-testid="stage-restore-actions">
+                {slideState?.docUrl && (
+                  <button
+                    type="button"
+                    onClick={() => onPhongTo('doc')}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-colors cursor-pointer"
+                    data-testid="stage-restore-doc-btn"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Xem tài liệu</span>
+                  </button>
+                )}
+                {mediaState?.videoId && (
+                  <button
+                    type="button"
+                    onClick={() => onPhongTo('video')}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-colors cursor-pointer"
+                    data-testid="stage-restore-video-btn"
+                  >
+                    <YoutubeIcon className="h-3.5 w-3.5" />
+                    <span>Xem video</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
