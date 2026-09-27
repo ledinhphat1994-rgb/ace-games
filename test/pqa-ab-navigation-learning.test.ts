@@ -263,11 +263,12 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
     })
   })
 
-  // ── 7. Create Room Dialog Simplicity & Progressive Disclosure ──────────────
+  // ── 7. Create Room Dialog Simplicity ───────────────────────────────────────
   describe('7. Create Room Dialog Simplicity (CreateStudyRoomDialog)', () => {
-    it('G. Advanced options are collapsed and hidden by default behind toggle', () => {
-      expect(createStudyRoomDialogRaw).toContain('const [showAdvanced, setShowAdvanced] = useState(false)')
-      expect(createStudyRoomDialogRaw).toContain('data-testid="create-room-advanced-toggle"')
+    it('G. Dialog is streamlined with room type and capacity directly visible without toggle', () => {
+      expect(createStudyRoomDialogRaw).toContain('data-testid="create-room-dialog"')
+      expect(createStudyRoomDialogRaw).toContain('testId="create-room-mode-public"')
+      expect(createStudyRoomDialogRaw).toContain('testId="create-room-mode-password"')
       expect(createStudyRoomDialogRaw).toContain('data-testid="create-room-advanced-section"')
     })
   })

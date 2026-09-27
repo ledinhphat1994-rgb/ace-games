@@ -3,8 +3,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { usePhien } from '@/app/phien'
-import { cn, tenLop } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -17,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
-import { AlertCircle, ChevronDown, Globe, Loader2, Lock, School, Users } from 'lucide-react'
+import { AlertCircle, Globe, Loader2, Lock, Users } from 'lucide-react'
 
 export interface CreateStudyRoomDialogProps {
   open: boolean
@@ -31,31 +30,20 @@ export function CreateStudyRoomDialog({
   onSuccess,
 }: CreateStudyRoomDialogProps) {
   const navigate = useNavigate()
-  const { nguoiDung } = usePhien()
 
   const [ten, setTen] = useState('')
-  const [moTa, setMoTa] = useState('')
-  const [phamVi, setPhamVi] = useState<'truong' | 'lop'>('truong')
   const [accessMode, setAccessMode] = useState<'public' | 'password'>('public')
   const [password, setPassword] = useState('')
   const [sucChua, setSucChua] = useState(20)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const userHasClass = Boolean(nguoiDung?.lopId)
-  const classNameDisplay = nguoiDung?.lop?.ten || (nguoiDung?.lopId ? `Lớp ${nguoiDung.lopId}` : '')
-  const coTheChonLop = userHasClass || Boolean(nguoiDung?.isSchoolAdmin)
-
   const resetForm = () => {
     setTen('')
-    setMoTa('')
-    setPhamVi('truong')
     setAccessMode('public')
     setPassword('')
     setSucChua(20)
-    setShowAdvanced(false)
     setError(null)
     setIsSubmitting(false)
   }
@@ -77,11 +65,6 @@ export function CreateStudyRoomDialog({
     }
     if (cleanTen.length > 100) {
       setError('Tên phòng tối đa 100 ký tự.')
-      return
-    }
-
-    if (phamVi === 'lop' && !userHasClass && !nguoiDung?.isSchoolAdmin) {
-      setError('Bạn chưa được gán vào lớp học nào để tạo phòng phạm vi lớp.')
       return
     }
 
@@ -110,9 +93,7 @@ export function CreateStudyRoomDialog({
         credentials: 'same-origin',
         body: JSON.stringify({
           ten: cleanTen,
-          moTa: moTa.trim() || undefined,
-          phamVi,
-          lopId: phamVi === 'lop' ? (nguoiDung?.lopId ?? null) : null,
+          phamVi: 'truong',
           accessMode,
           password: accessMode === 'password' ? password.trim() : undefined,
           sucChua: capNum,
@@ -211,128 +192,72 @@ export function CreateStudyRoomDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="room-mota" className="text-sm font-medium">
-              Mục tiêu
-            </Label>
-            <Input
-              id="room-mota"
-              data-testid="create-room-desc-input"
-              value={moTa}
-              onChange={(e) => setMoTa(e.target.value)}
-              placeholder="Mục tiêu buổi học..."
-              disabled={isSubmitting}
-              maxLength={500}
-            />
-          </div>
+          <div data-testid="create-room-advanced-section" className="space-y-4">
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-sm font-medium text-text-primary">Loại phòng</legend>
+              <div className="day-loc-deu [--the-nho-nhat:9rem]">
+                <TheLuaChon
+                  testId="create-room-mode-public"
+                  chon={accessMode === 'public'}
+                  onChon={() => setAccessMode('public')}
+                  disabled={isSubmitting}
+                  icon={<Globe className="size-4" />}
+                  tieuDe="Công khai"
+                />
+                <TheLuaChon
+                  testId="create-room-mode-password"
+                  chon={accessMode === 'password'}
+                  onChon={() => setAccessMode('password')}
+                  disabled={isSubmitting}
+                  icon={<Lock className="size-4" />}
+                  tieuDe="Riêng tư"
+                />
+              </div>
+            </fieldset>
 
-          {/* Tùy chọn nâng cao — ẩn mặc định (progressive disclosure) */}
-          <button
-            type="button"
-            data-testid="create-room-advanced-toggle"
-            aria-expanded={showAdvanced}
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
-          >
-            <ChevronDown className={cn('size-4 transition-transform duration-200', showAdvanced && 'rotate-180')} />
-            {showAdvanced ? 'Ẩn tuỳ chọn' : 'Cấu hình vào phòng'}
-          </button>
-
-          {showAdvanced && (
-            <div
-              data-testid="create-room-advanced-section"
-              className="space-y-4 border-t border-border-subtle pt-4 animate-in fade-in-50 duration-150"
-            >
-              <fieldset className="space-y-2">
-                <legend className="mb-2 text-sm font-medium text-text-primary">Ai được thấy phòng</legend>
-                <div className="day-loc-deu [--the-nho-nhat:9rem]">
-                  <TheLuaChon
-                    testId="create-room-scope-truong"
-                    chon={phamVi === 'truong'}
-                    onChon={() => setPhamVi('truong')}
-                    disabled={isSubmitting}
-                    icon={<Globe className="size-4" />}
-                    tieuDe="Toàn trường"
-                  />
-                  <TheLuaChon
-                    testId="create-room-scope-lop"
-                    chon={phamVi === 'lop'}
-                    onChon={() => {
-                      if (coTheChonLop) setPhamVi('lop')
-                    }}
-                    disabled={isSubmitting || !coTheChonLop}
-                    icon={<School className="size-4" />}
-                    tieuDe={classNameDisplay ? tenLop(classNameDisplay) : 'Lớp học'}
-                  />
-                </div>
-              </fieldset>
-
-              <fieldset className="space-y-2">
-                <legend className="mb-2 text-sm font-medium text-text-primary">Cách vào phòng</legend>
-                <div className="day-loc-deu [--the-nho-nhat:9rem]">
-                  <TheLuaChon
-                    testId="create-room-mode-public"
-                    chon={accessMode === 'public'}
-                    onChon={() => setAccessMode('public')}
-                    disabled={isSubmitting}
-                    icon={<Globe className="size-4" />}
-                    tieuDe="Công khai"
-                  />
-                  <TheLuaChon
-                    testId="create-room-mode-password"
-                    chon={accessMode === 'password'}
-                    onChon={() => setAccessMode('password')}
-                    disabled={isSubmitting}
-                    icon={<Lock className="size-4" />}
-                    tieuDe="Riêng tư"
-                  />
-                </div>
-              </fieldset>
-
-              {accessMode === 'password' && (
-                <div className="space-y-2 animate-in fade-in-50 duration-150">
-                  <Label htmlFor="room-password" className="text-sm font-medium">
-                    Mật khẩu phòng <span className="text-text-tertiary">*</span>
-                  </Label>
-                  <PasswordInput
-                    id="room-password"
-                    data-testid="create-room-password-input"
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value)
-                      setError(null)
-                    }}
-                    placeholder="Nhập mật khẩu..."
-                    disabled={isSubmitting}
-                    maxLength={50}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="room-capacity" className="flex items-center gap-1.5 text-sm font-medium">
-                  <Users className="size-4 text-text-tertiary" />
-                  Sức chứa tối đa
+            {accessMode === 'password' && (
+              <div className="space-y-2 animate-in fade-in-50 duration-150">
+                <Label htmlFor="room-password" className="text-sm font-medium">
+                  Mật khẩu phòng <span className="text-text-tertiary">*</span>
                 </Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="room-capacity"
-                    data-testid="create-room-capacity-input"
-                    type="number"
-                    inputMode="numeric"
-                    min={2}
-                    max={100}
-                    value={sucChua}
-                    onChange={(e) => setSucChua(Math.min(100, Math.max(2, parseInt(e.target.value, 10) || 2)))}
-                    disabled={isSubmitting}
-                    className="w-28 tabular-nums"
-                  />
-                  <span className="text-sm text-text-tertiary">người</span>
-                </div>
+                <PasswordInput
+                  id="room-password"
+                  data-testid="create-room-password-input"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    setError(null)
+                  }}
+                  placeholder="Nhập mật khẩu..."
+                  disabled={isSubmitting}
+                  maxLength={50}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="room-capacity" className="flex items-center gap-1.5 text-sm font-medium">
+                <Users className="size-4 text-text-tertiary" />
+                Sức chứa tối đa
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="room-capacity"
+                  data-testid="create-room-capacity-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={2}
+                  max={100}
+                  value={sucChua}
+                  onChange={(e) => setSucChua(Math.min(100, Math.max(2, parseInt(e.target.value, 10) || 2)))}
+                  disabled={isSubmitting}
+                  className="w-28 tabular-nums"
+                />
+                <span className="text-sm text-text-tertiary">người</span>
               </div>
             </div>
-          )}
+          </div>
 
           {error && (
             <p
