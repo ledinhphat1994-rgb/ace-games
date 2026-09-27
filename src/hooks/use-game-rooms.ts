@@ -43,6 +43,14 @@ export function useGameRooms(gameType?: string, enabled = true) {
     let ws: WebSocket
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let disposed = false
+    let soLanThu = 0
+
+    // Lùi dần 1s → 30s, độ trễ ngẫu nhiên ½–1 mức lùi để các máy không cùng nối lại một nhịp sau khi rớt mạng / deploy.
+    const henNoiLai = () => {
+      const mucLui = Math.min(1000 * 2 ** soLanThu, 30_000)
+      soLanThu++
+      reconnectTimeout = setTimeout(connect, mucLui / 2 + Math.random() * (mucLui / 2))
+    }
 
     const connect = () => {
       if (disposed) return
@@ -52,6 +60,7 @@ export function useGameRooms(gameType?: string, enabled = true) {
 
         ws.onopen = () => {
           if (disposed) return
+          soLanThu = 0
           setWsConnected(true)
         }
 
@@ -86,8 +95,7 @@ export function useGameRooms(gameType?: string, enabled = true) {
         ws.onclose = () => {
           if (disposed) return
           setWsConnected(false)
-          // Thử kết nối lại sau 5 giây nếu bị rớt
-          reconnectTimeout = setTimeout(connect, 5000)
+          henNoiLai()
         }
 
         ws.onerror = () => {
@@ -96,7 +104,7 @@ export function useGameRooms(gameType?: string, enabled = true) {
         }
       } catch {
         setWsConnected(false)
-        reconnectTimeout = setTimeout(connect, 5000)
+        henNoiLai()
       }
     }
 

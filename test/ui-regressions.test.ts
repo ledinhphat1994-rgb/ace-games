@@ -4,6 +4,35 @@ import { tenLop } from '../src/lib/utils'
 import passwordRoomDialogRaw from '../src/features/hub/PasswordRoomDialog.tsx?raw'
 import learningPageRaw from '../src/features/hub/LearningPage.tsx?raw'
 import arenaLeaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
+import appHeaderRaw from '../src/components/layout/AppHeader.tsx?raw'
+import campusContextRaw from '../src/app/CampusContext.tsx?raw'
+import gameRoomsHookRaw from '../src/hooks/use-game-rooms.ts?raw'
+
+describe('Khách chưa đăng nhập không thấy số liệu giả', () => {
+  it('header chỉ hiện số trực tuyến khi đã đăng nhập', () => {
+    expect(appHeaderRaw).toMatch(/\{nguoiDung && \(\s*<ConnectionIndicator/)
+  })
+
+  it('trang Học tập không nói "chưa có phòng" và không hiện số 0 với khách', () => {
+    expect(learningPageRaw).toContain("lobbyState.status === 'ready' && nguoiDung ? danhSachPhongLoc.length : undefined")
+    expect(learningPageRaw).toContain('Đăng nhập để xem phòng đang mở')
+    expect(learningPageRaw).toContain("moAuthModal('dang_nhap')")
+  })
+})
+
+describe('Tự nối lại WebSocket', () => {
+  it('sảnh trường: lùi có độ trễ ngẫu nhiên, nối lại ngay khi có mạng / quay lại tab (không bao giờ sau mã 4001)', () => {
+    expect(campusContextRaw).toContain('mucLui / 2 + Math.random() * (mucLui / 2)')
+    expect(campusContextRaw).toContain("window.addEventListener('online', noiLaiNgay)")
+    expect(campusContextRaw).toContain("document.addEventListener('visibilitychange', noiLaiNgay)")
+    expect(campusContextRaw).toContain('!choNoiLaiRef.current')
+  })
+
+  it('sảnh game: lùi dần 1s → 30s có độ trễ ngẫu nhiên thay vì cố định 5 giây', () => {
+    expect(gameRoomsHookRaw).toContain('Math.min(1000 * 2 ** soLanThu, 30_000)')
+    expect(gameRoomsHookRaw).not.toContain('setTimeout(connect, 5000)')
+  })
+})
 
 describe('Bảng xếp hạng Đấu Trường', () => {
   it('chỉ lấy điểm máy chủ đã xác thực (điểm legacy do trình duyệt tự khai không được lên top)', () => {

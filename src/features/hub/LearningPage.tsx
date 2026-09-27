@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
+import { usePhien } from '@/app/phien'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PageHeader, SectionHeader } from '@/components/layout/PageHeader'
@@ -31,6 +32,8 @@ export function LearningPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') || ''
+  // Khách chưa đăng nhập không nhận danh sách phòng từ sảnh: không được nói "chưa có phòng" hay hiện số 0.
+  const { nguoiDung, moAuthModal } = usePhien()
 
   const {
     rooms,
@@ -108,7 +111,7 @@ export function LearningPage() {
           <SectionHeader
             id="learning-rooms-heading"
             title="Phòng đang mở"
-            count={lobbyState.status === 'ready' ? danhSachPhongLoc.length : undefined}
+            count={lobbyState.status === 'ready' && nguoiDung ? danhSachPhongLoc.length : undefined}
             action={
               danhSachPhongLoc.length > 0 ? (
                 <div className="flex items-center gap-2">
@@ -229,11 +232,23 @@ export function LearningPage() {
             <div data-testid="learning-empty-rooms" className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
               <div className="flex flex-col items-center px-6 pt-10 pb-8 text-center sm:pt-12">
                 <HinhPhongTrong />
-                <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có phòng nào đang mở</h3>
-                <Button onClick={() => setMoTaoPhong(true)} data-testid="empty-create-room-btn" className="mt-6">
-                  <Plus />
-                  Tạo phòng đầu tiên
-                </Button>
+                {nguoiDung ? (
+                  <>
+                    <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có phòng nào đang mở</h3>
+                    <Button onClick={() => setMoTaoPhong(true)} data-testid="empty-create-room-btn" className="mt-6">
+                      <Plus />
+                      Tạo phòng đầu tiên
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Đăng nhập để xem phòng đang mở</h3>
+                    <Button onClick={() => moAuthModal('dang_nhap')} data-testid="empty-login-btn" className="mt-6">
+                      <LogIn />
+                      Đăng nhập
+                    </Button>
+                  </>
+                )}
               </div>
               <ul className="day-loc-deu gap-px! border-t border-border-subtle bg-border-subtle [--the-nho-nhat:13rem]">
                 {CONG_CU_PHONG.map(({ icon: Icon, ten }) => (

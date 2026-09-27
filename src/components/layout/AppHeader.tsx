@@ -80,14 +80,16 @@ export function AppHeader({
 
         {/* ── Right: Action cluster (Connection, Notifications, Chat, Account) ── */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Connection status */}
-          <ConnectionIndicator
-            trangThai={trangThai}
-            onlineCount={onlineCount}
-            latencyMs={latencyMs}
-            onDoDoTre={onDoDoTre}
-            onKetNoiLai={onKetNoiLai}
-          />
+          {/* Connection status — khách chưa đăng nhập không kết nối sảnh nên không có số trực tuyến thật để hiện */}
+          {nguoiDung && (
+            <ConnectionIndicator
+              trangThai={trangThai}
+              onlineCount={onlineCount}
+              latencyMs={latencyMs}
+              onDoDoTre={onDoDoTre}
+              onKetNoiLai={onKetNoiLai}
+            />
+          )}
 
           {/* Secondary icon group */}
           <div className="flex items-center gap-0.5">
