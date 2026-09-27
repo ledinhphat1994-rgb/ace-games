@@ -865,18 +865,12 @@ export function Wormate3DArena({
               🧁
             </div>
           </div>
-          <h3 className="text-xl font-black uppercase text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-emerald-400">
+          <h3 className="text-xl font-black uppercase text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-emerald-400 mb-4">
             Đấu Trường Wormate 3D
           </h3>
-          <p className="mt-1.5 text-xs text-slate-300 max-w-sm leading-relaxed">
-            Di chuột để dẫn đường cho sâu 3D. Ăn các món bánh kẹo ngọt ngào để lớn nhanh và bẫy các đối thủ khác!
-          </p>
-          <div className="flex items-center gap-2 mt-3 text-[11px] text-slate-400">
-            <span>⚡ Giữ <b className="text-amber-400">Chuột trái</b> hoặc <b className="text-amber-400">Spacebar</b> để Tăng Tốc</span>
-          </div>
           <Button
             onClick={onStartGame}
-            className="mt-4 gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-black text-xs px-7 py-2.5 rounded-xl shadow-lg shadow-cyan-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-black text-xs px-7 py-2.5 rounded-xl shadow-lg shadow-cyan-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <Play className="size-4 fill-slate-950" />
             <span>Vào Đấu Trường Ngay</span>

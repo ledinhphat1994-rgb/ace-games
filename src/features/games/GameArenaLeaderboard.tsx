@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Trophy, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Crown, Award, Medal } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -55,11 +55,23 @@ function getAvatarGradient(name: string): [string, string] {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]
 }
 
-function AvatarInitials({ name, size, ringClass }: { name: string; size: 'lg' | 'md' | 'sm'; ringClass?: string }) {
+function AvatarInitials({
+  name,
+  size = 'md',
+  ringClass,
+}: {
+  name: string
+  size?: 'lg' | 'md' | 'sm'
+  ringClass?: string
+}) {
   const initial = name.trim().charAt(0).toUpperCase() || '?'
   const [from, to] = getAvatarGradient(name)
   const sizeClass =
-    size === 'lg' ? 'size-12 text-base font-black' : size === 'md' ? 'size-9 text-sm font-black' : 'size-7 text-xs font-bold'
+    size === 'lg'
+      ? 'size-12 text-base font-black'
+      : size === 'md'
+        ? 'size-9 text-sm font-black'
+        : 'size-7 text-xs font-bold'
   return (
     <div
       className={cn('rounded-full flex items-center justify-center shrink-0 select-none text-white shadow-lg', sizeClass, ringClass)}
@@ -70,116 +82,111 @@ function AvatarInitials({ name, size, ringClass }: { name: string; size: 'lg' | 
   )
 }
 
-// ─── Podium ──────────────────────────────────────────────────────────────────
+// ─── Champion Spotlight (#1) ─────────────────────────────────────────────────
 
-function Podium({ records, animKey }: { records: HighScoreRecord[]; animKey: string }) {
-  const [first, second, third] = records
-
-  const PodiumSlot = ({
-    record,
-    rank,
-    podiumH,
-    delay,
-  }: {
-    record: HighScoreRecord
-    rank: 1 | 2 | 3
-    podiumH: string
-    delay: string
-  }) => {
-    const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
-    const isFirst = rank === 1
-    const medal = ['🥇', '🥈', '🥉'][rank - 1]
-    const ringClass =
-      isFirst ? 'ring-2 ring-amber-400/60' : rank === 2 ? 'ring-2 ring-slate-300/40' : 'ring-2 ring-amber-700/40'
-    const podiumBg =
-      isFirst
-        ? 'bg-gradient-to-t from-amber-600/40 to-amber-500/15 border border-amber-500/30'
-        : rank === 2
-          ? 'bg-gradient-to-t from-slate-500/25 to-slate-400/10 border border-slate-400/20'
-          : 'bg-gradient-to-t from-amber-800/25 to-amber-700/10 border border-amber-700/20'
-    const lvBg =
-      capDo >= 20
-        ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
-        : capDo >= 10
-          ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white'
-          : 'bg-white/10 text-slate-300'
-
-    return (
-      <div
-        className="flex flex-col items-center gap-1 animate-in fade-in slide-in-from-bottom-4"
-        style={{ animationDuration: '0.4s', animationDelay: delay, animationFillMode: 'both' }}
-      >
-        <span className="text-xl leading-none">{medal}</span>
-        <div className={cn('relative', isFirst && 'scale-110')}>
-          <AvatarInitials name={record.playerName} size={isFirst ? 'lg' : 'md'} ringClass={ringClass} />
-          <span
-            className={cn(
-              'absolute -bottom-1.5 -right-1.5 size-5 rounded-full flex items-center justify-center text-[9px] font-black border border-black/20',
-              lvBg
-            )}
-          >
-            {capDo}
-          </span>
-        </div>
-        <p
-          className={cn(
-            'text-center font-bold leading-tight break-words',
-            isFirst ? 'text-amber-200 text-[11px] max-w-[85px]' : 'text-slate-300 text-[10px] max-w-[75px]'
-          )}
-          title={record.playerName}
-        >
-          {record.playerName.length > 11 ? record.playerName.slice(0, 10) + '…' : record.playerName}
-        </p>
-        <p
-          className={cn(
-            'font-mono font-black tabular-nums',
-            isFirst ? 'text-amber-300 text-sm' : 'text-slate-300 text-xs'
-          )}
-        >
-          {record.score.toLocaleString('vi-VN')}
-        </p>
-        <div
-          className={cn(
-            'w-full rounded-t-xl flex items-end justify-center pb-1.5 text-white/25 font-black text-base',
-            podiumH,
-            podiumBg
-          )}
-        >
-          {rank}
-        </div>
-      </div>
-    )
-  }
+function ChampionSpotlight({ record, animKey }: { record: HighScoreRecord; animKey: string }) {
+  const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
 
   return (
-    <div key={animKey} className="px-3 pt-4 pb-0 shrink-0">
-      <div className="flex items-end justify-center gap-1.5">
-        <div className="flex-1 max-w-[88px]">
-          {second ? <PodiumSlot record={second} rank={2} podiumH="h-[50px]" delay="0.1s" /> : <div className="h-[50px]" />}
-        </div>
-        <div className="flex-1 max-w-[100px]">
-          {first ? <PodiumSlot record={first} rank={1} podiumH="h-[70px]" delay="0s" /> : <div className="h-[70px]" />}
-        </div>
-        <div className="flex-1 max-w-[88px]">
-          {third ? <PodiumSlot record={third} rank={3} podiumH="h-[34px]" delay="0.2s" /> : <div className="h-[34px]" />}
+    <div key={`champ-${animKey}-${record.id}`} className="px-3 pt-3 pb-1 shrink-0 animate-in fade-in duration-300">
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-yellow-600/10 to-slate-950/80 p-3.5 shadow-xl backdrop-blur-md">
+        {/* Glow hiệu ứng nền */}
+        <div className="absolute top-0 right-0 translate-x-3 -translate-y-3 size-24 rounded-full bg-amber-500/15 blur-2xl pointer-events-none" />
+
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="relative shrink-0">
+            <AvatarInitials
+              name={record.playerName}
+              size="lg"
+              ringClass="ring-2 ring-amber-400 shadow-lg shadow-amber-500/30"
+            />
+            <span className="absolute -top-2.5 -left-1 text-base select-none">👑</span>
+            <span className="absolute -bottom-1 -right-1 text-xs select-none">🥇</span>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                <Crown className="size-3 text-amber-400 inline" />
+                Kỷ Lục Đứng Đầu
+              </span>
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-400/20 text-amber-200 border border-amber-400/30">
+                Lv.{capDo}
+              </span>
+            </div>
+            <p className="text-sm font-black text-white truncate mt-0.5" title={record.playerName}>
+              {record.playerName}
+            </p>
+            <p className="text-xs text-amber-300 font-mono font-bold mt-0.5">
+              {record.score.toLocaleString('vi-VN')}{' '}
+              <span className="text-[10px] font-normal text-text-tertiary">điểm</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── Row #4+ ─────────────────────────────────────────────────────────────────
+// ─── Row #2+ ─────────────────────────────────────────────────────────────────
 
-function LeaderboardRow({ record, rank, delay }: { record: HighScoreRecord; rank: number; delay: string }) {
+function LeaderboardRow({
+  record,
+  rank,
+  delay,
+}: {
+  record: HighScoreRecord
+  rank: number
+  delay?: string
+}) {
   const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
+  const isTop2 = rank === 2
+  const isTop3 = rank === 3
+
   return (
     <li
-      className="flex items-center gap-2 px-2.5 py-2 rounded-xl border border-transparent hover:bg-white/[0.04] hover:border-white/[0.06] transition-colors animate-in fade-in slide-in-from-left-2"
-      style={{ animationDuration: '0.28s', animationDelay: delay, animationFillMode: 'both' }}
+      className={cn(
+        'flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all animate-in fade-in slide-in-from-left-2',
+        isTop2
+          ? 'bg-gradient-to-r from-slate-400/15 via-slate-300/5 to-transparent border-slate-400/25'
+          : isTop3
+            ? 'bg-gradient-to-r from-amber-700/15 via-amber-600/5 to-transparent border-amber-700/25'
+            : 'border-white/[0.04] bg-white/[0.015] hover:bg-white/[0.04] hover:border-white/[0.08]'
+      )}
+      style={{ animationDuration: '0.25s', animationDelay: delay, animationFillMode: 'both' }}
     >
-      <span className="w-6 text-center text-[11px] font-bold text-text-tertiary tabular-nums shrink-0">#{rank}</span>
-      <AvatarInitials name={record.playerName} size="sm" />
-      <span className="flex-1 min-w-0 text-xs font-semibold text-text-primary truncate">{record.playerName}</span>
+      {/* Cột Thứ hạng */}
+      <div className="w-6 text-center shrink-0">
+        {isTop2 ? (
+          <span className="text-base leading-none select-none">🥈</span>
+        ) : isTop3 ? (
+          <span className="text-base leading-none select-none">🥉</span>
+        ) : (
+          <span className="text-xs font-bold text-text-tertiary tabular-nums">#{rank}</span>
+        )}
+      </div>
+
+      {/* Avatar */}
+      <AvatarInitials
+        name={record.playerName}
+        size={isTop2 ? 'md' : 'sm'}
+        ringClass={isTop2 ? 'ring-2 ring-slate-300/40' : isTop3 ? 'ring-2 ring-amber-700/40' : undefined}
+      />
+
+      {/* Tên người chơi */}
+      <div className="flex-1 min-w-0">
+        <span
+          className={cn(
+            'font-bold truncate text-xs block',
+            isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-300/90' : 'text-text-primary'
+          )}
+          title={record.playerName}
+        >
+          {record.playerName}
+        </span>
+      </div>
+
+      {/* Cấp độ Lv */}
       <span
         className={cn(
           'inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black border shrink-0',
@@ -194,7 +201,14 @@ function LeaderboardRow({ record, rank, delay }: { record: HighScoreRecord; rank
       >
         Lv.{capDo}
       </span>
-      <span className="font-mono font-bold text-amber-300 tabular-nums text-[11px] shrink-0">
+
+      {/* Điểm số */}
+      <span
+        className={cn(
+          'font-mono font-bold tabular-nums text-xs shrink-0 text-right min-w-[46px]',
+          isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-400/90' : 'text-amber-300'
+        )}
+      >
         {record.score.toLocaleString('vi-VN')}
       </span>
     </li>
@@ -205,39 +219,34 @@ function LeaderboardRow({ record, rank, delay }: { record: HighScoreRecord; rank
 
 function SkeletonLeaderboard() {
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-3 pt-4 pb-0 shrink-0">
-        <div className="flex items-end justify-center gap-1.5">
-          {[50, 70, 34].map((h, i) => (
-            <div key={i} className="flex-1 max-w-[90px] flex flex-col items-center gap-1">
-              <div className="size-4 rounded-full bg-white/10 animate-pulse" />
-              <div className={cn('rounded-full bg-white/10 animate-pulse', i === 1 ? 'size-12' : 'size-9')} />
-              <div className="h-2.5 w-14 rounded bg-white/10 animate-pulse" />
-              <div className="h-2 w-10 rounded bg-white/10 animate-pulse" />
-              <div className="w-full rounded-t-xl bg-white/5 animate-pulse" style={{ height: h }} />
-            </div>
-          ))}
+    <div className="flex flex-col flex-1 min-h-0 p-3 space-y-3">
+      {/* Champion card skeleton */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse flex items-center gap-3">
+        <div className="size-12 rounded-full bg-white/10 shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-24 rounded bg-white/10" />
+          <div className="h-4 w-32 rounded bg-white/10" />
+          <div className="h-3 w-16 rounded bg-white/10" />
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 my-3">
-        <div className="flex-1 h-px bg-white/5" />
-        <div className="h-2 w-12 rounded bg-white/10 animate-pulse" />
-        <div className="flex-1 h-px bg-white/5" />
-      </div>
-      <ul className="space-y-1 px-1">
-        {Array.from({ length: 6 }, (_, i) => (
-          <li key={i} className="flex items-center gap-2 px-2.5 py-2">
-            <div className="size-5 rounded bg-white/10 animate-pulse shrink-0" />
-            <div className="size-7 rounded-full bg-white/10 animate-pulse shrink-0" />
-            <div className="h-3 flex-1 rounded bg-white/10 animate-pulse" />
-            <div className="h-4 w-9 rounded bg-white/10 animate-pulse" />
-            <div className="h-3 w-14 rounded bg-white/10 animate-pulse" />
+      <div className="h-px bg-white/5 my-2" />
+      {/* Rows skeleton */}
+      <ul className="space-y-1.5">
+        {Array.from({ length: 5 }, (_, i) => (
+          <li key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.02] animate-pulse">
+            <div className="size-5 rounded bg-white/10 shrink-0" />
+            <div className="size-7 rounded-full bg-white/10 shrink-0" />
+            <div className="h-3 flex-1 rounded bg-white/10" />
+            <div className="h-4 w-9 rounded bg-white/10" />
+            <div className="h-3 w-12 rounded bg-white/10" />
           </li>
         ))}
       </ul>
     </div>
   )
 }
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 interface GameArenaLeaderboardProps {
   defaultGame?: GameType
@@ -252,6 +261,17 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
   useEffect(() => {
     if (defaultGame) setActiveTab(defaultGame)
   }, [defaultGame])
+
+  // Tự động cuộn tab bar nội bộ về tab đang chọn (Chống window scroll)
+  useEffect(() => {
+    const container = tabsContainerRef.current
+    if (!container) return
+    const activeEl = container.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`)
+    if (activeEl) {
+      const targetLeft = activeEl.offsetLeft - container.clientWidth / 2 + activeEl.clientWidth / 2
+      container.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' })
+    }
+  }, [activeTab])
 
   const isDragging = useRef(false)
   const startX = useRef(0)
@@ -306,8 +326,8 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
   })
 
   const records = data ?? []
-  const top3 = records.slice(0, 3)
-  const rest = records.slice(3)
+  const champion = records[0]
+  const remaining = records.slice(1)
 
   return (
     <section
@@ -369,6 +389,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
             return (
               <button
                 key={tab.id}
+                data-tab-id={tab.id}
                 type="button"
                 onClick={() => handleTabClick(tab.id)}
                 className={cn(
@@ -429,25 +450,53 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {/* Podium Top 3 */}
-          {top3.length > 0 && <Podium records={top3} animKey={activeTab} />}
+          {/* Top 1 Champion Spotlight */}
+          {champion && <ChampionSpotlight record={champion} animKey={activeTab} />}
 
-          {/* Divider */}
-          {rest.length > 0 && (
-            <div className="flex items-center gap-2 px-4 my-2 shrink-0">
-              <div className="flex-1 h-px bg-white/[0.05]" />
-              <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">Top {records.length}</span>
-              <div className="flex-1 h-px bg-white/[0.05]" />
+          {/* Vị trí còn trống nếu mới có 1 hoặc 2 người */}
+          {records.length === 1 && (
+            <div className="mx-3 mt-2 mb-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3 text-center animate-in fade-in">
+              <div className="flex items-center justify-center gap-1.5 text-amber-400 text-xs font-bold">
+                <Medal className="size-4" />
+                <span>Còn trống vị trí #2 và #3</span>
+              </div>
+              <p className="text-[11px] text-text-tertiary mt-1">
+                Tham gia thi đấu ngay để ghi tên mình lên bảng vàng!
+              </p>
             </div>
           )}
 
-          {/* Rest rows #4+ */}
-          {rest.length > 0 && (
-            <ol className="space-y-0.5 px-1 pb-3">
-              {rest.map((row, i) => (
-                <LeaderboardRow key={row.id} record={row} rank={i + 4} delay={`${i * 25}ms`} />
-              ))}
-            </ol>
+          {records.length === 2 && (
+            <div className="mx-3 mt-2 mb-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-2 text-center animate-in fade-in">
+              <span className="text-[11px] text-text-tertiary flex items-center justify-center gap-1">
+                <Award className="size-3.5 text-amber-500" />
+                Vị trí #3 đang chờ người thách đấu tiếp theo
+              </span>
+            </div>
+          )}
+
+          {/* Danh sách thứ hạng tiếp theo */}
+          {remaining.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 px-4 my-2 shrink-0">
+                <div className="flex-1 h-px bg-white/[0.06]" />
+                <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
+                  Thứ hạng khác ({remaining.length})
+                </span>
+                <div className="flex-1 h-px bg-white/[0.06]" />
+              </div>
+
+              <ol className="space-y-1 px-2 pb-3">
+                {remaining.map((row, i) => (
+                  <LeaderboardRow
+                    key={row.id}
+                    record={row}
+                    rank={i + 2}
+                    delay={`${i * 25}ms`}
+                  />
+                ))}
+              </ol>
+            </>
           )}
         </div>
       )}
