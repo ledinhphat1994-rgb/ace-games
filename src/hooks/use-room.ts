@@ -285,6 +285,9 @@ export function useRoom(roomId: string, myActorKey?: string) {
               whiteboardEpochRef.current = goi.epoch
             }
             setWhiteboardStrokes([])
+          } else if (goi.action === 'stroke.remove' && goi.strokeId) {
+            const strokeId = goi.strokeId
+            setWhiteboardStrokes((prev) => prev.filter((s) => s.id !== strokeId))
           }
           break
 
@@ -637,6 +640,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.clear' } }))
+  }, [])
+
+  const removeStroke = useCallback((id: string) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'whiteboard.action', data: { action: 'stroke.remove', id } }))
   }, [])
 
   const updateNotes = useCallback((content: string, baseRevision?: number) => {
@@ -1041,6 +1050,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     togglePomodoro,
     sendStroke,
     clearWhiteboard,
+    removeStroke,
     updateNotes,
     addToQueue,
     removeFromQueue,
