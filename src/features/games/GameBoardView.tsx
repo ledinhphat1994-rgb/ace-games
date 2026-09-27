@@ -4,7 +4,7 @@ import { ChessBoard } from './chess/ChessBoard'
 import { XiangqiBoard } from './xiangqi/XiangqiBoard'
 import { CaroBoard } from './caro/CaroBoard'
 import { GameArenaLeaderboard } from './GameArenaLeaderboard'
-import { GameSocialSidebar } from './GameSocialSidebar'
+import { GameSocialSidebar, type ChatBan } from './GameSocialSidebar'
 
 interface GameBoardViewProps {
   gameId: string
@@ -24,12 +24,20 @@ export function GameBoardView({
   intendedGameType,
   intendedTurnSeconds,
 }: GameBoardViewProps) {
-  const {
-    meta,
-    mySide,
-  } = useGame(gameId, myActorKey, intendedGameType, intendedTurnSeconds)
+  // Một kết nối tới bàn (RoomDO) cho cả bàn cờ lẫn chat phòng: nước đi, đồng hồ lượt, biểu cảm và tin nhắn đều qua đây.
+  const ban = useGame(gameId, myActorKey, intendedGameType, intendedTurnSeconds)
+  const { meta, mySide } = ban
 
   const userRole = mySide ? 'player' : 'spectator'
+  // Khách chưa đăng nhập không vào được bàn online: bàn cờ chỉ có chế độ chơi với máy / hai người một máy.
+  const online = myActorKey ? ban : undefined
+  const chatBan: ChatBan | undefined = online && {
+    tinNhan: online.chat,
+    gui: online.guiChat,
+    daKetNoi: online.trangThai === 'da_ket_noi',
+    playerX: meta.playerX,
+    playerO: meta.playerO,
+  }
 
   // Cờ vua: Tích hợp chế độ bàn cờ đầy đủ chuẩn 3 cột
   if (meta.gameType === 'chess') {
@@ -43,12 +51,12 @@ export function GameBoardView({
 
           {/* Cột 2 (Trung tâm): Bàn cờ Cờ Vua & Thanh điều khiển */}
           <div className="min-w-0 order-1 lg:order-2 h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3.5 flex flex-col items-center justify-between overflow-hidden">
-            <ChessBoard onBack={onLeave} />
+            <ChessBoard onBack={onLeave} online={online} />
           </div>
 
           {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
           <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Vua" userRole={userRole} className="h-full" />
+            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Vua" userRole={userRole} chatBan={chatBan} className="h-full" />
           </div>
         </div>
       </div>
@@ -67,12 +75,12 @@ export function GameBoardView({
 
           {/* Cột 2 (Trung tâm): Bàn cờ Cờ Tướng & Thanh điều khiển */}
           <div className="min-w-0 order-1 lg:order-2 h-[700px] xl:h-[720px] 2xl:h-[740px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3.5 flex flex-col items-center justify-between overflow-hidden">
-            <XiangqiBoard onBack={onLeave} />
+            <XiangqiBoard onBack={onLeave} online={online} />
           </div>
 
           {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
           <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[700px] xl:h-[720px] 2xl:h-[740px]">
-            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Tướng" userRole={userRole} className="h-full" />
+            <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Tướng" userRole={userRole} chatBan={chatBan} className="h-full" />
           </div>
         </div>
       </div>
@@ -90,12 +98,12 @@ export function GameBoardView({
 
         {/* Cột 2 (Trung tâm): Bàn cờ Caro 15x15 & Thanh điều khiển */}
         <div className="min-w-0 order-1 lg:order-2 h-[720px] xl:h-[750px] 2xl:h-[780px] rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 backdrop-blur-md shadow-2xl p-2.5 sm:p-3 flex flex-col items-center justify-between overflow-hidden">
-          <CaroBoard onBack={onLeave} />
+          <CaroBoard onBack={onLeave} online={online} />
         </div>
 
         {/* Cột 3 (Phải): Khung Chat Phòng, Chat Chung, Bạn bè */}
         <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1 h-[720px] xl:h-[750px] 2xl:h-[780px]">
-          <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Caro" userRole={userRole} className="h-full" />
+          <GameSocialSidebar roomId={gameId} roomName="Phòng Cờ Caro" userRole={userRole} chatBan={chatBan} className="h-full" />
         </div>
       </div>
     </div>

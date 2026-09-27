@@ -1,4 +1,14 @@
-import type { BoardCell, GameMetaState, GameType, LyDoKetThucVan, PlayerSide } from '../shared/protocol/game'
+import { ChessPosition } from '../shared/games/chess/chess-engine'
+import { XiangqiPosition } from '../shared/games/xiangqi/xiangqi-engine'
+import type {
+  BoardCell,
+  GameMetaState,
+  GameType,
+  GameTypeCoNuoc,
+  LyDoKetThucVan,
+  NuocCo,
+  PlayerSide,
+} from '../shared/protocol/game'
 
 /** Ân hạn sau hạn chót của lượt, bù độ trễ mạng trước khi máy chủ xử thua vì hết giờ. */
 export const GIA_HAN_HET_GIO_MS = 1000
@@ -229,4 +239,66 @@ export function demQuanReversi(board: BoardCell[][]): { scoreX: number; scoreO: 
     }
   }
   return { scoreX: x, scoreO: o }
+}
+
+// ── Cờ vua / cờ tướng: bàn chơi là chuỗi nước đi, trọng tài bằng engine dùng chung với giao diện ──
+
+/** Dựng lại thế cờ vua từ các nước đã đi — giữ đủ lịch sử thế cờ để xét luật lặp lại ba lần. */
+export function dungTheCoVua(moves: readonly NuocCo[]): ChessPosition {
+  const pos = ChessPosition.fromFen()
+  for (const m of moves) pos.makeMove(m)
+  return pos
+}
+
+/** Dựng lại thế cờ tướng từ các nước đã đi. */
+export function dungTheCoTuong(moves: readonly NuocCo[]): XiangqiPosition {
+  const pos = XiangqiPosition.fromFen()
+  for (const m of moves) pos.makeMove({ from: m.from, to: m.to })
+  return pos
+}
+
+export type KetQuaNuocCo =
+  | { hopLe: false }
+  | {
+      hopLe: true
+      /** Nước đúng như engine sinh ra (máy khách không tự đặt được cờ phong cấp hay ô lạ). */
+      nuoc: NuocCo
+      /** Ván kết thúc ngay sau nước này: màu quân thắng (0 = Trắng/Đỏ, 1 = Đen) hoặc null nếu hoà. */
+      ketThuc: { mauThang: 0 | 1 | null } | null
+    }
+
+/**
+ * Trọng tài một nước cờ vua / cờ tướng: dựng lại thế cờ từ các nước đã đi, chỉ nhận nước nằm trong danh sách nước
+ * hợp lệ của engine khi đúng lượt màu `mauDi`, rồi xét kết thúc ván (chiếu hết, hết nước, lặp lại, luật hoà).
+ */
+export function trongTaiNuocCo(
+  gameType: GameTypeCoNuoc,
+  moves: readonly NuocCo[],
+  nuoc: NuocCo,
+  mauDi: 0 | 1,
+): KetQuaNuocCo {
+  if (gameType === 'chess') {
+    const pos = dungTheCoVua(moves)
+    if (pos.turn !== mauDi) return { hopLe: false }
+    const hopLe = pos
+      .legalMoves()
+      .find((m) => m.from === nuoc.from && m.to === nuoc.to && (m.promo ?? 0) === (nuoc.promo ?? 0))
+    if (!hopLe) return { hopLe: false }
+    pos.makeMove(hopLe)
+    const kq = pos.outcome()
+    return {
+      hopLe: true,
+      nuoc: hopLe.promo ? { from: hopLe.from, to: hopLe.to, promo: hopLe.promo } : { from: hopLe.from, to: hopLe.to },
+      ketThuc: kq.over ? { mauThang: kq.winner } : null,
+    }
+  }
+
+  if (nuoc.promo !== undefined) return { hopLe: false }
+  const pos = dungTheCoTuong(moves)
+  if (pos.turn !== mauDi) return { hopLe: false }
+  const hopLe = pos.legalMoves().find((m) => m.from === nuoc.from && m.to === nuoc.to)
+  if (!hopLe) return { hopLe: false }
+  pos.makeMove(hopLe)
+  const kq = pos.outcome()
+  return { hopLe: true, nuoc: { from: hopLe.from, to: hopLe.to }, ketThuc: kq.over ? { mauThang: kq.winner } : null }
 }

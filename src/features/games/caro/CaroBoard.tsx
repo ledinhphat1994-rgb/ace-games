@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { findBestCaroMove, type CaroCell } from '../../../../shared/games/caro/caro-ai'
+import type { BanOnline } from '@/hooks/use-game'
 import { cn } from '@/lib/utils'
 import { Swords } from 'lucide-react'
-import { GamePlayToolbar } from '../GamePlayToolbar'
+import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
+import {
+  guiBieuCamOnline,
+  moTaPhuOnline,
+  nutHanhDongOnline,
+  tenNguoiChoi,
+  useBongBieuCamDoiThu,
+  useCheDoBan,
+} from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 
@@ -65,21 +74,35 @@ function checkWin(board: CaroCell[][], x: number, y: number, side: 'X' | 'O'): [
 }
 interface CaroBoardProps {
   onBack?: () => void
-  initialMode?: 'ai' | 'pass_and_play'
+  initialMode?: PlayMode
+  /** Bàn online (mở từ sảnh): thêm chế độ "Đấu online" — máy chủ làm trọng tài, đối thủ là người thật. */
+  online?: BanOnline
 }
 
-export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
-  const [board, setBoard] = useState<CaroCell[][]>(() =>
+export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
+  const [boardTaiCho, setBoard] = useState<CaroCell[][]>(() =>
     Array.from({ length: SIZE }, () => Array(SIZE).fill(null))
   )
-  const [currentTurn, setCurrentTurn] = useState<'X' | 'O'>('X')
-  const [mode, setMode] = useState<'ai' | 'pass_and_play'>(initialMode)
+  const [currentTurnTaiCho, setCurrentTurn] = useState<'X' | 'O'>('X')
+  const { mode, doiCheDo, laOnline } = useCheDoBan(online, initialMode)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   // Ván đơn: người chơi luôn cầm quân X và đi trước, máy cầm quân O
   const playerSide: 'X' | 'O' = 'X'
-  const [winner, setWinner] = useState<'X' | 'O' | 'draw' | null>(null)
-  const [winLine, setWinLine] = useState<[number, number][] | null>(null)
-  const [lastMove, setLastMove] = useState<{ x: number; y: number } | null>(null)
+  const [winnerTaiCho, setWinner] = useState<'X' | 'O' | 'draw' | null>(null)
+  const [winLineTaiCho, setWinLine] = useState<[number, number][] | null>(null)
+  const [lastMoveTaiCho, setLastMove] = useState<{ x: number; y: number } | null>(null)
+  // Bàn online: bàn cờ, lượt, kết quả đều theo máy chủ; ghế của mình quyết định quân X hay O.
+  const banOnline = laOnline ? online : undefined
+  const board: CaroCell[][] = banOnline ? banOnline.board : boardTaiCho
+  const currentTurn = banOnline ? banOnline.meta.currentTurn : currentTurnTaiCho
+  const winner = banOnline ? banOnline.meta.winner : winnerTaiCho
+  const winLine = banOnline ? banOnline.meta.winLine : winLineTaiCho
+  const nuocOnline = banOnline?.lastMove
+  const lastMove = banOnline
+    ? nuocOnline && nuocOnline.x !== undefined && nuocOnline.y !== undefined
+      ? { x: nuocOnline.x, y: nuocOnline.y }
+      : null
+    : lastMoveTaiCho
   const [isAiThinking, setIsAiThinking] = useState(false)
   const [surrenderReason, setSurrenderReason] = useState<string | null>(null)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
@@ -90,7 +113,11 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const bongDoiThuOnline = useBongBieuCamDoiThu(online, QUICK_EMOTES_CARO)
+  const bongDoiThu = laOnline ? bongDoiThuOnline : opponentBubble
+
   const handleQuickEmote = (em: QuickEmoteItem) => {
+    if (laOnline && online) guiBieuCamOnline(online, em.emoji)
     setPlayerBubble({
       emoji: em.emoji,
       quote: em.quote,
@@ -170,6 +197,12 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
   }, [board, currentTurn, mode, playerSide, aiLevel, winner, makeMove])
 
   const handleClick = (x: number, y: number) => {
+    if (banOnline) {
+      // Máy chủ xét nước đi và phát lại cho cả bàn; chỉ gửi khi tới lượt mình và ô còn trống.
+      if (!banOnline.isMyTurn || board[y][x] !== null) return
+      banOnline.makeMove(x, y)
+      return
+    }
     if (winner || isAiThinking) return
     if (mode === 'ai' && currentTurn !== playerSide) return
     makeMove(x, y, currentTurn)
@@ -191,8 +224,8 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
     if (opponentBubbleTimerRef.current) clearTimeout(opponentBubbleTimerRef.current)
   }
 
-  const handleModeChange = (newMode: 'ai' | 'pass_and_play') => {
-    setMode(newMode)
+  const handleModeChange = (newMode: PlayMode) => {
+    if (!doiCheDo(newMode)) return
     resetGame()
   }
 
@@ -209,7 +242,11 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
 
   const isOver = !!winner
 
-  const isMyTurn = mode === 'ai' ? currentTurn === playerSide : currentTurn === 'X'
+  const isMyTurn = banOnline ? banOnline.isMyTurn : mode === 'ai' ? currentTurn === playerSide : currentTurn === 'X'
+  // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
+  const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking
+  const benToiOnline = banOnline?.mySide ?? null
+  const benThuaOnline = winner === 'X' ? 'O' : winner === 'O' ? 'X' : null
   const turnColor = isMyTurn ? '#06b6d4' : '#f43f5e'
   const turnGlow = isMyTurn ? 'rgba(6,182,212,0.4)' : 'rgba(244,63,94,0.4)'
   const turnBg = isMyTurn ? 'rgba(6,182,212,0.12)' : 'rgba(244,63,94,0.12)'
@@ -220,7 +257,7 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
   // Chế độ 2 người thì không có "bạn" — báo theo quân để cả hai bên cùng đọc đúng.
   // Thắng ở chế độ 2 người luôn là chiến thắng của một người chơi nên hiện xanh + cúp,
   // chỉ chế độ đánh với máy mới phân biệt BẠN THẮNG (xanh) / BẠN THUA (đỏ).
-  const pheThang = mode === 'ai' ? playerSide : winner
+  const pheThang = banOnline ? (benToiOnline ?? winner) : mode === 'ai' ? playerSide : winner
   const mauTrangThai = isOver
     ? winner === 'draw'
       ? '#eab308'
@@ -242,11 +279,25 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
   const nhanTrangThai = isOver
     ? winner === 'draw'
       ? 'HOÀ CỜ'
-      : mode === 'ai'
-        ? winner === playerSide
-          ? 'BẠN THẮNG'
-          : 'BẠN THUA'
-        : `QUÂN ${winner} THẮNG`
+      : banOnline
+        ? benToiOnline
+          ? winner === benToiOnline
+            ? 'BẠN THẮNG'
+            : 'BẠN THUA'
+          : `QUÂN ${winner} THẮNG`
+        : mode === 'ai'
+          ? winner === playerSide
+            ? 'BẠN THẮNG'
+            : 'BẠN THUA'
+          : `QUÂN ${winner} THẮNG`
+    : banOnline
+      ? banOnline.meta.status !== 'playing'
+        ? 'CHỜ ĐỐI THỦ'
+        : benToiOnline
+          ? isMyTurn
+            ? 'LƯỢT BẠN'
+            : 'LƯỢT ĐỐI THỦ'
+          : `LƯỢT QUÂN ${currentTurn}`
     : isAiThinking
       ? 'MÁY ĐANG TÍNH'
       : mode === 'ai'
@@ -257,7 +308,15 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
   const phuTrangThai = isOver
     ? winner === 'draw'
       ? 'Kín bàn hoà cờ'
-      : surrenderReason ?? `Quân ${winner} xếp đủ 5 hàng`
+      : banOnline
+        ? banOnline.meta.endReason === 'surrender'
+          ? `Quân ${benThuaOnline} đã xin thua`
+          : banOnline.meta.endReason === 'timeout'
+            ? `Quân ${benThuaOnline} hết giờ`
+            : `Quân ${winner} xếp đủ 5 hàng`
+        : surrenderReason ?? `Quân ${winner} xếp đủ 5 hàng`
+    : banOnline
+      ? moTaPhuOnline(banOnline, tenNguoiChoi(banOnline, currentTurn))
     : mode === 'ai'
       ? isMyTurn
         ? 'Đặt quân X để tấn công'
@@ -273,11 +332,18 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
         : '💀'
     : isAiThinking
       ? '🤖'
-      : isMyTurn
-        ? '⚔️'
-        : mode === 'ai'
-          ? '🤖'
-          : '🎲'
+      : banOnline && banOnline.meta.status !== 'playing'
+        ? '⏳'
+        : isMyTurn
+          ? '⚔️'
+          : banOnline
+            ? '🌐'
+            : mode === 'ai'
+              ? '🤖'
+              : '🎲'
+
+  // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
+  const nutOnline = banOnline ? nutHanhDongOnline(banOnline, () => setIsSurrenderModalOpen(true)) : null
 
   return (
     <div className="flex flex-col items-center justify-between w-full h-full relative select-none">
@@ -289,10 +355,13 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
         icon={<Swords className="size-4 text-cyan-400" />}
         mode={mode}
         onModeChange={handleModeChange}
+        onlineAvailable={Boolean(online)}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
-        onReset={handleResetOrSurrender}
-        resetLabel={isOver ? 'Ván mới' : 'Xin thua'}
+        onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
+        resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
+        resetIcon={nutOnline?.icon}
+        resetDisabled={nutOnline?.disabled}
         activeSide={winner ? (winner === 'X' ? 'red' : 'black') : (currentTurn === 'X' ? 'red' : 'black')}
         turnLabel={`Lượt: ${currentTurn === 'X' ? 'Quân X (Đi trước)' : 'Quân O'}`}
         isAiThinking={isAiThinking}
@@ -306,7 +375,7 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
         <div
           role="status"
           aria-live="polite"
-          className="hidden lg:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] text-center select-none"
+          className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] text-center select-none"
         >
           <div
             className={cn(
@@ -385,8 +454,8 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
 
         {/* ── CỘT GIỮA: BÀN CỜ CARO 15×15 (TO HƠN, Ô CỜ TO RÕ RÀNG) ── */}
         <div className="relative shrink-0 select-none z-10 flex flex-col items-center">
-          {/* Thanh trạng thái phụ nhỏ gọn dành riêng cho màn hình nhỏ (< lg) với chiều cao cố định */}
-          <div className="flex lg:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
+          {/* Thanh trạng thái phụ nhỏ gọn khi hai cột bên bàn cờ bị ẩn (< 1920px), chiều cao cố định */}
+          <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
             <span className="text-base leading-none">{emojiTrangThai}</span>
             <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider">{nhanTrangThai}</span>
             {isAiThinking && (
@@ -487,7 +556,7 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
                           handleClick(x, y)
                         }
                       }}
-                      aria-disabled={!!val || !!winner || isAiThinking || undefined}
+                      aria-disabled={!!val || khoaBan || undefined}
                       aria-label={`Ô hàng ${y + 1} cột ${x + 1}${val ? `, quân ${val}` : ', còn trống'}`}
                       className={cn(
                         'relative flex items-center justify-center group',
@@ -500,9 +569,9 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
                           : isLast
                             ? 'border-cyan-500/25'
                             : 'border-white/[0.07]',
-                        !val && !winner && !isAiThinking && 'cursor-pointer hover:z-10',
+                        !val && !khoaBan && 'cursor-pointer hover:z-10',
                         val && 'cursor-default',
-                        (!!winner || isAiThinking) && 'cursor-not-allowed',
+                        khoaBan && 'cursor-not-allowed',
                       )}
                       style={{
                         backgroundColor: isWin
@@ -516,7 +585,7 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
                       }}
                     >
                       {/* Hover glow - chỉ khi ô trống */}
-                      {!val && !winner && !isAiThinking && (
+                      {!val && !khoaBan && (
                         <span
                           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
                           style={{
@@ -596,12 +665,12 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
             />
           </div>
 
-          {/* Nút cảm xúc phụ cho màn hình nhỏ (< lg) */}
-          <div className="flex lg:hidden items-center justify-center mt-2.5">
+          {/* Nút cảm xúc phụ khi hai cột bên bàn cờ bị ẩn (< 1920px) */}
+          <div className="flex min-[1920px]:hidden items-center justify-center mt-2.5">
             <GameQuickEmote
               emotes={QUICK_EMOTES_CARO}
               onSend={handleQuickEmote}
-              activeBubble={playerBubble || opponentBubble}
+              activeBubble={playerBubble || bongDoiThu}
               theme="cyan"
               align="center"
             />
@@ -609,10 +678,10 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 1 (Ta ở dưới) ── */}
-        <div className="hidden lg:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
           {/* VÙNG 1+: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
           <div className="w-full flex justify-center">
-            <GameOpponentBubble bubble={opponentBubble} theme="cyan" />
+            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
           </div>
 
           {/* VÙNG 1: Nút cảm xúc & tin nhắn của ta ở góc dưới */}
@@ -634,17 +703,27 @@ export function CaroBoard({ onBack, initialMode = 'ai' }: CaroBoardProps) {
         onClose={() => setIsSurrenderModalOpen(false)}
         mode={mode}
         surrenderSideName={
-          mode === 'ai'
-            ? 'Quân X (Bạn)'
-            : (currentTurn === 'X' ? 'Quân X' : 'Quân O')
+          banOnline && benToiOnline
+            ? `Quân ${benToiOnline} (Bạn)`
+            : mode === 'ai'
+              ? 'Quân X (Bạn)'
+              : (currentTurn === 'X' ? 'Quân X' : 'Quân O')
         }
         opponentSideName={
-          mode === 'ai'
-            ? 'người chơi quân O (Máy AI)'
-            : (currentTurn === 'X' ? 'người chơi quân O' : 'người chơi quân X')
+          banOnline && benToiOnline
+            ? tenNguoiChoi(banOnline, benToiOnline === 'X' ? 'O' : 'X')
+            : mode === 'ai'
+              ? 'người chơi quân O (Máy AI)'
+              : (currentTurn === 'X' ? 'người chơi quân O' : 'người chơi quân X')
         }
         attemptNumber={1}
         onSurrenderSuccess={() => {
+          if (banOnline) {
+            // Máy chủ chốt ván và báo cho cả bàn.
+            banOnline.surrender()
+            setIsSurrenderModalOpen(false)
+            return
+          }
           const losingSide = mode === 'ai' ? playerSide : currentTurn
           const winningSide = losingSide === 'X' ? 'O' : 'X'
           setWinner(winningSide)

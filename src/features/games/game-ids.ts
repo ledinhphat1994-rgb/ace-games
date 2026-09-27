@@ -24,3 +24,12 @@ export function taoMaBan(gameType: GameType, now: number = Date.now(), random: n
 export function nenKhoiTaoBan(meta: Pick<GameMetaState, 'status' | 'playerX' | 'playerO'>, intendedGameType?: GameType): boolean {
   return Boolean(intendedGameType) && meta.status === 'waiting' && !meta.playerX && !meta.playerO
 }
+
+/**
+ * Người vào một bàn có sẵn có nên tự ngồi ghế không: chỉ khi đã đăng nhập, bàn đang chờ đối thủ và mình chưa có ghế.
+ * Bàn chờ không có gì để xem, nên vào từ "Chơi ngay"/"Vào đấu" hay link mời đều là để chơi.
+ */
+export function nenTuVaoBan(meta: Pick<GameMetaState, 'status' | 'playerX' | 'playerO'>, myActorKey?: string): boolean {
+  if (!myActorKey || meta.status !== 'waiting') return false
+  return meta.playerX !== myActorKey && meta.playerO !== myActorKey
+}

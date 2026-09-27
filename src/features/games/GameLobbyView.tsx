@@ -12,6 +12,7 @@ import { GameSocialSidebar } from './GameSocialSidebar'
 import { laTroChoiDon, taoMaBan } from './game-ids'
 import { CAC_GAME_1V1, CAC_GAME_SOLO, GAME_CATALOG_BY_ID, type GameDefinition } from './game-catalog'
 import { toast } from 'sonner'
+import { usePhien } from '@/app/phien'
 
 interface GameLobbyViewProps {
   onCreateRoom: (roomId: string, gameType: GameType, turnSeconds: number) => void
@@ -30,7 +31,9 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
   const [hopThoaiBan, setHopThoaiBan] = useState<{ open: boolean; game: GameType }>({ open: false, game: 'caro_15' })
   const [turnSeconds, setTurnSeconds] = useState<number>(30)
 
-  const { data: tablesData } = useGameRooms()
+  const { nguoiDung, moAuthModal } = usePhien()
+  // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách).
+  const { data: tablesData } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
     () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended').sort(xepBan),
     [tablesData],
@@ -54,6 +57,16 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
         return
       }
 
+      // Khách: vào bàn để chơi với máy; đấu online cần đăng nhập.
+      if (!nguoiDung) {
+        onCreateRoom(taoMaBan(gameType), gameType, 30)
+        toast.info('Bạn đang chơi với máy — đăng nhập để đấu online với bạn bè.', {
+          id: 'khach-choi-voi-may',
+          action: { label: 'Đăng nhập', onClick: () => moAuthModal('dang_nhap') },
+        })
+        return
+      }
+
       const waiting = tables
         .filter((t: BanSanh) => t.gameType === gameType && t.trangThai === 'waiting')
         .sort((a: BanSanh, b: BanSanh) => b.soNguoiXem - a.soNguoiXem)[0]
@@ -65,15 +78,20 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
 
       onCreateRoom(taoMaBan(gameType), gameType, 30)
     },
-    [tables, onJoinExisting, onCreateRoom],
+    [tables, onJoinExisting, onCreateRoom, nguoiDung, moAuthModal],
   )
 
 
+  // Campus chưa có kênh gửi lời mời riêng: mở bàn Caro mới và sao chép link bàn để người chơi tự gửi cho bạn.
   const handleInviteToGame = useCallback(
     (_friendId: number, friendName: string) => {
       const maBan = taoMaBan('caro_15')
+      const link = `${window.location.origin}/game/${encodeURIComponent(maBan)}`
+      void navigator.clipboard
+        .writeText(link)
+        .then(() => toast.success(`Đã mở bàn Caro và sao chép link — gửi cho ${friendName} qua Chat chung nhé.`))
+        .catch(() => toast.info(`Đã mở bàn Caro — bấm "Mời bạn" trên bàn để lấy link gửi ${friendName}.`))
       onCreateRoom(maBan, 'caro_15', 30)
-      toast.success(`Đã mở bàn Caro và gửi lời mời tới ${friendName}!`)
     },
     [onCreateRoom]
   )

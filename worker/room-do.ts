@@ -28,6 +28,10 @@ import {
   type GameMetaState,
   type GoiGame,
   LenhGame,
+  laCoNuoc,
+  mauQuanCua,
+  type NuocCo,
+  type NuocVuaDi,
   type PlayerSide,
 } from '../shared/protocol/game'
 import { EMOTE_BURST_MAX, EMOTE_COOLDOWN_MS } from '../shared/protocol/game-sdk'
@@ -40,6 +44,7 @@ import {
   ketThucVan,
   kiemTraThangCaro,
   taoBanMoi,
+  trongTaiNuocCo,
 } from './game-engine'
 import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
 import { TEN_CAMPUS } from './campus/danh-tinh'
@@ -173,6 +178,8 @@ export class RoomDO extends DurableObject<Env> {
   private whiteboardEpoch = 1
   private gameMeta: GameMetaState = { ...DEFAULT_GAME_META }
   private gameBoard: BoardCell[][] = taoBanMoi('caro_15')
+  /** Cờ vua / cờ tướng: mọi nước đã đi của ván hiện tại (thế cờ được dựng lại từ đây). */
+  private gameMoves: NuocCo[] = []
   private hostKey: string | null = null
   private isGameRoom = false
   private khoiTaoXong = false
@@ -364,6 +371,9 @@ export class RoomDO extends DurableObject<Env> {
         this.ctx.storage.sql.exec('ALTER TABLE voice_publications ADD COLUMN mid TEXT')
       } catch {}
       try {
+        this.ctx.storage.sql.exec('ALTER TABLE game_state ADD COLUMN moves TEXT')
+      } catch {}
+      try {
         this.ctx.storage.sql.exec(
           'CREATE UNIQUE INDEX IF NOT EXISTS idx_room_chat_actor_req ON room_chat(account_id, req_id) WHERE req_id IS NOT NULL',
         )
@@ -531,11 +541,16 @@ export class RoomDO extends DurableObject<Env> {
       }
 
       // Đọc game_state (bàn lưu trước khi có endReason/rematchBy/firstTurn thì lấy giá trị mặc định)
-      const gameRow = [...this.ctx.storage.sql.exec<{ meta: string; board: string }>('SELECT meta, board FROM game_state WHERE id = 1')][0]
+      const gameRow = [
+        ...this.ctx.storage.sql.exec<{ meta: string; board: string; moves: string | null }>(
+          'SELECT meta, board, moves FROM game_state WHERE id = 1',
+        ),
+      ][0]
       if (gameRow) {
         try {
           this.gameMeta = { ...DEFAULT_GAME_META, ...(JSON.parse(gameRow.meta) as Partial<GameMetaState>) }
           this.gameBoard = JSON.parse(gameRow.board) as BoardCell[][]
+          this.gameMoves = gameRow.moves ? (JSON.parse(gameRow.moves) as NuocCo[]) : []
         } catch {}
       }
 
@@ -1400,7 +1415,7 @@ export class RoomDO extends DurableObject<Env> {
     this.gameMeta = ketThucVan(this.gameMeta, benKia(this.gameMeta.currentTurn), 'timeout')
     this.luuGameState()
     this.baoLobby()
-    this.broadcastGame({ type: 'game.sync', meta: this.gameMeta, board: this.gameBoard, serverNow: now })
+    this.broadcastGame(this.goiDongBoGame(now))
     return true
   }
 
@@ -1418,12 +1433,26 @@ export class RoomDO extends DurableObject<Env> {
   private luuGameState(): void {
     try {
       this.ctx.storage.sql.exec(
-        'INSERT INTO game_state (id, meta, board) VALUES (1, ?1, ?2) ON CONFLICT(id) DO UPDATE SET meta = ?1, board = ?2',
+        `INSERT INTO game_state (id, meta, board, moves) VALUES (1, ?1, ?2, ?3)
+           ON CONFLICT(id) DO UPDATE SET meta = ?1, board = ?2, moves = ?3`,
         JSON.stringify(this.gameMeta),
         JSON.stringify(this.gameBoard),
+        JSON.stringify(this.gameMoves),
       )
     } catch (err) {
       console.error('Lỗi lưu game_state:', err)
+    }
+  }
+
+  /** Gói trạng thái bàn gửi cho máy khách (kèm nước vừa đi nếu có). */
+  private goiDongBoGame(now: number, lastMove?: NuocVuaDi): GoiGame {
+    return {
+      type: 'game.sync',
+      meta: this.gameMeta,
+      board: this.gameBoard,
+      moves: this.gameMoves,
+      ...(lastMove ? { lastMove } : {}),
+      serverNow: now,
     }
   }
 
@@ -1437,14 +1466,8 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
-  private phatTrangThaiGame(now: number, lastMove?: { player: PlayerSide; x: number; y: number }): void {
-    this.broadcastGame({
-      type: 'game.sync',
-      meta: this.gameMeta,
-      board: this.gameBoard,
-      ...(lastMove ? { lastMove } : {}),
-      serverNow: now,
-    })
+  private phatTrangThaiGame(now: number, lastMove?: NuocVuaDi): void {
+    this.broadcastGame(this.goiDongBoGame(now, lastMove))
   }
 
   private guiLoiGame(ws: WebSocket, message: string): void {
@@ -1486,6 +1509,7 @@ export class RoomDO extends DurableObject<Env> {
           turnTimerSeconds: goi.turnSeconds ?? DEFAULT_GAME_META.turnTimerSeconds,
         }
         this.gameBoard = taoBanMoi(goi.gameType)
+        this.gameMoves = []
         this.luuGameState()
         this.baoLobby()
         this.phatTrangThaiGame(now)
@@ -1495,7 +1519,7 @@ export class RoomDO extends DurableObject<Env> {
       case 'game.join': {
         if (this.gheCua(att.key)) {
           // Đã ngồi sẵn (mở thêm tab, vào lại sau khi rớt mạng): chỉ gửi lại trạng thái cho chính người này.
-          ws.send(JSON.stringify({ type: 'game.sync', meta: this.gameMeta, board: this.gameBoard, serverNow: now } satisfies GoiGame))
+          ws.send(JSON.stringify(this.goiDongBoGame(now)))
           return
         }
         if (this.gameMeta.status !== 'waiting') {
@@ -1524,6 +1548,7 @@ export class RoomDO extends DurableObject<Env> {
           const van = batDauVan(this.gameMeta, now)
           this.gameMeta = van.meta
           this.gameBoard = van.board
+          this.gameMoves = []
           if (this.env?.ANALYTICS_DB) {
             recordAnalyticsEvent(this.env.ANALYTICS_DB, this.ctx, {
               event: 'game.session_started',
@@ -1559,11 +1584,11 @@ export class RoomDO extends DurableObject<Env> {
           return
         }
 
-        const { x } = goi
-        let { y } = goi
+        const { x, y } = goi
         const H = this.gameBoard.length
         const W = this.gameBoard[0].length
         const hanLuotMoi = now + this.gameMeta.turnTimerSeconds * 1000
+        let nuocVuaDi: NuocVuaDi = { player: side, x, y }
 
         if (this.gameMeta.gameType === 'caro_15') {
           if (x >= W || y >= H || this.gameBoard[y][x] !== null) {
@@ -1579,8 +1604,34 @@ export class RoomDO extends DurableObject<Env> {
           } else {
             this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
           }
-        } else if (this.gameMeta.gameType === 'chess' || this.gameMeta.gameType === 'xiangqi') {
-          this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+        } else if (laCoNuoc(this.gameMeta.gameType)) {
+          if (goi.from === undefined || goi.to === undefined) {
+            this.guiLoiGame(ws, 'Nước đi không hợp lệ.')
+            return
+          }
+          const mauDi = mauQuanCua(this.gameMeta.firstTurn, side)
+          const kq = trongTaiNuocCo(
+            this.gameMeta.gameType,
+            this.gameMoves,
+            { from: goi.from, to: goi.to, ...(goi.promo !== undefined ? { promo: goi.promo } : {}) },
+            mauDi,
+          )
+          if (!kq.hopLe) {
+            this.guiLoiGame(ws, 'Nước đi không hợp lệ.')
+            return
+          }
+          this.gameMoves = [...this.gameMoves, kq.nuoc]
+          nuocVuaDi = { player: side, from: kq.nuoc.from, to: kq.nuoc.to }
+          if (kq.ketThuc) {
+            const { mauThang } = kq.ketThuc
+            this.gameMeta = ketThucVan(
+              this.gameMeta,
+              mauThang === null ? 'draw' : mauThang === mauDi ? side : benKia(side),
+              'normal',
+            )
+          } else {
+            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
+          }
         } else {
           this.guiLoiGame(ws, 'Trò chơi này không có bàn đối kháng.')
           return
@@ -1589,7 +1640,7 @@ export class RoomDO extends DurableObject<Env> {
         this.luuGameState()
         // Sảnh chỉ nhận thay đổi vòng đời bàn, không nhận từng nước đi.
         if (this.gameMeta.status === 'ended') this.baoLobby()
-        this.phatTrangThaiGame(now, { player: side, x, y })
+        this.phatTrangThaiGame(now, nuocVuaDi)
         await this.reconcileRoomAlarm()
         return
       }
@@ -1621,6 +1672,7 @@ export class RoomDO extends DurableObject<Env> {
           const van = batDauVan({ ...this.gameMeta, firstTurn: benKia(this.gameMeta.firstTurn) }, now)
           this.gameMeta = van.meta
           this.gameBoard = van.board
+          this.gameMoves = []
           this.baoLobby()
         } else {
           this.gameMeta = { ...this.gameMeta, rematchBy: side }
@@ -1636,7 +1688,7 @@ export class RoomDO extends DurableObject<Env> {
           this.guiLoiGame(ws, 'Bạn gửi biểu cảm hơi nhanh, chờ một chút nhé.')
           return
         }
-        this.broadcastGame({ type: 'game.emote', sender: att.ten, emote: goi.emote })
+        this.broadcastGame({ type: 'game.emote', sender: att.ten, senderKey: att.key, emote: goi.emote })
         return
       }
 
@@ -1881,7 +1933,9 @@ export class RoomDO extends DurableObject<Env> {
         type: 'game.snapshot',
         meta: this.gameMeta,
         board: this.gameBoard,
+        moves: this.gameMoves,
         spectators: this.demNguoiXemGame(),
+        chat: this.layChat(),
         serverNow: Date.now(),
       }
       try {
