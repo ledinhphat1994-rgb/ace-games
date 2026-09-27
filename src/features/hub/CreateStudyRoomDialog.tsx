@@ -165,19 +165,23 @@ export function CreateStudyRoomDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
-      <DialogContent className="sm:max-w-md" data-testid="create-room-dialog">
-        <DialogHeader>
+      <DialogContent
+        className="w-full sm:max-w-[440px] sm:w-[440px] h-[520px] min-h-[520px] max-h-[calc(100svh-2rem)] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col justify-between overflow-hidden"
+        data-testid="create-room-dialog"
+      >
+        <DialogHeader className="shrink-0 pb-1">
           <DialogTitle>Tạo phòng học</DialogTitle>
           <DialogDescription className="sr-only">
             Tạo phòng học
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="room-ten" className="text-sm font-medium">
-              Tên phòng <span className="text-text-tertiary">*</span>
-            </Label>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 justify-between">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-0.5">
+            <div className="space-y-2">
+              <Label htmlFor="room-ten" className="text-sm font-medium">
+                Tên phòng <span className="text-text-tertiary">*</span>
+              </Label>
             <Input
               id="room-ten"
               data-testid="create-room-name-input"
@@ -269,8 +273,9 @@ export function CreateStudyRoomDialog({
               {error}
             </p>
           )}
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-4">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
               Huỷ
             </Button>
