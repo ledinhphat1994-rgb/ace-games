@@ -187,8 +187,8 @@ export function CreateStudyRoomDialog({
       <DialogContent className="sm:max-w-md" data-testid="create-room-dialog">
         <DialogHeader>
           <DialogTitle>Tạo phòng học</DialogTitle>
-          <DialogDescription>
-            Mọi người trong phòng cùng xem video, trình chiếu tài liệu và viết bảng theo thời gian thực.
+          <DialogDescription className="sr-only">
+            Tạo phòng học
           </DialogDescription>
         </DialogHeader>
 
@@ -205,7 +205,7 @@ export function CreateStudyRoomDialog({
                 setTen(e.target.value)
                 setError(null)
               }}
-              placeholder="Ví dụ: Ôn thi Toán học kỳ 2"
+              placeholder="Tên phòng..."
               disabled={isSubmitting}
               maxLength={100}
             />
@@ -213,14 +213,14 @@ export function CreateStudyRoomDialog({
 
           <div className="space-y-2">
             <Label htmlFor="room-mota" className="text-sm font-medium">
-              Mục tiêu buổi học <span className="font-normal text-text-tertiary">(không bắt buộc)</span>
+              Mục tiêu
             </Label>
             <Input
               id="room-mota"
               data-testid="create-room-desc-input"
               value={moTa}
               onChange={(e) => setMoTa(e.target.value)}
-              placeholder="Ví dụ: Giải đề cương chương 2"
+              placeholder="Mục tiêu buổi học..."
               disabled={isSubmitting}
               maxLength={500}
             />
@@ -235,7 +235,7 @@ export function CreateStudyRoomDialog({
             className="flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
           >
             <ChevronDown className={cn('size-4 transition-transform duration-200', showAdvanced && 'rotate-180')} />
-            {showAdvanced ? 'Ẩn tuỳ chọn' : 'Tuỳ chọn: phạm vi, mật khẩu, sức chứa'}
+            {showAdvanced ? 'Ẩn tuỳ chọn' : 'Cấu hình vào phòng'}
           </button>
 
           {showAdvanced && (
@@ -253,7 +253,6 @@ export function CreateStudyRoomDialog({
                     disabled={isSubmitting}
                     icon={<Globe className="size-4" />}
                     tieuDe="Toàn trường"
-                    moTa="Mọi người trong trường"
                   />
                   <TheLuaChon
                     testId="create-room-scope-lop"
@@ -264,7 +263,6 @@ export function CreateStudyRoomDialog({
                     disabled={isSubmitting || !coTheChonLop}
                     icon={<School className="size-4" />}
                     tieuDe={classNameDisplay ? tenLop(classNameDisplay) : 'Lớp học'}
-                    moTa={coTheChonLop ? 'Chỉ thành viên lớp' : 'Bạn chưa thuộc lớp nào'}
                   />
                 </div>
               </fieldset>
@@ -279,7 +277,6 @@ export function CreateStudyRoomDialog({
                     disabled={isSubmitting}
                     icon={<Globe className="size-4" />}
                     tieuDe="Công khai"
-                    moTa="Ai thấy phòng đều vào được"
                   />
                   <TheLuaChon
                     testId="create-room-mode-password"
@@ -287,8 +284,7 @@ export function CreateStudyRoomDialog({
                     onChon={() => setAccessMode('password')}
                     disabled={isSubmitting}
                     icon={<Lock className="size-4" />}
-                    tieuDe="Có mật khẩu"
-                    moTa="Nhập đúng mật khẩu mới vào"
+                    tieuDe="Riêng tư"
                   />
                 </div>
               </fieldset>
@@ -307,7 +303,7 @@ export function CreateStudyRoomDialog({
                       setPassword(e.target.value)
                       setError(null)
                     }}
-                    placeholder="Tối thiểu 4 ký tự"
+                    placeholder="Nhập mật khẩu..."
                     disabled={isSubmitting}
                     maxLength={50}
                   />
@@ -332,7 +328,7 @@ export function CreateStudyRoomDialog({
                     disabled={isSubmitting}
                     className="w-28 tabular-nums"
                   />
-                  <span className="text-sm text-text-tertiary">người (2–100)</span>
+                  <span className="text-sm text-text-tertiary">người</span>
                 </div>
               </div>
             </div>
@@ -389,7 +385,7 @@ function TheLuaChon({
   disabled: boolean
   icon: ReactNode
   tieuDe: string
-  moTa: string
+  moTa?: string
 }) {
   return (
     <button
@@ -399,16 +395,16 @@ function TheLuaChon({
       onClick={onChon}
       disabled={disabled}
       className={cn(
-        'flex items-start gap-2.5 rounded-xl border p-3 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
+        'flex items-center gap-2.5 rounded-xl border p-3 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50',
         chon
           ? 'border-brand/50 bg-brand/10'
           : 'border-border-default hover:border-border-strong hover:bg-surface-overlay/60',
       )}
     >
-      <span className={cn('mt-0.5 shrink-0', chon ? 'text-brand' : 'text-text-tertiary')}>{icon}</span>
+      <span className={cn('shrink-0', chon ? 'text-brand' : 'text-text-tertiary')}>{icon}</span>
       <span className="min-w-0">
         <span className={cn('block text-sm font-medium break-words', chon ? 'text-brand' : 'text-text-primary')}>{tieuDe}</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-text-tertiary">{moTa}</span>
+        {moTa && <span className="mt-0.5 block text-xs leading-relaxed text-text-tertiary">{moTa}</span>}
       </span>
     </button>
   )
