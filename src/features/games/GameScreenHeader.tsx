@@ -15,7 +15,7 @@ interface GameScreenHeaderProps {
 export function GameScreenHeader({ title, subtitle, onBack, backLabel, actions }: GameScreenHeaderProps) {
   return (
     <header className="glass sticky top-0 z-30 border-b border-border-subtle">
-      <div className="mx-auto flex min-h-14 max-w-5xl items-center gap-3 px-4 py-2 sm:px-6">
+      <div className="mx-auto flex min-h-14 max-w-[1920px] items-center gap-3 px-2.5 sm:px-4 py-2">
         <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label={backLabel} className="shrink-0">
           <ArrowLeft />
         </Button>

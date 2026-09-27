@@ -3,7 +3,7 @@ import type { GameMetaState, GameType } from '@shared/protocol/game'
 /** Mẫu mã bàn máy chủ chấp nhận ở cổng `/ws/game/:maPhong` (worker/index.ts — vaoPhongGame). */
 export const MAU_MA_BAN = /^[a-z0-9-]{1,64}$/
 
-const CAC_TRO_CHOI_DON: readonly GameType[] = ['solo_2048', 'solo_memory', 'solo_snake']
+const CAC_TRO_CHOI_DON: readonly GameType[] = ['solo_memory', 'solo_snake']
 
 export const laTroChoiDon = (gameType: GameType): boolean => CAC_TRO_CHOI_DON.includes(gameType)
 

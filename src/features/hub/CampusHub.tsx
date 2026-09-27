@@ -316,7 +316,7 @@ export function CampusHub({ nguoiDung, onDangXuat, onLamMoiPhien }: CampusHubPro
                   </Badge>
                 </div>
                 <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  Giao lưu trí tuệ: Caro, Cờ lật, 2048
+                  Cờ Vua, Cờ Tướng, Caro, Trí Nhớ, Rắn Săn Mồi
                 </p>
               </div>
             </CardContent>

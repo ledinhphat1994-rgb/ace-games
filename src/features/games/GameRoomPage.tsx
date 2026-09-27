@@ -8,10 +8,8 @@ import { laTroChoiDon } from './game-ids'
 
 const CAC_GAME_TYPE: readonly GameType[] = [
   'caro_15',
-  'caro_9',
-  'connect4',
-  'reversi',
-  'solo_2048',
+  'chess',
+  'xiangqi',
   'solo_memory',
   'solo_snake',
 ]
@@ -34,7 +32,11 @@ export function GameRoomPage() {
   // Chỉ có ở link vừa tạo bàn từ sảnh (?gameType=...&turn=...) — vào bàn có sẵn từ danh sách bàn đang mở
   // thì không kèm tham số này, để không vô tình khởi tạo lại ván đang chơi của người khác.
   const gameTypeParam = searchParams.get('gameType')
-  const intendedGameType = laGameType(gameTypeParam) ? gameTypeParam : undefined
+  const intendedGameType = laGameType(gameTypeParam)
+    ? gameTypeParam
+    : laGameType(gameId)
+      ? (gameId as GameType)
+      : undefined
 
   // Trò chơi đơn không có bàn WebSocket: dựng khu chơi riêng thay vì bàn đối kháng.
   if (intendedGameType && laTroChoiDon(intendedGameType)) {

@@ -7,8 +7,8 @@ import { MAU_MA_BAN, laTroChoiDon, nenKhoiTaoBan, taoMaBan } from '../src/featur
 import workerRaw from '../worker/index.ts?raw'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
-const CAC_LOAI: readonly GameType[] = ['caro_15', 'caro_9', 'connect4', 'reversi', 'solo_2048', 'solo_memory', 'solo_snake']
-const CAC_LOAI_1V1: readonly GameType[] = ['caro_15', 'caro_9', 'connect4', 'reversi']
+const CAC_LOAI: readonly GameType[] = ['caro_15', 'chess', 'xiangqi', 'solo_memory', 'solo_snake']
+const CAC_LOAI_1V1: readonly GameType[] = ['caro_15', 'chess', 'xiangqi']
 
 describe('Mã bàn của sảnh Game', () => {
   it('khớp đúng mẫu mà cổng /ws/game/:maPhong của máy chủ đang dùng', () => {
@@ -26,13 +26,13 @@ describe('Mã bàn của sảnh Game', () => {
   })
 
   it('phân biệt trò chơi đơn với trò đối kháng', () => {
-    expect(CAC_LOAI.filter(laTroChoiDon)).toEqual(['solo_2048', 'solo_memory', 'solo_snake'])
+    expect(CAC_LOAI.filter(laTroChoiDon)).toEqual(['solo_memory', 'solo_snake'])
   })
 
   it('người tạo bàn khởi tạo cả bàn Caro 15×15 (trùng loại mặc định), chỉ khi bàn còn trống', () => {
     const trong = { status: 'waiting' as const, playerX: null, playerO: null }
     expect(nenKhoiTaoBan(trong, 'caro_15')).toBe(true)
-    expect(nenKhoiTaoBan(trong, 'connect4')).toBe(true)
+    expect(nenKhoiTaoBan(trong, 'chess')).toBe(true)
     expect(nenKhoiTaoBan(trong, undefined)).toBe(false)
     expect(nenKhoiTaoBan({ ...trong, playerX: 'acc:1' }, 'caro_15')).toBe(false)
     expect(nenKhoiTaoBan({ ...trong, status: 'playing' }, 'caro_15')).toBe(false)

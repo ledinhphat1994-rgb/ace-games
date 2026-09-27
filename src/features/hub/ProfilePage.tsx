@@ -23,8 +23,9 @@ type TabHoSo = 'profile' | 'avatar' | 'progress' | 'security'
 const CAC_TAB_HO_SO: readonly TabHoSo[] = ['profile', 'avatar', 'progress', 'security']
 
 export function ProfilePage() {
-  const { nguoiDung, lamMoiPhien } = usePhien()
+  const { nguoiDung, lamMoiPhien, moAuthModal } = usePhien()
   const [searchParams, setSearchParams] = useSearchParams()
+
   // Tab lấy thẳng từ URL (/me?tab=avatar…) để menu tài khoản mở đúng tab kể cả khi đang ở sẵn trang này.
   const tabTrenUrl = searchParams.get('tab')
   const activeTab: TabHoSo = CAC_TAB_HO_SO.find((tab) => tab === tabTrenUrl) ?? 'profile'
@@ -40,21 +41,22 @@ export function ProfilePage() {
       if (!res.ok) throw new Error('Không thể tải thông tin chuyên cần.')
       return res.json()
     },
+    enabled: !!nguoiDung,
     staleTime: 30_000,
   })
 
   // Profile edit states
-  const [tenHienThi, setTenHienThi] = useState(nguoiDung.ten || nguoiDung.username)
-  const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung.tieuDeHoSo ?? '')
+  const [tenHienThi, setTenHienThi] = useState(nguoiDung?.ten || nguoiDung?.username || '')
+  const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung?.tieuDeHoSo ?? '')
   const [dangLuuProfile, setDangLuuProfile] = useState(false)
 
   // Phiên được làm mới (vừa lưu hồ sơ ở đây hoặc nơi khác): nạp lại giá trị mới vào form.
-  const nguonHoSo = `${nguoiDung.ten ?? ''}|${nguoiDung.username}|${nguoiDung.tieuDeHoSo ?? ''}`
+  const nguonHoSo = `${nguoiDung?.ten ?? ''}|${nguoiDung?.username ?? ''}|${nguoiDung?.tieuDeHoSo ?? ''}`
   const [nguonDaNap, setNguonDaNap] = useState(nguonHoSo)
   if (nguonHoSo !== nguonDaNap) {
     setNguonDaNap(nguonHoSo)
-    setTenHienThi(nguoiDung.ten || nguoiDung.username)
-    setTieuDeHoSo(nguoiDung.tieuDeHoSo ?? '')
+    setTenHienThi(nguoiDung?.ten || nguoiDung?.username || '')
+    setTieuDeHoSo(nguoiDung?.tieuDeHoSo ?? '')
   }
 
   // Password states
@@ -62,6 +64,23 @@ export function ProfilePage() {
   const [matKhauMoi, setMatKhauMoi] = useState('')
   const [xacNhanMoi, setXacNhanMoi] = useState('')
   const [dangDoiMk, setDangDoiMk] = useState(false)
+
+  if (!nguoiDung) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-brand/10 text-brand mb-4">
+          <User className="size-7" />
+        </span>
+        <h2 className="text-xl font-bold text-text-primary">Hồ sơ cá nhân</h2>
+        <p className="mt-2 max-w-sm text-sm text-text-secondary leading-relaxed">
+          Vui lòng đăng nhập để xem thông tin học tập, thành tích chuyên cần và quản lý tài khoản của bạn.
+        </p>
+        <Button onClick={() => moAuthModal('dang_nhap')} className="mt-6 font-semibold bg-brand text-brand-foreground hover:bg-brand/90">
+          Đăng nhập ngay
+        </Button>
+      </div>
+    )
+  }
 
   const doiTab = (tab: TabHoSo) => {
     setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true })

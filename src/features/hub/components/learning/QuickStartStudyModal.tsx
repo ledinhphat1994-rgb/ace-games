@@ -63,14 +63,14 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
   const [selectedTemplate, setSelectedTemplate] = useState<string>('solo_focus')
   const { isInFlight, handleOpenChange, execute } = useQuickStartLock()
 
-  const displayName = nguoiDung.ten || nguoiDung.username
-  const className = nguoiDung.lop?.ten || (nguoiDung.lopId ? `Lớp ${nguoiDung.lopId}` : undefined)
+  const displayName = nguoiDung?.ten || nguoiDung?.username || 'Bạn học'
+  const className = nguoiDung?.lop?.ten || (nguoiDung?.lopId ? `Lớp ${nguoiDung.lopId}` : undefined)
 
   const handleStart = async () => {
     if (isInFlight) return
 
     const template = QUICK_TEMPLATES.find((t) => t.id === selectedTemplate) || QUICK_TEMPLATES[0]
-    const phamVi = template.phamVi === 'lop' && nguoiDung.lopId ? 'lop' : 'truong'
+    const phamVi = template.phamVi === 'lop' && nguoiDung?.lopId ? 'lop' : 'truong'
     const roomName = template.defaultName(displayName, className)
 
     await execute(
@@ -82,7 +82,7 @@ export function QuickStartStudyModal({ open, onOpenChange, onSuccess }: QuickSta
             ten: roomName,
             moTa: template.description,
             phamVi,
-            lopId: phamVi === 'lop' ? nguoiDung.lopId : undefined,
+            lopId: phamVi === 'lop' && nguoiDung ? nguoiDung.lopId : undefined,
             accessMode: 'public',
             sucChua: template.sucChua,
           }),

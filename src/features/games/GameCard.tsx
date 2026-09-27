@@ -1,62 +1,111 @@
-import { Play } from 'lucide-react'
+import { Play, Swords, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GameArt } from './GameArt'
 import type { GameDefinition } from './game-catalog'
+import { cn } from '@/lib/utils'
+
+export interface GameCardStats {
+  banCount: number
+  playersCount: number
+  spectatorsCount: number
+}
 
 interface GameCardProps {
   game: GameDefinition
-  /** Số bàn đang chờ đối thủ (dữ liệu trực tiếp từ GameLobbyDO) — chỉ có nghĩa với trò đối kháng. */
   waiting: number
+  stats?: GameCardStats
   onPlay: () => void
   onOpenTables?: () => void
 }
 
-// Thẻ trò chơi: dạng hàng ngang gọn trên điện thoại, dạng thẻ có ảnh bìa từ màn hình sm trở lên.
-export function GameCard({ game, waiting, onPlay, onOpenTables }: GameCardProps) {
+export function GameCard({ game, waiting, stats, onPlay }: GameCardProps) {
   const laDoiKhang = game.category === '1v1'
+  // Vùng 6: Đồng bộ màu badge theo nội dung giống nhau (1v1 & Đấu Máy: cyan neon; Đấu AI & Solo: tím neon)
+  const badgeColor = laDoiKhang
+    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 shadow-sm shadow-cyan-500/10'
+    : 'bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-sm shadow-purple-500/10'
 
   return (
     <article
       data-testid={`game-card-${game.id}`}
-      className="group flex gap-4 rounded-2xl border border-border-subtle bg-surface p-3 transition-colors duration-150 hover:border-border-strong sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101728] to-[#0a0f1d] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand/60 hover:shadow-2xl hover:shadow-brand/15"
     >
-      <div className="relative aspect-square w-24 shrink-0 self-start overflow-hidden rounded-xl sm:aspect-video sm:w-full sm:rounded-none sm:border-b sm:border-border-subtle">
-        <GameArt gameType={game.id} className="transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+      {/* Artwork container */}
+      <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-white/5 bg-black/40">
+        <GameArt
+          gameType={game.id}
+          className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+        />
+
+        {/* Top-left Category & Mode Badge */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold backdrop-blur-md shadow-sm',
+              badgeColor
+            )}
+          >
+            {laDoiKhang ? <Swords className="size-3" /> : <Bot className="size-3" />}
+            {laDoiKhang ? '1v1 & Đấu Máy' : 'Đấu AI & Solo'}
+          </span>
+        </div>
+
+        {/* Top-right Waiting tables indicator */}
         {laDoiKhang && waiting > 0 && (
-          <span className="absolute top-3 left-3 hidden items-center gap-1.5 rounded-full border border-white/10 bg-canvas/75 px-2.5 py-1 text-xs font-medium text-text-primary backdrop-blur-md sm:inline-flex">
-            <span className="size-1.5 rounded-full bg-success" />
-            {waiting} bàn đang chờ
+          <span className="absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-black/60 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 backdrop-blur-md">
+            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {waiting} bàn chờ
           </span>
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col sm:p-4">
+      {/* Body container */}
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h3 className="min-w-0 text-[0.9375rem] leading-6 font-semibold break-words text-text-primary">
+          <h3 className="text-base font-extrabold tracking-tight text-white group-hover:text-brand transition-colors">
             {game.shortTitle}
           </h3>
-          <span className="shrink-0 text-xs text-text-tertiary">
-            {laDoiKhang ? `1v1 · ${game.boardLabel}` : 'Chơi đơn'}
+          <span className="text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">
+            {game.boardLabel || 'Bàn cờ'}
           </span>
         </div>
-        <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-text-secondary">{game.description}</p>
-        {laDoiKhang && waiting > 0 && (
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-success sm:hidden">
-            <span className="size-1.5 rounded-full bg-success" />
-            {waiting} bàn đang chờ
-          </p>
-        )}
 
-        <div className="day-loc-deu mt-auto pt-3 [--the-nho-nhat:5.5rem] sm:pt-4">
-          <Button size="sm" onClick={onPlay} aria-label={`Chơi ngay ${game.shortTitle}`}>
-            <Play className="fill-current" />
+        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-text-secondary">
+          {game.description}
+        </p>
+
+        {/* Vùng 6: Thống kê 3 chỉ số (Số bàn, Số người chơi, Số người xem) & Nút Chơi ngay */}
+        <div className="mt-auto pt-4 space-y-2.5">
+          <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1.5 text-center">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-tertiary">Số bàn</span>
+              <span className="text-xs font-bold text-white tabular-nums">
+                {stats?.banCount ?? (laDoiKhang ? waiting : 0)}
+              </span>
+            </div>
+            <div className="flex flex-col items-center border-x border-white/5">
+              <span className="text-[10px] text-text-tertiary">Số người chơi</span>
+              <span className="text-xs font-bold text-emerald-400 tabular-nums">
+                {stats?.playersCount ?? 0}
+              </span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-tertiary">Số người xem</span>
+              <span className="text-xs font-bold text-cyan-400 tabular-nums">
+                {stats?.spectatorsCount ?? 0}
+              </span>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={onPlay}
+            aria-label={`Chơi ngay ${game.shortTitle}`}
+            className="w-full font-bold bg-brand text-brand-foreground hover:bg-brand/90 shadow-md shadow-brand/20 group/btn h-9"
+          >
+            <Play className="size-4 fill-current transition-transform group-hover/btn:scale-110" />
             Chơi ngay
           </Button>
-          {laDoiKhang && onOpenTables && (
-            <Button size="sm" variant="outline" onClick={onOpenTables} aria-label={`Xem bàn ${game.shortTitle}`}>
-              Bàn · <span className="tabular-nums">{waiting}</span>
-            </Button>
-          )}
         </div>
       </div>
     </article>

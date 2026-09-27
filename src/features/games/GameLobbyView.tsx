@@ -1,17 +1,17 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Plus, Swords, Zap } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { Gamepad2, Plus } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { LiveDot, PageHeader, SectionHeader } from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
 import { GameArt } from './GameArt'
 import { GameCard } from './GameCard'
-import { GameLeaderboard } from './GameLeaderboard'
-import { GameTableCard } from './GameTableCard'
+import { GameArenaLeaderboard } from './GameArenaLeaderboard'
+import { GameSocialSidebar } from './GameSocialSidebar'
 import { laTroChoiDon, taoMaBan } from './game-ids'
-import { CAC_GAME_1V1, CAC_GAME_SOLO, GAME_CATALOG_BY_ID } from './game-catalog'
+import { CAC_GAME_1V1, CAC_GAME_SOLO, GAME_CATALOG_BY_ID, type GameDefinition } from './game-catalog'
+import { toast } from 'sonner'
 
 interface GameLobbyViewProps {
   onCreateRoom: (roomId: string, gameType: GameType, turnSeconds: number) => void
@@ -19,9 +19,8 @@ interface GameLobbyViewProps {
 }
 
 const THOI_GIAN_LUOT = [15, 30, 60] as const
-const SO_BAN_HIEN_THI = 6
 
-/** Bàn đang chờ lên trước (vào chơi được ngay), rồi bàn đông người xem, rồi bàn mới cập nhật. */
+/** Bàn đang chờ lên trước, rồi bàn đông người xem. */
 function xepBan(a: BanSanh, b: BanSanh) {
   const uuTien = (t: BanSanh) => (t.trangThai === 'waiting' ? 0 : 1)
   return uuTien(a) - uuTien(b) || b.soNguoiXem - a.soNguoiXem || b.capNhatLuc - a.capNhatLuc
@@ -31,24 +30,21 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
   const [hopThoaiBan, setHopThoaiBan] = useState<{ open: boolean; game: GameType }>({ open: false, game: 'caro_15' })
   const [turnSeconds, setTurnSeconds] = useState<number>(30)
 
-  const { data: tablesData, isPending: tablesPending, isError: tablesError, refetch, isRefetching } = useGameRooms()
-  // Bàn đã kết thúc không vào được nữa — chỉ hiện bàn đang chờ / đang đấu.
+  const { data: tablesData } = useGameRooms()
   const tables = useMemo<BanSanh[]>(
-    () => (tablesData ?? []).filter((t) => t.trangThai !== 'ended').sort(xepBan),
+    () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended').sort(xepBan),
     [tablesData],
   )
 
   const waitingCounts = useMemo(() => {
     const dem: Partial<Record<GameType, number>> = {}
     for (const t of tables) {
-      if (t.trangThai === 'waiting') dem[t.gameType] = (dem[t.gameType] ?? 0) + 1
+      if (t.trangThai === 'waiting') {
+        dem[t.gameType] = (dem[t.gameType] ?? 0) + 1
+      }
     }
     return dem
   }, [tables])
-
-  const soDangCho = useMemo(() => tables.filter((t) => t.trangThai === 'waiting').length, [tables])
-  const soDangChoi = tables.length - soDangCho
-  const tongNguoiXem = useMemo(() => tables.reduce((sum, t) => sum + t.soNguoiXem, 0), [tables])
 
   // Chơi ngay: trò đơn mở phiên riêng; trò đối kháng vào bàn đang chờ đông người xem nhất, không có thì mở bàn mới.
   const handlePlayGame = useCallback(
@@ -59,8 +55,8 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
       }
 
       const waiting = tables
-        .filter((t) => t.gameType === gameType && t.trangThai === 'waiting')
-        .sort((a, b) => b.soNguoiXem - a.soNguoiXem)[0]
+        .filter((t: BanSanh) => t.gameType === gameType && t.trangThai === 'waiting')
+        .sort((a: BanSanh, b: BanSanh) => b.soNguoiXem - a.soNguoiXem)[0]
 
       if (waiting) {
         onJoinExisting(waiting.id)
@@ -72,239 +68,164 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
     [tables, onJoinExisting, onCreateRoom],
   )
 
-  const handleQuickMatch = useCallback(() => {
-    const banBatKy = tables
-      .filter((t) => t.trangThai === 'waiting')
-      .sort((a, b) => b.soNguoiXem - a.soNguoiXem)[0]
 
-    if (banBatKy) {
-      onJoinExisting(banBatKy.id)
-      return
-    }
-    onCreateRoom(taoMaBan('caro_15'), 'caro_15', 30)
-  }, [tables, onJoinExisting, onCreateRoom])
-
-  const moHopThoaiBan = (game: GameType) => setHopThoaiBan({ open: true, game })
-  const tableCuaTroDangMo = tables.filter((t) => t.gameType === hopThoaiBan.game)
-  const troDangMo = GAME_CATALOG_BY_ID[hopThoaiBan.game]
-
-  const moTaTrucTiep = tablesPending ? (
-    <span className="inline-flex items-center gap-2">
-      <LiveDot tone="muted" />
-      Đang kết nối đấu trường…
-    </span>
-  ) : tablesError ? (
-    <span className="inline-flex items-center gap-2 text-warning">
-      <LiveDot tone="warning" />
-      Chưa tải được danh sách bàn — hệ thống đang thử lại.
-    </span>
-  ) : (
-    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-      <LiveDot tone={tables.length > 0 ? 'success' : 'muted'} />
-      <span>
-        <span className="font-semibold text-text-primary tabular-nums">{soDangCho}</span> bàn đang chờ
-      </span>
-      <span className="text-text-tertiary">·</span>
-      <span>
-        <span className="font-semibold text-text-primary tabular-nums">{soDangChoi}</span> trận đang diễn ra
-      </span>
-      <span className="text-text-tertiary">·</span>
-      <span>
-        <span className="font-semibold text-text-primary tabular-nums">{tongNguoiXem}</span> người xem
-      </span>
-    </span>
+  const handleInviteToGame = useCallback(
+    (_friendId: number, friendName: string) => {
+      const maBan = taoMaBan('caro_15')
+      onCreateRoom(maBan, 'caro_15', 30)
+      toast.success(`Đã mở bàn Caro và gửi lời mời tới ${friendName}!`)
+    },
+    [onCreateRoom]
   )
 
+  const moHopThoaiBan = (game: GameType) => setHopThoaiBan({ open: true, game })
+  const tableCuaTroDangMo = tables.filter((t: BanSanh) => t.gameType === hopThoaiBan.game)
+  const troDangMo = GAME_CATALOG_BY_ID[hopThoaiBan.game]
+
+  const allGames = useMemo<GameDefinition[]>(() => [...CAC_GAME_1V1, ...CAC_GAME_SOLO], [])
+
+  const gameStats = useMemo(() => {
+    const stats: Partial<Record<GameType, { banCount: number; playersCount: number; spectatorsCount: number }>> = {}
+    for (const g of allGames) {
+      stats[g.id] = { banCount: 0, playersCount: 0, spectatorsCount: 0 }
+    }
+    for (const t of tables) {
+      if (stats[t.gameType]) {
+        stats[t.gameType]!.banCount += 1
+        stats[t.gameType]!.playersCount += (t.tenChu ? 1 : 0) + (t.tenKhach ? 1 : 0)
+        stats[t.gameType]!.spectatorsCount += t.soNguoiXem ?? 0
+      }
+    }
+    return stats
+  }, [allGames, tables])
+
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Game"
-        description={moTaTrucTiep}
-        actions={
-          <Button onClick={handleQuickMatch} data-testid="game-quick-match-btn">
-            <Zap className="fill-current" />
-            Ghép trận nhanh
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="min-w-0 space-y-8">
-          <section aria-labelledby="game-1v1-heading" className="space-y-4">
-            <SectionHeader
-              id="game-1v1-heading"
-              title="Đấu 1v1"
-              description="Vào bàn bạn khác đang chờ, hoặc mở bàn mới và chờ đối thủ."
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              {CAC_GAME_1V1.map((game) => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  waiting={waitingCounts[game.id] ?? 0}
-                  onPlay={() => handlePlayGame(game.id)}
-                  onOpenTables={() => moHopThoaiBan(game.id)}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section aria-labelledby="game-solo-heading" className="space-y-4">
-            <SectionHeader
-              id="game-solo-heading"
-              title="Chơi đơn"
-              description="Thử thách bản thân trong vài phút giải lao."
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-              {CAC_GAME_SOLO.map((game) => (
-                <GameCard key={game.id} game={game} waiting={0} onPlay={() => handlePlayGame(game.id)} />
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <aside className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start lg:grid-cols-1 lg:self-start">
-          <section
-            aria-labelledby="game-open-tables-heading"
-            className="overflow-hidden rounded-2xl border border-border-subtle bg-surface"
-          >
-            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-2">
-              <h2
-                id="game-open-tables-heading"
-                className="flex items-baseline gap-2 text-[0.9375rem] leading-6 font-semibold text-text-primary"
-              >
-                Bàn đang mở
-                {!tablesPending && !tablesError && (
-                  <span className="text-sm font-medium tabular-nums text-text-tertiary">{tables.length}</span>
-                )}
-              </h2>
-            </div>
-
-            <div className="min-h-[196px] px-2 pb-2" style={{ overflowAnchor: 'none' }}>
-              {tablesPending ? (
-                <div className="space-y-1" aria-busy="true" aria-label="Đang tải danh sách bàn">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="flex items-center gap-3 px-2 py-2.5">
-                      <div className="size-10 animate-pulse rounded-lg bg-surface-overlay" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-3/4 animate-pulse rounded bg-surface-overlay" />
-                        <div className="h-2.5 w-1/2 animate-pulse rounded bg-surface-overlay/70" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : tablesError ? (
-                <div className="flex min-h-[188px] flex-col items-center justify-center gap-3 px-6 text-center">
-                  <p className="text-[0.8125rem] text-text-secondary">Không tải được danh sách bàn.</p>
-                  <Button size="xs" variant="outline" onClick={() => void refetch()} disabled={isRefetching}>
-                    Thử lại
-                  </Button>
-                </div>
-              ) : tables.length === 0 ? (
-                <div className="flex min-h-[188px] flex-col items-center justify-center px-6 text-center">
-                  <Swords className="size-5 text-text-tertiary" />
-                  <p className="mt-2.5 text-[0.8125rem] font-medium text-text-primary">Chưa có bàn nào đang mở</p>
-                  <p className="mt-1 text-xs leading-relaxed text-text-tertiary">
-                    Bấm “Chơi ngay” ở một trò 1v1 để mở bàn đầu tiên.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-0.5">
-                    {tables.slice(0, SO_BAN_HIEN_THI).map((table) => (
-                      <GameTableCard key={table.id} table={table} onEnter={() => onJoinExisting(table.id)} />
-                    ))}
-                  </div>
-                  {tables.length > SO_BAN_HIEN_THI && (
-                    <p className="px-2 pt-2 pb-1 text-xs text-text-tertiary">
-                      Còn {tables.length - SO_BAN_HIEN_THI} bàn khác — chọn “Bàn” ở từng trò để xem đủ.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-border-subtle bg-surface p-4">
-            <GameLeaderboard gameType="solo_snake" verifiedOnly limit={5} />
-          </section>
-        </aside>
-      </div>
-
-      {/* ── Hộp thoại bàn của một trò đối kháng ───────────────── */}
-      <Dialog open={hopThoaiBan.open} onOpenChange={(open) => setHopThoaiBan((s) => ({ ...s, open }))}>
-        <DialogContent className="gap-0 p-0 sm:max-w-md">
-          <div className="flex items-center gap-3 border-b border-border-subtle p-4 pr-12">
-            <div className="size-11 shrink-0 overflow-hidden rounded-xl">
-              <GameArt gameType={hopThoaiBan.game} variant="icon" />
-            </div>
-            <div className="min-w-0">
-              <DialogTitle className="text-base leading-6 font-semibold text-text-primary">
-                {troDangMo.shortTitle}
-              </DialogTitle>
-              <DialogDescription className="text-[0.8125rem] text-text-secondary">
-                Vào bàn đang chờ hoặc mở bàn mới.
-              </DialogDescription>
+    <div className="space-y-6">
+      {/* ── Header Đấu Trường Game ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 shadow-xl shadow-cyan-500/25 text-white ring-1 ring-white/20">
+            <Gamepad2 className="size-6 drop-shadow-md" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+                Game
+              </h1>
+              <span className="rounded-full bg-gradient-to-r from-cyan-500/20 to-brand/20 border border-cyan-500/30 px-3 py-0.5 text-xs font-extrabold text-cyan-300 shadow-sm">
+                5 Bộ Môn
+              </span>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-3 p-4">
-            <p className="text-xs font-medium text-text-secondary">Thời gian mỗi lượt</p>
-            <div className="day-loc-deu [--the-nho-nhat:4.5rem]" role="group" aria-label="Thời gian mỗi lượt">
-              {THOI_GIAN_LUOT.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={turnSeconds === s}
-                  onClick={() => setTurnSeconds(s)}
-                  className={cn(
-                    'flex h-9 items-center rounded-xl border text-sm font-medium transition-colors duration-150',
-                    turnSeconds === s
-                      ? 'border-brand/60 bg-brand/10 text-brand'
-                      : 'border-border-default text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
-                  )}
-                >
-                  {s} giây
-                </button>
-              ))}
+      {/* ── Bố cục chính 3 cột trải rộng: Cột Trái rộng: Bảng xếp hạng | Cột Giữa To Bự: 5 Game | Cột Phải rộng: Chat & Bạn bè ── */}
+      <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-start w-full">
+        {/* ── Cột 1 (Bên trái): Bảng xếp hạng dài & ngang bằng cột chat ── */}
+        <div className="min-w-0 order-2 lg:order-1">
+          <GameArenaLeaderboard />
+        </div>
+
+        {/* ── Cột 2 (Trung tâm to bự): Danh sách 5 game chiếm trọn không gian giữa ── */}
+        <div className="min-w-0 order-1 lg:order-2 flex-1">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+            {allGames.map((game) => (
+              <GameCard
+                key={game.id}
+                game={game}
+                waiting={waitingCounts[game.id] ?? 0}
+                stats={gameStats[game.id]}
+                onPlay={() => handlePlayGame(game.id)}
+                onOpenTables={() => moHopThoaiBan(game.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Cột 3 (Bên phải): Trò chuyện chung, riêng & Danh sách bạn ── */}
+        <div className="min-w-0 order-3 lg:col-span-2 xl:col-span-1">
+          <GameSocialSidebar onInviteToGame={handleInviteToGame} />
+        </div>
+      </div>
+
+      {/* Hộp thoại xem các bàn đang chờ của một trò chơi đối kháng */}
+      <Dialog
+        open={hopThoaiBan.open}
+        onOpenChange={(open) => setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open }))}
+      >
+        <DialogContent className="max-w-md">
+          <DialogTitle className="flex items-center gap-2">
+            <span className="size-5">
+              <GameArt gameType={hopThoaiBan.game} className="size-full" />
+            </span>
+            Bàn {troDangMo?.title}
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Vào bàn bạn bè đang chờ hoặc tự tạo bàn mới.
+          </DialogDescription>
+
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+            <div className="text-xs">
+              <p className="font-semibold text-text-primary">Mở bàn mới</p>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span className="text-text-tertiary">Mỗi lượt:</span>
+                {THOI_GIAN_LUOT.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setTurnSeconds(s)}
+                    className={cn(
+                      'rounded-md px-2 py-0.5 text-xs font-semibold transition-colors',
+                      turnSeconds === s
+                        ? 'bg-brand text-brand-foreground'
+                        : 'bg-white/5 text-text-secondary hover:text-white',
+                    )}
+                  >
+                    {s}s
+                  </button>
+                ))}
+              </div>
             </div>
             <Button
-              className="w-full"
+              size="sm"
               onClick={() => {
-                const g = hopThoaiBan.game
-                setHopThoaiBan((s) => ({ ...s, open: false }))
-                onCreateRoom(taoMaBan(g), g, turnSeconds)
+                setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open: false }))
+                onCreateRoom(taoMaBan(hopThoaiBan.game), hopThoaiBan.game, turnSeconds)
               }}
             >
-              <Plus />
-              Mở bàn mới
+              <Plus className="size-3.5" />
+              Mở bàn
             </Button>
           </div>
 
-          <div className="border-t border-border-subtle p-4 pt-3">
-            <p className="flex items-baseline gap-2 px-0 pb-1.5 text-xs font-medium text-text-secondary">
-              Bàn đang mở
-              <span className="tabular-nums text-text-tertiary">{tableCuaTroDangMo.length}</span>
-            </p>
-            <div className="-mx-2 max-h-64 min-h-[88px] overflow-y-auto" style={{ overflowAnchor: 'none' }}>
-              {tableCuaTroDangMo.length === 0 ? (
-                <p className="flex min-h-[88px] items-center justify-center px-4 text-center text-[0.8125rem] text-text-tertiary">
-                  Chưa có bàn {troDangMo.shortTitle} nào. Mở bàn mới để mời đối thủ.
-                </p>
-              ) : (
-                tableCuaTroDangMo.map((table) => (
-                  <GameTableCard
-                    key={table.id}
-                    table={table}
-                    hideGameBadge
-                    onEnter={() => {
-                      setHopThoaiBan((s) => ({ ...s, open: false }))
-                      onJoinExisting(table.id)
+          <div className="mt-2 min-h-32 max-h-64 overflow-y-auto space-y-1.5">
+            {tableCuaTroDangMo.length === 0 ? (
+              <p className="py-8 text-center text-xs text-text-tertiary">
+                Chưa có bàn nào đang chờ — hãy tạo bàn đầu tiên!
+              </p>
+            ) : (
+              tableCuaTroDangMo.map((t: BanSanh) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-2.5 hover:bg-white/5 transition-all"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-text-primary">{t.tenChu || 'Người chơi X'}</p>
+                    <p className="text-[10px] text-text-tertiary">{t.turnTimerSeconds}s / lượt</p>
+                  </div>
+                  <Button
+                    size="xs"
+                    onClick={() => {
+                      setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open: false }))
+                      onJoinExisting(t.id)
                     }}
-                  />
-                ))
-              )}
-            </div>
+                  >
+                    Vào đấu
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

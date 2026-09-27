@@ -13,4 +13,9 @@ export default defineConfig({
       '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
     },
   },
+  server: {
+    watch: {
+      ignored: ['**/.godot/**', '**/unrealworld/**', '**/*.tmp'],
+    },
+  },
 })

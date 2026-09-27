@@ -1365,18 +1365,43 @@ app.get('/api/game/highscores', async (c) => {
   const gameType = c.req.query('gameType')
   // verifiedOnly=1 returns only server-verified results; omitting or =0 returns all (legacy + verified)
   const verifiedOnly = c.req.query('verifiedOnly') === '1'
+  const rawLimit = Number(c.req.query('limit'))
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 10
   if (!gameType) return loi('Thiếu gameType.', 400)
   // Mỗi người chơi một dòng — kỷ lục cao nhất của họ (SQLite lấy các cột còn lại từ đúng dòng có MAX(score)),
-  // để một người chơi nhiều ván không chiếm hết top 10.
-  const sql = `SELECT id, game_type AS gameType, player_name AS playerName, MAX(score) AS score, verified,
-                      created_at AS createdAt
-                 FROM game_high_scores
-                WHERE game_type = ?1${verifiedOnly ? ' AND verified = 1' : ''}
-                GROUP BY account_id
-                ORDER BY score DESC, createdAt ASC
-                LIMIT 10`
-  const { results } = await c.env.DB.prepare(sql).bind(gameType).all<{ id: number; gameType: string; playerName: string; score: number; verified: number; createdAt: number }>()
-  return c.json({ ok: true, highscores: results ?? [] })
+  // để một người chơi nhiều ván không chiếm hết top.
+  const sql = `SELECT
+        gh.id,
+        gh.game_type AS gameType,
+        gh.player_name AS playerName,
+        MAX(gh.score) AS score,
+        gh.verified,
+        gh.session_id AS session_id,
+        gh.created_at AS createdAt,
+        COALESCE(uep.total_xp, 0) AS totalXp
+      FROM game_high_scores gh
+      LEFT JOIN user_engagement_profile uep ON gh.account_id = uep.account_id
+      WHERE gh.game_type = ?1${verifiedOnly ? ' AND gh.verified = 1' : ''}
+      GROUP BY gh.account_id
+      ORDER BY score DESC, createdAt ASC
+      LIMIT ?2`
+  const { results } = await c.env.DB.prepare(sql)
+    .bind(gameType, limit)
+    .all<{
+      id: number
+      gameType: string
+      playerName: string
+      score: number
+      verified: number
+      session_id?: string
+      createdAt: number
+      totalXp: number
+    }>()
+  const highscores = (results ?? []).map((r) => ({
+    ...r,
+    level: Math.max(1, Math.floor(Math.sqrt((r.totalXp || 0) / 15)) + 1),
+  }))
+  return c.json({ ok: true, highscores })
 })
 
 // LEGACY endpoint: scores accepted from client are UNVERIFIED and excluded from authoritative rankings.

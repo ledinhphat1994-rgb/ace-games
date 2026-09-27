@@ -29,7 +29,7 @@ export const HOME_DESTINATION_CONFIGS: LegacyHomeDestinationConfig[] = [
     id: 'arena',
     title: 'Đấu trường Game',
     subtitle: 'Thư giãn & thử thách',
-    tags: ['Caro', '2048', 'Rắn'],
+    tags: ['Cờ Vua', 'Cờ Tướng', 'Caro', 'Rắn', 'Trí Nhớ'],
     artwork: '/assets/games/card_game.webp',
     href: '/arena',
     accentColor: 'green',

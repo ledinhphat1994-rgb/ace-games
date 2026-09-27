@@ -6,6 +6,7 @@ import { CHAT_CAMPUS } from '@shared/rooms/constants'
 
 import type { NotificationType } from '@shared/protocol/notification'
 import { SocialMutationLockManager, type SocialStatus } from '@/features/hub/social-semantics'
+import { PhienContext } from '@/app/phien'
 
 // ─── Notification System ────────────────────────────────────────────────────
 export type { NotificationType }
@@ -118,6 +119,9 @@ export interface CampusContextValue {
 const CampusContext = createContext<CampusContextValue | null>(null)
 
 export function CampusProvider({ children }: { children: React.ReactNode }) {
+  const phien = useContext(PhienContext)
+  const nguoiDung = phien?.nguoiDung ?? null
+
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiCampus>('dang_ket_noi')
   const [taiKhoanBiKhoa, setTaiKhoanBiKhoa] = useState(false)
   const [onlineCount, setOnlineCount] = useState<number>(0)
@@ -153,6 +157,12 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   // Tải social state từ API — Authoritative Server State Only (Không merge ghost request)
   const lamMoiSocialState = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!nguoiDung) {
+      setSocialState(RONG_SOCIAL_STATE)
+      setSocialStatus('ready')
+      setSocialError(null)
+      return { ok: true }
+    }
     try {
       const res = await fetch('/api/social/state')
       if (res.ok) {
@@ -188,6 +198,11 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   // Tải danh sách thông báo từ API D1
   const lamMoiNotifications = useCallback(async () => {
+    if (!nguoiDung) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
     try {
       const res = await fetch('/api/notifications?limit=50')
       if (res.ok) {
@@ -226,7 +241,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignored: network error
     }
-  }, [])
+  }, [nguoiDung])
 
   useEffect(() => {
     void lamMoiNotifications()
@@ -244,6 +259,12 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 
   const ketNoi = useCallback(() => {
     if (daHuyRef.current) return
+    if (!nguoiDung) {
+      setTrangThai('da_ket_noi')
+      setPresenceReady(false)
+      setCampusSnapshotReady(true)
+      return
+    }
     if (henGioKetNoiLaiRef.current) {
       clearTimeout(henGioKetNoiLaiRef.current)
       henGioKetNoiLaiRef.current = null
@@ -574,6 +595,10 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const guiChat = useCallback(async (text: string): Promise<KetQuaThaoTac> => {
+    if (!nguoiDung) {
+      phien?.moAuthModal('dang_nhap')
+      return { ok: false, loi: 'Vui lòng đăng nhập để gửi tin nhắn.' }
+    }
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return { ok: false, loi: 'Chưa kết nối tới máy chủ.' }
     const noiDung = lamSachVanBan(text)

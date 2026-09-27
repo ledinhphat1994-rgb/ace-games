@@ -24,7 +24,7 @@ export function ketThucVan(meta: GameMetaState, winner: PlayerSide | 'draw', lyD
     rematchBy: null,
     turnTimerEndsAt: 0,
   }
-  if (meta.gameType !== 'reversi' && winner !== 'draw') {
+  if (winner !== 'draw') {
     if (winner === 'X') ketQua.scoreX += 1
     else ketQua.scoreO += 1
   }
@@ -44,7 +44,6 @@ export function batDauVan(meta: GameMetaState, now: number): { meta: GameMetaSta
     rematchBy: null,
     turnTimerEndsAt: now + meta.turnTimerSeconds * 1000,
   }
-  if (meta.gameType === 'reversi') Object.assign(moi, demQuanReversi(board))
   return { meta: moi, board }
 }
 
@@ -52,27 +51,15 @@ export function taoBanMoi(gameType: GameType): BoardCell[][] {
   let r = 15
   let c = 15
 
-  if (gameType === 'caro_9') {
-    r = 9
-    c = 9
-  } else if (gameType === 'connect4') {
-    r = 6
-    c = 7
-  } else if (gameType === 'reversi') {
+  if (gameType === 'chess') {
     r = 8
     c = 8
+  } else if (gameType === 'xiangqi') {
+    r = 10
+    c = 9
   }
 
   const ban: BoardCell[][] = Array.from({ length: r }, () => Array.from({ length: c }, () => null))
-
-  if (gameType === 'reversi') {
-    // 4 quân ban đầu ở tâm Reversi (chuẩn Othello)
-    ban[3][3] = 'O'
-    ban[3][4] = 'X'
-    ban[4][3] = 'X'
-    ban[4][4] = 'O'
-  }
-
   return ban
 }
 

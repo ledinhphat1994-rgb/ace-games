@@ -29,14 +29,13 @@ import mainRaw from '../src/main.tsx?raw'
 describe('PQA-A: Primary Navigation Simplification Contracts', () => {
   // ── 1. Desktop Primary Navigation ──────────────────────────────────────────
   describe('1. Desktop Primary Navigation', () => {
-    it('A. Contains exactly 3 primary destinations', () => {
-      expect(DESKTOP_NAV_LINKS).toHaveLength(3)
+    it('A. Contains exactly 2 primary destinations', () => {
+      expect(DESKTOP_NAV_LINKS).toHaveLength(2)
     })
 
-    it('B. Destinations are strictly Học tập (/learn), Game (/arena), Cộng đồng (/community)', () => {
+    it('B. Destinations are strictly Học tập (/learn) and Game (/arena)', () => {
       expect(DESKTOP_NAV_LINKS[0]).toEqual({ to: '/learn', label: 'Học tập' })
       expect(DESKTOP_NAV_LINKS[1]).toEqual({ to: '/arena', label: 'Game' })
-      expect(DESKTOP_NAV_LINKS[2]).toEqual({ to: '/community', label: 'Cộng đồng' })
     })
 
     it('C. Prohibits Home (Trang chủ) and Personal/Profile (Cá nhân) from primary navigation', () => {
@@ -67,17 +66,16 @@ describe('PQA-A: Primary Navigation Simplification Contracts', () => {
 
   // ── 2. Mobile Bottom Navigation ────────────────────────────────────────────
   describe('2. Mobile Bottom Navigation', () => {
-    it('A. Contains exactly 3 primary destinations', () => {
-      expect(MOBILE_NAV_ITEMS).toHaveLength(3)
-      expect(NAV_ITEMS).toHaveLength(3)
+    it('A. Contains exactly 2 primary destinations', () => {
+      expect(MOBILE_NAV_ITEMS).toHaveLength(2)
+      expect(NAV_ITEMS).toHaveLength(2)
     })
 
-    it('B. Destinations are strictly Học tập (/learn), Game (/arena), Cộng đồng (/community)', () => {
+    it('B. Destinations are strictly Học tập (/learn), Game (/arena)', () => {
       const items = MOBILE_NAV_ITEMS.map((item: MobileNavItem) => ({ to: item.to, label: item.label }))
       expect(items).toEqual([
         { to: '/learn', label: 'Học tập' },
         { to: '/arena', label: 'Game' },
-        { to: '/community', label: 'Cộng đồng' },
       ])
     })
 

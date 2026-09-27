@@ -1,37 +1,19 @@
 import { useEffect, useState } from 'react'
-import { MousePointerClick, Play, Sparkles, Swords } from 'lucide-react'
+import { Bot, MousePointerClick, Play, Sparkles, Swords } from 'lucide-react'
 import type { BoardCell, GameType, PlayerSide } from '@shared/protocol/game'
-import {
-  kiemTraThangCaro,
-  kiemTraThangConnect4,
-  kiemTraVaLatReversi,
-  taoBanMoi,
-} from '../../../worker/game-engine'
+import { kiemTraThangCaro, taoBanMoi } from '../../../worker/game-engine'
 import { Button } from '@/components/ui/button'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
 import { SoloGameModal, type SoloGameType } from './SoloGameModal'
+import { GameArt } from './GameArt'
 
 const MAU_QUAN: Record<PlayerSide, string> = {
   X: 'bg-cyan-950 text-cyan-400 shadow-[0_0_5px_rgba(6,182,212,0.85)]',
   O: 'bg-fuchsia-950 text-fuchsia-400 shadow-[0_0_5px_rgba(217,70,239,0.85)]',
 }
 
-// Kịch bản minh hoạ ĐÃ KIỂM CHỨNG hợp lệ với đúng luật thật — thắng hàng ngang giữa bàn.
-// connect4 chỉ cần cột (x); y luôn để 0, applyNuoc tự tính hàng rơi thật.
 const KICH_BAN: Partial<Record<GameType, [number, number][]>> = {
   caro_15: [[5, 7], [5, 6], [6, 7], [6, 6], [7, 7], [7, 6], [8, 7], [8, 6], [9, 7]],
-  caro_9: [[2, 4], [2, 3], [3, 4], [3, 3], [4, 4], [4, 3], [5, 4], [5, 3], [6, 4]],
-  connect4: [[0, 0], [6, 0], [1, 0], [6, 0], [2, 0], [6, 0], [3, 0]],
-}
-
-function timNuocReversi(board: BoardCell[][], turn: PlayerSide): [number, number] | null {
-  for (let y = 0; y < board.length; y++) {
-    for (let x = 0; x < board[0].length; x++) {
-      if (board[y][x] !== null) continue
-      if (kiemTraVaLatReversi(board, x, y, turn).hopLe) return [x, y]
-    }
-  }
-  return null
 }
 
 function applyNuoc(
@@ -41,32 +23,13 @@ function applyNuoc(
   turn: PlayerSide,
   gameType: GameType,
 ): { board: BoardCell[][]; win: boolean; draw: boolean } | null {
-  if (gameType === 'caro_15' || gameType === 'caro_9') {
+  if (gameType === 'caro_15') {
     if (board[y][x] !== null) return null
     const next = board.map((r) => [...r])
     next[y][x] = turn
     return { board: next, win: Boolean(kiemTraThangCaro(next, x, y, turn)), draw: next.every((r) => r.every((c) => c !== null)) }
   }
-  if (gameType === 'connect4') {
-    let dropY = -1
-    for (let r = board.length - 1; r >= 0; r--) {
-      if (board[r][x] === null) {
-        dropY = r
-        break
-      }
-    }
-    if (dropY === -1) return null
-    const next = board.map((r) => [...r])
-    next[dropY][x] = turn
-    return { board: next, win: Boolean(kiemTraThangConnect4(next, x, dropY, turn)), draw: next.every((r) => r.every((c) => c !== null)) }
-  }
-  // reversi
-  const { hopLe, flipped } = kiemTraVaLatReversi(board, x, y, turn)
-  if (!hopLe) return null
-  const next = board.map((r) => [...r])
-  next[y][x] = turn
-  for (const [fx, fy] of flipped) next[fy][fx] = turn
-  return { board: next, win: false, draw: false }
+  return null
 }
 
 interface TrangThaiDemo {
@@ -88,11 +51,12 @@ interface GamePreviewColumnProps {
   onEnterRoom: () => void
 }
 
-// Cột 2: xem trước trò chơi đang chọn — đối kháng thì minh hoạ tự động (đúng luật thật, có thể tự thử tay);
-// chơi đơn thì mở thẳng trò chơi thật (không cần bàn), vì bản thân trò đó không dùng chung bàn cờ đối kháng.
 export function GamePreviewColumn({ gameType, onEnterRoom }: GamePreviewColumnProps) {
   const info = GAME_CATALOG_BY_ID[gameType]
   if (info.category === 'solo') return <XemTruocSolo gameType={gameType as SoloGameType} />
+  if (gameType === 'chess' || gameType === 'xiangqi') {
+    return <XemTruocCoChien gameType={gameType} onEnterRoom={onEnterRoom} />
+  }
   return <MinhHoaDoiKhang gameType={gameType} onEnterRoom={onEnterRoom} />
 }
 
@@ -105,7 +69,7 @@ function XemTruocSolo({ gameType }: { gameType: SoloGameType }) {
       <GameHeader gameType={gameType} />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border-default bg-surface/50 p-6 text-center">
         <span className="text-5xl">{info.icon}</span>
-        <p className="text-xs text-muted-foreground">Trò chơi một người — điểm số cao nhất được ghi vào bảng xếp hạng bên cạnh.</p>
+        <p className="text-xs text-muted-foreground">Trò chơi rèn luyện trí tuệ — có chế độ Đấu với Máy (AI) và 2 Người (PvP).</p>
       </div>
       <Button
         type="button"
@@ -115,6 +79,30 @@ function XemTruocSolo({ gameType }: { gameType: SoloGameType }) {
         <Play className="size-4 fill-slate-950" /> Chơi Ngay
       </Button>
       {dangChoi && <SoloGameModal gameType={gameType} onClose={() => setDangChoi(false)} />}
+    </div>
+  )
+}
+
+function XemTruocCoChien({ gameType, onEnterRoom }: { gameType: GameType; onEnterRoom: () => void }) {
+  return (
+    <div className="flex h-full flex-col gap-4">
+      <GameHeader gameType={gameType} />
+      <div className="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-2xl border border-border-default bg-canvas p-4 shadow-inner">
+        <div className="w-full max-w-[280px] aspect-video overflow-hidden rounded-xl">
+          <GameArt gameType={gameType} />
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+          <Bot className="size-4 text-cyan-400" />
+          <span>Hỗ trợ Đấu với Máy AI & Đấu 1v1</span>
+        </div>
+      </div>
+      <Button
+        type="button"
+        onClick={onEnterRoom}
+        className="h-11 w-full gap-1.5 bg-gradient-to-r from-brand to-cyan-600 font-extrabold text-slate-950 shadow-lg shadow-brand/25 hover:from-cyan-400 hover:to-cyan-500 cursor-pointer"
+      >
+        <Swords className="size-4" /> Vào Bàn Đấu Ngay
+      </Button>
     </div>
   )
 }
@@ -141,8 +129,6 @@ function GameHeader({ gameType }: { gameType: GameType }) {
 function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnterRoom: () => void }) {
   const [demo, setDemo] = useState<TrangThaiDemo>(() => trangThaiKhoiTao(gameType))
   const [tuChoi, setTuChoi] = useState(false)
-  // Component được remount theo key={gameType} ở nơi gọi, nên chỉ cần theo dõi tuChoi đổi để reset —
-  // "adjust state while rendering" (React docs) thay vì useEffect+setState, tránh render thừa.
   const [tuChoiDaXuLy, setTuChoiDaXuLy] = useState(tuChoi)
   if (tuChoi !== tuChoiDaXuLy) {
     setTuChoiDaXuLy(tuChoi)
@@ -155,7 +141,7 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
       setDemo((truoc) => {
         if (truoc.ketQua) return truoc
         const kichBan = KICH_BAN[gameType]
-        const toaDo = kichBan ? (kichBan[truoc.buoc] ?? null) : timNuocReversi(truoc.board, truoc.turn)
+        const toaDo = kichBan ? (kichBan[truoc.buoc] ?? null) : null
         if (!toaDo) return { ...truoc, ketQua: 'Ván minh hoạ kết thúc — đang lặp lại…' }
         const kq = applyNuoc(truoc.board, toaDo[0], toaDo[1], truoc.turn, gameType)
         if (!kq) return { ...truoc, ketQua: 'Ván minh hoạ kết thúc — đang lặp lại…' }
@@ -170,7 +156,6 @@ function MinhHoaDoiKhang({ gameType, onEnterRoom }: { gameType: GameType; onEnte
     return () => clearInterval(hen)
   }, [gameType, tuChoi])
 
-  // Đợi người xem kịp thấy kết quả rồi mới lặp lại từ đầu, tách khỏi nhịp đi quân ở trên.
   useEffect(() => {
     if (!demo.ketQua || tuChoi) return
     const t = setTimeout(() => setDemo(trangThaiKhoiTao(gameType)), 2200)

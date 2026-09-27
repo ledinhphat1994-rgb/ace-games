@@ -36,13 +36,9 @@ import {
   GIA_HAN_HET_GIO_MS,
   batDauVan,
   benKia,
-  coNuocDiHopLeReversi,
   daHetGioLuot,
-  demQuanReversi,
   ketThucVan,
   kiemTraThangCaro,
-  kiemTraThangConnect4,
-  kiemTraVaLatReversi,
   taoBanMoi,
 } from './game-engine'
 import { lamSachVanBan, MA_DONG_SOCKET } from '../shared/protocol/common'
@@ -1490,7 +1486,6 @@ export class RoomDO extends DurableObject<Env> {
           turnTimerSeconds: goi.turnSeconds ?? DEFAULT_GAME_META.turnTimerSeconds,
         }
         this.gameBoard = taoBanMoi(goi.gameType)
-        if (goi.gameType === 'reversi') Object.assign(this.gameMeta, demQuanReversi(this.gameBoard))
         this.luuGameState()
         this.baoLobby()
         this.phatTrangThaiGame(now)
@@ -1570,7 +1565,7 @@ export class RoomDO extends DurableObject<Env> {
         const W = this.gameBoard[0].length
         const hanLuotMoi = now + this.gameMeta.turnTimerSeconds * 1000
 
-        if (this.gameMeta.gameType === 'caro_15' || this.gameMeta.gameType === 'caro_9') {
+        if (this.gameMeta.gameType === 'caro_15') {
           if (x >= W || y >= H || this.gameBoard[y][x] !== null) {
             this.guiLoiGame(ws, 'Nước đi không hợp lệ.')
             return
@@ -1584,57 +1579,8 @@ export class RoomDO extends DurableObject<Env> {
           } else {
             this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
           }
-        } else if (this.gameMeta.gameType === 'connect4') {
-          if (x >= W) {
-            this.guiLoiGame(ws, 'Cột không hợp lệ.')
-            return
-          }
-          let dropY = -1
-          for (let r = H - 1; r >= 0; r--) {
-            if (this.gameBoard[r][x] === null) {
-              dropY = r
-              break
-            }
-          }
-          if (dropY === -1) {
-            this.guiLoiGame(ws, 'Cột này đã đầy.')
-            return
-          }
-          y = dropY
-          this.gameBoard[y][x] = side
-          const winLine = kiemTraThangConnect4(this.gameBoard, x, y, side)
-          if (winLine) {
-            this.gameMeta = ketThucVan({ ...this.gameMeta, winLine }, side, 'normal')
-          } else if (this.gameBoard.every((row) => row.every((c) => c !== null))) {
-            this.gameMeta = ketThucVan(this.gameMeta, 'draw', 'normal')
-          } else {
-            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
-          }
-        } else if (this.gameMeta.gameType === 'reversi') {
-          if (x >= W || y >= H) {
-            this.guiLoiGame(ws, 'Nước đi Reversi không hợp lệ.')
-            return
-          }
-          const { hopLe, flipped } = kiemTraVaLatReversi(this.gameBoard, x, y, side)
-          if (!hopLe) {
-            this.guiLoiGame(ws, 'Nước đi Reversi không hợp lệ.')
-            return
-          }
-          this.gameBoard[y][x] = side
-          for (const [fx, fy] of flipped) {
-            this.gameBoard[fy][fx] = side
-          }
-          this.gameMeta = { ...this.gameMeta, ...demQuanReversi(this.gameBoard) }
-
-          if (coNuocDiHopLeReversi(this.gameBoard, benKia(side))) {
-            this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
-          } else if (coNuocDiHopLeReversi(this.gameBoard, side)) {
-            // Đối thủ không còn nước đi hợp lệ: mất lượt, bên vừa đi đi tiếp.
-            this.gameMeta = { ...this.gameMeta, currentTurn: side, turnTimerEndsAt: hanLuotMoi }
-          } else {
-            const { scoreX, scoreO } = this.gameMeta
-            this.gameMeta = ketThucVan(this.gameMeta, scoreX > scoreO ? 'X' : scoreO > scoreX ? 'O' : 'draw', 'normal')
-          }
+        } else if (this.gameMeta.gameType === 'chess' || this.gameMeta.gameType === 'xiangqi') {
+          this.gameMeta = { ...this.gameMeta, currentTurn: benKia(side), turnTimerEndsAt: hanLuotMoi }
         } else {
           this.guiLoiGame(ws, 'Trò chơi này không có bàn đối kháng.')
           return

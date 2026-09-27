@@ -32,3 +32,9 @@ phase4c-screenshots/
 .claude/
 scratch/
 artifacts/
+
+# Godot engine cache & test workspace
+.godot/
+*.tmp
+unrealworld/
+game-rpg/

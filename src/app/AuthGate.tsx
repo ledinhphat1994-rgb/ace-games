@@ -1,23 +1,25 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router'
-import { GraduationCap, Loader2, MonitorPlay, Swords, Users, WifiOff } from 'lucide-react'
+import { GraduationCap, Loader2, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
-import { KHOA_PHIEN, PhienContext } from '@/app/phien'
+import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
-import { LoginCard } from '@/features/auth/LoginCard'
+import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
 import { dangXuat, layPhienHienTai, LoiApi } from '@/lib/api'
-
-// Ba điều người dùng thật sự làm được trong Digital Campus — không phải khẩu hiệu.
-const DIEM_NOI_BAT = [
-  { icon: MonitorPlay, ten: 'Phòng học nhóm', moTa: 'Cùng xem video, trình chiếu tài liệu và viết bảng theo thời gian thực.' },
-  { icon: Swords, ten: 'Game đối kháng', moTa: 'Caro, Connect 4, Reversi 1v1 với bạn cùng trường.' },
-  { icon: Users, ten: 'Cộng đồng bạn học', moTa: 'Kết bạn, xem ai đang trực tuyến và trò chuyện toàn trường.' },
-] as const
+import { toast } from 'sonner'
 
 export function AuthGate() {
   const queryClient = useQueryClient()
   const phien = useQuery({ queryKey: KHOA_PHIEN, queryFn: layPhienHienTai, staleTime: Infinity })
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<AuthMode>('dang_nhap')
+
+  const moAuthModal = useCallback((mode: AuthMode = 'dang_nhap') => {
+    setModalMode(mode)
+    setModalOpen(true)
+  }, [])
 
   const xuLyDangXuat = useCallback(async () => {
     await dangXuat().catch(() => {})
@@ -29,9 +31,23 @@ export function AuthGate() {
   }, [queryClient])
 
   const nguoiDung = phien.data?.nguoiDung ?? null
-  const giaTri = useMemo(
-    () => (nguoiDung ? { nguoiDung, dangXuat: xuLyDangXuat, lamMoiPhien } : null),
-    [nguoiDung, xuLyDangXuat, lamMoiPhien],
+
+  // Khi có thông báo từ phiên (bị thay thế thiết bị hoặc hết hạn), cảnh báo và bật modal đăng nhập
+  useEffect(() => {
+    if (phien.data?.thongBao) {
+      toast.warning(phien.data.thongBao)
+      moAuthModal('dang_nhap')
+    }
+  }, [phien.data?.thongBao, moAuthModal])
+
+  const giaTri: GiaTriPhien = useMemo(
+    () => ({
+      nguoiDung,
+      dangXuat: xuLyDangXuat,
+      lamMoiPhien,
+      moAuthModal,
+    }),
+    [nguoiDung, xuLyDangXuat, lamMoiPhien, moAuthModal],
   )
 
   if (phien.isPending) {
@@ -68,75 +84,21 @@ export function AuthGate() {
     )
   }
 
-  if (!giaTri) {
-    return (
-      <KhungNen>
-        <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center px-5 pt-6 sm:px-8">
-          <LogoCampus />
-        </header>
-
-        <main className="relative z-10 mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-          <section className="hidden lg:block" aria-label="Giới thiệu Digital Campus">
-            <p className="text-sm font-medium text-brand">Trung tâm GDTX Định Quán</p>
-            <h1 className="mt-4 text-[3.25rem] leading-[1.05] font-semibold tracking-[-0.035em] text-text-primary">
-              Học cùng nhau,
-              <br />
-              <span className="text-text-secondary">ở bất cứ đâu.</span>
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-text-secondary">
-              Không gian trực tuyến của trường — vào phòng học, chơi game và kết nối bạn học chỉ với một tài khoản.
-            </p>
-            <ul className="mt-10 space-y-5">
-              {DIEM_NOI_BAT.map(({ icon: Icon, ten, moTa }) => (
-                <li key={ten} className="flex items-start gap-4">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-subtle bg-surface text-brand">
-                    <Icon className="size-[18px]" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-text-primary">{ten}</span>
-                    <span className="mt-0.5 block max-w-sm text-sm leading-relaxed text-text-secondary">{moTa}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="mx-auto w-full max-w-md">
-            <div className="mb-8 text-center lg:hidden">
-              <h1 className="text-[1.75rem] leading-tight font-semibold tracking-[-0.025em] text-text-primary">
-                Học cùng nhau, ở bất cứ đâu.
-              </h1>
-              <p className="mt-2 text-sm text-text-secondary">Digital Campus · Trung tâm GDTX Định Quán</p>
-            </div>
-            {phien.data.thongBao && (
-              <p
-                role="status"
-                className="mb-4 rounded-xl border border-warning/30 bg-warning-muted px-3.5 py-2.5 text-center text-sm font-medium text-warning"
-              >
-                {phien.data.thongBao}
-              </p>
-            )}
-            <LoginCard onDaDangNhap={() => void queryClient.invalidateQueries({ queryKey: KHOA_PHIEN })} />
-          </section>
-        </main>
-
-        <footer className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-6 text-center text-xs text-text-tertiary sm:px-8 lg:text-left">
-          © 2026–2027 Trung tâm GDTX Định Quán · Digital Campus
-        </footer>
-      </KhungNen>
-    )
-  }
-
   return (
     <PhienContext value={giaTri}>
       <CampusProvider>
         <Outlet />
+        <AuthModal
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          initialMode={modalMode}
+          onSuccess={() => void lamMoiPhien()}
+        />
       </CampusProvider>
     </PhienContext>
   )
 }
 
-/** Nền tối giản: hai quầng sáng mờ màu thương hiệu và lưới chấm rất nhạt — không dùng ảnh bitmap. */
 function KhungNen({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-background text-text-primary">

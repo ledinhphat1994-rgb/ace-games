@@ -14,9 +14,17 @@ import type { KetQuaThaoTac } from '@/hooks/use-campus'
 import { cn, getInitials } from '@/lib/utils'
 import type { TinCampus } from '@shared/protocol/campus'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
-import { ArrowDown, Loader2, MessageSquare, SendHorizontal, Trash2 } from 'lucide-react'
+import { ArrowDown, Loader2, MessageSquare, SendHorizontal, Smile, Trash2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+
+const DANH_SACH_EMOJI = [
+  '😊', '😂', '🔥', '👍', '👏', '🎉',
+  '❤️', '🏆', '♟️', '🏮', '🎯', '⚡',
+  '🚀', '😎', '🤝', '🙌', '💯', '✨',
+  '🤩', '💪', '🎮', '✌️', '🫡', '👀'
+]
 
 interface CampusChatDrawerProps {
   messages: TinCampus[]
@@ -25,6 +33,7 @@ interface CampusChatDrawerProps {
   onDeleteMessage: (id: number) => Promise<KetQuaThaoTac>
   className?: string
   hideHeader?: boolean
+  hideInput?: boolean
 }
 
 /** Tin liên tiếp của cùng một người trong khoảng này được gộp dưới một tên. */
@@ -52,6 +61,7 @@ export function CampusChatDrawer({
   onDeleteMessage,
   className,
   hideHeader = false,
+  hideInput = false,
 }: CampusChatDrawerProps) {
   const [noiDung, setNoiDung] = useState('')
   const [dangGui, setDangGui] = useState(false)
@@ -269,47 +279,83 @@ export function CampusChatDrawer({
         )}
       </div>
 
-      <form
-        onSubmit={xuLyGui}
-        className="shrink-0 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-      >
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              value={noiDung}
-              onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
-              placeholder="Nhắn tới cả trường…"
-              aria-label="Nội dung tin nhắn"
-              maxLength={CHAT_CAMPUS.TOI_DA_KY_TU}
-              enterKeyHint="send"
-              autoComplete="off"
-              className={cn('h-10', conLai <= 50 && 'pr-12')}
-            />
-            {conLai <= 50 && (
-              <span
-                aria-live="polite"
-                className={cn(
-                  'pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[11px] tabular-nums',
-                  conLai <= 10 ? 'text-warning' : 'text-text-tertiary',
-                )}
-              >
-                {conLai}
-              </span>
-            )}
+      {!hideInput && (
+        <form
+          onSubmit={xuLyGui}
+          className="shrink-0 border-t border-border-subtle p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
+          <div className="flex items-center gap-2">
+            {/* Nút chèn biểu cảm Emoji */}
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-10 shrink-0 text-text-tertiary hover:text-white hover:bg-white/10"
+                    title="Chèn biểu cảm emoji"
+                    aria-label="Chèn biểu cảm emoji"
+                  >
+                    <Smile className="size-5" />
+                  </Button>
+                }
+              />
+              <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0c1322] border-white/10 shadow-2xl rounded-xl z-50">
+                <div className="grid grid-cols-6 gap-1">
+                  {DANH_SACH_EMOJI.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => {
+                        setNoiDung((prev) => (prev + em).slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))
+                      }}
+                      className="flex size-9 items-center justify-center text-xl rounded-lg hover:bg-white/10 transition-colors active:scale-95"
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="relative min-w-0 flex-1">
+              <Input
+                value={noiDung}
+                onChange={(e) => setNoiDung(e.target.value.slice(0, CHAT_CAMPUS.TOI_DA_KY_TU))}
+                placeholder="Nhắn tới cả trường…"
+                aria-label="Nội dung tin nhắn"
+                maxLength={CHAT_CAMPUS.TOI_DA_KY_TU}
+                enterKeyHint="send"
+                autoComplete="off"
+                className={cn('h-10', conLai <= 50 && 'pr-12')}
+              />
+              {conLai <= 50 && (
+                <span
+                  aria-live="polite"
+                  className={cn(
+                    'pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[11px] tabular-nums',
+                    conLai <= 10 ? 'text-warning' : 'text-text-tertiary',
+                  )}
+                >
+                  {conLai}
+                </span>
+              )}
+            </div>
+            <Button
+              type="submit"
+              size="icon"
+              className="shrink-0"
+              disabled={!noiDung.trim() || dangGui}
+              aria-label="Gửi tin nhắn"
+              // Bấm gửi không lấy mất con trỏ của ô nhập (bàn phím điện thoại không bị đóng giữa chừng)
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {dangGui ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
+            </Button>
           </div>
-          <Button
-            type="submit"
-            size="icon"
-            className="shrink-0"
-            disabled={!noiDung.trim() || dangGui}
-            aria-label="Gửi tin nhắn"
-            // Bấm gửi không lấy mất con trỏ của ô nhập (bàn phím điện thoại không bị đóng giữa chừng)
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            {dangGui ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
-          </Button>
-        </div>
-      </form>
+        </form>
+      )}
 
       <AlertDialog
         open={tinCanXoa !== null}

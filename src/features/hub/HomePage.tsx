@@ -32,7 +32,7 @@ export function HomePage() {
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
 
-  const displayName = nguoiDung.ten || nguoiDung.username
+  const displayName = nguoiDung?.ten || nguoiDung?.username || 'Bạn học'
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])

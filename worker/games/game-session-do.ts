@@ -17,11 +17,7 @@ import {
 } from '../../shared/protocol/game-sdk'
 import type { BoardCell, GameType, PlayerSide } from '../../shared/protocol/game'
 import {
-  coNuocDiHopLeReversi,
-  demQuanReversi,
   kiemTraThangCaro,
-  kiemTraThangConnect4,
-  kiemTraVaLatReversi,
   taoBanMoi,
 } from '../game-engine'
 import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from './game-lobby-do'
@@ -947,7 +943,7 @@ export class GameSessionDO extends DurableObject<Env> {
       return
     }
 
-    if (this.gameType === 'caro_15' || this.gameType === 'caro_9') {
+    if (this.gameType === 'caro_15') {
       if (this.board[y][x] !== null) return
       this.board[y][x] = side
       this.ctx.storage.sql.exec(
@@ -957,52 +953,11 @@ export class GameSessionDO extends DurableObject<Env> {
       const winLine = kiemTraThangCaro(this.board, x, y, side)
       if (winLine) { await this.ketThucTran(side, 'normal'); return }
       if (this.banCoKinh()) { await this.ketThucTran('draw', 'normal'); return }
-    } else if (this.gameType === 'connect4') {
-      let droppedY = -1
-      for (let r = H - 1; r >= 0; r--) {
-        if (this.board[r][x] === null) { droppedY = r; break }
-      }
-      if (droppedY === -1) return
-      this.board[droppedY][x] = side
+    } else if (this.gameType === 'chess' || this.gameType === 'xiangqi') {
       this.ctx.storage.sql.exec(
         'INSERT INTO session_moves (actor_key, side, x, y, created_at) VALUES (?, ?, ?, ?, ?)',
-        att.actorKey, side, x, droppedY, now,
+        att.actorKey, side, x, y, now,
       )
-      const winLine = kiemTraThangConnect4(this.board, x, droppedY, side)
-      if (winLine) { await this.ketThucTran(side, 'normal'); return }
-      if (this.banCoKinh()) { await this.ketThucTran('draw', 'normal'); return }
-    } else if (this.gameType === 'reversi') {
-      const { hopLe, flipped } = kiemTraVaLatReversi(this.board, x, y, side)
-      if (!hopLe) return
-      this.board[y][x] = side
-      for (const [fx, fy] of flipped) this.board[fy][fx] = side
-      this.ctx.storage.sql.exec(
-        'INSERT INTO session_moves (actor_key, side, x, y, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        att.actorKey, side, x, y, JSON.stringify(flipped), now,
-      )
-      const nextSide: PlayerSide = side === 'X' ? 'O' : 'X'
-      const oppHasMove = coNuocDiHopLeReversi(this.board, nextSide)
-      const myHasMove = coNuocDiHopLeReversi(this.board, side)
-      if (!oppHasMove && !myHasMove) {
-        const { scoreX, scoreO } = demQuanReversi(this.board)
-        let winResult: PlayerSide | 'draw' = 'draw'
-        if (scoreX > scoreO) winResult = 'X'
-        else if (scoreO > scoreX) winResult = 'O'
-        await this.ketThucTran(winResult, 'normal')
-        return
-      }
-      this.currentTurn = !oppHasMove ? side : nextSide
-      this.turnTimerEndsAt = now + this.turnTimerSeconds * 1000
-      this.ghiMeta('board', JSON.stringify(this.board))
-      this.ghiMeta('current_turn', this.currentTurn)
-      this.ghiMeta('turn_timer_ends_at', String(this.turnTimerEndsAt))
-      this.persistObligation('turn_timeout', 'turn_timeout', this.turnTimerEndsAt)
-      this.broadcast({
-        type: 'match.state', status: this.status, currentTurn: this.currentTurn,
-        turnTimerEndsAt: this.turnTimerEndsAt, board: this.board,
-        lastMove: { player: side, x, y }, serverTime: now,
-      })
-      return
     }
 
     // Normal turn switch

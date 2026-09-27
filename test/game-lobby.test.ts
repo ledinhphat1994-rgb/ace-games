@@ -33,7 +33,7 @@ describe('GameLobbyDO (danh bạ bàn đấu)', () => {
     const lobby = layLobby()
     const bayGio = Date.now()
     await lobby.capNhatBan(banMau('b1', { capNhatLuc: bayGio - 2000 }))
-    await lobby.capNhatBan(banMau('b2', { capNhatLuc: bayGio - 1000, gameType: 'connect4' }))
+    await lobby.capNhatBan(banMau('b2', { capNhatLuc: bayGio - 1000, gameType: 'chess' }))
     let ds = await lobby.danhSach()
     expect(ds.map((b) => b.id)).toEqual(['b2', 'b1'])
 
@@ -90,12 +90,12 @@ describe('RoomDO báo GameLobbyDO khi trạng thái bàn đối kháng đổi', 
     const maBan = `test-init-${Date.now()}`
     const chu = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu1'))
     await chu.cho('game.snapshot')
-    chu.gui({ type: 'game.init', gameType: 'connect4', turnSeconds: 15 })
+    chu.gui({ type: 'game.init', gameType: 'chess', turnSeconds: 15 })
     await chu.cho('game.sync')
 
     let ds = await layLobby().danhSach()
     let ban = ds.find((b) => b.id === maBan)
-    expect(ban).toMatchObject({ gameType: 'connect4', trangThai: 'waiting', turnTimerSeconds: 15, tenKhach: null })
+    expect(ban).toMatchObject({ gameType: 'chess', trangThai: 'waiting', turnTimerSeconds: 15, tenKhach: null })
 
     const khach = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu2'))
     await khach.cho('game.snapshot')
@@ -114,7 +114,7 @@ describe('RoomDO báo GameLobbyDO khi trạng thái bàn đối kháng đổi', 
     const maBan = `test-end-${Date.now()}`
     const chu = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu1'))
     await chu.cho('game.snapshot')
-    chu.gui({ type: 'game.init', gameType: 'caro_9' })
+    chu.gui({ type: 'game.init', gameType: 'caro_15' })
     await chu.cho('game.sync')
 
     const khach = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu2'))

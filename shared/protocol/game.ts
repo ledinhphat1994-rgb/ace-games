@@ -3,10 +3,8 @@ import type { ThanhVienPhong } from './room'
 
 export type GameType =
   | 'caro_15'
-  | 'caro_9'
-  | 'connect4'
-  | 'reversi'
-  | 'solo_2048'
+  | 'chess'
+  | 'xiangqi'
   | 'solo_memory'
   | 'solo_snake'
 
@@ -30,7 +28,7 @@ export interface GameMetaState {
   turnTimerSeconds: number
   /** Hạn chót của lượt hiện tại theo đồng hồ máy chủ — máy chủ xử thua bên tới lượt khi quá hạn. */
   turnTimerEndsAt: number
-  /** Caro/Connect 4: số ván thắng của mỗi bên tại bàn. Reversi: số quân đang có trên bàn. */
+  /** Số ván thắng của mỗi bên tại bàn hoặc điểm số. */
   scoreX: number
   scoreO: number
   /** Chỉ có khi ván đã kết thúc. */
@@ -41,8 +39,8 @@ export interface GameMetaState {
   firstTurn: PlayerSide
 }
 
-/** Trò chơi đối kháng 1v1 có bàn chơi thời gian thực và hiện trên sảnh — trò chơi đơn không tạo bàn. */
-export const CAC_GAME_1V1 = ['caro_15', 'caro_9', 'connect4', 'reversi'] as const satisfies readonly GameType[]
+/** Trò chơi đối kháng 1v1 có bàn chơi thời gian thực và hiện trên sảnh. */
+export const CAC_GAME_1V1 = ['caro_15', 'chess', 'xiangqi'] as const satisfies readonly GameType[]
 export type GameType1v1 = (typeof CAC_GAME_1V1)[number]
 
 /** Biểu cảm được gửi trong bàn đấu. Máy chủ chỉ phát lại đúng các giá trị này (không phải kênh chat tự do). */
@@ -62,8 +60,11 @@ export const LenhGame = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('game.move'),
-    x: z.number().int().nonnegative(),
-    y: z.number().int().nonnegative(),
+    x: z.number().int().nonnegative().optional().default(0),
+    y: z.number().int().nonnegative().optional().default(0),
+    from: z.number().int().nonnegative().optional(),
+    to: z.number().int().nonnegative().optional(),
+    promo: z.number().int().optional(),
   }),
   z.object({ type: z.literal('game.surrender') }),
   z.object({ type: z.literal('game.rematch') }),
@@ -75,15 +76,15 @@ export type GoiGame =
   | {
       type: 'game.snapshot'
       meta: GameMetaState
-      board: BoardCell[][]
+      board: any
       spectators: number
       serverNow: number
     }
   | {
       type: 'game.sync'
       meta: GameMetaState
-      board: BoardCell[][]
-      lastMove?: { player: PlayerSide; x: number; y: number }
+      board: any
+      lastMove?: { player: PlayerSide; x?: number; y?: number; from?: number; to?: number }
       serverNow: number
     }
   | {

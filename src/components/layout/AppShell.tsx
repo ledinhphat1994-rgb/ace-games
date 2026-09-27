@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 import { usePhien } from '@/app/phien'
 import { useCampus } from '@/hooks/use-campus'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { AppHeader } from './AppHeader'
 import { MobileNav } from './MobileNav'
 import { CampusChatSheet } from './CampusChatSheet'
@@ -33,7 +34,7 @@ function ghiTinDaXem(accountId: number, id: number) {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { nguoiDung, dangXuat, lamMoiPhien } = usePhien()
+  const { nguoiDung, dangXuat, lamMoiPhien, moAuthModal } = usePhien()
   const {
     trangThai,
     taiKhoanBiKhoa,
@@ -48,17 +49,22 @@ export function AppShell({ children }: AppShellProps) {
   } = useCampus()
 
   const [isChatOpen, setIsChatOpen] = useState(false)
-  const [idTinDaXem, setIdTinDaXem] = useState<number | null>(() => docTinDaXem(nguoiDung.accountId))
+  const [idTinDaXem, setIdTinDaXem] = useState<number | null>(() => (nguoiDung ? docTinDaXem(nguoiDung.accountId) : null))
 
-  // Chấm trên nút trò chuyện chỉ sáng khi có tin của người khác mới hơn lần xem gần nhất (trước đây sáng hễ có tin).
+  // Chấm trên nút trò chuyện chỉ sáng khi có tin của người khác mới hơn lần xem gần nhất
   const tinCuoi = messages.length > 0 ? messages[messages.length - 1] : null
   const coTinNhanMoi =
+    nguoiDung !== null &&
     !isChatOpen &&
     tinCuoi !== null &&
     tinCuoi.accountId !== nguoiDung.accountId &&
     (idTinDaXem === null || tinCuoi.id > idTinDaXem)
 
   const datMoChat = (mo: boolean) => {
+    if (!nguoiDung) {
+      moAuthModal('dang_nhap')
+      return
+    }
     setIsChatOpen(mo)
     if (tinCuoi) {
       setIdTinDaXem(tinCuoi.id)
@@ -67,10 +73,19 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   useEffect(() => {
-    const handleOpenChat = () => setIsChatOpen(true)
+    const handleOpenChat = () => {
+      if (!nguoiDung) {
+        moAuthModal('dang_nhap')
+        return
+      }
+      setIsChatOpen(true)
+    }
     window.addEventListener('campus:open-chat', handleOpenChat)
     return () => window.removeEventListener('campus:open-chat', handleOpenChat)
-  }, [])
+  }, [nguoiDung, moAuthModal])
+
+  const location = useLocation()
+  const isWidePage = location.pathname.startsWith('/arena') || location.pathname.startsWith('/game')
 
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
@@ -86,10 +101,18 @@ export function AppShell({ children }: AppShellProps) {
         onDangXuat={() => void dangXuat()}
         onToggleChat={() => datMoChat(!isChatOpen)}
         onLamMoiPhien={lamMoiPhien}
+        onMoAuthModal={moAuthModal}
       />
 
       {/* 2. Main Content Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-6 pb-[76px] sm:px-6 sm:pt-8 md:pb-10">
+      <main
+        className={cn(
+          'mx-auto w-full flex-1 transition-all',
+          isWidePage
+            ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[76px] md:pb-8'
+            : 'max-w-7xl px-4 pt-6 pb-[76px] sm:px-6 sm:pt-8 md:pb-10'
+        )}
+      >
         {/* Single-device policy warning banner */}
         {trangThai === 'phien_bi_thay' ? (
           <div

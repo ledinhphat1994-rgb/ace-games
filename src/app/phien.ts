@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react'
 import type { NguoiDung } from '@/lib/api'
+import type { AuthMode } from '@/features/auth/AuthModal'
 
 export interface GiaTriPhien {
-  nguoiDung: NguoiDung
+  nguoiDung: NguoiDung | null
   dangXuat: () => Promise<void>
   lamMoiPhien: () => Promise<void>
+  moAuthModal: (cheDo?: AuthMode) => void
 }
 
 export const KHOA_PHIEN = ['phien'] as const

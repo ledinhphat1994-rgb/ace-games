@@ -167,16 +167,20 @@ describe('U2 Data-Truth & Anti-Fabrication Invariants', () => {
     expect(liveStage.fileType).toBe('image')
   })
 
-  // ── 9. Home Does Not Advertise Unsupported Cờ Vua ──────────────────────────
-  it('9. Home does not advertise unsupported Cờ vua in destination cards', () => {
+  // ── 9. Home Advertises Exactly Supported Games in Arena ─────────────────────
+  it('9. Home advertises exactly supported games in destination cards', () => {
     const arena = HOME_DESTINATION_CONFIGS.find((d) => d.id === 'arena')
     expect(arena).toBeDefined()
     const arenaTags = arena!.tags
 
-    expect(arenaTags).not.toContain('Cờ vua')
+    expect(arenaTags).toContain('Cờ Vua')
+    expect(arenaTags).toContain('Cờ Tướng')
     expect(arenaTags).toContain('Caro')
-    expect(arenaTags).toContain('2048')
     expect(arenaTags).toContain('Rắn')
+    expect(arenaTags).toContain('Trí Nhớ')
+    expect(arenaTags).not.toContain('2048')
+    expect(arenaTags).not.toContain('Connect 4')
+    expect(arenaTags).not.toContain('Reversi')
   })
 
   // ── 10. Community Does Not Advertise Unsupported Sự Kiện ───────────────────

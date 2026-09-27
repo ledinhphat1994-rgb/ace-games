@@ -39,12 +39,23 @@ export function useGame(
   intendedGameType?: GameType,
   intendedTurnSeconds?: number,
 ) {
+  const loaiBanDau: GameType =
+    intendedGameType ??
+    (gameId.startsWith('chess-')
+      ? 'chess'
+      : gameId.startsWith('xiangqi-')
+        ? 'xiangqi'
+        : 'caro_15')
+
   const [trangThai, setTrangThai] = useState<TrangThaiKetNoiGame>('dang_ket_noi')
-  const [meta, setMeta] = useState<GameMetaState>(DEFAULT_META)
-  const [board, setBoard] = useState<BoardCell[][]>(() => taoBanMoi('caro_15'))
+  const [meta, setMeta] = useState<GameMetaState>(() => ({
+    ...DEFAULT_META,
+    gameType: loaiBanDau,
+  }))
+  const [board, setBoard] = useState<BoardCell[][]>(() => taoBanMoi(loaiBanDau))
   // Ai đang ở bàn (RoomDO phát `presence` mỗi khi có người vào/rời); null khi chưa nhận lần nào.
   const [thanhVien, setThanhVien] = useState<ThanhVienPhong[] | null>(null)
-  const [lastMove, setLastMove] = useState<{ player: PlayerSide; x: number; y: number } | null>(null)
+  const [lastMove, setLastMove] = useState<{ player: PlayerSide; x?: number; y?: number; from?: number; to?: number } | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [incomingEmote, setIncomingEmote] = useState<{ sender: string; emote: string; id: number } | null>(null)
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(0)

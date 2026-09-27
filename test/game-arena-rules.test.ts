@@ -7,10 +7,8 @@ import { CAC_BIEU_CAM, type GameMetaState, type GameType1v1, type GoiGame } from
 import {
   GIA_HAN_HET_GIO_MS,
   batDauVan,
-  cacNuocDiHopLeReversi,
   daHetGioLuot,
   ketThucVan,
-  taoBanMoi,
 } from '../worker/game-engine'
 import { TEN_GAME_LOBBY } from '../worker/games/game-lobby-do'
 import { taoMaBan } from '../src/features/games/game-ids'
@@ -21,7 +19,7 @@ const stubBan = (ma: string) => env.ROOMS.get(env.ROOMS.idFromName('game_' + ma)
 const layLobby = () => env.GAME_LOBBY.get(env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
 
 /** Bàn đang chơi: thu1 cầm X (người mở bàn), thu2 cầm O, thu3 (lớp khác) đứng xem. */
-async function banDangChoi(gameType: GameType1v1 = 'caro_9', turnSeconds = 30) {
+async function banDangChoi(gameType: GameType1v1 = 'caro_15', turnSeconds = 30) {
   const ma = taoMaBan(gameType)
   const x = await moBan(ma, await dangNhapLayCookie('qa.v2.thu1'))
   await x.cho('game.snapshot')
@@ -49,7 +47,7 @@ async function tuaQuaHanLuot(ma: string): Promise<void> {
 
 describe('Luật bàn 1v1 (game-engine, hàm thuần)', () => {
   const meta = (over: Partial<GameMetaState> = {}): GameMetaState => ({
-    gameType: 'caro_9',
+    gameType: 'caro_15',
     playerX: 'acc:1',
     playerXName: 'A',
     playerO: 'acc:2',
@@ -75,36 +73,24 @@ describe('Luật bàn 1v1 (game-engine, hàm thuần)', () => {
     expect(daHetGioLuot(meta({ turnTimerEndsAt: 0 }), 9_999_999)).toBe(false)
   })
 
-  it('ketThucVan: Caro cộng một ván thắng; Reversi giữ nguyên số quân; hết lượt chờ đấu lại', () => {
+  it('ketThucVan: cộng một ván thắng cho bên thắng; hết lượt chờ đấu lại', () => {
     const caro = ketThucVan(meta({ rematchBy: 'X' }), 'O', 'timeout')
     expect(caro).toMatchObject({ status: 'ended', winner: 'O', endReason: 'timeout', scoreO: 1, scoreX: 0, rematchBy: null, turnTimerEndsAt: 0 })
-
-    const reversi = ketThucVan(meta({ gameType: 'reversi', scoreX: 10, scoreO: 7 }), 'X', 'surrender')
-    expect(reversi).toMatchObject({ winner: 'X', endReason: 'surrender', scoreX: 10, scoreO: 7 })
 
     const hoa = ketThucVan(meta(), 'draw', 'normal')
     expect(hoa).toMatchObject({ winner: 'draw', scoreX: 0, scoreO: 0 })
   })
 
-  it('batDauVan: bàn trống, bên firstTurn đi trước, đặt hạn chót lượt; Reversi đếm lại 2-2', () => {
+  it('batDauVan: bàn trống, bên firstTurn đi trước, đặt hạn chót lượt', () => {
     const { meta: m, board } = batDauVan(meta({ status: 'ended', winner: 'X', firstTurn: 'O', rematchBy: 'X' }), 5_000)
     expect(m).toMatchObject({ status: 'playing', currentTurn: 'O', winner: null, endReason: null, rematchBy: null, turnTimerEndsAt: 35_000 })
-    expect(board.flat().every((c) => c === null)).toBe(true)
-
-    const rev = batDauVan(meta({ gameType: 'reversi', scoreX: 40, scoreO: 24 }), 0)
-    expect(rev.meta).toMatchObject({ scoreX: 2, scoreO: 2 })
-  })
-
-  it('cacNuocDiHopLeReversi: 4 nước mở đầu chuẩn của mỗi bên', () => {
-    const ban = taoBanMoi('reversi')
-    expect(cacNuocDiHopLeReversi(ban, 'X').sort()).toEqual([[2, 3], [3, 2], [4, 5], [5, 4]])
-    expect(cacNuocDiHopLeReversi(ban, 'O')).toHaveLength(4)
+    expect(board.flat().every((c: unknown) => c === null)).toBe(true)
   })
 })
 
 describe('Bàn 1v1 sống sót qua ngủ đông của RoomDO', () => {
   it('sau khi DO bị evict (WebSocket ngủ đông), nước đi tiếp theo chạy trên đúng ván đang chơi', async () => {
-    const { ma, x, o, dong } = await banDangChoi('caro_9')
+    const { ma, x, o, dong } = await banDangChoi('caro_15')
     x.gui({ type: 'game.move', x: 4, y: 4 })
     await o.cho('game.sync', (g) => g.lastMove?.x === 4 && g.lastMove.y === 4)
 
@@ -112,7 +98,7 @@ describe('Bàn 1v1 sống sót qua ngủ đông của RoomDO', () => {
 
     o.gui({ type: 'game.move', x: 5, y: 5 })
     const sau = await x.cho('game.sync', (g) => g.lastMove?.x === 5 && g.lastMove.y === 5)
-    expect(sau.meta).toMatchObject({ status: 'playing', currentTurn: 'X', playerX: 'acc:1', playerO: 'acc:2', gameType: 'caro_9' })
+    expect(sau.meta).toMatchObject({ status: 'playing', currentTurn: 'X', playerX: 'acc:1', playerO: 'acc:2', gameType: 'caro_15' })
     expect(sau.board[4][4]).toBe('X')
     expect(sau.board[5][5]).toBe('O')
     await x.khongNhan('error')
@@ -120,7 +106,7 @@ describe('Bàn 1v1 sống sót qua ngủ đông của RoomDO', () => {
   })
 
   it('khán giả bấm "Vào chơi" sau khi DO bị evict không ghi đè ván đang chơi', async () => {
-    const { ma, x, o, khach, dong } = await banDangChoi('caro_9')
+    const { ma, x, o, khach, dong } = await banDangChoi('caro_15')
     x.gui({ type: 'game.move', x: 2, y: 2 })
     await o.cho('game.sync', (g) => g.lastMove?.x === 2)
 
@@ -139,7 +125,7 @@ describe('Bàn 1v1 sống sót qua ngủ đông của RoomDO', () => {
   })
 
   it('sau khi DO bị evict, ván kết thúc vẫn được gỡ khỏi sảnh (mã bàn lưu bền)', async () => {
-    const { ma, x, o, dong } = await banDangChoi('connect4')
+    const { ma, x, o, dong } = await banDangChoi('chess')
     expect((await layLobby().danhSach()).find((b) => b.id === ma)).toMatchObject({ trangThai: 'playing' })
 
     await evictDurableObject(stubBan(ma))
@@ -158,7 +144,7 @@ describe('Bàn 1v1 sống sót qua ngủ đông của RoomDO', () => {
 
 describe('Đồng hồ lượt do máy chủ thực thi', () => {
   it('ván bắt đầu thì alarm được hẹn đúng hạn chót lượt (cộng ân hạn); mỗi nước đi dời hạn cho bên kia', async () => {
-    const { ma, x, o, batDau, dong } = await banDangChoi('caro_9', 20)
+    const { ma, x, o, batDau, dong } = await banDangChoi('caro_15', 20)
     const henLuot1 = await runInDurableObject(stubBan(ma), (_i, state) => state.storage.getAlarm())
     expect(henLuot1).toBe(batDau.meta.turnTimerEndsAt + GIA_HAN_HET_GIO_MS)
 
@@ -172,7 +158,7 @@ describe('Đồng hồ lượt do máy chủ thực thi', () => {
   })
 
   it('quá hạn: alarm xử thua bên tới lượt (endReason timeout) và không nhận nước đi nữa', async () => {
-    const { ma, x, o, khach, dong } = await banDangChoi('caro_9')
+    const { ma, x, o, khach, dong } = await banDangChoi('caro_15')
     x.gui({ type: 'game.move', x: 4, y: 4 })
     await o.cho('game.sync', (g) => g.lastMove?.x === 4)
 
@@ -192,19 +178,19 @@ describe('Đồng hồ lượt do máy chủ thực thi', () => {
   })
 
   it('nước đi tới sau hạn chót (alarm chưa kịp chạy) bị từ chối và chốt thua vì hết giờ ngay', async () => {
-    const { ma, x, o, dong } = await banDangChoi('connect4')
+    const { ma, x, o, dong } = await banDangChoi('caro_15')
     await tuaQuaHanLuot(ma)
 
     x.gui({ type: 'game.move', x: 3, y: 0 })
     expect((await x.cho('error')).message).toBe('Bạn đã hết giờ cho lượt này.')
     const ketThuc = await o.cho('game.sync', (g) => g.meta.status === 'ended')
     expect(ketThuc.meta).toMatchObject({ winner: 'O', endReason: 'timeout' })
-    expect(ketThuc.board.flat().every((c) => c === null)).toBe(true)
+    expect(ketThuc.board.flat().every((c: unknown) => c === null)).toBe(true)
     dong()
   })
 
   it('người mới vào bàn đã quá hạn thấy ngay kết quả hết giờ, không thấy ván "đang chơi" ảo', async () => {
-    const { ma, dong } = await banDangChoi('caro_9')
+    const { ma, dong } = await banDangChoi('caro_15')
     await tuaQuaHanLuot(ma)
     const nguoiMoi = await moBan(ma, await dangNhapLayCookie('qa.v2.gv'))
     const snap = await nguoiMoi.cho('game.snapshot')
@@ -216,29 +202,29 @@ describe('Đồng hồ lượt do máy chủ thực thi', () => {
 
 describe('Quyền điều khiển bàn 1v1', () => {
   it('khán giả hay đối thủ đều không thể game.init lại bàn đã có người', async () => {
-    const { x, o, khach, dong } = await banDangChoi('caro_9')
+    const { x, o, khach, dong } = await banDangChoi('caro_15')
     x.gui({ type: 'game.move', x: 4, y: 4 })
     await o.cho('game.sync', (g) => g.lastMove?.x === 4)
 
     for (const k of [khach, o]) {
-      k.gui({ type: 'game.init', gameType: 'reversi', turnSeconds: 10 })
+      k.gui({ type: 'game.init', gameType: 'chess', turnSeconds: 10 })
       expect((await k.cho('error')).message).toBe('Bàn này đã có người chơi, không thể tạo lại.')
     }
-    await x.khongNhan('game.sync', (g) => g.meta.gameType !== 'caro_9' || g.board[4][4] !== 'X')
+    await x.khongNhan('game.sync', (g) => g.meta.gameType !== 'caro_15' || g.board[4][4] !== 'X')
     dong()
   })
 
   it('game.init chỉ nhận trò đối kháng (không mở bàn cho trò chơi đơn)', async () => {
-    const ma = taoMaBan('solo_2048')
+    const ma = taoMaBan('solo_memory')
     const k = await moBan(ma, await dangNhapLayCookie('qa.v2.thu1'))
     await k.cho('game.snapshot')
-    k.gui({ type: 'game.init', gameType: 'solo_2048' })
+    k.gui({ type: 'game.init', gameType: 'solo_memory' })
     expect((await k.cho('error')).message).toBe('Lệnh game không hợp lệ.')
     k.dong()
   })
 
   it('không đấu lại được giữa ván; khán giả không đấu lại được', async () => {
-    const { x, o, khach, dong } = await banDangChoi('caro_9')
+    const { x, o, khach, dong } = await banDangChoi('caro_15')
     x.gui({ type: 'game.move', x: 1, y: 1 })
     await o.cho('game.sync', (g) => g.lastMove?.x === 1)
 
@@ -251,7 +237,7 @@ describe('Quyền điều khiển bàn 1v1', () => {
   })
 
   it('đấu lại cần cả hai đồng ý; ván mới giữ tỉ số và đổi bên đi trước', async () => {
-    const { x, o, dong } = await banDangChoi('caro_9')
+    const { x, o, dong } = await banDangChoi('caro_15')
     o.gui({ type: 'game.surrender' })
     await x.cho('game.sync', (g) => g.meta.status === 'ended' && g.meta.winner === 'X')
 
@@ -265,7 +251,7 @@ describe('Quyền điều khiển bàn 1v1', () => {
     o.gui({ type: 'game.rematch' })
     const vanMoi = await x.cho('game.sync', (g) => g.meta.status === 'playing')
     expect(vanMoi.meta).toMatchObject({ firstTurn: 'O', currentTurn: 'O', scoreX: 1, scoreO: 0, rematchBy: null, winner: null, endReason: null })
-    expect(vanMoi.board.flat().every((c) => c === null)).toBe(true)
+    expect(vanMoi.board.flat().every((c: unknown) => c === null)).toBe(true)
 
     // X không được đi trước ở ván này.
     x.gui({ type: 'game.move', x: 0, y: 0 })
@@ -274,17 +260,17 @@ describe('Quyền điều khiển bàn 1v1', () => {
   })
 
   it('game.join khi đang có trận bị từ chối', async () => {
-    const { khach, dong } = await banDangChoi('reversi')
+    const { khach, dong } = await banDangChoi('chess')
     khach.gui({ type: 'game.join' })
     expect((await khach.cho('error')).message).toBe('Bàn đang có trận đấu — bạn đang xem.')
     dong()
   })
 
   it('người mở bàn đã rời đi: người vào sau được nhường ghế X thay vì bị ghép với ghế trống', async () => {
-    const ma = taoMaBan('caro_9')
+    const ma = taoMaBan('caro_15')
     const chu = await moBan(ma, await dangNhapLayCookie('qa.v2.thu1'))
     await chu.cho('game.snapshot')
-    chu.gui({ type: 'game.init', gameType: 'caro_9', turnSeconds: 30 })
+    chu.gui({ type: 'game.init', gameType: 'caro_15', turnSeconds: 30 })
     await chu.cho('game.sync')
     const nguoiXem = await moBan(ma, await dangNhapLayCookie('qa.v2.thu3'))
     await nguoiXem.cho('game.snapshot')
@@ -301,7 +287,7 @@ describe('Quyền điều khiển bàn 1v1', () => {
   })
 
   it('biểu cảm: chỉ nhận danh sách cho phép và giới hạn nhịp gửi', async () => {
-    const { x, o, khach, dong } = await banDangChoi('caro_9')
+    const { x, o, khach, dong } = await banDangChoi('caro_15')
     khach.gui({ type: 'game.emote', emote: 'chữ tự do không kiểm duyệt' })
     expect((await khach.cho('error')).message).toBe('Lệnh game không hợp lệ.')
     await x.khongNhan('game.emote')
@@ -315,13 +301,13 @@ describe('Quyền điều khiển bàn 1v1', () => {
   })
 })
 
-describe('Điểm Reversi là số quân', () => {
-  it('bàn Reversi mới hiện 2-2; đầu hàng không làm mọc thêm quân', async () => {
-    const { x, o, batDau, dong } = await banDangChoi('reversi')
-    expect(batDau.meta).toMatchObject({ scoreX: 2, scoreO: 2 })
+describe('Điểm ván đối kháng', () => {
+  it('đầu hàng kết thúc ván và cộng điểm cho bên thắng', async () => {
+    const { x, o, batDau, dong } = await banDangChoi('caro_15')
+    expect(batDau.meta).toMatchObject({ scoreX: 0, scoreO: 0 })
     o.gui({ type: 'game.surrender' })
     const ketThuc = await x.cho('game.sync', (g) => g.meta.status === 'ended')
-    expect(ketThuc.meta).toMatchObject({ winner: 'X', endReason: 'surrender', scoreX: 2, scoreO: 2 })
+    expect(ketThuc.meta).toMatchObject({ winner: 'X', endReason: 'surrender', scoreX: 1, scoreO: 0 })
     dong()
   })
 })

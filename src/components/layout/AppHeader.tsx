@@ -5,13 +5,13 @@ import { UserAvatarMenu } from '@/components/UserAvatarMenu'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import type { NguoiDung } from '@/lib/api'
 import type { TrangThaiKetNoiCampus } from '@/hooks/use-campus'
-import { GraduationCap, MessageSquare } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 import { DESKTOP_NAV_LINKS } from './navigation-config'
 
 export { DESKTOP_NAV_LINKS }
 
 interface AppHeaderProps {
-  nguoiDung: NguoiDung
+  nguoiDung: NguoiDung | null
   trangThai: TrangThaiKetNoiCampus
   onlineCount: number
   latencyMs: number | null
@@ -22,24 +22,25 @@ interface AppHeaderProps {
   onDangXuat: () => void
   onToggleChat: () => void
   onLamMoiPhien?: () => Promise<void>
+  onMoAuthModal?: (mode?: 'dang_nhap' | 'dang_ky' | 'quen_mat_khau') => void
 }
-
 
 export function AppHeader({
   nguoiDung,
   trangThai,
   onlineCount,
   latencyMs,
-  coTinNhanMoi,
+  coTinNhanMoi: _coTinNhanMoi,
   onDoDoTre,
   onKetNoiLai,
   onDangXuat,
-  onToggleChat,
+  onToggleChat: _onToggleChat,
   onLamMoiPhien,
+  onMoAuthModal,
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 glass border-b border-border-subtle">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center justify-between gap-3 px-2.5 sm:px-4">
 
         {/* ── Left: Brand + Desktop Nav ── */}
         <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0">
@@ -90,33 +91,37 @@ export function AppHeader({
 
           {/* Secondary icon group */}
           <div className="flex items-center gap-0.5">
-            {/* Notifications */}
-            <NotificationCenter />
-
-            {/* Campus Chat trigger */}
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="campus-chat-trigger"
-              onClick={onToggleChat}
-              title="Mở trò chuyện toàn trường"
-              aria-label={coTinNhanMoi ? 'Trò chuyện toàn trường (có tin mới)' : 'Trò chuyện toàn trường'}
-              className="relative size-9 rounded-xl text-text-secondary hover:text-text-primary"
-            >
-              <MessageSquare className="size-[18px]" />
-              {coTinNhanMoi && (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-brand ring-2 ring-canvas" />
-              )}
-            </Button>
+            {/* Notifications — chỉ khi đã đăng nhập */}
+            {nguoiDung && <NotificationCenter />}
           </div>
 
-          {/* Divider + Account Quick Center */}
+          {/* Divider + Account / Auth buttons */}
           <div className="ml-0.5 flex items-center border-l border-border-subtle pl-1 sm:pl-2">
-            <UserAvatarMenu
-              nguoiDung={nguoiDung}
-              onDangXuat={onDangXuat}
-              onLamMoiPhien={onLamMoiPhien}
-            />
+            {nguoiDung ? (
+              <UserAvatarMenu
+                nguoiDung={nguoiDung}
+                onDangXuat={onDangXuat}
+                onLamMoiPhien={onLamMoiPhien}
+              />
+            ) : (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onMoAuthModal?.('dang_nhap')}
+                  className="h-8 px-2.5 sm:px-3 text-xs sm:text-sm font-medium text-text-secondary hover:text-text-primary"
+                >
+                  Đăng nhập
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => onMoAuthModal?.('dang_ky')}
+                  className="h-8 px-3 text-xs sm:text-sm font-semibold bg-brand text-brand-foreground hover:bg-brand/90 shadow-sm"
+                >
+                  Đăng ký
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

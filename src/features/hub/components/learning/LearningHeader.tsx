@@ -42,7 +42,7 @@ export function LearningHeader({ onOpenCreateRoom, onOpenQuickStart }: LearningH
     error: profileError,
   })
 
-  const displayName = nguoiDung.ten || nguoiDung.username
+  const displayName = nguoiDung?.ten || nguoiDung?.username || 'Khách'
 
   return (
     <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#080d19] p-4 sm:p-6 shadow-xl">

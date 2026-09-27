@@ -129,11 +129,11 @@ export function AnalyticsDashboardPage() {
             : `Máy chủ trả về lỗi (${res.status}).`)
       throw new LoiBaoCao(res.status, thongBao)
     },
-    enabled: nguoiDung.isSchoolAdmin,
+    enabled: !!nguoiDung?.isSchoolAdmin,
     retry: (lan, loi) => !(loi instanceof LoiBaoCao && loi.status < 500) && lan < 2,
   })
 
-  if (!nguoiDung.isSchoolAdmin || (error instanceof LoiBaoCao && error.status === 403)) {
+  if (!nguoiDung?.isSchoolAdmin || (error instanceof LoiBaoCao && error.status === 403)) {
     return (
       <div className="flex min-h-[50svh] flex-col items-center justify-center text-center">
         <ShieldAlert className="size-7 text-text-tertiary" />
