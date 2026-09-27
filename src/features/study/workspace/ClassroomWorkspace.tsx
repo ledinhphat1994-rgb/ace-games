@@ -3,6 +3,7 @@
 
 import type { NguoiDung } from '@/lib/api'
 import type {
+  BoCucSanKhau,
   MediaState,
   RoomChatMessage,
   SharedNotes,
@@ -14,7 +15,7 @@ import type {
 import type { VoiceClientState } from '@/lib/voice-client'
 import type { TrangThaiKetNoiPhong } from '@/hooks/use-room'
 import { Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
@@ -25,15 +26,17 @@ import {
   bamLop,
   batTatBangPhu,
   boCucBanDau,
+  cungBoCuc,
   goLop,
   hienLop,
   lamChinh,
-  lopChinh,
+  phuBangDeVe,
+  theoBoCucTrinhChieu,
   thuNho,
   type BoCuc,
   type LopId,
 } from './stage-layout'
-import { deriveDefaultWorkspaceMode, type ContextPanelView } from './types'
+import { deriveDefaultWorkspaceMode, laTepPptx, type ContextPanelView } from './types'
 
 export interface ClassroomWorkspaceProps {
   roomId: string
@@ -45,6 +48,10 @@ export interface ClassroomWorkspaceProps {
   members: ThanhVienPhong[]
   trangThai: TrangThaiKetNoiPhong
   latencyMs: number | null
+  // Bố cục sân khấu do người trình chiếu đặt (RoomDO lưu + đồng bộ)
+  stageLayout?: BoCucSanKhau | null
+  daNhanAnhChup?: boolean
+  onSendStageLayout?: (layout: BoCucSanKhau) => void
   // Slide
   slideState?: SlideState | null
   onPageChange?: (newPage: number) => void
@@ -114,6 +121,9 @@ export function ClassroomWorkspace({
   members,
   trangThai,
   latencyMs,
+  stageLayout = null,
+  daNhanAnhChup = false,
+  onSendStageLayout,
   slideState,
   onPageChange,
   onUploadSlide,
@@ -167,10 +177,16 @@ export function ClassroomWorkspace({
   const docUrl = slideState?.docUrl?.trim() ?? ''
   const videoDangPhat = Boolean(videoId) && mediaState?.status === 'playing'
 
-  // Bố cục sân khấu (riêng từng người xem): suy lần đầu từ nội dung đang có trên máy chủ.
+  const laNguoiTrinhChieu = isHost || canModerate
+
+  // Bố cục sân khấu: theo bố cục người trình chiếu đã lưu trên máy chủ; chưa có thì suy từ nội dung đang có.
   const [boCuc, setBoCuc] = useState<BoCuc>(() =>
-    boCucBanDau(deriveDefaultWorkspaceMode(mediaState, slideState), Boolean(videoId), Boolean(docUrl)),
+    stageLayout
+      ? theoBoCucTrinhChieu(stageLayout, Boolean(videoId), Boolean(docUrl))
+      : boCucBanDau(deriveDefaultWorkspaceMode(mediaState, slideState), Boolean(videoId), Boolean(docUrl)),
   )
+  /** Bố cục máy chủ đang giữ (lần nhận / gửi gần nhất) — chỉ gửi khi bố cục của người trình chiếu khác nó. */
+  const boCucMayChuRef = useRef<BoCuc | null>(stageLayout)
 
   // Nội dung đổi từ máy chủ (giáo viên mở tài liệu mới / phát video) → tự động đưa lớp đó lên làm lớp chính để cả phòng cùng theo dõi đồng bộ.
   // Nội dung kết thúc (gỡ video, đóng tài liệu) → bỏ lớp khỏi sân khấu.
@@ -185,6 +201,24 @@ export function ClassroomWorkspace({
   useEffect(() => {
     setBoCuc((bc) => (docUrl ? lamChinh(bc, 'doc') : goLop(bc, 'doc')))
   }, [docUrl])
+
+  // Bố cục người trình chiếu gửi về (kể cả khi vào lại phòng) được áp sau cùng nên thắng các suy đoán theo nội dung ở trên.
+  useEffect(() => {
+    if (!stageLayout) return
+    boCucMayChuRef.current = stageLayout
+    setBoCuc(theoBoCucTrinhChieu(stageLayout, Boolean(videoId), Boolean(docUrl)))
+  }, [stageLayout])
+
+  // Người trình chiếu: bố cục đổi → gửi cho cả phòng (gộp các thay đổi liên tiếp).
+  useEffect(() => {
+    if (!laNguoiTrinhChieu || !daNhanAnhChup || !onSendStageLayout) return
+    if (cungBoCuc(boCuc, boCucMayChuRef.current)) return
+    const hen = setTimeout(() => {
+      boCucMayChuRef.current = boCuc
+      onSendStageLayout(boCuc)
+    }, 150)
+    return () => clearTimeout(hen)
+  }, [boCuc, laNguoiTrinhChieu, daNhanAnhChup, onSendStageLayout])
 
   // Công cụ vẽ chung cho mọi lớp.
   const [congCu, setCongCu] = useState<CongCu>('chuot')
@@ -286,6 +320,7 @@ export function ClassroomWorkspace({
             onBatTatBangPhu={() => setBoCuc(batTatBangPhu)}
             isHost={isHost}
             canModerate={canModerate}
+            theoNguoiTrinhChieu={Boolean(stageLayout)}
             myActorKey={nguoiDung.actorKey}
             congCu={congCu}
             mau={mau}
@@ -364,12 +399,12 @@ export function ClassroomWorkspace({
           canModerate={canModerate}
           congCu={congCu}
           onChonCongCu={(c) => {
-            if (!canModerate && !isHost && c !== 'chuot') return
+            if (!laNguoiTrinhChieu && c !== 'chuot') return
             setCongCu(c)
-            const chinh = lopChinh(boCuc)
-            if (c !== 'chuot' && (chinh === 'video' || chinh === 'doc')) {
-              setBoCuc((bc) => (bc.board === 'phu' ? bc : { ...bc, board: 'phu' }))
-            }
+            if (c === 'chuot') return
+            const taiLieuVeDuoc =
+              slideState?.fileType === 'pdf' || slideState?.fileType === 'image' || laTepPptx(slideState)
+            setBoCuc((bc) => phuBangDeVe(bc, taiLieuVeDuoc))
           }}
           mau={mau}
           onChonMau={setMau}

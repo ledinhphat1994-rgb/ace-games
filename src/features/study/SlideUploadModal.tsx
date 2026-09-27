@@ -61,6 +61,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     setIsUploading(true)
     let uploadedUrl = ''
     let uploadedDocId: number | undefined
+    let soTrangMayChu: number | undefined
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -78,6 +79,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
         if (data.document) {
           uploadedUrl = data.document.url
           uploadedDocId = data.document.id
+          if (typeof data.document.pageCount === 'number' && data.document.pageCount > 0) soTrangMayChu = data.document.pageCount
         } else if (data.url) {
           uploadedUrl = data.url
         }
@@ -130,7 +132,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
       setIsDetecting(false)
       toast.success(`Đã nạp PDF "${file.name}" — phát hiện ${pages} trang!`)
     } else {
-      setTotalPages(type === 'image' ? 1 : 12)
+      // .pptx: máy chủ đã đếm số slide lúc kiểm tra tệp.
+      setTotalPages(type === 'image' ? 1 : (soTrangMayChu ?? 1))
       toast.success(`Đã tải lên máy chủ "${file.name}"!`)
     }
   }

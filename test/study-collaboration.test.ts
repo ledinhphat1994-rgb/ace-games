@@ -55,26 +55,26 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
     const gClear = await member.cho('whiteboard.sync', (g) => g.action === 'stroke.clear')
     expect(gClear.epoch).toBe(2)
 
-    // Member sends in-flight stroke with stale epoch 1 -> server drops it
-    member.gui({
+    // Host sends in-flight stroke with stale epoch 1 -> server drops it
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
         stroke: { id: 'st_zombie', points: [[30, 30]], color: '#FF0000', size: 4, epoch: 1 },
       },
     })
-    // Host should NOT receive any stroke with id 'st_zombie'
-    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'st_zombie', 400)
+    // Member should NOT receive any stroke with id 'st_zombie'
+    await member.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'st_zombie', 400)
 
-    // Member sends stroke with current epoch 2 -> accepted
-    member.gui({
+    // Host sends stroke with current epoch 2 -> accepted
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
         stroke: { id: 'st_valid_2', points: [[40, 40]], color: '#00FF00', size: 4, epoch: 2 },
       },
     })
-    const gAdd2 = await host.cho('whiteboard.sync', (g) => g.stroke?.id === 'st_valid_2')
+    const gAdd2 = await member.cho('whiteboard.sync', (g) => g.stroke?.id === 'st_valid_2')
     expect(gAdd2.stroke?.id).toBe('st_valid_2')
 
     host.dong()
@@ -413,25 +413,25 @@ describe('Study Collaboration Subsystems Server Authority & Convergence', () => 
     await member.cho('room.snapshot')
 
     // Whiteboard stroke without epoch -> schema rejection or server drop
-    member.gui({
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
         stroke: { id: 'no_epoch_stroke', points: [[10, 10]], color: '#FFFFFF', size: 2 } as any,
       },
     })
-    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'no_epoch_stroke', 300)
+    await member.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'no_epoch_stroke', 300)
 
     // Whiteboard stroke with > 200 points -> schema rejection
     const hugePoints: [number, number][] = Array.from({ length: 201 }, (_, i) => [i, i])
-    member.gui({
+    host.gui({
       type: 'whiteboard.action',
       data: {
         action: 'stroke.add',
         stroke: { id: 'huge_stroke', points: hugePoints, color: '#FFFFFF', size: 2, epoch: 1 },
       },
     })
-    await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'huge_stroke', 300)
+    await member.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'huge_stroke', 300)
 
     // Notes action without baseRevision -> schema rejection
     member.gui({

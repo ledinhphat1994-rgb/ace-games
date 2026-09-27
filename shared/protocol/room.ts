@@ -357,6 +357,15 @@ export interface VoiceTrackMetadata {
   status?: string
 }
 
+/** Bố cục sân khấu của người trình chiếu (Tài liệu / Bảng / Video): học sinh hiển thị theo để luôn thấy đúng thứ đang giảng. */
+const VAI_TRO_LOP = z.enum(['main', 'pip', 'phu', 'an'])
+export const BoCucSanKhau = z.object({
+  doc: VAI_TRO_LOP.optional(),
+  video: VAI_TRO_LOP.optional(),
+  board: VAI_TRO_LOP.optional(),
+})
+export type BoCucSanKhau = z.infer<typeof BoCucSanKhau>
+
 export const LenhPhong = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping'), t: z.number() }),
   z.object({ type: z.literal('media.action'), data: LenhPhongMedia }),
@@ -372,6 +381,7 @@ export const LenhPhong = z.discriminatedUnion('type', [
     muted: z.boolean(),
   }),
   z.object({ type: z.literal('session.action'), data: LenhPhongSession }),
+  z.object({ type: z.literal('stage.layout'), layout: BoCucSanKhau }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -390,6 +400,8 @@ export type GoiPhong =
       chat: RoomChatMessage[]
       slide: SlideState | null
       slideAnnotations?: SlideAnnotationStroke[]
+      /** Bố cục sân khấu người trình chiếu đặt gần nhất (null khi chưa đặt). */
+      stageLayout?: BoCucSanKhau | null
       voiceRegistry?: VoiceParticipantState[]
       serverNow: number
       // Learning Session v1
@@ -441,6 +453,7 @@ export type GoiPhong =
   | { type: 'voice.removed'; actorKey: string }
   | { type: 'voice.force_muted'; targetKey: string; by: string }
   | { type: 'room.kicked'; targetKey: string; reason?: string; by: string }
+  | { type: 'stage.sync'; layout: BoCucSanKhau }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }
