@@ -19,11 +19,20 @@ import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
 import { PresentationStage } from './PresentationStage'
+import type { CongCu, CoVe } from './cong-cu'
 import {
-  deriveDefaultWorkspaceMode,
-  type ContextPanelView,
-  type WorkspaceMode,
-} from './types'
+  anLop,
+  bamLop,
+  batTatBangPhu,
+  boCucBanDau,
+  goLop,
+  hienLop,
+  lamChinh,
+  thuNho,
+  type BoCuc,
+  type LopId,
+} from './stage-layout'
+import { deriveDefaultWorkspaceMode, type ContextPanelView } from './types'
 
 export interface ClassroomWorkspaceProps {
   roomId: string
@@ -56,13 +65,8 @@ export interface ClassroomWorkspaceProps {
   calculateTargetTime: () => number
   // Whiteboard
   whiteboardStrokes: WhiteboardStroke[]
-  selectedColor: string
-  onSelectColor: (color: string) => void
-  selectedSize: number
-  onSelectSize: (size: number) => void
-  isEraser: boolean
-  onToggleEraser: () => void
   onSendStroke: (stroke: Omit<WhiteboardStroke, 'epoch'> | WhiteboardStroke) => void
+  onRemoveStroke: (id: string) => void
   onClearWhiteboard: () => void
   // Voice
   myMic: boolean
@@ -125,13 +129,8 @@ export function ClassroomWorkspace({
   onOpenSearchQueue,
   calculateTargetTime,
   whiteboardStrokes,
-  selectedColor,
-  onSelectColor,
-  selectedSize,
-  onSelectSize,
-  isEraser,
-  onToggleEraser,
   onSendStroke,
+  onRemoveStroke,
   onClearWhiteboard,
   myMic,
   onToggleMic,
@@ -159,35 +158,46 @@ export function ClassroomWorkspace({
   onOpenSessionPanel,
   onLeaveRoom,
 }: ClassroomWorkspaceProps) {
-  // Derive initial workspace mode from server state
-  const [mode, setMode] = useState<WorkspaceMode>(() =>
-    deriveDefaultWorkspaceMode(mediaState, slideState)
+  const videoId = mediaState?.videoId?.trim() ?? ''
+  const docUrl = slideState?.docUrl?.trim() ?? ''
+  const videoDangPhat = Boolean(videoId) && mediaState?.status === 'playing'
+
+  // Bố cục sân khấu (riêng từng người xem): suy lần đầu từ nội dung đang có trên máy chủ.
+  const [boCuc, setBoCuc] = useState<BoCuc>(() =>
+    boCucBanDau(deriveDefaultWorkspaceMode(mediaState, slideState), Boolean(videoId), Boolean(docUrl)),
   )
 
-  // React to incoming media / slide updates without conflicting with user-selected views
-  // NOTE: Synchronized presenter-surface selection across clients is deferred to a later milestone (C2/C3).
-  // In C1, local workspace navigation (e.g. user toggling whiteboard or document) is intentionally preserved.
-  // We only auto-transition when:
-  // 1. A video begins actively playing (Priority A: video dominates).
-  // 2. The workspace is currently 'idle' and authoritative content arrives from snapshot/host.
-  // We explicitly avoid switching away when a video is merely paused to prevent layout flap/loops.
+  // Nội dung đổi từ máy chủ (giáo viên mở video / tài liệu mới) → bảo đảm lớp đó hiện, không giành lớp chính của người xem.
+  // Nội dung kết thúc (gỡ video, đóng tài liệu) → bỏ lớp khỏi sân khấu.
   useEffect(() => {
-    const hasVideo = Boolean(mediaState?.videoId && mediaState.videoId.trim().length > 0)
-    const isPlaying = mediaState?.status === 'playing'
+    setBoCuc((bc) => (videoId ? hienLop(bc, 'video') : goLop(bc, 'video')))
+  }, [videoId])
 
-    if (hasVideo && isPlaying) {
-      setMode('video')
-    } else if (mode === 'idle') {
-      const derived = deriveDefaultWorkspaceMode(mediaState, slideState)
-      if (derived !== 'idle') {
-        setMode(derived)
-      }
-    }
-  }, [mediaState?.videoId, mediaState?.status, slideState?.docUrl, mode])
+  useEffect(() => {
+    if (videoDangPhat) setBoCuc((bc) => hienLop(bc, 'video'))
+  }, [videoDangPhat])
+
+  useEffect(() => {
+    setBoCuc((bc) => (docUrl ? hienLop(bc, 'doc') : goLop(bc, 'doc')))
+  }, [docUrl])
+
+  // Công cụ vẽ chung cho mọi lớp.
+  const [congCu, setCongCu] = useState<CongCu>('chuot')
+  const [mau, setMau] = useState<string>('#ef4444')
+  const [co, setCo] = useState<CoVe>(1)
 
   // Contextual Rail: only ONE active at a time!
   const [contextPanel, setContextPanel] = useState<ContextPanelView>('closed')
   const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    if (!isFullscreen) return
+    const thoat = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullscreen(false)
+    }
+    window.addEventListener('keydown', thoat)
+    return () => window.removeEventListener('keydown', thoat)
+  }, [isFullscreen])
 
   // Unread chat tracking
   const [lastReadMessageId, setLastReadMessageId] = useState<number>(0)
@@ -212,6 +222,11 @@ export function ClassroomWorkspace({
   const handleTogglePanel = useCallback((target: ContextPanelView) => {
     setContextPanel((curr) => (curr === target ? 'closed' : target))
   }, [])
+
+  const doiBoCuc = useCallback(
+    (bienDoi: (bc: BoCuc, id: LopId) => BoCuc) => (id: LopId) => setBoCuc((bc) => bienDoi(bc, id)),
+    [],
+  )
 
   return (
     <div
@@ -258,10 +273,17 @@ export function ClassroomWorkspace({
         {/* Dominant Center Stage */}
         <main className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
           <PresentationStage
-            mode={mode}
-            onSelectMode={setMode}
+            boCuc={boCuc}
+            onPhongTo={doiBoCuc(lamChinh)}
+            onThuNho={doiBoCuc(thuNho)}
+            onAn={doiBoCuc(anLop)}
+            onBatTatBangPhu={() => setBoCuc(batTatBangPhu)}
             isHost={isHost}
             canModerate={canModerate}
+            myActorKey={nguoiDung.actorKey}
+            congCu={congCu}
+            mau={mau}
+            co={co}
             slideState={slideState}
             onPageChange={onPageChange}
             onUploadSlide={onUploadSlide}
@@ -274,16 +296,13 @@ export function ClassroomWorkspace({
             onOpenSearchQueue={onOpenSearchQueue}
             calculateTargetTime={calculateTargetTime}
             whiteboardStrokes={whiteboardStrokes}
-            selectedColor={selectedColor}
-            selectedSize={selectedSize}
-            isEraser={isEraser}
             onSendStroke={onSendStroke}
+            onRemoveStroke={onRemoveStroke}
             isFullscreen={isFullscreen}
             onToggleFullscreen={() => setIsFullscreen((v) => !v)}
             isReconnecting={isReconnecting}
             slideAnnotations={slideAnnotations}
             onSendSlideAnnotation={onSendSlideAnnotation}
-            onClearSlideAnnotations={onClearSlideAnnotations}
             onRemoveSlideAnnotation={onRemoveSlideAnnotation}
             slideLaser={slideLaser}
             onSendSlideLaser={onSendSlideLaser}
@@ -317,27 +336,30 @@ export function ClassroomWorkspace({
         />
       </div>
 
-      {/* ── 4. COMPACT PRESENTATION TOOL DOCK ── */}
-      {!isFullscreen && (
+      {/* ── 4. COMPACT PRESENTATION TOOL DOCK (vẫn dùng được khi toàn màn hình: nổi trên sân khấu) ── */}
+      <div className={isFullscreen ? 'fixed bottom-2 left-1/2 z-[110] -translate-x-1/2' : undefined}>
         <ClassroomToolDock
-          mode={mode}
-          onSelectMode={setMode}
+          boCuc={boCuc}
+          onBamLop={(id) => setBoCuc((bc) => bamLop(bc, id))}
+          coTaiLieu={Boolean(docUrl)}
+          videoDangPhat={videoDangPhat}
           isHost={isHost}
           canModerate={canModerate}
-          slideState={slideState}
-          mediaState={mediaState}
-          selectedColor={selectedColor}
-          onSelectColor={onSelectColor}
-          selectedSize={selectedSize}
-          onSelectSize={onSelectSize}
-          isEraser={isEraser}
-          onToggleEraser={onToggleEraser}
+          congCu={congCu}
+          onChonCongCu={setCongCu}
+          mau={mau}
+          onChonMau={setMau}
+          co={co}
+          onChonCo={setCo}
           onClearWhiteboard={onClearWhiteboard}
+          onClearSlidePage={
+            onClearSlideAnnotations && slideState ? () => onClearSlideAnnotations(slideState.currentPage) : undefined
+          }
           onOpenCalculator={onOpenCalculator}
           onOpenSessionPanel={onOpenSessionPanel}
           isReconnecting={isReconnecting}
         />
-      )}
+      </div>
     </div>
   )
 }

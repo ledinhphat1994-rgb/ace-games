@@ -1,23 +1,29 @@
 // src/features/study/workspace/PresentationStage.tsx
-// Digital Campus v2: Dominant Central Presentation Stage
+// Digital Campus v2: Sân khấu trung tâm — Tài liệu, Bảng, Video chạy đồng thời như các lớp chồng lên nhau.
+// Mỗi lớp giữ nguyên chỗ trong cây React (chỉ đổi vai trò bằng class) nên video không bị tải lại khi đổi bố cục.
 
 import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke } from '@shared/protocol/room'
-import {
-  Maximize2,
-  Minimize2,
-  MonitorPlay,
-  PenTool,
-} from 'lucide-react'
-import { ChalkboardCanvas } from '../ChalkboardCanvas'
+import { MonitorPlay, PenLine } from 'lucide-react'
+import { BangVe } from './BangVe'
+import type { CongCu, CoVe } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
-import type { WorkspaceMode } from './types'
+import { KhungLop, NutKhung } from './KhungLop'
+import { dangHien, lopChinh, viTriCuaSo, type BoCuc, type LopId } from './stage-layout'
 
 export interface PresentationStageProps {
-  mode: WorkspaceMode
-  onSelectMode: (mode: WorkspaceMode) => void
+  boCuc: BoCuc
+  onPhongTo: (id: LopId) => void
+  onThuNho: (id: LopId) => void
+  onAn: (id: LopId) => void
+  onBatTatBangPhu: () => void
   isHost: boolean
   canModerate?: boolean
+  myActorKey?: string
+  // Công cụ vẽ chung
+  congCu: CongCu
+  mau: string
+  co: CoVe
   // Document props
   slideState?: SlideState | null
   onPageChange?: (newPage: number) => void
@@ -25,7 +31,6 @@ export interface PresentationStageProps {
   onCloseDoc?: () => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
-  onClearSlideAnnotations?: (page?: number) => void
   onRemoveSlideAnnotation?: (id: string) => void
   slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
@@ -39,16 +44,13 @@ export interface PresentationStageProps {
   calculateTargetTime: () => number
   // Whiteboard props
   whiteboardStrokes: WhiteboardStroke[]
-  selectedColor: string
-  selectedSize: number
-  isEraser: boolean
   onSendStroke: (stroke: Omit<WhiteboardStroke, 'epoch'> | WhiteboardStroke) => void
+  onRemoveStroke: (id: string) => void
   // Stage container props
   isFullscreen: boolean
   onToggleFullscreen: () => void
   isReconnecting?: boolean
 }
-
 
 function YoutubeIcon({ className }: { className?: string }) {
   return (
@@ -59,17 +61,23 @@ function YoutubeIcon({ className }: { className?: string }) {
 }
 
 export function PresentationStage({
-  mode,
-  onSelectMode: _onSelectMode,
+  boCuc,
+  onPhongTo,
+  onThuNho,
+  onAn,
+  onBatTatBangPhu,
   isHost,
   canModerate = false,
+  myActorKey,
+  congCu,
+  mau,
+  co,
   slideState,
   onPageChange,
   onUploadSlide,
   onCloseDoc,
   slideAnnotations,
   onSendSlideAnnotation,
-  onClearSlideAnnotations,
   onRemoveSlideAnnotation,
   slideLaser,
   onSendSlideLaser,
@@ -81,26 +89,60 @@ export function PresentationStage({
   onOpenSearchQueue,
   calculateTargetTime,
   whiteboardStrokes,
-  selectedColor,
-  selectedSize,
-  isEraser,
   onSendStroke,
+  onRemoveStroke,
   isFullscreen,
   onToggleFullscreen,
   isReconnecting = false,
 }: PresentationStageProps) {
   const canControl = !isReconnecting && (isHost || canModerate)
+  const chinh = lopChinh(boCuc)
+  const coLopHien = (['doc', 'video', 'board'] as const).some((id) => dangHien(boCuc[id]))
+
+  const nutKhung = (id: LopId) => {
+    const vaiTro = boCuc[id]
+    if (!vaiTro) return null
+    return (
+      <NutKhung
+        id={id}
+        vaiTro={vaiTro}
+        onPhongTo={() => onPhongTo(id)}
+        onThuNho={() => onThuNho(id)}
+        onAn={() => onAn(id)}
+        onPhu={id === 'board' ? onBatTatBangPhu : undefined}
+        coThePhu={id === 'board' && chinh !== null && chinh !== 'board'}
+        toanManHinh={isFullscreen}
+        onToanManHinh={onToggleFullscreen}
+      />
+    )
+  }
+
+  const bangVe = (laPhu: boolean) => (
+    <BangVe
+      strokes={whiteboardStrokes}
+      congCu={congCu}
+      mau={mau}
+      co={co}
+      laPhu={laPhu}
+      coTheVe={!isReconnecting}
+      coTheTayMoiNet={canControl}
+      khoaCuaToi={myActorKey}
+      onSendStroke={onSendStroke}
+      onRemoveStroke={onRemoveStroke}
+    />
+  )
 
   return (
     <section
       aria-label="Khu vực trình chiếu trung tâm"
-      className={`relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#090e18] shadow-2xl transition-all ${
-        isFullscreen ? 'fixed inset-0 z-[100] rounded-none border-0' : ''
+      // Chỉ một trong hai: có cả `relative` lẫn `fixed` thì `relative` thắng và toàn màn hình không phủ kín.
+      className={`flex h-full w-full flex-col overflow-hidden bg-[#090e18] shadow-2xl ${
+        isFullscreen ? 'fixed inset-0 z-[100]' : 'relative rounded-2xl border border-white/10'
       }`}
       data-testid="presentation-stage-container"
     >
-      {/* ── MODE 1: IDLE STAGE ── */}
-      {mode === 'idle' && (
+      {/* ── SÂN KHẤU TRỐNG: chưa bật lớp nào ── */}
+      {!coLopHien && (
         <div
           className="relative flex h-full w-full flex-col items-center justify-center p-6 text-center select-none"
           data-testid="stage-idle-view"
@@ -116,116 +158,110 @@ export function PresentationStage({
         </div>
       )}
 
-      {/* ── MODE 2: DOCUMENT STAGE ── */}
-      {mode === 'document' && (
-        <DocumentStageView
-          slideState={slideState}
-          isHost={isHost}
-          canModerate={canModerate}
-          onPageChange={onPageChange}
-          onUploadSlide={onUploadSlide}
-          onCloseDoc={onCloseDoc}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={onToggleFullscreen}
-          isReconnecting={isReconnecting}
-          slideAnnotations={slideAnnotations}
-          onSendSlideAnnotation={onSendSlideAnnotation}
-          onClearSlideAnnotations={onClearSlideAnnotations}
-          onRemoveSlideAnnotation={onRemoveSlideAnnotation}
-          slideLaser={slideLaser}
-          onSendSlideLaser={onSendSlideLaser}
-        />
-      )}
-
-      {/* ── MODE 3: VIDEO STAGE ── */}
-      {mode === 'video' && (
-        mediaState && mediaState.videoId ? (
-          <EmbeddedVideoPlayer
-            mediaState={mediaState}
+      {/* ── LỚP TÀI LIỆU ── */}
+      {boCuc.doc && (
+        <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')}>
+          <DocumentStageView
+            slideState={slideState}
             isHost={isHost}
             canModerate={canModerate}
-            canControlMedia={canControlMedia}
-            volume={volume}
-            onVolumeChange={onVolumeChange}
-            onSyncMedia={onSyncMedia}
-            onOpenSearchQueue={onOpenSearchQueue}
-            calculateTargetTime={calculateTargetTime}
-            isFullscreen={isFullscreen}
-            onToggleFullscreen={onToggleFullscreen}
+            onPageChange={onPageChange}
+            onUploadSlide={onUploadSlide}
+            onCloseDoc={onCloseDoc}
+            dieuKhienKhung={nutKhung('doc')}
+            compact={boCuc.doc === 'pip'}
+            nhanPhim={boCuc.doc === 'main'}
+            congCu={congCu}
+            mau={mau}
+            co={co}
             isReconnecting={isReconnecting}
+            slideAnnotations={slideAnnotations}
+            onSendSlideAnnotation={onSendSlideAnnotation}
+            onRemoveSlideAnnotation={onRemoveSlideAnnotation}
+            slideLaser={slideLaser}
+            onSendSlideLaser={onSendSlideLaser}
           />
-        ) : (
-          <div
-            className="flex h-full w-full flex-col items-center justify-center p-6 text-center select-none bg-[#090d16]"
-            data-testid="video-stage-empty"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 mb-3 shadow-inner">
-              <YoutubeIcon className="h-7 w-7" />
-            </div>
-            {canControl ? (
-              <div className="space-y-3 max-w-sm">
-                <div>
-                  <h3 className="text-base font-bold text-white">Chọn video để bắt đầu phát</h3>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Dán đường dẫn YouTube hoặc tìm kiếm bài giảng trực tiếp.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onOpenSearchQueue}
-                  className="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs px-4 py-2 shadow-lg shadow-red-600/20 transition-all cursor-pointer"
-                  data-testid="stage-open-yt-cta"
-                >
-                  <YoutubeIcon className="h-3.5 w-3.5" />
-                  <span>Tìm / Chèn Video YouTube</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-1 max-w-sm">
-                <h3 className="text-base font-bold text-white">Chưa có video đang phát</h3>
-                <p className="text-xs text-slate-400">
-                  Chờ chủ phòng hoặc giáo viên chọn video học tập.
-                </p>
-              </div>
-            )}
-          </div>
-        )
+        </KhungLop>
       )}
 
-      {/* ── MODE 4: WHITEBOARD STAGE ── */}
-      {mode === 'whiteboard' && (
-        <div className="relative h-full w-full overflow-hidden" data-testid="whiteboard-stage">
-          {/* Whiteboard Top Toolbar */}
-          <div className="absolute top-0 inset-x-0 h-10 flex items-center justify-between px-4 border-b border-white/10 bg-slate-950/80 backdrop-blur-md z-20 select-none">
-            <div className="flex items-center gap-2">
-              <PenTool className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-semibold text-white">Bảng phấn lớp học</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {onToggleFullscreen && (
-                <button
-                  type="button"
-                  onClick={onToggleFullscreen}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                  title={isFullscreen ? 'Thu nhỏ stage' : 'Toàn màn hình stage'}
-                >
-                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="h-full w-full pt-10">
-            <ChalkboardCanvas
-              strokes={whiteboardStrokes}
-              selectedColor={selectedColor}
-              selectedSize={selectedSize}
-              isEraser={isEraser}
-              onSendStroke={onSendStroke}
+      {/* ── LỚP VIDEO ── */}
+      {boCuc.video && (
+        <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')}>
+          {mediaState && mediaState.videoId ? (
+            <EmbeddedVideoPlayer
+              mediaState={mediaState}
+              isHost={isHost}
+              canModerate={canModerate}
+              canControlMedia={canControlMedia}
+              volume={volume}
+              onVolumeChange={onVolumeChange}
+              onSyncMedia={onSyncMedia}
+              onOpenSearchQueue={onOpenSearchQueue}
+              calculateTargetTime={calculateTargetTime}
+              dieuKhienKhung={nutKhung('video')}
+              compact={boCuc.video === 'pip'}
+              isReconnecting={isReconnecting}
             />
-          </div>
-        </div>
+          ) : (
+            <div className="flex h-full w-full flex-col bg-[#090d16] select-none" data-testid="video-stage-empty">
+              <div data-keo-khung className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 px-3">
+                <span className="flex items-center gap-2 text-xs font-semibold text-white">
+                  <YoutubeIcon className="h-4 w-4 text-red-500" />
+                  Video
+                </span>
+                {nutKhung('video')}
+              </div>
+              <div className="flex flex-1 items-center justify-center p-4 text-center">
+                {canControl ? (
+                  <button
+                    type="button"
+                    onClick={onOpenSearchQueue}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs px-4 py-2 shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+                    data-testid="stage-open-yt-cta"
+                  >
+                    <YoutubeIcon className="h-3.5 w-3.5" />
+                    <span>Chọn video</span>
+                  </button>
+                ) : (
+                  <h3 className="text-sm font-bold text-white">Chưa có video</h3>
+                )}
+              </div>
+            </div>
+          )}
+        </KhungLop>
+      )}
+
+      {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi / phủ trong suốt lên lớp chính ── */}
+      {boCuc.board && (
+        <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')}>
+          {boCuc.board === 'phu' ? (
+            // Phủ đúng vùng nội dung của lớp chính: chừa thanh tiêu đề (và thanh điều khiển nếu lớp chính là video).
+            <div
+              className={`absolute inset-x-0 ${chinh === 'video' ? 'top-10 bottom-16' : 'top-11 bottom-0'}`}
+              data-testid="whiteboard-stage"
+            >
+              {bangVe(true)}
+              <div className="pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-slate-950/85 py-0.5 pl-2 pr-0.5 shadow-lg backdrop-blur-md">
+                <PenLine className="h-3.5 w-3.5 text-emerald-400" />
+                {nutKhung('board')}
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a1611]" data-testid="whiteboard-stage">
+              <div
+                data-keo-khung
+                className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 ${boCuc.board === 'pip' ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
+              >
+                <span className="flex items-center gap-2 text-xs font-semibold text-white">
+                  <PenLine className="h-4 w-4 text-emerald-400" />
+                  Bảng
+                </span>
+                {nutKhung('board')}
+              </div>
+              <div className="relative min-h-0 flex-1">{bangVe(false)}</div>
+            </div>
+          )}
+        </KhungLop>
       )}
     </section>
   )

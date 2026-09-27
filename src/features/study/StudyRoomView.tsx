@@ -145,6 +145,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     syncMedia,
     sendStroke,
     clearWhiteboard,
+    removeStroke,
     updateNotes,
     sendRoomChat,
     toggleMic,
@@ -279,9 +280,6 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   }, [refreshDevices])
 
   // ── Chalk tool state (lifted from canvas, controlled by bottom dock) ──────
-  const [selectedColor, setSelectedColor] = useState('#FFFFFF')
-  const [selectedSize, setSelectedSize] = useState(6)
-  const [isEraser, setIsEraser] = useState(false)
 
   // ── Window visibility & z-index ──────────────────────────────────────────
   const [calcZ, setCalcZ] = useState(39)
@@ -509,13 +507,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onOpenSearchQueue={() => setShowYtPanel(true)}
         calculateTargetTime={calculateTargetTime}
         whiteboardStrokes={whiteboardStrokes}
-        selectedColor={selectedColor}
-        onSelectColor={setSelectedColor}
-        selectedSize={selectedSize}
-        onSelectSize={setSelectedSize}
-        isEraser={isEraser}
-        onToggleEraser={() => setIsEraser((v) => !v)}
         onSendStroke={sendStroke}
+        onRemoveStroke={removeStroke}
         onClearWhiteboard={clearWhiteboard}
         myMic={myMic}
         onToggleMic={() => {

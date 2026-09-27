@@ -284,8 +284,8 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       expect(modes).toContain('whiteboard')
     })
 
-    it('embeds ChalkboardCanvas inside center PresentationStage rather than floating window', () => {
-      expect(stageRaw).toContain('<ChalkboardCanvas')
+    it('embeds the whiteboard (BangVe) inside center PresentationStage rather than floating window', () => {
+      expect(stageRaw).toContain('<BangVe')
       expect(stageRaw).not.toContain('FloatingChalkboard')
       expect(workspaceRaw).toContain('<PresentationStage')
     })
@@ -312,9 +312,9 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       expect(canUserPresent(true, true)).toBe(true)
     })
 
-    it('bottom dock is the only launcher for content: Tài liệu, Bảng trắng, Video, Công cụ', () => {
+    it('bottom dock is the only launcher for content: Tài liệu, Bảng, Video, Công cụ', () => {
       expect(dockRaw).toContain('Tài liệu')
-      expect(dockRaw).toContain('Bảng trắng')
+      expect(dockRaw).toContain("ten: 'Bảng'")
       expect(dockRaw).toContain('Video')
       expect(dockRaw).toContain('Công cụ')
       expect(stageRaw).not.toContain('Chọn nội dung để bắt đầu')

@@ -2,18 +2,8 @@
 // Digital Campus v2: Embedded YouTube Player for Central Presentation Stage
 
 import { SUPPORTED_PLAYBACK_RATES, type MediaState } from '@shared/protocol/room'
-import {
-  AlertCircle,
-  Crown,
-  Maximize2,
-  Minimize2,
-  Pause,
-  Play,
-  Search,
-  Volume2,
-  VolumeX,
-} from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { AlertCircle, Crown, Pause, Play, Search, Volume2, VolumeX } from 'lucide-react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 
 export interface EmbeddedVideoPlayerProps {
@@ -26,8 +16,10 @@ export interface EmbeddedVideoPlayerProps {
   onSyncMedia: (action: 'play' | 'pause' | 'seek' | 'rate', time?: number, rate?: number) => void
   onOpenSearchQueue: () => void
   calculateTargetTime: () => number
-  isFullscreen?: boolean
-  onToggleFullscreen?: () => void
+  /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
+  dieuKhienKhung?: ReactNode
+  /** Đang là cửa sổ nổi: chỉ giữ phát / tạm dừng và thanh tua. */
+  compact?: boolean
   isReconnecting?: boolean
 }
 
@@ -57,8 +49,8 @@ export function EmbeddedVideoPlayer({
   onSyncMedia,
   onOpenSearchQueue,
   calculateTargetTime,
-  isFullscreen,
-  onToggleFullscreen,
+  dieuKhienKhung,
+  compact = false,
   isReconnecting = false,
 }: EmbeddedVideoPlayerProps) {
   const rawId = useId()
@@ -102,42 +94,42 @@ export function EmbeddedVideoPlayer({
       data-testid="embedded-video-stage"
     >
       {/* Top Video Header Bar */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-white/10 bg-slate-950/80 px-4 backdrop-blur-md z-10">
+      <div
+        data-keo-khung
+        className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 backdrop-blur-md z-10 ${compact ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
+      >
         <div className="flex items-center gap-2 truncate pr-2 min-w-0">
           <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0" />
           <span className="truncate text-xs font-semibold text-white">
             {mediaState.title || 'Video bài giảng'}
           </span>
           {mediaState.hostOnlyControl && (
-            <span className="flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 shrink-0">
-              <Crown className="h-2.5 w-2.5" />
-              Chủ phòng điều khiển
+            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300">
+              <Crown className="h-3.5 w-3.5" />
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {effectiveCanControl && (
             <button
               type="button"
               onClick={onOpenSearchQueue}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
-              title="Tìm hoặc đổi video khác"
+              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
+              title="Đổi video"
+              aria-label="Đổi video"
+              data-testid="video-btn-change"
             >
               <Search className="h-3 w-3" />
-              <span className="hidden sm:inline text-[11px]">Đổi video</span>
+              {!compact && <span className="hidden sm:inline text-[11px]">Đổi video</span>}
             </button>
           )}
 
-          {onToggleFullscreen && (
-            <button
-              type="button"
-              onClick={onToggleFullscreen}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-              title={isFullscreen ? 'Thu nhỏ stage' : 'Toàn màn hình stage'}
-            >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </button>
+          {dieuKhienKhung && (
+            <>
+              <span className="mx-0.5 h-4 w-px bg-white/15" />
+              {dieuKhienKhung}
+            </>
           )}
         </div>
       </div>
@@ -201,7 +193,7 @@ export function EmbeddedVideoPlayer({
       </div>
 
       {/* Synchronized Control Toolbar */}
-      <div className="relative shrink-0 border-t border-white/10 bg-slate-950/95 px-4 py-2 flex flex-col gap-1.5 z-10 backdrop-blur-md">
+      <div className={`relative shrink-0 border-t border-white/10 bg-slate-950/95 flex flex-col z-10 backdrop-blur-md ${compact ? 'px-2 py-1 gap-1' : 'px-4 py-2 gap-1.5'}`}>
         {/* Scrubber Bar */}
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-slate-400 shrink-0 tabular-nums">
@@ -260,7 +252,7 @@ export function EmbeddedVideoPlayer({
             )}
 
             {/* Volume slider */}
-            <div className="flex items-center gap-1.5 ml-2">
+            <div className={`items-center gap-1.5 ml-2 ${compact ? 'hidden' : 'flex'}`}>
               <button
                 type="button"
                 onClick={() => onVolumeChange(volume === 0 ? 80 : 0)}
@@ -283,9 +275,9 @@ export function EmbeddedVideoPlayer({
 
           <div className="flex items-center gap-2">
             {/* Speed Rate selector */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 font-medium">Tốc độ:</span>
+            <div className={`items-center gap-1 ${compact ? 'hidden' : 'flex'}`}>
               <select
+                title="Tốc độ phát"
                 value={playbackRate}
                 disabled={!effectiveCanControl}
                 onChange={(e) => handleUserRate(Number(e.target.value) as any)}
