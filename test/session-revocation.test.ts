@@ -805,8 +805,15 @@ describe('PRV7 — Transactional Reset Commit & Global Session Revocation Suite'
     pendingList = await (reloadedCampus as any).getPendingRoomRevocations()
     expect(pendingList.some((r: any) => r.accountId === accountId && r.roomName === `phong-${phongId}`)).toBe(true)
 
-    // 6. Alarm vẫn được duy trì trên CampusDO
-    const alarmTime = await (reloadedCampus as any).getRoomRevocationAlarmTime()
+    // 6. Alarm vẫn được duy trì trên CampusDO.
+    // Alarm được hẹn 1 giây sau khi khởi động lại; khi cả bộ test chạy song song, bước này có thể rơi đúng lúc alarm
+    // đang chạy (getAlarm() tạm trả null cho tới khi handler hẹn lần thử kế tiếp). Chờ tối đa 3 giây: nếu lịch thử lại
+    // thật sự bị mất thì vẫn fail.
+    let alarmTime: number | null = null
+    for (let i = 0; i < 30 && alarmTime === null; i++) {
+      alarmTime = await (reloadedCampus as any).getRoomRevocationAlarmTime()
+      if (alarmTime === null) await new Promise((r) => setTimeout(r, 100))
+    }
     expect(alarmTime).not.toBeNull()
 
     // 7. Khôi phục RoomDO RPC và kích hoạt retry
