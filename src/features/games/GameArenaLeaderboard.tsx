@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Crown, Award, Medal } from 'lucide-react'
+import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Crown } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
@@ -108,7 +108,7 @@ function ChampionSpotlight({ record, animKey }: { record: HighScoreRecord; animK
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
                 <Crown className="size-3 text-amber-400 inline" />
-                Kỷ Lục Đứng Đầu
+                Top 1 / 50 • Kỷ Lục Đứng Đầu
               </span>
               <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-400/20 text-amber-200 border border-amber-400/30">
                 Lv.{capDo}
@@ -345,13 +345,18 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
             <Trophy className="size-4 text-amber-400" />
           </div>
           <div>
-            <h2
-              id="arena-leaderboard-heading"
-              className="text-sm font-black tracking-tight text-white leading-none"
-            >
-              Bảng Xếp Hạng
-            </h2>
-            <p className="text-[10px] text-text-tertiary mt-0.5 leading-none">{info.shortTitle}</p>
+            <div className="flex items-center gap-2">
+              <h2
+                id="arena-leaderboard-heading"
+                className="text-sm font-black tracking-tight text-white leading-none"
+              >
+                Bảng Xếp Hạng
+              </h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
+                Top 50
+              </span>
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-1 leading-none">{info.shortTitle} • 50 kỷ lục cao nhất</p>
           </div>
         </div>
         <button
@@ -441,7 +446,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           </div>
           <div>
             <p className="text-sm font-bold text-white">Chưa có ai lên bảng!</p>
-            <p className="text-xs text-text-tertiary mt-1">Chơi {activeTabCfg.label} để lập kỷ lục đầu tiên 🏆</p>
+            <p className="text-xs text-text-tertiary mt-1">Chơi {activeTabCfg.label} để ghi danh Top 50 đầu tiên 🏆</p>
           </div>
         </div>
       ) : (
@@ -453,25 +458,18 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           {/* Top 1 Champion Spotlight */}
           {champion && <ChampionSpotlight record={champion} animKey={activeTab} />}
 
-          {/* Vị trí còn trống nếu mới có 1 hoặc 2 người */}
-          {records.length === 1 && (
-            <div className="mx-3 mt-2 mb-3 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-3 text-center animate-in fade-in">
+          {/* Thông báo tiến độ lấp đầy bảng vàng Top 50 */}
+          {records.length < 50 && (
+            <div className="mx-3 mt-2 mb-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-2.5 text-center animate-in fade-in">
               <div className="flex items-center justify-center gap-1.5 text-amber-400 text-xs font-bold">
-                <Medal className="size-4" />
-                <span>Còn trống vị trí #2 và #3</span>
+                <Trophy className="size-3.5 text-amber-400" />
+                <span>Bảng Vinh Danh Top 50 ({records.length}/50)</span>
               </div>
-              <p className="text-[11px] text-text-tertiary mt-1">
-                Tham gia thi đấu ngay để ghi tên mình lên bảng vàng!
+              <p className="text-[10px] text-text-tertiary mt-0.5">
+                {records.length === 1
+                  ? 'Còn trống 49 vị trí trong Top 50 — Chơi ngay để ghi danh bảng vàng!'
+                  : `Còn trống ${50 - records.length} vị trí trong Top 50 — Chơi ngay để ghi danh bảng vàng!`}
               </p>
-            </div>
-          )}
-
-          {records.length === 2 && (
-            <div className="mx-3 mt-2 mb-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-2 text-center animate-in fade-in">
-              <span className="text-[11px] text-text-tertiary flex items-center justify-center gap-1">
-                <Award className="size-3.5 text-amber-500" />
-                Vị trí #3 đang chờ người thách đấu tiếp theo
-              </span>
             </div>
           )}
 
@@ -481,7 +479,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
               <div className="flex items-center gap-2 px-4 my-2 shrink-0">
                 <div className="flex-1 h-px bg-white/[0.06]" />
                 <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
-                  Thứ hạng khác ({remaining.length})
+                  Thứ hạng 2 – {records.length} trong Top 50
                 </span>
                 <div className="flex-1 h-px bg-white/[0.06]" />
               </div>

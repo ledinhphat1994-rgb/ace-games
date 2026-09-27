@@ -143,6 +143,44 @@ function playWormSound(type: 'nom' | 'bonus' | 'boost' | 'crash', muted: boolean
   } catch {}
 }
 
+// ── Icon Rắn Dễ Thương (Cute Kawaii Snake) ──
+function CuteSnakeLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      {/* Thân rắn uốn lượn dễ thương */}
+      <path
+        d="M16 48C11 48 8 44 8 39C8 33 13 29 20 29C26 29 30 33 30 39C30 45 36 49 42 49C48 49 53 45 53 39C53 35 50 31 46 29"
+        stroke="#10B981"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Điểm nhấn bụng sáng */}
+      <path
+        d="M16 48C11 48 8 44 8 39C8 33 13 29 20 29C26 29 30 33 30 39"
+        stroke="#6EE7B7"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      {/* Đầu rắn tròn trịa */}
+      <circle cx="24" cy="21" r="13" fill="#10B981" />
+      <circle cx="24" cy="21" r="11" fill="#34D399" />
+      {/* Má hồng kawaii */}
+      <ellipse cx="14" cy="24" rx="2.5" ry="1.5" fill="#F472B6" opacity="0.85" />
+      <ellipse cx="34" cy="24" rx="2.5" ry="1.5" fill="#F472B6" opacity="0.85" />
+      {/* Mắt to tròn long lanh */}
+      <circle cx="19" cy="18" r="3.2" fill="#0F172A" />
+      <circle cx="18" cy="17" r="1.2" fill="white" />
+      <circle cx="29" cy="18" r="3.2" fill="#0F172A" />
+      <circle cx="28" cy="17" r="1.2" fill="white" />
+      {/* Nụ cười vui tươi */}
+      <path d="M21 23C22.5 25 25.5 25 27 23" stroke="#065F46" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Chiếc lưỡi đỏ nhỏ xinh */}
+      <path d="M24 25V28M24 28L22 30M24 28L26 30" stroke="#EF4444" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export interface Wormate3DArenaProps {
   difficulty?: 'easy' | 'medium' | 'hard'
   aiCount?: number
@@ -853,27 +891,23 @@ export function Wormate3DArena({
             Giữ <span className="text-amber-300 font-bold">Chuột</span> hoặc phím <span className="text-amber-300 font-bold">Space</span> để Tăng Tốc
           </div>
         </div>
-      )}
-
-
-
-      {/* Overlay Khởi động ván */}
+      )}      {/* Overlay Khởi động ván */}
       {!isRunning && !isGameOver && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-6 text-center backdrop-blur-md animate-in fade-in duration-200">
-          <div className="size-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-400 p-0.5 shadow-xl shadow-cyan-500/30 mb-3">
-            <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center text-4xl">
-              🧁
+          <div className="size-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-500/30 mb-3">
+            <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center p-1.5">
+              <CuteSnakeLogo className="size-11" />
             </div>
           </div>
-          <h3 className="text-xl font-black uppercase text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-emerald-400 mb-4">
-            Đấu Trường Wormate 3D
+          <h3 className="text-xl font-black uppercase text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-400 mb-4">
+            Rắn Săn Mồi
           </h3>
           <Button
             onClick={onStartGame}
-            className="gap-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-black text-xs px-7 py-2.5 rounded-xl shadow-lg shadow-cyan-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs px-7 py-2.5 rounded-xl shadow-lg shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <Play className="size-4 fill-slate-950" />
-            <span>Vào Đấu Trường Ngay</span>
+            <span>Vào Chơi Ngay</span>
           </Button>
         </div>
       )}
