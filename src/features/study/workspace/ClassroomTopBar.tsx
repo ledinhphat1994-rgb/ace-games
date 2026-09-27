@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -16,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { VoiceClientState } from '@/lib/voice-client'
 import { cn } from '@/lib/utils'
 import {
+  AlertTriangle,
   ArrowLeft,
   Crown,
   Loader2,
@@ -283,14 +283,20 @@ export function ClassroomTopBar({
         )}
       </div>
 
-      {/* Popup xác nhận hủy phòng (chỉ tiêu đề, không chú thích) */}
+      {/* Popup xác nhận hủy phòng (cân đối, tinh gọn, chỉ tiêu đề) */}
       <Dialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
         <DialogContent
-          className="w-full max-w-[360px] p-5 rounded-2xl border-border-default bg-surface shadow-2xl"
+          showCloseButton={false}
+          className="w-full max-w-[320px] p-6 rounded-2xl border-border-default bg-surface shadow-2xl flex flex-col items-center text-center gap-0"
           data-testid="dialog-confirm-close-room"
         >
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-text-primary">
+          {/* Icon cảnh báo đỏ nổi bật, tinh tế */}
+          <div className="flex size-12 items-center justify-center rounded-2xl border border-destructive/25 bg-destructive/10 text-destructive mb-3.5 shadow-sm">
+            <AlertTriangle className="size-6" />
+          </div>
+
+          <DialogHeader className="p-0 text-center space-y-0">
+            <DialogTitle className="text-base font-semibold text-text-primary text-center">
               Hủy phòng học?
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -298,12 +304,14 @@ export function ClassroomTopBar({
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+          {/* 2 nút dàn đều 2 bên cân đối */}
+          <div className="grid grid-cols-2 gap-2.5 w-full mt-5">
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowConfirmClose(false)}
               disabled={isClosingRoom}
+              className="h-10 rounded-xl font-medium"
             >
               Huỷ
             </Button>
@@ -324,6 +332,7 @@ export function ClassroomTopBar({
               }}
               disabled={isClosingRoom}
               data-testid="btn-confirm-close-room"
+              className="h-10 rounded-xl font-medium"
             >
               {isClosingRoom ? (
                 <>
@@ -334,7 +343,7 @@ export function ClassroomTopBar({
                 'Hủy phòng'
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </header>
