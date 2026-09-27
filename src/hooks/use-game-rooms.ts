@@ -27,14 +27,15 @@ async function layDanhSachBan(gameType?: string): Promise<BanSanh[]> {
  * - Khi WebSocket kết nối thành công: refetchInterval = false (0 polling).
  * - Chỉ fallback polling chậm (15s) khi mất kết nối WebSocket.
  */
-export function useGameRooms(gameType?: string) {
+export function useGameRooms(gameType?: string, enabled = true) {
   const queryClient = useQueryClient()
   const [wsConnected, setWsConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const queryKey = useMemo(() => ['game-rooms', gameType || 'all'], [gameType])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    // Khách chưa đăng nhập: máy chủ từ chối (401) nên không mở kết nối — tránh vòng thử lại mỗi 5 giây.
+    if (typeof window === 'undefined' || !enabled) return
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${proto}//${window.location.host}/ws/game-lobby${gameType ? '/' + encodeURIComponent(gameType) : ''}`
@@ -109,11 +110,12 @@ export function useGameRooms(gameType?: string) {
         wsRef.current = null
       }
     }
-  }, [gameType, queryClient, queryKey])
+  }, [gameType, queryClient, queryKey, enabled])
 
   return useQuery({
     queryKey,
     queryFn: () => layDanhSachBan(gameType),
+    enabled,
     // Khi WS đang kết nối: tắt hoàn toàn polling (0 request).
     // Chỉ fallback polling chậm 15s khi rớt kết nối WS.
     refetchInterval: wsConnected ? false : 15_000,

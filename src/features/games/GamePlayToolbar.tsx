@@ -1,10 +1,11 @@
 import React from 'react'
-import { ArrowLeft, Bot, ChevronDown, Flag, RotateCcw, Users, Zap } from 'lucide-react'
+import { ArrowLeft, Bot, ChevronDown, Flag, Globe, RotateCcw, Users, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
-export type PlayMode = 'ai' | 'pass_and_play'
+/** `online`: bàn đối kháng qua mạng do máy chủ làm trọng tài (chỉ có khi bàn cờ mở từ sảnh). */
+export type PlayMode = 'ai' | 'pass_and_play' | 'online'
 export type AiDifficulty = 'easy' | 'medium' | 'hard'
 
 interface GamePlayToolbarProps {
@@ -19,6 +20,9 @@ interface GamePlayToolbarProps {
   onReset: () => void
   resetLabel?: string
   resetIcon?: React.ReactNode
+  resetDisabled?: boolean
+  /** Hiện thêm nút "Đấu online" ở cụm chế độ chơi giữa thanh (chỉ với `hideCenterTurn`). */
+  onlineAvailable?: boolean
   surrenderAttempts?: number
   activeSide?: 'red' | 'black'
   turnLabel: string
@@ -42,6 +46,8 @@ export function GamePlayToolbar({
   onReset,
   resetLabel,
   resetIcon,
+  resetDisabled = false,
+  onlineAvailable = false,
   surrenderAttempts,
   activeSide,
   turnLabel,
@@ -114,8 +120,32 @@ export function GamePlayToolbar({
       {/* ── 2. KHU VỰC CHÍNH GIỮA: CĂN GIỮA TUYỆT ĐỐI THEO BẢNG CHÍNH (50% TRỤC GIỮA) ── */}
       {hideCenterTurn ? (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto z-10">
-          {/* Cụm chế độ chơi: Chơi với máy & Chơi với người - Cố định tuyệt đối chiều rộng, không nhảy kích thước khi switch */}
-          <div className="grid grid-cols-2 rounded-xl bg-slate-950/70 p-0.5 border border-white/10 text-xs font-semibold shadow-sm w-[280px] min-[390px]:w-[300px] sm:w-[324px] shrink-0">
+          {/* Cụm chế độ chơi: (Đấu online) · Chơi với máy · Chơi với người - Cố định tuyệt đối chiều rộng, không nhảy kích thước khi switch */}
+          <div
+            className={cn(
+              'grid rounded-xl bg-slate-950/70 p-0.5 border border-white/10 text-xs font-semibold shadow-sm shrink-0',
+              onlineAvailable
+                ? 'grid-cols-3 w-[252px] min-[390px]:w-[276px] sm:w-[300px] 2xl:w-[372px]'
+                : 'grid-cols-2 w-[280px] min-[390px]:w-[300px] sm:w-[324px]',
+            )}
+          >
+            {onlineAvailable && (
+              <button
+                type="button"
+                onClick={() => onModeChange('online')}
+                aria-label="Đấu online"
+                className={cn(
+                  'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-8 w-full min-w-0 font-bold',
+                  mode === 'online'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
+                )}
+              >
+                <Globe className="size-3.5 shrink-0" />
+                <span className="truncate 2xl:hidden">Online</span>
+                <span className="truncate hidden 2xl:inline">Đấu online</span>
+              </button>
+            )}
             <Popover>
               <PopoverTrigger
                 render={
@@ -132,7 +162,14 @@ export function GamePlayToolbar({
                     title="Nhấn để chơi với máy hoặc chọn độ khó"
                   >
                     <Bot className="size-3.5 shrink-0" />
-                    <span className="truncate">Chơi với máy</span>
+                    {onlineAvailable ? (
+                      <>
+                        <span className="truncate 2xl:hidden">Máy</span>
+                        <span className="truncate hidden 2xl:inline">Chơi với máy</span>
+                      </>
+                    ) : (
+                      <span className="truncate">Chơi với máy</span>
+                    )}
                     {mode === 'ai' && (
                       <span
                         className={cn(
@@ -209,7 +246,14 @@ export function GamePlayToolbar({
               )}
             >
               <Users className="size-3.5 shrink-0" />
-              <span className="whitespace-nowrap font-bold truncate">Chơi với người</span>
+              {onlineAvailable ? (
+                <>
+                  <span className="whitespace-nowrap font-bold truncate 2xl:hidden">2 người</span>
+                  <span className="whitespace-nowrap font-bold truncate hidden 2xl:inline">Chơi với người</span>
+                </>
+              ) : (
+                <span className="whitespace-nowrap font-bold truncate">Chơi với người</span>
+              )}
             </button>
           </div>
         </div>
@@ -359,6 +403,7 @@ export function GamePlayToolbar({
             variant="outline"
             size="sm"
             onClick={onReset}
+            disabled={resetDisabled}
             aria-label={resetLabel ?? 'Xin thua'}
             className="h-8 gap-1.5 border-white/10 bg-white/5 text-xs text-slate-200 hover:bg-white/10 font-bold transition-all hover:scale-105 active:scale-95 order-3 shrink-0 px-2"
           >
@@ -378,6 +423,7 @@ export function GamePlayToolbar({
             variant="outline"
             size="sm"
             onClick={onReset}
+            disabled={resetDisabled}
             aria-label={resetLabel ?? 'Xin thua'}
             className="h-8 gap-1.5 border-white/10 bg-white/5 text-xs text-slate-200 hover:bg-white/10 font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2"
           >

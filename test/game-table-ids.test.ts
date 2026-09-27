@@ -3,7 +3,7 @@
 // "Ghép trận nhanh" không bao giờ kết nối được.
 import { describe, expect, it } from 'vitest'
 import type { GameType, GoiGame } from '../shared/protocol/game'
-import { MAU_MA_BAN, laTroChoiDon, nenKhoiTaoBan, taoMaBan } from '../src/features/games/game-ids'
+import { MAU_MA_BAN, laTroChoiDon, nenKhoiTaoBan, nenTuVaoBan, taoMaBan } from '../src/features/games/game-ids'
 import workerRaw from '../worker/index.ts?raw'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
@@ -36,6 +36,16 @@ describe('Mã bàn của sảnh Game', () => {
     expect(nenKhoiTaoBan(trong, undefined)).toBe(false)
     expect(nenKhoiTaoBan({ ...trong, playerX: 'acc:1' }, 'caro_15')).toBe(false)
     expect(nenKhoiTaoBan({ ...trong, status: 'playing' }, 'caro_15')).toBe(false)
+  })
+
+  it('người vào bàn đang chờ tự ngồi ghế trống — không áp cho khách, người đã có ghế hay bàn đang đấu', () => {
+    const cho = { status: 'waiting' as const, playerX: 'acc:1', playerO: null }
+    expect(nenTuVaoBan(cho, 'acc:2')).toBe(true)
+    expect(nenTuVaoBan(cho, undefined)).toBe(false)
+    expect(nenTuVaoBan(cho, 'acc:1')).toBe(false)
+    expect(nenTuVaoBan({ ...cho, playerO: 'acc:2' }, 'acc:2')).toBe(false)
+    expect(nenTuVaoBan({ ...cho, status: 'playing' }, 'acc:3')).toBe(false)
+    expect(nenTuVaoBan({ ...cho, status: 'ended' }, 'acc:3')).toBe(false)
   })
 
   it('game.init trên bàn Caro 15×15 mới xếp người tạo vào ghế X và áp thời gian lượt đã chọn', async () => {

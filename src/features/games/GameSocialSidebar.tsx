@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn, getInitials } from '@/lib/utils'
 import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
 import type { FriendItem } from '@shared/protocol/social'
+import type { RoomChatMessage } from '@shared/protocol/room'
+import { DO_DAI_TIN_BAN_TOI_DA } from '@/hooks/use-game'
 
 export type SocialTab = 'chat_phong' | 'chat_chung' | 'ban_be'
 
@@ -156,12 +158,15 @@ export interface RoomMessage {
   timestamp: number
 }
 
-interface DirectMessage {
-  id: string
-  fromId: number
-  toId: number
-  text: string
-  timestamp: number
+/** Chat phòng game thật của một bàn đấu: tin nhắn do RoomDO lưu và phát cho mọi người đang ở bàn. */
+export interface ChatBan {
+  tinNhan: RoomChatMessage[]
+  /** Gửi tin; trả về false khi bàn đang mất kết nối. */
+  gui: (text: string) => boolean
+  daKetNoi: boolean
+  /** Khoá ghế X / O của bàn — để gắn nhãn "Đấu thủ X/O" cho tin nhắn. */
+  playerX: string | null
+  playerO: string | null
 }
 
 interface GameSocialSidebarProps {
@@ -169,6 +174,8 @@ interface GameSocialSidebarProps {
   roomName?: string
   userRole?: 'player' | 'spectator'
   playerSide?: string
+  /** Chỉ bàn đấu online mới có chat phòng; sảnh và trò chơi đơn không có phòng chung nên tab này chỉ báo trống. */
+  chatBan?: ChatBan
   onInviteToGame?: (friendId: number, friendName: string) => void
   className?: string
   defaultTab?: SocialTab
@@ -177,8 +184,7 @@ interface GameSocialSidebarProps {
 export function GameSocialSidebar({
   roomId,
   roomName,
-  userRole = 'player',
-  playerSide,
+  chatBan,
   onInviteToGame,
   className,
   defaultTab,
@@ -193,11 +199,9 @@ export function GameSocialSidebar({
     presenceMap,
   } = useCampus()
 
-  const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (roomId ? 'chat_phong' : 'chat_phong'))
+  const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (chatBan ? 'chat_phong' : 'chat_chung'))
   const [selectedFriend, setSelectedFriend] = useState<FriendItem | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
-  const [dmText, setDmText] = useState('')
-  const [isEmojiOpen, setIsEmojiOpen] = useState(false)
   const [isRoomEmojiOpen, setIsRoomEmojiOpen] = useState(false)
   const [roomText, setRoomText] = useState('')
 
@@ -211,63 +215,26 @@ export function GameSocialSidebar({
   )
   const quickChips = isSnakeRoom ? CHIPS_CHAT_PHONG_SNAKE : CHIPS_CHAT_PHONG_DEFAULT
 
-  // ── Chat phòng: lưu trữ & đồng bộ realtime cross-tab qua BroadcastChannel ──
-  const effectiveRoomId = roomId || 'phong_hien_tai'
-  const [roomMessages, setRoomMessages] = useState<RoomMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem(`c10a7:room_chat:${effectiveRoomId}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          return parsed.filter((m: RoomMessage) => m.id !== 'system_init')
+  // ── Chat phòng: tin nhắn thật của bàn đấu (RoomDO lưu và phát cho người chơi lẫn người xem) ──
+  const roomMessages = useMemo<RoomMessage[]>(
+    () =>
+      (chatBan?.tinNhan ?? []).map((m) => {
+        const khoa = `acc:${m.accountId}`
+        const ben = khoa === chatBan?.playerX ? 'X' : khoa === chatBan?.playerO ? 'O' : undefined
+        return {
+          id: m.id,
+          accountId: m.accountId,
+          senderName: m.ten,
+          role: ben ? 'player' : 'spectator',
+          playerSide: ben,
+          text: m.text,
+          timestamp: m.taoLuc,
         }
-      }
-    } catch {}
-    return []
-  })
-
-  // Lưu tin nhắn phòng vào localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(`c10a7:room_chat:${effectiveRoomId}`, JSON.stringify(roomMessages))
-    } catch {}
-  }, [roomMessages, effectiveRoomId])
-
-  // Lắng nghe tin nhắn phòng từ các tab khác (BroadcastChannel)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return
-    const channel = new BroadcastChannel(`dc_room_chat_${effectiveRoomId}`)
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'new_room_msg' && event.data.message) {
-        setRoomMessages((prev) => {
-          if (prev.some((m) => m.id === event.data.message.id)) return prev
-          return [...prev, event.data.message]
-        })
-      }
-    }
-    return () => {
-      channel.close()
-    }
-  }, [effectiveRoomId])
-
-  const [dmList, setDmList] = useState<DirectMessage[]>(() => {
-    try {
-      const saved = localStorage.getItem('c10a7:direct_messages')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+      }),
+    [chatBan?.tinNhan, chatBan?.playerX, chatBan?.playerO],
+  )
 
   const roomMessagesContainerRef = useRef<HTMLDivElement>(null)
-  const dmContainerRef = useRef<HTMLDivElement>(null)
-
-  // Lưu DM vào localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('c10a7:direct_messages', JSON.stringify(dmList))
-    } catch {}
-  }, [dmList])
 
   // Cuộn an toàn nội bộ container (tuân thủ nguyên tắc Zero CLS & Anti-Jitter, cấm window scroll)
   useEffect(() => {
@@ -278,15 +245,6 @@ export function GameSocialSidebar({
       })
     }
   }, [activeTab, roomMessages])
-
-  useEffect(() => {
-    if (activeTab === 'ban_be' && selectedFriend && dmContainerRef.current) {
-      dmContainerRef.current.scrollTo({
-        top: dmContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      })
-    }
-  }, [activeTab, selectedFriend, dmList])
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
 
@@ -309,70 +267,19 @@ export function GameSocialSidebar({
     )
   }, [friends, friendSearch])
 
-  // Lọc tin nhắn riêng giữa người dùng hiện tại và bạn đang chọn
-  const activeConversationMessages = useMemo(() => {
-    if (!nguoiDung || !selectedFriend) return []
-    const myId = nguoiDung.accountId
-    const friendId = selectedFriend.id
-    return dmList.filter(
-      (m) =>
-        (m.fromId === myId && m.toId === friendId) ||
-        (m.fromId === friendId && m.toId === myId)
-    )
-  }, [nguoiDung, selectedFriend, dmList])
-
   const handleSendRoomMessage = (customText?: string) => {
     const textToSend = (customText ?? roomText).trim()
-    if (!textToSend) return
-
-    const mySenderName = nguoiDung?.ten || nguoiDung?.username || 'Khách'
-    const newMsg: RoomMessage = {
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      accountId: nguoiDung?.accountId,
-      senderName: mySenderName,
-      role: userRole,
-      playerSide,
-      text: textToSend,
-      timestamp: Date.now(),
+    if (!textToSend || !chatBan) return
+    if (!chatBan.gui(textToSend)) {
+      toast.error('Bàn đang mất kết nối — thử gửi lại sau giây lát.')
+      return
     }
-
-    setRoomMessages((prev) => [...prev, newMsg])
     if (!customText) setRoomText('')
-
-    // Đồng bộ tức thì tới các tab khác
-    try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        const channel = new BroadcastChannel(`dc_room_chat_${effectiveRoomId}`)
-        channel.postMessage({ type: 'new_room_msg', message: newMsg })
-        channel.close()
-      }
-    } catch {}
-  }
-
-  const handleSendDm = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!dmText.trim() || !selectedFriend || !nguoiDung) return
-
-    const newDm: DirectMessage = {
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      fromId: nguoiDung.accountId,
-      toId: selectedFriend.id,
-      text: dmText.trim(),
-      timestamp: Date.now(),
-    }
-
-    setDmList((prev) => [...prev, newDm])
-    setDmText('')
   }
 
   const handleStartChatWithFriend = (friend: FriendItem) => {
     setSelectedFriend(friend)
     setActiveTab('ban_be')
-  }
-
-  const insertEmoji = (emoji: string) => {
-    setDmText((prev) => prev + emoji)
-    setIsEmojiOpen(false)
   }
 
   const insertRoomEmoji = (emoji: string) => {
@@ -469,7 +376,23 @@ export function GameSocialSidebar({
             ref={roomMessagesContainerRef}
             className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0"
           >
-            {roomMessages.length === 0 ? (
+            {!chatBan ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-6 px-3">
+                <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-2">
+                  <Gamepad2 className="size-5" />
+                </div>
+                <p className="text-xs font-semibold text-text-primary">Chat phòng chỉ có ở bàn đấu</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveTab('chat_chung')}
+                  className="mt-3 gap-1.5 border-white/10 cursor-pointer"
+                >
+                  <MessageSquare className="size-3.5" />
+                  Mở Chat chung
+                </Button>
+              </div>
+            ) : roomMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-6 px-3">
                 <div className="size-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-2">
                   <Gamepad2 className="size-5" />
@@ -543,7 +466,16 @@ export function GameSocialSidebar({
           </div>
 
           {/* VÙNG 4: Tin nhắn nhanh hỗ trợ hold kéo ngang và chọn giống Vùng 5 */}
-          <QuickChipsScroll chips={quickChips} onSelectChip={handleSendRoomMessage} />
+          <QuickChipsScroll
+            chips={quickChips}
+            onSelectChip={(chip) => {
+              if (!chatBan) {
+                toast.info('Hãy vào một bàn đấu để chat phòng — ở đây dùng Chat chung nhé.')
+                return
+              }
+              handleSendRoomMessage(chip)
+            }}
+          />
 
           {/* Form gửi tin nhắn phòng */}
           <form
@@ -560,6 +492,7 @@ export function GameSocialSidebar({
                     type="button"
                     variant="ghost"
                     size="icon"
+                    disabled={!chatBan}
                     className="size-8 text-text-tertiary hover:text-amber-400 shrink-0 cursor-pointer"
                     title="Chèn biểu cảm"
                   >
@@ -586,14 +519,18 @@ export function GameSocialSidebar({
             <Input
               value={roomText}
               onChange={(e) => setRoomText(e.target.value)}
-              placeholder="Nhắn tới phòng game…"
+              maxLength={DO_DAI_TIN_BAN_TOI_DA}
+              disabled={!chatBan}
+              placeholder={
+                !chatBan ? 'Chỉ có ở bàn đấu' : chatBan.daKetNoi ? 'Nhắn tới phòng game…' : 'Đang kết nối lại bàn…'
+              }
               className="h-8 text-xs bg-white/5 border-white/10 focus-visible:ring-amber-500/40"
             />
             <Button
               type="submit"
               size="sm"
               className="h-8 px-2.5 shrink-0 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold cursor-pointer"
-              disabled={!roomText.trim()}
+              disabled={!roomText.trim() || !chatBan?.daKetNoi}
             >
               <Send className="size-3.5" />
             </Button>
@@ -770,98 +707,36 @@ export function GameSocialSidebar({
                 )}
               </div>
 
-              {/* Danh sách tin nhắn DM */}
-              <div ref={dmContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0">
-                {activeConversationMessages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                    <p className="text-xs text-text-tertiary">Chưa có tin nhắn nào giữa hai bạn.</p>
-                    <p className="text-[11px] text-text-secondary mt-1">Gửi lời chào hoặc biểu tượng cảm xúc ngay!</p>
-                  </div>
-                ) : (
-                  activeConversationMessages.map((m) => {
-                    const isMe = m.fromId === nguoiDung.accountId
-                    return (
-                      <div
-                        key={m.id}
-                        className={cn('flex flex-col max-w-[80%]', isMe ? 'ml-auto items-end' : 'mr-auto items-start')}
-                      >
-                        <div
-                          className={cn(
-                            'rounded-2xl px-3 py-1.5 text-xs leading-relaxed',
-                            isMe
-                              ? 'bg-brand text-brand-foreground rounded-br-xs shadow-sm'
-                              : 'bg-surface-raised border border-white/10 text-text-primary rounded-bl-xs'
-                          )}
-                        >
-                          {m.text}
-                        </div>
-                        <span className="text-[9px] text-text-tertiary mt-0.5 px-1">
-                          {new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(m.timestamp)}
-                        </span>
-                      </div>
-                    )
-                  })
-                )}
+              {/* Campus chưa có tin nhắn riêng: không giả lập hộp thoại — chỉ ra cách liên lạc thật */}
+              <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+                  <MessageCircle className="size-7 text-text-tertiary mb-2" />
+                  <p className="text-xs font-semibold text-text-primary">Chưa hỗ trợ tin nhắn riêng</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab('chat_chung')}
+                    className="mt-3 gap-1.5 border-white/10 cursor-pointer"
+                  >
+                    <MessageSquare className="size-3.5" />
+                    Mở Chat chung
+                  </Button>
+                </div>
               </div>
 
-              {/* VÙNG 3 ĐỒNG BỘ: Quick chips của bạn bè */}
-              <QuickChipsScroll
-                chips={CHIPS_BAN_BE}
-                onSelectChip={(chip) => {
-                  if (!selectedFriend || !nguoiDung) return
-                  const newDm: DirectMessage = {
-                    id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                    fromId: nguoiDung.accountId,
-                    toId: selectedFriend.id,
-                    text: chip,
-                    timestamp: Date.now(),
-                  }
-                  setDmList((prev) => [...prev, newDm])
-                }}
-              />
-
-              {/* Form gửi DM chuẩn đồng bộ 1 style */}
-              <form onSubmit={handleSendDm} className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0">
-                <Popover open={isEmojiOpen} onOpenChange={setIsEmojiOpen}>
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-text-tertiary hover:text-purple-400 shrink-0 cursor-pointer"
-                        title="Chèn emoji"
-                      >
-                        <Smile className="size-4" />
-                      </Button>
-                    }
-                  />
-                  <PopoverContent side="top" align="start" className="w-64 p-2 bg-[#0d1527] border-white/15 shadow-2xl">
-                    <div className="grid grid-cols-6 gap-1">
-                      {DANH_SACH_EMOJI.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => insertEmoji(emoji)}
-                          className="flex items-center justify-center p-1.5 text-base rounded hover:bg-white/10 active:scale-125 transition-transform cursor-pointer"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
+              <div className="p-2 border-t border-white/10 bg-white/[0.02] flex items-center gap-1.5 shrink-0 opacity-60">
+                <Button type="button" variant="ghost" size="icon" className="size-8 text-text-tertiary" disabled>
+                  <Smile className="size-4" />
+                </Button>
                 <Input
-                  value={dmText}
-                  onChange={(e) => setDmText(e.target.value)}
-                  placeholder={`Nhắn cho ${selectedFriend.displayName}…`}
-                  className="h-8 text-xs bg-white/5 border-white/10 focus-visible:ring-purple-500/40"
+                  disabled
+                  placeholder="Tin nhắn riêng chưa được hỗ trợ"
+                  className="h-8 text-xs bg-white/5 border-white/10 cursor-not-allowed"
                 />
-                <Button type="submit" size="sm" className="h-8 px-2.5 shrink-0 bg-purple-500 hover:bg-purple-600 text-white font-bold cursor-pointer" disabled={!dmText.trim()}>
+                <Button disabled size="sm" className="h-8 px-2.5 shrink-0 bg-white/10 text-text-tertiary">
                   <Send className="size-3.5" />
                 </Button>
-              </form>
+              </div>
             </div>
           ) : (
             // Danh sách bạn bè kèm ô tìm kiếm
@@ -952,7 +827,7 @@ export function GameSocialSidebar({
               <QuickChipsScroll
                 chips={CHIPS_BAN_BE}
                 onSelectChip={(_chip) => {
-                  toast.info('Vui lòng chọn một người bạn ở trên để bắt đầu nhắn tin!')
+                  toast.info('Tin nhắn riêng chưa được hỗ trợ — hãy dùng Chat chung nhé.')
                 }}
               />
 

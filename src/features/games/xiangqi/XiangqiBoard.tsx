@@ -13,11 +13,23 @@ import {
   SOLDIER,
   typeOf,
   sideOf,
+  type XiangqiEndReason,
 } from '../../../../shared/games/xiangqi/xiangqi-engine'
 import { findBestXiangqiMove } from '../../../../shared/games/xiangqi/xiangqi-ai'
+import { mauQuanCua } from '@shared/protocol/game'
+import { dungTheCoTuong } from '../../../../worker/game-engine'
+import type { BanOnline } from '@/hooks/use-game'
 import { cn } from '@/lib/utils'
 import { Shield } from 'lucide-react'
-import { GamePlayToolbar } from '../GamePlayToolbar'
+import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
+import {
+  guiBieuCamOnline,
+  moTaPhuOnline,
+  nutHanhDongOnline,
+  tenNguoiChoi,
+  useBongBieuCamDoiThu,
+  useCheDoBan,
+} from '../ban-online'
 import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
@@ -94,19 +106,37 @@ function XiangqiPieceToken({ piece }: { piece: number }) {
   )
 }
 
-interface XiangqiBoardProps {
-  onBack?: () => void
-  initialMode?: 'ai' | 'pass_and_play'
+const LY_DO_KET_THUC: Record<XiangqiEndReason, string> = {
+  checkmate: 'Chiếu bí',
+  stalemate: 'Hết nước đi',
+  repetition: 'Lặp lại thế cờ 3 lần — hoà',
+  no_capture: '60 nước không ăn quân — hoà',
 }
 
-export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) {
-  const [pos, setPos] = useState<XiangqiPosition>(() => XiangqiPosition.fromFen())
+interface XiangqiBoardProps {
+  onBack?: () => void
+  initialMode?: PlayMode
+  /** Bàn online (mở từ sảnh): thêm chế độ "Đấu online" — máy chủ làm trọng tài, đối thủ là người thật. */
+  online?: BanOnline
+}
+
+export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps) {
+  const [posTaiCho, setPos] = useState<XiangqiPosition>(() => XiangqiPosition.fromFen())
   const [selectedSq, setSelectedSq] = useState<number | null>(null)
-  const [mode, setMode] = useState<'ai' | 'pass_and_play'>(initialMode)
+  const { mode, doiCheDo, laOnline } = useCheDoBan(online, initialMode)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [playerSide] = useState<Side>(RED)
+  // Bàn online: thế cờ dựng lại từ chuỗi nước máy chủ đã xét; bên đi trước của ván cầm quân Đỏ.
+  const nuocOnline = online?.moves
+  const posOnline = useMemo(() => (nuocOnline ? dungTheCoTuong(nuocOnline) : null), [nuocOnline])
+  const pos = laOnline && posOnline ? posOnline : posTaiCho
+  const benOnline: Side | null = online?.mySide ? (mauQuanCua(online.meta.firstTurn, online.mySide) as Side) : null
+  // Góc nhìn của màn hình: quân của mình ở dưới (người xem bàn online nhìn từ phía Đỏ).
+  const benCuaToi: Side = laOnline ? (benOnline ?? RED) : playerSide
+  const latBan = benCuaToi !== RED
   const [isAiThinking, setIsAiThinking] = useState(false)
   const [lastMove, setLastMove] = useState<XiangqiMove | null>(null)
+  const nuocCuoi = laOnline ? (nuocOnline?.at(-1) ?? null) : lastMove
   const [surrenderAttempts, setSurrenderAttempts] = useState(0)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
   const [customGameOver, setCustomGameOver] = useState<{
@@ -118,7 +148,8 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
   const legalMoves = useMemo(() => pos.legalMoves(), [pos])
   const outcome = useMemo(() => pos.outcome(), [pos])
   const inCheck = useMemo(() => pos.inCheck(), [pos])
-  const isOver = outcome.over || Boolean(customGameOver?.over)
+  const isOver = laOnline ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
+  const toiDenLuotOnline = laOnline && Boolean(online?.isMyTurn) && pos.turn === benOnline
 
   // Tính toán số quân ăn được của 2 bên
   const captured = useMemo(() => {
@@ -156,7 +187,8 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
   }, [pos])
 
   const renderCapturedXiangqiPiece = (type: number, isEnemy: boolean, rotation: number) => {
-    const isRed = !isEnemy
+    // Khay quân: nửa trên là quân của mình bị ăn, nửa dưới là quân đối phương mình ăn được.
+    const isRed = benCuaToi === RED ? !isEnemy : isEnemy
     const text = isRed ? TEN_QUAN_RED[type] : TEN_QUAN_BLACK[type]
     return (
       <div
@@ -187,14 +219,20 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
     return legalMoves.filter((m) => m.from === selectedSq).map((m) => m.to)
   }, [selectedSq, legalMoves])
 
+  // Bàn online: gửi máy chủ xét, thế cờ chỉ đổi khi máy chủ phát lại
   const executeMove = useCallback(
     (move: XiangqiMove) => {
-      pos.makeMove(move)
-      setPos(pos.clone())
+      if (laOnline) {
+        online?.diCo(move)
+        setSelectedSq(null)
+        return
+      }
+      posTaiCho.makeMove(move)
+      setPos(posTaiCho.clone())
       setLastMove(move)
       setSelectedSq(null)
     },
-    [pos]
+    [laOnline, online, posTaiCho]
   )
 
   // AI phản hồi
@@ -215,6 +253,7 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
   const handleSquareClick = (sq: number) => {
     if (isOver || isAiThinking) return
     if (mode === 'ai' && pos.turn !== playerSide) return
+    if (laOnline && !toiDenLuotOnline) return
 
     const piece = pos.board[sq]
 
@@ -242,7 +281,11 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const bongDoiThuOnline = useBongBieuCamDoiThu(online, DANH_SACH_THAI_DO_XIANGQI)
+  const bongDoiThu = laOnline ? bongDoiThuOnline : opponentBubble
+
   const handleQuickEmote = (att: QuickEmoteItem) => {
+    if (laOnline && online) guiBieuCamOnline(online, att.emoji)
     setPlayerBubble({ emoji: att.emoji, quote: att.quote, sender: 'player' })
     if (playerBubbleTimerRef.current) clearTimeout(playerBubbleTimerRef.current)
     playerBubbleTimerRef.current = setTimeout(() => {
@@ -278,8 +321,9 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
     setCustomGameOver(null)
   }, [])
 
-  const handleModeChange = (newMode: 'ai' | 'pass_and_play') => {
-    setMode(newMode)
+  const handleModeChange = (newMode: PlayMode) => {
+    if (!doiCheDo(newMode)) return
+    setSelectedSq(null)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
@@ -298,10 +342,59 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
     setIsSurrenderModalOpen(true)
   }
 
-  const winnerSide = outcome.over ? outcome.winner : customGameOver?.winner
-  const winnerTitle = isOver
-    ? (winnerSide === (mode === 'ai' ? playerSide : RED) ? 'BẠN THẮNG' : winnerSide !== null ? 'BẠN THUA' : 'HOÀ CỜ')
-    : undefined
+  const winnerOnline: Side | null =
+    online && (online.meta.winner === 'X' || online.meta.winner === 'O')
+      ? (mauQuanCua(online.meta.firstTurn, online.meta.winner) as Side)
+      : null
+  const winnerSide = laOnline ? winnerOnline : outcome.over ? outcome.winner : customGameOver?.winner
+  const winnerTitle = !isOver
+    ? undefined
+    : laOnline && benOnline === null
+      ? winnerSide === RED
+        ? 'BÊN ĐỎ THẮNG'
+        : winnerSide !== null && winnerSide !== undefined
+          ? 'BÊN ĐEN THẮNG'
+          : 'HOÀ CỜ'
+      : winnerSide === (mode === 'pass_and_play' ? RED : benCuaToi)
+        ? 'BẠN THẮNG'
+        : winnerSide !== null && winnerSide !== undefined
+          ? 'BẠN THUA'
+          : 'HOÀ CỜ'
+
+  // Lý do kết thúc bằng tiếng Việt (ván online: đầu hàng / hết giờ do máy chủ chốt, còn lại theo luật trên bàn).
+  const tenBen = (b: Side) => (b === RED ? 'Bên Đỏ' : 'Bên Đen')
+  const lyDoKetThuc = (() => {
+    if (!isOver) return undefined
+    if (laOnline && online) {
+      const benThua = winnerOnline === null ? null : ((winnerOnline ^ 1) as Side)
+      if (online.meta.endReason === 'surrender' && benThua !== null) return `${tenBen(benThua)} đã xin thua`
+      if (online.meta.endReason === 'timeout' && benThua !== null) return `${tenBen(benThua)} hết giờ`
+    }
+    return outcome.reason ? LY_DO_KET_THUC[outcome.reason] : customGameOver?.reason || 'Ván đấu kết thúc'
+  })()
+
+  // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
+  const nutOnline = laOnline && online ? nutHanhDongOnline(online, () => setIsSurrenderModalOpen(true)) : null
+  const tenBenLuot = online ? tenNguoiChoi(online, online.meta.currentTurn) : ''
+  const nhanTrangThai = isOver
+    ? (winnerTitle || 'VÁN ĐẤU KẾT THÚC')
+    : laOnline && online?.meta.status !== 'playing'
+      ? 'CHỜ ĐỐI THỦ'
+      : inCheck
+        ? 'CHIẾU TƯỚNG!'
+        : laOnline
+          ? (benOnline === null ? (pos.turn === RED ? 'BÊN ĐỎ' : 'BÊN ĐEN') : toiDenLuotOnline ? 'LƯỢT BẠN' : 'LƯỢT ĐỐI THỦ')
+          : (mode === 'ai' ? (pos.turn === playerSide ? 'LƯỢT BẠN' : 'MÁY (AI)') : (pos.turn === RED ? 'BÊN ĐỎ' : 'BÊN ĐEN'))
+  const phuTrangThai = isOver
+    ? lyDoKetThuc
+    : laOnline && online
+      ? moTaPhuOnline(online, tenBenLuot)
+      : inCheck
+        ? 'Tướng đang bị đe dọa!'
+        : isAiThinking
+          ? undefined
+          : (pos.turn === RED ? 'Lượt đi: Bên Đỏ xuất quân' : 'Lượt đi: Bên Đen xuất quân')
+  const laNguoiThang = isOver && winnerSide !== null && winnerSide !== undefined ? winnerSide === benCuaToi : null
 
   return (
     <div className="flex flex-col items-center justify-between w-full h-full max-w-5xl mx-auto">
@@ -312,43 +405,38 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
         icon={<Shield className="size-4 text-red-400" />}
         mode={mode}
         onModeChange={handleModeChange}
+        onlineAvailable={Boolean(online)}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
-        onReset={handleResetOrSurrender}
-        resetLabel={isOver ? 'Ván mới' : 'Xin thua'}
-        surrenderAttempts={surrenderAttempts}
+        onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
+        resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
+        resetIcon={nutOnline?.icon}
+        resetDisabled={nutOnline?.disabled}
+        surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
         activeSide={isOver ? (winnerSide === RED ? 'red' : 'black') : (pos.turn === RED ? 'red' : 'black')}
         turnLabel={`Lượt: ${pos.turn === RED ? 'Bên Đỏ (Đi trước)' : 'Bên Đen'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
       />
 
+      {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
+      <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mt-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0 max-w-full">
+        <span className="font-black uppercase tracking-wider text-red-300 whitespace-nowrap">{nhanTrangThai}</span>
+        {phuTrangThai && <span className="text-slate-400 font-medium truncate">{phuTrangThai}</span>}
+      </div>
+
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu Cờ Tướng chuẩn như Caro ── */}
-        <div className="hidden lg:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none text-center">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none text-center">
           <GameStatusWidget
-            icon={isOver ? (winnerSide === playerSide ? '🏆' : '帥') : <Shield className="size-6 text-red-500" />}
-            label={
-              isOver
-                ? (winnerTitle || 'VÁN ĐẤU KẾT THÚC')
-                : inCheck
-                  ? 'CHIẾU TƯỚNG!'
-                  : (mode === 'ai' ? (pos.turn === playerSide ? 'LƯỢT BẠN' : 'MÁY (AI)') : (pos.turn === RED ? 'BÊN ĐỎ' : 'BÊN ĐEN'))
-            }
-            subLabel={
-              isOver
-                ? (outcome.reason || customGameOver?.reason || 'Ván đấu kết thúc')
-                : inCheck
-                  ? 'Tướng đang bị đe dọa!'
-                  : isAiThinking
-                    ? undefined
-                    : (pos.turn === RED ? 'Lượt đi: Bên Đỏ xuất quân' : 'Lượt đi: Bên Đen xuất quân')
-            }
-            isPlayerTurn={pos.turn === playerSide}
+            icon={isOver ? (laNguoiThang ? '🏆' : '帥') : <Shield className="size-6 text-red-500" />}
+            label={nhanTrangThai}
+            subLabel={phuTrangThai}
+            isPlayerTurn={laOnline ? toiDenLuotOnline : pos.turn === playerSide}
             isAiThinking={isAiThinking}
             isGameOver={isOver}
-            isWinner={outcome.over ? outcome.winner === playerSide : customGameOver ? customGameOver.winner === playerSide : null}
+            isWinner={laNguoiThang}
             isCheck={inCheck && !isOver}
             theme="red"
           />
@@ -365,15 +453,15 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
             </div>
 
             {Array.from({ length: 90 }, (_, idx) => {
-              // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9)
-              const r = 9 - Math.floor(idx / 9)
-              const f = idx % 9
+              // Hàng 9 xuống 0 (Đỏ ở dưới: hàng 0..4, Đen ở trên: hàng 5..9); cầm quân Đen thì xoay bàn cho quân mình ở dưới
+              const r = latBan ? Math.floor(idx / 9) : 9 - Math.floor(idx / 9)
+              const f = latBan ? 8 - (idx % 9) : idx % 9
               const sq = r * 9 + f
 
               const piece = pos.board[sq]
               const isSelected = selectedSq === sq
               const isValidTarget = validTargets.includes(sq)
-              const isLastMoveSq = lastMove && (lastMove.from === sq || lastMove.to === sq)
+              const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
 
               return (
                 <div
@@ -383,8 +471,8 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
                     'relative flex items-center justify-center cursor-pointer',
                     // Đường kẻ bàn cờ cờ tướng
                     'border-r border-b border-[#6d441f]/50',
-                    f === 0 && 'border-l',
-                    r === 9 && 'border-t'
+                    f === (latBan ? 8 : 0) && 'border-l',
+                    r === (latBan ? 0 : 9) && 'border-t'
                   )}
                 >
                   {/* Quân cờ */}
@@ -416,12 +504,12 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
             })}
           </div>
 
-          {/* Nút cảm xúc phụ cho màn hình nhỏ (< lg) */}
-          <div className="flex lg:hidden items-center justify-center mt-3">
+          {/* Nút cảm xúc phụ khi hai cột bên bàn cờ bị ẩn (< 1920px) */}
+          <div className="flex min-[1920px]:hidden items-center justify-center mt-3">
             <GameQuickEmote
               emotes={DANH_SACH_THAI_DO_XIANGQI}
               onSend={handleQuickEmote}
-              activeBubble={playerBubble || opponentBubble}
+              activeBubble={playerBubble || bongDoiThu}
               theme="red"
               align="center"
             />
@@ -429,13 +517,13 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 2 (Ngăn cách cố định ở giữa 50%) | VÙNG 1 (Ta ở dưới) ── */}
-        <div className="hidden lg:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
           <GameCapturedTray
-            enemyCaptured={captured.friendlyLost}
-            friendlyCaptured={captured.enemyCaptured}
+            enemyCaptured={benCuaToi === RED ? captured.friendlyLost : captured.enemyCaptured}
+            friendlyCaptured={benCuaToi === RED ? captured.enemyCaptured : captured.friendlyLost}
             pawnType={SOLDIER}
             renderPiece={renderCapturedXiangqiPiece}
-            topSlot={<GameOpponentBubble bubble={opponentBubble} theme="red" />}
+            topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="red" />}
             bottomSlot={
               <GameQuickEmote
                 emotes={DANH_SACH_THAI_DO_XIANGQI}
@@ -455,17 +543,27 @@ export function XiangqiBoard({ onBack, initialMode = 'ai' }: XiangqiBoardProps) 
         onClose={() => setIsSurrenderModalOpen(false)}
         mode={mode}
         surrenderSideName={
-          mode === 'ai'
-            ? (playerSide === RED ? 'Bên Đỏ (Bạn)' : 'Bên Đen (Bạn)')
-            : (pos.turn === RED ? 'Bên Đỏ' : 'Bên Đen')
+          laOnline
+            ? `${tenBen(benCuaToi)} (Bạn)`
+            : mode === 'ai'
+              ? (playerSide === RED ? 'Bên Đỏ (Bạn)' : 'Bên Đen (Bạn)')
+              : (pos.turn === RED ? 'Bên Đỏ' : 'Bên Đen')
         }
         opponentSideName={
-          mode === 'ai'
-            ? 'người chơi quân Đen (Máy AI)'
-            : (pos.turn === RED ? 'người chơi quân Đen' : 'người chơi quân Đỏ')
+          laOnline && online?.mySide
+            ? tenNguoiChoi(online, online.mySide === 'X' ? 'O' : 'X')
+            : mode === 'ai'
+              ? 'người chơi quân Đen (Máy AI)'
+              : (pos.turn === RED ? 'người chơi quân Đen' : 'người chơi quân Đỏ')
         }
         attemptNumber={surrenderAttempts + 1}
         onSurrenderSuccess={() => {
+          if (laOnline) {
+            // Máy chủ chốt ván và báo cho cả bàn.
+            online?.surrender()
+            setIsSurrenderModalOpen(false)
+            return
+          }
           const losingSide = mode === 'ai' ? playerSide : pos.turn
           const winningSide = losingSide === RED ? (1 as Side) : (RED as Side)
           setCustomGameOver({

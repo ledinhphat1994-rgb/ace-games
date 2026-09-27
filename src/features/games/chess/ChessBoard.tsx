@@ -15,11 +15,23 @@ import {
   colorOf,
 } from '../../../../shared/games/chess/chess-engine'
 import { findBestChessMove } from '../../../../shared/games/chess/chess-ai'
+import type { ChessEndReason } from '../../../../shared/games/chess/chess-engine'
+import { mauQuanCua } from '@shared/protocol/game'
+import { dungTheCoVua } from '../../../../worker/game-engine'
+import type { BanOnline } from '@/hooks/use-game'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { Crown } from 'lucide-react'
 import { toast } from 'sonner'
-import { GamePlayToolbar } from '../GamePlayToolbar'
+import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
+import {
+  guiBieuCamOnline,
+  moTaPhuOnline,
+  nutHanhDongOnline,
+  tenNguoiChoi,
+  useBongBieuCamDoiThu,
+  useCheDoBan,
+} from '../ban-online'
 import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
@@ -137,19 +149,39 @@ const DANH_SACH_THAI_DO_CHESS: QuickEmoteItem[] = [
   { id: 'shh', emoji: '🤫', label: 'Bình tĩnh', quote: 'Kỳ phùng địch thủ!' },
 ]
 
-interface ChessBoardProps {
-  onBack?: () => void
-  initialMode?: 'ai' | 'pass_and_play'
+const LY_DO_KET_THUC: Record<ChessEndReason, string> = {
+  checkmate: 'Chiếu hết',
+  stalemate: 'Hết nước đi — hoà',
+  fifty_move: 'Luật 50 nước — hoà',
+  repetition: 'Lặp lại thế cờ 3 lần — hoà',
+  insufficient: 'Không đủ quân chiếu hết — hoà',
 }
 
-export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
-  const [pos, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen())
+interface ChessBoardProps {
+  onBack?: () => void
+  initialMode?: PlayMode
+  /** Bàn online (mở từ sảnh): thêm chế độ "Đấu online" — máy chủ làm trọng tài, đối thủ là người thật. */
+  online?: BanOnline
+}
+
+export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
+  const [posTaiCho, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen())
   const [selectedSq, setSelectedSq] = useState<number | null>(null)
-  const [mode, setMode] = useState<'ai' | 'pass_and_play'>(initialMode)
+  const { mode, doiCheDo, laOnline } = useCheDoBan(online, initialMode)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [playerColor] = useState<Color>(WHITE)
+  // Bàn online: thế cờ dựng lại từ chuỗi nước máy chủ đã xét; màu quân theo ghế (bên đi trước cầm Trắng).
+  const nuocOnline = online?.moves
+  const posOnline = useMemo(() => (nuocOnline ? dungTheCoVua(nuocOnline) : null), [nuocOnline])
+  const pos = laOnline && posOnline ? posOnline : posTaiCho
+  const mauOnline: Color | null =
+    online?.mySide ? (mauQuanCua(online.meta.firstTurn, online.mySide) as Color) : null
+  // Góc nhìn của màn hình: quân của mình ở dưới (người xem bàn online nhìn từ phía Trắng).
+  const mauCuaToi: Color = laOnline ? (mauOnline ?? WHITE) : playerColor
+  const latBan = mauCuaToi === BLACK
   const [isAiThinking, setIsAiThinking] = useState(false)
   const [lastMove, setLastMove] = useState<ChessMove | null>(null)
+  const nuocCuoi = laOnline ? (nuocOnline?.at(-1) ?? null) : lastMove
   const [pendingPromo, setPendingPromo] = useState<{ from: number; to: number } | null>(null)
   const [surrenderAttempts, setSurrenderAttempts] = useState(0)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
@@ -162,7 +194,8 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
   const legalMoves = useMemo(() => pos.legalMoves(), [pos])
   const outcome = useMemo(() => pos.outcome(), [pos])
   const inCheck = useMemo(() => pos.inCheck(), [pos])
-  const isOver = outcome.over || Boolean(customGameOver?.over)
+  const isOver = laOnline ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
+  const toiDenLuotOnline = laOnline && Boolean(online?.isMyTurn) && pos.turn === mauOnline
 
   // Tính toán số quân ăn được của 2 bên
   const captured = useMemo(() => {
@@ -203,7 +236,8 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
   }, [pos])
 
   const renderCapturedChessPiece = (type: number, isEnemy: boolean, rotation: number) => {
-    const isWhite = !isEnemy
+    // Khay quân: nửa trên là quân của mình bị ăn, nửa dưới là quân đối phương mình ăn được.
+    const isWhite = mauCuaToi === WHITE ? !isEnemy : isEnemy
     return (
       <div
         style={{ transform: `rotate(${rotation}deg)` }}
@@ -226,15 +260,20 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
     return legalMoves.filter((m) => m.from === selectedSq).map((m) => m.to)
   }, [selectedSq, legalMoves])
 
-  // Thực hiện nước đi
+  // Thực hiện nước đi (bàn online: gửi máy chủ xét, thế cờ chỉ đổi khi máy chủ phát lại)
   const executeMove = useCallback(
     (move: ChessMove) => {
-      pos.makeMove(move)
-      setPos(pos.clone())
+      if (laOnline) {
+        online?.diCo(move)
+        setSelectedSq(null)
+        return
+      }
+      posTaiCho.makeMove(move)
+      setPos(posTaiCho.clone())
       setLastMove(move)
       setSelectedSq(null)
     },
-    [pos]
+    [laOnline, online, posTaiCho]
   )
 
   // AI phản hồi lượt đi
@@ -255,6 +294,7 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
   const handleSquareClick = (sq: number) => {
     if (isOver || isAiThinking) return
     if (mode === 'ai' && pos.turn !== playerColor) return
+    if (laOnline && !toiDenLuotOnline) return
 
     const piece = pos.board[sq]
 
@@ -296,7 +336,11 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
   const playerBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const opponentBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const bongDoiThuOnline = useBongBieuCamDoiThu(online, DANH_SACH_THAI_DO_CHESS)
+  const bongDoiThu = laOnline ? bongDoiThuOnline : opponentBubble
+
   const handleQuickEmote = (att: QuickEmoteItem) => {
+    if (laOnline && online) guiBieuCamOnline(online, att.emoji)
     setPlayerBubble({ emoji: att.emoji, quote: att.quote, sender: 'player' })
     if (playerBubbleTimerRef.current) clearTimeout(playerBubbleTimerRef.current)
     playerBubbleTimerRef.current = setTimeout(() => {
@@ -333,8 +377,9 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
     setCustomGameOver(null)
   }, [])
 
-  const handleModeChange = (newMode: 'ai' | 'pass_and_play') => {
-    setMode(newMode)
+  const handleModeChange = (newMode: PlayMode) => {
+    if (!doiCheDo(newMode)) return
+    setSelectedSq(null)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
@@ -353,10 +398,59 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
     setIsSurrenderModalOpen(true)
   }
 
-  const winnerColor = outcome.over ? outcome.winner : customGameOver?.winner
-  const winnerTitle = isOver
-    ? (winnerColor === (mode === 'ai' ? playerColor : WHITE) ? 'BẠN THẮNG' : winnerColor !== null ? 'BẠN THUA' : 'HOÀ CỜ')
-    : undefined
+  const winnerOnline: Color | null =
+    online && (online.meta.winner === 'X' || online.meta.winner === 'O')
+      ? (mauQuanCua(online.meta.firstTurn, online.meta.winner) as Color)
+      : null
+  const winnerColor = laOnline ? winnerOnline : outcome.over ? outcome.winner : customGameOver?.winner
+  const winnerTitle = !isOver
+    ? undefined
+    : laOnline && mauOnline === null
+      ? winnerColor === WHITE
+        ? 'TRẮNG THẮNG'
+        : winnerColor === BLACK
+          ? 'ĐEN THẮNG'
+          : 'HOÀ CỜ'
+      : winnerColor === (mode === 'pass_and_play' ? WHITE : mauCuaToi)
+        ? 'BẠN THẮNG'
+        : winnerColor !== null && winnerColor !== undefined
+          ? 'BẠN THUA'
+          : 'HOÀ CỜ'
+
+  // Lý do kết thúc bằng tiếng Việt (ván online: đầu hàng / hết giờ do máy chủ chốt, còn lại theo luật trên bàn).
+  const tenMau = (c: Color) => (c === WHITE ? 'Quân Trắng' : 'Quân Đen')
+  const lyDoKetThuc = (() => {
+    if (!isOver) return undefined
+    if (laOnline && online) {
+      const benThua = winnerOnline === null ? null : ((winnerOnline ^ 1) as Color)
+      if (online.meta.endReason === 'surrender' && benThua !== null) return `${tenMau(benThua)} đã xin thua`
+      if (online.meta.endReason === 'timeout' && benThua !== null) return `${tenMau(benThua)} hết giờ`
+    }
+    return outcome.reason ? LY_DO_KET_THUC[outcome.reason] : customGameOver?.reason || 'Ván đấu kết thúc'
+  })()
+
+  // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
+  const nutOnline = laOnline && online ? nutHanhDongOnline(online, () => setIsSurrenderModalOpen(true)) : null
+  const tenBenLuot = online ? tenNguoiChoi(online, online.meta.currentTurn) : ''
+  const nhanTrangThai = isOver
+    ? (winnerTitle || 'VÁN ĐẤU KẾT THÚC')
+    : laOnline && online?.meta.status !== 'playing'
+      ? 'CHỜ ĐỐI THỦ'
+      : inCheck
+        ? 'CHIẾU TƯỚNG!'
+        : laOnline
+          ? (mauOnline === null ? (pos.turn === WHITE ? 'QUÂN TRẮNG' : 'QUÂN ĐEN') : toiDenLuotOnline ? 'LƯỢT BẠN' : 'LƯỢT ĐỐI THỦ')
+          : (mode === 'ai' ? (pos.turn === playerColor ? 'LƯỢT BẠN' : 'MÁY (AI)') : (pos.turn === WHITE ? 'QUÂN TRẮNG' : 'QUÂN ĐEN'))
+  const phuTrangThai = isOver
+    ? lyDoKetThuc
+    : laOnline && online
+      ? moTaPhuOnline(online, tenBenLuot)
+      : inCheck
+        ? 'Vua đang bị đe dọa!'
+        : isAiThinking
+          ? undefined
+          : (pos.turn === WHITE ? 'Lượt đi: Quân Trắng' : 'Lượt đi: Quân Đen')
+  const laNguoiThang = isOver && winnerColor !== null && winnerColor !== undefined ? winnerColor === mauCuaToi : null
 
   // Phong cấp
   const handleSelectPromo = (promoType: number) => {
@@ -374,43 +468,38 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
         icon={<Crown className="size-4 text-amber-400" />}
         mode={mode}
         onModeChange={handleModeChange}
+        onlineAvailable={Boolean(online)}
         aiLevel={aiLevel}
         onAiLevelChange={setAiLevel}
-        onReset={handleResetOrSurrender}
-        resetLabel={isOver ? 'Ván mới' : 'Xin thua'}
-        surrenderAttempts={surrenderAttempts}
+        onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
+        resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
+        resetIcon={nutOnline?.icon}
+        resetDisabled={nutOnline?.disabled}
+        surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
         activeSide={isOver ? (winnerColor === WHITE ? 'red' : 'black') : (pos.turn === WHITE ? 'red' : 'black')}
         turnLabel={`Lượt: ${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
       />
 
+      {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
+      <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mt-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0 max-w-full">
+        <span className="font-black uppercase tracking-wider text-amber-300 whitespace-nowrap">{nhanTrangThai}</span>
+        {phuTrangThai && <span className="text-slate-400 font-medium truncate">{phuTrangThai}</span>}
+      </div>
+
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu Cờ Vua chuẩn như Caro ── */}
-        <div className="hidden lg:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none text-center">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none text-center">
           <GameStatusWidget
-            icon={isOver ? (outcome.over && outcome.winner === playerColor ? '🏆' : '👑') : <Crown className="size-6 text-amber-400" />}
-            label={
-              isOver
-                ? (winnerTitle || 'VÁN ĐẤU KẾT THÚC')
-                : inCheck
-                  ? 'CHIẾU TƯỚNG!'
-                  : (mode === 'ai' ? (pos.turn === playerColor ? 'LƯỢT BẠN' : 'MÁY (AI)') : (pos.turn === WHITE ? 'QUÂN TRẮNG' : 'QUÂN ĐEN'))
-            }
-            subLabel={
-              isOver
-                ? (outcome.reason || customGameOver?.reason || 'Ván đấu kết thúc')
-                : inCheck
-                  ? 'Vua đang bị đe dọa!'
-                  : isAiThinking
-                    ? undefined
-                    : (pos.turn === WHITE ? 'Lượt đi: Quân Trắng' : 'Lượt đi: Quân Đen')
-            }
-            isPlayerTurn={pos.turn === playerColor}
+            icon={isOver ? (laNguoiThang ? '🏆' : '👑') : <Crown className="size-6 text-amber-400" />}
+            label={nhanTrangThai}
+            subLabel={phuTrangThai}
+            isPlayerTurn={laOnline ? toiDenLuotOnline : pos.turn === playerColor}
             isAiThinking={isAiThinking}
             isGameOver={isOver}
-            isWinner={outcome.over ? outcome.winner === playerColor : customGameOver ? customGameOver.winner === playerColor : null}
+            isWinner={laNguoiThang}
             isCheck={inCheck && !isOver}
             theme="amber"
           />
@@ -420,16 +509,16 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
         <div className="relative p-2 sm:p-3 rounded-2xl bg-amber-950/80 border-4 border-amber-900 shadow-2xl shadow-black/60 shrink-0 flex flex-col items-center">
           <div className="grid grid-cols-8 grid-rows-8 w-[320px] h-[320px] sm:w-[400px] sm:h-[400px] md:w-[460px] md:h-[460px] lg:w-[500px] lg:h-[500px] xl:w-[540px] xl:h-[540px] 2xl:w-[570px] 2xl:h-[570px] border border-amber-900/60 rounded-lg overflow-hidden select-none">
             {Array.from({ length: 64 }, (_, idx) => {
-              // Hiển thị từ hàng 8 xuống hàng 1 (Trắng ở dưới)
-              const r = 7 - Math.floor(idx / 8)
-              const f = idx % 8
+              // Hiển thị từ hàng 8 xuống hàng 1 (Trắng ở dưới); cầm quân Đen thì xoay bàn cho quân mình ở dưới
+              const r = latBan ? Math.floor(idx / 8) : 7 - Math.floor(idx / 8)
+              const f = latBan ? 7 - (idx % 8) : idx % 8
               const sq = r * 8 + f
 
               const isDark = (r + f) % 2 === 0
               const piece = pos.board[sq]
               const isSelected = selectedSq === sq
               const isValidTarget = validTargets.includes(sq)
-              const isLastMoveSq = lastMove && (lastMove.from === sq || lastMove.to === sq)
+              const isLastMoveSq = nuocCuoi && (nuocCuoi.from === sq || nuocCuoi.to === sq)
               const isKingInCheck = inCheck && piece && typeOf(piece) === KING && colorOf(piece) === pos.turn
 
               return (
@@ -464,12 +553,12 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
                   )}
 
                   {/* Toạ độ mép bàn */}
-                  {f === 0 && (
+                  {f === (latBan ? 7 : 0) && (
                     <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-amber-950/60 select-none">
                       {r + 1}
                     </span>
                   )}
-                  {r === 0 && (
+                  {r === (latBan ? 7 : 0) && (
                     <span className="absolute bottom-0.5 right-0.5 text-[9px] font-bold text-amber-950/60 select-none">
                       {'abcdefgh'[f]}
                     </span>
@@ -479,12 +568,12 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
             })}
           </div>
 
-          {/* Nút cảm xúc phụ cho màn hình nhỏ (< lg) */}
-          <div className="flex lg:hidden items-center justify-center mt-3">
+          {/* Nút cảm xúc phụ khi hai cột bên bàn cờ bị ẩn (< 1920px) */}
+          <div className="flex min-[1920px]:hidden items-center justify-center mt-3">
             <GameQuickEmote
               emotes={DANH_SACH_THAI_DO_CHESS}
               onSend={handleQuickEmote}
-              activeBubble={playerBubble || opponentBubble}
+              activeBubble={playerBubble || bongDoiThu}
               theme="amber"
               align="center"
             />
@@ -492,13 +581,13 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 2 (Ngăn cách cố định ở giữa 50%) | VÙNG 1 (Ta ở dưới) ── */}
-        <div className="hidden lg:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none py-1">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none py-1">
           <GameCapturedTray
-            enemyCaptured={captured.friendlyLost}
-            friendlyCaptured={captured.enemyCaptured}
+            enemyCaptured={mauCuaToi === WHITE ? captured.friendlyLost : captured.enemyCaptured}
+            friendlyCaptured={mauCuaToi === WHITE ? captured.enemyCaptured : captured.friendlyLost}
             pawnType={PAWN}
             renderPiece={renderCapturedChessPiece}
-            topSlot={<GameOpponentBubble bubble={opponentBubble} theme="amber" />}
+            topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="amber" />}
             bottomSlot={
               <GameQuickEmote
                 emotes={DANH_SACH_THAI_DO_CHESS}
@@ -543,17 +632,27 @@ export function ChessBoard({ onBack, initialMode = 'ai' }: ChessBoardProps) {
         onClose={() => setIsSurrenderModalOpen(false)}
         mode={mode}
         surrenderSideName={
-          mode === 'ai'
-            ? (playerColor === WHITE ? 'Quân Trắng (Bạn)' : 'Quân Đen (Bạn)')
-            : (pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen')
+          laOnline
+            ? `${tenMau(mauCuaToi)} (Bạn)`
+            : mode === 'ai'
+              ? (playerColor === WHITE ? 'Quân Trắng (Bạn)' : 'Quân Đen (Bạn)')
+              : (pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen')
         }
         opponentSideName={
-          mode === 'ai'
-            ? 'người chơi quân Đen (Máy AI)'
-            : (pos.turn === WHITE ? 'người chơi quân Đen' : 'người chơi quân Trắng')
+          laOnline && online?.mySide
+            ? tenNguoiChoi(online, online.mySide === 'X' ? 'O' : 'X')
+            : mode === 'ai'
+              ? 'người chơi quân Đen (Máy AI)'
+              : (pos.turn === WHITE ? 'người chơi quân Đen' : 'người chơi quân Trắng')
         }
         attemptNumber={surrenderAttempts + 1}
         onSurrenderSuccess={() => {
+          if (laOnline) {
+            // Máy chủ chốt ván và báo cho cả bàn.
+            online?.surrender()
+            setIsSurrenderModalOpen(false)
+            return
+          }
           const losingSide = mode === 'ai' ? playerColor : pos.turn
           const winningSide = losingSide === WHITE ? (1 as Color) : (WHITE as Color)
           setCustomGameOver({

@@ -1,13 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { BieuCam, BoardCell, GameMetaState, GameType, GoiGame, LenhGame, PlayerSide } from '@shared/protocol/game'
-import type { ThanhVienPhong } from '@shared/protocol/room'
+import type {
+  BieuCam,
+  BoardCell,
+  GameMetaState,
+  GameType,
+  GoiGame,
+  LenhGameGui,
+  NuocCo,
+  NuocVuaDi,
+  PlayerSide,
+} from '@shared/protocol/game'
+import type { RoomChatMessage, ThanhVienPhong } from '@shared/protocol/room'
 import { EMOTE_BURST_MAX, EMOTE_COOLDOWN_MS } from '@shared/protocol/game-sdk'
 import { MA_DONG_SOCKET } from '@shared/protocol/common'
 import { taoBanMoi } from '../../worker/game-engine'
 import { toast } from 'sonner'
-import { nenKhoiTaoBan } from '@/features/games/game-ids'
+import { nenKhoiTaoBan, nenTuVaoBan } from '@/features/games/game-ids'
 
 export type TrangThaiKetNoiGame = 'dang_ket_noi' | 'da_ket_noi' | 'mat_ket_noi' | 'phien_bi_thay'
+
+/** Lệnh gửi qua kết nối bàn: lệnh game, hoặc tin nhắn chat phòng game (RoomDO xử lý như chat phòng học). */
+type LenhBan = LenhGameGui | { type: 'chat.send'; reqId: string; text: string }
+
+/** Giới hạn độ dài một tin nhắn chat phòng game (máy chủ nhận tối đa 1000 ký tự). */
+export const DO_DAI_TIN_BAN_TOI_DA = 300
+/** Số tin nhắn chat phòng game giữ trên máy khách. */
+const SO_TIN_BAN_TOI_DA = 100
 
 const BACKOFF_KHOI_DAU_MS = 1000
 const BACKOFF_TOI_DA_MS = 10000
@@ -55,9 +73,16 @@ export function useGame(
   const [board, setBoard] = useState<BoardCell[][]>(() => taoBanMoi(loaiBanDau))
   // Ai đang ở bàn (RoomDO phát `presence` mỗi khi có người vào/rời); null khi chưa nhận lần nào.
   const [thanhVien, setThanhVien] = useState<ThanhVienPhong[] | null>(null)
-  const [lastMove, setLastMove] = useState<{ player: PlayerSide; x?: number; y?: number; from?: number; to?: number } | null>(null)
+  // Cờ vua / cờ tướng: toàn bộ nước đã đi của ván (máy chủ là trọng tài, máy khách chỉ dựng lại thế cờ để vẽ).
+  const [moves, setMoves] = useState<NuocCo[]>([])
+  // Đã nhận trạng thái thật của bàn từ máy chủ (trước đó `meta` chỉ là giá trị mặc định).
+  const [daDongBo, setDaDongBo] = useState(false)
+  const [chat, setChat] = useState<RoomChatMessage[]>([])
+  const [lastMove, setLastMove] = useState<NuocVuaDi | null>(null)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
-  const [incomingEmote, setIncomingEmote] = useState<{ sender: string; emote: string; id: number } | null>(null)
+  const [incomingEmote, setIncomingEmote] = useState<{ sender: string; senderKey: string; emote: string; id: number } | null>(
+    null,
+  )
   const [turnTimeRemaining, setTurnTimeRemaining] = useState<number>(0)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -111,7 +136,8 @@ export function useGame(
   }, [meta.status, meta.turnTimerEndsAt])
 
   const ketNoi = useCallback(() => {
-    if (daHuyRef.current || !gameId) return
+    // Chưa đăng nhập thì máy chủ từ chối kết nối bàn (401): không thử kết nối lại vô ích.
+    if (daHuyRef.current || !gameId || !myActorKey) return
     if (henGioKetNoiLaiRef.current) {
       clearTimeout(henGioKetNoiLaiRef.current)
       henGioKetNoiLaiRef.current = null
@@ -145,6 +171,9 @@ export function useGame(
           lechDongHoRef.current = goi.serverNow - Date.now()
           setMeta(goi.meta)
           setBoard(goi.board)
+          setMoves(goi.moves ?? [])
+          setChat(goi.chat ?? [])
+          setDaDongBo(true)
           setLastMove(null)
           // Bàn vừa tạo, chưa ai nhận X/O: người tạo gửi init để ngồi ghế X, áp trò chơi/thời gian lượt đã chọn ở
           // sảnh và đăng bàn lên sảnh (người vào bàn có sẵn không kèm intendedGameType nên không đụng tới).
@@ -156,6 +185,10 @@ export function useGame(
                 turnSeconds: intendedTurnSeconds ?? 30,
               }),
             )
+          } else if (nenTuVaoBan(goi.meta, myActorKey)) {
+            // Bàn đang chờ đối thủ mà mình chưa có ghế: vào sảnh bấm "Chơi ngay"/"Vào đấu" hay mở link mời đều là để
+            // chơi (bàn chờ không có gì để xem) — ngồi ghế trống luôn, máy chủ quyết định ghế và bắt đầu ván.
+            ws.send(JSON.stringify({ type: 'game.join' }))
           }
           break
         }
@@ -163,6 +196,7 @@ export function useGame(
           lechDongHoRef.current = goi.serverNow - Date.now()
           setMeta(goi.meta)
           setBoard(goi.board)
+          setMoves(goi.moves ?? [])
           // Giữ dấu nước cuối trên bàn đã kết thúc (đầu hàng, hết giờ, mời đấu lại); bàn mới thì xoá dấu cũ.
           if (goi.lastMove) setLastMove(goi.lastMove)
           else if (goi.meta.status !== 'ended') setLastMove(null)
@@ -175,9 +209,17 @@ export function useGame(
         case 'game.emote': {
           setIncomingEmote({
             sender: goi.sender,
+            senderKey: goi.senderKey,
             emote: goi.emote,
             id: Date.now(),
           })
+          break
+        }
+        case 'room.chat': {
+          const tin = goi.message
+          setChat((truoc) =>
+            truoc.some((m) => m.id === tin.id) ? truoc : [...truoc, tin].slice(-SO_TIN_BAN_TOI_DA),
+          )
           break
         }
         case 'pong': {
@@ -222,7 +264,7 @@ export function useGame(
     ws.onerror = () => {
       // ws.onclose sẽ kích hoạt và xử lý backoff
     }
-  }, [gameId, intendedGameType, intendedTurnSeconds])
+  }, [gameId, myActorKey, intendedGameType, intendedTurnSeconds])
 
   useEffect(() => {
     ketNoiRef.current = ketNoi
@@ -255,10 +297,13 @@ export function useGame(
     return () => clearInterval(timer)
   }, [trangThai])
 
-  const gui = useCallback((lenh: LenhGame) => {
+  /** Gửi lệnh nếu đang kết nối; trả về false khi chưa gửi được (đang kết nối lại). */
+  const gui = useCallback((lenh: LenhBan): boolean => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(lenh))
+      return true
     }
+    return false
   }, [])
 
   const joinGame = useCallback(
@@ -271,6 +316,25 @@ export function useGame(
   const makeMove = useCallback(
     (x: number, y: number) => {
       gui({ type: 'game.move', x, y })
+    },
+    [gui],
+  )
+
+  /** Cờ vua / cờ tướng: gửi nước đi (ô đi, ô đến, quân phong cấp) để máy chủ xét và phát lại cho cả bàn. */
+  const diCo = useCallback(
+    (nuoc: NuocCo) => {
+      gui({ type: 'game.move', from: nuoc.from, to: nuoc.to, ...(nuoc.promo ? { promo: nuoc.promo } : {}) })
+    },
+    [gui],
+  )
+
+  /** Chat phòng game: máy chủ lưu và phát cho mọi người đang ở bàn (người chơi lẫn người xem). */
+  const guiChat = useCallback(
+    (text: string): boolean => {
+      const noiDung = text.trim().slice(0, DO_DAI_TIN_BAN_TOI_DA)
+      if (!noiDung) return false
+      const reqId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+      return gui({ type: 'chat.send', reqId: reqId.slice(0, 50), text: noiDung })
     },
     [gui],
   )
@@ -292,7 +356,10 @@ export function useGame(
   )
 
   return {
+    gameId,
+    myActorKey,
     trangThai,
+    daDongBo,
     meta,
     board,
     spectators,
@@ -300,13 +367,20 @@ export function useGame(
     mySide,
     isMyTurn,
     turnTimeRemaining,
+    moves,
+    chat,
     lastMove,
     latencyMs,
     incomingEmote,
     joinGame,
     makeMove,
+    diCo,
+    guiChat,
     surrender,
     rematch,
     sendEmote,
   }
 }
+
+/** Bàn đối kháng online mà một bàn cờ (Caro / Cờ vua / Cờ tướng) hiển thị — trạng thái và lệnh từ `useGame`. */
+export type BanOnline = ReturnType<typeof useGame>

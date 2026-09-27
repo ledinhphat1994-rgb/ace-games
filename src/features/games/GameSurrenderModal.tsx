@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import type { PlayMode } from './GamePlayToolbar'
 
 export interface GameSurrenderModalProps {
   isOpen: boolean
   onClose: () => void
-  mode: 'ai' | 'pass_and_play'
+  mode: PlayMode
   surrenderSideName: string // e.g. "Bên Đỏ", "Bên Đen", "Quân Trắng"
   opponentSideName: string // e.g. "Bên Đen", "Bên Đỏ", "Quân Đen"
   attemptNumber: number // Giữ để tương thích các bàn cũ; Caro luôn truyền 1 vì không đếm số lần
@@ -18,7 +19,7 @@ export interface GameSurrenderModalProps {
 export function GameSurrenderModal({
   isOpen,
   onClose,
-  mode: _mode,
+  mode,
   surrenderSideName,
   opponentSideName,
   attemptNumber: _attemptNumber,
@@ -28,6 +29,14 @@ export function GameSurrenderModal({
   const [stage, setStage] = useState<'prompt' | 'countdown'>('prompt')
   const [timeLeft, setTimeLeft] = useState(5)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Bàn cờ vẽ lại liên tục (đồng hồ lượt online nhảy 4 lần mỗi giây) nên callback đổi mỗi lần vẽ: giữ bản mới nhất
+  // trong ref để thanh đếm ngược không bị khởi động lại từ đầu mãi mãi.
+  const thanhCongRef = useRef(onSurrenderSuccess)
+  const tenDoiThuRef = useRef(opponentSideName)
+  useEffect(() => {
+    thanhCongRef.current = onSurrenderSuccess
+    tenDoiThuRef.current = opponentSideName
+  })
 
   // Đảm bảo mỗi khi mở modal, LUÔN LUÔN bắt đầu từ bước 1 (prompt) và thời gian 5s
   useEffect(() => {
@@ -62,19 +71,17 @@ export function GameSurrenderModal({
       return
     }
 
-    setTimeLeft(5)
-
+    const batDau = Date.now()
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          timerRef.current = null
-          toast.info(`Xin thua đã được ${opponentSideName} chấp nhận! Ván đấu kết thúc.`)
-          onSurrenderSuccess()
-          return 0
-        }
-        return prev - 1
-      })
+      const conLai = 5 - Math.floor((Date.now() - batDau) / 1000)
+      if (conLai <= 0) {
+        clearInterval(interval)
+        timerRef.current = null
+        toast.info(`Xin thua đã được ${tenDoiThuRef.current} chấp nhận! Ván đấu kết thúc.`)
+        thanhCongRef.current()
+        return
+      }
+      setTimeLeft(conLai)
     }, 1000)
     timerRef.current = interval
 
@@ -82,12 +89,17 @@ export function GameSurrenderModal({
       clearInterval(interval)
       timerRef.current = null
     }
-  }, [isOpen, stage, opponentSideName, onSurrenderSuccess])
+  }, [isOpen, stage])
 
   if (!isOpen) return null
 
   // Bắt đầu đếm ngược 5s sau khi người chơi bấm "Xác nhận"
   const handleStartCountdown = () => {
+    // Ván online: máy chủ chốt ván ngay khi nhận lệnh xin thua (không có bước chờ đối thủ đồng ý).
+    if (mode === 'online') {
+      onSurrenderSuccess()
+      return
+    }
     setTimeLeft(5)
     setStage('countdown')
     toast.info(`${surrenderSideName} đã xác nhận xin thua. Đang chờ ${opponentSideName} xác nhận…`)
