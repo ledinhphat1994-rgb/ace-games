@@ -343,7 +343,13 @@ export function ClassroomWorkspace({
       <div className={isFullscreen ? 'fixed bottom-2 left-1/2 z-[110] -translate-x-1/2' : undefined}>
         <ClassroomToolDock
           boCuc={boCuc}
-          onBamLop={(id) => setBoCuc((bc) => bamLop(bc, id))}
+          onBamLop={(id) => {
+            if (id === 'doc' && !docUrl) {
+              onUploadSlide()
+              return
+            }
+            setBoCuc((bc) => bamLop(bc, id))
+          }}
           coTaiLieu={Boolean(docUrl)}
           videoDangPhat={videoDangPhat}
           isHost={isHost}

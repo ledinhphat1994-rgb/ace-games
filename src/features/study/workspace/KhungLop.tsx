@@ -23,12 +23,29 @@ interface KhungLopProps {
 export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [dich, setDich] = useState({ x: 0, y: 0 })
+  const [kichThuoc, setKichThuoc] = useState<{ rong?: number; cao?: number } | null>(null)
   const keoRef = useRef<{ px: number; py: number; x: number; y: number } | null>(null)
+  const resizeRef = useRef<{
+    huong: string
+    px: number
+    py: number
+    rong: number
+    cao: number
+    x: number
+    y: number
+  } | null>(null)
 
-  // Rời chế độ cửa sổ nổi thì bỏ vị trí đã kéo.
+  // Rời chế độ cửa sổ nổi thì bỏ vị trí và kích thước đã kéo.
   useEffect(() => {
-    if (vaiTro !== 'pip') setDich({ x: 0, y: 0 })
+    if (vaiTro !== 'pip') {
+      setDich({ x: 0, y: 0 })
+      setKichThuoc(null)
+    }
   }, [vaiTro])
+
+  const goc = GOC_CUA_SO[Math.max(0, viTri) % GOC_CUA_SO.length]
+  const isRightAnchor = goc.includes('right-')
+  const isBottomAnchor = goc.includes('bottom-')
 
   const lop =
     vaiTro === 'main'
@@ -36,12 +53,12 @@ export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
       : vaiTro === 'phu'
         ? 'pointer-events-none absolute inset-0 z-20'
         : vaiTro === 'pip'
-          ? `absolute z-30 ${GOC_CUA_SO[Math.max(0, viTri) % GOC_CUA_SO.length]} aspect-video w-[min(46%,440px)] min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
+          ? `absolute z-30 ${goc} ${kichThuoc?.rong ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
           : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
   const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vaiTro !== 'pip') return
+    if (vaiTro !== 'pip' || resizeRef.current) return
     const dich0 = e.target as HTMLElement
     if (!dich0.closest('[data-keo-khung]') || dich0.closest('button, input, select, a, [role="slider"]')) return
     keoRef.current = { px: e.clientX, py: e.clientY, x: dich.x, y: dich.y }
@@ -77,6 +94,83 @@ export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
     } catch {}
   }
 
+  // Kéo to thu nhỏ ở các cạnh và góc cửa sổ
+  const batDauThayDoiKichThuoc = (e: React.PointerEvent, huong: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    resizeRef.current = {
+      huong,
+      px: e.clientX,
+      py: e.clientY,
+      rong: rect.width,
+      cao: rect.height,
+      x: dich.x,
+      y: dich.y,
+    }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const dangThayDoiKichThuoc = (e: React.PointerEvent) => {
+    const r = resizeRef.current
+    const el = ref.current
+    const cha = el?.parentElement
+    if (!r || !el || !cha) return
+
+    const dx = e.clientX - r.px
+    const dy = e.clientY - r.py
+
+    const vienCha = cha.getBoundingClientRect()
+    const maxRong = Math.max(220, vienCha.width - 24)
+    const maxCao = Math.max(140, vienCha.height - 24)
+
+    let moiRong = r.rong
+    let moiCao = r.cao
+    let moiX = r.x
+    let moiY = r.y
+
+    // Chiều ngang
+    if (r.huong.includes('e')) {
+      moiRong = Math.min(maxRong, Math.max(180, r.rong + dx))
+      if (isRightAnchor) {
+        moiX = r.x + (moiRong - r.rong)
+      }
+    } else if (r.huong.includes('w')) {
+      moiRong = Math.min(maxRong, Math.max(180, r.rong - dx))
+      if (!isRightAnchor) {
+        moiX = r.x + (r.rong - moiRong)
+      }
+    }
+
+    // Chiều dọc
+    if (r.huong.includes('s')) {
+      moiCao = Math.min(maxCao, Math.max(120, r.cao + dy))
+      if (isBottomAnchor) {
+        moiY = r.y + (moiCao - r.cao)
+      }
+    } else if (r.huong.includes('n')) {
+      moiCao = Math.min(maxCao, Math.max(120, r.cao - dy))
+      if (!isBottomAnchor) {
+        moiY = r.y + (r.cao - moiCao)
+      }
+    }
+
+    setKichThuoc({ rong: Math.round(moiRong), cao: Math.round(moiCao) })
+    setDich({ x: Math.round(moiX), y: Math.round(moiY) })
+  }
+
+  const thaThayDoiKichThuoc = (e: React.PointerEvent) => {
+    if (!resizeRef.current) return
+    resizeRef.current = null
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+  }
+
   return (
     <div
       ref={ref}
@@ -85,13 +179,95 @@ export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
       data-testid={`stage-layer-${id}`}
       aria-hidden={vaiTro === 'an' || undefined}
       className={lop}
-      style={vaiTro === 'pip' ? { transform: `translate(${dich.x}px, ${dich.y}px)` } : undefined}
+      style={
+        vaiTro === 'pip'
+          ? {
+              transform: `translate(${dich.x}px, ${dich.y}px)`,
+              ...(kichThuoc?.rong ? { width: `${kichThuoc.rong}px` } : {}),
+              ...(kichThuoc?.cao ? { height: `${kichThuoc.cao}px` } : {}),
+            }
+          : undefined
+      }
       onPointerDown={batDauKeo}
       onPointerMove={dangKeo}
       onPointerUp={thaKeo}
       onPointerCancel={thaKeo}
     >
       {children}
+
+      {/* 8 Điểm kéo to thu nhỏ ở các cạnh và góc của cửa sổ nổi */}
+      {vaiTro === 'pip' && (
+        <>
+          {/* Cạnh trên */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'n')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -top-1.5 left-3 right-3 h-3 cursor-ns-resize z-50 select-none touch-none hover:bg-brand/20 transition-colors rounded"
+            title="Kéo thay đổi chiều cao"
+          />
+          {/* Cạnh dưới */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 's')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -bottom-1.5 left-3 right-3 h-3 cursor-ns-resize z-50 select-none touch-none hover:bg-brand/20 transition-colors rounded"
+            title="Kéo thay đổi chiều cao"
+          />
+          {/* Cạnh trái */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'w')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute top-3 bottom-3 -left-1.5 w-3 cursor-ew-resize z-50 select-none touch-none hover:bg-brand/20 transition-colors rounded"
+            title="Kéo thay đổi chiều rộng"
+          />
+          {/* Cạnh phải */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'e')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute top-3 bottom-3 -right-1.5 w-3 cursor-ew-resize z-50 select-none touch-none hover:bg-brand/20 transition-colors rounded"
+            title="Kéo thay đổi chiều rộng"
+          />
+          {/* Góc trên - trái */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'nw')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -top-1.5 -left-1.5 size-4 cursor-nwse-resize z-50 select-none touch-none hover:bg-brand/30 transition-colors rounded-sm"
+          />
+          {/* Góc trên - phải */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'ne')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -top-1.5 -right-1.5 size-4 cursor-nesw-resize z-50 select-none touch-none hover:bg-brand/30 transition-colors rounded-sm"
+          />
+          {/* Góc dưới - trái */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'sw')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -bottom-1.5 -left-1.5 size-4 cursor-nesw-resize z-50 select-none touch-none hover:bg-brand/30 transition-colors rounded-sm"
+          />
+          {/* Góc dưới - phải */}
+          <div
+            onPointerDown={(e) => batDauThayDoiKichThuoc(e, 'se')}
+            onPointerMove={dangThayDoiKichThuoc}
+            onPointerUp={thaThayDoiKichThuoc}
+            onPointerCancel={thaThayDoiKichThuoc}
+            className="absolute -bottom-1.5 -right-1.5 size-4 cursor-nwse-resize z-50 select-none touch-none hover:bg-brand/30 transition-colors rounded-sm"
+          />
+        </>
+      )}
     </div>
   )
 }

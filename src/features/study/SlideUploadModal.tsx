@@ -231,49 +231,6 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             </div>
           </div>
 
-          {/* Form inputs */}
-          <div className="space-y-2.5">
-            <div>
-              <label className="text-[11px] font-semibold text-slate-300">Tên tài liệu</label>
-              <Input
-                value={docName}
-                onChange={(e) => setDocName(e.target.value)}
-                placeholder="Tên tài liệu..."
-                className="h-8 border-white/10 bg-black/40 text-xs text-white"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1">
-                  Số trang
-                  {isDetecting && <span className="text-[10px] text-cyan-400 animate-pulse">đang phát hiện…</span>}
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={totalPages}
-                  onChange={(e) => setTotalPages(parseInt(e.target.value, 10) || 1)}
-                  className="h-8 border-white/10 bg-black/40 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300">Định dạng</label>
-                <select
-                  value={fileType}
-                  onChange={(e) => setFileType(e.target.value as 'pptx' | 'pdf' | 'image')}
-                  className="h-8 w-full rounded-md border border-white/10 bg-black/40 px-2 text-xs text-white"
-                >
-                  <option value="pdf">Tài liệu PDF</option>
-                  <option value="pptx">PowerPoint / Word / Excel</option>
-                  <option value="image">Hình ảnh</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Google Slides section */}
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
             <div className="flex items-center gap-1.5 mb-2">
