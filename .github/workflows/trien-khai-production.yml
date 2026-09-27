@@ -15,6 +15,10 @@ on:
         description: 'Có migration D1 mới: áp dụng lên D1 production TRƯỚC khi deploy Worker'
         type: boolean
         default: false
+      chi_kiem_tra:
+        description: 'Chỉ kiểm tra production (smoke + phiên bản đang chạy), KHÔNG deploy'
+        type: boolean
+        default: false
 
 concurrency:
   group: trien-khai-production
@@ -57,6 +61,7 @@ jobs:
         run: npm ci
 
       - name: Migration D1 (bắt buộc trước khi deploy Worker)
+        if: ${{ !inputs.chi_kiem_tra }}
         env:
           AP_DUNG: ${{ inputs.ap_dung_migration }}
         run: |
@@ -79,6 +84,7 @@ jobs:
           kiem_tra lop-10a7-analytics
 
       - name: Deploy (release guard + build + wrangler deploy)
+        if: ${{ !inputs.chi_kiem_tra }}
         run: |
           set -o pipefail
           # Log ghi ra ngoài repo: release guard từ chối working tree có tệp lạ.
@@ -104,13 +110,31 @@ jobs:
           kiem "$URL_WORKER/api/whoami" 401
           kiem "$URL_WORKER/api/login" 405
           kiem "$URL_WORKER/api/game/highscores?gameType=solo_snake&verifiedOnly=1" 200
-          # Tên miền riêng: cảnh báo (không chặn) nếu gdtxdinhquan.com chưa trỏ về Worker này.
-          ma=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL_TEN_MIEN/api/whoami")
-          if [ "$ma" = "401" ]; then
-            echo "✅ $URL_TEN_MIEN đang phục vụ bản Worker này."
-            echo "- $URL_TEN_MIEN: đang phục vụ bản mới" >> "$GITHUB_STEP_SUMMARY"
+          # Tên miền riêng phải phục vụ ĐÚNG bản vừa deploy: trang chủ trỏ cùng gói JS với workers.dev.
+          # (Không chặn job vì Worker đã lên; gắn tên miền nằm ngoài mã nguồn — chỉ cảnh báo.)
+          goi_js() { curl -s --max-time 20 "$1/" | grep -oE '/assets/index-[A-Za-z0-9_-]+[.]js' | head -n 1; }
+          js_worker=$(goi_js "$URL_WORKER")
+          js_ten_mien=$(goi_js "$URL_TEN_MIEN")
+          echo "Gói JS workers.dev: ${js_worker:-không đọc được} | $URL_TEN_MIEN: ${js_ten_mien:-không đọc được}"
+          if [ -n "$js_worker" ] && [ "$js_worker" = "$js_ten_mien" ]; then
+            echo "✅ $URL_TEN_MIEN đang phục vụ đúng bản vừa deploy ($js_worker)."
+            echo "- ✅ $URL_TEN_MIEN phục vụ đúng bản đang chạy trên Worker (\`$js_worker\`)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::$URL_TEN_MIEN/api/whoami → $ma — tên miền có thể chưa gắn vào Worker gdtxdinhquan."
-            echo "- ⚠️ $URL_TEN_MIEN/api/whoami → $ma (tên miền có thể chưa gắn vào Worker gdtxdinhquan)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::$URL_TEN_MIEN chưa phục vụ bản trên Worker gdtxdinhquan (tên miền chưa gắn hoặc đang trỏ nơi khác)."
+            echo "- ⚠️ $URL_TEN_MIEN: gói JS \`${js_ten_mien:-?}\` khác Worker \`${js_worker:-?}\`" >> "$GITHUB_STEP_SUMMARY"
           fi
           exit $loi
+
+      - name: Các lần deploy gần nhất (để rollback nếu cần)
+        if: ${{ always() }}
+        run: |
+          npx wrangler deployments list --json --config wrangler.production.jsonc > "$RUNNER_TEMP/deployments.json" || exit 0
+          node -e '
+            const ds = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const dong = (Array.isArray(ds) ? ds : []).sort((a, b) => String(b.created_on).localeCompare(String(a.created_on))).slice(0, 5).map((d) => {
+              const bans = (d.versions || []).map((v) => `${v.version_id} (${v.percentage}%)`).join(", ");
+              const tin = (d.annotations && d.annotations["workers/message"]) || "";
+              return `- ${d.created_on} · ${bans}${tin ? " · " + tin : ""}`;
+            });
+            console.log(dong.join("\n"));
+          ' "$RUNNER_TEMP/deployments.json" | tee -a "$GITHUB_STEP_SUMMARY"
