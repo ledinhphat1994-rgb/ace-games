@@ -124,7 +124,7 @@ export function PresentationStage({
       mau={mau}
       co={co}
       laPhu={laPhu}
-      coTheVe={!isReconnecting}
+      coTheVe={canControl}
       coTheTayMoiNet={canControl}
       khoaCuaToi={myActorKey}
       onSendStroke={onSendStroke}
@@ -241,10 +241,12 @@ export function PresentationStage({
               data-testid="whiteboard-stage"
             >
               {bangVe(true)}
-              <div className="pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-slate-950/85 py-0.5 pl-2 pr-0.5 shadow-lg backdrop-blur-md">
-                <PenLine className="h-3.5 w-3.5 text-emerald-400" />
-                {nutKhung('board')}
-              </div>
+              {canControl && (
+                <div className="pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-slate-950/85 py-0.5 pl-2 pr-0.5 shadow-lg backdrop-blur-md">
+                  <PenLine className="h-3.5 w-3.5 text-emerald-400" />
+                  {nutKhung('board')}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a1611]" data-testid="whiteboard-stage">
@@ -262,6 +264,16 @@ export function PresentationStage({
             </div>
           )}
         </KhungLop>
+      )}
+
+      {/* Lớp phủ thụ động cho người xem khi có nét vẽ trên video / tài liệu mà người xem chưa bật bảng phủ */}
+      {!canControl && boCuc.board !== 'phu' && boCuc.board !== 'main' && whiteboardStrokes.length > 0 && (chinh === 'video' || chinh === 'doc') && (
+        <div
+          className={`pointer-events-none absolute inset-x-0 z-20 ${chinh === 'video' ? 'top-10 bottom-16' : 'top-11 bottom-0'}`}
+          data-testid="whiteboard-passive-overlay"
+        >
+          {bangVe(true)}
+        </div>
       )}
     </section>
   )

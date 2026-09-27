@@ -55,12 +55,12 @@ function YoutubeIcon({ className }: { className?: string }) {
 
 const CONG_CU: { id: CongCu; ten: string; icon: LucideIcon; testId: string; chiNguoiDieuHanh?: boolean }[] = [
   { id: 'chuot', ten: 'Chuột', icon: MousePointer2, testId: 'tool-btn-pointer' },
-  { id: 'but', ten: 'Bút', icon: Pen, testId: 'tool-btn-pen' },
-  { id: 'to_sang', ten: 'Dạ quang', icon: Highlighter, testId: 'tool-btn-highlighter' },
-  { id: 'tay', ten: 'Tẩy', icon: Eraser, testId: 'tool-btn-eraser' },
-  { id: 'chu', ten: 'Chữ', icon: Type, testId: 'tool-btn-text' },
-  { id: 'khung', ten: 'Khung', icon: Square, testId: 'tool-btn-rect' },
-  { id: 'tron', ten: 'Tròn', icon: Circle, testId: 'tool-btn-ellipse' },
+  { id: 'but', ten: 'Bút', icon: Pen, testId: 'tool-btn-pen', chiNguoiDieuHanh: true },
+  { id: 'to_sang', ten: 'Dạ quang', icon: Highlighter, testId: 'tool-btn-highlighter', chiNguoiDieuHanh: true },
+  { id: 'tay', ten: 'Tẩy', icon: Eraser, testId: 'tool-btn-eraser', chiNguoiDieuHanh: true },
+  { id: 'chu', ten: 'Chữ', icon: Type, testId: 'tool-btn-text', chiNguoiDieuHanh: true },
+  { id: 'khung', ten: 'Khung', icon: Square, testId: 'tool-btn-rect', chiNguoiDieuHanh: true },
+  { id: 'tron', ten: 'Tròn', icon: Circle, testId: 'tool-btn-ellipse', chiNguoiDieuHanh: true },
   // Laser chỉ hiện trên tài liệu và chỉ người trình chiếu dùng được.
   { id: 'laser', ten: 'Laser', icon: Sparkles, testId: 'tool-btn-laser', chiNguoiDieuHanh: true },
 ]
@@ -183,38 +183,41 @@ export function ClassroomToolDock({
               ))}
             </div>
 
-            {/* Màu */}
-            <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1.5" data-testid="dock-color-palette">
-              {MAU_VE.map((m) => (
-                <button
-                  key={m.gia}
-                  type="button"
-                  onClick={() => onChonMau(m.gia)}
-                  title={m.ten}
-                  aria-label={`Màu ${m.ten}`}
-                  aria-pressed={mau === m.gia}
-                  className={`h-5 w-5 rounded-full border border-white/25 transition-transform cursor-pointer ${mau === m.gia ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-slate-950' : 'hover:scale-110'}`}
-                  style={{ backgroundColor: m.gia }}
-                />
-              ))}
-            </div>
+            {/* Màu & Cỡ nét — chỉ dành cho người có quyền vẽ */}
+            {canControl && (
+              <>
+                <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1.5" data-testid="dock-color-palette">
+                  {MAU_VE.map((m) => (
+                    <button
+                      key={m.gia}
+                      type="button"
+                      onClick={() => onChonMau(m.gia)}
+                      title={m.ten}
+                      aria-label={`Màu ${m.ten}`}
+                      aria-pressed={mau === m.gia}
+                      className={`h-5 w-5 rounded-full border border-white/25 transition-transform cursor-pointer ${mau === m.gia ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-slate-950' : 'hover:scale-110'}`}
+                      style={{ backgroundColor: m.gia }}
+                    />
+                  ))}
+                </div>
 
-            {/* Cỡ nét / cỡ chữ */}
-            <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1" data-testid="dock-size-picker">
-              {CAC_CO_VE.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => onChonCo(c)}
-                  title={['Nhỏ', 'Vừa', 'To', 'Rất to'][c]}
-                  aria-label={`Cỡ ${['nhỏ', 'vừa', 'to', 'rất to'][c]}`}
-                  aria-pressed={co === c}
-                  className={`flex h-8 flex-1 items-center justify-center rounded-lg cursor-pointer ${co === c ? 'bg-white/15' : 'hover:bg-white/10'}`}
-                >
-                  <span className="rounded-full" style={{ width: 4 + c * 4, height: 4 + c * 4, backgroundColor: mau }} />
-                </button>
-              ))}
-            </div>
+                <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1" data-testid="dock-size-picker">
+                  {CAC_CO_VE.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => onChonCo(c)}
+                      title={['Nhỏ', 'Vừa', 'To', 'Rất to'][c]}
+                      aria-label={`Cỡ ${['nhỏ', 'vừa', 'to', 'rất to'][c]}`}
+                      aria-pressed={co === c}
+                      className={`flex h-8 flex-1 items-center justify-center rounded-lg cursor-pointer ${co === c ? 'bg-white/15' : 'hover:bg-white/10'}`}
+                    >
+                      <span className="rounded-full" style={{ width: 4 + c * 4, height: 4 + c * 4, backgroundColor: mau }} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Tiện ích */}
             <div className="grid grid-cols-4 gap-1 border-t border-white/10 pt-2">

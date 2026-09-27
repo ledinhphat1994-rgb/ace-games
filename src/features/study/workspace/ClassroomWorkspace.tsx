@@ -28,6 +28,7 @@ import {
   goLop,
   hienLop,
   lamChinh,
+  lopChinh,
   thuNho,
   type BoCuc,
   type LopId,
@@ -359,7 +360,13 @@ export function ClassroomWorkspace({
           isHost={isHost}
           canModerate={canModerate}
           congCu={congCu}
-          onChonCongCu={setCongCu}
+          onChonCongCu={(c) => {
+            setCongCu(c)
+            const chinh = lopChinh(boCuc)
+            if (c !== 'chuot' && (chinh === 'video' || chinh === 'doc')) {
+              setBoCuc((bc) => (bc.board === 'phu' ? bc : { ...bc, board: 'phu' }))
+            }
+          }}
           mau={mau}
           onChonMau={setMau}
           co={co}
