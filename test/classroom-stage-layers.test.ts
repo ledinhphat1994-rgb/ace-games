@@ -86,6 +86,14 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(khungRaw).toContain("'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'")
     expect(workspaceRaw).not.toContain("setMode('video')")
   })
+
+  it('người tham gia không có nút ẩn khung và có nút khôi phục bài giảng khi sân khấu trống', () => {
+    expect(stageRaw).toContain('choPhepAn={canControl}')
+    expect(khungRaw).toContain('{choPhepAn && (')
+    expect(khungRaw).toContain('data-testid={`layer-${id}-hide`}')
+    expect(stageRaw).toContain('data-testid="stage-restore-doc-btn"')
+    expect(stageRaw).toContain('data-testid="stage-restore-video-btn"')
+  })
 })
 
 describe('Công cụ vẽ chung', () => {

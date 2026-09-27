@@ -283,13 +283,25 @@ interface NutKhungProps {
   coThePhu?: boolean
   toanManHinh?: boolean
   onToanManHinh?: () => void
+  choPhepAn?: boolean
 }
 
 const nut =
   'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer'
 
 /** Vùng điều khiển khung: phóng to / thu nhỏ / phủ / toàn màn hình / ẩn — chỉ biểu tượng. */
-export function NutKhung({ id, vaiTro, onPhongTo, onThuNho, onAn, onPhu, coThePhu, toanManHinh, onToanManHinh }: NutKhungProps) {
+export function NutKhung({
+  id,
+  vaiTro,
+  onPhongTo,
+  onThuNho,
+  onAn,
+  onPhu,
+  coThePhu,
+  toanManHinh,
+  onToanManHinh,
+  choPhepAn = true,
+}: NutKhungProps) {
   return (
     <div className="flex shrink-0 items-center gap-0.5" data-testid={`layer-controls-${id}`}>
       {vaiTro === 'main' ? (
@@ -327,9 +339,11 @@ export function NutKhung({ id, vaiTro, onPhongTo, onThuNho, onAn, onPhu, coThePh
           {toanManHinh ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </button>
       )}
-      <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
-        <EyeOff className="h-3.5 w-3.5" />
-      </button>
+      {choPhepAn && (
+        <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
+          <EyeOff className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }
