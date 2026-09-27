@@ -82,6 +82,7 @@ import {
   validateInputTraceTimestamps,
 } from './games/anti-cheat'
 import './games/verifiers/snake-solo-verifier'
+import { danhDauPhienChoiBoDo, rutGonHoTen, vuotGioiHanGame } from './games/phien-choi-don'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -1397,8 +1398,12 @@ app.get('/api/game/highscores', async (c) => {
       createdAt: number
       totalXp: number
     }>()
+  // Bảng xếp hạng xem được khi chưa đăng nhập, nhưng họ tên đầy đủ của học sinh chỉ dành cho người trong trường.
+  const phien = await layPhien(c.req.raw, c.env)
+  const daDangNhap = phien ? (await kiemTraPhien(phien, c.env)).hopLe : false
   const highscores = (results ?? []).map((r) => ({
     ...r,
+    playerName: daDangNhap ? r.playerName : rutGonHoTen(r.playerName),
     level: Math.max(1, Math.floor(Math.sqrt((r.totalXp || 0) / 15)) + 1),
   }))
   return c.json({ ok: true, highscores })
@@ -1409,6 +1414,9 @@ app.get('/api/game/highscores', async (c) => {
 app.post('/api/game/highscore', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
+  if (await vuotGioiHanGame(c.env, 'hs', kq.taiKhoan.id)) {
+    return loi('Bạn gửi điểm quá nhanh. Vui lòng thử lại sau giây lát.', 429)
+  }
   let body: { gameType?: string; score?: number }
   try { body = await c.req.json() } catch { return loi('Dữ liệu không hợp lệ.', 400) }
   const { gameType, score } = body
@@ -1433,6 +1441,9 @@ app.all('/api/game/highscore', saiPhuongThuc)
 app.post('/api/game/session/start', async (c) => {
   const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
+  if (await vuotGioiHanGame(c.env, 'start', kq.taiKhoan.id)) {
+    return loi('Bạn mở ván mới quá nhanh. Vui lòng thử lại sau giây lát.', 429)
+  }
 
   let body: unknown
   try { body = await c.req.json() } catch { return loi('Dữ liệu JSON không hợp lệ.', 400) }
@@ -1759,8 +1770,32 @@ app.get('/ws/game-lobby/:gameType', (c) => vaoGameLobby(c.req.raw, c.env, c.req.
 // YouTube Search Proxy
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/api/yt-search', async (c) => {
+  // Chỉ thành viên đã đăng nhập (người trong phòng học) mới dùng được — không làm proxy mở tới YouTube.
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
   const q = (c.req.query('q') ?? '').trim()
   if (!q || q.length > 200) return c.json([])
+
+  // Kết quả tìm kiếm không phụ thuộc người hỏi: giữ 1 giờ trong Cache API để cùng từ khoá không phải đọc lại YouTube (~1s).
+  const khoaCache = new Request(`https://yt-search.cache/?q=${encodeURIComponent(q.toLowerCase())}`)
+  let cache: Cache | undefined
+  try {
+    // Ép kiểu: project test nạp thêm lib DOM, nơi CacheStorage không có `.default` như trên Workers.
+    cache = (caches as unknown as { default: Cache }).default
+  } catch {}
+  const daLuu = await cache?.match(khoaCache).catch(() => undefined)
+  if (daLuu) return c.json(await daLuu.json())
+  const traVe = (ketQua: { videoId: string; title: string; author: string }[]) => {
+    if (cache && ketQua.length > 0) {
+      const banLuu = new Response(JSON.stringify(ketQua), {
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+      })
+      try {
+        c.executionCtx.waitUntil(cache.put(khoaCache, banLuu).catch(() => {}))
+      } catch {}
+    }
+    return c.json(ketQua)
+  }
   try {
     const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept-Language': 'vi,en;q=0.9' },
@@ -1782,11 +1817,11 @@ app.get('/api/yt-search', async (c) => {
             if (results.length >= 9) break
           }
         }
-        if (results.length > 0) return c.json(results)
+        if (results.length > 0) return traVe(results)
       } catch {}
     }
     const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 9)
-    return c.json(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
+    return traVe(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
   } catch { return c.json([]) }
 })
 app.all('/api/yt-search', saiPhuongThuc)
@@ -1837,5 +1872,10 @@ export default {
           }),
       )
     }
+    ctx.waitUntil(
+      danhDauPhienChoiBoDo(env.DB)
+        .then((soPhien) => console.log(`[Scheduled Retention] Đã đánh dấu ${soPhien} ván chơi đơn bỏ dở.`))
+        .catch((err: unknown) => console.warn('[Scheduled Retention] Lỗi đánh dấu ván bỏ dở:', err)),
+    )
   },
 }

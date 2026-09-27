@@ -78,6 +78,15 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      // Cổng game không xác thực: mở phiên chơi đơn + gửi điểm legacy (mỗi tài khoản)
+      "name": "GAME_LIMITER",
+      "namespace_id": "1005",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
     }
   ],
   "r2_buckets": [

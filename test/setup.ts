@@ -46,11 +46,15 @@ const loginLimiterMock = createRateLimitMock(10, 60000)
 const admitLimiterMock = createRateLimitMock(10, 60000)
 ;(env as any).ADMIT_LIMITER = admitLimiterMock.binding
 
+const gameLimiterMock = createRateLimitMock(30, 60000)
+;(env as any).GAME_LIMITER = gameLimiterMock.binding
+
 beforeEach(() => {
   modLimiterMock.reset()
   uploadLimiterMock.reset()
   loginLimiterMock.reset()
   admitLimiterMock.reset()
+  gameLimiterMock.reset()
 })
 
 afterEach(async () => {
