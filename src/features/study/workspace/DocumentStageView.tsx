@@ -9,20 +9,30 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Maximize2,
-  Minimize2,
   RefreshCw,
   Upload,
   X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
-import { deriveDocumentStatus, ANNOTATION_COLORS } from './types'
+import { deriveDocumentStatus } from './types'
 import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
-import { SlideAnnotationToolbar } from './SlideAnnotationToolbar'
+import type { CongCu, CoVe } from './cong-cu'
+
+/** Công cụ chung của sân khấu → công cụ chú thích trên trang tài liệu. */
+const CONG_CU_TREN_TRANG: Record<CongCu, AnnotationTool> = {
+  chuot: 'pointer',
+  but: 'pen',
+  to_sang: 'highlighter',
+  tay: 'eraser',
+  laser: 'laser',
+  chu: 'text',
+  khung: 'rect',
+  tron: 'ellipse',
+}
 
 export interface DocumentStageViewProps {
   slideState?: SlideState | null
@@ -31,8 +41,15 @@ export interface DocumentStageViewProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
-  isFullscreen?: boolean
-  onToggleFullscreen?: () => void
+  /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
+  dieuKhienKhung?: ReactNode
+  /** Đang là cửa sổ nổi: đầu khung gọn, bỏ thu phóng. */
+  compact?: boolean
+  /** Chỉ lớp chính nhận phím ← → + − 0. */
+  nhanPhim?: boolean
+  congCu?: CongCu
+  mau?: string
+  co?: CoVe
   isReconnecting?: boolean
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
@@ -215,19 +232,21 @@ export function DocumentStageView({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
-  isFullscreen,
-  onToggleFullscreen,
+  dieuKhienKhung,
+  compact = false,
+  nhanPhim = true,
+  congCu = 'chuot',
+  mau = '#ef4444',
+  co = 1,
   isReconnecting = false,
   slideAnnotations = [],
   onSendSlideAnnotation,
-  onClearSlideAnnotations,
   onRemoveSlideAnnotation,
   slideLaser,
   onSendSlideLaser,
 }: DocumentStageViewProps) {
   const [hasRenderError, setHasRenderError] = useState(false)
-  const [activeTool, setActiveTool] = useState<AnnotationTool>('pointer')
-  const [selectedColor, setSelectedColor] = useState<string>(ANNOTATION_COLORS[0].value)
+  const activeTool = CONG_CU_TREN_TRANG[congCu]
 
   // Local-only view settings (PQA-C2 Section 5: never synchronized via RoomDO)
   const [zoomScale, setZoomScale] = useState<number>(1.0)
@@ -253,8 +272,9 @@ export function DocumentStageView({
     setFitMode((m) => (m === 'page' ? 'width' : 'page'))
   }, [])
 
-  // Keyboard navigation & accessibility (Section 14)
+  // Keyboard navigation & accessibility (Section 14) — chỉ khi tài liệu là lớp chính
   useEffect(() => {
+    if (!nhanPhim) return
     const handleKeyDown = (e: KeyboardEvent) => {
       // Do not hijack keys if user is typing in chat input or any form field
       const target = e.target as HTMLElement | null
@@ -281,16 +301,12 @@ export function DocumentStageView({
       } else if (e.key === '0') {
         e.preventDefault()
         handleResetZoom()
-      } else if (e.key === 'Escape') {
-        if (isFullscreen && onToggleFullscreen) {
-          onToggleFullscreen()
-        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [canControl, slideState, onPageChange, handleZoomIn, handleZoomOut, handleResetZoom, isFullscreen, onToggleFullscreen])
+  }, [nhanPhim, canControl, slideState, onPageChange, handleZoomIn, handleZoomOut, handleResetZoom])
 
   // Reset error state if document URL changes (React recommended render-time adjustment)
   const [prevDocUrl, setPrevDocUrl] = useState(slideState?.docUrl)
@@ -302,18 +318,19 @@ export function DocumentStageView({
   // ── 1. EMPTY DOCUMENT STATE ──
   if (status === 'no_document') {
     return (
-      <div
-        className="flex h-full w-full flex-col items-center justify-center p-6 text-center select-none bg-[#090d16]"
-        data-testid="document-stage-empty"
-      >
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 mb-3 shadow-inner">
-          <FileText className="h-7 w-7" />
+      <div className="relative flex h-full w-full flex-col bg-[#090d16] select-none" data-testid="document-stage-empty">
+        <div
+          data-keo-khung
+          className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 px-3"
+        >
+          <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
+            <FileText className="h-4 w-4 shrink-0 text-orange-400" />
+            <span className="truncate">Tài liệu</span>
+          </span>
+          {dieuKhienKhung}
         </div>
-        {canControl ? (
-          <div className="space-y-3 max-w-sm">
-            <div>
-              <h3 className="text-base font-bold text-white">Trình chiếu tài liệu</h3>
-            </div>
+        <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
+          {canControl ? (
             <button
               type="button"
               onClick={onUploadSlide}
@@ -323,12 +340,10 @@ export function DocumentStageView({
               <Upload className="h-3.5 w-3.5" />
               <span>Tải Slide / PDF</span>
             </button>
-          </div>
-        ) : (
-          <div className="space-y-1 max-w-sm">
-            <h3 className="text-base font-bold text-white">Chưa có tài liệu</h3>
-          </div>
-        )}
+          ) : (
+            <h3 className="text-sm font-bold text-white">Chưa có tài liệu</h3>
+          )}
+        </div>
       </div>
     )
   }
@@ -339,20 +354,23 @@ export function DocumentStageView({
       data-testid="document-stage-active"
     >
       {/* ── TOP DOCUMENT TOOLBAR / HEADER ── */}
-      <div className="flex h-11 shrink-0 items-center justify-between border-b border-white/10 bg-slate-950/85 px-3 sm:px-4 backdrop-blur-md z-10 select-none">
+      <div
+        data-keo-khung
+        className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 backdrop-blur-md z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
+      >
         {/* Left: Doc Name & Type Badge */}
         <div className="flex items-center gap-2 truncate pr-2 min-w-0">
           <FileText className="h-4 w-4 text-orange-400 shrink-0" />
           <span className="truncate text-xs font-semibold text-white max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
             {slideState?.docName || 'Tài liệu'}
           </span>
-          <span className="hidden sm:inline-block rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-orange-300">
-            {slideState?.fileType || 'Doc'}
-          </span>
-          {isReconnecting && (
-            <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 font-medium">
-              Đang kết nối lại...
+          {!compact && (
+            <span className="hidden sm:inline-block rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-orange-300">
+              {slideState?.fileType || 'Doc'}
             </span>
+          )}
+          {isReconnecting && (
+            <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
           )}
         </div>
 
@@ -398,9 +416,10 @@ export function DocumentStageView({
           )}
         </div>
 
-        {/* Right: Local Zoom/Fit, Fullscreen & Host Document Actions */}
+        {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Local Zoom Controls Group (Section 5: local only) */}
+          {/* Local Zoom Controls Group (Section 5: local only) — ẩn khi là cửa sổ nổi */}
+          {!compact && (
           <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
             <button
               type="button"
@@ -450,19 +469,6 @@ export function DocumentStageView({
               {fitMode === 'page' ? 'Fit Trang' : 'Fit Ngang'}
             </button>
           </div>
-
-          {/* Fullscreen Button */}
-          {onToggleFullscreen && (
-            <button
-              type="button"
-              onClick={onToggleFullscreen}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-              title={isFullscreen ? 'Thu nhỏ stage (Escape)' : 'Toàn màn hình stage'}
-              aria-label={isFullscreen ? 'Thu nhỏ stage' : 'Toàn màn hình stage'}
-              data-testid="doc-btn-fullscreen"
-            >
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </button>
           )}
 
           {/* Host-Only: Replace document & Close presentation (Section 4) */}
@@ -477,7 +483,7 @@ export function DocumentStageView({
                 data-testid="doc-btn-replace"
               >
                 <Upload className="h-3 w-3" />
-                <span className="hidden sm:inline text-[11px]">Đổi tài liệu</span>
+                {!compact && <span className="hidden sm:inline text-[11px]">Đổi tài liệu</span>}
               </button>
 
               {onCloseDoc && (
@@ -492,6 +498,13 @@ export function DocumentStageView({
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
+            </>
+          )}
+
+          {dieuKhienKhung && (
+            <>
+              <span className="mx-0.5 h-4 w-px bg-white/15" />
+              {dieuKhienKhung}
             </>
           )}
         </div>
@@ -525,7 +538,8 @@ export function DocumentStageView({
                 pageNumber={slideState.currentPage}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
-                selectedColor={selectedColor}
+                selectedColor={mau}
+                selectedSize={co}
                 canAnnotate={canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
@@ -557,7 +571,8 @@ export function DocumentStageView({
                 pageNumber={1}
                 strokes={slideAnnotations}
                 activeTool={activeTool}
-                selectedColor={selectedColor}
+                selectedColor={mau}
+                selectedSize={co}
                 canAnnotate={canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
@@ -576,19 +591,7 @@ export function DocumentStageView({
           </div>
         )}
       </div>
-
-      {/* ── FLOATING ANNOTATION & LASER TOOLBAR (PQA-C3) ── */}
-      {status === 'ready' && (
-        <SlideAnnotationToolbar
-          canAnnotate={canControl}
-          activeTool={activeTool}
-          onSelectTool={setActiveTool}
-          selectedColor={selectedColor}
-          onSelectColor={setSelectedColor}
-          onClearPage={() => onClearSlideAnnotations?.(slideState?.currentPage)}
-          hasPageStrokes={slideAnnotations.some((s) => s.page === (slideState?.currentPage ?? 1))}
-        />
-      )}
+      {/* Chú thích & laser dùng bộ "Công cụ" chung trên thanh dock (không còn thanh công cụ riêng trên trang). */}
     </div>
   )
 }

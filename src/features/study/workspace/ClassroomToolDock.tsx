@@ -1,56 +1,49 @@
 // src/features/study/workspace/ClassroomToolDock.tsx
-// Digital Campus v2: Compact Presentation & Content Toolbar
+// Thanh dock lớp học: Tài liệu · Bảng · Video (bật / ẩn từng lớp, chạy đồng thời) và Công cụ (mọi công cụ vẽ gom một chỗ).
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { SlideState, MediaState } from '@shared/protocol/room'
 import {
   Calculator as CalcIcon,
+  Circle,
   Clock,
   Eraser,
   FileText,
-  MoreHorizontal,
-  PenTool,
+  Highlighter,
+  MousePointer2,
+  Pen,
+  PenLine,
+  Sparkles,
+  Square,
   Trash2,
+  Type,
+  Wrench,
+  type LucideIcon,
 } from 'lucide-react'
-import { useState } from 'react'
-import type { WorkspaceMode } from './types'
+import { CAC_CO_VE, MAU_VE, type CongCu, type CoVe } from './cong-cu'
+import { dangHien, type BoCuc, type LopId } from './stage-layout'
 
 export interface ClassroomToolDockProps {
-  mode: WorkspaceMode
-  onSelectMode: (mode: WorkspaceMode) => void
+  boCuc: BoCuc
+  onBamLop: (id: LopId) => void
+  coTaiLieu: boolean
+  videoDangPhat: boolean
   isHost: boolean
   canModerate?: boolean
-  slideState?: SlideState | null
-  mediaState?: MediaState | null
-  // Whiteboard contextual tools
-  selectedColor: string
-  onSelectColor: (color: string) => void
-  selectedSize: number
-  onSelectSize: (size: number) => void
-  isEraser: boolean
-  onToggleEraser: () => void
+  // Công cụ vẽ chung
+  congCu: CongCu
+  onChonCongCu: (congCu: CongCu) => void
+  mau: string
+  onChonMau: (mau: string) => void
+  co: CoVe
+  onChonCo: (co: CoVe) => void
+  // Xoá
   onClearWhiteboard: () => void
-  // Secondary tools triggers
+  onClearSlidePage?: () => void
+  // Tiện ích
   onOpenCalculator: () => void
   onOpenSessionPanel: () => void
   isReconnecting?: boolean
 }
-
-const CHALK_COLORS = [
-  { name: 'Trắng', color: '#FFFFFF' },
-  { name: 'Vàng', color: '#FEF08A' },
-  { name: 'Xanh lam', color: '#67E8F9' },
-  { name: 'Hồng', color: '#F472B6' },
-  { name: 'Lục nhạt', color: '#86EFAC' },
-  { name: 'Cam', color: '#FDBA74' },
-]
-
-const CHALK_SIZES = [
-  { label: 'S', size: 3 },
-  { label: 'M', size: 6 },
-  { label: 'L', size: 12 },
-  { label: 'XL', size: 22 },
-]
 
 function YoutubeIcon({ className }: { className?: string }) {
   return (
@@ -60,29 +53,65 @@ function YoutubeIcon({ className }: { className?: string }) {
   )
 }
 
+const CONG_CU: { id: CongCu; ten: string; icon: LucideIcon; testId: string; chiNguoiDieuHanh?: boolean }[] = [
+  { id: 'chuot', ten: 'Chuột', icon: MousePointer2, testId: 'tool-btn-pointer' },
+  { id: 'but', ten: 'Bút', icon: Pen, testId: 'tool-btn-pen' },
+  { id: 'to_sang', ten: 'Dạ quang', icon: Highlighter, testId: 'tool-btn-highlighter' },
+  { id: 'tay', ten: 'Tẩy', icon: Eraser, testId: 'tool-btn-eraser' },
+  { id: 'chu', ten: 'Chữ', icon: Type, testId: 'tool-btn-text' },
+  { id: 'khung', ten: 'Khung', icon: Square, testId: 'tool-btn-rect' },
+  { id: 'tron', ten: 'Tròn', icon: Circle, testId: 'tool-btn-ellipse' },
+  // Laser chỉ hiện trên tài liệu và chỉ người trình chiếu dùng được.
+  { id: 'laser', ten: 'Laser', icon: Sparkles, testId: 'tool-btn-laser', chiNguoiDieuHanh: true },
+]
+
+const NUT_LOP: { id: LopId; ten: string; testId: string }[] = [
+  { id: 'doc', ten: 'Tài liệu', testId: 'dock-btn-document' },
+  { id: 'board', ten: 'Bảng', testId: 'dock-btn-whiteboard' },
+  { id: 'video', ten: 'Video', testId: 'dock-btn-video' },
+]
+
+const MAU_NHAN: Record<LopId, string> = {
+  doc: 'text-orange-400',
+  board: 'text-emerald-400',
+  video: 'text-red-500',
+}
+
+function IconLop({ id, className }: { id: LopId; className?: string }) {
+  if (id === 'doc') return <FileText className={className} />
+  if (id === 'board') return <PenLine className={className} />
+  return <YoutubeIcon className={className} />
+}
+
+const nutDock =
+  'relative flex h-11 w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold transition-colors cursor-pointer'
+
+const nutKhay =
+  'flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-colors cursor-pointer'
+
 export function ClassroomToolDock({
-  mode,
-  onSelectMode,
+  boCuc,
+  onBamLop,
+  coTaiLieu,
+  videoDangPhat,
   isHost,
   canModerate = false,
-  slideState,
-  mediaState,
-  selectedColor,
-  onSelectColor,
-  selectedSize,
-  onSelectSize,
-  isEraser,
-  onToggleEraser,
+  congCu,
+  onChonCongCu,
+  mau,
+  onChonMau,
+  co,
+  onChonCo,
   onClearWhiteboard,
+  onClearSlidePage,
   onOpenCalculator,
   onOpenSessionPanel,
   isReconnecting = false,
 }: ClassroomToolDockProps) {
-  const [showColorPopover, setShowColorPopover] = useState(false)
-  const [showSizePopover, setShowSizePopover] = useState(false)
-  const [showToolsPopover, setShowToolsPopover] = useState(false)
-
   const canControl = !isReconnecting && (isHost || canModerate)
+  const congCuHienTai = CONG_CU.find((c) => c.id === congCu) ?? CONG_CU[0]
+  const IconCongCu = congCu === 'chuot' ? Wrench : congCuHienTai.icon
+  const dangChay: Record<LopId, boolean> = { doc: coTaiLieu, board: false, video: videoDangPhat }
 
   return (
     <nav
@@ -90,234 +119,140 @@ export function ClassroomToolDock({
       className="flex items-center justify-center p-2 z-30 select-none"
       data-testid="classroom-tool-dock"
     >
-      <div className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-1.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5">
-        {/* ── 1. PRIMARY STAGE MODE SELECTORS ── */}
-        <div className="flex items-center gap-1">
-          {/* Document Button */}
-          <button
+      <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-slate-950/90 px-2 py-1 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5">
+        {/* ── 1. BA LỚP NỘI DUNG: bật / ẩn, chạy đồng thời ── */}
+        {NUT_LOP.map(({ id, ten, testId }) => {
+          const hien = dangHien(boCuc[id])
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onBamLop(id)}
+              aria-pressed={hien}
+              title={ten}
+              data-testid={testId}
+              className={`${nutDock} ${hien ? 'bg-white/12 text-white ring-1 ring-white/15' : 'text-slate-400 hover:bg-white/8 hover:text-slate-200'}`}
+            >
+              <IconLop id={id} className={`h-4.5 w-4.5 ${MAU_NHAN[id]}`} />
+              <span>{ten}</span>
+              {dangChay[id] && (
+                <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-current text-emerald-400 animate-pulse" />
+              )}
+            </button>
+          )
+        })}
+
+        <div className="mx-1 h-7 w-px bg-white/15" />
+
+        {/* ── 2. CÔNG CỤ: bút, dạ quang, tẩy, chữ, khung, tròn, laser, màu, cỡ, máy tính… ── */}
+        <Popover>
+          <PopoverTrigger
             type="button"
-            onClick={() => onSelectMode('document')}
-            className={`flex h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'document'
-                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/30'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-            data-testid="dock-btn-document"
-            title="Trình chiếu tài liệu / Slide"
+            className={`${nutDock} ${congCu !== 'chuot' ? 'bg-white/12 text-white ring-1 ring-white/15' : 'text-slate-400 hover:bg-white/8 hover:text-slate-200'} focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white`}
+            title="Công cụ"
+            data-testid="dock-btn-secondary-tools"
           >
-            <FileText className="h-4 w-4 text-orange-400" />
-            <span>Tài liệu</span>
-            {slideState?.docUrl && (
-              <span className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
+            <IconCongCu className="h-4.5 w-4.5" />
+            <span>Công cụ</span>
+            {congCu !== 'chuot' && (
+              <span className="absolute right-2 top-1.5 h-2 w-2 rounded-full ring-1 ring-white/40" style={{ backgroundColor: mau }} />
             )}
-          </button>
-
-          {/* Whiteboard Button */}
-          <button
-            type="button"
-            onClick={() => onSelectMode('whiteboard')}
-            className={`flex h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'whiteboard'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-            data-testid="dock-btn-whiteboard"
-            title="Bảng trắng viết phấn"
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="center"
+            sideOffset={10}
+            className="w-72 space-y-2.5 rounded-2xl border border-white/15 bg-slate-950/95 p-2.5 text-slate-200 shadow-2xl backdrop-blur-2xl"
+            data-testid="dock-tools-tray"
           >
-            <PenTool className="h-4 w-4 text-emerald-400" />
-            <span>Bảng trắng</span>
-          </button>
-
-          {/* Video Button */}
-          <button
-            type="button"
-            onClick={() => onSelectMode('video')}
-            className={`flex h-8 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-all cursor-pointer ${
-              mode === 'video'
-                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
-                : 'text-slate-300 hover:bg-white/10 hover:text-white'
-            }`}
-            data-testid="dock-btn-video"
-            title="Video YouTube cùng xem"
-          >
-            <YoutubeIcon className="h-4 w-4 text-red-500" />
-            <span>Video</span>
-            {mediaState?.videoId && mediaState.status === 'playing' && (
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
-            )}
-          </button>
-        </div>
-
-        {/* ── 2. CONTEXTUAL WHITEBOARD CONTROLS (Only when whiteboard is active) ── */}
-        {mode === 'whiteboard' && (
-          <>
-            <div className="mx-1 h-5 w-px bg-white/15" />
-
-            <div className="flex items-center gap-1" data-testid="whiteboard-contextual-controls">
-              {/* Color picker */}
-              <div className="relative">
+            {/* Công cụ vẽ */}
+            <div className="grid grid-cols-4 gap-1">
+              {CONG_CU.filter((c) => !c.chiNguoiDieuHanh || canControl).map(({ id, ten, icon: Icon, testId }) => (
                 <button
+                  key={id}
                   type="button"
-                  onClick={() => {
-                    setShowColorPopover((v) => !v)
-                    setShowSizePopover(false)
-                  }}
-                  className="flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Màu phấn"
-                  aria-label="Chọn màu phấn vẽ"
+                  onClick={() => onChonCongCu(id)}
+                  aria-pressed={congCu === id}
+                  title={ten}
+                  data-testid={testId}
+                  className={`${nutKhay} ${congCu === id ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400/40' : 'text-slate-300 hover:bg-white/10'}`}
                 >
-                  <span
-                    className="h-4 w-4 rounded-full border border-white/40 shadow-sm"
-                    style={{ backgroundColor: selectedColor }}
-                  />
-                  <span className="hidden sm:inline text-[11px]">Màu</span>
+                  <Icon className="h-4 w-4" />
+                  <span>{ten}</span>
                 </button>
+              ))}
+            </div>
 
-                {showColorPopover && (
-                  <div className="absolute bottom-full left-0 mb-3 flex items-center gap-1.5 rounded-2xl border border-white/15 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-2xl z-50">
-                    {CHALK_COLORS.map((c) => (
-                      <button
-                        key={c.color}
-                        type="button"
-                        onClick={() => {
-                          onSelectColor(c.color)
-                          setShowColorPopover(false)
-                        }}
-                        style={{ backgroundColor: c.color }}
-                        className={`h-6 w-6 rounded-full transition-all cursor-pointer ${
-                          !isEraser && selectedColor === c.color
-                            ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-slate-950'
-                            : 'opacity-70 hover:opacity-100 hover:scale-110'
-                        }`}
-                        title={c.name}
-                        aria-label={`Màu ${c.name}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Size picker */}
-              <div className="relative">
+            {/* Màu */}
+            <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1.5" data-testid="dock-color-palette">
+              {MAU_VE.map((m) => (
                 <button
+                  key={m.gia}
                   type="button"
-                  onClick={() => {
-                    setShowSizePopover((v) => !v)
-                    setShowColorPopover(false)
-                  }}
-                  className="flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
-                  title="Cỡ nét phấn"
-                  aria-label="Chọn cỡ nét vẽ"
+                  onClick={() => onChonMau(m.gia)}
+                  title={m.ten}
+                  aria-label={`Màu ${m.ten}`}
+                  aria-pressed={mau === m.gia}
+                  className={`h-5 w-5 rounded-full border border-white/25 transition-transform cursor-pointer ${mau === m.gia ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-slate-950' : 'hover:scale-110'}`}
+                  style={{ backgroundColor: m.gia }}
+                />
+              ))}
+            </div>
+
+            {/* Cỡ nét / cỡ chữ */}
+            <div className="flex items-center justify-between gap-1 rounded-xl bg-white/5 px-2 py-1" data-testid="dock-size-picker">
+              {CAC_CO_VE.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => onChonCo(c)}
+                  title={['Nhỏ', 'Vừa', 'To', 'Rất to'][c]}
+                  aria-label={`Cỡ ${['nhỏ', 'vừa', 'to', 'rất to'][c]}`}
+                  aria-pressed={co === c}
+                  className={`flex h-8 flex-1 items-center justify-center rounded-lg cursor-pointer ${co === c ? 'bg-white/15' : 'hover:bg-white/10'}`}
                 >
-                  <PenTool className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-[11px] font-bold">Nét</span>
+                  <span className="rounded-full" style={{ width: 4 + c * 4, height: 4 + c * 4, backgroundColor: mau }} />
                 </button>
+              ))}
+            </div>
 
-                {showSizePopover && (
-                  <div className="absolute bottom-full left-0 mb-3 flex items-center gap-1 rounded-2xl border border-white/15 bg-slate-950/95 p-1.5 shadow-2xl backdrop-blur-2xl z-50">
-                    {CHALK_SIZES.map((s) => (
-                      <button
-                        key={s.size}
-                        type="button"
-                        onClick={() => {
-                          onSelectSize(s.size)
-                          setShowSizePopover(false)
-                        }}
-                        className={`flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                          !isEraser && selectedSize === s.size
-                            ? 'bg-emerald-500 text-black font-bold'
-                            : 'text-slate-300 hover:bg-white/10'
-                        }`}
-                      >
-                        <span
-                          className="rounded-full bg-current inline-block"
-                          style={{ width: Math.max(3, Math.min(8, s.size)), height: Math.max(3, Math.min(8, s.size)) }}
-                        />
-                        <span>{s.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Eraser */}
-              <button
-                type="button"
-                onClick={onToggleEraser}
-                className={`flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                  isEraser
-                    ? 'bg-amber-500 text-black font-bold shadow-sm'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                }`}
-                title="Tẩy nét vẽ"
-                aria-pressed={isEraser}
-              >
-                <Eraser className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Tẩy</span>
+            {/* Tiện ích */}
+            <div className="grid grid-cols-4 gap-1 border-t border-white/10 pt-2">
+              <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-slate-300 hover:bg-white/10`} data-testid="tool-btn-calculator">
+                <CalcIcon className="h-4 w-4 text-cyan-400" />
+                <span>Máy tính</span>
               </button>
-
-              {/* Clear board (Host only) */}
+              <button type="button" onClick={onOpenSessionPanel} title="Phiên học" className={`${nutKhay} text-slate-300 hover:bg-white/10`} data-testid="tool-btn-session">
+                <Clock className="h-4 w-4 text-emerald-400" />
+                <span>Phiên học</span>
+              </button>
               {canControl && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ nét vẽ trên bảng đen không?')) {
-                      onClearWhiteboard()
-                    }
+                    if (window.confirm('Xoá toàn bộ nét vẽ trên bảng?')) onClearWhiteboard()
                   }}
-                  className="flex h-8 items-center gap-1 rounded-xl px-2 text-xs text-slate-400 hover:bg-red-500/20 hover:text-red-400 transition-colors cursor-pointer"
-                  title="Xóa toàn bộ bảng vẽ"
-                  aria-label="Xóa toàn bộ bảng vẽ"
+                  title="Xoá bảng"
+                  className={`${nutKhay} text-slate-300 hover:bg-red-500/15 hover:text-red-300`}
+                  data-testid="tool-btn-clear-board"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
+                  <span>Xoá bảng</span>
+                </button>
+              )}
+              {canControl && coTaiLieu && onClearSlidePage && (
+                <button
+                  type="button"
+                  onClick={onClearSlidePage}
+                  title="Xoá chú thích trang"
+                  className={`${nutKhay} text-slate-300 hover:bg-red-500/15 hover:text-red-300`}
+                  data-testid="tool-btn-clear"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Xoá trang</span>
                 </button>
               )}
             </div>
-          </>
-        )}
-
-        <div className="mx-1 h-5 w-px bg-white/15" />
-
-        {/* ── 3. SECONDARY TOOLS POPOVER ── */}
-        <Popover open={showToolsPopover} onOpenChange={setShowToolsPopover}>
-          <PopoverTrigger
-            type="button"
-            className="flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white"
-            title="Công cụ hỗ trợ học tập"
-            data-testid="dock-btn-secondary-tools"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">Công cụ</span>
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            side="top"
-            sideOffset={10}
-            className="w-56 rounded-2xl border border-white/15 bg-slate-950/95 p-2 text-slate-200 backdrop-blur-2xl shadow-2xl space-y-1"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                onOpenCalculator()
-                setShowToolsPopover(false)
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 transition-colors cursor-pointer text-left"
-            >
-              <CalcIcon className="h-4 w-4 text-cyan-400 shrink-0" />
-              <span>Máy tính khoa học FX</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                onOpenSessionPanel()
-                setShowToolsPopover(false)
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10 transition-colors cursor-pointer text-left"
-            >
-              <Clock className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Phiên học & Mục tiêu</span>
-            </button>
           </PopoverContent>
         </Popover>
       </div>

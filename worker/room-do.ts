@@ -2362,6 +2362,8 @@ export class RoomDO extends DurableObject<Env> {
           const strokeWithEpoch: WhiteboardStroke = {
             ...st,
             epoch: this.whiteboardEpoch,
+            // Người vẽ do máy chủ gắn (không lấy từ client) — căn cứ cho quyền tẩy nét.
+            by: att.key,
           }
           try {
             this.ctx.storage.sql.exec(
@@ -2397,6 +2399,33 @@ export class RoomDO extends DurableObject<Env> {
             this.ctx.storage.sql.exec('DELETE FROM whiteboard_strokes')
           } catch {}
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.clear', epoch: this.whiteboardEpoch })
+        } else if (d.action === 'stroke.remove') {
+          // Tẩy một nét: người vẽ tẩy được nét của chính mình; chủ phòng / người điều hành tẩy được mọi nét.
+          let dong: { stroke_data: string } | undefined
+          try {
+            dong = this.ctx.storage.sql
+              .exec<{ stroke_data: string }>('SELECT stroke_data FROM whiteboard_strokes WHERE id = ?1', d.id)
+              .toArray()[0]
+          } catch (err) {
+            console.error('Lỗi tra nét vẽ whiteboard để tẩy:', err)
+            return
+          }
+          if (!dong) return
+          let nguoiVe: string | undefined
+          try {
+            nguoiVe = (JSON.parse(dong.stroke_data) as WhiteboardStroke).by
+          } catch {}
+          if (!laQuanTri && nguoiVe !== att.key) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Bạn chỉ tẩy được nét vẽ của mình.' }))
+            return
+          }
+          try {
+            this.ctx.storage.sql.exec('DELETE FROM whiteboard_strokes WHERE id = ?1', d.id)
+          } catch (err) {
+            console.error('Lỗi tẩy nét vẽ whiteboard:', err)
+            return
+          }
+          this.broadcast({ type: 'whiteboard.sync', action: 'stroke.remove', strokeId: d.id })
         }
         break
       }
@@ -2583,6 +2612,7 @@ export class RoomDO extends DurableObject<Env> {
             color: st.color,
             size: st.size,
             opacity: st.opacity,
+            ...(st.tool === 'text' && st.text ? { text: st.text } : {}),
           }
           try {
             this.ctx.storage.sql.exec(

@@ -25,12 +25,27 @@ export interface PomodoroState {
   revision: number
 }
 
+/** Loại nét vẽ: bút tự do, bút dạ quang, chữ, hoặc hình khoanh vùng (chữ nhật / tròn — lưu thành đường nét đều). */
+export type LoaiNetVe = 'pen' | 'highlighter' | 'text' | 'shape'
+
+/** Bảng vẽ v2 dùng hệ toạ độ logic cố định 1600×900 (16:9) để mọi màn hình thấy nét ở cùng chỗ. */
+export const BANG_VE_RONG = 1600
+export const BANG_VE_CAO = 900
+
 export interface WhiteboardStroke {
   id: string
   points: [number, number][]
   color: string
   size: number
   epoch: number
+  /** 2 = toạ độ logic 1600×900. Không có = nét cũ tính bằng pixel màn hình người vẽ. */
+  v?: 2
+  tool?: LoaiNetVe
+  /** Nội dung chữ khi tool = 'text' (points[0] là góc trên-trái, size là cỡ chữ). */
+  text?: string
+  opacity?: number
+  /** Khoá người vẽ — máy chủ gắn, dùng để chỉ cho người vẽ (hoặc người điều hành) tẩy nét của mình. */
+  by?: string
 }
 
 export interface SharedNotes {
@@ -116,9 +131,14 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
       color: z.string().max(30),
       size: z.number().positive().max(100),
       epoch: z.number().int().nonnegative(),
+      v: z.literal(2).optional(),
+      tool: z.enum(['pen', 'highlighter', 'text', 'shape']).optional(),
+      text: z.string().min(1).max(200).optional(),
+      opacity: z.number().min(0.05).max(1).optional(),
     }),
   }),
   z.object({ action: z.literal('stroke.clear') }),
+  z.object({ action: z.literal('stroke.remove'), id: z.string().min(1).max(64) }),
 ])
 export type LenhPhongWhiteboard = z.infer<typeof LenhPhongWhiteboard>
 
@@ -139,11 +159,13 @@ export type LenhPhongQueue = z.infer<typeof LenhPhongQueue>
 export interface SlideAnnotationStroke {
   id: string
   page: number
-  tool: 'pen' | 'highlighter'
+  tool: LoaiNetVe
   points: [number, number][]
   color: string
   size: number
   opacity?: number
+  /** Nội dung chữ khi tool = 'text'. */
+  text?: string
 }
 
 export interface SlideState {
@@ -171,11 +193,12 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     stroke: z.object({
       id: z.string().min(1).max(64),
       page: z.number().int().positive(),
-      tool: z.enum(['pen', 'highlighter']),
+      tool: z.enum(['pen', 'highlighter', 'text', 'shape']),
       points: z.array(z.tuple([z.number(), z.number()])).min(1).max(300),
       color: z.string().max(30),
       size: z.number().positive().max(50),
       opacity: z.number().min(0.05).max(1).optional(),
+      text: z.string().min(1).max(200).optional(),
     }),
   }),
   z.object({
@@ -384,8 +407,9 @@ export type GoiPhong =
   | { type: 'pomodoro.sync'; state: PomodoroState; serverNow: number }
   | {
       type: 'whiteboard.sync'
-      action: 'stroke.add' | 'stroke.clear'
+      action: 'stroke.add' | 'stroke.clear' | 'stroke.remove'
       stroke?: WhiteboardStroke
+      strokeId?: string
       epoch?: number
     }
   | { type: 'notes.sync'; notes: SharedNotes }

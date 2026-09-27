@@ -13,7 +13,8 @@ import {
 
 import roomDoSource from '../worker/room-do.ts?raw'
 import layerSource from '../src/features/study/workspace/SlideAnnotationLayer.tsx?raw'
-import toolbarSource from '../src/features/study/workspace/SlideAnnotationToolbar.tsx?raw'
+// Công cụ chú thích / laser nay nằm trong khay "Công cụ" chung trên thanh dock (không còn thanh riêng trên trang).
+import toolbarSource from '../src/features/study/workspace/ClassroomToolDock.tsx?raw'
 import docStageSource from '../src/features/study/workspace/DocumentStageView.tsx?raw'
 import useRoomSource from '../src/hooks/use-room.ts?raw'
 
@@ -260,7 +261,7 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
 
     it('supports eraser tool without clearing the entire page', () => {
       // Verify toolbar exports eraser and keep clear page separate
-      expect(toolbarSource).toContain('data-testid="tool-btn-eraser"')
+      expect(toolbarSource).toContain("testId: 'tool-btn-eraser'")
       expect(toolbarSource).toContain('data-testid="tool-btn-clear"')
       // Verify eraser invokes onRemoveStroke with hitId, not onClearPage
       expect(layerSource).toContain('onRemoveStroke?.(hitId)')
@@ -268,24 +269,29 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
   })
 
   describe('6. Permission Isolation & Floating Toolbar UI', () => {
-    it('completely hides mutation toolbar from students (canAnnotate === false)', () => {
-      expect(toolbarSource).toContain('if (!canAnnotate) {')
-      expect(toolbarSource).toContain('return null')
+    it('students cannot annotate slides or use laser / clear-page (presenter-only)', () => {
+      // Lớp chú thích bỏ qua mọi thao tác khi không có quyền trình chiếu.
+      expect(layerSource).toContain('if (!canAnnotate) return')
+      // Khay công cụ ẩn laser và "Xoá trang" với người không trình chiếu.
+      expect(toolbarSource).toContain('CONG_CU.filter((c) => !c.chiNguoiDieuHanh || canControl)')
+      expect(toolbarSource).toContain('{canControl && coTaiLieu && onClearSlidePage && (')
     })
 
     it('provides tool selection for pointer, pen, highlighter, eraser, laser, and clear', () => {
-      expect(toolbarSource).toContain('data-testid="tool-btn-pointer"')
-      expect(toolbarSource).toContain('data-testid="tool-btn-pen"')
-      expect(toolbarSource).toContain('data-testid="tool-btn-highlighter"')
-      expect(toolbarSource).toContain('data-testid="tool-btn-eraser"')
-      expect(toolbarSource).toContain('data-testid="tool-btn-laser"')
+      expect(toolbarSource).toContain("testId: 'tool-btn-pointer'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-pen'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-highlighter'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-eraser'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-laser'")
       expect(toolbarSource).toContain('data-testid="tool-btn-clear"')
     })
 
-    it('supports collapsing and expanding the floating toolbar', () => {
-      expect(toolbarSource).toContain('data-testid="slide-annotation-toolbar-collapsed"')
-      expect(toolbarSource).toContain('data-testid="btn-expand-annotation-toolbar"')
-      expect(toolbarSource).toContain('data-testid="btn-collapse-annotation-toolbar"')
+    it('tools tray also offers text, rectangle and ellipse, with shared colour and size', () => {
+      expect(toolbarSource).toContain("testId: 'tool-btn-text'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-rect'")
+      expect(toolbarSource).toContain("testId: 'tool-btn-ellipse'")
+      expect(toolbarSource).toContain('data-testid="dock-color-palette"')
+      expect(toolbarSource).toContain('data-testid="dock-size-picker"')
     })
 
     it('embeds SlideAnnotationLayer on both PDF canvas and Image viewer in DocumentStageView with onRemoveStroke', () => {
@@ -293,7 +299,9 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
       expect(docStageSource).toContain('pageNumber={slideState.currentPage}')
       expect(docStageSource).toContain('pageNumber={1}')
       expect(docStageSource).toContain('onRemoveStroke={onRemoveSlideAnnotation}')
-      expect(docStageSource).toContain('<SlideAnnotationToolbar')
+      // Công cụ lấy từ bộ chung của sân khấu.
+      expect(docStageSource).toContain('const activeTool = CONG_CU_TREN_TRANG[congCu]')
+      expect(docStageSource).not.toContain('<SlideAnnotationToolbar')
     })
   })
 })

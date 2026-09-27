@@ -224,7 +224,8 @@ describe('PQA-C2: Real PDF / Slide Presentation in Central Stage (Items A throug
   describe('I. Reconnect & Network Resiliency', () => {
     it('DocumentStageView displays reconnecting indicator while keeping slide rendered', () => {
       expect(docStageRaw).toContain('{isReconnecting && (')
-      expect(docStageRaw).toContain('Đang kết nối lại...')
+      // Chỉ báo gọn bằng biểu tượng quay (ít chữ), vẫn có nhãn cho trình đọc màn hình.
+      expect(docStageRaw).toContain('aria-label="Đang kết nối lại"')
     })
 
     it('mutation controls are disabled during reconnect', () => {
