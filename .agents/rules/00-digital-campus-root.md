@@ -43,6 +43,8 @@ trigger: always_on
 - A card or destination should state **what it is**, not describe how to use it.
 - Strip unnecessary subtitles, decorative chips, redundant tags, and explanatory paragraphs.
 - Every screen must be instantly comprehensible within 3 seconds.
+- **Quy tắc bắt buộc khi sửa giao diện (Chỉ đổi tiêu đề, cấm thêm nội dung bổ sung):** Khi nhận lệnh sửa giao diện, chỉ cập nhật đúng tiêu đề, tuyệt đối KHÔNG tự ý chèn thêm phụ đề (subtitles), mô tả phụ, đoạn văn giải thích hay bất kỳ nội dung bổ sung nào cho tiêu đề đó.
+
 
 ## 9. Interaction Principle & Fluid Responsiveness
 - High-contrast typography, generous touch targets (>= 40px), and clear micro-interactions on hover/focus/active.

@@ -14,6 +14,8 @@
 - **Avoid Boxing Everything:** Do not trap every piece of information inside nested rounded cards with heavy borders.
 - **Visual Breathing Room:** Group related controls with subtle surface elevation, directional gradients, and generous whitespace rather than redundant borders.
 - **Reduce Micro-Copy:** Remove explanatory subtitles, superfluous instructions, and repetitive tags. If an icon and title make the feature obvious, let them speak.
+- **Chỉ thay đổi tiêu đề, cấm thêm nội dung bổ sung:** Khi thực hiện sửa đổi giao diện, chỉ thay đổi đúng nội dung tiêu đề, tuyệt đối KHÔNG thêm phụ đề, mô tả phụ hay nội dung giải thích bổ sung cho tiêu đề đó.
+
 
 ## 3. Restrained Color Roles
 - **Backgrounds:** Deep neutral surfaces (`#080d19`, `#0a0f1d`) that let content and media shine without visual fatigue.

@@ -100,3 +100,8 @@ NEED: <thứ cần quyết định>
 - **Chính sách kiểm duyệt & Cấm vào phòng (Fail-Closed Moderation):** Thành viên có bản ghi trong `phong_ban` sẽ bị chặn 403 tức thì ở cả cổng WebSocket admission lẫn API cấp cookie `/api/rooms/:id/admit`. Nếu truy vấn D1 gặp sự cố, hệ thống trả về 503 thay vì bỏ qua lỗi (nguyên tắc Fail-Closed).
 - Mọi thay đổi hoàn tất phải tự động kiểm thử toàn diện (`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`), commit với thông điệp rõ ràng chuẩn conventional, push lên nhánh làm việc và sẵn sàng deploy lên domain chính thức.
 - **Agent Deploy Permission (Cloudflare Workers):** `npm run deploy` là lệnh Wrangler chạy **local** — không SSH vào VPS, không truy cập server từ xa. Agent **được phép tự chạy `npm run deploy`** khi: (1) tất cả quality gates đã pass (typecheck 0 lỗi, lint 0 lỗi, test 100% xanh, build thành công), (2) code đã merge vào `origin/main`, và (3) user đã xác nhận rõ ràng. Sau deploy, agent phải báo lại Cloudflare Version ID và deployed SHA.
+
+## 6. Quy tắc sửa giao diện tối giản (Chỉ đổi tiêu đề, cấm thêm nội dung bổ sung)
+- **Quy tắc bắt buộc trước khi sửa giao diện:** Khi nhận yêu cầu chỉnh sửa giao diện, CHỈ thay đổi đúng nội dung tiêu đề (title/heading) được yêu cầu.
+- **Cấm tuyệt đối thêm nội dung bổ sung:** Tuyệt đối KHÔNG tự ý chèn thêm văn bản bổ sung, mô tả phụ, hướng dẫn sử dụng, phụ đề (subtitles/descriptions), tags giải thích hay đoạn văn chú thích đi kèm cho tiêu đề đó.
+- **Tiêu đề tự tường minh:** Giữ giao diện sạch sẽ, trực quan, tinh gọn tuyệt đối theo nguyên tắc "Obvious UI Does Not Explain Itself".
