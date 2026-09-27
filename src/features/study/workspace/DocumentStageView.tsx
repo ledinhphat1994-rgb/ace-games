@@ -18,7 +18,8 @@ import {
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PdfCanvasViewer } from '../PdfCanvasViewer'
-import { deriveDocumentStatus } from './types'
+import { PptxSlideViewer } from '../PptxSlideViewer'
+import { deriveDocumentStatus, laTepPptx } from './types'
 import { SlideAnnotationLayer, type AnnotationTool } from './SlideAnnotationLayer'
 import type { CongCu, CoVe } from './cong-cu'
 
@@ -41,6 +42,8 @@ export interface DocumentStageViewProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  /** Người trình chiếu: báo số slide thật của .pptx dựng trên trình duyệt (tệp cũ / có slide ẩn). */
+  onSetTotalPages?: (totalPages: number) => void
   /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
   dieuKhienKhung?: ReactNode
   /** Đang là cửa sổ nổi: đầu khung gọn, bỏ thu phóng. */
@@ -232,6 +235,7 @@ export function DocumentStageView({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSetTotalPages,
   dieuKhienKhung,
   compact = false,
   nhanPhim = true,
@@ -254,6 +258,11 @@ export function DocumentStageView({
 
   const canControl = !isReconnecting && (isHost || canModerate)
   const status = deriveDocumentStatus(slideState, hasRenderError)
+
+  // .pptx dựng ngay trên trình duyệt, chuyển trang đồng bộ như PDF; dựng lỗi thì quay về trình xem Office Online.
+  const [pptxLoi, setPptxLoi] = useState(false)
+  const dungPptx = laTepPptx(slideState) && !pptxLoi
+  const coChuyenTrang = slideState?.fileType === 'pdf' || dungPptx
 
   // Zoom handlers (clamped between 0.5 and 3.0)
   const handleZoomIn = useCallback(() => {
@@ -313,6 +322,7 @@ export function DocumentStageView({
   if (slideState?.docUrl !== prevDocUrl) {
     setPrevDocUrl(slideState?.docUrl)
     setHasRenderError(false)
+    setPptxLoi(false)
   }
 
   // ── 1. EMPTY DOCUMENT STATE ──
@@ -374,9 +384,9 @@ export function DocumentStageView({
           )}
         </div>
 
-        {/* Center: Synchronized Page Navigation (chỉ hiện với PDF khi hệ thống tự đồng bộ trang) */}
+        {/* Center: Synchronized Page Navigation (PDF và .pptx dựng trên trình duyệt — hệ thống tự đồng bộ trang) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {slideState && slideState.totalPages > 1 && slideState.fileType === 'pdf' && (
+          {slideState && slideState.totalPages > 1 && coChuyenTrang && (
             <div className="flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
               {canControl ? (
                 <>
@@ -419,7 +429,7 @@ export function DocumentStageView({
         {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Local Zoom Controls Group (Section 5: local only) — ẩn khi là cửa sổ nổi */}
-          {!compact && (
+          {!compact && !dungPptx && (
           <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
             <button
               type="button"
@@ -580,6 +590,30 @@ export function DocumentStageView({
                 onSendLaser={onSendSlideLaser}
               />
             </div>
+          </div>
+        ) : dungPptx && slideState ? (
+          <div className="h-full w-full" data-testid="doc-pptx-viewer">
+            <PptxSlideViewer
+              docUrl={slideState.docUrl}
+              trang={slideState.currentPage}
+              onSoTrang={(soTrang) => {
+                if (canControl && soTrang !== slideState.totalPages) onSetTotalPages?.(soTrang)
+              }}
+              onLoi={() => setPptxLoi(true)}
+            >
+              <SlideAnnotationLayer
+                pageNumber={slideState.currentPage}
+                strokes={slideAnnotations}
+                activeTool={activeTool}
+                selectedColor={mau}
+                selectedSize={co}
+                canAnnotate={canControl}
+                onSendStroke={onSendSlideAnnotation}
+                onRemoveStroke={onRemoveSlideAnnotation}
+                laser={slideLaser}
+                onSendLaser={onSendSlideLaser}
+              />
+            </PptxSlideViewer>
           </div>
         ) : slideState?.fileType === 'pptx' ? (
           <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} />

@@ -50,6 +50,7 @@ export interface ClassroomWorkspaceProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  onSetTotalPages?: (totalPages: number) => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onClearSlideAnnotations?: (page?: number) => void
@@ -117,6 +118,7 @@ export function ClassroomWorkspace({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSetTotalPages,
   slideAnnotations,
   onSendSlideAnnotation,
   onClearSlideAnnotations,
@@ -292,6 +294,7 @@ export function ClassroomWorkspace({
             onPageChange={onPageChange}
             onUploadSlide={onUploadSlide}
             onCloseDoc={onCloseDoc}
+            onSetTotalPages={onSetTotalPages}
             mediaState={mediaState}
             canControlMedia={canControlMedia}
             volume={volume}

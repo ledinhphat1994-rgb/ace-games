@@ -159,7 +159,10 @@ export function validatePptx(fileBytes: Uint8Array): Promise<{ ok: boolean; reas
  * OOXML ZIP Inspection (pptx / docx / xlsx): gói phải có [Content_Types].xml, có phần chính của đúng loại, và
  * [Content_Types].xml khai báo đúng kiểu nội dung chính cho phần đó — đổi đuôi một tệp ZIP bất kỳ không qua được.
  */
-export async function kiemTraGoiOoxml(fileBytes: Uint8Array, loai: LoaiOoxml): Promise<{ ok: boolean; reason?: string }> {
+export async function kiemTraGoiOoxml(
+  fileBytes: Uint8Array,
+  loai: LoaiOoxml,
+): Promise<{ ok: boolean; reason?: string; soSlide?: number }> {
   const phanChinh = OOXML_PHAN_CHINH[loai]
   const MAX_EOCD_SCAN = 65536
   const MAX_ENTRIES = 500
@@ -197,6 +200,8 @@ export async function kiemTraGoiOoxml(fileBytes: Uint8Array, loai: LoaiOoxml): P
   let totalUncompressed = 0
   let hasContentTypes = false
   let hasMainPart = false
+  // Số slide của bản trình chiếu (ppt/slides/slideN.xml) — làm số trang để chuyển trang đồng bộ.
+  let soSlide = 0
   let contentTypesLocalHeaderOffset = -1
   let contentTypesCompressedSize = 0
   let contentTypesCompressionMethod = 0
@@ -229,6 +234,8 @@ export async function kiemTraGoiOoxml(fileBytes: Uint8Array, loai: LoaiOoxml): P
       contentTypesCompressionMethod = compressionMethod
     } else if (name === phanChinh.part) {
       hasMainPart = true
+    } else if (loai === 'pptx' && new RegExp('^ppt/slides/slide\\d+\\.xml$').test(name)) {
+      soSlide++
     }
 
     ptr += 46 + nameLen + extraLen + commentLen
@@ -300,7 +307,7 @@ export async function kiemTraGoiOoxml(fileBytes: Uint8Array, loai: LoaiOoxml): P
     }
   }
 
-  return { ok: true }
+  return loai === 'pptx' ? { ok: true, soSlide } : { ok: true }
 }
 
 /**
@@ -368,8 +375,10 @@ export async function validateDocumentUpload(
   }
 
   // OOXML deep inspection (pptx / docx / xlsx)
+  let soSlidePptx = 0
   if (rawExt === 'pptx' || rawExt === 'docx' || rawExt === 'xlsx') {
     const ooxmlCheck = await kiemTraGoiOoxml(fileBytes, rawExt)
+    soSlidePptx = ooxmlCheck.soSlide ?? 0
     if (!ooxmlCheck.ok) {
       return {
         ok: false,
@@ -380,7 +389,7 @@ export async function validateDocumentUpload(
   }
 
   // Lightweight page count estimate for PDF if possible
-  let pageCount = 1
+  let pageCount = rawExt === 'pptx' ? Math.max(1, Math.min(500, soSlidePptx)) : 1
   if (rule.fileType === 'pdf') {
     try {
       const text = new TextDecoder('latin1').decode(fileBytes.subarray(0, Math.min(fileBytes.length, 200000)))

@@ -920,6 +920,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'change_page', page } }))
   }, [])
 
+  const setSlideTotalPages = useCallback((totalPages: number) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'slide.action', data: { action: 'set_total_pages', totalPages } }))
+  }, [])
+
   const loadSlideDoc = useCallback((docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages = 1, docId?: number) => {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
@@ -1072,6 +1078,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     slideAnnotations,
     slideLaser,
     changeSlidePage,
+    setSlideTotalPages,
     loadSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,

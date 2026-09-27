@@ -188,6 +188,8 @@ export const LenhPhongSlide = z.discriminatedUnion('action', [
     totalPages: z.number().int().positive().default(1),
   }),
   z.object({ action: z.literal('close_doc') }),
+  // .pptx dựng trên trình duyệt: người trình chiếu báo số slide thật (slide ẩn bị bỏ qua) — không xoá chú thích như load_doc.
+  z.object({ action: z.literal('set_total_pages'), totalPages: z.number().int().positive().max(500) }),
   z.object({
     action: z.literal('annotation_add'),
     stroke: z.object({

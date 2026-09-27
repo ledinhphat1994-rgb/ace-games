@@ -2598,6 +2598,16 @@ export class RoomDO extends DurableObject<Env> {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
           } catch {}
           this.broadcast({ type: 'slide.annotation', action: 'clear' })
+        } else if (d.action === 'set_total_pages') {
+          // .pptx dựng trên trình duyệt: chỉ sửa số trang (giữ trang hiện tại trong giới hạn), không đụng tới chú thích.
+          if (!this.slide || this.slide.fileType !== 'pptx') return
+          const totalPages = Math.max(1, Math.min(500, d.totalPages))
+          if (totalPages === this.slide.totalPages) return
+          this.slide = {
+            ...this.slide,
+            totalPages,
+            currentPage: Math.min(this.slide.currentPage, totalPages),
+          }
         } else if (d.action === 'annotation_add') {
           const st = d.stroke
           if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 300) {

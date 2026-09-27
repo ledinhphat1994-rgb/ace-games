@@ -238,10 +238,12 @@ describe('PQA-C2: Real PDF / Slide Presentation in Central Stage (Items A throug
     })
   })
 
-  // ── J. PPTX Remains Unsupported Truthful ──────────────────────────────────
+  // ── J. PPTX: dựng trên trình duyệt, chuyển trang đồng bộ; Office Online chỉ còn là phương án dự phòng ──
   describe('J. Truthful PPTX Handling', () => {
-    it('derives unsupported status for pptx fileType', () => {
-      expect(deriveDocumentStatus(samplePptxSlide)).toBe('unsupported')
+    it('derives ready status for a real .pptx (browser-rendered, page-synced like PDF)', () => {
+      expect(deriveDocumentStatus(samplePptxSlide)).toBe('ready')
+      expect(docStageRaw).toContain('<PptxSlideViewer')
+      expect(docStageRaw).toContain("const coChuyenTrang = slideState?.fileType === 'pdf' || dungPptx")
     })
 
     it('renders PptxAdvisoryCard explaining limitation honestly', () => {

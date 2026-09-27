@@ -162,6 +162,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     slideAnnotations,
     slideLaser,
     changeSlidePage,
+    setSlideTotalPages,
     loadSlideDoc,
     closeSlideDoc,
     sendSlideAnnotation,
@@ -518,6 +519,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}
         onCloseDoc={isHost || canModerate ? closeSlideDoc : undefined}
+        onSetTotalPages={isHost || canModerate ? setSlideTotalPages : undefined}
         slideAnnotations={slideAnnotations}
         onSendSlideAnnotation={isHost || canModerate ? sendSlideAnnotation : undefined}
         onClearSlideAnnotations={isHost || canModerate ? clearSlideAnnotations : undefined}

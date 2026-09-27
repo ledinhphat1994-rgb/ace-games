@@ -29,6 +29,7 @@ export interface PresentationStageProps {
   onPageChange?: (newPage: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
+  onSetTotalPages?: (totalPages: number) => void
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onRemoveSlideAnnotation?: (id: string) => void
@@ -76,6 +77,7 @@ export function PresentationStage({
   onPageChange,
   onUploadSlide,
   onCloseDoc,
+  onSetTotalPages,
   slideAnnotations,
   onSendSlideAnnotation,
   onRemoveSlideAnnotation,
@@ -168,6 +170,7 @@ export function PresentationStage({
             onPageChange={onPageChange}
             onUploadSlide={onUploadSlide}
             onCloseDoc={onCloseDoc}
+            onSetTotalPages={onSetTotalPages}
             dieuKhienKhung={nutKhung('doc')}
             compact={boCuc.doc === 'pip'}
             nhanPhim={boCuc.doc === 'main'}

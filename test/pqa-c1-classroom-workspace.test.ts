@@ -147,7 +147,7 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
       }, null)).toBe('idle')
     })
 
-    it('J. PPTX remains unsupported/truthful with advisory guidance', () => {
+    it('J. real .pptx is presented in the browser (ready, page-synced); Office viewer advisory kept as fallback', () => {
       const pptxSlide: SlideState = {
         docUrl: 'https://r2.lop10a7.edu.vn/bai-giang.pptx',
         docName: 'bai-giang.pptx',
@@ -155,7 +155,9 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
         currentPage: 1,
         totalPages: 1,
       }
-      expect(deriveDocumentStatus(pptxSlide)).toBe('unsupported')
+      expect(deriveDocumentStatus(pptxSlide)).toBe('ready')
+      // Word / Excel cùng nhóm Office vẫn chỉ xem qua Office Online (chưa đồng bộ trang).
+      expect(deriveDocumentStatus({ ...pptxSlide, docUrl: '/api/rooms/1/documents/2/file', docName: 'giao-an.docx' })).toBe('unsupported')
       expect(docStageRaw).toContain('PptxAdvisoryCard')
       expect(docStageRaw).toContain('Chưa hỗ trợ trình chiếu trực tiếp PPTX')
       expect(docStageRaw).toContain('xuất bài giảng sang định dạng PDF (.pdf)')
@@ -378,7 +380,7 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
 
   // ── J. Unsupported PPTX Remains Truthful ──────────────────────────────────
   describe('J. Unsupported PPTX Truthfulness', () => {
-    it('derives unsupported status for pptx presentation in stage', () => {
+    it('a real .pptx is ready (browser-rendered); an Office file that is not .pptx stays unsupported', () => {
       const pptxSlide: SlideState = {
         docUrl: 'https://r2.lop10a7.edu.vn/presentation.pptx',
         docName: 'presentation.pptx',
@@ -386,7 +388,8 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
         currentPage: 1,
         totalPages: 1,
       }
-      expect(deriveDocumentStatus(pptxSlide)).toBe('unsupported')
+      expect(deriveDocumentStatus(pptxSlide)).toBe('ready')
+      expect(deriveDocumentStatus({ ...pptxSlide, docUrl: 'https://r2.lop10a7.edu.vn/bang-diem.xlsx', docName: 'bang-diem.xlsx' })).toBe('unsupported')
     })
 
     it('displays PptxAdvisoryCard with honest limitation and PDF conversion advice', () => {

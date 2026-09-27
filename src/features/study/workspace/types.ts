@@ -54,12 +54,23 @@ export function deriveDefaultWorkspaceMode(
 }
 
 /**
+ * Bản trình chiếu .pptx thật (không phải Word/Excel cùng nhóm Office, không phải Google Slides):
+ * dựng ngay trên trình duyệt và chuyển trang đồng bộ như PDF.
+ */
+export function laTepPptx(slideState?: Pick<SlideState, 'fileType' | 'docName' | 'docUrl'> | null): boolean {
+  if (!slideState || slideState.fileType !== 'pptx') return false
+  if (slideState.docUrl.includes('docs.google.com/')) return false
+  const duongDan = slideState.docUrl.split('?')[0]
+  return /\.pptx$/i.test(slideState.docName || '') || /\.pptx$/i.test(duongDan)
+}
+
+/**
  * Derives truthful document presentation status.
  * Required distinctions:
  * - NO DOCUMENT: null or empty docUrl
- * - UNSUPPORTED: pptx file format (advisory only, no live presentation)
+ * - UNSUPPORTED: Office document other than a real .pptx (Word/Excel/.ppt via Office viewer, no live sync)
  * - RENDER ERROR: explicit error flag
- * - READY: valid image or pdf loaded
+ * - READY: valid image, pdf or .pptx loaded
  */
 export function deriveDocumentStatus(
   slideState?: SlideState | null,
@@ -75,7 +86,7 @@ export function deriveDocumentStatus(
   if (isLoading) {
     return 'loading'
   }
-  if (slideState.fileType === 'pptx') {
+  if (slideState.fileType === 'pptx' && !laTepPptx(slideState)) {
     return 'unsupported'
   }
   return 'ready'
