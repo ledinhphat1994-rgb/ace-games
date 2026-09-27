@@ -99,6 +99,7 @@ export interface ClassroomWorkspaceProps {
   onOpenSessionPanel: () => void
   // Leave
   onLeaveRoom: () => void
+  onCloseRoom?: () => Promise<void>
 }
 
 export function ClassroomWorkspace({
@@ -157,6 +158,7 @@ export function ClassroomWorkspace({
   onOpenCalculator,
   onOpenSessionPanel,
   onLeaveRoom,
+  onCloseRoom,
 }: ClassroomWorkspaceProps) {
   const videoId = mediaState?.videoId?.trim() ?? ''
   const docUrl = slideState?.docUrl?.trim() ?? ''
@@ -255,6 +257,7 @@ export function ClassroomWorkspace({
         unreadChatCount={unreadChatCount}
         memberCount={members.length}
         onLeaveRoom={onLeaveRoom}
+        onCloseRoom={onCloseRoom}
       />
 
       {/* ── 2. RECONNECTING / STALE STATE WARNING BANNER ── */}

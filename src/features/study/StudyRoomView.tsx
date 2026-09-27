@@ -476,6 +476,31 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
 
   const bringCalcToFront = () => setCalcZ(nextZIndex())
 
+  const handleCloseRoom = useCallback(async () => {
+    const cleanRoomId = roomId ? roomId.replace('phong-', '') : ''
+    if (!cleanRoomId) return
+    const res = await fetch(`/api/rooms/${cleanRoomId}/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ reason: 'owner_closed' }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      loi?: string
+      error?: string
+      message?: string
+    }
+    if (res.ok && data.ok) {
+      toast.success('Đã hủy phòng học.')
+      onLeaveRoom()
+    } else {
+      const msg = data.loi || data.error || data.message || 'Không thể hủy phòng học.'
+      toast.error(msg)
+      throw new Error(msg)
+    }
+  }, [roomId, onLeaveRoom])
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="relative h-svh w-full overflow-hidden select-none">
@@ -545,6 +570,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         onOpenCalculator={() => setShowCalc((v) => !v)}
         onOpenSessionPanel={() => setSessionPanelOpen((v) => !v)}
         onLeaveRoom={onLeaveRoom}
+        onCloseRoom={isHost || canModerate ? handleCloseRoom : undefined}
       />
 
       {/* ══ Autoplay unblock notification banner ══ */}

@@ -2,6 +2,16 @@
 // Digital Campus v2: Minimalist Immersive Room Header
 // Tên phòng xuống dòng khi dài (thanh cao lên), không bao giờ cắt chữ hay ẩn nút.
 
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { VoiceClientState } from '@/lib/voice-client'
 import { cn } from '@/lib/utils'
@@ -16,6 +26,7 @@ import {
   Users,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react'
 import type { ContextPanelView } from './types'
 
@@ -42,6 +53,7 @@ export interface ClassroomTopBarProps {
   memberCount: number
   // Navigation
   onLeaveRoom: () => void
+  onCloseRoom?: () => Promise<void>
 }
 
 const NUT_KHUNG =
@@ -67,7 +79,11 @@ export function ClassroomTopBar({
   unreadChatCount,
   memberCount,
   onLeaveRoom,
+  onCloseRoom,
 }: ClassroomTopBarProps) {
+  const [showConfirmClose, setShowConfirmClose] = useState(false)
+  const [isClosingRoom, setIsClosingRoom] = useState(false)
+
   const nutPanel = (dangMo: boolean) =>
     cn(
       NUT_KHUNG,
@@ -251,7 +267,76 @@ export function ClassroomTopBar({
           <Users className="size-4" />
           <span className="tabular-nums">{memberCount}</span>
         </button>
+
+        {/* Nút hủy phòng (chỉ dành cho chủ phòng, nằm sát bên phải danh sách thành viên) */}
+        {isHost && onCloseRoom && (
+          <button
+            type="button"
+            onClick={() => setShowConfirmClose(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            data-testid="topbar-btn-close-room"
+            title="Hủy phòng"
+            aria-label="Hủy phòng"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
+
+      {/* Popup xác nhận hủy phòng (chỉ tiêu đề, không chú thích) */}
+      <Dialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
+        <DialogContent
+          className="w-full max-w-[360px] p-5 rounded-2xl border-border-default bg-surface shadow-2xl"
+          data-testid="dialog-confirm-close-room"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-text-primary">
+              Hủy phòng học?
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Hủy phòng học
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowConfirmClose(false)}
+              disabled={isClosingRoom}
+            >
+              Huỷ
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={async () => {
+                if (isClosingRoom || !onCloseRoom) return
+                setIsClosingRoom(true)
+                try {
+                  await onCloseRoom()
+                  setShowConfirmClose(false)
+                } catch {
+                  // error toast handled in parent
+                } finally {
+                  setIsClosingRoom(false)
+                }
+              }}
+              disabled={isClosingRoom}
+              data-testid="btn-confirm-close-room"
+            >
+              {isClosingRoom ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Đang hủy…
+                </>
+              ) : (
+                'Hủy phòng'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }
