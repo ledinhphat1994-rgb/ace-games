@@ -30,8 +30,9 @@ interface PhanHoiHighScore {
   loi?: string
 }
 
+// Chỉ xếp hạng điểm máy chủ đã xác thực: điểm gửi qua cổng legacy /api/game/highscore là do trình duyệt tự khai.
 async function layBangXepHang(gameType: string, limit = 50): Promise<HighScoreRecord[]> {
-  const params = new URLSearchParams({ gameType, limit: String(limit) })
+  const params = new URLSearchParams({ gameType, limit: String(limit), verifiedOnly: '1' })
   const res = await fetch(`/api/game/highscores?${params}`, { credentials: 'same-origin' })
   const data = (await res.json().catch(() => null)) as PhanHoiHighScore | null
   if (!res.ok || !data?.ok) throw new Error(data?.loi || `Lỗi ${res.status}`)

@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { tenLop } from '../src/lib/utils'
 import passwordRoomDialogRaw from '../src/features/hub/PasswordRoomDialog.tsx?raw'
 import learningPageRaw from '../src/features/hub/LearningPage.tsx?raw'
+import arenaLeaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
+
+describe('Bảng xếp hạng Đấu Trường', () => {
+  it('chỉ lấy điểm máy chủ đã xác thực (điểm legacy do trình duyệt tự khai không được lên top)', () => {
+    expect(arenaLeaderboardRaw).toContain("verifiedOnly: '1'")
+  })
+})
 
 describe('Vào phòng có mật khẩu', () => {
   it('hộp thoại trả về MÃ SỐ phòng, không phải cả object (từng điều hướng tới /room/phong-[object Object])', () => {
