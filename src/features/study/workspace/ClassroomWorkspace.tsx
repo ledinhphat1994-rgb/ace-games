@@ -348,6 +348,10 @@ export function ClassroomWorkspace({
               onUploadSlide()
               return
             }
+            if (id === 'video' && !videoId) {
+              onOpenSearchQueue()
+              return
+            }
             setBoCuc((bc) => bamLop(bc, id))
           }}
           coTaiLieu={Boolean(docUrl)}

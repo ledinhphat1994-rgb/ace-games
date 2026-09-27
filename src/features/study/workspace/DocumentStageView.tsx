@@ -374,9 +374,9 @@ export function DocumentStageView({
           )}
         </div>
 
-        {/* Center: Synchronized Page Navigation */}
+        {/* Center: Synchronized Page Navigation (chỉ hiện với PDF khi hệ thống tự đồng bộ trang) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {slideState && slideState.totalPages > 1 && (
+          {slideState && slideState.totalPages > 1 && slideState.fileType === 'pdf' && (
             <div className="flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
               {canControl ? (
                 <>
