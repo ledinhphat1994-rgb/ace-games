@@ -156,10 +156,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     return Boolean(me?.canModerate)
   }, [me])
 
-  const canControlMedia = useMemo(() => {
-    if (!mediaState.hostOnlyControl) return true
-    return isHost || canModerate
-  }, [mediaState.hostOnlyControl, isHost, canModerate])
+  // Người tham gia chỉ xem: điều khiển video luôn dành cho chủ phòng / người điều hành (máy chủ cũng chặn).
+  const canControlMedia = isHost || canModerate
 
   const ketNoi = useCallback(() => {
     if (daHuyRef.current || !roomId) return

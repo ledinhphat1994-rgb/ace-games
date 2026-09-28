@@ -17,10 +17,12 @@ interface KhungLopProps {
   id: LopId
   vaiTro: VaiTroLop
   viTri: number
+  /** Người tham gia chỉ xem: không kéo, không đổi cỡ cửa sổ nổi. */
+  khoa?: boolean
   children: ReactNode
 }
 
-export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
+export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLopProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [dich, setDich] = useState({ x: 0, y: 0 })
   const [kichThuoc, setKichThuoc] = useState<{ rong?: number; cao?: number } | null>(null)
@@ -58,7 +60,7 @@ export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
   const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (vaiTro !== 'pip' || resizeRef.current) return
+    if (khoa || vaiTro !== 'pip' || resizeRef.current) return
     const dich0 = e.target as HTMLElement
     if (!dich0.closest('[data-keo-khung]') || dich0.closest('button, input, select, a, [role="slider"]')) return
     keoRef.current = { px: e.clientX, py: e.clientY, x: dich.x, y: dich.y }
@@ -196,7 +198,7 @@ export function KhungLop({ id, vaiTro, viTri, children }: KhungLopProps) {
       {children}
 
       {/* 8 Điểm kéo to thu nhỏ ở các cạnh và góc của cửa sổ nổi */}
-      {vaiTro === 'pip' && (
+      {vaiTro === 'pip' && !khoa && (
         <>
           {/* Cạnh trên */}
           <div
@@ -283,7 +285,8 @@ interface NutKhungProps {
   coThePhu?: boolean
   toanManHinh?: boolean
   onToanManHinh?: () => void
-  choPhepAn?: boolean
+  /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, phủ, toàn màn hình). */
+  chiXem?: boolean
 }
 
 const nut =
@@ -300,8 +303,21 @@ export function NutKhung({
   coThePhu,
   toanManHinh,
   onToanManHinh,
-  choPhepAn = true,
+  chiXem = false,
 }: NutKhungProps) {
+  const nutToanManHinh = vaiTro === 'main' && onToanManHinh && (
+    <button
+      type="button"
+      onClick={onToanManHinh}
+      className={nut}
+      title={toanManHinh ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
+      aria-label={toanManHinh ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
+      data-testid={`layer-${id}-fullscreen`}
+    >
+      {toanManHinh ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
+    </button>
+  )
+  if (chiXem) return null
   return (
     <div className="flex shrink-0 items-center gap-0.5" data-testid={`layer-controls-${id}`}>
       {vaiTro === 'main' ? (
@@ -327,23 +343,10 @@ export function NutKhung({
           <Layers className="h-3.5 w-3.5" />
         </button>
       )}
-      {vaiTro === 'main' && onToanManHinh && (
-        <button
-          type="button"
-          onClick={onToanManHinh}
-          className={nut}
-          title={toanManHinh ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
-          aria-label={toanManHinh ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
-          data-testid={`layer-${id}-fullscreen`}
-        >
-          {toanManHinh ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
-        </button>
-      )}
-      {choPhepAn && (
-        <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
-          <EyeOff className="h-3.5 w-3.5" />
-        </button>
-      )}
+      {nutToanManHinh}
+      <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
+        <EyeOff className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }
