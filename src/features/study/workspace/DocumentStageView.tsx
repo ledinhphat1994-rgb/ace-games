@@ -45,6 +45,8 @@ export interface DocumentStageViewProps {
   onCloseDoc?: () => void
   /** Người trình chiếu: báo số slide thật của .pptx dựng trên trình duyệt (tệp cũ / có slide ẩn). */
   onSetTotalPages?: (totalPages: number) => void
+  /** Tài liệu nhúng (Word / Excel / Office Online) không vẽ theo trang được: lớp vẽ tàng hình riêng của tài liệu phủ lên. */
+  lopVeNhung?: ReactNode
   /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
   dieuKhienKhung?: ReactNode
   /** Đang là cửa sổ nổi: đầu khung gọn, bỏ thu phóng. */
@@ -232,6 +234,7 @@ function OfficeEmbedViewer({
 
 export function DocumentStageView({
   slideState = null,
+  lopVeNhung,
   isHost,
   canModerate = false,
   onPageChange,
@@ -666,7 +669,10 @@ export function DocumentStageView({
             </PptxSlideViewer>
           </div>
         ) : slideState?.fileType === 'pptx' ? (
-          <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} />
+          <div className="relative h-full w-full">
+            <OfficeEmbedViewer docName={slideState.docName} docUrl={slideState.docUrl} />
+            {lopVeNhung && <div className="pointer-events-none absolute inset-0 z-10">{lopVeNhung}</div>}
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
             <FileText className="h-12 w-12 text-orange-400 mb-2 opacity-80" />

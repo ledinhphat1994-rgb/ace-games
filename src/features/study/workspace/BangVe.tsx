@@ -1,7 +1,7 @@
 // Bảng vẽ của lớp học: hệ toạ độ logic 1600×900 (16:9) nên nét vẽ nằm đúng chỗ trên mọi màn hình.
 // Dùng làm lớp chính, cửa sổ nổi, hoặc phủ trong suốt lên video / tài liệu (laPhu).
 
-import { BANG_VE_CAO, BANG_VE_RONG, type WhiteboardStroke } from '@shared/protocol/room'
+import { BANG_VE_CAO, BANG_VE_RONG, type MatNet, type WhiteboardStroke } from '@shared/protocol/room'
 import { getStroke } from 'perfect-freehand'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -27,6 +27,8 @@ interface BangVeProps {
   co: CoVe
   /** Phủ trong suốt lên lớp khác: không nền, chỉ nhận chuột khi đang chọn công cụ vẽ. */
   laPhu?: boolean
+  /** Mặt vẽ: lớp vẽ tàng hình của video / tài liệu nhúng. Không có = Bảng. Mỗi mặt chỉ thấy và tẩy nét của chính nó. */
+  mat?: MatNet
   coTheVe: boolean
   /** Chủ phòng / người điều hành tẩy được mọi nét; người khác chỉ tẩy nét của mình. */
   coTheTayMoiNet: boolean
@@ -106,6 +108,7 @@ export function BangVe({
   mau,
   co,
   laPhu = false,
+  mat,
   coTheVe,
   coTheTayMoiNet,
   khoaCuaToi,
@@ -122,6 +125,7 @@ export function BangVe({
   const [chuDangGo, setChuDangGo] = useState('')
   const oChuRef = useRef<HTMLInputElement>(null)
 
+  const netCuaMat = strokes.filter((s) => s.mat === mat)
   const nhanChuot = coTheVe && CONG_CU_VE.has(congCu)
   const doDay = doDayNet('bang', congCu, co)
 
@@ -146,7 +150,7 @@ export function BangVe({
   }
 
   const tayTai = (p: [number, number]) => {
-    const coTheTay = strokes.filter(
+    const coTheTay = netCuaMat.filter(
       (s) => !daTayRef.current.has(s.id) && (coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi)),
     )
     const trung = netDuocCham(p, coTheTay, NGUONG_TAY)
@@ -167,6 +171,7 @@ export function BangVe({
         v: 2,
         tool: 'text',
         text: noiDung,
+        ...(mat ? { mat } : {}),
       })
     }
     setOChu(null)
@@ -234,6 +239,7 @@ export function BangVe({
         size: doDay,
         v: 2,
         tool: 'shape',
+        ...(mat ? { mat } : {}),
       })
       return
     }
@@ -247,6 +253,7 @@ export function BangVe({
       v: 2,
       tool: laToSang ? 'highlighter' : 'pen',
       ...(laToSang ? { opacity: DO_MO_TO_SANG } : {}),
+      ...(mat ? { mat } : {}),
     })
   }
 
@@ -263,7 +270,7 @@ export function BangVe({
     <div
       ref={khungRef}
       className={`relative h-full w-full overflow-hidden select-none ${laPhu ? 'pointer-events-none bg-transparent' : 'bg-[#0a1611]'}`}
-      data-testid={laPhu ? 'whiteboard-overlay' : 'whiteboard-surface'}
+      data-testid={mat ? `lop-ve-${mat}` : laPhu ? 'whiteboard-overlay' : 'whiteboard-surface'}
     >
       <svg
         ref={svgRef}
@@ -287,7 +294,7 @@ export function BangVe({
             <rect width={BANG_VE_RONG} height={BANG_VE_CAO} fill="url(#o-bang-ve)" />
           </>
         )}
-        {strokes.map((net) => (
+        {netCuaMat.map((net) => (
           <VeNet key={net.id} net={net} />
         ))}
         {xemTruoc}

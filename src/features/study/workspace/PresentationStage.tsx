@@ -2,7 +2,7 @@
 // Digital Campus v2: Sân khấu trung tâm — Tài liệu, Bảng, Video chạy đồng thời như các lớp chồng lên nhau.
 // Mỗi lớp giữ nguyên chỗ trong cây React (chỉ đổi vai trò bằng class) nên video không bị tải lại khi đổi bố cục.
 
-import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke } from '@shared/protocol/room'
+import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke, MatNet } from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
@@ -23,8 +23,6 @@ export interface PresentationStageProps {
   onKeoKhung?: (id: LopId, khung: KhungCuaSo) => void
   isHost: boolean
   canModerate?: boolean
-  /** Bố cục đang theo người trình chiếu (đồng bộ qua RoomDO): người xem thấy đúng lớp bảng giáo viên đang bật. */
-  theoNguoiTrinhChieu?: boolean
   myActorKey?: string
   // Công cụ vẽ chung
   congCu: CongCu
@@ -78,7 +76,6 @@ export function PresentationStage({
   onKeoKhung,
   isHost,
   canModerate = false,
-  theoNguoiTrinhChieu = false,
   myActorKey,
   congCu,
   hinh,
@@ -137,7 +134,8 @@ export function PresentationStage({
     )
   }
 
-  const bangVe = (laPhu: boolean) => (
+  // Bảng (mat trống) độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng, đi theo khung của nó.
+  const bangVe = (laPhu: boolean, mat?: MatNet) => (
     <BangVe
       strokes={whiteboardStrokes}
       congCu={congCu}
@@ -145,6 +143,7 @@ export function PresentationStage({
       mau={mau}
       co={co}
       laPhu={laPhu}
+      mat={mat}
       coTheVe={canControl}
       coTheTayMoiNet={canControl}
       khoaCuaToi={myActorKey}
@@ -210,6 +209,7 @@ export function PresentationStage({
         <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl} {...khungCuaSo('doc')}>
           <DocumentStageView
             slideState={slideState}
+            lopVeNhung={bangVe(true, 'tailieu')}
             isHost={isHost}
             canModerate={canModerate}
             onPageChange={onPageChange}
@@ -248,6 +248,7 @@ export function PresentationStage({
               onOpenSearchQueue={onOpenSearchQueue}
               calculateTargetTime={calculateTargetTime}
               dieuKhienKhung={nutKhung('video')}
+              lopVe={bangVe(true, 'video')}
               compact={boCuc.video === 'pip'}
               isReconnecting={isReconnecting}
             />
@@ -315,15 +316,6 @@ export function PresentationStage({
         </KhungLop>
       )}
 
-      {/* Phòng chưa có bố cục của người trình chiếu: người xem vẫn thấy nét vẽ bảng phủ trên video / tài liệu */}
-      {!canControl && !theoNguoiTrinhChieu && boCuc.board !== 'phu' && boCuc.board !== 'main' && whiteboardStrokes.length > 0 && (chinh === 'video' || chinh === 'doc') && (
-        <div
-          className={`pointer-events-none absolute inset-x-0 z-20 ${chinh === 'video' ? 'top-10 bottom-16' : 'top-11 bottom-0'}`}
-          data-testid="whiteboard-passive-overlay"
-        >
-          {bangVe(true)}
-        </div>
-      )}
     </section>
   )
 }

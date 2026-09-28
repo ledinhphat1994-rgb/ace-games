@@ -18,6 +18,8 @@ export interface EmbeddedVideoPlayerProps {
   calculateTargetTime: () => number
   /** Nút điều khiển khung (phóng to / thu nhỏ / ẩn …) đặt ở góc phải đầu khung. */
   dieuKhienKhung?: ReactNode
+  /** Lớp vẽ tàng hình gắn với video (đi theo khung video khi di chuyển / phóng to / ẩn). */
+  lopVe?: ReactNode
   /** Đang là cửa sổ nổi: chỉ giữ phát / tạm dừng và thanh tua. */
   compact?: boolean
   isReconnecting?: boolean
@@ -50,6 +52,7 @@ export function EmbeddedVideoPlayer({
   onOpenSearchQueue,
   calculateTargetTime,
   dieuKhienKhung,
+  lopVe,
   compact = false,
   isReconnecting = false,
 }: EmbeddedVideoPlayerProps) {
@@ -148,6 +151,9 @@ export function EmbeddedVideoPlayer({
             else handleUserPlay()
           }}
         />
+
+        {/* Lớp vẽ riêng của video: chỉ nhận chuột khi đang chọn công cụ vẽ, còn lại bấm xuyên xuống để phát / dừng */}
+        {lopVe && <div className="pointer-events-none absolute inset-0 z-[15]">{lopVe}</div>}
 
         {/* Loading overlay */}
         {!isReady && !errorMessage && (
