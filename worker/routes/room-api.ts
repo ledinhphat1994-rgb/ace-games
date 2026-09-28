@@ -20,6 +20,7 @@ import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { validateDocumentUpload } from '../lib/document-validation'
 import { kiemTraQuyenTruyCapPhong, type DongPhong } from '../lib/room-gate'
 import { kiemTraLienKetXem, kyLienKetXem } from '../lib/lien-ket-tai-lieu'
+import { donMotTaiLieu } from '../lib/don-tai-lieu'
 
 export const roomRouter = new Hono<{ Bindings: Env }>()
 
@@ -686,6 +687,13 @@ roomRouter.delete('/:id/documents/:docId', async (c) => {
   } catch (err) {
     console.error('[roomRouter.deleteDocument] Lỗi xóa tài liệu:', err)
     return loi('Không thể xóa tài liệu.', 500)
+  }
+
+  // Xoá luôn tệp khỏi R2 (không còn đường mở lại) — lỗi dọn thì để việc dọn hằng đêm làm tiếp.
+  try {
+    await donMotTaiLieu(c.env, roomId, docId)
+  } catch (err) {
+    console.error('[roomRouter.deleteDocument] Lỗi dọn tệp R2:', err)
   }
 
   return c.json({ ok: true, message: 'Đã xóa tài liệu khỏi phòng học.' })

@@ -18,6 +18,27 @@ interface SlideUploadModalProps {
   onLoadSlide: (docUrl: string, docName: string, fileType: 'pptx' | 'pdf' | 'image', totalPages: number, docId?: number) => void
 }
 
+/** Tải lên có tiến độ (fetch không báo % tải lên) — tệp lớn / mạng chậm vẫn thấy đang chạy tới đâu. */
+function taiLenCoTienDo(url: string, body: FormData, onTienDo: (phanTram: number) => void): Promise<{ status: number; data: any }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.withCredentials = true
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onTienDo(Math.min(100, Math.round((e.loaded / e.total) * 100)))
+    }
+    xhr.onload = () => {
+      let data: any = {}
+      try {
+        data = JSON.parse(xhr.responseText || '{}')
+      } catch {}
+      resolve({ status: xhr.status, data })
+    }
+    xhr.onerror = () => reject(new Error('Lỗi kết nối khi tải tệp lên máy chủ lưu trữ.'))
+    xhr.send(body)
+  })
+}
+
 /** Lightweight PDF page count using regex on binary content — no external deps */
 async function countPdfPages(file: File): Promise<number> {
   try {
@@ -44,6 +65,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
   const [isDragOver, setIsDragOver] = useState(false)
   const [isDetecting, setIsDetecting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  /** % đã gửi lên (100 = đang chờ máy chủ kiểm tra + lưu tệp). */
+  const [tienDo, setTienDo] = useState(0)
 
   const processFile = async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
@@ -60,6 +83,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
 
     // Tải lên server R2 để có URL dùng chung cho cả phòng học
     setIsUploading(true)
+    setTienDo(0)
     let uploadedUrl = ''
     let uploadedDocId: number | undefined
     let soTrangMayChu: number | undefined
@@ -71,11 +95,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
         formData.append('purpose', 'slide')
       }
       const endpoint = cleanRoomId ? `/api/rooms/${cleanRoomId}/documents` : '/api/upload'
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: formData,
-      })
-      const data = (await res.json().catch(() => ({}))) as any
+      const { status, data } = await taiLenCoTienDo(endpoint, formData, setTienDo)
+      const res = { ok: status >= 200 && status < 300, status }
       if (res.ok && data.ok) {
         if (data.document) {
           uploadedUrl = data.document.url
@@ -150,9 +171,9 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     const file = e.dataTransfer.files[0]
     if (!file) return
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    const ALLOWED_EXTS = ['pptx', 'ppt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'webp']
+    const ALLOWED_EXTS = ['pptx', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'webp']
     if (!ALLOWED_EXTS.includes(ext)) {
-      toast.error('Định dạng không hỗ trợ. Hãy chọn PDF, PowerPoint, Word, Excel hoặc ảnh.')
+      toast.error('Định dạng không hỗ trợ. Hãy chọn PDF, PowerPoint (.pptx), Word, Excel hoặc ảnh.')
       return
     }
     void processFile(file)
@@ -216,7 +237,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <input
               type="file"
               id="slide-file-input"
-              accept=".pdf,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.pptx,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg,.webp"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -228,7 +249,9 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
               </div>
               <span className="text-xs font-semibold text-slate-200">
                 {isUploading
-                  ? 'Đang tải tệp lên...'
+                  ? tienDo < 100
+                    ? `Đang tải lên… ${tienDo}%`
+                    : 'Đang kiểm tra tệp…'
                   : isDetecting
                     ? 'Đang phát hiện số trang...'
                     : docName
@@ -237,6 +260,15 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
                         ? 'Thả tệp vào đây'
                         : 'Chọn tệp tài liệu'}
               </span>
+              {isUploading ? (
+                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10" data-testid="slide-upload-progress">
+                  <div className="h-full rounded-full bg-cyan-400 transition-[width] duration-200" style={{ width: `${tienDo}%` }} />
+                </div>
+              ) : (
+                <span className="text-[11px] text-slate-400" data-testid="slide-upload-types">
+                  PDF · PowerPoint (.pptx) · Word · Excel — tối đa 30 MB · Ảnh PNG, JPG, WEBP — tối đa 10 MB
+                </span>
+              )}
             </div>
           </div>
 

@@ -84,6 +84,7 @@ import {
 import './games/verifiers/snake-solo-verifier'
 import { danhDauPhienChoiBoDo, rutGonHoTen, vuotGioiHanGame } from './games/phien-choi-don'
 import { MA_VIDEO_YOUTUBE, daBiChanNhung, ghiKhongNhung, kiemTraNhung } from './lib/youtube-nhung'
+import { donTaiLieuBoDo } from './lib/don-tai-lieu'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -1911,6 +1912,11 @@ export default {
           }),
       )
     }
+    ctx.waitUntil(
+      donTaiLieuBoDo(env)
+        .then((soTep) => console.log(`[Scheduled Retention] Đã dọn ${soTep} tệp tài liệu (đã xoá / phòng đã đóng) khỏi R2.`))
+        .catch((err: unknown) => console.warn('[Scheduled Retention] Lỗi dọn tệp tài liệu:', err)),
+    )
     ctx.waitUntil(
       danhDauPhienChoiBoDo(env.DB)
         .then((soPhien) => console.log(`[Scheduled Retention] Đã đánh dấu ${soPhien} ván chơi đơn bỏ dở.`))

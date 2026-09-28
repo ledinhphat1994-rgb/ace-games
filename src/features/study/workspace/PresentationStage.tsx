@@ -2,13 +2,14 @@
 // Digital Campus v2: Sân khấu trung tâm — Tài liệu, Bảng, Video chạy đồng thời như các lớp chồng lên nhau.
 // Mỗi lớp giữ nguyên chỗ trong cây React (chỉ đổi vai trò bằng class) nên video không bị tải lại khi đổi bố cục.
 
-import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke, MatNet } from '@shared/protocol/room'
+import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke, MatNet, LopLaser } from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
 import { KhungLop, NutKhung } from './KhungLop'
+import { LopLaserTrinhChieu, type TiaLaser } from './LopLaserTrinhChieu'
 import { dangHien, viTriCuaSo, type BoCuc, type KhungCuaSo, type LopId } from './stage-layout'
 
 export interface PresentationStageProps {
@@ -20,6 +21,9 @@ export interface PresentationStageProps {
   onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
   /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
   onKeoKhung?: (id: LopId, khung: KhungCuaSo) => void
+  /** Tia laser của người trình chiếu trên video / bảng / tài liệu nhúng. */
+  stageLaser?: TiaLaser | null
+  onSendStageLaser?: (lop: LopLaser, point: [number, number] | null) => void
   isHost: boolean
   canModerate?: boolean
   myActorKey?: string
@@ -72,6 +76,8 @@ export function PresentationStage({
   onAn,
   onDoiKhung,
   onKeoKhung,
+  stageLaser,
+  onSendStageLaser,
   isHost,
   canModerate = false,
   myActorKey,
@@ -128,6 +134,11 @@ export function PresentationStage({
       />
     )
   }
+
+  // Laser: chọn công cụ laser rồi rê chuột trên video / bảng / tài liệu nhúng — cả phòng thấy chấm đỏ.
+  const laser = (lop: LopLaser, tiLe?: number) => (
+    <LopLaserTrinhChieu lop={lop} dangChieu={canControl && congCu === 'laser'} laser={stageLaser} onSend={onSendStageLaser} tiLe={tiLe} />
+  )
 
   // Bảng (mat trống) độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng, đi theo khung của nó.
   const bangVe = (laPhu: boolean, mat?: MatNet) => (
@@ -204,7 +215,12 @@ export function PresentationStage({
         <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl} {...khungCuaSo('doc')}>
           <DocumentStageView
             slideState={slideState}
-            lopVeNhung={bangVe(true, 'tailieu')}
+            lopVeNhung={
+              <>
+                {bangVe(true, 'tailieu')}
+                {laser('tailieu')}
+              </>
+            }
             isHost={isHost}
             canModerate={canModerate}
             onPageChange={onPageChange}
@@ -243,7 +259,12 @@ export function PresentationStage({
               onOpenSearchQueue={onOpenSearchQueue}
               calculateTargetTime={calculateTargetTime}
               dieuKhienKhung={nutKhung('video')}
-              lopVe={bangVe(true, 'video')}
+              lopVe={
+                <>
+                  {bangVe(true, 'video')}
+                  {laser('video', 16 / 9)}
+                </>
+              }
               compact={boCuc.video === 'pip'}
               isReconnecting={isReconnecting}
             />
@@ -290,7 +311,10 @@ export function PresentationStage({
               </span>
               {nutKhung('board')}
             </div>
-            <div className="relative min-h-0 flex-1">{bangVe(false)}</div>
+            <div className="relative min-h-0 flex-1">
+              {bangVe(false)}
+              {laser('board', 16 / 9)}
+            </div>
           </div>
         </KhungLop>
       )}

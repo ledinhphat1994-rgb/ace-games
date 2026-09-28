@@ -149,6 +149,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     stageLayout,
     daNhanAnhChup,
     sendStageLayout,
+    stageLaser,
+    sendStageLaser,
     updateNotes,
     sendRoomChat,
     toggleMic,
@@ -541,6 +543,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         stageLayout={stageLayout}
         daNhanAnhChup={daNhanAnhChup}
         onSendStageLayout={isHost || canModerate ? sendStageLayout : undefined}
+        stageLaser={stageLaser}
+        onSendStageLaser={isHost || canModerate ? sendStageLaser : undefined}
         slideState={slideState}
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}

@@ -82,7 +82,7 @@ const CONG_CU_KHAY: { id: CongCu; ten: string; icon: LucideIcon; testId: string 
   { id: 'to_sang', ten: 'Dạ quang', icon: Highlighter, testId: 'tool-btn-highlighter' },
   { id: 'chu', ten: 'Chữ', icon: Type, testId: 'tool-btn-text' },
   { id: 'khung', ten: 'Hình', icon: Shapes, testId: 'tool-btn-shape' },
-  // Laser chỉ hiện trên tài liệu.
+  // Laser: rê chuột trên tài liệu / video / bảng, cả phòng thấy chấm đỏ.
   { id: 'laser', ten: 'Laser', icon: Sparkles, testId: 'tool-btn-laser' },
 ]
 

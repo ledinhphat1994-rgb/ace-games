@@ -11,6 +11,7 @@ import {
   type ThanhVienPhong,
   type WhiteboardStroke,
   type BoCucSanKhau,
+  type LopLaser,
   type SlideState,
   type SlideAnnotationStroke,
   type VoiceParticipantState,
@@ -107,6 +108,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
   } | null>(null)
   /** Bố cục sân khấu người trình chiếu đặt (học sinh hiển thị theo). */
   const [stageLayout, setStageLayout] = useState<BoCucSanKhau | null>(null)
+  /** Tia laser của người trình chiếu trên video / bảng / tài liệu nhúng. */
+  const [stageLaser, setStageLaser] = useState<{ lop: LopLaser; point: [number, number] | null; senderName?: string; updatedAt: number } | null>(null)
   /** Đã nhận ảnh chụp phòng của lần kết nối hiện tại (trước đó mọi trạng thái còn là mặc định). */
   const [daNhanAnhChup, setDaNhanAnhChup] = useState(false)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
@@ -354,6 +357,10 @@ export function useRoom(roomId: string, myActorKey?: string) {
 
         case 'stage.sync':
           setStageLayout(goi.layout)
+          break
+
+        case 'stage.laser':
+          setStageLaser({ lop: goi.lop, point: goi.point, senderName: goi.senderName, updatedAt: Date.now() })
           break
 
         case 'slide.laser':
@@ -634,6 +641,12 @@ export function useRoom(roomId: string, myActorKey?: string) {
     const ws = wsRef.current
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'pomodoro.action', data }))
+  }, [])
+
+  const sendStageLaser = useCallback((lop: LopLaser, point: [number, number] | null) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'stage.laser', lop, point }))
   }, [])
 
   const sendStageLayout = useCallback((layout: BoCucSanKhau) => {
@@ -1076,6 +1089,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     stageLayout,
     daNhanAnhChup,
     sendStageLayout,
+    stageLaser,
+    sendStageLaser,
     updateNotes,
     addToQueue,
     removeFromQueue,
