@@ -2221,7 +2221,8 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'media.action': {
         const d = goi.data
-        if (this.media.hostOnlyControl && !laQuanTri) {
+        // Người tham gia chỉ xem: mọi thao tác video (kể cả khi phòng cũ đã tắt hostOnlyControl) dành cho người trình chiếu.
+        if (!laQuanTri) {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển video.' }))
           return
         }
@@ -2484,6 +2485,10 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'queue.action': {
         const d = goi.data
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới quản lý danh sách video.' }))
+          return
+        }
         if (d.action === 'add') {
           if (typeof d.videoId !== 'string' || d.videoId.length < 1 || d.videoId.length > 64) {
             ws.send(JSON.stringify({ type: 'error', message: 'ID video trong hàng đợi không hợp lệ.' }))

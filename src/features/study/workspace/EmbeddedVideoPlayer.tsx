@@ -56,7 +56,7 @@ export function EmbeddedVideoPlayer({
   const rawId = useId()
   const containerId = useMemo(() => `embedded-yt-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`, [rawId])
 
-  const effectiveCanControl = !isReconnecting && (isHost || canModerate || (!mediaState.hostOnlyControl && canControlMedia))
+  const effectiveCanControl = !isReconnecting && (isHost || canModerate) && canControlMedia
 
   const {
     isReady,

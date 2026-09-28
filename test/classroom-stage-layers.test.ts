@@ -32,6 +32,8 @@ import {
 import workspaceRaw from '../src/features/study/workspace/ClassroomWorkspace.tsx?raw'
 import stageRaw from '../src/features/study/workspace/PresentationStage.tsx?raw'
 import khungRaw from '../src/features/study/workspace/KhungLop.tsx?raw'
+import docStageRaw from '../src/features/study/workspace/DocumentStageView.tsx?raw'
+import videoRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?raw'
 
 describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   it('vào phòng: video đang phát làm lớp chính, tài liệu thành cửa sổ nổi', () => {
@@ -92,12 +94,21 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(workspaceRaw).not.toContain("setMode('video')")
   })
 
-  it('người tham gia không có nút ẩn khung và có nút khôi phục bài giảng khi sân khấu trống', () => {
-    expect(stageRaw).toContain('choPhepAn={canControl}')
-    expect(khungRaw).toContain('{choPhepAn && (')
+  it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
+    // Khung: chỉ còn nút toàn màn hình trên máy mình.
+    expect(stageRaw).toContain('chiXem={!canControl}')
+    expect(khungRaw).toMatch(/if \(chiXem\) \{\s*return nutToanManHinh \?/)
     expect(khungRaw).toContain('data-testid={`layer-${id}-hide`}')
+    // Cửa sổ nổi khoá kéo và điểm đổi cỡ.
+    for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!canControl}>`)
+    expect(khungRaw).toContain("if (khoa || vaiTro !== 'pip' || resizeRef.current) return")
+    expect(khungRaw).toContain("{vaiTro === 'pip' && !khoa && (")
+    // Nút mở lại bài giảng khi sân khấu trống chỉ dành cho người trình chiếu.
+    expect(stageRaw).toContain('{canControl && (Boolean(slideState?.docUrl) || Boolean(mediaState?.videoId)) && (')
     expect(stageRaw).toContain('data-testid="stage-restore-doc-btn"')
-    expect(stageRaw).toContain('data-testid="stage-restore-video-btn"')
+    expect(docStageRaw).toContain('{!compact && !dungPptx && canControl && (')
+    // Video: chỉ người trình chiếu điều khiển, kể cả khi phòng cũ đã tắt hostOnlyControl.
+    expect(videoRaw).toContain('const effectiveCanControl = !isReconnecting && (isHost || canModerate) && canControlMedia')
   })
 })
 
@@ -282,6 +293,33 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     host.dong()
     an.dong()
     vaoSau.dong()
+  })
+
+  it('người tham gia chỉ xem: không điều khiển video (kể cả khi đã tắt hostOnlyControl), không đụng hàng chờ', async () => {
+    const id = await chenPhong('Phòng chỉ xem', 'acc:1')
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu1'))
+    const an = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu2'))
+    await host.cho('room.snapshot')
+    await an.cho('room.snapshot')
+
+    host.gui({ type: 'media.action', data: { action: 'set_host_only', enabled: false } })
+    await an.cho('media.sync', (g) => g.state.hostOnlyControl === false)
+    for (const data of [{ action: 'play' }, { action: 'seek', time: 30 }, { action: 'load', videoId: 'dQw4w9WgXcQ', title: 'x' }] as const) {
+      an.gui({ type: 'media.action', data })
+      await an.cho('error', (g) => g.message.includes('quyền điều khiển video'))
+    }
+    await host.khongNhan('media.sync', (g) => g.state.status === 'playing' || g.state.time === 30 || g.state.videoId === 'dQw4w9WgXcQ', 200)
+
+    an.gui({ type: 'queue.action', data: { action: 'add', videoId: 'dQw4w9WgXcQ', title: 'Bài hát' } })
+    await an.cho('error', (g) => g.message.includes('danh sách video'))
+    await host.khongNhan('queue.sync', () => true, 200)
+
+    host.gui({ type: 'queue.action', data: { action: 'add', videoId: 'dQw4w9WgXcQ', title: 'Bài giảng' } })
+    const hangCho = await an.cho('queue.sync', (g) => g.queue.length === 1)
+    an.gui({ type: 'queue.action', data: { action: 'play', id: hangCho.queue[0].id } })
+    await an.cho('error', (g) => g.message.includes('danh sách video'))
+    host.dong()
+    an.dong()
   })
 
   it('chú thích chữ trên tài liệu được lưu kèm nội dung chữ', async () => {

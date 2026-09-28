@@ -120,7 +120,7 @@ export function PresentationStage({
         coThePhu={id === 'board' && chinh !== null && chinh !== 'board'}
         toanManHinh={isFullscreen}
         onToanManHinh={onToggleFullscreen}
-        choPhepAn={canControl}
+        chiXem={!canControl}
       />
     )
   }
@@ -163,7 +163,7 @@ export function PresentationStage({
             <h2 className="text-base sm:text-lg font-bold text-white">
               Chưa có nội dung trình bày
             </h2>
-            {(Boolean(slideState?.docUrl) || Boolean(mediaState?.videoId)) && (
+            {canControl && (Boolean(slideState?.docUrl) || Boolean(mediaState?.videoId)) && (
               <div className="flex flex-wrap items-center justify-center gap-2 pt-1" data-testid="stage-restore-actions">
                 {slideState?.docUrl && (
                   <button
@@ -195,7 +195,7 @@ export function PresentationStage({
 
       {/* ── LỚP TÀI LIỆU ── */}
       {boCuc.doc && (
-        <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')}>
+        <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl}>
           <DocumentStageView
             slideState={slideState}
             isHost={isHost}
@@ -223,7 +223,7 @@ export function PresentationStage({
 
       {/* ── LỚP VIDEO ── */}
       {boCuc.video && (
-        <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')}>
+        <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')} khoa={!canControl}>
           {mediaState && mediaState.videoId ? (
             <EmbeddedVideoPlayer
               mediaState={mediaState}
@@ -270,7 +270,7 @@ export function PresentationStage({
 
       {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi / phủ trong suốt lên lớp chính ── */}
       {boCuc.board && (
-        <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')}>
+        <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl}>
           {boCuc.board === 'phu' ? (
             // Phủ đúng vùng nội dung của lớp chính: chừa thanh tiêu đề (và thanh điều khiển nếu lớp chính là video).
             <div

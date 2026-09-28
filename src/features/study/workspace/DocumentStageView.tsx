@@ -342,6 +342,8 @@ export function DocumentStageView({
           e.preventDefault()
           diTienRef.current()
         }
+      } else if (!canControl) {
+        return
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault()
         handleZoomIn()
@@ -470,8 +472,8 @@ export function DocumentStageView({
 
         {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Local Zoom Controls Group (Section 5: local only) — ẩn khi là cửa sổ nổi */}
-          {!compact && !dungPptx && (
+          {/* Thu phóng tại máy mình (không đồng bộ) — chỉ người trình chiếu; ẩn khi là cửa sổ nổi. Người tham gia chỉ xem. */}
+          {!compact && !dungPptx && canControl && (
           <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
             <button
               type="button"
