@@ -2568,6 +2568,7 @@ export class RoomDO extends DurableObject<Env> {
             this.slide = {
               ...this.slide,
               currentPage: Math.min(Math.max(1, d.page), this.slide.totalPages),
+              ...(this.slide.fileType === 'pptx' ? { step: Math.min(Math.max(0, d.step ?? 0), 999) } : {}),
             }
           }
         } else if (d.action === 'load_doc') {

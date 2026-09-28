@@ -7,7 +7,7 @@ import { getStroke } from 'perfect-freehand'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { type AnnotationTool, downsampleStrokePoints, hitTestStrokes } from './annotation-geometry'
-import { DO_MO_TO_SANG, diemKhungChuNhat, diemVongTron, doDayNet, type CoVe } from './cong-cu'
+import { DO_MO_TO_SANG, diemHinh, doDayNet, tayXoaDuoc, type CoVe, type LoaiHinh } from './cong-cu'
 
 export type { AnnotationTool }
 
@@ -15,6 +15,8 @@ interface SlideAnnotationLayerProps {
   pageNumber: number
   strokes: SlideAnnotationStroke[]
   activeTool: AnnotationTool
+  /** Kiểu hình khi công cụ là Hình. */
+  hinh?: LoaiHinh
   selectedColor: string
   selectedSize?: CoVe
   canAnnotate: boolean
@@ -43,7 +45,9 @@ function getSvgPathFromStroke(stroke: number[][]): string {
   return d.join(' ')
 }
 
-const CONG_CU_TAO_NET: ReadonlySet<AnnotationTool> = new Set(['pen', 'highlighter', 'rect', 'ellipse'])
+const CONG_CU_TAO_NET: ReadonlySet<AnnotationTool> = new Set(['pen', 'highlighter', 'shape'])
+/** Đầu mũi tên tối đa (theo chiều cao trang). */
+const DAU_MUI_TEN = 0.05
 
 /** Công cụ của bộ chung → kích thước trên trang (đơn vị 1/1000 chiều cao trang). */
 function coTheoCongCu(tool: AnnotationTool, co: CoVe): number {
@@ -91,6 +95,7 @@ export function SlideAnnotationLayer({
   pageNumber,
   strokes,
   activeTool,
+  hinh = 'chu_nhat',
   selectedColor,
   selectedSize = 1,
   canAnnotate,
@@ -160,7 +165,7 @@ export function SlideAnnotationLayer({
   }, [])
 
   const eraseAt = (pt: [number, number]) => {
-    const hitId = hitTestStrokes(pt, pageStrokes, 0.03, tiLeNgang)
+    const hitId = hitTestStrokes(pt, pageStrokes.filter(tayXoaDuoc), 0.03, tiLeNgang)
     if (hitId) {
       onRemoveStroke?.(hitId)
     }
@@ -244,7 +249,7 @@ export function SlideAnnotationLayer({
     const pt = getNormalizedPoint(e)
     if (!pt) return
 
-    if (activeTool === 'rect' || activeTool === 'ellipse') {
+    if (activeTool === 'shape') {
       currentPointsRef.current = [currentPointsRef.current[0], pt]
     } else {
       currentPointsRef.current.push(pt)
@@ -279,15 +284,14 @@ export function SlideAnnotationLayer({
     const id = `slide_str_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
     const strokeSize = coTheoCongCu(activeTool, selectedSize)
 
-    if (activeTool === 'rect' || activeTool === 'ellipse') {
+    if (activeTool === 'shape') {
       const [a, b] = [rawPts[0], rawPts[rawPts.length - 1]]
       if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.01) return
-      const hinh = activeTool === 'rect' ? diemKhungChuNhat(a, b) : diemVongTron(a, b)
       onSendStroke({
         id,
         page: pageNumber,
         tool: 'shape',
-        points: downsampleStrokePoints(hinh, 300),
+        points: downsampleStrokePoints(diemHinh(hinh, a, b, tiLeNgang, DAU_MUI_TEN), 300),
         color: selectedColor,
         size: strokeSize,
       })
@@ -318,11 +322,11 @@ export function SlideAnnotationLayer({
   let xemTruoc: React.ReactNode = null
   if (activePoints.length > 1) {
     const size = coTheoCongCu(activeTool, selectedSize)
-    if (activeTool === 'rect' || activeTool === 'ellipse') {
+    if (activeTool === 'shape') {
       const [a, b] = [activePoints[0], activePoints[activePoints.length - 1]]
       xemTruoc = (
         <NetTrang
-          s={{ tool: 'shape', points: activeTool === 'rect' ? diemKhungChuNhat(a, b) : diemVongTron(a, b), color: selectedColor, size }}
+          s={{ tool: 'shape', points: diemHinh(hinh, a, b, tiLeNgang, DAU_MUI_TEN), color: selectedColor, size }}
           caoKhung={coKhung.cao}
         />
       )

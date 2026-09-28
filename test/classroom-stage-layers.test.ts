@@ -20,8 +20,10 @@ import {
   viTriCuaSo,
 } from '../src/features/study/workspace/stage-layout'
 import {
+  diemHinh,
   diemKhungChuNhat,
   diemVongTron,
+  tayXoaDuoc,
   doDayNet,
   netDuocCham,
   rutGonDiem,
@@ -152,6 +154,23 @@ describe('Công cụ vẽ chung', () => {
         expect(doDayNet('trang', cc, co)).toBeLessThanOrEqual(50)
       }
     }
+  })
+
+  it('hình: chữ nhật / tròn khép kín, tam giác đỉnh giữa cạnh trên, đường thẳng 2 điểm, mũi tên có đầu', () => {
+    expect(diemHinh('chu_nhat', [0, 0], [10, 5])).toEqual(diemKhungChuNhat([0, 0], [10, 5]))
+    expect(diemHinh('tron', [0, 0], [10, 10])).toEqual(diemVongTron([0, 0], [10, 10]))
+    expect(diemHinh('tam_giac', [0, 0], [10, 8])).toEqual([[5, 0], [10, 8], [0, 8], [5, 0]])
+    expect(diemHinh('thang', [1, 2], [3, 4])).toEqual([[1, 2], [3, 4]])
+    const mui = diemHinh('mui_ten', [0, 0], [100, 0], 1, 20)
+    expect(mui.slice(0, 2)).toEqual([[0, 0], [100, 0]])
+    // Hai cạnh đầu mũi tên đối xứng qua thân, dài đúng giới hạn.
+    expect(mui[2][0]).toBeCloseTo(mui[4][0])
+    expect(mui[2][1]).toBeCloseTo(-mui[4][1])
+    expect(Math.hypot(mui[2][0] - 100, mui[2][1])).toBeCloseTo(20)
+  })
+
+  it('tẩy chỉ xoá nét bút / dạ quang; chữ và hình giữ lại cho nút Xoá hết', () => {
+    expect([undefined, 'pen', 'highlighter', 'text', 'shape'].map((tool) => tayXoaDuoc({ tool }))).toEqual([true, true, true, false, false])
   })
 
   it('tẩy chạm đúng nét trên cùng, kể cả chữ', () => {

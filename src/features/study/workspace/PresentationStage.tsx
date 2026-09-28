@@ -5,7 +5,7 @@
 import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke } from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
-import type { CongCu, CoVe } from './cong-cu'
+import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
 import { KhungLop, NutKhung } from './KhungLop'
@@ -24,11 +24,12 @@ export interface PresentationStageProps {
   myActorKey?: string
   // Công cụ vẽ chung
   congCu: CongCu
+  hinh: LoaiHinh
   mau: string
   co: CoVe
   // Document props
   slideState?: SlideState | null
-  onPageChange?: (newPage: number) => void
+  onPageChange?: (newPage: number, step?: number) => void
   onUploadSlide: () => void
   onCloseDoc?: () => void
   onSetTotalPages?: (totalPages: number) => void
@@ -74,6 +75,7 @@ export function PresentationStage({
   theoNguoiTrinhChieu = false,
   myActorKey,
   congCu,
+  hinh,
   mau,
   co,
   slideState,
@@ -127,6 +129,7 @@ export function PresentationStage({
     <BangVe
       strokes={whiteboardStrokes}
       congCu={congCu}
+      hinh={hinh}
       mau={mau}
       co={co}
       laPhu={laPhu}
@@ -205,6 +208,7 @@ export function PresentationStage({
             compact={boCuc.doc === 'pip'}
             nhanPhim={boCuc.doc === 'main'}
             congCu={congCu}
+            hinh={hinh}
             mau={mau}
             co={co}
             isReconnecting={isReconnecting}

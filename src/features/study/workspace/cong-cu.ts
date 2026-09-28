@@ -1,10 +1,26 @@
 // Công cụ vẽ dùng chung cho mọi lớp trên sân khấu (bảng, tài liệu, bảng phủ lên video).
-// Chọn một lần ở "Công cụ", vẽ lên đúng lớp nằm dưới con trỏ.
+// Chọn một lần trên thanh dock, vẽ lên đúng lớp nằm dưới con trỏ.
 
-export type CongCu = 'chuot' | 'but' | 'to_sang' | 'tay' | 'laser' | 'chu' | 'khung' | 'tron'
+/** khung: công cụ Hình (chữ nhật, tròn, tam giác, đường thẳng, mũi tên — chọn kiểu trong khay). */
+export type CongCu = 'chuot' | 'but' | 'to_sang' | 'tay' | 'laser' | 'chu' | 'khung'
 
 /** Công cụ tạo nét (chặn thao tác bấm xuyên xuống lớp bên dưới khi đang chọn). */
-export const CONG_CU_VE: ReadonlySet<CongCu> = new Set(['but', 'to_sang', 'tay', 'chu', 'khung', 'tron'])
+export const CONG_CU_VE: ReadonlySet<CongCu> = new Set(['but', 'to_sang', 'tay', 'chu', 'khung'])
+
+/** Công cụ có màu / cỡ: chỉ khi chọn một trong số này mới hiện bảng màu và cỡ nét. */
+export const CONG_CU_CO_MAU: ReadonlySet<CongCu> = new Set(['but', 'to_sang', 'chu', 'khung'])
+
+export type LoaiHinh = 'chu_nhat' | 'tron' | 'tam_giac' | 'thang' | 'mui_ten'
+export const CAC_HINH: readonly { id: LoaiHinh; ten: string }[] = [
+  { id: 'chu_nhat', ten: 'Chữ nhật' },
+  { id: 'tron', ten: 'Tròn' },
+  { id: 'tam_giac', ten: 'Tam giác' },
+  { id: 'thang', ten: 'Đường thẳng' },
+  { id: 'mui_ten', ten: 'Mũi tên' },
+]
+
+/** Tẩy chỉ xoá nét bút / dạ quang (nét cũ không ghi công cụ là nét bút); chữ và hình phải dùng Xoá hết. */
+export const tayXoaDuoc = (net: { tool?: string }) => !net.tool || net.tool === 'pen' || net.tool === 'highlighter'
 
 export const MAU_VE = [
   { ten: 'Trắng', gia: '#ffffff' },
@@ -50,6 +66,45 @@ export function diemKhungChuNhat(a: [number, number], b: [number, number]): [num
     [a[0], b[1]],
     [a[0], a[1]],
   ]
+}
+
+/**
+ * Điểm của hình kéo từ góc `a` tới góc `b`. `tiLeNgang` = độ rộng hiển thị của 1 đơn vị x so với 1 đơn vị y
+ * (trang tài liệu không vuông) — để đầu mũi tên không bị méo; `dauToiDa` = độ dài tối đa của đầu mũi tên.
+ */
+export function diemHinh(
+  loai: LoaiHinh,
+  a: [number, number],
+  b: [number, number],
+  tiLeNgang = 1,
+  dauToiDa = Number.POSITIVE_INFINITY,
+): [number, number][] {
+  switch (loai) {
+    case 'tron':
+      return diemVongTron(a, b)
+    case 'tam_giac': {
+      const dinh: [number, number] = [(a[0] + b[0]) / 2, a[1]]
+      return [dinh, [b[0], b[1]], [a[0], b[1]], dinh]
+    }
+    case 'thang':
+      return [a, b]
+    case 'mui_ten': {
+      const dx = (b[0] - a[0]) * tiLeNgang
+      const dy = b[1] - a[1]
+      const dai = Math.hypot(dx, dy) || 1
+      const dauMui = Math.min(dai * 0.25, dauToiDa)
+      const canh = (goc: number): [number, number] => {
+        const ux = -dx / dai
+        const uy = -dy / dai
+        const x = ux * Math.cos(goc) - uy * Math.sin(goc)
+        const y = ux * Math.sin(goc) + uy * Math.cos(goc)
+        return [b[0] + (x * dauMui) / tiLeNgang, b[1] + y * dauMui]
+      }
+      return [a, b, canh(Math.PI / 7), b, canh(-Math.PI / 7)]
+    }
+    default:
+      return diemKhungChuNhat(a, b)
+  }
 }
 
 /** Vòng elip khép kín nội tiếp khung kéo chuột. */
