@@ -94,10 +94,10 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(workspaceRaw).not.toContain("setMode('video')")
   })
 
-  it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
-    // Khung: chỉ còn nút toàn màn hình trên máy mình.
+  it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / toàn màn hình / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
+    // Khung: không còn nút điều khiển nào.
     expect(stageRaw).toContain('chiXem={!canControl}')
-    expect(khungRaw).toMatch(/if \(chiXem\) \{\s*return nutToanManHinh \?/)
+    expect(khungRaw).toContain('if (chiXem) return null')
     expect(khungRaw).toContain('data-testid={`layer-${id}-hide`}')
     // Cửa sổ nổi khoá kéo và điểm đổi cỡ.
     for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!canControl}>`)

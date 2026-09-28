@@ -285,7 +285,7 @@ interface NutKhungProps {
   coThePhu?: boolean
   toanManHinh?: boolean
   onToanManHinh?: () => void
-  /** Người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / phủ — chỉ còn toàn màn hình trên máy mình. */
+  /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, phủ, toàn màn hình). */
   chiXem?: boolean
 }
 
@@ -317,13 +317,7 @@ export function NutKhung({
       {toanManHinh ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
     </button>
   )
-  if (chiXem) {
-    return nutToanManHinh ? (
-      <div className="flex shrink-0 items-center gap-0.5" data-testid={`layer-controls-${id}`}>
-        {nutToanManHinh}
-      </div>
-    ) : null
-  }
+  if (chiXem) return null
   return (
     <div className="flex shrink-0 items-center gap-0.5" data-testid={`layer-controls-${id}`}>
       {vaiTro === 'main' ? (
