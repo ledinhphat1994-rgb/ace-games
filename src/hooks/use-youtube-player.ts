@@ -162,8 +162,20 @@ export function useYouTubePlayer({
               let msg = 'Không thể tải video YouTube này.'
               if (errCode === 2) msg = 'ID video YouTube không hợp lệ.'
               else if (errCode === 100) msg = 'Video không tồn tại hoặc đã bị xóa.'
-              else if (errCode === 101 || errCode === 150) msg = 'Chủ sở hữu video không cho phép nhúng phát ở trang khác.'
+              else if (errCode === 101 || errCode === 150) msg = 'Chủ sở hữu video chặn phát trên trang khác (chỉ xem được trên YouTube).'
               setErrorMessage(msg)
+              // Video không phát được thì không phải trình duyệt chặn tự phát: bỏ lớp "Tiếp tục phát".
+              setIsAutoplayBlocked(false)
+              // Bị chặn nhúng (kể cả vì bản quyền, máy chủ không tự dò được): báo máy chủ nhớ để lần tìm / dán link sau bỏ qua.
+              const idLoi = currentVideoIdRef.current
+              if ((errCode === 101 || errCode === 150) && idLoi) {
+                void fetch('/api/yt-check', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({ id: idLoi }),
+                }).catch(() => {})
+              }
             },
           },
         })
@@ -258,6 +270,8 @@ export function useYouTubePlayer({
     const interval = setInterval(() => {
       const p = playerRef.current
       if (!p || !isMountedRef.current) return
+      // Video lỗi (bị chặn nhúng, đã xoá…): không thử phát / tua nữa.
+      if (errorMessage) return
 
       let cur = 0
       let dur = 0
@@ -409,7 +423,7 @@ export function useYouTubePlayer({
     }, 500)
 
     return () => clearInterval(interval)
-  }, [isReady, mediaState.status, mediaState.time, mediaState.playbackRate, calculateTargetTime])
+  }, [isReady, mediaState.status, mediaState.time, mediaState.playbackRate, calculateTargetTime, errorMessage])
 
   // ── 5. User Intent Handlers ────────────────────────────────────────────────
   const handleUserPlay = useCallback(() => {

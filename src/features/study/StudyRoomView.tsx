@@ -414,10 +414,30 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     }, 600)
   }
 
-  const handlePlayVideo = (e: React.FormEvent) => {
+  // Nhiều video (MV, nội dung có bản quyền) bị chủ sở hữu tắt phát trên trang khác: hỏi máy chủ trước khi chèn.
+  const [ytDangKiemTra, setYtDangKiemTra] = useState(false)
+  const choPhepNhung = async (vid: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/yt-check?id=${encodeURIComponent(vid)}`, { credentials: 'same-origin' })
+      if (!res.ok) return true
+      const { nhung } = (await res.json()) as { nhung?: string }
+      return nhung !== 'khong'
+    } catch {
+      return true
+    }
+  }
+
+  const handlePlayVideo = async (e: React.FormEvent) => {
     e.preventDefault()
     const vid = trichXuatYoutubeId(directYtInput)
     if (!vid) { toast.error('Link YouTube không hợp lệ.'); return }
+    setYtDangKiemTra(true)
+    const duoc = await choPhepNhung(vid)
+    setYtDangKiemTra(false)
+    if (!duoc) {
+      toast.error('Chủ sở hữu video này chặn phát trên trang khác (chỉ xem được trên YouTube). Hãy chọn video khác.')
+      return
+    }
     syncMedia({ action: 'load', videoId: vid, title: `Bài giảng (${vid})` })
     syncMedia({ action: 'play' })
     setDirectYtInput('')
@@ -644,7 +664,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
           {/* Vùng nội dung cao cố định: đổi tab / tìm kiếm không làm hộp thoại co giãn, kết quả cuộn bên trong. */}
           <div className="h-80" data-testid="yt-dialog-body">
             {ytTab === 'paste' ? (
-              <form onSubmit={handlePlayVideo} className="flex gap-2">
+              <form onSubmit={(e) => void handlePlayVideo(e)} className="flex gap-2">
                 <Input
                   value={directYtInput}
                   onChange={(e) => setDirectYtInput(e.target.value)}
@@ -653,8 +673,8 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                   autoComplete="off"
                   className="h-10 flex-1"
                 />
-                <Button type="submit" className="h-10" disabled={!directYtInput.trim()}>
-                  Chèn
+                <Button type="submit" className="h-10" disabled={!directYtInput.trim() || ytDangKiemTra}>
+                  {ytDangKiemTra ? <Loader2 className="animate-spin" /> : 'Chèn'}
                 </Button>
               </form>
             ) : (
