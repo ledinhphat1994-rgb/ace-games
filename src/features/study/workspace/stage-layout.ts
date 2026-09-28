@@ -13,7 +13,28 @@ export type LopId = 'doc' | 'board' | 'video'
  */
 export type VaiTroLop = 'main' | 'pip' | 'phu' | 'an'
 
-export type BoCuc = Partial<Record<LopId, VaiTroLop>>
+/** Vị trí + cỡ cửa sổ nổi theo tỉ lệ khung sân khấu (0..1): giáo viên kéo tới đâu, học sinh thấy ở đúng chỗ đó. */
+export interface KhungCuaSo {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type BoCuc = Partial<Record<LopId, VaiTroLop>> & { khung?: Partial<Record<LopId, KhungCuaSo>> }
+
+/** Kẹp khung trong sân khấu, làm tròn cho gọn gói tin. */
+export function kepKhung(k: KhungCuaSo): KhungCuaSo {
+  const tron = (v: number) => Math.round(v * 10000) / 10000
+  const w = Math.min(1, Math.max(0.1, k.w))
+  const h = Math.min(1, Math.max(0.1, k.h))
+  return { x: tron(Math.min(1 - w, Math.max(0, k.x))), y: tron(Math.min(1 - h, Math.max(0, k.y))), w: tron(w), h: tron(h) }
+}
+
+/** Đặt khung cho một cửa sổ nổi. */
+export function datKhung(bc: BoCuc, id: LopId, k: KhungCuaSo): BoCuc {
+  return { ...bc, khung: { ...bc.khung, [id]: kepKhung(k) } }
+}
 
 /** Thứ tự cố định: dùng cho vị trí cửa sổ nổi và thứ tự nâng lên làm lớp chính. */
 export const THU_TU_LOP: readonly LopId[] = ['doc', 'video', 'board']
@@ -103,7 +124,7 @@ export function viTriCuaSo(bc: BoCuc, id: LopId): number {
 
 /** Bố cục người trình chiếu gửi về: lớp chưa có nội dung trên máy này (gói đồng bộ nội dung chưa tới) thì bỏ ra. */
 export function theoBoCucTrinhChieu(bc: BoCuc, coVideo: boolean, coTaiLieu: boolean): BoCuc {
-  const ketQua: BoCuc = {}
+  const ketQua: BoCuc = bc.khung ? { khung: bc.khung } : {}
   for (const id of THU_TU_LOP) {
     const vaiTro = bc[id]
     if (!vaiTro) continue
@@ -113,8 +134,11 @@ export function theoBoCucTrinhChieu(bc: BoCuc, coVideo: boolean, coTaiLieu: bool
   return nangLopChinh(ketQua)
 }
 
+const cungKhung = (a?: KhungCuaSo, b?: KhungCuaSo) =>
+  a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
+
 export function cungBoCuc(a: BoCuc, b: BoCuc | null): boolean {
-  return b !== null && THU_TU_LOP.every((id) => a[id] === b[id])
+  return b !== null && THU_TU_LOP.every((id) => a[id] === b[id] && cungKhung(a.khung?.[id], b.khung?.[id]))
 }
 
 /** Bố cục ban đầu khi vào phòng, suy từ nội dung đang có trên máy chủ. */

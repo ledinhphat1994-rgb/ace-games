@@ -19,8 +19,6 @@ export const CAC_HINH: readonly { id: LoaiHinh; ten: string }[] = [
   { id: 'mui_ten', ten: 'Mũi tên' },
 ]
 
-/** Tẩy chỉ xoá nét bút / dạ quang (nét cũ không ghi công cụ là nét bút); chữ và hình phải dùng Xoá hết. */
-export const tayXoaDuoc = (net: { tool?: string }) => !net.tool || net.tool === 'pen' || net.tool === 'highlighter'
 
 export const MAU_VE = [
   { ten: 'Trắng', gia: '#ffffff' },

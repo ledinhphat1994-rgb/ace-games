@@ -27,6 +27,7 @@ import {
   batTatBangPhu,
   boCucBanDau,
   cungBoCuc,
+  datKhung,
   goLop,
   hienLop,
   lamChinh,
@@ -319,6 +320,7 @@ export function ClassroomWorkspace({
             onThuNho={doiBoCuc(thuNho)}
             onAn={doiBoCuc(anLop)}
             onBatTatBangPhu={() => setBoCuc(batTatBangPhu)}
+            onDoiKhung={laNguoiTrinhChieu ? (id, k) => setBoCuc((bc) => datKhung(bc, id, k)) : undefined}
             isHost={isHost}
             canModerate={canModerate}
             theoNguoiTrinhChieu={Boolean(stageLayout)}
