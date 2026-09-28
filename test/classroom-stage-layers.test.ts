@@ -35,6 +35,7 @@ import stageRaw from '../src/features/study/workspace/PresentationStage.tsx?raw'
 import khungRaw from '../src/features/study/workspace/KhungLop.tsx?raw'
 import docStageRaw from '../src/features/study/workspace/DocumentStageView.tsx?raw'
 import videoRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?raw'
+import dockRaw from '../src/features/study/workspace/ClassroomToolDock.tsx?raw'
 
 describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   it('vào phòng: video đang phát làm lớp chính, tài liệu thành cửa sổ nổi', () => {
@@ -93,6 +94,16 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     // Lớp ẩn vẫn gắn trong trang (đẩy ra ngoài màn hình), không bị gỡ.
     expect(khungRaw).toContain("'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'")
     expect(workspaceRaw).not.toContain("setMode('video')")
+  })
+
+  it('toàn màn hình: thanh công cụ tự thu xuống, nút nhỏ ở đáy hiện lại khi rê / chạm; đang mở khay thì giữ nguyên', () => {
+    expect(workspaceRaw).toContain('if (isFullscreen) henThuGon(2000)')
+    expect(workspaceRaw).toContain('const anDock = isFullscreen && dockThuGon && !khayDockMo')
+    expect(workspaceRaw).toContain('data-testid="dock-handle"')
+    expect(workspaceRaw).toContain("anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'")
+    // Lớp bọc không chặn thao tác trên sân khấu khi thanh đã thu xuống.
+    expect(workspaceRaw).toContain("'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center'")
+    expect(dockRaw).toContain('onKhayMo?.(moBut || moCongCu)')
   })
 
   it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / toàn màn hình / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {

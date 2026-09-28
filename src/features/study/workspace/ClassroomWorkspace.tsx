@@ -14,7 +14,7 @@ import type {
 } from '@shared/protocol/room'
 import type { VoiceClientState } from '@/lib/voice-client'
 import type { TrangThaiKetNoiPhong } from '@/hooks/use-room'
-import { Loader2 } from 'lucide-react'
+import { ChevronUp, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
@@ -287,6 +287,30 @@ export function ClassroomWorkspace({
     return () => window.removeEventListener('keydown', thoat)
   }, [isFullscreen])
 
+  // Toàn màn hình: thanh công cụ tự thu xuống để không che sân khấu; rê chuột / chạm vào nút nhỏ ở đáy là hiện lại.
+  // Đang mở khay (bút, công cụ) thì giữ nguyên.
+  const [dockThuGon, setDockThuGon] = useState(false)
+  const [khayDockMo, setKhayDockMo] = useState(false)
+  const henThuGonRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const huyThuGon = () => {
+    if (henThuGonRef.current) clearTimeout(henThuGonRef.current)
+    henThuGonRef.current = null
+  }
+  const henThuGon = (ms: number) => {
+    huyThuGon()
+    henThuGonRef.current = setTimeout(() => setDockThuGon(true), ms)
+  }
+  const moDock = () => {
+    huyThuGon()
+    setDockThuGon(false)
+  }
+  useEffect(() => {
+    if (isFullscreen) henThuGon(2000)
+    else moDock()
+    return huyThuGon
+  }, [isFullscreen])
+  const anDock = isFullscreen && dockThuGon && !khayDockMo
+
   // Unread chat tracking
   const [lastReadMessageId, setLastReadMessageId] = useState<number>(0)
   const isOnline = trangThai === 'da_ket_noi'
@@ -430,48 +454,76 @@ export function ClassroomWorkspace({
         />
       </div>
 
-      {/* ── 4. COMPACT PRESENTATION TOOL DOCK (vẫn dùng được khi toàn màn hình: nổi trên sân khấu) ── */}
-      <div className={isFullscreen ? 'fixed bottom-2 left-1/2 z-[110] -translate-x-1/2' : undefined}>
-        <ClassroomToolDock
-          boCuc={boCuc}
-          onBamLop={(id) => {
-            if (id === 'doc' && !docUrl) {
-              onUploadSlide()
-              return
-            }
-            if (id === 'video' && !videoId) {
-              onOpenSearchQueue()
-              return
-            }
-            setBoCuc((bc) => bamLop(bc, id))
-          }}
-          coTaiLieu={Boolean(docUrl)}
-          videoDangPhat={videoDangPhat}
-          isHost={isHost}
-          canModerate={canModerate}
-          congCu={congCu}
-          onChonCongCu={(c) => {
-            if (!laNguoiTrinhChieu && c !== 'chuot') return
-            setCongCu(c)
-            if (c === 'chuot') return
-            const taiLieuVeDuoc =
-              slideState?.fileType === 'pdf' || slideState?.fileType === 'image' || laTepPptx(slideState)
-            setBoCuc((bc) => phuBangDeVe(bc, taiLieuVeDuoc))
-          }}
-          hinh={hinh}
-          onChonHinh={setHinh}
-          mau={mau}
-          onChonMau={setMau}
-          co={co}
-          onChonCo={setCo}
-          onXoaHet={() => {
-            onClearWhiteboard()
-            onClearSlideAnnotations?.()
-          }}
-          onOpenCalculator={onOpenCalculator}
-          onOpenSessionPanel={onOpenSessionPanel}
-          isReconnecting={isReconnecting}
-        />
+      {/* ── 4. THANH CÔNG CỤ (toàn màn hình: nổi trên sân khấu, tự thu xuống, rê vào nút nhỏ ở đáy để hiện lại) ── */}
+      <div className={isFullscreen ? 'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center' : undefined}>
+        {anDock && (
+          <button
+            type="button"
+            onPointerEnter={moDock}
+            onClick={moDock}
+            onFocus={moDock}
+            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/80 text-slate-300 shadow-lg backdrop-blur-md transition-colors hover:text-white cursor-pointer"
+            title="Thanh công cụ"
+            aria-label="Hiện thanh công cụ"
+            data-testid="dock-handle"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        )}
+        <div
+          className={
+            isFullscreen
+              ? `mb-2 transition-[transform,opacity] duration-300 ${anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'}`
+              : undefined
+          }
+          onPointerEnter={isFullscreen ? moDock : undefined}
+          onPointerLeave={isFullscreen ? (e) => henThuGon(e.pointerType === 'touch' ? 2500 : 1200) : undefined}
+          onFocusCapture={isFullscreen ? moDock : undefined}
+          data-testid="dock-wrapper"
+          data-thu-gon={anDock || undefined}
+        >
+          <ClassroomToolDock
+            boCuc={boCuc}
+            onBamLop={(id) => {
+              if (id === 'doc' && !docUrl) {
+                onUploadSlide()
+                return
+              }
+              if (id === 'video' && !videoId) {
+                onOpenSearchQueue()
+                return
+              }
+              setBoCuc((bc) => bamLop(bc, id))
+            }}
+            coTaiLieu={Boolean(docUrl)}
+            videoDangPhat={videoDangPhat}
+            isHost={isHost}
+            canModerate={canModerate}
+            congCu={congCu}
+            onChonCongCu={(c) => {
+              if (!laNguoiTrinhChieu && c !== 'chuot') return
+              setCongCu(c)
+              if (c === 'chuot') return
+              const taiLieuVeDuoc =
+                slideState?.fileType === 'pdf' || slideState?.fileType === 'image' || laTepPptx(slideState)
+              setBoCuc((bc) => phuBangDeVe(bc, taiLieuVeDuoc))
+            }}
+            hinh={hinh}
+            onChonHinh={setHinh}
+            mau={mau}
+            onChonMau={setMau}
+            co={co}
+            onChonCo={setCo}
+            onXoaHet={() => {
+              onClearWhiteboard()
+              onClearSlideAnnotations?.()
+            }}
+            onOpenCalculator={onOpenCalculator}
+            onOpenSessionPanel={onOpenSessionPanel}
+            onKhayMo={setKhayDockMo}
+            isReconnecting={isReconnecting}
+          />
+        </div>
       </div>
     </div>
   )

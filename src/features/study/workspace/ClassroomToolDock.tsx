@@ -24,7 +24,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CAC_CO_VE, CAC_HINH, CONG_CU_CO_MAU, MAU_VE, type CongCu, type CoVe, type LoaiHinh } from './cong-cu'
 import { dangHien, type BoCuc, type LopId } from './stage-layout'
 
@@ -49,6 +49,8 @@ export interface ClassroomToolDockProps {
   // Tiện ích
   onOpenCalculator: () => void
   onOpenSessionPanel: () => void
+  /** Có khay nào (bút / công cụ) đang mở — để thanh tự thu gọn khi toàn màn hình không ẩn mất khay. */
+  onKhayMo?: (mo: boolean) => void
   isReconnecting?: boolean
 }
 
@@ -161,11 +163,16 @@ export function ClassroomToolDock({
   onXoaHet,
   onOpenCalculator,
   onOpenSessionPanel,
+  onKhayMo,
   isReconnecting = false,
 }: ClassroomToolDockProps) {
   const canControl = !isReconnecting && (isHost || canModerate)
   const dangChay: Record<LopId, boolean> = { doc: coTaiLieu, board: false, video: videoDangPhat }
   const [moBut, setMoBut] = useState(false)
+  const [moCongCu, setMoCongCu] = useState(false)
+  useEffect(() => {
+    onKhayMo?.(moBut || moCongCu)
+  }, [moBut, moCongCu, onKhayMo])
   const congCuKhay = CONG_CU_KHAY.find((c) => c.id === congCu)
   const IconCongCu = congCuKhay?.icon ?? Wrench
   const bangMau = { mau, onChonMau, co, onChonCo }
@@ -271,7 +278,7 @@ export function ClassroomToolDock({
         )}
 
         {/* ── 2. CÔNG CỤ: dạ quang, chữ, hình, laser (màu / cỡ hiện khi chọn), máy tính, phiên học ── */}
-        <Popover>
+        <Popover open={moCongCu} onOpenChange={setMoCongCu}>
           <PopoverTrigger
             type="button"
             className={`${nutDock} ${congCuKhay ? dangChon : khongChon}`}
