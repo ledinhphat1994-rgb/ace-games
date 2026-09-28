@@ -41,7 +41,6 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
   const [totalPages, setTotalPages] = useState<number>(10)
   const [fileType, setFileType] = useState<'pptx' | 'pdf' | 'image'>('pptx')
   const [glUrl, setGlUrl] = useState('')
-  const [glName, setGlName] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const [isDetecting, setIsDetecting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -56,6 +55,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
 
     setFileType(type)
     setDocName(file.name)
+    // Chọn tệp thì bỏ link Google Slides đang gõ dở: một nút Chèn lên bảng chỉ chèn một thứ.
+    setGlUrl('')
 
     // Tải lên server R2 để có URL dùng chung cho cả phòng học
     setIsUploading(true)
@@ -157,9 +158,14 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
     void processFile(file)
   }
 
+  // Một nút Chèn lên bảng: có link Google Slides thì chèn link, không thì chèn tệp đã tải lên.
   const handleConfirm = () => {
+    if (glUrl.trim()) {
+      handlePickGoogleSlides()
+      return
+    }
     if (!docName.trim()) {
-      toast.error('Vui lòng nhập tên tài liệu hoặc tải lên tệp.')
+      toast.error('Vui lòng chọn tệp hoặc dán link Google Slides.')
       return
     }
     if (!docUrl.trim()) {
@@ -177,7 +183,7 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
       toast.error('Link không phải Google Slides. Vui lòng kiểm tra lại.')
       return
     }
-    const name = glName.trim() || 'Bài giảng Google Slides'
+    const name = 'Google Slides'
     onLoadSlide(glUrl.trim(), name, 'pptx', 30)
     onOpenChange(false)
     toast.success(`Đã mở: ${name}!`)
@@ -234,33 +240,21 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             </div>
           </div>
 
-          {/* Google Slides section */}
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Link className="h-3.5 w-3.5 text-blue-400" />
-              <span className="text-[11px] font-bold text-blue-300">Google Slides</span>
-            </div>
-            <div className="space-y-2">
-              <Input
-                value={glUrl}
-                onChange={(e) => setGlUrl(e.target.value)}
-                placeholder="Dán link Google Slides..."
-                className="h-8 border-white/10 bg-black/40 text-xs text-white"
-              />
-              <Input
-                value={glName}
-                onChange={(e) => setGlName(e.target.value)}
-                placeholder="Tên bài giảng (tùy chọn)..."
-                className="h-8 border-white/10 bg-black/40 text-xs text-white"
-              />
-              <Button
-                size="sm"
-                onClick={handlePickGoogleSlides}
-                className="w-full h-8 bg-blue-600 hover:bg-blue-500 text-xs font-bold"
-              >
-                Mở Google Slides
-              </Button>
-            </div>
+          {/* Hoặc dán link Google Slides — cùng nút Chèn lên bảng bên dưới */}
+          <div className="relative">
+            <Link className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-400" />
+            <Input
+              value={glUrl}
+              onChange={(e) => setGlUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleConfirm()
+              }}
+              placeholder="Dán link Google Slides"
+              aria-label="Link Google Slides"
+              autoComplete="off"
+              className="h-9 border-white/10 bg-black/40 pl-8 text-xs text-white"
+              data-testid="slide-google-link"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
@@ -275,7 +269,8 @@ export function SlideUploadModal({ open, onOpenChange, roomId, onLoadSlide }: Sl
             <Button
               size="sm"
               onClick={handleConfirm}
-              disabled={isDetecting}
+              disabled={isDetecting || isUploading || (!glUrl.trim() && !docUrl)}
+              data-testid="slide-btn-insert"
               className="bg-cyan-600 hover:bg-cyan-500 text-xs font-bold px-4"
             >
               Chèn Lên Bảng

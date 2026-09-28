@@ -1,8 +1,9 @@
 // src/features/study/workspace/ClassroomToolDock.tsx
-// Thanh dock lớp học: Tài liệu · Bảng · Video (bật / ẩn từng lớp, chạy đồng thời) · Chuột · Bút · Tẩy · Xoá hết · Công cụ.
+// Thanh dock lớp học: Mic · Tài liệu · Bảng · Video (bật / ẩn từng lớp, chạy đồng thời) · Chuột · Bút · Tẩy · Xoá hết · Công cụ.
 // Màu và cỡ nét chỉ hiện khi chọn công cụ có dùng tới (bút, dạ quang, chữ, hình).
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { VoiceClientState } from '@/lib/voice-client'
 import {
   ArrowUpRight,
   Calculator as CalcIcon,
@@ -11,11 +12,15 @@ import {
   Eraser,
   FileText,
   Highlighter,
+  Loader2,
+  Mic,
+  MicOff,
   Minus,
   MousePointer2,
   Pen,
   PenLine,
   Shapes,
+  SlidersHorizontal,
   Sparkles,
   Square,
   Trash2,
@@ -49,6 +54,16 @@ export interface ClassroomToolDockProps {
   // Tiện ích
   onOpenCalculator: () => void
   onOpenSessionPanel: () => void
+  // Mic (mọi người trong phòng)
+  myMic: boolean
+  onToggleMic: () => void
+  voiceState: VoiceClientState
+  audioInputs: MediaDeviceInfo[]
+  audioOutputs: MediaDeviceInfo[]
+  isSinkIdSupported: boolean
+  onSetAudioInput: (deviceId: string) => void
+  onSetAudioOutput: (deviceId: string) => void
+  onRefreshDevices: () => void
   /** Có khay nào (bút / công cụ) đang mở — để thanh tự thu gọn khi toàn màn hình không ẩn mất khay. */
   onKhayMo?: (mo: boolean) => void
   isReconnecting?: boolean
@@ -163,6 +178,15 @@ export function ClassroomToolDock({
   onXoaHet,
   onOpenCalculator,
   onOpenSessionPanel,
+  myMic,
+  onToggleMic,
+  voiceState,
+  audioInputs,
+  audioOutputs,
+  isSinkIdSupported,
+  onSetAudioInput,
+  onSetAudioOutput,
+  onRefreshDevices,
   onKhayMo,
   isReconnecting = false,
 }: ClassroomToolDockProps) {
@@ -170,9 +194,10 @@ export function ClassroomToolDock({
   const dangChay: Record<LopId, boolean> = { doc: coTaiLieu, board: false, video: videoDangPhat }
   const [moBut, setMoBut] = useState(false)
   const [moCongCu, setMoCongCu] = useState(false)
+  const [moAmThanh, setMoAmThanh] = useState(false)
   useEffect(() => {
-    onKhayMo?.(moBut || moCongCu)
-  }, [moBut, moCongCu, onKhayMo])
+    onKhayMo?.(moBut || moCongCu || moAmThanh)
+  }, [moBut, moCongCu, moAmThanh, onKhayMo])
   const congCuKhay = CONG_CU_KHAY.find((c) => c.id === congCu)
   const IconCongCu = congCuKhay?.icon ?? Wrench
   const bangMau = { mau, onChonMau, co, onChonCo }
@@ -183,7 +208,98 @@ export function ClassroomToolDock({
       className="flex items-center justify-center p-2 z-30 select-none"
       data-testid="classroom-tool-dock"
     >
-      <div className="flex items-center gap-0.5 sm:gap-1 rounded-2xl border border-white/10 bg-slate-950/90 px-1.5 sm:px-2 py-1 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5">
+      {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
+      <div className="flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/90 px-1.5 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl [scrollbar-width:none] sm:gap-1 sm:px-2">
+        {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
+        <button
+          type="button"
+          onClick={onToggleMic}
+          disabled={voiceState.isConnecting}
+          aria-pressed={myMic}
+          title={myMic ? 'Tắt micro' : 'Bật micro'}
+          aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
+          data-testid="dock-btn-mic"
+          className={`${nutDock} ${myMic ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40' : khongChon} ${voiceState.isConnecting ? 'cursor-wait opacity-60' : ''} ${voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400/80' : ''}`}
+        >
+          {voiceState.isConnecting ? (
+            <Loader2 className="h-4.5 w-4.5 animate-spin" />
+          ) : myMic ? (
+            <Mic className="h-4.5 w-4.5" />
+          ) : (
+            <MicOff className="h-4.5 w-4.5" />
+          )}
+          <span className={nhanDock}>Mic</span>
+        </button>
+        <Popover
+          open={moAmThanh}
+          onOpenChange={(mo) => {
+            setMoAmThanh(mo)
+            if (mo) onRefreshDevices()
+          }}
+        >
+          <PopoverTrigger
+            type="button"
+            className={`flex h-11 w-6 items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white ${moAmThanh ? dangChon : khongChon}`}
+            title="Cài đặt âm thanh"
+            aria-label="Cài đặt âm thanh"
+            data-testid="dock-btn-audio-settings"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+          </PopoverTrigger>
+          <PopoverContent side="top" align="start" sideOffset={10} className={`w-72 ${khayPopover}`} data-testid="dock-audio-tray">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-white">Âm thanh</span>
+              <span className="text-xs text-slate-400">{voiceState.connectionState === 'connected' ? 'Đã kết nối' : 'Sẵn sàng'}</span>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="voice-in-select" className="text-xs font-medium text-slate-300">
+                Micro
+              </label>
+              <select
+                id="voice-in-select"
+                value={voiceState.currentInputDeviceId || ''}
+                onChange={(e) => onSetAudioInput(e.target.value)}
+                className="w-full rounded-lg border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white"
+              >
+                {audioInputs.length === 0 ? (
+                  <option value="">Mặc định hệ thống</option>
+                ) : (
+                  audioInputs.map((d, i) => (
+                    <option key={d.deviceId || i} value={d.deviceId}>
+                      {d.label || `Micro ${i + 1}`}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            {isSinkIdSupported && (
+              <div className="space-y-1.5">
+                <label htmlFor="voice-out-select" className="text-xs font-medium text-slate-300">
+                  Loa / Tai nghe
+                </label>
+                <select
+                  id="voice-out-select"
+                  value={voiceState.currentOutputDeviceId || ''}
+                  onChange={(e) => onSetAudioOutput(e.target.value)}
+                  className="w-full rounded-lg border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white"
+                >
+                  {audioOutputs.length === 0 ? (
+                    <option value="">Mặc định hệ thống</option>
+                  ) : (
+                    audioOutputs.map((d, i) => (
+                      <option key={d.deviceId || i} value={d.deviceId}>
+                        {d.label || `Loa ${i + 1}`}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
+
         {/* ── 1. BA LỚP NỘI DUNG + CÔNG CỤ VẼ HAY DÙNG: chỉ chủ phòng / người điều hành ── */}
         {canControl && (
           <>

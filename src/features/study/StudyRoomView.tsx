@@ -641,96 +641,99 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
             ))}
           </div>
 
-          {ytTab === 'paste' ? (
-            <form onSubmit={handlePlayVideo} className="flex gap-2">
-              <Input
-                value={directYtInput}
-                onChange={(e) => setDirectYtInput(e.target.value)}
-                placeholder="Dán link YouTube hoặc mã video"
-                aria-label="Link hoặc mã video YouTube"
-                autoComplete="off"
-                className="h-10 flex-1"
-              />
-              <Button type="submit" className="h-10" disabled={!directYtInput.trim()}>
-                Chèn
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-3">
-              <form
-                onSubmit={(e) => { e.preventDefault(); void doYtSearch(ytSearch) }}
-                className="flex gap-2"
-              >
+          {/* Vùng nội dung cao cố định: đổi tab / tìm kiếm không làm hộp thoại co giãn, kết quả cuộn bên trong. */}
+          <div className="h-80" data-testid="yt-dialog-body">
+            {ytTab === 'paste' ? (
+              <form onSubmit={handlePlayVideo} className="flex gap-2">
                 <Input
-                  value={ytSearch}
-                  onChange={(e) => setYtSearch(e.target.value)}
-                  placeholder="Ví dụ: hàm số bậc hai lớp 10"
-                  aria-label="Từ khoá tìm bài giảng"
+                  value={directYtInput}
+                  onChange={(e) => setDirectYtInput(e.target.value)}
+                  placeholder="Dán link YouTube hoặc mã video"
+                  aria-label="Link hoặc mã video YouTube"
                   autoComplete="off"
-                  enterKeyHint="search"
                   className="h-10 flex-1"
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="size-10"
-                  disabled={ytSearching || !ytSearch.trim()}
-                  aria-label="Tìm"
-                >
-                  {ytSearching ? <Loader2 className="animate-spin" /> : <Search />}
+                <Button type="submit" className="h-10" disabled={!directYtInput.trim()}>
+                  Chèn
                 </Button>
               </form>
+            ) : (
+              <div className="flex h-full flex-col gap-3">
+                <form
+                  onSubmit={(e) => { e.preventDefault(); void doYtSearch(ytSearch) }}
+                  className="flex shrink-0 gap-2"
+                >
+                  <Input
+                    value={ytSearch}
+                    onChange={(e) => setYtSearch(e.target.value)}
+                    placeholder="Ví dụ: hàm số bậc hai lớp 10"
+                    aria-label="Từ khoá tìm bài giảng"
+                    autoComplete="off"
+                    enterKeyHint="search"
+                    className="h-10 flex-1"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="size-10"
+                    disabled={ytSearching || !ytSearch.trim()}
+                    aria-label="Tìm"
+                  >
+                    {ytSearching ? <Loader2 className="animate-spin" /> : <Search />}
+                  </Button>
+                </form>
 
-              <div className="min-h-40">
-                {ytSearching ? (
-                  <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-text-tertiary">
-                    <Loader2 className="size-4 animate-spin" /> Đang tìm…
-                  </div>
-                ) : ytLoi ? (
-                  <div className="flex min-h-40 flex-col items-center justify-center text-center">
-                    <AlertCircle className="size-5 text-destructive" />
-                    <p className="mt-2 text-sm text-text-primary">{ytLoi}</p>
-                    <Button type="button" size="xs" variant="outline" className="mt-3" onClick={() => setYtTab('paste')}>
-                      Dán link
-                    </Button>
-                  </div>
-                ) : ytResults.length > 0 ? (
-                  <ul className="-mx-1 max-h-72 space-y-0.5 overflow-y-auto overscroll-contain px-1">
-                    {ytResults.map((v) => (
-                      <li key={v.videoId}>
-                        <button
-                          type="button"
-                          data-video-id={v.videoId}
-                          onClick={() => handlePickYtVideo(v.videoId, v.title)}
-                          className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <img
-                            src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                            alt=""
-                            className="aspect-video w-24 shrink-0 rounded-lg bg-surface-overlay object-cover"
-                          />
-                          <span className="min-w-0">
-                            <span className="block text-[0.8125rem] leading-snug font-medium break-words text-text-primary">
-                              {v.title}
+                <div className="min-h-0 flex-1">
+                  {ytSearching ? (
+                    <div className="flex h-full items-center justify-center gap-2 text-sm text-text-tertiary">
+                      <Loader2 className="size-4 animate-spin" /> Đang tìm…
+                    </div>
+                  ) : ytLoi ? (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <AlertCircle className="size-5 text-destructive" />
+                      <p className="mt-2 text-sm text-text-primary">{ytLoi}</p>
+                      <Button type="button" size="xs" variant="outline" className="mt-3" onClick={() => setYtTab('paste')}>
+                        Dán link
+                      </Button>
+                    </div>
+                  ) : ytResults.length > 0 ? (
+                    <ul className="-mx-1 h-full space-y-0.5 overflow-y-auto overscroll-contain px-1">
+                      {ytResults.map((v) => (
+                        <li key={v.videoId}>
+                          <button
+                            type="button"
+                            data-video-id={v.videoId}
+                            onClick={() => handlePickYtVideo(v.videoId, v.title)}
+                            className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <img
+                              src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
+                              alt=""
+                              className="aspect-video w-24 shrink-0 rounded-lg bg-surface-overlay object-cover"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-[0.8125rem] leading-snug font-medium break-words text-text-primary">
+                                {v.title}
+                              </span>
+                              <span className="mt-0.5 block text-xs break-words text-text-tertiary">{v.author}</span>
                             </span>
-                            <span className="mt-0.5 block text-xs break-words text-text-tertiary">{v.author}</span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : ytDaTim ? (
-                  <p className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-text-tertiary">
-                    Không tìm thấy video nào cho “{ytDaTim}”. Thử từ khoá khác hoặc dán link.
-                  </p>
-                ) : (
-                  <p className="flex min-h-40 items-center justify-center px-4 text-center text-sm text-text-tertiary">
-                    Gõ tên bài học rồi bấm tìm.
-                  </p>
-                )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : ytDaTim ? (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-text-tertiary">
+                      Không tìm thấy video nào cho “{ytDaTim}”. Thử từ khoá khác hoặc dán link.
+                    </p>
+                  ) : (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-text-tertiary">
+                      Gõ tên bài học rồi bấm tìm.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

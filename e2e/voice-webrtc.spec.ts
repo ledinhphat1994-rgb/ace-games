@@ -129,7 +129,7 @@ async function enterStudyRoom(page: Page, roomId = TEST_ROOM_ID) {
     await page.goto(`/room/${roomId}`)
   }
   await expect(
-    page.locator('header button[aria-label="Bật micro"]').or(page.locator('header button[aria-label="Tắt micro"]')),
+    page.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]').or(page.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Tắt micro"]')),
   ).toBeVisible({ timeout: 40000 })
   await expect(
     page.locator('header svg.text-emerald-400').or(page.locator('header svg.lucide-wifi')),
@@ -138,10 +138,10 @@ async function enterStudyRoom(page: Page, roomId = TEST_ROOM_ID) {
 }
 
 async function turnOnMic(page: Page) {
-  const micBtn = page.locator('header button[aria-label="Bật micro"]')
+  const micBtn = page.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]')
   await expect(micBtn).toBeVisible({ timeout: 15000 })
   await micBtn.click()
-  const activeBtn = page.locator('header button[aria-label="Tắt micro"]')
+  const activeBtn = page.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Tắt micro"]')
   await expect(activeBtn).toBeVisible({ timeout: 25000 })
 }
 
@@ -297,13 +297,13 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       console.log('PAGE A PRE-DIAG:', preDiag)
 
       const btnInfo = await pageA.evaluate(() => {
-        const btn = document.querySelector('header button[aria-label="Bật micro"]') as HTMLButtonElement | null
+        const btn = document.querySelector('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]') as HTMLButtonElement | null
         return btn ? { disabled: btn.disabled, ariaLabel: btn.getAttribute('aria-label'), title: btn.title } : 'NO_BUTTON'
       })
       console.log('PAGE A MIC BTN INFO:', btnInfo)
 
       console.log('CLICKING MIC BTN ON PAGE A...')
-      await pageA.locator('header button[aria-label="Bật micro"]').click()
+      await pageA.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]').click()
       console.log('MIC BTN CLICKED, WAITING 4s FOR SETTLING...')
       await pageA.waitForTimeout(4000)
 
@@ -315,8 +315,8 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
           isMuted: () => boolean
           getSessionId: () => string | null
         } }).__VOICE_DIAGNOSTICS__
-        const activeBtn = document.querySelector('header button[aria-label="Tắt micro"]')
-        const inactiveBtn = document.querySelector('header button[aria-label="Bật micro"]')
+        const activeBtn = document.querySelector('nav[data-testid="classroom-tool-dock"] button[aria-label="Tắt micro"]')
+        const inactiveBtn = document.querySelector('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]')
         return {
           diag: d ? {
             conn: d.getConnectionState(),
@@ -332,7 +332,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       })
       console.log('PAGE A POST-CLICK DIAG:', postDiag)
 
-      await expect(pageA.locator('header button[aria-label="Tắt micro"]')).toBeVisible({ timeout: 25000 })
+      await expect(pageA.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Tắt micro"]')).toBeVisible({ timeout: 25000 })
 
       // 2. Member B enters room (mic OFF, no mic permission granted)
       await loginUser(pageB, MEMBER_USER)
@@ -485,14 +485,14 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       expect(preMuteDiagA.sessionId).toBeTruthy()
       expect(preMuteDiagA.generation).toBeGreaterThanOrEqual(1)
 
-      const activeBtn = pageA.locator('header button[aria-label="Tắt micro"]')
+      const activeBtn = pageA.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Tắt micro"]')
       await expect(activeBtn).toBeVisible({ timeout: 15000 })
 
       // 2. Click normally to self-mute (no force:true)
       await activeBtn.click()
 
       // Require: button changes to "Bật micro"
-      const micBtn = pageA.locator('header button[aria-label="Bật micro"]')
+      const micBtn = pageA.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]')
       await expect(micBtn).toBeVisible({ timeout: 25000 })
 
       // Require: local track enabled is false, isMuted is true, session & generation unchanged
@@ -758,7 +758,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
 
       console.log('TEST 6: Waiting for Member B local mic to turn off...')
       // Member B local mic turns OFF
-      await expect(pageB.locator('header button[aria-label="Bật micro"]')).toBeVisible({ timeout: 15000 })
+      await expect(pageB.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]')).toBeVisible({ timeout: 15000 })
 
       // Verify Member B local track is stopped/disabled and publishing is invalidated
       const bPostForceState = await pageB.evaluate(() => {
@@ -1101,7 +1101,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       await enterStudyRoom(pageB)
 
       // B clicks mic
-      const micBtnB = pageB.locator('header button[aria-label="Bật micro"]')
+      const micBtnB = pageB.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Bật micro"]')
       await micBtnB.click()
 
       // Error message should appear (toast or blockedReason)
@@ -1177,7 +1177,7 @@ test.describe('Digital Campus v2 — Real Voice & WebRTC Media Path E2E Suite', 
       if (deviceInfo.totalInputs > 1) {
         console.log(`[Evidence 11] Multiple devices detected, testing device switch to: ${deviceInfo.devices[1].deviceId}`)
         // Switch device via select in UI
-        await page.locator('header button[aria-label="Cài đặt âm thanh"]').click()
+        await page.locator('nav[data-testid="classroom-tool-dock"] button[aria-label="Cài đặt âm thanh"]').click()
         await page.locator('#voice-mic-select').selectOption(deviceInfo.devices[1].deviceId)
       } else {
         console.log(`[Evidence 11] Deterministic fake Chromium exposes exactly 1 audioinput device (${deviceInfo.devices[0]?.label || 'default'}). Single-device limitation reported truthfully per requirement 8. (Unit test test/voice-client.test.ts proves replaceTrack invariants deterministically).`)
