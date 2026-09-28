@@ -9,7 +9,7 @@ import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
 import { KhungLop, NutKhung } from './KhungLop'
-import { dangHien, lopChinh, viTriCuaSo, type BoCuc, type LopId } from './stage-layout'
+import { dangHien, lopChinh, viTriCuaSo, type BoCuc, type KhungCuaSo, type LopId } from './stage-layout'
 
 export interface PresentationStageProps {
   boCuc: BoCuc
@@ -17,6 +17,10 @@ export interface PresentationStageProps {
   onThuNho: (id: LopId) => void
   onAn: (id: LopId) => void
   onBatTatBangPhu: () => void
+  /** Người trình chiếu kéo / đổi cỡ cửa sổ nổi xong → khung mới (đồng bộ cho cả phòng). */
+  onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
+  /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
+  onKeoKhung?: (id: LopId, khung: KhungCuaSo) => void
   isHost: boolean
   canModerate?: boolean
   /** Bố cục đang theo người trình chiếu (đồng bộ qua RoomDO): người xem thấy đúng lớp bảng giáo viên đang bật. */
@@ -70,6 +74,8 @@ export function PresentationStage({
   onThuNho,
   onAn,
   onBatTatBangPhu,
+  onDoiKhung,
+  onKeoKhung,
   isHost,
   canModerate = false,
   theoNguoiTrinhChieu = false,
@@ -105,6 +111,12 @@ export function PresentationStage({
   const canControl = !isReconnecting && (isHost || canModerate)
   const chinh = lopChinh(boCuc)
   const coLopHien = (['doc', 'video', 'board'] as const).some((id) => dangHien(boCuc[id]))
+
+  const khungCuaSo = (id: LopId) => ({
+    khung: boCuc.khung?.[id],
+    onDoiKhung: canControl && onDoiKhung ? (k: KhungCuaSo) => onDoiKhung(id, k) : undefined,
+    onKeoKhung: canControl && onKeoKhung ? (k: KhungCuaSo) => onKeoKhung(id, k) : undefined,
+  })
 
   const nutKhung = (id: LopId) => {
     const vaiTro = boCuc[id]
@@ -195,7 +207,7 @@ export function PresentationStage({
 
       {/* ── LỚP TÀI LIỆU ── */}
       {boCuc.doc && (
-        <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl}>
+        <KhungLop id="doc" vaiTro={boCuc.doc} viTri={viTriCuaSo(boCuc, 'doc')} khoa={!canControl} {...khungCuaSo('doc')}>
           <DocumentStageView
             slideState={slideState}
             isHost={isHost}
@@ -223,7 +235,7 @@ export function PresentationStage({
 
       {/* ── LỚP VIDEO ── */}
       {boCuc.video && (
-        <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')} khoa={!canControl}>
+        <KhungLop id="video" vaiTro={boCuc.video} viTri={viTriCuaSo(boCuc, 'video')} khoa={!canControl} {...khungCuaSo('video')}>
           {mediaState && mediaState.videoId ? (
             <EmbeddedVideoPlayer
               mediaState={mediaState}
@@ -270,7 +282,7 @@ export function PresentationStage({
 
       {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi / phủ trong suốt lên lớp chính ── */}
       {boCuc.board && (
-        <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl}>
+        <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl} {...khungCuaSo('board')}>
           {boCuc.board === 'phu' ? (
             // Phủ đúng vùng nội dung của lớp chính: chừa thanh tiêu đề (và thanh điều khiển nếu lớp chính là video).
             <div

@@ -3,7 +3,8 @@
 
 import { EyeOff, Layers, Maximize, Maximize2, Minimize, PictureInPicture2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { LopId, VaiTroLop } from './stage-layout'
+import { flushSync } from 'react-dom'
+import { kepKhung, type KhungCuaSo, type LopId, type VaiTroLop } from './stage-layout'
 
 // Góc đặt cửa sổ nổi theo thứ tự: dưới-phải, trên-phải, dưới-trái, trên-trái.
 const GOC_CUA_SO = [
@@ -19,14 +20,43 @@ interface KhungLopProps {
   viTri: number
   /** Người tham gia chỉ xem: không kéo, không đổi cỡ cửa sổ nổi. */
   khoa?: boolean
+  /** Vị trí + cỡ cửa sổ nổi do người trình chiếu đặt (tỉ lệ sân khấu); chưa có thì nằm ở góc mặc định. */
+  khung?: KhungCuaSo
+  /** Người trình chiếu thả chuột sau khi kéo / đổi cỡ → khung mới (đồng bộ cho cả phòng). */
+  onDoiKhung?: (khung: KhungCuaSo) => void
+  /** Trong lúc kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
+  onKeoKhung?: (khung: KhungCuaSo) => void
   children: ReactNode
 }
 
-export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLopProps) {
+/** Hộp cửa sổ lúc bắt đầu kéo (px, so với sân khấu) — khung tạm = hộp này + độ dời, không phải đọc DOM giữa chừng. */
+interface HopBatDau {
+  trai: number
+  tren: number
+  rong: number
+  cao: number
+  chaRong: number
+  chaCao: number
+}
+
+function hopBatDau(el: HTMLElement | null): HopBatDau | undefined {
+  const cha = el?.parentElement
+  if (!el || !cha) return undefined
+  const a = el.getBoundingClientRect()
+  const b = cha.getBoundingClientRect()
+  if (b.width <= 0 || b.height <= 0) return undefined
+  return { trai: a.left - b.left, tren: a.top - b.top, rong: a.width, cao: a.height, chaRong: b.width, chaCao: b.height }
+}
+
+const khungTuHop = (h: HopBatDau, trai: number, tren: number, rong: number, cao: number) =>
+  kepKhung({ x: trai / h.chaRong, y: tren / h.chaCao, w: rong / h.chaRong, h: cao / h.chaCao })
+
+export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, onKeoKhung, children }: KhungLopProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [dich, setDich] = useState({ x: 0, y: 0 })
   const [kichThuoc, setKichThuoc] = useState<{ rong?: number; cao?: number } | null>(null)
-  const keoRef = useRef<{ px: number; py: number; x: number; y: number } | null>(null)
+  // `cuoi`: vị trí / cỡ tính ở lần di chuột gần nhất — lúc thả có thể chưa kịp vẽ lại (kéo nhanh), nên không đọc từ state.
+  const keoRef = useRef<{ px: number; py: number; x: number; y: number; hop?: HopBatDau; cuoi?: { x: number; y: number } } | null>(null)
   const resizeRef = useRef<{
     huong: string
     px: number
@@ -35,6 +65,8 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
     cao: number
     x: number
     y: number
+    hop?: HopBatDau
+    cuoi?: { rong: number; cao: number; x: number; y: number }
   } | null>(null)
 
   // Rời chế độ cửa sổ nổi thì bỏ vị trí và kích thước đã kéo.
@@ -46,8 +78,22 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
   }, [vaiTro])
 
   const goc = GOC_CUA_SO[Math.max(0, viTri) % GOC_CUA_SO.length]
-  const isRightAnchor = goc.includes('right-')
-  const isBottomAnchor = goc.includes('bottom-')
+  // Có khung đồng bộ thì đặt theo mép trái / trên (phần trăm sân khấu) thay vì bám góc.
+  const isRightAnchor = !khung && goc.includes('right-')
+  const isBottomAnchor = !khung && goc.includes('bottom-')
+
+  // Thả chuột: quy vị trí + cỡ hiện tại ra tỉ lệ sân khấu rồi báo lên (bỏ độ dời tạm thời).
+  const ghiKhung = () => {
+    const el = ref.current
+    const cha = el?.parentElement
+    if (!onDoiKhung || !el || !cha) return
+    const a = el.getBoundingClientRect()
+    const b = cha.getBoundingClientRect()
+    if (b.width <= 0 || b.height <= 0) return
+    onDoiKhung(kepKhung({ x: (a.left - b.left) / b.width, y: (a.top - b.top) / b.height, w: a.width / b.width, h: a.height / b.height }))
+    setDich({ x: 0, y: 0 })
+    setKichThuoc(null)
+  }
 
   const lop =
     vaiTro === 'main'
@@ -55,7 +101,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
       : vaiTro === 'phu'
         ? 'pointer-events-none absolute inset-0 z-20'
         : vaiTro === 'pip'
-          ? `absolute z-30 ${goc} ${kichThuoc?.rong ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
+          ? `absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
           : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
@@ -63,7 +109,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
     if (khoa || vaiTro !== 'pip' || resizeRef.current) return
     const dich0 = e.target as HTMLElement
     if (!dich0.closest('[data-keo-khung]') || dich0.closest('button, input, select, a, [role="slider"]')) return
-    keoRef.current = { px: e.clientX, py: e.clientY, x: dich.x, y: dich.y }
+    keoRef.current = { px: e.clientX, py: e.clientY, x: dich.x, y: dich.y, hop: hopBatDau(ref.current) }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {}
@@ -85,15 +131,25 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
     if (trai + khung.width > vien.right - 4) x -= trai + khung.width - (vien.right - 4)
     if (tren < vien.top + 4) y += vien.top + 4 - tren
     if (tren + khung.height > vien.bottom - 4) y -= tren + khung.height - (vien.bottom - 4)
+    keo.cuoi = { x, y }
     setDich({ x, y })
+    if (onKeoKhung && keo.hop) {
+      onKeoKhung(khungTuHop(keo.hop, keo.hop.trai + (x - keo.x), keo.hop.tren + (y - keo.y), keo.hop.rong, keo.hop.cao))
+    }
   }
 
   const thaKeo = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!keoRef.current) return
+    const keo = keoRef.current
+    if (!keo) return
     keoRef.current = null
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}
+    const cuoi = keo.cuoi
+    if (!cuoi || (cuoi.x === keo.x && cuoi.y === keo.y) || !onDoiKhung) return
+    // Vẽ ngay vị trí cuối rồi mới đo (lần di chuột cuối có thể chưa kịp vẽ).
+    flushSync(() => setDich(cuoi))
+    ghiKhung()
   }
 
   // Kéo to thu nhỏ ở các cạnh và góc cửa sổ
@@ -111,6 +167,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
       cao: rect.height,
       x: dich.x,
       y: dich.y,
+      hop: hopBatDau(el),
     }
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -161,16 +218,31 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
       }
     }
 
-    setKichThuoc({ rong: Math.round(moiRong), cao: Math.round(moiCao) })
-    setDich({ x: Math.round(moiX), y: Math.round(moiY) })
+    r.cuoi = { rong: Math.round(moiRong), cao: Math.round(moiCao), x: Math.round(moiX), y: Math.round(moiY) }
+    setKichThuoc({ rong: r.cuoi.rong, cao: r.cuoi.cao })
+    setDich({ x: r.cuoi.x, y: r.cuoi.y })
+    if (onKeoKhung && r.hop) {
+      // Cửa sổ bám góc phải / dưới thì lớn thêm về bên trái / lên trên.
+      const trai = r.hop.trai + (r.cuoi.x - r.x) - (isRightAnchor ? r.cuoi.rong - r.rong : 0)
+      const tren = r.hop.tren + (r.cuoi.y - r.y) - (isBottomAnchor ? r.cuoi.cao - r.cao : 0)
+      onKeoKhung(khungTuHop(r.hop, trai, tren, r.cuoi.rong, r.cuoi.cao))
+    }
   }
 
   const thaThayDoiKichThuoc = (e: React.PointerEvent) => {
-    if (!resizeRef.current) return
+    const r = resizeRef.current
+    if (!r) return
     resizeRef.current = null
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {}
+    const cuoi = r.cuoi
+    if (!cuoi || !onDoiKhung) return
+    flushSync(() => {
+      setKichThuoc({ rong: cuoi.rong, cao: cuoi.cao })
+      setDich({ x: cuoi.x, y: cuoi.y })
+    })
+    ghiKhung()
   }
 
   return (
@@ -184,6 +256,9 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, children }: KhungLop
       style={
         vaiTro === 'pip'
           ? {
+              ...(khung
+                ? { left: `${khung.x * 100}%`, top: `${khung.y * 100}%`, width: `${khung.w * 100}%`, height: `${khung.h * 100}%` }
+                : {}),
               transform: `translate(${dich.x}px, ${dich.y}px)`,
               ...(kichThuoc?.rong ? { width: `${kichThuoc.rong}px` } : {}),
               ...(kichThuoc?.cao ? { height: `${kichThuoc.cao}px` } : {}),

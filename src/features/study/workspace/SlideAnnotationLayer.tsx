@@ -7,7 +7,7 @@ import { getStroke } from 'perfect-freehand'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { type AnnotationTool, downsampleStrokePoints, hitTestStrokes } from './annotation-geometry'
-import { DO_MO_TO_SANG, diemHinh, doDayNet, tayXoaDuoc, type CoVe, type LoaiHinh } from './cong-cu'
+import { DO_MO_TO_SANG, diemHinh, doDayNet, type CoVe, type LoaiHinh } from './cong-cu'
 
 export type { AnnotationTool }
 
@@ -165,7 +165,7 @@ export function SlideAnnotationLayer({
   }, [])
 
   const eraseAt = (pt: [number, number]) => {
-    const hitId = hitTestStrokes(pt, pageStrokes.filter(tayXoaDuoc), 0.03, tiLeNgang)
+    const hitId = hitTestStrokes(pt, pageStrokes, 0.03, tiLeNgang)
     if (hitId) {
       onRemoveStroke?.(hitId)
     }

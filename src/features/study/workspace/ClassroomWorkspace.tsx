@@ -27,6 +27,7 @@ import {
   batTatBangPhu,
   boCucBanDau,
   cungBoCuc,
+  datKhung,
   goLop,
   hienLop,
   lamChinh,
@@ -34,6 +35,7 @@ import {
   theoBoCucTrinhChieu,
   thuNho,
   type BoCuc,
+  type KhungCuaSo,
   type LopId,
 } from './stage-layout'
 import { deriveDefaultWorkspaceMode, laTepPptx, type ContextPanelView } from './types'
@@ -187,6 +189,52 @@ export function ClassroomWorkspace({
   )
   /** Bố cục máy chủ đang giữ (lần nhận / gửi gần nhất) — chỉ gửi khi bố cục của người trình chiếu khác nó. */
   const boCucMayChuRef = useRef<BoCuc | null>(stageLayout)
+  const boCucRef = useRef(boCuc)
+  useEffect(() => {
+    boCucRef.current = boCuc
+  })
+  // Đang kéo cửa sổ nổi: gửi khung tạm cho cả phòng (tối đa ~12 lần/giây, gói cuối không bị bỏ); thả chuột mới ghi vào bố cục.
+  const keoRef = useRef<{ lanCuoi: number; hen: ReturnType<typeof setTimeout> | null; cho: BoCuc | null }>({
+    lanCuoi: 0,
+    hen: null,
+    cho: null,
+  })
+  const guiKhungTam = (id: LopId, k: KhungCuaSo) => {
+    if (!onSendStageLayout) return
+    const t = keoRef.current
+    const gui = (bc: BoCuc) => {
+      t.lanCuoi = Date.now()
+      boCucMayChuRef.current = bc
+      onSendStageLayout(bc)
+    }
+    const bc = datKhung(boCucRef.current, id, k)
+    // Cửa sổ đã chạm mép / chưa nhúc nhích: không gửi gói trùng.
+    if (cungBoCuc(bc, t.cho ?? boCucMayChuRef.current)) return
+    const conCho = 80 - (Date.now() - t.lanCuoi)
+    if (conCho <= 0) {
+      gui(bc)
+      return
+    }
+    t.cho = bc
+    t.hen ??= setTimeout(() => {
+      t.hen = null
+      if (t.cho) gui(t.cho)
+      t.cho = null
+    }, conCho)
+  }
+  useEffect(() => {
+    const t = keoRef.current
+    return () => {
+      if (t.hen) clearTimeout(t.hen)
+    }
+  }, [])
+  const ghiKhung = (id: LopId, k: KhungCuaSo) => {
+    const t = keoRef.current
+    if (t.hen) clearTimeout(t.hen)
+    t.hen = null
+    t.cho = null
+    setBoCuc((bc) => datKhung(bc, id, k))
+  }
 
   // Nội dung đổi từ máy chủ (giáo viên mở tài liệu mới / phát video) → tự động đưa lớp đó lên làm lớp chính để cả phòng cùng theo dõi đồng bộ.
   // Nội dung kết thúc (gỡ video, đóng tài liệu) → bỏ lớp khỏi sân khấu.
@@ -319,6 +367,8 @@ export function ClassroomWorkspace({
             onThuNho={doiBoCuc(thuNho)}
             onAn={doiBoCuc(anLop)}
             onBatTatBangPhu={() => setBoCuc(batTatBangPhu)}
+            onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
+            onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
             isHost={isHost}
             canModerate={canModerate}
             theoNguoiTrinhChieu={Boolean(stageLayout)}

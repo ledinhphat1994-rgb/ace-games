@@ -10,6 +10,8 @@ import {
   batTatBangPhu,
   boCucBanDau,
   cungBoCuc,
+  datKhung,
+  kepKhung,
   goLop,
   hienLop,
   lamChinh,
@@ -23,7 +25,6 @@ import {
   diemHinh,
   diemKhungChuNhat,
   diemVongTron,
-  tayXoaDuoc,
   doDayNet,
   netDuocCham,
   rutGonDiem,
@@ -100,7 +101,7 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(khungRaw).toContain('if (chiXem) return null')
     expect(khungRaw).toContain('data-testid={`layer-${id}-hide`}')
     // Cửa sổ nổi khoá kéo và điểm đổi cỡ.
-    for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!canControl}>`)
+    for (const id of ['doc', 'video', 'board']) expect(stageRaw).toContain(`<KhungLop id="${id}" vaiTro={boCuc.${id}} viTri={viTriCuaSo(boCuc, '${id}')} khoa={!canControl} {...khungCuaSo('${id}')}>`)
     expect(khungRaw).toContain("if (khoa || vaiTro !== 'pip' || resizeRef.current) return")
     expect(khungRaw).toContain("{vaiTro === 'pip' && !khoa && (")
     // Nút mở lại bài giảng khi sân khấu trống chỉ dành cho người trình chiếu.
@@ -118,6 +119,23 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     // Gói đồng bộ video chưa tới: bỏ lớp video, bảng đang phủ lên video thành lớp chính.
     expect(theoBoCucTrinhChieu({ video: 'main', board: 'phu' }, false, false)).toEqual({ board: 'main' })
     expect(theoBoCucTrinhChieu({ video: 'main', doc: 'pip' }, false, true)).toEqual({ doc: 'main' })
+  })
+
+  it('cửa sổ nổi: giáo viên kéo / đổi cỡ → khung theo tỉ lệ sân khấu, kẹp trong sân khấu, học sinh nhận nguyên khung', () => {
+    expect(kepKhung({ x: 0.9, y: -0.2, w: 0.5, h: 1.4 })).toEqual({ x: 0.5, y: 0, w: 0.5, h: 1 })
+    expect(kepKhung({ x: 0.1, y: 0.1, w: 0.01, h: 0.3333333 })).toEqual({ x: 0.1, y: 0.1, w: 0.1, h: 0.3333 })
+    const bc = datKhung({ video: 'main', doc: 'pip' }, 'doc', { x: 0.01, y: 0.02, w: 0.45, h: 0.6 })
+    expect(bc).toEqual({ video: 'main', doc: 'pip', khung: { doc: { x: 0.01, y: 0.02, w: 0.45, h: 0.6 } } })
+    expect(theoBoCucTrinhChieu(bc, true, true)).toEqual(bc)
+    // Chỉ dời cửa sổ cũng là đổi bố cục → người trình chiếu gửi lại.
+    expect(cungBoCuc(datKhung(bc, 'doc', { x: 0.3, y: 0.02, w: 0.45, h: 0.6 }), bc)).toBe(false)
+    expect(cungBoCuc({ ...bc }, bc)).toBe(true)
+    // Trong lúc kéo: gửi khung tạm cho cả phòng (có giới hạn nhịp); thả chuột mới ghi vào bố cục của giáo viên.
+    expect(workspaceRaw).toContain('onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}')
+    expect(workspaceRaw).toContain('const conCho = 80 - (Date.now() - t.lanCuoi)')
+    expect(khungRaw).toContain('onKeoKhung(khungTuHop(keo.hop,')
+    // Người xem: cửa sổ trượt mượt theo các gói khung liên tiếp.
+    expect(khungRaw).toContain("khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''")
   })
 
   it('so sánh bố cục theo từng lớp', () => {
@@ -180,18 +198,16 @@ describe('Công cụ vẽ chung', () => {
     expect(Math.hypot(mui[2][0] - 100, mui[2][1])).toBeCloseTo(20)
   })
 
-  it('tẩy chỉ xoá nét bút / dạ quang; chữ và hình giữ lại cho nút Xoá hết', () => {
-    expect([undefined, 'pen', 'highlighter', 'text', 'shape'].map((tool) => tayXoaDuoc({ tool }))).toEqual([true, true, true, false, false])
-  })
-
-  it('tẩy chạm đúng nét trên cùng, kể cả chữ', () => {
+  it('tẩy chạm đúng nét trên cùng, kể cả chữ và hình (chạm vào đường viền)', () => {
     const cacNet = [
       { id: 'duoi', points: [[0, 0], [100, 0]] as [number, number][] },
       { id: 'tren', points: [[0, 0], [100, 0]] as [number, number][] },
       { id: 'chu', points: [[300, 300]] as [number, number][], tool: 'text', text: 'Xin chào', size: 40 },
+      { id: 'tam-giac', points: diemHinh('tam_giac', [500, 500], [700, 700]), tool: 'shape' },
     ]
     expect(netDuocCham([50, 3], cacNet, 5)?.id).toBe('tren')
     expect(netDuocCham([320, 320], cacNet, 5)?.id).toBe('chu')
+    expect(netDuocCham([600, 702], cacNet, 5)?.id).toBe('tam-giac')
     expect(netDuocCham([50, 50], cacNet, 5)).toBeNull()
   })
 })
@@ -272,9 +288,9 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     await host.cho('room.snapshot')
     expect(snap.stageLayout ?? null).toBeNull()
 
-    host.gui({ type: 'stage.layout', layout: { doc: 'main', video: 'pip', board: 'phu' } })
+    host.gui({ type: 'stage.layout', layout: { doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } } })
     const dongBo = await an.cho('stage.sync')
-    expect(dongBo.layout).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
+    expect(dongBo.layout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } })
     // Người gửi không nhận lại bố cục của chính mình (tránh ghi đè thay đổi mới hơn trên máy mình).
     await host.khongNhan('stage.sync', () => true, 200)
 
@@ -286,10 +302,13 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     // Vai trò lạ bị từ chối ngay ở lược đồ.
     host.gui({ type: 'stage.layout', layout: { doc: 'khong-hop-le' } } as never)
     await an.khongNhan('stage.sync', () => true, 200)
+    // Khung vượt ra ngoài sân khấu cũng bị từ chối.
+    host.gui({ type: 'stage.layout', layout: { doc: 'main', khung: { doc: { x: 0, y: 0, w: 2, h: 0.5 } } } })
+    await an.khongNhan('stage.sync', () => true, 200)
 
     const vaoSau = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
     const snapSau = await vaoSau.cho('room.snapshot')
-    expect(snapSau.stageLayout).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
+    expect(snapSau.stageLayout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } })
     host.dong()
     an.dong()
     vaoSau.dong()

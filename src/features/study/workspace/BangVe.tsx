@@ -13,7 +13,6 @@ import {
   type CongCu,
   type CoVe,
   diemHinh,
-  tayXoaDuoc,
   type LoaiHinh,
 } from './cong-cu'
 
@@ -148,7 +147,7 @@ export function BangVe({
 
   const tayTai = (p: [number, number]) => {
     const coTheTay = strokes.filter(
-      (s) => !daTayRef.current.has(s.id) && tayXoaDuoc(s) && (coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi)),
+      (s) => !daTayRef.current.has(s.id) && (coTheTayMoiNet || (khoaCuaToi && s.by === khoaCuaToi)),
     )
     const trung = netDuocCham(p, coTheTay, NGUONG_TAY)
     if (trung) {

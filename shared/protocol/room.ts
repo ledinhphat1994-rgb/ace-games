@@ -362,10 +362,20 @@ export interface VoiceTrackMetadata {
 
 /** Bố cục sân khấu của người trình chiếu (Tài liệu / Bảng / Video): học sinh hiển thị theo để luôn thấy đúng thứ đang giảng. */
 const VAI_TRO_LOP = z.enum(['main', 'pip', 'phu', 'an'])
+/** Vị trí + cỡ cửa sổ nổi theo tỉ lệ khung sân khấu (0..1) — mỗi màn hình tự quy ra pixel. */
+const KHUNG_CUA_SO = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  w: z.number().min(0.05).max(1),
+  h: z.number().min(0.05).max(1),
+})
 export const BoCucSanKhau = z.object({
   doc: VAI_TRO_LOP.optional(),
   video: VAI_TRO_LOP.optional(),
   board: VAI_TRO_LOP.optional(),
+  khung: z
+    .object({ doc: KHUNG_CUA_SO.optional(), video: KHUNG_CUA_SO.optional(), board: KHUNG_CUA_SO.optional() })
+    .optional(),
 })
 export type BoCucSanKhau = z.infer<typeof BoCucSanKhau>
 

@@ -33,6 +33,8 @@ const DRIFT_TOLERANCE_SEC = 0.35
 const HARD_SEEK_DRIFT_SEC = 1.5
 const SEEK_COOLDOWN_MS = 1000
 const NUDGE_COOLDOWN_MS = 1500
+/** Còn chưa tới chừng này giây là coi như hết bài (dừng ở khung cuối, không phát lại). */
+const HET_BAI_SEC = 0.5
 
 export function useYouTubePlayer({
   containerId,
@@ -58,6 +60,8 @@ export function useYouTubePlayer({
   const lastSeekTimeRef = useRef<number>(0)
   const lastNudgeTimeRef = useRef<number>(0)
   const isNudgedRef = useRef(false)
+  /** Người điều khiển đã báo máy chủ dừng ở cuối bài (tránh gửi lặp mỗi nhịp). */
+  const daBaoHetRef = useRef(false)
   const currentVideoIdRef = useRef<string>(mediaState.videoId)
 
   const volumeRef = useRef(volume)
@@ -256,14 +260,17 @@ export function useYouTubePlayer({
       if (!p || !isMountedRef.current) return
 
       let cur = 0
+      let dur = 0
       try {
         cur = p.getCurrentTime()
         if (Number.isFinite(cur)) {
           setCurrentTime(cur)
         }
-        const dur = p.getDuration()
+        dur = p.getDuration()
         if (Number.isFinite(dur) && dur > 0) {
           setDuration(dur)
+        } else {
+          dur = 0
         }
       } catch {
         return
@@ -275,6 +282,31 @@ export function useYouTubePlayer({
       // Target position derived from server canonical time + clock offset
       const targetTime = calculateTargetTime()
       const drift = targetTime - cur
+
+      // Hết bài theo đồng hồ chung: dừng ở khung cuối. Không gọi playVideo — YouTube đang ENDED sẽ phát lại từ giây 0,
+      // rồi bị tua quá cuối, rồi lại phát từ 0… (giật mãi ở giây đầu).
+      const hetBai = dur > 0 && targetTime >= dur - HET_BAI_SEC
+      if (!hetBai) daBaoHetRef.current = false
+      if (mediaState.status === 'playing' && hetBai) {
+        if (currentState !== YT_PLAYER_STATE.ENDED && dur - cur > HARD_SEEK_DRIFT_SEC && now - lastSeekTimeRef.current > SEEK_COOLDOWN_MS) {
+          isRemoteApplyRef.current = true
+          try {
+            p.seekTo(dur, true)
+            p.pauseVideo()
+            lastSeekTimeRef.current = now
+          } catch {}
+          setTimeout(() => {
+            isRemoteApplyRef.current = false
+          }, 300)
+        }
+        // Người điều khiển báo máy chủ dừng ở cuối bài để cả phòng (và người vào sau) cùng dừng.
+        if (canControlMediaRef.current && !daBaoHetRef.current) {
+          daBaoHetRef.current = true
+          onUserIntentRef.current('pause')
+          onUserIntentRef.current('seek', dur)
+        }
+        return
+      }
 
       if (mediaState.status === 'playing') {
         // A. If remote says playing but local is paused / cued / unstarted
@@ -361,11 +393,12 @@ export function useYouTubePlayer({
           }, 200)
         }
 
-        // If local paused position is drifted significantly from server paused time
-        if (Math.abs(cur - mediaState.time) >= 1.0 && now - lastSeekTimeRef.current > SEEK_COOLDOWN_MS) {
+        // If local paused position is drifted significantly from server paused time (không tua quá cuối bài)
+        const mocDung = dur > 0 ? Math.min(mediaState.time, dur) : mediaState.time
+        if (Math.abs(cur - mocDung) >= 1.0 && now - lastSeekTimeRef.current > SEEK_COOLDOWN_MS) {
           isRemoteApplyRef.current = true
           try {
-            p.seekTo(mediaState.time, true)
+            p.seekTo(mocDung, true)
             lastSeekTimeRef.current = now
           } catch {}
           setTimeout(() => {
@@ -381,8 +414,12 @@ export function useYouTubePlayer({
   // ── 5. User Intent Handlers ────────────────────────────────────────────────
   const handleUserPlay = useCallback(() => {
     if (!canControlMedia) return
+    // Đã hết bài: bấm phát là xem lại từ đầu.
+    if (duration > 0 && mediaState.status !== 'playing' && mediaState.time >= duration - HET_BAI_SEC) {
+      onUserIntent('seek', 0)
+    }
     onUserIntent('play')
-  }, [canControlMedia, onUserIntent])
+  }, [canControlMedia, onUserIntent, duration, mediaState.status, mediaState.time])
 
   const handleUserPause = useCallback(() => {
     if (!canControlMedia) return
