@@ -1,8 +1,9 @@
-import { applyD1Migrations } from 'cloudflare:test'
+import { applyD1Migrations, reset } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
-import { beforeEach, afterEach } from 'vitest'
+import { beforeEach, afterEach, afterAll } from 'vitest'
 import { bamMatKhau, taoSalt } from '../worker/lib/passwords'
 import { LOP_THU, MAT_KHAU, TAI_KHOAN_THU } from './fixtures'
+import { dongMoiKetNoi } from './ws'
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
 if (env.ANALYTICS_DB && (env as any).ANALYTICS_TEST_MIGRATIONS) {
@@ -60,6 +61,15 @@ beforeEach(() => {
 afterEach(async () => {
   // Cho phép workerd event loop hoàn tất các handshake đóng WebSocket và DO lifecycle
   await new Promise((r) => setTimeout(r, 60))
+})
+
+// Mỗi sự kiện DO (webSocketClose, alarm, RPC giữa các DO) khiến pool nạp lại worker qua RPC "resolve" của vitest.
+// Sự kiện bắt đầu sau hook cuối của file sẽ gặp RPC đang đóng → EnvironmentTeardownError, suite thoát mã 1.
+// Nên cuối mỗi file: đóng hết WebSocket rồi reset() — huỷ mọi DO đang chạy cùng alarm còn hẹn
+// (xoá luôn D1/KV của file, vô hại vì Miniflare của file bị huỷ ngay sau đó).
+afterAll(async () => {
+  await dongMoiKetNoi()
+  await reset()
 })
 
 // Đảm bảo tài khoản system không chiếm dải ID 1..8 của fixtures thử nghiệm

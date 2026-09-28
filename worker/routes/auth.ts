@@ -853,7 +853,6 @@ export async function doiMatKhau(request: Request, env: Env): Promise<Response> 
     .bind(kq.taiKhoan.id)
     .first<{ mat_khau_hash: string | null; salt: string | null; iterations: number | null }>()
 
-  const { xacMinhMatKhau, taoSalt, bamMatKhau } = await import('../lib/passwords')
   const hopLe = await xacMinhMatKhau(matKhauCu, user?.mat_khau_hash || null, user?.salt || null, user?.iterations)
   if (!hopLe) {
     return loi('Mật khẩu cũ không chính xác.', 400)

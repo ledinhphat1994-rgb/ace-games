@@ -4,6 +4,25 @@ import { GOC, MAT_KHAU } from './fixtures'
 
 const cho = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/** Socket client còn mở → promise xong khi nhận sự kiện `close`. */
+const ketNoiDangMo = new Map<WebSocket, Promise<void>>()
+
+function dongVaCho(ws: WebSocket, thoiGianMs = 2000): Promise<void> {
+  try {
+    ws.close(1000, 'xong')
+  } catch {
+    // Đã đóng.
+  }
+  const daDong = ketNoiDangMo.get(ws)
+  if (!daDong) return Promise.resolve()
+  return Promise.race([daDong, cho(thoiGianMs).then(() => undefined)])
+}
+
+/** Đóng mọi kết nối mở bằng `moKetNoi` và chờ bắt tay đóng hoàn tất. */
+export async function dongMoiKetNoi(): Promise<void> {
+  await Promise.all([...ketNoiDangMo.keys()].map((ws) => dongVaCho(ws)))
+}
+
 export async function dangNhapLayCookie(username: string): Promise<string> {
   const res = await exports.default.fetch(`${GOC}/api/login`, {
     method: 'POST',
@@ -27,7 +46,8 @@ export interface KetNoiThu<G extends { type: string }> {
   /** Chắc chắn KHÔNG nhận gói loại này trong khoảng thời gian cho trước. */
   khongNhan<K extends G['type']>(type: K, dieuKien?: (g: Loai<G, K>) => boolean, thoiGianMs?: number): Promise<void>
   choDong(thoiGianMs?: number): Promise<{ code: number; reason: string }>
-  dong(): void
+  /** Đóng và chờ bắt tay đóng hoàn tất (có thể bỏ qua `await`). */
+  dong(): Promise<void>
 }
 
 export async function moKetNoi<G extends { type: string }>(
@@ -51,9 +71,20 @@ export async function moKetNoi<G extends { type: string }>(
         // Chuỗi "pong" giữ kết nối, không phải JSON.
       }
     })
-    ws.addEventListener('close', (e) => {
-      daDong = { code: e.code, reason: e.reason }
-    })
+    ketNoiDangMo.set(
+      ws,
+      new Promise<void>((xong) => {
+        const ketThuc = () => {
+          ketNoiDangMo.delete(ws)
+          xong()
+        }
+        ws.addEventListener('close', (e) => {
+          daDong = { code: e.code, reason: e.reason }
+          ketThuc()
+        })
+        ws.addEventListener('error', ketThuc)
+      }),
+    )
   } else {
     await res.body?.cancel()
   }
@@ -88,12 +119,6 @@ export async function moKetNoi<G extends { type: string }>(
       }
       throw new Error('Kết nối không bị đóng như mong đợi.')
     },
-    dong: () => {
-      try {
-        ws?.close(1000, 'xong')
-      } catch {
-        // Đã đóng.
-      }
-    },
+    dong: () => (ws ? dongVaCho(ws) : Promise.resolve()),
   }
 }
