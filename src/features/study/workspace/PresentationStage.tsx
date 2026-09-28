@@ -19,6 +19,8 @@ export interface PresentationStageProps {
   onBatTatBangPhu: () => void
   /** Người trình chiếu kéo / đổi cỡ cửa sổ nổi xong → khung mới (đồng bộ cho cả phòng). */
   onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
+  /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
+  onKeoKhung?: (id: LopId, khung: KhungCuaSo) => void
   isHost: boolean
   canModerate?: boolean
   /** Bố cục đang theo người trình chiếu (đồng bộ qua RoomDO): người xem thấy đúng lớp bảng giáo viên đang bật. */
@@ -73,6 +75,7 @@ export function PresentationStage({
   onAn,
   onBatTatBangPhu,
   onDoiKhung,
+  onKeoKhung,
   isHost,
   canModerate = false,
   theoNguoiTrinhChieu = false,
@@ -112,6 +115,7 @@ export function PresentationStage({
   const khungCuaSo = (id: LopId) => ({
     khung: boCuc.khung?.[id],
     onDoiKhung: canControl && onDoiKhung ? (k: KhungCuaSo) => onDoiKhung(id, k) : undefined,
+    onKeoKhung: canControl && onKeoKhung ? (k: KhungCuaSo) => onKeoKhung(id, k) : undefined,
   })
 
   const nutKhung = (id: LopId) => {

@@ -130,6 +130,12 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     // Chỉ dời cửa sổ cũng là đổi bố cục → người trình chiếu gửi lại.
     expect(cungBoCuc(datKhung(bc, 'doc', { x: 0.3, y: 0.02, w: 0.45, h: 0.6 }), bc)).toBe(false)
     expect(cungBoCuc({ ...bc }, bc)).toBe(true)
+    // Trong lúc kéo: gửi khung tạm cho cả phòng (có giới hạn nhịp); thả chuột mới ghi vào bố cục của giáo viên.
+    expect(workspaceRaw).toContain('onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}')
+    expect(workspaceRaw).toContain('const conCho = 80 - (Date.now() - t.lanCuoi)')
+    expect(khungRaw).toContain('onKeoKhung(khungTuHop(keo.hop,')
+    // Người xem: cửa sổ trượt mượt theo các gói khung liên tiếp.
+    expect(khungRaw).toContain("khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''")
   })
 
   it('so sánh bố cục theo từng lớp', () => {
