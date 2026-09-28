@@ -15,6 +15,7 @@ import {
   type SlideState,
   type SlideAnnotationStroke,
   type BoCucSanKhau,
+  type MatNet,
   type VoiceParticipantState,
   type SessionGoal,
   type SessionTask,
@@ -1720,6 +1721,23 @@ export class RoomDO extends DurableObject<Env> {
     }
   }
 
+  /** Nội dung đổi (video mới, tài liệu mới / đóng) → xoá nét trên lớp vẽ gắn với nội dung cũ. Nét trên Bảng giữ nguyên. */
+  private xoaNetTheoMat(mat: MatNet): void {
+    let ids: string[] = []
+    try {
+      ids = this.ctx.storage.sql
+        .exec<{ id: string }>("SELECT id FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
+        .toArray()
+        .map((r) => r.id)
+      if (ids.length === 0) return
+      this.ctx.storage.sql.exec("DELETE FROM whiteboard_strokes WHERE json_extract(stroke_data, '$.mat') = ?1", mat)
+    } catch (err) {
+      console.error('Lỗi xoá nét theo lớp vẽ:', err)
+      return
+    }
+    for (const id of ids) this.broadcast({ type: 'whiteboard.sync', action: 'stroke.remove', strokeId: id })
+  }
+
   private luuMeta(key: string, val: unknown): void {
     try {
       const str = typeof val === 'string' ? val : JSON.stringify(val)
@@ -2245,6 +2263,7 @@ export class RoomDO extends DurableObject<Env> {
             ws.send(JSON.stringify({ type: 'error', message: 'ID video YouTube không hợp lệ.' }))
             return
           }
+          if (d.videoId !== this.media.videoId) this.xoaNetTheoMat('video')
           this.media = {
             ...this.media,
             videoId: d.videoId,
@@ -2544,6 +2563,7 @@ export class RoomDO extends DurableObject<Env> {
             try {
               this.ctx.storage.sql.exec('DELETE FROM playlist_queue WHERE id = ?1', d.id)
             } catch {}
+            if (target.videoId !== this.media.videoId) this.xoaNetTheoMat('video')
             const now = Date.now()
             this.media = {
               ...this.media,
@@ -2609,12 +2629,14 @@ export class RoomDO extends DurableObject<Env> {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
           } catch {}
           this.broadcast({ type: 'slide.annotation', action: 'clear' })
+          this.xoaNetTheoMat('tailieu')
         } else if (d.action === 'close_doc') {
           this.slide = null
           try {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
           } catch {}
           this.broadcast({ type: 'slide.annotation', action: 'clear' })
+          this.xoaNetTheoMat('tailieu')
         } else if (d.action === 'set_total_pages') {
           // .pptx dựng trên trình duyệt: chỉ sửa số trang (giữ trang hiện tại trong giới hạn), không đụng tới chú thích.
           if (!this.slide || this.slide.fileType !== 'pptx') return

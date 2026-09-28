@@ -16,7 +16,6 @@ import {
   hienLop,
   lamChinh,
   lopChinh,
-  phuBangDeVe,
   theoBoCucTrinhChieu,
   thuNho,
   viTriCuaSo,
@@ -36,6 +35,7 @@ import khungRaw from '../src/features/study/workspace/KhungLop.tsx?raw'
 import docStageRaw from '../src/features/study/workspace/DocumentStageView.tsx?raw'
 import videoRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?raw'
 import dockRaw from '../src/features/study/workspace/ClassroomToolDock.tsx?raw'
+import bangVeRaw from '../src/features/study/workspace/BangVe.tsx?raw'
 
 describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   it('vào phòng: video đang phát làm lớp chính, tài liệu thành cửa sổ nổi', () => {
@@ -164,18 +164,22 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     expect(cungBoCuc({}, null)).toBe(false)
   })
 
-  it('chọn bút: phủ bảng lên video / tài liệu nhúng; PDF, ảnh, .pptx vẽ lên trang nên giữ nguyên bố cục', () => {
-    expect(phuBangDeVe({ video: 'main', board: 'pip' }, false)).toEqual({ video: 'main', board: 'phu' })
-    expect(phuBangDeVe({ doc: 'main' }, false)).toEqual({ doc: 'main', board: 'phu' })
-    const taiLieuVeDuoc = { doc: 'main', video: 'pip' } as const
-    expect(phuBangDeVe(taiLieuVeDuoc, true)).toBe(taiLieuVeDuoc)
-    expect(phuBangDeVe({ board: 'main' }, false)).toEqual({ board: 'main' })
+  it('bảng độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng; chọn bút không đổi bố cục', () => {
+    // Mỗi mặt vẽ chỉ thấy / tẩy nét của chính nó và gắn mặt của mình vào nét gửi đi.
+    expect(bangVeRaw).toContain('const netCuaMat = strokes.filter((s) => s.mat === mat)')
+    expect(bangVeRaw).toContain('const coTheTay = netCuaMat.filter(')
+    expect(bangVeRaw).toContain('...(mat ? { mat } : {}),')
+    // Lớp vẽ nằm trong khung video / tài liệu nên đi theo khung (di chuyển, phóng to, ẩn).
+    expect(stageRaw).toContain("lopVe={bangVe(true, 'video')}")
+    expect(stageRaw).toContain("lopVeNhung={bangVe(true, 'tailieu')}")
+    expect(stageRaw).not.toContain('whiteboard-passive-overlay')
+    expect(workspaceRaw).not.toContain('phuBangDeVe')
+    expect(workspaceRaw).toMatch(/onChonCongCu=\{\(c\) => \{\s*if \(!laNguoiTrinhChieu && c !== 'chuot'\) return\s*setCongCu\(c\)\s*\}\}/)
   })
 
-  it('giao diện nối bố cục máy chủ: người trình chiếu gửi, mọi người theo; lớp phủ thụ động chỉ dùng khi chưa có bố cục', () => {
+  it('giao diện nối bố cục máy chủ: người trình chiếu gửi, mọi người theo', () => {
     expect(workspaceRaw).toContain('onSendStageLayout(boCuc)')
     expect(workspaceRaw).toContain('setBoCuc(theoBoCucTrinhChieu(stageLayout, Boolean(videoId), Boolean(docUrl)))')
-    expect(stageRaw).toContain('!canControl && !theoNguoiTrinhChieu && boCuc.board')
   })
 })
 
@@ -359,6 +363,46 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     await an.cho('error', (g) => g.message.includes('danh sách video'))
     host.dong()
     an.dong()
+  })
+
+  it('lớp vẽ riêng: nét trên video / tài liệu nhúng mang mặt vẽ; đổi video / tài liệu chỉ xoá nét của lớp đó, bảng giữ nguyên', async () => {
+    const id = await chenPhong('Phòng lớp vẽ riêng', 'acc:1')
+    const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu1'))
+    const an = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu2'))
+    const snap = await host.cho('room.snapshot')
+    await an.cho('room.snapshot')
+    const epoch = snap.whiteboardEpoch ?? 1
+    const net = (idNet: string, mat?: 'video' | 'tailieu') => ({
+      type: 'whiteboard.action' as const,
+      data: { action: 'stroke.add' as const, stroke: { id: idNet, points: [[1, 1], [9, 9]] as [number, number][], color: '#f00', size: 4, epoch, v: 2 as const, tool: 'pen' as const, ...(mat ? { mat } : {}) } },
+    })
+
+    host.gui({ type: 'media.action', data: { action: 'load', videoId: 'dQw4w9WgXcQ', title: 'Video 1' } })
+    await an.cho('media.sync', (g) => g.state.videoId === 'dQw4w9WgXcQ')
+    host.gui(net('tren-bang'))
+    host.gui(net('tren-video', 'video'))
+    host.gui(net('tren-tai-lieu', 'tailieu'))
+    const netVideo = await an.cho('whiteboard.sync', (g) => g.stroke?.id === 'tren-video')
+    expect(netVideo.stroke?.mat).toBe('video')
+    await an.cho('whiteboard.sync', (g) => g.stroke?.id === 'tren-tai-lieu')
+
+    // Cùng video (tải lại) không xoá; video mới thì xoá nét trên video, giữ bảng và tài liệu.
+    host.gui({ type: 'media.action', data: { action: 'load', videoId: 'dQw4w9WgXcQ', title: 'Video 1' } })
+    await an.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)
+    host.gui({ type: 'media.action', data: { action: 'load', videoId: 'M7lc1UVf-VE', title: 'Video 2' } })
+    await an.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'tren-video')
+    await an.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId !== 'tren-video', 200)
+
+    // Mở tài liệu mới: xoá nét trên lớp tài liệu nhúng.
+    host.gui({ type: 'slide.action', data: { action: 'load_doc', docUrl: '/api/files/tai-lieu.pdf', docName: 'x.pdf', fileType: 'pdf', totalPages: 2 } })
+    await an.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'tren-tai-lieu')
+
+    const vaoSau = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
+    const snapSau = await vaoSau.cho('room.snapshot')
+    expect(snapSau.strokes.map((s) => s.id)).toEqual(['tren-bang'])
+    host.dong()
+    an.dong()
+    vaoSau.dong()
   })
 
   it('chú thích chữ trên tài liệu được lưu kèm nội dung chữ', async () => {

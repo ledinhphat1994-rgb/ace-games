@@ -46,7 +46,12 @@ export interface WhiteboardStroke {
   opacity?: number
   /** Khoá người vẽ — máy chủ gắn, dùng để chỉ cho người vẽ (hoặc người điều hành) tẩy nét của mình. */
   by?: string
+  /** Mặt vẽ: lớp vẽ tàng hình gắn với video / tài liệu nhúng. Không có = Bảng (độc lập). */
+  mat?: MatNet
 }
+
+/** Lớp vẽ tàng hình gắn với một lớp nội dung — tách hẳn khỏi Bảng. */
+export type MatNet = 'video' | 'tailieu'
 
 export interface SharedNotes {
   content: string
@@ -135,6 +140,7 @@ export const LenhPhongWhiteboard = z.discriminatedUnion('action', [
       tool: z.enum(['pen', 'highlighter', 'text', 'shape']).optional(),
       text: z.string().min(1).max(200).optional(),
       opacity: z.number().min(0.05).max(1).optional(),
+      mat: z.enum(['video', 'tailieu']).optional(),
     }),
   }),
   z.object({ action: z.literal('stroke.clear') }),

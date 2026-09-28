@@ -31,14 +31,13 @@ import {
   goLop,
   hienLop,
   lamChinh,
-  phuBangDeVe,
   theoBoCucTrinhChieu,
   thuNho,
   type BoCuc,
   type KhungCuaSo,
   type LopId,
 } from './stage-layout'
-import { deriveDefaultWorkspaceMode, laTepPptx, type ContextPanelView } from './types'
+import { deriveDefaultWorkspaceMode, type ContextPanelView } from './types'
 
 export interface ClassroomWorkspaceProps {
   roomId: string
@@ -392,7 +391,6 @@ export function ClassroomWorkspace({
             onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
             isHost={isHost}
             canModerate={canModerate}
-            theoNguoiTrinhChieu={Boolean(stageLayout)}
             myActorKey={nguoiDung.actorKey}
             congCu={congCu}
             hinh={hinh}
@@ -497,13 +495,10 @@ export function ClassroomWorkspace({
             isHost={isHost}
             canModerate={canModerate}
             congCu={congCu}
+            // Chọn công cụ không đổi bố cục: mỗi lớp (bảng, video, tài liệu) có mặt vẽ riêng nằm ngay trên nó.
             onChonCongCu={(c) => {
               if (!laNguoiTrinhChieu && c !== 'chuot') return
               setCongCu(c)
-              if (c === 'chuot') return
-              const taiLieuVeDuoc =
-                slideState?.fileType === 'pdf' || slideState?.fileType === 'image' || laTepPptx(slideState)
-              setBoCuc((bc) => phuBangDeVe(bc, taiLieuVeDuoc))
             }}
             hinh={hinh}
             onChonHinh={setHinh}

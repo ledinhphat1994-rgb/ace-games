@@ -107,16 +107,6 @@ export function batTatBangPhu(bc: BoCuc): BoCuc {
   return { ...bc, board: 'phu' }
 }
 
-/**
- * Chọn công cụ vẽ: video (và tài liệu không có lớp chú thích như Word / Excel nhúng) không vẽ trực tiếp được → phủ bảng trong suốt.
- * PDF, ảnh, .pptx vẽ lên lớp chú thích gắn theo trang nên giữ nguyên bố cục.
- */
-export function phuBangDeVe(bc: BoCuc, taiLieuVeDuoc: boolean): BoCuc {
-  const chinh = lopChinh(bc)
-  const canPhu = chinh === 'video' || (chinh === 'doc' && !taiLieuVeDuoc)
-  return canPhu && bc.board !== 'phu' ? { ...bc, board: 'phu' } : bc
-}
-
 /** Vị trí góc của từng cửa sổ nổi (0: dưới-phải, 1: trên-phải, 2: dưới-trái, 3: trên-trái). */
 export function viTriCuaSo(bc: BoCuc, id: LopId): number {
   return THU_TU_LOP.filter((khac) => bc[khac] === 'pip').indexOf(id)
