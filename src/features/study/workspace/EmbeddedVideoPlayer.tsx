@@ -181,8 +181,8 @@ export function EmbeddedVideoPlayer({
           </div>
         )}
 
-        {/* Autoplay block banner */}
-        {isAutoplayBlocked && (
+        {/* Autoplay block banner — không hiện khi video lỗi (thông báo lỗi ở trên là nguyên nhân thật) */}
+        {isAutoplayBlocked && !errorMessage && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 p-6 text-center">
             <AlertCircle className="h-8 w-8 text-amber-400 mb-2" />
             <p className="text-sm font-bold text-amber-200">Trình duyệt đã tạm dừng video tự động</p>

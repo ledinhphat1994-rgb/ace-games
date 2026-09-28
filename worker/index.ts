@@ -83,6 +83,7 @@ import {
 } from './games/anti-cheat'
 import './games/verifiers/snake-solo-verifier'
 import { danhDauPhienChoiBoDo, rutGonHoTen, vuotGioiHanGame } from './games/phien-choi-don'
+import { MA_VIDEO_YOUTUBE, daBiChanNhung, ghiKhongNhung, kiemTraNhung } from './lib/youtube-nhung'
 import {
   kickMemberFromRoom,
   banMemberFromRoom,
@@ -1777,15 +1778,24 @@ app.get('/api/yt-search', async (c) => {
   if (!q || q.length > 200) return c.json([])
 
   // Kết quả tìm kiếm không phụ thuộc người hỏi: giữ 1 giờ trong Cache API để cùng từ khoá không phải đọc lại YouTube (~1s).
-  const khoaCache = new Request(`https://yt-search.cache/?q=${encodeURIComponent(q.toLowerCase())}`)
+  // v2: kết quả đã bỏ video bị chủ sở hữu chặn nhúng (bản cũ chưa lọc không dùng lại).
+  const khoaCache = new Request(`https://yt-search.cache/v2?q=${encodeURIComponent(q.toLowerCase())}`)
   let cache: Cache | undefined
   try {
     // Ép kiểu: project test nạp thêm lib DOM, nơi CacheStorage không có `.default` như trên Workers.
     cache = (caches as unknown as { default: Cache }).default
   } catch {}
   const daLuu = await cache?.match(khoaCache).catch(() => undefined)
-  if (daLuu) return c.json(await daLuu.json())
-  const traVe = (ketQua: { videoId: string; title: string; author: string }[]) => {
+  if (daLuu) {
+    // Kết quả đã lưu vẫn bỏ video mà trình phát trong phòng vừa báo là bị chặn nhúng.
+    const cu = (await daLuu.json()) as { videoId: string }[]
+    const biChan = await Promise.all(cu.map((v) => daBiChanNhung(v.videoId, cache)))
+    return c.json(cu.filter((_, i) => !biChan[i]))
+  }
+  const traVe = async (ungVien: { videoId: string; title: string; author: string }[]) => {
+    // Bỏ video chủ sở hữu tắt nhúng (không phát được trong phòng học); lỗi mạng thì vẫn giữ.
+    const nhung = await Promise.all(ungVien.map((v) => kiemTraNhung(v.videoId, { cache })))
+    const ketQua = ungVien.filter((_, i) => nhung[i] !== 'khong').slice(0, 9)
     if (cache && ketQua.length > 0) {
       const banLuu = new Response(JSON.stringify(ketQua), {
         headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
@@ -1814,17 +1824,46 @@ app.get('/api/yt-search', async (c) => {
           const v = item?.videoRenderer
           if (v && typeof v.videoId === 'string') {
             results.push({ videoId: v.videoId, title: v.title?.runs?.[0]?.text || 'Video YouTube', author: v.ownerText?.runs?.[0]?.text || '' })
-            if (results.length >= 9) break
+            // Lấy dư để còn đủ 9 sau khi bỏ video bị chặn nhúng.
+            if (results.length >= 18) break
           }
         }
-        if (results.length > 0) return traVe(results)
+        if (results.length > 0) return await traVe(results)
       } catch {}
     }
-    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 9)
-    return traVe(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
+    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 18)
+    return await traVe(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
   } catch { return c.json([]) }
 })
 app.all('/api/yt-search', saiPhuongThuc)
+
+// Video dán link: hỏi trước xem chủ sở hữu có cho phát trên trang khác không (tránh chèn video không phát được).
+app.get('/api/yt-check', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const id = (c.req.query('id') ?? '').trim()
+  if (!MA_VIDEO_YOUTUBE.test(id)) return loi('Mã video YouTube không hợp lệ.', 400)
+  let cache: Cache | undefined
+  try {
+    cache = (caches as unknown as { default: Cache }).default
+  } catch {}
+  return c.json({ nhung: await kiemTraNhung(id, { cache }) })
+})
+// Trình phát nhúng trong phòng báo lỗi 101/150 (bị chặn nhúng, kể cả vì bản quyền mà oEmbed không thấy): ghi nhớ video đó.
+app.post('/api/yt-check', async (c) => {
+  const kq = await kiemTraPhien(await layPhien(c.req.raw, c.env), c.env)
+  if (!kq.hopLe) return loi(kq.thongBao, 401)
+  const body = (await c.req.json().catch(() => null)) as { id?: unknown } | null
+  const id = typeof body?.id === 'string' ? body.id.trim() : ''
+  if (!MA_VIDEO_YOUTUBE.test(id)) return loi('Mã video YouTube không hợp lệ.', 400)
+  let cache: Cache | undefined
+  try {
+    cache = (caches as unknown as { default: Cache }).default
+  } catch {}
+  await ghiKhongNhung(id, cache)
+  return c.json({ ok: true })
+})
+app.all('/api/yt-check', saiPhuongThuc)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Social Graph & Presence APIs
