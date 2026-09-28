@@ -375,12 +375,17 @@ const KHUNG_CUA_SO = z.object({
   w: z.number().min(0.05).max(1),
   h: z.number().min(0.05).max(1),
 })
+const TRUOC_KHI_AN = z.enum(['main', 'pip'])
 export const BoCucSanKhau = z.object({
   doc: VAI_TRO_LOP.optional(),
   video: VAI_TRO_LOP.optional(),
   board: VAI_TRO_LOP.optional(),
   khung: z
     .object({ doc: KHUNG_CUA_SO.optional(), video: KHUNG_CUA_SO.optional(), board: KHUNG_CUA_SO.optional() })
+    .optional(),
+  /** Vai trò của lớp ngay trước khi bị ẩn — bật lại thì về đúng vai trò (và khung) cũ. */
+  truocKhiAn: z
+    .object({ doc: TRUOC_KHI_AN.optional(), video: TRUOC_KHI_AN.optional(), board: TRUOC_KHI_AN.optional() })
     .optional(),
 })
 export type BoCucSanKhau = z.infer<typeof BoCucSanKhau>
