@@ -7,7 +7,6 @@ import type { GoiPhong } from '../shared/protocol/room'
 import {
   anLop,
   bamLop,
-  batTatBangPhu,
   boCucBanDau,
   cungBoCuc,
   datKhung,
@@ -36,6 +35,7 @@ import docStageRaw from '../src/features/study/workspace/DocumentStageView.tsx?r
 import videoRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?raw'
 import dockRaw from '../src/features/study/workspace/ClassroomToolDock.tsx?raw'
 import bangVeRaw from '../src/features/study/workspace/BangVe.tsx?raw'
+import topBarRaw from '../src/features/study/workspace/ClassroomTopBar.tsx?raw'
 
 describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   it('vào phòng: video đang phát làm lớp chính, tài liệu thành cửa sổ nổi', () => {
@@ -60,18 +60,15 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(thuNho({ video: 'main' }, 'video')).toEqual({ video: 'pip' })
   })
 
-  it('ẩn lớp chính: nâng cửa sổ nổi; chỉ còn bảng đang phủ thì bảng thành lớp chính', () => {
+  it('ẩn lớp chính: nâng cửa sổ nổi lên làm chính', () => {
     expect(anLop({ video: 'main', doc: 'pip' }, 'video')).toEqual({ video: 'an', doc: 'main' })
-    expect(anLop({ video: 'main', board: 'phu' }, 'video')).toEqual({ video: 'an', board: 'main' })
+    expect(anLop({ video: 'main', board: 'pip' }, 'video')).toEqual({ video: 'an', board: 'main' })
   })
 
-  it('bảng phủ trong suốt lên video / tài liệu; không phủ được khi chính bảng đang là lớp chính', () => {
-    const phu = batTatBangPhu({ video: 'main', board: 'pip' })
-    expect(phu).toEqual({ video: 'main', board: 'phu' })
-    expect(batTatBangPhu(phu)).toEqual({ video: 'main', board: 'pip' })
-    expect(batTatBangPhu({ board: 'main' })).toEqual({ board: 'main' })
-    // Đổi lớp chính trong lúc bảng đang phủ: bảng vẫn phủ lên lớp chính mới.
-    expect(lamChinh({ video: 'main', doc: 'pip', board: 'phu' }, 'doc')).toEqual({ video: 'pip', doc: 'main', board: 'phu' })
+  it('đã bỏ chức năng phủ Bảng: không còn nút phủ, không còn nhánh vẽ bảng phủ', () => {
+    expect(khungRaw).not.toContain('layer-${id}-overlay')
+    expect(stageRaw).not.toContain("boCuc.board === 'phu'")
+    expect(workspaceRaw).not.toContain('batTatBangPhu')
   })
 
   it('nội dung mới từ giáo viên hiện lên mà không giành lớp chính; nội dung kết thúc thì gỡ lớp', () => {
@@ -112,7 +109,16 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(workspaceRaw).toContain("anDock ? 'translate-y-[calc(100%+0.5rem)] opacity-0' : 'pointer-events-auto'")
     // Lớp bọc không chặn thao tác trên sân khấu khi thanh đã thu xuống.
     expect(workspaceRaw).toContain("'pointer-events-none fixed inset-x-0 bottom-0 z-[110] flex justify-center'")
-    expect(dockRaw).toContain('onKhayMo?.(moBut || moCongCu)')
+    expect(dockRaw).toContain('onKhayMo?.(moBut || moCongCu || moAmThanh)')
+  })
+
+  it('mic + cài đặt âm thanh nằm ở thanh công cụ dưới (mọi người), không còn ở thanh trên', () => {
+    expect(dockRaw).toContain('data-testid="dock-btn-mic"')
+    expect(dockRaw).toContain("aria-label={myMic ? 'Tắt micro' : 'Bật micro'}")
+    expect(dockRaw).toContain('id="voice-in-select"')
+    expect(topBarRaw).not.toContain('onToggleMic')
+    // Cụm mic đứng trước khối chỉ dành cho người trình chiếu → học sinh cũng có.
+    expect(dockRaw.indexOf('data-testid="dock-btn-mic"')).toBeLessThan(dockRaw.indexOf('{canControl && ('))
   })
 
   it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / toàn màn hình / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
@@ -135,8 +141,10 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
 
 describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
   it('theo bố cục giáo viên; lớp chưa có nội dung trên máy này thì bỏ ra và nâng lớp khác lên', () => {
-    expect(theoBoCucTrinhChieu({ doc: 'main', video: 'pip', board: 'phu' }, true, true)).toEqual({ doc: 'main', video: 'pip', board: 'phu' })
-    // Gói đồng bộ video chưa tới: bỏ lớp video, bảng đang phủ lên video thành lớp chính.
+    expect(theoBoCucTrinhChieu({ doc: 'main', video: 'pip', board: 'pip' }, true, true)).toEqual({ doc: 'main', video: 'pip', board: 'pip' })
+    // Bố cục cũ còn bảng phủ ('phu', đã bỏ) → đọc thành cửa sổ nổi.
+    expect(theoBoCucTrinhChieu({ doc: 'main', board: 'phu' }, false, true)).toEqual({ doc: 'main', board: 'pip' })
+    // Gói đồng bộ video chưa tới: bỏ lớp video, cửa sổ nổi còn lại thành lớp chính.
     expect(theoBoCucTrinhChieu({ video: 'main', board: 'phu' }, false, false)).toEqual({ board: 'main' })
     expect(theoBoCucTrinhChieu({ video: 'main', doc: 'pip' }, false, true)).toEqual({ doc: 'main' })
   })

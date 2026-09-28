@@ -8,10 +8,10 @@ export type LopId = 'doc' | 'board' | 'video'
 /**
  * - main: chiếm toàn sân khấu.
  * - pip: cửa sổ nổi kéo thả được, nằm trên lớp chính.
- * - phu: (chỉ bảng) bảng trong suốt phủ lên lớp chính để vẽ đè lên video / tài liệu.
  * - an: ẩn khỏi màn hình nhưng vẫn chạy (video vẫn phát tiếng).
+ * Vẽ lên video / tài liệu dùng lớp vẽ riêng của chúng, không phủ Bảng lên nữa.
  */
-export type VaiTroLop = 'main' | 'pip' | 'phu' | 'an'
+export type VaiTroLop = 'main' | 'pip' | 'an'
 
 /** Vị trí + cỡ cửa sổ nổi theo tỉ lệ khung sân khấu (0..1): giáo viên kéo tới đâu, học sinh thấy ở đúng chỗ đó. */
 export interface KhungCuaSo {
@@ -22,6 +22,9 @@ export interface KhungCuaSo {
 }
 
 export type BoCuc = Partial<Record<LopId, VaiTroLop>> & { khung?: Partial<Record<LopId, KhungCuaSo>> }
+
+/** Bố cục nhận từ máy chủ: bản cũ có thể còn vai trò 'phu' (bảng phủ, đã bỏ) — đọc thành cửa sổ nổi. */
+export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & { khung?: BoCuc['khung'] }
 
 /** Kẹp khung trong sân khấu, làm tròn cho gọn gói tin. */
 export function kepKhung(k: KhungCuaSo): KhungCuaSo {
@@ -39,23 +42,20 @@ export function datKhung(bc: BoCuc, id: LopId, k: KhungCuaSo): BoCuc {
 /** Thứ tự cố định: dùng cho vị trí cửa sổ nổi và thứ tự nâng lên làm lớp chính. */
 export const THU_TU_LOP: readonly LopId[] = ['doc', 'video', 'board']
 
-export const dangHien = (vaiTro: VaiTroLop | undefined): boolean =>
-  vaiTro === 'main' || vaiTro === 'pip' || vaiTro === 'phu'
+export const dangHien = (vaiTro: VaiTroLop | undefined): boolean => vaiTro === 'main' || vaiTro === 'pip'
 
 export function lopChinh(bc: BoCuc): LopId | null {
   return THU_TU_LOP.find((id) => bc[id] === 'main') ?? null
 }
 
-/** Lớp chính vừa mất: nâng cửa sổ nổi đầu tiên lên; không còn cửa sổ nào thì bảng đang phủ trở thành lớp chính. */
+/** Lớp chính vừa mất: nâng cửa sổ nổi đầu tiên lên. */
 function nangLopChinh(bc: BoCuc): BoCuc {
   if (lopChinh(bc)) return bc
   const cuaSo = THU_TU_LOP.find((id) => bc[id] === 'pip')
-  if (cuaSo) return { ...bc, [cuaSo]: 'main' }
-  if (bc.board === 'phu') return { ...bc, board: 'main' }
-  return bc
+  return cuaSo ? { ...bc, [cuaSo]: 'main' } : bc
 }
 
-/** Đưa một lớp lên làm lớp chính; lớp chính cũ thu thành cửa sổ nổi. Bảng đang phủ vẫn phủ lên lớp chính mới. */
+/** Đưa một lớp lên làm lớp chính; lớp chính cũ thu thành cửa sổ nổi. */
 export function lamChinh(bc: BoCuc, id: LopId): BoCuc {
   const ketQua: BoCuc = { ...bc }
   const cu = lopChinh(bc)
@@ -64,9 +64,8 @@ export function lamChinh(bc: BoCuc, id: LopId): BoCuc {
   return ketQua
 }
 
-/** Lớp chính thu thành cửa sổ nổi (lớp khác đang hiện được nâng lên làm chính); bảng đang phủ thành cửa sổ. */
+/** Lớp chính thu thành cửa sổ nổi (lớp khác đang hiện được nâng lên làm chính). */
 export function thuNho(bc: BoCuc, id: LopId): BoCuc {
-  if (bc[id] === 'phu') return { ...bc, [id]: 'pip' }
   if (bc[id] !== 'main') return bc
   const conLai = THU_TU_LOP.find((khac) => khac !== id && bc[khac] === 'pip')
   if (conLai) return { ...bc, [id]: 'pip', [conLai]: 'main' }
@@ -99,24 +98,16 @@ export function bamLop(bc: BoCuc, id: LopId): BoCuc {
   return dangHien(bc[id]) ? anLop(bc, id) : lamChinh(bc, id)
 }
 
-/** Bảng: cửa sổ nổi ⇄ phủ trong suốt lên lớp chính (chỉ khi lớp chính là tài liệu hoặc video). */
-export function batTatBangPhu(bc: BoCuc): BoCuc {
-  if (bc.board === 'phu') return { ...bc, board: 'pip' }
-  const chinh = lopChinh(bc)
-  if (!chinh || chinh === 'board') return bc
-  return { ...bc, board: 'phu' }
-}
-
 /** Vị trí góc của từng cửa sổ nổi (0: dưới-phải, 1: trên-phải, 2: dưới-trái, 3: trên-trái). */
 export function viTriCuaSo(bc: BoCuc, id: LopId): number {
   return THU_TU_LOP.filter((khac) => bc[khac] === 'pip').indexOf(id)
 }
 
 /** Bố cục người trình chiếu gửi về: lớp chưa có nội dung trên máy này (gói đồng bộ nội dung chưa tới) thì bỏ ra. */
-export function theoBoCucTrinhChieu(bc: BoCuc, coVideo: boolean, coTaiLieu: boolean): BoCuc {
+export function theoBoCucTrinhChieu(bc: BoCucMayChu, coVideo: boolean, coTaiLieu: boolean): BoCuc {
   const ketQua: BoCuc = bc.khung ? { khung: bc.khung } : {}
   for (const id of THU_TU_LOP) {
-    const vaiTro = bc[id]
+    const vaiTro = bc[id] === 'phu' ? 'pip' : bc[id]
     if (!vaiTro) continue
     if ((id === 'video' && !coVideo) || (id === 'doc' && !coTaiLieu)) continue
     ketQua[id] = vaiTro
@@ -127,7 +118,7 @@ export function theoBoCucTrinhChieu(bc: BoCuc, coVideo: boolean, coTaiLieu: bool
 const cungKhung = (a?: KhungCuaSo, b?: KhungCuaSo) =>
   a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
 
-export function cungBoCuc(a: BoCuc, b: BoCuc | null): boolean {
+export function cungBoCuc(a: BoCuc, b: BoCucMayChu | null): boolean {
   return b !== null && THU_TU_LOP.every((id) => a[id] === b[id] && cungKhung(a.khung?.[id], b.khung?.[id]))
 }
 

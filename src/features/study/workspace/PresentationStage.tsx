@@ -9,14 +9,13 @@ import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
 import { KhungLop, NutKhung } from './KhungLop'
-import { dangHien, lopChinh, viTriCuaSo, type BoCuc, type KhungCuaSo, type LopId } from './stage-layout'
+import { dangHien, viTriCuaSo, type BoCuc, type KhungCuaSo, type LopId } from './stage-layout'
 
 export interface PresentationStageProps {
   boCuc: BoCuc
   onPhongTo: (id: LopId) => void
   onThuNho: (id: LopId) => void
   onAn: (id: LopId) => void
-  onBatTatBangPhu: () => void
   /** Người trình chiếu kéo / đổi cỡ cửa sổ nổi xong → khung mới (đồng bộ cho cả phòng). */
   onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
   /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
@@ -71,7 +70,6 @@ export function PresentationStage({
   onPhongTo,
   onThuNho,
   onAn,
-  onBatTatBangPhu,
   onDoiKhung,
   onKeoKhung,
   isHost,
@@ -106,7 +104,6 @@ export function PresentationStage({
   isReconnecting = false,
 }: PresentationStageProps) {
   const canControl = !isReconnecting && (isHost || canModerate)
-  const chinh = lopChinh(boCuc)
   const coLopHien = (['doc', 'video', 'board'] as const).some((id) => dangHien(boCuc[id]))
 
   const khungCuaSo = (id: LopId) => ({
@@ -125,8 +122,6 @@ export function PresentationStage({
         onPhongTo={() => onPhongTo(id)}
         onThuNho={() => onThuNho(id)}
         onAn={() => onAn(id)}
-        onPhu={id === 'board' ? onBatTatBangPhu : undefined}
-        coThePhu={id === 'board' && chinh !== null && chinh !== 'board'}
         toanManHinh={isFullscreen}
         onToanManHinh={onToggleFullscreen}
         chiXem={!canControl}
@@ -281,41 +276,24 @@ export function PresentationStage({
         </KhungLop>
       )}
 
-      {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi / phủ trong suốt lên lớp chính ── */}
+      {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi (độc lập, không phủ lên lớp khác) ── */}
       {boCuc.board && (
         <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl} {...khungCuaSo('board')}>
-          {boCuc.board === 'phu' ? (
-            // Phủ đúng vùng nội dung của lớp chính: chừa thanh tiêu đề (và thanh điều khiển nếu lớp chính là video).
+          <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a1611]" data-testid="whiteboard-stage">
             <div
-              className={`absolute inset-x-0 ${chinh === 'video' ? 'top-10 bottom-16' : 'top-11 bottom-0'}`}
-              data-testid="whiteboard-stage"
+              data-keo-khung
+              className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 ${boCuc.board === 'pip' ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
             >
-              {bangVe(true)}
-              {canControl && (
-                <div className="pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1 rounded-xl border border-emerald-400/30 bg-slate-950/85 py-0.5 pl-2 pr-0.5 shadow-lg backdrop-blur-md">
-                  <PenLine className="h-3.5 w-3.5 text-emerald-400" />
-                  {nutKhung('board')}
-                </div>
-              )}
+              <span className="flex items-center gap-2 text-xs font-semibold text-white">
+                <PenLine className="h-4 w-4 text-emerald-400" />
+                Bảng
+              </span>
+              {nutKhung('board')}
             </div>
-          ) : (
-            <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a1611]" data-testid="whiteboard-stage">
-              <div
-                data-keo-khung
-                className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 ${boCuc.board === 'pip' ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
-              >
-                <span className="flex items-center gap-2 text-xs font-semibold text-white">
-                  <PenLine className="h-4 w-4 text-emerald-400" />
-                  Bảng
-                </span>
-                {nutKhung('board')}
-              </div>
-              <div className="relative min-h-0 flex-1">{bangVe(false)}</div>
-            </div>
-          )}
+            <div className="relative min-h-0 flex-1">{bangVe(false)}</div>
+          </div>
         </KhungLop>
       )}
-
     </section>
   )
 }

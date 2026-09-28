@@ -24,7 +24,6 @@ import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import {
   anLop,
   bamLop,
-  batTatBangPhu,
   boCucBanDau,
   cungBoCuc,
   datKhung,
@@ -34,6 +33,7 @@ import {
   theoBoCucTrinhChieu,
   thuNho,
   type BoCuc,
+  type BoCucMayChu,
   type KhungCuaSo,
   type LopId,
 } from './stage-layout'
@@ -187,7 +187,7 @@ export function ClassroomWorkspace({
       : boCucBanDau(deriveDefaultWorkspaceMode(mediaState, slideState), Boolean(videoId), Boolean(docUrl)),
   )
   /** Bố cục máy chủ đang giữ (lần nhận / gửi gần nhất) — chỉ gửi khi bố cục của người trình chiếu khác nó. */
-  const boCucMayChuRef = useRef<BoCuc | null>(stageLayout)
+  const boCucMayChuRef = useRef<BoCucMayChu | null>(stageLayout)
   const boCucRef = useRef(boCuc)
   useEffect(() => {
     boCucRef.current = boCuc
@@ -349,15 +349,6 @@ export function ClassroomWorkspace({
         isOnline={isOnline}
         isReconnecting={isReconnecting}
         latencyMs={latencyMs}
-        myMic={myMic}
-        onToggleMic={onToggleMic}
-        voiceState={voiceState}
-        audioInputs={audioInputs}
-        audioOutputs={audioOutputs}
-        isSinkIdSupported={isSinkIdSupported}
-        onSetAudioInput={onSetAudioInput}
-        onSetAudioOutput={onSetAudioOutput}
-        onRefreshDevices={onRefreshDevices}
         activePanel={contextPanel}
         onTogglePanel={handleTogglePanel}
         unreadChatCount={unreadChatCount}
@@ -386,7 +377,6 @@ export function ClassroomWorkspace({
             onPhongTo={doiBoCuc(lamChinh)}
             onThuNho={doiBoCuc(thuNho)}
             onAn={doiBoCuc(anLop)}
-            onBatTatBangPhu={() => setBoCuc(batTatBangPhu)}
             onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
             onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
             isHost={isHost}
@@ -513,6 +503,15 @@ export function ClassroomWorkspace({
             onOpenCalculator={onOpenCalculator}
             onOpenSessionPanel={onOpenSessionPanel}
             onKhayMo={setKhayDockMo}
+            myMic={myMic}
+            onToggleMic={onToggleMic}
+            voiceState={voiceState}
+            audioInputs={audioInputs}
+            audioOutputs={audioOutputs}
+            isSinkIdSupported={isSinkIdSupported}
+            onSetAudioInput={onSetAudioInput}
+            onSetAudioOutput={onSetAudioOutput}
+            onRefreshDevices={onRefreshDevices}
             isReconnecting={isReconnecting}
           />
         </div>

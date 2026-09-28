@@ -1,7 +1,7 @@
 // Khung cho một lớp trên sân khấu (Tài liệu / Bảng / Video) + nút điều khiển góc phải đầu khung.
 // Đổi vai trò (chính ⇄ cửa sổ nổi ⇄ ẩn) chỉ đổi class: phần tử con giữ nguyên, video YouTube không bị tải lại.
 
-import { EyeOff, Layers, Maximize, Maximize2, Minimize, PictureInPicture2 } from 'lucide-react'
+import { EyeOff, Maximize, Maximize2, Minimize, PictureInPicture2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { kepKhung, type KhungCuaSo, type LopId, type VaiTroLop } from './stage-layout'
@@ -98,11 +98,9 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
   const lop =
     vaiTro === 'main'
       ? 'absolute inset-0 z-0'
-      : vaiTro === 'phu'
-        ? 'pointer-events-none absolute inset-0 z-20'
-        : vaiTro === 'pip'
-          ? `absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
-          : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
+      : vaiTro === 'pip'
+        ? `absolute z-30 ${khung ? '' : goc} ${khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''} ${kichThuoc?.rong || khung ? '' : 'aspect-video w-[min(46%,440px)]'} min-w-[180px] overflow-hidden rounded-xl border border-white/15 shadow-2xl shadow-black/60`
+        : 'pointer-events-none absolute -left-[9999px] top-0 h-px w-px overflow-hidden opacity-0'
 
   // Kéo cửa sổ nổi bằng thanh tiêu đề (phần tử có data-keo-khung, trừ nút / ô nhập).
   const batDauKeo = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -355,12 +353,9 @@ interface NutKhungProps {
   onPhongTo: () => void
   onThuNho: () => void
   onAn: () => void
-  /** Chỉ bảng: phủ trong suốt lên lớp chính ⇄ cửa sổ. */
-  onPhu?: () => void
-  coThePhu?: boolean
   toanManHinh?: boolean
   onToanManHinh?: () => void
-  /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, phủ, toàn màn hình). */
+  /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, toàn màn hình). */
   chiXem?: boolean
 }
 
@@ -374,8 +369,6 @@ export function NutKhung({
   onPhongTo,
   onThuNho,
   onAn,
-  onPhu,
-  coThePhu,
   toanManHinh,
   onToanManHinh,
   chiXem = false,
@@ -402,20 +395,6 @@ export function NutKhung({
       ) : (
         <button type="button" onClick={onPhongTo} className={nut} title="Phóng to" aria-label="Phóng to" data-testid={`layer-${id}-enlarge`}>
           <Maximize2 className="h-3.5 w-3.5" />
-        </button>
-      )}
-      {onPhu && (vaiTro === 'pip' || vaiTro === 'phu') && (
-        <button
-          type="button"
-          onClick={onPhu}
-          disabled={vaiTro === 'pip' && !coThePhu}
-          className={`${nut} disabled:opacity-30 disabled:cursor-not-allowed ${vaiTro === 'phu' ? 'bg-emerald-500/20 text-emerald-300' : ''}`}
-          title={vaiTro === 'phu' ? 'Thành cửa sổ' : 'Phủ lên'}
-          aria-label={vaiTro === 'phu' ? 'Thành cửa sổ' : 'Phủ lên nội dung chính'}
-          aria-pressed={vaiTro === 'phu'}
-          data-testid={`layer-${id}-overlay`}
-        >
-          <Layers className="h-3.5 w-3.5" />
         </button>
       )}
       {nutToanManHinh}
