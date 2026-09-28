@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
+import { donMotTaiLieu } from './lib/don-tai-lieu'
 import {
   LenhPhong,
   LenhPhongSession,
@@ -220,6 +221,15 @@ export class RoomDO extends DurableObject<Env> {
   /** Lệnh của một kết nối được xử lý lần lượt, kể cả khi lệnh trước còn chờ D1. */
   private hangDoiLenh = new WeakMap<WebSocket, Promise<void>>()
   private voiceRegistry = new Map<string, VoiceParticipantState>()
+
+  /** Tài liệu cũ không còn trên sân khấu (thay tài liệu khác / đóng): xoá hẳn tệp khỏi R2 cho nhẹ lưu trữ. */
+  private donTaiLieuCu(docId: number | undefined): void {
+    const roomId = this.parseNumericRoomId()
+    if (!docId || !roomId || !this.env?.DB || !this.env?.ANH) return
+    this.ctx.waitUntil(
+      donMotTaiLieu(this.env, roomId, docId).catch((err) => console.error('Lỗi dọn tệp tài liệu cũ:', err)),
+    )
+  }
 
   private parseNumericRoomId(): number | null {
     const name = this.roomName || (this.ctx as any).id?.name || ''
@@ -2139,9 +2149,9 @@ export class RoomDO extends DurableObject<Env> {
 
   /** Gói laser vừa có phiên được đối chiếu D1 gần đây thì không cần truy vấn D1 lại. */
   private laserConTinPhien(ws: WebSocket, type: string, raw: { [k: string]: unknown }): boolean {
-    if (type !== 'slide.action') return false
+    if (type !== 'slide.action' && type !== 'stage.laser') return false
     const data = raw.data as { action?: unknown } | null | undefined
-    if (data?.action !== 'laser') return false
+    if (type === 'slide.action' && data?.action !== 'laser') return false
     const luc = this.phienXacMinhLuc.get(ws)
     return luc !== undefined && Date.now() - luc < LASER_TIN_PHIEN_MS
   }
@@ -2597,6 +2607,7 @@ export class RoomDO extends DurableObject<Env> {
             }
           }
         } else if (d.action === 'load_doc') {
+          const docCu = this.slide?.docId
           const rawUrl = d.docUrl.trim()
           let pathname = rawUrl
           if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
@@ -2630,7 +2641,9 @@ export class RoomDO extends DurableObject<Env> {
           } catch {}
           this.broadcast({ type: 'slide.annotation', action: 'clear' })
           this.xoaNetTheoMat('tailieu')
+          if (docCu && docCu !== d.docId) this.donTaiLieuCu(docCu)
         } else if (d.action === 'close_doc') {
+          this.donTaiLieuCu(this.slide?.docId)
           this.slide = null
           try {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations')
@@ -2800,6 +2813,13 @@ export class RoomDO extends DurableObject<Env> {
         }
         const nextStatus = goi.muted ? 'muted' : 'live'
         this.updateVoiceStatus(att.key, nextStatus, goi.generation)
+        break
+      }
+
+      case 'stage.laser': {
+        // Chỉ người trình chiếu chiếu laser; gói tạm thời, không lưu. Người gửi tự vẽ chấm của mình nên không gửi lại.
+        if (!laQuanTri) return
+        this.broadcast({ type: 'stage.laser', lop: goi.lop, point: goi.point, senderName: att.ten || 'Giáo viên' }, ws)
         break
       }
 

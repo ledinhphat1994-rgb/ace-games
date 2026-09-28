@@ -4,6 +4,7 @@
 import type { NguoiDung } from '@/lib/api'
 import type {
   BoCucSanKhau,
+  LopLaser,
   MediaState,
   RoomChatMessage,
   SharedNotes,
@@ -20,6 +21,7 @@ import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
 import { PresentationStage } from './PresentationStage'
+import type { TiaLaser } from './LopLaserTrinhChieu'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import {
   anLop,
@@ -53,6 +55,8 @@ export interface ClassroomWorkspaceProps {
   stageLayout?: BoCucSanKhau | null
   daNhanAnhChup?: boolean
   onSendStageLayout?: (layout: BoCucSanKhau) => void
+  stageLaser?: TiaLaser | null
+  onSendStageLaser?: (lop: LopLaser, point: [number, number] | null) => void
   // Slide
   slideState?: SlideState | null
   onPageChange?: (newPage: number, step?: number) => void
@@ -125,6 +129,8 @@ export function ClassroomWorkspace({
   stageLayout = null,
   daNhanAnhChup = false,
   onSendStageLayout,
+  stageLaser = null,
+  onSendStageLaser,
   slideState,
   onPageChange,
   onUploadSlide,
@@ -379,6 +385,8 @@ export function ClassroomWorkspace({
             onAn={doiBoCuc(anLop)}
             onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
             onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
+            stageLaser={stageLaser}
+            onSendStageLaser={onSendStageLaser}
             isHost={isHost}
             canModerate={canModerate}
             myActorKey={nguoiDung.actorKey}

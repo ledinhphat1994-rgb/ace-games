@@ -53,6 +53,9 @@ export interface WhiteboardStroke {
 /** Lớp vẽ tàng hình gắn với một lớp nội dung — tách hẳn khỏi Bảng. */
 export type MatNet = 'video' | 'tailieu'
 
+/** Lớp nhận tia laser của người trình chiếu (toạ độ 0..1 trong vùng nội dung của lớp). */
+export type LopLaser = 'video' | 'board' | 'tailieu'
+
 export interface SharedNotes {
   content: string
   lastEditedBy: string
@@ -406,6 +409,12 @@ export const LenhPhong = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('session.action'), data: LenhPhongSession }),
   z.object({ type: z.literal('stage.layout'), layout: BoCucSanKhau }),
+  // Tia laser của người trình chiếu trên video / bảng / tài liệu nhúng (trang PDF, ảnh, .pptx dùng laser theo trang).
+  z.object({
+    type: z.literal('stage.laser'),
+    lop: z.enum(['video', 'board', 'tailieu']),
+    point: z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)]).nullable(),
+  }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -478,6 +487,7 @@ export type GoiPhong =
   | { type: 'voice.force_muted'; targetKey: string; by: string }
   | { type: 'room.kicked'; targetKey: string; reason?: string; by: string }
   | { type: 'stage.sync'; layout: BoCucSanKhau }
+  | { type: 'stage.laser'; lop: LopLaser; point: [number, number] | null; senderName?: string }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }

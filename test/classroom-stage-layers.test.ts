@@ -203,8 +203,8 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     expect(bangVeRaw).toContain('const coTheTay = netCuaMat.filter(')
     expect(bangVeRaw).toContain('...(mat ? { mat } : {}),')
     // Lớp vẽ nằm trong khung video / tài liệu nên đi theo khung (di chuyển, phóng to, ẩn).
-    expect(stageRaw).toContain("lopVe={bangVe(true, 'video')}")
-    expect(stageRaw).toContain("lopVeNhung={bangVe(true, 'tailieu')}")
+    expect(stageRaw).toMatch(/lopVe=\{\s*<>\s*\{bangVe\(true, 'video'\)\}/)
+    expect(stageRaw).toMatch(/lopVeNhung=\{\s*<>\s*\{bangVe\(true, 'tailieu'\)\}/)
     expect(stageRaw).not.toContain('whiteboard-passive-overlay')
     expect(workspaceRaw).not.toContain('phuBangDeVe')
     expect(workspaceRaw).toMatch(/onChonCongCu=\{\(c\) => \{\s*if \(!laNguoiTrinhChieu && c !== 'chuot'\) return\s*setCongCu\(c\)\s*\}\}/)
