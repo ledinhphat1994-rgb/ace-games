@@ -21,10 +21,14 @@ export interface KhungCuaSo {
   h: number
 }
 
-export type BoCuc = Partial<Record<LopId, VaiTroLop>> & { khung?: Partial<Record<LopId, KhungCuaSo>> }
+export type BoCuc = Partial<Record<LopId, VaiTroLop>> & {
+  khung?: Partial<Record<LopId, KhungCuaSo>>
+  /** Vai trò ngay trước khi ẩn: bật lại lớp thì về đúng vai trò cũ (cửa sổ nổi giữ nguyên khung), không tự phóng to. */
+  truocKhiAn?: Partial<Record<LopId, 'main' | 'pip'>>
+}
 
 /** Bố cục nhận từ máy chủ: bản cũ có thể còn vai trò 'phu' (bảng phủ, đã bỏ) — đọc thành cửa sổ nổi. */
-export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & { khung?: BoCuc['khung'] }
+export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & { khung?: BoCuc['khung']; truocKhiAn?: BoCuc['truocKhiAn'] }
 
 /** Kẹp khung trong sân khấu, làm tròn cho gọn gói tin. */
 export function kepKhung(k: KhungCuaSo): KhungCuaSo {
@@ -72,10 +76,12 @@ export function thuNho(bc: BoCuc, id: LopId): BoCuc {
   return { ...bc, [id]: 'pip' }
 }
 
-/** Ẩn một lớp (vẫn chạy). */
+/** Ẩn một lớp (vẫn chạy); nhớ vai trò đang có để bật lại đúng như cũ. */
 export function anLop(bc: BoCuc, id: LopId): BoCuc {
-  if (!bc[id]) return bc
-  return nangLopChinh({ ...bc, [id]: 'an' })
+  const vaiTro = bc[id]
+  if (!vaiTro) return bc
+  const nho = vaiTro === 'main' || vaiTro === 'pip' ? { truocKhiAn: { ...bc.truocKhiAn, [id]: vaiTro } } : {}
+  return nangLopChinh({ ...bc, ...nho, [id]: 'an' })
 }
 
 /** Bỏ hẳn một lớp khỏi sân khấu (nội dung đã kết thúc: đóng tài liệu, gỡ video). */
@@ -93,9 +99,14 @@ export function hienLop(bc: BoCuc, id: LopId): BoCuc {
   return chinh ? { ...bc, [id]: 'pip' } : { ...bc, [id]: 'main' }
 }
 
-/** Nút trên thanh dock: lớp đang hiện → ẩn đi; đang ẩn / chưa mở → đưa lên làm lớp chính. */
+/**
+ * Nút trên thanh dock: lớp đang hiện → ẩn đi; bật lại → về đúng vai trò trước khi ẩn (cửa sổ nổi giữ nguyên chỗ / cỡ),
+ * không tự phóng to — cỡ chỉ đổi khi bấm phóng to / thu nhỏ. Chưa từng mở → làm lớp chính.
+ */
 export function bamLop(bc: BoCuc, id: LopId): BoCuc {
-  return dangHien(bc[id]) ? anLop(bc, id) : lamChinh(bc, id)
+  if (dangHien(bc[id])) return anLop(bc, id)
+  if (bc[id] === 'an' && bc.truocKhiAn?.[id] === 'pip' && lopChinh(bc)) return { ...bc, [id]: 'pip' }
+  return lamChinh(bc, id)
 }
 
 /** Vị trí góc của từng cửa sổ nổi (0: dưới-phải, 1: trên-phải, 2: dưới-trái, 3: trên-trái). */
@@ -105,7 +116,10 @@ export function viTriCuaSo(bc: BoCuc, id: LopId): number {
 
 /** Bố cục người trình chiếu gửi về: lớp chưa có nội dung trên máy này (gói đồng bộ nội dung chưa tới) thì bỏ ra. */
 export function theoBoCucTrinhChieu(bc: BoCucMayChu, coVideo: boolean, coTaiLieu: boolean): BoCuc {
-  const ketQua: BoCuc = bc.khung ? { khung: bc.khung } : {}
+  const ketQua: BoCuc = {
+    ...(bc.khung ? { khung: bc.khung } : {}),
+    ...(bc.truocKhiAn ? { truocKhiAn: bc.truocKhiAn } : {}),
+  }
   for (const id of THU_TU_LOP) {
     const vaiTro = bc[id] === 'phu' ? 'pip' : bc[id]
     if (!vaiTro) continue

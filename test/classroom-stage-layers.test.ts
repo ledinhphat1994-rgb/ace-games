@@ -48,7 +48,27 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     let bc = bamLop({ doc: 'main' }, 'board')
     expect(bc).toEqual({ doc: 'pip', board: 'main' })
     bc = bamLop(bc, 'board')
-    expect(bc).toEqual({ doc: 'main', board: 'an' })
+    expect(bc).toEqual({ doc: 'main', board: 'an', truocKhiAn: { board: 'main' } })
+  })
+
+  it('ẩn rồi bật lại ở thanh dưới: về đúng vai trò cũ, cửa sổ nổi giữ nguyên chỗ / cỡ — không tự phóng to', () => {
+    const khung = { x: 0.6, y: 0.1, w: 0.3, h: 0.3 }
+    // Video đang là cửa sổ nổi: ẩn → bật lại vẫn là cửa sổ nổi, cùng khung.
+    let bc = bamLop({ doc: 'main', video: 'pip', khung: { video: khung } }, 'video')
+    expect(bc.video).toBe('an')
+    bc = bamLop(bc, 'video')
+    expect(bc.video).toBe('pip')
+    expect(bc.doc).toBe('main')
+    expect(bc.khung?.video).toEqual(khung)
+    // Video đang là lớp chính: ẩn → tài liệu lên thay; bật lại → video làm chính, tài liệu về cửa sổ nổi như trước.
+    let bc2 = bamLop({ video: 'main', doc: 'pip' }, 'video')
+    expect(bc2).toMatchObject({ video: 'an', doc: 'main' })
+    bc2 = bamLop(bc2, 'video')
+    expect(bc2).toMatchObject({ video: 'main', doc: 'pip' })
+    // Cửa sổ nổi nhưng không còn lớp chính nào: bật lại thành lớp chính (không để sân khấu trống).
+    expect(bamLop({ video: 'an', truocKhiAn: { video: 'pip' } }, 'video').video).toBe('main')
+    // Học sinh theo bố cục giáo viên nhận luôn vai trò trước khi ẩn.
+    expect(theoBoCucTrinhChieu({ doc: 'main', video: 'an', truocKhiAn: { video: 'pip' } }, true, true).truocKhiAn).toEqual({ video: 'pip' })
   })
 
   it('phóng to cửa sổ nổi thì đổi chỗ với lớp chính', () => {
@@ -61,8 +81,8 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   })
 
   it('ẩn lớp chính: nâng cửa sổ nổi lên làm chính', () => {
-    expect(anLop({ video: 'main', doc: 'pip' }, 'video')).toEqual({ video: 'an', doc: 'main' })
-    expect(anLop({ video: 'main', board: 'pip' }, 'video')).toEqual({ video: 'an', board: 'main' })
+    expect(anLop({ video: 'main', doc: 'pip' }, 'video')).toEqual({ video: 'an', doc: 'main', truocKhiAn: { video: 'main' } })
+    expect(anLop({ video: 'main', board: 'pip' }, 'video')).toEqual({ video: 'an', board: 'main', truocKhiAn: { video: 'main' } })
   })
 
   it('đã bỏ chức năng phủ Bảng: không còn nút phủ, không còn nhánh vẽ bảng phủ', () => {
@@ -119,6 +139,11 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(topBarRaw).not.toContain('onToggleMic')
     // Cụm mic đứng trước khối chỉ dành cho người trình chiếu → học sinh cũng có.
     expect(dockRaw.indexOf('data-testid="dock-btn-mic"')).toBeLessThan(dockRaw.indexOf('{canControl && ('))
+  })
+
+  it('video là cửa sổ nhỏ vẫn có thanh âm lượng', () => {
+    expect(videoRaw).not.toContain("gap-1.5 ml-2 ${compact ? 'hidden' : 'flex'}")
+    expect(videoRaw).toContain("${compact ? 'w-12' : 'w-16'} h-1 rounded-lg")
   })
 
   it('người tham gia chỉ xem: không ẩn / mở / phóng to / thu nhỏ / toàn màn hình / kéo / đổi cỡ khung, không tự thu phóng tài liệu', () => {
@@ -320,9 +345,9 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     await host.cho('room.snapshot')
     expect(snap.stageLayout ?? null).toBeNull()
 
-    host.gui({ type: 'stage.layout', layout: { doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } } })
+    host.gui({ type: 'stage.layout', layout: { doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } }, truocKhiAn: { board: 'pip' } } })
     const dongBo = await an.cho('stage.sync')
-    expect(dongBo.layout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } })
+    expect(dongBo.layout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } }, truocKhiAn: { board: 'pip' } })
     // Người gửi không nhận lại bố cục của chính mình (tránh ghi đè thay đổi mới hơn trên máy mình).
     await host.khongNhan('stage.sync', () => true, 200)
 
@@ -340,7 +365,7 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
 
     const vaoSau = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
     const snapSau = await vaoSau.cho('room.snapshot')
-    expect(snapSau.stageLayout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } } })
+    expect(snapSau.stageLayout).toEqual({ doc: 'main', video: 'pip', board: 'phu', khung: { video: { x: 0.02, y: 0.03, w: 0.5, h: 0.45 } }, truocKhiAn: { board: 'pip' } })
     host.dong()
     an.dong()
     vaoSau.dong()

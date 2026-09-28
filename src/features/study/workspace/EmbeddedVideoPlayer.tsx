@@ -257,8 +257,8 @@ export function EmbeddedVideoPlayer({
               </span>
             )}
 
-            {/* Volume slider */}
-            <div className={`items-center gap-1.5 ml-2 ${compact ? 'hidden' : 'flex'}`}>
+            {/* Volume slider — cả khi video là cửa sổ nhỏ (âm lượng là của riêng máy mình) */}
+            <div className={`flex items-center ${compact ? 'ml-0.5 gap-1' : 'ml-2 gap-1.5'}`}>
               <button
                 type="button"
                 onClick={() => onVolumeChange(volume === 0 ? 80 : 0)}
@@ -273,7 +273,7 @@ export function EmbeddedVideoPlayer({
                 max={100}
                 value={volume}
                 onChange={(e) => onVolumeChange(Number(e.target.value))}
-                className="w-16 h-1 rounded-lg appearance-none bg-white/20 accent-white cursor-pointer"
+                className={`${compact ? 'w-12' : 'w-16'} h-1 rounded-lg appearance-none bg-white/20 accent-white cursor-pointer`}
                 aria-label="Âm lượng"
               />
             </div>
