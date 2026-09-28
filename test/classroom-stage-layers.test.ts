@@ -88,6 +88,15 @@ describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
     expect(viTriCuaSo(bc, 'video')).toBe(1)
   })
 
+  it('phát / dừng / xem lại video không đổi bố cục; chỉ video mới mới hiện lớp (giữ chỗ nếu đang hiện)', () => {
+    expect(workspaceRaw).toContain("setBoCuc((bc) => (videoId ? hienLop(bc, 'video') : goLop(bc, 'video')))")
+    expect(workspaceRaw).toContain('  }, [videoId])')
+    expect(workspaceRaw).not.toContain("videoDangPhat ? lamChinh(bc, 'video')")
+    // Video đang là cửa sổ nổi, bấm phát / xem lại: vẫn là cửa sổ nổi, cùng khung.
+    const bc = datKhung({ doc: 'main', video: 'pip' }, 'video', { x: 0.55, y: 0.05, w: 0.33, h: 0.4 })
+    expect(hienLop(bc, 'video')).toBe(bc)
+  })
+
   it('đổi vai trò chỉ đổi class (lớp giữ nguyên chỗ trong cây) — video không bị tải lại', () => {
     expect(stageRaw).toContain('{boCuc.video && (')
     expect(stageRaw).toContain('<KhungLop id="video" vaiTro={boCuc.video}')

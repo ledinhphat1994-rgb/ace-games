@@ -236,16 +236,13 @@ export function ClassroomWorkspace({
     setBoCuc((bc) => datKhung(bc, id, k))
   }
 
-  // Nội dung đổi từ máy chủ (giáo viên mở tài liệu mới / phát video) → tự động đưa lớp đó lên làm lớp chính để cả phòng cùng theo dõi đồng bộ.
-  // Nội dung kết thúc (gỡ video, đóng tài liệu) → bỏ lớp khỏi sân khấu.
+  // Video mới (đổi video / phát từ danh sách) → hiện lớp video (chưa có lớp chính thì làm chính, có rồi thì giữ chỗ / cửa sổ nổi).
+  // Phát, dừng, xem lại KHÔNG đổi bố cục: phóng to / thu nhỏ chỉ khi người trình chiếu bấm nút. Gỡ video → bỏ lớp.
   useEffect(() => {
-    if (videoId) {
-      setBoCuc((bc) => (videoDangPhat ? lamChinh(bc, 'video') : hienLop(bc, 'video')))
-    } else {
-      setBoCuc((bc) => goLop(bc, 'video'))
-    }
-  }, [videoId, videoDangPhat])
+    setBoCuc((bc) => (videoId ? hienLop(bc, 'video') : goLop(bc, 'video')))
+  }, [videoId])
 
+  // Mở tài liệu mới → đưa lên làm lớp chính; đóng tài liệu → bỏ lớp.
   useEffect(() => {
     setBoCuc((bc) => (docUrl ? lamChinh(bc, 'doc') : goLop(bc, 'doc')))
   }, [docUrl])
