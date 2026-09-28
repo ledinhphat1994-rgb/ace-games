@@ -86,7 +86,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [nguoiDung, moAuthModal])
 
   const location = useLocation()
-  const isWidePage = location.pathname.startsWith('/arena') || location.pathname.startsWith('/game')
+  // Trang 3 cột (xếp hạng | nội dung | chat & bạn bè): Game và Học tập dùng khung rộng.
+  const isWidePage =
+    location.pathname.startsWith('/arena') || location.pathname.startsWith('/game') || location.pathname.startsWith('/learn')
 
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">

@@ -179,6 +179,8 @@ interface GameSocialSidebarProps {
   onInviteToGame?: (friendId: number, friendName: string) => void
   className?: string
   defaultTab?: SocialTab
+  /** Tab "Chat phòng" chỉ có nghĩa ở bàn đấu game; trang khác (Học tập) chỉ cần Chat chung + Bạn bè. */
+  coChatPhong?: boolean
 }
 
 export function GameSocialSidebar({
@@ -188,6 +190,7 @@ export function GameSocialSidebar({
   onInviteToGame,
   className,
   defaultTab,
+  coChatPhong = true,
 }: GameSocialSidebarProps) {
   const { nguoiDung, moAuthModal } = usePhien()
   const {
@@ -199,7 +202,7 @@ export function GameSocialSidebar({
     presenceMap,
   } = useCampus()
 
-  const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (chatBan ? 'chat_phong' : 'chat_chung'))
+  const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))
   const [selectedFriend, setSelectedFriend] = useState<FriendItem | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
   const [isRoomEmojiOpen, setIsRoomEmojiOpen] = useState(false)
@@ -312,20 +315,22 @@ export function GameSocialSidebar({
     >
       {/* VÙNG 1: Header Tabs (3 tabs: Chat phòng, Chat chung, Bạn bè) */}
       <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] p-1.5 shrink-0">
-        <div className="grid grid-cols-3 gap-1 w-full">
+        <div className={cn('grid gap-1 w-full', coChatPhong ? 'grid-cols-3' : 'grid-cols-2')}>
           {/* Tab 1: Chat phòng */}
-          <button
-            onClick={() => setActiveTab('chat_phong')}
-            className={cn(
-              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all duration-150 cursor-pointer',
-              activeTab === 'chat_phong'
-                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm'
-                : 'text-text-tertiary hover:text-text-primary hover:bg-white/5'
-            )}
-          >
-            <Gamepad2 className="size-3.5 shrink-0" />
-            <span className="truncate">Chat phòng</span>
-          </button>
+          {coChatPhong && (
+            <button
+              onClick={() => setActiveTab('chat_phong')}
+              className={cn(
+                'flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-bold transition-all duration-150 cursor-pointer',
+                activeTab === 'chat_phong'
+                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-sm'
+                  : 'text-text-tertiary hover:text-text-primary hover:bg-white/5'
+              )}
+            >
+              <Gamepad2 className="size-3.5 shrink-0" />
+              <span className="truncate">Chat phòng</span>
+            </button>
+          )}
 
           {/* Tab 2: Chat chung */}
           <button
@@ -369,7 +374,7 @@ export function GameSocialSidebar({
       </div>
 
       {/* Tab 1: Chat phòng (Trò chuyện giữa người chơi & người xem trong phòng game) */}
-      {activeTab === 'chat_phong' && (
+      {coChatPhong && activeTab === 'chat_phong' && (
         <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-hidden">
           {/* Danh sách tin nhắn phòng */}
           <div
