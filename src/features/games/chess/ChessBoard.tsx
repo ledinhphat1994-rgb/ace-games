@@ -163,7 +163,7 @@ const LY_DO_KET_THUC: Record<ChessEndReason, string> = {
 interface ChessBoardProps {
   onBack?: () => void
   initialMode?: PlayMode
-  /** Bàn online (mở từ sảnh): thêm chế độ "Đấu online" — máy chủ làm trọng tài, đối thủ là người thật. */
+  /** Bàn online (mở từ sảnh): PvP chuyển sang Online — máy chủ làm trọng tài, đối thủ là người thật. */
   online?: BanOnline
 }
 
