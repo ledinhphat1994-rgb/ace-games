@@ -8,6 +8,7 @@ import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
 import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi } from '@/lib/api'
+import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { toast } from 'sonner'
 import type { KetQuaGoogle } from '@shared/protocol/google'
 
@@ -90,6 +91,11 @@ export function AuthGate() {
     toast('Liên kết Gmail để tự lấy lại mật khẩu khi quên.', {
       id: 'nhac-lien-ket-google',
       duration: 12_000,
+      icon: (
+        <div className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 p-1.5 shadow-inner">
+          <LogoGoogle className="size-full" />
+        </div>
+      ),
       action: { label: 'Liên kết', onClick: () => window.location.assign('/api/auth/google/start?che_do=lien_ket') },
     })
   }, [canNhacLienKet, nguoiDung])
