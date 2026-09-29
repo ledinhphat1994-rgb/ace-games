@@ -20,9 +20,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClassroomContextPanel } from './ClassroomContextPanel'
 import { ClassroomToolDock } from './ClassroomToolDock'
 import { ClassroomTopBar } from './ClassroomTopBar'
+import { MemberStrip } from './MemberStrip'
 import { PresentationStage } from './PresentationStage'
-import type { TiaLaser } from './LopLaserTrinhChieu'
+import type { TiaLaserSanKhau, TiaLaserTrang } from '@/hooks/use-room'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
+import type { QuyenCongCu } from '@shared/protocol/room'
 import {
   anLop,
   bamLop,
@@ -55,8 +57,10 @@ export interface ClassroomWorkspaceProps {
   stageLayout?: BoCucSanKhau | null
   daNhanAnhChup?: boolean
   onSendStageLayout?: (layout: BoCucSanKhau) => void
-  stageLaser?: TiaLaser | null
+  stageLasers?: TiaLaserSanKhau[]
   onSendStageLaser?: (lop: LopLaser, point: [number, number] | null) => void
+  quyenCongCu?: Record<string, QuyenCongCu[]>
+  onGrantTools?: (targetKey: string, cap: QuyenCongCu[]) => void
   // Slide
   slideState?: SlideState | null
   onPageChange?: (newPage: number, step?: number) => void
@@ -67,7 +71,7 @@ export interface ClassroomWorkspaceProps {
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onClearSlideAnnotations?: (page?: number) => void
   onRemoveSlideAnnotation?: (id: string) => void
-  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  slideLasers?: TiaLaserTrang[]
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
   // Video
   mediaState?: MediaState | null
@@ -129,8 +133,10 @@ export function ClassroomWorkspace({
   stageLayout = null,
   daNhanAnhChup = false,
   onSendStageLayout,
-  stageLaser = null,
+  stageLasers = [],
   onSendStageLaser,
+  quyenCongCu = {},
+  onGrantTools,
   slideState,
   onPageChange,
   onUploadSlide,
@@ -140,7 +146,7 @@ export function ClassroomWorkspace({
   onSendSlideAnnotation,
   onClearSlideAnnotations,
   onRemoveSlideAnnotation,
-  slideLaser,
+  slideLasers = [],
   onSendSlideLaser,
   mediaState,
   canControlMedia = true,
@@ -342,6 +348,26 @@ export function ClassroomWorkspace({
     [],
   )
 
+  const coTheDung = useCallback(
+    (c: CongCu) => {
+      if (laNguoiTrinhChieu) return true
+      if (c === 'chuot') return true
+      const key = nguoiDung.actorKey
+      if (!key) return false
+      const danhSach = quyenCongCu[key] ?? []
+      if (c === 'but') return danhSach.includes('but')
+      if (c === 'to_sang') return danhSach.includes('to_sang')
+      if (c === 'chu') return danhSach.includes('chu')
+      if (c === 'khung') return danhSach.includes('hinh')
+      if (c === 'tay') return danhSach.includes('tay')
+      if (c === 'laser') return danhSach.includes('laser')
+      return false
+    },
+    [laNguoiTrinhChieu, nguoiDung.actorKey, quyenCongCu],
+  )
+  const coTheXoa = laNguoiTrinhChieu || Boolean(nguoiDung.actorKey && quyenCongCu[nguoiDung.actorKey]?.includes('xoa'))
+  const coMic = laNguoiTrinhChieu || Boolean(nguoiDung.actorKey && quyenCongCu[nguoiDung.actorKey]?.includes('mic'))
+
   return (
     <div
       className="relative flex h-svh w-full flex-col overflow-hidden bg-[#070b14] text-slate-100 select-none font-sans"
@@ -359,6 +385,15 @@ export function ClassroomWorkspace({
         onTogglePanel={handleTogglePanel}
         unreadChatCount={unreadChatCount}
         memberCount={members.length}
+        memberStrip={
+          <MemberStrip
+            members={members}
+            myActorKey={nguoiDung.actorKey}
+            canGrant={laNguoiTrinhChieu}
+            quyenCongCu={quyenCongCu}
+            onGrant={onGrantTools ?? (() => {})}
+          />
+        }
         onLeaveRoom={onLeaveRoom}
         onCloseRoom={onCloseRoom}
       />
@@ -385,11 +420,12 @@ export function ClassroomWorkspace({
             onAn={doiBoCuc(anLop)}
             onDoiKhung={laNguoiTrinhChieu ? ghiKhung : undefined}
             onKeoKhung={laNguoiTrinhChieu && daNhanAnhChup ? guiKhungTam : undefined}
-            stageLaser={stageLaser}
+            stageLasers={stageLasers}
             onSendStageLaser={onSendStageLaser}
             isHost={isHost}
             canModerate={canModerate}
             myActorKey={nguoiDung.actorKey}
+            quyenCongCu={quyenCongCu}
             congCu={congCu}
             hinh={hinh}
             mau={mau}
@@ -415,7 +451,7 @@ export function ClassroomWorkspace({
             slideAnnotations={slideAnnotations}
             onSendSlideAnnotation={onSendSlideAnnotation}
             onRemoveSlideAnnotation={onRemoveSlideAnnotation}
-            slideLaser={slideLaser}
+            slideLasers={slideLasers}
             onSendSlideLaser={onSendSlideLaser}
           />
         </main>
@@ -493,9 +529,12 @@ export function ClassroomWorkspace({
             isHost={isHost}
             canModerate={canModerate}
             congCu={congCu}
+            coTheDung={coTheDung}
+            coTheXoa={coTheXoa}
+            coMic={coMic}
             // Chọn công cụ không đổi bố cục: mỗi lớp (bảng, video, tài liệu) có mặt vẽ riêng nằm ngay trên nó.
             onChonCongCu={(c) => {
-              if (!laNguoiTrinhChieu && c !== 'chuot') return
+              if (!coTheDung(c)) return
               setCongCu(c)
             }}
             hinh={hinh}

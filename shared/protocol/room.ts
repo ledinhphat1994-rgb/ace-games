@@ -103,6 +103,32 @@ export interface ThanhVienPhong {
   canModerate?: boolean
 }
 
+// ── Quyền công cụ của từng người tham gia (chủ phòng cấp / thu hồi tức thì) ──
+// Mặc định người tham gia CHỈ XEM (không quyền nào). KHÔNG có quyền tài liệu / bảng / video:
+// phần trình chiếu (bật, ẩn, phóng to, thu nhỏ, đổi trang, phát video) luôn thuộc chủ phòng.
+export const QUYEN_CONG_CU = ['mic', 'laser', 'but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa'] as const
+export type QuyenCongCu = (typeof QUYEN_CONG_CU)[number]
+
+export function laQuyenCongCuHopLe(gia: unknown): gia is QuyenCongCu {
+  return typeof gia === 'string' && (QUYEN_CONG_CU as readonly string[]).includes(gia)
+}
+
+/** Quyền cần có để thêm một nét (bảng trắng / lớp vẽ trên video, tài liệu / chú thích trang). */
+export function quyenCuaNet(tool: LoaiNetVe | undefined): QuyenCongCu {
+  if (tool === 'highlighter') return 'to_sang'
+  if (tool === 'text') return 'chu'
+  if (tool === 'shape') return 'hinh'
+  return 'but'
+}
+
+export interface TiaLaser {
+  senderKey: string
+  point: [number, number]
+  senderName?: string
+  /** Lúc nhận gói gần nhất (ms, đồng hồ máy này). */
+  updatedAt: number
+}
+
 export const SUPPORTED_PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
 export type SupportedPlaybackRate = (typeof SUPPORTED_PLAYBACK_RATES)[number]
 
@@ -175,6 +201,8 @@ export interface SlideAnnotationStroke {
   opacity?: number
   /** Nội dung chữ khi tool = 'text'. */
   text?: string
+  /** actorKey người vẽ (máy chủ gắn) — người được cấp quyền tẩy chỉ tẩy được nét của mình. */
+  by?: string
 }
 
 export interface SlideState {
@@ -415,6 +443,12 @@ export const LenhPhong = z.discriminatedUnion('type', [
     lop: z.enum(['video', 'board', 'tailieu']),
     point: z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)]).nullable(),
   }),
+  // Chủ phòng cấp / thu hồi quyền công cụ cho một người (danh sách quyền đầy đủ sau khi đổi).
+  z.object({
+    type: z.literal('grant.tools'),
+    targetKey: z.string().min(1).max(128),
+    cap: z.array(z.string().max(32)).max(16),
+  }),
 ])
 export type LenhPhong = z.infer<typeof LenhPhong>
 
@@ -435,6 +469,8 @@ export type GoiPhong =
       slideAnnotations?: SlideAnnotationStroke[]
       /** Bố cục sân khấu người trình chiếu đặt gần nhất (null khi chưa đặt). */
       stageLayout?: BoCucSanKhau | null
+      /** Quyền công cụ chủ phòng đã cấp, theo actorKey (không có = chỉ xem). */
+      quyenCongCu?: Record<string, QuyenCongCu[]>
       voiceRegistry?: VoiceParticipantState[]
       serverNow: number
       // Learning Session v1
@@ -479,6 +515,8 @@ export type GoiPhong =
       point: [number, number] | null
       page: number
       senderName?: string
+      /** Ai đang trỏ: nhiều người được cấp laser trỏ cùng lúc thì mỗi người một tia. */
+      senderKey?: string
     }
   | { type: 'room.chat'; message: RoomChatMessage }
   | { type: 'voice.registry'; registry: VoiceParticipantState[] }
@@ -487,7 +525,8 @@ export type GoiPhong =
   | { type: 'voice.force_muted'; targetKey: string; by: string }
   | { type: 'room.kicked'; targetKey: string; reason?: string; by: string }
   | { type: 'stage.sync'; layout: BoCucSanKhau }
-  | { type: 'stage.laser'; lop: LopLaser; point: [number, number] | null; senderName?: string }
+  | { type: 'stage.laser'; lop: LopLaser; point: [number, number] | null; senderName?: string; senderKey?: string }
+  | { type: 'room.quyen'; quyen: Record<string, QuyenCongCu[]> }
   | { type: 'pong'; t: number; serverNow: number }
   | { type: 'ack'; reqId?: string }
   | { type: 'error'; reqId?: string; message: string }

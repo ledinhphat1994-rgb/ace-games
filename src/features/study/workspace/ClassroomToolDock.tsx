@@ -67,6 +67,15 @@ export interface ClassroomToolDockProps {
   /** Có khay nào (bút / công cụ) đang mở — để thanh tự thu gọn khi toàn màn hình không ẩn mất khay. */
   onKhayMo?: (mo: boolean) => void
   isReconnecting?: boolean
+  /**
+   * Công cụ vẽ / laser người này dùng được: người trình chiếu có hết, người tham gia theo quyền chủ phòng cấp.
+   * Chỉ để ẩn nút — máy chủ vẫn chặn gói của công cụ chưa được cấp.
+   */
+  coTheDung?: (congCu: CongCu) => boolean
+  /** Được xoá hết nét vẽ (chủ phòng cấp quyền "Xoá hết"). */
+  coTheXoa?: boolean
+  /** Được bật mic (người tham gia cần chủ phòng cấp quyền mic). */
+  coMic?: boolean
 }
 
 function YoutubeIcon({ className }: { className?: string }) {
@@ -189,8 +198,15 @@ export function ClassroomToolDock({
   onRefreshDevices,
   onKhayMo,
   isReconnecting = false,
+  coTheDung,
+  coTheXoa,
+  coMic = true,
 }: ClassroomToolDockProps) {
   const canControl = !isReconnecting && (isHost || canModerate)
+  const duocDung = (c: CongCu) => !isReconnecting && (coTheDung ? coTheDung(c) : canControl)
+  const duocXoa = !isReconnecting && (coTheXoa ?? canControl)
+  const khayDuocDung = CONG_CU_KHAY.filter((c) => duocDung(c.id))
+  const coCongCuNao = duocDung('but') || duocDung('tay') || khayDuocDung.length > 0 || duocXoa
   const dangChay: Record<LopId, boolean> = { doc: coTaiLieu, board: false, video: videoDangPhat }
   const [moBut, setMoBut] = useState(false)
   const [moCongCu, setMoCongCu] = useState(false)
@@ -214,12 +230,12 @@ export function ClassroomToolDock({
         <button
           type="button"
           onClick={onToggleMic}
-          disabled={voiceState.isConnecting}
+          disabled={voiceState.isConnecting || (!coMic && !myMic)}
           aria-pressed={myMic}
-          title={myMic ? 'Tắt micro' : 'Bật micro'}
+          title={!coMic && !myMic ? 'Chủ phòng chưa cấp quyền mic' : myMic ? 'Tắt micro' : 'Bật micro'}
           aria-label={myMic ? 'Tắt micro' : 'Bật micro'}
           data-testid="dock-btn-mic"
-          className={`${nutDock} ${myMic ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40' : khongChon} ${voiceState.isConnecting ? 'cursor-wait opacity-60' : ''} ${voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400/80' : ''}`}
+          className={`${nutDock} ${myMic ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40' : khongChon} ${voiceState.isConnecting ? 'cursor-wait opacity-60' : ''} ${!coMic && !myMic ? 'cursor-not-allowed opacity-40' : ''} ${voiceState.speakingActors.includes('local') ? 'ring-2 ring-emerald-400/80' : ''}`}
         >
           {voiceState.isConnecting ? (
             <Loader2 className="h-4.5 w-4.5 animate-spin" />
@@ -300,7 +316,7 @@ export function ClassroomToolDock({
 
         <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
 
-        {/* ── 1. BA LỚP NỘI DUNG + CÔNG CỤ VẼ HAY DÙNG: chỉ chủ phòng / người điều hành ── */}
+        {/* ── 1. BA LỚP NỘI DUNG: chỉ chủ phòng / người điều hành (không bao giờ cấp cho người tham gia) ── */}
         {canControl && (
           <>
             {NUT_LOP.map(({ id, ten, testId }) => {
@@ -326,7 +342,12 @@ export function ClassroomToolDock({
             })}
 
             <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
+          </>
+        )}
 
+        {/* ── CÔNG CỤ VẼ HAY DÙNG: người trình chiếu, hoặc người tham gia được chủ phòng cấp quyền ── */}
+        {coCongCuNao && (
+          <>
             <button
               type="button"
               onClick={() => onChonCongCu('chuot')}
@@ -341,6 +362,7 @@ export function ClassroomToolDock({
             </button>
 
             {/* Bút: bấm là chọn bút và mở màu / cỡ nét ngay tại chỗ. */}
+            {duocDung('but') && (
             <Popover open={moBut} onOpenChange={setMoBut}>
               <PopoverTrigger
                 type="button"
@@ -361,7 +383,9 @@ export function ClassroomToolDock({
                 <BangMau {...bangMau} />
               </PopoverContent>
             </Popover>
+            )}
 
+            {duocDung('tay') && (
             <button
               type="button"
               onClick={() => onChonCongCu('tay')}
@@ -374,7 +398,9 @@ export function ClassroomToolDock({
               <Eraser className="h-4.5 w-4.5" />
               <span className={nhanDock}>Tẩy</span>
             </button>
+            )}
 
+            {duocXoa && (
             <button
               type="button"
               onClick={() => {
@@ -388,6 +414,7 @@ export function ClassroomToolDock({
               <Trash2 className="h-4.5 w-4.5" />
               <span className={nhanDock}>Xoá hết</span>
             </button>
+            )}
 
             <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
           </>
@@ -409,9 +436,9 @@ export function ClassroomToolDock({
             )}
           </PopoverTrigger>
           <PopoverContent side="top" align="center" sideOffset={10} className={`w-72 ${khayPopover}`} data-testid="dock-tools-tray">
-            {canControl && (
+            {khayDuocDung.length > 0 && (
               <div className="grid grid-cols-4 gap-1">
-                {CONG_CU_KHAY.map(({ id, ten, icon: Icon, testId }) => (
+                {khayDuocDung.map(({ id, ten, icon: Icon, testId }) => (
                   <button
                     key={id}
                     type="button"
@@ -428,7 +455,7 @@ export function ClassroomToolDock({
               </div>
             )}
 
-            {canControl && congCu === 'khung' && (
+            {duocDung('khung') && congCu === 'khung' && (
               <div className="grid grid-cols-5 gap-1 rounded-xl bg-white/5 p-1" data-testid="dock-shape-picker">
                 {CAC_HINH.map(({ id, ten }) => {
                   const Icon = ICON_HINH[id]
@@ -450,9 +477,9 @@ export function ClassroomToolDock({
               </div>
             )}
 
-            {canControl && congCuKhay && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}
+            {congCuKhay && duocDung(congCu) && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}
 
-            <div className={`grid grid-cols-4 gap-1 ${canControl ? 'border-t border-white/10 pt-2' : ''}`}>
+            <div className={`grid grid-cols-4 gap-1 ${khayDuocDung.length > 0 ? 'border-t border-white/10 pt-2' : ''}`}>
               <button type="button" onClick={onOpenCalculator} title="Máy tính" className={`${nutKhay} text-slate-300 hover:bg-white/10`} data-testid="tool-btn-calculator">
                 <CalcIcon className="h-4 w-4 text-cyan-400" />
                 <span>Máy tính</span>

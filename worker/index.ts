@@ -1812,10 +1812,10 @@ app.get('/api/yt-search', async (c) => {
     const biChan = await Promise.all(cu.map((v) => daBiChanNhung(v.videoId, cache)))
     return c.json(cu.filter((_, i) => !biChan[i]))
   }
-  const traVe = async (ungVien: { videoId: string; title: string; author: string }[]) => {
+  const traVe = async (ungVien: { videoId: string; title: string; author: string; duration?: string }[]) => {
     // Bỏ video chủ sở hữu tắt nhúng (không phát được trong phòng học); lỗi mạng thì vẫn giữ.
     const nhung = await Promise.all(ungVien.map((v) => kiemTraNhung(v.videoId, { cache })))
-    const ketQua = ungVien.filter((_, i) => nhung[i] !== 'khong').slice(0, 9)
+    const ketQua = ungVien.filter((_, i) => nhung[i] !== 'khong').slice(0, 20)
     if (cache && ketQua.length > 0) {
       const banLuu = new Response(JSON.stringify(ketQua), {
         headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
@@ -1839,19 +1839,24 @@ app.get('/api/yt-search', async (c) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = JSON.parse(match[1]) as any
         const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || []
-        const results: { videoId: string; title: string; author: string }[] = []
+        const results: { videoId: string; title: string; author: string; duration?: string }[] = []
         for (const item of contents) {
           const v = item?.videoRenderer
           if (v && typeof v.videoId === 'string') {
-            results.push({ videoId: v.videoId, title: v.title?.runs?.[0]?.text || 'Video YouTube', author: v.ownerText?.runs?.[0]?.text || '' })
-            // Lấy dư để còn đủ 9 sau khi bỏ video bị chặn nhúng.
-            if (results.length >= 18) break
+            results.push({
+              videoId: v.videoId,
+              title: v.title?.runs?.[0]?.text || 'Video YouTube',
+              author: v.ownerText?.runs?.[0]?.text || '',
+              duration: v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || undefined,
+            })
+            // Lấy dư để còn đủ 20 sau khi bỏ video bị chặn nhúng.
+            if (results.length >= 30) break
           }
         }
         if (results.length > 0) return await traVe(results)
       } catch {}
     }
-    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 18)
+    const ids = [...new Set([...html.matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)].map((m) => m[1]))].slice(0, 30)
     return await traVe(ids.map((id) => ({ videoId: id, title: `Video YouTube (${id})`, author: 'YouTube' })))
   } catch { return c.json([]) }
 })

@@ -131,9 +131,9 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
   describe('3. useRoom Hook Integration', () => {
     it('exposes slideAnnotations and slideLaser state hooks', () => {
       expect(useRoomSource).toContain('const [slideAnnotations, setSlideAnnotations] = useState<SlideAnnotationStroke[]>([])')
-      expect(useRoomSource).toContain('const [slideLaser, setSlideLaser] = useState<{')
+      expect(useRoomSource).toContain('slideLaserMap')
       expect(useRoomSource).toContain('slideAnnotations,')
-      expect(useRoomSource).toContain('slideLaser,')
+      expect(useRoomSource).toContain('slideLasers,')
     })
 
     it('exposes sender callbacks sendSlideAnnotation, clearSlideAnnotations, removeSlideAnnotation, sendSlideLaser', () => {
@@ -269,12 +269,12 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
   })
 
   describe('6. Permission Isolation & Floating Toolbar UI', () => {
-    it('students cannot annotate slides or use laser / clear-page (presenter-only)', () => {
-      // Lớp chú thích bỏ qua mọi thao tác khi không có quyền trình chiếu.
+    it('students cannot annotate slides without permission; toolbar shows only granted tools', () => {
+      // Lớp chú thích bỏ qua mọi thao tác khi không có quyền trình chiếu / quyền vẽ.
       expect(layerSource).toContain('if (!canAnnotate) return')
-      // Chuột / bút / tẩy / xoá hết trên dock và công cụ vẽ trong khay chỉ dành cho người trình chiếu.
-      expect(toolbarSource).toMatch(/\{canControl && \(\s*<>/)
-      expect(toolbarSource).toMatch(/\{canControl && \(\s*<div className="grid grid-cols-4 gap-1">/)
+      // Chuột / bút / tẩy / xoá hết trên dock và công cụ vẽ trong khay chỉ hiện khi được cấp quyền.
+      expect(toolbarSource).toContain('{coCongCuNao && (')
+      expect(toolbarSource).toContain('{khayDuocDung.length > 0 && (')
     })
 
     it('provides tool selection for pointer, pen, highlighter, eraser, laser, and clear', () => {
@@ -292,7 +292,7 @@ describe('PQA-C3: PDF/Slide Annotation Layer & Laser Pointer Contract & Protocol
       expect(toolbarSource).toContain('data-testid="dock-shape-picker"')
       expect(toolbarSource).toContain('data-testid="dock-color-palette"')
       expect(toolbarSource).toContain('data-testid="dock-size-picker"')
-      expect(toolbarSource).toContain('{canControl && congCuKhay && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}')
+      expect(toolbarSource).toContain('{congCuKhay && duocDung(congCu) && CONG_CU_CO_MAU.has(congCu) && <BangMau {...bangMau} />}')
       expect(toolbarSource).toContain('data-testid="dock-pen-tray"')
     })
 

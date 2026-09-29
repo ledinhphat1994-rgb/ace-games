@@ -12,6 +12,7 @@ import {
   type WhiteboardStroke,
   type BoCucSanKhau,
   type LopLaser,
+  type QuyenCongCu,
   type SlideState,
   type SlideAnnotationStroke,
   type VoiceParticipantState,
@@ -23,9 +24,15 @@ import {
   type ActivePoll,
   type SessionSummary,
   type LenhPhongSession,
+  type TiaLaser,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
+
+/** Tia laser trên video / bảng / tài liệu nhúng (theo lớp). */
+export type TiaLaserSanKhau = TiaLaser & { lop: LopLaser }
+/** Tia laser trên trang tài liệu (theo số trang). */
+export type TiaLaserTrang = TiaLaser & { page: number }
 import { VoiceClient, type VoiceClientState } from '@/lib/voice-client'
 import { toast } from 'sonner'
 
@@ -100,16 +107,14 @@ export function useRoom(roomId: string, myActorKey?: string) {
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([])
   const [slideState, setSlideState] = useState<SlideState | null>(null)
   const [slideAnnotations, setSlideAnnotations] = useState<SlideAnnotationStroke[]>([])
-  const [slideLaser, setSlideLaser] = useState<{
-    point: [number, number] | null
-    page: number
-    senderName?: string
-    updatedAt: number
-  } | null>(null)
+  /** Tia laser trên trang tài liệu, theo người đang trỏ (nhiều người được cấp laser trỏ cùng lúc). */
+  const [slideLaserMap, setSlideLaserMap] = useState<Record<string, TiaLaserTrang>>({})
   /** Bố cục sân khấu người trình chiếu đặt (học sinh hiển thị theo). */
   const [stageLayout, setStageLayout] = useState<BoCucSanKhau | null>(null)
-  /** Tia laser của người trình chiếu trên video / bảng / tài liệu nhúng. */
-  const [stageLaser, setStageLaser] = useState<{ lop: LopLaser; point: [number, number] | null; senderName?: string; updatedAt: number } | null>(null)
+  /** Tia laser trên video / bảng / tài liệu nhúng, theo người đang trỏ. */
+  const [stageLaserMap, setStageLaserMap] = useState<Record<string, TiaLaserSanKhau>>({})
+  /** Quyền công cụ chủ phòng đã cấp, theo actorKey (không có = chỉ xem). */
+  const [quyenCongCu, setQuyenCongCu] = useState<Record<string, QuyenCongCu[]>>({})
   /** Đã nhận ảnh chụp phòng của lần kết nối hiện tại (trước đó mọi trạng thái còn là mặc định). */
   const [daNhanAnhChup, setDaNhanAnhChup] = useState(false)
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
@@ -203,6 +208,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
         case 'room.snapshot':
           setHostKey(goi.hostKey)
           setStageLayout(goi.stageLayout ?? null)
+          setQuyenCongCu(goi.quyenCongCu ?? {})
           setDaNhanAnhChup(true)
           membersRef.current = goi.members
           setMembers(goi.members)
@@ -333,7 +339,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setSlideState(goi.slide ?? null)
           if (!goi.slide) {
             setSlideAnnotations([])
-            setSlideLaser(null)
+            setSlideLaserMap({})
           }
           break
 
@@ -359,16 +365,35 @@ export function useRoom(roomId: string, myActorKey?: string) {
           setStageLayout(goi.layout)
           break
 
-        case 'stage.laser':
-          setStageLaser({ lop: goi.lop, point: goi.point, senderName: goi.senderName, updatedAt: Date.now() })
+        case 'stage.laser': {
+          const khoa = goi.senderKey ?? 'nguoi-trinh-chieu'
+          const diem = goi.point
+          setStageLaserMap((cu) => {
+            const moi = { ...cu }
+            if (diem) {
+              moi[khoa] = { senderKey: khoa, lop: goi.lop, point: diem, senderName: goi.senderName, updatedAt: Date.now() }
+            } else delete moi[khoa]
+            return moi
+          })
           break
+        }
 
-        case 'slide.laser':
-          setSlideLaser(
-            goi.point
-              ? { point: goi.point, page: goi.page, senderName: goi.senderName, updatedAt: Date.now() }
-              : null,
-          )
+        case 'slide.laser': {
+          const khoa = goi.senderKey ?? 'nguoi-trinh-chieu'
+          const diem = goi.point
+          setSlideLaserMap((cu) => {
+            const moi = { ...cu }
+            if (diem) {
+              moi[khoa] = { senderKey: khoa, page: goi.page, point: diem, senderName: goi.senderName, updatedAt: Date.now() }
+            } else delete moi[khoa]
+            return moi
+          })
+          break
+        }
+
+        case 'room.quyen':
+          // Chủ phòng vừa cấp / thu hồi quyền của ai đó — áp dụng tức thì.
+          setQuyenCongCu(goi.quyen)
           break
 
         case 'voice.updated': {
@@ -648,6 +673,16 @@ export function useRoom(roomId: string, myActorKey?: string) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(JSON.stringify({ type: 'stage.laser', lop, point }))
   }, [])
+
+  /** Chủ phòng cấp / thu hồi quyền công cụ cho một người (gửi danh sách quyền đầy đủ; máy chủ quyết định và báo lại cả phòng). */
+  const sendToolGrants = useCallback((targetKey: string, cap: QuyenCongCu[]) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    ws.send(JSON.stringify({ type: 'grant.tools', targetKey, cap }))
+  }, [])
+
+  const stageLasers = useMemo(() => Object.values(stageLaserMap), [stageLaserMap])
+  const slideLasers = useMemo(() => Object.values(slideLaserMap), [slideLaserMap])
 
   const sendStageLayout = useCallback((layout: BoCucSanKhau) => {
     const ws = wsRef.current
@@ -1089,8 +1124,11 @@ export function useRoom(roomId: string, myActorKey?: string) {
     stageLayout,
     daNhanAnhChup,
     sendStageLayout,
-    stageLaser,
+    stageLaser: stageLasers[0] ?? null,
+    stageLasers,
     sendStageLaser,
+    quyenCongCu,
+    sendToolGrants,
     updateNotes,
     addToQueue,
     removeFromQueue,
@@ -1110,7 +1148,8 @@ export function useRoom(roomId: string, myActorKey?: string) {
     setAudioOutputDevice,
     slideState,
     slideAnnotations,
-    slideLaser,
+    slideLaser: slideLasers[0] ?? null,
+    slideLasers,
     changeSlidePage,
     setSlideTotalPages,
     loadSlideDoc,

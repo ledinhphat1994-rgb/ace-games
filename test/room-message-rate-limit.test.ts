@@ -56,17 +56,19 @@ describe('RoomDO — chống một người làm ngập phòng', () => {
   it('laser dùng lại phiên vừa đối chiếu, còn lệnh ghi dữ liệu vẫn bị chặn 4001 ngay khi phiên bị thu hồi', async () => {
     const phongId = await chenPhong('Phòng laser', 'acc:1')
     const ket = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, await dangNhapLayCookie('qa.v2.thu1'))
+    const khach = await moKetNoi<GoiPhong>(`/ws/room/phong-${phongId}`, await dangNhapLayCookie('qa.v2.thu2'))
     await ket.cho('room.snapshot')
+    await khach.cho('room.snapshot')
 
     ket.gui({ type: 'slide.action', data: { action: 'laser', point: [0.1, 0.2], page: 1 } })
-    await ket.cho('slide.laser', (g) => g.point?.[0] === 0.1)
+    await khach.cho('slide.laser', (g) => g.point?.[0] === 0.1)
 
     await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = ?1 WHERE ten_dang_nhap = ?2')
       .bind(`thiet_bi_khac_${Date.now()}`, 'qa.v2.thu1')
       .run()
 
     ket.gui({ type: 'slide.action', data: { action: 'laser', point: [0.3, 0.4], page: 1 } })
-    await ket.cho('slide.laser', (g) => g.point?.[0] === 0.3)
+    await khach.cho('slide.laser', (g) => g.point?.[0] === 0.3)
 
     ket.gui({ type: 'chat.send', reqId: 'sau_thu_hoi', text: 'không được lưu' })
     expect((await ket.choDong(2000)).code).toBe(4001)
@@ -75,5 +77,6 @@ describe('RoomDO — chống một người làm ngập phòng', () => {
       layChat(): Promise<RoomChatMessage[]>
     }
     expect((await stub.layChat()).some((m) => m.text === 'không được lưu')).toBe(false)
+    khach.dong()
   })
 })
