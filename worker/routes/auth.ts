@@ -11,6 +11,7 @@ import { bamMatKhau, DEFAULT_ITERATIONS, taoSalt, xacMinhMatKhau } from '../lib/
 import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/scope'
 import { kiemTraPhien, layPhien } from '../lib/session'
 import { recordAnalyticsEvent } from '../lib/analytics'
+import { ghiAuditLog } from './moderation-api'
 
 // Cùng ngưỡng và cùng dạng khoá KV với functions/api/login.js của bản cũ.
 const MAX_TRIES_IP = 30
@@ -478,6 +479,15 @@ export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<
        ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
     ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, kq.taiKhoan.id),
   ])
+
+  // Nhật ký quản trị: ai cấp mã cho ai — tuyệt đối không ghi bản thân mã.
+  await ghiAuditLog(env, {
+    actorId: kq.taiKhoan.id,
+    targetId: target.id,
+    roomId: null,
+    action: 'password_reset_code',
+    metadata: { username: target.ten_dang_nhap },
+  })
 
   return json({
     ok: true,

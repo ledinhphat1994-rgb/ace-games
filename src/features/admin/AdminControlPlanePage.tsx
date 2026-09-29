@@ -35,6 +35,7 @@ import {
   ClipboardList,
   DoorClosed,
   ExternalLink,
+  KeyRound,
   Loader2,
   Plus,
   RefreshCw,
@@ -121,6 +122,7 @@ const TEN_HANH_DONG: Record<string, string> = {
   teacher_approve: 'Duyệt giáo viên',
   teacher_reject: 'Từ chối yêu cầu giáo viên',
   teacher_grant: 'Cấp quyền giáo viên',
+  password_reset_code: 'Cấp mã khôi phục mật khẩu',
   account_lock: 'Khoá tài khoản',
   account_unlock: 'Mở khoá tài khoản',
 }
@@ -236,6 +238,29 @@ function useThaoTacTaiKhoan() {
       qc.invalidateQueries({ queryKey: ['admin-account-counts'] })
       qc.invalidateQueries({ queryKey: ['admin-audit-logs'] })
     },
+  })
+}
+
+/** Mã khôi phục 6 số cho học sinh quên mật khẩu (hiệu lực 15 phút, dùng 1 lần) — máy chủ chỉ lưu bản băm. */
+interface MaKhoiPhuc {
+  code: string
+  studentName: string
+  expiresIn: string
+}
+
+function useCapMaKhoiPhuc() {
+  return useMutation({
+    mutationFn: async (username: string): Promise<MaKhoiPhuc> => {
+      const res = await fetch('/api/admin/reset-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      })
+      const body = (await res.json().catch(() => ({}))) as Partial<MaKhoiPhuc> & { ok?: boolean; loi?: string }
+      if (!res.ok || !body.ok || !body.code) throw new Error(body.loi || 'Không cấp được mã khôi phục.')
+      return { code: body.code, studentName: body.studentName ?? username, expiresIn: body.expiresIn ?? '15 phút' }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Không cấp được mã khôi phục.'),
   })
 }
 
@@ -830,6 +855,7 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
   const [q, setQ] = useState('')
   const [canXacNhan, setCanXacNhan] = useState<{ tk: AdminAccountItem; action: HanhDongTaiKhoan } | null>(null)
   const thaoTac = useThaoTacTaiKhoan()
+  const capMa = useCapMaKhoiPhuc()
 
   useEffect(() => {
     const henGio = setTimeout(() => {
@@ -939,9 +965,21 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
                         </>
                       )}
                       {tk.role === 'student' && tk.active && (
-                        <Button size="xs" variant="outline" disabled={dangXuLy} onClick={() => chay(tk, 'grant_teacher')}>
-                          Cấp quyền giáo viên
-                        </Button>
+                        <>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            disabled={capMa.isPending}
+                            data-testid="cap-ma-khoi-phuc"
+                            onClick={() => capMa.mutate(tk.username)}
+                          >
+                            {capMa.isPending && capMa.variables === tk.username ? <Loader2 className="animate-spin" /> : <KeyRound />}
+                            Cấp mã khôi phục
+                          </Button>
+                          <Button size="xs" variant="outline" disabled={dangXuLy} onClick={() => chay(tk, 'grant_teacher')}>
+                            Cấp quyền giáo viên
+                          </Button>
+                        </>
                       )}
                       {coTheKhoa && (
                         <Button
@@ -972,6 +1010,31 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
           </div>
         </>
       )}
+
+      <AlertDialog
+        open={capMa.isSuccess}
+        onOpenChange={(mo) => {
+          if (!mo) capMa.reset()
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mã khôi phục cho {capMa.data?.studentName}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hiệu lực {capMa.data?.expiresIn}, dùng 1 lần. Học sinh nhập mã này ở mục Quên mật khẩu để đặt mật khẩu mới.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p
+            data-testid="ma-khoi-phuc"
+            className="rounded-xl border border-brand/30 bg-brand/10 py-3 text-center font-mono text-3xl font-bold tracking-[0.35em] text-brand tabular-nums select-all"
+          >
+            {capMa.data?.code}
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => capMa.reset()}>Xong</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={canXacNhan !== null}
