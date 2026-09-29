@@ -411,6 +411,7 @@ export const BoCucSanKhau = z.object({
   doc: VAI_TRO_LOP.optional(),
   video: VAI_TRO_LOP.optional(),
   board: VAI_TRO_LOP.optional(),
+  toanManHinh: z.boolean().optional(),
   khung: z
     .object({ doc: KHUNG_CUA_SO.optional(), video: KHUNG_CUA_SO.optional(), board: KHUNG_CUA_SO.optional() })
     .optional(),

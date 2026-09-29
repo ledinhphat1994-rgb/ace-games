@@ -284,16 +284,37 @@ export function ClassroomWorkspace({
 
   // Contextual Rail: only ONE active at a time!
   const [contextPanel, setContextPanel] = useState<ContextPanelView>('closed')
-  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [localExitFullscreen, setLocalExitFullscreen] = useState(false)
+
+  // Đặt lại thoát tạm thời khi người trình chiếu đổi trạng thái toàn màn hình
+  useEffect(() => {
+    setLocalExitFullscreen(false)
+  }, [boCuc.toanManHinh])
+
+  const isFullscreen = Boolean(boCuc.toanManHinh) && (!localExitFullscreen || laNguoiTrinhChieu)
+
+  const handleToggleFullscreen = () => {
+    if (laNguoiTrinhChieu) {
+      setBoCuc((bc) => ({ ...bc, toanManHinh: !bc.toanManHinh }))
+    } else {
+      setLocalExitFullscreen((v) => !v)
+    }
+  }
 
   useEffect(() => {
     if (!isFullscreen) return
     const thoat = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsFullscreen(false)
+      if (e.key === 'Escape') {
+        if (laNguoiTrinhChieu) {
+          setBoCuc((bc) => ({ ...bc, toanManHinh: false }))
+        } else {
+          setLocalExitFullscreen(true)
+        }
+      }
     }
     window.addEventListener('keydown', thoat)
     return () => window.removeEventListener('keydown', thoat)
-  }, [isFullscreen])
+  }, [isFullscreen, laNguoiTrinhChieu])
 
   // Toàn màn hình: thanh công cụ tự thu xuống để không che sân khấu; rê chuột / chạm vào nút nhỏ ở đáy là hiện lại.
   // Đang mở khay (bút, công cụ) thì giữ nguyên.
@@ -446,7 +467,7 @@ export function ClassroomWorkspace({
             onSendStroke={onSendStroke}
             onRemoveStroke={onRemoveStroke}
             isFullscreen={isFullscreen}
-            onToggleFullscreen={() => setIsFullscreen((v) => !v)}
+            onToggleFullscreen={handleToggleFullscreen}
             isReconnecting={isReconnecting}
             slideAnnotations={slideAnnotations}
             onSendSlideAnnotation={onSendSlideAnnotation}

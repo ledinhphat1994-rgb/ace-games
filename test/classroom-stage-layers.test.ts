@@ -192,10 +192,13 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     expect(khungRaw).toContain("khoa && khung ? 'transition-[left,top,width,height] duration-100 ease-linear' : ''")
   })
 
-  it('so sánh bố cục theo từng lớp', () => {
+  it('so sánh bố cục theo từng lớp và toàn màn hình', () => {
     expect(cungBoCuc({ doc: 'main', board: 'an' }, { board: 'an', doc: 'main' })).toBe(true)
     expect(cungBoCuc({ doc: 'main' }, { doc: 'main', video: 'an' })).toBe(false)
+    expect(cungBoCuc({ doc: 'main', toanManHinh: true }, { doc: 'main', toanManHinh: false })).toBe(false)
+    expect(cungBoCuc({ doc: 'main', toanManHinh: true }, { doc: 'main', toanManHinh: true })).toBe(true)
     expect(cungBoCuc({}, null)).toBe(false)
+    expect(theoBoCucTrinhChieu({ doc: 'main', toanManHinh: true }, true, true)).toEqual({ doc: 'main', toanManHinh: true })
   })
 
   it('bảng độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng; chọn bút không đổi bố cục', () => {
@@ -473,9 +476,9 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     host.dong()
   })
 
-  it('trình phát video YouTube: cắt vùng 1 và tự ẩn thanh điều khiển khi không tương tác (giống YouTube)', () => {
-    // Cắt vùng 1 (tiêu đề, avatar kênh, nút chia sẻ, xem thêm) qua scale / crop
-    expect(videoRaw).toContain('scale-[1.22]')
+  it('trình phát video YouTube: hiển thị trọn vẹn kích cỡ video và tự ẩn thanh điều khiển khi không tương tác (giống YouTube)', () => {
+    // Hiển thị nguyên bản không phóng đại cắt xén
+    expect(videoRaw).not.toContain('scale-[1.22]')
     expect(videoRaw).toContain('pointer-events-none')
     // Tự ẩn hiện thanh điều khiển theo hover / idle
     expect(videoRaw).toContain('resetIdleTimer')
@@ -489,6 +492,6 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     // Kết quả tìm kiếm hiển thị lưới 2 cột
     expect(studyRoomViewRaw).toContain('grid-cols-1 sm:grid-cols-2')
     // Có khu vực xem trước khi link dán hợp lệ
-    expect(studyRoomViewRaw).toContain('trichXuatYoutubeId(directYtInput)')
+    expect(studyRoomViewRaw).toContain('trichXuatYoutubeId(ytSearch)')
   })
 })
