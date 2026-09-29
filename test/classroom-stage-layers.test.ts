@@ -36,6 +36,7 @@ import videoRaw from '../src/features/study/workspace/EmbeddedVideoPlayer.tsx?ra
 import dockRaw from '../src/features/study/workspace/ClassroomToolDock.tsx?raw'
 import bangVeRaw from '../src/features/study/workspace/BangVe.tsx?raw'
 import topBarRaw from '../src/features/study/workspace/ClassroomTopBar.tsx?raw'
+import studyRoomViewRaw from '../src/features/study/StudyRoomView.tsx?raw'
 
 describe('Bố cục lớp: ba lớp chạy đồng thời', () => {
   it('vào phòng: video đang phát làm lớp chính, tài liệu thành cửa sổ nổi', () => {
@@ -470,5 +471,24 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     const goi = await host.cho('slide.annotation', (g) => g.action === 'add' && g.stroke?.id === 'ghi-chu-1')
     expect(goi.stroke).toMatchObject({ tool: 'text', text: 'Công thức' })
     host.dong()
+  })
+
+  it('trình phát video YouTube: cắt vùng 1 và tự ẩn thanh điều khiển khi không tương tác (giống YouTube)', () => {
+    // Cắt vùng 1 (tiêu đề, avatar kênh, nút chia sẻ, xem thêm) qua scale / crop
+    expect(videoRaw).toContain('scale-[1.22]')
+    expect(videoRaw).toContain('pointer-events-none')
+    // Tự ẩn hiện thanh điều khiển theo hover / idle
+    expect(videoRaw).toContain('resetIdleTimer')
+    expect(videoRaw).toContain('showControls ?')
+    expect(videoRaw).toContain('cursor-none')
+  })
+
+  it('hộp thoại chèn video YouTube: rộng rãi, hiển thị dạng lưới và có xem trước link dán', () => {
+    // Popup kích thước to rộng hơn để chứa được nhiều thông tin
+    expect(studyRoomViewRaw).toContain('sm:max-w-4xl')
+    // Kết quả tìm kiếm hiển thị lưới 2 cột
+    expect(studyRoomViewRaw).toContain('grid-cols-1 sm:grid-cols-2')
+    // Có khu vực xem trước khi link dán hợp lệ
+    expect(studyRoomViewRaw).toContain('trichXuatYoutubeId(directYtInput)')
   })
 })

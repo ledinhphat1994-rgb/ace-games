@@ -3,7 +3,7 @@
 
 import { SUPPORTED_PLAYBACK_RATES, type MediaState } from '@shared/protocol/room'
 import { AlertCircle, Crown, Pause, Play, Search, Volume2, VolumeX } from 'lucide-react'
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 
 export interface EmbeddedVideoPlayerProps {
@@ -91,66 +91,96 @@ export function EmbeddedVideoPlayer({
   const [isSeeking, setIsSeeking] = useState(false)
   const [seekVal, setSeekVal] = useState(0)
 
+  // ── YouTube Hover & Idle Experience (Giống YouTube) ──
+  const [isHovered, setIsHovered] = useState(false)
+  const [isInteracting, setIsInteracting] = useState(false)
+  const [clickFeedback, setClickFeedback] = useState<'play' | 'pause' | null>(null)
+  const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const resetIdleTimer = useCallback(() => {
+    setIsInteracting(true)
+    if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
+    idleTimeoutRef.current = setTimeout(() => {
+      setIsInteracting(false)
+    }, 2600)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+    }
+  }, [])
+
+  const isPlaying = mediaState.status === 'playing'
+  // Hiện thanh điều khiển khi:
+  // - Đang tua video (isSeeking)
+  // - Hoặc đang rê chuột trên khung video (isHovered) VÀ (video đang dừng HOẶC vừa có thao tác di chuột isInteracting)
+  const showControls = isSeeking || (isHovered && (!isPlaying || isInteracting))
+
+  const handleTogglePlay = () => {
+    if (!effectiveCanControl) return
+    resetIdleTimer()
+    if (isPlaying) {
+      handleUserPause()
+      setClickFeedback('pause')
+    } else {
+      handleUserPlay()
+      setClickFeedback('play')
+    }
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current)
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setClickFeedback(null)
+    }, 500)
+  }
+
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden bg-black select-none"
+      className={`group relative flex h-full w-full flex-col overflow-hidden bg-black select-none ${
+        !showControls && isPlaying ? 'cursor-none' : ''
+      }`}
       data-testid="embedded-video-stage"
+      onMouseEnter={() => {
+        setIsHovered(true)
+        resetIdleTimer()
+      }}
+      onMouseMove={resetIdleTimer}
+      onMouseLeave={() => {
+        setIsHovered(false)
+        setIsInteracting(false)
+        if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
+      }}
     >
-      {/* Top Video Header Bar */}
-      <div
-        data-keo-khung
-        className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 backdrop-blur-md z-10 ${compact ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
-      >
-        <div className="flex items-center gap-2 truncate pr-2 min-w-0">
-          <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0" />
-          <span className="truncate text-xs font-semibold text-white">
-            {mediaState.title || 'Video bài giảng'}
-          </span>
-          {mediaState.hostOnlyControl && (
-            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300">
-              <Crown className="h-3.5 w-3.5" />
-            </span>
-          )}
+      {/* ── Main Video Viewport Area (100% diện tích, cắt sạch vùng 1 của YouTube bằng scale/crop) ── */}
+      <div className="relative h-full w-full flex-1 bg-black overflow-hidden flex items-center justify-center">
+        {/* Khung cắt scale [1.22] loại bỏ hoàn toàn tiêu đề, avatar kênh, nút chia sẻ và "Xem thêm" từ YouTube iframe */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
+          <div
+            id={containerId}
+            data-testid="yt-player-host"
+            className="absolute inset-0 w-full h-full scale-[1.22] origin-center pointer-events-none"
+          />
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {effectiveCanControl && (
-            <button
-              type="button"
-              onClick={onOpenSearchQueue}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
-              title="Đổi video"
-              aria-label="Đổi video"
-              data-testid="video-btn-change"
-            >
-              <Search className="h-3 w-3" />
-              {!compact && <span className="hidden sm:inline text-[11px]">Đổi video</span>}
-            </button>
-          )}
-
-          {dieuKhienKhung && (
-            <>
-              <span className="mx-0.5 h-4 w-px bg-white/15" />
-              {dieuKhienKhung}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Main Video Viewport Area */}
-      <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
-        {/* YT.Player target mount */}
-        <div id={containerId} data-testid="yt-player-host" className="absolute inset-0 h-full w-full" />
-
-        {/* Click layer routing to play/pause */}
+        {/* Lớp bắt click để phát / tạm dừng */}
         <div
           className="absolute inset-0 z-10 cursor-pointer"
-          onClick={() => {
-            if (!effectiveCanControl) return
-            if (mediaState.status === 'playing') handleUserPause()
-            else handleUserPlay()
-          }}
+          onClick={handleTogglePlay}
         />
+
+        {/* Biểu tượng hiệu ứng khi bấm click vào giữa video (Giống YouTube) */}
+        {clickFeedback && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center animate-in fade-in zoom-in-75 duration-150">
+            <div className="flex size-16 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white shadow-2xl">
+              {clickFeedback === 'play' ? (
+                <Play className="size-8 fill-white ml-1" />
+              ) : (
+                <Pause className="size-8 fill-white" />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Lớp vẽ riêng của video: chỉ nhận chuột khi đang chọn công cụ vẽ, còn lại bấm xuyên xuống để phát / dừng */}
         {lopVe && <div className="pointer-events-none absolute inset-0 z-[15]">{lopVe}</div>}
@@ -181,7 +211,7 @@ export function EmbeddedVideoPlayer({
           </div>
         )}
 
-        {/* Autoplay block banner — không hiện khi video lỗi (thông báo lỗi ở trên là nguyên nhân thật) */}
+        {/* Autoplay block banner */}
         {isAutoplayBlocked && !errorMessage && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 p-6 text-center">
             <AlertCircle className="h-8 w-8 text-amber-400 mb-2" />
@@ -198,40 +228,95 @@ export function EmbeddedVideoPlayer({
         )}
       </div>
 
-      {/* Synchronized Control Toolbar */}
-      <div className={`relative shrink-0 border-t border-white/10 bg-slate-950/95 flex flex-col z-10 backdrop-blur-md ${compact ? 'px-2 py-1 gap-1' : 'px-4 py-2 gap-1.5'}`}>
+      {/* ── Top Video Header Bar (Overlay chuyển mượt mà: chỉ hiện khi rê chuột) ── */}
+      <div
+        data-keo-khung
+        className={`absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-300 ${
+          showControls ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none -translate-y-2'
+        } ${compact ? 'h-9 px-2 pt-1' : 'h-12 px-3 sm:px-4 pt-1.5'}`}
+      >
+        <div className="flex items-center gap-2 truncate pr-2 min-w-0">
+          <YoutubeIcon className="h-4 w-4 text-red-500 shrink-0 drop-shadow" />
+          <span className="truncate text-xs sm:text-sm font-semibold text-white drop-shadow">
+            {mediaState.title || 'Video bài giảng'}
+          </span>
+          {mediaState.hostOnlyControl && (
+            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300 drop-shadow">
+              <Crown className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {effectiveCanControl && (
+            <button
+              type="button"
+              onClick={onOpenSearchQueue}
+              className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-black/40 backdrop-blur-md px-2.5 py-1 text-xs text-slate-200 hover:bg-white/20 hover:text-white transition-all cursor-pointer shadow-sm"
+              title="Đổi video"
+              aria-label="Đổi video"
+              data-testid="video-btn-change"
+            >
+              <Search className="h-3 w-3" />
+              {!compact && <span className="hidden sm:inline text-[11px] font-medium">Đổi video</span>}
+            </button>
+          )}
+
+          {dieuKhienKhung && (
+            <>
+              <span className="mx-0.5 h-4 w-px bg-white/20" />
+              <div className="flex items-center gap-1 drop-shadow">
+                {dieuKhienKhung}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Synchronized Control Toolbar (Overlay dưới đáy: chỉ hiện khi rê chuột) ── */}
+      <div
+        className={`absolute bottom-0 inset-x-0 z-20 flex flex-col bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-300 ${
+          showControls ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-2'
+        } ${compact ? 'px-2 pb-2 pt-6 gap-1' : 'px-4 pb-3 pt-8 gap-2'}`}
+      >
         {/* Scrubber Bar */}
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-slate-400 shrink-0 tabular-nums">
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono text-[11px] text-white/80 shrink-0 tabular-nums drop-shadow">
             {dinhDangGiayPhut(isSeeking ? seekVal : currentTime)}
           </span>
-          <input
-            type="range"
-            min={0}
-            max={duration || 100}
-            step={0.5}
-            value={isSeeking ? seekVal : currentTime}
-            disabled={!effectiveCanControl || duration <= 0}
-            onChange={(e) => {
-              setIsSeeking(true)
-              setSeekVal(Number(e.target.value))
-            }}
-            onMouseUp={() => {
-              if (isSeeking) {
-                handleUserSeek(seekVal)
-                setIsSeeking(false)
-              }
-            }}
-            onTouchEnd={() => {
-              if (isSeeking) {
-                handleUserSeek(seekVal)
-                setIsSeeking(false)
-              }
-            }}
-            aria-label="Tua video"
-            className="flex-1 h-1.5 rounded-lg appearance-none bg-white/20 accent-red-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          />
-          <span className="font-mono text-[10px] text-slate-400 shrink-0 tabular-nums">
+          <div className="relative flex-1 flex items-center">
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              step={0.5}
+              value={isSeeking ? seekVal : currentTime}
+              disabled={!effectiveCanControl || duration <= 0}
+              onChange={(e) => {
+                setIsSeeking(true)
+                setSeekVal(Number(e.target.value))
+                resetIdleTimer()
+              }}
+              onMouseDown={resetIdleTimer}
+              onMouseUp={() => {
+                if (isSeeking) {
+                  handleUserSeek(seekVal)
+                  setIsSeeking(false)
+                  resetIdleTimer()
+                }
+              }}
+              onTouchEnd={() => {
+                if (isSeeking) {
+                  handleUserSeek(seekVal)
+                  setIsSeeking(false)
+                  resetIdleTimer()
+                }
+              }}
+              aria-label="Tua video"
+              className="w-full h-1.5 hover:h-2 rounded-lg appearance-none bg-white/30 accent-red-600 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+          </div>
+          <span className="font-mono text-[11px] text-white/80 shrink-0 tabular-nums drop-shadow">
             {dinhDangGiayPhut(duration)}
           </span>
         </div>
@@ -242,38 +327,41 @@ export function EmbeddedVideoPlayer({
             {effectiveCanControl ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (mediaState.status === 'playing') handleUserPause()
-                  else handleUserPlay()
-                }}
-                className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-500 transition-colors cursor-pointer"
-                title={mediaState.status === 'playing' ? 'Tạm dừng' : 'Phát'}
+                onClick={handleTogglePlay}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-500 transition-all shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                title={isPlaying ? 'Tạm dừng' : 'Phát'}
               >
-                {mediaState.status === 'playing' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
               </button>
             ) : (
-              <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">
-                {mediaState.status === 'playing' ? 'Đang phát' : 'Đang tạm dừng'}
+              <span className="rounded bg-black/50 backdrop-blur-md border border-white/10 px-2 py-0.5 text-[10px] text-slate-300">
+                {isPlaying ? 'Đang phát' : 'Đang tạm dừng'}
               </span>
             )}
 
-            {/* Volume slider — cả khi video là cửa sổ nhỏ (âm lượng là của riêng máy mình) */}
+            {/* Volume slider */}
             <div className={`flex items-center ${compact ? 'ml-0.5 gap-1' : 'ml-2 gap-1.5'}`}>
               <button
                 type="button"
-                onClick={() => onVolumeChange(volume === 0 ? 80 : 0)}
-                className="p-1 text-slate-400 hover:text-white transition-colors"
+                onClick={() => {
+                  onVolumeChange(volume === 0 ? 80 : 0)
+                  resetIdleTimer()
+                }}
+                className="p-1 text-slate-300 hover:text-white transition-colors cursor-pointer drop-shadow"
                 title={volume === 0 ? 'Bật âm lượng' : 'Tắt tiếng'}
               >
-                {volume === 0 ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                {volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </button>
               <input
                 type="range"
                 min={0}
                 max={100}
                 value={volume}
-                onChange={(e) => onVolumeChange(Number(e.target.value))}
-                className={`${compact ? 'w-12' : 'w-16'} h-1 rounded-lg appearance-none bg-white/20 accent-white cursor-pointer`}
+                onChange={(e) => {
+                  onVolumeChange(Number(e.target.value))
+                  resetIdleTimer()
+                }}
+                className={`${compact ? 'w-12' : 'w-16'} h-1 rounded-lg appearance-none bg-white/30 accent-white cursor-pointer`}
                 aria-label="Âm lượng"
               />
             </div>
@@ -286,8 +374,11 @@ export function EmbeddedVideoPlayer({
                 title="Tốc độ phát"
                 value={playbackRate}
                 disabled={!effectiveCanControl}
-                onChange={(e) => handleUserRate(Number(e.target.value) as any)}
-                className="rounded border border-white/15 bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white focus:outline-none cursor-pointer disabled:opacity-50"
+                onChange={(e) => {
+                  handleUserRate(Number(e.target.value) as any)
+                  resetIdleTimer()
+                }}
+                className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white focus:outline-none cursor-pointer disabled:opacity-50 shadow-sm"
                 aria-label="Tốc độ phát"
               >
                 {selectableRates.map((r) => (
