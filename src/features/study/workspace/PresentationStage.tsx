@@ -10,7 +10,6 @@ import {
   type MatNet,
   type LopLaser,
   type QuyenCongCu,
-  quyenCuaNet,
 } from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
@@ -164,6 +163,21 @@ export function PresentationStage({
     )
   }
 
+  const coQuyenDungCongCu = (c: CongCu): boolean => {
+    if (canControl) return true
+    if (!myActorKey) return false
+    const dsQuyen = quyenCongCu[myActorKey]
+    if (!dsQuyen) return false
+    if (c === 'tay') return dsQuyen.includes('tay')
+    if (c === 'chu') return dsQuyen.includes('chu')
+    if (c === 'to_sang') return dsQuyen.includes('to_sang')
+    if (c === 'khung') return dsQuyen.includes('hinh')
+    return dsQuyen.includes('but')
+  }
+
+  const duocTay = canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('tay'))
+  const duocDungCongCuHienTai = coQuyenDungCongCu(congCu)
+
   // Bảng (mat trống) độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng, đi theo khung của nó.
   const bangVe = (laPhu: boolean, mat?: MatNet) => (
     <BangVe
@@ -174,8 +188,8 @@ export function PresentationStage({
       co={co}
       laPhu={laPhu}
       mat={mat}
-      coTheVe={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes(quyenCuaNet(congCu === 'chu' ? 'text' : congCu === 'to_sang' ? 'highlighter' : congCu === 'khung' ? 'shape' : 'pen')))}
-      coTheTayMoiNet={canControl}
+      coTheVe={duocDungCongCuHienTai}
+      coTheTayMoiNet={duocTay}
       khoaCuaToi={myActorKey}
       onSendStroke={onSendStroke}
       onRemoveStroke={onRemoveStroke}
@@ -279,9 +293,9 @@ export function PresentationStage({
               onRemoveSlideAnnotation={onRemoveSlideAnnotation}
               slideLasers={slideLasers}
               onSendSlideLaser={onSendSlideLaser}
-              coTheChuThich={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes(quyenCuaNet(congCu === 'chu' ? 'text' : congCu === 'to_sang' ? 'highlighter' : congCu === 'khung' ? 'shape' : 'pen')))}
+              coTheChuThich={duocDungCongCuHienTai}
               coLaser={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('laser'))}
-              coTheTayMoiNet={canControl}
+              coTheTayMoiNet={duocTay}
               khoaCuaToi={myActorKey}
             />
           </KhungLop>

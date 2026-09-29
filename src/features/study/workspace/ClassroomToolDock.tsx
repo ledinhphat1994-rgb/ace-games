@@ -2,6 +2,7 @@
 // Thanh dock lớp học: Mic · Tài liệu · Bảng · Video (bật / ẩn từng lớp, chạy đồng thời) · Chuột · Bút · Tẩy · Xoá hết · Công cụ.
 // Màu và cỡ nét chỉ hiện khi chọn công cụ có dùng tới (bút, dạ quang, chữ, hình).
 
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { VoiceClientState } from '@/lib/voice-client'
 import {
@@ -205,6 +206,7 @@ export function ClassroomToolDock({
   const [moBut, setMoBut] = useState(false)
   const [moCongCu, setMoCongCu] = useState(false)
   const [moAmThanh, setMoAmThanh] = useState(false)
+  const [moXacNhanXoaHet, setMoXacNhanXoaHet] = useState(false)
   useEffect(() => {
     onKhayMo?.(moBut || moCongCu || moAmThanh)
   }, [moBut, moCongCu, moAmThanh, onKhayMo])
@@ -395,19 +397,58 @@ export function ClassroomToolDock({
             )}
 
             {duocXoa && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Xoá hết nét vẽ, chữ và hình trên bảng và tài liệu?')) onXoaHet()
-              }}
-              title="Xoá hết"
-              aria-label="Xoá hết"
-              data-testid="tool-btn-clear-all"
-              className={`${nutDock} text-slate-400 hover:bg-red-500/15 hover:text-red-300`}
-            >
-              <Trash2 className="h-4.5 w-4.5" />
-              <span className={nhanDock}>Xoá hết</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setMoXacNhanXoaHet(true)}
+                title="Xoá hết"
+                aria-label="Xoá hết"
+                data-testid="tool-btn-clear-all"
+                className={`${nutDock} text-slate-400 hover:bg-red-500/15 hover:text-red-300`}
+              >
+                <Trash2 className="h-4.5 w-4.5" />
+                <span className={nhanDock}>Xoá hết</span>
+              </button>
+
+              <Dialog open={moXacNhanXoaHet} onOpenChange={setMoXacNhanXoaHet}>
+                <DialogContent
+                  className="sm:max-w-sm border-white/10 bg-slate-950/95 backdrop-blur-2xl shadow-2xl p-6 text-white text-center"
+                  showCloseButton={true}
+                >
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/15 text-red-400 ring-1 ring-red-500/30">
+                    <Trash2 className="h-7 w-7" />
+                  </div>
+                  <DialogHeader className="items-center text-center pr-0 gap-1.5 mt-2">
+                    <DialogTitle className="text-base font-bold text-white tracking-wide">
+                      Xoá toàn bộ nét vẽ?
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-slate-300 leading-relaxed max-w-[260px] mx-auto">
+                      Xoá hết nét vẽ, chữ và hình trên bảng và tài liệu. Hành động này không thể hoàn tác.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-5 flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setMoXacNhanXoaHet(false)}
+                      className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                    >
+                      Huỷ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoXacNhanXoaHet(false)
+                        onXoaHet()
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 py-2 text-xs font-semibold text-white shadow-lg shadow-red-600/30 hover:from-red-500 hover:to-rose-500 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Xoá hết</span>
+                    </button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
             )}
 
             <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />

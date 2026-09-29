@@ -2483,27 +2483,9 @@ export class RoomDO extends DurableObject<Env> {
           } catch {}
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.clear', epoch: this.whiteboardEpoch })
         } else if (d.action === 'stroke.remove') {
-          // Tẩy một nét: người được cấp quyền tẩy chỉ tẩy nét của chính mình; chủ phòng / người điều hành tẩy mọi nét.
+          // Tẩy một nét: người có quyền tẩy (do chủ phòng cấp hoặc người điều hành) được phép tẩy nét trên bảng.
           if (!this.coQuyen(att, laQuanTri, 'tay')) {
             ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền tẩy cho bạn.' }))
-            return
-          }
-          let dong: { stroke_data: string } | undefined
-          try {
-            dong = this.ctx.storage.sql
-              .exec<{ stroke_data: string }>('SELECT stroke_data FROM whiteboard_strokes WHERE id = ?1', d.id)
-              .toArray()[0]
-          } catch (err) {
-            console.error('Lỗi tra nét vẽ whiteboard để tẩy:', err)
-            return
-          }
-          if (!dong) return
-          let nguoiVe: string | undefined
-          try {
-            nguoiVe = (JSON.parse(dong.stroke_data) as WhiteboardStroke).by
-          } catch {}
-          if (!laQuanTri && nguoiVe !== att.key) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Bạn chỉ tẩy được nét vẽ của mình.' }))
             return
           }
           try {
@@ -2770,20 +2752,6 @@ export class RoomDO extends DurableObject<Env> {
           if (!this.coQuyen(att, laQuanTri, 'tay')) {
             ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền tẩy cho bạn.' }))
             return
-          }
-          if (!laQuanTri) {
-            // Người tham gia chỉ tẩy nét của chính mình.
-            let nguoiVe: string | undefined
-            try {
-              const dong = this.ctx.storage.sql
-                .exec<{ stroke_data: string }>('SELECT stroke_data FROM slide_annotations WHERE id = ?1', d.id)
-                .toArray()[0]
-              nguoiVe = dong ? (JSON.parse(dong.stroke_data) as SlideAnnotationStroke).by : undefined
-            } catch {}
-            if (nguoiVe !== att.key) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Bạn chỉ tẩy được nét vẽ của mình.' }))
-              return
-            }
           }
           try {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations WHERE id = ?1', d.id)
