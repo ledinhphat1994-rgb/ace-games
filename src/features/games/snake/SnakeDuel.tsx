@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { Wormate3DArena } from './Wormate3DArena'
+import { playGameOverSound } from '../game-audio'
 
 export type SnakeDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -99,9 +100,14 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     setPlayerScore(0)
   }
 
-  const handleGameOver = (_winner: boolean, reason: string) => {
+  const handleGameOver = (winner: boolean, reason: string) => {
     setIsRunning(false)
     setIsGameOver(true)
+    if (winner) {
+      playGameOverSound('win')
+    } else {
+      playGameOverSound('lose')
+    }
     toast.info(reason)
     if (onSaveScore && playerScore > 0) {
       onSaveScore(playerScore)
