@@ -1,20 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
 import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Crown } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
+import type { SchoolStudyLeaderboardItem } from '@shared/protocol/engagement'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
 import type { HighScoreRecord } from './GameLeaderboard'
 import { tinhLevel } from './GameLeaderboard'
 
+/** Bảng xếp hạng chung toàn web: tab Học tập (tổng XP học tập) + các tab game (kỷ lục đã xác thực). */
+export type TabXepHang = GameType | 'hoc_tap'
+
 interface TabGameConfig {
-  id: GameType
+  id: TabXepHang
   label: string
   icon: string
   accentGradient: string
 }
 
 const LEADERBOARD_TABS: TabGameConfig[] = [
+  { id: 'hoc_tap', label: 'Học tập', icon: '📚', accentGradient: 'from-sky-500/30 to-indigo-600/10' },
   { id: 'chess', label: 'Cờ Vua', icon: '♟️', accentGradient: 'from-amber-500/30 to-yellow-600/10' },
   { id: 'xiangqi', label: 'Cờ Tướng', icon: '🏮', accentGradient: 'from-rose-500/30 to-red-600/10' },
   { id: 'caro_15', label: 'Caro', icon: '⚔️', accentGradient: 'from-cyan-500/30 to-blue-600/10' },
@@ -37,6 +42,22 @@ async function layBangXepHang(gameType: string, limit = 50): Promise<HighScoreRe
   const data = (await res.json().catch(() => null)) as PhanHoiHighScore | null
   if (!res.ok || !data?.ok) throw new Error(data?.loi || `Lỗi ${res.status}`)
   return data.highscores ?? []
+}
+
+// Tab Học tập: Top 50 toàn trường theo tổng XP học tập (máy chủ cộng khi kết thúc phiên học), cùng khuôn dòng với tab game.
+async function layBangXepHangHocTap(): Promise<HighScoreRecord[]> {
+  const res = await fetch('/api/engagement/leaderboard/school', { credentials: 'same-origin' })
+  const data = (await res.json().catch(() => null)) as { ok?: boolean; items?: SchoolStudyLeaderboardItem[]; loi?: string } | null
+  if (!res.ok || !data?.ok) throw new Error(data?.loi || `Lỗi ${res.status}`)
+  return (data.items ?? []).map((r) => ({
+    id: r.rank,
+    gameType: 'hoc_tap',
+    playerName: r.playerName,
+    score: r.totalXp,
+    createdAt: 0,
+    totalXp: r.totalXp,
+    level: r.level,
+  }))
 }
 
 // ─── Avatar initials ─────────────────────────────────────────────────────────
@@ -85,7 +106,7 @@ function AvatarInitials({
 
 // ─── Champion Spotlight (#1) ─────────────────────────────────────────────────
 
-function ChampionSpotlight({ record, animKey }: { record: HighScoreRecord; animKey: string }) {
+function ChampionSpotlight({ record, animKey, donVi }: { record: HighScoreRecord; animKey: string; donVi: string }) {
   const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
 
   return (
@@ -120,7 +141,7 @@ function ChampionSpotlight({ record, animKey }: { record: HighScoreRecord; animK
             </p>
             <p className="text-xs text-amber-300 font-mono font-bold mt-0.5">
               {record.score.toLocaleString('vi-VN')}{' '}
-              <span className="text-[10px] font-normal text-text-tertiary">điểm</span>
+              <span className="text-[10px] font-normal text-text-tertiary">{donVi}</span>
             </p>
           </div>
         </div>
@@ -250,12 +271,12 @@ function SkeletonLeaderboard() {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 interface GameArenaLeaderboardProps {
-  defaultGame?: GameType
+  defaultGame?: TabXepHang
   className?: string
 }
 
 export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeaderboardProps) {
-  const [activeTab, setActiveTab] = useState<GameType>(() => defaultGame ?? 'chess')
+  const [activeTab, setActiveTab] = useState<TabXepHang>(() => defaultGame ?? 'chess')
   const tabsContainerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -311,18 +332,21 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
     window.addEventListener('mouseup', handleWindowMouseUp)
   }
 
-  const handleTabClick = (tabId: GameType) => {
+  const handleTabClick = (tabId: TabXepHang) => {
     if (dragDistance.current > 10) return
     setActiveTab(tabId)
     if (listRef.current) listRef.current.scrollTop = 0
   }
 
   const activeTabCfg = LEADERBOARD_TABS.find((t) => t.id === activeTab) ?? LEADERBOARD_TABS[0]
-  const info = GAME_CATALOG_BY_ID[activeTab]
+  const laHocTap = activeTab === 'hoc_tap'
+  const moTaTab = laHocTap
+    ? 'Học tập • 50 người nhiều XP nhất'
+    : `${GAME_CATALOG_BY_ID[activeTab].shortTitle} • 50 kỷ lục cao nhất`
 
   const { data, isPending, isError, refetch, isRefetching } = useQuery({
-    queryKey: ['game-highscores', activeTab, 50],
-    queryFn: () => layBangXepHang(activeTab, 50),
+    queryKey: laHocTap ? ['study-leaderboard', 'school'] : ['game-highscores', activeTab, 50],
+    queryFn: () => (activeTab === 'hoc_tap' ? layBangXepHangHocTap() : layBangXepHang(activeTab, 50)),
     staleTime: 30_000,
   })
 
@@ -349,7 +373,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
             <div className="flex items-center gap-2">
               <h2
                 id="arena-leaderboard-heading"
-                className="text-sm font-black tracking-tight text-white leading-none"
+                className="tieu-de-cap-2 text-[0.9375rem] font-black tracking-tight leading-none"
               >
                 Bảng Xếp Hạng
               </h2>
@@ -357,7 +381,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
                 Top 50
               </span>
             </div>
-            <p className="text-[10px] text-text-tertiary mt-1 leading-none">{info.shortTitle} • 50 kỷ lục cao nhất</p>
+            <p className="text-[10px] text-text-tertiary mt-1 leading-none">{moTaTab}</p>
           </div>
         </div>
         <button
@@ -447,7 +471,9 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           </div>
           <div>
             <p className="text-sm font-bold text-white">Chưa có ai lên bảng!</p>
-            <p className="text-xs text-text-tertiary mt-1">Chơi {activeTabCfg.label} để ghi danh Top 50 đầu tiên 🏆</p>
+            <p className="text-xs text-text-tertiary mt-1">
+              {laHocTap ? 'Học trong phòng' : `Chơi ${activeTabCfg.label}`} để ghi danh Top 50 đầu tiên 🏆
+            </p>
           </div>
         </div>
       ) : (
@@ -457,7 +483,7 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {/* Top 1 Champion Spotlight */}
-          {champion && <ChampionSpotlight record={champion} animKey={activeTab} />}
+          {champion && <ChampionSpotlight record={champion} animKey={activeTab} donVi={laHocTap ? 'XP' : 'điểm'} />}
 
           {/* Danh sách thứ hạng tiếp theo */}
           {remaining.length > 0 && (

@@ -13,12 +13,14 @@ import { getStudyWeekDateRange, SCHOOL_TIMEZONE, studyDate, studyWeek } from '..
 import type {
   ClassLeaderboardItem,
   FriendStudyActivityItem,
+  SchoolStudyLeaderboardItem,
   SendStudyInviteInput,
   UserAchievementItem,
 } from '../../shared/protocol/engagement'
 import { thongBaoCampusDO } from './social'
 import { recordAnalyticsEvent } from '../lib/analytics'
 import { createNotification } from '../services/notification-service'
+import { rutGonHoTen } from '../games/phien-choi-don'
 
 export const engagementApp = new Hono<{ Bindings: Env }>()
 
@@ -119,6 +121,33 @@ engagementApp.get('/leaderboard', async (c) => {
     dateRange: { startDate, endDate },
     items,
   })
+})
+
+// ─── 2b. School-wide Study XP Leaderboard (tab "Học tập" của bảng xếp hạng chung) ───
+// Cùng quy tắc bảng xếp hạng game: Top 50 toàn trường, xem được khi chưa đăng nhập nhưng họ tên rút gọn.
+// Điểm là tổng XP học tập máy chủ đã cộng (user_engagement_profile.total_xp = SUM(xp_ledger)).
+engagementApp.get('/leaderboard/school', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT tk.ten_hien_thi AS ten, tk.ten_dang_nhap AS username, ep.total_xp AS totalXp
+       FROM user_engagement_profile ep
+       JOIN tai_khoan_campus tk ON tk.id = ep.account_id
+      WHERE ep.total_xp > 0 AND tk.dang_hoat_dong = 1 AND tk.ten_dang_nhap != 'system'
+      ORDER BY ep.total_xp DESC, ep.updated_at ASC, tk.id ASC
+      LIMIT 50`,
+  ).all<{ ten: string | null; username: string; totalXp: number }>()
+
+  const phien = await layPhien(c.req.raw, c.env)
+  const daDangNhap = phien ? (await kiemTraPhien(phien, c.env)).hopLe : false
+  const items: SchoolStudyLeaderboardItem[] = (results ?? []).map((r, idx) => {
+    const ten = r.ten?.trim() || r.username
+    return {
+      rank: idx + 1,
+      playerName: daDangNhap ? ten : rutGonHoTen(ten),
+      totalXp: r.totalXp,
+      level: Math.max(1, Math.floor(Math.sqrt((r.totalXp || 0) / 15)) + 1),
+    }
+  })
+  return c.json({ ok: true, items })
 })
 
 // ─── 3. Achievements Catalog & Unlocks ────────────────────────────────────────

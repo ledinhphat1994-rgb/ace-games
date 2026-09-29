@@ -24,7 +24,8 @@ import learningPageRaw from '../src/features/hub/LearningPage.tsx?raw'
 import joinRoomModalRaw from '../src/features/hub/components/learning/JoinRoomModal.tsx?raw'
 import createStudyRoomDialogRaw from '../src/features/hub/CreateStudyRoomDialog.tsx?raw'
 import roomCardRaw from '../src/features/hub/RoomCard.tsx?raw'
-import bangXepHangHocTapRaw from '../src/features/hub/BangXepHangHocTap.tsx?raw'
+import arenaLeaderboardRaw from '../src/features/games/GameArenaLeaderboard.tsx?raw'
+import pageHeaderRaw from '../src/components/layout/PageHeader.tsx?raw'
 import socialSidebarRaw from '../src/features/games/GameSocialSidebar.tsx?raw'
 import appShellRaw from '../src/components/layout/AppShell.tsx?raw'
 import mainRaw from '../src/main.tsx?raw'
@@ -143,19 +144,26 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(learningPageRaw).not.toContain('import { ClassLeaderboardCard')
     })
 
-    it('C2. Bố cục 3 cột như trang Game: xếp hạng học tập của lớp | phòng đang mở | chat chung & bạn bè', () => {
+    it('C2. Bố cục 3 cột như trang Game: bảng xếp hạng chung (tab Học tập) | phòng đang mở | chat chung & bạn bè', () => {
       expect(learningPageRaw).toContain('data-testid="learning-layout"')
       expect(learningPageRaw).toContain('xl:grid-cols-[360px_minmax(0,1fr)_370px]')
-      expect(learningPageRaw).toContain('<BangXepHangHocTap />')
+      // Dùng đúng bảng xếp hạng chung của trang Game, mở sẵn tab Học tập.
+      expect(learningPageRaw).toContain('<GameArenaLeaderboard defaultGame="hoc_tap" />')
       // Khung rộng như trang Game để ba cột đủ chỗ.
       expect(appShellRaw).toContain("location.pathname.startsWith('/learn')")
       // Dùng lại cột xã hội của nền tảng (không chép riêng); trang Học tập không có bàn đấu nên ẩn tab Chat phòng.
       expect(learningPageRaw).toContain('<GameSocialSidebar coChatPhong={false} />')
       expect(socialSidebarRaw).toContain("coChatPhong ? 'grid-cols-3' : 'grid-cols-2'")
       expect(socialSidebarRaw).toContain("{coChatPhong && activeTab === 'chat_phong' && (")
-      // Bảng xếp hạng dùng XP tuần thật do máy chủ cộng; chỉ người có điểm mới lên bảng.
-      expect(bangXepHangHocTapRaw).toContain("fetch('/api/engagement/leaderboard'")
-      expect(bangXepHangHocTapRaw).toContain('.filter((r) => r.weeklyXp > 0)')
+      // Tab Học tập của bảng xếp hạng chung: Top 50 toàn trường theo tổng XP học tập thật.
+      expect(arenaLeaderboardRaw).toContain("{ id: 'hoc_tap', label: 'Học tập'")
+      expect(arenaLeaderboardRaw).toContain("fetch('/api/engagement/leaderboard/school'")
+    })
+
+    it('C3. Tiêu đề nổi bật giảm dần: tiêu đề trang neon cấp 1, tiêu đề khu vực cấp 2', () => {
+      expect(pageHeaderRaw).toContain('<h1 className="tieu-de-cap-1')
+      expect(pageHeaderRaw).toContain('<span className="tieu-de-cap-2 whitespace-nowrap">{title}</span>')
+      expect(arenaLeaderboardRaw).toContain('className="tieu-de-cap-2')
     })
 
     it('D. Streak and XP hero metrics are removed from primary LearningPage', () => {
@@ -277,7 +285,9 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(joinRoomModalRaw).not.toContain('Mã hoặc số phòng')
       expect(joinRoomModalRaw).not.toContain('mã số phòng')
       expect(joinRoomModalRaw).toContain('ID hoặc liên kết phòng')
-      expect(learningPageRaw).toContain('<span>Vào phòng</span>')
+      // Sảnh Học tập dùng "Vào phòng nhanh" (tự chọn phòng), không còn mở hộp nhập ID phòng.
+      expect(learningPageRaw).toContain('<span>Vào phòng nhanh</span>')
+      expect(learningPageRaw).not.toContain('<JoinRoomModal')
     })
   })
 

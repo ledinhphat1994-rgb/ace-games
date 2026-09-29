@@ -6,14 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PageHeader, SectionHeader } from '@/components/layout/PageHeader'
 import { RoomCard } from './RoomCard'
-import { BangXepHangHocTap } from './BangXepHangHocTap'
+import { GameArenaLeaderboard } from '@/features/games/GameArenaLeaderboard'
 import { GameSocialSidebar } from '@/features/games/GameSocialSidebar'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
-import { JoinRoomModal } from './components/learning/JoinRoomModal'
-import { buildRoomFriendsMap, sortDiscoveryRooms } from './room-discovery'
+import { buildRoomFriendsMap, chonPhongVaoNhanh, sortDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { LogIn, MonitorPlay, PenLine, Plus, Presentation, RefreshCw, Search, X } from 'lucide-react'
+import { LogIn, MonitorPlay, PenLine, Plus, Presentation, RefreshCw, Search, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
@@ -50,7 +49,6 @@ export function LearningPage() {
   const [tuKhoa, setTuKhoa] = useState(urlQuery)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
-  const [moVaoPhong, setMoVaoPhong] = useState(false)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -93,13 +91,14 @@ export function LearningPage() {
     navigate(`/room/phong-${room.id}`)
   }
 
-  const handleJoinById = (targetRoomId: number) => {
-    const existing = rooms.find((r) => r.id === targetRoomId)
-    if (existing) {
-      xuLyVaoPhong(existing)
-    } else {
-      navigate(`/room/phong-${targetRoomId}`)
+  // Vào phòng nhanh: không cần chọn — tự vào phòng tốt nhất còn chỗ, không mật khẩu (xét mọi phòng, không theo ô tìm kiếm).
+  const vaoPhongNhanh = () => {
+    const phong = chonPhongVaoNhanh(rooms, roomFriendsMap)
+    if (!phong) {
+      toast.info('Các phòng đang mở đều đã đầy hoặc cần mật khẩu.')
+      return
     }
+    navigate(`/room/phong-${phong.id}`)
   }
 
   const hienTimKiem = lobbyState.status === 'ready' && rooms.length > 0
@@ -108,17 +107,18 @@ export function LearningPage() {
     <div className="space-y-8">
       <PageHeader title="Học tập" />
 
-      {/* Bố cục 3 cột như trang Game: xếp hạng học tập của lớp | phòng đang mở | chat chung & bạn bè */}
+      {/* Bố cục 3 cột như trang Game: bảng xếp hạng chung (mở sẵn tab Học tập) | phòng đang mở | chat chung & bạn bè */}
       <div
         data-testid="learning-layout"
         className="grid w-full grid-cols-1 items-start gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px]"
       >
         <div className="order-2 min-w-0 lg:order-1">
-          <BangXepHangHocTap />
+          <GameArenaLeaderboard defaultGame="hoc_tap" />
         </div>
 
-        <section className="order-1 min-w-0 space-y-4 lg:order-2" aria-labelledby="learning-rooms-heading">
-          <div className="flex min-h-9 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <section className="@container order-1 min-w-0 space-y-4 lg:order-2" aria-labelledby="learning-rooms-heading">
+          {/* Theo bề rộng thật của cột giữa: đủ chỗ thì tiêu đề + nút + ô tìm cùng một hàng, hẹp thì ô tìm xuống dòng. */}
+          <div className="flex min-h-9 flex-col gap-3 @min-[46rem]:flex-row @min-[46rem]:items-center @min-[46rem]:justify-between">
             <SectionHeader
               id="learning-rooms-heading"
               title="Phòng đang mở"
@@ -130,15 +130,9 @@ export function LearningPage() {
                       <Plus />
                       <span>Tạo phòng</span>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setMoVaoPhong(true)}
-                      data-testid="join-room-btn"
-                      data-test-compat="join-by-code-btn"
-                    >
-                      <LogIn className="text-brand" />
-                      <span>Vào phòng</span>
+                    <Button variant="outline" size="sm" onClick={vaoPhongNhanh} data-testid="quick-join-btn">
+                      <Zap className="text-brand" />
+                      <span>Vào phòng nhanh</span>
                     </Button>
                   </div>
                 ) : undefined
@@ -146,7 +140,7 @@ export function LearningPage() {
             />
 
             {hienTimKiem && (
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full @min-[46rem]:w-72">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
                 <Input
                   value={tuKhoa}
@@ -299,12 +293,6 @@ export function LearningPage() {
           setMoTaoPhong(false)
           navigate(`/room/phong-${roomId}`)
         }}
-      />
-
-      <JoinRoomModal
-        open={moVaoPhong}
-        onOpenChange={setMoVaoPhong}
-        onJoinRoomId={handleJoinById}
       />
     </div>
   )
