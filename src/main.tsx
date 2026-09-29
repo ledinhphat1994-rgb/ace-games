@@ -45,6 +45,8 @@ const queryClient = new QueryClient({
 })
 
 const router = createBrowserRouter([
+  // Trang công khai, không qua AuthGate: không cần đăng nhập và vẫn mở được khi API lỗi.
+  { path: 'privacy', lazy: () => import('@/app/PrivacyPage').then((m) => ({ Component: m.PrivacyPage })) },
   {
     element: <AuthGate />,
     children: [
