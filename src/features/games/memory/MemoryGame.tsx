@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Brain, Sparkles } from 'lucide-react'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
@@ -399,7 +398,6 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
       return
     }
     if (surrenderAttempts >= 3) {
-      toast.warning('Bạn đã hết số lần xin thua cho ván này (tối đa 3 lần)!')
       return
     }
     setIsSurrenderModalOpen(true)
@@ -424,6 +422,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         }}
         onReset={handleResetOrSurrender}
         resetLabel={isGameOver ? 'Ván mới' : 'Xin thua'}
+        resetDisabled={!isGameOver && surrenderAttempts >= 3}
         surrenderAttempts={surrenderAttempts}
         activeSide={turn === 1 ? 'red' : 'black'}
         turnLabel={turn === 1 ? 'Lượt: Bạn' : (mode === 'pve' ? 'Lượt: Máy AI' : 'Lượt: Người chơi 2')}

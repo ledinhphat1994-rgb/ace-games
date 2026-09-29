@@ -17,7 +17,6 @@ import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
-import { toast } from 'sonner'
 
 const SIZE = 15
 
@@ -278,7 +277,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       const benThang = benThua === 'X' ? 'O' : 'X'
       setWinner(benThang)
       setSurrenderReason(`Quân ${benThua} hết giờ suy nghĩ`)
-      toast.error(`Quân ${benThua} đã hết giờ suy nghĩ!`)
     }, [isOver, currentTurn]),
   })
 

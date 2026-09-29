@@ -100,7 +100,7 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     setPlayerScore(0)
   }
 
-  const handleGameOver = (winner: boolean, reason: string) => {
+  const handleGameOver = (winner: boolean, _reason?: string) => {
     setIsRunning(false)
     setIsGameOver(true)
     if (winner) {
@@ -108,7 +108,6 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
     } else {
       playGameOverSound('lose')
     }
-    toast.info(reason)
     if (onSaveScore && playerScore > 0) {
       onSaveScore(playerScore)
     }

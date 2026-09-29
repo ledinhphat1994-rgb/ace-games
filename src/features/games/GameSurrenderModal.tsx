@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
 import type { PlayMode } from './GamePlayToolbar'
 
 export interface GameSurrenderModalProps {
@@ -77,7 +76,6 @@ export function GameSurrenderModal({
       if (conLai <= 0) {
         clearInterval(interval)
         timerRef.current = null
-        toast.info(`Xin thua đã được ${tenDoiThuRef.current} chấp nhận! Ván đấu kết thúc.`)
         thanhCongRef.current()
         return
       }
@@ -102,7 +100,6 @@ export function GameSurrenderModal({
     }
     setTimeLeft(5)
     setStage('countdown')
-    toast.info(`${surrenderSideName} đã xác nhận xin thua. Đang chờ ${opponentSideName} xác nhận…`)
   }
 
   // Hủy bỏ ở Bước 1: Chưa gửi yêu cầu, không tính lượt xin thua

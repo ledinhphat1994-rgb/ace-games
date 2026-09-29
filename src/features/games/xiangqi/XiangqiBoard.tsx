@@ -37,7 +37,6 @@ import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
-import { toast } from 'sonner'
 
 const INITIAL_XIANGQI_COUNTS: Record<number, number> = {
   [CHARIOT]: 2,
@@ -176,7 +175,6 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         winner: benThang,
         reason: `${pos.turn === RED ? 'Bên Đỏ' : 'Bên Đen'} hết giờ`,
       })
-      toast.error(`${pos.turn === RED ? 'Bên Đỏ' : 'Bên Đen'} đã hết giờ suy nghĩ!`)
     }, [isOver, pos.turn]),
   })
 
@@ -375,7 +373,6 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
       return
     }
     if (surrenderAttempts >= 3) {
-      toast.warning('Bạn đã hết số lần xin thua cho ván này (tối đa 3 lần)!')
       return
     }
     // Mở modal xác nhận xin thua cho người chơi
@@ -502,7 +499,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
         resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
         resetIcon={nutOnline?.icon}
-        resetDisabled={nutOnline?.disabled}
+        resetDisabled={nutOnline ? nutOnline.disabled : (!isOver && surrenderAttempts >= 3)}
         surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
         activeSide={isOver ? (winnerSide === RED ? 'red' : 'black') : (pos.turn === RED ? 'red' : 'black')}
         turnLabel={`Lượt: ${pos.turn === RED ? 'Bên Đỏ (Đi trước)' : 'Bên Đen'}`}
