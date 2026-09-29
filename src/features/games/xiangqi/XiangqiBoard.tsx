@@ -34,7 +34,7 @@ import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameClockWidget } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
-import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
 import { toast } from 'sonner'
@@ -508,6 +508,14 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         turnLabel={`Lượt: ${pos.turn === RED ? 'Bên Đỏ (Đi trước)' : 'Bên Đen'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        rightSlot={
+          <GameQuickEmote
+            emotes={DANH_SACH_THAI_DO_XIANGQI}
+            onSend={handleQuickEmote}
+            theme="red"
+            compact={true}
+          />
+        }
       />
 
       {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
@@ -606,9 +614,17 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             visible={Boolean(heroicBanner)}
             onClose={() => setHeroicBanner(null)}
           />
+
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1920px) không có hai cột hai bên */}
+          <div className="min-[1920px]:hidden absolute top-2 right-2 z-30 pointer-events-none">
+            <GameOpponentBubble bubble={bongDoiThu} theme="red" />
+          </div>
+          <div className="min-[1920px]:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+            <GamePlayerBubble bubble={playerBubble} theme="red" />
+          </div>
         </div>
 
-        {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 2 (Ngăn cách cố định ở giữa 50%) | VÙNG 1 (Ta ở dưới) ── */}
+        {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
         <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none py-1">
           <GameCapturedTray
             enemyCaptured={benCuaToi === RED ? captured.friendlyLost : captured.enemyCaptured}
@@ -616,15 +632,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             pawnType={SOLDIER}
             renderPiece={renderCapturedXiangqiPiece}
             topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="red" />}
-            bottomSlot={
-              <GameQuickEmote
-                emotes={DANH_SACH_THAI_DO_XIANGQI}
-                onSend={handleQuickEmote}
-                activeBubble={playerBubble}
-                theme="red"
-                align="end"
-              />
-            }
+            bottomSlot={<GamePlayerBubble bubble={playerBubble} theme="red" />}
           />
         </div>
       </div>

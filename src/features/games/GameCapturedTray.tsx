@@ -8,9 +8,9 @@ export interface GameCapturedTrayProps {
   friendlyCaptured: number[]
   pawnType: number
   renderPiece: (type: number, isEnemyPiece: boolean, rotation: number) => React.ReactNode
-  /** VÙNG 1+: Tin nhắn / bong bóng thoại đối thủ ở góc trên */
+  /** VÙNG 2: Tin nhắn / bong bóng thoại đối thủ ở góc trên */
   topSlot?: React.ReactNode
-  /** VÙNG 1: Nút cảm xúc & tin nhắn của ta ở góc dưới */
+  /** VÙNG 1+: Tin nhắn / bong bóng thoại của ta ở góc dưới */
   bottomSlot?: React.ReactNode
   className?: string
 }

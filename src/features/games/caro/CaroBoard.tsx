@@ -14,7 +14,7 @@ import {
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameClockWidget } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
-import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
 import { toast } from 'sonner'
@@ -392,6 +392,14 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         turnLabel={`Lượt: ${currentTurn === 'X' ? 'Quân X (Đi trước)' : 'Quân O'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        rightSlot={
+          <GameQuickEmote
+            emotes={QUICK_EMOTES_CARO}
+            onSend={handleQuickEmote}
+            theme="cyan"
+            compact={true}
+          />
+        }
         className="w-full shrink-0"
       />
 
@@ -635,6 +643,14 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             visible={Boolean(heroicBanner)}
             onClose={() => setHeroicBanner(null)}
           />
+
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< 1920px) không có hai cột hai bên */}
+          <div className="min-[1920px]:hidden absolute top-2 right-2 z-30 pointer-events-none">
+            <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
+          </div>
+          <div className="min-[1920px]:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+            <GamePlayerBubble bubble={playerBubble} theme="cyan" />
+          </div>
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
@@ -644,15 +660,9 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
           </div>
 
-          {/* VÙNG 1+: Nút cảm xúc & tin nhắn của ta ở góc dưới */}
+          {/* VÙNG 1+: Tin nhắn của ta ở góc dưới */}
           <div className="w-full flex justify-center">
-            <GameQuickEmote
-              emotes={QUICK_EMOTES_CARO}
-              onSend={handleQuickEmote}
-              activeBubble={playerBubble}
-              theme="cyan"
-              align="end"
-            />
+            <GamePlayerBubble bubble={playerBubble} theme="cyan" />
           </div>
         </div>
       </div>

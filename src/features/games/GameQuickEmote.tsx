@@ -65,18 +65,70 @@ export function GameOpponentBubble({
   )
 }
 
+export function GamePlayerBubble({
+  bubble,
+  theme = 'cyan',
+  className,
+}: {
+  bubble?: ActiveEmoteBubble | null
+  theme?: 'cyan' | 'amber' | 'red' | 'violet'
+  className?: string
+}) {
+  if (!bubble) return null
+
+  let borderClass = 'border-cyan-500/50 shadow-cyan-500/25'
+  let labelClass = 'text-cyan-400'
+  let bgClass = 'bg-[#091322]/95'
+  if (theme === 'red') {
+    borderClass = 'border-red-500/50 shadow-red-500/25'
+    labelClass = 'text-red-400'
+    bgClass = 'bg-[#180909]/95'
+  } else if (theme === 'amber') {
+    borderClass = 'border-amber-500/50 shadow-amber-500/25'
+    labelClass = 'text-amber-400'
+    bgClass = 'bg-[#181106]/95'
+  } else if (theme === 'violet') {
+    borderClass = 'border-violet-500/50 shadow-violet-500/25'
+    labelClass = 'text-violet-400'
+    bgClass = 'bg-[#140b24]/95'
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-start gap-2 animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 z-30 pointer-events-none box-border',
+        borderClass,
+        bgClass,
+        className
+      )}
+    >
+      <span className="text-xl animate-bounce shrink-0">{bubble.emoji}</span>
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className={cn('text-[9px] font-black uppercase tracking-wider leading-none truncate', labelClass)}>
+          BẠN
+        </span>
+        <span className="text-[11px] font-bold text-white leading-tight mt-1 line-clamp-2 break-words">
+          "{bubble.quote}"
+        </span>
+      </div>
+    </div>
+  )
+}
+
 interface GameQuickEmoteProps {
   /** Danh sách biểu cảm chọn nhanh (1 click là gửi ngay, không qua bước chọn nhóm) */
   emotes: QuickEmoteItem[]
   /** Callback gửi biểu cảm */
   onSend: (emote: QuickEmoteItem) => void
-  /** Bong bóng thoại đang hiển thị của người chơi (VÙNG 1) */
+  /** Bong bóng thoại đang hiển thị của người chơi (VÙNG 1+) */
   activeBubble?: ActiveEmoteBubble | null
   /** Tông màu chủ đạo cho viền / phát sáng */
   theme?: 'cyan' | 'amber' | 'red' | 'violet'
   /** Vị trí căn chỉnh popover */
   align?: 'end' | 'start' | 'center'
-  /** Chế độ thu gọn để đặt trên thanh toolbar header */
+  /** Chế độ thu gọn để đặt trên thanh toolbar header (VÙNG 1) */
   compact?: boolean
   className?: string
 }
@@ -97,62 +149,31 @@ export function GameQuickEmote({
   let themeText = 'text-cyan-300'
   let themeGlow = 'rgba(6,182,212,0.3)'
 
-  let bubbleBorder = 'border-cyan-500/50 shadow-cyan-500/20'
-  let bubbleText = 'text-cyan-400'
-  let bubbleBg = 'bg-[#091322]/95'
-
   if (theme === 'amber') {
     themeBorder = 'border-amber-500/35 hover:border-amber-400'
     themeBg = 'bg-amber-950/40 hover:bg-amber-900/40'
     themeText = 'text-amber-300'
     themeGlow = 'rgba(245,158,11,0.3)'
-    bubbleBorder = 'border-amber-500/50 shadow-amber-500/20'
-    bubbleText = 'text-amber-400'
-    bubbleBg = 'bg-[#181106]/95'
   } else if (theme === 'red') {
     themeBorder = 'border-red-500/35 hover:border-red-400'
     themeBg = 'bg-red-950/40 hover:bg-red-900/40'
     themeText = 'text-red-300'
     themeGlow = 'rgba(239,68,68,0.3)'
-    bubbleBorder = 'border-red-500/50 shadow-red-500/20'
-    bubbleText = 'text-red-400'
-    bubbleBg = 'bg-[#180909]/95'
   } else if (theme === 'violet') {
     themeBorder = 'border-violet-500/35 hover:border-violet-400'
     themeBg = 'bg-violet-950/40 hover:bg-violet-900/40'
     themeText = 'text-violet-300'
     themeGlow = 'rgba(168,85,247,0.3)'
-    bubbleBorder = 'border-violet-500/50 shadow-violet-500/20'
-    bubbleText = 'text-violet-400'
-    bubbleBg = 'bg-[#140b24]/95'
   }
 
   return (
     <div className={cn('relative flex flex-col items-center gap-2 select-none', className)}>
-      {/* VÙNG 1: Bong bóng thoại nổi của Bạn (Người chơi) - xuất hiện ngay trên icon */}
-      {activeBubble && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={cn(
-            'w-[165px] xl:w-[185px] max-w-[calc(100%-8px)] p-2.5 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-start gap-2 animate-in zoom-in-95 slide-in-from-bottom-2 duration-200 z-30 pointer-events-none box-border',
-            bubbleBorder,
-            bubbleBg
-          )}
-        >
-          <span className="text-xl animate-bounce shrink-0">{activeBubble.emoji}</span>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className={cn('text-[9px] font-black uppercase tracking-wider leading-none truncate', bubbleText)}>
-              BẠN
-            </span>
-            <span className="text-[11px] font-bold text-white leading-tight mt-1 line-clamp-2 break-words">
-              "{activeBubble.quote}"
-            </span>
-          </div>
-        </div>
+      {/* VÙNG 1+: Bong bóng thoại của Bạn chỉ hiện khi không ở chế độ compact trên thanh toolbar */}
+      {!compact && activeBubble && (
+        <GamePlayerBubble bubble={activeBubble} theme={theme} />
       )}
 
-      {/* VÙNG 2: Chỉ để icon tinh gọn - không để card - bấm là chọn nhanh ngay 1 bước */}
+      {/* VÙNG 1: Nút bấm chọn cảm xúc tinh gọn */}
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger
           render={

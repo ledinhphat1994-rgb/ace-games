@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { GamePlayToolbar } from '../GamePlayToolbar'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
-import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { GameQuickEmote, GameOpponentBubble, GamePlayerBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 
 const DANH_SACH_THAI_DO_MEMORY: QuickEmoteItem[] = [
   { id: 'smart', emoji: '🧠', label: 'Siêu trí nhớ', quote: 'Nhớ hết vị trí rồi!' },
@@ -429,6 +429,14 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         turnLabel={turn === 1 ? 'Lượt: Bạn' : (mode === 'pve' ? 'Lượt: Máy AI' : 'Lượt: Người chơi 2')}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        rightSlot={
+          <GameQuickEmote
+            emotes={DANH_SACH_THAI_DO_MEMORY}
+            onSend={handleQuickEmote}
+            theme="violet"
+            compact={true}
+          />
+        }
       />
 
       {/* Trạng thái ván gọn khi màn nhỏ (< lg) */}
@@ -534,6 +542,13 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
             })}
           </div>
 
+          {/* Bong bóng biểu cảm khi màn hình nhỏ (< lg) không có hai cột hai bên */}
+          <div className="lg:hidden absolute top-2 right-2 z-30 pointer-events-none">
+            <GameOpponentBubble bubble={opponentBubble} theme="violet" />
+          </div>
+          <div className="lg:hidden absolute bottom-2 right-2 z-30 pointer-events-none">
+            <GamePlayerBubble bubble={playerBubble} theme="violet" />
+          </div>
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
@@ -543,15 +558,9 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
             <GameOpponentBubble bubble={opponentBubble} theme="violet" />
           </div>
 
-          {/* VÙNG 1+: Nút cảm xúc chọn nhanh & tin nhắn của ta ở góc dưới */}
+          {/* VÙNG 1+: Tin nhắn của ta ở góc dưới */}
           <div className="w-full flex justify-center">
-            <GameQuickEmote
-              emotes={DANH_SACH_THAI_DO_MEMORY}
-              onSend={handleQuickEmote}
-              activeBubble={playerBubble}
-              theme="violet"
-              align="end"
-            />
+            <GamePlayerBubble bubble={playerBubble} theme="violet" />
           </div>
         </div>
       </div>
