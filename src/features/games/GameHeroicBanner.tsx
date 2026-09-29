@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Swords, Trophy, Skull, Handshake, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
