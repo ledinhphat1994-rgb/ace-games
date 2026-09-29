@@ -1,4 +1,6 @@
 // Dải người tham gia trên thanh trên cùng: kéo qua kéo lại (hoặc lăn chuột) để xem hết danh sách.
+// Mỗi người hiện ảnh đại diện thật của tài khoản (không có / lỗi ảnh thì chữ cái đầu); dải có đệm đủ rộng để viền,
+// quầng sáng, vương miện và huy hiệu quyền không bị cắt, và căn giữa kiểu "an toàn" (tràn thì vẫn cuộn tới người đầu).
 // Chủ phòng bấm vào một người để cấp / thu hồi từng quyền công cụ; máy chủ lưu và kiểm quyền thật.
 // Không có quyền tài liệu / bảng / video: phần trình chiếu luôn thuộc chủ phòng.
 
@@ -50,6 +52,24 @@ function mauCho(key: string): string {
 
 /** Kéo quá ngưỡng này mới tính là kéo (dưới ngưỡng là bấm chọn người). */
 const NGUONG_KEO = 5
+
+/** Ảnh đại diện tròn; ảnh không tải được thì quay về chữ cái đầu. `key` theo đường dẫn ảnh để đổi ảnh thì thử lại. */
+function AnhDaiDien({ ten, avatar }: { ten: string; avatar?: string | null }) {
+  const [loi, setLoi] = useState(false)
+  if (avatar && !loi) {
+    return (
+      <img
+        src={avatar}
+        alt=""
+        draggable={false}
+        onError={() => setLoi(true)}
+        className="size-full rounded-full object-cover"
+        data-testid="member-strip-anh"
+      />
+    )
+  }
+  return <>{getInitials(ten)}</>
+}
 
 export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGrant }: MemberStripProps) {
   const dsRef = useRef<HTMLUListElement>(null)
@@ -118,7 +138,9 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         }
       }}
       className={cn(
-        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center justify-center gap-2 sm:gap-3 overflow-x-auto py-1.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        // Không dùng justify-center trên khung cuộn (tràn thì người đầu bị cắt, không cuộn tới được): lề tự động ở
+        // người đầu / cuối để căn giữa. Đệm ngang + dọc chừa chỗ cho viền, quầng sáng, vương miện, huy hiệu quyền.
+        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
@@ -148,13 +170,13 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
           <span className="relative flex shrink-0">
             <span
               className={cn(
-                'flex size-11 sm:size-12 items-center justify-center rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
+                'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
                 mauCho(m.key),
                 laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-white/20',
                 m.soKetNoi > 0 ? '' : 'opacity-40',
               )}
             >
-              {getInitials(m.ten)}
+              <AnhDaiDien key={m.avatar ?? ''} ten={m.ten} avatar={m.avatar} />
             </span>
 
             {/* Chủ phòng: Icon vương miện hoàng gia to rõ nổi bật */}

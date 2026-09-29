@@ -8,6 +8,7 @@ import {
   quyenCuaNet,
   type QuyenCongCu,
   YOUTUBE_VIDEO_ID_REGEX,
+  avatarThanhVien,
   type GoiPhong,
   type MediaState,
   type PomodoroState,
@@ -86,6 +87,8 @@ interface AttachmentKetNoi {
   mic: boolean
   isGame?: boolean
   _joinedAt?: number
+  /** Ảnh đại diện đã lọc (avatarThanhVien); kết nối cũ trước bản này không có. */
+  avatar?: string | null
 }
 
 export const DEFAULT_MEDIA: MediaState = {
@@ -1875,6 +1878,13 @@ export class RoomDO extends DurableObject<Env> {
       ten = ''
     }
 
+    let avatar: string | null = null
+    try {
+      avatar = avatarThanhVien(decodeURIComponent(request.headers.get('X-Actor-Avatar') ?? ''))
+    } catch {
+      avatar = null
+    }
+
     let accountId = 0
     if (key.startsWith('acc:')) {
       accountId = parseInt(key.slice(4), 10) || 0
@@ -2003,6 +2013,7 @@ export class RoomDO extends DurableObject<Env> {
       mic: false,
       isGame: laGame,
       _joinedAt: Date.now(),
+      avatar,
     }
     server.serializeAttachment(attObj)
 
@@ -3163,6 +3174,7 @@ export class RoomDO extends DurableObject<Env> {
           mic: Boolean(att.mic || isVoiceLive),
           isHost: att.key === this.hostKey,
           canModerate: Boolean(att.canModerate),
+          avatar: att.avatar ?? null,
         })
       }
     }

@@ -75,6 +75,7 @@ import { socialApp } from './routes/social'
 import { engagementApp } from './routes/engagement-api'
 import { notificationApp } from './routes/notification-api'
 import { SoloSessionFinishRequest, SoloSessionStartRequest } from '../shared/protocol/game-sdk'
+import { avatarThanhVien } from '../shared/protocol/room'
 import {
   generateAuthoritativeVerificationHash,
   soloVerifierRegistry,
@@ -549,6 +550,10 @@ async function vaoPhong(request: Request, env: Env, maPhong: string): Promise<Re
   const headers = new Headers(request.headers)
   headers.set('X-Actor-Key', callerKey)
   headers.set('X-Actor-Ten', encodeURIComponent(kq.taiKhoan.ten || kq.taiKhoan.username))
+  // Ảnh đại diện cho dải người tham gia: lấy từ D1, không tin header client gửi lên.
+  headers.delete('X-Actor-Avatar')
+  const avatarPhong = avatarThanhVien(kq.taiKhoan.avatar)
+  if (avatarPhong) headers.set('X-Actor-Avatar', encodeURIComponent(avatarPhong))
   headers.set('X-Actor-Role', kq.taiKhoan.role || 'student')
   headers.set('X-Actor-Is-Admin', modQuyen.isAdmin ? '1' : '0')
   headers.set('X-Actor-Is-Teacher', modQuyen.isTeacher ? '1' : '0')
@@ -593,6 +598,7 @@ async function vaoPhongGame(request: Request, env: Env, maPhong: string): Promis
   if (kq.taiKhoan.lopId) headers.set('X-Actor-Lop-Id', String(kq.taiKhoan.lopId))
   headers.set('X-Actor-Phien-Id', kq.phien.phienId || '')
   headers.set('X-Room-Id', 'game_' + maPhong)
+  headers.delete('X-Actor-Avatar')
   headers.set('X-Room-Mode', 'game')
 
   // Đăng ký phòng game với CampusDO để hỗ trợ thu hồi phiên tập trung

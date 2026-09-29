@@ -101,6 +101,20 @@ export interface ThanhVienPhong {
   mic?: boolean
   isHost?: boolean
   canModerate?: boolean
+  /** Ảnh đại diện của tài khoản (đã lọc bằng avatarThanhVien); không có thì hiện chữ cái đầu. */
+  avatar?: string | null
+}
+
+/**
+ * Ảnh đại diện được gửi kèm danh sách người tham gia phòng: chỉ đường dẫn ngắn, an toàn (tệp của trường, ảnh có sẵn,
+ * https). Ảnh dạng data: quá dài để đi qua WebSocket / attachment của RoomDO nên trả null (giao diện dùng chữ cái đầu).
+ */
+export function avatarThanhVien(giaTri: unknown): string | null {
+  if (typeof giaTri !== 'string' || giaTri.length === 0 || giaTri.length > 400) return null
+  if (/[\s"'<>\\]/.test(giaTri)) return null
+  return giaTri.startsWith('/api/files/') || giaTri.startsWith('/assets/avatars/') || giaTri.startsWith('https://')
+    ? giaTri
+    : null
 }
 
 // ── Quyền công cụ của từng người tham gia (chủ phòng cấp / thu hồi tức thì) ──
