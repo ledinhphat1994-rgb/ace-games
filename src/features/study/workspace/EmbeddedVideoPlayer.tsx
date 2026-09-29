@@ -2,7 +2,7 @@
 // Digital Campus v2: Embedded YouTube Player for Central Presentation Stage
 
 import { SUPPORTED_PLAYBACK_RATES, type MediaState } from '@shared/protocol/room'
-import { AlertCircle, Crown, Pause, Play, Search, Volume2, VolumeX } from 'lucide-react'
+import { AlertCircle, Crown, Pause, Play, Search, Volume2, VolumeX, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useYouTubePlayer } from '@/hooks/use-youtube-player'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ export interface EmbeddedVideoPlayerProps {
   /** Đang là cửa sổ nổi: chỉ giữ phát / tạm dừng và thanh tua. */
   compact?: boolean
   isReconnecting?: boolean
+  onCloseVideo?: () => void
 }
 
 function dinhDangGiayPhut(s: number): string {
@@ -56,6 +57,7 @@ export function EmbeddedVideoPlayer({
   lopVe,
   compact = false,
   isReconnecting = false,
+  onCloseVideo,
 }: EmbeddedVideoPlayerProps) {
   const rawId = useId()
   const containerId = useMemo(() => `embedded-yt-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`, [rawId])
@@ -240,35 +242,43 @@ export function EmbeddedVideoPlayer({
           <span className="truncate text-xs sm:text-sm font-semibold text-white drop-shadow">
             {mediaState.title || 'Video bài giảng'}
           </span>
-          {mediaState.hostOnlyControl && (
-            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300 drop-shadow">
+          {effectiveCanControl && mediaState.hostOnlyControl && (
+            <span title="Chủ phòng điều khiển" aria-label="Chủ phòng điều khiển" className="shrink-0 text-amber-300 drop-shadow" data-testid="video-host-crown">
               <Crown className="h-3.5 w-3.5" />
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right: Vùng 1 — ĐỒNG BỘ CÔNG CỤ (ĐỔI, PHÓNG TO/THU NHỎ, TOÀN MÀN HÌNH, ẨN, ĐÓNG) */}
+        <div className="flex items-center gap-0.5 shrink-0 ml-auto">
           {effectiveCanControl && (
-            <button
-              type="button"
-              onClick={onOpenSearchQueue}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-black/40 backdrop-blur-md px-2.5 py-1 text-xs text-slate-200 hover:bg-white/20 hover:text-white transition-all cursor-pointer shadow-sm"
-              title="Đổi video"
-              aria-label="Đổi video"
-              data-testid="video-btn-change"
-            >
-              <Search className="h-3 w-3" />
-              {!compact && <span className="hidden sm:inline text-[11px] font-medium">Đổi video</span>}
-            </button>
-          )}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={onOpenSearchQueue}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                title="Đổi video"
+                aria-label="Đổi video"
+                data-testid="video-btn-change"
+              >
+                <Search className="h-3.5 w-3.5" />
+              </button>
 
-          {dieuKhienKhung && (
-            <>
-              <span className="mx-0.5 h-4 w-px bg-white/20" />
-              <div className="flex items-center gap-1 drop-shadow">
-                {dieuKhienKhung}
-              </div>
-            </>
+              {dieuKhienKhung}
+
+              {onCloseVideo && (
+                <button
+                  type="button"
+                  onClick={onCloseVideo}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-red-400 cursor-pointer"
+                  title="Đóng video"
+                  aria-label="Đóng video"
+                  data-testid="video-btn-close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

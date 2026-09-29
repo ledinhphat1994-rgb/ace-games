@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn, getInitials } from '@/lib/utils'
 import { QUYEN_CONG_CU, type QuyenCongCu, type ThanhVienPhong } from '@shared/protocol/room'
 import {
+  Crown,
   Eraser,
   Highlighter,
   Mic,
@@ -127,32 +128,95 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         const laToi = m.key === myActorKey
         const laTrinhChieu = Boolean(m.isHost || m.canModerate)
         const cap = quyenCongCu[m.key] ?? []
+        const hasMic = Boolean(m.mic || cap.includes('mic'))
+        const hasVe = cap.some((q) => ['but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa'].includes(q))
+        const hasLaser = cap.includes('laser')
+
+        const danhSachQuyenTen = cap
+          .map((q) => O_QUYEN.find((o) => o.quyen === q)?.ten)
+          .filter(Boolean)
+
+        const tieuDeTooltip = `${m.ten}${laTrinhChieu ? ' (Chủ phòng)' : laToi ? ' (Bạn)' : ''} — ${
+          laTrinhChieu
+            ? 'Toàn quyền điều khiển'
+            : cap.length > 0
+              ? `Quyền: ${danhSachQuyenTen.join(', ')}`
+              : 'Chỉ xem'
+        }`
+
         const avatar = (
           <span className="relative flex shrink-0">
             <span
               className={cn(
                 'flex size-8 items-center justify-center rounded-full border-2 text-[11px] font-bold text-white',
                 mauCho(m.key),
-                laToi ? 'border-cyan-300' : laTrinhChieu ? 'border-amber-300' : 'border-transparent',
+                laToi ? 'border-cyan-300' : laTrinhChieu ? 'border-amber-300' : 'border-white/10',
                 m.soKetNoi > 0 ? '' : 'opacity-40',
               )}
             >
               {getInitials(m.ten)}
             </span>
-            {m.mic && (
-              <Mic className="absolute -right-1 -bottom-1 size-4 rounded-full bg-emerald-500 p-0.5 text-white ring-2 ring-slate-950" />
+
+            {/* Chủ phòng: Icon vương miện nhỏ */}
+            {laTrinhChieu && (
+              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-amber-400 text-slate-950 ring-1 ring-slate-950">
+                <Crown className="size-2.5 fill-current" />
+              </span>
             )}
-            {!laTrinhChieu && cap.length > 0 && !m.mic && (
+
+            {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp */}
+            {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
               <span
-                className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-cyan-400 ring-2 ring-slate-950"
+                className="absolute -right-1 -bottom-1 flex items-center gap-0.5 rounded-full bg-slate-950 px-1 py-0.5 ring-1 ring-cyan-400/40 shadow-sm"
                 data-testid={`member-strip-co-quyen-${m.key}`}
-              />
+              >
+                {hasMic && <Mic className="size-2.5 text-emerald-400" />}
+                {hasVe && <Pen className="size-2.5 text-cyan-300" />}
+                {hasLaser && <MousePointer2 className="size-2.5 text-amber-300" />}
+              </span>
             )}
           </span>
         )
 
+        // Card tóm tắt quyền chi tiết khi hover
+        const cardQuyen = moCua !== m.key && (
+          <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 z-50 hidden group-hover:flex flex-col items-center rounded-xl border border-white/15 bg-slate-950/95 p-2.5 text-xs shadow-2xl backdrop-blur-md min-w-[160px] max-w-[240px]">
+            <div className="flex items-center gap-1.5 font-semibold text-white">
+              <span className="truncate max-w-[130px]">{m.ten}</span>
+              {laToi && <span className="rounded bg-cyan-500/20 px-1 py-0.5 text-[9px] font-normal text-cyan-300">Bạn</span>}
+              {laTrinhChieu && (
+                <span className="flex items-center gap-0.5 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-normal text-amber-300">
+                  <Crown className="size-2.5" /> Chủ phòng
+                </span>
+              )}
+            </div>
+
+            {laTrinhChieu ? (
+              <p className="mt-1 text-[11px] text-amber-200/90 text-center">Toàn quyền điều khiển phòng học</p>
+            ) : cap.length > 0 ? (
+              <div className="mt-1.5 flex flex-col items-center gap-1 w-full text-center">
+                <span className="text-[10px] text-slate-400">Quyền từ chủ phòng:</span>
+                <div className="flex flex-wrap justify-center gap-1">
+                  {cap.map((q) => {
+                    const o = O_QUYEN.find((item) => item.quyen === q)
+                    if (!o) return null
+                    const Icon = o.icon
+                    return (
+                      <span key={q} className="inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-cyan-200">
+                        <Icon className="size-2.5" /> {o.ten}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-[11px] text-slate-400 text-center">Chỉ xem (chưa được cấp quyền)</p>
+            )}
+          </div>
+        )
+
         return (
-          <li key={m.key} className="shrink-0" title={m.ten}>
+          <li key={m.key} className="group relative shrink-0" title={tieuDeTooltip}>
             {canGrant && !laToi && !laTrinhChieu ? (
               <Popover open={moCua === m.key} onOpenChange={(mo) => setMoCua(mo ? m.key : null)}>
                 <PopoverTrigger
@@ -162,6 +226,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                 >
                   {avatar}
                 </PopoverTrigger>
+                {cardQuyen}
                 <PopoverContent
                   align="start"
                   className="w-64 rounded-2xl border border-white/15 bg-slate-950/95 p-3 text-slate-200 shadow-2xl backdrop-blur-2xl"

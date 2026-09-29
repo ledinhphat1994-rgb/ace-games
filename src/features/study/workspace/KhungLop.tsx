@@ -1,7 +1,7 @@
 // Khung cho một lớp trên sân khấu (Tài liệu / Bảng / Video) + nút điều khiển góc phải đầu khung.
 // Đổi vai trò (chính ⇄ cửa sổ nổi ⇄ ẩn) chỉ đổi class: phần tử con giữ nguyên, video YouTube không bị tải lại.
 
-import { EyeOff, Maximize, Maximize2, Minimize, PictureInPicture2 } from 'lucide-react'
+import { EyeOff, Maximize, Maximize2, Minimize, PictureInPicture2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { kepKhung, type KhungCuaSo, type LopId, type VaiTroLop } from './stage-layout'
@@ -347,7 +347,7 @@ export function KhungLop({ id, vaiTro, viTri, khoa = false, khung, onDoiKhung, o
   )
 }
 
-interface NutKhungProps {
+export interface NutKhungProps {
   id: LopId
   vaiTro: VaiTroLop
   onPhongTo: () => void
@@ -357,12 +357,19 @@ interface NutKhungProps {
   onToanManHinh?: () => void
   /** Người tham gia chỉ xem: không có nút điều khiển khung nào (ẩn, mở, phóng to, thu nhỏ, toàn màn hình). */
   chiXem?: boolean
+  onDoi?: () => void
+  iconDoi?: typeof EyeOff
+  tieuDeDoi?: string
+  testIdDoi?: string
+  onDong?: () => void
+  tieuDeDong?: string
+  testIdDong?: string
 }
 
 const nut =
   'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer'
 
-/** Vùng điều khiển khung: phóng to / thu nhỏ / phủ / toàn màn hình / ẩn — chỉ biểu tượng. */
+/** Vùng điều khiển khung: đổi, phóng to / thu nhỏ, toàn màn hình, góc phải ngoài cùng là ẩn và đóng. */
 export function NutKhung({
   id,
   vaiTro,
@@ -372,7 +379,16 @@ export function NutKhung({
   toanManHinh,
   onToanManHinh,
   chiXem = false,
+  onDoi,
+  iconDoi: IconDoi,
+  tieuDeDoi = 'Đổi',
+  testIdDoi,
+  onDong,
+  tieuDeDong = 'Đóng',
+  testIdDong,
 }: NutKhungProps) {
+  if (chiXem) return null
+
   const nutToanManHinh = vaiTro === 'main' && onToanManHinh && (
     <button
       type="button"
@@ -385,9 +401,22 @@ export function NutKhung({
       {toanManHinh ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
     </button>
   )
-  if (chiXem) return null
+
   return (
     <div className="flex shrink-0 items-center gap-0.5" data-testid={`layer-controls-${id}`}>
+      {onDoi && IconDoi && (
+        <button
+          type="button"
+          onClick={onDoi}
+          className={nut}
+          title={tieuDeDoi}
+          aria-label={tieuDeDoi}
+          data-testid={testIdDoi || `layer-${id}-change`}
+        >
+          <IconDoi className="h-3.5 w-3.5" />
+        </button>
+      )}
+
       {vaiTro === 'main' ? (
         <button type="button" onClick={onThuNho} className={nut} title="Thu nhỏ" aria-label="Thu nhỏ thành cửa sổ" data-testid={`layer-${id}-shrink`}>
           <PictureInPicture2 className="h-3.5 w-3.5" />
@@ -397,10 +426,25 @@ export function NutKhung({
           <Maximize2 className="h-3.5 w-3.5" />
         </button>
       )}
+
       {nutToanManHinh}
+
       <button type="button" onClick={onAn} className={nut} title="Ẩn" aria-label="Ẩn" data-testid={`layer-${id}-hide`}>
         <EyeOff className="h-3.5 w-3.5" />
       </button>
+
+      {onDong && (
+        <button
+          type="button"
+          onClick={onDong}
+          className={`${nut} hover:text-red-400`}
+          title={tieuDeDong}
+          aria-label={tieuDeDong}
+          data-testid={testIdDong || `layer-${id}-close`}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }

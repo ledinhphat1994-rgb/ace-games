@@ -65,7 +65,7 @@ function duongVienNet(points: number[][], size: number, laToSang: boolean): stri
 function VeNet({ net }: { net: Pick<WhiteboardStroke, 'points' | 'color' | 'size' | 'tool' | 'text' | 'opacity'> }) {
   if (net.tool === 'text' && net.text) {
     const [x, y] = net.points[0]
-    const lines = net.text.split('\n')
+    const lines = net.text.split(/\r?\n/)
     const lineHeight = net.size * 1.25
     return (
       <text
@@ -78,8 +78,8 @@ function VeNet({ net }: { net: Pick<WhiteboardStroke, 'points' | 'color' | 'size
         style={{ fontFamily: 'inherit', userSelect: 'none' }}
       >
         {lines.map((line, idx) => (
-          <tspan key={idx} x={x} dy={idx === 0 ? 0 : lineHeight}>
-            {line}
+          <tspan key={idx} x={x} y={y + idx * lineHeight}>
+            {line || '\u00A0'}
           </tspan>
         ))}
       </text>
@@ -127,7 +127,7 @@ export function BangVe({
   const diemRef = useRef<[number, number][]>([])
   const daTayRef = useRef<Set<string>>(new Set())
   const [nhap, setNhap] = useState<[number, number][]>([])
-  const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number } | null>(null)
+  const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number; coChuPx?: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
   const oChuRef = useRef<HTMLTextAreaElement>(null)
 
@@ -167,8 +167,8 @@ export function BangVe({
   }
 
   const guiChu = () => {
-    const noiDung = chuDangGo.trim().slice(0, 500)
-    if (oChu && noiDung) {
+    const noiDung = chuDangGo.trimEnd().slice(0, 500)
+    if (oChu && noiDung.trim()) {
       onSendStroke({
         id: `chu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         points: [oChu.diem],
@@ -196,10 +196,14 @@ export function BangVe({
       if (oChu) guiChu()
       // Kẹp trong khung: ô chữ gần mép phải / dưới không bị khung (overflow-hidden) cắt mất.
       if (khung) {
+        const coChuNet = doDayNet('bang', 'chu', co)
+        const scale = khung.height > 0 ? khung.height / BANG_VE_CAO : 1
+        const coChuPx = Math.max(12, Math.round(coChuNet * scale))
         setOChu({
           diem: p,
-          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 176)),
-          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - 36)),
+          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 200)),
+          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - (coChuPx * 2 + 24))),
+          coChuPx,
         })
       }
       return
@@ -332,10 +336,16 @@ export function BangVe({
             }
           }}
           maxLength={500}
-          rows={Math.max(1, chuDangGo.split('\n').length)}
+          rows={Math.max(1, chuDangGo.split(/\r?\n/).length)}
           aria-label="Nhập chữ lên bảng"
-          className="pointer-events-auto absolute z-10 min-w-44 max-w-md resize-none rounded-md border border-white/30 bg-black/75 px-2 py-1 text-sm font-semibold outline-none leading-snug shadow-xl"
-          style={{ left: oChu.left, top: oChu.top, color: mau }}
+          className="pointer-events-auto absolute z-10 min-w-44 max-w-md resize-none rounded-md border border-white/30 bg-black/75 px-2 py-1 font-semibold outline-none leading-snug shadow-xl"
+          style={{
+            left: oChu.left,
+            top: oChu.top,
+            color: mau,
+            fontSize: oChu.coChuPx ? `${oChu.coChuPx}px` : undefined,
+            lineHeight: 1.25,
+          }}
         />
       )}
     </div>
