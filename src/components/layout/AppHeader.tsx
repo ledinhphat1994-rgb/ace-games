@@ -39,11 +39,13 @@ export function AppHeader({
   onMoAuthModal,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 glass border-b border-border-subtle">
-      <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center justify-between gap-3 px-2.5 sm:px-4">
+    // Nền đặc (không dùng kính mờ): cuộn trang thì tiêu đề bên dưới không lộ xuyên qua thanh trên.
+    <header className="sticky top-0 z-30 border-b border-border-subtle bg-canvas">
+      {/* Ba cột: thương hiệu | nhóm tab căn giữa đúng tâm thanh | tài khoản */}
+      <div className="mx-auto grid h-14 w-full max-w-[1920px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-2.5 sm:px-4">
 
-        {/* ── Left: Brand + Desktop Nav ── */}
-        <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0">
+        {/* ── Left: Brand ── */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-self-start">
           {/* Brand mark pointing to canonical /learn */}
           <NavLink to="/learn" className="flex items-center gap-2 group shrink-0 select-none">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/25 bg-brand/10 text-brand shadow-sm group-hover:bg-brand/20 transition-all duration-150">
@@ -53,33 +55,34 @@ export function AppHeader({
               Digital Campus
             </span>
           </NavLink>
-
-          {/* Desktop nav — exactly 3 items: Học tập, Game, Cộng đồng */}
-          <nav
-            aria-label="Điều hướng chính"
-            className="hidden md:flex items-center gap-0.5 pl-2 lg:pl-3 border-l border-border-subtle"
-          >
-            {DESKTOP_NAV_LINKS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  [
-                    'relative whitespace-nowrap px-2 lg:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150',
-                    isActive
-                      ? 'bg-brand/12 text-brand font-semibold'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay',
-                  ].join(' ')
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
         </div>
 
+        {/* ── Center: nhóm tab hoạt động (Học tập · Game) ── */}
+        <nav
+          aria-label="Điều hướng chính"
+          className="hidden md:flex items-center gap-1 justify-self-center rounded-full border border-border-default bg-surface/70 p-1"
+          data-testid="nav-hoat-dong"
+        >
+          {DESKTOP_NAV_LINKS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                [
+                  'relative whitespace-nowrap rounded-full px-5 lg:px-7 py-1.5 text-[0.9375rem] font-bold tracking-wide transition-all duration-200',
+                  isActive
+                    ? 'bg-brand/15 text-brand shadow-[inset_0_0_0_1px_rgb(34_211_238/0.4),0_0_22px_rgb(34_211_238/0.22)] [text-shadow:0_0_14px_rgb(34_211_238/0.8)]'
+                    : 'text-text-secondary hover:bg-surface-overlay hover:text-text-primary',
+                ].join(' ')
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
         {/* ── Right: Action cluster (Connection, Notifications, Chat, Account) ── */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 justify-self-end">
           {/* Connection status — khách chưa đăng nhập không kết nối sảnh nên không có số trực tuyến thật để hiện */}
           {nguoiDung && (
             <ConnectionIndicator

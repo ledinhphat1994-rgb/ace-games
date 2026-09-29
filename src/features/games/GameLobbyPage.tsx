@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { LogIn, Play, Plus, Search } from 'lucide-react'
+import { LogIn, Plus, Search } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
@@ -158,17 +158,17 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         }
         noiDungGiua={
           laDon ? (
-            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03]" data-testid="game-lobby-solo">
-              <div className="min-h-0 flex-1 overflow-hidden bg-black/40">
-                <GameArt gameType={gameType} className="size-full object-cover" />
-              </div>
-              <div className="flex shrink-0 justify-center p-4">
-                <Button onClick={choiNgay} className="h-11 rounded-xl px-8 font-bold shadow-lg shadow-brand/25">
-                  <Play className="fill-current" />
-                  Chơi ngay
-                </Button>
-              </div>
-            </div>
+            // Trò chơi đơn (PvE): chỉ một nút "Chơi ngay" duy nhất — trên thanh công cụ như mọi sảnh khác. Tấm ảnh trò chơi
+            // là poster, bấm vào cũng vào chơi (không thêm nút thứ hai).
+            <button
+              type="button"
+              onClick={choiNgay}
+              aria-label={`Chơi ${game.shortTitle}`}
+              data-testid="game-lobby-solo"
+              className="group relative block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/[0.07] bg-black/40 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+            >
+              <GameArt gameType={gameType} className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]" />
+            </button>
           ) : undefined
         }
         cotTrai={<GameArenaLeaderboard defaultGame={gameType} />}

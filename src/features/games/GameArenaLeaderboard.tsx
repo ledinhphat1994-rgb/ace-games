@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Trophy, ChevronLeft, ChevronRight, RefreshCw, Crown } from 'lucide-react'
+import { Trophy, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import type { GameType } from '@shared/protocol/game'
 import type { SchoolStudyLeaderboardItem } from '@shared/protocol/engagement'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import { GAME_CATALOG_BY_ID } from './game-catalog'
+import { usePhien } from '@/app/phien'
 import type { HighScoreRecord } from './GameLeaderboard'
 import { tinhLevel } from './GameLeaderboard'
 
@@ -60,177 +60,29 @@ async function layBangXepHangHocTap(): Promise<HighScoreRecord[]> {
   }))
 }
 
-// ─── Avatar initials ─────────────────────────────────────────────────────────
+// ─── Một dòng xếp hạng: hạng · tên · level · điểm ─────────────────────────────
 
-const AVATAR_COLORS: [string, string][] = [
-  ['#6366f1', '#8b5cf6'],
-  ['#0ea5e9', '#06b6d4'],
-  ['#10b981', '#14b8a6'],
-  ['#f59e0b', '#f97316'],
-  ['#ec4899', '#f43f5e'],
-  ['#a855f7', '#d946ef'],
-]
+const MAU_HANG: Record<number, string> = { 1: 'text-amber-300', 2: 'text-slate-300', 3: 'text-orange-400' }
 
-function getAvatarGradient(name: string): [string, string] {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]
-}
-
-function AvatarInitials({
-  name,
-  size = 'md',
-  ringClass,
-}: {
-  name: string
-  size?: 'lg' | 'md' | 'sm'
-  ringClass?: string
-}) {
-  const initial = name.trim().charAt(0).toUpperCase() || '?'
-  const [from, to] = getAvatarGradient(name)
-  const sizeClass =
-    size === 'lg'
-      ? 'size-12 text-base font-black'
-      : size === 'md'
-        ? 'size-9 text-sm font-black'
-        : 'size-7 text-xs font-bold'
-  return (
-    <div
-      className={cn('rounded-full flex items-center justify-center shrink-0 select-none text-white shadow-lg', sizeClass, ringClass)}
-      style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
-    >
-      {initial}
-    </div>
-  )
-}
-
-// ─── Champion Spotlight (#1) ─────────────────────────────────────────────────
-
-function ChampionSpotlight({ record, animKey, donVi }: { record: HighScoreRecord; animKey: string; donVi: string }) {
+function LeaderboardRow({ record, rank, laToi }: { record: HighScoreRecord; rank: number; laToi: boolean }) {
   const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
-
-  return (
-    <div key={`champ-${animKey}-${record.id}`} className="px-3 pt-3 pb-1 shrink-0 animate-in fade-in duration-300">
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-500/20 via-yellow-600/10 to-slate-950/80 p-3.5 shadow-xl backdrop-blur-md">
-        {/* Glow hiệu ứng nền */}
-        <div className="absolute top-0 right-0 translate-x-3 -translate-y-3 size-24 rounded-full bg-amber-500/15 blur-2xl pointer-events-none" />
-
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="relative shrink-0">
-            <AvatarInitials
-              name={record.playerName}
-              size="lg"
-              ringClass="ring-2 ring-amber-400 shadow-lg shadow-amber-500/30"
-            />
-            <span className="absolute -top-2.5 -left-1 text-base select-none">👑</span>
-            <span className="absolute -bottom-1 -right-1 text-xs select-none">🥇</span>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
-                <Crown className="size-3 text-amber-400 inline" />
-                Top 1 / 50 • Kỷ Lục Đứng Đầu
-              </span>
-              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-400/20 text-amber-200 border border-amber-400/30">
-                Lv.{capDo}
-              </span>
-            </div>
-            <p className="text-sm font-black text-white truncate mt-0.5" title={record.playerName}>
-              {record.playerName}
-            </p>
-            <p className="text-xs text-amber-300 font-mono font-bold mt-0.5">
-              {record.score.toLocaleString('vi-VN')}{' '}
-              <span className="text-[10px] font-normal text-text-tertiary">{donVi}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Row #2+ ─────────────────────────────────────────────────────────────────
-
-function LeaderboardRow({
-  record,
-  rank,
-  delay,
-}: {
-  record: HighScoreRecord
-  rank: number
-  delay?: string
-}) {
-  const capDo = record.level ?? tinhLevel(record.totalXp ?? 0)
-  const isTop2 = rank === 2
-  const isTop3 = rank === 3
-
   return (
     <li
       className={cn(
-        'flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all animate-in fade-in slide-in-from-left-2',
-        isTop2
-          ? 'bg-gradient-to-r from-slate-400/15 via-slate-300/5 to-transparent border-slate-400/25'
-          : isTop3
-            ? 'bg-gradient-to-r from-amber-700/15 via-amber-600/5 to-transparent border-amber-700/25'
-            : 'border-white/[0.04] bg-white/[0.015] hover:bg-white/[0.04] hover:border-white/[0.08]'
+        'grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 transition-colors',
+        laToi ? 'bg-brand/10 ring-1 ring-brand/25' : rank <= 3 ? 'bg-white/[0.035] hover:bg-white/[0.06]' : 'hover:bg-white/[0.04]',
       )}
-      style={{ animationDuration: '0.25s', animationDelay: delay, animationFillMode: 'both' }}
+      data-testid={`xep-hang-dong-${rank}`}
     >
-      {/* Cột Thứ hạng */}
-      <div className="w-6 text-center shrink-0">
-        {isTop2 ? (
-          <span className="text-base leading-none select-none">🥈</span>
-        ) : isTop3 ? (
-          <span className="text-base leading-none select-none">🥉</span>
-        ) : (
-          <span className="text-xs font-bold text-text-tertiary tabular-nums">#{rank}</span>
-        )}
-      </div>
-
-      {/* Avatar */}
-      <AvatarInitials
-        name={record.playerName}
-        size={isTop2 ? 'md' : 'sm'}
-        ringClass={isTop2 ? 'ring-2 ring-slate-300/40' : isTop3 ? 'ring-2 ring-amber-700/40' : undefined}
-      />
-
-      {/* Tên người chơi */}
-      <div className="flex-1 min-w-0">
-        <span
-          className={cn(
-            'font-bold truncate text-xs block',
-            isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-300/90' : 'text-text-primary'
-          )}
-          title={record.playerName}
-        >
-          {record.playerName}
-        </span>
-      </div>
-
-      {/* Cấp độ Lv */}
+      <span className={cn('text-center text-sm font-black tabular-nums', MAU_HANG[rank] ?? 'text-text-tertiary')}>{rank}</span>
       <span
-        className={cn(
-          'inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black border shrink-0',
-          capDo >= 20
-            ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-            : capDo >= 10
-              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-              : capDo >= 5
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'
-                : 'bg-white/5 text-slate-400 border-white/10'
-        )}
+        className={cn('truncate text-sm', rank <= 3 || laToi ? 'font-bold text-text-primary' : 'font-semibold text-text-secondary')}
+        title={record.playerName}
       >
-        Lv.{capDo}
+        {record.playerName}
       </span>
-
-      {/* Điểm số */}
-      <span
-        className={cn(
-          'font-mono font-bold tabular-nums text-xs shrink-0 text-right min-w-[46px]',
-          isTop2 ? 'text-slate-200' : isTop3 ? 'text-amber-400/90' : 'text-amber-300'
-        )}
-      >
+      <span className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-text-secondary">Lv.{capDo}</span>
+      <span className="min-w-[3.25rem] text-right font-mono text-sm font-bold tabular-nums text-amber-300">
         {record.score.toLocaleString('vi-VN')}
       </span>
     </li>
@@ -241,30 +93,16 @@ function LeaderboardRow({
 
 function SkeletonLeaderboard() {
   return (
-    <div className="flex flex-col flex-1 min-h-0 p-3 space-y-3">
-      {/* Champion card skeleton */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-pulse flex items-center gap-3">
-        <div className="size-12 rounded-full bg-white/10 shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 w-24 rounded bg-white/10" />
-          <div className="h-4 w-32 rounded bg-white/10" />
-          <div className="h-3 w-16 rounded bg-white/10" />
-        </div>
-      </div>
-      <div className="h-px bg-white/5 my-2" />
-      {/* Rows skeleton */}
-      <ul className="space-y-1.5">
-        {Array.from({ length: 5 }, (_, i) => (
-          <li key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.02] animate-pulse">
-            <div className="size-5 rounded bg-white/10 shrink-0" />
-            <div className="size-7 rounded-full bg-white/10 shrink-0" />
-            <div className="h-3 flex-1 rounded bg-white/10" />
-            <div className="h-4 w-9 rounded bg-white/10" />
-            <div className="h-3 w-12 rounded bg-white/10" />
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className="flex-1 min-h-0 space-y-1 p-2" aria-busy="true" aria-label="Đang tải bảng xếp hạng">
+      {Array.from({ length: 8 }, (_, i) => (
+        <li key={i} className="grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 animate-pulse">
+          <div className="mx-auto h-3 w-3 rounded bg-white/10" />
+          <div className="h-3 rounded bg-white/10" />
+          <div className="h-4 w-9 rounded bg-white/10" />
+          <div className="h-3 w-12 rounded bg-white/10" />
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -340,9 +178,6 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
 
   const activeTabCfg = LEADERBOARD_TABS.find((t) => t.id === activeTab) ?? LEADERBOARD_TABS[0]
   const laHocTap = activeTab === 'hoc_tap'
-  const moTaTab = laHocTap
-    ? 'Học tập • 50 người nhiều XP nhất'
-    : `${GAME_CATALOG_BY_ID[activeTab].shortTitle} • 50 kỷ lục cao nhất`
 
   const { data, isPending, isError, refetch, isRefetching } = useQuery({
     queryKey: laHocTap ? ['study-leaderboard', 'school'] : ['game-highscores', activeTab, 50],
@@ -351,8 +186,9 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
   })
 
   const records = data ?? []
-  const champion = records[0]
-  const remaining = records.slice(1)
+  const { nguoiDung } = usePhien()
+  // Nhận ra dòng của mình theo tên hiển thị (bảng chỉ trả tên người chơi, không trả mã tài khoản).
+  const tenToi = nguoiDung?.ten?.trim().toLowerCase() ?? null
 
   return (
     <section
@@ -370,18 +206,12 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
             <Trophy className="size-4 text-amber-400" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2
-                id="arena-leaderboard-heading"
-                className="tieu-de-cap-2 text-[0.9375rem] font-black tracking-tight leading-none"
-              >
-                Bảng Xếp Hạng
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
-                Top 50
-              </span>
-            </div>
-            <p className="text-[10px] text-text-tertiary mt-1 leading-none">{moTaTab}</p>
+            <h2
+              id="arena-leaderboard-heading"
+              className="tieu-de-cap-2 text-[0.9375rem] font-black tracking-tight leading-none"
+            >
+              Bảng Xếp Hạng
+            </h2>
           </div>
         </div>
         <button
@@ -482,32 +312,16 @@ export function GameArenaLeaderboard({ defaultGame, className }: GameArenaLeader
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {/* Top 1 Champion Spotlight */}
-          {champion && <ChampionSpotlight record={champion} animKey={activeTab} donVi={laHocTap ? 'XP' : 'điểm'} />}
-
-          {/* Danh sách thứ hạng tiếp theo */}
-          {remaining.length > 0 && (
-            <>
-              <div className="flex items-center gap-2 px-4 my-2 shrink-0">
-                <div className="flex-1 h-px bg-white/[0.06]" />
-                <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
-                  Thứ hạng 2 – {records.length} trong Top 50
-                </span>
-                <div className="flex-1 h-px bg-white/[0.06]" />
-              </div>
-
-              <ol className="space-y-1 px-2 pb-3">
-                {remaining.map((row, i) => (
-                  <LeaderboardRow
-                    key={row.id}
-                    record={row}
-                    rank={i + 2}
-                    delay={`${i * 25}ms`}
-                  />
-                ))}
-              </ol>
-            </>
-          )}
+          <ol className="space-y-0.5 p-2">
+            {records.map((row, i) => (
+              <LeaderboardRow
+                key={row.id}
+                record={row}
+                rank={i + 1}
+                laToi={tenToi !== null && row.playerName.trim().toLowerCase() === tenToi}
+              />
+            ))}
+          </ol>
         </div>
       )}
     </section>

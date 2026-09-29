@@ -148,6 +148,11 @@ export function doiMatKhau(duLieu: {
   })
 }
 
+export async function layHoSoNguoiDung(accountId: number): Promise<import('@shared/protocol/social').HoSoNguoiDung> {
+  const res = await goiApi<{ ok: boolean; profile: import('@shared/protocol/social').HoSoNguoiDung }>(`/api/social/profile/${accountId}`)
+  return res.profile
+}
+
 export async function timKiemNguoiDung(tuKhoa: string): Promise<import('@shared/protocol/social').SearchResultItem[]> {
   const params = new URLSearchParams({ q: tuKhoa })
   const res = await goiApi<{ ok: boolean; results: import('@shared/protocol/social').SearchResultItem[] }>(`/api/social/search?${params}`)

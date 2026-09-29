@@ -24,6 +24,22 @@ export interface SocialProfile {
   lopTen: string | null
 }
 
+/**
+ * Hồ sơ công khai khi bấm vào ảnh một người (chat, tìm kiếm). Chỉ thông tin an toàn để cả trường xem:
+ * không có tên đăng nhập, mật khẩu, thiết bị, email. Quan hệ bạn bè lấy từ SocialState của người xem, không nằm ở đây.
+ */
+export interface HoSoNguoiDung {
+  id: number
+  displayName: string
+  avatar: string | null
+  role: string
+  lopTen: string | null
+  /** Châm ngôn học tập người dùng tự đặt (≤ 150 ký tự). */
+  tieuDeHoSo: string | null
+  /** Tổng XP học tập; cấp độ tính từ đây. */
+  totalXp: number
+}
+
 export interface FriendItem extends SocialProfile {
   friendedAt: number
 }
