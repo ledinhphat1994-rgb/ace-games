@@ -35,6 +35,16 @@ export interface ClassLeaderboardItem {
   isCurrentUser: boolean
 }
 
+/** Một dòng ở tab "Học tập" của bảng xếp hạng chung (Top 50 toàn trường theo tổng XP học tập). */
+export interface SchoolStudyLeaderboardItem {
+  rank: number
+  /** Họ tên đầy đủ khi đã đăng nhập; khách chỉ thấy tên rút gọn (như bảng xếp hạng game). */
+  playerName: string
+  totalXp: number
+  /** Cùng công thức Lv. của bảng xếp hạng game. */
+  level: number
+}
+
 export interface ClassChallenge {
   id: string
   lopId: number

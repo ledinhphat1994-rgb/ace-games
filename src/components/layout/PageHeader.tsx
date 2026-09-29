@@ -17,7 +17,7 @@ export function PageHeader({ title, description, actions, className }: PageHeade
   return (
     <header className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8', className)}>
       <div className="min-w-0">
-        <h1 className="text-[1.75rem] leading-[1.15] font-semibold tracking-[-0.025em] text-text-primary sm:text-[2rem]">
+        <h1 className="tieu-de-cap-1 text-[2rem] leading-[1.15] font-extrabold tracking-[-0.03em] sm:text-[2.5rem]">
           {title}
         </h1>
         {description ? <div className="mt-2 text-sm leading-relaxed text-text-secondary">{description}</div> : null}
@@ -39,10 +39,10 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ title, count, description, action, className, id }: SectionHeaderProps) {
   return (
-    <div className={cn('flex items-end justify-between gap-3', className)}>
+    <div className={cn('flex flex-wrap items-end justify-between gap-x-3 gap-y-2', className)}>
       <div className="min-w-0">
-        <h2 id={id} className="flex items-baseline gap-2 text-[0.9375rem] leading-6 font-semibold tracking-[-0.01em] text-text-primary">
-          <span>{title}</span>
+        <h2 id={id} className="flex items-baseline gap-2 text-[1.0625rem] leading-6 font-bold tracking-[-0.01em]">
+          <span className="tieu-de-cap-2 whitespace-nowrap">{title}</span>
           {typeof count === 'number' ? <span className="text-sm font-medium tabular-nums text-text-tertiary">{count}</span> : null}
         </h2>
         {description ? <p className="mt-0.5 text-[0.8125rem] text-text-tertiary">{description}</p> : null}

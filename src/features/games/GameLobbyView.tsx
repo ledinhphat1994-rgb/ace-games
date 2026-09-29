@@ -127,7 +127,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+              <h1 className="tieu-de-cap-1 text-[2rem] leading-[1.15] font-extrabold tracking-[-0.03em] sm:text-[2.5rem]">
                 Game
               </h1>
               <span className="rounded-full bg-gradient-to-r from-cyan-500/20 to-brand/20 border border-cyan-500/30 px-3 py-0.5 text-xs font-extrabold text-cyan-300 shadow-sm">

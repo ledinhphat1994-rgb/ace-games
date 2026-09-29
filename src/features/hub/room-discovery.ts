@@ -175,3 +175,14 @@ export function filterDiscoveryRooms(
 
   return ketQua
 }
+
+/**
+ * Vào phòng nhanh: phòng đầu tiên theo đúng thứ tự khám phá của sảnh (có bạn bè → đông người → mới tạo)
+ * còn chỗ và không cần mật khẩu. Không có phòng nào như vậy thì trả null.
+ */
+export function chonPhongVaoNhanh(
+  rooms: PhongSanh[],
+  roomFriendsMap: Map<number, RoomFriendInfo[]>,
+): PhongSanh | null {
+  return sortDiscoveryRooms(rooms, roomFriendsMap).find((r) => !r.coMatKhau && r.soNguoi < r.sucChua) ?? null
+}
