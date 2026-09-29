@@ -16,6 +16,7 @@ const CommunityPage = lazy(() => import('@/features/hub/CommunityPage').then((m)
 const ProfilePage = lazy(() => import('@/features/hub/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const RoomPage = lazy(() => import('@/features/study/RoomPage').then((m) => ({ default: m.RoomPage })))
 const GameArenaPage = lazy(() => import('@/features/games/GameArenaPage').then((m) => ({ default: m.GameArenaPage })))
+const GameLobbyPage = lazy(() => import('@/features/games/GameLobbyPage').then((m) => ({ default: m.GameLobbyPage })))
 const GameRoomPage = lazy(() => import('@/features/games/GameRoomPage').then((m) => ({ default: m.GameRoomPage })))
 const AnalyticsDashboardPage = lazy(() =>
   import('@/features/admin/AnalyticsDashboardPage').then((m) => ({ default: m.AnalyticsDashboardPage })),
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
           { path: 'learn', element: <LearningPage /> },
           { path: 'learning', element: <Navigate to="/learn" replace /> },
           { path: 'arena', element: <GameArenaPage /> },
+          { path: 'arena/:gameType', element: <GameLobbyPage /> },
           { path: 'community', element: <CommunityPage /> },
           { path: 'me', element: <ProfilePage /> },
           { path: 'profile', element: <Navigate to="/me" replace /> },

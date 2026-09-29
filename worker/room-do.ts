@@ -41,7 +41,7 @@ import {
   type PlayerSide,
 } from '../shared/protocol/game'
 import { EMOTE_BURST_MAX, EMOTE_COOLDOWN_MS } from '../shared/protocol/game-sdk'
-import { TEN_GAME_LOBBY } from './games/game-lobby-do'
+import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from './games/game-lobby-do'
 import {
   GIA_HAN_HET_GIO_MS,
   batDauVan,
@@ -4091,9 +4091,19 @@ export class RoomDO extends DurableObject<Env> {
       turnTimerSeconds: this.gameMeta.turnTimerSeconds,
       capNhatLuc: Date.now(),
     }
-    const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-    const rpc = ban.trangThai === 'ended' ? lobby.xoaBan(ban.id) : lobby.capNhatBan(ban)
-    this.ctx.waitUntil(rpc.catch((err: unknown) => console.error('Không báo được GameLobbyDO:', err)))
+    for (const lobby of this.cacSanhGame()) {
+      const rpc = ban.trangThai === 'ended' ? lobby.xoaBan(ban.id) : lobby.capNhatBan(ban)
+      this.ctx.waitUntil(rpc.catch((err: unknown) => console.error('Không báo được GameLobbyDO:', err)))
+    }
+  }
+
+  /**
+   * Sảnh chung (trang Game) + sảnh riêng của loại trò (trang sảnh từng trò, /arena/:gameType) — như GameSessionDO.
+   * Chỉ báo sau game.init (bàn đã có loại trò chính thức) nên không để lại bàn "ma" ở sảnh của loại khác.
+   */
+  private cacSanhGame() {
+    const cacTen = new Set([TEN_GAME_LOBBY, tenLobbyTheoLoai(this.gameMeta.gameType)])
+    return [...cacTen].map((ten) => this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(ten)))
   }
 
   // Phòng đã trống hẳn (mọi người, kể cả khán giả, đã rời) — gỡ khỏi sảnh dù ván chưa kết thúc.
@@ -4104,10 +4114,11 @@ export class RoomDO extends DurableObject<Env> {
       if (this.gameMeta.playerX || this.gameMeta.playerO) this.baoLobby(vuaRoi)
       return
     }
-    const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-    this.ctx.waitUntil(
-      lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
-    )
+    for (const lobby of this.cacSanhGame()) {
+      this.ctx.waitUntil(
+        lobby.xoaBan(this.gameRoomId).catch((err: unknown) => console.error('Không gỡ được khỏi GameLobbyDO:', err)),
+      )
+    }
   }
 
   // Phòng học báo sảnh Campus số người đang ở trong phòng (bàn game có GameLobbyDO riêng) — không chờ kết quả,
@@ -5687,8 +5698,7 @@ export class RoomDO extends DurableObject<Env> {
     // 7. Báo gỡ khỏi GameLobby nếu là phòng game
     if (this.isGameRoom && this.gameRoomId) {
       try {
-        const lobby = this.env.GAME_LOBBY.get(this.env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
-        this.ctx.waitUntil(lobby.xoaBan(this.gameRoomId).catch(() => {}))
+        for (const lobby of this.cacSanhGame()) this.ctx.waitUntil(lobby.xoaBan(this.gameRoomId).catch(() => {}))
       } catch {}
     }
 

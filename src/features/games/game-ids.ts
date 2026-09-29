@@ -33,3 +33,33 @@ export function nenTuVaoBan(meta: Pick<GameMetaState, 'status' | 'playerX' | 'pl
   if (!myActorKey || meta.status !== 'waiting') return false
   return meta.playerX !== myActorKey && meta.playerO !== myActorKey
 }
+
+/**
+ * "Vào phòng" ở sảnh trò chơi: nhận mã bàn hoặc link bàn (`…/game/<mã>`) cùng tên miền.
+ * Không nhận link trang khác, không nhận mã sai định dạng máy chủ (MAU_MA_BAN).
+ */
+export function phanTichMaBan(
+  input: string,
+  goc: string = typeof window !== 'undefined' ? window.location.origin : '',
+): { ok: true; maBan: string } | { ok: false; loi: string } {
+  const tho = input.trim()
+  if (!tho) return { ok: false, loi: 'Nhập mã bàn hoặc link bàn.' }
+  let ma = tho
+  if (/^https?:\/\//i.test(tho)) {
+    let url: URL
+    try {
+      url = new URL(tho)
+    } catch {
+      return { ok: false, loi: 'Link không hợp lệ.' }
+    }
+    if (!goc || url.origin.toLowerCase() !== goc.toLowerCase()) {
+      return { ok: false, loi: 'Chỉ nhận link bàn của trang này.' }
+    }
+    const khop = url.pathname.match(/^\/game\/([^/]+)\/?$/)
+    if (!khop) return { ok: false, loi: 'Link này không phải link bàn.' }
+    ma = decodeURIComponent(khop[1])
+  }
+  ma = ma.toLowerCase()
+  if (!MAU_MA_BAN.test(ma)) return { ok: false, loi: 'Mã bàn không đúng.' }
+  return { ok: true, maBan: ma }
+}

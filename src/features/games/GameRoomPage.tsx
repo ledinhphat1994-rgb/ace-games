@@ -26,6 +26,8 @@ export function GameRoomPage() {
     return null
   }
 
+  // Rời bàn / trò chơi: quay về sảnh của đúng trò đó (vào từ sảnh có ?sanh=, bàn vừa tạo có ?gameType=).
+  const sanhParam = searchParams.get('sanh')
   const actorKey = nguoiDung?.actorKey
   const actorName = nguoiDung ? (nguoiDung.ten || nguoiDung.username) : undefined
 
@@ -38,9 +40,12 @@ export function GameRoomPage() {
       ? (gameId as GameType)
       : undefined
 
+  const sanhVe = laGameType(sanhParam) ? sanhParam : intendedGameType
+  const roiBan = () => navigate(sanhVe ? `/arena/${sanhVe}` : '/arena')
+
   // Trò chơi đơn không có bàn WebSocket: dựng khu chơi riêng thay vì bàn đối kháng.
   if (intendedGameType && laTroChoiDon(intendedGameType)) {
-    return <SoloGamePage gameType={intendedGameType as SoloGameType} onLeave={() => navigate('/arena')} />
+    return <SoloGamePage gameType={intendedGameType as SoloGameType} onLeave={roiBan} />
   }
 
   const turnParam = Number(searchParams.get('turn'))
@@ -53,7 +58,7 @@ export function GameRoomPage() {
       gameId={gameId}
       myActorKey={actorKey}
       myActorName={actorName}
-      onLeave={() => navigate('/arena')}
+      onLeave={roiBan}
       intendedGameType={intendedGameType}
       intendedTurnSeconds={intendedTurnSeconds}
     />

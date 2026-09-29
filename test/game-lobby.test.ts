@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { describe, expect, it } from 'vitest'
 import type { BanSanh, GoiGame } from '../shared/protocol/game'
-import { TEN_GAME_LOBBY } from '../worker/games/game-lobby-do'
+import { TEN_GAME_LOBBY, tenLobbyTheoLoai } from '../worker/games/game-lobby-do'
 import { dangNhapLayCookie, moKetNoi } from './ws'
 
 const layLobby = () => env.GAME_LOBBY.get(env.GAME_LOBBY.idFromName(TEN_GAME_LOBBY))
@@ -159,5 +159,31 @@ describe('RoomDO báo GameLobbyDO khi trạng thái bàn đối kháng đổi', 
       await new Promise((r) => setTimeout(r, 20))
     }
     expect((await layLobby().danhSach()).some((b) => b.id === maBan)).toBe(false)
+  })
+})
+
+describe('Sảnh riêng từng trò chơi (/arena/:gameType)', () => {
+  const laySanhRieng = (loai: string) => env.GAME_LOBBY.get(env.GAME_LOBBY.idFromName(tenLobbyTheoLoai(loai)))
+
+  it('bàn đối kháng đăng lên cả sảnh chung lẫn sảnh riêng của đúng trò; phòng trống thì gỡ khỏi cả hai', async () => {
+    const maBan = `test-shard-${Date.now()}`
+    const chu = await moKetNoi<GoiGame>(`/ws/game/${maBan}`, await dangNhapLayCookie('qa.v2.thu1'))
+    await chu.cho('game.snapshot')
+    chu.gui({ type: 'game.init', gameType: 'xiangqi', turnSeconds: 60 })
+    await chu.cho('game.sync')
+
+    const coBan = async (lobby: ReturnType<typeof laySanhRieng>) => (await lobby.danhSach()).some((b) => b.id === maBan)
+    expect(await coBan(layLobby())).toBe(true)
+    expect(await coBan(laySanhRieng('xiangqi'))).toBe(true)
+    // Không lọt sang sảnh của trò khác.
+    expect(await coBan(laySanhRieng('chess'))).toBe(false)
+
+    chu.dong()
+    for (let i = 0; i < 50; i++) {
+      if (!(await coBan(laySanhRieng('xiangqi'))) && !(await coBan(layLobby()))) break
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    expect(await coBan(laySanhRieng('xiangqi'))).toBe(false)
+    expect(await coBan(layLobby())).toBe(false)
   })
 })
