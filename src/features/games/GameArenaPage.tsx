@@ -10,7 +10,7 @@ export function GameArenaPage() {
       onCreateRoom={(roomId: string, gameType: GameType, turnSeconds: number) =>
         navigate(`/game/${encodeURIComponent(roomId)}?gameType=${gameType}&turn=${turnSeconds}`)
       }
-      onJoinExisting={(roomId: string) => navigate(`/game/${encodeURIComponent(roomId)}`)}
+      onMoSanh={(gameType: GameType) => navigate(`/arena/${gameType}`)}
     />
   )
 }

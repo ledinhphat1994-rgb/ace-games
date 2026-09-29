@@ -1,4 +1,4 @@
-import { Play, Swords, Bot } from 'lucide-react'
+import { DoorOpen, Swords, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GameArt } from './GameArt'
 import type { GameDefinition } from './game-catalog'
@@ -14,11 +14,11 @@ interface GameCardProps {
   game: GameDefinition
   waiting: number
   stats?: GameCardStats
-  onPlay: () => void
-  onOpenTables?: () => void
+  /** Mở sảnh của trò chơi: mọi bàn đang mở + Chơi ngay · Tạo phòng · Vào phòng · Tìm phòng. */
+  onMoSanh: () => void
 }
 
-export function GameCard({ game, waiting, stats, onPlay }: GameCardProps) {
+export function GameCard({ game, waiting, stats, onMoSanh }: GameCardProps) {
   const laDoiKhang = game.category === '1v1'
   // Vùng 6: Đồng bộ màu badge theo nội dung giống nhau (1v1 & Đấu Máy: cyan neon; Đấu AI & Solo: tím neon)
   const badgeColor = laDoiKhang
@@ -28,7 +28,8 @@ export function GameCard({ game, waiting, stats, onPlay }: GameCardProps) {
   return (
     <article
       data-testid={`game-card-${game.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101728] to-[#0a0f1d] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand/60 hover:shadow-2xl hover:shadow-brand/15"
+      onClick={onMoSanh}
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101728] to-[#0a0f1d] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-brand/60 hover:shadow-2xl hover:shadow-brand/15"
     >
       {/* Artwork container */}
       <div className="relative aspect-[16/10] w-full overflow-hidden border-b border-white/5 bg-black/40">
@@ -99,12 +100,16 @@ export function GameCard({ game, waiting, stats, onPlay }: GameCardProps) {
 
           <Button
             size="sm"
-            onClick={onPlay}
-            aria-label={`Chơi ngay ${game.shortTitle}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onMoSanh()
+            }}
+            aria-label={`Vào sảnh ${game.shortTitle}`}
+            data-testid={`game-card-lobby-${game.id}`}
             className="w-full font-bold bg-brand text-brand-foreground hover:bg-brand/90 shadow-md shadow-brand/20 group/btn h-9"
           >
-            <Play className="size-4 fill-current transition-transform group-hover/btn:scale-110" />
-            Chơi ngay
+            <DoorOpen className="size-4 transition-transform group-hover/btn:scale-110" />
+            Vào sảnh
           </Button>
         </div>
       </div>

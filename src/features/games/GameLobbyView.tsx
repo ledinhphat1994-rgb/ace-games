@@ -1,41 +1,27 @@
-import { useState, useMemo, useCallback } from 'react'
-import { Gamepad2, Plus } from 'lucide-react'
+import { useMemo, useCallback } from 'react'
+import { Gamepad2 } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { useGameRooms } from '../../hooks/use-game-rooms'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
-import { GameArt } from './GameArt'
 import { GameCard } from './GameCard'
 import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameSocialSidebar } from './GameSocialSidebar'
-import { laTroChoiDon, taoMaBan } from './game-ids'
-import { CAC_GAME_1V1, CAC_GAME_SOLO, GAME_CATALOG_BY_ID, type GameDefinition } from './game-catalog'
+import { taoMaBan } from './game-ids'
+import { CAC_GAME_1V1, CAC_GAME_SOLO, type GameDefinition } from './game-catalog'
 import { toast } from 'sonner'
 import { usePhien } from '@/app/phien'
 
 interface GameLobbyViewProps {
   onCreateRoom: (roomId: string, gameType: GameType, turnSeconds: number) => void
-  onJoinExisting: (roomId: string) => void
+  /** Bấm vào một trò chơi: mở sảnh của trò đó (mọi bàn đang mở + Chơi ngay · Tạo phòng · Vào phòng · Tìm phòng). */
+  onMoSanh: (gameType: GameType) => void
 }
 
-const THOI_GIAN_LUOT = [15, 30, 60] as const
-
-/** Bàn đang chờ lên trước, rồi bàn đông người xem. */
-function xepBan(a: BanSanh, b: BanSanh) {
-  const uuTien = (t: BanSanh) => (t.trangThai === 'waiting' ? 0 : 1)
-  return uuTien(a) - uuTien(b) || b.soNguoiXem - a.soNguoiXem || b.capNhatLuc - a.capNhatLuc
-}
-
-export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewProps) {
-  const [hopThoaiBan, setHopThoaiBan] = useState<{ open: boolean; game: GameType }>({ open: false, game: 'caro_15' })
-  const [turnSeconds, setTurnSeconds] = useState<number>(30)
-
-  const { nguoiDung, moAuthModal } = usePhien()
-  // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách).
+export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
+  const { nguoiDung } = usePhien()
+  // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách) — dùng cho số liệu trên thẻ.
   const { data: tablesData } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
-    () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended').sort(xepBan),
+    () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended'),
     [tablesData],
   )
 
@@ -48,39 +34,6 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
     }
     return dem
   }, [tables])
-
-  // Chơi ngay: trò đơn mở phiên riêng; trò đối kháng vào bàn đang chờ đông người xem nhất, không có thì mở bàn mới.
-  const handlePlayGame = useCallback(
-    (gameType: GameType) => {
-      if (laTroChoiDon(gameType)) {
-        onCreateRoom(taoMaBan(gameType), gameType, 0)
-        return
-      }
-
-      // Khách: vào bàn để chơi với máy; đấu online cần đăng nhập.
-      if (!nguoiDung) {
-        onCreateRoom(taoMaBan(gameType), gameType, 30)
-        toast.info('Bạn đang chơi với máy — đăng nhập để đấu online với bạn bè.', {
-          id: 'khach-choi-voi-may',
-          action: { label: 'Đăng nhập', onClick: () => moAuthModal('dang_nhap') },
-        })
-        return
-      }
-
-      const waiting = tables
-        .filter((t: BanSanh) => t.gameType === gameType && t.trangThai === 'waiting')
-        .sort((a: BanSanh, b: BanSanh) => b.soNguoiXem - a.soNguoiXem)[0]
-
-      if (waiting) {
-        onJoinExisting(waiting.id)
-        return
-      }
-
-      onCreateRoom(taoMaBan(gameType), gameType, 30)
-    },
-    [tables, onJoinExisting, onCreateRoom, nguoiDung, moAuthModal],
-  )
-
 
   // Campus chưa có kênh gửi lời mời riêng: mở bàn Caro mới và sao chép link bàn để người chơi tự gửi cho bạn.
   const handleInviteToGame = useCallback(
@@ -95,10 +48,6 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
     },
     [onCreateRoom]
   )
-
-  const moHopThoaiBan = (game: GameType) => setHopThoaiBan({ open: true, game })
-  const tableCuaTroDangMo = tables.filter((t: BanSanh) => t.gameType === hopThoaiBan.game)
-  const troDangMo = GAME_CATALOG_BY_ID[hopThoaiBan.game]
 
   const allGames = useMemo<GameDefinition[]>(() => [...CAC_GAME_1V1, ...CAC_GAME_SOLO], [])
 
@@ -154,8 +103,7 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
                 game={game}
                 waiting={waitingCounts[game.id] ?? 0}
                 stats={gameStats[game.id]}
-                onPlay={() => handlePlayGame(game.id)}
-                onOpenTables={() => moHopThoaiBan(game.id)}
+                onMoSanh={() => onMoSanh(game.id)}
               />
             ))}
           </div>
@@ -167,86 +115,6 @@ export function GameLobbyView({ onCreateRoom, onJoinExisting }: GameLobbyViewPro
         </div>
       </div>
 
-      {/* Hộp thoại xem các bàn đang chờ của một trò chơi đối kháng */}
-      <Dialog
-        open={hopThoaiBan.open}
-        onOpenChange={(open) => setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open }))}
-      >
-        <DialogContent className="max-w-md">
-          <DialogTitle className="flex items-center gap-2">
-            <span className="size-5">
-              <GameArt gameType={hopThoaiBan.game} className="size-full" />
-            </span>
-            Bàn {troDangMo?.title}
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            Vào bàn bạn bè đang chờ hoặc tự tạo bàn mới.
-          </DialogDescription>
-
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
-            <div className="text-xs">
-              <p className="font-semibold text-text-primary">Mở bàn mới</p>
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <span className="text-text-tertiary">Mỗi lượt:</span>
-                {THOI_GIAN_LUOT.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setTurnSeconds(s)}
-                    className={cn(
-                      'rounded-md px-2 py-0.5 text-xs font-semibold transition-colors',
-                      turnSeconds === s
-                        ? 'bg-brand text-brand-foreground'
-                        : 'bg-white/5 text-text-secondary hover:text-white',
-                    )}
-                  >
-                    {s}s
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open: false }))
-                onCreateRoom(taoMaBan(hopThoaiBan.game), hopThoaiBan.game, turnSeconds)
-              }}
-            >
-              <Plus className="size-3.5" />
-              Mở bàn
-            </Button>
-          </div>
-
-          <div className="mt-2 min-h-32 max-h-64 overflow-y-auto space-y-1.5">
-            {tableCuaTroDangMo.length === 0 ? (
-              <p className="py-8 text-center text-xs text-text-tertiary">
-                Chưa có bàn nào đang chờ — hãy tạo bàn đầu tiên!
-              </p>
-            ) : (
-              tableCuaTroDangMo.map((t: BanSanh) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-2.5 hover:bg-white/5 transition-all"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-text-primary">{t.tenChu || 'Người chơi X'}</p>
-                    <p className="text-[10px] text-text-tertiary">{t.turnTimerSeconds}s / lượt</p>
-                  </div>
-                  <Button
-                    size="xs"
-                    onClick={() => {
-                      setHopThoaiBan((p: { open: boolean; game: GameType }) => ({ ...p, open: false }))
-                      onJoinExisting(t.id)
-                    }}
-                  >
-                    Vào đấu
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

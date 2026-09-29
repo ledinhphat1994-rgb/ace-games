@@ -14,7 +14,9 @@ describe('Khách chưa đăng nhập không thấy số liệu giả', () => {
   })
 
   it('trang Học tập không nói "chưa có phòng" và không hiện số 0 với khách', () => {
-    expect(learningPageRaw).toContain("lobbyState.status === 'ready' && nguoiDung ? danhSachPhongLoc.length : undefined")
+    // Số phòng chỉ hiện với người đã đăng nhập (mẫu sảnh chung chỉ hiện số khi danh sách đã sẵn sàng).
+    expect(learningPageRaw).toContain('soLuong: nguoiDung ? danhSachPhongLoc.length : undefined')
+    expect(learningPageRaw).toContain("nguoiDung && lobbyState.status === 'ready'")
     expect(learningPageRaw).toContain('Đăng nhập để xem phòng đang mở')
     expect(learningPageRaw).toContain("moAuthModal('dang_nhap')")
   })
