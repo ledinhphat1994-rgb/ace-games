@@ -8,7 +8,7 @@ import {
   Minimize2,
   Play,
   RotateCcw,
-  Users,
+  Swords,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -151,26 +151,28 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
           </div>
         </div>
 
-        {/* Cụm chế độ chơi: Chơi với máy (Độ khó + Số lượng máy) & Chơi với người - Cân đối căn giữa, không sát mép */}
+        {/* Cụm chế độ chơi PvE (độ khó + số lượng máy) | PvP (hai người cùng máy) — cùng dáng và cách gọi với các bàn cờ */}
         <div className="flex items-center justify-center shrink-0">
-          <div className="flex items-center justify-center gap-1.5 p-1 rounded-2xl bg-slate-950/80 border border-white/10 text-xs font-semibold shadow-inner min-w-[360px] sm:min-w-[420px]">
-            {/* Popover Chơi với máy: Độ khó & Số lượng máy */}
+          <div className="flex items-center gap-1 rounded-xl bg-slate-950/80 p-1 border border-white/10 text-xs font-semibold shadow-md shrink-0">
+            {/* PvE (đấu máy): độ khó & số lượng máy */}
             <Popover>
               <PopoverTrigger
                 render={
                   <button
                     type="button"
                     onClick={() => setPlayMode('ai')}
+                    aria-label={playMode === 'ai' ? 'Chế độ PvE (Đấu máy), chọn độ khó và số lượng máy' : 'Chế độ PvE (Đấu máy)'}
+                    data-testid="che-do-pve"
                     className={cn(
-                      'flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-1.5 text-xs transition-all cursor-pointer h-8.5 flex-1',
+                      'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
                       playMode === 'ai'
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md font-bold'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-white/20'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                     )}
-                    title="Nhấn để tùy chỉnh độ khó và số lượng máy tham gia"
+                    title="Nhấn để chơi PvE (Đấu máy) hoặc tùy chỉnh độ khó và số lượng máy"
                   >
-                    <Bot className="size-4 shrink-0" />
-                    <span className="whitespace-nowrap font-bold">Chơi với máy</span>
+                    <Bot className="size-3.5 shrink-0" />
+                    <span>PvE</span>
                     {playMode === 'ai' && (
                       <span
                         className={cn(
@@ -254,19 +256,22 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
               </PopoverContent>
             </Popover>
 
-            {/* Chơi với người */}
+            {/* PvP (người đấu người) */}
             <button
               type="button"
               onClick={() => setPlayMode('pass_and_play')}
+              aria-label="Chế độ PvP (Đối kháng)"
+              data-testid="che-do-pvp"
               className={cn(
-                'flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-1.5 text-xs transition-all cursor-pointer h-8.5 flex-1 font-bold',
+                'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
                 playMode === 'pass_and_play'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                  ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
               )}
+              title="Chế độ PvP (Đối kháng)"
             >
-              <Users className="size-4 shrink-0" />
-              <span className="whitespace-nowrap font-bold">Chơi với người</span>
+              <Swords className="size-3.5 shrink-0" />
+              <span>PvP</span>
             </button>
           </div>
         </div>

@@ -6,11 +6,11 @@ import type { BanOnline } from '@/hooks/use-game'
 import type { PlayMode } from './GamePlayToolbar'
 import type { ActiveEmoteBubble, QuickEmoteItem } from './GameQuickEmote'
 
-// Phần dùng chung của ba bàn cờ (Caro, Cờ vua, Cờ tướng) khi mở từ sảnh: chế độ "Đấu online" do máy chủ làm trọng
+// Phần dùng chung của ba bàn cờ (Caro, Cờ vua, Cờ tướng) khi mở từ sảnh: chế độ PvP Online do máy chủ làm trọng
 // tài, bên cạnh hai chế độ chơi tại chỗ (với máy, hai người một máy).
 
 /**
- * Chế độ chơi của bàn cờ. Mở từ sảnh (có bàn online) thì mặc định "Đấu online". Người đang ngồi ghế trong ván online
+ * Chế độ chơi của bàn cờ. Mở từ sảnh (có bàn online) thì mặc định PvP Online. Người đang ngồi ghế trong ván online
  * đang diễn ra không được đổi sang chế độ khác (đồng hồ lượt vẫn chạy trên máy chủ); nếu đang tập với máy mà đối thủ
  * vào bàn thì tự quay về bàn online.
  */

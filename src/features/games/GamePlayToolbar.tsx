@@ -21,7 +21,7 @@ interface GamePlayToolbarProps {
   resetLabel?: string
   resetIcon?: React.ReactNode
   resetDisabled?: boolean
-  /** Hiện thêm nút "Đấu online" ở cụm chế độ chơi giữa thanh (chỉ với `hideCenterTurn`). */
+  /** PvP chuyển sang Online (bàn mở từ sảnh, đối thủ là người thật) thay vì hai người cùng máy (chỉ với `hideCenterTurn`). */
   onlineAvailable?: boolean
   surrenderAttempts?: number
   activeSide?: 'red' | 'black'
@@ -280,10 +280,10 @@ export function GamePlayToolbar({
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm font-bold'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
                     )}
-                    title="Nhấn để chơi với máy hoặc chọn độ khó"
+                    title="Nhấn để chơi PvE (Đấu máy) hoặc chọn độ khó"
                   >
                     <Bot className="size-3.5 shrink-0" />
-                    <span className="whitespace-nowrap font-bold">Chơi với máy</span>
+                    <span className="whitespace-nowrap font-bold">PvE</span>
                     {mode === 'ai' && (
                       <span
                         className={cn(
@@ -350,7 +350,7 @@ export function GamePlayToolbar({
             <button
               type="button"
               onClick={() => onModeChange('pass_and_play')}
-              aria-label="Chơi với người"
+              aria-label="Chế độ PvP (Đối kháng)"
               className={cn(
                 'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-8 w-full min-w-0 font-bold',
                 mode === 'pass_and_play'
@@ -359,8 +359,7 @@ export function GamePlayToolbar({
               )}
             >
               <Users className="size-3.5 shrink-0" />
-              <span className="font-bold truncate hidden min-[500px]:inline">Chơi với người</span>
-              <span className="font-bold min-[500px]:hidden">2 người</span>
+              <span className="font-bold truncate">PvP</span>
             </button>
           </div>
 

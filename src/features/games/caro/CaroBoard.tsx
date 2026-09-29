@@ -79,7 +79,7 @@ function checkWin(board: CaroCell[][], x: number, y: number, side: 'X' | 'O'): [
 interface CaroBoardProps {
   onBack?: () => void
   initialMode?: PlayMode
-  /** Bàn online (mở từ sảnh): thêm chế độ "Đấu online" — máy chủ làm trọng tài, đối thủ là người thật. */
+  /** Bàn online (mở từ sảnh): PvP chuyển sang Online — máy chủ làm trọng tài, đối thủ là người thật. */
   online?: BanOnline
 }
 
