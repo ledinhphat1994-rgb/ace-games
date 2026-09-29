@@ -508,15 +508,6 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         turnLabel={`Lượt: ${pos.turn === RED ? 'Bên Đỏ (Đi trước)' : 'Bên Đen'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
-        rightSlot={
-          <GameQuickEmote
-            emotes={DANH_SACH_THAI_DO_XIANGQI}
-            onSend={handleQuickEmote}
-            activeBubble={playerBubble}
-            theme="red"
-            compact={true}
-          />
-        }
       />
 
       {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
@@ -625,6 +616,15 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             pawnType={SOLDIER}
             renderPiece={renderCapturedXiangqiPiece}
             topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="red" />}
+            bottomSlot={
+              <GameQuickEmote
+                emotes={DANH_SACH_THAI_DO_XIANGQI}
+                onSend={handleQuickEmote}
+                activeBubble={playerBubble}
+                theme="red"
+                align="end"
+              />
+            }
           />
         </div>
       </div>

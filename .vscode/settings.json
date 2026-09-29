@@ -26,5 +26,6 @@
     "package.json": "package-lock.json, wrangler.toml, eslint.config.mjs, .editorconfig, .gitignore, .dev.vars*"
   },
   "godotTools.editorPath.godot4": "D:\\Godot_v4.7.2-stable_win64.exe\\Godot_v4.7.2-stable_win64.exe",
-  "godot_tools.editor_path": "D:\\Godot_v4.7.2-stable_win64.exe\\Godot_v4.7.2-stable_win64.exe"
+  "godot_tools.editor_path": "D:\\Godot_v4.7.2-stable_win64.exe\\Godot_v4.7.2-stable_win64.exe",
+  "css.lint.unknownAtRules": "ignore"
 }
