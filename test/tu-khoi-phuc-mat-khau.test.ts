@@ -206,3 +206,33 @@ describe('Giao diện', () => {
     expect(authGateRaw).toContain("pathname.startsWith('/room')")
   })
 })
+
+describe('Gửi thư thất bại không làm hỏng mã đang có', () => {
+  it('thư hỏng: mã quản trị vừa cấp vẫn dùng được, không tốn lượt; thư gửi được thì mã cũ mới bị huỷ', async () => {
+    await lienKet('qa.v2.gv_pending', 'sub-email-pending', 'pending@gmail.com')
+    const id = await idTaiKhoan('qa.v2.gv_pending')
+    // Mã "cũ" còn hiệu lực (như quản trị vừa cấp) — chèn trực tiếp một dòng active.
+    await env.DB.prepare(
+      `INSERT INTO password_reset_tokens (token_id, account_id, username, code_digest, expires_at, status, created_at, created_by)
+       VALUES ('ma-cu', ?1, 'qa.v2.gv_pending', 'digest-cu', ?2, 'active', ?3, 8)`,
+    )
+      .bind(id, Date.now() + 600_000, Date.now())
+      .run()
+    const trangThaiMaCu = async () =>
+      (await env.DB.prepare("SELECT status FROM password_reset_tokens WHERE token_id = 'ma-cu'").first<{ status: string }>())?.status
+    const soMaTuGui = async () =>
+      (await env.DB.prepare('SELECT COUNT(*) AS n FROM password_reset_tokens WHERE account_id = ?1 AND created_by = ?1')
+        .bind(id)
+        .first<{ n: number }>())?.n
+
+    const hong = { send: async () => { throw new Error('Email Sending setup is still in progress.') } } as unknown as SendEmail
+    await yeuCau('qa.v2.gv_pending', hong)
+    expect(await trangThaiMaCu()).toBe('active')
+    expect(await soMaTuGui()).toBe(0)
+
+    const { thu, sender } = hopThuGia()
+    await yeuCau('qa.v2.gv_pending', sender) // không bị chặn "cách 1 phút" vì lần hỏng không tính
+    expect(thu).toHaveLength(1)
+    expect(await trangThaiMaCu()).toBe('revoked')
+  })
+})
