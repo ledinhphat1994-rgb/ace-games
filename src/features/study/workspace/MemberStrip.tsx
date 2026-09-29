@@ -118,7 +118,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         }
       }}
       className={cn(
-        'flex min-w-0 max-w-[44vw] sm:max-w-[50vw] items-center justify-center gap-1.5 overflow-x-auto py-0.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center justify-center gap-2 sm:gap-3 overflow-x-auto py-1.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
@@ -148,31 +148,35 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
           <span className="relative flex shrink-0">
             <span
               className={cn(
-                'flex size-8 items-center justify-center rounded-full border-2 text-[11px] font-bold text-white',
+                'flex size-11 sm:size-12 items-center justify-center rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
                 mauCho(m.key),
-                laToi ? 'border-cyan-300' : laTrinhChieu ? 'border-amber-300' : 'border-white/10',
+                laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-white/20',
                 m.soKetNoi > 0 ? '' : 'opacity-40',
               )}
             >
               {getInitials(m.ten)}
             </span>
 
-            {/* Chủ phòng: Icon vương miện nhỏ */}
+            {/* Chủ phòng: Icon vương miện hoàng gia to rõ nổi bật */}
             {laTrinhChieu && (
-              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-amber-400 text-slate-950 ring-1 ring-slate-950">
-                <Crown className="size-2.5 fill-current" />
+              <span
+                className="absolute -top-1.5 -right-1.5 flex size-5 sm:size-5.5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 shadow-md ring-2 ring-slate-950"
+                title="Chủ phòng (Toàn quyền điều khiển)"
+              >
+                <Crown className="size-3 sm:size-3.5 fill-current" />
               </span>
             )}
 
-            {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp */}
+            {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp to rõ nét */}
             {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
               <span
-                className="absolute -right-1 -bottom-1 flex items-center gap-0.5 rounded-full bg-slate-950 px-1 py-0.5 ring-1 ring-cyan-400/40 shadow-sm"
+                className="absolute -right-2 -bottom-1 flex items-center gap-1 rounded-full bg-slate-950/95 px-1.5 py-0.5 border border-cyan-400/60 shadow-lg ring-1 ring-slate-950 backdrop-blur-sm"
                 data-testid={`member-strip-co-quyen-${m.key}`}
+                title={`Đã được cấp quyền: ${danhSachQuyenTen.join(', ')}`}
               >
-                {hasMic && <Mic className="size-2.5 text-emerald-400" />}
-                {hasVe && <Pen className="size-2.5 text-cyan-300" />}
-                {hasLaser && <MousePointer2 className="size-2.5 text-amber-300" />}
+                {hasMic && <Mic className="size-3 text-emerald-400 drop-shadow-sm" />}
+                {hasVe && <Pen className="size-3 text-cyan-300 drop-shadow-sm" />}
+                {hasLaser && <MousePointer2 className="size-3 text-amber-300 drop-shadow-sm" />}
               </span>
             )}
           </span>
@@ -180,37 +184,37 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
 
         // Card tóm tắt quyền chi tiết khi hover
         const cardQuyen = moCua !== m.key && (
-          <div className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 z-50 hidden group-hover:flex flex-col items-center rounded-xl border border-white/15 bg-slate-950/95 p-2.5 text-xs shadow-2xl backdrop-blur-md min-w-[160px] max-w-[240px]">
-            <div className="flex items-center gap-1.5 font-semibold text-white">
-              <span className="truncate max-w-[130px]">{m.ten}</span>
-              {laToi && <span className="rounded bg-cyan-500/20 px-1 py-0.5 text-[9px] font-normal text-cyan-300">Bạn</span>}
+          <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 z-50 hidden group-hover:flex flex-col items-center rounded-2xl border border-white/20 bg-slate-950/95 p-3 text-xs shadow-2xl backdrop-blur-xl min-w-[180px] max-w-[260px] animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-1.5 font-bold text-white text-sm">
+              <span className="truncate max-w-[140px]">{m.ten}</span>
+              {laToi && <span className="rounded-md bg-cyan-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-400/30">Bạn</span>}
               {laTrinhChieu && (
-                <span className="flex items-center gap-0.5 rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-normal text-amber-300">
-                  <Crown className="size-2.5" /> Chủ phòng
+                <span className="flex items-center gap-1 rounded-md bg-amber-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-400/30">
+                  <Crown className="size-3 fill-current" /> Chủ phòng
                 </span>
               )}
             </div>
 
             {laTrinhChieu ? (
-              <p className="mt-1 text-[11px] text-amber-200/90 text-center">Toàn quyền điều khiển phòng học</p>
+              <p className="mt-1.5 text-xs text-amber-200/90 text-center font-medium">Toàn quyền điều khiển phòng học</p>
             ) : cap.length > 0 ? (
-              <div className="mt-1.5 flex flex-col items-center gap-1 w-full text-center">
-                <span className="text-[10px] text-slate-400">Quyền từ chủ phòng:</span>
-                <div className="flex flex-wrap justify-center gap-1">
+              <div className="mt-2 flex flex-col items-center gap-1.5 w-full text-center">
+                <span className="text-[11px] text-slate-400 font-medium">Quyền được chủ phòng cấp:</span>
+                <div className="flex flex-wrap justify-center gap-1.5">
                   {cap.map((q) => {
                     const o = O_QUYEN.find((item) => item.quyen === q)
                     if (!o) return null
                     const Icon = o.icon
                     return (
-                      <span key={q} className="inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-cyan-200">
-                        <Icon className="size-2.5" /> {o.ten}
+                      <span key={q} className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
+                        <Icon className="size-3" /> {o.ten}
                       </span>
                     )
                   })}
                 </div>
               </div>
             ) : (
-              <p className="mt-1 text-[11px] text-slate-400 text-center">Chỉ xem (chưa được cấp quyền)</p>
+              <p className="mt-1.5 text-xs text-slate-400 text-center font-medium">Chỉ xem (chưa được cấp quyền)</p>
             )}
           </div>
         )
