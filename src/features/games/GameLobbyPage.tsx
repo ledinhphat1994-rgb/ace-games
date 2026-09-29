@@ -99,7 +99,11 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
     viec()
   }
 
-  const chiSo = coDanhSach
+  const laAdminToanQuyen = Boolean(
+    nguoiDung && (nguoiDung.isSchoolAdmin || nguoiDung.role === 'admin' || nguoiDung.username === 'ledinhphat'),
+  )
+
+  const chiSo = coDanhSach && laAdminToanQuyen
     ? [
         { icon: LayoutGrid, nhan: 'Số bàn', giaTri: tatCaBan.length, mau: 'text-brand' },
         {

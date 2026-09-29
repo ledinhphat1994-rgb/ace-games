@@ -100,13 +100,17 @@ export function LearningPage() {
     navigate(`/room/phong-${phong.id}`)
   }
 
+  const laAdminToanQuyen = Boolean(
+    nguoiDung && (nguoiDung.isSchoolAdmin || nguoiDung.role === 'admin' || nguoiDung.username === 'ledinhphat'),
+  )
+
   return (
     <>
       <SanhHoatDong
         testId="learning"
         tieuDe="Học tập"
         chiSo={
-          nguoiDung && lobbyState.status === 'ready'
+          laAdminToanQuyen && nguoiDung && lobbyState.status === 'ready'
             ? [
                 { icon: DoorOpen, nhan: 'Phòng đang mở', giaTri: rooms.length, mau: 'text-brand' },
                 { icon: Users, nhan: 'Đang học', giaTri: rooms.reduce((tong, r) => tong + r.soNguoi, 0), mau: 'text-emerald-400' },
