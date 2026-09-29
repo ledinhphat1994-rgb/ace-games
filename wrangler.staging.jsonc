@@ -13,7 +13,9 @@
   },
   "workers_dev": true,
   "vars": {
-    "ENVIRONMENT": "staging"
+    "ENVIRONMENT": "staging",
+    // Client ID OAuth của Google (công khai). Client secret là secret GOOGLE_CLIENT_SECRET, không nằm ở đây.
+    "GOOGLE_CLIENT_ID": "577501894374-kcagug39fsl0sja2btigm5vabc3qfp84.apps.googleusercontent.com"
   },
   "d1_databases": [
     {

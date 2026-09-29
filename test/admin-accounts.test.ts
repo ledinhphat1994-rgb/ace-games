@@ -172,3 +172,54 @@ describe('Quản lý tài khoản — khoá / mở khoá', () => {
     await khongCo.body?.cancel()
   })
 })
+
+describe('Quản lý tài khoản — cấp quyền giáo viên', () => {
+  it('nâng học sinh lên giáo viên đã duyệt ngay (không cần đăng nhập lại), có nhật ký; cấp lần hai trả 409', async () => {
+    const admin = await dangNhapLayCookie('qa.v2.admin')
+    const hs = await dangKy('qa.v2.capgv', 'student')
+    const phienHs = await dangNhapLayCookie(hs.username)
+
+    const res = await thaoTac(admin, hs.id, 'grant_teacher')
+    expect(res.status).toBe(200)
+    await res.body?.cancel()
+    expect(await trangThai(hs.id)).toMatchObject({ vai_tro: 'teacher', teacher_pending: 0, duyet_boi_khoa: expect.stringMatching(/^acc:/) })
+
+    const who = await goi('/api/whoami', { headers: { Cookie: phienHs } })
+    expect(await who.json()).toMatchObject({ role: 'teacher', isVerifiedTeacher: true })
+
+    const nhatKy = await env.DB.prepare("SELECT 1 FROM moderation_audit_logs WHERE target_id = ?1 AND action = 'teacher_grant'")
+      .bind(hs.id)
+      .first()
+    expect(nhatKy).not.toBeNull()
+
+    const lan2 = await thaoTac(admin, hs.id, 'grant_teacher')
+    expect(lan2.status).toBe(409)
+    await lan2.body?.cancel()
+  })
+
+  it('không cấp cho tài khoản bị khoá hoặc quản trị viên; giáo viên thường không cấp được', async () => {
+    const admin = await dangNhapLayCookie('qa.v2.admin')
+    const khoa = await thaoTac(admin, 3, 'grant_teacher') // qa.v2.khoa
+    expect(khoa.status).toBe(409)
+    await khoa.body?.cancel()
+    const quanTri = await thaoTac(admin, 8, 'grant_teacher') // qa.v2.admin
+    expect(quanTri.status).toBe(403)
+    await quanTri.body?.cancel()
+
+    const gv = await dangNhapLayCookie('qa.v2.gv')
+    const res = await thaoTac(gv, 4, 'grant_teacher')
+    expect(res.status).toBe(403)
+    await res.body?.cancel()
+    expect((await trangThai(4))?.vai_tro).toBe('student')
+  })
+
+  it('danh sách hiện Gmail đã liên kết đăng nhập Google', async () => {
+    const admin = await dangNhapLayCookie('qa.v2.admin')
+    await env.DB.prepare('INSERT INTO lien_ket_google (account_id, google_sub, email, created_at) VALUES (5, ?1, ?2, ?3)')
+      .bind('sub-admin-list', 'hs.tudo@gmail.com', Date.now())
+      .run()
+    const { body } = await danhSach(admin, '?limit=100')
+    expect(body.accounts.find((a) => a.username === 'qa.v2.tudo')?.googleEmail).toBe('hs.tudo@gmail.com')
+    expect(body.accounts.find((a) => a.username === 'qa.v2.thu1')?.googleEmail).toBeNull()
+  })
+})

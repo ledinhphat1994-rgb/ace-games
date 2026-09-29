@@ -23,6 +23,8 @@ export default defineConfig(async () => ({
           STAGING_WRANGLER_CONFIG: fs.readFileSync('./wrangler.staging.jsonc', 'utf-8'),
           // Secret riêng cho test (không phải secret thật); trùng với secret dùng để sinh vector tương thích.
           SESSION_SECRET: 'bi-mat-chi-dung-trong-test-khong-phai-that',
+          // Không phải Client secret thật: test giả lập máy chủ token của Google.
+          GOOGLE_CLIENT_SECRET: 'bi-mat-google-chi-dung-trong-test',
         },
       },
     }),

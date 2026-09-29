@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { dangKy, dangNhap, quenMatKhau, yeuCauQuenMatKhau } from '@/lib/api'
 import { AlertCircle, ArrowLeft, GraduationCap, UserPlus, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
+import { LogoGoogle } from './LogoGoogle'
 
 export type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
 
@@ -37,8 +38,6 @@ export function AuthModal({
   const [dkHoTen, setDkHoTen] = useState('')
   const [dkPassword, setDkPassword] = useState('')
   const [dkConfirmPassword, setDkConfirmPassword] = useState('')
-  const [dkVaiTro, setDkVaiTro] = useState<'student' | 'teacher'>('student')
-  const [dkTeacherCode, setDkTeacherCode] = useState('')
 
   // Form Quên mật khẩu
   const [qmkUsername, setQmkUsername] = useState('')
@@ -108,8 +107,6 @@ export function AuthModal({
         username: dkUsername.trim(),
         password: dkPassword,
         tenHienThi: dkHoTen.trim() || dkUsername.trim(),
-        vaiTro: dkVaiTro,
-        teacherCode: dkVaiTro === 'teacher' ? dkTeacherCode.trim() : undefined,
       })
 
       toast.success(res.message || 'Tạo tài khoản thành công!')
@@ -303,6 +300,16 @@ export function AuthModal({
                 {dangGui ? 'Đang xác thực…' : 'Đăng nhập'}
               </Button>
 
+              {/* Chuyển hẳn trang sang Google; chỉ tài khoản đã liên kết Gmail mới vào được. */}
+              <a
+                href="/api/auth/google/start"
+                data-testid="google-login"
+                className={cn(buttonVariants({ variant: 'outline' }), 'w-full h-10 gap-2 font-semibold')}
+              >
+                <LogoGoogle className="size-4" />
+                Đăng nhập bằng Google
+              </a>
+
               <p className="text-center text-xs text-text-tertiary">
                 Chưa có tài khoản?{' '}
                 <button
@@ -377,52 +384,6 @@ export function AuthModal({
                 </div>
               </div>
 
-              {/* Chọn vai trò */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium text-text-secondary">Vai trò</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDkVaiTro('student')}
-                    className={cn(
-                      'py-1.5 px-3 rounded-xl border text-xs font-medium transition-all text-left',
-                      dkVaiTro === 'student'
-                        ? 'border-brand/50 bg-brand/10 text-brand font-semibold'
-                        : 'border-border-default bg-surface-overlay/50 text-text-secondary hover:border-border-strong'
-                    )}
-                  >
-                    🎓 Học sinh
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDkVaiTro('teacher')}
-                    className={cn(
-                      'py-1.5 px-3 rounded-xl border text-xs font-medium transition-all text-left',
-                      dkVaiTro === 'teacher'
-                        ? 'border-brand/50 bg-brand/10 text-brand font-semibold'
-                        : 'border-border-default bg-surface-overlay/50 text-text-secondary hover:border-border-strong'
-                    )}
-                  >
-                    👨‍🏫 Giáo viên
-                  </button>
-                </div>
-              </div>
-
-              {dkVaiTro === 'teacher' && (
-                <div className="space-y-1 rounded-xl border border-border-default bg-surface-overlay/30 p-2">
-                  <Label htmlFor="dk-teacher-code" className="text-xs font-medium text-text-secondary">
-                    Mã xác nhận giáo viên <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="dk-teacher-code"
-                    value={dkTeacherCode}
-                    onChange={(e) => setDkTeacherCode(e.target.value)}
-                    placeholder="Nhập mã do trường cấp"
-                    required
-                    className="h-8 text-xs"
-                  />
-                </div>
-              )}
             </div>
 
             <div className="space-y-2 pt-2">

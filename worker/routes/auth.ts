@@ -61,18 +61,59 @@ async function xoaDemThu(env: Env, ip: string, ten: string): Promise<void> {
   }
 }
 
-interface DongDangNhap {
+/** Các cột tài khoản cần để cấp phiên (dùng chung cho đăng nhập mật khẩu và đăng nhập Google). */
+export interface DongCapPhien {
   id: number
   ten_dang_nhap: string
   ten_hien_thi: string | null
-  mat_khau_hash: string | null
-  salt: string | null
-  iterations: number | null
   vai_tro: string | null
   teacher_pending: number | null
   hoc_sinh_id: number | null
   lop_id: number | null
+}
+
+interface DongDangNhap extends DongCapPhien {
+  mat_khau_hash: string | null
+  salt: string | null
+  iterations: number | null
   dang_hoat_dong: number | null
+}
+
+/**
+ * Cấp phiên cho tài khoản đã xác minh danh tính: ghi mã phiên mới vào thiet_bi (1 tài khoản 1 thiết bị),
+ * báo CampusDO đá kết nối của thiết bị cũ (mã 4001), trả token ký HMAC cho cookie c10a7_session.
+ */
+export async function capPhienDangNhap(
+  env: Env,
+  user: DongCapPhien,
+  ctx?: { waitUntil(promise: Promise<unknown>): void },
+): Promise<{ token: string; payload: Phien; phienId: string }> {
+  const phienId = crypto.randomUUID()
+  await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2')
+    .bind(phienId, user.id)
+    .run()
+    .catch(() => {})
+
+  // Đóng ngay kết nối Campus của phiên cũ; bản cũ chỉ phát hiện ở lần gọi API kế tiếp.
+  const baoCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
+    .dangNhapMoi(user.id, phienId)
+    .catch((e: unknown) => console.error('Không báo được CampusDO về lần đăng nhập mới:', e))
+  if (ctx) ctx.waitUntil(baoCampus)
+  else await baoCampus
+
+  // Tên nằm trong cookie: cắt về giới hạn để tài khoản cũ có tên quá dài không bị trình duyệt bỏ cookie (> 4 KB).
+  const payload: Phien = {
+    accountId: user.id,
+    role: user.vai_tro,
+    ten: tenHienThiAnToan(user.ten_hien_thi),
+    username: user.ten_dang_nhap,
+    teacherPending: Boolean(user.teacher_pending),
+    hocSinhId: user.hoc_sinh_id || null,
+    lopId: user.lop_id || null,
+    phienId,
+  }
+  const token = await createToken(env.SESSION_SECRET, payload, SESSION_TTL)
+  return { token, payload, phienId }
 }
 
 export async function dangNhap(
@@ -134,11 +175,7 @@ export async function dangNhap(
   }
 
   await xoaDemThu(env, ip, username)
-  const phienId = crypto.randomUUID()
-  await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2')
-    .bind(phienId, user.id)
-    .run()
-    .catch(() => {})
+  const { token, payload, phienId } = await capPhienDangNhap(env, user, ctx)
 
   // Opportunistic password hash upgrade:
   // Nếu tài khoản có iterations < DEFAULT_ITERATIONS, nâng cấp lên DEFAULT_ITERATIONS bằng CAS
@@ -160,27 +197,6 @@ export async function dangNhap(
     }
   }
 
-  // Đóng ngay kết nối Campus của phiên cũ; bản cũ chỉ phát hiện ở lần gọi API kế tiếp.
-  const baoCampus = env.CAMPUS.get(env.CAMPUS.idFromName(TEN_CAMPUS))
-    .dangNhapMoi(user.id, phienId)
-    .catch((e: unknown) => console.error('Không báo được CampusDO về lần đăng nhập mới:', e))
-  if (ctx) ctx.waitUntil(baoCampus)
-  else await baoCampus
-
-  // Tên nằm trong cookie: cắt về giới hạn để tài khoản cũ có tên quá dài không bị trình duyệt bỏ cookie (> 4 KB).
-  const tenAnToan = tenHienThiAnToan(user.ten_hien_thi)
-  const payload: Phien = {
-    accountId: user.id,
-    role: user.vai_tro,
-    ten: tenAnToan,
-    username: user.ten_dang_nhap,
-    teacherPending: Boolean(user.teacher_pending),
-    hocSinhId: user.hoc_sinh_id || null,
-    lopId: user.lop_id || null,
-    phienId,
-  }
-  const token = await createToken(env.SESSION_SECRET, payload, SESSION_TTL)
-
   recordAnalyticsEvent(env.ANALYTICS_DB, ctx, {
     event: 'auth.login_succeeded',
     actorId: user.id,
@@ -197,7 +213,7 @@ export async function dangNhap(
       user: {
         id: user.id,
         username: user.ten_dang_nhap,
-        ten: tenAnToan,
+        ten: payload.ten,
         role: user.vai_tro,
         teacherPending: payload.teacherPending,
       },

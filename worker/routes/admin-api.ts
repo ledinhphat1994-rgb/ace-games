@@ -578,12 +578,14 @@ interface DongTaiKhoanQuanTri {
   isSchoolAdmin: number | null
   lopId: number | null
   lopTen: string | null
+  googleEmail: string | null
   createdAt: string | null
 }
 
 const COT_TAI_KHOAN = `tk.id, tk.ten_dang_nhap AS username, tk.ten_hien_thi AS displayName, tk.vai_tro AS role,
        tk.teacher_pending AS teacherPending, tk.dang_hoat_dong AS active, tk.la_admin_truong AS isSchoolAdmin,
-       tk.lop_id AS lopId, l.ten AS lopTen, tk.tao_luc AS createdAt`
+       tk.lop_id AS lopId, l.ten AS lopTen, tk.tao_luc AS createdAt,
+       (SELECT g.email FROM lien_ket_google g WHERE g.account_id = tk.id) AS googleEmail`
 
 // Tài khoản kỹ thuật `system` (actor của audit trail) không phải người dùng: không liệt kê, không thao tác.
 const LA_NGUOI_DUNG = "tk.ten_dang_nhap != 'system'"
@@ -601,6 +603,7 @@ function sangTaiKhoan(r: DongTaiKhoanQuanTri): AdminAccountItem {
     isSchoolAdmin: r.isSchoolAdmin === 1,
     lopId: r.lopId,
     lopTen: r.lopTen,
+    googleEmail: r.googleEmail,
     createdAt: msTuD1(r.createdAt),
   }
 }
@@ -671,9 +674,10 @@ adminRouter.get('/accounts', async (c) => {
 })
 
 /**
- * POST /api/admin/accounts/:id/action   { action: 'approve_teacher' | 'reject_teacher' | 'lock' | 'unlock' }
+ * POST /api/admin/accounts/:id/action   { action: 'approve_teacher' | 'reject_teacher' | 'grant_teacher' | 'lock' | 'unlock' }
  * - Duyệt/từ chối chỉ với tài khoản còn hoạt động, đang chờ duyệt giáo viên, không phải quản trị viên.
  *   Từ chối đưa tài khoản về học sinh (vẫn dùng Campus được), không khoá.
+ * - Cấp quyền giáo viên: nâng tài khoản học sinh đang hoạt động lên giáo viên đã duyệt (form đăng ký chỉ tạo học sinh).
  * - Không tự khoá, không khoá/mở khoá quản trị viên. Khoá xong ngắt ngay mọi kết nối Campus/phòng đang mở.
  * - UPDATE kèm đúng trạng thái đã kiểm tra: đổi cạnh tranh → 409 (cần tải lại).
  */
@@ -727,6 +731,16 @@ adminRouter.post('/accounts/:id/action', async (c) => {
               WHERE id = ?1 AND vai_tro = 'teacher' AND teacher_pending = 1 AND dang_hoat_dong = 1 AND la_admin_truong = 0`
       binds = [tk.id, nguoiDuyet]
       break
+    case 'grant_teacher':
+      if (!(tk.role === 'student' && tk.active)) {
+        return loi('Chỉ cấp quyền giáo viên cho tài khoản học sinh đang hoạt động.', 409)
+      }
+      sql = `UPDATE tai_khoan_campus
+                SET vai_tro = 'teacher', teacher_pending = 0,
+                    duyet_boi_khoa = ?2, duyet_luc = CURRENT_TIMESTAMP, cap_nhat_luc = CURRENT_TIMESTAMP
+              WHERE id = ?1 AND vai_tro = 'student' AND dang_hoat_dong = 1 AND la_admin_truong = 0`
+      binds = [tk.id, nguoiDuyet]
+      break
     case 'lock':
       if (!tk.active) return loi('Tài khoản này đã bị khoá.', 409)
       sql = `UPDATE tai_khoan_campus SET dang_hoat_dong = 0, cap_nhat_luc = CURRENT_TIMESTAMP
@@ -767,6 +781,7 @@ adminRouter.post('/accounts/:id/action', async (c) => {
   const TEN_AUDIT: Record<HanhDongTaiKhoan, string> = {
     approve_teacher: 'teacher_approve',
     reject_teacher: 'teacher_reject',
+    grant_teacher: 'teacher_grant',
     lock: 'account_lock',
     unlock: 'account_unlock',
   }

@@ -1,3 +1,5 @@
+import type { TrangThaiGoogle } from '@shared/protocol/google'
+
 export interface NguoiDung {
   accountId: number
   username: string
@@ -123,6 +125,14 @@ export function capNhatHoSo(duLieu: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(duLieu),
   })
+}
+
+export function layTrangThaiGoogle(): Promise<TrangThaiGoogle> {
+  return goiApi<TrangThaiGoogle>('/api/auth/google/status')
+}
+
+export function goLienKetGoogle(): Promise<{ ok: boolean }> {
+  return goiApi('/api/auth/google/unlink', { method: 'POST' })
 }
 
 export function doiMatKhau(duLieu: {

@@ -5,6 +5,8 @@ interface Env {
   CLASS_CODE?: string
   TURNSTILE_SECRET_KEY?: string
   ENVIRONMENT?: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
 }
 
 declare namespace Cloudflare {
@@ -14,5 +16,7 @@ declare namespace Cloudflare {
     CLASS_CODE?: string
     TURNSTILE_SECRET_KEY?: string
     ENVIRONMENT?: string
+    GOOGLE_CLIENT_ID?: string
+    GOOGLE_CLIENT_SECRET?: string
   }
 }
