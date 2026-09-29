@@ -1039,7 +1039,11 @@ app.post('/api/login', (c) => {
   return dangNhap(c.req.raw, c.env, ctx)
 })
 app.post('/api/register', (c) => dangKy(c.req.raw, c.env))
-app.post('/api/forgot-password/request', (c) => yeuCauQuenMatKhau(c.req.raw, c.env))
+app.post('/api/forgot-password/request', (c) => {
+  let ctx: { waitUntil(promise: Promise<unknown>): void } | undefined
+  try { ctx = c.executionCtx } catch {}
+  return yeuCauQuenMatKhau(c.req.raw, c.env, ctx)
+})
 app.post('/api/forgot-password', (c) => quenMatKhau(c.req.raw, c.env))
 app.post('/api/admin/reset-code', (c) => taoMaResetChoHocSinh(c.req.raw, c.env))
 app.get('/api/whoami', (c) => whoami(c.req.raw, c.env))

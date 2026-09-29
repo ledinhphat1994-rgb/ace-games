@@ -30,6 +30,8 @@ interface VeGoogle {
   verifier: string
   cheDo: CheDo
   accountId: number | null
+  /** 'khoi_phuc': bấm từ mục Quên mật khẩu — đăng nhập xong đưa thẳng tới chỗ đặt mật khẩu mới. */
+  sau?: 'khoi_phuc'
   exp: number
 }
 
@@ -150,7 +152,9 @@ export async function layDanhTinhGoogle(
 
 /** GET /api/auth/google/start?che_do=dang_nhap|lien_ket — chuyển sang trang chọn tài khoản của Google. */
 export async function batDauGoogle(request: Request, env: Env): Promise<Response> {
-  const cheDo: CheDo = new URL(request.url).searchParams.get('che_do') === 'lien_ket' ? 'lien_ket' : 'dang_nhap'
+  const thamSo = new URL(request.url).searchParams
+  const cheDo: CheDo = thamSo.get('che_do') === 'lien_ket' ? 'lien_ket' : 'dang_nhap'
+  const sau = cheDo === 'dang_nhap' && thamSo.get('sau') === 'khoi_phuc' ? 'khoi_phuc' : undefined
   const trangVe = cheDo === 'lien_ket' ? TRANG_LIEN_KET : TRANG_DANG_NHAP
   if (!daCauHinh(env)) return veTrang(request, trangVe, 'chua_cau_hinh')
 
@@ -169,6 +173,7 @@ export async function batDauGoogle(request: Request, env: Env): Promise<Response
     verifier,
     cheDo,
     accountId,
+    ...(sau ? { sau } : {}),
     exp: Math.floor(Date.now() / 1000) + TTL_GIAY,
   })
 
@@ -206,7 +211,9 @@ export async function googleGoiLai(request: Request, env: Env, ctx?: Ctx, fetche
   const danhTinh = await layDanhTinhGoogle(env, code, ve.verifier, diaChiGoiLai(request), fetcher)
   if (!danhTinh) return veTrang(request, trangVe, 'loi')
 
-  return ve.cheDo === 'lien_ket' ? lienKet(request, env, ve, danhTinh) : dangNhapGoogle(request, env, danhTinh, ctx)
+  return ve.cheDo === 'lien_ket'
+    ? lienKet(request, env, ve, danhTinh)
+    : dangNhapGoogle(request, env, danhTinh, ctx, ve.sau === 'khoi_phuc')
 }
 
 async function lienKet(request: Request, env: Env, ve: VeGoogle, dt: DanhTinhGoogle): Promise<Response> {
@@ -235,7 +242,13 @@ async function lienKet(request: Request, env: Env, ve: VeGoogle, dt: DanhTinhGoo
   return veTrang(request, TRANG_LIEN_KET, 'da_lien_ket')
 }
 
-async function dangNhapGoogle(request: Request, env: Env, dt: DanhTinhGoogle, ctx?: Ctx): Promise<Response> {
+async function dangNhapGoogle(
+  request: Request,
+  env: Env,
+  dt: DanhTinhGoogle,
+  ctx?: Ctx,
+  khoiPhuc = false,
+): Promise<Response> {
   let user: (DongCapPhien & { dang_hoat_dong: number | null }) | null
   try {
     user = await env.DB.prepare(
@@ -267,14 +280,17 @@ async function dangNhapGoogle(request: Request, env: Env, dt: DanhTinhGoogle, ct
       .catch(() => {})
   }
 
-  const { token, phienId } = await capPhienDangNhap(env, user, ctx)
+  const { token, phienId } = await capPhienDangNhap(env, user, ctx, { quaGoogle: true })
   recordAnalyticsEvent(env.ANALYTICS_DB, ctx, {
     event: 'auth.login_succeeded',
     actorId: user.id,
     sessionId: phienId,
     properties: { role: user.vai_tro, isLinked: Boolean(user.hoc_sinh_id && user.lop_id), method: 'google' },
   })
-  return veTrang(request, TRANG_DANG_NHAP, 'ok', cookiePhien(token, laHttps(request)))
+  // Từ mục Quên mật khẩu: đưa thẳng tới tab Mật khẩu để đặt mật khẩu mới (không cần mật khẩu cũ trong 15 phút).
+  return khoiPhuc
+    ? veTrang(request, TRANG_LIEN_KET, 'khoi_phuc', cookiePhien(token, laHttps(request)))
+    : veTrang(request, TRANG_DANG_NHAP, 'ok', cookiePhien(token, laHttps(request)))
 }
 
 /** GET /api/auth/google/status */

@@ -411,7 +411,22 @@ export function AuthModal({
 
         {/* ── 3. FORM QUÊN MẬT KHẨU ── */}
         {mode === 'quen_mat_khau' && (
-          <form onSubmit={handleDatLaiMatKhau} className="space-y-3.5">
+          <form onSubmit={handleDatLaiMatKhau} className="min-h-0 flex-1 space-y-3.5 overflow-y-auto pr-0.5">
+            {/* Đã liên kết Gmail: vào bằng Google rồi đặt mật khẩu mới ngay, không cần mã. */}
+            <a
+              href="/api/auth/google/start?sau=khoi_phuc"
+              data-testid="google-khoi-phuc"
+              className={cn(buttonVariants({ variant: 'outline' }), 'w-full h-10 gap-2 font-semibold')}
+            >
+              <LogoGoogle className="size-4" />
+              Đăng nhập bằng Google
+            </a>
+            <div className="flex items-center gap-3 text-[11px] text-text-tertiary">
+              <span className="h-px flex-1 bg-border-subtle" />
+              hoặc nhận mã 6 số
+              <span className="h-px flex-1 bg-border-subtle" />
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="qmk-username" className="text-xs font-medium text-text-secondary">
                 Tên tài khoản

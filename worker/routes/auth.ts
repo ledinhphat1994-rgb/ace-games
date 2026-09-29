@@ -12,6 +12,7 @@ import { laGiaoVienDaDuyet, laQuanTriTruong, layPhamViQuanTri } from '../lib/sco
 import { kiemTraPhien, layPhien } from '../lib/session'
 import { recordAnalyticsEvent } from '../lib/analytics'
 import { ghiAuditLog } from './moderation-api'
+import { taoThuMaKhoiPhuc } from '../lib/email'
 
 // Cùng ngưỡng và cùng dạng khoá KV với functions/api/login.js của bản cũ.
 const MAX_TRIES_IP = 30
@@ -88,6 +89,7 @@ export async function capPhienDangNhap(
   env: Env,
   user: DongCapPhien,
   ctx?: { waitUntil(promise: Promise<unknown>): void },
+  tuyChon?: { quaGoogle?: boolean },
 ): Promise<{ token: string; payload: Phien; phienId: string }> {
   const phienId = crypto.randomUUID()
   await env.DB.prepare('UPDATE tai_khoan_campus SET thiet_bi = ?1, cap_nhat_luc = CURRENT_TIMESTAMP WHERE id = ?2')
@@ -112,9 +114,18 @@ export async function capPhienDangNhap(
     hocSinhId: user.hoc_sinh_id || null,
     lopId: user.lop_id || null,
     phienId,
+    ...(tuyChon?.quaGoogle ? { dangNhapGoogleLuc: Date.now() } : {}),
   }
   const token = await createToken(env.SESSION_SECRET, payload, SESSION_TTL)
   return { token, payload, phienId }
+}
+
+/** Sau khi đăng nhập bằng Google (Google vừa xác minh danh tính), được đặt mật khẩu mới không cần mật khẩu cũ trong 15 phút. */
+export const CUA_SO_DAT_MAT_KHAU_GOOGLE_MS = 15 * 60_000
+
+export function vuaDangNhapGoogle(phien: Phien, bayGio = Date.now()): boolean {
+  const luc = phien.dangNhapGoogleLuc
+  return typeof luc === 'number' && bayGio - luc >= 0 && bayGio - luc < CUA_SO_DAT_MAT_KHAU_GOOGLE_MS
 }
 
 export async function dangNhap(
@@ -259,6 +270,7 @@ export async function whoami(request: Request, env: Env): Promise<Response> {
     lopId: tk.lopId,
     lop,
     actorKey: actorKey(phien),
+    datMatKhauKhongCanCu: vuaDangNhapGoogle(phien),
   })
 }
 
@@ -372,7 +384,11 @@ async function bamMaOtp(secret: string, username: string, code: string): Promise
 
 
 /** Yêu cầu mã khôi phục mật khẩu (OWASP: generic response, không để lộ mã ra public khi chưa xác thực) */
-export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Response> {
+export async function yeuCauQuenMatKhau(
+  request: Request,
+  env: Env,
+  ctx?: { waitUntil(promise: Promise<unknown>): void },
+): Promise<Response> {
   let body: { username?: string }
   try {
     body = await request.json()
@@ -402,11 +418,77 @@ export async function yeuCauQuenMatKhau(request: Request, env: Env): Promise<Res
     }
   }
 
+  // Tài khoản đã liên kết Gmail: tự gửi mã qua email, không cần quản trị. Chạy nền để thời gian phản hồi
+  // không khác nhau giữa tài khoản có / không có Gmail (không dò được tài khoản nào tồn tại).
+  if (env.EMAIL) {
+    const viec = guiMaKhoiPhucQuaEmail(env, env.EMAIL, username).catch((e: unknown) =>
+      console.error('[qmk_email] Không gửi được mã khôi phục qua email:', e),
+    )
+    if (ctx) ctx.waitUntil(viec)
+    else await viec
+  }
+
   return json({
     ok: true,
     message:
-      'Nếu tài khoản tồn tại, yêu cầu khôi phục đã được ghi nhận. Vui lòng liên hệ trực tiếp Giáo viên chủ nhiệm hoặc Ban Giám Hiệu tại trường để nhận mã xác nhận 6 số.',
+      'Nếu tài khoản đã liên kết Gmail, mã 6 số vừa được gửi tới Gmail đó (xem cả thư rác). Nếu chưa liên kết, hãy liên hệ Giáo viên chủ nhiệm hoặc Ban Giám Hiệu để nhận mã.',
   })
+}
+
+/** Mỗi tài khoản tự yêu cầu tối đa 3 thư/giờ, cách nhau ít nhất 1 phút (chống dội thư vào hộp mail người khác). */
+const THU_TOI_DA_MOI_GIO = 3
+const KHOANG_CACH_THU_MS = 60_000
+
+export async function guiMaKhoiPhucQuaEmail(env: Env, sender: SendEmail, username: string): Promise<void> {
+  const tk = await env.DB.prepare(
+    `SELECT tk.id, tk.ten_dang_nhap, tk.ten_hien_thi, tk.dang_hoat_dong, g.email
+       FROM tai_khoan_campus tk JOIN lien_ket_google g ON g.account_id = tk.id
+      WHERE tk.ten_dang_nhap = ?1`,
+  )
+    .bind(username)
+    .first<{ id: number; ten_dang_nhap: string; ten_hien_thi: string | null; dang_hoat_dong: number | null; email: string | null }>()
+  if (!tk?.email || !tk.dang_hoat_dong) return
+
+  const bayGio = Date.now()
+  const gan = await env.DB.prepare(
+    `SELECT COUNT(*) AS n, MAX(created_at) AS moiNhat FROM password_reset_tokens
+      WHERE account_id = ?1 AND created_by = ?1 AND created_at > ?2`,
+  )
+    .bind(tk.id, bayGio - 3_600_000)
+    .first<{ n: number; moiNhat: number | null }>()
+  if ((gan?.n ?? 0) >= THU_TOI_DA_MOI_GIO) return
+  if (gan?.moiNhat && bayGio - gan.moiNhat < KHOANG_CACH_THU_MS) return
+
+  const code = await capMaKhoiPhuc(env, tk, tk.id)
+  await sender.send(taoThuMaKhoiPhuc({ to: tk.email, ten: tk.ten_hien_thi || tk.ten_dang_nhap, code }))
+}
+
+/**
+ * Sinh mã 6 số ngẫu nhiên, thu hồi mã cũ còn hiệu lực của tài khoản (ABA Protection), lưu bản băm HMAC —
+ * tuyệt đối không lưu mã gốc. Hiệu lực 15 phút, sai tối đa 5 lần.
+ * createdBy: quản trị viên cấp, hoặc chính tài khoản (tự khôi phục qua email).
+ */
+async function capMaKhoiPhuc(env: Env, target: { id: number; ten_dang_nhap: string }, createdBy: number): Promise<string> {
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  const code = (100000 + (array[0] % 900000)).toString()
+
+  const codeDigest = await bamMaOtp(env.SESSION_SECRET, target.ten_dang_nhap, code)
+  const now = Date.now()
+  const expiresAt = now + 900 * 1000 // 15 phút
+  const tokenId = crypto.randomUUID()
+
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active'",
+    ).bind(target.id),
+    env.DB.prepare(
+      `INSERT INTO password_reset_tokens (
+         token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status, created_at, created_by
+       ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
+    ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, createdBy),
+  ])
+  return code
 }
 
 /** Giáo viên / Admin tạo mã khôi phục cho học sinh trực tiếp (Scope & Privilege Enforced) */
@@ -457,28 +539,8 @@ export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<
     }
   }
 
-  // 5. Sinh mã OTP 6 số ngẫu nhiên cryptographically
-  const array = new Uint32Array(1)
-  crypto.getRandomValues(array)
-  const code = (100000 + (array[0] % 900000)).toString()
-
-  // 6. Lưu HMAC digest vào CSDL D1 (password_reset_tokens), tuyệt đối không lưu plaintext code
-  const codeDigest = await bamMaOtp(env.SESSION_SECRET, target.ten_dang_nhap, code)
-  const now = Date.now()
-  const expiresAt = now + 900 * 1000 // 15 phút
-  const tokenId = crypto.randomUUID()
-
-  // Invalidate previous active tokens for this student (ABA Protection)
-  await env.DB.batch([
-    env.DB.prepare(
-      "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active'",
-    ).bind(target.id),
-    env.DB.prepare(
-      `INSERT INTO password_reset_tokens (
-         token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status, created_at, created_by
-       ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
-    ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, kq.taiKhoan.id),
-  ])
+  // 5–6. Sinh mã 6 số, lưu bản băm (không lưu mã gốc), thu hồi mã cũ.
+  const code = await capMaKhoiPhuc(env, target, kq.taiKhoan.id)
 
   // Nhật ký quản trị: ai cấp mã cho ai — tuyệt đối không ghi bản thân mã.
   await ghiAuditLog(env, {
@@ -869,19 +931,23 @@ export async function doiMatKhau(request: Request, env: Env): Promise<Response> 
   const matKhauCu = String(body.matKhauCu || '').trim()
   const matKhauMoi = String(body.matKhauMoi || '').trim()
 
-  if (!matKhauCu || !matKhauMoi || matKhauMoi.length < 6) {
+  if (!matKhauMoi || matKhauMoi.length < 6) {
     return loi('Mật khẩu mới phải từ 6 ký tự trở lên.', 400)
   }
 
-  const user = await env.DB.prepare(
-    'SELECT mat_khau_hash, salt, iterations FROM tai_khoan_campus WHERE id = ?1'
-  )
-    .bind(kq.taiKhoan.id)
-    .first<{ mat_khau_hash: string | null; salt: string | null; iterations: number | null }>()
+  // Vừa đăng nhập bằng Google (≤ 15 phút) thì Google đã xác minh danh tính: không cần mật khẩu cũ (lấy lại mật khẩu đã quên).
+  if (!vuaDangNhapGoogle(kq.phien)) {
+    if (!matKhauCu) return loi('Vui lòng nhập mật khẩu hiện tại.', 400)
+    const user = await env.DB.prepare(
+      'SELECT mat_khau_hash, salt, iterations FROM tai_khoan_campus WHERE id = ?1'
+    )
+      .bind(kq.taiKhoan.id)
+      .first<{ mat_khau_hash: string | null; salt: string | null; iterations: number | null }>()
 
-  const hopLe = await xacMinhMatKhau(matKhauCu, user?.mat_khau_hash || null, user?.salt || null, user?.iterations)
-  if (!hopLe) {
-    return loi('Mật khẩu cũ không chính xác.', 400)
+    const hopLe = await xacMinhMatKhau(matKhauCu, user?.mat_khau_hash || null, user?.salt || null, user?.iterations)
+    if (!hopLe) {
+      return loi('Mật khẩu cũ không chính xác.', 400)
+    }
   }
 
   const newSalt = taoSalt()
@@ -896,7 +962,12 @@ export async function doiMatKhau(request: Request, env: Env): Promise<Response> 
     .bind(newHash, newSalt, DEFAULT_ITERATIONS, phienMoi, kq.taiKhoan.id)
     .run()
 
-  const token = await createToken(env.SESSION_SECRET, { ...kq.phien, phienId: phienMoi }, SESSION_TTL)
+  // Đặt xong thì đóng cửa sổ "không cần mật khẩu cũ": phiên mới không mang dấu đăng nhập Google.
+  const token = await createToken(
+    env.SESSION_SECRET,
+    { ...kq.phien, phienId: phienMoi, dangNhapGoogleLuc: undefined },
+    SESSION_TTL,
+  )
   return json(
     { ok: true, message: 'Đổi mật khẩu thành công! Toàn bộ phiên khác đã được đăng xuất an toàn.' },
     200,

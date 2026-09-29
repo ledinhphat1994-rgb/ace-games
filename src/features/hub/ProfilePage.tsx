@@ -102,6 +102,9 @@ export function ProfilePage() {
     }
   }
 
+  // Vừa đăng nhập bằng Google (lấy lại mật khẩu đã quên): máy chủ cho đặt mật khẩu mới không cần mật khẩu cũ.
+  const khongCanMatKhauCu = Boolean(nguoiDung?.datMatKhauKhongCanCu)
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (matKhauMoi !== xacNhanMoi) {
@@ -114,11 +117,13 @@ export function ProfilePage() {
     }
     setDangDoiMk(true)
     try {
-      await doiMatKhau({ matKhauCu, matKhauMoi })
-      toast.success('Đổi mật khẩu thành công!')
+      await doiMatKhau({ matKhauCu: khongCanMatKhauCu ? undefined : matKhauCu, matKhauMoi })
+      toast.success(khongCanMatKhauCu ? 'Đã đặt mật khẩu mới!' : 'Đổi mật khẩu thành công!')
       setMatKhauCu('')
       setMatKhauMoi('')
       setXacNhanMoi('')
+      // Phiên mới không còn dấu đăng nhập Google → lần sau đổi mật khẩu lại cần mật khẩu hiện tại.
+      if (khongCanMatKhauCu && lamMoiPhien) await lamMoiPhien()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không đổi được mật khẩu.')
     } finally {
@@ -268,12 +273,21 @@ export function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="security">
-          <KhungTab tieuDe="Đổi mật khẩu" moTa="Mật khẩu mới cần tối thiểu 6 ký tự.">
-            <form onSubmit={handleChangePassword} className="max-w-sm space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="mk-cu" className="text-sm font-medium">Mật khẩu hiện tại</Label>
-                <PasswordInput id="mk-cu" autoComplete="current-password" value={matKhauCu} onChange={(e) => setMatKhauCu(e.target.value)} required />
-              </div>
+          <KhungTab
+            tieuDe={khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
+            moTa={
+              khongCanMatKhauCu
+                ? 'Bạn vừa đăng nhập bằng Google nên không cần mật khẩu cũ. Mật khẩu mới cần tối thiểu 6 ký tự.'
+                : 'Mật khẩu mới cần tối thiểu 6 ký tự.'
+            }
+          >
+            <form onSubmit={handleChangePassword} className="max-w-sm space-y-4" data-testid="form-mat-khau">
+              {!khongCanMatKhauCu && (
+                <div className="space-y-2">
+                  <Label htmlFor="mk-cu" className="text-sm font-medium">Mật khẩu hiện tại</Label>
+                  <PasswordInput id="mk-cu" autoComplete="current-password" value={matKhauCu} onChange={(e) => setMatKhauCu(e.target.value)} required />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="mk-moi" className="text-sm font-medium">Mật khẩu mới</Label>
                 <PasswordInput id="mk-moi" autoComplete="new-password" value={matKhauMoi} onChange={(e) => setMatKhauMoi(e.target.value)} required />
@@ -283,7 +297,7 @@ export function ProfilePage() {
                 <PasswordInput id="mk-xac-nhan" autoComplete="new-password" value={xacNhanMoi} onChange={(e) => setXacNhanMoi(e.target.value)} required />
               </div>
               <Button type="submit" disabled={dangDoiMk}>
-                {dangDoiMk ? 'Đang cập nhật…' : 'Đổi mật khẩu'}
+                {dangDoiMk ? 'Đang cập nhật…' : khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
               </Button>
             </form>
           </KhungTab>

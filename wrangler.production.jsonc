@@ -102,5 +102,7 @@
     { "tag": "v3", "new_sqlite_classes": ["GameLobbyDO"] },
     { "tag": "v4", "new_sqlite_classes": ["GameSessionDO"] }
   ],
+  // Cloudflare Email Service: gửi mã khôi phục mật khẩu tới Gmail đã liên kết (from phải thuộc tên miền đã onboard).
+  "send_email": [{ "name": "EMAIL" }],
   "observability": { "enabled": true }
 }
