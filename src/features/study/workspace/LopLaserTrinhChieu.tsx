@@ -6,14 +6,9 @@
 // Nhiều người được cấp laser trỏ cùng lúc: mỗi người một chấm kèm tên.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { TiaLaser } from '@shared/protocol/room'
 
-export interface TiaLaser {
-  senderKey: string
-  point: [number, number]
-  senderName?: string
-  /** Lúc nhận gói gần nhất (ms, đồng hồ máy này). */
-  updatedAt: number
-}
+export type { TiaLaser }
 
 interface LopTiaLaserProps {
   /** Tôi đang chọn công cụ laser và có quyền: lớp này nhận chuột. */
@@ -237,3 +232,5 @@ export function LopTiaLaser({ dangChieu, tiaKhac, onSend, tiLe, testId }: LopTia
     </div>
   )
 }
+
+export { LopTiaLaser as LopLaserTrinhChieu }

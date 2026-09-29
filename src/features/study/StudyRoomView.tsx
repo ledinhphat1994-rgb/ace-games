@@ -149,8 +149,10 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     stageLayout,
     daNhanAnhChup,
     sendStageLayout,
-    stageLaser,
+    stageLasers,
     sendStageLaser,
+    quyenCongCu,
+    sendToolGrants,
     updateNotes,
     sendRoomChat,
     toggleMic,
@@ -165,7 +167,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     setAudioOutputDevice,
     slideState,
     slideAnnotations,
-    slideLaser,
+    slideLasers,
     changeSlidePage,
     setSlideTotalPages,
     loadSlideDoc,
@@ -308,7 +310,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
   const [ytTab, setYtTab] = useState<'paste' | 'search'>('paste')
   const [ytSearch, setYtSearch] = useState('')
   const [ytSearching, setYtSearching] = useState(false)
-  const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string }[]>([])
+  const [ytResults, setYtResults] = useState<{ videoId: string; title: string; author: string; duration?: string }[]>([])
   const [ytDaTim, setYtDaTim] = useState('')
   const [ytLoi, setYtLoi] = useState<string | null>(null)
 
@@ -478,7 +480,7 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
     try {
       const res = await fetch(`/api/yt-search?q=${encodeURIComponent(tuKhoa)}`)
       if (res.ok) {
-        const data = await res.json() as { videoId: string; title: string; author: string }[]
+        const data = await res.json() as { videoId: string; title: string; author: string; duration?: string }[]
         setYtResults(Array.isArray(data) ? data : [])
       } else {
         setYtLoi('Chưa tìm được lúc này. Hãy dán link video trực tiếp.')
@@ -543,19 +545,21 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
         stageLayout={stageLayout}
         daNhanAnhChup={daNhanAnhChup}
         onSendStageLayout={isHost || canModerate ? sendStageLayout : undefined}
-        stageLaser={stageLaser}
-        onSendStageLaser={isHost || canModerate ? sendStageLaser : undefined}
+        stageLasers={stageLasers}
+        onSendStageLaser={sendStageLaser}
+        quyenCongCu={quyenCongCu}
+        onGrantTools={sendToolGrants}
         slideState={slideState}
         onPageChange={changeSlidePage}
         onUploadSlide={() => setShowUploadModal(true)}
         onCloseDoc={isHost || canModerate ? closeSlideDoc : undefined}
         onSetTotalPages={isHost || canModerate ? setSlideTotalPages : undefined}
         slideAnnotations={slideAnnotations}
-        onSendSlideAnnotation={isHost || canModerate ? sendSlideAnnotation : undefined}
+        onSendSlideAnnotation={sendSlideAnnotation}
         onClearSlideAnnotations={isHost || canModerate ? clearSlideAnnotations : undefined}
-        onRemoveSlideAnnotation={isHost || canModerate ? removeSlideAnnotation : undefined}
-        slideLaser={slideLaser}
-        onSendSlideLaser={isHost || canModerate ? sendSlideLaser : undefined}
+        onRemoveSlideAnnotation={removeSlideAnnotation}
+        slideLasers={slideLasers}
+        onSendSlideLaser={sendSlideLaser}
         mediaState={mediaState}
         canControlMedia={canControlMedia}
         volume={volume}
@@ -730,11 +734,18 @@ export function StudyRoomView({ roomId, nguoiDung, onLeaveRoom }: StudyRoomViewP
                             onClick={() => handlePickYtVideo(v.videoId, v.title)}
                             className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left transition-colors outline-none hover:bg-surface-raised/70 focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <img
-                              src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
-                              alt=""
-                              className="aspect-video w-24 shrink-0 rounded-lg bg-surface-overlay object-cover"
-                            />
+                            <div className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-lg bg-surface-overlay">
+                              <img
+                                src={`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                              {v.duration && (
+                                <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10px] font-semibold text-white">
+                                  {v.duration}
+                                </span>
+                              )}
+                            </div>
                             <span className="min-w-0">
                               <span className="block text-[0.8125rem] leading-snug font-medium break-words text-text-primary">
                                 {v.title}

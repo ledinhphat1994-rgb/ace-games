@@ -2,14 +2,24 @@
 // Digital Campus v2: Sân khấu trung tâm — Tài liệu, Bảng, Video chạy đồng thời như các lớp chồng lên nhau.
 // Mỗi lớp giữ nguyên chỗ trong cây React (chỉ đổi vai trò bằng class) nên video không bị tải lại khi đổi bố cục.
 
-import type { SlideState, MediaState, WhiteboardStroke, SlideAnnotationStroke, MatNet, LopLaser } from '@shared/protocol/room'
+import {
+  type SlideState,
+  type MediaState,
+  type WhiteboardStroke,
+  type SlideAnnotationStroke,
+  type MatNet,
+  type LopLaser,
+  type QuyenCongCu,
+  quyenCuaNet,
+} from '@shared/protocol/room'
 import { FileText, MonitorPlay, PenLine } from 'lucide-react'
 import { BangVe } from './BangVe'
 import type { CongCu, CoVe, LoaiHinh } from './cong-cu'
 import { DocumentStageView } from './DocumentStageView'
 import { EmbeddedVideoPlayer } from './EmbeddedVideoPlayer'
 import { KhungLop, NutKhung } from './KhungLop'
-import { LopLaserTrinhChieu, type TiaLaser } from './LopLaserTrinhChieu'
+import { LopLaserTrinhChieu } from './LopLaserTrinhChieu'
+import type { TiaLaserSanKhau, TiaLaserTrang } from '@/hooks/use-room'
 import { dangHien, viTriCuaSo, type BoCuc, type KhungCuaSo, type LopId } from './stage-layout'
 
 export interface PresentationStageProps {
@@ -21,12 +31,13 @@ export interface PresentationStageProps {
   onDoiKhung?: (id: LopId, khung: KhungCuaSo) => void
   /** Đang kéo / đổi cỡ: khung tạm để cả phòng thấy cửa sổ di chuyển theo ngay. */
   onKeoKhung?: (id: LopId, khung: KhungCuaSo) => void
-  /** Tia laser của người trình chiếu trên video / bảng / tài liệu nhúng. */
-  stageLaser?: TiaLaser | null
+  /** Tia laser trên video / bảng / tài liệu nhúng. */
+  stageLasers?: TiaLaserSanKhau[]
   onSendStageLaser?: (lop: LopLaser, point: [number, number] | null) => void
   isHost: boolean
   canModerate?: boolean
   myActorKey?: string
+  quyenCongCu?: Record<string, QuyenCongCu[]>
   // Công cụ vẽ chung
   congCu: CongCu
   hinh: LoaiHinh
@@ -41,7 +52,7 @@ export interface PresentationStageProps {
   slideAnnotations?: SlideAnnotationStroke[]
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onRemoveSlideAnnotation?: (id: string) => void
-  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  slideLasers?: TiaLaserTrang[]
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
   // Video props
   mediaState?: MediaState | null
@@ -76,11 +87,12 @@ export function PresentationStage({
   onAn,
   onDoiKhung,
   onKeoKhung,
-  stageLaser,
+  stageLasers = [],
   onSendStageLaser,
   isHost,
   canModerate = false,
   myActorKey,
+  quyenCongCu = {},
   congCu,
   hinh,
   mau,
@@ -93,7 +105,7 @@ export function PresentationStage({
   slideAnnotations,
   onSendSlideAnnotation,
   onRemoveSlideAnnotation,
-  slideLaser,
+  slideLasers = [],
   onSendSlideLaser,
   mediaState,
   canControlMedia = true,
@@ -136,9 +148,18 @@ export function PresentationStage({
   }
 
   // Laser: chọn công cụ laser rồi rê chuột trên video / bảng / tài liệu nhúng — cả phòng thấy chấm đỏ.
-  const laser = (lop: LopLaser, tiLe?: number) => (
-    <LopLaserTrinhChieu lop={lop} dangChieu={canControl && congCu === 'laser'} laser={stageLaser} onSend={onSendStageLaser} tiLe={tiLe} />
-  )
+  const laser = (lop: LopLaser, tiLe?: number) => {
+    const coLaser = canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('laser'))
+    return (
+      <LopLaserTrinhChieu
+        dangChieu={Boolean(coLaser && congCu === 'laser')}
+        tiaKhac={stageLasers.filter((t) => t.lop === lop && t.senderKey !== myActorKey)}
+        onSend={(pt) => onSendStageLaser?.(lop, pt)}
+        tiLe={tiLe}
+        testId={`stage-laser-${lop}`}
+      />
+    )
+  }
 
   // Bảng (mat trống) độc lập; video và tài liệu nhúng mỗi thứ một lớp vẽ tàng hình riêng, đi theo khung của nó.
   const bangVe = (laPhu: boolean, mat?: MatNet) => (
@@ -150,7 +171,7 @@ export function PresentationStage({
       co={co}
       laPhu={laPhu}
       mat={mat}
-      coTheVe={canControl}
+      coTheVe={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes(quyenCuaNet(congCu === 'chu' ? 'text' : congCu === 'to_sang' ? 'highlighter' : congCu === 'khung' ? 'shape' : 'pen')))}
       coTheTayMoiNet={canControl}
       khoaCuaToi={myActorKey}
       onSendStroke={onSendStroke}
@@ -166,6 +187,11 @@ export function PresentationStage({
         isFullscreen ? 'fixed inset-0 z-[100]' : 'relative rounded-2xl border border-white/10'
       }`}
       data-testid="presentation-stage-container"
+      onDoubleClick={(e) => {
+        const muc = (e.target as HTMLElement | null)?.closest('[data-keo-khung]')
+        if (!muc || (e.target as HTMLElement | null)?.closest('button, input, select, a, [role="slider"]')) return
+        onToggleFullscreen()
+      }}
     >
       {/* ── SÂN KHẤU TRỐNG: chưa bật lớp nào ── */}
       {!coLopHien && (
@@ -238,8 +264,12 @@ export function PresentationStage({
             slideAnnotations={slideAnnotations}
             onSendSlideAnnotation={onSendSlideAnnotation}
             onRemoveSlideAnnotation={onRemoveSlideAnnotation}
-            slideLaser={slideLaser}
+            slideLasers={slideLasers}
             onSendSlideLaser={onSendSlideLaser}
+            coTheChuThich={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes(quyenCuaNet(congCu === 'chu' ? 'text' : congCu === 'to_sang' ? 'highlighter' : congCu === 'khung' ? 'shape' : 'pen')))}
+            coLaser={canControl || Boolean(myActorKey && quyenCongCu[myActorKey]?.includes('laser'))}
+            coTheTayMoiNet={canControl}
+            khoaCuaToi={myActorKey}
           />
         </KhungLop>
       )}

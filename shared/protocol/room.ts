@@ -121,6 +121,14 @@ export function quyenCuaNet(tool: LoaiNetVe | undefined): QuyenCongCu {
   return 'but'
 }
 
+export interface TiaLaser {
+  senderKey: string
+  point: [number, number]
+  senderName?: string
+  /** Lúc nhận gói gần nhất (ms, đồng hồ máy này). */
+  updatedAt: number
+}
+
 export const SUPPORTED_PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
 export type SupportedPlaybackRate = (typeof SUPPORTED_PLAYBACK_RATES)[number]
 

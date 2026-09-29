@@ -207,7 +207,7 @@ describe('Học sinh thấy đúng bố cục người trình chiếu', () => {
     expect(stageRaw).toMatch(/lopVeNhung=\{\s*<>\s*\{bangVe\(true, 'tailieu'\)\}/)
     expect(stageRaw).not.toContain('whiteboard-passive-overlay')
     expect(workspaceRaw).not.toContain('phuBangDeVe')
-    expect(workspaceRaw).toMatch(/onChonCongCu=\{\(c\) => \{\s*if \(!laNguoiTrinhChieu && c !== 'chuot'\) return\s*setCongCu\(c\)\s*\}\}/)
+    expect(workspaceRaw).toMatch(/onChonCongCu=\{\(c\) => \{\s*if \(!coTheDung\(c\)\) return\s*setCongCu\(c\)\s*\}\}/)
   })
 
   it('giao diện nối bố cục máy chủ: người trình chiếu gửi, mọi người theo', () => {
@@ -297,7 +297,7 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
       type: 'whiteboard.action',
       data: { action: 'stroke.add', stroke: { id: 'net-cua-an', points: [[1, 1], [2, 2]], color: '#fff', size: 4, epoch } },
     })
-    await an.cho('error', (g) => g.message.includes('mới vẽ được lên bảng'))
+    await an.cho('error', (g) => g.message.includes('Chủ phòng chưa cấp quyền'))
     await host.khongNhan('whiteboard.sync', (g) => g.stroke?.id === 'net-cua-an', 200)
 
     // Giả mạo trường `by` → máy chủ ghi đè bằng khoá thật.
@@ -320,7 +320,14 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     })
     await an.cho('whiteboard.sync', (g) => g.action === 'stroke.add' && g.stroke?.id === 'khung-cua-thay')
 
-    // Học sinh không tẩy được nét của thầy; thầy tẩy được.
+    // Học sinh chưa có quyền tẩy: bị chặn
+    an.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
+    await an.cho('error', (g) => g.message.includes('Chủ phòng chưa cấp quyền tẩy'))
+    await host.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)
+
+    // Cấp quyền tẩy cho học sinh: học sinh không tẩy được nét của thầy; thầy tẩy được.
+    host.gui({ type: 'grant.tools', targetKey: 'acc:2', cap: ['tay'] })
+    await an.cho('room.quyen')
     an.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
     await an.cho('error', (g) => g.message.includes('nét vẽ của mình'))
     await host.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)

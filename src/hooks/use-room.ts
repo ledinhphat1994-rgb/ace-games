@@ -24,10 +24,10 @@ import {
   type ActivePoll,
   type SessionSummary,
   type LenhPhongSession,
+  type TiaLaser,
 } from '@shared/protocol/room'
 import { lamSachVanBan, MA_DONG_SOCKET } from '@shared/protocol/common'
 import { ClockSyncManager } from '@/features/study/clock-sync'
-import type { TiaLaser } from '@/features/study/workspace/LopLaserTrinhChieu'
 
 /** Tia laser trên video / bảng / tài liệu nhúng (theo lớp). */
 export type TiaLaserSanKhau = TiaLaser & { lop: LopLaser }
@@ -1124,6 +1124,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     stageLayout,
     daNhanAnhChup,
     sendStageLayout,
+    stageLaser: stageLasers[0] ?? null,
     stageLasers,
     sendStageLaser,
     quyenCongCu,
@@ -1147,6 +1148,7 @@ export function useRoom(roomId: string, myActorKey?: string) {
     setAudioOutputDevice,
     slideState,
     slideAnnotations,
+    slideLaser: slideLasers[0] ?? null,
     slideLasers,
     changeSlidePage,
     setSlideTotalPages,

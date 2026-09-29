@@ -2,7 +2,7 @@
 // Digital Campus v2: Minimalist Immersive Room Header
 // Tên phòng xuống dòng khi dài (thanh cao lên), không bao giờ cắt chữ hay ẩn nút.
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -36,6 +36,8 @@ export interface ClassroomTopBarProps {
   onTogglePanel: (panel: ContextPanelView) => void
   unreadChatCount: number
   memberCount: number
+  /** Dải người tham gia kéo ngang + cấp quyền công cụ (chỉ chủ phòng thấy ô cấp quyền). */
+  memberStrip?: ReactNode
   // Navigation
   onLeaveRoom: () => void
   onCloseRoom?: () => Promise<void>
@@ -54,6 +56,7 @@ export function ClassroomTopBar({
   onTogglePanel,
   unreadChatCount,
   memberCount,
+  memberStrip,
   onLeaveRoom,
   onCloseRoom,
 }: ClassroomTopBarProps) {
@@ -152,6 +155,9 @@ export function ClassroomTopBar({
           <Users className="size-4" />
           <span className="tabular-nums">{memberCount}</span>
         </button>
+
+        {/* Dải người tham gia: kéo ngang để xem, bấm để cấp quyền công cụ */}
+        {memberStrip}
 
         {/* Nút hủy phòng (chỉ dành cho chủ phòng, nằm sát bên phải danh sách thành viên) */}
         {isHost && onCloseRoom && (
