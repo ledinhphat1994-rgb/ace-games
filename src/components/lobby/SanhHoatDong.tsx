@@ -1,10 +1,11 @@
 // Mẫu sảnh chung cho mọi hoạt động (Platform Core — Discovery & Lobby): Học tập và từng trò chơi.
-// Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện. Khung sảnh: thanh tìm + Tạo phòng + Chơi ngay,
+// Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện. Khung sảnh: (quay lại) + thanh tìm + Tạo phòng + Chơi ngay,
 // danh sách phòng cuộn bên trong (đang tải / đang kết nối lại / trống / có phòng). Vào phòng của bạn bè: bấm link được chia sẻ.
+// Số liệu chỉ dành cho Quản trị trường (khe `thongKe`, mẫu ThongKeNhanh) — người tham gia không thấy dải số.
 
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ArrowLeft, Play, Plus, RefreshCw, Search, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Play, Plus, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -14,14 +15,6 @@ export interface HanhDongSanh {
   nhan: string
   onClick: () => void
   testId?: string
-}
-
-export interface ChiSoSanh {
-  icon: LucideIcon
-  /** Nhãn đọc màn hình / chú thích khi rê chuột. */
-  nhan: string
-  giaTri: number
-  mau?: string
 }
 
 export interface DanhSachSanh {
@@ -41,8 +34,10 @@ export interface SanhHoatDongProps {
   tieuDe: string
   /** Hình nhận diện cạnh tiêu đề (ảnh trò chơi…). */
   bieuTuong?: ReactNode
+  /** Nút quay lại đầu thanh công cụ (sảnh một trò chơi → danh sách trò chơi). */
   quayLai?: { nhan: string; toi: string }
-  chiSo?: ChiSoSanh[]
+  /** Dải thống kê nhanh — chỉ truyền khi người xem là Quản trị trường. */
+  thongKe?: ReactNode
   choiNgay?: HanhDongSanh
   taoPhong?: HanhDongSanh
   timKiem?: { giaTri: string; onDoi: (v: string) => void; goiY: string }
@@ -62,7 +57,7 @@ export function SanhHoatDong({
   tieuDe,
   bieuTuong,
   quayLai,
-  chiSo,
+  thongKe,
   choiNgay,
   taoPhong,
   timKiem,
@@ -72,41 +67,16 @@ export function SanhHoatDong({
   cotPhai,
   testId,
 }: SanhHoatDongProps) {
-  const coThanhCongCu = Boolean(choiNgay || taoPhong || timKiem)
+  const coThanhCongCu = Boolean(quayLai || choiNgay || taoPhong || timKiem)
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        {quayLai && (
-          <Link
-            to={quayLai.toi}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-tertiary transition-colors hover:text-text-primary"
-            data-testid={`${testId}-back`}
-          >
-            <ArrowLeft className="size-3.5" />
-            {quayLai.nhan}
-          </Link>
-        )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {bieuTuong && <div className="size-11 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 sm:size-12">{bieuTuong}</div>}
-          <PageHeader title={tieuDe} />
-          {chiSo && chiSo.length > 0 && (
-            <ul className="flex flex-wrap items-center gap-2" data-testid={`${testId}-stats`}>
-              {chiSo.map(({ icon: Icon, nhan, giaTri, mau }) => (
-                <li
-                  key={nhan}
-                  title={nhan}
-                  aria-label={`${nhan}: ${giaTri}`}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-xs font-semibold tabular-nums text-text-primary"
-                >
-                  <Icon className={cn('size-3.5', mau ?? 'text-text-tertiary')} />
-                  {giaTri}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {bieuTuong && <div className="size-11 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 sm:size-12">{bieuTuong}</div>}
+        <PageHeader title={tieuDe} />
       </div>
+
+      {thongKe}
 
       {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
       <div
@@ -125,12 +95,25 @@ export function SanhHoatDong({
           data-testid={`${testId}-panel`}
         >
           {coThanhCongCu && (
+            // Một hàng co giãn: quay lại · tìm · nút. Khung hẹp: nút xuống hàng dưới và trải đủ bề ngang;
+            // không có ô tìm thì nút quay lại đứng cùng hàng với các nút.
             <div
-              className="flex shrink-0 flex-col gap-2 border-b border-white/[0.06] p-3 @min-[34rem]:flex-row @min-[34rem]:items-center"
+              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/[0.06] p-3"
               data-testid={`${testId}-actions`}
             >
+              {quayLai && (
+                <Link
+                  to={quayLai.toi}
+                  aria-label={quayLai.nhan}
+                  title={quayLai.nhan}
+                  data-testid={`${testId}-back`}
+                  className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-text-secondary transition-colors hover:border-brand/40 hover:bg-white/[0.07] hover:text-text-primary"
+                >
+                  <ArrowLeft className="size-4" />
+                </Link>
+              )}
               {timKiem && (
-                <div className="relative min-w-0 flex-1">
+                <div className="relative min-w-0 flex-1 basis-48">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
                   <Input
                     value={timKiem.giaTri}
@@ -152,9 +135,14 @@ export function SanhHoatDong({
                   )}
                 </div>
               )}
-              <div className="grid shrink-0 grid-cols-2 gap-2 @min-[34rem]:flex">
+              <div className="ml-auto flex flex-1 gap-2 @min-[34rem]:flex-none">
                 {taoPhong && (
-                  <Button variant="outline" onClick={taoPhong.onClick} data-testid={taoPhong.testId} className="h-10 rounded-xl">
+                  <Button
+                    variant="outline"
+                    onClick={taoPhong.onClick}
+                    data-testid={taoPhong.testId}
+                    className="h-10 flex-1 rounded-xl @min-[34rem]:flex-none"
+                  >
                     <Plus />
                     {taoPhong.nhan}
                   </Button>
@@ -163,7 +151,7 @@ export function SanhHoatDong({
                   <Button
                     onClick={choiNgay.onClick}
                     data-testid={choiNgay.testId}
-                    className={cn('h-10 rounded-xl px-5 font-bold shadow-lg shadow-brand/25', !taoPhong && 'col-span-2')}
+                    className="h-10 flex-1 rounded-xl px-5 font-bold shadow-lg shadow-brand/25 @min-[34rem]:flex-none"
                   >
                     <Play className="fill-current" />
                     {choiNgay.nhan}
@@ -238,22 +226,46 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
   )
 }
 
-/** Khung trống gọn: hình minh hoạ + một dòng, thêm một nút khi thật sự cần (đăng nhập / xoá tìm kiếm). */
+/**
+ * Khung trống gọn: hình minh hoạ + một dòng, thêm một nút khi thật sự cần (đăng nhập / xoá tìm kiếm).
+ * `hoatHinh`: hình trôi lơ lửng, hào quang phía sau "thở" theo nhịp, bóng dưới co giãn — không khung, không viền.
+ */
 export function KhungTrongSanh({
   hinh,
+  hoatHinh,
+  mauHaoQuang,
   tieuDe,
   nut,
   testId,
 }: {
   hinh?: ReactNode
+  hoatHinh?: boolean
+  /** Màu hào quang (mặc định màu thương hiệu). */
+  mauHaoQuang?: string
   tieuDe: string
   nut?: { nhan: string; icon?: ReactNode; onClick: () => void; phu?: boolean }
   testId: string
 }) {
   return (
     <div data-testid={testId} className="flex flex-col items-center px-6 py-8">
-      {hinh}
-      <p className={cn('text-sm font-semibold text-text-secondary', hinh && 'mt-4')}>{tieuDe}</p>
+      {hinh &&
+        (hoatHinh ? (
+          <div className="relative flex items-center justify-center py-2" data-testid={`${testId}-hoat-hinh`}>
+            <span
+              aria-hidden
+              className="absolute size-32 rounded-full opacity-60 blur-2xl motion-safe:animate-hao-quang-tho"
+              style={{ backgroundColor: mauHaoQuang ?? 'rgb(34 211 238 / 0.35)' }}
+            />
+            <div className="relative motion-safe:animate-troi-lo-lung">{hinh}</div>
+            <span
+              aria-hidden
+              className="absolute -bottom-2 h-2.5 w-16 rounded-full bg-black/60 blur-[6px] motion-safe:animate-bong-troi"
+            />
+          </div>
+        ) : (
+          hinh
+        ))}
+      <p className={cn('text-sm font-semibold text-text-secondary', hinh && (hoatHinh ? 'mt-6' : 'mt-4'))}>{tieuDe}</p>
       {nut && (
         <Button variant={nut.phu ? 'outline' : 'default'} size="sm" onClick={nut.onClick} className="mt-4 rounded-xl">
           {nut.icon}

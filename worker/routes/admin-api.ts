@@ -15,6 +15,8 @@ import {
   type AdminRoomItem,
 } from '../../shared/protocol/room'
 import { recordAnalyticsEvent } from '../lib/analytics'
+import { tinhThongKeGame, tinhThongKeHocTap } from '../lib/thong-ke-sanh'
+import { laTroChoiThongKe } from '../../shared/protocol/thong-ke-sanh'
 import { msTuD1 } from '../lib/thoi-gian'
 import { TEN_CAMPUS } from '../campus/danh-tinh'
 import { ghiAuditLog } from './moderation-api'
@@ -794,4 +796,26 @@ adminRouter.post('/accounts/:id/action', async (c) => {
   })
 
   return c.json({ ok: true, action, accountId: tk.id, disconnected: daNgatKetNoi })
+})
+
+/**
+ * GET /api/admin/thong-ke-sanh?loai=hoc_tap|game[&gameType=]
+ * Thống kê nhanh 7 ngày cho sảnh Học tập / Game (chỉ School Admin; chỉ đọc).
+ */
+adminRouter.get('/thong-ke-sanh', async (c) => {
+  const auth = await requireSchoolAdmin(c)
+  if (!auth.ok) return auth.response
+
+  const loai = c.req.query('loai')
+  const gameType = c.req.query('gameType') || null
+  if (loai !== 'hoc_tap' && loai !== 'game') return loi('Loại thống kê không hợp lệ.')
+  if (gameType !== null && (loai !== 'game' || !laTroChoiThongKe(gameType))) return loi('Trò chơi không hợp lệ.')
+
+  try {
+    const thongKe = loai === 'hoc_tap' ? await tinhThongKeHocTap(c.env.DB) : await tinhThongKeGame(c.env.DB, gameType)
+    return c.json({ ok: true, thongKe }, 200, { 'Cache-Control': 'no-store' })
+  } catch (err) {
+    console.error('Lỗi tính thống kê sảnh:', err)
+    return loi('Không tải được số liệu thống kê.', 503)
+  }
 })

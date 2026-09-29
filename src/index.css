@@ -412,3 +412,23 @@ body {
     0 0 6px rgb(34 211 238 / 0.45),
     0 0 16px rgb(34 211 238 / 0.18);
 }
+
+/* Hoạt hình khung trống của sảnh (KhungTrongSanh hoatHinh): trôi lơ lửng + hào quang thở + bóng co giãn, cùng nhịp. */
+@theme {
+  --animate-troi-lo-lung: troi-lo-lung 3.6s ease-in-out infinite;
+  --animate-hao-quang-tho: hao-quang-tho 3.6s ease-in-out infinite;
+  --animate-bong-troi: bong-troi 3.6s ease-in-out infinite;
+
+  @keyframes troi-lo-lung {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+  }
+  @keyframes hao-quang-tho {
+    0%, 100% { opacity: 0.35; transform: scale(0.9); }
+    50% { opacity: 0.75; transform: scale(1.08); }
+  }
+  @keyframes bong-troi {
+    0%, 100% { opacity: 0.6; transform: scaleX(1); }
+    50% { opacity: 0.3; transform: scaleX(0.7); }
+  }
+}

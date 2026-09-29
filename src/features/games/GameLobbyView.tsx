@@ -5,6 +5,7 @@ import { useGameRooms } from '../../hooks/use-game-rooms'
 import { GameCard } from './GameCard'
 import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameSocialSidebar } from './GameSocialSidebar'
+import { ThongKeGame } from './ThongKeGame'
 import { taoMaBan } from './game-ids'
 import { CAC_GAME_1V1, CAC_GAME_SOLO, type GameDefinition } from './game-catalog'
 import { toast } from 'sonner'
@@ -18,8 +19,8 @@ interface GameLobbyViewProps {
 
 export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
   const { nguoiDung } = usePhien()
-  // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách) — dùng cho số liệu trên thẻ.
-  const { data: tablesData } = useGameRooms(undefined, Boolean(nguoiDung))
+  // Danh sách bàn online chỉ dành cho người đã đăng nhập (máy chủ trả 401 cho khách): số bàn chờ trên thẻ + thống kê của quản trị.
+  const { data: tablesData, isPending, isError } = useGameRooms(undefined, Boolean(nguoiDung))
   const tables = useMemo<BanSanh[]>(
     () => ((tablesData ?? []) as BanSanh[]).filter((t: BanSanh) => t.trangThai !== 'ended'),
     [tablesData],
@@ -51,21 +52,6 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
 
   const allGames = useMemo<GameDefinition[]>(() => [...CAC_GAME_1V1, ...CAC_GAME_SOLO], [])
 
-  const gameStats = useMemo(() => {
-    const stats: Partial<Record<GameType, { banCount: number; playersCount: number; spectatorsCount: number }>> = {}
-    for (const g of allGames) {
-      stats[g.id] = { banCount: 0, playersCount: 0, spectatorsCount: 0 }
-    }
-    for (const t of tables) {
-      if (stats[t.gameType]) {
-        stats[t.gameType]!.banCount += 1
-        stats[t.gameType]!.playersCount += (t.tenChu ? 1 : 0) + (t.tenKhach ? 1 : 0)
-        stats[t.gameType]!.spectatorsCount += t.soNguoiXem ?? 0
-      }
-    }
-    return stats
-  }, [allGames, tables])
-
   return (
     <div className="space-y-6">
       {/* ── Header Đấu Trường Game ── */}
@@ -87,6 +73,8 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
         </div>
       </div>
 
+      <ThongKeGame ban={tables} sanSang={Boolean(nguoiDung) && !isPending && !isError} />
+
       {/* ── Bố cục chính 3 cột trải rộng: Cột Trái rộng: Bảng xếp hạng | Cột Giữa To Bự: 5 Game | Cột Phải rộng: Chat & Bạn bè ── */}
       <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px] items-start w-full">
         {/* ── Cột 1 (Bên trái): Bảng xếp hạng dài & ngang bằng cột chat ── */}
@@ -102,7 +90,6 @@ export function GameLobbyView({ onCreateRoom, onMoSanh }: GameLobbyViewProps) {
                 key={game.id}
                 game={game}
                 waiting={waitingCounts[game.id] ?? 0}
-                stats={gameStats[game.id]}
                 onMoSanh={() => onMoSanh(game.id)}
               />
             ))}
