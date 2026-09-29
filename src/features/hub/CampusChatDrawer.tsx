@@ -18,6 +18,7 @@ import { ArrowDown, Loader2, MessageSquare, SendHorizontal, Smile, Trash2 } from
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
 
 const DANH_SACH_EMOJI = [
   '😊', '😂', '🔥', '👍', '👏', '🎉',
@@ -67,6 +68,7 @@ export function CampusChatDrawer({
   const [dangGui, setDangGui] = useState(false)
   const [idDangXoa, setIdDangXoa] = useState<number | null>(null)
   const [tinCanXoa, setTinCanXoa] = useState<TinCampus | null>(null)
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
   const [bayGio, setBayGio] = useState(() => Date.now())
   const khungRef = useRef<HTMLDivElement | null>(null)
   const daCuonLanDau = useRef(false)
@@ -206,12 +208,16 @@ export function CampusChatDrawer({
                         (noiTiep ? (
                           <span aria-hidden className="w-8 shrink-0" />
                         ) : (
-                          <span
-                            aria-hidden
-                            className="flex size-8 shrink-0 items-center justify-center self-start rounded-full bg-surface-overlay text-[11px] font-semibold text-text-secondary"
+                          <button
+                            type="button"
+                            onClick={() => setNguoiXem({ id: msg.accountId, ten: msg.ten, lopTen: msg.lopTen, vaiTro: msg.vaiTro })}
+                            aria-label={`Xem thông tin ${msg.ten}`}
+                            title={msg.ten}
+                            data-testid={`chat-anh-${msg.accountId}`}
+                            className="flex size-8 shrink-0 cursor-pointer items-center justify-center self-start rounded-full bg-surface-overlay text-[11px] font-semibold text-text-secondary transition-colors hover:bg-brand/20 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
                           >
                             {getInitials(msg.ten)}
-                          </span>
+                          </button>
                         ))}
 
                       <div className={cn('flex max-w-[80%] min-w-0 flex-col', laCuaMinh ? 'items-end' : 'items-start')}>
@@ -219,7 +225,13 @@ export function CampusChatDrawer({
                           <p className="mb-1 flex flex-wrap items-baseline gap-x-1.5 px-1 text-xs">
                             {!laCuaMinh && (
                               <>
-                                <span className="min-w-0 font-medium break-words text-text-primary">{msg.ten}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setNguoiXem({ id: msg.accountId, ten: msg.ten, lopTen: msg.lopTen, vaiTro: msg.vaiTro })}
+                                  className="min-w-0 cursor-pointer text-left font-medium break-words text-text-primary hover:text-brand hover:underline focus-visible:underline focus-visible:outline-none"
+                                >
+                                  {msg.ten}
+                                </button>
                                 {msg.vaiTro === 'giao_vien' ? (
                                   <span className="rounded bg-brand/12 px-1 text-[10px] font-semibold text-brand">GV</span>
                                 ) : msg.lopTen ? (
@@ -356,6 +368,8 @@ export function CampusChatDrawer({
           </div>
         </form>
       )}
+
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
 
       <AlertDialog
         open={tinCanXoa !== null}

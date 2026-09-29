@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Smile,
   Sparkles,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCampus } from '@/hooks/use-campus'
@@ -18,6 +19,11 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn, getInitials } from '@/lib/utils'
 import { CampusChatDrawer } from '@/features/hub/CampusChatDrawer'
+import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
+import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
+import { NutQuanHe } from '@/components/social/NutQuanHe'
+import { nhanVaiTro } from '@/components/social/quan-he'
+import { useTimNguoiDung } from '@/hooks/use-tim-nguoi-dung'
 import type { FriendItem } from '@shared/protocol/social'
 import type { RoomChatMessage } from '@shared/protocol/room'
 import { DO_DAI_TIN_BAN_TOI_DA } from '@/hooks/use-game'
@@ -205,6 +211,8 @@ export function GameSocialSidebar({
   const [activeTab, setActiveTab] = useState<SocialTab>(() => defaultTab ?? (chatBan && coChatPhong ? 'chat_phong' : 'chat_chung'))
   const [selectedFriend, setSelectedFriend] = useState<FriendItem | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
+  const [nguoiXem, setNguoiXem] = useState<NguoiXem | null>(null)
+  const [lanThuTim, setLanThuTim] = useState(0)
   const [isRoomEmojiOpen, setIsRoomEmojiOpen] = useState(false)
   const [roomText, setRoomText] = useState('')
 
@@ -271,6 +279,21 @@ export function GameSocialSidebar({
         (f.lopTen && f.lopTen.toLowerCase().includes(q))
     )
   }, [friends, friendSearch])
+
+  // Tìm cả người chưa kết bạn: bạn bè lọc ngay trong máy, người khác hỏi máy chủ (trả tối đa 10, đã loại người chặn nhau).
+  const tuKhoaTim = friendSearch.trim()
+  const timNguoi = useTimNguoiDung(tuKhoaTim, activeTab === 'ban_be' && Boolean(nguoiDung), lanThuTim)
+  const ketQuaKhop = timNguoi.status !== 'idle' && timNguoi.query === tuKhoaTim
+  const dangTimNguoi = tuKhoaTim !== '' && !(ketQuaKhop && timNguoi.status !== 'searching')
+  const loiTimNguoi = ketQuaKhop && timNguoi.status === 'error'
+  const nguoiKhac = useMemo(
+    () =>
+      ketQuaKhop && timNguoi.status === 'success'
+        ? timNguoi.results.filter((r) => r.relationshipStatus !== 'friend' && r.relationshipStatus !== 'self')
+        : [],
+    [ketQuaKhop, timNguoi],
+  )
+  const loiMoiDen = socialState?.incomingRequests ?? []
 
   const handleSendRoomMessage = (customText?: string) => {
     const textToSend = (customText ?? roomText).trim()
@@ -755,78 +778,136 @@ export function GameSocialSidebar({
                   <Input
                     value={friendSearch}
                     onChange={(e) => setFriendSearch(e.target.value)}
-                    placeholder="Tìm theo tên bạn bè…"
+                    placeholder="Tìm bạn bè hoặc người khác…"
                     className="h-8 pl-7 text-xs bg-white/5 border-white/10"
                   />
                 </div>
               </div>
 
-              {/* Danh sách bạn bè */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-0">
-                {filteredFriends.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <Users className="size-6 text-text-tertiary mb-2" />
-                    <p className="text-xs text-text-secondary">
-                      {friendSearch ? 'Không tìm thấy bạn bè nào khớp.' : 'Danh sách bạn bè đang trống.'}
+              {/* Danh sách: lời mời đến · bạn bè · (khi tìm) người khác */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-0" data-testid="danh-sach-ban-be">
+                {!tuKhoaTim && loiMoiDen.length > 0 && (
+                  <section aria-label="Lời mời kết bạn" className="space-y-1.5 pb-1" data-testid="loi-moi-den">
+                    <p className="px-1 text-[10px] font-bold tracking-wider text-text-tertiary uppercase">
+                      Lời mời <span className="tabular-nums">{loiMoiDen.length}</span>
                     </p>
-                  </div>
-                ) : (
-                  filteredFriends.map((friend) => {
-                    const pres = getFriendPresence(friend.id)
-                    return (
-                      <div
-                        key={friend.id}
-                        onClick={() => handleStartChatWithFriend(friend)}
-                        className="flex items-center justify-between p-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/15 transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="relative shrink-0">
-                            <div className="flex size-8 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 text-xs font-bold">
-                              {getInitials(friend.displayName)}
-                            </div>
-                            <span
-                              className={cn(
-                                'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
-                                pres.color
-                              )}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-text-primary truncate group-hover:text-purple-300 transition-colors">
-                              {friend.displayName}
-                            </p>
-                            <p className="text-[10px] text-text-tertiary truncate">
-                              {friend.lopTen ? `${friend.lopTen} · ` : ''}
-                              {pres.label}
-                            </p>
-                          </div>
-                        </div>
+                    {loiMoiDen.map((r) =>
+                      r.sender ? (
+                        <HangNguoi
+                          key={r.id}
+                          id={r.sender.id}
+                          ten={r.sender.displayName}
+                          avatar={r.sender.avatar}
+                          phu={r.sender.lopTen ?? nhanVaiTro(r.sender.role)}
+                          onXem={() => setNguoiXem(nguoiXemTu(r.sender!))}
+                        />
+                      ) : null,
+                    )}
+                  </section>
+                )}
 
-                        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7 text-text-tertiary hover:text-brand cursor-pointer"
-                            onClick={() => handleStartChatWithFriend(friend)}
-                            title="Nhắn tin"
-                          >
-                            <MessageCircle className="size-3.5" />
-                          </Button>
-                          {onInviteToGame && (
+                {filteredFriends.length > 0 && (
+                  <>
+                    {tuKhoaTim && <p className="px-1 text-[10px] font-bold tracking-wider text-text-tertiary uppercase">Bạn bè</p>}
+                    {filteredFriends.map((friend) => {
+                      const pres = getFriendPresence(friend.id)
+                      return (
+                        <div
+                          key={friend.id}
+                          onClick={() => handleStartChatWithFriend(friend)}
+                          className="flex items-center justify-between p-2 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 hover:border-white/15 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setNguoiXem(nguoiXemTu(friend))
+                              }}
+                              aria-label={`Xem thông tin ${friend.displayName}`}
+                              className="relative shrink-0 cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                              data-testid={`ban-be-anh-${friend.id}`}
+                            >
+                              <AnhNguoiDung ten={friend.displayName} avatar={friend.avatar} className="size-8 text-xs" />
+                              <span className={cn('absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background', pres.color)} />
+                            </button>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-text-primary truncate group-hover:text-purple-300 transition-colors">
+                                {friend.displayName}
+                              </p>
+                              <p className="text-[10px] text-text-tertiary truncate">
+                                {friend.lopTen ? `${friend.lopTen} · ` : ''}
+                                {pres.label}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-7 text-text-tertiary hover:text-cyan-400 cursor-pointer"
-                              onClick={() => onInviteToGame(friend.id, friend.displayName)}
-                              title="Mời chơi game"
+                              className="size-7 text-text-tertiary hover:text-brand cursor-pointer"
+                              onClick={() => handleStartChatWithFriend(friend)}
+                              title="Nhắn tin"
                             >
-                              <Gamepad2 className="size-3.5" />
+                              <MessageCircle className="size-3.5" />
                             </Button>
-                          )}
+                            {onInviteToGame && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 text-text-tertiary hover:text-cyan-400 cursor-pointer"
+                                onClick={() => onInviteToGame(friend.id, friend.displayName)}
+                                title="Mời chơi game"
+                              >
+                                <Gamepad2 className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
+                      )
+                    })}
+                  </>
+                )}
+
+                {tuKhoaTim && (
+                  <section aria-label="Người khác" className="space-y-1.5" data-testid="ket-qua-tim-nguoi">
+                    {(nguoiKhac.length > 0 || dangTimNguoi) && (
+                      <p className="flex items-center gap-1.5 px-1 pt-1 text-[10px] font-bold tracking-wider text-text-tertiary uppercase">
+                        Người khác
+                        {dangTimNguoi && <Loader2 className="size-3 animate-spin" aria-label="Đang tìm" />}
+                      </p>
+                    )}
+                    {nguoiKhac.map((r) => (
+                      <HangNguoi
+                        key={r.id}
+                        id={r.id}
+                        ten={r.displayName}
+                        avatar={r.avatar}
+                        phu={r.lopTen ?? nhanVaiTro(r.role)}
+                        trangThaiMayChu={r.relationshipStatus}
+                        onXem={() => setNguoiXem(nguoiXemTu(r))}
+                      />
+                    ))}
+                    {loiTimNguoi && (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-text-secondary">
+                        Không tìm được người dùng.
+                        <Button size="xs" variant="outline" onClick={() => setLanThuTim((n) => n + 1)}>
+                          Thử lại
+                        </Button>
                       </div>
-                    )
-                  })
+                    )}
+                  </section>
+                )}
+
+                {((!tuKhoaTim && filteredFriends.length === 0 && loiMoiDen.length === 0) ||
+                  (tuKhoaTim && !dangTimNguoi && !loiTimNguoi && filteredFriends.length === 0 && nguoiKhac.length === 0)) && (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <Users className="size-6 text-text-tertiary mb-2" />
+                    <p className="text-xs text-text-secondary">
+                      {tuKhoaTim ? 'Không tìm thấy ai khớp.' : 'Danh sách bạn bè đang trống.'}
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -855,6 +936,50 @@ export function GameSocialSidebar({
           )}
         </div>
       )}
+      <HoSoNguoiDungDialog nguoi={nguoiXem} onDong={() => setNguoiXem(null)} />
     </aside>
+  )
+}
+
+/** Người trong danh sách bạn bè / lời mời / kết quả tìm kiếm → thông tin đã biết sẵn để hiện ngay trong hồ sơ. */
+function nguoiXemTu(p: { id: number; displayName: string; lopTen: string | null; role: string; avatar: string | null }): NguoiXem {
+  return { id: p.id, ten: p.displayName, lopTen: p.lopTen, vaiTro: p.role, avatar: p.avatar }
+}
+
+/** Một dòng người: bấm ảnh / tên để xem hồ sơ, nút kết bạn ở bên phải. */
+function HangNguoi({
+  id,
+  ten,
+  avatar,
+  phu,
+  trangThaiMayChu,
+  onXem,
+}: {
+  id: number
+  ten: string
+  avatar: string | null
+  phu: string | null
+  trangThaiMayChu?: import('@shared/protocol/social').RelationshipStatus
+  onXem: () => void
+}) {
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-xl border border-white/5 bg-white/[0.02] p-2"
+      data-testid={`hang-nguoi-${id}`}
+    >
+      <button
+        type="button"
+        onClick={onXem}
+        aria-label={`Xem thông tin ${ten}`}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+      >
+        <AnhNguoiDung ten={ten} avatar={avatar} className="size-8 text-xs" />
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-semibold text-text-primary">{ten}</span>
+          {phu && <span className="block truncate text-[10px] text-text-tertiary">{phu}</span>}
+        </span>
+      </button>
+      <NutQuanHe id={id} trangThaiMayChu={trangThaiMayChu} />
+    </div>
   )
 }
