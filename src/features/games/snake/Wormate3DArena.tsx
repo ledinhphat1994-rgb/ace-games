@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Play, RotateCcw, Sparkles, Trophy } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { MousePointer2, Sparkles, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ARENA_SIZE = 2400
@@ -891,30 +890,48 @@ export function Wormate3DArena({
             Giữ <span className="text-amber-300 font-bold">Chuột</span> hoặc phím <span className="text-amber-300 font-bold">Space</span> để Tăng Tốc
           </div>
         </div>
-      )}      {/* Overlay Khởi động ván */}
+      )}
+
+      {/* Màn sẵn sàng: tối giản — biểu tượng lơ lửng, tên game, hai gợi ý điều khiển. Không có nút thứ hai: hành động chính
+          "Bắt đầu" nằm trên thanh công cụ như mọi game; bấm vào màn này cũng bắt đầu. */}
       {!isRunning && !isGameOver && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-6 text-center backdrop-blur-md animate-in fade-in duration-200">
-          <div className="size-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-500/30 mb-3">
-            <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center p-1.5">
-              <CuteSnakeLogo className="size-11" />
-            </div>
-          </div>
-          <h3 className="text-xl font-black uppercase text-white tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-400 mb-4">
+        <button
+          type="button"
+          onClick={onStartGame}
+          aria-label="Bắt đầu chơi Rắn Săn Mồi"
+          data-testid="ran-man-san-sang"
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center gap-6 rounded-2xl bg-slate-950/80 p-6 text-center backdrop-blur-sm animate-in fade-in duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none"
+        >
+          <span className="relative flex items-center justify-center py-2">
+            <span aria-hidden className="absolute size-36 rounded-full bg-emerald-400/30 blur-2xl motion-safe:animate-hao-quang-tho" />
+            <span className="relative motion-safe:animate-troi-lo-lung drop-shadow-[0_10px_24px_rgb(0_0_0/0.55)]">
+              <CuteSnakeLogo className="size-24" />
+            </span>
+          </span>
+          <span className="pt-1 text-2xl leading-[1.35] font-black tracking-[0.18em] text-emerald-300 uppercase [text-shadow:0_0_20px_rgb(52_211_153/0.55)] sm:text-3xl">
             Rắn Săn Mồi
-          </h3>
-          <Button
-            onClick={onStartGame}
-            className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs px-7 py-2.5 rounded-xl shadow-lg shadow-emerald-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          >
-            <Play className="size-4 fill-slate-950" />
-            <span>Vào Chơi Ngay</span>
-          </Button>
-        </div>
+          </span>
+          <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
+              <MousePointer2 className="size-3 text-cyan-400" />
+              Lái
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">
+              <kbd className="font-mono text-[10px] font-bold text-amber-300">Space</kbd>
+              Tăng tốc
+            </span>
+          </span>
+        </button>
       )}
 
       {/* Overlay Kết thúc ván (Game Over) */}
       {isGameOver && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-6 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+        <button
+          type="button"
+          onClick={onStartGame}
+          aria-label="Chơi lại"
+          data-testid="ran-man-ket-thuc"
+          className="absolute inset-0 z-20 flex cursor-pointer flex-col items-center justify-center rounded-2xl bg-slate-950/85 p-6 text-center backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none">
           <div className="size-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 p-0.5 shadow-xl shadow-rose-500/30 mb-3">
             <div className="size-full bg-slate-950 rounded-2xl flex items-center justify-center text-3xl">
               {finalResult?.winner ? '👑' : '💥'}
@@ -943,14 +960,7 @@ export function Wormate3DArena({
             </div>
           </div>
 
-          <Button
-            onClick={onStartGame}
-            className="gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-black text-xs px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          >
-            <RotateCcw className="size-4" />
-            <span>Chơi Lại Ngay</span>
-          </Button>
-        </div>
+        </button>
       )}
     </div>
   )

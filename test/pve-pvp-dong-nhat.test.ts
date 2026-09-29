@@ -1,6 +1,7 @@
-// Chế độ chơi gọi thống nhất PvE (đấu máy) · PvP (đấu người) ở mọi nơi có đấu máy / đấu người: bốn bàn dùng thanh công cụ
-// chung (Caro, Cờ vua, Cờ tướng, Trí Nhớ) và Rắn Săn Mồi có cụm riêng nhưng cùng tên, cùng dáng.
+// Chế độ chơi gọi thống nhất PvE (đấu máy) · PvP (đấu người) ở mọi nơi có đấu máy / đấu người, dùng MỘT cụm chung
+// (CumPvePvp) cho bốn bàn (Caro, Cờ vua, Cờ tướng, Trí Nhớ) và Rắn Săn Mồi (chỉ PvE — không có PvP giả).
 import { describe, expect, it } from 'vitest'
+import cumRaw from '../src/features/games/CumPvePvp.tsx?raw'
 import toolbarRaw from '../src/features/games/GamePlayToolbar.tsx?raw'
 import snakeRaw from '../src/features/games/snake/SnakeDuel.tsx?raw'
 import banOnlineRaw from '../src/features/games/ban-online.tsx?raw'
@@ -8,32 +9,44 @@ import chessRaw from '../src/features/games/chess/ChessBoard.tsx?raw'
 import xiangqiRaw from '../src/features/games/xiangqi/XiangqiBoard.tsx?raw'
 import caroRaw from '../src/features/games/caro/CaroBoard.tsx?raw'
 import memoryRaw from '../src/features/games/memory/MemoryGame.tsx?raw'
+import { chuanHoaThietLap, THIET_LAP_MAC_DINH, SO_MAY_CHON } from '../src/features/games/snake/thiet-lap'
 
 const CU = ['Chơi với máy', 'Chơi với người', 'Đấu online']
 
 describe('PvE · PvP thống nhất', () => {
   it('không nơi nào còn gọi "Chơi với máy / Chơi với người / Đấu online"', () => {
-    for (const [ten, raw] of Object.entries({ toolbarRaw, snakeRaw, banOnlineRaw, chessRaw, xiangqiRaw, caroRaw, memoryRaw })) {
+    for (const [ten, raw] of Object.entries({ cumRaw, toolbarRaw, snakeRaw, banOnlineRaw, chessRaw, xiangqiRaw, caroRaw, memoryRaw })) {
       for (const cu of CU) expect(raw, `${ten}: ${cu}`).not.toContain(cu)
     }
   })
 
-  it('bốn game dùng thanh công cụ chung, cụm giữa có PvE và PvP', () => {
-    for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw]) expect(raw).toContain('<GamePlayToolbar')
-    expect(toolbarRaw).toContain('<span>PvE</span>')
-    expect(toolbarRaw).toContain('<span>PvP</span>')
+  it('một cụm chung: thanh công cụ dùng CumPvePvp, không còn bản sao nút PvE / PvP / bảng cấp độ trong thanh công cụ', () => {
+    expect(toolbarRaw).toContain('<CumPvePvp')
+    expect(toolbarRaw.match(/<CumPvePvp/g)).toHaveLength(1)
+    for (const cu of ['<span>PvE</span>', '<span>PvP</span>', 'Cấp độ Máy AI', 'PopoverContent']) expect(toolbarRaw).not.toContain(cu)
+    expect(cumRaw).toContain('<span>PvE</span>')
+    expect(cumRaw).toContain('<span>PvP</span>')
+    expect(cumRaw).toContain('from-cyan-500 to-blue-600')
+    expect(cumRaw).toContain('from-amber-500 to-rose-600')
+    for (const raw of [chessRaw, xiangqiRaw, caroRaw, memoryRaw, snakeRaw]) expect(raw).toContain('<GamePlayToolbar')
   })
 
-  it('Rắn Săn Mồi: PvE (độ khó + số lượng máy) và PvP cùng dáng với thanh công cụ chung', () => {
-    expect(snakeRaw).toContain('<span>PvE</span>')
-    expect(snakeRaw).toContain('<span>PvP</span>')
-    expect(snakeRaw).toContain('data-testid="che-do-pve"')
-    expect(snakeRaw).toContain('data-testid="che-do-pvp"')
-    expect(snakeRaw).toContain('Độ khó Máy AI')
-    expect(snakeRaw).toContain('Số lượng máy tham gia')
-    // Cùng màu nhấn: PvE xanh, PvP cam–hồng như thanh công cụ chung.
-    expect(snakeRaw).toContain('from-cyan-500 to-blue-600')
-    expect(snakeRaw).toContain('from-amber-500 to-rose-600')
-    expect(toolbarRaw).toContain('from-amber-500 to-rose-600')
+  it('Rắn Săn Mồi dùng cùng thanh công cụ với các bàn cờ; chỉ PvE (PvP chưa tồn tại nên không hiện nút giả)', () => {
+    expect(snakeRaw).toContain('chiPve')
+    expect(snakeRaw).toContain('phuPve=')
+    expect(snakeRaw).toContain('resetNoiBat={!isRunning && !isGameOver}')
+    expect(cumRaw).toContain('{!chiPve && (')
+    expect(snakeRaw).not.toContain('pass_and_play')
+    expect(snakeRaw).not.toContain('playMode')
+  })
+})
+
+describe('Thiết lập Rắn Săn Mồi', () => {
+  it('giá trị lạ / hỏng trong bộ nhớ trình duyệt quay về mặc định; giá trị hợp lệ được giữ', () => {
+    expect(chuanHoaThietLap(null)).toEqual(THIET_LAP_MAC_DINH)
+    expect(chuanHoaThietLap('xâu')).toEqual(THIET_LAP_MAC_DINH)
+    expect(chuanHoaThietLap({ capDo: 'god', soMay: 9999 })).toEqual(THIET_LAP_MAC_DINH)
+    expect(chuanHoaThietLap({ capDo: 'hard', soMay: 12 })).toEqual({ capDo: 'hard', soMay: 12 })
+    expect(SO_MAY_CHON).toContain(THIET_LAP_MAC_DINH.soMay)
   })
 })

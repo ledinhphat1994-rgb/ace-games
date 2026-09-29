@@ -588,7 +588,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
           <GameClockWidget
             timeRemaining={clock.timeRemaining}
             turnSeconds={clock.turnSeconds}
@@ -686,7 +686,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 2 (Địch ở trên) | VÙNG 1+ (Ta ở dưới) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none py-1">
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink min-w-[150px] w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none py-1">
           <GameCapturedTray
             enemyCaptured={mauCuaToi === WHITE ? captured.friendlyLost : captured.enemyCaptured}
             friendlyCaptured={mauCuaToi === WHITE ? captured.enemyCaptured : captured.friendlyLost}
