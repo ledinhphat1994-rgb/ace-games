@@ -42,7 +42,7 @@ export interface ClassroomTopBarProps {
 }
 
 const NUT_KHUNG =
-  'relative flex h-9 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'relative flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function ClassroomTopBar({
   roomTitle,
@@ -70,7 +70,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-canvas/85 px-3 py-1.5 backdrop-blur-md select-none sm:px-4"
+      className="z-30 flex min-h-16 sm:min-h-[72px] shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-canvas/90 px-3.5 py-2 backdrop-blur-md select-none sm:px-5"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
@@ -78,7 +78,7 @@ export function ClassroomTopBar({
         <button
           type="button"
           onClick={onLeaveRoom}
-          className={cn(NUT_KHUNG, 'w-9 shrink-0 border-border-default px-0 text-text-secondary hover:bg-surface-overlay hover:text-text-primary sm:w-auto sm:px-3')}
+          className={cn(NUT_KHUNG, 'w-10 shrink-0 border-border-default px-0 text-text-secondary hover:bg-surface-overlay hover:text-text-primary sm:w-auto sm:px-3.5')}
           data-testid="topbar-btn-leave"
           title="Rời phòng học"
           aria-label="Rời phòng học"
@@ -88,9 +88,9 @@ export function ClassroomTopBar({
         </button>
 
         <div className="min-w-0">
-          <h1 className="flex items-start gap-1.5 text-sm leading-snug font-semibold break-words text-text-primary">
+          <h1 className="flex items-start gap-1.5 text-sm sm:text-base leading-snug font-bold break-words text-text-primary">
             {isHost && (
-              <Crown className="mt-0.5 size-3.5 shrink-0 text-achievement" aria-label="Bạn là chủ phòng" />
+              <Crown className="mt-0.5 size-4 shrink-0 text-achievement" aria-label="Bạn là chủ phòng" />
             )}
             <span className="min-w-0">{roomTitle}</span>
           </h1>
@@ -152,7 +152,7 @@ export function ClassroomTopBar({
           <button
             type="button"
             onClick={() => setShowConfirmClose(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive"
             data-testid="topbar-btn-close-room"
             title="Hủy phòng"
             aria-label="Hủy phòng"
