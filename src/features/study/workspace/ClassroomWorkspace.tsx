@@ -292,6 +292,8 @@ export function ClassroomWorkspace({
   }, [boCuc.toanManHinh])
 
   const isFullscreen = Boolean(boCuc.toanManHinh) && (!localExitFullscreen || laNguoiTrinhChieu)
+  // Video là lớp chính, đã có video và không toàn màn hình: bố cục ôm 16:9 (xem chú thích ở khung nội dung bên dưới).
+  const videoChinh = boCuc.video === 'main' && Boolean(videoId) && !isFullscreen
 
   const handleToggleFullscreen = () => {
     if (laNguoiTrinhChieu) {
@@ -391,7 +393,7 @@ export function ClassroomWorkspace({
 
   return (
     <div
-      className="relative flex h-svh w-full flex-col overflow-hidden bg-[#070b14] text-slate-100 select-none font-sans"
+      className="relative flex h-svh w-full flex-col overflow-hidden bg-canvas text-slate-100 select-none font-sans"
       data-testid="classroom-workspace"
       data-room-id={roomId}
     >
@@ -430,9 +432,19 @@ export function ClassroomWorkspace({
       )}
 
       {/* ── 3. MAIN WORKSPACE VIEWPORT (STAGE + CONTEXTUAL RAIL) ── */}
-      <div className="relative flex flex-1 min-h-0 w-full overflow-hidden p-2 sm:p-3 gap-2 sm:gap-3">
+      {/* Chiếu video (không toàn màn hình): khung video ôm 16:9 theo chiều cao có sẵn rồi cả cụm [video + chat] căn giữa,
+          nên không còn dải trống hai bên; cột container chỉ bật từ sm trở lên vì ngăn kéo chat trên điện thoại là phần tử fixed. */}
+      <div
+        className={`relative flex flex-1 min-h-0 w-full gap-2 overflow-hidden px-2 sm:gap-3 sm:px-3 ${
+          videoChinh ? 'justify-center sm:[container-type:size]' : ''
+        }`}
+      >
         {/* Dominant Center Stage */}
-        <main className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
+        <main
+          className={`relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden ${
+            videoChinh ? 'sm:max-w-[calc(100cqh*16/9)]' : ''
+          }`}
+        >
           <PresentationStage
             boCuc={boCuc}
             onPhongTo={doiBoCuc(lamChinh)}
@@ -511,7 +523,7 @@ export function ClassroomWorkspace({
             onPointerEnter={moDock}
             onClick={moDock}
             onFocus={moDock}
-            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-white/15 bg-slate-950/80 text-slate-300 shadow-lg backdrop-blur-md transition-colors hover:text-white cursor-pointer"
+            className="pointer-events-auto absolute bottom-1.5 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center rounded-full border border-border-default bg-surface/90 text-slate-300 shadow-lg backdrop-blur-md transition-colors hover:text-white cursor-pointer"
             title="Thanh công cụ"
             aria-label="Hiện thanh công cụ"
             data-testid="dock-handle"

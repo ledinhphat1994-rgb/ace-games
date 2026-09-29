@@ -146,7 +146,7 @@ export function ClassroomContextPanel({
 
       <aside
         aria-label="Khung thông tin bên phải"
-        className="fixed sm:relative right-0 inset-y-0 sm:inset-y-auto sm:h-full z-50 sm:z-20 flex w-80 sm:w-72 md:w-80 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden border-l border-border-subtle bg-surface shadow-2xl sm:rounded-2xl sm:border sm:shadow-none"
+        className="fixed sm:relative right-0 inset-y-0 sm:inset-y-auto sm:h-full z-50 sm:z-20 flex w-80 sm:w-72 md:w-80 max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden border-l border-border-default bg-surface shadow-2xl sm:rounded-2xl sm:border sm:shadow-none"
         data-testid="classroom-context-panel"
       >
         {/* ── PANEL HEADER ── */}

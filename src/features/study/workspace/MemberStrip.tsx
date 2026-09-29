@@ -1,10 +1,12 @@
 // Dải người tham gia trên thanh trên cùng: kéo qua kéo lại (hoặc lăn chuột) để xem hết danh sách.
+// Rê chuột vào một người chỉ hiện tên (khung tooltip nằm ngoài dải nên không bị cắt); quyền hiện bằng biểu tượng nhỏ trên ảnh.
 // Mỗi người hiện ảnh đại diện thật của tài khoản (không có / lỗi ảnh thì chữ cái đầu); dải có đệm đủ rộng để viền,
 // quầng sáng, vương miện và huy hiệu quyền không bị cắt, và căn giữa kiểu "an toàn" (tràn thì vẫn cuộn tới người đầu).
 // Chủ phòng bấm vào một người để cấp / thu hồi từng quyền công cụ; máy chủ lưu và kiểm quyền thật.
 // Không có quyền tài liệu / bảng / video: phần trình chiếu luôn thuộc chủ phòng.
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn, getInitials } from '@/lib/utils'
 import { QUYEN_CONG_CU, type QuyenCongCu, type ThanhVienPhong } from '@shared/protocol/room'
 import {
@@ -140,7 +142,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
       className={cn(
         // Không dùng justify-center trên khung cuộn (tràn thì người đầu bị cắt, không cuộn tới được): lề tự động ở
         // người đầu / cuối để căn giữa. Đệm ngang + dọc chừa chỗ cho viền, quầng sáng, vương miện, huy hiệu quyền.
-        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
+        'flex min-w-0 max-w-[46vw] sm:max-w-[55vw] items-center gap-2 sm:gap-3 overflow-x-auto px-3 py-2 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li:first-child]:ml-auto [&>li:last-child]:mr-auto',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
@@ -154,95 +156,49 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         const hasVe = cap.some((q) => ['but', 'to_sang', 'chu', 'hinh', 'tay', 'xoa'].includes(q))
         const hasLaser = cap.includes('laser')
 
-        const danhSachQuyenTen = cap
-          .map((q) => O_QUYEN.find((o) => o.quyen === q)?.ten)
-          .filter(Boolean)
-
-        const tieuDeTooltip = `${m.ten}${laTrinhChieu ? ' (Chủ phòng)' : laToi ? ' (Bạn)' : ''} — ${
-          laTrinhChieu
-            ? 'Toàn quyền điều khiển'
-            : cap.length > 0
-              ? `Quyền: ${danhSachQuyenTen.join(', ')}`
-              : 'Chỉ xem'
-        }`
-
         const avatar = (
-          <span className="relative flex shrink-0">
-            <span
-              className={cn(
-                'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
-                mauCho(m.key),
-                laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-white/20',
-                m.soKetNoi > 0 ? '' : 'opacity-40',
-              )}
-            >
-              <AnhDaiDien key={m.avatar ?? ''} ten={m.ten} avatar={m.avatar} />
-            </span>
-
-            {/* Chủ phòng: Icon vương miện hoàng gia to rõ nổi bật */}
-            {laTrinhChieu && (
+          <Tooltip>
+            <TooltipTrigger render={<span className="relative flex shrink-0" />}>
               <span
-                className="absolute -top-1.5 -right-1.5 flex size-5 sm:size-5.5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 shadow-md ring-2 ring-slate-950"
-                title="Chủ phòng (Toàn quyền điều khiển)"
+                className={cn(
+                  'flex size-11 sm:size-12 items-center justify-center overflow-hidden rounded-full border-2 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-150 group-hover:scale-105',
+                  mauCho(m.key),
+                  laToi ? 'border-cyan-300 ring-2 ring-cyan-400/30' : laTrinhChieu ? 'border-amber-400 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : cap.length > 0 ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_10px_rgba(6,182,212,0.3)]' : 'border-white/20',
+                  m.soKetNoi > 0 ? '' : 'opacity-40',
+                )}
               >
-                <Crown className="size-3 sm:size-3.5 fill-current" />
+                <AnhDaiDien key={m.avatar ?? ''} ten={m.ten} avatar={m.avatar} />
               </span>
-            )}
 
-            {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp to rõ nét */}
-            {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
-              <span
-                className="absolute -right-2 -bottom-1 flex items-center gap-1 rounded-full bg-slate-950/95 px-1.5 py-0.5 border border-cyan-400/60 shadow-lg ring-1 ring-slate-950 backdrop-blur-sm"
-                data-testid={`member-strip-co-quyen-${m.key}`}
-                title={`Đã được cấp quyền: ${danhSachQuyenTen.join(', ')}`}
-              >
-                {hasMic && <Mic className="size-3 text-emerald-400 drop-shadow-sm" />}
-                {hasVe && <Pen className="size-3 text-cyan-300 drop-shadow-sm" />}
-                {hasLaser && <MousePointer2 className="size-3 text-amber-300 drop-shadow-sm" />}
-              </span>
-            )}
-          </span>
-        )
-
-        // Card tóm tắt quyền chi tiết khi hover
-        const cardQuyen = moCua !== m.key && (
-          <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 z-50 hidden group-hover:flex flex-col items-center rounded-2xl border border-white/20 bg-slate-950/95 p-3 text-xs shadow-2xl backdrop-blur-xl min-w-[180px] max-w-[260px] animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-1.5 font-bold text-white text-sm">
-              <span className="truncate max-w-[140px]">{m.ten}</span>
-              {laToi && <span className="rounded-md bg-cyan-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-400/30">Bạn</span>}
+              {/* Chủ phòng: Icon vương miện hoàng gia to rõ nổi bật */}
               {laTrinhChieu && (
-                <span className="flex items-center gap-1 rounded-md bg-amber-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-400/30">
-                  <Crown className="size-3 fill-current" /> Chủ phòng
+                <span
+                  className="absolute -top-1.5 -right-1.5 flex size-5 sm:size-5.5 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 shadow-md ring-2 ring-canvas"
+                >
+                  <Crown className="size-3 sm:size-3.5 fill-current" />
                 </span>
               )}
-            </div>
 
-            {laTrinhChieu ? (
-              <p className="mt-1.5 text-xs text-amber-200/90 text-center font-medium">Toàn quyền điều khiển phòng học</p>
-            ) : cap.length > 0 ? (
-              <div className="mt-2 flex flex-col items-center gap-1.5 w-full text-center">
-                <span className="text-[11px] text-slate-400 font-medium">Quyền được chủ phòng cấp:</span>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {cap.map((q) => {
-                    const o = O_QUYEN.find((item) => item.quyen === q)
-                    if (!o) return null
-                    const Icon = o.icon
-                    return (
-                      <span key={q} className="inline-flex items-center gap-1 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2 py-0.5 text-[11px] font-medium text-cyan-200">
-                        <Icon className="size-3" /> {o.ten}
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : (
-              <p className="mt-1.5 text-xs text-slate-400 text-center font-medium">Chỉ xem (chưa được cấp quyền)</p>
-            )}
-          </div>
+              {/* Người tham gia: Tóm tắt các quyền bằng icon được chủ phòng cấp to rõ nét */}
+              {!laTrinhChieu && (hasMic || hasVe || hasLaser || cap.length > 0) && (
+                <span
+                  className="absolute -right-2 -bottom-1 flex items-center gap-1 rounded-full bg-surface px-1.5 py-0.5 border border-brand/50 shadow-lg ring-1 ring-canvas"
+                  data-testid={`member-strip-co-quyen-${m.key}`}
+                >
+                  {hasMic && <Mic className="size-3 text-emerald-400 drop-shadow-sm" />}
+                  {hasVe && <Pen className="size-3 text-cyan-300 drop-shadow-sm" />}
+                  {hasLaser && <MousePointer2 className="size-3 text-amber-300 drop-shadow-sm" />}
+                </span>
+              )}
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8} arrow={false} className="rounded-lg border border-border-default bg-surface-raised px-2.5 py-1 text-xs font-semibold text-text-primary shadow-lg">
+              {m.ten}
+            </TooltipContent>
+          </Tooltip>
         )
 
         return (
-          <li key={m.key} className="group relative shrink-0" title={tieuDeTooltip}>
+          <li key={m.key} className="group relative shrink-0">
             {canGrant && !laToi && !laTrinhChieu ? (
               <Popover open={moCua === m.key} onOpenChange={(mo) => setMoCua(mo ? m.key : null)}>
                 <PopoverTrigger
@@ -252,10 +208,9 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
                 >
                   {avatar}
                 </PopoverTrigger>
-                {cardQuyen}
                 <PopoverContent
                   align="start"
-                  className="w-64 rounded-2xl border border-white/15 bg-slate-950/95 p-3 text-slate-200 shadow-2xl backdrop-blur-2xl"
+                  className="w-64 rounded-2xl border border-border-default bg-surface-raised p-3 text-slate-200 shadow-2xl"
                   data-testid="member-grant-panel"
                 >
                   <p className="mb-2 truncate text-sm font-semibold text-white">{m.ten}</p>

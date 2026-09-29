@@ -124,7 +124,7 @@ export function PresentationStage({
   const canControl = !isReconnecting && (isHost || canModerate)
   const coLopHien = (['doc', 'video', 'board'] as const).some((id) => dangHien(boCuc[id]))
   // Video là lớp chính: khung sân khấu ôm đúng 16:9 (lớn nhất vừa chỗ) thay vì để YouTube chèn hai dải đen hai bên;
-  // phần thừa quanh khung là quầng sáng mờ lấy từ ảnh bìa video. Toàn màn hình giữ nguyên (phủ kín màn hình).
+  // phần thừa quanh khung là nền chung của phòng (ClassroomWorkspace căn giữa cả cụm video + chat). Toàn màn hình giữ nguyên.
   const videoChinh = boCuc.video === 'main' && !isFullscreen && Boolean(mediaState?.videoId)
 
   const khungCuaSo = (id: LopId) => ({
@@ -189,22 +189,13 @@ export function PresentationStage({
       className={isFullscreen ? 'contents' : 'relative flex h-full w-full items-center justify-center [container-type:size]'}
       data-testid="stage-khung-ngoai"
     >
-      {videoChinh && mediaState?.videoId && (
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" data-testid="stage-quang-video">
-          <img
-            src={`https://i.ytimg.com/vi/${encodeURIComponent(mediaState.videoId)}/hqdefault.jpg`}
-            alt=""
-            className="size-full scale-110 object-cover opacity-40 blur-3xl saturate-150"
-          />
-        </div>
-      )}
       <section
         aria-label="Khu vực trình chiếu trung tâm"
         // Chỉ một trong hai: có cả `relative` lẫn `fixed` thì `relative` thắng và toàn màn hình không phủ kín.
-        className={`flex flex-col overflow-hidden bg-[#090e18] shadow-2xl ${
+        className={`flex flex-col overflow-hidden bg-surface ${
           isFullscreen
             ? 'fixed inset-0 z-[100] h-full w-full'
-            : `relative rounded-2xl border border-white/10 transition-[width,height] duration-300 ease-out ${
+            : `relative rounded-2xl border border-border-default transition-[width,height] duration-300 ease-out ${
                 videoChinh ? 'h-[min(100cqh,calc(100cqw*9/16))] w-[min(100cqw,calc(100cqh*16/9))]' : 'h-full w-full'
               }`
         }`}
@@ -325,8 +316,8 @@ export function PresentationStage({
                 }}
               />
             ) : (
-              <div className="flex h-full w-full flex-col bg-[#090d16] select-none" data-testid="video-stage-empty">
-                <div data-keo-khung className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 px-3">
+              <div className="flex h-full w-full flex-col bg-surface select-none" data-testid="video-stage-empty">
+                <div data-keo-khung className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface px-3">
                   <span className="flex items-center gap-2 text-xs font-semibold text-white">
                     <YoutubeIcon className="h-4 w-4 text-red-500" />
                     Video
@@ -356,10 +347,10 @@ export function PresentationStage({
         {/* ── LỚP BẢNG: lớp chính / cửa sổ nổi (độc lập, không phủ lên lớp khác) ── */}
         {boCuc.board && (
           <KhungLop id="board" vaiTro={boCuc.board} viTri={viTriCuaSo(boCuc, 'board')} khoa={!canControl} {...khungCuaSo('board')}>
-            <div className="flex h-full w-full flex-col overflow-hidden bg-[#0a1611]" data-testid="whiteboard-stage">
+            <div className="flex h-full w-full flex-col overflow-hidden bg-canvas" data-testid="whiteboard-stage">
               <div
                 data-keo-khung
-                className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/80 ${boCuc.board === 'pip' ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
+                className={`flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface ${boCuc.board === 'pip' ? 'h-9 px-2' : 'h-10 px-3 sm:px-4'}`}
               >
                 <span className="flex items-center gap-2 text-xs font-semibold text-white">
                   <PenLine className="h-4 w-4 text-emerald-400" />

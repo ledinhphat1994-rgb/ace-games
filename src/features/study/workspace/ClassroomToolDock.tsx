@@ -109,12 +109,6 @@ const NUT_LOP: { id: LopId; ten: string; testId: string }[] = [
   { id: 'video', ten: 'Video', testId: 'dock-btn-video' },
 ]
 
-const MAU_NHAN: Record<LopId, string> = {
-  doc: 'text-orange-400',
-  board: 'text-emerald-400',
-  video: 'text-red-500',
-}
-
 function IconLop({ id, className }: { id: LopId; className?: string }) {
   if (id === 'doc') return <FileText className={className} />
   if (id === 'board') return <PenLine className={className} />
@@ -125,13 +119,13 @@ function IconLop({ id, className }: { id: LopId; className?: string }) {
 const nutDock =
   'relative flex h-11 w-10 sm:w-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white'
 const nhanDock = 'hidden sm:block'
-const dangChon = 'bg-white/12 text-white ring-1 ring-white/15'
+const dangChon = 'bg-brand/12 text-brand ring-1 ring-brand/30'
 const khongChon = 'text-slate-400 hover:bg-white/8 hover:text-slate-200'
 
 const nutKhay =
   'flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-colors cursor-pointer'
 const khayPopover =
-  'space-y-2.5 rounded-2xl border border-white/15 bg-slate-950/95 p-2.5 text-slate-200 shadow-2xl backdrop-blur-2xl'
+  'space-y-2.5 rounded-2xl border border-border-default bg-surface-raised p-2.5 text-slate-200 shadow-2xl'
 
 function BangMau({ mau, onChonMau, co, onChonCo }: Pick<ClassroomToolDockProps, 'mau' | 'onChonMau' | 'co' | 'onChonCo'>) {
   return (
@@ -221,11 +215,11 @@ export function ClassroomToolDock({
   return (
     <nav
       aria-label="Thanh công cụ trình chiếu"
-      className="flex items-center justify-center p-2 z-30 select-none"
+      className="flex items-center justify-center px-2 pt-1.5 pb-2 z-30 select-none"
       data-testid="classroom-tool-dock"
     >
       {/* Điện thoại hẹp: thanh cuộn ngang bên trong, không tràn trang. */}
-      <div className="flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/90 px-1.5 py-1 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl [scrollbar-width:none] sm:gap-1 sm:px-2">
+      <div className="flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-2xl border border-border-default bg-surface/95 px-1.5 py-1 shadow-xl shadow-black/30 backdrop-blur-xl [scrollbar-width:none] sm:gap-1 sm:px-2">
         {/* ── 0. MIC + CÀI ĐẶT ÂM THANH (mọi người trong phòng) ── */}
         <button
           type="button"
@@ -275,7 +269,7 @@ export function ClassroomToolDock({
                 id="voice-in-select"
                 value={voiceState.currentInputDeviceId || ''}
                 onChange={(e) => onSetAudioInput(e.target.value)}
-                className="w-full rounded-lg border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white"
+                className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-white"
               >
                 {audioInputs.length === 0 ? (
                   <option value="">Mặc định hệ thống</option>
@@ -297,7 +291,7 @@ export function ClassroomToolDock({
                   id="voice-out-select"
                   value={voiceState.currentOutputDeviceId || ''}
                   onChange={(e) => onSetAudioOutput(e.target.value)}
-                  className="w-full rounded-lg border border-white/15 bg-slate-900 px-2 py-1.5 text-xs text-white"
+                  className="w-full rounded-lg border border-border-default bg-surface px-2 py-1.5 text-xs text-white"
                 >
                   {audioOutputs.length === 0 ? (
                     <option value="">Mặc định hệ thống</option>
@@ -314,7 +308,7 @@ export function ClassroomToolDock({
           </PopoverContent>
         </Popover>
 
-        <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
+        <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />
 
         {/* ── 1. BA LỚP NỘI DUNG: chỉ chủ phòng / người điều hành (không bao giờ cấp cho người tham gia) ── */}
         {canControl && (
@@ -332,16 +326,16 @@ export function ClassroomToolDock({
                   data-testid={testId}
                   className={`${nutDock} ${hien ? dangChon : khongChon}`}
                 >
-                  <IconLop id={id} className={`h-4.5 w-4.5 ${MAU_NHAN[id]}`} />
+                  <IconLop id={id} className="h-4.5 w-4.5" />
                   <span className={nhanDock}>{ten}</span>
                   {dangChay[id] && (
-                    <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-current text-emerald-400 animate-pulse" />
+                    <span className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-brand animate-pulse" />
                   )}
                 </button>
               )
             })}
 
-            <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
+            <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />
           </>
         )}
 
@@ -416,7 +410,7 @@ export function ClassroomToolDock({
             </button>
             )}
 
-            <div className="mx-0.5 sm:mx-1 h-7 w-px bg-white/15" />
+            <div className="mx-0.5 sm:mx-1 h-7 w-px bg-border-strong" />
           </>
         )}
 

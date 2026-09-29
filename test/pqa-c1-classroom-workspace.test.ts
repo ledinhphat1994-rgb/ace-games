@@ -411,7 +411,8 @@ describe('PQA-C1: Classroom Workspace & Central Presentation Stage Contracts', (
     })
 
     it('Stage receives flex-1 to dominate mobile viewport', () => {
-      expect(workspaceRaw).toContain('<main className="relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden">')
+      // Khung chính luôn flex-1 (chiếu video thì thêm giới hạn 16:9 từ sm trở lên, điện thoại vẫn chiếm trọn chiều ngang).
+      expect(workspaceRaw).toMatch(/<main\s+className=\{`relative flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden \$\{/)
     })
   })
 

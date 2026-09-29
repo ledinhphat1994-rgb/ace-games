@@ -289,7 +289,7 @@ export function BangVe({
   return (
     <div
       ref={khungRef}
-      className={`relative h-full w-full overflow-hidden select-none ${laPhu ? 'pointer-events-none bg-transparent' : 'bg-[#0a1611]'}`}
+      className={`relative h-full w-full overflow-hidden select-none ${laPhu ? 'pointer-events-none bg-transparent' : 'bg-canvas'}`}
       data-testid={mat ? `lop-ve-${mat}` : laPhu ? 'whiteboard-overlay' : 'whiteboard-surface'}
     >
       <svg
@@ -310,7 +310,7 @@ export function BangVe({
                 <path d="M 64 0 L 0 0 0 64" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" />
               </pattern>
             </defs>
-            <rect width={BANG_VE_RONG} height={BANG_VE_CAO} fill="#0d1c16" />
+            <rect width={BANG_VE_RONG} height={BANG_VE_CAO} className="fill-canvas" />
             <rect width={BANG_VE_RONG} height={BANG_VE_CAO} fill="url(#o-bang-ve)" />
           </>
         )}

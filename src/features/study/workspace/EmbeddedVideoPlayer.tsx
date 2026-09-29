@@ -189,7 +189,7 @@ export function EmbeddedVideoPlayer({
 
         {/* Loading overlay */}
         {!isReady && !errorMessage && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070b12]/90 backdrop-blur-sm gap-2">
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-canvas/90 backdrop-blur-sm gap-2">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
             <span className="text-xs text-slate-400">Đang tải trình phát YouTube...</span>
           </div>
@@ -197,7 +197,7 @@ export function EmbeddedVideoPlayer({
 
         {/* Error overlay */}
         {errorMessage && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center">
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-surface/95 p-6 text-center">
             <AlertCircle className="h-10 w-10 text-red-400 mb-2" />
             <p className="text-sm font-semibold text-white">Không thể tải video</p>
             <p className="text-xs text-slate-400 mt-1 max-w-sm">{errorMessage}</p>

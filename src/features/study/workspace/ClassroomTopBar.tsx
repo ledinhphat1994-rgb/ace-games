@@ -70,7 +70,7 @@ export function ClassroomTopBar({
 
   return (
     <header
-      className="z-30 flex min-h-16 sm:min-h-[72px] shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-canvas/90 px-3.5 py-2 backdrop-blur-md select-none sm:px-5"
+      className="z-30 flex min-h-16 sm:min-h-[68px] shrink-0 items-center justify-between gap-3 bg-canvas px-2 py-1 select-none sm:px-3"
       data-testid="classroom-top-bar"
     >
       {/* ── LEFT: LEAVE + ROOM NAME + CONNECTION STATUS ── */}
