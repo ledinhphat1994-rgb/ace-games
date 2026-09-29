@@ -96,6 +96,7 @@ import {
   listAuditLogs,
 } from './routes/moderation-api'
 import { adminRouter } from './routes/admin-api'
+import { batDauGoogle, goLienKetGoogle, googleGoiLai, trangThaiGoogle } from './routes/google-auth'
 import { roomRouter } from './routes/room-api'
 
 export { CampusDO } from './campus/campus-do'
@@ -1050,6 +1051,20 @@ app.all('/api/forgot-password', saiPhuongThuc)
 app.all('/api/admin/reset-code', saiPhuongThuc)
 app.all('/api/whoami', saiPhuongThuc)
 app.all('/api/logout', saiPhuongThuc)
+
+// Đăng nhập bằng Google (mức liên kết): chỉ tài khoản đã liên kết mới đăng nhập được, không tạo tài khoản mới.
+app.get('/api/auth/google/start', (c) => batDauGoogle(c.req.raw, c.env))
+app.get('/api/auth/google/callback', (c) => {
+  let ctx: { waitUntil(promise: Promise<unknown>): void } | undefined
+  try { ctx = c.executionCtx } catch {}
+  return googleGoiLai(c.req.raw, c.env, ctx)
+})
+app.get('/api/auth/google/status', (c) => trangThaiGoogle(c.req.raw, c.env))
+app.post('/api/auth/google/unlink', (c) => goLienKetGoogle(c.req.raw, c.env))
+app.all('/api/auth/google/start', saiPhuongThuc)
+app.all('/api/auth/google/callback', saiPhuongThuc)
+app.all('/api/auth/google/status', saiPhuongThuc)
+app.all('/api/auth/google/unlink', saiPhuongThuc)
 
 // Profile
 app.post('/api/profile/avatar', (c) => doiAvatar(c.req.raw, c.env))

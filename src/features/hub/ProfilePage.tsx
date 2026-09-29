@@ -1,19 +1,20 @@
 import { useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { AvatarPicker } from '@/features/profile/AvatarPicker'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
-import { capNhatHoSo, doiAvatar, doiMatKhau } from '@/lib/api'
-import { getInitials, tenLop } from '@/lib/utils'
+import { capNhatHoSo, doiAvatar, doiMatKhau, goLienKetGoogle, layTrangThaiGoogle } from '@/lib/api'
+import { cn, getInitials, tenLop } from '@/lib/utils'
 import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import type { EngagementProfile } from '@shared/protocol/engagement'
 import { Award, Camera, Flame, KeyRound, Palette, ShieldCheck, TrendingUp, User, Zap } from 'lucide-react'
@@ -286,6 +287,9 @@ export function ProfilePage() {
               </Button>
             </form>
           </KhungTab>
+          <div className="mt-4">
+            <LienKetGoogle />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -301,6 +305,61 @@ function ChiSo({ icon, nhan, giaTri }: { icon: ReactNode; nhan: string; giaTri: 
         {giaTri ?? <span className="h-5 w-10 animate-pulse rounded-md bg-surface-overlay" aria-label="Đang tải" />}
       </dd>
     </div>
+  )
+}
+
+// Liên kết Gmail để đăng nhập bằng Google (chỉ tài khoản đã liên kết mới đăng nhập bằng Google được).
+function LienKetGoogle() {
+  const queryClient = useQueryClient()
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: ['google', 'status'],
+    queryFn: layTrangThaiGoogle,
+    staleTime: 30_000,
+  })
+  const goLienKet = useMutation({
+    mutationFn: goLienKetGoogle,
+    onSuccess: () => {
+      toast.success('Đã gỡ liên kết Google.')
+      void queryClient.invalidateQueries({ queryKey: ['google', 'status'] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Không gỡ được liên kết Google.'),
+  })
+
+  return (
+    <KhungTab tieuDe="Liên kết Google" moTa="Đăng nhập bằng Gmail thay cho mật khẩu.">
+      <div data-testid="google-link" className="flex min-h-10 flex-wrap items-center gap-3">
+        {isPending ? (
+          <div className="h-10 w-56 animate-pulse rounded-lg bg-surface-overlay" aria-label="Đang tải" />
+        ) : isError ? (
+          <>
+            <span className="text-sm text-text-secondary">Không tải được trạng thái liên kết.</span>
+            <Button size="sm" variant="outline" onClick={() => void refetch()}>
+              Thử lại
+            </Button>
+          </>
+        ) : data.lienKet ? (
+          <>
+            <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
+              <LogoGoogle className="size-4 shrink-0" />
+              <span className="truncate">{data.email ?? 'Đã liên kết'}</span>
+            </span>
+            <Button size="sm" variant="outline" disabled={goLienKet.isPending} onClick={() => goLienKet.mutate()}>
+              {goLienKet.isPending ? 'Đang gỡ…' : 'Gỡ liên kết'}
+            </Button>
+          </>
+        ) : data.sanSang ? (
+          <a href="/api/auth/google/start?che_do=lien_ket" className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}>
+            <LogoGoogle className="size-4" />
+            Liên kết Google
+          </a>
+        ) : (
+          <Button variant="outline" disabled className="gap-2">
+            <LogoGoogle className="size-4" />
+            Liên kết Google
+          </Button>
+        )}
+      </div>
+    </KhungTab>
   )
 }
 

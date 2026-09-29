@@ -120,6 +120,7 @@ const TEN_HANH_DONG: Record<string, string> = {
   room_lifecycle_bootstrap_failed: 'Khởi tạo phòng lỗi',
   teacher_approve: 'Duyệt giáo viên',
   teacher_reject: 'Từ chối yêu cầu giáo viên',
+  teacher_grant: 'Cấp quyền giáo viên',
   account_lock: 'Khoá tài khoản',
   account_unlock: 'Mở khoá tài khoản',
 }
@@ -207,6 +208,7 @@ async function fetchAdminAccounts(params: {
 const THONG_BAO_THAO_TAC: Record<HanhDongTaiKhoan, string> = {
   approve_teacher: 'Đã duyệt tài khoản giáo viên.',
   reject_teacher: 'Đã từ chối — tài khoản chuyển về học sinh.',
+  grant_teacher: 'Đã cấp quyền giáo viên.',
   lock: 'Đã khoá tài khoản và ngắt các phiên đang mở.',
   unlock: 'Đã mở khoá tài khoản.',
 }
@@ -810,6 +812,11 @@ const XAC_NHAN_THAO_TAC: Partial<Record<HanhDongTaiKhoan, { tieuDe: string; moTa
     moTa: (ten) => `${ten} bị đăng xuất khỏi mọi thiết bị ngay và không đăng nhập được cho tới khi mở khoá.`,
     nut: 'Khoá tài khoản',
   },
+  grant_teacher: {
+    tieuDe: 'Cấp quyền giáo viên?',
+    moTa: (ten) => `${ten} có quyền giáo viên ngay, không cần đăng nhập lại.`,
+    nut: 'Cấp quyền',
+  },
   reject_teacher: {
     tieuDe: 'Từ chối yêu cầu giáo viên?',
     moTa: (ten) => `${ten} vẫn dùng Campus được nhưng với vai trò học sinh.`,
@@ -913,6 +920,7 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
                     <p className="mt-1 text-xs break-words text-text-tertiary">
                       @{tk.username}
                       {tk.lopTen ? ` · Lớp ${tk.lopTen}` : ''}
+                      {tk.googleEmail ? ` · ${tk.googleEmail}` : ''}
                       {tk.createdAt ? ` · tạo ${fmtRelative(tk.createdAt)}` : ''}
                     </p>
                   </div>
@@ -929,6 +937,11 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
                             Từ chối
                           </Button>
                         </>
+                      )}
+                      {tk.role === 'student' && tk.active && (
+                        <Button size="xs" variant="outline" disabled={dangXuLy} onClick={() => chay(tk, 'grant_teacher')}>
+                          Cấp quyền giáo viên
+                        </Button>
                       )}
                       {coTheKhoa && (
                         <Button
@@ -974,7 +987,7 @@ function AccountsPanel({ loc, onLoc, myId }: { loc: LocTaiKhoan; onLoc: (loc: Lo
           <AlertDialogFooter>
             <AlertDialogCancel disabled={thaoTac.isPending}>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
+              variant={canXacNhan?.action === 'grant_teacher' ? 'default' : 'destructive'}
               disabled={thaoTac.isPending}
               onClick={() => {
                 if (canXacNhan) {

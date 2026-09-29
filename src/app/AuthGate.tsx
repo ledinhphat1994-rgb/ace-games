@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useSearchParams } from 'react-router'
 import { KhungChoTrang } from '@/components/layout/KhungChoTrang'
 import { GraduationCap, Loader2, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
@@ -9,6 +9,22 @@ import { Button } from '@/components/ui/button'
 import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
 import { dangXuat, layPhienHienTai, LoiApi } from '@/lib/api'
 import { toast } from 'sonner'
+import type { KetQuaGoogle } from '@shared/protocol/google'
+
+// Máy chủ quay về với ?google=<kết quả> sau đăng nhập / liên kết Google; huỷ giữa chừng thì không báo gì.
+const THONG_BAO_GOOGLE: Partial<Record<KetQuaGoogle, { loai: 'success' | 'error'; noiDung: string }>> = {
+  ok: { loai: 'success', noiDung: 'Đăng nhập thành công!' },
+  da_lien_ket: { loai: 'success', noiDung: 'Đã liên kết Google.' },
+  chua_lien_ket: {
+    loai: 'error',
+    noiDung: 'Gmail này chưa liên kết với tài khoản nào. Hãy đăng nhập bằng mật khẩu rồi liên kết Google trong Hồ sơ cá nhân.',
+  },
+  da_lien_ket_khac: { loai: 'error', noiDung: 'Gmail này đã liên kết với một tài khoản khác.' },
+  bi_khoa: { loai: 'error', noiDung: 'Tài khoản này đã bị khoá.' },
+  can_dang_nhap: { loai: 'error', noiDung: 'Vui lòng đăng nhập trước khi liên kết Google.' },
+  chua_cau_hinh: { loai: 'error', noiDung: 'Đăng nhập bằng Google chưa được bật.' },
+  loi: { loai: 'error', noiDung: 'Đăng nhập Google không thành công. Vui lòng thử lại.' },
+}
 
 export function AuthGate() {
   const queryClient = useQueryClient()
@@ -32,6 +48,22 @@ export function AuthGate() {
   }, [queryClient])
 
   const nguoiDung = phien.data?.nguoiDung ?? null
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const ketQuaGoogle = searchParams.get('google')
+  useEffect(() => {
+    if (!ketQuaGoogle) return
+    const thongBao = THONG_BAO_GOOGLE[ketQuaGoogle as KetQuaGoogle]
+    if (thongBao) toast[thongBao.loai](thongBao.noiDung, { id: 'ket-qua-google' })
+    setSearchParams(
+      (cu) => {
+        const moi = new URLSearchParams(cu)
+        moi.delete('google')
+        return moi
+      },
+      { replace: true },
+    )
+  }, [ketQuaGoogle, setSearchParams])
 
   // Khi có thông báo từ phiên (bị thay thế thiết bị hoặc hết hạn), cảnh báo và bật modal đăng nhập
   useEffect(() => {
