@@ -1,15 +1,15 @@
-// Sảnh của một trò chơi (/arena/:gameType): mọi bàn đang mở + Chơi ngay · Tạo phòng · Vào phòng · Tìm phòng.
-// Dùng mẫu sảnh chung (SanhHoatDong) như trang Học tập. Trò chơi đơn không có bàn: chỉ Chơi ngay + bảng xếp hạng.
+// Sảnh của một trò chơi (/arena/:gameType): mọi bàn đang mở + Chơi ngay · Tạo phòng · Tìm phòng.
+// Dùng mẫu sảnh chung (SanhHoatDong) như trang Học tập. Vào bàn của bạn: bấm link bàn được chia sẻ.
+// Trò chơi đơn không có bàn: chỉ Chơi ngay + bảng xếp hạng.
 
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { LogIn, Play, Plus, Search } from 'lucide-react'
+import { Eye, LayoutGrid, LogIn, Play, Plus, Search, Users } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { SanhHoatDong } from '@/components/lobby/SanhHoatDong'
+import { KhungTrongSanh, SanhHoatDong } from '@/components/lobby/SanhHoatDong'
 import { cn } from '@/lib/utils'
 import { useGameRooms } from '../../hooks/use-game-rooms'
 import { toast } from 'sonner'
@@ -17,7 +17,7 @@ import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameArt } from './GameArt'
 import { GameSocialSidebar } from './GameSocialSidebar'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
-import { laTroChoiDon, phanTichMaBan, taoMaBan } from './game-ids'
+import { laTroChoiDon, taoMaBan } from './game-ids'
 import { TheBanGame } from './TheBanGame'
 
 const THOI_GIAN_LUOT = [15, 30, 60] as const
@@ -67,9 +67,6 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
 
   const [moTaoPhong, setMoTaoPhong] = useState(false)
   const [turnSeconds, setTurnSeconds] = useState<number>(30)
-  const [moVaoPhong, setMoVaoPhong] = useState(false)
-  const [maNhap, setMaNhap] = useState('')
-  const [loiMa, setLoiMa] = useState('')
 
   // Vào bàn từ sảnh: kèm ?sanh= để rời bàn thì quay về đúng sảnh này.
   const vaoBan = (id: string) => navigate(`/game/${encodeURIComponent(id)}?sanh=${gameType}`)
@@ -102,25 +99,16 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
     viec()
   }
 
-  const xacNhanVaoPhong = () => {
-    const kq = phanTichMaBan(maNhap)
-    if (!kq.ok) {
-      setLoiMa(kq.loi)
-      return
-    }
-    setMoVaoPhong(false)
-    vaoBan(kq.maBan)
-  }
-
   const chiSo = coDanhSach
     ? [
-        { nhan: 'Số bàn', giaTri: tatCaBan.length },
+        { icon: LayoutGrid, nhan: 'Số bàn', giaTri: tatCaBan.length, mau: 'text-brand' },
         {
+          icon: Users,
           nhan: 'Người chơi',
           giaTri: tatCaBan.reduce((tong, t) => tong + (t.tenChu ? 1 : 0) + (t.tenKhach ? 1 : 0), 0),
           mau: 'text-emerald-400',
         },
-        { nhan: 'Người xem', giaTri: tatCaBan.reduce((tong, t) => tong + (t.soNguoiXem ?? 0), 0), mau: 'text-cyan-400' },
+        { icon: Eye, nhan: 'Người xem', giaTri: tatCaBan.reduce((tong, t) => tong + (t.soNguoiXem ?? 0), 0), mau: 'text-cyan-400' },
       ]
     : undefined
 
@@ -136,20 +124,7 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         taoPhong={
           laDon ? undefined : { nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'game-lobby-create' }
         }
-        vaoPhong={
-          laDon
-            ? undefined
-            : {
-                nhan: 'Vào phòng',
-                onClick: canDangNhap(() => {
-                  setMaNhap('')
-                  setLoiMa('')
-                  setMoVaoPhong(true)
-                }),
-                testId: 'game-lobby-join',
-              }
-        }
-        timKiem={coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm theo tên người chơi hoặc mã bàn…' } : undefined}
+        timKiem={coDanhSach ? { giaTri: tuKhoa, onDoi: setTuKhoa, goiY: 'Tìm bàn…' } : undefined}
         danhSach={
           laDon
             ? undefined
@@ -160,46 +135,33 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
                 onKetNoiLai: () => void refetch(),
                 rong: banLoc.length === 0,
                 noiDungRong: !nguoiDung ? (
-                  <KhungTrong
+                  <KhungTrongSanh
                     testId="game-lobby-login"
+                    hinh={<AnhTroChoi gameType={gameType} />}
                     tieuDe="Đăng nhập để xem bàn đang mở"
                     nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
                   />
                 ) : tuKhoa.trim() ? (
-                  <KhungTrong
+                  <KhungTrongSanh
                     testId="game-lobby-search-empty"
-                    icon={<Search className="size-5 text-text-tertiary" />}
-                    tieuDe={`Không có bàn nào khớp với “${tuKhoa.trim()}”`}
+                    hinh={<Search className="size-6 text-text-tertiary" />}
+                    tieuDe="Không tìm thấy bàn"
                     nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
                   />
                 ) : (
-                  <KhungTrong
-                    testId="game-lobby-empty"
-                    tieuDe="Chưa có bàn nào đang mở"
-                    nut={{ nhan: 'Tạo bàn đầu tiên', icon: <Plus />, onClick: () => setMoTaoPhong(true) }}
-                  />
+                  <KhungTrongSanh testId="game-lobby-empty" hinh={<AnhTroChoi gameType={gameType} />} tieuDe="Chưa có bàn nào đang mở" />
                 ),
-                children: (
-                  <div data-testid="game-lobby-tables" className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1800px]:grid-cols-3">
-                    {banLoc.map((t) => (
-                      <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />
-                    ))}
-                  </div>
-                ),
+                children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
               }
         }
         noiDungGiua={
           laDon ? (
-            <div
-              className="overflow-hidden rounded-2xl border border-border-subtle bg-surface"
-              data-testid="game-lobby-solo"
-            >
-              <div className="aspect-[16/7] w-full overflow-hidden border-b border-white/5 bg-black/40">
+            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03]" data-testid="game-lobby-solo">
+              <div className="min-h-0 flex-1 overflow-hidden bg-black/40">
                 <GameArt gameType={gameType} className="size-full object-cover" />
               </div>
-              <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm leading-relaxed text-text-secondary">{game.description}</p>
-                <Button onClick={choiNgay} className="h-10 shrink-0 px-6 font-bold">
+              <div className="flex shrink-0 justify-center p-4">
+                <Button onClick={choiNgay} className="h-11 rounded-xl px-8 font-bold shadow-lg shadow-brand/25">
                   <Play className="fill-current" />
                   Chơi ngay
                 </Button>
@@ -256,67 +218,15 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         </DialogContent>
       </Dialog>
 
-      {/* Vào phòng: dán mã bàn hoặc link bàn bạn gửi */}
-      <Dialog open={moVaoPhong} onOpenChange={setMoVaoPhong}>
-        <DialogContent className="max-w-sm" data-testid="game-lobby-join-dialog">
-          <DialogTitle>Vào phòng</DialogTitle>
-          <DialogDescription className="sr-only">Nhập mã bàn hoặc link bàn</DialogDescription>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              xacNhanVaoPhong()
-            }}
-            className="space-y-2"
-          >
-            <Input
-              value={maNhap}
-              onChange={(e) => {
-                setMaNhap(e.target.value)
-                setLoiMa('')
-              }}
-              placeholder="Mã bàn hoặc link bàn"
-              aria-label="Mã bàn hoặc link bàn"
-              autoComplete="off"
-              className="h-10"
-              data-testid="game-lobby-join-input"
-            />
-            {loiMa && (
-              <p role="alert" className="text-xs text-destructive">
-                {loiMa}
-              </p>
-            )}
-            <Button type="submit" className="h-10 w-full font-bold" disabled={!maNhap.trim()}>
-              Vào phòng
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
 
-function KhungTrong({
-  testId,
-  icon,
-  tieuDe,
-  nut,
-}: {
-  testId: string
-  icon?: React.ReactNode
-  tieuDe: string
-  nut: { nhan: string; icon?: React.ReactNode; onClick: () => void; phu?: boolean }
-}) {
+/** Ảnh trò chơi nhỏ cho khung trống của sảnh. */
+function AnhTroChoi({ gameType }: { gameType: GameType }) {
   return (
-    <div
-      data-testid={testId}
-      className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-border-subtle bg-surface px-6 py-10 text-center"
-    >
-      {icon}
-      <h3 className={cn('text-base font-semibold tracking-tight text-text-primary', icon && 'mt-3')}>{tieuDe}</h3>
-      <Button variant={nut.phu ? 'outline' : 'default'} size={nut.phu ? 'sm' : 'default'} onClick={nut.onClick} className="mt-5">
-        {nut.icon}
-        {nut.nhan}
-      </Button>
+    <div className="size-20 overflow-hidden rounded-2xl opacity-80 ring-1 ring-white/10">
+      <GameArt gameType={gameType} variant="icon" className="size-full" />
     </div>
   )
 }

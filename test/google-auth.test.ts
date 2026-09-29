@@ -229,10 +229,31 @@ describe('Liên kết / gỡ liên kết Google', () => {
 
 describe('Giao diện', () => {
   it('nút Đăng nhập bằng Google ở form đăng nhập; form đăng ký không còn chọn vai trò; hồ sơ có mục liên kết', () => {
-    expect(authModalRaw).toContain('href="/api/auth/google/start"')
+    expect(authModalRaw).toContain('href={`/api/auth/google/start${thamSoQuayVe()}`}')
     expect(authModalRaw).not.toContain('dkVaiTro')
     expect(authModalRaw).not.toContain('dk-teacher-code')
     expect(profileRaw).toContain('/api/auth/google/start?che_do=lien_ket')
     expect(profileRaw).toContain('<LienKetGoogle />')
+  })
+})
+
+describe('Đăng nhập Google từ link phòng / bàn được chia sẻ', () => {
+  it('đăng nhập xong quay về đúng link phòng; đường dẫn lạ bị bỏ qua (không chuyển hướng tuỳ ý)', async () => {
+    await lienKetSan('qa.v2.gv', 'sub-link-chia-se')
+    const batDauVoi = async (toi: string) => {
+      const res = await goi(`/api/auth/google/start?toi=${encodeURIComponent(toi)}`)
+      const dich = new URL(res.headers.get('Location')!)
+      return { ve: cookieTu(res, 'c10a7_google')!, state: dich.searchParams.get('state')! }
+    }
+
+    const hopLe = await batDauVoi('/room/phong-42')
+    const res = await goiLai([hopLe.ve], hopLe.state, googleGia('sub-link-chia-se').fetcher)
+    expect(res.headers.get('Location')).toBe('/room/phong-42?google=ok')
+
+    for (const la of ['https://ke-gian.example/room/phong-1', '//ke-gian.example', '/admin', '/room/phong-1/../../admin']) {
+      const lan = await batDauVoi(la)
+      const kq = await goiLai([lan.ve], lan.state, googleGia('sub-link-chia-se').fetcher)
+      expect(kq.headers.get('Location')).toBe('/learn?google=ok')
+    }
   })
 })

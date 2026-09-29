@@ -1,26 +1,26 @@
 // Mẫu sảnh chung cho mọi hoạt động (Platform Core — Discovery & Lobby): Học tập và từng trò chơi.
-// Cùng một khung: tiêu đề + chỉ số, thanh hành động (Chơi ngay · Tạo phòng · Vào phòng) + tìm phòng,
-// danh sách phòng đang mở (đang tải / đang kết nối lại / trống / có phòng), và bố cục 3 cột
-// bảng xếp hạng | sảnh | trò chuyện. Mỗi hoạt động chỉ cấp dữ liệu và hành động của riêng nó.
+// Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện. Khung sảnh: thanh tìm + Tạo phòng + Chơi ngay,
+// danh sách phòng cuộn bên trong (đang tải / đang kết nối lại / trống / có phòng). Vào phòng của bạn bè: bấm link được chia sẻ.
 
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ArrowLeft, LogIn, Play, Plus, RefreshCw, Search, X } from 'lucide-react'
+import { ArrowLeft, Play, Plus, RefreshCw, Search, X, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PageHeader, SectionHeader } from '@/components/layout/PageHeader'
+import { PageHeader } from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
 
 export interface HanhDongSanh {
   nhan: string
   onClick: () => void
   testId?: string
-  tat?: boolean
 }
 
 export interface ChiSoSanh {
+  icon: LucideIcon
+  /** Nhãn đọc màn hình / chú thích khi rê chuột. */
   nhan: string
-  giaTri: number | undefined
+  giaTri: number
   mau?: string
 }
 
@@ -33,28 +33,30 @@ export interface DanhSachSanh {
   /** Không có phòng nào để hiện (sau khi lọc). */
   rong: boolean
   noiDungRong: ReactNode
-  /** Lưới phòng — mỗi hoạt động tự vẽ thẻ phòng của mình. */
+  /** Các thẻ phòng — lưới do mẫu dựng, mỗi hoạt động tự vẽ thẻ của mình. */
   children?: ReactNode
 }
 
 export interface SanhHoatDongProps {
   tieuDe: string
-  /** Hình / biểu tượng nhận diện cạnh tiêu đề (ảnh trò chơi…). */
+  /** Hình nhận diện cạnh tiêu đề (ảnh trò chơi…). */
   bieuTuong?: ReactNode
   quayLai?: { nhan: string; toi: string }
   chiSo?: ChiSoSanh[]
   choiNgay?: HanhDongSanh
   taoPhong?: HanhDongSanh
-  vaoPhong?: HanhDongSanh
   timKiem?: { giaTri: string; onDoi: (v: string) => void; goiY: string }
   danhSach?: DanhSachSanh
-  /** Nội dung giữa khi hoạt động không có phòng (trò chơi đơn). */
+  /** Nội dung khung sảnh khi hoạt động không có phòng (trò chơi đơn). */
   noiDungGiua?: ReactNode
   cotTrai: ReactNode
   cotPhai: ReactNode
   /** Tiền tố data-testid: `${testId}-layout`, `${testId}-search-input`, `${testId}-lobby-loading`… */
   testId: string
 }
+
+/** Cùng chiều cao với cột bảng xếp hạng và cột trò chuyện: ba khung thẳng hàng. */
+const CAO_KHUNG = 'lg:h-[700px] xl:h-[720px] 2xl:h-[740px]'
 
 export function SanhHoatDong({
   tieuDe,
@@ -63,7 +65,6 @@ export function SanhHoatDong({
   chiSo,
   choiNgay,
   taoPhong,
-  vaoPhong,
   timKiem,
   danhSach,
   noiDungGiua,
@@ -71,10 +72,10 @@ export function SanhHoatDong({
   cotPhai,
   testId,
 }: SanhHoatDongProps) {
-  const coHanhDong = Boolean(choiNgay || taoPhong || vaoPhong || timKiem)
+  const coThanhCongCu = Boolean(choiNgay || taoPhong || timKiem)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="space-y-2">
         {quayLai && (
           <Link
@@ -86,58 +87,48 @@ export function SanhHoatDong({
             {quayLai.nhan}
           </Link>
         )}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            {bieuTuong && <div className="size-12 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 sm:size-14">{bieuTuong}</div>}
-            <PageHeader title={tieuDe} />
-          </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {bieuTuong && <div className="size-11 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 sm:size-12">{bieuTuong}</div>}
+          <PageHeader title={tieuDe} />
           {chiSo && chiSo.length > 0 && (
-            <dl className="flex items-stretch divide-x divide-white/10 rounded-xl border border-white/10 bg-white/[0.03]" data-testid={`${testId}-stats`}>
-              {chiSo.map((c) => (
-                <div key={c.nhan} className="flex min-w-20 flex-col items-center px-3 py-1.5">
-                  <dt className="text-[10px] text-text-tertiary">{c.nhan}</dt>
-                  <dd className={cn('text-sm font-bold tabular-nums', c.mau ?? 'text-text-primary')}>{c.giaTri ?? '–'}</dd>
-                </div>
+            <ul className="flex flex-wrap items-center gap-2" data-testid={`${testId}-stats`}>
+              {chiSo.map(({ icon: Icon, nhan, giaTri, mau }) => (
+                <li
+                  key={nhan}
+                  title={nhan}
+                  aria-label={`${nhan}: ${giaTri}`}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-xs font-semibold tabular-nums text-text-primary"
+                >
+                  <Icon className={cn('size-3.5', mau ?? 'text-text-tertiary')} />
+                  {giaTri}
+                </li>
               ))}
-            </dl>
+            </ul>
           )}
         </div>
       </div>
 
-      {/* Bố cục 3 cột như nhau cho mọi sảnh: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
+      {/* Ba khung cao bằng nhau: bảng xếp hạng | sảnh | trò chuyện & bạn bè */}
       <div
         data-testid={`${testId}-layout`}
         className="grid w-full grid-cols-1 items-start gap-3.5 sm:gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)_370px] 2xl:grid-cols-[380px_minmax(0,1fr)_380px]"
       >
         <div className="order-2 min-w-0 lg:order-1">{cotTrai}</div>
 
-        <section className="@container order-1 min-w-0 space-y-4 lg:order-2" aria-label={tieuDe}>
-          {coHanhDong && (
+        <section
+          aria-label={tieuDe}
+          className={cn(
+            '@container order-1 flex min-h-[420px] min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl lg:order-2',
+            'bg-gradient-to-b from-[#0e1527]/95 to-[#080c1a]/95',
+            CAO_KHUNG,
+          )}
+          data-testid={`${testId}-panel`}
+        >
+          {coThanhCongCu && (
             <div
-              className="flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-surface/80 p-2.5 @min-[44rem]:flex-row @min-[44rem]:items-center"
+              className="flex shrink-0 flex-col gap-2 border-b border-white/[0.06] p-3 @min-[34rem]:flex-row @min-[34rem]:items-center"
               data-testid={`${testId}-actions`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                {choiNgay && (
-                  <Button onClick={choiNgay.onClick} disabled={choiNgay.tat} data-testid={choiNgay.testId} className="h-10 px-5 font-bold shadow-md shadow-brand/20">
-                    <Play className="fill-current" />
-                    {choiNgay.nhan}
-                  </Button>
-                )}
-                {taoPhong && (
-                  <Button variant="outline" onClick={taoPhong.onClick} disabled={taoPhong.tat} data-testid={taoPhong.testId} className="h-10">
-                    <Plus />
-                    {taoPhong.nhan}
-                  </Button>
-                )}
-                {vaoPhong && (
-                  <Button variant="outline" onClick={vaoPhong.onClick} disabled={vaoPhong.tat} data-testid={vaoPhong.testId} className="h-10">
-                    <LogIn className="text-brand" />
-                    {vaoPhong.nhan}
-                  </Button>
-                )}
-              </div>
-
               {timKiem && (
                 <div className="relative min-w-0 flex-1">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-tertiary" />
@@ -147,7 +138,7 @@ export function SanhHoatDong({
                     placeholder={timKiem.goiY}
                     aria-label="Tìm phòng"
                     data-testid={`${testId}-search-input`}
-                    className="h-10 pr-9 pl-9"
+                    className="h-10 rounded-xl border-white/10 bg-white/[0.04] pr-9 pl-9"
                   />
                   {timKiem.giaTri && (
                     <button
@@ -161,11 +152,29 @@ export function SanhHoatDong({
                   )}
                 </div>
               )}
+              <div className="grid shrink-0 grid-cols-2 gap-2 @min-[34rem]:flex">
+                {taoPhong && (
+                  <Button variant="outline" onClick={taoPhong.onClick} data-testid={taoPhong.testId} className="h-10 rounded-xl">
+                    <Plus />
+                    {taoPhong.nhan}
+                  </Button>
+                )}
+                {choiNgay && (
+                  <Button
+                    onClick={choiNgay.onClick}
+                    data-testid={choiNgay.testId}
+                    className={cn('h-10 rounded-xl px-5 font-bold shadow-lg shadow-brand/25', !taoPhong && 'col-span-2')}
+                  >
+                    <Play className="fill-current" />
+                    {choiNgay.nhan}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
           {danhSach && <DanhSachPhong danhSach={danhSach} testId={testId} />}
-          {noiDungGiua}
+          {noiDungGiua && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">{noiDungGiua}</div>}
         </section>
 
         <div className="order-3 min-w-0 lg:col-span-2 xl:col-span-1">{cotPhai}</div>
@@ -177,27 +186,26 @@ export function SanhHoatDong({
 function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: string }) {
   const { tieuDe, soLuong, trangThai, onKetNoiLai, rong, noiDungRong, children } = danhSach
   return (
-    <div className="space-y-3">
-      <SectionHeader title={tieuDe} count={trangThai === 'san_sang' ? soLuong : undefined} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-2">
+        <h2 className="tieu-de-cap-2 text-sm font-bold">{tieuDe}</h2>
+        {trangThai === 'san_sang' && typeof soLuong === 'number' && (
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-text-secondary">
+            {soLuong}
+          </span>
+        )}
+      </div>
 
-      {/* Chiều cao tối thiểu cố định: đổi giữa đang tải / trống / có phòng không làm sụt bố cục. */}
-      <div className="min-h-[320px]">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         {trangThai === 'dang_tai' && (
           <div
             data-testid={`${testId}-lobby-loading`}
             aria-busy="true"
             aria-label="Đang tải danh sách phòng"
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1800px]:grid-cols-3"
+            className="grid grid-cols-1 gap-3 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3"
           >
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="rounded-2xl border border-border-subtle bg-surface p-5">
-                <div className="h-4 w-2/3 animate-pulse rounded-md bg-surface-overlay" />
-                <div className="mt-2.5 h-3 w-1/3 animate-pulse rounded-md bg-surface-overlay/70" />
-                <div className="mt-8 flex items-end justify-between gap-4">
-                  <div className="h-1 flex-1 animate-pulse rounded-full bg-surface-overlay/70" />
-                  <div className="h-8 w-24 animate-pulse rounded-xl bg-surface-overlay" />
-                </div>
-              </div>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-[132px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03]" />
             ))}
           </div>
         )}
@@ -205,22 +213,53 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
         {trangThai === 'dang_ket_noi_lai' && (
           <div
             data-testid={`${testId}-lobby-reconnecting`}
-            className="flex flex-col gap-4 rounded-2xl border border-warning/25 bg-warning-muted/60 p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex h-full min-h-[240px] flex-col items-center justify-center gap-3 text-center"
           >
-            <div className="flex items-start gap-3">
-              <RefreshCw className="mt-0.5 size-4 shrink-0 animate-spin text-warning" />
-              <p className="text-sm font-semibold text-text-primary">Đang kết nối lại sảnh…</p>
-            </div>
+            <RefreshCw className="size-5 animate-spin text-warning" />
+            <p className="text-sm font-semibold text-text-primary">Đang kết nối lại…</p>
             {onKetNoiLai && (
-              <Button size="sm" variant="outline" onClick={onKetNoiLai} className="shrink-0">
-                Thử lại ngay
+              <Button size="sm" variant="outline" onClick={onKetNoiLai}>
+                Thử lại
               </Button>
             )}
           </div>
         )}
 
-        {trangThai === 'san_sang' && (rong ? noiDungRong : children)}
+        {trangThai === 'san_sang' &&
+          (rong ? (
+            <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center">{noiDungRong}</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3" data-testid={`${testId}-grid`}>
+              {children}
+            </div>
+          ))}
       </div>
+    </div>
+  )
+}
+
+/** Khung trống gọn: hình minh hoạ + một dòng, thêm một nút khi thật sự cần (đăng nhập / xoá tìm kiếm). */
+export function KhungTrongSanh({
+  hinh,
+  tieuDe,
+  nut,
+  testId,
+}: {
+  hinh?: ReactNode
+  tieuDe: string
+  nut?: { nhan: string; icon?: ReactNode; onClick: () => void; phu?: boolean }
+  testId: string
+}) {
+  return (
+    <div data-testid={testId} className="flex flex-col items-center px-6 py-8">
+      {hinh}
+      <p className={cn('text-sm font-semibold text-text-secondary', hinh && 'mt-4')}>{tieuDe}</p>
+      {nut && (
+        <Button variant={nut.phu ? 'outline' : 'default'} size="sm" onClick={nut.onClick} className="mt-4 rounded-xl">
+          {nut.icon}
+          {nut.nhan}
+        </Button>
+      )}
     </div>
   )
 }

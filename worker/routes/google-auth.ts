@@ -20,6 +20,13 @@ export const COOKIE_GOOGLE = 'c10a7_google'
 const COOKIE_PATH = '/api/auth/google'
 const TTL_GIAY = 600
 const TRANG_DANG_NHAP = '/learn'
+/**
+ * Mở link phòng / bàn được chia sẻ khi chưa đăng nhập → đăng nhập Google xong quay về đúng link đó.
+ * Chỉ nhận đúng đường dẫn phòng học / bàn trò chơi (không phải link chuyển hướng tuỳ ý).
+ */
+const MAU_TRANG_DICH = /^\/(room\/phong-\d{1,12}|game\/[a-z0-9-]{1,64})$/
+export const laTrangDichHopLe = (duongDan: string | null): duongDan is string =>
+  typeof duongDan === 'string' && MAU_TRANG_DICH.test(duongDan)
 const TRANG_LIEN_KET = '/me?tab=security'
 
 type CheDo = 'dang_nhap' | 'lien_ket'
@@ -32,6 +39,8 @@ interface VeGoogle {
   accountId: number | null
   /** 'khoi_phuc': bấm từ mục Quên mật khẩu — đăng nhập xong đưa thẳng tới chỗ đặt mật khẩu mới. */
   sau?: 'khoi_phuc'
+  /** Link phòng / bàn đang mở khi bấm đăng nhập: đăng nhập xong quay về đây. */
+  trangDich?: string
   exp: number
 }
 
@@ -155,7 +164,9 @@ export async function batDauGoogle(request: Request, env: Env): Promise<Response
   const thamSo = new URL(request.url).searchParams
   const cheDo: CheDo = thamSo.get('che_do') === 'lien_ket' ? 'lien_ket' : 'dang_nhap'
   const sau = cheDo === 'dang_nhap' && thamSo.get('sau') === 'khoi_phuc' ? 'khoi_phuc' : undefined
-  const trangVe = cheDo === 'lien_ket' ? TRANG_LIEN_KET : TRANG_DANG_NHAP
+  const toi = thamSo.get('toi')
+  const trangDich = cheDo === 'dang_nhap' && laTrangDichHopLe(toi) ? toi : undefined
+  const trangVe = cheDo === 'lien_ket' ? TRANG_LIEN_KET : (trangDich ?? TRANG_DANG_NHAP)
   if (!daCauHinh(env)) return veTrang(request, trangVe, 'chua_cau_hinh')
 
   let accountId: number | null = null
@@ -174,6 +185,7 @@ export async function batDauGoogle(request: Request, env: Env): Promise<Response
     cheDo,
     accountId,
     ...(sau ? { sau } : {}),
+    ...(trangDich ? { trangDich } : {}),
     exp: Math.floor(Date.now() / 1000) + TTL_GIAY,
   })
 
@@ -200,7 +212,8 @@ export async function googleGoiLai(request: Request, env: Env, ctx?: Ctx, fetche
   if (!daCauHinh(env)) return veTrang(request, TRANG_DANG_NHAP, 'chua_cau_hinh')
   const ve = await docVe(request, env.SESSION_SECRET)
   if (!ve) return veTrang(request, TRANG_DANG_NHAP, 'loi')
-  const trangVe = ve.cheDo === 'lien_ket' ? TRANG_LIEN_KET : TRANG_DANG_NHAP
+  const trangVe =
+    ve.cheDo === 'lien_ket' ? TRANG_LIEN_KET : laTrangDichHopLe(ve.trangDich ?? null) ? ve.trangDich! : TRANG_DANG_NHAP
 
   const url = new URL(request.url)
   if (url.searchParams.get('error')) return veTrang(request, trangVe, 'da_huy')
@@ -213,7 +226,7 @@ export async function googleGoiLai(request: Request, env: Env, ctx?: Ctx, fetche
 
   return ve.cheDo === 'lien_ket'
     ? lienKet(request, env, ve, danhTinh)
-    : dangNhapGoogle(request, env, danhTinh, ctx, ve.sau === 'khoi_phuc')
+    : dangNhapGoogle(request, env, danhTinh, ctx, ve.sau === 'khoi_phuc', trangVe)
 }
 
 async function lienKet(request: Request, env: Env, ve: VeGoogle, dt: DanhTinhGoogle): Promise<Response> {
@@ -248,6 +261,7 @@ async function dangNhapGoogle(
   dt: DanhTinhGoogle,
   ctx?: Ctx,
   khoiPhuc = false,
+  trangVe: string = TRANG_DANG_NHAP,
 ): Promise<Response> {
   let user: (DongCapPhien & { dang_hoat_dong: number | null }) | null
   try {
@@ -261,7 +275,7 @@ async function dangNhapGoogle(
       .first()
   } catch (e) {
     console.error('[google] Lỗi tra cứu liên kết:', e)
-    return veTrang(request, TRANG_DANG_NHAP, 'loi')
+    return veTrang(request, trangVe, 'loi')
   }
 
   if (!user || !user.dang_hoat_dong) {
@@ -269,7 +283,7 @@ async function dangNhapGoogle(
       event: 'auth.login_failed',
       properties: { reason: !user ? 'GOOGLE_NOT_LINKED' : 'ACCOUNT_INACTIVE', method: 'google' },
     })
-    return veTrang(request, TRANG_DANG_NHAP, !user ? 'chua_lien_ket' : 'bi_khoa')
+    return veTrang(request, trangVe, !user ? 'chua_lien_ket' : 'bi_khoa')
   }
 
   // Gmail có thể đổi phía Google: cập nhật để quản trị thấy đúng địa chỉ hiện tại.
@@ -290,7 +304,7 @@ async function dangNhapGoogle(
   // Từ mục Quên mật khẩu: đưa thẳng tới tab Mật khẩu để đặt mật khẩu mới (không cần mật khẩu cũ trong 15 phút).
   return khoiPhuc
     ? veTrang(request, TRANG_LIEN_KET, 'khoi_phuc', cookiePhien(token, laHttps(request)))
-    : veTrang(request, TRANG_DANG_NHAP, 'ok', cookiePhien(token, laHttps(request)))
+    : veTrang(request, trangVe, 'ok', cookiePhien(token, laHttps(request)))
 }
 
 /** GET /api/auth/google/status */
