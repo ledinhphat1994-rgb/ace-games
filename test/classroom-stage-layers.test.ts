@@ -489,6 +489,6 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     // Kết quả tìm kiếm hiển thị lưới 2 cột
     expect(studyRoomViewRaw).toContain('grid-cols-1 sm:grid-cols-2')
     // Có khu vực xem trước khi link dán hợp lệ
-    expect(studyRoomViewRaw).toContain('trichXuatYoutubeId(directYtInput)')
+    expect(studyRoomViewRaw).toContain('trichXuatYoutubeId(ytSearch)')
   })
 })
