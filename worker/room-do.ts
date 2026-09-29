@@ -1734,6 +1734,27 @@ export class RoomDO extends DurableObject<Env> {
         return
       }
 
+      case 'game.set_timer': {
+        if (this.gameMeta.status !== 'waiting') {
+          this.guiLoiGame(ws, 'Trận đấu đã bắt đầu, không thể thay đổi thời gian suy nghĩ.')
+          return
+        }
+        const side = this.gheCua(att.key)
+        if (!side) {
+          this.guiLoiGame(ws, 'Chỉ người chơi trong bàn mới có quyền đổi thời gian suy nghĩ.')
+          return
+        }
+        const turnSeconds = Math.max(10, Math.min(180, Math.round(goi.turnSeconds)))
+        this.gameMeta = {
+          ...this.gameMeta,
+          turnTimerSeconds: turnSeconds,
+        }
+        this.luuGameState()
+        this.baoLobby()
+        this.phatTrangThaiGame(now)
+        return
+      }
+
       default:
         return
     }

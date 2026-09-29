@@ -355,6 +355,13 @@ export function useGame(
     [gui],
   )
 
+  const datThoiGianSuyNghi = useCallback(
+    (turnSeconds: number) => {
+      gui({ type: 'game.set_timer', turnSeconds })
+    },
+    [gui],
+  )
+
   return {
     gameId,
     myActorKey,
@@ -379,6 +386,7 @@ export function useGame(
     surrender,
     rematch,
     sendEmote,
+    datThoiGianSuyNghi,
   }
 }
 

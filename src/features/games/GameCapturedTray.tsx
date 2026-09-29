@@ -80,8 +80,8 @@ export function GameCapturedTray({
           className={cn(
             'w-full transition-all duration-300',
             hasCaptured
-              ? 'h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_14px_rgba(251,191,36,0.95)] opacity-100'
-              : 'h-[1px] bg-gradient-to-r from-transparent via-amber-500/20 to-transparent opacity-30'
+              ? 'h-[1px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_6px_rgba(251,191,36,0.25)] opacity-60'
+              : 'h-[1px] bg-gradient-to-r from-transparent via-slate-500/20 to-transparent opacity-20'
           )}
         />
       </div>

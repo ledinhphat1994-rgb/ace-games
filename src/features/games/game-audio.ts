@@ -118,3 +118,22 @@ export function playGameOverSound(result: 'win' | 'lose' | 'draw'): void {
     }
   } catch {}
 }
+
+export function playClockTickSound(): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+  try {
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(800, now)
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.03)
+    gain.gain.setValueAtTime(0.06, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + 0.03)
+  } catch {}
+}

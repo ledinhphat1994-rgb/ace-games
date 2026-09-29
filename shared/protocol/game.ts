@@ -104,6 +104,10 @@ export const LenhGame = z.discriminatedUnion('type', [
   z.object({ type: z.literal('game.surrender') }),
   z.object({ type: z.literal('game.rematch') }),
   z.object({ type: z.literal('game.emote'), emote: z.enum(CAC_BIEU_CAM) }),
+  z.object({
+    type: z.literal('game.set_timer'),
+    turnSeconds: z.number().int().min(10).max(180),
+  }),
 ])
 export type LenhGame = z.infer<typeof LenhGame>
 /** Lệnh máy khách gửi đi (trước khi zod điền giá trị mặc định). */

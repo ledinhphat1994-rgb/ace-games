@@ -35,6 +35,8 @@ import {
 import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
+import { GameClockWidget } from '../GameClockWidget'
+import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
@@ -202,6 +204,28 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
   const inCheck = useMemo(() => pos.inCheck(), [pos])
   const isOver = laOnline ? online?.meta.status === 'ended' : outcome.over || Boolean(customGameOver?.over)
   const toiDenLuotOnline = laOnline && Boolean(online?.isMyTurn) && pos.turn === mauOnline
+  const isPlaying = laOnline
+    ? online?.meta.status === 'playing'
+    : !isOver && (lastMove !== null || isAiThinking)
+
+  const clock = useGameClock({
+    isOnline: laOnline,
+    isPlaying,
+    isMyTurn: laOnline ? toiDenLuotOnline : pos.turn === playerColor,
+    turnKey: `${pos.turn}-${lastMove?.from ?? ''}-${lastMove?.to ?? ''}`,
+    online,
+    onTimeout: useCallback(() => {
+      if (isOver) return
+      const benThua = pos.turn
+      const benThang = (benThua === WHITE ? BLACK : WHITE)
+      setCustomGameOver({
+        over: true,
+        winner: benThang,
+        reason: `${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'} hết giờ`,
+      })
+      toast.error(`${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'} đã hết giờ suy nghĩ!`)
+    }, [isOver, pos.turn]),
+  })
 
   // Tính toán số quân ăn được của 2 bên
   const captured = useMemo(() => {
@@ -550,8 +574,8 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
 
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu Cờ Vua chuẩn như Caro ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none text-center">
+        {/* ── CỘT TRÁI (VÙNG 1 + VÙNG 2): Trạng thái ván đấu & Đồng hồ suy nghĩ ── */}
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none text-center">
           <GameStatusWidget
             icon={isOver ? emojiTrangThai : <Crown className="size-6 text-amber-400" />}
             label={nhanTrangThai}
@@ -561,6 +585,23 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
             isGameOver={isOver}
             isWinner={laNguoiThang}
             isCheck={inCheck && !isOver}
+            theme="amber"
+          />
+
+          {/* VÙNG 2: ĐỒNG HỒ SUY NGHĨ ESPORTS (THIẾT LẬP TRƯỚC TRẬN, KHÓA KHI BẮT ĐẦU) */}
+          <GameClockWidget
+            timeRemaining={clock.timeRemaining}
+            turnSeconds={clock.turnSeconds}
+            isPlaying={isPlaying}
+            isMyTurn={laOnline ? toiDenLuotOnline : pos.turn === playerColor}
+            playerLabel={laOnline ? (mauOnline === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)') : (playerColor === WHITE ? 'Bạn (Trắng)' : 'Bạn (Đen)')}
+            opponentLabel={laOnline ? (mauOnline === WHITE ? 'Đối thủ (Đen)' : 'Đối thủ (Trắng)') : (mode === 'ai' ? 'Máy AI' : 'Bên Đen')}
+            isOnline={laOnline}
+            opponentProposal={clock.opponentProposal}
+            myPendingProposal={clock.myPendingProposal}
+            onProposeTime={clock.proposeTime}
+            onAcceptProposal={clock.acceptProposal}
+            onRejectProposal={clock.rejectProposal}
             theme="amber"
           />
         </div>
