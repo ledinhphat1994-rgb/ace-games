@@ -160,8 +160,10 @@ export function netDuocCham<T extends NetCoTheCham>(
     if (!diem?.length) continue
     if (net.tool === 'text' && net.text) {
       const [x, y] = diem[0]
-      const cao = net.size ?? 0
-      const rong = (net.text.length * cao * 0.58) / tiLeNgang
+      const lines = net.text.split('\n')
+      const maxLen = Math.max(...lines.map((l) => l.length))
+      const cao = (net.size ?? 0) * (lines.length > 1 ? lines.length * 1.25 : 1)
+      const rong = (maxLen * (net.size ?? 0) * 0.58) / tiLeNgang
       if (p[0] >= x - nguong && p[0] <= x + rong + nguong && p[1] >= y - nguong && p[1] <= y + cao + nguong) return net
       continue
     }

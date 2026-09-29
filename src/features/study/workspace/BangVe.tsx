@@ -65,6 +65,8 @@ function duongVienNet(points: number[][], size: number, laToSang: boolean): stri
 function VeNet({ net }: { net: Pick<WhiteboardStroke, 'points' | 'color' | 'size' | 'tool' | 'text' | 'opacity'> }) {
   if (net.tool === 'text' && net.text) {
     const [x, y] = net.points[0]
+    const lines = net.text.split('\n')
+    const lineHeight = net.size * 1.25
     return (
       <text
         x={x}
@@ -75,7 +77,11 @@ function VeNet({ net }: { net: Pick<WhiteboardStroke, 'points' | 'color' | 'size
         dominantBaseline="hanging"
         style={{ fontFamily: 'inherit', userSelect: 'none' }}
       >
-        {net.text}
+        {lines.map((line, idx) => (
+          <tspan key={idx} x={x} dy={idx === 0 ? 0 : lineHeight}>
+            {line}
+          </tspan>
+        ))}
       </text>
     )
   }
@@ -123,7 +129,7 @@ export function BangVe({
   const [nhap, setNhap] = useState<[number, number][]>([])
   const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
-  const oChuRef = useRef<HTMLInputElement>(null)
+  const oChuRef = useRef<HTMLTextAreaElement>(null)
 
   const netCuaMat = strokes.filter((s) => s.mat === mat)
   const nhanChuot = coTheVe && CONG_CU_VE.has(congCu)
@@ -161,7 +167,7 @@ export function BangVe({
   }
 
   const guiChu = () => {
-    const noiDung = chuDangGo.trim().slice(0, 200)
+    const noiDung = chuDangGo.trim().slice(0, 500)
     if (oChu && noiDung) {
       onSendStroke({
         id: `chu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -311,21 +317,24 @@ export function BangVe({
       </svg>
 
       {oChu && (
-        <input
+        <textarea
           ref={oChuRef}
           value={chuDangGo}
           onChange={(e) => setChuDangGo(e.target.value)}
           onBlur={guiChu}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') guiChu()
-            else if (e.key === 'Escape') {
+            if (e.key === 'Escape') {
               setOChu(null)
               setChuDangGo('')
+            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              guiChu()
             }
           }}
-          maxLength={200}
+          maxLength={500}
+          rows={Math.max(1, chuDangGo.split('\n').length)}
           aria-label="Nhập chữ lên bảng"
-          className="pointer-events-auto absolute z-10 min-w-40 rounded-md border border-white/30 bg-black/60 px-2 py-1 text-sm font-semibold outline-none"
+          className="pointer-events-auto absolute z-10 min-w-44 max-w-md resize-none rounded-md border border-white/30 bg-black/75 px-2 py-1 text-sm font-semibold outline-none leading-snug shadow-xl"
           style={{ left: oChu.left, top: oChu.top, color: mau }}
         />
       )}

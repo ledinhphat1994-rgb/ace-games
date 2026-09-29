@@ -18,7 +18,6 @@ import {
   Crown,
   Loader2,
   MessageSquare,
-  Users,
   Wifi,
   WifiOff,
   X,
@@ -35,7 +34,7 @@ export interface ClassroomTopBarProps {
   activePanel: ContextPanelView
   onTogglePanel: (panel: ContextPanelView) => void
   unreadChatCount: number
-  memberCount: number
+  memberCount?: number
   /** Dải người tham gia kéo ngang + cấp quyền công cụ (chỉ chủ phòng thấy ô cấp quyền). */
   memberStrip?: ReactNode
   // Navigation
@@ -55,7 +54,6 @@ export function ClassroomTopBar({
   activePanel,
   onTogglePanel,
   unreadChatCount,
-  memberCount,
   memberStrip,
   onLeaveRoom,
   onCloseRoom,
@@ -120,8 +118,15 @@ export function ClassroomTopBar({
         </div>
       </div>
 
-      {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS (mic nằm ở thanh công cụ dưới) ── */}
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+      {/* ── CENTER: MEMBER STRIP (vùng 1 ra 1+ và căn giữa) ── */}
+      {memberStrip && (
+        <div className="flex flex-1 min-w-0 items-center justify-center px-1">
+          {memberStrip}
+        </div>
+      )}
+
+      {/* ── RIGHT: CONTEXTUAL PANEL TRIGGERS + CLOSE ROOM ── */}
+      <div className="flex flex-1 min-w-0 items-center justify-end gap-1.5 sm:gap-2">
         {/* Chat Drawer Toggle */}
         <button
           type="button"
@@ -143,23 +148,7 @@ export function ClassroomTopBar({
           )}
         </button>
 
-        {/* Members Drawer Toggle */}
-        <button
-          type="button"
-          onClick={() => onTogglePanel('members')}
-          className={nutPanel(activePanel === 'members')}
-          data-testid="topbar-btn-members"
-          title="Danh sách thành viên"
-          aria-label="Danh sách thành viên"
-        >
-          <Users className="size-4" />
-          <span className="tabular-nums">{memberCount}</span>
-        </button>
-
-        {/* Dải người tham gia: kéo ngang để xem, bấm để cấp quyền công cụ */}
-        {memberStrip}
-
-        {/* Nút hủy phòng (chỉ dành cho chủ phòng, nằm sát bên phải danh sách thành viên) */}
+        {/* Nút hủy phòng (chỉ dành cho chủ phòng) */}
         {isHost && onCloseRoom && (
           <button
             type="button"
