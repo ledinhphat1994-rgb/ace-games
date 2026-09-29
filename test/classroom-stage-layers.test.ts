@@ -282,6 +282,14 @@ describe('Công cụ vẽ chung', () => {
     expect(topBarRaw).not.toContain('topbar-btn-members')
     expect(topBarRaw).toContain('memberStrip')
   })
+
+  it('trình phát video: người tham gia thấy giao diện giống chủ phòng (nút đỏ, thanh tua, tốc độ) nhưng không điều khiển video', () => {
+    // Không còn nhãn chữ thô sơ 'Đang phát' / 'Đang tạm dừng' dạng text tag
+    expect(videoRaw).not.toContain("{isPlaying ? 'Đang phát' : 'Đang tạm dừng'}")
+    // Người xem thấy nút đỏ đồng bộ biểu tượng phát/tạm dừng như chủ phòng nhưng cursor-default
+    expect(videoRaw).toContain('Chủ phòng đang phát')
+    expect(videoRaw).toContain('Tốc độ phát của phòng')
+  })
 })
 
 async function chenPhong(ten: string, chuPhongKhoa: string): Promise<number> {

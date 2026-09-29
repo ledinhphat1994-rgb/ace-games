@@ -34,7 +34,6 @@ export interface ClassroomTopBarProps {
   activePanel: ContextPanelView
   onTogglePanel: (panel: ContextPanelView) => void
   unreadChatCount: number
-  memberCount?: number
   /** Dải người tham gia kéo ngang + cấp quyền công cụ (chỉ chủ phòng thấy ô cấp quyền). */
   memberStrip?: ReactNode
   // Navigation

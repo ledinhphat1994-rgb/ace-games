@@ -5,6 +5,7 @@ import { SUPPORTED_PLAYBACK_RATES, type MediaState } from '@shared/protocol/room
 import { AlertCircle, Crown, Pause, Play, Search, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useYouTubePlayer } from '@/hooks/use-youtube-player'
+import { cn } from '@/lib/utils'
 
 export interface EmbeddedVideoPlayerProps {
   mediaState: MediaState
@@ -164,8 +165,8 @@ export function EmbeddedVideoPlayer({
 
         {/* Lớp bắt click để phát / tạm dừng */}
         <div
-          className="absolute inset-0 z-10 cursor-pointer"
-          onClick={handleTogglePlay}
+          className={`absolute inset-0 z-10 ${effectiveCanControl ? 'cursor-pointer' : 'cursor-default'}`}
+          onClick={effectiveCanControl ? handleTogglePlay : resetIdleTimer}
         />
 
         {/* Biểu tượng hiệu ứng khi bấm click vào giữa video (Giống YouTube) */}
@@ -292,27 +293,33 @@ export function EmbeddedVideoPlayer({
               value={isSeeking ? seekVal : currentTime}
               disabled={!effectiveCanControl || duration <= 0}
               onChange={(e) => {
+                if (!effectiveCanControl) return
                 setIsSeeking(true)
                 setSeekVal(Number(e.target.value))
                 resetIdleTimer()
               }}
-              onMouseDown={resetIdleTimer}
+              onMouseDown={effectiveCanControl ? resetIdleTimer : undefined}
               onMouseUp={() => {
-                if (isSeeking) {
+                if (isSeeking && effectiveCanControl) {
                   handleUserSeek(seekVal)
                   setIsSeeking(false)
                   resetIdleTimer()
                 }
               }}
               onTouchEnd={() => {
-                if (isSeeking) {
+                if (isSeeking && effectiveCanControl) {
                   handleUserSeek(seekVal)
                   setIsSeeking(false)
                   resetIdleTimer()
                 }
               }}
               aria-label="Tua video"
-              className="w-full h-1.5 hover:h-2 rounded-lg appearance-none bg-white/30 accent-red-600 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className={cn(
+                'w-full h-1.5 rounded-lg appearance-none bg-white/30 accent-red-600 transition-all',
+                effectiveCanControl
+                  ? 'hover:h-2 cursor-pointer'
+                  : 'cursor-default pointer-events-none opacity-90',
+              )}
             />
           </div>
           <span className="font-mono text-[11px] text-white/80 shrink-0 tabular-nums drop-shadow">
@@ -333,9 +340,13 @@ export function EmbeddedVideoPlayer({
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
               </button>
             ) : (
-              <span className="rounded bg-black/50 backdrop-blur-md border border-white/10 px-2 py-0.5 text-[10px] text-slate-300">
-                {isPlaying ? 'Đang phát' : 'Đang tạm dừng'}
-              </span>
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white shadow-md cursor-default select-none opacity-90"
+                title={isPlaying ? 'Chủ phòng đang phát' : 'Chủ phòng đang tạm dừng'}
+                aria-label={isPlaying ? 'Trạng thái phát' : 'Trạng thái tạm dừng'}
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
+              </div>
             )}
 
             {/* Volume slider */}
@@ -368,24 +379,33 @@ export function EmbeddedVideoPlayer({
 
           <div className="flex items-center gap-2">
             {/* Speed Rate selector */}
-            <div className={`items-center gap-1 ${compact ? 'hidden' : 'flex'}`}>
-              <select
-                title="Tốc độ phát"
-                value={playbackRate}
-                disabled={!effectiveCanControl}
-                onChange={(e) => {
-                  handleUserRate(Number(e.target.value) as any)
-                  resetIdleTimer()
-                }}
-                className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white focus:outline-none cursor-pointer disabled:opacity-50 shadow-sm"
-                aria-label="Tốc độ phát"
-              >
-                {selectableRates.map((r) => (
-                  <option key={r} value={r} className="bg-slate-900 text-white">
-                    {r}x
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-1">
+              {effectiveCanControl ? (
+                <select
+                  title="Tốc độ phát"
+                  value={playbackRate}
+                  onChange={(e) => {
+                    handleUserRate(Number(e.target.value) as any)
+                    resetIdleTimer()
+                  }}
+                  className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white focus:outline-none cursor-pointer shadow-sm"
+                  aria-label="Tốc độ phát"
+                >
+                  {selectableRates.map((r) => (
+                    <option key={r} value={r} className="bg-slate-900 text-white">
+                      {r}x
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div
+                  title="Tốc độ phát của phòng"
+                  className="rounded-lg border border-white/20 bg-black/50 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-white shadow-sm cursor-default select-none opacity-90"
+                  aria-label={`Tốc độ phát: ${playbackRate}x`}
+                >
+                  {playbackRate}x
+                </div>
+              )}
             </div>
           </div>
         </div>
