@@ -2,17 +2,15 @@ import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useCampus } from '@/hooks/use-campus'
 import { usePhien } from '@/app/phien'
-import { Button } from '@/components/ui/button'
-import { SanhHoatDong } from '@/components/lobby/SanhHoatDong'
+import { KhungTrongSanh, SanhHoatDong } from '@/components/lobby/SanhHoatDong'
 import { RoomCard } from './RoomCard'
 import { GameArenaLeaderboard } from '@/features/games/GameArenaLeaderboard'
 import { GameSocialSidebar } from '@/features/games/GameSocialSidebar'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
-import { JoinRoomModal } from './components/learning/JoinRoomModal'
 import { buildRoomFriendsMap, chonPhongVaoNhanh, sortDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { LogIn, MonitorPlay, PenLine, Plus, Presentation, Search } from 'lucide-react'
+import { DoorOpen, LogIn, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
@@ -21,13 +19,6 @@ import {
 } from './learning-semantics'
 
 export { LEARNING_OCCUPANCY_METRIC_CONFIG }
-
-// Ba công cụ có thật trong mọi phòng học (ClassroomToolDock) — giới thiệu ngắn khi sảnh còn trống.
-const CONG_CU_PHONG = [
-  { icon: MonitorPlay, ten: 'Cùng xem video' },
-  { icon: Presentation, ten: 'Trình chiếu tài liệu' },
-  { icon: PenLine, ten: 'Bảng trắng' },
-] as const
 
 export function LearningPage() {
   const navigate = useNavigate()
@@ -49,7 +40,6 @@ export function LearningPage() {
   const [tuKhoa, setTuKhoa] = useState(urlQuery)
   const [phongCanMatKhau, setPhongCanMatKhau] = useState<PhongSanh | null>(null)
   const [moTaoPhong, setMoTaoPhong] = useState(false)
-  const [moVaoPhong, setMoVaoPhong] = useState(false)
 
   const friends = useMemo(() => socialState?.friends ?? [], [socialState?.friends])
   const blockedUsers = useMemo(() => socialState?.blockedUsers ?? [], [socialState?.blockedUsers])
@@ -92,13 +82,6 @@ export function LearningPage() {
     navigate(`/room/phong-${room.id}`)
   }
 
-  // Vào bằng ID / link phòng: phòng có trong sảnh thì đi qua cùng kiểm tra (đầy / mật khẩu).
-  const vaoTheoId = (id: number) => {
-    const phong = rooms.find((r) => r.id === id)
-    if (phong) xuLyVaoPhong(phong)
-    else navigate(`/room/phong-${id}`)
-  }
-
   const canDangNhap = (viec: () => void) => () => {
     if (!nguoiDung) {
       moAuthModal('dang_nhap')
@@ -125,15 +108,14 @@ export function LearningPage() {
         chiSo={
           nguoiDung && lobbyState.status === 'ready'
             ? [
-                { nhan: 'Phòng đang mở', giaTri: rooms.length },
-                { nhan: 'Đang học', giaTri: rooms.reduce((tong, r) => tong + r.soNguoi, 0), mau: 'text-emerald-400' },
+                { icon: DoorOpen, nhan: 'Phòng đang mở', giaTri: rooms.length, mau: 'text-brand' },
+                { icon: Users, nhan: 'Đang học', giaTri: rooms.reduce((tong, r) => tong + r.soNguoi, 0), mau: 'text-emerald-400' },
               ]
             : undefined
         }
         choiNgay={{ nhan: 'Học ngay', onClick: canDangNhap(vaoPhongNhanh), testId: 'quick-join-btn' }}
         taoPhong={{ nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'create-room-btn' }}
-        vaoPhong={{ nhan: 'Vào phòng', onClick: canDangNhap(() => setMoVaoPhong(true)), testId: 'join-room-btn' }}
-        timKiem={nguoiDung ? { giaTri: tuKhoa, onDoi: datTuKhoa, goiY: 'Tìm phòng, chủ phòng, môn học…' } : undefined}
+        timKiem={nguoiDung ? { giaTri: tuKhoa, onDoi: datTuKhoa, goiY: 'Tìm phòng…' } : undefined}
         danhSach={{
           tieuDe: 'Phòng đang mở',
           soLuong: nguoiDung ? danhSachPhongLoc.length : undefined,
@@ -141,67 +123,31 @@ export function LearningPage() {
             lobbyState.status === 'loading' ? 'dang_tai' : lobbyState.status === 'reconnecting' ? 'dang_ket_noi_lai' : 'san_sang',
           onKetNoiLai: ketNoiLai,
           rong: danhSachPhongLoc.length === 0,
-          noiDungRong: tuKhoa.trim() ? (
-            <div
-              data-testid="learning-search-empty"
-              className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-border-subtle bg-surface px-6 py-10 text-center"
-            >
-              <Search className="size-5 text-text-tertiary" />
-              <p className="mt-3 text-sm font-semibold text-text-primary">Không tìm thấy phòng học</p>
-              <p className="mt-1 text-[0.8125rem] text-text-secondary">
-                Không có phòng nào khớp với “{tuKhoa.trim()}”.
-              </p>
-              <Button variant="outline" size="sm" onClick={() => datTuKhoa('')} className="mt-4">
-                Xóa tìm kiếm
-              </Button>
-            </div>
+          noiDungRong: !nguoiDung ? (
+            <KhungTrongSanh
+              testId="learning-empty-rooms"
+              hinh={<HinhPhongTrong />}
+              tieuDe="Đăng nhập để xem phòng đang mở"
+              nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
+            />
+          ) : tuKhoa.trim() ? (
+            <KhungTrongSanh
+              testId="learning-search-empty"
+              hinh={<Search className="size-6 text-text-tertiary" />}
+              tieuDe="Không tìm thấy phòng"
+              nut={{ nhan: 'Xóa tìm kiếm', onClick: () => datTuKhoa(''), phu: true }}
+            />
           ) : (
-            <div data-testid="learning-empty-rooms" className="overflow-hidden rounded-2xl border border-border-subtle bg-surface">
-              <div className="flex flex-col items-center px-6 pt-10 pb-8 text-center sm:pt-12">
-                <HinhPhongTrong />
-                {nguoiDung ? (
-                  <>
-                    <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Chưa có phòng nào đang mở</h3>
-                    <Button onClick={() => setMoTaoPhong(true)} data-testid="empty-create-room-btn" className="mt-6">
-                      <Plus />
-                      Tạo phòng đầu tiên
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="mt-5 text-lg font-semibold tracking-tight text-text-primary">Đăng nhập để xem phòng đang mở</h3>
-                    <Button onClick={() => moAuthModal('dang_nhap')} data-testid="empty-login-btn" className="mt-6">
-                      <LogIn />
-                      Đăng nhập
-                    </Button>
-                  </>
-                )}
-              </div>
-              <ul className="day-loc-deu gap-px! border-t border-border-subtle bg-border-subtle [--the-nho-nhat:13rem]">
-                {CONG_CU_PHONG.map(({ icon: Icon, ten }) => (
-                  <li key={ten} className="flex items-center justify-center gap-2.5 bg-surface px-5 py-4">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="text-[0.8125rem] font-semibold text-text-primary">{ten}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <KhungTrongSanh testId="learning-empty-rooms" hinh={<HinhPhongTrong />} tieuDe="Chưa có phòng nào đang mở" />
           ),
-          children: (
-            <div data-testid="learning-active-rooms-grid" className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1800px]:grid-cols-3">
-              {danhSachPhongLoc.map((room) => (
-                <RoomCard key={room.id} room={room} friends={roomFriendsMap.get(room.id)} onVaoPhong={xuLyVaoPhong} />
-              ))}
-            </div>
-          ),
+          children: danhSachPhongLoc.map((room) => (
+            <RoomCard key={room.id} room={room} friends={roomFriendsMap.get(room.id)} onVaoPhong={xuLyVaoPhong} />
+          )),
         }}
         cotTrai={<GameArenaLeaderboard defaultGame="hoc_tap" />}
         cotPhai={<GameSocialSidebar coChatPhong={false} />}
       />
 
-      {/* ── Dialogs ────────────────────────────────────────── */}
       {phongCanMatKhau && (
         <PasswordRoomDialog
           room={phongCanMatKhau}
@@ -221,8 +167,6 @@ export function LearningPage() {
           navigate(`/room/phong-${roomId}`)
         }}
       />
-
-      <JoinRoomModal open={moVaoPhong} onOpenChange={setMoVaoPhong} onJoinRoomId={vaoTheoId} />
     </>
   )
 }

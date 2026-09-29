@@ -12,6 +12,13 @@ import { LogoGoogle } from './LogoGoogle'
 
 export type AuthMode = 'dang_nhap' | 'dang_ky' | 'quen_mat_khau'
 
+/** Đang mở link phòng / bàn được chia sẻ: đăng nhập Google xong quay về đúng link (máy chủ chỉ nhận đường dẫn phòng / bàn). */
+function thamSoQuayVe(): string {
+  if (typeof window === 'undefined') return ''
+  const duongDan = window.location.pathname
+  return /^\/(room\/phong-\d+|game\/[a-z0-9-]+)$/.test(duongDan) ? `?toi=${encodeURIComponent(duongDan)}` : ''
+}
+
 interface AuthModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -302,7 +309,7 @@ export function AuthModal({
 
               {/* Chuyển hẳn trang sang Google; chỉ tài khoản đã liên kết Gmail mới vào được. */}
               <a
-                href="/api/auth/google/start"
+                href={`/api/auth/google/start${thamSoQuayVe()}`}
                 data-testid="google-login"
                 className={cn(buttonVariants({ variant: 'outline' }), 'w-full h-10 gap-2 font-semibold')}
               >

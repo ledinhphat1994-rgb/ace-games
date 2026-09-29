@@ -5,6 +5,7 @@ import { GameBoardView } from './GameBoardView'
 import { SoloGamePage } from './SoloGamePage'
 import type { SoloGameType } from './SoloGameStage'
 import { laTroChoiDon } from './game-ids'
+import { CongLinkPhong } from '@/components/lobby/CongLinkPhong'
 
 const CAC_GAME_TYPE: readonly GameType[] = [
   'caro_15',
@@ -47,6 +48,10 @@ export function GameRoomPage() {
   if (intendedGameType && laTroChoiDon(intendedGameType)) {
     return <SoloGamePage gameType={intendedGameType as SoloGameType} onLeave={roiBan} />
   }
+
+  // Link bàn bạn bè chia sẻ (không phải bàn vừa tạo từ sảnh): khách phải đăng nhập mới vào được bàn online,
+  // nếu không sẽ chỉ thấy bàn chơi với máy thay vì bàn của bạn.
+  if (!nguoiDung && !intendedGameType) return <CongLinkPhong loai="ban" />
 
   const turnParam = Number(searchParams.get('turn'))
   const intendedTurnSeconds = intendedGameType && Number.isInteger(turnParam) && turnParam >= 10 && turnParam <= 120

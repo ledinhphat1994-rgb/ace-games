@@ -289,10 +289,10 @@ describe('PQA-B: Learning Room Lobby Quality & Truthfulness Contracts', () => {
       expect(joinRoomModalRaw).not.toContain('Mã hoặc số phòng')
       expect(joinRoomModalRaw).not.toContain('mã số phòng')
       expect(joinRoomModalRaw).toContain('ID hoặc liên kết phòng')
-      // Sảnh Học tập theo mẫu chung: Học ngay (tự chọn phòng) · Tạo phòng · Vào phòng (nhập ID / link).
+      // Sảnh Học tập theo mẫu chung: Học ngay (tự chọn phòng) · Tạo phòng. Vào phòng của bạn bè: bấm link chia sẻ.
       expect(learningPageRaw).toContain("nhan: 'Học ngay'")
-      expect(learningPageRaw).toContain("nhan: 'Vào phòng'")
-      expect(learningPageRaw).toContain('<JoinRoomModal')
+      expect(learningPageRaw).toContain("nhan: 'Tạo phòng'")
+      expect(learningPageRaw).not.toContain('<JoinRoomModal')
     })
   })
 
