@@ -13,9 +13,12 @@ import {
   useCheDoBan,
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
+import { GameClockWidget } from '../GameClockWidget'
+import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
 import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
 import { playGameOverSound, playGameStartSound } from '../game-audio'
+import { toast } from 'sonner'
 
 const SIZE = 15
 
@@ -260,6 +263,26 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   const isOver = !!winner
 
   const isMyTurn = banOnline ? banOnline.isMyTurn : mode === 'ai' ? currentTurn === playerSide : currentTurn === 'X'
+  const isPlaying = laOnline
+    ? online?.meta.status === 'playing'
+    : !isOver && (lastMove !== null || isAiThinking)
+
+  const clock = useGameClock({
+    isOnline: laOnline,
+    isPlaying,
+    isMyTurn,
+    turnKey: `${currentTurn}-${lastMove?.x ?? ''}-${lastMove?.y ?? ''}`,
+    online,
+    onTimeout: useCallback(() => {
+      if (isOver) return
+      const benThua = currentTurn
+      const benThang = benThua === 'X' ? 'O' : 'X'
+      setWinner(benThang)
+      setSurrenderReason(`Quân ${benThua} hết giờ suy nghĩ`)
+      toast.error(`Quân ${benThua} đã hết giờ suy nghĩ!`)
+    }, [isOver, currentTurn]),
+  })
+
   // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
   const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking
   const benToiOnline = banOnline?.mySide ?? null
@@ -406,11 +429,11 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
       {/* ── KHUNG CHƠI TRUNG TÂM: 3 CỘT ĐỒNG BỘ CÙNG CẤP (CỘT TRÁI - BÀN CỜ - CỘT PHẢI) ── */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI: Trạng thái ván đấu (Ẩn trên < lg, hiển thị cố định w-[180px] xl:w-[200px] 2xl:w-[215px] trên lg) ── */}
+        {/* ── CỘT TRÁI (VÙNG 1 + VÙNG 2): Trạng thái ván đấu & Đồng hồ suy nghĩ ── */}
         <div
           role="status"
           aria-live="polite"
-          className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] text-center select-none"
+          className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] text-center select-none"
         >
           <div
             className={cn(
@@ -485,6 +508,23 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               </div>
             </div>
           </div>
+
+          {/* VÙNG 2: ĐỒNG HỒ SUY NGHĨ ESPORTS (THIẾT LẬP TRƯỚC TRẬN, KHÓA KHI BẮT ĐẦU) */}
+          <GameClockWidget
+            timeRemaining={clock.timeRemaining}
+            turnSeconds={clock.turnSeconds}
+            isPlaying={isPlaying}
+            isMyTurn={isMyTurn}
+            playerLabel={banOnline ? (benToiOnline === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)') : (playerSide === 'X' ? 'Bạn (Quân X)' : 'Bạn (Quân O)')}
+            opponentLabel={banOnline ? (benToiOnline === 'X' ? 'Đối thủ (Quân O)' : 'Đối thủ (Quân X)') : (mode === 'ai' ? 'Máy AI' : 'Quân O')}
+            isOnline={laOnline}
+            opponentProposal={clock.opponentProposal}
+            myPendingProposal={clock.myPendingProposal}
+            onProposeTime={clock.proposeTime}
+            onAcceptProposal={clock.acceptProposal}
+            onRejectProposal={clock.rejectProposal}
+            theme="cyan"
+          />
         </div>
 
         {/* ── CỘT GIỮA: BÀN CỜ CARO 15×15 (TO HƠN, Ô CỜ TO RÕ RÀNG) ── */}

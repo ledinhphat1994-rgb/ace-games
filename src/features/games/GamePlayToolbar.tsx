@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Bot, ChevronDown, Flag, Globe, RotateCcw, Users, Zap } from 'lucide-react'
+import { ArrowLeft, Bot, ChevronDown, Flag, RotateCcw, Swords, Users, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
@@ -205,93 +205,21 @@ export function GamePlayToolbar({
             </Popover>
 
             {/* 2. NÚT PvP (Người đấu Người) */}
-            {onlineAvailable ? (
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <button
-                      type="button"
-                      onClick={() => onModeChange(mode === 'pass_and_play' ? 'pass_and_play' : 'online')}
-                      aria-label="Chế độ PvP (Đối kháng)"
-                      className={cn(
-                        'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
-                        mode === 'online' || mode === 'pass_and_play'
-                          ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-                      )}
-                      title="Chế độ PvP (Đấu online hoặc 2 người)"
-                    >
-                      {mode === 'online' ? <Globe className="size-3.5 shrink-0" /> : <Users className="size-3.5 shrink-0" />}
-                      <span>PvP</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-black/30 border border-white/20 text-white/90 flex items-center gap-0.5">
-                        {mode === 'online' ? 'Online' : '2 Người'}
-                        <ChevronDown className="size-2.5 opacity-70" />
-                      </span>
-                    </button>
-                  }
-                />
-
-                <PopoverContent
-                  align="center"
-                  side="bottom"
-                  sideOffset={6}
-                  className="w-52 p-2 bg-[#0e1628]/95 border-white/15 backdrop-blur-md shadow-2xl text-xs"
-                >
-                  <div className="text-[11px] font-bold text-text-tertiary px-1 pb-1 mb-1.5 border-b border-white/10">
-                    Chế độ PvP (Đối kháng)
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onModeChange('online')}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left border',
-                        mode === 'online'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                          : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white',
-                      )}
-                    >
-                      <Globe className="size-4 shrink-0 text-cyan-400" />
-                      <div className="flex flex-col">
-                        <span>Đấu Online</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Đấu qua mạng thời gian thực</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onModeChange('pass_and_play')}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left border',
-                        mode === 'pass_and_play'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                          : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white',
-                      )}
-                    >
-                      <Users className="size-4 shrink-0 text-amber-400" />
-                      <div className="flex flex-col">
-                        <span>Chơi 2 người</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Đổi lượt trên cùng máy</span>
-                      </div>
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onModeChange('pass_and_play')}
-                aria-label="Chế độ PvP (Chơi 2 người)"
-                className={cn(
-                  'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
-                  mode === 'pass_and_play'
-                    ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-                )}
-              >
-                <Users className="size-3.5 shrink-0" />
-                <span>PvP</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => onModeChange(onlineAvailable ? 'online' : 'pass_and_play')}
+              aria-label="Chế độ PvP (Đối kháng)"
+              className={cn(
+                'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
+                mode === 'online' || mode === 'pass_and_play'
+                  ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
+              )}
+              title="Chế độ PvP (Đối kháng)"
+            >
+              <Swords className="size-3.5 shrink-0" />
+              <span>PvP</span>
+            </button>
           </div>
         </div>
       ) : (

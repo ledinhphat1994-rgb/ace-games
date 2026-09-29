@@ -221,7 +221,9 @@ export function GameSocialSidebar({
   // ── Chat phòng: tin nhắn thật của bàn đấu (RoomDO lưu và phát cho người chơi lẫn người xem) ──
   const roomMessages = useMemo<RoomMessage[]>(
     () =>
-      (chatBan?.tinNhan ?? []).map((m) => {
+      (chatBan?.tinNhan ?? [])
+        .filter((m) => !m.text.startsWith('[SYS_'))
+        .map((m) => {
         const khoa = `acc:${m.accountId}`
         const ben = khoa === chatBan?.playerX ? 'X' : khoa === chatBan?.playerO ? 'O' : undefined
         return {
