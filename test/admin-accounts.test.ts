@@ -6,6 +6,7 @@ import type { AdminAccountItem } from '../shared/protocol/admin-accounts'
 import type { GoiCampus } from '../shared/protocol/campus'
 import { GOC, MAT_KHAU } from './fixtures'
 import { dangNhapLayCookie, moKetNoi } from './ws'
+import adminPageRaw from '../src/features/admin/AdminControlPlanePage.tsx?raw'
 
 const goi = (path: string, init?: RequestInit) => exports.default.fetch(`${GOC}${path}`, init)
 const thaoTac = (cookie: string, id: number, action: string) =>
@@ -221,5 +222,57 @@ describe('Quản lý tài khoản — cấp quyền giáo viên', () => {
     const { body } = await danhSach(admin, '?limit=100')
     expect(body.accounts.find((a) => a.username === 'qa.v2.tudo')?.googleEmail).toBe('hs.tudo@gmail.com')
     expect(body.accounts.find((a) => a.username === 'qa.v2.thu1')?.googleEmail).toBeNull()
+  })
+})
+
+describe('Quản lý tài khoản — cấp mã khôi phục mật khẩu', () => {
+  it('quản trị cấp mã → học sinh đặt lại mật khẩu bằng mã; nhật ký ghi người cấp nhưng không chứa mã; mã dùng 1 lần', async () => {
+    const admin = await dangNhapLayCookie('qa.v2.admin')
+    const hs = await dangKy('qa.v2.quenmk', 'student')
+
+    const cap = await goi('/api/admin/reset-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: admin },
+      body: JSON.stringify({ username: hs.username }),
+    })
+    expect(cap.status).toBe(200)
+    const { code } = (await cap.json()) as { code: string }
+    expect(code).toMatch(/^\d{6}$/)
+
+    const nhatKy = await env.DB.prepare(
+      "SELECT metadata FROM moderation_audit_logs WHERE target_id = ?1 AND action = 'password_reset_code'",
+    )
+      .bind(hs.id)
+      .first<{ metadata: string }>()
+    expect(nhatKy?.metadata).toContain(hs.username)
+    expect(nhatKy?.metadata).not.toContain(code)
+
+    const datLai = (ma: string) =>
+      goi('/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: hs.username, maXacNhan: ma, matKhauMoi: 'MatKhauMoi@123' }),
+      })
+    const res = await datLai(code)
+    expect(res.status).toBe(200)
+    await res.body?.cancel()
+
+    const dn = await goi('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: hs.username, password: 'MatKhauMoi@123' }),
+    })
+    expect(dn.status).toBe(200)
+    await dn.body?.cancel()
+
+    const lan2 = await datLai(code)
+    expect(lan2.status).toBe(400)
+    await lan2.body?.cancel()
+  })
+
+  it('giao diện /admin có nút cấp mã khôi phục cho học sinh và hộp hiện mã', () => {
+    expect(adminPageRaw).toContain("fetch('/api/admin/reset-code'")
+    expect(adminPageRaw).toContain('data-testid="cap-ma-khoi-phuc"')
+    expect(adminPageRaw).toContain('data-testid="ma-khoi-phuc"')
   })
 })
