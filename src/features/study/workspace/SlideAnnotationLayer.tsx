@@ -121,7 +121,7 @@ export function SlideAnnotationLayer({
   // Ô gõ chữ: `diem` là toạ độ nét (0..1 theo trang), `left/top` là vị trí ô nhập (px trong khung trang, đã kẹp sát mép).
   const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
-  const oChuRef = useRef<HTMLInputElement>(null)
+  const oChuRef = useRef<HTMLTextAreaElement>(null)
 
   // Kích thước trang trên màn hình: chữ tính theo chiều cao trang để không méo khi trang không vuông.
   useEffect(() => {
@@ -162,7 +162,7 @@ export function SlideAnnotationLayer({
   }
 
   const guiChu = () => {
-    const noiDung = chuDangGo.trim().slice(0, 200)
+    const noiDung = chuDangGo.trim().slice(0, 500)
     if (oChu && noiDung && onSendStroke) {
       onSendStroke({
         id: `slide_chu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -352,7 +352,7 @@ export function SlideAnnotationLayer({
         .map((s) => (
           <span
             key={s.id}
-            className="absolute whitespace-pre font-semibold leading-none"
+            className="absolute whitespace-pre font-semibold leading-snug"
             style={{
               left: `${s.points[0][0] * 100}%`,
               top: `${s.points[0][1] * 100}%`,
@@ -365,21 +365,24 @@ export function SlideAnnotationLayer({
         ))}
 
       {oChu && (
-        <input
+        <textarea
           ref={oChuRef}
           value={chuDangGo}
           onChange={(e) => setChuDangGo(e.target.value)}
           onBlur={guiChu}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') guiChu()
-            else if (e.key === 'Escape') {
+            if (e.key === 'Escape') {
               setOChu(null)
               setChuDangGo('')
+            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              guiChu()
             }
           }}
-          maxLength={200}
+          maxLength={500}
+          rows={Math.max(1, chuDangGo.split('\n').length)}
           aria-label="Nhập chữ lên tài liệu"
-          className="pointer-events-auto absolute z-30 min-w-40 rounded-md border border-slate-400 bg-white/95 px-2 py-1 text-sm font-semibold shadow-lg outline-none"
+          className="pointer-events-auto absolute z-30 min-w-44 max-w-md resize-none rounded-md border border-slate-400 bg-white/95 px-2 py-1 text-sm font-semibold shadow-xl outline-none leading-snug"
           style={{ left: oChu.left, top: oChu.top, color: selectedColor }}
         />
       )}

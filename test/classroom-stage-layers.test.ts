@@ -266,6 +266,17 @@ describe('Công cụ vẽ chung', () => {
     expect(netDuocCham([320, 320], cacNet, 5)?.id).toBe('chu')
     expect(netDuocCham([600, 702], cacNet, 5)?.id).toBe('tam-giac')
     expect(netDuocCham([50, 50], cacNet, 5)).toBeNull()
+
+    const cacNetNhieuDong = [
+      { id: 'chu-nhieu-dong', points: [[100, 100]] as [number, number][], tool: 'text', text: 'Dòng 1\nDòng 2\nDòng 3', size: 30 },
+    ]
+    expect(netDuocCham([120, 110], cacNetNhieuDong, 5)?.id).toBe('chu-nhieu-dong')
+    expect(netDuocCham([120, 175], cacNetNhieuDong, 5)?.id).toBe('chu-nhieu-dong')
+  })
+
+  it('thanh tiêu đề: dải thành viên nằm ở giữa (vùng 1+), không còn nút mở danh sách thành viên bên phải', () => {
+    expect(topBarRaw).not.toContain('topbar-btn-members')
+    expect(topBarRaw).toContain('memberStrip')
   })
 })
 

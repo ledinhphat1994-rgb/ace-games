@@ -117,7 +117,7 @@ export function MemberStrip({ members, myActorKey, canGrant, quyenCongCu, onGran
         }
       }}
       className={cn(
-        'flex min-w-0 max-w-[34vw] items-center gap-1 overflow-x-auto py-0.5 select-none touch-pan-x [scrollbar-width:none] sm:max-w-[30vw] lg:max-w-[26vw] [&::-webkit-scrollbar]:hidden',
+        'flex min-w-0 max-w-[44vw] sm:max-w-[50vw] items-center justify-center gap-1.5 overflow-x-auto py-0.5 select-none touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         dangKeo ? 'cursor-grabbing' : 'cursor-grab',
       )}
       aria-label="Người tham gia"
