@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { Eye, LayoutGrid, LogIn, Play, Plus, Search, Users } from 'lucide-react'
+import { LogIn, Play, Plus, Search } from 'lucide-react'
 import type { BanSanh, GameType } from '@shared/protocol/game'
 import { usePhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
@@ -15,10 +15,12 @@ import { useGameRooms } from '../../hooks/use-game-rooms'
 import { toast } from 'sonner'
 import { GameArenaLeaderboard } from './GameArenaLeaderboard'
 import { GameArt } from './GameArt'
+import { mauNhanTroChoi } from './mau-tro-choi'
 import { GameSocialSidebar } from './GameSocialSidebar'
 import { GAME_CATALOG_BY_ID } from './game-catalog'
 import { laTroChoiDon, taoMaBan } from './game-ids'
 import { TheBanGame } from './TheBanGame'
+import { ThongKeGame } from './ThongKeGame'
 
 const THOI_GIAN_LUOT = [15, 30, 60] as const
 
@@ -99,19 +101,6 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
     viec()
   }
 
-  const chiSo = coDanhSach
-    ? [
-        { icon: LayoutGrid, nhan: 'Số bàn', giaTri: tatCaBan.length, mau: 'text-brand' },
-        {
-          icon: Users,
-          nhan: 'Người chơi',
-          giaTri: tatCaBan.reduce((tong, t) => tong + (t.tenChu ? 1 : 0) + (t.tenKhach ? 1 : 0), 0),
-          mau: 'text-emerald-400',
-        },
-        { icon: Eye, nhan: 'Người xem', giaTri: tatCaBan.reduce((tong, t) => tong + (t.soNguoiXem ?? 0), 0), mau: 'text-cyan-400' },
-      ]
-    : undefined
-
   return (
     <>
       <SanhHoatDong
@@ -119,7 +108,7 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
         tieuDe={game.shortTitle}
         bieuTuong={<GameArt gameType={gameType} variant="icon" className="size-full" />}
         quayLai={{ nhan: 'Tất cả trò chơi', toi: '/arena' }}
-        chiSo={chiSo}
+        thongKe={<ThongKeGame gameType={gameType} ban={tatCaBan} sanSang={coDanhSach && !isPending && !isError} />}
         choiNgay={{ nhan: 'Chơi ngay', onClick: choiNgay, testId: 'game-lobby-play-now' }}
         taoPhong={
           laDon ? undefined : { nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'game-lobby-create' }
@@ -138,6 +127,8 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
                   <KhungTrongSanh
                     testId="game-lobby-login"
                     hinh={<AnhTroChoi gameType={gameType} />}
+                    hoatHinh
+                    mauHaoQuang={mauNhanTroChoi(gameType)}
                     tieuDe="Đăng nhập để xem bàn đang mở"
                     nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
                   />
@@ -149,7 +140,13 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
                     nut={{ nhan: 'Xóa tìm kiếm', onClick: () => setTuKhoa(''), phu: true }}
                   />
                 ) : (
-                  <KhungTrongSanh testId="game-lobby-empty" hinh={<AnhTroChoi gameType={gameType} />} tieuDe="Chưa có bàn nào đang mở" />
+                  <KhungTrongSanh
+                    testId="game-lobby-empty"
+                    hinh={<AnhTroChoi gameType={gameType} />}
+                    hoatHinh
+                    mauHaoQuang={mauNhanTroChoi(gameType)}
+                    tieuDe="Chưa có bàn nào đang mở"
+                  />
                 ),
                 children: banLoc.map((t) => <TheBanGame key={t.id} ban={t} onVao={() => vaoBan(t.id)} />),
               }
@@ -222,11 +219,11 @@ function SanhTroChoi({ gameType }: { gameType: GameType }) {
   )
 }
 
-/** Ảnh trò chơi nhỏ cho khung trống của sảnh. */
+/** Biểu tượng trò chơi cho khung trống của sảnh: riêng hình quân, không ô nền, không viền (khung trống lo phần hoạt hình). */
 function AnhTroChoi({ gameType }: { gameType: GameType }) {
   return (
-    <div className="size-20 overflow-hidden rounded-2xl opacity-80 ring-1 ring-white/10">
-      <GameArt gameType={gameType} variant="icon" className="size-full" />
+    <div className="size-24 drop-shadow-[0_8px_18px_rgb(0_0_0/0.45)]">
+      <GameArt gameType={gameType} variant="glyph" className="size-full" />
     </div>
   )
 }

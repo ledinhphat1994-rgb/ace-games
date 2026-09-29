@@ -4,13 +4,14 @@ import { useCampus } from '@/hooks/use-campus'
 import { usePhien } from '@/app/phien'
 import { KhungTrongSanh, SanhHoatDong } from '@/components/lobby/SanhHoatDong'
 import { RoomCard } from './RoomCard'
+import { ThongKeHocTap } from './ThongKeHocTap'
 import { GameArenaLeaderboard } from '@/features/games/GameArenaLeaderboard'
 import { GameSocialSidebar } from '@/features/games/GameSocialSidebar'
 import { PasswordRoomDialog } from './PasswordRoomDialog'
 import { CreateStudyRoomDialog } from './CreateStudyRoomDialog'
 import { buildRoomFriendsMap, chonPhongVaoNhanh, sortDiscoveryRooms } from './room-discovery'
 import type { PhongSanh } from '@shared/protocol/campus'
-import { DoorOpen, LogIn, Search, Users } from 'lucide-react'
+import { LogIn, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   LEARNING_OCCUPANCY_METRIC_CONFIG,
@@ -105,14 +106,7 @@ export function LearningPage() {
       <SanhHoatDong
         testId="learning"
         tieuDe="Học tập"
-        chiSo={
-          nguoiDung && lobbyState.status === 'ready'
-            ? [
-                { icon: DoorOpen, nhan: 'Phòng đang mở', giaTri: rooms.length, mau: 'text-brand' },
-                { icon: Users, nhan: 'Đang học', giaTri: rooms.reduce((tong, r) => tong + r.soNguoi, 0), mau: 'text-emerald-400' },
-              ]
-            : undefined
-        }
+        thongKe={<ThongKeHocTap rooms={rooms} sanSang={lobbyState.status === 'ready'} />}
         choiNgay={{ nhan: 'Học ngay', onClick: canDangNhap(vaoPhongNhanh), testId: 'quick-join-btn' }}
         taoPhong={{ nhan: 'Tạo phòng', onClick: canDangNhap(() => setMoTaoPhong(true)), testId: 'create-room-btn' }}
         timKiem={nguoiDung ? { giaTri: tuKhoa, onDoi: datTuKhoa, goiY: 'Tìm phòng…' } : undefined}
@@ -127,6 +121,7 @@ export function LearningPage() {
             <KhungTrongSanh
               testId="learning-empty-rooms"
               hinh={<HinhPhongTrong />}
+              hoatHinh
               tieuDe="Đăng nhập để xem phòng đang mở"
               nut={{ nhan: 'Đăng nhập', icon: <LogIn />, onClick: () => moAuthModal('dang_nhap') }}
             />
@@ -138,7 +133,7 @@ export function LearningPage() {
               nut={{ nhan: 'Xóa tìm kiếm', onClick: () => datTuKhoa(''), phu: true }}
             />
           ) : (
-            <KhungTrongSanh testId="learning-empty-rooms" hinh={<HinhPhongTrong />} tieuDe="Chưa có phòng nào đang mở" />
+            <KhungTrongSanh testId="learning-empty-rooms" hinh={<HinhPhongTrong />} hoatHinh tieuDe="Chưa có phòng nào đang mở" />
           ),
           children: danhSachPhongLoc.map((room) => (
             <RoomCard key={room.id} room={room} friends={roomFriendsMap.get(room.id)} onVaoPhong={xuLyVaoPhong} />
@@ -175,14 +170,7 @@ export function LearningPage() {
 function HinhPhongTrong() {
   return (
     <svg viewBox="0 0 200 120" className="h-[108px] w-[180px]" aria-hidden>
-      <defs>
-        <radialGradient id="phong-trong-hao-quang" cx="50%" cy="45%" r="55%">
-          <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="100" cy="56" rx="96" ry="56" fill="url(#phong-trong-hao-quang)" />
-      <rect x="46" y="14" width="108" height="70" rx="12" fill="#0f172a" stroke="rgba(255,255,255,0.12)" />
+      <rect x="46" y="14" width="108" height="70" rx="12" fill="#0f172a" />
       <rect x="55" y="23" width="90" height="44" rx="6" fill="#131e30" />
       <path d="M95 37.5 L108 45 L95 52.5 Z" fill="#22d3ee" />
       <rect x="55" y="74" width="90" height="3" rx="1.5" fill="#1e293b" />

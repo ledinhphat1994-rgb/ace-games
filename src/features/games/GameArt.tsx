@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import type { GameType } from '@shared/protocol/game'
 import { cn } from '@/lib/utils'
+import { mauNhanTroChoi } from './mau-tro-choi'
 
 // Bảng màu thiết kế Digital Campus — tương phản cao trên nền đen sảnh game.
 const MAU = {
@@ -11,19 +12,14 @@ const MAU = {
   thang: '#fbbf24',
 } as const
 
-/** Màu hào quang nền riêng từng trò — giúp phân biệt nhanh khi lướt danh sách. */
-const MAU_NHAN: Record<GameType, string> = {
-  chess: '#f59e0b',
-  xiangqi: '#ef4444',
-  caro_15: '#22d3ee',
-  solo_memory: '#8b5cf6',
-  solo_snake: '#10b981',
-}
 
 interface GameArtProps {
   gameType: GameType
-  /** `cover`: ảnh bìa 16:9 cho thẻ trò chơi. `icon`: biểu tượng vuông giản lược cho kích thước nhỏ (≤ 56px). */
-  variant?: 'cover' | 'icon'
+  /**
+   * `cover`: ảnh bìa 16:9 cho thẻ trò chơi. `icon`: biểu tượng vuông giản lược cho kích thước nhỏ (≤ 56px).
+   * `glyph`: chỉ riêng biểu tượng trên nền trong suốt — không ô nền, không hào quang (khung trống hoạt hình).
+   */
+  variant?: 'cover' | 'icon' | 'glyph'
   className?: string
   /** Nhãn cho trình đọc màn hình; bỏ trống khi ảnh chỉ để trang trí cạnh tiêu đề đã có tên trò chơi. */
   label?: string
@@ -31,10 +27,11 @@ interface GameArtProps {
 
 export function GameArt({ gameType, variant = 'cover', className, label }: GameArtProps) {
   const id = `ga${useId().replace(/[^a-zA-Z0-9]/g, '')}`
-  const laIcon = variant === 'icon'
+  const laGlyph = variant === 'glyph'
+  const laIcon = variant === 'icon' || laGlyph
   const w = laIcon ? 48 : 320
   const h = laIcon ? 48 : 180
-  const nhan = MAU_NHAN[gameType] || '#22d3ee'
+  const nhan = mauNhanTroChoi(gameType)
 
   return (
     <svg
@@ -57,9 +54,9 @@ export function GameArt({ gameType, variant = 'cover', className, label }: GameA
           </pattern>
         )}
       </defs>
-      <rect width={w} height={h} fill={MAU.nen} />
+      {!laGlyph && <rect width={w} height={h} fill={MAU.nen} />}
       {!laIcon && <rect width={w} height={h} fill={`url(#${id}-cham)`} />}
-      <rect width={w} height={h} fill={`url(#${id}-hao-quang)`} />
+      {!laGlyph && <rect width={w} height={h} fill={`url(#${id}-hao-quang)`} />}
       {laIcon ? BIEU_TUONG[gameType]?.(id) : ANH_BIA[gameType]?.(id)}
     </svg>
   )
