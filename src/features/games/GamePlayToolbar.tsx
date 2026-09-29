@@ -120,56 +120,26 @@ export function GamePlayToolbar({
       {/* ── 2. KHU VỰC CHÍNH GIỮA: CĂN GIỮA TUYỆT ĐỐI THEO BẢNG CHÍNH (50% TRỤC GIỮA) ── */}
       {hideCenterTurn ? (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto z-10">
-          {/* Cụm chế độ chơi: (Đấu online) · Chơi với máy · Chơi với người - Cố định tuyệt đối chiều rộng, không nhảy kích thước khi switch */}
-          <div
-            className={cn(
-              'grid rounded-xl bg-slate-950/70 p-0.5 border border-white/10 text-xs font-semibold shadow-sm shrink-0',
-              onlineAvailable
-                ? 'grid-cols-3 w-[252px] min-[390px]:w-[276px] sm:w-[300px] 2xl:w-[372px]'
-                : 'grid-cols-2 w-[280px] min-[390px]:w-[300px] sm:w-[324px]',
-            )}
-          >
-            {onlineAvailable && (
-              <button
-                type="button"
-                onClick={() => onModeChange('online')}
-                aria-label="Đấu online"
-                className={cn(
-                  'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-8 w-full min-w-0 font-bold',
-                  mode === 'online'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-                )}
-              >
-                <Globe className="size-3.5 shrink-0" />
-                <span className="truncate 2xl:hidden">Online</span>
-                <span className="truncate hidden 2xl:inline">Đấu online</span>
-              </button>
-            )}
+          {/* Cụm chế độ chơi chuyên nghiệp: PvE (Đấu máy) | PvP (Đối kháng) */}
+          <div className="flex items-center gap-1 rounded-xl bg-slate-950/80 p-1 border border-white/10 text-xs font-semibold shadow-md shrink-0">
+            {/* 1. NÚT PvE (Đấu với máy AI) */}
             <Popover>
               <PopoverTrigger
                 render={
                   <button
                     type="button"
                     onClick={() => onModeChange('ai')}
-                    aria-label={mode === 'ai' ? 'Chơi với máy, chọn độ khó' : 'Chơi với máy'}
+                    aria-label={mode === 'ai' ? 'Chế độ PvE (Đấu máy), chọn độ khó' : 'Chế độ PvE (Đấu máy)'}
                     className={cn(
-                      'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-8 w-full min-w-0 font-bold',
+                      'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
                       mode === 'ai'
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-white/20'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
                     )}
-                    title="Nhấn để chơi với máy hoặc chọn độ khó"
+                    title="Nhấn để chơi PvE (Đấu máy) hoặc chọn độ khó"
                   >
                     <Bot className="size-3.5 shrink-0" />
-                    {onlineAvailable ? (
-                      <>
-                        <span className="truncate 2xl:hidden">Máy</span>
-                        <span className="truncate hidden 2xl:inline">Chơi với máy</span>
-                      </>
-                    ) : (
-                      <span className="truncate">Chơi với máy</span>
-                    )}
+                    <span>PvE</span>
                     {mode === 'ai' && (
                       <span
                         className={cn(
@@ -234,27 +204,94 @@ export function GamePlayToolbar({
               </PopoverContent>
             </Popover>
 
-            <button
-              type="button"
-              onClick={() => onModeChange('pass_and_play')}
-              aria-label="Chơi với người"
-              className={cn(
-                'flex items-center justify-center gap-1.5 rounded-lg px-2 text-xs transition-all cursor-pointer h-8 w-full min-w-0 font-bold',
-                mode === 'pass_and_play'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
-              )}
-            >
-              <Users className="size-3.5 shrink-0" />
-              {onlineAvailable ? (
-                <>
-                  <span className="whitespace-nowrap font-bold truncate 2xl:hidden">2 người</span>
-                  <span className="whitespace-nowrap font-bold truncate hidden 2xl:inline">Chơi với người</span>
-                </>
-              ) : (
-                <span className="whitespace-nowrap font-bold truncate">Chơi với người</span>
-              )}
-            </button>
+            {/* 2. NÚT PvP (Người đấu Người) */}
+            {onlineAvailable ? (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => onModeChange(mode === 'pass_and_play' ? 'pass_and_play' : 'online')}
+                      aria-label="Chế độ PvP (Đối kháng)"
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
+                        mode === 'online' || mode === 'pass_and_play'
+                          ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
+                      )}
+                      title="Chế độ PvP (Đấu online hoặc 2 người)"
+                    >
+                      {mode === 'online' ? <Globe className="size-3.5 shrink-0" /> : <Users className="size-3.5 shrink-0" />}
+                      <span>PvP</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-black/30 border border-white/20 text-white/90 flex items-center gap-0.5">
+                        {mode === 'online' ? 'Online' : '2 Người'}
+                        <ChevronDown className="size-2.5 opacity-70" />
+                      </span>
+                    </button>
+                  }
+                />
+
+                <PopoverContent
+                  align="center"
+                  side="bottom"
+                  sideOffset={6}
+                  className="w-52 p-2 bg-[#0e1628]/95 border-white/15 backdrop-blur-md shadow-2xl text-xs"
+                >
+                  <div className="text-[11px] font-bold text-text-tertiary px-1 pb-1 mb-1.5 border-b border-white/10">
+                    Chế độ PvP (Đối kháng)
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onModeChange('online')}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left border',
+                        mode === 'online'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                          : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white',
+                      )}
+                    >
+                      <Globe className="size-4 shrink-0 text-cyan-400" />
+                      <div className="flex flex-col">
+                        <span>Đấu Online</span>
+                        <span className="text-[10px] text-slate-400 font-normal">Đấu qua mạng thời gian thực</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onModeChange('pass_and_play')}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left border',
+                        mode === 'pass_and_play'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                          : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white',
+                      )}
+                    >
+                      <Users className="size-4 shrink-0 text-amber-400" />
+                      <div className="flex flex-col">
+                        <span>Chơi 2 người</span>
+                        <span className="text-[10px] text-slate-400 font-normal">Đổi lượt trên cùng máy</span>
+                      </div>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onModeChange('pass_and_play')}
+                aria-label="Chế độ PvP (Chơi 2 người)"
+                className={cn(
+                  'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
+                  mode === 'pass_and_play'
+                    ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
+                )}
+              >
+                <Users className="size-3.5 shrink-0" />
+                <span>PvP</span>
+              </button>
+            )}
           </div>
         </div>
       ) : (

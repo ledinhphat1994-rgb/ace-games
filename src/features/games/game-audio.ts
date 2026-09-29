@@ -22,6 +22,47 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
+export function playGameStartSound(): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  try {
+    const now = ctx.currentTime
+    // Heroic War Horn / Herald Fanfare: G4 -> C5 -> E5 -> G5 (strong, triumphant, brass-like)
+    const notes = [
+      { freq: 392.0, time: 0, dur: 0.18, vol: 0.13, type: 'sawtooth' as OscillatorType },
+      { freq: 523.25, time: 0.15, dur: 0.22, vol: 0.15, type: 'sawtooth' as OscillatorType },
+      { freq: 659.25, time: 0.32, dur: 0.25, vol: 0.16, type: 'triangle' as OscillatorType },
+      { freq: 783.99, time: 0.52, dur: 0.65, vol: 0.18, type: 'triangle' as OscillatorType },
+    ]
+
+    notes.forEach(({ freq, time, dur, vol, type }) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      const filter = ctx.createBiquadFilter()
+
+      osc.type = type
+      osc.frequency.setValueAtTime(freq, now + time)
+
+      // Warm brass filter
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(1400, now + time)
+      filter.frequency.exponentialRampToValueAtTime(800, now + time + dur)
+
+      gain.gain.setValueAtTime(0.001, now + time)
+      gain.gain.linearRampToValueAtTime(vol, now + time + 0.04)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.start(now + time)
+      osc.stop(now + time + dur)
+    })
+  } catch {}
+}
+
 export function playGameOverSound(result: 'win' | 'lose' | 'draw'): void {
   const ctx = getAudioContext()
   if (!ctx) return

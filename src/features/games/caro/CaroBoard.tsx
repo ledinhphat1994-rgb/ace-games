@@ -14,7 +14,8 @@ import {
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
-import { playGameOverSound } from '../game-audio'
+import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
+import { playGameOverSound, playGameStartSound } from '../game-audio'
 
 const SIZE = 15
 
@@ -85,7 +86,11 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     Array.from({ length: SIZE }, () => Array(SIZE).fill(null))
   )
   const [currentTurnTaiCho, setCurrentTurn] = useState<'X' | 'O'>('X')
-  const { mode, doiCheDo, laOnline } = useCheDoBan(online, initialMode)
+  const { mode, doiCheDo, laOnline, vanVuaBatDau, xoaVanVuaBatDau } = useCheDoBan(online, initialMode)
+  const [heroicBanner, setHeroicBanner] = useState<{
+    type: HeroicBannerType
+    title?: string
+  } | null>(null)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   // Ván đơn: người chơi luôn cầm quân X và đi trước, máy cầm quân O
   const playerSide: 'X' | 'O' = 'X'
@@ -223,7 +228,18 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     setIsAiThinking(false)
     if (playerBubbleTimerRef.current) clearTimeout(playerBubbleTimerRef.current)
     if (opponentBubbleTimerRef.current) clearTimeout(opponentBubbleTimerRef.current)
+    setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+    playGameStartSound()
   }
+
+  // Tự động kích hoạt banner xuất quân khi ván online bắt đầu
+  useEffect(() => {
+    if (vanVuaBatDau) {
+      setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+      playGameStartSound()
+      xoaVanVuaBatDau()
+    }
+  }, [vanVuaBatDau, xoaVanVuaBatDau])
 
   const handleModeChange = (newMode: PlayMode) => {
     if (!doiCheDo(newMode)) return
@@ -343,16 +359,19 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               ? '🤖'
               : '🎲'
 
-  // Âm thanh khi kết thúc ván: Thắng, Thua, Hoà
+  // Âm thanh & Banner hào hùng khi kết thúc ván: Thắng, Thua, Hoà
   const wasOverRef = useRef(isOver)
   useEffect(() => {
     if (!wasOverRef.current && isOver) {
       if (winner === 'draw') {
         playGameOverSound('draw')
+        setHeroicBanner({ type: 'draw', title: 'BẮT TAY HOÀ CỜ!' })
       } else if (winner === pheThang) {
         playGameOverSound('win')
+        setHeroicBanner({ type: 'win', title: 'CHIẾN THẮNG HUY HOÀNG!' })
       } else {
         playGameOverSound('lose')
+        setHeroicBanner({ type: 'lose', title: 'QUÂN TA BẠI TRẬN!' })
       }
     }
     wasOverRef.current = isOver
@@ -691,6 +710,14 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
               align="center"
             />
           </div>
+
+          {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
+          <GameHeroicBanner
+            type={heroicBanner?.type ?? null}
+            title={heroicBanner?.title}
+            visible={Boolean(heroicBanner)}
+            onClose={() => setHeroicBanner(null)}
+          />
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 1 (Ta ở dưới) ── */}

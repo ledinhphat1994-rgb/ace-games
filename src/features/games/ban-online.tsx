@@ -28,11 +28,13 @@ export function useCheDoBan(online: BanOnline | undefined, initialMode?: PlayMod
   const daDongBo = Boolean(online?.daDongBo)
   const truocRef = useRef({ trangThai, daDongBo })
   const coGhe = Boolean(online?.mySide)
+  const [vanVuaBatDau, setVanVuaBatDau] = useState(false)
+
   useEffect(() => {
     const truoc = truocRef.current
     truocRef.current = { trangThai, daDongBo }
     if (coGhe && truoc.daDongBo && truoc.trangThai !== 'playing' && trangThai === 'playing') {
-      toast.success('Ván đấu online bắt đầu!', { id: 'ban-online-bat-dau' })
+      setVanVuaBatDau(true)
     }
   }, [trangThai, daDongBo, coGhe])
 
@@ -49,7 +51,13 @@ export function useCheDoBan(online: BanOnline | undefined, initialMode?: PlayMod
     return true
   }
 
-  return { mode, doiCheDo, laOnline: mode === 'online' && Boolean(online) }
+  return {
+    mode,
+    doiCheDo,
+    laOnline: mode === 'online' && Boolean(online),
+    vanVuaBatDau,
+    xoaVanVuaBatDau: () => setVanVuaBatDau(false),
+  }
 }
 
 /** Tên hiển thị của người ngồi ghế `side` (hoặc nhãn ghế khi chưa có người). */
