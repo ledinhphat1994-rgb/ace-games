@@ -1,6 +1,7 @@
 // src/features/study/workspace/DocumentStageView.tsx
 // Digital Campus v2: Milestone PQA-C2 — Classroom Presentation Surface
 
+import type { TiaLaserTrang } from '@/hooks/use-room'
 import type { SlideState, SlideAnnotationStroke } from '@shared/protocol/room'
 import {
   AlertTriangle,
@@ -62,8 +63,15 @@ export interface DocumentStageViewProps {
   onSendSlideAnnotation?: (stroke: SlideAnnotationStroke) => void
   onClearSlideAnnotations?: (page?: number) => void
   onRemoveSlideAnnotation?: (id: string) => void
-  slideLaser?: { point: [number, number] | null; page: number; senderName?: string; updatedAt: number } | null
+  slideLasers?: TiaLaserTrang[]
   onSendSlideLaser?: (point: [number, number] | null, page: number) => void
+  /** Dùng được công cụ đang chọn trên trang (người trình chiếu, hoặc người tham gia được cấp quyền). */
+  coTheChuThich?: boolean
+  /** Được dùng laser trên trang. */
+  coLaser?: boolean
+  /** Tẩy được nét của người khác (chỉ người trình chiếu). */
+  coTheTayMoiNet?: boolean
+  khoaCuaToi?: string
 }
 
 function PptxAdvisoryCard({ docName, docUrl }: { docName: string; docUrl: string }) {
@@ -252,7 +260,11 @@ export function DocumentStageView({
   slideAnnotations = [],
   onSendSlideAnnotation,
   onRemoveSlideAnnotation,
-  slideLaser,
+  slideLasers,
+  coTheChuThich,
+  coLaser,
+  coTheTayMoiNet,
+  khoaCuaToi,
   onSendSlideLaser,
 }: DocumentStageViewProps) {
   const [hasRenderError, setHasRenderError] = useState(false)
@@ -598,10 +610,13 @@ export function DocumentStageView({
                 hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
-                canAnnotate={canControl}
+                canAnnotate={coTheChuThich ?? canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
-                laser={slideLaser}
+                lasers={slideLasers}
+                coLaser={coLaser ?? canControl}
+                coTheTayMoiNet={coTheTayMoiNet ?? canControl}
+                khoaCuaToi={khoaCuaToi}
                 onSendLaser={onSendSlideLaser}
               />
             </PdfCanvasViewer>
@@ -632,10 +647,13 @@ export function DocumentStageView({
                 hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
-                canAnnotate={canControl}
+                canAnnotate={coTheChuThich ?? canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
-                laser={slideLaser}
+                lasers={slideLasers}
+                coLaser={coLaser ?? canControl}
+                coTheTayMoiNet={coTheTayMoiNet ?? canControl}
+                khoaCuaToi={khoaCuaToi}
                 onSendLaser={onSendSlideLaser}
               />
             </div>
@@ -660,10 +678,13 @@ export function DocumentStageView({
                 hinh={hinh}
                 selectedColor={mau}
                 selectedSize={co}
-                canAnnotate={canControl}
+                canAnnotate={coTheChuThich ?? canControl}
                 onSendStroke={onSendSlideAnnotation}
                 onRemoveStroke={onRemoveSlideAnnotation}
-                laser={slideLaser}
+                lasers={slideLasers}
+                coLaser={coLaser ?? canControl}
+                coTheTayMoiNet={coTheTayMoiNet ?? canControl}
+                khoaCuaToi={khoaCuaToi}
                 onSendLaser={onSendSlideLaser}
               />
             </PptxSlideViewer>

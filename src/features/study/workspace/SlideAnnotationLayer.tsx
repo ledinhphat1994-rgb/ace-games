@@ -6,8 +6,10 @@ import type { SlideAnnotationStroke } from '@shared/protocol/room'
 import { getStroke } from 'perfect-freehand'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { TiaLaserTrang } from '@/hooks/use-room'
 import { type AnnotationTool, downsampleStrokePoints, hitTestStrokes } from './annotation-geometry'
 import { DO_MO_TO_SANG, diemHinh, doDayNet, type CoVe, type LoaiHinh } from './cong-cu'
+import { LopTiaLaser } from './LopLaserTrinhChieu'
 
 export type { AnnotationTool }
 
@@ -19,16 +21,18 @@ interface SlideAnnotationLayerProps {
   hinh?: LoaiHinh
   selectedColor: string
   selectedSize?: CoVe
+  /** Dùng được công cụ đang chọn (người trình chiếu, hoặc người tham gia được cấp đúng quyền). */
   canAnnotate: boolean
   onSendStroke?: (stroke: SlideAnnotationStroke) => void
   onRemoveStroke?: (strokeId: string) => void
-  laser?: {
-    point: [number, number] | null
-    page: number
-    senderName?: string
-    updatedAt: number
-  } | null
+  /** Tia laser của người khác đang trỏ trên tài liệu (lọc theo trang ở đây). */
+  lasers?: TiaLaserTrang[]
   onSendLaser?: (point: [number, number] | null, page: number) => void
+  /** Được dùng laser (người trình chiếu, hoặc được cấp quyền laser). */
+  coLaser?: boolean
+  /** Tẩy được nét của người khác (chỉ người trình chiếu); người tham gia chỉ tẩy nét của mình. */
+  coTheTayMoiNet?: boolean
+  khoaCuaToi?: string
 }
 
 function getSvgPathFromStroke(stroke: number[][]): string {
@@ -101,8 +105,11 @@ export function SlideAnnotationLayer({
   canAnnotate,
   onSendStroke,
   onRemoveStroke,
-  laser,
+  lasers = [],
   onSendLaser,
+  coLaser = false,
+  coTheTayMoiNet = true,
+  khoaCuaToi,
 }: SlideAnnotationLayerProps) {
   const isDrawingRef = useRef(false)
   const isErasingRef = useRef(false)
@@ -111,12 +118,10 @@ export function SlideAnnotationLayer({
   const svgRef = useRef<SVGSVGElement>(null)
   const khungRef = useRef<HTMLDivElement>(null)
   const [coKhung, setCoKhung] = useState({ rong: 1, cao: 1 })
-  const [oChu, setOChu] = useState<[number, number] | null>(null)
+  // Ô gõ chữ: `diem` là toạ độ nét (0..1 theo trang), `left/top` là vị trí ô nhập (px trong khung trang, đã kẹp sát mép).
+  const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
   const oChuRef = useRef<HTMLInputElement>(null)
-
-  // Laser throttle ref
-  const lastLaserSentAtRef = useRef(0)
 
   // Kích thước trang trên màn hình: chữ tính theo chiều cao trang để không méo khi trang không vuông.
   useEffect(() => {
@@ -134,23 +139,6 @@ export function SlideAnnotationLayer({
     if (oChu) oChuRef.current?.focus({ preventScroll: true })
   }, [oChu])
 
-  // Ephemeral laser auto-fade (hide after 1.8s of inactivity)
-  const [expiredLaserTime, setExpiredLaserTime] = useState<number | null>(null)
-  useEffect(() => {
-    if (laser?.point && laser.page === pageNumber) {
-      const timer = setTimeout(() => {
-        setExpiredLaserTime(laser.updatedAt)
-      }, 1800)
-      return () => clearTimeout(timer)
-    }
-  }, [laser, pageNumber])
-
-  const laserVisible = Boolean(
-    laser?.point &&
-      laser.page === pageNumber &&
-      expiredLaserTime !== laser.updatedAt,
-  )
-
   // Filter strokes for current page
   const pageStrokes = strokes.filter((s) => s.page === pageNumber)
   const tiLeNgang = coKhung.rong / coKhung.cao
@@ -165,7 +153,9 @@ export function SlideAnnotationLayer({
   }, [])
 
   const eraseAt = (pt: [number, number]) => {
-    const hitId = hitTestStrokes(pt, pageStrokes, 0.03, tiLeNgang)
+    // Người tham gia chỉ tẩy nét của mình (máy chủ cũng chặn).
+    const coTheTay = coTheTayMoiNet ? pageStrokes : pageStrokes.filter((s) => khoaCuaToi && s.by === khoaCuaToi)
+    const hitId = hitTestStrokes(pt, coTheTay, 0.03, tiLeNgang)
     if (hitId) {
       onRemoveStroke?.(hitId)
     }
@@ -178,7 +168,7 @@ export function SlideAnnotationLayer({
         id: `slide_chu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         page: pageNumber,
         tool: 'text',
-        points: [oChu],
+        points: [oChu.diem],
         color: selectedColor,
         size: coTheoCongCu('text', selectedSize),
         text: noiDung,
@@ -193,14 +183,18 @@ export function SlideAnnotationLayer({
     const pt = getNormalizedPoint(e)
     if (!pt) return
 
-    if (activeTool === 'laser') {
-      onSendLaser?.(pt, pageNumber)
-      return
-    }
-
     if (activeTool === 'text') {
+      // Chặn hành vi mặc định: sau pointerdown trình duyệt dời tiêu điểm về trang, làm ô chữ vừa mở tự đóng ngay.
+      e.preventDefault()
       if (oChu) guiChu()
-      setOChu(pt)
+      const khung = khungRef.current?.getBoundingClientRect()
+      if (khung) {
+        setOChu({
+          diem: pt,
+          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 176)),
+          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - 36)),
+        })
+      }
       return
     }
 
@@ -224,19 +218,6 @@ export function SlideAnnotationLayer({
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!canAnnotate) return
 
-    if (activeTool === 'laser') {
-      const now = Date.now()
-      // Throttle laser broadcast to ~30fps (33ms)
-      if (now - lastLaserSentAtRef.current > 33) {
-        lastLaserSentAtRef.current = now
-        const pt = getNormalizedPoint(e)
-        if (pt) {
-          onSendLaser?.(pt, pageNumber)
-        }
-      }
-      return
-    }
-
     if (activeTool === 'eraser') {
       if (isErasingRef.current) {
         const pt = getNormalizedPoint(e)
@@ -258,11 +239,6 @@ export function SlideAnnotationLayer({
   }
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (activeTool === 'laser') {
-      onSendLaser?.(null, pageNumber)
-      return
-    }
-
     if (activeTool === 'eraser') {
       isErasingRef.current = false
       try {
@@ -311,13 +287,8 @@ export function SlideAnnotationLayer({
     }
   }
 
-  const handlePointerLeave = () => {
-    if (activeTool === 'laser' && canAnnotate) {
-      onSendLaser?.(null, pageNumber)
-    }
-  }
-
-  const isInteractive = canAnnotate && activeTool !== 'pointer'
+  // Laser do lớp tia riêng (bên dưới) nhận chuột: mượt, không đi qua mặt vẽ.
+  const isInteractive = canAnnotate && activeTool !== 'pointer' && activeTool !== 'laser'
 
   let xemTruoc: React.ReactNode = null
   if (activePoints.length > 1) {
@@ -348,13 +319,11 @@ export function SlideAnnotationLayer({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
         className={`absolute inset-0 h-full w-full touch-none ${
           isInteractive ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'
         }`}
         style={{
-          cursor:
-            activeTool === 'laser' ? 'none' : activeTool === 'text' ? 'text' : isInteractive ? 'crosshair' : 'default',
+          cursor: activeTool === 'text' ? 'text' : isInteractive ? 'crosshair' : 'default',
         }}
       >
         {/* Render committed strokes (chữ vẽ riêng bằng HTML bên dưới) */}
@@ -367,42 +336,15 @@ export function SlideAnnotationLayer({
         {/* Render currently drawn active stroke */}
         {xemTruoc}
 
-        {/* Laser pointer dot on SVG coordinates */}
-        {laserVisible && laser?.point && (
-          <g transform={`translate(${laser.point[0] * 1000}, ${laser.point[1] * 1000})`} data-testid="slide-laser-pointer">
-            {/* Outer pulsating ring */}
-            <circle r="18" fill="#ef4444" opacity="0.3" className="animate-ping" />
-            <circle r="12" fill="#ef4444" opacity="0.5" />
-            {/* Core glowing dot */}
-            <circle r="6" fill="#f87171" stroke="#ffffff" strokeWidth="1.5" />
-            {/* Laser label tag */}
-            {laser.senderName && (
-              <g transform="translate(14, -14)">
-                <rect
-                  x="0"
-                  y="0"
-                  width={Math.max(60, laser.senderName.length * 8 + 14)}
-                  height="20"
-                  rx="6"
-                  fill="rgba(15, 23, 42, 0.85)"
-                  stroke="rgba(239, 68, 68, 0.6)"
-                  strokeWidth="1"
-                />
-                <text
-                  x="8"
-                  y="14"
-                  fill="#fecaca"
-                  fontSize="10"
-                  fontWeight="bold"
-                  fontFamily="sans-serif"
-                >
-                  {laser.senderName}
-                </text>
-              </g>
-            )}
-          </g>
-        )}
       </svg>
+
+      {/* Tia laser theo trang: tia của mình vẽ tại máy, tia người khác trượt mượt tới vị trí mới. */}
+      <LopTiaLaser
+        dangChieu={coLaser && activeTool === 'laser'}
+        tiaKhac={lasers.filter((t) => t.page === pageNumber)}
+        onSend={onSendLaser ? (diem) => onSendLaser(diem, pageNumber) : undefined}
+        testId="slide-laser"
+      />
 
       {/* Chữ trên trang: HTML theo % vị trí, cỡ chữ theo chiều cao trang — không méo như chữ trong SVG co giãn */}
       {pageStrokes
@@ -437,8 +379,8 @@ export function SlideAnnotationLayer({
           }}
           maxLength={200}
           aria-label="Nhập chữ lên tài liệu"
-          className="pointer-events-auto absolute z-10 min-w-40 rounded-md border border-slate-400 bg-white/90 px-2 py-1 text-sm font-semibold outline-none"
-          style={{ left: `${oChu[0] * 100}%`, top: `${oChu[1] * 100}%`, color: selectedColor }}
+          className="pointer-events-auto absolute z-30 min-w-40 rounded-md border border-slate-400 bg-white/95 px-2 py-1 text-sm font-semibold shadow-lg outline-none"
+          style={{ left: oChu.left, top: oChu.top, color: selectedColor }}
         />
       )}
     </div>

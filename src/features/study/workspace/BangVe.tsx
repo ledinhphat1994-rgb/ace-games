@@ -183,9 +183,19 @@ export function BangVe({
     const p = diemTrenBang(e)
     if (!p) return
     if (congCu === 'chu') {
+      // Chặn hành vi mặc định: sau pointerdown trình duyệt dời tiêu điểm về trang, làm ô chữ vừa mở mất tiêu điểm
+      // và tự đóng ngay (bấm xuống bảng mà không gõ được chữ).
+      e.preventDefault()
       const khung = khungRef.current?.getBoundingClientRect()
       if (oChu) guiChu()
-      if (khung) setOChu({ diem: p, left: e.clientX - khung.left, top: e.clientY - khung.top })
+      // Kẹp trong khung: ô chữ gần mép phải / dưới không bị khung (overflow-hidden) cắt mất.
+      if (khung) {
+        setOChu({
+          diem: p,
+          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 176)),
+          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - 36)),
+        })
+      }
       return
     }
     try {

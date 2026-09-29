@@ -4,6 +4,9 @@ import {
   LenhPhong,
   LenhPhongSession,
   canonicalMediaPosition,
+  laQuyenCongCuHopLe,
+  quyenCuaNet,
+  type QuyenCongCu,
   YOUTUBE_VIDEO_ID_REGEX,
   type GoiPhong,
   type MediaState,
@@ -280,6 +283,11 @@ export class RoomDO extends DurableObject<Env> {
           page INTEGER NOT NULL,
           stroke_data TEXT NOT NULL,
           created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS member_tool_grants (
+          actor_key TEXT PRIMARY KEY,
+          grants TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
         );
         CREATE TABLE IF NOT EXISTS playlist_queue (
           id TEXT PRIMARY KEY,
@@ -2015,6 +2023,7 @@ export class RoomDO extends DurableObject<Env> {
         slide: this.slide,
         slideAnnotations: this.laySlideAnnotations(),
         stageLayout: this.stageLayout,
+        quyenCongCu: this.layQuyenCongCu(),
         voiceRegistry: this.getVoiceRegistry(),
         serverNow: Date.now(),
         // Learning Session v1
@@ -2381,9 +2390,10 @@ export class RoomDO extends DurableObject<Env> {
       case 'whiteboard.action': {
         const d = goi.data
         if (d.action === 'stroke.add') {
-          // Chỉ người trình chiếu vẽ lên bảng (giao diện đã ẩn công cụ vẽ với học sinh — máy chủ cũng phải chặn).
-          if (!laQuanTri) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới vẽ được lên bảng.' }))
+          // Người trình chiếu vẽ tự do; người tham gia cần đúng quyền chủ phòng cấp cho loại nét đó
+          // (giao diện đã ẩn công cụ chưa được cấp — máy chủ vẫn là chốt chặn cuối).
+          if (!this.coQuyen(att, laQuanTri, quyenCuaNet(d.stroke.tool))) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền dùng công cụ này cho bạn.' }))
             return
           }
           const st = d.stroke
@@ -2430,8 +2440,8 @@ export class RoomDO extends DurableObject<Env> {
             })
           }
         } else if (d.action === 'stroke.clear') {
-          if (!laQuanTri) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền xóa toàn bộ bảng vẽ.' }))
+          if (!this.coQuyen(att, laQuanTri, 'xoa')) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền xóa hết cho bạn.' }))
             return
           }
           this.whiteboardEpoch++
@@ -2441,7 +2451,11 @@ export class RoomDO extends DurableObject<Env> {
           } catch {}
           this.broadcast({ type: 'whiteboard.sync', action: 'stroke.clear', epoch: this.whiteboardEpoch })
         } else if (d.action === 'stroke.remove') {
-          // Tẩy một nét: người vẽ tẩy được nét của chính mình; chủ phòng / người điều hành tẩy được mọi nét.
+          // Tẩy một nét: người được cấp quyền tẩy chỉ tẩy nét của chính mình; chủ phòng / người điều hành tẩy mọi nét.
+          if (!this.coQuyen(att, laQuanTri, 'tay')) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền tẩy cho bạn.' }))
+            return
+          }
           let dong: { stroke_data: string } | undefined
           try {
             dong = this.ctx.storage.sql
@@ -2594,7 +2608,14 @@ export class RoomDO extends DurableObject<Env> {
 
       case 'slide.action': {
         const d = goi.data
-        if (!laQuanTri) {
+        // Chú thích trên trang và laser theo quyền công cụ chủ phòng cấp; mọi thao tác khác trên tài liệu
+        // (đổi trang, mở, đóng) chỉ người trình chiếu.
+        const laChuThich =
+          d.action === 'annotation_add' ||
+          d.action === 'annotation_clear' ||
+          d.action === 'annotation_remove' ||
+          d.action === 'laser'
+        if (!laQuanTri && !laChuThich) {
           ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng hoặc người điều hành mới có quyền điều khiển tài liệu trình chiếu.' }))
           return
         }
@@ -2662,6 +2683,10 @@ export class RoomDO extends DurableObject<Env> {
           }
         } else if (d.action === 'annotation_add') {
           const st = d.stroke
+          if (!this.coQuyen(att, laQuanTri, quyenCuaNet(st.tool))) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền dùng công cụ này cho bạn.' }))
+            return
+          }
           if (!Array.isArray(st.points) || st.points.length === 0 || st.points.length > 300) {
             ws.send(JSON.stringify({ type: 'error', message: 'Nét vẽ chú thích không hợp lệ (tối đa 300 điểm).' }))
             return
@@ -2675,6 +2700,7 @@ export class RoomDO extends DurableObject<Env> {
             size: st.size,
             opacity: st.opacity,
             ...(st.tool === 'text' && st.text ? { text: st.text } : {}),
+            by: att.key,
           }
           try {
             this.ctx.storage.sql.exec(
@@ -2693,6 +2719,10 @@ export class RoomDO extends DurableObject<Env> {
           this.broadcast({ type: 'slide.annotation', action: 'add', stroke })
           return
         } else if (d.action === 'annotation_clear') {
+          if (!this.coQuyen(att, laQuanTri, 'xoa')) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền xóa hết cho bạn.' }))
+            return
+          }
           try {
             if (d.page) {
               this.ctx.storage.sql.exec('DELETE FROM slide_annotations WHERE page = ?1', d.page)
@@ -2705,6 +2735,24 @@ export class RoomDO extends DurableObject<Env> {
           this.broadcast({ type: 'slide.annotation', action: 'clear', page: d.page })
           return
         } else if (d.action === 'annotation_remove') {
+          if (!this.coQuyen(att, laQuanTri, 'tay')) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền tẩy cho bạn.' }))
+            return
+          }
+          if (!laQuanTri) {
+            // Người tham gia chỉ tẩy nét của chính mình.
+            let nguoiVe: string | undefined
+            try {
+              const dong = this.ctx.storage.sql
+                .exec<{ stroke_data: string }>('SELECT stroke_data FROM slide_annotations WHERE id = ?1', d.id)
+                .toArray()[0]
+              nguoiVe = dong ? (JSON.parse(dong.stroke_data) as SlideAnnotationStroke).by : undefined
+            } catch {}
+            if (nguoiVe !== att.key) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Bạn chỉ tẩy được nét vẽ của mình.' }))
+              return
+            }
+          }
           try {
             this.ctx.storage.sql.exec('DELETE FROM slide_annotations WHERE id = ?1', d.id)
           } catch (err) {
@@ -2713,12 +2761,18 @@ export class RoomDO extends DurableObject<Env> {
           this.broadcast({ type: 'slide.annotation', action: 'remove', strokeId: d.id })
           return
         } else if (d.action === 'laser') {
-          this.broadcast({
-            type: 'slide.laser',
-            point: d.point,
-            page: d.page,
-            senderName: att.ten || 'Giáo viên',
-          })
+          if (!this.coQuyen(att, laQuanTri, 'laser')) return
+          // Người trỏ tự vẽ tia của mình ngay tại máy (không chờ vòng mạng) nên không gửi lại cho họ.
+          this.broadcast(
+            {
+              type: 'slide.laser',
+              point: d.point,
+              page: d.page,
+              senderName: att.ten || 'Giáo viên',
+              senderKey: att.key,
+            },
+            ws,
+          )
           return
         }
         this.luuMeta('slide', this.slide)
@@ -2811,15 +2865,42 @@ export class RoomDO extends DurableObject<Env> {
         if (typeof goi.generation === 'number' && pub.generation !== goi.generation) {
           break
         }
+        // Bật lại tiếng cũng cần quyền mic (chủ phòng có thể vừa thu hồi).
+        if (!goi.muted && !this.coQuyenMic(att.key)) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chủ phòng chưa cấp quyền mic cho bạn.' }))
+          break
+        }
         const nextStatus = goi.muted ? 'muted' : 'live'
         this.updateVoiceStatus(att.key, nextStatus, goi.generation)
         break
       }
 
       case 'stage.laser': {
-        // Chỉ người trình chiếu chiếu laser; gói tạm thời, không lưu. Người gửi tự vẽ chấm của mình nên không gửi lại.
-        if (!laQuanTri) return
-        this.broadcast({ type: 'stage.laser', lop: goi.lop, point: goi.point, senderName: att.ten || 'Giáo viên' }, ws)
+        // Người trình chiếu hoặc người được cấp laser; gói tạm thời, không lưu. Người gửi tự vẽ chấm của mình nên không gửi lại.
+        if (!this.coQuyen(att, laQuanTri, 'laser')) return
+        this.broadcast(
+          { type: 'stage.laser', lop: goi.lop, point: goi.point, senderName: att.ten || 'Giáo viên', senderKey: att.key },
+          ws,
+        )
+        break
+      }
+
+      case 'grant.tools': {
+        // Chỉ chủ phòng / người điều hành cấp hoặc thu hồi quyền; không tự cấp cho mình.
+        if (!laQuanTri) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Chỉ chủ phòng mới cấp được quyền công cụ.' }))
+          return
+        }
+        if (goi.targetKey === att.key) return
+        const cu = this.layQuyenCongCu()[goi.targetKey] ?? []
+        // Bỏ tên quyền lạ thay vì báo lỗi: không lọt quyền không tồn tại vào phòng.
+        const cap = [...new Set(goi.cap.filter(laQuyenCongCuHopLe))]
+        this.luuQuyenCongCu(goi.targetKey, cap)
+        this.broadcast({ type: 'room.quyen', quyen: this.layQuyenCongCu() })
+        // Thu hồi mic khi người đó đang nói: tắt ngay (không chờ họ tự tắt).
+        if (cu.includes('mic') && !cap.includes('mic') && this.voiceRegistry.has(goi.targetKey)) {
+          this.forceMute({ targetActorKey: goi.targetKey, byActorName: att.ten || 'Chủ phòng' })
+        }
         break
       }
 
@@ -2965,6 +3046,74 @@ export class RoomDO extends DurableObject<Env> {
 
     this.phatDanhSach(ws)
     this.baoRoiLobbyNeuTrong(ws)
+  }
+
+  /** Quyền công cụ chủ phòng đã cấp, theo actorKey. Lưu SQLite của DO: rời phòng rồi vào lại vẫn còn. */
+  private layQuyenCongCu(): Record<string, QuyenCongCu[]> {
+    const ketQua: Record<string, QuyenCongCu[]> = {}
+    try {
+      for (const r of this.ctx.storage.sql.exec<{ actor_key: string; grants: string }>(
+        'SELECT actor_key, grants FROM member_tool_grants',
+      )) {
+        const cap = JSON.parse(r.grants) as unknown
+        // Chỉ nhận tên quyền còn hợp lệ: bỏ bớt quyền trong tương lai không làm hỏng phòng.
+        const hopLe = Array.isArray(cap) ? cap.filter(laQuyenCongCuHopLe) : []
+        if (hopLe.length > 0) ketQua[r.actor_key] = hopLe
+      }
+    } catch (err) {
+      console.error('Lỗi đọc quyền công cụ:', err)
+    }
+    return ketQua
+  }
+
+  private luuQuyenCongCu(actorKey: string, cap: QuyenCongCu[]): void {
+    try {
+      if (cap.length === 0) {
+        this.ctx.storage.sql.exec('DELETE FROM member_tool_grants WHERE actor_key = ?1', actorKey)
+      } else {
+        this.ctx.storage.sql.exec(
+          'INSERT OR REPLACE INTO member_tool_grants (actor_key, grants, updated_at) VALUES (?1, ?2, ?3)',
+          actorKey,
+          JSON.stringify(cap),
+          Date.now(),
+        )
+      }
+    } catch (err) {
+      console.error('Lỗi lưu quyền công cụ:', err)
+    }
+  }
+
+  /** Người trình chiếu có mọi quyền; người tham gia chỉ có quyền chủ phòng đã cấp (mặc định chỉ xem). */
+  private coQuyen(att: AttachmentKetNoi, laQuanTri: boolean, quyen: QuyenCongCu): boolean {
+    if (laQuanTri) return true
+    try {
+      const dong = this.ctx.storage.sql
+        .exec<{ grants: string }>('SELECT grants FROM member_tool_grants WHERE actor_key = ?1', att.key)
+        .toArray()[0]
+      if (!dong) return false
+      const cap = JSON.parse(dong.grants) as unknown
+      return Array.isArray(cap) && cap.includes(quyen)
+    } catch {
+      return false
+    }
+  }
+
+  /** Cổng publish micro (voice-api): người trình chiếu luôn được nói; người tham gia cần quyền mic. */
+  coQuyenMic(actorKey: string): boolean {
+    if (actorKey === this.hostKey) return true
+    for (const ws of this.ctx.getWebSockets()) {
+      const a = ws.deserializeAttachment() as AttachmentKetNoi | null
+      if (a?.key === actorKey && a.canModerate) return true
+    }
+    try {
+      const dong = this.ctx.storage.sql
+        .exec<{ grants: string }>('SELECT grants FROM member_tool_grants WHERE actor_key = ?1', actorKey)
+        .toArray()[0]
+      const cap = dong ? (JSON.parse(dong.grants) as unknown) : []
+      return Array.isArray(cap) && cap.includes('mic')
+    } catch {
+      return false
+    }
   }
 
   private coQuyenDieuKhien(att: AttachmentKetNoi): boolean {

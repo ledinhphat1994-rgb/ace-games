@@ -236,6 +236,11 @@ export async function dangKyPublishVoice(c: Context<{ Bindings: Env }>): Promise
     return loi('Bạn cần có kết nối trực tiếp trong phòng để sử dụng tính năng thoại.', 403)
   }
 
+  // Người tham gia chỉ bật được mic khi chủ phòng đã cấp quyền mic.
+  if (!(await (roomStub as any).coQuyenMic(userKey))) {
+    return loi('Chủ phòng chưa cấp quyền mic cho bạn.', 403)
+  }
+
   let body: {
     sessionId?: string
     trackName?: string
