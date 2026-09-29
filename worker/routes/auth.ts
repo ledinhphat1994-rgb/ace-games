@@ -459,8 +459,20 @@ export async function guiMaKhoiPhucQuaEmail(env: Env, sender: SendEmail, usernam
   if ((gan?.n ?? 0) >= THU_TOI_DA_MOI_GIO) return
   if (gan?.moiNhat && bayGio - gan.moiNhat < KHOANG_CACH_THU_MS) return
 
-  const code = await capMaKhoiPhuc(env, tk, tk.id)
-  await sender.send(taoThuMaKhoiPhuc({ to: tk.email, ten: tk.ten_hien_thi || tk.ten_dang_nhap, code }))
+  // Chưa huỷ mã cũ (có thể là mã quản trị vừa đọc cho học sinh) cho tới khi thư gửi được.
+  const { code, tokenId } = await capMaKhoiPhuc(env, tk, tk.id, { thuHoiMaCu: false })
+  try {
+    await sender.send(taoThuMaKhoiPhuc({ to: tk.email, ten: tk.ten_hien_thi || tk.ten_dang_nhap, code }))
+  } catch (e) {
+    // Gửi hỏng: xoá mã mới (không ai nhận được) — mã cũ còn nguyên, lượt giới hạn thư được trả lại.
+    await env.DB.prepare('DELETE FROM password_reset_tokens WHERE token_id = ?1').bind(tokenId).run().catch(() => {})
+    throw e
+  }
+  await env.DB.prepare(
+    "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active' AND token_id != ?2",
+  )
+    .bind(tk.id, tokenId)
+    .run()
 }
 
 /**
@@ -468,7 +480,12 @@ export async function guiMaKhoiPhucQuaEmail(env: Env, sender: SendEmail, usernam
  * tuyệt đối không lưu mã gốc. Hiệu lực 15 phút, sai tối đa 5 lần.
  * createdBy: quản trị viên cấp, hoặc chính tài khoản (tự khôi phục qua email).
  */
-async function capMaKhoiPhuc(env: Env, target: { id: number; ten_dang_nhap: string }, createdBy: number): Promise<string> {
+async function capMaKhoiPhuc(
+  env: Env,
+  target: { id: number; ten_dang_nhap: string },
+  createdBy: number,
+  tuyChon: { thuHoiMaCu: boolean } = { thuHoiMaCu: true },
+): Promise<{ code: string; tokenId: string }> {
   const array = new Uint32Array(1)
   crypto.getRandomValues(array)
   const code = (100000 + (array[0] % 900000)).toString()
@@ -478,17 +495,22 @@ async function capMaKhoiPhuc(env: Env, target: { id: number; ten_dang_nhap: stri
   const expiresAt = now + 900 * 1000 // 15 phút
   const tokenId = crypto.randomUUID()
 
-  await env.DB.batch([
-    env.DB.prepare(
-      "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active'",
-    ).bind(target.id),
-    env.DB.prepare(
-      `INSERT INTO password_reset_tokens (
-         token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status, created_at, created_by
-       ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
-    ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, createdBy),
-  ])
-  return code
+  const chen = env.DB.prepare(
+    `INSERT INTO password_reset_tokens (
+       token_id, account_id, username, code_digest, attempts, max_attempts, expires_at, status, created_at, created_by
+     ) VALUES (?1, ?2, ?3, ?4, 0, 5, ?5, 'active', ?6, ?7)`,
+  ).bind(tokenId, target.id, target.ten_dang_nhap, codeDigest, expiresAt, now, createdBy)
+  await env.DB.batch(
+    tuyChon.thuHoiMaCu
+      ? [
+          env.DB.prepare(
+            "UPDATE password_reset_tokens SET status = 'revoked' WHERE account_id = ?1 AND status = 'active'",
+          ).bind(target.id),
+          chen,
+        ]
+      : [chen],
+  )
+  return { code, tokenId }
 }
 
 /** Giáo viên / Admin tạo mã khôi phục cho học sinh trực tiếp (Scope & Privilege Enforced) */
@@ -540,7 +562,7 @@ export async function taoMaResetChoHocSinh(request: Request, env: Env): Promise<
   }
 
   // 5–6. Sinh mã 6 số, lưu bản băm (không lưu mã gốc), thu hồi mã cũ.
-  const code = await capMaKhoiPhuc(env, target, kq.taiKhoan.id)
+  const { code } = await capMaKhoiPhuc(env, target, kq.taiKhoan.id)
 
   // Nhật ký quản trị: ai cấp mã cho ai — tuyệt đối không ghi bản thân mã.
   await ghiAuditLog(env, {
