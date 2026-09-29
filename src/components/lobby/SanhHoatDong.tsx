@@ -107,9 +107,9 @@ export function SanhHoatDong({
                   aria-label={quayLai.nhan}
                   title={quayLai.nhan}
                   data-testid={`${testId}-back`}
-                  className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-text-secondary transition-colors hover:border-brand/40 hover:bg-white/[0.07] hover:text-text-primary"
+                  className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-text-primary shadow-sm transition-all hover:-translate-x-0.5 hover:border-brand/50 hover:bg-brand/10 hover:text-brand active:scale-95"
                 >
-                  <ArrowLeft className="size-4" />
+                  <ArrowLeft className="size-6" strokeWidth={2.4} />
                 </Link>
               )}
               {timKiem && (
@@ -121,7 +121,7 @@ export function SanhHoatDong({
                     placeholder={timKiem.goiY}
                     aria-label="Tìm phòng"
                     data-testid={`${testId}-search-input`}
-                    className="h-10 rounded-xl border-white/10 bg-white/[0.04] pr-9 pl-9"
+                    className="h-12 rounded-xl border-white/10 bg-white/[0.04] pr-9 pl-9 text-sm"
                   />
                   {timKiem.giaTri && (
                     <button
@@ -141,7 +141,7 @@ export function SanhHoatDong({
                     variant="outline"
                     onClick={taoPhong.onClick}
                     data-testid={taoPhong.testId}
-                    className="h-10 flex-1 rounded-xl @min-[34rem]:flex-none"
+                    className="h-12 flex-1 rounded-xl px-4 @min-[34rem]:flex-none"
                   >
                     <Plus />
                     {taoPhong.nhan}
@@ -151,7 +151,7 @@ export function SanhHoatDong({
                   <Button
                     onClick={choiNgay.onClick}
                     data-testid={choiNgay.testId}
-                    className="h-10 flex-1 rounded-xl px-5 font-bold shadow-lg shadow-brand/25 @min-[34rem]:flex-none"
+                    className="h-12 flex-1 rounded-xl px-6 font-bold shadow-lg shadow-brand/25 @min-[34rem]:flex-none"
                   >
                     <Play className="fill-current" />
                     {choiNgay.nhan}

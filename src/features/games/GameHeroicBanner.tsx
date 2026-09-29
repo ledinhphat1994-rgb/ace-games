@@ -71,7 +71,8 @@ export function GameHeroicBanner({
         <div className="bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_45%,transparent_75%)] px-10 py-6 sm:px-14 sm:py-8 flex items-center justify-center">
           <span
             className={cn(
-              'text-5xl sm:text-6xl md:text-7xl font-black uppercase tracking-widest text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
+              // leading + py: chữ tô gradient chỉ hiện trong khung của nó — không chừa chỗ thì dấu (Ắ, Ầ, Ạ…) bị cắt mất.
+              'text-5xl sm:text-6xl md:text-7xl leading-[1.4] py-3 px-1 font-black uppercase tracking-widest text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
               `bg-gradient-to-b ${config.gradient}`,
             )}
           >
