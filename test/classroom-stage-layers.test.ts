@@ -307,7 +307,7 @@ async function chenPhong(ten: string, chuPhongKhoa: string): Promise<number> {
 }
 
 describe('Bảng vẽ v2 trên RoomDO', () => {
-  it('chỉ người trình chiếu vẽ được; máy chủ gắn người vẽ, giữ toạ độ v2 / chữ / hình; học sinh không tẩy được nét', async () => {
+  it('chỉ người trình chiếu vẽ được; máy chủ gắn người vẽ, giữ toạ độ v2 / chữ / hình; học sinh được cấp quyền tẩy tẩy được mọi nét', async () => {
     const id = await chenPhong('Phòng bảng v2', 'acc:1')
     const host = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu1'))
     const an = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu2'))
@@ -348,14 +348,12 @@ describe('Bảng vẽ v2 trên RoomDO', () => {
     await an.cho('error', (g) => g.message.includes('Chủ phòng chưa cấp quyền tẩy'))
     await host.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)
 
-    // Cấp quyền tẩy cho học sinh: học sinh không tẩy được nét của thầy; thầy tẩy được.
+    // Cấp quyền tẩy cho học sinh: học sinh được cấp quyền tẩy thì tẩy được nét (kể cả nét của thầy).
     host.gui({ type: 'grant.tools', targetKey: 'acc:2', cap: ['tay'] })
     await an.cho('room.quyen')
     an.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
-    await an.cho('error', (g) => g.message.includes('nét vẽ của mình'))
-    await host.khongNhan('whiteboard.sync', (g) => g.action === 'stroke.remove', 200)
-    host.gui({ type: 'whiteboard.action', data: { action: 'stroke.remove', id: 'chu-cua-thay' } })
     await an.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'chu-cua-thay')
+    await host.cho('whiteboard.sync', (g) => g.action === 'stroke.remove' && g.strokeId === 'chu-cua-thay')
 
     // Vào lại phòng: nét đã tẩy không còn, nét còn lại vẫn giữ.
     const vaoLai = await moKetNoi<GoiPhong>(`/ws/room/phong-${id}`, await dangNhapLayCookie('qa.v2.thu3'))
