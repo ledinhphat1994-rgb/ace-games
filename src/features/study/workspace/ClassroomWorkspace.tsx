@@ -405,7 +405,6 @@ export function ClassroomWorkspace({
         activePanel={contextPanel}
         onTogglePanel={handleTogglePanel}
         unreadChatCount={unreadChatCount}
-        memberCount={members.length}
         memberStrip={
           <MemberStrip
             members={members}
