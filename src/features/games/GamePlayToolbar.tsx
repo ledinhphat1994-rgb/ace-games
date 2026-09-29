@@ -31,6 +31,8 @@ interface GamePlayToolbarProps {
   statusAlert?: React.ReactNode
   outcomeNotice?: React.ReactNode
   hideCenterTurn?: boolean
+  /** Slot nội dung bổ sung bên phải thanh toolbar (ví dụ nút Biểu cảm nhanh) */
+  rightSlot?: React.ReactNode
   className?: string
 }
 
@@ -56,6 +58,7 @@ export function GamePlayToolbar({
   statusAlert,
   outcomeNotice,
   hideCenterTurn = false,
+  rightSlot,
   className,
 }: GamePlayToolbarProps) {
   // Xác định bên đang đi: nếu không truyền activeSide thì nhận diện theo chữ trong turnLabel
@@ -120,8 +123,8 @@ export function GamePlayToolbar({
       {/* ── 2. KHU VỰC CHÍNH GIỮA: CĂN GIỮA TUYỆT ĐỐI THEO BẢNG CHÍNH (50% TRỤC GIỮA) ── */}
       {hideCenterTurn ? (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto z-10">
-          {/* Cụm chế độ chơi chuyên nghiệp: PvE (Đấu máy) | PvP (Đối kháng) */}
-          <div className="flex items-center gap-1 rounded-xl bg-slate-950/80 p-1 border border-white/10 text-xs font-semibold shadow-md shrink-0">
+          {/* Cụm chế độ chơi chuyên nghiệp: PvE (Đấu máy) | PvP (Đối kháng) - KHÓA KÍCH THƯỚC CỐ ĐỊNH */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-950/80 p-1 border border-white/10 text-xs font-semibold shadow-md shrink-0 w-[220px] sm:w-[240px] h-10 box-border">
             {/* 1. NÚT PvE (Đấu với máy AI) */}
             <Popover>
               <PopoverTrigger
@@ -131,7 +134,7 @@ export function GamePlayToolbar({
                     onClick={() => onModeChange('ai')}
                     aria-label={mode === 'ai' ? 'Chế độ PvE (Đấu máy), chọn độ khó' : 'Chế độ PvE (Đấu máy)'}
                     className={cn(
-                      'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
+                      'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
                       mode === 'ai'
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm ring-1 ring-white/20'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
@@ -143,14 +146,14 @@ export function GamePlayToolbar({
                     {mode === 'ai' && (
                       <span
                         className={cn(
-                          'text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5',
+                          'text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded-full border shadow-sm shrink-0 flex items-center gap-0.5 ml-0.5',
                           aiLevel === 'easy' && 'bg-emerald-400 text-slate-950 border-emerald-300',
                           aiLevel === 'medium' && 'bg-amber-400 text-slate-950 border-amber-200',
                           aiLevel === 'hard' && 'bg-rose-500 text-white border-rose-300',
                         )}
                       >
                         {aiLevel === 'easy' ? 'Dễ' : aiLevel === 'medium' ? 'Vừa' : 'Khó'}
-                        <ChevronDown className="size-2.5 opacity-70" />
+                        <ChevronDown className="size-2 opacity-70" />
                       </span>
                     )}
                   </button>
@@ -210,7 +213,7 @@ export function GamePlayToolbar({
               onClick={() => onModeChange(onlineAvailable ? 'online' : 'pass_and_play')}
               aria-label="Chế độ PvP (Đối kháng)"
               className={cn(
-                'flex items-center justify-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs transition-all cursor-pointer h-8 font-black tracking-wide',
+                'flex items-center justify-center gap-1 rounded-lg px-1.5 text-xs transition-all cursor-pointer h-full w-full font-black tracking-wide',
                 mode === 'online' || mode === 'pass_and_play'
                   ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-sm ring-1 ring-white/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/5',
@@ -381,8 +384,9 @@ export function GamePlayToolbar({
           </Button>
         </div>
       ) : (
-        /* VÙNG 2+: Nút Xin thua đưa sang bên phải thanh toolbar, thẳng hàng với cột bên phải */
+        /* VÙNG 2+: Nút hành động bên phải đưa sang bên phải thanh toolbar, thẳng hàng với cột bên phải */
         <div className="flex items-center justify-end gap-2 shrink-0 z-10 min-w-0">
+          {rightSlot}
           <Button
             variant="outline"
             size="sm"

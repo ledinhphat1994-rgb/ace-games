@@ -76,6 +76,8 @@ interface GameQuickEmoteProps {
   theme?: 'cyan' | 'amber' | 'red' | 'violet'
   /** Vị trí căn chỉnh popover */
   align?: 'end' | 'start' | 'center'
+  /** Chế độ thu gọn để đặt trên thanh toolbar header */
+  compact?: boolean
   className?: string
 }
 
@@ -85,6 +87,7 @@ export function GameQuickEmote({
   activeBubble,
   theme = 'cyan',
   align = 'end',
+  compact = false,
   className,
 }: GameQuickEmoteProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -153,33 +156,52 @@ export function GameQuickEmote({
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger
           render={
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              title="Cảm xúc nhanh"
-              aria-label="Mở danh sách cảm xúc nhanh"
-              className={cn(
-                'size-11 sm:size-12 rounded-full border shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer',
-                themeBorder,
-                themeBg,
-                themeText
-              )}
-              style={{
-                boxShadow: `0 0 16px ${themeGlow}, 0 4px 12px rgba(0,0,0,0.5)`,
-              }}
-            >
-              <span className="text-xl sm:text-2xl leading-none select-none">
-                {isOpen ? '💬' : '😊'}
-              </span>
-            </Button>
+            compact ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                title="Cảm xúc nhanh"
+                aria-label="Mở danh sách cảm xúc nhanh"
+                className={cn(
+                  'h-8 gap-1.5 border-white/10 bg-white/5 text-xs text-slate-200 hover:bg-white/10 font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2.5 cursor-pointer',
+                  isOpen && 'bg-white/15 border-white/20 text-white',
+                )}
+              >
+                <span className="text-sm leading-none select-none">
+                  {isOpen ? '💬' : '😊'}
+                </span>
+                <span className="hidden min-[480px]:inline">Biểu cảm</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="Cảm xúc nhanh"
+                aria-label="Mở danh sách cảm xúc nhanh"
+                className={cn(
+                  'size-11 sm:size-12 rounded-full border shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer',
+                  themeBorder,
+                  themeBg,
+                  themeText
+                )}
+                style={{
+                  boxShadow: `0 0 16px ${themeGlow}, 0 4px 12px rgba(0,0,0,0.5)`,
+                }}
+              >
+                <span className="text-xl sm:text-2xl leading-none select-none">
+                  {isOpen ? '💬' : '😊'}
+                </span>
+              </Button>
+            )
           }
         />
 
         <PopoverContent
-          side="top"
+          side={compact ? 'bottom' : 'top'}
           align={align}
-          sideOffset={10}
+          sideOffset={compact ? 6 : 10}
           className="w-[210px] xl:w-[225px] p-2.5 rounded-2xl border border-white/15 bg-gradient-to-b from-[#0e1628]/98 to-[#090f1e]/98 backdrop-blur-2xl shadow-2xl z-50 text-xs"
           style={{
             boxShadow: `0 0 24px ${themeGlow}, 0 12px 32px rgba(0,0,0,0.8)`,

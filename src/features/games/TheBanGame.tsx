@@ -49,7 +49,7 @@ export function TheBanGame({ ban, onVao }: TheBanGameProps) {
             {dangCho ? 'Chờ đối thủ' : 'Đang đấu'}
           </span>
         </div>
-        <span className="flex shrink-0 -space-x-1.5" title={`${tenChu} · ${ban.tenKhach ?? 'Ghế trống'}`}>
+        <span className="flex shrink-0 -space-x-1.5" title={[tenChu, ban.tenKhach].filter(Boolean).join(' · ')}>
           <ChuCai ten={ban.tenChu} />
           <ChuCai ten={ban.tenKhach} />
         </span>

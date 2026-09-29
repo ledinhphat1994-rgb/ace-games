@@ -35,28 +35,23 @@ export function GameHeroicBanner({
   const config = {
     start: {
       defaultTitle: 'BẮT ĐẦU',
-      gradient: 'from-amber-300 via-yellow-200 to-amber-400',
-      glow: 'drop-shadow-[0_0_25px_rgba(251,191,36,0.95)] drop-shadow-[0_0_50px_rgba(245,158,11,0.6)]',
+      gradient: 'from-amber-50 via-amber-200 to-amber-500',
     },
     win: {
       defaultTitle: 'BẠN THẮNG',
-      gradient: 'from-emerald-300 via-teal-200 to-green-400',
-      glow: 'drop-shadow-[0_0_25px_rgba(52,211,153,0.95)] drop-shadow-[0_0_50px_rgba(16,185,129,0.6)]',
+      gradient: 'from-amber-100 via-yellow-300 to-amber-600',
     },
     lose: {
       defaultTitle: 'BẠN THUA',
-      gradient: 'from-rose-400 via-red-300 to-pink-500',
-      glow: 'drop-shadow-[0_0_25px_rgba(244,63,94,0.95)] drop-shadow-[0_0_50px_rgba(225,29,72,0.6)]',
+      gradient: 'from-rose-100 via-rose-400 to-red-700',
     },
     draw: {
       defaultTitle: 'HOÀ CỜ',
-      gradient: 'from-yellow-300 via-amber-200 to-orange-400',
-      glow: 'drop-shadow-[0_0_25px_rgba(234,179,8,0.95)] drop-shadow-[0_0_50px_rgba(202,138,4,0.6)]',
+      gradient: 'from-slate-100 via-slate-300 to-slate-400',
     },
     check: {
       defaultTitle: 'CHIẾU TƯỚNG',
-      gradient: 'from-red-400 via-rose-300 to-amber-400',
-      glow: 'drop-shadow-[0_0_25px_rgba(239,68,68,0.95)] drop-shadow-[0_0_50px_rgba(220,38,38,0.6)]',
+      gradient: 'from-orange-100 via-rose-300 to-red-600',
     },
   }[type]
 
@@ -68,20 +63,21 @@ export function GameHeroicBanner({
       aria-live="assertive"
       onClick={() => onClose?.()}
       className={cn(
-        'absolute inset-0 z-40 flex items-center justify-center p-4 cursor-pointer select-none pointer-events-auto bg-black/25 backdrop-blur-[2px] transition-all animate-in fade-in duration-200',
+        'absolute inset-0 z-40 flex items-center justify-center p-4 cursor-pointer select-none pointer-events-auto transition-all animate-in fade-in duration-200',
         className,
       )}
     >
       <div className="flex flex-col items-center justify-center animate-in zoom-in-75 duration-300">
-        <span
-          className={cn(
-            'text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-widest text-center bg-clip-text text-transparent animate-pulse select-none',
-            `bg-gradient-to-r ${config.gradient}`,
-            config.glow,
-          )}
-        >
-          {displayTitle}
-        </span>
+        <div className="bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.35)_45%,transparent_75%)] px-10 py-6 sm:px-14 sm:py-8 flex items-center justify-center">
+          <span
+            className={cn(
+              'text-5xl sm:text-6xl md:text-7xl font-black uppercase tracking-widest text-center bg-clip-text text-transparent select-none drop-shadow-[0_6px_20px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] animate-pulse',
+              `bg-gradient-to-b ${config.gradient}`,
+            )}
+          >
+            {displayTitle}
+          </span>
+        </div>
       </div>
     </div>
   )

@@ -79,14 +79,14 @@ export function GameClockWidget({
   return (
     <div
       className={cn(
-        'w-full rounded-2xl bg-gradient-to-b from-[#0b1329]/95 to-[#070c1a]/95 border border-white/10 shadow-xl backdrop-blur-md p-3 flex flex-col gap-2 select-none transition-all duration-300',
+        'w-full rounded-2xl bg-gradient-to-b from-[#0b1329]/95 to-[#070c1a]/95 border border-white/10 shadow-xl backdrop-blur-md p-3 flex flex-col justify-between gap-2 select-none transition-all duration-300 min-h-[175px]',
         className,
       )}
     >
       {/* ── 1 Ô ĐỒNG HỒ ĐẾM NGƯỢC DUY NHẤT: Mình = Xanh | Đối thủ = Đỏ ── */}
       <div
         className={cn(
-          'relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 overflow-hidden',
+          'relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 overflow-hidden flex-1 justify-center',
           isMyTurn
             ? isEmergency
               ? 'bg-rose-950/60 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse'
@@ -149,8 +149,13 @@ export function GameClockWidget({
         )}
       </div>
 
-      {/* ── CẤU HÌNH THỜI GIAN TRƯỚC TRẬN ĐẤU (ẨN KHI ĐANG CHƠI) ── */}
-      {!isPlaying && (
+      {/* ── CẤU HÌNH THỜI GIAN TRƯỚC TRẬN ĐẤU / HOẶC TRẠNG THÁI KHI ĐANG CHƠI ── */}
+      {isPlaying ? (
+        <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl bg-white/[0.03] border border-white/5 text-[11px] font-bold text-slate-400">
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Thời gian: {safeTurnSeconds}s / lượt</span>
+        </div>
+      ) : (
         <div className="flex flex-col gap-1.5 pt-1">
           {/* Thông báo đề xuất từ đối thủ nếu có */}
           {isOnline && opponentProposal ? (

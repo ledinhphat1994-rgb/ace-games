@@ -571,6 +571,15 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         turnLabel={`Lượt: ${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        rightSlot={
+          <GameQuickEmote
+            emotes={DANH_SACH_THAI_DO_CHESS}
+            onSend={handleQuickEmote}
+            activeBubble={playerBubble}
+            theme="amber"
+            compact={true}
+          />
+        }
       />
 
       {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
@@ -663,17 +672,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
             })}
           </div>
 
-          {/* Nút cảm xúc phụ khi hai cột bên bàn cờ bị ẩn (< 1920px) */}
-          <div className="flex min-[1920px]:hidden items-center justify-center mt-3">
-            <GameQuickEmote
-              emotes={DANH_SACH_THAI_DO_CHESS}
-              onSend={handleQuickEmote}
-              activeBubble={playerBubble || bongDoiThu}
-              theme="amber"
-              align="center"
-            />
-          </div>
-
           {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
           <GameHeroicBanner
             type={heroicBanner?.type ?? null}
@@ -691,15 +689,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
             pawnType={PAWN}
             renderPiece={renderCapturedChessPiece}
             topSlot={<GameOpponentBubble bubble={bongDoiThu} theme="amber" />}
-            bottomSlot={
-              <GameQuickEmote
-                emotes={DANH_SACH_THAI_DO_CHESS}
-                onSend={handleQuickEmote}
-                activeBubble={playerBubble}
-                theme="amber"
-                align="end"
-              />
-            }
           />
         </div>
       </div>

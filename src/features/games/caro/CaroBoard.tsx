@@ -392,6 +392,15 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
         turnLabel={`Lượt: ${currentTurn === 'X' ? 'Quân X (Đi trước)' : 'Quân O'}`}
         isAiThinking={isAiThinking}
         hideCenterTurn={true}
+        rightSlot={
+          <GameQuickEmote
+            emotes={QUICK_EMOTES_CARO}
+            onSend={handleQuickEmote}
+            activeBubble={playerBubble}
+            theme="cyan"
+            compact={true}
+          />
+        }
         className="w-full shrink-0"
       />
 
@@ -628,17 +637,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             />
           </div>
 
-          {/* Nút cảm xúc phụ khi hai cột bên bàn cờ bị ẩn (< 1920px) */}
-          <div className="flex min-[1920px]:hidden items-center justify-center mt-2.5">
-            <GameQuickEmote
-              emotes={QUICK_EMOTES_CARO}
-              onSend={handleQuickEmote}
-              activeBubble={playerBubble || bongDoiThu}
-              theme="cyan"
-              align="center"
-            />
-          </div>
-
           {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
           <GameHeroicBanner
             type={heroicBanner?.type ?? null}
@@ -648,22 +646,11 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
           />
         </div>
 
-        {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 1 (Ta ở dưới) ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
+        {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) ── */}
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-start shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] select-none py-2">
           {/* VÙNG 1+: Tin nhắn đối thủ (Địch / AI) ở góc trên */}
           <div className="w-full flex justify-center">
             <GameOpponentBubble bubble={bongDoiThu} theme="cyan" />
-          </div>
-
-          {/* VÙNG 1: Nút cảm xúc & tin nhắn của ta ở góc dưới */}
-          <div className="w-full flex justify-center">
-            <GameQuickEmote
-              emotes={QUICK_EMOTES_CARO}
-              onSend={handleQuickEmote}
-              activeBubble={playerBubble}
-              theme="cyan"
-              align="end"
-            />
           </div>
         </div>
       </div>
