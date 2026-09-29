@@ -14,6 +14,7 @@ import {
 } from '../ban-online'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { playGameOverSound } from '../game-audio'
 
 const SIZE = 15
 
@@ -341,6 +342,21 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             : mode === 'ai'
               ? '🤖'
               : '🎲'
+
+  // Âm thanh khi kết thúc ván: Thắng, Thua, Hoà
+  const wasOverRef = useRef(isOver)
+  useEffect(() => {
+    if (!wasOverRef.current && isOver) {
+      if (winner === 'draw') {
+        playGameOverSound('draw')
+      } else if (winner === pheThang) {
+        playGameOverSound('win')
+      } else {
+        playGameOverSound('lose')
+      }
+    }
+    wasOverRef.current = isOver
+  }, [isOver, winner, pheThang])
 
   // Thanh công cụ ở chế độ online: nút hành động theo ghế và trạng thái ván.
   const nutOnline = banOnline ? nutHanhDongOnline(banOnline, () => setIsSurrenderModalOpen(true)) : null

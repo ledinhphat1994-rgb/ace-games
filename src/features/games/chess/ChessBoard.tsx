@@ -36,6 +36,7 @@ import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
+import { playGameOverSound } from '../game-audio'
 
 const INITIAL_CHESS_COUNTS: Record<number, number> = {
   [QUEEN]: 1,
@@ -452,6 +453,45 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
           : (pos.turn === WHITE ? 'Lượt đi: Quân Trắng' : 'Lượt đi: Quân Đen')
   const laNguoiThang = isOver && winnerColor !== null && winnerColor !== undefined ? winnerColor === mauCuaToi : null
 
+  const mauTrangThai = isOver
+    ? laNguoiThang === true
+      ? '#10b981'
+      : laNguoiThang === false
+        ? '#f43f5e'
+        : '#eab308'
+    : inCheck
+      ? '#ef4444'
+      : isAiThinking
+        ? '#06b6d4'
+        : '#f59e0b'
+
+  const emojiTrangThai = isOver
+    ? laNguoiThang === true
+      ? '🏆'
+      : laNguoiThang === false
+        ? '💀'
+        : '🤝'
+    : isAiThinking
+      ? '🤖'
+      : inCheck
+        ? '⚡'
+        : '⚔️'
+
+  // Âm thanh khi kết thúc ván: Thắng, Thua, Hoà
+  const wasOverRef = useRef(isOver)
+  useEffect(() => {
+    if (!wasOverRef.current && isOver) {
+      if (laNguoiThang === true) {
+        playGameOverSound('win')
+      } else if (laNguoiThang === false) {
+        playGameOverSound('lose')
+      } else {
+        playGameOverSound('draw')
+      }
+    }
+    wasOverRef.current = isOver
+  }, [isOver, laNguoiThang])
+
   // Phong cấp
   const handleSelectPromo = (promoType: number) => {
     if (!pendingPromo) return
@@ -484,7 +524,8 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
 
       {/* Trạng thái ván gọn khi màn chưa đủ rộng cho hai cột bên bàn cờ (< 1920px): cột trạng thái bên trái chỉ vừa từ đó */}
       <div className="flex min-[1920px]:hidden items-center justify-center gap-2 h-8 px-3.5 mt-1 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0 max-w-full">
-        <span className="font-black uppercase tracking-wider text-amber-300 whitespace-nowrap">{nhanTrangThai}</span>
+        <span className="text-base leading-none">{emojiTrangThai}</span>
+        <span style={{ color: mauTrangThai }} className="font-black uppercase tracking-wider whitespace-nowrap">{nhanTrangThai}</span>
         {phuTrangThai && <span className="text-slate-400 font-medium truncate">{phuTrangThai}</span>}
       </div>
 
@@ -493,7 +534,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu Cờ Vua chuẩn như Caro ── */}
         <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[500px] xl:h-[540px] 2xl:h-[570px] select-none text-center">
           <GameStatusWidget
-            icon={isOver ? (laNguoiThang ? '🏆' : '👑') : <Crown className="size-6 text-amber-400" />}
+            icon={isOver ? emojiTrangThai : <Crown className="size-6 text-amber-400" />}
             label={nhanTrangThai}
             subLabel={phuTrangThai}
             isPlayerTurn={laOnline ? toiDenLuotOnline : pos.turn === playerColor}

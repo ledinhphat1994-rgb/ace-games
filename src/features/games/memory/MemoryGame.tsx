@@ -47,7 +47,7 @@ function xaoBai(): CardItem[] {
   return cap.sort(() => Math.random() - 0.5)
 }
 
-function playSound(type: 'flip' | 'match' | 'miss' | 'win', muted: boolean) {
+function playSound(type: 'flip' | 'match' | 'miss' | 'win' | 'lose', muted: boolean) {
   if (muted || typeof window === 'undefined') return
   try {
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
@@ -88,6 +88,15 @@ function playSound(type: 'flip' | 'match' | 'miss' | 'win', muted: boolean) {
       osc.frequency.setValueAtTime(783.99, now + 0.24)
       osc.frequency.setValueAtTime(1046.5, now + 0.36)
       gain.gain.setValueAtTime(0.15, now)
+      gain.gain.linearRampToValueAtTime(0.001, now + 0.45)
+      osc.start(now)
+      osc.stop(now + 0.45)
+    } else if (type === 'lose') {
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(349.23, now)
+      osc.frequency.setValueAtTime(311.13, now + 0.12)
+      osc.frequency.setValueAtTime(261.63, now + 0.24)
+      gain.gain.setValueAtTime(0.12, now)
       gain.gain.linearRampToValueAtTime(0.001, now + 0.45)
       osc.start(now)
       osc.stop(now + 0.45)
@@ -208,7 +217,19 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         tEvalRef.current = setTimeout(() => {
           setFlipped([])
           if (newMatched.length === cards.length) {
-            playSound('win', muted)
+            const finalScore1 = score1 + (activeTurn === 1 ? 1 : 0)
+            const finalScore2 = score2 + (activeTurn === 2 ? 1 : 0)
+            if (mode === 'pve') {
+              if (finalScore1 > finalScore2) {
+                playSound('win', muted)
+              } else if (finalScore1 < finalScore2) {
+                playSound('lose', muted)
+              } else {
+                playSound('match', muted)
+              }
+            } else {
+              playSound('win', muted)
+            }
             if (onSaveScore) {
               const finalScore = Math.max(10, 1000 - (totalMoves + 1) * 25)
               onSaveScore(finalScore)
@@ -410,6 +431,32 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         hideCenterTurn={true}
       />
 
+      {/* Trạng thái ván gọn khi màn nhỏ (< lg) */}
+      <div className="flex lg:hidden items-center justify-center gap-2 h-8 px-3.5 mb-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold shrink-0">
+        <span className="text-base leading-none">
+          {isGameOver ? (isWinner === true ? '🏆' : isWinner === false ? '💀' : '🤝') : (turn === 1 ? '🧠' : '🤖')}
+        </span>
+        <span
+          style={{
+            color: isGameOver
+              ? isWinner === true
+                ? '#10b981'
+                : isWinner === false
+                  ? '#f43f5e'
+                  : '#eab308'
+              : '#a855f7',
+          }}
+          className="font-black uppercase tracking-wider whitespace-nowrap"
+        >
+          {isGameOver ? (winnerTitle || (isWinner ? 'BẠN THẮNG' : 'BẠN THUA')) : (turn === 1 ? 'LƯỢT BẠN' : (mode === 'pve' ? 'MÁY AI' : 'NGƯỜI CHƠI 2'))}
+        </span>
+        {isGameOver && (
+          <span className="text-slate-400 font-medium truncate">
+            {score1} - {score2}
+          </span>
+        )}
+      </div>
+
       {/* ── 2. Bố cục 3 khối cân xứng tối giản như Caro: Cột trái (Vùng 1) | Bàn chơi | Cột phải (Vùng 1+/Vùng 1) ── */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
         {/* ── CỘT TRÁI (VÙNG 1): Trạng thái ván đấu phát quang ── */}
@@ -529,6 +576,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
         attemptNumber={surrenderAttempts + 1}
         onSurrenderSuccess={() => {
           setSurrenderWinner(false) // Bạn thua
+          playSound('lose', muted)
           setIsSurrenderModalOpen(false)
         }}
         onSurrenderRejected={() => {

@@ -101,6 +101,11 @@ export function LearningPage() {
     navigate(`/room/phong-${phong.id}`)
   }
 
+  const laAdminToanQuyen = Boolean(
+    nguoiDung && (nguoiDung.isSchoolAdmin || nguoiDung.role === 'admin' || nguoiDung.username === 'ledinhphat'),
+  )
+  void laAdminToanQuyen
+
   return (
     <>
       <SanhHoatDong
