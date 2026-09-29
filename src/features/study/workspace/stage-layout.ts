@@ -22,13 +22,18 @@ export interface KhungCuaSo {
 }
 
 export type BoCuc = Partial<Record<LopId, VaiTroLop>> & {
+  toanManHinh?: boolean
   khung?: Partial<Record<LopId, KhungCuaSo>>
   /** Vai trò ngay trước khi ẩn: bật lại lớp thì về đúng vai trò cũ (cửa sổ nổi giữ nguyên khung), không tự phóng to. */
   truocKhiAn?: Partial<Record<LopId, 'main' | 'pip'>>
 }
 
 /** Bố cục nhận từ máy chủ: bản cũ có thể còn vai trò 'phu' (bảng phủ, đã bỏ) — đọc thành cửa sổ nổi. */
-export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & { khung?: BoCuc['khung']; truocKhiAn?: BoCuc['truocKhiAn'] }
+export type BoCucMayChu = Partial<Record<LopId, VaiTroLop | 'phu'>> & {
+  toanManHinh?: boolean
+  khung?: BoCuc['khung']
+  truocKhiAn?: BoCuc['truocKhiAn']
+}
 
 /** Kẹp khung trong sân khấu, làm tròn cho gọn gói tin. */
 export function kepKhung(k: KhungCuaSo): KhungCuaSo {
@@ -117,6 +122,7 @@ export function viTriCuaSo(bc: BoCuc, id: LopId): number {
 /** Bố cục người trình chiếu gửi về: lớp chưa có nội dung trên máy này (gói đồng bộ nội dung chưa tới) thì bỏ ra. */
 export function theoBoCucTrinhChieu(bc: BoCucMayChu, coVideo: boolean, coTaiLieu: boolean): BoCuc {
   const ketQua: BoCuc = {
+    ...(typeof bc.toanManHinh === 'boolean' ? { toanManHinh: bc.toanManHinh } : {}),
     ...(bc.khung ? { khung: bc.khung } : {}),
     ...(bc.truocKhiAn ? { truocKhiAn: bc.truocKhiAn } : {}),
   }
@@ -133,7 +139,11 @@ const cungKhung = (a?: KhungCuaSo, b?: KhungCuaSo) =>
   a === b || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)
 
 export function cungBoCuc(a: BoCuc, b: BoCucMayChu | null): boolean {
-  return b !== null && THU_TU_LOP.every((id) => a[id] === b[id] && cungKhung(a.khung?.[id], b.khung?.[id]))
+  return (
+    b !== null &&
+    Boolean(a.toanManHinh) === Boolean(b.toanManHinh) &&
+    THU_TU_LOP.every((id) => a[id] === b[id] && cungKhung(a.khung?.[id], b.khung?.[id]))
+  )
 }
 
 /** Bố cục ban đầu khi vào phòng, suy từ nội dung đang có trên máy chủ. */

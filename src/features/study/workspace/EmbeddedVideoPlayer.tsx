@@ -152,14 +152,13 @@ export function EmbeddedVideoPlayer({
         if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
       }}
     >
-      {/* ── Main Video Viewport Area (100% diện tích, cắt sạch vùng 1 của YouTube bằng scale/crop) ── */}
+      {/* ── Main Video Viewport Area (100% diện tích, hiển thị nguyên bản toàn bộ khung hình không cắt xén) ── */}
       <div className="relative h-full w-full flex-1 bg-black overflow-hidden flex items-center justify-center">
-        {/* Khung cắt scale [1.22] loại bỏ hoàn toàn tiêu đề, avatar kênh, nút chia sẻ và "Xem thêm" từ YouTube iframe */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center">
           <div
             id={containerId}
             data-testid="yt-player-host"
-            className="absolute inset-0 w-full h-full scale-[1.22] origin-center pointer-events-none"
+            className="absolute inset-0 w-full h-full pointer-events-none"
           />
         </div>
 
