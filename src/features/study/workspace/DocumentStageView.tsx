@@ -177,13 +177,13 @@ function OfficeEmbedViewer({
   }
 
   return (
-    <div className="relative h-full w-full flex flex-col bg-[#070b12] rounded-lg overflow-hidden">
+    <div className="relative h-full w-full flex flex-col bg-surface rounded-lg overflow-hidden">
       <div className="relative flex-1 w-full h-full">
         {fullUrl ? (
           <iframe
             src={embedUrl}
             title={docName}
-            className="h-full w-full border-0 bg-slate-950"
+            className="h-full w-full border-0 bg-canvas"
             allow="fullscreen"
           />
         ) : (
@@ -193,7 +193,7 @@ function OfficeEmbedViewer({
         )}
       </div>
       {!isGoogleSlides && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950/80 border-t border-white/10 text-xs shrink-0">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-surface border-t border-border-subtle text-xs shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-slate-400">Trình xem:</span>
             <button
@@ -387,10 +387,10 @@ export function DocumentStageView({
   // ── 1. EMPTY DOCUMENT STATE ──
   if (status === 'no_document') {
     return (
-      <div className="relative flex h-full w-full flex-col bg-[#090d16] select-none" data-testid="document-stage-empty">
+      <div className="relative flex h-full w-full flex-col bg-surface select-none" data-testid="document-stage-empty">
         <div
           data-keo-khung
-          className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 px-3"
+          className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface px-3"
         >
           <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
             <FileText className="h-4 w-4 shrink-0 text-orange-400" />
@@ -419,13 +419,13 @@ export function DocumentStageView({
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden bg-[#070b12] select-none"
+      className="relative flex h-full w-full flex-col overflow-hidden bg-surface select-none"
       data-testid="document-stage-active"
     >
       {/* ── TOP DOCUMENT TOOLBAR / HEADER ── */}
       <div
         data-keo-khung
-        className={`relative flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 backdrop-blur-md z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
+        className={`relative flex shrink-0 items-center justify-between gap-2 border-b border-border-subtle bg-surface z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
       >
         {/* Left: Doc Name & Type Badge — VÙNG 2: CHỈ HIỆN VỚI NGƯỜI THAM GIA */}
         {!canControl ? (
@@ -572,7 +572,7 @@ export function DocumentStageView({
       </div>
 
       {/* ── MAIN DOCUMENT VIEWPORT AREA ── */}
-      <div className="relative flex-1 bg-[#060a12] overflow-hidden flex items-center justify-center p-2 sm:p-4">
+      <div className="relative flex-1 bg-canvas overflow-hidden flex items-center justify-center p-2 sm:p-4">
         {status === 'render_error' ? (
           <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2" data-testid="doc-render-error">
             <AlertTriangle className="h-8 w-8 text-amber-400 opacity-90" />

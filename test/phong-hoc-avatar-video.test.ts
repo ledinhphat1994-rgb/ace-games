@@ -81,7 +81,7 @@ describe('Ảnh đại diện người tham gia', () => {
     expect(stripRaw).toContain('<AnhDaiDien key={m.avatar ?? \'\'} ten={m.ten} avatar={m.avatar} />')
     expect(stripRaw).toContain('onError={() => setLoi(true)}')
     expect(stripRaw).toContain('return <>{getInitials(ten)}</>')
-    expect(stripRaw).toContain('px-3 py-2.5')
+    expect(stripRaw).toContain("px-3 py-2")
     expect(stripRaw).toContain('[&>li:first-child]:ml-auto [&>li:last-child]:mr-auto')
     expect(stripRaw).not.toMatch(/items-center justify-center gap-2 sm:gap-3 overflow-x-auto/)
   })
@@ -98,10 +98,11 @@ describe('Cửa sổ nổi dễ đổi cỡ', () => {
 })
 
 describe('Video lớp chính ôm đúng 16:9', () => {
-  it('khung sân khấu co về 16:9 lớn nhất vừa chỗ; quầng sáng từ ảnh bìa thay cho dải đen; toàn màn hình giữ nguyên', () => {
+  it('khung sân khấu co về 16:9 lớn nhất vừa chỗ (không dải đen, không quầng màu theo video); toàn màn hình giữ nguyên', () => {
     expect(stageRaw).toContain("const videoChinh = boCuc.video === 'main' && !isFullscreen && Boolean(mediaState?.videoId)")
     expect(stageRaw).toContain("videoChinh ? 'h-[min(100cqh,calc(100cqw*9/16))] w-[min(100cqw,calc(100cqh*16/9))]' : 'h-full w-full'")
     expect(stageRaw).toContain("isFullscreen ? 'contents' : 'relative flex h-full w-full items-center justify-center [container-type:size]'")
-    expect(stageRaw).toContain('data-testid="stage-quang-video"')
+    expect(stageRaw).not.toContain('stage-quang-video')
+    expect(stageRaw).not.toContain('blur-3xl')
   })
 })
