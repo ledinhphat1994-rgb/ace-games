@@ -297,6 +297,10 @@ export function PresentationStage({
               }
               compact={boCuc.video === 'pip'}
               isReconnecting={isReconnecting}
+              onCloseVideo={() => {
+                onSyncMedia('pause')
+                onAn('video')
+              }}
             />
           ) : (
             <div className="flex h-full w-full flex-col bg-[#090d16] select-none" data-testid="video-stage-empty">

@@ -30,6 +30,16 @@ describe('Mẫu sảnh chung', () => {
     expect(gameLobbyPageRaw).not.toContain('Tạo bàn đầu tiên')
     expect(gameLobbyPageRaw).not.toContain("nhan: 'Vào phòng'")
   })
+
+  it('thống kê sảnh (vùng X) chỉ hiện với admin toàn quyền như ledinhphat; danh sách có đệm đỉnh chống khuất card khi hover', () => {
+    expect(learningPageRaw).toContain('laAdminToanQuyen')
+    expect(learningPageRaw).toContain("nguoiDung.username === 'ledinhphat'")
+    expect(gameLobbyPageRaw).toContain('laAdminToanQuyen')
+    expect(gameLobbyPageRaw).toContain("nguoiDung.username === 'ledinhphat'")
+    // Khung cuộn danh sách có pt-1.5 và grid có pt-1 để thẻ phòng khi hover -translate-y-0.5 không bị khuất cạnh trên
+    expect(sanhRaw).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3')
+    expect(sanhRaw).toContain('grid grid-cols-1 gap-3 pt-1')
+  })
 })
 
 describe('Link phòng / bàn được chia sẻ', () => {

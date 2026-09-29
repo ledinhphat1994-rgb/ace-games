@@ -184,13 +184,13 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-1.5 pb-3">
         {trangThai === 'dang_tai' && (
           <div
             data-testid={`${testId}-lobby-loading`}
             aria-busy="true"
             aria-label="Đang tải danh sách phòng"
-            className="grid grid-cols-1 gap-3 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3"
+            className="grid grid-cols-1 gap-3 pt-1 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3"
           >
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="h-[132px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03]" />
@@ -217,7 +217,7 @@ function DanhSachPhong({ danhSach, testId }: { danhSach: DanhSachSanh; testId: s
           (rong ? (
             <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center">{noiDungRong}</div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3" data-testid={`${testId}-grid`}>
+            <div className="grid grid-cols-1 gap-3 pt-1 @min-[34rem]:grid-cols-2 @min-[60rem]:grid-cols-3" data-testid={`${testId}-grid`}>
               {children}
             </div>
           ))}

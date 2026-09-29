@@ -119,7 +119,7 @@ export function SlideAnnotationLayer({
   const khungRef = useRef<HTMLDivElement>(null)
   const [coKhung, setCoKhung] = useState({ rong: 1, cao: 1 })
   // Ô gõ chữ: `diem` là toạ độ nét (0..1 theo trang), `left/top` là vị trí ô nhập (px trong khung trang, đã kẹp sát mép).
-  const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number } | null>(null)
+  const [oChu, setOChu] = useState<{ diem: [number, number]; left: number; top: number; coChuPx?: number } | null>(null)
   const [chuDangGo, setChuDangGo] = useState('')
   const oChuRef = useRef<HTMLTextAreaElement>(null)
 
@@ -162,8 +162,8 @@ export function SlideAnnotationLayer({
   }
 
   const guiChu = () => {
-    const noiDung = chuDangGo.trim().slice(0, 500)
-    if (oChu && noiDung && onSendStroke) {
+    const noiDung = chuDangGo.trimEnd().slice(0, 500)
+    if (oChu && noiDung.trim() && onSendStroke) {
       onSendStroke({
         id: `slide_chu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         page: pageNumber,
@@ -189,10 +189,13 @@ export function SlideAnnotationLayer({
       if (oChu) guiChu()
       const khung = khungRef.current?.getBoundingClientRect()
       if (khung) {
+        const coChuTrang = coTheoCongCu('text', selectedSize ?? 1)
+        const coChuPx = Math.max(12, Math.round(((coChuTrang / 1000) * coKhung.cao) * 10) / 10)
         setOChu({
           diem: pt,
-          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 176)),
-          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - 36)),
+          left: Math.max(0, Math.min(e.clientX - khung.left, khung.width - 200)),
+          top: Math.max(0, Math.min(e.clientY - khung.top, khung.height - (coChuPx * 2 + 24))),
+          coChuPx,
         })
       }
       return
@@ -352,12 +355,13 @@ export function SlideAnnotationLayer({
         .map((s) => (
           <span
             key={s.id}
-            className="absolute whitespace-pre font-semibold leading-snug"
+            className="absolute whitespace-pre-wrap font-semibold leading-snug select-none"
             style={{
               left: `${s.points[0][0] * 100}%`,
               top: `${s.points[0][1] * 100}%`,
               color: s.color,
               fontSize: (s.size / 1000) * coKhung.cao,
+              lineHeight: 1.25,
             }}
           >
             {s.text}
@@ -380,10 +384,16 @@ export function SlideAnnotationLayer({
             }
           }}
           maxLength={500}
-          rows={Math.max(1, chuDangGo.split('\n').length)}
+          rows={Math.max(1, chuDangGo.split(/\r?\n/).length)}
           aria-label="Nhập chữ lên tài liệu"
-          className="pointer-events-auto absolute z-30 min-w-44 max-w-md resize-none rounded-md border border-slate-400 bg-white/95 px-2 py-1 text-sm font-semibold shadow-xl outline-none leading-snug"
-          style={{ left: oChu.left, top: oChu.top, color: selectedColor }}
+          className="pointer-events-auto absolute z-30 min-w-44 max-w-md resize-none rounded-md border border-slate-400 bg-white/95 px-2 py-1 font-semibold shadow-xl outline-none leading-snug"
+          style={{
+            left: oChu.left,
+            top: oChu.top,
+            color: selectedColor,
+            fontSize: oChu.coChuPx ? `${oChu.coChuPx}px` : undefined,
+            lineHeight: 1.25,
+          }}
         />
       )}
     </div>

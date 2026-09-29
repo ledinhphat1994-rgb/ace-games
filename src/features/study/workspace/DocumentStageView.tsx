@@ -425,141 +425,140 @@ export function DocumentStageView({
       {/* ── TOP DOCUMENT TOOLBAR / HEADER ── */}
       <div
         data-keo-khung
-        className={`flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 backdrop-blur-md z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
+        className={`relative flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-slate-950/85 backdrop-blur-md z-10 select-none ${compact ? 'h-9 px-2' : 'h-11 px-3 sm:px-4'}`}
       >
-        {/* Left: Doc Name & Type Badge */}
-        <div className="flex items-center gap-2 truncate pr-2 min-w-0">
-          <FileText className="h-4 w-4 text-orange-400 shrink-0" />
-          <span className="truncate text-xs font-semibold text-white max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
-            {slideState?.docName || 'Tài liệu'}
-          </span>
-          {!compact && (
-            <span className="hidden sm:inline-block rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-orange-300">
-              {slideState?.fileType || 'Doc'}
+        {/* Left: Doc Name & Type Badge — VÙNG 2: CHỈ HIỆN VỚI NGƯỜI THAM GIA */}
+        {!canControl ? (
+          <div className="flex items-center gap-2 truncate pr-2 min-w-0" data-testid="document-stage-docname-badge">
+            <FileText className="h-4 w-4 text-orange-400 shrink-0" />
+            <span className="truncate text-xs font-semibold text-white max-w-[110px] sm:max-w-[200px]" data-testid="document-stage-docname" title={slideState?.docName || 'Tài liệu'}>
+              {slideState?.docName || 'Tài liệu'}
             </span>
-          )}
-          {isReconnecting && (
-            <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
-          )}
-        </div>
+            {!compact && (
+              <span className="hidden sm:inline rounded bg-orange-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase text-orange-300">
+                {slideState?.fileType || 'Doc'}
+              </span>
+            )}
+            {isReconnecting && (
+              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 min-w-0">
+            {isReconnecting && (
+              <RefreshCw className="h-3 w-3 shrink-0 animate-spin text-amber-400" aria-label="Đang kết nối lại" />
+            )}
+          </div>
+        )}
 
-        {/* Center: Synchronized Page Navigation (PDF và .pptx dựng trên trình duyệt — hệ thống tự đồng bộ trang) */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang && (
-            <div className="flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
-              {canControl ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={!conLui}
-                    onClick={diLui}
-                    className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                    title="Trang trước (←)"
-                    aria-label="Trang trước"
-                    data-testid="doc-btn-prev"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="text-xs font-mono font-bold text-orange-300 px-1" data-testid="doc-page-counter">
-                    {slideState.currentPage}/{slideState.totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!conTien}
-                    onClick={diTien}
-                    className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
-                    title="Trang sau (→)"
-                    aria-label="Trang sau"
-                    data-testid="doc-btn-next"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              ) : (
-                /* Student: honest read-only indicator without mutation buttons (Section 4) */
-                <span className="text-xs font-mono font-bold text-orange-300 px-1.5" data-testid="doc-page-counter">
-                  {slideState.currentPage}/{slideState.totalPages}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Thu phóng tại máy mình (không đồng bộ) — chỉ người trình chiếu; ẩn khi là cửa sổ nổi. Người tham gia chỉ xem. */}
-          {!compact && !dungPptx && canControl && (
-          <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
+        {/* Center: Synchronized Page Navigation — VÙNG 3: XÓA VỚI NGƯỜI THAM GIA, CĂN GIỮA VỚI CHỦ PHÒNG */}
+        {/* Student: honest read-only indicator without mutation buttons (Section 4) */}
+        {canControl && slideState && (slideState.totalPages > 1 || soBuocTrang(trangHienTai) > 0) && coChuyenTrang && (
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10" data-testid="doc-page-nav">
             <button
               type="button"
-              disabled={zoomScale <= 0.5}
-              onClick={handleZoomOut}
-              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
-              title="Thu nhỏ (-)"
-              aria-label="Thu nhỏ"
-              data-testid="doc-btn-zoom-out"
+              disabled={!conLui}
+              onClick={diLui}
+              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+              title="Trang trước (←)"
+              aria-label="Trang trước"
+              data-testid="doc-btn-prev"
             >
-              <ZoomOut className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </button>
-
+            <span className="text-xs font-mono font-bold text-orange-300 px-1" data-testid="doc-page-counter">
+              {slideState.currentPage}/{slideState.totalPages}
+            </span>
             <button
               type="button"
-              onClick={handleResetZoom}
-              className="px-1.5 py-0.5 text-[11px] font-mono font-semibold text-slate-200 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
-              title="Đặt lại độ phóng 100% (0)"
-              aria-label="Đặt lại thu phóng"
-              data-testid="doc-btn-zoom-reset"
+              disabled={!conTien}
+              onClick={diTien}
+              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed transition-colors"
+              title="Trang sau (→)"
+              aria-label="Trang sau"
+              data-testid="doc-btn-next"
             >
-              {Math.round(zoomScale * 100)}%
-            </button>
-
-            <button
-              type="button"
-              disabled={zoomScale >= 3.0}
-              onClick={handleZoomIn}
-              className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
-              title="Phóng to (+)"
-              aria-label="Phóng to"
-              data-testid="doc-btn-zoom-in"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleFit}
-              className={`hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
-                fitMode === 'width' ? 'bg-orange-600/40 text-orange-200' : 'text-slate-400 hover:text-white hover:bg-white/10'
-              }`}
-              title={fitMode === 'page' ? 'Chuyển sang Vừa chiều ngang' : 'Chuyển sang Vừa toàn trang'}
-              aria-label="Chế độ vừa màn hình"
-              data-testid="doc-btn-fit-mode"
-            >
-              {fitMode === 'page' ? 'Fit Trang' : 'Fit Ngang'}
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
+        )}
+
+        {/* Right: Local Zoom/Fit, Host Document Actions & layer frame controls — VÙNG 1 */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto">
+          {/* Thu phóng tại máy mình (không đồng bộ) — chỉ người trình chiếu; ẩn khi là cửa sổ nổi. Người tham gia chỉ xem. */}
+          {!compact && !dungPptx && canControl && (
+            <div className="hidden lg:flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/10" data-testid="doc-zoom-controls">
+              <button
+                type="button"
+                disabled={zoomScale <= 0.5}
+                onClick={handleZoomOut}
+                className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                title="Thu nhỏ (-)"
+                aria-label="Thu nhỏ"
+                data-testid="doc-btn-zoom-out"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="px-1.5 py-0.5 text-[11px] font-mono font-semibold text-slate-200 hover:text-white rounded hover:bg-white/10 transition-colors cursor-pointer"
+                title="Đặt lại độ phóng 100% (0)"
+                aria-label="Đặt lại thu phóng"
+                data-testid="doc-btn-zoom-reset"
+              >
+                {Math.round(zoomScale * 100)}%
+              </button>
+
+              <button
+                type="button"
+                disabled={zoomScale >= 3.0}
+                onClick={handleZoomIn}
+                className="p-1 text-slate-300 hover:text-white disabled:opacity-30 rounded hover:bg-white/10 transition-colors cursor-pointer"
+                title="Phóng to (+)"
+                aria-label="Phóng to"
+                data-testid="doc-btn-zoom-in"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleFit}
+                className={`hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors cursor-pointer ${
+                  fitMode === 'width' ? 'bg-orange-600/40 text-orange-200' : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+                title={fitMode === 'page' ? 'Chuyển sang Vừa chiều ngang' : 'Chuyển sang Vừa toàn trang'}
+                aria-label="Chế độ vừa màn hình"
+                data-testid="doc-btn-fit-mode"
+              >
+                {fitMode === 'page' ? 'Fit Trang' : 'Fit Ngang'}
+              </button>
+            </div>
           )}
 
           {/* Host-Only: Replace document & Close presentation (Section 4) */}
           {canControl && (
-            <>
+            <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={onUploadSlide}
-                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
-                title="Đổi hoặc tải slide khác"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                title="Đổi tài liệu"
                 aria-label="Đổi tài liệu"
                 data-testid="doc-btn-replace"
               >
-                <Upload className="h-3 w-3" />
-                {!compact && <span className="hidden sm:inline text-[11px]">Đổi tài liệu</span>}
+                <Upload className="h-3.5 w-3.5" />
               </button>
+
+              {dieuKhienKhung}
 
               {onCloseDoc && (
                 <button
                   type="button"
                   onClick={onCloseDoc}
-                  className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-red-400 cursor-pointer"
                   title="Đóng trình chiếu"
                   aria-label="Đóng trình chiếu"
                   data-testid="doc-btn-close"
@@ -567,14 +566,7 @@ export function DocumentStageView({
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-            </>
-          )}
-
-          {dieuKhienKhung && (
-            <>
-              <span className="mx-0.5 h-4 w-px bg-white/15" />
-              {dieuKhienKhung}
-            </>
+            </div>
           )}
         </div>
       </div>
