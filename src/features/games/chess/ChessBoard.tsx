@@ -22,7 +22,6 @@ import type { BanOnline } from '@/hooks/use-game'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { Crown } from 'lucide-react'
-import { toast } from 'sonner'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import {
   guiBieuCamOnline,
@@ -222,7 +221,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         winner: benThang,
         reason: `${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'} hết giờ`,
       })
-      toast.error(`${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'} đã hết giờ suy nghĩ!`)
     }, [isOver, pos.turn]),
   })
 
@@ -431,7 +429,6 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
       return
     }
     if (surrenderAttempts >= 3) {
-      toast.warning('Bạn đã hết số lần xin thua cho ván này (tối đa 3 lần)!')
       return
     }
     // Mở modal xác nhận xin thua cho người chơi
@@ -565,7 +562,7 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         onReset={nutOnline ? nutOnline.onClick : handleResetOrSurrender}
         resetLabel={nutOnline ? nutOnline.label : isOver ? 'Ván mới' : 'Xin thua'}
         resetIcon={nutOnline?.icon}
-        resetDisabled={nutOnline?.disabled}
+        resetDisabled={nutOnline ? nutOnline.disabled : (!isOver && surrenderAttempts >= 3)}
         surrenderAttempts={nutOnline ? undefined : surrenderAttempts}
         activeSide={isOver ? (winnerColor === WHITE ? 'red' : 'black') : (pos.turn === WHITE ? 'red' : 'black')}
         turnLabel={`Lượt: ${pos.turn === WHITE ? 'Quân Trắng' : 'Quân Đen'}`}
