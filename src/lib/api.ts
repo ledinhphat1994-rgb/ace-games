@@ -15,6 +15,8 @@ export interface NguoiDung {
   lopId: number | null
   lop: { id: number; ten: string; slug: string | null; namHoc: string | null; truong: string | null } | null
   actorKey: string
+  /** Vừa đăng nhập bằng Google (≤ 15 phút): đặt mật khẩu mới không cần mật khẩu cũ. */
+  datMatKhauKhongCanCu?: boolean
 }
 
 export class LoiApi extends Error {
@@ -136,7 +138,7 @@ export function goLienKetGoogle(): Promise<{ ok: boolean }> {
 }
 
 export function doiMatKhau(duLieu: {
-  matKhauCu: string
+  matKhauCu?: string
   matKhauMoi: string
 }): Promise<{ ok: boolean; message: string }> {
   return goiApi('/api/profile/password', {

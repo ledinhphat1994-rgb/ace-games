@@ -18,6 +18,8 @@ export interface Phien {
   id?: number
   phuId?: number
   taiKhoanPhuId?: number
+  /** ms: phiên được cấp bằng đăng nhập Google (mở cửa sổ đặt mật khẩu không cần mật khẩu cũ). */
+  dangNhapGoogleLuc?: number
   exp?: number
 }
 

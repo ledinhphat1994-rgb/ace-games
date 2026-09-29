@@ -7,6 +7,8 @@ interface Env {
   ENVIRONMENT?: string
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
+  /** Cloudflare Email Service (send_email) — chỉ khai báo ở cấu hình production/staging. */
+  EMAIL?: SendEmail
 }
 
 declare namespace Cloudflare {
@@ -18,5 +20,6 @@ declare namespace Cloudflare {
     ENVIRONMENT?: string
     GOOGLE_CLIENT_ID?: string
     GOOGLE_CLIENT_SECRET?: string
+    EMAIL?: SendEmail
   }
 }

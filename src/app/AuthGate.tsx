@@ -1,19 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Outlet, useSearchParams } from 'react-router'
+import { Outlet, useLocation, useSearchParams } from 'react-router'
 import { KhungChoTrang } from '@/components/layout/KhungChoTrang'
 import { GraduationCap, Loader2, WifiOff } from 'lucide-react'
 import { CampusProvider } from '@/app/CampusContext'
 import { KHOA_PHIEN, PhienContext, type GiaTriPhien } from '@/app/phien'
 import { Button } from '@/components/ui/button'
 import { AuthModal, type AuthMode } from '@/features/auth/AuthModal'
-import { dangXuat, layPhienHienTai, LoiApi } from '@/lib/api'
+import { dangXuat, layPhienHienTai, layTrangThaiGoogle, LoiApi } from '@/lib/api'
 import { toast } from 'sonner'
 import type { KetQuaGoogle } from '@shared/protocol/google'
 
 // Máy chủ quay về với ?google=<kết quả> sau đăng nhập / liên kết Google; huỷ giữa chừng thì không báo gì.
 const THONG_BAO_GOOGLE: Partial<Record<KetQuaGoogle, { loai: 'success' | 'error'; noiDung: string }>> = {
   ok: { loai: 'success', noiDung: 'Đăng nhập thành công!' },
+  khoi_phuc: { loai: 'success', noiDung: 'Đăng nhập thành công! Hãy đặt mật khẩu mới.' },
   da_lien_ket: { loai: 'success', noiDung: 'Đã liên kết Google.' },
   chua_lien_ket: {
     loai: 'error',
@@ -64,6 +65,34 @@ export function AuthGate() {
       { replace: true },
     )
   }, [ketQuaGoogle, setSearchParams])
+
+  // Nhắc liên kết Gmail (để tự lấy lại mật khẩu khi quên): thông báo nổi, không đẩy bố cục; tối đa 1 lần/ngày/tài khoản,
+  // không hiện trong phòng học.
+  const { pathname } = useLocation()
+  const trongPhong = pathname.startsWith('/room')
+  const trangThaiGoogle = useQuery({
+    queryKey: ['google', 'status'],
+    queryFn: layTrangThaiGoogle,
+    enabled: Boolean(nguoiDung) && !trongPhong,
+    staleTime: 5 * 60_000,
+  })
+  const canNhacLienKet = Boolean(nguoiDung && trangThaiGoogle.data?.sanSang && !trangThaiGoogle.data.lienKet && !trongPhong)
+  useEffect(() => {
+    if (!canNhacLienKet || !nguoiDung) return
+    const khoa = `nhac-lien-ket-google:${nguoiDung.accountId}`
+    try {
+      const lanTruoc = Number(localStorage.getItem(khoa)) || 0
+      if (Date.now() - lanTruoc < 24 * 3_600_000) return
+      localStorage.setItem(khoa, String(Date.now()))
+    } catch {
+      return
+    }
+    toast('Liên kết Gmail để tự lấy lại mật khẩu khi quên.', {
+      id: 'nhac-lien-ket-google',
+      duration: 12_000,
+      action: { label: 'Liên kết', onClick: () => window.location.assign('/api/auth/google/start?che_do=lien_ket') },
+    })
+  }, [canNhacLienKet, nguoiDung])
 
   // Khi có thông báo từ phiên (bị thay thế thiết bị hoặc hết hạn), cảnh báo và bật modal đăng nhập
   useEffect(() => {

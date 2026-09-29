@@ -3,6 +3,7 @@
 
 export const KET_QUA_GOOGLE = [
   'ok',
+  'khoi_phuc',
   'da_lien_ket',
   'chua_lien_ket',
   'da_lien_ket_khac',

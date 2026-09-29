@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 
-const NGAY_CAP_NHAT = '29/09/2026'
+const NGAY_CAP_NHAT = '30/09/2026'
 
 function Muc({ tieuDe, children }: { tieuDe: string; children: ReactNode }) {
   return (
@@ -73,6 +73,7 @@ export function PrivacyPage() {
         <Muc tieuDe="2. Mục đích sử dụng">
           <DanhSach>
             <li>Đăng nhập, giữ an toàn tài khoản và chống dò mật khẩu.</li>
+            <li>Gửi mã khôi phục mật khẩu tới Gmail đã liên kết khi chính bạn yêu cầu ở mục Quên mật khẩu.</li>
             <li>Vận hành phòng học, chat, bạn bè, trò chơi và bảng xếp hạng lớp.</li>
             <li>Giúp giáo viên theo dõi việc học và xử lý vi phạm.</li>
             <li>
