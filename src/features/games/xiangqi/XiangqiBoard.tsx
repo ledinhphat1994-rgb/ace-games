@@ -32,7 +32,6 @@ import {
 } from '../ban-online'
 import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
-import { GameStatusWidget } from '../GameStatusWidget'
 import { GameClockWidget } from '../GameClockWidget'
 import { useGameClock } from '../use-game-clock'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
@@ -349,14 +348,14 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
-    setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+    setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
     playGameStartSound()
   }, [])
 
   // Tự động kích hoạt banner xuất quân khi ván online bắt đầu
   useEffect(() => {
     if (vanVuaBatDau) {
-      setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+      setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
       playGameStartSound()
       xoaVanVuaBatDau()
     }
@@ -461,19 +460,28 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
         ? '⚡'
         : '⚔️'
 
+  // Banner khi bị chiếu tướng
+  const prevInCheckRef = useRef(inCheck)
+  useEffect(() => {
+    if (!prevInCheckRef.current && inCheck && !isOver) {
+      setHeroicBanner({ type: 'check', title: 'CHIẾU TƯỚNG' })
+    }
+    prevInCheckRef.current = inCheck
+  }, [inCheck, isOver])
+
   // Âm thanh & Banner hào hùng khi kết thúc ván: Thắng, Thua, Hoà
   const wasOverRef = useRef(isOver)
   useEffect(() => {
     if (!wasOverRef.current && isOver) {
       if (laNguoiThang === true) {
         playGameOverSound('win')
-        setHeroicBanner({ type: 'win', title: 'CHIẾN THẮNG HUY HOÀNG!' })
+        setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
       } else if (laNguoiThang === false) {
         playGameOverSound('lose')
-        setHeroicBanner({ type: 'lose', title: 'QUÂN TA BẠI TRẬN!' })
+        setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
       } else {
         playGameOverSound('draw')
-        setHeroicBanner({ type: 'draw', title: 'BẮT TAY HOÀ CỜ!' })
+        setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
       }
     }
     wasOverRef.current = isOver
@@ -511,21 +519,8 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
 
       {/* Khung chơi trung tâm: Cụm bên trái (Vùng 1) + Bàn cờ trung tâm + Cụm bên phải (Vùng 2 & Khay quân) */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI (VÙNG 1 + VÙNG 2): Trạng thái ván đấu & Đồng hồ suy nghĩ ── */}
-        <div className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[570px] 2xl:h-[600px] select-none text-center">
-          <GameStatusWidget
-            icon={isOver ? emojiTrangThai : <Shield className="size-6 text-red-500" />}
-            label={nhanTrangThai}
-            subLabel={phuTrangThai}
-            isPlayerTurn={laOnline ? toiDenLuotOnline : pos.turn === playerSide}
-            isAiThinking={isAiThinking}
-            isGameOver={isOver}
-            isWinner={laNguoiThang}
-            isCheck={inCheck && !isOver}
-            theme="red"
-          />
-
-          {/* VÙNG 2: ĐỒNG HỒ SUY NGHĨ ESPORTS (THIẾT LẬP TRƯỚC TRẬN, KHÓA KHI BẮT ĐẦU) */}
+        {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
           <GameClockWidget
             timeRemaining={clock.timeRemaining}
             turnSeconds={clock.turnSeconds}
@@ -539,7 +534,6 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
             onProposeTime={clock.proposeTime}
             onAcceptProposal={clock.acceptProposal}
             onRejectProposal={clock.rejectProposal}
-            theme="red"
           />
         </div>
 

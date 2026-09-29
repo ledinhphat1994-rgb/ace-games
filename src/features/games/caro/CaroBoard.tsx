@@ -6,7 +6,6 @@ import { Swords } from 'lucide-react'
 import { GamePlayToolbar, type PlayMode } from '../GamePlayToolbar'
 import {
   guiBieuCamOnline,
-  moTaPhuOnline,
   nutHanhDongOnline,
   tenNguoiChoi,
   useBongBieuCamDoiThu,
@@ -113,7 +112,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
       : null
     : lastMoveTaiCho
   const [isAiThinking, setIsAiThinking] = useState(false)
-  const [surrenderReason, setSurrenderReason] = useState<string | null>(null)
+  const [, setSurrenderReason] = useState<string | null>(null)
   const [isSurrenderModalOpen, setIsSurrenderModalOpen] = useState(false)
 
   // ─ Biểu cảm & tin nhắn (Vùng 1: Ta ở dưới | Vùng 1+: Địch ở trên) ─
@@ -231,14 +230,14 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     setIsAiThinking(false)
     if (playerBubbleTimerRef.current) clearTimeout(playerBubbleTimerRef.current)
     if (opponentBubbleTimerRef.current) clearTimeout(opponentBubbleTimerRef.current)
-    setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+    setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
     playGameStartSound()
   }
 
   // Tự động kích hoạt banner xuất quân khi ván online bắt đầu
   useEffect(() => {
     if (vanVuaBatDau) {
-      setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+      setHeroicBanner({ type: 'start', title: 'BẮT ĐẦU' })
       playGameStartSound()
       xoaVanVuaBatDau()
     }
@@ -286,10 +285,7 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
   // Ô bàn cờ không bấm được: ván online chưa tới lượt mình (hoặc đang xem), ván tại chỗ đã xong / máy đang tính.
   const khoaBan = banOnline ? !banOnline.isMyTurn : !!winner || isAiThinking
   const benToiOnline = banOnline?.mySide ?? null
-  const benThuaOnline = winner === 'X' ? 'O' : winner === 'O' ? 'X' : null
   const turnColor = isMyTurn ? '#06b6d4' : '#f43f5e'
-  const turnGlow = isMyTurn ? 'rgba(6,182,212,0.4)' : 'rgba(244,63,94,0.4)'
-  const turnBg = isMyTurn ? 'rgba(6,182,212,0.12)' : 'rgba(244,63,94,0.12)'
 
 
 
@@ -307,15 +303,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     : isAiThinking
       ? '#06b6d4'
       : turnColor
-  const nenTrangThai = isOver || isAiThinking
-    ? `radial-gradient(circle, ${mauTrangThai}40 0%, transparent 70%)`
-    : turnBg
-  const vienTrangThai = isOver
-    ? `${mauTrangThai}80`
-    : isAiThinking
-      ? 'rgba(6,182,212,0.4)'
-      : turnColor
-  const quangTrangThai = isOver || isAiThinking ? `${mauTrangThai}4D` : turnGlow
   const nhanTrangThai = isOver
     ? winner === 'draw'
       ? 'HOÀ CỜ'
@@ -345,25 +332,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
           ? 'LƯỢT BẠN'
           : 'CHỜ ĐỐI THỦ'
         : `LƯỢT QUÂN ${currentTurn}`
-  const phuTrangThai = isOver
-    ? winner === 'draw'
-      ? 'Kín bàn hoà cờ'
-      : banOnline
-        ? banOnline.meta.endReason === 'surrender'
-          ? `Quân ${benThuaOnline} đã xin thua`
-          : banOnline.meta.endReason === 'timeout'
-            ? `Quân ${benThuaOnline} hết giờ`
-            : `Quân ${winner} xếp đủ 5 hàng`
-        : surrenderReason ?? `Quân ${winner} xếp đủ 5 hàng`
-    : banOnline
-      ? moTaPhuOnline(banOnline, tenNguoiChoi(banOnline, currentTurn))
-    : mode === 'ai'
-      ? isMyTurn
-        ? 'Đặt quân X để tấn công'
-        : 'Đối thủ đang suy nghĩ'
-      : currentTurn === 'X'
-        ? 'Đặt quân X để tấn công'
-        : 'Đến lượt quân O'
   const emojiTrangThai = isOver
     ? winner === 'draw'
       ? '🤝'
@@ -388,13 +356,13 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
     if (!wasOverRef.current && isOver) {
       if (winner === 'draw') {
         playGameOverSound('draw')
-        setHeroicBanner({ type: 'draw', title: 'BẮT TAY HOÀ CỜ!' })
+        setHeroicBanner({ type: 'draw', title: 'HOÀ CỜ' })
       } else if (winner === pheThang) {
         playGameOverSound('win')
-        setHeroicBanner({ type: 'win', title: 'CHIẾN THẮNG HUY HOÀNG!' })
+        setHeroicBanner({ type: 'win', title: 'BẠN THẮNG' })
       } else {
         playGameOverSound('lose')
-        setHeroicBanner({ type: 'lose', title: 'QUÂN TA BẠI TRẬN!' })
+        setHeroicBanner({ type: 'lose', title: 'BẠN THUA' })
       }
     }
     wasOverRef.current = isOver
@@ -429,87 +397,8 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
 
       {/* ── KHUNG CHƠI TRUNG TÂM: 3 CỘT ĐỒNG BỘ CÙNG CẤP (CỘT TRÁI - BÀN CỜ - CỘT PHẢI) ── */}
       <div className="relative flex items-center justify-center gap-3.5 xl:gap-5 2xl:gap-6 w-full flex-1 my-auto">
-        {/* ── CỘT TRÁI (VÙNG 1 + VÙNG 2): Trạng thái ván đấu & Đồng hồ suy nghĩ ── */}
-        <div
-          role="status"
-          aria-live="polite"
-          className="hidden min-[1920px]:flex flex-col items-center justify-between shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] h-[540px] xl:h-[580px] 2xl:h-[620px] text-center select-none"
-        >
-          <div
-            className={cn(
-              'flex flex-col items-center gap-2.5 animate-in duration-200',
-              isOver ? 'zoom-in-95' : 'fade-in-50'
-            )}
-          >
-            <div className="relative flex shrink-0 items-center justify-center size-16">
-              {isOver && (
-                <div
-                  className="absolute inset-0 rounded-full animate-ping opacity-25"
-                  style={{ border: `2px solid ${mauTrangThai}` }}
-                />
-              )}
-              {isAiThinking && (
-                <>
-                  <div className="absolute inset-0 rounded-full border-2 border-dashed border-cyan-400/40 animate-spin" style={{ animationDuration: '3s' }} />
-                  <div className="absolute inset-1.5 rounded-full border border-cyan-400/20 animate-ping" style={{ animationDuration: '2s' }} />
-                </>
-              )}
-              {!isOver && !isAiThinking && (
-                <div
-                  className="absolute inset-0 rounded-full animate-ping opacity-20"
-                  style={{ border: `1.5px solid ${turnColor}` }}
-                />
-              )}
-              <div
-                className={cn(
-                  'rounded-full flex items-center justify-center',
-                  isOver ? 'size-14 shadow-lg' : 'size-12'
-                )}
-                style={{
-                  background: nenTrangThai,
-                  border: `1.5px solid ${vienTrangThai}`,
-                  boxShadow: isOver || isAiThinking
-                    ? `0 0 18px ${quangTrangThai}`
-                    : `0 0 18px ${turnGlow}, inset 0 0 12px ${turnBg}`,
-                }}
-              >
-                <span className={cn('leading-none', isOver ? 'text-3xl' : 'text-2xl')}>
-                  {emojiTrangThai}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-0.5 min-w-0">
-              <span
-                className={cn(
-                  'font-black tracking-widest uppercase leading-none truncate max-w-[170px]',
-                  isOver ? 'text-base' : 'text-sm'
-                )}
-                style={{ color: mauTrangThai, textShadow: `0 0 20px ${quangTrangThai}` }}
-              >
-                {nhanTrangThai}
-              </span>
-              <div className="h-5 flex items-center justify-center">
-                {isAiThinking ? (
-                  <div className="flex gap-1.5 items-center">
-                    {[0, 150, 300].map((delay, i) => (
-                      <span
-                        key={i}
-                        className="size-1.5 rounded-full bg-cyan-400 animate-bounce"
-                        style={{ animationDelay: `${delay}ms` }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-slate-400 font-medium leading-tight max-w-[170px] truncate">
-                    {phuTrangThai}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* VÙNG 2: ĐỒNG HỒ SUY NGHĨ ESPORTS (THIẾT LẬP TRƯỚC TRẬN, KHÓA KHI BẮT ĐẦU) */}
+        {/* ── CỘT TRÁI: ĐỒNG HỒ SUY NGHĨ (VÙNG 3, KHÔNG CỐ ĐỊNH CHIỀU CAO) ── */}
+        <div className="hidden min-[1920px]:flex flex-col items-center justify-center shrink-0 w-[180px] xl:w-[200px] 2xl:w-[215px] select-none text-center my-auto">
           <GameClockWidget
             timeRemaining={clock.timeRemaining}
             turnSeconds={clock.turnSeconds}
@@ -523,7 +412,6 @@ export function CaroBoard({ onBack, initialMode, online }: CaroBoardProps) {
             onProposeTime={clock.proposeTime}
             onAcceptProposal={clock.acceptProposal}
             onRejectProposal={clock.rejectProposal}
-            theme="cyan"
           />
         </div>
 
