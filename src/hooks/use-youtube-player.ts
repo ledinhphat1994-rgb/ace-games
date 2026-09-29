@@ -105,6 +105,8 @@ export function useYouTubePlayer({
             modestbranding: 1,
             playsinline: 1,
             rel: 0,
+            iv_load_policy: 3,
+            cc_load_policy: 0,
             origin: typeof window !== 'undefined' ? window.location.origin : undefined,
           },
           events: {
