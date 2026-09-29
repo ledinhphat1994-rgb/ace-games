@@ -28,6 +28,7 @@ export function GameCapturedTray({
 }: GameCapturedTrayProps) {
   const safeEnemy = Array.isArray(enemyCaptured) ? enemyCaptured : []
   const safeFriendly = Array.isArray(friendlyCaptured) ? friendlyCaptured : []
+  const hasCaptured = safeEnemy.length > 0 || safeFriendly.length > 0
 
   const enemyPawns = safeEnemy.filter((t) => t === pawnType)
   const enemyMajors = safeEnemy.filter((t) => t !== pawnType)
@@ -75,7 +76,14 @@ export function GameCapturedTray({
 
       {/* VÙNG 2: ĐƯỜNG PHÂN CÁCH CỐ ĐỊNH CHÍNH GIỮA 50% CHIỀU CAO (NGĂN CÁCH 2 PHE KHÔNG BAO GIỜ BỊ LỆCH) */}
       <div className="w-full flex items-center justify-center shrink-0 my-0 py-1">
-        <div className="w-full h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_14px_rgba(251,191,36,0.95)]" />
+        <div
+          className={cn(
+            'w-full transition-all duration-300',
+            hasCaptured
+              ? 'h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_14px_rgba(251,191,36,0.95)] opacity-100'
+              : 'h-[1px] bg-gradient-to-r from-transparent via-amber-500/20 to-transparent opacity-30'
+          )}
+        />
       </div>
 
       {/* NỬA DƯỚI (50% CHIỀU CAO): Quân ta ăn được đổ từ trung tâm xuống + VÙNG 1 (Nút icon & tin nhắn của ta) */}

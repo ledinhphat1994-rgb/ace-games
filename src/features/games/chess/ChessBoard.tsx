@@ -36,7 +36,8 @@ import { GameCapturedTray } from '../GameCapturedTray'
 import { GameSurrenderModal } from '../GameSurrenderModal'
 import { GameStatusWidget } from '../GameStatusWidget'
 import { GameQuickEmote, GameOpponentBubble, type QuickEmoteItem, type ActiveEmoteBubble } from '../GameQuickEmote'
-import { playGameOverSound } from '../game-audio'
+import { GameHeroicBanner, type HeroicBannerType } from '../GameHeroicBanner'
+import { playGameOverSound, playGameStartSound } from '../game-audio'
 
 const INITIAL_CHESS_COUNTS: Record<number, number> = {
   [QUEEN]: 1,
@@ -168,7 +169,11 @@ interface ChessBoardProps {
 export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
   const [posTaiCho, setPos] = useState<ChessPosition>(() => ChessPosition.fromFen())
   const [selectedSq, setSelectedSq] = useState<number | null>(null)
-  const { mode, doiCheDo, laOnline } = useCheDoBan(online, initialMode)
+  const { mode, doiCheDo, laOnline, vanVuaBatDau, xoaVanVuaBatDau } = useCheDoBan(online, initialMode)
+  const [heroicBanner, setHeroicBanner] = useState<{
+    type: HeroicBannerType
+    title?: string
+  } | null>(null)
   const [aiLevel, setAiLevel] = useState<'easy' | 'medium' | 'hard'>('medium')
   const [playerColor] = useState<Color>(WHITE)
   // Bàn online: thế cờ dựng lại từ chuỗi nước máy chủ đã xét; màu quân theo ghế (bên đi trước cầm Trắng).
@@ -376,7 +381,18 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
     setSurrenderAttempts(0)
     setIsSurrenderModalOpen(false)
     setCustomGameOver(null)
+    setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+    playGameStartSound()
   }, [])
+
+  // Tự động kích hoạt banner xuất quân khi ván online bắt đầu
+  useEffect(() => {
+    if (vanVuaBatDau) {
+      setHeroicBanner({ type: 'start', title: 'TRẬN ĐẤU BẮT ĐẦU!' })
+      playGameStartSound()
+      xoaVanVuaBatDau()
+    }
+  }, [vanVuaBatDau, xoaVanVuaBatDau])
 
   const handleModeChange = (newMode: PlayMode) => {
     if (!doiCheDo(newMode)) return
@@ -477,16 +493,19 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
         ? '⚡'
         : '⚔️'
 
-  // Âm thanh khi kết thúc ván: Thắng, Thua, Hoà
+  // Âm thanh & Banner hào hùng khi kết thúc ván: Thắng, Thua, Hoà
   const wasOverRef = useRef(isOver)
   useEffect(() => {
     if (!wasOverRef.current && isOver) {
       if (laNguoiThang === true) {
         playGameOverSound('win')
+        setHeroicBanner({ type: 'win', title: 'CHIẾN THẮNG HUY HOÀNG!' })
       } else if (laNguoiThang === false) {
         playGameOverSound('lose')
+        setHeroicBanner({ type: 'lose', title: 'QUÂN TA BẠI TRẬN!' })
       } else {
         playGameOverSound('draw')
+        setHeroicBanner({ type: 'draw', title: 'BẮT TAY HOÀ CỜ!' })
       }
     }
     wasOverRef.current = isOver
@@ -619,6 +638,14 @@ export function ChessBoard({ onBack, initialMode, online }: ChessBoardProps) {
               align="center"
             />
           </div>
+
+          {/* VÙNG 1+: Banner hào hùng xuất quân & kết thúc ván đấu phủ lên bàn cờ */}
+          <GameHeroicBanner
+            type={heroicBanner?.type ?? null}
+            title={heroicBanner?.title}
+            visible={Boolean(heroicBanner)}
+            onClose={() => setHeroicBanner(null)}
+          />
         </div>
 
         {/* ── CỘT PHẢI: VÙNG 1+ (Địch ở trên) | VÙNG 2 (Ngăn cách cố định ở giữa 50%) | VÙNG 1 (Ta ở dưới) ── */}
