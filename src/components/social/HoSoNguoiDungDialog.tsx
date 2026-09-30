@@ -45,6 +45,7 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
   const isMe = nguoiDung ? nguoiDung.accountId === nguoi.id : false
   const [xemThanhTuu, setXemThanhTuu] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const returnFocusRef = useRef(document.activeElement)
   const anchor = useMemo(() => ({
     getBoundingClientRect: () => {
       const rect = nguoi.anchorRect
@@ -114,6 +115,13 @@ function NoiDungHoSoPop({ nguoi, onDong }: { nguoi: NguoiXem; onDong: () => void
         >
           <Popover.Popup
             initialFocus={closeRef}
+            finalFocus={() => {
+              const previous = returnFocusRef.current
+              if (previous instanceof HTMLElement && previous !== document.body && previous.isConnected) return previous
+              // Presence can move this person into another group while their profile is open.
+              const selector = `button[aria-label="${CSS.escape('Xem thông tin ' + nguoi.ten)}"]`
+              return Array.from(document.querySelectorAll<HTMLButtonElement>(selector)).find(button => button.getClientRects().length > 0) ?? null
+            }}
             aria-label={xemThanhTuu ? nhanThanhTuu : 'Hồ sơ của ' + ten}
             className="flex w-88 max-w-[calc(100vw-24px)] max-h-[min(36rem,var(--available-height,calc(100dvh-24px)))] min-h-0 flex-col rounded-2xl border border-border-default bg-surface-raised shadow-xl outline-none"
             data-testid="ho-so-nguoi-dung"

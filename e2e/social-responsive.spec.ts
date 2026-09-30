@@ -235,3 +235,22 @@ for (const zoom of [1, 1.25]) test(`Profile, achievements, Community and action 
     }
   } finally { await run.close() }
 })
+
+
+test('Closing a profile returns focus after realtime presence regroups its trigger', async () => {
+  const run = await browserAtZoom(1)
+  const otherPage = await peer.newPage()
+  try {
+    await run.page.goto('/community')
+    const trigger = run.page.getByRole('button', { name: 'Xem thông tin ' + people[1].name, exact: true })
+    const original = await trigger.elementHandle()
+    await trigger.click()
+    await expect(run.page.getByTestId('ho-so-nguoi-dung')).toBeVisible()
+    await otherPage.goto('/community')
+    await expect(run.page.locator('[data-testid="friend-online-' + people[1].username + '"]')).toBeVisible()
+    expect(await original!.evaluate(element => element.isConnected)).toBeFalsy()
+    await run.page.keyboard.press('Escape')
+    await expect(run.page.getByTestId('ho-so-nguoi-dung')).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  } finally { await otherPage.close(); await run.close() }
+})
