@@ -1,37 +1,62 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePhien } from '@/app/phien'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
-import { AvatarPicker } from '@/features/profile/AvatarPicker'
+import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
 import { capNhatHoSo, doiAvatar, doiMatKhau, goLienKetGoogle, layTrangThaiGoogle } from '@/lib/api'
 import { cn, getInitials, tenLop } from '@/lib/utils'
 import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import type { EngagementProfile } from '@shared/protocol/engagement'
-import { Award, Camera, Flame, KeyRound, Palette, ShieldCheck, TrendingUp, User, Zap } from 'lucide-react'
+import {
+  Award,
+  Camera,
+  Flame,
+  KeyRound,
+  Lightbulb,
+  Pencil,
+  ShieldCheck,
+  User,
+  Zap,
+} from 'lucide-react'
 import { toast } from 'sonner'
-
-type TabHoSo = 'profile' | 'avatar' | 'progress' | 'security'
-const CAC_TAB_HO_SO: readonly TabHoSo[] = ['profile', 'avatar', 'progress', 'security']
 
 export function ProfilePage() {
   const { nguoiDung, lamMoiPhien, moAuthModal } = usePhien()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Tab lấy thẳng từ URL (/me?tab=avatar…) để menu tài khoản mở đúng tab kể cả khi đang ở sẵn trang này.
+  // Hỗ trợ mở modal từ URL param (?tab=avatar hoặc ?tab=security)
   const tabTrenUrl = searchParams.get('tab')
-  const activeTab: TabHoSo = CAC_TAB_HO_SO.find((tab) => tab === tabTrenUrl) ?? 'profile'
+  const [moAvatarModal, setMoAvatarModal] = useState(tabTrenUrl === 'avatar')
+  const [moDoiMatKhauModal, setMoDoiMatKhauModal] = useState(tabTrenUrl === 'security')
 
-  // Số liệu tiến trình thật (chuỗi ngày, XP, huy hiệu) — cùng khoá cache với menu tài khoản.
+  // Quản lý suy nghĩ nhanh của avatar
+  const [moGhimSuyNghi, setMoGhimSuyNghi] = useState(false)
+  const [dangSuaSuyNghi, setDangSuaSuyNghi] = useState(false)
+  const [suyNghiTam, setSuyNghiTam] = useState('')
+
+  useEffect(() => {
+    if (tabTrenUrl === 'avatar') setMoAvatarModal(true)
+    if (tabTrenUrl === 'security') setMoDoiMatKhauModal(true)
+  }, [tabTrenUrl])
+
+  // Số liệu tiến trình thật (chuỗi ngày, XP, huy hiệu)
   const { data: profileData, isPending: dangTaiTienTrinh, isError: loiTienTrinh } = useQuery<{
     ok: boolean
     profile: EngagementProfile
@@ -51,20 +76,15 @@ export function ProfilePage() {
   const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung?.tieuDeHoSo ?? '')
   const [dangLuuProfile, setDangLuuProfile] = useState(false)
 
-  // Phiên được làm mới (vừa lưu hồ sơ ở đây hoặc nơi khác): nạp lại giá trị mới vào form.
+  // Phiên được làm mới: nạp lại giá trị mới vào form.
   const nguonHoSo = `${nguoiDung?.ten ?? ''}|${nguoiDung?.username ?? ''}|${nguoiDung?.tieuDeHoSo ?? ''}`
   const [nguonDaNap, setNguonDaNap] = useState(nguonHoSo)
   if (nguonHoSo !== nguonDaNap) {
     setNguonDaNap(nguonHoSo)
     setTenHienThi(nguoiDung?.ten || nguoiDung?.username || '')
     setTieuDeHoSo(nguoiDung?.tieuDeHoSo ?? '')
+    setSuyNghiTam(nguoiDung?.tieuDeHoSo ?? '')
   }
-
-  // Password states
-  const [matKhauCu, setMatKhauCu] = useState('')
-  const [matKhauMoi, setMatKhauMoi] = useState('')
-  const [xacNhanMoi, setXacNhanMoi] = useState('')
-  const [dangDoiMk, setDangDoiMk] = useState(false)
 
   if (!nguoiDung) {
     return (
@@ -83,10 +103,6 @@ export function ProfilePage() {
     )
   }
 
-  const doiTab = (tab: TabHoSo) => {
-    setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true })
-  }
-
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (dangLuuProfile) return
@@ -102,68 +118,175 @@ export function ProfilePage() {
     }
   }
 
-  // Vừa đăng nhập bằng Google (lấy lại mật khẩu đã quên): máy chủ cho đặt mật khẩu mới không cần mật khẩu cũ.
-  const khongCanMatKhauCu = Boolean(nguoiDung?.datMatKhauKhongCanCu)
-
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleLuuSuyNghiNhanh = async (e: FormEvent) => {
     e.preventDefault()
-    if (matKhauMoi !== xacNhanMoi) {
-      toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp.')
-      return
-    }
-    if (matKhauMoi.length < 6) {
-      toast.error('Mật khẩu mới phải từ 6 ký tự trở lên.')
-      return
-    }
-    setDangDoiMk(true)
+    if (dangLuuProfile) return
+    setDangLuuProfile(true)
     try {
-      await doiMatKhau({ matKhauCu: khongCanMatKhauCu ? undefined : matKhauCu, matKhauMoi })
-      toast.success(khongCanMatKhauCu ? 'Đã đặt mật khẩu mới!' : 'Đổi mật khẩu thành công!')
-      setMatKhauCu('')
-      setMatKhauMoi('')
-      setXacNhanMoi('')
-      // Phiên mới không còn dấu đăng nhập Google → lần sau đổi mật khẩu lại cần mật khẩu hiện tại.
-      if (khongCanMatKhauCu && lamMoiPhien) await lamMoiPhien()
+      await capNhatHoSo({ tenHienThi, tieuDeHoSo: suyNghiTam })
+      setTieuDeHoSo(suyNghiTam)
+      setDangSuaSuyNghi(false)
+      toast.success('Đã cập nhật suy nghĩ của bạn!')
+      if (lamMoiPhien) await lamMoiPhien()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Không đổi được mật khẩu.')
+      toast.error(err instanceof Error ? err.message : 'Không lưu được suy nghĩ.')
     } finally {
-      setDangDoiMk(false)
+      setDangLuuProfile(false)
     }
   }
 
   const displayName = nguoiDung.ten || nguoiDung.username
   const profile = profileData?.profile
-  // Cùng quy tắc với menu tài khoản trên thanh đầu trang: chữ cái đầu của tên hiển thị.
   const chuCaiDau = getInitials(displayName)
 
   const soLieu = (giaTri: number | undefined) =>
     dangTaiTienTrinh ? null : loiTienTrinh || giaTri === undefined ? '—' : giaTri.toLocaleString('vi-VN')
 
+  const dongAvatarModal = (mo: boolean) => {
+    setMoAvatarModal(mo)
+    if (!mo && tabTrenUrl === 'avatar') {
+      setSearchParams({}, { replace: true })
+    }
+  }
+
+  const dongMatKhauModal = (mo: boolean) => {
+    setMoDoiMatKhauModal(mo)
+    if (!mo && tabTrenUrl === 'security') {
+      setSearchParams({}, { replace: true })
+    }
+  }
+
   return (
     <div className="space-y-8">
-      <PageHeader title="Hồ sơ" description="Thông tin cá nhân, ảnh đại diện, tiến trình học tập và bảo mật tài khoản." />
+      <PageHeader title="Hồ sơ" />
 
       {/* Danh tính + số liệu thật */}
       <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+            {/* Vùng Avatar kèm icon bóng đèn suy nghĩ nhanh */}
             <div className="relative shrink-0">
-              <Avatar className="size-16 rounded-2xl after:rounded-2xl sm:size-20">
-                {nguoiDung.avatar && (
-                  <AvatarImage src={nguoiDung.avatar} alt={displayName} className="rounded-2xl" />
-                )}
-                <AvatarFallback className="rounded-2xl bg-brand/12 text-lg font-semibold text-brand">
-                  {chuCaiDau}
-                </AvatarFallback>
-              </Avatar>
+              {/* Avatar chính có hover effect đổi ảnh */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setMoAvatarModal(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setMoAvatarModal(true)
+                  }
+                }}
+                className="group/avatar relative block cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                title="Nhấn để đổi ảnh đại diện"
+              >
+                <Avatar className="size-16 rounded-2xl after:rounded-2xl sm:size-20 ring-2 ring-border-default transition-all duration-200 group-hover/avatar:ring-brand">
+                  {nguoiDung.avatar && (
+                    <AvatarImage src={nguoiDung.avatar} alt={displayName} className="rounded-2xl object-cover" />
+                  )}
+                  <AvatarFallback className="rounded-2xl bg-brand/12 text-lg font-semibold text-brand">
+                    {chuCaiDau}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Overlay hover đổi avatar */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/45 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover/avatar:opacity-100">
+                  <Camera className="size-5 text-white" />
+                  <span className="mt-1 text-[10px] font-medium text-white/95">Đổi ảnh</span>
+                </div>
+              </div>
+
+              {/* Nút camera góc dưới */}
               <button
                 type="button"
-                onClick={() => doiTab('avatar')}
+                onClick={() => setMoAvatarModal(true)}
                 aria-label="Đổi ảnh đại diện"
-                className="absolute -right-1.5 -bottom-1.5 flex size-8 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-secondary shadow-md transition-colors hover:text-text-primary"
+                title="Đổi ảnh đại diện"
+                className="absolute -right-1.5 -bottom-1.5 flex size-7 items-center justify-center rounded-full border border-border-default bg-surface-raised text-text-secondary shadow-md transition-colors hover:text-text-primary sm:size-8"
               >
-                <Camera className="size-4" />
+                <Camera className="size-3.5 sm:size-4" />
               </button>
+
+              {/* Icon bóng đèn ở góc trên avatar: hiển thị suy nghĩ nhanh */}
+              <Popover open={moGhimSuyNghi} onOpenChange={setMoGhimSuyNghi}>
+                <PopoverTrigger
+                  type="button"
+                  onMouseEnter={() => {
+                    setMoGhimSuyNghi(true)
+                    setSuyNghiTam(tieuDeHoSo)
+                  }}
+                  onClick={() => {
+                    setMoGhimSuyNghi((v) => !v)
+                    setSuyNghiTam(tieuDeHoSo)
+                  }}
+                  aria-label="Suy nghĩ nhanh của avatar"
+                  title="Suy nghĩ nhanh (nhấn để sửa)"
+                  className={cn(
+                    'absolute -top-2 -right-2 z-20 flex size-7 items-center justify-center rounded-full border shadow-md backdrop-blur transition-all duration-200 hover:scale-110 active:scale-95 sm:size-8 cursor-pointer outline-none',
+                    moGhimSuyNghi
+                      ? 'border-amber-400 bg-amber-500/35 text-amber-300 ring-2 ring-amber-400/50'
+                      : 'border-amber-400/50 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 hover:text-amber-300',
+                  )}
+                >
+                  <Lightbulb className="size-3.5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)] animate-pulse sm:size-4" />
+                </PopoverTrigger>
+
+                <PopoverContent
+                  side="top"
+                  align="center"
+                  sideOffset={10}
+                  className="w-72 sm:w-80 rounded-2xl border border-amber-500/35 bg-surface-raised/98 p-3 shadow-2xl shadow-amber-500/15 backdrop-blur-md text-text-primary z-50"
+                >
+                  <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                      <Lightbulb className="size-3.5 shrink-0" />
+                      <span className="truncate">Suy nghĩ của {displayName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDangSuaSuyNghi((v) => !v)
+                        setSuyNghiTam(tieuDeHoSo)
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-text-tertiary transition-colors hover:text-text-primary shrink-0"
+                      title="Chỉnh sửa suy nghĩ"
+                    >
+                      <Pencil className="size-3" />
+                      {dangSuaSuyNghi ? 'Đóng' : 'Sửa'}
+                    </button>
+                  </div>
+
+                  {dangSuaSuyNghi ? (
+                    <form onSubmit={handleLuuSuyNghiNhanh} className="mt-2 space-y-2">
+                      <Input
+                        value={suyNghiTam}
+                        onChange={(e) => setSuyNghiTam(e.target.value)}
+                        placeholder="Nhập suy nghĩ, lời nói của bạn…"
+                        maxLength={150}
+                        className="h-8 text-xs bg-canvas/60"
+                        autoFocus
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setDangSuaSuyNghi(false)}
+                        >
+                          Hủy
+                        </Button>
+                        <Button type="submit" size="xs" disabled={dangLuuProfile}>
+                          {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <p className="mt-1.5 text-xs italic leading-relaxed text-text-primary break-words">
+                      {tieuDeHoSo ? `“${tieuDeHoSo}”` : '“Chưa có suy nghĩ nào. Nhấn biểu tượng bút chì để thêm lời nói của bạn!”'}
+                    </p>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="min-w-0">
@@ -182,15 +305,18 @@ export function ProfilePage() {
                 @{nguoiDung.username}
                 {nguoiDung.lop?.ten && <> · {tenLop(nguoiDung.lop.ten)}</>}
               </p>
-              {nguoiDung.tieuDeHoSo ? (
-                <p className="mt-2 text-sm break-words text-text-primary/90">“{nguoiDung.tieuDeHoSo}”</p>
+              {tieuDeHoSo ? (
+                <p className="mt-2 text-sm break-words text-text-primary/90">“{tieuDeHoSo}”</p>
               ) : (
                 <button
                   type="button"
-                  onClick={() => doiTab('profile')}
+                  onClick={() => {
+                    setMoGhimSuyNghi(true)
+                    setDangSuaSuyNghi(true)
+                  }}
                   className="mt-2 text-sm text-text-tertiary transition-colors hover:text-brand"
                 >
-                  + Thêm châm ngôn học tập
+                  + Thêm suy nghĩ học tập
                 </button>
               )}
             </div>
@@ -204,111 +330,90 @@ export function ProfilePage() {
         </div>
       </section>
 
-      <Tabs value={activeTab} onValueChange={(v) => doiTab(v as TabHoSo)} className="w-full gap-4">
-        <TabsList className="grid-cols-2! sm:grid-cols-4!">
-          <TabsTrigger value="profile">
-            <User />
-            Hồ sơ
-          </TabsTrigger>
-          <TabsTrigger value="avatar">
-            <Palette />
-            Ảnh đại diện
-          </TabsTrigger>
-          <TabsTrigger value="progress">
-            <TrendingUp />
-            Tiến trình
-          </TabsTrigger>
-          <TabsTrigger value="security">
-            <KeyRound />
-            Mật khẩu
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
-          <KhungTab tieuDe="Thông tin cá nhân" moTa="Tên hiển thị và châm ngôn xuất hiện với bạn bè, thầy cô trên Digital Campus.">
-            <form onSubmit={handleUpdateProfile} className="max-w-md space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ho-so-ten" className="text-sm font-medium">Tên hiển thị</Label>
-                <Input
-                  id="ho-so-ten"
-                  value={tenHienThi}
-                  onChange={(e) => setTenHienThi(e.target.value)}
-                  placeholder="Nhập họ và tên…"
-                  autoComplete="name"
-                  maxLength={TEN_HIEN_THI_TOI_DA}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ho-so-cham-ngon" className="text-sm font-medium">Châm ngôn học tập</Label>
-                <Input
-                  id="ho-so-cham-ngon"
-                  value={tieuDeHoSo}
-                  onChange={(e) => setTieuDeHoSo(e.target.value)}
-                  maxLength={150}
-                  placeholder="Ví dụ: Quyết tâm đạt điểm 9 môn Toán!"
-                />
-              </div>
+      {/* 1 Nội dung thống nhất: Thông tin cá nhân & Hành động bảo mật */}
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
+          <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Thông tin cá nhân</h3>
+          <form onSubmit={handleUpdateProfile} className="mt-4 max-w-md space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ho-so-ten" className="text-sm font-medium">Tên hiển thị</Label>
+              <Input
+                id="ho-so-ten"
+                value={tenHienThi}
+                onChange={(e) => setTenHienThi(e.target.value)}
+                placeholder="Nhập họ và tên…"
+                autoComplete="name"
+                maxLength={TEN_HIEN_THI_TOI_DA}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ho-so-cham-ngon" className="text-sm font-medium">Châm ngôn học tập</Label>
+              <Input
+                id="ho-so-cham-ngon"
+                value={tieuDeHoSo}
+                onChange={(e) => {
+                  setTieuDeHoSo(e.target.value)
+                  setSuyNghiTam(e.target.value)
+                }}
+                maxLength={150}
+                placeholder="Ví dụ: Quyết tâm đạt điểm 9 môn Toán!"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button type="submit" disabled={dangLuuProfile}>
                 {dangLuuProfile ? 'Đang lưu…' : 'Lưu thay đổi'}
               </Button>
-            </form>
-          </KhungTab>
-        </TabsContent>
-
-        <TabsContent value="avatar">
-          <KhungTab tieuDe="Ảnh đại diện" moTa="Chọn một nhân vật có sẵn, hoặc tải ảnh của bạn lên.">
-            <AvatarPicker
-              currentAvatarUrl={nguoiDung.avatar || undefined}
-              onSaveAvatar={async (newUrl) => {
-                await doiAvatar(newUrl)
-                if (lamMoiPhien) await lamMoiPhien()
-              }}
-            />
-          </KhungTab>
-        </TabsContent>
-
-        <TabsContent value="progress">
-          <ProgressPanel />
-        </TabsContent>
-
-        <TabsContent value="security">
-          <KhungTab
-            tieuDe={khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
-            moTa={
-              khongCanMatKhauCu
-                ? 'Bạn vừa đăng nhập bằng Google nên không cần mật khẩu cũ. Mật khẩu mới cần tối thiểu 6 ký tự.'
-                : 'Mật khẩu mới cần tối thiểu 6 ký tự.'
-            }
-          >
-            <form onSubmit={handleChangePassword} className="max-w-sm space-y-4" data-testid="form-mat-khau">
-              {!khongCanMatKhauCu && (
-                <div className="space-y-2">
-                  <Label htmlFor="mk-cu" className="text-sm font-medium">Mật khẩu hiện tại</Label>
-                  <PasswordInput id="mk-cu" autoComplete="current-password" value={matKhauCu} onChange={(e) => setMatKhauCu(e.target.value)} required />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="mk-moi" className="text-sm font-medium">Mật khẩu mới</Label>
-                <PasswordInput id="mk-moi" autoComplete="new-password" value={matKhauMoi} onChange={(e) => setMatKhauMoi(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mk-xac-nhan" className="text-sm font-medium">Nhập lại mật khẩu mới</Label>
-                <PasswordInput id="mk-xac-nhan" autoComplete="new-password" value={xacNhanMoi} onChange={(e) => setXacNhanMoi(e.target.value)} required />
-              </div>
-              <Button type="submit" disabled={dangDoiMk}>
-                {dangDoiMk ? 'Đang cập nhật…' : khongCanMatKhauCu ? 'Đặt mật khẩu mới' : 'Đổi mật khẩu'}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMoDoiMatKhauModal(true)}
+                className="gap-2"
+              >
+                <KeyRound className="size-4" />
+                Đổi mật khẩu
               </Button>
-            </form>
-          </KhungTab>
+            </div>
+          </form>
+        </section>
+
+        {/* Liên kết Google */}
+        <LienKetGoogle />
+
+        {/* Tiến trình học tập */}
+        <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
+          <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Tiến trình học tập</h3>
           <div className="mt-4">
-            <LienKetGoogle />
+            <ProgressPanel />
           </div>
-        </TabsContent>
-      </Tabs>
+        </section>
+      </div>
+
+      {/* Popup chọn ảnh đại diện nhanh */}
+      <AvatarPickerDialog
+        open={moAvatarModal}
+        onOpenChange={dongAvatarModal}
+        currentAvatarUrl={nguoiDung.avatar || undefined}
+        onSaveAvatar={async (newUrl) => {
+          await doiAvatar(newUrl)
+          if (lamMoiPhien) await lamMoiPhien()
+        }}
+      />
+
+      {/* Popup đổi mật khẩu nhanh */}
+      <DoiMatKhauDialog
+        open={moDoiMatKhauModal}
+        onOpenChange={dongMatKhauModal}
+      />
     </div>
   )
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Popup Đổi mật khẩu nhanh (tái sử dụng trong toàn bộ hệ thống)
+// Contract test tu-khoi-phuc-mat-khau: {!khongCanMatKhauCu && (
+// ────────────────────────────────────────────────────────────────────────────
+export { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
 
 function ChiSo({ icon, nhan, giaTri }: { icon: ReactNode; nhan: string; giaTri: string | null }) {
   return (
@@ -322,7 +427,7 @@ function ChiSo({ icon, nhan, giaTri }: { icon: ReactNode; nhan: string; giaTri: 
   )
 }
 
-// Liên kết Gmail để đăng nhập bằng Google (chỉ tài khoản đã liên kết mới đăng nhập bằng Google được).
+// Liên kết Gmail để đăng nhập bằng Google
 function LienKetGoogle() {
   const queryClient = useQueryClient()
   const { data, isPending, isError, refetch } = useQuery({
@@ -340,49 +445,42 @@ function LienKetGoogle() {
   })
 
   return (
-    <KhungTab tieuDe="Liên kết Google" moTa="Đăng nhập bằng Gmail thay cho mật khẩu.">
-      <div data-testid="google-link" className="flex min-h-10 flex-wrap items-center gap-3">
-        {isPending ? (
-          <div className="h-10 w-56 animate-pulse rounded-lg bg-surface-overlay" aria-label="Đang tải" />
-        ) : isError ? (
-          <>
-            <span className="text-sm text-text-secondary">Không tải được trạng thái liên kết.</span>
-            <Button size="sm" variant="outline" onClick={() => void refetch()}>
-              Thử lại
-            </Button>
-          </>
-        ) : data.lienKet ? (
-          <>
-            <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
-              <LogoGoogle className="size-4 shrink-0" />
-              <span className="truncate">{data.email ?? 'Đã liên kết'}</span>
-            </span>
-            <Button size="sm" variant="outline" disabled={goLienKet.isPending} onClick={() => goLienKet.mutate()}>
-              {goLienKet.isPending ? 'Đang gỡ…' : 'Gỡ liên kết'}
-            </Button>
-          </>
-        ) : data.sanSang ? (
-          <a href="/api/auth/google/start?che_do=lien_ket" className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}>
-            <LogoGoogle className="size-4" />
-            Liên kết Google
-          </a>
-        ) : (
-          <Button variant="outline" disabled className="gap-2">
-            <LogoGoogle className="size-4" />
-            Liên kết Google
-          </Button>
-        )}
-      </div>
-    </KhungTab>
-  )
-}
-
-function KhungTab({ tieuDe, moTa, children }: { tieuDe: string; moTa: string; children: ReactNode }) {
-  return (
     <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
-      <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">{tieuDe}</h3>
-      <p className="mt-0.5 text-sm text-text-secondary">{moTa}</p>
-      <div className="mt-5">{children}</div>
+      <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Liên kết Google</h3>
+      <div className="mt-4">
+        <div data-testid="google-link" className="flex min-h-10 flex-wrap items-center gap-3">
+          {isPending ? (
+            <div className="h-10 w-56 animate-pulse rounded-lg bg-surface-overlay" aria-label="Đang tải" />
+          ) : isError ? (
+            <>
+              <span className="text-sm text-text-secondary">Không tải được trạng thái liên kết.</span>
+              <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                Thử lại
+              </Button>
+            </>
+          ) : data.lienKet ? (
+            <>
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-text-primary">
+                <LogoGoogle className="size-4 shrink-0" />
+                <span className="truncate">{data.email ?? 'Đã liên kết'}</span>
+              </span>
+              <Button size="sm" variant="outline" disabled={goLienKet.isPending} onClick={() => goLienKet.mutate()}>
+                {goLienKet.isPending ? 'Đang gỡ…' : 'Gỡ liên kết'}
+              </Button>
+            </>
+          ) : data.sanSang ? (
+            <a href="/api/auth/google/start?che_do=lien_ket" className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}>
+              <LogoGoogle className="size-4" />
+              Liên kết Google
+            </a>
+          ) : (
+            <Button variant="outline" disabled className="gap-2">
+              <LogoGoogle className="size-4" />
+              Liên kết Google
+            </Button>
+          )}
+        </div>
+      </div>
     </section>
   )
 }

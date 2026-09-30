@@ -21,9 +21,10 @@ const NHOM: readonly { id: AvatarCategoryFilter; label: string }[] = [
 interface AvatarPickerProps {
   currentAvatarUrl?: string
   onSaveAvatar: (url: string) => Promise<void>
+  onSuccess?: () => void
 }
 
-export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerProps) {
+export function AvatarPicker({ currentAvatarUrl, onSaveAvatar, onSuccess }: AvatarPickerProps) {
   const [selectedAvatar, setSelectedAvatar] = useState<string>(
     currentAvatarUrl || CHARACTER_AVATARS[0].src
   )
@@ -42,6 +43,7 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
     try {
       await onSaveAvatar(selectedAvatar)
       toast.success('Đã cập nhật ảnh đại diện!')
+      onSuccess?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không lưu được ảnh đại diện.')
     } finally {
@@ -64,6 +66,7 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
         setSelectedAvatar(data.url)
         await onSaveAvatar(data.url)
         toast.success('Tải ảnh đại diện thành công!')
+        onSuccess?.()
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Lỗi khi tải ảnh lên.')
@@ -80,6 +83,7 @@ export function AvatarPicker({ currentAvatarUrl, onSaveAvatar }: AvatarPickerPro
       await onSaveAvatar(customUrl.trim())
       toast.success('Đã áp dụng ảnh đại diện từ đường dẫn!')
       setCustomUrl('')
+      onSuccess?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không dùng được ảnh từ đường dẫn này.')
     }

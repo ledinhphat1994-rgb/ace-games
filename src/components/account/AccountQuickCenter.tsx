@@ -13,16 +13,19 @@ import {
 import type { NguoiDung } from '@/lib/api'
 import { cn, getInitials } from '@/lib/utils'
 import type { EngagementProfile, UserAchievementItem } from '@shared/protocol/engagement'
+import { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
+import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
+import { doiAvatar } from '@/lib/api'
 import {
   AlertCircle,
   ArrowRight,
   Award,
   BookOpen,
+  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Flame,
-  Image as ImageIcon,
   KeyRound,
   Loader2,
   Lock,
@@ -65,6 +68,7 @@ const ICON_THANH_TUU: Record<string, ComponentType<{ className?: string }>> = {
 export function AccountQuickCenter({
   nguoiDung,
   onDangXuat,
+  onLamMoiPhien,
   className,
 }: AccountQuickCenterProps) {
   const navigate = useNavigate()
@@ -148,6 +152,9 @@ export function AccountQuickCenter({
     items: rawAchievements,
   })
 
+  const [moDoiMatKhau, setMoDoiMatKhau] = useState(false)
+  const [moDoiAvatar, setMoDoiAvatar] = useState(false)
+
   const tenHienThi = nguoiDung.ten || nguoiDung.username
   const roleLabel = nguoiDung.isSchoolAdmin
     ? 'Quản trị viên'
@@ -171,7 +178,19 @@ export function AccountQuickCenter({
     currentView === 'main' ? (
       <div>
         <div className="flex items-center gap-3 px-1 pb-3">
-          <AnhDaiDien nguoiDung={nguoiDung} className="size-11 text-sm" />
+          <div
+            className="group/avatar relative cursor-pointer"
+            onClick={() => {
+              handleOpenChange(false)
+              setMoDoiAvatar(true)
+            }}
+            title="Đổi ảnh đại diện"
+          >
+            <AnhDaiDien nguoiDung={nguoiDung} className="size-11 text-sm ring-1 ring-border-default transition-all group-hover/avatar:ring-brand" />
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 backdrop-blur-[1px] transition-opacity group-hover/avatar:opacity-100">
+              <Camera className="size-4 text-white" />
+            </div>
+          </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold break-words text-text-primary">{tenHienThi}</p>
             <p className="text-xs break-words text-text-tertiary">
@@ -184,13 +203,16 @@ export function AccountQuickCenter({
           <MucMenu icon={User} onClick={() => diToi('/me')}>
             Hồ sơ của tôi
           </MucMenu>
-          <MucMenu icon={ImageIcon} onClick={() => diToi('/me?tab=avatar')}>
-            Đổi ảnh đại diện
-          </MucMenu>
           <MucMenu icon={Award} onClick={() => setCurrentView('achievements')} coMuiTen>
             Huy hiệu & thành tựu
           </MucMenu>
-          <MucMenu icon={KeyRound} onClick={() => diToi('/me?tab=security')}>
+          <MucMenu
+            icon={KeyRound}
+            onClick={() => {
+              handleOpenChange(false)
+              setMoDoiMatKhau(true)
+            }}
+          >
             Đổi mật khẩu
           </MucMenu>
           {nguoiDung.isSchoolAdmin && (
@@ -312,38 +334,28 @@ export function AccountQuickCenter({
       </div>
     )
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // MOBILE: Ergonomic Bottom Sheet
-  // ──────────────────────────────────────────────────────────────────────────
-  if (isMobile) {
-    return (
-      <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-        <SheetTrigger
-          data-testid="account-menu-trigger"
-          className={triggerClass}
-          title="Tài khoản"
-          aria-label="Mở trung tâm tài khoản"
-        >
-          {triggerContent}
-        </SheetTrigger>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85svh] gap-0 overflow-y-auto rounded-t-2xl px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))]"
-        >
-          <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong" />
-          <SheetHeader className="sr-only">
-            <SheetTitle>Tài khoản</SheetTitle>
-          </SheetHeader>
-          {noiDung}
-        </SheetContent>
-      </Sheet>
-    )
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // DESKTOP: Anchored Popover
-  // ──────────────────────────────────────────────────────────────────────────
-  return (
+  const menuKichHoat = isMobile ? (
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
+      <SheetTrigger
+        data-testid="account-menu-trigger"
+        className={triggerClass}
+        title="Tài khoản"
+        aria-label="Mở trung tâm tài khoản"
+      >
+        {triggerContent}
+      </SheetTrigger>
+      <SheetContent
+        side="bottom"
+        className="max-h-[85svh] gap-0 overflow-y-auto rounded-t-2xl px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
+        <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-border-strong" />
+        <SheetHeader className="sr-only">
+          <SheetTitle>Tài khoản</SheetTitle>
+        </SheetHeader>
+        {noiDung}
+      </SheetContent>
+    </Sheet>
+  ) : (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger
         data-testid="account-menu-trigger"
@@ -357,6 +369,22 @@ export function AccountQuickCenter({
         {noiDung}
       </PopoverContent>
     </Popover>
+  )
+
+  return (
+    <>
+      {menuKichHoat}
+      <DoiMatKhauDialog open={moDoiMatKhau} onOpenChange={setMoDoiMatKhau} />
+      <AvatarPickerDialog
+        open={moDoiAvatar}
+        onOpenChange={setMoDoiAvatar}
+        currentAvatarUrl={nguoiDung.avatar || undefined}
+        onSaveAvatar={async (url) => {
+          await doiAvatar(url)
+          if (onLamMoiPhien) await onLamMoiPhien()
+        }}
+      />
+    </>
   )
 }
 
