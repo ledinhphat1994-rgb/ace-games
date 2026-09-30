@@ -135,7 +135,9 @@ describe('Giao diện', () => {
     expect(chatRaw).toContain('aria-label={`Xem thông tin ${msg.ten}`}')
     expect(dialogRaw).toContain('layHoSoNguoiDung(nguoi.id)')
     expect(dialogRaw).toContain('<NutQuanHe id={nguoi.id} day />')
-    for (const kq of ['guiLoiMoiKetBan', 'chapNhanKetBan', 'tuChoiKetBan', 'huyLoiMoi']) expect(nutRaw).toContain(kq)
+    expect(dialogRaw).toContain('anchorRect')
+    for (const kq of ['guiLoiMoiKetBan', 'chapNhanKetBan', 'tuChoiKetBan', 'huyLoiMoi', 'unfriend']) expect(nutRaw).toContain(kq)
+    expect(nutRaw).toContain('Hủy kết bạn')
     for (const tt of ["case 'friend'", "case 'pending_sent'", "case 'pending_received'", "case 'blocked'"]) expect(nutRaw).toContain(tt)
   })
 

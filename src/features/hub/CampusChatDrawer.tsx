@@ -210,7 +210,16 @@ export function CampusChatDrawer({
                         ) : (
                           <button
                             type="button"
-                            onClick={() => setNguoiXem({ id: msg.accountId, ten: msg.ten, lopTen: msg.lopTen, vaiTro: msg.vaiTro })}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setNguoiXem({
+                                id: msg.accountId,
+                                ten: msg.ten,
+                                lopTen: msg.lopTen,
+                                vaiTro: msg.vaiTro,
+                                anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                              })
+                            }}
                             aria-label={`Xem thông tin ${msg.ten}`}
                             title={msg.ten}
                             data-testid={`chat-anh-${msg.accountId}`}
@@ -227,7 +236,16 @@ export function CampusChatDrawer({
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => setNguoiXem({ id: msg.accountId, ten: msg.ten, lopTen: msg.lopTen, vaiTro: msg.vaiTro })}
+                                  onClick={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect()
+                                    setNguoiXem({
+                                      id: msg.accountId,
+                                      ten: msg.ten,
+                                      lopTen: msg.lopTen,
+                                      vaiTro: msg.vaiTro,
+                                      anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                    })
+                                  }}
                                   className="min-w-0 cursor-pointer text-left font-medium break-words text-text-primary hover:text-brand hover:underline focus-visible:underline focus-visible:outline-none"
                                 >
                                   {msg.ten}

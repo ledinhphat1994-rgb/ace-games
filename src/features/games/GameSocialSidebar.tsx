@@ -10,6 +10,7 @@ import {
   Smile,
   Sparkles,
   Loader2,
+  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCampus } from '@/hooks/use-campus'
@@ -708,23 +709,33 @@ export function GameSocialSidebar({
                   >
                     <ArrowLeft className="size-4" />
                   </Button>
-                  <div className="relative">
-                    <div className="flex size-7 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold">
-                      {getInitials(selectedFriend.displayName)}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setNguoiXem(nguoiXemTu(selectedFriend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }))
+                    }}
+                    className="flex items-center gap-2 min-w-0 text-left cursor-pointer group"
+                    title="Xem hồ sơ & thao tác"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="flex size-7 items-center justify-center rounded-full bg-brand/20 text-brand text-xs font-bold ring-1 ring-white/10 group-hover:ring-brand/40 transition-all">
+                        {getInitials(selectedFriend.displayName)}
+                      </div>
+                      <span
+                        className={cn(
+                          'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
+                          getFriendPresence(selectedFriend.id).color
+                        )}
+                      />
                     </div>
-                    <span
-                      className={cn(
-                        'absolute bottom-0 right-0 size-2 rounded-full ring-1 ring-background',
-                        getFriendPresence(selectedFriend.id).color
-                      )}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-text-primary truncate">{selectedFriend.displayName}</p>
-                    <p className="text-[10px] text-text-tertiary truncate">
-                      {getFriendPresence(selectedFriend.id).label}
-                    </p>
-                  </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-text-primary truncate group-hover:text-brand transition-colors">{selectedFriend.displayName}</p>
+                      <p className="text-[10px] text-text-tertiary truncate">
+                        {getFriendPresence(selectedFriend.id).label}
+                      </p>
+                    </div>
+                  </button>
                 </div>
 
                 {onInviteToGame && (
@@ -745,15 +756,32 @@ export function GameSocialSidebar({
                 <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
                   <MessageCircle className="size-7 text-text-tertiary mb-2" />
                   <p className="text-xs font-semibold text-text-primary">Chưa hỗ trợ tin nhắn riêng</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setActiveTab('chat_chung')}
-                    className="mt-3 gap-1.5 border-white/10 cursor-pointer"
-                  >
-                    <MessageSquare className="size-3.5" />
-                    Mở Chat chung
-                  </Button>
+                  <p className="mt-1 text-[11px] text-text-tertiary max-w-[200px]">
+                    Hệ thống hiện dùng Chat chung và Chat phòng học/bàn chơi
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveTab('chat_chung')}
+                      className="gap-1.5 border-white/10 cursor-pointer"
+                    >
+                      <MessageSquare className="size-3.5" />
+                      Mở Chat chung
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setNguoiXem(nguoiXemTu(selectedFriend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }))
+                      }}
+                      className="gap-1.5 text-text-secondary hover:text-text-primary cursor-pointer"
+                    >
+                      <User className="size-3.5" />
+                      Xem hồ sơ
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -802,7 +830,12 @@ export function GameSocialSidebar({
                           ten={r.sender.displayName}
                           avatar={r.sender.avatar}
                           phu={r.sender.lopTen ?? nhanVaiTro(r.sender.role)}
-                          onXem={() => setNguoiXem(nguoiXemTu(r.sender!))}
+                          onXem={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setNguoiXem(
+                              nguoiXemTu(r.sender!, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }),
+                            )
+                          }}
                         />
                       ) : null,
                     )}
@@ -825,7 +858,10 @@ export function GameSocialSidebar({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setNguoiXem(nguoiXemTu(friend))
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setNguoiXem(
+                                  nguoiXemTu(friend, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }),
+                                )
                               }}
                               aria-label={`Xem thông tin ${friend.displayName}`}
                               className="relative shrink-0 cursor-pointer rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
@@ -889,7 +925,12 @@ export function GameSocialSidebar({
                         avatar={r.avatar}
                         phu={r.lopTen ?? nhanVaiTro(r.role)}
                         trangThaiMayChu={r.relationshipStatus}
-                        onXem={() => setNguoiXem(nguoiXemTu(r))}
+                        onXem={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          setNguoiXem(
+                            nguoiXemTu(r, { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom }),
+                          )
+                        }}
                       />
                     ))}
                     {loiTimNguoi && (
@@ -945,8 +986,11 @@ export function GameSocialSidebar({
 }
 
 /** Người trong danh sách bạn bè / lời mời / kết quả tìm kiếm → thông tin đã biết sẵn để hiện ngay trong hồ sơ. */
-function nguoiXemTu(p: { id: number; displayName: string; lopTen: string | null; role: string; avatar: string | null }): NguoiXem {
-  return { id: p.id, ten: p.displayName, lopTen: p.lopTen, vaiTro: p.role, avatar: p.avatar }
+function nguoiXemTu(
+  p: { id: number; displayName: string; lopTen: string | null; role: string; avatar: string | null },
+  anchorRect?: import('@/components/social/HoSoNguoiDungDialog').AnchorRect | null,
+): NguoiXem {
+  return { id: p.id, ten: p.displayName, lopTen: p.lopTen, vaiTro: p.role, avatar: p.avatar, anchorRect }
 }
 
 /** Một dòng người: bấm ảnh / tên để xem hồ sơ, nút kết bạn ở bên phải. */
@@ -963,7 +1007,7 @@ function HangNguoi({
   avatar: string | null
   phu: string | null
   trangThaiMayChu?: import('@shared/protocol/social').RelationshipStatus
-  onXem: () => void
+  onXem: (e: React.MouseEvent<HTMLElement>) => void
 }) {
   return (
     <div
@@ -972,7 +1016,7 @@ function HangNguoi({
     >
       <button
         type="button"
-        onClick={onXem}
+        onClick={(e) => onXem(e)}
         aria-label={`Xem thông tin ${ten}`}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
       >

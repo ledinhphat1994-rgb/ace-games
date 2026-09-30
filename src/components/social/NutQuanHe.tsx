@@ -2,7 +2,7 @@
 // Trạng thái lấy từ SocialState thời gian thực; chưa tải xong thì dùng trạng thái máy chủ trả kèm kết quả tìm kiếm.
 
 import { useState } from 'react'
-import { Check, Loader2, UserCheck, UserPlus, X } from 'lucide-react'
+import { Check, Loader2, UserCheck, UserMinus, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { RelationshipStatus } from '@shared/protocol/social'
 import { usePhien } from '@/app/phien'
@@ -21,7 +21,7 @@ interface NutQuanHeProps {
 
 export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) {
   const { nguoiDung } = usePhien()
-  const { socialState, guiLoiMoiKetBan, chapNhanKetBan, tuChoiKetBan, huyLoiMoi } = useCampus()
+  const { socialState, guiLoiMoiKetBan, chapNhanKetBan, tuChoiKetBan, huyLoiMoi, unfriend } = useCampus()
   const [dangXuLy, setDangXuLy] = useState(false)
 
   const quanHe: RelationshipStatus | null =
@@ -49,6 +49,27 @@ export function NutQuanHe({ id, trangThaiMayChu, day = false }: NutQuanHeProps) 
     case 'self':
       return quanHe === 'self' ? <span className="shrink-0 text-xs text-text-tertiary">Bạn</span> : null
     case 'friend':
+      if (day) {
+        return (
+          <div className="flex w-full items-center justify-between gap-2" data-testid={`ban-be-${id}`}>
+            <span className={cn(nhan, 'text-success')}>
+              <UserCheck className="size-4" />
+              Bạn bè
+            </span>
+            <Button
+              size="xs"
+              variant="outline"
+              className="h-8 gap-1 rounded-lg border-white/10 text-xs text-text-tertiary hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors"
+              disabled={dangXuLy}
+              onClick={() => void chay(() => unfriend(id), 'Đã hủy kết bạn.')}
+              data-testid={`huy-ket-ban-${id}`}
+            >
+              {dangXuLy ? <Loader2 className="size-3.5 animate-spin" /> : <UserMinus className="size-3.5" />}
+              Hủy kết bạn
+            </Button>
+          </div>
+        )
+      }
       return (
         <span className={cn(nhan, 'text-success')} data-testid={`ban-be-${id}`}>
           <UserCheck className="size-3.5" />
