@@ -404,7 +404,7 @@ export function MemoryGame({ onSaveScore, onBack }: MemoryGameProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full max-w-5xl mx-auto">
+    <div className="flex flex-col items-center justify-between w-full h-full">
       {/* ── 1. Thanh điều khiển GamePlayToolbar chuẩn hoá (Đã xoá badge Vùng 3) ── */}
       <GamePlayToolbar
         onBack={onBack}

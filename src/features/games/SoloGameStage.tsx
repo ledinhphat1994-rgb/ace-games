@@ -26,7 +26,7 @@ export function SoloGameStage({ gameType, onBack, onSaveScore, onSnakeSettled }:
   // Rắn săn mồi: Tab đối kháng (PvE / PvP) hoặc Tab Cổ điển xác thực máy chủ
   if (snakeTab === 'classic') {
     return (
-      <div className="flex flex-col items-center justify-between w-full h-full max-w-5xl mx-auto">
+      <div className="flex flex-col items-center justify-between w-full h-full">
         <div className="mb-2 flex w-full flex-wrap items-center justify-between gap-2 px-1 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Button

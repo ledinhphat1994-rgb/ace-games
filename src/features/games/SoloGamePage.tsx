@@ -41,7 +41,7 @@ export function SoloGamePage({ gameType, onLeave }: SoloGamePageProps) {
       leaderboard={<GameArenaLeaderboard defaultGame={gameType} />}
       social={<GameSocialSidebar roomId={`solo_${gameType}`} roomName={gameType === 'solo_snake' ? 'Phòng Rắn Săn Mồi' : 'Phòng Lật Thẻ Trí Nhớ'} userRole="player" />}
     >
-      <div className="game-stage flex min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2.5 shadow-2xl sm:p-3.5">
+      <div className="game-stage flex min-w-0 w-full h-full flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2 sm:p-3.5 shadow-2xl">
         <SoloGameStage gameType={gameType} onBack={onLeave} onSaveScore={(score) => void luuDiem(score)} onSnakeSettled={lamMoiBangXepHang} />
       </div>
     </ResponsiveActivityLayout>

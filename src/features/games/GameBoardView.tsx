@@ -46,7 +46,7 @@ export function GameBoardView({
       leaderboard={<GameArenaLeaderboard defaultGame={meta.gameType} />}
       social={<GameSocialSidebar roomId={gameId} roomName={roomName} userRole={userRole} chatBan={chatBan} />}
     >
-      <div className="game-stage flex min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2.5 shadow-2xl sm:p-3.5">
+      <div className="game-stage flex min-w-0 w-full h-full flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#0d1424]/75 to-[#070b14]/75 p-2 sm:p-3.5 shadow-2xl">
         {meta.gameType === 'chess' ? <ChessBoard onBack={onLeave} online={online} /> : meta.gameType === 'xiangqi' ? <XiangqiBoard onBack={onLeave} online={online} /> : <CaroBoard onBack={onLeave} online={online} />}
       </div>
     </ResponsiveActivityLayout>

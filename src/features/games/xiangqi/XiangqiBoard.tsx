@@ -485,7 +485,7 @@ export function XiangqiBoard({ onBack, initialMode, online }: XiangqiBoardProps)
   }, [isOver, laNguoiThang])
 
   return (
-    <div className="flex flex-col items-center justify-between w-full h-full max-w-5xl mx-auto">
+    <div className="flex flex-col items-center justify-between w-full h-full">
       {/* Thanh điều khiển cân đối & trạng thái ván đấu */}
       <GamePlayToolbar
         onBack={onBack}

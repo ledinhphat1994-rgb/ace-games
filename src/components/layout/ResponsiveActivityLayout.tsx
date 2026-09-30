@@ -15,6 +15,8 @@ interface ResponsiveActivityLayoutProps {
 export function ResponsiveActivityLayout({ leaderboard, social, children, testId }: ResponsiveActivityLayoutProps) {
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1280px)').matches)
   const [panel, setPanel] = useState<'leaderboard' | 'messages' | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement))
+
   useEffect(() => {
     const media = window.matchMedia('(min-width: 1280px)')
     const update = () => { setDesktop(media.matches); setPanel(null) }
@@ -22,10 +24,24 @@ export function ResponsiveActivityLayout({ leaderboard, social, children, testId
     return () => media.removeEventListener('change', update)
   }, [])
 
+  useEffect(() => {
+    const handleFs = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', handleFs)
+    return () => document.removeEventListener('fullscreenchange', handleFs)
+  }, [])
+
   const panels = [
     { id: 'leaderboard' as const, label: 'Bảng xếp hạng', content: leaderboard, icon: <Trophy className="size-5" /> },
     { id: 'messages' as const, label: 'Tin nhắn & bạn bè', content: social, icon: <MessageCircle className="size-5" /> },
   ]
+
+  if (isFullscreen) {
+    return (
+      <div data-testid={testId} className="activity-layout activity-layout--fullscreen w-full h-full min-h-[calc(100vh-1rem)] flex flex-col items-center justify-center p-0 m-0">
+        <div className="w-full h-full flex flex-col flex-1 min-w-0">{children}</div>
+      </div>
+    )
+  }
 
   return (
     <div data-testid={testId} className="activity-layout grid w-full min-w-0 grid-cols-1 items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px] 2xl:grid-cols-[300px_minmax(0,1fr)_320px]">

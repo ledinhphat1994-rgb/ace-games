@@ -90,30 +90,41 @@ export function AppShell({ children }: AppShellProps) {
   const isWidePage =
     location.pathname.startsWith('/arena') || location.pathname.startsWith('/game') || location.pathname.startsWith('/learn')
 
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== 'undefined' && Boolean(document.fullscreenElement))
+  useEffect(() => {
+    const handleFs = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', handleFs)
+    return () => document.removeEventListener('fullscreenchange', handleFs)
+  }, [])
+
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
       {/* 1. Header (Sticky desktop & mobile) */}
-      <AppHeader
-        nguoiDung={nguoiDung}
-        trangThai={trangThai}
-        onlineCount={onlineCount}
-        latencyMs={latencyMs}
-        coTinNhanMoi={coTinNhanMoi}
-        onDoDoTre={doDoTre}
-        onKetNoiLai={ketNoiLai}
-        onDangXuat={() => void dangXuat()}
-        onToggleChat={() => datMoChat(!isChatOpen)}
-        onLamMoiPhien={lamMoiPhien}
-        onMoAuthModal={moAuthModal}
-      />
+      {!isFullscreen && (
+        <AppHeader
+          nguoiDung={nguoiDung}
+          trangThai={trangThai}
+          onlineCount={onlineCount}
+          latencyMs={latencyMs}
+          coTinNhanMoi={coTinNhanMoi}
+          onDoDoTre={doDoTre}
+          onKetNoiLai={ketNoiLai}
+          onDangXuat={() => void dangXuat()}
+          onToggleChat={() => datMoChat(!isChatOpen)}
+          onLamMoiPhien={lamMoiPhien}
+          onMoAuthModal={moAuthModal}
+        />
+      )}
 
       {/* 2. Main Content Container */}
       <main
         className={cn(
           'mx-auto w-full flex-1 transition-all',
-          isWidePage
-            ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-8'
-            : 'max-w-7xl px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 md:pb-10'
+          isFullscreen
+            ? 'p-0 m-0 max-w-none w-full h-screen'
+            : isWidePage
+              ? 'max-w-[1920px] px-2.5 sm:px-4 pt-4 pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-8'
+              : 'max-w-7xl px-3 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 md:pb-10'
         )}
       >
         {/* Single-device policy warning banner */}
@@ -154,7 +165,7 @@ export function AppShell({ children }: AppShellProps) {
       </main>
 
       {/* 3. Mobile Bottom Navigation */}
-      <MobileNav />
+      {!isFullscreen && <MobileNav />}
 
       {/* 4. Global Campus Chat Drawer (On-demand Sheet) */}
       <CampusChatSheet
