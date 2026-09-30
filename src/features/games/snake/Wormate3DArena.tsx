@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { MousePointer2, Trophy } from 'lucide-react'
+import { MousePointer2, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ARENA_SIZE = 2400
@@ -1173,6 +1173,16 @@ export function Wormate3DArena({
               </>
             )}
           </span>
+
+          {/* Nút BẮT ĐẦU to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
+          <div className="pt-2">
+            <span
+              className="inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <Play className="size-5 fill-white text-white drop-shadow animate-pulse" />
+              <span>BẮT ĐẦU NGAY</span>
+            </span>
+          </div>
         </button>
       )}
 
@@ -1212,6 +1222,15 @@ export function Wormate3DArena({
             </div>
           </div>
 
+          {/* Nút CHƠI LẠI to rõ, chữ đẹp, thẩm mỹ, chuyên nghiệp */}
+          <div className="pt-1">
+            <span
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm sm:text-base tracking-[0.1em] uppercase shadow-2xl shadow-emerald-500/40 ring-2 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <RotateCcw className="size-5 text-white drop-shadow" />
+              <span>CHƠI LẠI NGAY</span>
+            </span>
+          </div>
         </button>
       )}
     </div>

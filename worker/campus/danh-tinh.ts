@@ -18,6 +18,8 @@ export interface DanhTinhCampus {
   xoaMoiTin: boolean
   xemTatCaLop: boolean
   lopXem: number[]
+  avatar: string | null
+  tieuDeHoSo: string | null
 }
 
 export async function taoDanhTinhCampus(env: Env, phien: Phien, tk: TaiKhoan): Promise<DanhTinhCampus> {
@@ -38,6 +40,8 @@ export async function taoDanhTinhCampus(env: Env, phien: Phien, tk: TaiKhoan): P
     xemTatCaLop: pham?.quanTriTruong ?? false,
     // Như danh sách phòng của phong.js: học sinh thấy lớp mình, giáo viên thấy các lớp được gán.
     lopXem: pham ? (pham.lopIds ?? []) : tk.lopId ? [tk.lopId] : [],
+    avatar: tk.avatar ?? null,
+    tieuDeHoSo: tk.tieuDeHoSo ?? null,
   }
 }
 

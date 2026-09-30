@@ -12,6 +12,10 @@ export interface TaiKhoan {
   avatar: string | null
   tieuDeHoSo: string | null
   laAdminTruong: boolean
+  ngaySinh?: string | null
+  noiSinhSong?: string | null
+  sdtLienHe?: string | null
+  soThich?: string | null
 }
 
 export type KetQuaPhien =
@@ -31,6 +35,10 @@ interface DongTaiKhoan {
   avatar: string | null
   tieuDeHoSo: string | null
   laAdminTruong: number | null
+  ngaySinh?: string | null
+  noiSinhSong?: string | null
+  sdtLienHe?: string | null
+  soThich?: string | null
 }
 
 export async function layPhien(request: Request, env: Env): Promise<Phien | null> {
@@ -58,7 +66,8 @@ export async function kiemTraPhien(phien: Phien | null, env: Env): Promise<KetQu
       `SELECT id, ten_dang_nhap AS tenDangNhap, ten_hien_thi AS ten, vai_tro AS vaiTro,
               teacher_pending AS teacherPending, dang_hoat_dong AS dangHoatDong, thiet_bi AS thietBi,
               hoc_sinh_id AS hocSinhId, lop_id AS lopId, avatar, tieu_de_ho_so AS tieuDeHoSo,
-              la_admin_truong AS laAdminTruong
+              la_admin_truong AS laAdminTruong,
+              ngay_sinh AS ngaySinh, noi_sinh_song AS noiSinhSong, sdt_lien_he AS sdtLienHe, so_thich AS soThich
          FROM tai_khoan_campus WHERE id = ?1`,
     )
       .bind(phien.accountId)
@@ -89,6 +98,10 @@ export async function kiemTraPhien(phien: Phien | null, env: Env): Promise<KetQu
     avatar: tk.avatar,
     tieuDeHoSo: tk.tieuDeHoSo,
     laAdminTruong: tk.laAdminTruong === 1,
+    ngaySinh: tk.ngaySinh ?? null,
+    noiSinhSong: tk.noiSinhSong ?? null,
+    sdtLienHe: tk.sdtLienHe ?? null,
+    soThich: tk.soThich ?? null,
   }
   return {
     hopLe: true,

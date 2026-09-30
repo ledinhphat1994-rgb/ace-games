@@ -43,6 +43,8 @@ interface DongTinD1 {
   noiDung: string
   taoLuc: string
   lopTen: string | null
+  avatar: string | null
+  tieuDeHoSo: string | null
 }
 
 interface DongPhongD1 {
@@ -91,6 +93,8 @@ function tinTuD1(r: DongTinD1): TinCampus {
     lopTen: r.lopTen,
     noiDung: r.noiDung,
     taoLuc: msTuD1(r.taoLuc),
+    avatar: r.avatar ?? null,
+    tieuDeHoSo: r.tieuDeHoSo ?? null,
   }
 }
 
@@ -684,6 +688,8 @@ export class CampusDO extends DurableObject<Env> {
       lopTen: dt.lopTen,
       noiDung,
       taoLuc: msTuD1(dong.taoLuc),
+      avatar: dt.avatar ?? null,
+      tieuDeHoSo: dt.tieuDeHoSo ?? null,
     }
     if (this.tinGanDay) this.tinGanDay = [...this.tinGanDay, tin].slice(-CHAT_CAMPUS.GUI_KEM)
     this.gui(ws, { type: 'ack', reqId })
@@ -748,8 +754,10 @@ export class CampusDO extends DurableObject<Env> {
     try {
       const { results } = await this.env.DB.prepare(
         `SELECT m.id, m.sender_account_id AS accountId, m.display_name AS ten, m.role, m.content AS noiDung,
-                m.created_at AS taoLuc, l.ten AS lopTen
-           FROM campus_chat_message m LEFT JOIN lop l ON l.id = m.lop_id
+                m.created_at AS taoLuc, l.ten AS lopTen, tk.avatar AS avatar, tk.tieu_de_ho_so AS tieuDeHoSo
+           FROM campus_chat_message m
+           LEFT JOIN lop l ON l.id = m.lop_id
+           LEFT JOIN tai_khoan_campus tk ON tk.id = m.sender_account_id
           WHERE m.deleted_at IS NULL
           ORDER BY m.id DESC LIMIT ?1`,
       )

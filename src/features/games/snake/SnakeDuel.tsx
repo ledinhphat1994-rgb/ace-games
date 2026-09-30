@@ -164,6 +164,15 @@ export function SnakeDuel({ onSaveScore, onBack }: SnakeDuelProps) {
             </div>
           }
           onReset={handleStartGame}
+          phuPvp={
+            <div className="space-y-1.5">
+              <p className="px-1 text-[11px] font-bold text-text-tertiary">
+                Số rắn bot tham gia cùng
+              </p>
+              <ChonSoMay soMay={aiCount} onChon={(soMay) => doiThietLap({ ...thietLap, soMay })} />
+            </div>
+          }
+          nhanChipPvp={`${aiCount} Bot`}
           resetLabel={isGameOver ? 'Ván mới' : isRunning ? 'Chơi lại' : 'Bắt đầu'}
           resetIcon={isRunning || isGameOver ? <RotateCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
           resetNoiBat={!isRunning && !isGameOver}

@@ -15,6 +15,10 @@ export interface NguoiDung {
   lopId: number | null
   lop: { id: number; ten: string; slug: string | null; namHoc: string | null; truong: string | null } | null
   actorKey: string
+  ngaySinh?: string | null
+  noiSinhSong?: string | null
+  sdtLienHe?: string | null
+  soThich?: string | null
   /** Vừa đăng nhập bằng Google (≤ 15 phút): đặt mật khẩu mới không cần mật khẩu cũ. */
   datMatKhauKhongCanCu?: boolean
 }
@@ -121,6 +125,10 @@ export function doiAvatar(avatarUrl: string): Promise<{ ok: boolean; avatar: str
 export function capNhatHoSo(duLieu: {
   tenHienThi?: string
   tieuDeHoSo?: string
+  ngaySinh?: string | null
+  noiSinhSong?: string | null
+  sdtLienHe?: string | null
+  soThich?: string | null
 }): Promise<{ ok: boolean }> {
   return goiApi('/api/profile/update', {
     method: 'POST',

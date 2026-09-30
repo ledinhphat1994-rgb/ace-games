@@ -23,6 +23,8 @@ export interface TinCampus {
   noiDung: string
   /** ms theo giờ máy chủ */
   taoLuc: number
+  avatar?: string | null
+  tieuDeHoSo?: string | null
 }
 
 /** Thông tin một phòng học trên sảnh — không bao giờ chứa mật khẩu hay khoá nội bộ của chủ phòng. */

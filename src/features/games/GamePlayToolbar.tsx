@@ -1,5 +1,5 @@
 import React from 'react'
-import { ArrowLeft, Flag, Maximize2, Minimize2, RotateCcw, Zap } from 'lucide-react'
+import { ArrowLeft, Flag, Maximize2, Minimize2, Play, RotateCcw, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { CumPvePvp } from './CumPvePvp'
@@ -45,6 +45,10 @@ interface GamePlayToolbarProps {
   phuPve?: React.ReactNode
   /** Chữ ở chip cạnh PvE thay cho cấp độ (ví dụ "Vừa · 6"). */
   nhanChipPve?: string
+  /** Phần riêng của game trong bảng chọn PvP (ví dụ thêm số bot). */
+  phuPvp?: React.ReactNode
+  /** Chữ ở chip cạnh PvP (ví dụ "6 Bot"). */
+  nhanChipPvp?: string
   /** Nút hành động chính (Bắt đầu…) làm nổi bằng màu nhấn thay cho nút viền. */
   resetNoiBat?: boolean
   className?: string
@@ -79,6 +83,8 @@ export function GamePlayToolbar({
   chiPve = false,
   phuPve,
   nhanChipPve,
+  phuPvp,
+  nhanChipPvp,
   resetNoiBat = false,
   className,
 }: GamePlayToolbarProps) {
@@ -133,26 +139,31 @@ export function GamePlayToolbar({
       chiPve={chiPve}
       phuPve={phuPve}
       nhanChip={nhanChipPve}
+      phuPvp={phuPvp}
+      nhanChipPvp={nhanChipPvp}
     />
   )
 
+  const laBatDau = resetNoiBat || resetLabel === 'Bắt đầu'
   const nutReset = (
     <Button
-      variant={resetNoiBat ? 'default' : 'outline'}
+      variant={laBatDau ? 'default' : 'outline'}
       size="sm"
       onClick={onReset}
       disabled={resetDisabled}
       aria-label={resetLabel ?? 'Xin thua'}
       data-testid="nut-hanh-dong-chinh"
       className={cn(
-        'h-8 gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95 shrink-0 px-2',
-        resetNoiBat
-          ? 'bg-brand text-brand-foreground shadow-md shadow-brand/25 hover:bg-brand/90'
-          : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10',
+        'gap-2 text-xs font-black transition-all hover:scale-105 active:scale-95 shrink-0 cursor-pointer',
+        laBatDau
+          ? 'h-9 px-3.5 sm:px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/30 uppercase tracking-wider'
+          : resetLabel === 'Ván mới'
+            ? 'h-8 px-2.5 bg-brand text-brand-foreground hover:bg-brand/90 font-bold'
+            : 'h-8 px-2 border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 font-bold',
       )}
     >
-      {resetIcon ?? (resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5" /> : <Flag className="size-3.5 text-rose-400" />)}
-      <span className="hidden min-[420px]:inline">{resetLabel ?? 'Xin thua'}</span>
+      {resetIcon ?? (laBatDau ? <Play className="size-4 fill-white text-white drop-shadow" /> : resetLabel === 'Ván mới' ? <RotateCcw className="size-3.5" /> : <Flag className="size-3.5 text-rose-400" />)}
+      <span>{resetLabel ?? 'Xin thua'}</span>
       {surrenderAttempts !== undefined && surrenderAttempts > 0 && resetLabel !== 'Ván mới' && (
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
           {surrenderAttempts}/3

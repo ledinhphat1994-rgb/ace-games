@@ -7,21 +7,19 @@ import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LogoGoogle } from '@/features/auth/LogoGoogle'
 import { AvatarPickerDialog } from '@/features/profile/AvatarPickerDialog'
 import { DoiMatKhauDialog } from '@/features/profile/DoiMatKhauDialog'
 import { ProgressPanel } from '@/features/profile/ProgressPanel'
 import { capNhatHoSo, doiAvatar, goLienKetGoogle, layTrangThaiGoogle } from '@/lib/api'
-import { cn, getInitials, tenLop } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 import { TEN_HIEN_THI_TOI_DA } from '@shared/protocol/common'
 import type { EngagementProfile } from '@shared/protocol/engagement'
 import {
   Award,
   Camera,
   Flame,
-  KeyRound,
   Lightbulb,
   Pencil,
   ShieldCheck,
@@ -29,6 +27,8 @@ import {
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+const EMOJI_GOI_Y = ['💡', '✨', '🔥', '📚', '🎯', '🚀', '⭐', '🏆', '💪', '❤️', '😊', '🎓']
 
 export function ProfilePage() {
   const { nguoiDung, lamMoiPhien, moAuthModal } = usePhien()
@@ -40,9 +40,12 @@ export function ProfilePage() {
   const [moDoiMatKhauModal, setMoDoiMatKhauModal] = useState(tabTrenUrl === 'security')
 
   // Quản lý suy nghĩ nhanh của avatar
-  const [moGhimSuyNghi, setMoGhimSuyNghi] = useState(false)
   const [dangSuaSuyNghi, setDangSuaSuyNghi] = useState(false)
   const [suyNghiTam, setSuyNghiTam] = useState('')
+
+  // Sửa tên hiển thị trực tiếp sát avatar
+  const [dangSuaTen, setDangSuaTen] = useState(false)
+  const [tenTam, setTenTam] = useState('')
 
   useEffect(() => {
     if (tabTrenUrl === 'avatar') setMoAvatarModal(true)
@@ -67,16 +70,26 @@ export function ProfilePage() {
   // Profile edit states
   const [tenHienThi, setTenHienThi] = useState(nguoiDung?.ten || nguoiDung?.username || '')
   const [tieuDeHoSo, setTieuDeHoSo] = useState(nguoiDung?.tieuDeHoSo ?? '')
+  const [ngaySinh, setNgaySinh] = useState(nguoiDung?.ngaySinh ?? '')
+  const [noiSinhSong, setNoiSinhSong] = useState(nguoiDung?.noiSinhSong ?? '')
+  const [sdtLienHe, setSdtLienHe] = useState(nguoiDung?.sdtLienHe ?? '')
+  const [soThich, setSoThich] = useState(nguoiDung?.soThich ?? '')
   const [dangLuuProfile, setDangLuuProfile] = useState(false)
 
   // Phiên được làm mới: nạp lại giá trị mới vào form.
-  const nguonHoSo = `${nguoiDung?.ten ?? ''}|${nguoiDung?.username ?? ''}|${nguoiDung?.tieuDeHoSo ?? ''}`
+  const nguonHoSo = `${nguoiDung?.ten ?? ''}|${nguoiDung?.username ?? ''}|${nguoiDung?.tieuDeHoSo ?? ''}|${nguoiDung?.ngaySinh ?? ''}|${nguoiDung?.noiSinhSong ?? ''}|${nguoiDung?.sdtLienHe ?? ''}|${nguoiDung?.soThich ?? ''}`
   const [nguonDaNap, setNguonDaNap] = useState(nguonHoSo)
   if (nguonHoSo !== nguonDaNap) {
     setNguonDaNap(nguonHoSo)
-    setTenHienThi(nguoiDung?.ten || nguoiDung?.username || '')
+    const tenMoi = nguoiDung?.ten || nguoiDung?.username || ''
+    setTenHienThi(tenMoi)
+    setTenTam(tenMoi)
     setTieuDeHoSo(nguoiDung?.tieuDeHoSo ?? '')
     setSuyNghiTam(nguoiDung?.tieuDeHoSo ?? '')
+    setNgaySinh(nguoiDung?.ngaySinh ?? '')
+    setNoiSinhSong(nguoiDung?.noiSinhSong ?? '')
+    setSdtLienHe(nguoiDung?.sdtLienHe ?? '')
+    setSoThich(nguoiDung?.soThich ?? '')
   }
 
   if (!nguoiDung) {
@@ -101,8 +114,15 @@ export function ProfilePage() {
     if (dangLuuProfile) return
     setDangLuuProfile(true)
     try {
-      await capNhatHoSo({ tenHienThi, tieuDeHoSo })
-      toast.success('Đã cập nhật hồ sơ cá nhân!')
+      await capNhatHoSo({
+        tenHienThi,
+        tieuDeHoSo,
+        ngaySinh: ngaySinh || null,
+        noiSinhSong: noiSinhSong || null,
+        sdtLienHe: sdtLienHe || null,
+        soThich: soThich || null,
+      })
+      toast.success('Đã cập nhật thông tin cá nhân!')
       if (lamMoiPhien) await lamMoiPhien()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Không cập nhật được hồ sơ.')
@@ -200,93 +220,70 @@ export function ProfilePage() {
                 <Camera className="size-3.5 sm:size-4" />
               </button>
 
-              {/* Icon bóng đèn ở góc trên avatar: hiển thị suy nghĩ nhanh */}
-              <Popover open={moGhimSuyNghi} onOpenChange={setMoGhimSuyNghi}>
-                <PopoverTrigger
-                  type="button"
-                  onMouseEnter={() => {
-                    setMoGhimSuyNghi(true)
-                    setSuyNghiTam(tieuDeHoSo)
-                  }}
-                  onClick={() => {
-                    setMoGhimSuyNghi((v) => !v)
-                    setSuyNghiTam(tieuDeHoSo)
-                  }}
-                  aria-label="Suy nghĩ nhanh của avatar"
-                  title="Suy nghĩ nhanh (nhấn để sửa)"
-                  className={cn(
-                    'absolute -top-2 -right-2 z-20 flex size-7 items-center justify-center rounded-full border shadow-md backdrop-blur transition-all duration-200 hover:scale-110 active:scale-95 sm:size-8 cursor-pointer outline-none',
-                    moGhimSuyNghi
-                      ? 'border-amber-400 bg-amber-500/35 text-amber-300 ring-2 ring-amber-400/50'
-                      : 'border-amber-400/50 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 hover:text-amber-300',
-                  )}
-                >
-                  <Lightbulb className="size-3.5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)] animate-pulse sm:size-4" />
-                </PopoverTrigger>
+              {/* Icon bóng đèn ở góc trên avatar */}
+              <div
+                className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border border-amber-400 bg-amber-500/25 text-amber-300 shadow-md sm:size-7"
+                title="Suy nghĩ nhanh"
+              >
+                <Lightbulb className="size-3 text-amber-400 animate-pulse sm:size-3.5" />
+              </div>
+            </div>
 
-                <PopoverContent
-                  side="top"
-                  align="center"
-                  sideOffset={10}
-                  className="w-72 sm:w-80 rounded-2xl border border-amber-500/35 bg-surface-raised/98 p-3 shadow-2xl shadow-amber-500/15 backdrop-blur-md text-text-primary z-50"
-                >
-                  <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-                      <Lightbulb className="size-3.5 shrink-0" />
-                      <span className="truncate">Suy nghĩ của {displayName}</span>
-                    </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {dangSuaTen ? (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault()
+                      if (!tenTam.trim()) return
+                      setDangLuuProfile(true)
+                      try {
+                        await capNhatHoSo({ tenHienThi: tenTam.trim() })
+                        setTenHienThi(tenTam.trim())
+                        setDangSuaTen(false)
+                        toast.success('Đã cập nhật tên!')
+                        if (lamMoiPhien) await lamMoiPhien()
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : 'Lỗi khi cập nhật tên')
+                      } finally {
+                        setDangLuuProfile(false)
+                      }
+                    }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Input
+                      value={tenTam}
+                      onChange={(e) => setTenTam(e.target.value)}
+                      maxLength={TEN_HIEN_THI_TOI_DA}
+                      className="h-8 w-44 text-sm font-semibold bg-canvas/60"
+                      autoFocus
+                    />
+                    <Button type="submit" size="xs" disabled={dangLuuProfile}>
+                      Lưu
+                    </Button>
+                    <Button type="button" variant="ghost" size="xs" onClick={() => setDangSuaTen(false)}>
+                      Hủy
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-xl leading-7 font-semibold tracking-[-0.015em] break-words text-text-primary">
+                      {displayName}
+                    </h2>
                     <button
                       type="button"
                       onClick={() => {
-                        setDangSuaSuyNghi((v) => !v)
-                        setSuyNghiTam(tieuDeHoSo)
+                        setTenTam(displayName)
+                        setDangSuaTen(true)
                       }}
-                      className="flex items-center gap-1 text-[11px] font-medium text-text-tertiary transition-colors hover:text-text-primary shrink-0"
-                      title="Chỉnh sửa suy nghĩ"
+                      className="p-1 text-text-tertiary hover:text-brand transition-colors rounded-lg hover:bg-surface-raised cursor-pointer"
+                      title="Chỉnh sửa tên hiển thị"
+                      aria-label="Sửa tên"
                     >
-                      <Pencil className="size-3" />
-                      {dangSuaSuyNghi ? 'Đóng' : 'Sửa'}
+                      <Pencil className="size-3.5" />
                     </button>
                   </div>
-
-                  {dangSuaSuyNghi ? (
-                    <form onSubmit={handleLuuSuyNghiNhanh} className="mt-2 space-y-2">
-                      <Input
-                        value={suyNghiTam}
-                        onChange={(e) => setSuyNghiTam(e.target.value)}
-                        placeholder="Nhập suy nghĩ, lời nói của bạn…"
-                        maxLength={150}
-                        className="h-8 text-xs bg-canvas/60"
-                        autoFocus
-                      />
-                      <div className="flex justify-end gap-1.5">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDangSuaSuyNghi(false)}
-                        >
-                          Hủy
-                        </Button>
-                        <Button type="submit" size="xs" disabled={dangLuuProfile}>
-                          {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <p className="mt-1.5 text-xs italic leading-relaxed text-text-primary break-words">
-                      {tieuDeHoSo ? `“${tieuDeHoSo}”` : '“Chưa có suy nghĩ nào. Nhấn biểu tượng bút chì để thêm lời nói của bạn!”'}
-                    </p>
-                  )}
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl leading-7 font-semibold tracking-[-0.015em] break-words text-text-primary">
-                  {displayName}
-                </h2>
+                )}
                 {nguoiDung.isVerifiedTeacher && <Badge variant="default">Giáo viên</Badge>}
                 {nguoiDung.isSchoolAdmin && (
                   <Badge variant="achievement">
@@ -294,24 +291,70 @@ export function ProfilePage() {
                   </Badge>
                 )}
               </div>
-              <p className="mt-1 text-sm break-words text-text-secondary">
+              <p className="mt-0.5 text-xs text-text-secondary">
                 @{nguoiDung.username}
-                {nguoiDung.lop?.ten && <> · {tenLop(nguoiDung.lop.ten)}</>}
               </p>
-              {tieuDeHoSo ? (
-                <p className="mt-2 text-sm break-words text-text-primary/90">“{tieuDeHoSo}”</p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMoGhimSuyNghi(true)
-                    setDangSuaSuyNghi(true)
-                  }}
-                  className="mt-2 text-sm text-text-tertiary transition-colors hover:text-brand"
-                >
-                  + Thêm suy nghĩ học tập
-                </button>
-              )}
+
+              {/* Khung suy nghĩ hiển thị trực tiếp (không dùng popup hover) */}
+              <div className="mt-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-2.5 text-xs text-text-primary">
+                {dangSuaSuyNghi ? (
+                  <form onSubmit={handleLuuSuyNghiNhanh} className="space-y-2">
+                    <Input
+                      value={suyNghiTam}
+                      onChange={(e) => setSuyNghiTam(e.target.value)}
+                      placeholder="Nhập suy nghĩ, lời nói của bạn…"
+                      maxLength={150}
+                      className="h-8 text-xs bg-canvas/80"
+                      autoFocus
+                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] text-text-tertiary mr-1">Chèn icon:</span>
+                      {EMOJI_GOI_Y.map((em) => (
+                        <button
+                          key={em}
+                          type="button"
+                          onClick={() => setSuyNghiTam((prev) => (prev ? prev + ' ' + em : em))}
+                          className="size-6 text-xs rounded hover:bg-surface-raised transition-all flex items-center justify-center cursor-pointer"
+                          title={`Chèn ${em}`}
+                        >
+                          {em}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-end gap-1.5 pt-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setDangSuaSuyNghi(false)}
+                      >
+                        Hủy
+                      </Button>
+                      <Button type="submit" size="xs" disabled={dangLuuProfile}>
+                        {dangLuuProfile ? 'Đang lưu…' : 'Lưu'}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="italic text-text-primary/90 break-words line-clamp-2">
+                      {tieuDeHoSo ? `“${tieuDeHoSo}”` : '“Chưa có suy nghĩ nào.”'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSuyNghiTam(tieuDeHoSo)
+                        setDangSuaSuyNghi(true)
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors shrink-0 cursor-pointer ml-2"
+                      title="Chỉnh sửa suy nghĩ"
+                    >
+                      <Pencil className="size-3" />
+                      <span>Sửa</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -327,44 +370,69 @@ export function ProfilePage() {
       <div className="space-y-6">
         <section className="rounded-2xl border border-border-subtle bg-surface p-5 sm:p-6">
           <h3 className="text-[0.9375rem] leading-6 font-semibold text-text-primary">Thông tin cá nhân</h3>
-          <form onSubmit={handleUpdateProfile} className="mt-4 max-w-md space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ho-so-ten" className="text-sm font-medium">Tên hiển thị</Label>
+          <form onSubmit={handleUpdateProfile} className="mt-4 max-w-lg space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ho-so-ten" className="text-sm font-medium">Họ và tên</Label>
+                <Input
+                  id="ho-so-ten"
+                  value={tenHienThi}
+                  onChange={(e) => setTenHienThi(e.target.value)}
+                  placeholder="Nhập họ và tên…"
+                  autoComplete="name"
+                  maxLength={TEN_HIEN_THI_TOI_DA}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ho-so-ngaysinh" className="text-sm font-medium">Ngày tháng năm sinh</Label>
+                <Input
+                  id="ho-so-ngaysinh"
+                  type="date"
+                  value={ngaySinh}
+                  onChange={(e) => setNgaySinh(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="ho-so-noisinhsong" className="text-sm font-medium">Nơi sinh sống</Label>
+                <Input
+                  id="ho-so-noisinhsong"
+                  value={noiSinhSong}
+                  onChange={(e) => setNoiSinhSong(e.target.value)}
+                  placeholder="Ví dụ: Định Quán, Đồng Nai"
+                  maxLength={100}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ho-so-sdt" className="text-sm font-medium">SĐT liên hệ</Label>
+                <Input
+                  id="ho-so-sdt"
+                  type="tel"
+                  value={sdtLienHe}
+                  onChange={(e) => setSdtLienHe(e.target.value)}
+                  placeholder="Ví dụ: 0912 345 678"
+                  maxLength={20}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ho-so-sothich" className="text-sm font-medium">Sở thích</Label>
               <Input
-                id="ho-so-ten"
-                value={tenHienThi}
-                onChange={(e) => setTenHienThi(e.target.value)}
-                placeholder="Nhập họ và tên…"
-                autoComplete="name"
-                maxLength={TEN_HIEN_THI_TOI_DA}
-                required
+                id="ho-so-sothich"
+                value={soThich}
+                onChange={(e) => setSoThich(e.target.value)}
+                placeholder="Ví dụ: Đọc sách, lập trình, cờ vua, thể thao…"
+                maxLength={200}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ho-so-cham-ngon" className="text-sm font-medium">Châm ngôn học tập</Label>
-              <Input
-                id="ho-so-cham-ngon"
-                value={tieuDeHoSo}
-                onChange={(e) => {
-                  setTieuDeHoSo(e.target.value)
-                  setSuyNghiTam(e.target.value)
-                }}
-                maxLength={150}
-                placeholder="Ví dụ: Quyết tâm đạt điểm 9 môn Toán!"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <Button type="submit" disabled={dangLuuProfile}>
                 {dangLuuProfile ? 'Đang lưu…' : 'Lưu thay đổi'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setMoDoiMatKhauModal(true)}
-                className="gap-2"
-              >
-                <KeyRound className="size-4" />
-                Đổi mật khẩu
               </Button>
             </div>
           </form>

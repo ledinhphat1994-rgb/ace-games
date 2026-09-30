@@ -271,6 +271,10 @@ export async function whoami(request: Request, env: Env): Promise<Response> {
     lop,
     actorKey: actorKey(phien),
     datMatKhauKhongCanCu: vuaDangNhapGoogle(phien),
+    ngaySinh: tk.ngaySinh ?? null,
+    noiSinhSong: tk.noiSinhSong ?? null,
+    sdtLienHe: tk.sdtLienHe ?? null,
+    soThich: tk.soThich ?? null,
   })
 }
 
@@ -901,7 +905,14 @@ export async function capNhatHoSo(request: Request, env: Env): Promise<Response>
   const kq = await kiemTraPhien(await layPhien(request, env), env)
   if (!kq.hopLe) return loi(kq.thongBao, 401)
 
-  let body: { tenHienThi?: string; tieuDeHoSo?: string }
+  let body: {
+    tenHienThi?: string
+    tieuDeHoSo?: string
+    ngaySinh?: string | null
+    noiSinhSong?: string | null
+    sdtLienHe?: string | null
+    soThich?: string | null
+  }
   try {
     body = await request.json()
   } catch {
@@ -912,6 +923,11 @@ export async function capNhatHoSo(request: Request, env: Env): Promise<Response>
   const tenHienThi = typeof body.tenHienThi === 'string' ? chuanHoaTenHienThi(body.tenHienThi) : null
   const hasTieuDeHoSo = typeof body.tieuDeHoSo === 'string' || body.tieuDeHoSo === null
   const tieuDeHoSo = hasTieuDeHoSo ? (body.tieuDeHoSo ? chuanHoaTenHienThi(String(body.tieuDeHoSo)) : '') : null
+
+  const ngaySinh = typeof body.ngaySinh === 'string' ? body.ngaySinh.trim().slice(0, 50) : body.ngaySinh === null ? '' : null
+  const noiSinhSong = typeof body.noiSinhSong === 'string' ? body.noiSinhSong.trim().slice(0, 200) : body.noiSinhSong === null ? '' : null
+  const sdtLienHe = typeof body.sdtLienHe === 'string' ? body.sdtLienHe.trim().slice(0, 30) : body.sdtLienHe === null ? '' : null
+  const soThich = typeof body.soThich === 'string' ? body.soThich.trim().slice(0, 300) : body.soThich === null ? '' : null
 
   if (
     tenHienThi !== null &&
@@ -930,10 +946,14 @@ export async function capNhatHoSo(request: Request, env: Env): Promise<Response>
              WHEN ?2 IS NOT NULL THEN (CASE WHEN ?2 = '' THEN NULL ELSE ?2 END)
              ELSE tieu_de_ho_so
            END,
+           ngay_sinh = CASE WHEN ?3 IS NOT NULL THEN (CASE WHEN ?3 = '' THEN NULL ELSE ?3 END) ELSE ngay_sinh END,
+           noi_sinh_song = CASE WHEN ?4 IS NOT NULL THEN (CASE WHEN ?4 = '' THEN NULL ELSE ?4 END) ELSE noi_sinh_song END,
+           sdt_lien_he = CASE WHEN ?5 IS NOT NULL THEN (CASE WHEN ?5 = '' THEN NULL ELSE ?5 END) ELSE sdt_lien_he END,
+           so_thich = CASE WHEN ?6 IS NOT NULL THEN (CASE WHEN ?6 = '' THEN NULL ELSE ?6 END) ELSE so_thich END,
            cap_nhat_luc = CURRENT_TIMESTAMP
-     WHERE id = ?3
+     WHERE id = ?7
   `)
-    .bind(tenHienThi, tieuDeHoSo, kq.taiKhoan.id)
+    .bind(tenHienThi, tieuDeHoSo, ngaySinh, noiSinhSong, sdtLienHe, soThich, kq.taiKhoan.id)
     .run()
 
   return json({ ok: true })

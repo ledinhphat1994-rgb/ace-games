@@ -11,14 +11,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { KetQuaThaoTac } from '@/hooks/use-campus'
-import { cn, getInitials } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { TinCampus } from '@shared/protocol/campus'
 import { CHAT_CAMPUS } from '@shared/rooms/constants'
-import { ArrowDown, Loader2, MessageSquare, SendHorizontal, Smile, Trash2 } from 'lucide-react'
+import { ArrowDown, Lightbulb, Loader2, MessageSquare, SendHorizontal, Smile, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { HoSoNguoiDungDialog, type NguoiXem } from '@/components/social/HoSoNguoiDungDialog'
+import { AnhNguoiDung } from '@/components/social/AnhNguoiDung'
 
 const DANH_SACH_EMOJI = [
   '😊', '😂', '🔥', '👍', '👏', '🎉',
@@ -208,25 +209,43 @@ export function CampusChatDrawer({
                         (noiTiep ? (
                           <span aria-hidden className="w-8 shrink-0" />
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              setNguoiXem({
-                                id: msg.accountId,
-                                ten: msg.ten,
-                                lopTen: msg.lopTen,
-                                vaiTro: msg.vaiTro,
-                                anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
-                              })
-                            }}
-                            aria-label={`Xem thông tin ${msg.ten}`}
-                            title={msg.ten}
-                            data-testid={`chat-anh-${msg.accountId}`}
-                            className="flex size-8 shrink-0 cursor-pointer items-center justify-center self-start rounded-full bg-surface-overlay text-[11px] font-semibold text-text-secondary transition-colors hover:bg-brand/20 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
-                          >
-                            {getInitials(msg.ten)}
-                          </button>
+                          <div className="relative shrink-0 self-start">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setNguoiXem({
+                                  id: msg.accountId,
+                                  ten: msg.ten,
+                                  lopTen: msg.lopTen,
+                                  vaiTro: msg.vaiTro,
+                                  anchorRect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom },
+                                })
+                              }}
+                              aria-label={`Xem thông tin ${msg.ten}`}
+                              title={msg.tieuDeHoSo ? `${msg.ten}: “${msg.tieuDeHoSo}”` : msg.ten}
+                              data-testid={`chat-anh-${msg.accountId}`}
+                              className="block cursor-pointer rounded-full transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+                            >
+                              <AnhNguoiDung ten={msg.ten} avatar={msg.avatar} className="size-8 text-[11px]" />
+                            </button>
+                            {/* Icon nhỏ góc trên như đã code (bóng đèn suy nghĩ hoặc giáo viên) */}
+                            {msg.tieuDeHoSo ? (
+                              <span
+                                className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-amber-400 bg-amber-500/90 text-amber-100 shadow-sm pointer-events-none"
+                                title={`Suy nghĩ: ${msg.tieuDeHoSo}`}
+                              >
+                                <Lightbulb className="size-2 text-white fill-amber-200" />
+                              </span>
+                            ) : msg.vaiTro === 'giao_vien' ? (
+                              <span
+                                className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full border border-brand bg-brand text-white shadow-sm pointer-events-none"
+                                title="Giáo viên"
+                              >
+                                <Sparkles className="size-2 text-white" />
+                              </span>
+                            ) : null}
+                          </div>
                         ))}
 
                       <div className={cn('flex max-w-[80%] min-w-0 flex-col', laCuaMinh ? 'items-end' : 'items-start')}>
